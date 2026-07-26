@@ -266,11 +266,6 @@
     max-width:1220px; margin:0 auto;
     padding:36px 32px 90px;
   }
-  .list-header-grid{
-    display:grid; grid-template-columns: 1fr 300px;
-    gap:10px 16px; margin-bottom:6px;
-  }
-  .list-header-grid .rail-line{min-width:0;}
   #brand-list{
     display:grid; grid-template-columns: 1fr 300px;
     gap:10px 16px;
@@ -309,8 +304,6 @@
     content:""; flex:1; height:1px; background:var(--line);
   }
   .rail-line.no-line::after{display:none;}
-  #result-count{color:var(--ink); font-weight:600;}
-  #result-brand-count{color:var(--ink); font-weight:600;}
   .rail-line-normalcase{text-transform:none;}
 
   .brand-row{
@@ -519,7 +512,6 @@
   }
 
   @media (max-width: 860px){
-    .list-header-grid{grid-template-columns: 1fr 150px; gap:8px 8px;}
     #brand-list{grid-template-columns: 1fr 150px; gap:8px 8px;}
     .founder-cell{padding:10px; gap:10px;}
     .founder-role{display:none;}
@@ -604,7 +596,6 @@
     .row-name{font-size:16.5px;}
     .row-year{display:none;}
     .row-go{display:none;}
-    .list-header-grid{grid-template-columns: 1fr 108px;}
     #brand-list{grid-template-columns: 1fr 108px;}
     .founder-cell{padding:8px; gap:8px;}
     .founder-avatar{width:22px; height:22px; font-size:9px;}
@@ -730,10 +721,6 @@
   </div>
 
   <section class="list-section" id="architects">
-    <div class="list-header-grid">
-      <div class="rail-line no-line rail-line-normalcase"><span id="result-count">10</span>&nbsp;ofis, <span id="result-cat-count">4</span>&nbsp;farklı uzmanlık alanında listeleniyor.</div>
-      <div class="rail-line no-line rail-line-normalcase"><span id="founder-count">11</span>&nbsp;ofis ortağı listeleniyor.</div>
-    </div>
     <div id="brand-list"></div>
     <div class="empty-state" id="empty-state">Bu kritere uyan ofis bulunamadı.</div>
     <div class="pagination" id="pagination"></div>
@@ -941,11 +928,6 @@ function render(){
 
   const list = document.getElementById('brand-list');
   const empty = document.getElementById('empty-state');
-  document.getElementById('result-count').textContent = filtered.length;
-  const distinctCatCount = new Set(filtered.flatMap(o=>o.cats.split(' · '))).size;
-  document.getElementById('result-cat-count').textContent = distinctCatCount;
-  const founderCount = filtered.reduce((n,o)=>n + architects.filter(a=>a.office===o.name).length, 0);
-  document.getElementById('founder-count').textContent = founderCount;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   if(currentPage > totalPages) currentPage = totalPages;
