@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light only">
-<title>Mimarlab — Mimarlık, iç mimarlık ve peyzaj mimarlığı ofisleri sıralaması</title>
+<title>Mimarlab — İstanbul'un öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı ofisleri</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -319,10 +319,7 @@
     width:38px; flex-shrink:0; text-align:right;
     font-variant-numeric:tabular-nums;
   }
-  .brand-row[data-rank="1"] .rank-num,
-  .brand-row[data-rank="2"] .rank-num,
-  .brand-row[data-rank="3"] .rank-num{ color:var(--accent); }
-
+  
   .row-main{flex:1; min-width:0;}
   .row-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   .row-name{
@@ -341,34 +338,8 @@
     font-size:12.5px; color:var(--ink-soft); margin-top:4px;
   }
 
-  .mini-scores{
-    display:flex; gap:14px; margin-top:9px;
-  }
-  .mini-score{display:flex; flex-direction:column; gap:3px; width:64px;}
-  .mini-score-label{
-    font-size:10px; text-transform:uppercase; letter-spacing:0.06em;
-    color:var(--ink-soft); font-weight:600;
-  }
-  .mini-score-bar{
-    height:4px; background:var(--paper-alt); border-radius:2px; overflow:hidden;
-  }
-  .mini-score-fill{height:100%; background:var(--walnut); border-radius:2px;}
-
-  .row-score{
-    flex-shrink:0; text-align:center; width:76px;
-  }
-  .score-num{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:24px; font-weight:600; color:var(--ink);
-    display:block; line-height:1;
-  }
-  .score-label{
-    font-size:10px; color:var(--ink-soft); text-transform:uppercase;
-    letter-spacing:0.06em; margin-top:4px; display:block;
-  }
-  .score-stars{color:var(--accent); font-size:11px; margin-top:3px; letter-spacing:1px;}
-  .score-reviews{font-size:10px; color:var(--ink-soft); margin-top:3px;}
-
+          
+          
   .row-go{
     flex-shrink:0; color:var(--ink-soft); font-size:22px;
     display:flex; align-items:center; font-weight:500;
@@ -421,49 +392,8 @@
     padding-bottom:6px; scrollbar-width:none;
   }
   .carousel-track::-webkit-scrollbar{display:none;}
-  .company-card{
-    flex:0 0 230px; scroll-snap-align:start;
-    background:var(--paper-card); border:1px solid var(--line-soft);
-    border-radius:12px; padding:16px;
-    text-decoration:none; color:inherit;
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .company-card:hover{
-    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
-    border-color:var(--line);
-  }
-  .company-card-logo{
-    width:44px; height:44px; border-radius:10px; overflow:hidden;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-family:'IBM Plex Mono', monospace;
-    font-weight:600; font-size:15px; margin-bottom:12px;
-  }
-  .company-card-logo img{width:100%; height:100%; object-fit:cover;}
-  .company-card-name{font-family:'Fraunces', serif; font-weight:600; font-size:16px; margin-bottom:2px;}
-  .company-card-meta{font-size:12px; color:var(--ink-soft); margin-bottom:10px;}
-  .company-card-rating{display:flex; align-items:center; gap:6px; font-size:12.5px;}
-  .company-card-rating .stars{color:var(--accent); letter-spacing:1px;}
-  .company-card-rating .num{font-weight:700;}
-  .company-card-rating .count{color:var(--ink-soft);}
 
-  .review-track-card{
-    flex:0 0 260px; scroll-snap-align:start;
-    background:var(--paper-card); border:1px solid var(--line-soft);
-    border-radius:12px; padding:16px;
-  }
-  .review-top{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
-  .review-avatar{
-    width:34px; height:34px; border-radius:50%; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-weight:600; font-size:13px;
-    font-family:'IBM Plex Mono', monospace;
-  }
-  .review-who{min-width:0;}
-  .review-name{font-size:13.5px; font-weight:600; color:var(--ink);}
-  .review-stars{color:var(--accent); font-size:11px; margin-bottom:6px; letter-spacing:1px;}
-  .review-text{font-size:13px; color:var(--ink-soft); line-height:1.5;}
-
-  /* ---------- CATEGORY & PRODUCT CARDS (chamfered corners) ---------- */
+  /* ---------- CATEGORY CARDS (chamfered corners) ---------- */
   .chamfer-track{
     display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
     padding-bottom:6px; scrollbar-width:none;
@@ -487,31 +417,7 @@
   }
   .category-card-name{font-size:13px; font-weight:600; color:var(--ink);}
 
-  .product-card{
-    flex:0 0 216px; scroll-snap-align:start;
-    background:var(--paper-card); border:1px solid var(--line-soft);
-    border-radius:20px;
-    overflow:hidden; text-decoration:none; color:inherit;
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .product-card:hover{
-    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
-    border-color:var(--line);
-  }
-  .product-card-img{
-    height:130px; background:var(--paper-alt);
-    display:flex; align-items:center; justify-content:center; color:var(--brass);
-  }
-  .product-card-img svg{width:52px; height:52px;}
-  .product-card-body{padding:14px 16px 16px;}
-  .product-card-cat{
-    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em;
-    color:var(--sage); font-weight:600; margin-bottom:6px;
-  }
-  .product-card-name{font-family:'Fraunces', serif; font-weight:600; font-size:15px; line-height:1.28; margin-bottom:4px;}
-  .product-card-brand{font-size:12px; color:var(--ink-soft); margin-bottom:10px;}
-  .product-card-price{font-weight:700; font-size:15px; color:var(--ink);}
-
+                  
   .view-all-card{
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:10px; border-style:dashed; border-color:var(--brass);
@@ -526,10 +432,7 @@
   .category-card.view-all-card{padding:16px 10px;}
   .category-card.view-all-card .view-all-icon{margin-bottom:2px;}
   .category-card.view-all-card span{font-size:13px; font-weight:600;}
-  .product-card.view-all-card{flex-direction:column; min-height:100%;}
-  .product-card.view-all-card .view-all-icon{width:40px; height:40px;}
-  .product-card.view-all-card span{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
-
+      
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{
@@ -662,26 +565,28 @@
     .tag-hole{width:28px; height:28px; font-size:10px;}
     .rank-num{width:26px; font-size:18px;}
     .row-name{font-size:16.5px;}
-    .mini-scores{display:none;}
     .row-year{display:none;}
-    .row-score{width:52px;}
-    .score-num{font-size:20px;}
     .row-go{display:none;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
-    .company-card{flex:0 0 200px;}
     .category-card{flex:0 0 92px; padding:18px 8px 14px;}
     .category-card-icon{width:32px; height:32px; margin-bottom:10px;}
     .category-card-name{font-size:12px;}
     .category-card.view-all-card span{font-size:12px;}
-    .product-card{flex:0 0 176px;}
-    .product-card-img{height:110px;}
-    .product-card-img svg{width:44px; height:44px;}
     .carousel-section{padding:20px 18px 0;}
   }
 
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important; scroll-behavior:auto !important;}
+  }
+  .jobs-empty{
+    background:var(--paper-card); border:1px dashed var(--brass);
+    border-radius:12px; padding:28px 22px; text-align:center;
+    color:var(--ink-soft); font-size:13.5px; line-height:1.6;
+  }
+  .jobs-empty strong{
+    color:var(--ink); display:block; font-family:'Fraunces', serif;
+    font-size:16px; margin-bottom:6px; font-weight:600;
   }
 </style>
 </head>
@@ -698,12 +603,12 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="index.html">Ofisler</a>
-      <a class="nav-link" href="#">Projeler</a>
-      <a class="nav-link" href="#">Nasıl Çalışır</a>
+      <a class="nav-link" href="#jobs">İş İlanları</a>
+      <a class="nav-link" href="#">Hakkında</a>
     </div>
     <div class="nav-right">
-      <button class="nav-rate">Puanla</button>
-      <button class="nav-cta">Giriş Yap</button>
+      <button class="nav-rate">İlan Ver</button>
+      <button class="nav-cta">Ofisinizi Ekleyin</button>
     </div>
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
@@ -714,15 +619,15 @@
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
       <a class="nav-mobile-link" href="index.html">Ofisler</a>
-      <a class="nav-mobile-link" href="#">Projeler</a>
-      <a class="nav-mobile-link" href="#">Nasıl Çalışır</a>
-      <button class="nav-mobile-cta">Giriş Yap</button>
+      <a class="nav-mobile-link" href="#jobs">İş İlanları</a>
+      <a class="nav-mobile-link" href="#">Hakkında</a>
+      <button class="nav-mobile-cta">Ofisinizi Ekleyin</button>
     </div>
   </nav>
 
   <section class="hero">
-    <h1>Hangi ofis <em>daha iyi</em><span class="q">?</span></h1>
-    <p>Gerçek proje sahibi değerlendirmeleriyle sıralanan mimarlık, iç mimarlık ve peyzaj mimarlığı ofisleri.</p>
+    <h1>İstanbul'un <em>öne çıkan</em> mimarlık ofisleri</h1>
+    <p>Mimarlık, iç mimarlık ve peyzaj mimarlığı ofislerini keşfedin; kariyer fırsatlarını takip edin.</p>
   </section>
 
   <div class="filter-wrap">
@@ -750,33 +655,7 @@
           <option value="İç Mimarlık">İç Mimarlık</option>
           <option value="Peyzaj Mimarlığı">Peyzaj Mimarlığı</option>
           <option value="Kentsel Tasarım">Kentsel Tasarım</option>
-          <option value="Restorasyon">Restorasyon</option>
-          <option value="Ticari Mekan Tasarımı">Ticari Mekan Tasarımı</option>
-          <option value="Konut Projeleri">Konut Projeleri</option>
           <option value="">Tümü</option>
-        </select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <div class="filter-select">
-        <select id="f-price">
-          <option value="">Bütçe</option>
-          <option value="1">₺ Bütçe Dostu</option>
-          <option value="2">₺₺ Orta Ölçek</option>
-          <option value="3">₺₺₺ Prestij Proje</option>
-          <option value="">Tümü</option>
-        </select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <div class="filter-select">
-        <select id="f-rating">
-          <option value="0">Puan</option>
-          <option value="2">+2</option>
-          <option value="2.5">+2.5</option>
-          <option value="3">+3</option>
-          <option value="3.5">+3.5</option>
-          <option value="4">+4</option>
-          <option value="4.5">+4.5</option>
-          <option value="0">Tümü</option>
         </select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
@@ -787,11 +666,10 @@
       <div class="filter-select">
         <select id="f-sort">
           <option value="" selected>Sıralama</option>
-          <option value="liked">En Popüler</option>
-          <option value="score_desc">En Yüksek Puan</option>
-          <option value="score_asc">En Düşük Puan</option>
-          <option value="reviews_desc">En Çok Yorum</option>
-          <option value="reviews_asc">En Az Yorum</option>
+          <option value="name_asc">A-Z</option>
+          <option value="name_desc">Z-A</option>
+          <option value="year_desc">En Yeni Kurulan</option>
+          <option value="year_asc">En Eski Kurulan</option>
         </select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
@@ -809,37 +687,25 @@
   </div>
 
   <section class="list-section">
-    <div class="rail-line no-line rail-line-normalcase"><span id="result-count">64</span>&nbsp;ofis, <span id="result-brand-count">24</span>&nbsp;farklı şehirde listeleniyor.</div>
+    <div class="rail-line no-line rail-line-normalcase"><span id="result-count">10</span>&nbsp;ofis, <span id="result-cat-count">4</span>&nbsp;farklı uzmanlık alanında listeleniyor.</div>
     <div id="brand-list"></div>
     <div class="empty-state" id="empty-state">Bu kritere uyan ofis bulunamadı.</div>
     <div class="pagination" id="pagination"></div>
   </section>
 
-  <section class="carousel-section">
+  <section class="carousel-section" id="jobs">
     <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Son Eklenen Yorumlar</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="carousel-reviews" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn primary" data-target="carousel-reviews" data-dir="1" aria-label="İleri">›</button>
-      </div>
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Açık Pozisyonlar</div>
     </div>
-    <div class="carousel-track" id="carousel-reviews"></div>
+    <div class="jobs-empty">
+      <strong>Şu anda yayında bir ilan bulunmuyor.</strong>
+      Ofisinizin açık pozisyonlarını buradan ücretsiz yayınlamak için bizimle iletişime geçin.
+    </div>
   </section>
 
   <section class="carousel-section">
     <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Son Eklenen Ofisler</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="carousel-newest" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn primary" data-target="carousel-newest" data-dir="1" aria-label="İleri">›</button>
-      </div>
-    </div>
-    <div class="carousel-track" id="carousel-newest"></div>
-  </section>
-
-  <section class="carousel-section">
-    <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Hizmet Alanları</div>
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Uzmanlık Alanları</div>
       <div class="carousel-arrows">
         <button class="arrow-btn" data-target="category-track" data-dir="-1" aria-label="Geri">‹</button>
         <button class="arrow-btn primary" data-target="category-track" data-dir="1" aria-label="İleri">›</button>
@@ -862,135 +728,9 @@
         <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="4" height="11" rx="0.5"/><rect x="9" y="5" width="4" height="16" rx="0.5"/><rect x="15" y="13" width="4" height="8" rx="0.5"/></svg></div>
         <div class="category-card-name">Kentsel Tasarım</div>
       </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21V10M18 21V10"/><path d="M4 10a8 5 0 0 1 16 0"/></svg></div>
-        <div class="category-card-name">Restorasyon</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M9 20v-6h6v6"/></svg></div>
-        <div class="category-card-name">Ticari Mekan</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11"/><path d="M6 11v9h12v-9"/><rect x="10" y="14" width="4" height="6"/></svg></div>
-        <div class="category-card-name">Konut Projeleri</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="10" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></div>
-        <div class="category-card-name">Ofis Tasarımı</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></div>
-        <div class="category-card-name">Danışmanlık</div>
-      </a>
       <a class="category-card view-all-card" href="#">
         <div class="view-all-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
-        <span>Tüm Hizmetler</span>
-      </a>
-    </div>
-  </section>
-
-  <section class="carousel-section">
-    <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Öne Çıkan Projeler</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="product-track" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn primary" data-target="product-track" data-dir="1" aria-label="İleri">›</button>
-      </div>
-    </div>
-    <div class="chamfer-track" id="product-track">
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11"/><path d="M6 11v9h12v-9"/><rect x="10" y="14" width="4" height="6"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">KONUT</div>
-          <div class="product-card-name">Boğaz Manzaralı Villa</div>
-          <div class="product-card-brand">Anadolu Mimarlık</div>
-          <div class="product-card-price">420 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="7" rx="2"/><path d="M5 14v3M19 14v3"/><path d="M4 10H2.5a1.5 1.5 0 0 0 0 3H4M20 10h1.5a1.5 1.5 0 0 1 0 3H20"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">İÇ MEKAN</div>
-          <div class="product-card-name">Loft Daire Yenileme</div>
-          <div class="product-card-brand">Katman İç Mimarlık</div>
-          <div class="product-card-price">145 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M9 20v-6h6v6"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">TİCARİ</div>
-          <div class="product-card-name">Butik Otel Lobi Tasarımı</div>
-          <div class="product-card-brand">Cephe Mimarlık Atölyesi</div>
-          <div class="product-card-price">310 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6"/><line x1="12" y1="16" x2="12" y2="21"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">PEYZAJ</div>
-          <div class="product-card-name">Site Ortak Bahçe Düzenlemesi</div>
-          <div class="product-card-brand">Anadolu Peyzaj Mimarlığı</div>
-          <div class="product-card-price">2.400 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21V10M18 21V10"/><path d="M4 10a8 5 0 0 1 16 0"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">RESTORASYON</div>
-          <div class="product-card-name">Tarihi Konak Restorasyonu</div>
-          <div class="product-card-brand">Marmara Architects</div>
-          <div class="product-card-price">560 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="4" height="11" rx="0.5"/><rect x="9" y="5" width="4" height="16" rx="0.5"/><rect x="15" y="13" width="4" height="8" rx="0.5"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">KENTSEL</div>
-          <div class="product-card-name">Meydan Yenileme Projesi</div>
-          <div class="product-card-brand">Modül Architects</div>
-          <div class="product-card-price">8.200 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="10" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">OFİS</div>
-          <div class="product-card-name">Teknoloji Şirketi Genel Merkezi</div>
-          <div class="product-card-brand">Işık Architects</div>
-          <div class="product-card-price">1.850 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11"/><path d="M6 11v9h12v-9"/><rect x="10" y="14" width="4" height="6"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">KONUT</div>
-          <div class="product-card-name">Müstakil Aile Evi</div>
-          <div class="product-card-brand">Doku Mimarlık Atölyesi</div>
-          <div class="product-card-price">280 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="7" rx="2"/><path d="M5 14v3M19 14v3"/><path d="M4 10H2.5a1.5 1.5 0 0 0 0 3H4M20 10h1.5a1.5 1.5 0 0 1 0 3H20"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">İÇ MEKAN</div>
-          <div class="product-card-name">Kafe & Kırtasiye Konsepti</div>
-          <div class="product-card-brand">Çizgi İç Mimarlık</div>
-          <div class="product-card-price">95 m²</div>
-        </div>
-      </a>
-      <a class="product-card" href="#">
-        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6"/><line x1="12" y1="16" x2="12" y2="21"/></svg></div>
-        <div class="product-card-body">
-          <div class="product-card-cat">PEYZAJ</div>
-          <div class="product-card-name">Çatı Bahçesi Tasarımı</div>
-          <div class="product-card-brand">Sokak Peyzaj Tasarım</div>
-          <div class="product-card-price">180 m²</div>
-        </div>
-      </a>
-      <a class="product-card view-all-card" href="#">
-        <div class="view-all-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
-        <span>Tüm Projeler</span>
+        <span>Tüm Ofisler</span>
       </a>
     </div>
   </section>
@@ -998,9 +738,9 @@
   <div style="height:72px;"></div>
 
   <div class="cta-band">
-    <h2>Ofisiniz burada olmalı.</h2>
-    <p>Sayfanızı ücretsiz oluşturun, proje sahiplerinin yorumlarına yanıt verin.</p>
-    <a class="btn" href="#">Ofis Olarak Katıl →</a>
+    <h2>Ofisiniz listede yok mu?</h2>
+    <p>Bilgilerinizi ve açık pozisyonlarınızı ücretsiz ekleyelim.</p>
+    <a class="btn" href="#">Ofisinizi Ekleyin →</a>
   </div>
 
   <footer class="site-footer">
@@ -1010,7 +750,7 @@
           <div class="brand-mark" style="background:var(--walnut);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--paper-card)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6l4 6 4-8 4 8 4-6v14"/></svg></div>
           <div class="brand-word" style="color:var(--paper)">Mimarlab</div>
         </div>
-        <p>Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı ofislerini gerçek proje sahibi puanlarıyla tek çatı altında topluyoruz.</p>
+        <p>Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı ofislerini ve kariyer fırsatlarını bir araya getiren bağımsız bir dizin platformuyuz.</p>
         <div class="footer-social">
           <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
@@ -1033,7 +773,7 @@
       </div>
       <div class="footer-col">
         <h4>Ofisler İçin</h4>
-        <a href="#">Ofis Girişi</a>
+        <a href="#">İlan Ver</a>
         <a href="#">Ofis Paneli</a>
         <a href="#">Neden Katılmalı?</a>
       </div>
@@ -1042,120 +782,36 @@
         <div class="city-select">Tüm Türkiye <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
       </div>
     </div>
-    <div class="footer-bottom">Mimarlab — bu bir tasarım taslağıdır · örnek veriler kurgusaldır</div>
+    <div class="footer-bottom">Mimarlab, listelenen ofislerle resmi bir bağlantısı olmayan bağımsız bir dizin platformudur · bilgiler halka açık kaynaklardan derlenmiştir</div>
   </footer>
 <script>
-const logoData = {};
-const brandLogoKey = {};
-const brands = [
-  {name:"Gün Mimarlık Atölyesi", loc:"Beşiktaş", price:3, cats:"İç Mimarlık · Konut Projeleri", yil:1996, tasarim:4.7, iletisim:4.8, surec:4.2, reviews:30},
-  {name:"Kırağı Mimarlık Atölyesi", loc:"Maslak", price:1, cats:"Restorasyon · Mimarlık · Konut Projeleri", yil:2000, tasarim:4.6, iletisim:4.4, surec:4.4, reviews:25},
-  {name:"Zaman Mimarlık", loc:"Ortahisar", price:1, cats:"Peyzaj Mimarlığı · Konut Projeleri", yil:1997, tasarim:3.8, iletisim:3.3, surec:3.5, reviews:28},
-  {name:"Arya Peyzaj Tasarım", loc:"Çankaya", price:1, cats:"Peyzaj Mimarlığı · Mimarlık", yil:2012, tasarim:3.3, iletisim:3.5, surec:3.6, reviews:28},
-  {name:"Kıyı Mimarlık Atölyesi", loc:"Kadıköy", price:3, cats:"Konut Projeleri", yil:2006, tasarim:5.0, iletisim:5.0, surec:4.8, reviews:31},
-  {name:"Pencere Mimarlık ve Tasarım", loc:"Karaköy", price:2, cats:"İç Mimarlık · Ticari Mekan Tasarımı", yil:2005, tasarim:4.6, iletisim:4.1, surec:4.5, reviews:35},
-  {name:"Zemin İç Mimarlık", loc:"Muratpaşa", price:2, cats:"İç Mimarlık · Konut Projeleri", yil:2023, tasarim:3.6, iletisim:3.8, surec:3.3, reviews:75},
-  {name:"Konsept Mimarlık ve Tasarım", loc:"Bornova", price:2, cats:"İç Mimarlık", yil:2008, tasarim:3.7, iletisim:3.9, surec:3.6, reviews:22},
-  {name:"Mekan Peyzaj Mimarlığı", loc:"Pamukkale", price:2, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · Restorasyon", yil:2015, tasarim:4.8, iletisim:4.6, surec:5.0, reviews:34},
-  {name:"Katman Mimarlık", loc:"Levent", price:1, cats:"Konut Projeleri", yil:2015, tasarim:4.2, iletisim:4.3, surec:4.2, reviews:24},
-  {name:"Sokak Mimarlık", loc:"İzmit", price:3, cats:"Ticari Mekan Tasarımı", yil:2022, tasarim:4.7, iletisim:4.4, surec:4.4, reviews:22},
-  {name:"Ada Tasarım Stüdyosu", loc:"Tepebaşı", price:1, cats:"Mimarlık · Ticari Mekan Tasarımı · Peyzaj Mimarlığı", yil:2020, tasarim:4.1, iletisim:4.5, surec:4.3, reviews:63},
-  {name:"Peron Mimarlık", loc:"Seyhan", price:2, cats:"Mimarlık · Konut Projeleri", yil:2011, tasarim:5.0, iletisim:4.6, surec:4.4, reviews:100},
-  {name:"Katman Mimarlık Atölyesi", loc:"Pamukkale", price:2, cats:"Konut Projeleri", yil:2022, tasarim:4.4, iletisim:4.5, surec:4.5, reviews:25},
-  {name:"Zaman Peyzaj Tasarım", loc:"Nilüfer", price:1, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · İç Mimarlık", yil:2007, tasarim:4.1, iletisim:3.8, surec:4.1, reviews:31},
-  {name:"Zemin Peyzaj Mimarlığı", loc:"Şişli", price:2, cats:"Peyzaj Mimarlığı", yil:2023, tasarim:3.5, iletisim:3.3, surec:3.7, reviews:24},
-  {name:"Kar Mimarlık", loc:"Alsancak", price:1, cats:"İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:2001, tasarim:4.4, iletisim:4.4, surec:4.2, reviews:24},
-  {name:"Kök Architects", loc:"Maslak", price:1, cats:"Ticari Mekan Tasarımı", yil:2015, tasarim:3.8, iletisim:4.1, surec:3.5, reviews:45},
-  {name:"Ege Mimarlık Atölyesi", loc:"Kadıköy", price:2, cats:"Konut Projeleri · Mimarlık", yil:2003, tasarim:3.6, iletisim:3.3, surec:3.3, reviews:32},
-  {name:"Zaman Mimarlık Atölyesi", loc:"Muratpaşa", price:2, cats:"Mimarlık", yil:2022, tasarim:5.0, iletisim:5.0, surec:4.8, reviews:23},
-  {name:"Dal Design Studio", loc:"Maslak", price:2, cats:"İç Mimarlık", yil:2012, tasarim:3.2, iletisim:3.6, surec:3.4, reviews:25},
-  {name:"Çizgi Atölye", loc:"İzmit", price:3, cats:"İç Mimarlık · Konut Projeleri", yil:2006, tasarim:3.4, iletisim:3.8, surec:3.3, reviews:26},
-  {name:"Meridyen Peyzaj Tasarım", loc:"Konyaaltı", price:2, cats:"Peyzaj Mimarlığı · Mimarlık · Restorasyon", yil:1993, tasarim:4.5, iletisim:4.4, surec:4.9, reviews:29},
-  {name:"Kumsal Peyzaj Tasarım", loc:"Ataşehir", price:2, cats:"Peyzaj Mimarlığı · Restorasyon · Konut Projeleri", yil:2014, tasarim:4.5, iletisim:4.2, surec:4.2, reviews:46},
-  {name:"Boğaz Peyzaj Mimarlığı", loc:"Çankaya", price:2, cats:"Peyzaj Mimarlığı", yil:2007, tasarim:4.3, iletisim:4.3, surec:3.7, reviews:42},
-  {name:"Meydan Mimarlık Atölyesi", loc:"Şişli", price:2, cats:"Restorasyon", yil:2004, tasarim:3.4, iletisim:3.2, surec:3.3, reviews:25},
-  {name:"Rüzgar Atölye", loc:"Bodrum", price:2, cats:"Konut Projeleri · Ticari Mekan Tasarımı · Restorasyon", yil:1988, tasarim:4.5, iletisim:4.7, surec:4.1, reviews:100},
-  {name:"Cephe Mimarlık Atölyesi", loc:"Levent", price:3, cats:"İç Mimarlık · Peyzaj Mimarlığı · Ticari Mekan Tasarımı", yil:2001, tasarim:4.3, iletisim:4.6, surec:4.3, reviews:33},
-  {name:"Katman Architects", loc:"Çankaya", price:1, cats:"Peyzaj Mimarlığı", yil:1996, tasarim:4.2, iletisim:4.5, surec:4.3, reviews:30},
-  {name:"Ada Mimarlık Atölyesi", loc:"Şişli", price:3, cats:"Restorasyon", yil:1990, tasarim:4.8, iletisim:4.4, surec:4.4, reviews:26},
-  {name:"Kar Mimarlık ve Tasarım", loc:"Maslak", price:3, cats:"Ticari Mekan Tasarımı", yil:1994, tasarim:3.9, iletisim:4.1, surec:4.1, reviews:58},
-  {name:"Mimari Peyzaj Mimarlığı", loc:"Karaköy", price:1, cats:"Peyzaj Mimarlığı · İç Mimarlık", yil:2009, tasarim:4.6, iletisim:4.7, surec:4.7, reviews:24},
-  {name:"Gölge Mimarlık Atölyesi", loc:"Bornova", price:1, cats:"İç Mimarlık · Konut Projeleri", yil:2017, tasarim:4.1, iletisim:4.1, surec:3.6, reviews:45},
-  {name:"Sınır Mimarlık ve Tasarım", loc:"Çankaya", price:1, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı", yil:2020, tasarim:4.3, iletisim:4.0, surec:4.1, reviews:21},
-  {name:"Cephe İç Mimarlık", loc:"Selçuklu", price:2, cats:"İç Mimarlık", yil:2015, tasarim:4.1, iletisim:3.8, surec:4.1, reviews:21},
-  {name:"Kar Peyzaj Tasarım", loc:"Maslak", price:2, cats:"Peyzaj Mimarlığı", yil:2015, tasarim:3.6, iletisim:3.3, surec:3.3, reviews:56},
-  {name:"Marmara Peyzaj Mimarlığı", loc:"Karşıyaka", price:2, cats:"Peyzaj Mimarlığı", yil:2009, tasarim:4.5, iletisim:4.0, surec:4.5, reviews:34},
-  {name:"Marmara Architects", loc:"Alsancak", price:2, cats:"Restorasyon · İç Mimarlık", yil:2000, tasarim:4.3, iletisim:4.1, surec:4.2, reviews:41},
-  {name:"Anadolu Architects", loc:"Şehitkamil", price:1, cats:"Peyzaj Mimarlığı · İç Mimarlık", yil:2015, tasarim:4.7, iletisim:4.5, surec:4.5, reviews:47},
-  {name:"Liman Design Studio", loc:"Pamukkale", price:1, cats:"Peyzaj Mimarlığı", yil:2020, tasarim:4.5, iletisim:4.1, surec:4.6, reviews:24},
-  {name:"Anadolu Peyzaj Mimarlığı", loc:"Maslak", price:1, cats:"Peyzaj Mimarlığı", yil:2003, tasarim:5.0, iletisim:5.0, surec:4.8, reviews:106},
-  {name:"Meydan Peyzaj Mimarlığı", loc:"Bodrum", price:3, cats:"Peyzaj Mimarlığı · Konut Projeleri", yil:2003, tasarim:3.7, iletisim:3.8, surec:3.7, reviews:105},
-  {name:"Modül Architects", loc:"Ataşehir", price:1, cats:"Kentsel Tasarım · Mimarlık · Restorasyon", yil:2003, tasarim:4.6, iletisim:4.6, surec:4.7, reviews:35},
-  {name:"Sokak Peyzaj Tasarım", loc:"Alsancak", price:2, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · Restorasyon", yil:2015, tasarim:4.7, iletisim:4.9, surec:4.8, reviews:32},
-  {name:"Cephe Peyzaj Mimarlığı", loc:"Yenişehir", price:2, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · İç Mimarlık", yil:2005, tasarim:4.2, iletisim:3.8, surec:3.8, reviews:111},
-  {name:"Katman İç Mimarlık", loc:"Nişantaşı", price:1, cats:"Ticari Mekan Tasarımı · İç Mimarlık", yil:2001, tasarim:3.4, iletisim:3.4, surec:3.3, reviews:23},
-  {name:"Işık Architects", loc:"Ortahisar", price:2, cats:"Konut Projeleri", yil:2012, tasarim:4.4, iletisim:3.9, surec:3.9, reviews:110},
-  {name:"Pencere Architects", loc:"Şehitkamil", price:3, cats:"Konut Projeleri · Restorasyon · İç Mimarlık", yil:2019, tasarim:3.6, iletisim:3.3, surec:3.5, reviews:47},
-  {name:"Sınır İç Mimarlık", loc:"Muratpaşa", price:1, cats:"İç Mimarlık · Mimarlık · Kentsel Tasarım", yil:1989, tasarim:3.4, iletisim:3.6, surec:3.2, reviews:25},
-  {name:"Yeşil Mimarlık ve Tasarım", loc:"Alsancak", price:2, cats:"Konut Projeleri · Kentsel Tasarım", yil:2004, tasarim:4.7, iletisim:4.8, surec:4.4, reviews:206},
-  {name:"Doku Mimarlık Atölyesi", loc:"Ortahisar", price:3, cats:"Konut Projeleri", yil:1989, tasarim:4.7, iletisim:4.5, surec:4.6, reviews:22},
-  {name:"Marmara Mimarlık Atölyesi", loc:"Selçuklu", price:1, cats:"Ticari Mekan Tasarımı · Peyzaj Mimarlığı", yil:2011, tasarim:3.6, iletisim:3.7, surec:3.3, reviews:74},
-  {name:"Anadolu Mimarlık Atölyesi", loc:"Selçuklu", price:1, cats:"Restorasyon · Ticari Mekan Tasarımı", yil:2012, tasarim:4.1, iletisim:3.6, surec:4.0, reviews:42},
-  {name:"İz Tasarım Stüdyosu", loc:"İzmit", price:2, cats:"Konut Projeleri", yil:1990, tasarim:3.8, iletisim:3.7, surec:3.8, reviews:27},
-  {name:"Duvar Architects", loc:"Konyaaltı", price:1, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı", yil:2017, tasarim:4.5, iletisim:4.6, surec:4.7, reviews:25},
-  {name:"Konsept Atölye", loc:"Ortahisar", price:2, cats:"Kentsel Tasarım · Ticari Mekan Tasarımı", yil:2005, tasarim:3.7, iletisim:4.1, surec:3.6, reviews:31},
-  {name:"Yapıkent Design Studio", loc:"Selçuklu", price:2, cats:"Peyzaj Mimarlığı · Mimarlık", yil:2019, tasarim:4.6, iletisim:4.5, surec:4.8, reviews:27},
-  {name:"Çizgi Tasarım Stüdyosu", loc:"Şehitkamil", price:1, cats:"İç Mimarlık · Mimarlık · Konut Projeleri", yil:2014, tasarim:4.3, iletisim:4.2, surec:4.1, reviews:33},
-  {name:"Silüet Mimarlık", loc:"Şişli", price:2, cats:"Kentsel Tasarım", yil:2003, tasarim:3.9, iletisim:3.8, surec:3.7, reviews:30},
-  {name:"Katbekat Atölye", loc:"Alsancak", price:2, cats:"Peyzaj Mimarlığı · Konut Projeleri", yil:2004, tasarim:3.8, iletisim:3.5, surec:3.7, reviews:203},
-  {name:"Çizgi İç Mimarlık", loc:"Maslak", price:1, cats:"İç Mimarlık · Ticari Mekan Tasarımı", yil:2021, tasarim:4.6, iletisim:4.5, surec:4.1, reviews:28},
-  {name:"Anadolu Mimarlık", loc:"Bodrum", price:2, cats:"Peyzaj Mimarlığı", yil:1990, tasarim:5.0, iletisim:5.0, surec:4.6, reviews:95},
-  {name:"Dal Mimarlık Atölyesi", loc:"Beşiktaş", price:2, cats:"Kentsel Tasarım · Konut Projeleri", yil:2016, tasarim:4.2, iletisim:3.7, surec:4.0, reviews:21},
-  {name:"Sade Architects", loc:"Konyaaltı", price:1, cats:"Ticari Mekan Tasarımı · Konut Projeleri · Mimarlık", yil:1997, tasarim:3.6, iletisim:3.4, surec:3.7, reviews:22},
+const offices = [
+  {name:"EAA — Emre Arolat Architecture", loc:"Levent", cats:"Mimarlık", yil:2004, website:"https://emrearolat.com", about:"Emre Arolat ve Gonca Paşolar tarafından 2004'te kurulan ofis, İstanbul merkezli olup New York ve Londra'da da ofislere sahip; 50'den fazla kişilik bir ekiple çalışıyor."},
+  {name:"Han Tümertekin", loc:"İstanbul", cats:"Mimarlık", yil:1987, website:"https://www.hantumertekin.com", about:"Han Tümertekin'in kurduğu ofis; B2 Evi projesiyle 2004 Ağa Han Mimarlık Ödülü'nü kazandı, Harvard, EPFL gibi okullarda akademik çalışmalarıyla da tanınıyor."},
+  {name:"NSMH — Nevzat Sayın Mimarlık Hizmetleri", loc:"Kuzguncuk / Üsküdar", cats:"Mimarlık", yil:1986, website:"https://www.nsmh.com", about:"Nevzat Sayın tarafından 1986'da kurulan ofis, katılımcı bir çalışma yaklaşımıyla farklı ölçek ve konularda çok sayıda proje üretiyor."},
+  {name:"Tabanlıoğlu Architects", loc:"İstanbul", cats:"Mimarlık · İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:1990, website:"https://www.tabanlioglu.com", about:"1990'da kurulan, kültür yapıları, havalimanları ve büyük ölçekli karma projeleriyle uluslararası tanınırlığa sahip, İstanbul merkezli ofis."},
+  {name:"GAD Architecture", loc:"İstanbul", cats:"Mimarlık", yil:1994, website:"https://www.gadarchitecture.com", about:"Gökhan Avcıoğlu tarafından 1994'te kurulan, teknoloji ile estetiği bir araya getiren yenilikçi ve deneysel tasarım yaklaşımıyla tanınan ofis."},
+  {name:"Autoban", loc:"İstanbul", cats:"Mimarlık · İç Mimarlık", yil:2003, website:"https://autoban.com", about:"2003'te kurulan, otel, mağaza ve restoran gibi mekanlarda deneyim odaklı tasarımlarıyla uluslararası tanınan çok disiplinli tasarım stüdyosu."},
+  {name:"Betula Peyzaj Mimarlığı", loc:"İstanbul", cats:"Peyzaj Mimarlığı", yil:1995, website:"https://www.betula.com.tr", about:"1995'ten bu yana İstanbul'da peyzaj mimarlığı alanında hizmet veren ofis."},
+  {name:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:2009, website:"https://www.studiosupernova.com", about:"Kaya Kızılkaya tarafından 2009'da kurulan, ödüllü bir peyzaj mimarlığı ve kentsel tasarım ofisi."},
+  {name:"caps.", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım · Mimarlık", yil:2015, website:"https://www.caps.com.tr", about:"İTÜ Teknokent bünyesinde 2015'te kurulan, kentsel tasarım ve peyzaj alanında çok sayıda ulusal ve uluslararası ödül sahibi genç ofis."},
+  {name:"saa.", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:null, website:"https://www.saaistanbul.com", about:"Süveyda Bayraktar Atagür tarafından kurulan, kamusal ve özel alanlarda peyzajın mekansal, sosyal ve ekolojik boyutlarına odaklanan kentsel tasarım ve peyzaj mimarlığı ofisi."},
 ];
 
-const priceLabel = {1:"₺", 2:"₺₺", 3:"₺₺₺"};
-
-function avg(b){ return (b.tasarim + b.iletisim + b.surec) / 3; }
-
-// "En Popüler" = ortalama puan + yorum hacmi (log ölçekli) karışımı.
-// POPULARITY_WEIGHT ne kadar yüksekse, yorum sayısının etkisi o kadar artar.
-const POPULARITY_WEIGHT = 0.25;
-const REVIEW_LOGS = brands.map(b => Math.log10(b.reviews + 1));
-const MIN_LOG_REVIEWS = Math.min(...REVIEW_LOGS);
-const MAX_LOG_REVIEWS = Math.max(...REVIEW_LOGS);
-
-function popularityScore(b){
-  const l = Math.log10(b.reviews + 1);
-  return 1 + 4 * (l - MIN_LOG_REVIEWS) / (MAX_LOG_REVIEWS - MIN_LOG_REVIEWS);
-}
-
-function likedScore(b){
-  const R = avg(b);
-  const P = popularityScore(b);
-  return R * (1 - POPULARITY_WEIGHT) + P * POPULARITY_WEIGHT;
-}
-
 function initials(name){
-  return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  return name.replace(/[—.]/g,' ').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
 }
 
 const palette = ['#2B425F','#3E5A78','#5B7A9B','#4F6478','#7C4B4B'];
-function brandColor(name){
+function officeColor(name){
   let hash = 0;
   for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
   return palette[Math.abs(hash) % palette.length];
 }
-
-function starString(score){
-  const full = Math.round(score);
-  return "★".repeat(full) + "☆".repeat(5-full);
-}
-
 </script>
 <script>
 function populateFilters(){
-  const locs = [...new Set(brands.map(b=>b.loc))].sort();
+  const locs = [...new Set(offices.map(o=>o.loc))].sort((a,b)=>a.localeCompare(b,'tr'));
   const locSel = document.getElementById('f-loc');
   locs.forEach(l=>{
     const o = document.createElement('option'); o.value=l; o.textContent=l;
@@ -1170,7 +826,7 @@ let searchQuery = '';
 const PAGE_SIZE = 10;
 
 function trLower(s){
-  // JS'in varsayılan toLowerCase()'i Türkçe İ/I harflerini yanlış çevirir (ör. İzmit -> "i̇zmit").
+  // JS'in varsayılan toLowerCase()'i Türkçe İ/I harflerini yanlış çevirir (ör. İstanbul -> "i̇stanbul").
   // Bu yüzden Türkçe harfleri elle eşliyoruz.
   return s
     .replace(/İ/g, 'i')
@@ -1185,36 +841,31 @@ function trLower(s){
 
 function render(){
   const loc = document.getElementById('f-loc').value;
-  const price = document.getElementById('f-price').value;
   const cat = document.getElementById('f-cat').value;
-  const minRating = parseFloat(document.getElementById('f-rating').value) || 0;
   const sort = document.getElementById('f-sort').value;
   const q = trLower(searchQuery.trim());
 
-  let filtered = brands.filter(b=>{
-    if(loc && b.loc !== loc) return false;
-    if(price && String(b.price) !== price) return false;
-    if(cat && !b.cats.includes(cat)) return false;
-    if(minRating && avg(b) < minRating) return false;
-    if(q && !trLower(b.name).includes(q)) return false;
+  let filtered = offices.filter(o=>{
+    if(loc && o.loc !== loc) return false;
+    if(cat && !o.cats.includes(cat)) return false;
+    if(q && !trLower(o.name).includes(q)) return false;
     return true;
   });
 
   filtered.sort((a,b)=>{
     switch(sort){
-      case 'score_asc': return avg(a)-avg(b);
-      case 'score_desc': return avg(b)-avg(a);
-      case 'reviews_desc': return b.reviews-a.reviews;
-      case 'reviews_asc': return a.reviews-b.reviews;
-      default: return likedScore(b)-likedScore(a);
+      case 'name_desc': return b.name.localeCompare(a.name, 'tr');
+      case 'year_desc': return (b.yil||0) - (a.yil||0);
+      case 'year_asc': return (a.yil||9999) - (b.yil||9999);
+      default: return a.name.localeCompare(b.name, 'tr');
     }
   });
 
   const list = document.getElementById('brand-list');
   const empty = document.getElementById('empty-state');
   document.getElementById('result-count').textContent = filtered.length;
-  const distinctCityCount = new Set(filtered.map(b=>b.loc)).size;
-  document.getElementById('result-brand-count').textContent = distinctCityCount;
+  const distinctCatCount = new Set(filtered.flatMap(o=>o.cats.split(' · '))).size;
+  document.getElementById('result-cat-count').textContent = distinctCatCount;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   if(currentPage > totalPages) currentPage = totalPages;
@@ -1230,40 +881,19 @@ function render(){
   const startIdx = (currentPage - 1) * PAGE_SIZE;
   const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
-  list.innerHTML = pageItems.map((b,i)=>{
+  list.innerHTML = pageItems.map((o,i)=>{
     const rank = startIdx + i + 1;
-    const score = avg(b);
     return `
-    <a class="brand-row" data-rank="${rank}" href="ofis-detay.html?ofis=${encodeURIComponent(b.name)}">
+    <a class="brand-row" href="ofis-detay.html?ofis=${encodeURIComponent(o.name)}">
       <div class="rank-num">${String(rank).padStart(2,'0')}</div>
-      <div class="tag-hole" style="${logoData[brandLogoKey[b.name]] ? '' : 'background:'+brandColor(b.name)}">${logoData[brandLogoKey[b.name]] ? `<img src="${logoData[brandLogoKey[b.name]]}" alt="${b.name}">` : initials(b.name)}</div>
+      <div class="tag-hole" style="background:${officeColor(o.name)}">${initials(o.name)}</div>
       <div class="row-main">
         <div class="row-top">
-          <span class="row-name">${b.name}</span>
-          <span class="row-loc">${b.loc}</span>
-          <span class="row-year">${b.yil}</span>
+          <span class="row-name">${o.name}</span>
+          <span class="row-loc">${o.loc}</span>
+          ${o.yil ? `<span class="row-year">${o.yil}</span>` : ''}
         </div>
-        <div class="row-cats">${b.cats}</div>
-        <div class="mini-scores">
-          <div class="mini-score">
-            <span class="mini-score-label">Tasarım</span>
-            <div class="mini-score-bar"><div class="mini-score-fill" style="width:${b.tasarim/5*100}%"></div></div>
-          </div>
-          <div class="mini-score">
-            <span class="mini-score-label">İletişim</span>
-            <div class="mini-score-bar"><div class="mini-score-fill" style="width:${b.iletisim/5*100}%"></div></div>
-          </div>
-          <div class="mini-score">
-            <span class="mini-score-label">Süreç</span>
-            <div class="mini-score-bar"><div class="mini-score-fill" style="width:${b.surec/5*100}%"></div></div>
-          </div>
-        </div>
-      </div>
-      <div class="row-score">
-        <span class="score-num">${score.toFixed(1)}</span>
-        <span class="score-label">/ 5.0</span>
-        <div class="score-stars">${starString(score)}</div>
-        <div class="score-reviews">${b.reviews.toLocaleString('tr-TR')} yorum</div>
+        <div class="row-cats">${o.cats}</div>
       </div>
       <div class="row-go">→</div>
     </a>`;
@@ -1321,7 +951,7 @@ function renderPagination(totalPages){
   if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; render(); } });
 }
 
-['f-loc','f-price','f-cat','f-rating','f-sort'].forEach(id=>{
+['f-loc','f-cat','f-sort'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
 });
 document.getElementById('f-search').addEventListener('input', (e)=>{
@@ -1330,64 +960,7 @@ document.getElementById('f-search').addEventListener('input', (e)=>{
   currentPage = 1; render();
 });
 
-function companyCard(b){
-  const score = avg(b);
-  const logo = logoData[brandLogoKey[b.name]];
-  return `
-    <a class="company-card" href="ofis-detay.html?ofis=${encodeURIComponent(b.name)}">
-      <div class="company-card-logo" style="${logo ? '' : 'background:'+brandColor(b.name)}">${logo ? `<img src="${logo}" alt="${b.name}">` : initials(b.name)}</div>
-      <div class="company-card-name">${b.name}</div>
-      <div class="company-card-meta">${b.cats.split(' · ')[0]} · ${b.loc}</div>
-      <div class="company-card-rating">
-        <span class="stars">${starString(score)}</span>
-        <span class="num">${score.toFixed(1)}</span>
-        <span class="count">(${b.reviews.toLocaleString('tr-TR')})</span>
-      </div>
-    </a>`;
-}
-
-const recentReviews = [
-  {name:"Ebru T.", brand:"Yeşil Mimarlık", stars:5, text:"Salonumuzun iç mekan tasarımı beklentimin çok üzerindeydi, süreç boyunca şeffaf iletişim kurdular."},
-  {name:"Kerem A.", brand:"Anadolu Peyzaj", stars:5, text:"Bahçe projesi uygulaması titizlikle yürütüldü, malzeme seçimleri de çok isabetliydi."},
-  {name:"Sibel Y.", brand:"Katman Mimarlık", stars:4, text:"Konsept tasarım çok başarılıydı ama uygulama takvimi birkaç hafta gecikti."},
-  {name:"Onur K.", brand:"Cephe Mimarlık", stars:4, text:"Ofis projemizde fiyat/performans olarak oldukça başarılı bir sonuç aldık."},
-  {name:"Derya S.", brand:"Marmara Mimarlık", stars:4, text:"Restorasyon sürecinde tarihi dokuya çok saygılı bir yaklaşım sergilediler."},
-  {name:"Emre B.", brand:"Modül Architects", stars:4, text:"Kentsel tasarım raporunda küçük revizyonlar gerekti, ekip hızlıca çözdü."},
-  {name:"Aslı D.", brand:"Sokak Peyzaj", stars:4, text:"Peyzaj uygulaması render'daki gibi geldi, saha ekibi çok ilgiliydi."},
-  {name:"Burak M.", brand:"Ege Mimarlık", stars:3, text:"Tasarım kalitesi iyi ama teslim tarihi iki kez ertelendi."},
-  {name:"Gizem P.", brand:"Duvar Architects", stars:4, text:"Malzeme önerileri çok zengindi, sunumları da gayet profesyoneldi."},
-  {name:"Hakan C.", brand:"Anadolu Mimarlık", stars:4, text:"Minimalist tasarım dili fiyatına göre gayet kaliteli, süreç yönetimi hızlıydı."},
-  {name:"Selin R.", brand:"Işık Architects", stars:5, text:"Villa projemiz beklediğimden çok daha özgün ve işlevsel çıktı."},
-  {name:"Murat F.", brand:"Çizgi Tasarım Stüdyosu", stars:4, text:"İç mekan projesi zamanında tamamlandı, uygulama ekibi temizdi."},
-];
-
-function reviewCard(r){
-  return `
-    <div class="review-track-card">
-      <div class="review-top">
-        <div class="review-avatar" style="background:${brandColor(r.name)}">${r.name.slice(0,1)}</div>
-        <div class="review-who">
-          <div class="review-name">${r.name} <span style="color:var(--ink-soft); font-weight:500;">→ ${r.brand}</span></div>
-        </div>
-      </div>
-      <div class="review-stars">${starString(r.stars)}</div>
-      <div class="review-text">${r.text}</div>
-    </div>`;
-}
-
-function renderCarousels(){
-  const seenBrandGroups = new Set();
-  const newest = [];
-  for(const b of [...brands].reverse()){
-    const groupKey = b.name.split(' ')[0]; // ofis ailesi: ilk kelime (ör. "Anadolu Mimarlık" -> "Anadolu")
-    if(seenBrandGroups.has(groupKey)) continue;
-    seenBrandGroups.add(groupKey);
-    newest.push(b);
-    if(newest.length >= 12) break;
-  }
-  document.getElementById('carousel-reviews').innerHTML = recentReviews.map(reviewCard).join('');
-  document.getElementById('carousel-newest').innerHTML = newest.map(companyCard).join('');
-
+function wireCarouselArrows(){
   document.querySelectorAll('.arrow-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const track = document.getElementById(btn.dataset.target);
@@ -1462,7 +1035,7 @@ document.addEventListener('click', (e)=>{
 
 populateFilters();
 render();
-renderCarousels();
+wireCarouselArrows();
 
 let _isMobileView = window.innerWidth <= 860;
 window.addEventListener('resize', ()=>{
