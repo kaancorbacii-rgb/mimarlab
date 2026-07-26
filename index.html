@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<title>Mimarlab — Mimarlık, iç mimarlık ve peyzaj mimarlığı ofisleri sıralaması</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D;
+    --ink-soft:#4E6478;
+    --paper:#EDF0F3;
+    --paper-card:#F8FAFB;
+    --paper-alt:#E0E6EC;
+    --walnut:#2B425F;
+    --brass:#5B7A9B;
+    --brass-soft:#AFC5D8;
+    --sage:#4F6478;
+    --rust:#7C4B4B;
+    --accent:#E08A3E;
+    --accent-soft:#F5CFA0;
+    --line: rgba(27,42,61,0.14);
+    --line-soft: rgba(27,42,61,0.08);
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+
+  :focus-visible{
+    outline:none;
+    box-shadow: 0 0 0 2px var(--brass) inset;
+  }
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:24px;
+    padding:16px 32px;
+    background:rgba(237,240,243,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-search{
+    flex:1; max-width:380px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:9px 16px;
+  }
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{
+    border:none; background:none; outline:none;
+    font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:32px; height:32px; border-radius:50%;
+    overflow:hidden; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .brand-mark img{
+    width:100%; height:100%; object-fit:cover;
+  }
+  .brand-word{
+    font-family:'Fraunces', serif;
+    font-size:19px; font-weight:600; letter-spacing:-0.01em;
+    white-space:nowrap;
+  }
+  .nav-links{display:flex; align-items:center; gap:28px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500;}
+  .nav-link:hover{color:var(--ink);}
+
+  .nav-hamburger{
+    display:none;
+    background:none; border:1px solid var(--line);
+    border-radius:8px; padding:8px;
+    color:var(--ink); align-items:center; justify-content:center;
+  }
+  .nav-mobile-menu{
+    display:none;
+    position:absolute; top:100%; right:18px; z-index:95;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:12px; padding:8px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15);
+    flex-direction:column; min-width:220px;
+  }
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-link{
+    padding:11px 14px; border-radius:8px;
+    font-size:14.5px; font-weight:500; color:var(--ink);
+  }
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper); border:1px solid var(--line);
+    border-radius:100px; padding:9px 14px;
+    margin-bottom:8px;
+  }
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{
+    border:none; background:none; outline:none;
+    font-family:inherit; font-size:16px; width:100%; color:var(--ink);
+  }
+  .nav-mobile-cta{
+    width:100%; margin-top:6px;
+    background:var(--ink); color:var(--paper-card);
+    border:none; padding:12px 14px; border-radius:8px;
+    font-size:14.5px; font-weight:600;
+  }
+  .nav-mobile-cta:hover{background:var(--walnut);}
+  .nav-cta{
+    background:var(--ink); color:var(--paper-card);
+    padding:9px 18px; border-radius:100px; border:none;
+    font-size:14px; font-weight:600;
+  }
+  .nav-cta:hover{background:var(--walnut);}
+  .nav-right{display:flex; align-items:center; gap:10px;}
+  .nav-rate{
+    background:none; color:var(--ink);
+    padding:8px 17px; border-radius:100px;
+    border:1.5px solid var(--ink);
+    font-size:14px; font-weight:600;
+  }
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+  .nav-toggle{display:none;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:64px 32px 36px;
+    text-align:center;
+    max-width:760px; margin:0 auto;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--sage); font-weight:600; margin-bottom:18px;
+  }
+  .hero h1{
+    font-family:'Fraunces', serif;
+    font-size:clamp(34px, 5.2vw, 58px);
+    font-weight:600; line-height:1.25; letter-spacing:-0.02em;
+    margin:0 0 14px;
+  }
+  .hero h1 em{
+    font-style:normal; color:var(--accent); font-weight:600;
+  }
+  .hero h1 .q{
+    color:var(--accent); font-style:normal;
+    margin-left:0.14em; display:inline-block;
+  }
+  .hero p{
+    font-size:16px; color:var(--ink-soft); margin:0; line-height:1.5;
+  }
+
+  /* ---------- FILTER BAR ---------- */
+  .filter-wrap{
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    padding:14px 32px;
+  }
+  .filter-row{
+    max-width:1080px; margin:0 auto;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    flex-wrap:nowrap;
+    overflow-x:auto; scrollbar-width:none;
+  }
+  .filter-row::-webkit-scrollbar{display:none;}
+  .filter-toggle-btn{
+    display:none;
+    align-items:center; gap:8px;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:100px; padding:9px 18px;
+    font-size:13.5px; font-weight:600; color:var(--ink);
+  }
+  .filter-backdrop{
+    display:none;
+    position:fixed; inset:0; background:rgba(27,42,61,0.45);
+    z-index:90;
+  }
+  .filter-backdrop.open{display:block;}
+  .filter-bar{
+    display:flex; align-items:center; gap:10px; flex-wrap:nowrap;
+  }
+  .filter-select{
+    position:relative; flex-shrink:0;
+  }
+  .filter-select select{
+    appearance:none; -webkit-appearance:none;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:9px 34px 9px 16px;
+    font-size:13.5px; font-weight:500; color:var(--ink);
+    font-family:inherit;
+  }
+  .select-arrow{
+    position:absolute; right:14px; top:50%;
+    transform:translateY(-50%);
+    pointer-events:none; color:var(--ink-soft);
+  }
+  .filter-select select:hover{border-color:var(--walnut);}
+
+  .filter-modal-head{
+    display:none;
+    align-items:center; justify-content:space-between;
+    padding-bottom:14px; margin-bottom:14px;
+    border-bottom:1px solid var(--line);
+    font-family:'Fraunces', serif; font-size:18px; font-weight:600;
+  }
+  .filter-close-btn{
+    width:30px; height:30px; border-radius:50%;
+    border:1px solid var(--line); background:var(--paper-card);
+    color:var(--ink-soft); font-size:14px;
+  }
+  .filter-apply-btn{
+    display:none;
+    width:100%; background:var(--ink); color:var(--paper-card);
+    border:none; padding:14px; border-radius:10px;
+    font-weight:600; font-size:14.5px; margin-top:6px;
+  }
+
+  .sort-select{display:flex; align-items:center; gap:8px; flex-shrink:0;}
+
+  .search-wrap{
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:8px 16px;
+    min-width:0; width:220px; flex:1 1 120px;
+  }
+  .search-wrap svg{flex-shrink:0; opacity:0.55;}
+  .search-icon-btn{
+    display:none;
+    position:relative; z-index:2;
+    flex-shrink:0; background:none; border:none; padding:0;
+    color:var(--ink-soft); align-items:center; justify-content:center;
+  }
+  .search-icon-btn .icon-close{display:none;}
+  .search-icon-btn.open .icon-search{display:none;}
+  .search-icon-btn.open .icon-close{display:block;}
+  .search-wrap input{
+    border:none; background:none; outline:none;
+    font-family:inherit; font-size:13.5px; width:100%;
+    color:var(--ink);
+  }
+  .search-mobile-input{display:none;}
+  .search-mobile-input:focus-visible{box-shadow:none; outline:none;}
+  .search-desktop-input:focus-visible{box-shadow:none; outline:none;}
+
+  /* ---------- LIST ---------- */
+  .list-section{
+    max-width:900px; margin:0 auto;
+    padding:36px 32px 90px;
+  }
+  .rail-line{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:6px; padding:0 4px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .rail-line::after{
+    content:""; flex:1; height:1px; background:var(--line);
+  }
+  .rail-line.no-line::after{display:none;}
+  #result-count{color:var(--ink); font-weight:600;}
+  #result-brand-count{color:var(--ink); font-weight:600;}
+  .rail-line-normalcase{text-transform:none;}
+
+  .brand-row{
+    display:flex; align-items:center; gap:18px;
+    background:var(--paper-card);
+    border:1px solid var(--line-soft);
+    border-radius:10px;
+    padding:16px 20px 16px 10px;
+    margin-bottom:10px;
+    position:relative;
+    text-decoration:none; color:inherit; cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .brand-row:hover{
+    transform:translateY(-2px);
+    box-shadow:0 8px 20px rgba(27,42,61,0.08);
+    border-color:var(--line);
+  }
+
+  /* tag-hole = punched-hole motif from a price tag, now carries the brand mark */
+  .tag-hole{
+    width:38px; height:38px; flex-shrink:0;
+    border-radius:50%;
+    border:1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    color:var(--paper-card);
+    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:13px;
+    letter-spacing:-0.02em;
+  }
+  .tag-hole img{
+    width:100%; height:100%; object-fit:cover;
+  }
+
+  .rank-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:22px; font-weight:600; color:var(--ink-soft);
+    width:38px; flex-shrink:0; text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  .brand-row[data-rank="1"] .rank-num,
+  .brand-row[data-rank="2"] .rank-num,
+  .brand-row[data-rank="3"] .rank-num{ color:var(--accent); }
+
+  .row-main{flex:1; min-width:0;}
+  .row-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .row-name{
+    font-family:'Fraunces', serif; font-size:19px; font-weight:600;
+  }
+  .row-loc{
+    font-size:12.5px; color:var(--sage); font-weight:600;
+    background:rgba(79,100,120,0.12); padding:2px 9px; border-radius:100px;
+  }
+  .row-year{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);
+    letter-spacing:0.02em;
+  }
+  .row-year::before{content:"K. ";}
+  .row-cats{
+    font-size:12.5px; color:var(--ink-soft); margin-top:4px;
+  }
+
+  .mini-scores{
+    display:flex; gap:14px; margin-top:9px;
+  }
+  .mini-score{display:flex; flex-direction:column; gap:3px; width:64px;}
+  .mini-score-label{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--ink-soft); font-weight:600;
+  }
+  .mini-score-bar{
+    height:4px; background:var(--paper-alt); border-radius:2px; overflow:hidden;
+  }
+  .mini-score-fill{height:100%; background:var(--walnut); border-radius:2px;}
+
+  .row-score{
+    flex-shrink:0; text-align:center; width:76px;
+  }
+  .score-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:24px; font-weight:600; color:var(--ink);
+    display:block; line-height:1;
+  }
+  .score-label{
+    font-size:10px; color:var(--ink-soft); text-transform:uppercase;
+    letter-spacing:0.06em; margin-top:4px; display:block;
+  }
+  .score-stars{color:var(--accent); font-size:11px; margin-top:3px; letter-spacing:1px;}
+  .score-reviews{font-size:10px; color:var(--ink-soft); margin-top:3px;}
+
+  .row-go{
+    flex-shrink:0; color:var(--ink-soft); font-size:22px;
+    display:flex; align-items:center; font-weight:500;
+  }
+  .brand-row:hover .row-go{color:var(--walnut);}
+
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--ink-soft);
+    font-size:14px; display:none;
+  }
+
+  .pagination{
+    display:flex; align-items:center; justify-content:center;
+    gap:6px; margin-top:24px; flex-wrap:wrap;
+  }
+  .page-btn{
+    min-width:38px; height:38px; padding:0 10px;
+    border:1px solid var(--line); background:var(--paper-card);
+    border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .page-btn.dots{border:none; background:none; color:var(--ink-soft); cursor:default;}
+  .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
+  .page-ellipsis{
+    min-width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+    color:var(--ink-soft); font-size:13.5px; font-weight:600; user-select:none;
+  }
+
+  /* ---------- CAROUSELS ---------- */
+  .carousel-section{
+    max-width:1080px; margin:0 auto;
+    padding:26px 32px 0;
+  }
+  .carousel-head{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .carousel-arrows{display:flex; gap:8px; flex-shrink:0;}
+  .arrow-btn{
+    width:30px; height:30px; border-radius:50%;
+    border:1px solid var(--line); background:var(--paper-card);
+    color:var(--ink-soft); font-size:16px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .arrow-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .arrow-btn.primary{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .arrow-btn.primary:hover{background:var(--walnut);}
+
+  .carousel-track{
+    display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
+    padding-bottom:6px; scrollbar-width:none;
+  }
+  .carousel-track::-webkit-scrollbar{display:none;}
+  .company-card{
+    flex:0 0 230px; scroll-snap-align:start;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    border-radius:12px; padding:16px;
+    text-decoration:none; color:inherit;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .company-card:hover{
+    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
+    border-color:var(--line);
+  }
+  .company-card-logo{
+    width:44px; height:44px; border-radius:10px; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-family:'IBM Plex Mono', monospace;
+    font-weight:600; font-size:15px; margin-bottom:12px;
+  }
+  .company-card-logo img{width:100%; height:100%; object-fit:cover;}
+  .company-card-name{font-family:'Fraunces', serif; font-weight:600; font-size:16px; margin-bottom:2px;}
+  .company-card-meta{font-size:12px; color:var(--ink-soft); margin-bottom:10px;}
+  .company-card-rating{display:flex; align-items:center; gap:6px; font-size:12.5px;}
+  .company-card-rating .stars{color:var(--accent); letter-spacing:1px;}
+  .company-card-rating .num{font-weight:700;}
+  .company-card-rating .count{color:var(--ink-soft);}
+
+  .review-track-card{
+    flex:0 0 260px; scroll-snap-align:start;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    border-radius:12px; padding:16px;
+  }
+  .review-top{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .review-avatar{
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-weight:600; font-size:13px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .review-who{min-width:0;}
+  .review-name{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .review-stars{color:var(--accent); font-size:11px; margin-bottom:6px; letter-spacing:1px;}
+  .review-text{font-size:13px; color:var(--ink-soft); line-height:1.5;}
+
+  /* ---------- CATEGORY & PRODUCT CARDS (chamfered corners) ---------- */
+  .chamfer-track{
+    display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
+    padding-bottom:6px; scrollbar-width:none;
+  }
+  .chamfer-track::-webkit-scrollbar{display:none;}
+  .category-card{
+    flex:0 0 106px; scroll-snap-align:start;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    border-radius:20px;
+    padding:22px 10px 16px; text-align:center;
+    text-decoration:none; color:inherit;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .category-card:hover{
+    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
+    border-color:var(--walnut); background:var(--paper-alt);
+  }
+  .category-card-icon{
+    width:38px; height:38px; margin:0 auto 12px;
+    display:flex; align-items:center; justify-content:center; color:var(--walnut);
+  }
+  .category-card-name{font-size:13px; font-weight:600; color:var(--ink);}
+
+  .product-card{
+    flex:0 0 216px; scroll-snap-align:start;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    border-radius:20px;
+    overflow:hidden; text-decoration:none; color:inherit;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .product-card:hover{
+    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
+    border-color:var(--line);
+  }
+  .product-card-img{
+    height:130px; background:var(--paper-alt);
+    display:flex; align-items:center; justify-content:center; color:var(--brass);
+  }
+  .product-card-img svg{width:52px; height:52px;}
+  .product-card-body{padding:14px 16px 16px;}
+  .product-card-cat{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em;
+    color:var(--sage); font-weight:600; margin-bottom:6px;
+  }
+  .product-card-name{font-family:'Fraunces', serif; font-weight:600; font-size:15px; line-height:1.28; margin-bottom:4px;}
+  .product-card-brand{font-size:12px; color:var(--ink-soft); margin-bottom:10px;}
+  .product-card-price{font-weight:700; font-size:15px; color:var(--ink);}
+
+  .view-all-card{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; border-style:dashed; border-color:var(--brass);
+    color:var(--walnut); font-weight:600;
+  }
+  .view-all-card:hover{background:var(--paper-alt); border-color:var(--walnut);}
+  .view-all-card .view-all-icon{
+    width:34px; height:34px; border-radius:50%;
+    background:var(--paper-alt); display:flex; align-items:center; justify-content:center;
+    color:var(--walnut); flex-shrink:0;
+  }
+  .category-card.view-all-card{padding:16px 10px;}
+  .category-card.view-all-card .view-all-icon{margin-bottom:2px;}
+  .category-card.view-all-card span{font-size:13px; font-weight:600;}
+  .product-card.view-all-card{flex-direction:column; min-height:100%;}
+  .product-card.view-all-card .view-all-icon{width:40px; height:40px;}
+  .product-card.view-all-card span{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{
+    max-width:1080px; margin:0 auto;
+    padding:48px 32px 32px;
+    display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr;
+    gap:32px;
+  }
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-brand p{
+    font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px;
+    max-width:280px;
+  }
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.06em;
+    color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;
+  }
+  .footer-col a{
+    display:block; font-size:13.5px; color:rgba(237,240,243,0.85);
+    margin-bottom:11px;
+  }
+  .footer-col a:hover{color:var(--brass-soft);}
+  .city-select{
+    display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600;
+    background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2);
+    border-radius:100px; padding:8px 16px; color:var(--paper);
+  }
+  .city-select svg{flex-shrink:0; margin-top:1px;}
+  .footer-bottom{
+    border-top:1px solid rgba(237,240,243,0.12);
+    text-align:center; padding:18px; font-size:12px;
+    color:rgba(237,240,243,0.45);
+  }
+
+  /* ---------- FOOTER CTA ---------- */
+  .cta-band{
+    background:var(--ink-soft); color:var(--paper);
+    padding:44px 32px; text-align:center;
+  }
+  .cta-band h2{
+    font-family:'Fraunces', serif; font-weight:500; font-size:24px;
+    margin:0 0 8px;
+  }
+  .cta-band p{
+    color:rgba(237,240,243,0.65); font-size:14px; margin:0 0 20px;
+  }
+  .cta-band a.btn{
+    display:inline-block; background:var(--brass-soft); color:var(--ink);
+    padding:11px 24px; border-radius:100px; font-weight:600; font-size:14px;
+  }
+
+  @media (max-width: 860px){
+    .filter-toggle-btn{display:inline-flex; flex-shrink:0; height:36px; box-sizing:border-box;}
+    .filter-wrap{padding:12px 18px;}
+    .filter-row{gap:8px; flex-wrap:nowrap; justify-content:flex-start;}
+    .filter-bar{
+      position:fixed; left:0; right:0; bottom:0; z-index:100;
+      background:var(--paper-card);
+      border-radius:18px 18px 0 0;
+      padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+      max-height:82vh; overflow-y:auto;
+      flex-direction:column; align-items:stretch;
+      transform:translateY(110%);
+      transition:transform .3s ease;
+      box-shadow:0 -12px 30px rgba(27,42,61,0.18);
+    }
+    .filter-bar.open{transform:translateY(0);}
+    .filter-modal-head{display:flex;}
+    .filter-select{width:100%;}
+    .filter-select select{width:100%;}
+    .filter-apply-btn{display:block;}
+
+    /* sort select stays visible, compact */
+    .sort-select{flex-shrink:1; min-width:0; margin-left:auto;}
+    .sort-select .filter-select select{
+      padding:9px 26px 9px 12px; font-size:12px; width:auto; max-width:100%;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+
+    /* search: icon-only button that expands in normal flow (never overlaps siblings) */
+    .search-wrap{
+      position:relative;
+      flex:0 0 36px;
+      min-width:0; width:36px; height:36px;
+      padding:0; gap:0;
+      justify-content:center;
+      box-sizing:border-box;
+      transition:width .25s ease, flex-basis .25s ease;
+      overflow:hidden;
+    }
+    .search-wrap.expanded{
+      width:auto; flex:1 1 auto;
+      justify-content:flex-start;
+      padding:0;
+    }
+    .search-desktop-input{display:none;}
+    .search-icon-btn{
+      display:flex; width:19px; height:19px; flex-shrink:0;
+      position:absolute; top:50%; right:8.5px;
+      transform:translateY(-50%);
+    }
+    .search-mobile-input{
+      display:block;
+      width:0; min-width:0; opacity:0;
+      font-size:16px;
+      padding:0; margin-left:0; border:none;
+      transition:width .2s ease, opacity .15s ease, padding .2s ease;
+    }
+    .search-wrap.expanded .search-mobile-input{
+      width:100%; opacity:1;
+      padding:0 34px 0 14px;
+    }
+  }
+
+  @media (max-width: 720px){
+    .nav{padding:14px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .nav-cta{display:none;}
+    .nav-right{margin-left:auto;}
+    .hero{padding:44px 18px 26px;}
+    .hero h1{font-size:clamp(38px, 9vw, 58px);}
+    .filter-wrap{padding:12px 18px;}
+    .list-section{padding:26px 14px 70px;}
+    .brand-row{padding:14px 12px; gap:10px;}
+    .tag-hole{width:28px; height:28px; font-size:10px;}
+    .rank-num{width:26px; font-size:18px;}
+    .row-name{font-size:16.5px;}
+    .mini-scores{display:none;}
+    .row-year{display:none;}
+    .row-score{width:52px;}
+    .score-num{font-size:20px;}
+    .row-go{display:none;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+    .company-card{flex:0 0 200px;}
+    .category-card{flex:0 0 92px; padding:18px 8px 14px;}
+    .category-card-icon{width:32px; height:32px; margin-bottom:10px;}
+    .category-card-name{font-size:12px;}
+    .category-card.view-all-card span{font-size:12px;}
+    .product-card{flex:0 0 176px;}
+    .product-card-img{height:110px;}
+    .product-card-img svg{width:44px; height:44px;}
+    .carousel-section{padding:20px 18px 0;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; scroll-behavior:auto !important;}
+  }
+</style>
+</head>
+<body>
+
+  <nav class="nav">
+    <a class="brand" href="index.html" style="display:flex; align-items:center; gap:10px;">
+      <div class="brand-mark" style="background:var(--walnut);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--paper-card)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6l4 6 4-8 4 8 4-6v14"/></svg></div>
+      <div class="brand-word">Mimarlab</div>
+    </a>
+    <div class="nav-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Ara...">
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="index.html">Ofisler</a>
+      <a class="nav-link" href="#">Projeler</a>
+      <a class="nav-link" href="#">Nasıl Çalışır</a>
+    </div>
+    <div class="nav-right">
+      <button class="nav-rate">Puanla</button>
+      <button class="nav-cta">Giriş Yap</button>
+    </div>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-mobile-menu" id="nav-mobile-menu">
+      <div class="nav-mobile-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="f-search-nav" placeholder="Ara...">
+      </div>
+      <a class="nav-mobile-link" href="index.html">Ofisler</a>
+      <a class="nav-mobile-link" href="#">Projeler</a>
+      <a class="nav-mobile-link" href="#">Nasıl Çalışır</a>
+      <button class="nav-mobile-cta">Giriş Yap</button>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <h1>Hangi ofis <em>daha iyi</em><span class="q">?</span></h1>
+    <p>Gerçek proje sahibi değerlendirmeleriyle sıralanan mimarlık, iç mimarlık ve peyzaj mimarlığı ofisleri.</p>
+  </section>
+
+  <div class="filter-wrap">
+   <div class="filter-row">
+    <button class="filter-toggle-btn" id="filter-toggle-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="var(--paper-card)"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="var(--paper-card)"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="var(--paper-card)"/></svg>
+      Filtrele
+    </button>
+    <div class="filter-backdrop" id="filter-backdrop"></div>
+    <div class="filter-bar" id="filter-bar">
+      <div class="filter-modal-head">
+        <span>Filtrele</span>
+        <button class="filter-close-btn" id="filter-close-btn" aria-label="Kapat">✕</button>
+      </div>
+      <div class="filter-select">
+        <select id="f-loc">
+          <option value="">Konum</option>
+        </select>
+        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      </div>
+      <div class="filter-select">
+        <select id="f-cat">
+          <option value="">Hizmet Alanı</option>
+          <option value="Mimarlık">Mimarlık</option>
+          <option value="İç Mimarlık">İç Mimarlık</option>
+          <option value="Peyzaj Mimarlığı">Peyzaj Mimarlığı</option>
+          <option value="Kentsel Tasarım">Kentsel Tasarım</option>
+          <option value="Restorasyon">Restorasyon</option>
+          <option value="Ticari Mekan Tasarımı">Ticari Mekan Tasarımı</option>
+          <option value="Konut Projeleri">Konut Projeleri</option>
+          <option value="">Tümü</option>
+        </select>
+        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      </div>
+      <div class="filter-select">
+        <select id="f-price">
+          <option value="">Bütçe</option>
+          <option value="1">₺ Bütçe Dostu</option>
+          <option value="2">₺₺ Orta Ölçek</option>
+          <option value="3">₺₺₺ Prestij Proje</option>
+          <option value="">Tümü</option>
+        </select>
+        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      </div>
+      <div class="filter-select">
+        <select id="f-rating">
+          <option value="0">Puan</option>
+          <option value="2">+2</option>
+          <option value="2.5">+2.5</option>
+          <option value="3">+3</option>
+          <option value="3.5">+3.5</option>
+          <option value="4">+4</option>
+          <option value="4.5">+4.5</option>
+          <option value="0">Tümü</option>
+        </select>
+        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      </div>
+      <button class="filter-apply-btn" id="filter-apply-btn">Sonuçları Göster</button>
+    </div>
+
+    <div class="sort-select">
+      <div class="filter-select">
+        <select id="f-sort">
+          <option value="" selected>Sıralama</option>
+          <option value="liked">En Popüler</option>
+          <option value="score_desc">En Yüksek Puan</option>
+          <option value="score_asc">En Düşük Puan</option>
+          <option value="reviews_desc">En Çok Yorum</option>
+          <option value="reviews_asc">En Az Yorum</option>
+        </select>
+        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      </div>
+    </div>
+
+    <div class="search-wrap" id="search-wrap">
+      <button class="search-icon-btn" id="search-icon-btn" aria-label="Ara">
+        <svg class="icon-search" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg class="icon-close" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <input id="f-search-drawer" class="search-mobile-input" type="text" placeholder="Ofis ara...">
+      <input id="f-search" class="search-desktop-input" type="text" placeholder="Ofis ara...">
+    </div>
+   </div>
+  </div>
+
+  <section class="list-section">
+    <div class="rail-line no-line rail-line-normalcase"><span id="result-count">64</span>&nbsp;ofis, <span id="result-brand-count">24</span>&nbsp;farklı şehirde listeleniyor.</div>
+    <div id="brand-list"></div>
+    <div class="empty-state" id="empty-state">Bu kritere uyan ofis bulunamadı.</div>
+    <div class="pagination" id="pagination"></div>
+  </section>
+
+  <section class="carousel-section">
+    <div class="carousel-head">
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Son Eklenen Yorumlar</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="carousel-reviews" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn primary" data-target="carousel-reviews" data-dir="1" aria-label="İleri">›</button>
+      </div>
+    </div>
+    <div class="carousel-track" id="carousel-reviews"></div>
+  </section>
+
+  <section class="carousel-section">
+    <div class="carousel-head">
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Son Eklenen Ofisler</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="carousel-newest" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn primary" data-target="carousel-newest" data-dir="1" aria-label="İleri">›</button>
+      </div>
+    </div>
+    <div class="carousel-track" id="carousel-newest"></div>
+  </section>
+
+  <section class="carousel-section">
+    <div class="carousel-head">
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Hizmet Alanları</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="category-track" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn primary" data-target="category-track" data-dir="1" aria-label="İleri">›</button>
+      </div>
+    </div>
+    <div class="chamfer-track" id="category-track">
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 12 3.5 20 9.5"/><rect x="6" y="9.5" width="12" height="11" rx="0.5"/><line x1="12" y1="14" x2="12" y2="20.5"/></svg></div>
+        <div class="category-card-name">Mimarlık</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="7" rx="2"/><path d="M5 14v3M19 14v3"/><path d="M4 10H2.5a1.5 1.5 0 0 0 0 3H4M20 10h1.5a1.5 1.5 0 0 1 0 3H20"/></svg></div>
+        <div class="category-card-name">İç Mimarlık</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6"/><line x1="12" y1="16" x2="12" y2="21"/></svg></div>
+        <div class="category-card-name">Peyzaj Mimarlığı</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="4" height="11" rx="0.5"/><rect x="9" y="5" width="4" height="16" rx="0.5"/><rect x="15" y="13" width="4" height="8" rx="0.5"/></svg></div>
+        <div class="category-card-name">Kentsel Tasarım</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21V10M18 21V10"/><path d="M4 10a8 5 0 0 1 16 0"/></svg></div>
+        <div class="category-card-name">Restorasyon</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M9 20v-6h6v6"/></svg></div>
+        <div class="category-card-name">Ticari Mekan</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11"/><path d="M6 11v9h12v-9"/><rect x="10" y="14" width="4" height="6"/></svg></div>
+        <div class="category-card-name">Konut Projeleri</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="10" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></div>
+        <div class="category-card-name">Ofis Tasarımı</div>
+      </a>
+      <a class="category-card" href="#">
+        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></div>
+        <div class="category-card-name">Danışmanlık</div>
+      </a>
+      <a class="category-card view-all-card" href="#">
+        <div class="view-all-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+        <span>Tüm Hizmetler</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="carousel-section">
+    <div class="carousel-head">
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Öne Çıkan Projeler</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="product-track" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn primary" data-target="product-track" data-dir="1" aria-label="İleri">›</button>
+      </div>
+    </div>
+    <div class="chamfer-track" id="product-track">
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11"/><path d="M6 11v9h12v-9"/><rect x="10" y="14" width="4" height="6"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">KONUT</div>
+          <div class="product-card-name">Boğaz Manzaralı Villa</div>
+          <div class="product-card-brand">Anadolu Mimarlık</div>
+          <div class="product-card-price">420 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="7" rx="2"/><path d="M5 14v3M19 14v3"/><path d="M4 10H2.5a1.5 1.5 0 0 0 0 3H4M20 10h1.5a1.5 1.5 0 0 1 0 3H20"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">İÇ MEKAN</div>
+          <div class="product-card-name">Loft Daire Yenileme</div>
+          <div class="product-card-brand">Katman İç Mimarlık</div>
+          <div class="product-card-price">145 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M9 20v-6h6v6"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">TİCARİ</div>
+          <div class="product-card-name">Butik Otel Lobi Tasarımı</div>
+          <div class="product-card-brand">Cephe Mimarlık Atölyesi</div>
+          <div class="product-card-price">310 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6"/><line x1="12" y1="16" x2="12" y2="21"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">PEYZAJ</div>
+          <div class="product-card-name">Site Ortak Bahçe Düzenlemesi</div>
+          <div class="product-card-brand">Anadolu Peyzaj Mimarlığı</div>
+          <div class="product-card-price">2.400 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21V10M18 21V10"/><path d="M4 10a8 5 0 0 1 16 0"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">RESTORASYON</div>
+          <div class="product-card-name">Tarihi Konak Restorasyonu</div>
+          <div class="product-card-brand">Marmara Architects</div>
+          <div class="product-card-price">560 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="4" height="11" rx="0.5"/><rect x="9" y="5" width="4" height="16" rx="0.5"/><rect x="15" y="13" width="4" height="8" rx="0.5"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">KENTSEL</div>
+          <div class="product-card-name">Meydan Yenileme Projesi</div>
+          <div class="product-card-brand">Modül Architects</div>
+          <div class="product-card-price">8.200 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="10" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">OFİS</div>
+          <div class="product-card-name">Teknoloji Şirketi Genel Merkezi</div>
+          <div class="product-card-brand">Işık Architects</div>
+          <div class="product-card-price">1.850 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11"/><path d="M6 11v9h12v-9"/><rect x="10" y="14" width="4" height="6"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">KONUT</div>
+          <div class="product-card-name">Müstakil Aile Evi</div>
+          <div class="product-card-brand">Doku Mimarlık Atölyesi</div>
+          <div class="product-card-price">280 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="7" rx="2"/><path d="M5 14v3M19 14v3"/><path d="M4 10H2.5a1.5 1.5 0 0 0 0 3H4M20 10h1.5a1.5 1.5 0 0 1 0 3H20"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">İÇ MEKAN</div>
+          <div class="product-card-name">Kafe & Kırtasiye Konsepti</div>
+          <div class="product-card-brand">Çizgi İç Mimarlık</div>
+          <div class="product-card-price">95 m²</div>
+        </div>
+      </a>
+      <a class="product-card" href="#">
+        <div class="product-card-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6"/><line x1="12" y1="16" x2="12" y2="21"/></svg></div>
+        <div class="product-card-body">
+          <div class="product-card-cat">PEYZAJ</div>
+          <div class="product-card-name">Çatı Bahçesi Tasarımı</div>
+          <div class="product-card-brand">Sokak Peyzaj Tasarım</div>
+          <div class="product-card-price">180 m²</div>
+        </div>
+      </a>
+      <a class="product-card view-all-card" href="#">
+        <div class="view-all-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+        <span>Tüm Projeler</span>
+      </a>
+    </div>
+  </section>
+
+  <div style="height:72px;"></div>
+
+  <div class="cta-band">
+    <h2>Ofisiniz burada olmalı.</h2>
+    <p>Sayfanızı ücretsiz oluşturun, proje sahiplerinin yorumlarına yanıt verin.</p>
+    <a class="btn" href="#">Ofis Olarak Katıl →</a>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="brand-mark" style="background:var(--walnut);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--paper-card)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6l4 6 4-8 4 8 4-6v14"/></svg></div>
+          <div class="brand-word" style="color:var(--paper)">Mimarlab</div>
+        </div>
+        <p>Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı ofislerini gerçek proje sahibi puanlarıyla tek çatı altında topluyoruz.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Hakkında</h4>
+        <a href="#">Hakkımızda</a>
+        <a href="#">Nasıl Çalışır</a>
+        <a href="#">Kariyer</a>
+        <a href="#">İletişim</a>
+      </div>
+      <div class="footer-col">
+        <h4>Topluluk</h4>
+        <a href="#">Güven ve Şeffaflık</a>
+        <a href="#">Yardım Merkezi</a>
+        <a href="#">Giriş Yap</a>
+        <a href="#">Üye Ol</a>
+      </div>
+      <div class="footer-col">
+        <h4>Ofisler İçin</h4>
+        <a href="#">Ofis Girişi</a>
+        <a href="#">Ofis Paneli</a>
+        <a href="#">Neden Katılmalı?</a>
+      </div>
+      <div class="footer-col footer-city">
+        <h4>Şehir</h4>
+        <div class="city-select">Tüm Türkiye <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+      </div>
+    </div>
+    <div class="footer-bottom">Mimarlab — bu bir tasarım taslağıdır · örnek veriler kurgusaldır</div>
+  </footer>
+<script>
+const logoData = {};
+const brandLogoKey = {};
+const brands = [
+  {name:"Gün Mimarlık Atölyesi", loc:"Beşiktaş", price:3, cats:"İç Mimarlık · Konut Projeleri", yil:1996, tasarim:4.7, iletisim:4.8, surec:4.2, reviews:30},
+  {name:"Kırağı Mimarlık Atölyesi", loc:"Maslak", price:1, cats:"Restorasyon · Mimarlık · Konut Projeleri", yil:2000, tasarim:4.6, iletisim:4.4, surec:4.4, reviews:25},
+  {name:"Zaman Mimarlık", loc:"Ortahisar", price:1, cats:"Peyzaj Mimarlığı · Konut Projeleri", yil:1997, tasarim:3.8, iletisim:3.3, surec:3.5, reviews:28},
+  {name:"Arya Peyzaj Tasarım", loc:"Çankaya", price:1, cats:"Peyzaj Mimarlığı · Mimarlık", yil:2012, tasarim:3.3, iletisim:3.5, surec:3.6, reviews:28},
+  {name:"Kıyı Mimarlık Atölyesi", loc:"Kadıköy", price:3, cats:"Konut Projeleri", yil:2006, tasarim:5.0, iletisim:5.0, surec:4.8, reviews:31},
+  {name:"Pencere Mimarlık ve Tasarım", loc:"Karaköy", price:2, cats:"İç Mimarlık · Ticari Mekan Tasarımı", yil:2005, tasarim:4.6, iletisim:4.1, surec:4.5, reviews:35},
+  {name:"Zemin İç Mimarlık", loc:"Muratpaşa", price:2, cats:"İç Mimarlık · Konut Projeleri", yil:2023, tasarim:3.6, iletisim:3.8, surec:3.3, reviews:75},
+  {name:"Konsept Mimarlık ve Tasarım", loc:"Bornova", price:2, cats:"İç Mimarlık", yil:2008, tasarim:3.7, iletisim:3.9, surec:3.6, reviews:22},
+  {name:"Mekan Peyzaj Mimarlığı", loc:"Pamukkale", price:2, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · Restorasyon", yil:2015, tasarim:4.8, iletisim:4.6, surec:5.0, reviews:34},
+  {name:"Katman Mimarlık", loc:"Levent", price:1, cats:"Konut Projeleri", yil:2015, tasarim:4.2, iletisim:4.3, surec:4.2, reviews:24},
+  {name:"Sokak Mimarlık", loc:"İzmit", price:3, cats:"Ticari Mekan Tasarımı", yil:2022, tasarim:4.7, iletisim:4.4, surec:4.4, reviews:22},
+  {name:"Ada Tasarım Stüdyosu", loc:"Tepebaşı", price:1, cats:"Mimarlık · Ticari Mekan Tasarımı · Peyzaj Mimarlığı", yil:2020, tasarim:4.1, iletisim:4.5, surec:4.3, reviews:63},
+  {name:"Peron Mimarlık", loc:"Seyhan", price:2, cats:"Mimarlık · Konut Projeleri", yil:2011, tasarim:5.0, iletisim:4.6, surec:4.4, reviews:100},
+  {name:"Katman Mimarlık Atölyesi", loc:"Pamukkale", price:2, cats:"Konut Projeleri", yil:2022, tasarim:4.4, iletisim:4.5, surec:4.5, reviews:25},
+  {name:"Zaman Peyzaj Tasarım", loc:"Nilüfer", price:1, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · İç Mimarlık", yil:2007, tasarim:4.1, iletisim:3.8, surec:4.1, reviews:31},
+  {name:"Zemin Peyzaj Mimarlığı", loc:"Şişli", price:2, cats:"Peyzaj Mimarlığı", yil:2023, tasarim:3.5, iletisim:3.3, surec:3.7, reviews:24},
+  {name:"Kar Mimarlık", loc:"Alsancak", price:1, cats:"İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:2001, tasarim:4.4, iletisim:4.4, surec:4.2, reviews:24},
+  {name:"Kök Architects", loc:"Maslak", price:1, cats:"Ticari Mekan Tasarımı", yil:2015, tasarim:3.8, iletisim:4.1, surec:3.5, reviews:45},
+  {name:"Ege Mimarlık Atölyesi", loc:"Kadıköy", price:2, cats:"Konut Projeleri · Mimarlık", yil:2003, tasarim:3.6, iletisim:3.3, surec:3.3, reviews:32},
+  {name:"Zaman Mimarlık Atölyesi", loc:"Muratpaşa", price:2, cats:"Mimarlık", yil:2022, tasarim:5.0, iletisim:5.0, surec:4.8, reviews:23},
+  {name:"Dal Design Studio", loc:"Maslak", price:2, cats:"İç Mimarlık", yil:2012, tasarim:3.2, iletisim:3.6, surec:3.4, reviews:25},
+  {name:"Çizgi Atölye", loc:"İzmit", price:3, cats:"İç Mimarlık · Konut Projeleri", yil:2006, tasarim:3.4, iletisim:3.8, surec:3.3, reviews:26},
+  {name:"Meridyen Peyzaj Tasarım", loc:"Konyaaltı", price:2, cats:"Peyzaj Mimarlığı · Mimarlık · Restorasyon", yil:1993, tasarim:4.5, iletisim:4.4, surec:4.9, reviews:29},
+  {name:"Kumsal Peyzaj Tasarım", loc:"Ataşehir", price:2, cats:"Peyzaj Mimarlığı · Restorasyon · Konut Projeleri", yil:2014, tasarim:4.5, iletisim:4.2, surec:4.2, reviews:46},
+  {name:"Boğaz Peyzaj Mimarlığı", loc:"Çankaya", price:2, cats:"Peyzaj Mimarlığı", yil:2007, tasarim:4.3, iletisim:4.3, surec:3.7, reviews:42},
+  {name:"Meydan Mimarlık Atölyesi", loc:"Şişli", price:2, cats:"Restorasyon", yil:2004, tasarim:3.4, iletisim:3.2, surec:3.3, reviews:25},
+  {name:"Rüzgar Atölye", loc:"Bodrum", price:2, cats:"Konut Projeleri · Ticari Mekan Tasarımı · Restorasyon", yil:1988, tasarim:4.5, iletisim:4.7, surec:4.1, reviews:100},
+  {name:"Cephe Mimarlık Atölyesi", loc:"Levent", price:3, cats:"İç Mimarlık · Peyzaj Mimarlığı · Ticari Mekan Tasarımı", yil:2001, tasarim:4.3, iletisim:4.6, surec:4.3, reviews:33},
+  {name:"Katman Architects", loc:"Çankaya", price:1, cats:"Peyzaj Mimarlığı", yil:1996, tasarim:4.2, iletisim:4.5, surec:4.3, reviews:30},
+  {name:"Ada Mimarlık Atölyesi", loc:"Şişli", price:3, cats:"Restorasyon", yil:1990, tasarim:4.8, iletisim:4.4, surec:4.4, reviews:26},
+  {name:"Kar Mimarlık ve Tasarım", loc:"Maslak", price:3, cats:"Ticari Mekan Tasarımı", yil:1994, tasarim:3.9, iletisim:4.1, surec:4.1, reviews:58},
+  {name:"Mimari Peyzaj Mimarlığı", loc:"Karaköy", price:1, cats:"Peyzaj Mimarlığı · İç Mimarlık", yil:2009, tasarim:4.6, iletisim:4.7, surec:4.7, reviews:24},
+  {name:"Gölge Mimarlık Atölyesi", loc:"Bornova", price:1, cats:"İç Mimarlık · Konut Projeleri", yil:2017, tasarim:4.1, iletisim:4.1, surec:3.6, reviews:45},
+  {name:"Sınır Mimarlık ve Tasarım", loc:"Çankaya", price:1, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı", yil:2020, tasarim:4.3, iletisim:4.0, surec:4.1, reviews:21},
+  {name:"Cephe İç Mimarlık", loc:"Selçuklu", price:2, cats:"İç Mimarlık", yil:2015, tasarim:4.1, iletisim:3.8, surec:4.1, reviews:21},
+  {name:"Kar Peyzaj Tasarım", loc:"Maslak", price:2, cats:"Peyzaj Mimarlığı", yil:2015, tasarim:3.6, iletisim:3.3, surec:3.3, reviews:56},
+  {name:"Marmara Peyzaj Mimarlığı", loc:"Karşıyaka", price:2, cats:"Peyzaj Mimarlığı", yil:2009, tasarim:4.5, iletisim:4.0, surec:4.5, reviews:34},
+  {name:"Marmara Architects", loc:"Alsancak", price:2, cats:"Restorasyon · İç Mimarlık", yil:2000, tasarim:4.3, iletisim:4.1, surec:4.2, reviews:41},
+  {name:"Anadolu Architects", loc:"Şehitkamil", price:1, cats:"Peyzaj Mimarlığı · İç Mimarlık", yil:2015, tasarim:4.7, iletisim:4.5, surec:4.5, reviews:47},
+  {name:"Liman Design Studio", loc:"Pamukkale", price:1, cats:"Peyzaj Mimarlığı", yil:2020, tasarim:4.5, iletisim:4.1, surec:4.6, reviews:24},
+  {name:"Anadolu Peyzaj Mimarlığı", loc:"Maslak", price:1, cats:"Peyzaj Mimarlığı", yil:2003, tasarim:5.0, iletisim:5.0, surec:4.8, reviews:106},
+  {name:"Meydan Peyzaj Mimarlığı", loc:"Bodrum", price:3, cats:"Peyzaj Mimarlığı · Konut Projeleri", yil:2003, tasarim:3.7, iletisim:3.8, surec:3.7, reviews:105},
+  {name:"Modül Architects", loc:"Ataşehir", price:1, cats:"Kentsel Tasarım · Mimarlık · Restorasyon", yil:2003, tasarim:4.6, iletisim:4.6, surec:4.7, reviews:35},
+  {name:"Sokak Peyzaj Tasarım", loc:"Alsancak", price:2, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · Restorasyon", yil:2015, tasarim:4.7, iletisim:4.9, surec:4.8, reviews:32},
+  {name:"Cephe Peyzaj Mimarlığı", loc:"Yenişehir", price:2, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı · İç Mimarlık", yil:2005, tasarim:4.2, iletisim:3.8, surec:3.8, reviews:111},
+  {name:"Katman İç Mimarlık", loc:"Nişantaşı", price:1, cats:"Ticari Mekan Tasarımı · İç Mimarlık", yil:2001, tasarim:3.4, iletisim:3.4, surec:3.3, reviews:23},
+  {name:"Işık Architects", loc:"Ortahisar", price:2, cats:"Konut Projeleri", yil:2012, tasarim:4.4, iletisim:3.9, surec:3.9, reviews:110},
+  {name:"Pencere Architects", loc:"Şehitkamil", price:3, cats:"Konut Projeleri · Restorasyon · İç Mimarlık", yil:2019, tasarim:3.6, iletisim:3.3, surec:3.5, reviews:47},
+  {name:"Sınır İç Mimarlık", loc:"Muratpaşa", price:1, cats:"İç Mimarlık · Mimarlık · Kentsel Tasarım", yil:1989, tasarim:3.4, iletisim:3.6, surec:3.2, reviews:25},
+  {name:"Yeşil Mimarlık ve Tasarım", loc:"Alsancak", price:2, cats:"Konut Projeleri · Kentsel Tasarım", yil:2004, tasarim:4.7, iletisim:4.8, surec:4.4, reviews:206},
+  {name:"Doku Mimarlık Atölyesi", loc:"Ortahisar", price:3, cats:"Konut Projeleri", yil:1989, tasarim:4.7, iletisim:4.5, surec:4.6, reviews:22},
+  {name:"Marmara Mimarlık Atölyesi", loc:"Selçuklu", price:1, cats:"Ticari Mekan Tasarımı · Peyzaj Mimarlığı", yil:2011, tasarim:3.6, iletisim:3.7, surec:3.3, reviews:74},
+  {name:"Anadolu Mimarlık Atölyesi", loc:"Selçuklu", price:1, cats:"Restorasyon · Ticari Mekan Tasarımı", yil:2012, tasarim:4.1, iletisim:3.6, surec:4.0, reviews:42},
+  {name:"İz Tasarım Stüdyosu", loc:"İzmit", price:2, cats:"Konut Projeleri", yil:1990, tasarim:3.8, iletisim:3.7, surec:3.8, reviews:27},
+  {name:"Duvar Architects", loc:"Konyaaltı", price:1, cats:"Peyzaj Mimarlığı · Ticari Mekan Tasarımı", yil:2017, tasarim:4.5, iletisim:4.6, surec:4.7, reviews:25},
+  {name:"Konsept Atölye", loc:"Ortahisar", price:2, cats:"Kentsel Tasarım · Ticari Mekan Tasarımı", yil:2005, tasarim:3.7, iletisim:4.1, surec:3.6, reviews:31},
+  {name:"Yapıkent Design Studio", loc:"Selçuklu", price:2, cats:"Peyzaj Mimarlığı · Mimarlık", yil:2019, tasarim:4.6, iletisim:4.5, surec:4.8, reviews:27},
+  {name:"Çizgi Tasarım Stüdyosu", loc:"Şehitkamil", price:1, cats:"İç Mimarlık · Mimarlık · Konut Projeleri", yil:2014, tasarim:4.3, iletisim:4.2, surec:4.1, reviews:33},
+  {name:"Silüet Mimarlık", loc:"Şişli", price:2, cats:"Kentsel Tasarım", yil:2003, tasarim:3.9, iletisim:3.8, surec:3.7, reviews:30},
+  {name:"Katbekat Atölye", loc:"Alsancak", price:2, cats:"Peyzaj Mimarlığı · Konut Projeleri", yil:2004, tasarim:3.8, iletisim:3.5, surec:3.7, reviews:203},
+  {name:"Çizgi İç Mimarlık", loc:"Maslak", price:1, cats:"İç Mimarlık · Ticari Mekan Tasarımı", yil:2021, tasarim:4.6, iletisim:4.5, surec:4.1, reviews:28},
+  {name:"Anadolu Mimarlık", loc:"Bodrum", price:2, cats:"Peyzaj Mimarlığı", yil:1990, tasarim:5.0, iletisim:5.0, surec:4.6, reviews:95},
+  {name:"Dal Mimarlık Atölyesi", loc:"Beşiktaş", price:2, cats:"Kentsel Tasarım · Konut Projeleri", yil:2016, tasarim:4.2, iletisim:3.7, surec:4.0, reviews:21},
+  {name:"Sade Architects", loc:"Konyaaltı", price:1, cats:"Ticari Mekan Tasarımı · Konut Projeleri · Mimarlık", yil:1997, tasarim:3.6, iletisim:3.4, surec:3.7, reviews:22},
+];
+
+const priceLabel = {1:"₺", 2:"₺₺", 3:"₺₺₺"};
+
+function avg(b){ return (b.tasarim + b.iletisim + b.surec) / 3; }
+
+// "En Popüler" = ortalama puan + yorum hacmi (log ölçekli) karışımı.
+// POPULARITY_WEIGHT ne kadar yüksekse, yorum sayısının etkisi o kadar artar.
+const POPULARITY_WEIGHT = 0.25;
+const REVIEW_LOGS = brands.map(b => Math.log10(b.reviews + 1));
+const MIN_LOG_REVIEWS = Math.min(...REVIEW_LOGS);
+const MAX_LOG_REVIEWS = Math.max(...REVIEW_LOGS);
+
+function popularityScore(b){
+  const l = Math.log10(b.reviews + 1);
+  return 1 + 4 * (l - MIN_LOG_REVIEWS) / (MAX_LOG_REVIEWS - MIN_LOG_REVIEWS);
+}
+
+function likedScore(b){
+  const R = avg(b);
+  const P = popularityScore(b);
+  return R * (1 - POPULARITY_WEIGHT) + P * POPULARITY_WEIGHT;
+}
+
+function initials(name){
+  return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+}
+
+const palette = ['#2B425F','#3E5A78','#5B7A9B','#4F6478','#7C4B4B'];
+function brandColor(name){
+  let hash = 0;
+  for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
+  return palette[Math.abs(hash) % palette.length];
+}
+
+function starString(score){
+  const full = Math.round(score);
+  return "★".repeat(full) + "☆".repeat(5-full);
+}
+
+</script>
+<script>
+function populateFilters(){
+  const locs = [...new Set(brands.map(b=>b.loc))].sort();
+  const locSel = document.getElementById('f-loc');
+  locs.forEach(l=>{
+    const o = document.createElement('option'); o.value=l; o.textContent=l;
+    locSel.appendChild(o);
+  });
+  const allOpt = document.createElement('option'); allOpt.value=''; allOpt.textContent='Tümü';
+  locSel.appendChild(allOpt);
+}
+
+let currentPage = 1;
+let searchQuery = '';
+const PAGE_SIZE = 10;
+
+function trLower(s){
+  // JS'in varsayılan toLowerCase()'i Türkçe İ/I harflerini yanlış çevirir (ör. İzmit -> "i̇zmit").
+  // Bu yüzden Türkçe harfleri elle eşliyoruz.
+  return s
+    .replace(/İ/g, 'i')
+    .replace(/I/g, 'ı')
+    .replace(/Ş/g, 'ş')
+    .replace(/Ğ/g, 'ğ')
+    .replace(/Ü/g, 'ü')
+    .replace(/Ö/g, 'ö')
+    .replace(/Ç/g, 'ç')
+    .toLowerCase();
+}
+
+function render(){
+  const loc = document.getElementById('f-loc').value;
+  const price = document.getElementById('f-price').value;
+  const cat = document.getElementById('f-cat').value;
+  const minRating = parseFloat(document.getElementById('f-rating').value) || 0;
+  const sort = document.getElementById('f-sort').value;
+  const q = trLower(searchQuery.trim());
+
+  let filtered = brands.filter(b=>{
+    if(loc && b.loc !== loc) return false;
+    if(price && String(b.price) !== price) return false;
+    if(cat && !b.cats.includes(cat)) return false;
+    if(minRating && avg(b) < minRating) return false;
+    if(q && !trLower(b.name).includes(q)) return false;
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    switch(sort){
+      case 'score_asc': return avg(a)-avg(b);
+      case 'score_desc': return avg(b)-avg(a);
+      case 'reviews_desc': return b.reviews-a.reviews;
+      case 'reviews_asc': return a.reviews-b.reviews;
+      default: return likedScore(b)-likedScore(a);
+    }
+  });
+
+  const list = document.getElementById('brand-list');
+  const empty = document.getElementById('empty-state');
+  document.getElementById('result-count').textContent = filtered.length;
+  const distinctCityCount = new Set(filtered.map(b=>b.loc)).size;
+  document.getElementById('result-brand-count').textContent = distinctCityCount;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if(currentPage > totalPages) currentPage = totalPages;
+  renderPagination(totalPages);
+
+  if(filtered.length === 0){
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+
+  list.innerHTML = pageItems.map((b,i)=>{
+    const rank = startIdx + i + 1;
+    const score = avg(b);
+    return `
+    <a class="brand-row" data-rank="${rank}" href="ofis-detay.html?ofis=${encodeURIComponent(b.name)}">
+      <div class="rank-num">${String(rank).padStart(2,'0')}</div>
+      <div class="tag-hole" style="${logoData[brandLogoKey[b.name]] ? '' : 'background:'+brandColor(b.name)}">${logoData[brandLogoKey[b.name]] ? `<img src="${logoData[brandLogoKey[b.name]]}" alt="${b.name}">` : initials(b.name)}</div>
+      <div class="row-main">
+        <div class="row-top">
+          <span class="row-name">${b.name}</span>
+          <span class="row-loc">${b.loc}</span>
+          <span class="row-year">${b.yil}</span>
+        </div>
+        <div class="row-cats">${b.cats}</div>
+        <div class="mini-scores">
+          <div class="mini-score">
+            <span class="mini-score-label">Tasarım</span>
+            <div class="mini-score-bar"><div class="mini-score-fill" style="width:${b.tasarim/5*100}%"></div></div>
+          </div>
+          <div class="mini-score">
+            <span class="mini-score-label">İletişim</span>
+            <div class="mini-score-bar"><div class="mini-score-fill" style="width:${b.iletisim/5*100}%"></div></div>
+          </div>
+          <div class="mini-score">
+            <span class="mini-score-label">Süreç</span>
+            <div class="mini-score-bar"><div class="mini-score-fill" style="width:${b.surec/5*100}%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="row-score">
+        <span class="score-num">${score.toFixed(1)}</span>
+        <span class="score-label">/ 5.0</span>
+        <div class="score-stars">${starString(score)}</div>
+        <div class="score-reviews">${b.reviews.toLocaleString('tr-TR')} yorum</div>
+      </div>
+      <div class="row-go">→</div>
+    </a>`;
+  }).join('');
+}
+
+function getMaxLeading(){
+  return window.innerWidth <= 860 ? 4 : 9;
+}
+
+function getPageList(totalPages, currentPage){
+  const MAX_LEADING = getMaxLeading();
+  if(totalPages <= MAX_LEADING + 1){
+    const pages = [];
+    for(let p=1; p<=totalPages; p++) pages.push(p);
+    return pages;
+  }
+  if(currentPage <= MAX_LEADING){
+    return [...Array(MAX_LEADING).keys()].map(i=>i+1).concat(['...', totalPages]);
+  }
+  const pages = [1, '...'];
+  const start = Math.max(2, currentPage - 2);
+  const end = Math.min(totalPages - 1, currentPage + 2);
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
+}
+
+function renderPagination(totalPages){
+  const el = document.getElementById('pagination');
+  if(totalPages <= 1){ el.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  getPageList(totalPages, currentPage).forEach(p=>{
+    if(p === '...'){
+      html += `<span class="page-ellipsis">...</span>`;
+    } else {
+      html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+    }
+  });
+  html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  el.innerHTML = html;
+
+  el.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentPage = parseInt(btn.dataset.page);
+      render();
+      document.getElementById('brand-list').scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
+  const prevBtn = document.getElementById('page-prev');
+  const nextBtn = document.getElementById('page-next');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); } });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; render(); } });
+}
+
+['f-loc','f-price','f-cat','f-rating','f-sort'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
+});
+document.getElementById('f-search').addEventListener('input', (e)=>{
+  searchQuery = e.target.value;
+  document.getElementById('f-search-drawer').value = searchQuery;
+  currentPage = 1; render();
+});
+
+function companyCard(b){
+  const score = avg(b);
+  const logo = logoData[brandLogoKey[b.name]];
+  return `
+    <a class="company-card" href="ofis-detay.html?ofis=${encodeURIComponent(b.name)}">
+      <div class="company-card-logo" style="${logo ? '' : 'background:'+brandColor(b.name)}">${logo ? `<img src="${logo}" alt="${b.name}">` : initials(b.name)}</div>
+      <div class="company-card-name">${b.name}</div>
+      <div class="company-card-meta">${b.cats.split(' · ')[0]} · ${b.loc}</div>
+      <div class="company-card-rating">
+        <span class="stars">${starString(score)}</span>
+        <span class="num">${score.toFixed(1)}</span>
+        <span class="count">(${b.reviews.toLocaleString('tr-TR')})</span>
+      </div>
+    </a>`;
+}
+
+const recentReviews = [
+  {name:"Ebru T.", brand:"Yeşil Mimarlık", stars:5, text:"Salonumuzun iç mekan tasarımı beklentimin çok üzerindeydi, süreç boyunca şeffaf iletişim kurdular."},
+  {name:"Kerem A.", brand:"Anadolu Peyzaj", stars:5, text:"Bahçe projesi uygulaması titizlikle yürütüldü, malzeme seçimleri de çok isabetliydi."},
+  {name:"Sibel Y.", brand:"Katman Mimarlık", stars:4, text:"Konsept tasarım çok başarılıydı ama uygulama takvimi birkaç hafta gecikti."},
+  {name:"Onur K.", brand:"Cephe Mimarlık", stars:4, text:"Ofis projemizde fiyat/performans olarak oldukça başarılı bir sonuç aldık."},
+  {name:"Derya S.", brand:"Marmara Mimarlık", stars:4, text:"Restorasyon sürecinde tarihi dokuya çok saygılı bir yaklaşım sergilediler."},
+  {name:"Emre B.", brand:"Modül Architects", stars:4, text:"Kentsel tasarım raporunda küçük revizyonlar gerekti, ekip hızlıca çözdü."},
+  {name:"Aslı D.", brand:"Sokak Peyzaj", stars:4, text:"Peyzaj uygulaması render'daki gibi geldi, saha ekibi çok ilgiliydi."},
+  {name:"Burak M.", brand:"Ege Mimarlık", stars:3, text:"Tasarım kalitesi iyi ama teslim tarihi iki kez ertelendi."},
+  {name:"Gizem P.", brand:"Duvar Architects", stars:4, text:"Malzeme önerileri çok zengindi, sunumları da gayet profesyoneldi."},
+  {name:"Hakan C.", brand:"Anadolu Mimarlık", stars:4, text:"Minimalist tasarım dili fiyatına göre gayet kaliteli, süreç yönetimi hızlıydı."},
+  {name:"Selin R.", brand:"Işık Architects", stars:5, text:"Villa projemiz beklediğimden çok daha özgün ve işlevsel çıktı."},
+  {name:"Murat F.", brand:"Çizgi Tasarım Stüdyosu", stars:4, text:"İç mekan projesi zamanında tamamlandı, uygulama ekibi temizdi."},
+];
+
+function reviewCard(r){
+  return `
+    <div class="review-track-card">
+      <div class="review-top">
+        <div class="review-avatar" style="background:${brandColor(r.name)}">${r.name.slice(0,1)}</div>
+        <div class="review-who">
+          <div class="review-name">${r.name} <span style="color:var(--ink-soft); font-weight:500;">→ ${r.brand}</span></div>
+        </div>
+      </div>
+      <div class="review-stars">${starString(r.stars)}</div>
+      <div class="review-text">${r.text}</div>
+    </div>`;
+}
+
+function renderCarousels(){
+  const seenBrandGroups = new Set();
+  const newest = [];
+  for(const b of [...brands].reverse()){
+    const groupKey = b.name.split(' ')[0]; // ofis ailesi: ilk kelime (ör. "Anadolu Mimarlık" -> "Anadolu")
+    if(seenBrandGroups.has(groupKey)) continue;
+    seenBrandGroups.add(groupKey);
+    newest.push(b);
+    if(newest.length >= 12) break;
+  }
+  document.getElementById('carousel-reviews').innerHTML = recentReviews.map(reviewCard).join('');
+  document.getElementById('carousel-newest').innerHTML = newest.map(companyCard).join('');
+
+  document.querySelectorAll('.arrow-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const track = document.getElementById(btn.dataset.target);
+      const dir = parseInt(btn.dataset.dir);
+      track.scrollBy({left: dir * 260, behavior: 'smooth'});
+    });
+  });
+}
+
+const filterBar = document.getElementById('filter-bar');
+const filterBackdrop = document.getElementById('filter-backdrop');
+
+function openFilterModal(){
+  filterBar.classList.add('open');
+  filterBackdrop.classList.add('open');
+}
+function closeFilterModal(){
+  filterBar.classList.remove('open');
+  filterBackdrop.classList.remove('open');
+}
+document.getElementById('filter-toggle-btn').addEventListener('click', openFilterModal);
+document.getElementById('filter-close-btn').addEventListener('click', closeFilterModal);
+filterBackdrop.addEventListener('click', closeFilterModal);
+document.getElementById('filter-apply-btn').addEventListener('click', closeFilterModal);
+
+const searchWrapEl = document.getElementById('search-wrap');
+const searchIconBtn = document.getElementById('search-icon-btn');
+const searchInputDrawer = document.getElementById('f-search-drawer');
+
+function openSearchDrawer(){
+  searchWrapEl.classList.add('expanded');
+  searchIconBtn.classList.add('open');
+  searchInputDrawer.focus();
+}
+function closeSearchDrawer(){
+  searchWrapEl.classList.remove('expanded');
+  searchIconBtn.classList.remove('open');
+}
+searchIconBtn.addEventListener('click', ()=>{
+  if(searchWrapEl.classList.contains('expanded')) closeSearchDrawer();
+  else openSearchDrawer();
+});
+document.addEventListener('click', (e)=>{
+  if(!searchWrapEl.classList.contains('expanded')) return;
+  if(!searchWrapEl.contains(e.target)) closeSearchDrawer();
+});
+searchInputDrawer.addEventListener('input', (e)=>{
+  searchQuery = e.target.value;
+  document.getElementById('f-search').value = searchQuery;
+  currentPage = 1; render();
+});
+
+const searchInputNav = document.getElementById('f-search-nav');
+searchInputNav.addEventListener('input', (e)=>{
+  searchQuery = e.target.value;
+  document.getElementById('f-search').value = searchQuery;
+  document.getElementById('f-search-drawer').value = searchQuery;
+  currentPage = 1; render();
+});
+
+const navHamburger = document.getElementById('nav-hamburger');
+const navMobileMenu = document.getElementById('nav-mobile-menu');
+navHamburger.addEventListener('click', ()=>{
+  navMobileMenu.classList.toggle('open');
+});
+document.addEventListener('click', (e)=>{
+  if(!navMobileMenu.classList.contains('open')) return;
+  if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)){
+    navMobileMenu.classList.remove('open');
+  }
+});
+
+populateFilters();
+render();
+renderCarousels();
+
+let _isMobileView = window.innerWidth <= 860;
+window.addEventListener('resize', ()=>{
+  const isMobileNow = window.innerWidth <= 860;
+  if(isMobileNow !== _isMobileView){
+    _isMobileView = isMobileNow;
+    render();
+  }
+});
+
+</script>
+
+</body>
+</html>
