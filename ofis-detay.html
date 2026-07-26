@@ -73,8 +73,8 @@
     font-size:19px; font-weight:600; letter-spacing:-0.01em;
     white-space:nowrap;
   }
-  .nav-links{display:flex; align-items:center; gap:28px; margin-left:auto;}
-  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap;}
   .nav-link:hover{color:var(--ink);}
 
   .nav-hamburger{
@@ -118,15 +118,15 @@
   .nav-cta{
     background:var(--ink); color:var(--paper-card);
     padding:9px 18px; border-radius:100px; border:none;
-    font-size:14px; font-weight:600;
+    font-size:14px; font-weight:600; white-space:nowrap;
   }
   .nav-cta:hover{background:var(--walnut);}
-  .nav-right{display:flex; align-items:center; gap:10px;}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
   .nav-rate{
     background:none; color:var(--ink);
     padding:8px 17px; border-radius:100px;
     border:1.5px solid var(--ink);
-    font-size:14px; font-weight:600;
+    font-size:14px; font-weight:600; white-space:nowrap;
   }
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
 
@@ -287,11 +287,12 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="index.html">Ofisler</a>
+      <a class="nav-link" href="index.html#architects">Mimarlar</a>
+      <a class="nav-link" href="index.html#projects">Projeler</a>
       <a class="nav-link" href="index.html#jobs">İş İlanları</a>
-      <a class="nav-link" href="#">Hakkında</a>
     </div>
     <div class="nav-right">
-      <button class="nav-rate">İlan Ver</button>
+      <button class="nav-rate">Giriş Yap</button>
       <button class="nav-cta">Ofisinizi Ekleyin</button>
     </div>
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
@@ -303,8 +304,9 @@
         <input type="text" placeholder="Ara...">
       </div>
       <a class="nav-mobile-link" href="index.html">Ofisler</a>
+      <a class="nav-mobile-link" href="index.html#architects">Mimarlar</a>
+      <a class="nav-mobile-link" href="index.html#projects">Projeler</a>
       <a class="nav-mobile-link" href="index.html#jobs">İş İlanları</a>
-      <a class="nav-mobile-link" href="#">Hakkında</a>
       <button class="nav-mobile-cta">Ofisinizi Ekleyin</button>
     </div>
   </nav>
@@ -419,15 +421,15 @@
   </footer>
 <script>
 const offices = [
-  {name:"EAA — Emre Arolat Architecture", loc:"Levent", cats:"Mimarlık", yil:2004, website:"https://emrearolat.com", about:"Emre Arolat ve Gonca Paşolar tarafından 2004'te kurulan ofis, İstanbul merkezli olup New York ve Londra'da da ofislere sahip; 50'den fazla kişilik bir ekiple çalışıyor."},
-  {name:"Han Tümertekin", loc:"İstanbul", cats:"Mimarlık", yil:1987, website:"https://www.hantumertekin.com", about:"Han Tümertekin'in kurduğu ofis; B2 Evi projesiyle 2004 Ağa Han Mimarlık Ödülü'nü kazandı, Harvard, EPFL gibi okullarda akademik çalışmalarıyla da tanınıyor."},
-  {name:"NSMH — Nevzat Sayın Mimarlık Hizmetleri", loc:"Kuzguncuk / Üsküdar", cats:"Mimarlık", yil:1986, website:"https://www.nsmh.com", about:"Nevzat Sayın tarafından 1986'da kurulan ofis, katılımcı bir çalışma yaklaşımıyla farklı ölçek ve konularda çok sayıda proje üretiyor."},
-  {name:"Tabanlıoğlu Architects", loc:"İstanbul", cats:"Mimarlık · İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:1990, website:"https://www.tabanlioglu.com", about:"1990'da kurulan, kültür yapıları, havalimanları ve büyük ölçekli karma projeleriyle uluslararası tanınırlığa sahip, İstanbul merkezli ofis."},
-  {name:"GAD Architecture", loc:"İstanbul", cats:"Mimarlık", yil:1994, website:"https://www.gadarchitecture.com", about:"Gökhan Avcıoğlu tarafından 1994'te kurulan, teknoloji ile estetiği bir araya getiren yenilikçi ve deneysel tasarım yaklaşımıyla tanınan ofis."},
-  {name:"Autoban", loc:"İstanbul", cats:"Mimarlık · İç Mimarlık", yil:2003, website:"https://autoban.com", about:"2003'te kurulan, otel, mağaza ve restoran gibi mekanlarda deneyim odaklı tasarımlarıyla uluslararası tanınan çok disiplinli tasarım stüdyosu."},
-  {name:"Betula Peyzaj Mimarlığı", loc:"İstanbul", cats:"Peyzaj Mimarlığı", yil:1995, website:"https://www.betula.com.tr", about:"1995'ten bu yana İstanbul'da peyzaj mimarlığı alanında hizmet veren ofis."},
-  {name:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:2009, website:"https://www.studiosupernova.com", about:"Kaya Kızılkaya tarafından 2009'da kurulan, ödüllü bir peyzaj mimarlığı ve kentsel tasarım ofisi."},
-  {name:"caps.", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım · Mimarlık", yil:2015, website:"https://www.caps.com.tr", about:"İTÜ Teknokent bünyesinde 2015'te kurulan, kentsel tasarım ve peyzaj alanında çok sayıda ulusal ve uluslararası ödül sahibi genç ofis."},
+  {name:"EAA — Emre Arolat Architecture", loc:"İstanbul / Beşiktaş", cats:"Mimarlık", yil:2004, website:"https://emrearolat.com", about:"Emre Arolat ve Gonca Paşolar tarafından 2004'te kurulan ofis, İstanbul merkezli olup New York ve Londra'da da ofislere sahip; 50'den fazla kişilik bir ekiple çalışıyor."},
+  {name:"Han Tümertekin", loc:"İstanbul / Beşiktaş", cats:"Mimarlık", yil:1987, website:"https://www.hantumertekin.com", about:"Han Tümertekin'in kurduğu ofis; B2 Evi projesiyle 2004 Ağa Han Mimarlık Ödülü'nü kazandı, Harvard, EPFL gibi okullarda akademik çalışmalarıyla da tanınıyor."},
+  {name:"NSMH — Nevzat Sayın Mimarlık Hizmetleri", loc:"İstanbul / Üsküdar", cats:"Mimarlık", yil:1986, website:"https://www.nsmh.com", about:"Nevzat Sayın tarafından 1986'da kurulan ofis, katılımcı bir çalışma yaklaşımıyla farklı ölçek ve konularda çok sayıda proje üretiyor."},
+  {name:"Tabanlıoğlu Architects", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:1990, website:"https://www.tabanlioglu.com", about:"1990'da kurulan, kültür yapıları, havalimanları ve büyük ölçekli karma projeleriyle uluslararası tanınırlığa sahip, İstanbul merkezli ofis."},
+  {name:"GAD Architecture", loc:"İstanbul / Şişli", cats:"Mimarlık", yil:1994, website:"https://www.gadarchitecture.com", about:"Gökhan Avcıoğlu tarafından 1994'te kurulan, teknoloji ile estetiği bir araya getiren yenilikçi ve deneysel tasarım yaklaşımıyla tanınan ofis."},
+  {name:"Autoban", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · İç Mimarlık", yil:2003, website:"https://autoban.com", about:"2003'te kurulan, otel, mağaza ve restoran gibi mekanlarda deneyim odaklı tasarımlarıyla uluslararası tanınan çok disiplinli tasarım stüdyosu."},
+  {name:"Betula Peyzaj Mimarlığı", loc:"İstanbul / Beykoz", cats:"Peyzaj Mimarlığı", yil:1995, website:"https://www.betula.com.tr", about:"1995'ten bu yana İstanbul'da peyzaj mimarlığı alanında hizmet veren ofis."},
+  {name:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım", loc:"İstanbul / Beyoğlu", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:2009, website:"https://www.studiosupernova.com", about:"Kaya Kızılkaya tarafından 2009'da kurulan, ödüllü bir peyzaj mimarlığı ve kentsel tasarım ofisi."},
+  {name:"caps.", loc:"İstanbul / Kadıköy", cats:"Peyzaj Mimarlığı · Kentsel Tasarım · Mimarlık", yil:2015, website:"https://www.caps.com.tr", about:"İTÜ Teknokent bünyesinde 2015'te kurulan, kentsel tasarım ve peyzaj alanında çok sayıda ulusal ve uluslararası ödül sahibi genç ofis."},
   {name:"saa.", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:null, website:"https://www.saaistanbul.com", about:"Süveyda Bayraktar Atagür tarafından kurulan, kamusal ve özel alanlarda peyzajın mekansal, sosyal ve ekolojik boyutlarına odaklanan kentsel tasarım ve peyzaj mimarlığı ofisi."},
 ];
 

@@ -79,8 +79,8 @@
     font-size:19px; font-weight:600; letter-spacing:-0.01em;
     white-space:nowrap;
   }
-  .nav-links{display:flex; align-items:center; gap:28px; margin-left:auto;}
-  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap;}
   .nav-link:hover{color:var(--ink);}
 
   .nav-hamburger{
@@ -124,15 +124,15 @@
   .nav-cta{
     background:var(--ink); color:var(--paper-card);
     padding:9px 18px; border-radius:100px; border:none;
-    font-size:14px; font-weight:600;
+    font-size:14px; font-weight:600; white-space:nowrap;
   }
   .nav-cta:hover{background:var(--walnut);}
-  .nav-right{display:flex; align-items:center; gap:10px;}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
   .nav-rate{
     background:none; color:var(--ink);
     padding:8px 17px; border-radius:100px;
     border:1.5px solid var(--ink);
-    font-size:14px; font-weight:600;
+    font-size:14px; font-weight:600; white-space:nowrap;
   }
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
   .nav-toggle{display:none;}
@@ -393,6 +393,27 @@
   }
   .carousel-track::-webkit-scrollbar{display:none;}
 
+  .architect-card{
+    flex:0 0 190px; scroll-snap-align:start;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    border-radius:12px; padding:18px;
+    text-decoration:none; color:inherit;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .architect-card:hover{
+    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
+    border-color:var(--line);
+  }
+  .architect-avatar{
+    width:46px; height:46px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-family:'IBM Plex Mono', monospace;
+    font-weight:600; font-size:15px; margin-bottom:12px;
+  }
+  .architect-name{font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; margin-bottom:2px;}
+  .architect-role{font-size:12px; color:var(--ink-soft); margin-bottom:6px;}
+  .architect-office{font-size:12px; color:var(--brass); font-weight:600;}
+
   /* ---------- CATEGORY CARDS (chamfered corners) ---------- */
   .chamfer-track{
     display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
@@ -603,11 +624,12 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="index.html">Ofisler</a>
+      <a class="nav-link" href="#architects">Mimarlar</a>
+      <a class="nav-link" href="#projects">Projeler</a>
       <a class="nav-link" href="#jobs">İş İlanları</a>
-      <a class="nav-link" href="#">Hakkında</a>
     </div>
     <div class="nav-right">
-      <button class="nav-rate">İlan Ver</button>
+      <button class="nav-rate">Giriş Yap</button>
       <button class="nav-cta">Ofisinizi Ekleyin</button>
     </div>
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
@@ -619,8 +641,9 @@
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
       <a class="nav-mobile-link" href="index.html">Ofisler</a>
+      <a class="nav-mobile-link" href="#architects">Mimarlar</a>
+      <a class="nav-mobile-link" href="#projects">Projeler</a>
       <a class="nav-mobile-link" href="#jobs">İş İlanları</a>
-      <a class="nav-mobile-link" href="#">Hakkında</a>
       <button class="nav-mobile-cta">Ofisinizi Ekleyin</button>
     </div>
   </nav>
@@ -691,6 +714,27 @@
     <div id="brand-list"></div>
     <div class="empty-state" id="empty-state">Bu kritere uyan ofis bulunamadı.</div>
     <div class="pagination" id="pagination"></div>
+  </section>
+
+  <section class="carousel-section" id="architects">
+    <div class="carousel-head">
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Mimarlar</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="architect-track" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn primary" data-target="architect-track" data-dir="1" aria-label="İleri">›</button>
+      </div>
+    </div>
+    <div class="carousel-track" id="architect-track"></div>
+  </section>
+
+  <section class="carousel-section" id="projects">
+    <div class="carousel-head">
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Projeler</div>
+    </div>
+    <div class="jobs-empty">
+      <strong>Proje arşivi yakında.</strong>
+      Ofislerin gerçekleştirdiği projeleri doğrulayıp eklemek için çalışıyoruz.
+    </div>
   </section>
 
   <section class="carousel-section" id="jobs">
@@ -786,16 +830,30 @@
   </footer>
 <script>
 const offices = [
-  {name:"EAA — Emre Arolat Architecture", loc:"Levent", cats:"Mimarlık", yil:2004, website:"https://emrearolat.com", about:"Emre Arolat ve Gonca Paşolar tarafından 2004'te kurulan ofis, İstanbul merkezli olup New York ve Londra'da da ofislere sahip; 50'den fazla kişilik bir ekiple çalışıyor."},
-  {name:"Han Tümertekin", loc:"İstanbul", cats:"Mimarlık", yil:1987, website:"https://www.hantumertekin.com", about:"Han Tümertekin'in kurduğu ofis; B2 Evi projesiyle 2004 Ağa Han Mimarlık Ödülü'nü kazandı, Harvard, EPFL gibi okullarda akademik çalışmalarıyla da tanınıyor."},
-  {name:"NSMH — Nevzat Sayın Mimarlık Hizmetleri", loc:"Kuzguncuk / Üsküdar", cats:"Mimarlık", yil:1986, website:"https://www.nsmh.com", about:"Nevzat Sayın tarafından 1986'da kurulan ofis, katılımcı bir çalışma yaklaşımıyla farklı ölçek ve konularda çok sayıda proje üretiyor."},
-  {name:"Tabanlıoğlu Architects", loc:"İstanbul", cats:"Mimarlık · İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:1990, website:"https://www.tabanlioglu.com", about:"1990'da kurulan, kültür yapıları, havalimanları ve büyük ölçekli karma projeleriyle uluslararası tanınırlığa sahip, İstanbul merkezli ofis."},
-  {name:"GAD Architecture", loc:"İstanbul", cats:"Mimarlık", yil:1994, website:"https://www.gadarchitecture.com", about:"Gökhan Avcıoğlu tarafından 1994'te kurulan, teknoloji ile estetiği bir araya getiren yenilikçi ve deneysel tasarım yaklaşımıyla tanınan ofis."},
-  {name:"Autoban", loc:"İstanbul", cats:"Mimarlık · İç Mimarlık", yil:2003, website:"https://autoban.com", about:"2003'te kurulan, otel, mağaza ve restoran gibi mekanlarda deneyim odaklı tasarımlarıyla uluslararası tanınan çok disiplinli tasarım stüdyosu."},
-  {name:"Betula Peyzaj Mimarlığı", loc:"İstanbul", cats:"Peyzaj Mimarlığı", yil:1995, website:"https://www.betula.com.tr", about:"1995'ten bu yana İstanbul'da peyzaj mimarlığı alanında hizmet veren ofis."},
-  {name:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:2009, website:"https://www.studiosupernova.com", about:"Kaya Kızılkaya tarafından 2009'da kurulan, ödüllü bir peyzaj mimarlığı ve kentsel tasarım ofisi."},
-  {name:"caps.", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım · Mimarlık", yil:2015, website:"https://www.caps.com.tr", about:"İTÜ Teknokent bünyesinde 2015'te kurulan, kentsel tasarım ve peyzaj alanında çok sayıda ulusal ve uluslararası ödül sahibi genç ofis."},
+  {name:"EAA — Emre Arolat Architecture", loc:"İstanbul / Beşiktaş", cats:"Mimarlık", yil:2004, website:"https://emrearolat.com", about:"Emre Arolat ve Gonca Paşolar tarafından 2004'te kurulan ofis, İstanbul merkezli olup New York ve Londra'da da ofislere sahip; 50'den fazla kişilik bir ekiple çalışıyor."},
+  {name:"Han Tümertekin", loc:"İstanbul / Beşiktaş", cats:"Mimarlık", yil:1987, website:"https://www.hantumertekin.com", about:"Han Tümertekin'in kurduğu ofis; B2 Evi projesiyle 2004 Ağa Han Mimarlık Ödülü'nü kazandı, Harvard, EPFL gibi okullarda akademik çalışmalarıyla da tanınıyor."},
+  {name:"NSMH — Nevzat Sayın Mimarlık Hizmetleri", loc:"İstanbul / Üsküdar", cats:"Mimarlık", yil:1986, website:"https://www.nsmh.com", about:"Nevzat Sayın tarafından 1986'da kurulan ofis, katılımcı bir çalışma yaklaşımıyla farklı ölçek ve konularda çok sayıda proje üretiyor."},
+  {name:"Tabanlıoğlu Architects", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:1990, website:"https://www.tabanlioglu.com", about:"1990'da kurulan, kültür yapıları, havalimanları ve büyük ölçekli karma projeleriyle uluslararası tanınırlığa sahip, İstanbul merkezli ofis."},
+  {name:"GAD Architecture", loc:"İstanbul / Şişli", cats:"Mimarlık", yil:1994, website:"https://www.gadarchitecture.com", about:"Gökhan Avcıoğlu tarafından 1994'te kurulan, teknoloji ile estetiği bir araya getiren yenilikçi ve deneysel tasarım yaklaşımıyla tanınan ofis."},
+  {name:"Autoban", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · İç Mimarlık", yil:2003, website:"https://autoban.com", about:"2003'te kurulan, otel, mağaza ve restoran gibi mekanlarda deneyim odaklı tasarımlarıyla uluslararası tanınan çok disiplinli tasarım stüdyosu."},
+  {name:"Betula Peyzaj Mimarlığı", loc:"İstanbul / Beykoz", cats:"Peyzaj Mimarlığı", yil:1995, website:"https://www.betula.com.tr", about:"1995'ten bu yana İstanbul'da peyzaj mimarlığı alanında hizmet veren ofis."},
+  {name:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım", loc:"İstanbul / Beyoğlu", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:2009, website:"https://www.studiosupernova.com", about:"Kaya Kızılkaya tarafından 2009'da kurulan, ödüllü bir peyzaj mimarlığı ve kentsel tasarım ofisi."},
+  {name:"caps.", loc:"İstanbul / Kadıköy", cats:"Peyzaj Mimarlığı · Kentsel Tasarım · Mimarlık", yil:2015, website:"https://www.caps.com.tr", about:"İTÜ Teknokent bünyesinde 2015'te kurulan, kentsel tasarım ve peyzaj alanında çok sayıda ulusal ve uluslararası ödül sahibi genç ofis."},
   {name:"saa.", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:null, website:"https://www.saaistanbul.com", about:"Süveyda Bayraktar Atagür tarafından kurulan, kamusal ve özel alanlarda peyzajın mekansal, sosyal ve ekolojik boyutlarına odaklanan kentsel tasarım ve peyzaj mimarlığı ofisi."},
+];
+
+const architects = [
+  {name:"Emre Arolat", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture"},
+  {name:"Gonca Paşolar", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture"},
+  {name:"Han Tümertekin", role:"Kurucu", office:"Han Tümertekin"},
+  {name:"Nevzat Sayın", role:"Kurucu", office:"NSMH — Nevzat Sayın Mimarlık Hizmetleri"},
+  {name:"Melkan Gürsel", role:"Baş Mimar", office:"Tabanlıoğlu Architects"},
+  {name:"Gökhan Avcıoğlu", role:"Kurucu", office:"GAD Architecture"},
+  {name:"Seyhan Özdemir Sarper", role:"Kurucu Ortak", office:"Autoban"},
+  {name:"Sefer Çağlar", role:"Kurucu Ortak", office:"Autoban"},
+  {name:"Kaya Kızılkaya", role:"Kurucu", office:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım"},
+  {name:"M. Cemil Aktaş", role:"Kurucu Ortak", office:"caps."},
+  {name:"Süveyda Bayraktar Atagür", role:"Kurucu", office:"saa."},
 ];
 
 function initials(name){
@@ -960,6 +1018,20 @@ document.getElementById('f-search').addEventListener('input', (e)=>{
   currentPage = 1; render();
 });
 
+function architectCard(a){
+  return `
+    <a class="architect-card" href="ofis-detay.html?ofis=${encodeURIComponent(a.office)}">
+      <div class="architect-avatar" style="background:${officeColor(a.name)}">${initials(a.name)}</div>
+      <div class="architect-name">${a.name}</div>
+      <div class="architect-role">${a.role}</div>
+      <div class="architect-office">${a.office}</div>
+    </a>`;
+}
+
+function renderArchitects(){
+  document.getElementById('architect-track').innerHTML = architects.map(architectCard).join('');
+}
+
 function wireCarouselArrows(){
   document.querySelectorAll('.arrow-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -1035,6 +1107,7 @@ document.addEventListener('click', (e)=>{
 
 populateFilters();
 render();
+renderArchitects();
 wireCarouselArrows();
 
 let _isMobileView = window.innerWidth <= 860;
