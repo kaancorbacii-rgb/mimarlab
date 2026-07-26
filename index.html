@@ -263,9 +263,35 @@
 
   /* ---------- LIST ---------- */
   .list-section{
-    max-width:900px; margin:0 auto;
+    max-width:1220px; margin:0 auto;
     padding:36px 32px 90px;
   }
+  .list-header-grid{
+    display:grid; grid-template-columns: 1fr 300px;
+    gap:10px 16px; margin-bottom:6px;
+  }
+  #brand-list{
+    display:grid; grid-template-columns: 1fr 300px;
+    gap:10px 16px;
+  }
+  .founder-cell{
+    background:var(--paper-card); border:1px dashed var(--line);
+    border-radius:10px; padding:14px 16px;
+    display:flex; align-items:center; gap:14px;
+  }
+  .founder-person{display:flex; align-items:center; gap:8px; flex:1; min-width:0;}
+  .founder-avatar{
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-family:'IBM Plex Mono', monospace;
+    font-weight:600; font-size:12px;
+  }
+  .founder-text{min-width:0;}
+  .founder-name{
+    font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.3;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .founder-role{font-size:10.5px; color:var(--ink-soft);}
   .rail-line{
     display:flex; align-items:center; gap:10px;
     margin-bottom:6px; padding:0 4px;
@@ -287,7 +313,6 @@
     border:1px solid var(--line-soft);
     border-radius:10px;
     padding:16px 20px 16px 10px;
-    margin-bottom:10px;
     position:relative;
     text-decoration:none; color:inherit; cursor:pointer;
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
@@ -393,27 +418,6 @@
   }
   .carousel-track::-webkit-scrollbar{display:none;}
 
-  .architect-card{
-    flex:0 0 190px; scroll-snap-align:start;
-    background:var(--paper-card); border:1px solid var(--line-soft);
-    border-radius:12px; padding:18px;
-    text-decoration:none; color:inherit;
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .architect-card:hover{
-    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
-    border-color:var(--line);
-  }
-  .architect-avatar{
-    width:46px; height:46px; border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-family:'IBM Plex Mono', monospace;
-    font-weight:600; font-size:15px; margin-bottom:12px;
-  }
-  .architect-name{font-family:'Fraunces', serif; font-weight:600; font-size:15.5px; margin-bottom:2px;}
-  .architect-role{font-size:12px; color:var(--ink-soft); margin-bottom:6px;}
-  .architect-office{font-size:12px; color:var(--brass); font-weight:600;}
-
   /* ---------- CATEGORY CARDS (chamfered corners) ---------- */
   .chamfer-track{
     display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
@@ -509,6 +513,9 @@
   }
 
   @media (max-width: 860px){
+    .list-header-grid{grid-template-columns:1fr;}
+    #brand-list{grid-template-columns:1fr;}
+    .list-header-grid .rail-line:last-child{display:none;}
     .filter-toggle-btn{display:inline-flex; flex-shrink:0; height:36px; box-sizing:border-box;}
     .filter-wrap{padding:12px 18px;}
     .filter-row{gap:8px; flex-wrap:nowrap; justify-content:flex-start;}
@@ -630,7 +637,6 @@
     </div>
     <div class="nav-right">
       <button class="nav-rate">Giriş Yap</button>
-      <button class="nav-cta">Ofisinizi Ekleyin</button>
     </div>
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
@@ -644,7 +650,6 @@
       <a class="nav-mobile-link" href="#architects">Mimarlar</a>
       <a class="nav-mobile-link" href="#projects">Projeler</a>
       <a class="nav-mobile-link" href="#jobs">İş İlanları</a>
-      <button class="nav-mobile-cta">Ofisinizi Ekleyin</button>
     </div>
   </nav>
 
@@ -709,22 +714,14 @@
    </div>
   </div>
 
-  <section class="list-section">
-    <div class="rail-line no-line rail-line-normalcase"><span id="result-count">10</span>&nbsp;ofis, <span id="result-cat-count">4</span>&nbsp;farklı uzmanlık alanında listeleniyor.</div>
+  <section class="list-section" id="architects">
+    <div class="list-header-grid">
+      <div class="rail-line no-line rail-line-normalcase"><span id="result-count">10</span>&nbsp;ofis, <span id="result-cat-count">4</span>&nbsp;farklı uzmanlık alanında listeleniyor.</div>
+      <div class="rail-line no-line rail-line-normalcase"><span id="founder-count">11</span>&nbsp;ofis ortağı listeleniyor.</div>
+    </div>
     <div id="brand-list"></div>
     <div class="empty-state" id="empty-state">Bu kritere uyan ofis bulunamadı.</div>
     <div class="pagination" id="pagination"></div>
-  </section>
-
-  <section class="carousel-section" id="architects">
-    <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Mimarlar</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="architect-track" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn primary" data-target="architect-track" data-dir="1" aria-label="İleri">›</button>
-      </div>
-    </div>
-    <div class="carousel-track" id="architect-track"></div>
   </section>
 
   <section class="carousel-section" id="projects">
@@ -924,6 +921,8 @@ function render(){
   document.getElementById('result-count').textContent = filtered.length;
   const distinctCatCount = new Set(filtered.flatMap(o=>o.cats.split(' · '))).size;
   document.getElementById('result-cat-count').textContent = distinctCatCount;
+  const founderCount = filtered.reduce((n,o)=>n + architects.filter(a=>a.office===o.name).length, 0);
+  document.getElementById('founder-count').textContent = founderCount;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   if(currentPage > totalPages) currentPage = totalPages;
@@ -954,8 +953,27 @@ function render(){
         <div class="row-cats">${o.cats}</div>
       </div>
       <div class="row-go">→</div>
-    </a>`;
+    </a>` + founderCell(o);
   }).join('');
+}
+
+function founderCell(o){
+  const people = architects.filter(a => a.office === o.name);
+  if(people.length === 0){
+    return `<div class="founder-cell"></div>`;
+  }
+  const people2 = people.slice(0, 2);
+  return `
+    <a class="founder-cell" href="ofis-detay.html?ofis=${encodeURIComponent(o.name)}">
+      ${people2.map(a => `
+        <div class="founder-person">
+          <div class="founder-avatar" style="background:${officeColor(a.name)}">${initials(a.name)}</div>
+          <div class="founder-text">
+            <div class="founder-name">${a.name}</div>
+            <div class="founder-role">${a.role}</div>
+          </div>
+        </div>`).join('')}
+    </a>`;
 }
 
 function getMaxLeading(){
@@ -1017,20 +1035,6 @@ document.getElementById('f-search').addEventListener('input', (e)=>{
   document.getElementById('f-search-drawer').value = searchQuery;
   currentPage = 1; render();
 });
-
-function architectCard(a){
-  return `
-    <a class="architect-card" href="ofis-detay.html?ofis=${encodeURIComponent(a.office)}">
-      <div class="architect-avatar" style="background:${officeColor(a.name)}">${initials(a.name)}</div>
-      <div class="architect-name">${a.name}</div>
-      <div class="architect-role">${a.role}</div>
-      <div class="architect-office">${a.office}</div>
-    </a>`;
-}
-
-function renderArchitects(){
-  document.getElementById('architect-track').innerHTML = architects.map(architectCard).join('');
-}
 
 function wireCarouselArrows(){
   document.querySelectorAll('.arrow-btn').forEach(btn=>{
@@ -1107,7 +1111,6 @@ document.addEventListener('click', (e)=>{
 
 populateFilters();
 render();
-renderArchitects();
 wireCarouselArrows();
 
 let _isMobileView = window.innerWidth <= 860;
