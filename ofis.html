@@ -191,6 +191,7 @@
     font-family:'Fraunces', serif; font-weight:600; font-size:14.5px; color:var(--ink);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
+  .verified-badge-icon{display:inline-flex; align-items:center; color:var(--accent); vertical-align:middle; margin-left:4px; flex-shrink:0;}
   .office-card-loc{font-size:11px; color:var(--ink-soft); margin-top:2px;}
   .rating-badge{display:inline-flex; align-items:center; gap:2px; margin-top:4px;}
   .rating-badge-star{color:var(--line); display:flex;}
@@ -403,10 +404,10 @@
       </div>
       <div class="footer-col">
         <h4>Kurumsal</h4>
-        <a href="#">Hakkında</a>
-        <a href="#">Reklam</a>
-        <a href="#">İletişim</a>
-        <a href="#">Kariyer</a>
+        <a href="hakkinda.html">Hakkında</a>
+        <a href="reklam.html">Reklam</a>
+        <a href="iletisim.html">İletişim</a>
+        <a href="kariyer.html">Kariyer</a>
       </div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
@@ -572,7 +573,7 @@ function render(){
     <a class="office-card" href="ofis-detay.html?ofis=${encodeURIComponent(o.name)}">
       <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
       <div class="office-card-body">
-        <div class="office-card-name">${escapeHtml(o.name)}</div>
+        <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
         <div class="office-card-loc">${escapeHtml(o.loc)} · ${escapeHtml((o.cats||'').split(' · ')[0])}</div>
         ${renderRatingBadge(ratingOf(officeRatings, officeKey(o)).average, ratingOf(officeRatings, officeKey(o)).count)}
       </div>
@@ -630,6 +631,7 @@ Promise.all([
 ]).finally(() => {
   populateFilters();
   render();
+  window.addEventListener('mimarlab-badges-ready', render);
 });
 </script>
 </body>

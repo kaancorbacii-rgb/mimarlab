@@ -6,24 +6,15 @@
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
-<title>Şifremi Unuttum — MİMARLAB</title>
+<title>Kariyer — MİMARLAB</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme: light;
-    --ink:#1B2A3D;
-    --ink-soft:#4E6478;
-    --paper:#EDF0F3;
-    --paper-card:#F8FAFB;
-    --paper-alt:#E0E6EC;
-    --walnut:#2B425F;
-    --brass:#5B7A9B;
-    --brass-soft:#AFC5D8;
-    --sage:#4F6478;
-    --accent:#E08A3E;
-    --line: rgba(27,42,61,0.14);
-    --line-soft: rgba(27,42,61,0.08);
+    --ink:#1B2A3D; --ink-soft:#4E6478; --paper:#EDF0F3; --paper-card:#F8FAFB; --paper-alt:#E0E6EC;
+    --walnut:#2B425F; --brass:#5B7A9B; --brass-soft:#AFC5D8; --sage:#4F6478; --accent:#E08A3E;
+    --line: rgba(27,42,61,0.14); --line-soft: rgba(27,42,61,0.08);
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
@@ -33,23 +24,8 @@
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
   .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
 
-  /* ---------- NAV ---------- */
-  .nav{
-    position:sticky; top:0; z-index:40;
-    display:flex; align-items:center; gap:24px;
-    padding:16px 32px;
-    background:rgba(237,240,243,0.92);
-    backdrop-filter:blur(6px);
-    border-bottom:1px solid var(--line);
-  }
-  .nav-search{
-    flex:1; max-width:380px;
-    display:flex; align-items:center; gap:8px;
-    background:var(--paper-card);
-    border:1px solid var(--line);
-    border-radius:100px;
-    padding:9px 16px;
-  }
+  .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:16px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
   .nav-search svg{flex-shrink:0; opacity:0.5;}
   .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
   .brand{display:flex; align-items:center; gap:10px;}
@@ -58,11 +34,7 @@
   .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
   .nav-link:hover, .nav-link.active{color:var(--ink);}
   .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
-  .nav-mobile-menu{
-    display:none; position:absolute; top:100%; right:18px; z-index:95;
-    background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
-    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
-  }
+  .nav-mobile-menu{display:none; position:absolute; top:100%; right:18px; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;}
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
   .nav-mobile-link:hover{background:var(--paper-alt);}
@@ -70,62 +42,33 @@
   .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
   .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
   .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
-  .nav-rate{
-    background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
-    border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;
-  }
+  .nav-rate{background:none; color:var(--ink); padding:8px 17px; border-radius:100px; border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;}
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
 
-  /* ---------- BREADCRUMB ---------- */
-  .breadcrumb-bar{
-    background:var(--ink); color:rgba(237,240,243,0.7);
-    padding:14px 32px; font-size:13.5px;
-    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-  }
+  .breadcrumb-bar{background:var(--ink); color:rgba(237,240,243,0.7); padding:14px 32px; font-size:13.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
   .breadcrumb-bar a:hover{color:var(--brass-soft);}
   .breadcrumb-bar .sep{opacity:0.4;}
   .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
 
-  /* ---------- AUTH ---------- */
-  .auth-wrap{max-width:420px; margin:0 auto; padding:64px 24px 90px;}
-  .auth-eyebrow{
-    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
-    color:var(--sage); font-weight:600; margin-bottom:12px; text-align:center;
-  }
-  .auth-title{font-family:'Fraunces', serif; font-size:30px; font-weight:600; margin:0 0 8px; text-align:center;}
-  .auth-sub{color:var(--ink-soft); font-size:14px; margin:0 0 32px; text-align:center; line-height:1.6;}
-  .auth-card{
-    background:var(--paper-card); border:1px solid var(--line);
-    border-radius:16px; padding:28px;
-  }
-  .auth-field{margin-bottom:16px;}
-  .auth-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
-  .auth-field input{
-    width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
-    background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
-  }
-  .auth-field input:focus-visible{box-shadow:0 0 0 2px var(--brass);}
-  .auth-submit{
-    width:100%; background:var(--ink); color:var(--paper-card);
-    border:none; padding:13px; border-radius:100px;
-    font-weight:600; font-size:14.5px; margin-top:6px;
-  }
-  .auth-submit:hover{background:var(--walnut);}
-  .auth-submit:disabled{opacity:0.6; cursor:not-allowed;}
-  .auth-switch{text-align:center; font-size:13.5px; color:var(--ink-soft); margin-top:20px;}
-  .auth-switch a{color:var(--walnut); font-weight:600;}
-  .auth-switch a:hover{text-decoration:underline;}
-  .auth-notice{
-    display:none;
-    margin-top:16px; padding:13px 16px; border-radius:10px;
-    background:rgba(224,138,62,0.12); border:1px solid var(--accent);
-    color:var(--ink); font-size:12.5px; line-height:1.6;
-  }
-  .auth-notice.show{display:block;}
-  .auth-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
+  .content-wrap{max-width:760px; margin:0 auto; padding:56px 32px 90px;}
+  .content-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
+  .content-title{font-family:'Fraunces', serif; font-size:clamp(28px, 4vw, 38px); font-weight:600; margin:0 0 18px; letter-spacing:-0.01em;}
+  .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px;}
+  .content-section{margin-bottom:32px;}
+  .content-section h2{font-family:'Fraunces', serif; font-size:19px; font-weight:600; margin:0 0 10px;}
+  .content-section p{font-size:14.5px; line-height:1.75; color:var(--ink-soft); margin:0 0 12px;}
+  .content-section a{color:var(--walnut); font-weight:600;}
+  .content-section a:hover{text-decoration:underline;}
+  .jobs-card{background:var(--paper-card); border:1px dashed var(--brass); border-radius:14px; padding:22px; margin-bottom:32px;}
+  .jobs-card strong{display:block; font-family:'Fraunces', serif; font-size:16px; font-weight:600; margin-bottom:6px;}
+  .jobs-card p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
+  .jobs-card a{color:var(--walnut); font-weight:600;}
+  .cta-card{background:var(--ink); color:var(--paper-card); border-radius:16px; padding:28px; text-align:center;}
+  .cta-card p{color:rgba(237,240,243,0.7); font-size:13.5px; margin:6px 0 18px;}
+  .cta-btn{display:inline-block; background:var(--paper-card); color:var(--ink); padding:12px 24px; border-radius:100px; font-weight:600; font-size:14px;}
+  .cta-btn:hover{background:var(--brass-soft);}
 
-  /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
   .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
@@ -145,7 +88,7 @@
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
-    .auth-wrap{padding:44px 18px 70px;}
+    .content-wrap{padding:36px 18px 70px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -189,26 +132,29 @@
   <div class="breadcrumb-bar">
     <a href="index.html">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="giris-yap.html">Giriş Yap</a>
-    <span class="sep">›</span>
-    <span class="current">Şifremi Unuttum</span>
+    <span class="current">Kariyer</span>
   </div>
 
-  <div class="auth-wrap">
-    <div class="auth-eyebrow">Hesap</div>
-    <h1 class="auth-title">Şifremi Unuttum</h1>
-    <p class="auth-sub">E-posta adresini gir, şifre sıfırlama bağlantısını gönderelim.</p>
-    <div class="auth-card">
-      <form id="forgot-form">
-        <div class="auth-field">
-          <label for="forgot-email">E-posta</label>
-          <input type="email" id="forgot-email" name="email" placeholder="ornek@eposta.com" required>
-        </div>
-        <button class="auth-submit" type="submit">Sıfırlama Bağlantısı Gönder</button>
-        <div class="auth-notice" id="forgot-notice"></div>
-      </form>
+  <div class="content-wrap">
+    <div class="content-eyebrow">Kariyer</div>
+    <h1 class="content-title">MİMARLAB'da Kariyer</h1>
+    <p class="content-lead">MİMARLAB, küçük ve bağımsız bir ekip tarafından geliştirilip yürütülüyor.</p>
+
+    <div class="jobs-card">
+      <strong>Şu anda açık bir pozisyonumuz yok</strong>
+      <p>Bu sayfada güncel olarak yayınlanmış bir iş ilanımız bulunmuyor. Yine de platforma katkıda bulunmak, içerik/ortaklık/teknik konularda birlikte çalışmak isterseniz bize yazmaktan çekinmeyin.</p>
     </div>
-    <p class="auth-switch"><a href="giris-yap.html">Giriş sayfasına dön</a></p>
+
+    <div class="content-section">
+      <h2>Mimarlık sektöründe iş mi arıyorsunuz?</h2>
+      <p>MİMARLAB'ın kendisi değil, platformdaki ofislerin açtığı pozisyonlar için <a href="is-ilani.html">İş İlanı</a> sayfamıza göz atabilirsiniz.</p>
+    </div>
+
+    <div class="cta-card">
+      <div style="font-family:'Fraunces', serif; font-size:19px; font-weight:600;">Bize katkıda bulunmak ister misiniz?</div>
+      <p>İçerik, ortaklık ya da teknik konularda ilginizi bizimle paylaşın.</p>
+      <a class="cta-btn" href="mailto:info@mimarlab.com">info@mimarlab.com</a>
+    </div>
   </div>
 
   <footer class="site-footer">
@@ -232,28 +178,6 @@
   </footer>
 
 <script>
-document.getElementById('forgot-form').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const notice = document.getElementById('forgot-notice');
-  const submitBtn = e.target.querySelector('.auth-submit');
-  submitBtn.disabled = true;
-  try{
-    const res = await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ email: document.getElementById('forgot-email').value }),
-    });
-    const data = await res.json().catch(()=>({}));
-    notice.textContent = data.message || 'Bu e-posta ile bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.';
-    notice.classList.add('show', 'success');
-  }catch(err){
-    notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
-    notice.classList.add('show');
-  }finally{
-    submitBtn.disabled = false;
-  }
-});
-
 function wireNavSearch(){
   document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
     inp.addEventListener('keydown', (e)=>{

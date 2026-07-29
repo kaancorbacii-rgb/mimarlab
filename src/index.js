@@ -7,6 +7,8 @@ import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
 import { handleRatingsRoute } from './routes/ratings.js';
+import { handleClaimsRoute } from './routes/claims.js';
+import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -42,10 +44,13 @@ async function routeApi(request, env, url) {
   if (path === '/api/profile') return handleProfileRoute(request, env, url);
   if (path === '/api/uploads') return handleUploadRoute(request, env);
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);
+  if (path === '/api/public/badges') return handlePublicBadges(env);
   if (path.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
-  if (path === '/api/comments') return handleCommentsRoute(request, env, url);
+  if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
+  if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);
+  if (path.startsWith('/api/badges')) return handleBadgesRoute(request, env, url);
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
     path.startsWith('/api/products') || path.startsWith('/api/jobs') ||

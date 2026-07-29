@@ -310,6 +310,7 @@
     font-family:'Fraunces', serif; font-size:19px; font-weight:600;
     white-space:nowrap;
   }
+  .verified-badge-icon{display:inline-flex; align-items:center; color:var(--accent); vertical-align:middle; margin-left:4px; flex-shrink:0;}
   .row-loc{
     font-size:12.5px; color:var(--sage); font-weight:600;
     background:rgba(79,100,120,0.12); padding:2px 9px; border-radius:100px;
@@ -856,10 +857,10 @@
       </div>
       <div class="footer-col">
         <h4>Kurumsal</h4>
-        <a href="#">Hakkında</a>
-        <a href="#">Reklam</a>
-        <a href="#">İletişim</a>
-        <a href="#">Kariyer</a>
+        <a href="hakkinda.html">Hakkında</a>
+        <a href="reklam.html">Reklam</a>
+        <a href="iletisim.html">İletişim</a>
+        <a href="kariyer.html">Kariyer</a>
       </div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
@@ -1049,7 +1050,7 @@ function render(){
       <div class="row-main">
         <div class="row-top">
           <span class="row-name-line">
-            <span class="row-name">${a.name}</span>
+            <span class="row-name">${a.name}</span>${verifiedBadgeHtml('architect', a.name, a.badges)}
             ${a.dob ? `<span class="row-year">${a.dob}</span>` : ''}
           </span>
           ${edu ? `<span class="row-loc">${edu}</span>` : ''}
@@ -1193,6 +1194,7 @@ document.addEventListener('click', (e)=>{
 populateFilters();
 render();
 wireCarouselArrows();
+window.addEventListener('mimarlab-badges-ready', render);
 
 let _pageWindowSize = getPageWindowSize();
 window.addEventListener('resize', ()=>{

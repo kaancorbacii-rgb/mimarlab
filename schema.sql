@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
   school TEXT,
   dept TEXT,
   photo_url TEXT,
+  profession TEXT,
+  kvkk_accepted_at INTEGER,
   role TEXT NOT NULL DEFAULT 'user',
   created_at INTEGER NOT NULL
 );
@@ -188,3 +190,34 @@ CREATE TABLE IF NOT EXISTS ratings (
   UNIQUE(user_id, target_type, target_id)
 );
 CREATE INDEX IF NOT EXISTS idx_ratings_target ON ratings(target_type, target_id);
+
+-- Bir kullanıcının bir mimar/ofis profilinin sahibi olduğu iddiası; admin onayından geçer.
+-- Onaylandığında o profile gelen yorumları silme ve rozet satın alma hakkı bu kullanıcıya bağlanır.
+CREATE TABLE IF NOT EXISTS profile_claims (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  profile_type TEXT NOT NULL, -- 'architect' | 'office'
+  profile_key TEXT NOT NULL, -- architects[].name ya da offices[].name ile birebir eşleşir
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected
+  note TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(user_id, profile_type, profile_key)
+);
+CREATE INDEX IF NOT EXISTS idx_claims_status ON profile_claims(status);
+CREATE INDEX IF NOT EXISTS idx_claims_key ON profile_claims(profile_type, profile_key);
+
+-- Doğrulanmış Profil rozeti satın alma talepleri. Ödeme altyapısı bağlanana kadar
+-- admin panelinden elle 'active' yapılır; aktif olduğunda ilgili kullanıcının onaylı
+-- profile_claims kaydı üzerinden rozet, ilgili mimar/ofis profilinde gösterilir.
+CREATE TABLE IF NOT EXISTS badge_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  badge_type TEXT NOT NULL, -- student | architect | brand | gold | platinum
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | active | rejected
+  price_try REAL NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_badge_user ON badge_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_badge_status ON badge_requests(status);

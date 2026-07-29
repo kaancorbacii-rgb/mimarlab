@@ -4,6 +4,7 @@ import { createSession, destroySession, getSessionUser, publicUser } from '../li
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
+const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'diger']);
 
 export async function handleAuthRoute(request, env, url) {
   const path = url.pathname;
@@ -26,24 +27,29 @@ async function signup(request, env) {
   const name = (body.name || '').trim();
   const dob = body.dob || null;
   const school = (body.school || '').trim() || null;
+  const profession = body.profession || '';
 
   if (!name) return errorJson('Ad soyad gerekli.');
   if (!EMAIL_RE.test(email)) return errorJson('Geçerli bir e-posta adresi gir.');
   if (password.length < 8) return errorJson('Şifre en az 8 karakter olmalı.');
   if (body.password !== body.password_confirm) return errorJson('Şifreler eşleşmiyor.');
+  if (!PROFESSIONS.has(profession)) return errorJson('Lütfen bir meslek seç.');
+  if (!body.botCheck) return errorJson('Lütfen "Ben bir bot değilim" kutucuğunu işaretle.');
+  if (!body.kvkkAccepted) return errorJson('Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.');
 
   const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (existing) return errorJson('Bu e-posta ile zaten bir hesap var.', 409);
 
   const id = newId();
+  const now = Date.now();
   const passwordHash = await hashPassword(password);
   await env.DB.prepare(
-    'INSERT INTO users (id, email, password_hash, name, dob, school, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, email, passwordHash, name, dob, school, 'user', Date.now()).run();
+    'INSERT INTO users (id, email, password_hash, name, dob, school, profession, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, email, passwordHash, name, dob, school, profession, now, 'user', now).run();
 
   const { token, maxAge } = await createSession(env, id);
   const user = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, role, created_at FROM users WHERE id = ?'
   ).bind(id).first();
 
   return json({ user: publicUser(user) }, 201, {
@@ -169,7 +175,7 @@ export async function handleProfileRoute(request, env, url) {
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
   const body = await readJson(request);
-  const fields = ['name', 'dob', 'school', 'dept'];
+  const fields = ['name', 'dob', 'school', 'dept', 'photo_url'];
   const updates = [];
   const values = [];
   for (const f of fields) {
@@ -180,7 +186,7 @@ export async function handleProfileRoute(request, env, url) {
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
   const updated = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, role, created_at FROM users WHERE id = ?'
   ).bind(user.id).first();
   return json({ user: publicUser(updated) });
 }

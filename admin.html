@@ -163,6 +163,8 @@
         <button class="admin-tab active" data-tab="pending">Bekleyen Gönderiler</button>
         <button class="admin-tab" data-tab="content">Yayındaki İçerikler</button>
         <button class="admin-tab" data-tab="news">Haberler</button>
+        <button class="admin-tab" data-tab="claims">Profil Talepleri</button>
+        <button class="admin-tab" data-tab="badges">Rozet Talepleri</button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
       </div>
 
@@ -188,6 +190,16 @@
           <span id="news-form-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
         </div>
         <div id="news-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-claims">
+        <div class="admin-subtabs" id="claims-subtabs"></div>
+        <div id="claims-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-badges">
+        <div class="admin-subtabs" id="badges-subtabs"></div>
+        <div id="badges-list"></div>
       </div>
 
       <div class="admin-section" id="section-users">
@@ -376,6 +388,88 @@ document.getElementById('news-submit-btn').addEventListener('click', async ()=>{
   loadNews();
 });
 
+let claimsStatus = 'pending';
+let badgesStatus = 'pending';
+const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
+const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
+const PROFILE_TYPE_LABELS = { architect:'Mimar', office:'Ofis' };
+const BADGE_TYPE_LABELS = { student:'Öğrenci', architect:'Mimar', brand:'Marka', gold:'Gold', platinum:'Platinyum' };
+
+function renderStatusSubtabs(container, labels, activeStatus, onSelect){
+  container.innerHTML = Object.keys(labels).map(s =>
+    `<button class="admin-subtab ${s===activeStatus?'active':''}" data-status="${s}">${labels[s]}</button>`
+  ).join('');
+  container.querySelectorAll('.admin-subtab').forEach(btn=>{
+    btn.addEventListener('click', ()=> onSelect(btn.dataset.status));
+  });
+}
+
+async function loadClaims(){
+  renderStatusSubtabs(document.getElementById('claims-subtabs'), CLAIM_STATUS_LABELS, claimsStatus, (s)=>{ claimsStatus = s; loadClaims(); });
+  const list = document.getElementById('claims-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/claims?status=${claimsStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda talep yok.</div>'; return; }
+  list.innerHTML = items.map(c => `
+    <div class="admin-card" data-id="${c.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(c.profile_key)} <span class="admin-badge badge-pending">${PROFILE_TYPE_LABELS[c.profile_type] || c.profile_type}</span></div>
+          <div class="admin-card-meta">${escapeHtml(c.user_name)} · ${escapeHtml(c.user_email)} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+        ${c.status === 'pending' ? `
+        <div class="admin-actions">
+          <button class="admin-btn primary" data-action="approve">Onayla</button>
+          <button class="admin-btn danger" data-action="reject">Reddet</button>
+        </div>` : ''}
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      const status = btn.dataset.action === 'approve' ? 'approved' : 'rejected';
+      btn.disabled = true;
+      await api(`/api/admin/claims/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+      loadClaims();
+    });
+  });
+}
+
+async function loadBadgeRequests(){
+  renderStatusSubtabs(document.getElementById('badges-subtabs'), BADGE_STATUS_LABELS_ADMIN, badgesStatus, (s)=>{ badgesStatus = s; loadBadgeRequests(); });
+  const list = document.getElementById('badges-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/badges?status=${badgesStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda talep yok.</div>'; return; }
+  list.innerHTML = items.map(b => `
+    <div class="admin-card" data-id="${b.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL</span></div>
+          <div class="admin-card-meta">${escapeHtml(b.user_name)} · ${escapeHtml(b.user_email)} · ${new Date(b.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+        ${b.status === 'pending' ? `
+        <div class="admin-actions">
+          <button class="admin-btn primary" data-action="active">Aktif Et</button>
+          <button class="admin-btn danger" data-action="reject">Reddet</button>
+        </div>` : ''}
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      const status = btn.dataset.action === 'active' ? 'active' : 'rejected';
+      btn.disabled = true;
+      await api(`/api/admin/badges/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+      loadBadgeRequests();
+    });
+  });
+}
+
 async function loadUsers(){
   const list = document.getElementById('users-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
@@ -405,6 +499,8 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'pending') loadPending();
     if(tab.dataset.tab === 'content') loadContent();
     if(tab.dataset.tab === 'news') loadNews();
+    if(tab.dataset.tab === 'claims') loadClaims();
+    if(tab.dataset.tab === 'badges') loadBadgeRequests();
     if(tab.dataset.tab === 'users') loadUsers();
   });
 });

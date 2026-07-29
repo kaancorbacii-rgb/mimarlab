@@ -622,7 +622,7 @@ const offices = [
 ];
 
 const architects = [
-  {name:"Kaan Çorbacı", role:"Kurucu", office:"MİMARLAB", photo:"mimarlar/kaan-corbaci-mimarlab.jpg", dob:1997, school:"YTÜ", dept:"Mimarlık"},
+  {name:"Kaan Çorbacı", role:"Kurucu", office:"MİMARLAB", photo:"mimarlar/kaan-corbaci-mimarlab.jpg", dob:1997, school:"YTÜ", dept:"Mimarlık", badges:["architect","platinum"]},
   {name:"Nur Urfalıoğlu", role:"Prof. Dr. Öğretim Üyesi", office:"Yıldız Teknik Üniversitesi", photo:"mimarlar/nur-urfalioglu-mimarlab.jpg", dob:1966, school:"YTÜ", dept:"Mimarlık"},
   {name:"Emre Arolat", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture", photo:"mimarlar/emre-arolat-mimarlab.webp", dob:1963, school:"MSGSÜ", dept:"Mimarlık"},
   {name:"Gonca Paşolar", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture", photo:"mimarlar/gonca-pasolar-mimarlab.webp", dob:1974, school:"ODTÜ", dept:"Mimarlık"},
@@ -1476,7 +1476,7 @@ function institutionCell(a){
             <div class="tag-hole" style="background:${officeColor(o.name)}">${initials(o.name)}${logoUrl(o) ? `<img src="${logoUrl(o)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
             <div class="institution-text">
               <span class="institution-name-line">
-                <span class="institution-name">${o.name}</span>
+                <span class="institution-name">${o.name}</span>${verifiedBadgeHtml('office', o.name, o.badges)}
                 ${o.yil ? `<span class="institution-year">${o.yil}</span>` : ''}
               </span>
               <div class="institution-role">${a.role}</div>
@@ -1508,6 +1508,25 @@ function institutionCell(a){
       </div>`;
   }
   return `<div class="institution-cell"></div>`;
+}
+
+// Satın alınıp admin tarafından onaylanmış rozetler /api/public/badges'ten gelir; sayfa ilk
+// render edildiğinde henüz hazır olmayabileceğinden 'mimarlab-badges-ready' event'i ile
+// dinleyen sayfalar (index/mimar/ofis listeleri) rozetler gelince yeniden render edebilir.
+const dynamicBadges = { architect: {}, office: {} };
+fetch('/api/public/badges').then(r => r.ok ? r.json() : null).then(d => {
+  if(d){ Object.assign(dynamicBadges.architect, d.architect || {}); Object.assign(dynamicBadges.office, d.office || {}); }
+  window.dispatchEvent(new Event('mimarlab-badges-ready'));
+}).catch(()=>{});
+
+const BADGE_LABELS = { student:'Öğrenci', architect:'Mimar', brand:'Marka', gold:'Gold', platinum:'Platinyum' };
+// profileType: 'architect' | 'office'; profileKey: architects[].name ya da offices[].name;
+// staticBadges: data.js kaydındaki opsiyonel badges[] alanı (varsa dinamik veriye bakılmaz).
+function verifiedBadgeHtml(profileType, profileKey, staticBadges){
+  const badges = (staticBadges && staticBadges.length) ? staticBadges : ((dynamicBadges[profileType] && dynamicBadges[profileType][profileKey]) || []);
+  if(!badges.length) return '';
+  const label = badges.map(b => BADGE_LABELS[b] || b).join(', ');
+  return `<span class="verified-badge-icon" title="Doğrulanmış Profil · ${label}"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 14.5 5.5 19 5l-.5 4.5L22 12l-3.5 2.5.5 4.5-4.5-.5L12 22l-2.5-3.5-4.5.5.5-4.5L2 12l3.5-2.5L5 5l4.5.5Z"/><path d="M9 12.5l2 2 4-4.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
 }
 
 // is-ilani.html'deki örnek ilanların yapılandırılmış hali; "office" alanı offices[].name ile

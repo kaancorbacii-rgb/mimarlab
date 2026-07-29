@@ -98,11 +98,17 @@
   }
   .auth-field{margin-bottom:16px;}
   .auth-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
-  .auth-field input{
+  .auth-field input, .auth-field select{
     width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
   }
-  .auth-field input:focus-visible{box-shadow:0 0 0 2px var(--brass);}
+  .auth-field input:focus-visible, .auth-field select:focus-visible{box-shadow:0 0 0 2px var(--brass);}
+  .auth-check{display:flex; align-items:flex-start; gap:9px; margin-bottom:14px; font-size:12.5px; line-height:1.55; color:var(--ink-soft);}
+  .auth-check input{width:16px; height:16px; margin-top:1px; flex-shrink:0; accent-color:var(--walnut);}
+  .auth-check a{color:var(--walnut); font-weight:600;}
+  .kvkk-details{margin-bottom:14px; font-size:12px; color:var(--ink-soft);}
+  .kvkk-details summary{cursor:pointer; color:var(--walnut); font-weight:600; font-size:12.5px;}
+  .kvkk-details p{margin:8px 0 0; line-height:1.6;}
   .auth-submit{
     width:100%; background:var(--ink); color:var(--paper-card);
     border:none; padding:13px; border-radius:100px;
@@ -206,6 +212,18 @@
           <input type="text" id="signup-school" name="school" placeholder="Üniversite / Bölüm">
         </div>
         <div class="auth-field">
+          <label for="signup-profession">Meslek</label>
+          <select id="signup-profession" name="profession" required>
+            <option value="" disabled selected>Seç...</option>
+            <option value="mimar">Mimar</option>
+            <option value="ic_mimar">İç Mimar</option>
+            <option value="peyzaj_mimari">Peyzaj Mimarı</option>
+            <option value="sehir_plancisi">Şehir Plancısı</option>
+            <option value="restorator">Restoratör</option>
+            <option value="diger">Diğer</option>
+          </select>
+        </div>
+        <div class="auth-field">
           <label for="signup-email">E-posta</label>
           <input type="email" id="signup-email" name="email" placeholder="ornek@eposta.com" required>
         </div>
@@ -217,8 +235,14 @@
           <label for="signup-password-confirm">Şifre (Tekrar)</label>
           <input type="password" id="signup-password-confirm" name="password_confirm" placeholder="••••••••" required>
         </div>
+        <details class="kvkk-details">
+          <summary>KVKK Aydınlatma Metni</summary>
+          <p>MİMARLAB olarak, üyelik formunda paylaştığın ad soyad, e-posta, doğum tarihi, okul ve meslek bilgilerini, 6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında yalnızca hesabını oluşturmak, profilini görüntülemek ve platform içi işlemlerini (ilan/proje gönderimi, yorum, kaydetme vb.) yürütmek amacıyla işleriz. Bilgilerin üçüncü taraflarla paylaşılması, yasal zorunluluklar dışında söz konusu değildir. KVKK madde 11 kapsamındaki haklarını (bilgi talep etme, düzeltme, silme vb.) info@mimarlab.com adresinden kullanabilirsin.</p>
+        </details>
+        <label class="auth-check"><input type="checkbox" id="signup-bot" required> Ben bir bot değilim.</label>
+        <label class="auth-check"><input type="checkbox" id="signup-kvkk" required> KVKK Aydınlatma Metni'ni okudum, kişisel verilerimin işlenmesini kabul ediyorum.</label>
         <button class="auth-submit" type="submit">Üye Ol</button>
-        <div class="auth-notice" id="signup-notice">Bu form şu an bir ön izlemedir — MİMARLAB'ın hesap/üyelik altyapısı henüz devreye alınmadı, bu yüzden gönderdiğin bilgiler herhangi bir yere kaydedilmiyor.</div>
+        <div class="auth-notice" id="signup-notice"></div>
       </form>
     </div>
     <p class="auth-switch">Zaten hesabın var mı? <a href="giris-yap.html">Giriş Yap</a></p>
@@ -239,7 +263,7 @@
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="#">Hakkında</a><a href="#">Reklam</a><a href="#">İletişim</a><a href="#">Kariyer</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
   </footer>
@@ -256,13 +280,31 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
     notice.classList.add('show');
     return;
   }
+  if(!document.getElementById('signup-profession').value){
+    notice.textContent = 'Lütfen bir meslek seç.';
+    notice.classList.add('show');
+    return;
+  }
+  if(!document.getElementById('signup-bot').checked){
+    notice.textContent = 'Lütfen "Ben bir bot değilim" kutucuğunu işaretle.';
+    notice.classList.add('show');
+    return;
+  }
+  if(!document.getElementById('signup-kvkk').checked){
+    notice.textContent = 'Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.';
+    notice.classList.add('show');
+    return;
+  }
   const payload = {
     name: document.getElementById('signup-name').value,
     dob: document.getElementById('signup-dob').value || null,
     school: document.getElementById('signup-school').value || null,
+    profession: document.getElementById('signup-profession').value,
     email: document.getElementById('signup-email').value,
     password: pw,
     password_confirm: pwConfirm,
+    botCheck: document.getElementById('signup-bot').checked,
+    kvkkAccepted: document.getElementById('signup-kvkk').checked,
   };
   submitBtn.disabled = true;
   try{

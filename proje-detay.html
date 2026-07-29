@@ -124,6 +124,8 @@
   .comment-avatar{width:36px; height:36px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
   .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px;}
   .comment-meta strong{color:var(--ink); font-weight:600; margin-right:8px;}
+  .comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:10px; text-decoration:underline; padding:0;}
+  .comment-delete-btn:hover{color:#c0392b;}
   .comment-body-text{margin:0; font-size:14px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}
 
   .detail-grid{display:grid; grid-template-columns:1fr 2fr; gap:40px; margin-bottom:40px;}
@@ -191,6 +193,13 @@
     background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
     color:#fff; font-family:'Fraunces', serif; font-size:13.5px; font-weight:600;
   }
+  /* Ofisin/Mimarın Diğer Projeleri: sağa doğru kaydırmalı şerit (alt alta yığılmasın) */
+  .related-grid-scroll{
+    display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth;
+    scrollbar-width:none; padding-bottom:4px;
+  }
+  .related-grid-scroll::-webkit-scrollbar{display:none;}
+  .related-grid-scroll .related-card{flex:0 0 220px;}
 
   .prevnext{max-width:1260px; margin:0 auto; padding:0 32px 60px; display:flex; justify-content:space-between; gap:16px;}
   .prevnext a{
@@ -219,6 +228,8 @@
   @media (max-width:860px){
     .detail-grid{grid-template-columns:1fr;}
     .related-grid{grid-template-columns:repeat(2, 1fr);}
+    .related-grid-scroll .related-card{flex:0 0 152px;}
+    .related-grid-scroll{gap:10px;}
   }
   @media (max-width:720px){
     .nav{padding:14px 18px; gap:10px;}
@@ -307,7 +318,7 @@
 
   <div class="related-section" id="same-designer-section" style="display:none;">
     <h2 class="related-title" id="same-designer-title">Ofisin/Mimarın Diğer Projeleri</h2>
-    <div class="related-grid" id="same-designer-grid"></div>
+    <div class="related-grid-scroll" id="same-designer-grid"></div>
   </div>
 
   <div class="related-section" id="related-section" style="display:none;">
@@ -346,7 +357,7 @@
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="#">Hakkında</a><a href="#">Reklam</a><a href="#">İletişim</a><a href="#">Kariyer</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
   </footer>
@@ -499,6 +510,8 @@ if(!p){
 }
 }
 
+let canModerateProjectComments = false;
+
 async function loadComments(targetId){
   const res = await fetch(`/api/comments?targetType=project&targetId=${encodeURIComponent(targetId)}`);
   const data = res.ok ? await res.json() : { items: [] };
@@ -509,14 +522,27 @@ async function loadComments(targetId){
     list.innerHTML = '<div class="comments-empty">Henüz yorum yok. İlk yorumu sen yaz.</div>';
     return;
   }
-  list.innerHTML = items.map(c => `
+  list.innerHTML = items.map(c => {
+    const canDelete = currentUser && (currentUser.id === c.user_id || canModerateProjectComments);
+    return `
     <div class="comment-row">
       <div class="comment-avatar">${escapeHtml((c.user_name||'').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase())}</div>
-      <div>
-        <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong><span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' })}</span></div>
+      <div style="flex:1;">
+        <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong><span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' })}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${c.id}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
         <p class="comment-body-text">${escapeHtml(c.body)}</p>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.comment-delete-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Bu yorumu silmek istediğine emin misin?')) return;
+      btn.disabled = true;
+      try{
+        const res = await fetch(`/api/comments/${btn.dataset.id}`, { method:'DELETE' });
+        if(res.ok) loadComments(targetId);
+      } finally { btn.disabled = false; }
+    });
+  });
 }
 
 function renderCommentForm(targetId){
@@ -552,6 +578,15 @@ async function initComments(){
   await savedWidgetReady;
   const slugParam = new URLSearchParams(window.location.search).get('proje');
   if(!slugParam) return;
+  if(currentUser){
+    try{
+      const res = await fetch('/api/projects/mine');
+      if(res.ok){
+        const data = await res.json();
+        canModerateProjectComments = (data.items || []).some(it => it.slug === slugParam);
+      }
+    }catch{}
+  }
   renderCommentForm(slugParam);
   loadComments(slugParam);
 }

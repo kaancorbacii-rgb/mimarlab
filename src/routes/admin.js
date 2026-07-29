@@ -25,6 +25,8 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'users' && request.method === 'GET') return listUsers(env);
   if (sub === 'submissions') return handleSubmissionsAdmin(request, env, url, segments);
   if (sub === 'news') return handleNewsAdmin(request, env, segments);
+  if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
+  if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
   return errorJson('Bulunamadı', 404);
 }
 
@@ -129,6 +131,66 @@ async function handleNewsAdmin(request, env, segments) {
       await env.DB.prepare('DELETE FROM news WHERE id = ?').bind(id).run();
       return json({ ok: true });
     }
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// /api/admin/claims?status=pending
+// /api/admin/claims/:id  (PATCH: status günceller — approved/rejected)
+async function handleClaimsAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const status = url.searchParams.get('status');
+    const query = status
+      ? env.DB.prepare(
+          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM profile_claims c
+           JOIN users u ON u.id = c.user_id WHERE c.status = ? ORDER BY c.created_at DESC`
+        ).bind(status)
+      : env.DB.prepare(
+          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM profile_claims c
+           JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC`
+        );
+    const { results } = await query.all();
+    return json({ items: results });
+  }
+
+  if (segments.length === 4 && request.method === 'PATCH') {
+    const id = segments[3];
+    const body = await readJson(request);
+    if (!['approved', 'rejected'].includes(body.status)) return errorJson('Geçersiz durum.');
+    await env.DB.prepare(
+      'UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?'
+    ).bind(body.status, Date.now(), id).run();
+    return json({ ok: true });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// /api/admin/badges?status=pending
+// /api/admin/badges/:id  (PATCH: status günceller — active/rejected)
+async function handleBadgesAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const status = url.searchParams.get('status');
+    const query = status
+      ? env.DB.prepare(
+          `SELECT b.*, u.name AS user_name, u.email AS user_email FROM badge_requests b
+           JOIN users u ON u.id = b.user_id WHERE b.status = ? ORDER BY b.created_at DESC`
+        ).bind(status)
+      : env.DB.prepare(
+          `SELECT b.*, u.name AS user_name, u.email AS user_email FROM badge_requests b
+           JOIN users u ON u.id = b.user_id ORDER BY b.created_at DESC`
+        );
+    const { results } = await query.all();
+    return json({ items: results });
+  }
+
+  if (segments.length === 4 && request.method === 'PATCH') {
+    const id = segments[3];
+    const body = await readJson(request);
+    if (!['active', 'rejected'].includes(body.status)) return errorJson('Geçersiz durum.');
+    await env.DB.prepare(
+      'UPDATE badge_requests SET status = ?, updated_at = ? WHERE id = ?'
+    ).bind(body.status, Date.now(), id).run();
+    return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);
 }

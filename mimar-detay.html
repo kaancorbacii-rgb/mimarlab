@@ -338,6 +338,31 @@
   .home-grid{gap:10px;}
   .home-card-title{font-size:13px;}
 }
+
+/* ---------- ROZET ---------- */
+.verified-badge{display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--accent); vertical-align:middle; margin-left:8px;}
+
+/* ---------- YORUMLAR (proje-detay.html ile aynı desen) ---------- */
+.comments-section{max-width:900px; margin:44px auto 0; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
+.comments-title{font-family:'Fraunces', serif; font-size:22px; font-weight:600; margin:0 0 20px;}
+.comment-form-wrap{margin-bottom:24px;}
+.comment-form textarea{width:100%; min-height:90px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
+.comment-form-actions{display:flex; justify-content:flex-end; margin-top:10px;}
+.comment-submit-btn{background:var(--ink); color:var(--paper-card); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
+.comment-submit-btn:hover{background:var(--walnut);}
+.comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
+.comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
+.comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
+.comments-empty{padding:24px 0; color:var(--ink-soft); font-size:13.5px;}
+.comment-row{display:flex; gap:12px; padding:16px 0; border-bottom:1px solid var(--line-soft);}
+.comment-row:last-child{border-bottom:none;}
+.comment-avatar{width:36px; height:36px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
+.comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px;}
+.comment-meta strong{color:var(--ink); font-weight:600; margin-right:8px;}
+.comment-body-text{margin:0; font-size:14px; line-height:1.6; color:var(--ink);}
+.comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:10px; text-decoration:underline; padding:0;}
+.comment-delete-btn:hover{color:#c0392b;}
+@media (max-width:720px){ .comments-section{padding:0 18px 40px; padding-top:28px;} }
 </style>
 </head>
 <body>
@@ -394,6 +419,7 @@
       <div class="profile-top">
         <div class="profile-logo" id="profile-logo">M</div>
         <h1 class="profile-name" id="profile-name">Mimar Adı</h1>
+        <span id="verified-badge-wrap"></span>
       </div>
       <span class="profile-category" id="profile-category">Rol</span>
       <div class="rating-widget" id="rating-widget" data-type="architect"></div>
@@ -420,7 +446,7 @@
     <div>
       <div class="info-card">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
-        <div>
+        <div id="claim-card-body">
           <h5>Bu profil sana mı ait?</h5>
           <p>Bilgilerini güncellemek ya da fotoğrafını değiştirmek için bizimle iletişime geç.</p>
         </div>
@@ -445,6 +471,12 @@
     <h2>İlgili İş İlanları</h2>
     <div class="home-grid" id="related-jobs-grid"></div>
   </section>
+
+  <div class="comments-section">
+    <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
+    <div class="comment-form-wrap" id="comment-form-wrap"></div>
+    <div class="comments-list" id="comments-list"></div>
+  </div>
 
   <footer class="site-footer">
     <div class="footer-top">
@@ -475,10 +507,10 @@
       </div>
       <div class="footer-col">
         <h4>Kurumsal</h4>
-        <a href="#">Hakkında</a>
-        <a href="#">Reklam</a>
-        <a href="#">İletişim</a>
-        <a href="#">Kariyer</a>
+        <a href="hakkinda.html">Hakkında</a>
+        <a href="reklam.html">Reklam</a>
+        <a href="iletisim.html">İletişim</a>
+        <a href="kariyer.html">Kariyer</a>
       </div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
@@ -595,6 +627,132 @@ if(relatedJobs.length > 0){
       </div>
     </a>`).join('');
 }
+
+const PROFILE_TYPE = 'architect';
+const profileKey = a.name;
+let isProfileOwner = false;
+
+// Statik data.js üzerindeki badges alanı (ör. örnek/kurucu profiller) ile /api/public/badges'ten
+// gelen (satın alınıp onaylanmış) dinamik rozetleri birleştirip isim yanında gösterir.
+async function loadVerifiedBadge(){
+  let badges = a.badges || [];
+  if(!badges.length){
+    try{
+      const res = await fetch('/api/public/badges');
+      if(res.ok){
+        const data = await res.json();
+        badges = (data[PROFILE_TYPE] && data[PROFILE_TYPE][profileKey]) || [];
+      }
+    }catch{}
+  }
+  if(!badges.length) return;
+  const BADGE_LABELS = { student:'Öğrenci', architect:'Mimar', brand:'Marka', gold:'Gold', platinum:'Platinyum' };
+  const label = badges.map(b => BADGE_LABELS[b] || b).join(', ');
+  document.getElementById('verified-badge-wrap').innerHTML =
+    `<span class="verified-badge" title="Doğrulanmış Profil · ${escapeHtml(label)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 14.5 5.5 19 5l-.5 4.5L22 12l-3.5 2.5.5 4.5-4.5-.5L12 22l-2.5-3.5-4.5.5.5-4.5L2 12l3.5-2.5L5 5l4.5.5Z"/><path d="M9 12.5l2 2 4-4.5" stroke="var(--paper-card)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+}
+
+async function loadClaimCard(){
+  isProfileOwner = false;
+  const body = document.getElementById('claim-card-body');
+  await savedWidgetReady;
+  if(!currentUser){
+    body.innerHTML = `<h5>Bu profil sana mı ait?</h5><p>Bilgilerini güncellemek, istenmeyen yorumları yönetmek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html">giriş yap</a>.</p>`;
+    return;
+  }
+  try{
+    const res = await fetch(`/api/claims/status?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(profileKey)}`);
+    const data = res.ok ? await res.json() : { status: 'none' };
+    if(data.status === 'approved'){
+      isProfileOwner = true;
+      body.innerHTML = `<h5>Bu profil sana ait ✓</h5><p>Bu profile gelen istenmeyen yorumları silebilir, <a href="hesabim.html">Doğrulanmış Profil rozeti</a> alabilirsin.</p>`;
+      loadComments();
+    } else if(data.status === 'pending'){
+      body.innerHTML = `<h5>Talebin inceleniyor</h5><p>"Bu profil bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.</p>`;
+    } else {
+      body.innerHTML = `<h5>Bu profil sana mı ait?</h5><p>İstenmeyen yorumları yönetmek ve Doğrulanmış Profil rozeti almak için profili sahiplen.</p><button type="button" class="btn-outline" id="claim-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Bu profil bana ait</button>`;
+      document.getElementById('claim-btn').addEventListener('click', async (e)=>{
+        e.target.disabled = true; e.target.textContent = 'Gönderiliyor…';
+        await fetch('/api/claims', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ profileType: PROFILE_TYPE, profileKey }),
+        });
+        loadClaimCard();
+      });
+    }
+  }catch{}
+}
+
+async function loadComments(){
+  const res = await fetch(`/api/comments?targetType=${PROFILE_TYPE}&targetId=${encodeURIComponent(profileKey)}`);
+  const data = res.ok ? await res.json() : { items: [] };
+  const items = data.items || [];
+  document.getElementById('comments-count').textContent = items.length;
+  const list = document.getElementById('comments-list');
+  if(!items.length){
+    list.innerHTML = '<div class="comments-empty">Henüz yorum yok. İlk yorumu sen yaz.</div>';
+    return;
+  }
+  list.innerHTML = items.map(c => {
+    const canDelete = currentUser && (currentUser.id === c.user_id || isProfileOwner);
+    return `
+    <div class="comment-row">
+      <div class="comment-avatar">${escapeHtml((c.user_name||'').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase())}</div>
+      <div style="flex:1;">
+        <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong><span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' })}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${c.id}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
+        <p class="comment-body-text">${escapeHtml(c.body)}</p>
+      </div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.comment-delete-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Bu yorumu silmek istediğine emin misin?')) return;
+      btn.disabled = true;
+      try{
+        const res = await fetch(`/api/comments/${btn.dataset.id}`, { method:'DELETE' });
+        if(res.ok) loadComments();
+      } finally { btn.disabled = false; }
+    });
+  });
+}
+
+function renderCommentForm(){
+  const wrap = document.getElementById('comment-form-wrap');
+  if(!currentUser){
+    wrap.innerHTML = `<div class="comment-login-note">Yorum yapmak için <a href="giris-yap.html">giriş yap</a>.</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="comment-form">
+      <textarea id="comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
+      <div class="comment-form-actions">
+        <button class="comment-submit-btn" id="comment-submit-btn" type="button">Yorum Yap</button>
+      </div>
+    </div>`;
+  const submitBtn = document.getElementById('comment-submit-btn');
+  submitBtn.addEventListener('click', async ()=>{
+    const input = document.getElementById('comment-input');
+    const body = input.value.trim();
+    if(!body) return;
+    submitBtn.disabled = true;
+    try{
+      const res = await fetch('/api/comments', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ targetType: PROFILE_TYPE, targetId: profileKey, body }),
+      });
+      if(res.ok){ input.value = ''; loadComments(); }
+    } finally { submitBtn.disabled = false; }
+  });
+}
+
+async function initProfileExtras(){
+  loadVerifiedBadge();
+  await savedWidgetReady;
+  await loadClaimCard();
+  renderCommentForm();
+  if(!isProfileOwner) loadComments();
+}
+initProfileExtras();
 
 function wireNavSearch(){
   document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
