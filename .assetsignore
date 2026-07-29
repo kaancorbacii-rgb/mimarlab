@@ -1,0 +1,10 @@
+.git
+.wrangler
+.DS_Store
+.claude
+wrangler.jsonc
+src
+schema.sql
+node_modules
+package.json
+package-lock.json

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<link rel="icon" type="image/png" href="logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="logos/site/favicon-180.png">
+<title>Haber — MİMARLAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D;
+    --ink-soft:#4E6478;
+    --paper:#EDF0F3;
+    --paper-card:#F8FAFB;
+    --paper-alt:#E0E6EC;
+    --walnut:#2B425F;
+    --brass:#5B7A9B;
+    --brass-soft:#AFC5D8;
+    --sage:#4F6478;
+    --accent:#E08A3E;
+    --line: rgba(27,42,61,0.14);
+    --line-soft: rgba(27,42,61,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:24px;
+    padding:16px 32px;
+    background:rgba(237,240,243,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-search{
+    flex:1; max-width:380px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:9px 16px;
+  }
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-logo{height:24px; width:auto; display:block;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
+  .nav-link:hover, .nav-link.active{color:var(--ink);}
+  .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
+  .nav-mobile-menu{
+    display:none; position:absolute; top:100%; right:18px; z-index:95;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
+  }
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .nav-rate{
+    background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
+    border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;
+  }
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+
+  /* ---------- BREADCRUMB ---------- */
+  .breadcrumb-bar{
+    background:var(--ink); color:rgba(237,240,243,0.7);
+    padding:14px 32px; font-size:13.5px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
+  .breadcrumb-bar a:hover{color:var(--brass-soft);}
+  .breadcrumb-bar .sep{opacity:0.4;}
+  .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
+
+  /* ---------- DETAIL ---------- */
+  .detail-wrap{max-width:900px; margin:0 auto; padding:24px 32px 0;}
+  .detail-title{font-family:'Fraunces', serif; font-size:32px; font-weight:600; margin:0 0 16px;}
+  .detail-meta-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:13.5px; color:var(--ink-soft); margin-bottom:22px;}
+  .detail-meta-row .cat-tag{background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:5px 14px; font-weight:600; color:var(--ink);}
+  .save-btn{
+    display:inline-flex; align-items:center; gap:7px; margin-left:auto;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:8px 16px; font-size:13px; font-weight:600; color:var(--ink-soft);
+  }
+  .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .save-btn svg{flex-shrink:0;}
+  .save-btn-label-saved{display:none;}
+  .save-btn.saved .save-btn-label-default{display:none;}
+  .save-btn.saved .save-btn-label-saved{display:inline;}
+  .detail-image{width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:14px; background:var(--paper-card); margin-bottom:24px;}
+  .detail-desc{font-size:16px; line-height:1.75; color:var(--ink); margin-bottom:40px;}
+
+  /* ---------- COMMENTS ---------- */
+  .comments-section{max-width:900px; margin:0 auto; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
+  .comments-title{font-family:'Fraunces', serif; font-size:22px; font-weight:600; margin:0 0 20px;}
+  .comment-form-wrap{margin-bottom:24px;}
+  .comment-form textarea{width:100%; min-height:90px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
+  .comment-form-actions{display:flex; justify-content:flex-end; margin-top:10px;}
+  .comment-submit-btn{background:var(--ink); color:var(--paper-card); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
+  .comment-submit-btn:hover{background:var(--walnut);}
+  .comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
+  .comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
+  .comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
+  .comments-empty{padding:24px 0; color:var(--ink-soft); font-size:13.5px;}
+  .comment-row{display:flex; gap:12px; padding:16px 0; border-bottom:1px solid var(--line-soft);}
+  .comment-row:last-child{border-bottom:none;}
+  .comment-avatar{width:36px; height:36px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
+  .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px;}
+  .comment-meta strong{color:var(--ink); font-weight:600; margin-right:8px;}
+  .comment-body-text{margin:0; font-size:14px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}
+
+  .related-section{max-width:1260px; margin:0 auto; padding:0 32px 40px;}
+  .related-title{font-family:'Fraunces', serif; font-size:20px; font-weight:600; margin:0 0 18px;}
+  .related-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:16px;}
+  .related-card{position:relative; display:block; aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+  .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .related-card-title{
+    position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
+    background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
+    color:#fff; font-family:'Fraunces', serif; font-size:13.5px; font-weight:600;
+  }
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
+  @media (max-width:860px){
+    .related-grid{grid-template-columns:repeat(2, 1fr);}
+  }
+  @media (max-width:720px){
+    .nav{padding:14px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .detail-wrap{padding:18px 16px 0;}
+    .detail-title{font-size:22px;}
+    .comments-section{padding:0 16px 40px; padding-top:28px;}
+    .related-section{padding:0 16px 32px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+  }
+</style>
+</head>
+<body>
+<script src="auth-nav.js"></script>
+<script src="save-widget.js"></script>
+
+  <nav class="nav">
+    <a class="brand" href="index.html">
+      <img class="brand-logo" src="logos/site/mimarlab-logo.png" alt="MimarLab">
+    </a>
+    <div class="nav-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="f-search-topnav" placeholder="Ara...">
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="proje.html">Proje</a>
+      <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link active" href="haber.html">Haber</a>
+      <a class="nav-link" href="is-ilani.html">İş İlanı</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
+    </div>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-mobile-menu" id="nav-mobile-menu">
+      <div class="nav-mobile-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="f-search-nav" placeholder="Ara...">
+      </div>
+      <a class="nav-mobile-link" href="proje.html">Proje</a>
+      <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="haber.html">Haber</a>
+      <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
+    </div>
+  </nav>
+
+  <div class="breadcrumb-bar">
+    <a href="index.html">Ana Sayfa</a>
+    <span class="sep">›</span>
+    <a href="haber.html">Haberler</a>
+    <span class="sep">›</span>
+    <span class="current" id="bc-name">Haber</span>
+  </div>
+
+  <div class="detail-wrap">
+    <h1 class="detail-title" id="detail-title"></h1>
+    <div class="detail-meta-row">
+      <span class="cat-tag" id="detail-cat"></span>
+      <span id="detail-source"></span>
+      <button class="save-btn card-save-btn" id="save-btn" type="button" aria-label="Kaydet">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
+        <span class="save-btn-label-default">Kaydet</span>
+        <span class="save-btn-label-saved">Kaydedildi</span>
+      </button>
+    </div>
+    <img class="detail-image" id="detail-image" src="" alt="" loading="lazy">
+    <div class="detail-desc" id="detail-desc"></div>
+  </div>
+
+  <div class="comments-section">
+    <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
+    <div class="comment-form-wrap" id="comment-form-wrap"></div>
+    <div class="comments-list" id="comments-list"></div>
+  </div>
+
+  <div class="related-section" id="related-section" style="display:none;">
+    <h2 class="related-title">İlgili Haberler</h2>
+    <div class="related-grid" id="related-grid"></div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+        </a>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="#">Hakkında</a><a href="#">Reklam</a><a href="#">İletişim</a><a href="#">Kariyer</a></div>
+    </div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
+  </footer>
+
+<script src="haberler-data.js"></script>
+<script>
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function initials(s){ return (s||'').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+function formatDate(ts){
+  return new Date(ts).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
+}
+
+const params = new URLSearchParams(window.location.search);
+const newsId = params.get('haber') || '';
+let n = newsItems.find(x => x.id === newsId);
+
+function renderNewsDetail(item){
+  document.title = `${item.title} — MİMARLAB`;
+  document.getElementById('bc-name').textContent = item.title;
+  document.getElementById('detail-title').textContent = item.title;
+  document.getElementById('detail-cat').textContent = item.category || 'Haber';
+  document.getElementById('detail-source').textContent = item.source ? `Kaynak: ${item.source}` : '';
+  const img = document.getElementById('detail-image');
+  if(item.image){ img.src = item.image; img.alt = item.title; } else { img.style.display = 'none'; }
+  document.getElementById('detail-desc').textContent = item.description || '';
+
+  const related = newsItems.filter(x => x.id !== item.id && x.category === item.category).slice(0, 4);
+  if(related.length){
+    document.getElementById('related-section').style.display = 'block';
+    document.getElementById('related-grid').innerHTML = related.map(r => `
+      <a class="related-card" href="haber-detay.html?haber=${encodeURIComponent(r.id)}">
+        <img src="${escapeAttr(r.image)}" alt="${escapeAttr(r.title)}" loading="lazy">
+        <div class="related-card-title">${escapeHtml(r.title)}</div>
+      </a>`).join('');
+  }
+
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.dataset.key = item.id;
+  saveBtn.dataset.title = item.title;
+  saveBtn.dataset.meta = item.category || '';
+  saveBtn.dataset.image = item.image || '';
+  saveBtn.dataset.href = `haber-detay.html?haber=${encodeURIComponent(item.id)}`;
+  wireSaveButtons('news');
+
+  loadComments(item.id);
+}
+
+async function loadComments(targetId){
+  const res = await fetch(`/api/comments?targetType=news&targetId=${encodeURIComponent(targetId)}`);
+  const data = res.ok ? await res.json() : { items: [] };
+  const items = data.items || [];
+  document.getElementById('comments-count').textContent = items.length;
+  const list = document.getElementById('comments-list');
+  if(!items.length){
+    list.innerHTML = '<div class="comments-empty">Henüz yorum yok. İlk yorumu sen yaz.</div>';
+    return;
+  }
+  list.innerHTML = items.map(c => `
+    <div class="comment-row">
+      <div class="comment-avatar">${escapeHtml(initials(c.user_name))}</div>
+      <div>
+        <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong><span>${formatDate(c.created_at)}</span></div>
+        <p class="comment-body-text">${escapeHtml(c.body)}</p>
+      </div>
+    </div>`).join('');
+}
+
+function renderCommentForm(targetId){
+  const wrap = document.getElementById('comment-form-wrap');
+  if(!currentUser){
+    wrap.innerHTML = `<div class="comment-login-note">Yorum yapmak için <a href="giris-yap.html">giriş yap</a>.</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="comment-form">
+      <textarea id="comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
+      <div class="comment-form-actions">
+        <button class="comment-submit-btn" id="comment-submit-btn" type="button">Yorum Yap</button>
+      </div>
+    </div>`;
+  const submitBtn = document.getElementById('comment-submit-btn');
+  submitBtn.addEventListener('click', async ()=>{
+    const input = document.getElementById('comment-input');
+    const body = input.value.trim();
+    if(!body) return;
+    submitBtn.disabled = true;
+    try{
+      const res = await fetch('/api/comments', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ targetType:'news', targetId, body }),
+      });
+      if(res.ok){ input.value = ''; loadComments(targetId); }
+    } finally { submitBtn.disabled = false; }
+  });
+}
+
+async function init(){
+  await savedWidgetReady;
+
+  if(!n){
+    // Statik listede yoksa admin panelinden eklenen bir haber olabilir.
+    try{
+      const res = await fetch('/api/public/news');
+      const data = res.ok ? await res.json() : { items: [] };
+      n = (data.items || []).find(x => x.id === newsId);
+    }catch{}
+  }
+
+  if(!n){
+    document.getElementById('detail-title').textContent = 'Haber bulunamadı';
+    document.getElementById('comment-form-wrap').style.display = 'none';
+    return;
+  }
+
+  renderNewsDetail(n);
+  renderCommentForm(n.id);
+}
+init();
+
+function wireNavSearch(){
+  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && e.target.value.trim()){
+        window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      }
+    });
+  });
+}
+wireNavSearch();
+
+const navHamburger = document.getElementById('nav-hamburger');
+const navMobileMenu = document.getElementById('nav-mobile-menu');
+navHamburger.addEventListener('click', ()=>{ navMobileMenu.classList.toggle('open'); });
+document.addEventListener('click', (e)=>{
+  if(!navMobileMenu.classList.contains('open')) return;
+  if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
+});
+</script>
+</body>
+</html>

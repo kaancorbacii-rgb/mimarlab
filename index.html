@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light only">
-<title>Mimarlab — İstanbul'un öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı ofisleri</title>
+<link rel="icon" type="image/png" href="logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="logos/site/favicon-180.png">
+<title>MİMARLAB — Türkiye'nin öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı ofisleri</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -42,6 +44,7 @@
     outline:none;
     box-shadow: 0 0 0 2px var(--brass) inset;
   }
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible, .list-col-search input:focus-visible{box-shadow:none;}
 
   /* ---------- NAV ---------- */
   .nav{
@@ -66,21 +69,9 @@
     font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);
   }
   .brand{display:flex; align-items:center; gap:10px;}
-  .brand-mark{
-    width:32px; height:32px; border-radius:50%;
-    overflow:hidden; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .brand-mark img{
-    width:100%; height:100%; object-fit:cover;
-  }
-  .brand-word{
-    font-family:'Fraunces', serif;
-    font-size:19px; font-weight:600; letter-spacing:-0.01em;
-    white-space:nowrap;
-  }
+  .brand-logo{height:24px; width:auto; display:block;}
   .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
-  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
   .nav-link:hover{color:var(--ink);}
 
   .nav-hamburger{
@@ -101,6 +92,7 @@
   .nav-mobile-link{
     padding:11px 14px; border-radius:8px;
     font-size:14.5px; font-weight:500; color:var(--ink);
+    text-transform:uppercase;
   }
   .nav-mobile-link:hover{background:var(--paper-alt);}
   .nav-mobile-search{
@@ -133,6 +125,7 @@
     padding:8px 17px; border-radius:100px;
     border:1.5px solid var(--ink);
     font-size:14px; font-weight:600; white-space:nowrap;
+    text-transform:uppercase;
   }
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
   .nav-toggle{display:none;}
@@ -141,7 +134,7 @@
   .hero{
     padding:64px 32px 36px;
     text-align:center;
-    max-width:760px; margin:0 auto;
+    max-width:880px; margin:0 auto;
   }
   .eyebrow{
     font-family:'IBM Plex Mono', monospace;
@@ -157,109 +150,57 @@
   .hero h1 em{
     font-style:normal; color:var(--accent); font-weight:600;
   }
+  .hero-and{color:var(--ink);}
   .hero h1 .q{
     color:var(--accent); font-style:normal;
     margin-left:0.14em; display:inline-block;
   }
+  .hero-break-m{display:none;}
   .hero p{
     font-size:16px; color:var(--ink-soft); margin:0; line-height:1.5;
   }
 
-  /* ---------- FILTER BAR ---------- */
-  .filter-wrap{
-    background:var(--paper);
-    border-bottom:1px solid var(--line);
-    padding:14px 32px;
+  /* ---------- LIST FILTERS (per-column) ---------- */
+  .list-col-panel{display:flex; flex-direction:column; min-width:0;}
+  .list-col-search{
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:8px 16px;
+    margin:8px 0;
   }
-  .filter-row{
-    max-width:1080px; margin:0 auto;
-    display:flex; align-items:center; justify-content:center; gap:10px;
-    flex-wrap:nowrap;
-    overflow-x:auto; scrollbar-width:none;
+  .list-col-search svg{flex-shrink:0; opacity:0.55;}
+  .list-col-search input{
+    border:none; background:none; outline:none;
+    font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);
   }
-  .filter-row::-webkit-scrollbar{display:none;}
-  .filter-toggle-btn{
-    display:none;
-    align-items:center; gap:8px;
-    background:var(--paper-card); border:1px solid var(--line);
-    border-radius:100px; padding:9px 18px;
-    font-size:13.5px; font-weight:600; color:var(--ink);
+  .list-col-filters{
+    display:flex; align-items:center; gap:8px;
+    flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
   }
-  .filter-backdrop{
-    display:none;
-    position:fixed; inset:0; background:rgba(27,42,61,0.45);
-    z-index:90;
-  }
-  .filter-backdrop.open{display:block;}
-  .filter-bar{
-    display:flex; align-items:center; gap:10px; flex-wrap:nowrap;
-  }
+  .list-col-filters::-webkit-scrollbar{display:none;}
   .filter-select{
     position:relative; flex-shrink:0;
+    width:132px;
   }
   .filter-select select{
     appearance:none; -webkit-appearance:none;
     background:var(--paper-card);
     border:1px solid var(--line);
     border-radius:100px;
-    padding:9px 34px 9px 16px;
-    font-size:13.5px; font-weight:500; color:var(--ink);
+    padding:9px 30px 9px 14px;
+    font-size:12.5px; font-weight:500; color:var(--ink);
     font-family:inherit;
+    width:100%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .select-arrow{
-    position:absolute; right:14px; top:50%;
+    position:absolute; right:12px; top:50%;
     transform:translateY(-50%);
     pointer-events:none; color:var(--ink-soft);
   }
   .filter-select select:hover{border-color:var(--walnut);}
-
-  .filter-modal-head{
-    display:none;
-    align-items:center; justify-content:space-between;
-    padding-bottom:14px; margin-bottom:14px;
-    border-bottom:1px solid var(--line);
-    font-family:'Fraunces', serif; font-size:18px; font-weight:600;
-  }
-  .filter-close-btn{
-    width:30px; height:30px; border-radius:50%;
-    border:1px solid var(--line); background:var(--paper-card);
-    color:var(--ink-soft); font-size:14px;
-  }
-  .filter-apply-btn{
-    display:none;
-    width:100%; background:var(--ink); color:var(--paper-card);
-    border:none; padding:14px; border-radius:10px;
-    font-weight:600; font-size:14.5px; margin-top:6px;
-  }
-
-  .sort-select{display:flex; align-items:center; gap:8px; flex-shrink:0;}
-
-  .search-wrap{
-    display:flex; align-items:center; gap:8px;
-    background:var(--paper-card);
-    border:1px solid var(--line);
-    border-radius:100px;
-    padding:8px 16px;
-    min-width:0; width:220px; flex:1 1 120px;
-  }
-  .search-wrap svg{flex-shrink:0; opacity:0.55;}
-  .search-icon-btn{
-    display:none;
-    position:relative; z-index:2;
-    flex-shrink:0; background:none; border:none; padding:0;
-    color:var(--ink-soft); align-items:center; justify-content:center;
-  }
-  .search-icon-btn .icon-close{display:none;}
-  .search-icon-btn.open .icon-search{display:none;}
-  .search-icon-btn.open .icon-close{display:block;}
-  .search-wrap input{
-    border:none; background:none; outline:none;
-    font-family:inherit; font-size:13.5px; width:100%;
-    color:var(--ink);
-  }
-  .search-mobile-input{display:none;}
-  .search-mobile-input:focus-visible{box-shadow:none; outline:none;}
-  .search-desktop-input:focus-visible{box-shadow:none; outline:none;}
 
   /* ---------- LIST ---------- */
   .list-section{
@@ -267,32 +208,49 @@
     padding:36px 32px 90px;
   }
   #brand-list{
-    display:grid; grid-template-columns: 1fr 300px;
+    display:grid; grid-template-columns: 1fr 1fr;
     gap:10px 16px;
   }
+  .list-columns-header{
+    display:grid; grid-template-columns: 1fr 1fr;
+    gap:10px 16px;
+    margin-bottom:16px; padding:0 4px;
+  }
+  .list-col-label{
+    font-family:'IBM Plex Mono', monospace; font-size:16px; letter-spacing:0.02em;
+    color:var(--ink-soft); font-weight:600;
+    text-decoration:underline; display:inline-block;
+  }
+  .list-col-label:hover{color:var(--ink);}
+  .list-col-label-inst{white-space:nowrap; overflow:hidden;}
   .brand-row{min-width:0;}
-  .founder-cell{
+  .institution-cell{
     min-width:0;
-    background:var(--paper-card); border:1px dashed var(--line);
+    background:var(--walnut); border:1px solid var(--walnut);
     border-radius:10px; padding:14px 16px;
     display:flex; align-items:center; gap:14px;
     overflow-x:auto; scrollbar-width:none;
   }
-  .founder-cell::-webkit-scrollbar{display:none;}
-  .founder-person{display:flex; align-items:center; gap:8px; flex:0 0 auto;}
-  .founder-avatar{
-    width:34px; height:34px; border-radius:50%; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-family:'IBM Plex Mono', monospace;
-    font-weight:600; font-size:12px;
+  .institution-cell::-webkit-scrollbar{display:none;}
+  .institution-cell-status{justify-content:center;}
+  .status-pill{
+    font-size:12px; font-weight:600; color:#fff;
+    background:rgba(237,240,243,0.18); padding:6px 14px; border-radius:100px;
+    white-space:nowrap;
   }
-  .founder-text{min-width:0;}
-  .founder-name{
-    max-width:150px;
-    font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.3;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .institution-item{display:flex; align-items:center; gap:8px; flex:0 0 auto; min-width:0; text-decoration:none; color:inherit;}
+  .institution-text{min-width:0;}
+  .institution-name-line{display:inline-flex; align-items:baseline; gap:6px; flex-wrap:nowrap; min-width:0; max-width:100%;}
+  .institution-name{
+    font-size:12.5px; font-weight:600; color:#fff; line-height:1.3;
+    white-space:nowrap;
   }
-  .founder-role{font-size:10.5px; color:var(--ink-soft); white-space:nowrap;}
+  .institution-year{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; color:rgba(237,240,243,0.7);
+    letter-spacing:0.02em; white-space:nowrap; flex-shrink:0;
+  }
+  .institution-year::before{content:"K. ";}
+  .institution-role{font-size:10.5px; color:rgba(237,240,243,0.7); white-space:nowrap;}
   .rail-line{
     display:flex; align-items:center; gap:10px;
     margin-bottom:6px; padding:0 4px;
@@ -311,7 +269,7 @@
     background:var(--paper-card);
     border:1px solid var(--line-soft);
     border-radius:10px;
-    padding:16px 20px 16px 10px;
+    padding:16px 20px;
     position:relative;
     text-decoration:none; color:inherit; cursor:pointer;
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
@@ -329,35 +287,39 @@
     border:1.5px solid var(--line);
     display:flex; align-items:center; justify-content:center;
     overflow:hidden;
+    position:relative;
     color:var(--paper-card);
     font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:13px;
     letter-spacing:-0.02em;
   }
   .tag-hole img{
-    width:100%; height:100%; object-fit:cover;
+    position:absolute; inset:0;
+    width:100%; height:100%; object-fit:contain;
+    background:var(--paper-card);
   }
-
-  .rank-num{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:22px; font-weight:600; color:var(--ink-soft);
-    width:38px; flex-shrink:0; text-align:right;
-    font-variant-numeric:tabular-nums;
-  }
+  .tag-hole.person-hole img{ object-fit:cover; background:none; }
   
   .row-main{flex:1; min-width:0;}
-  .row-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .row-top{display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0;}
+  .row-name-line{
+    display:inline-flex; align-items:baseline; gap:8px; flex-wrap:nowrap; min-width:0; max-width:100%;
+    overflow-x:auto; scrollbar-width:none;
+  }
+  .row-name-line::-webkit-scrollbar{display:none;}
   .row-name{
     font-family:'Fraunces', serif; font-size:19px; font-weight:600;
+    white-space:nowrap;
   }
   .row-loc{
     font-size:12.5px; color:var(--sage); font-weight:600;
     background:rgba(79,100,120,0.12); padding:2px 9px; border-radius:100px;
+    max-width:100%; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .row-year{
     font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);
-    letter-spacing:0.02em;
+    letter-spacing:0.02em; white-space:nowrap; flex-shrink:0;
   }
-  .row-year::before{content:"K. ";}
+  .row-year::before{content:"D. ";}
 
           
           
@@ -372,22 +334,28 @@
     font-size:14px; display:none;
   }
 
+  .pagination-summary{
+    text-align:center; margin-top:22px;
+    font-size:12px; color:var(--ink-soft);
+  }
   .pagination{
     display:flex; align-items:center; justify-content:center;
-    gap:6px; margin-top:24px; flex-wrap:wrap;
+    gap:6px; margin-top:10px;
+    flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
   }
+  .pagination::-webkit-scrollbar{display:none;}
   .page-btn{
-    min-width:38px; height:38px; padding:0 10px;
+    min-width:38px; height:38px; padding:0 10px; flex-shrink:0;
     border:1px solid var(--line); background:var(--paper-card);
     border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
   }
   .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-  .page-btn.dots{border:none; background:none; color:var(--ink-soft); cursor:default;}
   .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
   .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
   .page-ellipsis{
-    min-width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+    min-width:22px; height:38px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
     color:var(--ink-soft); font-size:13.5px; font-weight:600; user-select:none;
   }
 
@@ -459,10 +427,11 @@
   .footer-top{
     max-width:1080px; margin:0 auto;
     padding:48px 32px 32px;
-    display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr;
+    display:grid; grid-template-columns:2fr 1fr 1fr 1fr;
     gap:32px;
   }
   .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
   .footer-brand p{
     font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px;
     max-width:280px;
@@ -485,11 +454,7 @@
     border-radius:100px; padding:8px 16px; color:var(--paper);
   }
   .city-select svg{flex-shrink:0; margin-top:1px;}
-  .footer-bottom{
-    border-top:1px solid rgba(237,240,243,0.12);
-    text-align:center; padding:18px; font-size:12px;
-    color:rgba(237,240,243,0.45);
-  }
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
   /* ---------- FOOTER CTA ---------- */
   .cta-band{
@@ -509,71 +474,17 @@
   }
 
   @media (max-width: 860px){
-    #brand-list{grid-template-columns: 1fr 150px; gap:8px 8px;}
-    .founder-cell{padding:10px; gap:10px;}
-    .founder-role{display:none;}
-    .founder-avatar{width:26px; height:26px; font-size:10px;}
-    .founder-name{font-size:11px; max-width:100px;}
-    .filter-toggle-btn{display:inline-flex; flex-shrink:0; height:36px; box-sizing:border-box;}
-    .filter-wrap{padding:12px 18px;}
-    .filter-row{gap:8px; flex-wrap:nowrap; justify-content:flex-start;}
-    .filter-bar{
-      position:fixed; left:0; right:0; bottom:0; z-index:100;
-      background:var(--paper-card);
-      border-radius:18px 18px 0 0;
-      padding:20px 18px calc(20px + env(safe-area-inset-bottom));
-      max-height:82vh; overflow-y:auto;
-      flex-direction:column; align-items:stretch;
-      transform:translateY(110%);
-      transition:transform .3s ease;
-      box-shadow:0 -12px 30px rgba(27,42,61,0.18);
-    }
-    .filter-bar.open{transform:translateY(0);}
-    .filter-modal-head{display:flex;}
-    .filter-select{width:100%;}
-    .filter-select select{width:100%;}
-    .filter-apply-btn{display:block;}
-
-    /* sort select stays visible, compact */
-    .sort-select{flex-shrink:1; min-width:0; margin-left:auto;}
-    .sort-select .filter-select select{
-      padding:9px 26px 9px 12px; font-size:12px; width:auto; max-width:100%;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-
-    /* search: icon-only button that expands in normal flow (never overlaps siblings) */
-    .search-wrap{
-      position:relative;
-      flex:0 0 36px;
-      min-width:0; width:36px; height:36px;
-      padding:0; gap:0;
-      justify-content:center;
-      box-sizing:border-box;
-      transition:width .25s ease, flex-basis .25s ease;
-      overflow:hidden;
-    }
-    .search-wrap.expanded{
-      width:auto; flex:1 1 auto;
-      justify-content:flex-start;
-      padding:0;
-    }
-    .search-desktop-input{display:none;}
-    .search-icon-btn{
-      display:flex; width:19px; height:19px; flex-shrink:0;
-      position:absolute; top:50%; right:8.5px;
-      transform:translateY(-50%);
-    }
-    .search-mobile-input{
-      display:block;
-      width:0; min-width:0; opacity:0;
-      font-size:16px;
-      padding:0; margin-left:0; border:none;
-      transition:width .2s ease, opacity .15s ease, padding .2s ease;
-    }
-    .search-wrap.expanded .search-mobile-input{
-      width:100%; opacity:1;
-      padding:0 34px 0 14px;
-    }
+    #brand-list{gap:8px 8px;}
+    .list-columns-header{gap:8px 8px;}
+    .institution-cell{padding:10px; gap:10px;}
+    .institution-name{font-size:11px;}
+    .institution-role{font-size:9.5px; white-space:normal; line-height:1.25;}
+    .filter-select{width:112px;}
+    .filter-select select{padding:8px 26px 8px 12px; font-size:12px;}
+    .list-col-search{padding:7px 14px;}
+    /* doğum/kuruluş tarihi isimle aynı satırda değil, isminin altında gösterilir */
+    .row-name-line{flex-direction:column; align-items:stretch; gap:2px;}
+    .institution-name-line{flex-direction:column; align-items:stretch; gap:1px;}
   }
 
   @media (max-width: 720px){
@@ -584,19 +495,28 @@
     .nav-cta{display:none;}
     .nav-right{margin-left:auto;}
     .hero{padding:44px 18px 26px;}
-    .hero h1{font-size:clamp(38px, 9vw, 58px);}
-    .filter-wrap{padding:12px 18px;}
+    .hero h1{font-size:clamp(30px, 8vw, 46px);}
+    .hero-break-m{display:inline;}
     .list-section{padding:26px 14px 70px;}
-    .brand-row{padding:14px 12px; gap:10px;}
-    .tag-hole{width:28px; height:28px; font-size:10px;}
-    .rank-num{width:26px; font-size:18px;}
-    .row-name{font-size:16.5px;}
-    .row-year{display:none;}
+    .brand-row{padding:14px 10px; gap:6px;}
+    .tag-hole{width:24px; height:24px; font-size:9px;}
+    .row-name-line{gap:5px;}
+    .row-name{font-size:13px;}
+    .row-year{font-size:9px;}
+    .row-loc{font-size:10px; padding:2px 7px;}
     .row-go{display:none;}
-    #brand-list{grid-template-columns: 1fr 108px;}
-    .founder-cell{padding:8px; gap:8px;}
-    .founder-avatar{width:22px; height:22px; font-size:9px;}
-    .founder-name{font-size:9.5px; line-height:1.2; max-width:76px;}
+    #brand-list{gap:8px;}
+    .list-columns-header{gap:8px; margin-bottom:6px;}
+    .list-col-label{font-size:13px;}
+    .list-col-search{padding:6px 12px; margin:6px 0;}
+    .list-col-search input{font-size:12px;}
+    .filter-select{width:88px;}
+    .filter-select select{padding:7px 20px 7px 10px; font-size:10.5px;}
+    .select-arrow{right:9px;}
+    .institution-cell{padding:8px; gap:8px;}
+    .institution-name{font-size:9.5px; line-height:1.2;}
+    .institution-year{font-size:8.5px;}
+    .institution-role{font-size:8.5px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
     .category-card{flex:0 0 92px; padding:18px 8px 14px;}
@@ -618,27 +538,60 @@
     color:var(--ink); display:block; font-family:'Fraunces', serif;
     font-size:16px; margin-bottom:6px; font-weight:600;
   }
+
+  /* ---------- HOME CONTENT GRID (Projeler / Haberler / İş İlanları) ---------- */
+  .home-grid{
+    display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth;
+    scrollbar-width:none; padding-bottom:4px;
+  }
+  .home-grid::-webkit-scrollbar{display:none;}
+  .home-card{
+    position:relative; display:block; flex:0 0 220px; aspect-ratio:1/1; border-radius:14px; overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .home-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
+  .home-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .home-card-info{
+    position:absolute; left:0; right:0; bottom:0; padding:14px 16px;
+    background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
+    color:#fff;
+  }
+  .home-card-cat{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:4px;}
+  .home-card-title{font-family:'Fraunces', serif; font-size:14.5px; font-weight:600; line-height:1.25;}
+  .home-card-more{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    background:var(--ink); color:var(--paper-card);
+  }
+  .home-card-more span{font-size:13.5px; font-weight:600;}
+  .home-card-more:hover{background:var(--walnut);}
+
+  @media (max-width:720px){
+    .home-card{flex:0 0 152px;}
+    .home-grid{gap:10px;}
+    .home-card-title{font-size:13px;}
+  }
 </style>
 </head>
 <body>
+<script src="auth-nav.js"></script>
 
   <nav class="nav">
-    <a class="brand" href="index.html" style="display:flex; align-items:center; gap:10px;">
-      <div class="brand-mark" style="background:var(--walnut);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--paper-card)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6l4 6 4-8 4 8 4-6v14"/></svg></div>
-      <div class="brand-word">Mimarlab</div>
+    <a class="brand" href="index.html">
+      <img class="brand-logo" src="logos/site/mimarlab-logo.png" alt="MimarLab">
     </a>
     <div class="nav-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" placeholder="Ara...">
+      <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
-      <a class="nav-link" href="index.html">Ofisler</a>
-      <a class="nav-link" href="#architects">Mimarlar</a>
-      <a class="nav-link" href="#projects">Projeler</a>
-      <a class="nav-link" href="#jobs">İş İlanları</a>
+      <a class="nav-link" href="proje.html">Proje</a>
+      <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="haber.html">Haber</a>
+      <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
     <div class="nav-right">
-      <button class="nav-rate">Giriş Yap</button>
+      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
     </div>
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
@@ -648,153 +601,239 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
-      <a class="nav-mobile-link" href="index.html">Ofisler</a>
-      <a class="nav-mobile-link" href="#architects">Mimarlar</a>
-      <a class="nav-mobile-link" href="#projects">Projeler</a>
-      <a class="nav-mobile-link" href="#jobs">İş İlanları</a>
+      <a class="nav-mobile-link" href="proje.html">Proje</a>
+      <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="haber.html">Haber</a>
+      <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
   </nav>
 
   <section class="hero">
-    <h1>İstanbul'un <em>öne çıkan</em> mimarlık ofisleri</h1>
-    <p>Mimarlık, iç mimarlık ve peyzaj mimarlığı ofislerini keşfedin; kariyer fırsatlarını takip edin.</p>
+    <h1>Türkiye'nin<br class="hero-break-m"> <em>en güncel <span class="hero-and">ve</span></em><br class="hero-break"> <em>en kapsamlı</em><br class="hero-break-m"> mimar platformu</h1>
+    <p>Mimarlar, iç mimarlar, peyzaj mimarları, öğrenciler ve markalar MİMARLAB platformunda buluşuyor.</p>
   </section>
 
-  <div class="filter-wrap">
-   <div class="filter-row">
-    <button class="filter-toggle-btn" id="filter-toggle-btn">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="var(--paper-card)"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="var(--paper-card)"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="var(--paper-card)"/></svg>
-      Filtrele
-    </button>
-    <div class="filter-backdrop" id="filter-backdrop"></div>
-    <div class="filter-bar" id="filter-bar">
-      <div class="filter-modal-head">
-        <span>Filtrele</span>
-        <button class="filter-close-btn" id="filter-close-btn" aria-label="Kapat">✕</button>
-      </div>
-      <div class="filter-select">
-        <select id="f-loc">
-          <option value="">Konum</option>
-        </select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <div class="filter-select">
-        <select id="f-cat">
-          <option value="">Hizmet Alanı</option>
-          <option value="Mimarlık">Mimarlık</option>
-          <option value="İç Mimarlık">İç Mimarlık</option>
-          <option value="Peyzaj Mimarlığı">Peyzaj Mimarlığı</option>
-          <option value="Kentsel Tasarım">Kentsel Tasarım</option>
-          <option value="Restorasyon">Restorasyon</option>
-          <option value="">Tümü</option>
-        </select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <button class="filter-apply-btn" id="filter-apply-btn">Sonuçları Göster</button>
-    </div>
-
-    <div class="sort-select">
-      <div class="filter-select">
-        <select id="f-sort">
-          <option value="" selected>Sıralama</option>
-          <option value="name_asc">A-Z</option>
-          <option value="name_desc">Z-A</option>
-          <option value="year_desc">En Yeni Kurulan</option>
-          <option value="year_asc">En Eski Kurulan</option>
-        </select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-    </div>
-
-    <div class="search-wrap" id="search-wrap">
-      <button class="search-icon-btn" id="search-icon-btn" aria-label="Ara">
-        <svg class="icon-search" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <svg class="icon-close" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-      <input id="f-search-drawer" class="search-mobile-input" type="text" placeholder="Ofis ara...">
-      <input id="f-search" class="search-desktop-input" type="text" placeholder="Ofis ara...">
-    </div>
-   </div>
-  </div>
-
   <section class="list-section" id="architects">
+    <div class="list-columns-header">
+      <div class="list-col-panel">
+        <a class="list-col-label" href="mimar.html">Mimarlar</a>
+        <div class="list-col-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="f-search-mimar" type="text" placeholder="Mimar ara...">
+        </div>
+        <div class="list-col-filters">
+          <div class="filter-select">
+            <select id="f-position">
+              <option value="">Pozisyon</option>
+              <option value="Kurucu">Kurucu</option>
+              <option value="Çalışan">Çalışan</option>
+              <option value="Freelance">Freelance</option>
+              <option value="Öğrenci">Öğrenci</option>
+              <option value="Emekli">Emekli</option>
+              <option value="İş Arıyor">İş Arıyor</option>
+              <option value="">Tümü</option>
+            </select>
+            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+          </div>
+          <div class="filter-select">
+            <select id="f-award">
+              <option value="">Ödül</option>
+              <option value="Ağa Han Mimarlık Ödülü">Ağa Han Mimarlık Ödülü</option>
+              <option value="Ulusal Mimarlık Ödülleri">Ulusal Mimarlık Ödülleri</option>
+              <option value="Yapı Ödülleri">Yapı Ödülleri</option>
+              <option value="World Architecture Festival Ödülü">World Architecture Festival Ödülü</option>
+              <option value="">Tümü</option>
+            </select>
+            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+          </div>
+          <div class="filter-select">
+            <select id="f-sort-mimar">
+              <option value="" selected>Sırala</option>
+              <option value="name_asc">A-Z</option>
+              <option value="name_desc">Z-A</option>
+              <option value="year_desc">En Genç</option>
+              <option value="year_asc">En Kıdemli</option>
+              <option value="popular">En Popüler</option>
+            </select>
+            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="list-col-panel">
+        <a class="list-col-label list-col-label-inst" href="ofis.html">Markalar</a>
+        <div class="list-col-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="f-search-kurum" type="text" placeholder="Marka ara...">
+        </div>
+        <div class="list-col-filters">
+          <div class="filter-select">
+            <select id="f-loc">
+              <option value="">Konum</option>
+            </select>
+            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+          </div>
+          <div class="filter-select">
+            <select id="f-cat">
+              <option value="">Hizmet Alanı</option>
+              <option value="Mimarlık">Mimarlık</option>
+              <option value="İç Mimarlık">İç Mimarlık</option>
+              <option value="Peyzaj Mimarlığı">Peyzaj Mimarlığı</option>
+              <option value="Kentsel Tasarım">Kentsel Tasarım</option>
+              <option value="Restorasyon">Restorasyon</option>
+              <option value="">Tümü</option>
+            </select>
+            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+          </div>
+          <div class="filter-select">
+            <select id="f-sort-kurum">
+              <option value="" selected>Sırala</option>
+              <option value="name_asc">A-Z</option>
+              <option value="name_desc">Z-A</option>
+              <option value="year_desc">En Yeni</option>
+              <option value="year_asc">En Köklü</option>
+              <option value="popular">En Popüler</option>
+            </select>
+            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="brand-list"></div>
     <div class="empty-state" id="empty-state">Bu kritere uyan ofis bulunamadı.</div>
+    <div class="pagination-summary" id="pagination-summary"></div>
     <div class="pagination" id="pagination"></div>
   </section>
 
   <section class="carousel-section" id="projects">
     <div class="carousel-head">
       <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Projeler</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="home-grid-projects" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn" data-target="home-grid-projects" data-dir="1" aria-label="İleri">›</button>
+      </div>
     </div>
-    <div class="jobs-empty">
-      <strong>Proje arşivi yakında.</strong>
-      Ofislerin gerçekleştirdiği projeleri doğrulayıp eklemek için çalışıyoruz.
+    <div class="home-grid" id="home-grid-projects">
+      <a class="home-card" href="proje-detay.html?proje=vilayet-camii">
+        <img src="miras/vilayet-mosque-1.webp" alt="Vilayet Camii">
+        <div class="home-card-info"><div class="home-card-cat">Dini</div><div class="home-card-title">Vilayet Camii</div></div>
+      </a>
+      <a class="home-card" href="proje-detay.html?proje=terminal-kadikoy">
+        <img src="miras/terminal-kadikoy-1.webp" alt="Terminal Kadıköy">
+        <div class="home-card-info"><div class="home-card-cat">Ticari</div><div class="home-card-title">Terminal Kadıköy</div></div>
+      </a>
+      <a class="home-card" href="proje-detay.html?proje=fransiz-gecidi">
+        <img src="miras/french-gateway-1.webp" alt="Fransız Geçidi">
+        <div class="home-card-info"><div class="home-card-cat">Ticari</div><div class="home-card-title">Fransız Geçidi</div></div>
+      </a>
+      <a class="home-card" href="proje-detay.html?proje=sait-halim-pasa-yalisi">
+        <img src="miras/sait-halim-pasha-mansion-1.webp" alt="Sait Halim Paşa Yalısı">
+        <div class="home-card-info"><div class="home-card-cat">Konut</div><div class="home-card-title">Sait Halim Paşa Yalısı</div></div>
+      </a>
+      <a class="home-card" href="proje-detay.html?proje=beyazit-camii">
+        <img src="miras/bayezid-mosque-1.webp" alt="Beyazıt Camii">
+        <div class="home-card-info"><div class="home-card-cat">Dini</div><div class="home-card-title">Beyazıt Camii</div></div>
+      </a>
+      <a class="home-card" href="proje-detay.html?proje=nuruosmaniye-camii">
+        <img src="miras/nuruosmaniye-mosque-1.webp" alt="Nuruosmaniye Camii">
+        <div class="home-card-info"><div class="home-card-cat">Dini</div><div class="home-card-title">Nuruosmaniye Camii</div></div>
+      </a>
+      <a class="home-card home-card-more" href="proje.html">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <span>Tümünü Gör</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="carousel-section" id="news">
+    <div class="carousel-head">
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Haberler</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="home-grid-news" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn" data-target="home-grid-news" data-dir="1" aria-label="İleri">›</button>
+      </div>
+    </div>
+    <div class="home-grid" id="home-grid-news">
+      <a class="home-card" href="haber.html">
+        <img src="projects/haber-ytong-yarisma.jpg" alt="Ytong Mimari Fikir Yarışması">
+        <div class="home-card-info"><div class="home-card-cat">Yarışma</div><div class="home-card-title">Ytong Mimari Fikir Yarışması'nda 2026 kazananları açıklandı</div></div>
+      </a>
+      <a class="home-card" href="haber.html">
+        <img src="projects/haber-cica-odul.jpg" alt="CICA 2026 ödülleri">
+        <div class="home-card-info"><div class="home-card-cat">Güncel</div><div class="home-card-title">Uluslararası mimarlık eleştirmenlerinden Ankara'nın kentleşme tarihine ödül</div></div>
+      </a>
+      <a class="home-card" href="haber.html">
+        <img src="projects/haber-saintgobain-yarisma.jpg" alt="Saint-Gobain öğrenci yarışması">
+        <div class="home-card-info"><div class="home-card-cat">Yarışma</div><div class="home-card-title">Türk öğrenciler Saint-Gobain'in öğrenci yarışmasında Türkiye'yi temsil etti</div></div>
+      </a>
+      <a class="home-card" href="haber.html">
+        <img src="projects/haber-modern-arastirma-destek.jpg" alt="Modern Mimarlık Araştırmaları Destek Programı">
+        <div class="home-card-info"><div class="home-card-cat">Güncel</div><div class="home-card-title">Modern Mimarlık Araştırmaları Destek Programı 2026 sonuçları açıklandı</div></div>
+      </a>
+      <a class="home-card" href="haber.html">
+        <img src="projects/haber-kampusaktif-yarisma.jpg" alt="KampüsAktif Öğrenci Tasarım Yarışması">
+        <div class="home-card-info"><div class="home-card-cat">Yarışma</div><div class="home-card-title">KampüsAktif Öğrenci Tasarım Yarışması ödül törenini gerçekleştirdi</div></div>
+      </a>
+      <a class="home-card" href="haber.html">
+        <img src="projects/haber-ulusal-mimarlik-sergisi.jpg" alt="Ulusal Mimarlık Sergisi ve Ödülleri">
+        <div class="home-card-info"><div class="home-card-cat">Etkinlik</div><div class="home-card-title">Ulusal Mimarlık Sergisi'nde Mimar Sinan Büyük Ödülü sahiplerini buldu</div></div>
+      </a>
+      <a class="home-card home-card-more" href="haber.html">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <span>Tümünü Gör</span>
+      </a>
     </div>
   </section>
 
   <section class="carousel-section" id="jobs">
     <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Açık Pozisyonlar</div>
+      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">İş İlanları</div>
+      <div class="carousel-arrows">
+        <button class="arrow-btn" data-target="home-grid-jobs" data-dir="-1" aria-label="Geri">‹</button>
+        <button class="arrow-btn" data-target="home-grid-jobs" data-dir="1" aria-label="İleri">›</button>
+      </div>
     </div>
-    <div class="jobs-empty">
-      <strong>Şu anda yayında bir ilan bulunmuyor.</strong>
-      Ofisinizin açık pozisyonlarını buradan ücretsiz yayınlamak için bizimle iletişime geçin.
+    <div class="home-grid" id="home-grid-jobs">
+      <a class="home-card" href="is-ilani.html">
+        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">BIM Koordinatörü<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">MOD Architects</span></div></div>
+      </a>
+      <a class="home-card" href="is-ilani.html">
+        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Junior / Kıdemli</div><div class="home-card-title" style="color:var(--ink);">Mimar<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">Bunni Studio</span></div></div>
+      </a>
+      <a class="home-card" href="is-ilani.html">
+        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">3D Konsept Tasarım Uzmanı<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">Kontra Mimarlık</span></div></div>
+      </a>
+      <a class="home-card" href="is-ilani.html">
+        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">İç Mimar<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">SANAYI313</span></div></div>
+      </a>
+      <a class="home-card" href="is-ilani.html">
+        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Junior</div><div class="home-card-title" style="color:var(--ink);">Mimar / İç Mimar<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">İşseven Mimarlık</span></div></div>
+      </a>
+      <a class="home-card" href="is-ilani.html">
+        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">3D Modelleme Uzmanı<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">Boytorun Mimarlık</span></div></div>
+      </a>
+      <a class="home-card home-card-more" href="is-ilani.html">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <span>Tümünü Gör</span>
+      </a>
     </div>
   </section>
 
-  <section class="carousel-section">
-    <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Uzmanlık Alanları</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="category-track" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn primary" data-target="category-track" data-dir="1" aria-label="İleri">›</button>
-      </div>
-    </div>
-    <div class="chamfer-track" id="category-track">
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 12 3.5 20 9.5"/><rect x="6" y="9.5" width="12" height="11" rx="0.5"/><line x1="12" y1="14" x2="12" y2="20.5"/></svg></div>
-        <div class="category-card-name">Mimarlık</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="7" rx="2"/><path d="M5 14v3M19 14v3"/><path d="M4 10H2.5a1.5 1.5 0 0 0 0 3H4M20 10h1.5a1.5 1.5 0 0 1 0 3H20"/></svg></div>
-        <div class="category-card-name">İç Mimarlık</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="6"/><line x1="12" y1="16" x2="12" y2="21"/></svg></div>
-        <div class="category-card-name">Peyzaj Mimarlığı</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="4" height="11" rx="0.5"/><rect x="9" y="5" width="4" height="16" rx="0.5"/><rect x="15" y="13" width="4" height="8" rx="0.5"/></svg></div>
-        <div class="category-card-name">Kentsel Tasarım</div>
-      </a>
-      <a class="category-card" href="#">
-        <div class="category-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21V10M18 21V10"/><path d="M4 10a8 5 0 0 1 16 0"/></svg></div>
-        <div class="category-card-name">Restorasyon</div>
-      </a>
-      <a class="category-card view-all-card" href="#">
-        <div class="view-all-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
-        <span>Tüm Ofisler</span>
-      </a>
-    </div>
-  </section>
 
   <div style="height:72px;"></div>
 
   <div class="cta-band">
-    <h2>Ofisiniz listede yok mu?</h2>
-    <p>Bilgilerinizi ve açık pozisyonlarınızı ücretsiz ekleyelim.</p>
-    <a class="btn" href="#">Ofisinizi Ekleyin →</a>
+    <h2>MİMARLAB'da yok musun?</h2>
+    <p>Kişi veya marka bilgilerini hemen doldur.</p>
+    <a class="btn" href="uye-ol.html">Üye Ol</a>
   </div>
 
   <footer class="site-footer">
     <div class="footer-top">
       <div class="footer-brand">
-        <div class="footer-logo">
-          <div class="brand-mark" style="background:var(--walnut);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--paper-card)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6l4 6 4-8 4 8 4-6v14"/></svg></div>
-          <div class="brand-word" style="color:var(--paper)">Mimarlab</div>
-        </div>
-        <p>Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı ofislerini ve kariyer fırsatlarını bir araya getiren bağımsız bir dizin platformuyuz.</p>
+        <a class="footer-logo" href="index.html">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+        </a>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
         <div class="footer-social">
           <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
@@ -802,111 +841,118 @@
         </div>
       </div>
       <div class="footer-col">
-        <h4>Hakkında</h4>
-        <a href="#">Hakkımızda</a>
-        <a href="#">Nasıl Çalışır</a>
-        <a href="#">Kariyer</a>
-        <a href="#">İletişim</a>
+        <h4>Ana Menü</h4>
+        <a href="proje.html">Proje</a>
+        <a href="urun.html">Ürün</a>
+        <a href="haber.html">Haber</a>
+        <a href="is-ilani.html">İş İlanı</a>
       </div>
       <div class="footer-col">
         <h4>Topluluk</h4>
-        <a href="#">Güven ve Şeffaflık</a>
-        <a href="#">Yardım Merkezi</a>
-        <a href="#">Giriş Yap</a>
-        <a href="#">Üye Ol</a>
+        <a href="mimar.html">Mimar</a>
+        <a href="ofis.html">Marka</a>
+        <a href="giris-yap.html">Giriş Yap</a>
+        <a href="uye-ol.html">Üye Ol</a>
       </div>
       <div class="footer-col">
-        <h4>Ofisler İçin</h4>
-        <a href="#">İlan Ver</a>
-        <a href="#">Ofis Paneli</a>
-        <a href="#">Neden Katılmalı?</a>
-      </div>
-      <div class="footer-col footer-city">
-        <h4>Şehir</h4>
-        <div class="city-select">Tüm Türkiye <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+        <h4>Kurumsal</h4>
+        <a href="#">Hakkında</a>
+        <a href="#">Reklam</a>
+        <a href="#">İletişim</a>
+        <a href="#">Kariyer</a>
       </div>
     </div>
-    <div class="footer-bottom">Mimarlab, listelenen ofislerle resmi bir bağlantısı olmayan bağımsız bir dizin platformudur · bilgiler halka açık kaynaklardan derlenmiştir</div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
   </footer>
+<script src="data.js"></script>
 <script>
-const offices = [
-  {name:"EAA — Emre Arolat Architecture", loc:"İstanbul / Beşiktaş", cats:"Mimarlık", yil:2004, website:"https://emrearolat.com", about:"Emre Arolat ve Gonca Paşolar tarafından 2004'te kurulan ofis, İstanbul merkezli olup New York ve Londra'da da ofislere sahip; 50'den fazla kişilik bir ekiple çalışıyor."},
-  {name:"Han Tümertekin", loc:"İstanbul / Beşiktaş", cats:"Mimarlık", yil:1987, website:"https://www.hantumertekin.com", about:"Han Tümertekin'in kurduğu ofis; B2 Evi projesiyle 2004 Ağa Han Mimarlık Ödülü'nü kazandı, Harvard, EPFL gibi okullarda akademik çalışmalarıyla da tanınıyor."},
-  {name:"NSMH — Nevzat Sayın Mimarlık Hizmetleri", loc:"İstanbul / Üsküdar", cats:"Mimarlık", yil:1986, website:"https://www.nsmh.com", about:"Nevzat Sayın tarafından 1986'da kurulan ofis, katılımcı bir çalışma yaklaşımıyla farklı ölçek ve konularda çok sayıda proje üretiyor."},
-  {name:"Tabanlıoğlu Architects", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · İç Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:1990, website:"https://www.tabanlioglu.com", about:"1990'da kurulan, kültür yapıları, havalimanları ve büyük ölçekli karma projeleriyle uluslararası tanınırlığa sahip, İstanbul merkezli ofis."},
-  {name:"GAD Architecture", loc:"İstanbul / Şişli", cats:"Mimarlık", yil:1994, website:"https://www.gadarchitecture.com", about:"Gökhan Avcıoğlu tarafından 1994'te kurulan, teknoloji ile estetiği bir araya getiren yenilikçi ve deneysel tasarım yaklaşımıyla tanınan ofis."},
-  {name:"Autoban", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · İç Mimarlık", yil:2003, website:"https://autoban.com", about:"2003'te kurulan, otel, mağaza ve restoran gibi mekanlarda deneyim odaklı tasarımlarıyla uluslararası tanınan çok disiplinli tasarım stüdyosu."},
-  {name:"DS Mimarlık", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · Peyzaj Mimarlığı · Restorasyon · Kentsel Tasarım", yil:1994, website:"https://www.ds-la.studio", about:"Deniz Aslan ve Sevim Aslan tarafından 1994'te kurulan, mimarlık ve peyzaj mimarlığını bir arada ele alan; restorasyon, koruma ve kentsel tasarım alanlarında da çalışan ofis."},
-  {name:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım", loc:"İstanbul / Beyoğlu", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:2009, website:"https://www.studiosupernova.com", about:"Kaya Kızılkaya tarafından 2009'da kurulan, ödüllü bir peyzaj mimarlığı ve kentsel tasarım ofisi."},
-  {name:"caps.", loc:"İstanbul / Kadıköy", cats:"Peyzaj Mimarlığı · Kentsel Tasarım · Mimarlık", yil:2015, website:"https://www.caps.com.tr", about:"İTÜ Teknokent bünyesinde 2015'te kurulan, kentsel tasarım ve peyzaj alanında çok sayıda ulusal ve uluslararası ödül sahibi genç ofis."},
-  {name:"saa.", loc:"İstanbul", cats:"Peyzaj Mimarlığı · Kentsel Tasarım", yil:null, website:"https://www.saaistanbul.com", about:"Süveyda Bayraktar Atagür tarafından kurulan, kamusal ve özel alanlarda peyzajın mekansal, sosyal ve ekolojik boyutlarına odaklanan kentsel tasarım ve peyzaj mimarlığı ofisi."},
-  {name:"Betula Peyzaj Mimarlığı", loc:"İstanbul / Beykoz", cats:"Peyzaj Mimarlığı", yil:1995, website:"https://www.betula.com.tr", about:"1995'ten bu yana İstanbul'da peyzaj mimarlığı alanında hizmet veren ofis."},
-  {name:"Erginoğlu & Çalışlar Mimarlık", loc:"İstanbul / Beşiktaş", cats:"Mimarlık · İç Mimarlık · Kentsel Tasarım", yil:1993, website:"https://ecarch.com", about:"Kerem Erginoğlu ve Hasan Çalışlar tarafından 1993'te kurulan, kentsel tasarım, mimarlık ve iç mekan projeleri üreten ofis."},
-  {name:"Melike Altınışık Architects", loc:"İstanbul / Şişli", cats:"Mimarlık", yil:2015, website:"https://www.melikealtinisik.com", about:"Melike Altınışık tarafından 2015'te kurulan, İstanbul ve Seul'de ofisleri bulunan uluslararası mimarlık pratiği."},
-  {name:"Superpool", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · Kentsel Tasarım", yil:2006, website:"https://www.superpool.org", about:"Selva Gürdoğan ve Gregers Tang Thomsen tarafından 2006'da kurulan, araştırma odaklı çok disiplinli mimarlık ofisi."},
-  {name:"Bahadır Kul Architects", loc:"İstanbul / Beşiktaş", cats:"Mimarlık", yil:2002, website:"https://bkaarchitecture.com", about:"Bahadır Kul tarafından 2002'de kurulan; İstanbul, Kayseri ve Bağdat'ta ofisleri bulunan ofisin İstanbul ofisi 2010'da açıldı."},
-  {name:"Aytaç Architects", loc:"İstanbul / Kadıköy", cats:"Mimarlık · Peyzaj Mimarlığı · Kentsel Tasarım", yil:2005, website:"https://www.aytacarchitects.com", about:"Alper Aytaç tarafından 2005'te kurulan, yapı ölçeğinden kentsel tasarıma kadar bütüncül hizmet veren mimarlık ve araştırma pratiği."},
-  {name:"Metex Design Group", loc:"İstanbul / Şişli", cats:"Mimarlık · İç Mimarlık", yil:1976, website:"http://www.metexdesign.com", about:"1976'da İstanbul'da kurulan, mimarlık ve iç mimarlık hizmetleri veren köklü ofis."},
-  {name:"Sabri Paşayiğit Mimarlık", loc:"İstanbul / Sarıyer", cats:"Mimarlık · Peyzaj Mimarlığı · Restorasyon", yil:2005, website:"https://www.spdo.com.tr", about:"Sabri Paşayiğit tarafından 2005'te kurulan, İstanbul ve Bakü ofisleriyle tasarım, uygulama, peyzaj ve restorasyon alanlarında hizmet veren ofis."},
-  {name:"DDRLP", loc:"İstanbul", cats:"Mimarlık · Kentsel Tasarım", yil:2005, website:"https://ddrlp.com", about:"Boğaçhan Dündaralp tarafından 2005'ten bu yana yürütülen, kentsel ve metropoliten ölçekli sorunlara çözüm arayan ödüllü mimarlık ofisi."},
-  {name:"Teğet Mimarlık", loc:"İstanbul", cats:"Mimarlık · Restorasyon", yil:1996, website:"https://www.archdaily.com/office/teget", about:"Mehmet Kütükçüoğlu ve Ertuğ Uçar tarafından 1996'da kurulan, 2000'de İstanbul'a taşınan; kültür yapıları ve restorasyon projeleriyle tanınan ofis."},
-  {name:"Zoom/TPU", loc:"İstanbul / Beyoğlu", cats:"Mimarlık · İç Mimarlık", yil:1994, website:"http://www.zoom.com.tr", about:"Atilla Kuzu ve Levent Çırpıcı tarafından 1994'te kurulan, konut, otel, hastane ve ofis projelerinde iç mimarlık ve mimarlık hizmeti veren ofis."},
-];
-
-const architects = [
-  {name:"Emre Arolat", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture"},
-  {name:"Gonca Paşolar", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture"},
-  {name:"Han Tümertekin", role:"Kurucu", office:"Han Tümertekin"},
-  {name:"Nevzat Sayın", role:"Kurucu", office:"NSMH — Nevzat Sayın Mimarlık Hizmetleri"},
-  {name:"Melkan Gürsel", role:"Baş Mimar", office:"Tabanlıoğlu Architects"},
-  {name:"Gökhan Avcıoğlu", role:"Kurucu", office:"GAD Architecture"},
-  {name:"Seyhan Özdemir Sarper", role:"Kurucu Ortak", office:"Autoban"},
-  {name:"Sefer Çağlar", role:"Kurucu Ortak", office:"Autoban"},
-  {name:"Kaya Kızılkaya", role:"Kurucu", office:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım"},
-  {name:"M. Cemil Aktaş", role:"Kurucu Ortak", office:"caps."},
-  {name:"Süveyda Bayraktar Atagür", role:"Kurucu", office:"saa."},
-  {name:"Deniz Aslan", role:"Kurucu Ortak", office:"DS Mimarlık"},
-  {name:"Sevim Aslan", role:"Kurucu Ortak", office:"DS Mimarlık"},
-  {name:"Kerem Erginoğlu", role:"Kurucu Ortak", office:"Erginoğlu & Çalışlar Mimarlık"},
-  {name:"Hasan Çalışlar", role:"Kurucu Ortak", office:"Erginoğlu & Çalışlar Mimarlık"},
-  {name:"Melike Altınışık", role:"Kurucu", office:"Melike Altınışık Architects"},
-  {name:"Selva Gürdoğan", role:"Kurucu Ortak", office:"Superpool"},
-  {name:"Gregers Tang Thomsen", role:"Kurucu Ortak", office:"Superpool"},
-  {name:"Bahadır Kul", role:"Kurucu", office:"Bahadır Kul Architects"},
-  {name:"Alper Aytaç", role:"Kurucu", office:"Aytaç Architects"},
-  {name:"Sabri Paşayiğit", role:"Kurucu", office:"Sabri Paşayiğit Mimarlık"},
-  {name:"Boğaçhan Dündaralp", role:"Kurucu", office:"DDRLP"},
-  {name:"Mehmet Kütükçüoğlu", role:"Kurucu Ortak", office:"Teğet Mimarlık"},
-  {name:"Ertuğ Uçar", role:"Kurucu Ortak", office:"Teğet Mimarlık"},
-  {name:"Atilla Kuzu", role:"Kurucu Ortak", office:"Zoom/TPU"},
-  {name:"Levent Çırpıcı", role:"Kurucu Ortak", office:"Zoom/TPU"},
-];
-
-function initials(name){
-  return name.replace(/[—.]/g,' ').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+// Konum filtresi sadece Türkiye içindeki yerleri listeler; yurt dışı ofis konumları
+// (ör. bir ofisin Milano/Paris şubesi) filtre listesinde gösterilmez.
+const NON_TURKEY_LOCS = new Set(['Almanya','Ljubljana','Moskova','Paris','Roma','Rotterdam','Stuttgart','İngiltere','İspanya','Erbil','Atina','Madrid','Bükreş','Los Angeles','Pittsburgh','Princeton','Barselona','New York','Londra']);
+// Konum filtresinde ilçe ayrımı yapılmaz (ör. "İstanbul / Beşiktaş" -> "İstanbul"),
+// ve belirli bir şehre bağlı olmayan "Türkiye" seçeneği listelenmez.
+function cityOf(loc){
+  return loc.split(' / ')[0];
+}
+// Liste görünümünde "Üniversitesi" yerine kısaltma kullan (ör. "Ege Üniversitesi" -> "Ege Üni.")
+function shortSchool(school){
+  if(!school) return school;
+  return school.replace(/Üniversitesi\b/g, 'Üni.');
+}
+function architectOffice(a){
+  return a.office ? offices.find(o => o.name === a.office) : null;
 }
 
-const palette = ['#2B425F','#3E5A78','#5B7A9B','#4F6478','#7C4B4B'];
-function officeColor(name){
-  let hash = 0;
-  for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
-  return palette[Math.abs(hash) % palette.length];
-}
-</script>
-<script>
 function populateFilters(){
-  const locs = [...new Set(offices.map(o=>o.loc))].sort((a,b)=>a.localeCompare(b,'tr'));
+  const locCounts = {};
+  architects.forEach(a=>{
+    const o = architectOffice(a);
+    if(!o) return;
+    const city = cityOf(o.loc);
+    if(NON_TURKEY_LOCS.has(city) || city === 'Türkiye' || city === 'Yalıkavak') return;
+    locCounts[city] = (locCounts[city] || 0) + 1;
+  });
+  // Büyük şehirlerden küçük şehirlere: mimar sayısına göre azalan sıralama
+  const locs = Object.keys(locCounts).sort((a,b)=> locCounts[b] - locCounts[a] || a.localeCompare(b,'tr'));
   const locSel = document.getElementById('f-loc');
+  const prevLoc = locSel.value;
+  locSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
   locs.forEach(l=>{
-    const o = document.createElement('option'); o.value=l; o.textContent=l;
+    const o = document.createElement('option'); o.value=l; o.textContent=`${l} (${locCounts[l]})`; o.dataset.dynamic='1';
     locSel.appendChild(o);
   });
-  const allOpt = document.createElement('option'); allOpt.value=''; allOpt.textContent='Tümü';
-  locSel.appendChild(allOpt);
+  const allLocOpt = document.createElement('option'); allLocOpt.value=''; allLocOpt.textContent=`Tümü (${architects.length})`; allLocOpt.dataset.dynamic='1';
+  locSel.appendChild(allLocOpt);
+  locSel.value = prevLoc;
+
+  const catSel = document.getElementById('f-cat');
+  Array.from(catSel.options).forEach(opt=>{
+    if(!opt.value) return;
+    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
+    const count = architects.filter(a=>{ const o = architectOffice(a); return o && o.cats.includes(opt.value); }).length;
+    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
+  });
+  const allCatOpt = Array.from(catSel.options).find(opt=>!opt.value && opt.textContent.startsWith('Tümü'));
+  if(allCatOpt) allCatOpt.textContent = `Tümü (${architects.length})`;
+
+  const awardSel = document.getElementById('f-award');
+  Array.from(awardSel.options).forEach(opt=>{
+    if(!opt.value) return;
+    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
+    const count = architects.filter(a=>{ const o = architectOffice(a); return o && o.awards && o.awards.includes(opt.value); }).length;
+    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
+  });
+  const allAwardOpt = Array.from(awardSel.options).find(opt=>!opt.value && opt.textContent.startsWith('Tümü'));
+  if(allAwardOpt) allAwardOpt.textContent = `Tümü (${architects.length})`;
+
+  const positionSel = document.getElementById('f-position');
+  Array.from(positionSel.options).forEach(opt=>{
+    if(!opt.value) return;
+    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
+    const count = architects.filter(a=>positionOf(a) === opt.value).length;
+    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
+  });
+  const allPositionOpt = Array.from(positionSel.options).find(opt=>!opt.value && opt.textContent.startsWith('Tümü'));
+  if(allPositionOpt) allPositionOpt.textContent = `Tümü (${architects.length})`;
+}
+
+// Bir mimarın "pozisyonu": status alanı varsa doğrudan onu (İş arıyor -> İş Arıyor gibi
+// başlık biçimine çevirerek), yoksa role alanına göre Kurucu/Kurucu Ortak -> Kurucu,
+// diğer tüm roller (Baş Mimar, Prof. Dr. Öğretim Üyesi vb.) -> Çalışan olarak eşler.
+function positionOf(a){
+  if(a.status){
+    if(a.status === 'İş arıyor') return 'İş Arıyor';
+    return a.status;
+  }
+  if(a.role){
+    return a.role.startsWith('Kurucu') ? 'Kurucu' : 'Çalışan';
+  }
+  return null;
 }
 
 let currentPage = 1;
-let searchQuery = '';
+let searchQueryMimar = '';
+let searchQueryKurum = '';
 const PAGE_SIZE = 10;
 
 function trLower(s){
@@ -926,28 +972,55 @@ function trLower(s){
 function render(){
   const loc = document.getElementById('f-loc').value;
   const cat = document.getElementById('f-cat').value;
-  const sort = document.getElementById('f-sort').value;
-  const q = trLower(searchQuery.trim());
+  const award = document.getElementById('f-award').value;
+  const position = document.getElementById('f-position').value;
+  const sortMimar = document.getElementById('f-sort-mimar').value;
+  const sortKurum = document.getElementById('f-sort-kurum').value;
+  const qMimar = trLower(searchQueryMimar.trim());
+  const qKurum = trLower(searchQueryKurum.trim());
 
-  let filtered = offices.filter(o=>{
-    if(loc && o.loc !== loc) return false;
-    if(cat && !o.cats.includes(cat)) return false;
-    if(q && !trLower(o.name).includes(q)) return false;
+  let filtered = architects.filter(a=>{
+    const o = architectOffice(a);
+    const officeName = o ? o.name : (a.office || '');
+    if(loc && (!o || cityOf(o.loc) !== loc)) return false;
+    if(cat && (!o || !o.cats.includes(cat))) return false;
+    if(award && (!o || !o.awards || !o.awards.includes(award))) return false;
+    if(position && positionOf(a) !== position) return false;
+    if(qMimar && !trLower(a.name).includes(qMimar)) return false;
+    if(qKurum && !trLower(officeName).includes(qKurum)) return false;
     return true;
   });
 
+  // Mimar sütunundaki sıralama ile kurum sütunundaki sıralama aynı anda etkin olamaz;
+  // en son hangisi seçildiyse o kullanılır (diğeri değişim anında sıfırlanır, bkz. aşağıdaki change dinleyicileri).
   filtered.sort((a,b)=>{
-    switch(sort){
-      case 'name_asc': return a.name.localeCompare(b.name, 'tr');
-      case 'name_desc': return b.name.localeCompare(a.name, 'tr');
-      case 'year_desc': return (b.yil||0) - (a.yil||0);
-      case 'year_asc': return (a.yil||9999) - (b.yil||9999);
-      default: return 0; // sıralama seçilmemişse listeleme sırası korunur
+    if(sortMimar){
+      switch(sortMimar){
+        case 'name_asc': return a.name.localeCompare(b.name, 'tr');
+        case 'name_desc': return b.name.localeCompare(a.name, 'tr');
+        case 'year_desc': return (b.dob||0) - (a.dob||0);
+        case 'year_asc': return (a.dob||9999) - (b.dob||9999);
+        default: return 0; // 'popular' ve boş değer: dizideki popülerlik sırası korunur
+      }
     }
+    if(sortKurum){
+      const oa = architectOffice(a), ob = architectOffice(b);
+      const nameA = oa ? oa.name : (a.office || '');
+      const nameB = ob ? ob.name : (b.office || '');
+      switch(sortKurum){
+        case 'name_asc': return nameA.localeCompare(nameB, 'tr');
+        case 'name_desc': return nameB.localeCompare(nameA, 'tr');
+        case 'year_desc': return ((ob && ob.yil) || 0) - ((oa && oa.yil) || 0);
+        case 'year_asc': return ((oa && oa.yil) || 9999) - ((ob && ob.yil) || 9999);
+        default: return 0;
+      }
+    }
+    return 0;
   });
 
   const list = document.getElementById('brand-list');
   const empty = document.getElementById('empty-state');
+  const summary = document.getElementById('pagination-summary');
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   if(currentPage > totalPages) currentPage = totalPages;
@@ -956,6 +1029,7 @@ function render(){
   if(filtered.length === 0){
     list.innerHTML = '';
     empty.style.display = 'block';
+    summary.textContent = '';
     return;
   }
   empty.style.display = 'none';
@@ -963,78 +1037,82 @@ function render(){
   const startIdx = (currentPage - 1) * PAGE_SIZE;
   const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
-  list.innerHTML = pageItems.map((o,i)=>{
-    const rank = startIdx + i + 1;
+  // Marka sayısı: aynı sayfada/toplam sonuçta aynı kurumdan birden fazla mimar olsa da kurum 1 kez sayılır.
+  const countBrands = (list) => new Set(list.filter(a=>a.office).map(a=>a.office)).size;
+  summary.textContent = `Bu sayfada ${pageItems.length} mimar, ${countBrands(pageItems)} marka gösteriliyor · Toplam ${filtered.length} mimar, ${countBrands(filtered)} marka`;
+
+  list.innerHTML = pageItems.map((a)=>{
+    const edu = [shortSchool(a.school), a.dept].filter(Boolean).join(' · ');
     return `
-    <a class="brand-row" href="ofis-detay.html?ofis=${encodeURIComponent(o.name)}">
-      <div class="rank-num">${String(rank).padStart(2,'0')}</div>
-      <div class="tag-hole" style="background:${officeColor(o.name)}">${initials(o.name)}</div>
+    <a class="brand-row" href="mimar-detay.html?mimar=${encodeURIComponent(a.name)}">
+      <div class="tag-hole person-hole" style="background:${officeColor(a.name)}">${initials(a.name)}${a.photo ? `<img src="${a.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
       <div class="row-main">
         <div class="row-top">
-          <span class="row-name">${o.name}</span>
-          <span class="row-loc">${o.loc}</span>
-          ${o.yil ? `<span class="row-year">${o.yil}</span>` : ''}
+          <span class="row-name-line">
+            <span class="row-name">${a.name}</span>
+            ${a.dob ? `<span class="row-year">${a.dob}</span>` : ''}
+          </span>
+          ${edu ? `<span class="row-loc">${edu}</span>` : ''}
         </div>
       </div>
       <div class="row-go">→</div>
-    </a>` + founderCell(o);
+    </a>` + institutionCell(a);
   }).join('');
 }
 
-function founderCell(o){
-  const people = architects.filter(a => a.office === o.name);
-  if(people.length === 0){
-    return `<div class="founder-cell"></div>`;
-  }
-  const people2 = people.slice(0, 2);
-  return `
-    <a class="founder-cell" href="ofis-detay.html?ofis=${encodeURIComponent(o.name)}">
-      ${people2.map(a => `
-        <div class="founder-person">
-          <div class="founder-avatar" style="background:${officeColor(a.name)}">${initials(a.name)}</div>
-          <div class="founder-text">
-            <div class="founder-name">${a.name}</div>
-            <div class="founder-role">${a.role}</div>
-          </div>
-        </div>`).join('')}
-    </a>`;
-}
 
-function getMaxLeading(){
-  return window.innerWidth <= 860 ? 4 : 9;
+// Sabit sayıda sayfa butonu gösteren kayan pencere: geçerli sayfa her zaman pencerede yer alır,
+// ileri/geri gidildikçe pencere tek tek kayar (ör. 4'e gidince 5 açılır, 1 kapanır). Pencere sayfa
+// 1'den başlamıyorsa önce bir "..." gösterilir; sona ermiyorsa son buton her zaman son sayfa numarasıdır.
+// Buton sayısı ekran genişliğine göre sabitlendiği için satır hiçbir zaman ikiye bölünmez (bkz. .pagination nowrap).
+function getPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 340) return 1;
+  if(w <= 400) return 2;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  if(w <= 860) return 7;
+  return 9;
 }
 
 function getPageList(totalPages, currentPage){
-  const MAX_LEADING = getMaxLeading();
-  if(totalPages <= MAX_LEADING + 1){
+  const N = getPageWindowSize();
+  if(totalPages <= N){
     const pages = [];
     for(let p=1; p<=totalPages; p++) pages.push(p);
-    return pages;
+    return {pages, leadingFirst:null, leadingDots:false, trailingDots:false, trailingLast:null};
   }
-  if(currentPage <= MAX_LEADING){
-    return [...Array(MAX_LEADING).keys()].map(i=>i+1).concat(['...', totalPages]);
-  }
-  const pages = [1, '...'];
-  const start = Math.max(2, currentPage - 2);
-  const end = Math.min(totalPages - 1, currentPage + 2);
-  for(let p=start; p<=end; p++) pages.push(p);
-  if(end < totalPages - 1) pages.push('...');
-  pages.push(totalPages);
-  return pages;
+  let start = currentPage - Math.floor((N - 1) / 2);
+  start = Math.max(1, Math.min(start, totalPages - N + 1));
+  const pages = [];
+  for(let p=start; p<start+N; p++) pages.push(p);
+  const firstInWindow = pages[0];
+  const lastInWindow = pages[pages.length - 1];
+  // Sayfa 1 ve son sayfa butonu, pencerenin dışında kalsalar bile her zaman en solda/en sağda gösterilir.
+  const leadingFirst = firstInWindow > 1 ? 1 : null;
+  const trailingLast = lastInWindow < totalPages ? totalPages : null;
+  return {
+    pages,
+    leadingFirst,
+    leadingDots: leadingFirst !== null && firstInWindow > 2,
+    trailingDots: trailingLast !== null && lastInWindow < totalPages - 1,
+    trailingLast,
+  };
 }
 
 function renderPagination(totalPages){
   const el = document.getElementById('pagination');
   if(totalPages <= 1){ el.innerHTML = ''; return; }
 
+  const {pages, leadingFirst, leadingDots, trailingDots, trailingLast} = getPageList(totalPages, currentPage);
   let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
-  getPageList(totalPages, currentPage).forEach(p=>{
-    if(p === '...'){
-      html += `<span class="page-ellipsis">...</span>`;
-    } else {
-      html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
-    }
+  if(leadingFirst) html += `<button class="page-btn" data-page="${leadingFirst}">${leadingFirst}</button>`;
+  if(leadingDots) html += `<span class="page-ellipsis">…</span>`;
+  pages.forEach(p=>{
+    html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
   });
+  if(trailingDots) html += `<span class="page-ellipsis">…</span>`;
+  if(trailingLast) html += `<button class="page-btn" data-page="${trailingLast}">${trailingLast}</button>`;
   html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
   el.innerHTML = html;
 
@@ -1049,14 +1127,33 @@ function renderPagination(totalPages){
   const nextBtn = document.getElementById('page-next');
   if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); } });
   if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; render(); } });
+
+  const activeBtn = el.querySelector('.page-btn.active');
+  if(activeBtn) activeBtn.scrollIntoView({block:'nearest', inline:'center'});
 }
 
-['f-loc','f-cat','f-sort'].forEach(id=>{
+['f-loc','f-cat','f-award','f-position'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
 });
-document.getElementById('f-search').addEventListener('input', (e)=>{
-  searchQuery = e.target.value;
-  document.getElementById('f-search-drawer').value = searchQuery;
+
+// Mimar ve kurum sıralama seçimleri karşılıklı dışlayıcıdır: biri seçilince diğeri varsayılana döner.
+const sortMimarSel = document.getElementById('f-sort-mimar');
+const sortKurumSel = document.getElementById('f-sort-kurum');
+sortMimarSel.addEventListener('change', ()=>{
+  if(sortMimarSel.value) sortKurumSel.value = '';
+  currentPage = 1; render();
+});
+sortKurumSel.addEventListener('change', ()=>{
+  if(sortKurumSel.value) sortMimarSel.value = '';
+  currentPage = 1; render();
+});
+
+document.getElementById('f-search-mimar').addEventListener('input', (e)=>{
+  searchQueryMimar = e.target.value;
+  currentPage = 1; render();
+});
+document.getElementById('f-search-kurum').addEventListener('input', (e)=>{
+  searchQueryKurum = e.target.value;
   currentPage = 1; render();
 });
 
@@ -1070,56 +1167,16 @@ function wireCarouselArrows(){
   });
 }
 
-const filterBar = document.getElementById('filter-bar');
-const filterBackdrop = document.getElementById('filter-backdrop');
-
-function openFilterModal(){
-  filterBar.classList.add('open');
-  filterBackdrop.classList.add('open');
+function wireNavSearch(){
+  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && e.target.value.trim()){
+        window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      }
+    });
+  });
 }
-function closeFilterModal(){
-  filterBar.classList.remove('open');
-  filterBackdrop.classList.remove('open');
-}
-document.getElementById('filter-toggle-btn').addEventListener('click', openFilterModal);
-document.getElementById('filter-close-btn').addEventListener('click', closeFilterModal);
-filterBackdrop.addEventListener('click', closeFilterModal);
-document.getElementById('filter-apply-btn').addEventListener('click', closeFilterModal);
-
-const searchWrapEl = document.getElementById('search-wrap');
-const searchIconBtn = document.getElementById('search-icon-btn');
-const searchInputDrawer = document.getElementById('f-search-drawer');
-
-function openSearchDrawer(){
-  searchWrapEl.classList.add('expanded');
-  searchIconBtn.classList.add('open');
-  searchInputDrawer.focus();
-}
-function closeSearchDrawer(){
-  searchWrapEl.classList.remove('expanded');
-  searchIconBtn.classList.remove('open');
-}
-searchIconBtn.addEventListener('click', ()=>{
-  if(searchWrapEl.classList.contains('expanded')) closeSearchDrawer();
-  else openSearchDrawer();
-});
-document.addEventListener('click', (e)=>{
-  if(!searchWrapEl.classList.contains('expanded')) return;
-  if(!searchWrapEl.contains(e.target)) closeSearchDrawer();
-});
-searchInputDrawer.addEventListener('input', (e)=>{
-  searchQuery = e.target.value;
-  document.getElementById('f-search').value = searchQuery;
-  currentPage = 1; render();
-});
-
-const searchInputNav = document.getElementById('f-search-nav');
-searchInputNav.addEventListener('input', (e)=>{
-  searchQuery = e.target.value;
-  document.getElementById('f-search').value = searchQuery;
-  document.getElementById('f-search-drawer').value = searchQuery;
-  currentPage = 1; render();
-});
+wireNavSearch();
 
 const navHamburger = document.getElementById('nav-hamburger');
 const navMobileMenu = document.getElementById('nav-mobile-menu');
@@ -1137,11 +1194,11 @@ populateFilters();
 render();
 wireCarouselArrows();
 
-let _isMobileView = window.innerWidth <= 860;
+let _pageWindowSize = getPageWindowSize();
 window.addEventListener('resize', ()=>{
-  const isMobileNow = window.innerWidth <= 860;
-  if(isMobileNow !== _isMobileView){
-    _isMobileView = isMobileNow;
+  const newSize = getPageWindowSize();
+  if(newSize !== _pageWindowSize){
+    _pageWindowSize = newSize;
     render();
   }
 });

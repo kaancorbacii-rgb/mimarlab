@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<link rel="icon" type="image/png" href="logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="logos/site/favicon-180.png">
+<title>Arama — MİMARLAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D;
+    --ink-soft:#4E6478;
+    --paper:#EDF0F3;
+    --paper-card:#F8FAFB;
+    --paper-alt:#E0E6EC;
+    --walnut:#2B425F;
+    --brass:#5B7A9B;
+    --brass-soft:#AFC5D8;
+    --sage:#4F6478;
+    --accent:#E08A3E;
+    --line: rgba(27,42,61,0.14);
+    --line-soft: rgba(27,42,61,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:24px;
+    padding:16px 32px;
+    background:rgba(237,240,243,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-logo{height:24px; width:auto; display:block;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
+  .nav-link:hover, .nav-link.active{color:var(--ink);}
+  .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
+  .nav-mobile-menu{
+    display:none; position:absolute; top:100%; right:18px; z-index:95;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
+  }
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
+  .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .nav-rate{
+    background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
+    border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;
+  }
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+
+  /* ---------- BREADCRUMB ---------- */
+  .breadcrumb-bar{
+    background:var(--ink); color:rgba(237,240,243,0.7);
+    padding:14px 32px; font-size:13.5px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
+  .breadcrumb-bar a:hover{color:var(--brass-soft);}
+  .breadcrumb-bar .sep{opacity:0.4;}
+  .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
+
+  /* ---------- PAGE HEAD ---------- */
+  .page-head{max-width:880px; margin:0 auto; padding:36px 32px 0;}
+  .page-head .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:10px;}
+  .page-head h1{font-family:'Fraunces', serif; font-size:26px; font-weight:600; margin:0 0 6px; word-break:break-word;}
+  .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
+
+  /* ---------- RESULTS ---------- */
+  .search-wrap{max-width:880px; margin:0 auto; padding:24px 32px 90px;}
+  .result-group{margin-bottom:32px;}
+  .result-group:last-child{margin-bottom:0;}
+  .result-group-title{font-family:'Fraunces', serif; font-size:16.5px; font-weight:600; margin:0 0 12px; display:flex; align-items:baseline; gap:8px;}
+  .result-group-count{font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:500; color:var(--ink-soft);}
+  .result-list{display:flex; flex-direction:column; gap:10px;}
+  .result-row{
+    display:flex; align-items:center; gap:14px; padding:12px 16px;
+    border:1px solid var(--line-soft); border-radius:12px; background:var(--paper-card);
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .result-row:hover{border-color:var(--brass); transform:translateY(-1px);}
+  .result-avatar{
+    width:44px; height:44px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:700; font-size:14px; color:#fff;
+    position:relative; overflow:hidden; background:var(--paper-alt);
+  }
+  .result-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:var(--paper-card);}
+  .result-info{flex:1; min-width:0;}
+  .result-title{font-weight:600; font-size:14.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .result-meta{font-size:12.5px; color:var(--ink-soft); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .result-go{flex-shrink:0; color:var(--ink-soft); font-size:20px;}
+  .result-more-note{font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center;}
+
+  .search-empty{text-align:center; padding:50px 20px;}
+  .search-empty p{color:var(--ink-soft); font-size:15px; margin:0 0 22px; line-height:1.6; max-width:440px; margin-left:auto; margin-right:auto;}
+  .search-empty .nav-search{max-width:420px; margin:0 auto;}
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
+  @media (max-width:720px){
+    .nav{padding:14px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .page-head{padding:24px 18px 0;}
+    .search-wrap{padding:18px 18px 70px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+  }
+</style>
+</head>
+<body>
+<script src="auth-nav.js"></script>
+
+  <nav class="nav">
+    <a class="brand" href="index.html">
+      <img class="brand-logo" src="logos/site/mimarlab-logo.png" alt="MimarLab">
+    </a>
+    <div class="nav-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="nav-search-input" placeholder="Ara...">
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="proje.html">Proje</a>
+      <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="haber.html">Haber</a>
+      <a class="nav-link" href="is-ilani.html">İş İlanı</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
+    </div>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-mobile-menu" id="nav-mobile-menu">
+      <div class="nav-mobile-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="nav-search-input-mobile" placeholder="Ara...">
+      </div>
+      <a class="nav-mobile-link" href="proje.html">Proje</a>
+      <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="haber.html">Haber</a>
+      <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
+    </div>
+  </nav>
+
+  <div class="breadcrumb-bar">
+    <a href="index.html">Ana Sayfa</a>
+    <span class="sep">›</span>
+    <span class="current">Arama</span>
+  </div>
+
+  <div class="page-head">
+    <div class="eyebrow">Arama</div>
+    <h1 id="search-title">Arama Sonuçları</h1>
+    <p id="search-subtitle"></p>
+  </div>
+
+  <div class="search-wrap" id="search-wrap"></div>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+        </a>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="#">Hakkında</a><a href="#">Reklam</a><a href="#">İletişim</a><a href="#">Kariyer</a></div>
+    </div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
+  </footer>
+
+<script src="data.js"></script>
+<script src="projeler-data.js"></script>
+<script src="urunler-data.js"></script>
+<script src="haberler-data.js"></script>
+<script>
+function trLower(s){
+  // JS'in varsayılan toLowerCase()'i Türkçe İ/I harflerini yanlış çevirir, bu yüzden elle eşliyoruz.
+  return String(s||'')
+    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
+    .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
+    .toLowerCase();
+}
+
+const MAX_PER_GROUP = 20;
+
+function rowHtml({href, avatarStyle, avatarContent, title, meta}){
+  return `<a class="result-row" href="${href}">
+    <div class="result-avatar" style="${avatarStyle||''}">${avatarContent||''}</div>
+    <div class="result-info">
+      <div class="result-title">${title}</div>
+      <div class="result-meta">${meta||''}</div>
+    </div>
+    <div class="result-go">→</div>
+  </a>`;
+}
+
+function groupHtml(label, items, toRow){
+  if(!items.length) return '';
+  const shown = items.slice(0, MAX_PER_GROUP);
+  const rest = items.length - shown.length;
+  return `<div class="result-group">
+    <h2 class="result-group-title">${label} <span class="result-group-count">(${items.length})</span></h2>
+    <div class="result-list">${shown.map(toRow).join('')}</div>
+    ${rest > 0 ? `<div class="result-more-note">+${rest} sonuç daha var, aramanı daraltmayı dene</div>` : ''}
+  </div>`;
+}
+
+function runSearch(){
+  const params = new URLSearchParams(window.location.search);
+  const query = (params.get('q') || '').trim();
+  const wrap = document.getElementById('search-wrap');
+  const titleEl = document.getElementById('search-title');
+  const subtitleEl = document.getElementById('search-subtitle');
+
+  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{ inp.value = query; });
+
+  if(!query){
+    titleEl.textContent = 'Arama';
+    subtitleEl.textContent = '';
+    wrap.innerHTML = `<div class="search-empty">
+      <p>Mimar, marka, proje, ürün, haber veya iş ilanı aramak için üstteki arama kutusunu kullan.</p>
+      <div class="nav-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Ara...">
+      </div>
+    </div>`;
+    wireNavSearch();
+    return;
+  }
+
+  titleEl.textContent = `"${query}" için sonuçlar`;
+
+  const q = trLower(query);
+  const mimarResults = architects.filter(a => trLower(a.name).includes(q) || (a.office && trLower(a.office).includes(q)));
+  const markaResults = offices.filter(o => trLower(o.name).includes(q) || trLower(o.loc||'').includes(q));
+  const projeResults = projects.filter(p => trLower(p.title).includes(q) || trLower(p.location||'').includes(q) || (p.designer||[]).some(d=>trLower(d).includes(q)));
+  const urunResults = products.filter(p => trLower(p.title).includes(q) || trLower(p.category||'').includes(q) || trLower(p.brand||'').includes(q));
+  const haberResults = newsItems.filter(n => trLower(n.title).includes(q) || trLower(n.category||'').includes(q));
+  const isilaniResults = jobListings.filter(j => trLower(j.title).includes(q) || trLower(j.office||'').includes(q) || trLower(j.loc||'').includes(q) || trLower(j.role||'').includes(q));
+
+  const total = mimarResults.length + markaResults.length + projeResults.length + urunResults.length + haberResults.length + isilaniResults.length;
+  subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
+
+  if(total === 0){
+    wrap.innerHTML = `<div class="search-empty">
+      <p>"${query}" için bir sonuç bulunamadı. Başka bir anahtar kelimeyle tekrar dene.</p>
+      <div class="nav-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Tekrar arayın...">
+      </div>
+    </div>`;
+    wireNavSearch();
+    return;
+  }
+
+  wrap.innerHTML = [
+    groupHtml('Mimarlar', mimarResults, a => rowHtml({
+      href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}`,
+      avatarStyle: `background:${officeColor(a.name)}`,
+      avatarContent: `${initials(a.name)}${a.photo ? `<img src="${a.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}`,
+      title: a.name,
+      meta: a.office || 'Mimar',
+    })),
+    groupHtml('Markalar', markaResults, o => rowHtml({
+      href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}`,
+      avatarStyle: `background:${officeColor(o.name)}`,
+      avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${logoUrl(o)}" alt="" loading="lazy" onerror="this.remove()">` : ''}`,
+      title: o.name,
+      meta: o.loc || '',
+    })),
+    groupHtml('Projeler', projeResults, p => rowHtml({
+      href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}`,
+      avatarContent: p.images && p.images[0] ? `<img src="${p.images[0]}" alt="" loading="lazy">` : '',
+      title: p.title,
+      meta: [p.location, p.date].filter(Boolean).join(' · '),
+    })),
+    groupHtml('Ürünler', urunResults, p => rowHtml({
+      href: 'urun.html',
+      avatarContent: p.image ? `<img src="${p.image}" alt="" loading="lazy">` : '',
+      title: p.title,
+      meta: [p.category, p.brand].filter(Boolean).join(' · '),
+    })),
+    groupHtml('Haberler', haberResults, n => rowHtml({
+      href: 'haber.html',
+      avatarContent: n.image ? `<img src="${n.image}" alt="" loading="lazy">` : '',
+      title: n.title,
+      meta: n.category || '',
+    })),
+    groupHtml('İş İlanları', isilaniResults, j => {
+      const o = offices.find(x => x.name === j.office);
+      return rowHtml({
+        href: 'is-ilani.html',
+        avatarStyle: `background:${officeColor(j.office||j.title)}`,
+        avatarContent: `${initials(j.office||j.title)}${o && logoUrl(o) ? `<img src="${logoUrl(o)}" alt="" loading="lazy" onerror="this.remove()">` : ''}`,
+        title: j.title,
+        meta: [j.office, j.loc].filter(Boolean).join(' · '),
+      });
+    }),
+  ].join('');
+
+  wireNavSearch();
+}
+
+function wireNavSearch(){
+  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && e.target.value.trim()){
+        window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      }
+    });
+  });
+}
+
+const navHamburger = document.getElementById('nav-hamburger');
+const navMobileMenu = document.getElementById('nav-mobile-menu');
+navHamburger.addEventListener('click', ()=>{ navMobileMenu.classList.toggle('open'); });
+document.addEventListener('click', (e)=>{
+  if(!navMobileMenu.classList.contains('open')) return;
+  if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
+});
+
+runSearch();
+</script>
+</body>
+</html>

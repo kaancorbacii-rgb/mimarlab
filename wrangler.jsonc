@@ -1,7 +1,24 @@
 {
   "name": "mimarlab",
+  "main": "src/index.js",
   "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "."
-  }
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mimarlab-db",
+      "database_id": "65856ee8-f2a3-4461-867d-3ed7faf2c246"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "UPLOADS",
+      "bucket_name": "mimarlab-uploads"
+    }
+  ]
 }

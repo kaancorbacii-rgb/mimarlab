@@ -6,6 +6,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8090"],
       "port": 8090
+    },
+    {
+      "name": "mimarlab-worker",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "dev", "--port", "8787", "--persist-to", "/Users/kaancorbaci/.mimarlab-dev-state"],
+      "port": 8787
     }
   ]
 }
