@@ -405,8 +405,7 @@
       </div>
       <div class="profile-top">
         <div class="profile-logo" id="profile-logo">M</div>
-        <h1 class="profile-name" id="profile-name">Ofis Adı</h1>
-        <span id="verified-badge-wrap"></span>
+        <h1 class="profile-name" id="profile-name"><span id="profile-name-text">Ofis Adı</span><span id="verified-badge-wrap"></span></h1>
       </div>
       <a class="profile-category" href="index.html" id="profile-category">Mimarlık Ofisi</a>
       <div class="rating-widget" id="rating-widget" data-type="office"></div>
@@ -528,7 +527,7 @@ const o = found || offices[0];
 document.title = o.name + " — MİMARLAB";
 document.getElementById('bc-cat').textContent = o.cats.split(' · ')[0];
 document.getElementById('bc-name').textContent = o.name;
-document.getElementById('profile-name').textContent = o.name;
+document.getElementById('profile-name-text').textContent = o.name;
 document.getElementById('profile-category').textContent = o.cats;
 document.getElementById('about-text').textContent = o.about;
 

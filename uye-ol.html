@@ -146,6 +146,7 @@
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
+    .nav-right{margin-left:auto;}
     .auth-wrap{padding:44px 18px 70px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
@@ -209,7 +210,19 @@
         </div>
         <div class="auth-field">
           <label for="signup-school">Okul</label>
-          <input type="text" id="signup-school" name="school" placeholder="Üniversite / Bölüm">
+          <input type="text" id="signup-school" name="school" placeholder="Üniversite">
+        </div>
+        <div class="auth-field">
+          <label for="signup-dept">Bölüm</label>
+          <select id="signup-dept" name="dept">
+            <option value="">Seç... (opsiyonel)</option>
+            <option value="mimarlik">Mimarlık</option>
+            <option value="ic_mimarlik">İç Mimarlık</option>
+            <option value="peyzaj_mimarligi">Peyzaj Mimarlığı</option>
+            <option value="sehir_bolge_planlama">Şehir ve Bölge Planlama</option>
+            <option value="restorasyon">Restorasyon</option>
+            <option value="diger">Diğer</option>
+          </select>
         </div>
         <div class="auth-field">
           <label for="signup-profession">Meslek</label>
@@ -299,6 +312,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
     name: document.getElementById('signup-name').value,
     dob: document.getElementById('signup-dob').value || null,
     school: document.getElementById('signup-school').value || null,
+    dept: document.getElementById('signup-dept').value || null,
     profession: document.getElementById('signup-profession').value,
     email: document.getElementById('signup-email').value,
     password: pw,

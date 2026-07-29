@@ -1050,7 +1050,7 @@ function render(){
       <div class="row-main">
         <div class="row-top">
           <span class="row-name-line">
-            <span class="row-name">${a.name}</span>${verifiedBadgeHtml('architect', a.name, a.badges)}
+            <span class="row-name">${a.name}${verifiedBadgeHtml('architect', a.name, a.badges)}</span>
             ${a.dob ? `<span class="row-year">${a.dob}</span>` : ''}
           </span>
           ${edu ? `<span class="row-loc">${edu}</span>` : ''}

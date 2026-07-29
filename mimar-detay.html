@@ -418,8 +418,7 @@
       </div>
       <div class="profile-top">
         <div class="profile-logo" id="profile-logo">M</div>
-        <h1 class="profile-name" id="profile-name">Mimar Adı</h1>
-        <span id="verified-badge-wrap"></span>
+        <h1 class="profile-name" id="profile-name"><span id="profile-name-text">Mimar Adı</span><span id="verified-badge-wrap"></span></h1>
       </div>
       <span class="profile-category" id="profile-category">Rol</span>
       <div class="rating-widget" id="rating-widget" data-type="architect"></div>
@@ -527,7 +526,7 @@ const office = offices.find(x => x.name === a.office);
 
 document.title = a.name + " — MİMARLAB";
 document.getElementById('bc-name').textContent = a.name;
-document.getElementById('profile-name').textContent = a.name;
+document.getElementById('profile-name-text').textContent = a.name;
 document.getElementById('profile-category').textContent = a.role + (office ? ' · ' + office.name : '');
 document.getElementById('about-text').textContent = office
   ? `${a.name}, ${office.name} bünyesinde ${a.role} olarak görev yapmaktadır.`

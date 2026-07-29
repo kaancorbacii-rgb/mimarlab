@@ -619,6 +619,7 @@ const offices = [
   {name:"Öztuzcu Mimarlık", loc:"Türkiye", cats:"Mimarlık", yil:null, website:"https://api.addthis.com/oexchange/0.8/forward/email/offer?url=http%3A%2F%2Fwww.addthis.com&pubid=ra-55fbe68b51aa718f&ct=1&title=AddThis%20-%20Get%20likes%2C%20get%20shares%2C%20get%20followers&pco=tbxnj-1.0", about:"Öztuzcu Mimarlık", logo:"mimarlar/mimarizm/oztuzcu-mimarlik.jpg"},
   {name:"Genç ve Taze Bir Girişim; İkiartıbir Mimarlık", loc:"Türkiye", cats:"Mimarlık", yil:null, website:"http://www.ikiartibir.com", about:"Genç ve Taze Bir Girişim; İkiartıbir Mimarlık", logo:"mimarlar/mimarizm/genc-ve-taze-bir-girisim-i-kiartibir-mimarlik.jpg"},
   {name:"ARMİ Maket ve Tasarım Org. Ltd. Şti.", loc:"Türkiye", cats:"Mimarlık", yil:null, website:"http://www.armimaket.com", about:"ARMİ Maket ve Tasarım Org. Ltd. Şti.", logo:"mimarlar/mimarizm/armi-maket-ve-tasarim-org-ltd-sti.jpg"},
+  {name:"MİMARLAB", loc:"İstanbul", cats:"Mimarlık", yil:2026, about:"Kaan Çorbacı tarafından kurulan MİMARLAB; mimarlık, iç mimarlık ve peyzaj mimarlığı alanlarındaki ofisleri, mimarları ve projeleri bir araya getiren bağımsız bir dizin ve topluluk platformudur.", logo:"logos/site/mimarlab-logo.png"},
 ];
 
 const architects = [
@@ -1476,7 +1477,7 @@ function institutionCell(a){
             <div class="tag-hole" style="background:${officeColor(o.name)}">${initials(o.name)}${logoUrl(o) ? `<img src="${logoUrl(o)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
             <div class="institution-text">
               <span class="institution-name-line">
-                <span class="institution-name">${o.name}</span>${verifiedBadgeHtml('office', o.name, o.badges)}
+                <span class="institution-name">${o.name}${verifiedBadgeHtml('office', o.name, o.badges)}</span>
                 ${o.yil ? `<span class="institution-year">${o.yil}</span>` : ''}
               </span>
               <div class="institution-role">${a.role}</div>

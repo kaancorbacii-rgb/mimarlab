@@ -5,6 +5,7 @@ import { createSession, destroySession, getSessionUser, publicUser } from '../li
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
 const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'diger']);
+const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bolge_planlama', 'restorasyon', 'diger']);
 
 export async function handleAuthRoute(request, env, url) {
   const path = url.pathname;
@@ -27,6 +28,7 @@ async function signup(request, env) {
   const name = (body.name || '').trim();
   const dob = body.dob || null;
   const school = (body.school || '').trim() || null;
+  const dept = body.dept || null;
   const profession = body.profession || '';
 
   if (!name) return errorJson('Ad soyad gerekli.');
@@ -34,6 +36,7 @@ async function signup(request, env) {
   if (password.length < 8) return errorJson('Şifre en az 8 karakter olmalı.');
   if (body.password !== body.password_confirm) return errorJson('Şifreler eşleşmiyor.');
   if (!PROFESSIONS.has(profession)) return errorJson('Lütfen bir meslek seç.');
+  if (dept && !DEPTS.has(dept)) return errorJson('Geçersiz bölüm.');
   if (!body.botCheck) return errorJson('Lütfen "Ben bir bot değilim" kutucuğunu işaretle.');
   if (!body.kvkkAccepted) return errorJson('Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.');
 
@@ -44,8 +47,8 @@ async function signup(request, env) {
   const now = Date.now();
   const passwordHash = await hashPassword(password);
   await env.DB.prepare(
-    'INSERT INTO users (id, email, password_hash, name, dob, school, profession, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, email, passwordHash, name, dob, school, profession, now, 'user', now).run();
+    'INSERT INTO users (id, email, password_hash, name, dob, school, dept, profession, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, email, passwordHash, name, dob, school, dept, profession, now, 'user', now).run();
 
   const { token, maxAge } = await createSession(env, id);
   const user = await env.DB.prepare(
