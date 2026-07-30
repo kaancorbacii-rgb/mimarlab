@@ -7,6 +7,20 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Proje Ekle — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'a proje ekle.">
+<link rel="canonical" href="https://mimarlab.com/proje-ekle">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Proje Ekle — MİMARLAB">
+<meta property="og:description" content="MİMARLAB'a proje ekle.">
+<meta property="og:url" content="https://mimarlab.com/proje-ekle">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Proje Ekle — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB'a proje ekle.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -174,6 +188,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -294,6 +315,16 @@
       </div>
 
       <div class="form-section">
+        <h2>Kullanılan Ürünler / Markalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <p class="section-hint">Projede kullanılan ürün ya da malzeme markaları — MİMARLAB dizinindeki bir marka adıyla birebir eşleşirse profil sayfasına otomatik bağlanır.</p>
+        <div class="form-field">
+          <label for="p-brands">Ürün / Marka</label>
+          <input type="text" id="p-brands" name="brands" placeholder="ör. VitrA, Kalebodur">
+          <div class="form-hint">Birden fazla marka gireceksen virgülle ayır.</div>
+        </div>
+      </div>
+
+      <div class="form-section">
         <h2>Açıklama</h2>
         <div class="form-field">
           <label for="p-desc">Proje Açıklaması</label>
@@ -361,9 +392,15 @@ let selectedFiles = [];
 let existingImages = [];
 const editId = new URLSearchParams(window.location.search).get('edit');
 
+function escapeAttr(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function renderPreviews(){
   const existingHtml = existingImages.map((url, i) => `<div class="image-preview-item">
-      <img src="${url}" alt="">
+      <img src="${escapeAttr(url)}" alt="">
       ${i === 0 && !selectedFiles.length ? '<span class="cover-badge">Kapak</span>' : ''}
       <button type="button" class="image-preview-remove" data-existing-index="${i}" aria-label="Kaldır">✕</button>
     </div>`).join('');
@@ -422,6 +459,7 @@ async function prefillForEdit(){
     document.getElementById('p-date').value = item.date || '';
     document.getElementById('p-type').value = (item.type || []).join(', ');
     document.getElementById('p-designer').value = (item.designer || []).join(', ');
+    document.getElementById('p-brands').value = (item.brands || []).join(', ');
     document.getElementById('p-desc').value = item.description || '';
     document.getElementById('p-credit-text').value = item.photoCreditText || '';
     document.getElementById('p-credit-url').value = item.photoCreditUrl || '';
@@ -456,6 +494,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   const category = Array.from(form.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
   const type = document.getElementById('p-type').value.split(',').map(s => s.trim()).filter(Boolean);
   const designer = document.getElementById('p-designer').value.split(',').map(s => s.trim()).filter(Boolean);
+  const brands = document.getElementById('p-brands').value.split(',').map(s => s.trim()).filter(Boolean);
 
   submitBtn.disabled = true;
   let uploadedImages = [];
@@ -474,7 +513,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     location: document.getElementById('p-location').value,
     locationDetail: document.getElementById('p-location-detail').value || null,
     date: document.getElementById('p-date').value,
-    period, category, type, designer,
+    period, category, type, designer, brands,
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
     photoCreditUrl: document.getElementById('p-credit-url').value || null,

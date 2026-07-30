@@ -2,11 +2,35 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<!-- Temiz URL'lerle bu sayfa /haber-detay.html dışında /haberler/:id altında da (iç içe bir yolda)
+     servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
+     yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
+<base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Haber — MİMARLAB</title>
+<meta name="description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler — MİMARLAB." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/haber-detay" id="canonical-link">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Haber — MİMARLAB" id="og-title">
+<meta property="og:description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler — MİMARLAB." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/haber-detay" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Haber — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler — MİMARLAB." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -123,6 +147,8 @@
   .comment-avatar{width:36px; height:36px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
   .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px;}
   .comment-meta strong{color:var(--ink); font-weight:600; margin-right:8px;}
+  .comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:10px; text-decoration:underline; padding:0;}
+  .comment-delete-btn:hover{color:#c0392b;}
   .comment-body-text{margin:0; font-size:14px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}
 
   .related-section{max-width:1260px; margin:0 auto; padding:0 32px 40px;}
@@ -269,11 +295,32 @@ function formatDate(ts){
 }
 
 const params = new URLSearchParams(window.location.search);
-const newsId = params.get('haber') || '';
+let newsId = params.get('haber') || '';
+if(!newsId){
+  // Temiz URL: /haberler/:id (bkz. src/index.js#CLEAN_URL_ASSETS) — eski ?haber= sorgu parametresi
+  // bulunamazsa id'yi doğrudan yoldan oku.
+  const m = window.location.pathname.match(/\/haberler\/([^/]+)\/?$/);
+  if(m) newsId = decodeURIComponent(m[1]);
+}
 let n = newsItems.find(x => x.id === newsId);
 
 function renderNewsDetail(item){
   document.title = `${item.title} — MİMARLAB`;
+  {
+    const rawDesc = item.description || `${item.title}${item.category ? ' — ' + item.category : ''}. MİMARLAB'da haberin devamını oku.`;
+    const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
+    const canonicalUrl = `https://mimarlab.com/haberler/${encodeURIComponent(item.id)}`;
+    const image = item.image ? new URL(item.image, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    document.getElementById('meta-description').setAttribute('content', desc);
+    document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
+    document.getElementById('og-title').setAttribute('content', document.title);
+    document.getElementById('og-description').setAttribute('content', desc);
+    document.getElementById('og-url').setAttribute('content', canonicalUrl);
+    document.getElementById('og-image').setAttribute('content', image);
+    document.getElementById('twitter-title').setAttribute('content', document.title);
+    document.getElementById('twitter-description').setAttribute('content', desc);
+    document.getElementById('twitter-image').setAttribute('content', image);
+  }
   document.getElementById('bc-name').textContent = item.title;
   document.getElementById('detail-title').textContent = item.title;
   document.getElementById('detail-cat').textContent = item.category || 'Haber';
@@ -286,7 +333,7 @@ function renderNewsDetail(item){
   if(related.length){
     document.getElementById('related-section').style.display = 'block';
     document.getElementById('related-grid').innerHTML = related.map(r => `
-      <a class="related-card" href="haber-detay.html?haber=${encodeURIComponent(r.id)}">
+      <a class="related-card" href="/haberler/${encodeURIComponent(r.id)}">
         <img src="${escapeAttr(r.image)}" alt="${escapeAttr(r.title)}" loading="lazy">
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
@@ -297,11 +344,35 @@ function renderNewsDetail(item){
   saveBtn.dataset.title = item.title;
   saveBtn.dataset.meta = item.category || '';
   saveBtn.dataset.image = item.image || '';
-  saveBtn.dataset.href = `haber-detay.html?haber=${encodeURIComponent(item.id)}`;
+  saveBtn.dataset.href = `/haberler/${encodeURIComponent(item.id)}`;
   wireSaveButtons('news');
 
+  renderStructuredData(item);
   loadComments(item.id);
 }
+
+// Google zengin sonuçları için Schema.org NewsArticle yapısal verisi (bkz. mimar-detay.html/
+// ofis-detay.html'deki aynı desen — sayfa istemci tarafında render edildiğinden JS ile enjekte edilir).
+function renderStructuredData(item){
+  let tag = document.getElementById('ld-json');
+  if(!tag){
+    tag = document.createElement('script');
+    tag.type = 'application/ld+json';
+    tag.id = 'ld-json';
+    document.head.appendChild(tag);
+  }
+  const data = {
+    '@context': 'https://schema.org', '@type': 'NewsArticle',
+    headline: item.title, url: window.location.href,
+    publisher: { '@type': 'Organization', name: 'MİMARLAB', logo: { '@type': 'ImageObject', url: new URL('logos/site/mimarlab-logo.png', window.location.href).href } },
+  };
+  if(item.description) data.description = item.description;
+  if(item.image){ try { data.image = [new URL(item.image, window.location.href).href]; } catch{} }
+  if(item.createdAt) data.datePublished = new Date(item.createdAt).toISOString();
+  tag.textContent = JSON.stringify(data);
+}
+
+let canModerateNewsComments = false;
 
 async function loadComments(targetId){
   const res = await fetch(`/api/comments?targetType=news&targetId=${encodeURIComponent(targetId)}`);
@@ -313,14 +384,27 @@ async function loadComments(targetId){
     list.innerHTML = '<div class="comments-empty">Henüz yorum yok. İlk yorumu sen yaz.</div>';
     return;
   }
-  list.innerHTML = items.map(c => `
+  list.innerHTML = items.map(c => {
+    const canDelete = currentUser && (currentUser.id === c.user_id || canModerateNewsComments);
+    return `
     <div class="comment-row">
       <div class="comment-avatar">${escapeHtml(initials(c.user_name))}</div>
       <div>
-        <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong><span>${formatDate(c.created_at)}</span></div>
+        <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong><span>${formatDate(c.created_at)}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${c.id}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
         <p class="comment-body-text">${escapeHtml(c.body)}</p>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.comment-delete-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Bu yorumu silmek istediğine emin misin?')) return;
+      btn.disabled = true;
+      try{
+        const res = await fetch(`/api/comments/${btn.dataset.id}`, { method:'DELETE' });
+        if(res.ok) loadComments(targetId);
+      } finally { btn.disabled = false; }
+    });
+  });
 }
 
 function renderCommentForm(targetId){
@@ -370,6 +454,23 @@ async function init(){
     return;
   }
 
+  // Kendi gönderdiği habere gelen yorumları silebilmek bir rozet gerektirir (bkz.
+  // src/routes/comments.js#canDeleteComment).
+  if(currentUser){
+    try{
+      const [newsRes, badgesRes] = await Promise.all([
+        fetch('/api/news/mine'),
+        fetch('/api/badges/mine'),
+      ]);
+      const newsData = newsRes.ok ? await newsRes.json() : { items: [] };
+      const isOwner = (newsData.items || []).some(it => it.id === n.id);
+      const badgesData = badgesRes.ok ? await badgesRes.json() : { items: [] };
+      const now = Date.now();
+      const hasActiveBadge = (badgesData.items || []).some(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
+      canModerateNewsComments = isOwner && hasActiveBadge;
+    }catch{}
+  }
+
   renderNewsDetail(n);
   renderCommentForm(n.id);
 }
@@ -385,6 +486,13 @@ function wireNavSearch(){
   });
 }
 wireNavSearch();
+
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /haberler/:id altında da servis edilir)
+// yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/) giderdi.
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest('a[href="#"]');
+  if(a) e.preventDefault();
+});
 
 const navHamburger = document.getElementById('nav-hamburger');
 const navMobileMenu = document.getElementById('nav-mobile-menu');

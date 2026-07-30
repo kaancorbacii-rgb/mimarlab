@@ -8,3 +8,5 @@ schema.sql
 node_modules
 package.json
 package-lock.json
+migrations
+.db-backups

@@ -1,6 +1,8 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
+import { getActiveBadge } from '../lib/badgeAccess.js';
+import { createNotification } from '../lib/notify.js';
 
 const TARGET_TYPES = new Set(['project', 'news', 'architect', 'office']);
 
@@ -49,7 +51,39 @@ async function createComment(request, env) {
     'INSERT INTO comments (id, target_type, target_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?, ?)'
   ).bind(id, targetType, targetId, user.id, text, now).run();
 
+  await notifyCommentOwner(env, user, targetType, targetId, text);
+
   return json({ id, body: text, created_at: now, user_name: user.name, user_id: user.id }, 201);
+}
+
+// Yorum gelen içeriğin sahibine bildirim düşer: mimar/marka profillerinde onaylı profile_claims
+// sahibine, proje/haberlerde ise gönderiyi yükleyen owner_user_id'ye (kendi yorumunda bildirim yok).
+async function notifyCommentOwner(env, commenter, targetType, targetId, commentBody) {
+  let ownerUserId = null;
+  let subjectLabel = '';
+  if (targetType === 'architect' || targetType === 'office') {
+    const row = await env.DB.prepare(
+      "SELECT user_id FROM profile_claims WHERE profile_type = ? AND profile_key = ? AND status = 'approved'"
+    ).bind(targetType, targetId).first();
+    if (row) ownerUserId = row.user_id;
+    subjectLabel = targetType === 'architect' ? 'mimar profiline' : 'marka profiline';
+  } else if (targetType === 'project') {
+    const row = await env.DB.prepare('SELECT owner_user_id FROM project_submissions WHERE slug = ?').bind(targetId).first();
+    if (row) ownerUserId = row.owner_user_id;
+    subjectLabel = 'projene';
+  } else if (targetType === 'news') {
+    const row = await env.DB.prepare('SELECT owner_user_id FROM news_submissions WHERE id = ?').bind(targetId).first();
+    if (row) ownerUserId = row.owner_user_id;
+    subjectLabel = 'haberine';
+  }
+  if (!ownerUserId || ownerUserId === commenter.id) return;
+  const preview = commentBody.length > 120 ? commentBody.slice(0, 117) + '…' : commentBody;
+  await createNotification(
+    env, ownerUserId, 'comment_received',
+    `${commenter.name} ${subjectLabel} yorum yaptı`,
+    preview,
+    null
+  );
 }
 
 async function deleteComment(request, env, id) {
@@ -69,18 +103,25 @@ async function deleteComment(request, env, id) {
   return json({ ok: true });
 }
 
-// Bir yorumu kim silebilir: yorumun sahibi; admin; kendi gönderdiği (onaylı/onaysız
-// fark etmez) projeye gelen yorumlarda proje sahibi; ya da profile_claims'de o mimar/ofis
-// profili için onaylı sahiplik iddiası olan kullanıcı.
+// Bir yorumu kim silebilir: yorumun sahibi; admin; kendi gönderdiği (onaylı/onaysız fark etmez)
+// bir proje ya da habere gelen yorumlarda, rozet sahibi olmak şartıyla o içeriğin sahibi; ya da
+// profile_claims'de o mimar/ofis profili için onaylı sahiplik iddiası olan kullanıcı (bu, rozet
+// gerektirmez — ayrı bir hak, bkz. mimar-detay.html/ofis-detay.html "Bu profil bana ait").
 async function canDeleteComment(env, user, comment) {
   if (comment.user_id === user.id) return true;
   if (user.role === 'admin') return true;
 
-  if (comment.target_type === 'project') {
+  if (comment.target_type === 'project' || comment.target_type === 'news') {
+    const table = comment.target_type === 'project' ? 'project_submissions' : 'news_submissions';
+    const idField = comment.target_type === 'project' ? 'slug' : 'id';
     const row = await env.DB.prepare(
-      'SELECT id FROM project_submissions WHERE owner_user_id = ? AND slug = ?'
+      `SELECT id FROM ${table} WHERE owner_user_id = ? AND ${idField} = ?`
     ).bind(user.id, comment.target_id).first();
-    return !!row;
+    if (!row) return false;
+    // 'destekci' herhangi bir hak vermez (bkz. src/routes/badges.js#BADGE_PRICES yorumu) —
+    // yalnızca gerçek rozet kademeleri (verified/gold/platinum) yorum silme hakkı doğurur.
+    const badge = await getActiveBadge(env, user.id);
+    return !!(badge && badge.badge_type !== 'destekci');
   }
 
   if (comment.target_type === 'architect' || comment.target_type === 'office') {

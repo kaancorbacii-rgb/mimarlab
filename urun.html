@@ -7,6 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Ürünler — MİMARLAB</title>
+<meta name="description" content="Mimarlık ve tasarım projelerinde kullanılan ürünleri keşfet.">
+<link rel="canonical" href="https://mimarlab.com/urun">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Ürünler — MİMARLAB">
+<meta property="og:description" content="Mimarlık ve tasarım projelerinde kullanılan ürünleri keşfet.">
+<meta property="og:url" content="https://mimarlab.com/urun">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ürünler — MİMARLAB">
+<meta name="twitter:description" content="Mimarlık ve tasarım projelerinde kullanılan ürünleri keşfet.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -230,6 +243,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -393,7 +413,7 @@ function buildSidebar(){
   let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
     <div class="sidebar-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="g-local-search" placeholder="Ürün ara..." value="${localSearchQuery.replace(/"/g,'&quot;')}">
+      <input type="text" id="g-local-search" placeholder="Ürün ara..." value="${escapeAttr(localSearchQuery)}">
     </div>`;
   FILTER_GROUPS.forEach(g => {
     const passing = products.filter(p => passesFilters(p, g.key));
@@ -406,8 +426,8 @@ function buildSidebar(){
       <div class="filter-group-body" id="fg-${g.key}">
         ${options.map(opt => `
           <label class="filter-opt">
-            <input type="checkbox" data-key="${g.key}" value="${opt.replace(/"/g,'&quot;')}" ${activeFilters[g.key].has(opt)?'checked':''}>
-            <span>${opt}</span>
+            <input type="checkbox" data-key="${g.key}" value="${escapeAttr(opt)}" ${activeFilters[g.key].has(opt)?'checked':''}>
+            <span>${escapeHtml(opt)}</span>
             <span class="filter-opt-count">(${counts[opt]})</span>
           </label>`).join('')}
       </div>
@@ -450,8 +470,8 @@ function renderActiveChips(){
   FILTER_GROUPS.forEach(g => activeFilters[g.key].forEach(v => chips.push({key:g.key, val:v})));
   if(chips.length === 0){ wrap.innerHTML = ''; return; }
   wrap.innerHTML = chips.map(c => `
-    <span class="active-chip" data-key="${c.key}" data-val="${c.val.replace(/"/g,'&quot;')}">
-      ${c.val}
+    <span class="active-chip" data-key="${c.key}" data-val="${escapeAttr(c.val)}">
+      ${escapeHtml(c.val)}
       <button aria-label="Kaldır"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </span>`).join('');
   wrap.querySelectorAll('.active-chip button').forEach(btn=>{

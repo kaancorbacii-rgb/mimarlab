@@ -7,6 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>İletişim — MİMARLAB</title>
+<meta name="description" content="MİMARLAB ile iletişime geç — soru, öneri ve iş birliği için bize ulaş.">
+<link rel="canonical" href="https://mimarlab.com/iletisim">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="İletişim — MİMARLAB">
+<meta property="og:description" content="MİMARLAB ile iletişime geç — soru, öneri ve iş birliği için bize ulaş.">
+<meta property="og:url" content="https://mimarlab.com/iletisim">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="İletişim — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB ile iletişime geç — soru, öneri ve iş birliği için bize ulaş.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -65,6 +78,17 @@
   .content-section p{font-size:14.5px; line-height:1.75; color:var(--ink-soft); margin:0 0 12px;}
   .content-section a{color:var(--walnut); font-weight:600;}
   .content-section a:hover{text-decoration:underline;}
+  .contact-form-field{margin-bottom:14px;}
+  .contact-form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
+  .contact-form-field input, .contact-form-field textarea{width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line); background:var(--paper-card); font-family:inherit; font-size:14px; color:var(--ink);}
+  .contact-form-field textarea{min-height:120px; resize:vertical; line-height:1.5;}
+  .contact-form-field input:focus-visible, .contact-form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
+  .contact-submit{background:var(--ink); color:var(--paper-card); border:none; padding:13px 26px; border-radius:100px; font-weight:600; font-size:14.5px;}
+  .contact-submit:hover{background:var(--walnut);}
+  .contact-submit:disabled{opacity:0.6; cursor:not-allowed;}
+  .contact-notice{display:none; margin-top:14px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
+  .contact-notice.show{display:block;}
+  .contact-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
 
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
@@ -92,6 +116,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -148,6 +179,27 @@
     </a>
 
     <div class="content-section">
+      <h2>Bize yaz</h2>
+      <p>Formu doldurup gönder, mesajın ekibimize ulaşsın.</p>
+      <form id="contact-form">
+        <div class="contact-form-field">
+          <label for="contact-name">Ad Soyad</label>
+          <input type="text" id="contact-name" placeholder="Adın Soyadın" required>
+        </div>
+        <div class="contact-form-field">
+          <label for="contact-email">E-posta</label>
+          <input type="email" id="contact-email" placeholder="ornek@eposta.com" required>
+        </div>
+        <div class="contact-form-field">
+          <label for="contact-message">Mesajın</label>
+          <textarea id="contact-message" placeholder="Mesajını yaz..." required></textarea>
+        </div>
+        <button class="contact-submit" type="submit">Gönder</button>
+        <div class="contact-notice" id="contact-notice"></div>
+      </form>
+    </div>
+
+    <div class="content-section">
       <h2>Genel sorular</h2>
       <p>Platform, üyelik ya da içeriklerle ilgili genel sorularınızı doğrudan e-posta ile iletebilirsiniz.</p>
     </div>
@@ -184,6 +236,39 @@
   </footer>
 
 <script>
+document.getElementById('contact-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const notice = document.getElementById('contact-notice');
+  const submitBtn = e.target.querySelector('.contact-submit');
+  notice.classList.remove('show', 'success');
+  submitBtn.disabled = true;
+  try{
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name: document.getElementById('contact-name').value,
+        email: document.getElementById('contact-email').value,
+        message: document.getElementById('contact-message').value,
+      }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
+      notice.classList.add('show');
+      return;
+    }
+    notice.textContent = 'Mesajın alındı, en kısa sürede dönüş yapacağız.';
+    notice.classList.add('show', 'success');
+    e.target.reset();
+  }catch(err){
+    notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+    notice.classList.add('show');
+  }finally{
+    submitBtn.disabled = false;
+  }
+});
+
 function wireNavSearch(){
   document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
     inp.addEventListener('keydown', (e)=>{

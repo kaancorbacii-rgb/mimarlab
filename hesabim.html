@@ -7,6 +7,20 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Hesabım — MİMARLAB</title>
+<meta name="description" content="MİMARLAB hesap yönetimi.">
+<link rel="canonical" href="https://mimarlab.com/hesabim">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Hesabım — MİMARLAB">
+<meta property="og:description" content="MİMARLAB hesap yönetimi.">
+<meta property="og:url" content="https://mimarlab.com/hesabim">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hesabım — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB hesap yönetimi.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -101,7 +115,6 @@
   }
   .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
 
-  .dash-grid{display:grid; grid-template-columns:2fr 1fr; gap:24px; align-items:start;}
   .dash-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;}
   .dash-section h2{font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0 0 4px;}
   .dash-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
@@ -117,15 +130,6 @@
   .profile-fact-label{color:var(--ink-soft); flex:0 0 110px;}
   .profile-fact-value{font-weight:600;}
 
-  .quick-links{display:flex; flex-direction:column; gap:8px;}
-  .quick-link{
-    display:flex; align-items:center; gap:10px;
-    padding:11px 14px; border-radius:10px; border:1px solid var(--line-soft);
-    font-size:13.5px; font-weight:600; color:var(--ink);
-  }
-  .quick-link:hover{border-color:var(--brass); background:var(--paper-alt);}
-  .quick-link svg{flex-shrink:0; color:var(--brass);}
-
   .saved-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft);}
   .saved-row:last-child{border-bottom:none;}
   .saved-row-link{display:flex; align-items:center; gap:12px; flex:1; min-width:0;}
@@ -140,6 +144,16 @@
 
   .submission-edit-link{font-size:11.5px; font-weight:600; color:var(--walnut);}
   .submission-edit-link:hover{text-decoration:underline;}
+
+  /* ---------- BİLDİRİMLER ---------- */
+  .notif-row{display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--line-soft); cursor:pointer;}
+  .notif-row:last-child{border-bottom:none;}
+  .notif-row.unread{background:rgba(224,138,62,0.07); margin:0 -10px; padding:12px 10px; border-radius:10px;}
+  .notif-dot-col{width:8px; flex-shrink:0; padding-top:5px;}
+  .notif-dot{display:block; width:8px; height:8px; border-radius:50%; background:var(--accent);}
+  .notif-title{font-size:13.5px; font-weight:600;}
+  .notif-body{font-size:12.5px; color:var(--ink-soft); margin-top:2px; line-height:1.5;}
+  .notif-meta{font-size:11px; color:var(--ink-soft); margin-top:4px;}
 
   .dash-field{margin-bottom:12px;}
   .dash-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
@@ -174,17 +188,32 @@
   .badge-card-name{font-weight:600; font-size:13.5px; margin-bottom:2px;}
   .badge-card-price{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--sage); margin-bottom:10px;}
   .badge-buy-btn{
-    width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:8px;
+    display:block; width:100%; text-align:center; background:var(--ink); color:var(--paper-card); border:none; padding:8px;
     border-radius:100px; font-weight:600; font-size:12px;
   }
   .badge-buy-btn:hover{background:var(--walnut);}
-  .badge-buy-btn:disabled{background:var(--paper-alt); color:var(--ink-soft); cursor:default;}
   .badge-status-pill{display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:100px;}
   @media (max-width:480px){ .badge-grid{grid-template-columns:1fr;} }
 
-  @media (max-width:860px){
-    .dash-grid{grid-template-columns:1fr;}
+  /* ---------- FOOTER (shared) ---------- */
+  .site-footer{background:var(--ink); color:var(--paper); margin-top:20px;}
+  .footer-top{
+    max-width:1080px; margin:0 auto;
+    padding:48px 32px 32px;
+    display:grid; grid-template-columns:2fr 1fr 1fr 1fr;
+    gap:32px;
   }
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
   @media (max-width:720px){
     .nav{padding:14px 18px; gap:10px;}
     .nav-search{display:none;}
@@ -193,8 +222,17 @@
     .nav-right{margin-left:auto;}
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .dash-wrap{padding:24px 18px 70px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px; padding:40px 18px 24px;}
+    .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -277,70 +315,113 @@
       </div>
       <button class="dash-edit-btn" id="dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
       <span id="dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
+
+      <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
+      <h2 style="font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0 0 16px;">Şifre Değiştir</h2>
+      <div class="dash-field">
+        <label for="pw-current">Mevcut Şifre</label>
+        <input type="password" id="pw-current" autocomplete="current-password">
+      </div>
+      <div class="dash-field">
+        <label for="pw-new">Yeni Şifre</label>
+        <input type="password" id="pw-new" autocomplete="new-password">
+      </div>
+      <div class="dash-field">
+        <label for="pw-new-confirm">Yeni Şifre (Tekrar)</label>
+        <input type="password" id="pw-new-confirm" autocomplete="new-password">
+      </div>
+      <button class="dash-edit-btn" id="pw-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Şifreyi Güncelle</button>
+      <span id="pw-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
+      <p style="margin:14px 0 0; font-size:12.5px;"><a href="#" id="pw-forgot-link" style="color:var(--walnut); font-weight:600;">Şifremi unuttum</a></p>
     </div>
 
-    <div class="dash-grid">
-      <div>
-        <div class="dash-section">
-          <h2>Gönderdiğim İçerikler</h2>
-          <p class="section-hint">Eklediğin ofis, proje, ürün ve iş ilanları burada listelenir.</p>
-          <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
-        </div>
+    <div class="dash-section">
+      <h2>Profil Bilgileri</h2>
+      <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="fact-name">—</span></div>
+      <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="fact-profession">—</span></div>
+      <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
+      <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="fact-dob">—</span></div>
+      <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="fact-joined">—</span></div>
+    </div>
 
-        <div class="dash-section">
-          <h2>Kaydettiklerim</h2>
-          <p class="section-hint">Beğendiğin proje, ürün, haber ve iş ilanlarını kaydedip buradan takip et.</p>
-          <div class="saved-filter" id="saved-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-            <button type="button" class="saved-filter-btn" data-filter="news">Haber</button>
-            <button type="button" class="saved-filter-btn" data-filter="job">İş İlanı</button>
-          </div>
-          <div id="dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
-        </div>
+    <div class="dash-section" id="claims-section" style="display:none;">
+      <h2>Mimar/Marka Profilim</h2>
+      <p class="section-hint">Sahiplendiğin ve onayı geçen profilleri buradan düzenleyebilirsin.</p>
+      <div id="claims-mine-list"></div>
+    </div>
+
+    <div class="dash-section">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
+        <h2 style="margin:0;">Bildirimler</h2>
+        <button type="button" id="notif-read-all-btn" style="background:none; border:none; color:var(--walnut); font-weight:600; font-size:12px; padding:0;">Tümünü okundu işaretle</button>
       </div>
+      <p class="section-hint">Profil/rozet taleplerin onaylanıp reddedildiğinde, bir gönderin yayına girdiğinde ya da yorum aldığında burada görünür.</p>
+      <div id="dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
+    </div>
 
-      <div>
-        <div class="dash-section">
-          <h2>Profil Bilgileri</h2>
-          <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="fact-name">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="fact-dob">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="fact-joined">—</span></div>
-        </div>
+    <div class="dash-section">
+      <h2>Gönderdiğim İçerikler</h2>
+      <p class="section-hint">Eklediğin ofis, proje, ürün ve iş ilanları burada listelenir.</p>
+      <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
+    </div>
 
-        <div class="dash-section">
-          <h2>Şifre Değiştir</h2>
-          <div class="dash-field">
-            <label for="pw-current">Mevcut Şifre</label>
-            <input type="password" id="pw-current" autocomplete="current-password">
-          </div>
-          <div class="dash-field">
-            <label for="pw-new">Yeni Şifre</label>
-            <input type="password" id="pw-new" autocomplete="new-password">
-          </div>
-          <button class="dash-edit-btn" id="pw-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Şifreyi Güncelle</button>
-          <span id="pw-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
-        </div>
-
-        <div class="dash-section">
-          <h2>Doğrulanmış Profil Rozeti Al</h2>
-          <p class="section-hint">Ödeme altyapımız yakında aktif olacak — talebini gönder, biz onayladığımızda rozetin, sahiplendiğin mimar/ofis profilinde görünür.</p>
-          <div class="badge-grid" id="badge-grid"></div>
-        </div>
-
-        <div class="dash-section">
-          <h2>Hızlı Bağlantılar</h2>
-          <div class="quick-links">
-            <a class="quick-link" href="mimar.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg> Mimarları Keşfet</a>
-            <a class="quick-link" href="ofis.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="20"/></svg> Markaları Keşfet</a>
-            <a class="quick-link" href="is-ilani.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="6" width="4" height="15"/><rect x="17" y="3" width="4" height="18"/></svg> İş İlanlarına Göz At</a>
-          </div>
-        </div>
+    <div class="dash-section">
+      <h2>Kaydettiklerim</h2>
+      <p class="section-hint">Beğendiğin proje, ürün, haber ve iş ilanlarını kaydedip buradan takip et.</p>
+      <div class="saved-filter" id="saved-filter">
+        <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+        <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+        <button type="button" class="saved-filter-btn" data-filter="news">Haber</button>
+        <button type="button" class="saved-filter-btn" data-filter="job">İş İlanı</button>
       </div>
+      <div id="dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
+    </div>
+
+    <div class="dash-section">
+      <h2>Rozet Ayrıcalıklarından Faydalan</h2>
+      <p class="section-hint">Rozetler aylık kiralanır ve aynı anda yalnızca bir rozet taşıyabilirsin.</p>
+      <div class="badge-grid" id="badge-grid"></div>
     </div>
   </div>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+        </a>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Ana Menü</h4>
+        <a href="proje.html">Proje</a>
+        <a href="urun.html">Ürün</a>
+        <a href="haber.html">Haber</a>
+        <a href="is-ilani.html">İş İlanı</a>
+      </div>
+      <div class="footer-col">
+        <h4>Topluluk</h4>
+        <a href="mimar.html">Mimar</a>
+        <a href="ofis.html">Marka</a>
+        <a href="giris-yap.html">Giriş Yap</a>
+        <a href="uye-ol.html">Üye Ol</a>
+      </div>
+      <div class="footer-col">
+        <h4>Kurumsal</h4>
+        <a href="hakkinda.html">Hakkında</a>
+        <a href="reklam.html">Reklam</a>
+        <a href="iletisim.html">İletişim</a>
+        <a href="kariyer.html">Kariyer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
+  </footer>
 
 <script>
 const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber' };
@@ -351,6 +432,7 @@ const EDIT_PAGE_BY_TYPE = {
   jobs: 'is-ilani-ver.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html',
 };
 const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', news: 'Haber', job: 'İş İlanı' };
+const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', diger:'Diğer' };
 let currentUser = null;
 
 function initials(name){
@@ -378,6 +460,7 @@ async function loadUser(){
   document.getElementById('dash-title').textContent = 'Hoş Geldin, ' + (currentUser.name || '').split(' ')[0];
   document.getElementById('dash-sub').textContent = currentUser.email + ' · MİMARLAB üyesi';
   document.getElementById('fact-name').textContent = currentUser.name || '—';
+  document.getElementById('fact-profession').textContent = PROFESSION_LABELS[currentUser.profession] || currentUser.profession || '—';
   document.getElementById('fact-school').textContent = currentUser.school || '—';
   document.getElementById('fact-dob').textContent = currentUser.dob || '—';
   document.getElementById('fact-joined').textContent = new Date(currentUser.createdAt).toLocaleDateString('tr-TR', {year:'numeric', month:'long'});
@@ -468,7 +551,7 @@ async function loadSubmissions(){
   all.sort((a, b) => b.item.created_at - a.item.created_at);
 
   if(!all.length){
-    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="ofis-ekle.html">Ofis Ekle</a> · <a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="is-ilani-ver.html">İş İlanı Ver</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="haber-ekle.html">Haber Ekle</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="haber-ekle.html">Haber Ekle</a> · <a href="is-ilani-ver.html">İş İlanı Ver</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="ofis-ekle.html">Marka Ekle</a></div>';
     return;
   }
   container.innerHTML = all.map(({type, item}) => `
@@ -536,59 +619,53 @@ document.getElementById('saved-filter').addEventListener('click', (e)=>{
 });
 
 const BADGE_TIERS = [
-  { type:'student', label:'Öğrenci', price:'9,90 TL' },
-  { type:'architect', label:'Mimar', price:'49,90 TL' },
-  { type:'brand', label:'Marka', price:'99,90 TL' },
-  { type:'gold', label:'Gold', price:'199,90 TL' },
-  { type:'platinum', label:'Platinyum', price:'399,90 TL' },
+  { type:'destekci', label:'Destekçi', price:'19,90 TL' },
+  { type:'verified', label:'Doğrulanmış Üye', price:'39,90 TL' },
+  { type:'gold', label:'Altın Üye', price:'79,90 TL' },
+  { type:'platinum', label:'Elmas Üye', price:'139,90 TL' },
 ];
 const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
 const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };
 
+// Bir kişi/marka aynı anda yalnızca 1 rozet taşıyabilir (rozetler aylık kiralanır): aktif ya da
+// bekleyen bir talebin varsa diğer kademeler için "Satın Al" yerine bilgilendirme gösterilir.
 async function loadBadges(){
   const res = await fetch('/api/badges/mine');
   const data = res.ok ? await res.json() : { items: [] };
-  const latestByType = {};
-  (data.items || []).forEach(b => { if(!latestByType[b.badge_type]) latestByType[b.badge_type] = b; });
+  const items = data.items || [];
+  const now = Date.now();
+  const activeBadge = items.find(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
+  const pendingBadge = items.find(b => b.status === 'pending');
 
   const grid = document.getElementById('badge-grid');
   grid.innerHTML = BADGE_TIERS.map(tier => {
-    const existing = latestByType[tier.type];
-    const statusHtml = existing
-      ? `<span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS[existing.status]}; background:${BADGE_STATUS_COLORS[existing.status]}22;">${BADGE_STATUS_LABELS[existing.status]}</span>`
-      : `<button type="button" class="badge-buy-btn" data-type="${tier.type}">Satın Al</button>`;
+    let statusHtml;
+    if(activeBadge && activeBadge.badge_type === tier.type){
+      const until = activeBadge.expires_at ? new Date(activeBadge.expires_at).toLocaleDateString('tr-TR', {day:'numeric', month:'long', year:'numeric'}) : '';
+      statusHtml = `<span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS.active}; background:${BADGE_STATUS_COLORS.active}22;">Aktif</span>${until ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">${until} tarihine kadar</div>` : ''}`;
+    } else if(pendingBadge && pendingBadge.badge_type === tier.type){
+      statusHtml = `<span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS.pending}; background:${BADGE_STATUS_COLORS.pending}22;">İnceleniyor</span>`;
+    } else if(activeBadge || pendingBadge){
+      statusHtml = `<div style="font-size:11px; color:var(--ink-soft); line-height:1.4;">Önce mevcut rozetinin süresi dolmalı</div>`;
+    } else {
+      statusHtml = `<a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>`;
+    }
     return `
       <div class="badge-card">
         <div class="badge-card-name">${tier.label}</div>
-        <div class="badge-card-price">${tier.price}</div>
+        <div class="badge-card-price">${tier.price} / ay</div>
         ${statusHtml}
       </div>`;
   }).join('');
-
-  grid.querySelectorAll('.badge-buy-btn').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      btn.disabled = true;
-      btn.textContent = 'Gönderiliyor…';
-      try{
-        const res = await fetch('/api/badges', {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ badgeType: btn.dataset.type }),
-        });
-        if(!res.ok) throw new Error();
-        await loadBadges();
-      }catch{
-        btn.disabled = false;
-        btn.textContent = 'Satın Al';
-      }
-    });
-  });
 }
 
 document.getElementById('pw-save-btn').addEventListener('click', async ()=>{
   const msg = document.getElementById('pw-save-msg');
   const currentPassword = document.getElementById('pw-current').value;
   const newPassword = document.getElementById('pw-new').value;
+  const newPasswordConfirm = document.getElementById('pw-new-confirm').value;
   if(newPassword.length < 8){ msg.textContent = 'Yeni şifre en az 8 karakter olmalı.'; return; }
+  if(newPassword !== newPasswordConfirm){ msg.textContent = 'Yeni şifreler eşleşmiyor.'; return; }
   const res = await fetch('/api/auth/change-password', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -599,7 +676,26 @@ document.getElementById('pw-save-btn').addEventListener('click', async ()=>{
   msg.textContent = 'Şifre güncellendi.';
   document.getElementById('pw-current').value = '';
   document.getElementById('pw-new').value = '';
+  document.getElementById('pw-new-confirm').value = '';
   setTimeout(()=> msg.textContent = '', 3000);
+});
+
+document.getElementById('pw-forgot-link').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  const msg = document.getElementById('pw-save-msg');
+  if(!currentUser) return;
+  msg.textContent = 'Gönderiliyor…';
+  try{
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: currentUser.email }),
+    });
+    const data = await res.json().catch(()=>({}));
+    msg.textContent = data.message || 'Şifre sıfırlama bağlantısı e-postana gönderildi.';
+  }catch{
+    msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+  }
 });
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -613,7 +709,70 @@ function safeUrl(u){
   return '';
 }
 
-loadUser().then(() => { if(currentUser){ loadSubmissions(); loadSaved(); loadBadges(); } });
+const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Marka' };
+const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
+const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
+const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'ofis-ekle.html' };
+
+// "Bu profil bana ait" ile onaylanan mimar/ofis profilleri: onaylı olanlar için ilgili ekle
+// formunu ?claim=<isim> modunda açan bir Düzenle bağlantısı gösterir (bkz. mimar-ekle.html/ofis-ekle.html).
+async function loadMyClaims(){
+  const res = await fetch('/api/claims/mine');
+  const data = res.ok ? await res.json() : { items: [] };
+  const items = data.items || [];
+  const section = document.getElementById('claims-section');
+  if(!items.length){ section.style.display = 'none'; return; }
+  section.style.display = '';
+  document.getElementById('claims-mine-list').innerHTML = items.map(c => `
+    <div class="profile-fact">
+      <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
+      <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
+        <span>${escapeHtml(c.profile_key)}</span>
+        ${c.status === 'approved'
+          ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
+          : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
+      </span>
+    </div>
+  `).join('');
+}
+
+async function loadNotifications(){
+  const container = document.getElementById('dash-notifications');
+  const res = await fetch('/api/notifications/mine');
+  const data = res.ok ? await res.json() : { items: [] };
+  const items = data.items || [];
+  if(!items.length){
+    container.innerHTML = '<div class="dash-empty">Henüz bir bildirimin yok.</div>';
+    return;
+  }
+  container.innerHTML = items.map(n => `
+    <div class="notif-row${n.is_read ? '' : ' unread'}" data-id="${n.id}">
+      <div class="notif-dot-col">${n.is_read ? '' : '<span class="notif-dot"></span>'}</div>
+      <div style="flex:1; min-width:0;">
+        <div class="notif-title">${escapeHtml(n.title)}</div>
+        ${n.body ? `<div class="notif-body">${escapeHtml(n.body)}</div>` : ''}
+        <div class="notif-meta">${new Date(n.created_at).toLocaleDateString('tr-TR', {day:'numeric', month:'long', year:'numeric'})}</div>
+      </div>
+    </div>`).join('');
+  container.querySelectorAll('.notif-row.unread').forEach(row=>{
+    row.addEventListener('click', async ()=>{
+      row.classList.remove('unread');
+      const dot = row.querySelector('.notif-dot');
+      if(dot) dot.remove();
+      try{
+        await fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, {
+          method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({is_read:true}),
+        });
+      }catch{}
+    }, { once:true });
+  });
+}
+
+document.getElementById('notif-read-all-btn').addEventListener('click', async ()=>{
+  try{ await fetch('/api/notifications/read-all', { method:'POST' }); } finally { loadNotifications(); }
+});
+
+loadUser().then(() => { if(currentUser){ loadSubmissions(); loadSaved(); loadBadges(); loadMyClaims(); loadNotifications(); } });
 
 function wireNavSearch(){
   document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{

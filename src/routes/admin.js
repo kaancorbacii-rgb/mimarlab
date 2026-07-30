@@ -1,12 +1,21 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
-import { newId } from '../lib/crypto.js';
-import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../lib/submissionTypes.js';
+import { createNotification } from '../lib/notify.js';
 
 const TYPE_BY_PATH = {
   offices: 'offices', projects: 'projects', products: 'products', jobs: 'jobs',
   architects: 'architects', news: 'news',
 };
+
+// Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
+// de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
+const SUBMISSION_TYPE_LABELS = {
+  offices: 'Ofis', projects: 'Proje', products: 'Ürün', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber',
+};
+
+const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Marka' };
+const BADGE_TYPE_LABELS_SERVER = { destekci: 'Destekçi', verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye' };
 
 async function requireAdmin(request, env) {
   const user = await getSessionUser(request, env);
@@ -24,9 +33,31 @@ export async function handleAdminRoute(request, env, url) {
 
   if (sub === 'users' && request.method === 'GET') return listUsers(env);
   if (sub === 'submissions') return handleSubmissionsAdmin(request, env, url, segments);
-  if (sub === 'news') return handleNewsAdmin(request, env, segments);
   if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
+  if (sub === 'contact') return handleContactAdmin(request, env, segments);
+  return errorJson('Bulunamadı', 404);
+}
+
+// /api/admin/contact  (GET: listeler)
+// /api/admin/contact/:id  (PATCH: is_read günceller, DELETE: siler)
+async function handleContactAdmin(request, env, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const { results } = await env.DB.prepare('SELECT * FROM contact_messages ORDER BY created_at DESC').all();
+    return json({ items: results });
+  }
+  if (segments.length === 4) {
+    const id = segments[3];
+    if (request.method === 'PATCH') {
+      const body = await readJson(request);
+      await env.DB.prepare('UPDATE contact_messages SET is_read = ? WHERE id = ?').bind(body.is_read ? 1 : 0, id).run();
+      return json({ ok: true });
+    }
+    if (request.method === 'DELETE') {
+      await env.DB.prepare('DELETE FROM contact_messages WHERE id = ?').bind(id).run();
+      return json({ ok: true });
+    }
+  }
   return errorJson('Bulunamadı', 404);
 }
 
@@ -60,11 +91,22 @@ async function handleSubmissionsAdmin(request, env, url, segments) {
 
     if (request.method === 'PATCH') {
       const body = await readJson(request);
+      const existing = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+      if (!existing) return errorJson('Bulunamadı', 404);
+      const invalidUrlField = findInvalidUrlField(typeKey, body);
+      if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);
+
       const updates = [];
       const values = [];
       if (body.status && ['pending', 'approved', 'rejected'].includes(body.status)) {
         updates.push('status = ?');
         values.push(body.status);
+        // İş ilanları 30 gün yayında kalır (bkz. src/routes/public.js#handlePublicRoute); her
+        // (yeniden) onayda published_at şimdiki zamana sıfırlanır, yayın süresi baştan başlar.
+        if (typeKey === 'jobs' && body.status === 'approved') {
+          updates.push('published_at = ?');
+          values.push(Date.now());
+        }
       }
       for (const field of config.fields) {
         if (!(field in body)) continue;
@@ -78,57 +120,32 @@ async function handleSubmissionsAdmin(request, env, url, segments) {
       values.push(Date.now());
       values.push(id);
       await env.DB.prepare(`UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+
+      // Durum fiilen değiştiyse (onaylandı/reddedildi) gönderi sahibine bildirim düşer.
+      if (body.status && body.status !== existing.status && (body.status === 'approved' || body.status === 'rejected')) {
+        const label = SUBMISSION_TYPE_LABELS[typeKey] || typeKey;
+        const name = existing.name || existing.title || '';
+        if (body.status === 'approved') {
+          await createNotification(
+            env, existing.owner_user_id, 'submission_approved',
+            `${label} gönderin onaylandı`,
+            name ? `"${name}" yayına alındı.` : null,
+            'hesabim.html'
+          );
+        } else {
+          await createNotification(
+            env, existing.owner_user_id, 'submission_rejected',
+            `${label} gönderin reddedildi`,
+            name ? `"${name}" için gönderdiğin içerik reddedildi.` : null,
+            'hesabim.html'
+          );
+        }
+      }
       return json({ ok: true });
     }
 
     if (request.method === 'DELETE') {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
-      return json({ ok: true });
-    }
-  }
-  return errorJson('Bulunamadı', 404);
-}
-
-// Haber: onay akışı yok, admin doğrudan yönetir.
-async function handleNewsAdmin(request, env, segments) {
-  if (segments.length === 3) {
-    if (request.method === 'GET') {
-      const { results } = await env.DB.prepare('SELECT * FROM news ORDER BY created_at DESC').all();
-      return json({ items: results });
-    }
-    if (request.method === 'POST') {
-      const body = await readJson(request);
-      if (!body.title) return errorJson('Başlık gerekli.');
-      const id = newId();
-      const now = Date.now();
-      await env.DB.prepare(
-        `INSERT INTO news (id, title, category, source, description, image_url, published, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(id, body.title, body.category || null, body.source || null, body.description || null,
-        body.image_url || null, body.published === false ? 0 : 1, now, now).run();
-      return json({ id }, 201);
-    }
-  }
-  if (segments.length === 4) {
-    const id = segments[3];
-    if (request.method === 'PATCH') {
-      const body = await readJson(request);
-      const fields = ['title', 'category', 'source', 'description', 'image_url'];
-      const updates = [];
-      const values = [];
-      for (const f of fields) {
-        if (f in body) { updates.push(`${f} = ?`); values.push(body[f]); }
-      }
-      if ('published' in body) { updates.push('published = ?'); values.push(body.published ? 1 : 0); }
-      if (!updates.length) return errorJson('Güncellenecek bir şey yok.');
-      updates.push('updated_at = ?');
-      values.push(Date.now());
-      values.push(id);
-      await env.DB.prepare(`UPDATE news SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
-      return json({ ok: true });
-    }
-    if (request.method === 'DELETE') {
-      await env.DB.prepare('DELETE FROM news WHERE id = ?').bind(id).run();
       return json({ ok: true });
     }
   }
@@ -157,13 +174,36 @@ async function handleClaimsAdmin(request, env, url, segments) {
     const id = segments[3];
     const body = await readJson(request);
     if (!['approved', 'rejected'].includes(body.status)) return errorJson('Geçersiz durum.');
+    const claim = await env.DB.prepare(
+      'SELECT user_id, profile_type, profile_key FROM profile_claims WHERE id = ?'
+    ).bind(id).first();
+    if (!claim) return errorJson('Bulunamadı', 404);
     await env.DB.prepare(
       'UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?'
     ).bind(body.status, Date.now(), id).run();
+
+    const typeLabel = CLAIM_TYPE_LABELS_SERVER[claim.profile_type] || claim.profile_type;
+    if (body.status === 'approved') {
+      await createNotification(
+        env, claim.user_id, 'claim_approved',
+        `${typeLabel} profili talebin onaylandı`,
+        `"${claim.profile_key}" profilini artık Hesabım sayfandan düzenleyebilirsin.`,
+        'hesabim.html'
+      );
+    } else {
+      await createNotification(
+        env, claim.user_id, 'claim_rejected',
+        `${typeLabel} profili talebin reddedildi`,
+        `"${claim.profile_key}" için gönderdiğin sahiplenme talebi reddedildi.`,
+        'hesabim.html'
+      );
+    }
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);
 }
+
+const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır
 
 // /api/admin/badges?status=pending
 // /api/admin/badges/:id  (PATCH: status günceller — active/rejected)
@@ -187,9 +227,40 @@ async function handleBadgesAdmin(request, env, url, segments) {
     const id = segments[3];
     const body = await readJson(request);
     if (!['active', 'rejected'].includes(body.status)) return errorJson('Geçersiz durum.');
-    await env.DB.prepare(
-      'UPDATE badge_requests SET status = ?, updated_at = ? WHERE id = ?'
-    ).bind(body.status, Date.now(), id).run();
+    const now = Date.now();
+    const row = await env.DB.prepare('SELECT user_id, badge_type FROM badge_requests WHERE id = ?').bind(id).first();
+    if (!row) return errorJson('Bulunamadı', 404);
+    if (body.status === 'active') {
+      // Bir kullanıcı aynı anda yalnızca 1 rozet tutabilir: bu onaylanınca aynı kullanıcının
+      // başka bekleyen/aktif rozet taleplerini geçersiz kıl.
+      await env.DB.prepare(
+        `UPDATE badge_requests SET status = 'rejected', updated_at = ? WHERE user_id = ? AND id != ? AND status IN ('pending', 'active')`
+      ).bind(now, row.user_id, id).run();
+      await env.DB.prepare(
+        `UPDATE badge_requests SET status = 'active', expires_at = ?, updated_at = ? WHERE id = ?`
+      ).bind(now + BADGE_RENTAL_MS, now, id).run();
+    } else {
+      await env.DB.prepare(
+        'UPDATE badge_requests SET status = ?, updated_at = ? WHERE id = ?'
+      ).bind(body.status, now, id).run();
+    }
+
+    const badgeLabel = BADGE_TYPE_LABELS_SERVER[row.badge_type] || row.badge_type;
+    if (body.status === 'active') {
+      await createNotification(
+        env, row.user_id, 'badge_approved',
+        `${badgeLabel} rozet talebin onaylandı`,
+        'Rozetin artık aktif — Hesabım sayfandan durumunu görebilirsin.',
+        'hesabim.html'
+      );
+    } else {
+      await createNotification(
+        env, row.user_id, 'badge_rejected',
+        `${badgeLabel} rozet talebin reddedildi`,
+        null,
+        'hesabim.html'
+      );
+    }
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);

@@ -7,6 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Haberler — MİMARLAB</title>
+<meta name="description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler.">
+<link rel="canonical" href="https://mimarlab.com/haber">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Haberler — MİMARLAB">
+<meta property="og:description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler.">
+<meta property="og:url" content="https://mimarlab.com/haber">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Haberler — MİMARLAB">
+<meta name="twitter:description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -212,6 +225,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -449,9 +469,9 @@ function render(){
   const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
   grid.innerHTML = pageItems.map(n => `
-    <a class="content-card" href="haber-detay.html?haber=${encodeURIComponent(n.id)}">
+    <a class="content-card" href="/haberler/${encodeURIComponent(n.id)}">
       <img src="${escapeAttr(n.image)}" alt="${escapeAttr(n.title)}" loading="lazy">
-      <button class="card-save-btn" type="button" data-key="${escapeAttr(n.id)}" data-title="${escapeAttr(n.title)}" data-meta="${escapeAttr(n.category||'')}" data-image="${escapeAttr(n.image||'')}" data-href="haber-detay.html?haber=${encodeURIComponent(n.id)}" aria-label="Kaydet">
+      <button class="card-save-btn" type="button" data-key="${escapeAttr(n.id)}" data-title="${escapeAttr(n.title)}" data-meta="${escapeAttr(n.category||'')}" data-image="${escapeAttr(n.image||'')}" data-href="/haberler/${encodeURIComponent(n.id)}" aria-label="Kaydet">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
       </button>
       <div class="content-card-info">

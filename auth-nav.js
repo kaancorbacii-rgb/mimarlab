@@ -11,6 +11,9 @@
     d.textContent = s;
     return d.innerHTML;
   }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
   function injectStyleOnce() {
     if (document.getElementById('auth-nav-style')) return;
     const style = document.createElement('style');
@@ -44,7 +47,7 @@
     injectStyleOnce();
     const adminLink = user.role === 'admin' ? '<a href="admin.html">Admin Paneli</a>' : '';
     const avatarInner = user.photoUrl
-      ? `<img src="${escapeHtml(user.photoUrl)}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
+      ? `<img src="${escapeAttr(user.photoUrl)}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
       : initials(user.name);
     navRight.innerHTML = `
       <div class="nav-avatar-wrap">

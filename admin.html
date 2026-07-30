@@ -7,6 +7,20 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Admin Paneli — MİMARLAB</title>
+<meta name="description" content="MİMARLAB yönetim paneli.">
+<link rel="canonical" href="https://mimarlab.com/admin">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Admin Paneli — MİMARLAB">
+<meta property="og:description" content="MİMARLAB yönetim paneli.">
+<meta property="og:url" content="https://mimarlab.com/admin">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Admin Paneli — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB yönetim paneli.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -106,6 +120,13 @@
     .admin-wrap{padding:16px 16px 70px;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -163,9 +184,9 @@
       <div class="admin-tabs" id="admin-tabs">
         <button class="admin-tab active" data-tab="pending">Bekleyen Gönderiler</button>
         <button class="admin-tab" data-tab="content">Yayındaki İçerikler</button>
-        <button class="admin-tab" data-tab="news">Haberler</button>
         <button class="admin-tab" data-tab="claims">Profil Talepleri</button>
         <button class="admin-tab" data-tab="badges">Rozet Talepleri</button>
+        <button class="admin-tab" data-tab="contact">Mesajlar</button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
       </div>
 
@@ -179,20 +200,6 @@
         <div id="content-list"></div>
       </div>
 
-      <div class="admin-section" id="section-news">
-        <div class="admin-form" id="news-form-card">
-          <h3>Yeni Haber Ekle</h3>
-          <div class="admin-field"><label>Başlık</label><input type="text" id="news-title" placeholder="Haber başlığı"></div>
-          <div class="admin-field"><label>Kategori</label><input type="text" id="news-category" placeholder="ör. Güncel, Yarışma, Ödül"></div>
-          <div class="admin-field"><label>Kaynak (URL)</label><input type="url" id="news-source" placeholder="https://..."></div>
-          <div class="admin-field"><label>Görsel URL <span style="font-weight:400; color:var(--ink-soft);">(opsiyonel — dosya yükleme yakında)</span></label><input type="url" id="news-image" placeholder="https://..."></div>
-          <div class="admin-field"><label>Özet</label><textarea id="news-desc" placeholder="Kısa özet..."></textarea></div>
-          <button class="admin-btn primary" id="news-submit-btn">Yayınla</button>
-          <span id="news-form-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
-        </div>
-        <div id="news-list"></div>
-      </div>
-
       <div class="admin-section" id="section-claims">
         <div class="admin-subtabs" id="claims-subtabs"></div>
         <div id="claims-list"></div>
@@ -201,6 +208,10 @@
       <div class="admin-section" id="section-badges">
         <div class="admin-subtabs" id="badges-subtabs"></div>
         <div id="badges-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-contact">
+        <div id="contact-list"></div>
       </div>
 
       <div class="admin-section" id="section-users">
@@ -246,6 +257,18 @@ function itemMeta(type, item){
 }
 function itemDesc(type, item){
   return item.description || item.about || '';
+}
+
+// İş ilanları onaylandıktan/yeniden onaylandıktan sonra 30 gün yayında kalır (bkz.
+// src/routes/public.js#handlePublicRoute, src/routes/admin.js published_at mantığı) — burada
+// yalnızca admin'e görünürlük için kalan süre/süresi dolmuş bilgisini gösterir.
+const JOB_LISTING_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+function jobExpiryBadge(item){
+  if(!item.published_at) return '';
+  const remainingMs = item.published_at + JOB_LISTING_DURATION_MS - Date.now();
+  if(remainingMs <= 0) return ` <span class="admin-badge badge-rejected">Süresi Doldu</span>`;
+  const days = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+  return ` <span class="admin-badge badge-pending">${days} gün kaldı</span>`;
 }
 
 function renderSubtabs(container, activeType, onSelect){
@@ -303,7 +326,7 @@ async function loadContent(){
     <div class="admin-card" data-id="${item.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${escapeHtml(itemTitle(contentType, item))} <span class="admin-badge badge-approved">Yayında</span></div>
+          <div class="admin-card-title">${escapeHtml(itemTitle(contentType, item))} <span class="admin-badge badge-approved">Yayında</span>${contentType === 'jobs' ? jobExpiryBadge(item) : ''}</div>
           <div class="admin-card-meta">${escapeHtml(itemMeta(contentType, item))}</div>
         </div>
         <div class="admin-actions">
@@ -323,78 +346,12 @@ async function loadContent(){
   });
 }
 
-async function loadNews(){
-  const list = document.getElementById('news-list');
-  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api('/api/admin/news');
-  const items = data.items || [];
-  if(!items.length){ list.innerHTML = '<div class="admin-empty">Henüz haber eklenmedi.</div>'; return; }
-  list.innerHTML = items.map(n => `
-    <div class="admin-card" data-id="${n.id}">
-      <div class="admin-card-head">
-        <div>
-          <div class="admin-card-title">${escapeHtml(n.title)} <span class="admin-badge ${n.published ? 'badge-approved' : 'badge-pending'}">${n.published ? 'Yayında' : 'Taslak'}</span></div>
-          <div class="admin-card-meta">${escapeHtml(n.category || '')}</div>
-        </div>
-        <div class="admin-actions">
-          <button class="admin-btn" data-action="toggle">${n.published ? 'Yayından Kaldır' : 'Yayınla'}</button>
-          <button class="admin-btn danger" data-action="delete">Sil</button>
-        </div>
-      </div>
-      ${n.description ? `<div class="admin-card-desc">${escapeHtml(n.description)}</div>` : ''}
-    </div>
-  `).join('');
-  list.querySelectorAll('[data-action="toggle"]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const card = btn.closest('.admin-card');
-      const id = card.dataset.id;
-      const nowPublished = btn.textContent.trim() === 'Yayınla';
-      await api(`/api/admin/news/${id}`, {
-        method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({published: nowPublished}),
-      });
-      loadNews();
-    });
-  });
-  list.querySelectorAll('[data-action="delete"]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      if(!confirm('Bu haberi silmek istediğine emin misin?')) return;
-      const id = btn.closest('.admin-card').dataset.id;
-      await api(`/api/admin/news/${id}`, { method: 'DELETE' });
-      loadNews();
-    });
-  });
-}
-
-document.getElementById('news-submit-btn').addEventListener('click', async ()=>{
-  const msg = document.getElementById('news-form-msg');
-  const title = document.getElementById('news-title').value.trim();
-  if(!title){ msg.textContent = 'Başlık gerekli.'; return; }
-  await api('/api/admin/news', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      title,
-      category: document.getElementById('news-category').value || null,
-      source: document.getElementById('news-source').value || null,
-      image_url: document.getElementById('news-image').value || null,
-      description: document.getElementById('news-desc').value || null,
-    }),
-  });
-  document.getElementById('news-title').value = '';
-  document.getElementById('news-category').value = '';
-  document.getElementById('news-source').value = '';
-  document.getElementById('news-image').value = '';
-  document.getElementById('news-desc').value = '';
-  msg.textContent = 'Yayınlandı.';
-  setTimeout(()=> msg.textContent = '', 2000);
-  loadNews();
-});
-
 let claimsStatus = 'pending';
 let badgesStatus = 'pending';
 const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
 const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
 const PROFILE_TYPE_LABELS = { architect:'Mimar', office:'Ofis' };
-const BADGE_TYPE_LABELS = { student:'Öğrenci', architect:'Mimar', brand:'Marka', gold:'Gold', platinum:'Platinyum' };
+const BADGE_TYPE_LABELS = { destekci:'Destekçi', verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye' };
 
 function renderStatusSubtabs(container, labels, activeStatus, onSelect){
   container.innerHTML = Object.keys(labels).map(s =>
@@ -449,8 +406,8 @@ async function loadBadgeRequests(){
     <div class="admin-card" data-id="${b.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL</span></div>
-          <div class="admin-card-meta">${escapeHtml(b.user_name)} · ${escapeHtml(b.user_email)} · ${new Date(b.created_at).toLocaleDateString('tr-TR')}</div>
+          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL / ay</span></div>
+          <div class="admin-card-meta">${escapeHtml(b.user_name)} · ${escapeHtml(b.user_email)} · ${new Date(b.created_at).toLocaleDateString('tr-TR')}${b.status === 'active' && b.expires_at ? ` · ${new Date(b.expires_at).toLocaleDateString('tr-TR')} tarihine kadar aktif` : ''}</div>
         </div>
         ${b.status === 'pending' ? `
         <div class="admin-actions">
@@ -467,6 +424,44 @@ async function loadBadgeRequests(){
       btn.disabled = true;
       await api(`/api/admin/badges/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
       loadBadgeRequests();
+    });
+  });
+}
+
+async function loadContactMessages(){
+  const list = document.getElementById('contact-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api('/api/admin/contact');
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Henüz mesaj yok.</div>'; return; }
+  list.innerHTML = items.map(m => `
+    <div class="admin-card" data-id="${m.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(m.name)} ${!m.is_read ? '<span class="admin-badge badge-pending">Yeni</span>' : ''}</div>
+          <div class="admin-card-meta">${escapeHtml(m.email)} · ${new Date(m.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+        <div class="admin-actions">
+          ${!m.is_read ? `<button class="admin-btn" data-action="read">Okundu İşaretle</button>` : ''}
+          <button class="admin-btn danger" data-action="delete">Sil</button>
+        </div>
+      </div>
+      <div class="admin-card-desc">${escapeHtml(m.message)}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action="read"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      await api(`/api/admin/contact/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({is_read: true}) });
+      loadContactMessages();
+    });
+  });
+  list.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Bu mesajı silmek istediğine emin misin?')) return;
+      const id = btn.closest('.admin-card').dataset.id;
+      await api(`/api/admin/contact/${id}`, { method:'DELETE' });
+      loadContactMessages();
     });
   });
 }
@@ -499,9 +494,9 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     document.getElementById('section-' + tab.dataset.tab).classList.add('active');
     if(tab.dataset.tab === 'pending') loadPending();
     if(tab.dataset.tab === 'content') loadContent();
-    if(tab.dataset.tab === 'news') loadNews();
     if(tab.dataset.tab === 'claims') loadClaims();
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
+    if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'users') loadUsers();
   });
 });

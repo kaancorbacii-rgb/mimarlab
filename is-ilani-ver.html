@@ -7,6 +7,20 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>İş İlanı Ver — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'da iş ilanı ver.">
+<link rel="canonical" href="https://mimarlab.com/is-ilani-ver">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="İş İlanı Ver — MİMARLAB">
+<meta property="og:description" content="MİMARLAB'da iş ilanı ver.">
+<meta property="og:url" content="https://mimarlab.com/is-ilani-ver">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="İş İlanı Ver — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB'da iş ilanı ver.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -94,6 +108,16 @@
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
   .form-notice.show{display:block;}
 
+  .access-gate{max-width:820px; margin:28px auto 0; background:var(--paper-card); border:1px solid var(--accent); border-radius:16px; padding:28px; text-align:center;}
+  .access-gate h3{font-family:'Fraunces', serif; font-size:19px; margin:0 0 8px;}
+  .access-gate p{font-size:13.5px; color:var(--ink-soft); margin:0 0 18px; line-height:1.6;}
+  .access-gate-actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .access-gate-actions a, .access-gate-actions button{font-family:inherit; display:inline-flex; padding:12px 24px; border-radius:100px; font-weight:600; font-size:14px; border:none;}
+  .access-gate-actions a{background:var(--ink); color:var(--paper-card);}
+  .access-gate-actions a:hover{background:var(--walnut);}
+  .access-gate-actions button{background:none; border:1.5px solid var(--ink); color:var(--ink);}
+  .access-gate-actions button:hover{background:var(--ink); color:var(--paper-card);}
+
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
   .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
@@ -121,6 +145,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -171,7 +202,16 @@
     <p>Açık pozisyonunu paylaş, ekibimiz inceledikten sonra yayınlansın.</p>
   </div>
 
-  <div class="form-wrap">
+  <div class="access-gate" id="access-gate" style="display:none;">
+    <h3>İş ilanı yayınlamak için Altın Üye ya da Elmas Üye olmalısın</h3>
+    <p>Bu hesapta böyle bir rozet yok. Hesabından Altın ya da Elmas Üye rozeti satın alabilir, ya da bu rozetlerden birine sahip başka bir hesapla giriş yapabilirsin.</p>
+    <div class="access-gate-actions">
+      <a href="hesabim.html">Hesabım'dan Rozet Al</a>
+      <button type="button" id="gate-logout-btn">Çıkış Yap ve Başka Hesapla Gir</button>
+    </div>
+  </div>
+
+  <div class="form-wrap" id="form-wrap">
     <form id="ilan-ver-form">
       <div class="form-section">
         <h2>İlan Bilgileri</h2>
@@ -269,8 +309,30 @@
   </footer>
 
 <script>
-fetch('/api/auth/me').then(res=>{
-  if(!res.ok) window.location.href = 'giris-yap.html';
+const JOB_ELIGIBLE_TIERS = new Set(['gold', 'platinum']);
+const editId = new URLSearchParams(window.location.search).get('edit');
+
+// İş ilanı yayınlamak yalnızca Altın ya da Elmas Üye rozetiyle mümkün (Doğrulanmış Üye yeterli
+// değil). Düzenleme modunda (?edit=) mevcut bir ilanı güncellemek aylık hakkı harcamadığından
+// kontrol atlanır — sunucu tarafı asıl kontrolü zaten yapar (src/routes/submissions.js).
+fetch('/api/auth/me').then(async (res)=>{
+  if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
+  if(editId) return;
+  try{
+    const badgesRes = await fetch('/api/badges/mine');
+    const data = badgesRes.ok ? await badgesRes.json() : { items: [] };
+    const now = Date.now();
+    const active = (data.items || []).find(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
+    if(!active || !JOB_ELIGIBLE_TIERS.has(active.badge_type)){
+      document.getElementById('access-gate').style.display = '';
+      document.getElementById('form-wrap').style.display = 'none';
+    }
+  }catch{}
+});
+
+document.getElementById('gate-logout-btn').addEventListener('click', async ()=>{
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = 'giris-yap.html';
 });
 
 const dropZone = document.getElementById('image-drop');
@@ -278,8 +340,13 @@ const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
 let selectedFiles = [];
 let existingImageUrl = null;
-const editId = new URLSearchParams(window.location.search).get('edit');
 const EMPLOYMENT_VALUES = ['Tam Zamanlı', 'Yarı Zamanlı', 'Staj'];
+
+function escapeAttr(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 function renderPreviews(){
   if(selectedFiles.length){
@@ -294,7 +361,7 @@ function renderPreviews(){
       btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
     });
   } else if(existingImageUrl){
-    previewGrid.innerHTML = `<div class="image-preview-item"><img src="${existingImageUrl}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-image" aria-label="Kaldır">✕</button></div>`;
+    previewGrid.innerHTML = `<div class="image-preview-item"><img src="${escapeAttr(existingImageUrl)}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-image" aria-label="Kaldır">✕</button></div>`;
     document.getElementById('remove-existing-image').addEventListener('click', ()=>{ existingImageUrl = null; renderPreviews(); });
   } else {
     previewGrid.innerHTML = '';
@@ -412,13 +479,13 @@ document.getElementById('ilan-ver-form').addEventListener('submit', async (e)=>{
       return;
     }
     if(editId){
-      notice.textContent = 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
+      notice.textContent = 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek ve 30 gün yayında kalacak.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       setTimeout(()=>{ window.location.href = 'hesabim.html'; }, 1500);
       return;
     }
-    notice.textContent = 'İlanın alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';
+    notice.textContent = 'İlanın alındı — admin onayının ardından yayına girecek ve 30 gün yayında kalacak. Durumunu Hesabım sayfandan takip edebilirsin.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     form.reset();

@@ -7,6 +7,20 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Üye Ol — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'a üye ol — profilini oluştur, projelerini ve iş ilanlarını paylaş.">
+<link rel="canonical" href="https://mimarlab.com/uye-ol">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Üye Ol — MİMARLAB">
+<meta property="og:description" content="MİMARLAB'a üye ol — profilini oluştur, projelerini ve iş ilanlarını paylaş.">
+<meta property="og:url" content="https://mimarlab.com/uye-ol">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Üye Ol — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB'a üye ol — profilini oluştur, projelerini ve iş ilanlarını paylaş.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -152,6 +166,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -201,12 +222,16 @@
     <div class="auth-card">
       <form id="signup-form">
         <div class="auth-field">
-          <label for="signup-name">Ad Soyad</label>
+          <label for="signup-name">Ad Soyad *</label>
           <input type="text" id="signup-name" name="name" placeholder="Adın Soyadın" required>
         </div>
         <div class="auth-field">
-          <label for="signup-dob">Doğum Tarihi</label>
-          <input type="date" id="signup-dob" name="dob">
+          <label for="signup-dob">Doğum Tarihi *</label>
+          <input type="date" id="signup-dob" name="dob" required>
+        </div>
+        <div class="auth-field">
+          <label for="signup-email">E-posta *</label>
+          <input type="email" id="signup-email" name="email" placeholder="ornek@eposta.com" required>
         </div>
         <div class="auth-field">
           <label for="signup-school">Okul</label>
@@ -226,8 +251,8 @@
         </div>
         <div class="auth-field">
           <label for="signup-profession">Meslek</label>
-          <select id="signup-profession" name="profession" required>
-            <option value="" disabled selected>Seç...</option>
+          <select id="signup-profession" name="profession">
+            <option value="">Seç... (opsiyonel)</option>
             <option value="mimar">Mimar</option>
             <option value="ic_mimar">İç Mimar</option>
             <option value="peyzaj_mimari">Peyzaj Mimarı</option>
@@ -237,15 +262,11 @@
           </select>
         </div>
         <div class="auth-field">
-          <label for="signup-email">E-posta</label>
-          <input type="email" id="signup-email" name="email" placeholder="ornek@eposta.com" required>
-        </div>
-        <div class="auth-field">
-          <label for="signup-password">Şifre</label>
+          <label for="signup-password">Şifre *</label>
           <input type="password" id="signup-password" name="password" placeholder="••••••••" required>
         </div>
         <div class="auth-field">
-          <label for="signup-password-confirm">Şifre (Tekrar)</label>
+          <label for="signup-password-confirm">Şifre (Tekrar) *</label>
           <input type="password" id="signup-password-confirm" name="password_confirm" placeholder="••••••••" required>
         </div>
         <details class="kvkk-details">
@@ -293,11 +314,6 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
     notice.classList.add('show');
     return;
   }
-  if(!document.getElementById('signup-profession').value){
-    notice.textContent = 'Lütfen bir meslek seç.';
-    notice.classList.add('show');
-    return;
-  }
   if(!document.getElementById('signup-bot').checked){
     notice.textContent = 'Lütfen "Ben bir bot değilim" kutucuğunu işaretle.';
     notice.classList.add('show');
@@ -313,7 +329,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
     dob: document.getElementById('signup-dob').value || null,
     school: document.getElementById('signup-school').value || null,
     dept: document.getElementById('signup-dept').value || null,
-    profession: document.getElementById('signup-profession').value,
+    profession: document.getElementById('signup-profession').value || null,
     email: document.getElementById('signup-email').value,
     password: pw,
     password_confirm: pwConfirm,

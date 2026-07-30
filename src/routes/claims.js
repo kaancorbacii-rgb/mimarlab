@@ -14,7 +14,19 @@ export async function handleClaimsRoute(request, env, url) {
   if (segments.length === 3 && segments[2] === 'status' && request.method === 'GET') {
     return claimStatus(env, url, user);
   }
+  if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
+    return myClaims(env, user);
+  }
   return errorJson('Bulunamadı', 404);
+}
+
+// GET /api/claims/mine — hesabim.html'in "Mimar/Marka Profilim" bölümü için kullanıcının
+// kendi profil taleplerini (her durumdan) döner.
+async function myClaims(env, user) {
+  const { results } = await env.DB.prepare(
+    'SELECT profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
+  ).bind(user.id).all();
+  return json({ items: results });
 }
 
 async function createClaim(request, env, user) {

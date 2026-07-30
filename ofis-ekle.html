@@ -7,6 +7,20 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Ofis Ekle — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'a ofis ekle.">
+<link rel="canonical" href="https://mimarlab.com/ofis-ekle">
+<meta name="robots" content="noindex, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Ofis Ekle — MİMARLAB">
+<meta property="og:description" content="MİMARLAB'a ofis ekle.">
+<meta property="og:url" content="https://mimarlab.com/ofis-ekle">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ofis Ekle — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB'a ofis ekle.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -121,6 +135,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -204,6 +225,8 @@
             <label class="check-pill"><input type="checkbox" name="cats" value="Peyzaj Mimarlığı"> Peyzaj Mimarlığı</label>
             <label class="check-pill"><input type="checkbox" name="cats" value="Kentsel Tasarım"> Kentsel Tasarım</label>
             <label class="check-pill"><input type="checkbox" name="cats" value="Restorasyon"> Restorasyon</label>
+            <label class="check-pill"><input type="checkbox" name="cats" value="Ürün"> Ürün</label>
+            <label class="check-pill"><input type="checkbox" name="cats" value="Yapı Malzemesi"> Yapı Malzemesi</label>
           </div>
         </div>
       </div>
@@ -251,13 +274,22 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
   </footer>
 
+<script src="data.js"></script>
 <script>
 const dropZone = document.getElementById('image-drop');
 const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
 let selectedFiles = [];
 let existingLogoUrl = null;
-const editId = new URLSearchParams(window.location.search).get('edit');
+const params = new URLSearchParams(window.location.search);
+let editId = params.get('edit');
+const claimName = params.get('claim');
+
+function escapeAttr(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 function renderPreviews(){
   if(selectedFiles.length){
@@ -269,7 +301,7 @@ function renderPreviews(){
       btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
     });
   } else if(existingLogoUrl){
-    previewGrid.innerHTML = `<div class="image-preview-item"><img src="${existingLogoUrl}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-logo" aria-label="Kaldır">✕</button></div>`;
+    previewGrid.innerHTML = `<div class="image-preview-item"><img src="${escapeAttr(existingLogoUrl)}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-logo" aria-label="Kaldır">✕</button></div>`;
     document.getElementById('remove-existing-logo').addEventListener('click', ()=>{ existingLogoUrl = null; renderPreviews(); });
   } else {
     previewGrid.innerHTML = '';
@@ -307,7 +339,54 @@ async function prefillForEdit(){
     renderPreviews();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
-prefillForEdit();
+
+// ?claim=<isim>: "Bu ofis bana ait" ile onaylanmış statik bir ofis profilini düzenleme modu.
+// Statik data.js kaydı + onaylı bir düzenleme varsa onun üzerine bindirilmiş hali formu doldurur;
+// isim alanı kilitlenir (data.js'teki verifiedBadgeHtml/profil eşleştirmesi isme göre çalışır).
+async function prefillForClaim(){
+  if(!claimName) return;
+  document.querySelector('.eyebrow').textContent = 'Ofis Düzenle';
+  document.querySelector('.page-head h1').textContent = 'Ofisini düzenle';
+  document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
+
+  const staticOffice = offices.find(o => o.name === claimName) || { name: claimName };
+  let merged = { ...staticOffice };
+  try{
+    const editsRes = await fetch('/api/public/profile-edits');
+    if(editsRes.ok){
+      const edits = await editsRes.json();
+      if(edits.office && edits.office[claimName]) merged = { ...merged, ...edits.office[claimName] };
+    }
+  }catch{}
+
+  // Bu profil için zaten bekleyen/onaylı bir düzenleme talebi varsa PATCH moduna geç.
+  try{
+    const mineRes = await fetch('/api/offices/mine');
+    if(mineRes.ok){
+      const mineData = await mineRes.json();
+      const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
+      if(mine){
+        editId = mine.id;
+        merged = { ...merged, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, logo: mine.logo_url };
+      }
+    }
+  }catch{}
+
+  const nameInput = document.getElementById('o-name');
+  nameInput.value = claimName;
+  nameInput.readOnly = true;
+  nameInput.style.background = 'var(--paper-alt)';
+  document.getElementById('o-loc').value = merged.loc || '';
+  document.getElementById('o-year').value = merged.yil || '';
+  document.getElementById('o-website').value = merged.website || '';
+  document.getElementById('o-desc').value = merged.about || '';
+  const catList = (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
+  document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
+  existingLogoUrl = merged.logo || merged.logo_url || null;
+  renderPreviews();
+}
+
+if(claimName) prefillForClaim(); else prefillForEdit();
 
 async function uploadFiles(files){
   const urls = [];
@@ -353,6 +432,7 @@ document.getElementById('ofis-ekle-form').addEventListener('submit', async (e)=>
     about: document.getElementById('o-desc').value,
     logo_url: logoUrl,
   };
+  if(claimName) payload.claimed_profile_key = claimName;
 
   try{
     const res = await fetch(editId ? `/api/offices/${encodeURIComponent(editId)}` : '/api/offices', {
@@ -369,7 +449,7 @@ document.getElementById('ofis-ekle-form').addEventListener('submit', async (e)=>
       submitBtn.disabled = false;
       return;
     }
-    if(editId){
+    if(editId || claimName){
       notice.textContent = 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});

@@ -7,6 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>İş İlanları — MİMARLAB</title>
+<meta name="description" content="Mimarlık, iç mimarlık ve peyzaj mimarlığı alanında güncel iş ilanları.">
+<link rel="canonical" href="https://mimarlab.com/is-ilani">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="İş İlanları — MİMARLAB">
+<meta property="og:description" content="Mimarlık, iç mimarlık ve peyzaj mimarlığı alanında güncel iş ilanları.">
+<meta property="og:url" content="https://mimarlab.com/is-ilani">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="İş İlanları — MİMARLAB">
+<meta name="twitter:description" content="Mimarlık, iç mimarlık ve peyzaj mimarlığı alanında güncel iş ilanları.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -221,6 +234,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -477,7 +497,7 @@ function render(){
       ${jobLogoHtml(j)}
       <div class="job-info">
         <div class="job-title">${escapeHtml(j.title)}</div>
-        <div class="job-meta">${escapeHtml(j.office)} · ${escapeHtml(j.loc)}</div>
+        <div class="job-meta">${escapeHtml(j.office)} · ${escapeHtml(j.loc)}${j.publishedAt ? ' · Yayın: ' + formatJobDate(j.publishedAt) : ''}</div>
         <div class="job-tags">
           <span class="job-tag">${escapeHtml(j.level)}</span>
           ${j.tags.map(t => `<span class="job-tag">${escapeHtml(t)}</span>`).join('')}
@@ -489,6 +509,37 @@ function render(){
       <button class="job-btn">İlana Git</button>
     </div>`).join('');
   wireSaveButtons('job');
+  renderStructuredData(pageItems);
+}
+
+// Google zengin sonuçları için Schema.org JobPosting yapısal verisi — bu sayfa aynı anda birden
+// fazla ilan gösteren filtrelenebilir bir liste olduğundan (her ilanın kendi URL'i yok), Google'ın
+// Jobs zengin sonucu için önerdiği "ilan başına 1 sayfa" koşulunu tam karşılamaz; yine de genel
+// yapısal veri/SEO değeri için mevcut sayfadaki ilanlar JSON-LD olarak eklenir.
+function renderStructuredData(items){
+  let tag = document.getElementById('ld-json');
+  if(!tag){
+    tag = document.createElement('script');
+    tag.type = 'application/ld+json';
+    tag.id = 'ld-json';
+    document.head.appendChild(tag);
+  }
+  if(!items.length){ tag.textContent = ''; return; }
+  const postings = items.map(j => {
+    const posting = {
+      '@context': 'https://schema.org', '@type': 'JobPosting',
+      title: j.title,
+      description: j.description || [j.role, j.level, j.office].filter(Boolean).join(' · '),
+      hiringOrganization: { '@type': 'Organization', name: j.office },
+      jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: j.loc } },
+    };
+    if(j.publishedAt){
+      posting.datePosted = new Date(j.publishedAt).toISOString();
+      posting.validThrough = new Date(j.publishedAt + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    return posting;
+  });
+  tag.textContent = JSON.stringify(postings.length === 1 ? postings[0] : postings);
 }
 
 function jobKey(j){
@@ -498,6 +549,9 @@ function jobKey(j){
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function formatJobDate(ts){
+  return new Date(ts).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
+}
 
 // Üyelerin gönderip admin'in onayladığı ilanları statik listeye ekler.
 fetch('/api/public/jobs').then(res => res.ok ? res.json() : {items:[]}).then(data => {

@@ -7,6 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Projeler — MİMARLAB</title>
+<meta name="description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.">
+<link rel="canonical" href="https://mimarlab.com/proje">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Projeler — MİMARLAB">
+<meta property="og:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.">
+<meta property="og:url" content="https://mimarlab.com/proje">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Projeler — MİMARLAB">
+<meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -256,6 +269,13 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
@@ -579,22 +599,27 @@ function render(){
   const sort = document.getElementById('g-sort').value;
   let filtered = projects.filter(p => passesFilters(p, null));
 
-  filtered.sort((a,b)=>{
-    switch(sort){
-      case 'name_asc': return a.title.localeCompare(b.title, 'tr');
-      case 'name_desc': return b.title.localeCompare(a.title, 'tr');
-      case 'date_desc': return parseInt(b.date) - parseInt(a.date) || 0;
-      case 'date_asc': return parseInt(a.date) - parseInt(b.date) || 0;
-      case 'rating_desc': case 'rating_asc': {
-        const ra = ratingOf(projectRatings, a.slug), rb = ratingOf(projectRatings, b.slug);
-        if(!ra.count && !rb.count) return 0;
-        if(!ra.count) return 1;
-        if(!rb.count) return -1;
-        return sort === 'rating_desc' ? rb.average - ra.average : ra.average - rb.average;
+  if(!sort){
+    // Varsayılan sıralama: son eklenen proje ilk sırada (dizideki en son ekleneni ilk sayfaya taşır).
+    filtered.reverse();
+  } else {
+    filtered.sort((a,b)=>{
+      switch(sort){
+        case 'name_asc': return a.title.localeCompare(b.title, 'tr');
+        case 'name_desc': return b.title.localeCompare(a.title, 'tr');
+        case 'date_desc': return parseInt(b.date) - parseInt(a.date) || 0;
+        case 'date_asc': return parseInt(a.date) - parseInt(b.date) || 0;
+        case 'rating_desc': case 'rating_asc': {
+          const ra = ratingOf(projectRatings, a.slug), rb = ratingOf(projectRatings, b.slug);
+          if(!ra.count && !rb.count) return 0;
+          if(!ra.count) return 1;
+          if(!rb.count) return -1;
+          return sort === 'rating_desc' ? rb.average - ra.average : ra.average - rb.average;
+        }
+        default: return 0;
       }
-      default: return 0;
-    }
-  });
+    });
+  }
 
   document.getElementById('result-count').textContent = `${filtered.length} proje listeleniyor`;
   renderActiveChips();
@@ -612,9 +637,9 @@ function render(){
   const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
   grid.innerHTML = pageItems.map(p => `
-    <a class="content-card" href="proje-detay.html?proje=${encodeURIComponent(p.slug)}">
+    <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
       <img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">
-      <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr(p.images[0]||'')}" data-href="proje-detay.html?proje=${encodeURIComponent(p.slug)}" aria-label="Kaydet">
+      <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr(p.images[0]||'')}" data-href="/projeler/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
       </button>
       <div class="content-card-info">

@@ -7,6 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Mimarlar — MİMARLAB</title>
+<meta name="description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.">
+<link rel="canonical" href="https://mimarlab.com/mimar">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Mimarlar — MİMARLAB">
+<meta property="og:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.">
+<meta property="og:url" content="https://mimarlab.com/mimar">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mimarlar — MİMARLAB">
+<meta name="twitter:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -193,11 +206,6 @@
     font-size:11.5px; color:var(--ink-soft); margin-top:2px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .rating-badge{display:inline-flex; align-items:center; gap:2px; margin-top:4px;}
-  .rating-badge-star{color:var(--line); display:flex;}
-  .rating-badge-star.filled{color:var(--accent);}
-  .rating-badge-count{margin-left:4px; font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--ink-soft);}
-
   .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); font-size:14px; display:none;}
 
   .pagination{
@@ -267,11 +275,17 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 </head>
 <body>
 <script src="auth-nav.js"></script>
 <script src="save-widget.js"></script>
-<script src="rating-widget.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -332,8 +346,6 @@
             <option value="year_desc">En Genç</option>
             <option value="year_asc">En Kıdemli</option>
             <option value="popular">En Popüler</option>
-            <option value="rating_desc">Puan: Yüksekten Düşüğe</option>
-            <option value="rating_asc">Puan: Düşükten Yükseğe</option>
           </select>
           <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
         </div>
@@ -364,17 +376,6 @@
           <option value="Öğrenci">Öğrenci</option>
           <option value="Emekli">Emekli</option>
           <option value="İş Arıyor">İş Arıyor</option>
-        </select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <div class="filter-select">
-        <select id="g-rating">
-          <option value="">Puan</option>
-          <option value="5">5 Yıldız</option>
-          <option value="4">4+ Yıldız</option>
-          <option value="3">3+ Yıldız</option>
-          <option value="2">2+ Yıldız</option>
-          <option value="1">1+ Yıldız</option>
         </select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
@@ -431,11 +432,6 @@
 const PAGE_SIZE = 28;
 let currentPage = 1;
 let searchQuery = '';
-let architectRatings = new Map();
-
-function architectKey(a){
-  return a.submissionId ? 'm-' + a.submissionId : slugify(a.name);
-}
 
 function personOffice(a){
   return a.office ? offices.find(o => o.name === a.office) : null;
@@ -553,14 +549,12 @@ function render(){
   const dob = document.getElementById('g-dob').value;
   const award = document.getElementById('g-award').value;
   const position = document.getElementById('g-position').value;
-  const rating = document.getElementById('g-rating').value;
   const q = trLower(searchQuery.trim());
 
   let filtered = architects.filter(a=>{
     if(dob && String(a.dob) !== dob) return false;
     if(award){ const o = personOffice(a); if(!o || !o.awards || !o.awards.includes(award)) return false; }
     if(position && positionOf(a) !== position) return false;
-    if(rating){ const r = ratingOf(architectRatings, architectKey(a)); if(!r.count || r.average < parseInt(rating)) return false; }
     if(q && !trLower(a.name).includes(q)) return false;
     return true;
   });
@@ -572,13 +566,6 @@ function render(){
       case 'year_desc': return (b.dob||0) - (a.dob||0);
       case 'year_asc': return (a.dob||9999) - (b.dob||9999);
       case 'popular': return 0;
-      case 'rating_desc': case 'rating_asc': {
-        const ra = ratingOf(architectRatings, architectKey(a)), rb = ratingOf(architectRatings, architectKey(b));
-        if(!ra.count && !rb.count) return 0;
-        if(!ra.count) return 1;
-        if(!rb.count) return -1;
-        return sort === 'rating_desc' ? rb.average - ra.average : ra.average - rb.average;
-      }
       default: return 0;
     }
   });
@@ -601,12 +588,11 @@ function render(){
     const o = personOffice(a);
     const sub = o ? o.name : (a.office || a.status || '');
     return `
-    <a class="person-card" href="mimar-detay.html?mimar=${encodeURIComponent(a.name)}">
+    <a class="person-card" href="/mimar/${encodeURIComponent(slugify(a.name))}">
       <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
       <div class="person-card-body">
         <div class="person-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
         ${sub ? `<div class="person-card-office">${escapeHtml(sub)}</div>` : ''}
-        ${renderRatingBadge(ratingOf(architectRatings, architectKey(a)).average, ratingOf(architectRatings, architectKey(a)).count)}
       </div>
     </a>`;
   }).join('');
@@ -615,7 +601,7 @@ function render(){
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-['g-sort','g-dob','g-award','g-position','g-rating'].forEach(id=>{
+['g-sort','g-dob','g-award','g-position'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
 });
 document.getElementById('g-local-search').addEventListener('input', (e)=>{
@@ -627,7 +613,6 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-dob').value = '';
   document.getElementById('g-award').value = '';
   document.getElementById('g-position').value = '';
-  document.getElementById('g-rating').value = '';
   searchQuery = '';
   document.getElementById('g-local-search').value = '';
   document.getElementById('f-search-topnav').value = '';
@@ -659,12 +644,9 @@ render();
 window.addEventListener('mimarlab-badges-ready', render);
 
 // Üyelerin gönderip admin'in onayladığı mimarları statik listeye ekler.
-Promise.all([
-  fetch('/api/public/architects').then(res => res.ok ? res.json() : {items:[]}).then(data => {
-    architects.push(...(data.items || []));
-  }).catch(()=>{}),
-  loadBulkRatings('architect').then(map => { architectRatings = map; }),
-]).finally(() => {
+fetch('/api/public/architects').then(res => res.ok ? res.json() : {items:[]}).then(data => {
+  architects.push(...(data.items || []));
+}).catch(()=>{}).finally(() => {
   populateFilters();
   render();
 });

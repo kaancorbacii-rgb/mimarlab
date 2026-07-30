@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 
+-- claimed_profile_key doluysa bu satır yeni bir ofis kaydı değil, o profile_key'e (offices[].name)
+-- sahip statik bir profile onaylı bir profile_claims üzerinden yapılan bir DÜZENLEME talebidir;
+-- onaylanınca /api/public/profile-edits üzerinden ilgili statik profile bindirilir, genel yeni-
+-- kayıt listesine (/api/public/offices) dahil edilmez (bkz. src/routes/submissions.js, public.js).
 CREATE TABLE IF NOT EXISTS office_submissions (
   id TEXT PRIMARY KEY,
   owner_user_id TEXT NOT NULL REFERENCES users(id),
@@ -36,10 +40,12 @@ CREATE TABLE IF NOT EXISTS office_submissions (
   website TEXT,
   about TEXT,
   logo_url TEXT,
-  awards TEXT
+  awards TEXT,
+  claimed_profile_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_office_owner ON office_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_office_status ON office_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_office_claimed_key ON office_submissions(claimed_profile_key);
 
 CREATE TABLE IF NOT EXISTS project_submissions (
   id TEXT PRIMARY KEY,
@@ -60,7 +66,8 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   photoCreditText TEXT,
   photoCreditUrl TEXT,
   description TEXT,
-  images TEXT
+  images TEXT,
+  brands TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_project_status ON project_submissions(status);
@@ -81,12 +88,16 @@ CREATE TABLE IF NOT EXISTS product_submissions (
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status ON product_submissions(status);
 
+-- published_at: ilan onaylanıp (yeniden) yayına alındığı an (bkz. src/routes/admin.js). İlan yayında
+-- kalma süresi 30 gündür; /api/public/jobs, published_at + 30 günü geçmiş satırları listeye dahil
+-- etmeyerek yayından kaldırır (durum DB'de 'approved' kalır, sadece herkese açık listeden düşer).
 CREATE TABLE IF NOT EXISTS job_submissions (
   id TEXT PRIMARY KEY,
   owner_user_id TEXT NOT NULL REFERENCES users(id),
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
+  published_at INTEGER,
   title TEXT NOT NULL,
   office TEXT,
   loc TEXT,
@@ -101,6 +112,8 @@ CREATE TABLE IF NOT EXISTS job_submissions (
 CREATE INDEX IF NOT EXISTS idx_job_owner ON job_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_job_status ON job_submissions(status);
 
+-- claimed_profile_key: bkz. office_submissions üzerindeki aynı alanın açıklaması (architects[].name
+-- ile eşleşen statik bir profile onaylı profile_claims üzerinden yapılan düzenleme talebi).
 CREATE TABLE IF NOT EXISTS architect_submissions (
   id TEXT PRIMARY KEY,
   owner_user_id TEXT NOT NULL REFERENCES users(id),
@@ -114,10 +127,12 @@ CREATE TABLE IF NOT EXISTS architect_submissions (
   office TEXT,
   position TEXT,
   awards TEXT,
-  photo_url TEXT
+  photo_url TEXT,
+  claimed_profile_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_architect_owner ON architect_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_architect_status ON architect_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_architect_claimed_key ON architect_submissions(claimed_profile_key);
 
 CREATE TABLE IF NOT EXISTS news_submissions (
   id TEXT PRIMARY KEY,
@@ -207,17 +222,56 @@ CREATE TABLE IF NOT EXISTS profile_claims (
 CREATE INDEX IF NOT EXISTS idx_claims_status ON profile_claims(status);
 CREATE INDEX IF NOT EXISTS idx_claims_key ON profile_claims(profile_type, profile_key);
 
--- Doğrulanmış Profil rozeti satın alma talepleri. Ödeme altyapısı bağlanana kadar
--- admin panelinden elle 'active' yapılır; aktif olduğunda ilgili kullanıcının onaylı
--- profile_claims kaydı üzerinden rozet, ilgili mimar/ofis profilinde gösterilir.
+-- Doğrulanmış Profil rozeti satın alma (aylık kiralama) talepleri. Ödeme altyapısı bağlanana
+-- kadar admin panelinden elle 'active' yapılır ve expires_at = onay anı + 30 gün olarak
+-- ayarlanır; aktif olduğunda ilgili kullanıcının onaylı profile_claims kaydı üzerinden rozet,
+-- ilgili mimar/ofis profilinde gösterilir. Bir kullanıcı aynı anda yalnızca 1 rozet tutabilir
+-- (bkz. src/routes/badges.js, src/routes/admin.js).
 CREATE TABLE IF NOT EXISTS badge_requests (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
   badge_type TEXT NOT NULL, -- student | architect | brand | gold | platinum
   status TEXT NOT NULL DEFAULT 'pending', -- pending | active | rejected
   price_try REAL NOT NULL,
+  expires_at INTEGER, -- yalnızca status='active' iken dolu; aylık kiralamanın bitiş tarihi
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_badge_user ON badge_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_badge_status ON badge_requests(status);
+
+-- Ziyaretçilerin İletişim sayfasındaki formdan gönderdiği mesajlar; admin panelinde okunur.
+CREATE TABLE IF NOT EXISTS contact_messages (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_contact_read ON contact_messages(is_read);
+
+-- Hesabım sayfasındaki "Bildirimler" kutusunu besler: profil/rozet talebi onaylandı/reddedildi,
+-- gönderi onaylandı/reddedildi, sahiplenilen bir profile ya da kendi proje/haberine yorum geldi
+-- gibi olaylarda src/lib/notify.js#createNotification ile buraya bir satır eklenir (bkz.
+-- src/routes/admin.js, src/routes/comments.js). link, varsa ilgili sayfaya götürür.
+-- Basit sabit pencereli hız sınırlama sayaçları (bkz. src/lib/rateLimit.js): login, signup,
+-- forgot-password ve contact endpoint'lerinde brute-force/numaralandırma/spam'e karşı.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_expires ON rate_limits(expires_at);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  link TEXT,
+  is_read INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);

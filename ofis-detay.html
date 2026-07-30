@@ -2,11 +2,35 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<!-- Temiz URL'lerle bu sayfa /ofis-detay.html dışında /markalar/:slug altında da (iç içe bir yolda)
+     servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
+     yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
+<base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Ofis Profili — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı ofis profillerini incele." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/ofis-detay" id="canonical-link">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Ofis Profili — MİMARLAB" id="og-title">
+<meta property="og:description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı ofis profillerini incele." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/ofis-detay" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ofis Profili — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı ofis profillerini incele." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -192,15 +216,6 @@
   }
   .btn-outline:hover{background:var(--ink); color:var(--paper-card);}
 
-  .trust-note{
-    background:var(--paper-card); border:1px solid var(--line);
-    border-radius:12px; padding:16px 18px;
-    font-size:13.5px; color:var(--ink-soft);
-    display:flex; align-items:center; gap:12px;
-    margin-bottom:32px;
-  }
-  .trust-note svg{flex-shrink:0; color:var(--sage);}
-
   .info-card{
     background:var(--paper-card); border:1px solid var(--line);
     border-radius:14px; padding:18px; margin-top:16px;
@@ -325,7 +340,7 @@
 }
 
 /* ---------- ROZET ---------- */
-.verified-badge{display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--accent); vertical-align:middle; margin-left:8px;}
+.verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:6px; flex-shrink:0;}
 
 /* ---------- YORUMLAR (proje-detay.html ile aynı desen) ---------- */
 .comments-section{max-width:900px; margin:44px auto 0; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
@@ -420,11 +435,6 @@
         </a>
       </div>
 
-      <div class="trust-note">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4Z"/></svg>
-        <span>Bu bilgiler halka açık kaynaklardan derlenmiştir; ofisle resmi bir bağlantımız yoktur.</span>
-      </div>
-
       <section class="about-section">
         <h2>Hakkında</h2>
         <p id="about-text">—</p>
@@ -449,7 +459,7 @@
     </div>
 
     <div>
-      <div class="info-card">
+      <div class="info-card" id="claim-info-card">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
         <div id="claim-card-body">
           <h5>Ofisini mi yönetiyorsun?</h5>
@@ -470,6 +480,11 @@
   <section class="related-section" id="related-projects-section" style="display:none;">
     <h2>Projeler</h2>
     <div class="home-grid" id="related-projects-grid"></div>
+  </section>
+
+  <section class="related-section" id="related-products-section" style="display:none;">
+    <h2>Ürünler</h2>
+    <div class="home-grid" id="related-products-grid"></div>
   </section>
 
   <div class="comments-section">
@@ -518,27 +533,114 @@
 <script src="data.js"></script>
 <script src="projeler-data.js"></script>
 <script>
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+function renderFoundersGrid(o){
+  const officeFounders = architects.filter(a => a.office === o.name);
+  if(!officeFounders.length) return;
+  document.getElementById('founders-section').style.display = '';
+  document.getElementById('founders-grid').innerHTML = officeFounders.map(a => `
+    <a class="founder-card" href="/mimar/${encodeURIComponent(slugify(a.name))}">
+      <div class="founder-card-avatar" style="background:${officeColor(a.name)}">${escapeHtml(initials(a.name))}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+      <div>
+        <div class="founder-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
+        <div class="founder-card-role">${escapeHtml(a.role)}</div>
+      </div>
+    </a>`).join('');
+}
+
+// o'ya bağlı görüntülenen alanlar (bkz. applyProfileEdits: sahiplenilip onaylanmış bir profil
+// düzenlemesi varsa loc/cats/yil/website/about/logo bu fonksiyon yeniden çağrılarak güncellenir).
+function renderOfficeFields(o){
+  document.getElementById('bc-cat').textContent = o.cats.split(' · ')[0];
+  document.getElementById('profile-category').textContent = o.cats;
+  document.getElementById('about-text').textContent = o.about;
+
+  const officeFacts = [];
+  if(o.yil) officeFacts.push(`<div><strong>Kuruluş Yılı:</strong> ${escapeHtml(String(o.yil))}</div>`);
+  if(o.loc) officeFacts.push(`<div><strong>Konum:</strong> ${escapeHtml(o.loc)}</div>`);
+  const officeFactsEl = document.getElementById('info-facts');
+  officeFactsEl.innerHTML = officeFacts.join('');
+  officeFactsEl.style.display = officeFacts.length ? '' : 'none';
+
+  const visitSiteEl = document.getElementById('profile-visit-site');
+  if(o.website && safeUrl(o.website)){
+    visitSiteEl.href = safeUrl(o.website);
+    visitSiteEl.style.display = '';
+  }else{
+    visitSiteEl.style.display = 'none';
+  }
+
+  const logoEl = document.getElementById('profile-logo');
+  logoEl.innerHTML = '';
+  logoEl.textContent = initials(o.name);
+  logoEl.style.background = officeColor(o.name);
+  const officeLogoUrl = logoUrl(o);
+  if(officeLogoUrl){
+    const img = document.createElement('img');
+    img.src = officeLogoUrl;
+    img.alt = '';
+    img.onerror = () => img.remove();
+    logoEl.appendChild(img);
+  }
+
+  renderStructuredData(o);
+}
+
+// Google zengin sonuçları / bilgi grafiği için Schema.org Organization yapısal verisi. Sayfa
+// tamamen istemci tarafında (data.js + query param) render edildiğinden JS ile enjekte edilir.
+function renderStructuredData(o){
+  let tag = document.getElementById('ld-json');
+  if(!tag){
+    tag = document.createElement('script');
+    tag.type = 'application/ld+json';
+    tag.id = 'ld-json';
+    document.head.appendChild(tag);
+  }
+  const data = { '@context': 'https://schema.org', '@type': 'Organization', name: o.name, url: window.location.href };
+  if(o.about) data.description = o.about;
+  if(o.yil) data.foundingDate = String(o.yil);
+  if(o.loc) data.address = { '@type': 'PostalAddress', addressLocality: o.loc };
+  const officeLogo = logoUrl(o);
+  if(officeLogo) { try { data.logo = new URL(officeLogo, window.location.href).href; } catch{} }
+  if(o.website && safeUrl(o.website)) data.sameAs = [safeUrl(o.website)];
+  tag.textContent = JSON.stringify(data);
+}
+
 function renderOfficeDetail(){
 const params = new URLSearchParams(window.location.search);
-const officeName = params.get('ofis');
-const found = offices.find(x => x.name === officeName);
+let officeName = params.get('ofis');
+let officeSlug = null;
+if(!officeName){
+  // Temiz URL: /markalar/:slug (bkz. src/index.js#CLEAN_URL_ASSETS) — eski ?ofis= sorgu parametresi
+  // bulunamazsa isim yerine slugify edilmiş adı yoldan oku (save-widget.js#slugify ile eşleştirilir).
+  const m = window.location.pathname.match(/\/markalar\/([^/]+)\/?$/);
+  if(m) officeSlug = decodeURIComponent(m[1]);
+}
+const found = (officeName && offices.find(x => x.name === officeName))
+  || (officeSlug && offices.find(x => slugify(x.name) === officeSlug));
 const o = found || offices[0];
 
 document.title = o.name + " — MİMARLAB";
-document.getElementById('bc-cat').textContent = o.cats.split(' · ')[0];
+{
+  const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da ofis profilini incele.`;
+  const canonicalUrl = `https://mimarlab.com/markalar/${encodeURIComponent(slugify(o.name))}`;
+  const logo = logoUrl(o);
+  const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+  document.getElementById('meta-description').setAttribute('content', desc);
+  document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
+  document.getElementById('og-title').setAttribute('content', document.title);
+  document.getElementById('og-description').setAttribute('content', desc);
+  document.getElementById('og-url').setAttribute('content', canonicalUrl);
+  document.getElementById('og-image').setAttribute('content', image);
+  document.getElementById('twitter-title').setAttribute('content', document.title);
+  document.getElementById('twitter-description').setAttribute('content', desc);
+  document.getElementById('twitter-image').setAttribute('content', image);
+}
 document.getElementById('bc-name').textContent = o.name;
 document.getElementById('profile-name-text').textContent = o.name;
-document.getElementById('profile-category').textContent = o.cats;
-document.getElementById('about-text').textContent = o.about;
-
-const officeFacts = [];
-if(o.yil) officeFacts.push(`<div><strong>Kuruluş Yılı:</strong> ${escapeHtml(String(o.yil))}</div>`);
-if(o.loc) officeFacts.push(`<div><strong>Konum:</strong> ${escapeHtml(o.loc)}</div>`);
-const officeFactsEl = document.getElementById('info-facts');
-if(officeFacts.length){
-  officeFactsEl.innerHTML = officeFacts.join('');
-  officeFactsEl.style.display = '';
-}
+renderOfficeFields(o);
 
 function officeKey(office){
   return office.submissionId ? 'm-' + office.submissionId : slugify(office.name);
@@ -547,37 +649,7 @@ const ratingWidgetEl = document.getElementById('rating-widget');
 ratingWidgetEl.dataset.key = officeKey(o);
 mountRatingWidget(ratingWidgetEl);
 
-const visitSiteEl = document.getElementById('profile-visit-site');
-if(o.website && safeUrl(o.website)){
-  visitSiteEl.href = safeUrl(o.website);
-}else{
-  visitSiteEl.style.display = 'none';
-}
-
-const logoEl = document.getElementById('profile-logo');
-logoEl.textContent = initials(o.name);
-logoEl.style.background = officeColor(o.name);
-const officeLogoUrl = logoUrl(o);
-if(officeLogoUrl){
-  const img = document.createElement('img');
-  img.src = officeLogoUrl;
-  img.alt = '';
-  img.onerror = () => img.remove();
-  logoEl.appendChild(img);
-}
-
-const officeFounders = architects.filter(a => a.office === o.name);
-if(officeFounders.length > 0){
-  document.getElementById('founders-section').style.display = '';
-  document.getElementById('founders-grid').innerHTML = officeFounders.map(a => `
-    <a class="founder-card" href="mimar-detay.html?mimar=${encodeURIComponent(a.name)}">
-      <div class="founder-card-avatar" style="background:${officeColor(a.name)}">${escapeHtml(initials(a.name))}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
-      <div>
-        <div class="founder-card-name">${escapeHtml(a.name)}</div>
-        <div class="founder-card-role">${escapeHtml(a.role)}</div>
-      </div>
-    </a>`).join('');
-}
+renderFoundersGrid(o);
 
 // İlgili projeler: projeler-data.js kayıtlarındaki designer listesi ofisin adıyla birebir eşleşiyorsa
 // ilgili proje sayılır (bkz. proje-detay.html'deki aynı desen).
@@ -585,7 +657,7 @@ const relatedProjects = projects.filter(p => p.designer.includes(o.name));
 if(relatedProjects.length > 0){
   document.getElementById('related-projects-section').style.display = '';
   document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
-    <a class="home-card" href="proje-detay.html?proje=${encodeURIComponent(p.slug)}">
+    <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
       <img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`).join('');
@@ -610,8 +682,6 @@ initProfileExtras();
 return !!found;
 }
 
-function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function safeUrl(u){
   try{
     const parsed = new URL(u, window.location.href);
@@ -624,31 +694,49 @@ const PROFILE_TYPE = 'office';
 let currentOffice = null;
 let isProfileOwner = false;
 
-// Statik data.js üzerindeki badges alanı ile /api/public/badges'ten gelen (satın alınıp
-// onaylanmış) dinamik rozetleri birleştirip isim yanında gösterir.
-async function loadVerifiedBadge(){
-  let badges = currentOffice.badges || [];
-  if(!badges.length){
-    try{
-      const res = await fetch('/api/public/badges');
-      if(res.ok){
-        const data = await res.json();
-        badges = (data[PROFILE_TYPE] && data[PROFILE_TYPE][currentOffice.name]) || [];
-      }
-    }catch{}
-  }
-  const wrap = document.getElementById('verified-badge-wrap');
-  if(!badges.length){ wrap.innerHTML = ''; return; }
-  const BADGE_LABELS = { student:'Öğrenci', architect:'Mimar', brand:'Marka', gold:'Gold', platinum:'Platinyum' };
-  const label = badges.map(b => BADGE_LABELS[b] || b).join(', ');
-  wrap.innerHTML = `<span class="verified-badge" title="Doğrulanmış Profil · ${escapeHtml(label)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 14.5 5.5 19 5l-.5 4.5L22 12l-3.5 2.5.5 4.5-4.5-.5L12 22l-2.5-3.5-4.5.5.5-4.5L2 12l3.5-2.5L5 5l4.5.5Z"/><path d="M9 12.5l2 2 4-4.5" stroke="var(--paper-card)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+// data.js'teki paylaşılan verifiedBadgeHtml statik badges[] alanını ve /api/public/badges'ten
+// gelen (satın alınıp onaylanmış) dinamik rozetleri birleştirir; dinamik veri sayfa ilk render
+// edildiğinde henüz gelmemiş olabileceğinden 'mimarlab-badges-ready' ile tekrar render edilir.
+function renderVerifiedBadges(){
+  if(!currentOffice) return;
+  document.getElementById('verified-badge-wrap').innerHTML = verifiedBadgeHtml(PROFILE_TYPE, currentOffice.name, currentOffice.badges, 20);
+  renderFoundersGrid(currentOffice);
+}
+window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges);
+
+// Sahiplenilip onaylanmış bir profil düzenlemesi varsa (bkz. hesabim.html "Mimar/Marka Profilim"),
+// konum/hizmet alanı/kuruluş yılı/web sitesi/açıklama/logo alanlarını üzerine bindirir.
+async function applyProfileEdits(){
+  if(!currentOffice) return;
+  try{
+    const res = await fetch('/api/public/profile-edits');
+    if(!res.ok) return;
+    const edits = await res.json();
+    const overlay = edits.office && edits.office[currentOffice.name];
+    if(!overlay) return;
+    Object.assign(currentOffice, overlay);
+    renderOfficeFields(currentOffice);
+  }catch{}
 }
 
 async function loadClaimCard(){
   isProfileOwner = false;
+  const card = document.getElementById('claim-info-card');
   const body = document.getElementById('claim-card-body');
+  card.style.display = '';
   await savedWidgetReady;
+
+  // Bu profil BAŞKA bir hesap tarafından da olsa zaten onaylı şekilde sahiplenildiyse (bkz.
+  // /api/public/claim-status, auth gerektirmez), kutucuğu kimden bakılırsa bakılsın gizle —
+  // aksi halde her ziyaretçi, profil zaten sahiplenilmiş olsa bile "sana mı ait?" davetini görürdü.
+  let alreadyClaimed = false;
+  try{
+    const claimStatusRes = await fetch(`/api/public/claim-status?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(currentOffice.name)}`);
+    if(claimStatusRes.ok) alreadyClaimed = !!(await claimStatusRes.json()).claimed;
+  }catch{}
+
   if(!currentUser){
+    if(alreadyClaimed){ card.style.display = 'none'; return; }
     body.innerHTML = `<h5>Ofisini mi yönetiyorsun?</h5><p>Bilgilerini güncellemek, istenmeyen yorumları yönetmek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html">giriş yap</a>.</p>`;
     return;
   }
@@ -657,12 +745,14 @@ async function loadClaimCard(){
     const data = res.ok ? await res.json() : { status: 'none' };
     if(data.status === 'approved'){
       isProfileOwner = true;
-      body.innerHTML = `<h5>Bu ofis sana ait ✓</h5><p>Bu profile gelen istenmeyen yorumları silebilir, <a href="hesabim.html">Doğrulanmış Profil rozeti</a> alabilirsin.</p>`;
+      card.style.display = 'none';
       loadComments();
     } else if(data.status === 'pending'){
       body.innerHTML = `<h5>Talebin inceleniyor</h5><p>"Bu ofis bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.</p>`;
+    } else if(alreadyClaimed){
+      card.style.display = 'none';
     } else {
-      body.innerHTML = `<h5>Ofisini mi yönetiyorsun?</h5><p>İstenmeyen yorumları yönetmek ve Doğrulanmış Profil rozeti almak için ofisi sahiplen.</p><button type="button" class="btn-outline" id="claim-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Bu ofis bana ait</button>`;
+      body.innerHTML = `<h5>Ofisini mi yönetiyorsun?</h5><p>Profille hesabını eşleştirmek için alttaki butona tıkla.</p><button type="button" class="btn-outline" id="claim-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Bu ofis bana ait</button>`;
       document.getElementById('claim-btn').addEventListener('click', async (e)=>{
         e.target.disabled = true; e.target.textContent = 'Gönderiliyor…';
         await fetch('/api/claims', {
@@ -737,8 +827,42 @@ function renderCommentForm(){
   });
 }
 
+// Ürünler: bu markayı (ya da markayı yöneten kişinin hesabını) sahiplenip onayı geçmiş
+// kullanıcının kendi eklediği, admin onaylı ürünler — bkz. src/routes/public.js#handlePublicProfileContent.
+// Ürün gönderilerinde ofis adını tutan bir alan olmadığından (brand serbest metindir) eşleştirme
+// profile_claims sahipliği üzerinden yapılır.
+function productCardHtml(p){
+  if(p.image){
+    return `<a class="home-card" href="urun.html">
+      <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="lazy">
+      <div class="home-card-info"><div class="home-card-cat">${escapeHtml(p.category || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
+    </a>`;
+  }
+  return `<a class="home-card" href="urun.html">
+    <div class="home-card-info" style="position:static; background:none; padding:16px;">
+      <div class="home-card-cat" style="color:var(--sage);">${escapeHtml(p.category || '')}</div>
+      <div class="home-card-title" style="color:var(--ink);">${escapeHtml(p.title)}</div>
+    </div>
+  </a>`;
+}
+
+async function loadRelatedProducts(){
+  if(!currentOffice) return;
+  try{
+    const res = await fetch(`/api/public/profile-content?profileType=office&profileKey=${encodeURIComponent(currentOffice.name)}`);
+    if(!res.ok) return;
+    const data = await res.json();
+    const products = data.products || [];
+    if(!products.length) return;
+    document.getElementById('related-products-section').style.display = '';
+    document.getElementById('related-products-grid').innerHTML = products.map(productCardHtml).join('');
+  }catch{}
+}
+
 async function initProfileExtras(){
-  loadVerifiedBadge();
+  renderVerifiedBadges();
+  applyProfileEdits();
+  loadRelatedProducts();
   await savedWidgetReady;
   await loadClaimCard();
   renderCommentForm();
@@ -764,6 +888,20 @@ function wireNavSearch(){
   });
 }
 wireNavSearch();
+
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /markalar/:slug altında da servis
+// edilir) yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/)
+// giderdi; tıklamayı yutar. "#jobs" ise gerçekten bu sayfadaki #jobs'a kaydırmalı, o yüzden ayrı ele alınır.
+document.querySelectorAll('a[href="#jobs"]').forEach(a=>{
+  a.addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.getElementById('jobs').scrollIntoView({ behavior:'smooth' });
+  });
+});
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest('a[href="#"]');
+  if(a) e.preventDefault();
+});
 
 const navHamburger = document.getElementById('nav-hamburger');
 const navMobileMenu = document.getElementById('nav-mobile-menu');

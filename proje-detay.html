@@ -2,11 +2,35 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<!-- Temiz URL'lerle bu sayfa /proje-detay.html dışında /projeler/:slug altında da (iç içe bir yolda)
+     servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
+     yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
+<base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Proje — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'da Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projelerini incele." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/proje-detay" id="canonical-link">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Proje — MİMARLAB" id="og-title">
+<meta property="og:description" content="MİMARLAB'da Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projelerini incele." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/proje-detay" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Proje — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="MİMARLAB'da Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projelerini incele." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -128,15 +152,16 @@
   .comment-delete-btn:hover{color:#c0392b;}
   .comment-body-text{margin:0; font-size:14px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}
 
-  .detail-grid{display:grid; grid-template-columns:1fr 2fr; gap:40px; margin-bottom:40px;}
-  .detail-meta{font-size:14.5px; line-height:2;}
+  .detail-info{max-width:760px; margin-bottom:40px;}
+  .detail-meta{font-size:14.5px; line-height:2; margin-top:20px;}
   .detail-meta strong{font-weight:600; color:var(--ink);}
   .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
   .detail-meta a:hover{color:var(--ink);}
   .detail-desc{font-size:16.5px; line-height:1.7; color:var(--ink); margin-top:20px;}
 
   /* ---------- TASARIMCI (mimar/ofis) — ana sayfadaki tag-hole ile aynı görsel dil ---------- */
-  .designer-section{margin-top:24px;}
+  .designer-section{margin-top:0;}
+  .designer-section + .designer-section{margin-top:16px;}
   .designer-label{
     font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
     color:var(--ink-soft); font-weight:600; margin-bottom:10px;
@@ -160,10 +185,16 @@
   .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
   .designer-chip-plain{font-size:13px; color:var(--ink-soft); padding:6px 4px;}
 
-  .detail-gallery{display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; align-content:start;}
-  .detail-gallery img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:var(--paper-card);}
-  .detail-gallery a:first-child img{grid-column:span 2; aspect-ratio:16/9;}
-  .detail-gallery a:first-child{grid-column:span 2;}
+  .detail-gallery{
+    display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth;
+    scrollbar-width:none; padding-bottom:4px; margin-bottom:8px;
+  }
+  .detail-gallery::-webkit-scrollbar{display:none;}
+  .detail-gallery a{flex:0 0 auto;}
+  .detail-gallery img{height:420px; width:auto; max-width:80vw; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:var(--paper-card); display:block;}
+  @media (max-width:720px){
+    .detail-gallery img{height:260px;}
+  }
 
   .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
   .lightbox.open{display:flex;}
@@ -226,7 +257,6 @@
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
   @media (max-width:860px){
-    .detail-grid{grid-template-columns:1fr;}
     .related-grid{grid-template-columns:repeat(2, 1fr);}
     .related-grid-scroll .related-card{flex:0 0 152px;}
     .related-grid-scroll{gap:10px;}
@@ -304,17 +334,29 @@
       </button>
     </div>
     <div class="rating-widget" id="rating-widget" data-type="project"></div>
-    <div class="detail-grid">
-      <div>
-        <div class="detail-meta" id="detail-meta"></div>
-        <div class="detail-desc" id="detail-desc"></div>
-        <div class="designer-section" id="designer-section" style="display:none;">
-          <div class="designer-label">Mimar</div>
-          <div class="designer-chips" id="designer-chips"></div>
-        </div>
+    <div class="detail-gallery" id="detail-gallery"></div>
+    <div class="detail-info">
+      <div class="designer-section" id="architect-section" style="display:none;">
+        <div class="designer-label">Mimar</div>
+        <div class="designer-chips" id="architect-chips"></div>
       </div>
-      <div class="detail-gallery" id="detail-gallery"></div>
+      <div class="designer-section" id="office-section" style="display:none;">
+        <div class="designer-label">Mimarlık Ofisi</div>
+        <div class="designer-chips" id="office-chips"></div>
+      </div>
+      <div class="designer-section" id="brands-section" style="display:none;">
+        <div class="designer-label">Kullanılan Ürünler / Markalar</div>
+        <div class="designer-chips" id="brands-chips"></div>
+      </div>
+      <div class="detail-meta" id="detail-meta"></div>
+      <div class="detail-desc" id="detail-desc"></div>
     </div>
+  </div>
+
+  <div class="comments-section">
+    <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
+    <div class="comment-form-wrap" id="comment-form-wrap"></div>
+    <div class="comments-list" id="comments-list"></div>
   </div>
 
   <div class="related-section" id="same-designer-section" style="display:none;">
@@ -328,12 +370,6 @@
   </div>
 
   <div class="prevnext" id="prevnext"></div>
-
-  <div class="comments-section">
-    <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
-    <div class="comment-form-wrap" id="comment-form-wrap"></div>
-    <div class="comments-list" id="comments-list"></div>
-  </div>
 
   <div class="lightbox" id="lightbox">
     <button class="lightbox-close" id="lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -368,7 +404,13 @@
 <script>
 function renderProjectDetail(){
 const params = new URLSearchParams(window.location.search);
-const slug = params.get('proje');
+let slug = params.get('proje');
+if(!slug){
+  // Temiz URL: /projeler/:slug (bkz. src/index.js#CLEAN_URL_ASSETS) — eski ?proje= sorgu
+  // parametresi bulunamazsa slug'ı doğrudan yoldan oku.
+  const m = window.location.pathname.match(/\/projeler\/([^/]+)\/?$/);
+  if(m) slug = decodeURIComponent(m[1]);
+}
 const p = projectBySlug(slug);
 
 if(!p){
@@ -376,31 +418,52 @@ if(!p){
   return false;
 } else {
   document.title = `${p.title} — MİMARLAB`;
+  {
+    const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
+    const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
+    const canonicalUrl = `https://mimarlab.com/projeler/${encodeURIComponent(p.slug)}`;
+    const image = (p.images && p.images[0]) ? new URL(p.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    document.getElementById('meta-description').setAttribute('content', desc);
+    document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
+    document.getElementById('og-title').setAttribute('content', document.title);
+    document.getElementById('og-description').setAttribute('content', desc);
+    document.getElementById('og-url').setAttribute('content', canonicalUrl);
+    document.getElementById('og-image').setAttribute('content', image);
+    document.getElementById('twitter-title').setAttribute('content', document.title);
+    document.getElementById('twitter-description').setAttribute('content', desc);
+    document.getElementById('twitter-image').setAttribute('content', image);
+  }
 
   document.getElementById('bc-name').textContent = p.title;
   document.getElementById('detail-title').textContent = p.title;
 
   // Tasarımcı: architects[]/offices[] ile birebir eşleşiyorsa fotoğraf/logo içeren bir "chip"
-  // olarak, eşleşmiyorsa (ör. tarihi bir isim) düz metin olarak gösterilir.
-  function designerChipsHtml(){
-    return p.designer.map(d=>{
+  // olarak iki ayrı satırda (Mimar / Mimarlık Ofisi) gösterilir; eşleşmiyorsa (ör. tarihi bir
+  // isim) düz metin olarak Mimar satırına düşer.
+  function architectChipHtml(arch){
+    return `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
+      <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(arch.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+      <span class="designer-chip-name">${escapeHtml(arch.name)}</span>
+    </a>`;
+  }
+  function officeChipHtml(off){
+    const logo = logoUrl(off);
+    return `<a class="designer-chip" href="/markalar/${encodeURIComponent(slugify(off.name))}">
+      <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
+      <span class="designer-chip-name">${escapeHtml(off.name)}</span>
+    </a>`;
+  }
+  function designerGroups(){
+    const architectChips = [];
+    const officeChips = [];
+    p.designer.forEach(d=>{
       const arch = architects.find(a => a.name === d);
-      if(arch){
-        return `<a class="designer-chip" href="mimar-detay.html?mimar=${encodeURIComponent(arch.name)}">
-          <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(arch.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
-          <span class="designer-chip-name">${escapeHtml(arch.name)}</span>
-        </a>`;
-      }
+      if(arch){ architectChips.push(architectChipHtml(arch)); return; }
       const off = offices.find(o => o.name === d);
-      if(off){
-        const logo = logoUrl(off);
-        return `<a class="designer-chip" href="ofis-detay.html?ofis=${encodeURIComponent(off.name)}">
-          <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
-          <span class="designer-chip-name">${escapeHtml(off.name)}</span>
-        </a>`;
-      }
-      return `<span class="designer-chip-plain">${escapeHtml(d)}</span>`;
-    }).join('');
+      if(off){ officeChips.push(officeChipHtml(off)); return; }
+      architectChips.push(`<span class="designer-chip-plain">${escapeHtml(d)}</span>`);
+    });
+    return { architectChips, officeChips };
   }
 
   let metaHtml = '';
@@ -416,9 +479,55 @@ if(!p){
   document.getElementById('detail-meta').innerHTML = metaHtml;
   document.getElementById('detail-desc').textContent = p.description;
 
+  // Google zengin sonuçları için Schema.org CreativeWork yapısal verisi (bkz. mimar-detay.html/
+  // ofis-detay.html'deki aynı desen — sayfa istemci tarafında render edildiğinden JS ile enjekte edilir).
+  (function renderStructuredData(){
+    let tag = document.getElementById('ld-json');
+    if(!tag){
+      tag = document.createElement('script');
+      tag.type = 'application/ld+json';
+      tag.id = 'ld-json';
+      document.head.appendChild(tag);
+    }
+    const data = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.title, url: window.location.href };
+    if(p.description) data.description = p.description;
+    if(p.images && p.images.length){
+      try { data.image = p.images.map(img => new URL(img, window.location.href).href); } catch{}
+    }
+    if(p.location) data.locationCreated = { '@type': 'Place', address: p.location };
+    const creators = [];
+    (p.designer || []).forEach(d => {
+      const arch = architects.find(a => a.name === d);
+      if(arch){ creators.push({ '@type': 'Person', name: arch.name }); return; }
+      const off = offices.find(o => o.name === d);
+      if(off){ creators.push({ '@type': 'Organization', name: off.name }); return; }
+      creators.push({ '@type': 'Organization', name: d });
+    });
+    if(creators.length) data.creator = creators.length === 1 ? creators[0] : creators;
+    tag.textContent = JSON.stringify(data);
+  })();
+
   if(p.designer && p.designer.length){
-    document.getElementById('designer-section').style.display = '';
-    document.getElementById('designer-chips').innerHTML = designerChipsHtml();
+    const { architectChips, officeChips } = designerGroups();
+    if(architectChips.length){
+      document.getElementById('architect-section').style.display = '';
+      document.getElementById('architect-chips').innerHTML = architectChips.join('');
+    }
+    if(officeChips.length){
+      document.getElementById('office-section').style.display = '';
+      document.getElementById('office-chips').innerHTML = officeChips.join('');
+    }
+  }
+
+  // Bu projede kullanılan ürün/malzeme markaları: MİMARLAB dizinindeki (offices[]) bir marka
+  // adıyla birebir eşleşirse profil sayfasına bağlı bir chip, eşleşmiyorsa düz metin olarak gösterilir.
+  if(p.brands && p.brands.length){
+    const brandChips = p.brands.map(b => {
+      const off = offices.find(o => o.name === b);
+      return off ? officeChipHtml(off) : `<span class="designer-chip-plain">${escapeHtml(b)}</span>`;
+    });
+    document.getElementById('brands-section').style.display = '';
+    document.getElementById('brands-chips').innerHTML = brandChips.join('');
   }
 
   document.getElementById('detail-gallery').innerHTML = p.images.map((img, i) => `
@@ -466,7 +575,7 @@ if(!p){
   if(sameDesigner.length){
     document.getElementById('same-designer-section').style.display = 'block';
     document.getElementById('same-designer-grid').innerHTML = sameDesigner.map(r => `
-      <a class="related-card" href="proje-detay.html?proje=${encodeURIComponent(r.slug)}">
+      <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
         <img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
@@ -480,7 +589,7 @@ if(!p){
   if(related.length){
     document.getElementById('related-section').style.display = 'block';
     document.getElementById('related-grid').innerHTML = related.map(r => `
-      <a class="related-card" href="proje-detay.html?proje=${encodeURIComponent(r.slug)}">
+      <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
         <img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
@@ -491,8 +600,8 @@ if(!p){
   const prevP = projects[(idx - 1 + projects.length) % projects.length];
   const nextP = projects[(idx + 1) % projects.length];
   document.getElementById('prevnext').innerHTML = `
-    <a class="prev" href="proje-detay.html?proje=${encodeURIComponent(prevP.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(prevP.title)}</span></a>
-    <a class="next" href="proje-detay.html?proje=${encodeURIComponent(nextP.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(nextP.title)}</span></a>
+    <a class="prev" href="/projeler/${encodeURIComponent(prevP.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(prevP.title)}</span></a>
+    <a class="next" href="/projeler/${encodeURIComponent(nextP.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(nextP.title)}</span></a>
   `;
 
   const saveBtn = document.getElementById('save-btn');
@@ -500,7 +609,7 @@ if(!p){
   saveBtn.dataset.title = p.title;
   saveBtn.dataset.meta = p.location || '';
   saveBtn.dataset.image = p.images[0] || '';
-  saveBtn.dataset.href = `proje-detay.html?proje=${encodeURIComponent(p.slug)}`;
+  saveBtn.dataset.href = `/projeler/${encodeURIComponent(p.slug)}`;
   wireSaveButtons('project');
 
   const ratingWidget = document.getElementById('rating-widget');
@@ -580,12 +689,19 @@ async function initComments(){
   const slugParam = new URLSearchParams(window.location.search).get('proje');
   if(!slugParam) return;
   if(currentUser){
+    // Kendi gönderdiği projeye gelen yorumları silebilmek bir rozet gerektirir (bkz.
+    // src/routes/comments.js#canDeleteComment).
     try{
-      const res = await fetch('/api/projects/mine');
-      if(res.ok){
-        const data = await res.json();
-        canModerateProjectComments = (data.items || []).some(it => it.slug === slugParam);
-      }
+      const [projRes, badgesRes] = await Promise.all([
+        fetch('/api/projects/mine'),
+        fetch('/api/badges/mine'),
+      ]);
+      const data = projRes.ok ? await projRes.json() : { items: [] };
+      const isOwner = (data.items || []).some(it => it.slug === slugParam);
+      const badgesData = badgesRes.ok ? await badgesRes.json() : { items: [] };
+      const now = Date.now();
+      const hasActiveBadge = (badgesData.items || []).some(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
+      canModerateProjectComments = isOwner && hasActiveBadge;
     }catch{}
   }
   renderCommentForm(slugParam);
@@ -623,6 +739,13 @@ function wireNavSearch(){
   });
 }
 wireNavSearch();
+
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /projeler/:slug altında da servis edilir)
+// yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/) giderdi.
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest('a[href="#"]');
+  if(a) e.preventDefault();
+});
 
 const navHamburger = document.getElementById('nav-hamburger');
 const navMobileMenu = document.getElementById('nav-mobile-menu');

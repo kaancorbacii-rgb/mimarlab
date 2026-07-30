@@ -1,12 +1,57 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
-import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField } from '../lib/submissionTypes.js';
+import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 
 const TYPE_BY_PATH = {
   offices: 'offices', projects: 'projects', products: 'products', jobs: 'jobs',
   architects: 'architects', news: 'news',
 };
+
+// architects/offices gönderileri, claimed_profile_key doluysa yeni bir kayıt değil, o kullanıcının
+// onaylı bir profile_claims kaydına sahip olduğu STATİK bir profile (architects[]/offices[].name)
+// yapılan bir düzenleme talebidir — sahtecilik olmasın diye onay kontrolü burada yapılır.
+const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
+
+async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
+  const profileType = CLAIM_PROFILE_TYPE[typeKey];
+  if (!profileType) return errorJson('Bu tip için profil düzenleme desteklenmiyor.');
+  const claim = await env.DB.prepare(
+    `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
+  ).bind(user.id, profileType, profileKey).first();
+  if (!claim) return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
+  return null;
+}
+
+// Ürün ve iş ilanı gönderimi rozet sahipliğine bağlıdır (yalnızca yeni gönderiler için — mevcut
+// bir gönderiyi düzenlemek aylık hakkı harcamaz, bkz. updateOwnSubmission). Ürün: her üç rozet
+// kademesi de farklı aylık limitle yükleyebilir. İş ilanı: yalnızca Altın/Elmas Üye yayınlayabilir.
+async function checkSubmissionQuota(env, user, typeKey) {
+  if (typeKey === 'products') {
+    const badge = await getActiveBadge(env, user.id);
+    const limit = badge ? PRODUCT_MONTHLY_LIMITS[badge.badge_type] : undefined;
+    if (!limit) return errorJson('Ürün eklemek için Doğrulanmış Üye, Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+    const since = periodStart(badge);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM product_submissions WHERE owner_user_id = ? AND created_at >= ?`
+    ).bind(user.id, since).first();
+    if (row.count >= limit) return errorJson(`Bu ayki ürün yükleme hakkını kullandın (${limit}/${limit}). Yeni hak için bir sonraki döneme kadar bekleyebilir ya da daha üst bir rozete geçebilirsin.`, 403);
+    return null;
+  }
+  if (typeKey === 'jobs') {
+    const badge = await getActiveBadge(env, user.id);
+    const limit = badge ? JOB_MONTHLY_LIMITS[badge.badge_type] : undefined;
+    if (!limit) return errorJson('İş ilanı yayınlamak için Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+    const since = periodStart(badge);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM job_submissions WHERE owner_user_id = ? AND created_at >= ?`
+    ).bind(user.id, since).first();
+    if (row.count >= limit) return errorJson(`Bu ayki iş ilanı yayınlama hakkını kullandın (${limit}/${limit}).`, 403);
+    return null;
+  }
+  return null;
+}
 
 export async function handleSubmissionRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "offices", ...]
@@ -27,6 +72,17 @@ async function createSubmission(request, env, user, typeKey) {
   const body = await readJson(request);
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
+  const invalidUrlField = findInvalidUrlField(typeKey, body);
+  if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);
+
+  if (body.claimed_profile_key) {
+    const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
+    if (err) return err;
+    body.name = body.claimed_profile_key; // isim, eşleşen statik profille birebir aynı kalmalı
+  }
+
+  const quotaErr = await checkSubmissionQuota(env, user, typeKey);
+  if (quotaErr) return quotaErr;
 
   const config = SUBMISSION_TYPES[typeKey];
   const row = normalizeSubmission(typeKey, body);
@@ -67,6 +123,14 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   const body = await readJson(request);
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
+  const invalidUrlField = findInvalidUrlField(typeKey, body);
+  if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);
+
+  if (body.claimed_profile_key) {
+    const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
+    if (err) return err;
+    body.name = body.claimed_profile_key; // isim, eşleşen statik profille birebir aynı kalmalı
+  }
 
   const row = normalizeSubmission(typeKey, body);
   if (typeKey === 'projects') row.slug = existing.slug; // düzenlemede slug'ı (ve ona bağlı bağlantıları/yorumları) koru

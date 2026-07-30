@@ -1,6 +1,8 @@
 import { json, errorJson, readJson, sessionCookieHeader, clearSessionCookieHeader, parseCookies, SESSION_COOKIE } from '../lib/http.js';
 import { hashPassword, verifyPassword, newId, randomToken, sha256Hex } from '../lib/crypto.js';
 import { createSession, destroySession, getSessionUser, publicUser } from '../lib/auth.js';
+import { isSafeUrlValue } from '../lib/submissionTypes.js';
+import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
@@ -22,6 +24,11 @@ export async function handleAuthRoute(request, env, url) {
 }
 
 async function signup(request, env) {
+  const ip = clientIp(request);
+  if (!(await checkRateLimit(env, 'signup', ip, 10, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla kayıt denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429);
+  }
+
   const body = await readJson(request);
   const email = (body.email || '').trim().toLowerCase();
   const password = body.password || '';
@@ -29,13 +36,14 @@ async function signup(request, env) {
   const dob = body.dob || null;
   const school = (body.school || '').trim() || null;
   const dept = body.dept || null;
-  const profession = body.profession || '';
+  const profession = body.profession || null;
 
   if (!name) return errorJson('Ad soyad gerekli.');
+  if (!dob) return errorJson('Doğum tarihi gerekli.');
   if (!EMAIL_RE.test(email)) return errorJson('Geçerli bir e-posta adresi gir.');
   if (password.length < 8) return errorJson('Şifre en az 8 karakter olmalı.');
   if (body.password !== body.password_confirm) return errorJson('Şifreler eşleşmiyor.');
-  if (!PROFESSIONS.has(profession)) return errorJson('Lütfen bir meslek seç.');
+  if (profession && !PROFESSIONS.has(profession)) return errorJson('Geçersiz meslek.');
   if (dept && !DEPTS.has(dept)) return errorJson('Geçersiz bölüm.');
   if (!body.botCheck) return errorJson('Lütfen "Ben bir bot değilim" kutucuğunu işaretle.');
   if (!body.kvkkAccepted) return errorJson('Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.');
@@ -60,13 +68,28 @@ async function signup(request, env) {
   });
 }
 
+// Gerçek bir kullanıcıya ait olmayan, sabit biçimli bir hash: e-posta bulunamadığında da
+// verifyPassword'ü (PBKDF2 maliyetiyle) çalıştırıp yanıt süresini var/yok kullanıcı arasında
+// eşitlemek için kullanılır — aksi halde yanıt süresi farkı, e-posta adresinin kayıtlı olup
+// olmadığını (hesap numaralandırma) sızdırabilirdi.
+const DUMMY_PASSWORD_HASH = `${'a'.repeat(32)}:${'b'.repeat(64)}`;
+
 async function login(request, env) {
+  const ip = clientIp(request);
+  if (!(await checkRateLimit(env, 'login', ip, 20, 15 * 60 * 1000))) {
+    return errorJson('Çok fazla giriş denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429);
+  }
+
   const body = await readJson(request);
   const email = (body.email || '').trim().toLowerCase();
   const password = body.password || '';
+  if (email && !(await checkRateLimit(env, 'login-email', email, 10, 15 * 60 * 1000))) {
+    return errorJson('Çok fazla giriş denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429);
+  }
 
   const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
-  if (!user || !(await verifyPassword(password, user.password_hash))) {
+  const passwordOk = await verifyPassword(password, user ? user.password_hash : DUMMY_PASSWORD_HASH);
+  if (!user || !passwordOk) {
     return errorJson('E-posta veya şifre hatalı.', 401);
   }
 
@@ -129,11 +152,15 @@ async function sendPasswordResetEmail(env, user, token, request) {
 }
 
 async function forgotPassword(request, env) {
-  const body = await readJson(request);
-  const email = (body.email || '').trim().toLowerCase();
+  const ip = clientIp(request);
   // E-posta var/yok bilgisini sızdırmamak için her durumda aynı genel yanıt döner.
   const generic = { ok: true, message: 'Bu e-posta ile bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.' };
+  if (!(await checkRateLimit(env, 'forgot-password', ip, 10, 60 * 60 * 1000))) return json(generic);
+
+  const body = await readJson(request);
+  const email = (body.email || '').trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return json(generic);
+  if (!(await checkRateLimit(env, 'forgot-password-email', email, 3, 60 * 60 * 1000))) return json(generic);
 
   const user = await env.DB.prepare('SELECT id, email, name FROM users WHERE email = ?').bind(email).first();
   if (!user) return json(generic);
@@ -178,6 +205,9 @@ export async function handleProfileRoute(request, env, url) {
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
   const body = await readJson(request);
+  if ('photo_url' in body && !isSafeUrlValue(body.photo_url)) {
+    return errorJson('Profil fotoğrafı bağlantısı geçersiz.');
+  }
   const fields = ['name', 'dob', 'school', 'dept', 'photo_url'];
   const updates = [];
   const values = [];
