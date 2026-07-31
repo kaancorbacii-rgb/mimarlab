@@ -47,15 +47,26 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
 ];
 
+// Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
+// (bkz. kullanıcı isteği: /ofis -> /firma, Malzeme'nin Ürün'e taşınması) eski bağlantıların/
+// yer imlerinin kırılmaması için. Hem uzantısız hem ".html" biten biçim eşlenir.
+const PATH_RENAME_REDIRECTS = {
+  '/ofis': '/firma',
+  '/ofis.html': '/firma',
+  '/malzeme': '/urun',
+  '/malzeme.html': '/urun',
+  '/malzeme-ekle': '/urun-ekle',
+  '/malzeme-ekle.html': '/urun-ekle',
+};
+
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
 // /sitemap.xml Worker route'u tarafından üretiliyor, bu dosya kaldırıldı).
 const SITEMAP_STATIC_PAGES = [
   { loc: '/', changefreq: 'daily', priority: '1.0' },
   { loc: '/mimar', changefreq: 'daily', priority: '0.9' },
-  { loc: '/ofis', changefreq: 'daily', priority: '0.9' },
+  { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
-  { loc: '/malzeme', changefreq: 'weekly', priority: '0.7' },
   { loc: '/haber', changefreq: 'daily', priority: '0.7' },
   { loc: '/is-ilani', changefreq: 'daily', priority: '0.7' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
@@ -80,7 +91,7 @@ const SITEMAP_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=3600, stale-wh
 // injectMeta()/*-detay.html şablonlarından biri değiştiğinde bu değeri artırmak, gerçek istek
 // URL'sini DEĞİŞTİRMEDEN yalnızca cache anahtarını değiştirip önceki girdileri "yetim" bırakarak
 // (silmeye gerek kalmadan) anında geçersiz kılar.
-const SSR_CACHE_VERSION = 'v7';
+const SSR_CACHE_VERSION = 'v10';
 
 export default {
   async fetch(request, env, ctx) {
@@ -107,6 +118,13 @@ export default {
 };
 
 async function routeAsset(request, env, url, ctx) {
+  const renameTarget = PATH_RENAME_REDIRECTS[url.pathname];
+  if (renameTarget) {
+    const dest = new URL(renameTarget, url.origin);
+    dest.search = url.search;
+    return Response.redirect(dest.href, 301);
+  }
+
   const redirectKey = url.pathname.replace(/\.html$/, '');
   const redirectRule = CLEAN_URL_REDIRECTS[redirectKey];
   const paramVal = redirectRule ? url.searchParams.get(redirectRule.param) : null;

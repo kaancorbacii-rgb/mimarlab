@@ -5848,7 +5848,7 @@ const projects = [
     description: "Bodrum yarımadasında, Mesa Mesken için geliştirilen bir tatil sitesinin plaj kulübü ve tanıtım merkezi olarak tasarlandı. Yapı, gölgelikli geniş bir platform ile çevredeki doğal peyzaj arasında konumlandırılarak araziye müdahaleyi en aza indirecek şekilde kurgulandı. 400 metrelik kumsal boyunca uzanan yürüyüş yolu, mevcut ağaçların arasından geçip hafif bir köprüyle yakındaki dereyi aşıyor. Küçük havuzlar, oturma terasları ve çocuk oyun alanlarının yer aldığı sitede, yerel malzemeler kullanılarak bina ile deniz manzarası arasındaki ilişki ön planda tutuldu.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-bodrum-demirbuku-houses-club-house-1.jpg","projects/proje-bodrum-demirbuku-houses-club-house-2.jpg","projects/proje-bodrum-demirbuku-houses-club-house-3.jpg","projects/proje-bodrum-demirbuku-houses-club-house-4.jpg","projects/bodrum-demirbuku-houses-club-house-ad-5.jpg","projects/bodrum-demirbuku-houses-club-house-ad-6.jpg","projects/bodrum-demirbuku-houses-club-house-ad-7.jpg","projects/bodrum-demirbuku-houses-club-house-ad-8.jpg","projects/bodrum-demirbuku-houses-club-house-ad-9.jpg"]
+    images: ["projects/proje-bodrum-demirbuku-houses-club-house-1.jpg", "projects/proje-bodrum-demirbuku-houses-club-house-2.jpg", "projects/proje-bodrum-demirbuku-houses-club-house-3.jpg", "projects/proje-bodrum-demirbuku-houses-club-house-4.jpg", "projects/bodrum-demirbuku-houses-club-house-ad-5.jpg", "projects/bodrum-demirbuku-houses-club-house-ad-6.jpg", "projects/bodrum-demirbuku-houses-club-house-ad-7.jpg", "projects/bodrum-demirbuku-houses-club-house-ad-8.jpg", "projects/bodrum-demirbuku-houses-club-house-ad-9.jpg"]
   },
   {
     slug: "yemeksepeti-park",
@@ -5864,7 +5864,7 @@ const projects = [
     description: "Yemeksepeti'nin İstanbul Levent'teki 9.300 m²'lik genel merkezi, 7/24 çalışan bir şirketin dinamik ofis kültürünü yansıtacak şekilde tasarlandı. Binanın merkezinde yer alan beş katlı atriyum, farklı renklerdeki köprülerle katları birbirine bağlıyor; her kat bulunduğu köprünün rengiyle anılıyor. Kullanılmayan asansör boşlukları 8 m²'lik dinlenme kabinlerine dönüştürülerek iş-yaşam dengesine katkı sağlıyor. Zemin kattaki koyu kırmızıdan üst katlardaki sarıya geçen renk paleti kat kat değişirken, kütüphane, oyun alanları ve kafeterya gibi ortak sosyal mekânlar da projede yer alıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-yemeksepeti-park-1.jpg","projects/proje-yemeksepeti-park-2.jpg","projects/proje-yemeksepeti-park-3.jpg","projects/proje-yemeksepeti-park-4.jpg","projects/yemeksepeti-park-ad-5.jpg","projects/yemeksepeti-park-ad-6.jpg","projects/yemeksepeti-park-ad-7.jpg","projects/yemeksepeti-park-ad-8.jpg","projects/yemeksepeti-park-ad-9.jpg"]
+    images: ["projects/proje-yemeksepeti-park-1.jpg", "projects/proje-yemeksepeti-park-2.jpg", "projects/proje-yemeksepeti-park-3.jpg", "projects/proje-yemeksepeti-park-4.jpg", "projects/yemeksepeti-park-ad-5.jpg", "projects/yemeksepeti-park-ad-6.jpg", "projects/yemeksepeti-park-ad-7.jpg", "projects/yemeksepeti-park-ad-8.jpg", "projects/yemeksepeti-park-ad-9.jpg"]
   },
   {
     slug: "ka-house",
@@ -5880,7 +5880,7 @@ const projects = [
     description: "Erzincan'da Munzur Dağları manzarasına sahip bir arazide, uluslararası tanınırlığa sahip bir sanatçı için konut ve bağımsız atölye/stüdyo işlevlerini bir araya getiren tek bir kütle olarak tasarlandı. Tüm mekânların birbiriyle görsel ilişki kurduğu yapıda, stüdyoya ayrı bir giriş ortak bir saçak altından sağlanıyor. Merkezi bir boşluk, komşu parsellerden görüşü kısıtlayarak korunaklı geçiş alanları oluşturuyor. Erzincan'ın 1939 ve 1992 depremleri göz önünde bulundurularak Kocaeli'de üretilen çelik taşıyıcı sistem bilinçli olarak açıkta bırakıldı ve kuru duvar sistemleriyle tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ka-house-1.jpg","projects/proje-ka-house-2.jpg","projects/proje-ka-house-3.jpg","projects/proje-ka-house-4.jpg","projects/ka-house-av-5.jpg","projects/ka-house-av-6.jpg","projects/ka-house-av-7.jpg","projects/ka-house-av-8.jpg","projects/ka-house-av-9.jpg"]
+    images: ["projects/proje-ka-house-1.jpg", "projects/proje-ka-house-2.jpg", "projects/proje-ka-house-3.jpg", "projects/proje-ka-house-4.jpg", "projects/ka-house-av-5.jpg", "projects/ka-house-av-6.jpg", "projects/ka-house-av-7.jpg", "projects/ka-house-av-8.jpg", "projects/ka-house-av-9.jpg"]
   },
   {
     slug: "gaziantep-shopping-center",
@@ -5896,7 +5896,7 @@ const projects = [
     description: "Gaziantep kent merkezinin çeperinde, ileride konut gelişimiyle bütünleşecek yaklaşık 83.000 m²'lik bir kentsel plan kapsamında tasarlanan alışveriş merkezi. Farklı kotlardan çok sayıda giriş noktasıyla ziyaretçi hareketliliği ve insan ölçeği ön planda tutuldu; Necmettin Erbakan Bulvarı üzerindeki iki anıtsal giriş, yapının kütlesiyle orantılı kurgulandı. Kuzey köşede kademeli olarak alçalan kütle binanın baskın etkisini azaltırken, yeraltı, zemin ve çatı düzeyinde çeşitlendirilmiş otopark çözümleri sunuluyor. İç mekânda yapısal konsollarla mümkün kılınan 100 metrelik kolonsuz bir atriyum yer alırken, cephede Gaziantep'in kültürel kimliğine gönderme yapan baklava desenli bir doku kullanıldı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-gaziantep-shopping-center-1.jpg","projects/proje-gaziantep-shopping-center-2.jpg","projects/proje-gaziantep-shopping-center-3.jpg","projects/proje-gaziantep-shopping-center-4.jpg","projects/gaziantep-shopping-center-ad-5.jpg","projects/gaziantep-shopping-center-ad-6.jpg","projects/gaziantep-shopping-center-ad-7.jpg","projects/gaziantep-shopping-center-ad-8.jpg","projects/gaziantep-shopping-center-ad-9.jpg"]
+    images: ["projects/proje-gaziantep-shopping-center-1.jpg", "projects/proje-gaziantep-shopping-center-2.jpg", "projects/proje-gaziantep-shopping-center-3.jpg", "projects/proje-gaziantep-shopping-center-4.jpg", "projects/gaziantep-shopping-center-ad-5.jpg", "projects/gaziantep-shopping-center-ad-6.jpg", "projects/gaziantep-shopping-center-ad-7.jpg", "projects/gaziantep-shopping-center-ad-8.jpg", "projects/gaziantep-shopping-center-ad-9.jpg"]
   },
   {
     slug: "tbwa-maya-uptown",
@@ -5912,7 +5912,7 @@ const projects = [
     description: "Etiler'deki bir alışveriş merkezinin yaklaşık 4.500 m²'lik bölümü, üç kat boyunca reklam ajansı TBWA için ofis mekânına dönüştürüldü. Projede mevcut galeri boşlukları ve çatı ışıklıkları, aydınlık ve ferah çalışma alanları yaratmak amacıyla değerlendirildi; sirkülasyon alanları sanat eserleriyle zenginleştirilerek bir galeri deneyimine dönüştürüldü. Açık renk meşe ahşap kaplamalar ve nötr tonlar mekân boyunca bu kavramı destekliyor. Alt kattaki eski sinema salonlarından ikisi fotoğraf ve ses stüdyolarına dönüştürülürken, biri sinema işlevini korudu; bu katta ayrıca mesai saatleri dışında kullanılan dinlenme ve toplantı alanları yer alıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-tbwa-maya-uptown-1.jpg","projects/proje-tbwa-maya-uptown-2.jpg","projects/proje-tbwa-maya-uptown-3.jpg","projects/proje-tbwa-maya-uptown-4.jpg","projects/tbwa-maya-uptown-av-5.jpg","projects/tbwa-maya-uptown-av-6.jpg","projects/tbwa-maya-uptown-av-7.jpg","projects/tbwa-maya-uptown-av-8.jpg","projects/tbwa-maya-uptown-av-9.jpg"]
+    images: ["projects/proje-tbwa-maya-uptown-1.jpg", "projects/proje-tbwa-maya-uptown-2.jpg", "projects/proje-tbwa-maya-uptown-3.jpg", "projects/proje-tbwa-maya-uptown-4.jpg", "projects/tbwa-maya-uptown-av-5.jpg", "projects/tbwa-maya-uptown-av-6.jpg", "projects/tbwa-maya-uptown-av-7.jpg", "projects/tbwa-maya-uptown-av-8.jpg", "projects/tbwa-maya-uptown-av-9.jpg"]
   },
   {
     slug: "quartz-plaza",
@@ -5928,7 +5928,7 @@ const projects = [
     description: "Ofis binası, İstanbul'un jeolojik zemini üzerine düşünülerek tasarlandı; arazinin Miyosen döneminden kalma katmanlaşmış şist kayasından yola çıkan proje, kristal benzeri kırılımlar oluşturan açılı cam paneller ve mika dokusuna gönderme yapan dikey dokulu cephe kaplamasıyla bu jeolojik referansı mimari dile aktarıyor. Kuzeybatı ve kuzeydoğu cephelerinde yer alan çift kabuklu cephe sistemi, hareketli menfezler aracılığıyla yazın ve kışın ısıl verimliliği artırarak enerji yükünü azaltıyor. İç mekân tasarımında da cephedeki malzeme dili sürdürülerek kabartmalı katı kaplamalar, oluklu cam bölmeler ve eloksallı metal yüzeyler kullanıldı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-quartz-plaza-1.jpg","projects/proje-quartz-plaza-2.jpg","projects/proje-quartz-plaza-3.jpg","projects/proje-quartz-plaza-4.jpg","projects/proje-quartz-plaza-5.jpg","projects/quartz-plaza-ad-6.jpg","projects/quartz-plaza-ad-7.jpg","projects/quartz-plaza-ad-8.jpg","projects/quartz-plaza-ad-9.jpg"]
+    images: ["projects/proje-quartz-plaza-1.jpg", "projects/proje-quartz-plaza-2.jpg", "projects/proje-quartz-plaza-3.jpg", "projects/proje-quartz-plaza-4.jpg", "projects/proje-quartz-plaza-5.jpg", "projects/quartz-plaza-ad-6.jpg", "projects/quartz-plaza-ad-7.jpg", "projects/quartz-plaza-ad-8.jpg", "projects/quartz-plaza-ad-9.jpg"]
   },
   {
     slug: "new-nature-store",
@@ -5944,7 +5944,7 @@ const projects = [
     description: "Reflect Studio için tasarlanan bu mağaza, alışılagelmiş bir satış mekânı yerine üretken tasarım yöntemleriyle şekillenen deneysel bir iç mekân olarak kurgulandı. Mobilya ve mekân elemanları, yapay zekâ destekli üretim süreçleriyle geliştirildi; terazzo zeminde geri dönüştürülmüş alüminyum atık, raf sisteminde ise geri dönüştürülmüş ambalaj torbalarından üretilen epoksi reçine kullanıldı. Mekân; özelleştirme alanı, showroom, kasa, depo ve deneme kabini olmak üzere beş bölgeye ayrıldı. Tavanda gün ışığına duyarlı RGB LED aydınlatma üniteleri ile atık kumaşlardan reçineyle üretilen oturma elemanları da projenin sürdürülebilirlik yaklaşımını yansıtıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-new-nature-store-1.jpg","projects/proje-new-nature-store-2.jpg","projects/proje-new-nature-store-3.jpg","projects/proje-new-nature-store-4.jpg","projects/proje-new-nature-store-5.jpg","projects/new-nature-store-ad-6.jpg","projects/new-nature-store-ad-7.jpg","projects/new-nature-store-ad-8.jpg","projects/new-nature-store-ad-9.jpg"]
+    images: ["projects/proje-new-nature-store-1.jpg", "projects/proje-new-nature-store-2.jpg", "projects/proje-new-nature-store-3.jpg", "projects/proje-new-nature-store-4.jpg", "projects/proje-new-nature-store-5.jpg", "projects/new-nature-store-ad-6.jpg", "projects/new-nature-store-ad-7.jpg", "projects/new-nature-store-ad-8.jpg", "projects/new-nature-store-ad-9.jpg"]
   },
   {
     slug: "cthb-law-office",
@@ -5960,7 +5960,7 @@ const projects = [
     description: "Bir hukuk bürosunun iç mekân tasarımı, ortogonal bir bina gridi içinde doğrusal ve doğrusal olmayan elemanlar arasında gerilim yaratacak şekilde ele alındı. Avukatlarla müvekkilleri arasında geçiş mekânı işlevi gören uzun bir koridor, hizmet alanlarını ofislerden ayırıyor. Katlanmış metal levhalardan oluşan tavan elemanları hem yatay çizgiler hem de iki boyutlu değil mekânsal olarak deneyimlenmesi gereken nesneler olarak kurgulandı. Servis alanlarında koyu gri yüzeyler, depolama birimlerinde ahşap yüzeyler ve özel tasarım doğrusal aydınlatma armatürleri kullanılarak dikdörtgen hacimler ile eğik yüzeyler arasındaki karşıtlık vurgulandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-cthb-law-office-1.jpg","projects/proje-cthb-law-office-2.jpg","projects/proje-cthb-law-office-3.jpg","projects/proje-cthb-law-office-4.jpg","projects/proje-cthb-law-office-5.jpg","projects/cthb-law-office-ad-6.jpg","projects/cthb-law-office-ad-7.jpg","projects/cthb-law-office-ad-8.jpg","projects/cthb-law-office-ad-9.jpg"]
+    images: ["projects/proje-cthb-law-office-1.jpg", "projects/proje-cthb-law-office-2.jpg", "projects/proje-cthb-law-office-3.jpg", "projects/proje-cthb-law-office-4.jpg", "projects/proje-cthb-law-office-5.jpg", "projects/cthb-law-office-ad-6.jpg", "projects/cthb-law-office-ad-7.jpg", "projects/cthb-law-office-ad-8.jpg", "projects/cthb-law-office-ad-9.jpg"]
   },
   {
     slug: "seddulbahir-fortress",
@@ -5976,7 +5976,7 @@ const projects = [
     description: "Gelibolu Yarımadası'nın Çanakkale Boğazı'na açılan güney ucunda yer alan Seddülbahir Kalesi, 17. yüzyılda Hatice Turhan Sultan tarafından inşa ettirilen tarihi bir Osmanlı yapısı. I. Dünya Savaşı'nda Çanakkale Muharebeleri sırasında ağır hasar gören kale, 1997'de başlayan ve 25 yıl süren belgeleme, arkeolojik kazı ve restorasyon çalışmalarının ardından 2023'te ziyarete açıldı. Batı ve Güney Kuleleri gibi bazı bölümler harabe hâlinde korunarak savaşın izlerine dair bir hafıza mekânı oluştururken, yıkılan Ana Kapı ve Kubbeli Bina, hafif ahşap strüktürlerle özgün siluetlerine gönderme yapacak şekilde -kesin bir iddia taşımadan- yeniden yorumlandı. 1960'lardan kalma beton kışlaların yerine inşa edilen yeni müze binası, alandan çıkan Osmanlı dönemi yolunu içinde barındırıyor ve duvarlarında özgün Osmanlı taş işçiliğiyle uyumlu yeni taş bloklar kullanılıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-seddulbahir-fortress-1.jpg","projects/proje-seddulbahir-fortress-2.jpg","projects/proje-seddulbahir-fortress-3.jpg","projects/proje-seddulbahir-fortress-4.jpg","projects/proje-seddulbahir-fortress-5.jpg","projects/seddulbahir-fortress-ad-6.jpg","projects/seddulbahir-fortress-ad-7.jpg","projects/seddulbahir-fortress-ad-8.jpg","projects/seddulbahir-fortress-ad-9.jpg"]
+    images: ["projects/proje-seddulbahir-fortress-1.jpg", "projects/proje-seddulbahir-fortress-2.jpg", "projects/proje-seddulbahir-fortress-3.jpg", "projects/proje-seddulbahir-fortress-4.jpg", "projects/proje-seddulbahir-fortress-5.jpg", "projects/seddulbahir-fortress-ad-6.jpg", "projects/seddulbahir-fortress-ad-7.jpg", "projects/seddulbahir-fortress-ad-8.jpg", "projects/seddulbahir-fortress-ad-9.jpg"]
   },
   {
     slug: "cabin-in-woods",
@@ -5992,7 +5992,7 @@ const projects = [
     description: "Bergama'ya bağlı Kozak Yaylası'nda, kısa süreli konaklamalar için tasarlanan küçük ölçekli bir kulübe. Yapı, arazinin topografyasına gömülü, çökük bir oturma alanını çevreleyen bir metal kabukla çevriliyor; araziye asgari müdahale ilkesiyle tasarlanırken, çelik strüktürü ve metal kaplamasıyla doğal çevresinden bilinçli olarak ayrışan bir kütle oluşturuyor. Mevcut kuru duvar taş teras duvarının yerinde dökme betonla güçlendirilmiş temeli, üzerinde yükselen çadır formundaki prefabrike çelik kabukla bir gerilim yaratıyor. Cephede yerinde monte edilen prefabrike cortenstil çelik paneller kullanılırken, iç mekânda kontrplak yüzeyler tercih edildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-cabin-in-woods-1.jpg","projects/proje-cabin-in-woods-2.jpg","projects/proje-cabin-in-woods-3.jpg","projects/proje-cabin-in-woods-4.jpg","projects/proje-cabin-in-woods-5.jpg","projects/cabin-in-woods-ad-6.jpg","projects/cabin-in-woods-ad-7.jpg","projects/cabin-in-woods-ad-8.jpg","projects/cabin-in-woods-ad-9.jpg"]
+    images: ["projects/proje-cabin-in-woods-1.jpg", "projects/proje-cabin-in-woods-2.jpg", "projects/proje-cabin-in-woods-3.jpg", "projects/proje-cabin-in-woods-4.jpg", "projects/proje-cabin-in-woods-5.jpg", "projects/cabin-in-woods-ad-6.jpg", "projects/cabin-in-woods-ad-7.jpg", "projects/cabin-in-woods-ad-8.jpg", "projects/cabin-in-woods-ad-9.jpg"]
   },
   {
     slug: "ksr-house",
@@ -6008,7 +6008,7 @@ const projects = [
     description: "Bodrum'un Türkbükü koyunda, 8 yatak odalı bir misafir evi olarak tasarlanan KSR Evi, geleneksel Bodrum mimarisinin karakteristik yapısını korurken cephesini güncel bir dille yeniliyor. Teraslarda ve iç mekânlarda dayanıklılığı için Technowood ahşap kaplama kullanılırken, ana giriş kapısı ve aydınlatma üniteleri cephe malzemesiyle bütünleşecek şekilde tasarlandı. İç mekânlarda geniş seramik döşemeler ve minimal, işlevsel mobilyalar tercih edildi; terasta endüstriyel bacalı büyük bir barbekü alanı ile yenilenmiş bir havuz yer alıyor. Her misafir odasında mini bar ve otel standardında banyo bulunuyor; toplam 350 m²'lik yapıda geleneksel Bodrum ölçeği korunarak konforlu bir konaklama deneyimi hedeflendi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ksr-house-1.jpg","projects/proje-ksr-house-2.jpg","projects/proje-ksr-house-3.jpg","projects/proje-ksr-house-4.jpg","projects/proje-ksr-house-5.jpg","projects/ksr-house-ad-6.jpg","projects/ksr-house-ad-7.jpg","projects/ksr-house-ad-8.jpg","projects/ksr-house-ad-9.jpg"]
+    images: ["projects/proje-ksr-house-1.jpg", "projects/proje-ksr-house-2.jpg", "projects/proje-ksr-house-3.jpg", "projects/proje-ksr-house-4.jpg", "projects/proje-ksr-house-5.jpg", "projects/ksr-house-ad-6.jpg", "projects/ksr-house-ad-7.jpg", "projects/ksr-house-ad-8.jpg", "projects/ksr-house-ad-9.jpg"]
   },
   {
     slug: "cabin-on-the-border",
@@ -6024,7 +6024,7 @@ const projects = [
     description: "Edirne'de Türkiye-Yunanistan sınırındaki bir köyde yer alan, 18 m²'lik küçük ölçekli bir yaşam birimi. Doğayı sabit bir arka plan değil, mekânın kurgusunu belirleyen etkin bir bileşen olarak ele alan proje, mevsime göre elle uyarlanabilen bir yapıya sahip: ılık günlerde bir gölgelik gibi açılan yapı, fırtınalı havalarda “okyanustaki bir yelkenli” gibi kapanarak sıkı bir sığınağa dönüşüyor. Şebekeden bağımsız çalışan kulübede yağmur suyu toplama ve güneş panelleri kullanılırken, yönlenmesi rüzgâr ve güneşe göre stratejik olarak belirlendi. Lamine ahşap strüktür, polikarbon pencereler ve kontrplak cephe kaplamasıyla inşa edilen yapı, prefabrik ve taşınabilir olacak şekilde tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-cabin-on-the-border-1.jpg","projects/proje-cabin-on-the-border-2.jpg","projects/proje-cabin-on-the-border-3.jpg","projects/proje-cabin-on-the-border-4.jpg","projects/proje-cabin-on-the-border-5.jpg","projects/cabin-on-the-border-ad-6.jpg","projects/cabin-on-the-border-ad-7.jpg","projects/cabin-on-the-border-ad-8.jpg","projects/cabin-on-the-border-ad-9.jpg"]
+    images: ["projects/proje-cabin-on-the-border-1.jpg", "projects/proje-cabin-on-the-border-2.jpg", "projects/proje-cabin-on-the-border-3.jpg", "projects/proje-cabin-on-the-border-4.jpg", "projects/proje-cabin-on-the-border-5.jpg", "projects/cabin-on-the-border-ad-6.jpg", "projects/cabin-on-the-border-ad-7.jpg", "projects/cabin-on-the-border-ad-8.jpg", "projects/cabin-on-the-border-ad-9.jpg"]
   },
   {
     slug: "bain-company-istanbul-office",
@@ -6040,7 +6040,7 @@ const projects = [
     description: "10. katta panoramik Boğaz manzarasına sahip, dairesel formdaki bir kulenin içinde yer alan Bain & Company ofisi için iç mimari ve grafik tasarım projesi. Binanın dairesel geometrisini verimli kullanan tasarımda, merkezden başlayan dairesel bir eks ve onu ayıran daha küçük ikinci bir eks üzerinden açık ofisler, kapalı ofisler ve toplantı odaları için dik yamuk formlar oluşturuldu. Odak noktası, çalışanları hem iş hem sosyal amaçlarla bir araya getiren çok amaçlı, interaktif bir ortak alan yaratmak oldu; bu alan sirkülasyon ile ofis bölümlerinin kesiştiği noktada konumlandırıldı. Katmanlı ham ahşap üniteler donanımları gizlerken geçirgen bir bölücü olarak kullanılıyor; pahlı köşe tavan tasarımı sayesinde doğal ışık dairesel eksen boyunca homojen biçimde yayılıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-bain-company-istanbul-office-1.jpg","projects/proje-bain-company-istanbul-office-2.jpg","projects/proje-bain-company-istanbul-office-3.jpg","projects/proje-bain-company-istanbul-office-4.jpg","projects/proje-bain-company-istanbul-office-5.jpg","projects/bain-company-istanbul-office-ad-6.jpg","projects/bain-company-istanbul-office-ad-7.jpg","projects/bain-company-istanbul-office-ad-8.jpg","projects/bain-company-istanbul-office-ad-9.jpg"]
+    images: ["projects/proje-bain-company-istanbul-office-1.jpg", "projects/proje-bain-company-istanbul-office-2.jpg", "projects/proje-bain-company-istanbul-office-3.jpg", "projects/proje-bain-company-istanbul-office-4.jpg", "projects/proje-bain-company-istanbul-office-5.jpg", "projects/bain-company-istanbul-office-ad-6.jpg", "projects/bain-company-istanbul-office-ad-7.jpg", "projects/bain-company-istanbul-office-ad-8.jpg", "projects/bain-company-istanbul-office-ad-9.jpg"]
   },
   {
     slug: "sisli-city-hall",
@@ -6056,7 +6056,7 @@ const projects = [
     description: "Şişli Belediyesi'nin idari hizmet binası, cepheye hâkim düşey lamel sistemiyle yol kotundan yükselen katı bir kütle olarak tasarlandı. Zemin katta halka açık hizmet alanlarının şeffaf cam cepheyle kentle ilişki kurduğu yapı, üst katlarda ofis kullanımına geçerken düşey lamel sistemiyle güneş kontrolü sağlanıyor. Binanın altında yer alan betonarme rampa ve platform elemanları, yapıyı çevresindeki topoğrafyaya ve yol kotuna bağlıyor. Gece aydınlatmasıyla cephedeki lamel dokusunun öne çıktığı yapı, Şişli'nin ana arterlerinden birinde kamusal bir nirengi noktası oluşturuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-sisli-city-hall-1.jpg","projects/proje-sisli-city-hall-2.jpg","projects/proje-sisli-city-hall-3.jpg","projects/proje-sisli-city-hall-4.jpg","projects/proje-sisli-city-hall-5.jpg","projects/sisli-city-hall-av-6.jpg","projects/sisli-city-hall-av-7.jpg","projects/sisli-city-hall-av-8.jpg","projects/sisli-city-hall-av-9.jpg"]
+    images: ["projects/proje-sisli-city-hall-1.jpg", "projects/proje-sisli-city-hall-2.jpg", "projects/proje-sisli-city-hall-3.jpg", "projects/proje-sisli-city-hall-4.jpg", "projects/proje-sisli-city-hall-5.jpg", "projects/sisli-city-hall-av-6.jpg", "projects/sisli-city-hall-av-7.jpg", "projects/sisli-city-hall-av-8.jpg", "projects/sisli-city-hall-av-9.jpg"]
   },
   {
     slug: "turkish-contractors-association-hq",
@@ -6072,7 +6072,7 @@ const projects = [
     description: "Sınırlı davetli bir yarışma sonucunda şekillenen Türkiye Müteahhitler Birliği Genel Merkezi, Türkiye'nin inşaat sektöründe sürdürülebilir mimariye öncülük etmeyi hedefleyen 4.450 m²'lik bir ofis binası. Projede, aralarında çevre mühendisliği danışmanlığını üstlenen Londra merkezli Atelier Ten'in de bulunduğu uluslararası ve yerel uzmanlardan oluşan çok disiplinli bir ekip görev aldı. Bina, Türkiye'nin ilk modern yeraltı labirent sistemini barındırıyor; bu sistem, zeminin sabit sıcaklığından yararlanarak taze havayı önceden şartlandırıyor ve mekanik soğutmaya bağımlılığı azaltıyor. Tavan soğutma kirişleriyle birlikte çalışan bu pasif iklimlendirme yaklaşımı, yapının LEED sertifikalı sürdürülebilirlik stratejisinin temelini oluşturuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-turkish-contractors-association-hq-1.jpg","projects/proje-turkish-contractors-association-hq-2.webp","projects/proje-turkish-contractors-association-hq-3.webp","projects/proje-turkish-contractors-association-hq-4.webp","projects/proje-turkish-contractors-association-hq-5.webp","projects/turkish-contractors-association-hq-ak-6.jpg","projects/turkish-contractors-association-hq-av-7.jpg","projects/turkish-contractors-association-hq-av-8.jpg","projects/turkish-contractors-association-hq-av-9.jpg"]
+    images: ["projects/proje-turkish-contractors-association-hq-1.jpg", "projects/proje-turkish-contractors-association-hq-2.webp", "projects/proje-turkish-contractors-association-hq-3.webp", "projects/proje-turkish-contractors-association-hq-4.webp", "projects/proje-turkish-contractors-association-hq-5.webp", "projects/turkish-contractors-association-hq-ak-6.jpg", "projects/turkish-contractors-association-hq-av-7.jpg", "projects/turkish-contractors-association-hq-av-8.jpg", "projects/turkish-contractors-association-hq-av-9.jpg"]
   },
   {
     slug: "kirsehir-ahi-evran-cultural-complex",
@@ -6088,7 +6088,7 @@ const projects = [
     description: "Kırşehir'in tarihi kent merkezinde, Ahi Evran Dergâhı çevresindeki tarihi dokuyu güncel işlevlerle yeniden canlandırmayı amaçlayan 66.118 m²'lik bir kültürel alan düzenlemesi. Proje, üretim ve zanaat birliklerini kardeşlik ve dayanışma ilkeleri üzerine kuran Ahi geleneğinin 900 yıllık kültürel mirasını gelecek kuşaklara aktarmayı hedefliyor. Tasarım; işlevsel programlama, yayalaştırma, meydanın çevrelenmesi, dergâhla kot uyumu, ağaçlandırma, farklı bina ölçekleri, sembolik kütle kompozisyonu, yalın strüktür ve yerel malzeme kullanımı olmak üzere dokuz temel karar üzerinden kurgulandı. 4.535 m²'lik yeni müze binası, tarihi dergâh ile çevresindeki yapılar arasındaki ölçek dengesini gözeterek inşa edildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-kirsehir-ahi-evran-cultural-complex-1.jpg","projects/proje-kirsehir-ahi-evran-cultural-complex-2.jpg","projects/proje-kirsehir-ahi-evran-cultural-complex-3.jpg","projects/proje-kirsehir-ahi-evran-cultural-complex-4.jpg","projects/proje-kirsehir-ahi-evran-cultural-complex-5.jpg","projects/kirsehir-ahi-evran-cultural-complex-dv-6.jpg","projects/kirsehir-ahi-evran-cultural-complex-dv-7.jpg","projects/kirsehir-ahi-evran-cultural-complex-dv-8.jpg","projects/kirsehir-ahi-evran-cultural-complex-dv-9.jpg"]
+    images: ["projects/proje-kirsehir-ahi-evran-cultural-complex-1.jpg", "projects/proje-kirsehir-ahi-evran-cultural-complex-2.jpg", "projects/proje-kirsehir-ahi-evran-cultural-complex-3.jpg", "projects/proje-kirsehir-ahi-evran-cultural-complex-4.jpg", "projects/proje-kirsehir-ahi-evran-cultural-complex-5.jpg", "projects/kirsehir-ahi-evran-cultural-complex-dv-6.jpg", "projects/kirsehir-ahi-evran-cultural-complex-dv-7.jpg", "projects/kirsehir-ahi-evran-cultural-complex-dv-8.jpg", "projects/kirsehir-ahi-evran-cultural-complex-dv-9.jpg"]
   },
   {
     slug: "ayhan-sahenk-tarim-bilimleri-fakultesi",
@@ -6104,7 +6104,7 @@ const projects = [
     description: "Niğde Üniversitesi kampüsünde, davetli bir yarışmada birincilik ödülü kazanarak hayata geçirilen 24.000 m² kapalı alanlı bir fakülte binası. Tasarım, açık bir avlu etrafında kurgulanan yapıyı uygulamalı tarım arazisi ve peyzaj bandıyla bütünleştirerek teorik eğitimi pratik alanla, öğrenci sosyal yaşamını da akademik mekânla ilişkilendiriyor. Cephede, PAB Mimarlık ile grafik tasarımcı Didem Ateş'in birlikte geliştirdiği buğday tanesi deseni kullanıldı; bu, Türkiye'de dijital baskı yönteminin bu ölçekte ilk mimari uygulaması olarak tanımlanıyor. Doğuş İnşaat'ın yüklenici olduğu proje, 2014 Ulusal Mimarlık Ödülleri finalistliği gibi çeşitli tanınırlıklar kazandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ayhan-sahenk-tarim-bilimleri-fakultesi-1.jpg","projects/proje-ayhan-sahenk-tarim-bilimleri-fakultesi-2.jpg","projects/proje-ayhan-sahenk-tarim-bilimleri-fakultesi-3.jpg","projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-4.jpg","projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-5.jpg","projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-6.jpg","projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-7.jpg","projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-8.jpg","projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-9.jpg"]
+    images: ["projects/proje-ayhan-sahenk-tarim-bilimleri-fakultesi-1.jpg", "projects/proje-ayhan-sahenk-tarim-bilimleri-fakultesi-2.jpg", "projects/proje-ayhan-sahenk-tarim-bilimleri-fakultesi-3.jpg", "projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-4.jpg", "projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-5.jpg", "projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-6.jpg", "projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-7.jpg", "projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-8.jpg", "projects/ayhan-sahenk-tarim-bilimleri-fakultesi-ak-9.jpg"]
   },
   {
     slug: "nef-golkoy-residences",
@@ -6120,7 +6120,7 @@ const projects = [
     description: "Nef Gölköy Residences, EAA — Emre Arolat Architecture tarafından Bodrum'un Gölköy bölgesinde tasarlanan 15.000 metrekarelik bir konut projesidir. Tasarım süreci, arazideki olgun ağaçların, kayalık dokunun ve topografik özelliklerin korunmasına öncelik verecek şekilde kurgulanmıştır; alt kotlardaki yaşam alanları arazinin boşluklarına oturan platformlar olarak konumlandırılmış, üst kotlarda ise Akdeniz'in geleneksel yerleşim dilinden esinlenen parçalı prizmatik kütleler kullanılmıştır. Bu kademeli yerleşim, her konut biriminin farklı yönlerden açık deniz manzarasına kavuşmasını sağlar. Cephelerde doğal taş, ahşap ve açıkta bırakılmış beton bir arada kullanılarak dokulu bir malzeme paleti oluşturulmuştur. Yapı kütleleri, denizden bakıldığında topografyayla bütünleşip görsel etkisini en aza indirecek şekilde konumlandırılmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-nef-golkoy-residences-1.jpg","projects/proje-nef-golkoy-residences-2.jpg","projects/proje-nef-golkoy-residences-3.jpg","projects/proje-nef-golkoy-residences-4.jpg","projects/proje-nef-golkoy-residences-5.jpg","projects/nef-golkoy-residences-ad-6.jpg","projects/nef-golkoy-residences-ad-7.jpg","projects/nef-golkoy-residences-ad-8.jpg","projects/nef-golkoy-residences-ad-9.jpg"]
+    images: ["projects/proje-nef-golkoy-residences-1.jpg", "projects/proje-nef-golkoy-residences-2.jpg", "projects/proje-nef-golkoy-residences-3.jpg", "projects/proje-nef-golkoy-residences-4.jpg", "projects/proje-nef-golkoy-residences-5.jpg", "projects/nef-golkoy-residences-ad-6.jpg", "projects/nef-golkoy-residences-ad-7.jpg", "projects/nef-golkoy-residences-ad-8.jpg", "projects/nef-golkoy-residences-ad-9.jpg"]
   },
   {
     slug: "agu-presidential-museum-and-library",
@@ -6136,7 +6136,7 @@ const projects = [
     description: "Abdullah Gül Üniversitesi Cumhurbaşkanlığı Müze ve Kütüphanesi, Kayseri'de Rus mimar Ivan Nikolaev tarafından 1933-1935 yılları arasında inşa edilen tarihi Sümerbank Bez Fabrikası'nın iki yapısının EAA — Emre Arolat Architecture tarafından yeniden işlevlendirilmesiyle ortaya çıkmıştır. Projede, fabrikanın Elektrik Santrali binası cumhurbaşkanlığına ait sergi alanları ve geçici sergilerin yer aldığı bir müzeye, bitişiğindeki Buhar Santrali ise kütüphane ve arşiv işlevi gören bir bilgi merkezine dönüştürülmüştür. Kömür bunkerleri ve baca gibi endüstriyel izler korunarak yapının tarihsel katmanlarına saygı gösterilmiş, beton silo ayakları da bellek unsuru olarak kütüphane hacmiyle bütünleştirilmiştir. Müdahale genelinde, zaman içinde oluşan patinanın korunması ve yeni malzemelerin endüstriyel dokuyla kesintisiz bir bütünlük kurması hedeflenmiştir. Toplam 6.500 metrekarelik yapı alanına sahip proje 2016 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-agu-presidential-museum-and-library-1.jpg","projects/proje-agu-presidential-museum-and-library-2.jpg","projects/proje-agu-presidential-museum-and-library-3.jpg","projects/proje-agu-presidential-museum-and-library-4.jpg","projects/proje-agu-presidential-museum-and-library-5.jpg","projects/agu-presidential-museum-and-library-ad-6.jpg","projects/agu-presidential-museum-and-library-ad-7.jpg","projects/agu-presidential-museum-and-library-ad-8.jpg","projects/agu-presidential-museum-and-library-ad-9.jpg"]
+    images: ["projects/proje-agu-presidential-museum-and-library-1.jpg", "projects/proje-agu-presidential-museum-and-library-2.jpg", "projects/proje-agu-presidential-museum-and-library-3.jpg", "projects/proje-agu-presidential-museum-and-library-4.jpg", "projects/proje-agu-presidential-museum-and-library-5.jpg", "projects/agu-presidential-museum-and-library-ad-6.jpg", "projects/agu-presidential-museum-and-library-ad-7.jpg", "projects/agu-presidential-museum-and-library-ad-8.jpg", "projects/agu-presidential-museum-and-library-ad-9.jpg"]
   },
   {
     slug: "bergama-cultural-center",
@@ -6152,7 +6152,7 @@ const projects = [
     description: "Bergama Kültür Merkezi, EAA — Emre Arolat Architecture tarafından Bergama Belediyesi için tasarlanan, yaklaşık 4.000-5.000 metrekarelik bir kültür yapısıdır. Proje, kütüphane, sinema salonları ve tiyatro gibi kültürel işlevleri, dükkânların yer aldığı bir çarşı sokağıyla bir araya getirerek günlük kent yaşamına entegre etmeyi amaçlamıştır. Sinema ve çok amaçlı salona hizmet eden kafe ve oturma alanları, yapının Cumhuriyet Caddesi'ne yakın konumuyla birlikte merkezi kentle doğrudan bir ilişki kurmasını sağlar. Tasarım 2011 yılında başlamış, yapı 2016'da tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-bergama-cultural-center-1.jpg","projects/proje-bergama-cultural-center-2.jpg","projects/proje-bergama-cultural-center-3.jpg","projects/proje-bergama-cultural-center-4.jpg","projects/proje-bergama-cultural-center-5.jpg","projects/bergama-cultural-center-ad-6.jpg","projects/bergama-cultural-center-ad-7.jpg","projects/bergama-cultural-center-ad-8.jpg","projects/bergama-cultural-center-ad-9.jpg"]
+    images: ["projects/proje-bergama-cultural-center-1.jpg", "projects/proje-bergama-cultural-center-2.jpg", "projects/proje-bergama-cultural-center-3.jpg", "projects/proje-bergama-cultural-center-4.jpg", "projects/proje-bergama-cultural-center-5.jpg", "projects/bergama-cultural-center-ad-6.jpg", "projects/bergama-cultural-center-ad-7.jpg", "projects/bergama-cultural-center-ad-8.jpg", "projects/bergama-cultural-center-ad-9.jpg"]
   },
   {
     slug: "maslak-no1-office-tower",
@@ -6168,7 +6168,7 @@ const projects = [
     description: "Maslak No.1 Ofis Kulesi, İstanbul'un Mecidiyeköy-Maslak aksında EAA — Emre Arolat Architecture tarafından tasarlanan, 31.900 metrekarelik bir ofis binasıdır. Yapı, 8,25 x 8,25 metrelik rasyonel bir ızgara üzerine kurulu olup dikey bahçelerle desteklenen serbest formlu bir cam kabukla sarılmıştır. Ana yapıdan ayrık ikincil cephe, yer yer 17 metre genişliğe ve 20 metre yüksekliğe ulaşan bahçeleriyle akustik ve iklimsel bir tampon bölge oluşturur. 150x200 cm'lik dikdörtgen modüllerden oluşan kavisli cephe, silikon camlama ve yönüne göre değişen opaklıkta translusent film katmanlarıyla üretilmiştir. Proje 2008-2014 yılları arasında inşa edilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-maslak-no1-office-tower-1.jpg","projects/proje-maslak-no1-office-tower-2.jpg","projects/proje-maslak-no1-office-tower-3.jpg","projects/proje-maslak-no1-office-tower-4.jpg","projects/proje-maslak-no1-office-tower-5.jpg","projects/maslak-no1-office-tower-ad-6.jpg","projects/maslak-no1-office-tower-ad-7.jpg","projects/maslak-no1-office-tower-ad-8.jpg","projects/maslak-no1-office-tower-ad-9.jpg"]
+    images: ["projects/proje-maslak-no1-office-tower-1.jpg", "projects/proje-maslak-no1-office-tower-2.jpg", "projects/proje-maslak-no1-office-tower-3.jpg", "projects/proje-maslak-no1-office-tower-4.jpg", "projects/proje-maslak-no1-office-tower-5.jpg", "projects/maslak-no1-office-tower-ad-6.jpg", "projects/maslak-no1-office-tower-ad-7.jpg", "projects/maslak-no1-office-tower-ad-8.jpg", "projects/maslak-no1-office-tower-ad-9.jpg"]
   },
   {
     slug: "yalikavak-palmarina",
@@ -6184,7 +6184,7 @@ const projects = [
     description: "Yalıkavak Palmarina, Bodrum'un Yalıkavak bölgesinde EAA — Emre Arolat Architecture imzasıyla hayata geçirilen, 14.000 metrekarelik bir marina ve yaşam alanı gelişimidir. İlk etapta yer alan ada bölümü perakende birimleri, restoranlar, plaj-havuz tesisleri ve mega yat hizmetlerini barındırır; tasarım, farklı yüksekliklerdeki kütlelerin peyzaj ve denizle kaynaşmasıyla bölgenin Akdeniz karakterine uyum sağlamayı hedefler. Kompleks genelinde antik Akdeniz kentlerine gönderme yapan traverten kaplama kullanılmıştır. Sonraki etaplarda inşa edilen parçalı sahil dükkânları, geniş saçaklarla gölgeli sürekli bir yaya yolu oluştururken, kademeli kat düzenlemesiyle insan ölçeğini korur. Proje kapsamında ayrıca butik otel, gümrük binası, spa, fitness merkezi, ofis binası ve tersane gibi ek tesisler de yer alır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-yalikavak-palmarina-1.jpg","projects/proje-yalikavak-palmarina-2.jpg","projects/proje-yalikavak-palmarina-3.jpg","projects/proje-yalikavak-palmarina-4.jpg","projects/proje-yalikavak-palmarina-5.jpg","projects/yalikavak-palmarina-ad-6.jpg","projects/yalikavak-palmarina-ad-7.jpg","projects/yalikavak-palmarina-ad-8.jpg","projects/yalikavak-palmarina-ad-9.jpg"]
+    images: ["projects/proje-yalikavak-palmarina-1.jpg", "projects/proje-yalikavak-palmarina-2.jpg", "projects/proje-yalikavak-palmarina-3.jpg", "projects/proje-yalikavak-palmarina-4.jpg", "projects/proje-yalikavak-palmarina-5.jpg", "projects/yalikavak-palmarina-ad-6.jpg", "projects/yalikavak-palmarina-ad-7.jpg", "projects/yalikavak-palmarina-ad-8.jpg", "projects/yalikavak-palmarina-ad-9.jpg"]
   },
   {
     slug: "vicem-bodrum-residences",
@@ -6200,7 +6200,7 @@ const projects = [
     description: "Vicem Bodrum Konutları, Bodrum'da EAA — Emre Arolat Architecture tarafından Vicem Yachts ve Sanko Holding için tasarlanan, 13.000 metrekarelik bir konut kompleksidir. Proje, sahil şeridindeki yüksek yoğunluk sorununu üç boyutlu arazi topografyasını dikkate alan bir 'kütle parçalanması' stratejisiyle çözmeye çalışır; yapılar, zemine doğal olarak oturan parçalı kütleler halinde tasarlanmıştır. Isı yalıtımı için kalın taş duvarlar, güneye bakan cephelerde ahşap kepenkler, çapraz havalandırma ve gölgeli avlular kullanılarak pasif iklimlendirme hedeflenmiştir. Peyzaj tasarımında, arazinin kayalık dokusundan yola çıkılarak yerel bitki örtüsüne saygılı bir yaklaşım benimsenmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-vicem-bodrum-residences-1.jpg","projects/proje-vicem-bodrum-residences-2.jpg","projects/proje-vicem-bodrum-residences-3.jpg","projects/proje-vicem-bodrum-residences-4.jpg","projects/proje-vicem-bodrum-residences-5.jpg","projects/vicem-bodrum-residences-ad-6.jpg","projects/vicem-bodrum-residences-ad-7.jpg","projects/vicem-bodrum-residences-ad-8.jpg","projects/vicem-bodrum-residences-ad-9.jpg"]
+    images: ["projects/proje-vicem-bodrum-residences-1.jpg", "projects/proje-vicem-bodrum-residences-2.jpg", "projects/proje-vicem-bodrum-residences-3.jpg", "projects/proje-vicem-bodrum-residences-4.jpg", "projects/proje-vicem-bodrum-residences-5.jpg", "projects/vicem-bodrum-residences-ad-6.jpg", "projects/vicem-bodrum-residences-ad-7.jpg", "projects/vicem-bodrum-residences-ad-8.jpg", "projects/vicem-bodrum-residences-ad-9.jpg"]
   },
   {
     slug: "ulus-savoy-residences",
@@ -6216,7 +6216,7 @@ const projects = [
     description: "Ulus Savoy Residences, İstanbul Beşiktaş'ın Ulus semtinde EAA — Emre Arolat Architecture tarafından Çarmıklı ve Saruhan ortak girişimi için tasarlanan, 26 konut bloğundan oluşan 83.000 metrekarelik büyük ölçekli bir konut gelişimidir. Tasarım, onaylı yerleşim planı sınırları içinde çalışırken, sürekli otoparkın çatısını oluşturan kabuk yapılarla arazi topografyasının yeniden kurgulanmasını ve yeni bir zemin katmanı yaratılmasını öngörür. Yönetmeliklerle belirlenmiş kütleye sahip konut birimleri, doğal malzeme ve renklerle komşu gelişmelerden ayrışarak peyzajla bütünleşecek şekilde tasarlanmıştır. Proje 2005-2013 yılları arasında hayata geçirilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ulus-savoy-residences-1.jpg","projects/proje-ulus-savoy-residences-2.jpg","projects/proje-ulus-savoy-residences-3.jpg","projects/proje-ulus-savoy-residences-4.jpg","projects/proje-ulus-savoy-residences-5.jpg","projects/ulus-savoy-residences-ad-6.jpg","projects/ulus-savoy-residences-ad-7.jpg","projects/ulus-savoy-residences-ad-8.jpg","projects/ulus-savoy-residences-ad-9.jpg"]
+    images: ["projects/proje-ulus-savoy-residences-1.jpg", "projects/proje-ulus-savoy-residences-2.jpg", "projects/proje-ulus-savoy-residences-3.jpg", "projects/proje-ulus-savoy-residences-4.jpg", "projects/proje-ulus-savoy-residences-5.jpg", "projects/ulus-savoy-residences-ad-6.jpg", "projects/ulus-savoy-residences-ad-7.jpg", "projects/ulus-savoy-residences-ad-8.jpg", "projects/ulus-savoy-residences-ad-9.jpg"]
   },
   {
     slug: "tekfen-kagithane-ofispark",
@@ -6232,7 +6232,7 @@ const projects = [
     description: "Tekfen Kağıthane Ofispark, İstanbul'da Levent-Maslak aksı üzerinde Büyükdere Caddesi'nde EAA — Emre Arolat Architecture tarafından Tekfen Holding için tasarlanan, 54.000 metrekarelik bir ofis kompleksidir. Gerekli 53.000 metrekarelik toplam alan, çevredeki dokuya tekil ve baskın bir kütle dayatmaktan kaçınmak amacıyla parçalara ayrılarak tasarlanmıştır. Yapı, boşluk ve kütle oranlarının, iç ve dış algıya göre şekillenen renk ve yüzeylerin dikkatle çalışıldığı bir yaklaşımla ele alınmıştır. Proje 2010 yılında European Commercial Property Awards ödülünü kazanmış ve 2007-2012 yılları arasında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-tekfen-kagithane-ofispark-1.jpg","projects/proje-tekfen-kagithane-ofispark-2.jpg","projects/proje-tekfen-kagithane-ofispark-3.jpg","projects/proje-tekfen-kagithane-ofispark-4.jpg","projects/proje-tekfen-kagithane-ofispark-5.jpg","projects/tekfen-kagithane-ofispark-ad-6.jpg","projects/tekfen-kagithane-ofispark-ad-7.jpg","projects/tekfen-kagithane-ofispark-ad-8.jpg","projects/tekfen-kagithane-ofispark-ad-9.jpg"]
+    images: ["projects/proje-tekfen-kagithane-ofispark-1.jpg", "projects/proje-tekfen-kagithane-ofispark-2.jpg", "projects/proje-tekfen-kagithane-ofispark-3.jpg", "projects/proje-tekfen-kagithane-ofispark-4.jpg", "projects/proje-tekfen-kagithane-ofispark-5.jpg", "projects/tekfen-kagithane-ofispark-ad-6.jpg", "projects/tekfen-kagithane-ofispark-ad-7.jpg", "projects/tekfen-kagithane-ofispark-ad-8.jpg", "projects/tekfen-kagithane-ofispark-ad-9.jpg"]
   },
   {
     slug: "raif-dinckok-yalova-cultural-center",
@@ -6248,7 +6248,7 @@ const projects = [
     description: "Raif Dinçkök Kültür Merkezi, Marmara Denizi kıyısındaki Yalova kentinde EAA — Emre Arolat Architecture tarafından Akkök Holding için tasarlanan bir kültür yapısıdır. Cephelerde kullanılan delikli, hava koşullarına dayanıklı paslı yüzeyli çelik, sanayiye bir gönderme niteliği taşırken yapı içine ışık ve havanın süzülerek girmesini sağlar. 600 kişilik çok amaçlı salon, 150 kişilik atölye, düğün ve sergi salonları, ofisler ve kafeterya gibi işlevler, örtülü bir iç sokak oluşturan bir rampayla birbirine bağlanan ayrık hacimlerde konumlandırılmıştır. Toplam 5.700 metrekarelik yapı, 2007-2011 yılları arasında inşa edilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-raif-dinckok-yalova-cultural-center-1.jpg","projects/proje-raif-dinckok-yalova-cultural-center-2.jpg","projects/proje-raif-dinckok-yalova-cultural-center-3.jpg","projects/proje-raif-dinckok-yalova-cultural-center-4.jpg","projects/proje-raif-dinckok-yalova-cultural-center-5.jpg","projects/raif-dinckok-yalova-cultural-center-ad-6.jpg","projects/raif-dinckok-yalova-cultural-center-ad-7.jpg","projects/raif-dinckok-yalova-cultural-center-ad-8.jpg","projects/raif-dinckok-yalova-cultural-center-ad-9.jpg"]
+    images: ["projects/proje-raif-dinckok-yalova-cultural-center-1.jpg", "projects/proje-raif-dinckok-yalova-cultural-center-2.jpg", "projects/proje-raif-dinckok-yalova-cultural-center-3.jpg", "projects/proje-raif-dinckok-yalova-cultural-center-4.jpg", "projects/proje-raif-dinckok-yalova-cultural-center-5.jpg", "projects/raif-dinckok-yalova-cultural-center-ad-6.jpg", "projects/raif-dinckok-yalova-cultural-center-ad-7.jpg", "projects/raif-dinckok-yalova-cultural-center-ad-8.jpg", "projects/raif-dinckok-yalova-cultural-center-ad-9.jpg"]
   },
   {
     slug: "7800-cesme-residences-and-hotel",
@@ -6264,7 +6264,7 @@ const projects = [
     description: "7800 Çeşme Residences and Hotel, İzmir'in 85 kilometre batısındaki Çeşme'de EAA — Emre Arolat Architecture tarafından tasarlanan, 14.100 metrekarelik bir otel ve konut kompleksidir. Ana yapı kütlesi, plaj erişimini korumak amacıyla yola yakın konumlandırılmış, iç sokak niteliğinde bir dolaşım hattı kurgulanmıştır. Kuzey ve güney cephelerde güneş ve rüzgârdan korunmak için iki ayrı güneş kırıcı sistem kullanılmış, konut birimlerinin üst üste bindirilmesiyle oluşan geniş bahçe teraslar dış peyzajın temel unsurunu oluşturmuştur. İç mekân tasarımı şeffaf ve akışkan bir kurgu üzerine inşa edilmiş, proje 2006-2008 yılları arasında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-7800-cesme-residences-and-hotel-1.png","projects/proje-7800-cesme-residences-and-hotel-2.png","projects/proje-7800-cesme-residences-and-hotel-3.png","projects/proje-7800-cesme-residences-and-hotel-4.jpg","projects/proje-7800-cesme-residences-and-hotel-5.jpg","projects/7800-cesme-residences-and-hotel-ad-6.jpg","projects/7800-cesme-residences-and-hotel-ad-7.jpg","projects/7800-cesme-residences-and-hotel-ad-8.jpg","projects/7800-cesme-residences-and-hotel-ad-9.jpg"]
+    images: ["projects/proje-7800-cesme-residences-and-hotel-1.png", "projects/proje-7800-cesme-residences-and-hotel-2.png", "projects/proje-7800-cesme-residences-and-hotel-3.png", "projects/proje-7800-cesme-residences-and-hotel-4.jpg", "projects/proje-7800-cesme-residences-and-hotel-5.jpg", "projects/7800-cesme-residences-and-hotel-ad-6.jpg", "projects/7800-cesme-residences-and-hotel-ad-7.jpg", "projects/7800-cesme-residences-and-hotel-ad-8.jpg", "projects/7800-cesme-residences-and-hotel-ad-9.jpg"]
   },
   {
     slug: "g-house-mugla",
@@ -6280,7 +6280,7 @@ const projects = [
     description: "G House, Muğla'nın Gökçeovacık bölgesinde, güneydoğu-kuzeybatı doğrultusunda uzanan bir vadinin kayalık yamacına PIN Architects tarafından konumlandırılmış tek katlı bir konuttur. Yapı, vadinin eğimine paralel dar cepheli dikdörtgen bir plan üzerine kurulmuş; bu cephe deniz manzarasına dönük şekilde tasarlanmıştır. Yaklaşık 75 metrekarelik kapalı alana ek olarak 50 metrekare civarında açık teras kullanılan yapıda, tam çelik taşıyıcı sistem ve cam cepheler tercih edilmiştir. Tasarımda istinat duvarı kullanılmaması, mevcut bitki örtüsünün korunması ve güneş panelleriyle su/elektrik bağımsızlığı gibi kararlarla çevresel etkinin en aza indirilmesi hedeflenmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-g-house-mugla-1.jpg","projects/proje-g-house-mugla-2.jpg","projects/proje-g-house-mugla-3.jpg","projects/proje-g-house-mugla-4.jpg","projects/proje-g-house-mugla-5.jpg","projects/g-house-mugla-ad-6.jpg","projects/g-house-mugla-ad-7.jpg","projects/g-house-mugla-ad-8.jpg","projects/g-house-mugla-ad-9.jpg"]
+    images: ["projects/proje-g-house-mugla-1.jpg", "projects/proje-g-house-mugla-2.jpg", "projects/proje-g-house-mugla-3.jpg", "projects/proje-g-house-mugla-4.jpg", "projects/proje-g-house-mugla-5.jpg", "projects/g-house-mugla-ad-6.jpg", "projects/g-house-mugla-ad-7.jpg", "projects/g-house-mugla-ad-8.jpg", "projects/g-house-mugla-ad-9.jpg"]
   },
   {
     slug: "can-house-bursa",
@@ -6296,7 +6296,7 @@ const projects = [
     description: "Can Evi, Bursa'nın Mudanya ilçesinde ormanlık bir arazi üzerinde PIN Architects tarafından tasarlanmış U planlı bir konuttur. Kuzeye ormana, güneye ise iç avluya bakan şeffaf cam cepheler, iç mekân ile çevredeki peyzaj arasında sürekli bir görsel bağ kurar. Yapı, arazinin doğal topografyasını izleyen kademeli bir teraslamayla üç farklı kottan oluşur. Açıkta bırakılmış betonun kullanıldığı yapıda çift cidarlı, ısı yalıtımlı ve buhar kesici donanımlı duvarlar tercih edilmiş; ekolojik sertifikalı malzemeler ve yenilenebilir enerji sistemleriyle desteklenmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-can-house-bursa-1.jpg","projects/proje-can-house-bursa-2.jpg","projects/proje-can-house-bursa-3.jpg","projects/proje-can-house-bursa-4.jpg","projects/proje-can-house-bursa-5.jpg","projects/can-house-bursa-ad-6.jpg","projects/can-house-bursa-ad-7.jpg","projects/can-house-bursa-ad-8.jpg","projects/can-house-bursa-ad-9.jpg"]
+    images: ["projects/proje-can-house-bursa-1.jpg", "projects/proje-can-house-bursa-2.jpg", "projects/proje-can-house-bursa-3.jpg", "projects/proje-can-house-bursa-4.jpg", "projects/proje-can-house-bursa-5.jpg", "projects/can-house-bursa-ad-6.jpg", "projects/can-house-bursa-ad-7.jpg", "projects/can-house-bursa-ad-8.jpg", "projects/can-house-bursa-ad-9.jpg"]
   },
   {
     slug: "empera-headquarters",
@@ -6312,7 +6312,7 @@ const projects = [
     description: "Empera İdari Bina, Gaziantep'in 4. Organize Sanayi Bölgesi'nde Yerce Mimarlık ve zaas tarafından halı üreticisi Empera Halı için tasarlanmış, 2.500 metrekarelik dört katlı bir yönetim binasıdır. Mimari örneklerin sınırlı olduğu bir sanayi bölgesinde bir referans noktası oluşturmayı amaçlayan tasarımda, bölgenin kızıl toprağından esinlenen tuğla ana malzeme olarak seçilmiş, cephe boyunca yeşil alanlar entegre edilmiştir. Bina programı zemin katta resepsiyon ve ofisleri, birinci katta yönetimi, ikinci katta showroom'u, üçüncü katta ise kafeterya, lounge, toplantı odaları ve terastan oluşan sosyal alanları bir araya getirir. Proje, iklime duyarlı tasarımı ve gün ışığı kullanımıyla 2018 Türkiye Mimarlık Yıllığı'na seçilmiş, 2020 BigSEE Mimarlık Ödülü'nü kazanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-empera-headquarters-1.jpg","projects/proje-empera-headquarters-2.jpg","projects/proje-empera-headquarters-3.jpg","projects/proje-empera-headquarters-4.jpg","projects/proje-empera-headquarters-5.jpg","projects/empera-headquarters-ad-6.jpg","projects/empera-headquarters-ad-7.jpg","projects/empera-headquarters-ad-8.jpg","projects/empera-headquarters-ad-9.jpg"]
+    images: ["projects/proje-empera-headquarters-1.jpg", "projects/proje-empera-headquarters-2.jpg", "projects/proje-empera-headquarters-3.jpg", "projects/proje-empera-headquarters-4.jpg", "projects/proje-empera-headquarters-5.jpg", "projects/empera-headquarters-ad-6.jpg", "projects/empera-headquarters-ad-7.jpg", "projects/empera-headquarters-ad-8.jpg", "projects/empera-headquarters-ad-9.jpg"]
   },
   {
     slug: "studio-loft-izmir",
@@ -6328,7 +6328,7 @@ const projects = [
     description: "Studio Loft, İzmir'in Alsancak semtinde, yoğun bir bulvara paralel sakin bir sokak üzerindeki eski bir apartman dairesinin Yerce Mimarlık ve zaas tarafından dönüştürülmesiyle ortaya çıkmıştır. Zemin ve üst kattan oluşan 250 metrekarelik mekân, fotoğraf stüdyosu, sergi alanı, ofis ve yaşam işlevlerini bir arada barındıran loft tipi bir kullanıma kavuşturulmuştur. Cadde cephesindeki kayar-katlanır doğramaların kenarlara katlanabilmesi, iç mekân ile kentsel sokak dokusunun kesintisiz bir şekilde bütünleşmesine olanak tanır. Proje, 2016 yılında tamamlanmış; Türkiye Mimarlık Yıllığı'na seçilmiş ve World Architecture Festival Inside 2017'de 'Creative Re-Use' kategorisinde finalist olmuştur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-studio-loft-izmir-1.jpg","projects/proje-studio-loft-izmir-2.jpg","projects/proje-studio-loft-izmir-3.jpg","projects/proje-studio-loft-izmir-4.jpg","projects/proje-studio-loft-izmir-5.jpg","projects/studio-loft-izmir-ad-6.jpg","projects/studio-loft-izmir-ad-7.jpg","projects/studio-loft-izmir-ad-8.jpg","projects/studio-loft-izmir-ad-9.jpg"]
+    images: ["projects/proje-studio-loft-izmir-1.jpg", "projects/proje-studio-loft-izmir-2.jpg", "projects/proje-studio-loft-izmir-3.jpg", "projects/proje-studio-loft-izmir-4.jpg", "projects/proje-studio-loft-izmir-5.jpg", "projects/studio-loft-izmir-ad-6.jpg", "projects/studio-loft-izmir-ad-7.jpg", "projects/studio-loft-izmir-ad-8.jpg", "projects/studio-loft-izmir-ad-9.jpg"]
   },
   {
     slug: "istanbul-bilgi-universitesi-mimarlik-fakultesi",
@@ -6344,7 +6344,7 @@ const projects = [
     description: "İstanbul Bilgi Üniversitesi Mimarlık Fakülteleri, Eyüpsultan'daki Santral Kampüsü içinde yer alan, 1914 yılında inşa edilmiş 4 ve 6 no'lu kazan dairelerinin NSMH tarafından yeniden işlevlendirilmesiyle ortaya çıkmıştır. 1983'te işlevini yitirip terk edilen Silahtarağa Elektrik Santrali'nin bu iki yapısı, sanayi mirası olarak koruma altında olup üniversitenin 2004'te alanı uzun süreli kullanım hakkıyla devralmasının ardından mimari fakülteye dönüştürülmüştür. Yapılardaki özgün kazanlar özel işlemlerden geçirilerek yerlerinde korunmuş ve mekâna kimlik veren birer öge olarak ele alınmıştır. 7.720 metrekarelik inşaat alanına sahip yapıda, lisans stüdyoları, maket atölyesi ve sergi alanı 4 no'lu binada; kütüphane, jüri alanı, yüksek lisans stüdyoları ve öğretim üyesi odaları ise 6 no'lu binada konumlandırılmış, beş farklı seviyede birbiriyle ilişkili stüdyolarla açıklık ve şeffaflık hedeflenmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-1.jpg","projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-2.jpg","projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-3.jpg","projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-4.jpg","projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-5.jpg","projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-6.jpg","projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-7.jpg","projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-8.jpg","projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-9.jpg"]
+    images: ["projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-1.jpg", "projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-2.jpg", "projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-3.jpg", "projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-4.jpg", "projects/proje-istanbul-bilgi-universitesi-mimarlik-fakultesi-5.jpg", "projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-6.jpg", "projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-7.jpg", "projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-8.jpg", "projects/istanbul-bilgi-universitesi-mimarlik-fakultesi-ak-9.jpg"]
   },
   {
     slug: "buyaka-umraniye",
@@ -6360,7 +6360,7 @@ const projects = [
     description: "Buyaka, İstanbul'un Ümraniye ilçesinde, Fatih Sultan Mehmet Köprüsü'nün Anadolu yakasında yer alan büyük ölçekli bir karma kullanım kompleksidir; dönemin ortak ofisi Uras X Dilekci (bugünkü URAStudio ve Dilekci Mimarlık) tarafından tasarlanmıştır. Kompleks, dört adet ofis/konut kulesi, bir alışveriş merkezi ile bir spor ve eğlence yapısından oluşur. Alışveriş merkezinin uzun bir iç holü, karşılıklı kat aralarında konumlanan asma katlarla desteklenirken, dört kule bu holün iki ucuna yerleştirilmiştir. Tasarımda amaç, kentlerde sıkça görülen tekdüze 'mega kütle' alışveriş merkezi tipolojisini kırarak daha davetkâr ve insan ölçeğinde bir mimari dil kurmak olmuştur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-buyaka-umraniye-1.jpg","projects/proje-buyaka-umraniye-2.jpeg","projects/proje-buyaka-umraniye-3.jpg","projects/proje-buyaka-umraniye-4.jpg","projects/proje-buyaka-umraniye-5.jpg","projects/buyaka-umraniye-ad-6.jpg","projects/buyaka-umraniye-ad-7.jpg","projects/buyaka-umraniye-ad-8.jpg","projects/buyaka-umraniye-ad-9.jpg"]
+    images: ["projects/proje-buyaka-umraniye-1.jpg", "projects/proje-buyaka-umraniye-2.jpeg", "projects/proje-buyaka-umraniye-3.jpg", "projects/proje-buyaka-umraniye-4.jpg", "projects/proje-buyaka-umraniye-5.jpg", "projects/buyaka-umraniye-ad-6.jpg", "projects/buyaka-umraniye-ad-7.jpg", "projects/buyaka-umraniye-ad-8.jpg", "projects/buyaka-umraniye-ad-9.jpg"]
   },
   {
     slug: "susona-bodrum",
@@ -6376,7 +6376,7 @@ const projects = [
     description: "Susona Bodrum, Torba'da özel bir yarımada üzerinde Gökhan Avcıoğlu ve GAD tarafından tasarlanmış bir otel kompleksidir. Tasarım, dışa doğru yayılan dairesel halkalar oluşturan bir su damlası fikrinden esinlenmiş; en fazla iki katlı, kademeli ve parçalı kütleler kıyıya doğru alçalarak iç-dış mekân sınırlarını belirsizleştirmiştir. Bölgeden temin edilen doğal taş, sürdürülebilir kaynaklı ahşap ve beyaz sıva, bölgeye özgü bir malzeme paleti oluşturur. 27.000 metrekarelik arazi üzerinde 15.800 metrekarelik inşaat alanına sahip tesis; kumsal, yat iskelesi, beach club ve zemin kat odalarında özel havuz ve teraslar gibi unsurlar barındırır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-susona-bodrum-1.jpg","projects/proje-susona-bodrum-2.jpg","projects/proje-susona-bodrum-3.jpg","projects/proje-susona-bodrum-4.jpg","projects/proje-susona-bodrum-5.jpg","projects/susona-bodrum-ad-6.jpg","projects/susona-bodrum-ad-7.jpg","projects/susona-bodrum-ad-8.jpg","projects/susona-bodrum-ad-9.jpg"]
+    images: ["projects/proje-susona-bodrum-1.jpg", "projects/proje-susona-bodrum-2.jpg", "projects/proje-susona-bodrum-3.jpg", "projects/proje-susona-bodrum-4.jpg", "projects/proje-susona-bodrum-5.jpg", "projects/susona-bodrum-ad-6.jpg", "projects/susona-bodrum-ad-7.jpg", "projects/susona-bodrum-ad-8.jpg", "projects/susona-bodrum-ad-9.jpg"]
   },
   {
     slug: "gecit-wooden-pavilion",
@@ -6392,7 +6392,7 @@ const projects = [
     description: "Geçit, İzmir Ekonomi Üniversitesi Güzel Sanatlar ve Tasarım Fakültesi'nin atölye programı kapsamında, Erazo Pugliese (Sebastian Erazo ve Stefano Pugliese) yürütücülüğünde İç Mimarlık ve Endüstri Ürünleri Tasarımı öğrencileriyle birlikte gerçekleştirilen bir tasarla-yap çalışmasıdır. Öğrencilerden, kampüs içindeki belirli alanları bir çatı, bir duvar ya da bir bank gibi basit mimari müdahalelerle etkinleştirmeleri istenmiştir. Atölye, iki günlük tasarım geliştirme ve üç günlük yapım aşamasından oluşan beş günlük bir süreçte, çam kerestesi ve geri dönüştürülmüş tarım file kumaşı kullanılarak 1:1 ölçekte kullanılabilir küçük bir yapı parçasının inşa edilmesiyle sonuçlanmıştır. Proje, Haziran 2019'da tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-gecit-wooden-pavilion-1.webp","projects/proje-gecit-wooden-pavilion-2.webp","projects/proje-gecit-wooden-pavilion-3.webp","projects/proje-gecit-wooden-pavilion-4.webp","projects/proje-gecit-wooden-pavilion-5.webp","projects/gecit-wooden-pavilion-ad-6.jpg","projects/gecit-wooden-pavilion-ad-7.jpg","projects/gecit-wooden-pavilion-ad-8.jpg","projects/gecit-wooden-pavilion-ad-9.jpg"]
+    images: ["projects/proje-gecit-wooden-pavilion-1.webp", "projects/proje-gecit-wooden-pavilion-2.webp", "projects/proje-gecit-wooden-pavilion-3.webp", "projects/proje-gecit-wooden-pavilion-4.webp", "projects/proje-gecit-wooden-pavilion-5.webp", "projects/gecit-wooden-pavilion-ad-6.jpg", "projects/gecit-wooden-pavilion-ad-7.jpg", "projects/gecit-wooden-pavilion-ad-8.jpg", "projects/gecit-wooden-pavilion-ad-9.jpg"]
   },
   {
     slug: "school-of-foreign-languages-izmir",
@@ -6408,7 +6408,7 @@ const projects = [
     description: "İzmir Ekonomi Üniversitesi Yabancı Diller Yüksekokulu binası, AUDB Architects tarafından tasarlanan 8.000 metrekarelik bir eğitim yapısıdır. Yapı, daha yüksek kütlenin derslik işlevlerini, alçak eklerin ise destek mekânlarını barındırdığı iki parçalı bir form üzerine kurulmuştur. Eğimli arazi, farklı kotlarda ve konfigürasyonlarda çok sayıda kamusal ve açık mekân yaratılmasına imkân tanımış; bu strateji, dil eğitiminin barındırdığı çelişkili gereksinimlere biçimsel çeşitlilik ve mekânsal zenginlikle yanıt vermeyi amaçlamıştır. Program, derslikler ve ofislerin yanı sıra bodrum katta bir spor ve fitness alanını da içerir. Bina 2008 yılında tasarlanmış, 2011-2015 yılları arasında inşa edilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-school-of-foreign-languages-izmir-1.jpg","projects/proje-school-of-foreign-languages-izmir-2.jpg","projects/proje-school-of-foreign-languages-izmir-3.jpg","projects/proje-school-of-foreign-languages-izmir-4.jpg","projects/proje-school-of-foreign-languages-izmir-5.jpg","projects/school-of-foreign-languages-izmir-ad-6.jpg","projects/school-of-foreign-languages-izmir-ad-7.jpg","projects/school-of-foreign-languages-izmir-ad-8.jpg","projects/school-of-foreign-languages-izmir-ad-9.jpg"]
+    images: ["projects/proje-school-of-foreign-languages-izmir-1.jpg", "projects/proje-school-of-foreign-languages-izmir-2.jpg", "projects/proje-school-of-foreign-languages-izmir-3.jpg", "projects/proje-school-of-foreign-languages-izmir-4.jpg", "projects/proje-school-of-foreign-languages-izmir-5.jpg", "projects/school-of-foreign-languages-izmir-ad-6.jpg", "projects/school-of-foreign-languages-izmir-ad-7.jpg", "projects/school-of-foreign-languages-izmir-ad-8.jpg", "projects/school-of-foreign-languages-izmir-ad-9.jpg"]
   },
   {
     slug: "ankara-office-tower",
@@ -6424,7 +6424,7 @@ const projects = [
     description: "Ankara Office Tower, Dolphin Overseas Fund için Anmahian Winton Architects tarafından tasarlanan, akademik iş birliklerine açık teknoloji şirketlerini hedefleyen yaklaşık 23.000 metrekarelik bir ofis kulesidir. Tasarım, kuleyi bitişiğindeki anayoldan geri çekerek bir bambu korusu, kentsel bahçe ve toplu taşımaya yaya bağlantısı için alan açar. Yapının geometrik cam kütlesi, güneşin konumuna ve bakış açısına göre görünümü değişen büyük ölçekli ahşap güneş kırıcı panellerden oluşan bir katmanı sarmalar. Cephe sistemi, güneş kontrolü için merkezi olarak yönetilen ve kullanıcı tarafından yerel olarak geçersiz kılınabilen panjurları, GFRC kafes kaplamayı ve bambu perdeleme ile çevrili bir kamusal kafeyi bir araya getirir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ankara-office-tower-1.jpg","projects/proje-ankara-office-tower-2.jpg","projects/proje-ankara-office-tower-3.jpg","projects/proje-ankara-office-tower-4.jpg","projects/proje-ankara-office-tower-5.jpg","projects/ankara-office-tower-ad-6.jpg","projects/ankara-office-tower-ad-7.jpg","projects/ankara-office-tower-ad-8.jpg","projects/ankara-office-tower-ad-9.jpg"]
+    images: ["projects/proje-ankara-office-tower-1.jpg", "projects/proje-ankara-office-tower-2.jpg", "projects/proje-ankara-office-tower-3.jpg", "projects/proje-ankara-office-tower-4.jpg", "projects/proje-ankara-office-tower-5.jpg", "projects/ankara-office-tower-ad-6.jpg", "projects/ankara-office-tower-ad-7.jpg", "projects/ankara-office-tower-ad-8.jpg", "projects/ankara-office-tower-ad-9.jpg"]
   },
   {
     slug: "monochrome-kale-unicera-2016",
@@ -6440,7 +6440,7 @@ const projects = [
     description: "Monochrome, Kale Grubu için Paolo Cesaretti'nin yaratıcı yönetiminde, Unicera 2016 fuarı kapsamında İstanbul Fuar Merkezi'nde tasarlanan 750 metrekarelik bir sergileme standıdır. Tasarım, İstanbul kentinde bir arada var olan arkaik ve çağdaş etkiler arasındaki gerilimden yola çıkarak, karşıt ama yalın geometrilerden oluşan bir 'alfabe' kurar. Üst üste binen doğrusal öğeler, ürünleri sergilerken teknik özellikleri öne çıkaran katmanlı bir mekânsal derinlik yaratır. Beyaz, dört ton gri ve meşe ahşabından oluşan tek renk paleti, standın bütününde tutarlı bir görsel dil oluşturur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-monochrome-kale-unicera-2016-1.webp","projects/proje-monochrome-kale-unicera-2016-2.webp","projects/proje-monochrome-kale-unicera-2016-3.webp","projects/proje-monochrome-kale-unicera-2016-4.webp","projects/proje-monochrome-kale-unicera-2016-5.webp","projects/monochrome-kale-unicera-2016-dv-6.jpg","projects/monochrome-kale-unicera-2016-dv-7.jpg","projects/monochrome-kale-unicera-2016-dv-8.jpg","projects/monochrome-kale-unicera-2016-dv-9.jpg"]
+    images: ["projects/proje-monochrome-kale-unicera-2016-1.webp", "projects/proje-monochrome-kale-unicera-2016-2.webp", "projects/proje-monochrome-kale-unicera-2016-3.webp", "projects/proje-monochrome-kale-unicera-2016-4.webp", "projects/proje-monochrome-kale-unicera-2016-5.webp", "projects/monochrome-kale-unicera-2016-dv-6.jpg", "projects/monochrome-kale-unicera-2016-dv-7.jpg", "projects/monochrome-kale-unicera-2016-dv-8.jpg", "projects/monochrome-kale-unicera-2016-dv-9.jpg"]
   },
   {
     slug: "augmented-structures-istanbul",
@@ -6456,7 +6456,7 @@ const projects = [
     description: "Augmented Structures, İstanbul'un birbirine zıt iki bölgesini -organik biçimde dönüşen bir iç şehir merkezi ile kapalı bir sitenin bulunduğu banliyö alanını- ses, mimarlık ve görsel medyayı bir araya getirerek irdeleyen disiplinlerarası bir enstalasyon projesidir. Salon Alper Derinboğaz'ın medya sanatçısı Refik Anadol, ses tasarımcısı Kerim Karaoğlu ve parametrik tasarımcılar Coşku Cinkılıç ile Koray Bingöl'le birlikte geliştirdiği çalışma, kentsel soundscape verilerini matematiksel modellere, oradan da fiziksel bir mimari forma dönüştürüyor. Sonuçta ortaya çıkan kurulum, ses üreten, hareket eden ve adeta \"nefes alan\" etkileşimli bir strüktür olarak deneyimleniyor. 2013 tarihli proje, kentin görünmeyen katmanlarını çok duyulu bir mekânsal deneyime çeviren bir araştırma niteliği taşıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-augmented-structures-istanbul-1.jpg","projects/proje-augmented-structures-istanbul-2.jpg","projects/proje-augmented-structures-istanbul-3.jpg","projects/proje-augmented-structures-istanbul-4.jpg","projects/proje-augmented-structures-istanbul-5.jpg","projects/augmented-structures-istanbul-dv-6.jpg","projects/augmented-structures-istanbul-dv-7.jpg","projects/augmented-structures-istanbul-dv-8.jpg","projects/augmented-structures-istanbul-dv-9.jpg"]
+    images: ["projects/proje-augmented-structures-istanbul-1.jpg", "projects/proje-augmented-structures-istanbul-2.jpg", "projects/proje-augmented-structures-istanbul-3.jpg", "projects/proje-augmented-structures-istanbul-4.jpg", "projects/proje-augmented-structures-istanbul-5.jpg", "projects/augmented-structures-istanbul-dv-6.jpg", "projects/augmented-structures-istanbul-dv-7.jpg", "projects/augmented-structures-istanbul-dv-8.jpg", "projects/augmented-structures-istanbul-dv-9.jpg"]
   },
   {
     slug: "duzce-university-campus",
@@ -6472,7 +6472,7 @@ const projects = [
     description: "Düzce Üniversitesi Konuralp Kampüsü için hazırlanan bu kentsel tasarım, dağınık bir yerleşke dokusunu kampüs, kent ve doğayı birbirine bağlayan bütünleşik bir ekolojiye dönüştürmeyi amaçlıyor. Proje, kampüs içinden geçen bir vadiyi otoyol benzeri bir yol sisteminden arındırarak fakülteleri birbirine bağlayan yeşil bir rekreasyon koridoruna çeviriyor. Bu yeşil kuşak, kamusal işlevleri doğal alanlarla iç içe geçirerek topografyayı ve çevredeki orman dokusunu kampüsün günlük yaşamının bir parçası hâline getiriyor. Salon Alper Derinboğaz imzalı 2014 tarihli çalışma, farklı disiplinlerin bir arada üretim yapabileceği, sürdürülebilir ve zamanla gelişebilecek bir yerleşke vizyonu öneriyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-duzce-university-campus-1.jpg","projects/proje-duzce-university-campus-2.jpg","projects/proje-duzce-university-campus-3.jpg","projects/proje-duzce-university-campus-4.jpg","projects/proje-duzce-university-campus-5.jpg","projects/duzce-university-campus-dv-6.jpg","projects/duzce-university-campus-dv-7.jpg","projects/duzce-university-campus-dv-8.jpg","projects/duzce-university-campus-dv-9.jpg"]
+    images: ["projects/proje-duzce-university-campus-1.jpg", "projects/proje-duzce-university-campus-2.jpg", "projects/proje-duzce-university-campus-3.jpg", "projects/proje-duzce-university-campus-4.jpg", "projects/proje-duzce-university-campus-5.jpg", "projects/duzce-university-campus-dv-6.jpg", "projects/duzce-university-campus-dv-7.jpg", "projects/duzce-university-campus-dv-8.jpg", "projects/duzce-university-campus-dv-9.jpg"]
   },
   {
     slug: "atakoy-medical-healthcare",
@@ -6488,7 +6488,7 @@ const projects = [
     description: "Memorial Sağlık Grubu için Ataköy'de tasarlanan bu 28.000 metrekarelik özel hastane binası, S biçimli kütlesiyle hem bitişiğindeki otoyoldan gelen gürültüye karşı bir tampon oluşturuyor hem de araç ve yaya sirkülasyonunu iki ana ve iki tali girişle organize ediyor. Otoyola bakan cephede, hasta odalarını iklimsel olarak kontrollü bir bölgeye alan ve trafik gürültüsünü azaltan çift kabuklu bir cephe sistemi kullanılmış; bu yüzey aynı zamanda kurumsal kimliği yüksek teknolojili bir görünümle dışa yansıtıyor. Binanın arka bahçeye ve konut alanına bakan diğer cephesi ise balkonlarla daha davetkâr bir karaktere sahip. Salon Alper Derinboğaz imzalı 2015 tarihli proje, yapının bulunduğu \"ara\" konumu karşıt cepheler üzerinden okunabilir kılıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-atakoy-medical-healthcare-1.jpg","projects/proje-atakoy-medical-healthcare-2.jpg","projects/proje-atakoy-medical-healthcare-3.jpg","projects/proje-atakoy-medical-healthcare-4.jpg","projects/atakoy-medical-healthcare-dv-5.jpg","projects/atakoy-medical-healthcare-dv-6.jpg","projects/atakoy-medical-healthcare-dv-7.jpg","projects/atakoy-medical-healthcare-dv-8.jpg"]
+    images: ["projects/proje-atakoy-medical-healthcare-1.jpg", "projects/proje-atakoy-medical-healthcare-2.jpg", "projects/proje-atakoy-medical-healthcare-3.jpg", "projects/proje-atakoy-medical-healthcare-4.jpg", "projects/atakoy-medical-healthcare-dv-5.jpg", "projects/atakoy-medical-healthcare-dv-6.jpg", "projects/atakoy-medical-healthcare-dv-7.jpg", "projects/atakoy-medical-healthcare-dv-8.jpg"]
   },
   {
     slug: "beylikduzu-valley-and-bridge",
@@ -6504,7 +6504,7 @@ const projects = [
     description: "Beylikdüzü'ndeki bir vadi ve çevresini kapsayan bu kentsel tasarım ve altyapı çalışması, \"vadiye erişmek, vadiyi hissetmek ve vadiyi seyretmek\" olmak üzere üç stratejik yaklaşım etrafında kurgulanıyor. Proje, vadiyi yaşanabilir, erişilebilir, sürdürülebilir ve uygulanabilir kılarak canlı tutmayı; sivil toplumdan tekil köprü tasarımına kadar farklı ölçekleri birbirine bağlamayı hedefliyor. Alper Derinboğaz ve Enise Derinboğaz liderliğinde 2015 yılında geliştirilen çalışma, bir yaya köprüsü ve vadi boyunca uzanan bir mastır plan önerisini bir araya getiriyor. Böylece kentin içindeki doğal bir boşluk, çevresindeki mahallelerle bütünleşen bir kamusal peyzaja dönüştürülüyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-beylikduzu-valley-and-bridge-1.jpg","projects/proje-beylikduzu-valley-and-bridge-2.jpg","projects/proje-beylikduzu-valley-and-bridge-3.jpg","projects/proje-beylikduzu-valley-and-bridge-4.jpg","projects/proje-beylikduzu-valley-and-bridge-5.jpg","projects/beylikduzu-valley-and-bridge-dv-6.jpg","projects/beylikduzu-valley-and-bridge-dv-7.jpg","projects/beylikduzu-valley-and-bridge-dv-8.jpg","projects/beylikduzu-valley-and-bridge-dv-9.jpg"]
+    images: ["projects/proje-beylikduzu-valley-and-bridge-1.jpg", "projects/proje-beylikduzu-valley-and-bridge-2.jpg", "projects/proje-beylikduzu-valley-and-bridge-3.jpg", "projects/proje-beylikduzu-valley-and-bridge-4.jpg", "projects/proje-beylikduzu-valley-and-bridge-5.jpg", "projects/beylikduzu-valley-and-bridge-dv-6.jpg", "projects/beylikduzu-valley-and-bridge-dv-7.jpg", "projects/beylikduzu-valley-and-bridge-dv-8.jpg", "projects/beylikduzu-valley-and-bridge-dv-9.jpg"]
   },
   {
     slug: "reflect-studio-store",
@@ -6520,7 +6520,7 @@ const projects = [
     description: "\"Geleceği Üretmek İçin Bir Laboratuvar\" olarak tanımlanan Reflect Studio, Salon Alper Derinboğaz tarafından tasarlanan bir iç mekân ve ofis projesi. Tasarım, parlak kimyasallar ve temiz çelik yüzeylerle laboratuvar estetiğinden ilham alıyor; mevcut mobilyaların yeniden kullanılması ve büyümeye açık esnek elemanlarla sürdürülebilirlik ön plana çıkarılıyor. Atık alüminyum parçalardan üretilen geri dönüştürülmüş terrazzo zeminler, uçak kanadı aerodinamiğinden esinlenen \"Aero Desk\" masalar ve delikli metal depolama üniteleri gibi özgün detaylar mekâna karakter kazandırıyor. Sensörle çalışan havalandırma boşluklu akıllı pencereler doğal hava akışını sağlarken, tavana homojen dağıtılmış RGB LED aydınlatma birimleri farklı çalışma modlarına uyum sağlıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-reflect-studio-store-1.jpeg","projects/proje-reflect-studio-store-2.jpg","projects/proje-reflect-studio-store-3.jpeg","projects/proje-reflect-studio-store-4.jpeg","projects/reflect-studio-store-ak-5.jpg","projects/reflect-studio-store-ak-6.jpg","projects/reflect-studio-store-ak-7.jpg","projects/reflect-studio-store-ak-8.jpg","projects/reflect-studio-store-ak-9.jpg"]
+    images: ["projects/proje-reflect-studio-store-1.jpeg", "projects/proje-reflect-studio-store-2.jpg", "projects/proje-reflect-studio-store-3.jpeg", "projects/proje-reflect-studio-store-4.jpeg", "projects/reflect-studio-store-ak-5.jpg", "projects/reflect-studio-store-ak-6.jpg", "projects/reflect-studio-store-ak-7.jpg", "projects/reflect-studio-store-ak-8.jpg", "projects/reflect-studio-store-ak-9.jpg"]
   },
   {
     slug: "parkopera-antalya",
@@ -6536,7 +6536,7 @@ const projects = [
     description: "Muratpaşa Performans Merkezi olarak da bilinen Parkopera, Antalya'da bitişiğindeki parkla bütünleşen, mahalle ölçeğinde çalışan bir kültür yapısı. Alper Derinboğaz ve Hakan Tüzün Şengün imzalı bina, üç cepheli sahne, orkestra çukuru ve sahne asansörleriyle donatılmış 400 kişilik bir opera salonunun yanı sıra gösteri merkezi, stüdyo, prova odaları ve parka açılan çok amaçlı bir fuaye barındırıyor. Tasarım, uzaktan bakıldığında görkemli ve heykelsi, yakından deneyimlendiğinde ise şaşırtıcı derecede hafif hissettiren, aslında simüle edilmiş katı bir beton görünümüne dayanıyor. Bina, planlı gösteri saatleri dışında parka bakan fuayesi aracılığıyla mahalle etkinliklerine de ev sahipliği yaparak ikili bir program sunuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-parkopera-antalya-1.jpg","projects/proje-parkopera-antalya-2.jpg","projects/proje-parkopera-antalya-3.jpg","projects/proje-parkopera-antalya-4.jpg","projects/proje-parkopera-antalya-5.jpg"]
+    images: ["projects/proje-parkopera-antalya-1.jpg", "projects/proje-parkopera-antalya-2.jpg", "projects/proje-parkopera-antalya-3.jpg", "projects/proje-parkopera-antalya-4.jpg", "projects/proje-parkopera-antalya-5.jpg"]
   },
   {
     slug: "swissotel-resort-residences-cesme",
@@ -6552,7 +6552,7 @@ const projects = [
     description: "1997 yılında inşa edilen 11 katlı Sheraton Çeşme Otel'in dönüştürülmesiyle ortaya çıkan Swissotel Resort and Residences Çeşme, Dilekci Mimarlık imzalı bir adaptif yeniden kullanım projesi. Tasarım, çevresel etkiyi en aza indirmek amacıyla mevcut yapının mümkün olduğunca korunmasını hedefliyor; otel oda sayısı azaltılırken yeni konut üniteleri ve villalar eklenmiş, binanın silüetini bozan sorunlu ek yapılar kaldırılmış. Yapı, güncel deprem yönetmeliklerine uyum sağlayacak şekilde güçlendirilirken eski kongre merkezinden sökülen çelik, yeni eklerde yeniden kullanılarak önemli bir karbon tasarrufu sağlanmış. Ege Denizi manzarasını en üst düzeye çıkaran otel, kongre merkezi, toplantı salonları ve otel ile konut bölümüne ait ayrı havuz alanlarıyla WAF 2024 finalisti oldu.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-swissotel-resort-residences-cesme-1.jpg","projects/proje-swissotel-resort-residences-cesme-2.jpg","projects/proje-swissotel-resort-residences-cesme-3.jpg","projects/proje-swissotel-resort-residences-cesme-4.jpg","projects/proje-swissotel-resort-residences-cesme-5.jpg","projects/swissotel-resort-residences-cesme-ad-6.jpg","projects/swissotel-resort-residences-cesme-ad-7.jpg","projects/swissotel-resort-residences-cesme-ad-8.jpg","projects/swissotel-resort-residences-cesme-ad-9.jpg"]
+    images: ["projects/proje-swissotel-resort-residences-cesme-1.jpg", "projects/proje-swissotel-resort-residences-cesme-2.jpg", "projects/proje-swissotel-resort-residences-cesme-3.jpg", "projects/proje-swissotel-resort-residences-cesme-4.jpg", "projects/proje-swissotel-resort-residences-cesme-5.jpg", "projects/swissotel-resort-residences-cesme-ad-6.jpg", "projects/swissotel-resort-residences-cesme-ad-7.jpg", "projects/swissotel-resort-residences-cesme-ad-8.jpg", "projects/swissotel-resort-residences-cesme-ad-9.jpg"]
   },
   {
     slug: "folkart-blu",
@@ -6568,7 +6568,7 @@ const projects = [
     description: "Çeşme Yarımadası'nın deniz kıyısındaki değerli bir arazisinde konumlanan Folkart Blu (Folkart Paşalimanı), iklim koşulları ve bitki örtüsü gibi etkenlerin titizlikle değerlendirilmesiyle şekillenen bir konut projesi. Bina, güneye bakacak, soğuk kuzey rüzgârını ise arkasına alacak şekilde stratejik olarak konumlandırılmış; bu yönlenme aynı zamanda doğal havalandırma için de kullanılıyor. Her dairenin güneşe göre gölgelenen ve yeşil bir \"kat bahçesi\" niteliği taşıyan geniş terasları bulunuyor, iç bahçe ise koridorlara sakin ve gölgeli bir atmosfer katıyor. Dilekci Mimarlık imzalı yapı, üç kat yüksekliğine indirilen mütevazı silüetiyle Çeşme'nin deniz manzarasıyla uyumlu bir ilişki kurmayı amaçlıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-folkart-blu-1.jpg","projects/proje-folkart-blu-2.jpg","projects/proje-folkart-blu-3.jpg","projects/proje-folkart-blu-4.jpg","projects/proje-folkart-blu-5.jpg","projects/folkart-blu-ad-6.jpg","projects/folkart-blu-ad-7.jpg","projects/folkart-blu-ad-8.jpg","projects/folkart-blu-ad-9.jpg"]
+    images: ["projects/proje-folkart-blu-1.jpg", "projects/proje-folkart-blu-2.jpg", "projects/proje-folkart-blu-3.jpg", "projects/proje-folkart-blu-4.jpg", "projects/proje-folkart-blu-5.jpg", "projects/folkart-blu-ad-6.jpg", "projects/folkart-blu-ad-7.jpg", "projects/folkart-blu-ad-8.jpg", "projects/folkart-blu-ad-9.jpg"]
   },
   {
     slug: "micosta-hotel-residences",
@@ -6584,7 +6584,7 @@ const projects = [
     description: "Çeşme Yarımadası'nın Boyalık sahilinde yer alan Mi'Costa, her odasının kesintisiz deniz manzarası görmesi ilkesiyle tasarlanmış bir otel ve konut projesi. Yapılar, rüzgârdan korunmak amacıyla denize doğru alçalırken, güney yönündeki alt katlar bol güneş alan geniş bahçelere açılıyor; her kat, avlunun ortasına daha fazla gökyüzü ve gün ışığı almak için güneye doğru iki metre kaydırılarak kademelendirilmiş. Rüzgârdan korunaklı bu avlu, giriş lobisi, sosyal merkez, restoran ve spa alanlarına bağlanan ortak bir buluşma noktası oluşturuyor. Dilekci Mimarlık imzalı proje, 2015 Mies van der Rohe Ödülü için Türkiye'den aday gösterilmiş ve WAF2012'de konut kategorisinde finalist olmuştur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-micosta-hotel-residences-1.jpg","projects/proje-micosta-hotel-residences-2.jpg","projects/proje-micosta-hotel-residences-3.jpg","projects/proje-micosta-hotel-residences-4.jpg","projects/micosta-hotel-residences-ad-5.jpg","projects/micosta-hotel-residences-ad-6.jpg","projects/micosta-hotel-residences-ad-7.jpg","projects/micosta-hotel-residences-ad-8.jpg","projects/micosta-hotel-residences-ad-9.jpg"]
+    images: ["projects/proje-micosta-hotel-residences-1.jpg", "projects/proje-micosta-hotel-residences-2.jpg", "projects/proje-micosta-hotel-residences-3.jpg", "projects/proje-micosta-hotel-residences-4.jpg", "projects/micosta-hotel-residences-ad-5.jpg", "projects/micosta-hotel-residences-ad-6.jpg", "projects/micosta-hotel-residences-ad-7.jpg", "projects/micosta-hotel-residences-ad-8.jpg", "projects/micosta-hotel-residences-ad-9.jpg"]
   },
   {
     slug: "selenium-atakoy",
@@ -6600,7 +6600,7 @@ const projects = [
     description: "E-5 karayolu kenarında, Ataköy semtinde yükselen Selenium Ataköy, on beşer katlı üç bloktan oluşan bir toplu konut projesi. Yatırımcının küçük metrekareli birimler talep etmesi üzerine, Marmara Denizi'ne geniş bir görüş açısı kazandırmak amacıyla bloklar eliptik bir plan şeması üzerine kurgulanmış; bu form küçük dairelere 9-10 metre genişliğinde cepheler sağlayarak daha fazla ışık ve daha geniş bir mekân hissi yaratıyor. Eliptik planın arkada kalan bölümü ise banyo ve mutfak gibi ıslak hacimleri toplamak için kullanılırken, blokların boşaltılan çekirdekleri kapalı koridorları ortadan kaldırıp merkezi atriumdan gelen doğal havalandırmayla iklimlendirmeyi mümkün kılıyor. Dilekci Mimarlık (DDA) ve Uras X Dilekci Mimarlık imzalı proje, üç bloğu ortak bir zemin kat alanında birbirine bağlıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-selenium-atakoy-1.jpg","projects/proje-selenium-atakoy-2.jpg","projects/proje-selenium-atakoy-3.jpg","projects/proje-selenium-atakoy-4.jpg","projects/selenium-atakoy-ad-5.jpg","projects/selenium-atakoy-ad-6.jpg","projects/selenium-atakoy-ad-7.jpg","projects/selenium-atakoy-ad-8.jpg","projects/selenium-atakoy-ad-9.jpg"]
+    images: ["projects/proje-selenium-atakoy-1.jpg", "projects/proje-selenium-atakoy-2.jpg", "projects/proje-selenium-atakoy-3.jpg", "projects/proje-selenium-atakoy-4.jpg", "projects/selenium-atakoy-ad-5.jpg", "projects/selenium-atakoy-ad-6.jpg", "projects/selenium-atakoy-ad-7.jpg", "projects/selenium-atakoy-ad-8.jpg", "projects/selenium-atakoy-ad-9.jpg"]
   },
   {
     slug: "koc-university-medical-sciences-campus",
@@ -6616,7 +6616,7 @@ const projects = [
     description: "2011'de düzenlenen ulusal kapalı yarışmada birincilik alan Koç Üniversitesi Sağlık Bilimleri Kampüsü, tıp fakültesi, 440 yatak kapasiteli bir üniversite hastanesi, hemşirelik okulu, ileri simülasyon merkezi, yüksek güvenlikli araştırma laboratuvarları, yurtlar, sosyal tesisler ve spor salonlarını bir araya getiren geniş kapsamlı bir kampüs. Kreatif Mimarlık ve CannonDesign iş birliğiyle geliştirilen proje, tıp ve hemşirelik öğrencilerinin yanı sıra öğretim üyeleri, doktorlar ve hemşireler için yaşam alanlarını içeren Koç Üniversitesi Topkapı Yaşam Merkezi'ni de kampüsün bir parçası olarak barındırıyor. Tasarım, eğitim, araştırma ve sağlık hizmetini tek bir yerleşke içinde bütünleştirerek 600 kişilik kapasiteye sahip bir yaşam merkezini kampüsün sosyal omurgası hâline getiriyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-koc-university-medical-sciences-campus-1.jpg","projects/proje-koc-university-medical-sciences-campus-2.jpg","projects/proje-koc-university-medical-sciences-campus-3.jpg","projects/proje-koc-university-medical-sciences-campus-4.jpg","projects/proje-koc-university-medical-sciences-campus-5.jpg"]
+    images: ["projects/proje-koc-university-medical-sciences-campus-1.jpg", "projects/proje-koc-university-medical-sciences-campus-2.jpg", "projects/proje-koc-university-medical-sciences-campus-3.jpg", "projects/proje-koc-university-medical-sciences-campus-4.jpg", "projects/proje-koc-university-medical-sciences-campus-5.jpg"]
   },
   {
     slug: "babylon-lounge",
@@ -6632,7 +6632,7 @@ const projects = [
     description: "Asmalımescit mahallesinin 1990'ların ikinci yarısından itibaren geçirdiği dönüşümde önemli bir rol oynayan Babylon müzik kulübünün ofis binası, Kreatif Mimarlık tarafından tasarlandı. Pozitif Ofis Binası, giriş katındaki Babylon Lounge üzerinden arkasındaki tarihi binada yer alan Babylon Music Club ile fiziksel bir bağlantı kuruyor. Zemin kattaki Babylon Lounge, gündüz saatlerinde ziyaretçilere ve Pozitif çalışanlarına öğle arasında müzik dinleyebilecekleri sakin bir mekân sunarken, akşam saatlerinde aydınlatma düzenlemesiyle atmosferini değiştirip Babylon Music Club ile bütünleşen canlı bir performans alanına dönüşüyor. Binanın birinci katı özel toplantı ve yemek davetlerine, üst dört katı ise Pozitif ofislerine ayrılmış durumda.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-babylon-lounge-1.jpg","projects/proje-babylon-lounge-2.jpg","projects/proje-babylon-lounge-3.jpg","projects/babylon-lounge-ak-4.jpg","projects/babylon-lounge-ak-5.jpg","projects/babylon-lounge-ak-6.jpg","projects/babylon-lounge-ak-7.jpg","projects/babylon-lounge-ak-8.jpg","projects/babylon-lounge-ak-9.jpg"]
+    images: ["projects/proje-babylon-lounge-1.jpg", "projects/proje-babylon-lounge-2.jpg", "projects/proje-babylon-lounge-3.jpg", "projects/babylon-lounge-ak-4.jpg", "projects/babylon-lounge-ak-5.jpg", "projects/babylon-lounge-ak-6.jpg", "projects/babylon-lounge-ak-7.jpg", "projects/babylon-lounge-ak-8.jpg", "projects/babylon-lounge-ak-9.jpg"]
   },
   {
     slug: "shaped-with-the-wind-and-sun",
@@ -6648,7 +6648,7 @@ const projects = [
     description: "İzmir'in liman ile Bornova arasında gelişen bölgesinde, Ankara Bulvarı üzerinde bir simge yapı olması hedefiyle tasarlanan Bayraklı Kulesi, Kreatif Mimarlık imzasını taşıyor. Tasarım sürecinin en önemli kararı, benzer ofis binalarının giderek arttığı bu cadde üzerinde kuleyi yoldan geri çekerek önünde yayaların buluşup vakit geçirebileceği kamusal bir alan yaratmak olmuş; bu meydana bağlanan geniş basamaklı bir teras, caddeye bakan yükseltilmiş bir seyir alanı sunuyor. 24 katlı blok, güneşin izlediği yörünge ve hâkim rüzgârların şekillendirdiği olağandışı doku ve formuyla dikkat çeken bir cepheye sahip. Teras altındaki perakende birimleri de zemin kat hareketliliğini destekleyerek 2010-2011 yıllarında hayata geçirilen projeyi kentsel yaşamla bütünleştiriyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-shaped-with-the-wind-and-sun-1.jpg","projects/proje-shaped-with-the-wind-and-sun-2.jpg","projects/proje-shaped-with-the-wind-and-sun-3.jpg","projects/proje-shaped-with-the-wind-and-sun-4.jpg","projects/shaped-with-the-wind-and-sun-ak-5.jpg","projects/shaped-with-the-wind-and-sun-ak-6.jpg","projects/shaped-with-the-wind-and-sun-ak-7.jpg","projects/shaped-with-the-wind-and-sun-ak-8.jpg","projects/shaped-with-the-wind-and-sun-ak-9.jpg"]
+    images: ["projects/proje-shaped-with-the-wind-and-sun-1.jpg", "projects/proje-shaped-with-the-wind-and-sun-2.jpg", "projects/proje-shaped-with-the-wind-and-sun-3.jpg", "projects/proje-shaped-with-the-wind-and-sun-4.jpg", "projects/shaped-with-the-wind-and-sun-ak-5.jpg", "projects/shaped-with-the-wind-and-sun-ak-6.jpg", "projects/shaped-with-the-wind-and-sun-ak-7.jpg", "projects/shaped-with-the-wind-and-sun-ak-8.jpg", "projects/shaped-with-the-wind-and-sun-ak-9.jpg"]
   },
   {
     slug: "private-sezin-school-open-roof-space",
@@ -6664,7 +6664,7 @@ const projects = [
     description: "Özel Sezin Okulu'nun 2014 yılında ATÖLYE'nin mekân tasarımı ekibine yönelttiği talep üzerine hayata geçen bu proje, okulun o güne dek boş duran 1.700 metrekarelik çatı katını buluşma, üretme, öğrenme ve çalışmayı bir araya getiren melez bir pedagojik alana dönüştürüyor. Öğretmenler, yöneticiler ve danışmanlarla yürütülen katılımcı tasarım oturumlarıyla şekillenen program; geniş bir öğretmen bölgesi, esnek bir etkinlik alanı, eğitim alanındaki sivil toplum kuruluşlarına ayrılmış bir toplantı odası ve medya, ahşap atölyesi ile biyoloji laboratuvarından oluşan üç bölümlü bir makerlab içeriyor. Yerel ve ekolojik malzemelerle ATÖLYE'nin kendi tasarladığı CNVS modüler mobilya sistemi bir araya getirilerek esnek ve dönüştürülebilir bir düzen kurulmuş. 2017'de Çekmeköy'de tamamlanan proje, Sezin Okulu'nun yıllar içinde adım adım süren mekânsal dönüşümünün ilk halkasını oluşturuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-private-sezin-school-open-roof-space-1.png","projects/proje-private-sezin-school-open-roof-space-2.png","projects/proje-private-sezin-school-open-roof-space-3.png","projects/proje-private-sezin-school-open-roof-space-4.png","projects/proje-private-sezin-school-open-roof-space-5.png","projects/private-sezin-school-open-roof-space-ak-6.jpg","projects/private-sezin-school-open-roof-space-ak-7.jpg","projects/private-sezin-school-open-roof-space-ak-8.jpg","projects/private-sezin-school-open-roof-space-ak-9.jpg"]
+    images: ["projects/proje-private-sezin-school-open-roof-space-1.png", "projects/proje-private-sezin-school-open-roof-space-2.png", "projects/proje-private-sezin-school-open-roof-space-3.png", "projects/proje-private-sezin-school-open-roof-space-4.png", "projects/proje-private-sezin-school-open-roof-space-5.png", "projects/private-sezin-school-open-roof-space-ak-6.jpg", "projects/private-sezin-school-open-roof-space-ak-7.jpg", "projects/private-sezin-school-open-roof-space-ak-8.jpg", "projects/private-sezin-school-open-roof-space-ak-9.jpg"]
   },
   {
     slug: "container-park",
@@ -6680,7 +6680,7 @@ const projects = [
     description: "Ege Üniversitesi'nin Ar-Ge firmaları için düşük maliyetli, çevresel etkisi az ve gelecekteki ihtiyaçlara göre gelişebilecek bir ofis ve laboratuvar alanı ihtiyacına yanıt olarak tasarlanan Container Park, 35 adet ikinci el konteynerin modüler birimlere dönüştürülmesiyle inşa edildi. Limana yakınlığı sayesinde konteynerlerin taşınması lojistik açıdan verimli hâle gelirken, tasarım kampüs içindeki dolaşımı güçlendiren esnek yürüme rotaları da içeriyor. Sekiz teknoparkın ziyaret edildiği ve paydaşlarla görüşmelerin yapıldığı kapsamlı bir araştırma sürecinin ardından, geleceğe yönelik on yıllık bir gelişim planı ortaya kondu. ATÖLYE imzalı proje, bugün biyoteknoloji, enerji, malzeme ve yazılım alanlarında yenilikçi araştırmalara ev sahipliği yaparak Architizer A+ Prefab Ödülü ve World Architecture Community Ödülü de dahil uluslararası tanınırlık kazandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-container-park-1.jpg","projects/proje-container-park-2.jpg","projects/proje-container-park-3.jpg","projects/proje-container-park-4.jpg","projects/proje-container-park-5.jpg","projects/container-park-ad-6.jpg","projects/container-park-ad-7.jpg","projects/container-park-ad-8.jpg","projects/container-park-ad-9.jpg"]
+    images: ["projects/proje-container-park-1.jpg", "projects/proje-container-park-2.jpg", "projects/proje-container-park-3.jpg", "projects/proje-container-park-4.jpg", "projects/proje-container-park-5.jpg", "projects/container-park-ad-6.jpg", "projects/container-park-ad-7.jpg", "projects/container-park-ad-8.jpg", "projects/container-park-ad-9.jpg"]
   },
   {
     slug: "selcuk-house",
@@ -6696,7 +6696,7 @@ const projects = [
     description: "İsviçreli mimarlık ofisi Dolmus AG imzalı Selçuk House, Ege kıyısındaki Selçuk kasabasında hafif eğimli bir arsa üzerinde konumlanan, ortak bir bahçeyi paylaşan iki özdeş yapıdan oluşuyor. Tasarım, antik Efes kalıntılarıyla tanınan ve dünyanın en büyük açık hava müzelerinden biri kabul edilen Selçuk'un tarihine ve gündelik yaşamına gönderme yaparak, bölgenin evi sokakla buluşturan geleneksel avlu kültüründen ilham alıyor. Bu avlular yaşam alanlarını dışarı taşırken gündelik etkinliklere de mekân sağlıyor; yapılarda yerel malzemeler ve geleneksel yapım teknikleri kullanılarak çevreyle güçlü bir bağ kuruluyor. Bilinçli olarak sade ve işlevsel tutulan tasarım, kırsal çevreye uyum sağlarken yerel zanaatkârlarla yakın çalışılarak bölge ekonomisine de katkıda bulunuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-selcuk-house-1.webp","projects/proje-selcuk-house-2.webp","projects/proje-selcuk-house-3.webp","projects/proje-selcuk-house-4.webp","projects/proje-selcuk-house-5.webp","projects/selcuk-house-ad-6.jpg","projects/selcuk-house-ad-7.jpg","projects/selcuk-house-ad-8.jpg","projects/selcuk-house-ad-9.jpg"]
+    images: ["projects/proje-selcuk-house-1.webp", "projects/proje-selcuk-house-2.webp", "projects/proje-selcuk-house-3.webp", "projects/proje-selcuk-house-4.webp", "projects/proje-selcuk-house-5.webp", "projects/selcuk-house-ad-6.jpg", "projects/selcuk-house-ad-7.jpg", "projects/selcuk-house-ad-8.jpg", "projects/selcuk-house-ad-9.jpg"]
   },
   {
     slug: "restaurant-at-kayseri",
@@ -6712,7 +6712,7 @@ const projects = [
     description: "Kayseri-Erciyes yolunda, planlanan yeni kent parkının karşısında yer alan bu restoran binası, kentin mimari mirasından ilham alıyor. Sabri Paşayiğit Mimarlık, Şifaiye, Hunat Hatun ve Sahabiye medreseleri gibi Kayseri'nin tarihi yapılarındaki yerel motifleri, revakları ve süsleme unsurlarını çağdaş bir dille yeniden yorumlamış. Şeffaf yüzeyler ve esnek bölme elemanlarıyla iç-dış mekân sürekliliği sağlanırken, seramik ve ahşap zemin kaplamaları, özel aydınlatma armatürleri ve Osmanlı lambalarından detaylarla zenginleştirilmiş bir avlu, mevsime göre dışarıyla bütünleşebilen esnek bir yemek alanı oluşturuyor. Metal ayaklı masif ahşap masalar, CNC kesim bölme elemanları ve tavana asılı raf sistemleriyle bütünlenen tasarım, 2.500 metrekarelik toplam alanıyla Kemal Koçak'ın işletmesi için hayata geçirildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-restaurant-at-kayseri-1.jpg","projects/proje-restaurant-at-kayseri-2.jpg"]
+    images: ["projects/proje-restaurant-at-kayseri-1.jpg", "projects/proje-restaurant-at-kayseri-2.jpg"]
   },
   {
     slug: "angelos-olive-oil-mill",
@@ -6728,7 +6728,7 @@ const projects = [
     description: "Dikili'ye bağlı Bademli köyünde, Ege Denizi'ne bakan bir zeytinliğin içinde yer alan Angelos Organik Zeytinyağı Fabrikası, 850 metrekarelik bir üretim alanı, bir satış mağazası ve bir misafirhaneyi bir araya getiriyor. Han Tümertekin imzalı yapı, zeytin üretim sürecinin işlevsel gereksinimlerini, bulunduğu tarımsal peyzajla uyumlu, sade ve içe dönük bir mimari dille karşılıyor. 2016 yılında tamamlanan proje, üretim, satış ve konaklama işlevlerini tek bir kompakt yapı bütünü içinde toplayarak zeytinliğin günlük çalışma ritmine entegre bir tesis oluşturuyor. Yapının malzeme ve ölçek kararları, çevresindeki kırsal dokuyu ve zeytin ağaçlarının oluşturduğu peyzajı öne çıkaracak şekilde geri planda kalmayı tercih ediyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-angelos-olive-oil-mill-1.jpg","projects/proje-angelos-olive-oil-mill-2.jpg","projects/proje-angelos-olive-oil-mill-3.jpeg","projects/proje-angelos-olive-oil-mill-4.jpg","projects/proje-angelos-olive-oil-mill-5.jpg","projects/angelos-olive-oil-mill-av-6.jpg","projects/angelos-olive-oil-mill-av-7.jpg","projects/angelos-olive-oil-mill-av-8.jpg","projects/angelos-olive-oil-mill-av-9.jpg"]
+    images: ["projects/proje-angelos-olive-oil-mill-1.jpg", "projects/proje-angelos-olive-oil-mill-2.jpg", "projects/proje-angelos-olive-oil-mill-3.jpeg", "projects/proje-angelos-olive-oil-mill-4.jpg", "projects/proje-angelos-olive-oil-mill-5.jpg", "projects/angelos-olive-oil-mill-av-6.jpg", "projects/angelos-olive-oil-mill-av-7.jpg", "projects/angelos-olive-oil-mill-av-8.jpg", "projects/angelos-olive-oil-mill-av-9.jpg"]
   },
   {
     slug: "ing-bank-turkey-hq",
@@ -6744,7 +6744,7 @@ const projects = [
     description: "Maslak'taki 12 katlı bir binanın tamamını kaplayan ING Bank Türkiye Genel Müdürlüğü'nün iç mekân tasarımı, \"mutlu ofis mutlu çalışan demektir\" ilkesinden yola çıkan Bakırküre Mimarlık tarafından, düzenlenen bir çalıştayın sonuçları temel alınarak geliştirildi. Çalışma üniteleri gün ışığından en iyi şekilde yararlanmak için cephe önlerine yerleştirilirken, daha az gün ışığına ihtiyaç duyan toplantı odaları binanın iç kısımlarına konumlandırıldı. Standart çalışma istasyonları yerine, iş birliğine dayalı çalışmayı destekleyen paylaşımlı masalar (shared-desk) tercih edildi. 20.000 metrekarelik 2015 tarihli proje, sosyal alanlarla çalışma alanlarının iç içe geçtiği, çalışanların tercihlerine göre şekillenip uyum sağlayabilen değişken bir ofis ortamı sunuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ing-bank-turkey-hq-1.jpg","projects/proje-ing-bank-turkey-hq-2.jpg","projects/proje-ing-bank-turkey-hq-3.jpg","projects/proje-ing-bank-turkey-hq-4.jpg","projects/proje-ing-bank-turkey-hq-5.jpg","projects/ing-bank-turkey-hq-ak-6.jpg","projects/ing-bank-turkey-hq-ak-7.jpg","projects/ing-bank-turkey-hq-ak-8.jpg","projects/ing-bank-turkey-hq-ak-9.jpg"]
+    images: ["projects/proje-ing-bank-turkey-hq-1.jpg", "projects/proje-ing-bank-turkey-hq-2.jpg", "projects/proje-ing-bank-turkey-hq-3.jpg", "projects/proje-ing-bank-turkey-hq-4.jpg", "projects/proje-ing-bank-turkey-hq-5.jpg", "projects/ing-bank-turkey-hq-ak-6.jpg", "projects/ing-bank-turkey-hq-ak-7.jpg", "projects/ing-bank-turkey-hq-ak-8.jpg", "projects/ing-bank-turkey-hq-ak-9.jpg"]
   },
   {
     slug: "ford-otosan-rd-centre",
@@ -6760,7 +6760,7 @@ const projects = [
     description: "Avrupa'yı Portekiz'den Türkiye'ye bağlayan E-80 (TEM) otoyolu kenarında yer alan Ford Otosan Ar-Ge Merkezi, Ford'un dünya genelindeki dördüncü tasarım merkezi olarak TeCe Mimarlık tarafından tasarlandı. 38.000 metrekarelik kompleks, ofisler, laboratuvarlar, kafeterya, restoran, oditoryum, sergi salonları ve ileri düzey bir tasarım merkeziyle 1.500 kişiye hizmet verecek şekilde programlandı. Bina, ortada yer alan bir avlu etrafında konumlanan iki bloktan oluşuyor: kuzeydeki A Bloku otoyoldan gelen hâkim rüzgâr, gürültü ve hava kirliliğine karşı bir bariyer görevi görürken, B Bloku ise güney güneşine ve kampüsün daha yoğun depolama-dağıtım tesislerine karşı koruma sağlıyor. 2013'te temeli atılan ve 2014 sonunda faaliyete geçen merkez, Türkiye'nin tek bir alandaki en büyük Ar-Ge tesisi unvanını taşıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ford-otosan-rd-centre-1.jpg","projects/proje-ford-otosan-rd-centre-2.jpg","projects/proje-ford-otosan-rd-centre-3.jpg","projects/proje-ford-otosan-rd-centre-4.jpg","projects/proje-ford-otosan-rd-centre-5.jpg","projects/ford-otosan-rd-centre-ak-6.jpg","projects/ford-otosan-rd-centre-ak-7.jpg","projects/ford-otosan-rd-centre-ak-8.jpg","projects/ford-otosan-rd-centre-ak-9.jpg"]
+    images: ["projects/proje-ford-otosan-rd-centre-1.jpg", "projects/proje-ford-otosan-rd-centre-2.jpg", "projects/proje-ford-otosan-rd-centre-3.jpg", "projects/proje-ford-otosan-rd-centre-4.jpg", "projects/proje-ford-otosan-rd-centre-5.jpg", "projects/ford-otosan-rd-centre-ak-6.jpg", "projects/ford-otosan-rd-centre-ak-7.jpg", "projects/ford-otosan-rd-centre-ak-8.jpg", "projects/ford-otosan-rd-centre-ak-9.jpg"]
   },
   {
     slug: "arketip-housing-project",
@@ -6776,7 +6776,7 @@ const projects = [
     description: "Göktürk'te ormanlık bir arazinin güney ucunda konumlanan Arketip Konutları, EAA — Emre Arolat Architecture imzasını taşıyor. Tasarımda ormana yakınlık, özel ile kamusal alan arasındaki gerilim ve yaya-taşıt ilişkisi belirleyici olmuş; kuzey Anadolu'nun geleneksel köy mimarisinden esinlenen doğrusal apartman blokları ortak giriş koridorları ve zemin altı sosyal donatılarla bir araya getirilmiştir. Yapı kütleleri, doğal ışık alımını en üst düzeye çıkaracak şekilde konumlandırılmıştır. Proje, 2010 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-arketip-housing-project-1.jpg","projects/proje-arketip-housing-project-2.jpg","projects/proje-arketip-housing-project-3.jpg","projects/proje-arketip-housing-project-4.jpg","projects/arketip-housing-project-av-5.jpg","projects/arketip-housing-project-av-6.jpg","projects/arketip-housing-project-av-7.jpg","projects/arketip-housing-project-av-8.jpg","projects/arketip-housing-project-av-9.jpg"]
+    images: ["projects/proje-arketip-housing-project-1.jpg", "projects/proje-arketip-housing-project-2.jpg", "projects/proje-arketip-housing-project-3.jpg", "projects/proje-arketip-housing-project-4.jpg", "projects/arketip-housing-project-av-5.jpg", "projects/arketip-housing-project-av-6.jpg", "projects/arketip-housing-project-av-7.jpg", "projects/arketip-housing-project-av-8.jpg", "projects/arketip-housing-project-av-9.jpg"]
   },
   {
     slug: "abdullah-gul-baskanlik-muzesi-ve-kutuphanesi",
@@ -6792,7 +6792,7 @@ const projects = [
     description: "1933-1935 yılları arasında Rus mimar İvan Nikolayev tarafından inşa edilen Kayseri Sümerbank Dokuma Fabrikası'nın Elektrik ve Buhar Santrali binaları, EAA — Emre Arolat Architecture tarafından başkanlık müzesi ve kütüphaneye dönüştürülmüştür. Erken Cumhuriyet döneminin konstrüktivist mimarisini yansıtan endüstriyel yapı, iç mekânda çağdaş bir müze deneyimine göre yeniden kurgulanmış; kalıcı sergi alanlarının yanı sıra geçici sergilere de yer verilmiştir. Buhar Santrali binası ise müzeye bitişik modern bir bilgi merkezine dönüştürülmüştür. Proje, 2016 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-abdullah-gul-presidential-museum-and-library-1.jpg","projects/proje-abdullah-gul-presidential-museum-and-library-2.jpg","projects/proje-abdullah-gul-presidential-museum-and-library-3.jpg","projects/proje-abdullah-gul-presidential-museum-and-library-4.jpg","projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-5.jpg","projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-6.jpg","projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-7.jpg","projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-8.jpg","projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-9.jpg"]
+    images: ["projects/proje-abdullah-gul-presidential-museum-and-library-1.jpg", "projects/proje-abdullah-gul-presidential-museum-and-library-2.jpg", "projects/proje-abdullah-gul-presidential-museum-and-library-3.jpg", "projects/proje-abdullah-gul-presidential-museum-and-library-4.jpg", "projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-5.jpg", "projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-6.jpg", "projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-7.jpg", "projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-8.jpg", "projects/abdullah-gul-baskanlik-muzesi-ve-kutuphanesi-ak-9.jpg"]
   },
   {
     slug: "agu-sumer-kampusu",
@@ -6808,7 +6808,7 @@ const projects = [
     description: "1933 yılında Rus mimarların tasarımıyla inşa edilen eski Sümerbank dokuma fabrikası, EAA — Emre Arolat Architecture tarafından 350.000 metrekarelik bir kampüse dönüştürülerek Abdullah Gül Üniversitesi'ne kazandırılmıştır. Tasarımda kompleksin özgün endüstriyel karakterinin büyük ölçüde korunması önceliklendirilmiş, eğitim ve idari birimlerin yanı sıra yemekhane ve kentsel tarım alanları gibi çağdaş işlevler eklenmiştir. Proje, taşra kenti olarak nitelendirilen Kayseri'ye yeni bir sosyal ve akademik merkez kazandırmayı amaçlamıştır. Kampüs, 2014 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-agu-sumer-campus-1.jpg","projects/proje-agu-sumer-campus-2.jpg","projects/proje-agu-sumer-campus-3.jpg","projects/proje-agu-sumer-campus-4.jpg","projects/agu-sumer-kampusu-ak-5.jpg","projects/agu-sumer-kampusu-ak-6.jpg","projects/agu-sumer-kampusu-ak-7.jpg","projects/agu-sumer-kampusu-ak-8.jpg","projects/agu-sumer-kampusu-ak-9.jpg"]
+    images: ["projects/proje-agu-sumer-campus-1.jpg", "projects/proje-agu-sumer-campus-2.jpg", "projects/proje-agu-sumer-campus-3.jpg", "projects/proje-agu-sumer-campus-4.jpg", "projects/agu-sumer-kampusu-ak-5.jpg", "projects/agu-sumer-kampusu-ak-6.jpg", "projects/agu-sumer-kampusu-ak-7.jpg", "projects/agu-sumer-kampusu-ak-8.jpg", "projects/agu-sumer-kampusu-ak-9.jpg"]
   },
   {
     slug: "suluca-evi",
@@ -6824,7 +6824,7 @@ const projects = [
     description: "Çanakkale Boğazı'na 500 metre mesafedeki Suluca Köyü'nde yer alan bu tek ailelik konut, Yalın Mimarlık tarafından ailenin yaşam biçimiyle iki yıl süren yakın bir çalışma sonucunda tasarlanmıştır. İç ve dış mekânı birbirine bağlayan uzun bir sokak kurgusu etrafına odalar, boşluklar ve bahçeler yerleştirilmiş; zemin katta ağır taş-beton, üst katta ise daha hafif ahşap bir dil kullanılmıştır. Yapım sürecinde tasarımın yerel ustaların becerilerine göre sahada geliştirilmesine özel önem verilmiştir. Ev, Eylül 2023'te tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-suluca-house-1.jpg","projects/proje-suluca-house-2.jpg","projects/proje-suluca-house-3.jpg","projects/proje-suluca-house-4.jpg","projects/suluca-evi-ad-5.jpg","projects/suluca-evi-ad-6.jpg","projects/suluca-evi-ad-7.jpg","projects/suluca-evi-ad-8.jpg","projects/suluca-evi-ad-9.jpg"]
+    images: ["projects/proje-suluca-house-1.jpg", "projects/proje-suluca-house-2.jpg", "projects/proje-suluca-house-3.jpg", "projects/proje-suluca-house-4.jpg", "projects/suluca-evi-ad-5.jpg", "projects/suluca-evi-ad-6.jpg", "projects/suluca-evi-ad-7.jpg", "projects/suluca-evi-ad-8.jpg", "projects/suluca-evi-ad-9.jpg"]
   },
   {
     slug: "keci-evi",
@@ -6840,7 +6840,7 @@ const projects = [
     description: "Ege kıyısında denize beş kilometre uzaklıktaki yirmi haneli küçük bir tarım köyünde yer alan Keçi Evi, Yalın Mimarlık tarafından hafta sonu kaçamağı olarak tasarlanan, zamanla kalıcı konuta dönüşebilecek mütevazı bir yapıdır. Eğimli arazide üst terasa yerleştirilen dikdörtgen prizma kütle, kuzeyde kapalı bir giriş avlusu, güneyde ise manzaraya açılan bir yaşam cephesi sunar; kütle yüksekliği kuzeyde 210 cm'den güneyde 420 cm'ye yükselerek düşük ve kapalı bir kuzey cephesinden açık bir güney cephesine geçiş yapar. Ahşap kalıp izli çıplak beton dış cepheler, iç mekânda beyaz sıva ve krem tonlu döküm terrazzo zeminle tamamlanmıştır. Yapı, 2017 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-goat-house-1.jpg","projects/proje-goat-house-2.jpg","projects/proje-goat-house-3.jpg","projects/proje-goat-house-4.jpg"]
+    images: ["projects/proje-goat-house-1.jpg", "projects/proje-goat-house-2.jpg", "projects/proje-goat-house-3.jpg", "projects/proje-goat-house-4.jpg"]
   },
   {
     slug: "troya-muzesi",
@@ -6856,7 +6856,7 @@ const projects = [
     description: "UNESCO Dünya Mirası Listesi'ndeki Troya antik kentine yakın Tevfikiye Köyü'nde yer alan Troya Müzesi, 2011'de düzenlenen ulusal mimari yarışmada 132 proje arasından birincilik ödülü kazanan Yalın Mimarlık tasarımıdır. Ziyaretçiyi kademeli eşiklerden geçirerek fiziksel bağlamdan zaman zaman koparıp zaman zaman yeniden bağlayan bir kurgu benimsenmiştir. 11.000 metrekarelik yapı; koruma ve restorasyon laboratuvarları, 2.000 metrekarelik depolama alanı, geçici ve kalıcı sergi mekânları ile kafe ve satış birimlerini bir araya getirir. İnşaatı Ağustos 2013'te başlayan müze, Ekim 2018'de tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-museum-of-troy-1.jpg","projects/proje-museum-of-troy-2.jpg","projects/proje-museum-of-troy-3.jpg","projects/proje-museum-of-troy-4.jpg","projects/troya-muzesi-ak-5.jpg","projects/troya-muzesi-ak-6.jpg","projects/troya-muzesi-ak-7.jpg","projects/troya-muzesi-ak-8.jpg","projects/troya-muzesi-ak-9.jpg"]
+    images: ["projects/proje-museum-of-troy-1.jpg", "projects/proje-museum-of-troy-2.jpg", "projects/proje-museum-of-troy-3.jpg", "projects/proje-museum-of-troy-4.jpg", "projects/troya-muzesi-ak-5.jpg", "projects/troya-muzesi-ak-6.jpg", "projects/troya-muzesi-ak-7.jpg", "projects/troya-muzesi-ak-8.jpg", "projects/troya-muzesi-ak-9.jpg"]
   },
   {
     slug: "house-of-chickens",
@@ -6872,7 +6872,7 @@ const projects = [
     description: "Erzincan'daki Palanga Sanat ve Mimarlık Çiftliği için tasarlanan House of Chickens, SO? Mimarlık ve Fikriyat imzasını taşıyan 60 metrekarelik ahşap bir tavuk kümesidir. Yapı, tasarımın ihmal edilmiş kırsal alanların canlanmasında tetikleyici bir değer olabileceği fikrinden yola çıkarak doğayla karşılıklı bir ilişki kurmayı hedefler; 800 tavuğu barındıracak modüler bir kurguyla gelecekteki genişlemelere de olanak tanır. Çapraz havalandırma, dolaylı gün ışığı alımı, ahşap tüneme çıtaları ve sakinleri rahatsız etmeden yumurta toplamayı sağlayan dışarıdan erişimli bir sistem yapının öne çıkan özellikleridir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-house-of-chickens-1.jpg","projects/proje-house-of-chickens-2.jpg","projects/proje-house-of-chickens-3.jpg","projects/proje-house-of-chickens-4.jpg","projects/house-of-chickens-ad-5.jpg","projects/house-of-chickens-ad-6.jpg","projects/house-of-chickens-ad-7.jpg","projects/house-of-chickens-ad-8.jpg","projects/house-of-chickens-ad-9.jpg"]
+    images: ["projects/proje-house-of-chickens-1.jpg", "projects/proje-house-of-chickens-2.jpg", "projects/proje-house-of-chickens-3.jpg", "projects/proje-house-of-chickens-4.jpg", "projects/house-of-chickens-ad-5.jpg", "projects/house-of-chickens-ad-6.jpg", "projects/house-of-chickens-ad-7.jpg", "projects/house-of-chickens-ad-8.jpg", "projects/house-of-chickens-ad-9.jpg"]
   },
   {
     slug: "beylikduzu-ataturk-kultur-ve-sanat-merkezi",
@@ -6888,7 +6888,7 @@ const projects = [
     description: "Beylikdüzü Belediyesi için SO? Mimarlık ve Fikriyat tarafından yeniden tasarlanan bAKSM, 20.000 metrekarelik mevcut bir kültür yapısının kapsamlı bir iç mekân dönüşümüdür. Kütüphane, çocuk kütüphanesi, çok amaçlı salon, atölyeler, stüdyolar ve sinema gibi birimlerin yeniden kurgulandığı projede, 2.000 metrekarelik atriyuma yerleştirilen ahşap uzantılı çelik bir merdiven hem dolaşım omurgası hem de dikey bir bahçe olarak öne çıkar. Cephe, doğal havalandırma ve gün ışığı alımı için kortenle giydirilmiş; iç yüzeylerde akustik ve görsel bütünlük için kontrplak ve mat cam kullanılmıştır. Merkez, 317.000 kişilik bir ilçeye hizmet vermek üzere 2018'de tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-beylikduzu-ataturk-arts-and-cultural-center-1.jpg","projects/proje-beylikduzu-ataturk-arts-and-cultural-center-2.jpg","projects/proje-beylikduzu-ataturk-arts-and-cultural-center-3.jpg","projects/proje-beylikduzu-ataturk-arts-and-cultural-center-4.jpg","projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-5.jpg","projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-6.jpg","projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-7.jpg","projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-8.jpg","projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-9.jpg"]
+    images: ["projects/proje-beylikduzu-ataturk-arts-and-cultural-center-1.jpg", "projects/proje-beylikduzu-ataturk-arts-and-cultural-center-2.jpg", "projects/proje-beylikduzu-ataturk-arts-and-cultural-center-3.jpg", "projects/proje-beylikduzu-ataturk-arts-and-cultural-center-4.jpg", "projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-5.jpg", "projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-6.jpg", "projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-7.jpg", "projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-8.jpg", "projects/beylikduzu-ataturk-kultur-ve-sanat-merkezi-ak-9.jpg"]
   },
   {
     slug: "sky-garden-ortakoy",
@@ -6904,7 +6904,7 @@ const projects = [
     description: "Ortaköy Meydanı'nda geçici bir festival enstalasyonu olarak hayata geçen Sky Garden, SO? Mimarlık ve Fikriyat imzalı asılı bir bahçe tasarımıdır. Meydanın mevcut zemin kotundan yola çıkan proje, çeşitli bitkilerle donatılmış bir bahçeyi havada asılı tutarak ziyaretçilere oturma alanı ve gölge sunar; aynı zamanda altında durup Boğaz'ı seyredilebilecek bir çatı işlevi görür. Bir ağacın farklı dalları gibi gökyüzü ile Boğaz arasında uçuşan saksılar, bir makara sistemi sayesinde ziyaretçilerin yakından incelemesi için aşağı indirilebilmektedir. Enstalasyon 2016 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-sky-garden-1.jpg","projects/proje-sky-garden-2.jpg","projects/proje-sky-garden-3.jpg","projects/proje-sky-garden-4.jpg","projects/sky-garden-ortakoy-ad-5.jpg","projects/sky-garden-ortakoy-ad-6.jpg","projects/sky-garden-ortakoy-ad-7.jpg","projects/sky-garden-ortakoy-ad-8.jpg","projects/sky-garden-ortakoy-ad-9.jpg"]
+    images: ["projects/proje-sky-garden-1.jpg", "projects/proje-sky-garden-2.jpg", "projects/proje-sky-garden-3.jpg", "projects/proje-sky-garden-4.jpg", "projects/sky-garden-ortakoy-ad-5.jpg", "projects/sky-garden-ortakoy-ad-6.jpg", "projects/sky-garden-ortakoy-ad-7.jpg", "projects/sky-garden-ortakoy-ad-8.jpg", "projects/sky-garden-ortakoy-ad-9.jpg"]
   },
   {
     slug: "odtu-lisansustu-ogrenci-konukevi",
@@ -6920,7 +6920,7 @@ const projects = [
     description: "ODTÜ kampüsünde lisansüstü öğrencilerin barınması için Uygur Mimarlık tarafından tasarlanan konukevi, farklı yaş grupları ve meslek dallarından akademisyenler için bir yaşam ortamı olarak kurgulanmıştır. Projenin çekirdek birimi, tek kişilik uyku ve çalışma alanını barındıran hücre tipidir; bu hücreler beş katlı yapıda farklı sokakları anımsatan açılarla tekrarlanarak doğrusal bir plan oluşturur. Tekli, ikili ve dörtlü kullanım için farklılaşan birimler, hiyerarşik olmayan bir düzende bir araya getirilerek yapı içinde çeşitli yaşam pratiklerinin bir arada var olmasına imkân tanır. Giriş, kırmızı renkli merkezi bir merdivenin bulunduğu, arazinin ortasına yakın konumlanmış bir düğüm noktasından sağlanır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-metu-graduate-students-guesthouse-1.jpg","projects/proje-metu-graduate-students-guesthouse-2.jpg","projects/proje-metu-graduate-students-guesthouse-3.jpg","projects/proje-metu-graduate-students-guesthouse-4.jpg","projects/odtu-lisansustu-ogrenci-konukevi-ak-5.jpg","projects/odtu-lisansustu-ogrenci-konukevi-ak-6.jpg","projects/odtu-lisansustu-ogrenci-konukevi-ak-7.jpg","projects/odtu-lisansustu-ogrenci-konukevi-ak-8.jpg","projects/odtu-lisansustu-ogrenci-konukevi-ak-9.jpg"]
+    images: ["projects/proje-metu-graduate-students-guesthouse-1.jpg", "projects/proje-metu-graduate-students-guesthouse-2.jpg", "projects/proje-metu-graduate-students-guesthouse-3.jpg", "projects/proje-metu-graduate-students-guesthouse-4.jpg", "projects/odtu-lisansustu-ogrenci-konukevi-ak-5.jpg", "projects/odtu-lisansustu-ogrenci-konukevi-ak-6.jpg", "projects/odtu-lisansustu-ogrenci-konukevi-ak-7.jpg", "projects/odtu-lisansustu-ogrenci-konukevi-ak-8.jpg", "projects/odtu-lisansustu-ogrenci-konukevi-ak-9.jpg"]
   },
   {
     slug: "cermodern-sanat-merkezi",
@@ -6936,7 +6936,7 @@ const projects = [
     description: "Ankara'da Ulus ile Sıhhiye arasındaki boş bir arazide, 1920'lerden kalma eski tren atölyesi ve bakım hangarlarının Uygur Mimarlık tarafından bir çağdaş sanat merkezine dönüştürülmesiyle ortaya çıkan CerModern, kökeni 1992'deki bir Cumhurbaşkanlığı Senfoni Orkestrası konser salonu yarışmasına dayanır. Restorasyonu üstlenen yüklenicinin konser salonunun mimarlarıyla çalışmayı tercih etmesiyle, harap durumdaki hangarlar galeri mekânlarına dönüştürülmüş; sergi alanlarının yanı sıra çok amaçlı salonlar, müze mağazası ve kafe gibi ek işlevler için yapının yanına modern bir bina eklenmiştir. Tasarımın temel fikri, alanın demiryoluyla ilişkisini korumak olmuş; aktif tren hattı, eski ve yeni yapıları saran şeffaf bir duvar aracılığıyla iç mekândan görülebilir hale getirilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-cer-modern-arts-centre-1.jpg","projects/proje-cer-modern-arts-centre-2.jpg","projects/proje-cer-modern-arts-centre-3.jpg","projects/proje-cer-modern-arts-centre-4.jpg","projects/cermodern-sanat-merkezi-ak-5.jpg","projects/cermodern-sanat-merkezi-ak-6.jpg","projects/cermodern-sanat-merkezi-ak-7.jpg","projects/cermodern-sanat-merkezi-ak-8.jpg","projects/cermodern-sanat-merkezi-ak-9.jpg"]
+    images: ["projects/proje-cer-modern-arts-centre-1.jpg", "projects/proje-cer-modern-arts-centre-2.jpg", "projects/proje-cer-modern-arts-centre-3.jpg", "projects/proje-cer-modern-arts-centre-4.jpg", "projects/cermodern-sanat-merkezi-ak-5.jpg", "projects/cermodern-sanat-merkezi-ak-6.jpg", "projects/cermodern-sanat-merkezi-ak-7.jpg", "projects/cermodern-sanat-merkezi-ak-8.jpg", "projects/cermodern-sanat-merkezi-ak-9.jpg"]
   },
   {
     slug: "akasya-acibadem-merkez-park",
@@ -6952,7 +6952,7 @@ const projects = [
     description: "Akasya Alışveriş Merkezi'ni çevreleyen yeni bir kentsel gelişimin yeşil akciğeri olarak tasarlanan Akasya Acıbadem Merkez Park, SdARCH Trivelli & Associati ve Alhadeff Architects imzasını taşır. Eliptik geometrilerin kullanıldığı 13.300 metrekarelik peyzajda, mahremiyet sunan bir havuz alanı, alışveriş merkezi girişine yakın sosyalleşmeyi teşvik eden bir çeşme alanı, amfi tiyatro oturma düzenine sahip açık hava tiyatrosu ve tepecikli bir çocuk oyun alanı gibi farklı işlevlere sahip yeşil odalar bir araya getirilmiştir. Peyzajda 15 türe ait 293 ağaç ile zeytin, çam ve Akdeniz otları gibi 47 çeşit bitki kullanılmış, yürüyüş yolları sürdürülebilir bir doğal stabilizatör olan Levostab 99 ile kaplanmıştır. Proje, 2016 Plan Award Peyzaj ödülünü kazanmış ve Aga Khan Ödülü'ne aday gösterilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-akasya-central-park-1.jpg","projects/proje-akasya-central-park-2.jpg","projects/proje-akasya-central-park-3.jpg","projects/proje-akasya-central-park-4.jpg","projects/akasya-acibadem-merkez-park-ak-5.jpg","projects/akasya-acibadem-merkez-park-av-6.jpg","projects/akasya-acibadem-merkez-park-av-7.jpg","projects/akasya-acibadem-merkez-park-av-8.jpg","projects/akasya-acibadem-merkez-park-av-9.jpg"]
+    images: ["projects/proje-akasya-central-park-1.jpg", "projects/proje-akasya-central-park-2.jpg", "projects/proje-akasya-central-park-3.jpg", "projects/proje-akasya-central-park-4.jpg", "projects/akasya-acibadem-merkez-park-ak-5.jpg", "projects/akasya-acibadem-merkez-park-av-6.jpg", "projects/akasya-acibadem-merkez-park-av-7.jpg", "projects/akasya-acibadem-merkez-park-av-8.jpg", "projects/akasya-acibadem-merkez-park-av-9.jpg"]
   },
   {
     slug: "expo-2016-antalya-kulesi",
@@ -6968,7 +6968,7 @@ const projects = [
     description: "Aksu ilçesinde, EXPO 2016 Antalya sergi alanının simgesi olarak inşa edilen 100,70 metre yüksekliğindeki bu gözlem kulesi, açılan bir mimari proje yarışmasını kazanan NITA Mimarlık tasarımıdır. Kentin sembolü Üçkapılar'dan ve Antalya'nın palmiye ağaçlarından esinlenen tasarımda, palmiye dallarının gökyüzünü kucaklayan formu üç ayrı terasa farklı açılar kazandırmıştır. Kule, 360 derecelik şehir manzarası sunan kapalı ve yarı açık gözlem katlarının yanı sıra açık bir çatı terasına sahiptir; betonarme çekirdek üzerindeki güneş panelleri ve mevsime göre ayarlanabilen çatı pencereleriyle sürdürülebilirlik hedeflenmiştir. Kule, 2017 Dünya Mimarlık Festivali'nde finalist olmuştur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-expo-2016-antalya-observation-tower-1.jpg","projects/proje-expo-2016-antalya-observation-tower-2.jpg","projects/proje-expo-2016-antalya-observation-tower-3.jpg","projects/expo-2016-antalya-kulesi-ad-4.jpg","projects/expo-2016-antalya-kulesi-ad-5.jpg","projects/expo-2016-antalya-kulesi-ad-6.jpg","projects/expo-2016-antalya-kulesi-ad-7.jpg","projects/expo-2016-antalya-kulesi-ad-8.jpg","projects/expo-2016-antalya-kulesi-ad-9.jpg"]
+    images: ["projects/proje-expo-2016-antalya-observation-tower-1.jpg", "projects/proje-expo-2016-antalya-observation-tower-2.jpg", "projects/proje-expo-2016-antalya-observation-tower-3.jpg", "projects/expo-2016-antalya-kulesi-ad-4.jpg", "projects/expo-2016-antalya-kulesi-ad-5.jpg", "projects/expo-2016-antalya-kulesi-ad-6.jpg", "projects/expo-2016-antalya-kulesi-ad-7.jpg", "projects/expo-2016-antalya-kulesi-ad-8.jpg", "projects/expo-2016-antalya-kulesi-ad-9.jpg"]
   },
   {
     slug: "gad-park",
@@ -6984,7 +6984,7 @@ const projects = [
     description: "GAD Architecture'ın kendi ofisi için Nişantaşı'nda eski bir çok katlı otoparkı dönüştürerek tasarladığı GAD Park, 750 metrekarelik bir çalışma alanını iki kat üzerinde bir araya getirir. Mevcut betonarme yapı korunarak çelik, cam ve beton gibi malzemelerle desteklenmiş; ofisin hesaplamalı tasarım ve yinelemeli model çalışmasına dayanan araştırma odaklı yöntemini yansıtan açık plan bir düzen benimsenmiştir. Kırmızıya boyanmış merkezi bir merdiven mekânın görsel odağını oluştururken, toplantı odaları, açık raflı bir kütüphane, mutfak, kafeterya ve dış teras gibi ortak kullanım alanları farklı çalışma biçimlerini bir arada barındırır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-gad-park-1.jpg","projects/proje-gad-park-2.jpg","projects/proje-gad-park-3.jpg","projects/proje-gad-park-4.jpg","projects/gad-park-ad-5.jpg","projects/gad-park-ad-6.jpg","projects/gad-park-ad-7.jpg","projects/gad-park-ad-8.jpg","projects/gad-park-ad-9.jpg"]
+    images: ["projects/proje-gad-park-1.jpg", "projects/proje-gad-park-2.jpg", "projects/proje-gad-park-3.jpg", "projects/proje-gad-park-4.jpg", "projects/gad-park-ad-5.jpg", "projects/gad-park-ad-6.jpg", "projects/gad-park-ad-7.jpg", "projects/gad-park-ad-8.jpg", "projects/gad-park-ad-9.jpg"]
   },
   {
     slug: "barbaros-evi",
@@ -7000,7 +7000,7 @@ const projects = [
     description: "Bodrum'un Barbaros Köyü'nde yer alan Barbaros Evi, Onurcan Çakır Mimarlık imzasını taşıyan, taş ve sıvasız betonarme yüzeylerin bir arada kullanıldığı tek katlı bir konuttur. Yapı, bölgenin geleneksel taş duvar dokusuyla çağdaş bir beton dilini yan yana getirerek arazinin eğimine uyumlu, sade bir kütle olarak kurgulanmıştır. İç mekânlar dış avlu ve teraslarla doğrudan ilişki kurarken, büyük cam açıklıklar iç-dış mekân sürekliliğini güçlendirir. Ev, 2015 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-barbaros-house-1.jpg","projects/proje-barbaros-house-2.jpg","projects/proje-barbaros-house-3.jpg","projects/proje-barbaros-house-4.jpg","projects/barbaros-evi-ad-5.jpg","projects/barbaros-evi-ad-6.jpg","projects/barbaros-evi-ad-7.jpg","projects/barbaros-evi-ad-8.jpg","projects/barbaros-evi-ad-9.jpg"]
+    images: ["projects/proje-barbaros-house-1.jpg", "projects/proje-barbaros-house-2.jpg", "projects/proje-barbaros-house-3.jpg", "projects/proje-barbaros-house-4.jpg", "projects/barbaros-evi-ad-5.jpg", "projects/barbaros-evi-ad-6.jpg", "projects/barbaros-evi-ad-7.jpg", "projects/barbaros-evi-ad-8.jpg", "projects/barbaros-evi-ad-9.jpg"]
   },
   {
     slug: "keypark-cayyolu",
@@ -7016,7 +7016,7 @@ const projects = [
     description: "Ankara'nın Çayyolu semtinde yer alan Keypark alışveriş merkezi, VEN Mimarlık tarafından 16.850 metrekarelik bir arsa üzerinde 21.400 metrekarelik toplam inşaat alanıyla tasarlanmış, 44 ayrı ticari birimden oluşan bir yapıdır. Cepheler, taş boyutlarının özenle kurgulandığı doğal taş kaplamayla giydirilmiş; bulvar boyunca uzanan doğrusal bir ışık bandı hem avlu geçişlerini vurgular hem de mağaza markaları için bir reklam yüzeyi oluşturur. Proje, 2014-15 International Property Awards'ta Avrupa'yı temsil etmiş ve World Architecture Community Awards Cycle 20 ödülünü kazanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-keypark-1.jpg","projects/proje-keypark-2.jpg","projects/proje-keypark-3.jpg","projects/proje-keypark-4.jpg","projects/keypark-cayyolu-ad-5.jpg","projects/keypark-cayyolu-ad-6.jpg","projects/keypark-cayyolu-ad-7.jpg","projects/keypark-cayyolu-ad-8.jpg","projects/keypark-cayyolu-ad-9.jpg"]
+    images: ["projects/proje-keypark-1.jpg", "projects/proje-keypark-2.jpg", "projects/proje-keypark-3.jpg", "projects/proje-keypark-4.jpg", "projects/keypark-cayyolu-ad-5.jpg", "projects/keypark-cayyolu-ad-6.jpg", "projects/keypark-cayyolu-ad-7.jpg", "projects/keypark-cayyolu-ad-8.jpg", "projects/keypark-cayyolu-ad-9.jpg"]
   },
   {
     slug: "bursa-toptan-sebze-meyve-ve-balik-hali",
@@ -7032,7 +7032,7 @@ const projects = [
     description: "Bursa'nın eski şehir merkezindeki yetersiz kalan hal binasının yerine İzmir çevre yolu üzerinde kurulan bu toptan sebze, meyve ve balık hali, Tuncer Çakmaklı Architects tarafından günde yaklaşık 5.000 ziyaretçiyi ve yoğun bir araç-ürün trafiğini yönetecek şekilde tasarlanmıştır. 50.000 metrekarelik tesiste, çelik kemerli bir çatı altında tarihi kapalı çarşıları anımsatan akışkan, eliptik bir alışveriş alanı komisyoncu dükkânlarıyla çevrelenmiştir; doğal havalandırma müşteri hareketini yönlendirirken kamyon ve perakendeci girişleri birbirinden ayrılarak araç trafiği denetim altına alınmıştır. Kompleks, eskisinin iki buçuk katı kapasiteyle 150 komisyoncu dükkânını barındıracak şekilde 2009 yılında tamamlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-1.jpg","projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-2.jpg","projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-3.jpg","projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-4.jpg","projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-5.jpg","projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-6.jpg","projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-7.jpg","projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-8.jpg","projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-9.jpg"]
+    images: ["projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-1.jpg", "projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-2.jpg", "projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-3.jpg", "projects/proje-bursa-wholesale-greengrocers-and-fishmongers-market-4.jpg", "projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-5.jpg", "projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-6.jpg", "projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-7.jpg", "projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-8.jpg", "projects/bursa-toptan-sebze-meyve-ve-balik-hali-ak-9.jpg"]
   },
   {
     slug: "levent-loft",
@@ -7048,7 +7048,7 @@ const projects = [
     description: "Levent'te mevcut bir ofis binasının Tabanlıoğlu Mimarlık tarafından loft konseptiyle konut kullanımına dönüştürülmesiyle ortaya çıkan Levent Loft, bina ile bitişiğindeki iki fabrikayı ayıran duvarı bir “yeşil duvar” olarak ele alıp yanına zen bahçeleri yerleştirir. Proje yalnızca bir konut kompleksi değil, giriş katındaki toplantı odaları, sağlık merkezi, kafe ve restoranlarla üst düzey bir sosyal mekân olarak da kurgulanmıştır. Ön blokta 11, arka blokta ise zemin dahil 7 kattan oluşan yapıda 68 ila 182 metrekare arasında değişen loftlar yer alır; modüler perde cephe sistemi, iç mekândan yansıyan farklı renk ve ışık efektleriyle zenginleşir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-levent-loft-1.jpg","projects/proje-levent-loft-2.jpg","projects/proje-levent-loft-3.jpg","projects/proje-levent-loft-4.jpg","projects/levent-loft-ad-5.jpg","projects/levent-loft-ad-6.jpg","projects/levent-loft-ad-7.jpg","projects/levent-loft-ad-8.jpg","projects/levent-loft-ad-9.jpg"]
+    images: ["projects/proje-levent-loft-1.jpg", "projects/proje-levent-loft-2.jpg", "projects/proje-levent-loft-3.jpg", "projects/proje-levent-loft-4.jpg", "projects/levent-loft-ad-5.jpg", "projects/levent-loft-ad-6.jpg", "projects/levent-loft-ad-7.jpg", "projects/levent-loft-ad-8.jpg", "projects/levent-loft-ad-9.jpg"]
   },
   {
     slug: "tas-mektep-restorasyonu",
@@ -7064,7 +7064,7 @@ const projects = [
     description: "Büyükada'da 19. yüzyılda Rum Ortodoks Patriği Sophronius'un yazlık konutu olarak inşa edilen ve daha sonra bir Türk okuluna dönüşen Taş Mektep, uzun süre atıl kaldıktan sonra Novos Architecture Studio tarafından İBB Miras için yeniden işlevlendirilmiştir. Restorasyonda özgün malzemelerin ve mimari unsurların korunmasına özen gösterilmiş; taş duvarlar, ahşap doğramalar, eğimli kiremit çatılar ve dövme demir detaylar cephede özgün haliyle sürdürülmüştür. İç mekânda korunan taş duvarlar ve sıva tavanlarla dokulu sıva uygulamalı yeni müdahaleler arasında bilinçli bir karşıtlık kurulmuştur. 2.600 metrekarelik yapı kütüphane, sergi alanı ve atölyeleri bir araya getiren bir kültür merkezi olarak Haziran 2023'te yeniden açılmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-tas-mektep-historic-restoration-1.jpg","projects/proje-tas-mektep-historic-restoration-2.jpg","projects/proje-tas-mektep-historic-restoration-3.jpg","projects/proje-tas-mektep-historic-restoration-4.jpg","projects/tas-mektep-restorasyonu-ad-5.jpg","projects/tas-mektep-restorasyonu-ad-6.jpg","projects/tas-mektep-restorasyonu-ad-7.jpg","projects/tas-mektep-restorasyonu-ad-8.jpg","projects/tas-mektep-restorasyonu-ad-9.jpg"]
+    images: ["projects/proje-tas-mektep-historic-restoration-1.jpg", "projects/proje-tas-mektep-historic-restoration-2.jpg", "projects/proje-tas-mektep-historic-restoration-3.jpg", "projects/proje-tas-mektep-historic-restoration-4.jpg", "projects/tas-mektep-restorasyonu-ad-5.jpg", "projects/tas-mektep-restorasyonu-ad-6.jpg", "projects/tas-mektep-restorasyonu-ad-7.jpg", "projects/tas-mektep-restorasyonu-ad-8.jpg", "projects/tas-mektep-restorasyonu-ad-9.jpg"]
   },
   {
     slug: "dijital-ekosistemler-fuar-standi",
@@ -7080,7 +7080,7 @@ const projects = [
     description: "İstanbul'da düzenlenen Webit Kongresi'nde dijital pazarlama hizmetlerini sergilemek üzere tasarlanan bu fuar standı, Barselona merkezli indissoluble stüdyosu imzasını taşır. Piksel benzeri bir yapı mantığından yola çıkan tasarım, teknolojik ve hafif bir atmosfer yaratmak için 1 milimetre kalınlığında katlanmış alüminyum sacdan üretilen modüler küplerden oluşur; her biri 60 santimetre yüksekliğinde ve 2,9 kilogram ağırlığındaki küpler 12 lazer kesim alüminyum parçadan meydana gelir. Yaklaşık 300 modülün kullanıldığı yapı, taşıma ve depolama kolaylığı için düz kutulara katlanabilecek şekilde tasarlanmıştır; parçaların büyük bölümü Barselona'da üretilip ön montajı yapılarak İstanbul'a nakledilmiştir. Otomotiv boyalı siyah küplerden oluşan 3,6 metre yüksekliğindeki yapı, marka renkli küplerle görüş hatlarını vurgular.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-aluminum-stand-for-digital-ecosystems-1.jpg","projects/proje-aluminum-stand-for-digital-ecosystems-2.jpg","projects/proje-aluminum-stand-for-digital-ecosystems-3.jpg","projects/proje-aluminum-stand-for-digital-ecosystems-4.jpg","projects/dijital-ekosistemler-fuar-standi-dv-5.jpg","projects/dijital-ekosistemler-fuar-standi-dv-6.jpg","projects/dijital-ekosistemler-fuar-standi-dv-7.jpg","projects/dijital-ekosistemler-fuar-standi-dv-8.jpg","projects/dijital-ekosistemler-fuar-standi-dv-9.jpg"]
+    images: ["projects/proje-aluminum-stand-for-digital-ecosystems-1.jpg", "projects/proje-aluminum-stand-for-digital-ecosystems-2.jpg", "projects/proje-aluminum-stand-for-digital-ecosystems-3.jpg", "projects/proje-aluminum-stand-for-digital-ecosystems-4.jpg", "projects/dijital-ekosistemler-fuar-standi-dv-5.jpg", "projects/dijital-ekosistemler-fuar-standi-dv-6.jpg", "projects/dijital-ekosistemler-fuar-standi-dv-7.jpg", "projects/dijital-ekosistemler-fuar-standi-dv-8.jpg", "projects/dijital-ekosistemler-fuar-standi-dv-9.jpg"]
   },
   {
     slug: "kagit-tugla-pavyonu",
@@ -7096,7 +7096,7 @@ const projects = [
     description: "5 Haziran 2015'te Dünya Çevre Günü kapsamında Tekirdağ'daki Tuğlalı Park'ta kurulan Kağıt Tuğla Pavyonu, Namık Kemal Üniversitesi Mimarlık Bölümü öğretim üyesi Esen Gökçe Özdamar'ın Okşan Tandoğan ile birlikte yürüttüğü, asistanlığını Elif Ulu'nun üstlendiği bir tasarım-yapım çalışmasıdır. Yerel bir üniversite kantininden toplanan 15.775 adet kullanılmış kağıt bardağın yıkanıp zımbalanmasıyla organik, yuvarlak hatlı hacimler oluşturulmuş; enstalasyon atık geri dönüşümü ve yeniden kullanımına dikkat çekmeyi amaçlamıştır. Proje, 2016 yılında Bükreş Trienali'nin Agora Experiments bölümünde de sergilenmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-paper-brick-pavilion-1.png","projects/proje-paper-brick-pavilion-2.jpg","projects/proje-paper-brick-pavilion-3.jpg","projects/proje-paper-brick-pavilion-4.jpg","projects/kagit-tugla-pavyonu-dv-5.jpg","projects/kagit-tugla-pavyonu-dv-6.jpg","projects/kagit-tugla-pavyonu-dv-7.jpg","projects/kagit-tugla-pavyonu-dv-8.jpg","projects/kagit-tugla-pavyonu-dv-9.jpg"]
+    images: ["projects/proje-paper-brick-pavilion-1.png", "projects/proje-paper-brick-pavilion-2.jpg", "projects/proje-paper-brick-pavilion-3.jpg", "projects/proje-paper-brick-pavilion-4.jpg", "projects/kagit-tugla-pavyonu-dv-5.jpg", "projects/kagit-tugla-pavyonu-dv-6.jpg", "projects/kagit-tugla-pavyonu-dv-7.jpg", "projects/kagit-tugla-pavyonu-dv-8.jpg", "projects/kagit-tugla-pavyonu-dv-9.jpg"]
   },
   {
     slug: "skechers-tr-kids-showroom",
@@ -7112,7 +7112,7 @@ const projects = [
     description: "Skechers'ın Türkiye distribütörünün Beşiktaş'taki genel merkezi içinde yer alan 55 metrekarelik Kids Showroom, çocuk ve bebek ayakkabılarını sergilemek için tasarlandı. Zemberek Tasarım, çocukluk anılarından ve lunapark imgelerinden yola çıkarak basit geometrik formlar, kavisli yüzeyler ve hareketi çağrıştıran tekerlek motifleriyle renkli bir sergileme alanı kurguladı. Erkek çocuk ürünleri için tırmanma temalı, küre dilimlerini andıran bir raf sistemi tasarlanırken, kız ve erkek bölümleri asma aparatlardaki renk farklılıklarıyla ayrıştırıldı. Boyalı havalandırma kanalları, beyaz poliüretan kavisli kenarlar, demir ve pleksiglas kullanılan mekan, sezonluk ürün gruplarına göre yeniden düzenlenebilen modüler sergileme üniteleriyle esneklik sağlıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-skechers-tr-kids-showroom-1.jpg","projects/proje-skechers-tr-kids-showroom-2.jpg","projects/proje-skechers-tr-kids-showroom-3.jpg","projects/proje-skechers-tr-kids-showroom-4.jpg","projects/skechers-tr-kids-showroom-ad-5.jpg","projects/skechers-tr-kids-showroom-ad-6.jpg","projects/skechers-tr-kids-showroom-ad-7.jpg","projects/skechers-tr-kids-showroom-ad-8.jpg","projects/skechers-tr-kids-showroom-ad-9.jpg"]
+    images: ["projects/proje-skechers-tr-kids-showroom-1.jpg", "projects/proje-skechers-tr-kids-showroom-2.jpg", "projects/proje-skechers-tr-kids-showroom-3.jpg", "projects/proje-skechers-tr-kids-showroom-4.jpg", "projects/skechers-tr-kids-showroom-ad-5.jpg", "projects/skechers-tr-kids-showroom-ad-6.jpg", "projects/skechers-tr-kids-showroom-ad-7.jpg", "projects/skechers-tr-kids-showroom-ad-8.jpg", "projects/skechers-tr-kids-showroom-ad-9.jpg"]
   },
   {
     slug: "skechers-tr-casual-showroom",
@@ -7128,7 +7128,7 @@ const projects = [
     description: "Skechers Türkiye'nin Beşiktaş'taki genel merkezinde yer alan 85 metrekarelik Casual Showroom, markanın günlük giyim koleksiyonlarını sergilemek için Zemberek Tasarım tarafından tasarlandı. Düzensiz kat planı bir bölme duvarıyla ikiye ayrılarak toplantı masasının çevresinde kurgulanan bir ana hacim ile arkasında daha küçük bir sergileme alanı elde edildi. Mekanın odak noktası, hem dolu hem boş halinde doku oluşturan, döner mekanizmalı ahşap raf sistemidir; bölme duvarı boyunca yarı saydam hale gelen bu sistem, açık ve kapalı ahşap parçaların yoğunluğuna göre görsel geçirgenliği değiştiriyor. Modüler ve esnek raf düzeni, sergilenen ürün gruplarının mevsime göre yeniden kurgulanmasına imkan tanıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-skechers-tr-casual-showroom-1.jpg","projects/proje-skechers-tr-casual-showroom-2.jpg","projects/proje-skechers-tr-casual-showroom-3.jpg","projects/proje-skechers-tr-casual-showroom-4.jpg","projects/skechers-tr-casual-showroom-ad-5.jpg","projects/skechers-tr-casual-showroom-ad-6.jpg","projects/skechers-tr-casual-showroom-ad-7.jpg","projects/skechers-tr-casual-showroom-ad-8.jpg","projects/skechers-tr-casual-showroom-ad-9.jpg"]
+    images: ["projects/proje-skechers-tr-casual-showroom-1.jpg", "projects/proje-skechers-tr-casual-showroom-2.jpg", "projects/proje-skechers-tr-casual-showroom-3.jpg", "projects/proje-skechers-tr-casual-showroom-4.jpg", "projects/skechers-tr-casual-showroom-ad-5.jpg", "projects/skechers-tr-casual-showroom-ad-6.jpg", "projects/skechers-tr-casual-showroom-ad-7.jpg", "projects/skechers-tr-casual-showroom-ad-8.jpg", "projects/skechers-tr-casual-showroom-ad-9.jpg"]
   },
   {
     slug: "v-factory-export-division",
@@ -7144,7 +7144,7 @@ const projects = [
     description: "Vigoss Tekstil'in ihracat departmanı için Bağcılar'da tasarlanan 250 metrekarelik V Factory Export Division, yönetici odası, showroom, operasyon ofisi ve dinlenme alanını tek bir akış içinde bir araya getiriyor. Zemberek Tasarım, cam ve demir malzemeden yan yana konumlanan üç şeffaf kütle tasarlayarak fonksiyonel alanları birbirinden ayırırken görsel sürekliliği korudu; merkezi bir rampa aksı girişten itibaren kesintisiz bir dolaşım hattı oluşturuyor. Rampa zemininde ceviz laminat parke, platformlarda beyaz poliüretan kaplama kullanılırken, dinlenme alanında kavisli bir oturma birimi yer alıyor. Tasarım, işitsel mahremiyeti korurken çalışma birimleri arasında sürekli görsel bağlantı kurmayı hedefliyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-v-factory-export-division-1.jpg","projects/proje-v-factory-export-division-2.jpg","projects/proje-v-factory-export-division-3.jpg","projects/proje-v-factory-export-division-4.jpg","projects/v-factory-export-division-ad-5.jpg","projects/v-factory-export-division-ad-6.jpg","projects/v-factory-export-division-ad-7.jpg","projects/v-factory-export-division-ad-8.jpg","projects/v-factory-export-division-ad-9.jpg"]
+    images: ["projects/proje-v-factory-export-division-1.jpg", "projects/proje-v-factory-export-division-2.jpg", "projects/proje-v-factory-export-division-3.jpg", "projects/proje-v-factory-export-division-4.jpg", "projects/v-factory-export-division-ad-5.jpg", "projects/v-factory-export-division-ad-6.jpg", "projects/v-factory-export-division-ad-7.jpg", "projects/v-factory-export-division-ad-8.jpg", "projects/v-factory-export-division-ad-9.jpg"]
   },
   {
     slug: "vigoss-r-d",
@@ -7160,7 +7160,7 @@ const projects = [
     description: "Vigoss Tekstil'in genel merkezi bünyesinde yer alan 250 metrekarelik Ar-Ge stüdyosu, sabit masalar yerine hareketi esas alan bir platform sistemiyle kurgulandı. Zemberek Tasarım'ın tasarımında 0 ile 80 santimetre arasında değişen yüksekliklerdeki platformlar, çalışanların oturarak, ayakta durarak ya da dolaşarak kumaş ve aksesuar örneklerini incelemesine imkan tanıyan farklı yoğunluklarda alanlar oluşturuyor. Kavisli hatlar mekan içinde akıcı bir hareketi teşvik ederken, sade malzeme seçimleri dikkatin sergilenen tekstil ürünlerinde kalmasını sağlıyor. Farklı aydınlatma seviyeleri ve doğal ışık kullanımıyla, geleneksel ofis düzeninden uzaklaşan esnek bir çalışma ortamı kuruldu.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-vigoss-r-d-1.jpg","projects/proje-vigoss-r-d-2.jpg","projects/proje-vigoss-r-d-3.jpg","projects/proje-vigoss-r-d-4.jpg","projects/vigoss-r-d-ad-5.jpg","projects/vigoss-r-d-ad-6.jpg","projects/vigoss-r-d-ad-7.jpg","projects/vigoss-r-d-ad-8.jpg","projects/vigoss-r-d-ad-9.jpg"]
+    images: ["projects/proje-vigoss-r-d-1.jpg", "projects/proje-vigoss-r-d-2.jpg", "projects/proje-vigoss-r-d-3.jpg", "projects/proje-vigoss-r-d-4.jpg", "projects/vigoss-r-d-ad-5.jpg", "projects/vigoss-r-d-ad-6.jpg", "projects/vigoss-r-d-ad-7.jpg", "projects/vigoss-r-d-ad-8.jpg", "projects/vigoss-r-d-ad-9.jpg"]
   },
   {
     slug: "vigoss-textile-showroom-and-design-office",
@@ -7176,7 +7176,7 @@ const projects = [
     description: "Beylikdüzü'nde mevcut 2.500 metrekarelik bir tekstil fabrikasının içine yerleştirilen 500 metrekarelik Vigoss tasarım ofisi ve showroom'u, Zemberek Tasarım tarafından yarı saydam bir kabuk yapı olarak kurgulandı. 962 adet CNC ile kesilmiş panelden oluşan dairesel kabuk, yeni müdahaleyi mevcut fabrika hacminden ayırırken aradaki görsel bağlantıyı da koruyor. Çelik strüktürle desteklenen kabuk, zemine ve tavana temas etmeden asılı durarak hem çalışma alanını barındırıyor hem de bir ürün sergileme sistemi olarak işlev görüyor; merkezde yalnızca kolonlarla taşınan büyük bir beton platform açık bir çalışma alanı oluşturuyor. Yarı geçirgen yapı, kullanıcı mekan içinde hareket ettikçe değişen bakış açıları ve iç aydınlatmanın çevreye düşürdüğü gölgelerle zengin bir görsel deneyim sunuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-vigoss-textile-showroom-and-design-office-1.jpg","projects/proje-vigoss-textile-showroom-and-design-office-2.jpg","projects/proje-vigoss-textile-showroom-and-design-office-3.jpg","projects/proje-vigoss-textile-showroom-and-design-office-4.jpg","projects/vigoss-textile-showroom-and-design-office-ad-5.jpg","projects/vigoss-textile-showroom-and-design-office-ad-6.jpg","projects/vigoss-textile-showroom-and-design-office-ad-7.jpg","projects/vigoss-textile-showroom-and-design-office-ad-8.jpg","projects/vigoss-textile-showroom-and-design-office-ad-9.jpg"]
+    images: ["projects/proje-vigoss-textile-showroom-and-design-office-1.jpg", "projects/proje-vigoss-textile-showroom-and-design-office-2.jpg", "projects/proje-vigoss-textile-showroom-and-design-office-3.jpg", "projects/proje-vigoss-textile-showroom-and-design-office-4.jpg", "projects/vigoss-textile-showroom-and-design-office-ad-5.jpg", "projects/vigoss-textile-showroom-and-design-office-ad-6.jpg", "projects/vigoss-textile-showroom-and-design-office-ad-7.jpg", "projects/vigoss-textile-showroom-and-design-office-ad-8.jpg", "projects/vigoss-textile-showroom-and-design-office-ad-9.jpg"]
   },
   {
     slug: "gemak-tersanesi-yonetim-binasi",
@@ -7192,7 +7192,7 @@ const projects = [
     description: "Marmara Denizi'nin güneydoğu kıyısında, Yalova'nın Altınova ilçesindeki bir tersane girişinde konumlanan 1.000 metrekareyi aşan yönetim binası, CM Mimarlık tarafından tersane bağlamından ilham alınarak tasarlandı. Yapı, boyuna doğrultuda servis ve ıslak hacimleri barındıran merkezi bir dolaşım omurgasıyla ikiye ayrılıyor; tek kollu bir merdiven katlara sahanlıklar üzerinden dağılarak üst katta panoramik manzaralı bir kafeteryaya açılıyor. Tamamen çelik strüktürle inşa edilen ve bodrum kat gerektirmeyen bina, vinç ve kaldırma ekipmanları gibi tersaneye özgü sanayi elemanlarını strüktürel ifadesiyle yansıtıyor. Gereksiz kaplamalardan arındırılmış “çıplak estetik” yaklaşımıyla tasarlanan bina, iç mekanda taşıyıcı iskeleti görünür bırakıyor ve TÜCSA'nın 12. Ulusal Çelik Yapı Ödülleri'nde birincilik kazandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-gemak-tersanesi-yonetim-binasi-1.jpg","projects/proje-gemak-tersanesi-yonetim-binasi-2.jpg","projects/proje-gemak-tersanesi-yonetim-binasi-3.jpg","projects/proje-gemak-tersanesi-yonetim-binasi-4.jpg","projects/gemak-tersanesi-yonetim-binasi-ak-5.jpg","projects/gemak-tersanesi-yonetim-binasi-ak-6.jpg","projects/gemak-tersanesi-yonetim-binasi-ak-7.jpg","projects/gemak-tersanesi-yonetim-binasi-ak-8.jpg","projects/gemak-tersanesi-yonetim-binasi-ak-9.jpg"]
+    images: ["projects/proje-gemak-tersanesi-yonetim-binasi-1.jpg", "projects/proje-gemak-tersanesi-yonetim-binasi-2.jpg", "projects/proje-gemak-tersanesi-yonetim-binasi-3.jpg", "projects/proje-gemak-tersanesi-yonetim-binasi-4.jpg", "projects/gemak-tersanesi-yonetim-binasi-ak-5.jpg", "projects/gemak-tersanesi-yonetim-binasi-ak-6.jpg", "projects/gemak-tersanesi-yonetim-binasi-ak-7.jpg", "projects/gemak-tersanesi-yonetim-binasi-ak-8.jpg", "projects/gemak-tersanesi-yonetim-binasi-ak-9.jpg"]
   },
   {
     slug: "vinero-saraphanesi-ve-otel",
@@ -7208,7 +7208,7 @@ const projects = [
     description: "Gelibolu Yarımadası'nda, Çanakkale'nin Eceabat ilçesinde 16.000 metrekarelik bir arazi üzerinde yer alan Vinero, üretim ve depolama bölümlerine sahip bir şarap tesisini 25 odalı bir konukevi, restoran ve spa programıyla bir araya getiriyor. Yapının taşıyıcı sistem projesi Tekeli-Sisa Mimarlık tarafından yürütülürken, iç mekan tasarımı CM Mimarlık imzasını taşıyor; ziyaretçileri karşılayan merkezi bir atrium, tesisin sergileme ve tanıtım alanı olarak kurgulandı. Üretim hacimlerinde betonarme strüktür bilinçli olarak açıkta bırakılırken, gerekli görülen yerlerde koruyucu kaplamalar uygulandı; tasarımcıların ifadesiyle “ham metal endüstriyel detaylarla işlendi, ahşap ise kütlesel biçimde kullanıldı.” Her biri farklı planlama, malzeme ve banyo kurgusuyla ayrı ayrı tasarlanan konuk odaları, Toksöz Holding'in yatırımı olan tesise bireysel bir karakter kazandırıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-vinero-saraphanesi-ve-otel-1.jpg","projects/proje-vinero-saraphanesi-ve-otel-2.jpg","projects/proje-vinero-saraphanesi-ve-otel-3.jpg","projects/proje-vinero-saraphanesi-ve-otel-4.jpg"]
+    images: ["projects/proje-vinero-saraphanesi-ve-otel-1.jpg", "projects/proje-vinero-saraphanesi-ve-otel-2.jpg", "projects/proje-vinero-saraphanesi-ve-otel-3.jpg", "projects/proje-vinero-saraphanesi-ve-otel-4.jpg"]
   },
   {
     slug: "noxx-apartmani",
@@ -7224,7 +7224,7 @@ const projects = [
     description: "Cihangir'de dar ve çıkmaz bir sokakta yer alan NoXX Apartmanı, 60-70 metrekare arasında değişen yedi stüdyo daireden oluşan 1.000 metrekarenin altında bir yapı. Arsa koşulları nedeniyle geleneksel betonarme yerine çelik strüktür tercih eden CM Mimarlık, kompozit çelik taşıyıcı sistemi sıva, boya ya da kaplama kullanmadan hem iç hem dış cephede açıkta bıraktı; bodrum kat betonarme, üst katlar ise çelik strüktürle inşa edildi. Yönetmelik gereği kör bırakılması gereken cephede, aralarında yalıtım bulunan çift tuğla duvar ve özel olarak üretilmiş çıkıntılı tuğlalarla gün boyu değişen gölge desenleri oluşturuldu; bu tuğlalar aynı zamanda kuşlar için tünek görevi görüyor. İki çatı katı ve bir bahçe katı dubleks olarak tasarlanan yapıda, geniş pencere açıklıklarıyla ön ve arka cepheden doğal ışık maksimize edildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-noxx-apartmani-1.jpg","projects/proje-noxx-apartmani-2.jpg","projects/proje-noxx-apartmani-3.jpg","projects/proje-noxx-apartmani-4.jpg","projects/noxx-apartmani-ak-5.jpg","projects/noxx-apartmani-ak-6.jpg","projects/noxx-apartmani-ak-7.jpg","projects/noxx-apartmani-ak-8.jpg","projects/noxx-apartmani-ak-9.jpg"]
+    images: ["projects/proje-noxx-apartmani-1.jpg", "projects/proje-noxx-apartmani-2.jpg", "projects/proje-noxx-apartmani-3.jpg", "projects/proje-noxx-apartmani-4.jpg", "projects/noxx-apartmani-ak-5.jpg", "projects/noxx-apartmani-ak-6.jpg", "projects/noxx-apartmani-ak-7.jpg", "projects/noxx-apartmani-ak-8.jpg", "projects/noxx-apartmani-ak-9.jpg"]
   },
   {
     slug: "ibtech-it-merkezi-genel-mudurlugu",
@@ -7240,7 +7240,7 @@ const projects = [
     description: "Finansbank'ın bilgi teknolojileri şirketi IBTECH için Gebze'deki TÜBİTAK MAM Teknoloji Serbest Bölgesi'nde inşa edilen genel müdürlük binası, 13.700 metrekarelik inşaat alanına sahip bir kampüs olarak tasarlandı. CM Mimarlık, arazinin doğal yüzde 10'luk eğimine yanıt veren, çelik köprülerle birbirine bağlı üç bloktan oluşan bir kurgu geliştirdi; dinlenme işlevi gören merkezi bir avlu, güneydoğudaki peyzaja açılıyor. Cepheler araziye paralel hizalanırken, alüminyum cephe sistemi ve pencere açıklıkları topografyayla kurulan güçlü bir ilişkiyi yansıtıyor; avluya bakan cepheler saydam camla çözülürken güneybatı cephesi daha kontrollü bir camlamayla ele alındı. 14 ila 17 metre uzunluğundaki dört çelik köprüyle birbirine bağlanan bloklar arasında kafeterya, spor salonu, yüzme havuzu gibi ortak kullanım alanları yer alıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ibtech-it-merkezi-genel-mudurlugu-1.jpg","projects/proje-ibtech-it-merkezi-genel-mudurlugu-2.jpg","projects/proje-ibtech-it-merkezi-genel-mudurlugu-3.jpg","projects/proje-ibtech-it-merkezi-genel-mudurlugu-4.jpg","projects/ibtech-it-merkezi-genel-mudurlugu-ak-5.jpg","projects/ibtech-it-merkezi-genel-mudurlugu-ak-6.jpg","projects/ibtech-it-merkezi-genel-mudurlugu-ak-7.jpg","projects/ibtech-it-merkezi-genel-mudurlugu-ak-8.jpg","projects/ibtech-it-merkezi-genel-mudurlugu-ak-9.jpg"]
+    images: ["projects/proje-ibtech-it-merkezi-genel-mudurlugu-1.jpg", "projects/proje-ibtech-it-merkezi-genel-mudurlugu-2.jpg", "projects/proje-ibtech-it-merkezi-genel-mudurlugu-3.jpg", "projects/proje-ibtech-it-merkezi-genel-mudurlugu-4.jpg", "projects/ibtech-it-merkezi-genel-mudurlugu-ak-5.jpg", "projects/ibtech-it-merkezi-genel-mudurlugu-ak-6.jpg", "projects/ibtech-it-merkezi-genel-mudurlugu-ak-7.jpg", "projects/ibtech-it-merkezi-genel-mudurlugu-ak-8.jpg", "projects/ibtech-it-merkezi-genel-mudurlugu-ak-9.jpg"]
   },
   {
     slug: "sishane-park",
@@ -7256,7 +7256,7 @@ const projects = [
     description: "Beyoğlu'nun Şişhane semtinde, yaklaşık 1.000 araç kapasiteli yeraltı otoparkı ile bir toplu taşıma aktarma noktasını kamusal bir yeşil alanla bir araya getiren Şişhane Parkı, SANALarc tarafından tasarlandı. Proje, kentsel yaşam için zorunlu bir otopark altyapısını canlı bir kamusal mekanla bütünleştirme sorununa, Haliç manzarasına açılan teraslardan oluşan birbirine bağlı kavisli bir form geliştirerek yanıt veriyor. Terasları birbirine bağlayan ahşap bir yürüyüş platformu parkın imza elemanı olurken, otopark katlarında kullanılan canlı renkler yeraltı mekanlarının tekdüzeliğini kırıyor. Tasarım, yaya hareketini ve toplu taşımaya erişimi önceliklendirirken, gün batımını izlemek ve sosyalleşmek için davetkar bir kamusal alan yaratmayı hedefliyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-sishane-park-1.jpg","projects/proje-sishane-park-2.jpg","projects/proje-sishane-park-3.jpg","projects/proje-sishane-park-4.jpg","projects/sishane-park-ad-5.jpg","projects/sishane-park-ad-6.jpg","projects/sishane-park-ad-7.jpg","projects/sishane-park-ad-8.jpg","projects/sishane-park-ad-9.jpg"]
+    images: ["projects/proje-sishane-park-1.jpg", "projects/proje-sishane-park-2.jpg", "projects/proje-sishane-park-3.jpg", "projects/proje-sishane-park-4.jpg", "projects/sishane-park-ad-5.jpg", "projects/sishane-park-ad-6.jpg", "projects/sishane-park-ad-7.jpg", "projects/sishane-park-ad-8.jpg", "projects/sishane-park-ad-9.jpg"]
   },
   {
     slug: "salt-arastirma-merkezi",
@@ -7272,7 +7272,7 @@ const projects = [
     description: "Karaköy'deki tarihi Osmanlı Bankası binasının bir avlusuna yerleştirilen SALT Araştırma Kütüphanesi, kültür kurumu SALT'ın araştırma, paylaşım ve içerik üretim işlevlerini barındıran kamusal bir mekan olarak SANALarc tarafından tasarlandı. Tasarım, ses ve mekanın ilişkisi, ışık ve açıklık kurgusu, 19. yüzyıla ait süsleme öğeleriyle çağdaş müdahalenin bütünleşmesi olmak üzere üç ayrı anlatı ekseninde kurgulandı. Ofis, ses örnekleme yazılımları, vektörel çizim araçları ve parametrik yüzey modelleme tekniklerini bir araya getirerek kentin dijital örneklemesini mekansal bir tasarıma dönüştürdü. Sonuçta ortaya çıkan iç mekan, tarihi binanın karakteriyle çağdaş bir araştırma kütüphanesinin ihtiyaçlarını “yeniden kolajlanmış” mekansal ilişkiler üzerinden bir araya getiriyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-salt-arastirma-merkezi-1.jpg","projects/proje-salt-arastirma-merkezi-2.jpg","projects/proje-salt-arastirma-merkezi-3.jpg","projects/proje-salt-arastirma-merkezi-4.jpg","projects/salt-arastirma-merkezi-ak-5.jpg","projects/salt-arastirma-merkezi-ak-6.jpg","projects/salt-arastirma-merkezi-ak-7.jpg","projects/salt-arastirma-merkezi-ak-8.jpg","projects/salt-arastirma-merkezi-ak-9.jpg"]
+    images: ["projects/proje-salt-arastirma-merkezi-1.jpg", "projects/proje-salt-arastirma-merkezi-2.jpg", "projects/proje-salt-arastirma-merkezi-3.jpg", "projects/proje-salt-arastirma-merkezi-4.jpg", "projects/salt-arastirma-merkezi-ak-5.jpg", "projects/salt-arastirma-merkezi-ak-6.jpg", "projects/salt-arastirma-merkezi-ak-7.jpg", "projects/salt-arastirma-merkezi-ak-8.jpg", "projects/salt-arastirma-merkezi-ak-9.jpg"]
   },
   {
     slug: "doluca-saraphanesi",
@@ -7288,7 +7288,7 @@ const projects = [
     description: "Tekirdağ'ın Çerkezköy ilçesinde, Doluca Şarapçılık için tasarlanan üretim tesisi, SANALarc tarafından “peyzaj ve sekans üzerinden hikaye anlatımı” fikri üzerine kuruldu. Ziyaretçi, sanayi çevresinden şekillendirilmiş tarımsal bir peyzaja geçerek ahşap kemerli bir kapıdan geçiyor ve mevsime göre değişen ışığı çerçeveleyen silindirik hacimlere doğru yükseliyor. Tasarımın anlatısal doruk noktasını, yaşlandırılmış meşe fıçıların sergilendiği, dramatik ölçek ve atmosferik aydınlatmayla kurgulanmış fıçı odası oluşturuyor. Cephede baskın olarak ahşap kullanılan tesis, geometriyi bir anlatı aracı olarak kullanarak şarabın bölgesel tarımla kurduğu bağı, kademeli eşikler ve dönüştürücü mekansal deneyimler üzerinden yansıtıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-doluca-saraphanesi-1.jpg","projects/proje-doluca-saraphanesi-2.jpg","projects/proje-doluca-saraphanesi-3.jpg","projects/proje-doluca-saraphanesi-4.jpg","projects/doluca-saraphanesi-ad-5.jpg","projects/doluca-saraphanesi-ad-6.jpg","projects/doluca-saraphanesi-ad-7.jpg","projects/doluca-saraphanesi-ad-8.jpg","projects/doluca-saraphanesi-ad-9.jpg"]
+    images: ["projects/proje-doluca-saraphanesi-1.jpg", "projects/proje-doluca-saraphanesi-2.jpg", "projects/proje-doluca-saraphanesi-3.jpg", "projects/proje-doluca-saraphanesi-4.jpg", "projects/doluca-saraphanesi-ad-5.jpg", "projects/doluca-saraphanesi-ad-6.jpg", "projects/doluca-saraphanesi-ad-7.jpg", "projects/doluca-saraphanesi-ad-8.jpg", "projects/doluca-saraphanesi-ad-9.jpg"]
   },
   {
     slug: "umur-printing",
@@ -7304,7 +7304,7 @@ const projects = [
     description: "Ümraniye'nin Dudullu semtinde, Umur Basım'ın matbaa tesisi için tasarlanan bina, Nevzat Sayın'ın imzasını taşıyan bir sanayi yapısı. Yapı, üretim hattının gerektirdiği büyük açıklıklı, sütunsuz hacimleri günlük ışıkla aydınlatılan çalışma alanlarıyla bir araya getirecek şekilde kurgulandı. Sade, işlevsel bir malzeme dilinin benimsendiği tesiste, üretim mekanlarının doğal ışıkla ilişkisi tasarımın ana eksenlerinden birini oluşturuyor. Bina, NSMH'nin 2000'li yıllarda gerçekleştirdiği sanayi yapıları arasında yer alıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-umur-printing-1.jpg","projects/proje-umur-printing-2.jpg","projects/proje-umur-printing-3.jpg","projects/proje-umur-printing-4.jpg","projects/umur-printing-ak-5.jpg","projects/umur-printing-ak-6.jpg","projects/umur-printing-ak-7.jpg","projects/umur-printing-ak-8.jpg","projects/umur-printing-ak-9.jpg"]
+    images: ["projects/proje-umur-printing-1.jpg", "projects/proje-umur-printing-2.jpg", "projects/proje-umur-printing-3.jpg", "projects/proje-umur-printing-4.jpg", "projects/umur-printing-ak-5.jpg", "projects/umur-printing-ak-6.jpg", "projects/umur-printing-ak-7.jpg", "projects/umur-printing-ak-8.jpg", "projects/umur-printing-ak-9.jpg"]
   },
   {
     slug: "ates-wind-power-headquarters",
@@ -7320,7 +7320,7 @@ const projects = [
     description: "İzmir-Çanakkale karayolu üzerinde, Çandarlı Limanı kavşağına yakın 80.000 metrekarelik açık alanda konumlanan Ateş Wind Power'ın üretim tesisleri, 20.000 metrekarelik kapalı alana sahip. d.a.architects imzalı proje, Türkiye'deki sanayi tesisleri için kullanıcı odaklı, yenilikçi bir yaklaşım benimsiyor; şirket çalışanlarının, yöneticilerinin ve ziyaretçilerinin fabrika alanına ilk adımlarından itibaren bina içindeki tüm faaliyetler göz önünde bulundurularak tasarlandı. Ağır sanayi üretimi dışındaki tüm faaliyetler —mühendislik, tasarım, idari işler, eğitim, dinlenme, yemek— fabrikanın kalbinde, doğal iklimlendirmeli mekanlarda organize edilen yaklaşık 2.000 metrekarelik bir alanda toplandı. Karayoluna bakan ana giriş, kortenden bir ekranla vurgulanıyor ve üst yönetim ofislerine doğrudan erişim sağlayan geniş bir sergi holü olarak tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ates-wind-power-headquarters-1.jpg","projects/proje-ates-wind-power-headquarters-2.jpg","projects/proje-ates-wind-power-headquarters-3.jpg","projects/proje-ates-wind-power-headquarters-4.jpg","projects/ates-wind-power-headquarters-av-5.jpg","projects/ates-wind-power-headquarters-av-6.jpg","projects/ates-wind-power-headquarters-av-7.jpg","projects/ates-wind-power-headquarters-av-8.jpg","projects/ates-wind-power-headquarters-av-9.jpg"]
+    images: ["projects/proje-ates-wind-power-headquarters-1.jpg", "projects/proje-ates-wind-power-headquarters-2.jpg", "projects/proje-ates-wind-power-headquarters-3.jpg", "projects/proje-ates-wind-power-headquarters-4.jpg", "projects/ates-wind-power-headquarters-av-5.jpg", "projects/ates-wind-power-headquarters-av-6.jpg", "projects/ates-wind-power-headquarters-av-7.jpg", "projects/ates-wind-power-headquarters-av-8.jpg", "projects/ates-wind-power-headquarters-av-9.jpg"]
   },
   {
     slug: "eurasia-tunnel-operation-and-maintenance-building",
@@ -7336,7 +7336,7 @@ const projects = [
     description: "İstanbul Boğazı'nın iki yakasını 5,4 kilometrelik, deniz tabanının 25 metre altından geçen iki katlı bir tüple bağlayan Avrasya Tüneli'nin sinir merkezi olan İşletme ve Bakım Binası, tünelin Anadolu yakasındaki girişinde, Kadıköy'ün Göztepe semtinde D-100 karayolunun kuzeyinde, deniz seviyesinden 30 metre yükseklikteki 7.150 metrekarelik bir arsada yer alıyor. GMW Mimarlık imzalı iki katlı yapı, zemin seviyesindeki bakım tesislerinin üzerinde asılı duran tüp benzeri bir kütle olarak kurgulandı ve tünel girişiyle aynı akstaki konumuyla hem tünelin girişini hem de ulaştığı teknolojik düzeyi simgeliyor. Dalga motifli delikli metal dış paneller güneşten korunma ve gece aydınlatması sağlarken, çift kabuklu cepheler enerji verimli iç mekanı güneşten koruyor. Arazinin doğal topografyası, bakım bileşenlerini araziye gizleyen peyzajlı bir tepe olarak korunarak binanın çevresiyle bütünleşmesi sağlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-eurasia-tunnel-operation-and-maintenance-building-1.jpg","projects/proje-eurasia-tunnel-operation-and-maintenance-building-2.jpg","projects/proje-eurasia-tunnel-operation-and-maintenance-building-3.jpg","projects/proje-eurasia-tunnel-operation-and-maintenance-building-4.jpg","projects/eurasia-tunnel-operation-and-maintenance-building-ak-5.jpg","projects/eurasia-tunnel-operation-and-maintenance-building-ak-6.jpg","projects/eurasia-tunnel-operation-and-maintenance-building-ak-7.jpg","projects/eurasia-tunnel-operation-and-maintenance-building-ak-8.jpg","projects/eurasia-tunnel-operation-and-maintenance-building-ak-9.jpg"]
+    images: ["projects/proje-eurasia-tunnel-operation-and-maintenance-building-1.jpg", "projects/proje-eurasia-tunnel-operation-and-maintenance-building-2.jpg", "projects/proje-eurasia-tunnel-operation-and-maintenance-building-3.jpg", "projects/proje-eurasia-tunnel-operation-and-maintenance-building-4.jpg", "projects/eurasia-tunnel-operation-and-maintenance-building-ak-5.jpg", "projects/eurasia-tunnel-operation-and-maintenance-building-ak-6.jpg", "projects/eurasia-tunnel-operation-and-maintenance-building-ak-7.jpg", "projects/eurasia-tunnel-operation-and-maintenance-building-ak-8.jpg", "projects/eurasia-tunnel-operation-and-maintenance-building-ak-9.jpg"]
   },
   {
     slug: "bilkent-erzurum-lower-school",
@@ -7352,7 +7352,7 @@ const projects = [
     description: "Erzurum'un kırsal kesimindeki yüksek bir plato üzerinde, Bilkent Üniversitesi tarafından kurulan ve bölgenin yoksul ve izole kesimlerindeki başarılı çocuklara ücretsiz eğitim vermeyi amaçlayan Bilkent Erzurum Laboratuvar Okulu'nun (BELS) yaklaşık 6.500 metrekarelik ilkokul ve ortaokul eki, New York merkezli FXCollaborative (eski adıyla FXFOWLE) tarafından tasarlandı. Yapı, “iç içe geçmiş iki basit kapalı yürüyüş şeridi” olarak kurgulandı; üst şerit, bölgenin sert kışlarına yanıt olarak buz sarkıtı desenlerinden ilham alan geniş camlı, çift yükseklikte bir kafeteryayı barındırırken, alt şerit ayrı girişler ve oyun alanları oluşturmak üzere birbirinden ayrılıyor. İki kanattaki çift yükseklikli sınıflar, karşılıklı gün ışığı alacak şekilde ve okuma nişleriyle tasarlandı. Erzurum travertenleri, bazalt taş ve yoğun ahşap tavan kaplamalarının kullanıldığı yapı, deprem riskine karşı sağlam bir çelik iskeletle inşa edildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-bilkent-erzurum-lower-school-1.jpg","projects/proje-bilkent-erzurum-lower-school-2.jpg","projects/proje-bilkent-erzurum-lower-school-3.jpg","projects/proje-bilkent-erzurum-lower-school-4.jpg","projects/bilkent-erzurum-lower-school-ak-5.jpg","projects/bilkent-erzurum-lower-school-ak-6.jpg","projects/bilkent-erzurum-lower-school-ak-7.jpg","projects/bilkent-erzurum-lower-school-ak-8.jpg","projects/bilkent-erzurum-lower-school-ak-9.jpg"]
+    images: ["projects/proje-bilkent-erzurum-lower-school-1.jpg", "projects/proje-bilkent-erzurum-lower-school-2.jpg", "projects/proje-bilkent-erzurum-lower-school-3.jpg", "projects/proje-bilkent-erzurum-lower-school-4.jpg", "projects/bilkent-erzurum-lower-school-ak-5.jpg", "projects/bilkent-erzurum-lower-school-ak-6.jpg", "projects/bilkent-erzurum-lower-school-ak-7.jpg", "projects/bilkent-erzurum-lower-school-ak-8.jpg", "projects/bilkent-erzurum-lower-school-ak-9.jpg"]
   },
   {
     slug: "varyap-meridian-h-block",
@@ -7368,7 +7368,7 @@ const projects = [
     description: "TEM Otoyolu'na doğrudan bağlantısı olan, beş konut kulesi, üç ticari blok ve villalardan oluşan 100.000 metrekarelik Varyap Meridian yerleşkesinin Ataşehir'deki H Blok'u, Varyap İnşaat'ın yönetim binası olarak işlev görecek şekilde MTF Proje tarafından tasarlandı. Bodrum katlar dahil on kattan oluşan yapı, zemin katta cam bir tünel geçişiyle çelik strüktürlü bir restoran binasına bağlanıyor. MTF Proje, kompleksin geri kalanıyla bütünleşen ama kendi cephe kimliğini de ortaya koyan bir tasarım dili geliştirdi. H Blok, Varyap Meridian'ın tamamlanan ilk yapılarından biri olarak 2010'ların başında hizmete girdi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-varyap-meridian-h-block-1.jpg","projects/proje-varyap-meridian-h-block-2.jpg","projects/proje-varyap-meridian-h-block-3.jpg","projects/proje-varyap-meridian-h-block-4.jpg","projects/varyap-meridian-h-block-ad-5.jpg","projects/varyap-meridian-h-block-ad-6.jpg","projects/varyap-meridian-h-block-ad-7.jpg","projects/varyap-meridian-h-block-ad-8.jpg","projects/varyap-meridian-h-block-ad-9.jpg"]
+    images: ["projects/proje-varyap-meridian-h-block-1.jpg", "projects/proje-varyap-meridian-h-block-2.jpg", "projects/proje-varyap-meridian-h-block-3.jpg", "projects/proje-varyap-meridian-h-block-4.jpg", "projects/varyap-meridian-h-block-ad-5.jpg", "projects/varyap-meridian-h-block-ad-6.jpg", "projects/varyap-meridian-h-block-ad-7.jpg", "projects/varyap-meridian-h-block-ad-8.jpg", "projects/varyap-meridian-h-block-ad-9.jpg"]
   },
   {
     slug: "ardesco",
@@ -7384,7 +7384,7 @@ const projects = [
     description: "Bodrum Yarımadası'nda, Novron İnşaat için Teğet Mimarlık tarafından tasarlanan 3.800 metrekarelik Ardesco (Novron Ardesco) konut yerleşkesi, antik bir amfitiyatrodan esinlenilerek araziye kademeli taş istinat duvarları boyunca yerleştirildi. İki katlı evlerin yatak odaları alt seviyede istinat duvarlarının içine gömülürken, üst kattaki yaşam alanları Akdeniz'e doğru açık birer çerçeve gibi öne uzanıyor. Bu katmanlı bahçe sistemi, her konutun komşu evlerden görsel olarak etkilenmeden birden fazla seviyeden kesintisiz manzara deneyimlemesine imkan tanıyor. Taş istinat duvarlarının strüktürel ve estetik ana eleman olarak kullanıldığı yerleşkede, üst kattaki yaşam mekanları peyzaja asılı birer çerçeve gibi tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ardesco-1.jpg","projects/proje-ardesco-2.jpg","projects/proje-ardesco-3.jpg","projects/proje-ardesco-4.jpg","projects/ardesco-ad-5.jpg","projects/ardesco-ad-6.jpg","projects/ardesco-ad-7.jpg","projects/ardesco-ad-8.jpg","projects/ardesco-ad-9.jpg"]
+    images: ["projects/proje-ardesco-1.jpg", "projects/proje-ardesco-2.jpg", "projects/proje-ardesco-3.jpg", "projects/proje-ardesco-4.jpg", "projects/ardesco-ad-5.jpg", "projects/ardesco-ad-6.jpg", "projects/ardesco-ad-7.jpg", "projects/ardesco-ad-8.jpg", "projects/ardesco-ad-9.jpg"]
   },
   {
     slug: "istanbul-community-market-ideas-competition",
@@ -7400,7 +7400,7 @@ const projects = [
     description: "Ctrl+Space Mimarlık Yarışmaları tarafından düzenlenen İstanbul Halk Pazarları Fikir Yarışması'nda birincilik ödülü kazanan bu öneri, Fatih'in Kumkapı semtinde 1.470 metrekarelik bir kamusal toplanma ve pazar alanı öngörüyor. YEGENA'dan M. Barış Yegena ve Özge Özkul imzalı tasarım, alanın açıklık hissini korumak için yapılaşmış kütleyi bilinçli olarak en aza indiriyor ve pazar tezgahı fikrini genişleten bir platformla bölgenin arkeolojik önemine gönderme yapıyor. Tasarımın en belirgin öğesi, bölgenin antik uygarlıklarından esinlenen kemer elemanlarının, ilk yerleşimlerden (M.Ö. 658 civarı) günümüze uzanan yaklaşık 2.600 yılı simgeleyen toplam 26 derecelik bir dönüşle diziliş kazanmasıdır. Haziran 2015'te sonuçlanan yarışmada ödül alan öneri, henüz uygulanmamış bir kentsel tasarım fikri olarak kalıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-istanbul-community-market-ideas-competition-1.jpg","projects/proje-istanbul-community-market-ideas-competition-2.jpg","projects/proje-istanbul-community-market-ideas-competition-3.jpg","projects/proje-istanbul-community-market-ideas-competition-4.jpg","projects/istanbul-community-market-ideas-competition-ak-5.jpg"]
+    images: ["projects/proje-istanbul-community-market-ideas-competition-1.jpg", "projects/proje-istanbul-community-market-ideas-competition-2.jpg", "projects/proje-istanbul-community-market-ideas-competition-3.jpg", "projects/proje-istanbul-community-market-ideas-competition-4.jpg", "projects/istanbul-community-market-ideas-competition-ak-5.jpg"]
   },
   {
     slug: "metu-yp-auditorium",
@@ -7416,7 +7416,7 @@ const projects = [
     description: "ODTÜ kampüsünde sınırlı davetli bir yarışmanın birincilik ödülü sonucunda hayata geçen bu amfi binası, kampüsün brütalist mimari dilini brüt beton yüzeylerle sürdürüyor. Toplam 4.500 metrekarelik yapı, 4 amfi ve 17 dersliği ortak bir sirkülasyon boşluğu etrafında bir araya getiriyor; bu boşluk çevresiyle bütünleşerek bir buluşma ve sosyalleşme alanına dönüşüyor. Beton kütlelerin arasından sıyrılan kırmızı renkli prizmatik hacimler cepheye canlı bir kontrast katıyor. Amfilerin oluşturduğu büyük konsollu kütleler, ağaçlık alana doğru uzanarak yapının mühendislik yönünü de öne çıkarıyor. Proje 2017 yılında tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-metu-yp-auditorium-1.jpg","projects/proje-metu-yp-auditorium-2.jpg","projects/proje-metu-yp-auditorium-3.jpg","projects/proje-metu-yp-auditorium-4.jpg","projects/proje-metu-yp-auditorium-5.jpg","projects/metu-yp-auditorium-ad-6.jpg","projects/metu-yp-auditorium-ad-7.jpg","projects/metu-yp-auditorium-ad-8.jpg","projects/metu-yp-auditorium-ad-9.jpg"]
+    images: ["projects/proje-metu-yp-auditorium-1.jpg", "projects/proje-metu-yp-auditorium-2.jpg", "projects/proje-metu-yp-auditorium-3.jpg", "projects/proje-metu-yp-auditorium-4.jpg", "projects/proje-metu-yp-auditorium-5.jpg", "projects/metu-yp-auditorium-ad-6.jpg", "projects/metu-yp-auditorium-ad-7.jpg", "projects/metu-yp-auditorium-ad-8.jpg", "projects/metu-yp-auditorium-ad-9.jpg"]
   },
   {
     slug: "samsun-multipurpose-hall",
@@ -7432,7 +7432,7 @@ const projects = [
     description: "Samsun şehir merkezinde, yıkılan eski Samsun Oteli'nin balo salonunun izleri üzerine inşa edilen yapı, bu mekanın kentsel bellekteki yerini sürdürmeyi hedefliyor. Bina, Samsun Atatürk Kültür Merkezi ile İlkadım Anıtı arasında, yeşil sahil şeridinde yer alıyor. Sahille kurulan görsel bağlantıyı korumak için ana salonun sahile paralel cepheleri olabildiğince saydam tasarlandı; böylece içeride düzenlenen etkinlikler dışarıdan da algılanabiliyor. Yapının çelik taşıyıcı sistemi, cepheleri saran ve işleve göre sıklaşıp seyrekleşen metal kafes elemanlarla mimari ifadeye dönüşüyor. İçeride 600'er metrekarelik iki büyük salon ve heykelsi bir merdivenle karşılayan iki katlı bir fuaye bulunuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-samsun-multipurpose-hall-1.jpg","projects/proje-samsun-multipurpose-hall-2.jpg","projects/proje-samsun-multipurpose-hall-3.jpg","projects/proje-samsun-multipurpose-hall-4.jpg","projects/samsun-multipurpose-hall-ad-5.jpg","projects/samsun-multipurpose-hall-ad-6.jpg","projects/samsun-multipurpose-hall-ad-7.jpg","projects/samsun-multipurpose-hall-ad-8.jpg","projects/samsun-multipurpose-hall-ad-9.jpg"]
+    images: ["projects/proje-samsun-multipurpose-hall-1.jpg", "projects/proje-samsun-multipurpose-hall-2.jpg", "projects/proje-samsun-multipurpose-hall-3.jpg", "projects/proje-samsun-multipurpose-hall-4.jpg", "projects/samsun-multipurpose-hall-ad-5.jpg", "projects/samsun-multipurpose-hall-ad-6.jpg", "projects/samsun-multipurpose-hall-ad-7.jpg", "projects/samsun-multipurpose-hall-ad-8.jpg", "projects/samsun-multipurpose-hall-ad-9.jpg"]
   },
   {
     slug: "samsun-golf-club",
@@ -7448,7 +7448,7 @@ const projects = [
     description: "Samsun Büyükşehir Belediyesi'nin sahil bandındaki golf sahası içinde yer alan kulüp binası, hem deniz hem de golf sahasının yeşil manzarasından yararlanan bir konumda kurgulandı. Zemin katta üyelere ve halka açık yeme-içme birimleri, bodrum katta ise golf eğitmenleri ve idari birimlerin servis mekanları yer alıyor. Geniş saçaklar altında sıralanan yarı açık ve kapalı dinlenme, restoran ve kafe alanları, çevreyle mütevazı bir bütünlük kurmayı amaçlıyor; çatı açıları da batıdaki deniz manzarasına göre optimum gün ışığı kontrolü sağlayacak şekilde belirlendi. Çinko, ahşap ve taş gibi doğal malzemelerin iç ve dış mekanda aynı şekilde kullanılması, güçlü ama sakin bir mimari ifade oluşturuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-samsun-golf-club-1.jpg","projects/proje-samsun-golf-club-2.jpg","projects/proje-samsun-golf-club-3.jpg","projects/proje-samsun-golf-club-4.jpg","projects/samsun-golf-club-ad-5.jpg","projects/samsun-golf-club-ad-6.jpg","projects/samsun-golf-club-ad-7.jpg","projects/samsun-golf-club-ad-8.jpg","projects/samsun-golf-club-ad-9.jpg"]
+    images: ["projects/proje-samsun-golf-club-1.jpg", "projects/proje-samsun-golf-club-2.jpg", "projects/proje-samsun-golf-club-3.jpg", "projects/proje-samsun-golf-club-4.jpg", "projects/samsun-golf-club-ad-5.jpg", "projects/samsun-golf-club-ad-6.jpg", "projects/samsun-golf-club-ad-7.jpg", "projects/samsun-golf-club-ad-8.jpg", "projects/samsun-golf-club-ad-9.jpg"]
   },
   {
     slug: "greyder-shoe-factory",
@@ -7464,7 +7464,7 @@ const projects = [
     description: "Çorum-Ankara karayolu üzerinde konumlanan Greyder'in idari ofis ve üretim tesisi, toplam 7.050 metrekarelik bir inşaat alanına sahip. Zemin katta mağaza ve kafe gibi kamuya açık birimler, üst katlarda ise Ar-Ge ofisleri, idare ve tasarım stüdyoları gibi daha özel kullanımlar yer alıyor. Cephede farklı modüllerde delikli metal panellerin kullanılması hem görsel bir etki yaratıyor hem de güneş kontrolü sağlıyor; panellerin ileri-geri kaydırılabilmesi cepheye dinamik bir görünüm katıyor. 2.500 metrekarelik üretim bölümü ise düşey, doğrusal ve ritmik boşluklarla gün ışığı alan ve konforlu bir iç iklime sahip tek parça bir kütle olarak tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-greyder-shoe-factory-1.jpg","projects/proje-greyder-shoe-factory-2.jpg","projects/proje-greyder-shoe-factory-3.jpg","projects/proje-greyder-shoe-factory-4.jpg","projects/greyder-shoe-factory-ak-5.jpg","projects/greyder-shoe-factory-ak-6.jpg","projects/greyder-shoe-factory-ak-7.jpg","projects/greyder-shoe-factory-ak-8.jpg","projects/greyder-shoe-factory-ak-9.jpg"]
+    images: ["projects/proje-greyder-shoe-factory-1.jpg", "projects/proje-greyder-shoe-factory-2.jpg", "projects/proje-greyder-shoe-factory-3.jpg", "projects/proje-greyder-shoe-factory-4.jpg", "projects/greyder-shoe-factory-ak-5.jpg", "projects/greyder-shoe-factory-ak-6.jpg", "projects/greyder-shoe-factory-ak-7.jpg", "projects/greyder-shoe-factory-ak-8.jpg", "projects/greyder-shoe-factory-ak-9.jpg"]
   },
   {
     slug: "gumussu-villas",
@@ -7480,7 +7480,7 @@ const projects = [
     description: "Bodrum'un Gümüşlük mahallesinde, eğimli bir arazi üzerinde konumlanan tekil konut birimleri, bölgenin etkileyici doğasıyla sakin bir bütünlük kurma fikri üzerine kuruldu. Yerel mimarinin taş duvar geleneği ile geniş cam yüzeyler bir araya getirilerek oturma, yatak odası ve banyo birimleri birbirinden bağımsız kütleler halinde tasarlandı. Bu kütleler arasında kalan açık boşluklar, gölgeli dar sokakları anımsatarak evin içinden serin esintilerin geçmesini sağlıyor. Tüm birimler, üzerlerini örten bahçıvan işi bir kamış-bambu kafes çatı ile gölgeleniyor. Proje, Turgut Cansever Ulusal Mimarlık Ödülü sahibi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-gumussu-villas-1.jpg","projects/proje-gumussu-villas-2.jpg","projects/proje-gumussu-villas-3.jpg","projects/proje-gumussu-villas-4.jpg","projects/gumussu-villas-dv-5.jpg","projects/gumussu-villas-dv-6.jpg","projects/gumussu-villas-dv-7.jpg","projects/gumussu-villas-dv-8.jpg","projects/gumussu-villas-dv-9.jpg"]
+    images: ["projects/proje-gumussu-villas-1.jpg", "projects/proje-gumussu-villas-2.jpg", "projects/proje-gumussu-villas-3.jpg", "projects/proje-gumussu-villas-4.jpg", "projects/gumussu-villas-dv-5.jpg", "projects/gumussu-villas-dv-6.jpg", "projects/gumussu-villas-dv-7.jpg", "projects/gumussu-villas-dv-8.jpg", "projects/gumussu-villas-dv-9.jpg"]
   },
   {
     slug: "eye-d-karakoy",
@@ -7496,7 +7496,7 @@ const projects = [
     description: "Karaköy'ün dar bir sokağında konumlanan Eye-D, bir güneş gözlüğü mağazası ve kahve dükkanını bir arada barındırıyor. Girişte, birbiri içinden geçen beyaz çerçeveli metal strüktürler tekrarlanarak sokaktan mekanın derinliğine doğru bir tünel etkisi yaratıyor; bu çerçeveler geceleri mavi ışıkla aydınlanıyor. İç mekanda tavandan sarkan yüzlerce mantar bloğu, hem akustik hem de görsel bir doku oluşturuyor; delikli beyaz metal paneller ise gözlük ürünlerinin sergilendiği duvarları oluşturuyor. Mağazanın bir köşesinde küçük bir kahve barı ve oturma alanı yer alıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-eye-d-karakoy-1.jpg","projects/proje-eye-d-karakoy-2.jpg","projects/proje-eye-d-karakoy-3.jpg","projects/proje-eye-d-karakoy-4.jpg","projects/proje-eye-d-karakoy-5.jpg","projects/eye-d-karakoy-ad-6.jpg","projects/eye-d-karakoy-ad-7.jpg","projects/eye-d-karakoy-ad-8.jpg","projects/eye-d-karakoy-ad-9.jpg"]
+    images: ["projects/proje-eye-d-karakoy-1.jpg", "projects/proje-eye-d-karakoy-2.jpg", "projects/proje-eye-d-karakoy-3.jpg", "projects/proje-eye-d-karakoy-4.jpg", "projects/proje-eye-d-karakoy-5.jpg", "projects/eye-d-karakoy-ad-6.jpg", "projects/eye-d-karakoy-ad-7.jpg", "projects/eye-d-karakoy-ad-8.jpg", "projects/eye-d-karakoy-ad-9.jpg"]
   },
   {
     slug: "karakoy-loft",
@@ -7512,7 +7512,7 @@ const projects = [
     description: "Karaköy'de, Galata Kulesi manzarasına bakan bir çatı katında yer alan bu loft dairesi, yüksek eğimli ahşap kaplamalı tavanı ve geniş sürme camlarıyla mahallenin tarihi dokusunu içeri taşıyor. Oturma alanının bir ucunda kütüphane rafları ve bir şömine bulunurken, diğer ucundaki koyu renkli taş kaplı duvar önünde sarkıt aydınlatmalarla vurgulanan bir oturma grubu yer alıyor. Girişte, duvardan çıkan uçuşan basamaklardan oluşan heykelsi bir merdiven, dairenin üst katına bağlanıyor. Endüstriyel dokunuşlarla yumuşak dokuların bir arada kullanıldığı iç mekanda beton görünümlü sıva yüzeyler öne çıkıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-karakoy-loft-1.jpg","projects/proje-karakoy-loft-2.jpg","projects/proje-karakoy-loft-3.jpg","projects/proje-karakoy-loft-4.jpg","projects/proje-karakoy-loft-5.jpg","projects/karakoy-loft-ad-6.jpg","projects/karakoy-loft-ad-7.jpg","projects/karakoy-loft-ad-8.jpg","projects/karakoy-loft-ad-9.jpg"]
+    images: ["projects/proje-karakoy-loft-1.jpg", "projects/proje-karakoy-loft-2.jpg", "projects/proje-karakoy-loft-3.jpg", "projects/proje-karakoy-loft-4.jpg", "projects/proje-karakoy-loft-5.jpg", "projects/karakoy-loft-ad-6.jpg", "projects/karakoy-loft-ad-7.jpg", "projects/karakoy-loft-ad-8.jpg", "projects/karakoy-loft-ad-9.jpg"]
   },
   {
     slug: "viyolet",
@@ -7528,7 +7528,7 @@ const projects = [
     description: "Viyolet giyim mağazasının iç mekan tasarımı, art arda sıralanan yuvarlak köşeli beyaz çerçevelerin sokak vitrininden mağazanın en arkasına kadar tekrarlanmasıyla bir tünel etkisi kuruyor. Beyaz lake yüzeyler ile ahşap kaplamalı bantların birlikte kullanıldığı mekanda, çerçevelerin içine yerleştirilen bölümler kıyafet sergileme, oturma ve kasa gibi farklı işlevlere ayrılıyor. Tavana asılı küresel formlu aydınlatmalar mekana noktasal vurgular katıyor. Mağazanın arka bölümünde aynı çerçeve dili küçük bir mutfak ve tuvalet birimine kadar sürdürülüyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-viyolet-1.jpg","projects/proje-viyolet-2.jpg","projects/proje-viyolet-3.jpg","projects/proje-viyolet-4.jpg","projects/viyolet-dv-5.jpg","projects/viyolet-dv-6.jpg","projects/viyolet-dv-7.jpg","projects/viyolet-dv-8.jpg","projects/viyolet-dv-9.jpg"]
+    images: ["projects/proje-viyolet-1.jpg", "projects/proje-viyolet-2.jpg", "projects/proje-viyolet-3.jpg", "projects/proje-viyolet-4.jpg", "projects/viyolet-dv-5.jpg", "projects/viyolet-dv-6.jpg", "projects/viyolet-dv-7.jpg", "projects/viyolet-dv-8.jpg", "projects/viyolet-dv-9.jpg"]
   },
   {
     slug: "cv-house",
@@ -7544,7 +7544,7 @@ const projects = [
     description: "Ağaçlık bir yamaca bakan bu daire yenilemesinde, mevcut mekan beyaza boyanmış ahşap döşemeler ve düz beyaz duvarlarla sadeleştirilerek nötr bir zemin oluşturuldu. Geniş pencereli oturma odasında, koyu ahşap bir yemek masası ile klasik detaylı beyaz sandalyeler bir araya getirilerek eski ile yeni arasında bir denge kuruluyor. Salonda ise koyu renkli taş kaplı bir aksan duvarı, açık renk kumaş kaplı köşe koltuk ve el yapımı ahşap raf üniteleriyle birlikte sıcak bir atmosfer oluşturuyor. Kırmızı tonlarında dokuma bir halı, mekanın farklı köşelerinde tekrar eden ortak bir renk teması olarak kullanılmış.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-cv-house-1.jpg","projects/proje-cv-house-2.jpg","projects/proje-cv-house-3.jpg","projects/proje-cv-house-4.jpg","projects/cv-house-dv-5.jpg","projects/cv-house-dv-6.jpg","projects/cv-house-dv-7.jpg","projects/cv-house-dv-8.jpg","projects/cv-house-dv-9.jpg"]
+    images: ["projects/proje-cv-house-1.jpg", "projects/proje-cv-house-2.jpg", "projects/proje-cv-house-3.jpg", "projects/proje-cv-house-4.jpg", "projects/cv-house-dv-5.jpg", "projects/cv-house-dv-6.jpg", "projects/cv-house-dv-7.jpg", "projects/cv-house-dv-8.jpg", "projects/cv-house-dv-9.jpg"]
   },
   {
     slug: "yasamkent-camii",
@@ -7560,7 +7560,7 @@ const projects = [
     description: "Ankara'nın batı ekseninde, yeni gelişmekte olan Yaşamkent bölgesinde yer alan cami, kufi yazı stilinden esinlenilen lineer bir minareyle modern ve geleneksel dili bir araya getiriyor. Yapı, arsa içinde çapraz bir yerleşimle kıbleye yöneliyor; paralel duvarlar hem ibadet alanını hem de avluyu tanımlayan bir kompozisyon oluşturuyor. Brüt beton, dışarıdan içeriye doğru topografyayla bütünleşerek mistik bir atmosfer kuruyor; cephedeki kufi motifli delikli panellerden süzülen ışık, iç mekanı gün boyu farklı desenlerle aydınlatıyor. İbadet alanı ile hizmet birimleri, son cemaat yeri işlevi gören bir avluyla birbirinden ayrılıyor; bodrum kattaki kültürel tesisler topografya kullanılarak araziyle ilişkilendiriliyor. Proje 2012 WAF ve Cityscape Dubai ödüllerinde finalist oldu.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-yasamkent-camii-1.jpg","projects/proje-yasamkent-camii-2.jpg","projects/proje-yasamkent-camii-3.jpg","projects/proje-yasamkent-camii-4.jpg","projects/yasamkent-camii-ad-5.jpg","projects/yasamkent-camii-ad-6.jpg","projects/yasamkent-camii-ad-7.jpg","projects/yasamkent-camii-ad-8.jpg","projects/yasamkent-camii-ad-9.jpg"]
+    images: ["projects/proje-yasamkent-camii-1.jpg", "projects/proje-yasamkent-camii-2.jpg", "projects/proje-yasamkent-camii-3.jpg", "projects/proje-yasamkent-camii-4.jpg", "projects/yasamkent-camii-ad-5.jpg", "projects/yasamkent-camii-ad-6.jpg", "projects/yasamkent-camii-ad-7.jpg", "projects/yasamkent-camii-ad-8.jpg", "projects/yasamkent-camii-ad-9.jpg"]
   },
   {
     slug: "atakule-yenileme",
@@ -7576,7 +7576,7 @@ const projects = [
     description: "Mimar Ragıp Buluç tarafından 1980'lerin sonunda tasarlanan ve Ankara'nın simgelerinden biri haline gelen Atakule, 2010 yılında başlayan kapsamlı bir yenileme sürecinden geçti. Kulenin ve tepesindeki döner gözlem platformunun korunmasına karar verilirken, onu saran eski alışveriş kütlesi yıkılarak yerine yeni bir taşıyıcı sistem içinde tasarlanan 47.800 metrekarelik bir yapı inşa edildi. Merkezi bir atriyum, bitişikteki botanik parkıyla görsel ve mekansal bir süreklilik kurulacak şekilde kurgulandı; kuleden çıkan gövde bu atriyumun bir parçası olarak ele alındı. Delikli metal ve cam kaplı eğrisel cephesiyle yapı, otopark kapasitesini artırırken kentin dolaşım ve manzara ilişkisini de yeniden düzenledi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-atakule-yenileme-1.jpg","projects/proje-atakule-yenileme-2.jpg","projects/proje-atakule-yenileme-3.jpg","projects/proje-atakule-yenileme-4.jpg","projects/atakule-yenileme-ad-5.jpg","projects/atakule-yenileme-ad-6.jpg","projects/atakule-yenileme-ad-7.jpg","projects/atakule-yenileme-ad-8.jpg","projects/atakule-yenileme-ad-9.jpg"]
+    images: ["projects/proje-atakule-yenileme-1.jpg", "projects/proje-atakule-yenileme-2.jpg", "projects/proje-atakule-yenileme-3.jpg", "projects/proje-atakule-yenileme-4.jpg", "projects/atakule-yenileme-ad-5.jpg", "projects/atakule-yenileme-ad-6.jpg", "projects/atakule-yenileme-ad-7.jpg", "projects/atakule-yenileme-ad-8.jpg", "projects/atakule-yenileme-ad-9.jpg"]
   },
   {
     slug: "kumru-ankara",
@@ -7592,7 +7592,7 @@ const projects = [
     description: "Yıldız Kavşağı yakınında, Çankaya'nın merkezi bir noktasında yükselen Kumru, ticari birimlerin alt kütlede, konutların ise yükselen kulede yer aldığı karma kullanımlı bir yapı. Arazideki kot farkından yararlanılarak zemin katta bir meydan oluşturulmuş; bu meydan çevredeki yaya akışlarını içeriye çeken ve yerel bir yaşam canlılığı kurmayı amaçlayan bir düzenle tasarlanmış. Konut kulesi iki ayrı lobiden ve iki ayrı çekirdekten üst katlara ulaşıyor; onbirinci katta ise havuz, fitness salonu ve çocuk oyun alanı gibi ortak kullanımların bulunduğu, kent manzarasına açılan bir sosyal kat yer alıyor. 60.000 metrekarelik inşaat alanına sahip proje, kuzeyde Atakule ve Çankaya Köşkü Korusu'na, batıda Dikmen Vadisi'ne bakıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-kumru-ankara-1.jpg","projects/proje-kumru-ankara-2.jpg","projects/proje-kumru-ankara-3.jpg","projects/proje-kumru-ankara-4.jpg","projects/kumru-ankara-ad-5.jpg","projects/kumru-ankara-ad-6.jpg","projects/kumru-ankara-ad-7.jpg","projects/kumru-ankara-ad-8.jpg","projects/kumru-ankara-ad-9.jpg"]
+    images: ["projects/proje-kumru-ankara-1.jpg", "projects/proje-kumru-ankara-2.jpg", "projects/proje-kumru-ankara-3.jpg", "projects/proje-kumru-ankara-4.jpg", "projects/kumru-ankara-ad-5.jpg", "projects/kumru-ankara-ad-6.jpg", "projects/kumru-ankara-ad-7.jpg", "projects/kumru-ankara-ad-8.jpg", "projects/kumru-ankara-ad-9.jpg"]
   },
   {
     slug: "rubrum-office",
@@ -7608,7 +7608,7 @@ const projects = [
     description: "Seferihisar'da bir bağ ve zeytinlik arazisinin içine yerleşen Rubrum Office, Rubrum şarap üreticisinin idare binası olarak tasarlandı. Bölgedeki hakim rüzgar yönü ve asma sıralarının oluşturduğu doğrusal eksen, yapının kütlesel kompozisyonu için ana referans noktası oldu. Toprak rengi sıvayla kaplı doğrusal hacimler, topografyaya gömülü bir şekilde bağın içinde saklı kalırken, güçlü duvarlarıyla aynı zamanda dikey bir peyzaj öğesi gibi de okunuyor. İçe dönük bir avlu etrafında kurgulanan yapıda kilden yapılma duvarlar, kullanıcıyı zemin katta yer alan bu avluya yönlendiriyor ve içeri giren esintiyle serinleyen bir yaşam alanı sunuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-rubrum-office-1.jpg","projects/proje-rubrum-office-2.jpg","projects/proje-rubrum-office-3.jpg","projects/proje-rubrum-office-4.jpg","projects/rubrum-office-ad-5.jpg","projects/rubrum-office-ad-6.jpg","projects/rubrum-office-ad-7.jpg","projects/rubrum-office-ad-8.jpg","projects/rubrum-office-ad-9.jpg"]
+    images: ["projects/proje-rubrum-office-1.jpg", "projects/proje-rubrum-office-2.jpg", "projects/proje-rubrum-office-3.jpg", "projects/proje-rubrum-office-4.jpg", "projects/rubrum-office-ad-5.jpg", "projects/rubrum-office-ad-6.jpg", "projects/rubrum-office-ad-7.jpg", "projects/rubrum-office-ad-8.jpg", "projects/rubrum-office-ad-9.jpg"]
   },
   {
     slug: "naz-city-hotel-taksim",
@@ -7624,7 +7624,7 @@ const projects = [
     description: "Taksim'e yakın bir noktada, kompakt bir kentsel parselde yükselen Naz City Hotel, sekiz katlık ön cephesinde düzenli bir ızgara içinde tekrar eden içe çekilmiş pencere boşluklarıyla belirgin bir gece kimliği kazanıyor; yatay ve düşey aydınlatma çizgileri cepheye ritim ve derinlik katıyor. Bu etkili ön yüze karşılık yan cephe, daha yekpare ve sakin bir yüzeyle binanın kütlesel bütünlüğünü güçlendiriyor. Sokak seviyesinde şeffaf bir taban, girişi ve kamusal işlevleri kaldırıma bağlıyor. İç mekanlarda ahşap kaplamalar ve sıcak aydınlatmalarla otelin metropol karakterine uygun, misafirperverlik odaklı bir atmosfer kuruluyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-naz-city-hotel-taksim-1.jpg","projects/proje-naz-city-hotel-taksim-2.jpg","projects/proje-naz-city-hotel-taksim-3.jpg","projects/proje-naz-city-hotel-taksim-4.jpg","projects/naz-city-hotel-taksim-ad-5.jpg","projects/naz-city-hotel-taksim-ad-6.jpg","projects/naz-city-hotel-taksim-ad-7.jpg","projects/naz-city-hotel-taksim-ad-8.jpg","projects/naz-city-hotel-taksim-ad-9.jpg"]
+    images: ["projects/proje-naz-city-hotel-taksim-1.jpg", "projects/proje-naz-city-hotel-taksim-2.jpg", "projects/proje-naz-city-hotel-taksim-3.jpg", "projects/proje-naz-city-hotel-taksim-4.jpg", "projects/naz-city-hotel-taksim-ad-5.jpg", "projects/naz-city-hotel-taksim-ad-6.jpg", "projects/naz-city-hotel-taksim-ad-7.jpg", "projects/naz-city-hotel-taksim-ad-8.jpg", "projects/naz-city-hotel-taksim-ad-9.jpg"]
   },
   {
     slug: "kagithane-gardens",
@@ -7640,7 +7640,7 @@ const projects = [
     description: "Kağıthane'de 100.000 metrekarelik bir iş merkezi olarak tasarlanan yapı, üç ayrı bloğun kavisli bir M formunda birbirine kenetlenmesinden oluşuyor. İstanbul'un tepelik topografyasından ilham alan meandrik kütle, hem planda parsel sınırlarına uyum sağlıyor hem de kesitte kendi üzerine kıvrılan yumuşak eğimler oluşturuyor. Zemin kattaki ticari birimler meydanlara ve peyzajlı avlulara taşarken, üst katlardaki ofisler bitkilerle donatılmış yeşil teraslara açılıyor; bu teraslar sıcak yaz aylarında doğal bir serinletici işlevi görüyor. Kütlenin dışarıdan okunan net formu, yaklaştıkça güneşten koruyan panjurların ardında daha mahrem bir iç mekana dönüşüyor. Proje 2017'de tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-kagithane-gardens-1.jpg","projects/proje-kagithane-gardens-2.jpg","projects/proje-kagithane-gardens-3.jpg","projects/proje-kagithane-gardens-4.jpg"]
+    images: ["projects/proje-kagithane-gardens-1.jpg", "projects/proje-kagithane-gardens-2.jpg", "projects/proje-kagithane-gardens-3.jpg", "projects/proje-kagithane-gardens-4.jpg"]
   },
   {
     slug: "turkiye-noterler-birligi-binasi",
@@ -7656,7 +7656,7 @@ const projects = [
     description: "Türkiye Noterler Birliği'nin Ankara'daki genel merkez binası, geleneksel kervansaray şemasının çağdaş bir yorumu olarak, bir 'iletişim ortamı' kurma fikri üzerine tasarlandı. İç ve dış mekanlar arasındaki bağlantılar, noterlerle halk arasındaki iletişimi güçlendirirken sosyal bir çalışma ortamı da yaratıyor. Konferans salonu fuayesi, giriş, sergi salonu ve kat köprülerinden oluşan atriyum, iç bahçeyle birleşerek sosyal ve çalışma alanlarını görsel ve işlevsel olarak birbirine bağlayan bir kütle oluşturuyor. Binanın herhangi bir noktasından algılanabilen avlu, kullanıcıların yapı içinde yönünü bulmasını kolaylaştırıyor; 20.000 metrekarelik yapı 2006-2009 yılları arasında inşa edildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-turkiye-noterler-birligi-binasi-1.jpg","projects/proje-turkiye-noterler-birligi-binasi-2.jpg","projects/proje-turkiye-noterler-birligi-binasi-3.jpg","projects/proje-turkiye-noterler-birligi-binasi-4.jpg","projects/turkiye-noterler-birligi-binasi-ak-5.jpg","projects/turkiye-noterler-birligi-binasi-ak-6.jpg","projects/turkiye-noterler-birligi-binasi-ak-7.jpg","projects/turkiye-noterler-birligi-binasi-ak-8.jpg","projects/turkiye-noterler-birligi-binasi-ak-9.jpg"]
+    images: ["projects/proje-turkiye-noterler-birligi-binasi-1.jpg", "projects/proje-turkiye-noterler-birligi-binasi-2.jpg", "projects/proje-turkiye-noterler-birligi-binasi-3.jpg", "projects/proje-turkiye-noterler-birligi-binasi-4.jpg", "projects/turkiye-noterler-birligi-binasi-ak-5.jpg", "projects/turkiye-noterler-birligi-binasi-ak-6.jpg", "projects/turkiye-noterler-birligi-binasi-ak-7.jpg", "projects/turkiye-noterler-birligi-binasi-ak-8.jpg", "projects/turkiye-noterler-birligi-binasi-ak-9.jpg"]
   },
   {
     slug: "open-library-istiklal",
@@ -7672,7 +7672,7 @@ const projects = [
     description: "İstiklal Caddesi üzerindeki bir sanat galerisi mekanına yerleştirilen Açık Kütüphane, üç ay boyunca açık kalan geçici bir okuma odası kurgusuyla caddenin kentsel yaşamına katkı sunan bir kamusal mekan önerisi. Galeri, bir kenarında kitaplardan oluşan bir 'sahne dekoruna' bakan koltuklarla adeta bir amfitiyatro gibi tasarlandı; bu tek kurgu, ders, okuma, gösterim ve sıradan sohbetler gibi çoklu bir etkileşim biçimine imkan veriyor. Zemin kattaki galerinin üzerinde yer alan asma kat ise daha sakin bir çalışma alanına ihtiyaç duyan ziyaretçiler için ayrıldı. 260 metrekarelik kurulum, Platform Garanti ve SALT için Selva Gürdoğan ve Gregers Tang Thomsen tarafından tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-open-library-istiklal-1.jpg","projects/proje-open-library-istiklal-2.jpg","projects/proje-open-library-istiklal-3.jpg","projects/proje-open-library-istiklal-4.jpg"]
+    images: ["projects/proje-open-library-istiklal-1.jpg", "projects/proje-open-library-istiklal-2.jpg", "projects/proje-open-library-istiklal-3.jpg", "projects/proje-open-library-istiklal-4.jpg"]
   },
   {
     slug: "the-farm-of-3830-peynir-fabrikasi",
@@ -7688,7 +7688,7 @@ const projects = [
     description: "Afyonkarahisar'ın Tazlar köyünde, '38° 30° Sanat Vadisi'nin girişinde yer alan bu butik süt ürünleri fabrikası, adını konumlandığı arazinin koordinatlarından alıyor. Doğrusal üretim hattını bir elips içine saran yapı, ortasında kalan iç avludan üretim sürecinin 360 derece izlenebilmesini sağlıyor; cephenin şeffaflığı ziyaretçilerin üretim alanlarına göz atmasına imkan tanıyor. Girişteki büyük konsollu beton saçak, elips formunun geometrisinden türeyen tek bir çatı plağının parçası; çatı yüksekliği giriş üzerinde en fazla iken soğuk depolama gibi mekanların üzerinde kademeli olarak alçalıyor. Yerel Afyon taşı ile cephe detaylarındaki Corten çelik, yapının doğayla ve endüstriyel kimliğiyle kurduğu bağı güçlendiriyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-the-farm-of-3830-peynir-fabrikasi-1.jpg","projects/proje-the-farm-of-3830-peynir-fabrikasi-2.jpg","projects/proje-the-farm-of-3830-peynir-fabrikasi-3.jpg","projects/proje-the-farm-of-3830-peynir-fabrikasi-4.jpg","projects/the-farm-of-3830-peynir-fabrikasi-ak-5.jpg","projects/the-farm-of-3830-peynir-fabrikasi-ak-6.jpg","projects/the-farm-of-3830-peynir-fabrikasi-ak-7.jpg","projects/the-farm-of-3830-peynir-fabrikasi-ak-8.jpg","projects/the-farm-of-3830-peynir-fabrikasi-ak-9.jpg"]
+    images: ["projects/proje-the-farm-of-3830-peynir-fabrikasi-1.jpg", "projects/proje-the-farm-of-3830-peynir-fabrikasi-2.jpg", "projects/proje-the-farm-of-3830-peynir-fabrikasi-3.jpg", "projects/proje-the-farm-of-3830-peynir-fabrikasi-4.jpg", "projects/the-farm-of-3830-peynir-fabrikasi-ak-5.jpg", "projects/the-farm-of-3830-peynir-fabrikasi-ak-6.jpg", "projects/the-farm-of-3830-peynir-fabrikasi-ak-7.jpg", "projects/the-farm-of-3830-peynir-fabrikasi-ak-8.jpg", "projects/the-farm-of-3830-peynir-fabrikasi-ak-9.jpg"]
   },
   {
     slug: "canakkale-anten-kulesi",
@@ -7704,7 +7704,7 @@ const projects = [
     description: "Uluslararası bir yarışmanın birincilik ödülünü kazanan Çanakkale Anten Kulesi, ziyaretçi merkezini anten kulesinden fiziksel olarak ayırarak radyasyon riskini ortadan kaldıran bir tasarım stratejisi izliyor. Kule, iki dikey ayağın tepe noktasında birleşmesiyle oluşan görkemli bir kapı biçiminde tasarlandı; bu form uzaktan güçlü bir görsel kimlik sunarken yakından bakıldığında ayrıntılı bir gezinti deneyimine dönüşüyor. Kulenin her bir ayağının çevresinde, zeminden kademeli olarak ayrılan açık havada bir yürüyüş yolu bulunuyor; bu sayede tepedeki orman dokusu kesintisiz bir peyzaj olarak tamamlanabiliyor. Korten çelikle kaplı yapı, Çanakkale Boğazı'na bakan noktada bir ziyaretçi merkeziyle sonlanıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-canakkale-anten-kulesi-1.jpg","projects/proje-canakkale-anten-kulesi-2.jpg","projects/proje-canakkale-anten-kulesi-3.jpg","projects/proje-canakkale-anten-kulesi-4.jpg","projects/canakkale-anten-kulesi-ak-5.jpg","projects/canakkale-anten-kulesi-ak-6.jpg","projects/canakkale-anten-kulesi-ak-7.jpg","projects/canakkale-anten-kulesi-ak-8.jpg","projects/canakkale-anten-kulesi-ak-9.jpg"]
+    images: ["projects/proje-canakkale-anten-kulesi-1.jpg", "projects/proje-canakkale-anten-kulesi-2.jpg", "projects/proje-canakkale-anten-kulesi-3.jpg", "projects/proje-canakkale-anten-kulesi-4.jpg", "projects/canakkale-anten-kulesi-ak-5.jpg", "projects/canakkale-anten-kulesi-ak-6.jpg", "projects/canakkale-anten-kulesi-ak-7.jpg", "projects/canakkale-anten-kulesi-ak-8.jpg", "projects/canakkale-anten-kulesi-ak-9.jpg"]
   },
   {
     slug: "enka-power-station-genel-merkezi",
@@ -7720,7 +7720,7 @@ const projects = [
     description: "ENKA Power Station Genel Merkezi, Sakarya'da bir enerji santralinin idari ve operasyon merkezi olarak tasarlanmıştır. Tek bir anıtsal blok yerine, peyzajlanmış avlular etrafında konumlanan birbirine bağlı camdan hacimlerden oluşan dağınık bir yerleşim tercih edilmiştir. Cephede açığa çıkan çelik strüktür, kanallı Profilit cam ve yarı saydam cam kaplama kullanılmış; bu seçimler hızlı inşa edilebilirlik ve görsel geçirgenlik gözetilerek yapılmıştır. İki katlı ofis binası, teras ve avlularla çevresiyle ilişki kuran, doğal ışığı önceleyen bir çalışma ortamı sunar.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-enka-power-station-genel-merkezi-1.jpg","projects/proje-enka-power-station-genel-merkezi-2.jpg","projects/proje-enka-power-station-genel-merkezi-3.jpg","projects/proje-enka-power-station-genel-merkezi-4.jpg","projects/enka-power-station-genel-merkezi-ad-5.jpg","projects/enka-power-station-genel-merkezi-ad-6.jpg","projects/enka-power-station-genel-merkezi-ad-7.jpg","projects/enka-power-station-genel-merkezi-ad-8.jpg","projects/enka-power-station-genel-merkezi-ad-9.jpg"]
+    images: ["projects/proje-enka-power-station-genel-merkezi-1.jpg", "projects/proje-enka-power-station-genel-merkezi-2.jpg", "projects/proje-enka-power-station-genel-merkezi-3.jpg", "projects/proje-enka-power-station-genel-merkezi-4.jpg", "projects/enka-power-station-genel-merkezi-ad-5.jpg", "projects/enka-power-station-genel-merkezi-ad-6.jpg", "projects/enka-power-station-genel-merkezi-ad-7.jpg", "projects/enka-power-station-genel-merkezi-ad-8.jpg", "projects/enka-power-station-genel-merkezi-ad-9.jpg"]
   },
   {
     slug: "media-city",
@@ -7736,7 +7736,7 @@ const projects = [
     description: "Media City, İstanbul'da medya, yayıncılık ve baskı sektörlerini bir araya getirmek üzere tasarlanmış büyük ölçekli bir kentsel gelişim projesidir. GAD, binalar, parklar ve sokaklardan oluşan bir ağ sistemini QR kod benzeri bir ızgara düzeninde kurgulayarak fiziksel ile dijital dünya arasında bir köprü kurmayı hedeflemiştir. Proje, 75.000 metrekarelik inşaat alanını 2.800.000 metrekarelik geniş bir arazi üzerine yaymaktadır. Tasarım, 2017 WAFX Akıllı Şehir Ödülü'nü kazanmış ve dönemin öne çıkan kentsel tasarım önerileri arasında yer almıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-media-city-1.jpg","projects/proje-media-city-2.jpg","projects/proje-media-city-3.jpg","projects/proje-media-city-4.jpg","projects/media-city-ad-5.jpg","projects/media-city-ad-6.jpg","projects/media-city-ad-7.jpg","projects/media-city-ad-8.jpg","projects/media-city-ad-9.jpg"]
+    images: ["projects/proje-media-city-1.jpg", "projects/proje-media-city-2.jpg", "projects/proje-media-city-3.jpg", "projects/proje-media-city-4.jpg", "projects/media-city-ad-5.jpg", "projects/media-city-ad-6.jpg", "projects/media-city-ad-7.jpg", "projects/media-city-ad-8.jpg", "projects/media-city-ad-9.jpg"]
   },
   {
     slug: "eskisehir-termal-otel-spa",
@@ -7752,7 +7752,7 @@ const projects = [
     description: "Eskişehir Termal Otel & Spa, Odunpazarı'nda çam ormanıyla çevrili bir tepe üzerinde, bölgenin jeotermal kaynaklarından yararlanacak şekilde tasarlanmıştır. Ana spa hacmi yer altına gömülerek jeotermal özelliklerden faydalanılmış, havuz ve teraslardan oluşan çatı örtüsü doğal bir yalıtım katmanı oluşturmuştur. Kubbeli tavan pencereleri iç mekândaki yıkanma alanlarına ışık süzerek geleneksel hamam estetiğine gönderme yapar. Cephede cam ve doğal ahşapla kaplanmış dairesel formlar kullanılmış, iç mekân ısıtması jeotermal ısı pompası sistemiyle sağlanmıştır. Proje, 25.000 metrekarelik arazi üzerinde 45.000 metrekarelik bir inşaat alanına sahiptir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-eskisehir-otel-spa-1.jpg","projects/proje-eskisehir-otel-spa-2.jpg","projects/proje-eskisehir-otel-spa-3.jpg","projects/proje-eskisehir-otel-spa-4.jpg","projects/eskisehir-termal-otel-spa-ad-5.jpg","projects/eskisehir-termal-otel-spa-ad-6.jpg","projects/eskisehir-termal-otel-spa-ad-7.jpg","projects/eskisehir-termal-otel-spa-ad-8.jpg","projects/eskisehir-termal-otel-spa-ad-9.jpg"]
+    images: ["projects/proje-eskisehir-otel-spa-1.jpg", "projects/proje-eskisehir-otel-spa-2.jpg", "projects/proje-eskisehir-otel-spa-3.jpg", "projects/proje-eskisehir-otel-spa-4.jpg", "projects/eskisehir-termal-otel-spa-ad-5.jpg", "projects/eskisehir-termal-otel-spa-ad-6.jpg", "projects/eskisehir-termal-otel-spa-ad-7.jpg", "projects/eskisehir-termal-otel-spa-ad-8.jpg", "projects/eskisehir-termal-otel-spa-ad-9.jpg"]
   },
   {
     slug: "trump-cadde",
@@ -7768,7 +7768,7 @@ const projects = [
     description: "Trump Cadde, Trump Towers İstanbul'un teras katında yer alan, Kapalıçarşı ve antik agoralardan ilham alan bir yeme-içme ve alışveriş güzergâhı olarak tasarlanmıştır. İki kule arasına yerleştirilen modüler birimler, ana ve ikincil geçitler oluşturarak tarihi çarşı düzenini güncel bir ölçekte yeniden yorumlar. Alt seviyede 18 mağaza ve restoranın yanı sıra meydanlar bulunurken, üst seviye park alanları, teraslar ve bir topluluk bahçesi sunar. Çelik strüktür ve tamamen açılabilen cepheler sayesinde mekân doğal havalandırma ve gün ışığından yararlanır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-trump-cadde-1.jpg","projects/proje-trump-cadde-2.jpg","projects/proje-trump-cadde-3.jpg","projects/proje-trump-cadde-4.jpg","projects/trump-cadde-ad-5.jpg","projects/trump-cadde-ad-6.jpg","projects/trump-cadde-ad-7.jpg","projects/trump-cadde-ad-8.jpg","projects/trump-cadde-ad-9.jpg"]
+    images: ["projects/proje-trump-cadde-1.jpg", "projects/proje-trump-cadde-2.jpg", "projects/proje-trump-cadde-3.jpg", "projects/proje-trump-cadde-4.jpg", "projects/trump-cadde-ad-5.jpg", "projects/trump-cadde-ad-6.jpg", "projects/trump-cadde-ad-7.jpg", "projects/trump-cadde-ad-8.jpg", "projects/trump-cadde-ad-9.jpg"]
   },
   {
     slug: "besiktas-balik-pazari",
@@ -7784,7 +7784,7 @@ const projects = [
     description: "Beşiktaş Balık Pazarı, üçgen biçimli 320 metrekarelik dar bir parsel üzerinde, tarihi semt pazarını modernize etmek amacıyla yeniden tasarlanmıştır. Yapı, sokak seviyesinde geniş açıklıklarla davetkâr bir kamusal alan yaratan, midye kabuğunu andıran gözenekli bir kabuk formuna sahiptir. Betonarme ve çelikten oluşan strüktür kolonsuz bir iç mekân sağlayarak balıkçı esnafına esnek bir satış alanı sunar. Bizans dönemine ait tüneller ve dar orta çağ sokaklarının bulunduğu zorlu bir zemin koşuluna yanıt olarak yükseltilmiş bir taban kotu kullanılmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-besiktas-balik-pazari-1.jpg","projects/proje-besiktas-balik-pazari-2.jpg","projects/proje-besiktas-balik-pazari-3.jpg","projects/proje-besiktas-balik-pazari-4.jpg","projects/besiktas-balik-pazari-ak-5.jpg","projects/besiktas-balik-pazari-ak-6.jpg","projects/besiktas-balik-pazari-ak-7.jpg","projects/besiktas-balik-pazari-ak-8.jpg","projects/besiktas-balik-pazari-ak-9.jpg"]
+    images: ["projects/proje-besiktas-balik-pazari-1.jpg", "projects/proje-besiktas-balik-pazari-2.jpg", "projects/proje-besiktas-balik-pazari-3.jpg", "projects/proje-besiktas-balik-pazari-4.jpg", "projects/besiktas-balik-pazari-ak-5.jpg", "projects/besiktas-balik-pazari-ak-6.jpg", "projects/besiktas-balik-pazari-ak-7.jpg", "projects/besiktas-balik-pazari-ak-8.jpg", "projects/besiktas-balik-pazari-ak-9.jpg"]
   },
   {
     slug: "exploded-house-bodrum",
@@ -7800,7 +7800,7 @@ const projects = [
     description: "Exploded House, Bodrum'da tek yapının 75 metrekareyle sınırlandığı imar koşullarını aşmak amacıyla, bir konutun üç ayrı yapıya 'patlatılarak' bölünmesi fikri üzerine kurgulanmıştır. Birbirinden bağımsız üç hacim, cam atriyumlarla birbirine bağlanarak tek bir yaşam alanı gibi işlev görür. Çatılardaki havuzlardan toplanan yağmur suyu, nisan-ekim ayları arasındaki sıcaklara karşı yapılar arasında pasif bir soğutma sistemi oluşturur. Geleneksel Ege mimarisinin kalın taş duvarları yerine büyük saçaklar ve doğal hava sirkülasyonuna dayanan bir yaklaşım benimsenmiştir. Proje, 760 metrekarelik bir parselde aynı büyüklükte bir inşaat alanına yayılır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-exploded-house-1.jpg","projects/proje-exploded-house-2.jpg","projects/proje-exploded-house-3.jpg","projects/proje-exploded-house-4.jpg","projects/exploded-house-bodrum-ad-5.jpg","projects/exploded-house-bodrum-ad-6.jpg","projects/exploded-house-bodrum-ad-7.jpg","projects/exploded-house-bodrum-ad-8.jpg","projects/exploded-house-bodrum-ad-9.jpg"]
+    images: ["projects/proje-exploded-house-1.jpg", "projects/proje-exploded-house-2.jpg", "projects/proje-exploded-house-3.jpg", "projects/proje-exploded-house-4.jpg", "projects/exploded-house-bodrum-ad-5.jpg", "projects/exploded-house-bodrum-ad-6.jpg", "projects/exploded-house-bodrum-ad-7.jpg", "projects/exploded-house-bodrum-ad-8.jpg", "projects/exploded-house-bodrum-ad-9.jpg"]
   },
   {
     slug: "pelsan-tekstil-ofisi",
@@ -7816,7 +7816,7 @@ const projects = [
     description: "Pelsan Tekstil Ofisi, Çerkezköy'de 5.000 metrekarelik bir alanda, şirketin yenilikçi kimliğini yansıtan bir çalışma ortamı olarak tasarlanmıştır. Tasarımın temel ilkeleri esneklik, değişkenlik, şeffaflık ve deneyim üzerine kurulmuştur. Çalışanların etkileşimini ve yaratıcılığını destekleyen paylaşımlı alanlar, ofisi yalnızca bir çalışma mekânı değil, aynı zamanda bir yaşam alanı olarak konumlandırır. mimaristudio, projede cephe tasarımı, iç mekân tasarımı ve saha danışmanlığı hizmetlerini bir arada yürütmüştür.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-pelsan-tekstil-ofisi-1.jpg","projects/proje-pelsan-tekstil-ofisi-2.jpg","projects/proje-pelsan-tekstil-ofisi-3.jpg","projects/proje-pelsan-tekstil-ofisi-4.jpg","projects/pelsan-tekstil-ofisi-ak-5.jpg","projects/pelsan-tekstil-ofisi-ak-6.jpg","projects/pelsan-tekstil-ofisi-ak-7.jpg","projects/pelsan-tekstil-ofisi-ak-8.jpg","projects/pelsan-tekstil-ofisi-ak-9.jpg"]
+    images: ["projects/proje-pelsan-tekstil-ofisi-1.jpg", "projects/proje-pelsan-tekstil-ofisi-2.jpg", "projects/proje-pelsan-tekstil-ofisi-3.jpg", "projects/proje-pelsan-tekstil-ofisi-4.jpg", "projects/pelsan-tekstil-ofisi-ak-5.jpg", "projects/pelsan-tekstil-ofisi-ak-6.jpg", "projects/pelsan-tekstil-ofisi-ak-7.jpg", "projects/pelsan-tekstil-ofisi-ak-8.jpg", "projects/pelsan-tekstil-ofisi-ak-9.jpg"]
   },
   {
     slug: "philip-morris-sabanci-satis-pazarlama-ofisi",
@@ -7832,7 +7832,7 @@ const projects = [
     description: "Philip Morris Sabancı Satış ve Pazarlama Ofisi, Kağıthane'de kentin gelişmekte olan bir ticaret aksı olan Cendere Caddesi üzerinde, üç kat ve 12.000 metrekarelik bir alana yayılmıştır. Ofis katlarından biri tek başına 3.500 metrekareyi kapsarken, toplamda yaklaşık 4.000 metrekarelik bölüm doğrudan ofis kullanımına ayrılmıştır. Kat planı, satış ekiplerini merkeze alacak, bölge satış müdürlerini kendi çalışma gruplarının ortasında konumlandıracak şekilde kurgulanmıştır. mimaristudio, iç mekân tasarımı ve saha danışmanlığı hizmetlerini üstlenerek şirketin kurumsal kimliğiyle uyumlu bir çalışma ortamı oluşturmuştur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-philip-morris-sabanci-satis-pazarlama-1.jpg","projects/proje-philip-morris-sabanci-satis-pazarlama-2.jpg","projects/proje-philip-morris-sabanci-satis-pazarlama-3.jpg","projects/proje-philip-morris-sabanci-satis-pazarlama-4.jpg","projects/philip-morris-sabanci-satis-pazarlama-ofisi-ak-5.jpg","projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-6.jpg","projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-7.jpg","projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-8.jpg","projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-9.jpg"]
+    images: ["projects/proje-philip-morris-sabanci-satis-pazarlama-1.jpg", "projects/proje-philip-morris-sabanci-satis-pazarlama-2.jpg", "projects/proje-philip-morris-sabanci-satis-pazarlama-3.jpg", "projects/proje-philip-morris-sabanci-satis-pazarlama-4.jpg", "projects/philip-morris-sabanci-satis-pazarlama-ofisi-ak-5.jpg", "projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-6.jpg", "projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-7.jpg", "projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-8.jpg", "projects/philip-morris-sabanci-satis-pazarlama-ofisi-av-9.jpg"]
   },
   {
     slug: "philip-morris-gunesli-satis-ofisi",
@@ -7848,7 +7848,7 @@ const projects = [
     description: "Philip Morris Güneşli Satış Ofisi, Philip Morris Türkiye'nin satış operasyonları için Güneşli'de tasarlanmış 4.300 metrekarelik bir kurumsal ofis yapısıdır. mimaristudio, projede iç mekân tasarımı ve saha danışmanlığı hizmetlerini yürütmüştür. Ofis, şirketin kurumsal kimliğini yansıtan sade ve işlevsel bir çalışma düzeni etrafında kurgulanmıştır. Proje, mimaristudio'nun Philip Morris için tasarladığı çok sayıda kurumsal ofis çalışmasından biridir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-philip-morris-gunesli-ofisi-1.jpg","projects/proje-philip-morris-gunesli-ofisi-2.jpg","projects/proje-philip-morris-gunesli-ofisi-3.jpg","projects/proje-philip-morris-gunesli-ofisi-4.jpg"]
+    images: ["projects/proje-philip-morris-gunesli-ofisi-1.jpg", "projects/proje-philip-morris-gunesli-ofisi-2.jpg", "projects/proje-philip-morris-gunesli-ofisi-3.jpg", "projects/proje-philip-morris-gunesli-ofisi-4.jpg"]
   },
   {
     slug: "ziraat-bankasi-genel-merkezi",
@@ -7864,7 +7864,7 @@ const projects = [
     description: "Ziraat Bankası Genel Merkezi, İstanbul Uluslararası Finans Merkezi'nin (İFM) odak yapısı olarak tasarlanmış, 40 ve 46 katlı iki kuleden oluşan bir kompleks binadır. Kuleler üstlere doğru genişleyen cam cepheleriyle birbirine bağlanır ve ortak bir podyum üzerinde yükselir; toplam inşaat alanı 450.000 metrekareyi aşar. Podyum kısmında, bölgenin tarihi mimari mirasına gönderme yapan kesme taş kaplamalı ekran benzeri gölgeleme sistemleri kullanılırken, kuleler yatay bantlı bir cephe diliyle tasarlanmıştır. Bankanın konferans salonu, CNC ile işlenmiş yerel kireçtaşı panellerle kaplı çift eğrilikli bir yapıya sahiptir. Proje, LEED Platin sertifikası almıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ziraat-bankasi-genel-merkezi-1.webp","projects/proje-ziraat-bankasi-genel-merkezi-2.webp","projects/proje-ziraat-bankasi-genel-merkezi-3.webp","projects/proje-ziraat-bankasi-genel-merkezi-4.webp","projects/proje-ziraat-bankasi-genel-merkezi-5.webp"]
+    images: ["projects/proje-ziraat-bankasi-genel-merkezi-1.webp", "projects/proje-ziraat-bankasi-genel-merkezi-2.webp", "projects/proje-ziraat-bankasi-genel-merkezi-3.webp", "projects/proje-ziraat-bankasi-genel-merkezi-4.webp", "projects/proje-ziraat-bankasi-genel-merkezi-5.webp"]
   },
   {
     slug: "moda-sahnesi",
@@ -7880,7 +7880,7 @@ const projects = [
     description: "Moda Sahnesi, 1969 yılından kalma, kullanım dışı kalmış bir sinemanın çok amaçlı bir kültür mekânına dönüştürülmesiyle ortaya çıkmıştır. Tasarımda asgari müdahale ilkesi benimsenmiş, kullanıcılarla etkileşim içinde şekillenebilecek esnek bir mekân kurgusu hedeflenmiştir. Atölye ile büyük fuaye arasında yer alan 3x3 metrelik tek parça cam yüzey, saydam ve yansıtıcı durumlar arasında geçiş yaparak farklı gösteri düzenlerine imkân tanır. Ana sahne, teleskopik kademeli oturma düzeniyle 295 kişilik oturmalı ya da 750 kişilik ayakta kullanım kapasitesine ulaşabilir; sinema, tiyatro salonu, kafe ve atölye alanlarını bir arada barındırır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-moda-sahnesi-1.jpg","projects/proje-moda-sahnesi-2.jpg","projects/proje-moda-sahnesi-3.jpg","projects/proje-moda-sahnesi-4.jpg","projects/moda-sahnesi-ad-5.jpg","projects/moda-sahnesi-ad-6.jpg","projects/moda-sahnesi-ad-7.jpg","projects/moda-sahnesi-ad-8.jpg","projects/moda-sahnesi-ad-9.jpg"]
+    images: ["projects/proje-moda-sahnesi-1.jpg", "projects/proje-moda-sahnesi-2.jpg", "projects/proje-moda-sahnesi-3.jpg", "projects/proje-moda-sahnesi-4.jpg", "projects/moda-sahnesi-ad-5.jpg", "projects/moda-sahnesi-ad-6.jpg", "projects/moda-sahnesi-ad-7.jpg", "projects/moda-sahnesi-ad-8.jpg", "projects/moda-sahnesi-ad-9.jpg"]
   },
   {
     slug: "fil-books-coffee",
@@ -7896,7 +7896,7 @@ const projects = [
     description: "FiL Books & Coffee, Karaköy'de bir fotoğraf ve sanat kitabevi ile kahve dükkânını iki kat üzerinde toplam 80 metrekarelik dar bir alanda bir araya getirir. Tasarımın temel meselesi, kitabevi, kafe, mutfak, atölye ve çalışma alanlarını sınırlı bir mekânda ferah ve aydınlık hissettirecek şekilde organize etmekti. Üst kata çıkışı sağlayan özel tasarım merdiven ve üst kattaki konutlardan mekânı ayıran demir kepenkler bu çözümün önemli parçalarıdır. Mekân boyunca uzanan, FiL'in kurumsal rengiyle boyanmış boru elemanı; aydınlatma, askı, raf, korkuluk ve oturma birimi işlevlerini aynı anda üstlenir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-fil-books-coffee-1.jpg","projects/proje-fil-books-coffee-2.jpg","projects/proje-fil-books-coffee-3.jpg","projects/proje-fil-books-coffee-4.jpg","projects/fil-books-coffee-ad-5.jpg","projects/fil-books-coffee-ad-6.jpg","projects/fil-books-coffee-ad-7.jpg","projects/fil-books-coffee-ad-8.jpg","projects/fil-books-coffee-ad-9.jpg"]
+    images: ["projects/proje-fil-books-coffee-1.jpg", "projects/proje-fil-books-coffee-2.jpg", "projects/proje-fil-books-coffee-3.jpg", "projects/proje-fil-books-coffee-4.jpg", "projects/fil-books-coffee-ad-5.jpg", "projects/fil-books-coffee-ad-6.jpg", "projects/fil-books-coffee-ad-7.jpg", "projects/fil-books-coffee-ad-8.jpg", "projects/fil-books-coffee-ad-9.jpg"]
   },
   {
     slug: "odtu-arge-binasi",
@@ -7912,7 +7912,7 @@ const projects = [
     description: "ODTÜ AR-GE Binası, Ankara'da ODTÜ Teknokent bünyesinde yer alan, araştırma ve geliştirme faaliyetlerine ayrılmış bir yapıdır. Bina, uzun ve alçak bir kütle boyunca uzanan tam cam cephesiyle dikkat çeker; cephenin önünde, güneş kontrolü sağlayan dikey çelik kanatlardan oluşan bir gölgeleme sistemi yer alır. Beyaz panel kaplamalı ana gövde ile öne çıkan cam cephe bloğu arasındaki kontrast, yapının sade ve tekrar eden bir ritim üzerine kurulu cephe dilini oluşturur. Yapı, teknokent kampüsü içinde çevresine açık, şeffaf bir çalışma ortamı sunacak şekilde tasarlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-odtu-arge-binasi-1.jpg","projects/proje-odtu-arge-binasi-2.jpg","projects/proje-odtu-arge-binasi-3.jpg","projects/proje-odtu-arge-binasi-4.jpg","projects/odtu-arge-binasi-av-5.jpg","projects/odtu-arge-binasi-av-6.jpg","projects/odtu-arge-binasi-av-7.jpg","projects/odtu-arge-binasi-av-8.jpg","projects/odtu-arge-binasi-av-9.jpg","projects/odtu-arge-binasi-av-10.jpg"]
+    images: ["projects/proje-odtu-arge-binasi-1.jpg", "projects/proje-odtu-arge-binasi-2.jpg", "projects/proje-odtu-arge-binasi-3.jpg", "projects/proje-odtu-arge-binasi-4.jpg", "projects/odtu-arge-binasi-av-5.jpg", "projects/odtu-arge-binasi-av-6.jpg", "projects/odtu-arge-binasi-av-7.jpg", "projects/odtu-arge-binasi-av-8.jpg", "projects/odtu-arge-binasi-av-9.jpg", "projects/odtu-arge-binasi-av-10.jpg"]
   },
   {
     slug: "eston-tatarcik-satis-ofisi",
@@ -7928,7 +7928,7 @@ const projects = [
     description: "Eston Tatarcık Evleri Tanıtım ve Satış Ofisi, bir konut projesinin pazarlama sürecine hizmet eden geçici nitelikli bir tanıtım yapısıdır. Yapı, ince yatay güneş kırıcılarla kaplı, taşıyıcı ayaklar üzerinde havada asılı gibi duran dikdörtgen bir kütle ile taş örgü duvarlar üzerine oturan cam bir zemin katın bir aradalığından oluşur. Yükseltilmiş kütle, çevresindeki konut sahasına hâkim bir gözlem noktası oluştururken, alt kattaki şeffaf cam hacim ziyaretçileri karşılayan açık bir sergileme ve satış alanı sağlar. Sade malzeme paleti ve net geometrisiyle yapı, arkasındaki konut sitesinin tanıtım vitrini işlevini görür.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-eston-tatarcik-satis-ofisi-1.jpg","projects/proje-eston-tatarcik-satis-ofisi-2.jpg","projects/proje-eston-tatarcik-satis-ofisi-3.jpg","projects/proje-eston-tatarcik-satis-ofisi-4.jpg"]
+    images: ["projects/proje-eston-tatarcik-satis-ofisi-1.jpg", "projects/proje-eston-tatarcik-satis-ofisi-2.jpg", "projects/proje-eston-tatarcik-satis-ofisi-3.jpg", "projects/proje-eston-tatarcik-satis-ofisi-4.jpg"]
   },
   {
     slug: "populist-bebek",
@@ -7944,7 +7944,7 @@ const projects = [
     description: "The Populist Bebek, İstanbul'un Bebek semtinde, Barselona merkezli Lagranja Design'ın tasarladığı, bira üretimini konu alan endüstriyel karakterli bir restoran ve birahanedir. Mekânın merkezinde, aydınlatma işlevini bira üretim devresini simgeleyen bakır borularla birleştiren tavana asılı heykelsi bir kurulum olan 'The Beer Dream Machine' yer alır. Yeniden işlevlendirilmiş bakır tanklar lavabo olarak kullanılmış, müzikle senkronize beyaz neon aydınlatmalar ve nükteli neon yazılar mekân boyunca dağıtılmıştır. Yoo Architecture, mekânın uygulama (fit-out) sürecini üstlenmiş; proje toplam yaklaşık 1.050 metrekarelik üç kat üzerine yayılmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-populist-bebek-1.jpg","projects/proje-populist-bebek-2.jpg","projects/proje-populist-bebek-3.jpg","projects/proje-populist-bebek-4.jpg","projects/populist-bebek-ad-5.jpg","projects/populist-bebek-ad-6.jpg","projects/populist-bebek-ad-7.jpg","projects/populist-bebek-ad-8.jpg","projects/populist-bebek-ad-9.jpg"]
+    images: ["projects/proje-populist-bebek-1.jpg", "projects/proje-populist-bebek-2.jpg", "projects/proje-populist-bebek-3.jpg", "projects/proje-populist-bebek-4.jpg", "projects/populist-bebek-ad-5.jpg", "projects/populist-bebek-ad-6.jpg", "projects/populist-bebek-ad-7.jpg", "projects/populist-bebek-ad-8.jpg", "projects/populist-bebek-ad-9.jpg"]
   },
   {
     slug: "kumport",
@@ -7960,7 +7960,7 @@ const projects = [
     description: "Kumport, İstanbul Ambarlı'da Kumport Liman İşletmeleri'nin genel müdürlük binası, bakım-onarım tesisleri, atölyeler ve depolardan oluşan yaklaşık 6.000 metrekarelik bir yapılar grubudur. Tasarım kurgusu, yan yana demirlemiş iki gemi imgesinden yola çıkar; ofis hacimleri, her katta köprülerle birbirine bağlanan iki ayrı ve birbirine benzer kütle olarak ele alınmıştır. Liman sahasındaki konteynerlerin renkli ve tekrarlı görüntüsü, özellikle yönetim binasının tasarımında güçlü bir referans noktası olmuştur. Bir yansıma havuzu üzerinden geçen beton rampa, bir gemiye biniş imgesini çağrıştırarak giriş sekansını kurgular.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-kumport-1.jpg","projects/proje-kumport-2.jpg","projects/proje-kumport-3.jpg","projects/proje-kumport-4.jpg","projects/kumport-ad-5.jpg","projects/kumport-ad-6.jpg","projects/kumport-ad-7.jpg","projects/kumport-ad-8.jpg","projects/kumport-ad-9.jpg"]
+    images: ["projects/proje-kumport-1.jpg", "projects/proje-kumport-2.jpg", "projects/proje-kumport-3.jpg", "projects/proje-kumport-4.jpg", "projects/kumport-ad-5.jpg", "projects/kumport-ad-6.jpg", "projects/kumport-ad-7.jpg", "projects/kumport-ad-8.jpg", "projects/kumport-ad-9.jpg"]
   },
   {
     slug: "tac-sev-yeni-kampus",
@@ -7976,7 +7976,7 @@ const projects = [
     description: "TAC-SEV Yeni Kampüs, Tarsus Amerikan Koleji'nin tarihi kampüsünün karşısında, bu kampüsün bir uzantısı olarak tasarlanmış, okul binası, yurt ve çok amaçlı bina olmak üzere üç yapıdan oluşan yaklaşık 12.370 metrekarelik bir eğitim yerleşkesidir. Tasarım, Aziz Pavlus Kilisesi ve Ulu Cami gibi tarihi referans noktalarına görsel bağlar kurarak yeni kampüsü kentin mirasına bağlar. Tarsus'un sıcak Akdeniz ikliminde yönlenme ve gölgeleme stratejileri belirleyici olmuş; okul binası, tarihi Sadık Paşa Konağı ile birlikte bir avlu oluştururken kuzeye bakan sınıflar doğal ışıktan, güneye bakan cepheler ise dış gölgeleme panellerinden yararlanır. Güney çatılara yerleştirilen güneş panelleri ve dış güneş kırıcılar, projenin iklime duyarlı yaklaşımını tamamlar.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-tac-sev-yeni-kampus-1.jpg","projects/proje-tac-sev-yeni-kampus-2.jpg","projects/proje-tac-sev-yeni-kampus-3.jpg","projects/proje-tac-sev-yeni-kampus-4.jpg","projects/tac-sev-yeni-kampus-ad-5.jpg","projects/tac-sev-yeni-kampus-ad-6.jpg","projects/tac-sev-yeni-kampus-ad-7.jpg","projects/tac-sev-yeni-kampus-ad-8.jpg","projects/tac-sev-yeni-kampus-ad-9.jpg"]
+    images: ["projects/proje-tac-sev-yeni-kampus-1.jpg", "projects/proje-tac-sev-yeni-kampus-2.jpg", "projects/proje-tac-sev-yeni-kampus-3.jpg", "projects/proje-tac-sev-yeni-kampus-4.jpg", "projects/tac-sev-yeni-kampus-ad-5.jpg", "projects/tac-sev-yeni-kampus-ad-6.jpg", "projects/tac-sev-yeni-kampus-ad-7.jpg", "projects/tac-sev-yeni-kampus-ad-8.jpg", "projects/tac-sev-yeni-kampus-ad-9.jpg"]
   },
   {
     slug: "aca-su",
@@ -7992,7 +7992,7 @@ const projects = [
     description: "Aca Su, İstanbul'un Kağıthane ilçesinde Aca Yapı için tasarlanmış, 8.700 metrekarelik bir konut kompleksidir. 34 Architects imzalı proje, 2012-2014 yılları arasında hayata geçirilmiştir. Yapı, çok bloklu bir yerleşim düzeni içinde, konut birimlerinin yanı sıra ortak kullanım alanlarını da barındıran bir toplu konut projesi olarak kurgulanmıştır. Ofis, projenin hem dış cephe hem de iç mekân tasarımında yer almıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-aca-su-1.jpg","projects/proje-aca-su-2.jpg","projects/proje-aca-su-3.jpg","projects/proje-aca-su-4.jpg","projects/aca-su-ak-5.jpg","projects/aca-su-ak-6.jpg","projects/aca-su-ak-7.jpg","projects/aca-su-ak-8.jpg","projects/aca-su-ak-9.jpg"]
+    images: ["projects/proje-aca-su-1.jpg", "projects/proje-aca-su-2.jpg", "projects/proje-aca-su-3.jpg", "projects/proje-aca-su-4.jpg", "projects/aca-su-ak-5.jpg", "projects/aca-su-ak-6.jpg", "projects/aca-su-ak-7.jpg", "projects/aca-su-ak-8.jpg", "projects/aca-su-ak-9.jpg"]
   },
   {
     slug: "canakkale-gazi-evi",
@@ -8008,7 +8008,7 @@ const projects = [
     description: "Çanakkale Gazi Evi, Çanakkale Boğazı'na bakan, engelli gazilere yönelik konaklama ve sosyal rehabilitasyon hizmeti sunan, Aile ve Sosyal Politikalar Bakanlığı'nın pilot projesi olarak hayata geçirilmiş bir tesistir. Trapez biçimli 1.600 metrekarelik bir parsel üzerinde 5.737 metrekarelik inşaat alanına sahip yapıda, konaklama birimlerinin tamamı boğazı görecek şekilde batı ve güneye yönlendirilmiş, servis ve destek alanları ise arka cephelere yerleştirilmiştir. İç avlu, zorlu topografyaya farklı görsel okumalar kazandırırken, zemin ve çatı katları lobi, restoran ve etkinlik alanları için açık bırakılmıştır. Cephede dövme dokulu betonarme sistem baskın malzeme olarak kullanılmış, iç mekânlarda beyaz sıva, mermer taş ve döküm mozaik tercih edilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-canakkale-gazi-evi-1.jpg","projects/proje-canakkale-gazi-evi-2.jpg","projects/proje-canakkale-gazi-evi-3.jpg","projects/proje-canakkale-gazi-evi-4.jpg","projects/proje-canakkale-gazi-evi-5.jpg"]
+    images: ["projects/proje-canakkale-gazi-evi-1.jpg", "projects/proje-canakkale-gazi-evi-2.jpg", "projects/proje-canakkale-gazi-evi-3.jpg", "projects/proje-canakkale-gazi-evi-4.jpg", "projects/proje-canakkale-gazi-evi-5.jpg"]
   },
   {
     slug: "spotting-stop-yap2013",
@@ -8024,7 +8024,7 @@ const projects = [
     description: "Sky Spotting Stop, SO? Mimarlık ve Fikriyat tarafından 2013 yılında Istanbul Modern'in avlusunda hayata geçirilen geçici bir enstalasyondur. Proje, müzenin kentin dolaşım akışından kopuk konumuna dikkat çekerek avluyu gölgeleyen, aynalı panellerle kaplı hafif bir örtü sistemi önerir. Gün boyunca değişen ışık oyunları ve gölgeler yaratan yapı, gece etkinliklerinde de dinamik bir arka plan oluşturur; zemindeki hareketli ve geri dönüştürülmüş elemanlar mekânı çok amaçlı bir buluşma alanına dönüştürür. 1.100 metrekarelik enstalasyon, Istanbul Modern ve MoMA'nın ortak davetiyle üretilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-spotting-stop-yap2013-1.jpg","projects/proje-spotting-stop-yap2013-2.jpg","projects/proje-spotting-stop-yap2013-3.jpg","projects/spotting-stop-yap2013-dv-3.jpg","projects/spotting-stop-yap2013-dv-4.jpg","projects/spotting-stop-yap2013-dv-5.jpg","projects/spotting-stop-yap2013-dv-6.jpg","projects/spotting-stop-yap2013-dv-7.jpg","projects/spotting-stop-yap2013-dv-8.jpg"]
+    images: ["projects/proje-spotting-stop-yap2013-1.jpg", "projects/proje-spotting-stop-yap2013-2.jpg", "projects/proje-spotting-stop-yap2013-3.jpg", "projects/spotting-stop-yap2013-dv-3.jpg", "projects/spotting-stop-yap2013-dv-4.jpg", "projects/spotting-stop-yap2013-dv-5.jpg", "projects/spotting-stop-yap2013-dv-6.jpg", "projects/spotting-stop-yap2013-dv-7.jpg", "projects/spotting-stop-yap2013-dv-8.jpg"]
   },
   {
     slug: "conference-hall-for-a-school",
@@ -8040,7 +8040,7 @@ const projects = [
     description: "The Hall, SO? Mimarlık ve Fikriyat tarafından İTÜ Kültürel A.Ş. için tasarlanan 650 metrekarelik bir konferans salonudur ve 2013 yılında tamamlanmıştır. Proje, okulun mevcut betonarme yapısını sürekli bir kontrplak katmanıyla kaplayarak bu iki yüzey arasında kalan boşluğa vestiyer, teknik oda ve farklı yaş gruplarına göre boyutlandırılmış oturma nişleri yerleştirir. İç mekânda kontrplak, metal tavan ve tekstil olmak üzere üç ana malzeme kullanılmış; artan kontrplak şeritlerinden oluşturulan duvarlar hem akustik yüzey hem de mekânı tanımlayan bir eleman olarak işlev görmüştür. Sabit koltuk düzeni yerine antibakteriyel tekstille kaplı esnek oturma alanları tercih edilmiş, böylece tüm oturma alanı çocukların sahne olarak da kullanabileceği bir düzleme dönüşmüştür.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-conference-hall-for-a-school-1.jpg","projects/proje-conference-hall-for-a-school-2.jpg","projects/proje-conference-hall-for-a-school-3.jpg","projects/proje-conference-hall-for-a-school-4.jpg","projects/conference-hall-for-a-school-dv-4.jpg","projects/conference-hall-for-a-school-dv-5.jpg","projects/conference-hall-for-a-school-dv-6.jpg","projects/conference-hall-for-a-school-dv-7.jpg","projects/conference-hall-for-a-school-dv-8.jpg"]
+    images: ["projects/proje-conference-hall-for-a-school-1.jpg", "projects/proje-conference-hall-for-a-school-2.jpg", "projects/proje-conference-hall-for-a-school-3.jpg", "projects/proje-conference-hall-for-a-school-4.jpg", "projects/conference-hall-for-a-school-dv-4.jpg", "projects/conference-hall-for-a-school-dv-5.jpg", "projects/conference-hall-for-a-school-dv-6.jpg", "projects/conference-hall-for-a-school-dv-7.jpg", "projects/conference-hall-for-a-school-dv-8.jpg"]
   },
   {
     slug: "hope-on-water",
@@ -8056,7 +8056,7 @@ const projects = [
     description: "Hope on Water, SO? Mimarlık ve Fikriyat'ın 2018 İstanbul Tasarım Bienali kapsamında hayata geçirdiği araştırma ve eğitim odaklı bir projedir. Proje, 2001'de belirlenen deprem toplanma alanlarının zamanla yapılaşmaya açılması sonucu ortaya çıkan acil durum barınma belirsizliğine dikkat çeker. Önerinin merkezinde, hafif çelik strüktürden üretilen katlanabilir 'Fold&Float' birimi yer alır; bu birim katlanır mobilyalar içeren bir üst yapı ile beton bir şamandıradan oluşur ve olası bir depremde kara yerine suyu güvenli bir sığınma alanı olarak kullanmayı önerir. Prototip, tsunami riski taşımayan Haliç üzerinde suya indirilmiş; MEF Üniversitesi mimarlık ve Boğaziçi Üniversitesi sosyoloji ile inşaat mühendisliği öğrencilerinin katılımıyla geliştirilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-hope-on-water-1.jpg","projects/proje-hope-on-water-2.jpg","projects/proje-hope-on-water-3.jpg","projects/hope-on-water-dv-3.jpg","projects/hope-on-water-dv-4.jpg","projects/hope-on-water-dv-5.jpg","projects/hope-on-water-dv-6.jpg","projects/hope-on-water-dv-7.jpg","projects/hope-on-water-dv-8.jpg"]
+    images: ["projects/proje-hope-on-water-1.jpg", "projects/proje-hope-on-water-2.jpg", "projects/proje-hope-on-water-3.jpg", "projects/hope-on-water-dv-3.jpg", "projects/hope-on-water-dv-4.jpg", "projects/hope-on-water-dv-5.jpg", "projects/hope-on-water-dv-6.jpg", "projects/hope-on-water-dv-7.jpg", "projects/hope-on-water-dv-8.jpg"]
   },
   {
     slug: "beylikduzu-arts-and-cultural-center",
@@ -8072,7 +8072,7 @@ const projects = [
     description: "bAKSM, SO? Mimarlık ve Fikriyat'ın Beylikdüzü Belediyesi için gerçekleştirdiği, 20.000 metrekarelik bir kamu binasının kütüphane, çocuk kütüphanesi, çok amaçlı salon, sinema ve atölyeleri bir araya getiren canlı bir kültür merkezine dönüştürülmesi projesidir. Tasarımın ana müdahalesi, camlı çatı altındaki dağınık birimler arasında dolaşımı sağlayan ve aynı zamanda ikonik bir giriş oluşturan, ahşap uzantılarla dikey bir bahçe işlevi gören 2.000 metrekarelik çelik bir merdivenin yerleştirildiği merkezi atriyumdur. İç yüzeylerde akustik performans ve süreklilik için kontrplak ve opak cam kaplama kullanılmış, bina cephesi ise doğal havalandırma ve gün ışığı eksikliğini gidermek amacıyla ince bir korten tabakasıyla tamamen yenilenmiştir. Proje 2018 yılında tamamlanmış olup peyzaj danışmanlığını TYLA üstlenmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-beylikduzu-arts-and-cultural-center-1.jpg","projects/proje-beylikduzu-arts-and-cultural-center-2.jpg","projects/proje-beylikduzu-arts-and-cultural-center-3.jpg","projects/beylikduzu-arts-and-cultural-center-ak-4.jpg","projects/beylikduzu-arts-and-cultural-center-ak-5.jpg","projects/beylikduzu-arts-and-cultural-center-ak-6.jpg","projects/beylikduzu-arts-and-cultural-center-ak-7.jpg","projects/beylikduzu-arts-and-cultural-center-ak-8.jpg","projects/beylikduzu-arts-and-cultural-center-ak-9.jpg"]
+    images: ["projects/proje-beylikduzu-arts-and-cultural-center-1.jpg", "projects/proje-beylikduzu-arts-and-cultural-center-2.jpg", "projects/proje-beylikduzu-arts-and-cultural-center-3.jpg", "projects/beylikduzu-arts-and-cultural-center-ak-4.jpg", "projects/beylikduzu-arts-and-cultural-center-ak-5.jpg", "projects/beylikduzu-arts-and-cultural-center-ak-6.jpg", "projects/beylikduzu-arts-and-cultural-center-ak-7.jpg", "projects/beylikduzu-arts-and-cultural-center-ak-8.jpg", "projects/beylikduzu-arts-and-cultural-center-ak-9.jpg"]
   },
   {
     slug: "adaptive-reuse-for-a-swimming-pool",
@@ -8088,7 +8088,7 @@ const projects = [
     description: "The Pool, SO? Mimarlık ve Fikriyat'ın İstanbul Planlama Ajansı için Florya Şehir Ormanı'nda tasarladığı, özel bir yüzme havuzunun 1.000 metrekarelik çok işlevli bir kamusal salona dönüştürüldüğü uyarlanabilir yeniden kullanım projesidir. Tasarım, havuzu ve onun katlanır örtü sistemini koruyarak havuz boşluğunu esnek kullanılabilen kontrplak amfi oturma elemanlarıyla doldurur; çocuk havuzu ise fuayenin kış bahçesine dönüştürülmüş, mekanik odalar sahne arkası birimlerine çevrilmiştir. Polikarbonat katlanır örtü yapısına eklenen ahşap akustik paneller sayesinde mekân, yazın açık hava etkinlik alanı olarak kullanılırken, kışın örtü kapandığında 400 kişilik bir oditoryuma dönüşür. Peyzaj danışmanlığını TYLA'nın üstlendiği proje, kentin atıl kalmış bir yapısını yeniden kamusal hayata kazandırmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-adaptive-reuse-for-a-swimming-pool-1.jpg","projects/proje-adaptive-reuse-for-a-swimming-pool-2.jpg","projects/proje-adaptive-reuse-for-a-swimming-pool-3.jpg","projects/proje-adaptive-reuse-for-a-swimming-pool-4.jpg","projects/adaptive-reuse-for-a-swimming-pool-ak-5.jpg","projects/adaptive-reuse-for-a-swimming-pool-ak-6.jpg","projects/adaptive-reuse-for-a-swimming-pool-ak-7.jpg","projects/adaptive-reuse-for-a-swimming-pool-ak-8.jpg","projects/adaptive-reuse-for-a-swimming-pool-ak-9.jpg"]
+    images: ["projects/proje-adaptive-reuse-for-a-swimming-pool-1.jpg", "projects/proje-adaptive-reuse-for-a-swimming-pool-2.jpg", "projects/proje-adaptive-reuse-for-a-swimming-pool-3.jpg", "projects/proje-adaptive-reuse-for-a-swimming-pool-4.jpg", "projects/adaptive-reuse-for-a-swimming-pool-ak-5.jpg", "projects/adaptive-reuse-for-a-swimming-pool-ak-6.jpg", "projects/adaptive-reuse-for-a-swimming-pool-ak-7.jpg", "projects/adaptive-reuse-for-a-swimming-pool-ak-8.jpg", "projects/adaptive-reuse-for-a-swimming-pool-ak-9.jpg"]
   },
   {
     slug: "hangar-redesigned-as-multi-purpose-spaces",
@@ -8104,7 +8104,7 @@ const projects = [
     description: "The Warehouse, SO? Mimarlık ve Fikriyat'ın İstanbul Planlama Ajansı için Florya Şehir Ormanı'nda, atıl durumdaki iki sanayi hangarını 550 metrekarelik çok amaçlı etkinlik mekânlarına dönüştürdüğü bir uyarlanabilir yeniden kullanım projesidir. Mevcut yapıların cephe ve çatıları kaldırılarak yalnızca çelik taşıyıcı iskeletleri korunmuş, iki hangar tuvalet ve mekanik birimleri barındıran yeni bir ek yapı ile birbirine bağlanmıştır. Tasarım, hareketli mobilyalar ve oturma, sergileme ve çalışma amaçlı taşınabilir birimlerle farklı mekânsal kurgulara göre yeniden düzenlenebilen bir esneklik sunar. Açılan cepheler iç ve dış mekân arasında etkinlikler için süreklilik sağlarken, çevredeki peyzaj açık hava fuayesi olarak işlev görür.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-hangar-redesigned-as-multi-purpose-spaces-1.jpg","projects/proje-hangar-redesigned-as-multi-purpose-spaces-2.jpg","projects/proje-hangar-redesigned-as-multi-purpose-spaces-3.jpg","projects/hangar-redesigned-as-multi-purpose-spaces-ak-4.jpg","projects/hangar-redesigned-as-multi-purpose-spaces-ak-5.jpg","projects/hangar-redesigned-as-multi-purpose-spaces-ak-6.jpg","projects/hangar-redesigned-as-multi-purpose-spaces-ak-7.jpg","projects/hangar-redesigned-as-multi-purpose-spaces-ak-8.jpg","projects/hangar-redesigned-as-multi-purpose-spaces-ak-9.jpg"]
+    images: ["projects/proje-hangar-redesigned-as-multi-purpose-spaces-1.jpg", "projects/proje-hangar-redesigned-as-multi-purpose-spaces-2.jpg", "projects/proje-hangar-redesigned-as-multi-purpose-spaces-3.jpg", "projects/hangar-redesigned-as-multi-purpose-spaces-ak-4.jpg", "projects/hangar-redesigned-as-multi-purpose-spaces-ak-5.jpg", "projects/hangar-redesigned-as-multi-purpose-spaces-ak-6.jpg", "projects/hangar-redesigned-as-multi-purpose-spaces-ak-7.jpg", "projects/hangar-redesigned-as-multi-purpose-spaces-ak-8.jpg", "projects/hangar-redesigned-as-multi-purpose-spaces-ak-9.jpg"]
   },
   {
     slug: "asma-bahceler-residences",
@@ -8120,7 +8120,7 @@ const projects = [
     description: "Asma Bahçeler Evleri, M artı D Mimarlık tarafından İzmir'in Narlıdere ilçesinde 18.700 metrekarelik bir arazi üzerinde tasarlanan, 8 teraslı blok içinde 98 konut biriminden oluşan bir toplu konut projesidir. Tasarım süreci 2007-2012, inşaat süreci ise 2012-2017 yılları arasında yürütülmüştür. Proje, dik eğimli arazinin doğal topografyasını bozmadan, konutları teraslar halinde istifleyerek her birime özel bahçe ve körfez manzarası kazandıran bir yaklaşım benimser; bahçe büyüklükleri 60 ile 400 metrekare arasında değişir. Yaşam alanlarının bahçe ve manzarayla bütünleşik kurgulandığı proje, 2019 yılında Antalya Kepez Belediyesi Turgut Cansever Uluslararası Mimarlık Ödülleri'nde özel ödüle layık görülmüştür.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-asma-bahceler-residences-1.jpg","projects/proje-asma-bahceler-residences-2.jpg","projects/proje-asma-bahceler-residences-3.jpg","projects/proje-asma-bahceler-residences-4.jpg","projects/asma-bahceler-residences-ad-5.jpg","projects/asma-bahceler-residences-ad-6.jpg","projects/asma-bahceler-residences-ad-7.jpg","projects/asma-bahceler-residences-ad-8.jpg","projects/asma-bahceler-residences-ad-9.jpg"]
+    images: ["projects/proje-asma-bahceler-residences-1.jpg", "projects/proje-asma-bahceler-residences-2.jpg", "projects/proje-asma-bahceler-residences-3.jpg", "projects/proje-asma-bahceler-residences-4.jpg", "projects/asma-bahceler-residences-ad-5.jpg", "projects/asma-bahceler-residences-ad-6.jpg", "projects/asma-bahceler-residences-ad-7.jpg", "projects/asma-bahceler-residences-ad-8.jpg", "projects/asma-bahceler-residences-ad-9.jpg"]
   },
   {
     slug: "izmir-jeoloji-muhendisleri-odasi",
@@ -8136,7 +8136,7 @@ const projects = [
     description: "Jeoloji Mühendisleri Odası İzmir Şube Binası, M artı D Mimarlık tarafından İzmir Alsancak'ta, yalnızca 6,65 metre genişliğindeki dar bir parsel üzerinde tasarlanan 428 metrekarelik bir ofis binasıdır; tasarım 2013-2015, inşaat ise 2016-2017 yıllarını kapsamıştır. Başlangıçta çok amaçlı kullanım önerileriyle ele alınan proje, süreç içinde esnek işleyişe sahip bağımsız bir ofis binasına dönüşmüş; zemin katta bağımsız girişli bir kafeterya, üst katlarda ise ortak bir dolaşım çekirdeğine bağlı dört ofis katı yer almıştır. Binanın doğal ışık alan ve sokakla görsel bağlantı kuran tek yüzeyi olan kuzey cephesinde, topografyayı ve kullanıcıların mesleki ilgi alanlarını çağrıştıran geometrik bir kabartma deseni uygulanmış, bu desen gün boyunca değişen ışık kırılmalarıyla dinamik iç mekân etkileri yaratmaktadır. Beş katlı yapı, toplam 75 metrekarelik kat alanlarıyla kompakt bir düşey organizasyon sunar.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-izmir-jeoloji-muhendisleri-odasi-1.jpg","projects/proje-izmir-jeoloji-muhendisleri-odasi-2.jpg","projects/proje-izmir-jeoloji-muhendisleri-odasi-3.jpg","projects/proje-izmir-jeoloji-muhendisleri-odasi-4.jpg","projects/izmir-jeoloji-muhendisleri-odasi-ak-4.jpg","projects/izmir-jeoloji-muhendisleri-odasi-ak-5.jpg","projects/izmir-jeoloji-muhendisleri-odasi-ak-6.jpg","projects/izmir-jeoloji-muhendisleri-odasi-ak-7.jpg","projects/izmir-jeoloji-muhendisleri-odasi-ak-8.jpg"]
+    images: ["projects/proje-izmir-jeoloji-muhendisleri-odasi-1.jpg", "projects/proje-izmir-jeoloji-muhendisleri-odasi-2.jpg", "projects/proje-izmir-jeoloji-muhendisleri-odasi-3.jpg", "projects/proje-izmir-jeoloji-muhendisleri-odasi-4.jpg", "projects/izmir-jeoloji-muhendisleri-odasi-ak-4.jpg", "projects/izmir-jeoloji-muhendisleri-odasi-ak-5.jpg", "projects/izmir-jeoloji-muhendisleri-odasi-ak-6.jpg", "projects/izmir-jeoloji-muhendisleri-odasi-ak-7.jpg", "projects/izmir-jeoloji-muhendisleri-odasi-ak-8.jpg"]
   },
   {
     slug: "nedim-uysal-teknik-lisesi",
@@ -8152,7 +8152,7 @@ const projects = [
     description: "Özel İAOSB Nedim Uysal Mesleki ve Teknik Anadolu Lisesi, M artı D Mimarlık'ın İzmir Atatürk Organize Sanayi Bölgesi içinde, Çiğli'de tasarladığı 13.270 metrekarelik bir mesleki eğitim yapısıdır. Tasarım, 2008'de düzenlenen davetli bir mimari yarışmada birincilik kazanmış, inşaat 2014-2016 yılları arasında tamamlanmıştır. Proje, çevresindeki içe kapalı sanayi komplekslerinin tekdüze estetiğinden uzaklaşarak sosyal ve atölye birimlerini bir iç galeri çevresinde, eğitim birimlerini ise üst katlarda organize eder; yeşil bir topografya, eğitim bloğu ile kamusal alanları düşey olarak ayırmak amacıyla üst kotlara taşınmıştır. 13.746 metrekarelik arsa üzerindeki yapının merkezinde, birbirine bağlı mekânlarla çevrili büyük bir galeri yer alır; bu galeri kullanıcılar arası etkileşimi ve sürekli görsel algıyı destekleyen dinamik bir iç ortam yaratır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-nedim-uysal-teknik-lisesi-1.jpg","projects/proje-nedim-uysal-teknik-lisesi-2.jpg","projects/proje-nedim-uysal-teknik-lisesi-3.jpg","projects/proje-nedim-uysal-teknik-lisesi-4.jpg","projects/nedim-uysal-teknik-lisesi-ak-4.jpg","projects/nedim-uysal-teknik-lisesi-ak-5.jpg","projects/nedim-uysal-teknik-lisesi-ak-6.jpg","projects/nedim-uysal-teknik-lisesi-ak-7.jpg","projects/nedim-uysal-teknik-lisesi-ak-8.jpg"]
+    images: ["projects/proje-nedim-uysal-teknik-lisesi-1.jpg", "projects/proje-nedim-uysal-teknik-lisesi-2.jpg", "projects/proje-nedim-uysal-teknik-lisesi-3.jpg", "projects/proje-nedim-uysal-teknik-lisesi-4.jpg", "projects/nedim-uysal-teknik-lisesi-ak-4.jpg", "projects/nedim-uysal-teknik-lisesi-ak-5.jpg", "projects/nedim-uysal-teknik-lisesi-ak-6.jpg", "projects/nedim-uysal-teknik-lisesi-ak-7.jpg", "projects/nedim-uysal-teknik-lisesi-ak-8.jpg"]
   },
   {
     slug: "oib-teknik-endustri-meslek-lisesi",
@@ -8168,7 +8168,7 @@ const projects = [
     description: "OİB Teknik ve Endüstri Meslek Lisesi, M artı D Mimarlık'ın Bursa Nilüfer'de, 21.250 metrekarelik bir arsa üzerinde 720 öğrenci kapasitesiyle tasarladığı, eğitim, barınma ve sosyal birimleri 32.000 metrekarelik bir yapıda birleştiren bir mesleki teknik lise projesidir. Ulusal bir mimari ön proje yarışması sonucunda seçilen tasarım, arazideki mevcut zeytin ağaçlarını korumayı önceleyerek yapı kütlesini eğime karşı konumlandırmış, araziyle uyumlu kademeli bir organizasyon kurmuştur. Taşıyıcı sistem çelik kirişlerle bağlanan açıkta bırakılmış betonarme çerçevelerden oluşur; tavan, zemin ve duvarlardaki kaplama katmanları kaldırılarak strüktürün kendisi görünür bırakılmış, bu yaklaşım okulun teknik odaklı kimliğini yansıtmıştır. Ardışık avlulardan oluşan iç sosyal galeri, eğitim, sosyal, kültürel ve spor birimlerini geçirgen bir dolaşımla birbirine bağlar; proje 2012 Ulusal Mimarlık Ödülü'ne değer görülmüş, Ağa Han Mimarlık Ödülleri ve Mies van der Rohe Ödülleri'ne aday gösterilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-oib-teknik-endustri-meslek-lisesi-1.jpg","projects/proje-oib-teknik-endustri-meslek-lisesi-2.jpg","projects/proje-oib-teknik-endustri-meslek-lisesi-3.jpg","projects/proje-oib-teknik-endustri-meslek-lisesi-4.jpg","projects/oib-teknik-endustri-meslek-lisesi-ak-4.jpg","projects/oib-teknik-endustri-meslek-lisesi-ak-5.jpg","projects/oib-teknik-endustri-meslek-lisesi-ak-6.jpg","projects/oib-teknik-endustri-meslek-lisesi-ak-7.jpg","projects/oib-teknik-endustri-meslek-lisesi-ak-8.jpg"]
+    images: ["projects/proje-oib-teknik-endustri-meslek-lisesi-1.jpg", "projects/proje-oib-teknik-endustri-meslek-lisesi-2.jpg", "projects/proje-oib-teknik-endustri-meslek-lisesi-3.jpg", "projects/proje-oib-teknik-endustri-meslek-lisesi-4.jpg", "projects/oib-teknik-endustri-meslek-lisesi-ak-4.jpg", "projects/oib-teknik-endustri-meslek-lisesi-ak-5.jpg", "projects/oib-teknik-endustri-meslek-lisesi-ak-6.jpg", "projects/oib-teknik-endustri-meslek-lisesi-ak-7.jpg", "projects/oib-teknik-endustri-meslek-lisesi-ak-8.jpg"]
   },
   {
     slug: "selcuk-ecza-headquarters",
@@ -8184,7 +8184,7 @@ const projects = [
     description: "Selçuk Ecza Genel Müdürlük Binası, Tabanlıoğlu Mimarlık imzasıyla Üsküdar'ın Nakkaştepe semtinde inşa edilmiş, 22.900 metrekarelik bir kurumsal ofis kampüsüdür ve 2014 yılında tamamlanmıştır. Şirketin yaşlı kurucu ortaklarının ofiste ev sıcaklığı hissetmek istemesinden yola çıkan tasarım, ölçek ve estetiğini geleneksel İstanbul yalılarından alan, kırma çatılı yedi ev benzeri kütlenin bahçeler, avlular ve atriyumlar aracılığıyla birbirine bağlandığı küçük bir yerleşke kurgusu önerir. Üç kat ofis alanı ile iki kat yeraltı otoparkından oluşan yapıda, kahverengi tonlu cephe kaplaması ve ışığı süzen file sistemi pasif iklimlendirmeye katkı sağlarken, çatı açıklıklarından süzülen gün ışığı iç mekânları aydınlatır. Proje, 2015 MIPIM Best Office & Business Development ödülünü kazanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-selcuk-ecza-headquarters-1.jpg","projects/proje-selcuk-ecza-headquarters-2.jpg","projects/proje-selcuk-ecza-headquarters-3.jpg","projects/proje-selcuk-ecza-headquarters-4.jpg","projects/selcuk-ecza-headquarters-ak-4.jpg","projects/selcuk-ecza-headquarters-ak-5.jpg","projects/selcuk-ecza-headquarters-ak-6.jpg","projects/selcuk-ecza-headquarters-ak-7.jpg","projects/selcuk-ecza-headquarters-ak-8.jpg"]
+    images: ["projects/proje-selcuk-ecza-headquarters-1.jpg", "projects/proje-selcuk-ecza-headquarters-2.jpg", "projects/proje-selcuk-ecza-headquarters-3.jpg", "projects/proje-selcuk-ecza-headquarters-4.jpg", "projects/selcuk-ecza-headquarters-ak-4.jpg", "projects/selcuk-ecza-headquarters-ak-5.jpg", "projects/selcuk-ecza-headquarters-ak-6.jpg", "projects/selcuk-ecza-headquarters-ak-7.jpg", "projects/selcuk-ecza-headquarters-ak-8.jpg"]
   },
   {
     slug: "asmacati-shopping-center",
@@ -8200,7 +8200,7 @@ const projects = [
     description: "Asmaçatı Alışveriş ve Buluşma Noktası, Tabanlıoğlu Mimarlık tarafından İzmir'de tasarlanan, 2011 yılında tamamlanan 41.450 metrekarelik bir açık hava alışveriş merkezidir. Proje, İzmir'in sıcak ikliminde açık havada vakit geçirme kültüründen esinlenerek, Ege'nin yerel asma yaprağı dokusunu çağrıştıran metal file kaplı bir asma çatı sistemiyle yarı örtülü bir mekân kurgusu önerir. Mağazalar arasında gölgeli açık avlular oluşturan bu üst örtü, alışverişin ötesinde insanların bir araya geldiği, dinlenip vakit geçirdiği canlı bir kamusal platform yaratır. Deniz, dağ ve yol arasında konumlanan yapı, kalıcı ile geçici olanı birbirine bağlayan hareketli bir dinlenme durağı olarak tasarlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-asmacati-shopping-center-1.jpg","projects/proje-asmacati-shopping-center-2.jpg","projects/proje-asmacati-shopping-center-3.jpg","projects/proje-asmacati-shopping-center-4.jpg","projects/asmacati-shopping-center-ak-4.jpg","projects/asmacati-shopping-center-ak-5.jpg","projects/asmacati-shopping-center-ak-6.jpg","projects/asmacati-shopping-center-ak-7.jpg","projects/asmacati-shopping-center-ak-8.jpg"]
+    images: ["projects/proje-asmacati-shopping-center-1.jpg", "projects/proje-asmacati-shopping-center-2.jpg", "projects/proje-asmacati-shopping-center-3.jpg", "projects/proje-asmacati-shopping-center-4.jpg", "projects/asmacati-shopping-center-ak-4.jpg", "projects/asmacati-shopping-center-ak-5.jpg", "projects/asmacati-shopping-center-ak-6.jpg", "projects/asmacati-shopping-center-ak-7.jpg", "projects/asmacati-shopping-center-ak-8.jpg"]
   },
   {
     slug: "dogan-media-center",
@@ -8216,7 +8216,7 @@ const projects = [
     description: "Doğan Medya Center, Tabanlıoğlu Mimarlık tarafından Ankara Çankaya'da tasarlanan ve 2008 yılında tamamlanan, Doğan Grubu'nun televizyon kanalları ile gazete birimlerini bir araya getiren 12.000 metrekarelik bir medya kompleksidir. Kare biçimli arsaya yanıt olarak küp formundan yola çıkan tasarım, bu saf geometriyi ekleme ve çıkarmalarla parçalayarak farklı ölçeklerde ve açılarda konumlanan renkli kütlelerden oluşan, uzaktan bile fark edilen simgesel bir cephe kurgusuna dönüştürür. Braille alfabesini andıran delikli metal panel sistemi güneş ışığını süzerek iç mekânlarda değişken gölge desenleri oluştururken, yapının 'herkes için iletişim' fikrini de sembolik olarak yansıtır. Stüdyo ve ofis gibi farklı işlevler, bu parçalı küp kompozisyonu içinde birbirinden ayrı ama bütüne bağlı hacimler olarak korunmuştur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-dogan-media-center-1.jpg","projects/proje-dogan-media-center-2.jpg","projects/proje-dogan-media-center-3.jpg","projects/proje-dogan-media-center-4.jpg","projects/dogan-media-center-ad-5.jpg","projects/dogan-media-center-ad-6.jpg","projects/dogan-media-center-ad-7.jpg","projects/dogan-media-center-ad-8.jpg","projects/dogan-media-center-ad-9.jpg"]
+    images: ["projects/proje-dogan-media-center-1.jpg", "projects/proje-dogan-media-center-2.jpg", "projects/proje-dogan-media-center-3.jpg", "projects/proje-dogan-media-center-4.jpg", "projects/dogan-media-center-ad-5.jpg", "projects/dogan-media-center-ad-6.jpg", "projects/dogan-media-center-ad-7.jpg", "projects/dogan-media-center-ad-8.jpg", "projects/dogan-media-center-ad-9.jpg"]
   },
   {
     slug: "apartman-18",
@@ -8232,7 +8232,7 @@ const projects = [
     description: "Apartman 18, Aytaç Architects imzasıyla Kadıköy'ün Erenköy semtinde inşa edilmiş, 2014 yılında tamamlanan on katlı bir lüks konut binasıdır. Proje, 1970'ler sonrası yoğun beton apartmanlaşmayla yok olan Erenköy'ün eski bağ ve bahçelerine bir gönderme olarak, zemin katta peyzaj elemanına dönüşen asma benzeri dokulu bir yüzeyden yola çıkar. Bu doku, giriş katındaki meditatif bahçeden başlayarak yukarı doğru uzanır ve binanın balkonlarını saran, iç içe geçmiş metal şeritlerden oluşan cepheye dönüşerek çatı bahçesinde son bulur. Asma dalları gibi kıvrılan metal bantlar hem dekoratif hem de işlevsel bir eleman olarak kullanılmış, sakinlere sokağın gürültüsünden uzak, maksimum ışık ve manzara sunan mahremiyetli yaşam alanları kazandırmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-apartman-18-1.jpg","projects/proje-apartman-18-2.jpg","projects/proje-apartman-18-3.jpg","projects/proje-apartman-18-4.jpg","projects/apartman-18-ad-5.jpg","projects/apartman-18-ad-6.jpg","projects/apartman-18-ad-7.jpg","projects/apartman-18-ad-8.jpg","projects/apartman-18-ad-9.jpg"]
+    images: ["projects/proje-apartman-18-1.jpg", "projects/proje-apartman-18-2.jpg", "projects/proje-apartman-18-3.jpg", "projects/proje-apartman-18-4.jpg", "projects/apartman-18-ad-5.jpg", "projects/apartman-18-ad-6.jpg", "projects/apartman-18-ad-7.jpg", "projects/apartman-18-ad-8.jpg", "projects/apartman-18-ad-9.jpg"]
   },
   {
     slug: "hebil-157-houses",
@@ -8248,7 +8248,7 @@ const projects = [
     description: "Hebil 157 Evleri, Aytaç Architects tarafından Bodrum Yarımadası'nın kuzeyinde, Hebil Koyu manzarasına hakim beş dönümlük bir arazi üzerinde tasarlanan beş müstakil villadan oluşur. Tasarım, bölgede efsanevi Kos Yanardağı'nın soğuyup katılaşmış lav akıntılarından esinlenerek, araziden fışkırıp yeniden toprağa karışan, 'Bodrum Beyazı' taş kaplamalı girdap biçimli kütleler önerir; her villanın geometrisi ve yönü, arazinin eğimine ve konumuna göre farklılaşır. Her yapının merkezinde, yüzyıllık bir zeytin ağacını saran ve kütlenin dönme hareketinin çıkış noktasını oluşturan bir avlu yer alır. İç mekânlarda yalnızca volkanik bazalt taşı kullanılırken, dış mekânlarda arazi kazılarından çıkan yerel volkanik agrega tercih edilmiş, çevre onbinlerce lavanta ile peyzajlanmıştır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-hebil-157-houses-1.jpg","projects/proje-hebil-157-houses-2.jpg","projects/proje-hebil-157-houses-3.jpg","projects/proje-hebil-157-houses-4.jpg","projects/hebil-157-houses-ad-5.jpg","projects/hebil-157-houses-ad-6.jpg","projects/hebil-157-houses-ad-7.jpg","projects/hebil-157-houses-ad-8.jpg","projects/hebil-157-houses-ad-9.jpg"]
+    images: ["projects/proje-hebil-157-houses-1.jpg", "projects/proje-hebil-157-houses-2.jpg", "projects/proje-hebil-157-houses-3.jpg", "projects/proje-hebil-157-houses-4.jpg", "projects/hebil-157-houses-ad-5.jpg", "projects/hebil-157-houses-ad-6.jpg", "projects/hebil-157-houses-ad-7.jpg", "projects/hebil-157-houses-ad-8.jpg", "projects/hebil-157-houses-ad-9.jpg"]
   },
   {
     slug: "onur-group-ankara",
@@ -8264,7 +8264,7 @@ const projects = [
     description: "Onur Group Via Twins Ofis, escapefromsofa tarafından Ankara'daki Via Twins kulesinde Onur Group için tasarlanan 1.500 metrekarelik bir kurumsal ofis projesidir ve 2018 yılında tamamlanmıştır. Girişte resepsiyon bankosu masif mermerden üretilmiş, duvarlarda hasır detaylı ceviz ahşap paneller kullanılmış; camlı ve siyah çelik çerçeveli bölme sistemleri farklı çalışma alanlarını birbirinden ayırmıştır. Beton görünümlü zemin kaplaması geometrik desenli halılarla desteklenmiş, 100 metrekarelik yönetici odaları kendi toplantı ve dinlenme alanlarıyla donatılmıştır. Özel tasarım mobilyalar, ikonik aydınlatma elemanları ve açık alanlara entegre edilmiş dosya dolapları, projenin bütüncül iç mekân dilini tamamlamaktadır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-onur-group-ankara-1.jpg","projects/proje-onur-group-ankara-2.jpg","projects/proje-onur-group-ankara-3.jpg","projects/proje-onur-group-ankara-4.jpg","projects/onur-group-ankara-dv-4.jpg","projects/onur-group-ankara-dv-5.jpg","projects/onur-group-ankara-dv-6.jpg","projects/onur-group-ankara-dv-7.jpg","projects/onur-group-ankara-dv-8.jpg"]
+    images: ["projects/proje-onur-group-ankara-1.jpg", "projects/proje-onur-group-ankara-2.jpg", "projects/proje-onur-group-ankara-3.jpg", "projects/proje-onur-group-ankara-4.jpg", "projects/onur-group-ankara-dv-4.jpg", "projects/onur-group-ankara-dv-5.jpg", "projects/onur-group-ankara-dv-6.jpg", "projects/onur-group-ankara-dv-7.jpg", "projects/onur-group-ankara-dv-8.jpg"]
   },
   {
     slug: "etiler-house",
@@ -8280,7 +8280,7 @@ const projects = [
     description: "Etiler Evi, escapefromsofa tarafından İstanbul'un Etiler semtinde tasarlanan, geniş bir bahçeye açılan 100 metrekarelik bir bahçe katı dairedir ve 2017 yılında tamamlanmıştır. Giriş, mutfak ve oturma odası açık plan olarak kurgulanmış; mutfağın duvarları kısmen kaldırılarak yerine demir çerçeveli cam kapılar yerleştirilmiş, böylece daha ferah ve aydınlık bir mekân elde edilmiştir. Tüm odalar escapefromsofa'nın özel tasarım mobilyalarıyla döşenmiş, pastel renk paleti, ahşap ve mermer dokular ile pirinç detaylar mekânlar arasında tutarlı bir stil oluşturmuştur. Ebeveyn yatak odası kendi banyosu ve giyinme odasıyla bütünleşik tasarlanmış, bahçeye açılan mutfaklı çalışma odası ise evin doğayla ilişkisini güçlendirmektedir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-etiler-house-1.jpg","projects/proje-etiler-house-2.jpg","projects/proje-etiler-house-3.jpg","projects/proje-etiler-house-4.jpg","projects/etiler-house-dv-4.jpg","projects/etiler-house-dv-5.jpg","projects/etiler-house-dv-6.jpg","projects/etiler-house-dv-7.jpg","projects/etiler-house-dv-8.jpg"]
+    images: ["projects/proje-etiler-house-1.jpg", "projects/proje-etiler-house-2.jpg", "projects/proje-etiler-house-3.jpg", "projects/proje-etiler-house-4.jpg", "projects/etiler-house-dv-4.jpg", "projects/etiler-house-dv-5.jpg", "projects/etiler-house-dv-6.jpg", "projects/etiler-house-dv-7.jpg", "projects/etiler-house-dv-8.jpg"]
   },
   {
     slug: "yesilova-hoyuk-visitor-center",
@@ -8296,7 +8296,7 @@ const projects = [
     description: "Yeşilova Höyük Ziyaretçi Merkezi, Studio Evren Başbuğ ve SCRA Mimarlık'ın ortak imzasıyla İzmir Bornova'daki Yeşilova Höyüğü'nde inşa edilmiş, 5.120 metrekarelik bir müze ve arkeoloji laboratuvarı yapısıdır; Bornova Belediyesi için 2015 yılında tamamlanmıştır. 155 metre uzunluğundaki doğrusal yapı; müze, arkeoloji laboratuvarı ve destek birimlerini tek bir kütlede birleştirirken, kente bakan yüzünde opak kırmızı cam elyaf takviyeli beton paneller, kazı alanına bakan yüzünde ise yarı saydam çok katmanlı polikarbonat bir zar kullanır. Bu karşıt cephe kurgusu, Neolitik dönemin açıkta bırakılan ahşap iskelet ve onu saran koruyucu dış kabuk mantığına bir gönderme yapar. Çelik H-profil taşıyıcı sistem üzerine oturan yapı, 2010 yılındaki ulusal yarışmada birincilik ödülü almış, sonrasında 2019 Ağa Han Mimarlık Ödülü'ne aday gösterilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-yesilova-hoyuk-visitor-center-1.jpg","projects/proje-yesilova-hoyuk-visitor-center-2.jpg","projects/proje-yesilova-hoyuk-visitor-center-3.jpg","projects/proje-yesilova-hoyuk-visitor-center-4.jpg","projects/yesilova-hoyuk-visitor-center-ak-4.jpg","projects/yesilova-hoyuk-visitor-center-ak-5.jpg","projects/yesilova-hoyuk-visitor-center-ak-6.jpg","projects/yesilova-hoyuk-visitor-center-ak-7.jpg","projects/yesilova-hoyuk-visitor-center-ak-8.jpg"]
+    images: ["projects/proje-yesilova-hoyuk-visitor-center-1.jpg", "projects/proje-yesilova-hoyuk-visitor-center-2.jpg", "projects/proje-yesilova-hoyuk-visitor-center-3.jpg", "projects/proje-yesilova-hoyuk-visitor-center-4.jpg", "projects/yesilova-hoyuk-visitor-center-ak-4.jpg", "projects/yesilova-hoyuk-visitor-center-ak-5.jpg", "projects/yesilova-hoyuk-visitor-center-ak-6.jpg", "projects/yesilova-hoyuk-visitor-center-ak-7.jpg", "projects/yesilova-hoyuk-visitor-center-ak-8.jpg"]
   },
   {
     slug: "bahcekoy-house",
@@ -8312,7 +8312,7 @@ const projects = [
     description: "Bahçeköy Evi, Habif Mimarlık tarafından Sarıyer'in Bahçeköy semtinde genç bir aile için tasarlanan, 1.700 metrekarelik bir müstakil konuttur ve 2018 yılında tamamlanmıştır. Sokağa bakan cephesi beton ve taş karışımı kaplamasıyla kapalı, sağlam ve mahremiyetli bir izlenim verirken, arka bahçeye bakan cephe tamamen açılarak ferah ve aydınlık bir yaşam alanına dönüşür. Üç katı birbirine bağlayan heykelsi bir merdiven, evin mimari odak noktalarından birini oluşturur; iç mekânlarda ahşap ve mermer gibi doğal malzemeler, siyah boyalı meşe ve pastel lake kaplamalı özel tasarım sabit mobilyalarla tamamlanır. Havuz evinde oturma alanı, mutfak, spor salonu ve soyunma odaları yer alır; tam yükseklikte sürgülü cam paneller iç mekânı havuz terasıyla kesintisiz biçimde birleştirir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-bahcekoy-house-1.jpg","projects/proje-bahcekoy-house-2.jpg","projects/proje-bahcekoy-house-3.jpg","projects/proje-bahcekoy-house-4.jpg","projects/bahcekoy-house-ad-5.jpg","projects/bahcekoy-house-ad-6.jpg","projects/bahcekoy-house-ad-7.jpg","projects/bahcekoy-house-ad-8.jpg","projects/bahcekoy-house-ad-9.jpg"]
+    images: ["projects/proje-bahcekoy-house-1.jpg", "projects/proje-bahcekoy-house-2.jpg", "projects/proje-bahcekoy-house-3.jpg", "projects/proje-bahcekoy-house-4.jpg", "projects/bahcekoy-house-ad-5.jpg", "projects/bahcekoy-house-ad-6.jpg", "projects/bahcekoy-house-ad-7.jpg", "projects/bahcekoy-house-ad-8.jpg", "projects/bahcekoy-house-ad-9.jpg"]
   },
   {
     slug: "luleburgaz-bus-station",
@@ -8328,7 +8328,7 @@ const projects = [
     description: "Lüleburgaz Otobüs Terminali, Collective Architects ve Rasa Studio'nun ortak tasarımıyla Edirne-İstanbul D100 karayolu üzerinde, Murathüdavendigar ve İstiklal caddelerinin kesişiminde inşa edilmiş şehirlerarası bir ulaşım kompleksidir; proje 2016 yılında tamamlanmıştır. Yetersiz kalan eski terminalin giriş çıkış yönelimleri korunarak doğu-batı aksında doğrusal biçimde konumlandırılan yapı, arta kalan alanın çevredeki rekreasyon alanına katılabilmesi için arazinin güney sınırına yaklaştırılmıştır. İç mekân kurgusunda güney yönünde şehirlerarası otobüs terminali, kuzey yönünde ise kırsal hatlara hizmet eden peronlar yer alır; gelen ve giden yolcular, orta alandaki ticari birimler ve bilet gişeleriyle ayrıştırılarak ferah bekleme ve sosyal alanlar oluşturulmuştur. Terminalin kentle buluştuğu batı ucunda, simgesel kabuğun kırılmasıyla oluşan kamusal bir ön alan; restoran, kafeterya ve ticari birimlerle desteklenerek yalnızca yolcuların değil bölge halkının da kullanabileceği bir buluşma noktasına dönüştürülmüştür.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-luleburgaz-bus-station-1.jpg","projects/proje-luleburgaz-bus-station-2.jpg","projects/proje-luleburgaz-bus-station-3.jpg","projects/proje-luleburgaz-bus-station-4.jpg","projects/luleburgaz-bus-station-ak-4.jpg","projects/luleburgaz-bus-station-ak-5.jpg","projects/luleburgaz-bus-station-ak-6.jpg","projects/luleburgaz-bus-station-ak-7.jpg","projects/luleburgaz-bus-station-ak-8.jpg"]
+    images: ["projects/proje-luleburgaz-bus-station-1.jpg", "projects/proje-luleburgaz-bus-station-2.jpg", "projects/proje-luleburgaz-bus-station-3.jpg", "projects/proje-luleburgaz-bus-station-4.jpg", "projects/luleburgaz-bus-station-ak-4.jpg", "projects/luleburgaz-bus-station-ak-5.jpg", "projects/luleburgaz-bus-station-ak-6.jpg", "projects/luleburgaz-bus-station-ak-7.jpg", "projects/luleburgaz-bus-station-ak-8.jpg"]
   },
   {
     slug: "savoy-ulus",
@@ -8344,7 +8344,7 @@ const projects = [
     description: "Savoy Ulus Clubhouse, Autoban tarafından İstanbul Beşiktaş'ın Ulus semtindeki Savoy Ulus konut kompleksi için tasarlanan ortak kullanım kulüp binasıdır ve 2015 yılında tamamlanmıştır. Lounge alanı, kafe, multimedya odası, yüzme havuzu, spa odaları ile fitness ve kardiyo alanlarını bir araya getiren yapı, kompleks sakinlerinin sosyal yaşamını tek bir çatı altında toplar. İç mekân tasarımında üçgen geometrisi baskın bir tema olarak kullanılmış; bu form yukarı doğru uzanarak zemin ve duvar yüzeylerinde kristalize bir mimari doku oluşturan dinamik üç boyutlu bir kompozisyona dönüşmüştür. Kulüp binasının odak noktalarından biri, diğer ortak oturma alanlarına görsel bağlantı sağlayan, camla çevrili iki katlı büyük bir kütüphanedir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-savoy-ulus-1.jpg","projects/proje-savoy-ulus-2.jpg","projects/proje-savoy-ulus-3.jpg","projects/proje-savoy-ulus-4.jpg","projects/savoy-ulus-ad-5.jpg","projects/savoy-ulus-ad-6.jpg","projects/savoy-ulus-ad-7.jpg","projects/savoy-ulus-ad-8.jpg","projects/savoy-ulus-ad-9.jpg"]
+    images: ["projects/proje-savoy-ulus-1.jpg", "projects/proje-savoy-ulus-2.jpg", "projects/proje-savoy-ulus-3.jpg", "projects/proje-savoy-ulus-4.jpg", "projects/savoy-ulus-ad-5.jpg", "projects/savoy-ulus-ad-6.jpg", "projects/savoy-ulus-ad-7.jpg", "projects/savoy-ulus-ad-8.jpg", "projects/savoy-ulus-ad-9.jpg"]
   },
   {
     slug: "sultangazi-pazar-yeri-ve-otopark",
@@ -8360,7 +8360,7 @@ const projects = [
     description: "Sultangazi Pazar Yeri ve Otopark, Suyabatmaz Demirel Mimarlık'ın İstanbul'un hızla yoğunlaşan Sultangazi ilçesi için geliştirdiği, pazar günleri satıcılara yer açan, haftanın geri kalanında ise otopark olarak işlev gören 14.600 metrekarelik teraslı bir yapı önerisidir. Proje, 2014 MIPIM Future Projects Awards yarışmasında birincilik ödülü kazanmıştır. Tasarım, araziden dikey olarak yükselen teraslar arasında yüzde 8 eğimli, yürünebilir rampalarla kurgulanmış bir araç dolaşımı önerir; en üst katta ise kafe, yeşil alan ve seyir terası gibi sosyal kullanımlara yer verilmiştir. Yüksek yoğunluklu bir yerleşim dokusunda pazar, otopark ve kamusal alanı tek bir yapıda birleştiren proje, Sultangazi'ye özgün bir kentsel odak noktası kazandırmayı amaçlamaktadır.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-sultangazi-pazar-yeri-ve-otopark-1.jpg","projects/proje-sultangazi-pazar-yeri-ve-otopark-2.jpg","projects/proje-sultangazi-pazar-yeri-ve-otopark-3.jpg","projects/proje-sultangazi-pazar-yeri-ve-otopark-4.jpg"]
+    images: ["projects/proje-sultangazi-pazar-yeri-ve-otopark-1.jpg", "projects/proje-sultangazi-pazar-yeri-ve-otopark-2.jpg", "projects/proje-sultangazi-pazar-yeri-ve-otopark-3.jpg", "projects/proje-sultangazi-pazar-yeri-ve-otopark-4.jpg"]
   },
   {
     slug: "metu-technocity-turktelekom-rd-centre",
@@ -8376,7 +8376,7 @@ const projects = [
     description: "Türk Telekom ODTÜ Teknokent Ar-Ge Binası, Özer/Ürger Mimarlık'ın 2008 yılında davetli bir yarışmada birincilik kazanan tasarımıyla Ankara'daki ODTÜ Teknokent alanının batı ucunda inşa edilmiş, 16.640 metrekarelik bir araştırma-geliştirme binasıdır. Arsa, batıdan Teknokent giriş yolu, doğu ve kuzeyden ise ODTÜ'ye özgü yeşil peyzaj ile çevrilidir; proje, ODTÜ kampüsünün yaya öncelikli ve etkileyici bir peyzaj içinde bir araya gelen nitelikli yapılar kimliğini sürdürmeyi amaçlar. Tasarımın temel hedefi, çevresiyle iyi kurgulanmış ilişkiler içinde kendini ve çevresini dönüştüren, sürdürülebilir bir ortamda kullanıcı konforu sunan alternatif mekânsal nitelikler barındıran bir bina önermektir. Yapı, Türk Telekom'un Ar-Ge faaliyetlerini yürüttüğü ofis ve laboratuvar birimlerini bir araya getirmektedir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-metu-technocity-turktelekom-rd-centre-1.jpg","projects/proje-metu-technocity-turktelekom-rd-centre-2.jpg","projects/proje-metu-technocity-turktelekom-rd-centre-3.jpg","projects/proje-metu-technocity-turktelekom-rd-centre-4.jpg","projects/metu-technocity-turktelekom-rd-centre-ak-4.jpg","projects/metu-technocity-turktelekom-rd-centre-ak-5.jpg","projects/metu-technocity-turktelekom-rd-centre-ak-6.jpg","projects/metu-technocity-turktelekom-rd-centre-ak-7.jpg","projects/metu-technocity-turktelekom-rd-centre-ak-8.jpg"]
+    images: ["projects/proje-metu-technocity-turktelekom-rd-centre-1.jpg", "projects/proje-metu-technocity-turktelekom-rd-centre-2.jpg", "projects/proje-metu-technocity-turktelekom-rd-centre-3.jpg", "projects/proje-metu-technocity-turktelekom-rd-centre-4.jpg", "projects/metu-technocity-turktelekom-rd-centre-ak-4.jpg", "projects/metu-technocity-turktelekom-rd-centre-ak-5.jpg", "projects/metu-technocity-turktelekom-rd-centre-ak-6.jpg", "projects/metu-technocity-turktelekom-rd-centre-ak-7.jpg", "projects/metu-technocity-turktelekom-rd-centre-ak-8.jpg"]
   },
   {
     slug: "protel-ofis-binasi",
@@ -8392,7 +8392,7 @@ const projects = [
     description: "Protel Ofis Binası, HS Mimarlık tarafından İstanbul Şişli'nin Esentepe semtinde bir yazılım şirketi için tasarlanmış, 2012 yılında tamamlanan bir kurumsal ofis yapısıdır. Bina, şirketin tüm birimlerini tek bir çatı altında toplamak ve hızla büyüyen çalışan sayısına yanıt verecek genişleme alanı sağlamak amacıyla tasarlanmıştır. Yaklaşık 28x29,5 metrelik dikdörtgene yakın bir arsa üzerinde yükselen yapının zemin katı 16x18 metre ölçülerindedir; üst katlar ise iki metrelik konsollarla genişletilerek daha fazla kullanım alanı kazanılmıştır. Kütlenin geometrisini, beyaz bir kutuyu saran koyu renkli bir bant belirler; bu sayede iç mekânlar aydınlık, beyaz ve ferah bir karaktere kavuşurken, dışarıdan bakıldığında koyu tonlu ve mesafeli bir cephe izlenimi oluşur.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-protel-ofis-binasi-1.jpg","projects/proje-protel-ofis-binasi-2.jpg","projects/proje-protel-ofis-binasi-3.jpg","projects/proje-protel-ofis-binasi-4.jpg","projects/protel-ofis-binasi-ak-4.jpg","projects/protel-ofis-binasi-ak-5.jpg","projects/protel-ofis-binasi-ak-6.jpg","projects/protel-ofis-binasi-ak-7.jpg","projects/protel-ofis-binasi-ak-8.jpg"]
+    images: ["projects/proje-protel-ofis-binasi-1.jpg", "projects/proje-protel-ofis-binasi-2.jpg", "projects/proje-protel-ofis-binasi-3.jpg", "projects/proje-protel-ofis-binasi-4.jpg", "projects/protel-ofis-binasi-ak-4.jpg", "projects/protel-ofis-binasi-ak-5.jpg", "projects/protel-ofis-binasi-ak-6.jpg", "projects/protel-ofis-binasi-ak-7.jpg", "projects/protel-ofis-binasi-ak-8.jpg"]
   },
   {
     slug: "dogus-otomotiv-teknoloji-merkezi",
@@ -8408,7 +8408,7 @@ const projects = [
     description: "Doğuş Otomotiv'in gümrük sahasının bitişiğinde, İstanbul-Ankara karayoluna yakın bir arazide yer alan bu 15.500 metrekarelik yapı, grup şirketleri için yazılım geliştiren bilgisayar ve elektronik mühendislerine ev sahipliği yapıyor. ERA Şehircilik Mimarlık, üç katlı betonarme binayı çevredeki kapalı kütleli depo ve fabrika yapılarının aksine yalın bir dikdörtgen prizma olarak kurguladı. Geniş ufka kesintisiz görsel bağlantı sağlayan cephe, dışarıdan bakıldığında renkli ve devingen bir ekrana dönüşüyor. Depo ağırlıklı çevrede daha keyifli bir çalışma ortamı yaratmak amacıyla sosyal alanlar bina içine dağıtılmış durumda. Proje 2012'de tasarlanıp 2014'te tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-dogus-otomotiv-teknoloji-merkezi-1.jpg","projects/proje-dogus-otomotiv-teknoloji-merkezi-2.jpg","projects/proje-dogus-otomotiv-teknoloji-merkezi-3.jpg","projects/proje-dogus-otomotiv-teknoloji-merkezi-4.jpg","projects/proje-dogus-otomotiv-teknoloji-merkezi-5.jpg","projects/dogus-otomotiv-teknoloji-merkezi-ak-5.jpg","projects/dogus-otomotiv-teknoloji-merkezi-ak-6.jpg","projects/dogus-otomotiv-teknoloji-merkezi-ak-7.jpg","projects/dogus-otomotiv-teknoloji-merkezi-ak-8.jpg"]
+    images: ["projects/proje-dogus-otomotiv-teknoloji-merkezi-1.jpg", "projects/proje-dogus-otomotiv-teknoloji-merkezi-2.jpg", "projects/proje-dogus-otomotiv-teknoloji-merkezi-3.jpg", "projects/proje-dogus-otomotiv-teknoloji-merkezi-4.jpg", "projects/proje-dogus-otomotiv-teknoloji-merkezi-5.jpg", "projects/dogus-otomotiv-teknoloji-merkezi-ak-5.jpg", "projects/dogus-otomotiv-teknoloji-merkezi-ak-6.jpg", "projects/dogus-otomotiv-teknoloji-merkezi-ak-7.jpg", "projects/dogus-otomotiv-teknoloji-merkezi-ak-8.jpg"]
   },
   {
     slug: "moroglu-arseven-hukuk-burosu",
@@ -8424,7 +8424,7 @@ const projects = [
     description: "Nişantaşı'nda sekiz katlı bir binanın eskiden otomatik katlı otopark sistemi olarak kullanılan ek yapısında konumlanan Moroğlu Arseven Hukuk Bürosu, ERA Şehircilik Mimarlık tarafından tasarlandı. Betonarme iskelet taşıyıcı sistem bir kısıt olarak değil tasarımın çıkış noktası olarak ele alındı; kolon, kiriş ve tavan yüzeyleri kaplanmadan bırakılarak hukukun sağlam ve dürüst doğasına gönderme yapıldı. Aydınlatma ve elektrik tesisatı gibi altyapı unsurları da gizlenmeden yalın biçimde teşhir edildi. Tasarım ekibi, kurumsal kimliği yüzeylere doğrudan yansıtan klişe görsel metaforlardan kaçınarak eşitlik, açıklık ve sadelik gibi evrensel hukuk ilkelerini kavramsal referans noktası olarak kullandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-moroglu-arseven-hukuk-burosu-1.jpg","projects/proje-moroglu-arseven-hukuk-burosu-2.jpg","projects/proje-moroglu-arseven-hukuk-burosu-3.jpg","projects/proje-moroglu-arseven-hukuk-burosu-4.jpg","projects/proje-moroglu-arseven-hukuk-burosu-5.jpg","projects/moroglu-arseven-hukuk-burosu-ak-5.jpg","projects/moroglu-arseven-hukuk-burosu-ak-6.jpg","projects/moroglu-arseven-hukuk-burosu-ak-7.jpg","projects/moroglu-arseven-hukuk-burosu-ak-8.jpg"]
+    images: ["projects/proje-moroglu-arseven-hukuk-burosu-1.jpg", "projects/proje-moroglu-arseven-hukuk-burosu-2.jpg", "projects/proje-moroglu-arseven-hukuk-burosu-3.jpg", "projects/proje-moroglu-arseven-hukuk-burosu-4.jpg", "projects/proje-moroglu-arseven-hukuk-burosu-5.jpg", "projects/moroglu-arseven-hukuk-burosu-ak-5.jpg", "projects/moroglu-arseven-hukuk-burosu-ak-6.jpg", "projects/moroglu-arseven-hukuk-burosu-ak-7.jpg", "projects/moroglu-arseven-hukuk-burosu-ak-8.jpg"]
   },
   {
     slug: "garanti-bbva-teknoloji-kampusu",
@@ -8440,7 +8440,7 @@ const projects = [
     description: "Pendik'te E-5 ve TEM otoyollarını birbirine bağlayan yol üzerinde, eski bir kimya fabrikasının arazisinde yükselen Garanti BBVA Teknoloji Kampüsü, ERA Şehircilik Mimarlık imzası taşıyor. Sabiha Gökçen Havalimanı çevresindeki korunaklı yeşil alanlara yakınlığı tasarım kararlarını doğrudan etkilemiş; ofis bloğu, içinde oditoryum, kafeteryalar ve veri merkezlerini barındıran yapay tepeler üzerine oturtulmuş. Toplam program 53.500 metrekarelik açık ofis alanı, 16.000 metrekarelik oditoryum ve 72.500 metrekarelik otopark alanını kapsıyor. Otoyolların ve çevredeki yerleşim dokusunun kaotik atmosferine karşı çalışanları binaya girişte sakin bir ortamla karşılamak tasarımın temel hedeflerinden biri olmuş; iç mimarisi Midek/Mingü tarafından tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-garanti-bbva-teknoloji-kampusu-1.jpg","projects/proje-garanti-bbva-teknoloji-kampusu-2.jpg","projects/proje-garanti-bbva-teknoloji-kampusu-3.jpg","projects/proje-garanti-bbva-teknoloji-kampusu-4.jpg","projects/proje-garanti-bbva-teknoloji-kampusu-5.jpg","projects/proje-garanti-bbva-teknoloji-kampusu-6.jpg","projects/garanti-bbva-teknoloji-kampusu-ak-6.jpg","projects/garanti-bbva-teknoloji-kampusu-ak-7.jpg","projects/garanti-bbva-teknoloji-kampusu-ak-8.jpg"]
+    images: ["projects/proje-garanti-bbva-teknoloji-kampusu-1.jpg", "projects/proje-garanti-bbva-teknoloji-kampusu-2.jpg", "projects/proje-garanti-bbva-teknoloji-kampusu-3.jpg", "projects/proje-garanti-bbva-teknoloji-kampusu-4.jpg", "projects/proje-garanti-bbva-teknoloji-kampusu-5.jpg", "projects/proje-garanti-bbva-teknoloji-kampusu-6.jpg", "projects/garanti-bbva-teknoloji-kampusu-ak-6.jpg", "projects/garanti-bbva-teknoloji-kampusu-ak-7.jpg", "projects/garanti-bbva-teknoloji-kampusu-ak-8.jpg"]
   },
   {
     slug: "intertech-teknopark-ar-ge-binasi",
@@ -8456,7 +8456,7 @@ const projects = [
     description: "Kurtköy'deki İstanbul Teknopark'ta iki ayrı işveren tarafından kullanılacak biçimde tasarlanan Intertech AR-GE Binası, mevcut yerleşim planı ve eğrisel bir köşe parselin getirdiği kısıtlar altında biçimlendi. ERA Şehircilik Mimarlık, parsel hattını bütünüyle takip etmek yerine yapıyı Y biçiminde ikiye ayırıp iki kolu birleştiren bir köprüyle çözdü; havada asılı gibi duran bu köprü, saydam görünümü ve açıkta bırakılan çelik taşıyıcılarıyla binanın teknoloji ve yenilik işlevini dışa yansıtıyor. 5.047 metrekarelik parselde toplam 19.000 metrekare inşaat alanına sahip yapıda, 40-60 metrekarelik küçük ofislerden tamamı açık düzenli katlara kadar farklı yerleşim şemaları uygulandı ve bu çeşitlilik doğrudan cephe tasarımını belirledi. Proje 2014'te tasarlanıp 2016'da tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-intertech-teknopark-ar-ge-binasi-1.jpg","projects/proje-intertech-teknopark-ar-ge-binasi-2.jpg","projects/proje-intertech-teknopark-ar-ge-binasi-3.jpg","projects/proje-intertech-teknopark-ar-ge-binasi-4.jpg","projects/proje-intertech-teknopark-ar-ge-binasi-5.jpg","projects/intertech-teknopark-ar-ge-binasi-ak-5.jpg","projects/intertech-teknopark-ar-ge-binasi-ak-6.jpg","projects/intertech-teknopark-ar-ge-binasi-ak-7.jpg","projects/intertech-teknopark-ar-ge-binasi-ak-8.jpg"]
+    images: ["projects/proje-intertech-teknopark-ar-ge-binasi-1.jpg", "projects/proje-intertech-teknopark-ar-ge-binasi-2.jpg", "projects/proje-intertech-teknopark-ar-ge-binasi-3.jpg", "projects/proje-intertech-teknopark-ar-ge-binasi-4.jpg", "projects/proje-intertech-teknopark-ar-ge-binasi-5.jpg", "projects/intertech-teknopark-ar-ge-binasi-ak-5.jpg", "projects/intertech-teknopark-ar-ge-binasi-ak-6.jpg", "projects/intertech-teknopark-ar-ge-binasi-ak-7.jpg", "projects/intertech-teknopark-ar-ge-binasi-ak-8.jpg"]
   },
   {
     slug: "uniq-kultur-merkezi",
@@ -8472,7 +8472,7 @@ const projects = [
     description: "Ayazağa Köşkü, Süvari Köşkü ve Çinili Köşk gibi tarihi yapıları barındıran bir orman arazisinde yer alan UNIQ Kültür Merkezi, Turkmall için ERA Şehircilik Mimarlık tarafından tasarlandı. Proje, üç tarihi köşkün varlığını görsel olarak öne çıkarmak amacıyla yeni yapıların kot olarak alçaltılmasıyla kurgulandı; 6.000 kişilik gösteri salonu ve 1.000 kişilik çok amaçlı salon, eğimli topografyaya uygun biçimde iki ayrı blok halinde yerleştirildi. Zemin katta salonlar kafe ve restoranlarla bağlanarak ziyaretçiler için bir yaya aksı boyunca sosyal bir doku oluşturuyor, ofisler ise zemin üstünde ormana bakan bir gün ışığı deneyimi sunuyor. Peyzajda İstanbul'a özgü bitki türleri tercih edilmiş, yağmur suyu hasat sistemiyle bakım maliyetleri azaltılmış ve yapı LEED Gümüş sertifikası hedeflenerek tasarlanmış.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-uniq-kultur-merkezi-1.jpg","projects/proje-uniq-kultur-merkezi-2.jpg","projects/proje-uniq-kultur-merkezi-3.jpg","projects/proje-uniq-kultur-merkezi-4.jpg","projects/proje-uniq-kultur-merkezi-5.jpg","projects/uniq-kultur-merkezi-ak-5.jpg","projects/uniq-kultur-merkezi-av-7.jpg","projects/uniq-kultur-merkezi-av-8.jpg","projects/uniq-kultur-merkezi-av-9.jpg","projects/uniq-kultur-merkezi-av-10.jpg"]
+    images: ["projects/proje-uniq-kultur-merkezi-1.jpg", "projects/proje-uniq-kultur-merkezi-2.jpg", "projects/proje-uniq-kultur-merkezi-3.jpg", "projects/proje-uniq-kultur-merkezi-4.jpg", "projects/proje-uniq-kultur-merkezi-5.jpg", "projects/uniq-kultur-merkezi-ak-5.jpg", "projects/uniq-kultur-merkezi-av-7.jpg", "projects/uniq-kultur-merkezi-av-8.jpg", "projects/uniq-kultur-merkezi-av-9.jpg", "projects/uniq-kultur-merkezi-av-10.jpg"]
   },
   {
     slug: "workinn-otel-gebze",
@@ -8488,7 +8488,7 @@ const projects = [
     description: "Kocaeli'nin Gebze ilçesinde, Uyar Grup için Çinici Mimarlık tarafından tasarlanan WorkInn, ofis ve turizm işlevlerini bir arada barındıran 12.000 metrekarelik karma kullanımlı bir yapı. Can Çinici ve Adil Ömer Çamaş liderliğindeki tasarım ekibi, sanayi bölgesi bağlamında çalışma ve konaklamayı tek çatı altında topladı. Yapının beyaz panelli cephesinde pencereler düzensiz aralıklarla yerleştirilerek hareketli bir doku elde edilmiş; zemin katta giriş bölümünü çevreleyen delikli metal ekranlar güneş kontrolü ve mahremiyet sağlıyor. Proje 2010-2012 yılları arasında tasarlanıp inşa edildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-workinn-otel-1.jpg","projects/proje-workinn-otel-2.jpg","projects/proje-workinn-otel-3.jpg","projects/proje-workinn-otel-4.jpg","projects/proje-workinn-otel-5.jpg","projects/workinn-otel-gebze-ad-6.jpg","projects/workinn-otel-gebze-ad-7.jpg","projects/workinn-otel-gebze-ad-8.jpg","projects/workinn-otel-gebze-ad-9.jpg"]
+    images: ["projects/proje-workinn-otel-1.jpg", "projects/proje-workinn-otel-2.jpg", "projects/proje-workinn-otel-3.jpg", "projects/proje-workinn-otel-4.jpg", "projects/proje-workinn-otel-5.jpg", "projects/workinn-otel-gebze-ad-6.jpg", "projects/workinn-otel-gebze-ad-7.jpg", "projects/workinn-otel-gebze-ad-8.jpg", "projects/workinn-otel-gebze-ad-9.jpg"]
   },
   {
     slug: "nef-ilkokulu-kagithane",
@@ -8504,7 +8504,7 @@ const projects = [
     description: "Kağıthane'de NEF Gayrimenkul için Çinici Mimarlık tarafından tasarlanan NEF İlkokulu, 7.284 metrekarelik bir eğitim yapısı. Tasarım ekibinde Can Çinici, Cem Katkat, Cemre Teomete ve Selim Koytak yer aldı. Cephede açık gri lifli çimento panellerle turuncu tonlarındaki vurgu panelleri yatay şeritler halinde dönüşümlü kullanılmış, cam tuğla pencereler ve beyaz sıva yüzeylerle desteklenmiş sokağa dönük yatay bir kütle oluşturulmuş. Bu malzeme ve renk çeşitliliği, okul binasına eğitim yapılarında sıkça görülen tekdüze görünümün dışında, canlı ve tanınabilir bir kimlik kazandırıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-nef-ilkokulu-1.jpg","projects/proje-nef-ilkokulu-2.jpg","projects/proje-nef-ilkokulu-3.jpg","projects/proje-nef-ilkokulu-4.jpg","projects/proje-nef-ilkokulu-5.jpg","projects/nef-ilkokulu-kagithane-ad-6.jpg","projects/nef-ilkokulu-kagithane-ad-7.jpg","projects/nef-ilkokulu-kagithane-ad-8.jpg","projects/nef-ilkokulu-kagithane-ad-9.jpg"]
+    images: ["projects/proje-nef-ilkokulu-1.jpg", "projects/proje-nef-ilkokulu-2.jpg", "projects/proje-nef-ilkokulu-3.jpg", "projects/proje-nef-ilkokulu-4.jpg", "projects/proje-nef-ilkokulu-5.jpg", "projects/nef-ilkokulu-kagithane-ad-6.jpg", "projects/nef-ilkokulu-kagithane-ad-7.jpg", "projects/nef-ilkokulu-kagithane-ad-8.jpg", "projects/nef-ilkokulu-kagithane-ad-9.jpg"]
   },
   {
     slug: "kara-harp-okulu-laboratuvar-merkezi",
@@ -8520,7 +8520,7 @@ const projects = [
     description: "Milli Savunma Üniversitesi bünyesindeki Kara Harp Okulu için FREA tarafından tasarlanan Laboratuvar Merkezi, öğretim üyelerinin sakin çalışma ortamlarını yoğun sınıf ve laboratuvar alanlarından ayıran, esnek ve bölümlenebilir bir plan kurgusuna sahip. Düşey zonlama ile öğretim üyesi ofisleri üst katta konumlandırılırken, öğrenci yoğunluklu eğitim birimleri, laboratuvarlar ve sosyal alanlar alt katlarda toplanmış; bu iki bölgeyi içeride bir atrium, hem dolaşım omurgası hem de sosyal buluşma noktası olarak birbirine bağlıyor. 20.000 metrekarelik yapıda 8x8 metrelik modüler bir taşıyıcı sistem ızgarası kullanılarak binanın kütlesini bozmadan gelecekteki program değişikliklerine uyum sağlanması hedeflenmiş. Amfi hacimleri 5 metre yüksekliğinde masif cephelerle, öğretim üyesi ofisleri ise 3 metre yüksekliğinde ayarlanabilir güneş kırıcı prekast panellere sahip saydam cephelerle farklılaştırılmış.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-kara-harp-okulu-laboratuvar-merkezi-1.jpg","projects/proje-kara-harp-okulu-laboratuvar-merkezi-2.jpg","projects/proje-kara-harp-okulu-laboratuvar-merkezi-3.jpg","projects/proje-kara-harp-okulu-laboratuvar-merkezi-4.jpg","projects/proje-kara-harp-okulu-laboratuvar-merkezi-5.jpg","projects/kara-harp-okulu-laboratuvar-merkezi-ak-5.jpg","projects/kara-harp-okulu-laboratuvar-merkezi-ak-6.jpg","projects/kara-harp-okulu-laboratuvar-merkezi-ak-7.jpg","projects/kara-harp-okulu-laboratuvar-merkezi-ak-8.jpg"]
+    images: ["projects/proje-kara-harp-okulu-laboratuvar-merkezi-1.jpg", "projects/proje-kara-harp-okulu-laboratuvar-merkezi-2.jpg", "projects/proje-kara-harp-okulu-laboratuvar-merkezi-3.jpg", "projects/proje-kara-harp-okulu-laboratuvar-merkezi-4.jpg", "projects/proje-kara-harp-okulu-laboratuvar-merkezi-5.jpg", "projects/kara-harp-okulu-laboratuvar-merkezi-ak-5.jpg", "projects/kara-harp-okulu-laboratuvar-merkezi-ak-6.jpg", "projects/kara-harp-okulu-laboratuvar-merkezi-ak-7.jpg", "projects/kara-harp-okulu-laboratuvar-merkezi-ak-8.jpg"]
   },
   {
     slug: "kordsa-global-ar-ge-merkezi",
@@ -8536,7 +8536,7 @@ const projects = [
     description: "Kurtköy'deki İstanbul Teknopark'ta yer alan Kordsa Global AR-GE Merkezi, Sabancı Üniversitesi ile birlikte yürütülen kompozit teknolojileri araştırmaları için Piramit Mimarlık tarafından tasarlandı. Büro, projenin tüm mimari aşamalarını üstlenerek 10.000 metrekarelik toplam inşaat alanına sahip yapıyı 2017'de başlattı. Bina, lacivert tonlarında cam giydirme cepheli, köşeleri keskin hatlarla vurgulanan bir kütle olarak kurgulanmış; üst katlarda delikli metal güneş kırıcı panellerle cephenin ışık kontrolü sağlanmış. Araştırma ve geliştirme işlevine uygun biçimde laboratuvar ve ofis alanlarını tek bir kütlede bir araya getiren bina, kampüsün teknoloji odaklı kimliğini yansıtıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-kordsa-global-ar-ge-merkezi-1.jpg","projects/proje-kordsa-global-ar-ge-merkezi-2.jpg","projects/proje-kordsa-global-ar-ge-merkezi-3.jpg","projects/kordsa-global-ar-ge-merkezi-av-4.jpg","projects/kordsa-global-ar-ge-merkezi-av-5.jpg","projects/kordsa-global-ar-ge-merkezi-av-6.jpg","projects/kordsa-global-ar-ge-merkezi-av-7.jpg","projects/kordsa-global-ar-ge-merkezi-av-8.jpg","projects/kordsa-global-ar-ge-merkezi-av-9.jpg"]
+    images: ["projects/proje-kordsa-global-ar-ge-merkezi-1.jpg", "projects/proje-kordsa-global-ar-ge-merkezi-2.jpg", "projects/proje-kordsa-global-ar-ge-merkezi-3.jpg", "projects/kordsa-global-ar-ge-merkezi-av-4.jpg", "projects/kordsa-global-ar-ge-merkezi-av-5.jpg", "projects/kordsa-global-ar-ge-merkezi-av-6.jpg", "projects/kordsa-global-ar-ge-merkezi-av-7.jpg", "projects/kordsa-global-ar-ge-merkezi-av-8.jpg", "projects/kordsa-global-ar-ge-merkezi-av-9.jpg"]
   },
   {
     slug: "gebze-endustri-meslek-lisesi",
@@ -8552,7 +8552,7 @@ const projects = [
     description: "Resmi adıyla Çelik İhracatçıları Birliği A. Nuri Çolakoğlu Mesleki ve Teknik Anadolu Lisesi, Kocaeli'nin Gebze ilçesindeki sanayi bölgesi yakınında Norm Mimarlık tarafından tasarlandı. Yapı, Çelik İhracatçıları Birliği'nin kurumsal sosyal sorumluluk projesi kapsamında sanayi ile eğitim arasındaki iş birliğini desteklemek amacıyla inşa edildi. Cephede turuncu tonlarında prekast beton panellerle antrasit renkli çelik strüktürler bir arada kullanılmış; giriş önünde açılı çelik kolonların taşıdığı geniş bir gölgelik ve ahşap lamelli silindirik bir hacim yapıya karakteristik bir görünüm kazandırıyor. Okul, 2015 yılında tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-gebze-endustri-meslek-lisesi-1.jpg","projects/proje-gebze-endustri-meslek-lisesi-2.jpg","projects/proje-gebze-endustri-meslek-lisesi-3.jpg","projects/proje-gebze-endustri-meslek-lisesi-4.jpg","projects/proje-gebze-endustri-meslek-lisesi-5.jpg","projects/gebze-endustri-meslek-lisesi-ak-6.jpg","projects/gebze-endustri-meslek-lisesi-ak-7.jpg","projects/gebze-endustri-meslek-lisesi-ak-8.jpg","projects/gebze-endustri-meslek-lisesi-ak-9.jpg"]
+    images: ["projects/proje-gebze-endustri-meslek-lisesi-1.jpg", "projects/proje-gebze-endustri-meslek-lisesi-2.jpg", "projects/proje-gebze-endustri-meslek-lisesi-3.jpg", "projects/proje-gebze-endustri-meslek-lisesi-4.jpg", "projects/proje-gebze-endustri-meslek-lisesi-5.jpg", "projects/gebze-endustri-meslek-lisesi-ak-6.jpg", "projects/gebze-endustri-meslek-lisesi-ak-7.jpg", "projects/gebze-endustri-meslek-lisesi-ak-8.jpg", "projects/gebze-endustri-meslek-lisesi-ak-9.jpg"]
   },
   {
     slug: "eurogida-kemalpasa-idari-binasi",
@@ -8568,7 +8568,7 @@ const projects = [
     description: "İzmir'in Kemalpaşa ilçesindeki tarım ihtisas organize sanayi bölgesinde yer alan Eurogıda İdari Binası, ofis, fabrika ve depo işlevlerini bir arada barındıran bir kompleks olarak Öney Mimarlık tarafından tasarlandı. Kemalpaşa'nın vadi tabanındaki konumu ve hâkim güneybatı rüzgârı, kör cepheler ve alışılmadık ölçekli duvar yüzeyleriyle kendine özgü bir form üreten tasarımın temel girdilerinden biri oldu. Bina dört kattan oluşuyor: giriş katında ziyaretçilere ve tüm personele hizmet veren toplantı ve konferans alanları, ikinci katta personel ofisleri, üçüncü katta yönetici ofisleri, dördüncü katta ise misafirhane ve ortak kullanım alanları yer alıyor. Doğu-batı aksında perde duvar olarak konumlanan ana taşıyıcı sistem, uzun yaz günlerinde güneş etkisini azaltmak ve iç mekânda serin bir atmosfer yaratmak amacıyla açıkta bırakılmış beton yüzeylerle birlikte kurgulanmış.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-eurogida-kemalpasa-idari-binasi-1.jpg","projects/proje-eurogida-kemalpasa-idari-binasi-2.jpg","projects/proje-eurogida-kemalpasa-idari-binasi-3.jpg","projects/proje-eurogida-kemalpasa-idari-binasi-4.jpg","projects/proje-eurogida-kemalpasa-idari-binasi-5.jpg","projects/eurogida-kemalpasa-idari-binasi-ak-6.jpg","projects/eurogida-kemalpasa-idari-binasi-ak-7.jpg","projects/eurogida-kemalpasa-idari-binasi-ak-8.jpg","projects/eurogida-kemalpasa-idari-binasi-ak-9.jpg"]
+    images: ["projects/proje-eurogida-kemalpasa-idari-binasi-1.jpg", "projects/proje-eurogida-kemalpasa-idari-binasi-2.jpg", "projects/proje-eurogida-kemalpasa-idari-binasi-3.jpg", "projects/proje-eurogida-kemalpasa-idari-binasi-4.jpg", "projects/proje-eurogida-kemalpasa-idari-binasi-5.jpg", "projects/eurogida-kemalpasa-idari-binasi-ak-6.jpg", "projects/eurogida-kemalpasa-idari-binasi-ak-7.jpg", "projects/eurogida-kemalpasa-idari-binasi-ak-8.jpg", "projects/eurogida-kemalpasa-idari-binasi-ak-9.jpg"]
   },
   {
     slug: "ozguven-mimarlik-genel-merkezi",
@@ -8584,7 +8584,7 @@ const projects = [
     description: "Ankara'nın Oran mahallesinde yer alan Özgüven Mimarlık Genel Merkezi, planlama, mimarlık, inşaat ve finans gibi çok disiplinli stüdyolara ev sahipliği yapacak 50 kişilik bir ekip için tasarlandı. Beş katlı binada her disiplin kendi kat alanına ve açık stüdyosuna sahip; çatı katı ise ekibin sosyalleşmesi için ayrılmış bir teras alanına dönüştürülmüş. Cephede zamanla oksitlenip renk ve doku değiştirecek Corten çelik, ham beton ve doğal taş gibi yaşayan malzemeler tercih edilmiş. 700 metrekarelik arsada 1.100 metrekare inşaat alanına sahip bina, LEED Gold sertifikası hedeflenerek 2019'da tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ozguven-genel-merkezi-1.webp","projects/proje-ozguven-genel-merkezi-2.webp","projects/proje-ozguven-genel-merkezi-3.webp","projects/proje-ozguven-genel-merkezi-4.webp","projects/proje-ozguven-genel-merkezi-5.webp","projects/ozguven-mimarlik-genel-merkezi-av-6.jpg","projects/ozguven-mimarlik-genel-merkezi-av-7.jpg","projects/ozguven-mimarlik-genel-merkezi-av-8.jpg","projects/ozguven-mimarlik-genel-merkezi-av-9.jpg"]
+    images: ["projects/proje-ozguven-genel-merkezi-1.webp", "projects/proje-ozguven-genel-merkezi-2.webp", "projects/proje-ozguven-genel-merkezi-3.webp", "projects/proje-ozguven-genel-merkezi-4.webp", "projects/proje-ozguven-genel-merkezi-5.webp", "projects/ozguven-mimarlik-genel-merkezi-av-6.jpg", "projects/ozguven-mimarlik-genel-merkezi-av-7.jpg", "projects/ozguven-mimarlik-genel-merkezi-av-8.jpg", "projects/ozguven-mimarlik-genel-merkezi-av-9.jpg"]
   },
   {
     slug: "ebay-gittigidiyor-ofisi",
@@ -8600,7 +8600,7 @@ const projects = [
     description: "Ataşehir'deki My Office binasında, tek bir katta konumlanan Ebay-Gitti Gidiyor ofisi, OSO Mimarlık tarafından tasarlandı. Okan Bayık, Serhan Bayık ve Ozan Bayık'tan oluşan tasarım ekibi, 530 santimetre tavan yüksekliğine sahip 2.000 metrekarelik alanı Ebay Worldwide için yeniden kurguladı. Ahşap kaplamalı resepsiyon bankosu, sıcak tonlarda parlak zemin kaplaması ve açıkta bırakılan tesisat hatlarıyla endüstriyel bir atmosfer yaratan mekân, dönemin modern ofis tasarımı anlayışını yansıtıyor. Proje 2011-2012 yıllarında hayata geçirildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ebay-gittigidiyor-ofisi-1.jpg","projects/proje-ebay-gittigidiyor-ofisi-2.jpg","projects/proje-ebay-gittigidiyor-ofisi-3.jpg","projects/proje-ebay-gittigidiyor-ofisi-4.jpg","projects/proje-ebay-gittigidiyor-ofisi-5.jpg","projects/ebay-gittigidiyor-ofisi-ak-6.jpg","projects/ebay-gittigidiyor-ofisi-av-7.jpg","projects/ebay-gittigidiyor-ofisi-av-8.jpg","projects/ebay-gittigidiyor-ofisi-av-9.jpg"]
+    images: ["projects/proje-ebay-gittigidiyor-ofisi-1.jpg", "projects/proje-ebay-gittigidiyor-ofisi-2.jpg", "projects/proje-ebay-gittigidiyor-ofisi-3.jpg", "projects/proje-ebay-gittigidiyor-ofisi-4.jpg", "projects/proje-ebay-gittigidiyor-ofisi-5.jpg", "projects/ebay-gittigidiyor-ofisi-ak-6.jpg", "projects/ebay-gittigidiyor-ofisi-av-7.jpg", "projects/ebay-gittigidiyor-ofisi-av-8.jpg", "projects/ebay-gittigidiyor-ofisi-av-9.jpg"]
   },
   {
     slug: "pepsico-genel-merkezi-levent",
@@ -8616,7 +8616,7 @@ const projects = [
     description: "İstanbul'un Levent semtindeki Tekfen Tower'da yer alan PepsiCo Türkiye Genel Merkezi, Boytorun Mimarlık tarafından tasarlanan bir kurumsal ofis iç mimarisi projesi. Giriş koridorunda dikey ahşap lamel kaplı duvarlar arasında, Pepsi, Tropicana, Quaker ve Gatorade gibi alt markaların logolarını taşıyan aydınlatmalı bir marka panosu yer alıyor. Ortak kullanım alanlarında hardal sarısı kanepeler, desenli puflar ve yeşil dokulu halı kaplamalarla sıcak ve renkli bir sosyal atmosfer kurgulanmış; cam bölme duvarlar ve ahşap lamelli ekranlar ofis birimleri arasında görsel geçirgenliği koruyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-pepsico-genel-merkezi-1.jpg","projects/proje-pepsico-genel-merkezi-2.jpg","projects/proje-pepsico-genel-merkezi-3.jpg","projects/proje-pepsico-genel-merkezi-4.jpg","projects/proje-pepsico-genel-merkezi-5.jpg","projects/pepsico-genel-merkezi-levent-ak-6.jpg","projects/pepsico-genel-merkezi-levent-av-7.jpg","projects/pepsico-genel-merkezi-levent-av-8.jpg","projects/pepsico-genel-merkezi-levent-av-9.jpg"]
+    images: ["projects/proje-pepsico-genel-merkezi-1.jpg", "projects/proje-pepsico-genel-merkezi-2.jpg", "projects/proje-pepsico-genel-merkezi-3.jpg", "projects/proje-pepsico-genel-merkezi-4.jpg", "projects/proje-pepsico-genel-merkezi-5.jpg", "projects/pepsico-genel-merkezi-levent-ak-6.jpg", "projects/pepsico-genel-merkezi-levent-av-7.jpg", "projects/pepsico-genel-merkezi-levent-av-8.jpg", "projects/pepsico-genel-merkezi-levent-av-9.jpg"]
   },
   {
     slug: "adas-galeri-seyrantepe",
@@ -8632,7 +8632,7 @@ const projects = [
     description: "İstanbul'un Seyrantepe semtinde eski bir oto tamirhanesi ve bitişiğindeki bir dairenin dönüştürülmesiyle ortaya çıkan ADAS Galeri, Acararch tarafından tasarlandı. Sergi, atölye ve lansman alanları oluşturmanın yanı sıra sürekli büyüyen bir arşive depolama alanı sağlamak tasarımın iki temel girdisi oldu; köşe ve nişler kayar duvar sistemleriyle depolama alanına dönüştürüldü. İki katı birbirine bağlayan düşey bir iç bahçe ve iki kat arasında görsel bağlantıyı korurken mekânları ayıran geçirgen bir merdiven, galerinin karakteristik unsurları arasında yer alıyor. Kuzey girişindeki endüstriyel cephe sistemi, büyük sanat eserlerinin taşınmasına imkân tanıyacak şekilde tasarlanmış; iç mekân beyaz duvarları ve gri beton zeminiyle sade bir sergi atmosferi sunuyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-adas-galeri-1.jpg","projects/proje-adas-galeri-2.jpg","projects/proje-adas-galeri-3.jpg","projects/proje-adas-galeri-4.jpg","projects/proje-adas-galeri-5.jpg","projects/adas-galeri-seyrantepe-av-6.jpg","projects/adas-galeri-seyrantepe-av-7.jpg","projects/adas-galeri-seyrantepe-av-8.jpg","projects/adas-galeri-seyrantepe-av-9.jpg"]
+    images: ["projects/proje-adas-galeri-1.jpg", "projects/proje-adas-galeri-2.jpg", "projects/proje-adas-galeri-3.jpg", "projects/proje-adas-galeri-4.jpg", "projects/proje-adas-galeri-5.jpg", "projects/adas-galeri-seyrantepe-av-6.jpg", "projects/adas-galeri-seyrantepe-av-7.jpg", "projects/adas-galeri-seyrantepe-av-8.jpg", "projects/adas-galeri-seyrantepe-av-9.jpg"]
   },
   {
     slug: "arzum-genel-merkezi",
@@ -8648,7 +8648,7 @@ const projects = [
     description: "Ev aletleri markası Arzum'un genel merkez ofisi, Habif Mimarlık tarafından tasarlandı. Giriş ve resepsiyon alanında koyu ceviz rengi ahşap kaplamalı bir banko, parlak krem tonlarında döküm zemin kaplaması ve açıkta bırakılmış betonarme tavan ile sıvası soyulmuş yüzeyler bir arada kullanılarak endüstriyel dokunuşlu bir atmosfer kurgulanmış. Tavanda görünür bırakılan havalandırma kanalları ve aydınlatma armatürleri, mekânın loft karakterini güçlendiriyor. Arzum ve bünyesindeki Felix markasının logoları resepsiyon duvarında öne çıkarılarak kurumsal kimlik mekâna yansıtılmış.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-arzum-genel-merkezi-1.jpg","projects/proje-arzum-genel-merkezi-2.jpg","projects/proje-arzum-genel-merkezi-3.jpg","projects/proje-arzum-genel-merkezi-4.jpg","projects/proje-arzum-genel-merkezi-5.jpg"]
+    images: ["projects/proje-arzum-genel-merkezi-1.jpg", "projects/proje-arzum-genel-merkezi-2.jpg", "projects/proje-arzum-genel-merkezi-3.jpg", "projects/proje-arzum-genel-merkezi-4.jpg", "projects/proje-arzum-genel-merkezi-5.jpg"]
   },
   {
     slug: "markafoni-genel-merkezi",
@@ -8664,7 +8664,7 @@ const projects = [
     description: "Çevrimiçi moda platformu Markafoni'nin genel merkez ofisi, Habif Mimarlık tarafından tasarlandı. Açıkta bırakılan betonarme tavan ve siyaha boyanmış mekanik tesisat hatları üzerine, limon yeşili ve macenta tonlarında renkli aydınlatma şeritleriyle canlı bir atmosfer kurgulanmış. Resepsiyon bölümünde markanın logosunu taşıyan sarı-yeşil tonlarında keskin köşeli bir banko öne çıkarken, zeminde gri tonların oluşturduğu geometrik desenli karo halı kullanılmış. Bekleme alanlarında siyah ve turuncu örgü tel örgü panellerle oluşturulan yarı şeffaf bölmeler, ofis içinde gündelik ve enerjik bir çalışma kültürünü yansıtıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-markafoni-genel-merkezi-1.jpg","projects/proje-markafoni-genel-merkezi-2.jpg","projects/proje-markafoni-genel-merkezi-3.jpg","projects/proje-markafoni-genel-merkezi-4.jpg","projects/proje-markafoni-genel-merkezi-5.jpg","projects/markafoni-genel-merkezi-ak-6.jpg","projects/markafoni-genel-merkezi-av-7.jpg","projects/markafoni-genel-merkezi-av-8.jpg","projects/markafoni-genel-merkezi-av-9.jpg"]
+    images: ["projects/proje-markafoni-genel-merkezi-1.jpg", "projects/proje-markafoni-genel-merkezi-2.jpg", "projects/proje-markafoni-genel-merkezi-3.jpg", "projects/proje-markafoni-genel-merkezi-4.jpg", "projects/proje-markafoni-genel-merkezi-5.jpg", "projects/markafoni-genel-merkezi-ak-6.jpg", "projects/markafoni-genel-merkezi-av-7.jpg", "projects/markafoni-genel-merkezi-av-8.jpg", "projects/markafoni-genel-merkezi-av-9.jpg"]
   },
   {
     slug: "sille-ilkokulu",
@@ -8680,7 +8680,7 @@ const projects = [
     description: "Sille İlkokulu, Konya'nın Selçuklu ilçesindeki tarihi Sille yerleşiminde, bir asır önce aynı arsada bulunan bir hanın izlerini referans alan bir okul yapısı olarak tasarlandı. Taş duvarlar ile ahşap taşıyıcı sistemin bir arada kullanıldığı yapıda, büyük ve küçük hacimler farklı biçimlerde konumlandırılan geleneksel ahşap duvarlarla oluşturuluyor. Eğik arazi üzerinde vadinin doğu yakasına oturan okulun merkezinde, zikzak biçimli ahşap bir revakla çevrili avlu yer alıyor; bu koridorlar hem dinlenme hem de öğrenciler için hazırlık alanı olarak kullanılıyor. Proje, geleneksel ve çağdaş yapım tekniklerini bir araya getirerek geçmiş ile bugün arasında bir diyalog kurmayı amaçlıyor. Selçuklu Belediyesi için 2023 yılında tamamlanan yapı yaklaşık 1.730 metrekarelik bir inşaat alanına sahip.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-sille-ilkokulu-1.jpg","projects/proje-sille-ilkokulu-2.jpg","projects/proje-sille-ilkokulu-3.jpg","projects/proje-sille-ilkokulu-4.jpg","projects/sille-ilkokulu-ad-5.jpg","projects/sille-ilkokulu-ad-6.jpg","projects/sille-ilkokulu-ad-7.jpg","projects/sille-ilkokulu-ad-8.jpg","projects/sille-ilkokulu-ad-9.jpg"]
+    images: ["projects/proje-sille-ilkokulu-1.jpg", "projects/proje-sille-ilkokulu-2.jpg", "projects/proje-sille-ilkokulu-3.jpg", "projects/proje-sille-ilkokulu-4.jpg", "projects/sille-ilkokulu-ad-5.jpg", "projects/sille-ilkokulu-ad-6.jpg", "projects/sille-ilkokulu-ad-7.jpg", "projects/sille-ilkokulu-ad-8.jpg", "projects/sille-ilkokulu-ad-9.jpg"]
   },
   {
     slug: "konya-idare-kompleksi",
@@ -8696,7 +8696,7 @@ const projects = [
     description: "Konya İdare Kompleksi, biri 1924 tarihli ve Birinci Ulusal Mimarlık akımının izlerini taşıyan Kız Öğretmen Okulu, diğeri okulun bahçesinde 1960'larda inşa edilmiş modernist bir spor salonu olmak üzere iki farklı döneme ait yapının bir peyzaj müdahalesiyle birleştirilmesiyle oluşturuldu. Teğet Mimarlık, mevcut yapıların biçimsel ve işlevsel potansiyelini kullanarak onları yeniden işlevlendirdi ve aralarında hem mekânsal hem de kentsel bellek açısından bir süreklilik kurdu. Restore edilen yapılara kültür-sanat, eğitim ve ofis gibi yeni kamusal programlar kazandırıldı. İki kot boyunca yayılan geniş ölçekli yeşil alan, daha önce parçalanmış kentsel dokuları yeniden birbirine bağlıyor. Konya Büyükşehir Belediyesi için 2023 yılında tamamlanan proje yaklaşık 5.200 metrekarelik bir alanı kapsıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-konya-idare-kompleksi-1.jpg","projects/proje-konya-idare-kompleksi-2.jpg","projects/proje-konya-idare-kompleksi-3.jpg","projects/proje-konya-idare-kompleksi-4.jpg","projects/konya-idare-kompleksi-av-5.jpg","projects/konya-idare-kompleksi-av-6.jpg","projects/konya-idare-kompleksi-av-7.jpg","projects/konya-idare-kompleksi-av-8.jpg","projects/konya-idare-kompleksi-av-9.jpg"]
+    images: ["projects/proje-konya-idare-kompleksi-1.jpg", "projects/proje-konya-idare-kompleksi-2.jpg", "projects/proje-konya-idare-kompleksi-3.jpg", "projects/proje-konya-idare-kompleksi-4.jpg", "projects/konya-idare-kompleksi-av-5.jpg", "projects/konya-idare-kompleksi-av-6.jpg", "projects/konya-idare-kompleksi-av-7.jpg", "projects/konya-idare-kompleksi-av-8.jpg", "projects/konya-idare-kompleksi-av-9.jpg"]
   },
   {
     slug: "istanbul-deniz-muzesi",
@@ -8712,7 +8712,7 @@ const projects = [
     description: "İstanbul Deniz Müzesi, Beşiktaş'ta Boğaz kıyısında, Türk Deniz Kuvvetleri için 2004 yılındaki bir mimari yarışma sonucunda tasarlandı ve 2010 yılında tamamlandı. Tasarımın odak noktasını, 1500'lerden 1900'lere uzanan yaklaşık kırk adet Osmanlı padişah kayığının sergilendiği kayıkhane galerisi oluşturuyor; bu galeri kesirli (fraktal) bir cepheyle Boğaz'a açılıyor. Proje, Boğaziçi Yasası ve Anıtlar Kurulu'nun sıkı koruma kısıtları altında, 1940'lardan kalma mevcut bir yapıyı koruyarak çağdaş bir müze binası inşa etti. Yaklaşık 15.000 metrekarelik müze; gemi maketleri, haritalar, fotoğraflar, seyir aletleri ve dönem kıyafetlerini de barındırıyor. Sinan Camii ve Barbaros Meydanı gibi tarihi referans noktalarıyla çevrili kısıtlı bir arsada konumlanan yapı, koleksiyona tam oturan bir 'eldiven' gibi tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-istanbul-deniz-muzesi-1.jpg","projects/proje-istanbul-deniz-muzesi-2.jpg","projects/proje-istanbul-deniz-muzesi-3.jpg","projects/proje-istanbul-deniz-muzesi-4.jpg","projects/istanbul-deniz-muzesi-ak-5.jpg","projects/istanbul-deniz-muzesi-ak-6.jpg","projects/istanbul-deniz-muzesi-ak-7.jpg","projects/istanbul-deniz-muzesi-ak-8.jpg","projects/istanbul-deniz-muzesi-ak-9.jpg"]
+    images: ["projects/proje-istanbul-deniz-muzesi-1.jpg", "projects/proje-istanbul-deniz-muzesi-2.jpg", "projects/proje-istanbul-deniz-muzesi-3.jpg", "projects/proje-istanbul-deniz-muzesi-4.jpg", "projects/istanbul-deniz-muzesi-ak-5.jpg", "projects/istanbul-deniz-muzesi-ak-6.jpg", "projects/istanbul-deniz-muzesi-ak-7.jpg", "projects/istanbul-deniz-muzesi-ak-8.jpg", "projects/istanbul-deniz-muzesi-ak-9.jpg"]
   },
   {
     slug: "35-sokak",
@@ -8728,7 +8728,7 @@ const projects = [
     description: "35. Sokak, İzmir'in Ulukent bölgesinde, 60 metrelik kot farkına sahip eğimli bir arazi üzerinde geliştirilen, yaklaşık 100.000 metrekarelik büyük ölçekli bir konut projesi. Tasarımın omurgasını, özel mekânlara, sosyal donatılara ve altyapı tesislerine uzanıp büyüyen iki kilometre uzunluğunda kavisli bir dolaşım hattı oluşturuyor. Bu hat boyunca kafeler, kitapçılar ve ortak kullanım alanları gibi kamusal ve özel programlar sıralanıyor. Tipik bir kesitte, iki yanında otoparkların bulunduğu yer altı sürüş yolu, üzerinde yaya yolu işlevi gören bir güzergah ve buna bağlanan sıra evler yer alıyor; bu strateji otoparkı yer altına alarak yeşil alanı ve yaya deneyimini en üst düzeye çıkarıyor. Akşan İnşaat için Şubat 2010'da başlayıp 2014'te tamamlanan proje, Teğet Mimarlık imzası taşıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-35-sokak-1.jpg","projects/proje-35-sokak-2.jpg","projects/proje-35-sokak-3.jpg","projects/proje-35-sokak-4.jpg","projects/35-sokak-av-5.jpg","projects/35-sokak-av-6.jpg","projects/35-sokak-av-7.jpg","projects/35-sokak-av-8.jpg","projects/35-sokak-av-9.jpg"]
+    images: ["projects/proje-35-sokak-1.jpg", "projects/proje-35-sokak-2.jpg", "projects/proje-35-sokak-3.jpg", "projects/proje-35-sokak-4.jpg", "projects/35-sokak-av-5.jpg", "projects/35-sokak-av-6.jpg", "projects/35-sokak-av-7.jpg", "projects/35-sokak-av-8.jpg", "projects/35-sokak-av-9.jpg"]
   },
   {
     slug: "yapi-kredi-bankasi-akademi",
@@ -8744,7 +8744,7 @@ const projects = [
     description: "Yapı Kredi Bankası Akademi, John McAslan tarafından tasarlanan mevcut bir bankacılık merkezine ek olarak Kocaeli'nde inşa edildi; mevcut on küp yapıdan oluşan kompleksi salt genişletmek yerine kendi başına soyut bir ifade taşıyan bağımsız bir yapı olarak tasarlandı. Bankanın yeni ve mevcut çalışanları için bir eğitim merkezi olarak işlev gören yapı; sınıflar, sosyal alanlar ve toplantı odaları etrafında organize edildi. Eğitim mekânlarına ayrılan bir çift bakır kiriş, çevredeki peyzaja doğru uzanarak yapıya odak noktaları kazandırıyor; merkezdeki boşluk ise sosyal etkileşime ayrıldı. Çekilmiş bakır panellerden oluşan çift kabuklu cephe, gündüz opak, alacakaranlıkta belirsiz, gece ise saydam görünen piksel etkili bir doku oluşturuyor; çatı ve cephede ayrıca saydam ETFE hava yastıkları kullanıldı. Yapı Kredi Bankası için Temmuz 2008-Eylül 2009 arasında inşa edilen bina yaklaşık 9.500 metrekarelik bir alana sahip.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-yapi-kredi-bankasi-akademi-1.jpg","projects/proje-yapi-kredi-bankasi-akademi-2.jpg","projects/proje-yapi-kredi-bankasi-akademi-3.jpg","projects/proje-yapi-kredi-bankasi-akademi-4.jpg","projects/yapi-kredi-bankasi-akademi-ad-5.jpg","projects/yapi-kredi-bankasi-akademi-ad-6.jpg","projects/yapi-kredi-bankasi-akademi-ad-7.jpg","projects/yapi-kredi-bankasi-akademi-ad-8.jpg","projects/yapi-kredi-bankasi-akademi-ad-9.jpg"]
+    images: ["projects/proje-yapi-kredi-bankasi-akademi-1.jpg", "projects/proje-yapi-kredi-bankasi-akademi-2.jpg", "projects/proje-yapi-kredi-bankasi-akademi-3.jpg", "projects/proje-yapi-kredi-bankasi-akademi-4.jpg", "projects/yapi-kredi-bankasi-akademi-ad-5.jpg", "projects/yapi-kredi-bankasi-akademi-ad-6.jpg", "projects/yapi-kredi-bankasi-akademi-ad-7.jpg", "projects/yapi-kredi-bankasi-akademi-ad-8.jpg", "projects/yapi-kredi-bankasi-akademi-ad-9.jpg"]
   },
   {
     slug: "topkapi-sarayi-mutfaklari",
@@ -8760,7 +8760,7 @@ const projects = [
     description: "Topkapı Sarayı Mutfakları, 15. yüzyılda inşa edilip Kanuni Sultan Süleyman döneminde Mimar Sinan tarafından yeniden düzenlenen tarihi mutfak yapılarının içinde, Osmanlı mutfak kültürüne odaklanan yeni bir sergileme düzeni kurgulanarak tasarlandı. Proje, tarihi yapıyla fiziksel temas kurmayan, topografya gibi çalışan bir sergileme 'ızgarası' geliştirerek tarihi mekânı ana sergi unsuru olarak korumayı önceliklendirdi. Teknik donanımı gizleyen yükseltilmiş dolaşım platformları, ızgara içinde birer 'tepecik' gibi işlev gören sergi kaideleri ve tarihi mekânla sergilenen objeler arasında görsel sürekliliği koruyan tümüyle saydam vitrinler bu yaklaşımın parçaları. Platformdaki stratejik boşluklar, döşemenin özgün taş zeminini görünür kılıyor. Topkapı Sarayı Müzesi için 2010-2011 yıllarında tamamlanan proje yaklaşık 3.900 metrekarelik bir alanı kapsıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-topkapi-sarayi-mutfaklari-1.jpg","projects/proje-topkapi-sarayi-mutfaklari-2.jpg","projects/proje-topkapi-sarayi-mutfaklari-3.jpg","projects/proje-topkapi-sarayi-mutfaklari-4.jpg","projects/topkapi-sarayi-mutfaklari-ak-5.jpg","projects/topkapi-sarayi-mutfaklari-ak-6.jpg","projects/topkapi-sarayi-mutfaklari-ak-7.jpg","projects/topkapi-sarayi-mutfaklari-ak-8.jpg","projects/topkapi-sarayi-mutfaklari-av-9.jpg","projects/topkapi-sarayi-mutfaklari-av-10.jpg"]
+    images: ["projects/proje-topkapi-sarayi-mutfaklari-1.jpg", "projects/proje-topkapi-sarayi-mutfaklari-2.jpg", "projects/proje-topkapi-sarayi-mutfaklari-3.jpg", "projects/proje-topkapi-sarayi-mutfaklari-4.jpg", "projects/topkapi-sarayi-mutfaklari-ak-5.jpg", "projects/topkapi-sarayi-mutfaklari-ak-6.jpg", "projects/topkapi-sarayi-mutfaklari-ak-7.jpg", "projects/topkapi-sarayi-mutfaklari-ak-8.jpg", "projects/topkapi-sarayi-mutfaklari-av-9.jpg", "projects/topkapi-sarayi-mutfaklari-av-10.jpg"]
   },
   {
     slug: "ankara-arena",
@@ -8776,7 +8776,7 @@ const projects = [
     description: "Ankara Arena, başkentin spor faaliyetlerine ayrılmış imar bölgesinde, kentin üst ölçekli imar planlaması çerçevesinde 46.000 metrekarelik bir arsa üzerinde inşa edildi. Toplam 53.000 metrekarelik yapı, kentsel yaşamın özelliklerini gözeten bir tasarım yaklaşımıyla ele alındı. Binanın önünde, Ana Stadyum, Merkez Garı ve Cer Modern gibi kentin yoğun kamusal noktalarına yakın konumda, toplanma ve etkinlik alanı olarak işlev gören bir kentsel meydan oluşturuldu. 2010 yılında FIBA Dünya Basketbol Şampiyonası'nın bir maçına ev sahipliği yaparak açılan yapı, aynı yıl Mies Ödülü adaylığı ve Cityscape ödülü kazandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ankara-arena-1.jpg","projects/proje-ankara-arena-2.jpg","projects/proje-ankara-arena-3.jpg","projects/proje-ankara-arena-4.jpg","projects/ankara-arena-ad-5.jpg","projects/ankara-arena-ad-6.jpg","projects/ankara-arena-ad-7.jpg","projects/ankara-arena-ad-8.jpg","projects/ankara-arena-ad-9.jpg"]
+    images: ["projects/proje-ankara-arena-1.jpg", "projects/proje-ankara-arena-2.jpg", "projects/proje-ankara-arena-3.jpg", "projects/proje-ankara-arena-4.jpg", "projects/ankara-arena-ad-5.jpg", "projects/ankara-arena-ad-6.jpg", "projects/ankara-arena-ad-7.jpg", "projects/ankara-arena-ad-8.jpg", "projects/ankara-arena-ad-9.jpg"]
   },
   {
     slug: "modsim-arastirma-merkezi",
@@ -8792,7 +8792,7 @@ const projects = [
     description: "Modsim Araştırma ve Geliştirme Merkezi, Orta Doğu Teknik Üniversitesi, Türk Silahlı Kuvvetleri ve Savunma Sanayii Müsteşarlığı'nın ortak girişimiyle Ankara'da 2007-2009 yılları arasında hayata geçirildi. Yaklaşık 4.100 metrekarelik yapı, modelleme ve simülasyon alanında çalışan araştırmacılar için laboratuvar ve ofis birimlerini bir araya getiriyor. Yapı, ODTÜ kampüsünün akademik dokusu içinde araştırma faaliyetlerine özgülenmiş işlevsel bir bina olarak tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-modsim-arastirma-merkezi-1.jpg","projects/proje-modsim-arastirma-merkezi-2.jpg","projects/proje-modsim-arastirma-merkezi-3.jpg","projects/proje-modsim-arastirma-merkezi-4.jpg","projects/modsim-arastirma-merkezi-ak-5.jpg","projects/modsim-arastirma-merkezi-av-6.jpg","projects/modsim-arastirma-merkezi-av-7.jpg","projects/modsim-arastirma-merkezi-av-8.jpg","projects/modsim-arastirma-merkezi-av-9.jpg"]
+    images: ["projects/proje-modsim-arastirma-merkezi-1.jpg", "projects/proje-modsim-arastirma-merkezi-2.jpg", "projects/proje-modsim-arastirma-merkezi-3.jpg", "projects/proje-modsim-arastirma-merkezi-4.jpg", "projects/modsim-arastirma-merkezi-ak-5.jpg", "projects/modsim-arastirma-merkezi-av-6.jpg", "projects/modsim-arastirma-merkezi-av-7.jpg", "projects/modsim-arastirma-merkezi-av-8.jpg", "projects/modsim-arastirma-merkezi-av-9.jpg"]
   },
   {
     slug: "tema-istanbul-showroom",
@@ -8808,7 +8808,7 @@ const projects = [
     description: "Tema İstanbul Showroom, Küçükçekmece'de, elips kesitli çelik profillerle çevrelenmiş üç katlı betonarme bir yapı olarak tasarlandı. Giriş katında satış ofisleri, banka birimleri, maket sergileme alanı ve grafik panoları yer alıyor. İç mekan kurgusu, yeşil rengin farklı yüzeylerde -ofis halısından asansör kabini kaplamasına, merdiven avizesinin cam borularından LED aydınlatmaya kadar- tekrarlanmasıyla mekânsal derinlik hissi yaratmayı hedefliyor. 2012-2013 yıllarında tamamlanan yapı yaklaşık 1.500 metrekarelik bir alana sahip.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-tema-istanbul-showroom-1.jpg","projects/proje-tema-istanbul-showroom-2.jpg","projects/proje-tema-istanbul-showroom-3.jpg","projects/proje-tema-istanbul-showroom-4.jpg","projects/tema-istanbul-showroom-ad-5.jpg","projects/tema-istanbul-showroom-ad-6.jpg","projects/tema-istanbul-showroom-ad-7.jpg","projects/tema-istanbul-showroom-ad-8.jpg","projects/tema-istanbul-showroom-ad-9.jpg"]
+    images: ["projects/proje-tema-istanbul-showroom-1.jpg", "projects/proje-tema-istanbul-showroom-2.jpg", "projects/proje-tema-istanbul-showroom-3.jpg", "projects/proje-tema-istanbul-showroom-4.jpg", "projects/tema-istanbul-showroom-ad-5.jpg", "projects/tema-istanbul-showroom-ad-6.jpg", "projects/tema-istanbul-showroom-ad-7.jpg", "projects/tema-istanbul-showroom-ad-8.jpg", "projects/tema-istanbul-showroom-ad-9.jpg"]
   },
   {
     slug: "ons-incek-satis-ofisi",
@@ -8824,7 +8824,7 @@ const projects = [
     description: "ONS İncek Satış Ofisi ve Maket Binası, Gölbaşı'nda 45.000 metrekarelik peyzajlı bir alana yayılan, 992 konuttan oluşan üç renkli kuleden meydana gelen ONS İncek konut projesinin tanıtım yapısı olarak inşa edildi. Eğimli topografyaya paralel oturan çok katlı yapının merkezinde, konut kompleksinin büyük maketinin sergilendiği bir atriyum yer alıyor. Cephede tekrar eden renkli cam paneller, turuncu, yeşil ve mavinin altı farklı tonunda tasarlandı; bu renkler konut kulelerinin cephesinde de kullanılarak satış ofisi ile yapı arasında görsel bir bağ kuruluyor. Proje, 2015 yılında World Architecture Festival'de Renk Kullanımı ödülünü aldı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ons-incek-satis-ofisi-1.jpg","projects/proje-ons-incek-satis-ofisi-2.jpg","projects/proje-ons-incek-satis-ofisi-3.jpg","projects/proje-ons-incek-satis-ofisi-4.jpg","projects/ons-incek-satis-ofisi-ak-5.jpg","projects/ons-incek-satis-ofisi-av-6.jpg","projects/ons-incek-satis-ofisi-av-7.jpg","projects/ons-incek-satis-ofisi-av-8.jpg","projects/ons-incek-satis-ofisi-av-9.jpg"]
+    images: ["projects/proje-ons-incek-satis-ofisi-1.jpg", "projects/proje-ons-incek-satis-ofisi-2.jpg", "projects/proje-ons-incek-satis-ofisi-3.jpg", "projects/proje-ons-incek-satis-ofisi-4.jpg", "projects/ons-incek-satis-ofisi-ak-5.jpg", "projects/ons-incek-satis-ofisi-av-6.jpg", "projects/ons-incek-satis-ofisi-av-7.jpg", "projects/ons-incek-satis-ofisi-av-8.jpg", "projects/ons-incek-satis-ofisi-av-9.jpg"]
   },
   {
     slug: "ronesans-biz",
@@ -8840,7 +8840,7 @@ const projects = [
     description: "RÖNESANS|BIZ, İstanbul'un yoğun dokulu Mecidiyeköy bölgesinde, Büyükdere Caddesi ile Profilo AVM'yi birbirine bağlayan sokak üzerinde yer alıyor. Kütlenin merkezinin oyulmasıyla oluşturulan avlu, kullanıcılara çalışma alanı içinde huzurlu bir sosyalleşme ortamı sunuyor. İmar koşullarının getirdiği kısıtlar nedeniyle bina, saydam cephesi ve net şeması ile çevresinden ayrışıyor. Zemin katta perakende birimleri, yer altında ise otopark bulunan yapı, ofis ağırlıklı bir programa sahip. Cephede cam, ahşap ve beyaz panellerin dönüşümlü kullanıldığı 160 cm'lik modüler bir düzen uygulandı; ayrıca paslanmaz çelik güneş kırıcılar ve gece etkisini güçlendiren aydınlatma elemanları kullanıldı. 2011-2013 yılları arasında inşa edilen yapı, 2015 Cityscape Dubai ve The Plan Awards finalistliği ile 2016 Architizer A+ Ödülleri'nde özel takdir kazandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-ronesans-biz-1.jpg","projects/proje-ronesans-biz-2.jpg","projects/proje-ronesans-biz-3.jpg","projects/proje-ronesans-biz-4.jpg","projects/ronesans-biz-ad-5.jpg","projects/ronesans-biz-ad-6.jpg","projects/ronesans-biz-ad-7.jpg","projects/ronesans-biz-ad-8.jpg","projects/ronesans-biz-ad-9.jpg"]
+    images: ["projects/proje-ronesans-biz-1.jpg", "projects/proje-ronesans-biz-2.jpg", "projects/proje-ronesans-biz-3.jpg", "projects/proje-ronesans-biz-4.jpg", "projects/ronesans-biz-ad-5.jpg", "projects/ronesans-biz-ad-6.jpg", "projects/ronesans-biz-ad-7.jpg", "projects/ronesans-biz-ad-8.jpg", "projects/ronesans-biz-ad-9.jpg"]
   },
   {
     slug: "arkadia-apartmani",
@@ -8856,7 +8856,7 @@ const projects = [
     description: "Arkadia Apartmanı, İstanbul'un Anadolu yakasında, Marmara Denizi'ne yakın Göztepe semtinde, birbirine yakın mesafede yükselen izole kulelerden oluşan yoğun bir dokunun içinde yer alıyor. IND, yeni bir kulenin cephe ve peyzaj tasarımını üstlendi; metal ve plastik esaslı modüler bir cephe sistemi, yapının strüktürünü dışa yansıtırken pencere düzenlerinde serbest bir kompozisyona da izin veriyor. Dikey şeritli prefabrik ahşap paneller, alüminyum ve camın pürüzsüzlüğüyle kontrast oluşturuyor; oturma odalarının bulunduğu ince cephe ise yüksek saydamlıkta tasarlandı. Peyzaj, çim, taş ve su gibi öğelerin oluşturduğu modüler lekelerle bu dilin devamı niteliğinde kurgulandı. 2014 yılında tamamlanan yapı, Avrupa Birliği Mies van der Rohe Ödülü'ne aday gösterildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-arkadia-apartmani-1.jpg","projects/proje-arkadia-apartmani-2.jpg","projects/proje-arkadia-apartmani-3.jpg","projects/proje-arkadia-apartmani-4.jpg","projects/arkadia-apartmani-ad-5.jpg","projects/arkadia-apartmani-ad-6.jpg","projects/arkadia-apartmani-ad-7.jpg","projects/arkadia-apartmani-ad-8.jpg","projects/arkadia-apartmani-ad-9.jpg"]
+    images: ["projects/proje-arkadia-apartmani-1.jpg", "projects/proje-arkadia-apartmani-2.jpg", "projects/proje-arkadia-apartmani-3.jpg", "projects/proje-arkadia-apartmani-4.jpg", "projects/arkadia-apartmani-ad-5.jpg", "projects/arkadia-apartmani-ad-6.jpg", "projects/arkadia-apartmani-ad-7.jpg", "projects/arkadia-apartmani-ad-8.jpg", "projects/arkadia-apartmani-ad-9.jpg"]
   },
   {
     slug: "dogus-holding-yonetim-merkezi",
@@ -8872,7 +8872,7 @@ const projects = [
     description: "Doğuş Holding Ayazağa Yönetim Merkezi, İstanbul'un Ayazağa-Cendere mevkiinde bulunan mevcut betonarme bir yapının, kontur gabarisi korunarak yapısal müdahalelerle yönetim binasına dönüştürülmesiyle ortaya çıktı. Tasarım, geçirgen işlevlere ve sosyal paylaşıma imkan tanıyan açık planlı bir ofis sistemini önceliklendiriyor. Biri beş, diğeri iki katlı iki blok kavramsal olarak birleştirilirken, rampalarla güçlendirilen yatay dolaşım iç sokaklar oluşturuyor. Alt blokta kafeterya, kütüphane, lounge, seminer ve yemekhane gibi ortak kullanım alanları, üst katlarda ise ofisler yer alıyor; paylaşımlı alanların içinde yönlendirici bir işaret niteliği taşıyan kırmızı ahşap kaplamalı bir hacim dikkat çekiyor. 10.000 metrekareyi aşan yapı 2011-2012 yıllarında tamamlandı ve 2015 Ağa Han Mimarlık Ödülleri'ne aday gösterildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-dogus-holding-yonetim-merkezi-1.jpg","projects/proje-dogus-holding-yonetim-merkezi-2.jpg","projects/proje-dogus-holding-yonetim-merkezi-3.jpg","projects/proje-dogus-holding-yonetim-merkezi-4.jpg","projects/dogus-holding-yonetim-merkezi-ak-5.jpg","projects/dogus-holding-yonetim-merkezi-av-6.jpg","projects/dogus-holding-yonetim-merkezi-av-7.jpg","projects/dogus-holding-yonetim-merkezi-av-8.jpg","projects/dogus-holding-yonetim-merkezi-av-9.jpg"]
+    images: ["projects/proje-dogus-holding-yonetim-merkezi-1.jpg", "projects/proje-dogus-holding-yonetim-merkezi-2.jpg", "projects/proje-dogus-holding-yonetim-merkezi-3.jpg", "projects/proje-dogus-holding-yonetim-merkezi-4.jpg", "projects/dogus-holding-yonetim-merkezi-ak-5.jpg", "projects/dogus-holding-yonetim-merkezi-av-6.jpg", "projects/dogus-holding-yonetim-merkezi-av-7.jpg", "projects/dogus-holding-yonetim-merkezi-av-8.jpg", "projects/dogus-holding-yonetim-merkezi-av-9.jpg"]
   },
   {
     slug: "hepistanbul",
@@ -8888,7 +8888,7 @@ const projects = [
     description: "HEPİstanbul, İstanbul'un Esenyurt, Beylikdüzü ve Avcılar ilçelerinin kesiştiği bölgede, 56.000 metrekarelik bir alan üzerinde, alçak ve yüksek katlı blokların bir arada kullanıldığı büyük ölçekli bir konut projesi olarak geliştirildi. Kentsel yoğunluğu yatayda artırmak amacıyla yüksek bloklar kontrollü bir şekilde sınırlandırılırken, 25 kat gerek yapım maliyeti gerekse konfor açısından etkin üst sınır olarak kabul edildi. Toplam 1.422 konut birimi, kat planlarında farklı büyüklük ve konumlarda 'konteyner' mantığıyla yerleştirildi. 2014-2017 yılları arasında inşa edilen proje, LEED sertifikası hedefiyle tasarlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-hepistanbul-1.jpg","projects/proje-hepistanbul-2.jpg","projects/proje-hepistanbul-3.jpg","projects/proje-hepistanbul-4.jpg","projects/hepistanbul-ak-5.jpg","projects/hepistanbul-ak-6.jpg","projects/hepistanbul-ak-7.jpg","projects/hepistanbul-ak-8.jpg","projects/hepistanbul-ak-9.jpg"]
+    images: ["projects/proje-hepistanbul-1.jpg", "projects/proje-hepistanbul-2.jpg", "projects/proje-hepistanbul-3.jpg", "projects/proje-hepistanbul-4.jpg", "projects/hepistanbul-ak-5.jpg", "projects/hepistanbul-ak-6.jpg", "projects/hepistanbul-ak-7.jpg", "projects/hepistanbul-ak-8.jpg", "projects/hepistanbul-ak-9.jpg"]
   },
   {
     slug: "a602-tuzla",
@@ -8904,7 +8904,7 @@ const projects = [
     description: "A602, İstanbul'un Tuzla ilçesi Tepeören mahallesinde, 1990'larda hafif çelik yapı sistemiyle inşa edilmiş 100 konutluk bir sitede yer alan bir evin iç mekan tasarımı ve uygulamasını kapsıyor. the | work, kullanıcı ihtiyaçlarına göre yapının işlevsel kurgusunu ve iç mekan şemasını yeniden düzenledi. Zemin kattaki mutfak birimi yeniden konumlandırılarak, oturma alanıyla bağlantı kuran saydam bir hacim eklendi; bir şömine etrafında tanımlanan iki kat yüksekliğindeki oturma alanı ise yükseltilmiş bir platform üzerine kuruldu. Katlar arasında galeri boşluğuyla kurulan görsel süreklilik, üst kattaki ortak alanlara doğal ışık taşıyarak kat ilişkilerini güçlendiriyor. Yaklaşık 300 metrekarelik proje 2018 yılında tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-a602-tuzla-1.jpg","projects/proje-a602-tuzla-2.jpg","projects/proje-a602-tuzla-3.jpg","projects/proje-a602-tuzla-4.jpg","projects/a602-tuzla-av-5.jpg","projects/a602-tuzla-av-6.jpg","projects/a602-tuzla-av-7.jpg","projects/a602-tuzla-av-8.jpg","projects/a602-tuzla-av-9.jpg"]
+    images: ["projects/proje-a602-tuzla-1.jpg", "projects/proje-a602-tuzla-2.jpg", "projects/proje-a602-tuzla-3.jpg", "projects/proje-a602-tuzla-4.jpg", "projects/a602-tuzla-av-5.jpg", "projects/a602-tuzla-av-6.jpg", "projects/a602-tuzla-av-7.jpg", "projects/a602-tuzla-av-8.jpg", "projects/a602-tuzla-av-9.jpg"]
   },
   {
     slug: "akel-is-merkezi",
@@ -8920,7 +8920,7 @@ const projects = [
     description: "AKEL İş Merkezi, İstanbul'un Kavacık semtinde, Suryapı ile arsa sahibi arasındaki kat karşılığı anlaşma çerçevesinde, simetrik ve iki eşit kütleden oluşan bir tasarım olarak hayata geçirildi. 5.025 metrekarelik arsa üzerinde yaklaşık 26.000 metrekarelik inşaat alanına sahip yapının cephesinde, modüler düzeni kırmak ve görsel hareket kazandırmak amacıyla farklı renklerde güneş kırıcılar kullanıldı. Bina tümüyle betonarme taşıyıcı sisteme sahip olup, cephe kaplamaları ve doğramalar prekast beton modüllerle bütünleşik olarak üretildi. Vadiden bakıldığında U harfi biçiminde algılanan yapı, giriş kotunun altında oto galerileri, üstünde ise ofis birimlerini barındırıyor. Tasarım 2006 yılında tamamlanmış, inşaat 2009'da bitirilmiştir.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-akel-is-merkezi-1.jpg","projects/proje-akel-is-merkezi-2.jpg","projects/proje-akel-is-merkezi-3.jpg","projects/proje-akel-is-merkezi-4.jpg","projects/akel-is-merkezi-av-5.jpg","projects/akel-is-merkezi-av-6.jpg","projects/akel-is-merkezi-av-7.jpg","projects/akel-is-merkezi-av-8.jpg","projects/akel-is-merkezi-av-9.jpg"]
+    images: ["projects/proje-akel-is-merkezi-1.jpg", "projects/proje-akel-is-merkezi-2.jpg", "projects/proje-akel-is-merkezi-3.jpg", "projects/proje-akel-is-merkezi-4.jpg", "projects/akel-is-merkezi-av-5.jpg", "projects/akel-is-merkezi-av-6.jpg", "projects/akel-is-merkezi-av-7.jpg", "projects/akel-is-merkezi-av-8.jpg", "projects/akel-is-merkezi-av-9.jpg"]
   },
   {
     slug: "miracle-residence",
@@ -8936,7 +8936,7 @@ const projects = [
     description: "Miracle Residence, Sabiha Gökçen Havalimanı'nın açılışının ardından artan konut ve ticari talebe yanıt olarak, İstanbul'un Kurtköy bölgesinde, otoyol girişine yakın bir konumda geliştirildi. 50 metre genişliğinde ve 300 metre uzunluğundaki dar ve dikdörtgen bir arsa üzerinde kuzeybatı-güneydoğu doğrultusunda konumlanan yapı, 10 metrelik bir kot farkına sahip. Yayaların ve araçların kuzeydeki yoldan erişim sağladığı projede, binanın uzun cephesi doğuda TEM Otoyolu'na bakıyor. Mön İnşaat için geliştirilen ve yaklaşık 30.000 metrekarelik bir alanı kapsayan otel ve konut karma projesi 2009 yılında tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-miracle-residence-1.webp","projects/proje-miracle-residence-2.webp","projects/proje-miracle-residence-3.webp","projects/proje-miracle-residence-4.webp","projects/miracle-residence-ad-5.jpg","projects/miracle-residence-ad-6.jpg","projects/miracle-residence-ad-7.jpg","projects/miracle-residence-ad-8.jpg","projects/miracle-residence-ad-9.jpg"]
+    images: ["projects/proje-miracle-residence-1.webp", "projects/proje-miracle-residence-2.webp", "projects/proje-miracle-residence-3.webp", "projects/proje-miracle-residence-4.webp", "projects/miracle-residence-ad-5.jpg", "projects/miracle-residence-ad-6.jpg", "projects/miracle-residence-ad-7.jpg", "projects/miracle-residence-ad-8.jpg", "projects/miracle-residence-ad-9.jpg"]
   },
   {
     slug: "haberturk-medya-merkezi",
@@ -8952,7 +8952,7 @@ const projects = [
     description: "Merkez Plaza Habertürk Yönetim Binası, İstanbul'da Taksim-Talimhane bölgesinde, önceden çok katlı bir otoparkın bulunduğu üçgen bir arsa üzerinde inşa edildi. Yapı, büyük bir medya kuruluşunun genel merkezi olarak tasarlanarak televizyon ve radyo stüdyolarını, gazete ve dergi birimlerini ve yaklaşık 1.300 araçlık sekiz katlı bir otoparkı bir araya getiriyor. Tasarımda, sokak seviyesinde aralarında yeşil bir ön bahçe bulunan iki blok kurgulandı; güneye bakan cepheler yüksek saydamlıkta tutulurken, Dolapdere'ye bakan kuzey cepheleri daha kapalı bir karakterde tasarlandı. 10-12 kat arasında değişen yapı 2006-2008 yılları arasında inşa edildi.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-haberturk-medya-merkezi-1.jpg","projects/proje-haberturk-medya-merkezi-2.jpg","projects/proje-haberturk-medya-merkezi-3.jpg","projects/proje-haberturk-medya-merkezi-4.jpg"]
+    images: ["projects/proje-haberturk-medya-merkezi-1.jpg", "projects/proje-haberturk-medya-merkezi-2.jpg", "projects/proje-haberturk-medya-merkezi-3.jpg", "projects/proje-haberturk-medya-merkezi-4.jpg"]
   },
   {
     slug: "mermerler-plaza",
@@ -8968,7 +8968,7 @@ const projects = [
     description: "Mermerler Plaza, İstanbul'un Kozyatağı semtinde, E-5 Karayolu ile Bayar Caddesi arasında, 32.000 metrekarelik bir alanda ofis ve ticari birimleri bir araya getiriyor. Tasarım, kütleyi teraslanan bahçelerle yatayda ve düşeyde parçalayan bir kompozisyon anlayışına dayanıyor; sokağa bakan blok çevredeki bina yükseklikleriyle uyumlu tutulurken, E-5 tarafındaki kütle daha yükseğe taşınıyor. Zemin kattaki bir geçit, yaya dolaşımını ticari kullanımla buluşturuyor. Üç boyutlu dokulu cam giydirme cephe farklı açılarla kırılarak değişken yansıma etkileri oluştururken, delikli alüminyum çift cidarlı yüzeyler kütle-cam kontrastını ve gece aydınlatma arka planını sağlıyor. LEED Gold sertifikalı yapı, Mermerler Holding için 2016 yılında tamamlandı.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-mermerler-plaza-1.jpg","projects/proje-mermerler-plaza-2.jpg","projects/proje-mermerler-plaza-3.jpg","projects/proje-mermerler-plaza-4.jpg","projects/mermerler-plaza-ad-5.jpg","projects/mermerler-plaza-ad-6.jpg","projects/mermerler-plaza-ad-7.jpg","projects/mermerler-plaza-ad-8.jpg","projects/mermerler-plaza-ad-9.jpg"]
+    images: ["projects/proje-mermerler-plaza-1.jpg", "projects/proje-mermerler-plaza-2.jpg", "projects/proje-mermerler-plaza-3.jpg", "projects/proje-mermerler-plaza-4.jpg", "projects/mermerler-plaza-ad-5.jpg", "projects/mermerler-plaza-ad-6.jpg", "projects/mermerler-plaza-ad-7.jpg", "projects/mermerler-plaza-ad-8.jpg", "projects/mermerler-plaza-ad-9.jpg"]
   },
   {
     slug: "antalya-konyaalti-sahili",
@@ -8984,7 +8984,7 @@ const projects = [
     description: "Antalya Konyaaltı Sahili Kentsel Tasarım ve Kıyı Rehabilitasyonu Projesi, 2014 yılında düzenlenen ulusal mimari yarışmada birincilik kazanan, yaklaşık 100 hektarlık bir kıyı şeridini kapsayan büyük ölçekli bir kentsel müdahale. Proje, otoyolun kıyı ile yerleşim arasındaki baskın etkisini azaltmayı ve liman ile müze arasında uzanan kıyı boyunca farklı karakterde odak noktaları oluşturmayı hedefliyor; Akdeniz Bulvarı, Müze Meydanı, Variant Beachpark ve Olbia Meydanı bu dört karakteristik alanı oluşturuyor. Yaya erişilebilirliği, toplu taşıma ve bisiklet altyapısını önceliklendiren tasarımda, kentsel mobilya, gölgeleme elemanları ve bitkilendirme modüler bir sistemle ele alındı. Akdeniz Bulvarı olarak bilinen ilk uygulama etabı 15 Haziran 2018'de halka açıldı; proje Tugay Mimarlık ile ortaklaşa yürütüldü.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-antalya-konyaalti-sahili-1.jpg","projects/proje-antalya-konyaalti-sahili-2.jpg","projects/proje-antalya-konyaalti-sahili-3.jpg","projects/proje-antalya-konyaalti-sahili-4.jpg","projects/antalya-konyaalti-sahili-ak-5.jpg","projects/antalya-konyaalti-sahili-ak-6.jpg","projects/antalya-konyaalti-sahili-ak-7.jpg","projects/antalya-konyaalti-sahili-ak-8.jpg","projects/antalya-konyaalti-sahili-ak-9.jpg"]
+    images: ["projects/proje-antalya-konyaalti-sahili-1.jpg", "projects/proje-antalya-konyaalti-sahili-2.jpg", "projects/proje-antalya-konyaalti-sahili-3.jpg", "projects/proje-antalya-konyaalti-sahili-4.jpg", "projects/antalya-konyaalti-sahili-ak-5.jpg", "projects/antalya-konyaalti-sahili-ak-6.jpg", "projects/antalya-konyaalti-sahili-ak-7.jpg", "projects/antalya-konyaalti-sahili-ak-8.jpg", "projects/antalya-konyaalti-sahili-ak-9.jpg"]
   },
   {
     slug: "tobb-etu-teknoloji-merkezi",
@@ -9000,7 +9000,7 @@ const projects = [
     description: "TOBB ETÜ Teknoloji Merkezi, TOBB Ekonomi ve Teknoloji Üniversitesi kampüsünün gelişim planlamasının dördüncü aşamasında, Ankara'da inşa edildi. Yapı, Makine, Endüstri, Bilgisayar, Elektrik-Elektronik, Biyomedikal, Malzeme Bilimi ve Nanoteknoloji Mühendisliği bölümleri için büyüklükleri 64 ile 200 metrekare arasında değişen toplam 82 laboratuvarı, ayrıca Güzel Sanatlar Tasarım ve Mimarlık Fakültesi için on iki stüdyo ile bir tasarım ve maket atölyesini barındırıyor. Merkezinde yer alan avlu, şeffaf cepheleri ve çevresindeki teraslarla yapının hemen her noktasından algılanabiliyor; bu sayede mekanlar arasında güçlü bir görsel ilişki kuruluyor. Bodrum katta, dünyanın en büyük su türbini test merkezlerinden biri olan TOBB ETÜ HİDRO, 600 metrekarelik taban alanıyla yer alıyor. 2010-2013 yılları arasında inşa edilen yapı yaklaşık 23.000 metrekarelik bir alanı kapsıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-tobb-etu-teknoloji-merkezi-1.jpg","projects/proje-tobb-etu-teknoloji-merkezi-2.jpg","projects/proje-tobb-etu-teknoloji-merkezi-3.jpg","projects/proje-tobb-etu-teknoloji-merkezi-4.jpg","projects/tobb-etu-teknoloji-merkezi-av-5.jpg","projects/tobb-etu-teknoloji-merkezi-av-6.jpg","projects/tobb-etu-teknoloji-merkezi-av-7.jpg","projects/tobb-etu-teknoloji-merkezi-av-8.jpg","projects/tobb-etu-teknoloji-merkezi-av-9.jpg"]
+    images: ["projects/proje-tobb-etu-teknoloji-merkezi-1.jpg", "projects/proje-tobb-etu-teknoloji-merkezi-2.jpg", "projects/proje-tobb-etu-teknoloji-merkezi-3.jpg", "projects/proje-tobb-etu-teknoloji-merkezi-4.jpg", "projects/tobb-etu-teknoloji-merkezi-av-5.jpg", "projects/tobb-etu-teknoloji-merkezi-av-6.jpg", "projects/tobb-etu-teknoloji-merkezi-av-7.jpg", "projects/tobb-etu-teknoloji-merkezi-av-8.jpg", "projects/tobb-etu-teknoloji-merkezi-av-9.jpg"]
   },
   {
     slug: "orfi-sera",
@@ -9016,7 +9016,7 @@ const projects = [
     description: "Orfi Sera, İzmir'de bir firmanın tek katlı ek binasının, mevcut üç katlı showroom yapısına dahil edilen yeni bir sergileme ve ofis alanına dönüştürülmesiyle ortaya çıktı. Tek katlı hacmin, önceki showroomdan farklı olarak çatısından ve bir cephesinden bol gün ışığı alabilmesi, tasarımcıları farklı bir mekansal kurguya yönlendirdi. Mekanın merkezinde, kavisli bir tuğla duvar ofis alanını sarmalayarak günışığıyla dolu bir sergileme alanı ile çalışma birimlerini birbirinden ayırıyor; delikli tuğla dokusu gün boyunca değişen bir ışık-gölge oyunu yaratıyor. Bambu ve zeytin ağaçları gibi bitkilendirmeler, betonarme blok duvarlarla birlikte iç mekana doğal bir karakter kazandırıyor. Orfis firması için 2014 yılında, yaklaşık 180 metrekarelik bir alanda hayata geçirilen proje Yerce Mimarlık imzası taşıyor.",
     mostVisited: null,
     recommendations: [],
-    images: ["projects/proje-orfi-sera-1.jpg","projects/proje-orfi-sera-2.jpg","projects/proje-orfi-sera-3.jpg","projects/proje-orfi-sera-4.jpg","projects/orfi-sera-ad-5.jpg","projects/orfi-sera-ad-6.jpg","projects/orfi-sera-ad-7.jpg","projects/orfi-sera-ad-8.jpg","projects/orfi-sera-ad-9.jpg"]
+    images: ["projects/proje-orfi-sera-1.jpg", "projects/proje-orfi-sera-2.jpg", "projects/proje-orfi-sera-3.jpg", "projects/proje-orfi-sera-4.jpg", "projects/orfi-sera-ad-5.jpg", "projects/orfi-sera-ad-6.jpg", "projects/orfi-sera-ad-7.jpg", "projects/orfi-sera-ad-8.jpg", "projects/orfi-sera-ad-9.jpg"]
   },
 ];
 
