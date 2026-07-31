@@ -6,8 +6,10 @@ import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
-const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'diger']);
+const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'ogrenci', 'diger']);
 const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bolge_planlama', 'restorasyon', 'diger']);
+// mimar-ekle.html'deki "Pozisyon" seçenekleriyle birebir aynı (bkz. o formdaki position radio grubu).
+export const POSITIONS = new Set(['Kurucu', 'Çalışan', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İş Arıyor']);
 
 export async function handleAuthRoute(request, env, url) {
   const path = url.pathname;
@@ -60,7 +62,7 @@ async function signup(request, env) {
 
   const { token, maxAge } = await createSession(env, id);
   const user = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, role, created_at FROM users WHERE id = ?'
   ).bind(id).first();
 
   return json({ user: publicUser(user) }, 201, {
@@ -208,7 +210,13 @@ export async function handleProfileRoute(request, env, url) {
   if ('photo_url' in body && !isSafeUrlValue(body.photo_url)) {
     return errorJson('Profil fotoğrafı bağlantısı geçersiz.');
   }
-  const fields = ['name', 'dob', 'school', 'dept', 'photo_url'];
+  if ('profession' in body && body.profession && !PROFESSIONS.has(body.profession)) {
+    return errorJson('Geçersiz meslek.');
+  }
+  if ('position' in body && body.position && !POSITIONS.has(body.position)) {
+    return errorJson('Geçersiz pozisyon.');
+  }
+  const fields = ['name', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position'];
   const updates = [];
   const values = [];
   for (const f of fields) {
@@ -219,7 +227,7 @@ export async function handleProfileRoute(request, env, url) {
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
   const updated = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, role, created_at FROM users WHERE id = ?'
   ).bind(user.id).first();
   return json({ user: publicUser(updated) });
 }

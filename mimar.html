@@ -53,7 +53,7 @@
   .nav{
     position:sticky; top:0; z-index:40;
     display:flex; align-items:center; gap:24px;
-    padding:16px 32px;
+    padding:10px 32px;
     background:rgba(237,240,243,0.92);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
@@ -131,7 +131,7 @@
 
   /* ---------- PAGE HEAD ---------- */
   .page-head{max-width:1260px; margin:0 auto; padding:28px 32px 0;}
-  .page-head h1{font-family:'Fraunces', serif; font-size:28px; font-weight:600; margin:0 0 4px;}
+  .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
   /* ---------- FILTER SELECT (shared) ---------- */
@@ -158,7 +158,7 @@
     padding:18px; display:flex; flex-direction:column; gap:12px;
     position:sticky; top:90px;
   }
-  .sidebar-filters-title{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
+  .sidebar-filters-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
   .sidebar-search{display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
   .sidebar-search svg{flex-shrink:0; opacity:0.5;}
   .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
@@ -198,7 +198,7 @@
   .person-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .person-card-body{padding:12px 14px;}
   .person-card-name{
-    font-family:'Fraunces', serif; font-weight:600; font-size:15px; color:var(--ink);
+    font-family:'Inter', sans-serif; font-weight:700; font-size:15px; color:var(--ink);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .verified-badge-icon{display:inline-flex; align-items:center; color:var(--accent); vertical-align:middle; margin-left:4px; flex-shrink:0;}
@@ -259,13 +259,16 @@
     .grid-sidebar .filter-select{flex:1 1 160px;}
     .card-grid{grid-template-columns:repeat(3, 1fr);}
   }
-  @media (max-width:720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
-    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .page-head{padding:20px 16px 0;}
     .grid-layout{padding:16px 16px 70px; gap:16px;}
     .card-grid{grid-template-columns:repeat(2, 1fr); gap:12px;}
@@ -296,8 +299,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link active" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -312,8 +318,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link active" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -342,7 +351,6 @@
           <select id="g-sort">
             <option value="" selected>Sıralama</option>
             <option value="name_asc">A-Z</option>
-            <option value="name_desc">Z-A</option>
             <option value="year_desc">En Genç</option>
             <option value="year_asc">En Kıdemli</option>
             <option value="popular">En Popüler</option>
@@ -360,10 +368,12 @@
       <div class="filter-select">
         <select id="g-award">
           <option value="">Ödül</option>
-          <option value="Ağa Han Mimarlık Ödülü">Ağa Han Mimarlık Ödülü</option>
           <option value="Ulusal Mimarlık Ödülleri">Ulusal Mimarlık Ödülleri</option>
-          <option value="Yapı Ödülleri">Yapı Ödülleri</option>
-          <option value="World Architecture Festival Ödülü">World Architecture Festival Ödülü</option>
+          <option value="TürkSMD Mimarlık Ödülleri">TürkSMD Mimarlık Ödülleri</option>
+          <option value="Ağa Han Mimarlık Ödülü">Ağa Han Mimarlık Ödülü</option>
+          <option value="EU Mies Award">EU Mies Award</option>
+          <option value="World Architecture Festival Ödülleri">World Architecture Festival Ödülleri</option>
+          <option value="International Architecture Awards">International Architecture Awards</option>
         </select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
@@ -372,6 +382,7 @@
           <option value="">Pozisyon</option>
           <option value="Kurucu">Kurucu</option>
           <option value="Çalışan">Çalışan</option>
+          <option value="Akademisyen">Akademisyen</option>
           <option value="Freelance">Freelance</option>
           <option value="Öğrenci">Öğrenci</option>
           <option value="Emekli">Emekli</option>
@@ -405,7 +416,7 @@
       <div class="footer-col">
         <h4>Ana Menü</h4>
         <a href="proje.html">Proje</a>
-        <a href="urun.html">Ürün</a>
+        <a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a>
         <a href="haber.html">Haber</a>
         <a href="is-ilani.html">İş İlanı</a>
       </div>
@@ -562,7 +573,6 @@ function render(){
   filtered.sort((a,b)=>{
     switch(sort){
       case 'name_asc': return a.name.localeCompare(b.name, 'tr');
-      case 'name_desc': return b.name.localeCompare(a.name, 'tr');
       case 'year_desc': return (b.dob||0) - (a.dob||0);
       case 'year_asc': return (a.dob||9999) - (b.dob||9999);
       case 'popular': return 0;

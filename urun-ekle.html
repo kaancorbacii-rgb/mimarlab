@@ -38,7 +38,7 @@
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
   .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
 
-  .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:16px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:10px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
   .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
   .nav-search svg{flex-shrink:0; opacity:0.5;}
   .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
@@ -52,6 +52,9 @@
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
   .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
   .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
   .nav-rate{background:none; color:var(--ink); padding:8px 17px; border-radius:100px; border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;}
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
@@ -69,19 +72,19 @@
 
   .page-head{max-width:820px; margin:0 auto; padding:36px 32px 0; text-align:center;}
   .page-head .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:10px;}
-  .page-head h1{font-family:'Fraunces', serif; font-size:30px; font-weight:600; margin:0 0 8px;}
+  .page-head h1{font-family:'Inter', sans-serif; font-size:30px; font-weight:700; margin:0 0 8px;}
   .page-head p{color:var(--ink-soft); font-size:14.5px; margin:0;}
 
   .form-wrap{max-width:820px; margin:0 auto; padding:28px 32px 90px;}
   .form-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:26px; margin-bottom:20px;}
-  .form-section h2{font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0 0 4px;}
+  .form-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
   .form-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .form-field{margin-bottom:16px;}
   .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
-  .form-field input[type=text], .form-field input[type=url], .form-field textarea{
+  .form-field input[type=text], .form-field input[type=url], .form-field textarea, .form-field select{
     width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
   }
@@ -110,7 +113,7 @@
   .form-notice.show{display:block;}
 
   .access-gate{max-width:820px; margin:28px auto 0; background:var(--paper-card); border:1px solid var(--accent); border-radius:16px; padding:28px; text-align:center;}
-  .access-gate h3{font-family:'Fraunces', serif; font-size:19px; margin:0 0 8px;}
+  .access-gate h3{font-family:'Inter', sans-serif; font-size:19px; margin:0 0 8px;}
   .access-gate p{font-size:13.5px; color:var(--ink-soft); margin:0 0 18px; line-height:1.6;}
   .access-gate a{display:inline-flex; background:var(--ink); color:var(--paper-card); padding:12px 26px; border-radius:100px; font-weight:600; font-size:14px;}
   .access-gate a:hover{background:var(--walnut);}
@@ -128,13 +131,16 @@
   .footer-col a:hover{color:var(--brass-soft);}
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
-  @media (max-width:720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
-    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .page-head{padding:28px 18px 0;}
     .form-wrap{padding:20px 18px 70px;}
     .form-row{grid-template-columns:1fr;}
@@ -152,6 +158,7 @@
 </head>
 <body>
 <script src="auth-nav.js"></script>
+<script src="catalog-taxonomy.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -162,8 +169,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link active" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -178,8 +188,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link active" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -196,7 +209,7 @@
   <div class="page-head">
     <div class="eyebrow">Ürün Ekle</div>
     <h1>Ürününü MİMARLAB'a ekle</h1>
-    <p>Malzeme ya da ürün bilgilerini paylaş, ekibimiz inceledikten sonra kataloğa eklensin.</p>
+    <p>Mobilya ya da dekorasyon ürünü bilgilerini paylaş, ekibimiz inceledikten sonra kataloğa eklensin.</p>
   </div>
 
   <div class="access-gate" id="access-gate" style="display:none;">
@@ -211,7 +224,7 @@
         <h2>Ürün Bilgileri</h2>
         <div class="form-field">
           <label for="u-title">Ürün Adı</label>
-          <input type="text" id="u-title" name="title" placeholder="ör. Traverten Doğal Taş" required>
+          <input type="text" id="u-title" name="title" placeholder="ör. Cloud Koltuk Takımı" required>
         </div>
         <div class="form-row">
           <div class="form-field">
@@ -223,17 +236,14 @@
             <input type="url" id="u-website" name="website" placeholder="https://...">
           </div>
         </div>
-        <div class="form-field">
-          <label>Kategori</label>
-          <div class="check-grid">
-            <label class="check-pill"><input type="checkbox" name="category" value="Doğal Taş"> Doğal Taş</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Boya"> Boya</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Ahşap Kaplama"> Ahşap Kaplama</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Sıva"> Sıva</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Seramik"> Seramik</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Cam"> Cam</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Banyo"> Banyo</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Zemin"> Zemin</label>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="u-group">Grup</label>
+            <select id="u-group"></select>
+          </div>
+          <div class="form-field">
+            <label for="u-category">Kategori</label>
+            <select id="u-category"></select>
           </div>
         </div>
       </div>
@@ -275,7 +285,7 @@
           <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
@@ -295,6 +305,15 @@ function escapeAttr(s){
   d.textContent = s || '';
   return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+const groupSelect = document.getElementById('u-group');
+const categorySelect = document.getElementById('u-category');
+function populateCategoryOptions(group){
+  categorySelect.innerHTML = (PRODUCT_TAXONOMY[group] || []).map(c => `<option value="${escapeAttr(c)}">${escapeAttr(c)}</option>`).join('');
+}
+groupSelect.innerHTML = Object.keys(PRODUCT_TAXONOMY).map(g => `<option value="${escapeAttr(g)}">${escapeAttr(g)}</option>`).join('');
+populateCategoryOptions(groupSelect.value);
+groupSelect.addEventListener('change', ()=> populateCategoryOptions(groupSelect.value));
 
 function renderPreviews(){
   const existingHtml = existingImages.map((url, i) => `<div class="image-preview-item"><img src="${escapeAttr(url)}" alt=""><button type="button" class="image-preview-remove" data-existing-index="${i}" aria-label="Kaldır">✕</button></div>`).join('');
@@ -319,7 +338,12 @@ dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classL
 dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
 
-fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = 'giris-yap.html'; });
+let isAdminEditingOther = false;
+let currentUserRole = null;
+const meReady = fetch('/api/auth/me').then(async res=>{
+  if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
+  currentUserRole = (await res.json()).user.role;
+});
 
 // Yeni ürün eklemek bir rozet gerektirir (düzenleme modunda ?edit= varsa kontrol atlanır — mevcut
 // bir ürünü düzenlemek aylık hakkı harcamaz). Sunucu tarafı asıl kontrolü zaten yapıyor
@@ -342,10 +366,21 @@ checkProductAccess();
 
 async function prefillForEdit(){
   if(!editId) return;
+  await meReady;
   try{
+    let item = null;
     const res = await fetch(`/api/products/${encodeURIComponent(editId)}`);
-    if(!res.ok) return;
-    const { item } = await res.json();
+    if(res.ok){
+      item = (await res.json()).item;
+    } else if(currentUserRole === 'admin'){
+      const adminRes = await fetch('/api/admin/submissions?type=products');
+      if(adminRes.ok){
+        const data = await adminRes.json();
+        item = (data.items || []).find(it => it.id === editId) || null;
+        if(item) isAdminEditingOther = true;
+      }
+    }
+    if(!item) return;
     document.querySelector('.eyebrow').textContent = 'Ürün Düzenle';
     document.querySelector('.page-head h1').textContent = 'Ürününü düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
@@ -354,8 +389,13 @@ async function prefillForEdit(){
     document.getElementById('u-brand').value = item.brand || '';
     document.getElementById('u-website').value = item.website || '';
     document.getElementById('u-desc').value = item.description || '';
-    const catList = (item.category || '').split(' · ').map(s => s.trim()).filter(Boolean);
-    document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = catList.includes(cb.value));
+    // Eski çoklu-seçim verisi ' · ' ile ayrılmış olabilir (bkz. eski check-grid); yalnızca ilk
+    // değeri alıp yeni Grup/Kategori taksonomisine eşleriz.
+    const cat = (item.category || '').split(' · ')[0].trim();
+    const group = taxonomyGroupOf(PRODUCT_TAXONOMY, cat) || Object.keys(PRODUCT_TAXONOMY)[0];
+    groupSelect.value = group;
+    populateCategoryOptions(group);
+    if(cat) categorySelect.value = cat;
     existingImages = item.images || [];
     renderPreviews();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -381,8 +421,6 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
-  const category = Array.from(form.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
-
   submitBtn.disabled = true;
   let uploadedImages = [];
   try{
@@ -399,13 +437,16 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     title: document.getElementById('u-title').value,
     brand: document.getElementById('u-brand').value || null,
     website: document.getElementById('u-website').value || null,
-    category: category.join(' · '),
+    category: categorySelect.value,
     description: document.getElementById('u-desc').value,
     images: [...existingImages, ...uploadedImages],
   };
 
+  const patchUrl = isAdminEditingOther
+    ? `/api/admin/submissions/products/${encodeURIComponent(editId)}`
+    : `/api/products/${encodeURIComponent(editId)}`;
   try{
-    const res = await fetch(editId ? `/api/products/${encodeURIComponent(editId)}` : '/api/products', {
+    const res = await fetch(editId ? patchUrl : '/api/products', {
       method: editId ? 'PATCH' : 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
@@ -420,10 +461,12 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       return;
     }
     if(editId){
-      notice.textContent = 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
+      notice.textContent = isAdminEditingOther
+        ? 'Değişiklikler kaydedildi.'
+        : 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = 'hesabim.html'; }, 1500);
+      setTimeout(()=>{ window.location.href = isAdminEditingOther ? 'admin.html' : 'hesabim.html'; }, 1500);
       return;
     }
     notice.textContent = 'Ürünün alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';

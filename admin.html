@@ -39,7 +39,7 @@
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
   .nav-search input:focus-visible{box-shadow:none;}
 
-  .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:16px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:10px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
   .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
   .nav-search svg{flex-shrink:0; opacity:0.5;}
   .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
@@ -65,14 +65,16 @@
   .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
 
   .page-head{max-width:1180px; margin:0 auto; padding:28px 32px 0;}
-  .page-head h1{font-family:'Fraunces', serif; font-size:28px; font-weight:600; margin:0 0 4px;}
+  .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
   .admin-wrap{max-width:1180px; margin:0 auto; padding:20px 32px 90px;}
   .admin-tabs{display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid var(--line); margin-bottom:22px; padding-bottom:0;}
-  .admin-tab{padding:10px 16px; border-radius:10px 10px 0 0; font-size:13.5px; font-weight:600; color:var(--ink-soft); border:1px solid transparent;}
+  .admin-tab{position:relative; padding:10px 16px; border-radius:10px 10px 0 0; font-size:13.5px; font-weight:600; color:var(--ink-soft); border:1px solid transparent;}
   .admin-tab:hover{color:var(--ink);}
   .admin-tab.active{color:var(--ink); background:var(--paper-card); border-color:var(--line); border-bottom-color:var(--paper-card); margin-bottom:-1px;}
+  .admin-tab-dot{display:none; position:absolute; top:6px; right:6px; width:8px; height:8px; border-radius:50%; background:var(--bad); border:1.5px solid var(--paper);}
+  .admin-tab-dot.show{display:block;}
 
   .admin-section{display:none;}
   .admin-section.active{display:block;}
@@ -82,9 +84,17 @@
 
   .admin-card{background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px; padding:16px 18px; margin-bottom:12px;}
   .admin-card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;}
-  .admin-card-title{font-family:'Fraunces', serif; font-size:16.5px; font-weight:600; margin:0 0 3px;}
+  .admin-card-thumb{width:56px; height:56px; border-radius:10px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
+  .admin-card-body{flex:1; min-width:200px; display:flex; gap:12px; align-items:flex-start;}
+  .admin-card-title{font-family:'Inter', sans-serif; font-size:16.5px; font-weight:700; margin:0 0 3px;}
   .admin-card-meta{font-size:12.5px; color:var(--ink-soft); line-height:1.6;}
   .admin-card-desc{font-size:13px; color:var(--ink); margin-top:8px; line-height:1.55;}
+  .admin-card-claim-note{display:inline-block; font-size:11.5px; font-weight:600; color:var(--accent); background:rgba(224,138,62,0.12); border-radius:100px; padding:3px 10px; margin:2px 0 5px;}
+  .admin-card-details{margin-top:8px; font-size:12.5px; color:var(--ink-soft); display:flex; flex-direction:column; gap:3px;}
+  .admin-card-details span{font-weight:600; color:var(--ink);}
+  .admin-card-details a{color:var(--walnut); font-weight:600;}
+  .admin-card-note{margin-top:8px; padding:10px 12px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; font-size:12.5px; color:var(--ink); line-height:1.5;}
+  .admin-card-note strong{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin-bottom:3px; font-weight:700;}
   .admin-badge{display:inline-flex; align-items:center; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; padding:4px 10px; border-radius:100px;}
   .badge-pending{background:rgba(224,138,62,0.15); color:var(--accent);}
   .badge-approved{background:rgba(62,122,85,0.15); color:var(--good);}
@@ -99,23 +109,26 @@
   .admin-empty{padding:40px 20px; text-align:center; color:var(--ink-soft); font-size:13.5px; background:var(--paper-card); border:1px dashed var(--line); border-radius:14px;}
 
   .admin-form{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:20px;}
-  .admin-form h3{font-family:'Fraunces', serif; font-size:16px; margin:0 0 14px;}
+  .admin-form h3{font-family:'Inter', sans-serif; font-size:16px; margin:0 0 14px;}
   .admin-field{margin-bottom:12px;}
   .admin-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
   .admin-field input, .admin-field textarea{width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
   .admin-field textarea{min-height:70px; resize:vertical;}
   .admin-denied{max-width:520px; margin:80px auto; text-align:center; padding:0 24px;}
-  .admin-denied h1{font-family:'Fraunces', serif; font-size:24px;}
+  .admin-denied h1{font-family:'Inter', sans-serif; font-size:24px;}
 
   .site-footer{background:var(--ink); color:var(--paper); margin-top:40px;}
   .footer-bottom{text-align:center; padding:18px 32px; font-size:11.5px; color:rgba(237,240,243,0.45);}
 
-  @media (max-width:720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
     .page-head{padding:20px 16px 0;}
     .admin-wrap{padding:16px 16px 70px;}
   }
@@ -140,8 +153,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -156,8 +172,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -182,11 +201,11 @@
 
     <div class="admin-wrap">
       <div class="admin-tabs" id="admin-tabs">
-        <button class="admin-tab active" data-tab="pending">Bekleyen Gönderiler</button>
+        <button class="admin-tab active" data-tab="pending">Bekleyen Gönderiler<span class="admin-tab-dot" data-dot="pending"></span></button>
         <button class="admin-tab" data-tab="content">Yayındaki İçerikler</button>
-        <button class="admin-tab" data-tab="claims">Profil Talepleri</button>
-        <button class="admin-tab" data-tab="badges">Rozet Talepleri</button>
-        <button class="admin-tab" data-tab="contact">Mesajlar</button>
+        <button class="admin-tab" data-tab="claims">Profil Talepleri<span class="admin-tab-dot" data-dot="claims"></span></button>
+        <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
+        <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
       </div>
 
@@ -201,6 +220,7 @@
       </div>
 
       <div class="admin-section" id="section-claims">
+        <div class="admin-subtabs" id="claims-kind-tabs"></div>
         <div class="admin-subtabs" id="claims-subtabs"></div>
         <div id="claims-list"></div>
       </div>
@@ -225,7 +245,7 @@
   </footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber' };
+const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 let pendingType = 'offices';
 let contentType = 'offices';
@@ -249,7 +269,7 @@ function itemTitle(type, item){
 function itemMeta(type, item){
   if(type === 'offices') return [item.loc, item.cats, item.yil].filter(Boolean).join(' · ');
   if(type === 'projects') return [item.location, item.date, (item.designer||[]).join(', ')].filter(Boolean).join(' · ');
-  if(type === 'products') return [item.brand, item.category].filter(Boolean).join(' · ');
+  if(type === 'products' || type === 'materials') return [item.brand, item.category].filter(Boolean).join(' · ');
   if(type === 'jobs') return [item.loc, item.level, item.role].filter(Boolean).join(' · ');
   if(type === 'architects') return [item.office, item.school, item.dept, item.dob].filter(Boolean).join(' · ');
   if(type === 'news') return [item.category, item.source].filter(Boolean).join(' · ');
@@ -258,6 +278,62 @@ function itemMeta(type, item){
 function itemDesc(type, item){
   return item.description || item.about || '';
 }
+
+function safeUrl(u){
+  if(!u) return '';
+  try{
+    const parsed = new URL(u, window.location.href);
+    if(parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+  }catch{}
+  return '';
+}
+
+// Gönderiyle birlikte gelen ilk görseli/fotoğrafı/logoyu döner — admin ne gönderildiğini
+// tıklamadan görebilsin diye kart başlığının yanında küçük bir önizleme olarak gösterilir.
+function itemImage(type, item){
+  if(type === 'architects') return item.photo_url || null;
+  if(type === 'offices') return item.logo_url || null;
+  if(type === 'news' || type === 'jobs') return item.image_url || null;
+  if(item.images && item.images.length) return item.images[0];
+  return null;
+}
+
+// claimed_profile_key doluysa bu bir YENİ kayıt değil, zaten yayında olan bir statik profile
+// (architects[]/offices[]) dair DÜZENLEME talebidir (bkz. schema.sql açıklaması) — admin bunu
+// ayırt edemiyordu, kart başlığının altında belirgin bir rozet olarak gösterilir.
+function claimBadgeHtml(item){
+  if(item.claimed_profile_key) return `<div class="admin-card-claim-note">✎ Düzenleme talebi — mevcut profil: ${escapeHtml(item.claimed_profile_key)}</div>`;
+  // claimed_slug: admin'in statik bir projeye (projeler-data.js) yaptığı düzenleme — bkz.
+  // src/routes/submissions.js#verifyClaimedSlug, yalnızca admin oluşturabilir, her zaman onaylı.
+  if(item.claimed_slug) return `<div class="admin-card-claim-note">✎ Proje düzenlemesi — mevcut slug: ${escapeHtml(item.claimed_slug)}</div>`;
+  return '';
+}
+
+// itemMeta'nın tek satırına sığmayan ek alanları (web sitesi, ödüller, etiketler, başvuru
+// linki, proje kategori/tip/dönem/marka, görsel sayısı) küçük bir liste olarak döner.
+function itemDetails(type, item){
+  const rows = [];
+  if(item.website) rows.push(['Web Sitesi', `<a href="${escapeAttr(safeUrl(item.website))}" target="_blank" rel="noopener">${escapeHtml(item.website)}</a>`]);
+  if(item.apply) rows.push(['Başvuru Linki', `<a href="${escapeAttr(safeUrl(item.apply))}" target="_blank" rel="noopener">${escapeHtml(item.apply)}</a>`]);
+  if(item.awards && item.awards.length) rows.push(['Ödüller', escapeHtml(item.awards.join(', '))]);
+  if(type === 'offices' && item.founders && item.founders.length) rows.push(['Kurucular', escapeHtml(item.founders.join(', '))]);
+  if(type === 'architects' && item.position) rows.push(['Pozisyon', escapeHtml(item.position)]);
+  if(type === 'architects' && item.profession) rows.push(['Meslek', escapeHtml(item.profession)]);
+  if(type === 'jobs' && item.tags && item.tags.length) rows.push(['Etiketler', escapeHtml(item.tags.join(', '))]);
+  if(type === 'jobs' && item.domain) rows.push(['Alan', escapeHtml(item.domain)]);
+  if(type === 'projects'){
+    if(item.category && item.category.length) rows.push(['Kategori', escapeHtml(item.category.join(', '))]);
+    if(item.type && item.type.length) rows.push(['Tip', escapeHtml(item.type.join(', '))]);
+    if(item.brands && item.brands.length) rows.push(['Kullanılan Markalar', escapeHtml(item.brands.join(', '))]);
+  }
+  if((type === 'projects' || type === 'products' || type === 'materials') && item.images && item.images.length > 1){
+    rows.push(['Görseller', `${item.images.length} görsel`]);
+  }
+  if(!rows.length) return '';
+  return `<div class="admin-card-details">${rows.map(([l,v])=>`<div><span>${l}:</span> ${v}</div>`).join('')}</div>`;
+}
+
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 // İş ilanları onaylandıktan/yeniden onaylandıktan sonra 30 gün yayında kalır (bkz.
 // src/routes/public.js#handlePublicRoute, src/routes/admin.js published_at mantığı) — burada
@@ -272,45 +348,70 @@ function jobExpiryBadge(item){
 }
 
 function renderSubtabs(container, activeType, onSelect){
-  container.innerHTML = Object.keys(TYPE_LABELS).map(t =>
-    `<button class="admin-subtab ${t===activeType?'active':''}" data-type="${t}">${TYPE_LABELS[t]}</button>`
+  const types = ['all', ...Object.keys(TYPE_LABELS)];
+  container.innerHTML = types.map(t =>
+    `<button class="admin-subtab ${t===activeType?'active':''}" data-type="${t}">${t === 'all' ? 'Tümü' : TYPE_LABELS[t]}</button>`
   ).join('');
   container.querySelectorAll('.admin-subtab').forEach(btn=>{
     btn.addEventListener('click', ()=> onSelect(btn.dataset.type));
   });
 }
 
+// pendingType/contentType 'all' olduğunda 7 tipin tamamı paralel olarak çekilir, her öğe kendi
+// tipiyle (__type) etiketlenip created_at'e göre birleştirilir — admin.js tarafında ayrı bir
+// "tüm tipler" endpoint'i yok, bu yüzden birleştirme istemci tarafında yapılıyor.
+async function fetchAllTypes(status){
+  const results = await Promise.all(Object.keys(TYPE_LABELS).map(async t => {
+    const data = await api(`/api/admin/submissions?type=${t}&status=${status}`);
+    return (data.items || []).map(item => ({...item, __type: t}));
+  }));
+  return results.flat().sort((a,b) => (b.created_at||0) - (a.created_at||0));
+}
+
 async function loadPending(){
   renderSubtabs(document.getElementById('pending-subtabs'), pendingType, (t)=>{ pendingType = t; loadPending(); });
   const list = document.getElementById('pending-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api(`/api/admin/submissions?type=${pendingType}&status=pending`);
-  const items = data.items || [];
+  let items;
+  if(pendingType === 'all'){
+    items = await fetchAllTypes('pending');
+  } else {
+    const data = await api(`/api/admin/submissions?type=${pendingType}&status=pending`);
+    items = (data.items || []).map(item => ({...item, __type: pendingType}));
+  }
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu tipte bekleyen gönderi yok.</div>'; return; }
   list.innerHTML = items.map(item => `
-    <div class="admin-card" data-id="${item.id}">
+    <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
-        <div>
-          <div class="admin-card-title">${escapeHtml(itemTitle(pendingType, item))}</div>
-          <div class="admin-card-meta">${escapeHtml(itemMeta(pendingType, item))}</div>
+        <div class="admin-card-body">
+          ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy">` : ''}
+          <div>
+            <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))}${pendingType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}</div>
+            ${claimBadgeHtml(item)}
+            <div class="admin-card-meta">${escapeHtml(itemMeta(item.__type, item))}</div>
+            ${itemDetails(item.__type, item)}
+          </div>
         </div>
         <div class="admin-actions">
           <button class="admin-btn primary" data-action="approve">Onayla</button>
           <button class="admin-btn danger" data-action="reject">Reddet</button>
         </div>
       </div>
-      ${itemDesc(pendingType, item) ? `<div class="admin-card-desc">${escapeHtml(itemDesc(pendingType, item))}</div>` : ''}
+      ${itemDesc(item.__type, item) ? `<div class="admin-card-desc">${escapeHtml(itemDesc(item.__type, item))}</div>` : ''}
     </div>
   `).join('');
   list.querySelectorAll('[data-action]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      const id = btn.closest('.admin-card').dataset.id;
+      const card = btn.closest('.admin-card');
+      const id = card.dataset.id;
+      const type = card.dataset.type;
       const status = btn.dataset.action === 'approve' ? 'approved' : 'rejected';
       btn.disabled = true;
-      await api(`/api/admin/submissions/${pendingType}/${id}`, {
+      await api(`/api/admin/submissions/${type}/${id}`, {
         method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({status}),
       });
       loadPending();
+      refreshAdminSummary();
     });
   });
 }
@@ -319,15 +420,25 @@ async function loadContent(){
   renderSubtabs(document.getElementById('content-subtabs'), contentType, (t)=>{ contentType = t; loadContent(); });
   const list = document.getElementById('content-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api(`/api/admin/submissions?type=${contentType}&status=approved`);
-  const items = data.items || [];
+  let items;
+  if(contentType === 'all'){
+    items = await fetchAllTypes('approved');
+  } else {
+    const data = await api(`/api/admin/submissions?type=${contentType}&status=approved`);
+    items = (data.items || []).map(item => ({...item, __type: contentType}));
+  }
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu tipte yayında içerik yok.</div>'; return; }
   list.innerHTML = items.map(item => `
-    <div class="admin-card" data-id="${item.id}">
+    <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
-        <div>
-          <div class="admin-card-title">${escapeHtml(itemTitle(contentType, item))} <span class="admin-badge badge-approved">Yayında</span>${contentType === 'jobs' ? jobExpiryBadge(item) : ''}</div>
-          <div class="admin-card-meta">${escapeHtml(itemMeta(contentType, item))}</div>
+        <div class="admin-card-body">
+          ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy">` : ''}
+          <div>
+            <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))} <span class="admin-badge badge-approved">Yayında</span>${item.__type === 'jobs' ? jobExpiryBadge(item) : ''}${contentType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}</div>
+            ${claimBadgeHtml(item)}
+            <div class="admin-card-meta">${escapeHtml(itemMeta(item.__type, item))}</div>
+            ${itemDetails(item.__type, item)}
+          </div>
         </div>
         <div class="admin-actions">
           <button class="admin-btn danger" data-action="unpublish">Yayından Kaldır</button>
@@ -337,33 +448,46 @@ async function loadContent(){
   `).join('');
   list.querySelectorAll('[data-action="unpublish"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      const id = btn.closest('.admin-card').dataset.id;
+      const card = btn.closest('.admin-card');
+      const id = card.dataset.id;
+      const type = card.dataset.type;
       if(!confirm('Bu içeriği yayından kaldırmak istediğine emin misin?')) return;
       btn.disabled = true;
-      await api(`/api/admin/submissions/${contentType}/${id}`, { method: 'DELETE' });
+      await api(`/api/admin/submissions/${type}/${id}`, { method: 'DELETE' });
       loadContent();
     });
   });
 }
 
+let claimsKind = 'ownership';
 let claimsStatus = 'pending';
+let correctionsStatus = 'pending';
 let badgesStatus = 'pending';
 const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', rejected:'Reddedildi' };
+const CORRECTION_STATUS_LABELS = { pending:'Beklemede', resolved:'Çözüldü', dismissed:'Reddedildi' };
+const CLAIM_KIND_LABELS = { ownership:'Sahiplenme Talepleri', correction:'Düzeltme Önerileri' };
 const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
 const PROFILE_TYPE_LABELS = { architect:'Mimar', office:'Ofis' };
 const BADGE_TYPE_LABELS = { destekci:'Destekçi', verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye' };
 
-function renderStatusSubtabs(container, labels, activeStatus, onSelect){
-  container.innerHTML = Object.keys(labels).map(s =>
-    `<button class="admin-subtab ${s===activeStatus?'active':''}" data-status="${s}">${labels[s]}</button>`
+function renderStatusSubtabs(container, labels, activeStatus, onSelect, includeAll){
+  const statuses = includeAll ? ['', ...Object.keys(labels)] : Object.keys(labels);
+  container.innerHTML = statuses.map(s =>
+    `<button class="admin-subtab ${s===activeStatus?'active':''}" data-status="${s}">${s === '' ? 'Tümü' : labels[s]}</button>`
   ).join('');
   container.querySelectorAll('.admin-subtab').forEach(btn=>{
     btn.addEventListener('click', ()=> onSelect(btn.dataset.status));
   });
 }
 
-async function loadClaims(){
-  renderStatusSubtabs(document.getElementById('claims-subtabs'), CLAIM_STATUS_LABELS, claimsStatus, (s)=>{ claimsStatus = s; loadClaims(); });
+function loadClaims(){
+  renderStatusSubtabs(document.getElementById('claims-kind-tabs'), CLAIM_KIND_LABELS, claimsKind, (k)=>{ claimsKind = k; loadClaims(); });
+  if(claimsKind === 'correction') return loadCorrections();
+  return loadOwnershipClaims();
+}
+
+async function loadOwnershipClaims(){
+  renderStatusSubtabs(document.getElementById('claims-subtabs'), CLAIM_STATUS_LABELS, claimsStatus, (s)=>{ claimsStatus = s; loadClaims(); }, true);
   const list = document.getElementById('claims-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
   const data = await api(`/api/admin/claims?status=${claimsStatus}`);
@@ -382,6 +506,7 @@ async function loadClaims(){
           <button class="admin-btn danger" data-action="reject">Reddet</button>
         </div>` : ''}
       </div>
+      ${c.note ? `<div class="admin-card-note"><strong>Kullanıcının notu</strong>${escapeHtml(c.note)}</div>` : ''}
     </div>
   `).join('');
   list.querySelectorAll('[data-action]').forEach(btn=>{
@@ -391,12 +516,48 @@ async function loadClaims(){
       btn.disabled = true;
       await api(`/api/admin/claims/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
       loadClaims();
+      refreshAdminSummary();
+    });
+  });
+}
+
+async function loadCorrections(){
+  renderStatusSubtabs(document.getElementById('claims-subtabs'), CORRECTION_STATUS_LABELS, correctionsStatus, (s)=>{ correctionsStatus = s; loadClaims(); }, true);
+  const list = document.getElementById('claims-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/corrections?status=${correctionsStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda öneri yok.</div>'; return; }
+  list.innerHTML = items.map(c => `
+    <div class="admin-card" data-id="${c.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(c.profile_key)} <span class="admin-badge badge-pending">${PROFILE_TYPE_LABELS[c.profile_type] || c.profile_type}</span></div>
+          <div class="admin-card-meta">${escapeHtml(c.user_name)} · ${escapeHtml(c.user_email)} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+        ${c.status === 'pending' ? `
+        <div class="admin-actions">
+          <button class="admin-btn primary" data-action="resolved">Çözüldü İşaretle</button>
+          <button class="admin-btn danger" data-action="dismissed">Reddet</button>
+        </div>` : ''}
+      </div>
+      <div class="admin-card-note"><strong>Öneri</strong>${escapeHtml(c.note)}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      const status = btn.dataset.action;
+      btn.disabled = true;
+      await api(`/api/admin/corrections/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+      loadClaims();
+      refreshAdminSummary();
     });
   });
 }
 
 async function loadBadgeRequests(){
-  renderStatusSubtabs(document.getElementById('badges-subtabs'), BADGE_STATUS_LABELS_ADMIN, badgesStatus, (s)=>{ badgesStatus = s; loadBadgeRequests(); });
+  renderStatusSubtabs(document.getElementById('badges-subtabs'), BADGE_STATUS_LABELS_ADMIN, badgesStatus, (s)=>{ badgesStatus = s; loadBadgeRequests(); }, true);
   const list = document.getElementById('badges-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
   const data = await api(`/api/admin/badges?status=${badgesStatus}`);
@@ -406,7 +567,7 @@ async function loadBadgeRequests(){
     <div class="admin-card" data-id="${b.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL / ay</span></div>
+          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL / ay</span> <span class="admin-badge badge-approved">${b.target_type === 'office' ? 'Marka: ' + escapeHtml(b.target_key || '') : 'Kendisi için'}</span></div>
           <div class="admin-card-meta">${escapeHtml(b.user_name)} · ${escapeHtml(b.user_email)} · ${new Date(b.created_at).toLocaleDateString('tr-TR')}${b.status === 'active' && b.expires_at ? ` · ${new Date(b.expires_at).toLocaleDateString('tr-TR')} tarihine kadar aktif` : ''}</div>
         </div>
         ${b.status === 'pending' ? `
@@ -424,6 +585,7 @@ async function loadBadgeRequests(){
       btn.disabled = true;
       await api(`/api/admin/badges/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
       loadBadgeRequests();
+      refreshAdminSummary();
     });
   });
 }
@@ -454,6 +616,7 @@ async function loadContactMessages(){
       const id = btn.closest('.admin-card').dataset.id;
       await api(`/api/admin/contact/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({is_read: true}) });
       loadContactMessages();
+      refreshAdminSummary();
     });
   });
   list.querySelectorAll('[data-action="delete"]').forEach(btn=>{
@@ -462,6 +625,7 @@ async function loadContactMessages(){
       const id = btn.closest('.admin-card').dataset.id;
       await api(`/api/admin/contact/${id}`, { method:'DELETE' });
       loadContactMessages();
+      refreshAdminSummary();
     });
   });
 }
@@ -485,6 +649,24 @@ async function loadUsers(){
 }
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// Sekme başlıklarındaki kırmızı noktaları /api/admin/summary'den gelen sayılara göre günceller;
+// her onay/red/okundu-işaretle işleminden sonra tekrar çağrılır ki nokta anlık güncel kalsın.
+async function refreshAdminSummary(){
+  try{
+    const data = await api('/api/admin/summary');
+    const dots = {
+      pending: data.pendingSubmissions > 0,
+      claims: data.pendingClaims > 0,
+      badges: data.pendingBadges > 0,
+      contact: data.unreadContact > 0,
+    };
+    Object.entries(dots).forEach(([key, show])=>{
+      const dot = document.querySelector(`.admin-tab-dot[data-dot="${key}"]`);
+      if(dot) dot.classList.toggle('show', show);
+    });
+  }catch{}
+}
 
 document.querySelectorAll('.admin-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
@@ -510,6 +692,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     }
     document.getElementById('admin-app').style.display = 'block';
     loadPending();
+    refreshAdminSummary();
   }catch(e){ /* zaten admin-denied gösterildi */ }
 })();
 

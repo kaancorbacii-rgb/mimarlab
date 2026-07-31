@@ -1,4 +1,5 @@
 import { errorJson } from './lib/http.js';
+import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
@@ -7,11 +8,14 @@ import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
 import { handleRatingsRoute } from './routes/ratings.js';
-import { handleClaimsRoute } from './routes/claims.js';
+import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
+import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
 import { slugify } from './lib/slugify.js';
+
+const SITE_ORIGIN = 'https://mimarlab.com';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -37,11 +41,46 @@ const CLEAN_URL_REDIRECTS = {
 // (auto-trailing-slash) davranışıyla bunu tekrar uzantısız hale 301 yönlendirir — bu da orijinal
 // /projeler/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
 const CLEAN_URL_ASSETS = [
-  { prefix: '/projeler/', asset: '/proje-detay' },
-  { prefix: '/mimar/', asset: '/mimar-detay' },
-  { prefix: '/markalar/', asset: '/ofis-detay' },
-  { prefix: '/haberler/', asset: '/haber-detay' },
+  { prefix: '/projeler/', asset: '/proje-detay', type: 'project' },
+  { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
+  { prefix: '/markalar/', asset: '/ofis-detay', type: 'office' },
+  { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
 ];
+
+// Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
+// /sitemap.xml Worker route'u tarafından üretiliyor, bu dosya kaldırıldı).
+const SITEMAP_STATIC_PAGES = [
+  { loc: '/', changefreq: 'daily', priority: '1.0' },
+  { loc: '/mimar', changefreq: 'daily', priority: '0.9' },
+  { loc: '/ofis', changefreq: 'daily', priority: '0.9' },
+  { loc: '/proje', changefreq: 'daily', priority: '0.9' },
+  { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
+  { loc: '/malzeme', changefreq: 'weekly', priority: '0.7' },
+  { loc: '/haber', changefreq: 'daily', priority: '0.7' },
+  { loc: '/is-ilani', changefreq: 'daily', priority: '0.7' },
+  { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
+  { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
+  { loc: '/kariyer', changefreq: 'monthly', priority: '0.4' },
+  { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },
+];
+
+const IMAGE_EXT_RE = /\.(jpe?g|png|webp|avif|gif|svg)$/i;
+// Repo'ya gömülü statik görseller (logos/, mimarlar/, projects/, miras/) aynı path'te üzerine
+// yazılabildiği için tam `immutable` değil — 7 gün tarayıcı + 30 gün stale-while-revalidate.
+// /media/* (R2 upload) zaten UUID key'li, gerçekten immutable ve handleMediaRoute'ta ayrıca ayarlı.
+const STATIC_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=2592000' };
+// SSR enjeksiyonu yapılmış detay sayfaları için: kısa tarayıcı cache'i + edge'de daha uzun ömür.
+// Ayrıca Cache API (caches.default) ile edge'e de yazılıyor (bkz. serveDetailPage) — yüksek
+// trafikte her istek ASSETS.fetch + HTMLRewriter çalıştırmak zorunda kalmaz.
+const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400' };
+const SITEMAP_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=21600' };
+
+// Cache API girdileri deploy'dan bağımsızdır — kod/şablon değiştiğinde eski deploy'dan kalan
+// cache girdileri otomatik geçersizleşmez (s-maxage=3600 boyunca eski HTML sunulmaya devam eder).
+// injectMeta()/*-detay.html şablonlarından biri değiştiğinde bu değeri artırmak, gerçek istek
+// URL'sini DEĞİŞTİRMEDEN yalnızca cache anahtarını değiştirip önceki girdileri "yetim" bırakarak
+// (silmeye gerek kalmadan) anında geçersiz kılar.
+const SSR_CACHE_VERSION = 'v6';
 
 export default {
   async fetch(request, env, ctx) {
@@ -56,8 +95,10 @@ export default {
       }
     } else if (url.pathname.startsWith('/media/')) {
       response = await handleMediaRoute(request, env, url);
+    } else if (url.pathname === '/sitemap.xml') {
+      response = await handleSitemapRoute(request, ctx);
     } else {
-      response = await routeAsset(request, env, url);
+      response = await routeAsset(request, env, url, ctx);
     }
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
@@ -65,7 +106,7 @@ export default {
   },
 };
 
-async function routeAsset(request, env, url) {
+async function routeAsset(request, env, url, ctx) {
   const redirectKey = url.pathname.replace(/\.html$/, '');
   const redirectRule = CLEAN_URL_REDIRECTS[redirectKey];
   const paramVal = redirectRule ? url.searchParams.get(redirectRule.param) : null;
@@ -76,13 +117,100 @@ async function routeAsset(request, env, url) {
   }
 
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
-  if (cleanRoute) {
-    const assetUrl = new URL(url);
-    assetUrl.pathname = cleanRoute.asset;
-    return env.ASSETS.fetch(new Request(assetUrl, request));
+  if (cleanRoute) return serveDetailPage(request, env, url, cleanRoute, ctx);
+
+  const response = await env.ASSETS.fetch(request);
+  return withStaticImageCacheHeaders(url, response);
+}
+
+function withStaticImageCacheHeaders(url, response) {
+  if (response.status !== 200 || !IMAGE_EXT_RE.test(url.pathname)) return response;
+  const headers = new Headers(response.headers);
+  for (const [k, v] of Object.entries(STATIC_IMAGE_CACHE_HEADERS)) headers.set(k, v);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+// /mimar/:slug, /markalar/:slug, /projeler/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
+// slug data.js/projeler-data.js/haberler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
+// HTMLRewriter ile (Google/sosyal medya botları JS çalıştırmadan da) doğru değerlerle değiştirir.
+// Bulunamazsa (ör. yalnızca D1'de var olan, henüz bu detay sayfalarını desteklemeyen bir kayıt)
+// şablonu olduğu gibi döner — mevcut davranışta regresyon yok.
+async function serveDetailPage(request, env, url, cleanRoute, ctx) {
+  const isGet = request.method === 'GET';
+  // Yalnızca cache.match/put anahtarı için kullanılır — gerçek istek/yanıt URL'si (ve dolayısıyla
+  // canonical/OG URL'leri) etkilenmez, bkz. SSR_CACHE_VERSION yorumu.
+  const cacheKeyRequest = isGet ? withVersionedCacheKey(request, url) : null;
+  if (cacheKeyRequest) {
+    const cached = await cacheMatch(cacheKeyRequest);
+    if (cached) return cached;
   }
 
-  return env.ASSETS.fetch(request);
+  const assetUrl = new URL(url);
+  assetUrl.pathname = cleanRoute.asset;
+  const assetResponse = await env.ASSETS.fetch(new Request(assetUrl, request));
+
+  const rawSlug = decodeURIComponent(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
+  const meta = rawSlug ? buildMeta(cleanRoute.type, rawSlug) : null;
+  if (!meta || assetResponse.status !== 200) return assetResponse;
+
+  const rewritten = injectMeta(assetResponse, meta);
+  const headers = new Headers(rewritten.headers);
+  for (const [k, v] of Object.entries(SSR_PAGE_CACHE_HEADERS)) headers.set(k, v);
+  const finalResponse = new Response(rewritten.body, { status: rewritten.status, statusText: rewritten.statusText, headers });
+
+  if (cacheKeyRequest && ctx) ctx.waitUntil(cachePut(cacheKeyRequest, finalResponse.clone()));
+  return finalResponse;
+}
+
+function withVersionedCacheKey(request, url) {
+  const keyUrl = new URL(url);
+  keyUrl.searchParams.set('__cv', SSR_CACHE_VERSION);
+  return new Request(keyUrl, request);
+}
+
+// caches.default yalnızca https istekleri için çalışır ve bazı ortamlarda (ör. yerel `wrangler dev`
+// http://localhost) hata fırlatabilir — cache tamamen opsiyonel bir hızlandırma katmanı olduğundan
+// bir hata sayfayı bozmamalı, sessizce "cache yok" gibi davranıyoruz.
+async function cacheMatch(request) {
+  try { return await caches.default.match(request); } catch { return undefined; }
+}
+async function cachePut(request, response) {
+  try { await caches.default.put(request, response); } catch {}
+}
+
+function injectMeta(response, meta) {
+  // </script> içeren bir değer HTML'e ham olarak enjekte edilirse script bağlamından çıkabilir;
+  // JSON-LD içeriği data.js/projeler-data.js/haberler-data.js'ten (site sahibi kontrolünde) geldiği
+  // için düşük risk ama yine de savunmacı olarak escape ediyoruz (bkz. XSS escaping convention).
+  const ldJson = JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c');
+  return new HTMLRewriter()
+    .on('title', { element(el) { el.setInnerContent(meta.title); } })
+    .on('meta#meta-description', { element(el) { el.setAttribute('content', meta.description); } })
+    .on('link#canonical-link', { element(el) { el.setAttribute('href', meta.canonicalUrl); } })
+    .on('meta#og-title', { element(el) { el.setAttribute('content', meta.title); } })
+    .on('meta#og-description', { element(el) { el.setAttribute('content', meta.description); } })
+    .on('meta#og-url', { element(el) { el.setAttribute('content', meta.canonicalUrl); } })
+    .on('meta#og-image', { element(el) { el.setAttribute('content', meta.image); } })
+    .on('meta#twitter-title', { element(el) { el.setAttribute('content', meta.title); } })
+    .on('meta#twitter-description', { element(el) { el.setAttribute('content', meta.description); } })
+    .on('meta#twitter-image', { element(el) { el.setAttribute('content', meta.image); } })
+    .on('head', { element(el) { el.append(`<script type="application/ld+json">${ldJson}</script>`, { html: true }); } })
+    .transform(response);
+}
+
+async function handleSitemapRoute(request, ctx) {
+  const cached = await cacheMatch(request);
+  if (cached) return cached;
+
+  const urls = [
+    ...SITEMAP_STATIC_PAGES.map(p => `  <url>\n    <loc>${SITE_ORIGIN}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`),
+    ...listEntityUrls().map(loc => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <changefreq>monthly</changefreq>\n  </url>`),
+  ];
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
+  const response = new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', ...SITEMAP_CACHE_HEADERS } });
+
+  if (ctx) ctx.waitUntil(cachePut(request, response.clone()));
+  return response;
 }
 
 async function routeApi(request, env, url) {
@@ -98,11 +226,14 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
   if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);
+  if (path.startsWith('/api/corrections')) return handleCorrectionsRoute(request, env, url);
   if (path.startsWith('/api/badges')) return handleBadgesRoute(request, env, url);
+  if (path.startsWith('/api/payments/')) return handlePaymentsRoute(request, env, url);
   if (path.startsWith('/api/notifications')) return handleNotificationsRoute(request, env, url);
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
-    path.startsWith('/api/products') || path.startsWith('/api/jobs') ||
+    path.startsWith('/api/products') || path.startsWith('/api/materials') ||
+    path.startsWith('/api/jobs') ||
     path.startsWith('/api/architects') || path.startsWith('/api/news')
   ) return handleSubmissionRoute(request, env, url);
   return errorJson('Bulunamadı', 404);

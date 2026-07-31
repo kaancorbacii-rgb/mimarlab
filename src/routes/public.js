@@ -1,8 +1,9 @@
 import { json, errorJson } from '../lib/http.js';
 import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
+import { ITEM_TYPES } from './saved.js';
 
 const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', jobs: 'jobs',
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
   architects: 'architects',
 };
 
@@ -11,11 +12,15 @@ const TYPE_BY_PATH = {
 // tarafında tek satırlık bir fetch+push ile mevcut render() koduna karışabilirler.
 function toPublicShape(type, row) {
   const parsed = parseSubmissionRow(type, row);
+  // "X tarafından" satırı (bkz. *-detay.html, urun/malzeme/is-ilani modalları) için — yalnızca
+  // owner join'i yapılmış sorgulardan gelen satırlarda dolu (bkz. handlePublicRoute), diğer
+  // çağıranlarda (ör. handlePublicProfileContent) sessizce undefined kalır, byline gösterilmez.
+  const owner = row.owner_name ? { ownerName: row.owner_name, ownerPhoto: row.owner_photo, ownerBadge: row.owner_badge } : {};
   if (type === 'offices') {
     return {
       name: parsed.name, loc: parsed.loc, cats: parsed.cats, yil: parsed.yil,
       website: parsed.website, about: parsed.about, logo: parsed.logo_url,
-      awards: parsed.awards, source: 'member', submissionId: parsed.id,
+      awards: parsed.awards, source: 'member', submissionId: parsed.id, ...owner,
     };
   }
   if (type === 'projects') {
@@ -25,22 +30,22 @@ function toPublicShape(type, row) {
       dateBucket: parsed.dateBucket, period: parsed.period, designer: parsed.designer,
       photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },
       description: parsed.description, mostVisited: null, recommendations: [],
-      images: parsed.images, brands: parsed.brands, source: 'member', submissionId: parsed.id,
+      images: parsed.images, brands: parsed.brands, source: 'member', submissionId: parsed.id, ...owner,
     };
   }
-  if (type === 'products') {
+  if (type === 'products' || type === 'materials') {
     return {
       title: parsed.title, brand: parsed.brand, website: parsed.website, category: parsed.category,
       description: parsed.description, images: parsed.images,
       image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
-      source: 'member', submissionId: parsed.id,
+      source: 'member', submissionId: parsed.id, ...owner,
     };
   }
   if (type === 'architects') {
     return {
       name: parsed.name, dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
       role: parsed.position, status: parsed.position, awards: parsed.awards, photo: parsed.photo_url,
-      source: 'member', submissionId: parsed.id,
+      source: 'member', submissionId: parsed.id, ...owner,
     };
   }
   // jobs
@@ -48,43 +53,62 @@ function toPublicShape(type, row) {
     title: parsed.title, office: parsed.office, loc: parsed.loc, level: parsed.level,
     role: parsed.role, tags: parsed.tags, domain: parsed.domain, description: parsed.description,
     apply: parsed.apply, image: parsed.image_url, source: 'member', submissionId: parsed.id,
-    publishedAt: parsed.published_at || parsed.created_at,
+    publishedAt: parsed.published_at || parsed.created_at, ...owner,
   };
 }
 
 const JOB_LISTING_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
-// architects/offices'te claimed_profile_key dolu satırlar yeni bir kayıt değil, mevcut statik bir
-// profile yapılan bir düzenleme talebidir (bkz. handlePublicProfileEdits) — bu yüzden bu genel
-// "yeni kayıt" listesine dahil edilmezler, aksi halde aynı isim iki kez (biri statik biri "yeni
-// üye kaydı" olarak) görünürdü.
-const CLAIMABLE_TYPES = new Set(['architects', 'offices']);
+// architects/offices'te claimed_profile_key, projects'te claimed_slug dolu satırlar yeni bir kayıt
+// değil, mevcut statik bir kayda (architects[]/offices[].name ya da projeler[].slug) yapılan bir
+// düzenleme talebidir (bkz. handlePublicProfileEdits/handlePublicProjectEdits) — bu yüzden bu genel
+// "yeni kayıt" listesine dahil edilmezler, aksi halde aynı kayıt iki kez (biri statik biri "yeni
+// üye kaydı" olarak) görünürdü. projects'in claimed_slug'ı yalnızca admin tarafından set edilebilir
+// (bkz. src/routes/submissions.js#verifyClaimedSlug) — projelerin mimar/ofis'teki gibi bir sıradan
+// üye "sahiplenme" akışı yok.
+const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'claimed_profile_key', projects: 'claimed_slug' };
+
+// Bu uçlar herkese açık, kimliksiz ve yalnızca onaylı/statik içerik döner — anlık tutarlılık
+// gerekmez, bu yüzden edge/browser'da kısa süre önbelleklenip arka planda tazelenebilir
+// (stale-while-revalidate: istemci limiti geçince eski yanıtı hemen gösterirken arka planda yeniler).
+const PUBLIC_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=300' };
 
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
   if (segments[2] === 'news') return listPublicNews(env);
   if (segments[2] === 'profile-edits') return handlePublicProfileEdits(env);
+  if (segments[2] === 'project-edits') return handlePublicProjectEdits(env);
   if (segments[2] === 'profile-content') return handlePublicProfileContent(env, url);
   if (segments[2] === 'claim-status') return handlePublicClaimStatus(env, url);
+  if (segments[2] === 'save-count') return handlePublicSaveCount(env, url);
 
   const typeKey = TYPE_BY_PATH[segments[2]];
   if (!typeKey || request.method !== 'GET') return errorJson('Bulunamadı', 404);
 
   const config = SUBMISSION_TYPES[typeKey];
-  let whereClause = CLAIMABLE_TYPES.has(typeKey)
-    ? `WHERE status = 'approved' AND claimed_profile_key IS NULL`
-    : `WHERE status = 'approved'`;
-  const params = [];
+  const claimedColumn = CLAIMED_COLUMN_BY_TYPE[typeKey];
+  let whereClause = claimedColumn
+    ? `WHERE s.status = 'approved' AND s.${claimedColumn} IS NULL`
+    : `WHERE s.status = 'approved'`;
+  // Gönderiyi yayınlayan hesabın adı/fotoğrafı ("X tarafından" satırı, bkz. *-detay.html) ve
+  // yalnızca KENDİSİ için aldığı (target_type='self') aktif rozeti — marka rozeti burada asla
+  // sızmaz, bkz. src/routes/badges.js#handlePublicBadges'teki aynı ayrım.
+  const params = [Date.now()];
   // İş ilanları 30 gün yayında kalır: published_at'i olmayan (eski/legacy) satırlar için kısıtlama
   // uygulanmaz, olanlar süresi dolunca herkese açık listeden düşer (bkz. migrations/0004_job_expiry.sql).
   if (typeKey === 'jobs') {
-    whereClause += ` AND (published_at IS NULL OR published_at > ?)`;
+    whereClause += ` AND (s.published_at IS NULL OR s.published_at > ?)`;
     params.push(Date.now() - JOB_LISTING_DURATION_MS);
   }
   const { results } = await env.DB.prepare(
-    `SELECT * FROM ${config.table} ${whereClause} ORDER BY created_at DESC`
+    `SELECT s.*, u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
+     FROM ${config.table} s
+     JOIN users u ON u.id = s.owner_user_id
+     LEFT JOIN badge_requests b ON b.user_id = s.owner_user_id AND b.target_type = 'self' AND b.status = 'active'
+       AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
+     ${whereClause} ORDER BY s.created_at DESC`
   ).bind(...params).all();
-  return json({ items: results.map(r => toPublicShape(typeKey, r)) });
+  return json({ items: results.map(r => toPublicShape(typeKey, r)) }, 200, PUBLIC_CACHE_HEADERS);
 }
 
 // GET /api/public/claim-status?profileType=architect|office&profileKey=<isim> — auth gerektirmez.
@@ -102,7 +126,20 @@ async function handlePublicClaimStatus(env, url) {
   const row = await env.DB.prepare(
     `SELECT id FROM profile_claims WHERE profile_type = ? AND profile_key = ? AND status = 'approved' LIMIT 1`
   ).bind(profileType, profileKey).first();
-  return json({ claimed: !!row });
+  return json({ claimed: !!row }, 200, PUBLIC_CACHE_HEADERS);
+}
+
+// GET /api/public/save-count?type=project|product|material|news|job&key=<slug> — auth gerektirmez.
+// Detay sayfalarında Kaydet butonunun yanında "N kez kaydedildi" göstermek için (bkz. proje-detay.html),
+// kullanıcı bazlı /api/saved'ın aksine tüm kullanıcılar genelinde toplam sayıyı döner.
+async function handlePublicSaveCount(env, url) {
+  const itemType = url.searchParams.get('type');
+  const itemKey = (url.searchParams.get('key') || '').trim();
+  if (!ITEM_TYPES.has(itemType) || !itemKey) return errorJson('Geçersiz istek.');
+  const row = await env.DB.prepare(
+    'SELECT COUNT(*) AS count FROM saved_items WHERE item_type = ? AND item_key = ?'
+  ).bind(itemType, itemKey).first();
+  return json({ count: row?.count || 0 }, 200, PUBLIC_CACHE_HEADERS);
 }
 
 // GET /api/public/profile-edits — auth gerektirmez. Onaylı, claimed_profile_key'li architect/office
@@ -119,7 +156,7 @@ async function handlePublicProfileEdits(env) {
     const parsed = parseSubmissionRow('architects', row);
     out.architect[row.claimed_profile_key] = {
       dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-      role: parsed.position, photo: parsed.photo_url,
+      role: parsed.position, profession: parsed.profession, photo: parsed.photo_url,
     };
   }
   for (const row of officeRes.results) {
@@ -129,18 +166,45 @@ async function handlePublicProfileEdits(env) {
       about: parsed.about, logo: parsed.logo_url,
     };
   }
-  return json(out);
+  return json(out, 200, PUBLIC_CACHE_HEADERS);
+}
+
+// GET /api/public/project-edits — auth gerektirmez. Onaylı, claimed_slug'lı proje gönderilerini
+// { "<slug>": {title, category, ...} } şeklinde döner; proje-detay.html bunu statik projeler[]
+// kaydının üzerine bindirir (bkz. mimar-detay.html/ofis-detay.html'deki aynı desen). claimed_slug
+// yalnızca admin tarafından oluşturulabildiğinden (bkz. verifyClaimedSlug) burada ek bir yetki
+// kontrolüne gerek yok — herkese açık okuma, mimar/ofis düzenlemeleriyle aynı mantık.
+async function handlePublicProjectEdits(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM project_submissions WHERE status = 'approved' AND claimed_slug IS NOT NULL`
+  ).all();
+
+  const out = {};
+  for (const row of results) {
+    const parsed = parseSubmissionRow('projects', row);
+    out[row.claimed_slug] = {
+      title: parsed.title, category: parsed.category, type: parsed.type,
+      location: parsed.location, locationDetail: parsed.locationDetail,
+      date: parsed.date, dateBucket: parsed.dateBucket, designer: parsed.designer,
+      photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },
+      description: parsed.description, images: parsed.images, brands: parsed.brands,
+    };
+  }
+  return json(out, 200, PUBLIC_CACHE_HEADERS);
 }
 
 const PROFILE_CONTENT_TYPES = new Set(['architect', 'office']);
 
 // GET /api/public/profile-content?profileType=architect|office&profileKey=<isim> — auth
-// gerektirmez. Ürün/haber/iş ilanı gönderilerinde mimar/ofis adını tutan bir alan olmadığından
+// gerektirmez. Ürün/malzeme/haber gönderilerinde mimar/ofis adını tutan bir alan olmadığından
 // (bkz. product_submissions.brand, news_submissions — ikisi de serbest metin, isme göre
 // eşleştirilemez), bu profili sahiplenip onayı geçmiş kullanıcı(lar)ın (bkz. profile_claims)
 // owner_user_id'si üzerinden eşleştirme yapılır: "kişinin/markanın siteye girdiği" içerik budur.
 // mimar-detay.html/ofis-detay.html bunu Projeler'in altında Projeler'le aynı yatay kaydırmalı
-// tasarımda gösterir (haber/iş ilanı yalnızca architect için döner).
+// tasarımda gösterir. Ürün/malzeme/haber her iki profil tipinde de gösterilir (bkz. kullanıcı
+// isteği: ofis profillerinde de "varsa" ürün/malzeme/haber başlıkları); iş ilanları yalnızca
+// architect için döner — ofis profillerinin kendi statik İş İlanları bölümü zaten var (bkz.
+// ofis-detay.html#jobListings), burada tekrarlanmasına gerek yok.
 async function handlePublicProfileContent(env, url) {
   const profileType = url.searchParams.get('profileType');
   const profileKey = (url.searchParams.get('profileKey') || '').trim();
@@ -150,20 +214,21 @@ async function handlePublicProfileContent(env, url) {
     `SELECT DISTINCT user_id FROM profile_claims WHERE status = 'approved' AND profile_type = ? AND profile_key = ?`
   ).bind(profileType, profileKey).all();
   const userIds = claimRows.map(r => r.user_id);
-  if (!userIds.length) return json({ products: [], news: [], jobs: [] });
+  if (!userIds.length) return json({ products: [], materials: [], news: [], jobs: [] });
 
   const placeholders = userIds.map(() => '?').join(', ');
   const isArchitect = profileType === 'architect';
 
-  const [productsRes, newsRes, jobsRes] = await Promise.all([
+  const [productsRes, materialsRes, newsRes, jobsRes] = await Promise.all([
     env.DB.prepare(
       `SELECT * FROM product_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
     ).bind(...userIds).all(),
-    isArchitect
-      ? env.DB.prepare(
-          `SELECT id, title, category, source, description, image_url FROM news_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
-        ).bind(...userIds).all()
-      : Promise.resolve({ results: [] }),
+    env.DB.prepare(
+      `SELECT * FROM material_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
+    ).bind(...userIds).all(),
+    env.DB.prepare(
+      `SELECT id, title, category, source, description, image_url FROM news_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
+    ).bind(...userIds).all(),
     isArchitect
       ? env.DB.prepare(
           `SELECT * FROM job_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
@@ -173,24 +238,38 @@ async function handlePublicProfileContent(env, url) {
 
   return json({
     products: productsRes.results.map(r => toPublicShape('products', r)),
+    materials: materialsRes.results.map(r => toPublicShape('materials', r)),
     news: newsRes.results.map(r => ({
       id: r.id, title: r.title, category: r.category, source: r.source, description: r.description, image: r.image_url,
     })),
     jobs: jobsRes.results.map(r => toPublicShape('jobs', r)),
-  });
+  }, 200, PUBLIC_CACHE_HEADERS);
 }
 
 async function listPublicNews(env) {
   const { results } = await env.DB.prepare(
-    `SELECT id, title, category, source, description, image_url, created_at FROM news WHERE published = 1
+    `SELECT id, title, category, source, description, image_url, created_at, 0 AS is_submission,
+            NULL AS owner_name, NULL AS owner_photo, NULL AS owner_badge
+     FROM news WHERE published = 1
      UNION ALL
-     SELECT id, title, category, source, description, image_url, created_at FROM news_submissions WHERE status = 'approved'
+     SELECT n.id, n.title, n.category, n.source, n.description, n.image_url, n.created_at, 1 AS is_submission,
+            u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
+     FROM news_submissions n
+     JOIN users u ON u.id = n.owner_user_id
+     LEFT JOIN badge_requests b ON b.user_id = n.owner_user_id AND b.target_type = 'self' AND b.status = 'active'
+       AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
+     WHERE n.status = 'approved'
      ORDER BY created_at DESC`
-  ).all();
+  ).bind(Date.now()).all();
   return json({
     items: results.map(n => ({
       title: n.title, category: n.category, source: n.source, description: n.description,
       image: n.image_url, id: n.id, createdAt: n.created_at,
+      // Yalnızca news_submissions kaynaklı satırlarda dolu: haber-detay.html "Gönderiyi Düzenle"
+      // butonunu yalnızca gerçek bir gönderisi olan haberlerde göstermek için bunu kullanır — statik
+      // news tablosu/haberler-data.js kayıtlarının düzenlenecek bir gönderi karşılığı yoktur.
+      submissionId: n.is_submission ? n.id : undefined,
+      ownerName: n.owner_name || undefined, ownerPhoto: n.owner_photo || undefined, ownerBadge: n.owner_badge || undefined,
     })),
-  });
+  }, 200, PUBLIC_CACHE_HEADERS);
 }

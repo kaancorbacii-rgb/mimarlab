@@ -42,7 +42,7 @@
   .nav{
     position:sticky; top:0; z-index:40;
     display:flex; align-items:center; gap:24px;
-    padding:16px 32px;
+    padding:10px 32px;
     background:rgba(237,240,243,0.92);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
@@ -64,6 +64,9 @@
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
   .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
   .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
   .nav-avatar{
     display:flex; align-items:center; gap:9px;
@@ -107,16 +110,17 @@
     font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:20px;
   }
   .dash-avatar img{width:100%; height:100%; object-fit:cover;}
-  .dash-head h1{font-family:'Fraunces', serif; font-size:26px; font-weight:600; margin:0 0 4px;}
+  .dash-head-info{display:flex; align-items:center; justify-content:space-between; gap:18px; flex:1; min-width:0;}
+  .dash-head h1{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 4px;}
   .dash-head p{color:var(--ink-soft); font-size:13.5px; margin:0;}
   .dash-edit-btn{
-    margin-left:auto; background:none; border:1.5px solid var(--ink); color:var(--ink);
+    flex-shrink:0; background:none; border:1.5px solid var(--ink); color:var(--ink);
     padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;
   }
   .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
 
   .dash-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;}
-  .dash-section h2{font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0 0 4px;}
+  .dash-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
   .dash-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
   .dash-empty{
     border:1px dashed var(--line); border-radius:12px; padding:24px; text-align:center;
@@ -167,6 +171,24 @@
   }
   .saved-filter-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
 
+  /* ---------- PAYLAŞTIĞIM İÇERİKLER TÜR FİLTRESİ + HIZLI EKLE ---------- */
+  .submissions-toolbar-row{
+    display:flex; gap:6px; margin-bottom:10px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  }
+  .submissions-toolbar-row::-webkit-scrollbar{display:none;}
+  .submissions-filter-btn{
+    flex:0 0 auto; padding:6px 13px; border-radius:100px; border:1px solid var(--line); background:var(--paper);
+    font-size:12px; font-weight:600; color:var(--ink-soft); white-space:nowrap;
+  }
+  .submissions-filter-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .submissions-add-link{
+    flex:0 0 auto; padding:6px 2px; border:none; background:none;
+    font-size:12px; font-weight:600; color:var(--walnut); white-space:nowrap;
+    text-decoration:underline; text-underline-offset:3px;
+  }
+  .submissions-add-link:hover{color:var(--ink);}
+
   /* ---------- PROFİL FOTOĞRAFI ---------- */
   .avatar-upload-row{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
   .avatar-upload-preview{
@@ -192,8 +214,10 @@
     border-radius:100px; font-weight:600; font-size:12px;
   }
   .badge-buy-btn:hover{background:var(--walnut);}
-  .badge-status-pill{display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:100px;}
+  .badge-status-pill{display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:100px; flex-shrink:0;}
   @media (max-width:480px){ .badge-grid{grid-template-columns:1fr;} }
+  .my-badge-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid var(--line-soft); border-radius:12px; margin-bottom:8px; font-size:13.5px;}
+  .my-badge-row:last-child{margin-bottom:0;}
 
   /* ---------- FOOTER (shared) ---------- */
   .site-footer{background:var(--ink); color:var(--paper); margin-top:20px;}
@@ -214,14 +238,18 @@
   .footer-col a:hover{color:var(--brass-soft);}
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
-  @media (max-width:720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .dash-wrap{padding:24px 18px 70px;}
+    .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px; padding:40px 18px 24px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -246,8 +274,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -262,8 +293,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -276,17 +310,20 @@
   </div>
 
   <div class="dash-wrap" id="dash-wrap" style="display:none;">
+    <div id="payment-success-banner" style="display:none; background:rgba(62,122,85,0.12); border:1px solid #3E7A55; color:var(--ink); font-size:13px; padding:13px 16px; border-radius:12px; margin-bottom:20px; line-height:1.6;">Ödemen alındı — rozetin aktif edildi.</div>
     <div class="dash-head">
       <div class="dash-avatar" id="dash-avatar">–</div>
-      <div>
-        <h1 id="dash-title">Hoş Geldin</h1>
-        <p id="dash-sub">—</p>
+      <div class="dash-head-info">
+        <div>
+          <h1 id="dash-title">Hoş Geldin</h1>
+          <p id="dash-sub">—</p>
+        </div>
+        <button class="dash-edit-btn" id="dash-edit-btn">Profili Düzenle</button>
       </div>
-      <button class="dash-edit-btn" id="dash-edit-btn">Profili Düzenle</button>
     </div>
 
     <div class="dash-form" id="dash-edit-form" style="display:none; background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;">
-      <h2 style="font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0 0 16px;">Profili Düzenle</h2>
+      <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Profili Düzenle</h2>
       <div class="avatar-upload-row">
         <div class="avatar-upload-preview" id="avatar-preview">–</div>
         <div>
@@ -301,23 +338,45 @@
           <input type="text" id="edit-name" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
         </div>
         <div>
-          <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Doğum Tarihi</label>
-          <input type="date" id="edit-dob" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
+          <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Doğum Yılı</label>
+          <input type="number" id="edit-dob" min="1900" max="2026" inputmode="numeric" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
         </div>
         <div>
           <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Okul</label>
           <input type="text" id="edit-school" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
         </div>
         <div>
-          <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Bölüm</label>
-          <input type="text" id="edit-dept" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
+          <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Meslek</label>
+          <select id="edit-profession" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
+            <option value="">Seç... (opsiyonel)</option>
+            <option value="mimar">Mimar</option>
+            <option value="ic_mimar">İç Mimar</option>
+            <option value="peyzaj_mimari">Peyzaj Mimarı</option>
+            <option value="sehir_plancisi">Şehir Plancısı</option>
+            <option value="restorator">Restoratör</option>
+            <option value="ogrenci">Öğrenci</option>
+            <option value="diger">Diğer</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Pozisyon</label>
+          <select id="edit-position" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
+            <option value="">Seç... (opsiyonel)</option>
+            <option value="Kurucu">Kurucu</option>
+            <option value="Çalışan">Çalışan</option>
+            <option value="Akademisyen">Akademisyen</option>
+            <option value="Freelance">Freelance</option>
+            <option value="Öğrenci">Öğrenci</option>
+            <option value="Emekli">Emekli</option>
+            <option value="İş Arıyor">İş Arıyor</option>
+          </select>
         </div>
       </div>
       <button class="dash-edit-btn" id="dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
       <span id="dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
 
       <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
-      <h2 style="font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0 0 16px;">Şifre Değiştir</h2>
+      <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Şifre Değiştir</h2>
       <div class="dash-field">
         <label for="pw-current">Mevcut Şifre</label>
         <input type="password" id="pw-current" autocomplete="current-password">
@@ -339,6 +398,7 @@
       <h2>Profil Bilgileri</h2>
       <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="fact-name">—</span></div>
       <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="fact-profession">—</span></div>
+      <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="fact-position">—</span></div>
       <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
       <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="fact-dob">—</span></div>
       <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="fact-joined">—</span></div>
@@ -353,15 +413,33 @@
     <div class="dash-section">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
         <h2 style="margin:0;">Bildirimler</h2>
-        <button type="button" id="notif-read-all-btn" style="background:none; border:none; color:var(--walnut); font-weight:600; font-size:12px; padding:0;">Tümünü okundu işaretle</button>
+        <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
+          <button type="button" id="notif-read-all-btn" style="background:none; border:none; color:var(--walnut); font-weight:600; font-size:12px; padding:0;">Tümü okundu</button>
+          <button type="button" id="notif-delete-all-btn" style="background:none; border:none; color:#B84C4C; font-weight:600; font-size:12px; padding:0;">Bildirimleri sil</button>
+        </div>
       </div>
-      <p class="section-hint">Profil/rozet taleplerin onaylanıp reddedildiğinde, bir gönderin yayına girdiğinde ya da yorum aldığında burada görünür.</p>
+      <p class="section-hint">Düzenleme, ekleme ya da çıkarma taleplerin sonuçlandığında buradan bildirimleri görebilirsin.</p>
       <div id="dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
     </div>
 
     <div class="dash-section">
-      <h2>Gönderdiğim İçerikler</h2>
-      <p class="section-hint">Eklediğin ofis, proje, ürün ve iş ilanları burada listelenir.</p>
+      <h2>Paylaştığım İçerikler</h2>
+      <p class="section-hint">Paylaştığın içerikler burada listelenir.</p>
+      <div class="submissions-toolbar-row">
+        <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
+        <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
+        <a class="submissions-add-link" href="malzeme-ekle.html">Malzeme Ekle</a>
+        <a class="submissions-add-link" href="haber-ekle.html">Haber Ekle</a>
+        <a class="submissions-add-link" href="is-ilani-ver.html">İş İlanı Ekle</a>
+      </div>
+      <div class="submissions-toolbar-row" id="submissions-filter">
+        <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
+        <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
+        <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
+        <button type="button" class="submissions-filter-btn" data-filter="materials">Malzeme</button>
+        <button type="button" class="submissions-filter-btn" data-filter="news">Haber</button>
+        <button type="button" class="submissions-filter-btn" data-filter="jobs">İş İlanı</button>
+      </div>
       <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
     </div>
 
@@ -372,6 +450,7 @@
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
         <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
         <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+        <button type="button" class="saved-filter-btn" data-filter="material">Malzeme</button>
         <button type="button" class="saved-filter-btn" data-filter="news">Haber</button>
         <button type="button" class="saved-filter-btn" data-filter="job">İş İlanı</button>
       </div>
@@ -380,8 +459,26 @@
 
     <div class="dash-section">
       <h2>Rozet Ayrıcalıklarından Faydalan</h2>
-      <p class="section-hint">Rozetler aylık kiralanır ve aynı anda yalnızca bir rozet taşıyabilirsin.</p>
+      <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, markaların için ayrı rozet alabilirsin.</p>
+      <div id="my-badges-list" style="display:none; margin-bottom:16px;"></div>
       <div class="badge-grid" id="badge-grid"></div>
+    </div>
+
+    <div class="dash-section">
+      <h2>Reklam Ver</h2>
+      <p class="section-hint">Markanı ya da profilini MİMARLAB'da öne çıkar. Fiyatlandırma yakında eklenecek.</p>
+      <div class="badge-grid">
+        <div class="badge-card">
+          <div class="badge-card-name">Ana Sayfa Reklamı</div>
+          <div class="badge-card-price">Fiyat: Yakında</div>
+          <a class="badge-buy-btn" href="reklam.html">Satın Al</a>
+        </div>
+        <div class="badge-card">
+          <div class="badge-card-name">Detay Sayfası Reklamı</div>
+          <div class="badge-card-price">Fiyat: Yakında</div>
+          <a class="badge-buy-btn" href="reklam.html">Satın Al</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -401,7 +498,7 @@
       <div class="footer-col">
         <h4>Ana Menü</h4>
         <a href="proje.html">Proje</a>
-        <a href="urun.html">Ürün</a>
+        <a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a>
         <a href="haber.html">Haber</a>
         <a href="is-ilani.html">İş İlanı</a>
       </div>
@@ -423,16 +520,17 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
   </footer>
 
+<script src="data.js"></script>
 <script>
-const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber' };
+const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
-  offices: 'ofis-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html',
+  offices: 'ofis-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'malzeme-ekle.html',
   jobs: 'is-ilani-ver.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html',
 };
-const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', news: 'Haber', job: 'İş İlanı' };
-const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', diger:'Diğer' };
+const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı' };
+const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', ogrenci:'Öğrenci', diger:'Diğer' };
 let currentUser = null;
 
 function initials(name){
@@ -461,14 +559,16 @@ async function loadUser(){
   document.getElementById('dash-sub').textContent = currentUser.email + ' · MİMARLAB üyesi';
   document.getElementById('fact-name').textContent = currentUser.name || '—';
   document.getElementById('fact-profession').textContent = PROFESSION_LABELS[currentUser.profession] || currentUser.profession || '—';
+  document.getElementById('fact-position').textContent = currentUser.position || '—';
   document.getElementById('fact-school').textContent = currentUser.school || '—';
-  document.getElementById('fact-dob').textContent = currentUser.dob || '—';
+  document.getElementById('fact-dob').textContent = currentUser.dob ? String(currentUser.dob).slice(0, 4) : '—';
   document.getElementById('fact-joined').textContent = new Date(currentUser.createdAt).toLocaleDateString('tr-TR', {year:'numeric', month:'long'});
 
   document.getElementById('edit-name').value = currentUser.name || '';
-  document.getElementById('edit-dob').value = currentUser.dob || '';
+  document.getElementById('edit-dob').value = currentUser.dob ? String(currentUser.dob).slice(0, 4) : '';
   document.getElementById('edit-school').value = currentUser.school || '';
-  document.getElementById('edit-dept').value = currentUser.dept || '';
+  document.getElementById('edit-profession').value = currentUser.profession || '';
+  document.getElementById('edit-position').value = currentUser.position || '';
 }
 
 document.getElementById('dash-edit-btn').addEventListener('click', ()=>{
@@ -485,7 +585,8 @@ document.getElementById('dash-save-btn').addEventListener('click', async ()=>{
       name: document.getElementById('edit-name').value,
       dob: document.getElementById('edit-dob').value,
       school: document.getElementById('edit-school').value,
-      dept: document.getElementById('edit-dept').value,
+      profession: document.getElementById('edit-profession').value,
+      position: document.getElementById('edit-position').value,
     }),
   });
   if(!res.ok){ msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
@@ -542,16 +643,28 @@ document.getElementById('avatar-file-input').addEventListener('change', async (e
   e.target.value = '';
 });
 
+let allSubmissions = [];
+let submissionsFilter = '';
+
 async function loadSubmissions(){
-  const container = document.getElementById('dash-submissions');
   const types = Object.keys(TYPE_LABELS);
   const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : {items:[]})));
-  const all = [];
-  types.forEach((t, i) => (results[i].items || []).forEach(item => all.push({type: t, item})));
-  all.sort((a, b) => b.item.created_at - a.item.created_at);
+  allSubmissions = [];
+  types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({type: t, item})));
+  allSubmissions.sort((a, b) => b.item.created_at - a.item.created_at);
+  renderSubmissions();
+}
 
+function renderSubmissions(){
+  const container = document.getElementById('dash-submissions');
+
+  if(!allSubmissions.length){
+    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="malzeme-ekle.html">Malzeme Ekle</a> · <a href="haber-ekle.html">Haber Ekle</a> · <a href="is-ilani-ver.html">İş İlanı Ver</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="ofis-ekle.html">Marka Ekle</a></div>';
+    return;
+  }
+  const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
   if(!all.length){
-    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="haber-ekle.html">Haber Ekle</a> · <a href="is-ilani-ver.html">İş İlanı Ver</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="ofis-ekle.html">Marka Ekle</a></div>';
+    container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
     return;
   }
   container.innerHTML = all.map(({type, item}) => `
@@ -610,6 +723,14 @@ function renderSaved(){
   });
 }
 
+document.getElementById('submissions-filter').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.submissions-filter-btn');
+  if(!btn) return;
+  submissionsFilter = btn.dataset.filter;
+  document.querySelectorAll('#submissions-filter .submissions-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderSubmissions();
+});
+
 document.getElementById('saved-filter').addEventListener('click', (e)=>{
   const btn = e.target.closest('.saved-filter-btn');
   if(!btn) return;
@@ -627,36 +748,41 @@ const BADGE_TIERS = [
 const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
 const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };
 
-// Bir kişi/marka aynı anda yalnızca 1 rozet taşıyabilir (rozetler aylık kiralanır): aktif ya da
-// bekleyen bir talebin varsa diğer kademeler için "Satın Al" yerine bilgilendirme gösterilir.
+// Bir kişi artık aynı anda birden fazla rozet taşıyabilir — kendisi için biri, sahiplendiği her
+// marka için ayrı ayrı birer tane (bkz. src/routes/badges.js, satin-al.html "Kimin için?" seçimi).
+// Bu yüzden kademe kartları artık bir tekil aktif/bekleyen durumu değil, sadece fiyat/"Satın Al"
+// linki gösterir; kullanıcının kendi rozetlerinin durumu ayrı bir listede (üstte) gösterilir.
 async function loadBadges(){
   const res = await fetch('/api/badges/mine');
   const data = res.ok ? await res.json() : { items: [] };
   const items = data.items || [];
-  const now = Date.now();
-  const activeBadge = items.find(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
-  const pendingBadge = items.find(b => b.status === 'pending');
+
+  const listEl = document.getElementById('my-badges-list');
+  if(!items.length){
+    listEl.style.display = 'none';
+  } else {
+    listEl.style.display = '';
+    listEl.innerHTML = items.map(b => {
+      const tier = BADGE_TIERS.find(t => t.type === b.badge_type);
+      const targetLabel = b.target_type === 'office' ? `Marka: ${escapeHtml(b.target_key || '')}` : 'Kendim için';
+      const until = b.status === 'active' && b.expires_at
+        ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${new Date(b.expires_at).toLocaleDateString('tr-TR', {day:'numeric', month:'long', year:'numeric'})} tarihine kadar aktif</div>`
+        : '';
+      return `
+        <div class="my-badge-row">
+          <div><strong>${escapeHtml(tier ? tier.label : b.badge_type)}</strong> — ${targetLabel}${until}</div>
+          <span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS[b.status] || 'var(--ink-soft)'}; background:${BADGE_STATUS_COLORS[b.status] || 'var(--ink-soft)'}22;">${BADGE_STATUS_LABELS[b.status] || b.status}</span>
+        </div>`;
+    }).join('');
+  }
 
   const grid = document.getElementById('badge-grid');
-  grid.innerHTML = BADGE_TIERS.map(tier => {
-    let statusHtml;
-    if(activeBadge && activeBadge.badge_type === tier.type){
-      const until = activeBadge.expires_at ? new Date(activeBadge.expires_at).toLocaleDateString('tr-TR', {day:'numeric', month:'long', year:'numeric'}) : '';
-      statusHtml = `<span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS.active}; background:${BADGE_STATUS_COLORS.active}22;">Aktif</span>${until ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">${until} tarihine kadar</div>` : ''}`;
-    } else if(pendingBadge && pendingBadge.badge_type === tier.type){
-      statusHtml = `<span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS.pending}; background:${BADGE_STATUS_COLORS.pending}22;">İnceleniyor</span>`;
-    } else if(activeBadge || pendingBadge){
-      statusHtml = `<div style="font-size:11px; color:var(--ink-soft); line-height:1.4;">Önce mevcut rozetinin süresi dolmalı</div>`;
-    } else {
-      statusHtml = `<a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>`;
-    }
-    return `
-      <div class="badge-card">
-        <div class="badge-card-name">${tier.label}</div>
-        <div class="badge-card-price">${tier.price} / ay</div>
-        ${statusHtml}
-      </div>`;
-  }).join('');
+  grid.innerHTML = BADGE_TIERS.map(tier => `
+    <div class="badge-card">
+      <div class="badge-card-name">${tier.label}</div>
+      <div class="badge-card-price">${tier.price} / ay</div>
+      <a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>
+    </div>`).join('');
 }
 
 document.getElementById('pw-save-btn').addEventListener('click', async ()=>{
@@ -734,6 +860,30 @@ async function loadMyClaims(){
       </span>
     </div>
   `).join('');
+  syncClaimedArchitectData(items);
+}
+
+// Onaylı bir mimar profili sahiplenildiğinde (claim), o profil data.js'te zaten kayıtlıysa ve
+// orada fotoğraf/okul gibi bilgiler varsa, kullanıcının kendi hesap profilinde bu alanlar
+// hâlâ boşsa (elle hiç doldurulmamışsa) otomatik olarak hesap profiline aktarılır — statik mimar
+// profili daha önce yüklenmiş, kullanıcı sonradan hesap açıp o profili sahiplenmiş olabilir.
+// Kullanıcının kendi girdiği bir değerin üzerine YAZMAZ, yalnızca boş alanları doldurur.
+async function syncClaimedArchitectData(items){
+  if(typeof architects === 'undefined' || !currentUser) return;
+  const claim = items.find(c => c.profile_type === 'architect' && c.status === 'approved');
+  if(!claim) return;
+  const staticArch = architects.find(a => a.name === claim.profile_key);
+  if(!staticArch) return;
+  const patch = {};
+  if(!currentUser.photoUrl && staticArch.photo) patch.photo_url = staticArch.photo;
+  if(!currentUser.school && staticArch.school) patch.school = staticArch.school;
+  if(!Object.keys(patch).length) return;
+  try{
+    const res = await fetch('/api/profile', {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(patch),
+    });
+    if(res.ok) await loadUser();
+  }catch{}
 }
 
 async function loadNotifications(){
@@ -772,7 +922,19 @@ document.getElementById('notif-read-all-btn').addEventListener('click', async ()
   try{ await fetch('/api/notifications/read-all', { method:'POST' }); } finally { loadNotifications(); }
 });
 
-loadUser().then(() => { if(currentUser){ loadSubmissions(); loadSaved(); loadBadges(); loadMyClaims(); loadNotifications(); } });
+document.getElementById('notif-delete-all-btn').addEventListener('click', async ()=>{
+  if(!confirm('Tüm bildirimlerini silmek istediğine emin misin? Bu işlem geri alınamaz.')) return;
+  try{ await fetch('/api/notifications/delete-all', { method:'POST' }); } finally { loadNotifications(); }
+});
+
+loadUser().then(() => {
+  if(currentUser){
+    loadSubmissions(); loadSaved(); loadBadges(); loadMyClaims(); loadNotifications();
+    if(new URLSearchParams(window.location.search).get('payment') === 'success'){
+      document.getElementById('payment-success-banner').style.display = 'block';
+    }
+  }
+});
 
 function wireNavSearch(){
   document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{

@@ -50,7 +50,7 @@
   .nav{
     position:sticky; top:0; z-index:40;
     display:flex; align-items:center; gap:24px;
-    padding:16px 32px;
+    padding:10px 32px;
     background:rgba(237,240,243,0.92);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
@@ -102,7 +102,7 @@
 
   /* ---------- PAGE HEAD ---------- */
   .page-head{max-width:1260px; margin:0 auto; padding:28px 32px 0;}
-  .page-head h1{font-family:'Fraunces', serif; font-size:28px; font-weight:600; margin:0 0 4px;}
+  .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
   /* ---------- GRID LAYOUT ---------- */
@@ -122,7 +122,7 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 16px; border-bottom:1px solid var(--line-soft);
   }
-  .sidebar-head-title{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
+  .sidebar-head-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
   .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
   .sidebar-search svg{flex-shrink:0; opacity:0.5;}
   .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
@@ -193,7 +193,7 @@
   /* ---------- CONTENT GRID ---------- */
   .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;}
   .content-card{
-    position:relative; display:block; aspect-ratio:1/1; border-radius:14px; overflow:hidden;
+    position:relative; display:block; aspect-ratio:4/3; border-radius:14px; overflow:hidden;
     background:var(--paper-card); border:1px solid var(--line-soft);
     transition:transform .15s ease, box-shadow .15s ease;
   }
@@ -205,8 +205,7 @@
     background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
     color:var(--paper);
   }
-  .content-card-cat{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:5px;}
-  .content-card-title{font-family:'Fraunces', serif; font-size:16.5px; font-weight:600; line-height:1.25; margin-bottom:3px;}
+  .content-card-title{font-family:'Inter', sans-serif; font-size:16.5px; font-weight:700; line-height:1.25; margin-bottom:3px;}
   .content-card-by{font-size:11.5px; color:rgba(237,240,243,0.75);}
   .rating-badge{display:inline-flex; align-items:center; gap:2px; margin-top:4px;}
   .rating-badge-star{color:rgba(237,240,243,0.5); display:flex;}
@@ -254,13 +253,16 @@
     .grid-sidebar{position:static;}
     .content-grid{grid-template-columns:repeat(3, 1fr);}
   }
-  @media (max-width:720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
-    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .page-head{padding:20px 16px 0;}
     .grid-layout{padding:16px 16px 70px; gap:16px;}
     .content-grid{grid-template-columns:1fr 1fr; gap:12px;}
@@ -291,8 +293,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link active" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -307,8 +312,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link active" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -322,7 +330,7 @@
 
   <div class="page-head">
     <h1>Projeler</h1>
-    <p>İstanbul ve Türkiye'nin mimarlık mirasından günümüze uzanan, özenle derlenmiş bir yapı arşivi — antik çağdan Osmanlı'ya, Cumhuriyet'ten çağdaş mimarlığa.</p>
+    <p>Türkiye'nin geçmişten günümüze yapı arşivi.</p>
   </div>
 
   <div class="grid-layout">
@@ -335,7 +343,6 @@
           <select id="g-sort">
             <option value="" selected>Sıralama</option>
             <option value="name_asc">A-Z</option>
-            <option value="name_desc">Z-A</option>
             <option value="date_desc">En Yeni</option>
             <option value="date_asc">En Eski</option>
             <option value="rating_desc">Puan: Yüksekten Düşüğe</option>
@@ -364,7 +371,7 @@
           <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
@@ -372,23 +379,15 @@
   </footer>
 
 <script src="projeler-data.js"></script>
+<script src="il-ilce-data.js"></script>
 <script>
 const PAGE_SIZE = 24;
 let currentPage = 1;
 
-// İstanbul'un tüm ilçeleri: "Yer" filtresinde İstanbul'a ait konumları (biçimi ne olursa olsun:
-// "İstanbul (Beşiktaş)", "Beşiktaş (Boğaz Kıyıları)" veya sade "Beşiktaş") tek bir "İstanbul"
-// başlığı altında toplayıp altına ilçe alt filtresi olarak yerleştirmek için kullanılır.
-const ISTANBUL_DISTRICTS = ["Adalar","Arnavutköy","Ataşehir","Avcılar","Bağcılar","Bahçelievler","Bakırköy","Başakşehir","Bayrampaşa","Beşiktaş","Beykoz","Beylikdüzü","Beyoğlu","Büyükçekmece","Çatalca","Çekmeköy","Esenler","Esenyurt","Eyüpsultan","Fatih","Gaziosmanpaşa","Güngören","Kadıköy","Kağıthane","Kartal","Küçükçekmece","Maltepe","Pendik","Sancaktepe","Sarıyer","Silivri","Sultanbeyli","Sultangazi","Şile","Şişli","Tuzla","Ümraniye","Üsküdar","Zeytinburnu"];
-
-function parseLocation(loc){
-  const m = loc.match(/^([^(]+?)\s*(?:\(([^)]*)\))?$/);
-  const head = (m ? m[1] : loc).trim();
-  const paren = m && m[2] ? m[2].trim() : '';
-  if(head === 'İstanbul') return { city: 'İstanbul', district: paren || null };
-  if(ISTANBUL_DISTRICTS.includes(head)) return { city: 'İstanbul', district: head };
-  return { city: head, district: paren || null };
-}
+// il-ilce-data.js#parseLocationFull artık 81 ilin tamamında ilçe -> il çözümlemesi yapıyor
+// (eskiden yalnızca İstanbul ilçeleri tanınırdı) — bu dosyadaki tüm çağrılar (filtre, künye linki
+// çözümü) parseLocation adıyla değişmeden çalışsın diye burada aynı isimle yeniden dışa verilir.
+const parseLocation = parseLocationFull;
 
 // "Mimar" (kişi) / "Mimarlık Ofisi" (firma) ayrımı: isim, ofis/firma göstergesi olan
 // anahtar kelimelerden birini içeriyorsa veya bilinen bir ofis ismiyse "Mimarlık Ofisi"
@@ -404,15 +403,19 @@ function isOfficeName(name){
 }
 
 const FILTER_GROUPS = [
-  { key: 'category', label: 'Kategori', field: p => p.category },
+  { key: 'category', label: 'Tür', field: p => p.category },
   { key: 'type', label: 'Tip', field: p => p.type },
   { key: 'location', label: 'Yer', field: p => [parseLocation(p.location).city] },
+  // Yalnızca İstanbul altında iç içe seçenek olarak gösterilir (parentValue); alan fonksiyonu da
+  // yalnızca şehri İstanbul olan projeler için ilçe döner (bkz. kullanıcı isteği: "Filtrelerdeki
+  // İstanbul sekmesinin altına İstanbul'un ilçesi olmayan yerler eklenmiş, bunları sil") — künye
+  // artık yalnızca il düzeyinde link ürettiğinden (proje-detay.html) diğer illerin ilçeleri için
+  // bu filtrenin ayrıca eşleşmesi gerekmiyor.
   { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul', field: p => {
       const info = parseLocation(p.location);
-      return (info.city === 'İstanbul' && info.district) ? [info.district] : [];
+      return (info.district && info.city === 'İstanbul') ? [info.district] : [];
     } },
-  { key: 'dateBucket', label: 'Tarih', field: p => [p.dateBucket] },
-  { key: 'period', label: 'Dönem', field: p => p.period },
+  { key: 'dateBucket', label: 'Yıl', field: p => [p.dateBucket] },
   { key: 'designer', label: 'Mimar', field: p => p.designer.filter(d => !isOfficeName(d)) },
   { key: 'designerOffice', label: 'Mimarlık Ofisi', field: p => p.designer.filter(d => isOfficeName(d)) },
   { key: 'rating', label: 'Puan', field: p => ratingBuckets(ratingOf(projectRatings, p.slug).average) },
@@ -424,11 +427,35 @@ const activeFilters = {};
 FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
 let localSearchQuery = '';
 
+// proje-detay.html künyesindeki Tür/Tip/Yer/Yıl değerleri buraya bu filtreyi
+// önceden uygulanmış şekilde bağlanır (bkz. o dosyadaki filterLinkHtml). "location" parametresi
+// künyedeki ham `location` alanı (ör. "Üsküdar") olarak gelir; hangi filtre grubuna (şehir mi,
+// ilçe mi) karşılık geldiği burada parseLocation() ile aynı mantıkla çözülür — bu yüzden
+// proje-detay.html'de parseLocation'ı ayrıca kopyalamaya gerek yok. "search" ise künyedeki Yer
+// alt-bilgisi (locationDetail, ör. "Altunizade") için: bunun karşılığı bir filtre grubu olmadığından
+// serbest metin aramasına (matchesLocalSearch) düşer.
+function applyInitialFiltersFromQuery(){
+  const params = new URLSearchParams(window.location.search);
+  FILTER_GROUPS.forEach(g => {
+    if(g.nested || g.key === 'location') return;
+    const val = params.get(g.key);
+    if(val) activeFilters[g.key].add(val);
+  });
+  const locParam = params.get('location');
+  if(locParam){
+    const parsed = parseLocation(locParam);
+    if(parsed.city) activeFilters.location.add(parsed.city);
+    if(parsed.district) activeFilters.district.add(parsed.district);
+  }
+  const searchParam = params.get('search');
+  if(searchParam) localSearchQuery = searchParam;
+}
+
 function trLower(s){
   return s.replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
 }
 
-// "Tarih" sekmesindeki seçenekleri (yüzyıl/on yıl/tarih aralığı karışık) yaklaşık başlangıç
+// "Yıl" sekmesindeki seçenekleri (yüzyıl/on yıl/tarih aralığı karışık) yaklaşık başlangıç
 // yılına çevirir, böylece sayıya göre değil kronolojik olarak (yeniden eskiye) sıralanabilir.
 function dateBucketSortKey(s){
   let m = s.match(/^(\d+)\.\s*Yüzyıl$/);
@@ -506,6 +533,15 @@ function buildSidebar(){
   });
   html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="proje-ekle.html"><span class="sidebar-add-icon">+</span> Proje Ekle</a></div>`;
   sidebar.innerHTML = html;
+
+  // Bir künye linkinden (?category=...) ya da doğrudan URL'den önceden seçili gelen bir filtre
+  // varsa, ilgili akordeon grubunu kapalı bırakmak yerine açık göster (ana grup + varsa nested/iç grubu).
+  FILTER_GROUPS.forEach(g => {
+    if(activeFilters[g.key].size === 0) return;
+    const openKey = (g.nested && g.parentKey) ? g.parentKey : g.key;
+    const grp = sidebar.querySelector(`.filter-group[data-key="${openKey}"]`);
+    if(grp) grp.classList.add('open');
+  });
 
   sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -606,7 +642,6 @@ function render(){
     filtered.sort((a,b)=>{
       switch(sort){
         case 'name_asc': return a.title.localeCompare(b.title, 'tr');
-        case 'name_desc': return b.title.localeCompare(a.title, 'tr');
         case 'date_desc': return parseInt(b.date) - parseInt(a.date) || 0;
         case 'date_asc': return parseInt(a.date) - parseInt(b.date) || 0;
         case 'rating_desc': case 'rating_asc': {
@@ -636,19 +671,23 @@ function render(){
   const startIdx = (currentPage-1) * PAGE_SIZE;
   const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
 
-  grid.innerHTML = pageItems.map(p => `
+  grid.innerHTML = pageItems.map(p => {
+    const loc = parseLocation(p.location);
+    const locLabel = loc.district ? `${loc.district}, ${loc.city}` : loc.city;
+    const rating = ratingOf(projectRatings, p.slug);
+    return `
     <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
       <img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">
       <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr(p.images[0]||'')}" data-href="/projeler/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
       </button>
       <div class="content-card-info">
-        <div class="content-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div>
         <div class="content-card-title">${escapeHtml(p.title)}</div>
-        <div class="content-card-by">${escapeHtml(p.location)}${p.date ? ' · ' + escapeHtml(p.date) : ''}</div>
-        ${renderRatingBadge(ratingOf(projectRatings, p.slug).average, ratingOf(projectRatings, p.slug).count)}
+        <div class="content-card-by">${escapeHtml(locLabel)}${p.date ? ' · ' + escapeHtml(p.date) : ''}</div>
+        ${rating.count ? renderRatingBadge(rating.average, rating.count) : ''}
       </div>
-    </a>`).join('');
+    </a>`;
+  }).join('');
   wireSaveButtons('project');
 }
 
@@ -657,13 +696,31 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 
 document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage=1; render(); });
 
-// Üyelerin gönderip admin'in onayladığı projeleri statik listeye ekler.
+// Üyelerin gönderip admin'in onayladığı projeleri statik listeye ekler. Hepsini dizinin sonuna
+// yığmak yerine statik dizinin arasına eşit aralıklarla serpiştirir — aksi halde varsayılan
+// sıralama (ters çevirme, "en son eklenen ilk" — bkz. render()) bir seferde onaylanan çok sayıda
+// gönderiyi (ör. bir hesaba toplu proje aktarımı) hep ilk sayfada kümelenmiş gösterirdi.
 Promise.all([
   fetch('/api/public/projects').then(res => res.ok ? res.json() : {items:[]}).then(data => {
-    projects.push(...(data.items || []));
+    const memberItems = data.items || [];
+    if(!memberItems.length) return;
+    const merged = [];
+    const step = (projects.length + memberItems.length) / memberItems.length;
+    let memberIdx = 0, nextInsertAt = step;
+    for(let i = 0; i < projects.length; i++){
+      merged.push(projects[i]);
+      while(memberIdx < memberItems.length && merged.length >= Math.round(nextInsertAt)){
+        merged.push(memberItems[memberIdx++]);
+        nextInsertAt += step;
+      }
+    }
+    while(memberIdx < memberItems.length) merged.push(memberItems[memberIdx++]);
+    projects.length = 0;
+    projects.push(...merged);
   }).catch(()=>{}),
   loadBulkRatings('project').then(map => { projectRatings = map; }),
 ]).finally(() => {
+  applyInitialFiltersFromQuery();
   buildSidebar();
   render();
 });

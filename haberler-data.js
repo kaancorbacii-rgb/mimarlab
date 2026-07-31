@@ -1,6 +1,5 @@
 // MİMARLAB — Haberler veri kaynağı
 const newsItems = [
-  {id:"ytong-mimari-fikir-yarismasi-nda-2026-kazananlari-aciklandi",title:"Ytong Mimari Fikir Yarışması'nda 2026 kazananları açıklandı", category:"Yarışma", image:"projects/haber-ytong-yarisma.jpg"},
   {id:"uluslararasi-mimarlik-elestirmenleri-komitesinden-ankara-nin",title:"Uluslararası mimarlık eleştirmenleri komitesinden Ankara'nın kentleşme tarihine ödül", category:"Güncel", image:"projects/haber-cica-odul.jpg"},
   {id:"turk-ogrenciler-saint-gobain-in-uluslararasi-ogrenci-yarisma",title:"Türk öğrenciler Saint-Gobain'in uluslararası öğrenci yarışmasında Türkiye'yi temsil etti", category:"Yarışma", image:"projects/haber-saintgobain-yarisma.jpg"},
   {id:"modern-mimarlik-arastirmalari-destek-programi-2026-sonuclari",title:"Modern Mimarlık Araştırmaları Destek Programı 2026 sonuçları açıklandı", category:"Güncel", image:"projects/haber-modern-arastirma-destek.jpg"},
@@ -41,3 +40,7 @@ const newsItems = [
   {id:"mimarlik-ogrencilerinin-kentsel-tasarim-studyosu-calismalari",title:"Mimarlık öğrencilerinin kentsel tasarım stüdyosu çalışmaları sergiye dönüştü", category:"Sergi", image:"projects/haber-placeholder/sergi.svg"},
   {id:"bir-kutuphane-projesi-uluslararasi-kamu-yapilari-odullerinde",title:"Bir kütüphane projesi, uluslararası kamu yapıları ödüllerinde kısa listeye kaldı", category:"Ödül", image:"projects/haber-placeholder/odul.svg"},
 ];
+
+// Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
+// (nodejs_compat) çalışır — src/lib/seo.js buradan CJS interop ile import eder.
+if (typeof module !== 'undefined') { module.exports = { newsItems }; }

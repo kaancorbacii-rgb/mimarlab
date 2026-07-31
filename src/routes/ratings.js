@@ -2,7 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 
-const TARGET_TYPES = new Set(['project', 'product', 'architect', 'office']);
+const TARGET_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
 
 export async function handleRatingsRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "ratings", "bulk"?]

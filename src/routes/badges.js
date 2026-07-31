@@ -27,49 +27,79 @@ export async function handleBadgesRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
-// Bir kişi/marka aynı anda yalnızca 1 rozet tutabilir: hâlihazırda süresi dolmamış aktif bir
-// rozeti varsa yeni talep reddedilir; bekleyen (henüz onaylanmamış) bir talebi varsa yeni
-// seçimiyle değiştirilir (admin onaylamadan tercihini değiştirebilsin diye).
+// Bir kişi, aynı hedef (target_type+target_key) için aynı anda yalnızca 1 rozet tutabilir:
+// hâlihazırda süresi dolmamış aktif bir rozeti o hedef için varsa yeni talep reddedilir; bekleyen
+// (henüz onaylanmamış) bir talebi o hedef için varsa yeni seçimiyle değiştirilir. Farklı hedefler
+// (kendisi + her ayrı marka) birbirinden bağımsızdır — kendisi için rozet alması bir markaya
+// otomatik yansımaz, bkz. handlePublicBadges.
+export function normalizeTarget(body) {
+  const targetType = body.targetType === 'office' ? 'office' : 'self';
+  const targetKey = targetType === 'office' ? (body.targetKey || '').trim() : null;
+  if (targetType === 'office' && !targetKey) return null;
+  return { targetType, targetKey };
+}
+
+// 'office' hedefli bir rozet, satın alan kullanıcının o markayı zaten onaylı şekilde
+// sahiplendiğini doğrular — aksi halde handlePublicBadges'te zaten hiçbir yere görünmeyecek
+// (ölü) bir satın alma yapılmış olurdu, bkz. src/routes/payments.js#startCheckout aynı kontrolü kullanır.
+export async function verifyOfficeTargetOwnership(env, userId, target) {
+  if (target.targetType !== 'office') return true;
+  const row = await env.DB.prepare(
+    `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND profile_key = ? AND status = 'approved'`
+  ).bind(userId, target.targetKey).first();
+  return !!row;
+}
+
 async function createBadgeRequest(request, env, user) {
   const body = await readJson(request);
   const badgeType = body.badgeType;
   const price = BADGE_PRICES[badgeType];
   if (price === undefined) return errorJson('Geçersiz rozet türü.');
+  const target = normalizeTarget(body);
+  if (!target) return errorJson('Geçersiz hedef.');
+  if (!(await verifyOfficeTargetOwnership(env, user.id, target))) {
+    return errorJson('Bu markayı önce onaylı şekilde sahiplenmen gerekiyor.');
+  }
 
   const now = Date.now();
   const active = await env.DB.prepare(
-    `SELECT id FROM badge_requests WHERE user_id = ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
-  ).bind(user.id, now).first();
-  if (active) return errorJson('Zaten aktif bir rozetin var. Yeni bir rozet alabilmek için mevcut rozetinin süresi dolmalı.');
+    `SELECT id FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
+  ).bind(user.id, target.targetType, target.targetKey, now).first();
+  if (active) return errorJson('Bu hedef için zaten aktif bir rozetin var. Yeni bir rozet alabilmek için mevcut rozetinin süresi dolmalı.');
 
-  await env.DB.prepare(`DELETE FROM badge_requests WHERE user_id = ? AND status = 'pending'`).bind(user.id).run();
+  await env.DB.prepare(
+    `DELETE FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'pending'`
+  ).bind(user.id, target.targetType, target.targetKey).run();
 
   const id = newId();
   await env.DB.prepare(
-    'INSERT INTO badge_requests (id, user_id, badge_type, status, price_try, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, user.id, badgeType, 'pending', price, now, now).run();
+    'INSERT INTO badge_requests (id, user_id, badge_type, target_type, target_key, status, price_try, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, user.id, badgeType, target.targetType, target.targetKey, 'pending', price, now, now).run();
 
   return json({ id, status: 'pending' }, 201);
 }
 
 async function listMyBadges(env, user) {
   const { results } = await env.DB.prepare(
-    'SELECT id, badge_type, status, price_try, expires_at, created_at FROM badge_requests WHERE user_id = ? ORDER BY created_at DESC'
+    'SELECT id, badge_type, target_type, target_key, status, price_try, expires_at, created_at FROM badge_requests WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
   return json({ items: results });
 }
 
-// GET /api/public/badges — auth gerektirmez. Onaylı profile_claims ile süresi dolmamış aktif
-// badge_requests'i birleştirip { architect: { "İsim": ["mimar","platinyum"] }, office: { ... } }
-// döner; detay ve listeleme sayfaları isim yanına rozet göstermek için bunu data.js'teki statik
-// badges alanıyla birleştirir. 'destekci' kasıtlı olarak dışarıda bırakılır — o kademe herhangi
-// bir hak ya da görünür rozet vermez, yalnızca destek amaçlıdır.
+// GET /api/public/badges — auth gerektirmez. 'self' hedefli rozetler yalnızca o kişinin onaylı
+// ARCHITECT profil talebine bağlanır; 'office' hedefli rozetler yalnızca target_key'in birebir
+// eşleştiği, o kişinin onaylı OFFICE profil talebine bağlanır — bir kişinin kendisi için aldığı
+// rozet artık bir markaya sızmaz (ve tersi), bkz. kullanıcı talebi. Kişisel rozetlerin
+// yorum/gönderi yanında gösterimi ayrı bir mekanizma (bkz. src/routes/comments.js, public.js),
+// bu uç yalnızca mimar/marka PROFİL sayfalarını besler. 'destekci' kasıtlı olarak dışarıda
+// bırakılır — o kademe herhangi bir hak ya da görünür rozet vermez, yalnızca destek amaçlıdır.
 export async function handlePublicBadges(env) {
   const now = Date.now();
   const { results } = await env.DB.prepare(
     `SELECT c.profile_type, c.profile_key, b.badge_type
      FROM profile_claims c
      JOIN badge_requests b ON b.user_id = c.user_id AND b.status = 'active' AND (b.expires_at IS NULL OR b.expires_at > ?) AND b.badge_type != 'destekci'
+       AND ((b.target_type = 'self' AND c.profile_type = 'architect') OR (b.target_type = 'office' AND c.profile_type = 'office' AND b.target_key = c.profile_key))
      WHERE c.status = 'approved'`
   ).bind(now).all();
 

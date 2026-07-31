@@ -51,7 +51,7 @@
   .nav{
     position:sticky; top:0; z-index:40;
     display:flex; align-items:center; gap:24px;
-    padding:16px 32px;
+    padding:10px 32px;
     background:rgba(237,240,243,0.92);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
@@ -73,6 +73,9 @@
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
   .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
   .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
   .nav-rate{
     background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
@@ -97,13 +100,13 @@
     font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
     color:var(--sage); font-weight:600; margin-bottom:10px;
   }
-  .page-head h1{font-family:'Fraunces', serif; font-size:30px; font-weight:600; margin:0 0 8px;}
+  .page-head h1{font-family:'Inter', sans-serif; font-size:30px; font-weight:700; margin:0 0 8px;}
   .page-head p{color:var(--ink-soft); font-size:14.5px; margin:0;}
 
   /* ---------- FORM ---------- */
   .form-wrap{max-width:820px; margin:0 auto; padding:28px 32px 90px;}
   .form-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:26px; margin-bottom:20px;}
-  .form-section h2{font-family:'Fraunces', serif; font-size:17px; font-weight:600; margin:0 0 4px;}
+  .form-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
   .form-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .form-field{margin-bottom:16px;}
@@ -125,6 +128,64 @@
   }
   .check-pill input{accent-color:var(--ink); width:14px; height:14px;}
   .check-pill:has(input:checked){border-color:var(--ink); color:var(--ink); background:var(--paper-alt); font-weight:600;}
+
+  /* ---------- DROPDOWN (Konum İl/İlçe, Kategori) ---------- */
+  .dd-field{position:relative;}
+  .dd-btn{
+    width:100%; text-align:left; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .dd-btn:disabled{opacity:0.5; cursor:not-allowed;}
+  .dd-btn-arrow{flex-shrink:0; opacity:0.5; transition:transform .15s ease;}
+  .dd-field.open .dd-btn-arrow{transform:rotate(180deg);}
+  .dd-panel{
+    display:none; flex-direction:column; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:25;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); padding:8px; max-height:280px;
+  }
+  .dd-field.open .dd-panel{display:flex;}
+  .dd-search{
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-family:inherit;
+    font-size:13px; margin-bottom:6px; background:var(--paper); color:var(--ink); flex-shrink:0;
+  }
+  .dd-options{overflow-y:auto;}
+  .dd-option{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
+  .dd-option:hover{background:var(--paper-alt);}
+  .dd-option.selected{background:var(--paper-alt); font-weight:600;}
+  .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
+  .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+
+  /* ---------- AUTOCOMPLETE (Tip, Mimar, Ofis, Marka, Ürün) ---------- */
+  .ac-field{position:relative;}
+  .ac-suggestions{
+    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
+  }
+  .ac-suggestions.show{display:block;}
+  .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
+  .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
+  .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
+
+  /* ---------- MARKA/ÜRÜN CHIP LİSTESİ ---------- */
+  .brand-add-row{display:flex; gap:10px; align-items:flex-start;}
+  .brand-add-row .ac-field{flex:1; min-width:0;}
+  .brand-add-btn{
+    flex-shrink:0; background:var(--ink); color:var(--paper-card); border:none; border-radius:10px;
+    padding:0 18px; height:42px; font-weight:600; font-size:13px; white-space:nowrap;
+  }
+  .brand-add-btn:hover{background:var(--walnut);}
+  .brand-chip-list{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+  .brand-chip{
+    display:inline-flex; align-items:center; gap:8px; background:var(--paper-alt); border-radius:100px;
+    padding:7px 8px 7px 14px; font-size:13px; color:var(--ink);
+  }
+  .brand-chip-remove{
+    width:20px; height:20px; border-radius:50%; border:none; background:rgba(27,42,61,0.14);
+    color:var(--ink); display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;
+  }
+  .brand-chip-remove:hover{background:rgba(27,42,61,0.28);}
 
   .image-drop{
     display:block; border:2px dashed var(--line); border-radius:14px; padding:30px; text-align:center;
@@ -174,13 +235,16 @@
   .footer-col a:hover{color:var(--brass-soft);}
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
-  @media (max-width:720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
-    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .page-head{padding:28px 18px 0;}
     .form-wrap{padding:20px 18px 70px;}
     .form-row{grid-template-columns:1fr;}
@@ -198,6 +262,11 @@
 </head>
 <body>
 <script src="auth-nav.js"></script>
+<script src="data.js"></script>
+<script src="projeler-data.js"></script>
+<script src="urunler-data.js"></script>
+<script src="malzemeler-data.js"></script>
+<script src="il-ilce-data.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -208,8 +277,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link active" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -224,8 +296,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link active" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -255,30 +330,34 @@
           <label for="p-title">Proje Adı</label>
           <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
         </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label for="p-location">Yer</label>
-            <input type="text" id="p-location" name="location" placeholder="ör. Kadıköy" required>
-          </div>
-          <div class="form-field">
-            <label for="p-location-detail">Konum Detayı <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="p-location-detail" name="locationDetail" placeholder="ör. Zühtüpaşa, Fahrettin Kerim Gökay Cd.">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label for="p-date">Tarih</label>
-            <input type="text" id="p-date" name="date" placeholder="ör. 2025 ya da 2007-2012" required>
-          </div>
-          <div class="form-field">
-            <label>Dönem</label>
-            <div class="check-grid">
-              <label class="check-pill"><input type="checkbox" name="period" value="Türkiye Cumhuriyeti"> Türkiye Cumhuriyeti</label>
-              <label class="check-pill"><input type="checkbox" name="period" value="Osmanlı İmparatorluğu"> Osmanlı İmparatorluğu</label>
-              <label class="check-pill"><input type="checkbox" name="period" value="Doğu Roma (Bizans) İmparatorluğu"> Bizans İmparatorluğu</label>
-              <label class="check-pill"><input type="checkbox" name="period" value="Roma İmparatorluğu"> Roma İmparatorluğu</label>
+        <div class="form-field">
+          <label>Konum</label>
+          <div class="form-row">
+            <div class="dd-field" id="dd-il">
+              <button type="button" class="dd-btn" id="dd-il-btn">
+                <span id="dd-il-btn-label">İl seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <input type="text" class="dd-search" id="dd-il-search" placeholder="İl ara...">
+                <div class="dd-options" id="dd-il-options"></div>
+              </div>
+            </div>
+            <div class="dd-field" id="dd-ilce">
+              <button type="button" class="dd-btn" id="dd-ilce-btn" disabled>
+                <span id="dd-ilce-btn-label">Önce il seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <input type="text" class="dd-search" id="dd-ilce-search" placeholder="İlçe ara...">
+                <div class="dd-options" id="dd-ilce-options"></div>
+              </div>
             </div>
           </div>
+        </div>
+        <div class="form-field">
+          <label for="p-date">Tarih</label>
+          <input type="text" id="p-date" name="date" placeholder="ör. 2025 ya da 2007-2012" required>
         </div>
       </div>
 
@@ -287,40 +366,68 @@
         <p class="section-hint">Projeyi en iyi tanımlayan kategori ve yapı tipini seç.</p>
         <div class="form-field">
           <label>Kategori</label>
-          <div class="check-grid">
-            <label class="check-pill"><input type="checkbox" name="category" value="Konut"> Konut</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Ticari"> Ticari</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Kültürel"> Kültürel</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Dini"> Dini</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Eğitim"> Eğitim</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Kamu"> Kamu</label>
-            <label class="check-pill"><input type="checkbox" name="category" value="Altyapı"> Altyapı</label>
+          <div class="dd-field" id="dd-kategori">
+            <button type="button" class="dd-btn" id="dd-kategori-btn">
+              <span id="dd-kategori-btn-label">Kategori seç</span>
+              <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dd-panel">
+              <div class="dd-options">
+                <label class="dd-option"><input type="checkbox" name="category" value="Konut"> Konut</label>
+                <label class="dd-option"><input type="checkbox" name="category" value="Ticari"> Ticari</label>
+                <label class="dd-option"><input type="checkbox" name="category" value="Kültürel"> Kültürel</label>
+                <label class="dd-option"><input type="checkbox" name="category" value="Dini"> Dini</label>
+                <label class="dd-option"><input type="checkbox" name="category" value="Eğitim"> Eğitim</label>
+                <label class="dd-option"><input type="checkbox" name="category" value="Kamu"> Kamu</label>
+                <label class="dd-option"><input type="checkbox" name="category" value="Altyapı"> Altyapı</label>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="form-field">
+        <div class="form-field ac-field" id="ac-type-field">
           <label for="p-type">Tip</label>
-          <input type="text" id="p-type" name="type" placeholder="ör. Ofis, Kültür Merkezi">
+          <input type="text" id="p-type" name="type" placeholder="ör. Ofis, Kültür Merkezi" autocomplete="off">
+          <div class="ac-suggestions" id="ac-type-suggestions"></div>
           <div class="form-hint">Birden fazla tip gireceksen virgülle ayır.</div>
         </div>
       </div>
 
       <div class="form-section">
         <h2>Mimar / Ofis</h2>
-        <p class="section-hint">Projenin tasarımcısı — MİMARLAB dizinindeki bir mimar ya da ofis adıyla birebir eşleşirse profil sayfasına otomatik bağlanır.</p>
-        <div class="form-field">
-          <label for="p-designer">Tasarımcı</label>
-          <input type="text" id="p-designer" name="designer" placeholder="ör. Emre Arolat, Autoban" required>
-          <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+        <p class="section-hint">Projenin tasarımcısı — MİMARLAB dizinindeki bir mimar ya da ofis adıyla birebir eşleşirse profil sayfasına otomatik bağlanır. En az birini doldur.</p>
+        <div class="form-row">
+          <div class="form-field ac-field" id="ac-mimar-field">
+            <label for="p-designer">Mimar</label>
+            <input type="text" id="p-designer" name="designer" placeholder="ör. Emre Arolat" autocomplete="off">
+            <div class="ac-suggestions" id="ac-mimar-suggestions"></div>
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+          </div>
+          <div class="form-field ac-field" id="ac-ofis-field">
+            <label for="p-office">Ofis / Marka</label>
+            <input type="text" id="p-office" name="office" placeholder="ör. Autoban" autocomplete="off">
+            <div class="ac-suggestions" id="ac-ofis-suggestions"></div>
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+          </div>
         </div>
       </div>
 
       <div class="form-section">
         <h2>Kullanılan Ürünler / Markalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Projede kullanılan ürün ya da malzeme markaları — MİMARLAB dizinindeki bir marka adıyla birebir eşleşirse profil sayfasına otomatik bağlanır.</p>
+        <p class="section-hint">Projede kullanılan ürün ve markaları ekle — önce markayı, sonra ürünü yaz. MİMARLAB dizinindeki bir marka adıyla birebir eşleşirse profil sayfasına otomatik bağlanır.</p>
         <div class="form-field">
-          <label for="p-brands">Ürün / Marka</label>
-          <input type="text" id="p-brands" name="brands" placeholder="ör. VitrA, Kalebodur">
-          <div class="form-hint">Birden fazla marka gireceksen virgülle ayır.</div>
+          <div class="brand-add-row">
+            <div class="ac-field" id="ac-marka-field">
+              <input type="text" id="p-brand-input" placeholder="Marka" autocomplete="off">
+              <div class="ac-suggestions" id="ac-marka-suggestions"></div>
+            </div>
+            <div class="ac-field" id="ac-urun-field">
+              <input type="text" id="p-product-input" placeholder="Ürün" autocomplete="off">
+              <div class="ac-suggestions" id="ac-urun-suggestions"></div>
+            </div>
+            <button type="button" class="brand-add-btn" id="brand-add-btn">+ Ekle</button>
+          </div>
+          <div class="form-hint">Eklemek için "+ Ekle"ye ya da Enter'a bas.</div>
+          <div class="brand-chip-list" id="brand-chip-list"></div>
         </div>
       </div>
 
@@ -377,7 +484,7 @@
           <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
@@ -390,13 +497,186 @@ const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
 let selectedFiles = [];
 let existingImages = [];
-const editId = new URLSearchParams(window.location.search).get('edit');
+const editParams = new URLSearchParams(window.location.search);
+let editId = editParams.get('edit');
+const claimSlug = editParams.get('claim');
 
 function escapeAttr(s){
   const d = document.createElement('div');
   d.textContent = s || '';
   return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+function trLower(s){
+  return (s||'').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
+}
+
+function closeAllDropdowns(){
+  document.querySelectorAll('.dd-field.open').forEach(f => f.classList.remove('open'));
+}
+document.addEventListener('click', (e)=>{
+  document.querySelectorAll('.dd-field.open').forEach(f=>{ if(!f.contains(e.target)) f.classList.remove('open'); });
+});
+
+// ---------- KONUM: İl -> İlçe basamaklı açılır pencere (bkz. il-ilce-data.js) ----------
+let selectedIl = null;
+let selectedIlce = null;
+
+function renderIlOptions(filter){
+  const q = trLower(filter || '');
+  const container = document.getElementById('dd-il-options');
+  const list = IL_LIST.filter(il => !q || trLower(il).includes(q));
+  container.innerHTML = list.length ? list.map(il => `<div class="dd-option${il === selectedIl ? ' selected' : ''}" data-il="${escapeAttr(il)}">${escapeAttr(il)}</div>`).join('') : '<div class="dd-empty">Sonuç yok</div>';
+  container.querySelectorAll('[data-il]').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      selectedIl = opt.dataset.il;
+      selectedIlce = null;
+      document.getElementById('dd-il-btn-label').textContent = selectedIl;
+      document.getElementById('dd-il').classList.remove('open');
+      document.getElementById('dd-ilce-btn').disabled = false;
+      document.getElementById('dd-ilce-btn-label').textContent = 'İlçe seç';
+      renderIlceOptions('');
+    });
+  });
+}
+function renderIlceOptions(filter){
+  const q = trLower(filter || '');
+  const container = document.getElementById('dd-ilce-options');
+  if(!selectedIl){ container.innerHTML = '<div class="dd-empty">Önce il seç</div>'; return; }
+  const list = (IL_ILCE[selectedIl] || []).filter(ilce => !q || trLower(ilce).includes(q));
+  container.innerHTML = list.length ? list.map(ilce => `<div class="dd-option${ilce === selectedIlce ? ' selected' : ''}" data-ilce="${escapeAttr(ilce)}">${escapeAttr(ilce)}</div>`).join('') : '<div class="dd-empty">Sonuç yok</div>';
+  container.querySelectorAll('[data-ilce]').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      selectedIlce = opt.dataset.ilce;
+      document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
+      document.getElementById('dd-ilce').classList.remove('open');
+    });
+  });
+}
+document.getElementById('dd-il-btn').addEventListener('click', ()=>{
+  const field = document.getElementById('dd-il');
+  const willOpen = !field.classList.contains('open');
+  closeAllDropdowns();
+  if(willOpen){ field.classList.add('open'); document.getElementById('dd-il-search').value = ''; renderIlOptions(''); document.getElementById('dd-il-search').focus(); }
+});
+document.getElementById('dd-il-search').addEventListener('input', (e)=> renderIlOptions(e.target.value));
+document.getElementById('dd-il-search').addEventListener('click', (e)=> e.stopPropagation());
+document.getElementById('dd-ilce-btn').addEventListener('click', ()=>{
+  if(document.getElementById('dd-ilce-btn').disabled) return;
+  const field = document.getElementById('dd-ilce');
+  const willOpen = !field.classList.contains('open');
+  closeAllDropdowns();
+  if(willOpen){ field.classList.add('open'); document.getElementById('dd-ilce-search').value = ''; renderIlceOptions(''); document.getElementById('dd-ilce-search').focus(); }
+});
+document.getElementById('dd-ilce-search').addEventListener('input', (e)=> renderIlceOptions(e.target.value));
+document.getElementById('dd-ilce-search').addEventListener('click', (e)=> e.stopPropagation());
+renderIlOptions('');
+
+// ---------- KATEGORİ: çoklu seçim açılır pencere (mevcut name="category"
+// checkbox'ları aynen korunur, yalnızca her zaman açık pillerden bir panele taşınır) ----------
+function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
+  const field = document.getElementById(fieldId);
+  const btn = document.getElementById(btnId);
+  const label = document.getElementById(labelId);
+  function updateLabel(){
+    const checked = Array.from(field.querySelectorAll('input:checked')).map(i => i.value);
+    label.textContent = checked.length ? (checked.length === 1 ? checked[0] : `${checked.length} seçili`) : placeholderText;
+  }
+  btn.addEventListener('click', ()=>{
+    const willOpen = !field.classList.contains('open');
+    closeAllDropdowns();
+    if(willOpen) field.classList.add('open');
+  });
+  field.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', updateLabel));
+  updateLabel();
+  return updateLabel;
+}
+const updateKategoriLabel = wireMultiDropdown('dd-kategori', 'dd-kategori-btn', 'dd-kategori-btn-label', 'Kategori seç');
+
+// ---------- OTOMATİK TAMAMLAMA: Tip, Mimar, Ofis, Marka, Ürün ----------
+function lastCommaSegment(value){
+  const parts = value.split(',');
+  return parts[parts.length - 1].trim();
+}
+function replaceLastCommaSegment(value, replacement){
+  const idx = value.lastIndexOf(',');
+  return idx === -1 ? replacement : value.slice(0, idx + 1) + ' ' + replacement;
+}
+function wireAutocomplete(inputId, suggestionsId, getItems, opts){
+  opts = opts || {};
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
+  function renderSuggestions(){
+    const q = trLower(opts.multi === false ? input.value.trim() : lastCommaSegment(input.value));
+    if(!q){ close(); return; }
+    const items = getItems().filter(it => trLower(it.label).includes(q)).slice(0, 8);
+    if(!items.length){ close(); return; }
+    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
+    box.classList.add('show');
+    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
+      el.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        const item = items[i];
+        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
+        close();
+        if(opts.onPick) opts.onPick(item);
+      });
+    });
+  }
+  input.addEventListener('input', renderSuggestions);
+  input.addEventListener('focus', renderSuggestions);
+  input.addEventListener('blur', ()=> setTimeout(close, 150));
+}
+const TYPE_SUGGESTIONS = [...new Set((typeof projects !== 'undefined' ? projects : []).flatMap(p => p.type || []))].sort((a,b)=>a.localeCompare(b,'tr')).map(t => ({label: t}));
+const MIMAR_SUGGESTIONS = (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
+const OFIS_SUGGESTIONS = (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
+const URUN_SUGGESTIONS = [...(typeof products !== 'undefined' ? products : []), ...(typeof materials !== 'undefined' ? materials : [])]
+  .filter(p => p.title).map(p => ({label: p.title, sub: p.brand || '', brand: p.brand || ''}));
+
+wireAutocomplete('p-type', 'ac-type-suggestions', () => TYPE_SUGGESTIONS);
+wireAutocomplete('p-designer', 'ac-mimar-suggestions', () => MIMAR_SUGGESTIONS);
+wireAutocomplete('p-office', 'ac-ofis-suggestions', () => OFIS_SUGGESTIONS);
+wireAutocomplete('p-brand-input', 'ac-marka-suggestions', () => OFIS_SUGGESTIONS, {multi:false});
+wireAutocomplete('p-product-input', 'ac-urun-suggestions', () => URUN_SUGGESTIONS, {multi:false, onPick: (item)=>{
+  const brandInput = document.getElementById('p-brand-input');
+  if(!brandInput.value.trim() && item.brand) brandInput.value = item.brand;
+}});
+
+// ---------- KULLANILAN ÜRÜNLER / MARKALAR: marka+ürün çiftlerinden oluşan chip listesi ----------
+let brandChips = [];
+function renderBrandChips(){
+  const list = document.getElementById('brand-chip-list');
+  list.innerHTML = brandChips.map((c, i) => `
+    <span class="brand-chip">
+      ${escapeAttr(c.product ? `${c.product} — ${c.brand}` : c.brand)}
+      <button type="button" class="brand-chip-remove" data-index="${i}" aria-label="Kaldır">✕</button>
+    </span>`).join('');
+  list.querySelectorAll('.brand-chip-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      brandChips.splice(parseInt(btn.dataset.index), 1);
+      renderBrandChips();
+    });
+  });
+}
+function addBrandChip(){
+  const brandInput = document.getElementById('p-brand-input');
+  const productInput = document.getElementById('p-product-input');
+  const brand = brandInput.value.trim();
+  const product = productInput.value.trim();
+  if(!brand){ brandInput.focus(); return; }
+  brandChips.push({ brand, product: product || null });
+  brandInput.value = '';
+  productInput.value = '';
+  renderBrandChips();
+  brandInput.focus();
+}
+document.getElementById('brand-add-btn').addEventListener('click', addBrandChip);
+['p-brand-input','p-product-input'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); addBrandChip(); }
+  });
+});
 
 function renderPreviews(){
   const existingHtml = existingImages.map((url, i) => `<div class="image-preview-item">
@@ -441,35 +721,144 @@ dropZone.addEventListener('drop', (e)=>{
   addFiles(e.dataTransfer.files);
 });
 
-fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = 'giris-yap.html'; });
+let isAdminEditingOther = false;
+let currentUserRole = null;
+const meReady = fetch('/api/auth/me').then(async res=>{
+  if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
+  currentUserRole = (await res.json()).user.role;
+});
 
 async function prefillForEdit(){
   if(!editId) return;
+  await meReady;
   try{
+    let item = null;
     const res = await fetch(`/api/projects/${encodeURIComponent(editId)}`);
-    if(!res.ok) return;
-    const { item } = await res.json();
+    if(res.ok){
+      item = (await res.json()).item;
+    } else if(currentUserRole === 'admin'){
+      // Sahibi değilsek ama adminsek: admin herhangi bir gönderiyi id'siyle düzenleyebilir
+      // (bkz. src/routes/admin.js#handleSubmissionsAdmin PATCH, sahiplik kontrolü yapmaz).
+      const adminRes = await fetch('/api/admin/submissions?type=projects');
+      if(adminRes.ok){
+        const data = await adminRes.json();
+        item = (data.items || []).find(it => it.id === editId) || null;
+        if(item) isAdminEditingOther = true;
+      }
+    }
+    if(!item) return;
     document.querySelector('.eyebrow').textContent = 'Proje Düzenle';
     document.querySelector('.page-head h1').textContent = 'Projeni düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
     document.getElementById('p-title').value = item.title || '';
-    document.getElementById('p-location').value = item.location || '';
-    document.getElementById('p-location-detail').value = item.locationDetail || '';
+    {
+      const loc = parseLocationFull(item.location || '');
+      if(loc.city){
+        selectedIl = loc.city;
+        document.getElementById('dd-il-btn-label').textContent = selectedIl;
+        document.getElementById('dd-ilce-btn').disabled = false;
+        if(loc.district){
+          selectedIlce = loc.district;
+          document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
+        }
+      }
+    }
     document.getElementById('p-date').value = item.date || '';
     document.getElementById('p-type').value = (item.type || []).join(', ');
-    document.getElementById('p-designer').value = (item.designer || []).join(', ');
-    document.getElementById('p-brands').value = (item.brands || []).join(', ');
+    {
+      // Var olan designer listesindeki isimler architects[]/offices[] ile eşleştirilerek Mimar/
+      // Ofis kutularına geri dağıtılır — hiçbirine eşleşmeyen (ör. tarihi bir isim) Mimar kutusuna düşer.
+      const names = item.designer || [];
+      const mimarNames = names.filter(n => !offices.some(o => o.name === n));
+      const ofisNames = names.filter(n => offices.some(o => o.name === n));
+      document.getElementById('p-designer').value = mimarNames.join(', ');
+      document.getElementById('p-office').value = ofisNames.join(', ');
+    }
     document.getElementById('p-desc').value = item.description || '';
     document.getElementById('p-credit-text').value = item.photoCreditText || '';
     document.getElementById('p-credit-url').value = item.photoCreditUrl || '';
-    document.querySelectorAll('input[name="period"]').forEach(cb => cb.checked = (item.period || []).includes(cb.value));
     document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (item.category || []).includes(cb.value));
+    updateKategoriLabel();
+    brandChips = (item.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
+    renderBrandChips();
     existingImages = item.images || [];
     renderPreviews();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
-prefillForEdit();
+
+// ?claim=<slug>: yalnızca admin için — statik bir projeler[] kaydını (bkz. projeler-data.js)
+// düzenleme modu (bkz. kullanıcı isteği: "admin hesabına tüm projeleri düzenleyebilme yetkisi
+// ver"). ofis-ekle.html#prefillForClaim ile aynı desen: statik kayıt + onaylı düzenleme varsa
+// üzerine bindirilmiş hali formu doldurur; bu profilin sahibi kavramı olmadığından (mimar/ofis'in
+// aksine) hiçbir alan kilitlenmez, yalnızca slug sabit kalır (payload'da claimed_slug olarak gider).
+async function prefillForClaim(){
+  if(!claimSlug) return;
+  await meReady;
+  if(currentUserRole !== 'admin'){
+    document.querySelector('.form-submit').disabled = true;
+    document.getElementById('form-notice').textContent = 'Bu projeyi düzenlemek için admin girişi gerekiyor.';
+    document.getElementById('form-notice').classList.add('show');
+    return;
+  }
+  document.querySelector('.eyebrow').textContent = 'Proje Düzenle';
+  document.querySelector('.page-head h1').textContent = 'Projeyi düzenle';
+  document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
+
+  const staticProject = projectBySlug(claimSlug) || { slug: claimSlug, title: '' };
+  let merged = { ...staticProject };
+  try{
+    const editsRes = await fetch('/api/public/project-edits');
+    if(editsRes.ok){
+      const edits = await editsRes.json();
+      if(edits[claimSlug]) merged = { ...merged, ...edits[claimSlug] };
+    }
+  }catch{}
+
+  // Bu proje için zaten (admin tarafından oluşturulmuş) bir düzenleme satırı varsa PATCH moduna geç.
+  try{
+    const mineRes = await fetch('/api/projects/mine');
+    if(mineRes.ok){
+      const mineData = await mineRes.json();
+      const mine = (mineData.items || []).find(it => it.claimed_slug === claimSlug);
+      if(mine) editId = mine.id;
+    }
+  }catch{}
+
+  document.getElementById('p-title').value = merged.title || '';
+  {
+    const loc = parseLocationFull(merged.location || '');
+    if(loc.city){
+      selectedIl = loc.city;
+      document.getElementById('dd-il-btn-label').textContent = selectedIl;
+      document.getElementById('dd-ilce-btn').disabled = false;
+      if(loc.district){
+        selectedIlce = loc.district;
+        document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
+      }
+    }
+  }
+  document.getElementById('p-date').value = merged.date || '';
+  document.getElementById('p-type').value = (merged.type || []).join(', ');
+  {
+    const names = merged.designer || [];
+    const mimarNames = names.filter(n => !offices.some(o => o.name === n));
+    const ofisNames = names.filter(n => offices.some(o => o.name === n));
+    document.getElementById('p-designer').value = mimarNames.join(', ');
+    document.getElementById('p-office').value = ofisNames.join(', ');
+  }
+  document.getElementById('p-desc').value = merged.description || '';
+  document.getElementById('p-credit-text').value = (merged.photoCredit && merged.photoCredit.text) || '';
+  document.getElementById('p-credit-url').value = (merged.photoCredit && merged.photoCredit.url) || '';
+  document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (merged.category || []).includes(cb.value));
+  updateKategoriLabel();
+  brandChips = (merged.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
+  renderBrandChips();
+  existingImages = merged.images || [];
+  renderPreviews();
+}
+
+if(claimSlug) prefillForClaim(); else prefillForEdit();
 
 async function uploadFiles(files){
   const urls = [];
@@ -490,11 +879,25 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
-  const period = Array.from(form.querySelectorAll('input[name="period"]:checked')).map(el => el.value);
   const category = Array.from(form.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
   const type = document.getElementById('p-type').value.split(',').map(s => s.trim()).filter(Boolean);
-  const designer = document.getElementById('p-designer').value.split(',').map(s => s.trim()).filter(Boolean);
-  const brands = document.getElementById('p-brands').value.split(',').map(s => s.trim()).filter(Boolean);
+  const mimarNames = document.getElementById('p-designer').value.split(',').map(s => s.trim()).filter(Boolean);
+  const ofisNames = document.getElementById('p-office').value.split(',').map(s => s.trim()).filter(Boolean);
+  const designer = [...mimarNames, ...ofisNames];
+  const brands = brandChips.map(c => ({ brand: c.brand, product: c.product || null }));
+
+  if(!selectedIl){
+    notice.textContent = 'Bir il seç.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(!designer.length){
+    notice.textContent = 'En az bir mimar ya da ofis adı gir.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
 
   submitBtn.disabled = true;
   let uploadedImages = [];
@@ -510,18 +913,22 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
 
   const payload = {
     title: document.getElementById('p-title').value,
-    location: document.getElementById('p-location').value,
-    locationDetail: document.getElementById('p-location-detail').value || null,
+    location: selectedIlce || selectedIl,
+    locationDetail: null,
     date: document.getElementById('p-date').value,
-    period, category, type, designer, brands,
+    category, type, designer, brands,
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
     photoCreditUrl: document.getElementById('p-credit-url').value || null,
     images: [...existingImages, ...uploadedImages],
   };
+  if(claimSlug) payload.claimed_slug = claimSlug;
 
+  const patchUrl = isAdminEditingOther
+    ? `/api/admin/submissions/projects/${encodeURIComponent(editId)}`
+    : `/api/projects/${encodeURIComponent(editId)}`;
   try{
-    const res = await fetch(editId ? `/api/projects/${encodeURIComponent(editId)}` : '/api/projects', {
+    const res = await fetch(editId ? patchUrl : '/api/projects', {
       method: editId ? 'PATCH' : 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
@@ -535,11 +942,22 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       submitBtn.disabled = false;
       return;
     }
-    if(editId){
-      notice.textContent = 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
+    if(claimSlug){
+      // Admin'in statik proje düzenlemesi onay beklemeden anında yayına girer (bkz. src/routes/
+      // submissions.js#createSubmission/updateOwnSubmission — claimed_slug'lı satırlar 'approved').
+      notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = 'hesabim.html'; }, 1500);
+      setTimeout(()=>{ window.location.href = `/projeler/${encodeURIComponent(claimSlug)}`; }, 1200);
+      return;
+    }
+    if(editId){
+      notice.textContent = isAdminEditingOther
+        ? 'Değişiklikler kaydedildi.'
+        : 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = isAdminEditingOther ? 'admin.html' : 'hesabim.html'; }, 1500);
       return;
     }
     notice.textContent = 'Projen alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';
@@ -548,6 +966,13 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     form.reset();
     selectedFiles = [];
     renderPreviews();
+    selectedIl = null; selectedIlce = null;
+    document.getElementById('dd-il-btn-label').textContent = 'İl seç';
+    document.getElementById('dd-ilce-btn-label').textContent = 'Önce il seç';
+    document.getElementById('dd-ilce-btn').disabled = true;
+    brandChips = [];
+    renderBrandChips();
+    updateKategoriLabel();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

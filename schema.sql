@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   dept TEXT,
   photo_url TEXT,
   profession TEXT,
+  position TEXT,
   kvkk_accepted_at INTEGER,
   role TEXT NOT NULL DEFAULT 'user',
   created_at INTEGER NOT NULL
@@ -41,12 +42,19 @@ CREATE TABLE IF NOT EXISTS office_submissions (
   about TEXT,
   logo_url TEXT,
   awards TEXT,
+  founders TEXT,
   claimed_profile_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_office_owner ON office_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_office_status ON office_submissions(status);
 CREATE INDEX IF NOT EXISTS idx_office_claimed_key ON office_submissions(claimed_profile_key);
 
+-- claimed_slug doluysa bu satır yeni bir proje kaydı değil, projeler[]'deki (projeler-data.js,
+-- statik) mevcut bir projenin slug'ına bağlı bir düzenleme talebidir — mimar/ofis'teki
+-- claimed_profile_key ile aynı fikir, ama admin'e özel: sıradan üyeler için bir "projemi
+-- sahiplen" akışı yok (bkz. src/routes/submissions.js#verifyClaimedSlug), bu yüzden ayrı bir
+-- profile_claims benzeri onay tablosu gerekmiyor; admin'in oluşturduğu satır doğrudan
+-- status='approved' yazılır.
 CREATE TABLE IF NOT EXISTS project_submissions (
   id TEXT PRIMARY KEY,
   owner_user_id TEXT NOT NULL REFERENCES users(id),
@@ -67,10 +75,12 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   photoCreditUrl TEXT,
   description TEXT,
   images TEXT,
-  brands TEXT
+  brands TEXT,
+  claimed_slug TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_project_status ON project_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_project_claimed_slug ON project_submissions(claimed_slug);
 
 CREATE TABLE IF NOT EXISTS product_submissions (
   id TEXT PRIMARY KEY,
@@ -87,6 +97,25 @@ CREATE TABLE IF NOT EXISTS product_submissions (
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status ON product_submissions(status);
+
+-- Yapı malzemeleri (doğal taş, boya, seramik vb.) — mobilya gibi tüketici ürünlerinden ayrı bir
+-- kategori/sayfa (Malzeme) olarak product_submissions ile aynı şemayı kullanır (bkz. urun.html/
+-- malzeme.html, src/lib/submissionTypes.js#materials).
+CREATE TABLE IF NOT EXISTS material_submissions (
+  id TEXT PRIMARY KEY,
+  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  brand TEXT,
+  website TEXT,
+  category TEXT,
+  description TEXT,
+  images TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_material_status ON material_submissions(status);
 
 -- published_at: ilan onaylanıp (yeniden) yayına alındığı an (bkz. src/routes/admin.js). İlan yayında
 -- kalma süresi 30 gündür; /api/public/jobs, published_at + 30 günü geçmiş satırları listeye dahil
@@ -126,6 +155,7 @@ CREATE TABLE IF NOT EXISTS architect_submissions (
   dept TEXT,
   office TEXT,
   position TEXT,
+  profession TEXT,
   awards TEXT,
   photo_url TEXT,
   claimed_profile_key TEXT
@@ -222,23 +252,47 @@ CREATE TABLE IF NOT EXISTS profile_claims (
 CREATE INDEX IF NOT EXISTS idx_claims_status ON profile_claims(status);
 CREATE INDEX IF NOT EXISTS idx_claims_key ON profile_claims(profile_type, profile_key);
 
+-- Bir mimar/marka profilindeki "Bilgi kaynağı" kutucuğundan gönderilen, sahiplenme iddiası
+-- OLMAYAN düzeltme önerileri (ör. yanlış bilgi bildirimi). profile_claims'ten ayrı: aynı kullanıcı
+-- aynı profil için birden fazla öneri gönderebilir (unique kısıtı yok), admin manuel düzeltip
+-- 'resolved' işaretler. Admin panelinde profile_claims ile aynı "Profil Talepleri" sekmesinde okunur.
+CREATE TABLE IF NOT EXISTS profile_corrections (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  profile_type TEXT NOT NULL, -- 'architect' | 'office'
+  profile_key TEXT NOT NULL,
+  note TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | resolved | dismissed
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_corrections_status ON profile_corrections(status);
+CREATE INDEX IF NOT EXISTS idx_corrections_key ON profile_corrections(profile_type, profile_key);
+
 -- Doğrulanmış Profil rozeti satın alma (aylık kiralama) talepleri. Ödeme altyapısı bağlanana
 -- kadar admin panelinden elle 'active' yapılır ve expires_at = onay anı + 30 gün olarak
 -- ayarlanır; aktif olduğunda ilgili kullanıcının onaylı profile_claims kaydı üzerinden rozet,
--- ilgili mimar/ofis profilinde gösterilir. Bir kullanıcı aynı anda yalnızca 1 rozet tutabilir
--- (bkz. src/routes/badges.js, src/routes/admin.js).
+-- ilgili mimar/ofis profilinde gösterilir. Bir kullanıcı aynı (target_type, target_key) hedefi
+-- için aynı anda yalnızca 1 rozet tutabilir — farklı hedefler (kendisi + her marka) için ayrı
+-- ayrı aktif rozeti olabilir (bkz. src/routes/badges.js, src/routes/admin.js).
 CREATE TABLE IF NOT EXISTS badge_requests (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
-  badge_type TEXT NOT NULL, -- student | architect | brand | gold | platinum
+  badge_type TEXT NOT NULL, -- destekci | verified | gold | platinum
+  target_type TEXT NOT NULL DEFAULT 'self', -- 'self' (kişisel) | 'office' (belirli bir marka)
+  target_key TEXT, -- yalnızca target_type='office' iken dolu; offices[].name ile birebir eşleşir
   status TEXT NOT NULL DEFAULT 'pending', -- pending | active | rejected
   price_try REAL NOT NULL,
   expires_at INTEGER, -- yalnızca status='active' iken dolu; aylık kiralamanın bitiş tarihi
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  payment_provider TEXT, -- 'iyzico' | NULL (admin tarafından elle onaylandıysa)
+  payment_token TEXT, -- iyzico Checkout Form token'ı (bkz. src/routes/payments.js)
+  payment_id TEXT -- iyzico paymentId (iade işlemleri için)
 );
 CREATE INDEX IF NOT EXISTS idx_badge_user ON badge_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_badge_status ON badge_requests(status);
+CREATE INDEX IF NOT EXISTS idx_badge_target ON badge_requests(target_type, target_key);
 
 -- Ziyaretçilerin İletişim sayfasındaki formdan gönderdiği mesajlar; admin panelinde okunur.
 CREATE TABLE IF NOT EXISTS contact_messages (

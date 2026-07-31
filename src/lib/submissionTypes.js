@@ -3,8 +3,8 @@
 export const SUBMISSION_TYPES = {
   offices: {
     table: 'office_submissions',
-    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'claimed_profile_key'],
-    arrayFields: ['awards'],
+    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'claimed_profile_key'],
+    arrayFields: ['awards', 'founders'],
     required: ['name'],
     urlFields: ['website', 'logo_url'],
   },
@@ -13,6 +13,7 @@ export const SUBMISSION_TYPES = {
     fields: [
       'slug', 'title', 'category', 'type', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
+      'claimed_slug',
     ],
     arrayFields: ['category', 'type', 'period', 'designer', 'images', 'brands'],
     required: ['title'],
@@ -21,6 +22,14 @@ export const SUBMISSION_TYPES = {
   },
   products: {
     table: 'product_submissions',
+    fields: ['title', 'brand', 'website', 'category', 'description', 'images'],
+    arrayFields: ['images'],
+    required: ['title'],
+    urlFields: ['website'],
+    urlArrayFields: ['images'],
+  },
+  materials: {
+    table: 'material_submissions',
     fields: ['title', 'brand', 'website', 'category', 'description', 'images'],
     arrayFields: ['images'],
     required: ['title'],
@@ -36,7 +45,7 @@ export const SUBMISSION_TYPES = {
   },
   architects: {
     table: 'architect_submissions',
-    fields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'awards', 'photo_url', 'claimed_profile_key'],
+    fields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'claimed_profile_key'],
     arrayFields: ['awards'],
     required: ['name'],
     urlFields: ['photo_url'],
@@ -52,7 +61,11 @@ export const SUBMISSION_TYPES = {
 
 // Görsel/website/başvuru linki gibi alanlarda saklanan değerin, bir HTML özniteliğine
 // (src="..."/href="...") gömüldüğünde tırnak kaçışıyla enjeksiyona izin vermeyecek güvenli bir
-// bağlantı olduğunu garantiler: ya kendi /media/ yükleme yolumuz, ya da düz bir http(s) URL'i.
+// bağlantı olduğunu garantiler: ya kendi /media/ yükleme yolumuz, ya da düz bir http(s) URL'i,
+// ya da data.js'teki statik kayıtlarda kullanılan şemasız site-relative bir varlık yolu (ör.
+// "mimarlar-thumb/x.jpg", "logos-thumb/x.jpg") — claim akışında (mimar-ekle/ofis-ekle ?claim=)
+// fotoğraf/logo değiştirilmeden gönderildiğinde payload'a bu haliyle geliyor. Şema/host taşıyan
+// (":" içeren, ör. "javascript:...") ya da protokol-relative ("//host/...") değerler reddedilir.
 // Anlamsız/zararlı biçimli girişleri (ör. içine `"` veya `javascript:` gömülü) daha veritabanına
 // yazılmadan reddeder — istemci tarafındaki escapeHtml/escapeAttr'a tek başına güvenmek yerine.
 export function isSafeUrlValue(value) {
@@ -64,7 +77,7 @@ export function isSafeUrlValue(value) {
     const parsed = new URL(v);
     return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
-    return false;
+    return !v.includes(':') && !v.startsWith('//');
   }
 }
 

@@ -51,7 +51,7 @@
   .nav{
     position:sticky; top:0; z-index:40;
     display:flex; align-items:center; gap:24px;
-    padding:16px 32px;
+    padding:10px 32px;
     background:rgba(237,240,243,0.92);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
@@ -80,6 +80,9 @@
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
   .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
   .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
   .nav-rate{
     background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
@@ -104,7 +107,7 @@
     font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
     color:var(--sage); font-weight:600; margin-bottom:12px; text-align:center;
   }
-  .auth-title{font-family:'Fraunces', serif; font-size:30px; font-weight:600; margin:0 0 8px; text-align:center;}
+  .auth-title{font-family:'Inter', sans-serif; font-size:30px; font-weight:700; margin:0 0 8px; text-align:center;}
   .auth-sub{color:var(--ink-soft); font-size:14px; margin:0 0 32px; text-align:center;}
   .auth-card{
     background:var(--paper-card); border:1px solid var(--line);
@@ -117,6 +120,15 @@
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
   }
   .auth-field input:focus-visible, .auth-field select:focus-visible{box-shadow:0 0 0 2px var(--brass);}
+  .auth-field.ac-field{position:relative;}
+  .ac-suggestions{
+    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
+  }
+  .ac-suggestions.show{display:block;}
+  .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
+  .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
   .auth-check{display:flex; align-items:flex-start; gap:9px; margin-bottom:14px; font-size:12.5px; line-height:1.55; color:var(--ink-soft);}
   .auth-check input{width:16px; height:16px; margin-top:1px; flex-shrink:0; accent-color:var(--walnut);}
   .auth-check a{color:var(--walnut); font-weight:600;}
@@ -154,13 +166,16 @@
   .footer-col a:hover{color:var(--brass-soft);}
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
-  @media (max-width:720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
-    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .auth-wrap{padding:44px 18px 70px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
@@ -186,8 +201,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -202,8 +220,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -226,28 +247,19 @@
           <input type="text" id="signup-name" name="name" placeholder="Adın Soyadın" required>
         </div>
         <div class="auth-field">
-          <label for="signup-dob">Doğum Tarihi *</label>
-          <input type="date" id="signup-dob" name="dob" required>
-        </div>
-        <div class="auth-field">
           <label for="signup-email">E-posta *</label>
           <input type="email" id="signup-email" name="email" placeholder="ornek@eposta.com" required>
         </div>
         <div class="auth-field">
-          <label for="signup-school">Okul</label>
-          <input type="text" id="signup-school" name="school" placeholder="Üniversite">
-        </div>
-        <div class="auth-field">
-          <label for="signup-dept">Bölüm</label>
-          <select id="signup-dept" name="dept">
-            <option value="">Seç... (opsiyonel)</option>
-            <option value="mimarlik">Mimarlık</option>
-            <option value="ic_mimarlik">İç Mimarlık</option>
-            <option value="peyzaj_mimarligi">Peyzaj Mimarlığı</option>
-            <option value="sehir_bolge_planlama">Şehir ve Bölge Planlama</option>
-            <option value="restorasyon">Restorasyon</option>
-            <option value="diger">Diğer</option>
+          <label for="signup-dob">Doğum Yılı *</label>
+          <select id="signup-dob" name="dob" required>
+            <option value="">Yıl seç</option>
           </select>
+        </div>
+        <div class="auth-field ac-field" id="ac-school-field">
+          <label for="signup-school">Okul</label>
+          <input type="text" id="signup-school" name="school" placeholder="Üniversite" autocomplete="off">
+          <div class="ac-suggestions" id="ac-school-suggestions"></div>
         </div>
         <div class="auth-field">
           <label for="signup-profession">Meslek</label>
@@ -258,6 +270,7 @@
             <option value="peyzaj_mimari">Peyzaj Mimarı</option>
             <option value="sehir_plancisi">Şehir Plancısı</option>
             <option value="restorator">Restoratör</option>
+            <option value="ogrenci">Öğrenci</option>
             <option value="diger">Diğer</option>
           </select>
         </div>
@@ -295,14 +308,57 @@
           <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
   </footer>
 
+<script src="data.js"></script>
 <script>
+function trLower(s){
+  return (s||'').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
+}
+function escapeAttr(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// ---------- DOĞUM YILI: 1950'den bugüne, en yeni yıl en üstte ----------
+(function fillDobYears(){
+  const sel = document.getElementById('signup-dob');
+  const currentYear = new Date().getFullYear();
+  for(let y = currentYear; y >= 1950; y--){
+    const opt = document.createElement('option');
+    opt.value = String(y);
+    opt.textContent = String(y);
+    sel.appendChild(opt);
+  }
+})();
+// ---------- OTOMATİK TAMAMLAMA: Üniversite (sitede kayıtlı mimarların okuduğu okullar) ----------
+(function wireSchoolAutocomplete(){
+  const input = document.getElementById('signup-school');
+  const box = document.getElementById('ac-school-suggestions');
+  const items = [...new Set((typeof architects !== 'undefined' ? architects : []).map(a => a.school).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'tr'));
+  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
+  function render(){
+    const q = trLower(input.value.trim());
+    if(!q){ close(); return; }
+    const matches = items.filter(it => trLower(it).includes(q)).slice(0, 8);
+    if(!matches.length){ close(); return; }
+    box.innerHTML = matches.map(it => `<div class="ac-suggestion">${escapeAttr(it)}</div>`).join('');
+    box.classList.add('show');
+    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
+      el.addEventListener('mousedown', (e)=>{ e.preventDefault(); input.value = matches[i]; close(); });
+    });
+  }
+  input.addEventListener('input', render);
+  input.addEventListener('focus', render);
+  input.addEventListener('blur', ()=> setTimeout(close, 150));
+})();
+
 document.getElementById('signup-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('signup-notice');
@@ -328,7 +384,6 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
     name: document.getElementById('signup-name').value,
     dob: document.getElementById('signup-dob').value || null,
     school: document.getElementById('signup-school').value || null,
-    dept: document.getElementById('signup-dept').value || null,
     profession: document.getElementById('signup-profession').value || null,
     email: document.getElementById('signup-email').value,
     password: pw,

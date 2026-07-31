@@ -2,10 +2,14 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField } from '../lib/submissionTypes.js';
-import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
+import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
+// projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
+// sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
+// src/lib/seo.js'teki aynı desen — orada da SSR meta için kullanılıyor).
+import projeJs from '../../projeler-data.js';
 
 const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', jobs: 'jobs',
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
   architects: 'architects', news: 'news',
 };
 
@@ -15,12 +19,24 @@ const TYPE_BY_PATH = {
 const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
 
 async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
+  if (user.role === 'admin') return null; // admin, sahiplenmiş olsun olmasın her mimar/marka profilini düzenleyebilir
   const profileType = CLAIM_PROFILE_TYPE[typeKey];
   if (!profileType) return errorJson('Bu tip için profil düzenleme desteklenmiyor.');
   const claim = await env.DB.prepare(
     `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
   ).bind(user.id, profileType, profileKey).first();
   if (!claim) return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
+  return null;
+}
+
+// Statik projeler (projeler-data.js) için mimar/ofis'teki profile_claims'e karşılık gelen bir
+// sahiplenme/onay akışı YOK — projelerin bir "sahibi" kavramı yok, bu yüzden bu tamamen admin'e
+// özel (bkz. kullanıcı isteği: "admin hesabına tüm projeleri düzenleyebilme yetkisi ver"). Sıradan
+// üyeler claimed_slug göndermeye çalışırsa reddedilir.
+async function verifyClaimedSlug(env, user, slug) {
+  if (user.role !== 'admin') return errorJson('Bu işlem için yetkin yok.', 403);
+  const project = projeJs.projectBySlug(slug);
+  if (!project) return errorJson('Böyle bir statik proje bulunamadı.', 404);
   return null;
 }
 
@@ -48,6 +64,17 @@ async function checkSubmissionQuota(env, user, typeKey) {
       `SELECT COUNT(*) AS count FROM job_submissions WHERE owner_user_id = ? AND created_at >= ?`
     ).bind(user.id, since).first();
     if (row.count >= limit) return errorJson(`Bu ayki iş ilanı yayınlama hakkını kullandın (${limit}/${limit}).`, 403);
+    return null;
+  }
+  if (typeKey === 'materials') {
+    const badge = await getActiveBadge(env, user.id);
+    const limit = badge ? MATERIAL_MONTHLY_LIMITS[badge.badge_type] : undefined;
+    if (!limit) return errorJson('Malzeme eklemek için Doğrulanmış Üye, Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+    const since = periodStart(badge);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM material_submissions WHERE owner_user_id = ? AND created_at >= ?`
+    ).bind(user.id, since).first();
+    if (row.count >= limit) return errorJson(`Bu ayki malzeme yükleme hakkını kullandın (${limit}/${limit}). Yeni hak için bir sonraki döneme kadar bekleyebilir ya da daha üst bir rozete geçebilirsin.`, 403);
     return null;
   }
   return null;
@@ -80,24 +107,32 @@ async function createSubmission(request, env, user, typeKey) {
     if (err) return err;
     body.name = body.claimed_profile_key; // isim, eşleşen statik profille birebir aynı kalmalı
   }
+  if (typeKey === 'projects' && body.claimed_slug) {
+    const err = await verifyClaimedSlug(env, user, body.claimed_slug);
+    if (err) return err;
+  }
 
   const quotaErr = await checkSubmissionQuota(env, user, typeKey);
   if (quotaErr) return quotaErr;
 
   const config = SUBMISSION_TYPES[typeKey];
   const row = normalizeSubmission(typeKey, body);
+  if (typeKey === 'projects' && body.claimed_slug) row.slug = body.claimed_slug; // normalizeSubmission slug'ı title'dan yeniden üretir, statik projeyle eşleşen slug'ı koru
   const id = newId();
   const now = Date.now();
+  // Admin'in kendi statik proje düzenlemesi başka bir onaycıya muhtaç değil — doğrudan yayına girer
+  // (bkz. plan: "zaten onaylayan admin kendisi"). Diğer tüm yeni gönderiler eskisi gibi 'pending'.
+  const status = (typeKey === 'projects' && body.claimed_slug) ? 'approved' : 'pending';
 
   const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.fields];
   const placeholders = columns.map(() => '?').join(', ');
-  const values = [id, user.id, 'pending', now, now, ...config.fields.map(f => row[f])];
+  const values = [id, user.id, status, now, now, ...config.fields.map(f => row[f])];
 
   await env.DB.prepare(
     `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
   ).bind(...values).run();
 
-  return json({ id, status: 'pending' }, 201);
+  return json({ id, status }, 201);
 }
 
 async function listMine(env, user, typeKey) {
@@ -108,17 +143,19 @@ async function listMine(env, user, typeKey) {
   return json({ items: results.map(r => parseSubmissionRow(typeKey, r)) });
 }
 
+// Sahiplik kontrolü admin için atlanır — admin herhangi bir kullanıcının gönderisini görüntüleyip
+// düzenleyebilir (bkz. kullanıcı isteği: "admin hesabının tüm gönderilerin düzenleme yetkisi olsun").
 async function getOwnSubmission(env, user, typeKey, id) {
   const config = SUBMISSION_TYPES[typeKey];
   const row = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-  if (!row || row.owner_user_id !== user.id) return errorJson('Bulunamadı', 404);
+  if (!row || (row.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
   return json({ item: parseSubmissionRow(typeKey, row) });
 }
 
 async function updateOwnSubmission(request, env, user, typeKey, id) {
   const config = SUBMISSION_TYPES[typeKey];
   const existing = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-  if (!existing || existing.owner_user_id !== user.id) return errorJson('Bulunamadı', 404);
+  if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
 
   const body = await readJson(request);
   const missing = validateRequired(typeKey, body);
@@ -131,19 +168,25 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     if (err) return err;
     body.name = body.claimed_profile_key; // isim, eşleşen statik profille birebir aynı kalmalı
   }
+  if (typeKey === 'projects' && body.claimed_slug) {
+    const err = await verifyClaimedSlug(env, user, body.claimed_slug);
+    if (err) return err;
+  }
 
   const row = normalizeSubmission(typeKey, body);
   if (typeKey === 'projects') row.slug = existing.slug; // düzenlemede slug'ı (ve ona bağlı bağlantıları/yorumları) koru
 
   const now = Date.now();
+  // bkz. createSubmission'daki aynı yorum — admin'in kendi statik proje düzenlemesi anında yayına girer.
+  const status = (typeKey === 'projects' && body.claimed_slug) ? 'approved' : 'pending';
   const updates = config.fields.map(f => `${f} = ?`);
   const values = config.fields.map(f => row[f]);
   updates.push('status = ?', 'updated_at = ?');
-  values.push('pending', now, id);
+  values.push(status, now, id);
 
   await env.DB.prepare(
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
 
-  return json({ id, status: 'pending' });
+  return json({ id, status });
 }

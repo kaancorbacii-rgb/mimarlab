@@ -26,7 +26,7 @@
   "@type": "Organization",
   "name": "MİMARLAB",
   "url": "https://mimarlab.com/",
-  "logo": "https://mimarlab.com/logos/site/mimarlab-logo.png"
+  "logo": "https://mimarlab.com/logos/site/favicon-180.png"
 }
 </script>
 <script type="application/ld+json">
@@ -79,13 +79,13 @@
     outline:none;
     box-shadow: 0 0 0 2px var(--brass) inset;
   }
-  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible, .list-col-search input:focus-visible{box-shadow:none;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
 
   /* ---------- NAV ---------- */
   .nav{
     position:sticky; top:0; z-index:40;
     display:flex; align-items:center; gap:24px;
-    padding:16px 32px;
+    padding:10px 32px;
     background:rgba(237,240,243,0.92);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
@@ -194,270 +194,108 @@
   .hero p{
     font-size:16px; color:var(--ink-soft); margin:0; line-height:1.5;
   }
+  .hero-cta{
+    display:inline-block; margin-top:22px;
+    background:var(--ink); color:var(--paper-card);
+    padding:13px 28px; border-radius:100px; font-weight:600; font-size:14.5px;
+  }
+  .hero-cta:hover{background:var(--walnut);}
 
-  /* ---------- LIST FILTERS (per-column) ---------- */
-  .list-col-panel{display:flex; flex-direction:column; min-width:0;}
-  .list-col-search{
-    display:flex; align-items:center; gap:8px;
-    background:var(--paper-card);
-    border:1px solid var(--line);
-    border-radius:100px;
-    padding:8px 16px;
-    margin:8px 0;
-  }
-  .list-col-search svg{flex-shrink:0; opacity:0.55;}
-  .list-col-search input{
-    border:none; background:none; outline:none;
-    font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);
-  }
-  .list-col-filters{
-    display:flex; align-items:center; gap:8px;
-    flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
-  }
-  .list-col-filters::-webkit-scrollbar{display:none;}
-  .filter-select{
-    position:relative; flex-shrink:0;
-    width:132px;
-  }
-  .filter-select select{
-    appearance:none; -webkit-appearance:none;
-    background:var(--paper-card);
-    border:1px solid var(--line);
-    border-radius:100px;
-    padding:9px 30px 9px 14px;
-    font-size:12.5px; font-weight:500; color:var(--ink);
-    font-family:inherit;
-    width:100%;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .select-arrow{
-    position:absolute; right:12px; top:50%;
-    transform:translateY(-50%);
-    pointer-events:none; color:var(--ink-soft);
-  }
-  .filter-select select:hover{border-color:var(--walnut);}
-
-  /* ---------- LIST ---------- */
-  .list-section{
+  /* ---------- HOME BENTO GRID ---------- */
+  .bento-grid{
     max-width:1220px; margin:0 auto;
-    padding:36px 32px 90px;
+    padding:8px 32px 64px;
+    display:grid; grid-template-columns:2fr 1fr;
+    gap:16px;
   }
-  #brand-list{
-    display:grid; grid-template-columns: 1fr 1fr;
-    gap:10px 16px;
-  }
-  .list-columns-header{
-    display:grid; grid-template-columns: 1fr 1fr;
-    gap:10px 16px;
-    margin-bottom:16px; padding:0 4px;
-  }
-  .list-col-label{
-    font-family:'IBM Plex Mono', monospace; font-size:16px; letter-spacing:0.02em;
-    color:var(--ink-soft); font-weight:600;
-    text-decoration:underline; display:inline-block;
-  }
-  .list-col-label:hover{color:var(--ink);}
-  .list-col-label-inst{white-space:nowrap; overflow:hidden;}
-  .brand-row{min-width:0;}
-  .institution-cell{
-    min-width:0;
-    background:var(--walnut); border:1px solid var(--walnut);
-    border-radius:10px; padding:14px 16px;
-    display:flex; align-items:center; gap:14px;
-    overflow-x:auto; scrollbar-width:none;
-  }
-  .institution-cell::-webkit-scrollbar{display:none;}
-  .institution-cell-status{justify-content:center;}
-  .status-pill{
-    font-size:12px; font-weight:600; color:#fff;
-    background:rgba(237,240,243,0.18); padding:6px 14px; border-radius:100px;
-    white-space:nowrap;
-  }
-  .institution-item{display:flex; align-items:center; gap:8px; flex:0 0 auto; min-width:0; text-decoration:none; color:inherit;}
-  .institution-text{min-width:0;}
-  .institution-name-line{display:inline-flex; align-items:baseline; gap:6px; flex-wrap:nowrap; min-width:0; max-width:100%;}
-  .institution-name{
-    font-size:12.5px; font-weight:600; color:#fff; line-height:1.3;
-    white-space:nowrap;
-  }
-  .institution-year{
-    font-family:'IBM Plex Mono', monospace; font-size:10px; color:rgba(237,240,243,0.7);
-    letter-spacing:0.02em; white-space:nowrap; flex-shrink:0;
-  }
-  .institution-year::before{content:"K. ";}
-  .institution-role{font-size:10.5px; color:rgba(237,240,243,0.7); white-space:nowrap;}
-  .rail-line{
-    display:flex; align-items:center; gap:10px;
-    margin-bottom:6px; padding:0 4px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase;
-    color:var(--ink-soft);
-  }
-  .rail-line::after{
-    content:""; flex:1; height:1px; background:var(--line);
-  }
-  .rail-line.no-line::after{display:none;}
-  .rail-line-normalcase{text-transform:none;}
 
-  .brand-row{
-    display:flex; align-items:center; gap:18px;
-    background:var(--paper-card);
-    border:1px solid var(--line-soft);
-    border-radius:10px;
-    padding:16px 20px;
-    position:relative;
-    text-decoration:none; color:inherit; cursor:pointer;
+  /* project slider (left) */
+  .proje-slider{
+    position:relative; border-radius:20px; overflow:hidden;
+    aspect-ratio:4/3; background:var(--paper-alt);
+  }
+  .slider-track{position:relative; width:100%; height:100%;}
+  .proje-slide{
+    position:absolute; inset:0; opacity:0; pointer-events:none;
+    transition:opacity .6s ease; text-decoration:none; color:inherit; display:block;
+  }
+  .proje-slide.active{opacity:1; pointer-events:auto; z-index:1;}
+  .proje-slide img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .slide-tag{
+    position:absolute; top:18px; left:18px; z-index:2;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:#fff; opacity:0.9;
+    background:rgba(27,42,61,0.35); padding:6px 12px; border-radius:100px;
+    backdrop-filter:blur(2px);
+  }
+  .slide-caption{
+    position:absolute; left:18px; bottom:18px; right:18px; z-index:2;
+    width:fit-content; max-width:calc(100% - 36px);
+    background:rgba(27,42,61,0.72); backdrop-filter:blur(3px);
+    color:#fff; padding:14px 18px; border-radius:12px;
+  }
+  .slide-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; line-height:1.25;}
+  .slide-designer{font-size:12.5px; color:rgba(255,255,255,0.72); margin-top:3px;}
+  .slider-arrow{
+    position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+    width:38px; height:38px; border-radius:50%; border:none;
+    background:rgba(27,42,61,0.45); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .slider-arrow:hover{background:rgba(27,42,61,0.72);}
+  .slider-arrow.prev{left:14px;}
+  .slider-arrow.next{right:14px;}
+
+  /* category cards (right, asymmetric grid) */
+  .hero-side{
+    display:grid;
+    grid-template-columns:repeat(6, 1fr);
+    grid-template-rows:repeat(3, 1fr);
+    grid-template-areas:
+      "mimar mimar mimar haber haber haber"
+      "marka marka marka haber haber haber"
+      "isilani isilani isilani urun urun urun";
+    gap:12px;
+  }
+  .side-card{
+    position:relative; display:flex; border-radius:16px; overflow:hidden;
+    text-decoration:none; color:inherit;
+    border:1px solid var(--line-soft); background:var(--paper-card);
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
-  .brand-row:hover{
-    transform:translateY(-2px);
-    box-shadow:0 8px 20px rgba(27,42,61,0.08);
-    border-color:var(--line);
+  .side-card:hover{transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08); border-color:var(--line);}
+  .card-mimar{grid-area:mimar;}
+  .card-marka{grid-area:marka;}
+  .card-haber{grid-area:haber;}
+  .card-isilani{grid-area:isilani;}
+  .card-urun{grid-area:urun;}
+
+  .side-card-icon-card{
+    flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    padding:14px;
+  }
+  .side-card-icon{
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    color:var(--walnut);
+  }
+  .side-card-name{font-size:12.5px; font-weight:700; letter-spacing:0.02em; color:var(--ink); text-align:center;}
+
+  .card-haber{align-items:flex-end;}
+  .card-haber img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:var(--paper-alt);}
+  .side-card-overlay{
+    position:relative; z-index:1; width:100%; padding:14px;
+    background:linear-gradient(to top, rgba(27,42,61,0.9), rgba(27,42,61,0));
+    color:#fff;
+  }
+  .side-card-eyebrow{
+    display:block; font-family:'IBM Plex Mono', monospace; font-size:9.5px;
+    letter-spacing:0.1em; text-transform:uppercase; color:#F5CFA0; margin-bottom:5px;
+  }
+  .side-card-headline{
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+    font-size:12.5px; font-weight:600; line-height:1.32;
   }
 
-  /* tag-hole = punched-hole motif from a price tag, now carries the brand mark */
-  .tag-hole{
-    width:38px; height:38px; flex-shrink:0;
-    border-radius:50%;
-    border:1.5px solid var(--line);
-    display:flex; align-items:center; justify-content:center;
-    overflow:hidden;
-    position:relative;
-    color:var(--paper-card);
-    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:13px;
-    letter-spacing:-0.02em;
-  }
-  .tag-hole img{
-    position:absolute; inset:0;
-    width:100%; height:100%; object-fit:contain;
-    background:var(--paper-card);
-  }
-  .tag-hole.person-hole img{ object-fit:cover; background:none; }
-  
-  .row-main{flex:1; min-width:0;}
-  .row-top{display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0;}
-  .row-name-line{
-    display:inline-flex; align-items:baseline; gap:8px; flex-wrap:nowrap; min-width:0; max-width:100%;
-    overflow-x:auto; scrollbar-width:none;
-  }
-  .row-name-line::-webkit-scrollbar{display:none;}
-  .row-name{
-    font-family:'Fraunces', serif; font-size:19px; font-weight:600;
-    white-space:nowrap;
-  }
-  .verified-badge-icon{display:inline-flex; align-items:center; color:var(--accent); vertical-align:middle; margin-left:4px; flex-shrink:0;}
-  .row-loc{
-    font-size:12.5px; color:var(--sage); font-weight:600;
-    background:rgba(79,100,120,0.12); padding:2px 9px; border-radius:100px;
-    max-width:100%; display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .row-year{
-    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);
-    letter-spacing:0.02em; white-space:nowrap; flex-shrink:0;
-  }
-  .row-year::before{content:"D. ";}
-
-          
-          
-  .row-go{
-    flex-shrink:0; color:var(--ink-soft); font-size:22px;
-    display:flex; align-items:center; font-weight:500;
-  }
-  .brand-row:hover .row-go{color:var(--walnut);}
-
-  .empty-state{
-    text-align:center; padding:60px 20px; color:var(--ink-soft);
-    font-size:14px; display:none;
-  }
-
-  .pagination-summary{
-    text-align:center; margin-top:22px;
-    font-size:12px; color:var(--ink-soft);
-  }
-  .pagination{
-    display:flex; align-items:center; justify-content:center;
-    gap:6px; margin-top:10px;
-    flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
-  }
-  .pagination::-webkit-scrollbar{display:none;}
-  .page-btn{
-    min-width:38px; height:38px; padding:0 10px; flex-shrink:0;
-    border:1px solid var(--line); background:var(--paper-card);
-    border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
-  }
-  .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
-  .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-  .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
-  .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
-  .page-ellipsis{
-    min-width:22px; height:38px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--ink-soft); font-size:13.5px; font-weight:600; user-select:none;
-  }
-
-  /* ---------- CAROUSELS ---------- */
-  .carousel-section{
-    max-width:1080px; margin:0 auto;
-    padding:26px 32px 0;
-  }
-  .carousel-head{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
-  .carousel-arrows{display:flex; gap:8px; flex-shrink:0;}
-  .arrow-btn{
-    width:30px; height:30px; border-radius:50%;
-    border:1px solid var(--line); background:var(--paper-card);
-    color:var(--ink-soft); font-size:16px; line-height:1;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .arrow-btn:hover{border-color:var(--walnut); color:var(--ink);}
-  .arrow-btn.primary{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-  .arrow-btn.primary:hover{background:var(--walnut);}
-
-  .carousel-track{
-    display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
-    padding-bottom:6px; scrollbar-width:none;
-  }
-  .carousel-track::-webkit-scrollbar{display:none;}
-
-  /* ---------- CATEGORY CARDS (chamfered corners) ---------- */
-  .chamfer-track{
-    display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth;
-    padding-bottom:6px; scrollbar-width:none;
-  }
-  .chamfer-track::-webkit-scrollbar{display:none;}
-  .category-card{
-    flex:0 0 106px; scroll-snap-align:start;
-    background:var(--paper-card); border:1px solid var(--line-soft);
-    border-radius:20px;
-    padding:22px 10px 16px; text-align:center;
-    text-decoration:none; color:inherit;
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
-  }
-  .category-card:hover{
-    transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08);
-    border-color:var(--walnut); background:var(--paper-alt);
-  }
-  .category-card-icon{
-    width:38px; height:38px; margin:0 auto 12px;
-    display:flex; align-items:center; justify-content:center; color:var(--walnut);
-  }
-  .category-card-name{font-size:13px; font-weight:600; color:var(--ink);}
-
-                  
-  .view-all-card{
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:10px; border-style:dashed; border-color:var(--brass);
-    color:var(--walnut); font-weight:600;
-  }
-  .view-all-card:hover{background:var(--paper-alt); border-color:var(--walnut);}
-  .view-all-card .view-all-icon{
-    width:34px; height:34px; border-radius:50%;
-    background:var(--paper-alt); display:flex; align-items:center; justify-content:center;
-    color:var(--walnut); flex-shrink:0;
-  }
-  .category-card.view-all-card{padding:16px 10px;}
-  .category-card.view-all-card .view-all-icon{margin-bottom:2px;}
-  .category-card.view-all-card span{font-size:13px; font-weight:600;}
-      
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{
@@ -498,7 +336,7 @@
     padding:44px 32px; text-align:center;
   }
   .cta-band h2{
-    font-family:'Fraunces', serif; font-weight:500; font-size:24px;
+    font-family:'Inter', sans-serif; font-weight:700; font-size:24px;
     margin:0 0 8px;
   }
   .cta-band p{
@@ -510,102 +348,48 @@
   }
 
   @media (max-width: 860px){
-    #brand-list{gap:8px 8px;}
-    .list-columns-header{gap:8px 8px;}
-    .institution-cell{padding:10px; gap:10px;}
-    .institution-name{font-size:11px;}
-    .institution-role{font-size:9.5px; white-space:normal; line-height:1.25;}
-    .filter-select{width:112px;}
-    .filter-select select{padding:8px 26px 8px 12px; font-size:12px;}
-    .list-col-search{padding:7px 14px;}
-    /* doğum/kuruluş tarihi isimle aynı satırda değil, isminin altında gösterilir */
-    .row-name-line{flex-direction:column; align-items:stretch; gap:2px;}
-    .institution-name-line{flex-direction:column; align-items:stretch; gap:1px;}
+    .bento-grid{grid-template-columns:1fr;}
+    .hero-side{
+      grid-template-rows:auto auto;
+      grid-template-areas:
+        "mimar mimar marka marka isilani isilani"
+        "haber haber haber urun urun urun";
+    }
+    .proje-slider{aspect-ratio:16/11;}
   }
 
-  @media (max-width: 720px){
-    .nav{padding:14px 18px; gap:10px;}
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
     .nav-search{display:none;}
     .nav-links{display:none;}
     .nav-hamburger{display:flex;}
     .nav-cta{display:none;}
     .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width: 720px){
     .hero{padding:44px 18px 26px;}
     .hero h1{font-size:clamp(30px, 8vw, 46px);}
     .hero-break-m{display:inline;}
-    .list-section{padding:26px 14px 70px;}
-    .brand-row{padding:14px 10px; gap:6px;}
-    .tag-hole{width:24px; height:24px; font-size:9px;}
-    .row-name-line{gap:5px;}
-    .row-name{font-size:13px;}
-    .row-year{font-size:9px;}
-    .row-loc{font-size:10px; padding:2px 7px;}
-    .row-go{display:none;}
-    #brand-list{gap:8px;}
-    .list-columns-header{gap:8px; margin-bottom:6px;}
-    .list-col-label{font-size:13px;}
-    .list-col-search{padding:6px 12px; margin:6px 0;}
-    .list-col-search input{font-size:12px;}
-    .filter-select{width:88px;}
-    .filter-select select{padding:7px 20px 7px 10px; font-size:10.5px;}
-    .select-arrow{right:9px;}
-    .institution-cell{padding:8px; gap:8px;}
-    .institution-name{font-size:9.5px; line-height:1.2;}
-    .institution-year{font-size:8.5px;}
-    .institution-role{font-size:8.5px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
-    .category-card{flex:0 0 92px; padding:18px 8px 14px;}
-    .category-card-icon{width:32px; height:32px; margin-bottom:10px;}
-    .category-card-name{font-size:12px;}
-    .category-card.view-all-card span{font-size:12px;}
-    .carousel-section{padding:20px 18px 0;}
+    .bento-grid{padding:0 14px 50px; gap:10px;}
+    .proje-slider{aspect-ratio:4/3; border-radius:16px;}
+    .slide-title{font-size:14.5px;}
+    .slide-designer{font-size:11px;}
+    .slide-caption{padding:11px 14px; left:12px; right:12px; bottom:12px;}
+    .slide-tag{top:12px; left:12px; font-size:10px; padding:5px 10px;}
+    .slider-arrow{width:32px; height:32px;}
+    .hero-side{gap:8px;}
+    .side-card{border-radius:12px;}
+    .side-card-icon{width:26px; height:26px;}
+    .side-card-name{font-size:10.5px;}
+    .side-card-headline{font-size:11px; -webkit-line-clamp:2;}
+    .side-card-eyebrow{font-size:8.5px;}
   }
 
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important; scroll-behavior:auto !important;}
-  }
-  .jobs-empty{
-    background:var(--paper-card); border:1px dashed var(--brass);
-    border-radius:12px; padding:28px 22px; text-align:center;
-    color:var(--ink-soft); font-size:13.5px; line-height:1.6;
-  }
-  .jobs-empty strong{
-    color:var(--ink); display:block; font-family:'Fraunces', serif;
-    font-size:16px; margin-bottom:6px; font-weight:600;
-  }
-
-  /* ---------- HOME CONTENT GRID (Projeler / Haberler / İş İlanları) ---------- */
-  .home-grid{
-    display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth;
-    scrollbar-width:none; padding-bottom:4px;
-  }
-  .home-grid::-webkit-scrollbar{display:none;}
-  .home-card{
-    position:relative; display:block; flex:0 0 220px; aspect-ratio:1/1; border-radius:14px; overflow:hidden;
-    background:var(--paper-card); border:1px solid var(--line-soft);
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .home-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
-  .home-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .home-card-info{
-    position:absolute; left:0; right:0; bottom:0; padding:14px 16px;
-    background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
-    color:#fff;
-  }
-  .home-card-cat{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:4px;}
-  .home-card-title{font-family:'Fraunces', serif; font-size:14.5px; font-weight:600; line-height:1.25;}
-  .home-card-more{
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
-    background:var(--ink); color:var(--paper-card);
-  }
-  .home-card-more span{font-size:13.5px; font-weight:600;}
-  .home-card-more:hover{background:var(--walnut);}
-
-  @media (max-width:720px){
-    .home-card{flex:0 0 152px;}
-    .home-grid{gap:10px;}
-    .home-card-title{font-size:13px;}
   }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
@@ -628,8 +412,11 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="ofis.html">Marka</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -644,8 +431,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="ofis.html">Marka</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -654,213 +444,46 @@
   <section class="hero">
     <h1>Türkiye'nin<br class="hero-break-m"> <em>en güncel <span class="hero-and">ve</span></em><br class="hero-break"> <em>en kapsamlı</em><br class="hero-break-m"> mimar platformu</h1>
     <p>Mimarlar, iç mimarlar, peyzaj mimarları, öğrenciler ve markalar MİMARLAB platformunda buluşuyor.</p>
+    <a class="hero-cta" href="uye-ol.html">Sen de Katıl</a>
   </section>
 
-  <section class="list-section" id="architects">
-    <div class="list-columns-header">
-      <div class="list-col-panel">
-        <a class="list-col-label" href="mimar.html">Mimarlar</a>
-        <div class="list-col-search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input id="f-search-mimar" type="text" placeholder="Mimar ara...">
+  <section class="bento-grid">
+    <div class="proje-slider" id="proje-slider">
+      <div class="slider-track" id="slider-track"></div>
+      <button class="slider-arrow prev" id="slider-prev" type="button" aria-label="Önceki proje">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="slider-arrow next" id="slider-next" type="button" aria-label="Sonraki proje">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <div class="hero-side">
+      <a class="side-card side-card-icon-card card-mimar" href="mimar.html">
+        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>
+        <span class="side-card-name">MİMAR</span>
+      </a>
+      <a class="side-card side-card-icon-card card-marka" href="ofis.html">
+        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V9.5L12 4l8 5.5V21"/><path d="M9.5 21v-6h5v6"/></svg></span>
+        <span class="side-card-name">MARKA</span>
+      </a>
+      <a class="side-card card-haber" href="haber.html" id="side-card-haber">
+        <img id="haber-card-img" src="" alt="" loading="lazy">
+        <div class="side-card-overlay">
+          <span class="side-card-eyebrow">Haber</span>
+          <span class="side-card-headline" id="haber-card-title"></span>
         </div>
-        <div class="list-col-filters">
-          <div class="filter-select">
-            <select id="f-position">
-              <option value="">Pozisyon</option>
-              <option value="Kurucu">Kurucu</option>
-              <option value="Çalışan">Çalışan</option>
-              <option value="Freelance">Freelance</option>
-              <option value="Öğrenci">Öğrenci</option>
-              <option value="Emekli">Emekli</option>
-              <option value="İş Arıyor">İş Arıyor</option>
-              <option value="">Tümü</option>
-            </select>
-            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-          </div>
-          <div class="filter-select">
-            <select id="f-award">
-              <option value="">Ödül</option>
-              <option value="Ağa Han Mimarlık Ödülü">Ağa Han Mimarlık Ödülü</option>
-              <option value="Ulusal Mimarlık Ödülleri">Ulusal Mimarlık Ödülleri</option>
-              <option value="Yapı Ödülleri">Yapı Ödülleri</option>
-              <option value="World Architecture Festival Ödülü">World Architecture Festival Ödülü</option>
-              <option value="">Tümü</option>
-            </select>
-            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-          </div>
-          <div class="filter-select">
-            <select id="f-sort-mimar">
-              <option value="" selected>Sırala</option>
-              <option value="name_asc">A-Z</option>
-              <option value="name_desc">Z-A</option>
-              <option value="year_desc">En Genç</option>
-              <option value="year_asc">En Kıdemli</option>
-              <option value="popular">En Popüler</option>
-            </select>
-            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-          </div>
-        </div>
-      </div>
-      <div class="list-col-panel">
-        <a class="list-col-label list-col-label-inst" href="ofis.html">Markalar</a>
-        <div class="list-col-search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input id="f-search-kurum" type="text" placeholder="Marka ara...">
-        </div>
-        <div class="list-col-filters">
-          <div class="filter-select">
-            <select id="f-loc">
-              <option value="">Konum</option>
-            </select>
-            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-          </div>
-          <div class="filter-select">
-            <select id="f-cat">
-              <option value="">Hizmet Alanı</option>
-              <option value="Mimarlık">Mimarlık</option>
-              <option value="İç Mimarlık">İç Mimarlık</option>
-              <option value="Peyzaj Mimarlığı">Peyzaj Mimarlığı</option>
-              <option value="Kentsel Tasarım">Kentsel Tasarım</option>
-              <option value="Restorasyon">Restorasyon</option>
-              <option value="">Tümü</option>
-            </select>
-            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-          </div>
-          <div class="filter-select">
-            <select id="f-sort-kurum">
-              <option value="" selected>Sırala</option>
-              <option value="name_asc">A-Z</option>
-              <option value="name_desc">Z-A</option>
-              <option value="year_desc">En Yeni</option>
-              <option value="year_asc">En Köklü</option>
-              <option value="popular">En Popüler</option>
-            </select>
-            <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div id="brand-list"></div>
-    <div class="empty-state" id="empty-state">Bu kritere uyan ofis bulunamadı.</div>
-    <div class="pagination-summary" id="pagination-summary"></div>
-    <div class="pagination" id="pagination"></div>
-  </section>
-
-  <section class="carousel-section" id="projects">
-    <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Projeler</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="home-grid-projects" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn" data-target="home-grid-projects" data-dir="1" aria-label="İleri">›</button>
-      </div>
-    </div>
-    <div class="home-grid" id="home-grid-projects">
-      <a class="home-card" href="/projeler/vilayet-camii">
-        <img src="miras/vilayet-mosque-1.webp" alt="Vilayet Camii" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Dini</div><div class="home-card-title">Vilayet Camii</div></div>
       </a>
-      <a class="home-card" href="/projeler/terminal-kadikoy">
-        <img src="miras/terminal-kadikoy-1.webp" alt="Terminal Kadıköy" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Ticari</div><div class="home-card-title">Terminal Kadıköy</div></div>
+      <a class="side-card side-card-icon-card card-isilani" href="is-ilani.html">
+        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="3" y1="12.5" x2="21" y2="12.5"/></svg></span>
+        <span class="side-card-name">İŞ İLANI</span>
       </a>
-      <a class="home-card" href="/projeler/fransiz-gecidi">
-        <img src="miras/french-gateway-1.webp" alt="Fransız Geçidi" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Ticari</div><div class="home-card-title">Fransız Geçidi</div></div>
-      </a>
-      <a class="home-card" href="/projeler/sait-halim-pasa-yalisi">
-        <img src="miras/sait-halim-pasha-mansion-1.webp" alt="Sait Halim Paşa Yalısı" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Konut</div><div class="home-card-title">Sait Halim Paşa Yalısı</div></div>
-      </a>
-      <a class="home-card" href="/projeler/beyazit-camii">
-        <img src="miras/bayezid-mosque-1.webp" alt="Beyazıt Camii" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Dini</div><div class="home-card-title">Beyazıt Camii</div></div>
-      </a>
-      <a class="home-card" href="/projeler/nuruosmaniye-camii">
-        <img src="miras/nuruosmaniye-mosque-1.webp" alt="Nuruosmaniye Camii" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Dini</div><div class="home-card-title">Nuruosmaniye Camii</div></div>
-      </a>
-      <a class="home-card home-card-more" href="proje.html">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        <span>Tümünü Gör</span>
+      <a class="side-card side-card-icon-card card-urun" href="urun.html">
+        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 7.5L12 3 3 7.5l9 4.5 9-4.5z"/><path d="M3 7.5v9l9 4.5 9-4.5v-9"/><line x1="12" y1="12" x2="12" y2="21"/></svg></span>
+        <span class="side-card-name">ÜRÜN ve MALZEME</span>
       </a>
     </div>
   </section>
-
-  <section class="carousel-section" id="news">
-    <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">Haberler</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="home-grid-news" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn" data-target="home-grid-news" data-dir="1" aria-label="İleri">›</button>
-      </div>
-    </div>
-    <div class="home-grid" id="home-grid-news">
-      <a class="home-card" href="haber.html">
-        <img src="projects/haber-ytong-yarisma.jpg" alt="Ytong Mimari Fikir Yarışması" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Yarışma</div><div class="home-card-title">Ytong Mimari Fikir Yarışması'nda 2026 kazananları açıklandı</div></div>
-      </a>
-      <a class="home-card" href="haber.html">
-        <img src="projects/haber-cica-odul.jpg" alt="CICA 2026 ödülleri" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Güncel</div><div class="home-card-title">Uluslararası mimarlık eleştirmenlerinden Ankara'nın kentleşme tarihine ödül</div></div>
-      </a>
-      <a class="home-card" href="haber.html">
-        <img src="projects/haber-saintgobain-yarisma.jpg" alt="Saint-Gobain öğrenci yarışması" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Yarışma</div><div class="home-card-title">Türk öğrenciler Saint-Gobain'in öğrenci yarışmasında Türkiye'yi temsil etti</div></div>
-      </a>
-      <a class="home-card" href="haber.html">
-        <img src="projects/haber-modern-arastirma-destek.jpg" alt="Modern Mimarlık Araştırmaları Destek Programı" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Güncel</div><div class="home-card-title">Modern Mimarlık Araştırmaları Destek Programı 2026 sonuçları açıklandı</div></div>
-      </a>
-      <a class="home-card" href="haber.html">
-        <img src="projects/haber-kampusaktif-yarisma.jpg" alt="KampüsAktif Öğrenci Tasarım Yarışması" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Yarışma</div><div class="home-card-title">KampüsAktif Öğrenci Tasarım Yarışması ödül törenini gerçekleştirdi</div></div>
-      </a>
-      <a class="home-card" href="haber.html">
-        <img src="projects/haber-ulusal-mimarlik-sergisi.jpg" alt="Ulusal Mimarlık Sergisi ve Ödülleri" loading="lazy">
-        <div class="home-card-info"><div class="home-card-cat">Etkinlik</div><div class="home-card-title">Ulusal Mimarlık Sergisi'nde Mimar Sinan Büyük Ödülü sahiplerini buldu</div></div>
-      </a>
-      <a class="home-card home-card-more" href="haber.html">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        <span>Tümünü Gör</span>
-      </a>
-    </div>
-  </section>
-
-  <section class="carousel-section" id="jobs">
-    <div class="carousel-head">
-      <div class="rail-line rail-line-normalcase" style="margin:0; flex:1;">İş İlanları</div>
-      <div class="carousel-arrows">
-        <button class="arrow-btn" data-target="home-grid-jobs" data-dir="-1" aria-label="Geri">‹</button>
-        <button class="arrow-btn" data-target="home-grid-jobs" data-dir="1" aria-label="İleri">›</button>
-      </div>
-    </div>
-    <div class="home-grid" id="home-grid-jobs">
-      <a class="home-card" href="is-ilani.html">
-        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">BIM Koordinatörü<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">MOD Architects</span></div></div>
-      </a>
-      <a class="home-card" href="is-ilani.html">
-        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Junior / Kıdemli</div><div class="home-card-title" style="color:var(--ink);">Mimar<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">Bunni Studio</span></div></div>
-      </a>
-      <a class="home-card" href="is-ilani.html">
-        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">3D Konsept Tasarım Uzmanı<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">Kontra Mimarlık</span></div></div>
-      </a>
-      <a class="home-card" href="is-ilani.html">
-        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">İç Mimar<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">SANAYI313</span></div></div>
-      </a>
-      <a class="home-card" href="is-ilani.html">
-        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Junior</div><div class="home-card-title" style="color:var(--ink);">Mimar / İç Mimar<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">İşseven Mimarlık</span></div></div>
-      </a>
-      <a class="home-card" href="is-ilani.html">
-        <div class="home-card-info" style="position:static; background:none; padding:16px;"><div class="home-card-cat" style="color:var(--sage);">Kıdemli</div><div class="home-card-title" style="color:var(--ink);">3D Modelleme Uzmanı<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">Boytorun Mimarlık</span></div></div>
-      </a>
-      <a class="home-card home-card-more" href="is-ilani.html">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        <span>Tümünü Gör</span>
-      </a>
-    </div>
-  </section>
-
 
   <div style="height:72px;"></div>
 
@@ -886,7 +509,7 @@
       <div class="footer-col">
         <h4>Ana Menü</h4>
         <a href="proje.html">Proje</a>
-        <a href="urun.html">Ürün</a>
+        <a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a>
         <a href="haber.html">Haber</a>
         <a href="is-ilani.html">İş İlanı</a>
       </div>
@@ -908,338 +531,11 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
   </footer>
 <script src="data.js"></script>
+<script src="projeler-data.js"></script>
+<script src="haberler-data.js"></script>
 <script>
-// save-widget.js'teki slugify ile birebir aynı algoritma — mimar/marka temiz URL'leri (/mimar/:slug)
-// için burada da gerekiyor, ama bu sayfa save-widget.js'i (kaydetme özelliği yan etkileri olmasın
-// diye) dahil etmiyor.
-const TR_SLUG_MAP = { ç:'c', Ç:'c', ğ:'g', Ğ:'g', ı:'i', I:'i', İ:'i', ö:'o', Ö:'o', ş:'s', Ş:'s', ü:'u', Ü:'u' };
-function slugify(text){
-  return (text || '')
-    .split('').map(ch => TR_SLUG_MAP[ch] || ch).join('')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-// Konum filtresi sadece Türkiye içindeki yerleri listeler; yurt dışı ofis konumları
-// (ör. bir ofisin Milano/Paris şubesi) filtre listesinde gösterilmez.
-const NON_TURKEY_LOCS = new Set(['Almanya','Ljubljana','Moskova','Paris','Roma','Rotterdam','Stuttgart','İngiltere','İspanya','Erbil','Atina','Madrid','Bükreş','Los Angeles','Pittsburgh','Princeton','Barselona','New York','Londra']);
-// Konum filtresinde ilçe ayrımı yapılmaz (ör. "İstanbul / Beşiktaş" -> "İstanbul"),
-// ve belirli bir şehre bağlı olmayan "Türkiye" seçeneği listelenmez.
-function cityOf(loc){
-  return loc.split(' / ')[0];
-}
-// Liste görünümünde "Üniversitesi" yerine kısaltma kullan (ör. "Ege Üniversitesi" -> "Ege Üni.")
-function shortSchool(school){
-  if(!school) return school;
-  return school.replace(/Üniversitesi\b/g, 'Üni.');
-}
-function architectOffice(a){
-  return a.office ? offices.find(o => o.name === a.office) : null;
-}
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-
-function populateFilters(){
-  const locCounts = {};
-  architects.forEach(a=>{
-    const o = architectOffice(a);
-    if(!o) return;
-    const city = cityOf(o.loc);
-    if(NON_TURKEY_LOCS.has(city) || city === 'Türkiye' || city === 'Yalıkavak') return;
-    locCounts[city] = (locCounts[city] || 0) + 1;
-  });
-  // Büyük şehirlerden küçük şehirlere: mimar sayısına göre azalan sıralama
-  const locs = Object.keys(locCounts).sort((a,b)=> locCounts[b] - locCounts[a] || a.localeCompare(b,'tr'));
-  const locSel = document.getElementById('f-loc');
-  const prevLoc = locSel.value;
-  locSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  locs.forEach(l=>{
-    const o = document.createElement('option'); o.value=l; o.textContent=`${l} (${locCounts[l]})`; o.dataset.dynamic='1';
-    locSel.appendChild(o);
-  });
-  const allLocOpt = document.createElement('option'); allLocOpt.value=''; allLocOpt.textContent=`Tümü (${architects.length})`; allLocOpt.dataset.dynamic='1';
-  locSel.appendChild(allLocOpt);
-  locSel.value = prevLoc;
-
-  const catSel = document.getElementById('f-cat');
-  Array.from(catSel.options).forEach(opt=>{
-    if(!opt.value) return;
-    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
-    const count = architects.filter(a=>{ const o = architectOffice(a); return o && o.cats.includes(opt.value); }).length;
-    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
-  });
-  const allCatOpt = Array.from(catSel.options).find(opt=>!opt.value && opt.textContent.startsWith('Tümü'));
-  if(allCatOpt) allCatOpt.textContent = `Tümü (${architects.length})`;
-
-  const awardSel = document.getElementById('f-award');
-  Array.from(awardSel.options).forEach(opt=>{
-    if(!opt.value) return;
-    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
-    const count = architects.filter(a=>{ const o = architectOffice(a); return o && o.awards && o.awards.includes(opt.value); }).length;
-    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
-  });
-  const allAwardOpt = Array.from(awardSel.options).find(opt=>!opt.value && opt.textContent.startsWith('Tümü'));
-  if(allAwardOpt) allAwardOpt.textContent = `Tümü (${architects.length})`;
-
-  const positionSel = document.getElementById('f-position');
-  Array.from(positionSel.options).forEach(opt=>{
-    if(!opt.value) return;
-    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
-    const count = architects.filter(a=>positionOf(a) === opt.value).length;
-    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
-  });
-  const allPositionOpt = Array.from(positionSel.options).find(opt=>!opt.value && opt.textContent.startsWith('Tümü'));
-  if(allPositionOpt) allPositionOpt.textContent = `Tümü (${architects.length})`;
-}
-
-// Bir mimarın "pozisyonu": status alanı varsa doğrudan onu (İş arıyor -> İş Arıyor gibi
-// başlık biçimine çevirerek), yoksa role alanına göre Kurucu/Kurucu Ortak -> Kurucu,
-// diğer tüm roller (Baş Mimar, Prof. Dr. Öğretim Üyesi vb.) -> Çalışan olarak eşler.
-function positionOf(a){
-  if(a.status){
-    if(a.status === 'İş arıyor') return 'İş Arıyor';
-    return a.status;
-  }
-  if(a.role){
-    return a.role.startsWith('Kurucu') ? 'Kurucu' : 'Çalışan';
-  }
-  return null;
-}
-
-let currentPage = 1;
-let searchQueryMimar = '';
-let searchQueryKurum = '';
-const PAGE_SIZE = 10;
-
-function trLower(s){
-  // JS'in varsayılan toLowerCase()'i Türkçe İ/I harflerini yanlış çevirir (ör. İstanbul -> "i̇stanbul").
-  // Bu yüzden Türkçe harfleri elle eşliyoruz.
-  return s
-    .replace(/İ/g, 'i')
-    .replace(/I/g, 'ı')
-    .replace(/Ş/g, 'ş')
-    .replace(/Ğ/g, 'ğ')
-    .replace(/Ü/g, 'ü')
-    .replace(/Ö/g, 'ö')
-    .replace(/Ç/g, 'ç')
-    .toLowerCase();
-}
-
-function render(){
-  const loc = document.getElementById('f-loc').value;
-  const cat = document.getElementById('f-cat').value;
-  const award = document.getElementById('f-award').value;
-  const position = document.getElementById('f-position').value;
-  const sortMimar = document.getElementById('f-sort-mimar').value;
-  const sortKurum = document.getElementById('f-sort-kurum').value;
-  const qMimar = trLower(searchQueryMimar.trim());
-  const qKurum = trLower(searchQueryKurum.trim());
-
-  let filtered = architects.filter(a=>{
-    const o = architectOffice(a);
-    const officeName = o ? o.name : (a.office || '');
-    if(loc && (!o || cityOf(o.loc) !== loc)) return false;
-    if(cat && (!o || !o.cats.includes(cat))) return false;
-    if(award && (!o || !o.awards || !o.awards.includes(award))) return false;
-    if(position && positionOf(a) !== position) return false;
-    if(qMimar && !trLower(a.name).includes(qMimar)) return false;
-    if(qKurum && !trLower(officeName).includes(qKurum)) return false;
-    return true;
-  });
-
-  // Mimar sütunundaki sıralama ile kurum sütunundaki sıralama aynı anda etkin olamaz;
-  // en son hangisi seçildiyse o kullanılır (diğeri değişim anında sıfırlanır, bkz. aşağıdaki change dinleyicileri).
-  filtered.sort((a,b)=>{
-    if(sortMimar){
-      switch(sortMimar){
-        case 'name_asc': return a.name.localeCompare(b.name, 'tr');
-        case 'name_desc': return b.name.localeCompare(a.name, 'tr');
-        case 'year_desc': return (b.dob||0) - (a.dob||0);
-        case 'year_asc': return (a.dob||9999) - (b.dob||9999);
-        default: return 0; // 'popular' ve boş değer: dizideki popülerlik sırası korunur
-      }
-    }
-    if(sortKurum){
-      const oa = architectOffice(a), ob = architectOffice(b);
-      const nameA = oa ? oa.name : (a.office || '');
-      const nameB = ob ? ob.name : (b.office || '');
-      switch(sortKurum){
-        case 'name_asc': return nameA.localeCompare(nameB, 'tr');
-        case 'name_desc': return nameB.localeCompare(nameA, 'tr');
-        case 'year_desc': return ((ob && ob.yil) || 0) - ((oa && oa.yil) || 0);
-        case 'year_asc': return ((oa && oa.yil) || 9999) - ((ob && ob.yil) || 9999);
-        default: return 0;
-      }
-    }
-    return 0;
-  });
-
-  const list = document.getElementById('brand-list');
-  const empty = document.getElementById('empty-state');
-  const summary = document.getElementById('pagination-summary');
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  if(currentPage > totalPages) currentPage = totalPages;
-  renderPagination(totalPages);
-
-  if(filtered.length === 0){
-    list.innerHTML = '';
-    empty.style.display = 'block';
-    summary.textContent = '';
-    return;
-  }
-  empty.style.display = 'none';
-
-  const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-
-  // Marka sayısı: aynı sayfada/toplam sonuçta aynı kurumdan birden fazla mimar olsa da kurum 1 kez sayılır.
-  const countBrands = (list) => new Set(list.filter(a=>a.office).map(a=>a.office)).size;
-  summary.textContent = `Bu sayfada ${pageItems.length} mimar, ${countBrands(pageItems)} marka gösteriliyor · Toplam ${filtered.length} mimar, ${countBrands(filtered)} marka`;
-
-  list.innerHTML = pageItems.map((a)=>{
-    const edu = [shortSchool(a.school), a.dept].filter(Boolean).join(' · ');
-    return `
-    <a class="brand-row" href="/mimar/${encodeURIComponent(slugify(a.name))}">
-      <div class="tag-hole person-hole" style="background:${officeColor(a.name)}">${initials(a.name)}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
-      <div class="row-main">
-        <div class="row-top">
-          <span class="row-name-line">
-            <span class="row-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</span>
-            ${a.dob ? `<span class="row-year">${escapeHtml(a.dob)}</span>` : ''}
-          </span>
-          ${edu ? `<span class="row-loc">${escapeHtml(edu)}</span>` : ''}
-        </div>
-      </div>
-      <div class="row-go">→</div>
-    </a>` + institutionCell(a);
-  }).join('');
-}
-
-
-// Sabit sayıda sayfa butonu gösteren kayan pencere: geçerli sayfa her zaman pencerede yer alır,
-// ileri/geri gidildikçe pencere tek tek kayar (ör. 4'e gidince 5 açılır, 1 kapanır). Pencere sayfa
-// 1'den başlamıyorsa önce bir "..." gösterilir; sona ermiyorsa son buton her zaman son sayfa numarasıdır.
-// Buton sayısı ekran genişliğine göre sabitlendiği için satır hiçbir zaman ikiye bölünmez (bkz. .pagination nowrap).
-function getPageWindowSize(){
-  const w = window.innerWidth;
-  if(w <= 340) return 1;
-  if(w <= 400) return 2;
-  if(w <= 480) return 3;
-  if(w <= 720) return 5;
-  if(w <= 860) return 7;
-  return 9;
-}
-
-function getPageList(totalPages, currentPage){
-  const N = getPageWindowSize();
-  if(totalPages <= N){
-    const pages = [];
-    for(let p=1; p<=totalPages; p++) pages.push(p);
-    return {pages, leadingFirst:null, leadingDots:false, trailingDots:false, trailingLast:null};
-  }
-  let start = currentPage - Math.floor((N - 1) / 2);
-  start = Math.max(1, Math.min(start, totalPages - N + 1));
-  const pages = [];
-  for(let p=start; p<start+N; p++) pages.push(p);
-  const firstInWindow = pages[0];
-  const lastInWindow = pages[pages.length - 1];
-  // Sayfa 1 ve son sayfa butonu, pencerenin dışında kalsalar bile her zaman en solda/en sağda gösterilir.
-  const leadingFirst = firstInWindow > 1 ? 1 : null;
-  const trailingLast = lastInWindow < totalPages ? totalPages : null;
-  return {
-    pages,
-    leadingFirst,
-    leadingDots: leadingFirst !== null && firstInWindow > 2,
-    trailingDots: trailingLast !== null && lastInWindow < totalPages - 1,
-    trailingLast,
-  };
-}
-
-// Sayfa butonuna tıklayınca "Mimarlar"/"Markalar" başlıkları (ve filtreleri) tekrar görünür olacak
-// kadar yukarı kaydırır — sticky nav'ın kapladığı yükseklik düşülür ki başlık nav'ın altında kalmasın.
-function scrollToArchitectsHeader(){
-  const header = document.querySelector('.list-columns-header');
-  if(!header) return;
-  const nav = document.querySelector('.nav');
-  const navH = nav ? nav.getBoundingClientRect().height : 0;
-  const top = header.getBoundingClientRect().top + window.scrollY - navH - 16;
-  window.scrollTo({top, behavior:'smooth'});
-}
-
-function renderPagination(totalPages){
-  const el = document.getElementById('pagination');
-  if(totalPages <= 1){ el.innerHTML = ''; return; }
-
-  const {pages, leadingFirst, leadingDots, trailingDots, trailingLast} = getPageList(totalPages, currentPage);
-  let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
-  if(leadingFirst) html += `<button class="page-btn" data-page="${leadingFirst}">${leadingFirst}</button>`;
-  if(leadingDots) html += `<span class="page-ellipsis">…</span>`;
-  pages.forEach(p=>{
-    html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
-  });
-  if(trailingDots) html += `<span class="page-ellipsis">…</span>`;
-  if(trailingLast) html += `<button class="page-btn" data-page="${trailingLast}">${trailingLast}</button>`;
-  html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
-  el.innerHTML = html;
-
-  el.querySelectorAll('[data-page]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      currentPage = parseInt(btn.dataset.page);
-      render();
-      scrollToArchitectsHeader();
-    });
-  });
-  const prevBtn = document.getElementById('page-prev');
-  const nextBtn = document.getElementById('page-next');
-  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); scrollToArchitectsHeader(); } });
-  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; render(); scrollToArchitectsHeader(); } });
-
-  // Aktif sayfa butonunu, SAYFAYI değil yalnızca yatay kaydırmalı pagination çubuğunun kendisini
-  // kaydırarak görünür kılar (activeBtn.scrollIntoView kullanmak, ilk render'da/sayfa yüklenişinde
-  // sayfanın kendisini de dikey olarak pagination'a doğru kaydırıyordu — logo/breadcrumb ile Ana
-  // Sayfa'ya her dönüşte sitenin ortasına kadar istenmeyen bir scroll'a sebep oluyordu).
-  const activeBtn = el.querySelector('.page-btn.active');
-  if(activeBtn){
-    el.scrollLeft = activeBtn.offsetLeft - el.clientWidth / 2 + activeBtn.clientWidth / 2;
-  }
-}
-
-['f-loc','f-cat','f-award','f-position'].forEach(id=>{
-  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
-});
-
-// Mimar ve kurum sıralama seçimleri karşılıklı dışlayıcıdır: biri seçilince diğeri varsayılana döner.
-const sortMimarSel = document.getElementById('f-sort-mimar');
-const sortKurumSel = document.getElementById('f-sort-kurum');
-sortMimarSel.addEventListener('change', ()=>{
-  if(sortMimarSel.value) sortKurumSel.value = '';
-  currentPage = 1; render();
-});
-sortKurumSel.addEventListener('change', ()=>{
-  if(sortKurumSel.value) sortMimarSel.value = '';
-  currentPage = 1; render();
-});
-
-document.getElementById('f-search-mimar').addEventListener('input', (e)=>{
-  searchQueryMimar = e.target.value;
-  currentPage = 1; render();
-});
-document.getElementById('f-search-kurum').addEventListener('input', (e)=>{
-  searchQueryKurum = e.target.value;
-  currentPage = 1; render();
-});
-
-function wireCarouselArrows(){
-  document.querySelectorAll('.arrow-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const track = document.getElementById(btn.dataset.target);
-      const dir = parseInt(btn.dataset.dir);
-      track.scrollBy({left: dir * 260, behavior: 'smooth'});
-    });
-  });
-}
 
 function wireNavSearch(){
   document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
@@ -1264,20 +560,77 @@ document.addEventListener('click', (e)=>{
   }
 });
 
-populateFilters();
-render();
-wireCarouselArrows();
-window.addEventListener('mimarlab-badges-ready', render);
+// Proje slider'ı elle küratörlenmiş sabit örnekler yerine her zaman son yayınlanan 5 projeyi
+// gösterir: onaylı üye gönderileri (created_at'e göre en yeniden eskiye sıralı gelir) + eksik
+// kalan slotlar statik projeler-data.js kayıtlarıyla, dizinin sonundan başlayarak (proje.html'in
+// varsayılan sıralamasıyla aynı "en son eklenen en sonda" kuralı) doldurulur.
+function latestFive(dynamicItems, staticItemsInOriginalOrder){
+  return [...dynamicItems, ...staticItemsInOriginalOrder.slice().reverse()].slice(0, 5);
+}
 
-let _pageWindowSize = getPageWindowSize();
-window.addEventListener('resize', ()=>{
-  const newSize = getPageWindowSize();
-  if(newSize !== _pageWindowSize){
-    _pageWindowSize = newSize;
-    render();
-  }
+function projectSlideHtml(p, i){
+  const designer = (p.designer || []).filter(d => d && d !== 'Bilinmiyor').join(', ');
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/projeler/${encodeURIComponent(p.slug)}" data-index="${i}">
+    <img src="${escapeAttr((p.images && p.images[0]) || '')}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}"${i === 0 ? ' fetchpriority="high"' : ''}>
+    <span class="slide-tag">Proje</span>
+    <div class="slide-caption">
+      <div class="slide-title">${escapeHtml(p.title)}</div>
+      ${designer ? `<div class="slide-designer">${escapeHtml(designer)}</div>` : ''}
+    </div>
+  </a>`;
+}
+
+let sliderIndex = 0;
+let sliderTimer = null;
+let sliderSlugs = '';
+
+function renderSlider(items){
+  const slugs = items.map(p => p.slug).join('|');
+  if(slugs === sliderSlugs) return; // içerik aynıysa mevcut slaytı/otomatik oynatma ilerlemesini bozma
+  sliderSlugs = slugs;
+  sliderIndex = 0;
+  document.getElementById('slider-track').innerHTML = items.map(projectSlideHtml).join('');
+  restartAutoplay();
+}
+
+function goToSlide(i){
+  const slides = document.querySelectorAll('#slider-track .proje-slide');
+  if(!slides.length) return;
+  sliderIndex = (i + slides.length) % slides.length;
+  slides.forEach((s, idx) => s.classList.toggle('active', idx === sliderIndex));
+}
+function nextSlide(){ goToSlide(sliderIndex + 1); }
+function prevSlide(){ goToSlide(sliderIndex - 1); }
+
+function restartAutoplay(){
+  clearInterval(sliderTimer);
+  sliderTimer = setInterval(nextSlide, 5000);
+}
+
+document.getElementById('slider-next').addEventListener('click', ()=>{ nextSlide(); restartAutoplay(); });
+document.getElementById('slider-prev').addEventListener('click', ()=>{ prevSlide(); restartAutoplay(); });
+const sliderEl = document.getElementById('proje-slider');
+sliderEl.addEventListener('mouseenter', ()=> clearInterval(sliderTimer));
+sliderEl.addEventListener('mouseleave', restartAutoplay);
+
+function renderHaberCard(n){
+  if(!n) return;
+  document.getElementById('haber-card-img').src = n.image || '';
+  document.getElementById('haber-card-img').alt = n.title || '';
+  document.getElementById('haber-card-title').textContent = n.title || '';
+  document.getElementById('side-card-haber').href = `/haberler/${encodeURIComponent(n.id)}`;
+}
+
+renderSlider(latestFive([], projects));
+renderHaberCard(newsItems.slice().reverse()[0]);
+
+Promise.all([
+  fetch('/api/public/projects').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  fetch('/api/public/news').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+]).then(([projRes, newsRes])=>{
+  renderSlider(latestFive(projRes.items || [], projects));
+  renderHaberCard((newsRes.items && newsRes.items[0]) || newsItems.slice().reverse()[0]);
 });
-
 </script>
 
 </body>

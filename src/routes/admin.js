@@ -4,14 +4,14 @@ import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../li
 import { createNotification } from '../lib/notify.js';
 
 const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', jobs: 'jobs',
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
   architects: 'architects', news: 'news',
 };
 
 // Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
 // de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
 const SUBMISSION_TYPE_LABELS = {
-  offices: 'Ofis', projects: 'Proje', products: 'Ürün', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber',
+  offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber',
 };
 
 const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Marka' };
@@ -34,9 +34,36 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'users' && request.method === 'GET') return listUsers(env);
   if (sub === 'submissions') return handleSubmissionsAdmin(request, env, url, segments);
   if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
+  if (sub === 'corrections') return handleCorrectionsAdmin(request, env, url, segments);
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
+  if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
+}
+
+// GET /api/admin/summary — admin.html'deki sekme başlıklarında kırmızı nokta göstermek için
+// her sekmenin "bekleyen/dikkat gerektiren" satır sayısını tek bir istekte döner.
+async function handleAdminSummary(env) {
+  const submissionCounts = await Promise.all(
+    Object.values(SUBMISSION_TYPES).map(config =>
+      env.DB.prepare(`SELECT COUNT(*) AS n FROM ${config.table} WHERE status = 'pending'`).first()
+    )
+  );
+  const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
+
+  const [claimsRow, correctionsRow, badgesRow, contactRow] = await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0`).first(),
+  ]);
+
+  return json({
+    pendingSubmissions,
+    pendingClaims: (claimsRow?.n || 0) + (correctionsRow?.n || 0),
+    pendingBadges: badgesRow?.n || 0,
+    unreadContact: contactRow?.n || 0,
+  });
 }
 
 // /api/admin/contact  (GET: listeler)
@@ -203,6 +230,37 @@ async function handleClaimsAdmin(request, env, url, segments) {
   return errorJson('Bulunamadı', 404);
 }
 
+// /api/admin/corrections?status=pending
+// /api/admin/corrections/:id  (PATCH: status günceller — resolved/dismissed)
+async function handleCorrectionsAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const status = url.searchParams.get('status');
+    const query = status
+      ? env.DB.prepare(
+          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM profile_corrections c
+           JOIN users u ON u.id = c.user_id WHERE c.status = ? ORDER BY c.created_at DESC`
+        ).bind(status)
+      : env.DB.prepare(
+          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM profile_corrections c
+           JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC`
+        );
+    const { results } = await query.all();
+    return json({ items: results });
+  }
+
+  if (segments.length === 4 && request.method === 'PATCH') {
+    const id = segments[3];
+    const body = await readJson(request);
+    if (!['resolved', 'dismissed'].includes(body.status)) return errorJson('Geçersiz durum.');
+    const result = await env.DB.prepare(
+      'UPDATE profile_corrections SET status = ?, updated_at = ? WHERE id = ?'
+    ).bind(body.status, Date.now(), id).run();
+    if (!result.meta.changes) return errorJson('Bulunamadı', 404);
+    return json({ ok: true });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır
 
 // /api/admin/badges?status=pending
@@ -228,14 +286,15 @@ async function handleBadgesAdmin(request, env, url, segments) {
     const body = await readJson(request);
     if (!['active', 'rejected'].includes(body.status)) return errorJson('Geçersiz durum.');
     const now = Date.now();
-    const row = await env.DB.prepare('SELECT user_id, badge_type FROM badge_requests WHERE id = ?').bind(id).first();
+    const row = await env.DB.prepare('SELECT user_id, badge_type, target_type, target_key FROM badge_requests WHERE id = ?').bind(id).first();
     if (!row) return errorJson('Bulunamadı', 404);
     if (body.status === 'active') {
-      // Bir kullanıcı aynı anda yalnızca 1 rozet tutabilir: bu onaylanınca aynı kullanıcının
-      // başka bekleyen/aktif rozet taleplerini geçersiz kıl.
+      // Bir kullanıcı aynı HEDEF (target_type+target_key) için aynı anda yalnızca 1 rozet
+      // tutabilir: bu onaylanınca aynı kullanıcının AYNI HEDEFE ait başka bekleyen/aktif rozet
+      // taleplerini geçersiz kıl — farklı hedefler (kendisi + her marka) birbirini etkilemez.
       await env.DB.prepare(
-        `UPDATE badge_requests SET status = 'rejected', updated_at = ? WHERE user_id = ? AND id != ? AND status IN ('pending', 'active')`
-      ).bind(now, row.user_id, id).run();
+        `UPDATE badge_requests SET status = 'rejected', updated_at = ? WHERE user_id = ? AND target_type = ? AND target_key IS ? AND id != ? AND status IN ('pending', 'active')`
+      ).bind(now, row.user_id, row.target_type, row.target_key, id).run();
       await env.DB.prepare(
         `UPDATE badge_requests SET status = 'active', expires_at = ?, updated_at = ? WHERE id = ?`
       ).bind(now + BADGE_RENTAL_MS, now, id).run();

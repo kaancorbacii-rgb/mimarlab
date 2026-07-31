@@ -6,17 +6,22 @@
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
-// Kullanıcının süresi dolmamış aktif rozetini döner (yoksa null). Birden fazla aktif rozet
-// normalde olmaz (bkz. src/routes/admin.js#handleBadgesAdmin, tek rozet kuralını uygular) ama
-// güvenlik için en yenisini alır.
+// Bir kullanıcı artık aynı anda birden fazla aktif rozet tutabilir — biri kendisi (target_type
+// 'self'), diğerleri sahip olduğu her marka için ayrı ayrı (target_type 'office') — bkz.
+// src/routes/badges.js. Yükleme kotası/hakları hesap düzeyindedir (hangi hedef için alındığından
+// bağımsız), bu yüzden burada kullanıcının TÜM aktif rozetleri arasından en yüksek kademeliyi döner.
+const BADGE_RANK = { platinum: 3, gold: 2, verified: 1, destekci: 0 };
+
 export async function getActiveBadge(env, userId) {
   const now = Date.now();
-  const row = await env.DB.prepare(
-    `SELECT badge_type, expires_at, created_at FROM badge_requests
-     WHERE user_id = ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)
-     ORDER BY created_at DESC LIMIT 1`
-  ).bind(userId, now).first();
-  return row || null;
+  const { results } = await env.DB.prepare(
+    `SELECT badge_type, expires_at, created_at, target_type, target_key FROM badge_requests
+     WHERE user_id = ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
+  ).bind(userId, now).all();
+  if (!results.length) return null;
+  return results.reduce((best, row) =>
+    (BADGE_RANK[row.badge_type] || 0) > (BADGE_RANK[best.badge_type] || 0) ? row : best
+  );
 }
 
 // Rozetin şu anki "ay"ının başlangıcı: expires_at varsa ondan 30 gün geriye gider (aktivasyon/
@@ -28,6 +33,9 @@ export function periodStart(badge) {
 
 // Aylık ürün yükleme limitleri (bkz. src/routes/submissions.js).
 export const PRODUCT_MONTHLY_LIMITS = { verified: 3, gold: 10, platinum: 50 };
+
+// Aylık yapı malzemesi yükleme limitleri — ürünlerden ayrı bir kota havuzu (bkz. src/routes/submissions.js).
+export const MATERIAL_MONTHLY_LIMITS = { verified: 3, gold: 10, platinum: 50 };
 
 // Aylık iş ilanı yayınlama limitleri; Doğrulanmış Üye bu hakka sahip değildir (bkz. is-ilani-ver.html).
 export const JOB_MONTHLY_LIMITS = { gold: 1, platinum: 2 };

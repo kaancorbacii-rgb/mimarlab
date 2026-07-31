@@ -20,5 +20,11 @@
       "binding": "UPLOADS",
       "bucket_name": "mimarlab-uploads"
     }
-  ]
+  ],
+  "vars": {
+    // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
+    // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil,
+    // `wrangler secret put` ile ayrı ayrı tanımlanır.
+    "IYZICO_BASE_URL": "https://sandbox-api.iyzipay.com"
+  }
 }

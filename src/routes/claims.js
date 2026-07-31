@@ -20,6 +20,32 @@ export async function handleClaimsRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
+// POST /api/corrections — "Bilgi kaynağı" kutucuğundaki "Düzeltme Öner" formu. profile_claims'ten
+// ayrı ve daha gevşek: sahiplenme iddiası değildir, aynı kullanıcı aynı profil için birden fazla
+// öneri gönderebilir (unique kısıtı yok). Admin panelinde "Profil Talepleri" sekmesinde okunur.
+export async function handleCorrectionsRoute(request, env, url) {
+  const segments = url.pathname.split('/').filter(Boolean); // ["api", "corrections"]
+  if (segments.length !== 2 || request.method !== 'POST') return errorJson('Bulunamadı', 404);
+
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  const body = await readJson(request);
+  const profileType = body.profileType;
+  const profileKey = (body.profileKey || '').trim();
+  const note = (body.note || '').trim().slice(0, 1000);
+  if (!PROFILE_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
+  if (!note) return errorJson('Lütfen bir not yaz.');
+
+  const id = newId();
+  const now = Date.now();
+  await env.DB.prepare(
+    'INSERT INTO profile_corrections (id, user_id, profile_type, profile_key, note, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, user.id, profileType, profileKey, note, 'pending', now, now).run();
+
+  return json({ status: 'pending' }, 201);
+}
+
 // GET /api/claims/mine — hesabim.html'in "Mimar/Marka Profilim" bölümü için kullanıcının
 // kendi profil taleplerini (her durumdan) döner.
 async function myClaims(env, user) {
@@ -33,6 +59,7 @@ async function createClaim(request, env, user) {
   const body = await readJson(request);
   const profileType = body.profileType;
   const profileKey = (body.profileKey || '').trim();
+  const note = (body.note || '').trim().slice(0, 1000) || null;
   if (!PROFILE_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
 
   const existing = await env.DB.prepare(
@@ -42,8 +69,8 @@ async function createClaim(request, env, user) {
   if (existing) {
     if (existing.status === 'rejected') {
       await env.DB.prepare(
-        "UPDATE profile_claims SET status = 'pending', updated_at = ? WHERE id = ?"
-      ).bind(Date.now(), existing.id).run();
+        "UPDATE profile_claims SET status = 'pending', note = ?, updated_at = ? WHERE id = ?"
+      ).bind(note, Date.now(), existing.id).run();
       return json({ status: 'pending' });
     }
     return json({ status: existing.status });
@@ -52,8 +79,8 @@ async function createClaim(request, env, user) {
   const id = newId();
   const now = Date.now();
   await env.DB.prepare(
-    'INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, user.id, profileType, profileKey, 'pending', now, now).run();
+    'INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, user.id, profileType, profileKey, 'pending', note, now, now).run();
 
   return json({ status: 'pending' }, 201);
 }

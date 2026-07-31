@@ -76,3 +76,66 @@ async function initSavedWidget(){
 }
 // Sayfa scriptleri, currentUser'ı okumadan önce bunu await edebilir.
 const savedWidgetReady = initSavedWidget();
+
+// "Gönderiyi Düzenle" butonu: proje/ürün/malzeme/haber/iş ilanı kartlarında/detay sayfalarında,
+// gösterilen öğe (source==='member', yani submissionId/id'si olan) mevcut kullanıcının kendi
+// gönderisiyse ya da mevcut kullanıcı adminse bir düzenleme linki döner. Admin için sahiplik
+// kontrolü yapılmaz — /api/admin/submissions/:type/:id (owner kontrolü yapmayan PATCH, bkz.
+// src/routes/admin.js) zaten herhangi bir gönderiyi düzenleyebiliyor, bu yüzden burada admin'e
+// tüm gönderiler için buton gösterilir; hangi gönderinin gerçekten var olduğunu asıl PATCH isteği
+// belirler. Sahiplik kontrolü için /api/<type>/mine sonuçları önbelleğe alınır (aynı sayfada
+// birden çok karta bakılırken her biri için ayrı fetch atılmasın diye).
+const EDIT_PAGE_BY_SUBMISSION_TYPE = {
+  projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'malzeme-ekle.html',
+  news: 'haber-ekle.html', jobs: 'is-ilani-ver.html', offices: 'ofis-ekle.html', architects: 'mimar-ekle.html',
+};
+const myEditableIdsCache = {};
+async function myEditableIds(type){
+  if(!currentUser) return new Set();
+  if(!myEditableIdsCache[type]){
+    myEditableIdsCache[type] = (async () => {
+      try{
+        const res = await fetch(`/api/${type}/mine`);
+        const data = res.ok ? await res.json() : { items: [] };
+        return new Set((data.items || []).map(it => it.id));
+      }catch{ return new Set(); }
+    })();
+  }
+  return myEditableIdsCache[type];
+}
+async function editSubmissionBtnHtml(type, id){
+  if(!id) return '';
+  await savedWidgetReady;
+  if(!currentUser) return '';
+  const editPage = EDIT_PAGE_BY_SUBMISSION_TYPE[type];
+  if(!editPage) return '';
+  let canEdit = currentUser.role === 'admin';
+  if(!canEdit){
+    const mine = await myEditableIds(type);
+    canEdit = mine.has(id);
+  }
+  if(!canEdit) return '';
+  return `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}">Gönderiyi Düzenle</a>`;
+}
+
+// Ürün/malzeme/iş ilanı listeleme sayfalarında kartlar tek seferde senkron olarak render edilir
+// (grid.innerHTML = ...map(...).join('')) — editSubmissionBtnHtml async olduğundan doğrudan o
+// şablonun içine gömülemez. Bunun yerine her kart, kendi id'sini taşıyan boş bir
+// <span class="edit-slot" data-type="..." data-id="..."></span> ile render edilir; render'dan
+// SONRA çağrılan bu fonksiyon tek bir /api/<type>/mine (ya da admin ise rol kontrolü) sorgusuyla
+// tüm slotları tek seferde doldurur.
+async function applyEditButtons(type){
+  await savedWidgetReady;
+  if(!currentUser) return;
+  const editPage = EDIT_PAGE_BY_SUBMISSION_TYPE[type];
+  if(!editPage) return;
+  const isAdmin = currentUser.role === 'admin';
+  const mine = isAdmin ? null : await myEditableIds(type);
+  document.querySelectorAll(`.edit-slot[data-type="${type}"]`).forEach(slot=>{
+    const id = slot.dataset.id;
+    if(!id) return;
+    if(isAdmin || mine.has(id)){
+      slot.innerHTML = `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}">Gönderiyi Düzenle</a>`;
+    }
+  });
+}

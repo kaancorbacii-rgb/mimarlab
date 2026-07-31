@@ -17,17 +17,22 @@ export async function handleCommentsRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
+// user_badge: yorumu yapan kişinin KENDİSİ için aldığı (target_type='self') aktif rozeti —
+// profile_claims'ten tamamen bağımsız, mimar/marka profili olmasa bile ismi yanında gözükür
+// (bkz. kullanıcı talebi). 'destekci' hiçbir görünür rozet vermediği için hariç tutulur.
 async function listComments(env, url) {
   const targetType = url.searchParams.get('targetType');
   const targetId = url.searchParams.get('targetId');
   if (!TARGET_TYPES.has(targetType) || !targetId) return errorJson('Geçersiz istek.');
 
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id
+    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, b.badge_type AS user_badge
      FROM comments c JOIN users u ON u.id = c.user_id
+     LEFT JOIN badge_requests b ON b.user_id = c.user_id AND b.target_type = 'self' AND b.status = 'active'
+       AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
      WHERE c.target_type = ? AND c.target_id = ?
      ORDER BY c.created_at ASC`
-  ).bind(targetType, targetId).all();
+  ).bind(Date.now(), targetType, targetId).all();
 
   return json({ items: results });
 }

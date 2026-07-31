@@ -1,0 +1,88 @@
+// MİMARLAB — Ürün (urun.html/urun-ekle.html) ve Malzeme (malzeme.html/malzeme-ekle.html)
+// sayfaları arasında paylaşılan kategori taksonomisi ve marka meta verisi.
+//
+// Her ürün/malzeme kaydı tek bir "category" (alt kategori/leaf) değeri taşır — Grup (üst kategori)
+// bu dosyadaki haritadan türetilir, ayrı bir DB alanı gerektirmez (bkz. src/lib/submissionTypes.js
+// — category zaten serbest metin bir alan, whitelist yok).
+const PRODUCT_TAXONOMY = {
+  "Mobilya": ["Koltuk & Kanepe", "Sandalye & Tabure", "Masa", "Yatak & Baza", "Dolap & Depolama", "Ofis Mobilyası"],
+  "Aydınlatma": ["İç Mekan Aydınlatma", "Dış Mekan Aydınlatma", "Sarkıt & Avize"],
+  "Mutfak & Beyaz Eşya": ["Ankastre Ürünler", "Mutfak Mobilyası", "Tezgah"],
+  "Tekstil & Halı": ["Halı", "Perde", "Kumaş & Döşemelik"],
+  "Dekorasyon & Aksesuar": ["Aynalar", "Duvar Objeleri", "Vazo & Obje"],
+  "Dış Mekan": ["Bahçe Mobilyası", "Pergole & Gölgelendirme"],
+};
+
+// Not: Sabit/yapıya monte banyo ürünleri (vitrifiye, armatür vb.) kasıtlı olarak burada değil,
+// Malzeme tarafındaki "Banyo" grubunda — inşaat/tadilat aşamasında seçilen bir "yapı malzemesi"
+// olarak ele alınıyor, taşınabilir mobilya/ürünlerden ayrı (bkz. MATERIAL_TAXONOMY).
+const MATERIAL_TAXONOMY = {
+  "Doğal Taş & Zemin": ["Mermer", "Traverten", "Seramik & Porselen Karo", "Laminat & Parke"],
+  "Boya & Kaplama": ["İç Cephe Boyası", "Dış Cephe Boyası", "Ahşap Kaplama", "Beton Görünümlü Kaplama"],
+  "Cephe & Cam Sistemleri": ["Cephe Sistemleri", "Cam", "Panel & Kompozit"],
+  "Sıva & Alçı": ["Alçı Sıva", "Dekoratif Sıva"],
+  "Yalıtım": ["Isı Yalıtımı", "Su Yalıtımı", "Ses Yalıtımı"],
+  "Kapı & Pencere": ["PVC/Alüminyum Doğrama", "İç Kapı"],
+  "Banyo": ["Vitrifiye", "Armatür", "Duş Sistemleri", "Banyo Mobilyası"],
+};
+
+function taxonomyGroupOf(taxonomy, category) {
+  for (const [group, cats] of Object.entries(taxonomy)) {
+    if (cats.includes(category)) return group;
+  }
+  return null;
+}
+
+// Bilinen marka -> resmi web sitesi alan adı. Gerçek ürün fotoğrafı KULLANILMAZ (telif riski) —
+// yalnızca markanın küçük favicon'u, ofis profillerinde zaten kullanılan aynı DuckDuckGo ikon
+// proxy tekniğiyle (bkz. data.js#logoUrl) kart üzerinde küçük bir rozet olarak gösterilir. Yanlış/
+// eksik bir alan adı sorun yaratmaz — <img onerror> ile sessizce kaldırılır (bkz. catalogCardMediaHtml).
+const CATALOG_BRAND_DOMAINS = {
+  "VitrA": "vitra.com.tr", "Kalebodur": "kalebodur.com", "Marshall": "marshall.com.tr",
+  "Dyo": "dyo.com.tr", "Jotun": "jotun.com", "Filli Boya": "fillipoya.com.tr",
+  "Kastamonu Entegre": "kastamonu.com.tr", "Egger": "egger.com", "Tarkett": "tarkett.com.tr",
+  "Schüco": "schueco.com", "Reynaers Aluminium": "reynaers.com", "Şişecam": "sisecam.com.tr",
+  "Knauf": "knauf.com.tr", "Saint-Gobain Weber": "weber.com.tr", "Rockwool": "rockwool.com",
+  "İzocam": "izocam.com.tr", "Alumil": "alumil.com", "Egepen Deceuninck": "egepen.com.tr",
+  "Alucobond": "alucobond.com", "Fibrobeton": "fibrobeton.com", "Novagres": "novagres.com",
+  "Ege Seramik": "egeseramik.com", "Porcelanosa": "porcelanosa.com",
+  "Duravit": "duravit.com", "Villeroy & Boch": "villeroy-boch.com",
+  "Hansgrohe": "hansgrohe.com.tr", "GROHE": "grohe.com.tr",
+  "Artemide": "artemide.com", "Flos": "flos.com", "Louis Poulsen": "louispoulsen.com",
+  "Erco": "erco.com", "Modus Aydınlatma": "modus.com.tr",
+  "Natuzzi": "natuzzi.com", "Nurus": "nurus.com", "Bene": "bene.com",
+  "Bellona": "bellona.com.tr", "İstikbal": "istikbal.com.tr", "Doğtaş": "dogtas.com.tr",
+  "Kilim": "kilim.com", "Merinos": "merinos.com.tr", "Taç Tekstil": "tac.com.tr",
+  "Koleksiyon": "coleksiyon.com.tr", "Derin Design": "derindesign.com", "Zara Home": "zarahome.com",
+  "Miele": "miele.com.tr", "Bosch": "bosch-home.com.tr", "Gaggenau": "gaggenau.com",
+  "Belenco": "belenco.com", "Weinor": "weinor.de", "Nef Mutfak": "nef.com.tr",
+};
+
+const CATALOG_PALETTE = ['#2B425F', '#3E5A78', '#5B7A9B', '#4F6478', '#7C4B4B'];
+function catalogColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return CATALOG_PALETTE[Math.abs(hash) % CATALOG_PALETTE.length];
+}
+function catalogInitials(name) {
+  return (name || '?').replace(/[—.]/g, ' ').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+}
+function catalogBrandFavicon(brand) {
+  const domain = brand && CATALOG_BRAND_DOMAINS[brand];
+  return domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null;
+}
+
+// Kart görseli: gerçek bir fotoğraf varsa onu, yoksa marka/başlık renginden türetilmiş, markanın
+// (biliniyorsa) küçük favicon'unu ve baş harflerini içeren güvenli bir yer tutucu döner — hiçbir
+// zaman gerçek bir ürün fotoğrafı taklit edilmez (bkz. kullanıcı isteği: telif riski almadan).
+function catalogCardMediaHtml(item, escapeHtmlFn, escapeAttrFn) {
+  if (item.image) {
+    return `<img src="${escapeAttrFn(item.image)}" alt="${escapeAttrFn(item.title)}" loading="lazy">`;
+  }
+  const label = item.brand || item.title;
+  const favicon = catalogBrandFavicon(item.brand);
+  return `<div class="catalog-placeholder" style="background:${catalogColor(label)}">
+    ${favicon ? `<img class="catalog-placeholder-favicon" src="${escapeAttrFn(favicon)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+    <span class="catalog-placeholder-initials">${escapeHtmlFn(catalogInitials(label))}</span>
+  </div>`;
+}
