@@ -21,27 +21,31 @@ function paintSaveBtn(btn){
   btn.classList.toggle('saved', savedKeys.has(type + ':' + key));
 }
 
+// type: bu sayfadaki kartların çoğunluğu için varsayılan tür (ör. 'project', 'product'). Bir kart
+// bundan farklı bir türdeyse (ör. urun.html'de ürün+malzeme kartları karışık render edilir), şablon
+// butonun kendi data-type'ını önceden basar — burada zaten set edilmiş bir data-type ezilmez.
 function wireSaveButtons(type){
   document.querySelectorAll('.card-save-btn').forEach(btn=>{
-    btn.dataset.type = type;
+    if(!btn.dataset.type) btn.dataset.type = type;
     paintSaveBtn(btn);
     btn.addEventListener('click', async (e)=>{
       e.preventDefault();
       e.stopPropagation();
       if(!currentUser){ window.location.href = 'giris-yap.html'; return; }
+      const btnType = btn.dataset.type;
       const key = btn.dataset.key;
-      const mapKey = type + ':' + key;
+      const mapKey = btnType + ':' + key;
       btn.disabled = true;
       try{
         if(savedKeys.has(mapKey)){
-          await fetch(`/api/saved/${type}/${encodeURIComponent(key)}`, { method: 'DELETE' });
+          await fetch(`/api/saved/${btnType}/${encodeURIComponent(key)}`, { method: 'DELETE' });
           savedKeys.delete(mapKey);
         } else {
           await fetch('/api/saved', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              type, key,
+              type: btnType, key,
               title: btn.dataset.title || '',
               meta: btn.dataset.meta || '',
               image: btn.dataset.image || '',
@@ -85,8 +89,12 @@ const savedWidgetReady = initSavedWidget();
 // tüm gönderiler için buton gösterilir; hangi gönderinin gerçekten var olduğunu asıl PATCH isteği
 // belirler. Sahiplik kontrolü için /api/<type>/mine sonuçları önbelleğe alınır (aynı sayfada
 // birden çok karta bakılırken her biri için ayrı fetch atılmasın diye).
+// products/materials artık aynı sayfada (urun-ekle.html) birleştirildiği için (bkz. kullanıcı
+// isteği), o sayfa hangi API'ye (/api/products ya da /api/materials) düzenleme isteği atacağını
+// bilmek üzere aşağıdaki linklere eklenen ?stype= parametresini okur (bkz. editSubmissionBtnHtml/
+// applyEditButtons).
 const EDIT_PAGE_BY_SUBMISSION_TYPE = {
-  projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'malzeme-ekle.html',
+  projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
   news: 'haber-ekle.html', jobs: 'is-ilani-ver.html', offices: 'ofis-ekle.html', architects: 'mimar-ekle.html',
 };
 const myEditableIdsCache = {};
@@ -115,7 +123,7 @@ async function editSubmissionBtnHtml(type, id){
     canEdit = mine.has(id);
   }
   if(!canEdit) return '';
-  return `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}">Gönderiyi Düzenle</a>`;
+  return `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}&stype=${encodeURIComponent(type)}">Gönderiyi Düzenle</a>`;
 }
 
 // Ürün/malzeme/iş ilanı listeleme sayfalarında kartlar tek seferde senkron olarak render edilir
@@ -135,7 +143,7 @@ async function applyEditButtons(type){
     const id = slot.dataset.id;
     if(!id) return;
     if(isAdmin || mine.has(id)){
-      slot.innerHTML = `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}">Gönderiyi Düzenle</a>`;
+      slot.innerHTML = `<a class="card-edit-btn" href="${editPage}?edit=${encodeURIComponent(id)}&stype=${encodeURIComponent(type)}">Gönderiyi Düzenle</a>`;
     }
   });
 }

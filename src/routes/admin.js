@@ -14,7 +14,7 @@ const SUBMISSION_TYPE_LABELS = {
   offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber',
 };
 
-const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Marka' };
+const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
 const BADGE_TYPE_LABELS_SERVER = { destekci: 'Destekçi', verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye' };
 
 async function requireAdmin(request, env) {

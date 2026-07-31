@@ -83,7 +83,7 @@ function buildOfficeMeta(slug) {
   const o = getOfficeMap().get(slug);
   if (!o) return null;
   const title = `${o.name} — MİMARLAB`;
-  const description = o.about ? truncate(o.about, 200) : `${o.name} — MİMARLAB'da ofis profilini incele.`;
+  const description = o.about ? truncate(o.about, 200) : `${o.name} — MİMARLAB'da firma profilini incele.`;
   const canonicalUrl = `${SITE_ORIGIN}/markalar/${encodeURIComponent(slug)}`;
   const logoUrl = o.logo ? absoluteUrl(o.logo) : null;
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Organization', name: o.name, url: canonicalUrl };

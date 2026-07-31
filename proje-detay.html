@@ -229,6 +229,7 @@
   .detail-gallery::-webkit-scrollbar{display:none;}
   .detail-gallery a{flex:0 0 auto;}
   .detail-gallery img{height:420px; width:auto; max-width:80vw; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:var(--paper-card); display:block;}
+  .gallery-placeholder{flex:0 0 auto; height:420px; width:auto; aspect-ratio:4/3; border-radius:10px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;}
   .gallery-nav{
     position:absolute; top:50%; transform:translateY(-50%); z-index:3;
     width:38px; height:38px; border-radius:50%; border:none;
@@ -244,6 +245,7 @@
   }
   @media (max-width:720px){
     .detail-gallery img{height:260px;}
+    .gallery-placeholder{height:260px; font-size:28px;}
     .gallery-nav{width:32px; height:32px;}
   }
 
@@ -271,6 +273,7 @@
   .related-title{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; margin:0 0 18px;}
   .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
   .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
   .related-card-title{
     position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
     background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
@@ -285,7 +288,7 @@
   .related-grid-scroll .related-card{flex:0 0 220px;}
 
   /* Kullanılan Ürünler/Malzemeler: proje.brands ile eşleşen ürün/malzeme katalog kartları — aynı
-     kaydırmalı şerit, urun.html/malzeme.html'deki .content-card ile aynı görsel dil (bkz. catalog-taxonomy.js). */
+     kaydırmalı şerit, urun.html'deki .content-card ile aynı görsel dil (bkz. catalog-taxonomy.js). */
   .catalog-grid-scroll{
     display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth;
     scrollbar-width:none; padding-bottom:4px;
@@ -397,10 +400,9 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="mimar.html">Mimar</a>
-      <a class="nav-link" href="ofis.html">Marka</a>
+      <a class="nav-link" href="firma.html">Firma</a>
       <a class="nav-link active" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
-      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -416,10 +418,9 @@
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
-      <a class="nav-mobile-link" href="ofis.html">Marka</a>
+      <a class="nav-mobile-link" href="firma.html">Firma</a>
       <a class="nav-mobile-link active" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
-      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -465,11 +466,11 @@
         <div class="designer-chips" id="architect-chips"></div>
       </div>
       <div class="designer-section" id="office-section" style="display:none;">
-        <div class="designer-label">Mimarlık Ofisi:</div>
+        <div class="designer-label">Mimarlık Firması:</div>
         <div class="designer-chips" id="office-chips"></div>
       </div>
       <div class="designer-section" id="brands-section" style="display:none;">
-        <div class="designer-label">Kullanılan Ürünler / Markalar</div>
+        <div class="designer-label">Kullanılan Ürünler / Firmalar</div>
         <div class="designer-chips" id="brands-chips"></div>
       </div>
       <div class="detail-meta" id="detail-meta"></div>
@@ -521,16 +522,16 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
         <div class="footer-social">
-          <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
-          <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+          <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="ofis.html">Marka</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
-    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
 <script src="data.js"></script>
@@ -740,9 +741,9 @@ if(!p){
   }
 
   const galleryEl = document.getElementById('detail-gallery');
-  galleryEl.innerHTML = p.images.map((img, i) => `
+  galleryEl.innerHTML = p.images.length ? p.images.map((img, i) => `
     <a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'}></a>
-  `).join('');
+  `).join('') : `<div class="gallery-item gallery-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`;
 
   // Ana medya şeridinde sola/sağa kaydırma okları + "1 / N" sayaç (bkz. kullanıcı isteği) —
   // sayaç yalnızca ok tıklamasında değil, kullanıcı şeridi elle kaydırdığında (dokunma/trackpad)
@@ -825,7 +826,7 @@ if(!p){
     document.getElementById('same-designer-section').style.display = 'block';
     document.getElementById('same-designer-grid').innerHTML = sameDesigner.map(r => `
       <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
-        <img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">
+        ${r.images && r.images[0] ? `<img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
   }
@@ -854,7 +855,7 @@ if(!p){
     document.getElementById('related-section').style.display = 'block';
     document.getElementById('related-grid').innerHTML = related.map(r => `
       <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
-        <img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">
+        ${r.images && r.images[0] ? `<img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
   }
@@ -1030,9 +1031,9 @@ function catalogCardLinkHtml(item, kind){
   if(off) return `<a class="catalog-card" href="/markalar/${encodeURIComponent(slugify(off.name))}">${inner}</a>`;
   const externalUrl = item.website ? safeUrl(item.website) : '';
   if(externalUrl) return `<a class="catalog-card" href="${escapeAttr(externalUrl)}" target="_blank" rel="noopener">${inner}</a>`;
-  // Ne markanın MİMARLAB profili ne de kendi web sitesi varsa, kart yine de tıklanabilir kalsın diye
-  // ilgili katalog sayfasına (Ürün/Malzeme) götürür — hiçbir kart tamamen ölü bir kutu olarak kalmaz.
-  return `<a class="catalog-card" href="${kind === 'materials' ? '/malzeme' : '/urun'}">${inner}</a>`;
+  // Ne firmanın MİMARLAB profili ne de kendi web sitesi varsa, kart yine de tıklanabilir kalsın diye
+  // ürün/malzeme katalog sayfasına (/urun) götürür — hiçbir kart tamamen ölü bir kutu olarak kalmaz.
+  return `<a class="catalog-card" href="/urun">${inner}</a>`;
 }
 
 function renderRelatedCatalog(p){

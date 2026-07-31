@@ -154,10 +154,9 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="mimar.html">Mimar</a>
-      <a class="nav-link" href="ofis.html">Marka</a>
+      <a class="nav-link" href="firma.html">Firma</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
-      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -173,10 +172,9 @@
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
-      <a class="nav-mobile-link" href="ofis.html">Marka</a>
+      <a class="nav-mobile-link" href="firma.html">Firma</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
-      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -324,7 +322,7 @@ function itemDetails(type, item){
   if(type === 'projects'){
     if(item.category && item.category.length) rows.push(['Kategori', escapeHtml(item.category.join(', '))]);
     if(item.type && item.type.length) rows.push(['Tip', escapeHtml(item.type.join(', '))]);
-    if(item.brands && item.brands.length) rows.push(['Kullanılan Markalar', escapeHtml(item.brands.join(', '))]);
+    if(item.brands && item.brands.length) rows.push(['Kullanılan Firmalar', escapeHtml(item.brands.join(', '))]);
   }
   if((type === 'projects' || type === 'products' || type === 'materials') && item.images && item.images.length > 1){
     rows.push(['Görseller', `${item.images.length} görsel`]);
@@ -567,7 +565,7 @@ async function loadBadgeRequests(){
     <div class="admin-card" data-id="${b.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL / ay</span> <span class="admin-badge badge-approved">${b.target_type === 'office' ? 'Marka: ' + escapeHtml(b.target_key || '') : 'Kendisi için'}</span></div>
+          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL / ay</span> <span class="admin-badge badge-approved">${b.target_type === 'office' ? 'Firma: ' + escapeHtml(b.target_key || '') : 'Kendisi için'}</span></div>
           <div class="admin-card-meta">${escapeHtml(b.user_name)} · ${escapeHtml(b.user_email)} · ${new Date(b.created_at).toLocaleDateString('tr-TR')}${b.status === 'active' && b.expires_at ? ` · ${new Date(b.expires_at).toLocaleDateString('tr-TR')} tarihine kadar aktif` : ''}</div>
         </div>
         ${b.status === 'pending' ? `

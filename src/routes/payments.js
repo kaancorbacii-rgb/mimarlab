@@ -62,7 +62,7 @@ async function startCheckout(request, env, url) {
   const target = normalizeTarget(body);
   if (!target) return errorJson('Geçersiz hedef.');
   if (!(await verifyOfficeTargetOwnership(env, user.id, target))) {
-    return errorJson('Bu markayı önce onaylı şekilde sahiplenmen gerekiyor.');
+    return errorJson('Bu firmayı önce onaylı şekilde sahiplenmen gerekiyor.');
   }
 
   const name = (body.name || '').trim().slice(0, 100);

@@ -71,7 +71,7 @@ async function notifyCommentOwner(env, commenter, targetType, targetId, commentB
       "SELECT user_id FROM profile_claims WHERE profile_type = ? AND profile_key = ? AND status = 'approved'"
     ).bind(targetType, targetId).first();
     if (row) ownerUserId = row.user_id;
-    subjectLabel = targetType === 'architect' ? 'mimar profiline' : 'marka profiline';
+    subjectLabel = targetType === 'architect' ? 'mimar profiline' : 'firma profiline';
   } else if (targetType === 'project') {
     const row = await env.DB.prepare('SELECT owner_user_id FROM project_submissions WHERE slug = ?').bind(targetId).first();
     if (row) ownerUserId = row.owner_user_id;

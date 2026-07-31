@@ -1,5 +1,9 @@
-// MİMARLAB — Ürün (urun.html/urun-ekle.html) ve Malzeme (malzeme.html/malzeme-ekle.html)
-// sayfaları arasında paylaşılan kategori taksonomisi ve marka meta verisi.
+// MİMARLAB — tek bir Ürün sayfasında (urun.html/urun-ekle.html) birleştirilmiş mobilya/dekorasyon
+// ürünleri ve yapı malzemeleri arasında paylaşılan kategori taksonomisi ve firma meta verisi.
+// Malzeme sayfası kaldırıldı (bkz. kullanıcı isteği) — kayıtlar backend'de hâlâ iki ayrı tabloda
+// (product_submissions/material_submissions) tutulur, PRODUCT_TAXONOMY/MATERIAL_TAXONOMY bu ayrımı
+// (yeni gönderi hangi tabloya gidecek) belirlemek için hâlâ ayrı ayrı tutuluyor; CATALOG_TAXONOMY
+// ve CATALOG_GROUP_KIND ikisini tek bir Grup/Kategori filtre listesinde birleştirir.
 //
 // Her ürün/malzeme kaydı tek bir "category" (alt kategori/leaf) değeri taşır — Grup (üst kategori)
 // bu dosyadaki haritadan türetilir, ayrı bir DB alanı gerektirmez (bkz. src/lib/submissionTypes.js
@@ -25,6 +29,17 @@ const MATERIAL_TAXONOMY = {
   "Kapı & Pencere": ["PVC/Alüminyum Doğrama", "İç Kapı"],
   "Banyo": ["Vitrifiye", "Armatür", "Duş Sistemleri", "Banyo Mobilyası"],
 };
+
+// Birleşik Grup/Kategori filtresi (urun.html) ve birleşik Grup seçici (urun-ekle.html) için.
+// Grup adları iki taksonomi arasında çakışmaz, kategori (leaf) adları da çakışmaz — bu yüzden basit
+// bir merge güvenli.
+const CATALOG_TAXONOMY = { ...PRODUCT_TAXONOMY, ...MATERIAL_TAXONOMY };
+
+// Grup adı -> hangi gönderi tipine ait olduğu ('products' | 'materials'). urun-ekle.html'de seçilen
+// Grup'a göre yeni bir gönderinin /api/products'a mı /api/materials'a mı POST edileceğini belirler.
+const CATALOG_GROUP_KIND = {};
+Object.keys(PRODUCT_TAXONOMY).forEach(g => { CATALOG_GROUP_KIND[g] = 'products'; });
+Object.keys(MATERIAL_TAXONOMY).forEach(g => { CATALOG_GROUP_KIND[g] = 'materials'; });
 
 function taxonomyGroupOf(taxonomy, category) {
   for (const [group, cats] of Object.entries(taxonomy)) {

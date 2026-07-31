@@ -10,19 +10,19 @@
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
-<title>Ofis Profili — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı ofis profillerini incele." id="meta-description">
+<title>Firma Profili — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı firma profillerini incele." id="meta-description">
 <link rel="canonical" href="https://mimarlab.com/ofis-detay" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Ofis Profili — MİMARLAB" id="og-title">
-<meta property="og:description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı ofis profillerini incele." id="og-description">
+<meta property="og:title" content="Firma Profili — MİMARLAB" id="og-title">
+<meta property="og:description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı firma profillerini incele." id="og-description">
 <meta property="og:url" content="https://mimarlab.com/ofis-detay" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Ofis Profili — MİMARLAB" id="twitter-title">
-<meta name="twitter:description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı ofis profillerini incele." id="twitter-description">
+<meta name="twitter:title" content="Firma Profili — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="MİMARLAB'da mimarlık, iç mimarlık ve peyzaj mimarlığı firma profillerini incele." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
@@ -203,13 +203,6 @@
     font-size:14px; margin-bottom:20px;
   }
   .profile-actions{display:flex; gap:12px; margin-bottom:28px; flex-wrap:wrap;}
-  .rating-widget{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;}
-  .rating-star-row{display:flex; gap:2px;}
-  .rating-star-btn{background:none; border:none; padding:2px; color:var(--line); display:flex; transition:transform .1s ease;}
-  .rating-star-btn.filled{color:var(--accent);}
-  .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
-  .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-  .rating-summary{font-size:12.5px; color:var(--ink-soft);}
   .btn-primary{
     background:var(--walnut); color:var(--paper-card);
     border:none; padding:13px 24px; border-radius:100px;
@@ -337,6 +330,7 @@
 }
 .home-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
 .home-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+.home-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:24px; font-weight:700;}
 .home-card-info{
   position:absolute; left:0; right:0; bottom:0; padding:14px 16px;
   background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
@@ -354,34 +348,11 @@
 
 /* ---------- ROZET ---------- */
 .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:6px; flex-shrink:0;}
-
-/* ---------- YORUMLAR (proje-detay.html ile aynı desen) ---------- */
-.comments-section{max-width:900px; margin:44px auto 0; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
-.comments-title{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; margin:0 0 20px;}
-.comment-form-wrap{margin-bottom:24px;}
-.comment-form textarea{width:100%; min-height:90px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
-.comment-form-actions{display:flex; justify-content:flex-end; margin-top:10px;}
-.comment-submit-btn{background:var(--ink); color:var(--paper-card); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
-.comment-submit-btn:hover{background:var(--walnut);}
-.comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
-.comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
-.comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
-.comments-empty{padding:24px 0; color:var(--ink-soft); font-size:13.5px;}
-.comment-row{display:flex; gap:12px; padding:16px 0; border-bottom:1px solid var(--line-soft);}
-.comment-row:last-child{border-bottom:none;}
-.comment-avatar{width:36px; height:36px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
-.comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px;}
-.comment-meta strong{color:var(--ink); font-weight:600; margin-right:8px;}
-.comment-body-text{margin:0; font-size:14px; line-height:1.6; color:var(--ink);}
-.comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:10px; text-decoration:underline; padding:0;}
-.comment-delete-btn:hover{color:#c0392b;}
-@media (max-width:720px){ .comments-section{padding:0 18px 40px; padding-top:28px;} }
 </style>
 </head>
 <body>
 <script src="auth-nav.js"></script>
 <script src="save-widget.js"></script>
-<script src="rating-widget.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -393,10 +364,9 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="mimar.html">Mimar</a>
-      <a class="nav-link active" href="ofis.html">Marka</a>
+      <a class="nav-link active" href="firma.html">Firma</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
-      <a class="nav-link" href="malzeme.html">Malzeme</a>
       <a class="nav-link" href="haber.html">Haber</a>
       <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -412,10 +382,9 @@
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
-      <a class="nav-mobile-link active" href="ofis.html">Marka</a>
+      <a class="nav-mobile-link active" href="firma.html">Firma</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
-      <a class="nav-mobile-link" href="malzeme.html">Malzeme</a>
       <a class="nav-mobile-link" href="haber.html">Haber</a>
       <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
@@ -424,11 +393,11 @@
   <div class="breadcrumb-bar">
     <a href="index.html">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="ofis.html">Markalar</a>
+    <a href="firma.html">Firmalar</a>
     <span class="sep">›</span>
     <span id="bc-cat">Kategori</span>
     <span class="sep">›</span>
-    <span class="current" id="bc-name">Marka</span>
+    <span class="current" id="bc-name">Firma</span>
   </div>
 
   <div class="profile-wrap">
@@ -439,11 +408,10 @@
       </div>
       <div class="profile-top">
         <div class="profile-logo" id="profile-logo">M</div>
-        <h1 class="profile-name" id="profile-name"><span id="profile-name-text">Ofis Adı</span><span id="verified-badge-wrap"></span></h1>
+        <h1 class="profile-name" id="profile-name"><span id="profile-name-text">Firma Adı</span><span id="verified-badge-wrap"></span></h1>
         <div class="profile-top-actions" id="profile-top-actions"></div>
       </div>
-      <a class="profile-category" href="index.html" id="profile-category">Mimarlık Ofisi</a>
-      <div class="rating-widget" id="rating-widget" data-type="office"></div>
+      <a class="profile-category" href="index.html" id="profile-category">Mimarlık Firması</a>
       <div class="profile-actions">
         <a class="btn-outline" href="#" id="profile-visit-site" target="_blank" rel="noopener">
           Web Sitesini Ziyaret Et
@@ -466,7 +434,7 @@
       <section id="jobs">
         <div class="jobs-empty" id="jobs-empty">
           <strong>Şu anda yayında bir ilan bulunmuyor.</strong>
-          Bu ofis adına açık pozisyon yayınlamak için bizimle iletişime geçin.
+          Bu firma adına açık pozisyon yayınlamak için bizimle iletişime geçin.
         </div>
         <div id="jobs-related" style="display:none;">
           <div class="home-grid" id="jobs-grid"></div>
@@ -478,7 +446,7 @@
       <div class="info-card" id="claim-info-card">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
         <div id="claim-card-body">
-          <h5>Ofisini mi yönetiyorsun?</h5>
+          <h5>Firmanı mı yönetiyorsun?</h5>
           <p>Bilgilerini güncellemek ya da açık pozisyon yayınlamak için bizimle iletişime geç.</p>
         </div>
       </div>
@@ -487,7 +455,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="4" x2="8" y2="9"/></svg>
         <div>
           <h5>Bilgi kaynağı</h5>
-          <p>Buradaki bilgiler kişinin / markanın websitesinden ve halka açık kaynaklardan derlenmiştir.</p>
+          <p>Buradaki bilgiler kişinin / firmanın websitesinden ve halka açık kaynaklardan derlenmiştir.</p>
           <div id="correction-card-extra"></div>
         </div>
       </div>
@@ -514,12 +482,6 @@
     <div class="home-grid" id="related-news-grid"></div>
   </section>
 
-  <div class="comments-section">
-    <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
-    <div class="comment-form-wrap" id="comment-form-wrap"></div>
-    <div class="comments-list" id="comments-list"></div>
-  </div>
-
   <footer class="site-footer">
     <div class="footer-top">
       <div class="footer-brand">
@@ -528,22 +490,22 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
         <div class="footer-social">
-          <a href="#" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
-          <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+          <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
       <div class="footer-col">
         <h4>Ana Menü</h4>
         <a href="proje.html">Proje</a>
-        <a href="urun.html">Ürün</a><a href="malzeme.html">Malzeme</a>
+        <a href="urun.html">Ürün</a>
         <a href="haber.html">Haber</a>
         <a href="is-ilani.html">İş İlanı</a>
       </div>
       <div class="footer-col">
         <h4>Topluluk</h4>
         <a href="mimar.html">Mimar</a>
-        <a href="ofis.html">Marka</a>
+        <a href="firma.html">Firma</a>
         <a href="giris-yap.html">Giriş Yap</a>
         <a href="uye-ol.html">Üye Ol</a>
       </div>
@@ -555,7 +517,7 @@
         <a href="kariyer.html">Kariyer</a>
       </div>
     </div>
-    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya markaya aittir.</div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 <script src="data.js"></script>
 <script src="projeler-data.js"></script>
@@ -653,7 +615,7 @@ const o = found || offices[0];
 
 document.title = o.name + " — MİMARLAB";
 {
-  const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da ofis profilini incele.`;
+  const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
   const canonicalUrl = `https://mimarlab.com/markalar/${encodeURIComponent(slugify(o.name))}`;
   const logo = logoUrl(o);
   const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
@@ -671,13 +633,6 @@ document.getElementById('bc-name').textContent = o.name;
 document.getElementById('profile-name-text').textContent = o.name;
 renderOfficeFields(o);
 
-function officeKey(office){
-  return office.submissionId ? 'm-' + office.submissionId : slugify(office.name);
-}
-const ratingWidgetEl = document.getElementById('rating-widget');
-ratingWidgetEl.dataset.key = officeKey(o);
-mountRatingWidget(ratingWidgetEl);
-
 renderFoundersGrid(o);
 
 // İlgili projeler: projeler-data.js kayıtlarındaki designer listesi ofisin adıyla birebir eşleşiyorsa
@@ -687,7 +642,7 @@ if(relatedProjects.length > 0){
   document.getElementById('related-projects-section').style.display = '';
   document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
     <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      <img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">
+      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`).join('');
 }
@@ -773,7 +728,7 @@ async function loadClaimCard(){
 
   if(!currentUser){
     if(alreadyClaimed){ card.style.display = 'none'; return; }
-    body.innerHTML = `<h5>Ofisini mi yönetiyorsun?</h5><p>Bilgilerini güncellemek, istenmeyen yorumları yönetmek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
+    body.innerHTML = `<h5>Firmanı mı yönetiyorsun?</h5><p>Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
     return;
   }
   try{
@@ -782,15 +737,14 @@ async function loadClaimCard(){
     if(data.status === 'approved'){
       isProfileOwner = true;
       card.style.display = 'none';
-      loadComments();
     } else if(data.status === 'pending'){
-      body.innerHTML = `<h5>Talebin inceleniyor</h5><p>"Bu ofis bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.</p>`;
+      body.innerHTML = `<h5>Talebin inceleniyor</h5><p>"Bu firma bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.</p>`;
     } else if(alreadyClaimed){
       card.style.display = 'none';
     } else {
-      body.innerHTML = `<h5>Ofisini mi yönetiyorsun?</h5>
-        <textarea id="claim-note" placeholder="Bu ofisin sana ait olduğunu doğrulamamıza yardımcı olacak bir not ekle (opsiyonel) — ör. ofisin resmi e-posta adresi, LinkedIn/Instagram hesabın, ofisteki pozisyonun." style="width:100%; min-height:64px; margin-top:10px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;"></textarea>
-        <button type="button" class="btn-outline" id="claim-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Bu ofis bana ait</button>`;
+      body.innerHTML = `<h5>Firmanı mı yönetiyorsun?</h5>
+        <textarea id="claim-note" placeholder="Bu firmanın sana ait olduğunu doğrulamamıza yardımcı olacak bir not ekle (opsiyonel) — ör. firmanın resmi e-posta adresi, LinkedIn/Instagram hesabın, firmadaki pozisyonun." style="width:100%; min-height:64px; margin-top:10px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;"></textarea>
+        <button type="button" class="btn-outline" id="claim-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Bu firma bana ait</button>`;
       document.getElementById('claim-btn').addEventListener('click', async (e)=>{
         e.target.disabled = true; e.target.textContent = 'Gönderiliyor…';
         const note = document.getElementById('claim-note').value;
@@ -802,68 +756,6 @@ async function loadClaimCard(){
       });
     }
   }catch{}
-}
-
-async function loadComments(){
-  const res = await fetch(`/api/comments?targetType=${PROFILE_TYPE}&targetId=${encodeURIComponent(currentOffice.name)}`);
-  const data = res.ok ? await res.json() : { items: [] };
-  const items = data.items || [];
-  document.getElementById('comments-count').textContent = items.length;
-  const list = document.getElementById('comments-list');
-  if(!items.length){
-    list.innerHTML = '<div class="comments-empty">Henüz yorum yok. İlk yorumu sen yaz.</div>';
-    return;
-  }
-  list.innerHTML = items.map(c => {
-    const canDelete = currentUser && (currentUser.id === c.user_id || isProfileOwner);
-    return `
-    <div class="comment-row">
-      <div class="comment-avatar">${escapeHtml((c.user_name||'').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase())}</div>
-      <div style="flex:1;">
-        <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong>${badgeIconHtml(c.user_badge, 14)}<span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' })}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${c.id}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
-        <p class="comment-body-text">${escapeHtml(c.body)}</p>
-      </div>
-    </div>`;
-  }).join('');
-  list.querySelectorAll('.comment-delete-btn').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      if(!confirm('Bu yorumu silmek istediğine emin misin?')) return;
-      btn.disabled = true;
-      try{
-        const res = await fetch(`/api/comments/${btn.dataset.id}`, { method:'DELETE' });
-        if(res.ok) loadComments();
-      } finally { btn.disabled = false; }
-    });
-  });
-}
-
-function renderCommentForm(){
-  const wrap = document.getElementById('comment-form-wrap');
-  if(!currentUser){
-    wrap.innerHTML = `<div class="comment-login-note">Yorum yapmak için <a href="giris-yap.html">giriş yap</a>.</div>`;
-    return;
-  }
-  wrap.innerHTML = `
-    <div class="comment-form">
-      <textarea id="comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
-      <div class="comment-form-actions">
-        <button class="comment-submit-btn" id="comment-submit-btn" type="button">Yorum Yap</button>
-      </div>
-    </div>`;
-  const submitBtn = document.getElementById('comment-submit-btn');
-  submitBtn.addEventListener('click', async ()=>{
-    const input = document.getElementById('comment-input');
-    const body = input.value.trim();
-    if(!body) return;
-    submitBtn.disabled = true;
-    try{
-      const res = await fetch('/api/comments', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ targetType: PROFILE_TYPE, targetId: currentOffice.name, body }),
-      });
-      if(res.ok){ input.value = ''; loadComments(); }
-    } finally { submitBtn.disabled = false; }
-  });
 }
 
 // Ürünler: bu markayı (ya da markayı yöneten kişinin hesabını) sahiplenip onayı geçmiş
@@ -887,12 +779,12 @@ function productCardHtml(p){
 
 function materialCardHtml(m){
   if(m.image){
-    return `<a class="home-card" href="malzeme.html">
+    return `<a class="home-card" href="urun.html">
       <img src="${escapeAttr(m.image)}" alt="${escapeAttr(m.title)}" loading="lazy">
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml(m.category || '')}</div><div class="home-card-title">${escapeHtml(m.title)}</div></div>
     </a>`;
   }
-  return `<a class="home-card" href="malzeme.html">
+  return `<a class="home-card" href="urun.html">
     <div class="home-card-info" style="position:static; background:none; padding:16px;">
       <div class="home-card-cat" style="color:var(--sage);">${escapeHtml(m.category || '')}</div>
       <div class="home-card-title" style="color:var(--ink);">${escapeHtml(m.title)}</div>
@@ -995,8 +887,6 @@ async function initProfileExtras(){
   await loadClaimCard();
   renderProfileEditButton();
   loadCorrectionCard();
-  renderCommentForm();
-  if(!isProfileOwner) loadComments();
 }
 
 const foundOffice = renderOfficeDetail();
