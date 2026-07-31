@@ -543,12 +543,33 @@ document.addEventListener('click', (e)=>{
   }
 });
 
-// Proje slider'ı elle küratörlenmiş sabit örnekler yerine her zaman son yayınlanan 5 projeyi
-// gösterir: onaylı üye gönderileri (created_at'e göre en yeniden eskiye sıralı gelir) + eksik
-// kalan slotlar statik projeler-data.js kayıtlarıyla, dizinin sonundan başlayarak (proje.html'in
-// varsayılan sıralamasıyla aynı "en son eklenen en sonda" kuralı) doldurulur.
-function latestFive(dynamicItems, staticItemsInOriginalOrder){
-  return [...dynamicItems, ...staticItemsInOriginalOrder.slice().reverse()].slice(0, 5);
+// Proje slider'ı, Projeler sayfasıyla (proje.html) BİREBİR AYNI "son yayınlanan" sıralamasını
+// kullanır: onaylı üye gönderileri statik projeler-data.js dizisine eşit aralıklarla serpiştirilir
+// (bkz. proje.html'deki aynı interleave algoritması), sonra dizi ters çevrilir ("en son eklenen ilk").
+// Tepedeki 3 sırayı atlayıp 4.-8. projeleri gösteriyoruz (bkz. kullanıcı isteği) — aksi halde, toplu
+// eklenen çok sayıda gönderi (ör. Mimar Sinan'ın 17 eseri) hep en tepede kümelenip carousel'i
+// tek bir mimara kilitlerdi.
+function latestPublishedOrder(memberItems, staticItemsInOriginalOrder){
+  const merged = [];
+  if(memberItems.length){
+    const step = (staticItemsInOriginalOrder.length + memberItems.length) / memberItems.length;
+    let memberIdx = 0, nextInsertAt = step;
+    for(let i = 0; i < staticItemsInOriginalOrder.length; i++){
+      merged.push(staticItemsInOriginalOrder[i]);
+      while(memberIdx < memberItems.length && merged.length >= Math.round(nextInsertAt)){
+        merged.push(memberItems[memberIdx++]);
+        nextInsertAt += step;
+      }
+    }
+    while(memberIdx < memberItems.length) merged.push(memberItems[memberIdx++]);
+  } else {
+    merged.push(...staticItemsInOriginalOrder);
+  }
+  return merged.reverse();
+}
+
+function carouselSlides(dynamicItems, staticItemsInOriginalOrder){
+  return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(3, 8);
 }
 
 function projectSlideHtml(p, i){
@@ -596,10 +617,10 @@ const sliderEl = document.getElementById('proje-slider');
 sliderEl.addEventListener('mouseenter', ()=> clearInterval(sliderTimer));
 sliderEl.addEventListener('mouseleave', restartAutoplay);
 
-renderSlider(latestFive([], projects));
+renderSlider(carouselSlides([], projects));
 
 fetch('/api/public/projects').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})).then(projRes=>{
-  renderSlider(latestFive(projRes.items || [], projects));
+  renderSlider(carouselSlides(projRes.items || [], projects));
 });
 </script>
 
