@@ -76,7 +76,9 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   description TEXT,
   images TEXT,
   brands TEXT,
-  claimed_slug TEXT
+  claimed_slug TEXT,
+  source_url TEXT, -- AI ile otomatik ekleme akışının çıkarım yaptığı kaynak sayfa (bkz. src/routes/ai.js)
+  ai_generated INTEGER NOT NULL DEFAULT 0 -- moderasyonda görünür bir işaret; manuel gönderimlerde 0/NULL
 );
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_project_status ON project_submissions(status);
@@ -93,7 +95,9 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   website TEXT,
   category TEXT,
   description TEXT,
-  images TEXT
+  images TEXT,
+  source_url TEXT,
+  ai_generated INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status ON product_submissions(status);
@@ -112,7 +116,9 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   website TEXT,
   category TEXT,
   description TEXT,
-  images TEXT
+  images TEXT,
+  source_url TEXT,
+  ai_generated INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_material_status ON material_submissions(status);
