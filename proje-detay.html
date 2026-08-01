@@ -555,6 +555,21 @@ if(!slug){
 }
 let p = projectBySlug(slug);
 
+// Statik projeler-data.js dizisinde yoksa: claimed_slug'sız (statik hiçbir kaydı düzenlemeyen,
+// tamamen yeni) bir üye gönderisi olabilir — proje.html/index.html bu tür onaylı projeleri
+// /api/public/projects'ten çekip statik listeye serpiştiriyor ve /projeler/:slug'a bağlıyor, ama
+// burada statik arama boşa çıkınca hep "bulunamadı" gösteriliyordu (bkz. kullanıcı isteği:
+// "kırık dosyaları kontrol et" — onaylanan üye projeleri kendi detay sayfalarında 404 veriyordu).
+if(!p){
+  try{
+    const membersRes = await fetch('/api/public/projects');
+    if(membersRes.ok){
+      const membersData = await membersRes.json();
+      p = (membersData.items || []).find(it => it.slug === slug) || null;
+    }
+  }catch{}
+}
+
 // Admin bu projeyi admin panelinden gizlemiş olabilir (bkz. src/routes/legacyContent.js,
 // GET /api/public/hidden) — statik veride kayıt bulunsa bile gizliyse "bulunamadı" davranışına düşer.
 if(p){

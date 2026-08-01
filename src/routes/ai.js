@@ -101,6 +101,8 @@ const PROJECT_SYSTEM_PROMPT = `Sen MİMARLAB adlı bir mimarlık/tasarım portal
 KURALLAR:
 - SADECE sana "SAYFA İÇERİĞİ" olarak verilen metinde açıkça yazan bilgiyi kullan. Hiçbir alanı tahminle, genel dünya bilginle ya da "muhtemelen böyledir" diyerek doldurma.
 - Emin olmadığın ya da sayfada bulunmayan her alanı null/boş bırak — asla uydurma.
+- Sana ayrıca "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir; başlık/açıklama için bunlarla SAYFA İÇERİĞİ çelişirse yapısal veriyi tercih et.
+- date_text İÇİN DİKKATLİ OL: sayfanın/makalenin YAYIN tarihi (ör. "Yayın: Mart 2021" gibi bir bülten/haber tarihi) ile PROJENİN tamamlanma/inşa tarihi FARKLI şeylerdir — yalnızca projenin kendisiyle ilgili açıkça belirtilen tarihi kullan, makalenin ne zaman yazıldığını asla date_text'e koyma.
 - Görsel seçerken YALNIZCA sana verilen "GÖRSEL ADAYLARI" listesindeki index numaralarını kullan; asla yeni bir görsel URL'i üretme. Logo, ikon, reklam banner'ı, yazar/muhabir fotoğrafı gibi projeyle ilgisiz görselleri seçme.
 - ${INJECTION_GUARD}
 - Sayfa açıkça bir mimari/tasarım projesini anlatmıyorsa (haber sitesi ana sayfası, ürün reklamı, alakasız içerik vb.) found:false yap ve reason alanına Türkçe kısa bir açıklama yaz; bu durumda diğer tüm alanları null/boş bırak.`;
@@ -110,13 +112,23 @@ const URUN_SYSTEM_PROMPT = `Sen MİMARLAB adlı bir mimarlık/tasarım portalı 
 KURALLAR:
 - SADECE sana "SAYFA İÇERİĞİ" olarak verilen metinde açıkça yazan bilgiyi kullan. Hiçbir alanı tahminle, genel dünya bilginle ya da "muhtemelen böyledir" diyerek doldurma.
 - Emin olmadığın ya da sayfada bulunmayan her alanı null/boş bırak — asla uydurma.
+- Sana ayrıca "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir; başlık/açıklama için bunlarla SAYFA İÇERİĞİ çelişirse yapısal veriyi tercih et.
 - Görsel seçerken YALNIZCA sana verilen "GÖRSEL ADAYLARI" listesindeki index numaralarını kullan; asla yeni bir görsel URL'i üretme. Logo, ikon, reklam banner'ı gibi ürünle ilgisiz görselleri seçme.
 - ${INJECTION_GUARD}
 - Sayfa açıkça belirli bir ürünü/yapı malzemesini anlatmıyorsa (kategori/liste sayfası, haber, alakasız içerik vb.) found:false yap ve reason alanına Türkçe kısa bir açıklama yaz; bu durumda diğer tüm alanları null/boş bırak.`;
 
 function buildUserText(finalUrl, pageContent) {
   const imagesList = pageContent.images.map((u, i) => `${i}: ${u}`).join('\n') || '(görsel bulunamadı)';
-  return `KAYNAK URL: ${finalUrl}\n\nSAYFA BAŞLIĞI: ${pageContent.title || '(yok)'}\nMETA AÇIKLAMA: ${pageContent.metaDescription || '(yok)'}\n\nSAYFA İÇERİĞİ:\n${pageContent.text || '(boş)'}\n\nGÖRSEL ADAYLARI:\n${imagesList}`;
+  // og:title ve JSON-LD (structuredName/structuredDescription), sitenin KENDİ yapısal verisinden
+  // gelir ve genelde <title>/gövde metninden çıkarılan serbest metinden daha temiz ve güvenilirdir
+  // (bkz. src/lib/htmlExtract.js#parseJsonLd) — SAYFA BAŞLIĞI'nın yanına, üzerine yazmadan, ayrı
+  // bir sinyal olarak eklenir; model hangisinin daha doğru olduğuna kendisi karar verir.
+  const structuredLines = [];
+  if (pageContent.ogTitle && pageContent.ogTitle !== pageContent.title) structuredLines.push(`OG:TITLE: ${pageContent.ogTitle}`);
+  if (pageContent.structuredName) structuredLines.push(`YAPISAL VERİ (JSON-LD) BAŞLIK: ${pageContent.structuredName}`);
+  if (pageContent.structuredDescription) structuredLines.push(`YAPISAL VERİ (JSON-LD) AÇIKLAMA: ${pageContent.structuredDescription}`);
+  const structuredBlock = structuredLines.length ? `\n${structuredLines.join('\n')}\n` : '';
+  return `KAYNAK URL: ${finalUrl}\n\nSAYFA BAŞLIĞI: ${pageContent.title || '(yok)'}\nMETA AÇIKLAMA: ${pageContent.metaDescription || '(yok)'}\n${structuredBlock}\nSAYFA İÇERİĞİ:\n${pageContent.text || '(boş)'}\n\nGÖRSEL ADAYLARI:\n${imagesList}`;
 }
 
 // ---------- POST /api/ai/extract ----------
@@ -182,7 +194,15 @@ async function handleExtract(request, env, user) {
   const filteredText = stripInjectionAttempts(pageContent.text);
   const filteredTitle = stripInjectionAttempts(pageContent.title);
   const filteredDescription = stripInjectionAttempts(pageContent.metaDescription);
-  if (filteredText.hits || filteredTitle.hits || filteredDescription.hits) {
+  // og:title/JSON-LD alanları da sitenin kendi (dolayısıyla kullanıcı-kontrollü olmayan bir kaynak
+  // gibi görünse de aslında sayfa sahibinin yazdığı, dolayısıyla aynı derecede güvenilmez) işaretlemesi
+  // olduğundan yukarıdakiyle AYNI filtreden geçirilmeden modele verilmez — aksi halde saldırgan
+  // düz metin yerine JSON-LD'ye talimat gizleyerek bu ek savunma katmanını atlayabilirdi.
+  const filteredOgTitle = stripInjectionAttempts(pageContent.ogTitle);
+  const filteredStructuredName = stripInjectionAttempts(pageContent.structuredName);
+  const filteredStructuredDescription = stripInjectionAttempts(pageContent.structuredDescription);
+  if (filteredText.hits || filteredTitle.hits || filteredDescription.hits ||
+      filteredOgTitle.hits || filteredStructuredName.hits || filteredStructuredDescription.hits) {
     console.warn('ai-extract: talimat benzeri içerik tespit edilip kaldırıldı:', finalUrl);
   }
   const userText = buildUserText(finalUrl, {
@@ -190,6 +210,9 @@ async function handleExtract(request, env, user) {
     text: filteredText.text,
     title: filteredTitle.text,
     metaDescription: filteredDescription.text,
+    ogTitle: filteredOgTitle.text,
+    structuredName: filteredStructuredName.text,
+    structuredDescription: filteredStructuredDescription.text,
   });
 
   // Açık ağırlıklı Workers AI modeli şemaya Anthropic'in Structured Outputs'u kadar güvenilir
@@ -299,17 +322,22 @@ function sanitizeExtraction(kind, raw, imageCandidateCount) {
   };
 }
 
+// AI sağlayıcısı hiç yanıt veremediğinde (kota/hata) kullanılan "katman-1" (AI'sız) doldurma —
+// structuredName/ogTitle sitenin kendi yapısal verisinden geldiği için çoğunlukla ham <title>'dan
+// (genelde " | Site Adı" gibi eklerle kirlenir) daha temizdir, bu yüzden öncelik sırası budur.
 function baselineData(kind, pageContent) {
+  const bestTitle = pageContent.structuredName || pageContent.ogTitle || pageContent.title || null;
+  const bestDescription = pageContent.structuredDescription || pageContent.metaDescription || null;
   if (kind === 'project') {
     return {
-      title: pageContent.title || null, location_text: null, date_text: null, category: [],
+      title: bestTitle, location_text: null, date_text: null, category: [],
       type_text: null, designer_names: [], office_names: [],
-      description: pageContent.metaDescription || null, photo_credit_text: null, photo_credit_url: null,
+      description: bestDescription, photo_credit_text: null, photo_credit_url: null,
     };
   }
   return {
-    title: pageContent.title || null, brand: null, website: null, category: null,
-    description: pageContent.metaDescription || null,
+    title: bestTitle, brand: null, website: null, category: null,
+    description: bestDescription,
   };
 }
 

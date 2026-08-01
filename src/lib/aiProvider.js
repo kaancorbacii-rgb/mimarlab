@@ -49,6 +49,11 @@ export async function callOnce(env, { system, userText, schema, model, maxTokens
       ],
       response_format: { type: 'json_schema', json_schema: schema },
       max_tokens: maxTokens,
+      // Bu bir yaratıcı yazım değil, yapılandırılmış veri çıkarımı görevi — düşük sıcaklık, modelin
+      // sayfada açıkça yazmayan alanları "yaratıcı" biçimde doldurma (uydurma) eğilimini azaltır ve
+      // aynı sayfa için tekrarlanabilir/tutarlı sonuçlar verir (bkz. kullanıcı isteği: "daha doğru
+      // bilgi tespiti yapsın").
+      temperature: 0.2,
     });
   } catch (err) {
     if (isQuotaError(err)) throw new AiProviderError('quota_exceeded', { quotaExceeded: true });
