@@ -575,10 +575,16 @@ if(!p){
   // public.js#handlePublicProjectEdits, proje-ekle.html?claim=), render'dan önce üzerine bindirir
   // — mimar-detay.html/ofis-detay.html'deki applyProfileEdits() ile aynı fikir; oradan farklı olarak
   // burada render tek seferde (baştan) yapıldığından ayrı bir "sonradan güncelle" adımına gerek yok.
+  // `edits` fonksiyon kapsamında (try bloğunun dışında) tutulur çünkü yalnızca `p` için değil,
+  // aşağıdaki "Ofisin/Mimarın Diğer Projeleri"/"İlgili Projeler" kartlarında gösterilen DİĞER
+  // projelerin kapak görseli için de kullanılır (bkz. kullanıcı isteği: admin başka bir projenin
+  // kapağını değiştirdiğinde bu kartlarda da güncel görünsün) — API zaten tüm claimed_slug'lı
+  // düzenlemeleri tek seferde döndürüyor, proje başına ayrı istek atmaya gerek yok.
+  let edits = {};
   try{
     const editsRes = await fetch('/api/public/project-edits');
     if(editsRes.ok){
-      const edits = await editsRes.json();
+      edits = await editsRes.json();
       if(edits[p.slug]) p = { ...p, ...edits[p.slug] };
     }
   }catch{}
@@ -835,13 +841,22 @@ if(!p){
     else if(e.key === 'ArrowRight') showLightboxImage(lightboxIndex + 1);
   });
 
+  // Kart kapak görseli: statik projeler[] değil, varsa admin'in bu DİĞER proje için onayladığı
+  // düzenlemedeki (edits[slug].images) kapak kullanılır — aksi halde admin panelinden değiştirilen
+  // bir kapak burada (İlgili Projeler/Diğer Projeler kartlarında) eski haliyle takılı kalırdı.
+  function relatedCardImage(r){
+    const editedImages = edits[r.slug] && edits[r.slug].images;
+    const images = (editedImages && editedImages.length) ? editedImages : r.images;
+    return images && images[0];
+  }
+
   // Ofisin/mimarın diğer projeleri: en az bir tasarımcı ismi birebir örtüşüyorsa (aynı ofis/mimar)
   const sameDesigner = projects.filter(o => o.slug !== p.slug && o.designer.some(d => p.designer.includes(d)));
   if(sameDesigner.length){
     document.getElementById('same-designer-section').style.display = 'block';
     document.getElementById('same-designer-grid').innerHTML = sameDesigner.map(r => `
       <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
-        ${r.images && r.images[0] ? `<img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
+        ${relatedCardImage(r) ? `<img src="${escapeAttr(relatedCardImage(r))}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
   }
@@ -870,7 +885,7 @@ if(!p){
     document.getElementById('related-section').style.display = 'block';
     document.getElementById('related-grid').innerHTML = related.map(r => `
       <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
-        ${r.images && r.images[0] ? `<img src="${escapeAttr(r.images[0])}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
+        ${relatedCardImage(r) ? `<img src="${escapeAttr(relatedCardImage(r))}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
   }
