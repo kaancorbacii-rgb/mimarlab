@@ -1448,7 +1448,7 @@ const architects = [
   {name:"Ayhan Usta", role:"Kurucu Ortak", office:"Modern Mimarlar", photo:"mimarlar-thumb/arkiv/ayhan-usta.jpg"},
   {name:"Ali Kemal Şeremet", role:"Kurucu Ortak", office:"Modern Mimarlar", photo:"mimarlar-thumb/arkiv/ali-kemal-seremet.jpg"},
   {name:"Durmuş Dilekci", role:"Kurucu", office:"Dilekci Mimarlık (DDA)", photo:"mimarlar-thumb/arkiv/durmus-dilekci.jpg"},
-  {name:"Deniz Manisalı Leba", role:"Kurucu", office:"Deniz Manisalı Leba Mimarlık"},
+  {name:"Deniz Manisalı Leba", role:"Kurucu", office:"Deniz Manisalı Leba Mimarlık", photo:"mimarlar-thumb/deniz-manisali-leba-mimarlab.jpg"},
   {name:"Görkem Volkan", role:"Kurucu", office:"Görkem Volkan Design Studio (GVDS)", photo:"mimarlar-thumb/arkiv/gorkem-volkan.jpg"},
   {name:"Engin Ayaz", role:"Kurucu", office:"ATÖLYE", photo:"mimarlar-thumb/arkiv/engin-ayaz.jpg"},
   {name:"Emre Engin", role:"Kurucu", office:"Crid Architects", photo:"mimarlar-thumb/arkiv/emre-engin.jpg"},
