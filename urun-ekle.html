@@ -109,6 +109,8 @@
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
+  .ai-analyze-btn{background:var(--ink); color:var(--paper-card); border:none; border-radius:10px; padding:0 18px; height:42px; font-weight:600; font-size:13px;}
+  .ai-analyze-btn:hover{background:var(--walnut);}
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
   .form-notice.show{display:block;}
 
@@ -214,6 +216,17 @@
 
   <div class="form-wrap" id="form-wrap">
     <form id="urun-ekle-form">
+      <div class="form-section" id="ai-panel" style="display:none;">
+        <h2>Yapay Zeka ile Otomatik Doldur</h2>
+        <p class="section-hint">Ürünün yayında olduğu sayfanın linkini yapıştır, bilgileri senin için dolduralım. Aşağıdaki alanların hepsi düzenlenebilir — göndermeden önce kontrol et.</p>
+        <div class="form-field">
+          <label for="ai-url-input">Kaynak Bağlantı</label>
+          <input type="url" id="ai-url-input" placeholder="https://ornek-marka.com/urun-sayfasi">
+        </div>
+        <button type="button" class="ai-analyze-btn" id="ai-analyze-btn">Analiz Et</button>
+        <div id="ai-status" class="form-hint" style="display:none; margin-top:12px;"></div>
+      </div>
+
       <div class="form-section">
         <h2>Ürün Bilgileri</h2>
         <div class="form-field">
@@ -263,6 +276,13 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
+      <div class="form-field" id="ai-consent-field" style="display:none;">
+        <label class="check-pill" style="width:100%; box-sizing:border-box;">
+          <input type="checkbox" id="ai-consent-checkbox">
+          Bu içeriğin hak sahibiyim veya yayınlama iznine sahibim.
+        </label>
+      </div>
+
       <button class="form-submit" type="submit">Ürünü Gönder</button>
       <div class="form-notice" id="form-notice"></div>
     </form>
@@ -298,6 +318,11 @@ const editId = new URLSearchParams(window.location.search).get('edit');
 // editSubmissionBtnHtml/applyEditButtons). Yeni gönderilerde bu değer, seçilen Grup'a göre
 // CATALOG_GROUP_KIND'dan yeniden hesaplanır (bkz. submit handler).
 const editTypeParam = new URLSearchParams(window.location.search).get('stype');
+// ?ai=1: urun.html'deki seçim modalından "Yapay Zeka ile Otomatik Ekle" seçilince buraya düşülür
+// (bkz. add-choice.js). editId ile aynı anda anlamlı değildir; edit varsa AI paneli gösterilmez.
+const aiMode = new URLSearchParams(window.location.search).get('ai') === '1';
+let aiSourceUrl = null; // gönderimde source_url olarak payload'a eklenir
+let aiGenerated = false; // gönderimde ai_generated:1 olarak payload'a eklenir + onay kutusunu zorunlu kılar
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -402,6 +427,84 @@ async function prefillForEdit(){
 }
 prefillForEdit();
 
+// ---------- AI ile Otomatik Doldur (?ai=1, bkz. add-choice.js) ----------
+// AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit) ile AYNI alanları AYNI fonksiyonlarla
+// (taxonomyGroupOf/populateCategoryOptions, renderPreviews) doldurur — tek fark veri kaynağının bir
+// gönderi kaydı değil, /api/ai/extract'in dönüşü olması.
+function applyAiResult(data){
+  document.getElementById('u-title').value = data.title || '';
+  document.getElementById('u-brand').value = data.brand || '';
+  document.getElementById('u-website').value = data.website || '';
+  document.getElementById('u-desc').value = data.description || '';
+  if(data.category){
+    const group = taxonomyGroupOf(CATALOG_TAXONOMY, data.category);
+    if(group){
+      groupSelect.value = group;
+      populateCategoryOptions(group);
+      categorySelect.value = data.category;
+    }
+  }
+}
+
+function wireAiPanel(){
+  if(!aiMode || editId) return; // düzenleme akışıyla asla aynı anda değil
+  document.getElementById('ai-panel').style.display = 'block';
+  const urlInput = document.getElementById('ai-url-input');
+  const analyzeBtn = document.getElementById('ai-analyze-btn');
+  const statusEl = document.getElementById('ai-status');
+  const notice = document.getElementById('form-notice');
+
+  async function analyze(){
+    const url = urlInput.value.trim();
+    if(!url){ urlInput.focus(); return; }
+    analyzeBtn.disabled = true;
+    urlInput.disabled = true;
+    notice.classList.remove('show');
+    statusEl.textContent = 'Sayfa alınıyor ve analiz ediliyor… (biraz sürebilir)';
+    statusEl.style.display = 'block';
+    try{
+      const res = await fetch('/api/ai/extract', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ url, kind: 'urun' }),
+      });
+      if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok){
+        notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
+        notice.classList.add('show');
+        return;
+      }
+      if(!data.found){
+        notice.textContent = data.reason || 'Bu sayfada bir ürün bulamadık — formu kendin doldurabilirsin.';
+        notice.classList.add('show');
+        return;
+      }
+      applyAiResult(data.data);
+      existingImages = (data.images || []).map(im => im.url);
+      renderPreviews();
+      aiSourceUrl = data.sourceUrl;
+      aiGenerated = true;
+      document.getElementById('ai-consent-field').style.display = 'block';
+      if(data.aiFailed){
+        notice.textContent = data.message || 'Yapay zeka şu anda analiz edemedi; bulabildiğimiz temel bilgilerle formu doldurduk.';
+        notice.classList.add('show');
+      }
+      document.getElementById('u-title').scrollIntoView({behavior:'smooth', block:'center'});
+    }catch{
+      notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+      notice.classList.add('show');
+    }finally{
+      statusEl.style.display = 'none';
+      analyzeBtn.disabled = false;
+      urlInput.disabled = false;
+    }
+  }
+  analyzeBtn.addEventListener('click', analyze);
+  urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); analyze(); } });
+}
+wireAiPanel();
+
 async function uploadFiles(files){
   const urls = [];
   for(const file of files){
@@ -415,16 +518,47 @@ async function uploadFiles(files){
   return urls;
 }
 
+// AI akışında existingImages'daki url'ler henüz bizim değil, dış bir sitenin adresi olabilir
+// (tarayıcı CORS nedeniyle bunları kendi indiremez) — http(s) ile başlayanlar burada toplanıp
+// SUNUCU tarafında /api/ai/copy-images ile R2'ye kopyalanır; zaten /media/ olanlar aynen geçer.
+async function resolveExistingImages(urls){
+  const externalUrls = urls.filter(u => /^https?:\/\//i.test(u));
+  if(!externalUrls.length) return urls.slice();
+  const res = await fetch('/api/ai/copy-images', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ images: externalUrls }),
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || 'Görseller kopyalanamadı.');
+  const byUrl = new Map((data.items || []).map(it => [it.url, it]));
+  // Kopyalanamayan (ör. kaynak site erişime kapattı) görseli sessizce listeden düşür.
+  return urls.map(u => {
+    if(!/^https?:\/\//i.test(u)) return u;
+    const result = byUrl.get(u);
+    return result && result.mediaUrl ? result.mediaUrl : null;
+  }).filter(Boolean);
+}
+
 document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('form-notice');
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
+  if(aiGenerated && !document.getElementById('ai-consent-checkbox').checked){
+    notice.textContent = 'Devam etmek için içeriğin hak sahibi olduğunu ya da yayınlama iznine sahip olduğunu onaylamalısın.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
   submitBtn.disabled = true;
   let uploadedImages = [];
+  let resolvedExisting = [];
   try{
     if(selectedFiles.length) uploadedImages = await uploadFiles(selectedFiles);
+    resolvedExisting = await resolveExistingImages(existingImages);
   }catch(err){
     notice.textContent = err.message || 'Görsel yüklenemedi, tekrar dene.';
     notice.classList.add('show');
@@ -439,8 +573,9 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     website: document.getElementById('u-website').value || null,
     category: categorySelect.value,
     description: document.getElementById('u-desc').value,
-    images: [...existingImages, ...uploadedImages],
+    images: [...resolvedExisting, ...uploadedImages],
   };
+  if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
 
   // Seçilen Grup'un ait olduğu tür (bkz. catalog-taxonomy.js#CATALOG_GROUP_KIND) hangi API'ye
   // gönderileceğini belirler — Ürün ve Malzeme tek formda birleştiği için (bkz. kullanıcı isteği).
