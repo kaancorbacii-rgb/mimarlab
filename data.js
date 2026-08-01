@@ -691,7 +691,7 @@ const architects = [
   {name:"Seyhan Özdemir Sarper", role:"Kurucu Ortak", office:"Autoban", photo:"mimarlar-thumb/seyhan-ozdemir-mimarlab.webp", dob:1975, school:"MSGSÜ", dept:"Mimarlık"},
   {name:"Sefer Çağlar", role:"Kurucu Ortak", office:"Autoban", photo:"mimarlar-thumb/seher-caglar-mimarlab.webp", dob:1973, school:"MSGSÜ", dept:"İç Mimarlık"},
   {name:"Kaya Kızılkaya", role:"Kurucu", office:"Supernova Peyzaj Mimarlığı ve Kentsel Tasarım", photo:"mimarlar-thumb/arkiv/kaya-kizilkaya.jpg", dob:1983, school:"İTÜ", dept:"Peyzaj Mimarlığı"},
-  {name:"M. Cemil Aktaş", role:"Kurucu Ortak", office:"caps.", school:"Bartın Üniversitesi", dept:"Peyzaj Mimarlığı"},
+  {name:"M. Cemil Aktaş", role:"Kurucu Ortak", office:"caps.", school:"Bartın Üniversitesi", dept:"Peyzaj Mimarlığı", photo:"mimarlar-thumb/m-cemil-aktas-mimarlab.jpg"},
   {name:"Süveyda Bayraktar Atagür", role:"Kurucu", office:"saa.", school:"İTÜ", dept:"Peyzaj Mimarlığı"},
   {name:"Deniz Aslan", role:"Kurucu Ortak", office:"DS Mimarlık", photo:"mimarlar-thumb/deniz-aslan-mimarlab.webp", dob:1964, school:"İTÜ", dept:"Mimarlık"},
   {name:"Sevim Aslan", role:"Kurucu Ortak", office:"DS Mimarlık", photo:"mimarlar-thumb/sevim-aslan-mimarlab.webp", dob:1965, school:"İTÜ", dept:"Mimarlık"},
@@ -701,7 +701,7 @@ const architects = [
   {name:"Selva Gürdoğan", role:"Kurucu Ortak", office:"Superpool", dob:1979, school:"SCI-Arc", dept:"Mimarlık"},
   {name:"Gregers Tang Thomsen", role:"Kurucu Ortak", office:"Superpool", dob:1974, school:"Aarhus School of Architecture", dept:"Mimarlık"},
   {name:"Bahadır Kul", role:"Kurucu", office:"Bahadır Kul Architects", dob:1979, school:"Erciyes Üniversitesi", dept:"Mimarlık"},
-  {name:"Alper Aytaç", role:"Kurucu", office:"Aytaç Architects", dob:1977, school:"Ohio State University", dept:"Mimarlık"},
+  {name:"Alper Aytaç", role:"Kurucu", office:"Aytaç Architects", photo:"mimarlar-thumb/alper-aytac-mimarlab.jpg", dob:1977, school:"Ohio State University", dept:"Mimarlık"},
   {name:"Kaan Çorbacı", role:"Kurucu", office:"MİMARLAB", photo:"mimarlar-thumb/kaan-corbaci-mimarlab.jpg", dob:1997, school:"YTÜ", dept:"Mimarlık", badges:["gold"]},
   {name:"Nur Urfalıoğlu", role:"Prof. Dr. Öğretim Üyesi", office:"Yıldız Teknik Üniversitesi", photo:"mimarlar-thumb/nur-urfalioglu-mimarlab.jpg", dob:1966, school:"YTÜ", dept:"Mimarlık", status:"Akademisyen"},
   {name:"Sabri Paşayiğit", role:"Kurucu", office:"Sabri Paşayiğit Mimarlık", photo:"mimarlar-thumb/sabri-pasayigit-mimarlab.webp", dob:1977, school:"MSGSÜ", dept:"Mimarlık"},
@@ -728,7 +728,7 @@ const architects = [
   {name:"Ali Çalışkan", role:"Kurucu Ortak", office:"GEOMIM", photo:"mimarlar-thumb/arkiv/ali-caliskan.jpg", school:"Bursa Uludağ Üniversitesi", dept:"Mimarlık"},
   {name:"Sezer Kincal Kılıçer", role:"Kurucu", office:"Sezz Mimarlık", photo:"mimarlar-thumb/arkiv/sezer-kincal-kilicer.jpg", dob:1977, school:"Selçuk Üniversitesi", dept:"Mimarlık"},
   {name:"Göksel Öksüz", role:"Kurucu", office:"Medmim Mimarlık", dob:1975, school:"Trakya Üniversitesi", dept:"Mimarlık"},
-  {name:"Aslı Arıkan Dayıoğlu", role:"Kurucu", office:"Designist", school:"Rhode Island School of Design", dept:"İç Mimarlık"},
+  {name:"Aslı Arıkan Dayıoğlu", role:"Kurucu", office:"Designist", school:"Rhode Island School of Design", dept:"İç Mimarlık", photo:"mimarlar-thumb/asli-arikan-dayioglu-mimarlab.jpg"},
   {name:"Salih Zeki Salalı", role:"Kurucu Ortak", office:"4M Salalı Mimarlık", dob:1963, school:"Gazi Üniversitesi", dept:"Mimarlık"},
   {name:"Doruk Salalı", role:"Kurucu Ortak", office:"4M Salalı Mimarlık", dob:1994, school:"Politecnico di Milano", dept:"Mimarlık"},
   {name:"Aysel Şerbetçi", role:"Kurucu", office:"Şerbetçi Mimarlık", dob:1985, school:"İstanbul Kültür Üniversitesi"},
@@ -1712,7 +1712,13 @@ const GEM_BADGE_SVG = '<path d="M4.5 9 8 3.5h8L19.5 9 12 21.5 4.5 9Z"/><path d="
 function badgeIconHtml(badgeType, size){
   if(!badgeType) return '';
   size = size || 13;
-  return `<span class="verified-badge-icon" data-tip="${escapeAttrGlobal(BADGE_LABELS[badgeType] || badgeType)}" style="color:${BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor">${badgeType === 'platinum' ? GEM_BADGE_SVG : SEAL_BADGE_SVG}</svg></span>`;
+  const isGem = badgeType === 'platinum';
+  // Elmas (platinum) ikonu diğer rozetlere göre daha dar/sivri duruyordu (bkz. kullanıcı isteği:
+  // "elmas rozetini biraz sağa ve sola doğru büyüt") — viewBox kare olduğundan yalnızca width'i
+  // artırıp preserveAspectRatio="none" ile yatayda esnetiyoruz; height (ve dolayısıyla metinle
+  // hizalanan satır yüksekliği) değişmeden kalır.
+  const width = isGem ? Math.round(size * 1.3) : size;
+  return `<span class="verified-badge-icon" data-tip="${escapeAttrGlobal(BADGE_LABELS[badgeType] || badgeType)}" style="color:${BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? GEM_BADGE_SVG : SEAL_BADGE_SVG}</svg></span>`;
 }
 function verifiedBadgeHtml(profileType, profileKey, staticBadges, size){
   const dynamic = (dynamicBadges[profileType] && dynamicBadges[profileType][profileKey]) || [];

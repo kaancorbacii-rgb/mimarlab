@@ -141,6 +141,7 @@
     font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
   }
   .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
   .card-edit-btn{
     display:inline-flex; align-items:center;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
@@ -723,7 +724,7 @@ if(!p){
   if(p.date) metaHtml += `<div><strong>Yıl:</strong> ${p.dateBucket ? filterLinkHtml('dateBucket', p.dateBucket, p.date) : escapeHtml(p.date)}</div>`;
   if(p.photoCredit && p.photoCredit.text){
     const creditUrl = p.photoCredit.url ? safeUrl(p.photoCredit.url) : '';
-    metaHtml += `<div><strong>Fotoğraf:</strong> ${creditUrl ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(p.photoCredit.text)}</a>` : escapeHtml(p.photoCredit.text)}</div>`;
+    metaHtml += `<div><strong>Fotoğrafçı:</strong> ${creditUrl ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(p.photoCredit.text)}</a>` : escapeHtml(p.photoCredit.text)}</div>`;
   }
   document.getElementById('detail-meta').innerHTML = metaHtml;
   document.getElementById('detail-desc').textContent = p.description;
