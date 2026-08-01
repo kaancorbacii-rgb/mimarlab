@@ -292,10 +292,10 @@
       <input type="text" id="f-search-topnav" placeholder="Ara...">
     </div>
     <div class="nav-links">
-      <a class="nav-link" href="mimar.html">Mimar</a>
-      <a class="nav-link" href="firma.html">Firma</a>
       <a class="nav-link active" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="firma.html">Firma</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -308,10 +308,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara...">
       </div>
-      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
-      <a class="nav-mobile-link" href="firma.html">Firma</a>
       <a class="nav-mobile-link active" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="firma.html">Firma</a>
     </div>
   </nav>
 
@@ -346,7 +346,6 @@
 
       <div class="form-section">
         <h2>Temel Bilgiler</h2>
-        <p class="section-hint">Projenin adı, yeri ve tarihi.</p>
         <div class="form-field">
           <label for="p-title">Proje Adı</label>
           <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
@@ -380,42 +379,34 @@
           <label for="p-date">Tarih</label>
           <input type="text" id="p-date" name="date" placeholder="ör. 2025 ya da 2007-2012" required>
         </div>
-      </div>
-
-      <div class="form-section">
-        <h2>Kategori &amp; Tip</h2>
-        <p class="section-hint">Projeyi en iyi tanımlayan kategori ve yapı tipini seç.</p>
-        <div class="form-field">
-          <label>Kategori</label>
-          <div class="dd-field" id="dd-kategori">
-            <button type="button" class="dd-btn" id="dd-kategori-btn">
-              <span id="dd-kategori-btn-label">Kategori seç</span>
-              <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dd-panel">
-              <div class="dd-options">
-                <label class="dd-option"><input type="checkbox" name="category" value="Konut"> Konut</label>
-                <label class="dd-option"><input type="checkbox" name="category" value="Ticari"> Ticari</label>
-                <label class="dd-option"><input type="checkbox" name="category" value="Kültürel"> Kültürel</label>
-                <label class="dd-option"><input type="checkbox" name="category" value="Dini"> Dini</label>
-                <label class="dd-option"><input type="checkbox" name="category" value="Eğitim"> Eğitim</label>
-                <label class="dd-option"><input type="checkbox" name="category" value="Kamu"> Kamu</label>
-                <label class="dd-option"><input type="checkbox" name="category" value="Altyapı"> Altyapı</label>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Kategori</label>
+            <div class="dd-field" id="dd-kategori">
+              <button type="button" class="dd-btn" id="dd-kategori-btn">
+                <span id="dd-kategori-btn-label">Kategori seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <div class="dd-options">
+                  <label class="dd-option"><input type="checkbox" name="category" value="Konut"> Konut</label>
+                  <label class="dd-option"><input type="checkbox" name="category" value="Ticari"> Ticari</label>
+                  <label class="dd-option"><input type="checkbox" name="category" value="Kültürel"> Kültürel</label>
+                  <label class="dd-option"><input type="checkbox" name="category" value="Dini"> Dini</label>
+                  <label class="dd-option"><input type="checkbox" name="category" value="Eğitim"> Eğitim</label>
+                  <label class="dd-option"><input type="checkbox" name="category" value="Kamu"> Kamu</label>
+                  <label class="dd-option"><input type="checkbox" name="category" value="Altyapı"> Altyapı</label>
+                </div>
               </div>
             </div>
           </div>
+          <div class="form-field ac-field" id="ac-type-field">
+            <label for="p-type">Tip</label>
+            <input type="text" id="p-type" name="type" placeholder="ör. Ofis, Kültür Merkezi" autocomplete="off">
+            <div class="ac-suggestions" id="ac-type-suggestions"></div>
+            <div class="form-hint">Birden fazla tip gireceksen virgülle ayır.</div>
+          </div>
         </div>
-        <div class="form-field ac-field" id="ac-type-field">
-          <label for="p-type">Tip</label>
-          <input type="text" id="p-type" name="type" placeholder="ör. Ofis, Kültür Merkezi" autocomplete="off">
-          <div class="ac-suggestions" id="ac-type-suggestions"></div>
-          <div class="form-hint">Birden fazla tip gireceksen virgülle ayır.</div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <h2>Mimar / Firma</h2>
-        <p class="section-hint">Projenin tasarımcısı — MİMARLAB dizinindeki bir mimar ya da firma adıyla birebir eşleşirse profil sayfasına otomatik bağlanır. En az birini doldur.</p>
         <div class="form-row">
           <div class="form-field ac-field" id="ac-mimar-field">
             <label for="p-designer">Mimar</label>
@@ -428,6 +419,21 @@
             <input type="text" id="p-office" name="office" placeholder="ör. Autoban" autocomplete="off">
             <div class="ac-suggestions" id="ac-ofis-suggestions"></div>
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="p-desc">Proje Açıklaması</label>
+          <textarea id="p-desc" name="description" placeholder="Proje hakkında kısa bir metin yaz..." required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="p-credit-text">Kaynak / Fotoğrafçı</label>
+            <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden">
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+          </div>
+          <div class="form-field">
+            <label for="p-credit-url">Bağlantı <span class="opt">(opsiyonel)</span></label>
+            <input type="url" id="p-credit-url" name="photoCreditUrl" placeholder="https://...">
           </div>
         </div>
       </div>
@@ -449,28 +455,6 @@
           </div>
           <div class="form-hint">Eklemek için "+ Ekle"ye ya da Enter'a bas.</div>
           <div class="brand-chip-list" id="brand-chip-list"></div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <h2>Açıklama</h2>
-        <div class="form-field">
-          <label for="p-desc">Proje Açıklaması</label>
-          <textarea id="p-desc" name="description" placeholder="Proje hakkında kısa bir metin yaz..." required></textarea>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <h2>Fotoğraf Kredisi <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <div class="form-row">
-          <div class="form-field">
-            <label for="p-credit-text">Kaynak / Fotoğrafçı</label>
-            <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden">
-          </div>
-          <div class="form-field">
-            <label for="p-credit-url">Bağlantı</label>
-            <input type="url" id="p-credit-url" name="photoCreditUrl" placeholder="https://...">
-          </div>
         </div>
       </div>
 
@@ -512,9 +496,9 @@
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="proje.html">Proje</a><a href="urun.html">Ürün</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
