@@ -32,7 +32,8 @@ function toPublicShape(type, row) {
       dateBucket: parsed.dateBucket, period: parsed.period, designer: parsed.designer,
       photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },
       description: parsed.description, mostVisited: null, recommendations: [],
-      images: parsed.images, brands: parsed.brands, source: 'member', submissionId: parsed.id, ...owner,
+      images: parsed.images, brands: parsed.brands, source: 'member', submissionId: parsed.id,
+      createdAt: parsed.created_at, ...owner,
     };
   }
   if (type === 'products' || type === 'materials') {

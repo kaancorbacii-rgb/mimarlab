@@ -721,7 +721,13 @@ document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage=1
 // Üyelerin gönderip admin'in onayladığı projeleri statik listeye ekler (bkz. kullanıcı isteği:
 // varsayılan sıralama site'ye gerçekten en son yüklenenden ilk yüklenene doğru olmalı — eskiden
 // burası onaylı gönderileri statik dizinin arasına eşit aralıklarla serpiştiriyordu, bu da yeni
-// eklenen projeleri sayfa 1'e değil listenin her yerine dağıtıyordu).
+// eklenen projeleri sayfa 1'e değil listenin her yerine dağıtıyordu). Gerçekten yakın zamanda
+// eklenenler (RECENT_WINDOW_MS içinde) sayfa 1'in başında kümelenir; daha eski created_at'e sahip
+// gönderiler (ör. admin'in geriye dönük "eskiden yüklenmiş gibi" ayarladığı toplu bir grup, bkz.
+// kullanıcı isteği) statik dizinin arasına eşit aralıklarla serpiştirilir — aksi halde tek seferde
+// onaylanan çok sayıda gönderi (ör. bir hesaba toplu proje aktarımı) hep ilk sayfada kalırdı.
+const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
+
 Promise.all([
   fetch('/api/public/projects').then(res => res.ok ? res.json() : {items:[]}).catch(()=>({items:[]})),
   // Admin bu admin panelinden gizlediği statik projeleri (bkz. src/routes/legacyContent.js) burada
@@ -744,11 +750,31 @@ Promise.all([
     }
   }
   // /api/public/projects EN YENİ ÖNCE sırayla döner (bkz. src/routes/public.js ORDER BY created_at
-  // DESC); render()'daki varsayılan sıralama TÜM diziyi ters çeviriyor ("en son eklenen ilk" —
-  // bkz. render()). Burada önce eskiden-yeniye çevirip statik dizinin SONUNA ekliyoruz ki ters
-  // çevirmeden sonra en yeni gönderi en yeni statik kayıttan da önce gelip sayfa 1'in başına düşsün.
-  const memberItems = (projectsData.items || []).slice().reverse();
-  projects.push(...memberItems);
+  // DESC). "Eski" (RECENT_WINDOW_MS'den daha uzun süre önce eklenmiş, createdAt'i olmayanlar dahil —
+  // bkz. yukarıdaki yorum) gönderiler statik dizinin arasına eşit aralıklarla serpiştirilir.
+  const now = Date.now();
+  const memberItems = projectsData.items || [];
+  const recentItems = memberItems.filter(p => p.createdAt && (now - p.createdAt) < RECENT_WINDOW_MS);
+  const agedItems = memberItems.filter(p => !p.createdAt || (now - p.createdAt) >= RECENT_WINDOW_MS);
+
+  if(agedItems.length){
+    const merged = [];
+    const step = (projects.length + agedItems.length) / agedItems.length;
+    let idx = 0, nextInsertAt = step;
+    for(let i = 0; i < projects.length; i++){
+      merged.push(projects[i]);
+      while(idx < agedItems.length && merged.length >= Math.round(nextInsertAt)){
+        merged.push(agedItems[idx++]);
+        nextInsertAt += step;
+      }
+    }
+    while(idx < agedItems.length) merged.push(agedItems[idx++]);
+    projects.length = 0;
+    projects.push(...merged);
+  }
+  // recentItems render()'daki varsayılan ters çevirmeden SONRA sayfa 1'in başına düşmesi için önce
+  // eskiden-yeniye çevrilip dizinin en SONUNA eklenir (bkz. render()'daki reverse()).
+  projects.push(...recentItems.slice().reverse());
 }).finally(() => {
   applyInitialFiltersFromQuery();
   buildSidebar();

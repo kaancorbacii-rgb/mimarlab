@@ -1606,7 +1606,8 @@ const BADGE_COLORS = { verified:'#0095F6', gold:'#D4A72C', platinum:'#4FB3D9' };
 // elemanı kullanılır; document koordinatlarında (position:absolute + scrollX/scrollY) konumlanır ve
 // çok yüksek bir z-index taşır, böylece hangi kartın/satırın içinde olursa olsun her zaman sayfanın
 // en önünde ve tam görünür kalır. Stil burada bir kere <head>'e enjekte edilir (data.js her sayfada
-// yükleniyor); masaüstünde hover, mobilde/tıklamada 'tip-show' class'ı ile gösterilir.
+// yükleniyor); yalnızca masaüstünde hover ile gösterilir (dokunma/tıklama artık rozet satın alma
+// sayfasına yönlendirir, bkz. aşağıdaki click dinleyicisi).
 // Worker'ın esbuild bundle'ında document/window global'leri olmadığından bu blok da korunuyor.
 if (typeof document !== 'undefined') {
 if(!document.getElementById('verified-badge-style')){
@@ -1667,21 +1668,20 @@ document.addEventListener('mouseover', (e)=>{
 });
 document.addEventListener('mouseout', (e)=>{
   const icon = e.target.closest('.verified-badge-icon');
-  if(icon && !icon.contains(e.relatedTarget) && !icon.classList.contains('tip-show')) hideBadgeTooltip();
+  if(icon && !icon.contains(e.relatedTarget)) hideBadgeTooltip();
 });
-// Rozete dokunma/tıklama: tooltip'i aç/kapat, ve rozet çoğunlukla bir <a> içinde olduğundan
-// (ör. mimar/ofis kartı) tıklamanın linki tetikleyip sayfadan çıkmasını engelle.
+// Rozete dokunma/tıklama: kullanıcıyı rozet satın alma sayfasına yönlendirir (bkz. kullanıcı
+// isteği: bir kullanıcı başka birinin rozetine tıklarsa rozet al sayfasına yönlendirilsin).
+// Rozet <span> olarak kalır (gerçek bir <a> DEĞİL) çünkü çoğunlukla zaten bir kart linkinin
+// (ör. mimar/ofis kartı) İÇİNDE render edilir — iç içe <a> geçersiz HTML olacağından yönlendirme
+// burada JS ile yapılır; stopPropagation ile dıştaki kart linkinin tetiklenmesi engellenir.
 document.addEventListener('click', (e)=>{
   const badge = e.target.closest('.verified-badge-icon');
-  document.querySelectorAll('.verified-badge-icon.tip-show').forEach(b => { if(b !== badge) b.classList.remove('tip-show'); });
   if(badge){
     e.preventDefault();
     e.stopPropagation();
-    const wasShown = badge.classList.contains('tip-show');
-    badge.classList.toggle('tip-show');
-    if(wasShown) hideBadgeTooltip(); else showBadgeTooltip(badge);
-  } else {
-    hideBadgeTooltip();
+    const tier = badge.dataset.badgeType;
+    window.location.href = tier ? `satin-al.html?tier=${encodeURIComponent(tier)}` : 'satin-al.html';
   }
 });
 // Sayfa kaydırılınca (kartın kendisi ya da bir üst konteyner) konumu bayatlamasın diye tooltip
@@ -1689,7 +1689,6 @@ document.addEventListener('click', (e)=>{
 // kaldırabileceğinden aynı güvenlik burada da işe yarar.
 window.addEventListener('scroll', ()=>{
   hideBadgeTooltip();
-  document.querySelectorAll('.verified-badge-icon.tip-show').forEach(b => b.classList.remove('tip-show'));
 }, { passive:true, capture:true });
 }
 
@@ -1718,7 +1717,7 @@ function badgeIconHtml(badgeType, size){
   // artırıp preserveAspectRatio="none" ile yatayda esnetiyoruz; height (ve dolayısıyla metinle
   // hizalanan satır yüksekliği) değişmeden kalır.
   const width = isGem ? Math.round(size * 1.3) : size;
-  return `<span class="verified-badge-icon" data-tip="${escapeAttrGlobal(BADGE_LABELS[badgeType] || badgeType)}" style="color:${BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? GEM_BADGE_SVG : SEAL_BADGE_SVG}</svg></span>`;
+  return `<span class="verified-badge-icon" data-tip="${escapeAttrGlobal(BADGE_LABELS[badgeType] || badgeType)}" data-badge-type="${escapeAttrGlobal(badgeType)}" style="color:${BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? GEM_BADGE_SVG : SEAL_BADGE_SVG}</svg></span>`;
 }
 function verifiedBadgeHtml(profileType, profileKey, staticBadges, size){
   const dynamic = (dynamicBadges[profileType] && dynamicBadges[profileType][profileKey]) || [];
