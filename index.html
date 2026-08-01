@@ -592,19 +592,14 @@ function latestFive(dynamicItems, staticItemsInOriginalOrder){
   return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(0, 5);
 }
 
-// Ana sayfadaki Mimar/Firma mini-carousel'leri "en yeni eklenen" yerine "en popüler" isimleri
-// gösterir (bkz. kullanıcı isteği). Popülerlik ölçütü olarak somut bir puan alanı olmadığından,
-// projeler-data.js'teki designer[] alanında o isme kaç projede kredi verildiği kullanılır — en çok
-// projede geçen mimar/firma platformda en görünür/üretken olan, dolayısıyla en "popüler" kabul edilir.
-const designerProjectCounts = (function(){
-  const counts = new Map();
-  projects.forEach(p => {
-    (p.designer || []).forEach(d => counts.set(d, (counts.get(d) || 0) + 1));
-  });
-  return counts;
-})();
-function mostPopularFive(items){
-  return items.slice().sort((a,b) => (designerProjectCounts.get(b.name) || 0) - (designerProjectCounts.get(a.name) || 0)).slice(0, 5);
+// Ana sayfadaki Mimar/Firma mini-carousel'leri elle seçilmiş sabit bir vitrin gösterir (bkz.
+// kullanıcı isteği: belirli isimlerin carousel'de görünmesini istedi). Admin bu isimlerden birini
+// legacy-hidden yaparsa (bkz. hiddenArchitects/hiddenOffices) yine de vitrinden düşer, ki kırık
+// bir profile link vermesin.
+const FEATURED_ARCHITECT_NAMES = ["Emre Arolat", "Han Tümertekin", "Nevzat Sayın", "Seyhan Özdemir Sarper", "Gökhan Avcıoğlu"];
+const FEATURED_OFFICE_NAMES = ["Teğet Mimarlık", "Tabanlıoğlu Mimarlık", "Zoom/TPU", "DS Mimarlık", "Erginoğlu & Çalışlar Mimarlık"];
+function featuredFrom(names, pool){
+  return names.map(n => pool.find(item => item.name === n)).filter(Boolean);
 }
 
 const SLUGIFY_TR_MAP = { ç:'c', Ç:'c', ğ:'g', Ğ:'g', ı:'i', I:'i', İ:'i', ö:'o', Ö:'o', ş:'s', Ş:'s', ü:'u', Ü:'u' };
@@ -746,8 +741,8 @@ const staticUrunWithImage = [
   ...materials.filter(p => p.image).map(p => ({...p, _kind:'materials'})),
 ];
 
-mimarSlider.render(mostPopularFive(staticArchitectsWithPhoto));
-markaSlider.render(mostPopularFive(staticOfficesWithLogo));
+mimarSlider.render(featuredFrom(FEATURED_ARCHITECT_NAMES, staticArchitectsWithPhoto));
+markaSlider.render(featuredFrom(FEATURED_OFFICE_NAMES, staticOfficesWithLogo));
 urunSlider.render(latestFive([], staticUrunWithImage));
 
 Promise.all([
@@ -757,11 +752,9 @@ Promise.all([
   // proje-detay.html'deki aynı fetch, doğrudan projectsWithImages'in referans aldığı nesneleri
   // güncellediğinden (Object.assign, yeni nesne değil) alttaki filtreleme aynen çalışmaya devam eder.
   fetch('/api/public/project-edits').then(r => r.ok ? r.json() : {}).catch(()=>({})),
-  fetch('/api/public/architects').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
-  fetch('/api/public/offices').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
   fetch('/api/public/products').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
   fetch('/api/public/materials').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
-]).then(([projRes, hiddenRes, editsRes, archRes, officeRes, productRes, materialRes])=>{
+]).then(([projRes, hiddenRes, editsRes, productRes, materialRes])=>{
   for(const slug in editsRes){
     const match = projects.find(p => p.slug === slug);
     if(match) Object.assign(match, editsRes[slug]);
@@ -773,14 +766,12 @@ Promise.all([
   renderSlider(carouselSlides(dynamicWithImages, visibleStaticWithImages));
 
   const hiddenArchitects = new Set(hiddenRes.architects || []);
-  const dynamicArchitects = (archRes.items || []).filter(a => a.photo);
   const visibleStaticArchitects = hiddenArchitects.size ? staticArchitectsWithPhoto.filter(a => !hiddenArchitects.has(a.name)) : staticArchitectsWithPhoto;
-  mimarSlider.render(mostPopularFive([...visibleStaticArchitects, ...dynamicArchitects]));
+  mimarSlider.render(featuredFrom(FEATURED_ARCHITECT_NAMES, visibleStaticArchitects));
 
   const hiddenOffices = new Set(hiddenRes.offices || []);
-  const dynamicOffices = (officeRes.items || []).filter(o => o.logo);
   const visibleStaticOffices = hiddenOffices.size ? staticOfficesWithLogo.filter(o => !hiddenOffices.has(o.name)) : staticOfficesWithLogo;
-  markaSlider.render(mostPopularFive([...visibleStaticOffices, ...dynamicOffices]));
+  markaSlider.render(featuredFrom(FEATURED_OFFICE_NAMES, visibleStaticOffices));
 
   const hiddenProducts = new Set(hiddenRes.products || []);
   const hiddenMaterials = new Set(hiddenRes.materials || []);
