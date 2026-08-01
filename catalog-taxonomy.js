@@ -48,6 +48,12 @@ function taxonomyGroupOf(taxonomy, category) {
   return null;
 }
 
+// Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
+// (nodejs_compat) çalışır — src/routes/ai.js buradan CJS interop ile import eder (AI çıkarım
+// şemasındaki kategori enum'unu tek doğru kaynaktan türetmek için, bkz. projeler-data.js#module.exports
+// ile aynı desen).
+if (typeof module !== 'undefined') { module.exports = { CATALOG_TAXONOMY, CATALOG_GROUP_KIND, taxonomyGroupOf }; }
+
 // Bilinen marka -> resmi web sitesi alan adı. Gerçek ürün fotoğrafı KULLANILMAZ (telif riski) —
 // yalnızca markanın küçük favicon'u, ofis profillerinde zaten kullanılan aynı DuckDuckGo ikon
 // proxy tekniğiyle (bkz. data.js#logoUrl) kart üzerinde küçük bir rozet olarak gösterilir. Yanlış/
