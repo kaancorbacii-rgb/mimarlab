@@ -1,9 +1,16 @@
 // AI destekli otomatik ekleme akışının (bkz. src/routes/ai.js) tüm ayarlanabilir limitleri tek
 // yerden yönetilsin diye burada toplanıyor — model/limit değiştirmek için tek dosya yeterli.
 
-export const AI_MODEL = 'claude-sonnet-5';
+// Cloudflare Workers AI model kataloğundaki JSON Mode (response_format) destekleyen modeller
+// arasından en güçlü instruct model — bkz. src/lib/aiProvider.js başındaki gerekçe.
+export const AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 export const AI_MAX_TOKENS = 2000;
-export const AI_EFFORT = 'medium';
+
+// Açık ağırlıklı modeller şemaya Anthropic Structured Outputs kadar güvenilir uymayabilir (bkz.
+// Cloudflare docs: "Workers AI can't guarantee that the model responds according to the requested
+// JSON Schema") — bu yüzden ilk denemenin üstüne 2 kez daha (toplam 3 deneme) tekrar denenir;
+// üçü de şema doğrulamasından geçemezse mevcut aiFailed:true + katman-1 yoluna düşülür.
+export const AI_MAX_ATTEMPTS = 3;
 
 // Sayfa içeriği bu karakter sayısına kırpılıp modele öyle gönderilir (bkz. htmlExtract.js).
 export const AI_MAX_CONTENT_CHARS = 15000;

@@ -11,8 +11,11 @@
 //                                 sınırlar burada bilinçli olarak kopyalandı).
 //
 // Güvenlik: SSRF'e karşı src/lib/safeFetch.js (redirect:"manual", private/reserved IP engeli, azole
-// 3 yönlendirme), prompt injection'a karşı sistem promptunda açık bir uyarı, kötüye kullanıma karşı
-// kullanıcı-başına + global günlük rate limit (bkz. src/lib/aiConfig.js — tüm limitler tek yerden).
+// 3 yönlendirme), prompt injection'a karşı hem sistem promptundaki açık uyarı HEM DE modele
+// gitmeden önce şüpheli satırları temizleyen bir ön-filtre (bkz. src/lib/injectionFilter.js —
+// açık ağırlıklı modeller sadece sistem promptuna güvenilerek test edildiğinde bu saldırıya karşı
+// savunmasız çıktı, bkz. gerçek testle doğrulanmış bulgu), kötüye kullanıma karşı kullanıcı-başına
+// + global günlük rate limit (bkz. src/lib/aiConfig.js — tüm limitler tek yerden).
 
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
@@ -20,10 +23,11 @@ import { checkRateLimit } from '../lib/rateLimit.js';
 import { getActiveBadge } from '../lib/badgeAccess.js';
 import { safeFetch, limitResponseSize, UnsafeUrlError } from '../lib/safeFetch.js';
 import { extractPageContent } from '../lib/htmlExtract.js';
-import { extractStructured, isAnthropicConfigured, AnthropicError } from '../lib/anthropic.js';
+import { stripInjectionAttempts } from '../lib/injectionFilter.js';
+import { callOnce, isAiProviderConfigured, AiProviderError } from '../lib/aiProvider.js';
 import catalogJs from '../../catalog-taxonomy.js';
 import {
-  AI_MODEL, AI_MAX_TOKENS, AI_EFFORT, AI_MAX_PAGE_BYTES,
+  AI_MODEL, AI_MAX_TOKENS, AI_MAX_ATTEMPTS, AI_MAX_PAGE_BYTES,
   AI_EXTRACT_PER_USER_HOURLY_LIMIT, AI_EXTRACT_GLOBAL_DAILY_LIMIT,
   AI_COPY_IMAGES_PER_USER_HOURLY_LIMIT, AI_COPY_IMAGES_MAX_PER_REQUEST,
 } from '../lib/aiConfig.js';
@@ -54,7 +58,7 @@ const PROJECT_SCHEMA = {
     title: nullable({ type: 'string', description: 'Projenin adı.' }),
     location_text: nullable({ type: 'string', description: "Projenin bulunduğu şehir/ilçe, sayfada yazdığı gibi (ör. 'Kadıköy, İstanbul')." }),
     date_text: nullable({ type: 'string', description: "Tamamlanma yılı ya da yıl aralığı, ör. '2021' ya da '2018-2021'." }),
-    category: { type: 'array', items: { type: 'string', enum: PROJECT_CATEGORIES }, description: 'Projeye en uygun kategori(ler); emin değilsen boş dizi bırak.' },
+    category: { type: 'array', items: { type: 'string', enum: PROJECT_CATEGORIES }, maxItems: 2, description: 'Projeye en uygun EN FAZLA 1-2 kategori; listenin tamamını asla döndürme, emin değilsen boş dizi bırak.' },
     type_text: nullable({ type: 'string', description: "Proje tipolojisi, virgülle ayrılmış serbest metin, ör. 'Ofis, Kültür Merkezi'." }),
     designer_names: { type: 'array', items: { type: 'string' }, description: 'İsmiyle anılan mimar(lar) (kişi adı).' },
     office_names: { type: 'array', items: { type: 'string' }, description: 'İsmiyle anılan mimarlık ofisi/firma(lar).' },
@@ -172,28 +176,57 @@ async function handleExtract(request, env, user) {
   const schema = kind === 'project' ? PROJECT_SCHEMA : URUN_SCHEMA;
   const system = kind === 'project' ? PROJECT_SYSTEM_PROMPT : URUN_SYSTEM_PROMPT;
 
-  // Anahtar tanımlı değilse (ör. yerel geliştirme) AI çağrısını hiç denemeden katman-1 (deterministik)
-  // sonucuna düş — bu, iki deneme de başarısız olduğunda izlenen yolla AYNI, ayrı bir kod yolu değil.
+  // Ek savunma katmanı (bkz. src/lib/injectionFilter.js): modele SADECE bu filtrelenmiş kopya
+  // gider — `pageContent` (baseline/görsel adayları için kullanılan) kasıtlı olarak değiştirilmez,
+  // aksi halde bir yanlış-pozitif eşleşme kullanıcının katman-1 önizlemesini bozardı.
+  const filteredText = stripInjectionAttempts(pageContent.text);
+  const filteredTitle = stripInjectionAttempts(pageContent.title);
+  const filteredDescription = stripInjectionAttempts(pageContent.metaDescription);
+  if (filteredText.hits || filteredTitle.hits || filteredDescription.hits) {
+    console.warn('ai-extract: talimat benzeri içerik tespit edilip kaldırıldı:', finalUrl);
+  }
+  const userText = buildUserText(finalUrl, {
+    ...pageContent,
+    text: filteredText.text,
+    title: filteredTitle.text,
+    metaDescription: filteredDescription.text,
+  });
+
+  // Açık ağırlıklı Workers AI modeli şemaya Anthropic'in Structured Outputs'u kadar güvenilir
+  // uymayabilir (bkz. src/lib/aiProvider.js başındaki not) — bu yüzden hem sağlayıcı hatalarında
+  // (ağ/geçersiz JSON) hem de şema doğrulaması (sanitizeExtraction) başarısız olduğunda AI_MAX_ATTEMPTS
+  // kadar (varsayılan 3) yeniden denenir. Kota hatası tespit edilirse tekrar denemek anlamsız olduğundan
+  // döngü hemen durur.
   let aiResult = null;
-  if (isAnthropicConfigured(env)) {
-    try {
-      aiResult = await extractStructured(env, {
-        system,
-        userText: buildUserText(finalUrl, pageContent),
-        schema,
-        model: AI_MODEL,
-        maxTokens: AI_MAX_TOKENS,
-        effort: AI_EFFORT,
-        timeoutMs: 30000,
-      });
-    } catch (err) {
-      console.error('ai-extract failed', err instanceof AnthropicError ? err.code : err);
-      aiResult = null;
+  let quotaExceeded = false;
+  if (isAiProviderConfigured(env)) {
+    for (let attempt = 0; attempt < AI_MAX_ATTEMPTS && aiResult === null; attempt++) {
+      try {
+        const raw = await callOnce(env, { system, userText, schema, model: AI_MODEL, maxTokens: AI_MAX_TOKENS });
+        aiResult = sanitizeExtraction(kind, raw, pageContent.images.length);
+        if (aiResult === null) console.error('ai-extract: şema doğrulaması başarısız, deneme', attempt + 1);
+      } catch (err) {
+        if (err instanceof AiProviderError && err.quotaExceeded) { quotaExceeded = true; break; }
+        console.error('ai-extract: sağlayıcı hatası, deneme', attempt + 1, err instanceof AiProviderError ? err.code : err);
+      }
     }
   }
 
+  if (quotaExceeded) {
+    // Workers AI'ın ücretsiz günlük kotası aşıldı — kendi günlük limitimizle (yukarıdaki
+    // ai-extract-global kontrolü) AYNI tonda bir mesaj göster, ama o ana kadar çekilmiş katman-1
+    // verisiyle formu yine de doldur (kullanıcı boşuna beklemesin).
+    return json({
+      ok: true, found: true, aiFailed: true,
+      sourceUrl: finalUrl,
+      data: baselineData(kind, pageContent),
+      images: pageContent.images.slice(0, 6).map(u => ({ url: u })),
+      message: 'Bugünlük yapay zeka kotamız doldu, yarın tekrar dene ya da manuel ekle.',
+    });
+  }
+
   if (aiResult === null) {
-    // İki deneme de başarısız oldu — sessizce boş form yerine katman-1'in (AI'sız) çıkardığı temel
+    // Tüm denemeler başarısız oldu — sessizce boş form yerine katman-1'in (AI'sız) çıkardığı temel
     // bilgilerle formu doldur, kullanıcıya durumu açıkça bildir.
     return json({
       ok: true, found: true, aiFailed: true,
@@ -218,6 +251,52 @@ async function handleExtract(request, env, user) {
     data: aiResult,
     images: selectedImages.map(u => ({ url: u })),
   });
+}
+
+// Workers AI'ın JSON Mode'u şema uyumunu GARANTİ ETMEZ (bkz. src/lib/aiProvider.js) — bu fonksiyon
+// modelin döndürdüğü ham nesneyi bizim beklediğimiz şekle indirger: `found` alanı eksik/geçersizse
+// (yapısal olarak kullanılamaz demektir) null döner ve çağıran taraf bunu bir deneme daha hakkı
+// olarak sayar. Diğer her alan tek tek tipi/uygunluğu kontrol edilip temizlenir — ASLA fuzzy-match
+// yapılmaz: ör. kategori enum'da birebir yoksa (uydurma/yaklaşık bir değer atamak yerine) boş
+// bırakılır, kullanıcı önizlemede kendisi seçer (bkz. kullanıcı isteği).
+function sanitizeExtraction(kind, raw, imageCandidateCount) {
+  if (!raw || typeof raw !== 'object' || typeof raw.found !== 'boolean') return null;
+
+  const str = v => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const strArray = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : []);
+  const indices = v => (Array.isArray(v)
+    ? [...new Set(v.filter(i => Number.isInteger(i) && i >= 0 && i < imageCandidateCount))]
+    : []);
+
+  if (!raw.found) return { found: false, reason: str(raw.reason) };
+
+  if (kind === 'project') {
+    return {
+      found: true,
+      title: str(raw.title),
+      location_text: str(raw.location_text),
+      date_text: str(raw.date_text),
+      // Bazı açık modeller (bkz. aiProvider.js'teki şema-uyum notu) enum listesinin tamamını
+      // tekrarlayarak dönebiliyor — geçerli değerlere indirger, tekilleştirir VE en fazla 2 ile sınırlar.
+      category: Array.isArray(raw.category) ? [...new Set(raw.category.filter(c => PROJECT_CATEGORIES.includes(c)))].slice(0, 2) : [],
+      type_text: str(raw.type_text),
+      designer_names: strArray(raw.designer_names),
+      office_names: strArray(raw.office_names),
+      description: str(raw.description),
+      photo_credit_text: str(raw.photo_credit_text),
+      photo_credit_url: str(raw.photo_credit_url),
+      image_indices: indices(raw.image_indices),
+    };
+  }
+  return {
+    found: true,
+    title: str(raw.title),
+    brand: str(raw.brand),
+    website: str(raw.website),
+    category: (typeof raw.category === 'string' && URUN_CATEGORIES.includes(raw.category)) ? raw.category : null,
+    description: str(raw.description),
+    image_indices: indices(raw.image_indices),
+  };
 }
 
 function baselineData(kind, pageContent) {

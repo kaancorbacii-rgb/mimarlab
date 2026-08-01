@@ -91,6 +91,7 @@
   .form-field textarea{resize:vertical; min-height:100px; line-height:1.5;}
   .form-field input:focus-visible, .form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
+  .ai-manual-link{display:none; background:none; border:none; padding:0; margin-top:10px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--sage); text-decoration:underline; cursor:pointer;}
   .check-grid{display:flex; flex-wrap:wrap; gap:8px;}
   .check-pill{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:100px; padding:7px 14px 7px 10px; font-size:13px; color:var(--ink-soft); background:var(--paper); cursor:pointer;}
   .check-pill input{accent-color:var(--ink); width:14px; height:14px;}
@@ -225,6 +226,7 @@
         </div>
         <button type="button" class="ai-analyze-btn" id="ai-analyze-btn">Analiz Et</button>
         <div id="ai-status" class="form-hint" style="display:none; margin-top:12px;"></div>
+        <button type="button" class="ai-manual-link" id="ai-manual-fallback-btn">Formu manuel doldurmaya devam et ↓</button>
       </div>
 
       <div class="form-section">
@@ -453,6 +455,11 @@ function wireAiPanel(){
   const analyzeBtn = document.getElementById('ai-analyze-btn');
   const statusEl = document.getElementById('ai-status');
   const notice = document.getElementById('form-notice');
+  const manualBtn = document.getElementById('ai-manual-fallback-btn');
+  manualBtn.addEventListener('click', ()=>{
+    document.getElementById('u-title').scrollIntoView({behavior:'smooth', block:'center'});
+    document.getElementById('u-title').focus();
+  });
 
   async function analyze(){
     const url = urlInput.value.trim();
@@ -460,6 +467,7 @@ function wireAiPanel(){
     analyzeBtn.disabled = true;
     urlInput.disabled = true;
     notice.classList.remove('show');
+    manualBtn.style.display = 'none';
     statusEl.textContent = 'Sayfa alınıyor ve analiz ediliyor… (biraz sürebilir)';
     statusEl.style.display = 'block';
     try{
@@ -473,11 +481,13 @@ function wireAiPanel(){
       if(!res.ok){
         notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
         notice.classList.add('show');
+        manualBtn.style.display = 'inline-block';
         return;
       }
       if(!data.found){
         notice.textContent = data.reason || 'Bu sayfada bir ürün bulamadık — formu kendin doldurabilirsin.';
         notice.classList.add('show');
+        manualBtn.style.display = 'inline-block';
         return;
       }
       applyAiResult(data.data);
@@ -494,6 +504,7 @@ function wireAiPanel(){
     }catch{
       notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
       notice.classList.add('show');
+      manualBtn.style.display = 'inline-block';
     }finally{
       statusEl.style.display = 'none';
       analyzeBtn.disabled = false;
