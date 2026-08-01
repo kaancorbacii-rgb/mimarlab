@@ -148,6 +148,9 @@ async function handleExtract(request, env, user) {
     if ([403, 429, 503].includes(rawResponse.status)) {
       return errorJson('Bu site otomatik erişime kapalı görünüyor, bilgileri elle gir.', 424);
     }
+    if (rawResponse.status === 404) {
+      return errorJson('Bu adreste bir sayfa bulunamadı, bağlantıyı kontrol et.', 424);
+    }
     return errorJson('Sayfaya ulaşılamadı, bağlantıyı kontrol edip tekrar dene.', 424);
   }
   const contentType = (rawResponse.headers.get('content-type') || '').toLowerCase();

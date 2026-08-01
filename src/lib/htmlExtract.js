@@ -44,7 +44,10 @@ export async function extractPageContent(response, baseUrl, { maxChars = AI_MAX_
   }
 
   let rewriter = new HTMLRewriter()
-    .on('title', { text(t) { titleParts.push(t.text); } })
+    // Sade "title" seçici SVG içindeki <title> (ikonların erişilebilirlik etiketi) gibi head dışı
+    // eşleşmeleri de yakalayıp sayfa başlığına karıştırabiliyordu (bkz. BBC News gibi sitelerdeki
+    // gömülü SVG ikonlar) — "head > title" yalnızca gerçek sayfa başlığıyla eşleşir.
+    .on('head > title', { text(t) { titleParts.push(t.text); } })
     .on('meta[name="description"]', {
       element(el) { if (!metaDescription) metaDescription = el.getAttribute('content'); },
     })
