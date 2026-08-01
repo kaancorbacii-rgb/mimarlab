@@ -342,7 +342,6 @@
             <option value="date_desc">En Yeni</option>
             <option value="date_asc">En Eski</option>
             <option value="rating_desc">Puan: Yüksekten Düşüğe</option>
-            <option value="rating_asc">Puan: Düşükten Yükseğe</option>
           </select>
           <svg class="sort-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
         </div>
@@ -654,12 +653,12 @@ function render(){
         case 'name_asc': return a.title.localeCompare(b.title, 'tr');
         case 'date_desc': return parseInt(b.date) - parseInt(a.date) || 0;
         case 'date_asc': return parseInt(a.date) - parseInt(b.date) || 0;
-        case 'rating_desc': case 'rating_asc': {
+        case 'rating_desc': {
           const ra = ratingOf(projectRatings, a.slug), rb = ratingOf(projectRatings, b.slug);
           if(!ra.count && !rb.count) return 0;
           if(!ra.count) return 1;
           if(!rb.count) return -1;
-          return sort === 'rating_desc' ? rb.average - ra.average : ra.average - rb.average;
+          return rb.average - ra.average;
         }
         default: return 0;
       }
@@ -719,10 +718,10 @@ function officeColor(name){
 
 document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage=1; render(); });
 
-// Üyelerin gönderip admin'in onayladığı projeleri statik listeye ekler. Hepsini dizinin sonuna
-// yığmak yerine statik dizinin arasına eşit aralıklarla serpiştirir — aksi halde varsayılan
-// sıralama (ters çevirme, "en son eklenen ilk" — bkz. render()) bir seferde onaylanan çok sayıda
-// gönderiyi (ör. bir hesaba toplu proje aktarımı) hep ilk sayfada kümelenmiş gösterirdi.
+// Üyelerin gönderip admin'in onayladığı projeleri statik listeye ekler (bkz. kullanıcı isteği:
+// varsayılan sıralama site'ye gerçekten en son yüklenenden ilk yüklenene doğru olmalı — eskiden
+// burası onaylı gönderileri statik dizinin arasına eşit aralıklarla serpiştiriyordu, bu da yeni
+// eklenen projeleri sayfa 1'e değil listenin her yerine dağıtıyordu).
 Promise.all([
   fetch('/api/public/projects').then(res => res.ok ? res.json() : {items:[]}).catch(()=>({items:[]})),
   // Admin bu admin panelinden gizlediği statik projeleri (bkz. src/routes/legacyContent.js) burada
@@ -745,28 +744,11 @@ Promise.all([
     }
   }
   // /api/public/projects EN YENİ ÖNCE sırayla döner (bkz. src/routes/public.js ORDER BY created_at
-  // DESC) — ama bu döngü dizinin BAŞINDAN (düşük index) başlayarak serpiştiriyor, aşağıdaki
-  // render()'daki varsayılan sıralama ise TÜM diziyi ters çeviriyor ("en son eklenen ilk" için).
-  // memberItems'ı OLDUĞU gibi (en yeni ilk) kullanırsak en yeni gönderi düşük index'e, ters
-  // çevirmeden SONRA da dizinin SONUNA (sayfa 1'den en uzak) düşerdi — tam tersi olması gerekirken
-  // (bkz. gerçek bulgu: yeni onaylanan bir proje Projeler sayfasında hiç görünmüyormuş gibi
-  // kaybolmuştu). Bu yüzden burada ÖNCE eskiden-yeniye çeviriyoruz ki en yeni son sırada
-  // serpiştirilsin, ters çevirmeden sonra sayfa 1'e düşsün.
+  // DESC); render()'daki varsayılan sıralama TÜM diziyi ters çeviriyor ("en son eklenen ilk" —
+  // bkz. render()). Burada önce eskiden-yeniye çevirip statik dizinin SONUNA ekliyoruz ki ters
+  // çevirmeden sonra en yeni gönderi en yeni statik kayıttan da önce gelip sayfa 1'in başına düşsün.
   const memberItems = (projectsData.items || []).slice().reverse();
-  if(!memberItems.length) return;
-  const merged = [];
-  const step = (projects.length + memberItems.length) / memberItems.length;
-  let memberIdx = 0, nextInsertAt = step;
-  for(let i = 0; i < projects.length; i++){
-    merged.push(projects[i]);
-    while(memberIdx < memberItems.length && merged.length >= Math.round(nextInsertAt)){
-      merged.push(memberItems[memberIdx++]);
-      nextInsertAt += step;
-    }
-  }
-  while(memberIdx < memberItems.length) merged.push(memberItems[memberIdx++]);
-  projects.length = 0;
-  projects.push(...merged);
+  projects.push(...memberItems);
 }).finally(() => {
   applyInitialFiltersFromQuery();
   buildSidebar();
