@@ -483,51 +483,40 @@ function populateFilters(){
   });
 }
 
-// Sabit sayıda sayfa butonu gösteren kayan pencere (bkz. index.html'deki aynı desen):
-// geçerli sayfa her zaman pencerede yer alır, ileri/geri gidildikçe pencere tek tek kayar.
-// Pencere sayfa 1'den başlamıyorsa önce bir "..." gösterilir; sona ermiyorsa son buton her zaman
-// son sayfa numarasıdır. Buton sayısı sabit olduğu için satır hiçbir zaman ikiye bölünmez.
 function getPageWindowSize(){
   const w = window.innerWidth;
-  if(w <= 340) return 1;
-  if(w <= 400) return 2;
   if(w <= 480) return 3;
   if(w <= 720) return 5;
-  if(w <= 860) return 7;
   return 9;
 }
-
+// Mevcut sayfayı her zaman ortalayan kayan pencere; ilk ve son sayfa (bkz. kullanıcı isteği:
+// "1. ve son sayfa her zaman görünür olsun") ayrıca her zaman ayrı buton olarak eklenir, pencereye
+// dahil değillerse aralarına '...' konur. Pencere bir uca yaklaştığında diğer ucu genişletip N
+// sayfa göstermeye devam eder (bkz. start===2/end===totalPages-1 dallari).
 function getPageList(totalPages, currentPage){
   const N = getPageWindowSize();
-  if(totalPages <= N){
-    const pages = []; for(let p=1;p<=totalPages;p++) pages.push(p);
-    return {pages, leadingDots:false, trailingDots:false, trailingLast:null};
-  }
-  let start = currentPage - Math.floor((N - 1) / 2);
-  start = Math.max(1, Math.min(start, totalPages - N + 1));
-  const pages = [];
-  for(let p=start; p<start+N; p++) pages.push(p);
-  const lastInWindow = pages[pages.length - 1];
-  const trailingLast = lastInWindow < totalPages ? totalPages : null;
-  return {
-    pages,
-    leadingDots: pages[0] > 1,
-    trailingDots: trailingLast !== null && lastInWindow < totalPages - 1,
-    trailingLast,
-  };
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
 }
 
 function renderPagination(totalPages){
   const el = document.getElementById('pagination');
   if(totalPages <= 1){ el.innerHTML = ''; return; }
-  const {pages, leadingDots, trailingDots, trailingLast} = getPageList(totalPages, currentPage);
   let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
-  if(leadingDots) html += `<span class="page-ellipsis">…</span>`;
-  pages.forEach(p=>{
-    html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+  getPageList(totalPages, currentPage).forEach(p=>{
+    if(p==='...') html += `<span class="page-ellipsis">…</span>`;
+    else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
   });
-  if(trailingDots) html += `<span class="page-ellipsis">…</span>`;
-  if(trailingLast) html += `<button class="page-btn" data-page="${trailingLast}">${trailingLast}</button>`;
   html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
   el.innerHTML = html;
   el.querySelectorAll('[data-page]').forEach(btn=>{

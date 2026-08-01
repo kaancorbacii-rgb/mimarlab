@@ -436,14 +436,28 @@ function passesFilters(p, exceptKey){
   });
 }
 
-function getMaxLeading(){ return window.innerWidth <= 720 ? 4 : 9; }
+function getPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  return 9;
+}
+// Mevcut sayfayı her zaman ortalayan kayan pencere; ilk ve son sayfa (bkz. kullanıcı isteği:
+// "1. ve son sayfa her zaman görünür olsun") ayrıca her zaman ayrı buton olarak eklenir, pencereye
+// dahil değillerse aralarına '...' konur. Pencere bir uca yaklaştığında diğer ucu genişletip N
+// sayfa göstermeye devam eder (bkz. start===2/end===totalPages-1 dallari).
 function getPageList(totalPages, currentPage){
-  const MAX_LEADING = getMaxLeading();
-  if(totalPages <= MAX_LEADING + 1){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
-  if(currentPage <= MAX_LEADING){ return [...Array(MAX_LEADING).keys()].map(i=>i+1).concat(['...', totalPages]); }
-  const pages=[1,'...']; const start=Math.max(2,currentPage-2); const end=Math.min(totalPages-1,currentPage+2);
-  for(let p=start;p<=end;p++) pages.push(p);
-  if(end<totalPages-1) pages.push('...');
+  const N = getPageWindowSize();
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
   pages.push(totalPages);
   return pages;
 }
@@ -452,7 +466,7 @@ function renderPagination(totalPages){
   if(totalPages <= 1){ el.innerHTML=''; return; }
   let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
   getPageList(totalPages, currentPage).forEach(p=>{
-    if(p==='...') html += `<span class="page-ellipsis">...</span>`;
+    if(p==='...') html += `<span class="page-ellipsis">…</span>`;
     else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
   });
   html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
