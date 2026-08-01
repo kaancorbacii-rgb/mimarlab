@@ -491,7 +491,7 @@
         <a class="footer-logo" href="index.html">
           <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
         </a>
-        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
@@ -559,16 +559,23 @@ document.addEventListener('click', (e)=>{
 function latestPublishedOrder(memberItems, staticItemsInOriginalOrder){
   const merged = [];
   if(memberItems.length){
-    const step = (staticItemsInOriginalOrder.length + memberItems.length) / memberItems.length;
+    // Gelen memberItems EN YENİ ÖNCE sıralı (bkz. src/routes/public.js ORDER BY created_at DESC).
+    // Aşağıdaki döngü diziyi BAŞTAN serpiştirdiğinden, en yeniyi olduğu gibi kullanırsak en düşük
+    // index'e düşer ve fonksiyon sonundaki reverse()'den SONRA dizinin EN SONUNA (yani en az
+    // görünür yere) taşınırdı — "en son eklenen ilk" niyetinin tam tersi (bkz. gerçek bulgu: yeni
+    // onaylanan bir proje/mimar/firma/ürün en tepede görünmesi gerekirken kayboluyordu). Önce
+    // eskiden-yeniye çevirip en yeniyi serpiştirmenin SONUNA koyuyoruz ki reverse() sonrası başa gelsin.
+    const orderedMembers = memberItems.slice().reverse();
+    const step = (staticItemsInOriginalOrder.length + orderedMembers.length) / orderedMembers.length;
     let memberIdx = 0, nextInsertAt = step;
     for(let i = 0; i < staticItemsInOriginalOrder.length; i++){
       merged.push(staticItemsInOriginalOrder[i]);
-      while(memberIdx < memberItems.length && merged.length >= Math.round(nextInsertAt)){
-        merged.push(memberItems[memberIdx++]);
+      while(memberIdx < orderedMembers.length && merged.length >= Math.round(nextInsertAt)){
+        merged.push(orderedMembers[memberIdx++]);
         nextInsertAt += step;
       }
     }
-    while(memberIdx < memberItems.length) merged.push(memberItems[memberIdx++]);
+    while(memberIdx < orderedMembers.length) merged.push(orderedMembers[memberIdx++]);
   } else {
     merged.push(...staticItemsInOriginalOrder);
   }
@@ -583,6 +590,21 @@ function carouselSlides(dynamicItems, staticItemsInOriginalOrder){
 // prolifik gönderenin listeyi kilitleme riski proje kadar yüksek değil, en yeni 5 kayıt doğrudan gösterilir.
 function latestFive(dynamicItems, staticItemsInOriginalOrder){
   return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(0, 5);
+}
+
+// Ana sayfadaki Mimar/Firma mini-carousel'leri "en yeni eklenen" yerine "en popüler" isimleri
+// gösterir (bkz. kullanıcı isteği). Popülerlik ölçütü olarak somut bir puan alanı olmadığından,
+// projeler-data.js'teki designer[] alanında o isme kaç projede kredi verildiği kullanılır — en çok
+// projede geçen mimar/firma platformda en görünür/üretken olan, dolayısıyla en "popüler" kabul edilir.
+const designerProjectCounts = (function(){
+  const counts = new Map();
+  projects.forEach(p => {
+    (p.designer || []).forEach(d => counts.set(d, (counts.get(d) || 0) + 1));
+  });
+  return counts;
+})();
+function mostPopularFive(items){
+  return items.slice().sort((a,b) => (designerProjectCounts.get(b.name) || 0) - (designerProjectCounts.get(a.name) || 0)).slice(0, 5);
 }
 
 const SLUGIFY_TR_MAP = { ç:'c', Ç:'c', ğ:'g', Ğ:'g', ı:'i', I:'i', İ:'i', ö:'o', Ö:'o', ş:'s', Ş:'s', ü:'u', Ü:'u' };
@@ -724,8 +746,8 @@ const staticUrunWithImage = [
   ...materials.filter(p => p.image).map(p => ({...p, _kind:'materials'})),
 ];
 
-mimarSlider.render(latestFive([], staticArchitectsWithPhoto));
-markaSlider.render(latestFive([], staticOfficesWithLogo));
+mimarSlider.render(mostPopularFive(staticArchitectsWithPhoto));
+markaSlider.render(mostPopularFive(staticOfficesWithLogo));
 urunSlider.render(latestFive([], staticUrunWithImage));
 
 Promise.all([
@@ -753,12 +775,12 @@ Promise.all([
   const hiddenArchitects = new Set(hiddenRes.architects || []);
   const dynamicArchitects = (archRes.items || []).filter(a => a.photo);
   const visibleStaticArchitects = hiddenArchitects.size ? staticArchitectsWithPhoto.filter(a => !hiddenArchitects.has(a.name)) : staticArchitectsWithPhoto;
-  mimarSlider.render(latestFive(dynamicArchitects, visibleStaticArchitects));
+  mimarSlider.render(mostPopularFive([...visibleStaticArchitects, ...dynamicArchitects]));
 
   const hiddenOffices = new Set(hiddenRes.offices || []);
   const dynamicOffices = (officeRes.items || []).filter(o => o.logo);
   const visibleStaticOffices = hiddenOffices.size ? staticOfficesWithLogo.filter(o => !hiddenOffices.has(o.name)) : staticOfficesWithLogo;
-  markaSlider.render(latestFive(dynamicOffices, visibleStaticOffices));
+  markaSlider.render(mostPopularFive([...visibleStaticOffices, ...dynamicOffices]));
 
   const hiddenProducts = new Set(hiddenRes.products || []);
   const hiddenMaterials = new Set(hiddenRes.materials || []);

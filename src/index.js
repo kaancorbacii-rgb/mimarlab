@@ -92,7 +92,7 @@ const SITEMAP_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=3600, stale-wh
 // injectMeta()/*-detay.html şablonlarından biri değiştiğinde bu değeri artırmak, gerçek istek
 // URL'sini DEĞİŞTİRMEDEN yalnızca cache anahtarını değiştirip önceki girdileri "yetim" bırakarak
 // (silmeye gerek kalmadan) anında geçersiz kılar.
-const SSR_CACHE_VERSION = 'v17';
+const SSR_CACHE_VERSION = 'v20';
 
 export default {
   async fetch(request, env, ctx) {

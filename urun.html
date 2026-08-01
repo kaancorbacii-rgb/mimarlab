@@ -226,8 +226,11 @@
   }
   .card-save-btn:hover{background:rgba(27,42,61,0.75);}
   .card-save-btn.saved{background:var(--accent); color:var(--ink);}
-  .card-edit-btn{display:inline-block; margin-top:4px; color:#fff; font-size:11px; font-weight:600; text-decoration:underline;}
+  .card-edit-btn{display:inline-block; margin-top:4px; color:#fff; font-size:11px; font-weight:600; text-decoration:underline; background:none; border:none; padding:0; font-family:inherit; cursor:pointer;}
+  .edit-slot:not(:empty) + .admin-action-slot .card-edit-btn{margin-left:10px;}
   .card-edit-btn:hover{color:#F5CFA0;}
+  .card-delete-btn{display:inline-block; margin-top:4px; margin-left:10px; color:#F5A3A3; font-size:11px; font-weight:600; text-decoration:underline; background:none; border:none; padding:0; font-family:inherit; cursor:pointer;}
+  .card-delete-btn:hover{color:#fff;}
 
   .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); font-size:14px; display:none;}
 
@@ -333,7 +336,7 @@
 
   <div class="page-head">
     <h1>Ürünler</h1>
-    <p>Mimarların ve iç mekan tasarımcılarının projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfedin.</p>
+    <p>Projelerinde kullanabileceğin mobilya, aydınlatma, aksesuar, yapı malzemeleri ve firmaları keşfet.</p>
   </div>
 
   <div class="grid-layout">
@@ -372,7 +375,7 @@
         <a class="footer-logo" href="index.html">
           <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
         </a>
-        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve kariyer fırsatlarını bir araya getiren bağımsız bir platform.</p>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
@@ -597,16 +600,18 @@ function render(){
         ${p.brand ? `<div class="content-card-by">${escapeHtml(p.brand)}</div>` : ''}
         <div class="rating-widget" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(productKey(p))}"></div>
         <span class="edit-slot" data-type="${p._kind}" data-id="${escapeAttr(p.submissionId || '')}"></span>
+        ${p._kind === 'products' ? `<span class="admin-action-slot" data-id="${escapeAttr(p.submissionId || '')}" data-key="${escapeAttr(productLegacyKey(p))}"></span>` : ''}
       </div>
     </div>`).join('');
   wireSaveButtons('product');
   mountAllRatingWidgets();
   applyEditButtons('products');
   applyEditButtons('materials');
+  applyAdminActions();
   grid.querySelectorAll('.content-card').forEach((card, i)=>{
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
-      if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('a')) return;
+      if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('a')) return;
       openItemModal(pageItems[i]);
     });
   });
@@ -643,6 +648,55 @@ document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeItemModa
 function productKey(p){
   if(p.submissionId) return 'm-' + p.submissionId;
   return slugify(p.title + '-' + (p.brand || ''));
+}
+
+// src/routes/legacyContent.js#LEGACY_TYPES.products.key ile birebir aynı üretim — ürünün kararlı
+// bir id'si olmadığından (statik urunler-data.js sadece title/brand tutar) admin aksiyonları bu
+// "marka|||başlık" anahtarıyla statik kaydı bulur.
+function productLegacyKey(p){
+  return `${p.brand || ''}|||${p.title}`;
+}
+
+// Admin, ürün kartlarında "Gönderiyi Düzenle"nin yanına Arşivle/Sil butonları görür (bkz. kullanıcı
+// isteği: "ürüne silme ve arşivleme yetkisi ver ... düzenle butonunun yanında") — üye gönderisi
+// ürünlerde (submissionId dolu) id ile, statik ürünlerde "marka|||başlık" anahtarıyla işlem yapılır
+// (bkz. src/routes/legacyContent.js#handleContentAction). Yalnızca gerçek ürünler için (malzemeler
+// için değil, bkz. render() içindeki p._kind === 'products' koşulu).
+async function applyAdminActions(){
+  await savedWidgetReady;
+  if(!currentUser || currentUser.role !== 'admin') return;
+  document.querySelectorAll('.admin-action-slot').forEach(slot=>{
+    slot.innerHTML = `
+      <button type="button" class="card-edit-btn admin-archive-btn">Arşivle</button>
+      <button type="button" class="card-delete-btn admin-delete-btn">Sil</button>`;
+    slot.querySelector('.admin-archive-btn').addEventListener('click', (e)=>{ e.stopPropagation(); runContentModeration(slot, 'archive'); });
+    slot.querySelector('.admin-delete-btn').addEventListener('click', (e)=>{ e.stopPropagation(); runContentModeration(slot, 'delete'); });
+  });
+}
+
+async function runContentModeration(slot, action){
+  const confirmText = action === 'delete'
+    ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
+    : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+  if(!confirm(confirmText)) return;
+  const id = slot.dataset.id;
+  const key = slot.dataset.key;
+  slot.querySelectorAll('button').forEach(b => b.disabled = true);
+  try{
+    const res = await fetch('/api/admin/legacy/content-action', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(id ? { type: 'products', action, id } : { type: 'products', action, key }),
+    });
+    if(!res.ok){
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      slot.querySelectorAll('button').forEach(b => b.disabled = false);
+      return;
+    }
+    window.location.reload();
+  }catch{
+    alert('Bir şeyler ters gitti, tekrar dene.');
+    slot.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
 }
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }

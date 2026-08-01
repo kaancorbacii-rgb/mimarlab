@@ -351,3 +351,17 @@ CREATE TABLE IF NOT EXISTS legacy_content_hidden (
   UNIQUE(content_type, content_key)
 );
 CREATE INDEX IF NOT EXISTS idx_legacy_hidden_type ON legacy_content_hidden(content_type);
+
+-- R2'nin (mimarlab-uploads) ücretsiz kotasını (10 GB depolama / ayda 1M Class A işlem) hiç
+-- aşmaması için tek satırlık bir kümülatif kullanım sayacı (bkz. kullanıcı isteği: "R2 Paid'in
+-- asla para çekmesini istemiyorum ... asla ücretli kota kullanımına geçme", src/lib/r2Quota.js).
+-- R2'de hiçbir yerde .delete() çağrılmadığından (bkz. src/routes/upload.js, src/routes/ai.js)
+-- total_bytes hiç azalmaz, gerçek kullanımı hep doğru yansıtır. ops_month değiştiğinde ops_count
+-- uygulama tarafında sıfırlanır (ücretsiz işlem kotası aylık yenilenir).
+CREATE TABLE IF NOT EXISTS r2_usage (
+  id TEXT PRIMARY KEY,
+  total_bytes INTEGER NOT NULL DEFAULT 0,
+  ops_count INTEGER NOT NULL DEFAULT 0,
+  ops_month TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL DEFAULT 0
+);

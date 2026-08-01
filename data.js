@@ -1083,7 +1083,6 @@ const architects = [
   {name:"Emrah Ömer Çam", role:"Kurucu", office:"EÖÇ Mimarlık", photo:"mimarlar-thumb/arkiv/emrah-omer-cam.jpg"},
   {name:"Emre Öztürk", role:"Kurucu Ortak", office:"Vero-Concept Mimarlık", photo:"mimarlar-thumb/arkiv/emre-ozturk.jpg"},
   {name:"Gonca Ateş Öztürk", role:"Kurucu Ortak", office:"Vero-Concept Mimarlık", photo:"mimarlar-thumb/arkiv/gonca-ates-ozturk.jpg"},
-  {name:"Salih Zeki Salalı", role:"Kurucu Ortak", office:"4M Mimarlık", photo:"mimarlar-thumb/salih-zeki-salali-mimarlab.jpg", dob:1963, school:"Gazi Üniversitesi", dept:"Mimarlık"},
   {name:"Fatih Açıkalın", role:"Kurucu Ortak", office:"4M Mimarlık", photo:"mimarlar-thumb/arkiv/fatih-acikalin.jpg"},
   {name:"Görkem Güvenç", role:"Kurucu Ortak", office:"Noname Studio", photo:"mimarlar-thumb/arkiv/gorkem-guvenc.jpg"},
   {name:"Andrea Perego", role:"Kurucu Ortak", office:"Noname Studio", photo:"mimarlar-thumb/arkiv/andrea-perego.jpg"},

@@ -22,8 +22,11 @@ export const AI_EXTRACT_GLOBAL_DAILY_LIMIT = 50;
 
 // Gönderim anında dış görselleri R2'ye kopyalayan uç nokta için ayrı, biraz daha gevşek bir
 // kullanıcı limiti (bir gönderi birden çok görsel taşıyabilir) + istek başına azami görsel sayısı.
+// htmlExtract.js#extractPageContent'in aday listesi için kullandığı maxImages (60) ile hizalı —
+// aksi halde AI/kullanıcı sayfadaki tüm ilgili görselleri seçse bile burada sessizce kırpılırdı
+// (bkz. kullanıcı isteği: "yapay zeka verilen linkten görsel çekerken tüm görselleri çeksin").
 export const AI_COPY_IMAGES_PER_USER_HOURLY_LIMIT = 20;
-export const AI_COPY_IMAGES_MAX_PER_REQUEST = 10;
+export const AI_COPY_IMAGES_MAX_PER_REQUEST = 60;
 
 // Kaynak sayfa çekme ayarları — bkz. safeFetch.js.
 export const AI_FETCH_TIMEOUT_MS = 10000;

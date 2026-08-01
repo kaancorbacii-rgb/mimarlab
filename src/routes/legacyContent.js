@@ -66,6 +66,7 @@ export async function handleLegacyAdmin(request, env, url, segments, user) {
   if (segments.length === 3 && request.method === 'GET') return searchLegacy(env, url);
   if (segments.length === 4 && segments[3] === 'hidden' && request.method === 'PATCH') return toggleLegacyHidden(request, env, user);
   if (segments.length === 4 && segments[3] === 'project-action' && request.method === 'POST') return handleProjectAction(request, env, user);
+  if (segments.length === 4 && segments[3] === 'content-action' && request.method === 'POST') return handleContentAction(request, env, user);
   return errorJson('Bulunamadı', 404);
 }
 
@@ -91,7 +92,7 @@ async function searchLegacy(env, url) {
   });
 }
 
-async function setLegacyHidden(env, user, type, key, hidden) {
+export async function setLegacyHidden(env, user, type, key, hidden) {
   if (hidden) {
     await env.DB.prepare(
       `INSERT INTO legacy_content_hidden (id, content_type, content_key, hidden_by_user_id, hidden_at)
@@ -227,6 +228,171 @@ async function handleProjectAction(request, env, user) {
     ).bind(newId(), user.id, 'archived', now, now, slug, slug, ...bindProjectFields(fields)).run();
   }
   await setLegacyHidden(env, user, 'projects', slug, true);
+  await invalidatePublicCache();
+  return json({ ok: true });
+}
+
+// architects/offices'in mevcut claimed_profile_key + /api/public/profile-edits bindirme mekanizması
+// (bkz. src/routes/public.js#handlePublicProfileEdits) sayesinde, projelerdeki claimed_slug ile
+// birebir aynı desen: statik bir profili "arşivle" demek, o profilin GÜNCEL (varsa onaylı düzenleme
+// bindirmeli) hâlini bir taslak satıra kopyalayıp claimed_profile_key ile statik anahtara bağlamak,
+// sonra statik kaydı gizlemek. "Yayınla" taslağı onaylar ve statik kaydı tekrar gösterir — aynı
+// profilin GÜNCELLENMİŞ hâli olarak canlıya döner. Ürünlerin böyle bir claimed-key/bindirme sistemi
+// YOK (claim akışı hiç yok, bkz. src/lib/submissionTypes.js#products) — bu yüzden ürünlerde
+// 'archive', statik kaydı KALICI olarak gizleyip bağımsız yeni bir taslak oluşturur; bu taslak
+// yayınlandığında sıradan bir üye gönderisi gibi ayrı bir ürün olarak canlıya çıkar, statik köken
+// bir daha geri gelmez (claimedColumn: null durumunda 'publish' asla gizliliği geri açmaz).
+const CONTENT_ACTION_TYPES = {
+  architects: {
+    table: 'architect_submissions',
+    claimedColumn: 'claimed_profile_key',
+    copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url'],
+    async staticFields(env, key) {
+      const base = architects.find(x => x.name === key);
+      if (!base) return null;
+      const fields = {
+        name: base.name, dob: base.dob || null, school: base.school || null, dept: base.dept || null,
+        office: base.office || null, position: base.position || null, profession: base.profession || null,
+        awards: base.awards || [], photo_url: base.photo || base.photo_url || null,
+      };
+      const editRow = await env.DB.prepare(
+        `SELECT * FROM architect_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
+      ).bind(key).first();
+      if (editRow) {
+        const parsed = parseSubmissionRow('architects', editRow);
+        Object.assign(fields, {
+          dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
+          position: parsed.position, profession: parsed.profession, photo_url: parsed.photo_url,
+        });
+      }
+      return fields;
+    },
+  },
+  offices: {
+    table: 'office_submissions',
+    claimedColumn: 'claimed_profile_key',
+    copyFields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders'],
+    async staticFields(env, key) {
+      const base = offices.find(x => x.name === key);
+      if (!base) return null;
+      const fields = {
+        name: base.name, loc: base.loc || null, cats: base.cats || null, yil: base.yil || null,
+        website: base.website || null, about: base.about || null, logo_url: base.logo || null,
+        awards: base.awards || [], founders: base.founders || [],
+      };
+      const editRow = await env.DB.prepare(
+        `SELECT * FROM office_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
+      ).bind(key).first();
+      if (editRow) {
+        const parsed = parseSubmissionRow('offices', editRow);
+        Object.assign(fields, {
+          loc: parsed.loc, cats: parsed.cats, yil: parsed.yil, website: parsed.website,
+          about: parsed.about, logo_url: parsed.logo_url,
+        });
+      }
+      return fields;
+    },
+  },
+  products: {
+    table: 'product_submissions',
+    claimedColumn: null,
+    copyFields: ['title', 'brand', 'website', 'category', 'description', 'images'],
+    async staticFields(_env, key) {
+      const base = products.find(x => `${x.brand || ''}|||${x.title}` === key);
+      if (!base) return null;
+      return {
+        title: base.title, brand: base.brand || null, website: base.website || null,
+        category: base.category || null, description: base.description || null, images: base.images || [],
+      };
+    },
+  },
+};
+
+function bindContentFields(type, fields) {
+  const { copyFields } = CONTENT_ACTION_TYPES[type];
+  const arrayFields = SUBMISSION_TYPES[type].arrayFields;
+  return copyFields.map(f => (arrayFields.includes(f) ? JSON.stringify(fields[f] || []) : (fields[f] ?? null)));
+}
+
+// POST /api/admin/legacy/content-action  body: {type:'architects'|'offices'|'products', action:'delete'|'archive'|'publish', id?, key?}
+// mimar-detay.html/ofis-detay.html'deki (yalnızca admin görür) Sil/Arşivle butonlarının, urun.html'deki
+// ürün kartı admin aksiyonlarının ve admin panelindeki Arşiv sekmesinin tek ortak uç noktası —
+// handleProjectAction ile AYNI mantık, 3 içerik tipine genelleştirildi (bkz. kullanıcı isteği:
+// "mimar, firma ve ürüne silme ve arşivleme yetkisi ver"). id: gerçek bir <tip>_submissions satırı
+// (üye gönderisi YA DA önceden arşivlenmiş statik kayıt taslağı). key: henüz hiç DB satırı olmayan
+// statik bir kayıt — architects[]/offices[].name ya da ürünün "marka|||başlık" anahtarı (bkz.
+// LEGACY_TYPES). "Sil" canlıdan kaldırır (id'liyse satırı siler, key'liyse statik kaydı gizler);
+// "Arşivle" canlıdan kaldırıp admin panelinin Arşiv sekmesine taşır, admin isterse "Yayınla" ile
+// tekrar canlıya alabilir.
+async function handleContentAction(request, env, user) {
+  const body = await readJson(request);
+  const type = body.type;
+  const config = CONTENT_ACTION_TYPES[type];
+  if (!config) return errorJson('Geçersiz tip.');
+  const action = body.action;
+  const id = (body.id || '').trim();
+  const key = (body.key || '').trim();
+  if (!['delete', 'archive', 'publish'].includes(action)) return errorJson('Geçersiz işlem.');
+  if (!id && !key) return errorJson('Geçersiz istek.');
+
+  if (id) {
+    const row = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+    if (!row) return errorJson('Bulunamadı.', 404);
+    const now = Date.now();
+    if (action === 'delete') {
+      await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+    } else if (action === 'archive') {
+      await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
+      if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], true);
+    } else {
+      await env.DB.prepare(`UPDATE ${config.table} SET status = 'approved', updated_at = ? WHERE id = ?`).bind(now, id).run();
+      if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], false);
+    }
+    await invalidatePublicCache();
+    return json({ ok: true });
+  }
+
+  // key ile: statik bir kayıt, henüz kendine ait bir satır olmayabilir.
+  if (action === 'publish') return errorJson('Geçersiz istek.');
+
+  if (action === 'delete') {
+    await setLegacyHidden(env, user, type, key, true);
+    if (config.claimedColumn) {
+      await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
+    }
+    await invalidatePublicCache();
+    return json({ ok: true });
+  }
+
+  const fields = await config.staticFields(env, key);
+  if (!fields) return errorJson('Böyle bir statik kayıt bulunamadı.', 404);
+  const now = Date.now();
+  const boundValues = bindContentFields(type, fields);
+
+  if (config.claimedColumn) {
+    const existing = await env.DB.prepare(
+      `SELECT id FROM ${config.table} WHERE ${config.claimedColumn} = ? ORDER BY created_at DESC LIMIT 1`
+    ).bind(key).first();
+    if (existing) {
+      await env.DB.prepare(
+        `UPDATE ${config.table} SET ${config.copyFields.map(f => `${f} = ?`).join(', ')}, status = 'archived', owner_user_id = ?, updated_at = ? WHERE id = ?`
+      ).bind(...boundValues, user.id, now, existing.id).run();
+    } else {
+      const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', config.claimedColumn, ...config.copyFields];
+      const placeholders = columns.map(() => '?').join(', ');
+      await env.DB.prepare(
+        `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
+      ).bind(newId(), user.id, 'archived', now, now, key, ...boundValues).run();
+    }
+  } else {
+    const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.copyFields];
+    const placeholders = columns.map(() => '?').join(', ');
+    await env.DB.prepare(
+      `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
+    ).bind(newId(), user.id, 'archived', now, now, ...boundValues).run();
+  }
+
+  await setLegacyHidden(env, user, type, key, true);
   await invalidatePublicCache();
   return json({ ok: true });
 }

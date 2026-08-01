@@ -1,5 +1,6 @@
 import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
+import { checkR2Quota, recordR2Usage, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB
 const EXT_BY_MIME = {
@@ -29,10 +30,14 @@ export async function handleUploadRoute(request, env) {
   if (!ext) return errorJson('Sadece JPEG, PNG, WEBP ya da GIF görsel yükleyebilirsin.');
   if (file.size > MAX_UPLOAD_BYTES) return errorJson('Görsel en fazla 4 MB olabilir.');
 
+  const quota = await checkR2Quota(env, file.size);
+  if (!quota.ok) return r2QuotaErrorResponse(quota.reason);
+
   const key = `u/${user.id}/${crypto.randomUUID()}.${ext}`;
   await env.UPLOADS.put(key, await file.arrayBuffer(), {
     httpMetadata: { contentType: file.type },
   });
+  await recordR2Usage(env, file.size);
 
   return json({ url: `/media/${key}` }, 201);
 }

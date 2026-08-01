@@ -4,6 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField } from '../lib/submissionTypes.js';
 import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
+import { setLegacyHidden } from './legacyContent.js';
 // projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
 // sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
 // src/lib/seo.js'teki aynı desen — orada da SSR meta için kullanılıyor).
@@ -18,6 +19,23 @@ const TYPE_BY_PATH = {
 // onaylı bir profile_claims kaydına sahip olduğu STATİK bir profile (architects[]/offices[].name)
 // yapılan bir düzenleme talebidir — sahtecilik olmasın diye onay kontrolü burada yapılır.
 const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
+
+// bkz. src/routes/public.js#CLAIMED_COLUMN_BY_TYPE (aynı eşleme) — bir statik kaydı admin panelinden
+// arşivleyip (bkz. src/routes/legacyContent.js#handleContentAction/handleProjectAction) sonra bu
+// GENEL uç noktadan (Admin Arşiv sekmesindeki özel "Yayınla" butonu DIŞINDA, ör. proje-ekle.html/
+// mimar-ekle.html/ofis-ekle.html'in normal ?claim= düzenleme formundan) tekrar onaylarsak, aşağıdaki
+// unhideIfClaimedApproved çağrısı olmadan satır 'approved' olur ama statik kayıt legacy_content_hidden
+// içinde gizli KALIRDI — canlıda ne overlay ne statik hali görünmeyen, veritabanında "onaylı" ama
+// sitede hiç var olmayan bir kayıt (gerçek bulgu: GAD Architecture'ı arşivleyip normal formdan
+// düzenleyince firma sitede tamamen kayboluyordu, admin panelinde her şey normal görünüyordu).
+const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'claimed_profile_key', projects: 'claimed_slug' };
+
+async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue) {
+  if (status !== 'approved' || !claimedValue) return;
+  const claimedColumn = CLAIMED_COLUMN_BY_TYPE[typeKey];
+  if (!claimedColumn) return;
+  await setLegacyHidden(env, user, typeKey, claimedValue, false);
+}
 
 async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   if (user.role === 'admin') return null; // admin, sahiplenmiş olsun olmasın her mimar/marka profilini düzenleyebilir
@@ -135,6 +153,11 @@ async function createSubmission(request, env, user, typeKey) {
     `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
   ).bind(...values).run();
 
+  // Bu, önceden arşivlenmiş (bkz. handleContentAction/handleProjectAction) bir statik kaydın
+  // taslağıysa (nadir — normalde prefillForClaim mevcut taslağı bulup PATCH'e düşer) statik kayıt
+  // hâlâ gizli olabilir; onaylandığı an tekrar görünür olmalı (bkz. unhideIfClaimedApproved).
+  await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? body.claimed_slug : body.claimed_profile_key);
+
   // Yalnızca admin'in kendi gönderisi anında 'approved' olarak yayına girdiğinden (yukarıdaki
   // yorum) public önbelleği yalnızca bu durumda değişir — sıradan üye gönderileri 'pending' kalıp
   // onay bekleyene dek zaten hiçbir public uçta görünmez, gereksiz yere temizlemeye gerek yok.
@@ -194,6 +217,10 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   await env.DB.prepare(
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
+
+  // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
+  // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
+  await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key);
 
   // Onaylı içerik ya şimdi onaylandı ya da (sıradan üye kendi onaylı içeriğini düzenlediğinde,
   // bkz. yukarıdaki status ataması) tekrar onay bekler duruma düşüp public'ten kalkmış olabilir —

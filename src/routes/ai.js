@@ -25,6 +25,7 @@ import { safeFetch, limitResponseSize, UnsafeUrlError } from '../lib/safeFetch.j
 import { extractPageContent } from '../lib/htmlExtract.js';
 import { stripInjectionAttempts } from '../lib/injectionFilter.js';
 import { callOnce, isAiProviderConfigured, AiProviderError } from '../lib/aiProvider.js';
+import { checkR2Quota, recordR2Usage } from '../lib/r2Quota.js';
 import catalogJs from '../../catalog-taxonomy.js';
 import {
   AI_MODEL, AI_MAX_TOKENS, AI_MAX_ATTEMPTS, AI_MAX_PAGE_BYTES,
@@ -243,7 +244,7 @@ async function handleExtract(request, env, user) {
       ok: true, found: true, aiFailed: true,
       sourceUrl: finalUrl,
       data: baselineData(kind, pageContent),
-      images: pageContent.images.slice(0, 6).map(u => ({ url: u })),
+      images: pageContent.images.slice(0, AI_COPY_IMAGES_MAX_PER_REQUEST).map(u => ({ url: u })),
       message: 'Bugünlük yapay zeka kotamız doldu, yarın tekrar dene ya da manuel ekle.',
     });
   }
@@ -255,7 +256,7 @@ async function handleExtract(request, env, user) {
       ok: true, found: true, aiFailed: true,
       sourceUrl: finalUrl,
       data: baselineData(kind, pageContent),
-      images: pageContent.images.slice(0, 6).map(u => ({ url: u })),
+      images: pageContent.images.slice(0, AI_COPY_IMAGES_MAX_PER_REQUEST).map(u => ({ url: u })),
       message: 'Yapay zeka şu anda içeriği analiz edemedi; bulabildiğimiz temel bilgilerle formu doldurduk, geri kalanını sen tamamlayabilirsin.',
     });
   }
@@ -377,8 +378,16 @@ async function handleCopyImages(request, env, user) {
       if (declaredLength > IMG_MAX_BYTES) { items.push({ url: rawUrl, error: 'too_large' }); continue; }
 
       const buf = await limitResponseSize(response, IMG_MAX_BYTES).arrayBuffer();
+
+      // bkz. src/lib/r2Quota.js — R2'nin ücretsiz kotasını hiç aşmamak için her yazımdan önce
+      // kontrol edilir; reddedilirse bu görsel atlanır ama döngü diğer görseller için devam eder
+      // (bkz. kullanıcı isteği: "R2 Paid'in asla para çekmesini istemiyorum").
+      const quota = await checkR2Quota(env, buf.byteLength);
+      if (!quota.ok) { items.push({ url: rawUrl, error: 'r2_quota_reached' }); continue; }
+
       const key = `u/${user.id}/${crypto.randomUUID()}.${ext}`;
       await env.UPLOADS.put(key, buf, { httpMetadata: { contentType } });
+      await recordR2Usage(env, buf.byteLength);
       items.push({ url: rawUrl, mediaUrl: `/media/${key}`, sourceUrl: finalUrl });
     } catch {
       items.push({ url: rawUrl, error: 'blocked_or_too_large' });

@@ -115,12 +115,20 @@ function dateBucketFor(dateStr) {
 
 // Ham form verisini (client'tan gelen) satır olarak D1'e yazılacak hale getirir:
 // dizi alanları JSON'a çevirir, eksik/boş alanları null yapar, projeler için slug/dateBucket türetir.
+// ai_generated (bkz. migrations/0015_ai_submission_source.sql) NOT NULL DEFAULT 0 olduğundan diğer
+// alanlar gibi boşken null bırakılamaz — proje-ekle.html/urun-ekle.html'in AI paneli kullanılmadığı
+// her gönderimde bu alan payload'da hiç yer almaz, null yazılırsa INSERT/UPDATE anında
+// "NOT NULL constraint failed" ile 500 döner (bkz. kullanıcı raporu: kapak/sıra değişikliğini
+// kaydederken "Sunucu hatası oluştu" — aslında AI akışı dışındaki HER proje/ürün/malzeme
+// ekleme-düzenleme işlemini etkiliyordu, görsellerle ilgisi yoktu).
 export function normalizeSubmission(type, body) {
   const config = SUBMISSION_TYPES[type];
   const row = {};
   for (const field of config.fields) {
     let value = body[field];
-    if (config.arrayFields.includes(field)) {
+    if (field === 'ai_generated') {
+      value = value ? 1 : 0;
+    } else if (config.arrayFields.includes(field)) {
       if (!Array.isArray(value)) value = value ? [value] : [];
       value = JSON.stringify(value.filter(Boolean));
     } else {

@@ -14,7 +14,16 @@ async function isAdminRequest(request, env) {
 }
 
 const ADMIN_CACHE_HEADERS = { 'Cache-Control': 'no-store, no-cache' };
-const ANON_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300' };
+// caches.default PoP-başınadır (bkz. Cloudflare Workers Cache API dokümantasyonu) — invalidatePublicCache()
+// bir yazma isteğini işleyen PoP'un kendi girdisini temizler, ama BAŞKA bir PoP'taki (ör. admin
+// Frankfurt'tan, bir sonraki okuyucu İstanbul'dan bağlanırsa) eski girdi kendi süresi dolana kadar
+// yaşamaya devam eder — tek global "purge" garantisi yok. Önceki max-age=60/s-maxage=300 (5 dk),
+// gerçek bulgu: admin bir projenin kapak görselini/sıralamasını değiştirip kaydettikten hemen sonra
+// (özellikle admin oturumu dışında, ör. gizli sekmeden) bazen hâlâ eski hâli görüyordu — "kaydedildi"
+// diyip hiçbir değişikliğin görünmemesi olarak yorumlandı. Bu uçların arkasındaki D1 sorguları hafif
+// olduğundan (bkz. aşağıdaki yorum) süreyi kısaltmanın maliyeti düşük; birkaç saniyeye indirmek en
+// kötü durumdaki bayatlık penceresini insan algısı için "anında" sayılabilecek bir aralığa çeker.
+const ANON_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=5, s-maxage=15' };
 
 // Sorgu dizesi taşımayan (dolayısıyla sonlu/sabit) public uçların tam listesi — her biri
 // caches.default'ta kendi URL'siyle anahtarlanır ve bir admin yazma işleminden sonra tek seferde

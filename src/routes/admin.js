@@ -2,7 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../lib/submissionTypes.js';
 import { createNotification } from '../lib/notify.js';
-import { handleLegacyAdmin } from './legacyContent.js';
+import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 
 const TYPE_BY_PATH = {
@@ -35,7 +35,7 @@ export async function handleAdminRoute(request, env, url) {
 
   if (sub === 'users' && request.method === 'GET') return listUsers(env);
   if (sub === 'legacy') return handleLegacyAdmin(request, env, url, segments, user);
-  if (sub === 'submissions') return handleSubmissionsAdmin(request, env, url, segments);
+  if (sub === 'submissions') return handleSubmissionsAdmin(request, env, url, segments, user);
   if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
   if (sub === 'corrections') return handleCorrectionsAdmin(request, env, url, segments);
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
@@ -100,7 +100,7 @@ async function listUsers(env) {
 
 // /api/admin/submissions?type=offices&status=pending
 // /api/admin/submissions/:type/:id  (PATCH: alanları ve/veya status günceller, DELETE: siler)
-async function handleSubmissionsAdmin(request, env, url, segments) {
+async function handleSubmissionsAdmin(request, env, url, segments, user) {
   if (segments.length === 3 && request.method === 'GET') {
     const typeKey = TYPE_BY_PATH[url.searchParams.get('type')];
     if (!typeKey) return errorJson('Geçersiz tip.');
@@ -150,6 +150,18 @@ async function handleSubmissionsAdmin(request, env, url, segments) {
       values.push(Date.now());
       values.push(id);
       await env.DB.prepare(`UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+
+      // Bu satır önceden arşivlenmiş bir statik kaydın taslağıysa (bkz. src/routes/legacyContent.js
+      // #handleContentAction/handleProjectAction), admin onu burada (Admin Arşiv sekmesindeki özel
+      // "Yayınla" DIŞINDA, ör. "Bekleyen Gönderiler" onay akışından) onaylarsa statik kayıt
+      // legacy_content_hidden'da gizli KALIRDI — bkz. src/routes/submissions.js#unhideIfClaimedApproved
+      // ile aynı düzeltme, gerçek bulgu: GAD Architecture arşivden normal formla düzenlenince
+      // sitede tamamen kayboluyordu.
+      if (body.status === 'approved') {
+        const claimedColumn = typeKey === 'projects' ? 'claimed_slug' : (typeKey === 'architects' || typeKey === 'offices') ? 'claimed_profile_key' : null;
+        const claimedValue = claimedColumn && (body[claimedColumn] ?? existing[claimedColumn]);
+        if (claimedValue) await setLegacyHidden(env, user, typeKey, claimedValue, false);
+      }
 
       // Durum fiilen değiştiyse (onaylandı/reddedildi) gönderi sahibine bildirim düşer.
       if (body.status && body.status !== existing.status && (body.status === 'approved' || body.status === 'rejected')) {

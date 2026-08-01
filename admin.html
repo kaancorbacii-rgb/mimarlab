@@ -216,6 +216,7 @@
       </div>
 
       <div class="admin-section" id="section-archive">
+        <div class="admin-subtabs" id="archive-subtabs"></div>
         <div id="archive-list"></div>
       </div>
 
@@ -479,31 +480,55 @@ async function loadContent(){
   });
 }
 
-// "Arşiv" sekmesi: proje-detay.html'deki (yalnızca admin görür) "Arşivle" butonuyla canlıdan
-// kaldırılmış projeler (bkz. src/routes/legacyContent.js#handleProjectAction) — hem statik
-// projelerin taslak kopyaları hem üye gönderisi projeler status='archived' olarak burada aynı
-// listede görünür. "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider (bkz.
-// proje-ekle.html#prefillForClaim/prefillForEdit); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
+// "Arşiv" sekmesi: proje/mimar/firma/ürün detay sayfalarındaki (yalnızca admin görür) "Arşivle"
+// butonuyla canlıdan kaldırılmış kayıtlar (bkz. src/routes/legacyContent.js#handleProjectAction/
+// handleContentAction) — hem statik kayıtların taslak kopyaları hem üye gönderileri status='archived'
+// olarak burada aynı listede görünür (bkz. kullanıcı isteği: "mimar, firma ve ürüne silme ve
+// arşivleme yetkisi ver"). "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider
+// (ürünlerin claim akışı yok, her zaman edit=); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
+const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün' };
+const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'ofis-ekle.html', products: 'urun-ekle.html' };
+const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null };
+let archiveType = 'projects';
+
+function archiveEditHref(type, item){
+  const claimedColumn = ARCHIVE_CLAIMED_COLUMN[type];
+  const claimedValue = claimedColumn ? item[claimedColumn] : null;
+  const page = ARCHIVE_EDIT_PAGE[type];
+  return claimedValue
+    ? `${page}?claim=${encodeURIComponent(claimedValue)}`
+    : `${page}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}`;
+}
+
 async function loadArchive(){
+  const subtabs = document.getElementById('archive-subtabs');
+  subtabs.innerHTML = Object.keys(ARCHIVE_TYPE_LABELS).map(t =>
+    `<button class="admin-subtab ${t===archiveType?'active':''}" data-type="${t}">${ARCHIVE_TYPE_LABELS[t]}</button>`
+  ).join('');
+  subtabs.querySelectorAll('.admin-subtab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ archiveType = btn.dataset.type; loadArchive(); });
+  });
+
   const list = document.getElementById('archive-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api('/api/admin/submissions?type=projects&status=archived');
+  const data = await api(`/api/admin/submissions?type=${archiveType}&status=archived`);
   const items = data.items || [];
-  if(!items.length){ list.innerHTML = '<div class="admin-empty">Arşivlenmiş proje yok.</div>'; return; }
+  const typeLabel = ARCHIVE_TYPE_LABELS[archiveType].toLowerCase();
+  if(!items.length){ list.innerHTML = `<div class="admin-empty">Arşivlenmiş ${typeLabel} yok.</div>`; return; }
   list.innerHTML = items.map(item => `
     <div class="admin-card" data-id="${item.id}">
       <div class="admin-card-head">
         <div class="admin-card-body">
-          ${itemImage('projects', item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage('projects', item))}" alt="" loading="lazy">` : ''}
+          ${itemImage(archiveType, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(archiveType, item))}" alt="" loading="lazy">` : ''}
           <div>
-            <div class="admin-card-title">${escapeHtml(itemTitle('projects', item))} <span class="admin-badge badge-rejected">Arşivde</span></div>
+            <div class="admin-card-title">${escapeHtml(itemTitle(archiveType, item))} <span class="admin-badge badge-rejected">Arşivde</span></div>
             ${claimBadgeHtml(item)}
-            <div class="admin-card-meta">${escapeHtml(itemMeta('projects', item))}</div>
-            ${itemDetails('projects', item)}
+            <div class="admin-card-meta">${escapeHtml(itemMeta(archiveType, item))}</div>
+            ${itemDetails(archiveType, item)}
           </div>
         </div>
         <div class="admin-actions">
-          <a class="admin-btn" href="proje-ekle.html?${item.claimed_slug ? 'claim=' + encodeURIComponent(item.claimed_slug) : 'edit=' + encodeURIComponent(item.id) + '&stype=projects'}">Düzenle</a>
+          <a class="admin-btn" href="${archiveEditHref(archiveType, item)}">Düzenle</a>
           <button class="admin-btn primary" data-action="publish">Yayınla</button>
           <button class="admin-btn danger" data-action="delete">Sil</button>
         </div>
@@ -514,11 +539,11 @@ async function loadArchive(){
     btn.addEventListener('click', async ()=>{
       const id = btn.closest('.admin-card').dataset.id;
       const action = btn.dataset.action;
-      if(action === 'delete' && !confirm('Bu arşivlenmiş projeyi kalıcı olarak silmek istediğine emin misin?')) return;
+      if(action === 'delete' && !confirm(`Bu arşivlenmiş ${typeLabel} kalıcı olarak silmek istediğine emin misin?`)) return;
       btn.disabled = true;
-      await api('/api/admin/legacy/project-action', {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action, id }),
-      });
+      const endpoint = archiveType === 'projects' ? '/api/admin/legacy/project-action' : '/api/admin/legacy/content-action';
+      const body = archiveType === 'projects' ? { action, id } : { type: archiveType, action, id };
+      await api(endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
       loadArchive();
     });
   });
