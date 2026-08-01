@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField } from '../lib/submissionTypes.js';
 import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
+import { invalidatePublicCache } from '../lib/publicCache.js';
 // projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
 // sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
 // src/lib/seo.js'teki aynı desen — orada da SSR meta için kullanılıyor).
@@ -120,9 +121,11 @@ async function createSubmission(request, env, user, typeKey) {
   if (typeKey === 'projects' && body.claimed_slug) row.slug = body.claimed_slug; // normalizeSubmission slug'ı title'dan yeniden üretir, statik projeyle eşleşen slug'ı koru
   const id = newId();
   const now = Date.now();
-  // Admin'in kendi statik proje düzenlemesi başka bir onaycıya muhtaç değil — doğrudan yayına girer
-  // (bkz. plan: "zaten onaylayan admin kendisi"). Diğer tüm yeni gönderiler eskisi gibi 'pending'.
-  const status = (typeKey === 'projects' && body.claimed_slug) ? 'approved' : 'pending';
+  // Admin'in kendi gönderisi/düzenlemesi başka bir onaycıya muhtaç değil — admin zaten onaycının
+  // kendisi olduğundan doğrudan yayına girer (bkz. kullanıcı isteği: "admin tüm sitede tüm
+  // yetkilere sahip olsun ... admin canlıdaki siteden yaptığı değişiklikler doğrudan canlı siteye
+  // yansısın"). Diğer tüm kullanıcıların gönderileri eskisi gibi 'pending'.
+  const status = user.role === 'admin' ? 'approved' : 'pending';
 
   const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.fields];
   const placeholders = columns.map(() => '?').join(', ');
@@ -132,6 +135,10 @@ async function createSubmission(request, env, user, typeKey) {
     `INSERT INTO ${config.table} (${columns.join(', ')}) VALUES (${placeholders})`
   ).bind(...values).run();
 
+  // Yalnızca admin'in kendi gönderisi anında 'approved' olarak yayına girdiğinden (yukarıdaki
+  // yorum) public önbelleği yalnızca bu durumda değişir — sıradan üye gönderileri 'pending' kalıp
+  // onay bekleyene dek zaten hiçbir public uçta görünmez, gereksiz yere temizlemeye gerek yok.
+  if (status === 'approved') await invalidatePublicCache();
   return json({ id, status }, 201);
 }
 
@@ -177,8 +184,8 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (typeKey === 'projects') row.slug = existing.slug; // düzenlemede slug'ı (ve ona bağlı bağlantıları/yorumları) koru
 
   const now = Date.now();
-  // bkz. createSubmission'daki aynı yorum — admin'in kendi statik proje düzenlemesi anında yayına girer.
-  const status = (typeKey === 'projects' && body.claimed_slug) ? 'approved' : 'pending';
+  // bkz. createSubmission'daki aynı yorum — admin'in kendi düzenlemesi anında yayına girer.
+  const status = user.role === 'admin' ? 'approved' : 'pending';
   const updates = config.fields.map(f => `${f} = ?`);
   const values = config.fields.map(f => row[f]);
   updates.push('status = ?', 'updated_at = ?');
@@ -188,5 +195,9 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
 
+  // Onaylı içerik ya şimdi onaylandı ya da (sıradan üye kendi onaylı içeriğini düzenlediğinde,
+  // bkz. yukarıdaki status ataması) tekrar onay bekler duruma düşüp public'ten kalkmış olabilir —
+  // her iki yönde de public önbellek eskimiş olacağından temizlenir.
+  if (status === 'approved' || existing.status === 'approved') await invalidatePublicCache();
   return json({ id, status });
 }

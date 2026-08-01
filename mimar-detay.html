@@ -382,8 +382,6 @@
       <a class="nav-link" href="firma.html">Firma</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
-      <a class="nav-link" href="haber.html">Haber</a>
-      <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -400,8 +398,6 @@
       <a class="nav-mobile-link" href="firma.html">Firma</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
-      <a class="nav-mobile-link" href="haber.html">Haber</a>
-      <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
   </nav>
 
@@ -498,15 +494,13 @@
       </div>
       <div class="footer-col">
         <h4>Ana Menü</h4>
+        <a href="mimar.html">Mimar</a>
+        <a href="firma.html">Firma</a>
         <a href="proje.html">Proje</a>
         <a href="urun.html">Ürün</a>
-        <a href="haber.html">Haber</a>
-        <a href="is-ilani.html">İş İlanı</a>
       </div>
       <div class="footer-col">
         <h4>Topluluk</h4>
-        <a href="mimar.html">Mimar</a>
-        <a href="firma.html">Firma</a>
         <a href="giris-yap.html">Giriş Yap</a>
         <a href="uye-ol.html">Üye Ol</a>
       </div>
@@ -542,9 +536,10 @@ if(!mimarName){
   const m = window.location.pathname.match(/\/mimar\/([^/]+)\/?$/);
   if(m) mimarSlug = decodeURIComponent(m[1]);
 }
-const a = (mimarName && architects.find(x => x.name === mimarName))
+const explicitMatch = (mimarName && architects.find(x => x.name === mimarName))
   || (mimarSlug && architects.find(x => slugify(x.name) === mimarSlug))
-  || architects[0];
+  || null;
+const a = explicitMatch || architects[0];
 const office = offices.find(x => x.name === a.office);
 
 document.title = a.name + " — MİMARLAB";
@@ -659,6 +654,19 @@ async function applyProfileEdits(){
 }
 applyProfileEdits();
 
+// Admin bu mimarı admin panelinden gizlemiş olabilir (bkz. src/routes/legacyContent.js, GET
+// /api/public/hidden) — yalnızca URL'de AÇIKÇA istenen bir profil gizliyse listeleme sayfasına
+// yönlendirilir; parametresiz ziyaretlerdeki mevcut architects[0] varsayılan davranışı etkilenmez.
+(async function redirectIfHidden(){
+  if(!explicitMatch) return;
+  try{
+    const res = await fetch('/api/public/hidden');
+    if(!res.ok) return;
+    const hidden = await res.json();
+    if((hidden.architects || []).includes(explicitMatch.name)) window.location.replace('mimar.html');
+  }catch{}
+})();
+
 const officeCardEl = document.getElementById('office-card');
 const officeSectionEl = document.getElementById('office-section');
 function renderOfficeCard(){
@@ -689,18 +697,38 @@ if(colleagues.length > 0){
 }
 
 // İlgili projeler: projeler-data.js kayıtlarındaki designer listesi mimarın adıyla ya da
-// bağlı olduğu ofisin adıyla birebir eşleşiyorsa ilgili proje sayılır.
-const relatedProjects = projects.filter(p =>
-  p.designer.includes(a.name) || (office && p.designer.includes(office.name))
-);
-if(relatedProjects.length > 0){
-  document.getElementById('related-projects-section').style.display = '';
-  document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
-    <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
-      <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
-    </a>`).join('');
+// bağlı olduğu ofisin adıyla birebir eşleşiyorsa ilgili proje sayılır. Admin'in statik bir projeye
+// yaptığı onaylı düzenlemesi (ör. kapak görseli) uygulanınca (bkz. applyRelatedProjectEdits) tekrar
+// çağrılabilsin diye fonksiyona alındı.
+function renderRelatedProjects(){
+  const relatedProjects = projects.filter(p =>
+    p.designer.includes(a.name) || (office && p.designer.includes(office.name))
+  );
+  if(relatedProjects.length > 0){
+    document.getElementById('related-projects-section').style.display = '';
+    document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
+      <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
+        ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+        <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
+      </a>`).join('');
+  }
 }
+renderRelatedProjects();
+
+async function applyRelatedProjectEdits(){
+  try{
+    const res = await fetch('/api/public/project-edits');
+    if(!res.ok) return;
+    const edits = await res.json();
+    let changed = false;
+    for(const slug in edits){
+      const match = projects.find(p => p.slug === slug);
+      if(match){ Object.assign(match, edits[slug]); changed = true; }
+    }
+    if(changed) renderRelatedProjects();
+  }catch{}
+}
+applyRelatedProjectEdits();
 
 // İlgili iş ilanları: mimarın bağlı olduğu ofis adına açılmış ilanlar (bkz. data.js#jobListings)
 // artı, aşağıda loadProfileContent() ile mimarın kendi hesabından eklediği ilanlar (varsa) birleşir.

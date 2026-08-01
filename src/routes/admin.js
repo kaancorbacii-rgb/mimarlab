@@ -2,6 +2,8 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../lib/submissionTypes.js';
 import { createNotification } from '../lib/notify.js';
+import { handleLegacyAdmin } from './legacyContent.js';
+import { invalidatePublicCache } from '../lib/publicCache.js';
 
 const TYPE_BY_PATH = {
   offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
@@ -11,7 +13,7 @@ const TYPE_BY_PATH = {
 // Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
 // de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
 const SUBMISSION_TYPE_LABELS = {
-  offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber',
+  offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber',
 };
 
 const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
@@ -32,6 +34,7 @@ export async function handleAdminRoute(request, env, url) {
   const sub = segments[2];
 
   if (sub === 'users' && request.method === 'GET') return listUsers(env);
+  if (sub === 'legacy') return handleLegacyAdmin(request, env, url, segments, user);
   if (sub === 'submissions') return handleSubmissionsAdmin(request, env, url, segments);
   if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
   if (sub === 'corrections') return handleCorrectionsAdmin(request, env, url, segments);
@@ -168,11 +171,15 @@ async function handleSubmissionsAdmin(request, env, url, segments) {
           );
         }
       }
+      // Onaylı içerik ya şimdi onaylandı ya da onaylıyken bir alanı/durumu değişti (her iki
+      // durumda da public'e yansıyan bir şey değişmiş olabilir) — bkz. src/lib/publicCache.js.
+      if (existing.status === 'approved' || body.status === 'approved') await invalidatePublicCache();
       return json({ ok: true });
     }
 
     if (request.method === 'DELETE') {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+      await invalidatePublicCache();
       return json({ ok: true });
     }
   }

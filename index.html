@@ -208,6 +208,9 @@
     display:grid; grid-template-columns:2fr 1fr;
     gap:16px;
   }
+  /* Grid track'lerinin (ve iç içe hero-side grid'inin) içerik minimum genişliğine göre taşmasını
+     önler — varsayılan min-width:auto, absolute konumlanmış <img> içeren kartlarda taşmaya yol açar. */
+  .bento-grid > *, .hero-side > *{min-width:0;}
 
   /* project slider (left) */
   .proje-slider{
@@ -246,40 +249,37 @@
   .slider-arrow.prev{left:14px;}
   .slider-arrow.next{right:14px;}
 
-  /* category cards (right, symmetric 2x3 grid) */
+  /* small carousels (right, "mimar + marka" üstte yan yana, "urun" altta tam genişlik — bkz.
+     kullanıcı isteği: proje-slider'la aynı görsel dilde, siteye son eklenen 5 mimar/firma/ürünü
+     döngüyle ve oklarla gösteren mini carousel'ler. PROJE artık ayrı bir küçük kart değil —
+     zaten solda kendi büyük carousel'ine sahip). */
   .hero-side{
     display:grid;
-    grid-template-columns:repeat(6, 1fr);
-    grid-template-rows:repeat(3, 1fr);
+    grid-template-columns:repeat(2, 1fr);
+    grid-template-rows:repeat(2, 1fr);
     grid-template-areas:
-      "mimar mimar mimar haber haber haber"
-      "marka marka marka urun urun urun"
-      "isilani isilani isilani proje proje proje";
+      "mimar marka"
+      "urun urun";
     gap:12px;
   }
-  .side-card{
-    position:relative; display:flex; border-radius:16px; overflow:hidden;
-    text-decoration:none; color:inherit;
-    border:1px solid var(--line-soft); background:var(--paper-card);
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .side-card:hover{transform:translateY(-2px); box-shadow:0 8px 20px rgba(27,42,61,0.08); border-color:var(--line);}
   .card-mimar{grid-area:mimar;}
   .card-marka{grid-area:marka;}
-  .card-haber{grid-area:haber;}
-  .card-isilani{grid-area:isilani;}
   .card-urun{grid-area:urun;}
-  .card-proje{grid-area:proje;}
 
-  .side-card-icon-card{
-    flex-direction:column; align-items:center; justify-content:center; gap:10px;
-    padding:14px;
+  .side-slider{
+    position:relative; width:100%; height:100%; border-radius:16px; overflow:hidden;
+    background:var(--paper-alt);
   }
-  .side-card-icon{
-    width:34px; height:34px; display:flex; align-items:center; justify-content:center;
-    color:var(--walnut);
-  }
-  .side-card-name{font-size:12.5px; font-weight:700; letter-spacing:0.02em; color:var(--ink); text-align:center;}
+  .side-slider .proje-slide{border-radius:16px;}
+  .side-slider .slide-logo-img{object-fit:contain !important; background:var(--paper-card); padding:20%;}
+  .side-slider .slider-arrow{width:28px; height:28px;}
+  .side-slider .slider-arrow svg{width:13px; height:13px;}
+  .side-slider .slider-arrow.prev{left:8px;}
+  .side-slider .slider-arrow.next{right:8px;}
+  .side-slider .slide-tag{top:10px; left:10px; font-size:9.5px; padding:4px 9px;}
+  .side-slider .slide-caption{left:10px; right:10px; bottom:10px; padding:9px 12px;}
+  .side-slider .slide-title{font-size:12.5px;}
+  .side-slider .slide-designer{font-size:10.5px; margin-top:1px;}
 
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
@@ -334,13 +334,11 @@
 
   @media (max-width: 860px){
     .bento-grid{grid-template-columns:1fr;}
-    .hero-side{
-      grid-template-rows:auto auto;
-      grid-template-areas:
-        "mimar mimar marka marka isilani isilani"
-        "haber haber urun urun proje proje";
-    }
     .proje-slider{aspect-ratio:16/11;}
+    /* proje-slider ile aynı satırı paylaşmadığından (tek sütuna düşer) "1fr" satırların artık
+       dayanacağı bir yükseklik kalmaz — her kart kendi aspect-ratio'suyla yüksekliğini kendi belirler. */
+    .hero-side{grid-template-rows:none;}
+    .side-card{aspect-ratio:1.7/1;}
   }
 
   @media (max-width:960px){
@@ -366,9 +364,14 @@
     .slide-tag{top:12px; left:12px; font-size:10px; padding:5px 10px;}
     .slider-arrow{width:32px; height:32px;}
     .hero-side{gap:8px;}
-    .side-card{border-radius:12px;}
-    .side-card-icon{width:26px; height:26px;}
-    .side-card-name{font-size:10.5px;}
+    .side-slider{border-radius:12px;}
+    .side-slider .proje-slide{border-radius:12px;}
+    .side-slider .slide-title{font-size:11.5px;}
+    .side-slider .slide-designer{font-size:9.5px;}
+    .side-slider .slide-caption{padding:7px 10px; left:8px; right:8px; bottom:8px;}
+    .side-slider .slide-tag{top:8px; left:8px; font-size:9px; padding:3px 8px;}
+    .side-slider .slider-arrow{width:24px; height:24px;}
+    .side-slider .slider-arrow svg{width:11px; height:11px;}
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -399,8 +402,6 @@
       <a class="nav-link" href="firma.html">Firma</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
-      <a class="nav-link" href="haber.html">Haber</a>
-      <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -417,13 +418,11 @@
       <a class="nav-mobile-link" href="firma.html">Firma</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
-      <a class="nav-mobile-link" href="haber.html">Haber</a>
-      <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
   </nav>
 
   <section class="hero">
-    <h1>Türkiye'nin<br class="hero-break-m"> <em>en güncel <span class="hero-and">ve</span></em><br class="hero-break"> <em>en kapsamlı</em><br class="hero-break-m"> mimar platformu</h1>
+    <h1>Türkiye'nin <em>mimar</em> platformu</h1>
     <p>Mimarlar, iç mimarlar, peyzaj mimarları, öğrenciler ve firmalar MİMARLAB platformunda buluşuyor.</p>
     <a class="hero-cta" href="uye-ol.html">Sen de Katıl</a>
   </section>
@@ -440,30 +439,39 @@
     </div>
 
     <div class="hero-side">
-      <a class="side-card side-card-icon-card card-mimar" href="mimar.html">
-        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>
-        <span class="side-card-name">MİMAR</span>
-      </a>
-      <a class="side-card side-card-icon-card card-marka" href="firma.html">
-        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V9.5L12 4l8 5.5V21"/><path d="M9.5 21v-6h5v6"/></svg></span>
-        <span class="side-card-name">FİRMA</span>
-      </a>
-      <a class="side-card side-card-icon-card card-haber" href="haber.html">
-        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V4z"/><path d="M19 8h1a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H7"/><line x1="7" y1="8" x2="14" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="15" x2="12" y2="15"/></svg></span>
-        <span class="side-card-name">HABER</span>
-      </a>
-      <a class="side-card side-card-icon-card card-isilani" href="is-ilani.html">
-        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="3" y1="12.5" x2="21" y2="12.5"/></svg></span>
-        <span class="side-card-name">İŞ İLANI</span>
-      </a>
-      <a class="side-card side-card-icon-card card-urun" href="urun.html">
-        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 7.5L12 3 3 7.5l9 4.5 9-4.5z"/><path d="M3 7.5v9l9 4.5 9-4.5v-9"/><line x1="12" y1="12" x2="12" y2="21"/></svg></span>
-        <span class="side-card-name">ÜRÜN</span>
-      </a>
-      <a class="side-card side-card-icon-card card-proje" href="proje.html">
-        <span class="side-card-icon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 9h18"/><path d="M9 9v12"/></svg></span>
-        <span class="side-card-name">PROJE</span>
-      </a>
+      <div class="side-card card-mimar">
+        <div class="side-slider">
+          <div class="slider-track" id="mimar-slider-track"></div>
+          <button class="slider-arrow prev" id="mimar-prev" type="button" aria-label="Önceki mimar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="slider-arrow next" id="mimar-next" type="button" aria-label="Sonraki mimar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="side-card card-marka">
+        <div class="side-slider">
+          <div class="slider-track" id="marka-slider-track"></div>
+          <button class="slider-arrow prev" id="marka-prev" type="button" aria-label="Önceki firma">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="slider-arrow next" id="marka-next" type="button" aria-label="Sonraki firma">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="side-card card-urun">
+        <div class="side-slider">
+          <div class="slider-track" id="urun-slider-track"></div>
+          <button class="slider-arrow prev" id="urun-prev" type="button" aria-label="Önceki ürün">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="slider-arrow next" id="urun-next" type="button" aria-label="Sonraki ürün">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -490,15 +498,13 @@
       </div>
       <div class="footer-col">
         <h4>Ana Menü</h4>
+        <a href="mimar.html">Mimar</a>
+        <a href="firma.html">Firma</a>
         <a href="proje.html">Proje</a>
         <a href="urun.html">Ürün</a>
-        <a href="haber.html">Haber</a>
-        <a href="is-ilani.html">İş İlanı</a>
       </div>
       <div class="footer-col">
         <h4>Topluluk</h4>
-        <a href="mimar.html">Mimar</a>
-        <a href="firma.html">Firma</a>
         <a href="giris-yap.html">Giriş Yap</a>
         <a href="uye-ol.html">Üye Ol</a>
       </div>
@@ -514,6 +520,8 @@
   </footer>
 <script src="data.js"></script>
 <script src="projeler-data.js"></script>
+<script src="urunler-data.js"></script>
+<script src="malzemeler-data.js"></script>
 <script>
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -570,6 +578,21 @@ function carouselSlides(dynamicItems, staticItemsInOriginalOrder){
   return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(3, 8);
 }
 
+// Mimar/Firma/Ürün mini-carousel'leri Proje'nin aksine 3'ü atlamaz — bunlar zaten küçük, tek bir
+// prolifik gönderenin listeyi kilitleme riski proje kadar yüksek değil, en yeni 5 kayıt doğrudan gösterilir.
+function latestFive(dynamicItems, staticItemsInOriginalOrder){
+  return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(0, 5);
+}
+
+const SLUGIFY_TR_MAP = { ç:'c', Ç:'c', ğ:'g', Ğ:'g', ı:'i', I:'i', İ:'i', ö:'o', Ö:'o', ş:'s', Ş:'s', ü:'u', Ü:'u' };
+function slugify(text){
+  return (text || '')
+    .split('').map(ch => SLUGIFY_TR_MAP[ch] || ch).join('')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function projectSlideHtml(p, i){
   const designer = (p.designer || []).filter(d => d && d !== 'Bilinmiyor').join(', ');
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/projeler/${encodeURIComponent(p.slug)}" data-index="${i}">
@@ -620,9 +643,133 @@ sliderEl.addEventListener('mouseleave', restartAutoplay);
 const projectsWithImages = projects.filter(p => p.images && p.images[0]);
 renderSlider(carouselSlides([], projectsWithImages));
 
-fetch('/api/public/projects').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})).then(projRes=>{
+function architectSlideHtml(a, i){
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/mimar/${encodeURIComponent(slugify(a.name))}" data-index="${i}">
+    <img src="${escapeAttr(a.photo)}" alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}">
+    <span class="slide-tag">Mimar</span>
+    <div class="slide-caption">
+      <div class="slide-title">${escapeHtml(a.name)}</div>
+      ${a.office ? `<div class="slide-designer">${escapeHtml(a.office)}</div>` : ''}
+    </div>
+  </a>`;
+}
+
+function officeSlideHtml(o, i){
+  const sub = [o.loc, (o.cats || '').split(' · ')[0]].filter(Boolean).join(' · ');
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/markalar/${encodeURIComponent(slugify(o.name))}" data-index="${i}">
+    <img class="slide-logo-img" src="${escapeAttr(o.logo)}" alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}">
+    <span class="slide-tag">Firma</span>
+    <div class="slide-caption">
+      <div class="slide-title">${escapeHtml(o.name)}</div>
+      ${sub ? `<div class="slide-designer">${escapeHtml(sub)}</div>` : ''}
+    </div>
+  </a>`;
+}
+
+function urunSlideHtml(p, i){
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="urun.html" data-index="${i}">
+    <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}">
+    <span class="slide-tag">Ürün</span>
+    <div class="slide-caption">
+      <div class="slide-title">${escapeHtml(p.title)}</div>
+      ${p.brand ? `<div class="slide-designer">${escapeHtml(p.brand)}</div>` : ''}
+    </div>
+  </a>`;
+}
+
+// Proje slider'ıyla aynı crossfade + otomatik oynatma + ok/hover davranışını mimar, firma ve ürün
+// mini-carousel'lerinde tekrar kullanmak için genelleştirilmiş fabrika (bkz. kullanıcı isteği:
+// "carosel tasarımını temaya uygun yeniden tasarla ... oklarla hareket ettirilebilir olsun").
+function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
+  const trackEl = document.getElementById(trackId);
+  const wrapEl = trackEl.closest('.side-slider');
+  let index = 0, timer = null, cacheKey = '';
+
+  function render(items){
+    const key = items.map(keyFn).join('|');
+    if(key === cacheKey) return; // içerik aynıysa mevcut slaytı/otomatik oynatma ilerlemesini bozma
+    cacheKey = key;
+    index = 0;
+    trackEl.innerHTML = items.map(slideHtmlFn).join('');
+    restart();
+  }
+  function goTo(i){
+    const slides = trackEl.querySelectorAll('.proje-slide');
+    if(!slides.length) return;
+    index = (i + slides.length) % slides.length;
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === index));
+  }
+  function next(){ goTo(index + 1); }
+  function prev(){ goTo(index - 1); }
+  function restart(){ clearInterval(timer); timer = setInterval(next, 5000); }
+
+  document.getElementById(nextId).addEventListener('click', ()=>{ next(); restart(); });
+  document.getElementById(prevId).addEventListener('click', ()=>{ prev(); restart(); });
+  wrapEl.addEventListener('mouseenter', ()=> clearInterval(timer));
+  wrapEl.addEventListener('mouseleave', restart);
+
+  return { render };
+}
+
+const mimarSlider = createMiniSlider('mimar-slider-track', 'mimar-prev', 'mimar-next', architectSlideHtml, a => a.name);
+const markaSlider = createMiniSlider('marka-slider-track', 'marka-prev', 'marka-next', officeSlideHtml, o => o.name);
+const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next', urunSlideHtml, p => `${p._kind}:${p.brand || ''}|||${p.title}`);
+
+// Fotoğrafı/logosu/görseli olmayan statik kayıtlar mini-carousel'e alınmaz (bkz. projectsWithImages'teki aynı kural).
+const staticArchitectsWithPhoto = architects.filter(a => a.photo);
+const staticOfficesWithLogo = offices.filter(o => o.logo);
+const staticUrunWithImage = [
+  ...products.filter(p => p.image).map(p => ({...p, _kind:'products'})),
+  ...materials.filter(p => p.image).map(p => ({...p, _kind:'materials'})),
+];
+
+mimarSlider.render(latestFive([], staticArchitectsWithPhoto));
+markaSlider.render(latestFive([], staticOfficesWithLogo));
+urunSlider.render(latestFive([], staticUrunWithImage));
+
+Promise.all([
+  fetch('/api/public/projects').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  fetch('/api/public/hidden').then(r => r.ok ? r.json() : {}).catch(()=>({})),
+  // Admin'in statik bir projeye yaptığı onaylı düzenlemesi (ör. kapak görseli değişikliği) — bkz.
+  // proje-detay.html'deki aynı fetch, doğrudan projectsWithImages'in referans aldığı nesneleri
+  // güncellediğinden (Object.assign, yeni nesne değil) alttaki filtreleme aynen çalışmaya devam eder.
+  fetch('/api/public/project-edits').then(r => r.ok ? r.json() : {}).catch(()=>({})),
+  fetch('/api/public/architects').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  fetch('/api/public/offices').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  fetch('/api/public/products').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  fetch('/api/public/materials').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+]).then(([projRes, hiddenRes, editsRes, archRes, officeRes, productRes, materialRes])=>{
+  for(const slug in editsRes){
+    const match = projects.find(p => p.slug === slug);
+    if(match) Object.assign(match, editsRes[slug]);
+  }
   const dynamicWithImages = (projRes.items || []).filter(p => p.images && p.images[0]);
-  renderSlider(carouselSlides(dynamicWithImages, projectsWithImages));
+  // Admin'in admin panelinden gizlediği statik projeler (bkz. src/routes/legacyContent.js) carousel'e alınmaz.
+  const hiddenSlugs = new Set(hiddenRes.projects || []);
+  const visibleStaticWithImages = hiddenSlugs.size ? projectsWithImages.filter(p => !hiddenSlugs.has(p.slug)) : projectsWithImages;
+  renderSlider(carouselSlides(dynamicWithImages, visibleStaticWithImages));
+
+  const hiddenArchitects = new Set(hiddenRes.architects || []);
+  const dynamicArchitects = (archRes.items || []).filter(a => a.photo);
+  const visibleStaticArchitects = hiddenArchitects.size ? staticArchitectsWithPhoto.filter(a => !hiddenArchitects.has(a.name)) : staticArchitectsWithPhoto;
+  mimarSlider.render(latestFive(dynamicArchitects, visibleStaticArchitects));
+
+  const hiddenOffices = new Set(hiddenRes.offices || []);
+  const dynamicOffices = (officeRes.items || []).filter(o => o.logo);
+  const visibleStaticOffices = hiddenOffices.size ? staticOfficesWithLogo.filter(o => !hiddenOffices.has(o.name)) : staticOfficesWithLogo;
+  markaSlider.render(latestFive(dynamicOffices, visibleStaticOffices));
+
+  const hiddenProducts = new Set(hiddenRes.products || []);
+  const hiddenMaterials = new Set(hiddenRes.materials || []);
+  const legacyKey = p => `${p.brand || ''}|||${p.title}`;
+  const dynamicUrun = [
+    ...(productRes.items || []).filter(p => p.image).map(p => ({...p, _kind:'products'})),
+    ...(materialRes.items || []).filter(p => p.image).map(p => ({...p, _kind:'materials'})),
+  ];
+  const visibleStaticUrun = (hiddenProducts.size || hiddenMaterials.size)
+    ? staticUrunWithImage.filter(p => !(p._kind === 'materials' ? hiddenMaterials : hiddenProducts).has(legacyKey(p)))
+    : staticUrunWithImage;
+  urunSlider.render(latestFive(dynamicUrun, visibleStaticUrun));
 });
 </script>
 

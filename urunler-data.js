@@ -50,3 +50,7 @@ const products = [
   {title:"Alüminyum Pergole Sistemi", category:"Pergole & Gölgelendirme", brand:"Weinor", website:"https://www.weinor.de"},
   {title:"Bahçe Şezlong Takımı", category:"Bahçe Mobilyası", brand:"Natuzzi"},
 ];
+
+// Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
+// (nodejs_compat) çalışır — src/routes/legacyContent.js buradan CJS interop ile import eder.
+if (typeof module !== 'undefined') { module.exports = { products }; }

@@ -329,3 +329,19 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
+-- Statik (miras) proje/mimar/ofis/ürün/malzeme/haber kayıtları (projeler-data.js, data.js,
+-- urunler-data.js, malzemeler-data.js, haberler-data.js) veritabanında bir satıra sahip değil —
+-- bu tablo admin panelinden bu kayıtları canlı siteden gizlemek/tekrar göstermek için kullanılan
+-- bir moderasyon bayrağı, profile_claims/profile_corrections'taki gibi kaydın DOĞAL anahtarıyla
+-- eşleşir (bkz. kullanıcı isteği: "admin tüm sitede tüm yetkilere sahip olsun ... arşivleme").
+-- content_key: projects->slug, architects/offices->name, news->id, products/materials->"marka|||başlık".
+CREATE TABLE IF NOT EXISTS legacy_content_hidden (
+  id TEXT PRIMARY KEY,
+  content_type TEXT NOT NULL, -- 'projects' | 'architects' | 'offices' | 'products' | 'materials' | 'news'
+  content_key TEXT NOT NULL,
+  hidden_by_user_id TEXT NOT NULL REFERENCES users(id),
+  hidden_at INTEGER NOT NULL,
+  UNIQUE(content_type, content_key)
+);
+CREATE INDEX IF NOT EXISTS idx_legacy_hidden_type ON legacy_content_hidden(content_type);

@@ -304,8 +304,6 @@
       <a class="nav-link active" href="firma.html">Firma</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
-      <a class="nav-link" href="haber.html">Haber</a>
-      <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -322,8 +320,6 @@
       <a class="nav-mobile-link active" href="firma.html">Firma</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
-      <a class="nav-mobile-link" href="haber.html">Haber</a>
-      <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
   </nav>
 
@@ -401,15 +397,13 @@
       </div>
       <div class="footer-col">
         <h4>Ana Menü</h4>
+        <a href="mimar.html">Mimar</a>
+        <a href="firma.html">Firma</a>
         <a href="proje.html">Proje</a>
         <a href="urun.html">Ürün</a>
-        <a href="haber.html">Haber</a>
-        <a href="is-ilani.html">İş İlanı</a>
       </div>
       <div class="footer-col">
         <h4>Topluluk</h4>
-        <a href="mimar.html">Mimar</a>
-        <a href="firma.html">Firma</a>
         <a href="giris-yap.html">Giriş Yap</a>
         <a href="uye-ol.html">Üye Ol</a>
       </div>
@@ -647,6 +641,19 @@ fetch('/api/public/offices').then(res => res.ok ? res.json() : {items:[]}).then(
   populateFilters();
   render();
   window.addEventListener('mimarlab-badges-ready', render);
+});
+
+// Admin'in admin panelinden gizlediği statik firmaları listeden çıkarır (bkz.
+// src/routes/legacyContent.js, GET /api/public/hidden).
+fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(hidden => {
+  const hiddenSet = new Set(hidden.offices || []);
+  if(!hiddenSet.size) return;
+  for(let i = offices.length - 1; i >= 0; i--){
+    if(hiddenSet.has(offices[i].name)) offices.splice(i, 1);
+  }
+}).catch(()=>{}).finally(() => {
+  populateFilters();
+  render();
 });
 </script>
 </body>

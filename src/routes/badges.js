@@ -1,6 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
+import { BADGE_RANK } from '../lib/badgeAccess.js';
 
 // Fiyatlar TL/ay cinsinden (aylık abonelik); ödeme altyapısı bağlanana kadar talepler admin
 // panelinden elle onaylanır. Dört kademe: destekci (Destekçi — herhangi bir hak/rozet vermez,
@@ -63,9 +64,12 @@ async function createBadgeRequest(request, env, user) {
 
   const now = Date.now();
   const active = await env.DB.prepare(
-    `SELECT id FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
+    `SELECT id, badge_type FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
   ).bind(user.id, target.targetType, target.targetKey, now).first();
-  if (active) return errorJson('Bu hedef için zaten aktif bir rozetin var. Yeni bir rozet alabilmek için mevcut rozetinin süresi dolmalı.');
+  // bkz. src/routes/payments.js#startCheckout — aynı yükseltme/düşürme kuralı.
+  if (active && (BADGE_RANK[badgeType] || 0) <= (BADGE_RANK[active.badge_type] || 0)) {
+    return errorJson('Bu hedef için zaten aktif bir rozetin var. Aynı ya da daha düşük bir kademeye geçemezsin — bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye hemen yükseltebilirsin.');
+  }
 
   await env.DB.prepare(
     `DELETE FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'pending'`

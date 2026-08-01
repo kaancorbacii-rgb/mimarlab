@@ -5,6 +5,7 @@ import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { initializeCheckoutForm, retrieveCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
 import { BADGE_PRICES, normalizeTarget, verifyOfficeTargetOwnership } from './badges.js';
+import { BADGE_RANK } from '../lib/badgeAccess.js';
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır (bkz. src/routes/badges.js)
 
@@ -80,9 +81,14 @@ async function startCheckout(request, env, url) {
 
   const now = Date.now();
   const active = await env.DB.prepare(
-    `SELECT id FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
+    `SELECT id, badge_type FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
   ).bind(user.id, target.targetType, target.targetKey, now).first();
-  if (active) return errorJson('Bu hedef için zaten aktif bir rozetin var. Yeni bir rozet alabilmek için mevcut rozetinin süresi dolmalı.');
+  // Daha yüksek bir kademeye hemen yükseltme yapılabilir; aynı ya da daha düşük bir kademe
+  // seçilemez — bunun için mevcut rozetin süresinin dolması gerekir (bkz. satin-al.html "Zaten
+  // aktif bir rozetin var" paneli, aynı kuralı istemci tarafında da uygular).
+  if (active && (BADGE_RANK[badgeType] || 0) <= (BADGE_RANK[active.badge_type] || 0)) {
+    return errorJson('Bu hedef için zaten aktif bir rozetin var. Aynı ya da daha düşük bir kademeye geçemezsin — bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye hemen yükseltebilirsin.');
+  }
 
   // Bekleyen eski bir talep/ödeme denemesi varsa değiştir (kullanıcı kademe değiştirip yeniden deneyebilsin).
   await env.DB.prepare(
@@ -178,13 +184,20 @@ async function handleCallback(request, env, url) {
 
   const conversationId = result.conversationId;
   const row = conversationId
-    ? await env.DB.prepare(`SELECT id, user_id FROM badge_requests WHERE id = ? AND status = 'pending'`).bind(conversationId).first()
+    ? await env.DB.prepare(`SELECT id, user_id, target_type, target_key FROM badge_requests WHERE id = ? AND status = 'pending'`).bind(conversationId).first()
     : null;
   if (!row) return fail();
 
   if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
     const now = Date.now();
     const expiresAt = now + BADGE_RENTAL_MS;
+    // Bir kullanıcı aynı HEDEF için aynı anda yalnızca 1 aktif rozet tutabilir: bu bir yükseltme
+    // ise (bkz. startCheckout'taki BADGE_RANK kontrolü), eski aktif/bekleyen kaydı geçersiz kıl —
+    // aksi halde iki aktif satır birikirdi (bkz. src/routes/admin.js#handleBadgesAdmin aynı deseni
+    // manuel onay yolunda uygular).
+    await env.DB.prepare(
+      `UPDATE badge_requests SET status='rejected', updated_at=? WHERE user_id = ? AND target_type = ? AND target_key IS ? AND id != ? AND status IN ('pending', 'active')`
+    ).bind(now, row.user_id, row.target_type, row.target_key, row.id).run();
     await env.DB.prepare(
       `UPDATE badge_requests SET status='active', expires_at=?, payment_id=?, updated_at=? WHERE id=?`
     ).bind(expiresAt, result.paymentId || null, now, row.id).run();

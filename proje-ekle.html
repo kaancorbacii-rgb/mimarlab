@@ -203,10 +203,24 @@
     position:absolute; left:4px; bottom:4px; background:var(--ink); color:var(--paper-card);
     font-size:9px; font-weight:600; padding:2px 6px; border-radius:100px; text-transform:uppercase;
   }
+  .image-preview-item .cover-set-btn{
+    position:absolute; left:4px; bottom:4px; background:rgba(27,42,61,0.75); color:#fff; border:none;
+    font-size:9px; font-weight:600; padding:2px 6px; border-radius:100px; text-transform:uppercase; cursor:pointer;
+  }
+  .image-preview-item .cover-set-btn:hover{background:var(--ink);}
   .image-preview-remove{
     position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%;
     background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:11px;
   }
+  .image-move-btn{
+    position:absolute; top:4px; width:20px; height:20px; border-radius:50%;
+    background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center;
+    font-size:13px; line-height:1; padding:0;
+  }
+  .image-move-btn:hover{background:var(--ink);}
+  .image-move-btn:disabled{opacity:0.25; cursor:default;}
+  .image-move-left{left:4px;}
+  .image-move-right{left:28px;}
 
   .form-submit{
     width:100%; background:var(--ink); color:var(--paper-card);
@@ -281,8 +295,6 @@
       <a class="nav-link" href="firma.html">Firma</a>
       <a class="nav-link active" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
-      <a class="nav-link" href="haber.html">Haber</a>
-      <a class="nav-link" href="is-ilani.html">İş İlanı</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -299,8 +311,6 @@
       <a class="nav-mobile-link" href="firma.html">Firma</a>
       <a class="nav-mobile-link active" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
-      <a class="nav-mobile-link" href="haber.html">Haber</a>
-      <a class="nav-mobile-link" href="is-ilani.html">İş İlanı</a>
     </div>
   </nav>
 
@@ -453,7 +463,7 @@
 
       <div class="form-section">
         <h2>Görseller</h2>
-        <p class="section-hint">İlk yüklediğin görsel kapak fotoğrafı olarak kullanılır.</p>
+        <p class="section-hint">İlk görsel kapak fotoğrafı olarak kullanılır — başka bir görseli kapak yapmak için üzerindeki "Kapak Yap" butonuna, sırasını değiştirmek için ‹ › oklarına tıkla.</p>
         <label class="image-drop" id="image-drop">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
           <strong>Görselleri sürükleyip bırak</strong>
@@ -482,8 +492,8 @@
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="haber.html">Haber</a><a href="is-ilani.html">İş İlanı</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="proje.html">Proje</a><a href="urun.html">Ürün</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="reklam.html">Reklam</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
@@ -493,8 +503,13 @@
 const dropZone = document.getElementById('image-drop');
 const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
-let selectedFiles = [];
-let existingImages = [];
+// Mevcut (yüklenmiş) ve yeni seçilen görseller, sırası admin/gönderi sahibi tarafından serbestçe
+// değiştirilebilsin diye TEK bir sıralı listede tutulur (bkz. kullanıcı isteği: "hem kapak
+// görselini seçebilsinler hem de görsel sırasını düzenleyebilsinler") — iki ayrı diziyle (mevcut/
+// yeni) yönetmek yeni bir görseli eskilerin arasına taşımayı imkansız kılardı, çünkü gönderimde
+// hep [...existingImages, ...uploadedImages] sırası kullanılırdı.
+let mediaItems = []; // {key, kind:'existing'|'file', url?, file?, objectUrl?}
+let mediaKeySeq = 0;
 const editParams = new URLSearchParams(window.location.search);
 let editId = editParams.get('edit');
 const claimSlug = editParams.get('claim');
@@ -676,37 +691,56 @@ document.getElementById('brand-add-btn').addEventListener('click', addBrandChip)
   });
 });
 
+function mediaItemSrc(item){
+  return item.kind === 'existing' ? item.url : item.objectUrl;
+}
+
+function setExistingImages(urls){
+  mediaItems.forEach(item => { if(item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
+  mediaItems = (urls || []).map(url => ({ key: 'm' + (mediaKeySeq++), kind:'existing', url }));
+}
+
 function renderPreviews(){
-  const existingHtml = existingImages.map((url, i) => `<div class="image-preview-item">
-      <img src="${escapeAttr(url)}" alt="">
-      ${i === 0 && !selectedFiles.length ? '<span class="cover-badge">Kapak</span>' : ''}
-      <button type="button" class="image-preview-remove" data-existing-index="${i}" aria-label="Kaldır">✕</button>
-    </div>`).join('');
-  const newHtml = selectedFiles.map((file, i) => {
-    const url = URL.createObjectURL(file);
+  previewGrid.innerHTML = mediaItems.map((item, i) => {
+    const isCover = i === 0;
+    const isLast = i === mediaItems.length - 1;
     return `<div class="image-preview-item">
-      <img src="${url}" alt="">
-      ${i === 0 && !existingImages.length ? '<span class="cover-badge">Kapak</span>' : ''}
-      <button type="button" class="image-preview-remove" data-index="${i}" aria-label="Kaldır">✕</button>
+      <img src="${escapeAttr(mediaItemSrc(item))}" alt="">
+      <button type="button" class="image-move-btn image-move-left" data-move-index="${i}" data-dir="-1" aria-label="Sola taşı"${i === 0 ? ' disabled' : ''}>‹</button>
+      <button type="button" class="image-move-btn image-move-right" data-move-index="${i}" data-dir="1" aria-label="Sağa taşı"${isLast ? ' disabled' : ''}>›</button>
+      ${isCover ? '<span class="cover-badge">Kapak</span>' : `<button type="button" class="cover-set-btn" data-cover-index="${i}">Kapak Yap</button>`}
+      <button type="button" class="image-preview-remove" data-remove-index="${i}" aria-label="Kaldır">✕</button>
     </div>`;
   }).join('');
-  previewGrid.innerHTML = existingHtml + newHtml;
-  previewGrid.querySelectorAll('[data-existing-index]').forEach(btn=>{
+  previewGrid.querySelectorAll('[data-remove-index]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      existingImages.splice(parseInt(btn.dataset.existingIndex), 1);
+      const i = parseInt(btn.dataset.removeIndex);
+      const [removed] = mediaItems.splice(i, 1);
+      if(removed.objectUrl) URL.revokeObjectURL(removed.objectUrl);
       renderPreviews();
     });
   });
-  previewGrid.querySelectorAll('[data-index]').forEach(btn=>{
+  previewGrid.querySelectorAll('[data-cover-index]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      selectedFiles.splice(parseInt(btn.dataset.index), 1);
+      const i = parseInt(btn.dataset.coverIndex);
+      mediaItems.unshift(mediaItems.splice(i, 1)[0]);
+      renderPreviews();
+    });
+  });
+  previewGrid.querySelectorAll('[data-move-index]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = parseInt(btn.dataset.moveIndex);
+      const j = i + parseInt(btn.dataset.dir);
+      if(j < 0 || j >= mediaItems.length) return;
+      [mediaItems[i], mediaItems[j]] = [mediaItems[j], mediaItems[i]];
       renderPreviews();
     });
   });
 }
 
 function addFiles(fileList){
-  selectedFiles = selectedFiles.concat(Array.from(fileList).filter(f => f.type.startsWith('image/')));
+  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+  mediaItems.push(...files.map(file => ({ key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) })));
   renderPreviews();
 }
 
@@ -780,7 +814,7 @@ async function prefillForEdit(){
     updateKategoriLabel();
     brandChips = (item.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
     renderBrandChips();
-    existingImages = item.images || [];
+    setExistingImages(item.images || []);
     renderPreviews();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
@@ -852,17 +886,21 @@ async function prefillForClaim(){
   updateKategoriLabel();
   brandChips = (merged.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
   renderBrandChips();
-  existingImages = merged.images || [];
+  setExistingImages(merged.images || []);
   renderPreviews();
 }
 
 if(claimSlug) prefillForClaim(); else prefillForEdit();
 
-async function uploadFiles(files){
+// mediaItems, kullanıcının sürükleyip bıraktığı sırayı korur — yeni dosyalar bu sıradaki
+// konumlarında yüklenir, sonuç dizisi hem mevcut hem yeni görselleri son (kullanıcının belirlediği)
+// sırayla döner (bkz. mediaItems tanımındaki yorum).
+async function collectImages(){
   const urls = [];
-  for(const file of files){
+  for(const item of mediaItems){
+    if(item.kind === 'existing'){ urls.push(item.url); continue; }
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', item.file);
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
@@ -898,9 +936,9 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   }
 
   submitBtn.disabled = true;
-  let uploadedImages = [];
+  let images;
   try{
-    if(selectedFiles.length) uploadedImages = await uploadFiles(selectedFiles);
+    images = await collectImages();
   }catch(err){
     notice.textContent = err.message || 'Görsel yüklenemedi, tekrar dene.';
     notice.classList.add('show');
@@ -918,7 +956,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
     photoCreditUrl: document.getElementById('p-credit-url').value || null,
-    images: [...existingImages, ...uploadedImages],
+    images,
   };
   if(claimSlug) payload.claimed_slug = claimSlug;
 
@@ -962,7 +1000,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     form.reset();
-    selectedFiles = [];
+    setExistingImages([]);
     renderPreviews();
     selectedIl = null; selectedIlce = null;
     document.getElementById('dd-il-btn-label').textContent = 'İl seç';

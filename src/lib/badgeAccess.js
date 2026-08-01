@@ -10,7 +10,7 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 // 'self'), diğerleri sahip olduğu her marka için ayrı ayrı (target_type 'office') — bkz.
 // src/routes/badges.js. Yükleme kotası/hakları hesap düzeyindedir (hangi hedef için alındığından
 // bağımsız), bu yüzden burada kullanıcının TÜM aktif rozetleri arasından en yüksek kademeliyi döner.
-const BADGE_RANK = { platinum: 3, gold: 2, verified: 1, destekci: 0 };
+export const BADGE_RANK = { platinum: 3, gold: 2, verified: 1, destekci: 0 };
 
 export async function getActiveBadge(env, userId) {
   const now = Date.now();

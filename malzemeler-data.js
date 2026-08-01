@@ -65,3 +65,7 @@ const materials = [
   {title:"Cam Duşakabin Sistemi", category:"Duş Sistemleri", brand:"VitrA"},
   {title:"Banyo Dolabı Serisi", category:"Banyo Mobilyası", brand:"VitrA"},
 ];
+
+// Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
+// (nodejs_compat) çalışır — src/routes/legacyContent.js buradan CJS interop ile import eder.
+if (typeof module !== 'undefined') { module.exports = { materials }; }
