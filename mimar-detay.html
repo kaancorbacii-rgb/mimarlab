@@ -481,16 +481,6 @@
     <div class="home-grid" id="related-products-grid"></div>
   </section>
 
-  <section class="related-section" id="related-news-section" style="display:none;">
-    <h2>Haberler</h2>
-    <div class="home-grid" id="related-news-grid"></div>
-  </section>
-
-  <section class="related-section" id="related-jobs-section" style="display:none;">
-    <h2>İlgili İş İlanları</h2>
-    <div class="home-grid" id="related-jobs-grid"></div>
-  </section>
-
   <footer class="site-footer">
     <div class="footer-top">
       <div class="footer-brand">
@@ -765,33 +755,14 @@ async function applyRelatedProjectEdits(){
 }
 applyRelatedProjectEdits();
 
-// İlgili iş ilanları: mimarın bağlı olduğu ofis adına açılmış ilanlar (bkz. data.js#jobListings)
-// artı, aşağıda loadProfileContent() ile mimarın kendi hesabından eklediği ilanlar (varsa) birleşir.
-function jobKey(j){ return j.submissionId ? 'm-' + j.submissionId : (j.title + '|' + (j.office || '')); }
-function jobCardHtml(j){
-  return `
-    <a class="home-card" href="is-ilani.html">
-      <div class="home-card-info" style="position:static; background:none; padding:16px;">
-        <div class="home-card-cat" style="color:var(--sage);">${escapeHtml(j.level || '')}</div>
-        <div class="home-card-title" style="color:var(--ink);">${escapeHtml(j.title)}<br><span style="font-weight:400; font-size:12px; color:var(--ink-soft);">${escapeHtml(j.office || '')}</span></div>
-      </div>
-    </a>`;
-}
-let relatedJobs = office ? jobListings.filter(j => j.office === office.name) : [];
-function renderRelatedJobs(){
-  document.getElementById('related-jobs-section').style.display = relatedJobs.length ? '' : 'none';
-  document.getElementById('related-jobs-grid').innerHTML = relatedJobs.map(jobCardHtml).join('');
-}
-renderRelatedJobs();
-
 const PROFILE_TYPE = 'architect';
 const profileKey = a.name;
 let isProfileOwner = false;
 
-// Ürünler/Haberler (ve yukarıdaki relatedJobs'a eklenecek ek iş ilanları): mimarı sahiplenip
-// onayı geçmiş kullanıcının kendi hesabından eklediği, admin onaylı içerikler — bkz.
-// src/routes/public.js#handlePublicProfileContent. Ürün/haber gönderilerinde mimar adını tutan
-// bir alan olmadığından (serbest metindir) eşleştirme profile_claims sahipliği üzerinden yapılır.
+// Ürünler: mimarı sahiplenip onayı geçmiş kullanıcının kendi hesabından eklediği, admin onaylı
+// ürün gönderileri — bkz. src/routes/public.js#handlePublicProfileContent. Ürün gönderilerinde
+// mimar adını tutan bir alan olmadığından (serbest metindir) eşleştirme profile_claims sahipliği
+// üzerinden yapılır.
 function productCardHtml(p){
   if(p.image){
     return `<a class="home-card" href="urun.html">
@@ -806,20 +777,6 @@ function productCardHtml(p){
     </div>
   </a>`;
 }
-function newsCardHtml(n){
-  if(n.image){
-    return `<a class="home-card" href="/haberler/${encodeURIComponent(n.id)}">
-      <img src="${escapeAttr(n.image)}" alt="${escapeAttr(n.title)}" loading="lazy">
-      <div class="home-card-info"><div class="home-card-cat">${escapeHtml(n.category || '')}</div><div class="home-card-title">${escapeHtml(n.title)}</div></div>
-    </a>`;
-  }
-  return `<a class="home-card" href="/haberler/${encodeURIComponent(n.id)}">
-    <div class="home-card-info" style="position:static; background:none; padding:16px;">
-      <div class="home-card-cat" style="color:var(--sage);">${escapeHtml(n.category || '')}</div>
-      <div class="home-card-title" style="color:var(--ink);">${escapeHtml(n.title)}</div>
-    </div>
-  </a>`;
-}
 async function loadProfileContent(){
   try{
     const res = await fetch(`/api/public/profile-content?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(profileKey)}`);
@@ -830,22 +787,6 @@ async function loadProfileContent(){
     if(products.length){
       document.getElementById('related-products-section').style.display = '';
       document.getElementById('related-products-grid').innerHTML = products.map(productCardHtml).join('');
-    }
-
-    const news = data.news || [];
-    if(news.length){
-      document.getElementById('related-news-section').style.display = '';
-      document.getElementById('related-news-grid').innerHTML = news.map(newsCardHtml).join('');
-    }
-
-    const ownJobs = data.jobs || [];
-    if(ownJobs.length){
-      const existingKeys = new Set(relatedJobs.map(jobKey));
-      ownJobs.forEach(j => {
-        const k = jobKey(j);
-        if(!existingKeys.has(k)){ existingKeys.add(k); relatedJobs.push(j); }
-      });
-      renderRelatedJobs();
     }
   }catch{}
 }
