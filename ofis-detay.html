@@ -507,8 +507,9 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 
 function renderFoundersGrid(o){
   const officeFounders = architects.filter(a => a.office === o.name);
-  if(!officeFounders.length) return;
-  document.getElementById('founders-section').style.display = '';
+  // Ofis düzenlemesi (bkz. applyProfileEdits) sonrasında liste boşa düşerse bölüm stale içerikle
+  // görünür kalmasın diye 0 durumunda da açıkça gizlenir.
+  document.getElementById('founders-section').style.display = officeFounders.length > 0 ? '' : 'none';
   document.getElementById('founders-grid').innerHTML = officeFounders.map(a => `
     <a class="founder-card" href="/mimar/${encodeURIComponent(slugify(a.name))}">
       <div class="founder-card-avatar" style="background:${officeColor(a.name)}">${escapeHtml(initials(a.name))}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
@@ -671,7 +672,13 @@ function renderVerifiedBadges(){
 window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges);
 
 // Sahiplenilip onaylanmış bir profil düzenlemesi varsa (bkz. hesabim.html "Mimar/Marka Profilim"),
-// konum/hizmet alanı/kuruluş yılı/web sitesi/açıklama/logo alanlarını üzerine bindirir.
+// konum/hizmet alanı/kuruluş yılı/web sitesi/açıklama/logo alanlarını üzerine bindirir. Ayrıca
+// architects[]'teki onaylı ofis/pozisyon düzenlemelerini de uygular — bir mimar kendi profilinden
+// bu firmayla bağlantısını kaldırdıysa (ya da başka birinin profili bu firmaya eklendiyse) "Kurucular
+// / Ortaklar" listesi buna göre güncellensin diye (bkz. gerçek bulgu: Neşet Arolat, EAA — Emre Arolat
+// Architecture bağlantısını profilinden kaldırdığı halde firma sayfasında kurucu olarak görünmeye
+// devam ediyordu — architects[].office statik veriden okunuyordu, mimar tarafındaki onaylı
+// düzenleme hiç uygulanmıyordu).
 async function applyProfileEdits(){
   if(!currentOffice) return;
   try{
@@ -679,9 +686,20 @@ async function applyProfileEdits(){
     if(!res.ok) return;
     const edits = await res.json();
     const overlay = edits.office && edits.office[currentOffice.name];
-    if(!overlay) return;
-    Object.assign(currentOffice, overlay);
-    renderOfficeFields(currentOffice);
+    if(overlay){
+      Object.assign(currentOffice, overlay);
+      renderOfficeFields(currentOffice);
+    }
+    let architectsChanged = false;
+    for(const arch of architects){
+      const archOverlay = edits.architect && edits.architect[arch.name];
+      if(archOverlay && archOverlay.office !== undefined && archOverlay.office !== arch.office){
+        arch.office = archOverlay.office || null;
+        if(archOverlay.role) arch.role = archOverlay.role;
+        architectsChanged = true;
+      }
+    }
+    if(architectsChanged) renderFoundersGrid(currentOffice);
   }catch{}
 }
 

@@ -2,7 +2,8 @@ import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { checkR2Quota, recordR2Usage, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 
-const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (ürün/mimar/ofis/haber/iş ilanı görselleri)
+const MAX_PROJECT_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB — yalnızca proje-ekle.html galeri görselleri (bkz. kullanıcı isteği)
 const EXT_BY_MIME = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -28,7 +29,11 @@ export async function handleUploadRoute(request, env) {
 
   const ext = EXT_BY_MIME[file.type];
   if (!ext) return errorJson('Sadece JPEG, PNG, WEBP ya da GIF görsel yükleyebilirsin.');
-  if (file.size > MAX_UPLOAD_BYTES) return errorJson('Görsel en fazla 4 MB olabilir.');
+  const isProjectImage = form.get('context') === 'project';
+  const maxBytes = isProjectImage ? MAX_PROJECT_UPLOAD_BYTES : MAX_UPLOAD_BYTES;
+  if (file.size > maxBytes) {
+    return errorJson(isProjectImage ? 'Görsel en fazla 2 MB olabilir.' : 'Görsel en fazla 4 MB olabilir.');
+  }
 
   const quota = await checkR2Quota(env, file.size);
   if (!quota.ok) return r2QuotaErrorResponse(quota.reason);

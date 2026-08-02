@@ -628,7 +628,11 @@ let sliderTimer = null;
 let sliderSlugs = '';
 
 function renderSlider(items){
-  const slugs = items.map(p => p.slug).join('|');
+  // Yalnızca slug'a değil kapak görseline de bakılır — aksi halde admin'in onayladığı bir kapak
+  // görseli düzenlemesi (bkz. project-edits overlay), aynı 5 proje ana sayfada zaten gösteriliyor
+  // olduğu için bu "değişmediyse yeniden çizme" kısayoluna takılıp hiç yansımazdı (gerçek bulgu:
+  // Bodrum Evleri'nin kapağı değiştirildiği halde ana sayfada eski görsel kalmaya devam ediyordu).
+  const slugs = items.map(p => `${p.slug}:${(p.images && p.images[0]) || ''}`).join('|');
   if(slugs === sliderSlugs) return; // içerik aynıysa mevcut slaytı/otomatik oynatma ilerlemesini bozma
   sliderSlugs = slugs;
   sliderIndex = 0;

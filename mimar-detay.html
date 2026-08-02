@@ -541,7 +541,7 @@ const explicitMatch = (mimarName && architects.find(x => x.name === mimarName))
   || (mimarSlug && architects.find(x => slugify(x.name) === mimarSlug))
   || null;
 const a = explicitMatch || architects[0];
-const office = offices.find(x => x.name === a.office);
+let office = offices.find(x => x.name === a.office);
 
 document.title = a.name + " — MİMARLAB";
 {
@@ -562,10 +562,16 @@ document.title = a.name + " — MİMARLAB";
 }
 document.getElementById('bc-name').textContent = a.name;
 document.getElementById('profile-name-text').textContent = a.name;
-document.getElementById('profile-category').textContent = [a.role, office ? office.name : null].filter(Boolean).join(' · ');
-document.getElementById('about-text').textContent = office
-  ? `${a.name}, ${office.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
-  : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`);
+// Ofis/pozisyon değişikliği onaylandığında (bkz. applyProfileEdits) tekrar çağrılabilsin diye
+// fonksiyona alındı — aksi halde bir mimar profilinden bağlı firma silindiğinde bu metinler eski
+// firmayı göstermeye devam ederdi (bkz. kullanıcı isteği).
+function renderOfficeDependentText(){
+  document.getElementById('profile-category').textContent = [a.role, office ? office.name : null].filter(Boolean).join(' · ');
+  document.getElementById('about-text').textContent = office
+    ? `${a.name}, ${office.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
+    : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`);
+}
+renderOfficeDependentText();
 
 // Statik data.js kayıtlarının çoğu, artık kaldırılmış "Bölüm" sorusundan gelen a.dept değerini
 // taşır ama a.profession alanı boştur (yalnızca form üzerinden eklenen/düzenlenen profillerde
@@ -633,9 +639,13 @@ function renderStructuredData(){
 renderStructuredData();
 
 // Sahiplenilip onaylanmış bir profil düzenlemesi varsa (bkz. hesabim.html "Mimar/Marka Profilim"),
-// doğum tarihi/üniversite/bölüm/fotoğraf alanlarını üzerine bindirir. Ofis/pozisyon değişiklikleri
-// bu profildeki ofis kartı ve ilgili proje/iş ilanı bölümlerini etkileyebileceğinden kapsam dışı
-// bırakılmıştır — admin onay sırasında gerekirse elle uygular.
+// doğum tarihi/üniversite/bölüm/fotoğraf/ofis/pozisyon alanlarını üzerine bindirir. Ofis alanı
+// değiştiğinde (ör. mimar kendi profilinden bağlı olduğu firmayı kaldırırsa) office'i yeniden
+// hesaplayıp buna bağlı her şeyi (ofis kartı, açıklama metni, meslektaşlar, İlgili Projeler,
+// structured data) yeniden çizer — aksi halde bu kişi eski firmanın hem kendi profilinde hem de
+// firmanın "Kurucular/Ortaklar" listesinde görünmeye devam ederdi (bkz. gerçek bulgu: Neşet Arolat,
+// EAA — Emre Arolat Architecture bağlantısı profilinden kaldırıldığı halde firma sayfasında
+// kurucular arasında görünmeye devam ediyordu).
 async function applyProfileEdits(){
   try{
     const res = await fetch('/api/public/profile-edits');
@@ -650,6 +660,19 @@ async function applyProfileEdits(){
     if(overlay.awards) a.awards = overlay.awards;
     if(overlay.photo) a.photo = overlay.photo;
     renderInfoFactsAndLogo();
+
+    const officeChanged = overlay.office !== undefined && overlay.office !== a.office;
+    if(overlay.role) a.role = overlay.role;
+    if(officeChanged){
+      a.office = overlay.office || null;
+      office = offices.find(x => x.name === a.office) || null;
+      renderOfficeDependentText();
+      renderOfficeCard();
+      renderColleagues();
+      renderRelatedProjects();
+    } else if(overlay.role){
+      renderOfficeDependentText();
+    }
     renderStructuredData();
   }catch{}
 }
@@ -689,9 +712,9 @@ function renderOfficeCard(){
 }
 renderOfficeCard();
 
-const colleagues = office ? architects.filter(x => x.office === office.name && x.name !== a.name) : [];
-if(colleagues.length > 0){
-  document.getElementById('colleagues-section').style.display = '';
+function renderColleagues(){
+  const colleagues = office ? architects.filter(x => x.office === office.name && x.name !== a.name) : [];
+  document.getElementById('colleagues-section').style.display = colleagues.length > 0 ? '' : 'none';
   document.getElementById('colleagues-grid').innerHTML = colleagues.map(c => `
     <a class="founder-card" href="/mimar/${encodeURIComponent(slugify(c.name))}">
       <div class="founder-card-avatar" style="background:${officeColor(c.name)}">${initials(c.name)}${c.photo ? `<img src="${escapeAttr(c.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
@@ -701,6 +724,7 @@ if(colleagues.length > 0){
       </div>
     </a>`).join('');
 }
+renderColleagues();
 
 // İlgili projeler: projeler-data.js kayıtlarındaki designer listesi mimarın adıyla ya da
 // bağlı olduğu ofisin adıyla birebir eşleşiyorsa ilgili proje sayılır. Admin'in statik bir projeye

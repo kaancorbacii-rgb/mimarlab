@@ -888,6 +888,7 @@ async function collectImages(){
     }
     const fd = new FormData();
     fd.append('file', item.file);
+    fd.append('context', 'project');
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
