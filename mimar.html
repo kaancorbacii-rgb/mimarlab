@@ -380,7 +380,7 @@
           <option value="Freelance">Freelance</option>
           <option value="Öğrenci">Öğrenci</option>
           <option value="Emekli">Emekli</option>
-          <option value="İş Arıyor">İş Arıyor</option>
+          <option value="İşsiz">İşsiz</option>
         </select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
@@ -398,7 +398,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -443,7 +443,7 @@ function personOffice(a){
 // Kurucu/Kurucu Ortak -> Kurucu, diğer roller -> Çalışan olarak eşler.
 function positionOf(a){
   if(a.status){
-    if(a.status === 'İş arıyor') return 'İş Arıyor';
+    if(a.status === 'İş arıyor' || a.status === 'İş Arıyor') return 'İşsiz';
     return a.status;
   }
   if(a.role){

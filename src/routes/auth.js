@@ -9,7 +9,7 @@ const RESET_TTL_SECONDS = 60 * 60; // 1 saat
 const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'ogrenci', 'diger']);
 const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bolge_planlama', 'restorasyon', 'diger']);
 // mimar-ekle.html'deki "Pozisyon" seçenekleriyle birebir aynı (bkz. o formdaki position radio grubu).
-export const POSITIONS = new Set(['Kurucu', 'Çalışan', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İş Arıyor']);
+export const POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Çalışan', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İşsiz']);
 
 export async function handleAuthRoute(request, env, url) {
   const path = url.pathname;

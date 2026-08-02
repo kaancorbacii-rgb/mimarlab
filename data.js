@@ -704,7 +704,7 @@ const architects = [
   {name:"Alper Aytaç", role:"Kurucu", office:"Aytaç Architects", photo:"mimarlar-thumb/alper-aytac-mimarlab.jpg", dob:1977, school:"Ohio State University", dept:"Mimarlık"},
   {name:"Kaan Çorbacı", role:"Kurucu", office:"MİMARLAB", photo:"mimarlar-thumb/kaan-corbaci-mimarlab.jpg", dob:1997, school:"YTÜ", dept:"Mimarlık", badges:["gold"]},
   {name:"Nur Urfalıoğlu", role:"Prof. Dr. Öğretim Üyesi", office:"Yıldız Teknik Üniversitesi", photo:"mimarlar-thumb/nur-urfalioglu-mimarlab.jpg", dob:1966, school:"YTÜ", dept:"Mimarlık", status:"Akademisyen"},
-  {name:"Mimar Sinan", role:"Hassa Başmimarı (1538–1588)", office:"Hassa Mimarları Ocağı", photo:"mimarlar-thumb/mimar-sinan-mimarlab.jpg", dob:1490, dept:"Mimarlık"},
+  {name:"Mimar Sinan", role:"Hassa Başmimarı (1490–1588)", office:"Hassa Mimarları Ocağı", photo:"mimarlar-thumb/mimar-sinan-mimarlab.jpg", dob:1490, dept:"Mimarlık"},
   {name:"Turgut Cansever", role:"Mimar, Şehir Plancısı (1921–2009)", dob:1921, school:"Devlet Güzel Sanatlar Akademisi (MSGSÜ)", dept:"Mimarlık", awards:["Ağa Han Mimarlık Ödülü (üç kez)"]},
   {name:"Sedad Hakkı Eldem", role:"Mimar, Akademisyen (1908–1988)", dob:1908, school:"Sanayi-i Nefise Mektebi (MSGSÜ)", dept:"Mimarlık"},
   {name:"Vedat Tek", role:"Başmimar (1873–1942)", office:"Osmanlı Sarayı Başmimarlığı", photo:"mimarlar-thumb/vedat-tek-mimarlab.jpg", dob:1873, school:"École Monge / Académie Julian (Paris)", dept:"Mimarlık", awards:["Legion d'Honneur Nişanı"]},
@@ -1498,7 +1498,7 @@ const architects = [
   {name:"Victor Adaman"},
   {name:"Zeynep Fadıllıoğlu"},
   {name:"Deniz Kaya", role:null, office:null, status:"Freelance"},
-  {name:"Ece Yıldız", role:null, office:null, status:"İş arıyor"},
+  {name:"Ece Yıldız", role:null, office:null, status:"İşsiz"},
   {name:"Mert Şahin", role:null, office:null, status:"Staj arıyor"},
   {name:"Ayşe Demir", role:null, office:null, status:"Emekli"},
 ];
