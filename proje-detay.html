@@ -575,15 +575,18 @@ if(!p){
 
 // Admin bu projeyi admin panelinden gizlemiş olabilir (bkz. src/routes/legacyContent.js,
 // GET /api/public/hidden) — statik veride kayıt bulunsa bile gizliyse "bulunamadı" davranışına düşer.
-if(p){
-  try{
-    const hiddenRes = await fetch('/api/public/hidden');
-    if(hiddenRes.ok){
-      const hidden = await hiddenRes.json();
-      if((hidden.projects || []).includes(p.slug)) p = null;
-    }
-  }catch{}
-}
+// hiddenProjectSlugs aşağıda "Ofisin/Mimarın Diğer Projeleri"/"İlgili Projeler"/önceki-sonraki proje
+// kartlarında da kullanılır (bkz. kullanıcı isteği: admin'in gizlediği bir proje bu kartlarda da
+// görünmemeli, yalnızca kendi detay sayfasında "bulunamadı" göstermek yetmiyordu).
+let hiddenProjectSlugs = new Set();
+try{
+  const hiddenRes = await fetch('/api/public/hidden');
+  if(hiddenRes.ok){
+    const hidden = await hiddenRes.json();
+    hiddenProjectSlugs = new Set(hidden.projects || []);
+  }
+}catch{}
+if(p && hiddenProjectSlugs.has(p.slug)) p = null;
 
 if(!p){
   document.getElementById('detail-title').textContent = 'Proje bulunamadı';
@@ -869,7 +872,9 @@ if(!p){
   }
 
   // Ofisin/mimarın diğer projeleri: en az bir tasarımcı ismi birebir örtüşüyorsa (aynı ofis/mimar)
-  const sameDesigner = projects.filter(o => o.slug !== p.slug && o.designer.some(d => p.designer.includes(d)));
+  // — admin'in gizlediği projeler (hiddenProjectSlugs) burada da hariç tutulur.
+  const visibleProjects = projects.filter(o => !hiddenProjectSlugs.has(o.slug));
+  const sameDesigner = visibleProjects.filter(o => o.slug !== p.slug && o.designer.some(d => p.designer.includes(d)));
   if(sameDesigner.length){
     document.getElementById('same-designer-section').style.display = 'block';
     document.getElementById('same-designer-grid').innerHTML = sameDesigner.map(r => `
@@ -892,7 +897,7 @@ if(!p){
     if(sameCategory) return 1;
     return 0;
   }
-  const related = projects
+  const related = visibleProjects
     .filter(o => o.slug !== p.slug && !sameDesignerSlugs.has(o.slug))
     .map(o => ({ o, score: relatedScore(o) }))
     .filter(x => x.score > 0)
@@ -908,10 +913,14 @@ if(!p){
       </a>`).join('');
   }
 
-  // Prev/next
-  const idx = projects.findIndex(o => o.slug === p.slug);
-  const prevP = projects[(idx - 1 + projects.length) % projects.length];
-  const nextP = projects[(idx + 1) % projects.length];
+  // Prev/next — gizli projeler arasında gezinmemek için visibleProjects + p'nin kendisi kullanılır
+  // (p zaten burada her zaman görünür, en üstte hiddenProjectSlugs kontrolünden geçti). Slug'a göre
+  // karşılaştırılır çünkü p, edits ile birleştirildiğinde artık projects[] içindeki nesneyle aynı
+  // referansı taşımıyor olabilir.
+  const prevNextList = visibleProjects.some(o => o.slug === p.slug) ? visibleProjects : [...visibleProjects, p];
+  const idx = prevNextList.findIndex(o => o.slug === p.slug);
+  const prevP = prevNextList[(idx - 1 + prevNextList.length) % prevNextList.length];
+  const nextP = prevNextList[(idx + 1) % prevNextList.length];
   document.getElementById('prevnext').innerHTML = `
     <a class="prev" href="/projeler/${encodeURIComponent(prevP.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(prevP.title)}</span></a>
     <a class="next" href="/projeler/${encodeURIComponent(nextP.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(nextP.title)}</span></a>

@@ -668,13 +668,18 @@ applyProfileEdits();
 // Admin bu mimarı admin panelinden gizlemiş olabilir (bkz. src/routes/legacyContent.js, GET
 // /api/public/hidden) — yalnızca URL'de AÇIKÇA istenen bir profil gizliyse listeleme sayfasına
 // yönlendirilir; parametresiz ziyaretlerdeki mevcut architects[0] varsayılan davranışı etkilenmez.
+// Aynı çağrıdaki hidden.projects, aşağıdaki renderRelatedProjects()'in de admin'in gizlediği
+// projeleri dışarıda bırakması için hiddenProjectSlugs'a yazılır (bkz. kullanıcı isteği: gizlenen
+// bir proje mimarın profilindeki "İlgili Projeler" alanında hâlâ görünüyordu).
+let hiddenProjectSlugs = new Set();
 (async function redirectIfHidden(){
-  if(!explicitMatch) return;
   try{
     const res = await fetch('/api/public/hidden');
     if(!res.ok) return;
     const hidden = await res.json();
-    if((hidden.architects || []).includes(explicitMatch.name)) window.location.replace('mimar.html');
+    hiddenProjectSlugs = new Set(hidden.projects || []);
+    renderRelatedProjects();
+    if(explicitMatch && (hidden.architects || []).includes(explicitMatch.name)) window.location.replace('mimar.html');
   }catch{}
 })();
 
@@ -713,16 +718,17 @@ if(colleagues.length > 0){
 // çağrılabilsin diye fonksiyona alındı.
 function renderRelatedProjects(){
   const relatedProjects = projects.filter(p =>
-    p.designer.includes(a.name) || (office && p.designer.includes(office.name))
+    !hiddenProjectSlugs.has(p.slug) &&
+    (p.designer.includes(a.name) || (office && p.designer.includes(office.name)))
   );
-  if(relatedProjects.length > 0){
-    document.getElementById('related-projects-section').style.display = '';
-    document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
-      <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
-        ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
-        <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
-      </a>`).join('');
-  }
+  // re-render sonrasında (ör. hidden verisi geldiğinde) liste boşa düşerse bölüm stale içerikle
+  // görünür kalmasın diye 0 durumunda da açıkça gizlenip grid boşaltılıyor.
+  document.getElementById('related-projects-section').style.display = relatedProjects.length > 0 ? '' : 'none';
+  document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
+    <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
+      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
+    </a>`).join('');
 }
 renderRelatedProjects();
 
