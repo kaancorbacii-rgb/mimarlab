@@ -120,7 +120,6 @@
   .form-field textarea{resize:vertical; min-height:110px; line-height:1.5;}
   .form-field input:focus-visible, .form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
-  .ai-manual-link{display:none; background:none; border:none; padding:0; margin-top:10px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--sage); text-decoration:underline; cursor:pointer;}
   .check-grid{display:flex; flex-wrap:wrap; gap:8px;}
   .check-pill{
     display:inline-flex; align-items:center; gap:6px;
@@ -332,18 +331,6 @@
   <div class="form-wrap">
     <form id="proje-ekle-form">
 
-      <div class="form-section" id="ai-panel" style="display:none;">
-        <h2>Yapay Zeka ile Otomatik Doldur</h2>
-        <p class="section-hint">Projenin yayında olduğu sayfanın linkini yapıştır, bilgileri senin için dolduralım. Aşağıdaki alanların hepsi düzenlenebilir — göndermeden önce kontrol et.</p>
-        <div class="form-field">
-          <label for="ai-url-input">Kaynak Bağlantı</label>
-          <input type="url" id="ai-url-input" placeholder="https://ornek-site.com/proje-sayfasi">
-        </div>
-        <button type="button" class="brand-add-btn" id="ai-analyze-btn">Analiz Et</button>
-        <div id="ai-status" class="form-hint" style="display:none; margin-top:12px;"></div>
-        <button type="button" class="ai-manual-link" id="ai-manual-fallback-btn">Formu manuel doldurmaya devam et ↓</button>
-      </div>
-
       <div class="form-section">
         <h2>Temel Bilgiler</h2>
         <div class="form-field">
@@ -471,13 +458,6 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
-      <div class="form-field" id="ai-consent-field" style="display:none;">
-        <label class="check-pill" style="width:100%; box-sizing:border-box;">
-          <input type="checkbox" id="ai-consent-checkbox">
-          Bu içeriğin hak sahibiyim veya yayınlama iznine sahibim.
-        </label>
-      </div>
-
       <button class="form-submit" type="submit">Projeyi Gönder</button>
       <div class="form-notice" id="form-notice"></div>
     </form>
@@ -517,12 +497,6 @@ let mediaKeySeq = 0;
 const editParams = new URLSearchParams(window.location.search);
 let editId = editParams.get('edit');
 const claimSlug = editParams.get('claim');
-// ?ai=1: proje.html'deki seçim modalından "Yapay Zeka ile Otomatik Ekle" seçilince buraya düşülür
-// (bkz. add-choice.js). editId/claimSlug ile aynı anda anlamlı değildir; edit/claim varsa AI paneli
-// hiç gösterilmez (aşağıdaki wireAiPanel guard'ı).
-const aiMode = editParams.get('ai') === '1';
-let aiSourceUrl = null; // gönderimde source_url olarak payload'a eklenir
-let aiGenerated = false; // gönderimde ai_generated:1 olarak payload'a eklenir + onay kutusunu zorunlu kılar
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -902,117 +876,14 @@ async function prefillForClaim(){
 
 if(claimSlug) prefillForClaim(); else prefillForEdit();
 
-// ---------- AI ile Otomatik Doldur (?ai=1, bkz. add-choice.js) ----------
-// AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit/prefillForClaim) ile AYNI alanları AYNI
-// fonksiyonlarla (parseLocationFull, updateKategoriLabel, setExistingImages/renderPreviews) doldurur
-// — tek fark veri kaynağının bir gönderi kaydı değil, /api/ai/extract'in dönüşü olması.
-function applyAiResult(data){
-  document.getElementById('p-title').value = data.title || '';
-  if(data.location_text){
-    const loc = parseLocationFull(data.location_text);
-    if(loc.city){
-      selectedIl = loc.city;
-      document.getElementById('dd-il-btn-label').textContent = selectedIl;
-      document.getElementById('dd-ilce-btn').disabled = false;
-      if(loc.district){
-        selectedIlce = loc.district;
-        document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
-      }
-    }
-  }
-  document.getElementById('p-date').value = data.date_text || '';
-  document.getElementById('p-type').value = data.type_text || '';
-  document.getElementById('p-designer').value = (data.designer_names || []).join(', ');
-  document.getElementById('p-office').value = (data.office_names || []).join(', ');
-  document.getElementById('p-desc').value = data.description || '';
-  document.getElementById('p-credit-text').value = data.photo_credit_text || '';
-  document.getElementById('p-credit-url').value = data.photo_credit_url || '';
-  document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (data.category || []).includes(cb.value));
-  updateKategoriLabel();
-}
-
-function wireAiPanel(){
-  if(!aiMode || editId || claimSlug) return; // düzenleme/sahiplenme akışlarıyla asla aynı anda değil
-  document.getElementById('ai-panel').style.display = 'block';
-  const urlInput = document.getElementById('ai-url-input');
-  const analyzeBtn = document.getElementById('ai-analyze-btn');
-  const statusEl = document.getElementById('ai-status');
-  const notice = document.getElementById('form-notice');
-  const manualBtn = document.getElementById('ai-manual-fallback-btn');
-  manualBtn.addEventListener('click', ()=>{
-    document.getElementById('p-title').scrollIntoView({behavior:'smooth', block:'center'});
-    document.getElementById('p-title').focus();
-  });
-
-  async function analyze(){
-    const url = urlInput.value.trim();
-    if(!url){ urlInput.focus(); return; }
-    analyzeBtn.disabled = true;
-    urlInput.disabled = true;
-    notice.classList.remove('show');
-    manualBtn.style.display = 'none';
-    statusEl.textContent = 'Sayfa alınıyor ve analiz ediliyor… (biraz sürebilir)';
-    statusEl.style.display = 'block';
-    try{
-      const res = await fetch('/api/ai/extract', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ url, kind: 'project' }),
-      });
-      if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
-        notice.classList.add('show');
-        manualBtn.style.display = 'inline-block';
-        return;
-      }
-      if(!data.found){
-        notice.textContent = data.reason || 'Bu sayfada bir proje bulamadık — formu kendin doldurabilirsin.';
-        notice.classList.add('show');
-        manualBtn.style.display = 'inline-block';
-        return;
-      }
-      applyAiResult(data.data);
-      setExistingImages((data.images || []).map(im => im.url));
-      renderPreviews();
-      aiSourceUrl = data.sourceUrl;
-      aiGenerated = true;
-      document.getElementById('ai-consent-field').style.display = 'block';
-      if(data.aiFailed){
-        notice.textContent = data.message || 'Yapay zeka şu anda analiz edemedi; bulabildiğimiz temel bilgilerle formu doldurduk.';
-        notice.classList.add('show');
-      }
-      document.getElementById('p-title').scrollIntoView({behavior:'smooth', block:'center'});
-    }catch{
-      notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
-      notice.classList.add('show');
-      manualBtn.style.display = 'inline-block';
-    }finally{
-      statusEl.style.display = 'none';
-      analyzeBtn.disabled = false;
-      urlInput.disabled = false;
-    }
-  }
-  analyzeBtn.addEventListener('click', analyze);
-  urlInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); analyze(); } });
-}
-wireAiPanel();
-
 // mediaItems, kullanıcının sürükleyip bıraktığı sırayı korur — yeni dosyalar bu sıradaki
 // konumlarında yüklenir, sonuç dizisi hem mevcut hem yeni görselleri son (kullanıcının belirlediği)
 // sırayla döner (bkz. mediaItems tanımındaki yorum).
-// AI akışında önizlemedeki "existing" görsellerin url'i henüz bizim değil, dış bir sitenin adresi
-// olabilir (tarayıcı CORS nedeniyle bunları kendi indiremez) — bu yüzden http(s) ile başlayan
-// "existing" url'ler burada toplanıp SUNUCU tarafında /api/ai/copy-images ile R2'ye kopyalanır;
-// zaten /media/ ya da site-relative (ör. "projects/x.jpg") olanlar eskisi gibi aynen geçer.
 async function collectImages(){
   const urls = [];
-  const externalIndexes = [];
   for(const item of mediaItems){
     if(item.kind === 'existing'){
       urls.push(item.url);
-      if(/^https?:\/\//i.test(item.url)) externalIndexes.push(urls.length - 1);
       continue;
     }
     const fd = new FormData();
@@ -1022,23 +893,7 @@ async function collectImages(){
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
     urls.push(data.url);
   }
-  if(externalIndexes.length){
-    const res = await fetch('/api/ai/copy-images', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ images: externalIndexes.map(i => urls[i]) }),
-    });
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error || 'Görseller kopyalanamadı.');
-    const byUrl = new Map((data.items || []).map(it => [it.url, it]));
-    // Kopyalanamayan (ör. kaynak site erişime kapattı) görseli sessizce listeden düşür — tek bir
-    // görselin başarısız olması tüm gönderiyi engellemesin.
-    externalIndexes.forEach(i => {
-      const result = byUrl.get(urls[i]);
-      urls[i] = result && result.mediaUrl ? result.mediaUrl : null;
-    });
-  }
-  return urls.filter(Boolean);
+  return urls;
 }
 
 document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=>{
@@ -1066,13 +921,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(aiGenerated && !document.getElementById('ai-consent-checkbox').checked){
-    notice.textContent = 'Devam etmek için içeriğin hak sahibi olduğunu ya da yayınlama iznine sahip olduğunu onaylamalısın.';
-    notice.classList.add('show');
-    notice.scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
-
   submitBtn.disabled = true;
   let images;
   try{
@@ -1097,7 +945,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     images,
   };
   if(claimSlug) payload.claimed_slug = claimSlug;
-  if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
 
   const patchUrl = isAdminEditingOther
     ? `/api/admin/submissions/projects/${encodeURIComponent(editId)}`

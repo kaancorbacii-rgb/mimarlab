@@ -323,9 +323,9 @@ function claimBadgeHtml(item){
   // claimed_slug: admin'in statik bir projeye (projeler-data.js) yaptığı düzenleme — bkz.
   // src/routes/submissions.js#verifyClaimedSlug, yalnızca admin oluşturabilir, her zaman onaylı.
   if(item.claimed_slug) return `<div class="admin-card-claim-note">✎ Proje düzenlemesi — mevcut slug: ${escapeHtml(item.claimed_slug)}</div>`;
-  // ai_generated/source_url: kullanıcı bu gönderiyi AI destekli otomatik ekleme akışıyla (bkz.
-  // src/routes/ai.js, proje-ekle.html/urun-ekle.html?ai=1) oluşturdu — moderasyonda kaynağı
-  // görüp doğrulayabilmek için kaynak linkiyle birlikte belirgin bir rozet olarak gösterilir.
+  // ai_generated/source_url: artık kaldırılmış olan AI destekli otomatik ekleme akışıyla oluşturulmuş
+  // eski gönderileri işaretler — moderasyonda kaynağı görüp doğrulayabilmek için kaynak linkiyle
+  // birlikte belirgin bir rozet olarak gösterilir.
   if(item.ai_generated && item.source_url) return `<div class="admin-card-claim-note">🤖 AI ile eklendi — kaynak: <a href="${escapeAttr(safeUrl(item.source_url))}" target="_blank" rel="noopener">${escapeHtml(item.source_url)}</a></div>`;
   return '';
 }

@@ -21,12 +21,6 @@
       "bucket_name": "mimarlab-uploads"
     }
   ],
-  // AI destekli otomatik ekleme akışı (bkz. src/lib/aiProvider.js, src/routes/ai.js) — Cloudflare
-  // Workers AI, hesabın zaten sahip olduğu ücretsiz günlük nöron kotasını kullanır; ayrı bir
-  // hesap/anahtar gerektirmez (Anthropic API'den bilinçli olarak vazgeçildi).
-  "ai": {
-    "binding": "AI"
-  },
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler
