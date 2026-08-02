@@ -193,6 +193,17 @@
     padding:8px 16px; font-size:13px; font-weight:600; color:#B84C4C; white-space:nowrap;
   }
   .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+  .save-btn{
+    display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:9px 18px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .save-btn svg{flex-shrink:0;}
+  .save-btn-label-saved{display:none;}
+  .save-btn.saved .save-btn-label-default{display:none;}
+  .save-btn.saved .save-btn-label-saved{display:inline;}
   .profile-logo{
     width:64px; height:64px; border-radius:50%; flex-shrink:0;
     border:1px solid var(--line); overflow:hidden;
@@ -286,6 +297,10 @@
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px; padding:40px 18px 24px;}
     .footer-brand{grid-column:1 / -1;}
     .about-section{padding:0 18px;}
+    /* #profile-sidebar-cards, mobilde footer'ın hemen üstüne taşınınca (bkz. wireSidebarCardsReposition)
+       .profile-wrap'ın kenar boşluğunu kaybediyor ve kutular viewport kenarına dayanıyordu — diğer
+       bölümlerle aynı 18px kenar boşluğu burada da uygulanır. */
+    #profile-sidebar-cards{padding:0 18px; margin-top:28px;}
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -430,7 +445,14 @@
       <div class="profile-top">
         <div class="profile-logo" id="profile-logo">M</div>
         <h1 class="profile-name" id="profile-name"><span id="profile-name-text">Mimar Adı</span><span id="verified-badge-wrap"></span></h1>
-        <div class="profile-top-actions" id="profile-top-actions"></div>
+        <div class="profile-top-actions" id="profile-top-actions">
+          <button class="save-btn card-save-btn" id="save-btn" type="button" aria-label="Kaydet">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
+            <span class="save-btn-label-default">Kaydet</span>
+            <span class="save-btn-label-saved">Kaydedildi</span>
+          </button>
+          <span id="profile-edit-slot"></span>
+        </div>
       </div>
       <span class="profile-category" id="profile-category">Rol</span>
 
@@ -618,6 +640,14 @@ function renderInfoFactsAndLogo(){
 }
 renderInfoFactsAndLogo();
 
+const saveBtn = document.getElementById('save-btn');
+saveBtn.dataset.key = slugify(a.name);
+saveBtn.dataset.title = a.name;
+saveBtn.dataset.meta = office ? office.name : (a.role || '');
+saveBtn.dataset.image = a.photo || '';
+saveBtn.dataset.href = `/mimar/${encodeURIComponent(slugify(a.name))}`;
+wireSaveButtons('architect');
+
 // Google zengin sonuçları / bilgi grafiği için Schema.org Person yapısal verisi. Sayfa tamamen
 // istemci tarafında (data.js + query param) render edildiğinden, sitedeki diğer dinamik içerik
 // gibi (document.title vb.) JS ile enjekte edilir — Google'ın crawler'ı JS render eder.
@@ -670,8 +700,10 @@ async function applyProfileEdits(){
       renderOfficeCard();
       renderColleagues();
       renderRelatedProjects();
+      saveBtn.dataset.meta = office ? office.name : (a.role || '');
     } else if(overlay.role){
       renderOfficeDependentText();
+      saveBtn.dataset.meta = office ? office.name : (a.role || '');
     }
     renderStructuredData();
   }catch{}
@@ -917,7 +949,7 @@ function loadCorrectionCard(){
 // isteği: "mimar, firma ve ürüne silme ve arşivleme yetkisi ver ... düzenle butonunun yanında") —
 // ortak uç nokta proje-detay.html'deki Sil/Arşivle ile aynı (bkz. src/routes/legacyContent.js#handleContentAction).
 function renderProfileEditButton(){
-  const slot = document.getElementById('profile-top-actions');
+  const slot = document.getElementById('profile-edit-slot');
   if(!currentUser || !(isProfileOwner || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
   const adminButtonsHtml = currentUser.role === 'admin' ? `
     <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>

@@ -2,7 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 
-export const ITEM_TYPES = new Set(['project', 'product', 'material', 'news', 'job']);
+export const ITEM_TYPES = new Set(['project', 'product', 'material', 'news', 'job', 'architect', 'office']);
 
 export async function handleSavedRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "saved", ...]
