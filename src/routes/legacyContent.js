@@ -11,7 +11,7 @@ import urunJs from '../../urunler-data.js';
 import malzemeJs from '../../malzemeler-data.js';
 import haberJs from '../../haberler-data.js';
 
-const { architects, offices } = dataJs;
+const { architects, offices, jobListings } = dataJs;
 const { projects } = projeJs;
 const { products } = urunJs;
 const { materials } = malzemeJs;
@@ -117,18 +117,87 @@ async function toggleLegacyHidden(request, env, user) {
   return json({ ok: true });
 }
 
+async function fetchHiddenMap(env) {
+  const { results } = await env.DB.prepare(`SELECT content_type, content_key FROM legacy_content_hidden`).all();
+  const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
+  for (const row of results) {
+    if (out[row.content_type]) out[row.content_type].push(row.content_key);
+  }
+  return out;
+}
+
 // GET /api/public/hidden — auth gerektirmez. Gizlenmiş statik kayıtların doğal anahtarlarını tipe
 // göre gruplanmış olarak döner; her sayfa kendi statik dizisini bu listeye göre filtreler — proje-
 // edits/profile-edits ile aynı overlay deseni (bkz. src/routes/public.js). Önbellekleme/admin
 // muafiyeti cachedPublicJson içinde ele alınır (bkz. src/lib/publicCache.js).
 export async function handlePublicHidden(request, env) {
-  return cachedPublicJson(request, env, '/api/public/hidden', async () => {
-    const { results } = await env.DB.prepare(`SELECT content_type, content_key FROM legacy_content_hidden`).all();
-    const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
-    for (const row of results) {
-      if (out[row.content_type]) out[row.content_type].push(row.content_key);
+  return cachedPublicJson(request, env, '/api/public/hidden', () => fetchHiddenMap(env));
+}
+
+// GET /api/public/search-suggest?q=<metin> — auth gerektirmez. Üst navigasyondaki arama kutusunun
+// (bkz. tüm sayfalardaki paylaşılan wireNavSearch()) canlı öneri açılır penceresini besler.
+// arama.html'in tam sonuç sayfasıyla (runSearch()) AYNI grup sırası/eşleşme mantığını kullanır —
+// yalnızca büyük statik veri dosyalarını (data.js ~330KB, projeler-data.js ~9800 satır vb.) HER
+// sayfaya istemci tarafında yüklemek yerine (birçok sayfa — giris-yap.html, hakkinda.html vb. —
+// şu an bunların HİÇBİRİNİ yüklemiyor) sunucu tarafında arayıp küçük bir JSON döndürür. Üye
+// gönderimli (DB) içerik kasıtlı olarak dahil değil — arama.html'in tam sonuç sayfası da yalnızca
+// statik veriyi arıyor, aynı kapsam.
+const SEARCH_SUGGEST_PER_GROUP = 3;
+const SEARCH_SUGGEST_TOTAL = 8;
+
+export async function handlePublicSearchSuggest(request, env, url) {
+  const q = trLower((url.searchParams.get('q') || '').trim());
+  if (!q) return json({ items: [], total: 0 });
+
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    const hidden = await fetchHiddenMap(env);
+    const hiddenHas = (type, key) => (hidden[type] || []).includes(key);
+
+    const groups = [
+      {
+        label: 'Mimar',
+        items: architects
+          .filter(a => !hiddenHas('architects', a.name) && (trLower(a.name).includes(q) || (a.office && trLower(a.office).includes(q))))
+          .map(a => ({ title: a.name, meta: a.office || 'Mimar', href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}` })),
+      },
+      {
+        label: 'Firma',
+        items: offices
+          .filter(o => !hiddenHas('offices', o.name) && (trLower(o.name).includes(q) || trLower(o.loc || '').includes(q)))
+          .map(o => ({ title: o.name, meta: o.loc || '', href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}` })),
+      },
+      {
+        label: 'Proje',
+        items: projects
+          .filter(p => !hiddenHas('projects', p.slug) && (trLower(p.title).includes(q) || trLower(p.location || '').includes(q) || (p.designer || []).some(d => trLower(d).includes(q))))
+          .map(p => ({ title: p.title, meta: [p.location, p.date].filter(Boolean).join(' · '), href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}` })),
+      },
+      {
+        label: 'Ürün',
+        items: products
+          .filter(p => !hiddenHas('products', `${p.brand || ''}|||${p.title}`) && (trLower(p.title).includes(q) || trLower(p.category || '').includes(q) || trLower(p.brand || '').includes(q)))
+          .map(p => ({ title: p.title, meta: [p.category, p.brand].filter(Boolean).join(' · '), href: 'urun.html' })),
+      },
+      {
+        label: 'Haber',
+        items: newsItems
+          .filter(n => !hiddenHas('news', n.id) && (trLower(n.title).includes(q) || trLower(n.category || '').includes(q)))
+          .map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })),
+      },
+      {
+        label: 'İş İlanı',
+        items: (jobListings || [])
+          .filter(j => trLower(j.title).includes(q) || trLower(j.office || '').includes(q) || trLower(j.loc || '').includes(q) || trLower(j.role || '').includes(q))
+          .map(j => ({ title: j.title, meta: [j.office, j.loc].filter(Boolean).join(' · '), href: 'is-ilani.html' })),
+      },
+    ];
+
+    const items = [];
+    for (const g of groups) {
+      for (const it of g.items.slice(0, SEARCH_SUGGEST_PER_GROUP)) items.push({ ...it, label: g.label });
     }
-    return out;
+    const total = groups.reduce((sum, g) => sum + g.items.length, 0);
+    return { items: items.slice(0, SEARCH_SUGGEST_TOTAL), total };
   });
 }
 

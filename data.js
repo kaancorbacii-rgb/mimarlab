@@ -1790,4 +1790,4 @@ const jobListings = [
 
 // Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
 // (nodejs_compat) çalışır — src/lib/seo.js buradan CJS interop ile import eder (bkz. o dosyadaki not).
-if (typeof module !== 'undefined') { module.exports = { offices, architects }; }
+if (typeof module !== 'undefined') { module.exports = { offices, architects, jobListings }; }

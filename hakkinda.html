@@ -159,11 +159,20 @@
   <div class="content-wrap">
     <div class="content-eyebrow">Kurumsal</div>
     <h1 class="content-title">MİMARLAB Hakkında</h1>
-    <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık ve peyzaj mimarlığı alanlarındaki firmaları, mimarları, projeleri ve ürünleri tek bir yerde toplayan bağımsız bir dizin ve topluluk platformudur.</p>
+    <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık, peyzaj mimarlığı ve restorasyon alanlarındaki firmaları, mimarları, projeleri ve ürünleri tek bir yerde toplayan bağımsız bir dizin ve topluluk platformudur.</p>
 
     <div class="content-section">
-      <h2>Ne yapıyoruz?</h2>
-      <p>Türkiye'deki mimarlık firmalarını ve mimarları keşfedilebilir hale getirmeyi, tamamlanmış projeleri arşivlemeyi ve sektördeki ürünleri bir araya getirmeyi amaçlıyoruz. İçeriklerimizin bir kısmı halka açık kaynaklardan derlenir, bir kısmı ise üyelerimizin gönderdiği ve ekibimizin incelemesinden geçen katkılardan oluşur.</p>
+      <h2>Ne sunuyoruz?</h2>
+      <p>Türkiye'deki mimarlık ekosistemini tek bir çatı altında topluyoruz:</p>
+      <ul>
+        <li><strong>Proje arşivi</strong> — tamamlanmış projeleri tür, tip, yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
+        <li><strong>Mimar ve firma profilleri</strong> — bireysel mimarların ve mimarlık ofislerinin/markalarının profillerini inceleyebilirsiniz.</li>
+        <li><strong>Ürün kataloğu</strong> — sektördeki üretici firmaların ürünlerini kategori ve markaya göre listeleriz.</li>
+        <li><strong>İş ilanları</strong> — mimarlık ofisleri açık pozisyonlarını paylaşır, iş arayanlar ilanları filtreleyerek başvurabilir.</li>
+        <li><strong>Haberler</strong> — sektörden güncel gelişmeleri, yarışmaları ve sergileri takip edebilirsiniz.</li>
+        <li><strong>Puanlama, yorum ve kaydetme</strong> — projelere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri hesabınıza kaydedebilirsiniz.</li>
+      </ul>
+      <p>İçeriklerin bir kısmı halka açık kaynaklardan derlenir, bir kısmı ise üyelerimizin gönderdiği ve ekibimizin incelemesinden geçen katkılardan oluşur.</p>
     </div>
 
     <div class="content-section">
@@ -172,13 +181,14 @@
     </div>
 
     <div class="content-section">
-      <h2>Üyelik ve katkı</h2>
-      <p>Üye olarak proje, ürün, firma, mimar gönderebilir; yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
+      <h2>Üyelik, katkı ve rozetler</h2>
+      <p>Üye olarak proje, ürün, mimar, firma veya iş ilanı gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
+      <p>Platformu desteklemek ya da profilinizi öne çıkarmak isteyenler için aylık kiralanan rozet kademeleri sunuyoruz — Destekçi, Doğrulanmış Üye, Altın Üye ve Elmas Üye. Kademeye göre profilinizde doğrulanmış rozet, aylık ürün/iş ilanı yükleme hakkı ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
     </div>
 
     <div class="content-section">
       <h2>İletişim</h2>
-      <p>Sorularınız, düzeltme talepleriniz ya da iş birliği önerileriniz için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz.</p>
+      <p>Sorularınız, düzeltme talepleriniz ya da iş birliği önerileriniz için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. MİMARLAB'da yer almak isteyen firmalar <a href="reklam.html">reklam seçeneklerimize</a>, ekibe katılmak isteyenler ise <a href="kariyer.html">kariyer sayfamıza</a> göz atabilir.</p>
     </div>
   </div>
 
@@ -204,11 +214,87 @@
 
 <script>
 function wireNavSearch(){
-  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
     inp.addEventListener('keydown', (e)=>{
       if(e.key === 'Enter' && e.target.value.trim()){
         window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
       }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
     });
   });
 }
