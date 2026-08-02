@@ -677,13 +677,12 @@ function architectSlideHtml(a, i){
 }
 
 function officeSlideHtml(o, i){
-  const sub = [o.loc, (o.cats || '').split(' · ')[0]].filter(Boolean).join(' · ');
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/markalar/${encodeURIComponent(slugify(o.name))}" data-index="${i}">
     <img class="slide-logo-img" src="${escapeAttr(o.logo)}" alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}">
     <span class="slide-tag">Firma</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(o.name)}</div>
-      ${sub ? `<div class="slide-designer">${escapeHtml(sub)}</div>` : ''}
+      ${o.loc ? `<div class="slide-designer">${escapeHtml(o.loc)}</div>` : ''}
     </div>
   </a>`;
 }

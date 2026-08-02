@@ -454,7 +454,7 @@
           <span>ya da bilgisayarından seçmek için tıkla (Tercihen WEBP ama JPG, PNG de seçebilirsin)</span>
           <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
         </label>
-        <p class="image-spec-hint">Görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
+        <p class="image-spec-hint">Görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir projeye en fazla 30 görsel yükleyebilirsin.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
@@ -722,9 +722,18 @@ function renderPreviews(){
   });
 }
 
+const MAX_PROJECT_IMAGES = 30;
+
 function addFiles(fileList){
   const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-  mediaItems.push(...files.map(file => ({ key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) })));
+  const remaining = MAX_PROJECT_IMAGES - mediaItems.length;
+  if(remaining <= 0){
+    const notice = document.getElementById('form-notice');
+    notice.textContent = `Bir projeye en fazla ${MAX_PROJECT_IMAGES} görsel yükleyebilirsin.`;
+    notice.classList.add('show');
+    return;
+  }
+  mediaItems.push(...files.slice(0, remaining).map(file => ({ key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) })));
   renderPreviews();
 }
 

@@ -2,8 +2,13 @@ import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { checkR2Quota, recordR2Usage, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 
-const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (ürün/mimar/ofis/haber/iş ilanı görselleri)
-const MAX_PROJECT_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB — yalnızca proje-ekle.html galeri görselleri (bkz. kullanıcı isteği)
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (haber/iş ilanı görselleri)
+const CONTEXT_MAX_BYTES = {
+  project: 2 * 1024 * 1024, // proje-ekle.html galeri görselleri
+  product: 2 * 1024 * 1024, // urun-ekle.html galeri görselleri
+  architect: 2 * 1024 * 1024, // mimar-ekle.html profil fotoğrafı
+  office: 2 * 1024 * 1024, // ofis-ekle.html logo
+};
 const EXT_BY_MIME = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -29,10 +34,9 @@ export async function handleUploadRoute(request, env) {
 
   const ext = EXT_BY_MIME[file.type];
   if (!ext) return errorJson('Sadece JPEG, PNG, WEBP ya da GIF görsel yükleyebilirsin.');
-  const isProjectImage = form.get('context') === 'project';
-  const maxBytes = isProjectImage ? MAX_PROJECT_UPLOAD_BYTES : MAX_UPLOAD_BYTES;
+  const maxBytes = CONTEXT_MAX_BYTES[form.get('context')] || MAX_UPLOAD_BYTES;
   if (file.size > maxBytes) {
-    return errorJson(isProjectImage ? 'Görsel en fazla 2 MB olabilir.' : 'Görsel en fazla 4 MB olabilir.');
+    return errorJson(`Görsel en fazla ${Math.round(maxBytes / (1024 * 1024))} MB olabilir.`);
   }
 
   const quota = await checkR2Quota(env, file.size);

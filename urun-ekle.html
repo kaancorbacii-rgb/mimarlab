@@ -203,7 +203,7 @@
   <div class="page-head">
     <div class="eyebrow">Ürün Ekle</div>
     <h1>Ürününü MİMARLAB'a ekle</h1>
-    <p>Mobilya, dekorasyon ürünü ya da yapı malzemesi bilgilerini paylaş, ekibimiz inceledikten sonra kataloğa eklensin.</p>
+    <p>Mobilya, aydınlatma, aksesuar ya da yapı malzemesi ürünlerini bizimle paylaş, ekibimiz inceledikten sonra kataloğa eklensin.</p>
   </div>
 
   <div class="access-gate" id="access-gate" style="display:none;">
@@ -243,9 +243,8 @@
       </div>
 
       <div class="form-section">
-        <h2>Açıklama</h2>
+        <h2>Ürün Açıklaması</h2>
         <div class="form-field">
-          <label for="u-desc">Ürün Açıklaması</label>
           <textarea id="u-desc" name="description" placeholder="Ürün hakkında kısa bir metin yaz..." required></textarea>
         </div>
       </div>
@@ -259,7 +258,7 @@
           <span>ya da bilgisayarından seçmek için tıkla</span>
           <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
         </label>
-        <p class="image-spec-hint">Galeriye eklenecek görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 4 MB boyutunda olmalıdır.</p>
+        <p class="image-spec-hint">Galeriye eklenecek görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir ürüne en fazla 20 görsel yükleyebilirsin.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
@@ -328,8 +327,18 @@ function renderPreviews(){
     btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
   });
 }
+const MAX_PRODUCT_IMAGES = 20;
+
 function addFiles(fileList){
-  selectedFiles = selectedFiles.concat(Array.from(fileList).filter(f => f.type.startsWith('image/')));
+  const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+  const remaining = MAX_PRODUCT_IMAGES - existingImages.length - selectedFiles.length;
+  if(remaining <= 0){
+    const notice = document.getElementById('form-notice');
+    notice.textContent = `Bir ürüne en fazla ${MAX_PRODUCT_IMAGES} görsel yükleyebilirsin.`;
+    notice.classList.add('show');
+    return;
+  }
+  selectedFiles = selectedFiles.concat(files.slice(0, remaining));
   renderPreviews();
 }
 fileInput.addEventListener('change', (e)=> addFiles(e.target.files));
@@ -407,6 +416,7 @@ async function uploadFiles(files){
   for(const file of files){
     const fd = new FormData();
     fd.append('file', file);
+    fd.append('context', 'product');
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');

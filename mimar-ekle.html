@@ -247,14 +247,26 @@
             <div class="ac-suggestions" id="ac-school-suggestions"></div>
           </div>
         </div>
-        <div class="form-field">
-          <label>Meslek <span class="opt">(opsiyonel)</span></label>
-          <div class="dd-field" id="dd-meslek">
-            <button type="button" class="dd-btn" id="dd-meslek-btn">
-              <span id="dd-meslek-btn-label">Meslek seç</span>
-              <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dd-panel"><div class="dd-options" id="dd-meslek-options"></div></div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Meslek <span class="opt">(opsiyonel)</span></label>
+            <div class="dd-field" id="dd-meslek">
+              <button type="button" class="dd-btn" id="dd-meslek-btn">
+                <span id="dd-meslek-btn-label">Meslek seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel"><div class="dd-options" id="dd-meslek-options"></div></div>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Ödüller <span class="opt">(opsiyonel)</span></label>
+            <div class="dd-field" id="dd-oduller">
+              <button type="button" class="dd-btn" id="dd-oduller-btn">
+                <span id="dd-oduller-btn-label">Ödül seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel"><div class="dd-options" id="dd-oduller-options"></div></div>
+            </div>
           </div>
         </div>
       </div>
@@ -279,16 +291,6 @@
             <div class="ac-suggestions" id="ac-marka-suggestions"></div>
           </div>
         </div>
-        <div class="form-field">
-          <label>Ödüller <span class="opt">(opsiyonel)</span></label>
-          <div class="dd-field" id="dd-oduller">
-            <button type="button" class="dd-btn" id="dd-oduller-btn">
-              <span id="dd-oduller-btn-label">Ödül seç</span>
-              <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="dd-panel"><div class="dd-options" id="dd-oduller-options"></div></div>
-          </div>
-        </div>
       </div>
 
       <div class="form-section">
@@ -299,7 +301,7 @@
           <span>ya da bilgisayarından seçmek için tıkla</span>
           <input type="file" id="image-input" accept="image/*" style="display:none;">
         </label>
-        <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 4 MB boyutunda olmalıdır.</p>
+        <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
@@ -551,6 +553,7 @@ async function uploadFiles(files){
   for(const file of files){
     const fd = new FormData();
     fd.append('file', file);
+    fd.append('context', 'architect');
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
