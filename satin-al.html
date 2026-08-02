@@ -94,25 +94,24 @@
   .form-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
   .form-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px; line-height:1.6;}
 
-  .auth-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
-  .auth-field input{
-    width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
-    background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
-  }
-  .auth-field input:focus-visible{box-shadow:0 0 0 2px var(--brass);}
-  @media (max-width:520px){ #buyer-section > div{grid-template-columns:1fr !important;} }
+  .payment-option-disabled{opacity:0.55; cursor:default;}
+  .payment-option-disabled input{cursor:default;}
+  .payment-soon-tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); background:var(--paper-alt); padding:3px 9px; border-radius:100px;}
+
+  .havale-box{margin-top:14px; border:1px solid var(--line); border-radius:12px; padding:16px 18px; background:var(--paper);}
+  .havale-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px;}
+  .havale-row:last-of-type{border-bottom:none;}
+  .havale-row-label{color:var(--ink-soft); flex-shrink:0;}
+  .havale-row-value{font-family:'IBM Plex Mono', monospace; font-weight:600; text-align:right; word-break:break-word;}
+  .havale-copy-btn{flex-shrink:0; background:none; border:1px solid var(--line); border-radius:100px; padding:5px 12px; font-size:11.5px; font-weight:600; color:var(--ink);}
+  .havale-copy-btn:hover{background:var(--paper-alt);}
+  .havale-hint{font-size:12.5px; color:var(--ink-soft); line-height:1.6; margin:12px 0 0;}
 
   .summary-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line-soft); font-size:14px;}
   .summary-row:last-child{border-bottom:none;}
   .summary-row-label{color:var(--ink-soft);}
   .summary-row-value{font-weight:600;}
   .summary-total{font-family:'IBM Plex Mono', monospace; font-size:20px; font-weight:600;}
-
-  .payment-note{
-    display:flex; gap:12px; background:rgba(224,138,62,0.1); border:1px solid var(--accent);
-    border-radius:12px; padding:14px 16px; font-size:12.5px; color:var(--ink); line-height:1.6; margin-top:16px;
-  }
-  .payment-note svg{flex-shrink:0; color:var(--accent); margin-top:1px;}
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
@@ -214,7 +213,7 @@
   <div class="page-head">
     <div class="eyebrow">Rozet Satın Al</div>
     <h1>Bir kademe seç</h1>
-    <p>Rozetler aylık kiralanır. Kendin için ve her firma için ayrı ayrı birer rozet taşıyabilirsin — biri diğerine otomatik yansımaz.</p>
+    <p>Rozetler aylık kiralanır. Kendin için ayrı, firman için ayrı rozet alabilirsin.</p>
   </div>
 
   <div class="checkout-wrap">
@@ -235,34 +234,22 @@
       <div class="tier-grid" id="tier-grid"></div>
     </div>
 
-    <div class="form-section" id="buyer-section">
-      <h2>Fatura Bilgileri</h2>
-      <p class="section-hint">iyzico'nun güvenli ödeme sayfasını başlatmak için gerekli. Kart bilgin bu sayfadan hiç geçmez, doğrudan iyzico'nun kendi sayfasında girilir.</p>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-        <div class="auth-field" style="margin-bottom:0;">
-          <label for="buyer-name">Ad</label>
-          <input type="text" id="buyer-name" autocomplete="given-name" required>
+    <div class="form-section" id="payment-section">
+      <h2>Ödeme Yöntemi</h2>
+      <p class="section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
+      <label class="target-option"><input type="radio" name="payment-method" id="payment-havale" value="havale" checked> Havale / EFT</label>
+      <label class="target-option payment-option-disabled"><input type="radio" name="payment-method" id="payment-card" value="card" disabled> Kredi / Banka Kartı <span class="payment-soon-tag">Şu an aktif değil</span></label>
+
+      <div class="havale-box" id="havale-box">
+        <div class="havale-row">
+          <span class="havale-row-label">IBAN</span>
+          <span class="havale-row-value" id="havale-iban">TR22 0004 6001 7088 8000 2482 94</span>
+          <button type="button" class="havale-copy-btn" id="havale-copy-btn">Kopyala</button>
         </div>
-        <div class="auth-field" style="margin-bottom:0;">
-          <label for="buyer-surname">Soyad</label>
-          <input type="text" id="buyer-surname" autocomplete="family-name" required>
-        </div>
-        <div class="auth-field" style="margin-bottom:0;">
-          <label for="buyer-tc">T.C. Kimlik No</label>
-          <input type="text" id="buyer-tc" inputmode="numeric" maxlength="11" autocomplete="off" required>
-        </div>
-        <div class="auth-field" style="margin-bottom:0;">
-          <label for="buyer-phone">Cep Telefonu</label>
-          <input type="tel" id="buyer-phone" placeholder="05xx xxx xx xx" autocomplete="tel" required>
-        </div>
-        <div class="auth-field" style="margin-bottom:0; grid-column:1 / -1;">
-          <label for="buyer-address">Adres</label>
-          <input type="text" id="buyer-address" autocomplete="street-address" required>
-        </div>
-        <div class="auth-field" style="margin-bottom:0; grid-column:1 / -1;">
-          <label for="buyer-city">Şehir</label>
-          <input type="text" id="buyer-city" autocomplete="address-level2" required>
-        </div>
+        <div class="havale-row"><span class="havale-row-label">Hesap Sahibi</span><span class="havale-row-value">Kaan Çorbacı</span></div>
+        <div class="havale-row"><span class="havale-row-label">Tutar</span><span class="havale-row-value" id="havale-amount">—</span></div>
+        <div class="havale-row"><span class="havale-row-label">Açıklama</span><span class="havale-row-value">info@mimarlab.com</span></div>
+        <p class="havale-hint">Ödemeni yukarıdaki IBAN'a gönderirken açıklama kısmına e-posta adresini yaz. Ödemeyi tamamladıktan sonra aşağıdaki butona tıkla, satın alımın onaylandığında rozetin hemen aktifleşecek.</p>
       </div>
     </div>
 
@@ -276,18 +263,14 @@
         <span class="summary-row-label">Yenileme</span>
         <span class="summary-row-value">Aylık, elle iptal edilene kadar</span>
       </div>
-      <button class="form-submit" id="confirm-btn" type="button" style="margin-top:18px;">iyzico ile Güvenli Ödeme Yap</button>
-      <div class="payment-note">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor" stroke="none"/><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4Z"/></svg>
-        <span>Ödemen iyzico'nun güvenli sayfasında tamamlanır — kart bilgin MİMARLAB sunucularına hiç ulaşmaz. Onay sonrası rozetin hesabında otomatik olarak aktif olur.</span>
-      </div>
+      <button class="form-submit" id="confirm-btn" type="button" style="margin-top:18px;">Ödemeyi Yaptım</button>
       <div class="form-notice" id="form-notice"></div>
     </div>
 
     <div class="form-section" id="already-has-section" style="display:none;">
       <div class="already-has">
         <strong id="already-has-title">Zaten aktif bir rozetin var</strong>
-        <p id="already-has-text">Aynı ya da daha düşük bir kademeye geçemezsin — bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademe seçerek hemen yükseltebilirsin.</p>
+        <p id="already-has-text">Aynı ya da daha düşük bir kademeye geçemezsin. Bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye yükseltebilirsin.</p>
         <a class="form-submit" href="hesabim.html" style="display:inline-block; width:auto; padding:12px 28px;">Hesabım'a Dön</a>
       </div>
     </div>
@@ -300,12 +283,12 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
@@ -364,6 +347,7 @@ function renderSummary(){
   const tier = BADGE_TIERS.find(t => t.type === selectedTier);
   document.getElementById('summary-tier-label').textContent = tier.label;
   document.getElementById('summary-tier-price').textContent = `${tier.price} / ay`;
+  document.getElementById('havale-amount').textContent = tier.price;
 }
 
 renderTierGrid();
@@ -395,25 +379,25 @@ function updateExistingBadgePanel(){
   const isDowngradeOrSame = activeBadge && (BADGE_RANK[selectedTier] || 0) <= (BADGE_RANK[activeBadge.badge_type] || 0);
   const blocking = pendingBadge || (isDowngradeOrSame ? activeBadge : null);
 
-  const buyerSection = document.getElementById('buyer-section');
+  const paymentSection = document.getElementById('payment-section');
   const summarySection = document.getElementById('summary-section');
   const alreadyHasSection = document.getElementById('already-has-section');
   if(!blocking){
-    buyerSection.style.display = '';
+    paymentSection.style.display = '';
     summarySection.style.display = '';
     alreadyHasSection.style.display = 'none';
     return;
   }
   const tier = BADGE_TIERS.find(t => t.type === blocking.badge_type);
-  buyerSection.style.display = 'none';
+  paymentSection.style.display = 'none';
   summarySection.style.display = 'none';
   alreadyHasSection.style.display = 'block';
   const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
   document.getElementById('already-has-title').textContent =
-    `${tier ? tier.label : blocking.badge_type} rozetin${targetLabel} ${BADGE_STATUS_LABELS[blocking.status] || blocking.status.toLowerCase()}`;
+    `${tier ? tier.label : blocking.badge_type} Rozetin${targetLabel} ${BADGE_STATUS_LABELS[blocking.status] || blocking.status.toLowerCase()}`;
   document.getElementById('already-has-text').textContent = blocking === pendingBadge
     ? 'Ödeme onayı bekleniyor. Sonucu Hesabım sayfandan takip edebilirsin.'
-    : 'Aynı ya da daha düşük bir kademeye geçemezsin — bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademe seçerek hemen yükseltebilirsin.';
+    : 'Aynı ya da daha düşük bir kademeye geçemezsin. Bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye yükseltebilirsin.';
 }
 loadMyBadges();
 
@@ -459,55 +443,46 @@ document.querySelectorAll('input[name="badge-target"]').forEach(radio=>{
   });
 });
 
-function isValidTcKimlik(v){
-  if(!/^[1-9][0-9]{10}$/.test(v)) return false;
-  const d = v.split('').map(Number);
-  const oddSum = d[0]+d[2]+d[4]+d[6]+d[8];
-  const evenSum = d[1]+d[3]+d[5]+d[7];
-  const check10 = (((oddSum*7) - evenSum) % 10 + 10) % 10;
-  if(check10 !== d[9]) return false;
-  const sumFirst10 = d.slice(0,10).reduce((a,b)=>a+b,0);
-  return (sumFirst10 % 10) === d[10];
-}
+const HAVALE_IBAN_RAW = 'TR220004600170888000248294';
+const havaleCopyBtn = document.getElementById('havale-copy-btn');
+havaleCopyBtn.addEventListener('click', async ()=>{
+  try{
+    await navigator.clipboard.writeText(HAVALE_IBAN_RAW);
+    const original = havaleCopyBtn.textContent;
+    havaleCopyBtn.textContent = 'Kopyalandı';
+    setTimeout(()=>{ havaleCopyBtn.textContent = original; }, 1500);
+  }catch{}
+});
 
-const ORIGINAL_BTN_LABEL = 'iyzico ile Güvenli Ödeme Yap';
+const ORIGINAL_BTN_LABEL = 'Ödemeyi Yaptım';
 
 document.getElementById('confirm-btn').addEventListener('click', async ()=>{
   const btn = document.getElementById('confirm-btn');
   const notice = document.getElementById('form-notice');
   notice.classList.remove('show', 'success');
 
-  const name = document.getElementById('buyer-name').value.trim();
-  const surname = document.getElementById('buyer-surname').value.trim();
-  const identityNumber = document.getElementById('buyer-tc').value.trim();
-  const phone = document.getElementById('buyer-phone').value.trim();
-  const address = document.getElementById('buyer-address').value.trim();
-  const city = document.getElementById('buyer-city').value.trim();
-
-  if(!name || !surname){ notice.textContent = 'Ad ve soyad gerekli.'; notice.classList.add('show'); return; }
-  if(!isValidTcKimlik(identityNumber)){ notice.textContent = 'Geçerli bir T.C. Kimlik Numarası gir.'; notice.classList.add('show'); return; }
-  if(!/^0?5\d{9}$/.test(phone.replace(/\s+/g, ''))){ notice.textContent = 'Geçerli bir cep telefonu numarası gir.'; notice.classList.add('show'); return; }
-  if(address.length < 8){ notice.textContent = 'Geçerli bir adres gir.'; notice.classList.add('show'); return; }
-  if(!city){ notice.textContent = 'Şehir gerekli.'; notice.classList.add('show'); return; }
   if(selectedTargetType === 'office' && !selectedTargetKey){ notice.textContent = 'Rozet almak için önce onaylı bir firma profiline sahip olmalısın.'; notice.classList.add('show'); return; }
 
   btn.disabled = true;
-  btn.textContent = 'Yönlendiriliyor…';
+  btn.textContent = 'Gönderiliyor…';
   try{
-    const res = await fetch('/api/payments/checkout', {
+    const res = await fetch('/api/badges', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ badgeType: selectedTier, targetType: selectedTargetType, targetKey: selectedTargetKey, name, surname, identityNumber, phone, address, city }),
+      body: JSON.stringify({ badgeType: selectedTier, targetType: selectedTargetType, targetKey: selectedTargetKey }),
     });
     if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
     const data = await res.json().catch(()=>({}));
-    if(!res.ok || !data.paymentPageUrl){
-      notice.textContent = data.error || 'Ödeme başlatılamadı, tekrar dene.';
+    if(!res.ok){
+      notice.textContent = data.error || 'Talep gönderilemedi, tekrar dene.';
       notice.classList.add('show');
       btn.disabled = false;
       btn.textContent = ORIGINAL_BTN_LABEL;
       return;
     }
-    window.location.href = data.paymentPageUrl;
+    notice.textContent = 'Talebin alındı. Ödemen kontrol edilip onaylandığında rozetin aktif olacak — sonucu Hesabım sayfandan takip edebilirsin.';
+    notice.classList.add('show', 'success');
+    btn.textContent = 'Talebin Gönderildi';
+    loadMyBadges();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');
@@ -515,12 +490,6 @@ document.getElementById('confirm-btn').addEventListener('click', async ()=>{
     btn.textContent = ORIGINAL_BTN_LABEL;
   }
 });
-
-if(new URLSearchParams(window.location.search).get('payment') === 'failed'){
-  const notice = document.getElementById('form-notice');
-  notice.textContent = 'Ödeme tamamlanamadı ya da iptal edildi. Dilersen tekrar deneyebilirsin.';
-  notice.classList.add('show');
-}
 
 fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = 'giris-yap.html'; });
 

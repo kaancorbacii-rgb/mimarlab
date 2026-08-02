@@ -3,8 +3,10 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 
-// Fiyatlar TL/ay cinsinden (aylık abonelik); ödeme altyapısı bağlanana kadar talepler admin
-// panelinden elle onaylanır. Dört kademe: destekci (Destekçi — herhangi bir hak/rozet vermez,
+// Fiyatlar TL/ay cinsinden (aylık abonelik); ödeme yöntemi havale/EFT (bkz. satin-al.html) —
+// kredi/banka kartı (iyzico, bkz. src/routes/payments.js) henüz UI'da aktif değil. Havale
+// talepleri burada 'pending' oluşturulur, admin havaleyi banka ekstresinden doğrulayıp panelden
+// elle onaylar (bkz. src/routes/admin.js#handleBadgesAdmin). Dört kademe: destekci (Destekçi — herhangi bir hak/rozet vermez,
 // yalnızca destek amaçlı), verified (Doğrulanmış Üye), gold (Altın Üye), platinum (Elmas Üye)
 // — bkz. data.js#BADGE_LABELS ile aynı anahtarlar (destekci kasıtlı olarak orada yok, bkz.
 // handlePublicBadges).
@@ -77,7 +79,7 @@ async function createBadgeRequest(request, env, user) {
 
   const id = newId();
   await env.DB.prepare(
-    'INSERT INTO badge_requests (id, user_id, badge_type, target_type, target_key, status, price_try, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    "INSERT INTO badge_requests (id, user_id, badge_type, target_type, target_key, status, price_try, created_at, updated_at, payment_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'havale')"
   ).bind(id, user.id, badgeType, target.targetType, target.targetKey, 'pending', price, now, now).run();
 
   return json({ id, status: 'pending' }, 201);

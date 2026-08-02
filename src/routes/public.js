@@ -28,6 +28,7 @@ function toPublicShape(type, row) {
   if (type === 'projects') {
     return {
       slug: parsed.slug, title: parsed.title, category: parsed.category, type: parsed.type,
+      discipline: parsed.discipline,
       location: parsed.location, locationDetail: parsed.locationDetail, date: parsed.date,
       dateBucket: parsed.dateBucket, period: parsed.period, designer: parsed.designer,
       photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },
@@ -191,7 +192,7 @@ async function handlePublicProjectEdits(request, env) {
     for (const row of results) {
       const parsed = parseSubmissionRow('projects', row);
       out[row.claimed_slug] = {
-        title: parsed.title, category: parsed.category, type: parsed.type,
+        title: parsed.title, category: parsed.category, type: parsed.type, discipline: parsed.discipline,
         location: parsed.location, locationDetail: parsed.locationDetail,
         date: parsed.date, dateBucket: parsed.dateBucket, designer: parsed.designer,
         photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },

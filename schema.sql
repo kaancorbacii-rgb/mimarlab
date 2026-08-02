@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   title TEXT NOT NULL,
   category TEXT,
   type TEXT,
+  discipline TEXT, -- "Tür" facet: Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon (bkz. migrations/0017_project_discipline.sql)
   location TEXT,
   locationDetail TEXT,
   date TEXT,

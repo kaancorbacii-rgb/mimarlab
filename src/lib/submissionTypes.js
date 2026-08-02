@@ -11,11 +11,11 @@ export const SUBMISSION_TYPES = {
   projects: {
     table: 'project_submissions',
     fields: [
-      'slug', 'title', 'category', 'type', 'location', 'locationDetail', 'date', 'dateBucket',
+      'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
       'claimed_slug', 'source_url', 'ai_generated',
     ],
-    arrayFields: ['category', 'type', 'period', 'designer', 'images', 'brands'],
+    arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'images', 'brands'],
     required: ['title'],
     urlFields: ['photoCreditUrl', 'source_url'],
     urlArrayFields: ['images'],

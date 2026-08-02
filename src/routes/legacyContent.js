@@ -136,13 +136,13 @@ export async function handlePublicHidden(request, env) {
 // admin'in onaylı düzenleme bindirmesi (claimed_slug, bkz. src/routes/public.js#handlePublicProjectEdits
 // ile aynı birleştirme) — arşivleme, projeyi bu haliyle bir project_submissions taslağına kopyalar
 // ki admin panelde düzenlerken en son görünen içerikten devam etsin, eski statik veriden değil.
-const PROJECT_FIELD_KEYS = ['title', 'category', 'type', 'location', 'locationDetail', 'date', 'dateBucket', 'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands'];
+const PROJECT_FIELD_KEYS = ['title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket', 'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands'];
 
 async function currentStaticProjectFields(env, slug) {
   const p = projeJs.projectBySlug(slug);
   if (!p) return null;
   const base = {
-    title: p.title || '', category: p.category || [], type: p.type || [],
+    title: p.title || '', category: p.category || [], type: p.type || [], discipline: p.discipline || [],
     location: p.location || null, locationDetail: p.locationDetail || null,
     date: p.date || null, dateBucket: p.dateBucket || null, period: p.period || [],
     designer: p.designer || [],
