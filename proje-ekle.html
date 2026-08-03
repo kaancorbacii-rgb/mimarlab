@@ -652,15 +652,27 @@ function wireAutocomplete(inputId, suggestionsId, getItems, opts){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 const TYPE_SUGGESTIONS = [...new Set((typeof projects !== 'undefined' ? projects : []).flatMap(p => p.type || []))].sort((a,b)=>a.localeCompare(b,'tr')).map(t => ({label: t}));
-const MIMAR_SUGGESTIONS = (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
-const OFIS_SUGGESTIONS = (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
+// Fonksiyon olarak tanımlanır (statik bir dizi DEĞİL) — admin bir firmayı yeniden adlandırdığında
+// (bkz. data.js#renameOfficeEverywhere, aşağıdaki applyProfileEditPhotos() çağrısı) offices[].name
+// çalışma zamanında mutasyona uğrar; bu liste sayfa yüklendiği anda TEK SEFERLİK hesaplanan bir
+// const olsaydı eski adı göstermeye devam ederdi (bkz. gerçek bulgu: Han Tümertekin → Tümertekin
+// Architects yeniden adlandırıldıktan sonra Proje Ekle/Düzenle'deki Firma önerilerinde hâlâ eski ad
+// çıkıyordu) — wireAutocomplete zaten her etkileşimde bu getter'ı YENİDEN çağırıyor, o yüzden isim
+// güncellendiği anda öneriler de güncel olur.
+const MIMAR_SUGGESTIONS = () => (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
+const OFIS_SUGGESTIONS = () => (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
 const URUN_SUGGESTIONS = [...(typeof products !== 'undefined' ? products : []), ...(typeof materials !== 'undefined' ? materials : [])]
   .filter(p => p.title).map(p => ({label: p.title, sub: p.brand || '', brand: p.brand || ''}));
 
 wireAutocomplete('p-type', 'ac-type-suggestions', () => TYPE_SUGGESTIONS);
-wireAutocomplete('p-designer', 'ac-mimar-suggestions', () => MIMAR_SUGGESTIONS);
-wireAutocomplete('p-office', 'ac-ofis-suggestions', () => OFIS_SUGGESTIONS);
-wireAutocomplete('p-brand-input', 'ac-marka-suggestions', () => OFIS_SUGGESTIONS, {multi:false});
+wireAutocomplete('p-designer', 'ac-mimar-suggestions', MIMAR_SUGGESTIONS);
+wireAutocomplete('p-office', 'ac-ofis-suggestions', OFIS_SUGGESTIONS);
+wireAutocomplete('p-brand-input', 'ac-marka-suggestions', OFIS_SUGGESTIONS, {multi:false});
+
+// Onaylı profil düzenlemeleriyle (fotoğraf/logo/firma adı değişikliği) offices[]/architects[]
+// dizilerini güncel tutar (bkz. data.js#applyProfileEditPhotos) — yukarıdaki Firma/Mimar önerileri
+// ve prefillForEdit'teki mevcut designer eşleştirmesi bunu kullanır.
+applyProfileEditPhotos().catch(()=>{});
 wireAutocomplete('p-product-input', 'ac-urun-suggestions', () => URUN_SUGGESTIONS, {multi:false, onPick: (item)=>{
   const brandInput = document.getElementById('p-brand-input');
   if(!brandInput.value.trim() && item.brand) brandInput.value = item.brand;
@@ -774,6 +786,10 @@ dropZone.addEventListener('drop', (e)=>{
 
 let isAdminEditingOther = false;
 let currentUserRole = null;
+// claimSlug'sız bir düzenlemede (statik bir kaydı sahiplenmeyen, sıradan bir üye projesi) kaydettikten
+// sonra profile yönlendirebilmek için (bkz. aşağıdaki submit handler) — slug düzenlemede değişmez
+// (bkz. updateOwnSubmission#row.slug = existing.slug), bu yüzden prefillForEdit'te bir kez okunur.
+let existingSlug = null;
 const meReady = fetch('/api/auth/me').then(async res=>{
   if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
   currentUserRole = (await res.json()).user.role;
@@ -798,6 +814,7 @@ async function prefillForEdit(){
       }
     }
     if(!item) return;
+    existingSlug = item.slug || null;
     document.querySelector('.eyebrow').textContent = 'Proje Düzenle';
     document.querySelector('.page-head h1').textContent = 'Projeni düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
@@ -1017,6 +1034,18 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       setTimeout(()=>{ window.location.href = `/projeler/${encodeURIComponent(claimSlug)}`; }, 1200);
+      return;
+    }
+    // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi düzenlemesi, bkz. src/routes/
+    // submissions.js) sayfa hesabim.html/admin.html'e değil, doğrudan projenin kendi profiline
+    // gitsin (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o
+    // profile gitsin"). claimSlug'lı durum bunu zaten yukarıda ayrıca ele alıyor (slug'ı en baştan
+    // biliniyor); burası claimSlug'sız (sıradan bir üye projesi) düzenlemeler için.
+    if(editId && data.status === 'approved' && existingSlug){
+      notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/projeler/${encodeURIComponent(existingSlug)}`; }, 1200);
       return;
     }
     if(editId){

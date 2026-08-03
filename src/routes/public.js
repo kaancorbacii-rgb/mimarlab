@@ -170,6 +170,11 @@ async function handlePublicProfileEdits(request, env) {
     for (const row of officeRes.results) {
       const parsed = parseSubmissionRow('offices', row);
       out.office[row.claimed_profile_key] = {
+        // Yalnızca admin, statik bir firmanın GÖRÜNEN adını claimed_profile_key'den farklı
+        // gönderebilir (bkz. src/routes/submissions.js#updateOwnSubmission) — name burada name !==
+        // claimed_profile_key ise gerçek bir yeniden adlandırmadır, aksi halde statik adla aynıdır
+        // (data.js#renameOfficeEverywhere no-op geçer).
+        name: parsed.name,
         loc: parsed.loc, cats: parsed.cats, yil: parsed.yil, website: parsed.website,
         about: parsed.about, logo: parsed.logo_url,
       };

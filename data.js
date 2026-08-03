@@ -1390,8 +1390,8 @@ const architects = [
   {name:"Reyhan Demirkundak", role:"Kurucu", office:"HRD Mimarlık"},
   {name:"Gül Güven", role:"Kurucu", office:"VEN Mimarlık", photo:"mimarlar-thumb/arkiv/gul-guven.jpg"},
   {name:"Serter Karataban", role:"Kurucu", office:"TeamFores", photo:"mimarlar-thumb/arkiv/serter-karataban.jpg"},
-  {name:"Şaziment Arolat", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture", photo:"mimarlar-thumb/arkiv/saziment-arolat.jpg"},
-  {name:"M. Neşet Arolat", role:"Kurucu Ortak", office:"EAA — Emre Arolat Architecture", photo:"mimarlar-thumb/arkiv/m-neset-arolat.jpg"},
+  {name:"Şaziment Arolat", photo:"mimarlar-thumb/arkiv/saziment-arolat.jpg"},
+  {name:"M. Neşet Arolat", photo:"mimarlar-thumb/arkiv/m-neset-arolat.jpg"},
   {name:"Semra Teber Yener", role:"Kurucu", office:"Tektonika Mimarlık", photo:"mimarlar-thumb/arkiv/semra-teber-yener.jpg"},
   {name:"Murat Arif Suyabatmaz", role:"Kurucu Ortak", office:"Suyabatmaz Demirel Mimarlık", photo:"mimarlar-thumb/arkiv/murat-arif-suyabatmaz.jpg"},
   {name:"Leyla Tara Suyabatmaz", role:"Kurucu Ortak", office:"Suyabatmaz Demirel Mimarlık", photo:"mimarlar-thumb/arkiv/leyla-tara-suyabatmaz.jpg"},
@@ -1526,6 +1526,73 @@ function logoUrl(o){
   const domain = officeDomain(o.website);
   if(!domain || NO_LOGO_DOMAINS.has(domain)) return null;
   return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+}
+
+// /api/public/profile-edits tek seferde çekilip önbelleklenir — mimar-detay.html/ofis-detay.html
+// zaten kendi (daha detaylı) overlay mantıkları için bunu ayrı ayrı çekiyordu; diğer sayfalar
+// (proje-detay.html, mimar.html, firma.html) aynı isteği tekrarlamak yerine bu paylaşılan promise'i
+// kullanır.
+let _profileEditsPromise = null;
+function fetchProfileEdits(){
+  if(!_profileEditsPromise){
+    _profileEditsPromise = fetch('/api/public/profile-edits').then(r => r.ok ? r.json() : {}).catch(() => ({}));
+  }
+  return _profileEditsPromise;
+}
+
+// Onaylı, sahiplenilmiş profil düzenlemelerindeki fotoğraf (architect) ve logo (office) alanlarını
+// architects[]/offices[] dizileri ÜZERİNE bindirir (mutasyon) — proje-detay.html'deki tasarımcı
+// "chip"leri, mimar.html/firma.html listeleme kartları ve mimar-detay.html/ofis-detay.html'deki
+// ÇAPRAZ referanslar (bir mimarın sayfasındaki ofis kartı, bir ofisin sayfasındaki kurucular grid'i)
+// bu dizileri DOĞRUDAN okur; merkezi biçimde burada bindirilmezse her biri aynı overlay mantığını
+// ayrı ayrı tekrarlamak zorunda kalırdı (bkz. gerçek bulgu: mimar/firma profiline yüklenen
+// fotoğraf/logo proje detayında, listeleme kartlarında ve çapraz profil referanslarında hiç
+// görünmüyordu — yalnızca kişinin/firmanın KENDİ detay sayfasında görünüyordu).
+// off.name'i yeniden adlandırır ve buna bağlı TÜM referansları (projects[].designer,
+// architects[].office) güncel isimle eşleşecek şekilde günceller. data.js/projeler-data.js kaynak
+// dosyaları statik olduğundan (worker çalışma zamanında düzenleyemez), bir firmanın admin
+// tarafından değiştirilen adını (bkz. src/routes/submissions.js, yalnızca admin claimed_
+// profile_key'den FARKLI bir isim gönderebilir) site genelinde tutarlı göstermenin TEK yolu budur
+// — hem bu dosyadaki applyProfileEditPhotos hem de mimar-detay.html/ofis-detay.html'in KENDİ
+// applyProfileEdits() akışları bunu çağırır (bkz. kullanıcı isteği: "Admin hesabına tüm firma
+// isimlerini değişebilme yetkisi ver").
+function renameOfficeEverywhere(off, newName){
+  if(!newName || newName === off.name) return false;
+  const oldName = off.name;
+  // İlk yeniden adlandırmada orijinal statik adı sakla (bkz. off._claimKey) — ofis-detay.html'deki
+  // "Düzenle" butonu BUNU kullanmalı, off.name'i DEĞİL (bkz. gerçek bulgu: Han Tümertekin →
+  // Tümertekin Architects yeniden adlandırıldıktan SONRA "Düzenle" butonu YENİ adı ?claim= parametresi
+  // olarak kullanmaya devam ediyordu; claimed_profile_key HER ZAMAN orijinal statik adı taşımalı,
+  // aksi halde statik kayda hiç bağlı olmayan, boş bir formla başlayan "hayalet" bir ikinci gönderi
+  // oluşuyordu — kullanıcıya "tüm bilgiler silindi" gibi görünüyordu).
+  if(!off._claimKey) off._claimKey = oldName;
+  off.name = newName;
+  for(const pr of projects){
+    if(pr.designer && pr.designer.includes(oldName)) pr.designer = pr.designer.map(d => d === oldName ? newName : d);
+  }
+  for(const arch of architects){
+    if(arch.office === oldName) arch.office = newName;
+  }
+  return true;
+}
+
+async function applyProfileEditPhotos(){
+  const edits = await fetchProfileEdits();
+  if(edits.architect){
+    for(const arch of architects){
+      const o = edits.architect[arch.name];
+      if(o && o.photo) arch.photo = o.photo;
+    }
+  }
+  if(edits.office){
+    for(const off of offices){
+      const o = edits.office[off.name];
+      if(!o) continue;
+      if(o.logo) off.logo = o.logo;
+      if(o.name) renameOfficeEverywhere(off, o.name);
+    }
+  }
+  return edits;
 }
 
 // Ofis dizininde yer almayan ama logosu elde bulunan kurumlar (üniversiteler vb.)

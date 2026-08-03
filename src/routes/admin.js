@@ -5,7 +5,7 @@ import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
-import { cascadeRemovedFounders } from '../lib/officeFounderCascade.js';
+import { cascadeRemovedFounders, renameOfficeEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
 
 // Bir <tip>_submissions satırı KALICI OLARAK silindiğinde (bkz. handleSubmissionsAdmin DELETE,
@@ -57,6 +57,7 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
   if (sub === 'corrections') return handleCorrectionsAdmin(request, env, url, segments);
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
+  if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
   if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
@@ -175,6 +176,13 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       if (typeKey === 'offices' && 'founders' in body) {
         const oldFounders = parseSubmissionRow('offices', existing).founders;
         await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
+      }
+
+      // Admin panelinden doğrudan firma adı değiştirildiyse (bkz. src/routes/submissions.js#
+      // updateOwnSubmission'daki AYNI cascade, "Düzenle" formu için) diğer TÜM D1 satırlarını da
+      // yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere).
+      if (typeKey === 'offices' && body.name && body.name !== existing.name && (existing.status === 'approved' || body.status === 'approved')) {
+        await renameOfficeEverywhere(env, existing.name, body.name);
       }
 
       // Bu satır önceden arşivlenmiş bir statik kaydın taslağıysa (bkz. src/routes/legacyContent.js
@@ -376,5 +384,45 @@ async function handleBadgesAdmin(request, env, url, segments) {
     }
     return json({ ok: true });
   }
+  return errorJson('Bulunamadı', 404);
+}
+
+const ADMIN_GRANTABLE_BADGES = new Set(['verified', 'gold', 'platinum']);
+
+// GET/PUT /api/admin/profile-badge?profileType=architect|office&profileKey=<isim> — admin'in
+// bir mimar/marka profiline satın alma/sahiplenme olmadan doğrudan verdiği rozet (bkz. schema.sql#
+// admin_badges, kullanıcı isteği: "Admin mimar veya marka profilini düzenlerken istediği rozeti
+// seçebilsin ve profile ekleyebilsin. Adminin yaptığı bu değişiklik hemen canlıya yansısın").
+// src/routes/badges.js#handlePublicBadges bu tabloyu satın alınan rozetlerle aynı çıktıya
+// birleştirir; o uç önbelleklenmediğinden (bkz. publicCache.js#CACHEABLE_PATHS) değişiklik bir
+// sonraki sayfa yüklemesinde hemen görünür — ayrıca ekstra bir cache temizleme adımına gerek yok.
+async function handleProfileBadgeAdmin(request, env, url) {
+  const profileType = url.searchParams.get('profileType');
+  const profileKey = (url.searchParams.get('profileKey') || '').trim();
+  if (!['architect', 'office'].includes(profileType) || !profileKey) return errorJson('Geçersiz profil.');
+
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare(
+      `SELECT badge_type FROM admin_badges WHERE profile_type = ? AND profile_key = ?`
+    ).bind(profileType, profileKey).first();
+    return json({ badgeType: row?.badge_type || null });
+  }
+
+  if (request.method === 'PUT') {
+    const body = await readJson(request);
+    const badgeType = body.badgeType || null;
+    if (badgeType && !ADMIN_GRANTABLE_BADGES.has(badgeType)) return errorJson('Geçersiz rozet türü.');
+    if (!badgeType) {
+      await env.DB.prepare(`DELETE FROM admin_badges WHERE profile_type = ? AND profile_key = ?`).bind(profileType, profileKey).run();
+    } else {
+      const now = Date.now();
+      await env.DB.prepare(
+        `INSERT INTO admin_badges (profile_type, profile_key, badge_type, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (profile_type, profile_key) DO UPDATE SET badge_type = excluded.badge_type, updated_at = excluded.updated_at`
+      ).bind(profileType, profileKey, badgeType, now).run();
+    }
+    return json({ ok: true });
+  }
+
   return errorJson('Bulunamadı', 404);
 }

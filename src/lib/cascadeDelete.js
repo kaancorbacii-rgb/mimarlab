@@ -36,6 +36,7 @@ async function pullNameFromArrayColumn(env, table, column, name) {
 export async function cascadeDeleteArchitect(env, name) {
   await env.DB.prepare(`DELETE FROM profile_claims WHERE profile_type = 'architect' AND profile_key = ?`).bind(name).run();
   await env.DB.prepare(`DELETE FROM profile_corrections WHERE profile_type = 'architect' AND profile_key = ?`).bind(name).run();
+  await env.DB.prepare(`DELETE FROM admin_badges WHERE profile_type = 'architect' AND profile_key = ?`).bind(name).run();
   await deleteEngagement(env, 'architect', slugify(name));
   await pullNameFromArrayColumn(env, 'office_submissions', 'founders', name);
   await pullNameFromArrayColumn(env, 'project_submissions', 'designer', name);
@@ -51,6 +52,7 @@ export async function cascadeDeleteOffice(env, user, name) {
   await env.DB.prepare(`DELETE FROM profile_claims WHERE profile_type = 'office' AND profile_key = ?`).bind(name).run();
   await env.DB.prepare(`DELETE FROM profile_corrections WHERE profile_type = 'office' AND profile_key = ?`).bind(name).run();
   await env.DB.prepare(`DELETE FROM badge_requests WHERE target_type = 'office' AND target_key = ?`).bind(name).run();
+  await env.DB.prepare(`DELETE FROM admin_badges WHERE profile_type = 'office' AND profile_key = ?`).bind(name).run();
   await deleteEngagement(env, 'office', slugify(name));
   await pullNameFromArrayColumn(env, 'project_submissions', 'designer', name);
   await pullNameFromArrayColumn(env, 'project_submissions', 'brands', name);

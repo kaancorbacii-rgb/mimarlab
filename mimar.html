@@ -360,15 +360,7 @@
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
       <div class="filter-select">
-        <select id="g-award">
-          <option value="">Ödül</option>
-          <option value="Ulusal Mimarlık Ödülleri">Ulusal Mimarlık Ödülleri</option>
-          <option value="TürkSMD Mimarlık Ödülleri">TürkSMD Mimarlık Ödülleri</option>
-          <option value="Ağa Han Mimarlık Ödülü">Ağa Han Mimarlık Ödülü</option>
-          <option value="EU Mies Award">EU Mies Award</option>
-          <option value="World Architecture Festival Ödülleri">World Architecture Festival Ödülleri</option>
-          <option value="International Architecture Awards">International Architecture Awards</option>
-        </select>
+        <select id="g-award"><option value="">Ödül</option></select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
       <div class="filter-select">
@@ -472,13 +464,23 @@ function populateFilters(){
   });
   dobSel.value = prevDob;
 
+  // Statik bir seçenek listesi yerine gerçek verideki ödülleri sayar (bkz. kullanıcı isteği: "yeni
+  // eklenen seçenekler otomatik olarak filtrelerdeki ilgili bölümlere eklensin") — ofis-ekle.html'de
+  // ODUL_OPTIONS'a yeni bir ödül eklenip bir firmaya işlendiğinde, bu filtre elle güncellenmeden
+  // kendiliğinden görünür (g-dob'daki aynı "gerçek veriden türet" deseni).
   const awardSel = document.getElementById('g-award');
-  Array.from(awardSel.options).forEach(opt=>{
-    if(!opt.value) return;
-    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
-    const count = architects.filter(a=>{ const o = personOffice(a); return o && o.awards && o.awards.includes(opt.value); }).length;
-    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
+  const prevAward = awardSel.value;
+  awardSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
+  const awardCounts = {};
+  architects.forEach(a=>{
+    const o = personOffice(a);
+    if(o && o.awards) o.awards.forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
   });
+  Object.keys(awardCounts).sort((a,b)=> awardCounts[b] - awardCounts[a] || a.localeCompare(b,'tr')).forEach(award=>{
+    const o = document.createElement('option'); o.value = award; o.textContent = `${award} (${awardCounts[award]})`; o.dataset.dynamic = '1';
+    awardSel.appendChild(o);
+  });
+  awardSel.value = prevAward;
 
   const positionSel = document.getElementById('g-position');
   Array.from(positionSel.options).forEach(opt=>{
@@ -731,6 +733,9 @@ fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(hidden =>
   populateFilters();
   render();
 });
+
+// Onaylı profil düzenlemesiyle yüklenen fotoğrafları karta yansıt (bkz. data.js#applyProfileEditPhotos).
+applyProfileEditPhotos().finally(() => { render(); });
 </script>
 </body>
 </html>

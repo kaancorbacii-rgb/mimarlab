@@ -109,6 +109,18 @@
   .admin-btn.danger:hover{background:rgba(184,76,76,0.08);}
   .admin-empty{padding:40px 20px; text-align:center; color:var(--ink-soft); font-size:13.5px; background:var(--paper-card); border:1px dashed var(--line); border-radius:14px;}
 
+  /* ---------- İçerik listesi sayfalama (hesabim.html'deki .dash-pagination ile aynı) ---------- */
+  .dash-pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px; flex-wrap:wrap;}
+  .dash-pagination .page-btn{
+    min-width:32px; height:32px; padding:0 8px; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper-card); color:var(--ink-soft); font-size:13px; font-family:inherit; cursor:pointer;
+  }
+  .dash-pagination .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .dash-pagination .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .dash-pagination .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .dash-pagination .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
+  .dash-pagination .page-ellipsis{color:var(--ink-soft); padding:0 4px;}
+
   .admin-form{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:20px;}
   .admin-form h3{font-family:'Inter', sans-serif; font-size:16px; margin:0 0 14px;}
   .admin-field{margin-bottom:12px;}
@@ -214,6 +226,7 @@
       <div class="admin-section" id="section-content">
         <div class="admin-subtabs" id="content-subtabs"></div>
         <div id="content-list"></div>
+        <div class="dash-pagination" id="content-pagination"></div>
       </div>
 
       <div class="admin-section" id="section-archive">
@@ -267,6 +280,50 @@ const SUBTAB_TYPES = ['offices', 'projects', 'products'];
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 let pendingType = 'all';
 let contentType = 'all';
+let contentPage = 1;
+const CONTENT_PAGE_SIZE = 10;
+
+// hesabim.html'deki dashPageWindowSize/dashPageList/renderDashPagination ile BİREBİR aynı desen
+// (bkz. kullanıcı isteği: "yayındaki içerikler kısmını sayfalara ayır, bir sayfada en fazla 10 içerik olsun").
+function dashPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  return 9;
+}
+function dashPageList(totalPages, currentPage){
+  const N = dashPageWindowSize();
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
+}
+function renderDashPagination(containerId, currentPage, totalPages, onChange){
+  const el = document.getElementById(containerId);
+  if(totalPages <= 1){ el.innerHTML = ''; return; }
+  let html = `<button class="page-btn page-btn-arrow" data-nav="prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  dashPageList(totalPages, currentPage).forEach(p=>{
+    if(p === '...') html += `<span class="page-ellipsis">…</span>`;
+    else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+  });
+  html += `<button class="page-btn page-btn-arrow" data-nav="next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=> onChange(parseInt(btn.dataset.page)));
+  });
+  const prevBtn = el.querySelector('[data-nav="prev"]');
+  const nextBtn = el.querySelector('[data-nav="next"]');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage > 1) onChange(currentPage - 1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage < totalPages) onChange(currentPage + 1); });
+}
 
 async function api(path, opts){
   const res = await fetch(path, opts);
@@ -438,10 +495,12 @@ async function loadPending(){
   });
 }
 
-async function loadContent(){
-  renderSubtabs(document.getElementById('content-subtabs'), contentType, (t)=>{ contentType = t; loadContent(); });
+async function loadContent(resetPage){
+  if(resetPage) contentPage = 1;
+  renderSubtabs(document.getElementById('content-subtabs'), contentType, (t)=>{ contentType = t; loadContent(true); });
   const list = document.getElementById('content-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  document.getElementById('content-pagination').innerHTML = '';
   let items;
   if(contentType === 'all'){
     items = await fetchAllTypes('approved');
@@ -450,7 +509,11 @@ async function loadContent(){
     items = (data.items || []).map(item => ({...item, __type: contentType}));
   }
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu tipte yayında içerik yok.</div>'; return; }
-  list.innerHTML = items.map(item => `
+  const totalPages = Math.max(1, Math.ceil(items.length / CONTENT_PAGE_SIZE));
+  if(contentPage > totalPages) contentPage = totalPages;
+  const pageItems = items.slice((contentPage - 1) * CONTENT_PAGE_SIZE, contentPage * CONTENT_PAGE_SIZE);
+  renderDashPagination('content-pagination', contentPage, totalPages, (p)=>{ contentPage = p; loadContent(); });
+  list.innerHTML = pageItems.map(item => `
     <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
         <div class="admin-card-body">

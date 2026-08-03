@@ -84,12 +84,12 @@
   .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
-  .form-field input[type=text], .form-field input[type=date], .form-field input[type=number], .form-field input[type=url], .form-field textarea{
+  .form-field input[type=text], .form-field input[type=date], .form-field input[type=number], .form-field input[type=url], .form-field textarea, .form-field select{
     width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
   }
   .form-field textarea{resize:vertical; min-height:100px; line-height:1.5;}
-  .form-field input:focus-visible, .form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
+  .form-field input:focus-visible, .form-field textarea:focus-visible, .form-field select:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
   /* ---------- DROPDOWN (Meslek, Pozisyon, Ödüller) ---------- */
   .dd-field{position:relative;}
@@ -239,7 +239,7 @@
         <div class="form-row">
           <div class="form-field">
             <label for="m-dob">Doğum Yılı <span class="opt">(opsiyonel)</span></label>
-            <input type="number" id="m-dob" name="dob" placeholder="ör. 1975" min="1900" max="2026" inputmode="numeric">
+            <input type="number" id="m-dob" name="dob" placeholder="ör. 1975" min="1000" max="2026" inputmode="numeric">
           </div>
           <div class="form-field ac-field" id="ac-school-field">
             <label for="m-school">Üniversite <span class="opt">(opsiyonel)</span></label>
@@ -309,6 +309,19 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
+      <div class="form-section" id="admin-badge-section" style="display:none;">
+        <h2>Rozet <span class="opt" style="font-weight:400; font-size:13px;">(yalnızca admin)</span></h2>
+        <p class="section-hint">Bu profile satın alma/sahiplenme olmadan doğrudan bir rozet ver — değişiklik hemen canlıya yansır.</p>
+        <div class="form-field">
+          <select id="admin-badge-select">
+            <option value="">Rozet yok</option>
+            <option value="verified">Doğrulanmış Üye</option>
+            <option value="gold">Altın Üye</option>
+            <option value="platinum">Elmas Üye</option>
+          </select>
+        </div>
+      </div>
+
       <button class="form-submit" type="submit">Gönder</button>
       <div class="form-notice" id="form-notice"></div>
     </form>
@@ -334,6 +347,18 @@
 
 <script src="data.js"></script>
 <script>
+// Kaydettikten sonra mimarın kendi profiline yönlendirmek için (bkz. aşağıdaki submit handler) —
+// bu sayfa save-widget.js YÜKLEMEZ (bkz. proje kuralı: currentUser çakışması), o yüzden oradaki
+// paylaşılan slugify yerine yerel bir kopya kullanılır.
+const SLUGIFY_TR_MAP = { ç:'c', Ç:'c', ğ:'g', Ğ:'g', ı:'i', I:'i', İ:'i', ö:'o', Ö:'o', ş:'s', Ş:'s', ü:'u', Ü:'u' };
+function slugify(text){
+  return (text || '')
+    .split('').map(ch => SLUGIFY_TR_MAP[ch] || ch).join('')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 const dropZone = document.getElementById('image-drop');
 const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
@@ -415,8 +440,8 @@ function wireMultiDropdown(fieldId, btnId, labelId, optionsId, options, name, pl
 }
 
 const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Öğrenci','Diğer'];
-const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Çalışan','Akademisyen','Freelance','Öğrenci','Emekli','İşsiz'];
-const ODUL_OPTIONS = ['Ulusal Mimarlık Ödülleri','TürkSMD Mimarlık Ödülleri','Ağa Han Mimarlık Ödülü','EU Mies Award','World Architecture Festival Ödülleri','International Architecture Awards'];
+const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Çalışan','Akademisyen','Freelance','Öğrenci','Emekli','İşsiz'];
+const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü','Ulusal Mimarlık Ödülleri','TürkSMD Mimarlık Ödülleri','Ağa Han Mimarlık Ödülü','EU Mies Award','World Architecture Festival Ödülleri','International Architecture Awards'];
 
 const meslekDropdown = wireSingleDropdown('dd-meslek', 'dd-meslek-btn', 'dd-meslek-btn-label', 'dd-meslek-options', MESLEK_OPTIONS, 'Meslek seç');
 const pozisyonDropdown = wireSingleDropdown('dd-pozisyon', 'dd-pozisyon-btn', 'dd-pozisyon-btn-label', 'dd-pozisyon-options', POZISYON_OPTIONS, 'Pozisyon seç');
@@ -446,8 +471,13 @@ function wireAutocomplete(inputId, suggestionsId, getItems){
   input.addEventListener('focus', renderSuggestions);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
-const MARKA_SUGGESTIONS = (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
-wireAutocomplete('m-office', 'ac-marka-suggestions', () => MARKA_SUGGESTIONS);
+// Fonksiyon olarak tanımlanır (statik bir dizi DEĞİL) — bkz. proje-ekle.html'deki AYNI düzeltme/
+// gerçek bulgu: admin bir firmayı yeniden adlandırdığında (bkz. data.js#renameOfficeEverywhere,
+// aşağıdaki applyProfileEditPhotos() çağrısı) offices[].name çalışma zamanında mutasyona uğrar; bu
+// liste tek seferlik hesaplanan bir const olsaydı eski adı göstermeye devam ederdi.
+const MARKA_SUGGESTIONS = () => (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
+wireAutocomplete('m-office', 'ac-marka-suggestions', MARKA_SUGGESTIONS);
+applyProfileEditPhotos().catch(()=>{});
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite (sitede kayıtlı mimarların okuduğu okullar) ----------
 const UNIVERSITY_SUGGESTIONS = [...new Set((typeof architects !== 'undefined' ? architects : []).map(a => a.school).filter(Boolean))]
@@ -480,7 +510,36 @@ dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classL
 dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
 
-fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = 'giris-yap.html'; });
+let isAdmin = false;
+const currentUserReady = fetch('/api/auth/me').then(res=>{
+  if(!res.ok){ window.location.href = 'giris-yap.html'; return null; }
+  return res.json();
+}).then(data => { isAdmin = !!(data && data.user && data.user.role === 'admin'); return data; }).catch(()=>null);
+
+// Admin, bir profili (claim= ya da edit=) düzenlerken satın alma olmadan doğrudan rozet
+// verebilir (bkz. src/routes/admin.js#handleProfileBadgeAdmin, kullanıcı isteği: "Admin mimar
+// veya marka profilini düzenlerken istediği rozeti seçebilsin ve profile ekleyebilsin").
+// Yeni (henüz var olmayan) bir profil için anlamsız olduğundan yalnızca mevcut bir profil
+// düzenlenirken (profileKey biliniyorken) gösterilir.
+async function wireAdminBadgePicker(profileKey){
+  await currentUserReady;
+  if(!isAdmin || !profileKey) return;
+  document.getElementById('admin-badge-section').style.display = '';
+  const select = document.getElementById('admin-badge-select');
+  try{
+    const res = await fetch(`/api/admin/profile-badge?profileType=architect&profileKey=${encodeURIComponent(profileKey)}`);
+    if(res.ok){ const data = await res.json(); select.value = data.badgeType || ''; }
+  }catch{}
+  select.addEventListener('change', async ()=>{
+    select.disabled = true;
+    try{
+      await fetch(`/api/admin/profile-badge?profileType=architect&profileKey=${encodeURIComponent(profileKey)}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ badgeType: select.value || null }),
+      });
+    }catch{}
+    select.disabled = false;
+  });
+}
 
 async function prefillForEdit(){
   if(!editId) return;
@@ -502,6 +561,7 @@ async function prefillForEdit(){
     document.getElementById('m-about').value = item.about || '';
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
+    wireAdminBadgePicker(item.name);
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
@@ -550,6 +610,7 @@ async function prefillForClaim(){
   document.getElementById('m-about').value = merged.about || '';
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
+  wireAdminBadgePicker(claimName);
 }
 
 if(claimName) prefillForClaim(); else prefillForEdit();
@@ -615,6 +676,18 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       submitBtn.disabled = false;
+      return;
+    }
+    // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
+    // routes/submissions.js) sayfa hesabim.html'e değil, doğrudan mimarın kendi profiline gitsin
+    // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile
+    // gitsin"). Sıradan kullanıcının gönderisi/düzenlemesi onay bekleyeceğinden (henüz canlıda
+    // görüntülenecek bir şey yok) bu durumda eskisi gibi Hesabım'a yönlendirilir.
+    if(data.status === 'approved'){
+      notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/mimar/${encodeURIComponent(slugify(payload.name))}`; }, 1200);
       return;
     }
     if(editId || claimName){

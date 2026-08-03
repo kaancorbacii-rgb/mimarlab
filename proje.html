@@ -383,7 +383,15 @@
 <script src="il-ilce-data.js"></script>
 <script>
 const PAGE_SIZE = 24;
-let currentPage = 1;
+// Bir projeye girip geri tuşuna basıldığında 1. sayfaya değil, olunan sayfaya dönülsün diye (bkz.
+// kullanıcı isteği) mevcut sayfa numarası bu SEKMENİN geçmiş kaydına (history.state) yazılır — YENİ
+// bir geçmiş girdisi EKLEMEZ (replaceState), bu yüzden geri tuşunun normal "bir önceki sayfaya dön"
+// davranışını bozmaz. Menüden proje.html'e TAZE bir gidişte history.state boş olduğundan (yeni bir
+// geçmiş girdisi) her zaman 1. sayfadan başlar — yalnızca AYNI girdiye geri dönüldüğünde restore edilir.
+let currentPage = (history.state && history.state.page) || 1;
+function saveCurrentPage(){
+  try{ history.replaceState({ ...(history.state || {}), page: currentPage }, '', location.href); }catch{}
+}
 
 // il-ilce-data.js#parseLocationFull artık 81 ilin tamamında ilçe -> il çözümlemesi yapıyor
 // (eskiden yalnızca İstanbul ilçeleri tanınırdı) — bu dosyadaki tüm çağrılar (filtre, künye linki
@@ -696,6 +704,7 @@ function render(){
   const empty = document.getElementById('empty-state');
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   if(currentPage > totalPages) currentPage = totalPages;
+  saveCurrentPage();
   renderPagination(totalPages);
 
   if(filtered.length === 0){ grid.innerHTML=''; empty.style.display='block'; return; }

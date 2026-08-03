@@ -84,12 +84,12 @@
   .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
-  .form-field input[type=text], .form-field input[type=url], .form-field textarea{
+  .form-field input[type=text], .form-field input[type=url], .form-field textarea, .form-field select{
     width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
   }
   .form-field textarea{resize:vertical; min-height:100px; line-height:1.5;}
-  .form-field input:focus-visible, .form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
+  .form-field input:focus-visible, .form-field textarea:focus-visible, .form-field select:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   /* ---------- DROPDOWN (Konum İl/İlçe, Kuruluş Yılı, Hizmet Alanı) ---------- */
   .dd-field{position:relative;}
   .dd-btn{
@@ -335,6 +335,19 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
+      <div class="form-section" id="admin-badge-section" style="display:none;">
+        <h2>Rozet <span class="opt" style="font-weight:400; font-size:13px;">(yalnızca admin)</span></h2>
+        <p class="section-hint">Bu profile satın alma/sahiplenme olmadan doğrudan bir rozet ver — değişiklik hemen canlıya yansır.</p>
+        <div class="form-field">
+          <select id="admin-badge-select">
+            <option value="">Rozet yok</option>
+            <option value="verified">Doğrulanmış Üye</option>
+            <option value="gold">Altın Üye</option>
+            <option value="platinum">Elmas Üye</option>
+          </select>
+        </div>
+      </div>
+
       <button class="form-submit" type="submit">Gönder</button>
       <div class="form-notice" id="form-notice"></div>
     </form>
@@ -361,6 +374,18 @@
 <script src="data.js"></script>
 <script src="il-ilce-data.js"></script>
 <script>
+// Kaydettikten sonra firmanın kendi profiline yönlendirmek için (bkz. aşağıdaki submit handler) —
+// bu sayfa save-widget.js YÜKLEMEZ (bkz. proje kuralı: currentUser çakışması), o yüzden oradaki
+// paylaşılan slugify yerine yerel bir kopya kullanılır.
+const SLUGIFY_TR_MAP = { ç:'c', Ç:'c', ğ:'g', Ğ:'g', ı:'i', I:'i', İ:'i', ö:'o', Ö:'o', ş:'s', Ş:'s', ü:'u', Ü:'u' };
+function slugify(text){
+  return (text || '')
+    .split('').map(ch => SLUGIFY_TR_MAP[ch] || ch).join('')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 const dropZone = document.getElementById('image-drop');
 const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
@@ -564,7 +589,36 @@ dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classL
 dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
 
-fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = 'giris-yap.html'; });
+let isAdmin = false;
+const currentUserReady = fetch('/api/auth/me').then(res=>{
+  if(!res.ok){ window.location.href = 'giris-yap.html'; return null; }
+  return res.json();
+}).then(data => { isAdmin = !!(data && data.user && data.user.role === 'admin'); return data; }).catch(()=>null);
+
+// Admin, bir profili (claim= ya da edit=) düzenlerken satın alma olmadan doğrudan rozet
+// verebilir (bkz. src/routes/admin.js#handleProfileBadgeAdmin, kullanıcı isteği: "Admin mimar
+// veya marka profilini düzenlerken istediği rozeti seçebilsin ve profile ekleyebilsin"). Yeni
+// (henüz var olmayan) bir profil için anlamsız olduğundan yalnızca mevcut bir profil
+// düzenlenirken (profileKey biliniyorken) gösterilir.
+async function wireAdminBadgePicker(profileKey){
+  await currentUserReady;
+  if(!isAdmin || !profileKey) return;
+  document.getElementById('admin-badge-section').style.display = '';
+  const select = document.getElementById('admin-badge-select');
+  try{
+    const res = await fetch(`/api/admin/profile-badge?profileType=office&profileKey=${encodeURIComponent(profileKey)}`);
+    if(res.ok){ const data = await res.json(); select.value = data.badgeType || ''; }
+  }catch{}
+  select.addEventListener('change', async ()=>{
+    select.disabled = true;
+    try{
+      await fetch(`/api/admin/profile-badge?profileType=office&profileKey=${encodeURIComponent(profileKey)}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ badgeType: select.value || null }),
+      });
+    }catch{}
+    select.disabled = false;
+  });
+}
 
 async function prefillForEdit(){
   if(!editId) return;
@@ -587,14 +641,19 @@ async function prefillForEdit(){
     updateHizmetLabel();
     existingLogoUrl = item.logo_url || null;
     renderPreviews();
+    wireAdminBadgePicker(item.name);
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
 // ?claim=<isim>: "Bu marka bana ait" ile onaylanmış statik bir marka profilini düzenleme modu.
 // Statik data.js kaydı + onaylı bir düzenleme varsa onun üzerine bindirilmiş hali formu doldurur;
-// isim alanı kilitlenir (data.js'teki verifiedBadgeHtml/profil eşleştirmesi isme göre çalışır).
+// isim alanı kilitlenir — YALNIZCA admin değilse (bkz. kullanıcı isteği: "Admin hesabına tüm firma
+// isimlerini değişebilme yetkisi ver"; backend tarafı bkz. src/routes/submissions.js#
+// updateOwnSubmission/createSubmission, sıradan kullanıcılar için isim hâlâ zorla claimed_profile_
+// key'e eşitlenir, yalnızca admin'in gönderdiği farklı bir isim kabul edilir).
 async function prefillForClaim(){
   if(!claimName) return;
+  await currentUserReady;
   document.querySelector('.eyebrow').textContent = 'Firma Düzenle';
   document.querySelector('.page-head h1').textContent = 'Firmanı düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
@@ -617,15 +676,20 @@ async function prefillForClaim(){
       const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
       if(mine){
         editId = mine.id;
-        merged = { ...merged, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, logo: mine.logo_url };
+        merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, logo: mine.logo_url };
       }
     }
   }catch{}
 
   const nameInput = document.getElementById('o-name');
-  nameInput.value = claimName;
-  nameInput.readOnly = true;
-  nameInput.style.background = 'var(--paper-alt)';
+  nameInput.value = merged.name || claimName;
+  if(isAdmin){
+    nameInput.readOnly = false;
+    nameInput.style.background = '';
+  } else {
+    nameInput.readOnly = true;
+    nameInput.style.background = 'var(--paper-alt)';
+  }
   applyLocToDropdowns(merged.loc || '');
   if(merged.yil){ selectedYil = merged.yil; document.getElementById('dd-yil-btn-label').textContent = String(merged.yil); }
   document.getElementById('o-website').value = merged.website || '';
@@ -636,6 +700,7 @@ async function prefillForClaim(){
   updateHizmetLabel();
   existingLogoUrl = merged.logo || merged.logo_url || null;
   renderPreviews();
+  wireAdminBadgePicker(merged.name || claimName);
 }
 
 if(claimName) prefillForClaim(); else prefillForEdit();
@@ -707,6 +772,18 @@ document.getElementById('ofis-ekle-form').addEventListener('submit', async (e)=>
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       submitBtn.disabled = false;
+      return;
+    }
+    // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
+    // routes/submissions.js) sayfa hesabim.html'e değil, doğrudan firmanın kendi profiline gitsin
+    // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile
+    // gitsin"). payload.name kullanılır çünkü admin ismi değiştirmiş olabilir (bkz. Firma Adı
+    // kilidinin admin için kaldırılması) — URL güncel (yeni) adı yansıtmalı.
+    if(data.status === 'approved'){
+      notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/markalar/${encodeURIComponent(slugify(payload.name))}`; }, 1200);
       return;
     }
     if(editId || claimName){

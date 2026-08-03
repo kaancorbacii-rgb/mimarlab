@@ -306,6 +306,20 @@ CREATE INDEX IF NOT EXISTS idx_badge_user ON badge_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_badge_status ON badge_requests(status);
 CREATE INDEX IF NOT EXISTS idx_badge_target ON badge_requests(target_type, target_key);
 
+-- Admin'in bir mimar/firma profiline satın alma/sahiplenme olmadan DOĞRUDAN verdiği rozet (bkz.
+-- kullanıcı isteği: "Admin mimar veya marka profilini düzenlerken istediği rozeti seçebilsin ve
+-- profile ekleyebilsin"). badge_requests'ten farklı olarak bir user_id/profile_claims gerektirmez —
+-- statik (hiç sahiplenilmemiş) bir profile bile uygulanabilir. Profil başına tek satır (admin
+-- rozeti değiştirirse üzerine yazılır); src/routes/badges.js#handlePublicBadges bunu satın alınan
+-- rozetlerle aynı çıktıya birleştirir.
+CREATE TABLE IF NOT EXISTS admin_badges (
+  profile_type TEXT NOT NULL, -- 'architect' | 'office'
+  profile_key TEXT NOT NULL, -- architects[].name ya da offices[].name
+  badge_type TEXT NOT NULL, -- verified | gold | platinum
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (profile_type, profile_key)
+);
+
 -- Ziyaretçilerin İletişim sayfasındaki formdan gönderdiği mesajlar; admin panelinde okunur.
 CREATE TABLE IF NOT EXISTS contact_messages (
   id TEXT PRIMARY KEY,

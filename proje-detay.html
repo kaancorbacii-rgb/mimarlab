@@ -174,7 +174,8 @@
   .rating-summary{font-size:12.5px; color:var(--ink-soft);}
 
   /* ---------- COMMENTS ---------- */
-  .comments-section{max-width:900px; margin:0 auto; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
+  .comments-section{max-width:1260px; margin:0 auto; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
+  .comments-inner{max-width:900px;}
   .comments-title{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; margin:0 0 20px;}
   .comment-form-wrap{margin-bottom:24px;}
   .comment-form textarea{width:100%; min-height:90px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
@@ -485,13 +486,15 @@
   </div>
 
   <div class="comments-section">
-    <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
-    <div class="comment-form-wrap" id="comment-form-wrap"></div>
-    <div class="comments-list" id="comments-list"></div>
+    <div class="comments-inner">
+      <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
+      <div class="comment-form-wrap" id="comment-form-wrap"></div>
+      <div class="comments-list" id="comments-list"></div>
+    </div>
   </div>
 
   <div class="related-section" id="same-designer-section" style="display:none;">
-    <h2 class="related-title" id="same-designer-title">Ofisin/Mimarın Diğer Projeleri</h2>
+    <h2 class="related-title" id="same-designer-title">Mimarın/Firmanın Diğer Projeleri</h2>
     <div class="related-grid-scroll" id="same-designer-grid"></div>
   </div>
 
@@ -609,6 +612,13 @@ if(!p){
       if(edits[p.slug]) p = { ...p, ...edits[p.slug] };
     }
   }catch{}
+
+  // Mimar/Firma "chip"lerindeki fotoğraf/logo, architects[]/offices[] statik kayıtlarından
+  // okunur (bkz. architectChipHtml/officeChipHtml aşağıda) — bu yüzden render'dan ÖNCE onaylı
+  // profil düzenlemeleriyle yüklenen fotoğraf/logo bindirilmezse (bkz. data.js#applyProfileEditPhotos)
+  // burada hep eski/eksik görünürdü (bkz. kullanıcı isteği: mimar/firma profiline fotoğraf/logo
+  // yüklenmesine rağmen proje detay sayfasında görünmüyordu).
+  try{ await applyProfileEditPhotos(); }catch{}
 
   document.title = `${p.title} — MİMARLAB`;
   {
@@ -939,7 +949,7 @@ if(!p){
     .then(res => res.ok ? res.json() : null)
     .then(data => {
       if(!data) return;
-      document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : 'Henüz kaydedilmedi';
+      document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : '';
     })
     .catch(()=>{});
 
@@ -1207,16 +1217,26 @@ async function runProjectModeration(p, action){
 }
 
 (async function initProjectDetail(){
+  // Üyelerin gönderip admin'in onayladığı (claimed_slug'sız, TAMAMEN yeni) projeler statik
+  // projeler[] dizisine İLK render'dan ÖNCE eklenir — renderProjectDetail() içindeki "Mimarın/
+  // Firmanın Diğer Projeleri"/"İlgili Projeler" bölümleri (bkz. sameDesigner/related) SADECE bu
+  // dizide arama yaptığından, bu adım yalnızca "statik listede bulunamadı" durumuna ertelenirse
+  // (önceki davranış) statik bir projenin sayfasında admin panelinden yeni eklenen projeler bu
+  // bölümlerde hiç görünmüyordu (bkz. kullanıcı isteği: "admin panelinden siteye yeni eklenen
+  // projeler gözükmüyor").
+  try{
+    const res = await fetch('/api/public/projects');
+    const data = res.ok ? await res.json() : {items:[]};
+    const existingSlugs = new Set(projects.map(pr => pr.slug));
+    for(const item of (data.items || [])){
+      if(!existingSlugs.has(item.slug)){ projects.push(item); existingSlugs.add(item.slug); }
+    }
+  }catch{}
+
   const foundProject = await renderProjectDetail();
   if(!foundProject){
-    // Statik listede yoksa, üyelerin gönderip onaylanan projeler arasında olabilir.
-    try{
-      const res = await fetch('/api/public/projects');
-      const data = res.ok ? await res.json() : {items:[]};
-      projects.push(...(data.items || []));
-      const p2 = await renderProjectDetail();
-      if(p2){ loadRelatedCatalog(p2); mountEditButton(p2); }
-    }catch{}
+    // /api/public/projects zaten yukarıda merge edildi — buraya düşülüyorsa proje gerçekten yok
+    // (silinmiş/gizlenmiş/hatalı slug), tekrar denemenin bir faydası yok.
   } else {
     loadRelatedCatalog(foundProject);
     mountEditButton(foundProject);

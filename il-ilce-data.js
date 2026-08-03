@@ -83,7 +83,25 @@ const IL_ILCE = {
   "Van": ["Bahçesaray","Başkale","Çaldıran","Çatak","Edremit","Erciş","Gevaş","Gürpınar","İpekyolu","Muradiye","Özalp","Saray","Tuşba"],
   "Yalova": ["Altınova","Armutlu","Çınarcık","Çiftlikköy","Merkez","Termal"],
   "Yozgat": ["Akdağmadeni","Aydıncık","Boğazlıyan","Çandır","Çayıralan","Çekerek","Kadışehri","Merkez","Saraykent","Sarıkaya","Sorgun","Şefaatli","Yenifakılı","Yerköy"],
-  "Zonguldak": ["Alaplı","Çaycuma","Devrek","Ereğli","Gökçebey","Kilimli","Kozlu","Merkez"]
+  "Zonguldak": ["Alaplı","Çaycuma","Devrek","Ereğli","Gökçebey","Kilimli","Kozlu","Merkez"],
+  // Yurt dışı merkezli firmalar için (bkz. kullanıcı isteği: "Firma ekle ve düzenle sayfalarındaki
+  // Konum kısmına ABD ve önemli Avrupa ülkelerini ve Çin'i ekle") — İl/İlçe basamaklı seçiciyle AYNI
+  // desende, ülke "İl" rolünde, o ülkenin mimarlık açısından öne çıkan şehirleri "İlçe" rolünde.
+  "Amerika Birleşik Devletleri": ["New York","Los Angeles","Chicago","San Francisco","Boston","Washington D.C.","Miami","Seattle"],
+  "İngiltere": ["Londra","Manchester","Edinburgh","Birmingham"],
+  "Almanya": ["Berlin","Münih","Hamburg","Frankfurt","Köln"],
+  "Fransa": ["Paris","Lyon","Marsilya"],
+  "İtalya": ["Roma","Milano","Floransa","Torino"],
+  "İspanya": ["Madrid","Barselona","Valencia"],
+  "Hollanda": ["Amsterdam","Rotterdam","Utrecht"],
+  "İsviçre": ["Zürih","Cenevre","Basel"],
+  "Belçika": ["Brüksel","Anvers"],
+  "Avusturya": ["Viyana","Salzburg"],
+  "Portekiz": ["Lizbon","Porto"],
+  "Yunanistan": ["Atina","Selanik"],
+  "İsveç": ["Stockholm","Göteborg"],
+  "Danimarka": ["Kopenhag","Aarhus"],
+  "Çin": ["Pekin","Şangay","Şenzen","Guangzhou","Hong Kong"]
 };
 const IL_LIST = Object.keys(IL_ILCE);
 const ILCE_TO_IL = {};

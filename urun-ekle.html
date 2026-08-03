@@ -496,13 +496,17 @@ function wireAutocomplete(inputId, suggestionsId, getItems, opts){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 
-const BRAND_SUGGESTIONS = (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
-const ARCHITECT_SUGGESTIONS = (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
+// Fonksiyon olarak tanımlanır (statik bir dizi DEĞİL) — bkz. proje-ekle.html'deki AYNI düzeltme/
+// gerçek bulgu: admin bir firmayı yeniden adlandırdığında (bkz. data.js#renameOfficeEverywhere,
+// aşağıdaki applyProfileEditPhotos() çağrısı) offices[].name çalışma zamanında mutasyona uğrar; bu
+// liste tek seferlik hesaplanan bir const olsaydı eski adı göstermeye devam ederdi.
+const BRAND_SUGGESTIONS = () => (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
+const ARCHITECT_SUGGESTIONS = () => (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
 
 // Firma seçildiğinde Mimar kutucuğu, o firmanın bünyesindeki mimarlarla (architects[].office ===
 // seçilen firma adı) otomatik doldurulur — ama Mimar alanına zaten elle bir şey yazılmışsa
 // ezilmez (bkz. kullanıcı isteği: "gerekirse manuel değişiklik yapılabilsin").
-wireAutocomplete('u-brand', 'ac-brand-suggestions', () => BRAND_SUGGESTIONS, {
+wireAutocomplete('u-brand', 'ac-brand-suggestions', BRAND_SUGGESTIONS, {
   onPick: (item) => {
     const architectInput = document.getElementById('u-architect');
     if(architectInput.value.trim()) return;
@@ -511,7 +515,8 @@ wireAutocomplete('u-brand', 'ac-brand-suggestions', () => BRAND_SUGGESTIONS, {
     if(matches.length) architectInput.value = matches.join(', ');
   },
 });
-wireAutocomplete('u-architect', 'ac-architect-suggestions', () => ARCHITECT_SUGGESTIONS);
+wireAutocomplete('u-architect', 'ac-architect-suggestions', ARCHITECT_SUGGESTIONS);
+applyProfileEditPhotos().catch(()=>{});
 
 async function uploadFiles(files){
   const urls = [];
@@ -575,6 +580,18 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       submitBtn.disabled = false;
+      return;
+    }
+    // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
+    // routes/submissions.js) sayfa hesabim.html'e değil, doğrudan ürünün kendi profiline gitsin
+    // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile
+    // gitsin"). Sıradan kullanıcının gönderisi/düzenlemesi onay bekleyeceğinden (henüz canlıda
+    // görüntülenecek bir şey yok) bu durumda eskisi gibi Hesabım'a yönlendirilir.
+    if(data.status === 'approved'){
+      notice.textContent = editId ? 'Değişiklikler kaydedildi ve yayına girdi.' : 'Ürün eklendi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/urunler/${encodeURIComponent('m-' + data.id)}`; }, 1200);
       return;
     }
     if(editId){

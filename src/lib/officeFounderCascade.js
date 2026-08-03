@@ -79,3 +79,47 @@ export async function cascadeRemovedFounders(env, user, officeName, oldFounders,
     await clearArchitectOfficeIfMatches(env, user, name, officeName);
   }
 }
+
+// Bir firmanın adı değiştiğinde (bkz. src/routes/submissions.js#updateOwnSubmission, src/routes/
+// admin.js#handleSubmissionsAdmin — yalnızca admin claimed_profile_key'den FARKLI bir isim
+// gönderebilir), bu ismi anahtar olarak kullanan TÜM diğer D1 satırlarını yeni isme taşır — aksi
+// halde kaydedilmiş öğeler/rozetler/sahiplenmeler/yorumlar/puanlar/gizlenmiş kayıtlar eski ada
+// bağlı kalıp sessizce "kaybolurdu" (bkz. kullanıcı isteği: "Admin hesabına tüm firma isimlerini
+// değişebilme yetkisi ver"). saved_items/profile_claims/ratings/legacy_content_hidden UNIQUE
+// kısıtı taşıdığından UPDATE OR IGNORE kullanılır (ör. bir kullanıcı hem eski hem yeni adı zaten
+// kaydetmişse çakışan satır sessizce atlanır, hata fırlatmaz). Statik data.js/projeler-data.js
+// kaynak dosyalarındaki isim referansları (designer[] dizileri) bu fonksiyonun kapsamı DIŞINDADIR
+// — worker çalışma zamanında statik dosyaları düzenleyemez; bunlar yerine data.js#
+// renameOfficeEverywhere her sayfa yüklendiğinde offices[].name'i (ve projects[]/architects[]
+// içindeki referansları) çalışma zamanında bindirir (bkz. handlePublicProfileEdits'in office
+// overlay'ine eklenen `name` alanı).
+export async function renameOfficeEverywhere(env, oldName, newName) {
+  if (!oldName || !newName || oldName === newName) return;
+  await Promise.all([
+    env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'office' AND item_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE OR IGNORE profile_claims SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE profile_corrections SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE badge_requests SET target_key = ? WHERE target_type = 'office' AND target_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE OR IGNORE ratings SET target_id = ? WHERE target_type = 'office' AND target_id = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE comments SET target_id = ? WHERE target_type = 'office' AND target_id = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'offices' AND content_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE architect_submissions SET office = ? WHERE office = ?`).bind(newName, oldName).run(),
+    // Admin'in doğrudan verdiği rozet de (bkz. schema.sql#admin_badges) yeni isme taşınır, aksi
+    // halde firma yeniden adlandırıldığında rozeti sessizce kaybolurdu.
+    env.DB.prepare(`UPDATE OR IGNORE admin_badges SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
+  ]);
+
+  // project_submissions.designer bir JSON dizisi (metin olarak saklanır) — SQL ile tek satırda
+  // güvenle değiştirilemeyeceğinden satır satır okunup yazılır.
+  const { results } = await env.DB.prepare(
+    `SELECT id, designer FROM project_submissions WHERE designer LIKE ?`
+  ).bind(`%${oldName}%`).all();
+  for (const row of results) {
+    try {
+      const list = JSON.parse(row.designer || '[]');
+      if (!Array.isArray(list) || !list.includes(oldName)) continue;
+      const updated = list.map(d => d === oldName ? newName : d);
+      await env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id).run();
+    } catch { /* bozuk JSON — dokunma */ }
+  }
+}

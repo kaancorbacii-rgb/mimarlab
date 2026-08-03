@@ -733,7 +733,7 @@ async function renderProductDetail(){
     .then(res => res.ok ? res.json() : null)
     .then(data => {
       if(!data) return;
-      document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : 'Henüz kaydedilmedi';
+      document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : '';
     })
     .catch(()=>{});
 

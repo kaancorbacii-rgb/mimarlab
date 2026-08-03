@@ -204,6 +204,7 @@
   .save-btn-label-saved{display:none;}
   .save-btn.saved .save-btn-label-default{display:none;}
   .save-btn.saved .save-btn-label-saved{display:inline;}
+  .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
   .profile-logo{
     width:64px; height:64px; border-radius:50%; flex-shrink:0;
     border:1px solid var(--line); overflow:hidden;
@@ -451,6 +452,7 @@
             <span class="save-btn-label-default">Kaydet</span>
             <span class="save-btn-label-saved">Kaydedildi</span>
           </button>
+          <span class="save-count" id="save-count"></span>
           <span id="profile-edit-slot"></span>
         </div>
       </div>
@@ -653,6 +655,13 @@ saveBtn.dataset.image = a.photo || '';
 saveBtn.dataset.href = `/mimar/${encodeURIComponent(slugify(a.name))}`;
 wireSaveButtons('architect');
 
+fetch(`/api/public/save-count?type=architect&key=${encodeURIComponent(saveBtn.dataset.key)}`)
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : '';
+  })
+  .catch(() => {});
+
 // Google zengin sonuçları / bilgi grafiği için Schema.org Person yapısal verisi. Sayfa tamamen
 // istemci tarafında (data.js + query param) render edildiğinden, sitedeki diğer dinamik içerik
 // gibi (document.title vb.) JS ile enjekte edilir — Google'ın crawler'ı JS render eder.
@@ -683,9 +692,7 @@ renderStructuredData();
 // kurucular arasında görünmeye devam ediyordu).
 async function applyProfileEdits(){
   try{
-    const res = await fetch('/api/public/profile-edits');
-    if(!res.ok) return;
-    const edits = await res.json();
+    const edits = await fetchProfileEdits();
 
     // "Diğer Ortaklar" listesi (bkz. renderColleagues) DİĞER mimarların office alanına göre
     // filtrelenir — bu yüzden görüntülenen mimarın (a) kendi bindirmesi olsun ya da olmasın HER
@@ -707,33 +714,59 @@ async function applyProfileEdits(){
     if(colleaguesChanged) renderColleagues();
 
     const overlay = edits.architect && edits.architect[a.name];
-    if(!overlay) return;
-    if(overlay.dob) a.dob = overlay.dob;
-    if(overlay.school) a.school = overlay.school;
-    if(overlay.dept) a.dept = overlay.dept;
-    if(overlay.profession) a.profession = overlay.profession;
-    if(overlay.awards) a.awards = overlay.awards;
-    if(overlay.photo) a.photo = overlay.photo;
-    renderInfoFactsAndLogo();
+    let officeChanged = false;
+    let aboutChanged = false;
+    if(overlay){
+      if(overlay.dob) a.dob = overlay.dob;
+      if(overlay.school) a.school = overlay.school;
+      if(overlay.dept) a.dept = overlay.dept;
+      if(overlay.profession) a.profession = overlay.profession;
+      if(overlay.awards) a.awards = overlay.awards;
+      if(overlay.photo) a.photo = overlay.photo;
+      renderInfoFactsAndLogo();
 
-    const aboutChanged = overlay.about !== undefined && overlay.about !== a.about;
-    if(overlay.about !== undefined) a.about = overlay.about;
+      aboutChanged = overlay.about !== undefined && overlay.about !== a.about;
+      if(overlay.about !== undefined) a.about = overlay.about;
 
-    const officeChanged = overlay.office !== undefined && overlay.office !== a.office;
-    if(overlay.role) a.role = overlay.role;
+      officeChanged = overlay.office !== undefined && overlay.office !== a.office;
+      if(overlay.role) a.role = overlay.role;
+      if(officeChanged){
+        a.office = overlay.office || null;
+        office = offices.find(x => x.name === a.office) || null;
+      }
+    }
+
+    // Bağlı olunan firmanın KENDİ profilinden yüklenen logo/ad (bkz. ofis-detay.html#applyProfileEdits,
+    // data.js#renameOfficeEverywhere) — yukarıdaki officeChanged bloğundan SONRA çalışır ki `office`
+    // yalnızca statik data.js'ten değil, mimarın KENDİ overlay'inden gelen bir office ataması varsa
+    // (ör. statik kayıtta a.office boşken yalnızca profil düzenlemesiyle atanmışsa) da doğru nesneyi
+    // göstersin. Mimarın KENDİ overlay'i olsun ya da olmasın çalışır (bkz. yukarıdaki colleaguesChanged'
+    // teki AYNI gerekçe) — office nesnesi statik data.js kaydı olduğundan, firma tarafındaki onaylı
+    // düzenleme burada ayrıca uygulanmazsa "Firmalar" kartındaki logo/ad hep eski/eksik kalırdı (bkz.
+    // gerçek bulgu: Foster + Partners'a logo yüklenmesine rağmen Norman Foster profilindeki firma
+    // kartında görünmüyordu).
+    const officeOverlay = office && edits.office && edits.office[office.name];
+    let officeRenamed = false;
+    if(officeOverlay){
+      officeRenamed = officeOverlay.name ? renameOfficeEverywhere(office, officeOverlay.name) : false;
+      if(officeOverlay.logo && officeOverlay.logo !== office.logo) office.logo = officeOverlay.logo;
+    }
+
     if(officeChanged){
-      a.office = overlay.office || null;
-      office = offices.find(x => x.name === a.office) || null;
       renderOfficeDependentText();
       renderOfficeCard();
       renderColleagues();
       renderRelatedProjects();
       saveBtn.dataset.meta = office ? office.name : (a.role || '');
-    } else if(overlay.role || aboutChanged){
+    } else if((overlay && (overlay.role || aboutChanged)) || officeRenamed){
       renderOfficeDependentText();
+      if(officeRenamed) renderOfficeCard();
       saveBtn.dataset.meta = office ? office.name : (a.role || '');
+    } else if(officeOverlay && officeOverlay.logo){
+      renderOfficeCard();
     }
-    renderStructuredData();
+
+    if(overlay || officeOverlay) renderStructuredData();
   }catch{}
 }
 applyProfileEdits();

@@ -356,17 +356,7 @@
         </button>
       </div>
       <div class="filter-select">
-        <select id="g-cat">
-          <option value="">Hizmet Alanı</option>
-          <option value="Mimarlık">Mimarlık</option>
-          <option value="İç Mimarlık">İç Mimarlık</option>
-          <option value="Peyzaj Mimarlığı">Peyzaj Mimarlığı</option>
-          <option value="Kentsel Tasarım">Kentsel Tasarım</option>
-          <option value="Restorasyon">Restorasyon</option>
-          <option value="İnşaat">İnşaat</option>
-          <option value="Ürün">Ürün</option>
-          <option value="Yapı Malzemesi">Yapı Malzemesi</option>
-        </select>
+        <select id="g-cat"><option value="">Hizmet Alanı</option></select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
       <div class="filter-select">
@@ -477,13 +467,22 @@ function populateFilters(){
   });
   locSel.value = prevLoc;
 
+  // Statik bir seçenek listesi yerine gerçek verideki hizmet alanlarını sayar (bkz. kullanıcı
+  // isteği: "yeni eklenen seçenekler otomatik olarak filtrelerdeki ilgili bölümlere eklensin") —
+  // ofis-ekle.html'deki Hizmet Alanı checkbox listesine yeni bir seçenek eklenip bir firmaya
+  // işlendiğinde, bu filtre elle güncellenmeden kendiliğinden görünür (g-loc'taki aynı desen).
   const catSel = document.getElementById('g-cat');
-  Array.from(catSel.options).forEach(opt=>{
-    if(!opt.value) return;
-    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
-    const count = offices.filter(o=>o.cats.includes(opt.value)).length;
-    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
+  const prevCat = catSel.value;
+  catSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
+  const catCounts = {};
+  offices.forEach(o=>{
+    (o.cats || '').split(' · ').map(s=>s.trim()).filter(Boolean).forEach(cat => { catCounts[cat] = (catCounts[cat] || 0) + 1; });
   });
+  Object.keys(catCounts).sort((a,b)=> catCounts[b] - catCounts[a] || a.localeCompare(b,'tr')).forEach(cat=>{
+    const o = document.createElement('option'); o.value = cat; o.textContent = `${cat} (${catCounts[cat]})`; o.dataset.dynamic = '1';
+    catSel.appendChild(o);
+  });
+  catSel.value = prevCat;
 }
 
 function getPageWindowSize(){
@@ -722,6 +721,9 @@ fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(hidden =>
   populateFilters();
   render();
 });
+
+// Onaylı profil düzenlemesiyle yüklenen logoları karta yansıt (bkz. data.js#applyProfileEditPhotos).
+applyProfileEditPhotos().finally(() => { render(); });
 </script>
 </body>
 </html>

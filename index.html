@@ -198,7 +198,7 @@
   .hero-cta{
     display:inline-block; margin-top:22px;
     background:var(--ink); color:var(--paper-card);
-    padding:13px 28px; border-radius:100px; font-weight:600; font-size:14.5px;
+    padding:10px 22px; border-radius:100px; font-weight:600; font-size:16px;
   }
   .hero-cta:hover{background:var(--walnut);}
 
@@ -688,14 +688,27 @@ function slugify(text){
     .replace(/^-+|-+$/g, '');
 }
 
+// Mimar isimleri değil, mimarlık ofisi + konum gösterilir (bkz. kullanıcı isteği). designer[]
+// bir ofis adıyla birebir eşleşiyorsa doğrudan kullanılır; yalnızca bir mimar ismiyse (proje-detay.
+// html#designerGroups'taki AYNI desen) o mimarın bağlı olduğu office alanından ofis türetilir.
 function projectSlideHtml(p, i){
-  const designer = (p.designer || []).filter(d => d && d !== 'Bilinmiyor').join(', ');
+  const officeNames = [];
+  (p.designer || []).forEach(d => {
+    if(!d) return;
+    if(offices.some(o => o.name === d)){
+      if(!officeNames.includes(d)) officeNames.push(d);
+      return;
+    }
+    const arch = architects.find(a => a.name === d);
+    if(arch && arch.office && !officeNames.includes(arch.office)) officeNames.push(arch.office);
+  });
+  const meta = [officeNames.join(', '), p.location].filter(Boolean).join(' — ');
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/projeler/${encodeURIComponent(p.slug)}" data-index="${i}">
     <img src="${escapeAttr((p.images && p.images[0]) || '')}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">Proje</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(p.title)}</div>
-      ${designer ? `<div class="slide-designer">${escapeHtml(designer)}</div>` : ''}
+      ${meta ? `<div class="slide-designer">${escapeHtml(meta)}</div>` : ''}
     </div>
   </a>`;
 }
@@ -834,6 +847,9 @@ Promise.all([
   fetch('/api/public/project-edits').then(r => r.ok ? r.json() : {}).catch(()=>({})),
   fetch('/api/public/products').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
   fetch('/api/public/materials').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  // Onaylı profil düzenlemeleriyle yüklenen fotoğraf/logo ve firma adı değişikliklerini (bkz.
+  // data.js#applyProfileEditPhotos) carousel'lerde görünür kılar.
+  applyProfileEditPhotos().catch(()=>({})),
 ]).then(([projRes, hiddenRes, editsRes, productRes, materialRes])=>{
   for(const slug in editsRes){
     const match = projects.find(p => p.slug === slug);

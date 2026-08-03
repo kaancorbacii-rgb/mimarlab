@@ -204,6 +204,7 @@
   .save-btn-label-saved{display:none;}
   .save-btn.saved .save-btn-label-default{display:none;}
   .save-btn.saved .save-btn-label-saved{display:inline;}
+  .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
   .profile-logo{
     width:64px; height:64px; border-radius:50%; flex-shrink:0;
     border:1px solid var(--line); overflow:hidden;
@@ -428,6 +429,7 @@
             <span class="save-btn-label-default">Kaydet</span>
             <span class="save-btn-label-saved">Kaydedildi</span>
           </button>
+          <span class="save-count" id="save-count"></span>
           <span id="profile-edit-slot"></span>
         </div>
       </div>
@@ -591,7 +593,16 @@ function renderOfficeFields(o){
   // çağrılabilir (bkz. renderOfficeDetail sonundaki "if(!foundOffice)" bloğu) — wireSaveButtons her
   // seferinde yeni bir click listener eklediğinden (bkz. save-widget.js) burada yalnızca ilk
   // çağrıda çalıştırılır, aksi halde bir tıklama kaydet/kaldırmayı art arda tetikler.
-  if(!saveButtonWired){ saveButtonWired = true; wireSaveButtons('office'); }
+  if(!saveButtonWired){
+    saveButtonWired = true;
+    wireSaveButtons('office');
+    fetch(`/api/public/save-count?type=office&key=${encodeURIComponent(saveBtn.dataset.key)}`)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : '';
+      })
+      .catch(() => {});
+  }
 
   renderStructuredData(o);
 }
@@ -629,6 +640,30 @@ function renderRelatedProjects(office){
     </a>`).join('');
 }
 
+// Başlık/breadcrumb/meta etiketleri o.name'e bağlıdır — bir yeniden adlandırma sonrası (bkz.
+// applyProfileEdits) bunların tekrar çizilebilmesi için renderOfficeDetail'den ayrı bir
+// fonksiyona alındı.
+function renderOfficeIdentity(o){
+  document.title = o.name + " — MİMARLAB";
+  {
+    const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
+    const canonicalUrl = `https://mimarlab.com/markalar/${encodeURIComponent(slugify(o.name))}`;
+    const logo = logoUrl(o);
+    const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    document.getElementById('meta-description').setAttribute('content', desc);
+    document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
+    document.getElementById('og-title').setAttribute('content', document.title);
+    document.getElementById('og-description').setAttribute('content', desc);
+    document.getElementById('og-url').setAttribute('content', canonicalUrl);
+    document.getElementById('og-image').setAttribute('content', image);
+    document.getElementById('twitter-title').setAttribute('content', document.title);
+    document.getElementById('twitter-description').setAttribute('content', desc);
+    document.getElementById('twitter-image').setAttribute('content', image);
+  }
+  document.getElementById('bc-name').textContent = o.name;
+  document.getElementById('profile-name-text').textContent = o.name;
+}
+
 let explicitOfficeMatch = null;
 let saveButtonWired = false;
 function renderOfficeDetail(){
@@ -646,24 +681,7 @@ const found = (officeName && offices.find(x => x.name === officeName))
 explicitOfficeMatch = found || null;
 const o = found || offices[0];
 
-document.title = o.name + " — MİMARLAB";
-{
-  const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
-  const canonicalUrl = `https://mimarlab.com/markalar/${encodeURIComponent(slugify(o.name))}`;
-  const logo = logoUrl(o);
-  const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
-  document.getElementById('meta-description').setAttribute('content', desc);
-  document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
-  document.getElementById('og-title').setAttribute('content', document.title);
-  document.getElementById('og-description').setAttribute('content', desc);
-  document.getElementById('og-url').setAttribute('content', canonicalUrl);
-  document.getElementById('og-image').setAttribute('content', image);
-  document.getElementById('twitter-title').setAttribute('content', document.title);
-  document.getElementById('twitter-description').setAttribute('content', desc);
-  document.getElementById('twitter-image').setAttribute('content', image);
-}
-document.getElementById('bc-name').textContent = o.name;
-document.getElementById('profile-name-text').textContent = o.name;
+renderOfficeIdentity(o);
 renderOfficeFields(o);
 
 renderFoundersGrid(o);
@@ -719,13 +737,19 @@ window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges);
 async function applyProfileEdits(){
   if(!currentOffice) return;
   try{
-    const res = await fetch('/api/public/profile-edits');
-    if(!res.ok) return;
-    const edits = await res.json();
+    const edits = await fetchProfileEdits();
     const overlay = edits.office && edits.office[currentOffice.name];
     if(overlay){
+      // Admin bu firmanın adını değiştirmiş olabilir (bkz. data.js#renameOfficeEverywhere,
+      // ofis-ekle.html "Firma Adı") — Object.assign'DAN ÖNCE çalıştırılır ki cascade hâlâ
+      // currentOffice.name'in ESKİ (overlay anahtarıyla eşleşen) değerini görsün.
+      const renamed = overlay.name ? renameOfficeEverywhere(currentOffice, overlay.name) : false;
       Object.assign(currentOffice, overlay);
       renderOfficeFields(currentOffice);
+      if(renamed){
+        renderOfficeIdentity(currentOffice);
+        renderRelatedProjects(currentOffice);
+      }
     }
     let architectsChanged = false;
     for(const arch of architects){
@@ -733,6 +757,15 @@ async function applyProfileEdits(){
       if(archOverlay && archOverlay.office !== undefined && archOverlay.office !== arch.office){
         arch.office = archOverlay.office || null;
         if(archOverlay.role) arch.role = archOverlay.role;
+        architectsChanged = true;
+      }
+      // Kurucunun KENDİ profilinden yüklediği fotoğraf (bkz. mimar-detay.html#applyProfileEdits'teki
+      // simetrik firma-logosu bindirmesi) — architects[] statik kaydı olduğundan, mimar tarafındaki
+      // onaylı düzenleme burada ayrıca uygulanmazsa "Kurucular/Ortaklar" grid'indeki fotoğraf hep
+      // eski/eksik kalırdı (bkz. gerçek bulgu: Norman Foster'a fotoğraf yüklenmesine rağmen Foster +
+      // Partners profilindeki kurucular kartında görünmüyordu).
+      if(archOverlay && archOverlay.photo && archOverlay.photo !== arch.photo){
+        arch.photo = archOverlay.photo;
         architectsChanged = true;
       }
     }
@@ -892,7 +925,12 @@ function renderProfileEditButton(){
   const adminButtonsHtml = currentUser.role === 'admin' ? `
     <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>
     <button type="button" class="card-delete-btn" id="profile-delete-btn">Sil</button>` : '';
-  slot.innerHTML = `<a class="profile-edit-btn" href="ofis-ekle.html?claim=${encodeURIComponent(currentOffice.name)}">
+  // claimName HER ZAMAN orijinal statik adı (claimed_profile_key) taşımalı — currentOffice.name bir
+  // yeniden adlandırmadan sonra DEĞİŞMİŞ olabilir (bkz. data.js#renameOfficeEverywhere'in sakladığı
+  // _claimKey, gerçek bulgu: Han Tümertekin → Tümertekin Architects yeniden adlandırıldıktan sonra bu
+  // link YENİ adı kullanmaya devam edip statik kayda hiç bağlı olmayan boş bir "hayalet" gönderiye yol açıyordu).
+  const claimName = currentOffice._claimKey || currentOffice.name;
+  slot.innerHTML = `<a class="profile-edit-btn" href="ofis-ekle.html?claim=${encodeURIComponent(claimName)}">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
     Düzenle
   </a>${adminButtonsHtml}`;
@@ -996,7 +1034,32 @@ loadMemberRelatedProjects();
 })();
 
 if(!foundOffice){
-  fetch('/api/public/offices').then(res => res.ok ? res.json() : {items:[]}).then(data => {
+  Promise.all([
+    fetch('/api/public/offices').then(res => res.ok ? res.json() : {items:[]}).catch(()=>({items:[]})),
+    // Statik bir firma admin tarafından yeniden adlandırılmışsa (bkz. data.js#renameOfficeEverywhere,
+    // ofis-ekle.html "Firma Adı") offices[].name yalnızca İLGİLİ firmanın KENDİ sayfası ziyaret
+    // edildiğinde mutasyona uğrar — proje-detay.html/mimar-detay.html gibi BAŞKA bir sayfadan
+    // üretilen bir link buraya DOĞRUDAN yeni slug'la geldiyse, bu sayfa o mutasyonu hiç görmemiş
+    // olduğundan slug hiçbir statik kayıtla eşleşmez ve offices[0]'a (yanlış bir profile) düşerdi
+    // (bkz. gerçek bulgu: yeniden adlandırılmış bir firmanın yeni URL'sine gidildiğinde başka bir
+    // firmanın profili görünüyordu). offices.push edilmeden ÖNCE bu kontrol yapılır ki yeni üye
+    // firmaları arasında da (nadiren) aynı slug çakışması olursa statik eşleşme önceliklensin.
+    fetchProfileEdits().catch(()=>({})),
+  ]).then(([data, edits]) => {
+    if(!explicitOfficeMatch && edits.office){
+      const m = window.location.pathname.match(/\/markalar\/([^/]+)\/?$/);
+      const urlSlug = m ? decodeURIComponent(m[1]) : null;
+      if(urlSlug){
+        for(const staticName in edits.office){
+          const overlayName = edits.office[staticName].name;
+          if(overlayName && slugify(overlayName) === urlSlug){
+            const staticOff = offices.find(x => x.name === staticName);
+            if(staticOff) renameOfficeEverywhere(staticOff, overlayName);
+            break;
+          }
+        }
+      }
+    }
     offices.push(...(data.items || []));
     renderOfficeDetail();
   }).catch(()=>{});

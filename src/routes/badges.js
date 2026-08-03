@@ -101,13 +101,19 @@ async function listMyBadges(env, user) {
 // bırakılır — o kademe herhangi bir hak ya da görünür rozet vermez, yalnızca destek amaçlıdır.
 export async function handlePublicBadges(env) {
   const now = Date.now();
-  const { results } = await env.DB.prepare(
-    `SELECT c.profile_type, c.profile_key, b.badge_type
-     FROM profile_claims c
-     JOIN badge_requests b ON b.user_id = c.user_id AND b.status = 'active' AND (b.expires_at IS NULL OR b.expires_at > ?) AND b.badge_type != 'destekci'
-       AND ((b.target_type = 'self' AND c.profile_type = 'architect') OR (b.target_type = 'office' AND c.profile_type = 'office' AND b.target_key = c.profile_key))
-     WHERE c.status = 'approved'`
-  ).bind(now).all();
+  const [{ results }, { results: adminResults }] = await Promise.all([
+    env.DB.prepare(
+      `SELECT c.profile_type, c.profile_key, b.badge_type
+       FROM profile_claims c
+       JOIN badge_requests b ON b.user_id = c.user_id AND b.status = 'active' AND (b.expires_at IS NULL OR b.expires_at > ?) AND b.badge_type != 'destekci'
+         AND ((b.target_type = 'self' AND c.profile_type = 'architect') OR (b.target_type = 'office' AND c.profile_type = 'office' AND b.target_key = c.profile_key))
+       WHERE c.status = 'approved'`
+    ).bind(now).all(),
+    // Admin'in sahiplenme/satın alma olmadan doğrudan verdiği rozetler (bkz. schema.sql#admin_badges) —
+    // yukarıdaki satın alınan rozetlerle AYNI çıktı şekline birleştirilir, statik/sahipsiz bir
+    // profile bile uygulanabilir (kullanıcı isteği: admin mimar/marka profiline rozet ekleyebilsin).
+    env.DB.prepare(`SELECT profile_type, profile_key, badge_type FROM admin_badges`).all(),
+  ]);
 
   const out = { architect: {}, office: {} };
   for (const row of results) {
@@ -115,6 +121,12 @@ export async function handlePublicBadges(env) {
     if (!bucket) continue;
     if (!bucket[row.profile_key]) bucket[row.profile_key] = [];
     bucket[row.profile_key].push(row.badge_type);
+  }
+  for (const row of adminResults) {
+    const bucket = out[row.profile_type];
+    if (!bucket) continue;
+    if (!bucket[row.profile_key]) bucket[row.profile_key] = [];
+    if (!bucket[row.profile_key].includes(row.badge_type)) bucket[row.profile_key].push(row.badge_type);
   }
   return json(out);
 }
