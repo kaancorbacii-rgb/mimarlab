@@ -551,10 +551,47 @@ document.addEventListener('click', (e)=>{
 });
 
 // Proje slider'ı, Projeler sayfasıyla (proje.html) BİREBİR AYNI "son yayınlanan" sıralamasını
-// kullanır: onaylı üye gönderileri statik projeler-data.js dizisine eşit aralıklarla serpiştirilir
-// (bkz. proje.html'deki aynı interleave algoritması), sonra dizi ters çevrilir ("en son eklenen ilk").
-// En son eklenen 6 proje doğrudan gösterilir (bkz. kullanıcı isteği: carousel proje.html'de en üstte
-// görünen 6 projeyle birebir eşleşmeli).
+// kullanır (bkz. proje.html'deki aynı RECENT_WINDOW_MS/recentItems/agedItems mantığı — kullanıcı
+// isteği: carousel proje.html'de en üstte görünen 6 projeyle birebir eşleşmeli). ÖNEMLİ: eski kod
+// TÜM üye gönderilerini (yeni/eski fark etmeksizin) statik dizinin (578+ proje) arasına eşit
+// aralıklarla serpiştiriyordu — bu adım o kadar büyüktü ki gerçekten az önce eklenen bir proje
+// ilk 6 sıraya hiç düşmüyordu (gerçek bulgu: admin panelinden art arda eklenen 6 proje ana sayfa
+// carousel'inde görünmüyordu). Çözüm: son 30 gün içinde eklenen gönderiler ("recentItems") doğrudan
+// en üste kümelenir; yalnızca daha eski, toplu geçmişte eklenmiş gönderiler ("agedItems") statik
+// diziye serpiştirilir.
+const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün — bkz. proje.html'deki aynı sabit
+
+function latestPublishedProjectOrder(memberItems, staticItemsInOriginalOrder){
+  const now = Date.now();
+  const recentItems = memberItems.filter(p => p.createdAt && (now - p.createdAt) < RECENT_WINDOW_MS);
+  const agedItems = memberItems.filter(p => !p.createdAt || (now - p.createdAt) >= RECENT_WINDOW_MS);
+
+  let merged = staticItemsInOriginalOrder;
+  if(agedItems.length){
+    merged = [];
+    const step = (staticItemsInOriginalOrder.length + agedItems.length) / agedItems.length;
+    let idx = 0, nextInsertAt = step;
+    for(let i = 0; i < staticItemsInOriginalOrder.length; i++){
+      merged.push(staticItemsInOriginalOrder[i]);
+      while(idx < agedItems.length && merged.length >= Math.round(nextInsertAt)){
+        merged.push(agedItems[idx++]);
+        nextInsertAt += step;
+      }
+    }
+    while(idx < agedItems.length) merged.push(agedItems[idx++]);
+  }
+  // recentItems reverse()'den SONRA en başa düşmesi için önce eskiden-yeniye çevrilip sona eklenir.
+  return merged.concat(recentItems.slice().reverse()).reverse();
+}
+
+function carouselSlides(dynamicItems, staticItemsInOriginalOrder){
+  return latestPublishedProjectOrder(dynamicItems, staticItemsInOriginalOrder).slice(0, 6);
+}
+
+// Mimar/Firma/Ürün için API yanıtı createdAt döndürmediğinden (bkz. src/routes/public.js
+// toPublicShape — yalnızca 'projects' tipi createdAt içerir) yukarıdaki recent/aged ayrımı
+// buralarda uygulanamaz; eski (basit) interleave-then-reverse mantığı bu üç mini-carousel için
+// aynen korunur.
 function latestPublishedOrder(memberItems, staticItemsInOriginalOrder){
   const merged = [];
   if(memberItems.length){
@@ -562,7 +599,7 @@ function latestPublishedOrder(memberItems, staticItemsInOriginalOrder){
     // Aşağıdaki döngü diziyi BAŞTAN serpiştirdiğinden, en yeniyi olduğu gibi kullanırsak en düşük
     // index'e düşer ve fonksiyon sonundaki reverse()'den SONRA dizinin EN SONUNA (yani en az
     // görünür yere) taşınırdı — "en son eklenen ilk" niyetinin tam tersi (bkz. gerçek bulgu: yeni
-    // onaylanan bir proje/mimar/firma/ürün en tepede görünmesi gerekirken kayboluyordu). Önce
+    // onaylanan bir mimar/firma/ürün en tepede görünmesi gerekirken kayboluyordu). Önce
     // eskiden-yeniye çevirip en yeniyi serpiştirmenin SONUNA koyuyoruz ki reverse() sonrası başa gelsin.
     const orderedMembers = memberItems.slice().reverse();
     const step = (staticItemsInOriginalOrder.length + orderedMembers.length) / orderedMembers.length;
@@ -579,10 +616,6 @@ function latestPublishedOrder(memberItems, staticItemsInOriginalOrder){
     merged.push(...staticItemsInOriginalOrder);
   }
   return merged.reverse();
-}
-
-function carouselSlides(dynamicItems, staticItemsInOriginalOrder){
-  return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(0, 6);
 }
 
 // Mimar/Firma/Ürün mini-carousel'leri Proje'nin aksine 3'ü atlamaz — bunlar zaten küçük, tek bir

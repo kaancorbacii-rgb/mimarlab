@@ -386,7 +386,16 @@ const parseLocation = parseLocationFull;
 // "Mimar" (kişi) / "Mimarlık Ofisi" (firma) ayrımı: isim, ofis/firma göstergesi olan
 // anahtar kelimelerden birini içeriyorsa veya bilinen bir ofis ismiyse "Mimarlık Ofisi"
 // sayılır; aksi halde (bireysel kişi, tarihi mimar vb.) "Mimar" sayılır.
-const OFFICE_NAME_OVERRIDES = new Set(["Autoban","Escapefromsofa","Per Se","Grimshaw","SOM","REX","ACPV Antonio Citterio & Patricia Viel","Salon Alper Derinboğaz"]);
+const OFFICE_NAME_OVERRIDES = new Set(["Autoban","Escapefromsofa","Per Se","Grimshaw","SOM","REX","ACPV Antonio Citterio & Patricia Viel","Salon Alper Derinboğaz",
+  // Aşağıdaki isimler OFFICE_KEYWORDS'teki hiçbir anahtar kelimeyi içermediği için (kısaltma,
+  // stilize marka adı, ya da yabancı dilde firma eki) "Mimar" (kişi) filtresine yanlışlıkla
+  // düşüyordu (bkz. kullanıcı isteği: "mimar filtresinin içerisine mimarlık firması isimleri
+  // karışmış, bu seçenekleri oradan sil") — burada elle "Mimarlık Firması" filtresine taşınır.
+  "AOMTD","Gensler","KPF","OMA","FXCollaborative","Chapman Taylor","Powerhouse Company","Carve",
+  "GEOMIM","Ofist","Ofisvesaire","FREA","MuuM","Neowe","Nēowe","Superpool","PLUG",
+  "SdARCH Trivelli & Associati","T-ingénierie","UN Architectural Services","ZAAS","ŞANALarc",
+  "GEO_ID","ARK-Itecture","Acararch","Dolmus AG","caps.","the | work","indissoluble","Lazzoni",
+]);
 const OFFICE_KEYWORDS = ["mimarlık","architecture","architects","architekten","studio","design","partner","group","proje","workshop","associates","concept","ortaklığı","mühendislik","danışmanlık","atölye","işliği","tasarım","grubu"];
 function isOfficeName(name){
   if(OFFICE_NAME_OVERRIDES.has(name)) return true;
