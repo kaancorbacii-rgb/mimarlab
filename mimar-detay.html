@@ -554,6 +554,13 @@ function safeUrl(u){
   return '';
 }
 
+// Aşağıdaki tüm sayfa render'ı bir async IIFE içine alınmıştır — statik data.js'te bulunamayan
+// (yalnızca onaylı bir üye gönderisi olarak var olan, ör. "Renzo Piano") bir mimar için DB'den
+// bir fallback araması yapılabilsin diye (bkz. ofis-detay.html#renderOfficeDetail'deki AYNI "if
+// (!found) DB'den çek" deseni). Eskiden eşleşme bulunamazsa sessizce architects[0]'a (yanlış bir
+// profile, gerçek bulgu: Mimarlar sayfasından yalnızca DB'de var olan bir mimara tıklandığında
+// architects[0] = Emre Arolat'ın profili açılıyordu) düşüyordu.
+(async function(){
 const params = new URLSearchParams(window.location.search);
 let mimarName = params.get('mimar');
 let mimarSlug = null;
@@ -563,9 +570,22 @@ if(!mimarName){
   const m = window.location.pathname.match(/\/mimar\/([^/]+)\/?$/);
   if(m) mimarSlug = decodeURIComponent(m[1]);
 }
-const explicitMatch = (mimarName && architects.find(x => x.name === mimarName))
-  || (mimarSlug && architects.find(x => slugify(x.name) === mimarSlug))
-  || null;
+function findStaticMatch(){
+  return (mimarName && architects.find(x => x.name === mimarName))
+    || (mimarSlug && architects.find(x => slugify(x.name) === mimarSlug))
+    || null;
+}
+let explicitMatch = findStaticMatch();
+if(!explicitMatch){
+  try{
+    const res = await fetch('/api/public/architects');
+    if(res.ok){
+      const data = await res.json();
+      architects.push(...(data.items || []));
+      explicitMatch = findStaticMatch();
+    }
+  }catch{}
+}
 const a = explicitMatch || architects[0];
 let office = offices.find(x => x.name === a.office);
 
@@ -1190,6 +1210,7 @@ document.addEventListener('click', (e)=>{
   window.addEventListener('resize', place);
 })();
 
+})();
 </script>
 
 </body>
