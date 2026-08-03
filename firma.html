@@ -170,6 +170,12 @@
   }
   .grid-icon-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .grid-icon-btn.reset{margin-left:auto;}
+  /* Masaüstünde .grid-sidebar'ın (dikey, tam genişlik) normal akışına karışmadan, Konum ve
+     Tecrübe'nin ayrı ayrı tam genişlikte alt alta sıralanmaya devam etmesi için display:contents
+     ile "görünmez" bırakılır; ≤960px'te gerçek bir yatay satıra dönüşür (bkz. aşağıdaki media query,
+     kullanıcı isteği: "tablet ve mobil görünümde konum kutucuğunun sağ yanına Tecrübe kutucuğunu
+     koy"). */
+  .loc-exp-row{display:contents;}
   .sidebar-add-btn{
     display:flex; align-items:center; justify-content:center; gap:8px;
     width:100%; background:var(--ink); color:var(--paper-card);
@@ -259,6 +265,11 @@
     .grid-sidebar{position:static; flex-direction:row; flex-wrap:wrap;}
     .grid-sidebar .filter-select{flex:1 1 160px;}
     .card-grid{grid-template-columns:repeat(3, 1fr);}
+    /* bkz. yukarıdaki .loc-exp-row yorumu — Konum ve Tecrübe burada gerçek bir yatay satıra
+       dönüşür ve kendi satırını kaplar (flex-basis:100%), diğer filtrelerle aynı satırı
+       paylaşmaz; böylece her genişlikte birbirinin yanında kalmaları garanti edilir. */
+    .loc-exp-row{display:flex; gap:8px; flex:1 1 100%;}
+    .loc-exp-row .filter-select{flex:1 1 0;}
   }
   @media (max-width:960px){
     .nav{padding:10px 18px; gap:10px;}
@@ -359,9 +370,25 @@
         <select id="g-cat"><option value="">Hizmet Alanı</option></select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
-      <div class="filter-select">
-        <select id="g-loc"><option value="">Konum</option></select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      <!-- Konum ve Tecrübe, tablet/mobil görünümde (bkz. .loc-exp-row CSS) tek satırda yan yana
+           gösterilir (bkz. kullanıcı isteği); masaüstünde display:contents ile normal, ayrı ayrı
+           tam genişlikte alt alta sıralanan filter-select'ler gibi davranır. -->
+      <div class="loc-exp-row">
+        <div class="filter-select">
+          <select id="g-loc"><option value="">Konum</option></select>
+          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
+        <div class="filter-select">
+          <select id="g-exp">
+            <option value="">Tecrübe</option>
+            <option value="1-5">1-5 yıl</option>
+            <option value="6-10">6-10 yıl</option>
+            <option value="11-20">11-20 yıl</option>
+            <option value="21-30">21-30 yıl</option>
+            <option value="30+">30+ yıl</option>
+          </select>
+          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
       </div>
       <a class="sidebar-add-btn" href="firma-ekle.html"><span class="sidebar-add-icon">+</span> Firma Ekle</a>
     </aside>
@@ -533,15 +560,32 @@ function renderPagination(totalPages){
   if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; render(); window.scrollTo({top:0, behavior:'smooth'}); } });
 }
 
+// Tecrübe, firmanın kuruluş yılından (o.yil) bugüne geçen süreye göre hesaplanır (bkz. kullanıcı
+// isteği). yil bilinmiyorsa (null) hiçbir tecrübe aralığıyla eşleşmez — "Kuruluş Yılı" alanı
+// zaten opsiyonel olduğundan (bkz. firma-ekle.html) bilinmeyen bir süreyi bir aralığa zorlamak
+// yanıltıcı olurdu.
+function expBucketOf(yil){
+  if(!yil) return null;
+  const years = new Date().getFullYear() - yil;
+  if(years < 1) return null;
+  if(years <= 5) return '1-5';
+  if(years <= 10) return '6-10';
+  if(years <= 20) return '11-20';
+  if(years <= 30) return '21-30';
+  return '30+';
+}
+
 function render(){
   const sort = document.getElementById('g-sort').value;
   const loc = document.getElementById('g-loc').value;
   const cat = document.getElementById('g-cat').value;
+  const exp = document.getElementById('g-exp').value;
   const q = trLower(searchQuery.trim());
 
   let filtered = offices.filter(o=>{
     if(loc && cityOf(o.loc) !== loc) return false;
     if(cat && !o.cats.includes(cat)) return false;
+    if(exp && expBucketOf(o.yil) !== exp) return false;
     if(q && !trLower(o.name).includes(q)) return false;
     return true;
   });
@@ -587,7 +631,7 @@ function render(){
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-['g-sort','g-loc','g-cat'].forEach(id=>{
+['g-sort','g-loc','g-cat','g-exp'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
 });
 document.getElementById('g-local-search').addEventListener('input', (e)=>{
@@ -598,6 +642,7 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-sort').value = '';
   document.getElementById('g-cat').value = '';
   document.getElementById('g-loc').value = '';
+  document.getElementById('g-exp').value = '';
   searchQuery = '';
   document.getElementById('g-local-search').value = '';
   document.getElementById('f-search-topnav').value = '';

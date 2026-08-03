@@ -105,12 +105,32 @@ function slugify(text) {
     .replace(/^-+|-+$/g, '');
 }
 
+// Projeler sayfasındaki statik "N. Yüzyıl" / "N0'lar" bucket kuralıyla (bkz. projeler-data.js
+// içindeki gerçek değerler) birebir eşleşen ondalık eki — Türkçe ünlü uyumuna göre her on yılın
+// kendi doğru eki var (ör. "2020'ler" ama "2010'lar"); eskiden HER ZAMAN "'lar" kullanılıyordu, bu
+// da statik verideki "2020'ler" gibi doğru değerlerle aynı on yıl için İKİ AYRI filtre seçeneği
+// üretiyordu (bkz. gerçek bulgu).
+const DECADE_SUFFIX = { 0: 'ler', 10: 'lar', 20: 'ler', 30: 'lar', 40: 'lar', 50: 'ler', 60: 'lar', 70: 'ler', 80: 'ler', 90: 'lar' };
+
+// bkz. kullanıcı isteği: "Projeler sayfasında Yıl filtresinin içindeki seçeneklerde 1750'ler ve
+// 1700'lar seçeneklerini kaldır ... bunu engelle". Eski hali serbest metin "date" alanındaki İLK
+// 4 haneli sayıyı alıp HER ZAMAN bir on yıl bucket'ı üretiyordu — bu iki gerçek soruna yol
+// açıyordu: (1) 1900 öncesi bir yıl (ör. "1753-1756" tarihli bir cami) statik veride kullanılan
+// "N. Yüzyıl" biçimi yerine "1750'lar" gibi tuhaf, tek seferlik bir bucket üretiyordu; (2) tarih
+// aralığı ya da restorasyon tarihi olan projelerde (ör. "1700 / 2023") İLK sayı alındığından, 2023'te
+// tamamlanan bir restorasyon "1700'ler" gibi anlamsız bir bucket'a düşüyordu. Şimdi: metindeki TÜM
+// 4 haneli sayılardan EN BÜYÜĞÜ (en güncel/tamamlanma yılı) esas alınır; 1900 öncesiyse statik
+// veriyle aynı "N. Yüzyıl" biçimi kullanılır.
 function dateBucketFor(dateStr) {
-  const m = (dateStr || '').match(/(\d{4})/);
-  if (!m) return null;
-  const year = parseInt(m[1], 10);
+  const matches = (dateStr || '').match(/\d{4}/g);
+  if (!matches) return null;
+  const year = Math.max(...matches.map(Number));
+  if (year < 1900) {
+    const century = Math.floor((year - 1) / 100) + 1;
+    return `${century}. Yüzyıl`;
+  }
   const decade = Math.floor(year / 10) * 10;
-  return `${decade}'lar`;
+  return `${decade}'${DECADE_SUFFIX[decade % 100] || 'ler'}`;
 }
 
 // Ham form verisini (client'tan gelen) satır olarak D1'e yazılacak hale getirir:
