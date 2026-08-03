@@ -586,11 +586,37 @@ if(!explicitMatch){
     }
   }catch{}
 }
+// Statik bir mimar admin tarafından yeniden adlandırılmışsa (bkz. data.js#renameArchitectEverywhere,
+// mimar-ekle.html "Ad Soyad") architects[].name yalnızca İLGİLİ mimarın KENDİ sayfası ziyaret
+// edildiğinde mutasyona uğrar — proje-detay.html/ofis-detay.html gibi BAŞKA bir sayfadan üretilen
+// bir link buraya DOĞRUDAN yeni slug'la geldiyse, bu sayfa o mutasyonu hiç görmemiş olduğundan slug
+// hiçbir statik kayıtla eşleşmez ve architects[0]'a (yanlış bir profile) düşerdi (bkz. ofis-detay.html
+// #applyRelatedProjectEdits'in ÜSTÜNDEki AYNI desen — gerçek bulgu: yeniden adlandırılmış bir firma
+// için tespit edilen sorunun mimar karşılığı).
+if(!explicitMatch && mimarSlug){
+  try{
+    const edits = await fetchProfileEdits();
+    if(edits.architect){
+      for(const staticName in edits.architect){
+        const overlayName = edits.architect[staticName].name;
+        if(overlayName && slugify(overlayName) === mimarSlug){
+          const staticArch = architects.find(x => x.name === staticName);
+          if(staticArch){ renameArchitectEverywhere(staticArch, overlayName); explicitMatch = staticArch; }
+          break;
+        }
+      }
+    }
+  }catch{}
+}
 const a = explicitMatch || architects[0];
 let office = offices.find(x => x.name === a.office);
 
-document.title = a.name + " — MİMARLAB";
-{
+// İsim/meta alanları fonksiyona alındı — admin bu mimarı yeniden adlandırırsa (bkz.
+// applyProfileEdits, data.js#renameArchitectEverywhere) tekrar çağrılabilsin diye; aksi halde
+// sayfa başlığı/breadcrumb/meta etiketleri sayfa ilk yüklendiğindeki ESKİ adı göstermeye devam
+// ederdi (bkz. ofis-detay.html#renderOfficeIdentity'deki AYNI desen).
+function renderIdentity(){
+  document.title = a.name + " — MİMARLAB";
   const desc = office
     ? `${a.name}, ${office.name} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
     : `${a.name} — MİMARLAB'da mimar profilini incele.`;
@@ -605,9 +631,10 @@ document.title = a.name + " — MİMARLAB";
   document.getElementById('twitter-title').setAttribute('content', document.title);
   document.getElementById('twitter-description').setAttribute('content', desc);
   document.getElementById('twitter-image').setAttribute('content', image);
+  document.getElementById('bc-name').textContent = a.name;
+  document.getElementById('profile-name-text').textContent = a.name;
 }
-document.getElementById('bc-name').textContent = a.name;
-document.getElementById('profile-name-text').textContent = a.name;
+renderIdentity();
 // Ofis/pozisyon değişikliği onaylandığında (bkz. applyProfileEdits) tekrar çağrılabilsin diye
 // fonksiyona alındı — aksi halde bir mimar profilinden bağlı firma silindiğinde bu metinler eski
 // firmayı göstermeye devam ederdi (bkz. kullanıcı isteği).
@@ -736,7 +763,12 @@ async function applyProfileEdits(){
     const overlay = edits.architect && edits.architect[a.name];
     let officeChanged = false;
     let aboutChanged = false;
+    let renamed = false;
     if(overlay){
+      // Object.assign/atamalardan ÖNCE çalıştırılır ki cascade hâlâ a.name'in ESKİ (overlay
+      // anahtarıyla eşleşen) değerini görsün (bkz. ofis-detay.html#applyProfileEdits'teki AYNI sıra).
+      renamed = overlay.name ? renameArchitectEverywhere(a, overlay.name) : false;
+      if(renamed) renderIdentity();
       if(overlay.dob) a.dob = overlay.dob;
       if(overlay.school) a.school = overlay.school;
       if(overlay.dept) a.dept = overlay.dept;

@@ -8,14 +8,14 @@
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Firma Ekle — MİMARLAB</title>
 <meta name="description" content="MİMARLAB'a firma ekle.">
-<link rel="canonical" href="https://mimarlab.com/ofis-ekle">
+<link rel="canonical" href="https://mimarlab.com/firma-ekle">
 <meta name="robots" content="noindex, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Firma Ekle — MİMARLAB">
 <meta property="og:description" content="MİMARLAB'a firma ekle.">
-<meta property="og:url" content="https://mimarlab.com/ofis-ekle">
+<meta property="og:url" content="https://mimarlab.com/firma-ekle">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Firma Ekle — MİMARLAB">
@@ -234,7 +234,7 @@
   </div>
 
   <div class="form-wrap">
-    <form id="ofis-ekle-form">
+    <form id="firma-ekle-form">
       <div class="form-section">
         <h2>Firma Bilgileri</h2>
         <div class="form-field">
@@ -314,11 +314,8 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="form-section">
-        <h2>Firma Hakkında Açıklama</h2>
         <div class="form-field">
+          <label for="o-desc">Firma Hakkında Açıklama</label>
           <textarea id="o-desc" name="about" placeholder="Firma hakkında kısa bir metin yaz..." required></textarea>
         </div>
       </div>
@@ -719,7 +716,7 @@ async function uploadFiles(files){
   return urls;
 }
 
-document.getElementById('ofis-ekle-form').addEventListener('submit', async (e)=>{
+document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('form-notice');
   const form = e.target;

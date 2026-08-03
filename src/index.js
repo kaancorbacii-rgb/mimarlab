@@ -55,6 +55,8 @@ const CLEAN_URL_ASSETS = [
 const PATH_RENAME_REDIRECTS = {
   '/ofis': '/firma',
   '/ofis.html': '/firma',
+  '/ofis-ekle': '/firma-ekle',
+  '/ofis-ekle.html': '/firma-ekle',
   '/malzeme': '/urun',
   '/malzeme.html': '/urun',
   '/malzeme-ekle': '/urun-ekle',

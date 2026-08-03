@@ -1576,12 +1576,29 @@ function renameOfficeEverywhere(off, newName){
   return true;
 }
 
+// renameOfficeEverywhere'in mimar karşılığı (bkz. kullanıcı isteği: "Admin hesabına ... Mimar
+// düzenle sayfasından Mimar ismi değiştirebilme yetkisi ver"). Mimarların (ofislerin aksine)
+// statik architects[] dizisinde başka bir mimara isimle referans veren bir alanı yok — tek çapraz
+// referans projects[].designer, o da burada güncellenir.
+function renameArchitectEverywhere(arch, newName){
+  if(!newName || newName === arch.name) return false;
+  const oldName = arch.name;
+  if(!arch._claimKey) arch._claimKey = oldName;
+  arch.name = newName;
+  for(const pr of projects){
+    if(pr.designer && pr.designer.includes(oldName)) pr.designer = pr.designer.map(d => d === oldName ? newName : d);
+  }
+  return true;
+}
+
 async function applyProfileEditPhotos(){
   const edits = await fetchProfileEdits();
   if(edits.architect){
     for(const arch of architects){
       const o = edits.architect[arch.name];
-      if(o && o.photo) arch.photo = o.photo;
+      if(!o) continue;
+      if(o.photo) arch.photo = o.photo;
+      if(o.name) renameArchitectEverywhere(arch, o.name);
     }
   }
   if(edits.office){

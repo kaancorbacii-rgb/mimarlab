@@ -5,8 +5,12 @@ import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
-import { cascadeRemovedFounders, renameOfficeEverywhere } from '../lib/officeFounderCascade.js';
+import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
+
+// bkz. src/routes/submissions.js#RENAME_CASCADE_BY_TYPE (aynı eşleme) — admin panelinden doğrudan
+// isim değiştirmenin kapsandığı tipler.
+const RENAME_CASCADE_BY_TYPE = { offices: renameOfficeEverywhere, architects: renameArchitectEverywhere };
 
 // Bir <tip>_submissions satırı KALICI OLARAK silindiğinde (bkz. handleSubmissionsAdmin DELETE,
 // src/routes/legacyContent.js#handleContentAction/handleProjectAction) ilgili cascade fonksiyonunu
@@ -178,11 +182,12 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
         await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
       }
 
-      // Admin panelinden doğrudan firma adı değiştirildiyse (bkz. src/routes/submissions.js#
+      // Admin panelinden doğrudan firma/mimar adı değiştirildiyse (bkz. src/routes/submissions.js#
       // updateOwnSubmission'daki AYNI cascade, "Düzenle" formu için) diğer TÜM D1 satırlarını da
-      // yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere).
-      if (typeKey === 'offices' && body.name && body.name !== existing.name && (existing.status === 'approved' || body.status === 'approved')) {
-        await renameOfficeEverywhere(env, existing.name, body.name);
+      // yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere).
+      const adminRenameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
+      if (adminRenameCascade && body.name && body.name !== existing.name && (existing.status === 'approved' || body.status === 'approved')) {
+        await adminRenameCascade(env, existing.name, body.name);
       }
 
       // Bu satır önceden arşivlenmiş bir statik kaydın taslağıysa (bkz. src/routes/legacyContent.js

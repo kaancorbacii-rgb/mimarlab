@@ -123,3 +123,62 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
     } catch { /* bozuk JSON — dokunma */ }
   }
 }
+
+// renameOfficeEverywhere'in mimar karşılığı (bkz. src/routes/submissions.js#updateOwnSubmission,
+// src/routes/admin.js — yalnızca admin claimed_profile_key'den FARKLI bir isim gönderebilir). Bir
+// mimarın adı değiştiğinde, bu ismi anahtar olarak kullanan TÜM diğer D1 satırlarını yeni isme
+// taşır (bkz. kullanıcı isteği: "Admin hesabına ... Mimar düzenle sayfasından Mimar ismi
+// değiştirebilme yetkisi ver"). office_submissions.founders bir JSON dizisi olduğundan (aynı
+// project_submissions.designer gibi) satır satır okunup yazılır; product_submissions/
+// material_submissions.architect ise serbest metin, virgülle ayrılmış isimler (bkz. migrations/
+// 0020_product_architect.sql) — tek tek parçalanıp TAM eşleşen isim değiştirilir, aksi halde
+// örneğin "Ali" adını değiştirmek "Ali Osman"ı da yanlışlıkla eşleştirirdi.
+export async function renameArchitectEverywhere(env, oldName, newName) {
+  if (!oldName || !newName || oldName === newName) return;
+  await Promise.all([
+    env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'architect' AND item_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE OR IGNORE profile_claims SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE profile_corrections SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE badge_requests SET target_key = ? WHERE target_type = 'architect' AND target_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE OR IGNORE ratings SET target_id = ? WHERE target_type = 'architect' AND target_id = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE comments SET target_id = ? WHERE target_type = 'architect' AND target_id = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'architects' AND content_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE OR IGNORE admin_badges SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),
+  ]);
+
+  const { results: projectRows } = await env.DB.prepare(
+    `SELECT id, designer FROM project_submissions WHERE designer LIKE ?`
+  ).bind(`%${oldName}%`).all();
+  for (const row of projectRows) {
+    try {
+      const list = JSON.parse(row.designer || '[]');
+      if (!Array.isArray(list) || !list.includes(oldName)) continue;
+      const updated = list.map(d => d === oldName ? newName : d);
+      await env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id).run();
+    } catch { /* bozuk JSON — dokunma */ }
+  }
+
+  const { results: officeRows } = await env.DB.prepare(
+    `SELECT id, founders FROM office_submissions WHERE founders LIKE ?`
+  ).bind(`%${oldName}%`).all();
+  for (const row of officeRows) {
+    try {
+      const list = JSON.parse(row.founders || '[]');
+      if (!Array.isArray(list) || !list.includes(oldName)) continue;
+      const updated = list.map(f => f === oldName ? newName : f);
+      await env.DB.prepare(`UPDATE office_submissions SET founders = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id).run();
+    } catch { /* bozuk JSON — dokunma */ }
+  }
+
+  for (const table of ['product_submissions', 'material_submissions']) {
+    const { results: rows } = await env.DB.prepare(
+      `SELECT id, architect FROM ${table} WHERE architect LIKE ?`
+    ).bind(`%${oldName}%`).all();
+    for (const row of rows) {
+      const names = (row.architect || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (!names.includes(oldName)) continue;
+      const updated = names.map(n => n === oldName ? newName : n).join(', ');
+      await env.DB.prepare(`UPDATE ${table} SET architect = ? WHERE id = ?`).bind(updated, row.id).run();
+    }
+  }
+}

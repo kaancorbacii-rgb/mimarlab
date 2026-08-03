@@ -567,9 +567,14 @@ async function prefillForEdit(){
 
 // ?claim=<isim>: "Bu profil bana ait" ile onaylanmış statik bir mimar profilini düzenleme modu.
 // Statik data.js kaydı + onaylı bir düzenleme varsa onun üzerine bindirilmiş hali formu doldurur;
-// isim alanı kilitlenir (data.js'teki verifiedBadgeHtml/profil eşleştirmesi isme göre çalışır).
+// isim alanı kilitlenir — YALNIZCA admin değilse (bkz. kullanıcı isteği: "Admin hesabına Mimar
+// düzenle sayfasından Mimar ismi değiştirebilme yetkisi ver"; backend tarafı bkz. src/routes/
+// submissions.js#updateOwnSubmission/createSubmission, sıradan kullanıcılar için isim hâlâ zorla
+// claimed_profile_key'e eşitlenir, yalnızca admin'in gönderdiği farklı bir isim kabul edilir —
+// firma-ekle.html'deki AYNI istisna/desen).
 async function prefillForClaim(){
   if(!claimName) return;
+  await currentUserReady;
   document.querySelector('.eyebrow').textContent = 'Mimar Düzenle';
   document.querySelector('.page-head h1').textContent = 'Profilini düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
@@ -592,15 +597,20 @@ async function prefillForClaim(){
       const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
       if(mine){
         editId = mine.id;
-        merged = { ...merged, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about };
+        merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about };
       }
     }
   }catch{}
 
   const nameInput = document.getElementById('m-name');
-  nameInput.value = claimName;
-  nameInput.readOnly = true;
-  nameInput.style.background = 'var(--paper-alt)';
+  nameInput.value = merged.name || claimName;
+  if(isAdmin){
+    nameInput.readOnly = false;
+    nameInput.style.background = '';
+  } else {
+    nameInput.readOnly = true;
+    nameInput.style.background = 'var(--paper-alt)';
+  }
   if(merged.dob) document.getElementById('m-dob').value = String(merged.dob).slice(0, 4);
   document.getElementById('m-school').value = merged.school || '';
   meslekDropdown.set(merged.profession || null);

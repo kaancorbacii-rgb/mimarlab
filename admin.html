@@ -551,7 +551,7 @@ async function loadContent(resetPage){
 // arşivleme yetkisi ver"). "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider
 // (ürünlerin claim akışı yok, her zaman edit=); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
 const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
-const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'ofis-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html' };
+const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'firma-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html' };
 const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null, materials: null };
 let archiveType = 'projects';
 

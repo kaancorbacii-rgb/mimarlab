@@ -8,7 +8,7 @@ const CONTEXT_MAX_BYTES = {
   project: 2 * 1024 * 1024, // proje-ekle.html galeri görselleri
   product: 2 * 1024 * 1024, // urun-ekle.html galeri görselleri
   architect: 2 * 1024 * 1024, // mimar-ekle.html profil fotoğrafı
-  office: 2 * 1024 * 1024, // ofis-ekle.html logo
+  office: 2 * 1024 * 1024, // firma-ekle.html logo
 };
 const EXT_BY_MIME = {
   'image/jpeg': 'jpg',

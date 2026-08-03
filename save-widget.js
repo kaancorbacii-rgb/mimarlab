@@ -95,7 +95,7 @@ const savedWidgetReady = initSavedWidget();
 // applyEditButtons).
 const EDIT_PAGE_BY_SUBMISSION_TYPE = {
   projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
-  news: 'haber-ekle.html', jobs: 'is-ilani-ver.html', offices: 'ofis-ekle.html', architects: 'mimar-ekle.html',
+  news: 'haber-ekle.html', jobs: 'is-ilani-ver.html', offices: 'firma-ekle.html', architects: 'mimar-ekle.html',
 };
 const myEditableIdsCache = {};
 async function myEditableIds(type){

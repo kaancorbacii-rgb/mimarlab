@@ -163,6 +163,11 @@ async function handlePublicProfileEdits(request, env) {
     for (const row of archRes.results) {
       const parsed = parseSubmissionRow('architects', row);
       out.architect[row.claimed_profile_key] = {
+        // bkz. aşağıdaki office overlay'indeki AYNI yorum — yalnızca admin, statik bir mimarın
+        // GÖRÜNEN adını claimed_profile_key'den farklı gönderebilir (bkz. src/routes/
+        // submissions.js#updateOwnSubmission, kullanıcı isteği: "Admin hesabına ... Mimar
+        // düzenle sayfasından Mimar ismi değiştirebilme yetkisi ver").
+        name: parsed.name,
         dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
         role: parsed.position, profession: parsed.profession, photo: parsed.photo_url, about: parsed.about,
       };

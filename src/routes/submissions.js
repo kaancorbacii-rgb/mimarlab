@@ -5,7 +5,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
-import { cascadeRemovedFounders, renameOfficeEverywhere } from '../lib/officeFounderCascade.js';
+import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden } from './legacyContent.js';
 // projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
 // sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
@@ -28,7 +28,7 @@ const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
 // bkz. src/routes/public.js#CLAIMED_COLUMN_BY_TYPE (aynı eşleme) — bir statik kaydı admin panelinden
 // arşivleyip (bkz. src/routes/legacyContent.js#handleContentAction/handleProjectAction) sonra bu
 // GENEL uç noktadan (Admin Arşiv sekmesindeki özel "Yayınla" butonu DIŞINDA, ör. proje-ekle.html/
-// mimar-ekle.html/ofis-ekle.html'in normal ?claim= düzenleme formundan) tekrar onaylarsak, aşağıdaki
+// mimar-ekle.html/firma-ekle.html'in normal ?claim= düzenleme formundan) tekrar onaylarsak, aşağıdaki
 // unhideIfClaimedApproved çağrısı olmadan satır 'approved' olur ama statik kayıt legacy_content_hidden
 // içinde gizli KALIRDI — canlıda ne overlay ne statik hali görünmeyen, veritabanında "onaylı" ama
 // sitede hiç var olmayan bir kayıt (gerçek bulgu: GAD Architecture'ı arşivleyip normal formdan
@@ -37,16 +37,26 @@ const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'cl
 
 const STATIC_LIST_BY_TYPE = { architects: staticArchitects, offices: staticOffices };
 
-// office_submissions.claimed_profile_key HER ZAMAN orijinal statik adı taşır (sabit, hiç değişmez —
-// data.js kaydına geri bağlanan anahtar), ama admin bir firmayı yeniden adlandırdığında (bkz.
-// renameOfficeEverywhere) profile_claims.profile_key/legacy_content_hidden.content_key GÜNCEL
-// (yeni) adı taşıyacak şekilde cascade edilir — çünkü src/routes/badges.js#handlePublicBadges
-// b.target_key = c.profile_key JOIN'i yapar ve badge_requests.target_key de AYNI cascade'le güncel
-// adı taşır; profile_claims'i sabit bırakmak bu JOIN'i kırardı. Bu yüzden claimed_profile_key
-// (sabit) ile bu tablolara bakan HER yer, önce bu yardımcıyla GÜNCEL adı çözmeli.
-async function resolveCurrentOfficeName(env, claimedProfileKey) {
+// Admin'in claimed_profile_key'den FARKLI bir isim gönderebildiği (bkz. aşağıdaki istisnalar) ve
+// buna bağlı olarak bir yeniden adlandırma cascade'i tetiklenen tipler — mimar ve firma (bkz.
+// kullanıcı isteği: "Admin hesabına ... Mimar düzenle sayfasından Mimar ismi değiştirebilme yetkisi
+// ver", önceki istek: "Admin hesabına tüm firma isimlerini değişebilme yetkisi ver").
+const RENAME_CASCADE_BY_TYPE = { offices: renameOfficeEverywhere, architects: renameArchitectEverywhere };
+
+// office_submissions/architect_submissions.claimed_profile_key HER ZAMAN orijinal statik adı taşır
+// (sabit, hiç değişmez — data.js kaydına geri bağlanan anahtar), ama admin bir firmayı/mimarı
+// yeniden adlandırdığında (bkz. renameOfficeEverywhere/renameArchitectEverywhere) profile_claims.
+// profile_key/legacy_content_hidden.content_key GÜNCEL (yeni) adı taşıyacak şekilde cascade edilir —
+// çünkü src/routes/badges.js#handlePublicBadges b.target_key = c.profile_key JOIN'i yapar ve
+// badge_requests.target_key de AYNI cascade'le güncel adı taşır; profile_claims'i sabit bırakmak bu
+// JOIN'i kırardı. Bu yüzden claimed_profile_key (sabit) ile bu tablolara bakan HER yer, önce bu
+// yardımcıyla GÜNCEL adı çözmeli.
+const RENAMABLE_TABLE_BY_TYPE = { offices: 'office_submissions', architects: 'architect_submissions' };
+async function resolveCurrentProfileName(env, typeKey, claimedProfileKey) {
+  const table = RENAMABLE_TABLE_BY_TYPE[typeKey];
+  if (!table) return claimedProfileKey;
   const row = await env.DB.prepare(
-    `SELECT name FROM office_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
+    `SELECT name FROM ${table} WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
   ).bind(claimedProfileKey).first();
   return (row && row.name) || claimedProfileKey;
 }
@@ -55,7 +65,7 @@ async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue)
   if (status !== 'approved' || !claimedValue) return;
   const claimedColumn = CLAIMED_COLUMN_BY_TYPE[typeKey];
   if (!claimedColumn) return;
-  const key = typeKey === 'offices' ? await resolveCurrentOfficeName(env, claimedValue) : claimedValue;
+  const key = RENAMABLE_TABLE_BY_TYPE[typeKey] ? await resolveCurrentProfileName(env, typeKey, claimedValue) : claimedValue;
   await setLegacyHidden(env, user, typeKey, key, false);
 }
 
@@ -74,7 +84,7 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   if (user.role === 'admin') return null; // admin, sahiplenmiş olsun olmasın her mimar/marka profilini düzenleyebilir
   const profileType = CLAIM_PROFILE_TYPE[typeKey];
   if (!profileType) return errorJson('Bu tip için profil düzenleme desteklenmiyor.');
-  const currentName = typeKey === 'offices' ? await resolveCurrentOfficeName(env, profileKey) : profileKey;
+  const currentName = RENAMABLE_TABLE_BY_TYPE[typeKey] ? await resolveCurrentProfileName(env, typeKey, profileKey) : profileKey;
   const claim = await env.DB.prepare(
     `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
   ).bind(user.id, profileType, currentName).first();
@@ -158,10 +168,10 @@ async function createSubmission(request, env, user, typeKey) {
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
     if (err) return err;
-    // bkz. updateOwnSubmission'daki AYNI istisna — yalnızca admin, bir firmanın GÖRÜNEN adını
-    // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm
-    // firma isimlerini değişebilme yetkisi ver").
-    if (!(typeKey === 'offices' && user.role === 'admin' && body.name)) {
+    // bkz. updateOwnSubmission'daki AYNI istisna — yalnızca admin, bir firmanın/mimarın GÖRÜNEN adını
+    // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm firma
+    // isimlerini değişebilme yetkisi ver" / "Admin hesabına ... Mimar ismi değiştirebilme yetkisi ver").
+    if (!(RENAME_CASCADE_BY_TYPE[typeKey] && user.role === 'admin' && body.name)) {
       body.name = body.claimed_profile_key;
     }
   }
@@ -197,11 +207,13 @@ async function createSubmission(request, env, user, typeKey) {
   // hâlâ gizli olabilir; onaylandığı an tekrar görünür olmalı (bkz. unhideIfClaimedApproved).
   await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? body.claimed_slug : body.claimed_profile_key);
 
-  // Admin bu firmayı ilk kez düzenlerken adını da değiştirmiş olabilir (bkz. yukarıdaki istisna) —
-  // statik ad hâlâ TÜM diğer D1 satırlarında (rozetler, kayıtlı öğeler vb.) anahtar olarak
-  // kullanıldığından, bunları da yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere).
-  if (status === 'approved' && typeKey === 'offices' && body.claimed_profile_key && body.name !== body.claimed_profile_key) {
-    await renameOfficeEverywhere(env, body.claimed_profile_key, body.name);
+  // Admin bu firmayı/mimarı ilk kez düzenlerken adını da değiştirmiş olabilir (bkz. yukarıdaki
+  // istisna) — statik ad hâlâ TÜM diğer D1 satırlarında (rozetler, kayıtlı öğeler vb.) anahtar
+  // olarak kullanıldığından, bunları da yeni ada taşı (bkz. src/lib/officeFounderCascade.js#
+  // renameOfficeEverywhere/renameArchitectEverywhere).
+  const renameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
+  if (status === 'approved' && renameCascade && body.claimed_profile_key && body.name !== body.claimed_profile_key) {
+    await renameCascade(env, body.claimed_profile_key, body.name);
   }
 
   // Yalnızca admin'in kendi gönderisi anında 'approved' olarak yayına girdiğinden (yukarıdaki
@@ -250,10 +262,10 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
     if (err) return err;
-    // bkz. createSubmission'daki AYNI istisna — yalnızca admin, bir firmanın GÖRÜNEN adını
-    // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm
-    // firma isimlerini değişebilme yetkisi ver").
-    if (!(typeKey === 'offices' && user.role === 'admin' && body.name)) {
+    // bkz. createSubmission'daki AYNI istisna — yalnızca admin, bir firmanın/mimarın GÖRÜNEN adını
+    // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm firma
+    // isimlerini değişebilme yetkisi ver" / "Admin hesabına ... Mimar ismi değiştirebilme yetkisi ver").
+    if (!(RENAME_CASCADE_BY_TYPE[typeKey] && user.role === 'admin' && body.name)) {
       body.name = body.claimed_profile_key;
     }
   }
@@ -285,14 +297,15 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
   }
 
-  // Firma yeniden adlandırıldıysa (statik/claimed profilde yalnızca admin, claim'siz sıradan bir
-  // firmada sahibi de yapabilir — bkz. yukarıdaki istisna) diğer TÜM D1 satırlarını da yeni ada taşı
-  // (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere). claimed profillerde eski ad HER
-  // ZAMAN body.claimed_profile_key'dir (claimed_profile_key kendisi değişmez); claim'siz profillerde
-  // eski ad existing.name'dir.
-  if (status === 'approved' && typeKey === 'offices') {
+  // Firma/mimar yeniden adlandırıldıysa (statik/claimed profilde yalnızca admin, claim'siz sıradan
+  // bir profilde sahibi de yapabilir — bkz. yukarıdaki istisna) diğer TÜM D1 satırlarını da yeni ada
+  // taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere).
+  // claimed profillerde eski ad HER ZAMAN body.claimed_profile_key'dir (claimed_profile_key kendisi
+  // değişmez); claim'siz profillerde eski ad existing.name'dir.
+  const updateRenameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
+  if (status === 'approved' && updateRenameCascade) {
     const oldName = body.claimed_profile_key || existing.name;
-    if (row.name !== oldName) await renameOfficeEverywhere(env, oldName, row.name);
+    if (row.name !== oldName) await updateRenameCascade(env, oldName, row.name);
   }
 
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın

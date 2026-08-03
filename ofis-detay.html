@@ -741,7 +741,7 @@ async function applyProfileEdits(){
     const overlay = edits.office && edits.office[currentOffice.name];
     if(overlay){
       // Admin bu firmanın adını değiştirmiş olabilir (bkz. data.js#renameOfficeEverywhere,
-      // ofis-ekle.html "Firma Adı") — Object.assign'DAN ÖNCE çalıştırılır ki cascade hâlâ
+      // firma-ekle.html "Firma Adı") — Object.assign'DAN ÖNCE çalıştırılır ki cascade hâlâ
       // currentOffice.name'in ESKİ (overlay anahtarıyla eşleşen) değerini görsün.
       const renamed = overlay.name ? renameOfficeEverywhere(currentOffice, overlay.name) : false;
       Object.assign(currentOffice, overlay);
@@ -930,7 +930,7 @@ function renderProfileEditButton(){
   // _claimKey, gerçek bulgu: Han Tümertekin → Tümertekin Architects yeniden adlandırıldıktan sonra bu
   // link YENİ adı kullanmaya devam edip statik kayda hiç bağlı olmayan boş bir "hayalet" gönderiye yol açıyordu).
   const claimName = currentOffice._claimKey || currentOffice.name;
-  slot.innerHTML = `<a class="profile-edit-btn" href="ofis-ekle.html?claim=${encodeURIComponent(claimName)}">
+  slot.innerHTML = `<a class="profile-edit-btn" href="firma-ekle.html?claim=${encodeURIComponent(claimName)}">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
     Düzenle
   </a>${adminButtonsHtml}`;
@@ -1037,7 +1037,7 @@ if(!foundOffice){
   Promise.all([
     fetch('/api/public/offices').then(res => res.ok ? res.json() : {items:[]}).catch(()=>({items:[]})),
     // Statik bir firma admin tarafından yeniden adlandırılmışsa (bkz. data.js#renameOfficeEverywhere,
-    // ofis-ekle.html "Firma Adı") offices[].name yalnızca İLGİLİ firmanın KENDİ sayfası ziyaret
+    // firma-ekle.html "Firma Adı") offices[].name yalnızca İLGİLİ firmanın KENDİ sayfası ziyaret
     // edildiğinde mutasyona uğrar — proje-detay.html/mimar-detay.html gibi BAŞKA bir sayfadan
     // üretilen bir link buraya DOĞRUDAN yeni slug'la geldiyse, bu sayfa o mutasyonu hiç görmemiş
     // olduğundan slug hiçbir statik kayıtla eşleşmez ve offices[0]'a (yanlış bir profile) düşerdi

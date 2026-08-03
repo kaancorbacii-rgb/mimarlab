@@ -508,7 +508,7 @@ const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', ma
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
-  offices: 'ofis-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
+  offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
   jobs: 'is-ilani-ver.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html',
 };
 const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
@@ -687,7 +687,7 @@ function renderSubmissions(){
   const container = document.getElementById('dash-submissions');
 
   if(!allSubmissions.length){
-    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="ofis-ekle.html">Firma Ekle</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
     document.getElementById('submissions-pagination').innerHTML = '';
     return;
   }
@@ -883,10 +883,10 @@ function safeUrl(u){
 const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
 const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
 const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
-const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'ofis-ekle.html' };
+const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html' };
 
 // "Bu profil bana ait" ile onaylanan mimar/ofis profilleri: onaylı olanlar için ilgili ekle
-// formunu ?claim=<isim> modunda açan bir Düzenle bağlantısı gösterir (bkz. mimar-ekle.html/ofis-ekle.html).
+// formunu ?claim=<isim> modunda açan bir Düzenle bağlantısı gösterir (bkz. mimar-ekle.html/firma-ekle.html).
 async function loadMyClaims(){
   const res = await fetch('/api/claims/mine');
   const data = res.ok ? await res.json() : { items: [] };
