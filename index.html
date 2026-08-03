@@ -553,9 +553,8 @@ document.addEventListener('click', (e)=>{
 // Proje slider'ı, Projeler sayfasıyla (proje.html) BİREBİR AYNI "son yayınlanan" sıralamasını
 // kullanır: onaylı üye gönderileri statik projeler-data.js dizisine eşit aralıklarla serpiştirilir
 // (bkz. proje.html'deki aynı interleave algoritması), sonra dizi ters çevrilir ("en son eklenen ilk").
-// Tepedeki 3 sırayı atlayıp 4.-8. projeleri gösteriyoruz (bkz. kullanıcı isteği) — aksi halde, toplu
-// eklenen çok sayıda gönderi (ör. Mimar Sinan'ın 17 eseri) hep en tepede kümelenip carousel'i
-// tek bir mimara kilitlerdi.
+// En son eklenen 6 proje doğrudan gösterilir (bkz. kullanıcı isteği: carousel proje.html'de en üstte
+// görünen 6 projeyle birebir eşleşmeli).
 function latestPublishedOrder(memberItems, staticItemsInOriginalOrder){
   const merged = [];
   if(memberItems.length){
@@ -583,7 +582,7 @@ function latestPublishedOrder(memberItems, staticItemsInOriginalOrder){
 }
 
 function carouselSlides(dynamicItems, staticItemsInOriginalOrder){
-  return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(3, 8);
+  return latestPublishedOrder(dynamicItems, staticItemsInOriginalOrder).slice(0, 6);
 }
 
 // Mimar/Firma/Ürün mini-carousel'leri Proje'nin aksine 3'ü atlamaz — bunlar zaten küçük, tek bir
