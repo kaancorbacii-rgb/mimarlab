@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   title TEXT NOT NULL,
   category TEXT,
   type TEXT,
+  discipline TEXT, -- "Tür" facet: Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon (bkz. migrations/0017_project_discipline.sql)
   location TEXT,
   locationDetail TEXT,
   date TEXT,
@@ -96,8 +97,10 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   category TEXT,
   description TEXT,
   images TEXT,
+  specs TEXT, -- JSON dizi [{label, value}] — urun-detay.html "Teknik Özellikler" tablosu (bkz. migrations/0018_product_specs.sql)
   source_url TEXT,
-  ai_generated INTEGER NOT NULL DEFAULT 0
+  ai_generated INTEGER NOT NULL DEFAULT 0,
+  architect TEXT -- serbest metin (virgülle ayrılmış birden fazla isim olabilir) — bkz. migrations/0020_product_architect.sql
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status ON product_submissions(status);
@@ -117,8 +120,10 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   category TEXT,
   description TEXT,
   images TEXT,
+  specs TEXT, -- bkz. product_submissions.specs açıklaması
   source_url TEXT,
-  ai_generated INTEGER NOT NULL DEFAULT 0
+  ai_generated INTEGER NOT NULL DEFAULT 0,
+  architect TEXT -- bkz. product_submissions.architect açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_material_status ON material_submissions(status);
@@ -164,7 +169,8 @@ CREATE TABLE IF NOT EXISTS architect_submissions (
   profession TEXT,
   awards TEXT,
   photo_url TEXT,
-  claimed_profile_key TEXT
+  claimed_profile_key TEXT,
+  about TEXT -- serbest metin biyografi, office_submissions.about ile aynı desen (bkz. migrations/0019_architect_about.sql)
 );
 CREATE INDEX IF NOT EXISTS idx_architect_owner ON architect_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_architect_status ON architect_submissions(status);
@@ -299,6 +305,20 @@ CREATE TABLE IF NOT EXISTS badge_requests (
 CREATE INDEX IF NOT EXISTS idx_badge_user ON badge_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_badge_status ON badge_requests(status);
 CREATE INDEX IF NOT EXISTS idx_badge_target ON badge_requests(target_type, target_key);
+
+-- Admin'in bir mimar/firma profiline satın alma/sahiplenme olmadan DOĞRUDAN verdiği rozet (bkz.
+-- kullanıcı isteği: "Admin mimar veya marka profilini düzenlerken istediği rozeti seçebilsin ve
+-- profile ekleyebilsin"). badge_requests'ten farklı olarak bir user_id/profile_claims gerektirmez —
+-- statik (hiç sahiplenilmemiş) bir profile bile uygulanabilir. Profil başına tek satır (admin
+-- rozeti değiştirirse üzerine yazılır); src/routes/badges.js#handlePublicBadges bunu satın alınan
+-- rozetlerle aynı çıktıya birleştirir.
+CREATE TABLE IF NOT EXISTS admin_badges (
+  profile_type TEXT NOT NULL, -- 'architect' | 'office'
+  profile_key TEXT NOT NULL, -- architects[].name ya da offices[].name
+  badge_type TEXT NOT NULL, -- verified | gold | platinum
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (profile_type, profile_key)
+);
 
 -- Ziyaretçilerin İletişim sayfasındaki formdan gönderdiği mesajlar; admin panelinde okunur.
 CREATE TABLE IF NOT EXISTS contact_messages (

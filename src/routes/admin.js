@@ -4,6 +4,24 @@ import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../li
 import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
+import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
+import { cascadeRemovedFounders, renameOfficeEverywhere } from '../lib/officeFounderCascade.js';
+import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
+
+// Bir <tip>_submissions satırı KALICI OLARAK silindiğinde (bkz. handleSubmissionsAdmin DELETE,
+// src/routes/legacyContent.js#handleContentAction/handleProjectAction) ilgili cascade fonksiyonunu
+// çağırır — bkz. src/lib/cascadeDelete.js (kullanıcı isteği: "bir mimar/ofis/proje/ürünü admin
+// panelinden silersem tüm sistemden o bilgi silinsin").
+async function runCascadeDelete(env, user, typeKey, row) {
+  if (!row) return;
+  if (typeKey === 'architects') return cascadeDeleteArchitect(env, row.name);
+  if (typeKey === 'offices') return cascadeDeleteOffice(env, user, row.name);
+  if (typeKey === 'projects') return cascadeDeleteProject(env, row.claimed_slug || row.slug);
+  if (typeKey === 'products') return cascadeDeleteProduct(env, 'product', `m-${row.id}`);
+  if (typeKey === 'materials') return cascadeDeleteProduct(env, 'material', `m-${row.id}`);
+  if (typeKey === 'news') return cascadeDeleteMisc(env, 'news', row.id);
+  if (typeKey === 'jobs') return cascadeDeleteMisc(env, 'job', row.id);
+}
 
 const TYPE_BY_PATH = {
   offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
@@ -39,6 +57,7 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
   if (sub === 'corrections') return handleCorrectionsAdmin(request, env, url, segments);
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
+  if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
   if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
@@ -151,6 +170,21 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       values.push(id);
       await env.DB.prepare(`UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
+      // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle
+      // (bkz. src/lib/officeFounderCascade.js — src/routes/submissions.js#updateOwnSubmission'daki
+      // aynı çağrı, admin'in doğrudan düzenlediği durum için).
+      if (typeKey === 'offices' && 'founders' in body) {
+        const oldFounders = parseSubmissionRow('offices', existing).founders;
+        await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
+      }
+
+      // Admin panelinden doğrudan firma adı değiştirildiyse (bkz. src/routes/submissions.js#
+      // updateOwnSubmission'daki AYNI cascade, "Düzenle" formu için) diğer TÜM D1 satırlarını da
+      // yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere).
+      if (typeKey === 'offices' && body.name && body.name !== existing.name && (existing.status === 'approved' || body.status === 'approved')) {
+        await renameOfficeEverywhere(env, existing.name, body.name);
+      }
+
       // Bu satır önceden arşivlenmiş bir statik kaydın taslağıysa (bkz. src/routes/legacyContent.js
       // #handleContentAction/handleProjectAction), admin onu burada (Admin Arşiv sekmesindeki özel
       // "Yayınla" DIŞINDA, ör. "Bekleyen Gönderiler" onay akışından) onaylarsa statik kayıt
@@ -185,13 +219,22 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       }
       // Onaylı içerik ya şimdi onaylandı ya da onaylıyken bir alanı/durumu değişti (her iki
       // durumda da public'e yansıyan bir şey değişmiş olabilir) — bkz. src/lib/publicCache.js.
-      if (existing.status === 'approved' || body.status === 'approved') await invalidatePublicCache();
+      if (existing.status === 'approved' || body.status === 'approved') {
+        await invalidatePublicCache();
+        // Var olan (güncelleme ÖNCESİ) kaydın kimliğini hedefler — bkz. src/lib/ssrCache.js.
+        const target = ssrPurgeTargetFor(typeKey, existing);
+        if (target) await purgeSsrDetailCache(target.type, target.key);
+      }
       return json({ ok: true });
     }
 
     if (request.method === 'DELETE') {
+      const existing = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+      const target = existing ? ssrPurgeTargetFor(typeKey, existing) : null;
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+      await runCascadeDelete(env, user, typeKey, existing);
       await invalidatePublicCache();
+      if (target) await purgeSsrDetailCache(target.type, target.key);
       return json({ ok: true });
     }
   }
@@ -341,5 +384,45 @@ async function handleBadgesAdmin(request, env, url, segments) {
     }
     return json({ ok: true });
   }
+  return errorJson('Bulunamadı', 404);
+}
+
+const ADMIN_GRANTABLE_BADGES = new Set(['verified', 'gold', 'platinum']);
+
+// GET/PUT /api/admin/profile-badge?profileType=architect|office&profileKey=<isim> — admin'in
+// bir mimar/marka profiline satın alma/sahiplenme olmadan doğrudan verdiği rozet (bkz. schema.sql#
+// admin_badges, kullanıcı isteği: "Admin mimar veya marka profilini düzenlerken istediği rozeti
+// seçebilsin ve profile ekleyebilsin. Adminin yaptığı bu değişiklik hemen canlıya yansısın").
+// src/routes/badges.js#handlePublicBadges bu tabloyu satın alınan rozetlerle aynı çıktıya
+// birleştirir; o uç önbelleklenmediğinden (bkz. publicCache.js#CACHEABLE_PATHS) değişiklik bir
+// sonraki sayfa yüklemesinde hemen görünür — ayrıca ekstra bir cache temizleme adımına gerek yok.
+async function handleProfileBadgeAdmin(request, env, url) {
+  const profileType = url.searchParams.get('profileType');
+  const profileKey = (url.searchParams.get('profileKey') || '').trim();
+  if (!['architect', 'office'].includes(profileType) || !profileKey) return errorJson('Geçersiz profil.');
+
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare(
+      `SELECT badge_type FROM admin_badges WHERE profile_type = ? AND profile_key = ?`
+    ).bind(profileType, profileKey).first();
+    return json({ badgeType: row?.badge_type || null });
+  }
+
+  if (request.method === 'PUT') {
+    const body = await readJson(request);
+    const badgeType = body.badgeType || null;
+    if (badgeType && !ADMIN_GRANTABLE_BADGES.has(badgeType)) return errorJson('Geçersiz rozet türü.');
+    if (!badgeType) {
+      await env.DB.prepare(`DELETE FROM admin_badges WHERE profile_type = ? AND profile_key = ?`).bind(profileType, profileKey).run();
+    } else {
+      const now = Date.now();
+      await env.DB.prepare(
+        `INSERT INTO admin_badges (profile_type, profile_key, badge_type, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (profile_type, profile_key) DO UPDATE SET badge_type = excluded.badge_type, updated_at = excluded.updated_at`
+      ).bind(profileType, profileKey, badgeType, now).run();
+    }
+    return json({ ok: true });
+  }
+
   return errorJson('Bulunamadı', 404);
 }

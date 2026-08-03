@@ -221,17 +221,17 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
@@ -393,11 +393,87 @@ function runSearch(){
 }
 
 function wireNavSearch(){
-  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
     inp.addEventListener('keydown', (e)=>{
       if(e.key === 'Enter' && e.target.value.trim()){
         window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
       }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
     });
   });
 }

@@ -1,7 +1,7 @@
 import { json, errorJson } from '../lib/http.js';
 import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
-import { handlePublicHidden } from './legacyContent.js';
+import { handlePublicHidden, handlePublicSearchSuggest } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 
 const TYPE_BY_PATH = {
@@ -28,6 +28,7 @@ function toPublicShape(type, row) {
   if (type === 'projects') {
     return {
       slug: parsed.slug, title: parsed.title, category: parsed.category, type: parsed.type,
+      discipline: parsed.discipline,
       location: parsed.location, locationDetail: parsed.locationDetail, date: parsed.date,
       dateBucket: parsed.dateBucket, period: parsed.period, designer: parsed.designer,
       photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },
@@ -38,8 +39,8 @@ function toPublicShape(type, row) {
   }
   if (type === 'products' || type === 'materials') {
     return {
-      title: parsed.title, brand: parsed.brand, website: parsed.website, category: parsed.category,
-      description: parsed.description, images: parsed.images,
+      title: parsed.title, brand: parsed.brand, architect: parsed.architect, website: parsed.website, category: parsed.category,
+      description: parsed.description, images: parsed.images, specs: parsed.specs,
       image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
       source: 'member', submissionId: parsed.id, ...owner,
     };
@@ -48,7 +49,7 @@ function toPublicShape(type, row) {
     return {
       name: parsed.name, dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
       role: parsed.position, status: parsed.position, awards: parsed.awards, photo: parsed.photo_url,
-      source: 'member', submissionId: parsed.id, ...owner,
+      about: parsed.about, source: 'member', submissionId: parsed.id, ...owner,
     };
   }
   // jobs
@@ -75,6 +76,7 @@ export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
   if (segments[2] === 'news') return listPublicNews(request, env);
   if (segments[2] === 'hidden') return handlePublicHidden(request, env);
+  if (segments[2] === 'search-suggest') return handlePublicSearchSuggest(request, env, url);
   if (segments[2] === 'profile-edits') return handlePublicProfileEdits(request, env);
   if (segments[2] === 'project-edits') return handlePublicProjectEdits(request, env);
   if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);
@@ -162,12 +164,17 @@ async function handlePublicProfileEdits(request, env) {
       const parsed = parseSubmissionRow('architects', row);
       out.architect[row.claimed_profile_key] = {
         dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-        role: parsed.position, profession: parsed.profession, photo: parsed.photo_url,
+        role: parsed.position, profession: parsed.profession, photo: parsed.photo_url, about: parsed.about,
       };
     }
     for (const row of officeRes.results) {
       const parsed = parseSubmissionRow('offices', row);
       out.office[row.claimed_profile_key] = {
+        // Yalnızca admin, statik bir firmanın GÖRÜNEN adını claimed_profile_key'den farklı
+        // gönderebilir (bkz. src/routes/submissions.js#updateOwnSubmission) — name burada name !==
+        // claimed_profile_key ise gerçek bir yeniden adlandırmadır, aksi halde statik adla aynıdır
+        // (data.js#renameOfficeEverywhere no-op geçer).
+        name: parsed.name,
         loc: parsed.loc, cats: parsed.cats, yil: parsed.yil, website: parsed.website,
         about: parsed.about, logo: parsed.logo_url,
       };
@@ -191,7 +198,7 @@ async function handlePublicProjectEdits(request, env) {
     for (const row of results) {
       const parsed = parseSubmissionRow('projects', row);
       out[row.claimed_slug] = {
-        title: parsed.title, category: parsed.category, type: parsed.type,
+        title: parsed.title, category: parsed.category, type: parsed.type, discipline: parsed.discipline,
         location: parsed.location, locationDetail: parsed.locationDetail,
         date: parsed.date, dateBucket: parsed.dateBucket, designer: parsed.designer,
         photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },

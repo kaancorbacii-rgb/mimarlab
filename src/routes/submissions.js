@@ -4,11 +4,16 @@ import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField } from '../lib/submissionTypes.js';
 import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
+import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
+import { cascadeRemovedFounders, renameOfficeEverywhere } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden } from './legacyContent.js';
 // projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
 // sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
 // src/lib/seo.js'teki aynı desen — orada da SSR meta için kullanılıyor).
 import projeJs from '../../projeler-data.js';
+import dataJs from '../../data.js';
+
+const { architects: staticArchitects, offices: staticOffices } = dataJs;
 
 const TYPE_BY_PATH = {
   offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
@@ -30,20 +35,49 @@ const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
 // düzenleyince firma sitede tamamen kayboluyordu, admin panelinde her şey normal görünüyordu).
 const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'claimed_profile_key', projects: 'claimed_slug' };
 
+const STATIC_LIST_BY_TYPE = { architects: staticArchitects, offices: staticOffices };
+
+// office_submissions.claimed_profile_key HER ZAMAN orijinal statik adı taşır (sabit, hiç değişmez —
+// data.js kaydına geri bağlanan anahtar), ama admin bir firmayı yeniden adlandırdığında (bkz.
+// renameOfficeEverywhere) profile_claims.profile_key/legacy_content_hidden.content_key GÜNCEL
+// (yeni) adı taşıyacak şekilde cascade edilir — çünkü src/routes/badges.js#handlePublicBadges
+// b.target_key = c.profile_key JOIN'i yapar ve badge_requests.target_key de AYNI cascade'le güncel
+// adı taşır; profile_claims'i sabit bırakmak bu JOIN'i kırardı. Bu yüzden claimed_profile_key
+// (sabit) ile bu tablolara bakan HER yer, önce bu yardımcıyla GÜNCEL adı çözmeli.
+async function resolveCurrentOfficeName(env, claimedProfileKey) {
+  const row = await env.DB.prepare(
+    `SELECT name FROM office_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
+  ).bind(claimedProfileKey).first();
+  return (row && row.name) || claimedProfileKey;
+}
+
 async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue) {
   if (status !== 'approved' || !claimedValue) return;
   const claimedColumn = CLAIMED_COLUMN_BY_TYPE[typeKey];
   if (!claimedColumn) return;
-  await setLegacyHidden(env, user, typeKey, claimedValue, false);
+  const key = typeKey === 'offices' ? await resolveCurrentOfficeName(env, claimedValue) : claimedValue;
+  await setLegacyHidden(env, user, typeKey, key, false);
 }
 
 async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
+  // claimed_profile_key statik data.js kaydının orijinal adıyla birebir eşleşmeli — aksi halde (ör.
+  // bir yeniden adlandırma sonrası bayatlamış bir "Düzenle" linki, ya da elle uydurulmuş bir URL ile)
+  // statik kayda hiç bağlı olmayan "hayalet" bir gönderi oluşabilirdi (bkz. gerçek bulgu: Han
+  // Tümertekin → Tümertekin Architects yeniden adlandırıldıktan SONRA firmanın kendi sayfasındaki
+  // "Düzenle" butonu YENİ adı ?claim= olarak kullanmaya devam ediyordu; bu kontrol olmadan bu ikinci
+  // gönderi statik kayıttan kopuk, boş bir formla oluşuyor ve kullanıcıya "her şey silindi" gibi
+  // görünüyordu).
+  const staticList = STATIC_LIST_BY_TYPE[typeKey];
+  if (staticList && !staticList.some(x => x.name === profileKey)) {
+    return errorJson('Bu profil artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.');
+  }
   if (user.role === 'admin') return null; // admin, sahiplenmiş olsun olmasın her mimar/marka profilini düzenleyebilir
   const profileType = CLAIM_PROFILE_TYPE[typeKey];
   if (!profileType) return errorJson('Bu tip için profil düzenleme desteklenmiyor.');
+  const currentName = typeKey === 'offices' ? await resolveCurrentOfficeName(env, profileKey) : profileKey;
   const claim = await env.DB.prepare(
     `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
-  ).bind(user.id, profileType, profileKey).first();
+  ).bind(user.id, profileType, currentName).first();
   if (!claim) return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
   return null;
 }
@@ -124,7 +158,12 @@ async function createSubmission(request, env, user, typeKey) {
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
     if (err) return err;
-    body.name = body.claimed_profile_key; // isim, eşleşen statik profille birebir aynı kalmalı
+    // bkz. updateOwnSubmission'daki AYNI istisna — yalnızca admin, bir firmanın GÖRÜNEN adını
+    // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm
+    // firma isimlerini değişebilme yetkisi ver").
+    if (!(typeKey === 'offices' && user.role === 'admin' && body.name)) {
+      body.name = body.claimed_profile_key;
+    }
   }
   if (typeKey === 'projects' && body.claimed_slug) {
     const err = await verifyClaimedSlug(env, user, body.claimed_slug);
@@ -158,10 +197,25 @@ async function createSubmission(request, env, user, typeKey) {
   // hâlâ gizli olabilir; onaylandığı an tekrar görünür olmalı (bkz. unhideIfClaimedApproved).
   await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? body.claimed_slug : body.claimed_profile_key);
 
+  // Admin bu firmayı ilk kez düzenlerken adını da değiştirmiş olabilir (bkz. yukarıdaki istisna) —
+  // statik ad hâlâ TÜM diğer D1 satırlarında (rozetler, kayıtlı öğeler vb.) anahtar olarak
+  // kullanıldığından, bunları da yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere).
+  if (status === 'approved' && typeKey === 'offices' && body.claimed_profile_key && body.name !== body.claimed_profile_key) {
+    await renameOfficeEverywhere(env, body.claimed_profile_key, body.name);
+  }
+
   // Yalnızca admin'in kendi gönderisi anında 'approved' olarak yayına girdiğinden (yukarıdaki
   // yorum) public önbelleği yalnızca bu durumda değişir — sıradan üye gönderileri 'pending' kalıp
   // onay bekleyene dek zaten hiçbir public uçta görünmez, gereksiz yere temizlemeye gerek yok.
-  if (status === 'approved') await invalidatePublicCache();
+  if (status === 'approved') {
+    await invalidatePublicCache();
+    // claimed_slug/claimed_profile_key'liyse bu, ziyaretçilerin ZATEN görüntülemiş olabileceği
+    // statik bir sayfaya bindirilen bir düzenlemedir — o sayfanın SSR önbelleğini temizle (bkz.
+    // src/lib/ssrCache.js). Marka yeni (claim'siz) bir kayıt için bu bir no-op'tur (henüz hiç
+    // önbelleklenmemiş bir anahtarı silmeye çalışmak zararsızdır).
+    const target = ssrPurgeTargetFor(typeKey, { ...row, id });
+    if (target) await purgeSsrDetailCache(target.type, target.key);
+  }
   return json({ id, status }, 201);
 }
 
@@ -196,7 +250,12 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
     if (err) return err;
-    body.name = body.claimed_profile_key; // isim, eşleşen statik profille birebir aynı kalmalı
+    // bkz. createSubmission'daki AYNI istisna — yalnızca admin, bir firmanın GÖRÜNEN adını
+    // claimed_profile_key'den farklı gönderebilir (bkz. kullanıcı isteği: "Admin hesabına tüm
+    // firma isimlerini değişebilme yetkisi ver").
+    if (!(typeKey === 'offices' && user.role === 'admin' && body.name)) {
+      body.name = body.claimed_profile_key;
+    }
   }
   if (typeKey === 'projects' && body.claimed_slug) {
     const err = await verifyClaimedSlug(env, user, body.claimed_slug);
@@ -218,6 +277,24 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
 
+  // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle (bkz.
+  // src/lib/officeFounderCascade.js — gerçek "kurucu/ortak" görünürlüğü bu alandan gelir, founders
+  // dizisinin kendisi yalnızca kozmetiktir).
+  if (typeKey === 'offices' && 'founders' in body) {
+    const oldFounders = parseSubmissionRow('offices', existing).founders;
+    await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
+  }
+
+  // Firma yeniden adlandırıldıysa (statik/claimed profilde yalnızca admin, claim'siz sıradan bir
+  // firmada sahibi de yapabilir — bkz. yukarıdaki istisna) diğer TÜM D1 satırlarını da yeni ada taşı
+  // (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere). claimed profillerde eski ad HER
+  // ZAMAN body.claimed_profile_key'dir (claimed_profile_key kendisi değişmez); claim'siz profillerde
+  // eski ad existing.name'dir.
+  if (status === 'approved' && typeKey === 'offices') {
+    const oldName = body.claimed_profile_key || existing.name;
+    if (row.name !== oldName) await renameOfficeEverywhere(env, oldName, row.name);
+  }
+
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
   // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
   await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key);
@@ -225,6 +302,12 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // Onaylı içerik ya şimdi onaylandı ya da (sıradan üye kendi onaylı içeriğini düzenlediğinde,
   // bkz. yukarıdaki status ataması) tekrar onay bekler duruma düşüp public'ten kalkmış olabilir —
   // her iki yönde de public önbellek eskimiş olacağından temizlenir.
-  if (status === 'approved' || existing.status === 'approved') await invalidatePublicCache();
+  if (status === 'approved' || existing.status === 'approved') {
+    await invalidatePublicCache();
+    // Değişiklik ÖNCESİ kaydın kimliğini hedefler (görüntülenen sayfa hâlâ bu anahtar altında
+    // önbelleklenmiş olabilir) — bkz. src/lib/ssrCache.js.
+    const target = ssrPurgeTargetFor(typeKey, existing);
+    if (target) await purgeSsrDetailCache(target.type, target.key);
+  }
   return json({ id, status });
 }

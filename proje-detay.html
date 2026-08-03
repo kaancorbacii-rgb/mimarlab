@@ -174,7 +174,8 @@
   .rating-summary{font-size:12.5px; color:var(--ink-soft);}
 
   /* ---------- COMMENTS ---------- */
-  .comments-section{max-width:900px; margin:0 auto; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
+  .comments-section{max-width:1260px; margin:0 auto; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
+  .comments-inner{max-width:900px;}
   .comments-title{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; margin:0 0 20px;}
   .comment-form-wrap{margin-bottom:24px;}
   .comment-form textarea{width:100%; min-height:90px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
@@ -485,13 +486,15 @@
   </div>
 
   <div class="comments-section">
-    <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
-    <div class="comment-form-wrap" id="comment-form-wrap"></div>
-    <div class="comments-list" id="comments-list"></div>
+    <div class="comments-inner">
+      <h2 class="comments-title">Yorumlar (<span id="comments-count">0</span>)</h2>
+      <div class="comment-form-wrap" id="comment-form-wrap"></div>
+      <div class="comments-list" id="comments-list"></div>
+    </div>
   </div>
 
   <div class="related-section" id="same-designer-section" style="display:none;">
-    <h2 class="related-title" id="same-designer-title">Ofisin/Mimarın Diğer Projeleri</h2>
+    <h2 class="related-title" id="same-designer-title">Mimarın/Firmanın Diğer Projeleri</h2>
     <div class="related-grid-scroll" id="same-designer-grid"></div>
   </div>
 
@@ -524,17 +527,17 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
@@ -609,6 +612,13 @@ if(!p){
       if(edits[p.slug]) p = { ...p, ...edits[p.slug] };
     }
   }catch{}
+
+  // Mimar/Firma "chip"lerindeki fotoğraf/logo, architects[]/offices[] statik kayıtlarından
+  // okunur (bkz. architectChipHtml/officeChipHtml aşağıda) — bu yüzden render'dan ÖNCE onaylı
+  // profil düzenlemeleriyle yüklenen fotoğraf/logo bindirilmezse (bkz. data.js#applyProfileEditPhotos)
+  // burada hep eski/eksik görünürdü (bkz. kullanıcı isteği: mimar/firma profiline fotoğraf/logo
+  // yüklenmesine rağmen proje detay sayfasında görünmüyordu).
+  try{ await applyProfileEditPhotos(); }catch{}
 
   document.title = `${p.title} — MİMARLAB`;
   {
@@ -718,8 +728,9 @@ if(!p){
   const parseLocationForKunye = parseLocationFull;
 
   let metaHtml = '';
-  if(p.category && p.category.length) metaHtml += `<div><strong>Tür:</strong> ${p.category.map(v => filterLinkHtml('category', v)).join(' / ')}</div>`;
-  if(p.type && p.type.length) metaHtml += `<div><strong>Tip:</strong> ${p.type.map(v => filterLinkHtml('type', v)).join(' / ')}</div>`;
+  if(p.discipline && p.discipline.length) metaHtml += `<div><strong>Tür:</strong> ${p.discipline.map(v => filterLinkHtml('discipline', v)).join(' / ')}</div>`;
+  if(p.category && p.category.length) metaHtml += `<div><strong>Tip:</strong> ${p.category.map(v => filterLinkHtml('category', v)).join(' / ')}</div>`;
+  if(p.type && p.type.length) metaHtml += `<div><strong>Tip Grubu:</strong> ${p.type.map(v => filterLinkHtml('type', v)).join(' / ')}</div>`;
   {
     const loc = parseLocationForKunye(p.location);
     const districtText = loc.district ? escapeHtml(loc.district) + ', ' : '';
@@ -729,7 +740,7 @@ if(!p){
   if(p.date) metaHtml += `<div><strong>Yıl:</strong> ${p.dateBucket ? filterLinkHtml('dateBucket', p.dateBucket, p.date) : escapeHtml(p.date)}</div>`;
   if(p.photoCredit && p.photoCredit.text){
     const creditUrl = p.photoCredit.url ? safeUrl(p.photoCredit.url) : '';
-    metaHtml += `<div><strong>Fotoğrafçı:</strong> ${creditUrl ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(p.photoCredit.text)}</a>` : escapeHtml(p.photoCredit.text)}</div>`;
+    metaHtml += `<div><strong>Fotoğraf:</strong> ${creditUrl ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(p.photoCredit.text)}</a>` : escapeHtml(p.photoCredit.text)}</div>`;
   }
   document.getElementById('detail-meta').innerHTML = metaHtml;
   document.getElementById('detail-desc').textContent = p.description;
@@ -938,7 +949,7 @@ if(!p){
     .then(res => res.ok ? res.json() : null)
     .then(data => {
       if(!data) return;
-      document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : 'Henüz kaydedilmedi';
+      document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : '';
     })
     .catch(()=>{});
 
@@ -1206,16 +1217,26 @@ async function runProjectModeration(p, action){
 }
 
 (async function initProjectDetail(){
+  // Üyelerin gönderip admin'in onayladığı (claimed_slug'sız, TAMAMEN yeni) projeler statik
+  // projeler[] dizisine İLK render'dan ÖNCE eklenir — renderProjectDetail() içindeki "Mimarın/
+  // Firmanın Diğer Projeleri"/"İlgili Projeler" bölümleri (bkz. sameDesigner/related) SADECE bu
+  // dizide arama yaptığından, bu adım yalnızca "statik listede bulunamadı" durumuna ertelenirse
+  // (önceki davranış) statik bir projenin sayfasında admin panelinden yeni eklenen projeler bu
+  // bölümlerde hiç görünmüyordu (bkz. kullanıcı isteği: "admin panelinden siteye yeni eklenen
+  // projeler gözükmüyor").
+  try{
+    const res = await fetch('/api/public/projects');
+    const data = res.ok ? await res.json() : {items:[]};
+    const existingSlugs = new Set(projects.map(pr => pr.slug));
+    for(const item of (data.items || [])){
+      if(!existingSlugs.has(item.slug)){ projects.push(item); existingSlugs.add(item.slug); }
+    }
+  }catch{}
+
   const foundProject = await renderProjectDetail();
   if(!foundProject){
-    // Statik listede yoksa, üyelerin gönderip onaylanan projeler arasında olabilir.
-    try{
-      const res = await fetch('/api/public/projects');
-      const data = res.ok ? await res.json() : {items:[]};
-      projects.push(...(data.items || []));
-      const p2 = await renderProjectDetail();
-      if(p2){ loadRelatedCatalog(p2); mountEditButton(p2); }
-    }catch{}
+    // /api/public/projects zaten yukarıda merge edildi — buraya düşülüyorsa proje gerçekten yok
+    // (silinmiş/gizlenmiş/hatalı slug), tekrar denemenin bir faydası yok.
   } else {
     loadRelatedCatalog(foundProject);
     mountEditButton(foundProject);
@@ -1224,11 +1245,87 @@ async function runProjectModeration(p, action){
 
 
 function wireNavSearch(){
-  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
     inp.addEventListener('keydown', (e)=>{
       if(e.key === 'Enter' && e.target.value.trim()){
         window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
       }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
     });
   });
 }

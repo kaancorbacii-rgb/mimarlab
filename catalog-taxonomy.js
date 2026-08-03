@@ -71,6 +71,8 @@ const CATALOG_BRAND_DOMAINS = {
   "Koleksiyon": "coleksiyon.com.tr", "Derin Design": "derindesign.com", "Zara Home": "zarahome.com",
   "Miele": "miele.com.tr", "Bosch": "bosch-home.com.tr", "Gaggenau": "gaggenau.com",
   "Belenco": "belenco.com", "Weinor": "weinor.de", "Nef Mutfak": "nef.com.tr",
+  "NG Kütahya Seramik": "ngkutahyaseramik.com.tr", "Tuna Office": "tunaofis.com",
+  "Kaleseramik": "kale.com.tr", "Normod": "normod.com", "Lazzoni": "lazzoni.com",
 };
 
 const CATALOG_PALETTE = ['#2B425F', '#3E5A78', '#5B7A9B', '#4F6478', '#7C4B4B'];

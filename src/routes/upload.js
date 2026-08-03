@@ -1,6 +1,7 @@
 import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { checkR2Quota, recordR2Usage, r2QuotaErrorResponse } from '../lib/r2Quota.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (haber/iş ilanı görselleri)
 const CONTEXT_MAX_BYTES = {
@@ -21,6 +22,14 @@ export async function handleUploadRoute(request, env) {
 
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  // Proje/ürün/mimar/firma galerileri için tek seferde çok sayıda görsel yüklenebildiğinden
+  // (bkz. kullanıcı isteği: "çok fazla görsel yüklemesi olacak, önlem al") üst sınır cömert
+  // tutulur — asıl amaç gerçek kullanımı engellemek değil, R2 kotasını (bkz. r2Quota.js) tüketen
+  // otomatik/kötüye kullanım kaynaklı yükleme patlamalarına karşı ikinci bir savunma katmanı.
+  if (!(await checkRateLimit(env, 'upload', user.id, 60, 10 * 60 * 1000))) {
+    return errorJson('Çok fazla görsel yüklemeye çalıştın, birkaç dakika sonra tekrar dene.', 429);
+  }
 
   let form;
   try {

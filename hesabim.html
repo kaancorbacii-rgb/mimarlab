@@ -163,6 +163,19 @@
   .dash-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
   .dash-field input{width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
 
+  /* ---------- DASHBOARD PAGINATION (proje.html'deki .pagination/.page-btn ile aynı) ---------- */
+  .dash-pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px; flex-wrap:wrap;}
+  .dash-pagination .page-btn{
+    min-width:32px; height:32px; padding:0 8px;
+    border:1px solid var(--line); background:var(--paper);
+    border-radius:8px; font-size:12.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .dash-pagination .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .dash-pagination .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .dash-pagination .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .dash-pagination .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
+  .dash-pagination .page-ellipsis{color:var(--ink-soft); padding:0 4px;}
+
   /* ---------- SAVED FILTER ---------- */
   .saved-filter{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;}
   .saved-filter-btn{
@@ -362,7 +375,7 @@
             <option value="Freelance">Freelance</option>
             <option value="Öğrenci">Öğrenci</option>
             <option value="Emekli">Emekli</option>
-            <option value="İş Arıyor">İş Arıyor</option>
+            <option value="İşsiz">İşsiz</option>
           </select>
         </div>
       </div>
@@ -391,10 +404,10 @@
     <div class="dash-section">
       <h2>Profil Bilgileri</h2>
       <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="fact-name">—</span></div>
+      <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="fact-dob">—</span></div>
+      <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
       <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="fact-profession">—</span></div>
       <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="fact-position">—</span></div>
-      <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
-      <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="fact-dob">—</span></div>
       <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="fact-joined">—</span></div>
     </div>
 
@@ -412,6 +425,7 @@
         </div>
       </div>
       <div id="dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
+      <div class="dash-pagination" id="notif-pagination"></div>
     </div>
 
     <div class="dash-section">
@@ -426,6 +440,7 @@
         <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
       </div>
       <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
+      <div class="dash-pagination" id="submissions-pagination"></div>
     </div>
 
     <div class="dash-section">
@@ -434,8 +449,11 @@
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
         <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
         <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+        <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+        <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
       </div>
       <div id="dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
+      <div class="dash-pagination" id="saved-pagination"></div>
     </div>
 
     <div class="dash-section">
@@ -451,12 +469,12 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
@@ -471,6 +489,8 @@
         <h4>Topluluk</h4>
         <a href="giris-yap.html">Giriş Yap</a>
         <a href="uye-ol.html">Üye Ol</a>
+        <a href="satin-al.html">Rozet Al</a>
+        <a href="iade-et.html">İade Et</a>
       </div>
       <div class="footer-col">
         <h4>Kurumsal</h4>
@@ -491,7 +511,52 @@ const EDIT_PAGE_BY_TYPE = {
   offices: 'ofis-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
   jobs: 'is-ilani-ver.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html',
 };
-const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı' };
+const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
+const PAGE_SIZE_DASH = 10;
+// Bildirimler/Paylaştığım İçerikler/Kaydettiklerim kutularının paylaştığı basit sayfalama —
+// proje.html'deki .pagination/.page-btn/getPageWindowSize/getPageList ile BİREBİR aynı: ilk/son
+// sayfa her zaman ayrı buton, aradakiler kayan bir pencereyle ve gereken yerde '...' ile gösterilir
+// (bkz. kullanıcı isteği: "proje sayfasındaki gibi olsun, arada ... kısmı olsun tek satırda ilk ve
+// son butonu görelim" — önceki tüm-sayfa-numaralı hâlin yerine).
+function dashPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  return 9;
+}
+function dashPageList(totalPages, currentPage){
+  const N = dashPageWindowSize();
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
+}
+function renderDashPagination(containerId, currentPage, totalPages, onChange){
+  const el = document.getElementById(containerId);
+  if(totalPages <= 1){ el.innerHTML = ''; return; }
+  let html = `<button class="page-btn page-btn-arrow" data-nav="prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  dashPageList(totalPages, currentPage).forEach(p=>{
+    if(p === '...') html += `<span class="page-ellipsis">…</span>`;
+    else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+  });
+  html += `<button class="page-btn page-btn-arrow" data-nav="next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=> onChange(parseInt(btn.dataset.page)));
+  });
+  const prevBtn = el.querySelector('[data-nav="prev"]');
+  const nextBtn = el.querySelector('[data-nav="next"]');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage > 1) onChange(currentPage - 1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage < totalPages) onChange(currentPage + 1); });
+}
 const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', ogrenci:'Öğrenci', diger:'Diğer' };
 let currentUser = null;
 
@@ -607,6 +672,7 @@ document.getElementById('avatar-file-input').addEventListener('change', async (e
 
 let allSubmissions = [];
 let submissionsFilter = '';
+let submissionsPage = 1;
 
 async function loadSubmissions(){
   const types = Object.keys(TYPE_LABELS);
@@ -622,14 +688,20 @@ function renderSubmissions(){
 
   if(!allSubmissions.length){
     container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="ofis-ekle.html">Firma Ekle</a></div>';
+    document.getElementById('submissions-pagination').innerHTML = '';
     return;
   }
   const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
   if(!all.length){
     container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
+    document.getElementById('submissions-pagination').innerHTML = '';
     return;
   }
-  container.innerHTML = all.map(({type, item}) => `
+  const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE_DASH));
+  if(submissionsPage > totalPages) submissionsPage = totalPages;
+  const startIdx = (submissionsPage - 1) * PAGE_SIZE_DASH;
+  const pageItems = all.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+  container.innerHTML = pageItems.map(({type, item}) => `
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft);">
       <div>
         <div style="font-weight:600; font-size:13.5px;">${escapeHtml(itemTitle(type, item))}</div>
@@ -641,10 +713,12 @@ function renderSubmissions(){
       </div>
     </div>
   `).join('');
+  renderDashPagination('submissions-pagination', submissionsPage, totalPages, (p)=>{ submissionsPage = p; renderSubmissions(); });
 }
 
 let savedItems = [];
 let savedFilter = '';
+let savedPage = 1;
 
 async function loadSaved(){
   const res = await fetch('/api/saved');
@@ -658,13 +732,19 @@ function renderSaved(){
   const items = savedFilter ? savedItems.filter(it => it.item_type === savedFilter) : savedItems;
   if(!savedItems.length){
     container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+    document.getElementById('saved-pagination').innerHTML = '';
     return;
   }
   if(!items.length){
     container.innerHTML = '<div class="dash-empty">Bu türde kaydettiğin bir içerik yok.</div>';
+    document.getElementById('saved-pagination').innerHTML = '';
     return;
   }
-  container.innerHTML = items.map(it => `
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+  if(savedPage > totalPages) savedPage = totalPages;
+  const startIdx = (savedPage - 1) * PAGE_SIZE_DASH;
+  const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+  container.innerHTML = pageItems.map(it => `
     <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
       <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
         ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(safeUrl(it.item_image))}" alt="" loading="lazy">` : `<div class="saved-row-noimg"></div>`}
@@ -683,12 +763,14 @@ function renderSaved(){
       loadSaved();
     });
   });
+  renderDashPagination('saved-pagination', savedPage, totalPages, (p)=>{ savedPage = p; renderSaved(); });
 }
 
 document.getElementById('submissions-filter').addEventListener('click', (e)=>{
   const btn = e.target.closest('.submissions-filter-btn');
   if(!btn) return;
   submissionsFilter = btn.dataset.filter;
+  submissionsPage = 1;
   document.querySelectorAll('#submissions-filter .submissions-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
   renderSubmissions();
 });
@@ -697,6 +779,7 @@ document.getElementById('saved-filter').addEventListener('click', (e)=>{
   const btn = e.target.closest('.saved-filter-btn');
   if(!btn) return;
   savedFilter = btn.dataset.filter;
+  savedPage = 1;
   document.querySelectorAll('.saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
   renderSaved();
 });
@@ -848,16 +931,28 @@ async function syncClaimedArchitectData(items){
   }catch{}
 }
 
+let notifItems = [];
+let notifPage = 1;
+
 async function loadNotifications(){
-  const container = document.getElementById('dash-notifications');
   const res = await fetch('/api/notifications/mine');
   const data = res.ok ? await res.json() : { items: [] };
-  const items = data.items || [];
-  if(!items.length){
+  notifItems = data.items || [];
+  renderNotifications();
+}
+
+function renderNotifications(){
+  const container = document.getElementById('dash-notifications');
+  if(!notifItems.length){
     container.innerHTML = '<div class="dash-empty">Henüz bir bildirimin yok.</div>';
+    document.getElementById('notif-pagination').innerHTML = '';
     return;
   }
-  container.innerHTML = items.map(n => `
+  const totalPages = Math.max(1, Math.ceil(notifItems.length / PAGE_SIZE_DASH));
+  if(notifPage > totalPages) notifPage = totalPages;
+  const startIdx = (notifPage - 1) * PAGE_SIZE_DASH;
+  const pageItems = notifItems.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+  container.innerHTML = pageItems.map(n => `
     <div class="notif-row${n.is_read ? '' : ' unread'}" data-id="${n.id}">
       <div class="notif-dot-col">${n.is_read ? '' : '<span class="notif-dot"></span>'}</div>
       <div style="flex:1; min-width:0;">
@@ -871,6 +966,8 @@ async function loadNotifications(){
       row.classList.remove('unread');
       const dot = row.querySelector('.notif-dot');
       if(dot) dot.remove();
+      const item = notifItems.find(n => String(n.id) === row.dataset.id);
+      if(item) item.is_read = true;
       try{
         await fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, {
           method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({is_read:true}),
@@ -878,6 +975,7 @@ async function loadNotifications(){
       }catch{}
     }, { once:true });
   });
+  renderDashPagination('notif-pagination', notifPage, totalPages, (p)=>{ notifPage = p; renderNotifications(); });
 }
 
 document.getElementById('notif-read-all-btn').addEventListener('click', async ()=>{
@@ -886,6 +984,7 @@ document.getElementById('notif-read-all-btn').addEventListener('click', async ()
 
 document.getElementById('notif-delete-all-btn').addEventListener('click', async ()=>{
   if(!confirm('Tüm bildirimlerini silmek istediğine emin misin? Bu işlem geri alınamaz.')) return;
+  notifPage = 1;
   try{ await fetch('/api/notifications/delete-all', { method:'POST' }); } finally { loadNotifications(); }
 });
 
@@ -899,11 +998,87 @@ loadUser().then(() => {
 });
 
 function wireNavSearch(){
-  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
     inp.addEventListener('keydown', (e)=>{
       if(e.key === 'Enter' && e.target.value.trim()){
         window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
       }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
     });
   });
 }

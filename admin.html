@@ -88,7 +88,7 @@
   .admin-card-body{flex:1; min-width:200px; display:flex; gap:12px; align-items:flex-start;}
   .admin-card-title{font-family:'Inter', sans-serif; font-size:16.5px; font-weight:700; margin:0 0 3px;}
   .admin-card-meta{font-size:12.5px; color:var(--ink-soft); line-height:1.6;}
-  .admin-card-desc{font-size:13px; color:var(--ink); margin-top:8px; line-height:1.55;}
+  .admin-card-desc{font-size:13px; color:var(--ink); margin-top:8px; line-height:1.55; white-space:pre-wrap;}
   .admin-card-claim-note{display:inline-block; font-size:11.5px; font-weight:600; color:var(--accent); background:rgba(224,138,62,0.12); border-radius:100px; padding:3px 10px; margin:2px 0 5px;}
   .admin-card-details{margin-top:8px; font-size:12.5px; color:var(--ink-soft); display:flex; flex-direction:column; gap:3px;}
   .admin-card-details span{font-weight:600; color:var(--ink);}
@@ -99,6 +99,7 @@
   .badge-pending{background:rgba(224,138,62,0.15); color:var(--accent);}
   .badge-approved{background:rgba(62,122,85,0.15); color:var(--good);}
   .badge-rejected{background:rgba(184,76,76,0.15); color:var(--bad);}
+  .badge-neutral{background:rgba(91,122,155,0.15); color:var(--brass);}
   .admin-actions{display:flex; gap:8px; flex-shrink:0;}
   .admin-btn{padding:7px 14px; border-radius:100px; font-size:12.5px; font-weight:600; border:1px solid var(--line); background:var(--paper);}
   .admin-btn:hover{border-color:var(--walnut);}
@@ -107,6 +108,18 @@
   .admin-btn.danger{color:var(--bad); border-color:rgba(184,76,76,0.4);}
   .admin-btn.danger:hover{background:rgba(184,76,76,0.08);}
   .admin-empty{padding:40px 20px; text-align:center; color:var(--ink-soft); font-size:13.5px; background:var(--paper-card); border:1px dashed var(--line); border-radius:14px;}
+
+  /* ---------- İçerik listesi sayfalama (hesabim.html'deki .dash-pagination ile aynı) ---------- */
+  .dash-pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px; flex-wrap:wrap;}
+  .dash-pagination .page-btn{
+    min-width:32px; height:32px; padding:0 8px; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper-card); color:var(--ink-soft); font-size:13px; font-family:inherit; cursor:pointer;
+  }
+  .dash-pagination .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .dash-pagination .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .dash-pagination .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .dash-pagination .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
+  .dash-pagination .page-ellipsis{color:var(--ink-soft); padding:0 4px;}
 
   .admin-form{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:20px;}
   .admin-form h3{font-family:'Inter', sans-serif; font-size:16px; margin:0 0 14px;}
@@ -213,6 +226,7 @@
       <div class="admin-section" id="section-content">
         <div class="admin-subtabs" id="content-subtabs"></div>
         <div id="content-list"></div>
+        <div class="dash-pagination" id="content-pagination"></div>
       </div>
 
       <div class="admin-section" id="section-archive">
@@ -266,6 +280,50 @@ const SUBTAB_TYPES = ['offices', 'projects', 'products'];
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 let pendingType = 'all';
 let contentType = 'all';
+let contentPage = 1;
+const CONTENT_PAGE_SIZE = 10;
+
+// hesabim.html'deki dashPageWindowSize/dashPageList/renderDashPagination ile BİREBİR aynı desen
+// (bkz. kullanıcı isteği: "yayındaki içerikler kısmını sayfalara ayır, bir sayfada en fazla 10 içerik olsun").
+function dashPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  return 9;
+}
+function dashPageList(totalPages, currentPage){
+  const N = dashPageWindowSize();
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
+}
+function renderDashPagination(containerId, currentPage, totalPages, onChange){
+  const el = document.getElementById(containerId);
+  if(totalPages <= 1){ el.innerHTML = ''; return; }
+  let html = `<button class="page-btn page-btn-arrow" data-nav="prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  dashPageList(totalPages, currentPage).forEach(p=>{
+    if(p === '...') html += `<span class="page-ellipsis">…</span>`;
+    else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+  });
+  html += `<button class="page-btn page-btn-arrow" data-nav="next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=> onChange(parseInt(btn.dataset.page)));
+  });
+  const prevBtn = el.querySelector('[data-nav="prev"]');
+  const nextBtn = el.querySelector('[data-nav="next"]');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage > 1) onChange(currentPage - 1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage < totalPages) onChange(currentPage + 1); });
+}
 
 async function api(path, opts){
   const res = await fetch(path, opts);
@@ -437,10 +495,12 @@ async function loadPending(){
   });
 }
 
-async function loadContent(){
-  renderSubtabs(document.getElementById('content-subtabs'), contentType, (t)=>{ contentType = t; loadContent(); });
+async function loadContent(resetPage){
+  if(resetPage) contentPage = 1;
+  renderSubtabs(document.getElementById('content-subtabs'), contentType, (t)=>{ contentType = t; loadContent(true); });
   const list = document.getElementById('content-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  document.getElementById('content-pagination').innerHTML = '';
   let items;
   if(contentType === 'all'){
     items = await fetchAllTypes('approved');
@@ -449,7 +509,11 @@ async function loadContent(){
     items = (data.items || []).map(item => ({...item, __type: contentType}));
   }
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu tipte yayında içerik yok.</div>'; return; }
-  list.innerHTML = items.map(item => `
+  const totalPages = Math.max(1, Math.ceil(items.length / CONTENT_PAGE_SIZE));
+  if(contentPage > totalPages) contentPage = totalPages;
+  const pageItems = items.slice((contentPage - 1) * CONTENT_PAGE_SIZE, contentPage * CONTENT_PAGE_SIZE);
+  renderDashPagination('content-pagination', contentPage, totalPages, (p)=>{ contentPage = p; loadContent(); });
+  list.innerHTML = pageItems.map(item => `
     <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
         <div class="admin-card-body">
@@ -486,9 +550,9 @@ async function loadContent(){
 // olarak burada aynı listede görünür (bkz. kullanıcı isteği: "mimar, firma ve ürüne silme ve
 // arşivleme yetkisi ver"). "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider
 // (ürünlerin claim akışı yok, her zaman edit=); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
-const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün' };
-const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'ofis-ekle.html', products: 'urun-ekle.html' };
-const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null };
+const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
+const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'ofis-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html' };
+const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null, materials: null };
 let archiveType = 'projects';
 
 function archiveEditHref(type, item){
@@ -554,7 +618,7 @@ async function loadArchive(){
 // (bkz. src/routes/legacyContent.js, kullanıcı isteği: "admin tüm sitede tüm yetkilere sahip
 // olsun ... arşivleme"). Kayıt sayısı çok yüksek olduğundan (2650+) her zaman tip + en az 2
 // karakterlik bir arama gerektirir, tüm liste tek seferde dökülmez.
-const LEGACY_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün' };
+const LEGACY_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
 let legacyType = 'projects';
 let legacySearchTimer = null;
 
@@ -721,7 +785,7 @@ async function loadBadgeRequests(){
     <div class="admin-card" data-id="${b.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL / ay</span> <span class="admin-badge badge-approved">${b.target_type === 'office' ? 'Firma: ' + escapeHtml(b.target_key || '') : 'Kendisi için'}</span></div>
+          <div class="admin-card-title">${BADGE_TYPE_LABELS[b.badge_type] || escapeHtml(b.badge_type)} <span class="admin-badge badge-pending">${Number(b.price_try).toFixed(2)} TL / ay</span> <span class="admin-badge badge-approved">${b.target_type === 'office' ? 'Firma: ' + escapeHtml(b.target_key || '') : 'Kendisi için'}</span> <span class="admin-badge badge-neutral">${b.payment_provider === 'havale' ? 'Havale/EFT' : (b.payment_provider === 'iyzico' ? 'Kart (iyzico)' : 'Elle')}</span></div>
           <div class="admin-card-meta">${escapeHtml(b.user_name)} · ${escapeHtml(b.user_email)} · ${new Date(b.created_at).toLocaleDateString('tr-TR')}${b.status === 'active' && b.expires_at ? ` · ${new Date(b.expires_at).toLocaleDateString('tr-TR')} tarihine kadar aktif` : ''}</div>
         </div>
         ${b.status === 'pending' ? `
@@ -853,11 +917,87 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
 })();
 
 function wireNavSearch(){
-  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
     inp.addEventListener('keydown', (e)=>{
       if(e.key === 'Enter' && e.target.value.trim()){
         window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
       }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
     });
   });
 }

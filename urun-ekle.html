@@ -81,6 +81,16 @@
   .form-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .form-field{margin-bottom:16px;}
+  .ac-field{position:relative;}
+  .ac-suggestions{
+    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
+  }
+  .ac-suggestions.show{display:block;}
+  .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
+  .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
+  .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
   .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
@@ -106,6 +116,13 @@
   .image-preview-item{position:relative; aspect-ratio:1/1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--paper);}
   .image-preview-item img{width:100%; height:100%; object-fit:cover;}
   .image-preview-remove{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:11px;}
+
+  .specs-row{display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:10px; align-items:center;}
+  .specs-row input{width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
+  .specs-remove-btn{width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); flex-shrink:0;}
+  .specs-remove-btn:hover{background:var(--paper-alt); color:#B84C4C;}
+  .specs-add-btn{display:inline-flex; align-items:center; gap:6px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; color:var(--walnut);}
+  .specs-add-btn:hover{border-color:var(--brass); background:var(--paper-alt);}
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
@@ -159,6 +176,7 @@
 <body>
 <script src="auth-nav.js"></script>
 <script src="catalog-taxonomy.js"></script>
+<script src="data.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -221,14 +239,20 @@
           <input type="text" id="u-title" name="title" placeholder="ör. Cloud Koltuk Takımı" required>
         </div>
         <div class="form-row">
-          <div class="form-field">
+          <div class="form-field ac-field" id="ac-brand-field">
             <label for="u-brand">Firma <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-brand" name="brand" placeholder="ör. VitrA">
+            <input type="text" id="u-brand" name="brand" placeholder="ör. VitrA" autocomplete="off">
+            <div class="ac-suggestions" id="ac-brand-suggestions"></div>
           </div>
-          <div class="form-field">
-            <label for="u-website">Ürün / Firma Web Sitesi <span class="opt">(opsiyonel)</span></label>
-            <input type="url" id="u-website" name="website" placeholder="https://...">
+          <div class="form-field ac-field" id="ac-architect-field">
+            <label for="u-architect">Mimar <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="u-architect" name="architect" placeholder="ör. Emre Arolat" autocomplete="off">
+            <div class="ac-suggestions" id="ac-architect-suggestions"></div>
           </div>
+        </div>
+        <div class="form-field">
+          <label for="u-website">Ürün / Firma Web Sitesi <span class="opt">(opsiyonel)</span></label>
+          <input type="url" id="u-website" name="website" placeholder="https://...">
         </div>
         <div class="form-row">
           <div class="form-field">
@@ -247,6 +271,13 @@
         <div class="form-field">
           <textarea id="u-desc" name="description" placeholder="Ürün hakkında kısa bir metin yaz..." required></textarea>
         </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Teknik Özellikler <span class="opt">(opsiyonel)</span></h2>
+        <p class="section-hint">Ölçü, malzeme, renk gibi teknik detayları etiket/değer çifti olarak ekle — ürün detay sayfasında bir tablo olarak gösterilir.</p>
+        <div id="specs-rows"></div>
+        <button type="button" class="specs-add-btn" id="specs-add-btn">+ Özellik Ekle</button>
       </div>
 
       <div class="form-section">
@@ -270,16 +301,16 @@
   <footer class="site-footer">
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="footer-logo" href="index.html"><img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab"></a>
+        <a class="footer-logo" href="index.html"><img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy"></a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-          <a href="#" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
@@ -327,6 +358,26 @@ function renderPreviews(){
     btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
   });
 }
+const specsRows = document.getElementById('specs-rows');
+function addSpecRow(label, value){
+  const row = document.createElement('div');
+  row.className = 'specs-row';
+  row.innerHTML = `
+    <input type="text" class="spec-label" placeholder="Etiket (ör. Ölçüler)" value="${escapeAttr(label || '')}">
+    <input type="text" class="spec-value" placeholder="Değer (ör. 220x90x75 cm)" value="${escapeAttr(value || '')}">
+    <button type="button" class="specs-remove-btn" aria-label="Kaldır">✕</button>
+  `;
+  row.querySelector('.specs-remove-btn').addEventListener('click', ()=> row.remove());
+  specsRows.appendChild(row);
+}
+function collectSpecs(){
+  return Array.from(specsRows.querySelectorAll('.specs-row')).map(row => ({
+    label: row.querySelector('.spec-label').value.trim(),
+    value: row.querySelector('.spec-value').value.trim(),
+  })).filter(s => s.label || s.value);
+}
+document.getElementById('specs-add-btn').addEventListener('click', ()=> addSpecRow());
+
 const MAX_PRODUCT_IMAGES = 20;
 
 function addFiles(fileList){
@@ -396,6 +447,7 @@ async function prefillForEdit(){
 
     document.getElementById('u-title').value = item.title || '';
     document.getElementById('u-brand').value = item.brand || '';
+    document.getElementById('u-architect').value = item.architect || '';
     document.getElementById('u-website').value = item.website || '';
     document.getElementById('u-desc').value = item.description || '';
     // Eski çoklu-seçim verisi ' · ' ile ayrılmış olabilir (bkz. eski check-grid); yalnızca ilk
@@ -407,9 +459,64 @@ async function prefillForEdit(){
     if(cat) categorySelect.value = cat;
     existingImages = item.images || [];
     renderPreviews();
+    (item.specs || []).forEach(s => addSpecRow(s.label, s.value));
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 prefillForEdit();
+
+function trLower(s){
+  return (s || '').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
+}
+// bkz. proje-ekle.html'deki aynı fonksiyon (Mimar/Firma/Marka alanları) — burada tekliflerin
+// hepsi tek-değerli olduğundan (multi:false) lastCommaSegment/replaceLastCommaSegment yok.
+function wireAutocomplete(inputId, suggestionsId, getItems, opts){
+  opts = opts || {};
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
+  function renderSuggestions(){
+    const q = trLower(input.value.trim());
+    if(!q){ close(); return; }
+    const items = getItems().filter(it => trLower(it.label).includes(q)).slice(0, 8);
+    if(!items.length){ close(); return; }
+    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
+    box.classList.add('show');
+    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
+      el.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        const item = items[i];
+        input.value = item.label;
+        close();
+        if(opts.onPick) opts.onPick(item);
+      });
+    });
+  }
+  input.addEventListener('input', renderSuggestions);
+  input.addEventListener('focus', renderSuggestions);
+  input.addEventListener('blur', ()=> setTimeout(close, 150));
+}
+
+// Fonksiyon olarak tanımlanır (statik bir dizi DEĞİL) — bkz. proje-ekle.html'deki AYNI düzeltme/
+// gerçek bulgu: admin bir firmayı yeniden adlandırdığında (bkz. data.js#renameOfficeEverywhere,
+// aşağıdaki applyProfileEditPhotos() çağrısı) offices[].name çalışma zamanında mutasyona uğrar; bu
+// liste tek seferlik hesaplanan bir const olsaydı eski adı göstermeye devam ederdi.
+const BRAND_SUGGESTIONS = () => (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
+const ARCHITECT_SUGGESTIONS = () => (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
+
+// Firma seçildiğinde Mimar kutucuğu, o firmanın bünyesindeki mimarlarla (architects[].office ===
+// seçilen firma adı) otomatik doldurulur — ama Mimar alanına zaten elle bir şey yazılmışsa
+// ezilmez (bkz. kullanıcı isteği: "gerekirse manuel değişiklik yapılabilsin").
+wireAutocomplete('u-brand', 'ac-brand-suggestions', BRAND_SUGGESTIONS, {
+  onPick: (item) => {
+    const architectInput = document.getElementById('u-architect');
+    if(architectInput.value.trim()) return;
+    const matches = (typeof architects !== 'undefined' ? architects : [])
+      .filter(a => a.office === item.label).map(a => a.name);
+    if(matches.length) architectInput.value = matches.join(', ');
+  },
+});
+wireAutocomplete('u-architect', 'ac-architect-suggestions', ARCHITECT_SUGGESTIONS);
+applyProfileEditPhotos().catch(()=>{});
 
 async function uploadFiles(files){
   const urls = [];
@@ -446,10 +553,12 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   const payload = {
     title: document.getElementById('u-title').value,
     brand: document.getElementById('u-brand').value || null,
+    architect: document.getElementById('u-architect').value || null,
     website: document.getElementById('u-website').value || null,
     category: categorySelect.value,
     description: document.getElementById('u-desc').value,
     images: [...existingImages, ...uploadedImages],
+    specs: collectSpecs(),
   };
 
   // Seçilen Grup'un ait olduğu tür (bkz. catalog-taxonomy.js#CATALOG_GROUP_KIND) hangi API'ye
@@ -471,6 +580,18 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       submitBtn.disabled = false;
+      return;
+    }
+    // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
+    // routes/submissions.js) sayfa hesabim.html'e değil, doğrudan ürünün kendi profiline gitsin
+    // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile
+    // gitsin"). Sıradan kullanıcının gönderisi/düzenlemesi onay bekleyeceğinden (henüz canlıda
+    // görüntülenecek bir şey yok) bu durumda eskisi gibi Hesabım'a yönlendirilir.
+    if(data.status === 'approved'){
+      notice.textContent = editId ? 'Değişiklikler kaydedildi ve yayına girdi.' : 'Ürün eklendi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/urunler/${encodeURIComponent('m-' + data.id)}`; }, 1200);
       return;
     }
     if(editId){
@@ -496,11 +617,87 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
 });
 
 function wireNavSearch(){
-  document.querySelectorAll('.nav-search input, .nav-mobile-search input').forEach(inp=>{
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
     inp.addEventListener('keydown', (e)=>{
       if(e.key === 'Enter' && e.target.value.trim()){
         window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
       }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
     });
   });
 }

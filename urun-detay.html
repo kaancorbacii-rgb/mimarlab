@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<!-- Temiz URL'lerle bu sayfa /urun-detay.html dışında /urunler/:key altında da (iç içe bir yolda)
+     servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
+     yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<link rel="icon" type="image/png" href="logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="logos/site/favicon-180.png">
+<title>Ürün — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'da öne çıkan mobilya, aydınlatma ve yapı malzemesi ürünlerini incele." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/urun-detay" id="canonical-link">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Ürün — MİMARLAB" id="og-title">
+<meta property="og:description" content="MİMARLAB'da öne çıkan mobilya, aydınlatma ve yapı malzemesi ürünlerini incele." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/urun-detay" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ürün — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="MİMARLAB'da öne çıkan mobilya, aydınlatma ve yapı malzemesi ürünlerini incele." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D;
+    --ink-soft:#4E6478;
+    --paper:#EDF0F3;
+    --paper-card:#F8FAFB;
+    --paper-alt:#E0E6EC;
+    --walnut:#2B425F;
+    --brass:#5B7A9B;
+    --brass-soft:#AFC5D8;
+    --sage:#4F6478;
+    --accent:#E08A3E;
+    --line: rgba(27,42,61,0.14);
+    --line-soft: rgba(27,42,61,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:24px;
+    padding:10px 32px;
+    background:rgba(237,240,243,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-search{
+    flex:1; max-width:380px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:9px 16px;
+  }
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-logo{height:24px; width:auto; display:block;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
+  .nav-link:hover, .nav-link.active{color:var(--ink);}
+  .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
+  .nav-mobile-menu{
+    display:none; position:absolute; top:100%; right:18px; z-index:95;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
+  }
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .nav-rate{
+    background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
+    border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;
+  }
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+
+  /* ---------- BREADCRUMB ---------- */
+  .breadcrumb-bar{
+    background:var(--ink); color:rgba(237,240,243,0.7);
+    padding:14px 32px; font-size:13.5px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
+  .breadcrumb-bar a:hover{color:var(--brass-soft);}
+  .breadcrumb-bar .sep{opacity:0.4;}
+  .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
+
+  /* ---------- DETAIL ---------- */
+  .detail-wrap{max-width:1260px; margin:0 auto; padding:24px 32px 0;}
+  /* bkz. proje-detay.html'deki aynı grid deseni — masaüstünde başlık+aksiyonlar aynı satırda,
+     mobil/tablette "başlık / puan / kaydet+skor / medya" sırasıyla alt alta dizilir. */
+  .detail-header{
+    display:grid; grid-template-columns:1fr auto; column-gap:20px;
+    grid-template-areas:
+      "title actions"
+      "byline byline"
+      "rating rating"
+      "gallery gallery";
+  }
+  .detail-header > .detail-title{grid-area:title; margin:0 0 10px;}
+  .detail-header > .detail-title-actions{grid-area:actions; margin:6px 0 10px; justify-self:end;}
+  .detail-header > .detail-byline{grid-area:byline; margin:0 0 20px;}
+  .detail-header > .rating-widget{grid-area:rating; margin:0 0 20px;}
+  .detail-header > .gallery-wrap{grid-area:gallery; margin:0 0 8px;}
+  .detail-title{font-family:'Inter', sans-serif; font-size:34px; font-weight:700; max-width:900px;}
+  .detail-title-actions{display:flex; align-items:center; gap:10px; flex-shrink:0; flex-wrap:wrap;}
+  .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+  .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft);}
+  .detail-byline strong{color:var(--ink); font-weight:600;}
+  .detail-byline-avatar{
+    width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
+  }
+  .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
+  .card-edit-btn{
+    display:inline-flex; align-items:center;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:8px 16px; font-size:13px; font-weight:600; color:var(--walnut); white-space:nowrap;
+  }
+  .card-edit-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+  .card-delete-btn{
+    display:inline-flex; align-items:center;
+    background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); border-radius:100px;
+    padding:8px 16px; font-size:13px; font-weight:600; color:#B84C4C; white-space:nowrap;
+  }
+  .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+  .save-btn{
+    display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:8px 16px; font-size:13px; font-weight:600; color:var(--ink-soft);
+  }
+  .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .save-btn svg{flex-shrink:0;}
+  .save-btn-label-saved{display:none;}
+  .save-btn.saved .save-btn-label-default{display:none;}
+  .save-btn.saved .save-btn-label-saved{display:inline;}
+  .rating-widget{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0 20px;}
+  .rating-star-row{display:flex; gap:2px;}
+  .rating-star-btn{background:none; border:none; padding:2px; color:var(--line); display:flex; transition:transform .1s ease;}
+  .rating-star-btn.filled{color:var(--accent);}
+  .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
+  .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
+  .rating-summary{font-size:12.5px; color:var(--ink-soft);}
+
+  .detail-info{max-width:760px; margin-top:28px; margin-bottom:40px;}
+  .detail-meta{font-size:14.5px; line-height:2; margin-top:20px;}
+  .detail-meta strong{font-weight:600; color:var(--ink);}
+  .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
+  .detail-meta a:hover{color:var(--ink);}
+  .detail-desc{font-size:16.5px; line-height:1.7; color:var(--ink); margin-top:20px; white-space:pre-line;}
+
+  /* ---------- TEKNİK ÖZELLİKLER ---------- */
+  .specs-title{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin:28px 0 4px;}
+  .specs-table{width:100%; border-collapse:collapse; margin-top:12px; font-size:14px;}
+  .specs-table tr{border-bottom:1px solid var(--line-soft);}
+  .specs-table tr:last-child{border-bottom:none;}
+  .specs-table td{padding:10px 0; vertical-align:top;}
+  .specs-table td:first-child{color:var(--ink-soft); font-weight:600; width:38%; padding-right:16px;}
+
+  /* ---------- MARKA (ürün/malzeme künyesindeki tek "tasarımcı" satırı) ---------- */
+  .designer-section{margin-top:0;}
+  .designer-label{font-size:14.5px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+  .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
+  .designer-chip{
+    display:flex; align-items:center; gap:9px;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    border-radius:100px; padding:6px 16px 6px 6px;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  a.designer-chip:hover{border-color:var(--brass); transform:translateY(-1px);}
+  .designer-chip-avatar{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    border:1px solid var(--line); overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+  }
+  .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
+  .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
+  .designer-name-plain{font-size:14.5px; color:var(--ink); padding:6px 4px; align-self:center; font-weight:600;}
+
+  .gallery-wrap{position:relative; min-width:0;}
+  .gallery-media{position:relative;}
+  .detail-gallery{
+    display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth;
+    scrollbar-width:none; padding-bottom:4px;
+  }
+  .detail-gallery::-webkit-scrollbar{display:none;}
+  .detail-gallery a{flex:0 0 auto;}
+  .detail-gallery img{height:420px; width:auto; max-width:80vw; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:var(--paper-card); display:block;}
+  .gallery-placeholder{flex:0 0 auto; height:420px; width:auto; aspect-ratio:4/3; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;}
+  .gallery-placeholder img{height:40px; width:40px; border-radius:9px; background:#fff; padding:6px; object-fit:contain;}
+  .gallery-nav{
+    position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+    width:38px; height:38px; border-radius:50%; border:none;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(27,42,61,0.45); color:#fff;
+  }
+  .gallery-nav:hover{background:rgba(27,42,61,0.72);}
+  .gallery-prev{left:14px;}
+  .gallery-next{right:14px;}
+  .gallery-counter{
+    text-align:center; margin-top:8px;
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);
+  }
+  @media (max-width:720px){
+    .detail-gallery img{height:260px;}
+    .gallery-placeholder{height:260px; font-size:28px;}
+    .gallery-nav{width:32px; height:32px;}
+  }
+
+  .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
+  .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+  .lightbox-close:hover{opacity:1;}
+  .lightbox-nav{
+    position:absolute; top:0; bottom:0; width:15%; min-width:56px;
+    display:flex; align-items:center; background:none; border:none;
+    color:var(--paper); opacity:0.6;
+  }
+  .lightbox-nav:hover{opacity:1;}
+  .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
+  .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
+  .lightbox-counter{
+    position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+    color:#fff; font-size:13px; font-weight:600; font-family:'IBM Plex Mono', monospace;
+    background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px;
+    backdrop-filter:blur(3px);
+  }
+
+  .related-section{max-width:1260px; margin:0 auto; padding:0 32px 60px; border-top:1px solid var(--line); padding-top:36px;}
+  .related-title{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; margin:0 0 18px;}
+  .catalog-grid-scroll{
+    display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth;
+    scrollbar-width:none; padding-bottom:4px;
+  }
+  .catalog-grid-scroll::-webkit-scrollbar{display:none;}
+  .catalog-card{
+    position:relative; display:block; flex:0 0 200px; aspect-ratio:1/1; border-radius:12px; overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  a.catalog-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
+  .catalog-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .catalog-card .catalog-placeholder-favicon{position:static; width:24px; height:24px; border-radius:6px; background:#fff; padding:3px; object-fit:contain;}
+  .catalog-placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; color:rgba(255,255,255,0.92);}
+  .catalog-placeholder-initials{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; letter-spacing:0.02em;}
+  .catalog-card-info{
+    position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
+    background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
+    color:#fff;
+  }
+  .catalog-card-cat{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:4px;}
+  .catalog-card-title{font-family:'Inter', sans-serif; font-size:14.5px; font-weight:700; line-height:1.25; margin-bottom:2px;}
+  .catalog-card-by{font-size:11px; color:rgba(237,240,243,0.75);}
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
+  @media (max-width:860px){
+    .catalog-card{flex:0 0 148px;}
+    .catalog-grid-scroll{gap:10px;}
+  }
+  @media (max-width:960px){
+    .detail-header{
+      grid-template-columns:1fr;
+      row-gap:16px;
+      grid-template-areas:
+        "title"
+        "byline"
+        "rating"
+        "actions"
+        "gallery";
+    }
+    .detail-header > .detail-title,
+    .detail-header > .detail-title-actions,
+    .detail-header > .detail-byline,
+    .detail-header > .rating-widget,
+    .detail-header > .gallery-wrap{
+      margin:0; justify-self:stretch;
+    }
+  }
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
+    .detail-wrap{padding:18px 16px 0;}
+    .detail-title{font-size:24px;}
+    .related-section{padding:0 16px 32px; padding-top:28px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+  }
+</style>
+</head>
+<body>
+<script src="auth-nav.js"></script>
+<script src="save-widget.js"></script>
+<script src="rating-widget.js"></script>
+
+  <nav class="nav">
+    <a class="brand" href="index.html">
+      <img class="brand-logo" src="logos/site/mimarlab-logo.png" alt="MimarLab">
+    </a>
+    <div class="nav-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="f-search-topnav" placeholder="Ara...">
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="proje.html">Proje</a>
+      <a class="nav-link active" href="urun.html">Ürün</a>
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="firma.html">Firma</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
+    </div>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-mobile-menu" id="nav-mobile-menu">
+      <div class="nav-mobile-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="f-search-nav" placeholder="Ara...">
+      </div>
+      <a class="nav-mobile-link" href="proje.html">Proje</a>
+      <a class="nav-mobile-link active" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="firma.html">Firma</a>
+    </div>
+  </nav>
+
+  <div class="breadcrumb-bar">
+    <a href="index.html">Ana Sayfa</a>
+    <span class="sep">›</span>
+    <a href="urun.html">Ürün</a>
+    <span class="sep">›</span>
+    <span class="current" id="bc-name">Ürün</span>
+  </div>
+
+  <div class="detail-wrap">
+    <div class="detail-header">
+      <h1 class="detail-title" id="detail-title"></h1>
+      <div class="detail-title-actions">
+        <button class="save-btn card-save-btn" id="save-btn" type="button" aria-label="Kaydet">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
+          <span class="save-btn-label-default">Kaydet</span>
+          <span class="save-btn-label-saved">Kaydedildi</span>
+        </button>
+        <span class="save-count" id="save-count"></span>
+        <span id="edit-submission-slot"></span>
+        <span id="admin-actions-slot"></span>
+      </div>
+      <div class="detail-byline" id="detail-byline" style="display:none;">
+        <span class="detail-byline-avatar" id="detail-byline-avatar"></span>
+        <span id="detail-byline-text"></span>
+      </div>
+      <div class="rating-widget" id="rating-widget"></div>
+      <div class="gallery-wrap" id="gallery-wrap">
+        <div class="gallery-media">
+          <div class="detail-gallery" id="detail-gallery"></div>
+          <button class="gallery-nav gallery-prev" id="gallery-prev" type="button" aria-label="Önceki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button class="gallery-nav gallery-next" id="gallery-next" type="button" aria-label="Sonraki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+        <div class="gallery-counter" id="gallery-counter"></div>
+      </div>
+    </div>
+    <div class="detail-info">
+      <div class="designer-section" id="brand-section" style="display:none;">
+        <div class="designer-label">Marka</div>
+        <div class="designer-chips" id="brand-chips"></div>
+      </div>
+      <div class="designer-section" id="architect-section" style="display:none;">
+        <div class="designer-label">Mimar</div>
+        <div class="designer-chips" id="architect-chips"></div>
+      </div>
+      <div class="detail-meta" id="detail-meta"></div>
+      <div class="detail-desc" id="detail-desc"></div>
+      <div id="specs-wrap" style="display:none;">
+        <div class="specs-title">Teknik Özellikler</div>
+        <table class="specs-table" id="specs-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="related-section" id="related-section" style="display:none;">
+    <h2 class="related-title" id="related-title">Benzer Ürünler</h2>
+    <div class="catalog-grid-scroll" id="related-grid"></div>
+  </div>
+
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <button class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Önceki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <img id="lightbox-img" src="" alt="">
+    <button class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Sonraki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <div class="lightbox-counter" id="lightbox-counter"></div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+        </a>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
+        <div class="footer-social">
+          <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
+    </div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
+  </footer>
+
+<script src="data.js"></script>
+<script src="catalog-taxonomy.js"></script>
+<script src="urunler-data.js"></script>
+<script src="malzemeler-data.js"></script>
+<script>
+// urun.html#productKey/#productLegacyKey ile birebir aynı üretim — ürünün URL'sini/rozet
+// anahtarını statik kayıtlarda "marka|||başlık"tan, üye/marka gönderisi kayıtlarda
+// "m-<submissionId>"ten türetir (bkz. src/routes/legacyContent.js#LEGACY_TYPES.products.key).
+function productKey(p){
+  if(p.submissionId) return 'm-' + p.submissionId;
+  return slugify(p.title + '-' + (p.brand || ''));
+}
+function productLegacyKey(p){
+  return `${p.brand || ''}|||${p.title}`;
+}
+function ratingKindFor(p){ return p._kind === 'materials' ? 'material' : 'product'; }
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function safeUrl(u){
+  try{
+    const parsed = new URL(u, window.location.href);
+    if(parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+  }catch{}
+  return '';
+}
+
+async function renderProductDetail(){
+  const params = new URLSearchParams(window.location.search);
+  let key = params.get('urun');
+  if(!key){
+    // Temiz URL: /urunler/:key (bkz. src/index.js#CLEAN_URL_ASSETS).
+    const m = window.location.pathname.match(/\/urunler\/([^/]+)\/?$/);
+    if(m) key = decodeURIComponent(m[1]);
+  }
+  if(!key){
+    document.getElementById('detail-title').textContent = 'Ürün bulunamadı';
+    return null;
+  }
+
+  let p = products.find(x => productKey(x) === key);
+  let kind = p ? 'products' : null;
+  if(!p){
+    p = materials.find(x => productKey(x) === key);
+    if(p) kind = 'materials';
+  }
+
+  // Statik dizilerde yoksa (yeni bir marka/üye gönderisi olabilir) D1'deki onaylı kayıtlara bakılır
+  // — proje-detay.html'deki statik-sonra-üye-gönderisi fallback deseniyle aynı fikir.
+  if(!p){
+    try{
+      const [prodRes, matRes] = await Promise.all([fetch('/api/public/products'), fetch('/api/public/materials')]);
+      if(prodRes.ok){
+        const d = await prodRes.json();
+        const found = (d.items || []).find(it => productKey(it) === key);
+        if(found){ p = found; kind = 'products'; }
+      }
+      if(!p && matRes.ok){
+        const d = await matRes.json();
+        const found = (d.items || []).find(it => productKey(it) === key);
+        if(found){ p = found; kind = 'materials'; }
+      }
+    }catch{}
+  }
+
+  // Admin bu kaydı admin panelinden gizlemiş olabilir (bkz. src/routes/legacyContent.js) — yalnızca
+  // statik kayıtlar için anlamlı (üye/marka gönderisi kayıtları status alanıyla yönetilir, hiç bu
+  // listeye girmez).
+  if(p && !p.submissionId){
+    try{
+      const hiddenRes = await fetch('/api/public/hidden');
+      if(hiddenRes.ok){
+        const hidden = await hiddenRes.json();
+        const hiddenSet = new Set((hidden[kind] || []));
+        if(hiddenSet.has(productLegacyKey(p))) p = null;
+      }
+    }catch{}
+  }
+
+  if(!p){
+    document.getElementById('detail-title').textContent = 'Ürün bulunamadı';
+    return null;
+  }
+  p._kind = kind;
+
+  document.title = `${p.title} — MİMARLAB`;
+  {
+    const rawDesc = p.description || `${p.title}${p.brand ? ' — ' + p.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
+    const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
+    const canonicalUrl = `https://mimarlab.com/urunler/${encodeURIComponent(key)}`;
+    const image = (p.images && p.images[0]) ? new URL(p.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    document.getElementById('meta-description').setAttribute('content', desc);
+    document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
+    document.getElementById('og-title').setAttribute('content', document.title);
+    document.getElementById('og-description').setAttribute('content', desc);
+    document.getElementById('og-url').setAttribute('content', canonicalUrl);
+    document.getElementById('og-image').setAttribute('content', image);
+    document.getElementById('twitter-title').setAttribute('content', document.title);
+    document.getElementById('twitter-description').setAttribute('content', desc);
+    document.getElementById('twitter-image').setAttribute('content', image);
+  }
+
+  document.getElementById('bc-name').textContent = p.title;
+  document.getElementById('detail-title').textContent = p.title;
+  renderByline(p);
+
+  // Marka: MİMARLAB dizininde (offices[]) profili olan bir markaysa profil sayfasına bağlı bir
+  // chip, yoksa düz metin (bkz. proje-detay.html#brandProductChipHtml ile aynı prensip).
+  if(p.brand){
+    const off = offices.find(o => o.name === p.brand);
+    document.getElementById('brand-section').style.display = '';
+    if(off){
+      const logo = logoUrl(off);
+      document.getElementById('brand-chips').innerHTML = `<a class="designer-chip" href="/markalar/${encodeURIComponent(slugify(off.name))}">
+        <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
+        <span class="designer-chip-name">${escapeHtml(off.name)}</span>
+      </a>`;
+    } else {
+      document.getElementById('brand-chips').innerHTML = `<span class="designer-name-plain">${escapeHtml(p.brand)}</span>`;
+    }
+  }
+
+  // Mimar: urun-ekle.html'in Firma seçilince otomatik doldurduğu, virgülle ayrılmış serbest metin
+  // alan — architects[] ile eşleşiyorsa fotoğraflı bir chip (proje-detay.html#architectChipHtml ile
+  // aynı desen), eşleşmiyorsa düz metin.
+  if(p.architect){
+    const names = p.architect.split(',').map(s => s.trim()).filter(Boolean);
+    if(names.length){
+      document.getElementById('architect-section').style.display = '';
+      document.getElementById('architect-chips').innerHTML = names.map(name => {
+        const arch = architects.find(a => a.name === name);
+        return arch
+          ? `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
+              <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(arch.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+              <span class="designer-chip-name">${escapeHtml(arch.name)}</span>
+            </a>`
+          : `<span class="designer-name-plain">${escapeHtml(name)}</span>`;
+      }).join('');
+    }
+  }
+
+  const group = (typeof PRODUCT_TAXONOMY !== 'undefined' && taxonomyGroupOf(PRODUCT_TAXONOMY, p.category))
+    || (typeof MATERIAL_TAXONOMY !== 'undefined' && taxonomyGroupOf(MATERIAL_TAXONOMY, p.category));
+  let metaHtml = '';
+  if(p.category) metaHtml += `<div><strong>Kategori:</strong> ${group ? escapeHtml(group) + ' / ' : ''}${escapeHtml(p.category)}</div>`;
+  if(p.website){
+    const site = safeUrl(p.website);
+    if(site) metaHtml += `<div><strong>Web Sitesi:</strong> <a href="${escapeAttr(site)}" target="_blank" rel="noopener">${escapeHtml(p.website)}</a></div>`;
+  }
+  document.getElementById('detail-meta').innerHTML = metaHtml;
+  document.getElementById('detail-desc').textContent = p.description || '';
+
+  if(p.specs && p.specs.length){
+    document.getElementById('specs-wrap').style.display = '';
+    document.getElementById('specs-table').innerHTML = p.specs
+      .filter(s => s && (s.label || s.value))
+      .map(s => `<tr><td>${escapeHtml(s.label || '')}</td><td>${escapeHtml(s.value || '')}</td></tr>`).join('');
+  }
+
+  // Google zengin sonuçları için Schema.org Product yapısal verisi (bkz. proje-detay.html'deki
+  // aynı desen — sayfa istemci tarafında render edildiğinden JS ile enjekte edilir; SSR meta
+  // enjeksiyonu zaten src/lib/seo.js#buildProductMeta ile ayrıca yapılıyor, bu yalnızca botların
+  // JS çalıştırdığı durumlarda/istemci tarafı paylaşımlarda tutarlılık için).
+  (function renderStructuredData(){
+    let tag = document.getElementById('ld-json');
+    if(!tag){
+      tag = document.createElement('script');
+      tag.type = 'application/ld+json';
+      tag.id = 'ld-json';
+      document.head.appendChild(tag);
+    }
+    const data = { '@context': 'https://schema.org', '@type': 'Product', name: p.title, url: window.location.href };
+    if(p.description) data.description = p.description;
+    if(p.brand) data.brand = { '@type': 'Brand', name: p.brand };
+    if(p.images && p.images.length){
+      try { data.image = p.images.map(img => new URL(img, window.location.href).href); } catch{}
+    }
+    tag.textContent = JSON.stringify(data);
+  })();
+
+  const images = p.images || [];
+  const galleryEl = document.getElementById('detail-gallery');
+  const favicon = (typeof catalogBrandFavicon === 'function') ? catalogBrandFavicon(p.brand) : null;
+  galleryEl.innerHTML = images.length ? images.map((img, i) => `
+    <a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'}></a>
+  `).join('') : `<div class="gallery-item gallery-placeholder" style="background:${officeColor(p.brand || p.title)}">
+      ${favicon ? `<img src="${escapeAttr(favicon)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+      <span>${escapeHtml(initials(p.brand || p.title))}</span>
+    </div>`;
+
+  const galleryPrevBtn = document.getElementById('gallery-prev');
+  const galleryNextBtn = document.getElementById('gallery-next');
+  const galleryCounter = document.getElementById('gallery-counter');
+  if(images.length <= 1){
+    galleryPrevBtn.style.display = 'none';
+    galleryNextBtn.style.display = 'none';
+    galleryCounter.style.display = 'none';
+  } else {
+    const galleryItems = Array.from(galleryEl.querySelectorAll('.gallery-item'));
+    let galleryIndex = 0;
+    function updateGalleryCounter(){ galleryCounter.textContent = `${galleryIndex + 1} / ${galleryItems.length}`; }
+    function goToGalleryIndex(i){
+      galleryIndex = (i + galleryItems.length) % galleryItems.length;
+      galleryEl.scrollTo({ left: galleryItems[galleryIndex].offsetLeft - galleryEl.offsetLeft, behavior: 'smooth' });
+      updateGalleryCounter();
+    }
+    galleryPrevBtn.addEventListener('click', () => goToGalleryIndex(galleryIndex - 1));
+    galleryNextBtn.addEventListener('click', () => goToGalleryIndex(galleryIndex + 1));
+    let galleryScrollTimer = null;
+    galleryEl.addEventListener('scroll', () => {
+      clearTimeout(galleryScrollTimer);
+      galleryScrollTimer = setTimeout(() => {
+        let closest = 0, closestDist = Infinity;
+        galleryItems.forEach((item, idx) => {
+          const dist = Math.abs((item.offsetLeft - galleryEl.offsetLeft) - galleryEl.scrollLeft);
+          if(dist < closestDist){ closestDist = dist; closest = idx; }
+        });
+        galleryIndex = closest;
+        updateGalleryCounter();
+      }, 100);
+    });
+    updateGalleryCounter();
+  }
+
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxCounter = document.getElementById('lightbox-counter');
+  let lightboxIndex = 0;
+  function showLightboxImage(i){
+    lightboxIndex = (i + images.length) % images.length;
+    lightboxImg.src = images[lightboxIndex];
+    lightboxCounter.textContent = `${lightboxIndex + 1} / ${images.length}`;
+  }
+  document.querySelectorAll('.gallery-item').forEach(a=>{
+    a.addEventListener('click', (e)=>{
+      e.preventDefault();
+      showLightboxImage(parseInt(a.dataset.index));
+      lightbox.classList.add('open');
+    });
+  });
+  document.getElementById('lightbox-close').addEventListener('click', ()=> lightbox.classList.remove('open'));
+  const lightboxPrevBtn = document.getElementById('lightbox-prev');
+  const lightboxNextBtn = document.getElementById('lightbox-next');
+  if(images.length <= 1){
+    lightboxPrevBtn.style.display = 'none';
+    lightboxNextBtn.style.display = 'none';
+    lightboxCounter.style.display = 'none';
+  }
+  lightboxPrevBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(lightboxIndex - 1); });
+  lightboxNextBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(lightboxIndex + 1); });
+  lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) lightbox.classList.remove('open'); });
+  document.addEventListener('keydown', (e)=>{
+    if(!lightbox.classList.contains('open')) return;
+    if(e.key === 'Escape') lightbox.classList.remove('open');
+    else if(e.key === 'ArrowLeft') showLightboxImage(lightboxIndex - 1);
+    else if(e.key === 'ArrowRight') showLightboxImage(lightboxIndex + 1);
+  });
+
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.dataset.type = ratingKindFor(p);
+  saveBtn.dataset.key = key;
+  saveBtn.dataset.title = p.title;
+  saveBtn.dataset.meta = [p.category, p.brand].filter(Boolean).join(' · ');
+  saveBtn.dataset.image = images[0] || '';
+  saveBtn.dataset.href = `/urunler/${encodeURIComponent(key)}`;
+  wireSaveButtons(ratingKindFor(p));
+
+  fetch(`/api/public/save-count?type=${ratingKindFor(p)}&key=${encodeURIComponent(key)}`)
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if(!data) return;
+      document.getElementById('save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : '';
+    })
+    .catch(()=>{});
+
+  const ratingWidget = document.getElementById('rating-widget');
+  ratingWidget.dataset.type = ratingKindFor(p);
+  ratingWidget.dataset.key = key;
+  mountRatingWidget(ratingWidget);
+
+  return p;
+}
+
+// "X tarafından" satırı — yalnızca üye/marka gönderisi kayıtlarda (bkz. src/routes/public.js#
+// toPublicShape ownerName alanı), statik urunler-data.js/malzemeler-data.js kayıtlarında gizli kalır.
+function renderByline(item){
+  const wrap = document.getElementById('detail-byline');
+  if(!item.ownerName){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const avatar = document.getElementById('detail-byline-avatar');
+  avatar.style.background = officeColor(item.ownerName);
+  avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" onerror="this.remove()">` : '');
+  document.getElementById('detail-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
+}
+
+// Ürünün "Gönderiyi Düzenle" (sahibi/admin) linki (bkz. save-widget.js#editSubmissionBtnHtml) ve
+// yalnızca admin'in gördüğü Sil/Arşivle butonları (bkz. urun.html#applyAdminActions/
+// runContentModeration — buradaki mantık aynen taşındı, tek fark tıklama sonrası urun.html'e dönmesi).
+async function mountEditAndAdminButtons(p){
+  if(!p) return;
+  await savedWidgetReady;
+  const html = await editSubmissionBtnHtml(p._kind, p.submissionId || '');
+  if(html) document.getElementById('edit-submission-slot').innerHTML = html;
+  mountAdminActions(p);
+}
+
+function mountAdminActions(p){
+  if(!currentUser || currentUser.role !== 'admin') return;
+  const slot = document.getElementById('admin-actions-slot');
+  slot.innerHTML = `
+    <button type="button" class="card-edit-btn" id="content-archive-btn">Arşivle</button>
+    <button type="button" class="card-delete-btn" id="content-delete-btn">Sil</button>
+  `;
+  document.getElementById('content-archive-btn').addEventListener('click', () => runContentModeration(p, 'archive'));
+  document.getElementById('content-delete-btn').addEventListener('click', () => runContentModeration(p, 'delete'));
+}
+
+async function runContentModeration(p, action){
+  const confirmText = action === 'delete'
+    ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
+    : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+  if(!confirm(confirmText)) return;
+  const btn = document.getElementById(action === 'delete' ? 'content-delete-btn' : 'content-archive-btn');
+  const otherBtn = document.getElementById(action === 'delete' ? 'content-archive-btn' : 'content-delete-btn');
+  if(btn) btn.disabled = true;
+  if(otherBtn) otherBtn.disabled = true;
+  try{
+    const res = await fetch('/api/admin/legacy/content-action', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(p.submissionId ? { type: p._kind, action, id: p.submissionId } : { type: p._kind, action, key: productLegacyKey(p) }),
+    });
+    if(!res.ok){
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      if(btn) btn.disabled = false;
+      if(otherBtn) otherBtn.disabled = false;
+      return;
+    }
+    window.location.href = 'urun.html';
+  }catch{
+    alert('Bir şeyler ters gitti, tekrar dene.');
+    if(btn) btn.disabled = false;
+    if(otherBtn) otherBtn.disabled = false;
+  }
+}
+
+// Benzer Ürünler: aynı markadan diğer ürün/malzemeler, yetmezse aynı kategoriden tamamlanır
+// (bkz. proje-detay.html#loadRelatedCatalog ile aynı üye-gönderisi birleştirme + gizli-kayıt
+// filtreleme deseni, burada proje.brands yerine mevcut ürünün kendi markası/kategorisiyle eşleştirilir).
+async function loadRelated(p, key){
+  try{
+    const [prodRes, matRes, hiddenRes] = await Promise.all([
+      fetch('/api/public/products'),
+      fetch('/api/public/materials'),
+      fetch('/api/public/hidden'),
+    ]);
+    if(hiddenRes.ok){
+      const hidden = await hiddenRes.json();
+      const hiddenProducts = new Set(hidden.products || []);
+      const hiddenMaterials = new Set(hidden.materials || []);
+      for(let i = products.length - 1; i >= 0; i--){
+        if(hiddenProducts.has(`${products[i].brand || ''}|||${products[i].title}`)) products.splice(i, 1);
+      }
+      for(let i = materials.length - 1; i >= 0; i--){
+        if(hiddenMaterials.has(`${materials[i].brand || ''}|||${materials[i].title}`)) materials.splice(i, 1);
+      }
+    }
+    if(prodRes.ok){ const d = await prodRes.json(); products.push(...(d.items || [])); }
+    if(matRes.ok){ const d = await matRes.json(); materials.push(...(d.items || [])); }
+  }catch{}
+
+  const pool = [
+    ...products.map(x => ({ ...x, _kind: 'products' })),
+    ...materials.map(x => ({ ...x, _kind: 'materials' })),
+  ].filter(x => productKey(x) !== key);
+
+  const sameBrand = p.brand ? pool.filter(x => x.brand === p.brand) : [];
+  let related = sameBrand;
+  if(related.length < 6 && p.category){
+    const sameBrandKeys = new Set(sameBrand.map(x => productKey(x)));
+    const sameCategory = pool.filter(x => x.category === p.category && !sameBrandKeys.has(productKey(x)));
+    related = [...sameBrand, ...sameCategory];
+  }
+  related = related.slice(0, 8);
+  if(!related.length) return;
+
+  document.getElementById('related-title').textContent = p.brand ? `${p.brand} Markasından Diğer Ürünler` : 'Benzer Ürünler';
+  document.getElementById('related-section').style.display = 'block';
+  document.getElementById('related-grid').innerHTML = related.map(r => `
+    <a class="catalog-card" href="/urunler/${encodeURIComponent(productKey(r))}">
+      ${catalogCardMediaHtml(r, escapeHtml, escapeAttr)}
+      <div class="catalog-card-info">
+        <div class="catalog-card-cat">${escapeHtml(r.category || '')}</div>
+        <div class="catalog-card-title">${escapeHtml(r.title)}</div>
+        ${r.brand ? `<div class="catalog-card-by">${escapeHtml(r.brand)}</div>` : ''}
+      </div>
+    </a>`).join('');
+}
+
+(async function initProductDetail(){
+  const foundProduct = await renderProductDetail();
+  if(foundProduct){
+    const key = productKey(foundProduct);
+    mountEditAndAdminButtons(foundProduct);
+    loadRelated(foundProduct, key);
+  }
+})();
+
+function wireNavSearch(){
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && e.target.value.trim()){
+        window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
+      }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
+    });
+  });
+}
+wireNavSearch();
+
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /urunler/:key altında da servis edilir)
+// yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/) giderdi.
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest('a[href="#"]');
+  if(a) e.preventDefault();
+});
+
+const navHamburger = document.getElementById('nav-hamburger');
+const navMobileMenu = document.getElementById('nav-mobile-menu');
+navHamburger.addEventListener('click', ()=>{ navMobileMenu.classList.toggle('open'); });
+document.addEventListener('click', (e)=>{
+  if(!navMobileMenu.classList.contains('open')) return;
+  if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
+});
+</script>
+</body>
+</html>

@@ -14,6 +14,7 @@ import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
 import { slugify } from './lib/slugify.js';
+import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 
 const SITE_ORIGIN = 'https://mimarlab.com';
 
@@ -44,6 +45,7 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/projeler/', asset: '/proje-detay', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
   { prefix: '/markalar/', asset: '/ofis-detay', type: 'office' },
+  { prefix: '/urunler/', asset: '/urun-detay', type: 'product' },
   { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
 ];
 
@@ -82,16 +84,24 @@ const IMAGE_EXT_RE = /\.(jpe?g|png|webp|avif|gif|svg)$/i;
 const STATIC_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=2592000' };
 // SSR enjeksiyonu yapılmış detay sayfaları için: kısa tarayıcı cache'i + edge'de daha uzun ömür.
 // Ayrıca Cache API (caches.default) ile edge'e de yazılıyor (bkz. serveDetailPage) — yüksek
-// trafikte her istek ASSETS.fetch + HTMLRewriter çalıştırmak zorunda kalmaz.
-const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400' };
+// trafikte her istek ASSETS.fetch + HTMLRewriter çalıştırmak zorunda kalmaz. s-maxage önceden 3600
+// (1 saat) idi; admin bir kaydı değiştirdiğinde artık aynı anda purgeSsrDetailCache (bkz. src/lib/
+// ssrCache.js) çağrılıyor olsa da caches.default PoP-başına olduğundan bu yalnızca YAZMA isteğini
+// işleyen edge node'u temizler — başka bir PoP'taki eski girdi kendi süresi dolana kadar yaşar
+// (bkz. publicCache.js#ANON_CACHE_HEADERS'taki aynı gerekçeyle önceden 300'den 15'e indirilmesi).
+// 300'e (5 dk) indirmek, purge'ün kaçırdığı PoP'lar için de en kötü durumdaki bayatlık penceresini
+// makul bir aralığa çeker.
+const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' };
 const SITEMAP_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=21600' };
 
 // Cache API girdileri deploy'dan bağımsızdır — kod/şablon değiştiğinde eski deploy'dan kalan
-// cache girdileri otomatik geçersizleşmez (s-maxage=3600 boyunca eski HTML sunulmaya devam eder).
+// cache girdileri otomatik geçersizleşmez (s-maxage boyunca eski HTML sunulmaya devam eder).
 // injectMeta()/*-detay.html şablonlarından biri değiştiğinde bu değeri artırmak, gerçek istek
 // URL'sini DEĞİŞTİRMEDEN yalnızca cache anahtarını değiştirip önceki girdileri "yetim" bırakarak
-// (silmeye gerek kalmadan) anında geçersiz kılar.
-const SSR_CACHE_VERSION = 'v23';
+// (silmeye gerek kalmadan) anında geçersiz kılar. Tek kaynak src/lib/ssrCache.js'te — admin bir
+// kaydı değiştirdiğinde o dosyadaki purgeSsrDetailCache AYNI anahtarı hedef alır (bkz. o dosyadaki
+// yorum).
+// (SSR_CACHE_VERSION yukarıda src/lib/ssrCache.js'ten import edilir.)
 
 export default {
   async fetch(request, env, ctx) {
@@ -168,7 +178,7 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   const assetResponse = await env.ASSETS.fetch(new Request(assetUrl, request));
 
   const rawSlug = decodeURIComponent(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
-  const meta = rawSlug ? buildMeta(cleanRoute.type, rawSlug) : null;
+  const meta = rawSlug ? await buildMeta(cleanRoute.type, rawSlug, env) : null;
   if (!meta || assetResponse.status !== 200) return assetResponse;
 
   const rewritten = injectMeta(assetResponse, meta);

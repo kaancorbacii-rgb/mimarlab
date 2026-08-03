@@ -2,6 +2,26 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
 import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
+import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
+import { slugify } from '../lib/slugify.js';
+import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
+
+// Bir kayıt "Sil" ile canlıdan kaldırıldığında (id'liyse satır silinir, key'liyse statik kayıt
+// gizlenir — bkz. handleContentAction) ilgili cascade fonksiyonunu çağırır (bkz. src/lib/
+// cascadeDelete.js — kullanıcı isteği: "tüm sistemden o bilgi silinsin"). key'li (statik) yoldaki
+// ürün/malzeme anahtarı LEGACY_TYPES'taki "marka|||başlık" biçiminde geldiğinden, urun-detay.html#
+// productKey ile AYNI slugify(title + '-' + brand) biçimine çevrilir.
+async function runContentCascadeDelete(env, user, type, { id, row, key }) {
+  const name = row ? row.name : key;
+  if (type === 'architects') return cascadeDeleteArchitect(env, name);
+  if (type === 'offices') return cascadeDeleteOffice(env, user, name);
+  if (type === 'products' || type === 'materials') {
+    const engagementType = type === 'products' ? 'product' : 'material';
+    if (id && row) return cascadeDeleteProduct(env, engagementType, `m-${id}`);
+    const [brand, title] = (key || '').split('|||');
+    return cascadeDeleteProduct(env, engagementType, slugify(`${title || ''}-${brand || ''}`));
+  }
+}
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js/haberler-data.js tarayıcıda classic
 // <script> olarak yüklenen, export içermeyen dosyalar; dosya sonlarındaki guard'lı `module.exports`
 // bloğu sayesinde esbuild bunları CJS modülü olarak paketler (bkz. src/lib/seo.js'teki aynı desen).
@@ -11,7 +31,7 @@ import urunJs from '../../urunler-data.js';
 import malzemeJs from '../../malzemeler-data.js';
 import haberJs from '../../haberler-data.js';
 
-const { architects, offices } = dataJs;
+const { architects, offices, jobListings } = dataJs;
 const { projects } = projeJs;
 const { products } = urunJs;
 const { materials } = malzemeJs;
@@ -117,18 +137,87 @@ async function toggleLegacyHidden(request, env, user) {
   return json({ ok: true });
 }
 
+async function fetchHiddenMap(env) {
+  const { results } = await env.DB.prepare(`SELECT content_type, content_key FROM legacy_content_hidden`).all();
+  const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
+  for (const row of results) {
+    if (out[row.content_type]) out[row.content_type].push(row.content_key);
+  }
+  return out;
+}
+
 // GET /api/public/hidden — auth gerektirmez. Gizlenmiş statik kayıtların doğal anahtarlarını tipe
 // göre gruplanmış olarak döner; her sayfa kendi statik dizisini bu listeye göre filtreler — proje-
 // edits/profile-edits ile aynı overlay deseni (bkz. src/routes/public.js). Önbellekleme/admin
 // muafiyeti cachedPublicJson içinde ele alınır (bkz. src/lib/publicCache.js).
 export async function handlePublicHidden(request, env) {
-  return cachedPublicJson(request, env, '/api/public/hidden', async () => {
-    const { results } = await env.DB.prepare(`SELECT content_type, content_key FROM legacy_content_hidden`).all();
-    const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
-    for (const row of results) {
-      if (out[row.content_type]) out[row.content_type].push(row.content_key);
+  return cachedPublicJson(request, env, '/api/public/hidden', () => fetchHiddenMap(env));
+}
+
+// GET /api/public/search-suggest?q=<metin> — auth gerektirmez. Üst navigasyondaki arama kutusunun
+// (bkz. tüm sayfalardaki paylaşılan wireNavSearch()) canlı öneri açılır penceresini besler.
+// arama.html'in tam sonuç sayfasıyla (runSearch()) AYNI grup sırası/eşleşme mantığını kullanır —
+// yalnızca büyük statik veri dosyalarını (data.js ~330KB, projeler-data.js ~9800 satır vb.) HER
+// sayfaya istemci tarafında yüklemek yerine (birçok sayfa — giris-yap.html, hakkinda.html vb. —
+// şu an bunların HİÇBİRİNİ yüklemiyor) sunucu tarafında arayıp küçük bir JSON döndürür. Üye
+// gönderimli (DB) içerik kasıtlı olarak dahil değil — arama.html'in tam sonuç sayfası da yalnızca
+// statik veriyi arıyor, aynı kapsam.
+const SEARCH_SUGGEST_PER_GROUP = 3;
+const SEARCH_SUGGEST_TOTAL = 8;
+
+export async function handlePublicSearchSuggest(request, env, url) {
+  const q = trLower((url.searchParams.get('q') || '').trim());
+  if (!q) return json({ items: [], total: 0 });
+
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    const hidden = await fetchHiddenMap(env);
+    const hiddenHas = (type, key) => (hidden[type] || []).includes(key);
+
+    const groups = [
+      {
+        label: 'Mimar',
+        items: architects
+          .filter(a => !hiddenHas('architects', a.name) && (trLower(a.name).includes(q) || (a.office && trLower(a.office).includes(q))))
+          .map(a => ({ title: a.name, meta: a.office || 'Mimar', href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}` })),
+      },
+      {
+        label: 'Firma',
+        items: offices
+          .filter(o => !hiddenHas('offices', o.name) && (trLower(o.name).includes(q) || trLower(o.loc || '').includes(q)))
+          .map(o => ({ title: o.name, meta: o.loc || '', href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}` })),
+      },
+      {
+        label: 'Proje',
+        items: projects
+          .filter(p => !hiddenHas('projects', p.slug) && (trLower(p.title).includes(q) || trLower(p.location || '').includes(q) || (p.designer || []).some(d => trLower(d).includes(q))))
+          .map(p => ({ title: p.title, meta: [p.location, p.date].filter(Boolean).join(' · '), href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}` })),
+      },
+      {
+        label: 'Ürün',
+        items: products
+          .filter(p => !hiddenHas('products', `${p.brand || ''}|||${p.title}`) && (trLower(p.title).includes(q) || trLower(p.category || '').includes(q) || trLower(p.brand || '').includes(q)))
+          .map(p => ({ title: p.title, meta: [p.category, p.brand].filter(Boolean).join(' · '), href: 'urun.html' })),
+      },
+      {
+        label: 'Haber',
+        items: newsItems
+          .filter(n => !hiddenHas('news', n.id) && (trLower(n.title).includes(q) || trLower(n.category || '').includes(q)))
+          .map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })),
+      },
+      {
+        label: 'İş İlanı',
+        items: (jobListings || [])
+          .filter(j => trLower(j.title).includes(q) || trLower(j.office || '').includes(q) || trLower(j.loc || '').includes(q) || trLower(j.role || '').includes(q))
+          .map(j => ({ title: j.title, meta: [j.office, j.loc].filter(Boolean).join(' · '), href: 'is-ilani.html' })),
+      },
+    ];
+
+    const items = [];
+    for (const g of groups) {
+      for (const it of g.items.slice(0, SEARCH_SUGGEST_PER_GROUP)) items.push({ ...it, label: g.label });
     }
-    return out;
+    const total = groups.reduce((sum, g) => sum + g.items.length, 0);
+    return { items: items.slice(0, SEARCH_SUGGEST_TOTAL), total };
   });
 }
 
@@ -136,13 +225,13 @@ export async function handlePublicHidden(request, env) {
 // admin'in onaylı düzenleme bindirmesi (claimed_slug, bkz. src/routes/public.js#handlePublicProjectEdits
 // ile aynı birleştirme) — arşivleme, projeyi bu haliyle bir project_submissions taslağına kopyalar
 // ki admin panelde düzenlerken en son görünen içerikten devam etsin, eski statik veriden değil.
-const PROJECT_FIELD_KEYS = ['title', 'category', 'type', 'location', 'locationDetail', 'date', 'dateBucket', 'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands'];
+const PROJECT_FIELD_KEYS = ['title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket', 'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands'];
 
 async function currentStaticProjectFields(env, slug) {
   const p = projeJs.projectBySlug(slug);
   if (!p) return null;
   const base = {
-    title: p.title || '', category: p.category || [], type: p.type || [],
+    title: p.title || '', category: p.category || [], type: p.type || [], discipline: p.discipline || [],
     location: p.location || null, locationDetail: p.locationDetail || null,
     date: p.date || null, dateBucket: p.dateBucket || null, period: p.period || [],
     designer: p.designer || [],
@@ -189,6 +278,7 @@ async function handleProjectAction(request, env, user) {
     const now = Date.now();
     if (action === 'delete') {
       await env.DB.prepare(`DELETE FROM project_submissions WHERE id = ?`).bind(id).run();
+      await cascadeDeleteProject(env, row.claimed_slug || row.slug);
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, true);
@@ -197,6 +287,7 @@ async function handleProjectAction(request, env, user) {
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, false);
     }
     await invalidatePublicCache();
+    await purgeSsrDetailCache('project', row.claimed_slug || row.slug);
     return json({ ok: true });
   }
 
@@ -206,7 +297,9 @@ async function handleProjectAction(request, env, user) {
   if (action === 'delete') {
     await setLegacyHidden(env, user, 'projects', slug, true);
     await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
+    await cascadeDeleteProject(env, slug);
     await invalidatePublicCache();
+    await purgeSsrDetailCache('project', slug);
     return json({ ok: true });
   }
 
@@ -229,6 +322,7 @@ async function handleProjectAction(request, env, user) {
   }
   await setLegacyHidden(env, user, 'projects', slug, true);
   await invalidatePublicCache();
+  await purgeSsrDetailCache('project', slug);
   return json({ ok: true });
 }
 
@@ -246,14 +340,14 @@ const CONTENT_ACTION_TYPES = {
   architects: {
     table: 'architect_submissions',
     claimedColumn: 'claimed_profile_key',
-    copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url'],
+    copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'],
     async staticFields(env, key) {
       const base = architects.find(x => x.name === key);
       if (!base) return null;
       const fields = {
         name: base.name, dob: base.dob || null, school: base.school || null, dept: base.dept || null,
         office: base.office || null, position: base.position || null, profession: base.profession || null,
-        awards: base.awards || [], photo_url: base.photo || base.photo_url || null,
+        awards: base.awards || [], photo_url: base.photo || base.photo_url || null, about: base.about || null,
       };
       const editRow = await env.DB.prepare(
         `SELECT * FROM architect_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
@@ -263,6 +357,7 @@ const CONTENT_ACTION_TYPES = {
         Object.assign(fields, {
           dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
           position: parsed.position, profession: parsed.profession, photo_url: parsed.photo_url,
+          about: parsed.about,
         });
       }
       return fields;
@@ -296,13 +391,32 @@ const CONTENT_ACTION_TYPES = {
   products: {
     table: 'product_submissions',
     claimedColumn: null,
-    copyFields: ['title', 'brand', 'website', 'category', 'description', 'images'],
+    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
     async staticFields(_env, key) {
       const base = products.find(x => `${x.brand || ''}|||${x.title}` === key);
       if (!base) return null;
       return {
-        title: base.title, brand: base.brand || null, website: base.website || null,
+        title: base.title, brand: base.brand || null, architect: base.architect || null, website: base.website || null,
         category: base.category || null, description: base.description || null, images: base.images || [],
+        specs: base.specs || [],
+      };
+    },
+  },
+  // products ile birebir aynı desen — daha önce yalnızca products'a tanımlıydı, urun-detay.html'in
+  // malzeme kayıtlarında da aynı Sil/Arşivle butonlarını gösterebilmesi için genelleştirildi
+  // (bkz. kullanıcı isteği: "ürüne silme ve arşivleme yetkisi ver" — malzemeler ürün sayfasıyla
+  // aynı şablonu paylaştığından bu boşluk da kapatıldı).
+  materials: {
+    table: 'material_submissions',
+    claimedColumn: null,
+    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
+    async staticFields(_env, key) {
+      const base = materials.find(x => `${x.brand || ''}|||${x.title}` === key);
+      if (!base) return null;
+      return {
+        title: base.title, brand: base.brand || null, architect: base.architect || null, website: base.website || null,
+        category: base.category || null, description: base.description || null, images: base.images || [],
+        specs: base.specs || [],
       };
     },
   },
@@ -341,6 +455,7 @@ async function handleContentAction(request, env, user) {
     const now = Date.now();
     if (action === 'delete') {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+      await runContentCascadeDelete(env, user, type, { id, row });
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], true);
@@ -349,6 +464,8 @@ async function handleContentAction(request, env, user) {
       if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], false);
     }
     await invalidatePublicCache();
+    const target = ssrPurgeTargetFor(type, row);
+    if (target) await purgeSsrDetailCache(target.type, target.key);
     return json({ ok: true });
   }
 
@@ -360,7 +477,10 @@ async function handleContentAction(request, env, user) {
     if (config.claimedColumn) {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
     }
+    await runContentCascadeDelete(env, user, type, { key });
     await invalidatePublicCache();
+    const target = ssrPurgeTargetFor(type, { name: key });
+    if (target) await purgeSsrDetailCache(target.type, target.key);
     return json({ ok: true });
   }
 
@@ -394,5 +514,7 @@ async function handleContentAction(request, env, user) {
 
   await setLegacyHidden(env, user, type, key, true);
   await invalidatePublicCache();
+  const target = ssrPurgeTargetFor(type, { name: key });
+  if (target) await purgeSsrDetailCache(target.type, target.key);
   return json({ ok: true });
 }
