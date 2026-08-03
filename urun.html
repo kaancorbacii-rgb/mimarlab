@@ -134,6 +134,13 @@
   .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
   .filter-group-body{display:none; padding:0 16px 14px; max-height:260px; overflow-y:auto;}
   .filter-group.open .filter-group-body{display:block;}
+  .filter-search-row{
+    display:flex; align-items:center; gap:6px; margin:2px 0 8px;
+    padding:6px 10px; background:var(--paper); border:1px solid var(--line); border-radius:100px;
+    position:sticky; top:0; z-index:1;
+  }
+  .filter-search-row svg{flex-shrink:0; opacity:0.5;}
+  .filter-search-row input{border:none; background:none; outline:none; font-family:inherit; font-size:12px; width:100%; color:var(--ink);}
   .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
   .filter-opt{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;}
   .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
@@ -189,27 +196,6 @@
   .content-card-title{font-family:'Inter', sans-serif; font-size:16.5px; font-weight:700; line-height:1.25; margin-bottom:3px;}
   .content-card-by{font-size:11.5px; color:rgba(237,240,243,0.75);}
 
-  /* ---------- ÜRÜN DETAY MODALI ---------- */
-  .item-modal-backdrop{position:fixed; inset:0; background:rgba(27,42,61,0.55); z-index:200; display:flex; align-items:center; justify-content:center; padding:24px;}
-  .item-modal{background:var(--paper-card); border-radius:16px; max-width:560px; width:100%; max-height:88vh; overflow-y:auto; position:relative; padding:28px;}
-  .item-modal-close{position:absolute; top:14px; right:14px; background:none; border:none; font-size:26px; line-height:1; color:var(--ink-soft); cursor:pointer; width:34px; height:34px; border-radius:50%;}
-  .item-modal-close:hover{background:var(--paper-alt); color:var(--ink);}
-  .item-modal-media{width:100%; aspect-ratio:4/3; border-radius:12px; overflow:hidden; margin-bottom:18px; background:var(--paper-alt); position:relative;}
-  .item-modal-media > img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .item-modal-media .catalog-placeholder-initials{font-size:40px;}
-  .item-modal-media .catalog-placeholder-favicon{position:static; width:36px; height:36px; border-radius:8px; background:#fff; padding:5px; object-fit:contain;}
-  .item-modal-cat{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--sage); margin-bottom:6px;}
-  .item-modal-title{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; margin:0 0 4px; padding-right:24px;}
-  .item-modal-meta{font-size:13.5px; color:var(--ink-soft); margin-bottom:14px;}
-  .item-modal-desc{font-size:14px; line-height:1.65; color:var(--ink); margin-bottom:6px; white-space:pre-line;}
-  .item-modal-byline{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); margin-top:18px; padding-top:16px; border-top:1px solid var(--line);}
-  .item-modal-byline strong{color:var(--ink); font-weight:600;}
-  .item-modal-byline-avatar{
-    width:26px; height:26px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
-    display:flex; align-items:center; justify-content:center; color:#fff;
-    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:10px;
-  }
-  .item-modal-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
   .rating-widget{display:flex; align-items:center; gap:6px; margin-top:5px; flex-wrap:wrap;}
   .rating-star-row{display:flex; gap:1px;}
@@ -361,13 +347,6 @@
     </main>
   </div>
 
-  <div class="item-modal-backdrop" id="item-modal-backdrop" style="display:none;">
-    <div class="item-modal" role="dialog" aria-modal="true">
-      <button class="item-modal-close" id="item-modal-close" type="button" aria-label="Kapat">&times;</button>
-      <div id="item-modal-body"></div>
-    </div>
-  </div>
-
   <footer class="site-footer">
     <div class="footer-top">
       <div class="footer-brand">
@@ -396,7 +375,6 @@ let currentPage = 1;
 let localSearchQuery = '';
 let productRatings = new Map();
 let materialRatings = new Map();
-
 // Ürün ve Malzeme tek sayfada birleştirildi (bkz. kullanıcı isteği: "Artık sadece ürün sayfası
 // yayında olsun") — backend'de iki ayrı tablo/uç nokta (products/materials) korunuyor, burada
 // tek bir listede gösterilmek üzere birleştiriliyor. Her kayıt hangi kaynaktan geldiğini _kind
@@ -498,6 +476,7 @@ function buildSidebar(){
     html += `<div class="filter-group" data-key="${g.key}">
       <button class="filter-group-head" data-toggle="${g.key}">${g.label} <span class="filter-group-toggle">+</span></button>
       <div class="filter-group-body" id="fg-${g.key}">
+        <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
         ${options.map(opt => `
           <label class="filter-opt">
             <input type="checkbox" data-key="${g.key}" value="${escapeAttr(opt)}" ${activeFilters[g.key].has(opt)?'checked':''}>
@@ -535,6 +514,17 @@ function buildSidebar(){
     localSearchQuery = localSearchInput.value;
     currentPage = 1;
     render();
+  });
+  sidebar.querySelectorAll('.filter-search-input').forEach(input => {
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('input', () => {
+      const body = input.closest('.filter-group-body');
+      const q = trLower(input.value.trim());
+      body.querySelectorAll('.filter-opt').forEach(opt => {
+        const label = trLower(opt.querySelector('span').textContent);
+        opt.style.display = !q || label.includes(q) ? '' : 'none';
+      });
+    });
   });
 }
 
@@ -611,38 +601,10 @@ function render(){
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('a')) return;
-      openItemModal(pageItems[i]);
+      window.location.href = '/urunler/' + encodeURIComponent(productKey(pageItems[i]));
     });
   });
 }
-
-// Ürün/malzeme kartlarının tıklandığında açtığı detay penceresi — bu iki tür için ayrı bir detay
-// sayfası/route'u yok (bkz. kullanıcı onayı: "hepsine açılır pencere ekle"), bu yüzden mevcut
-// listeleme sayfasında modal olarak gösterilir. ownerName yalnızca üye gönderisi olan ürünlerde
-// dolu (bkz. src/routes/public.js#toPublicShape) — statik urunler-data.js kayıtlarında gizli kalır.
-function openItemModal(p){
-  const bylineHtml = p.ownerName ? `
-    <div class="item-modal-byline">
-      <span class="item-modal-byline-avatar" style="background:${officeColor(p.ownerName)}">${escapeHtml(initials(p.ownerName))}${p.ownerPhoto ? `<img src="${escapeAttr(p.ownerPhoto)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>
-      <span><strong>${escapeHtml(p.ownerName)}</strong>${badgeIconHtml(p.ownerBadge, 14)} tarafından</span>
-    </div>` : '';
-  document.getElementById('item-modal-body').innerHTML = `
-    <div class="item-modal-media">${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}</div>
-    <div class="item-modal-cat">${escapeHtml(p.category || '')}</div>
-    <h3 class="item-modal-title">${escapeHtml(p.title)}</h3>
-    ${p.brand ? `<div class="item-modal-meta">${escapeHtml(p.brand)}</div>` : ''}
-    ${p.description ? `<p class="item-modal-desc">${escapeHtml(p.description)}</p>` : ''}
-    ${bylineHtml}`;
-  document.getElementById('item-modal-backdrop').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-function closeItemModal(){
-  document.getElementById('item-modal-backdrop').style.display = 'none';
-  document.body.style.overflow = '';
-}
-document.getElementById('item-modal-close').addEventListener('click', closeItemModal);
-document.getElementById('item-modal-backdrop').addEventListener('click', (e)=>{ if(e.target.id === 'item-modal-backdrop') closeItemModal(); });
-document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeItemModal(); });
 
 function productKey(p){
   if(p.submissionId) return 'm-' + p.submissionId;

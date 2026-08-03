@@ -591,9 +591,12 @@ document.getElementById('profile-name-text').textContent = a.name;
 // firmayı göstermeye devam ederdi (bkz. kullanıcı isteği).
 function renderOfficeDependentText(){
   document.getElementById('profile-category').textContent = [a.role, office ? office.name : null].filter(Boolean).join(' · ');
-  document.getElementById('about-text').textContent = office
+  // Gerçek bir Açıklama (a.about, bkz. mimar-ekle.html "Kişisel Bilgiler" bölümü) varsa otomatik
+  // üretilen cümle yerine onu göster (bkz. kullanıcı isteği: mimar/firma sayfalarındaki başlık
+  // altındaki açıklama, ekle/düzenle sayfasındaki Açıklama kutusuyla bağlansın).
+  document.getElementById('about-text').textContent = a.about || (office
     ? `${a.name}, ${office.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
-    : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`);
+    : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`));
 }
 renderOfficeDependentText();
 
@@ -683,6 +686,26 @@ async function applyProfileEdits(){
     const res = await fetch('/api/public/profile-edits');
     if(!res.ok) return;
     const edits = await res.json();
+
+    // "Diğer Ortaklar" listesi (bkz. renderColleagues) DİĞER mimarların office alanına göre
+    // filtrelenir — bu yüzden görüntülenen mimarın (a) kendi bindirmesi olsun ya da olmasın HER
+    // ZAMAN çalışmalı; aşağıdaki "overlay yoksa çık" kısayoluna takılmaması için bilerek bu erken
+    // dönüşten ÖNCE çalıştırılır. Aksi halde bir ortak kendi profilinden bu firmayı kaldırsa bile,
+    // ZATEN kendi overlay'i olmayan BAŞKA bir meslektaşın sayfasında hâlâ ortak olarak görünmeye
+    // devam ederdi (bkz. ofis-detay.html#applyProfileEdits'teki AYNI desen — gerçek bulgu/kullanıcı
+    // isteği).
+    let colleaguesChanged = false;
+    for(const arch of architects){
+      if(arch.name === a.name) continue;
+      const archOverlay = edits.architect && edits.architect[arch.name];
+      if(archOverlay && archOverlay.office !== undefined && archOverlay.office !== arch.office){
+        arch.office = archOverlay.office || null;
+        if(archOverlay.role) arch.role = archOverlay.role;
+        colleaguesChanged = true;
+      }
+    }
+    if(colleaguesChanged) renderColleagues();
+
     const overlay = edits.architect && edits.architect[a.name];
     if(!overlay) return;
     if(overlay.dob) a.dob = overlay.dob;
@@ -692,6 +715,9 @@ async function applyProfileEdits(){
     if(overlay.awards) a.awards = overlay.awards;
     if(overlay.photo) a.photo = overlay.photo;
     renderInfoFactsAndLogo();
+
+    const aboutChanged = overlay.about !== undefined && overlay.about !== a.about;
+    if(overlay.about !== undefined) a.about = overlay.about;
 
     const officeChanged = overlay.office !== undefined && overlay.office !== a.office;
     if(overlay.role) a.role = overlay.role;
@@ -703,7 +729,7 @@ async function applyProfileEdits(){
       renderColleagues();
       renderRelatedProjects();
       saveBtn.dataset.meta = office ? office.name : (a.role || '');
-    } else if(overlay.role){
+    } else if(overlay.role || aboutChanged){
       renderOfficeDependentText();
       saveBtn.dataset.meta = office ? office.name : (a.role || '');
     }

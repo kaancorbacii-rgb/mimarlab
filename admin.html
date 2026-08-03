@@ -487,9 +487,9 @@ async function loadContent(){
 // olarak burada aynı listede görünür (bkz. kullanıcı isteği: "mimar, firma ve ürüne silme ve
 // arşivleme yetkisi ver"). "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider
 // (ürünlerin claim akışı yok, her zaman edit=); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
-const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün' };
-const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'ofis-ekle.html', products: 'urun-ekle.html' };
-const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null };
+const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
+const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'ofis-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html' };
+const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null, materials: null };
 let archiveType = 'projects';
 
 function archiveEditHref(type, item){
@@ -555,7 +555,7 @@ async function loadArchive(){
 // (bkz. src/routes/legacyContent.js, kullanıcı isteği: "admin tüm sitede tüm yetkilere sahip
 // olsun ... arşivleme"). Kayıt sayısı çok yüksek olduğundan (2650+) her zaman tip + en az 2
 // karakterlik bir arama gerektirir, tüm liste tek seferde dökülmez.
-const LEGACY_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün' };
+const LEGACY_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
 let legacyType = 'projects';
 let legacySearchTimer = null;
 

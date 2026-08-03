@@ -234,6 +234,11 @@
     color:var(--ink); font-size:12.5px; line-height:1.6;
   }
   .form-notice.show{display:block;}
+  .form-loading{
+    display:none; margin-top:12px; text-align:center;
+    font-size:12.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .form-loading.show{display:block;}
 
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
@@ -478,6 +483,7 @@
       </div>
 
       <button class="form-submit" type="submit">Projeyi Gönder</button>
+      <div class="form-loading" id="form-loading">Yükleniyor...</div>
       <div class="form-notice" id="form-notice"></div>
     </form>
   </div>
@@ -933,6 +939,7 @@ async function collectImages(){
 document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('form-notice');
+  const loading = document.getElementById('form-loading');
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
@@ -957,6 +964,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     return;
   }
   submitBtn.disabled = true;
+  loading.classList.add('show');
   let images;
   try{
     images = await collectImages();
@@ -965,6 +973,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     submitBtn.disabled = false;
+    loading.classList.remove('show');
     return;
   }
 
@@ -997,8 +1006,10 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       submitBtn.disabled = false;
+      loading.classList.remove('show');
       return;
     }
+    loading.classList.remove('show');
     if(claimSlug){
       // Admin'in statik proje düzenlemesi onay beklemeden anında yayına girer (bkz. src/routes/
       // submissions.js#createSubmission/updateOwnSubmission — claimed_slug'lı satırlar 'approved').
@@ -1017,7 +1028,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       setTimeout(()=>{ window.location.href = isAdminEditingOther ? 'admin.html' : 'hesabim.html'; }, 1500);
       return;
     }
-    notice.textContent = 'Projen alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';
+    notice.textContent = 'Proje gönderildi, onayın ardından yayına girecek. Hesabım sayfandan takip edebilirsin.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     form.reset();
@@ -1034,6 +1045,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');
     submitBtn.disabled = false;
+    loading.classList.remove('show');
   }
 });
 

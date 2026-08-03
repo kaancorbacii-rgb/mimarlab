@@ -2,6 +2,26 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
 import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
+import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
+import { slugify } from '../lib/slugify.js';
+import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
+
+// Bir kayıt "Sil" ile canlıdan kaldırıldığında (id'liyse satır silinir, key'liyse statik kayıt
+// gizlenir — bkz. handleContentAction) ilgili cascade fonksiyonunu çağırır (bkz. src/lib/
+// cascadeDelete.js — kullanıcı isteği: "tüm sistemden o bilgi silinsin"). key'li (statik) yoldaki
+// ürün/malzeme anahtarı LEGACY_TYPES'taki "marka|||başlık" biçiminde geldiğinden, urun-detay.html#
+// productKey ile AYNI slugify(title + '-' + brand) biçimine çevrilir.
+async function runContentCascadeDelete(env, user, type, { id, row, key }) {
+  const name = row ? row.name : key;
+  if (type === 'architects') return cascadeDeleteArchitect(env, name);
+  if (type === 'offices') return cascadeDeleteOffice(env, user, name);
+  if (type === 'products' || type === 'materials') {
+    const engagementType = type === 'products' ? 'product' : 'material';
+    if (id && row) return cascadeDeleteProduct(env, engagementType, `m-${id}`);
+    const [brand, title] = (key || '').split('|||');
+    return cascadeDeleteProduct(env, engagementType, slugify(`${title || ''}-${brand || ''}`));
+  }
+}
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js/haberler-data.js tarayıcıda classic
 // <script> olarak yüklenen, export içermeyen dosyalar; dosya sonlarındaki guard'lı `module.exports`
 // bloğu sayesinde esbuild bunları CJS modülü olarak paketler (bkz. src/lib/seo.js'teki aynı desen).
@@ -258,6 +278,7 @@ async function handleProjectAction(request, env, user) {
     const now = Date.now();
     if (action === 'delete') {
       await env.DB.prepare(`DELETE FROM project_submissions WHERE id = ?`).bind(id).run();
+      await cascadeDeleteProject(env, row.claimed_slug || row.slug);
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, true);
@@ -266,6 +287,7 @@ async function handleProjectAction(request, env, user) {
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, false);
     }
     await invalidatePublicCache();
+    await purgeSsrDetailCache('project', row.claimed_slug || row.slug);
     return json({ ok: true });
   }
 
@@ -275,7 +297,9 @@ async function handleProjectAction(request, env, user) {
   if (action === 'delete') {
     await setLegacyHidden(env, user, 'projects', slug, true);
     await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
+    await cascadeDeleteProject(env, slug);
     await invalidatePublicCache();
+    await purgeSsrDetailCache('project', slug);
     return json({ ok: true });
   }
 
@@ -298,6 +322,7 @@ async function handleProjectAction(request, env, user) {
   }
   await setLegacyHidden(env, user, 'projects', slug, true);
   await invalidatePublicCache();
+  await purgeSsrDetailCache('project', slug);
   return json({ ok: true });
 }
 
@@ -315,14 +340,14 @@ const CONTENT_ACTION_TYPES = {
   architects: {
     table: 'architect_submissions',
     claimedColumn: 'claimed_profile_key',
-    copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url'],
+    copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'],
     async staticFields(env, key) {
       const base = architects.find(x => x.name === key);
       if (!base) return null;
       const fields = {
         name: base.name, dob: base.dob || null, school: base.school || null, dept: base.dept || null,
         office: base.office || null, position: base.position || null, profession: base.profession || null,
-        awards: base.awards || [], photo_url: base.photo || base.photo_url || null,
+        awards: base.awards || [], photo_url: base.photo || base.photo_url || null, about: base.about || null,
       };
       const editRow = await env.DB.prepare(
         `SELECT * FROM architect_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
@@ -332,6 +357,7 @@ const CONTENT_ACTION_TYPES = {
         Object.assign(fields, {
           dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
           position: parsed.position, profession: parsed.profession, photo_url: parsed.photo_url,
+          about: parsed.about,
         });
       }
       return fields;
@@ -365,13 +391,32 @@ const CONTENT_ACTION_TYPES = {
   products: {
     table: 'product_submissions',
     claimedColumn: null,
-    copyFields: ['title', 'brand', 'website', 'category', 'description', 'images'],
+    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
     async staticFields(_env, key) {
       const base = products.find(x => `${x.brand || ''}|||${x.title}` === key);
       if (!base) return null;
       return {
-        title: base.title, brand: base.brand || null, website: base.website || null,
+        title: base.title, brand: base.brand || null, architect: base.architect || null, website: base.website || null,
         category: base.category || null, description: base.description || null, images: base.images || [],
+        specs: base.specs || [],
+      };
+    },
+  },
+  // products ile birebir aynı desen — daha önce yalnızca products'a tanımlıydı, urun-detay.html'in
+  // malzeme kayıtlarında da aynı Sil/Arşivle butonlarını gösterebilmesi için genelleştirildi
+  // (bkz. kullanıcı isteği: "ürüne silme ve arşivleme yetkisi ver" — malzemeler ürün sayfasıyla
+  // aynı şablonu paylaştığından bu boşluk da kapatıldı).
+  materials: {
+    table: 'material_submissions',
+    claimedColumn: null,
+    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
+    async staticFields(_env, key) {
+      const base = materials.find(x => `${x.brand || ''}|||${x.title}` === key);
+      if (!base) return null;
+      return {
+        title: base.title, brand: base.brand || null, architect: base.architect || null, website: base.website || null,
+        category: base.category || null, description: base.description || null, images: base.images || [],
+        specs: base.specs || [],
       };
     },
   },
@@ -410,6 +455,7 @@ async function handleContentAction(request, env, user) {
     const now = Date.now();
     if (action === 'delete') {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+      await runContentCascadeDelete(env, user, type, { id, row });
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], true);
@@ -418,6 +464,8 @@ async function handleContentAction(request, env, user) {
       if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], false);
     }
     await invalidatePublicCache();
+    const target = ssrPurgeTargetFor(type, row);
+    if (target) await purgeSsrDetailCache(target.type, target.key);
     return json({ ok: true });
   }
 
@@ -429,7 +477,10 @@ async function handleContentAction(request, env, user) {
     if (config.claimedColumn) {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
     }
+    await runContentCascadeDelete(env, user, type, { key });
     await invalidatePublicCache();
+    const target = ssrPurgeTargetFor(type, { name: key });
+    if (target) await purgeSsrDetailCache(target.type, target.key);
     return json({ ok: true });
   }
 
@@ -463,5 +514,7 @@ async function handleContentAction(request, env, user) {
 
   await setLegacyHidden(env, user, type, key, true);
   await invalidatePublicCache();
+  const target = ssrPurgeTargetFor(type, { name: key });
+  if (target) await purgeSsrDetailCache(target.type, target.key);
   return json({ ok: true });
 }

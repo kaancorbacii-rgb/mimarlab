@@ -97,8 +97,10 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   category TEXT,
   description TEXT,
   images TEXT,
+  specs TEXT, -- JSON dizi [{label, value}] — urun-detay.html "Teknik Özellikler" tablosu (bkz. migrations/0018_product_specs.sql)
   source_url TEXT,
-  ai_generated INTEGER NOT NULL DEFAULT 0
+  ai_generated INTEGER NOT NULL DEFAULT 0,
+  architect TEXT -- serbest metin (virgülle ayrılmış birden fazla isim olabilir) — bkz. migrations/0020_product_architect.sql
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status ON product_submissions(status);
@@ -118,8 +120,10 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   category TEXT,
   description TEXT,
   images TEXT,
+  specs TEXT, -- bkz. product_submissions.specs açıklaması
   source_url TEXT,
-  ai_generated INTEGER NOT NULL DEFAULT 0
+  ai_generated INTEGER NOT NULL DEFAULT 0,
+  architect TEXT -- bkz. product_submissions.architect açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_material_status ON material_submissions(status);
@@ -165,7 +169,8 @@ CREATE TABLE IF NOT EXISTS architect_submissions (
   profession TEXT,
   awards TEXT,
   photo_url TEXT,
-  claimed_profile_key TEXT
+  claimed_profile_key TEXT,
+  about TEXT -- serbest metin biyografi, office_submissions.about ile aynı desen (bkz. migrations/0019_architect_about.sql)
 );
 CREATE INDEX IF NOT EXISTS idx_architect_owner ON architect_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_architect_status ON architect_submissions(status);

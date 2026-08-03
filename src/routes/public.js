@@ -39,8 +39,8 @@ function toPublicShape(type, row) {
   }
   if (type === 'products' || type === 'materials') {
     return {
-      title: parsed.title, brand: parsed.brand, website: parsed.website, category: parsed.category,
-      description: parsed.description, images: parsed.images,
+      title: parsed.title, brand: parsed.brand, architect: parsed.architect, website: parsed.website, category: parsed.category,
+      description: parsed.description, images: parsed.images, specs: parsed.specs,
       image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
       source: 'member', submissionId: parsed.id, ...owner,
     };
@@ -49,7 +49,7 @@ function toPublicShape(type, row) {
     return {
       name: parsed.name, dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
       role: parsed.position, status: parsed.position, awards: parsed.awards, photo: parsed.photo_url,
-      source: 'member', submissionId: parsed.id, ...owner,
+      about: parsed.about, source: 'member', submissionId: parsed.id, ...owner,
     };
   }
   // jobs
@@ -164,7 +164,7 @@ async function handlePublicProfileEdits(request, env) {
       const parsed = parseSubmissionRow('architects', row);
       out.architect[row.claimed_profile_key] = {
         dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-        role: parsed.position, profession: parsed.profession, photo: parsed.photo_url,
+        role: parsed.position, profession: parsed.profession, photo: parsed.photo_url, about: parsed.about,
       };
     }
     for (const row of officeRes.results) {

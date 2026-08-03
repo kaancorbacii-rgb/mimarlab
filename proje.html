@@ -166,6 +166,13 @@
   .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
   .filter-opt-nested{padding-left:20px;}
   .filter-opt-nested input{width:12px; height:12px;}
+  .filter-search-row{
+    display:flex; align-items:center; gap:6px; margin:2px 0 8px;
+    padding:6px 10px; background:var(--paper); border:1px solid var(--line); border-radius:100px;
+    position:sticky; top:0; z-index:1;
+  }
+  .filter-search-row svg{flex-shrink:0; opacity:0.5;}
+  .filter-search-row input{border:none; background:none; outline:none; font-family:inherit; font-size:12px; width:100%; color:var(--ink);}
 
   .result-bar{
     display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;
@@ -519,6 +526,7 @@ function buildSidebar(){
     html += `<div class="filter-group" data-key="${g.key}">
       <button class="filter-group-head" data-toggle="${g.key}">${escapeHtml(g.label)} <span class="filter-group-toggle">+</span></button>
       <div class="filter-group-body" id="fg-${g.key}">
+        <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
         ${options.map(opt => {
           let row = optRow(g, opt, counts[opt], false);
           if(childGroup && opt === childGroup.parentValue && childOptions && childOptions.length){
@@ -573,6 +581,19 @@ function buildSidebar(){
     localSearchQuery = localSearchInput.value;
     currentPage = 1;
     render();
+  });
+  // Her grubun kendi arama kutusu YALNIZCA o grubun altındaki .filter-opt satırlarını gösterip
+  // gizler — activeFilters/genel arama kutusundan bağımsız, seçim/sayaç mantığını etkilemez.
+  sidebar.querySelectorAll('.filter-search-input').forEach(input => {
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('input', () => {
+      const body = input.closest('.filter-group-body');
+      const q = trLower(input.value.trim());
+      body.querySelectorAll('.filter-opt').forEach(opt => {
+        const label = trLower(opt.querySelector('span').textContent);
+        opt.style.display = !q || label.includes(q) ? '' : 'none';
+      });
+    });
   });
 }
 

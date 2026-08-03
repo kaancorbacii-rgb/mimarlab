@@ -269,6 +269,10 @@
             </div>
           </div>
         </div>
+        <div class="form-field">
+          <label for="m-about">Açıklama <span class="opt">(opsiyonel)</span></label>
+          <textarea id="m-about" name="about" placeholder="Kendin hakkında kısa bir metin yaz..."></textarea>
+        </div>
       </div>
 
       <div class="form-section">
@@ -495,6 +499,7 @@ async function prefillForEdit(){
     document.getElementById('m-office').value = item.office || '';
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
+    document.getElementById('m-about').value = item.about || '';
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -527,7 +532,7 @@ async function prefillForClaim(){
       const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
       if(mine){
         editId = mine.id;
-        merged = { ...merged, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url };
+        merged = { ...merged, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about };
       }
     }
   }catch{}
@@ -542,6 +547,7 @@ async function prefillForClaim(){
   document.getElementById('m-office').value = merged.office || '';
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
+  document.getElementById('m-about').value = merged.about || '';
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
 }
@@ -592,6 +598,7 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
     position: pozisyonDropdown.get(),
     awards: odullerDropdown.getChecked(),
     photo_url: photoUrl,
+    about: document.getElementById('m-about').value || null,
   };
   if(claimName) payload.claimed_profile_key = claimName;
 

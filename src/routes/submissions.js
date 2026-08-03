@@ -4,6 +4,8 @@ import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField } from '../lib/submissionTypes.js';
 import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
+import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
+import { cascadeRemovedFounders } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden } from './legacyContent.js';
 // projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
 // sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
@@ -161,7 +163,15 @@ async function createSubmission(request, env, user, typeKey) {
   // Yalnızca admin'in kendi gönderisi anında 'approved' olarak yayına girdiğinden (yukarıdaki
   // yorum) public önbelleği yalnızca bu durumda değişir — sıradan üye gönderileri 'pending' kalıp
   // onay bekleyene dek zaten hiçbir public uçta görünmez, gereksiz yere temizlemeye gerek yok.
-  if (status === 'approved') await invalidatePublicCache();
+  if (status === 'approved') {
+    await invalidatePublicCache();
+    // claimed_slug/claimed_profile_key'liyse bu, ziyaretçilerin ZATEN görüntülemiş olabileceği
+    // statik bir sayfaya bindirilen bir düzenlemedir — o sayfanın SSR önbelleğini temizle (bkz.
+    // src/lib/ssrCache.js). Marka yeni (claim'siz) bir kayıt için bu bir no-op'tur (henüz hiç
+    // önbelleklenmemiş bir anahtarı silmeye çalışmak zararsızdır).
+    const target = ssrPurgeTargetFor(typeKey, { ...row, id });
+    if (target) await purgeSsrDetailCache(target.type, target.key);
+  }
   return json({ id, status }, 201);
 }
 
@@ -218,6 +228,14 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
 
+  // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle (bkz.
+  // src/lib/officeFounderCascade.js — gerçek "kurucu/ortak" görünürlüğü bu alandan gelir, founders
+  // dizisinin kendisi yalnızca kozmetiktir).
+  if (typeKey === 'offices' && 'founders' in body) {
+    const oldFounders = parseSubmissionRow('offices', existing).founders;
+    await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
+  }
+
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
   // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
   await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key);
@@ -225,6 +243,12 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // Onaylı içerik ya şimdi onaylandı ya da (sıradan üye kendi onaylı içeriğini düzenlediğinde,
   // bkz. yukarıdaki status ataması) tekrar onay bekler duruma düşüp public'ten kalkmış olabilir —
   // her iki yönde de public önbellek eskimiş olacağından temizlenir.
-  if (status === 'approved' || existing.status === 'approved') await invalidatePublicCache();
+  if (status === 'approved' || existing.status === 'approved') {
+    await invalidatePublicCache();
+    // Değişiklik ÖNCESİ kaydın kimliğini hedefler (görüntülenen sayfa hâlâ bu anahtar altında
+    // önbelleklenmiş olabilir) — bkz. src/lib/ssrCache.js.
+    const target = ssrPurgeTargetFor(typeKey, existing);
+    if (target) await purgeSsrDetailCache(target.type, target.key);
+  }
   return json({ id, status });
 }

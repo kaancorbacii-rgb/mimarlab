@@ -4,6 +4,24 @@ import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../li
 import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
+import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
+import { cascadeRemovedFounders } from '../lib/officeFounderCascade.js';
+import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
+
+// Bir <tip>_submissions satırı KALICI OLARAK silindiğinde (bkz. handleSubmissionsAdmin DELETE,
+// src/routes/legacyContent.js#handleContentAction/handleProjectAction) ilgili cascade fonksiyonunu
+// çağırır — bkz. src/lib/cascadeDelete.js (kullanıcı isteği: "bir mimar/ofis/proje/ürünü admin
+// panelinden silersem tüm sistemden o bilgi silinsin").
+async function runCascadeDelete(env, user, typeKey, row) {
+  if (!row) return;
+  if (typeKey === 'architects') return cascadeDeleteArchitect(env, row.name);
+  if (typeKey === 'offices') return cascadeDeleteOffice(env, user, row.name);
+  if (typeKey === 'projects') return cascadeDeleteProject(env, row.claimed_slug || row.slug);
+  if (typeKey === 'products') return cascadeDeleteProduct(env, 'product', `m-${row.id}`);
+  if (typeKey === 'materials') return cascadeDeleteProduct(env, 'material', `m-${row.id}`);
+  if (typeKey === 'news') return cascadeDeleteMisc(env, 'news', row.id);
+  if (typeKey === 'jobs') return cascadeDeleteMisc(env, 'job', row.id);
+}
 
 const TYPE_BY_PATH = {
   offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
@@ -151,6 +169,14 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       values.push(id);
       await env.DB.prepare(`UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
+      // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle
+      // (bkz. src/lib/officeFounderCascade.js — src/routes/submissions.js#updateOwnSubmission'daki
+      // aynı çağrı, admin'in doğrudan düzenlediği durum için).
+      if (typeKey === 'offices' && 'founders' in body) {
+        const oldFounders = parseSubmissionRow('offices', existing).founders;
+        await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
+      }
+
       // Bu satır önceden arşivlenmiş bir statik kaydın taslağıysa (bkz. src/routes/legacyContent.js
       // #handleContentAction/handleProjectAction), admin onu burada (Admin Arşiv sekmesindeki özel
       // "Yayınla" DIŞINDA, ör. "Bekleyen Gönderiler" onay akışından) onaylarsa statik kayıt
@@ -185,13 +211,22 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       }
       // Onaylı içerik ya şimdi onaylandı ya da onaylıyken bir alanı/durumu değişti (her iki
       // durumda da public'e yansıyan bir şey değişmiş olabilir) — bkz. src/lib/publicCache.js.
-      if (existing.status === 'approved' || body.status === 'approved') await invalidatePublicCache();
+      if (existing.status === 'approved' || body.status === 'approved') {
+        await invalidatePublicCache();
+        // Var olan (güncelleme ÖNCESİ) kaydın kimliğini hedefler — bkz. src/lib/ssrCache.js.
+        const target = ssrPurgeTargetFor(typeKey, existing);
+        if (target) await purgeSsrDetailCache(target.type, target.key);
+      }
       return json({ ok: true });
     }
 
     if (request.method === 'DELETE') {
+      const existing = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+      const target = existing ? ssrPurgeTargetFor(typeKey, existing) : null;
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
+      await runCascadeDelete(env, user, typeKey, existing);
       await invalidatePublicCache();
+      if (target) await purgeSsrDetailCache(target.type, target.key);
       return json({ ok: true });
     }
   }
