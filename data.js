@@ -945,8 +945,6 @@ const architects = [
   {name:"Büşra Koçak", role:"Kurucu Ortak", office:"the | work", photo:"mimarlar-thumb/arkiv/busra-kocak.jpg"},
   {name:"Berk Arinç", role:"Kurucu Ortak", office:"the | work", photo:"mimarlar-thumb/arkiv/berk-arinc.jpg"},
   {name:"Servet Memiş", role:"Kurucu", office:"Deep Mimarlık", photo:"mimarlar-thumb/arkiv/servet-memis.jpg"},
-  {name:"Simge Balcı", role:"Kurucu Ortak", office:"Mahal Architects / Mahal Mimarlık", photo:"mimarlar-thumb/simge-balci-mimarlab.jpg", school:"YTÜ", dept:"Mimarlık"},
-  {name:"Pınar Bayraktar", role:"Kurucu Ortak", office:"Mahal Architects / Mahal Mimarlık", photo:"mimarlar-thumb/pinar-bayraktar-mimarlab.jpg", school:"YTÜ", dept:"Mimarlık"},
   {name:"Burcu Tüm", role:"Kurucu Ortak", office:"Mahal Architects / Mahal Mimarlık", photo:"mimarlar-thumb/burcu-tum-mimarlab.jpg", school:"YTÜ", dept:"Mimarlık"},
   {name:"Giancarlo Alhadeff", role:"Kurucu", office:"Alhadeff Architects", photo:"mimarlar-thumb/arkiv/giancarlo-alhadeff.jpg"},
   {name:"Pelin Güley", role:"Kurucu", office:"Pelin Güley İç Mimarlık", photo:"mimarlar-thumb/arkiv/pelin-guley.jpg"},

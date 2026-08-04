@@ -454,6 +454,18 @@ function trLower(s){
     .toLowerCase();
 }
 
+// data.js'teki statik mimarlar ile üye gönderimlerini birleştirirken aynı isim iki kez listeye
+// girebiliyor (bkz. kullanıcı isteği: "Simge Balcı ve Pınar Bayraktar mükerrer görünüyor") — bir
+// isim zaten dizideyse sonraki eşleşmeler kartlaşmadan elenir, ilk (data.js sırasındaki) kayıt kalır.
+function dedupeArchitects(){
+  const seen = new Set();
+  for(let i = 0; i < architects.length; i++){
+    const key = architects[i].name;
+    if(seen.has(key)){ architects.splice(i, 1); i--; }
+    else seen.add(key);
+  }
+}
+
 function populateFilters(){
   const dobSel = document.getElementById('g-dob');
   const prevDob = dobSel.value;
@@ -710,6 +722,7 @@ document.addEventListener('click', (e)=>{
   if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
 });
 
+dedupeArchitects();
 populateFilters();
 render();
 window.addEventListener('mimarlab-badges-ready', render);
@@ -718,6 +731,7 @@ window.addEventListener('mimarlab-badges-ready', render);
 fetch('/api/public/architects').then(res => res.ok ? res.json() : {items:[]}).then(data => {
   architects.push(...(data.items || []));
 }).catch(()=>{}).finally(() => {
+  dedupeArchitects();
   populateFilters();
   render();
 });
