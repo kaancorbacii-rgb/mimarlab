@@ -6,7 +6,7 @@ import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
-const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'ogrenci', 'diger']);
+const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'ogrenci', 'diger']);
 const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bolge_planlama', 'restorasyon', 'diger']);
 // mimar-ekle.html'deki "Pozisyon" seçenekleriyle birebir aynı (bkz. o formdaki position radio grubu).
 export const POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Çalışan', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İşsiz']);

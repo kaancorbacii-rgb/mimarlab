@@ -362,6 +362,7 @@
             <option value="peyzaj_mimari">Peyzaj Mimarı</option>
             <option value="sehir_plancisi">Şehir Plancısı</option>
             <option value="restorator">Restoratör</option>
+            <option value="tasarimci">Tasarımcı</option>
             <option value="ogrenci">Öğrenci</option>
             <option value="diger">Diğer</option>
           </select>
@@ -558,7 +559,7 @@ function renderDashPagination(containerId, currentPage, totalPages, onChange){
   if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage > 1) onChange(currentPage - 1); });
   if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage < totalPages) onChange(currentPage + 1); });
 }
-const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', ogrenci:'Öğrenci', diger:'Diğer' };
+const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
 let currentUser = null;
 
 function initials(name){
