@@ -797,6 +797,24 @@ async function applyProfileEdits(){
       if(officeChanged){
         a.office = overlay.office || null;
         office = offices.find(x => x.name === a.office) || null;
+        // a.office bir firmanın YENİ (yeniden adlandırılmış) adı olabilir — ör. mimar kendi profilinde
+        // Firma alanına "Tümertekin Architects" yazdı ama offices[] içindeki statik kayıt hâlâ eski adı
+        // ("Han Tümertekin") taşıyor, çünkü o kaydın KENDİ yeniden adlandırma bindirmesi henüz hiç
+        // uygulanmadı (aşağıdaki officeOverlay bloğu tam da BUNU yapıyor ama `office` bulunamadığından
+        // hiç çalışmıyordu — döngüsel bir bağımlılık). Bulunamazsa, offices[]'teki her statik kaydın
+        // KENDİ bindirmesindeki .name alanına bakıp a.office ile eşleşeni arar (bkz. yukarıdaki
+        // "if(!explicitMatch && mimarSlug)" bloğundaki AYNI desen) — gerçek bulgu: Han Tümertekin kendi
+        // profilinde firmayı "Tümertekin Architects" olarak güncelledi ama profilinde "Kurucu" yazıp
+        // firma adı hiç görünmüyordu.
+        if(!office && edits.office){
+          for(const staticName in edits.office){
+            if(edits.office[staticName].name === a.office){
+              const staticOff = offices.find(x => x.name === staticName);
+              if(staticOff){ renameOfficeEverywhere(staticOff, a.office); office = staticOff; }
+              break;
+            }
+          }
+        }
       }
     }
 
@@ -809,7 +827,11 @@ async function applyProfileEdits(){
     // düzenleme burada ayrıca uygulanmazsa "Firmalar" kartındaki logo/ad hep eski/eksik kalırdı (bkz.
     // gerçek bulgu: Foster + Partners'a logo yüklenmesine rağmen Norman Foster profilindeki firma
     // kartında görünmüyordu).
-    const officeOverlay = office && edits.office && edits.office[office.name];
+    // office._claimKey || office.name: office az önce (yukarıdaki officeChanged bloğunda) zaten
+    // yeniden adlandırılmış olabilir — edits.office HÂLÂ claimed_profile_key'e (orijinal statik ada)
+    // göre anahtarlı olduğundan, office.name (artık YENİ ad) ile aramak bu firmanın KENDİ logo/konum/
+    // açıklama bindirmesini hiç bulamazdı (bkz. yukarıdaki AYNI gerekçe/aynı düzeltme deseni).
+    const officeOverlay = office && edits.office && edits.office[office._claimKey || office.name];
     let officeRenamed = false;
     if(officeOverlay){
       officeRenamed = officeOverlay.name ? renameOfficeEverywhere(office, officeOverlay.name) : false;
