@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<!-- Temiz URL'lerle bu sayfa /ofis-detay.html dışında /markalar/:slug altında da (iç içe bir yolda)
+<!-- Temiz URL'lerle bu sayfa /ofis-detay.html dışında /firma/:slug altında da (iç içe bir yolda)
      servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
      yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
 <base href="/">
@@ -549,8 +549,13 @@ function renderFoundersGrid(o){
 // o'ya bağlı görüntülenen alanlar (bkz. applyProfileEdits: sahiplenilip onaylanmış bir profil
 // düzenlemesi varsa loc/cats/yil/website/about/logo bu fonksiyon yeniden çağrılarak güncellenir).
 function renderOfficeFields(o){
-  document.getElementById('bc-cat').textContent = o.cats.split(' · ')[0];
-  document.getElementById('profile-category').textContent = o.cats;
+  // o.cats opsiyonel (bkz. firma-ekle.html "Hizmet Alanı (opsiyonel)") — burada guard'sız o.cats.split(...)
+  // çağrısı, hizmet alanı boş bırakılmış bir üye firmasında (ör. yalnızca statik veride bulunamayıp
+  // DB fallback'inden gelen bir kayıt) TypeError fırlatıp renderOfficeDetail'in geri kalanını (about
+  // metni, logo, currentOffice ataması, initProfileExtras) hiç çalıştırmadan kesiyordu — sayfa sessizce
+  // offices[0]'un (yanlış bir firmanın) verisinde takılı kalıyordu (gerçek bulgu).
+  document.getElementById('bc-cat').textContent = o.cats ? o.cats.split(' · ')[0] : 'Firma';
+  document.getElementById('profile-category').textContent = o.cats || '';
   document.getElementById('about-text').textContent = o.about;
 
   const officeFacts = [];
@@ -588,7 +593,7 @@ function renderOfficeFields(o){
   saveBtn.dataset.title = o.name;
   saveBtn.dataset.meta = o.loc || '';
   saveBtn.dataset.image = officeLogoUrl || '';
-  saveBtn.dataset.href = `/markalar/${encodeURIComponent(slugify(o.name))}`;
+  saveBtn.dataset.href = `/firma/${encodeURIComponent(slugify(o.name))}`;
   // renderOfficeFields, statik veride bulunamayan bir ofis için DB fallback'inden sonra tekrar
   // çağrılabilir (bkz. renderOfficeDetail sonundaki "if(!foundOffice)" bloğu) — wireSaveButtons her
   // seferinde yeni bir click listener eklediğinden (bkz. save-widget.js) burada yalnızca ilk
@@ -647,7 +652,7 @@ function renderOfficeIdentity(o){
   document.title = o.name + " — MİMARLAB";
   {
     const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
-    const canonicalUrl = `https://mimarlab.com/markalar/${encodeURIComponent(slugify(o.name))}`;
+    const canonicalUrl = `https://mimarlab.com/firma/${encodeURIComponent(slugify(o.name))}`;
     const logo = logoUrl(o);
     const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
     document.getElementById('meta-description').setAttribute('content', desc);
@@ -671,9 +676,9 @@ const params = new URLSearchParams(window.location.search);
 let officeName = params.get('ofis');
 let officeSlug = null;
 if(!officeName){
-  // Temiz URL: /markalar/:slug (bkz. src/index.js#CLEAN_URL_ASSETS) — eski ?ofis= sorgu parametresi
+  // Temiz URL: /firma/:slug (bkz. src/index.js#CLEAN_URL_ASSETS) — eski ?ofis= sorgu parametresi
   // bulunamazsa isim yerine slugify edilmiş adı yoldan oku (save-widget.js#slugify ile eşleştirilir).
-  const m = window.location.pathname.match(/\/markalar\/([^/]+)\/?$/);
+  const m = window.location.pathname.match(/\/firma\/([^/]+)\/?$/);
   if(m) officeSlug = decodeURIComponent(m[1]);
 }
 const found = (officeName && offices.find(x => x.name === officeName))
@@ -738,7 +743,15 @@ async function applyProfileEdits(){
   if(!currentOffice) return;
   try{
     const edits = await fetchProfileEdits();
-    const overlay = edits.office && edits.office[currentOffice.name];
+    // edits.office, claimed_profile_key'e (ORİJİNAL statik ada) göre anahtarlanır (bkz.
+    // src/routes/public.js#handlePublicProfileEdits). Bu firma, sayfa bu fonksiyona gelmeden ÖNCE
+    // zaten yeniden adlandırılmış olabilir (bkz. renderOfficeDetail'in üstündeki "if(!foundOffice)"
+    // bloğundaki rename-tespiti — ör. /firma/tumertekin-architects gibi YENİ slug'la doğrudan
+    // ziyaret edilince) — bu durumda currentOffice.name ARTIK yeni ad, currentOffice._claimKey ise
+    // orijinal statik adı taşır. currentOffice.name ile arasak overlay HİÇBİR ZAMAN bulunamaz ve asıl
+    // düzenlenen alanlar (about/konum/kuruluş yılı/logo) hiç uygulanmadan eski statik veri kalıcı
+    // olarak görünmeye devam ederdi (gerçek bulgu — bkz. mimar-detay.html'deki AYNI düzeltme).
+    const overlay = edits.office && edits.office[currentOffice._claimKey || currentOffice.name];
     if(overlay){
       // Admin bu firmanın adını değiştirmiş olabilir (bkz. data.js#renameOfficeEverywhere,
       // firma-ekle.html "Firma Adı") — Object.assign'DAN ÖNCE çalıştırılır ki cascade hâlâ
@@ -1055,7 +1068,7 @@ if(!foundOffice){
     fetchProfileEdits().catch(()=>({})),
   ]).then(([data, edits]) => {
     if(!explicitOfficeMatch && edits.office){
-      const m = window.location.pathname.match(/\/markalar\/([^/]+)\/?$/);
+      const m = window.location.pathname.match(/\/firma\/([^/]+)\/?$/);
       const urlSlug = m ? decodeURIComponent(m[1]) : null;
       if(urlSlug){
         for(const staticName in edits.office){
@@ -1161,7 +1174,7 @@ function wireNavSearch(){
 }
 wireNavSearch();
 
-// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /markalar/:slug altında da servis
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /firma/:slug altında da servis
 // edilir) yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/)
 // giderdi; tıklamayı yutar. "#jobs" ise gerçekten bu sayfadaki #jobs'a kaydırmalı, o yüzden ayrı ele alınır.
 document.querySelectorAll('a[href="#jobs"]').forEach(a=>{

@@ -721,7 +721,7 @@ function renderStructuredData(){
   if(a.role) data.jobTitle = a.role;
   if(a.photo) { try { data.image = new URL(a.photo, window.location.href).href; } catch{} }
   if(a.school) data.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
-  if(office) data.worksFor = { '@type': 'Organization', name: office.name, url: new URL('/markalar/' + encodeURIComponent(slugify(office.name)), window.location.href).href };
+  if(office) data.worksFor = { '@type': 'Organization', name: office.name, url: new URL('/firma/' + encodeURIComponent(slugify(office.name)), window.location.href).href };
   tag.textContent = JSON.stringify(data);
 }
 renderStructuredData();
@@ -757,7 +757,15 @@ async function applyProfileEdits(){
     }
     if(colleaguesChanged) renderColleagues();
 
-    const overlay = edits.architect && edits.architect[a.name];
+    // edits.architect, claimed_profile_key'e (ORİJİNAL statik ada) göre anahtarlanır (bkz.
+    // src/routes/public.js#handlePublicProfileEdits). Bu mimar, sayfa buraya gelmeden ÖNCE zaten
+    // yeniden adlandırılmış olabilir (bkz. yukarıdaki "if(!explicitMatch && mimarSlug)" bloğundaki
+    // rename-tespiti — ör. yeni slug'la doğrudan ziyaret edilince) — bu durumda a.name ARTIK yeni ad,
+    // a._claimKey ise orijinal statik adı taşır. a.name ile aranırsa overlay HİÇBİR ZAMAN bulunamaz
+    // ve asıl düzenlenen alanlar (doğum tarihi/okul/pozisyon/ödüller/fotoğraf) hiç uygulanmadan eski
+    // statik veri kalıcı olarak görünmeye devam ederdi (gerçek bulgu — bkz. ofis-detay.html'deki
+    // AYNI düzeltme).
+    const overlay = edits.architect && edits.architect[a._claimKey || a.name];
     let officeChanged = false;
     let aboutChanged = false;
     let renamed = false;
@@ -844,7 +852,7 @@ function renderOfficeCard(){
   if(!office){ officeSectionEl.style.display = 'none'; return; }
   officeSectionEl.style.display = '';
   officeCardEl.innerHTML = `
-    <a class="office-card" href="/markalar/${encodeURIComponent(slugify(office.name))}">
+    <a class="office-card" href="/firma/${encodeURIComponent(slugify(office.name))}">
       <div class="office-card-logo" style="background:${officeColor(office.name)}">${initials(office.name)}${logoUrl(office) ? `<img src="${escapeAttr(logoUrl(office))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
       <div>
         <div class="office-card-name">${escapeHtml(office.name)}${verifiedBadgeHtml('office', office.name, office.badges)}</div>

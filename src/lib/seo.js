@@ -95,7 +95,7 @@ async function buildArchitectMeta(slug, env) {
   if (a.role) jsonLd.jobTitle = a.role;
   if (photoUrl) jsonLd.image = photoUrl;
   if (a.school) jsonLd.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
-  if (office) jsonLd.worksFor = { '@type': 'Organization', name: office.name, url: `${SITE_ORIGIN}/markalar/${encodeURIComponent(slugify(office.name))}` };
+  if (office) jsonLd.worksFor = { '@type': 'Organization', name: office.name, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(slugify(office.name))}` };
   return { title, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd };
 }
 
@@ -114,7 +114,7 @@ async function buildOfficeMeta(slug, env) {
   }
   const title = `${o.name} — MİMARLAB`;
   const description = o.about ? truncate(o.about, 200) : `${o.name} — MİMARLAB'da firma profilini incele.`;
-  const canonicalUrl = `${SITE_ORIGIN}/markalar/${encodeURIComponent(slug)}`;
+  const canonicalUrl = `${SITE_ORIGIN}/firma/${encodeURIComponent(slug)}`;
   const logoUrl = o.logo ? absoluteUrl(o.logo) : null;
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Organization', name: o.name, url: canonicalUrl };
   if (o.about) jsonLd.description = o.about;
@@ -215,7 +215,7 @@ export async function buildMeta(type, slugOrId, env) {
 export function listEntityUrls() {
   const urls = [];
   for (const a of architects) urls.push(`/mimar/${encodeURIComponent(slugify(a.name))}`);
-  for (const o of offices) urls.push(`/markalar/${encodeURIComponent(slugify(o.name))}`);
+  for (const o of offices) urls.push(`/firma/${encodeURIComponent(slugify(o.name))}`);
   for (const p of projects) urls.push(`/projeler/${encodeURIComponent(p.slug)}`);
   return urls;
 }

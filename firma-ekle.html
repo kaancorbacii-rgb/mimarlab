@@ -780,7 +780,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/markalar/${encodeURIComponent(slugify(payload.name))}`; }, 1200);
+      setTimeout(()=>{ window.location.href = `/firma/${encodeURIComponent(slugify(payload.name))}`; }, 1200);
       return;
     }
     if(editId || claimName){

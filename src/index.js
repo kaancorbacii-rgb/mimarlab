@@ -32,7 +32,7 @@ const SECURITY_HEADERS = {
 const CLEAN_URL_REDIRECTS = {
   '/proje-detay': { param: 'proje', prefix: '/projeler/', slugifyValue: false },
   '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
-  '/ofis-detay': { param: 'ofis', prefix: '/markalar/', slugifyValue: true },
+  '/ofis-detay': { param: 'ofis', prefix: '/firma/', slugifyValue: true },
 };
 // Yeni temiz yol önekini, aynı içeriği render eden gerçek statik HTML dosyasına eşler — istemci
 // tarafındaki sayfa JS'i slug'ı URL yolundan okuyacak şekilde ayrıca güncellenmiştir (bkz. ilgili
@@ -43,7 +43,7 @@ const CLEAN_URL_REDIRECTS = {
 const CLEAN_URL_ASSETS = [
   { prefix: '/projeler/', asset: '/proje-detay', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
-  { prefix: '/markalar/', asset: '/ofis-detay', type: 'office' },
+  { prefix: '/firma/', asset: '/ofis-detay', type: 'office' },
   { prefix: '/urunler/', asset: '/urun-detay', type: 'product' },
 ];
 
@@ -60,6 +60,15 @@ const PATH_RENAME_REDIRECTS = {
   '/malzeme-ekle': '/urun-ekle',
   '/malzeme-ekle.html': '/urun-ekle',
 };
+
+// PATH_RENAME_REDIRECTS'ten farkı: hedef sabit bir yol değil, aynı dinamik slug'ı taşıyan yeni bir
+// önek — /markalar/:slug'a giden eski bağlantılar/yer imleri kırılmasın diye (bkz. kullanıcı isteği:
+// "Firmaların detay sayfalarındaki URL'lerdeki markalar kelimesini firma olarak değiştir"). CLEAN_URL_
+// ASSETS'teki '/markalar/' önekinin '/firma/' ile değiştirilmesiyle BİRLİKTE eklendi — aksi halde eski
+// /markalar/:slug istekleri artık hiçbir CLEAN_URL_ASSETS kuralına uymayıp düz 404 dönerdi.
+const PREFIX_RENAME_REDIRECTS = [
+  { from: '/markalar/', to: '/firma/' },
+];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
 // /sitemap.xml Worker route'u tarafından üretiliyor, bu dosya kaldırıldı).
@@ -132,6 +141,13 @@ async function routeAsset(request, env, url, ctx) {
     return Response.redirect(dest.href, 301);
   }
 
+  const prefixRename = PREFIX_RENAME_REDIRECTS.find(r => url.pathname.startsWith(r.from));
+  if (prefixRename) {
+    const dest = new URL(prefixRename.to + url.pathname.slice(prefixRename.from.length), url.origin);
+    dest.search = url.search;
+    return Response.redirect(dest.href, 301);
+  }
+
   const redirectKey = url.pathname.replace(/\.html$/, '');
   const redirectRule = CLEAN_URL_REDIRECTS[redirectKey];
   const paramVal = redirectRule ? url.searchParams.get(redirectRule.param) : null;
@@ -155,7 +171,7 @@ function withStaticImageCacheHeaders(url, response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// /mimar/:slug, /markalar/:slug, /projeler/:slug — statik şablonu ASSETS'ten alır,
+// /mimar/:slug, /firma/:slug, /projeler/:slug — statik şablonu ASSETS'ten alır,
 // slug data.js/projeler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
 // HTMLRewriter ile (Google/sosyal medya botları JS çalıştırmadan da) doğru değerlerle değiştirir.
 // Bulunamazsa (ör. yalnızca D1'de var olan, henüz bu detay sayfalarını desteklemeyen bir kayıt)

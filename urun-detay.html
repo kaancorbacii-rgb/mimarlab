@@ -575,7 +575,7 @@ async function renderProductDetail(){
     document.getElementById('brand-section').style.display = '';
     if(off){
       const logo = logoUrl(off);
-      document.getElementById('brand-chips').innerHTML = `<a class="designer-chip" href="/markalar/${encodeURIComponent(slugify(off.name))}">
+      document.getElementById('brand-chips').innerHTML = `<a class="designer-chip" href="/firma/${encodeURIComponent(slugify(off.name))}">
         <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
         <span class="designer-chip-name">${escapeHtml(off.name)}</span>
       </a>`;

@@ -664,7 +664,7 @@ if(!p){
   }
   function officeChipHtml(off){
     const logo = logoUrl(off);
-    return `<a class="designer-chip" href="/markalar/${encodeURIComponent(slugify(off.name))}">
+    return `<a class="designer-chip" href="/firma/${encodeURIComponent(slugify(off.name))}">
       <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
       <span class="designer-chip-name">${escapeHtml(off.name)}</span>
     </a>`;
@@ -678,7 +678,7 @@ if(!p){
     const label = entry.product ? `${entry.product} — ${entry.brand}` : entry.brand;
     if(off){
       const logo = logoUrl(off);
-      return `<a class="designer-chip" href="/markalar/${encodeURIComponent(slugify(off.name))}">
+      return `<a class="designer-chip" href="/firma/${encodeURIComponent(slugify(off.name))}">
         <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
         <span class="designer-chip-name">${escapeHtml(label)}</span>
       </a>`;
@@ -1108,7 +1108,7 @@ function catalogCardLinkHtml(item, kind){
       <div class="catalog-card-title">${escapeHtml(item.title)}</div>
       ${item.brand ? `<div class="catalog-card-by">${escapeHtml(item.brand)}</div>` : ''}
     </div>`;
-  if(off) return `<a class="catalog-card" href="/markalar/${encodeURIComponent(slugify(off.name))}">${inner}</a>`;
+  if(off) return `<a class="catalog-card" href="/firma/${encodeURIComponent(slugify(off.name))}">${inner}</a>`;
   const externalUrl = item.website ? safeUrl(item.website) : '';
   if(externalUrl) return `<a class="catalog-card" href="${escapeAttr(externalUrl)}" target="_blank" rel="noopener">${inner}</a>`;
   // Ne firmanın MİMARLAB profili ne de kendi web sitesi varsa, kart yine de tıklanabilir kalsın diye
