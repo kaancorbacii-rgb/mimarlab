@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<!-- Temiz URL'lerle bu sayfa /ofis-detay.html dışında /markalar/:slug altında da (iç içe bir yolda)
+<!-- Temiz URL'lerle bu sayfa /ofis-detay.html dışında /firma/:slug altında da (iç içe bir yolda)
      servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
      yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
 <base href="/">
@@ -584,7 +584,7 @@ function renderOfficeFields(o){
   saveBtn.dataset.title = o.name;
   saveBtn.dataset.meta = o.loc || '';
   saveBtn.dataset.image = officeLogoUrl || '';
-  saveBtn.dataset.href = `/markalar/${encodeURIComponent(slugify(o.name))}`;
+  saveBtn.dataset.href = `/firma/${encodeURIComponent(slugify(o.name))}`;
   if(!saveButtonWired){
     saveButtonWired = true;
     wireSaveButtons('office');
@@ -632,7 +632,7 @@ function renderOfficeIdentity(o){
   document.title = o.name + " — MİMARLAB";
   {
     const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
-    const canonicalUrl = `https://mimarlab.com/markalar/${encodeURIComponent(slugify(o.name))}`;
+    const canonicalUrl = `https://mimarlab.com/firma/${encodeURIComponent(slugify(o.name))}`;
     const logo = logoUrl(o);
     const image = logo ? new URL(logo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
     document.getElementById('meta-description').setAttribute('content', desc);
@@ -777,7 +777,7 @@ async function initProfileExtras(){
   let officeName = params.get('ofis');
   let officeSlug = null;
   if(!officeName){
-    const m = window.location.pathname.match(/\/markalar\/([^/]+)\/?$/);
+    const m = window.location.pathname.match(/\/firma\/([^/]+)\/?$/);
     if(m) officeSlug = decodeURIComponent(m[1]);
   }
   const requestKey = officeSlug || officeName || '';
@@ -891,7 +891,7 @@ function wireNavSearch(){
 }
 wireNavSearch();
 
-// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /markalar/:slug altında da servis
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /firma/:slug altında da servis
 // edilir) yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/)
 // giderdi; tıklamayı yutar. "#jobs" ise gerçekten bu sayfadaki #jobs'a kaydırmalı, o yüzden ayrı ele alınır.
 document.querySelectorAll('a[href="#jobs"]').forEach(a=>{

@@ -441,7 +441,6 @@ const FILTER_GROUPS = [
   { key: 'dateBucket', label: 'Yıl', field: p => [p.dateBucket] },
   { key: 'designer', label: 'Mimar', field: p => p.designer.filter(d => !isOfficeName(d)) },
   { key: 'designerOffice', label: 'Mimarlık Firması', field: p => p.designer.filter(d => isOfficeName(d)) },
-  { key: 'rating', label: 'Puan', field: p => ratingBuckets(ratingOf(projectRatings, p.slug).average) },
 ];
 
 let projectRatings = new Map();

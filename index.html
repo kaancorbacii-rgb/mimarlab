@@ -808,7 +808,7 @@ function architectSlideHtml(a, i){
 }
 
 function officeSlideHtml(o, i){
-  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/markalar/${encodeURIComponent(slugify(o.name))}" data-index="${i}">
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/firma/${encodeURIComponent(slugify(o.name))}" data-index="${i}">
     <img class="slide-logo-img" src="${escapeAttr(o.logo)}" alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
     <span class="slide-tag">Firma</span>
     <div class="slide-caption">

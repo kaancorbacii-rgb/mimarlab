@@ -1627,7 +1627,7 @@ function institutionCell(a){
     if(o){
       return `
         <div class="institution-cell">
-          <a class="institution-item" href="/markalar/${encodeURIComponent(slugify(o.name))}">
+          <a class="institution-item" href="/firma/${encodeURIComponent(slugify(o.name))}">
             <div class="tag-hole" style="background:${officeColor(o.name)}">${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttrGlobal(logoUrl(o))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
             <div class="institution-text">
               <span class="institution-name-line">

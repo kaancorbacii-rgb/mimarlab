@@ -698,7 +698,7 @@ function renderStructuredData(){
   if(a.role) data.jobTitle = a.role;
   if(a.photo) { try { data.image = new URL(a.photo, window.location.href).href; } catch{} }
   if(a.school) data.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
-  if(office) data.worksFor = { '@type': 'Organization', name: office.name, url: new URL('/markalar/' + encodeURIComponent(slugify(office.name)), window.location.href).href };
+  if(office) data.worksFor = { '@type': 'Organization', name: office.name, url: new URL('/firma/' + encodeURIComponent(slugify(office.name)), window.location.href).href };
   tag.textContent = JSON.stringify(data);
 }
 renderStructuredData();
@@ -713,7 +713,7 @@ function renderOfficeCard(){
   if(!offices.length){ officeSectionEl.style.display = 'none'; return; }
   officeSectionEl.style.display = '';
   officeCardEl.innerHTML = offices.map(off => `
-    <a class="office-card" href="/markalar/${encodeURIComponent(slugify(off.name))}">
+    <a class="office-card" href="/firma/${encodeURIComponent(slugify(off.name))}">
       <div class="office-card-logo" style="background:${officeColor(off.name)}">${initials(off.name)}${logoUrl(off) ? `<img src="${escapeAttr(logoUrl(off))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
       <div>
         <div class="office-card-name">${escapeHtml(off.name)}${verifiedBadgeHtml('office', off.name, off.badges)}</div>

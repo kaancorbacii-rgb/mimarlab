@@ -46,7 +46,7 @@ const SECURITY_HEADERS = {
 const CLEAN_URL_REDIRECTS = {
   '/proje-detay': { param: 'proje', prefix: '/projeler/', slugifyValue: false },
   '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
-  '/ofis-detay': { param: 'ofis', prefix: '/markalar/', slugifyValue: true },
+  '/ofis-detay': { param: 'ofis', prefix: '/firma/', slugifyValue: true },
   '/haber-detay': { param: 'haber', prefix: '/haberler/', slugifyValue: false },
 };
 // Yeni temiz yol önekini, aynı içeriği render eden gerçek statik HTML dosyasına eşler — istemci
@@ -58,7 +58,7 @@ const CLEAN_URL_REDIRECTS = {
 const CLEAN_URL_ASSETS = [
   { prefix: '/projeler/', asset: '/proje-detay', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
-  { prefix: '/markalar/', asset: '/ofis-detay', type: 'office' },
+  { prefix: '/firma/', asset: '/ofis-detay', type: 'office' },
   { prefix: '/urunler/', asset: '/urun-detay', type: 'product' },
   { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
 ];
@@ -76,6 +76,13 @@ const PATH_RENAME_REDIRECTS = {
   '/malzeme-ekle': '/urun-ekle',
   '/malzeme-ekle.html': '/urun-ekle',
 };
+
+// Eski /markalar/:slug firma detay URL'leri artık /firma/:slug (bkz. kullanıcı isteği: SEO/backlink
+// koruması) — yukarıdaki PATH_RENAME_REDIRECTS'in aksine slug segmenti dinamik olduğundan tam eşleşme
+// yerine önek (prefix) bazlı yönlendirme gerekiyor; slug/sorgu string'i olduğu gibi korunur.
+const PREFIX_RENAME_REDIRECTS = [
+  { from: '/markalar/', to: '/firma/' },
+];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
 // /sitemap.xml Worker route'u tarafından üretiliyor, bu dosya kaldırıldı).
@@ -151,6 +158,13 @@ async function routeAsset(request, env, url, ctx) {
     return Response.redirect(dest.href, 301);
   }
 
+  const prefixRename = PREFIX_RENAME_REDIRECTS.find(r => url.pathname.startsWith(r.from) && url.pathname.length > r.from.length);
+  if (prefixRename) {
+    const dest = new URL(prefixRename.to + url.pathname.slice(prefixRename.from.length), url.origin);
+    dest.search = url.search;
+    return Response.redirect(dest.href, 301);
+  }
+
   const redirectKey = url.pathname.replace(/\.html$/, '');
   const redirectRule = CLEAN_URL_REDIRECTS[redirectKey];
   const paramVal = redirectRule ? url.searchParams.get(redirectRule.param) : null;
@@ -174,7 +188,7 @@ function withStaticImageCacheHeaders(url, response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// /mimar/:slug, /markalar/:slug, /projeler/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
+// /mimar/:slug, /firma/:slug, /projeler/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
 // slug data.js/projeler-data.js/haberler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
 // HTMLRewriter ile (Google/sosyal medya botları JS çalıştırmadan da) doğru değerlerle değiştirir.
 // Bulunamazsa (ör. yalnızca D1'de var olan, henüz bu detay sayfalarını desteklemeyen bir kayıt)

@@ -454,16 +454,19 @@ function trLower(s){
     .toLowerCase();
 }
 
-// data.js'teki statik mimarlar ile üye gönderimlerini birleştirirken aynı isim iki kez listeye
-// girebiliyor (bkz. kullanıcı isteği: "Simge Balcı ve Pınar Bayraktar mükerrer görünüyor") — bir
-// isim zaten dizideyse sonraki eşleşmeler kartlaşmadan elenir, ilk (data.js sırasındaki) kayıt kalır.
+// data.js'teki statik mimarlar ile üye gönderimlerini (/api/public/architects, D1 canonical
+// architects tablosundaki onaylı satırlardan) birleştirirken aynı isim (bare-name, mimarlar/ofisler
+// için tek "slug/legacy_key" eşdeğeri — bkz. proje belleği "Duplicate name key limitation") iki kez
+// listeye girebiliyor. İsim çakışırsa D1 kaynaklı (source:'member') kayıt HER ZAMAN statik data.js
+// kaydına göre öncelikli tutulur; ilk görülme sırası korunur, yalnızca içerik güncellenir.
 function dedupeArchitects(){
-  const seen = new Set();
-  for(let i = 0; i < architects.length; i++){
-    const key = architects[i].name;
-    if(seen.has(key)){ architects.splice(i, 1); i--; }
-    else seen.add(key);
+  const bestByName = new Map();
+  for(const a of architects){
+    const existing = bestByName.get(a.name);
+    if(!existing || (a.source === 'member' && existing.source !== 'member')) bestByName.set(a.name, a);
   }
+  architects.length = 0;
+  architects.push(...bestByName.values());
 }
 
 function populateFilters(){
