@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<!-- Temiz URL'lerle bu sayfa /proje-detay.html dışında /projeler/:slug altında da (iç içe bir yolda)
+<!-- Temiz URL'lerle bu sayfa /proje-detay.html dışında /proje/:slug altında da (iç içe bir yolda)
      servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
      yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
 <base href="/">
@@ -554,16 +554,16 @@ async function renderProjectDetail(){
 const params = new URLSearchParams(window.location.search);
 let slug = params.get('proje');
 if(!slug){
-  // Temiz URL: /projeler/:slug (bkz. src/index.js#CLEAN_URL_ASSETS) — eski ?proje= sorgu
+  // Temiz URL: /proje/:slug (bkz. src/index.js#CLEAN_URL_ASSETS) — eski ?proje= sorgu
   // parametresi bulunamazsa slug'ı doğrudan yoldan oku.
-  const m = window.location.pathname.match(/\/projeler\/([^/]+)\/?$/);
+  const m = window.location.pathname.match(/\/proje\/([^/]+)\/?$/);
   if(m) slug = decodeURIComponent(m[1]);
 }
 let p = projectBySlug(slug);
 
 // Statik projeler-data.js dizisinde yoksa: claimed_slug'sız (statik hiçbir kaydı düzenlemeyen,
 // tamamen yeni) bir üye gönderisi olabilir — proje.html/index.html bu tür onaylı projeleri
-// /api/public/projects'ten çekip statik listeye serpiştiriyor ve /projeler/:slug'a bağlıyor, ama
+// /api/public/projects'ten çekip statik listeye serpiştiriyor ve /proje/:slug'a bağlıyor, ama
 // burada statik arama boşa çıkınca hep "bulunamadı" gösteriliyordu (bkz. kullanıcı isteği:
 // "kırık dosyaları kontrol et" — onaylanan üye projeleri kendi detay sayfalarında 404 veriyordu).
 if(!p){
@@ -636,7 +636,7 @@ if(!p){
   {
     const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
-    const canonicalUrl = `https://mimarlab.com/projeler/${encodeURIComponent(p.slug)}`;
+    const canonicalUrl = `https://mimarlab.com/proje/${encodeURIComponent(p.slug)}`;
     const image = (p.images && p.images[0]) ? new URL(p.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
     document.getElementById('meta-description').setAttribute('content', desc);
     document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
@@ -901,7 +901,7 @@ if(!p){
   if(sameDesigner.length){
     document.getElementById('same-designer-section').style.display = 'block';
     document.getElementById('same-designer-grid').innerHTML = sameDesigner.map(r => `
-      <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
+      <a class="related-card" href="/proje/${encodeURIComponent(r.slug)}">
         ${relatedCardImage(r) ? `<img src="${escapeAttr(relatedCardImage(r))}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
@@ -930,7 +930,7 @@ if(!p){
   if(related.length){
     document.getElementById('related-section').style.display = 'block';
     document.getElementById('related-grid').innerHTML = related.map(r => `
-      <a class="related-card" href="/projeler/${encodeURIComponent(r.slug)}">
+      <a class="related-card" href="/proje/${encodeURIComponent(r.slug)}">
         ${relatedCardImage(r) ? `<img src="${escapeAttr(relatedCardImage(r))}" alt="${escapeAttr(r.title)}" loading="lazy">` : `<div class="related-card-placeholder" style="background:${officeColor(r.title)}">${escapeHtml(initials(r.title))}</div>`}
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
@@ -945,8 +945,8 @@ if(!p){
   const prevP = prevNextList[(idx - 1 + prevNextList.length) % prevNextList.length];
   const nextP = prevNextList[(idx + 1) % prevNextList.length];
   document.getElementById('prevnext').innerHTML = `
-    <a class="prev" href="/projeler/${encodeURIComponent(prevP.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(prevP.title)}</span></a>
-    <a class="next" href="/projeler/${encodeURIComponent(nextP.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(nextP.title)}</span></a>
+    <a class="prev" href="/proje/${encodeURIComponent(prevP.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(prevP.title)}</span></a>
+    <a class="next" href="/proje/${encodeURIComponent(nextP.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(nextP.title)}</span></a>
   `;
 
   const saveBtn = document.getElementById('save-btn');
@@ -954,7 +954,7 @@ if(!p){
   saveBtn.dataset.title = p.title;
   saveBtn.dataset.meta = p.location || '';
   saveBtn.dataset.image = p.images[0] || '';
-  saveBtn.dataset.href = `/projeler/${encodeURIComponent(p.slug)}`;
+  saveBtn.dataset.href = `/proje/${encodeURIComponent(p.slug)}`;
   wireSaveButtons('project');
 
   fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(p.slug)}`)
@@ -1039,11 +1039,11 @@ function renderCommentForm(targetId){
 
 async function initComments(){
   await savedWidgetReady;
-  // Temiz URL'lerde (/projeler/:slug) ?proje= sorgu parametresi yok — renderProjectDetail()'deki
+  // Temiz URL'lerde (/proje/:slug) ?proje= sorgu parametresi yok — renderProjectDetail()'deki
   // slug çözümlemesiyle birebir aynı fallback (bkz. bu dosyanın başındaki aynı desen).
   let slugParam = new URLSearchParams(window.location.search).get('proje');
   if(!slugParam){
-    const m = window.location.pathname.match(/\/projeler\/([^/]+)\/?$/);
+    const m = window.location.pathname.match(/\/proje\/([^/]+)\/?$/);
     if(m) slugParam = decodeURIComponent(m[1]);
   }
   if(!slugParam) return;
@@ -1343,7 +1343,7 @@ function wireNavSearch(){
 }
 wireNavSearch();
 
-// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /projeler/:slug altında da servis edilir)
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /proje/:slug altında da servis edilir)
 // yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/) giderdi.
 document.addEventListener('click', (e)=>{
   const a = e.target.closest('a[href="#"]');

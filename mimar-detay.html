@@ -745,15 +745,22 @@ async function applyProfileEdits(){
     // ZATEN kendi overlay'i olmayan BAŞKA bir meslektaşın sayfasında hâlâ ortak olarak görünmeye
     // devam ederdi (bkz. ofis-detay.html#applyProfileEdits'teki AYNI desen — gerçek bulgu/kullanıcı
     // isteği).
+    // ofis-detay.html#applyProfileEdits'teki AYNI düzeltme burada eksikti: fotoğraf/ad/pozisyon yalnızca
+    // office alanı DA değişmişse uygulanıyordu — bir meslektaş sadece fotoğrafını/pozisyonunu
+    // güncellediğinde (ofis değişmeden) "Diğer Ortaklar" grid'inde hiç yansımıyordu (gerçek bulgu:
+    // Ahmet Yılmaz'ın fotoğrafı kendi profilinde güncel görünürken İbrahim Hakkı Yiğit'in "Diğer Firma
+    // Ortakları" listesindeki kartında eski fotoğrafla kalmaya devam ediyordu). edits.architect,
+    // claimed_profile_key'e göre anahtarlanır — arch._claimKey || arch.name kullanılır (bkz. yukarıdaki
+    // aynı gerekçe).
     let colleaguesChanged = false;
     for(const arch of architects){
       if(arch.name === a.name) continue;
-      const archOverlay = edits.architect && edits.architect[arch.name];
-      if(archOverlay && archOverlay.office !== undefined && archOverlay.office !== arch.office){
-        arch.office = archOverlay.office || null;
-        if(archOverlay.role) arch.role = archOverlay.role;
-        colleaguesChanged = true;
-      }
+      const archOverlay = edits.architect && edits.architect[arch._claimKey || arch.name];
+      if(!archOverlay) continue;
+      if(archOverlay.name && renameArchitectEverywhere(arch, archOverlay.name)) colleaguesChanged = true;
+      if(archOverlay.photo && archOverlay.photo !== arch.photo){ arch.photo = archOverlay.photo; colleaguesChanged = true; }
+      if(archOverlay.role && archOverlay.role !== arch.role){ arch.role = archOverlay.role; colleaguesChanged = true; }
+      if(archOverlay.office !== undefined && archOverlay.office !== arch.office){ arch.office = archOverlay.office || null; colleaguesChanged = true; }
     }
     if(colleaguesChanged) renderColleagues();
 
@@ -889,7 +896,7 @@ function renderRelatedProjects(){
   // görünür kalmasın diye 0 durumunda da açıkça gizlenip grid boşaltılıyor.
   document.getElementById('related-projects-section').style.display = relatedProjects.length > 0 ? '' : 'none';
   document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
-    <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
+    <a class="home-card" href="/proje/${encodeURIComponent(p.slug)}">
       ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`).join('');

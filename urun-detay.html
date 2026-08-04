@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<!-- Temiz URL'lerle bu sayfa /urun-detay.html dışında /urunler/:key altında da (iç içe bir yolda)
+<!-- Temiz URL'lerle bu sayfa /urun-detay.html dışında /urun/:key altında da (iç içe bir yolda)
      servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe yola göre
      yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS). -->
 <base href="/">
@@ -493,8 +493,8 @@ async function renderProductDetail(){
   const params = new URLSearchParams(window.location.search);
   let key = params.get('urun');
   if(!key){
-    // Temiz URL: /urunler/:key (bkz. src/index.js#CLEAN_URL_ASSETS).
-    const m = window.location.pathname.match(/\/urunler\/([^/]+)\/?$/);
+    // Temiz URL: /urun/:key (bkz. src/index.js#CLEAN_URL_ASSETS).
+    const m = window.location.pathname.match(/\/urun\/([^/]+)\/?$/);
     if(m) key = decodeURIComponent(m[1]);
   }
   if(!key){
@@ -551,7 +551,7 @@ async function renderProductDetail(){
   {
     const rawDesc = p.description || `${p.title}${p.brand ? ' — ' + p.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
-    const canonicalUrl = `https://mimarlab.com/urunler/${encodeURIComponent(key)}`;
+    const canonicalUrl = `https://mimarlab.com/urun/${encodeURIComponent(key)}`;
     const image = (p.images && p.images[0]) ? new URL(p.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
     document.getElementById('meta-description').setAttribute('content', desc);
     document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
@@ -726,7 +726,7 @@ async function renderProductDetail(){
   saveBtn.dataset.title = p.title;
   saveBtn.dataset.meta = [p.category, p.brand].filter(Boolean).join(' · ');
   saveBtn.dataset.image = images[0] || '';
-  saveBtn.dataset.href = `/urunler/${encodeURIComponent(key)}`;
+  saveBtn.dataset.href = `/urun/${encodeURIComponent(key)}`;
   wireSaveButtons(ratingKindFor(p));
 
   fetch(`/api/public/save-count?type=${ratingKindFor(p)}&key=${encodeURIComponent(key)}`)
@@ -850,7 +850,7 @@ async function loadRelated(p, key){
   document.getElementById('related-title').textContent = p.brand ? `${p.brand} Markasından Diğer Ürünler` : 'Benzer Ürünler';
   document.getElementById('related-section').style.display = 'block';
   document.getElementById('related-grid').innerHTML = related.map(r => `
-    <a class="catalog-card" href="/urunler/${encodeURIComponent(productKey(r))}">
+    <a class="catalog-card" href="/urun/${encodeURIComponent(productKey(r))}">
       ${catalogCardMediaHtml(r, escapeHtml, escapeAttr)}
       <div class="catalog-card-info">
         <div class="catalog-card-cat">${escapeHtml(r.category || '')}</div>
@@ -956,7 +956,7 @@ function wireNavSearch(){
 }
 wireNavSearch();
 
-// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /urunler/:key altında da servis edilir)
+// <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /urun/:key altında da servis edilir)
 // yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/) giderdi.
 document.addEventListener('click', (e)=>{
   const a = e.target.closest('a[href="#"]');

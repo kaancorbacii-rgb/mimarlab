@@ -4,13 +4,13 @@ import { slugify } from './slugify.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v35';
+export const SSR_CACHE_VERSION = 'v36';
 
 const PREFIX_BY_TYPE = {
-  project: '/projeler/',
+  project: '/proje/',
   architect: '/mimar/',
   office: '/firma/',
-  product: '/urunler/',
+  product: '/urun/',
   news: '/haberler/',
 };
 
@@ -44,7 +44,7 @@ export async function purgeSsrDetailCache(type, rawKey) {
 
 // src/lib/submissionTypes.js#SUBMISSION_TYPES anahtarlarını (offices/projects/products/materials/
 // jobs/architects/news) yukarıdaki PREFIX_BY_TYPE anahtarlarına eşler — materials, products ile
-// aynı /urunler/ sayfasını paylaşır (bkz. urun-detay.html), jobs'un temiz bir detay sayfası yok.
+// aynı /urun/ sayfasını paylaşır (bkz. urun-detay.html), jobs'un temiz bir detay sayfası yok.
 const SSR_TYPE_BY_SUBMISSION_TYPE = {
   projects: 'project', architects: 'architect', offices: 'office',
   products: 'product', materials: 'product', news: 'news',

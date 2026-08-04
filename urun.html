@@ -601,7 +601,7 @@ function render(){
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('a')) return;
-      window.location.href = '/urunler/' + encodeURIComponent(productKey(pageItems[i]));
+      window.location.href = '/urun/' + encodeURIComponent(productKey(pageItems[i]));
     });
   });
 }

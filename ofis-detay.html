@@ -639,7 +639,7 @@ function renderRelatedProjects(office){
   // görünür kalmasın diye 0 durumunda da açıkça gizlenip grid boşaltılıyor.
   document.getElementById('related-projects-section').style.display = relatedProjects.length > 0 ? '' : 'none';
   document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
-    <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
+    <a class="home-card" href="/proje/${encodeURIComponent(p.slug)}">
       ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`).join('');
@@ -764,23 +764,21 @@ async function applyProfileEdits(){
         renderRelatedProjects(currentOffice);
       }
     }
+    // Kurucunun KENDİ profilinden yüklediği fotoğraf/ad/pozisyon (bkz. mimar-detay.html#
+    // applyProfileEdits'teki simetrik meslektaş bindirmesi) — architects[] statik kaydı olduğundan,
+    // mimar tarafındaki onaylı düzenleme burada ayrıca uygulanmazsa "Kurucular/Ortaklar" grid'i hep
+    // eski/eksik kalırdı (bkz. gerçek bulgu: Norman Foster'a fotoğraf yüklenmesine rağmen Foster +
+    // Partners profilindeki kurucular kartında görünmüyordu). Önceden yalnızca office DA değişmişse
+    // fotoğraf/pozisyon uygulanıyordu — bir kurucu sadece fotoğrafını/pozisyonunu güncellediğinde
+    // (ofis değişmeden) hiç yansımıyordu (gerçek bulgu: Ahmet Yılmaz örneği).
     let architectsChanged = false;
     for(const arch of architects){
-      const archOverlay = edits.architect && edits.architect[arch.name];
-      if(archOverlay && archOverlay.office !== undefined && archOverlay.office !== arch.office){
-        arch.office = archOverlay.office || null;
-        if(archOverlay.role) arch.role = archOverlay.role;
-        architectsChanged = true;
-      }
-      // Kurucunun KENDİ profilinden yüklediği fotoğraf (bkz. mimar-detay.html#applyProfileEdits'teki
-      // simetrik firma-logosu bindirmesi) — architects[] statik kaydı olduğundan, mimar tarafındaki
-      // onaylı düzenleme burada ayrıca uygulanmazsa "Kurucular/Ortaklar" grid'indeki fotoğraf hep
-      // eski/eksik kalırdı (bkz. gerçek bulgu: Norman Foster'a fotoğraf yüklenmesine rağmen Foster +
-      // Partners profilindeki kurucular kartında görünmüyordu).
-      if(archOverlay && archOverlay.photo && archOverlay.photo !== arch.photo){
-        arch.photo = archOverlay.photo;
-        architectsChanged = true;
-      }
+      const archOverlay = edits.architect && edits.architect[arch._claimKey || arch.name];
+      if(!archOverlay) continue;
+      if(archOverlay.name && renameArchitectEverywhere(arch, archOverlay.name)) architectsChanged = true;
+      if(archOverlay.photo && archOverlay.photo !== arch.photo){ arch.photo = archOverlay.photo; architectsChanged = true; }
+      if(archOverlay.role && archOverlay.role !== arch.role){ arch.role = archOverlay.role; architectsChanged = true; }
+      if(archOverlay.office !== undefined && archOverlay.office !== arch.office){ arch.office = archOverlay.office || null; architectsChanged = true; }
     }
     if(architectsChanged) renderFoundersGrid(currentOffice);
   }catch{}

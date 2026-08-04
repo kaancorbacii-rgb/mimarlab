@@ -143,7 +143,7 @@ async function buildProjectMeta(slug, env) {
   const title = `${p.title} — MİMARLAB`;
   const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
   const description = truncate(rawDesc, 200);
-  const canonicalUrl = `${SITE_ORIGIN}/projeler/${encodeURIComponent(p.slug)}`;
+  const canonicalUrl = `${SITE_ORIGIN}/proje/${encodeURIComponent(p.slug)}`;
   const images = (p.images || []).map(absoluteUrl).filter(Boolean);
   const jsonLd = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.title, url: canonicalUrl };
   if (p.description) jsonLd.description = p.description;
@@ -183,7 +183,7 @@ function productMetaFromRecord(record, canonicalUrl) {
 // async'tir, bu yüzden fonksiyon her koşulda Promise döner.
 function staticProductKey(x) { return slugify(`${x.title}-${x.brand || ''}`); }
 async function buildProductMeta(key, env) {
-  const canonicalUrl = `${SITE_ORIGIN}/urunler/${encodeURIComponent(key)}`;
+  const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(key)}`;
   const staticMatch = products.find(x => staticProductKey(x) === key)
     || materials.find(x => staticProductKey(x) === key);
   if (staticMatch) return productMetaFromRecord(staticMatch, canonicalUrl);
@@ -216,6 +216,6 @@ export function listEntityUrls() {
   const urls = [];
   for (const a of architects) urls.push(`/mimar/${encodeURIComponent(slugify(a.name))}`);
   for (const o of offices) urls.push(`/firma/${encodeURIComponent(slugify(o.name))}`);
-  for (const p of projects) urls.push(`/projeler/${encodeURIComponent(p.slug)}`);
+  for (const p of projects) urls.push(`/proje/${encodeURIComponent(p.slug)}`);
   return urls;
 }

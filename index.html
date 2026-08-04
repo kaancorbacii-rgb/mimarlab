@@ -742,7 +742,7 @@ function projectSlideHtml(p, i){
     if(arch && arch.office && !officeNames.includes(arch.office)) officeNames.push(arch.office);
   });
   const meta = [officeNames.join(', '), p.location].filter(Boolean).join(' — ');
-  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/projeler/${encodeURIComponent(p.slug)}" data-index="${i}">
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/proje/${encodeURIComponent(p.slug)}" data-index="${i}">
     <img src="${escapeAttr((p.images && p.images[0]) || '')}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">Proje</span>
     <div class="slide-caption">

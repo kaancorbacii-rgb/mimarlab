@@ -1046,7 +1046,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/projeler/${encodeURIComponent(claimSlug)}`; }, 1200);
+      setTimeout(()=>{ window.location.href = `/proje/${encodeURIComponent(claimSlug)}`; }, 1200);
       return;
     }
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi düzenlemesi, bkz. src/routes/
@@ -1058,7 +1058,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/projeler/${encodeURIComponent(existingSlug)}`; }, 1200);
+      setTimeout(()=>{ window.location.href = `/proje/${encodeURIComponent(existingSlug)}`; }, 1200);
       return;
     }
     if(editId){

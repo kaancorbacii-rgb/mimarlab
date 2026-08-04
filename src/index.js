@@ -30,7 +30,7 @@ const SECURITY_HEADERS = {
 // segmentine taşıyoruz. Mimar/marka isimleri slugify edilir (save-widget.js/src/lib/slugify.js ile
 // birebir aynı algoritma); proje slug'ı zaten URL-güvenli olduğundan dönüştürülmez.
 const CLEAN_URL_REDIRECTS = {
-  '/proje-detay': { param: 'proje', prefix: '/projeler/', slugifyValue: false },
+  '/proje-detay': { param: 'proje', prefix: '/proje/', slugifyValue: false },
   '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
   '/ofis-detay': { param: 'ofis', prefix: '/firma/', slugifyValue: true },
 };
@@ -39,12 +39,12 @@ const CLEAN_URL_REDIRECTS = {
 // *-detay.html dosyalarındaki path-tabanlı fallback lookup). Uzantısız yol kullanılır çünkü
 // env.ASSETS.fetch'e ".html" ile biten bir istek verilirse Cloudflare Assets kendi html_handling
 // (auto-trailing-slash) davranışıyla bunu tekrar uzantısız hale 301 yönlendirir — bu da orijinal
-// /projeler/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
+// /proje/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
 const CLEAN_URL_ASSETS = [
-  { prefix: '/projeler/', asset: '/proje-detay', type: 'project' },
+  { prefix: '/proje/', asset: '/proje-detay', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
   { prefix: '/firma/', asset: '/ofis-detay', type: 'office' },
-  { prefix: '/urunler/', asset: '/urun-detay', type: 'product' },
+  { prefix: '/urun/', asset: '/urun-detay', type: 'product' },
 ];
 
 // Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
@@ -62,12 +62,14 @@ const PATH_RENAME_REDIRECTS = {
 };
 
 // PATH_RENAME_REDIRECTS'ten farkı: hedef sabit bir yol değil, aynı dinamik slug'ı taşıyan yeni bir
-// önek — /markalar/:slug'a giden eski bağlantılar/yer imleri kırılmasın diye (bkz. kullanıcı isteği:
-// "Firmaların detay sayfalarındaki URL'lerdeki markalar kelimesini firma olarak değiştir"). CLEAN_URL_
-// ASSETS'teki '/markalar/' önekinin '/firma/' ile değiştirilmesiyle BİRLİKTE eklendi — aksi halde eski
-// /markalar/:slug istekleri artık hiçbir CLEAN_URL_ASSETS kuralına uymayıp düz 404 dönerdi.
+// önek — eski /markalar/:slug, /projeler/:slug, /urunler/:key bağlantıları/yer imleri kırılmasın diye
+// (bkz. kullanıcı isteği: "detay sayfalarındaki URL'ler ... kelimesiyle değil ... kelimesiyle olmalı").
+// CLEAN_URL_ASSETS'teki eski öneklerin yenileriyle değiştirilmesiyle BİRLİKTE eklendi — aksi halde eski
+// istekler artık hiçbir CLEAN_URL_ASSETS kuralına uymayıp düz 404 dönerdi.
 const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
+  { from: '/projeler/', to: '/proje/' },
+  { from: '/urunler/', to: '/urun/' },
 ];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
@@ -171,7 +173,7 @@ function withStaticImageCacheHeaders(url, response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// /mimar/:slug, /firma/:slug, /projeler/:slug — statik şablonu ASSETS'ten alır,
+// /mimar/:slug, /firma/:slug, /proje/:slug — statik şablonu ASSETS'ten alır,
 // slug data.js/projeler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
 // HTMLRewriter ile (Google/sosyal medya botları JS çalıştırmadan da) doğru değerlerle değiştirir.
 // Bulunamazsa (ör. yalnızca D1'de var olan, henüz bu detay sayfalarını desteklemeyen bir kayıt)

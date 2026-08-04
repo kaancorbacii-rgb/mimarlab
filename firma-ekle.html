@@ -558,8 +558,17 @@ function wireAutocomplete(inputId, suggestionsId, getItems){
   input.addEventListener('focus', renderSuggestions);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
-const KURUCU_SUGGESTIONS = (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
-wireAutocomplete('o-founders', 'ac-kurucular-suggestions', () => KURUCU_SUGGESTIONS);
+// Fonksiyon olarak tanımlanır (statik bir dizi DEĞİL) — bkz. proje-ekle.html'deki AYNI düzeltme/
+// gerçek bulgu: architects[] aşağıdaki fetch ile sonradan (üye gönderisi mimarlarla) genişletiliyor;
+// tek seferlik hesaplanan bir const olsaydı bu genişleme hiç yansımazdı (ör. yalnızca bir üye
+// gönderisi olarak var olan "Renzo Piano" bu firmanın kurucusu olarak eklenmek istendiğinde hiç
+// önerilmiyordu).
+const KURUCU_SUGGESTIONS = () => (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
+wireAutocomplete('o-founders', 'ac-kurucular-suggestions', KURUCU_SUGGESTIONS);
+// data.js'te hiç statik karşılığı olmayan, admin panelinden ya da bir üyenin gönderip onaylanmasıyla
+// var olan mimarları architects[]'e ekler (bkz. proje-ekle.html'deki AYNI düzeltme — mimar.html/
+// firma.html listeleme sayfalarındaki AYNI desen).
+fetch('/api/public/architects').then(r => r.ok ? r.json() : {items:[]}).then(d => architects.push(...(d.items || []))).catch(()=>{});
 
 function renderPreviews(){
   if(selectedFiles.length){
