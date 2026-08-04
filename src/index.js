@@ -3,6 +3,10 @@ import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
+import { handleArchitectRoute } from './routes/architect.js';
+import { handleOfficeRoute } from './routes/office.js';
+import { handleProjectDetailRoute, handleProjectFiltersRoute } from './routes/project.js';
+import { handleProductDetailRoute } from './routes/product.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
@@ -252,6 +256,17 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);
   if (path === '/api/public/badges') return handlePublicBadges(env);
   if (path.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
+  // Faz 1 — mimar-detay.html/ofis-detay.html/proje.html'nin eskiden istemci tarafında yaptığı
+  // statik veri + onaylı gönderi overlay birleştirmesinin sunucu tarafı karşılığı (bkz.
+  // docs/architecture-roadmap.md). Tekil (architect/office/project/product) yollar, aşağıdaki
+  // /api/architects, /api/offices, /api/projects, /api/products ÇOĞUL gönderi CRUD uçlarıyla
+  // (handleSubmissionRoute) ÇAKIŞMAZ — yalnızca /api/projects/filters, /api/projects prefix'iyle
+  // başladığından o genel eşleşmeden ÖNCE burada özel olarak yakalanmalı.
+  if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
+  if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
+  if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
+  if (path.startsWith('/api/project/')) return handleProjectDetailRoute(request, env, url, path.slice('/api/project/'.length));
+  if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);

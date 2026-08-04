@@ -542,7 +542,6 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 <script src="data.js"></script>
-<script src="projeler-data.js"></script>
 <script>
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -554,12 +553,12 @@ function safeUrl(u){
   return '';
 }
 
-// Aşağıdaki tüm sayfa render'ı bir async IIFE içine alınmıştır — statik data.js'te bulunamayan
-// (yalnızca onaylı bir üye gönderisi olarak var olan, ör. "Renzo Piano") bir mimar için DB'den
-// bir fallback araması yapılabilsin diye (bkz. ofis-detay.html#renderOfficeDetail'deki AYNI "if
-// (!found) DB'den çek" deseni). Eskiden eşleşme bulunamazsa sessizce architects[0]'a (yanlış bir
-// profile, gerçek bulgu: Mimarlar sayfasından yalnızca DB'de var olan bir mimara tıklandığında
-// architects[0] = Emre Arolat'ın profili açılıyordu) düşüyordu.
+// Aşağıdaki tüm sayfa render'ı bir async IIFE içine alınmıştır. Statik data.js kaydı + onaylı
+// üye gönderisi overlay'i + meslektaş/ilgili proje eşleştirmesi artık TEK bir sunucu isteğinde
+// birleştiriliyor (bkz. GET /api/architect/:key, src/routes/architect.js) — bu sayfa eskiden bunu
+// 6-7 ayrı fetch'le (statik dizi taraması + /api/public/architects DB fallback + fetchProfileEdits
+// overlay + meslektaş office/role senkronu + /api/public/hidden + /api/public/projects +
+// /api/public/project-edits) istemci tarafında yapıyordu (bkz. docs/architecture-roadmap.md Faz 1).
 (async function(){
 const params = new URLSearchParams(window.location.search);
 let mimarName = params.get('mimar');
@@ -570,51 +569,26 @@ if(!mimarName){
   const m = window.location.pathname.match(/\/mimar\/([^/]+)\/?$/);
   if(m) mimarSlug = decodeURIComponent(m[1]);
 }
-function findStaticMatch(){
-  return (mimarName && architects.find(x => x.name === mimarName))
-    || (mimarSlug && architects.find(x => slugify(x.name) === mimarSlug))
-    || null;
+const requestKey = mimarSlug || mimarName || '';
+let payload;
+try{
+  const res = await fetch(`/api/architect/${encodeURIComponent(requestKey)}`);
+  payload = await res.json();
+}catch{
+  window.location.replace('mimar.html');
+  return;
 }
-let explicitMatch = findStaticMatch();
-if(!explicitMatch){
-  try{
-    const res = await fetch('/api/public/architects');
-    if(res.ok){
-      const data = await res.json();
-      architects.push(...(data.items || []));
-      explicitMatch = findStaticMatch();
-    }
-  }catch{}
-}
-// Statik bir mimar admin tarafından yeniden adlandırılmışsa (bkz. data.js#renameArchitectEverywhere,
-// mimar-ekle.html "Ad Soyad") architects[].name yalnızca İLGİLİ mimarın KENDİ sayfası ziyaret
-// edildiğinde mutasyona uğrar — proje-detay.html/ofis-detay.html gibi BAŞKA bir sayfadan üretilen
-// bir link buraya DOĞRUDAN yeni slug'la geldiyse, bu sayfa o mutasyonu hiç görmemiş olduğundan slug
-// hiçbir statik kayıtla eşleşmez ve architects[0]'a (yanlış bir profile) düşerdi (bkz. ofis-detay.html
-// #applyRelatedProjectEdits'in ÜSTÜNDEki AYNI desen — gerçek bulgu: yeniden adlandırılmış bir firma
-// için tespit edilen sorunun mimar karşılığı).
-if(!explicitMatch && mimarSlug){
-  try{
-    const edits = await fetchProfileEdits();
-    if(edits.architect){
-      for(const staticName in edits.architect){
-        const overlayName = edits.architect[staticName].name;
-        if(overlayName && slugify(overlayName) === mimarSlug){
-          const staticArch = architects.find(x => x.name === staticName);
-          if(staticArch){ renameArchitectEverywhere(staticArch, overlayName); explicitMatch = staticArch; }
-          break;
-        }
-      }
-    }
-  }catch{}
-}
-const a = explicitMatch || architects[0];
-let office = offices.find(x => x.name === a.office);
+if(!payload || !payload.item){ window.location.replace('mimar.html'); return; }
+// Admin bu mimarı admin panelinden gizlemiş olabilir (bkz. src/routes/legacyContent.js) — yalnızca
+// URL'de AÇIKÇA istenen bir profil gizliyse listeleme sayfasına yönlendirilir (bkz. eski
+// redirectIfHidden IIFE'deki AYNI "yalnızca gerçek bir eşleşme + gizliyse" koşulu, artık sunucuda
+// hesaplanıp `hidden` alanında dönüyor).
+if(payload.hidden){ window.location.replace('mimar.html'); return; }
+const a = payload.item;
+let office = payload.office;
+const colleagues = payload.colleagues || [];
+const relatedProjectsData = payload.relatedProjects || [];
 
-// İsim/meta alanları fonksiyona alındı — admin bu mimarı yeniden adlandırırsa (bkz.
-// applyProfileEdits, data.js#renameArchitectEverywhere) tekrar çağrılabilsin diye; aksi halde
-// sayfa başlığı/breadcrumb/meta etiketleri sayfa ilk yüklendiğindeki ESKİ adı göstermeye devam
-// ederdi (bkz. ofis-detay.html#renderOfficeIdentity'deki AYNI desen).
 function renderIdentity(){
   document.title = a.name + " — MİMARLAB";
   const desc = office
@@ -635,9 +609,6 @@ function renderIdentity(){
   document.getElementById('profile-name-text').textContent = a.name;
 }
 renderIdentity();
-// Ofis/pozisyon değişikliği onaylandığında (bkz. applyProfileEdits) tekrar çağrılabilsin diye
-// fonksiyona alındı — aksi halde bir mimar profilinden bağlı firma silindiğinde bu metinler eski
-// firmayı göstermeye devam ederdi (bkz. kullanıcı isteği).
 function renderOfficeDependentText(){
   document.getElementById('profile-category').textContent = [a.role, office ? office.name : null].filter(Boolean).join(' · ');
   // Gerçek bir Açıklama (a.about, bkz. mimar-ekle.html "Kişisel Bilgiler" bölümü) varsa otomatik
@@ -729,118 +700,6 @@ function renderStructuredData(){
 }
 renderStructuredData();
 
-// Sahiplenilip onaylanmış bir profil düzenlemesi varsa (bkz. hesabim.html "Mimar/Marka Profilim"),
-// doğum tarihi/üniversite/bölüm/fotoğraf/ofis/pozisyon alanlarını üzerine bindirir. Ofis alanı
-// değiştiğinde (ör. mimar kendi profilinden bağlı olduğu firmayı kaldırırsa) office'i yeniden
-// hesaplayıp buna bağlı her şeyi (ofis kartı, açıklama metni, meslektaşlar, İlgili Projeler,
-// structured data) yeniden çizer — aksi halde bu kişi eski firmanın hem kendi profilinde hem de
-// firmanın "Kurucular/Ortaklar" listesinde görünmeye devam ederdi (bkz. gerçek bulgu: Neşet Arolat,
-// EAA — Emre Arolat Architecture bağlantısı profilinden kaldırıldığı halde firma sayfasında
-// kurucular arasında görünmeye devam ediyordu).
-async function applyProfileEdits(){
-  try{
-    const edits = await fetchProfileEdits();
-
-    // "Diğer Ortaklar" listesi (bkz. renderColleagues) DİĞER mimarların office alanına göre
-    // filtrelenir — bu yüzden görüntülenen mimarın (a) kendi bindirmesi olsun ya da olmasın HER
-    // ZAMAN çalışmalı; aşağıdaki "overlay yoksa çık" kısayoluna takılmaması için bilerek bu erken
-    // dönüşten ÖNCE çalıştırılır. Aksi halde bir ortak kendi profilinden bu firmayı kaldırsa bile,
-    // ZATEN kendi overlay'i olmayan BAŞKA bir meslektaşın sayfasında hâlâ ortak olarak görünmeye
-    // devam ederdi (bkz. ofis-detay.html#applyProfileEdits'teki AYNI desen — gerçek bulgu/kullanıcı
-    // isteği).
-    let colleaguesChanged = false;
-    for(const arch of architects){
-      if(arch.name === a.name) continue;
-      const archOverlay = edits.architect && edits.architect[arch.name];
-      if(archOverlay && archOverlay.office !== undefined && archOverlay.office !== arch.office){
-        arch.office = archOverlay.office || null;
-        if(archOverlay.role) arch.role = archOverlay.role;
-        colleaguesChanged = true;
-      }
-    }
-    if(colleaguesChanged) renderColleagues();
-
-    const overlay = edits.architect && edits.architect[a.name];
-    let officeChanged = false;
-    let aboutChanged = false;
-    let renamed = false;
-    if(overlay){
-      // Object.assign/atamalardan ÖNCE çalıştırılır ki cascade hâlâ a.name'in ESKİ (overlay
-      // anahtarıyla eşleşen) değerini görsün (bkz. ofis-detay.html#applyProfileEdits'teki AYNI sıra).
-      renamed = overlay.name ? renameArchitectEverywhere(a, overlay.name) : false;
-      if(renamed) renderIdentity();
-      if(overlay.dob) a.dob = overlay.dob;
-      if(overlay.school) a.school = overlay.school;
-      if(overlay.dept) a.dept = overlay.dept;
-      if(overlay.profession) a.profession = overlay.profession;
-      if(overlay.awards) a.awards = overlay.awards;
-      if(overlay.photo) a.photo = overlay.photo;
-      renderInfoFactsAndLogo();
-
-      aboutChanged = overlay.about !== undefined && overlay.about !== a.about;
-      if(overlay.about !== undefined) a.about = overlay.about;
-
-      officeChanged = overlay.office !== undefined && overlay.office !== a.office;
-      if(overlay.role) a.role = overlay.role;
-      if(officeChanged){
-        a.office = overlay.office || null;
-        office = offices.find(x => x.name === a.office) || null;
-      }
-    }
-
-    // Bağlı olunan firmanın KENDİ profilinden yüklenen logo/ad (bkz. ofis-detay.html#applyProfileEdits,
-    // data.js#renameOfficeEverywhere) — yukarıdaki officeChanged bloğundan SONRA çalışır ki `office`
-    // yalnızca statik data.js'ten değil, mimarın KENDİ overlay'inden gelen bir office ataması varsa
-    // (ör. statik kayıtta a.office boşken yalnızca profil düzenlemesiyle atanmışsa) da doğru nesneyi
-    // göstersin. Mimarın KENDİ overlay'i olsun ya da olmasın çalışır (bkz. yukarıdaki colleaguesChanged'
-    // teki AYNI gerekçe) — office nesnesi statik data.js kaydı olduğundan, firma tarafındaki onaylı
-    // düzenleme burada ayrıca uygulanmazsa "Firmalar" kartındaki logo/ad hep eski/eksik kalırdı (bkz.
-    // gerçek bulgu: Foster + Partners'a logo yüklenmesine rağmen Norman Foster profilindeki firma
-    // kartında görünmüyordu).
-    const officeOverlay = office && edits.office && edits.office[office.name];
-    let officeRenamed = false;
-    if(officeOverlay){
-      officeRenamed = officeOverlay.name ? renameOfficeEverywhere(office, officeOverlay.name) : false;
-      if(officeOverlay.logo && officeOverlay.logo !== office.logo) office.logo = officeOverlay.logo;
-    }
-
-    if(officeChanged){
-      renderOfficeDependentText();
-      renderOfficeCard();
-      renderColleagues();
-      renderRelatedProjects();
-      saveBtn.dataset.meta = office ? office.name : (a.role || '');
-    } else if((overlay && (overlay.role || aboutChanged)) || officeRenamed){
-      renderOfficeDependentText();
-      if(officeRenamed) renderOfficeCard();
-      saveBtn.dataset.meta = office ? office.name : (a.role || '');
-    } else if(officeOverlay && officeOverlay.logo){
-      renderOfficeCard();
-    }
-
-    if(overlay || officeOverlay) renderStructuredData();
-  }catch{}
-}
-applyProfileEdits();
-
-// Admin bu mimarı admin panelinden gizlemiş olabilir (bkz. src/routes/legacyContent.js, GET
-// /api/public/hidden) — yalnızca URL'de AÇIKÇA istenen bir profil gizliyse listeleme sayfasına
-// yönlendirilir; parametresiz ziyaretlerdeki mevcut architects[0] varsayılan davranışı etkilenmez.
-// Aynı çağrıdaki hidden.projects, aşağıdaki renderRelatedProjects()'in de admin'in gizlediği
-// projeleri dışarıda bırakması için hiddenProjectSlugs'a yazılır (bkz. kullanıcı isteği: gizlenen
-// bir proje mimarın profilindeki "İlgili Projeler" alanında hâlâ görünüyordu).
-let hiddenProjectSlugs = new Set();
-(async function redirectIfHidden(){
-  try{
-    const res = await fetch('/api/public/hidden');
-    if(!res.ok) return;
-    const hidden = await res.json();
-    hiddenProjectSlugs = new Set(hidden.projects || []);
-    renderRelatedProjects();
-    if(explicitMatch && (hidden.architects || []).includes(explicitMatch.name)) window.location.replace('mimar.html');
-  }catch{}
-})();
-
 const officeCardEl = document.getElementById('office-card');
 const officeSectionEl = document.getElementById('office-section');
 function renderOfficeCard(){
@@ -858,7 +717,6 @@ function renderOfficeCard(){
 renderOfficeCard();
 
 function renderColleagues(){
-  const colleagues = office ? architects.filter(x => x.office === office.name && x.name !== a.name) : [];
   document.getElementById('colleagues-section').style.display = colleagues.length > 0 ? '' : 'none';
   document.getElementById('colleagues-grid').innerHTML = colleagues.map(c => `
     <a class="founder-card" href="/mimar/${encodeURIComponent(slugify(c.name))}">
@@ -871,58 +729,17 @@ function renderColleagues(){
 }
 renderColleagues();
 
-// İlgili projeler: projeler-data.js kayıtlarındaki designer listesi mimarın adıyla ya da
-// bağlı olduğu ofisin adıyla birebir eşleşiyorsa ilgili proje sayılır. Admin'in statik bir projeye
-// yaptığı onaylı düzenlemesi (ör. kapak görseli) uygulanınca (bkz. applyRelatedProjectEdits) tekrar
-// çağrılabilsin diye fonksiyona alındı.
+// İlgili projeler: statik + onaylı üye gönderisi projeleri, admin-hidden filtrelenmiş ve varsa
+// onaylı proje düzenlemeleri bindirilmiş hâlde sunucudan gelir (bkz. GET /api/architect/:key).
 function renderRelatedProjects(){
-  const relatedProjects = projects.filter(p =>
-    !hiddenProjectSlugs.has(p.slug) &&
-    (p.designer.includes(a.name) || (office && p.designer.includes(office.name)))
-  );
-  // re-render sonrasında (ör. hidden verisi geldiğinde) liste boşa düşerse bölüm stale içerikle
-  // görünür kalmasın diye 0 durumunda da açıkça gizlenip grid boşaltılıyor.
-  document.getElementById('related-projects-section').style.display = relatedProjects.length > 0 ? '' : 'none';
-  document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
+  document.getElementById('related-projects-section').style.display = relatedProjectsData.length > 0 ? '' : 'none';
+  document.getElementById('related-projects-grid').innerHTML = relatedProjectsData.map(p => `
     <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
       ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`).join('');
 }
 renderRelatedProjects();
-
-// projeler-data.js yalnızca statik projeleri içerir — bir mimarın projeleri TAMAMEN üye
-// gönderisi olarak eklenmişse (ör. bkz. gerçek bulgu: "Mimar Sinan" Projeler sayfasında 17 eserle
-// listeleniyordu ama profilinde Projeler bölümü hiç görünmüyordu) yukarıdaki filtre onları hiç
-// göremezdi. proje.html'in yaptığı gibi onaylı üye gönderisi projeleri de statik diziye ekleyip
-// tekrar render ediyoruz.
-async function loadMemberRelatedProjects(){
-  try{
-    const res = await fetch('/api/public/projects');
-    if(!res.ok) return;
-    const data = await res.json();
-    if(data.items && data.items.length){
-      projects.push(...data.items);
-      renderRelatedProjects();
-    }
-  }catch{}
-}
-loadMemberRelatedProjects();
-
-async function applyRelatedProjectEdits(){
-  try{
-    const res = await fetch('/api/public/project-edits');
-    if(!res.ok) return;
-    const edits = await res.json();
-    let changed = false;
-    for(const slug in edits){
-      const match = projects.find(p => p.slug === slug);
-      if(match){ Object.assign(match, edits[slug]); changed = true; }
-    }
-    if(changed) renderRelatedProjects();
-  }catch{}
-}
-applyRelatedProjectEdits();
 
 const PROFILE_TYPE = 'architect';
 const profileKey = a.name;

@@ -119,3 +119,8 @@ function parseLocationFull(loc){
   if(ILCE_TO_IL[head]) return { city: ILCE_TO_IL[head], district: head };
   return { city: head, district: paren || null };
 }
+
+// Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
+// (nodejs_compat) çalışır — src/routes/project.js (GET /api/projects/filters) buradan CJS interop
+// ile import eder (bkz. data.js dosya sonundaki AYNI desen).
+if (typeof module !== 'undefined') { module.exports = { parseLocationFull }; }

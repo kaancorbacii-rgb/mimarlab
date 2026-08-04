@@ -612,6 +612,36 @@ function buildSidebar(){
       });
     });
   });
+
+  reconcileFilterCountsFromServer();
+}
+
+// GET /api/projects/filters (bkz. src/routes/project.js#handleProjectFiltersRoute) yukarıdaki
+// computeOptions ile BİREBİR aynı faceted sayaç mantığının sunucu tarafı karşılığı — Faz 1'in
+// "computeOptions Worker katmanına taşınsın" hedefi, mevcut ANINDA (sıfır ağ gecikmeli) filtreleme
+// deneyimini bozmadan şöyle entegre edilir: sidebar HER ZAMAN önce yukarıdaki client hesabıyla
+// (senkron, gecikmesiz) çizilir; sunucudan gelen sayılar birkaç yüz milisaniye sonra sessizce
+// üzerine yazılır (bkz. docs/architecture-roadmap.md Faz 1 — veri ölçeği büyüdükçe bu ikinci adım
+// birincil kaynak hâline gelecek, bkz. Faz 3'teki facet_counts/KV planı).
+function reconcileFilterCountsFromServer(){
+  const qs = new URLSearchParams();
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => qs.append(g.key, v)); });
+  if(localSearchQuery.trim()) qs.set('search', localSearchQuery.trim());
+  fetch(`/api/projects/filters?${qs.toString()}`)
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if(!data || !data.filters) return;
+      const sidebar = document.getElementById('sidebar');
+      Object.keys(data.filters).forEach(key => {
+        const counts = data.filters[key].counts;
+        sidebar.querySelectorAll(`.filter-opt input[data-key="${key}"]`).forEach(cb => {
+          if(counts[cb.value] === undefined) return;
+          const countEl = cb.closest('.filter-opt').querySelector('.filter-opt-count');
+          if(countEl) countEl.textContent = `(${counts[cb.value]})`;
+        });
+      });
+    })
+    .catch(()=>{});
 }
 
 function renderActiveChips(){
