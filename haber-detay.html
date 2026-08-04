@@ -32,6 +32,7 @@
   gtag('config', 'G-L4902Z57B8');
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -274,7 +275,7 @@
       </button>
       <span id="edit-submission-slot"></span>
     </div>
-    <img class="detail-image" id="detail-image" src="" alt="" loading="eager" fetchpriority="high">
+    <img class="detail-image" id="detail-image" src="" alt="" loading="eager" fetchpriority="high" decoding="sync">
     <div class="detail-desc" id="detail-desc"></div>
   </div>
 
@@ -293,7 +294,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -326,7 +327,7 @@ function renderByline(item){
   wrap.style.display = '';
   const avatar = document.getElementById('detail-byline-avatar');
   avatar.style.background = officeColor(item.ownerName);
-  avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" onerror="this.remove()">` : '');
+  avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
   document.getElementById('detail-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
 }
 
@@ -371,7 +372,7 @@ function renderNewsDetail(item){
     document.getElementById('related-section').style.display = 'block';
     document.getElementById('related-grid').innerHTML = related.map(r => `
       <a class="related-card" href="/haberler/${encodeURIComponent(r.id)}">
-        <img src="${escapeAttr(r.image)}" alt="${escapeAttr(r.title)}" loading="lazy">
+        <img src="${escapeAttr(r.image)}" alt="${escapeAttr(r.title)}" loading="lazy" decoding="async">
         <div class="related-card-title">${escapeHtml(r.title)}</div>
       </a>`).join('');
   }

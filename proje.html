@@ -21,6 +21,7 @@
 <meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -363,7 +364,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -758,7 +759,7 @@ function render(){
     const rating = ratingOf(projectRatings, p.slug);
     return `
     <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr(p.images[0]||'')}" data-href="/projeler/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
       </button>

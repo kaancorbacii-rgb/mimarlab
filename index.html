@@ -43,6 +43,7 @@
 }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -495,7 +496,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -743,7 +744,7 @@ function projectSlideHtml(p, i){
   });
   const meta = [officeNames.join(', '), p.location].filter(Boolean).join(' — ');
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/projeler/${encodeURIComponent(p.slug)}" data-index="${i}">
-    <img src="${escapeAttr((p.images && p.images[0]) || '')}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}"${i === 0 ? ' fetchpriority="high"' : ''}>
+    <img src="${escapeAttr((p.images && p.images[0]) || '')}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">Proje</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(p.title)}</div>
@@ -796,7 +797,7 @@ renderSlider(carouselSlides([], projectsWithImages));
 
 function architectSlideHtml(a, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/mimar/${encodeURIComponent(slugify(a.name))}" data-index="${i}">
-    <img src="${escapeAttr(a.photo)}" alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}">
+    <img src="${escapeAttr(a.photo)}" alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
     <span class="slide-tag">Mimar</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(a.name)}</div>
@@ -807,7 +808,7 @@ function architectSlideHtml(a, i){
 
 function officeSlideHtml(o, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/markalar/${encodeURIComponent(slugify(o.name))}" data-index="${i}">
-    <img class="slide-logo-img" src="${escapeAttr(o.logo)}" alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}">
+    <img class="slide-logo-img" src="${escapeAttr(o.logo)}" alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
     <span class="slide-tag">Firma</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(o.name)}</div>
@@ -818,7 +819,7 @@ function officeSlideHtml(o, i){
 
 function urunSlideHtml(p, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="urun.html" data-index="${i}">
-    <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}">
+    <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
     <span class="slide-tag">Ürün</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(p.title)}</div>

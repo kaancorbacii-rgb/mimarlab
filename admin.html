@@ -22,6 +22,7 @@
 <meta name="twitter:description" content="MİMARLAB yönetim paneli.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -475,7 +476,7 @@ async function loadPending(){
     <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
         <div class="admin-card-body">
-          ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy">` : ''}
+          ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy" decoding="async">` : ''}
           <div>
             <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))}${pendingType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}</div>
             ${claimBadgeHtml(item)}
@@ -529,7 +530,7 @@ async function loadContent(resetPage){
     <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
         <div class="admin-card-body">
-          ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy">` : ''}
+          ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy" decoding="async">` : ''}
           <div>
             <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))} <span class="admin-badge badge-approved">Yayında</span>${item.__type === 'jobs' ? jobExpiryBadge(item) : ''}${contentType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}</div>
             ${claimBadgeHtml(item)}
@@ -595,7 +596,7 @@ async function loadArchive(){
     <div class="admin-card" data-id="${item.id}">
       <div class="admin-card-head">
         <div class="admin-card-body">
-          ${itemImage(archiveType, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(archiveType, item))}" alt="" loading="lazy">` : ''}
+          ${itemImage(archiveType, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(archiveType, item))}" alt="" loading="lazy" decoding="async">` : ''}
           <div>
             <div class="admin-card-title">${escapeHtml(itemTitle(archiveType, item))} <span class="admin-badge badge-rejected">Arşivde</span></div>
             ${claimBadgeHtml(item)}
@@ -657,7 +658,7 @@ function loadLegacyContent(){
       <div class="admin-card" data-key="${escapeAttr(item.key)}">
         <div class="admin-card-head">
           <div class="admin-card-body">
-            ${item.image ? `<img class="admin-card-thumb" src="${escapeAttr(item.image)}" alt="" loading="lazy">` : ''}
+            ${item.image ? `<img class="admin-card-thumb" src="${escapeAttr(item.image)}" alt="" loading="lazy" decoding="async">` : ''}
             <div>
               <div class="admin-card-title">${escapeHtml(item.title)} ${item.hidden ? '<span class="admin-badge badge-rejected">Gizli</span>' : ''}</div>
               <div class="admin-card-meta">${escapeHtml(item.subtitle || '')}</div>

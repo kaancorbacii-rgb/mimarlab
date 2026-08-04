@@ -24,7 +24,7 @@ function initDetailGallery(opts){
   if(!galleryEl || !lightbox) return;
 
   galleryEl.innerHTML = images.length ? images.map((img, i) => `
-    <a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(img)}" alt="${escapeAttr(title)}" ${i === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'}></a>
+    <a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(img)}" alt="${escapeAttr(title)}" ${i === 0 ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" decoding="async"'}></a>
   `).join('') : placeholderHtml;
 
   // Ana medya şeridinde sola/sağa kaydırma okları + "1 / N" sayaç — sayaç yalnızca ok tıklamasında

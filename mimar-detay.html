@@ -32,6 +32,7 @@
   gtag('config', 'G-L4902Z57B8');
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -510,7 +511,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -713,7 +714,7 @@ function renderOfficeCard(){
   officeSectionEl.style.display = '';
   officeCardEl.innerHTML = offices.map(off => `
     <a class="office-card" href="/markalar/${encodeURIComponent(slugify(off.name))}">
-      <div class="office-card-logo" style="background:${officeColor(off.name)}">${initials(off.name)}${logoUrl(off) ? `<img src="${escapeAttr(logoUrl(off))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+      <div class="office-card-logo" style="background:${officeColor(off.name)}">${initials(off.name)}${logoUrl(off) ? `<img src="${escapeAttr(logoUrl(off))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
       <div>
         <div class="office-card-name">${escapeHtml(off.name)}${verifiedBadgeHtml('office', off.name, off.badges)}</div>
         <div class="office-card-meta">${escapeHtml(off.loc)}${off.yil ? ' · K. ' + escapeHtml(off.yil) : ''}</div>
@@ -726,7 +727,7 @@ function renderColleagues(){
   document.getElementById('colleagues-section').style.display = colleagues.length > 0 ? '' : 'none';
   document.getElementById('colleagues-grid').innerHTML = colleagues.map(c => `
     <a class="founder-card" href="/mimar/${encodeURIComponent(slugify(c.name))}">
-      <div class="founder-card-avatar" style="background:${officeColor(c.name)}">${initials(c.name)}${c.photo ? `<img src="${escapeAttr(c.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+      <div class="founder-card-avatar" style="background:${officeColor(c.name)}">${initials(c.name)}${c.photo ? `<img src="${escapeAttr(c.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
       <div>
         <div class="founder-card-name">${escapeHtml(c.name)}</div>
         <div class="founder-card-role">${escapeHtml(c.role)}</div>
@@ -741,7 +742,7 @@ function renderRelatedProjects(){
   document.getElementById('related-projects-section').style.display = relatedProjectsData.length > 0 ? '' : 'none';
   document.getElementById('related-projects-grid').innerHTML = relatedProjectsData.map(p => `
     <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`).join('');
 }
@@ -776,7 +777,7 @@ const claimBox = createClaimCorrectionBox({
 function productCardHtml(p){
   if(p.image){
     return `<a class="home-card" href="urun.html">
-      <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="lazy">
+      <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml(p.category || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`;
   }

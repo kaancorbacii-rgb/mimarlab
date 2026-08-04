@@ -32,6 +32,7 @@
   gtag('config', 'G-L4902Z57B8');
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -494,7 +495,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -535,7 +536,7 @@ function renderFoundersGrid(officeFounders){
   document.getElementById('founders-section').style.display = officeFounders.length > 0 ? '' : 'none';
   document.getElementById('founders-grid').innerHTML = officeFounders.map(a => `
     <a class="founder-card" href="/mimar/${encodeURIComponent(slugify(a.name))}">
-      <div class="founder-card-avatar" style="background:${officeColor(a.name)}">${escapeHtml(initials(a.name))}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+      <div class="founder-card-avatar" style="background:${officeColor(a.name)}">${escapeHtml(initials(a.name))}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
       <div>
         <div class="founder-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
         <div class="founder-card-role">${escapeHtml(a.role)}</div>
@@ -622,7 +623,7 @@ function renderRelatedProjects(relatedProjects){
   document.getElementById('related-projects-section').style.display = relatedProjects.length > 0 ? '' : 'none';
   document.getElementById('related-projects-grid').innerHTML = relatedProjects.map(p => `
     <a class="home-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="home-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml((p.category && p.category[0]) || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`).join('');
 }
@@ -713,7 +714,7 @@ window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges);
 function productCardHtml(p){
   if(p.image){
     return `<a class="home-card" href="urun.html">
-      <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="lazy">
+      <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml(p.category || '')}</div><div class="home-card-title">${escapeHtml(p.title)}</div></div>
     </a>`;
   }
@@ -728,7 +729,7 @@ function productCardHtml(p){
 function materialCardHtml(m){
   if(m.image){
     return `<a class="home-card" href="urun.html">
-      <img src="${escapeAttr(m.image)}" alt="${escapeAttr(m.title)}" loading="lazy">
+      <img src="${escapeAttr(m.image)}" alt="${escapeAttr(m.title)}" loading="lazy" decoding="async">
       <div class="home-card-info"><div class="home-card-cat">${escapeHtml(m.category || '')}</div><div class="home-card-title">${escapeHtml(m.title)}</div></div>
     </a>`;
   }

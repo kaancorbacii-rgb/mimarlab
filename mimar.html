@@ -21,6 +21,7 @@
 <meta name="twitter:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -390,7 +391,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -583,7 +584,7 @@ function render(){
     const sub = o ? o.name : (a.office || a.status || '');
     return `
     <a class="person-card" href="/mimar/${encodeURIComponent(slugify(a.name))}">
-      <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
+      <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
       <div class="person-card-body">
         <div class="person-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
         ${sub ? `<div class="person-card-office">${escapeHtml(sub)}</div>` : ''}

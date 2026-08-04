@@ -22,6 +22,7 @@
 <meta name="twitter:description" content="MİMARLAB'da mimar, ofis, proje, ürün, haber ve iş ilanı ara.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -221,7 +222,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
@@ -348,32 +349,32 @@ function runSearch(){
     groupHtml('Mimarlar', mimarResults, a => rowHtml({
       href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}`,
       avatarStyle: `background:${officeColor(a.name)}`,
-      avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" onerror="this.remove()">` : ''}`,
+      avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: a.name,
       meta: a.office || 'Mimar',
     })),
     groupHtml('Firmalar', markaResults, o => rowHtml({
       href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}`,
       avatarStyle: `background:${officeColor(o.name)}`,
-      avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(logoUrl(o))}" alt="" loading="lazy" onerror="this.remove()">` : ''}`,
+      avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(logoUrl(o))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: o.name,
       meta: o.loc || '',
     })),
     groupHtml('Projeler', projeResults, p => rowHtml({
       href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}`,
-      avatarContent: p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="" loading="lazy">` : '',
+      avatarContent: p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.location, p.date].filter(Boolean).join(' · '),
     })),
     groupHtml('Ürünler', urunResults, p => rowHtml({
       href: 'urun.html',
-      avatarContent: p.image ? `<img src="${escapeAttr(p.image)}" alt="" loading="lazy">` : '',
+      avatarContent: p.image ? `<img src="${escapeAttr(p.image)}" alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.category, p.brand].filter(Boolean).join(' · '),
     })),
     groupHtml('Haberler', haberResults, n => rowHtml({
       href: 'haber.html',
-      avatarContent: n.image ? `<img src="${escapeAttr(n.image)}" alt="" loading="lazy">` : '',
+      avatarContent: n.image ? `<img src="${escapeAttr(n.image)}" alt="" loading="lazy" decoding="async">` : '',
       title: n.title,
       meta: n.category || '',
     })),
@@ -382,7 +383,7 @@ function runSearch(){
       return rowHtml({
         href: 'is-ilani.html',
         avatarStyle: `background:${officeColor(j.office||j.title)}`,
-        avatarContent: `${initials(j.office||j.title)}${o && logoUrl(o) ? `<img src="${escapeAttr(logoUrl(o))}" alt="" loading="lazy" onerror="this.remove()">` : ''}`,
+        avatarContent: `${initials(j.office||j.title)}${o && logoUrl(o) ? `<img src="${escapeAttr(logoUrl(o))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
         title: j.title,
         meta: [j.office, j.loc].filter(Boolean).join(' · '),
       });
