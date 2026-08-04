@@ -665,6 +665,7 @@ function loadLegacyContent(){
           </div>
           <div class="admin-actions">
             <button class="admin-btn ${item.hidden ? 'primary' : 'danger'}" data-action="toggle" data-hidden="${item.hidden ? '1' : '0'}">${item.hidden ? 'Göster' : 'Gizle'}</button>
+            <button class="admin-btn danger" data-action="delete">Sil</button>
           </div>
         </div>
       </div>
@@ -678,6 +679,23 @@ function loadLegacyContent(){
         await api('/api/admin/legacy/hidden', {
           method: 'PATCH', headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ type: legacyType, key, hidden: !currentlyHidden }),
+        });
+        loadLegacyContent();
+      });
+    });
+    // "Gizle" (hidden_at, geri alınabilir) yalnızca bir toggle sunuyordu — kalıcı "Sil" (deleted_at +
+    // cascade) için hiçbir buton yoktu, halbuki backend'de (src/routes/legacyContent.js#handleContentAction
+    // key-based dal) bu zaten profil detay sayfasının Sil butonuyla AYNI, çalışan uç noktaydı (bkz.
+    // gerçek bulgu: kullanıcı "admin panelinden silme çalışmıyor" derken aslında bu sekmede silme
+    // seçeneği hiç YOKTU — endpoint'in kendisi bozuk değildi).
+    list.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const key = btn.closest('.admin-card').dataset.key;
+        if(!confirm(`Bu ${LEGACY_TYPE_LABELS[legacyType].toLowerCase()} kaydını KALICI olarak silmek istediğine emin misin? Bu işlem geri alınamaz.`)) return;
+        btn.disabled = true;
+        await api('/api/admin/legacy/content-action', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ type: legacyType, action: 'delete', key }),
         });
         loadLegacyContent();
       });
