@@ -23,10 +23,19 @@ import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 
 const SITE_ORIGIN = 'https://mimarlab.com';
 
+// X-Frame-Options bilerek DENY olarak korunuyor (spec Faz 5'in önerdiği SAMEORIGIN yerine) — sitede
+// hiçbir yerde <iframe>/<frame> kullanılmıyor (bkz. depo çapında arama), yani kendi kendini
+// çerçeveleme ihtiyacı yok; DENY, SAMEORIGIN'in sağladığı hiçbir işlevsellik kaybı olmadan strictly
+// daha güvenli. Strict-Transport-Security kasıtlı olarak includeSubDomains/preload İÇERMİYOR (bkz.
+// kullanıcı isteği) — tüm alt alan adlarının HTTPS desteği doğrulanmadan bunlar geri dönüşü zor bir
+// risk taşır (preload listesine girmek ayları bulan bir kaldırma süreci gerektirir, includeSubDomains
+// HTTPS'siz bir alt alan adını anında kırar).
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Strict-Transport-Security': 'max-age=31536000',
 };
 
 // Temiz URL yapısı: eski ?param= sorgu dizesi yerine yol tabanlı adresler (SEO ve paylaşılabilirlik
@@ -218,6 +227,13 @@ function injectMeta(response, meta) {
   // JSON-LD içeriği data.js/projeler-data.js/haberler-data.js'ten (site sahibi kontrolünde) geldiği
   // için düşük risk ama yine de savunmacı olarak escape ediyoruz (bkz. XSS escaping convention).
   const ldJson = JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c');
+  // BreadcrumbList (bkz. src/lib/seo.js#breadcrumbJsonLd) — yalnızca meta üreticisi bunu döndürdüyse
+  // (tüm tipler için geçerli) ayrı bir <script> bloğu olarak eklenir; ayrı blok kullanmak (tek bir
+  // @graph yerine) Google'ın çoklu JSON-LD bloklarını sayfa başına desteklemesiyle tutarlı ve mevcut
+  // ana jsonLd şeklini bozmaz.
+  const breadcrumbScript = meta.breadcrumbJsonLd
+    ? `<script type="application/ld+json">${JSON.stringify(meta.breadcrumbJsonLd).replace(/</g, '\\u003c')}</script>`
+    : '';
   return new HTMLRewriter()
     .on('title', { element(el) { el.setInnerContent(meta.title); } })
     .on('meta#meta-description', { element(el) { el.setAttribute('content', meta.description); } })
@@ -229,7 +245,7 @@ function injectMeta(response, meta) {
     .on('meta#twitter-title', { element(el) { el.setAttribute('content', meta.title); } })
     .on('meta#twitter-description', { element(el) { el.setAttribute('content', meta.description); } })
     .on('meta#twitter-image', { element(el) { el.setAttribute('content', meta.image); } })
-    .on('head', { element(el) { el.append(`<script type="application/ld+json">${ldJson}</script>`, { html: true }); } })
+    .on('head', { element(el) { el.append(`<script type="application/ld+json">${ldJson}</script>${breadcrumbScript}`, { html: true }); } })
     .transform(response);
 }
 

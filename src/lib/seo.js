@@ -9,6 +9,11 @@ import projeJs from '../../projeler-data.js';
 import haberJs from '../../haberler-data.js';
 import urunJs from '../../urunler-data.js';
 import malzemeJs from '../../malzemeler-data.js';
+// src/routes/project.js'teki AYNI CJS-interop yorumu — il/ilçe çözümlemesini proje konumundan
+// (Place/PostalAddress JSON-LD için) tekrar tanımlamak yerine paylaşılan referans tablosundan alır.
+import ilIlceJs from '../../il-ilce-data.js';
+
+const { parseLocationFull } = ilIlceJs;
 
 const { offices, architects } = dataJs;
 const { projects } = projeJs;
@@ -35,6 +40,30 @@ function safeHttpUrl(u) {
 
 function truncate(text, max) {
   return text && text.length > max ? text.slice(0, max - 1) + '…' : text;
+}
+
+// Katalog sayfası etiket/yolu — ilgili *-detay.html'deki görünür .breadcrumb-bar zinciriyle
+// (ör. proje-detay.html "Ana Sayfa › Projeler › <başlık>") BİREBİR aynı olmalı; Google yapılandırılmış
+// verinin sayfada görünen içerikle tutarlı olmasını bekler (bkz. structured data guidelines).
+const CATALOG_CRUMB = {
+  architect: { label: 'Mimarlar', path: '/mimar' },
+  office: { label: 'Firmalar', path: '/firma' },
+  project: { label: 'Projeler', path: '/proje' },
+  product: { label: 'Ürün', path: '/urun' },
+  news: { label: 'Haberler', path: '/haber' },
+};
+function breadcrumbJsonLd(type, name, canonicalUrl) {
+  const catalog = CATALOG_CRUMB[type];
+  if (!catalog) return null;
+  const items = [
+    { name: 'Ana Sayfa', url: `${SITE_ORIGIN}/` },
+    { name: catalog.label, url: `${SITE_ORIGIN}${catalog.path}` },
+    { name, url: canonicalUrl },
+  ];
+  return {
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: it.url })),
+  };
 }
 
 let architectBySlug;
@@ -79,6 +108,23 @@ async function fetchApprovedOverlay(env, table, claimedColumn, key) {
   } catch { return null; }
 }
 
+// office_founders (bkz. src/routes/office.js#handleOfficeRoute'un AYNI join'i, src/lib/
+// officeFounderCascade.js) — canonical bir ofis kaydı henüz yoksa (yalnızca statik data.js'te var)
+// ya da isim eşleşmezse sessizce boş dizi döner; JSON-LD'nin sayfada görünenle (ofis-detay.html'in
+// kendi founders sorgusuyla) tutarsız kalması yerine hiç göstermemesi tercih edildi.
+async function fetchFounderNames(env, officeName) {
+  if (!env || !env.DB || !officeName) return [];
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT ar.name FROM office_founders f
+       JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
+       JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL
+       WHERE o.name = ?`
+    ).bind(officeName).all();
+    return results.map(r => r.name).filter(Boolean);
+  } catch { return []; }
+}
+
 // Her build* fonksiyonu, ilgili *-detay.html'deki mevcut client-side meta/JSON-LD üretimiyle
 // birebir aynı alan eşlemesini kullanır (bkz. plan dosyası) — yalnızca sunucuda, aynı sonuç.
 async function buildArchitectMeta(slug, env) {
@@ -107,7 +153,11 @@ async function buildArchitectMeta(slug, env) {
   if (photoUrl) jsonLd.image = photoUrl;
   if (a.school) jsonLd.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
   if (office) jsonLd.worksFor = { '@type': 'Organization', name: office.name, url: `${SITE_ORIGIN}/markalar/${encodeURIComponent(slugify(office.name))}` };
-  return { title, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd };
+  // Schema.org'da ayrı bir "Architect" tipi yok (bkz. vocabulary) — Person kalıp uzmanlık alanını
+  // knowsAbout ile ifade ediyoruz, aksi halde geçersiz @type Google'ın yapılandırılmış veri
+  // ayrıştırıcısı tarafından sessizce yok sayılırdı.
+  if (a.dept) jsonLd.knowsAbout = [a.dept];
+  return { title, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl) };
 }
 
 async function buildOfficeMeta(slug, env) {
@@ -134,7 +184,11 @@ async function buildOfficeMeta(slug, env) {
   if (logoUrl) jsonLd.logo = logoUrl;
   const site = safeHttpUrl(o.website);
   if (site) jsonLd.sameAs = [site];
-  return { title, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd };
+  const founderNames = await fetchFounderNames(env, o.name);
+  if (founderNames.length) {
+    jsonLd.founder = founderNames.map(n => ({ '@type': 'Person', name: n, url: `${SITE_ORIGIN}/mimar/${encodeURIComponent(slugify(n))}` }));
+  }
+  return { title, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl) };
 }
 
 async function buildProjectMeta(slug, env) {
@@ -159,7 +213,17 @@ async function buildProjectMeta(slug, env) {
   const jsonLd = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.title, url: canonicalUrl };
   if (p.description) jsonLd.description = p.description;
   if (images.length) jsonLd.image = images;
-  if (p.location) jsonLd.locationCreated = { '@type': 'Place', address: p.location };
+  if (p.location) {
+    // Şehir/ilçe kırılımı proje.html#FILTER_GROUPS'un location/district filtrelerinde zaten
+    // kullanılan AYNI parseLocationFull ile — düz metin yerine yapılandırılmış PostalAddress
+    // arama motorlarının konumu güvenilir şekilde ayrıştırmasını sağlar.
+    const info = parseLocationFull(p.location);
+    const address = { '@type': 'PostalAddress', addressCountry: 'TR' };
+    if (info.district) address.addressLocality = info.district;
+    if (info.city) address.addressRegion = info.city;
+    if (!info.district && !info.city) address.addressLocality = p.location;
+    jsonLd.locationCreated = { '@type': 'Place', address };
+  }
   const creators = [];
   for (const d of (p.designer || [])) {
     const arch = architects.find(a => a.name === d);
@@ -169,7 +233,7 @@ async function buildProjectMeta(slug, env) {
     creators.push({ '@type': 'Organization', name: d });
   }
   if (creators.length) jsonLd.creator = creators.length === 1 ? creators[0] : creators;
-  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd };
+  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
@@ -184,7 +248,7 @@ function productMetaFromRecord(record, canonicalUrl) {
   if (record.description) jsonLd.description = record.description;
   if (images.length) jsonLd.image = images;
   if (record.brand) jsonLd.brand = { '@type': 'Brand', name: record.brand };
-  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd };
+  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
 }
 
 // key: urun.html/urun-detay.html#productKey ile birebir aynı üretim — statik kayıtlarda
@@ -226,7 +290,7 @@ function buildNewsMeta(id) {
   if (n.description) jsonLd.description = n.description;
   if (imageUrl) jsonLd.image = [imageUrl];
   if (n.createdAt) jsonLd.datePublished = new Date(n.createdAt).toISOString();
-  return { title, description, canonicalUrl, image: imageUrl || DEFAULT_IMAGE, jsonLd };
+  return { title, description, canonicalUrl, image: imageUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('news', n.title, canonicalUrl) };
 }
 
 const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta, news: buildNewsMeta };
