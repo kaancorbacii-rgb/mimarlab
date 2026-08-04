@@ -21,6 +21,16 @@
       "bucket_name": "mimarlab-uploads"
     }
   ],
+  // Faz 3 — facet_counts hızlı okuma önbelleği (bkz. src/lib/facetCounts.js, migrations/
+  // 0024_facet_counts.sql). Gerçek Cloudflare KV namespace'i (`wrangler kv namespace create
+  // FACET_CACHE` ile oluşturuldu, bkz. docs/architecture-roadmap.md). Yerel `wrangler dev`
+  // (--local, varsayılan) bu id'yi gerçek API'ye dokunmadan yerel olarak simüle eder.
+  "kv_namespaces": [
+    {
+      "binding": "FACET_CACHE",
+      "id": "9a8a1cfde13447a498bc5dcc4bc7d4ae"
+    }
+  ],
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler

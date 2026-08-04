@@ -1,8 +1,5 @@
 import { slugify } from './slugify.js';
 import { clearArchitectOfficeIfMatches } from './officeFounderCascade.js';
-import dataJs from '../../data.js';
-
-const { architects: staticArchitects } = dataJs;
 
 // comments/ratings/saved_items tabloları target_type/item_type + target_id/item_key ile anahtarlanır
 // (bkz. schema.sql) — bir tür o tabloyu hiç desteklemese bile (ör. comments'te 'product' yok, bkz.
@@ -57,12 +54,19 @@ export async function cascadeDeleteOffice(env, user, name) {
   await pullNameFromArrayColumn(env, 'project_submissions', 'designer', name);
   await pullNameFromArrayColumn(env, 'project_submissions', 'brands', name);
 
+  // Faz 3: affiliated mimarlar artık canonical office_founders join'inden (bkz. src/routes/office.js)
+  // okunur — statik data.js taraması + ayrı architect_submissions sorgusu yerine, canonical
+  // architects.office_id zaten HER iki kökenden (statik + üye) gelen mimarı tek sorguda kapsar.
+  const canonOffice = await env.DB.prepare(`SELECT id FROM offices WHERE name = ? OR legacy_key = ? LIMIT 1`).bind(name, name).first();
   const affiliated = new Set();
-  for (const a of staticArchitects) if (a.office === name) affiliated.add(a.name);
-  const { results } = await env.DB.prepare(
+  if (canonOffice) {
+    const { results } = await env.DB.prepare(`SELECT name FROM architects WHERE office_id = ? AND deleted_at IS NULL`).bind(canonOffice.id).all();
+    for (const row of results) affiliated.add(row.name);
+  }
+  const { results: pendingRows } = await env.DB.prepare(
     `SELECT DISTINCT name FROM architect_submissions WHERE office = ? AND status = 'approved'`
   ).bind(name).all();
-  for (const row of results) affiliated.add(row.name);
+  for (const row of pendingRows) affiliated.add(row.name);
   for (const architectName of affiliated) {
     await clearArchitectOfficeIfMatches(env, user, architectName, name);
   }

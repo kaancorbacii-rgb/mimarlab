@@ -1,77 +1,67 @@
 import { errorJson } from '../lib/http.js';
-import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
-// bkz. src/routes/architect.js'teki AYNI CJS-interop yorumu. il-ilce-data.js'e de proje.html'deki
+import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { getCachedFacetCounts } from '../lib/facetCounts.js';
+// bkz. src/routes/architect.js'teki AYNI CJS-interop yorumu — il-ilce-data.js proje.html'deki
 // parseLocationFull ile BİREBİR aynı il/ilçe çözümlemesini kullanmak için (~970 ilçelik veriyi
-// burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğu eklendi.
-import projeJs from '../../projeler-data.js';
+// burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğuyla import ediliyor. Bu dosya
+// canonical veri DEĞİL, salt statik bir referans tablosu olduğundan (data.js/projeler-data.js'in
+// aksine) Faz 3 kapsamı dışında bırakıldı.
 import ilIlceJs from '../../il-ilce-data.js';
 
-const { projects } = projeJs;
 const { parseLocationFull } = ilIlceJs;
 
-// ÖNEMLİ: bkz. src/routes/architect.js'teki AYNI "paylaşılan diziler mutasyona uğratılmaz" yorumu.
+// Faz 3 — statik projeler-data.js + project_submissions overlay yerine doğrudan canonical
+// `projects`/`project_designers` tablolarından okur (bkz. src/routes/architect.js'teki AYNI
+// "overlay merge-time'da zaten uygulandı" yorumu, docs/architecture-roadmap.md Faz3 madde 1).
 
-async function fetchApprovedRows(env, table, whereExtra, params = []) {
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM ${table} WHERE status = 'approved' ${whereExtra}`
-  ).bind(...params).all();
-  return results;
+const DESIGNER_SEP = '';
+
+// bir projenin tasarımcı adları dizisini (mimar VEYA ofis adı, project_designers join'inden) tek
+// bir GROUP_CONCAT sütununa toplayan ortak sorgu parçası — hem tekil proje hem filtre listesi
+// sorgusu bunu kullanır.
+const DESIGNER_JOIN_SQL = `
+  LEFT JOIN project_designers pd ON pd.project_id = p.id
+  LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
+  LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+`;
+
+function designerNamesFrom(concat) {
+  return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
 }
 
-function memberRowToProject(row) {
-  const p = parseSubmissionRow('projects', row);
+function shapeProjectItem(row) {
+  const p = parseCanonicalRow('projects', row);
   return {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
-    location: p.location, locationDetail: p.locationDetail, date: p.date, dateBucket: p.dateBucket,
-    period: p.period, designer: p.designer, images: p.images, brands: p.brands,
-    photoCredit: { text: p.photoCreditText || '', url: p.photoCreditUrl || '' },
-    description: p.description, submissionId: p.id, createdAt: p.created_at,
+    location: p.location, locationDetail: p.location_detail, date: p.project_date, dateBucket: p.date_bucket,
+    period: p.period, designer: designerNamesFrom(row.designer_names),
+    photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
+    description: p.description, images: p.images,
+    // "Kullanılan Ürünler/Malzemeler" (project_products) doldurulması Faz 2/3'te kapsam dışı
+    // bırakıldı (bkz. docs/architecture-roadmap.md §4.4) — proje-detay.html henüz bu API'ye bağlı
+    // olmadığından gözlemlenebilir bir etkisi yok.
+    brands: [],
   };
 }
 
-async function fetchHiddenProjectSlugs(env) {
-  const { results } = await env.DB.prepare(
-    `SELECT content_key FROM legacy_content_hidden WHERE content_type = 'projects'`
-  ).all();
-  return new Set(results.map(r => r.content_key));
-}
-
-// GET /api/project/:slug — proje-detay.html henüz bu uca bağlanmadı (bu tur yalnızca mimar-detay.html/
-// ofis-detay.html/proje.html değiştirildi, bkz. docs/architecture-roadmap.md) ama Faz 1'in "overlay
-// worker katmanına taşınsın" hedefiyle tutarlı, çalışır bir uç nokta olarak eklendi — statik
-// projeler-data.js kaydı + onaylı claimed_slug düzenlemesi (src/routes/public.js#handlePublicProjectEdits
-// ile AYNI alan seti) ya da yalnızca DB'de var olan bir üye projesi.
+// GET /api/project/:slug — proje-detay.html henüz bu uca bağlanmadı (bkz. eski yorum, bu durum
+// Faz 3'te de değişmedi), ama Faz 1'in "overlay worker katmanına taşınsın" hedefiyle tutarlı,
+// çalışır bir uç nokta olarak korunuyor.
 export async function handleProjectDetailRoute(request, env, url, rawSlug) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   const slug = decodeURIComponent(rawSlug || '');
   if (!slug) return errorJson('Geçersiz istek.');
 
   return cachedPublicJson(request, env, url.pathname, async () => {
-    const base = projects.find(p => p.slug === slug);
-    if (base) {
-      const editRow = await env.DB.prepare(
-        `SELECT * FROM project_submissions WHERE claimed_slug = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
-      ).bind(slug).first();
-      let item = base;
-      if (editRow) {
-        const p = parseSubmissionRow('projects', editRow);
-        item = {
-          ...base, title: p.title || base.title, category: p.category, type: p.type, discipline: p.discipline,
-          location: p.location, locationDetail: p.locationDetail, date: p.date, dateBucket: p.dateBucket,
-          period: p.period, designer: (p.designer && p.designer.length) ? p.designer : base.designer,
-          photoCredit: { text: p.photoCreditText || '', url: p.photoCreditUrl || '' },
-          description: p.description, images: (p.images && p.images.length) ? p.images : base.images, brands: p.brands,
-        };
-      }
-      const hiddenSlugs = await fetchHiddenProjectSlugs(env);
-      if (hiddenSlugs.has(slug)) return { item: null, hidden: true };
-      return { item, hidden: false };
-    }
-
-    const row = await env.DB.prepare(`SELECT * FROM project_submissions WHERE slug = ? AND status = 'approved'`).bind(slug).first();
+    const row = await env.DB.prepare(
+      `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
+       FROM projects p ${DESIGNER_JOIN_SQL}
+       WHERE p.slug = ? AND p.deleted_at IS NULL GROUP BY p.id`
+    ).bind(slug).first();
     if (!row) return { item: null, hidden: false };
-    return { item: memberRowToProject(row), hidden: false };
+    if (row.hidden_at) return { item: null, hidden: true };
+    return { item: shapeProjectItem(row), hidden: false };
   });
 }
 
@@ -90,9 +80,21 @@ function isOfficeName(name) {
   return OFFICE_KEYWORDS.some(k => name.toLowerCase().includes(k));
 }
 
+// bkz. src/lib/facetCounts.js#recomputeProjectFacets — facet_counts'ın "hiçbir filtre aktif değil"
+// anlık görüntüsünü üretmek için handleProjectFiltersRoute ile AYNI havuzu (aktif/gizli olmayan
+// projeler + designer isim dizisi) paylaşır, tek sorgu mantığını burada tekilleştirir.
+export async function fetchActiveProjectPool(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
+     FROM projects p ${DESIGNER_JOIN_SQL}
+     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id`
+  ).all();
+  return results.map(shapeProjectItem);
+}
+
 // proje.html#FILTER_GROUPS ile BİREBİR aynı alan çıkarımı — yalnızca `field` fonksiyonları burada
 // (parseLocation/isOfficeName/ratingBuckets sunucu tarafı karşılıklarıyla) yeniden ifade edilir.
-function buildFilterGroups(ratingByProject) {
+export function buildFilterGroups(ratingByProject) {
   return [
     { key: 'discipline', label: 'Tür', nested: false, field: p => p.discipline || [] },
     { key: 'category', label: 'Tip', nested: false, field: p => p.category || [] },
@@ -130,36 +132,46 @@ function dateBucketSortKey(s) {
   return 0;
 }
 
-// GET /api/projects/filters — proje.html#computeOptions'ın (bkz. o dosyadaki passesFilters/
-// computeOptions) TAM karşılığı: her filtre grubunun sayacı, O GRUP HARİÇ diğer TÜM aktif
-// filtrelerle eşleşen projeler üzerinden hesaplanır (faceted/bağımlı sayaç — "İstanbul" seçiliyken
-// "Konut" sayacı yalnızca İstanbul'daki konut projelerini sayar). İstemci mevcut activeFilters
-// durumunu tekrarlanan query param'larla gönderir (ör. ?discipline=Mimari&location=İstanbul).
+// GET /api/projects/filters — proje.html#computeOptions'ın TAM karşılığı: her filtre grubunun
+// sayacı, O GRUP HARİÇ diğer TÜM aktif filtrelerle eşleşen projeler üzerinden hesaplanır
+// (faceted/bağımlı sayaç). Bu "diğer aktif filtrelerle bağımlı" hesap, facet_counts tablosunun (bkz.
+// src/lib/facetCounts.js, Faz3 madde 5) düz global sayaç şekliyle KARŞILANAMAZ — o tablo yalnızca
+// hiçbir filtre seçili değilken (ilk sayfa yüklemesindeki "Mimari (461)" durumu) hızlı bir KV
+// önbelleği sağlar (bkz. handleProjectFiltersRoute'un facet_counts fast-path'i, aynı dosyada
+// tanımlı); herhangi bir filtre aktifken bu tam tarama (artık canonical tablo üzerinden) çalışmaya
+// devam eder — mevcut canlı davranışla birebir aynı.
 export async function handleProjectFiltersRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
 
-  // cachedPublicJson (bkz. src/lib/publicCache.js), pathname'i sabit CACHEABLE_PATHS listesinde
-  // olmayan uçlar için otomatik olarak kısa ömürlü ANON_CACHE_HEADERS (ya da admin isteğiyse
-  // no-store) döner — /api/projects/filters'ın anlamı tamamen query string'e (aktif filtreler)
-  // bağlı olduğundan bilerek o listeye EKLENMEDİ, bu yüzden ek bir sarmalayıcıya gerek yok.
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const [memberRows, projectOverlayRows, hiddenSlugs, ratingRows] = await Promise.all([
-      fetchApprovedRows(env, 'project_submissions', 'AND claimed_slug IS NULL'),
-      fetchApprovedRows(env, 'project_submissions', 'AND claimed_slug IS NOT NULL'),
-      fetchHiddenProjectSlugs(env),
+    // Hızlı yol: HİÇBİR filtre/arama aktif değilse (proje.html'in ilk sayfa yüklemesindeki durum),
+    // facet_counts + KV'den (bkz. src/lib/facetCounts.js) anlık oku — tam tarama gerekmez. Yalnızca
+    // o tablonun kapsadığı grupları (rating/district hariç, bkz. facetCounts.js dosya başı kapsam
+    // notu) doldurur; istemci taraf zaten bu iki grup için kendi anlık hesabını korur, TAM sayaç
+    // seti yalnızca herhangi bir filtre aktifken (aşağıdaki tam tarama yoluyla) hesaplanır.
+    if ([...url.searchParams.keys()].length === 0) {
+      const cached = await getCachedFacetCounts(env, 'projects');
+      if (Object.keys(cached).length) {
+        const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`).first();
+        const out = {};
+        for (const [key, counts] of Object.entries(cached)) {
+          out[key] = { counts, options: Object.keys(counts).sort((a, b) => (key === 'dateBucket' ? dateBucketSortKey(b) - dateBucketSortKey(a) : counts[b] - counts[a] || a.localeCompare(b))) };
+        }
+        return { filters: out, total: totalRow?.n || 0 };
+      }
+    }
+
+    const [projectsRes, ratingRows] = await Promise.all([
+      env.DB.prepare(
+        `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
+         FROM projects p ${DESIGNER_JOIN_SQL}
+         WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id`
+      ).all(),
       env.DB.prepare(`SELECT target_id, AVG(stars) AS average FROM ratings WHERE target_type = 'project' GROUP BY target_id`).all(),
     ]);
 
     const ratingByProject = new Map(ratingRows.results.map(r => [r.target_id, { average: r.average }]));
-    const overlayBySlug = new Map(projectOverlayRows.map(r => [r.claimed_slug, parseSubmissionRow('projects', r)]));
-
-    const pool = projects
-      .filter(p => !hiddenSlugs.has(p.slug))
-      .map(p => {
-        const o = overlayBySlug.get(p.slug);
-        return o ? { ...p, category: o.category, type: o.type, discipline: o.discipline, location: o.location, dateBucket: o.dateBucket, designer: o.designer } : p;
-      })
-      .concat(memberRows.map(memberRowToProject).filter(p => !hiddenSlugs.has(p.slug)));
+    const pool = projectsRes.results.map(shapeProjectItem);
 
     const FILTER_GROUPS = buildFilterGroups(ratingByProject);
     const activeFilters = {};

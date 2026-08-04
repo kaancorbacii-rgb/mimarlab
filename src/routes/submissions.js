@@ -7,6 +7,11 @@ import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden } from './legacyContent.js';
+import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
+import { bumpFacetCounts } from '../lib/facetCounts.js';
+
+const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
+const FACET_TYPES = new Set(['projects', 'products', 'materials']);
 // projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
 // sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
 // src/lib/seo.js'teki aynı desen — orada da SSR meta için kullanılıyor).
@@ -220,6 +225,13 @@ async function createSubmission(request, env, user, typeKey) {
   // yorum) public önbelleği yalnızca bu durumda değişir — sıradan üye gönderileri 'pending' kalıp
   // onay bekleyene dek zaten hiçbir public uçta görünmez, gereksiz yere temizlemeye gerek yok.
   if (status === 'approved') {
+    // bkz. src/lib/canonicalSync.js dosya başı yorumu — okuma yolları artık canonical tabloları
+    // okuyor, admin'in anında yayına giren kendi gönderisi de aynı anda oraya senkronlanmalı.
+    if (CANONICAL_TYPES.has(typeKey)) {
+      const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+      await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+      if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
+    }
     await invalidatePublicCache();
     // claimed_slug/claimed_profile_key'liyse bu, ziyaretçilerin ZATEN görüntülemiş olabileceği
     // statik bir sayfaya bindirilen bir düzenlemedir — o sayfanın SSR önbelleğini temizle (bkz.
@@ -316,6 +328,18 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // bkz. yukarıdaki status ataması) tekrar onay bekler duruma düşüp public'ten kalkmış olabilir —
   // her iki yönde de public önbellek eskimiş olacağından temizlenir.
   if (status === 'approved' || existing.status === 'approved') {
+    // bkz. src/lib/canonicalSync.js dosya başı yorumu — bkz. src/routes/admin.js#handleSubmissionsAdmin'daki
+    // AYNI mantık: onaylandıysa canonical'a senkronla, onaylıyken onay bekler duruma düştüyse
+    // (sıradan üyenin kendi onaylı içeriğini düzenlemesi) canonical satırı gizle.
+    if (CANONICAL_TYPES.has(typeKey)) {
+      if (status === 'approved') {
+        const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+        await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+      } else if (existing.status === 'approved') {
+        await hideCanonicalForUnapprovedSubmission(env, typeKey, existing);
+      }
+      if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
+    }
     await invalidatePublicCache();
     // Değişiklik ÖNCESİ kaydın kimliğini hedefler (görüntülenen sayfa hâlâ bu anahtar altında
     // önbelleklenmiş olabilir) — bkz. src/lib/ssrCache.js.

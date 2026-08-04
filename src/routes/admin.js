@@ -8,6 +8,15 @@ import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
+import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
+import { bumpFacetCounts } from '../lib/facetCounts.js';
+
+// canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — jobs/news
+// bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
+// açıkça belirtmek çağıran yeri okunaklı kılıyor.
+const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
+// facet_counts yalnızca bu ikisi için doldurulur (bkz. src/lib/facetCounts.js dosya başı kapsam notu).
+const FACET_TYPES = new Set(['projects', 'products', 'materials']);
 
 // bkz. src/routes/submissions.js#RENAME_CASCADE_BY_TYPE (aynı eşleme) — admin panelinden doğrudan
 // isim değiştirmenin kapsandığı tipler.
@@ -229,6 +238,21 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       // Onaylı içerik ya şimdi onaylandı ya da onaylıyken bir alanı/durumu değişti (her iki
       // durumda da public'e yansıyan bir şey değişmiş olabilir) — bkz. src/lib/publicCache.js.
       if (existing.status === 'approved' || body.status === 'approved') {
+        // Okuma yolları artık *_submissions'ı DEĞİL, canonical tabloları okuyor (bkz.
+        // src/routes/architect.js/office.js/project.js/product.js, Faz 3) — bu yüzden bu satırın
+        // canonical karşılığı da AYNI anda güncellenmeli, aksi halde onay ekranda "başarılı" görünür
+        // ama site hiçbir şey göstermez (bkz. src/lib/canonicalSync.js dosya başı yorumu).
+        if (CANONICAL_TYPES.has(typeKey)) {
+          const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+          const finalStatus = freshRow.status;
+          if (finalStatus === 'approved') {
+            await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+          } else if (existing.status === 'approved') {
+            // onaylıyken reddedildi/pending'e alındı — bkz. src/lib/canonicalSync.js#hideCanonicalForUnapprovedSubmission.
+            await hideCanonicalForUnapprovedSubmission(env, typeKey, freshRow);
+          }
+          if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
+        }
         await invalidatePublicCache();
         // Var olan (güncelleme ÖNCESİ) kaydın kimliğini hedefler — bkz. src/lib/ssrCache.js.
         const target = ssrPurgeTargetFor(typeKey, existing);
@@ -242,6 +266,11 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       const target = existing ? ssrPurgeTargetFor(typeKey, existing) : null;
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
       await runCascadeDelete(env, user, typeKey, existing);
+      // Bu senkron mekanizmasının (bkz. src/lib/canonicalSync.js) bağımsız bir gönderi için
+      // ÖNCEDEN oluşturmuş olabileceği canonical satırı da işaretler — claimed'lı kayıtlarda
+      // (statik köken) bu no-op'tur, o kaydın kendi yaşam döngüsü legacyContent.js'e ait.
+      if (existing && CANONICAL_TYPES.has(typeKey)) await markCanonicalDeletedForSubmission(env, typeKey, existing);
+      if (existing && existing.status === 'approved' && FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
       await invalidatePublicCache();
       if (target) await purgeSsrDetailCache(target.type, target.key);
       return json({ ok: true });

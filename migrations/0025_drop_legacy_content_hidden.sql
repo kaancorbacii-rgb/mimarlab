@@ -1,0 +1,15 @@
+-- Faz 3 — GEÇERSİZ/UYGULANMAYACAK: bu migration ORİJİNAL planda legacy_content_hidden'ı tamamen
+-- düşürmeyi hedefliyordu, ama uygulama sırasında şu gerçek ortaya çıktı: 'news' (haberler-data.js
+-- statik dizisi) HİÇBİR ZAMAN Faz 2'nin ID-first migration'ına dahil edilmedi — architects/offices/
+-- projects/products'ın aksine canonical bir `news` tablosu yok (schema.sql'deki `news`/
+-- `news_submissions` tabloları tamamen ayrı, daha eski bir üye-gönderisi sistemi, statik
+-- haberler-data.js dizisinin karşılığı değil). Bu yüzden legacy_content_hidden'ı TAMAMEN düşürmek
+-- haber gizleme/gösterme özelliğini (bkz. src/routes/legacyContent.js#LEGACY_TYPES.news) kalıcı
+-- olarak kırardı — o içerik tipinin ID-first bir karşılığı henüz yok.
+--
+-- Karar: legacy_content_hidden TABLOSU KALIR, ama yalnızca content_type='news' için kullanılmaya
+-- devam eder — architects/offices/projects/products/materials artık kendi hidden_at/deleted_at
+-- kolonlarını kullanıyor (bkz. 0023_canonical_hidden_at.sql, src/routes/legacyContent.js). news'in
+-- kendi ID-first geçişi (haberler-data.js -> canonical news tablosu) ayrı, gelecekteki bir adımdır.
+
+-- (Kasıtlı olarak boş — hiçbir şema değişikliği yapılmaz.)

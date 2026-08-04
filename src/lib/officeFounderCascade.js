@@ -1,63 +1,39 @@
 import { newId } from './crypto.js';
 import { parseSubmissionRow } from './submissionTypes.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
-import dataJs from '../../data.js';
-
-const { architects: staticArchitects } = dataJs;
+import { slugify } from './slugify.js';
 
 const ARCHITECT_COPY_FIELDS = ['dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'];
 
-// Bir mimarın "şu an canlıda görünen" office'ini (statik architects[].office + varsa onaylı
-// architect_submissions bindirmesi — bkz. src/routes/legacyContent.js#CONTENT_ACTION_TYPES.architects
-// ile aynı desen) ve varsa hâlihazırdaki satırını döner. Ne statik kayıt ne de daha önce bir
-// düzenleme/gönderi varsa null döner (adı bilinmeyen bir isim — Kurucular kutusuna yanlışlıkla
-// yazılmış olabilir, sessizce yok sayılır).
+// Bir mimarın "şu an canlıda görünen" hâli artık DOĞRUDAN canonical architects tablosundan okunur
+// (bkz. src/routes/architect.js — Faz 3'ten önce burada statik data.js + architect_submissions
+// overlay'i AYRICA hesaplanıyordu, artık gerek yok çünkü canonical satırın kendisi zaten güncel).
 async function currentArchitectState(env, name) {
-  const base = staticArchitects.find(a => a.name === name);
-  const editRow = await env.DB.prepare(
-    `SELECT * FROM architect_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
-  ).bind(name).first();
-  if (editRow) {
-    const parsed = parseSubmissionRow('architects', editRow);
-    return { row: editRow, office: parsed.office, fields: parsed };
-  }
-  if (base) {
-    return {
-      row: null,
-      office: base.office || null,
-      fields: {
-        dob: base.dob || null, school: base.school || null, dept: base.dept || null,
-        office: base.office || null, position: base.role || null, profession: base.profession || null,
-        awards: base.awards || [], photo_url: base.photo || base.photo_url || null, about: base.about || null,
-      },
-    };
-  }
-  // Statik bir kayıt değil — sıradan (statik bir profili sahiplenmeyen) bir architect_submissions
-  // satırı olabilir (bkz. schema.sql#architect_submissions claimed_profile_key açıklaması).
-  const plainRow = await env.DB.prepare(
-    `SELECT * FROM architect_submissions WHERE name = ? AND claimed_profile_key IS NULL AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
-  ).bind(name).first();
-  if (!plainRow) return null;
-  const parsed = parseSubmissionRow('architects', plainRow);
-  return { row: plainRow, office: parsed.office, fields: parsed };
+  const row = await env.DB.prepare(`SELECT * FROM architects WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ?) LIMIT 1`).bind(name, name).first();
+  if (!row) return null;
+  const office = row.office_id ? await env.DB.prepare(`SELECT name FROM offices WHERE id = ?`).bind(row.office_id).first() : null;
+  return { id: row.id, office: office ? office.name : null };
 }
 
 // Bir firmanın Kurucular listesinden çıkarılan TEK bir ismin, hâlâ o firmayı gösteren kendi office
-// alanını temizler. Gerçek "kurucu/ortak" görünürlüğü (bkz. ofis-detay.html#renderFoundersGrid,
-// mimar-detay.html "diğer ortaklar") office_submissions.founders değil, HER mimarın KENDİ office
-// alanı tarafından belirlendiğinden — bu olmadan kişi, Kurucular'dan çıkarılsa bile firma sayfasında
-// ve diğer ortakların profilinde görünmeye devam ederdi (bkz. kullanıcı isteği/gerçek bulgu: bir
-// firma düzenleye ortak silindiğinde hem firmanın hem de diğer ortakların profilinde adı kalıyordu).
+// bağlantısını temizler. Gerçek "kurucu/ortak" görünürlüğü artık office_founders join tablosundan
+// gelir (bkz. src/routes/office.js) — bu fonksiyon canonical architects.office_id'yi NULL'lar ve
+// office_founders satırını siler; *_submissions tarafındaki gelecekteki bir düzenlemenin de aynı
+// (boş) office'i göndermesi için architect_submissions'taki en son onaylı satırı da (varsa) günceller.
 export async function clearArchitectOfficeIfMatches(env, user, architectName, officeName) {
   const current = await currentArchitectState(env, architectName);
   if (!current || current.office !== officeName) return; // zaten farklı/boş bir office'e sahip — dokunma
+  await env.DB.prepare(`UPDATE architects SET office_id = NULL, updated_at = datetime('now') WHERE id = ?`).bind(current.id).run();
+  await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ?`).bind(current.id).run();
+
   const now = Date.now();
-  if (current.row) {
-    await env.DB.prepare(`UPDATE architect_submissions SET office = NULL, updated_at = ? WHERE id = ?`).bind(now, current.row.id).run();
+  const editRow = await env.DB.prepare(
+    `SELECT * FROM architect_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
+  ).bind(architectName).first();
+  if (editRow) {
+    await env.DB.prepare(`UPDATE architect_submissions SET office = NULL, updated_at = ? WHERE id = ?`).bind(now, editRow.id).run();
   } else {
-    // Statik bir mimar için ilk kez oluşturulan bindirme satırı — diğer statik alanları koruyup
-    // yalnızca office'i temizler (bkz. handleContentAction'daki AYNI "statikten taslak oluştur" deseni).
-    const fields = { ...current.fields, office: null };
+    const fields = { dob: null, school: null, dept: null, office: null, position: null, profession: null, awards: [], photo_url: null, about: null };
     const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', 'claimed_profile_key', 'name', ...ARCHITECT_COPY_FIELDS];
     const values = ARCHITECT_COPY_FIELDS.map(f => (f === 'awards' ? JSON.stringify(fields.awards || []) : (fields[f] ?? null)));
     await env.DB.prepare(
@@ -80,21 +56,28 @@ export async function cascadeRemovedFounders(env, user, officeName, oldFounders,
   }
 }
 
+async function freshSlugFor(env, table, currentId, newName) {
+  const base = slugify(newName) || `kayit-${currentId}`;
+  let slug = base, n = 2;
+  while (true) {
+    const clash = await env.DB.prepare(`SELECT id FROM ${table} WHERE slug = ? AND id != ?`).bind(slug, currentId).first();
+    if (!clash) return slug;
+    slug = `${base}-${n}`; n++;
+  }
+}
+
 // Bir firmanın adı değiştiğinde (bkz. src/routes/submissions.js#updateOwnSubmission, src/routes/
 // admin.js#handleSubmissionsAdmin — yalnızca admin claimed_profile_key'den FARKLI bir isim
 // gönderebilir), bu ismi anahtar olarak kullanan TÜM diğer D1 satırlarını yeni isme taşır — aksi
 // halde kaydedilmiş öğeler/rozetler/sahiplenmeler/yorumlar/puanlar/gizlenmiş kayıtlar eski ada
 // bağlı kalıp sessizce "kaybolurdu" (bkz. kullanıcı isteği: "Admin hesabına tüm firma isimlerini
 // değişebilme yetkisi ver"). saved_items/profile_claims/ratings/legacy_content_hidden UNIQUE
-// kısıtı taşıdığından UPDATE OR IGNORE kullanılır (ör. bir kullanıcı hem eski hem yeni adı zaten
-// kaydetmişse çakışan satır sessizce atlanır, hata fırlatmaz). Statik data.js/projeler-data.js
-// kaynak dosyalarındaki isim referansları (designer[] dizileri) bu fonksiyonun kapsamı DIŞINDADIR
-// — worker çalışma zamanında statik dosyaları düzenleyemez; bunlar yerine data.js#
-// renameOfficeEverywhere her sayfa yüklendiğinde offices[].name'i (ve projects[]/architects[]
-// içindeki referansları) çalışma zamanında bindirir (bkz. handlePublicProfileEdits'in office
-// overlay'ine eklenen `name` alanı).
+// kısıtı taşıdığından UPDATE OR IGNORE kullanılır. Faz 3: canonical offices.name/slug de burada
+// güncellenir (bkz. src/routes/office.js — canonical artık okuma yolunun asıl kaynağı, `slug`
+// tazeyken clean URL'ler yeniden derlenme/tam-tarama fallback'ine ihtiyaç duymadan hemen çalışır).
 export async function renameOfficeEverywhere(env, oldName, newName) {
   if (!oldName || !newName || oldName === newName) return;
+  const canonRow = await env.DB.prepare(`SELECT id FROM offices WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ?) LIMIT 1`).bind(oldName, oldName).first();
   await Promise.all([
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'office' AND item_key = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE OR IGNORE profile_claims SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
@@ -104,10 +87,13 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
     env.DB.prepare(`UPDATE comments SET target_id = ? WHERE target_type = 'office' AND target_id = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'offices' AND content_key = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE architect_submissions SET office = ? WHERE office = ?`).bind(newName, oldName).run(),
-    // Admin'in doğrudan verdiği rozet de (bkz. schema.sql#admin_badges) yeni isme taşınır, aksi
-    // halde firma yeniden adlandırıldığında rozeti sessizce kaybolurdu.
     env.DB.prepare(`UPDATE OR IGNORE admin_badges SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
   ]);
+
+  if (canonRow) {
+    const newSlug = await freshSlugFor(env, 'offices', canonRow.id, newName);
+    await env.DB.prepare(`UPDATE offices SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, newSlug, canonRow.id).run();
+  }
 
   // project_submissions.designer bir JSON dizisi (metin olarak saklanır) — SQL ile tek satırda
   // güvenle değiştirilemeyeceğinden satır satır okunup yazılır.
@@ -127,14 +113,11 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
 // renameOfficeEverywhere'in mimar karşılığı (bkz. src/routes/submissions.js#updateOwnSubmission,
 // src/routes/admin.js — yalnızca admin claimed_profile_key'den FARKLI bir isim gönderebilir). Bir
 // mimarın adı değiştiğinde, bu ismi anahtar olarak kullanan TÜM diğer D1 satırlarını yeni isme
-// taşır (bkz. kullanıcı isteği: "Admin hesabına ... Mimar düzenle sayfasından Mimar ismi
-// değiştirebilme yetkisi ver"). office_submissions.founders bir JSON dizisi olduğundan (aynı
-// project_submissions.designer gibi) satır satır okunup yazılır; product_submissions/
-// material_submissions.architect ise serbest metin, virgülle ayrılmış isimler (bkz. migrations/
-// 0020_product_architect.sql) — tek tek parçalanıp TAM eşleşen isim değiştirilir, aksi halde
-// örneğin "Ali" adını değiştirmek "Ali Osman"ı da yanlışlıkla eşleştirirdi.
+// taşır. Faz 3: canonical architects.name/slug de burada güncellenir (bkz. yukarıdaki
+// renameOfficeEverywhere'deki AYNI gerekçe).
 export async function renameArchitectEverywhere(env, oldName, newName) {
   if (!oldName || !newName || oldName === newName) return;
+  const canonRow = await env.DB.prepare(`SELECT id FROM architects WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ?) LIMIT 1`).bind(oldName, oldName).first();
   await Promise.all([
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'architect' AND item_key = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE OR IGNORE profile_claims SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),
@@ -145,6 +128,11 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
     env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'architects' AND content_key = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE OR IGNORE admin_badges SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),
   ]);
+
+  if (canonRow) {
+    const newSlug = await freshSlugFor(env, 'architects', canonRow.id, newName);
+    await env.DB.prepare(`UPDATE architects SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, newSlug, canonRow.id).run();
+  }
 
   const { results: projectRows } = await env.DB.prepare(
     `SELECT id, designer FROM project_submissions WHERE designer LIKE ?`

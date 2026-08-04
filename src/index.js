@@ -7,6 +7,7 @@ import { handleArchitectRoute } from './routes/architect.js';
 import { handleOfficeRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute } from './routes/project.js';
 import { handleProductDetailRoute } from './routes/product.js';
+import { handleFacetsRoute } from './routes/facets.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
@@ -263,6 +264,7 @@ async function routeApi(request, env, url) {
   // (handleSubmissionRoute) ÇAKIŞMAZ — yalnızca /api/projects/filters, /api/projects prefix'iyle
   // başladığından o genel eşleşmeden ÖNCE burada özel olarak yakalanmalı.
   if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
+  if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) return handleProjectDetailRoute(request, env, url, path.slice('/api/project/'.length));

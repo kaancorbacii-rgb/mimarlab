@@ -526,6 +526,34 @@ function buildSidebar(){
       });
     });
   });
+
+  reconcileFilterCountsFromServer();
+}
+
+// GET /api/facets/products (bkz. src/lib/facetCounts.js, src/routes/facets.js) — Faz 3'ün canlı
+// facet_counts+KV önbelleğinden okur, proje.html#reconcileFilterCountsFromServer ile AYNI "önce
+// anlık client, sonra sessiz sunucu düzeltmesi" deseni. FARK: bu uç yalnızca HİÇ filtre/arama aktif
+// değilken (genel/filtresiz sayaç) doğru sonuç verir — proje.html'in aksine bağımlı/faceted sayım
+// yapmaz (bkz. src/lib/facetCounts.js dosya başı kapsam notu), bu yüzden herhangi bir filtre ya da
+// arama aktifken hiç çağrılmaz, client'ın kendi (zaten doğru) bağımlı hesabı bozulmasın diye.
+function reconcileFilterCountsFromServer(){
+  const anyActive = FILTER_GROUPS.some(g => activeFilters[g.key].size > 0) || localSearchQuery.trim();
+  if(anyActive) return;
+  fetch('/api/facets/products')
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if(!data || !data.facets) return;
+      const sidebar = document.getElementById('sidebar');
+      Object.keys(data.facets).forEach(key => {
+        const counts = data.facets[key];
+        sidebar.querySelectorAll(`.filter-opt input[data-key="${key}"]`).forEach(cb => {
+          if(counts[cb.value] === undefined) return;
+          const countEl = cb.closest('.filter-opt').querySelector('.filter-opt-count');
+          if(countEl) countEl.textContent = `(${counts[cb.value]})`;
+        });
+      });
+    })
+    .catch(()=>{});
 }
 
 function renderActiveChips(){

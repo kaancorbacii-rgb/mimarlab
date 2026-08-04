@@ -5,12 +5,19 @@ import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { slugify } from '../lib/slugify.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
+import { findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical } from '../lib/canonicalSync.js';
+import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { bumpFacetCounts } from '../lib/facetCounts.js';
 
-// Bir kayıt "Sil" ile canlıdan kaldırıldığında (id'liyse satır silinir, key'liyse statik kayıt
-// gizlenir — bkz. handleContentAction) ilgili cascade fonksiyonunu çağırır (bkz. src/lib/
-// cascadeDelete.js — kullanıcı isteği: "tüm sistemden o bilgi silinsin"). key'li (statik) yoldaki
-// ürün/malzeme anahtarı LEGACY_TYPES'taki "marka|||başlık" biçiminde geldiğinden, urun-detay.html#
-// productKey ile AYNI slugify(title + '-' + brand) biçimine çevrilir.
+const FACET_TYPES = new Set(['projects', 'products', 'materials']);
+
+// Faz 3 — architects/offices/projects/products/materials artık canonical tablolardan (bkz.
+// migrations/0022_id_first_entities.sql) okunuyor/gizleniyor/siliniyor; legacy_content_hidden bu 5
+// tip için ARTIK KULLANILMIYOR (bkz. migrations/0025_drop_legacy_content_hidden.sql'deki gerekçe —
+// tablo yalnızca 'news' için, o tipin kendi ID-first karşılığı henüz olmadığından, canlı kalıyor).
+// "Gizle" (hidden_at, geri alınabilir) ile "Sil" (deleted_at, kalıcı + cascade) artık canonical
+// satırın KENDİSİNDE tutulur — ayrı bir moderasyon tablosuna gerek kalmadı.
+
 async function runContentCascadeDelete(env, user, type, { id, row, key }) {
   const name = row ? row.name : key;
   if (type === 'architects') return cascadeDeleteArchitect(env, name);
@@ -22,64 +29,45 @@ async function runContentCascadeDelete(env, user, type, { id, row, key }) {
     return cascadeDeleteProduct(env, engagementType, slugify(`${title || ''}-${brand || ''}`));
   }
 }
-// data.js/projeler-data.js/urunler-data.js/malzemeler-data.js/haberler-data.js tarayıcıda classic
-// <script> olarak yüklenen, export içermeyen dosyalar; dosya sonlarındaki guard'lı `module.exports`
-// bloğu sayesinde esbuild bunları CJS modülü olarak paketler (bkz. src/lib/seo.js'teki aynı desen).
-import dataJs from '../../data.js';
-import projeJs from '../../projeler-data.js';
-import urunJs from '../../urunler-data.js';
-import malzemeJs from '../../malzemeler-data.js';
-import haberJs from '../../haberler-data.js';
 
-const { architects, offices, jobListings } = dataJs;
-const { projects } = projeJs;
-const { products } = urunJs;
-const { materials } = malzemeJs;
+// haberler-data.js hâlâ statik bir dizi — news'in kendi ID-first geçişi ayrı bir sonraki adımdır
+// (bkz. migrations/0025_drop_legacy_content_hidden.sql). Bu tek tip için eski model AYNEN korunur.
+import haberJs from '../../haberler-data.js';
 const { newsItems } = haberJs;
 
-// Statik (miras) içerik tiplerinin doğal anahtarı (bkz. schema.sql#legacy_content_hidden) ve admin
-// panelinde kart olarak gösterilecek sade {title, subtitle, image} şekli. Ürün/malzemenin kararlı
-// bir id'si olmadığından (urunler-data.js/malzemeler-data.js sadece title/brand tutar) anahtar
-// "marka|||başlık" ikilisinden türetilir — nadir bir çakışma riski var ama admin panelinde her zaman
-// tam kart içeriğiyle gösterildiğinden gizlemeden önce görsel olarak doğrulanabilir.
-const LEGACY_TYPES = {
-  projects: {
-    all: () => projects,
-    key: (item) => item.slug,
-    shape: (item) => ({ title: item.title, subtitle: [item.location, item.date].filter(Boolean).join(' · '), image: (item.images && item.images[0]) || null }),
-  },
-  architects: {
-    all: () => architects,
-    key: (item) => item.name,
-    shape: (item) => ({ title: item.name, subtitle: [item.office, item.school].filter(Boolean).join(' · '), image: item.photo || item.photo_url || null }),
-  },
-  offices: {
-    all: () => offices,
-    key: (item) => item.name,
-    shape: (item) => ({ title: item.name, subtitle: [item.loc, item.cats].filter(Boolean).join(' · '), image: item.logo || null }),
-  },
-  products: {
-    all: () => products,
-    key: (item) => `${item.brand || ''}|||${item.title}`,
-    shape: (item) => ({ title: item.title, subtitle: [item.brand, item.category].filter(Boolean).join(' · '), image: item.image || null }),
-  },
-  materials: {
-    all: () => materials,
-    key: (item) => `${item.brand || ''}|||${item.title}`,
-    shape: (item) => ({ title: item.title, subtitle: [item.brand, item.category].filter(Boolean).join(' · '), image: item.image || null }),
-  },
-  news: {
-    all: () => newsItems,
-    key: (item) => item.id,
-    shape: (item) => ({ title: item.title, subtitle: item.category || '', image: item.image || null }),
-  },
-};
+const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices', projects: 'projects', products: 'products', materials: 'products' };
+const CANONICAL_NAME_COL = { architects: 'name', offices: 'name', projects: 'title', products: 'title', materials: 'title' };
+const CANONICAL_KEY_COL = { architects: 'name', offices: 'name', projects: 'slug' }; // products: legacy_key ("marka|||başlık")
+
+function canonicalKeyFor(type, row) {
+  if (type === 'architects' || type === 'offices') return row.name;
+  if (type === 'projects') return row.slug;
+  if (type === 'products' || type === 'materials') return row.legacy_key || `${row.brand_name_raw || ''}|||${row.title}`;
+  return null;
+}
+
+function shapeCanonicalCard(type, row) {
+  if (type === 'projects') {
+    const p = parseCanonicalRow('projects', row);
+    return { title: p.title, subtitle: [p.location, p.project_date].filter(Boolean).join(' · '), image: (p.images && p.images[0]) || null };
+  }
+  if (type === 'architects') {
+    return { title: row.name, subtitle: [row.school].filter(Boolean).join(' · '), image: row.photo_url || null };
+  }
+  if (type === 'offices') {
+    const cats = (() => { try { return row.cats ? JSON.parse(row.cats) : null; } catch { return null; } })();
+    return { title: row.name, subtitle: [row.loc, cats].filter(Boolean).join(' · '), image: row.logo_url || null };
+  }
+  // products/materials
+  const p = parseCanonicalRow('products', row);
+  return { title: p.title, subtitle: [p.brand_name_raw, p.category].filter(Boolean).join(' · '), image: (p.images && p.images[0]) || null };
+}
 
 function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
 }
 
-// /api/admin/legacy?type=<tip>&q=<arama>  (GET: statik kayıtlarda başlık/isim araması)
+// /api/admin/legacy?type=<tip>&q=<arama>  (GET: kayıtlarda başlık/isim araması)
 // /api/admin/legacy/hidden  (PATCH: {type, key, hidden} — gizle/tekrar göster)
 // requireAdmin kontrolü çağıran (src/routes/admin.js#handleAdminRoute) tarafından zaten yapıldı.
 export async function handleLegacyAdmin(request, env, url, segments, user) {
@@ -93,43 +81,60 @@ export async function handleLegacyAdmin(request, env, url, segments, user) {
 async function searchLegacy(env, url) {
   const type = url.searchParams.get('type');
   const q = (url.searchParams.get('q') || '').trim();
-  const config = LEGACY_TYPES[type];
-  if (!config) return errorJson('Geçersiz tip.');
+  if (!['projects', 'architects', 'offices', 'products', 'materials', 'news'].includes(type)) return errorJson('Geçersiz tip.');
   if (q.length < 2) return json({ items: [] });
 
-  const needle = trLower(q);
-  const matches = config.all().filter(item => trLower(config.shape(item).title).includes(needle)).slice(0, 50);
-  const keys = matches.map(item => config.key(item));
+  if (type === 'news') {
+    const needle = trLower(q);
+    const matches = newsItems.filter(item => trLower(item.title).includes(needle)).slice(0, 50);
+    const keys = matches.map(item => item.id);
+    const hiddenSet = keys.length
+      ? new Set((await env.DB.prepare(
+          `SELECT content_key FROM legacy_content_hidden WHERE content_type = 'news' AND content_key IN (${keys.map(() => '?').join(', ')})`
+        ).bind(...keys).all()).results.map(r => r.content_key))
+      : new Set();
+    return json({
+      items: matches.map(item => ({ key: item.id, hidden: hiddenSet.has(item.id), title: item.title, subtitle: item.category || '', image: item.image || null })),
+    });
+  }
 
-  const hiddenSet = keys.length
-    ? new Set((await env.DB.prepare(
-        `SELECT content_key FROM legacy_content_hidden WHERE content_type = ? AND content_key IN (${keys.map(() => '?').join(', ')})`
-      ).bind(type, ...keys).all()).results.map(r => r.content_key))
-    : new Set();
+  const table = CANONICAL_TABLE_BY_TYPE[type];
+  const nameCol = CANONICAL_NAME_COL[type];
+  const kindClause = (type === 'products' || type === 'materials') ? `AND kind = '${type === 'products' ? 'product' : 'material'}'` : '';
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM ${table} WHERE deleted_at IS NULL ${kindClause} AND ${nameCol} LIKE ? ORDER BY ${nameCol} LIMIT 50`
+  ).bind(`%${q}%`).all();
 
   return json({
-    items: matches.map(item => ({ key: config.key(item), hidden: hiddenSet.has(config.key(item)), ...config.shape(item) })),
+    items: results.map(row => ({ key: canonicalKeyFor(type, row), hidden: !!row.hidden_at, ...shapeCanonicalCard(type, row) })),
   });
 }
 
+// canonical satırın hidden_at kolonunu set/temizler — 'news' için (henüz canonical karşılığı
+// olmadığından) eski legacy_content_hidden modeli aynen korunur.
 export async function setLegacyHidden(env, user, type, key, hidden) {
-  if (hidden) {
-    await env.DB.prepare(
-      `INSERT INTO legacy_content_hidden (id, content_type, content_key, hidden_by_user_id, hidden_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(content_type, content_key) DO UPDATE SET hidden_by_user_id = excluded.hidden_by_user_id, hidden_at = excluded.hidden_at`
-    ).bind(newId(), type, key, user.id, Date.now()).run();
-  } else {
-    await env.DB.prepare(
-      `DELETE FROM legacy_content_hidden WHERE content_type = ? AND content_key = ?`
-    ).bind(type, key).run();
+  if (type === 'news') {
+    if (hidden) {
+      await env.DB.prepare(
+        `INSERT INTO legacy_content_hidden (id, content_type, content_key, hidden_by_user_id, hidden_at)
+         VALUES (?, 'news', ?, ?, ?)
+         ON CONFLICT(content_type, content_key) DO UPDATE SET hidden_by_user_id = excluded.hidden_by_user_id, hidden_at = excluded.hidden_at`
+      ).bind(newId(), key, user.id, Date.now()).run();
+    } else {
+      await env.DB.prepare(`DELETE FROM legacy_content_hidden WHERE content_type = 'news' AND content_key = ?`).bind(key).run();
+    }
+    return;
   }
+  const row = await findCanonicalRowByNaturalKey(env, type, key);
+  if (!row) return; // henüz canonical karşılığı yoksa sessizce atla (ör. bozuk/eski bir anahtar)
+  const table = CANONICAL_TABLE_BY_TYPE[type];
+  await env.DB.prepare(`UPDATE ${table} SET hidden_at = ? WHERE id = ?`).bind(hidden ? new Date().toISOString() : null, row.id).run();
+  if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
 }
 
 async function toggleLegacyHidden(request, env, user) {
   const body = await readJson(request);
-  const config = LEGACY_TYPES[body.type];
-  if (!config) return errorJson('Geçersiz tip.');
+  if (!['projects', 'architects', 'offices', 'products', 'materials', 'news'].includes(body.type)) return errorJson('Geçersiz tip.');
   const key = (body.key || '').trim();
   if (!key) return errorJson('Geçersiz kayıt.');
   await setLegacyHidden(env, user, body.type, key, !!body.hidden);
@@ -137,31 +142,32 @@ async function toggleLegacyHidden(request, env, user) {
   return json({ ok: true });
 }
 
+// GET /api/public/hidden — geriye dönük uyumluluk için AYNI { projects, architects, offices,
+// products, materials, news } şekli döner, ama artık yalnızca 'news' gerçekten legacy_content_hidden'dan
+// gelir — diğer 5 tip için istemci tarafı zaten bu listeyi KULLANMIYOR (bkz. src/routes/architect.js/
+// office.js/project.js/product.js, hidden bayrağı artık API yanıtının kendisinde `hidden` alanı
+// olarak geliyor) ama eski sayfalar (ör. henüz bu API'lere taşınmamış statik sayfalar) bu uca hâlâ
+// güvenebileceğinden boş dizi yerine gerçek canonical hidden_at listesini döndürüyoruz.
 async function fetchHiddenMap(env) {
-  const { results } = await env.DB.prepare(`SELECT content_type, content_key FROM legacy_content_hidden`).all();
   const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
-  for (const row of results) {
-    if (out[row.content_type]) out[row.content_type].push(row.content_key);
+  for (const type of ['projects', 'architects', 'offices', 'products', 'materials']) {
+    const table = CANONICAL_TABLE_BY_TYPE[type];
+    const kindClause = (type === 'products' || type === 'materials') ? `AND kind = '${type === 'products' ? 'product' : 'material'}'` : '';
+    const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE hidden_at IS NOT NULL AND deleted_at IS NULL ${kindClause}`).all();
+    out[type] = results.map(row => canonicalKeyFor(type, row));
   }
+  const { results: newsHidden } = await env.DB.prepare(`SELECT content_key FROM legacy_content_hidden WHERE content_type = 'news'`).all();
+  out.news = newsHidden.map(r => r.content_key);
   return out;
 }
 
-// GET /api/public/hidden — auth gerektirmez. Gizlenmiş statik kayıtların doğal anahtarlarını tipe
-// göre gruplanmış olarak döner; her sayfa kendi statik dizisini bu listeye göre filtreler — proje-
-// edits/profile-edits ile aynı overlay deseni (bkz. src/routes/public.js). Önbellekleme/admin
-// muafiyeti cachedPublicJson içinde ele alınır (bkz. src/lib/publicCache.js).
 export async function handlePublicHidden(request, env) {
   return cachedPublicJson(request, env, '/api/public/hidden', () => fetchHiddenMap(env));
 }
 
 // GET /api/public/search-suggest?q=<metin> — auth gerektirmez. Üst navigasyondaki arama kutusunun
-// (bkz. tüm sayfalardaki paylaşılan wireNavSearch()) canlı öneri açılır penceresini besler.
-// arama.html'in tam sonuç sayfasıyla (runSearch()) AYNI grup sırası/eşleşme mantığını kullanır —
-// yalnızca büyük statik veri dosyalarını (data.js ~330KB, projeler-data.js ~9800 satır vb.) HER
-// sayfaya istemci tarafında yüklemek yerine (birçok sayfa — giris-yap.html, hakkinda.html vb. —
-// şu an bunların HİÇBİRİNİ yüklemiyor) sunucu tarafında arayıp küçük bir JSON döndürür. Üye
-// gönderimli (DB) içerik kasıtlı olarak dahil değil — arama.html'in tam sonuç sayfası da yalnızca
-// statik veriyi arıyor, aynı kapsam.
+// canlı öneri açılır penceresini besler — artık canonical tablolardan (statik + üye içeriğinin
+// TAMAMINI kapsayan tek kaynak) arar, statik dizi taramasına gerek kalmadı.
 const SEARCH_SUGGEST_PER_GROUP = 3;
 const SEARCH_SUGGEST_TOTAL = 8;
 
@@ -170,46 +176,29 @@ export async function handlePublicSearchSuggest(request, env, url) {
   if (!q) return json({ items: [], total: 0 });
 
   return cachedPublicJson(request, env, url.pathname, async () => {
-    const hidden = await fetchHiddenMap(env);
-    const hiddenHas = (type, key) => (hidden[type] || []).includes(key);
+    const like = `%${q}%`;
+    const [archRes, officeRes, projRes, prodRes, newsHiddenRes] = await Promise.all([
+      env.DB.prepare(`SELECT name, office_id FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL AND name LIKE ? LIMIT 20`).bind(like).all(),
+      env.DB.prepare(`SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL AND name LIKE ? LIMIT 20`).bind(like).all(),
+      env.DB.prepare(`SELECT slug, title, location, project_date FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL AND (title LIKE ? OR location LIKE ?) LIMIT 20`).bind(like, like).all(),
+      env.DB.prepare(`SELECT title, category, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND (title LIKE ? OR category LIKE ? OR brand_name_raw LIKE ?) LIMIT 20`).bind(like, like, like).all(),
+      env.DB.prepare(`SELECT content_key FROM legacy_content_hidden WHERE content_type = 'news'`).all(),
+    ]);
+
+    const hiddenNews = new Set(newsHiddenRes.results.map(r => r.content_key));
+    const officeNameById = new Map();
+    const officeIds = archRes.results.map(r => r.office_id).filter(Boolean);
+    if (officeIds.length) {
+      const { results } = await env.DB.prepare(`SELECT id, name FROM offices WHERE id IN (${officeIds.map(() => '?').join(', ')})`).bind(...officeIds).all();
+      results.forEach(o => officeNameById.set(o.id, o.name));
+    }
 
     const groups = [
-      {
-        label: 'Mimar',
-        items: architects
-          .filter(a => !hiddenHas('architects', a.name) && (trLower(a.name).includes(q) || (a.office && trLower(a.office).includes(q))))
-          .map(a => ({ title: a.name, meta: a.office || 'Mimar', href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}` })),
-      },
-      {
-        label: 'Firma',
-        items: offices
-          .filter(o => !hiddenHas('offices', o.name) && (trLower(o.name).includes(q) || trLower(o.loc || '').includes(q)))
-          .map(o => ({ title: o.name, meta: o.loc || '', href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}` })),
-      },
-      {
-        label: 'Proje',
-        items: projects
-          .filter(p => !hiddenHas('projects', p.slug) && (trLower(p.title).includes(q) || trLower(p.location || '').includes(q) || (p.designer || []).some(d => trLower(d).includes(q))))
-          .map(p => ({ title: p.title, meta: [p.location, p.date].filter(Boolean).join(' · '), href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}` })),
-      },
-      {
-        label: 'Ürün',
-        items: products
-          .filter(p => !hiddenHas('products', `${p.brand || ''}|||${p.title}`) && (trLower(p.title).includes(q) || trLower(p.category || '').includes(q) || trLower(p.brand || '').includes(q)))
-          .map(p => ({ title: p.title, meta: [p.category, p.brand].filter(Boolean).join(' · '), href: 'urun.html' })),
-      },
-      {
-        label: 'Haber',
-        items: newsItems
-          .filter(n => !hiddenHas('news', n.id) && (trLower(n.title).includes(q) || trLower(n.category || '').includes(q)))
-          .map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })),
-      },
-      {
-        label: 'İş İlanı',
-        items: (jobListings || [])
-          .filter(j => trLower(j.title).includes(q) || trLower(j.office || '').includes(q) || trLower(j.loc || '').includes(q) || trLower(j.role || '').includes(q))
-          .map(j => ({ title: j.title, meta: [j.office, j.loc].filter(Boolean).join(' · '), href: 'is-ilani.html' })),
-      },
+      { label: 'Mimar', items: archRes.results.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}` })) },
+      { label: 'Firma', items: officeRes.results.map(o => ({ title: o.name, meta: o.loc || '', href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}` })) },
+      { label: 'Proje', items: projRes.results.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}` })) },
+      { label: 'Ürün', items: prodRes.results.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: 'urun.html' })) },
+      { label: 'Haber', items: newsItems.filter(n => !hiddenNews.has(n.id) && (trLower(n.title).includes(q) || trLower(n.category || '').includes(q))).map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })) },
     ];
 
     const items = [];
@@ -221,32 +210,30 @@ export async function handlePublicSearchSuggest(request, env, url) {
   });
 }
 
-// Statik bir projenin (projeler-data.js) "şu an canlıda görünen" hâli: temel statik veri + varsa
-// admin'in onaylı düzenleme bindirmesi (claimed_slug, bkz. src/routes/public.js#handlePublicProjectEdits
-// ile aynı birleştirme) — arşivleme, projeyi bu haliyle bir project_submissions taslağına kopyalar
-// ki admin panelde düzenlerken en son görünen içerikten devam etsin, eski statik veriden değil.
+// Bir projenin "şu an canlıda görünen" hâli, canonical satırdan doğrudan okunur (artık statik +
+// overlay birleştirmesi gerekmiyor — bkz. src/routes/project.js'teki AYNI okuma). Arşivleme, projeyi
+// bu haliyle bir project_submissions taslağına kopyalar ki admin panelde düzenlerken en son
+// görünen içerikten devam etsin.
 const PROJECT_FIELD_KEYS = ['title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket', 'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands'];
 
-async function currentStaticProjectFields(env, slug) {
-  const p = projeJs.projectBySlug(slug);
-  if (!p) return null;
-  const base = {
-    title: p.title || '', category: p.category || [], type: p.type || [], discipline: p.discipline || [],
-    location: p.location || null, locationDetail: p.locationDetail || null,
-    date: p.date || null, dateBucket: p.dateBucket || null, period: p.period || [],
-    designer: p.designer || [],
-    photoCreditText: (p.photoCredit && p.photoCredit.text) || null,
-    photoCreditUrl: (p.photoCredit && p.photoCredit.url) || null,
-    description: p.description || null, images: p.images || [], brands: p.brands || [],
+async function currentCanonicalProjectFields(env, slug) {
+  const row = await env.DB.prepare(`SELECT * FROM projects WHERE (slug = ? OR legacy_key = ?) AND deleted_at IS NULL`).bind(slug, slug).first();
+  if (!row) return null;
+  const p = parseCanonicalRow('projects', row);
+  const { results: designerRows } = await env.DB.prepare(
+    `SELECT COALESCE(ar.name, ofc.name) AS name FROM project_designers pd
+     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
+     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+     WHERE pd.project_id = ?`
+  ).bind(row.id).all();
+  return {
+    title: p.title, category: p.category, type: p.type, discipline: p.discipline,
+    location: p.location, locationDetail: p.location_detail,
+    date: p.project_date, dateBucket: p.date_bucket, period: p.period,
+    designer: designerRows.map(d => d.name).filter(Boolean),
+    photoCreditText: p.photo_credit_text || null, photoCreditUrl: p.photo_credit_url || null,
+    description: p.description, images: p.images, brands: [], // bkz. src/routes/project.js#shapeProjectItem'daki AYNI kapsam notu
   };
-  const editRow = await env.DB.prepare(
-    `SELECT * FROM project_submissions WHERE claimed_slug = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
-  ).bind(slug).first();
-  if (!editRow) return base;
-  const parsed = parseSubmissionRow('projects', editRow);
-  const merged = { ...base };
-  for (const f of PROJECT_FIELD_KEYS) merged[f] = parsed[f];
-  return merged;
 }
 
 function bindProjectFields(fields) {
@@ -256,14 +243,6 @@ function bindProjectFields(fields) {
 }
 
 // POST /api/admin/legacy/project-action  body: {action:'delete'|'archive'|'publish', id?, slug?}
-// proje-detay.html'deki (yalnızca admin görür) Sil/Arşivle butonlarının ve admin panelindeki Arşiv
-// sekmesinin Yayınla/Sil aksiyonlarının tek ortak uç noktası (bkz. kullanıcı isteği: "arşivle
-// butonuna tıklanırsa gönderi canlıdan çıkıp admin panelinin içine yerleşsin ... admin isterse ...
-// tekrar yayınlayabilsin"). id: gerçek bir project_submissions satırı (üye gönderisi YA DA daha önce
-// arşivlenmiş/düzenlenmiş statik proje) — durum doğrudan değiştirilir, claimed_slug'lıysa
-// legacy_content_hidden senkron tutulur. slug: henüz hiç DB satırı olmayan statik bir proje —
-// 'archive' onu ilk kez bir taslağa kopyalar, 'delete' yalnızca gizler (statik veri fiilen
-// silinemez, bkz. schema.sql#legacy_content_hidden açıklaması).
 async function handleProjectAction(request, env, user) {
   const body = await readJson(request);
   const action = body.action;
@@ -276,35 +255,46 @@ async function handleProjectAction(request, env, user) {
     const row = await env.DB.prepare(`SELECT * FROM project_submissions WHERE id = ?`).bind(id).first();
     if (!row) return errorJson('Bulunamadı.', 404);
     const now = Date.now();
+    const targetSlug = row.claimed_slug || row.slug;
     if (action === 'delete') {
       await env.DB.prepare(`DELETE FROM project_submissions WHERE id = ?`).bind(id).run();
-      await cascadeDeleteProject(env, row.claimed_slug || row.slug);
+      await cascadeDeleteProject(env, targetSlug);
+      // Bu içeriği CANLIDAN kaldırmak — hem bağımsız üye projesi hem (arşivlenmiş) claimed_slug'lı
+      // bir taslak için de canonical satırı KALICI olarak işaretler.
+      const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', targetSlug);
+      if (canonRow) await env.DB.prepare(`UPDATE projects SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
+      await bumpFacetCounts(env, 'projects');
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, true);
+      else await bumpFacetCounts(env, 'projects');
     } else {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'approved', updated_at = ? WHERE id = ?`).bind(now, id).run();
+      await syncApprovedSubmissionToCanonical(env, 'projects', parseSubmissionRow('projects', { ...row, status: 'approved' }));
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, false);
+      else await bumpFacetCounts(env, 'projects');
     }
     await invalidatePublicCache();
-    await purgeSsrDetailCache('project', row.claimed_slug || row.slug);
+    await purgeSsrDetailCache('project', targetSlug);
     return json({ ok: true });
   }
 
-  // slug ile: statik bir proje, henüz kendine ait bir project_submissions satırı olmayabilir.
+  // slug ile: statik/canonical bir proje, henüz kendine ait bir project_submissions satırı olmayabilir.
   if (action === 'publish') return errorJson('Geçersiz istek.');
 
   if (action === 'delete') {
-    await setLegacyHidden(env, user, 'projects', slug, true);
+    const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', slug);
+    if (canonRow) await env.DB.prepare(`UPDATE projects SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
     await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
     await cascadeDeleteProject(env, slug);
+    await bumpFacetCounts(env, 'projects');
     await invalidatePublicCache();
     await purgeSsrDetailCache('project', slug);
     return json({ ok: true });
   }
 
-  const fields = await currentStaticProjectFields(env, slug);
-  if (!fields) return errorJson('Böyle bir statik proje bulunamadı.', 404);
+  const fields = await currentCanonicalProjectFields(env, slug);
+  if (!fields) return errorJson('Böyle bir proje bulunamadı.', 404);
   const now = Date.now();
   const existing = await env.DB.prepare(
     `SELECT id FROM project_submissions WHERE claimed_slug = ? ORDER BY created_at DESC LIMIT 1`
@@ -326,98 +316,60 @@ async function handleProjectAction(request, env, user) {
   return json({ ok: true });
 }
 
-// architects/offices'in mevcut claimed_profile_key + /api/public/profile-edits bindirme mekanizması
-// (bkz. src/routes/public.js#handlePublicProfileEdits) sayesinde, projelerdeki claimed_slug ile
-// birebir aynı desen: statik bir profili "arşivle" demek, o profilin GÜNCEL (varsa onaylı düzenleme
-// bindirmeli) hâlini bir taslak satıra kopyalayıp claimed_profile_key ile statik anahtara bağlamak,
-// sonra statik kaydı gizlemek. "Yayınla" taslağı onaylar ve statik kaydı tekrar gösterir — aynı
-// profilin GÜNCELLENMİŞ hâli olarak canlıya döner. Ürünlerin böyle bir claimed-key/bindirme sistemi
-// YOK (claim akışı hiç yok, bkz. src/lib/submissionTypes.js#products) — bu yüzden ürünlerde
-// 'archive', statik kaydı KALICI olarak gizleyip bağımsız yeni bir taslak oluşturur; bu taslak
-// yayınlandığında sıradan bir üye gönderisi gibi ayrı bir ürün olarak canlıya çıkar, statik köken
-// bir daha geri gelmez (claimedColumn: null durumunda 'publish' asla gizliliği geri açmaz).
+// architects/offices/products/materials için "arşivle" — canonical satırın GÜNCEL hâlini bir
+// *_submissions taslağına kopyalar (admin'in mevcut düzenleme formlarıyla düzenleyebilmesi için),
+// sonra canonical satırı hidden_at ile canlıdan çeker. "Yayınla" taslağı onaylar (canonical'a
+// senkronlar) ve hidden_at'i temizler.
 const CONTENT_ACTION_TYPES = {
   architects: {
     table: 'architect_submissions',
     claimedColumn: 'claimed_profile_key',
     copyFields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'],
-    async staticFields(env, key) {
-      const base = architects.find(x => x.name === key);
-      if (!base) return null;
-      const fields = {
-        name: base.name, dob: base.dob || null, school: base.school || null, dept: base.dept || null,
-        office: base.office || null, position: base.position || null, profession: base.profession || null,
-        awards: base.awards || [], photo_url: base.photo || base.photo_url || null, about: base.about || null,
+    async canonicalFields(env, key) {
+      const row = await findCanonicalRowByNaturalKey(env, 'architects', key);
+      if (!row) return null;
+      const a = parseCanonicalRow('architects', row);
+      const office = a.office_id ? await env.DB.prepare(`SELECT name FROM offices WHERE id = ?`).bind(a.office_id).first() : null;
+      return {
+        name: a.name, dob: a.dob, school: a.school, dept: a.dept, office: office ? office.name : null,
+        position: a.position, profession: a.profession, awards: a.awards, photo_url: a.photo_url, about: a.about,
       };
-      const editRow = await env.DB.prepare(
-        `SELECT * FROM architect_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
-      ).bind(key).first();
-      if (editRow) {
-        const parsed = parseSubmissionRow('architects', editRow);
-        Object.assign(fields, {
-          dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-          position: parsed.position, profession: parsed.profession, photo_url: parsed.photo_url,
-          about: parsed.about,
-        });
-      }
-      return fields;
     },
   },
   offices: {
     table: 'office_submissions',
     claimedColumn: 'claimed_profile_key',
     copyFields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders'],
-    async staticFields(env, key) {
-      const base = offices.find(x => x.name === key);
-      if (!base) return null;
-      const fields = {
-        name: base.name, loc: base.loc || null, cats: base.cats || null, yil: base.yil || null,
-        website: base.website || null, about: base.about || null, logo_url: base.logo || null,
-        awards: base.awards || [], founders: base.founders || [],
+    async canonicalFields(env, key) {
+      const row = await findCanonicalRowByNaturalKey(env, 'offices', key);
+      if (!row) return null;
+      const o = parseCanonicalRow('offices', row);
+      return {
+        name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website,
+        about: o.about, logo_url: o.logo_url, awards: o.awards, founders: [],
       };
-      const editRow = await env.DB.prepare(
-        `SELECT * FROM office_submissions WHERE claimed_profile_key = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
-      ).bind(key).first();
-      if (editRow) {
-        const parsed = parseSubmissionRow('offices', editRow);
-        Object.assign(fields, {
-          loc: parsed.loc, cats: parsed.cats, yil: parsed.yil, website: parsed.website,
-          about: parsed.about, logo_url: parsed.logo_url,
-        });
-      }
-      return fields;
     },
   },
   products: {
     table: 'product_submissions',
     claimedColumn: null,
     copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
-    async staticFields(_env, key) {
-      const base = products.find(x => `${x.brand || ''}|||${x.title}` === key);
-      if (!base) return null;
-      return {
-        title: base.title, brand: base.brand || null, architect: base.architect || null, website: base.website || null,
-        category: base.category || null, description: base.description || null, images: base.images || [],
-        specs: base.specs || [],
-      };
+    async canonicalFields(env, key) {
+      const row = await findCanonicalRowByNaturalKey(env, 'products', key);
+      if (!row) return null;
+      const p = parseCanonicalRow('products', row);
+      return { title: p.title, brand: p.brand_name_raw, architect: null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
     },
   },
-  // products ile birebir aynı desen — daha önce yalnızca products'a tanımlıydı, urun-detay.html'in
-  // malzeme kayıtlarında da aynı Sil/Arşivle butonlarını gösterebilmesi için genelleştirildi
-  // (bkz. kullanıcı isteği: "ürüne silme ve arşivleme yetkisi ver" — malzemeler ürün sayfasıyla
-  // aynı şablonu paylaştığından bu boşluk da kapatıldı).
   materials: {
     table: 'material_submissions',
     claimedColumn: null,
     copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
-    async staticFields(_env, key) {
-      const base = materials.find(x => `${x.brand || ''}|||${x.title}` === key);
-      if (!base) return null;
-      return {
-        title: base.title, brand: base.brand || null, architect: base.architect || null, website: base.website || null,
-        category: base.category || null, description: base.description || null, images: base.images || [],
-        specs: base.specs || [],
-      };
+    async canonicalFields(env, key) {
+      const row = await findCanonicalRowByNaturalKey(env, 'materials', key);
+      if (!row) return null;
+      const p = parseCanonicalRow('products', row);
+      return { title: p.title, brand: p.brand_name_raw, architect: null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
     },
   },
 };
@@ -428,16 +380,7 @@ function bindContentFields(type, fields) {
   return copyFields.map(f => (arrayFields.includes(f) ? JSON.stringify(fields[f] || []) : (fields[f] ?? null)));
 }
 
-// POST /api/admin/legacy/content-action  body: {type:'architects'|'offices'|'products', action:'delete'|'archive'|'publish', id?, key?}
-// mimar-detay.html/ofis-detay.html'deki (yalnızca admin görür) Sil/Arşivle butonlarının, urun.html'deki
-// ürün kartı admin aksiyonlarının ve admin panelindeki Arşiv sekmesinin tek ortak uç noktası —
-// handleProjectAction ile AYNI mantık, 3 içerik tipine genelleştirildi (bkz. kullanıcı isteği:
-// "mimar, firma ve ürüne silme ve arşivleme yetkisi ver"). id: gerçek bir <tip>_submissions satırı
-// (üye gönderisi YA DA önceden arşivlenmiş statik kayıt taslağı). key: henüz hiç DB satırı olmayan
-// statik bir kayıt — architects[]/offices[].name ya da ürünün "marka|||başlık" anahtarı (bkz.
-// LEGACY_TYPES). "Sil" canlıdan kaldırır (id'liyse satırı siler, key'liyse statik kaydı gizler);
-// "Arşivle" canlıdan kaldırıp admin panelinin Arşiv sekmesine taşır, admin isterse "Yayınla" ile
-// tekrar canlıya alabilir.
+// POST /api/admin/legacy/content-action  body: {type:'architects'|'offices'|'products'|'materials', action:'delete'|'archive'|'publish', id?, key?}
 async function handleContentAction(request, env, user) {
   const body = await readJson(request);
   const type = body.type;
@@ -453,15 +396,25 @@ async function handleContentAction(request, env, user) {
     const row = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
     if (!row) return errorJson('Bulunamadı.', 404);
     const now = Date.now();
+    const targetKey = (config.claimedColumn && row[config.claimedColumn]) || key;
     if (action === 'delete') {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
       await runContentCascadeDelete(env, user, type, { id, row });
+      const canonRow = targetKey ? await findCanonicalRowByNaturalKey(env, type, targetKey) : null;
+      if (canonRow) {
+        const table = CANONICAL_TABLE_BY_TYPE[type];
+        await env.DB.prepare(`UPDATE ${table} SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
+      }
+      if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
       if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], true);
+      else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'approved', updated_at = ? WHERE id = ?`).bind(now, id).run();
+      await syncApprovedSubmissionToCanonical(env, type, parseSubmissionRow(type, { ...row, status: 'approved' }));
       if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], false);
+      else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     }
     await invalidatePublicCache();
     const target = ssrPurgeTargetFor(type, row);
@@ -469,23 +422,28 @@ async function handleContentAction(request, env, user) {
     return json({ ok: true });
   }
 
-  // key ile: statik bir kayıt, henüz kendine ait bir satır olmayabilir.
+  // key ile: canonical bir kayıt, henüz kendine ait bir *_submissions satırı olmayabilir.
   if (action === 'publish') return errorJson('Geçersiz istek.');
 
   if (action === 'delete') {
-    await setLegacyHidden(env, user, type, key, true);
+    const canonRow = await findCanonicalRowByNaturalKey(env, type, key);
+    if (canonRow) {
+      const table = CANONICAL_TABLE_BY_TYPE[type];
+      await env.DB.prepare(`UPDATE ${table} SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
+    }
     if (config.claimedColumn) {
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
     }
     await runContentCascadeDelete(env, user, type, { key });
+    if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     await invalidatePublicCache();
     const target = ssrPurgeTargetFor(type, { name: key });
     if (target) await purgeSsrDetailCache(target.type, target.key);
     return json({ ok: true });
   }
 
-  const fields = await config.staticFields(env, key);
-  if (!fields) return errorJson('Böyle bir statik kayıt bulunamadı.', 404);
+  const fields = await config.canonicalFields(env, key);
+  if (!fields) return errorJson('Böyle bir kayıt bulunamadı.', 404);
   const now = Date.now();
   const boundValues = bindContentFields(type, fields);
 
