@@ -1556,8 +1556,17 @@ function renameOfficeEverywhere(off, newName){
   // oluşuyordu — kullanıcıya "tüm bilgiler silindi" gibi görünüyordu).
   if(!off._claimKey) off._claimKey = oldName;
   off.name = newName;
-  for(const pr of projects){
-    if(pr.designer && pr.designer.includes(oldName)) pr.designer = pr.designer.map(d => d === oldName ? newName : d);
+  // projects (projeler-data.js) yalnızca proje.html/proje-detay.html'de yüklü — bu fonksiyon
+  // applyProfileEditPhotos üzerinden firma.html/mimar.html/mimar-detay.html/ofis-detay.html'den de
+  // çağrılır (bkz. gerçek bulgu: projects yüklü değilken burada fırlatılan yakalanmamış
+  // ReferenceError, applyProfileEditPhotos'un offices[] üzerindeki for-of döngüsünü YARIDA
+  // kesiyordu — bu satırdan SONRA gelen tüm ofislerin logo/isim overlay'i hiç uygulanmıyordu, ör.
+  // Renzo Piano Building Workshop firma liste sayfasında logosu olduğu hâlde baş harf kutusuyla
+  // görünüyordu).
+  if(typeof projects !== 'undefined'){
+    for(const pr of projects){
+      if(pr.designer && pr.designer.includes(oldName)) pr.designer = pr.designer.map(d => d === oldName ? newName : d);
+    }
   }
   for(const arch of architects){
     if(arch.office === oldName) arch.office = newName;
@@ -1574,8 +1583,11 @@ function renameArchitectEverywhere(arch, newName){
   const oldName = arch.name;
   if(!arch._claimKey) arch._claimKey = oldName;
   arch.name = newName;
-  for(const pr of projects){
-    if(pr.designer && pr.designer.includes(oldName)) pr.designer = pr.designer.map(d => d === oldName ? newName : d);
+  // bkz. renameOfficeEverywhere'deki AYNI projects-yüklü-değilse-atla koruması.
+  if(typeof projects !== 'undefined'){
+    for(const pr of projects){
+      if(pr.designer && pr.designer.includes(oldName)) pr.designer = pr.designer.map(d => d === oldName ? newName : d);
+    }
   }
   return true;
 }

@@ -581,6 +581,22 @@ async function prefillForClaim(){
 
   const staticArch = architects.find(a => a.name === claimName) || { name: claimName };
   let merged = { ...staticArch };
+
+  // Bağımsız dizin kaydı — data.js'in statik architects[] dizisinde hiç yer almayan, doğrudan
+  // canonical D1'de var olan bir mimar profili olabilir (bkz. gerçek bulgu: "Ezgi San" gibi bir
+  // profilin Düzenle butonu, statik dizide bulunamadığı için formu her zaman boş açıyordu). Aynı
+  // canonical okuma yolunu (mimar-detay.html'in de kullandığı GET /api/architect/:key) kullanarak
+  // GÜNCEL hâlini önce çeker; bulunan mevcut alanların üzerine yazar. `item.name` claimName'e tam
+  // eşit değilse (uç nokta bulunamadığında rastgele bir mimara düşüyor, bkz. src/routes/
+  // architect.js#buildArchitectPayload'daki fallback) sonucu YOK SAYAR.
+  try{
+    const canonicalRes = await fetch(`/api/architect/${encodeURIComponent(claimName)}`);
+    if(canonicalRes.ok){
+      const { item } = await canonicalRes.json();
+      if(item && item.name === claimName) merged = { ...merged, ...item };
+    }
+  }catch{}
+
   try{
     const editsRes = await fetch('/api/public/profile-edits');
     if(editsRes.ok){

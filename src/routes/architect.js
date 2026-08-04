@@ -48,6 +48,23 @@ async function buildArchitectPayload(env, key) {
     : null;
   const office = officeRow ? parseCanonicalRow('offices', officeRow) : null;
 
+  // Mimarın kurucu/ortak olduğu TÜM firmalar — yalnızca kendi office_id'siyle bağlı olduğu firma
+  // değil, office_founders join tablosundaki TÜM bağlantılar (bkz. gerçek bulgu: Han Tümertekin'in
+  // profilinde "Pozisyon: Kurucu" yazmasına rağmen office_id'si boş olduğundan, yalnızca office_id
+  // okunsaydı Tümertekin Architects hiç görünmezdi — firma tarafında Kurucular listesine eklenerek
+  // office_founders'a bağlanmış olsa bile). Tekilleştirilmiş, office_id'deki varsa önce o sırayla.
+  const { results: founderOfficeRows } = await env.DB.prepare(
+    `SELECT o.* FROM office_founders f JOIN offices o ON o.id = f.office_id
+     WHERE f.architect_id = ? AND o.deleted_at IS NULL`
+  ).bind(a.id).all();
+  const officesById = new Map();
+  if (office) officesById.set(office.id, office);
+  for (const row of founderOfficeRows) {
+    const parsed = parseCanonicalRow('offices', row);
+    if (!officesById.has(parsed.id)) officesById.set(parsed.id, parsed);
+  }
+  const offices = [...officesById.values()];
+
   const [colleaguesRes, relatedRes] = await Promise.all([
     office
       ? env.DB.prepare(
@@ -76,6 +93,7 @@ async function buildArchitectPayload(env, key) {
       badges: [],
     },
     office: office ? { name: office.name, loc: office.loc, cats: office.cats, yil: office.yil, logo: office.logo_url, badges: [] } : null,
+    offices: offices.map(o => ({ name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, logo: o.logo_url, badges: [] })),
     colleagues,
     relatedProjects,
     hidden: !!a.hidden_at,

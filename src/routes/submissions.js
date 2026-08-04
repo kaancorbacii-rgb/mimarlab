@@ -74,6 +74,8 @@ async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue)
   await setLegacyHidden(env, user, typeKey, key, false);
 }
 
+const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices' };
+
 async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   // claimed_profile_key statik data.js kaydının orijinal adıyla birebir eşleşmeli — aksi halde (ör.
   // bir yeniden adlandırma sonrası bayatlamış bir "Düzenle" linki, ya da elle uydurulmuş bir URL ile)
@@ -83,8 +85,21 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   // gönderi statik kayıttan kopuk, boş bir formla oluşuyor ve kullanıcıya "her şey silindi" gibi
   // görünüyordu).
   const staticList = STATIC_LIST_BY_TYPE[typeKey];
-  if (staticList && !staticList.some(x => x.name === profileKey)) {
-    return errorJson('Bu profil artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.');
+  const isStatic = !staticList || staticList.some(x => x.name === profileKey);
+  if (!isStatic) {
+    // Bağımsız dizin kaydı — data.js'in statik dizisinde HİÇ yer almayan, doğrudan canonical D1'de
+    // var olan bir mimar/firma profili (bkz. gerçek bulgu: "Ezgi San" gibi bağımsız bir mimar
+    // profilinin "Düzenle" butonu, statik listede hiç bulunmadığı için burada her zaman reddediliyor
+    // ve formu boş açıyordu — "Bu profil artık bu adla mevcut değil" statik olmayan geçerli kayıtlar
+    // için de yanlışlıkla tetikleniyordu). Statik listede yoksa canonical tabloda ara; orada da yoksa
+    // gerçekten "hayalet" bir bağlantıdır.
+    const canonicalTable = CANONICAL_TABLE_BY_TYPE[typeKey];
+    const canonicalRow = canonicalTable
+      ? await env.DB.prepare(
+          `SELECT id FROM ${canonicalTable} WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
+        ).bind(profileKey, profileKey, profileKey).first()
+      : null;
+    if (!canonicalRow) return errorJson('Bu profil artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.');
   }
   if (user.role === 'admin') return null; // admin, sahiplenmiş olsun olmasın her mimar/marka profilini düzenleyebilir
   const profileType = CLAIM_PROFILE_TYPE[typeKey];

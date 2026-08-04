@@ -657,6 +657,20 @@ async function prefillForClaim(){
 
   const staticOffice = offices.find(o => o.name === claimName) || { name: claimName };
   let merged = { ...staticOffice };
+
+  // Bağımsız dizin kaydı — bkz. mimar-ekle.html#prefillForClaim'deki AYNI gerekçe/düzeltme (gerçek
+  // bulgu: data.js'in statik offices[] dizisinde hiç yer almayan bir firma profilinin Düzenle
+  // butonu, formu her zaman boş açıyordu). Aynı canonical okuma yolunu (GET /api/office/:key)
+  // kullanır; `item.name` claimName'e tam eşit değilse (bulunamadığında rastgele bir firmaya düşen
+  // fallback, bkz. src/routes/office.js#buildOfficePayload) sonucu yok sayar.
+  try{
+    const canonicalRes = await fetch(`/api/office/${encodeURIComponent(claimName)}`);
+    if(canonicalRes.ok){
+      const { item } = await canonicalRes.json();
+      if(item && item.name === claimName) merged = { ...merged, ...item };
+    }
+  }catch{}
+
   try{
     const editsRes = await fetch('/api/public/profile-edits');
     if(editsRes.ok){
@@ -692,7 +706,9 @@ async function prefillForClaim(){
   document.getElementById('o-website').value = merged.website || '';
   document.getElementById('o-desc').value = merged.about || '';
   document.getElementById('o-founders').value = (merged.founders || []).join(', ');
-  const catList = (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
+  // merged.cats statik/overlay/mine kaynaklarında " · " ile ayrılmış düz metin, canonical
+  // /api/office/:key kaynağında ise zaten bir dizi (bkz. src/lib/canonicalRead.js) — ikisini de kabul eder.
+  const catList = Array.isArray(merged.cats) ? merged.cats : (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
   document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
   updateHizmetLabel();
   existingLogoUrl = merged.logo || merged.logo_url || null;

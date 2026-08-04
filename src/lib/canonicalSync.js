@@ -59,6 +59,25 @@ async function syncOfficeFounderLink(env, architectId, officeId) {
   await env.DB.prepare(`INSERT OR IGNORE INTO office_founders (office_id, architect_id) VALUES (?, ?)`).bind(officeId, architectId).run();
 }
 
+// Kurucular kutusuna yazılan isimleri architects tablosuyla eşleştirip office_founders FK'sine
+// bağlar (bkz. gerçek bulgu: "TAFF Mimarlık" düzenlenirken Kurucular kutusuna "Ezgi San" yazılmasına
+// rağmen bu isim hiçbir zaman office_founders'a bağlanmıyordu — founders JSON alanı yalnızca
+// kozmetikti, bkz. migrations/0022_id_first_entities.sql'deki dosya başı yorumu). Yalnızca EKLEME
+// yönünde çalışır — bir ismin listeden çıkarılması cascadeRemovedFounders'ın işi (bkz.
+// src/lib/officeFounderCascade.js) — bu yüzden burada var olan bağlantılar (ör. bir mimarın kendi
+// office_id'siyle kurduğu bağlantı) silinmez.
+async function syncOfficeFoundersFromNames(env, officeId, names) {
+  for (const name of names) {
+    if (!name) continue;
+    const match = await findOneByName(env, 'architects', name);
+    if (match.row) {
+      await env.DB.prepare(`INSERT OR IGNORE INTO office_founders (office_id, architect_id) VALUES (?, ?)`).bind(officeId, match.row.id).run();
+    } else if (match.ambiguous) {
+      await logConflict(env, 'office_founder', name, `office:${officeId}`, match.candidates);
+    }
+  }
+}
+
 async function syncOffice(env, row) {
   const claimedKey = row.claimed_profile_key;
   const marker = submissionMarker(row.id);
@@ -69,6 +88,7 @@ async function syncOffice(env, row) {
   const cats = row.cats ? JSON.stringify(Array.isArray(row.cats) ? row.cats : [row.cats]) : null;
   const awards = row.awards ? JSON.stringify(row.awards) : null;
 
+  let result;
   if (target) {
     const sets = [];
     const vals = [];
@@ -86,23 +106,27 @@ async function syncOffice(env, row) {
       sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?');
       vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null);
     }
-    if (!sets.length) return target;
-    sets.push(`updated_at = datetime('now')`);
-    await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
-    return { ...target, id: target.id, name: row.name || target.name };
+    if (sets.length) {
+      sets.push(`updated_at = datetime('now')`);
+      await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
+    }
+    result = { ...target, id: target.id, name: row.name || target.name };
+  } else {
+    // Yeni bağımsız kayıt (claimedKey varsa ve hedef bulunamadıysa da — bozuk bir claim'i sessizce
+    // atlamak yerine yeni bir kayıt olarak oluşturmak, üye içeriğinin kaybolmasından daha güvenli).
+    const { slugify } = await import('./slugify.js');
+    let slug = slugify(row.name) || `firma-${row.id}`;
+    const clash = await env.DB.prepare(`SELECT id FROM offices WHERE slug = ?`).bind(slug).first();
+    if (clash) slug = `${slug}-${row.id}`;
+    const insert = await env.DB.prepare(
+      `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, awards, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+    ).bind(slug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, marker, row.owner_user_id).run();
+    result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
   }
 
-  // Yeni bağımsız kayıt (claimedKey varsa ve hedef bulunamadıysa da — bozuk bir claim'i sessizce
-  // atlamak yerine yeni bir kayıt olarak oluşturmak, üye içeriğinin kaybolmasından daha güvenli).
-  const { slugify } = await import('./slugify.js');
-  let slug = slugify(row.name) || `firma-${row.id}`;
-  const clash = await env.DB.prepare(`SELECT id FROM offices WHERE slug = ?`).bind(slug).first();
-  if (clash) slug = `${slug}-${row.id}`;
-  const insert = await env.DB.prepare(
-    `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, awards, source, legacy_key, claimed_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-  ).bind(slug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, marker, row.owner_user_id).run();
-  return env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
+  if (row.founders && row.founders.length) await syncOfficeFoundersFromNames(env, result.id, row.founders);
+  return result;
 }
 
 async function syncArchitect(env, row) {
@@ -198,7 +222,7 @@ async function syncProject(env, row) {
       row.description || null,
     ];
     if (row.images && row.images.length) { sets.splice(-1, 0, 'images = ?'); vals.push(images); }
-    await env.DB.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals).run();
+    await env.DB.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     projectId = target.id;
     if (row.designer && row.designer.length) await env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(projectId).run();
   } else {

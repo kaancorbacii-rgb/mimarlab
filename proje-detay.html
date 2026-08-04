@@ -642,6 +642,37 @@ if(!p){
   document.getElementById('detail-title').textContent = p.title;
   renderByline(p);
 
+  // p.designer isimleri architects[]/offices[] statik dizilerinde yoksa (ör. "Ezgi San" gibi
+  // yalnızca canonical D1'de var olan bağımsız bir dizin kaydı, bkz. gerçek bulgu), aşağıdaki
+  // architectChipHtml/officeChipHtml eşleştirmesi (bkz. designerGroups) düz metne düşerdi — aynı
+  // canonical okuma yolundan (mimar-detay.html/ofis-detay.html'in de kullandığı GET /api/architect,
+  // /api/office) eşleşmeyen isimleri tek tek sorgulayıp bulunanları statik dizilere yalnızca BU
+  // sayfa yüklemesi için (bellekte, geçici) ekler — designerGroups'un geri kalanı DEĞİŞMEDEN çalışır.
+  if(p.designer && p.designer.length){
+    const unmatched = p.designer.filter(d => !architects.find(a => a.name === d) && !offices.find(o => o.name === d));
+    await Promise.all(unmatched.map(async name => {
+      try{
+        const archRes = await fetch(`/api/architect/${encodeURIComponent(name)}`);
+        if(archRes.ok){
+          const { item } = await archRes.json();
+          if(item && item.name === name){
+            architects.push({ name: item.name, photo: item.photo, office: item.office, role: item.role, badges: item.badges || [] });
+            return;
+          }
+        }
+      }catch{}
+      try{
+        const officeRes = await fetch(`/api/office/${encodeURIComponent(name)}`);
+        if(officeRes.ok){
+          const { item } = await officeRes.json();
+          if(item && item.name === name){
+            offices.push({ name: item.name, loc: item.loc, cats: item.cats, yil: item.yil, website: item.website, logo: item.logo, badges: item.badges || [] });
+          }
+        }
+      }catch{}
+    }));
+  }
+
   // Tasarımcı: architects[]/offices[] ile birebir eşleşiyorsa fotoğraf/logo içeren bir "chip"
   // olarak iki ayrı satırda (Mimar / Mimarlık Ofisi) gösterilir; eşleşmiyorsa (ör. tarihi bir
   // isim) düz metin olarak Mimar satırına düşer.

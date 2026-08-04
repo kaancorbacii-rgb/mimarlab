@@ -467,7 +467,7 @@
 
       <section class="founders-section" id="office-section" style="display:none;">
         <h2>Firmalar</h2>
-        <div class="office-card" id="office-card"></div>
+        <div class="founders-grid" id="office-card"></div>
       </section>
 
       <section class="founders-section" id="colleagues-section" style="display:none;">
@@ -587,6 +587,7 @@ if(!payload || !payload.item){ window.location.replace('mimar.html'); return; }
 if(payload.hidden){ window.location.replace('mimar.html'); return; }
 const a = payload.item;
 let office = payload.office;
+const offices = payload.offices || (office ? [office] : []);
 const colleagues = payload.colleagues || [];
 const relatedProjectsData = payload.relatedProjects || [];
 
@@ -703,17 +704,21 @@ renderStructuredData();
 
 const officeCardEl = document.getElementById('office-card');
 const officeSectionEl = document.getElementById('office-section');
+// Mimarın kurucu/ortak olduğu TÜM firmalar (bkz. GET /api/architect/:key#offices) — çoğu mimar
+// için tek firma olsa da (office_id'deki mevcut işveren), office_founders üzerinden bağlanan
+// ek firmalar da (bkz. gerçek bulgu: Han Tümertekin, Kurucular listesine eklendiği Tümertekin
+// Architects'te de tıklanabilir kart olarak görünmeli) aynı grid'de listelenir.
 function renderOfficeCard(){
-  if(!office){ officeSectionEl.style.display = 'none'; return; }
+  if(!offices.length){ officeSectionEl.style.display = 'none'; return; }
   officeSectionEl.style.display = '';
-  officeCardEl.innerHTML = `
-    <a class="office-card" href="/markalar/${encodeURIComponent(slugify(office.name))}">
-      <div class="office-card-logo" style="background:${officeColor(office.name)}">${initials(office.name)}${logoUrl(office) ? `<img src="${escapeAttr(logoUrl(office))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+  officeCardEl.innerHTML = offices.map(off => `
+    <a class="office-card" href="/markalar/${encodeURIComponent(slugify(off.name))}">
+      <div class="office-card-logo" style="background:${officeColor(off.name)}">${initials(off.name)}${logoUrl(off) ? `<img src="${escapeAttr(logoUrl(off))}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
       <div>
-        <div class="office-card-name">${escapeHtml(office.name)}${verifiedBadgeHtml('office', office.name, office.badges)}</div>
-        <div class="office-card-meta">${escapeHtml(office.loc)}${office.yil ? ' · K. ' + escapeHtml(office.yil) : ''}</div>
+        <div class="office-card-name">${escapeHtml(off.name)}${verifiedBadgeHtml('office', off.name, off.badges)}</div>
+        <div class="office-card-meta">${escapeHtml(off.loc)}${off.yil ? ' · K. ' + escapeHtml(off.yil) : ''}</div>
       </div>
-    </a>`;
+    </a>`).join('');
 }
 renderOfficeCard();
 
