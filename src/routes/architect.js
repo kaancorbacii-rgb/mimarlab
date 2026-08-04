@@ -24,6 +24,26 @@ async function findArchitect(env, key) {
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(match.id).first();
 }
 
+// GET /api/architects/search?q=... — proje-ekle.html/urun-ekle.html gibi formlardaki Mimar
+// autocomplete kutularının canlı D1 sorgusu (bkz. kullanıcı isteği: "Admin panelinden yeni
+// eklenen mimarlar Proje Ekle'deki öneri kutusunda görünmüyor" — eski hâli data.js'teki statik
+// architects[] dizisini kullanıyordu, D1'e yeni eklenen kayıtları hiç görmüyordu).
+export async function handleArchitectSearchRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const q = (url.searchParams.get('q') || '').trim();
+    if (!q) return { items: [] };
+    const like = `%${q}%`;
+    const { results } = await env.DB.prepare(
+      `SELECT a.name AS name, o.name AS office_name FROM architects a
+       LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.name LIKE ?
+       ORDER BY a.name LIMIT 20`
+    ).bind(like).all();
+    return { items: results.map(r => ({ label: r.name, sub: r.office_name || '' })) };
+  });
+}
+
 // GET /api/architect/:key — mimar-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
 // { item, office, colleagues, relatedProjects, hidden } — eski overlay tabanlı sürümle BİREBİR aynı.
 export async function handleArchitectRoute(request, env, url, rawKey) {

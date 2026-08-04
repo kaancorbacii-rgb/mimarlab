@@ -18,6 +18,22 @@ async function findOffice(env, key) {
   return env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(match.id).first();
 }
 
+// GET /api/offices/search?q=... — src/routes/architect.js#handleArchitectSearchRoute'un firma
+// karşılığı; proje-ekle.html'deki Firma/Marka autocomplete kutularının canlı D1 sorgusu.
+export async function handleOfficeSearchRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const q = (url.searchParams.get('q') || '').trim();
+    if (!q) return { items: [] };
+    const like = `%${q}%`;
+    const { results } = await env.DB.prepare(
+      `SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL AND name LIKE ?
+       ORDER BY name LIMIT 20`
+    ).bind(like).all();
+    return { items: results.map(r => ({ label: r.name, sub: r.loc || '' })) };
+  });
+}
+
 // GET /api/office/:key — ofis-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
 // { item, founders, relatedProjects, hidden } — eski overlay tabanlı sürümle BİREBİR aynı.
 export async function handleOfficeRoute(request, env, url, rawKey) {

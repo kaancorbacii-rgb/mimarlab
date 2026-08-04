@@ -652,23 +652,60 @@ function wireAutocomplete(inputId, suggestionsId, getItems, opts){
   input.addEventListener('focus', renderSuggestions);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
+// Mimar/Firma önerileri statik data.js dizileri yerine canlı D1 aramasından (bkz.
+// src/routes/architect.js#handleArchitectSearchRoute, src/routes/office.js#handleOfficeSearchRoute)
+// beslenir — statik dizi yalnızca sayfa yüklenirken deploy edilen anlık görüntüyü içerdiğinden,
+// Admin panelinden az önce eklenmiş bir mimar/firma burada hiç görünmüyordu (bkz. kullanıcı
+// isteği). 300ms debounce ile istek atılır; yazarken gecikmeyen bir his için minimum sorgu
+// uzunluğu yok, ama boş girişte istek atılmaz.
+function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
+  opts = opts || {};
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  let debounceTimer = null;
+  let currentQuery = '';
+  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
+  function renderItems(items){
+    if(!items.length){ close(); return; }
+    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
+    box.classList.add('show');
+    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
+      el.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        const item = items[i];
+        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
+        close();
+        if(opts.onPick) opts.onPick(item);
+      });
+    });
+  }
+  function fetchSuggestions(q){
+    currentQuery = q;
+    fetch(`${searchUrl}?q=${encodeURIComponent(q)}`)
+      .then(res => res.ok ? res.json() : {items: []})
+      // Yanıt döndüğünde kullanıcı zaten başka bir şey yazmışsa (yarış durumu) eski sonucu
+      // gösterme — bkz. yukarıdaki nav arama kutusundaki AYNI currentQuery karşılaştırma deseni.
+      .then(data => { if(q === currentQuery) renderItems((data.items || []).slice(0, 8)); })
+      .catch(()=>{});
+  }
+  function onInput(){
+    const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
+    if(!q){ close(); currentQuery = ''; return; }
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
+  }
+  input.addEventListener('input', onInput);
+  input.addEventListener('focus', onInput);
+  input.addEventListener('blur', ()=> setTimeout(close, 150));
+}
 const TYPE_SUGGESTIONS = [...new Set((typeof projects !== 'undefined' ? projects : []).flatMap(p => p.type || []))].sort((a,b)=>a.localeCompare(b,'tr')).map(t => ({label: t}));
-// Fonksiyon olarak tanımlanır (statik bir dizi DEĞİL) — admin bir firmayı yeniden adlandırdığında
-// (bkz. data.js#renameOfficeEverywhere, aşağıdaki applyProfileEditPhotos() çağrısı) offices[].name
-// çalışma zamanında mutasyona uğrar; bu liste sayfa yüklendiği anda TEK SEFERLİK hesaplanan bir
-// const olsaydı eski adı göstermeye devam ederdi (bkz. gerçek bulgu: Han Tümertekin → Tümertekin
-// Architects yeniden adlandırıldıktan sonra Proje Ekle/Düzenle'deki Firma önerilerinde hâlâ eski ad
-// çıkıyordu) — wireAutocomplete zaten her etkileşimde bu getter'ı YENİDEN çağırıyor, o yüzden isim
-// güncellendiği anda öneriler de güncel olur.
-const MIMAR_SUGGESTIONS = () => (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
-const OFIS_SUGGESTIONS = () => (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
 const URUN_SUGGESTIONS = [...(typeof products !== 'undefined' ? products : []), ...(typeof materials !== 'undefined' ? materials : [])]
   .filter(p => p.title).map(p => ({label: p.title, sub: p.brand || '', brand: p.brand || ''}));
 
 wireAutocomplete('p-type', 'ac-type-suggestions', () => TYPE_SUGGESTIONS);
-wireAutocomplete('p-designer', 'ac-mimar-suggestions', MIMAR_SUGGESTIONS);
-wireAutocomplete('p-office', 'ac-ofis-suggestions', OFIS_SUGGESTIONS);
-wireAutocomplete('p-brand-input', 'ac-marka-suggestions', OFIS_SUGGESTIONS, {multi:false});
+wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
+wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search');
+wireAutocompleteLive('p-brand-input', 'ac-marka-suggestions', '/api/offices/search', {multi:false});
 
 // Onaylı profil düzenlemeleriyle (fotoğraf/logo/firma adı değişikliği) offices[]/architects[]
 // dizilerini güncel tutar (bkz. data.js#applyProfileEditPhotos) — yukarıdaki Firma/Mimar önerileri

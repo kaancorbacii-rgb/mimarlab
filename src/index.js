@@ -3,8 +3,8 @@ import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
-import { handleArchitectRoute } from './routes/architect.js';
-import { handleOfficeRoute } from './routes/office.js';
+import { handleArchitectRoute, handleArchitectSearchRoute } from './routes/architect.js';
+import { handleOfficeRoute, handleOfficeSearchRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute } from './routes/project.js';
 import { handleProductDetailRoute } from './routes/product.js';
 import { handleFacetsRoute } from './routes/facets.js';
@@ -280,6 +280,12 @@ async function routeApi(request, env, url) {
   // (handleSubmissionRoute) ÇAKIŞMAZ — yalnızca /api/projects/filters, /api/projects prefix'iyle
   // başladığından o genel eşleşmeden ÖNCE burada özel olarak yakalanmalı.
   if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
+  // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
+  // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
+  // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki
+  // /api/projects/filters'daki AYNI çakışma önleme deseni).
+  if (path === '/api/architects/search') return handleArchitectSearchRoute(request, env, url);
+  if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
