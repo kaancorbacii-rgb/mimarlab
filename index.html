@@ -278,6 +278,7 @@
   }
   .side-slider .proje-slide{border-radius:16px;}
   .side-slider .slide-logo-img{object-fit:contain !important; background:var(--paper-card); padding:20%;}
+  .card-mimar .side-slider .proje-slide img{object-position:center top;}
   .side-slider .slider-arrow{width:28px; height:28px;}
   .side-slider .slider-arrow svg{width:13px; height:13px;}
   .side-slider .slider-arrow.prev{left:8px;}
@@ -819,7 +820,7 @@ function officeSlideHtml(o, i){
 
 function urunSlideHtml(p, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="urun.html" data-index="${i}">
-    <img src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
+    <img class="slide-logo-img" src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
     <span class="slide-tag">Ürün</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(p.title)}</div>
