@@ -22,20 +22,18 @@ async function runContentCascadeDelete(env, user, type, { id, row, key }) {
     return cascadeDeleteProduct(env, engagementType, slugify(`${title || ''}-${brand || ''}`));
   }
 }
-// data.js/projeler-data.js/urunler-data.js/malzemeler-data.js/haberler-data.js tarayıcıda classic
-// <script> olarak yüklenen, export içermeyen dosyalar; dosya sonlarındaki guard'lı `module.exports`
-// bloğu sayesinde esbuild bunları CJS modülü olarak paketler (bkz. src/lib/seo.js'teki aynı desen).
+// data.js/projeler-data.js/urunler-data.js/malzemeler-data.js tarayıcıda classic <script> olarak
+// yüklenen, export içermeyen dosyalar; dosya sonlarındaki guard'lı `module.exports` bloğu sayesinde
+// esbuild bunları CJS modülü olarak paketler (bkz. src/lib/seo.js'teki aynı desen).
 import dataJs from '../../data.js';
 import projeJs from '../../projeler-data.js';
 import urunJs from '../../urunler-data.js';
 import malzemeJs from '../../malzemeler-data.js';
-import haberJs from '../../haberler-data.js';
 
-const { architects, offices, jobListings } = dataJs;
+const { architects, offices } = dataJs;
 const { projects } = projeJs;
 const { products } = urunJs;
 const { materials } = malzemeJs;
-const { newsItems } = haberJs;
 
 // Statik (miras) içerik tiplerinin doğal anahtarı (bkz. schema.sql#legacy_content_hidden) ve admin
 // panelinde kart olarak gösterilecek sade {title, subtitle, image} şekli. Ürün/malzemenin kararlı
@@ -67,11 +65,6 @@ const LEGACY_TYPES = {
     all: () => materials,
     key: (item) => `${item.brand || ''}|||${item.title}`,
     shape: (item) => ({ title: item.title, subtitle: [item.brand, item.category].filter(Boolean).join(' · '), image: item.image || null }),
-  },
-  news: {
-    all: () => newsItems,
-    key: (item) => item.id,
-    shape: (item) => ({ title: item.title, subtitle: item.category || '', image: item.image || null }),
   },
 };
 
@@ -139,7 +132,7 @@ async function toggleLegacyHidden(request, env, user) {
 
 async function fetchHiddenMap(env) {
   const { results } = await env.DB.prepare(`SELECT content_type, content_key FROM legacy_content_hidden`).all();
-  const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
+  const out = { projects: [], architects: [], offices: [], products: [], materials: [] };
   for (const row of results) {
     if (out[row.content_type]) out[row.content_type].push(row.content_key);
   }
@@ -197,18 +190,6 @@ export async function handlePublicSearchSuggest(request, env, url) {
         items: products
           .filter(p => !hiddenHas('products', `${p.brand || ''}|||${p.title}`) && (trLower(p.title).includes(q) || trLower(p.category || '').includes(q) || trLower(p.brand || '').includes(q)))
           .map(p => ({ title: p.title, meta: [p.category, p.brand].filter(Boolean).join(' · '), href: 'urun.html' })),
-      },
-      {
-        label: 'Haber',
-        items: newsItems
-          .filter(n => !hiddenHas('news', n.id) && (trLower(n.title).includes(q) || trLower(n.category || '').includes(q)))
-          .map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })),
-      },
-      {
-        label: 'İş İlanı',
-        items: (jobListings || [])
-          .filter(j => trLower(j.title).includes(q) || trLower(j.office || '').includes(q) || trLower(j.loc || '').includes(q) || trLower(j.role || '').includes(q))
-          .map(j => ({ title: j.title, meta: [j.office, j.loc].filter(Boolean).join(' · '), href: 'is-ilani.html' })),
       },
     ];
 

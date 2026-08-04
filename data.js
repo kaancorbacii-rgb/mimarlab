@@ -1813,54 +1813,6 @@ function escapeAttrGlobal(s){
   return escapeHtmlGlobal(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// is-ilani.html'deki örnek ilanların yapılandırılmış hali; "office" alanı offices[].name ile
-// eşleştiğinde mimar-detay.html / ofis-detay.html sayfalarındaki "İlgili İş İlanları" bölümünü besler.
-const jobListings = [
-  {title:"Mimar (Junior / Kıdemli)", office:"Bunni Studio", loc:"İstanbul", level:"Junior / Kıdemli", role:"Mimar", tags:["Tam Zamanlı"], domain:"bunnistudio.com"},
-  {title:"3D Konsept Tasarım Uzmanı", office:"Kontra Mimarlık", loc:"İstanbul, Beşiktaş", level:"Kıdemli", role:"Mimar", tags:["3D Görselleştirme","Tam Zamanlı"]},
-  {title:"İç Mimar / 3D Görselleştirme Uzmanı", office:"SANAYI313", loc:"İstanbul, Maslak", level:"Kıdemli", role:"İç Mimar", tags:["3D Görselleştirme","Tam Zamanlı"], domain:"sanayi313.com"},
-  {title:"Mimar / İç Mimar", office:"İşseven Mimarlık", loc:"İstanbul, Kartal", level:"Kıdemli", role:"Mimar / İç Mimar", tags:["Tam Zamanlı"], domain:"issevenmimarlik.com.tr"},
-  {title:"Mimar / İç Mimar (3D Modelleme)", office:"Boytorun Mimarlık", loc:"İstanbul, Sarıyer", level:"Kıdemli", role:"Mimar / İç Mimar", tags:["3D Modelleme","Tam Zamanlı"]},
-  {title:"Mimar / Teknik Ressam", office:"Cem Çallıoğlu Studio", loc:"İstanbul, Kadıköy", level:"Kıdemli", role:"Mimar", tags:["Tam Zamanlı"]},
-  {title:"Mimar", office:"Argos Yapı", loc:"Uçhisar, Nevşehir", level:"Kıdemli", role:"Mimar", tags:["Tam Zamanlı"]},
-  {title:"Mimar", office:"Argos Yapı", loc:"Yalıkavak, Bodrum", level:"Kıdemli", role:"Mimar", tags:["Tam Zamanlı"]},
-
-  // Arkitera (arkitera.com/kariyer) — 2026-07-29 itibarıyla yayında olduğu doğrulanan ilanlar
-  {title:"Proje Mimarı", office:"Mimesis Mimarlık", loc:"İstanbul, Basınköy", level:"Junior / Kıdemli", role:"Mimar", tags:["Proje Mimarı","Tam Zamanlı"], domain:"mimesismimarlik.com"},
-  {title:"Shop Drawing Mimarı", office:"Zemberek Tasarım", loc:"İstanbul, Kadıköy", level:"Junior / Kıdemli", role:"Mimar", tags:["Shop Drawing","Uygulama Projesi"], domain:"zemberek.org"},
-  {title:"Şantiye Şefi / Mimar / İç Mimar", office:"Tugay Çelik Mimarlık", loc:"İstanbul, Sancaktepe", level:"Junior / Kıdemli", role:"Mimar / İç Mimar", tags:["Şantiye","Tam Zamanlı"], domain:"tugaycelikmimarlik.com"},
-  {title:"BIM Specialist Mimar / BIM Architect Mimar", office:"ÇET-YAPI", loc:"İstanbul, Bahçelievler", level:"Junior / Kıdemli", role:"Mimar", tags:["BIM","Revit"], domain:"cetyapi.com.tr"},
-  {title:"İç Mimar / Mimar", office:"7020 Design Studio", loc:"İstanbul, Eyüpsultan", level:"Junior / Kıdemli", role:"İç Mimar / Mimar", tags:["Tam Zamanlı"]},
-  {title:"Proje Mimarı / Şantiye Şefi", office:"YUP Studio Mimarlık", loc:"İstanbul, Bomonti", level:"Junior / Kıdemli", role:"Mimar", tags:["Proje Mimarı","Şantiye"], domain:"yupstudio.com.tr"},
-
-  // kariyer.net — 2026-07-29 itibarıyla açık başvuruya sahip olduğu doğrulanan ilanlar
-  {title:"İç Mimar", office:"Orka Holding", loc:"İstanbul, Avrupa Yakası", level:"Kıdemli", role:"İç Mimar", tags:["Mağaza Tasarımı","Tam Zamanlı"], domain:"orkaholding.com.tr"},
-  {title:"İç Mimar", office:"Doğanlar Mobilya Grubu", loc:"İstanbul, Avrupa Yakası", level:"Junior / Kıdemli", role:"İç Mimar", tags:["AutoCAD / SketchUp","Tam Zamanlı"], domain:"doganlarmobilyagrubu.com"},
-  {title:"Peyzaj Mimarı", office:"Luxera GYO", loc:"İstanbul, Başakşehir", level:"Kıdemli", role:"Peyzaj Mimarı", tags:["Sulama Sistemleri","Tam Zamanlı"], domain:"luxera.com.tr"},
-  {title:"Dizayn Ofis Mimarı", office:"Özyazıcı İnşaat", loc:"İstanbul, Beykoz", level:"Kıdemli", role:"Mimar", tags:["Şantiye Uygulama","Tam Zamanlı"], domain:"ozyazici.com.tr"},
-  {title:"Peyzaj Mimarı", office:"Grandis Garden Peyzaj", loc:"İstanbul, Beykoz", level:"Kıdemli", role:"Peyzaj Mimarı", tags:["Peyzaj Uygulama","Tam Zamanlı"]},
-  {title:"İç Mimar (Dekorasyon Proje Sorumlusu)", office:"Kuzey Ege Mobilya", loc:"İstanbul, Küçükçekmece", level:"Kıdemli", role:"İç Mimar", tags:["Proje Yönetimi","Tam Zamanlı"]},
-  {title:"Peyzaj Mimarı", office:"Işık Peyzaj Mimarlığı", loc:"İstanbul, Beykoz", level:"Junior / Kıdemli", role:"Peyzaj Mimarı", tags:["Lumion","Tam Zamanlı"], domain:"isikpeyzaj.com"},
-  {title:"Dizayn Ofis Mimarı", office:"Wam Turkey", loc:"İstanbul, Ataşehir", level:"Kıdemli", role:"Mimar", tags:["Revit / BIM","Tam Zamanlı"]},
-  {title:"Mimar", office:"Anabilim Eğitim Kurumları", loc:"İstanbul, Anadolu Yakası", level:"Kıdemli", role:"Mimar", tags:["Kentsel Dönüşüm","Tam Zamanlı"], domain:"anabilim.k12.tr"},
-  {title:"Mimar", office:"Procon Mühendislik", loc:"İstanbul, Kadıköy", level:"Junior / Kıdemli", role:"Mimar", tags:["Kentsel Dönüşüm","Tam Zamanlı"], domain:"proconmuhendislik.com.tr"},
-  {title:"Mimar", office:"Hekim Holding", loc:"İstanbul, Pendik", level:"Kıdemli", role:"Mimar", tags:["Revit","Prefabrik Yapı"]},
-  {title:"Mimar", office:"AAD Dizayn Dekorasyon", loc:"İstanbul, Ataşehir", level:"Junior / Kıdemli", role:"Mimar", tags:["Portfolyo","Tam Zamanlı"], domain:"aadarc.com"},
-
-  // tr.indeed.com — 2026-07-29 itibarıyla yayında olduğu doğrulanan ilanlar
-  {title:"Mimar, Mühendis, Tekniker", office:"Ser Proje", loc:"İstanbul, Ataşehir", level:"Junior / Kıdemli", role:"Mimar", tags:["AutoCAD","Tam Zamanlı"], domain:"serproje.com.tr"},
-  {title:"Mimar / İç Mimar", office:"İkrar İnşaat", loc:"İstanbul, Avrupa Yakası", level:"Junior / Kıdemli", role:"Mimar / İç Mimar", tags:["Şantiye Yönetimi","Tam Zamanlı"]},
-  {title:"Mimar / İç Mimar", office:"DKR Yapı Mimarlık", loc:"İstanbul, Ümraniye", level:"Junior / Kıdemli", role:"Mimar / İç Mimar", tags:["3ds Max","AutoCAD"]},
-  {title:"Mimar / İç Mimar (Fuar Stand Tasarımı)", office:"Glow Art Mimarlık", loc:"İstanbul, Beylikdüzü", level:"Kıdemli", role:"Mimar / İç Mimar", tags:["3ds Max","Tam Zamanlı"], domain:"glowartmimarlik.com"},
-  {title:"İç Mimar", office:"Luxxa Design Germany", loc:"İstanbul", level:"Kıdemli", role:"İç Mimar", tags:["D5 Render","Portfolyo Gerekli"]},
-  {title:"İç Mimar / Mimar", office:"Arteza İnteriors", loc:"İstanbul, Büyükçekmece", level:"Kıdemli", role:"İç Mimar / Mimar", tags:["3ds Max / V-Ray","Tam Zamanlı"]},
-  {title:"Mimar", office:"Mavira Mimarlık Ofisi", loc:"İstanbul, Tuzla", level:"Junior / Kıdemli", role:"Mimar", tags:["AutoCAD","Tam Zamanlı"], domain:"maviramimarlik.com"},
-  {title:"Peyzaj Mimarı", office:"Bahçeşehir Botanik", loc:"İstanbul, Bahçeşehir", level:"Junior / Kıdemli", role:"Peyzaj Mimarı", tags:["AutoCAD / SketchUp","Tam Zamanlı"]},
-  {title:"Peyzaj Mimarı", office:"Floryalı Botanik Peyzaj", loc:"İstanbul, Küçükçekmece", level:"Junior / Kıdemli", role:"Peyzaj Mimarı", tags:["Fidanlık","Tam Zamanlı"], domain:"floryalibotanik.com.tr"},
-  {title:"Mimar", office:"Ubms Proje Yönetimi", loc:"İstanbul, Bakırköy", level:"Junior / Kıdemli", role:"Mimar", tags:["Revit","AutoCAD"], domain:"ubms.com.tr"},
-  {title:"İç Mimar / 3D Görselleştirme Uzmanı", office:"Mvoice Interior & Contract", loc:"İstanbul, Beşiktaş", level:"Junior / Kıdemli", role:"İç Mimar", tags:["Mobilya Projeleri","Tam Zamanlı"]},
-];
-
 // Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
 // (nodejs_compat) çalışır — src/lib/seo.js buradan CJS interop ile import eder (bkz. o dosyadaki not).
-if (typeof module !== 'undefined') { module.exports = { offices, architects, jobListings }; }
+if (typeof module !== 'undefined') { module.exports = { offices, architects }; }

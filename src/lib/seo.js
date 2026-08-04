@@ -1,18 +1,16 @@
 import { slugify } from './slugify.js';
 import { parseSubmissionRow } from './submissionTypes.js';
-// data.js/projeler-data.js/haberler-data.js tarayıcıda classic <script> olarak yüklenen, export
-// içermeyen dosyalar; Worker tarafında okunabilmeleri için dosya sonlarına eklenen guard'lı
-// `module.exports` bloğu sayesinde esbuild bunları CJS modülü olarak paketler (bkz. o dosyalardaki
-// yorum). Tarayıcı davranışı değişmez çünkü `typeof module !== 'undefined'` orada hep false'tur.
+// data.js/projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen dosyalar;
+// Worker tarafında okunabilmeleri için dosya sonlarına eklenen guard'lı `module.exports` bloğu
+// sayesinde esbuild bunları CJS modülü olarak paketler (bkz. o dosyalardaki yorum). Tarayıcı
+// davranışı değişmez çünkü `typeof module !== 'undefined'` orada hep false'tur.
 import dataJs from '../../data.js';
 import projeJs from '../../projeler-data.js';
-import haberJs from '../../haberler-data.js';
 import urunJs from '../../urunler-data.js';
 import malzemeJs from '../../malzemeler-data.js';
 
 const { offices, architects } = dataJs;
 const { projects } = projeJs;
-const { newsItems } = haberJs;
 const { products } = urunJs;
 const { materials } = malzemeJs;
 
@@ -53,15 +51,6 @@ function getOfficeMap() {
     for (const o of offices) officeBySlug.set(slugify(o.name), o);
   }
   return officeBySlug;
-}
-
-let newsById;
-function getNewsMap() {
-  if (!newsById) {
-    newsById = new Map();
-    for (const n of newsItems) newsById.set(n.id, n);
-  }
-  return newsById;
 }
 
 // claimed_profile_key/claimed_slug'lı onaylı bir düzenleme varsa (bkz. src/routes/public.js#
@@ -210,28 +199,9 @@ async function buildProductMeta(key, env) {
   return productMetaFromRecord({ title: row.title, brand: row.brand, description: row.description, images }, canonicalUrl);
 }
 
-function buildNewsMeta(id) {
-  const n = getNewsMap().get(id);
-  if (!n) return null;
-  const title = `${n.title} — MİMARLAB`;
-  const rawDesc = n.description || `${n.title}${n.category ? ' — ' + n.category : ''}. MİMARLAB'da haberin devamını oku.`;
-  const description = truncate(rawDesc, 200);
-  const canonicalUrl = `${SITE_ORIGIN}/haberler/${encodeURIComponent(n.id)}`;
-  const imageUrl = n.image ? absoluteUrl(n.image) : null;
-  const jsonLd = {
-    '@context': 'https://schema.org', '@type': 'NewsArticle',
-    headline: n.title, url: canonicalUrl,
-    publisher: { '@type': 'Organization', name: 'MİMARLAB', logo: { '@type': 'ImageObject', url: DEFAULT_IMAGE } },
-  };
-  if (n.description) jsonLd.description = n.description;
-  if (imageUrl) jsonLd.image = [imageUrl];
-  if (n.createdAt) jsonLd.datePublished = new Date(n.createdAt).toISOString();
-  return { title, description, canonicalUrl, image: imageUrl || DEFAULT_IMAGE, jsonLd };
-}
+const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta };
 
-const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta, news: buildNewsMeta };
-
-// type: 'architect' | 'office' | 'project' | 'product' | 'news'; slugOrId: URL'den çözülen slug/id.
+// type: 'architect' | 'office' | 'project' | 'product'; slugOrId: URL'den çözülen slug/id.
 // Kayıt bulunamazsa null döner — çağıran taraf mevcut jenerik placeholder meta'yı olduğu gibi bırakır.
 // env yalnızca buildProductMeta tarafından (D1'deki üye/marka gönderisi ürünlerini bulmak için)
 // kullanılır — diğer builder'lar senkron kalır, ikinci parametreyi yok sayar.
@@ -241,12 +211,11 @@ export async function buildMeta(type, slugOrId, env) {
   try { return await builder(slugOrId, env); } catch { return null; }
 }
 
-// /sitemap.xml için: statik verideki tüm mimar/ofis/proje/haber detay URL'leri.
+// /sitemap.xml için: statik verideki tüm mimar/ofis/proje detay URL'leri.
 export function listEntityUrls() {
   const urls = [];
   for (const a of architects) urls.push(`/mimar/${encodeURIComponent(slugify(a.name))}`);
   for (const o of offices) urls.push(`/markalar/${encodeURIComponent(slugify(o.name))}`);
   for (const p of projects) urls.push(`/projeler/${encodeURIComponent(p.slug)}`);
-  for (const n of newsItems) urls.push(`/haberler/${encodeURIComponent(n.id)}`);
   return urls;
 }

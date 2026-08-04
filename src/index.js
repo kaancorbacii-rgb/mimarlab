@@ -28,12 +28,11 @@ const SECURITY_HEADERS = {
 // için, bkz. kullanıcı isteği). Cloudflare Assets zaten .html uzantısını otomatik kaldırıyor
 // (html_handling varsayılanı auto-trailing-slash) — burada yalnızca sorgu parametresini yol
 // segmentine taşıyoruz. Mimar/marka isimleri slugify edilir (save-widget.js/src/lib/slugify.js ile
-// birebir aynı algoritma); proje slug'ı ve haber id'si zaten URL-güvenli olduğundan dönüştürülmez.
+// birebir aynı algoritma); proje slug'ı zaten URL-güvenli olduğundan dönüştürülmez.
 const CLEAN_URL_REDIRECTS = {
   '/proje-detay': { param: 'proje', prefix: '/projeler/', slugifyValue: false },
   '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
   '/ofis-detay': { param: 'ofis', prefix: '/markalar/', slugifyValue: true },
-  '/haber-detay': { param: 'haber', prefix: '/haberler/', slugifyValue: false },
 };
 // Yeni temiz yol önekini, aynı içeriği render eden gerçek statik HTML dosyasına eşler — istemci
 // tarafındaki sayfa JS'i slug'ı URL yolundan okuyacak şekilde ayrıca güncellenmiştir (bkz. ilgili
@@ -46,7 +45,6 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
   { prefix: '/markalar/', asset: '/ofis-detay', type: 'office' },
   { prefix: '/urunler/', asset: '/urun-detay', type: 'product' },
-  { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
 ];
 
 // Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
@@ -71,12 +69,9 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
-  { loc: '/haber', changefreq: 'daily', priority: '0.7' },
-  { loc: '/is-ilani', changefreq: 'daily', priority: '0.7' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   { loc: '/kariyer', changefreq: 'monthly', priority: '0.4' },
-  { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },
 ];
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|webp|avif|gif|svg)$/i;
@@ -160,8 +155,8 @@ function withStaticImageCacheHeaders(url, response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// /mimar/:slug, /markalar/:slug, /projeler/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
-// slug data.js/projeler-data.js/haberler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
+// /mimar/:slug, /markalar/:slug, /projeler/:slug — statik şablonu ASSETS'ten alır,
+// slug data.js/projeler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
 // HTMLRewriter ile (Google/sosyal medya botları JS çalıştırmadan da) doğru değerlerle değiştirir.
 // Bulunamazsa (ör. yalnızca D1'de var olan, henüz bu detay sayfalarını desteklemeyen bir kayıt)
 // şablonu olduğu gibi döner — mevcut davranışta regresyon yok.
@@ -210,7 +205,7 @@ async function cachePut(request, response) {
 
 function injectMeta(response, meta) {
   // </script> içeren bir değer HTML'e ham olarak enjekte edilirse script bağlamından çıkabilir;
-  // JSON-LD içeriği data.js/projeler-data.js/haberler-data.js'ten (site sahibi kontrolünde) geldiği
+  // JSON-LD içeriği data.js/projeler-data.js'ten (site sahibi kontrolünde) geldiği
   // için düşük risk ama yine de savunmacı olarak escape ediyoruz (bkz. XSS escaping convention).
   const ldJson = JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c');
   return new HTMLRewriter()
