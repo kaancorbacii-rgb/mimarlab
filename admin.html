@@ -215,6 +215,7 @@
         <button class="admin-tab" data-tab="claims">Profil Talepleri<span class="admin-tab-dot" data-dot="claims"></span></button>
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
+        <button class="admin-tab" data-tab="migration">Migrasyon Çakışmaları<span class="admin-tab-dot" data-dot="migration"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
       </div>
 
@@ -258,6 +259,17 @@
 
       <div class="admin-section" id="section-contact">
         <div id="contact-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-migration">
+        <p style="color:var(--ink-soft); font-size:13px; margin:0 0 12px;">
+          Faz 2 ID-first veri taşıması (bkz. scripts/migrate-to-id-first.js) aynı isimde birden fazla
+          mimar/ofis bulduğunda ya da bir proje/ürünün belirsiz bir isme referans verdiğinde bunları
+          otomatik seçip taşımaz — buradaki her satır elle incelenip mevcut mimar/ofis düzenleme
+          araçlarınla (yeniden adlandırma, birleştirme) çözülmeli, sonra "İncelendi" ile işaretlenmeli.
+        </p>
+        <div class="admin-subtabs" id="migration-subtabs"></div>
+        <div id="migration-list"></div>
       </div>
 
       <div class="admin-section" id="section-users">
@@ -848,6 +860,50 @@ async function loadContactMessages(){
   });
 }
 
+const MIGRATION_STATUS_LABELS = { pending: 'Beklemede', resolved: 'İncelendi', ignored: 'Yoksayıldı' };
+const MIGRATION_ENTITY_LABELS = {
+  architect: 'Mimar adı çakışması', office: 'Firma adı çakışması',
+  project_designer: 'Proje tasarımcısı eşleşmesi belirsiz', office_founder: 'Ofis kurucusu eşleşmesi belirsiz',
+  product_brand: 'Ürün markası eşleşmesi belirsiz', product_architect: 'Ürün mimarı eşleşmesi belirsiz',
+};
+let migrationStatus = 'pending';
+
+async function loadMigrationConflicts(){
+  const subtabs = document.getElementById('migration-subtabs');
+  subtabs.innerHTML = Object.keys(MIGRATION_STATUS_LABELS).map(s =>
+    `<button class="admin-subtab ${s===migrationStatus?'active':''}" data-status="${s}">${MIGRATION_STATUS_LABELS[s]}</button>`
+  ).join('');
+  subtabs.querySelectorAll('.admin-subtab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ migrationStatus = btn.dataset.status; loadMigrationConflicts(); });
+  });
+
+  const list = document.getElementById('migration-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/migration-conflicts?status=${migrationStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda çakışma yok.</div>'; return; }
+  list.innerHTML = items.map(c => `
+    <div class="admin-card" data-id="${c.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(c.conflict_key)} <span class="admin-badge badge-pending">${MIGRATION_ENTITY_LABELS[c.entity_type] || c.entity_type}</span></div>
+          ${c.context ? `<div class="admin-card-meta">${escapeHtml(c.context)}</div>` : ''}
+        </div>
+        ${migrationStatus !== 'resolved' ? `<div class="admin-actions"><button class="admin-btn" data-action="resolved">İncelendi Olarak İşaretle</button></div>` : `<div class="admin-actions"><button class="admin-btn" data-action="pending">Beklemeye Al</button></div>`}
+      </div>
+      <div class="admin-card-details">${c.candidates.map((cand, i) => `<div><span>Aday ${i+1}:</span> ${escapeHtml(JSON.stringify(cand))}</div>`).join('')}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      await api(`/api/admin/migration-conflicts/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: btn.dataset.action }) });
+      loadMigrationConflicts();
+      refreshAdminSummary();
+    });
+  });
+}
+
 async function loadUsers(){
   const list = document.getElementById('users-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
@@ -878,6 +934,7 @@ async function refreshAdminSummary(){
       claims: data.pendingClaims > 0,
       badges: data.pendingBadges > 0,
       contact: data.unreadContact > 0,
+      migration: data.pendingMigrationConflicts > 0,
     };
     Object.entries(dots).forEach(([key, show])=>{
       const dot = document.querySelector(`.admin-tab-dot[data-dot="${key}"]`);
@@ -899,6 +956,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'claims') loadClaims();
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
     if(tab.dataset.tab === 'contact') loadContactMessages();
+    if(tab.dataset.tab === 'migration') loadMigrationConflicts();
     if(tab.dataset.tab === 'users') loadUsers();
   });
 });

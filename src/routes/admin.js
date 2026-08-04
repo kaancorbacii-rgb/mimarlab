@@ -7,6 +7,7 @@ import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
+import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 
 // bkz. src/routes/submissions.js#RENAME_CASCADE_BY_TYPE (aynı eşleme) — admin panelinden doğrudan
 // isim değiştirmenin kapsandığı tipler.
@@ -63,6 +64,7 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
   if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
+  if (sub === 'migration-conflicts') return handleMigrationConflictsAdmin(request, env, url, segments, user);
   if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
 }
@@ -77,11 +79,12 @@ async function handleAdminSummary(env) {
   );
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM migration_name_conflicts WHERE status = 'pending'`).first(),
   ]);
 
   return json({
@@ -89,6 +92,7 @@ async function handleAdminSummary(env) {
     pendingClaims: (claimsRow?.n || 0) + (correctionsRow?.n || 0),
     pendingBadges: badgesRow?.n || 0,
     unreadContact: contactRow?.n || 0,
+    pendingMigrationConflicts: migrationRow?.n || 0,
   });
 }
 

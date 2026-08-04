@@ -371,6 +371,7 @@
 <body>
 <script src="auth-nav.js"></script>
 <script src="save-widget.js"></script>
+<script src="js/components/claim-correction-box.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -667,7 +668,33 @@ function formatLocationDistrictFirst(loc){
 const PROFILE_TYPE = 'office';
 let currentOffice = null;
 let currentFounders = [];
-let isProfileOwner = false;
+
+const claimBox = createClaimCorrectionBox({
+  profileType: PROFILE_TYPE,
+  ready: savedWidgetReady,
+  getProfileKey: () => currentOffice.name,
+  // claimName HER ZAMAN orijinal statik adı (claimed_profile_key) taşımalı — currentOffice.name bir
+  // yeniden adlandırmadan sonra DEĞİŞMİŞ olabilir (bkz. data.js#renameOfficeEverywhere'in sakladığı
+  // _claimKey, gerçek bulgu: Han Tümertekin → Tümertekin Architects yeniden adlandırıldıktan sonra bu
+  // link YENİ adı kullanmaya devam edip statik kayda hiç bağlı olmayan boş bir "hayalet" gönderiye yol açıyordu).
+  getClaimLinkKey: () => currentOffice._claimKey || currentOffice.name,
+  editUrlBase: 'firma-ekle.html',
+  listUrl: 'firma.html',
+  contentType: 'offices',
+  // currentOffice.submissionId doluysa bu statik değil doğrudan bir üye gönderisi firma (bkz.
+  // renderOfficeDetail'in sonundaki /api/public/offices birleştirmesi) — o zaman id ile, aksi halde
+  // statik anahtar (isim) ile işlem yapılır.
+  getModerationTarget: () => currentOffice.submissionId ? { id: currentOffice.submissionId } : { key: currentOffice.name },
+  labels: {
+    claimTitle: 'Firmanı mı yönetiyorsun?',
+    loginPromptHtml: 'Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.',
+    pendingHtml: '"Bu firma bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.',
+    claimNotePlaceholder: 'Bu firmanın sana ait olduğunu doğrulamamıza yardımcı olacak bir not ekle (opsiyonel) — ör. firmanın resmi e-posta adresi, LinkedIn/Instagram hesabın, firmadaki pozisyonun.',
+    claimButtonText: 'Bu firma bana ait',
+    deleteConfirm: 'Bu firma profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.',
+    archiveConfirm: 'Bu firma profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.',
+  },
+});
 
 // data.js'teki paylaşılan verifiedBadgeHtml statik badges[] alanını ve /api/public/badges'ten
 // gelen (satın alınıp onaylanmış) dinamik rozetleri birleştirir; dinamik veri sayfa ilk render
@@ -678,54 +705,6 @@ function renderVerifiedBadges(){
   renderFoundersGrid(currentFounders);
 }
 window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges);
-
-async function loadClaimCard(){
-  isProfileOwner = false;
-  const card = document.getElementById('claim-info-card');
-  const body = document.getElementById('claim-card-body');
-  card.style.display = '';
-  await savedWidgetReady;
-
-  // Bu profil BAŞKA bir hesap tarafından da olsa zaten onaylı şekilde sahiplenildiyse (bkz.
-  // /api/public/claim-status, auth gerektirmez), kutucuğu kimden bakılırsa bakılsın gizle —
-  // aksi halde her ziyaretçi, profil zaten sahiplenilmiş olsa bile "sana mı ait?" davetini görürdü.
-  let alreadyClaimed = false;
-  try{
-    const claimStatusRes = await fetch(`/api/public/claim-status?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(currentOffice.name)}`);
-    if(claimStatusRes.ok) alreadyClaimed = !!(await claimStatusRes.json()).claimed;
-  }catch{}
-
-  if(!currentUser){
-    if(alreadyClaimed){ card.style.display = 'none'; return; }
-    body.innerHTML = `<h5>Firmanı mı yönetiyorsun?</h5><p>Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
-    return;
-  }
-  try{
-    const res = await fetch(`/api/claims/status?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(currentOffice.name)}`);
-    const data = res.ok ? await res.json() : { status: 'none' };
-    if(data.status === 'approved'){
-      isProfileOwner = true;
-      card.style.display = 'none';
-    } else if(data.status === 'pending'){
-      body.innerHTML = `<h5>Talebin inceleniyor</h5><p>"Bu firma bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.</p>`;
-    } else if(alreadyClaimed){
-      card.style.display = 'none';
-    } else {
-      body.innerHTML = `<h5>Firmanı mı yönetiyorsun?</h5>
-        <textarea id="claim-note" placeholder="Bu firmanın sana ait olduğunu doğrulamamıza yardımcı olacak bir not ekle (opsiyonel) — ör. firmanın resmi e-posta adresi, LinkedIn/Instagram hesabın, firmadaki pozisyonun." style="width:100%; min-height:64px; margin-top:10px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;"></textarea>
-        <button type="button" class="btn-outline" id="claim-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Bu firma bana ait</button>`;
-      document.getElementById('claim-btn').addEventListener('click', async (e)=>{
-        e.target.disabled = true; e.target.textContent = 'Gönderiliyor…';
-        const note = document.getElementById('claim-note').value;
-        await fetch('/api/claims', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ profileType: PROFILE_TYPE, profileKey: currentOffice.name, note }),
-        });
-        loadClaimCard();
-      });
-    }
-  }catch{}
-}
 
 // Ürünler: bu markayı (ya da markayı yöneten kişinin hesabını) sahiplenip onayı geçmiş
 // kullanıcının kendi eklediği, admin onaylı ürünler — bkz. src/routes/public.js#handlePublicProfileContent.
@@ -779,110 +758,11 @@ async function loadRelatedProducts(){
   }catch{}
 }
 
-function loadCorrectionCard(){
-  const extra = document.getElementById('correction-card-extra');
-  if(!currentUser){
-    extra.innerHTML = `<p style="margin-top:10px;">Bir düzeltme önermek için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
-    return;
-  }
-  extra.innerHTML = `
-    <textarea id="correction-note" placeholder="Gördüğün bir hatayı ya da eksik bilgiyi buraya yaz." style="width:100%; min-height:64px; margin-top:10px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;"></textarea>
-    <button type="button" class="btn-outline" id="correction-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Düzeltme Öner</button>
-    <p id="correction-feedback" style="margin:8px 0 0; font-size:12px; color:var(--sage); display:none;"></p>`;
-  document.getElementById('correction-btn').addEventListener('click', async (e)=>{
-    const btn = e.target;
-    const note = document.getElementById('correction-note').value.trim();
-    const feedback = document.getElementById('correction-feedback');
-    if(!note){
-      feedback.textContent = 'Lütfen bir not yaz.';
-      feedback.style.display = '';
-      return;
-    }
-    btn.disabled = true; btn.textContent = 'Gönderiliyor…';
-    try{
-      const res = await fetch('/api/corrections', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ profileType: PROFILE_TYPE, profileKey: currentOffice.name, note }),
-      });
-      feedback.textContent = res.ok ? 'Teşekkürler, önerini aldık.' : 'Bir şeyler ters gitti, tekrar dene.';
-      feedback.style.display = '';
-      if(res.ok) document.getElementById('correction-note').value = '';
-    } catch {
-      feedback.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
-      feedback.style.display = '';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Düzeltme Öner';
-    }
-  });
-}
-
-// Profilin onaylı sahibi (isProfileOwner, bkz. loadClaimCard) ya da admin ise sağ üstte bir
-// "Düzenle" butonu gösterir — admin hiçbir markayı sahiplenmeden de düzenleyebilir (bkz.
-// src/routes/submissions.js#verifyClaimedProfileKey admin bypass). Admin ayrıca bu firmayı
-// arşivleyip/silebilsin diye "Düzenle"nin yanına Arşivle/Sil butonları ekler (bkz. kullanıcı
-// isteği: "mimar, firma ve ürüne silme ve arşivleme yetkisi ver ... düzenle butonunun yanında") —
-// ortak uç nokta proje-detay.html'deki Sil/Arşivle ile aynı (bkz. src/routes/legacyContent.js#handleContentAction).
-// currentOffice.submissionId doluysa bu statik değil doğrudan bir üye gönderisi firma (bkz.
-// renderOfficeDetail'in sonundaki /api/public/offices birleştirmesi) — o zaman id ile, aksi halde
-// statik anahtar (isim) ile işlem yapılır.
-function renderProfileEditButton(){
-  const slot = document.getElementById('profile-edit-slot');
-  if(!currentUser || !(isProfileOwner || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
-  const adminButtonsHtml = currentUser.role === 'admin' ? `
-    <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>
-    <button type="button" class="card-delete-btn" id="profile-delete-btn">Sil</button>` : '';
-  // claimName HER ZAMAN orijinal statik adı (claimed_profile_key) taşımalı — currentOffice.name bir
-  // yeniden adlandırmadan sonra DEĞİŞMİŞ olabilir (bkz. data.js#renameOfficeEverywhere'in sakladığı
-  // _claimKey, gerçek bulgu: Han Tümertekin → Tümertekin Architects yeniden adlandırıldıktan sonra bu
-  // link YENİ adı kullanmaya devam edip statik kayda hiç bağlı olmayan boş bir "hayalet" gönderiye yol açıyordu).
-  const claimName = currentOffice._claimKey || currentOffice.name;
-  slot.innerHTML = `<a class="profile-edit-btn" href="firma-ekle.html?claim=${encodeURIComponent(claimName)}">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-    Düzenle
-  </a>${adminButtonsHtml}`;
-  if(currentUser.role === 'admin'){
-    document.getElementById('profile-archive-btn').addEventListener('click', () => runProfileModeration('archive'));
-    document.getElementById('profile-delete-btn').addEventListener('click', () => runProfileModeration('delete'));
-  }
-}
-
-async function runProfileModeration(action){
-  const confirmText = action === 'delete'
-    ? 'Bu firma profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
-    : 'Bu firma profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
-  if(!confirm(confirmText)) return;
-  const btn = document.getElementById(action === 'delete' ? 'profile-delete-btn' : 'profile-archive-btn');
-  const otherBtn = document.getElementById(action === 'delete' ? 'profile-archive-btn' : 'profile-delete-btn');
-  if(btn) btn.disabled = true;
-  if(otherBtn) otherBtn.disabled = true;
-  try{
-    const res = await fetch('/api/admin/legacy/content-action', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(currentOffice.submissionId
-        ? { type: 'offices', action, id: currentOffice.submissionId }
-        : { type: 'offices', action, key: currentOffice.name }),
-    });
-    if(!res.ok){
-      alert('Bir şeyler ters gitti, tekrar dene.');
-      if(btn) btn.disabled = false;
-      if(otherBtn) otherBtn.disabled = false;
-      return;
-    }
-    window.location.href = 'firma.html';
-  }catch{
-    alert('Bir şeyler ters gitti, tekrar dene.');
-    if(btn) btn.disabled = false;
-    if(otherBtn) otherBtn.disabled = false;
-  }
-}
-
 async function initProfileExtras(){
   renderVerifiedBadges();
   loadRelatedProducts();
   await savedWidgetReady;
-  await loadClaimCard();
-  renderProfileEditButton();
-  loadCorrectionCard();
+  await claimBox.init();
 }
 
 // Statik data.js kaydı + onaylı üye gönderisi overlay'i + kurucu/ortak eşleştirmesi + ilgili
