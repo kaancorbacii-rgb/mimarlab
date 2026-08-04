@@ -48,8 +48,8 @@ function toPublicShape(type, row) {
   if (type === 'architects') {
     return {
       name: parsed.name, dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-      role: parsed.position, status: parsed.position, awards: parsed.awards, photo: parsed.photo_url,
-      about: parsed.about, source: 'member', submissionId: parsed.id, ...owner,
+      role: parsed.position, status: parsed.position, profession: parsed.profession, awards: parsed.awards,
+      photo: parsed.photo_url, about: parsed.about, source: 'member', submissionId: parsed.id, ...owner,
     };
   }
   // jobs
@@ -169,7 +169,8 @@ async function handlePublicProfileEdits(request, env) {
         // düzenle sayfasından Mimar ismi değiştirebilme yetkisi ver").
         name: parsed.name,
         dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-        role: parsed.position, profession: parsed.profession, photo: parsed.photo_url, about: parsed.about,
+        role: parsed.position, profession: parsed.profession, awards: parsed.awards,
+        photo: parsed.photo_url, about: parsed.about,
       };
     }
     for (const row of officeRes.results) {

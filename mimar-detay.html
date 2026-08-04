@@ -667,10 +667,7 @@ const logoEl = document.getElementById('profile-logo');
 function renderInfoFactsAndLogo(){
   const infoFacts = [];
   if(a.dob) infoFacts.push(`<div><strong>Doğum Tarihi:</strong> ${escapeHtml(String(a.dob))}</div>`);
-  if(a.school || a.dept){
-    const schoolDept = [a.school, a.dept].filter(Boolean).map(escapeHtml).join(' / ');
-    infoFacts.push(`<div><strong>Üniversite / Bölüm:</strong> ${schoolDept}</div>`);
-  }
+  if(a.school) infoFacts.push(`<div><strong>Üniversite:</strong> ${escapeHtml(a.school)}</div>`);
   const profession = a.profession || DEPT_TO_PROFESSION[a.dept] || null;
   if(a.role || profession){
     const roleProfession = [a.role, profession].filter(Boolean).map(escapeHtml).join(' / ');
@@ -1067,7 +1064,15 @@ function renderProfileEditButton(){
   const adminButtonsHtml = currentUser.role === 'admin' ? `
     <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>
     <button type="button" class="card-delete-btn" id="profile-delete-btn">Sil</button>` : '';
-  slot.innerHTML = `<a class="profile-edit-btn" href="mimar-ekle.html?claim=${encodeURIComponent(a.name)}">
+  // a.source === 'member': statik data.js'te hiç karşılığı olmayan, doğrudan bir üye gönderisi
+  // olarak var olan bir profil (bkz. yukarıdaki "Renzo Piano" örneği) — ?claim=<isim> modu yalnızca
+  // STATİK bir kaydı düzenlemek için var (bkz. src/routes/submissions.js#verifyClaimedProfileKey),
+  // böyle bir profilde kullanılırsa "Bu profil artık bu adla mevcut değil" hatası verir (gerçek
+  // bulgu). Bu durumda gönderiyi doğrudan id'siyle düzenleyen ?edit= moduna gidilmeli.
+  const editHref = a.source === 'member'
+    ? `mimar-ekle.html?edit=${encodeURIComponent(a.submissionId)}`
+    : `mimar-ekle.html?claim=${encodeURIComponent(a.name)}`;
+  slot.innerHTML = `<a class="profile-edit-btn" href="${editHref}">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
     Düzenle
   </a>${adminButtonsHtml}`;
@@ -1087,9 +1092,12 @@ async function runProfileModeration(action){
   if(btn) btn.disabled = true;
   if(otherBtn) otherBtn.disabled = true;
   try{
+    const body = a.source === 'member'
+      ? { type: 'architects', action, id: a.submissionId }
+      : { type: 'architects', action, key: a.name };
     const res = await fetch('/api/admin/legacy/content-action', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ type: 'architects', action, key: a.name }),
+      body: JSON.stringify(body),
     });
     if(!res.ok){
       alert('Bir şeyler ters gitti, tekrar dene.');
