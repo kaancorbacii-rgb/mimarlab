@@ -29,11 +29,10 @@ export async function handleOfficeRoute(request, env, url, rawKey) {
 }
 
 async function buildOfficePayload(env, key) {
-  let row = await findOffice(env, key);
-  if (!row) {
-    // eski davranışla birebir aynı fallback (found || offices[0]).
-    row = await env.DB.prepare(`SELECT * FROM offices WHERE deleted_at IS NULL ORDER BY id LIMIT 1`).first();
-  }
+  const row = await findOffice(env, key);
+  // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
+  // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
+  if (!row) return { item: null, founders: [], relatedProjects: [], hidden: false };
   const o = parseCanonicalRow('offices', row);
 
   const [foundersRes, relatedRes] = await Promise.all([

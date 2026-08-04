@@ -35,12 +35,14 @@ export async function handleArchitectRoute(request, env, url, rawKey) {
 }
 
 async function buildArchitectPayload(env, key) {
-  let row = await findArchitect(env, key);
-  if (!row) {
-    // eski davranışla birebir aynı fallback (explicitMatch || architects[0]) — bozuk/eski bir key
-    // geldiğinde çökmek yerine ilk kaydı döner.
-    row = await env.DB.prepare(`SELECT * FROM architects WHERE deleted_at IS NULL ORDER BY id LIMIT 1`).first();
-  }
+  const row = await findArchitect(env, key);
+  // bkz. gerçek bulgu: eski "eşleşme yoksa ilk kaydı döndür" fallback'i, silinmiş/eşleşmeyen bir key
+  // için sessizce BAŞKA bir mimarın (her zaman en düşük id'li, silinmemiş satır) profilini
+  // döndürüyordu — ör. architects id 1-6 silindiğinde /mimar/gokhan-avcioglu id 7'nin (Seyhan
+  // Özdemir Sarper) verisini gösteriyordu. src/routes/project.js#handleProjectDetailRoute'un
+  // AYNI durumdaki "item: null, hidden: false" dönüşüyle tutarlı hale getirildi — istemci
+  // (mimar-detay.html) bunu zaten "bulunamadı" olarak ele alıp mimar.html'e yönlendiriyor.
+  if (!row) return { item: null, hidden: false };
   const a = parseCanonicalRow('architects', row);
 
   const officeRow = a.office_id
