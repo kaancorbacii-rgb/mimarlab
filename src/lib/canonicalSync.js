@@ -85,7 +85,18 @@ async function syncOffice(env, row) {
     ? await env.DB.prepare(`SELECT * FROM offices WHERE deleted_at IS NULL AND (legacy_key = ? OR name = ?) LIMIT 1`).bind(claimedKey, claimedKey).first()
     : await env.DB.prepare(`SELECT * FROM offices WHERE legacy_key = ?`).bind(marker).first();
 
-  const cats = row.cats ? JSON.stringify(Array.isArray(row.cats) ? row.cats : [row.cats]) : null;
+  // row.cats gönderi formundan (ofisin "Hizmet Alanı" alanı) DÜZ METİN olarak gelir — bkz.
+  // src/lib/submissionTypes.js#SUBMISSION_TYPES.offices.arrayFields, 'cats' orada YOK (yalnızca
+  // 'awards'/'founders' dizi). offices.cats kolonundaki JSON, legacy_static migration'dan beri
+  // hep JSON.stringify(STRING) şeklinde (ör. '"Mimarlık · İç Mimarlık"') — ofis-detay.html/
+  // firma.html/admin.html gibi TÜM okuyucular bunu JSON.parse sonrası bir string olarak
+  // `.split(' · ')` ile işler (bkz. gerçek bulgu: buradaki eski `Array.isArray(row.cats) ?
+  // row.cats : [row.cats]` savunması row.cats'i YANLIŞLIKLA `["Mimarlık"]` dizisine sarıyordu —
+  // bu satır bir kez UPDATE ile yazıldığında o ofis JSON.parse sonrası bir DİZİ alıyor,
+  // `.split` dizide fonksiyon olmadığından `renderOfficeFields` senkron olarak fırlıyor ve
+  // about/logo/kuruluş yılı/admin Düzenle-Arşivle-Sil butonları dahil ondan sonraki HİÇBİR şey
+  // render edilmiyordu — veri kaybı değil, istemci tarafı kırılan bir render zinciriydi).
+  const cats = row.cats ? JSON.stringify(row.cats) : null;
   const awards = row.awards ? JSON.stringify(row.awards) : null;
 
   let result;

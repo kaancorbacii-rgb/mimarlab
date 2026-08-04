@@ -708,12 +708,21 @@ if(!p){
   function designerGroups(){
     const architectChips = [];
     const officeChips = [];
-    const creditedArchNames = new Set(p.designer.filter(d => architects.find(a => a.name === d)));
-    const creditedOfficeNames = new Set(p.designer.filter(d => offices.find(o => o.name === d)));
+    // creditedArchNames/creditedOfficeNames artık her push'tan ÖNCE kontrol edilen, her push'tan
+    // SONRA güncellenen canlı "zaten eklendi" izleyicileri (bkz. gerçek bulgu: p.designer aynı
+    // ofis/mimar adını birden fazla kez içerdiğinde — ör. hem doğrudan hem de bir mimarın .office
+    // türetmesiyle, ya da kaydın kendisinde ham mükerrer bir isim olduğunda — künyede aynı kart
+    // yan yana iki kez basılıyordu; eskiden bu Set'ler yalnızca p.designer'ın ÖN taramasından
+    // dolduruluyor, doğrudan eşleşen dallardaki push'lar hiç kontrol etmiyordu).
+    const creditedArchNames = new Set();
+    const creditedOfficeNames = new Set();
     p.designer.forEach(d=>{
       const arch = architects.find(a => a.name === d);
       if(arch){
-        architectChips.push(architectChipHtml(arch));
+        if(!creditedArchNames.has(arch.name)){
+          creditedArchNames.add(arch.name);
+          architectChips.push(architectChipHtml(arch));
+        }
         // Mimar, designer'da tek başına anılmışsa (ofis adı ayrıca geçmiyorsa) bağlı olduğu ofis/marka
         // architects[].office eşleşmesinden türetilerek Mimarlık Ofisi satırına da eklenir — aşağıdaki
         // ofis→mimar türetmesinin simetriği, künyede her zaman ikisinin de görünmesi için (bkz. kullanıcı isteği).
@@ -728,7 +737,10 @@ if(!p){
       }
       const off = offices.find(o => o.name === d);
       if(off){
-        officeChips.push(officeChipHtml(off));
+        if(!creditedOfficeNames.has(off.name)){
+          creditedOfficeNames.add(off.name);
+          officeChips.push(officeChipHtml(off));
+        }
         // Proje kaydında yalnızca ofis/marka ismi geçiyorsa (bireysel mimar ayrıca anılmamışsa),
         // o ofisin kurucu/mimar kadrosunu architects[].office eşleşmesinden türeterek Mimar
         // satırına da ekle — böylece çoğu projede sadece ofis avatarı görünüp mimar künyesinin
@@ -740,7 +752,10 @@ if(!p){
         });
         return;
       }
-      architectChips.push(`<a class="designer-name-plain" href="/proje?designer=${encodeURIComponent(d)}">${escapeHtml(d)}</a>`);
+      if(!creditedArchNames.has(d)){
+        creditedArchNames.add(d);
+        architectChips.push(`<a class="designer-name-plain" href="/proje?designer=${encodeURIComponent(d)}">${escapeHtml(d)}</a>`);
+      }
     });
     return { architectChips, officeChips };
   }
