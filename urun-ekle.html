@@ -517,6 +517,14 @@ wireAutocomplete('u-brand', 'ac-brand-suggestions', BRAND_SUGGESTIONS, {
 });
 wireAutocomplete('u-architect', 'ac-architect-suggestions', ARCHITECT_SUGGESTIONS);
 applyProfileEditPhotos().catch(()=>{});
+// data.js#applyProfileEditPhotos yalnızca statik architects[]/offices[] kayıtlarının ÜZERİNE
+// bindirme yapar — hiç statik karşılığı olmayan, admin panelinden ya da bir üyenin gönderip
+// onaylanmasıyla var olan YENİ bir mimar/firma bu dizilere hiç eklenmezdi (bkz. proje-ekle.html'deki
+// AYNI düzeltme/gerçek bulgu — mimar.html/firma.html listeleme sayfalarındaki AYNI desen).
+Promise.all([
+  fetch('/api/public/architects').then(r => r.ok ? r.json() : {items:[]}).then(d => architects.push(...(d.items || []))).catch(()=>{}),
+  fetch('/api/public/offices').then(r => r.ok ? r.json() : {items:[]}).then(d => offices.push(...(d.items || []))).catch(()=>{}),
+]);
 
 async function uploadFiles(files){
   const urls = [];

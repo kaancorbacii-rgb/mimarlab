@@ -478,6 +478,11 @@ function wireAutocomplete(inputId, suggestionsId, getItems){
 const MARKA_SUGGESTIONS = () => (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
 wireAutocomplete('m-office', 'ac-marka-suggestions', MARKA_SUGGESTIONS);
 applyProfileEditPhotos().catch(()=>{});
+// data.js#applyProfileEditPhotos yalnızca statik offices[] kayıtlarının ÜZERİNE bindirme yapar —
+// hiç statik karşılığı olmayan, admin panelinden ya da bir üyenin gönderip onaylanmasıyla var olan
+// YENİ bir firma bu diziye hiç eklenmezdi (bkz. proje-ekle.html'deki AYNI düzeltme/gerçek bulgu —
+// mimar.html/firma.html listeleme sayfalarındaki AYNI desen).
+fetch('/api/public/offices').then(r => r.ok ? r.json() : {items:[]}).then(d => offices.push(...(d.items || []))).catch(()=>{});
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite (sitede kayıtlı mimarların okuduğu okullar) ----------
 const UNIVERSITY_SUGGESTIONS = [...new Set((typeof architects !== 'undefined' ? architects : []).map(a => a.school).filter(Boolean))]

@@ -673,6 +673,15 @@ wireAutocomplete('p-brand-input', 'ac-marka-suggestions', OFIS_SUGGESTIONS, {mul
 // dizilerini güncel tutar (bkz. data.js#applyProfileEditPhotos) — yukarıdaki Firma/Mimar önerileri
 // ve prefillForEdit'teki mevcut designer eşleştirmesi bunu kullanır.
 applyProfileEditPhotos().catch(()=>{});
+// data.js#applyProfileEditPhotos yalnızca statik architects[]/offices[] kayıtlarının ÜZERİNE
+// bindirme yapar (fotoğraf/logo/yeniden adlandırma) — hiç statik karşılığı olmayan, admin panelinden
+// ya da bir üyenin gönderip onaylanmasıyla var olan YENİ bir mimar/firma bu dizilere hiç eklenmezdi
+// (gerçek bulgu: admin panelinden eklenen bir firma, Proje Ekle'deki Firma otomatik tamamlamasında
+// hiç çıkmıyordu). mimar.html/firma.html listeleme sayfalarındaki AYNI deseni kullanır.
+const memberProfilesReady = Promise.all([
+  fetch('/api/public/architects').then(r => r.ok ? r.json() : {items:[]}).then(d => architects.push(...(d.items || []))).catch(()=>{}),
+  fetch('/api/public/offices').then(r => r.ok ? r.json() : {items:[]}).then(d => offices.push(...(d.items || []))).catch(()=>{}),
+]);
 wireAutocomplete('p-product-input', 'ac-urun-suggestions', () => URUN_SUGGESTIONS, {multi:false, onPick: (item)=>{
   const brandInput = document.getElementById('p-brand-input');
   if(!brandInput.value.trim() && item.brand) brandInput.value = item.brand;
@@ -836,7 +845,10 @@ async function prefillForEdit(){
     document.getElementById('p-type').value = (item.type || []).join(', ');
     {
       // Var olan designer listesindeki isimler architects[]/offices[] ile eşleştirilerek Mimar/
-      // Ofis kutularına geri dağıtılır — hiçbirine eşleşmeyen (ör. tarihi bir isim) Mimar kutusuna düşer.
+      // Ofis kutularına geri dağıtılır — hiçbirine eşleşmeyen (ör. tarihi bir isim) Mimar kutusuna
+      // düşer. Bir üye gönderisi olarak eklenmiş (statik karşılığı olmayan) bir firma/mimarın da
+      // doğru kutuya düşmesi için memberProfilesReady'nin bitmesi beklenir.
+      await memberProfilesReady;
       const names = item.designer || [];
       const mimarNames = names.filter(n => !offices.some(o => o.name === n));
       const ofisNames = names.filter(n => offices.some(o => o.name === n));
@@ -911,6 +923,7 @@ async function prefillForClaim(){
   document.getElementById('p-date').value = merged.date || '';
   document.getElementById('p-type').value = (merged.type || []).join(', ');
   {
+    await memberProfilesReady;
     const names = merged.designer || [];
     const mimarNames = names.filter(n => !offices.some(o => o.name === n));
     const ofisNames = names.filter(n => offices.some(o => o.name === n));

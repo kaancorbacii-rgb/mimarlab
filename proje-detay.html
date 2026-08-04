@@ -619,6 +619,18 @@ if(!p){
   // burada hep eski/eksik görünürdü (bkz. kullanıcı isteği: mimar/firma profiline fotoğraf/logo
   // yüklenmesine rağmen proje detay sayfasında görünmüyordu).
   try{ await applyProfileEditPhotos(); }catch{}
+  // applyProfileEditPhotos yalnızca statik architects[]/offices[] kayıtlarının ÜZERİNE bindirme yapar
+  // — hiç statik karşılığı olmayan, admin panelinden ya da bir üyenin gönderip onaylanmasıyla var
+  // olan YENİ bir mimar/firma bu dizilere hiç eklenmezdi; bu proje o kişi/firmayı "designer" olarak
+  // gösteriyorsa chip'i isimden öteye geçemez (fotoğraf/logo/link olmadan) render edilirdi (bkz.
+  // proje-ekle.html'deki AYNI düzeltme/gerçek bulgu — mimar.html/firma.html listeleme sayfalarındaki
+  // AYNI desen).
+  try{
+    await Promise.all([
+      fetch('/api/public/architects').then(r => r.ok ? r.json() : {items:[]}).then(d => architects.push(...(d.items || []))),
+      fetch('/api/public/offices').then(r => r.ok ? r.json() : {items:[]}).then(d => offices.push(...(d.items || []))),
+    ]);
+  }catch{}
 
   document.title = `${p.title} — MİMARLAB`;
   {

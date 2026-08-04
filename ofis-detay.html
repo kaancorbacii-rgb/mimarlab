@@ -930,7 +930,15 @@ function renderProfileEditButton(){
   // _claimKey, gerçek bulgu: Han Tümertekin → Tümertekin Architects yeniden adlandırıldıktan sonra bu
   // link YENİ adı kullanmaya devam edip statik kayda hiç bağlı olmayan boş bir "hayalet" gönderiye yol açıyordu).
   const claimName = currentOffice._claimKey || currentOffice.name;
-  slot.innerHTML = `<a class="profile-edit-btn" href="firma-ekle.html?claim=${encodeURIComponent(claimName)}">
+  // currentOffice.submissionId doluysa statik data.js'te hiç karşılığı olmayan, doğrudan bir üye
+  // gönderisi firma (bkz. yukarıdaki yorum ve runProfileModeration'daki AYNI ayrım) — ?claim=<isim>
+  // modu yalnızca STATİK bir kaydı düzenlemek için var (bkz. src/routes/submissions.js#
+  // verifyClaimedProfileKey), böyle bir profilde kullanılırsa "Bu profil artık bu adla mevcut değil"
+  // hatası verir (mimar-detay.html'deki AYNI düzeltme/gerçek bulgu — bkz. "Renzo Piano" örneği).
+  const editHref = currentOffice.submissionId
+    ? `firma-ekle.html?edit=${encodeURIComponent(currentOffice.submissionId)}`
+    : `firma-ekle.html?claim=${encodeURIComponent(claimName)}`;
+  slot.innerHTML = `<a class="profile-edit-btn" href="${editHref}">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
     Düzenle
   </a>${adminButtonsHtml}`;
