@@ -4,7 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { initializeCheckoutForm, retrieveCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
-import { BADGE_PRICES, normalizeTarget, verifyOfficeTargetOwnership } from './badges.js';
+import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership } from './badges.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır (bkz. src/routes/badges.js)
@@ -58,10 +58,13 @@ async function startCheckout(request, env, url) {
 
   const body = await readJson(request);
   const badgeType = body.badgeType;
-  const price = BADGE_PRICES[badgeType];
-  if (price === undefined) return errorJson('Geçersiz rozet türü.');
   const target = normalizeTarget(body);
   if (!target) return errorJson('Geçersiz hedef.');
+  // bkz. src/routes/badges.js#getBadgePrice — tutar İSTEMCİDEN asla alınmaz, targetType'a göre
+  // (self/office) burada sunucu tarafında hesaplanır (kullanıcı isteği: "Backend checkout /
+  // Iyzico tutarını da seçime göre doğrula").
+  const price = getBadgePrice(badgeType, target.targetType);
+  if (price === undefined) return errorJson('Geçersiz rozet türü.');
   if (!(await verifyOfficeTargetOwnership(env, user.id, target))) {
     return errorJson('Bu firmayı önce onaylı şekilde sahiplenmen gerekiyor.');
   }

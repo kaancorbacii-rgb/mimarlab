@@ -10,12 +10,27 @@ import { BADGE_RANK } from '../lib/badgeAccess.js';
 // yalnızca destek amaçlı), verified (Doğrulanmış Üye), gold (Altın Üye), platinum (Elmas Üye)
 // — bkz. data.js#BADGE_LABELS ile aynı anahtarlar (destekci kasıtlı olarak orada yok, bkz.
 // handlePublicBadges).
+//
+// BADGE_PRICES aşağıdaki "Bir firmam için" (targetType='office') tabanı — "Kendim için"
+// (targetType='self') seçildiğinde her kademe SELF_DISCOUNT_TRY kadar ucuz (bkz. kullanıcı
+// isteği). Fiyat İSTEMCİDEN asla alınmaz/güvenilmez: hem havale (createBadgeRequest) hem iyzico
+// (src/routes/payments.js#startCheckout) targetType'ı buradaki getBadgePrice() ile aynı tek
+// noktadan hesaplar.
 export const BADGE_PRICES = {
   destekci: 79.90,
   verified: 99.90,
   gold: 139.90,
   platinum: 199.90,
 };
+const SELF_DISCOUNT_TRY = 60;
+
+export function getBadgePrice(badgeType, targetType) {
+  const officePrice = BADGE_PRICES[badgeType];
+  if (officePrice === undefined) return undefined;
+  if (targetType !== 'self') return officePrice;
+  // bkz. yukarıdaki yorum — kayan nokta artığını (ör. 79.90 - 60 = 19.900000000000006) önler.
+  return Math.round((officePrice - SELF_DISCOUNT_TRY) * 100) / 100;
+}
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır
 
@@ -56,10 +71,10 @@ export async function verifyOfficeTargetOwnership(env, userId, target) {
 async function createBadgeRequest(request, env, user) {
   const body = await readJson(request);
   const badgeType = body.badgeType;
-  const price = BADGE_PRICES[badgeType];
-  if (price === undefined) return errorJson('Geçersiz rozet türü.');
   const target = normalizeTarget(body);
   if (!target) return errorJson('Geçersiz hedef.');
+  const price = getBadgePrice(badgeType, target.targetType);
+  if (price === undefined) return errorJson('Geçersiz rozet türü.');
   if (!(await verifyOfficeTargetOwnership(env, user.id, target))) {
     return errorJson('Bu firmayı önce onaylı şekilde sahiplenmen gerekiyor.');
   }
