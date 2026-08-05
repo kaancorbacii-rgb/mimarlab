@@ -277,7 +277,7 @@
     background:var(--paper-alt);
   }
   .side-slider .proje-slide{border-radius:16px;}
-  .side-slider .slide-logo-img{object-fit:contain !important; background:var(--paper-card); padding:20%;}
+  .side-slider .slide-logo-img{object-fit:contain !important; background:var(--paper-card); padding:4px;}
   .card-mimar .side-slider .proje-slide img{object-position:center top;}
   .side-slider .slider-arrow{width:28px; height:28px;}
   .side-slider .slider-arrow svg{width:13px; height:13px;}
@@ -804,7 +804,6 @@ function architectSlideHtml(a, i){
     <span class="slide-tag">Mimar</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(a.name)}</div>
-      ${a.office ? `<div class="slide-designer">${escapeHtml(a.office)}</div>` : ''}
     </div>
   </a>`;
 }
@@ -815,7 +814,6 @@ function officeSlideHtml(o, i){
     <span class="slide-tag">Firma</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(o.name)}</div>
-      ${o.loc ? `<div class="slide-designer">${escapeHtml(o.loc)}</div>` : ''}
     </div>
   </a>`;
 }
