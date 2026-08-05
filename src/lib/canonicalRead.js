@@ -20,5 +20,13 @@ export function parseCanonicalRow(entityType, row) {
     try { out[field] = JSON.parse(out[field]); }
     catch { out[field] = entityType === 'offices' && field === 'cats' ? null : []; }
   }
+  // offices.yil bir TEXT kolon — bazı eski veri aktarımları ondalıklı geldi (ör. "1978.0", bkz.
+  // gerçek bulgu: BİRİM Design detay sayfasında Kuruluş Yılı "1978.0" görünüyordu). Tüm okuma
+  // yolları (office.js/architect.js/legacyContent.js) bu fonksiyondan geçtiğinden, tek noktadan
+  // tamsayıya normalize edilir — ekranda/formlarda bir daha ".0" görünmez.
+  if (entityType === 'offices' && out.yil != null) {
+    const n = parseInt(out.yil, 10);
+    if (!Number.isNaN(n)) out.yil = n;
+  }
   return out;
 }

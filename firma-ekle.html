@@ -404,6 +404,12 @@ function escapeAttr(s){
 function trLower(s){
   return (s||'').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
 }
+// bkz. prefillForClaim'deki kullanım — ?claim= değeri src/lib/canonicalSync.js#submissionMarker'ın
+// yazdığı dahili "submission:<uuid>" idempotency işareti olabilir; bu bir insan tarafından girilen
+// firma adı değildir, Firma Adı kutusuna asla ham yazılmamalı.
+function looksLikeInternalId(v){
+  return /^submission:/i.test(v || '') || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v || '');
+}
 function closeAllDropdowns(){
   document.querySelectorAll('.dd-field.open').forEach(f => f.classList.remove('open'));
 }
@@ -538,31 +544,49 @@ function replaceLastCommaSegment(value, replacement){
   const idx = value.lastIndexOf(',');
   return idx === -1 ? replacement : value.slice(0, idx + 1) + ' ' + replacement;
 }
-function wireAutocomplete(inputId, suggestionsId, getItems){
+// Kurucu önerileri statik data.js architects[] dizisi yerine canlı D1 aramasından beslenir (bkz.
+// proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe — statik dizi yalnızca
+// deploy anındaki anlık görüntüyü içerdiğinden, D1'e az önce eklenmiş bir mimar burada hiç
+// görünmüyordu, bkz. gerçek bulgu: "cem tanr" yazınca Cem Tanrıkulu çıkmıyordu).
+function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
+  opts = opts || {};
   const input = document.getElementById(inputId);
   const box = document.getElementById(suggestionsId);
+  let debounceTimer = null;
+  let currentQuery = '';
   function close(){ box.classList.remove('show'); box.innerHTML = ''; }
-  function renderSuggestions(){
-    const q = trLower(lastCommaSegment(input.value));
-    if(!q){ close(); return; }
-    const items = getItems().filter(it => trLower(it.label).includes(q)).slice(0, 8);
+  function renderItems(items){
     if(!items.length){ close(); return; }
     box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
     box.classList.add('show');
     box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
       el.addEventListener('mousedown', (e)=>{
         e.preventDefault();
-        input.value = replaceLastCommaSegment(input.value, items[i].label);
+        const item = items[i];
+        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
         close();
+        if(opts.onPick) opts.onPick(item);
       });
     });
   }
-  input.addEventListener('input', renderSuggestions);
-  input.addEventListener('focus', renderSuggestions);
+  function fetchSuggestions(q){
+    currentQuery = q;
+    fetch(`${searchUrl}?q=${encodeURIComponent(q)}`)
+      .then(res => res.ok ? res.json() : {items: []})
+      .then(data => { if(q === currentQuery) renderItems((data.items || []).slice(0, 8)); })
+      .catch(()=>{});
+  }
+  function onInput(){
+    const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
+    if(!q){ close(); currentQuery = ''; return; }
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
+  }
+  input.addEventListener('input', onInput);
+  input.addEventListener('focus', onInput);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
-const KURUCU_SUGGESTIONS = (typeof architects !== 'undefined' ? architects : []).map(a => ({label: a.name, sub: a.office || ''}));
-wireAutocomplete('o-founders', 'ac-kurucular-suggestions', () => KURUCU_SUGGESTIONS);
+wireAutocompleteLive('o-founders', 'ac-kurucular-suggestions', '/api/architects/search');
 
 function renderPreviews(){
   if(selectedFiles.length){
@@ -695,8 +719,12 @@ async function prefillForClaim(){
     }
   }catch{}
 
+  // merged.name yukarıdaki üç kaynaktan hiçbirinde bulunamadıysa claimName'e düşülür — ama claimName
+  // bazen src/lib/canonicalSync.js#submissionMarker'ın yazdığı dahili "submission:<id>" işareti gibi
+  // ham bir ID olabilir (bkz. gerçek bulgu: Firma Adı kutusuna "submission:3caa1398-..." yazılıyordu).
+  // Böyle görünüyorsa kutuyu ham ID ile doldurmak yerine boş bırak.
   const nameInput = document.getElementById('o-name');
-  nameInput.value = merged.name || claimName;
+  nameInput.value = merged.name || (looksLikeInternalId(claimName) ? '' : claimName);
   if(isAdmin){
     nameInput.readOnly = false;
     nameInput.style.background = '';

@@ -18,19 +18,28 @@ async function findOffice(env, key) {
   return env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(match.id).first();
 }
 
+// SQL LIKE yalnızca ASCII harfleri case-insensitive katlar — Türkçe İ/I/ı/i çiftlerini bilmediğinden
+// D1 tarafında bu normalizasyon yapılamıyor (bkz. gerçek bulgu: küçük harfle "birim" yazınca "BİRİM
+// Design" çıkmıyordu). src/routes/project.js#trLower/src/routes/legacyContent.js#trLower ile BİREBİR
+// aynı — bu dosyalarda da aynı sebeple yerel olarak tekrar tanımlanmış.
+function trLower(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+
 // GET /api/offices/search?q=... — src/routes/architect.js#handleArchitectSearchRoute'un firma
-// karşılığı; proje-ekle.html'deki Firma/Marka autocomplete kutularının canlı D1 sorgusu.
+// karşılığı; proje-ekle.html'deki Firma/Marka autocomplete kutularının canlı D1 sorgusu. Türkçe
+// harf duyarlılığı için SQL LIKE yerine tüm adaylar çekilip trLower ile JS tarafında filtrelenir
+// (tablo küçük olduğundan, bkz. findOffice'teki AYNI tam-tarama gerekçesi).
 export async function handleOfficeSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const q = (url.searchParams.get('q') || '').trim();
+    const q = trLower((url.searchParams.get('q') || '').trim());
     if (!q) return { items: [] };
-    const like = `%${q}%`;
     const { results } = await env.DB.prepare(
-      `SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL AND name LIKE ?
-       ORDER BY name LIMIT 20`
-    ).bind(like).all();
-    return { items: results.map(r => ({ label: r.name, sub: r.loc || '' })) };
+      `SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY name`
+    ).all();
+    const items = results.filter(r => trLower(r.name).includes(q)).slice(0, 20).map(r => ({ label: r.name, sub: r.loc || '' }));
+    return { items };
   });
 }
 
@@ -74,8 +83,15 @@ async function buildOfficePayload(env, key) {
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html
-  // #renderProfileEditButton'daki AYNI _claimKey gerekçesi, eski koddaki AYNI davranış).
-  if (o.legacy_key && o.legacy_key !== o.name) item._claimKey = o.legacy_key;
+  // #renderProfileEditButton'daki AYNI _claimKey gerekçesi, eski koddaki AYNI davranış). AMA
+  // legacy_key, src/lib/canonicalSync.js#submissionMarker tarafından yazılan dahili "submission:
+  // <id>" idempotency işareti de OLABİLİR — bu insan tarafından okunabilir bir anahtar değil,
+  // yalnızca "bu gönderi hangi canonical satırı oluşturdu" sorusunu tekrar bulmak için var (bkz.
+  // gerçek bulgu: BİRİM Design gibi doğrudan bir gönderiden oluşmuş firmalarda claim= linki ham
+  // "submission:3caa1398-..." string'iyle açılıyor, firma-ekle.html bunu Firma Adı kutusuna
+  // olduğu gibi yazıyordu). Böyle bir işaretse _claimKey set edilmez, aşağıdaki o.name'e düşülür.
+  const isSubmissionMarker = typeof o.legacy_key === 'string' && o.legacy_key.startsWith('submission:');
+  if (o.legacy_key && !isSubmissionMarker && o.legacy_key !== o.name) item._claimKey = o.legacy_key;
 
   return { item, founders, relatedProjects, hidden: !!o.hidden_at };
 }

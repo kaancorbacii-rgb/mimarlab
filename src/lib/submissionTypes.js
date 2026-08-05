@@ -163,6 +163,12 @@ export function parseSubmissionRow(type, row) {
     try { out[field] = row[field] ? JSON.parse(row[field]) : []; }
     catch { out[field] = []; }
   }
+  // bkz. src/lib/canonicalRead.js#parseCanonicalRow'daki AYNI ".0" normalizasyonu — mimar-ekle.html/
+  // firma-ekle.html'in ?edit=<id> modu bu satırı (canonical değil, kendi *_submissions taslağını) okur.
+  if (type === 'offices' && out.yil != null) {
+    const n = parseInt(out.yil, 10);
+    if (!Number.isNaN(n)) out.yil = n;
+  }
   return out;
 }
 

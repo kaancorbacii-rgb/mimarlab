@@ -24,23 +24,32 @@ async function findArchitect(env, key) {
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(match.id).first();
 }
 
+// SQL LIKE yalnızca ASCII harfleri case-insensitive katlar — Türkçe İ/I/ı/i çiftlerini bilmediğinden
+// D1 tarafında bu normalizasyon yapılamıyor (bkz. src/routes/office.js#trLower'daki AYNI gerekçe/
+// gerçek bulgu). project.js/legacyContent.js'deki AYNI trLower ile birebir aynı — her dosyada
+// yerel olarak tekrar tanımlanmış.
+function trLower(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+
 // GET /api/architects/search?q=... — proje-ekle.html/urun-ekle.html gibi formlardaki Mimar
 // autocomplete kutularının canlı D1 sorgusu (bkz. kullanıcı isteği: "Admin panelinden yeni
 // eklenen mimarlar Proje Ekle'deki öneri kutusunda görünmüyor" — eski hâli data.js'teki statik
-// architects[] dizisini kullanıyordu, D1'e yeni eklenen kayıtları hiç görmüyordu).
+// architects[] dizisini kullanıyordu, D1'e yeni eklenen kayıtları hiç görmüyordu). Türkçe harf
+// duyarlılığı için SQL LIKE yerine tüm adaylar çekilip trLower ile JS tarafında filtrelenir
+// (tablo küçük olduğundan, bkz. findArchitect'teki AYNI tam-tarama gerekçesi).
 export async function handleArchitectSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const q = (url.searchParams.get('q') || '').trim();
+    const q = trLower((url.searchParams.get('q') || '').trim());
     if (!q) return { items: [] };
-    const like = `%${q}%`;
     const { results } = await env.DB.prepare(
       `SELECT a.name AS name, o.name AS office_name FROM architects a
        LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.name LIKE ?
-       ORDER BY a.name LIMIT 20`
-    ).bind(like).all();
-    return { items: results.map(r => ({ label: r.name, sub: r.office_name || '' })) };
+       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.name`
+    ).all();
+    const items = results.filter(r => trLower(r.name).includes(q)).slice(0, 20).map(r => ({ label: r.name, sub: r.office_name || '' }));
+    return { items };
   });
 }
 

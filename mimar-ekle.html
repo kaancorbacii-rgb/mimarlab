@@ -380,6 +380,11 @@ function escapeAttr(s){
 function trLower(s){
   return (s||'').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
 }
+// bkz. prefillForClaim'deki kullanım — firma-ekle.html#looksLikeInternalId ile BİREBİR aynı; ?claim=
+// değeri src/lib/canonicalSync.js#submissionMarker'ın dahili "submission:<uuid>" işareti olabilir.
+function looksLikeInternalId(v){
+  return /^submission:/i.test(v || '') || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v || '');
+}
 function closeAllDropdowns(){
   document.querySelectorAll('.dd-field.open').forEach(f => f.classList.remove('open'));
 }
@@ -474,12 +479,57 @@ function wireAutocomplete(inputId, suggestionsId, getItems){
   input.addEventListener('focus', renderSuggestions);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
-// Fonksiyon olarak tanımlanır (statik bir dizi DEĞİL) — bkz. proje-ekle.html'deki AYNI düzeltme/
-// gerçek bulgu: admin bir firmayı yeniden adlandırdığında (bkz. data.js#renameOfficeEverywhere,
-// aşağıdaki applyProfileEditPhotos() çağrısı) offices[].name çalışma zamanında mutasyona uğrar; bu
-// liste tek seferlik hesaplanan bir const olsaydı eski adı göstermeye devam ederdi.
-const MARKA_SUGGESTIONS = () => (typeof offices !== 'undefined' ? offices : []).map(o => ({label: o.name, sub: o.loc || ''}));
-wireAutocomplete('m-office', 'ac-marka-suggestions', MARKA_SUGGESTIONS);
+// Firma önerileri statik data.js offices[] dizisi yerine canlı D1 aramasından beslenir (bkz.
+// proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe — statik dizi yalnızca
+// deploy anındaki anlık görüntüyü içerdiğinden, D1'e az önce eklenmiş bir firma burada hiç
+// görünmüyordu, bkz. gerçek bulgu: "BİRİM Design" arama kutusunda çıkmıyordu).
+function lastCommaSegment(value){
+  const parts = value.split(',');
+  return parts[parts.length - 1].trim();
+}
+function replaceLastCommaSegment(value, replacement){
+  const idx = value.lastIndexOf(',');
+  return idx === -1 ? replacement : value.slice(0, idx + 1) + ' ' + replacement;
+}
+function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
+  opts = opts || {};
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  let debounceTimer = null;
+  let currentQuery = '';
+  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
+  function renderItems(items){
+    if(!items.length){ close(); return; }
+    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
+    box.classList.add('show');
+    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
+      el.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        const item = items[i];
+        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
+        close();
+        if(opts.onPick) opts.onPick(item);
+      });
+    });
+  }
+  function fetchSuggestions(q){
+    currentQuery = q;
+    fetch(`${searchUrl}?q=${encodeURIComponent(q)}`)
+      .then(res => res.ok ? res.json() : {items: []})
+      .then(data => { if(q === currentQuery) renderItems((data.items || []).slice(0, 8)); })
+      .catch(()=>{});
+  }
+  function onInput(){
+    const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
+    if(!q){ close(); currentQuery = ''; return; }
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
+  }
+  input.addEventListener('input', onInput);
+  input.addEventListener('focus', onInput);
+  input.addEventListener('blur', ()=> setTimeout(close, 150));
+}
+wireAutocompleteLive('m-office', 'ac-marka-suggestions', '/api/offices/search', {multi:false});
 applyProfileEditPhotos().catch(()=>{});
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite (sitede kayıtlı mimarların okuduğu okullar) ----------
@@ -621,8 +671,10 @@ async function prefillForClaim(){
     }
   }catch{}
 
+  // bkz. firma-ekle.html#prefillForClaim'deki AYNI gerekçe/gerçek bulgu — claimName dahili bir
+  // "submission:<uuid>" işareti olabilir, Mimar Adı kutusuna ham yazılmamalı.
   const nameInput = document.getElementById('m-name');
-  nameInput.value = merged.name || claimName;
+  nameInput.value = merged.name || (looksLikeInternalId(claimName) ? '' : claimName);
   if(isAdmin){
     nameInput.readOnly = false;
     nameInput.style.background = '';
