@@ -6,6 +6,13 @@
 // her sayfada <script src="js/components/modal-shell.js"> ile dahil edilir ve global `ModalShell`
 // nesnesini dışa verir.
 const ModalShell = (function () {
+  // Tarayıcının kendi otomatik scroll-restoration'ı (history.scrollRestoration='auto', varsayılan)
+  // close()'daki history.go(-N)/pushState sonrası fırlayan popstate'te KENDİ scroll konumu tahminini
+  // uygulamaya çalışıyor — bu, unlockBodyScroll()'un aşağıdaki MANUEL geri yükleme ile aynı ana denk
+  // gelip (bkz. kullanıcı isteği: piksel-hassas geri dönüş) bazı tarayıcılarda çift/yarışan bir scroll
+  // sıçramasına yol açıyordu. Manuel moda geçince tarayıcı hiç karışmıyor, tek kaynak biz oluyoruz.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
   let overlayEl = null;
   let panelEl = null;
   let bodyEl = null;
@@ -23,11 +30,22 @@ const ModalShell = (function () {
     // tanımlı (bkz. proje.html) — burada yeniden tanımlamaya gerek yok, cascade zaten çözer.
     style.textContent = `
       .modal-shell-overlay{
-        display:none; position:fixed; inset:0; z-index:150;
+        display:flex; position:fixed; inset:0; z-index:150;
         background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
         align-items:center; justify-content:center; padding:16px;
+        opacity:0; visibility:hidden; pointer-events:none;
+        transition:opacity .3s ease, visibility 0s linear .3s;
       }
-      .modal-shell-overlay.open{display:flex;}
+      /* display:none/flex ile anlık açılıp kapanıyordu — opacity/transform GEÇİŞ ALAMAZ, tarayıcı
+         display değişimini hiçbir ara kare olmadan uygular (bkz. kullanıcı isteği: yumuşak
+         büyüme/belirme animasyonu). Bunun yerine overlay HER ZAMAN display:flex kalır, kapalıyken
+         opacity:0 + visibility:hidden + pointer-events:none ile görünmez/etkileşimsiz tutulur —
+         .open eklendiğinde opacity 1'e geçiş yapar, visibility'nin kendisi anlık değişir ama
+         transition-delay sayesinde opacity geçişi bitene kadar (kapanışta) hidden'a geçmez. */
+      .modal-shell-overlay.open{
+        opacity:1; visibility:visible; pointer-events:auto;
+        transition:opacity .3s ease;
+      }
       /* gerçek bulgu: height:92vh TEK BAŞINA mobil/tablette bazı tarayıcılarda (adres çubuğunun
          100vh hesabına dahil olup olmamasına göre) panelin üst/alt kenara neredeyse yapışmış
          görünmesine yol açıyordu — max-height burada height'ın ÜZERİNE ek bir güvenlik tavanı
@@ -37,7 +55,10 @@ const ModalShell = (function () {
         position:relative; width:95vw; height:92vh; max-height:calc(100vh - 32px); max-width:1440px;
         background:var(--paper-card); border-radius:20px; box-shadow:0 24px 60px rgba(27,42,61,0.28);
         overflow:hidden; display:flex; flex-direction:column;
+        opacity:0; transform:scale(0.95);
+        transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s ease;
       }
+      .modal-shell-overlay.open .modal-shell-panel{opacity:1; transform:scale(1);}
       .modal-shell-close{
         position:absolute; top:16px; left:32px; z-index:5;
         width:36px; height:36px; border-radius:50%; border:none;
@@ -136,7 +157,10 @@ const ModalShell = (function () {
     document.body.style.left = '';
     document.body.style.right = '';
     document.body.style.width = '';
-    window.scrollTo(0, savedScrollY);
+    // behavior:'instant' (CSS'teki html{scroll-behavior:smooth} kuralını GÖRMEZDEN gelir) — aksi
+    // halde animasyonlu kaydırma, hemen ardından gelen popstate/render ile yarışıp konumun tam
+    // hedefe ulaşmadan kesilmesine yol açabiliyordu (bkz. kullanıcı isteği: aynı piksele anında dönüş).
+    window.scrollTo({ top: savedScrollY, left: 0, behavior: 'instant' });
   }
 
   // opts.onRequestClose: backdrop/X/Escape tetiklendiğinde çağrılır — DOM'u KENDİSİ kapatmaz,
@@ -148,6 +172,11 @@ const ModalShell = (function () {
     onRequestClose = onClose || null;
     if (!opened) {
       lockBodyScroll();
+      // Overlay ilk kez ensureDom() ile YENİ oluşturulduysa .open eklemeden önce hiç boyanmamış
+      // olur — .open'ı aynı senkron çağrı içinde eklemek tarayıcının geçiş için bir "önce" karesi
+      // hiç işlememesine (animasyonun atlanmasına) yol açar. offsetHeight okuması zorla bir reflow
+      // tetikleyip kapalı stili taahhüt eder, böylece ilk açılışta da geçiş oynar.
+      void overlayEl.offsetHeight;
       overlayEl.classList.add('open');
       opened = true;
     }

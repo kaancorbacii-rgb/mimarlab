@@ -116,10 +116,21 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
 // sahiplenme/onay akışı YOK — projelerin bir "sahibi" kavramı yok, bu yüzden bu tamamen admin'e
 // özel (bkz. kullanıcı isteği: "admin hesabına tüm projeleri düzenleyebilme yetkisi ver"). Sıradan
 // üyeler claimed_slug göndermeye çalışırsa reddedilir.
+//
+// gerçek bulgu: slug'ı SADECE projeler-data.js dizisinde arıyordu — canonical D1 projects tablosuna
+// taşınmış (bkz. src/lib/canonicalSync.js#syncProject) ya da hiç statik karşılığı olmayan D1-özgün
+// bir proje düzenlenmek istendiğinde slug orada asla bulunamadığından kayıt her zaman "Böyle bir
+// statik proje bulunamadı" ile reddediliyordu. verifyClaimedProfileKey'deki (mimar/firma) AYNI
+// statik-önce-canonical-sonra deseni burada da uygulanır — statik dizide yoksa D1'deki canonical
+// projects tablosuna (slug ya da legacy_key ile) bakılır, orada da yoksa gerçekten "hayalet" bir
+// bağlantıdır.
 async function verifyClaimedSlug(env, user, slug) {
   if (user.role !== 'admin') return errorJson('Bu işlem için yetkin yok.', 403);
-  const project = projeJs.projectBySlug(slug);
-  if (!project) return errorJson('Böyle bir statik proje bulunamadı.', 404);
+  if (projeJs.projectBySlug(slug)) return null;
+  const canonicalRow = await env.DB.prepare(
+    `SELECT id FROM projects WHERE deleted_at IS NULL AND (slug = ? OR legacy_key = ?) LIMIT 1`
+  ).bind(slug, slug).first();
+  if (!canonicalRow) return errorJson('Bu proje artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.', 404);
   return null;
 }
 

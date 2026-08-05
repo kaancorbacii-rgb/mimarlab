@@ -221,10 +221,6 @@
   }
   .content-card-title{font-family:'Inter', sans-serif; font-size:16.5px; font-weight:700; line-height:1.25; margin-bottom:3px;}
   .content-card-by{font-size:11.5px; color:rgba(237,240,243,0.75);}
-  .rating-badge{display:inline-flex; align-items:center; gap:2px; margin-top:4px;}
-  .rating-badge-star{color:rgba(237,240,243,0.5); display:flex;}
-  .rating-badge-star.filled{color:var(--accent);}
-  .rating-badge-count{margin-left:5px; font-family:'IBM Plex Mono', monospace; font-size:10px; color:rgba(237,240,243,0.75);}
   .card-save-btn{
     position:absolute; top:10px; right:10px; z-index:2;
     width:32px; height:32px; border-radius:50%;
@@ -682,7 +678,6 @@ const FILTER_GROUPS = [
   { key: 'designerOffice', label: 'Mimarlık Firması' },
 ];
 
-let projectRatings = new Map();
 // Proje modalının önceki/sonraki proje gezinmesi için (bkz. js/components/project-modal.js §4) —
 // modal, bir karta tıklanarak açıldığında BU sayfanın o anki (filtrelenmiş/sıralanmış) sayfasının
 // içeriğinin bir anlık görüntüsünü alır; arka plandaki liste sonradan değişse bile (mümkün değil,
@@ -982,7 +977,6 @@ async function render(){
   grid.innerHTML = data.items.map(p => {
     const loc = parseLocation(p.location);
     const locLabel = loc.district ? `${loc.district}, ${loc.city}` : loc.city;
-    const rating = ratingOf(projectRatings, p.slug);
     return `
     <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
       ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
@@ -992,7 +986,6 @@ async function render(){
       <div class="content-card-info">
         <div class="content-card-title">${escapeHtml(p.title)}</div>
         <div class="content-card-by">${escapeHtml(locLabel)}${p.date ? ' · ' + escapeHtml(p.date) : ''}</div>
-        ${rating.count ? renderRatingBadge(rating.average, rating.count) : ''}
       </div>
     </a>`;
   }).join('');
@@ -1040,7 +1033,11 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 window.addEventListener('popstate', ()=>{
   const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
   if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
-  if(ProjectModal.isOpen()) ProjectModal.handlePopState(null);
+  // Modal kapanırken buraya (bare /proje) dönülüyorsa arka plandaki liste modal açıkken hiç
+  // değişmedi (etkileşim kilitliydi) — filtreleri sıfırlayıp grid'i YENİDEN ÇEKMEYE gerek yok;
+  // bunu yapmak modal-shell.js'in geri yüklediği scroll konumunu, grid yeniden render olurken
+  // (async fetch + layout shift) bozuyordu (bkz. kullanıcı isteği: scroll konumu tam korunmalı).
+  if(ProjectModal.isOpen()){ ProjectModal.handlePopState(null); return; }
   FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
   applyInitialFiltersFromQuery();
   buildSidebar();
@@ -1048,15 +1045,13 @@ window.addEventListener('popstate', ()=>{
 });
 
 applyInitialFiltersFromQuery();
-loadBulkRatings('project').then(map => { projectRatings = map; }).finally(() => {
-  buildSidebar();
-  render().then(()=>{
-    // Doğrudan /projeler/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
-    // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir
-    // geçmiş girdisi açılmaz (bkz. ProjectModal.open).
-    const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
-    if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false, sourceListItems: currentPageItems });
-  });
+buildSidebar();
+render().then(()=>{
+  // Doğrudan /projeler/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
+  // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir
+  // geçmiş girdisi açılmaz (bkz. ProjectModal.open).
+  const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
+  if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false, sourceListItems: currentPageItems });
 });
 
 function wireNavSearch(){
