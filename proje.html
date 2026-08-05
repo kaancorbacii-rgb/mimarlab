@@ -296,7 +296,20 @@
      (.rating-widget, .designer-chip, .comment-row vb.) proje-detay.html ile BİREBİR aynı — aynı
      paylaşılan JS (rating-widget.js, js/components/project-*.js) bu isimlere yazıyor. */
   .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
-  .detail-title-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 18px;}
+  /* Puanlama + Kaydet: kullanıcı isteği üzerine aynı satırda, ikisi de "pill" görünümlü (bkz.
+     .rating-widget kuralı aşağıda — save-btn ile AYNI çerçeve/dolgu dilini paylaşır). */
+  .pm-rating-save-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;}
+  /* Düzenle/Arşivle/Sil: Kaydet artık bu satırda OLMADIĞINDAN (bkz. yukarısı) üç buton normalde
+     her ekran boyutunda tek satıra sığar — nowrap ile bu garanti edilir. GERÇEK BULGU: buraya
+     ayrıca overflow-x:auto eklemek (taşma güvenlik ağı olarak düşünülmüştü) mobilde bu satırı
+     tamamen çökertiyordu — flexbox spesifikasyonu, non-visible overflow'lu bir elemanın kendisi de
+     BAŞKA bir flex kapsayıcının (bkz. mobilde .modal-shell-body'nin display:contents ile düzleşmiş
+     sütun akışı) ÖĞESİ olduğunda otomatik min-size'ını SIFIRA indiriyor (bkz. CSS Flexbox
+     spesifikasyonu §4.5 "scroll container" min-size kuralı) — desktop'ta bu görünmüyordu çünkü
+     orada #pm-actions sıradan bir blok elemanı, bir flex ÖĞESİ değil. Üç pill zaten en dar ekranda
+     bile rahatça sığdığından overflow-x hiç gerekmiyordu, kaldırıldı.
+  */
+  .detail-title-actions{display:flex; align-items:center; gap:10px; flex-wrap:nowrap; margin:0 0 18px;}
   .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
   .card-edit-btn{
     display:inline-flex; align-items:center;
@@ -325,24 +338,36 @@
      bulunabilmesi için hem .save-btn hem .card-save-btn sınıflarını birlikte taşıyor (bkz.
      ProjectActions.render) — ama .card-save-btn KART bağlamında (üstteki kural, position:absolute;
      top/right) mutlak konumlandırılmış dairesel bir simge olacak şekilde tanımlı; bu, modaldeki
-     butonu aksiyon satırından koparıp panelin sağ üst köşesine yapıştırıyordu. Aşağıdaki daha
-     spesifik seçici yalnızca modalin aksiyon satırı İÇİNDEKİ kopyayı normal akışa geri döndürür,
-     kart bağlamındaki (.content-card .card-save-btn) davranışı etkilemez.
+     butonu normal akıştan koparıp panelin sağ üst köşesine yapıştırıyordu. Aşağıdaki daha spesifik
+     seçici yalnızca modalin Puanlama+Kaydet satırı İÇİNDEKİ kopyayı normal akışa geri döndürür,
+     kart bağlamındaki (.content-card .card-save-btn) davranışı etkilemez. İKİNCİ gerçek bulgu: bu
+     seçici Kaydet'in DOM konumu proje-actions.js'te #pm-actions'tan #pm-save-slot'a taşındığında
+     (bkz. kullanıcı isteği: "Puanlama ile Kaydet aynı satırda") eski ".detail-title-actions
+     .card-save-btn" hedefini kaçırmıştı — buton yeniden köşeye yapıştı; seçici doğru kapsayıcıya
+     (.pm-rating-save-row) güncellendi.
   */
-  .detail-title-actions .card-save-btn{
+  .pm-rating-save-row .card-save-btn{
     position:static; width:auto; height:auto; z-index:auto;
     background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
   }
-  .detail-title-actions .card-save-btn:hover{background:var(--paper-card);}
-  .detail-title-actions .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
+  .pm-rating-save-row .card-save-btn:hover{background:var(--paper-card);}
+  .pm-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
 
-  .rating-widget{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 16px;}
-  .rating-star-row{display:flex; gap:2px;}
+  /* Kaydet butonuyla (.save-btn) AYNI pill çerçeve dili — kullanıcı isteği: "Kaydet butonundaki gibi
+     dış çerçeve, border-radius/pill, hafif arka plan ve padding". Yıldız butonlarının kendi
+     padding'i zaten var, bu yüzden kapsayıcının solundan hafif negatif margin ile hizalanır ki
+     pill kenarına gereğinden fazla boşluk binmesin. */
+  .rating-widget{
+    display:flex; align-items:center; gap:6px; flex-wrap:nowrap; flex-shrink:0;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:6px 14px 6px 10px; margin:0;
+  }
+  .rating-star-row{display:flex; gap:1px;}
   .rating-star-btn{background:none; border:none; padding:2px; color:var(--line); display:flex; transition:transform .1s ease;}
   .rating-star-btn.filled{color:var(--accent);}
   .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
   .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-  .rating-summary{font-size:12.5px; color:var(--ink-soft);}
+  .rating-summary{font-size:12.5px; color:var(--ink-soft); white-space:nowrap;}
 
   .detail-info{margin-top:8px;}
   .designer-section{margin-top:0;}
@@ -507,7 +532,7 @@
     */
     #pm-gallery-wrap{order:1; margin-top:72px;}
     #pm-title{order:2; margin-top:20px;}
-    #pm-rating{order:3;}
+    #pm-rating-save-row{order:3;}
     #pm-actions{order:4;}
     .detail-info{order:5;}
     #pm-comments-section{order:6;}

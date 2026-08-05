@@ -25,11 +25,16 @@ const ModalShell = (function () {
       .modal-shell-overlay{
         display:none; position:fixed; inset:0; z-index:150;
         background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-        align-items:center; justify-content:center; padding:clamp(10px, 3vw, 32px);
+        align-items:center; justify-content:center; padding:16px;
       }
       .modal-shell-overlay.open{display:flex;}
+      /* gerçek bulgu: height:92vh TEK BAŞINA mobil/tablette bazı tarayıcılarda (adres çubuğunun
+         100vh hesabına dahil olup olmamasına göre) panelin üst/alt kenara neredeyse yapışmış
+         görünmesine yol açıyordu — max-height burada height'ın ÜZERİNE ek bir güvenlik tavanı
+         olarak eklenir: viewport nasıl hesaplanırsa hesaplansın panel asla üstten/alttan
+         16px'ten (overlay padding'i) daha yakına giremez. */
       .modal-shell-panel{
-        position:relative; width:95vw; height:92vh; max-width:1440px;
+        position:relative; width:95vw; height:92vh; max-height:calc(100vh - 32px); max-width:1440px;
         background:var(--paper-card); border-radius:20px; box-shadow:0 24px 60px rgba(27,42,61,0.28);
         overflow:hidden; display:flex; flex-direction:column;
       }

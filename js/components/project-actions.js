@@ -3,7 +3,12 @@
 // wireSaveButtons/editSubmissionBtnHtml fonksiyonlarını AYNEN yeniden kullanır (bkz. kullanıcı
 // isteği: mevcut çalışan yardımcı fonksiyonları tekrar üretme).
 const ProjectActions = (function () {
-  const DEFAULT_IDS = { root: 'pm-actions' };
+  // root: Düzenle/Arşivle/Sil satırı. saveSlot: Kaydet butonu artık Puanlama ile AYNI satırda
+  // (bkz. kullanıcı isteği: "Puanlama alanı ile Kaydet butonu yan yana, tek bir satırda") — proje-
+  // modal.js#LEFT_TEMPLATE'te bu iki kapsayıcı FARKLI DOM konumlarında (rating widget'ın yanında ve
+  // yönetici butonlarından ayrı) yer alır, o yüzden Kaydet'i saveBtnHtml burada değil ayrı bir
+  // slot'a yazan render() ayırır.
+  const DEFAULT_IDS = { root: 'pm-actions', saveSlot: 'pm-save-slot' };
 
   function saveBtnHtml(item) {
     return `
@@ -12,9 +17,7 @@ const ProjectActions = (function () {
         <span class="save-btn-label-default">Kaydet</span>
         <span class="save-btn-label-saved">Kaydedildi</span>
       </button>
-      <span class="save-count" id="pm-save-count"></span>
-      <span id="pm-edit-submission-slot"></span>
-      <span id="pm-admin-actions-slot"></span>`;
+      <span class="save-count" id="pm-save-count"></span>`;
   }
 
   async function mountEditButton(item) {
@@ -66,7 +69,8 @@ const ProjectActions = (function () {
 
   function render(item, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
-    document.getElementById(mergedIds.root).innerHTML = saveBtnHtml(item);
+    document.getElementById(mergedIds.saveSlot).innerHTML = saveBtnHtml(item);
+    document.getElementById(mergedIds.root).innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
     wireSaveButtons('project');
     fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(item.slug)}`)
       .then(res => res.ok ? res.json() : null)

@@ -6,7 +6,10 @@
 const ProjectModal = (function () {
   const LEFT_TEMPLATE = `
     <h1 class="detail-title" id="pm-title"></h1>
-    <div class="rating-widget" id="pm-rating" data-type="project"></div>
+    <div class="pm-rating-save-row" id="pm-rating-save-row">
+      <div class="rating-widget" id="pm-rating" data-type="project"></div>
+      <div id="pm-save-slot"></div>
+    </div>
     <div class="detail-title-actions" id="pm-actions"></div>
     <div class="detail-info">
       <div class="designer-section" id="pm-architect-section" style="display:none;">
@@ -217,7 +220,7 @@ const ProjectModal = (function () {
 
   function renderNotFound() {
     document.getElementById('pm-title').textContent = 'Proje bulunamadı';
-    ['pm-rating', 'pm-actions', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
+    ['pm-rating-save-row', 'pm-actions', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
       'pm-comments-section', 'pm-same-designer-section', 'pm-related-section', 'pm-products-section',
       'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'].forEach(id => {
       const el = document.getElementById(id);
