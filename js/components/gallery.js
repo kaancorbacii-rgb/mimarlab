@@ -36,6 +36,12 @@ function initDetailGallery(opts){
   state.images = images;
   state.galleryIndex = 0;
   state.lightboxIndex = 0;
+  // scrollLeft, galleryEl'in İÇERİĞİNE değil KENDİSİNE ait bir özellik — innerHTML'i aşağıda
+  // tamamen değiştirmek bunu SIFIRLAMAZ (bkz. gerçek bulgu: proje modalında swap() ile başka bir
+  // projeye geçildiğinde şerit, index sıfırlanmasına rağmen ÖNCEKİ projede kaydırılmış olduğu piksel
+  // konumunda görünmeye devam ediyordu). state.galleryIndex=0 ile görsel kaydırma konumu arasında
+  // tutarlılık için burada açıkça sıfırlanır.
+  galleryEl.scrollLeft = 0;
 
   galleryEl.innerHTML = images.length ? images.map((img, i) => `
     <a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(img)}" alt="${escapeAttr(title)}" ${i === 0 ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" decoding="async"'}></a>

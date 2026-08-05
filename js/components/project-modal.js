@@ -93,21 +93,37 @@ const ProjectModal = (function () {
   // layout kutusu olmadığından IntersectionObserver hiçbir zaman tetiklenmez — bu yüzden bölümler
   // BAŞTAN görünür bir iskelet (skeleton) ile render edilir, veri geldiğinde ya gerçek içerikle
   // değiştirilir ya da (sonuç boşsa) o zaman gizlenir.
-  function observeOnce(el, loadFn) {
+  //
+  // gerçek bulgu: "İlgili Projeler" bazı durumlarda kalıcı olarak boş/iskelet kalıyordu — bölüm açılış
+  // anında zaten görünür alanın İÇİNDE olsa bile IntersectionObserver'ın tetiklenmesi tarayıcı/cihaza
+  // göre gözle görülür şekilde gecikebiliyor (bir sonraki layout/compositor turuna kadar). Salt IO'ya
+  // güvenmek yerine, timeoutMs verildiğinde bir de zaman aşımı yedeği kurulur — hangisi önce olursa
+  // (görünürlük ya da süre) yükleme O ZAMAN tetiklenir, diğeri iptal edilir. Bu, bölümün ekranda asla
+  // sonsuza dek boş kalmamasını GARANTİ eder, ekstra bir maliyeti yoktur (küçük JSON istekleri,
+  // görsel indirme değil).
+  function observeOnce(el, loadFn, timeoutMs) {
     if (!el) return;
+    let done = false;
+    let timer = null;
+    const trigger = () => {
+      if (done) return;
+      done = true;
+      obs.disconnect();
+      if (timer) clearTimeout(timer);
+      loadFn();
+    };
     const obs = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) { obs.unobserve(el); loadFn(); }
-      });
+      entries.forEach(entry => { if (entry.isIntersecting) trigger(); });
     }, { rootMargin: '200px' });
     obs.observe(el);
+    if (timeoutMs) timer = setTimeout(trigger, timeoutMs);
   }
 
   function armDeferredSections(item, mySeq) {
     const commentsSection = document.getElementById('pm-comments-section');
     document.getElementById('pm-comments-list').innerHTML = '';
     document.getElementById('pm-comment-form-wrap').innerHTML = `<div class="comment-form"><div class="skeleton-line" style="height:90px;border-radius:12px;"></div></div>`;
-    observeOnce(commentsSection, () => { if (mySeq === requestSeq) ProjectComments.mount(commentsSection, item.slug); });
+    observeOnce(commentsSection, () => { if (mySeq === requestSeq) ProjectComments.mount(commentsSection, item.slug); }, 1200);
 
     const sameDesignerSection = document.getElementById('pm-same-designer-section');
     const relatedSection = document.getElementById('pm-related-section');
@@ -118,13 +134,13 @@ const ProjectModal = (function () {
       const result = await ArchitectProjects.mount(item);
       if (mySeq !== requestSeq) return; // bu arada başka bir proje açıldı — yazma sonucu at (bkz. bir sonraki swap kendi armDeferredSections'ını çalıştırıp bölümü zaten doğru veriyle geçersiz kılar)
       await RelatedProjects.mount(item, result ? result.slugs : new Set());
-    });
+    }, 600);
 
     const productsSection = document.getElementById('pm-products-section');
     const materialsSection = document.getElementById('pm-materials-section');
     document.getElementById('pm-products-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
     document.getElementById('pm-materials-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
-    observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); });
+    observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); }, 1200);
   }
 
   function renderPrevNext(item) {

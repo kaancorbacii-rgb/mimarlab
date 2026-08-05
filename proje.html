@@ -321,6 +321,20 @@
   .save-btn-label-saved{display:none;}
   .save-btn.saved .save-btn-label-default{display:none;}
   .save-btn.saved .save-btn-label-saved{display:inline;}
+  /* gerçek bulgu: proje modalının Kaydet butonu save-widget.js'in .card-save-btn seçicisiyle
+     bulunabilmesi için hem .save-btn hem .card-save-btn sınıflarını birlikte taşıyor (bkz.
+     ProjectActions.render) — ama .card-save-btn KART bağlamında (üstteki kural, position:absolute;
+     top/right) mutlak konumlandırılmış dairesel bir simge olacak şekilde tanımlı; bu, modaldeki
+     butonu aksiyon satırından koparıp panelin sağ üst köşesine yapıştırıyordu. Aşağıdaki daha
+     spesifik seçici yalnızca modalin aksiyon satırı İÇİNDEKİ kopyayı normal akışa geri döndürür,
+     kart bağlamındaki (.content-card .card-save-btn) davranışı etkilemez.
+  */
+  .detail-title-actions .card-save-btn{
+    position:static; width:auto; height:auto; z-index:auto;
+    background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
+  }
+  .detail-title-actions .card-save-btn:hover{background:var(--paper-card);}
+  .detail-title-actions .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
 
   .rating-widget{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 16px;}
   .rating-star-row{display:flex; gap:2px;}
@@ -387,9 +401,21 @@
   .gallery-media{position:relative;}
   .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
   .detail-gallery::-webkit-scrollbar{display:none;}
-  .detail-gallery a{flex:0 0 auto;}
-  .detail-gallery img{height:min(52vh, 460px); width:auto; max-width:85%; aspect-ratio:4/3; object-fit:cover; border-radius:14px; background:var(--paper-card); display:block;}
-  .gallery-placeholder{flex:0 0 auto; height:min(52vh, 460px); width:auto; aspect-ratio:4/3; border-radius:14px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;}
+  /* 2:1 (landscape) medya oranı — kutunun boyutu ANKORDA (.detail-gallery a) sabitlenir, img/placeholder
+     onu object-fit:cover ile doldurur. Genişliği doğrudan img üzerinde yüzde ile vermek yerine
+     ankorda flex-basis olarak tanımlamak dairesel bir boyutlandırma sorununu önler (bkz. gerçek bulgu:
+     img'nin kendi genişliği hem içeriğinden hem yüzdesinden gelemeyeceğinden 4:3'ten 2:1'e geçişte
+     img'ye doğrudan width:% verilseydi ankor da auto olduğundan boyut belirsiz kalırdı). */
+  .detail-gallery a{
+    flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px; overflow:hidden;
+    display:block; background:var(--paper-card);
+  }
+  .detail-gallery img{width:100%; height:100%; object-fit:cover; display:block;}
+  .gallery-placeholder{
+    flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;
+  }
   .gallery-nav{
     position:absolute; top:50%; transform:translateY(-50%); z-index:3;
     width:38px; height:38px; border-radius:50%; border:none;
@@ -470,7 +496,26 @@
     .related-grid-scroll{gap:10px;}
     .catalog-card{flex:0 0 130px;}
     .catalog-grid-scroll{gap:10px;}
-    .detail-gallery img, .gallery-placeholder{height:auto; max-height:52vh;}
+    .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
+
+    /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Yorumlar →
+       Diğer Projeler → İlgili Projeler → Ürünler/Malzemeler (bkz. kullanıcı isteği) — modal-shell.js
+       bu kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
+       bu bölümler artık AYNI dikey flex akışının parçası; sıra burada, sırayla artan order değerleriyle
+       verilir. .detail-info künye VE açıklamayı TEK blok olarak taşır (zaten aralarında ayrı bir sıra
+       gerekmiyor, ikisi de kendi içinde doğru DOM sırasında).
+    */
+    #pm-gallery-wrap{order:1; margin-top:72px;}
+    #pm-title{order:2; margin-top:20px;}
+    #pm-rating{order:3;}
+    #pm-actions{order:4;}
+    .detail-info{order:5;}
+    #pm-comments-section{order:6;}
+    #pm-same-designer-section{order:7;}
+    #pm-related-section{order:8;}
+    #pm-products-section{order:9;}
+    #pm-materials-section{order:10;}
+    #pm-prevnext{order:11;}
   }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>

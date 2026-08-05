@@ -34,7 +34,7 @@ const ModalShell = (function () {
         overflow:hidden; display:flex; flex-direction:column;
       }
       .modal-shell-close{
-        position:absolute; top:16px; left:16px; z-index:5;
+        position:absolute; top:16px; left:32px; z-index:5;
         width:36px; height:36px; border-radius:50%; border:none;
         background:var(--paper-card); color:var(--ink); box-shadow:0 4px 12px rgba(27,42,61,0.18);
         display:flex; align-items:center; justify-content:center;
@@ -50,11 +50,19 @@ const ModalShell = (function () {
       }
       .modal-shell-right{padding:32px 32px 48px; min-width:0;}
       @media (max-width:860px){
-        .modal-shell-overlay{padding:0;}
-        .modal-shell-panel{width:100vw; height:100vh; max-width:none; border-radius:0;}
-        .modal-shell-body{grid-template-columns:1fr;}
-        .modal-shell-left{position:static; border-right:none; border-top:1px solid var(--line-soft); padding:20px 18px 32px; order:2;}
-        .modal-shell-right{padding:56px 18px 32px; order:1;}
+        /* Panel kenarlarda hala %92-95 genişlik/yükseklik bırakır (bkz. kullanıcı isteği: mobil/
+           tablette de blurlu overlay alanı görünsün, panel ekranın kenarlarına yapışmasın) — eski
+           tam ekran (100vw/100vh, radius:0, padding:0) geçersiz kılması KALDIRILDI, üstteki temel
+           kurallar (width:95vw; height:92vh; border-radius:20px) tüm kırılma noktalarında geçerli.
+        */
+        .modal-shell-panel{border-radius:16px;}
+        .modal-shell-body{grid-template-columns:1fr; display:flex; flex-direction:column; padding:0 18px 28px;}
+        /* display:contents: sol/sağ panel kapsayıcıları kendi kutularını üretmez, çocukları
+           doğrudan .modal-shell-body'nin flex bağlamına katılır — böylece proje.html'in kendi CSS'i
+           (bkz. #pm-* id'lerine order ataması) galeri/başlık/aksiyon/künye/yorum/carousel'leri TEK
+           bir dikey akışta istenen sırayla (galeri en üstte) yeniden dizebilir; iki panel artık
+           birbirinden bağımsız iki blok olarak DEĞİL, tek bir listenin parçaları olarak davranır. */
+        .modal-shell-left, .modal-shell-right{display:contents;}
       }
     `;
     document.head.appendChild(style);
