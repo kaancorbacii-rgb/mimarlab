@@ -438,76 +438,34 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="data.js"></script>
+<script src="badge-shared.js"></script>
 <script>
+// Faz 3 sonrası: firma.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
+// sayfalama, filtreleme ve sıralama backend'de (/api/offices) canonical D1 tablosu üzerinden
+// yapılıyor (bkz. src/routes/office.js#handleOfficeListRoute, orada cityOf/FOREIGN_LOC_TO_COUNTRY/
+// expBucketOf'un BİREBİR sunucu karşılığı var). Rozet sistemi + initials/officeColor/logoUrl
+// yardımcı fonksiyonları küçük badge-shared.js'ten gelir.
 const PAGE_SIZE = 24;
 let currentPage = 1;
 let searchQuery = '';
 
-// Türkiye dışındaki markalar için konum filtresinde şehir değil, ülke adı gösterilir (bkz. kullanıcı
-// isteği) — ör. "Chicago, ABD" ya da bare "Stuttgart" gibi data.js'teki ham loc değerleri burada
-// tek bir ülke etiketine (ör. "ABD", "Almanya") normalize edilir.
-const FOREIGN_LOC_TO_COUNTRY = {
-  'Almanya': 'Almanya',
-  'Amsterdam, Hollanda': 'Hollanda',
-  'Chicago, ABD': 'ABD',
-  'Ljubljana': 'Slovenya',
-  'Londra, İngiltere': 'İngiltere',
-  'Los Angeles, ABD': 'ABD',
-  'Milano, İtalya': 'İtalya',
-  'Moskova': 'Rusya',
-  'New York, ABD': 'ABD',
-  'Paris': 'Fransa',
-  'Paris, Fransa': 'Fransa',
-  'Roma': 'İtalya',
-  'Rotterdam': 'Hollanda',
-  'Rotterdam, Hollanda': 'Hollanda',
-  'Stuttgart': 'Almanya',
-  'Stuttgart, Almanya': 'Almanya',
-  'Tokyo, Japonya': 'Japonya',
-};
-function cityOf(loc){
-  if(FOREIGN_LOC_TO_COUNTRY[loc]) return FOREIGN_LOC_TO_COUNTRY[loc];
-  return loc.split(' / ')[0];
-}
-
-function trLower(s){
-  return s
-    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş')
-    .replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
-    .toLowerCase();
-}
-
-function populateFilters(){
-  const locCounts = {};
-  offices.forEach(o=>{
-    const city = cityOf(o.loc);
-    if(city === 'Türkiye') return;
-    locCounts[city] = (locCounts[city] || 0) + 1;
-  });
-  const locs = Object.keys(locCounts).sort((a,b)=> locCounts[b] - locCounts[a] || a.localeCompare(b,'tr'));
+// Sunucudan (data.filters) gelen loc/cat seçeneklerini <select>'lere yeniden çizer — eski
+// client-side hesaplı populateFilters()'ın AYNI görsel sonucu, yalnızca veri kaynağı sunucu.
+function populateFilterOptions(filtersData){
   const locSel = document.getElementById('g-loc');
   const prevLoc = locSel.value;
   locSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  locs.forEach(l=>{
-    const o = document.createElement('option'); o.value = l; o.textContent = `${l} (${locCounts[l]})`; o.dataset.dynamic = '1';
+  (filtersData.loc || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
     locSel.appendChild(o);
   });
   locSel.value = prevLoc;
 
-  // Statik bir seçenek listesi yerine gerçek verideki hizmet alanlarını sayar (bkz. kullanıcı
-  // isteği: "yeni eklenen seçenekler otomatik olarak filtrelerdeki ilgili bölümlere eklensin") —
-  // firma-ekle.html'deki Hizmet Alanı checkbox listesine yeni bir seçenek eklenip bir firmaya
-  // işlendiğinde, bu filtre elle güncellenmeden kendiliğinden görünür (g-loc'taki aynı desen).
   const catSel = document.getElementById('g-cat');
   const prevCat = catSel.value;
   catSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  const catCounts = {};
-  offices.forEach(o=>{
-    (o.cats || '').split(' · ').map(s=>s.trim()).filter(Boolean).forEach(cat => { catCounts[cat] = (catCounts[cat] || 0) + 1; });
-  });
-  Object.keys(catCounts).sort((a,b)=> catCounts[b] - catCounts[a] || a.localeCompare(b,'tr')).forEach(cat=>{
-    const o = document.createElement('option'); o.value = cat; o.textContent = `${cat} (${catCounts[cat]})`; o.dataset.dynamic = '1';
+  (filtersData.cat || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
     catSel.appendChild(o);
   });
   catSel.value = prevCat;
@@ -539,6 +497,12 @@ function getPageList(totalPages, currentPage){
   return pages;
 }
 
+function goToPage(p){
+  currentPage = p;
+  syncBrowserUrl(true);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 function renderPagination(totalPages){
   const el = document.getElementById('pagination');
   if(totalPages <= 1){ el.innerHTML = ''; return; }
@@ -550,71 +514,88 @@ function renderPagination(totalPages){
   html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
   el.innerHTML = html;
   el.querySelectorAll('[data-page]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      currentPage = parseInt(btn.dataset.page); render();
-      window.scrollTo({top:0, behavior:'smooth'});
-    });
+    btn.addEventListener('click', ()=> goToPage(parseInt(btn.dataset.page)));
   });
   const prevBtn = document.getElementById('page-prev');
   const nextBtn = document.getElementById('page-next');
-  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); window.scrollTo({top:0, behavior:'smooth'}); } });
-  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; render(); window.scrollTo({top:0, behavior:'smooth'}); } });
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goToPage(currentPage-1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
 }
 
-// Tecrübe, firmanın kuruluş yılından (o.yil) bugüne geçen süreye göre hesaplanır (bkz. kullanıcı
-// isteği). yil bilinmiyorsa (null) hiçbir tecrübe aralığıyla eşleşmez — "Kuruluş Yılı" alanı
-// zaten opsiyonel olduğundan (bkz. firma-ekle.html) bilinmeyen bir süreyi bir aralığa zorlamak
-// yanıltıcı olurdu.
-function expBucketOf(yil){
-  if(!yil) return null;
-  const years = new Date().getFullYear() - yil;
-  if(years < 1) return null;
-  if(years <= 5) return '1-5';
-  if(years <= 10) return '6-10';
-  if(years <= 20) return '11-20';
-  if(years <= 30) return '21-30';
-  return '30+';
-}
-
-function render(){
-  const sort = document.getElementById('g-sort').value;
+// Aktif filtre/arama/sıralama/sayfa durumundan ?query string üretir — hem /api/offices isteği hem
+// de tarayıcı URL senkronu için TEK noktadan kullanılır (bkz. mimar.html'deki AYNI desen).
+function currentQueryParams(){
+  const params = new URLSearchParams();
   const loc = document.getElementById('g-loc').value;
   const cat = document.getElementById('g-cat').value;
   const exp = document.getElementById('g-exp').value;
-  const q = trLower(searchQuery.trim());
+  const sort = document.getElementById('g-sort').value;
+  if(loc) params.set('loc', loc);
+  if(cat) params.set('cat', cat);
+  if(exp) params.set('exp', exp);
+  if(sort) params.set('sort', sort);
+  if(searchQuery.trim()) params.set('search', searchQuery.trim());
+  return params;
+}
+function syncBrowserUrl(push){
+  const params = currentQueryParams();
+  if(currentPage > 1) params.set('page', String(currentPage));
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  if(newUrl === location.pathname + location.search) return;
+  if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
+}
+function applyStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  document.getElementById('g-loc').value = params.get('loc') || '';
+  document.getElementById('g-cat').value = params.get('cat') || '';
+  document.getElementById('g-exp').value = params.get('exp') || '';
+  document.getElementById('g-sort').value = params.get('sort') || '';
+  searchQuery = params.get('search') || '';
+  document.getElementById('g-local-search').value = searchQuery;
+  const pageParam = parseInt(params.get('page'), 10);
+  currentPage = (pageParam > 1) ? pageParam : 1;
+}
 
-  let filtered = offices.filter(o=>{
-    if(loc && cityOf(o.loc) !== loc) return false;
-    if(cat && !o.cats.includes(cat)) return false;
-    if(exp && expBucketOf(o.yil) !== exp) return false;
-    if(q && !trLower(o.name).includes(q)) return false;
-    return true;
-  });
-
-  filtered.sort((a,b)=>{
-    switch(sort){
-      case 'name_asc': return a.name.localeCompare(b.name, 'tr');
-      case 'year_desc': return (b.yil||0) - (a.yil||0);
-      case 'year_asc': return (a.yil||9999) - (b.yil||9999);
-      default: return 0;
-    }
-  });
-
-  document.getElementById('result-count').textContent = `${filtered.length} firma listeleniyor`;
-
+// render() artık yalnızca mevcut sayfanın kartlarını /api/offices'ten çeker — tüm firma listesi
+// hiçbir zaman tarayıcıya inmiyor (bkz. mimar.html#render'daki AYNI desen).
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  if(currentPage > totalPages) currentPage = totalPages;
-  renderPagination(totalPages);
+  grid.style.opacity = '0.5';
 
-  if(filtered.length === 0){ grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/offices?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){ console.error('Firma listesi alınamadı:', err); }
+  if(myRequest !== renderRequestId) return;
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Firmalar yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} firma listeleniyor`;
+  populateFilterOptions(data.filters || {});
+  renderPagination(data.totalPages);
+
+  if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan firma bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
-  const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-
-  grid.innerHTML = pageItems.map(o=>{
+  grid.innerHTML = data.items.map(o=>{
     const logo = logoUrl(o);
     const safeInitialsAttr = escapeAttr(initials(o.name));
     const safeInitialsText = escapeHtml(initials(o.name));
@@ -632,12 +613,15 @@ function render(){
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+let searchDebounce = null;
 ['g-sort','g-loc','g-cat','g-exp'].forEach(id=>{
-  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
+  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
 });
 document.getElementById('g-local-search').addEventListener('input', (e)=>{
   searchQuery = e.target.value;
-  currentPage = 1; render();
+  currentPage = 1;
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
 });
 document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-sort').value = '';
@@ -648,8 +632,11 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-local-search').value = '';
   document.getElementById('f-search-topnav').value = '';
   document.getElementById('f-search-nav').value = '';
-  currentPage = 1; render();
+  currentPage = 1;
+  syncBrowserUrl(true);
+  render();
 });
+window.addEventListener('popstate', ()=>{ applyStateFromUrl(); render(); });
 
 function wireNavSearch(){
   function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -746,30 +733,9 @@ document.addEventListener('click', (e)=>{
   if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
 });
 
-// Üyelerin gönderip admin'in onayladığı firmaları statik listeye ekler.
-fetch('/api/public/offices').then(res => res.ok ? res.json() : {items:[]}).then(data => {
-  offices.push(...(data.items || []));
-}).catch(()=>{}).finally(() => {
-  populateFilters();
-  render();
-  window.addEventListener('mimarlab-badges-ready', render);
-});
-
-// Admin'in admin panelinden gizlediği statik firmaları listeden çıkarır (bkz.
-// src/routes/legacyContent.js, GET /api/public/hidden).
-fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(hidden => {
-  const hiddenSet = new Set(hidden.offices || []);
-  if(!hiddenSet.size) return;
-  for(let i = offices.length - 1; i >= 0; i--){
-    if(hiddenSet.has(offices[i].name)) offices.splice(i, 1);
-  }
-}).catch(()=>{}).finally(() => {
-  populateFilters();
-  render();
-});
-
-// Onaylı profil düzenlemesiyle yüklenen logoları karta yansıt (bkz. data.js#applyProfileEditPhotos).
-applyProfileEditPhotos().finally(() => { render(); });
+applyStateFromUrl();
+render();
+window.addEventListener('mimarlab-badges-ready', render);
 </script>
 </body>
 </html>

@@ -43,6 +43,109 @@ export async function handleOfficeSearchRoute(request, env, url) {
   });
 }
 
+// firma.html#FOREIGN_LOC_TO_COUNTRY/cityOf ile BİREBİR aynı — Türkiye dışındaki markalar için konum
+// filtresinde şehir değil ülke adı gösterilir.
+const FOREIGN_LOC_TO_COUNTRY = {
+  'Almanya': 'Almanya', 'Amsterdam, Hollanda': 'Hollanda', 'Chicago, ABD': 'ABD', 'Ljubljana': 'Slovenya',
+  'Londra, İngiltere': 'İngiltere', 'Los Angeles, ABD': 'ABD', 'Milano, İtalya': 'İtalya', 'Moskova': 'Rusya',
+  'New York, ABD': 'ABD', 'Paris': 'Fransa', 'Paris, Fransa': 'Fransa', 'Roma': 'İtalya', 'Rotterdam': 'Hollanda',
+  'Rotterdam, Hollanda': 'Hollanda', 'Stuttgart': 'Almanya', 'Stuttgart, Almanya': 'Almanya', 'Tokyo, Japonya': 'Japonya',
+};
+function cityOf(loc) {
+  if (!loc) return '';
+  if (FOREIGN_LOC_TO_COUNTRY[loc]) return FOREIGN_LOC_TO_COUNTRY[loc];
+  return loc.split(' / ')[0];
+}
+
+// firma.html#expBucketOf ile BİREBİR aynı.
+function expBucketOf(yil) {
+  if (!yil) return null;
+  const years = new Date().getFullYear() - yil;
+  if (years < 1) return null;
+  if (years <= 5) return '1-5';
+  if (years <= 10) return '6-10';
+  if (years <= 20) return '11-20';
+  if (years <= 30) return '21-30';
+  return '30+';
+}
+
+function trLowerSearch(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+
+// GET /api/offices — firma.html#render()'ın sayfalanmış sunucu karşılığı (bkz. src/routes/
+// architect.js#handleArchitectListRoute'daki AYNI desen).
+export async function handleOfficeListRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+    const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
+    const sort = url.searchParams.get('sort') || '';
+    const locParam = url.searchParams.get('loc') || '';
+    const catParam = url.searchParams.get('cat') || '';
+    const expParam = url.searchParams.get('exp') || '';
+    const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
+
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`
+    ).all();
+    const pool = results.map(row => {
+      const o = parseCanonicalRow('offices', row);
+      // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
+      // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de
+      // olduğu gibi döner (bkz. o dosyadaki JSON_FIELDS notu). firma.html'in her yerde beklediği
+      // düz " · "-ayrımlı string biçimine burada TEK noktadan normalize edilir.
+      const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (o.cats || '');
+      return { name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, badges: [] };
+    });
+
+    function passes(o) {
+      if (locParam && cityOf(o.loc) !== locParam) return false;
+      if (catParam && !(o.cats || '').includes(catParam)) return false;
+      if (expParam && expBucketOf(o.yil) !== expParam) return false;
+      if (searchQuery && !trLowerSearch(o.name).includes(searchQuery)) return false;
+      return true;
+    }
+
+    const filtered = pool.filter(passes);
+
+    if (sort) {
+      filtered.sort((a, b) => {
+        switch (sort) {
+          case 'name_asc': return a.name.localeCompare(b.name, 'tr');
+          case 'year_desc': return (b.yil || 0) - (a.yil || 0);
+          case 'year_asc': return (a.yil || 9999) - (b.yil || 9999);
+          default: return 0;
+        }
+      });
+    }
+
+    // firma.html#populateFilters — sayaçlar tüm havuz üzerinden, aktif filtrelerden bağımsız
+    // (mimar.html#handleArchitectListRoute'daki AYNI gerekçe). Türkiye tek başına bir konum
+    // seçeneği olarak listelenmez (bkz. firma.html#populateFilters'daki AYNI `city === 'Türkiye'` atlama).
+    const locCounts = {}, catCounts = {};
+    pool.forEach(o => {
+      const city = cityOf(o.loc);
+      if (city && city !== 'Türkiye') locCounts[city] = (locCounts[city] || 0) + 1;
+      (o.cats || '').split(' · ').map(s => s.trim()).filter(Boolean).forEach(cat => { catCounts[cat] = (catCounts[cat] || 0) + 1; });
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (Math.min(page, totalPages) - 1) * limit;
+    const items = filtered.slice(start, start + limit);
+
+    return {
+      items, total, page: Math.min(page, totalPages), totalPages,
+      filters: {
+        loc: Object.keys(locCounts).sort((a, b) => locCounts[b] - locCounts[a] || a.localeCompare(b, 'tr')).map(v => ({ value: v, count: locCounts[v] })),
+        cat: Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a] || a.localeCompare(b, 'tr')).map(v => ({ value: v, count: catCounts[v] })),
+      },
+    };
+  });
+}
+
 // GET /api/office/:key — ofis-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
 // { item, founders, relatedProjects, hidden } — eski overlay tabanlı sürümle BİREBİR aynı.
 export async function handleOfficeRoute(request, env, url, rawKey) {

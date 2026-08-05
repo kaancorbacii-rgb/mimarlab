@@ -280,7 +280,6 @@
 <script src="save-widget.js"></script>
 <script src="rating-widget.js"></script>
 <script src="catalog-taxonomy.js"></script>
-<script src="data.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -368,55 +367,26 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="urunler-data.js"></script>
-<script src="malzemeler-data.js"></script>
 <script>
+// Faz 3 sonrası: urun.html artık data.js/urunler-data.js/malzemeler-data.js'in ağır dizilerini hiç
+// indirmiyor — bu sayfa zaten architects[]/offices[] dizilerini, verifiedBadgeHtml/badges'i ya da
+// slugify'ı hiç kullanmıyordu (doğrulandı), yani bu üç dosyanın hiçbirine gerçek bir bağımlılığı
+// yoktu. Sayfalama/filtreleme/sıralama artık backend'de (/api/products) canonical D1 `products`
+// tablosu üzerinden yapılıyor — `kind` kolonu zaten 'product'/'material' ayrımını tuttuğundan
+// (bkz. src/routes/product.js#handleProductListRoute) eski client-side `products.push(...materials)`
+// birleştirmesi gerekmiyor.
 const PAGE_SIZE = 24;
 let currentPage = 1;
 let localSearchQuery = '';
-let productRatings = new Map();
-let materialRatings = new Map();
-// Ürün ve Malzeme tek sayfada birleştirildi (bkz. kullanıcı isteği: "Artık sadece ürün sayfası
-// yayında olsun") — backend'de iki ayrı tablo/uç nokta (products/materials) korunuyor, burada
-// tek bir listede gösterilmek üzere birleştiriliyor. Her kayıt hangi kaynaktan geldiğini _kind
-// alanında taşır ('products' | 'materials') — puan/kaydet/düzenle butonları bu alana göre doğru
-// API'ye yönlendirilir (bkz. ratingKindFor, render()).
-products.forEach(p => { p._kind = 'products'; });
-materials.forEach(m => { m._kind = 'materials'; });
-products.push(...materials);
-
-function ratingKindFor(p){ return p._kind === 'materials' ? 'material' : 'product'; }
-function ratingMapFor(p){ return p._kind === 'materials' ? materialRatings : productRatings; }
-
-function trLower(s){
-  return s.replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
-}
 
 const FILTER_GROUPS = [
-  { key: 'group', label: 'Grup', field: p => { const g = taxonomyGroupOf(CATALOG_TAXONOMY, p.category); return g ? [g] : []; } },
-  { key: 'category', label: 'Kategori', field: p => [p.category] },
-  { key: 'brand', label: 'Firma', field: p => p.brand ? [p.brand] : [] },
-  { key: 'rating', label: 'Puan', field: p => ratingBuckets(ratingOf(ratingMapFor(p), productKey(p)).average) },
+  { key: 'group', label: 'Grup' },
+  { key: 'category', label: 'Kategori' },
+  { key: 'brand', label: 'Firma' },
+  { key: 'rating', label: 'Puan' },
 ];
 const activeFilters = {};
 FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
-
-function matchesLocalSearch(p){
-  const q = trLower(localSearchQuery.trim());
-  if(!q) return true;
-  return [p.title, p.category, p.brand].some(v => v && trLower(String(v)).includes(q));
-}
-
-function passesFilters(p, exceptKey){
-  if(!matchesLocalSearch(p)) return false;
-  return FILTER_GROUPS.every(g => {
-    if(g.key === exceptKey) return true;
-    const sel = activeFilters[g.key];
-    if(sel.size === 0) return true;
-    const vals = g.field(p);
-    return vals.some(v => sel.has(v));
-  });
-}
 
 function getPageWindowSize(){
   const w = window.innerWidth;
@@ -454,41 +424,67 @@ function renderPagination(totalPages){
   html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
   el.innerHTML = html;
   el.querySelectorAll('[data-page]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ currentPage=parseInt(btn.dataset.page); render(); window.scrollTo({top:0,behavior:'smooth'}); });
+    btn.addEventListener('click', ()=> goToPage(parseInt(btn.dataset.page)));
   });
   const prevBtn=document.getElementById('page-prev'), nextBtn=document.getElementById('page-next');
-  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1){currentPage--; render(); window.scrollTo({top:0,behavior:'smooth'});} });
-  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){currentPage++; render(); window.scrollTo({top:0,behavior:'smooth'});} });
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goToPage(currentPage-1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
 }
 
-function buildSidebar(){
+// Aktif filtre/arama/sıralama durumundan ?query string üretir (page/limit HARİÇ — bkz. çağıranlar)
+// — hem /api/products isteği hem de tarayıcı URL senkronu için TEK noktadan kullanılır.
+function currentQueryParams(){
+  const params = new URLSearchParams();
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
+  if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
+  const sort = document.getElementById('g-sort').value;
+  if(sort) params.set('sort', sort);
+  return params;
+}
+
+// Sidebar artık /api/products'ın döndürdüğü `filters` alanından çizilir (proje.html#buildSidebar
+// ile AYNI desen) — kendi küçük isteğini atar (limit=1, yalnızca facet sayaçları için, kart
+// listesini render()'ın kendi isteğiyle tekrar çekmemek amacıyla page verisi burada önemsiz).
+async function buildSidebar(){
   const sidebar = document.getElementById('sidebar');
+  let filtersData = {};
+  try{
+    const params = currentQueryParams();
+    params.set('page', '1');
+    params.set('limit', '1');
+    const res = await fetch(`/api/products?${params.toString()}`);
+    if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
+  }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
+
   let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
     <div class="sidebar-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="g-local-search" placeholder="Ürün ara..." value="${escapeAttr(localSearchQuery)}">
     </div>`;
   FILTER_GROUPS.forEach(g => {
-    const passing = products.filter(p => passesFilters(p, g.key));
-    const counts = {};
-    passing.forEach(p => { g.field(p).forEach(v => { if(v) counts[v] = (counts[v]||0)+1; }); });
-    const options = Object.keys(counts).sort((a,b)=> counts[b]-counts[a] || a.localeCompare(b,'tr'));
+    const options = filtersData[g.key] || [];
     if(options.length === 0) return;
     html += `<div class="filter-group" data-key="${g.key}">
       <button class="filter-group-head" data-toggle="${g.key}">${g.label} <span class="filter-group-toggle">+</span></button>
       <div class="filter-group-body" id="fg-${g.key}">
         <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
-        ${options.map(opt => `
+        ${options.map(({value, count}) => `
           <label class="filter-opt">
-            <input type="checkbox" data-key="${g.key}" value="${escapeAttr(opt)}" ${activeFilters[g.key].has(opt)?'checked':''}>
-            <span>${escapeHtml(opt)}</span>
-            <span class="filter-opt-count">(${counts[opt]})</span>
+            <input type="checkbox" data-key="${g.key}" value="${escapeAttr(value)}" ${activeFilters[g.key].has(value)?'checked':''}>
+            <span>${escapeHtml(value)}</span>
+            <span class="filter-opt-count">(${count})</span>
           </label>`).join('')}
       </div>
     </div>`;
   });
   html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="urun-ekle.html"><span class="sidebar-add-icon">+</span> Ürün Ekle</a></div>`;
   sidebar.innerHTML = html;
+
+  FILTER_GROUPS.forEach(g => {
+    if(activeFilters[g.key].size === 0) return;
+    const grp = sidebar.querySelector(`.filter-group[data-key="${g.key}"]`);
+    if(grp) grp.classList.add('open');
+  });
 
   sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
     btn.addEventListener('click', ()=> btn.parentElement.classList.toggle('open'));
@@ -498,6 +494,7 @@ function buildSidebar(){
     FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
     localSearchQuery = '';
     currentPage = 1;
+    syncBrowserUrl(true);
     buildSidebar(); render();
   });
   sidebar.querySelectorAll('input[type=checkbox]').forEach(cb=>{
@@ -505,56 +502,54 @@ function buildSidebar(){
       const key = cb.dataset.key, val = cb.value;
       if(cb.checked) activeFilters[key].add(val); else activeFilters[key].delete(val);
       currentPage = 1;
+      syncBrowserUrl(true);
       buildSidebar(); render();
       const grp = sidebar.querySelector(`.filter-group[data-key="${key}"]`);
       if(grp) grp.classList.add('open');
     });
   });
   const localSearchInput = document.getElementById('g-local-search');
+  let searchDebounce = null;
   if(localSearchInput) localSearchInput.addEventListener('input', ()=>{
     localSearchQuery = localSearchInput.value;
     currentPage = 1;
-    render();
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
   });
   sidebar.querySelectorAll('.filter-search-input').forEach(input => {
     input.addEventListener('click', e => e.stopPropagation());
     input.addEventListener('input', () => {
       const body = input.closest('.filter-group-body');
-      const q = trLower(input.value.trim());
+      const q = input.value.trim().toLowerCase();
       body.querySelectorAll('.filter-opt').forEach(opt => {
-        const label = trLower(opt.querySelector('span').textContent);
+        const label = opt.querySelector('span').textContent.toLowerCase();
         opt.style.display = !q || label.includes(q) ? '' : 'none';
       });
     });
   });
-
-  reconcileFilterCountsFromServer();
 }
 
-// GET /api/facets/products (bkz. src/lib/facetCounts.js, src/routes/facets.js) — Faz 3'ün canlı
-// facet_counts+KV önbelleğinden okur, proje.html#reconcileFilterCountsFromServer ile AYNI "önce
-// anlık client, sonra sessiz sunucu düzeltmesi" deseni. FARK: bu uç yalnızca HİÇ filtre/arama aktif
-// değilken (genel/filtresiz sayaç) doğru sonuç verir — proje.html'in aksine bağımlı/faceted sayım
-// yapmaz (bkz. src/lib/facetCounts.js dosya başı kapsam notu), bu yüzden herhangi bir filtre ya da
-// arama aktifken hiç çağrılmaz, client'ın kendi (zaten doğru) bağımlı hesabı bozulmasın diye.
-function reconcileFilterCountsFromServer(){
-  const anyActive = FILTER_GROUPS.some(g => activeFilters[g.key].size > 0) || localSearchQuery.trim();
-  if(anyActive) return;
-  fetch('/api/facets/products')
-    .then(res => res.ok ? res.json() : null)
-    .then(data => {
-      if(!data || !data.facets) return;
-      const sidebar = document.getElementById('sidebar');
-      Object.keys(data.facets).forEach(key => {
-        const counts = data.facets[key];
-        sidebar.querySelectorAll(`.filter-opt input[data-key="${key}"]`).forEach(cb => {
-          if(counts[cb.value] === undefined) return;
-          const countEl = cb.closest('.filter-opt').querySelector('.filter-opt-count');
-          if(countEl) countEl.textContent = `(${counts[cb.value]})`;
-        });
-      });
-    })
-    .catch(()=>{});
+function syncBrowserUrl(push){
+  const params = currentQueryParams();
+  if(currentPage > 1) params.set('page', String(currentPage));
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  if(newUrl === location.pathname + location.search) return;
+  if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
+}
+function applyStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].clear(); params.getAll(g.key).forEach(v => activeFilters[g.key].add(v)); });
+  localSearchQuery = params.get('search') || '';
+  document.getElementById('g-sort').value = params.get('sort') || '';
+  const pageParam = parseInt(params.get('page'), 10);
+  currentPage = (pageParam > 1) ? pageParam : 1;
+}
+function goToPage(p){
+  currentPage = p;
+  syncBrowserUrl(true);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
 function renderActiveChips(){
@@ -571,54 +566,72 @@ function renderActiveChips(){
     btn.addEventListener('click', ()=>{
       const chip = btn.parentElement;
       activeFilters[chip.dataset.key].delete(chip.dataset.val);
+      currentPage = 1;
+      syncBrowserUrl(true);
       buildSidebar(); render();
     });
   });
 }
 
-function render(){
-  const sort = document.getElementById('g-sort').value;
-  const filtered = products.filter(p => passesFilters(p, null));
-  filtered.sort((a,b)=>{
-    switch(sort){
-      case 'name_asc': return a.title.localeCompare(b.title, 'tr');
-      case 'rating_desc': case 'rating_asc': {
-        const ra = ratingOf(ratingMapFor(a), productKey(a)), rb = ratingOf(ratingMapFor(b), productKey(b));
-        if(!ra.count && !rb.count) return 0;
-        if(!ra.count) return 1;
-        if(!rb.count) return -1;
-        return sort === 'rating_desc' ? rb.average - ra.average : ra.average - rb.average;
-      }
-      default: return 0;
-    }
-  });
-  document.getElementById('result-count').textContent = `${filtered.length} ürün listeleniyor`;
-  renderActiveChips();
+// ratingKindFor/submissionType: backend `kind` alanı 'product'|'material' (tekil, canonical şema) —
+// save-widget.js#EDIT_PAGE_BY_SUBMISSION_TYPE ve applyEditButtons ise 'products'|'materials' (çoğul,
+// eski submission tablosu adları) bekliyor; kart render'ı ikisini de bu tek noktadan üretir.
+function ratingKindFor(p){ return p.kind === 'material' ? 'material' : 'product'; }
+function submissionTypeFor(p){ return p.kind === 'material' ? 'materials' : 'products'; }
 
+// render() artık yalnızca mevcut sayfanın kartlarını /api/products'ten çeker (bkz. kullanıcı
+// isteği: her sayfa geçişinde sadece o sayfadaki veriyi çek) — tüm ürün/malzeme listesi hiçbir
+// zaman tarayıcıya inmiyor.
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  if(currentPage > totalPages) currentPage = totalPages;
-  renderPagination(totalPages);
-  if(filtered.length === 0){ grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  grid.style.opacity = '0.5';
+
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/products?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){ console.error('Ürün listesi alınamadı:', err); }
+  if(myRequest !== renderRequestId) return;
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Ürünler yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} ürün listeleniyor`;
+  renderActiveChips();
+  renderPagination(data.totalPages);
+
+  if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan ürün bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
-  const startIdx = (currentPage-1) * PAGE_SIZE;
-  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-
+  const pageItems = data.items;
   grid.innerHTML = pageItems.map(p => `
     <div class="content-card">
       ${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}
-      <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(productKey(p))}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="urun.html" aria-label="Kaydet">
+      <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="urun.html" aria-label="Kaydet">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
       </button>
       <div class="content-card-info">
         <div class="content-card-cat">${escapeHtml(p.category)}</div>
         <div class="content-card-title">${escapeHtml(p.title)}</div>
         ${p.brand ? `<div class="content-card-by">${escapeHtml(p.brand)}</div>` : ''}
-        <div class="rating-widget" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(productKey(p))}"></div>
-        <span class="edit-slot" data-type="${p._kind}" data-id="${escapeAttr(p.submissionId || '')}"></span>
-        ${p._kind === 'products' ? `<span class="admin-action-slot" data-id="${escapeAttr(p.submissionId || '')}" data-key="${escapeAttr(productLegacyKey(p))}"></span>` : ''}
+        <div class="rating-widget" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}"></div>
+        <span class="edit-slot" data-type="${submissionTypeFor(p)}" data-id="${escapeAttr(p.submissionId || '')}"></span>
+        ${p.kind !== 'material' ? `<span class="admin-action-slot" data-id="${escapeAttr(p.submissionId || '')}" data-key="${escapeAttr(`${p.brand || ''}|||${p.title}`)}"></span>` : ''}
       </div>
     </div>`).join('');
   wireSaveButtons('product');
@@ -630,28 +643,16 @@ function render(){
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('a')) return;
-      window.location.href = '/urunler/' + encodeURIComponent(productKey(pageItems[i]));
+      window.location.href = '/urunler/' + encodeURIComponent(pageItems[i].ratingKey);
     });
   });
-}
-
-function productKey(p){
-  if(p.submissionId) return 'm-' + p.submissionId;
-  return slugify(p.title + '-' + (p.brand || ''));
-}
-
-// src/routes/legacyContent.js#LEGACY_TYPES.products.key ile birebir aynı üretim — ürünün kararlı
-// bir id'si olmadığından (statik urunler-data.js sadece title/brand tutar) admin aksiyonları bu
-// "marka|||başlık" anahtarıyla statik kaydı bulur.
-function productLegacyKey(p){
-  return `${p.brand || ''}|||${p.title}`;
 }
 
 // Admin, ürün kartlarında "Gönderiyi Düzenle"nin yanına Arşivle/Sil butonları görür (bkz. kullanıcı
 // isteği: "ürüne silme ve arşivleme yetkisi ver ... düzenle butonunun yanında") — üye gönderisi
 // ürünlerde (submissionId dolu) id ile, statik ürünlerde "marka|||başlık" anahtarıyla işlem yapılır
 // (bkz. src/routes/legacyContent.js#handleContentAction). Yalnızca gerçek ürünler için (malzemeler
-// için değil, bkz. render() içindeki p._kind === 'products' koşulu).
+// için değil, bkz. render() içindeki p.kind !== 'material' koşulu).
 async function applyAdminActions(){
   await savedWidgetReady;
   if(!currentUser || currentUser.role !== 'admin') return;
@@ -692,40 +693,12 @@ async function runContentModeration(slot, action){
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; render(); });
+document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
+window.addEventListener('popstate', ()=>{ applyStateFromUrl(); buildSidebar(); render(); });
 
-// Üyelerin gönderip admin'in onayladığı ürün/malzemeleri statik listeye ekler.
-Promise.all([
-  fetch('/api/public/products').then(res => res.ok ? res.json() : {items:[]}).then(data => {
-    const items = data.items || [];
-    items.forEach(it => { it._kind = 'products'; });
-    products.push(...items);
-  }).catch(()=>{}),
-  fetch('/api/public/materials').then(res => res.ok ? res.json() : {items:[]}).then(data => {
-    const items = data.items || [];
-    items.forEach(it => { it._kind = 'materials'; });
-    products.push(...items);
-  }).catch(()=>{}),
-  fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).catch(()=>({})),
-  loadBulkRatings('product').then(map => { productRatings = map; }),
-  loadBulkRatings('material').then(map => { materialRatings = map; }),
-]).then(([, , hiddenData]) => {
-  // Admin'in admin panelinden gizlediği statik ürün/malzemeler (bkz. src/routes/legacyContent.js)
-  // "marka|||başlık" anahtarıyla, birleştirilmiş listeden _kind alanına göre çıkarılır.
-  const hiddenProducts = new Set((hiddenData || {}).products || []);
-  const hiddenMaterials = new Set((hiddenData || {}).materials || []);
-  if(hiddenProducts.size || hiddenMaterials.size){
-    for(let i = products.length - 1; i >= 0; i--){
-      const it = products[i];
-      const key = `${it.brand || ''}|||${it.title}`;
-      const hiddenSet = it._kind === 'materials' ? hiddenMaterials : hiddenProducts;
-      if(hiddenSet.has(key)) products.splice(i, 1);
-    }
-  }
-}).finally(() => {
-  buildSidebar();
-  render();
-});
+applyStateFromUrl();
+buildSidebar();
+render();
 
 function wireNavSearch(){
   function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }

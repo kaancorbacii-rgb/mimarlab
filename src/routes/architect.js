@@ -53,6 +53,100 @@ export async function handleArchitectSearchRoute(request, env, url) {
   });
 }
 
+// mimar.html#positionOf'un sunucu karşılığı — TEK farkla: statik data.js'te ayrı iki alan olan
+// a.status/a.role, canonical migrasyonda (bkz. scripts/migrate-to-id-first.js#a.role || a.status)
+// tek bir `position` koluna kayıpla birleştirildi (role varsa o, yoksa status yazıldı). Üretim
+// verisinde (doğrulandı: 485 "Kurucu Ortak" + 312 "Kurucu", birkaç meslek etiketi, "İş arıyor"
+// değeri şu an hiç yok) bu birleşme gözlemlenebilir bir fark yaratmıyor; "İş arıyor"/"İş Arıyor" için
+// İşsiz eşlemesi yine de korunuyor, gelecekte böyle bir kayıt girilirse doğru kova bulunsun diye.
+function positionOf(position) {
+  if (!position) return null;
+  if (position === 'İş arıyor' || position === 'İş Arıyor') return 'İşsiz';
+  return position.startsWith('Kurucu') ? 'Kurucu' : 'Çalışan';
+}
+
+function trLowerSearch(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+
+// GET /api/architects — mimar.html#render()'ın sayfalanmış sunucu karşılığı (bkz. kullanıcı isteği:
+// "Bütün sayfaların verisini tek seferde DOM'a yükleme"). mimar.html#populateFilters()'ın dob/award/
+// position sayaçlarını `filters` alanında birlikte döner — tablo küçük (~800 satır) olduğundan tam
+// tarama ucuz (bkz. handleArchitectSearchRoute'daki AYNI gerekçe).
+export async function handleArchitectListRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+    const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
+    const sort = url.searchParams.get('sort') || '';
+    const dobParam = url.searchParams.get('dob') || '';
+    const awardParam = url.searchParams.get('award') || '';
+    const positionParam = url.searchParams.get('position') || '';
+    const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
+
+    const { results } = await env.DB.prepare(
+      `SELECT a.*, o.name AS office_name, o.awards AS office_awards
+       FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL`
+    ).all();
+
+    const pool = results.map(row => {
+      const a = parseCanonicalRow('architects', row);
+      let officeAwards = [];
+      if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
+      // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
+      // fallback'inin karşılığı) — bucketed `position` (Kurucu/Çalışan/İşsiz) filtre eşleştirme için,
+      // ham metin ise kart altyazısı için ayrı tutulur.
+      return { name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, badges: [] };
+    });
+
+    function passes(a) {
+      if (dobParam && String(a.dob) !== dobParam) return false;
+      if (awardParam && !a.officeAwards.includes(awardParam)) return false;
+      if (positionParam && a.position !== positionParam) return false;
+      if (searchQuery && !trLowerSearch(a.name).includes(searchQuery)) return false;
+      return true;
+    }
+
+    const filtered = pool.filter(passes);
+
+    if (sort) {
+      filtered.sort((x, y) => {
+        switch (sort) {
+          case 'name_asc': return x.name.localeCompare(y.name, 'tr');
+          case 'year_desc': return (y.dob || 0) - (x.dob || 0);
+          case 'year_asc': return (x.dob || 9999) - (y.dob || 9999);
+          default: return 0;
+        }
+      });
+    }
+
+    // mimar.html#populateFilters — sayaçlar aktif filtrelerden BAĞIMSIZ, tüm havuz üzerinden
+    // (proje.html'deki bağımlı/faceted sayaçların aksine; mimar.html'de zaten hiç öyle çalışmıyordu).
+    const dobCounts = {}, awardCounts = {}, positionCounts = {};
+    pool.forEach(a => {
+      if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
+      a.officeAwards.forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
+      if (a.position) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (Math.min(page, totalPages) - 1) * limit;
+    const items = filtered.slice(start, start + limit).map(({ officeAwards, ...rest }) => rest);
+
+    return {
+      items, total, page: Math.min(page, totalPages), totalPages,
+      filters: {
+        dob: Object.keys(dobCounts).sort((x, y) => y - x).map(v => ({ value: v, count: dobCounts[v] })),
+        award: Object.keys(awardCounts).sort((x, y) => awardCounts[y] - awardCounts[x] || x.localeCompare(y, 'tr')).map(v => ({ value: v, count: awardCounts[v] })),
+        position: positionCounts,
+      },
+    };
+  });
+}
+
 // GET /api/architect/:key — mimar-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
 // { item, office, colleagues, relatedProjects, hidden } — eski overlay tabanlı sürümle BİREBİR aynı.
 export async function handleArchitectRoute(request, env, url, rawKey) {

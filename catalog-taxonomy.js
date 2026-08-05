@@ -103,3 +103,9 @@ function catalogCardMediaHtml(item, escapeHtmlFn, escapeAttrFn) {
     <span class="catalog-placeholder-initials">${escapeHtmlFn(catalogInitials(label))}</span>
   </div>`;
 }
+
+// Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
+// (nodejs_compat) çalışır — src/routes/product.js buradan CJS interop ile import eder (bkz.
+// src/routes/project.js'in il-ilce-data.js için kullandığı AYNI desen — bu dosya da canonical veri
+// DEĞİL, salt statik bir taksonomi referans tablosu).
+if (typeof module !== 'undefined') { module.exports = { CATALOG_TAXONOMY, taxonomyGroupOf }; }

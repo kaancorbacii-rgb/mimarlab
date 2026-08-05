@@ -3,10 +3,10 @@ import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
-import { handleArchitectRoute, handleArchitectSearchRoute } from './routes/architect.js';
-import { handleOfficeRoute, handleOfficeSearchRoute } from './routes/office.js';
-import { handleProjectDetailRoute, handleProjectFiltersRoute } from './routes/project.js';
-import { handleProductDetailRoute } from './routes/product.js';
+import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute } from './routes/architect.js';
+import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
+import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
+import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
 import { handleFacetsRoute } from './routes/facets.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
@@ -294,6 +294,15 @@ async function routeApi(request, env, url) {
   // (handleSubmissionRoute) ÇAKIŞMAZ — yalnızca /api/projects/filters, /api/projects prefix'iyle
   // başladığından o genel eşleşmeden ÖNCE burada özel olarak yakalanmalı.
   if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
+  // proje.html/mimar.html/firma.html/urun.html'in yeni sayfalanmış (?page=&limit=) liste uçları —
+  // BARE /api/projects/architects/offices/products, method GET iken buraya düşer; aynı path'lere
+  // POST (yeni gönderi oluşturma) her zaman aşağıdaki handleSubmissionRoute'a gider (bkz. o dosyadaki
+  // segments.length===2 dalı, yalnızca POST'u işliyor — GET için hiçbir dal eşleşmediğinden bu
+  // path'ler GET için önceden zaten boştu, çakışma yok).
+  if (path === '/api/projects' && request.method === 'GET') return handleProjectListRoute(request, env, url);
+  if (path === '/api/architects' && request.method === 'GET') return handleArchitectListRoute(request, env, url);
+  if (path === '/api/offices' && request.method === 'GET') return handleOfficeListRoute(request, env, url);
+  if (path === '/api/products' && request.method === 'GET') return handleProductListRoute(request, env, url);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki

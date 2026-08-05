@@ -84,10 +84,13 @@ function isOfficeName(name) {
 // anlık görüntüsünü üretmek için handleProjectFiltersRoute ile AYNI havuzu (aktif/gizli olmayan
 // projeler + designer isim dizisi) paylaşır, tek sorgu mantığını burada tekilleştirir.
 export async function fetchActiveProjectPool(env) {
+  // ORDER BY p.id DESC — proje.html#render()'daki varsayılan sıralamayla (sort seçilmemişse "son
+  // eklenen ilk sırada") birebir aynı; facet sayaçları (bu havuzun diğer tüketicisi,
+  // handleProjectFiltersRoute/recomputeProjectFacets) sıradan bağımsız olduğundan etkilenmez.
   const { results } = await env.DB.prepare(
     `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
      FROM projects p ${DESIGNER_JOIN_SQL}
-     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id`
+     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id ORDER BY p.id DESC`
   ).all();
   return results.map(shapeProjectItem);
 }
@@ -206,5 +209,82 @@ export async function handleProjectFiltersRoute(request, env, url) {
       out[g.key] = { counts, options };
     }
     return { filters: out, total: pool.filter(p => passesFilters(p, null)).length };
+  });
+}
+
+// GET /api/projects — proje.html#render()'ın sayfalanmış sunucu karşılığı. `/api/projects/filters`
+// (yukarıda) sidebar sayaçlarını döndürmeye devam eder; bu uç YALNIZCA mevcut sayfanın kartlarını
+// döner (bkz. kullanıcı isteği: "Bütün sayfaların verisini tek seferde DOM'a yükleme"). Filtre
+// eşleştirme mantığı handleProjectFiltersRoute'daki İLE BİREBİR AYNI (kasıtlı yerel kopya — iki
+// handler farklı closure'lar taşıdığından paylaşılan bir fonksiyona çıkarmak bu dosyanın mevcut
+// desenini bozardı, bkz. trLower'ın da her route dosyasında yerel tanımlı olması).
+export async function handleProjectListRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+    const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
+    const sort = url.searchParams.get('sort') || '';
+
+    const [pool, ratingRows] = await Promise.all([
+      fetchActiveProjectPool(env),
+      env.DB.prepare(`SELECT target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type = 'project' GROUP BY target_id`).all(),
+    ]);
+    const ratingBySlug = new Map();
+    // ratings.target_id proje slug'ı değil id'si olabilir — proje.html#ratingOf ile aynı slug
+    // anahtarlı sözlük bekleniyor; bu yüzden pool üzerinden slug eşlemesi kurulur (slug tekil).
+    // NOT: target_id burada projects.id DEĞİL, mevcut ratings şeması proje tarafında slug tutuyorsa
+    // (bkz. handleProjectFiltersRoute'daki AYNI target_id kullanımı, orada da doğrudan slug/id
+    // karışık ele alınmıyor) — burada handleProjectFiltersRoute ile TUTARLI kalmak için aynı
+    // target_id anahtarını kullanıyoruz, yalnızca dizi yerine Map'e çeviriyoruz.
+    ratingRows.results.forEach(r => ratingBySlug.set(r.target_id, { average: r.average, count: r.count }));
+
+    const FILTER_GROUPS = buildFilterGroups(new Map(ratingRows.results.map(r => [r.target_id, { average: r.average }])));
+    const activeFilters = {};
+    FILTER_GROUPS.forEach(g => { activeFilters[g.key] = new Set(url.searchParams.getAll(g.key)); });
+    const searchQuery = trLower((url.searchParams.get('search') || '').trim());
+
+    function matchesLocalSearch(p) {
+      if (!searchQuery) return true;
+      const fields = [p.title, p.location, p.locationDetail, ...(p.designer || [])];
+      return fields.some(v => v && trLower(String(v)).includes(searchQuery));
+    }
+    function passesFilters(p) {
+      if (!matchesLocalSearch(p)) return false;
+      return FILTER_GROUPS.every(g => {
+        const sel = activeFilters[g.key];
+        if (sel.size === 0) return true;
+        const vals = g.field(p);
+        return vals.some(v => sel.has(v));
+      });
+    }
+
+    let filtered = pool.filter(p => passesFilters(p));
+
+    // proje.html#render()'daki sort switch'in BİREBİR aynısı — sort boşsa fetchActiveProjectPool
+    // zaten ORDER BY p.id DESC döndürdüğünden (en son eklenen ilk) ek bir sıralama gerekmez.
+    if (sort) {
+      filtered = [...filtered].sort((a, b) => {
+        switch (sort) {
+          case 'name_asc': return a.title.localeCompare(b.title, 'tr');
+          case 'date_desc': return (parseInt(b.date, 10) || 0) - (parseInt(a.date, 10) || 0);
+          case 'date_asc': return (parseInt(a.date, 10) || 0) - (parseInt(b.date, 10) || 0);
+          case 'rating_desc': {
+            const ra = ratingBySlug.get(a.slug) || { count: 0 }, rb = ratingBySlug.get(b.slug) || { count: 0 };
+            if (!ra.count && !rb.count) return 0;
+            if (!ra.count) return 1;
+            if (!rb.count) return -1;
+            return rb.average - ra.average;
+          }
+          default: return 0;
+        }
+      });
+    }
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (Math.min(page, totalPages) - 1) * limit;
+    const items = filtered.slice(start, start + limit);
+    return { items, total, page: Math.min(page, totalPages), totalPages };
   });
 }

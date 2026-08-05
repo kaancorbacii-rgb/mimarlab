@@ -199,7 +199,7 @@
   .active-chip button:hover{opacity:1;}
 
   /* ---------- CONTENT GRID ---------- */
-  .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;}
+  .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; transition:opacity .15s ease;}
   .content-card{
     position:relative; display:block; aspect-ratio:4/3; border-radius:14px; overflow:hidden;
     background:var(--paper-card); border:1px solid var(--line-soft);
@@ -384,67 +384,32 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="projeler-data.js"></script>
 <script src="il-ilce-data.js"></script>
 <script>
+// Faz 3 sonrası: proje.html artık projeler-data.js'in tüm veri setini indirmiyor — sayfalama,
+// filtreleme ve sıralama backend'de (/api/projects, /api/projects/filters) canonical D1 tablosu
+// üzerinden yapılıyor (bkz. src/routes/project.js#handleProjectListRoute). Bu sayfa yalnızca
+// il-ilce-data.js'i (parseLocation için, küçük statik referans tablosu) yükler.
 const PAGE_SIZE = 24;
-// Bir projeye girip geri tuşuna basıldığında 1. sayfaya değil, olunan sayfaya dönülsün diye (bkz.
-// kullanıcı isteği) mevcut sayfa numarası bu SEKMENİN geçmiş kaydına (history.state) yazılır — YENİ
-// bir geçmiş girdisi EKLEMEZ (replaceState), bu yüzden geri tuşunun normal "bir önceki sayfaya dön"
-// davranışını bozmaz. Menüden proje.html'e TAZE bir gidişte history.state boş olduğundan (yeni bir
-// geçmiş girdisi) her zaman 1. sayfadan başlar — yalnızca AYNI girdiye geri dönüldüğünde restore edilir.
-let currentPage = (history.state && history.state.page) || 1;
-function saveCurrentPage(){
-  try{ history.replaceState({ ...(history.state || {}), page: currentPage }, '', location.href); }catch{}
-}
+let currentPage = 1;
 
 // il-ilce-data.js#parseLocationFull artık 81 ilin tamamında ilçe -> il çözümlemesi yapıyor
 // (eskiden yalnızca İstanbul ilçeleri tanınırdı) — bu dosyadaki tüm çağrılar (filtre, künye linki
 // çözümü) parseLocation adıyla değişmeden çalışsın diye burada aynı isimle yeniden dışa verilir.
 const parseLocation = parseLocationFull;
 
-// "Mimar" (kişi) / "Mimarlık Ofisi" (firma) ayrımı: isim, ofis/firma göstergesi olan
-// anahtar kelimelerden birini içeriyorsa veya bilinen bir ofis ismiyse "Mimarlık Ofisi"
-// sayılır; aksi halde (bireysel kişi, tarihi mimar vb.) "Mimar" sayılır.
-const OFFICE_NAME_OVERRIDES = new Set(["Autoban","Escapefromsofa","Per Se","Grimshaw","SOM","REX","ACPV Antonio Citterio & Patricia Viel","Salon Alper Derinboğaz",
-  // Aşağıdaki isimler OFFICE_KEYWORDS'teki hiçbir anahtar kelimeyi içermediği için (kısaltma,
-  // stilize marka adı, ya da yabancı dilde firma eki) "Mimar" (kişi) filtresine yanlışlıkla
-  // düşüyordu (bkz. kullanıcı isteği: "mimar filtresinin içerisine mimarlık firması isimleri
-  // karışmış, bu seçenekleri oradan sil") — burada elle "Mimarlık Firması" filtresine taşınır.
-  "AOMTD","Gensler","KPF","OMA","FXCollaborative","Chapman Taylor","Powerhouse Company","Carve",
-  "GEOMIM","Ofist","Ofisvesaire","FREA","MuuM","Neowe","Nēowe","Superpool","PLUG",
-  "SdARCH Trivelli & Associati","T-ingénierie","UN Architectural Services","ZAAS","ŞANALarc",
-  "GEO_ID","ARK-Itecture","Acararch","Dolmus AG","caps.","the | work","indissoluble","Lazzoni",
-]);
-const OFFICE_KEYWORDS = ["mimarlık","architecture","architects","architekten","studio","design","partner","group","proje","workshop","associates","concept","ortaklığı","mühendislik","danışmanlık","atölye","işliği","tasarım","grubu"];
-function isOfficeName(name){
-  if(OFFICE_NAME_OVERRIDES.has(name)) return true;
-  // trLower() Türkçe metin araması için tasarlandı ve "I" harfini "ı"ya çevirir; bu, "STUDIOKA"
-  // gibi Türkçe olmayan/karışık isimlerde yanlış eşleşmeye yol açar — burada düz toLowerCase yeterli.
-  const low = name.toLowerCase();
-  return OFFICE_KEYWORDS.some(k => low.includes(k));
-}
-
+// Sunucudaki src/routes/project.js#buildFilterGroups ile AYNI grup listesi — burada yalnızca
+// sidebar'ın nasıl çizileceğini (etiket/iç içelik) bilmesi için metadata tutulur, gerçek
+// seçenek/sayaç hesabı artık /api/projects/filters'tan gelir.
 const FILTER_GROUPS = [
-  // discipline yalnızca statik projeler-data.js kayıtlarında var (varsayılan ["Mimari"]) — üye
-  // gönderimli projelerde bu alan hiç gönderilmediğinden undefined gelir, bu yüzden diğer
-  // alanların aksine (ör. category/type, her zaman normalize edilmiş dizi) burada || [] gerekir.
-  { key: 'discipline', label: 'Tür', field: p => p.discipline || [] },
-  { key: 'category', label: 'Tip', field: p => p.category },
-  { key: 'type', label: 'Tip Grubu', field: p => p.type },
-  { key: 'location', label: 'Yer', field: p => [parseLocation(p.location).city] },
-  // Yalnızca İstanbul altında iç içe seçenek olarak gösterilir (parentValue); alan fonksiyonu da
-  // yalnızca şehri İstanbul olan projeler için ilçe döner (bkz. kullanıcı isteği: "Filtrelerdeki
-  // İstanbul sekmesinin altına İstanbul'un ilçesi olmayan yerler eklenmiş, bunları sil") — künye
-  // artık yalnızca il düzeyinde link ürettiğinden (proje-detay.html) diğer illerin ilçeleri için
-  // bu filtrenin ayrıca eşleşmesi gerekmiyor.
-  { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul', field: p => {
-      const info = parseLocation(p.location);
-      return (info.district && info.city === 'İstanbul') ? [info.district] : [];
-    } },
-  { key: 'dateBucket', label: 'Yıl', field: p => [p.dateBucket] },
-  { key: 'designer', label: 'Mimar', field: p => p.designer.filter(d => !isOfficeName(d)) },
-  { key: 'designerOffice', label: 'Mimarlık Firması', field: p => p.designer.filter(d => isOfficeName(d)) },
+  { key: 'discipline', label: 'Tür' },
+  { key: 'category', label: 'Tip' },
+  { key: 'type', label: 'Tip Grubu' },
+  { key: 'location', label: 'Yer' },
+  { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul' },
+  { key: 'dateBucket', label: 'Yıl' },
+  { key: 'designer', label: 'Mimar' },
+  { key: 'designerOffice', label: 'Mimarlık Firması' },
 ];
 
 let projectRatings = new Map();
@@ -453,19 +418,19 @@ const activeFilters = {};
 FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
 let localSearchQuery = '';
 
-// proje-detay.html künyesindeki Tür/Tip/Yer/Yıl değerleri buraya bu filtreyi
-// önceden uygulanmış şekilde bağlanır (bkz. o dosyadaki filterLinkHtml). "location" parametresi
-// künyedeki ham `location` alanı (ör. "Üsküdar") olarak gelir; hangi filtre grubuna (şehir mi,
-// ilçe mi) karşılık geldiği burada parseLocation() ile aynı mantıkla çözülür — bu yüzden
-// proje-detay.html'de parseLocation'ı ayrıca kopyalamaya gerek yok. "search" ise künyedeki Yer
-// alt-bilgisi (locationDetail, ör. "Altunizade") için: bunun karşılığı bir filtre grubu olmadığından
-// serbest metin aramasına (matchesLocalSearch) düşer.
+// proje-detay.html künyesindeki Tür/Tip/Yer/Yıl değerleri buraya bu filtreyi önceden uygulanmış
+// şekilde bağlanır (bkz. o dosyadaki filterLinkHtml) — ve artık ?page=N ile doğrudan girilen bir
+// link de o sayfa numarasıyla açılır (bkz. kullanıcı isteği). "location" parametresi künyedeki ham
+// `location` alanı (ör. "Üsküdar") olarak gelir; hangi filtre grubuna (şehir mi, ilçe mi) karşılık
+// geldiği burada parseLocation() ile aynı mantıkla çözülür. Aynı grup için birden fazla değer
+// (?category=Konut&category=Ticari) desteklenir (getAll) — URL artık geri/ileri ve paylaşılan
+// linkler için TEK doğruluk kaynağı olduğundan (bkz. syncBrowserUrl), yalnızca ilk değeri almak
+// (eski .get() kullanımı) çoklu seçimi sessizce kaybederdi.
 function applyInitialFiltersFromQuery(){
   const params = new URLSearchParams(window.location.search);
   FILTER_GROUPS.forEach(g => {
     if(g.nested || g.key === 'location') return;
-    const val = params.get(g.key);
-    if(val) activeFilters[g.key].add(val);
+    params.getAll(g.key).forEach(v => activeFilters[g.key].add(v));
   });
   const locParam = params.get('location');
   if(locParam){
@@ -474,84 +439,83 @@ function applyInitialFiltersFromQuery(){
     if(parsed.district) activeFilters.district.add(parsed.district);
   }
   const searchParam = params.get('search');
-  if(searchParam) localSearchQuery = searchParam;
+  localSearchQuery = searchParam || '';
+  document.getElementById('g-sort').value = params.get('sort') || '';
+  const pageParam = parseInt(params.get('page'), 10);
+  currentPage = (pageParam > 1) ? pageParam : 1;
 }
 
 function trLower(s){
   return s.replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
 }
 
-// "Yıl" sekmesindeki seçenekleri (yüzyıl/on yıl/tarih aralığı karışık) yaklaşık başlangıç
-// yılına çevirir, böylece sayıya göre değil kronolojik olarak (yeniden eskiye) sıralanabilir.
-function dateBucketSortKey(s){
-  let m = s.match(/^(\d+)\.\s*Yüzyıl$/);
-  if(m) return (parseInt(m[1], 10) - 1) * 100;
-  m = s.match(/^(\d{4})'l/);
-  if(m) return parseInt(m[1], 10);
-  m = s.match(/^(\d{4})-\d{2}$/);
-  if(m) return parseInt(m[1], 10);
-  return 0;
+// Aktif filtreler/arama/sıralama/sayfa numarasından ?query string üretir — hem tarayıcı URL'ini
+// senkronlamak hem de /api/projects ve /api/projects/filters isteklerinin gövdesini kurmak için
+// TEK noktadan kullanılır.
+function currentQueryParams(){
+  const params = new URLSearchParams();
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
+  if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
+  const sort = document.getElementById('g-sort').value;
+  if(sort) params.set('sort', sort);
+  return params;
 }
 
-function matchesLocalSearch(p){
-  const q = trLower(localSearchQuery.trim());
-  if(!q) return true;
-  const fields = [p.title, p.location, p.locationDetail, ...(p.designer||[])];
-  return fields.some(v => v && trLower(String(v)).includes(q));
+// push=true: gerçek bir geçmiş girdisi (sayfa/filtre/sıralama değişimi — geri tuşu bir önceki
+// duruma döner, link paylaşılabilir, bkz. kullanıcı isteği). push=false: replaceState (serbest
+// metin arama kutusunda her debounce tetiklemesinde YENİ bir geçmiş girdisi açmamak için — aksi
+// halde "istanbul" yazarken 8 harf 8 ayrı geri tuşu adımına dönüşürdü).
+function syncBrowserUrl(push){
+  const params = currentQueryParams();
+  if(currentPage > 1) params.set('page', String(currentPage));
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  if(newUrl === location.pathname + location.search) return;
+  if(push) history.pushState({}, '', newUrl);
+  else history.replaceState({}, '', newUrl);
 }
 
-function passesFilters(p, exceptKey){
-  if(!matchesLocalSearch(p)) return false;
-  return FILTER_GROUPS.every(g => {
-    if(g.key === exceptKey) return true;
-    const sel = activeFilters[g.key];
-    if(sel.size === 0) return true;
-    const vals = g.field(p);
-    return vals.some(v => sel.has(v));
-  });
+function optRow(g, opt, count, nested){
+  return `
+        <label class="filter-opt${nested ? ' filter-opt-nested' : ''}">
+          <input type="checkbox" data-key="${g.key}" value="${escapeAttr(opt)}" ${activeFilters[g.key].has(opt)?'checked':''}>
+          <span>${escapeHtml(opt)}</span>
+          <span class="filter-opt-count">(${count})</span>
+        </label>`;
 }
 
-function buildSidebar(){
+// Sidebar artık kendi kendine (client-side computeOptions ile) hesap yapmıyor — /api/projects/filters
+// (bkz. src/routes/project.js#handleProjectFiltersRoute) TEK doğruluk kaynağı: hem hangi seçeneklerin
+// var olduğunu hem de faceted (diğer aktif filtrelerle bağımlı) sayaçları döner.
+async function buildSidebar(){
   const sidebar = document.getElementById('sidebar');
+  let filtersData = {};
+  try{
+    const res = await fetch(`/api/projects/filters?${currentQueryParams().toString()}`);
+    if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
+  }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
+
   let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
     <div class="sidebar-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="g-local-search" placeholder="Proje ara..." value="${escapeAttr(localSearchQuery)}">
     </div>`;
-  function computeOptions(g){
-    const passing = projects.filter(p => passesFilters(p, g.key));
-    const counts = {};
-    passing.forEach(p => { g.field(p).forEach(v => { if(v) counts[v] = (counts[v]||0)+1; }); });
-    const options = Object.keys(counts).sort((a,b)=>{
-      if(g.key === 'dateBucket') return dateBucketSortKey(b) - dateBucketSortKey(a);
-      return counts[b]-counts[a] || a.localeCompare(b);
-    });
-    return { counts, options };
-  }
-  function optRow(g, opt, count, nested){
-    return `
-          <label class="filter-opt${nested ? ' filter-opt-nested' : ''}">
-            <input type="checkbox" data-key="${g.key}" value="${escapeAttr(opt)}" ${activeFilters[g.key].has(opt)?'checked':''}>
-            <span>${escapeHtml(opt)}</span>
-            <span class="filter-opt-count">(${count})</span>
-          </label>`;
-  }
-  FILTER_GROUPS.forEach((g, gi) => {
+  FILTER_GROUPS.forEach(g => {
     if(g.nested) return; // ana grubun (örn. Yer) seçeneklerinin arasına gömülü olarak ayrıca çiziliyor
-    const { counts, options } = computeOptions(g);
+    const groupData = filtersData[g.key];
+    const options = groupData ? groupData.options : [];
     if(options.length === 0) return;
     // Bu gruba bağlı iç içe bir alt grup var mı? (örn. Yer -> İlçe, "İstanbul" seçeneğinin altında)
     const childGroup = FILTER_GROUPS.find(cg => cg.nested && cg.parentKey === g.key);
-    let childOptions = null, childCounts = null;
-    if(childGroup) ({ counts: childCounts, options: childOptions } = computeOptions(childGroup));
+    const childData = childGroup ? filtersData[childGroup.key] : null;
     html += `<div class="filter-group" data-key="${g.key}">
       <button class="filter-group-head" data-toggle="${g.key}">${escapeHtml(g.label)} <span class="filter-group-toggle">+</span></button>
       <div class="filter-group-body" id="fg-${g.key}">
         <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
         ${options.map(opt => {
-          let row = optRow(g, opt, counts[opt], false);
-          if(childGroup && opt === childGroup.parentValue && childOptions && childOptions.length){
-            row += childOptions.map(cOpt => optRow(childGroup, cOpt, childCounts[cOpt], true)).join('');
+          let row = optRow(g, opt, groupData.counts[opt], false);
+          if(childGroup && opt === childGroup.parentValue && childData && childData.options.length){
+            row += childData.options.map(cOpt => optRow(childGroup, cOpt, childData.counts[cOpt], true)).join('');
           }
           return row;
         }).join('')}
@@ -580,6 +544,7 @@ function buildSidebar(){
     FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
     localSearchQuery = '';
     currentPage = 1;
+    syncBrowserUrl(true);
     buildSidebar();
     render();
   });
@@ -588,6 +553,7 @@ function buildSidebar(){
       const key = cb.dataset.key, val = cb.value;
       if(cb.checked) activeFilters[key].add(val); else activeFilters[key].delete(val);
       currentPage = 1;
+      syncBrowserUrl(true);
       buildSidebar();
       render();
       // restore open state for the group just interacted with (iç içe bir grupsa ana grubunu aç)
@@ -598,10 +564,12 @@ function buildSidebar(){
     });
   });
   const localSearchInput = document.getElementById('g-local-search');
+  let searchDebounce = null;
   if(localSearchInput) localSearchInput.addEventListener('input', ()=>{
     localSearchQuery = localSearchInput.value;
     currentPage = 1;
-    render();
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
   });
   // Her grubun kendi arama kutusu YALNIZCA o grubun altındaki .filter-opt satırlarını gösterip
   // gizler — activeFilters/genel arama kutusundan bağımsız, seçim/sayaç mantığını etkilemez.
@@ -616,36 +584,6 @@ function buildSidebar(){
       });
     });
   });
-
-  reconcileFilterCountsFromServer();
-}
-
-// GET /api/projects/filters (bkz. src/routes/project.js#handleProjectFiltersRoute) yukarıdaki
-// computeOptions ile BİREBİR aynı faceted sayaç mantığının sunucu tarafı karşılığı — Faz 1'in
-// "computeOptions Worker katmanına taşınsın" hedefi, mevcut ANINDA (sıfır ağ gecikmeli) filtreleme
-// deneyimini bozmadan şöyle entegre edilir: sidebar HER ZAMAN önce yukarıdaki client hesabıyla
-// (senkron, gecikmesiz) çizilir; sunucudan gelen sayılar birkaç yüz milisaniye sonra sessizce
-// üzerine yazılır (bkz. docs/architecture-roadmap.md Faz 1 — veri ölçeği büyüdükçe bu ikinci adım
-// birincil kaynak hâline gelecek, bkz. Faz 3'teki facet_counts/KV planı).
-function reconcileFilterCountsFromServer(){
-  const qs = new URLSearchParams();
-  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => qs.append(g.key, v)); });
-  if(localSearchQuery.trim()) qs.set('search', localSearchQuery.trim());
-  fetch(`/api/projects/filters?${qs.toString()}`)
-    .then(res => res.ok ? res.json() : null)
-    .then(data => {
-      if(!data || !data.filters) return;
-      const sidebar = document.getElementById('sidebar');
-      Object.keys(data.filters).forEach(key => {
-        const counts = data.filters[key].counts;
-        sidebar.querySelectorAll(`.filter-opt input[data-key="${key}"]`).forEach(cb => {
-          if(counts[cb.value] === undefined) return;
-          const countEl = cb.closest('.filter-opt').querySelector('.filter-opt-count');
-          if(countEl) countEl.textContent = `(${counts[cb.value]})`;
-        });
-      });
-    })
-    .catch(()=>{});
 }
 
 function renderActiveChips(){
@@ -667,6 +605,7 @@ function renderActiveChips(){
       const chip = btn.parentElement;
       activeFilters[chip.dataset.key].delete(chip.dataset.val);
       currentPage = 1;
+      syncBrowserUrl(true);
       buildSidebar(); render();
     });
   });
@@ -697,6 +636,14 @@ function getPageList(totalPages, currentPage){
   pages.push(totalPages);
   return pages;
 }
+// Sayfa/gezinme butonlarının HEPSİ buradan geçer — URL'i (?page=N) günceller, mevcut sayfayı
+// yeniden çeker ve en üste yumuşak kaydırır (bkz. kullanıcı isteği).
+function goToPage(p){
+  currentPage = p;
+  syncBrowserUrl(true);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 function renderPagination(totalPages){
   const el = document.getElementById('pagination');
   if(totalPages <= 1){ el.innerHTML=''; return; }
@@ -708,55 +655,55 @@ function renderPagination(totalPages){
   html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
   el.innerHTML = html;
   el.querySelectorAll('[data-page]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ currentPage=parseInt(btn.dataset.page); render(); window.scrollTo({top:0,behavior:'smooth'}); });
+    btn.addEventListener('click', ()=> goToPage(parseInt(btn.dataset.page)));
   });
   const prevBtn=document.getElementById('page-prev'), nextBtn=document.getElementById('page-next');
-  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1){currentPage--; render(); window.scrollTo({top:0,behavior:'smooth'});} });
-  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){currentPage++; render(); window.scrollTo({top:0,behavior:'smooth'});} });
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goToPage(currentPage-1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
 }
 
-function render(){
-  const sort = document.getElementById('g-sort').value;
-  let filtered = projects.filter(p => passesFilters(p, null));
-
-  if(!sort){
-    // Varsayılan sıralama: son eklenen proje ilk sırada (dizideki en son ekleneni ilk sayfaya taşır).
-    filtered.reverse();
-  } else {
-    filtered.sort((a,b)=>{
-      switch(sort){
-        case 'name_asc': return a.title.localeCompare(b.title, 'tr');
-        case 'date_desc': return parseInt(b.date) - parseInt(a.date) || 0;
-        case 'date_asc': return parseInt(a.date) - parseInt(b.date) || 0;
-        case 'rating_desc': {
-          const ra = ratingOf(projectRatings, a.slug), rb = ratingOf(projectRatings, b.slug);
-          if(!ra.count && !rb.count) return 0;
-          if(!ra.count) return 1;
-          if(!rb.count) return -1;
-          return rb.average - ra.average;
-        }
-        default: return 0;
-      }
-    });
-  }
-
-  document.getElementById('result-count').textContent = `${filtered.length} proje listeleniyor`;
-  renderActiveChips();
-
+// render() artık yalnızca mevcut sayfanın kartlarını /api/projects'ten çeker (bkz. kullanıcı
+// isteği: "Her sayfa geçişinde sadece o sayfadaki proje verisini çek ve render et") — tüm veri
+// seti hiçbir zaman tarayıcıya inmiyor.
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  if(currentPage > totalPages) currentPage = totalPages;
-  saveCurrentPage();
-  renderPagination(totalPages);
+  grid.style.opacity = '0.5';
 
-  if(filtered.length === 0){ grid.innerHTML=''; empty.style.display='block'; return; }
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/projects?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){
+    console.error('Proje listesi alınamadı:', err);
+  }
+  if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Projeler yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} proje listeleniyor`;
+  renderActiveChips();
+  renderPagination(data.totalPages);
+
+  if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
   empty.style.display = 'none';
 
-  const startIdx = (currentPage-1) * PAGE_SIZE;
-  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-
-  grid.innerHTML = pageItems.map(p => {
+  grid.innerHTML = data.items.map(p => {
     const loc = parseLocation(p.location);
     const locLabel = loc.district ? `${loc.district}, ${loc.city}` : loc.city;
     const rating = ratingOf(projectRatings, p.slug);
@@ -780,8 +727,7 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 // data.js'teki initials()/officeColor() ile birebir aynı — bu sayfa performans için data.js'i
-// (676 ofis + 812 mimar kaydı) yüklemiyor, görseli olmayan proje kartları için sadece bu iki
-// küçük saf fonksiyon gerekiyor (bkz. render() içindeki content-card-placeholder).
+// yüklemiyor, görseli olmayan proje kartları için sadece bu iki küçük saf fonksiyon gerekiyor.
 function initials(name){
   return (name || '?').replace(/[—.]/g,' ').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
 }
@@ -792,67 +738,19 @@ function officeColor(name){
   return CARD_PALETTE[Math.abs(hash) % CARD_PALETTE.length];
 }
 
-document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage=1; render(); });
+document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
 
-// Üyelerin gönderip admin'in onayladığı projeleri statik listeye ekler (bkz. kullanıcı isteği:
-// varsayılan sıralama site'ye gerçekten en son yüklenenden ilk yüklenene doğru olmalı — eskiden
-// burası onaylı gönderileri statik dizinin arasına eşit aralıklarla serpiştiriyordu, bu da yeni
-// eklenen projeleri sayfa 1'e değil listenin her yerine dağıtıyordu). Gerçekten yakın zamanda
-// eklenenler (RECENT_WINDOW_MS içinde) sayfa 1'in başında kümelenir; daha eski created_at'e sahip
-// gönderiler (ör. admin'in geriye dönük "eskiden yüklenmiş gibi" ayarladığı toplu bir grup, bkz.
-// kullanıcı isteği) statik dizinin arasına eşit aralıklarla serpiştirilir — aksi halde tek seferde
-// onaylanan çok sayıda gönderi (ör. bir hesaba toplu proje aktarımı) hep ilk sayfada kalırdı.
-const RECENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
-
-Promise.all([
-  fetch('/api/public/projects').then(res => res.ok ? res.json() : {items:[]}).catch(()=>({items:[]})),
-  // Admin bu admin panelinden gizlediği statik projeleri (bkz. src/routes/legacyContent.js) burada
-  // filtreler — üye gönderileri serpiştirilmeden ÖNCE uygulanmalı, aksi halde araya serpiştirme
-  // matematiği (step/nextInsertAt) yanlış uzunluk üzerinden hesaplanır.
-  fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).catch(()=>({})),
-  // Admin'in statik bir projeye yaptığı onaylı düzenlemesi (bkz. proje-detay.html'deki aynı fetch) —
-  // yalnızca detay sayfasında değil, kart görselinin (kapak) göründüğü HER yerde uygulanmalı.
-  fetch('/api/public/project-edits').then(res => res.ok ? res.json() : {}).catch(()=>({})),
-  loadBulkRatings('project').then(map => { projectRatings = map; }),
-]).then(([projectsData, hiddenData, editsData]) => {
-  for(const slug in editsData){
-    const match = projects.find(p => p.slug === slug);
-    if(match) Object.assign(match, editsData[slug]);
-  }
-  const hiddenProjects = new Set(hiddenData.projects || []);
-  if(hiddenProjects.size){
-    for(let i = projects.length - 1; i >= 0; i--){
-      if(hiddenProjects.has(projects[i].slug)) projects.splice(i, 1);
-    }
-  }
-  // /api/public/projects EN YENİ ÖNCE sırayla döner (bkz. src/routes/public.js ORDER BY created_at
-  // DESC). "Eski" (RECENT_WINDOW_MS'den daha uzun süre önce eklenmiş, createdAt'i olmayanlar dahil —
-  // bkz. yukarıdaki yorum) gönderiler statik dizinin arasına eşit aralıklarla serpiştirilir.
-  const now = Date.now();
-  const memberItems = projectsData.items || [];
-  const recentItems = memberItems.filter(p => p.createdAt && (now - p.createdAt) < RECENT_WINDOW_MS);
-  const agedItems = memberItems.filter(p => !p.createdAt || (now - p.createdAt) >= RECENT_WINDOW_MS);
-
-  if(agedItems.length){
-    const merged = [];
-    const step = (projects.length + agedItems.length) / agedItems.length;
-    let idx = 0, nextInsertAt = step;
-    for(let i = 0; i < projects.length; i++){
-      merged.push(projects[i]);
-      while(idx < agedItems.length && merged.length >= Math.round(nextInsertAt)){
-        merged.push(agedItems[idx++]);
-        nextInsertAt += step;
-      }
-    }
-    while(idx < agedItems.length) merged.push(agedItems[idx++]);
-    projects.length = 0;
-    projects.push(...merged);
-  }
-  // recentItems render()'daki varsayılan ters çevirmeden SONRA sayfa 1'in başına düşmesi için önce
-  // eskiden-yeniye çevrilip dizinin en SONUNA eklenir (bkz. render()'daki reverse()).
-  projects.push(...recentItems.slice().reverse());
-}).finally(() => {
+// Tarayıcı geri/ileri tuşu: URL zaten değişti, yalnızca uygulama durumunu (filtreler/arama/sıralama/
+// sayfa) yeni URL'den yeniden okuyup sidebar+grid'i buna göre yeniden çizmemiz gerekiyor.
+window.addEventListener('popstate', ()=>{
+  FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
   applyInitialFiltersFromQuery();
+  buildSidebar();
+  render();
+});
+
+applyInitialFiltersFromQuery();
+loadBulkRatings('project').then(map => { projectRatings = map; }).finally(() => {
   buildSidebar();
   render();
 });

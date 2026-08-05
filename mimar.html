@@ -424,86 +424,45 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="data.js"></script>
+<script src="badge-shared.js"></script>
 <script>
+// Faz 3 sonrası: mimar.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
+// sayfalama, filtreleme ve sıralama backend'de (/api/architects) canonical D1 tablosu üzerinden
+// yapılıyor (bkz. src/routes/architect.js#handleArchitectListRoute). Rozet sistemi + initials/
+// officeColor/logoUrl yardımcı fonksiyonları data.js'ten kopyalanan küçük badge-shared.js'ten gelir
+// (bkz. o dosyanın başındaki gerekçe notu).
 const PAGE_SIZE = 24;
 let currentPage = 1;
 let searchQuery = '';
 
-function personOffice(a){
-  return a.office ? offices.find(o => o.name === a.office) : null;
-}
-
-// bkz. index.html'deki aynı eşleme: status alanı varsa doğrudan onu, yoksa role alanına göre
-// Kurucu/Kurucu Ortak -> Kurucu, diğer roller -> Çalışan olarak eşler.
-function positionOf(a){
-  if(a.status){
-    if(a.status === 'İş arıyor' || a.status === 'İş Arıyor') return 'İşsiz';
-    return a.status;
-  }
-  if(a.role){
-    return a.role.startsWith('Kurucu') ? 'Kurucu' : 'Çalışan';
-  }
-  return null;
-}
-
-function trLower(s){
-  return s
-    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş')
-    .replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
-    .toLowerCase();
-}
-
-// data.js'teki statik mimarlar ile üye gönderimlerini (/api/public/architects, D1 canonical
-// architects tablosundaki onaylı satırlardan) birleştirirken aynı isim (bare-name, mimarlar/ofisler
-// için tek "slug/legacy_key" eşdeğeri — bkz. proje belleği "Duplicate name key limitation") iki kez
-// listeye girebiliyor. İsim çakışırsa D1 kaynaklı (source:'member') kayıt HER ZAMAN statik data.js
-// kaydına göre öncelikli tutulur; ilk görülme sırası korunur, yalnızca içerik güncellenir.
-function dedupeArchitects(){
-  const bestByName = new Map();
-  for(const a of architects){
-    const existing = bestByName.get(a.name);
-    if(!existing || (a.source === 'member' && existing.source !== 'member')) bestByName.set(a.name, a);
-  }
-  architects.length = 0;
-  architects.push(...bestByName.values());
-}
-
-function populateFilters(){
+// Sunucudan (data.filters) gelen dob/award seçeneklerini <select>'lere yeniden çizer, position
+// select'inin (sabit HTML seçenekleri) sayaçlarını günceller — mimar.html#populateFilters'ın eski
+// client-side hesaplı hâliyle AYNI görsel sonucu üretir, yalnızca veri kaynağı sunucu.
+function populateFilterOptions(filtersData){
   const dobSel = document.getElementById('g-dob');
   const prevDob = dobSel.value;
   dobSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  const years = Array.from(new Set(architects.filter(a=>a.dob).map(a=>a.dob))).sort((a,b)=>b-a);
-  years.forEach(y=>{
-    const o = document.createElement('option'); o.value = y; o.textContent = y; o.dataset.dynamic = '1';
+  (filtersData.dob || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
     dobSel.appendChild(o);
   });
   dobSel.value = prevDob;
 
-  // Statik bir seçenek listesi yerine gerçek verideki ödülleri sayar (bkz. kullanıcı isteği: "yeni
-  // eklenen seçenekler otomatik olarak filtrelerdeki ilgili bölümlere eklensin") — firma-ekle.html'de
-  // ODUL_OPTIONS'a yeni bir ödül eklenip bir firmaya işlendiğinde, bu filtre elle güncellenmeden
-  // kendiliğinden görünür (g-dob'daki aynı "gerçek veriden türet" deseni).
   const awardSel = document.getElementById('g-award');
   const prevAward = awardSel.value;
   awardSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  const awardCounts = {};
-  architects.forEach(a=>{
-    const o = personOffice(a);
-    if(o && o.awards) o.awards.forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
-  });
-  Object.keys(awardCounts).sort((a,b)=> awardCounts[b] - awardCounts[a] || a.localeCompare(b,'tr')).forEach(award=>{
-    const o = document.createElement('option'); o.value = award; o.textContent = `${award} (${awardCounts[award]})`; o.dataset.dynamic = '1';
+  (filtersData.award || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
     awardSel.appendChild(o);
   });
   awardSel.value = prevAward;
 
   const positionSel = document.getElementById('g-position');
+  const positionCounts = filtersData.position || {};
   Array.from(positionSel.options).forEach(opt=>{
     if(!opt.value) return;
     if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
-    const count = architects.filter(a=>positionOf(a) === opt.value).length;
-    opt.textContent = `${opt.dataset.baseLabel} (${count})`;
+    opt.textContent = `${opt.dataset.baseLabel} (${positionCounts[opt.value] || 0})`;
   });
 }
 
@@ -533,6 +492,12 @@ function getPageList(totalPages, currentPage){
   return pages;
 }
 
+function goToPage(p){
+  currentPage = p;
+  syncBrowserUrl(true);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 function renderPagination(totalPages){
   const el = document.getElementById('pagination');
   if(totalPages <= 1){ el.innerHTML = ''; return; }
@@ -544,59 +509,91 @@ function renderPagination(totalPages){
   html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
   el.innerHTML = html;
   el.querySelectorAll('[data-page]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      currentPage = parseInt(btn.dataset.page); render();
-      window.scrollTo({top:0, behavior:'smooth'});
-    });
+    btn.addEventListener('click', ()=> goToPage(parseInt(btn.dataset.page)));
   });
   const prevBtn = document.getElementById('page-prev');
   const nextBtn = document.getElementById('page-next');
-  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1){ currentPage--; render(); window.scrollTo({top:0, behavior:'smooth'}); } });
-  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages){ currentPage++; render(); window.scrollTo({top:0, behavior:'smooth'}); } });
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goToPage(currentPage-1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
 }
 
-function render(){
-  const sort = document.getElementById('g-sort').value;
+// Aktif filtre/arama/sıralama/sayfa durumundan ?query string üretir — hem /api/architects isteği
+// hem de tarayıcı URL senkronu (syncBrowserUrl) için TEK noktadan kullanılır.
+function currentQueryParams(){
+  const params = new URLSearchParams();
   const dob = document.getElementById('g-dob').value;
   const award = document.getElementById('g-award').value;
   const position = document.getElementById('g-position').value;
-  const q = trLower(searchQuery.trim());
+  const sort = document.getElementById('g-sort').value;
+  if(dob) params.set('dob', dob);
+  if(award) params.set('award', award);
+  if(position) params.set('position', position);
+  if(sort) params.set('sort', sort);
+  if(searchQuery.trim()) params.set('search', searchQuery.trim());
+  return params;
+}
+// push=true: gerçek geçmiş girdisi (bkz. proje.html#syncBrowserUrl'deki AYNI gerekçe).
+function syncBrowserUrl(push){
+  const params = currentQueryParams();
+  if(currentPage > 1) params.set('page', String(currentPage));
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  if(newUrl === location.pathname + location.search) return;
+  if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
+}
+function applyStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  document.getElementById('g-dob').value = params.get('dob') || '';
+  document.getElementById('g-award').value = params.get('award') || '';
+  document.getElementById('g-position').value = params.get('position') || '';
+  document.getElementById('g-sort').value = params.get('sort') || '';
+  searchQuery = params.get('search') || '';
+  document.getElementById('g-local-search').value = searchQuery;
+  const pageParam = parseInt(params.get('page'), 10);
+  currentPage = (pageParam > 1) ? pageParam : 1;
+}
 
-  let filtered = architects.filter(a=>{
-    if(dob && String(a.dob) !== dob) return false;
-    if(award){ const o = personOffice(a); if(!o || !o.awards || !o.awards.includes(award)) return false; }
-    if(position && positionOf(a) !== position) return false;
-    if(q && !trLower(a.name).includes(q)) return false;
-    return true;
-  });
-
-  filtered.sort((a,b)=>{
-    switch(sort){
-      case 'name_asc': return a.name.localeCompare(b.name, 'tr');
-      case 'year_desc': return (b.dob||0) - (a.dob||0);
-      case 'year_asc': return (a.dob||9999) - (b.dob||9999);
-      case 'popular': return 0;
-      default: return 0;
-    }
-  });
-
-  document.getElementById('result-count').textContent = `${filtered.length} mimar listeleniyor`;
-
+// render() artık yalnızca mevcut sayfanın kartlarını /api/architects'ten çeker (bkz. kullanıcı
+// isteği: her sayfa geçişinde sadece o sayfadaki veriyi çek) — tüm mimar listesi hiçbir zaman
+// tarayıcıya inmiyor.
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  if(currentPage > totalPages) currentPage = totalPages;
-  renderPagination(totalPages);
+  grid.style.opacity = '0.5';
 
-  if(filtered.length === 0){ grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/architects?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){ console.error('Mimar listesi alınamadı:', err); }
+  if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Mimarlar yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} mimar listeleniyor`;
+  populateFilterOptions(data.filters || {});
+  renderPagination(data.totalPages);
+
+  if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan mimar bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
-  const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
-
-  grid.innerHTML = pageItems.map(a=>{
-    const o = personOffice(a);
-    const sub = o ? o.name : (a.office || a.status || '');
+  grid.innerHTML = data.items.map(a=>{
+    const sub = a.office || a.positionRaw || '';
     return `
     <a class="person-card" href="/mimar/${encodeURIComponent(slugify(a.name))}">
       <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
@@ -611,12 +608,15 @@ function render(){
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+let searchDebounce = null;
 ['g-sort','g-dob','g-award','g-position'].forEach(id=>{
-  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; render(); });
+  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
 });
 document.getElementById('g-local-search').addEventListener('input', (e)=>{
   searchQuery = e.target.value;
-  currentPage = 1; render();
+  currentPage = 1;
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
 });
 document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-sort').value = '';
@@ -627,8 +627,11 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-local-search').value = '';
   document.getElementById('f-search-topnav').value = '';
   document.getElementById('f-search-nav').value = '';
-  currentPage = 1; render();
+  currentPage = 1;
+  syncBrowserUrl(true);
+  render();
 });
+window.addEventListener('popstate', ()=>{ applyStateFromUrl(); render(); });
 
 function wireNavSearch(){
   function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -725,35 +728,9 @@ document.addEventListener('click', (e)=>{
   if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
 });
 
-dedupeArchitects();
-populateFilters();
+applyStateFromUrl();
 render();
 window.addEventListener('mimarlab-badges-ready', render);
-
-// Üyelerin gönderip admin'in onayladığı mimarları statik listeye ekler.
-fetch('/api/public/architects').then(res => res.ok ? res.json() : {items:[]}).then(data => {
-  architects.push(...(data.items || []));
-}).catch(()=>{}).finally(() => {
-  dedupeArchitects();
-  populateFilters();
-  render();
-});
-
-// Admin'in admin panelinden gizlediği statik mimarları listeden çıkarır (bkz.
-// src/routes/legacyContent.js, GET /api/public/hidden).
-fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(hidden => {
-  const hiddenSet = new Set(hidden.architects || []);
-  if(!hiddenSet.size) return;
-  for(let i = architects.length - 1; i >= 0; i--){
-    if(hiddenSet.has(architects[i].name)) architects.splice(i, 1);
-  }
-}).catch(()=>{}).finally(() => {
-  populateFilters();
-  render();
-});
-
-// Onaylı profil düzenlemesiyle yüklenen fotoğrafları karta yansıt (bkz. data.js#applyProfileEditPhotos).
-applyProfileEditPhotos().finally(() => { render(); });
 </script>
 </body>
 </html>
