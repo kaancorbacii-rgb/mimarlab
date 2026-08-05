@@ -85,10 +85,13 @@ export async function handleArchitectListRoute(request, env, url) {
     const positionParam = url.searchParams.get('position') || '';
     const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
 
+    // ORDER BY a.id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
+    // (sort seçilmemişse "son eklenen ilk") — anasayfa Mimar carousel'i (bkz. index.html) bu
+    // varsayılana güvenerek ?limit=6 ile doğrudan son eklenen 6 mimarı çeker.
     const { results } = await env.DB.prepare(
       `SELECT a.*, o.name AS office_name, o.awards AS office_awards
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL`
+       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.id DESC`
     ).all();
 
     const pool = results.map(row => {

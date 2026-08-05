@@ -87,8 +87,11 @@ export async function handleOfficeListRoute(request, env, url) {
     const expParam = url.searchParams.get('exp') || '';
     const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
 
+    // ORDER BY id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
+    // (sort seçilmemişse "son eklenen ilk") — anasayfa Firma carousel'i (bkz. index.html) bu
+    // varsayılana güvenerek ?limit=6 ile doğrudan son eklenen 6 firmayı çeker.
     const { results } = await env.DB.prepare(
-      `SELECT * FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`
+      `SELECT * FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`
     ).all();
     const pool = results.map(row => {
       const o = parseCanonicalRow('offices', row);

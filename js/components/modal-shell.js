@@ -33,6 +33,12 @@ const ModalShell = (function () {
         display:flex; position:fixed; inset:0; z-index:150;
         background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
         align-items:center; justify-content:center; padding:16px;
+        /* iOS Safari'nin adres çubuğu/alt gezinme çubuğu kaydırma sırasında açılıp kapandığından
+           safe-area-inset'ler bu boşlukların ÜSTÜNE eklenir (bkz. kullanıcı isteği) — aksi halde
+           çentik/home-indicator bölgesi 16px'lik payı yiyip blurlu overlay'i tamamen kapatabiliyordu.
+           env() desteklenmeyen tarayıcılarda ikinci argüman (0px) devreye girer, davranış değişmez. */
+        padding-top:calc(16px + env(safe-area-inset-top, 0px));
+        padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));
         opacity:0; visibility:hidden; pointer-events:none;
         transition:opacity .3s ease, visibility 0s linear .3s;
       }
@@ -57,6 +63,19 @@ const ModalShell = (function () {
         overflow:hidden; display:flex; flex-direction:column;
         opacity:0; transform:scale(0.95);
         transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s ease;
+      }
+      /* dvh (dynamic viewport height) — iOS Safari'de vh, adres çubuğu GİZLİYMİŞ gibi en büyük
+         viewport'a göre sabitlenir; adres çubuğu görünür olduğunda gerçek görünür alan bundan
+         küçük kalır ve panel üst/alttan taşıp overlay'in blurlu boşluğunu yutar (bkz. kullanıcı
+         isteği). dvh, gerçek/o anki görünür yüksekliği takip eder — @supports ile eski
+         tarayıcılarda yukarıdaki vh/32px sabit değerine sorunsuz düşülür. max-height'tan
+         safe-area-inset'ler de çıkarılır ki overlay'in üstteki padding artışıyla (bkz. yukarısı)
+         aynı toplam boşluk her zaman en az %4/16px olarak korunsun. */
+      @supports (height: 100dvh) {
+        .modal-shell-panel{
+          height:92dvh;
+          max-height:calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        }
       }
       .modal-shell-overlay.open .modal-shell-panel{opacity:1; transform:scale(1);}
       .modal-shell-close{

@@ -84,8 +84,11 @@ export async function handleProductListRoute(request, env, url) {
     const ratingParam = url.searchParams.get('rating') || '';
     const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
 
+    // ORDER BY id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
+    // (sort seçilmemişse "son eklenen ilk") — anasayfa Ürün carousel'i (bkz. index.html) bu
+    // varsayılana güvenerek ?limit=6 ile doğrudan son eklenen 6 ürünü çeker.
     const [productsRes, ratingRows] = await Promise.all([
-      env.DB.prepare(`SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
       env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
     ]);
     const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));

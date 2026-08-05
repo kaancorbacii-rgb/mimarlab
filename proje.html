@@ -319,10 +319,15 @@
     padding:8px 16px; font-size:13px; font-weight:600; color:#B84C4C; white-space:nowrap;
   }
   .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+  /* Yükseklik/dolgu/satır-yüksekliği .rating-widget ile BİREBİR aynı (bkz. kullanıcı isteği: "yan
+     yana geldiklerinde tam simetrik dursunlar") — height+box-sizing:border-box, içerik farklı olsa
+     bile (ikon vs yıldız satırı) dış kutuyu piksel piksel eşitler; yazı tipi/punto/kalınlık da sol
+     paneldeki künye etiketleriyle (.detail-meta strong: 14px/600) birebir aynı. */
   .save-btn{
     display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
+    height:36px; box-sizing:border-box;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-    padding:8px 16px; font-size:13px; font-weight:600; color:var(--ink-soft);
+    padding:0 16px; font-size:14px; font-weight:600; line-height:1; color:var(--ink-soft);
   }
   .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
@@ -342,8 +347,13 @@
      .card-save-btn" hedefini kaçırmıştı — buton yeniden köşeye yapıştı; seçici doğru kapsayıcıya
      (.pm-rating-save-row) güncellendi.
   */
+  /* height:auto DEĞİL — bare .card-save-btn kart bağlamı kuralı (height:32px) bu seçiciden DAHA
+     DÜŞÜK özgüllükte olsa da, height:auto burada .save-btn{height:36px}'i EZİYORDU (bkz. gerçek
+     bulgu: iki sınıfı birden taşıyan bu buton .pm-rating-save-row .card-save-btn'in (0,2,0) daha
+     yüksek özgüllüğüne sahip olduğundan .save-btn'in (0,1,0) height'ını görmezden geliyordu) —
+     .rating-widget ile piksel piksel eşit dursun diye height burada da AÇIKÇA 36px olarak yazılır. */
   .pm-rating-save-row .card-save-btn{
-    position:static; width:auto; height:auto; z-index:auto;
+    position:static; width:auto; height:36px; z-index:auto;
     background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
   }
   .pm-rating-save-row .card-save-btn:hover{background:var(--paper-card);}
@@ -355,15 +365,18 @@
      pill kenarına gereğinden fazla boşluk binmesin. */
   .rating-widget{
     display:flex; align-items:center; gap:6px; flex-wrap:nowrap; flex-shrink:0;
+    height:36px; box-sizing:border-box;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-    padding:6px 14px 6px 10px; margin:0;
+    padding:0 16px; margin:0;
+    transition:border-color .15s ease;
   }
+  .rating-widget:hover{border-color:var(--walnut);}
   .rating-star-row{display:flex; gap:1px;}
-  .rating-star-btn{background:none; border:none; padding:2px; color:var(--line); display:flex; transition:transform .1s ease;}
+  .rating-star-btn{background:none; border:none; padding:0; color:var(--line); display:flex; transition:transform .1s ease;}
   .rating-star-btn.filled{color:var(--accent);}
   .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
   .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-  .rating-summary{font-size:12.5px; color:var(--ink-soft); white-space:nowrap;}
+  .rating-summary{font-size:14px; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap;}
 
   .detail-info{margin-top:8px;}
   .designer-section{margin-top:0;}
@@ -974,12 +987,24 @@ async function render(){
   empty.style.display = 'none';
 
   currentPageItems = data.items;
-  grid.innerHTML = data.items.map(p => {
+  grid.innerHTML = data.items.map((p, i) => {
     const loc = parseLocation(p.location);
     const locLabel = loc.district ? `${loc.district}, ${loc.city}` : loc.city;
+    // İlk sıradaki (i<3, 3 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
+    // çizgisinin üstünde görünür — bunları da loading="lazy" ile geciktirmek tarayıcının layout'u
+    // bekleyip isteği ERTELEMESİNE yol açıp ilk yüklenmeyi YAVAŞLATIYORDU (bkz. kullanıcı isteği:
+    // "ilk yüklenme hızını artır"); bu üçü eager + fetchpriority="high" ile hemen istenir, alttaki
+    // (katlanma çizgisinin altındaki) kartlar lazy kalır. sizes, grid'in kırılma noktalarındaki
+    // (bkz. .content-grid @media 720px/960px) gerçek kart genişliğine karşılık gelir — henüz
+    // srcset yok (bkz. image-cdn.js#IMAGE_CDN_ENABLED, zone onayı bekleniyor) ama sizes şimdiden
+    // doğru tanımlanırsa CDN aktifleştiğinde ekstra bir düzeltme gerekmez.
+    const aboveFold = i < 3;
+    const imgAttrs = aboveFold
+      ? `loading="eager" fetchpriority="high"`
+      : `loading="lazy" fetchpriority="low"`;
     return `
     <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" ${imgAttrs} decoding="async" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr(p.images[0]||'')}" data-href="/projeler/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
       </button>

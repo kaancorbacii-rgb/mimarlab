@@ -67,7 +67,7 @@ async function mountRatingWidget(el){
       starsHtml += `<button type="button" class="rating-star-btn${i <= highlightUpTo ? ' filled' : ''}" data-value="${i}" aria-label="${i} yıldız">${starSvg(i <= highlightUpTo)}</button>`;
     }
     const summary = current.count
-      ? `${current.average.toFixed(1)} · ${current.count} oy${current.mine ? ` · senin puanın: ${current.mine}` : ''}`
+      ? `${current.average.toFixed(1)} · ${current.count} oy`
       : 'Puan ver';
     el.innerHTML = `<div class="rating-star-row">${starsHtml}</div><span class="rating-summary">${summary}</span>`;
     el.querySelectorAll('.rating-star-btn').forEach(btn=>{
