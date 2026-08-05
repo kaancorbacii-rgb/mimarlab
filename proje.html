@@ -6,20 +6,25 @@
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
-<title>Projeler — MİMARLAB</title>
-<meta name="description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.">
-<link rel="canonical" href="https://mimarlab.com/proje">
+<title id="page-title">Projeler — MİMARLAB</title>
+<meta name="description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/proje" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Projeler — MİMARLAB">
-<meta property="og:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.">
-<meta property="og:url" content="https://mimarlab.com/proje">
-<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta property="og:title" content="Projeler — MİMARLAB" id="og-title">
+<meta property="og:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/proje" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Projeler — MİMARLAB">
-<meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.">
-<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:title" content="Projeler — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<!-- Temiz URL'lerle bu sayfa /proje dışında /projeler/:slug altında da (proje modalını doğrudan
+     açan bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları
+     o iç içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, eski
+     proje-detay.html'deki AYNI gerekçe). -->
+<base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -283,6 +288,190 @@
   @media (max-width:768px){
     .content-card-by{display:none;}
   }
+
+  /* ---------- PROJE MODALI — sol panel (bilgi) ----------
+     Eski proje-detay.html'in .detail-header/.detail-byline grid'i buraya taşınmadı: modal sol
+     paneli tek bir dikey akış (DOM sırası zaten Başlık → Puan → Aksiyon → Künye → Açıklama →
+     Yorumlar, bkz. kullanıcı isteği), grid-template-areas'a gerek yok. Kalan sınıf adları
+     (.rating-widget, .designer-chip, .comment-row vb.) proje-detay.html ile BİREBİR aynı — aynı
+     paylaşılan JS (rating-widget.js, js/components/project-*.js) bu isimlere yazıyor. */
+  .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+  .detail-title-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 18px;}
+  .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+  .card-edit-btn{
+    display:inline-flex; align-items:center;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:8px 16px; font-size:13px; font-weight:600; color:var(--walnut); white-space:nowrap;
+  }
+  .card-edit-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+  .card-delete-btn{
+    display:inline-flex; align-items:center;
+    background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); border-radius:100px;
+    padding:8px 16px; font-size:13px; font-weight:600; color:#B84C4C; white-space:nowrap;
+  }
+  .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+  .save-btn{
+    display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:8px 16px; font-size:13px; font-weight:600; color:var(--ink-soft);
+  }
+  .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .save-btn svg{flex-shrink:0;}
+  .save-btn-label-saved{display:none;}
+  .save-btn.saved .save-btn-label-default{display:none;}
+  .save-btn.saved .save-btn-label-saved{display:inline;}
+
+  .rating-widget{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 16px;}
+  .rating-star-row{display:flex; gap:2px;}
+  .rating-star-btn{background:none; border:none; padding:2px; color:var(--line); display:flex; transition:transform .1s ease;}
+  .rating-star-btn.filled{color:var(--accent);}
+  .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
+  .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
+  .rating-summary{font-size:12.5px; color:var(--ink-soft);}
+
+  .detail-info{margin-top:8px;}
+  .designer-section{margin-top:0;}
+  .designer-section + .designer-section{margin-top:16px;}
+  .designer-label{font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+  .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
+  .designer-chip{
+    display:flex; align-items:center; gap:9px;
+    background:var(--paper); border:1px solid var(--line-soft);
+    border-radius:100px; padding:6px 16px 6px 6px;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  a.designer-chip:hover{border-color:var(--brass); transform:translateY(-1px);}
+  .designer-chip-avatar{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    border:1px solid var(--line); overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+  }
+  .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
+  .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
+  .designer-name-plain{font-size:14px; color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line); padding:6px 4px; align-self:center;}
+  .designer-name-plain:hover{color:var(--ink);}
+
+  .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
+  .detail-meta strong{font-weight:600; color:var(--ink);}
+  .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
+  .detail-meta a:hover{color:var(--ink);}
+  .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
+  .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
+  .detail-desc-more:hover{color:var(--ink);}
+
+  /* ---------- PROJE MODALI — yorumlar ---------- */
+  .comments-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+  .comments-title{font-family:'Inter', sans-serif; font-size:18px; font-weight:700; margin:0 0 16px;}
+  .comment-form-wrap{margin-bottom:20px;}
+  .comment-form textarea{width:100%; min-height:80px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
+  .comment-form-actions{display:flex; justify-content:flex-end; margin-top:10px;}
+  .comment-submit-btn{background:var(--ink); color:var(--paper-card); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
+  .comment-submit-btn:hover{background:var(--walnut);}
+  .comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
+  .comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
+  .comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
+  .comment-row{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line-soft);}
+  .comment-row:last-child{border-bottom:none;}
+  .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; flex-shrink:0;}
+  .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .comment-meta strong{color:var(--ink); font-weight:600;}
+  .comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:4px; text-decoration:underline; padding:0;}
+  .comment-delete-btn:hover{color:#c0392b;}
+  .comment-body-text{margin:0; font-size:13.5px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}
+
+  /* ---------- PROJE MODALI — sağ panel (medya + doğal akış) ---------- */
+  .gallery-wrap{position:relative; min-width:0;}
+  .gallery-media{position:relative;}
+  .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+  .detail-gallery::-webkit-scrollbar{display:none;}
+  .detail-gallery a{flex:0 0 auto;}
+  .detail-gallery img{height:min(52vh, 460px); width:auto; max-width:85%; aspect-ratio:4/3; object-fit:cover; border-radius:14px; background:var(--paper-card); display:block;}
+  .gallery-placeholder{flex:0 0 auto; height:min(52vh, 460px); width:auto; aspect-ratio:4/3; border-radius:14px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;}
+  .gallery-nav{
+    position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+    width:38px; height:38px; border-radius:50%; border:none;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(27,42,61,0.45); color:#fff;
+  }
+  .gallery-nav:hover{background:rgba(27,42,61,0.72);}
+  .gallery-prev{left:14px;}
+  .gallery-next{right:14px;}
+  .gallery-counter{text-align:center; margin-top:8px; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);}
+
+  .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
+  .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+  .lightbox-close:hover{opacity:1;}
+  .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
+  .lightbox-nav:hover{opacity:1;}
+  .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
+  .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
+  .lightbox-counter{
+    position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+    color:#fff; font-size:13px; font-weight:600; font-family:'IBM Plex Mono', monospace;
+    background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
+  }
+
+  .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+  .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+  .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+  .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
+  .related-card-title{
+    position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
+    background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
+    color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+  }
+  .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+  .related-grid-scroll::-webkit-scrollbar{display:none;}
+  .related-grid-scroll .related-card{flex:0 0 200px;}
+
+  .catalog-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+  .catalog-grid-scroll::-webkit-scrollbar{display:none;}
+  .catalog-card{
+    position:relative; display:block; flex:0 0 180px; aspect-ratio:1/1; border-radius:12px; overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  a.catalog-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
+  .catalog-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .catalog-card .catalog-placeholder-favicon{position:static; width:24px; height:24px; border-radius:6px; background:#fff; padding:3px; object-fit:contain;}
+  .catalog-placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; color:rgba(255,255,255,0.92);}
+  .catalog-placeholder-initials{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; letter-spacing:0.02em;}
+  .catalog-card-info{
+    position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
+    background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
+    color:#fff;
+  }
+  .catalog-card-cat{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:4px;}
+  .catalog-card-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; line-height:1.25; margin-bottom:2px;}
+  .catalog-card-by{font-size:11px; color:rgba(237,240,243,0.75);}
+
+  .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+  .prevnext a{flex:1; max-width:48%; padding:14px 18px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+  .prevnext a:hover{border-color:var(--walnut);}
+  .prevnext a.next{text-align:right; margin-left:auto;}
+  .prevnext-label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+  .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+
+  /* Skeleton — ertelenmiş bölümler (yorumlar/diğer projeler/ilgili projeler/ürünler) veri gelene
+     kadar (bkz. kullanıcı isteği: lazy/deferred). display:none DEĞİL, gerçek bir layout kutusu
+     olması gerekiyor ki IntersectionObserver tetiklenebilsin (bkz. project-modal.js#observeOnce). */
+  .skeleton-card{background:linear-gradient(90deg, var(--paper-alt) 25%, var(--paper) 37%, var(--paper-alt) 63%); background-size:400% 100%; animation:skeleton-pulse 1.4s ease infinite; border:none;}
+  .skeleton-line{background:linear-gradient(90deg, var(--paper-alt) 25%, var(--paper) 37%, var(--paper-alt) 63%); background-size:400% 100%; animation:skeleton-pulse 1.4s ease infinite;}
+  @keyframes skeleton-pulse{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+
+  @media (max-width:860px){
+    .related-grid-scroll .related-card{flex:0 0 140px;}
+    .related-grid-scroll{gap:10px;}
+    .catalog-card{flex:0 0 130px;}
+    .catalog-grid-scroll{gap:10px;}
+    .detail-gallery img, .gallery-placeholder{height:auto; max-height:52vh;}
+  }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
@@ -296,6 +485,17 @@
 <script src="auth-nav.js"></script>
 <script src="save-widget.js"></script>
 <script src="rating-widget.js"></script>
+<script src="badge-shared.js"></script>
+<script src="catalog-taxonomy.js"></script>
+<script src="js/components/gallery.js"></script>
+<script src="js/components/modal-shell.js"></script>
+<script src="js/components/project-gallery.js"></script>
+<script src="js/components/project-meta.js"></script>
+<script src="js/components/project-actions.js"></script>
+<script src="js/components/project-comments.js"></script>
+<script src="js/components/project-related.js"></script>
+<script src="js/components/project-products.js"></script>
+<script src="js/components/project-modal.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -413,6 +613,11 @@ const FILTER_GROUPS = [
 ];
 
 let projectRatings = new Map();
+// Proje modalının önceki/sonraki proje gezinmesi için (bkz. js/components/project-modal.js §4) —
+// modal, bir karta tıklanarak açıldığında BU sayfanın o anki (filtrelenmiş/sıralanmış) sayfasının
+// içeriğinin bir anlık görüntüsünü alır; arka plandaki liste sonradan değişse bile (mümkün değil,
+// modal açıkken scroll/etkileşim kilitli) görüntülenen proje bağlamı sabit kalır.
+let currentPageItems = [];
 
 const activeFilters = {};
 FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
@@ -703,6 +908,7 @@ async function render(){
   if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
   empty.style.display = 'none';
 
+  currentPageItems = data.items;
   grid.innerHTML = data.items.map(p => {
     const loc = parseLocation(p.location);
     const locLabel = loc.district ? `${loc.district}, ${loc.city}` : loc.city;
@@ -740,9 +946,31 @@ function officeColor(name){
 
 document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
 
-// Tarayıcı geri/ileri tuşu: URL zaten değişti, yalnızca uygulama durumunu (filtreler/arama/sıralama/
-// sayfa) yeni URL'den yeniden okuyup sidebar+grid'i buna göre yeniden çizmemiz gerekiyor.
+// Kart tıklaması: proje modalı (bkz. js/components/project-modal.js) sayfa yenilenmeden açılsın diye
+// düz sol tıklamalar burada yakalanır — orta tık/Ctrl/Cmd/Shift/Alt ile açma (yeni sekme vb.)
+// tarayıcının kendi doğal davranışına bırakılır (bkz. kullanıcı isteği). Tek bir delege dinleyici
+// #card-grid üzerine BİR KEZ bağlanır — grid.innerHTML her render()'da değişse de konteynerin
+// kendisi hiç değişmediğinden yeniden bağlamaya gerek yok.
+document.getElementById('card-grid').addEventListener('click', (e)=>{
+  if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a.content-card');
+  if(!a || e.target.closest('.card-save-btn')) return;
+  const m = (a.getAttribute('href') || '').match(/^\/projeler\/([^/?#]+)/);
+  if(!m) return;
+  const slug = decodeURIComponent(m[1]);
+  e.preventDefault();
+  ProjectModal.open(slug, { sourceListItems: currentPageItems, triggerEl: a });
+});
+
+// Tarayıcı geri/ileri tuşu: /projeler/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
+// güncelle (bkz. ProjectModal.handlePopState) — listeyi burada YENİDEN ÇİZME, modal kapanana kadar
+// arka plandaki liste durumu zaten sabit kalmalı (bkz. kullanıcı isteği). Diğer TÜM durumlarda
+// (ör. /proje?filtre=...) eski davranış aynen korunur; modal açıksa önce (URL zaten doğru olduğundan
+// history'e TEKRAR yazmadan) kapatılır.
 window.addEventListener('popstate', ()=>{
+  const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
+  if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
+  if(ProjectModal.isOpen()) ProjectModal.handlePopState(null);
   FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
   applyInitialFiltersFromQuery();
   buildSidebar();
@@ -752,7 +980,13 @@ window.addEventListener('popstate', ()=>{
 applyInitialFiltersFromQuery();
 loadBulkRatings('project').then(map => { projectRatings = map; }).finally(() => {
   buildSidebar();
-  render();
+  render().then(()=>{
+    // Doğrudan /projeler/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
+    // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir
+    // geçmiş girdisi açılmaz (bkz. ProjectModal.open).
+    const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
+    if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false, sourceListItems: currentPageItems });
+  });
 });
 
 function wireNavSearch(){

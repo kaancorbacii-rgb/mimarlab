@@ -56,7 +56,11 @@ const CLEAN_URL_REDIRECTS = {
 // (auto-trailing-slash) davranışıyla bunu tekrar uzantısız hale 301 yönlendirir — bu da orijinal
 // /projeler/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
 const CLEAN_URL_ASSETS = [
-  { prefix: '/projeler/', asset: '/proje-detay', type: 'project' },
+  // /projeler/:slug artık proje.html'e eşleniyor (proje-detay.html kaldırıldı) — proje.html kendi
+  // JS'inde bu yolu algılayıp proje modalını doğrudan açar (bkz. proje.html#initProjectRouteOnLoad),
+  // injectMeta() ise AYNI HTMLRewriter mekanizmasıyla artık proje.html'in <head>'indeki id'li meta
+  // etiketlerini hedefler (bkz. proje.html#meta-description vb.).
+  { prefix: '/projeler/', asset: '/proje', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
   { prefix: '/firma/', asset: '/ofis-detay', type: 'office' },
   { prefix: '/urunler/', asset: '/urun-detay', type: 'product' },

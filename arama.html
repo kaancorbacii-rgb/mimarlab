@@ -360,7 +360,7 @@ function runSearch(){
       meta: o.loc || '',
     })),
     groupHtml('Projeler', projeResults, p => rowHtml({
-      href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}`,
+      href: `/projeler/${encodeURIComponent(p.slug)}`,
       avatarContent: p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.location, p.date].filter(Boolean).join(' · '),

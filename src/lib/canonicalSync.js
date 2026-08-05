@@ -325,6 +325,41 @@ async function resolveDesignerLink(env, name, contextLabel) {
   return null;
 }
 
+// row.brands hem eski düz marka-adı string dizisi hem de yeni {brand, product} nesne dizisi
+// biçiminde olabilir (bkz. proje-ekle.html#brandChips) — eski proje-detay.html#brandEntryOf ile
+// aynı normalize.
+function brandEntryOf(b) { return typeof b === 'string' ? { brand: b, product: null } : b; }
+
+async function findMatchingProductIds(env, officeId, brandNameRaw, productTitle) {
+  let sql = `SELECT id FROM products WHERE deleted_at IS NULL AND `;
+  const params = [];
+  if (officeId) { sql += `brand_office_id = ?`; params.push(officeId); }
+  else { sql += `brand_office_id IS NULL AND brand_name_raw = ?`; params.push(brandNameRaw); }
+  if (productTitle) { sql += ` AND title = ?`; params.push(productTitle); }
+  const { results } = await env.DB.prepare(sql).bind(...params).all();
+  return results.map(r => r.id);
+}
+
+// project_products (bkz. migrations/0022_id_first_entities.sql) şemada var olmasına rağmen daha
+// önce HİÇBİR yerde doldurulmuyordu — ne bu canlı onay akışında ne de tek seferlik
+// scripts/merge-submissions-to-id-first.js'te (orada kasıtlı olarak ertelenmişti, bkz. o dosyadaki
+// yorum). Ürün adı belirtilmemiş bir girişte (yalnızca marka seçilmiş) o markanın TÜM ürün/
+// malzemeleri bağlanır — proje-detay.html#renderRelatedCatalog'un eski istemci-taraf eşleştirme
+// kuralıyla aynı davranış, artık sunucu tarafında ve kalıcı.
+async function resolveProjectProductLinks(env, brandsArray, contextLabel) {
+  const productIds = new Set();
+  for (const raw of (brandsArray || [])) {
+    const entry = brandEntryOf(raw);
+    if (!entry || !entry.brand) continue;
+    const officeMatch = await findOneByName(env, 'offices', entry.brand);
+    if (officeMatch.ambiguous) { await logConflict(env, 'product_brand', entry.brand, contextLabel, officeMatch.candidates); continue; }
+    const officeId = officeMatch.row ? officeMatch.row.id : null;
+    const ids = await findMatchingProductIds(env, officeId, entry.brand, entry.product);
+    ids.forEach(id => productIds.add(id));
+  }
+  return [...productIds];
+}
+
 async function syncProject(env, row) {
   const claimedSlug = row.claimed_slug;
   const marker = submissionMarker(row.id);
@@ -380,6 +415,14 @@ async function syncProject(env, row) {
         await env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`)
           .bind(projectId, resolved.architect_id, resolved.office_id).run();
       }
+    }
+  }
+
+  if (row.brands && row.brands.length) {
+    await env.DB.prepare(`DELETE FROM project_products WHERE project_id = ?`).bind(projectId).run();
+    const productIds = await resolveProjectProductLinks(env, row.brands, `project_submission:${row.id}`);
+    for (const productId of productIds) {
+      await env.DB.prepare(`INSERT OR IGNORE INTO project_products (project_id, product_id) VALUES (?, ?)`).bind(projectId, productId).run();
     }
   }
   return env.DB.prepare(`SELECT * FROM projects WHERE id = ?`).bind(projectId).first();

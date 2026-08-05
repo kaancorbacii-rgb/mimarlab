@@ -95,8 +95,11 @@ export async function handleOfficeListRoute(request, env, url) {
       // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
       // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de
       // olduğu gibi döner (bkz. o dosyadaki JSON_FIELDS notu). firma.html'in her yerde beklediği
-      // düz " · "-ayrımlı string biçimine burada TEK noktadan normalize edilir.
-      const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (o.cats || '');
+      // düz " · "-ayrımlı string biçimine burada TEK noktadan normalize edilir. Yalnızca dizi/string
+      // değil (bkz. gerçek bulgu: bir kayıtta cats JSON.parse sonrası ne dizi ne string bir değere
+      // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
+      // (sayı/boolean/obje) güvenli bir düz metne düşer.
+      const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
       return { name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, badges: [] };
     });
 

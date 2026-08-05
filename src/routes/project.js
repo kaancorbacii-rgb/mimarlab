@@ -38,16 +38,56 @@ function shapeProjectItem(row) {
     period: p.period, designer: designerNamesFrom(row.designer_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
     description: p.description, images: p.images,
-    // "Kullanılan Ürünler/Malzemeler" (project_products) doldurulması Faz 2/3'te kapsam dışı
-    // bırakıldı (bkz. docs/architecture-roadmap.md §4.4) — proje-detay.html henüz bu API'ye bağlı
-    // olmadığından gözlemlenebilir bir etkisi yok.
-    brands: [],
   };
 }
 
-// GET /api/project/:slug — proje-detay.html henüz bu uca bağlanmadı (bkz. eski yorum, bu durum
-// Faz 3'te de değişmedi), ama Faz 1'in "overlay worker katmanına taşınsın" hedefiyle tutarlı,
-// çalışır bir uç nokta olarak korunuyor.
+// Proje modalının künyesindeki zengin mimar/firma "chip"leri (fotoğraf/logo + kendi profil linki)
+// için — shapeProjectItem'daki düz `designer` isim dizisi liste/filtre uçlarıyla PAYLAŞILDIĞINDAN
+// (bkz. fetchActiveProjectPool/handleProjectFiltersRoute, aynı isim eşleştirmesine dayanıyorlar)
+// orada değiştirilmez; bu yalnızca tekil proje detayında ek bir sorguyla doldurulan ayrı bir alan.
+async function fetchDesignerDetails(env, projectId) {
+  const { results } = await env.DB.prepare(
+    `SELECT pd.architect_id, pd.office_id,
+            ar.name AS ar_name, ar.slug AS ar_slug, ar.photo_url AS ar_photo,
+            ofc.name AS ofc_name, ofc.slug AS ofc_slug, ofc.logo_url AS ofc_logo
+     FROM project_designers pd
+     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
+     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+     WHERE pd.project_id = ?`
+  ).bind(projectId).all();
+  return results
+    .map(r => r.architect_id
+      ? (r.ar_name ? { name: r.ar_name, type: 'architect', slug: r.ar_slug, photo: r.ar_photo || null } : null)
+      : (r.ofc_name ? { name: r.ofc_name, type: 'office', slug: r.ofc_slug, photo: r.ofc_logo || null } : null))
+    .filter(Boolean);
+}
+
+// "Kullanılan Ürünler/Malzemeler" — project_products join tablosundan (bkz. resolveProjectProductLinks
+// içinde src/lib/canonicalSync.js, burada canlı doldurulur) gerçek ürün/malzeme kayıtlarını okur;
+// artık istemci tarafında brand-string eşleştirmesi (proje-detay.html#renderRelatedCatalog'un eski
+// yöntemi) gerekmiyor.
+async function fetchProjectProducts(env, projectId) {
+  const { results } = await env.DB.prepare(
+    `SELECT pr.slug, pr.title, pr.kind, pr.category, pr.images,
+            COALESCE(off.name, pr.brand_name_raw) AS brand_name
+     FROM project_products pp
+     JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL
+     LEFT JOIN offices off ON off.id = pr.brand_office_id AND off.deleted_at IS NULL
+     WHERE pp.project_id = ?`
+  ).bind(projectId).all();
+  const products = [];
+  const materials = [];
+  for (const row of results) {
+    let images = [];
+    try { images = row.images ? JSON.parse(row.images) : []; } catch { /* bozuk JSON — atla */ }
+    const item = { slug: row.slug, title: row.title, category: row.category || '', image: images[0] || null, brand: row.brand_name || '' };
+    (row.kind === 'material' ? materials : products).push(item);
+  }
+  return { products, materials };
+}
+
+// GET /api/project/:slug — Faz 4: proje.html'deki proje modalı bu uca bağlandı (eski yorum artık
+// geçersiz), canonical D1'den doğrudan okur.
 export async function handleProjectDetailRoute(request, env, url, rawSlug) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   const slug = decodeURIComponent(rawSlug || '');
@@ -61,7 +101,15 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     ).bind(slug).first();
     if (!row) return { item: null, hidden: false };
     if (row.hidden_at) return { item: null, hidden: true };
-    return { item: shapeProjectItem(row), hidden: false };
+    const item = shapeProjectItem(row);
+    const [designerDetails, catalog] = await Promise.all([
+      fetchDesignerDetails(env, row.id),
+      fetchProjectProducts(env, row.id),
+    ]);
+    item.designerDetails = designerDetails;
+    item.products = catalog.products;
+    item.materials = catalog.materials;
+    return { item, hidden: false };
   });
 }
 

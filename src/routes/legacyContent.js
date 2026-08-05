@@ -203,7 +203,7 @@ export async function handlePublicSearchSuggest(request, env, url) {
     const groups = [
       { label: 'Mimar', items: archRes.results.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}` })) },
       { label: 'Firma', items: officeRes.results.map(o => ({ title: o.name, meta: o.loc || '', href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}` })) },
-      { label: 'Proje', items: projRes.results.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `proje-detay.html?proje=${encodeURIComponent(p.slug)}` })) },
+      { label: 'Proje', items: projRes.results.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/projeler/${encodeURIComponent(p.slug)}` })) },
       { label: 'Ürün', items: prodRes.results.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: 'urun.html' })) },
       { label: 'Haber', items: newsItems.filter(n => !hiddenNews.has(n.id) && (trLower(n.title).includes(q) || trLower(n.category || '').includes(q))).map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })) },
     ];
