@@ -897,11 +897,19 @@ async function prefillForEdit(){
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
-// ?claim=<slug>: yalnızca admin için — statik bir projeler[] kaydını (bkz. projeler-data.js)
-// düzenleme modu (bkz. kullanıcı isteği: "admin hesabına tüm projeleri düzenleyebilme yetkisi
-// ver"). firma-ekle.html#prefillForClaim ile aynı desen: statik kayıt + onaylı düzenleme varsa
-// üzerine bindirilmiş hali formu doldurur; bu profilin sahibi kavramı olmadığından (mimar/ofis'in
-// aksine) hiçbir alan kilitlenmez, yalnızca slug sabit kalır (payload'da claimed_slug olarak gider).
+// ?claim=<slug>: yalnızca admin için — bir projects[] kaydını (statik köken ya da doğrudan D1'de
+// yaşayan, farketmez) düzenleme modu (bkz. kullanıcı isteği: "admin hesabına tüm projeleri
+// düzenleyebilme yetkisi ver"). firma-ekle.html#prefillForClaim ile aynı desen; bu profilin sahibi
+// kavramı olmadığından (mimar/ofis'in aksine) hiçbir alan kilitlenmez, yalnızca slug sabit kalır
+// (payload'da claimed_slug olarak gider).
+//
+// gerçek bulgu: bu fonksiyon eskiden yalnızca projeler-data.js'teki ~571 statik kayıtta
+// (projectBySlug) + /api/public/project-edits overlay'inde arıyordu — proje modalının Faz 3'te
+// doğrudan canonical D1'e taşınmasından beri statik dizide hiç karşılığı olmayan projelerde
+// (yalnızca D1'de yaşayan, ör. üye onaylı gönderiler) form neredeyse tamamen boş geliyordu (yalnızca
+// slug biliniyordu). Artık proje modalının da okuduğu AYNI canonical uçtan (GET /api/project/:slug,
+// bkz. src/routes/project.js#handleProjectDetailRoute) okunur — statik/D1 ayrımı olmadan HER proje
+// için çalışır.
 async function prefillForClaim(){
   if(!claimSlug) return;
   await meReady;
@@ -915,13 +923,12 @@ async function prefillForClaim(){
   document.querySelector('.page-head h1').textContent = 'Projeyi düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
-  const staticProject = projectBySlug(claimSlug) || { slug: claimSlug, title: '' };
-  let merged = { ...staticProject };
+  let merged = { slug: claimSlug, title: '' };
   try{
-    const editsRes = await fetch('/api/public/project-edits');
-    if(editsRes.ok){
-      const edits = await editsRes.json();
-      if(edits[claimSlug]) merged = { ...merged, ...edits[claimSlug] };
+    const res = await fetch(`/api/project/${encodeURIComponent(claimSlug)}`);
+    if(res.ok){
+      const data = await res.json();
+      if(data.item) merged = data.item;
     }
   }catch{}
 
@@ -951,11 +958,12 @@ async function prefillForClaim(){
   document.getElementById('p-date').value = merged.date || '';
   document.getElementById('p-type').value = (merged.type || []).join(', ');
   {
-    const names = merged.designer || [];
-    const mimarNames = names.filter(n => !offices.some(o => o.name === n));
-    const ofisNames = names.filter(n => offices.some(o => o.name === n));
-    document.getElementById('p-designer').value = mimarNames.join(', ');
-    document.getElementById('p-office').value = ofisNames.join(', ');
+    // designerDetails (bkz. handleProjectDetailRoute#fetchDesignerDetails) her ismi zaten
+    // 'architect'/'office' olarak sınıflandırdığından, offices[] statik dizisine karşı isim
+    // eşleştirmesi yapan eski heuristiğe gerek yok.
+    const designers = merged.designerDetails || [];
+    document.getElementById('p-designer').value = designers.filter(d => d.type === 'architect').map(d => d.name).join(', ');
+    document.getElementById('p-office').value = designers.filter(d => d.type === 'office').map(d => d.name).join(', ');
   }
   document.getElementById('p-desc').value = merged.description || '';
   document.getElementById('p-credit-text').value = (merged.photoCredit && merged.photoCredit.text) || '';
@@ -964,7 +972,9 @@ async function prefillForClaim(){
   updateKategoriLabel();
   document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (merged.discipline || []).includes(cb.value));
   updateTurLabel();
-  brandChips = (merged.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
+  // brands artık project_products join'inden gelen gerçek products/materials dizileri (bkz. dosya
+  // başı yorum) — form chip listesi bunlardan {brand, product} çiftleri olarak yeniden kurulur.
+  brandChips = [...(merged.products || []), ...(merged.materials || [])].map(p => ({ brand: p.brand || '', product: p.title || null }));
   renderBrandChips();
   setExistingImages(merged.images || []);
   renderPreviews();
