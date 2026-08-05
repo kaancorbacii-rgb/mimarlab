@@ -5,7 +5,7 @@ import { handlePublicHidden, handlePublicSearchSuggest } from './legacyContent.j
 import { cachedPublicJson } from '../lib/publicCache.js';
 
 const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
   architects: 'architects',
 };
 
@@ -45,23 +45,13 @@ function toPublicShape(type, row) {
       source: 'member', submissionId: parsed.id, ...owner,
     };
   }
-  if (type === 'architects') {
-    return {
-      name: parsed.name, dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-      role: parsed.position, status: parsed.position, awards: parsed.awards, photo: parsed.photo_url,
-      about: parsed.about, source: 'member', submissionId: parsed.id, ...owner,
-    };
-  }
-  // jobs
+  // architects
   return {
-    title: parsed.title, office: parsed.office, loc: parsed.loc, level: parsed.level,
-    role: parsed.role, tags: parsed.tags, domain: parsed.domain, description: parsed.description,
-    apply: parsed.apply, image: parsed.image_url, source: 'member', submissionId: parsed.id,
-    publishedAt: parsed.published_at || parsed.created_at, ...owner,
+    name: parsed.name, dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
+    role: parsed.position, status: parsed.position, awards: parsed.awards, photo: parsed.photo_url,
+    about: parsed.about, source: 'member', submissionId: parsed.id, ...owner,
   };
 }
-
-const JOB_LISTING_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 // architects/offices'te claimed_profile_key, projects'te claimed_slug dolu satırlar yeni bir kayıt
 // değil, mevcut statik bir kayda (architects[]/offices[].name ya da projeler[].slug) yapılan bir
@@ -96,12 +86,6 @@ export async function handlePublicRoute(request, env, url) {
     // yalnızca KENDİSİ için aldığı (target_type='self') aktif rozeti — marka rozeti burada asla
     // sızmaz, bkz. src/routes/badges.js#handlePublicBadges'teki aynı ayrım.
     const params = [Date.now()];
-    // İş ilanları 30 gün yayında kalır: published_at'i olmayan (eski/legacy) satırlar için kısıtlama
-    // uygulanmaz, olanlar süresi dolunca herkese açık listeden düşer (bkz. migrations/0004_job_expiry.sql).
-    if (typeKey === 'jobs') {
-      whereClause += ` AND (s.published_at IS NULL OR s.published_at > ?)`;
-      params.push(Date.now() - JOB_LISTING_DURATION_MS);
-    }
     const { results } = await env.DB.prepare(
       `SELECT s.*, u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
        FROM ${config.table} s
@@ -223,9 +207,7 @@ const PROFILE_CONTENT_TYPES = new Set(['architect', 'office']);
 // owner_user_id'si üzerinden eşleştirme yapılır: "kişinin/markanın siteye girdiği" içerik budur.
 // mimar-detay.html/ofis-detay.html bunu Projeler'in altında Projeler'le aynı yatay kaydırmalı
 // tasarımda gösterir. Ürün/malzeme/haber her iki profil tipinde de gösterilir (bkz. kullanıcı
-// isteği: ofis profillerinde de "varsa" ürün/malzeme/haber başlıkları); iş ilanları yalnızca
-// architect için döner — ofis profillerinin kendi statik İş İlanları bölümü zaten var (bkz.
-// ofis-detay.html#jobListings), burada tekrarlanmasına gerek yok.
+// isteği: ofis profillerinde de "varsa" ürün/malzeme/haber başlıkları).
 async function handlePublicProfileContent(request, env, url) {
   const profileType = url.searchParams.get('profileType');
   const profileKey = (url.searchParams.get('profileKey') || '').trim();
@@ -236,12 +218,11 @@ async function handlePublicProfileContent(request, env, url) {
       `SELECT DISTINCT user_id FROM profile_claims WHERE status = 'approved' AND profile_type = ? AND profile_key = ?`
     ).bind(profileType, profileKey).all();
     const userIds = claimRows.map(r => r.user_id);
-    if (!userIds.length) return { products: [], materials: [], news: [], jobs: [] };
+    if (!userIds.length) return { products: [], materials: [], news: [] };
 
     const placeholders = userIds.map(() => '?').join(', ');
-    const isArchitect = profileType === 'architect';
 
-    const [productsRes, materialsRes, newsRes, jobsRes] = await Promise.all([
+    const [productsRes, materialsRes, newsRes] = await Promise.all([
       env.DB.prepare(
         `SELECT * FROM product_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
       ).bind(...userIds).all(),
@@ -251,11 +232,6 @@ async function handlePublicProfileContent(request, env, url) {
       env.DB.prepare(
         `SELECT id, title, category, source, description, image_url FROM news_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
       ).bind(...userIds).all(),
-      isArchitect
-        ? env.DB.prepare(
-            `SELECT * FROM job_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
-          ).bind(...userIds).all()
-        : Promise.resolve({ results: [] }),
     ]);
 
     return {
@@ -264,7 +240,6 @@ async function handlePublicProfileContent(request, env, url) {
       news: newsRes.results.map(r => ({
         id: r.id, title: r.title, category: r.category, source: r.source, description: r.description, image: r.image_url,
       })),
-      jobs: jobsRes.results.map(r => toPublicShape('jobs', r)),
     };
   });
 }

@@ -36,13 +36,6 @@ export const SUBMISSION_TYPES = {
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
   },
-  jobs: {
-    table: 'job_submissions',
-    fields: ['title', 'office', 'loc', 'level', 'role', 'tags', 'domain', 'description', 'apply', 'image_url'],
-    arrayFields: ['tags'],
-    required: ['title', 'office'],
-    urlFields: ['apply', 'image_url'],
-  },
   architects: {
     table: 'architect_submissions',
     fields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'claimed_profile_key'],

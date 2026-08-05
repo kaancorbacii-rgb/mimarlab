@@ -1,4 +1,4 @@
-// Rozet sahipliğine bağlı ek haklar (ürün/iş ilanı yükleme limitleri, yorum silme yetkisi vb.)
+// Rozet sahipliğine bağlı ek haklar (ürün yükleme limitleri, yorum silme yetkisi vb.)
 // için paylaşılan yardımcılar. Hak veren rozet tipleri: verified (Doğrulanmış Üye), gold (Altın
 // Üye), platinum (Elmas Üye) — bkz. data.js#BADGE_LABELS, src/routes/badges.js#BADGE_PRICES.
 // 'destekci' (Destekçi) kasıtlı olarak burada yok: hiçbir hak/limit vermez (bkz. src/routes/
@@ -36,6 +36,3 @@ export const PRODUCT_MONTHLY_LIMITS = { verified: 3, gold: 10, platinum: 50 };
 
 // Aylık yapı malzemesi yükleme limitleri — ürünlerden ayrı bir kota havuzu (bkz. src/routes/submissions.js).
 export const MATERIAL_MONTHLY_LIMITS = { verified: 3, gold: 10, platinum: 50 };
-
-// Aylık iş ilanı yayınlama limitleri; Doğrulanmış Üye bu hakka sahip değildir (bkz. is-ilani-ver.html).
-export const JOB_MONTHLY_LIMITS = { gold: 1, platinum: 2 };

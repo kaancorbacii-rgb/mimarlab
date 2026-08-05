@@ -7,19 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Arama — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'da mimar, ofis, proje, ürün, haber ve iş ilanı ara.">
+<meta name="description" content="MİMARLAB'da mimar, ofis, proje, ürün ve haber ara.">
 <link rel="canonical" href="https://mimarlab.com/arama">
 <meta name="robots" content="noindex, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Arama — MİMARLAB">
-<meta property="og:description" content="MİMARLAB'da mimar, ofis, proje, ürün, haber ve iş ilanı ara.">
+<meta property="og:description" content="MİMARLAB'da mimar, ofis, proje, ürün ve haber ara.">
 <meta property="og:url" content="https://mimarlab.com/arama">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Arama — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB'da mimar, ofis, proje, ürün, haber ve iş ilanı ara.">
+<meta name="twitter:description" content="MİMARLAB'da mimar, ofis, proje, ürün ve haber ara.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -309,7 +309,7 @@ function runSearch(){
     titleEl.textContent = 'Arama';
     subtitleEl.textContent = '';
     wrap.innerHTML = `<div class="search-empty">
-      <p>Mimar, firma, proje, ürün, haber veya iş ilanı aramak için üstteki arama kutusunu kullan.</p>
+      <p>Mimar, firma, proje, ürün veya haber aramak için üstteki arama kutusunu kullan.</p>
       <div class="nav-search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" placeholder="Ara...">
@@ -328,9 +328,8 @@ function runSearch(){
   const projeResults = projects.filter(p => !isHiddenLegacy('projects', p.slug) && (trLower(p.title).includes(q) || trLower(p.location||'').includes(q) || (p.designer||[]).some(d=>trLower(d).includes(q))));
   const urunResults = products.filter(p => !isHiddenLegacy('products', `${p.brand||''}|||${p.title}`) && (trLower(p.title).includes(q) || trLower(p.category||'').includes(q) || trLower(p.brand||'').includes(q)));
   const haberResults = newsItems.filter(n => !isHiddenLegacy('news', n.id) && (trLower(n.title).includes(q) || trLower(n.category||'').includes(q)));
-  const isilaniResults = jobListings.filter(j => trLower(j.title).includes(q) || trLower(j.office||'').includes(q) || trLower(j.loc||'').includes(q) || trLower(j.role||'').includes(q));
 
-  const total = mimarResults.length + markaResults.length + projeResults.length + urunResults.length + haberResults.length + isilaniResults.length;
+  const total = mimarResults.length + markaResults.length + projeResults.length + urunResults.length + haberResults.length;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
@@ -378,16 +377,6 @@ function runSearch(){
       title: n.title,
       meta: n.category || '',
     })),
-    groupHtml('İş İlanları', isilaniResults, j => {
-      const o = offices.find(x => x.name === j.office);
-      return rowHtml({
-        href: 'is-ilani.html',
-        avatarStyle: `background:${officeColor(j.office||j.title)}`,
-        avatarContent: `${initials(j.office||j.title)}${o && logoUrl(o) ? `<img src="${escapeAttr(logoUrl(o))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
-        title: j.title,
-        meta: [j.office, j.loc].filter(Boolean).join(' · '),
-      });
-    }),
   ].join('');
 
   wireNavSearch();

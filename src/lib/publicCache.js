@@ -34,7 +34,7 @@ const ANON_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=5, s-maxage=15' }
 // düzeyinde, kendiliğinden dolan) önbelleklenir.
 const CACHEABLE_PATHS = [
   '/api/public/offices', '/api/public/projects', '/api/public/products',
-  '/api/public/materials', '/api/public/jobs', '/api/public/architects',
+  '/api/public/materials', '/api/public/architects',
   '/api/public/hidden', '/api/public/project-edits', '/api/public/profile-edits',
   '/api/public/news',
 ];

@@ -349,15 +349,6 @@
 .office-card-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper-card);}
 .office-card-name{font-size:15px; font-weight:600; color:var(--ink); line-height:1.3;}
 .office-card-meta{font-size:12.5px; color:var(--ink-soft); margin-top:3px;}
-.jobs-empty{
-  background:var(--paper-card); border:1px dashed var(--brass);
-  border-radius:12px; padding:24px 20px; text-align:center;
-  color:var(--ink-soft); font-size:13.5px; line-height:1.6; margin-top:28px;
-}
-.jobs-empty strong{
-  color:var(--ink); display:block; font-family:'Inter', sans-serif;
-  font-size:16px; margin-bottom:6px; font-weight:600;
-}
 
 /* ---------- İLGİLİ İÇERİK (ana sayfadaki kare kart carousel'i ile aynı) ---------- */
 .related-section{max-width:1080px; margin:44px auto 0; padding:0 32px;}
@@ -927,7 +918,7 @@ document.addEventListener('click', (e)=>{
 
 // Tablet/mobilde (profile-wrap'ın tek sütuna indiği aynı eşik, bkz. yukarıdaki 860px sorgusu)
 // "Bu profil sana mı ait?" / "Bilgi kaynağı" kutuları, masaüstünde yan sütunda kalsa da mobilde
-// asıl içeriği (projeler, ürünler, haberler, iş ilanları) sayfanın başına iterek gölgelememesi
+// asıl içeriği (projeler, ürünler, haberler) sayfanın başına iterek gölgelememesi
 // için footer'ın hemen üstüne taşınır — bkz. kullanıcı isteği.
 (function wireSidebarCardsReposition(){
   const sidebarCards = document.getElementById('profile-sidebar-cards');

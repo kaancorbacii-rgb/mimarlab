@@ -4,7 +4,7 @@ import { slugify } from './slugify.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v37';
+export const SSR_CACHE_VERSION = 'v38';
 
 const PREFIX_BY_TYPE = {
   project: '/projeler/',
@@ -43,8 +43,8 @@ export async function purgeSsrDetailCache(type, rawKey) {
 }
 
 // src/lib/submissionTypes.js#SUBMISSION_TYPES anahtarlarını (offices/projects/products/materials/
-// jobs/architects/news) yukarıdaki PREFIX_BY_TYPE anahtarlarına eşler — materials, products ile
-// aynı /urunler/ sayfasını paylaşır (bkz. urun-detay.html), jobs'un temiz bir detay sayfası yok.
+// architects/news) yukarıdaki PREFIX_BY_TYPE anahtarlarına eşler — materials, products ile
+// aynı /urunler/ sayfasını paylaşır (bkz. urun-detay.html).
 const SSR_TYPE_BY_SUBMISSION_TYPE = {
   projects: 'project', architects: 'architect', offices: 'office',
   products: 'product', materials: 'product', news: 'news',
@@ -53,8 +53,8 @@ const SSR_TYPE_BY_SUBMISSION_TYPE = {
 // Bir <tip>_submissions satırından (claimed_slug/claimed_profile_key varsa statik kaydın kendi
 // anahtarı, yoksa satırın kendi slug/name/id'si) purgeSsrDetailCache'e verilecek {type, key} çiftini
 // çıkarır. Ürün/malzeme için satırın kendi id'sinden türeyen "m-<id>" anahtarı kullanılır (bkz.
-// urun-detay.html#productKey — üye gönderili kayıtlar için aynı desen). jobs için detay sayfası
-// olmadığından (bkz. src/index.js#CLEAN_URL_ASSETS) null döner.
+// urun-detay.html#productKey — üye gönderili kayıtlar için aynı desen). Eşlemede karşılığı olmayan
+// tipler için null döner.
 export function ssrPurgeTargetFor(typeKey, row) {
   const type = SSR_TYPE_BY_SUBMISSION_TYPE[typeKey];
   if (!type || !row) return null;

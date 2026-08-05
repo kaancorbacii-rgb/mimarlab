@@ -300,20 +300,20 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 const BADGE_TIERS = [
-  { type:'destekci', label:'Destekçi', price:'19,90 TL', perks:[
+  { type:'destekci', label:'Destekçi', price:'79,90 TL', perks:[
     'Herhangi bir ayrıcalık ya da rozet vermez — sadece MİMARLAB\'a destek olmak isteyenler içindir.',
   ] },
-  { type:'verified', label:'Doğrulanmış Üye', price:'39,90 TL', perks:[
+  { type:'verified', label:'Doğrulanmış Üye', price:'99,90 TL', perks:[
     'Profilinde mavi doğrulanmış rozet',
     'Ayda 3 ürün yükleme hakkı',
     'Kendi içeriğine gelen yorumları silme yetkisi',
   ] },
-  { type:'gold', label:'Altın Üye', price:'79,90 TL', perks:[
+  { type:'gold', label:'Altın Üye', price:'139,90 TL', perks:[
     'Doğrulanmış rozet',
     'Ayda 10 ürün yükleme hakkı',
     'Kendi içeriğine gelen yorumları silme yetkisi',
   ] },
-  { type:'platinum', label:'Elmas Üye', price:'139,90 TL', perks:[
+  { type:'platinum', label:'Elmas Üye', price:'199,90 TL', perks:[
     'Doğrulanmış rozet',
     'Ayda 50 ürün yükleme hakkı',
     'Kendi içeriğine gelen yorumları silme yetkisi',

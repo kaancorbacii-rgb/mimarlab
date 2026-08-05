@@ -284,7 +284,7 @@
   </footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber' };
+const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
 // Bekleyen Gönderiler/Yayındaki İçerikler sekmelerinde filtre BUTONU olarak yalnızca bu tipler
 // gösterilir (bkz. kullanıcı isteği: "malzeme, iş ilanı, mimar ve haber butonlarını kaldır") —
 // TYPE_LABELS'in kendisi hâlâ tüm 7 tipi içerir, bu yüzden "Tümü" seçiliyken (varsayılan) diğer
@@ -351,14 +351,12 @@ async function api(path, opts){
 function itemTitle(type, item){
   if(type === 'offices') return item.name;
   if(type === 'architects') return item.name;
-  if(type === 'jobs') return item.title + ' · ' + item.office;
   return item.title;
 }
 function itemMeta(type, item){
   if(type === 'offices') return [item.loc, item.cats, item.yil].filter(Boolean).join(' · ');
   if(type === 'projects') return [item.location, item.date, (item.designer||[]).join(', ')].filter(Boolean).join(' · ');
   if(type === 'products' || type === 'materials') return [item.brand, item.category].filter(Boolean).join(' · ');
-  if(type === 'jobs') return [item.loc, item.level, item.role].filter(Boolean).join(' · ');
   if(type === 'architects') return [item.office, item.school, item.dept, item.dob].filter(Boolean).join(' · ');
   if(type === 'news') return [item.category, item.source].filter(Boolean).join(' · ');
   return '';
@@ -381,7 +379,7 @@ function safeUrl(u){
 function itemImage(type, item){
   if(type === 'architects') return item.photo_url || null;
   if(type === 'offices') return item.logo_url || null;
-  if(type === 'news' || type === 'jobs') return item.image_url || null;
+  if(type === 'news') return item.image_url || null;
   if(item.images && item.images.length) return item.images[0];
   return null;
 }
@@ -406,13 +404,10 @@ function claimBadgeHtml(item){
 function itemDetails(type, item){
   const rows = [];
   if(item.website) rows.push(['Web Sitesi', `<a href="${escapeAttr(safeUrl(item.website))}" target="_blank" rel="noopener">${escapeHtml(item.website)}</a>`]);
-  if(item.apply) rows.push(['Başvuru Linki', `<a href="${escapeAttr(safeUrl(item.apply))}" target="_blank" rel="noopener">${escapeHtml(item.apply)}</a>`]);
   if(item.awards && item.awards.length) rows.push(['Ödüller', escapeHtml(item.awards.join(', '))]);
   if(type === 'offices' && item.founders && item.founders.length) rows.push(['Kurucular', escapeHtml(item.founders.join(', '))]);
   if(type === 'architects' && item.position) rows.push(['Pozisyon', escapeHtml(item.position)]);
   if(type === 'architects' && item.profession) rows.push(['Meslek', escapeHtml(item.profession)]);
-  if(type === 'jobs' && item.tags && item.tags.length) rows.push(['Etiketler', escapeHtml(item.tags.join(', '))]);
-  if(type === 'jobs' && item.domain) rows.push(['Alan', escapeHtml(item.domain)]);
   if(type === 'projects'){
     if(item.category && item.category.length) rows.push(['Kategori', escapeHtml(item.category.join(', '))]);
     if(item.type && item.type.length) rows.push(['Tip', escapeHtml(item.type.join(', '))]);
@@ -426,18 +421,6 @@ function itemDetails(type, item){
 }
 
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-
-// İş ilanları onaylandıktan/yeniden onaylandıktan sonra 30 gün yayında kalır (bkz.
-// src/routes/public.js#handlePublicRoute, src/routes/admin.js published_at mantığı) — burada
-// yalnızca admin'e görünürlük için kalan süre/süresi dolmuş bilgisini gösterir.
-const JOB_LISTING_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
-function jobExpiryBadge(item){
-  if(!item.published_at) return '';
-  const remainingMs = item.published_at + JOB_LISTING_DURATION_MS - Date.now();
-  if(remainingMs <= 0) return ` <span class="admin-badge badge-rejected">Süresi Doldu</span>`;
-  const days = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
-  return ` <span class="admin-badge badge-pending">${days} gün kaldı</span>`;
-}
 
 function renderSubtabs(container, activeType, onSelect){
   const types = ['all', ...SUBTAB_TYPES];
@@ -532,7 +515,7 @@ async function loadContent(resetPage){
         <div class="admin-card-body">
           ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy" decoding="async">` : ''}
           <div>
-            <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))} <span class="admin-badge badge-approved">Yayında</span>${item.__type === 'jobs' ? jobExpiryBadge(item) : ''}${contentType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}</div>
+            <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))} <span class="admin-badge badge-approved">Yayında</span>${contentType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}</div>
             ${claimBadgeHtml(item)}
             <div class="admin-card-meta">${escapeHtml(itemMeta(item.__type, item))}</div>
             ${itemDetails(item.__type, item)}

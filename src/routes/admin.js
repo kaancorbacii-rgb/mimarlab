@@ -11,7 +11,7 @@ import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 
-// canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — jobs/news
+// canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
 // açıkça belirtmek çağıran yeri okunaklı kılıyor.
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
@@ -34,18 +34,17 @@ async function runCascadeDelete(env, user, typeKey, row) {
   if (typeKey === 'products') return cascadeDeleteProduct(env, 'product', `m-${row.id}`);
   if (typeKey === 'materials') return cascadeDeleteProduct(env, 'material', `m-${row.id}`);
   if (typeKey === 'news') return cascadeDeleteMisc(env, 'news', row.id);
-  if (typeKey === 'jobs') return cascadeDeleteMisc(env, 'job', row.id);
 }
 
 const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
   architects: 'architects', news: 'news',
 };
 
 // Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
 // de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
 const SUBMISSION_TYPE_LABELS = {
-  offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber',
+  offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber',
 };
 
 const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
@@ -167,12 +166,6 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       if (body.status && ['pending', 'approved', 'rejected'].includes(body.status)) {
         updates.push('status = ?');
         values.push(body.status);
-        // İş ilanları 30 gün yayında kalır (bkz. src/routes/public.js#handlePublicRoute); her
-        // (yeniden) onayda published_at şimdiki zamana sıfırlanır, yayın süresi baştan başlar.
-        if (typeKey === 'jobs' && body.status === 'approved') {
-          updates.push('published_at = ?');
-          values.push(Date.now());
-        }
       }
       for (const field of config.fields) {
         if (!(field in body)) continue;

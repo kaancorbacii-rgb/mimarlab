@@ -2,7 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField } from '../lib/submissionTypes.js';
-import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS, JOB_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
+import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -21,7 +21,7 @@ import dataJs from '../../data.js';
 const { architects: staticArchitects, offices: staticOffices } = dataJs;
 
 const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials', jobs: 'jobs',
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
   architects: 'architects', news: 'news',
 };
 
@@ -123,9 +123,9 @@ async function verifyClaimedSlug(env, user, slug) {
   return null;
 }
 
-// Ürün ve iş ilanı gönderimi rozet sahipliğine bağlıdır (yalnızca yeni gönderiler için — mevcut
-// bir gönderiyi düzenlemek aylık hakkı harcamaz, bkz. updateOwnSubmission). Ürün: her üç rozet
-// kademesi de farklı aylık limitle yükleyebilir. İş ilanı: yalnızca Altın/Elmas Üye yayınlayabilir.
+// Ürün gönderimi rozet sahipliğine bağlıdır (yalnızca yeni gönderiler için — mevcut bir gönderiyi
+// düzenlemek aylık hakkı harcamaz, bkz. updateOwnSubmission). Her üç rozet kademesi de farklı
+// aylık limitle yükleyebilir.
 async function checkSubmissionQuota(env, user, typeKey) {
   if (typeKey === 'products') {
     const badge = await getActiveBadge(env, user.id);
@@ -136,17 +136,6 @@ async function checkSubmissionQuota(env, user, typeKey) {
       `SELECT COUNT(*) AS count FROM product_submissions WHERE owner_user_id = ? AND created_at >= ?`
     ).bind(user.id, since).first();
     if (row.count >= limit) return errorJson(`Bu ayki ürün yükleme hakkını kullandın (${limit}/${limit}). Yeni hak için bir sonraki döneme kadar bekleyebilir ya da daha üst bir rozete geçebilirsin.`, 403);
-    return null;
-  }
-  if (typeKey === 'jobs') {
-    const badge = await getActiveBadge(env, user.id);
-    const limit = badge ? JOB_MONTHLY_LIMITS[badge.badge_type] : undefined;
-    if (!limit) return errorJson('İş ilanı yayınlamak için Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
-    const since = periodStart(badge);
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS count FROM job_submissions WHERE owner_user_id = ? AND created_at >= ?`
-    ).bind(user.id, since).first();
-    if (row.count >= limit) return errorJson(`Bu ayki iş ilanı yayınlama hakkını kullandın (${limit}/${limit}).`, 403);
     return null;
   }
   if (typeKey === 'materials') {

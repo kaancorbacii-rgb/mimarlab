@@ -506,12 +506,12 @@
 
 <script src="data.js"></script>
 <script>
-const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', jobs: 'İş İlanı', architects: 'Mimar', news: 'Haber' };
+const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
   offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
-  jobs: 'is-ilani-ver.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html',
+  architects: 'mimar-ekle.html', news: 'haber-ekle.html',
 };
 const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
 const PAGE_SIZE_DASH = 10;
@@ -573,7 +573,6 @@ function renderAvatar(){
 function itemTitle(type, item){
   if(type === 'offices') return item.name;
   if(type === 'architects') return item.name;
-  if(type === 'jobs') return item.title + ' · ' + item.office;
   return item.title;
 }
 
@@ -787,10 +786,10 @@ document.getElementById('saved-filter').addEventListener('click', (e)=>{
 });
 
 const BADGE_TIERS = [
-  { type:'destekci', label:'Destekçi', price:'19,90 TL' },
-  { type:'verified', label:'Doğrulanmış Üye', price:'39,90 TL' },
-  { type:'gold', label:'Altın Üye', price:'79,90 TL' },
-  { type:'platinum', label:'Elmas Üye', price:'139,90 TL' },
+  { type:'destekci', label:'Destekçi', price:'79,90 TL' },
+  { type:'verified', label:'Doğrulanmış Üye', price:'99,90 TL' },
+  { type:'gold', label:'Altın Üye', price:'139,90 TL' },
+  { type:'platinum', label:'Elmas Üye', price:'199,90 TL' },
 ];
 const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
 const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };

@@ -316,7 +316,6 @@ async function routeApi(request, env, url) {
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
     path.startsWith('/api/products') || path.startsWith('/api/materials') ||
-    path.startsWith('/api/jobs') ||
     path.startsWith('/api/architects') || path.startsWith('/api/news')
   ) return handleSubmissionRoute(request, env, url);
   return errorJson('Bulunamadı', 404);

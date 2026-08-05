@@ -13,9 +13,6 @@
 // test etmek").
 //
 // KAPSAM/BİLİNEN SINIRLAR:
-//   - data.js'teki `jobListings` dizisinin (tr.indeed.com'dan elle toplanmış ilanlar) canonical bir
-//     karşılığı YOK — bu script mevcut data.js'i require edip jobListings'i OLDUĞU GİBİ yeniden
-//     gömer, D1'den türetmez.
 //   - `awards`/`cats` gibi JSON kolonlar migrate/merge script'lerinin yazdığı BİÇİMDE geri
 //     JSON.parse edilir (bkz. src/lib/canonicalRead.js#JSON_FIELDS ile AYNI liste).
 //   - Alan sırası/whitespace bugünkü elle-düzenlenmiş dosyalarla birebir aynı OLMAYABİLİR — hedef,
@@ -70,8 +67,7 @@ const products = d1Query(`SELECT * FROM products WHERE deleted_at IS NULL AND ki
 const materials = d1Query(`SELECT * FROM products WHERE deleted_at IS NULL AND kind = 'material' ORDER BY id`);
 const officeById = new Map(offices.map(o => [o.id, o]));
 
-// --- data.js (offices + architects + değişmeyen jobListings) ---
-const { jobListings } = require(path.join(ROOT, 'data.js'));
+// --- data.js (offices + architects) ---
 const officesOut = offices.map(o => jsLiteral({
   name: o.name, loc: o.loc, cats: parseJsonCol(o.cats), yil: o.yil, website: o.website,
   about: o.about, logo: o.logo_url, awards: parseJsonCol(o.awards),
@@ -83,8 +79,8 @@ const architectsOut = architects.map(a => jsLiteral({
 })).join(',\n  ');
 writeGuarded('data.js',
   '// D1 canonical architects/offices tablolarından ÜRETİLDİ (bkz. scripts/export-d1-to-static.js) — elle düzenlemeyin.',
-  `const offices = [\n  ${officesOut}\n];\n\nconst architects = [\n  ${architectsOut}\n];\n\nconst jobListings = ${JSON.stringify(jobListings, null, 2)};`,
-  '{ offices, architects, jobListings }'
+  `const offices = [\n  ${officesOut}\n];\n\nconst architects = [\n  ${architectsOut}\n];`,
+  '{ offices, architects }'
 );
 
 // --- projeler-data.js ---
@@ -131,7 +127,7 @@ writeGuarded('malzemeler-data.js',
 );
 
 console.log(`\nÖnizleme dosyaları yazıldı: ${path.relative(ROOT, OUT_DIR)}/`);
-console.log(`  data.js: ${architects.length} mimar, ${offices.length} firma (+ ${jobListings.length} değişmeyen iş ilanı)`);
+console.log(`  data.js: ${architects.length} mimar, ${offices.length} firma`);
 console.log(`  projeler-data.js: ${projects.length} proje`);
 console.log(`  urunler-data.js: ${products.length} ürün`);
 console.log(`  malzemeler-data.js: ${materials.length} malzeme`);

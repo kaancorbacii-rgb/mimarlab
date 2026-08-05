@@ -11,10 +11,10 @@ import { BADGE_RANK } from '../lib/badgeAccess.js';
 // — bkz. data.js#BADGE_LABELS ile aynı anahtarlar (destekci kasıtlı olarak orada yok, bkz.
 // handlePublicBadges).
 export const BADGE_PRICES = {
-  destekci: 19.90,
-  verified: 39.90,
-  gold: 79.90,
-  platinum: 139.90,
+  destekci: 79.90,
+  verified: 99.90,
+  gold: 139.90,
+  platinum: 199.90,
 };
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır

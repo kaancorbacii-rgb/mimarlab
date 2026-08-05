@@ -893,13 +893,7 @@ wireNavSearch();
 
 // <base href="/"> (bkz. <head> — temiz URL'lerle bu sayfa /firma/:slug altında da servis
 // edilir) yüzünden salt yer tutucu href="#" bağlantıları artık sayfada kalmak yerine köke (/)
-// giderdi; tıklamayı yutar. "#jobs" ise gerçekten bu sayfadaki #jobs'a kaydırmalı, o yüzden ayrı ele alınır.
-document.querySelectorAll('a[href="#jobs"]').forEach(a=>{
-  a.addEventListener('click', (e)=>{
-    e.preventDefault();
-    document.getElementById('jobs').scrollIntoView({ behavior:'smooth' });
-  });
-});
+// giderdi; tıklamayı yutar.
 document.addEventListener('click', (e)=>{
   const a = e.target.closest('a[href="#"]');
   if(a) e.preventDefault();
@@ -919,7 +913,7 @@ document.addEventListener('click', (e)=>{
 
 // Tablet/mobilde (profile-wrap'ın tek sütuna indiği aynı eşik, bkz. yukarıdaki 860px sorgusu)
 // "Ofisini mi yönetiyorsun?" / "Bilgi kaynağı" kutuları, masaüstünde yan sütunda kalsa da mobilde
-// asıl içeriği (projeler, ürünler, haberler, iş ilanları) sayfanın başına iterek gölgelememesi
+// asıl içeriği (projeler, ürünler, haberler) sayfanın başına iterek gölgelememesi
 // için footer'ın hemen üstüne taşınır — bkz. kullanıcı isteği.
 (function wireSidebarCardsReposition(){
   const sidebarCards = document.getElementById('profile-sidebar-cards');
