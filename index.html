@@ -342,10 +342,6 @@
   @media (max-width: 860px){
     .bento-grid{grid-template-columns:1fr;}
     .proje-slider{aspect-ratio:16/11;}
-    /* proje-slider ile aynı satırı paylaşmadığından (tek sütuna düşer) "1fr" satırların artık
-       dayanacağı bir yükseklik kalmaz — her kart kendi aspect-ratio'suyla yüksekliğini kendi belirler. */
-    .hero-side{grid-template-rows:none;}
-    .side-card{aspect-ratio:1.7/1;}
   }
 
   @media (max-width:960px){
@@ -355,6 +351,12 @@
     .nav-hamburger{display:flex;}
     .nav-cta{display:none;}
     .nav-right{margin-left:auto;}
+    /* Tablet/mobilde (bkz. kullanıcı isteği) "1fr" satırların artık dayanacağı bir yükseklik
+       kalmaz — her kart kendi aspect-ratio'suyla yüksekliğini kendi belirler. Mimar/Firma
+       kartları kare (1:1), Ürün 1.7:1 oranını korur. */
+    .hero-side{grid-template-rows:none;}
+    .side-card{aspect-ratio:1.7/1;}
+    .card-mimar, .card-marka{aspect-ratio:1/1;}
   }
 
   @media (max-width: 720px){

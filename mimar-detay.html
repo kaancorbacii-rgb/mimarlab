@@ -291,6 +291,11 @@
     .nav-hamburger{display:flex;}
     .nav-cta{display:none;}
     .nav-right{margin-left:auto;}
+    /* bkz. kullanıcı isteği: dar ekranlarda .profile-top-actions'daki margin-left:auto, satır
+       sarıldığında "Kaydet" butonunu kendi satırının sağına yapıştırıyordu — sütun düzenine
+       geçilip auto margin kaldırılınca foto/başlık/buton hepsi solda alt alta durur. */
+    .profile-top{flex-direction:column; align-items:flex-start;}
+    .profile-top-actions{margin-left:0;}
   }
 
   @media (max-width: 860px){

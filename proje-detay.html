@@ -226,7 +226,6 @@
   .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
   .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
-  .designer-chip-plain{font-size:13px; color:var(--ink-soft); padding:6px 4px;}
   .designer-name-plain{font-size:14.5px; color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line); padding:6px 4px; align-self:center;}
   .designer-name-plain:hover{color:var(--ink);}
 
@@ -477,10 +476,6 @@
         <div class="designer-label">Mimarlık Firması:</div>
         <div class="designer-chips" id="office-chips"></div>
       </div>
-      <div class="designer-section" id="brands-section" style="display:none;">
-        <div class="designer-label">Kullanılan Ürünler / Firmalar</div>
-        <div class="designer-chips" id="brands-chips"></div>
-      </div>
       <div class="detail-meta" id="detail-meta"></div>
       <div class="detail-desc" id="detail-desc"></div>
     </div>
@@ -689,22 +684,6 @@ if(!p){
       <span class="designer-chip-name">${escapeHtml(off.name)}</span>
     </a>`;
   }
-  // p.brands artık {brand, product} nesnelerinden oluşur (bkz. proje-ekle.html); eski gönderilerde
-  // hâlâ düz marka-adı string'leri olabileceğinden ikisi de desteklenir (bkz. global brandEntryOf).
-  // Ürün adı varsa chip'te "Ürün — Marka" gösterilir, markanın kendi profiline linklenir (spesifik
-  // bir ürün sayfası yok).
-  function brandProductChipHtml(entry){
-    const off = offices.find(o => o.name === entry.brand);
-    const label = entry.product ? `${entry.product} — ${entry.brand}` : entry.brand;
-    if(off){
-      const logo = logoUrl(off);
-      return `<a class="designer-chip" href="/firma/${encodeURIComponent(slugify(off.name))}">
-        <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
-        <span class="designer-chip-name">${escapeHtml(label)}</span>
-      </a>`;
-    }
-    return `<span class="designer-chip-plain">${escapeHtml(label)}</span>`;
-  }
   function designerGroups(){
     const architectChips = [];
     const officeChips = [];
@@ -830,14 +809,6 @@ if(!p){
       document.getElementById('office-section').style.display = '';
       document.getElementById('office-chips').innerHTML = officeChips.join('');
     }
-  }
-
-  // Bu projede kullanılan ürün/malzeme markaları: MİMARLAB dizinindeki (offices[]) bir marka
-  // adıyla birebir eşleşirse profil sayfasına bağlı bir chip, eşleşmiyorsa düz metin olarak gösterilir.
-  if(p.brands && p.brands.length){
-    const brandChips = p.brands.map(b => brandProductChipHtml(brandEntryOf(b)));
-    document.getElementById('brands-section').style.display = '';
-    document.getElementById('brands-chips').innerHTML = brandChips.join('');
   }
 
   initDetailGallery({
@@ -1059,7 +1030,7 @@ function renderByline(item){
 // ürün/malzeme kayıtları — ArchDaily'deki "Related Products" kutusuna denk gelir. MİMARLAB
 // dizininde (offices[]) profili olan bir markaysa o marka sayfasına, yoksa (varsa) markanın kendi
 // web sitesine, o da yoksa hiçbir yere linklenmez (tıklanamaz kalır) — hiçbir zaman uydurma bir
-// hedef üretilmez (bkz. proje.brands eşleştirmesindeki aynı prensip, brands-chips bölümü).
+// hedef üretilmez.
 function catalogCardLinkHtml(item, kind){
   const off = item.brand ? offices.find(o => o.name === item.brand) : null;
   const inner = `
