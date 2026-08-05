@@ -8,7 +8,7 @@ import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
-import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
+import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
@@ -257,12 +257,15 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
     if (request.method === 'DELETE') {
       const existing = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
       const target = existing ? ssrPurgeTargetFor(typeKey, existing) : null;
+      // Taslak satırın kendi R2 görselleri — onaylanmış olsun olmasın, satır kalıcı silindiğinde
+      // bunlar hiçbir yerden erişilemez hale gelir (bkz. src/lib/canonicalSync.js dosya başı notu).
+      if (existing) await deleteR2MediaKeys(env, collectR2MediaKeys(existing, MEDIA_IMAGE_FIELDS_BY_TYPE[typeKey] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
       await runCascadeDelete(env, user, typeKey, existing);
       // Bu senkron mekanizmasının (bkz. src/lib/canonicalSync.js) bağımsız bir gönderi için
-      // ÖNCEDEN oluşturmuş olabileceği canonical satırı da işaretler — claimed'lı kayıtlarda
+      // ÖNCEDEN oluşturmuş olabileceği canonical satırı da hard-delete eder — claimed'lı kayıtlarda
       // (statik köken) bu no-op'tur, o kaydın kendi yaşam döngüsü legacyContent.js'e ait.
-      if (existing && CANONICAL_TYPES.has(typeKey)) await markCanonicalDeletedForSubmission(env, typeKey, existing);
+      if (existing && CANONICAL_TYPES.has(typeKey)) await markCanonicalDeletedForSubmission(env, typeKey, existing, user.id);
       if (existing && existing.status === 'approved' && FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
       await invalidatePublicCache();
       if (target) await purgeSsrDetailCache(target.type, target.key);

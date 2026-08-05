@@ -16,7 +16,128 @@
 // kullanımı, orada NULL bırakılıyordu çünkü tek seferlikti; burada tekrar bulunabilir olması
 // gerekiyor).
 
+import { newId } from './crypto.js';
+
 function submissionMarker(id) { return `submission:${id}`; }
+
+// bkz. src/routes/legacyContent.js#CANONICAL_TABLE_BY_TYPE — tek kaynak burada tutulur, o dosya
+// buradan import eder (aksi halde hard-delete/blacklist mantığı ile o dosyadaki okuma yolları
+// farklı tablo eşlemeleri kullanma riskiyle çatallanabilirdi).
+export const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices', projects: 'projects', products: 'products', materials: 'products' };
+
+// Bir canonical satırın "doğal anahtarı" — statik data.js dosyalarındaki (projeler-data.js/
+// data.js/urunler-data.js) karşılığıyla aynı kimlik: mimar/ofis için bare name, proje için slug,
+// ürün/malzeme için "marka|||başlık". legacy_content_hidden.content_key bu değerle eşleşir.
+export function canonicalKeyFor(type, row) {
+  if (type === 'architects' || type === 'offices') return row.name;
+  if (type === 'projects') return row.slug;
+  if (type === 'products' || type === 'materials') return row.legacy_key || `${row.brand_name_raw || ''}|||${row.title}`;
+  return null;
+}
+
+const MEDIA_URL_MARKER = '/media/';
+
+function collectMediaKeysFromValue(val, into) {
+  if (typeof val !== 'string') return;
+  const idx = val.indexOf(MEDIA_URL_MARKER);
+  if (idx === -1) return; // statik/legacy dosya yolu (ör. "miras/..webp") — R2'de değil, dokunma
+  const key = decodeURIComponent(val.slice(idx + MEDIA_URL_MARKER.length));
+  if (key) into.push(key);
+}
+
+// Bir satırdaki (canonical ya da *_submissions taslağı) görsel kolonlarından yalnızca R2'ye
+// (env.UPLOADS) yüklenmiş olanların object key'lerini çıkarır — statik siteye gömülü legacy
+// görseller (miras/, projects/, logos-thumb/ gibi repo-relative yollar) hiçbir zaman R2'de
+// olmadığından buradan hiç geçmez, silinmeye çalışılmaz.
+export function collectR2MediaKeys(row, { arrayFields = [], stringFields = [] } = {}) {
+  if (!row) return [];
+  const keys = [];
+  for (const field of arrayFields) {
+    if (!row[field]) continue;
+    try {
+      const arr = JSON.parse(row[field]);
+      if (Array.isArray(arr)) arr.forEach(v => collectMediaKeysFromValue(v, keys));
+    } catch { /* bozuk JSON — atla */ }
+  }
+  for (const field of stringFields) collectMediaKeysFromValue(row[field], keys);
+  return keys;
+}
+
+// R2 silme hatası (ör. zaten yok) satırın kendisinin silinmesini ENGELLEMEMELİ — kota/temizlik
+// ikincil bir işlem, asıl kayıt silme işlemi her koşulda tamamlanmalı.
+export async function deleteR2MediaKeys(env, keys) {
+  for (const key of keys) {
+    try { await env.UPLOADS.delete(key); } catch { /* yoksay */ }
+  }
+}
+
+// Aynı kolon adları (images/photo_url/logo_url) *_submissions taslak tablolarında da kullanılır
+// (bkz. src/lib/submissionTypes.js#SUBMISSION_TYPES) — bu yüzden hem canonical satırlar hem taslak
+// satırlar için R2 temizliğinde AYNI eşleme yeniden kullanılır (bkz. src/routes/legacyContent.js/
+// admin.js'teki taslak-satır hard-delete noktaları).
+export const MEDIA_IMAGE_FIELDS_BY_TYPE = {
+  projects: { arrayFields: ['images'] },
+  products: { arrayFields: ['images'] },
+  materials: { arrayFields: ['images'] },
+  architects: { stringFields: ['photo_url'] },
+  offices: { stringFields: ['logo_url'] },
+};
+
+// Bir kaydın statik anahtarını (slug/name/"marka|||başlık") legacy_content_hidden'a kalıcı bir
+// "bir daha asla gösterme" damgası olarak yazar. Bu, hard-delete sonrası canonical satır artık
+// var OLMADIĞINDA bile statik data.js dizilerindeki (projeler-data.js vb.) aynı kaydın
+// /api/public/hidden üzerinden gizli kalmasını sağlayan TEK mekanizmadır (bkz.
+// src/routes/legacyContent.js#fetchHiddenMap — artık hem hidden_at/deleted_at'i hem bu tabloyu
+// TÜM tipler için tarar, önceden yalnızca 'news' için kullanılıyordu).
+export async function blacklistLegacyKey(env, userId, type, key) {
+  if (!key) return;
+  await env.DB.prepare(
+    `INSERT INTO legacy_content_hidden (id, content_type, content_key, hidden_by_user_id, hidden_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(content_type, content_key) DO NOTHING`
+  ).bind(newId(), type, key, userId, Date.now()).run();
+}
+
+// Bir canonical satırı GERÇEKTEN (hard delete) D1'den siler — bkz. kullanıcı isteği: "Admin
+// panelinden sil dediğimde kayıt veritabanından TAMAMEN silinsin, sadece işaretlenmesin".
+// Sırasıyla: (1) satıra bağlı R2 görsellerini temizler, (2) FK ile bu satıra referans veren
+// diğer canonical kolonları (architects.office_id, products.brand_office_id — bunlarda ON DELETE
+// CASCADE/SET NULL yok, bkz. migrations/0022_id_first_entities.sql) NULL'lar, (3) join
+// tablolarındaki (office_founders/project_designers/product_architects/project_products/
+// project_awards) satırları temizler — D1'in FK enforcement durumuna bağlı kalmadan, (4) asıl
+// satırı siler, (5) statik data.js karşılığının bir daha görünmemesi için legacy_content_hidden'a
+// damgalar.
+export async function hardDeleteCanonicalRow(env, type, row, userId) {
+  if (!row) return;
+  const table = CANONICAL_TABLE_BY_TYPE[type];
+  if (!table) return;
+
+  await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
+
+  if (type === 'offices') {
+    await env.DB.prepare(`UPDATE architects SET office_id = NULL WHERE office_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`UPDATE products SET brand_office_id = NULL WHERE brand_office_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`DELETE FROM office_founders WHERE office_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`DELETE FROM project_designers WHERE office_id = ?`).bind(row.id).run();
+  }
+  if (type === 'architects') {
+    await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`DELETE FROM project_designers WHERE architect_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`DELETE FROM product_architects WHERE architect_id = ?`).bind(row.id).run();
+  }
+  if (type === 'projects') {
+    await env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`DELETE FROM project_products WHERE project_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`DELETE FROM project_awards WHERE project_id = ?`).bind(row.id).run();
+  }
+  if (type === 'products' || type === 'materials') {
+    await env.DB.prepare(`DELETE FROM product_architects WHERE product_id = ?`).bind(row.id).run();
+    await env.DB.prepare(`DELETE FROM project_products WHERE product_id = ?`).bind(row.id).run();
+  }
+
+  await env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(row.id).run();
+  await blacklistLegacyKey(env, userId, type, canonicalKeyFor(type, row));
+}
 
 // bkz. src/routes/legacyContent.js#LEGACY_TYPES.key — admin panelinin "içerik anahtarı" (mimar/ofis
 // için bare name, proje için slug, ürün/malzeme için "marka|||başlık") ile canonical satırı bulur.
@@ -334,24 +455,26 @@ export async function hideCanonicalForUnapprovedSubmission(env, typeKey, row) {
 }
 
 // Bir <tip>_submissions satırı KALICI olarak silindiğinde (bkz. src/routes/admin.js#handleSubmissionsAdmin
-// DELETE) eşleşen canonical satırı da bulup deleted_at set eder — aksi halde canonical satır
-// (bu senkron mekanizmasıyla zaten oluşmuş olabilir) sitede "hayalet" olarak görünmeye devam ederdi.
-export async function markCanonicalDeletedForSubmission(env, typeKey, row) {
+// DELETE) eşleşen canonical satırı da bulup hard-delete eder (bkz. hardDeleteCanonicalRow) — aksi
+// halde canonical satır (bu senkron mekanizmasıyla zaten oluşmuş olabilir) sitede "hayalet" olarak
+// görünmeye devam ederdi.
+export async function markCanonicalDeletedForSubmission(env, typeKey, row, userId) {
   if (!row) return;
   const marker = submissionMarker(row.id);
   const claimedKey = typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key;
   const table = { architects: 'architects', offices: 'offices', projects: 'projects' }[typeKey];
   if (table) {
-    const keyCol = typeKey === 'projects' ? 'slug' : 'name';
     if (claimedKey) {
       // Claim edilmiş bir statik/canonical kaydın SİLİNMESİ, o kaydın kendisini değil yalnızca bu
       // gönderi/taslağı hedefler — legacyContent.js'in kendi hide/delete akışı canonical satırı
       // ayrıca yönetir, burada dokunmuyoruz.
       return;
     }
-    await env.DB.prepare(`UPDATE ${table} SET deleted_at = datetime('now') WHERE legacy_key = ?`).bind(marker).run();
+    const canonRow = await env.DB.prepare(`SELECT * FROM ${table} WHERE legacy_key = ?`).bind(marker).first();
+    if (canonRow) await hardDeleteCanonicalRow(env, typeKey, canonRow, userId);
     return;
   }
   // products/materials
-  await env.DB.prepare(`UPDATE products SET deleted_at = datetime('now') WHERE slug = ?`).bind(`m-${row.id}`).run();
+  const canonRow = await env.DB.prepare(`SELECT * FROM products WHERE slug = ?`).bind(`m-${row.id}`).first();
+  if (canonRow) await hardDeleteCanonicalRow(env, typeKey, canonRow, userId);
 }

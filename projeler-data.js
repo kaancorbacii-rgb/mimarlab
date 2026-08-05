@@ -5961,23 +5961,6 @@ const projects = [
     images: ["miras/mamurbaba-evi-1.webp", "miras/mamurbaba-evi-2.webp", "miras/mamurbaba-evi-3.webp","projects/mamurbaba-evi-ad-4.jpg","projects/mamurbaba-evi-ad-5.jpg","projects/mamurbaba-evi-ad-6.jpg","projects/mamurbaba-evi-ad-7.jpg","projects/mamurbaba-evi-ad-8.jpg","projects/mamurbaba-evi-ad-9.jpg"]
   },
   {
-    slug: "galata-apartmani",
-    title: "Galata Apartmanı",
-    category: ["Konut"],
-    type: ["Ev / Daire"],
-    discipline: ["Mimari"],
-    location: "İstanbul (Beyoğlu)",
-    locationDetail: "Pera, Serdar-ı Ekrem Sokak",
-    date: "2019",
-    dateBucket: "2010'lar",
-    designer: ["WE're Architects"],
-    photoCredit: { text: "Altkat Mimari Fotoğrafçılık", url: "" },
-    description: "İstanbul'un Beyoğlu ilçesi Pera'da, Galata Kulesi yakınında Serdar-ı Ekrem Sokak üzerinde birinci derece tarihi yapıların bulunduğu bir bölgede yer alan Galata Apartmanı, WE're Architects'in (Burak Yardımcı, Ali Önalp) imzasını taşıyan 365 metrekarelik bir konut dönüşümü. Bodrum, zemin, üst katlar ve asma kattan oluşan çok katlı yapı, bölgenin turizm baskısı altındaki dokusunda korunan tarihi cephe içinde çağdaş bir müdahale kurguluyor. Statik danışmanlığı Özgür Koç tarafından yürütülen, çelik ve taş malzemelerin kullanıldığı, fotoğrafları Altkat Mimari Fotoğrafçılık tarafından çekilen apartman 2019'da tamamlandı.",
-    mostVisited: null,
-    recommendations: [],
-    images: ["miras/galata-apartmani-1.webp", "miras/galata-apartmani-2.webp", "miras/galata-apartmani-3.webp","projects/galata-apartmani-ak-4.jpg","projects/galata-apartmani-ak-5.jpg","projects/galata-apartmani-ak-6.jpg","projects/galata-apartmani-ak-7.jpg","projects/galata-apartmani-ak-8.jpg","projects/galata-apartmani-ak-9.jpg"]
-  },
-  {
     slug: "petrol-ofisi-genel-merkezi",
     title: "Petrol Ofisi Genel Merkezi",
     category: ["Ticari"],

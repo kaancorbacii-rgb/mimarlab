@@ -5,7 +5,10 @@ import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { slugify } from '../lib/slugify.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
-import { findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical } from '../lib/canonicalSync.js';
+import {
+  findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical, CANONICAL_TABLE_BY_TYPE, canonicalKeyFor,
+  hardDeleteCanonicalRow, blacklistLegacyKey, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
+} from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 
@@ -35,16 +38,8 @@ async function runContentCascadeDelete(env, user, type, { id, row, key }) {
 import haberJs from '../../haberler-data.js';
 const { newsItems } = haberJs;
 
-const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices', projects: 'projects', products: 'products', materials: 'products' };
 const CANONICAL_NAME_COL = { architects: 'name', offices: 'name', projects: 'title', products: 'title', materials: 'title' };
 const CANONICAL_KEY_COL = { architects: 'name', offices: 'name', projects: 'slug' }; // products: legacy_key ("marka|||başlık")
-
-function canonicalKeyFor(type, row) {
-  if (type === 'architects' || type === 'offices') return row.name;
-  if (type === 'projects') return row.slug;
-  if (type === 'products' || type === 'materials') return row.legacy_key || `${row.brand_name_raw || ''}|||${row.title}`;
-  return null;
-}
 
 function shapeCanonicalCard(type, row) {
   if (type === 'projects') {
@@ -142,19 +137,31 @@ async function toggleLegacyHidden(request, env, user) {
   return json({ ok: true });
 }
 
-// GET /api/public/hidden — geriye dönük uyumluluk için AYNI { projects, architects, offices,
-// products, materials, news } şekli döner, ama artık yalnızca 'news' gerçekten legacy_content_hidden'dan
-// gelir — diğer 5 tip için istemci tarafı zaten bu listeyi KULLANMIYOR (bkz. src/routes/architect.js/
-// office.js/project.js/product.js, hidden bayrağı artık API yanıtının kendisinde `hidden` alanı
-// olarak geliyor) ama eski sayfalar (ör. henüz bu API'lere taşınmamış statik sayfalar) bu uca hâlâ
-// güvenebileceğinden boş dizi yerine gerçek canonical hidden_at listesini döndürüyoruz.
+// GET /api/public/hidden — proje.html/mimar.html/firma.html/urun.html gibi statik sayfaların
+// hardcoded data.js dizilerini (projeler-data.js vb.) filtrelemek için kullandığı TEK D1 sinyali
+// (bkz. proje.html/proje-detay.html/mimar.html/firma.html/urun.html — hepsi bu uçtan dönen
+// slug/name/"marka|||başlık" setini statik diziden çıkarmak için kullanır). Bu yüzden her tip için
+// İKİ ayrı "artık gösterme" kaynağını BİRLEŞTİRİR:
+//   1) canonical satırın kendisi hâlâ duruyor ama hidden_at (Gizle/Arşivle, geri alınabilir) veya
+//      (bu koddan ÖNCE silinmiş, eski) deleted_at set edilmiş,
+//   2) canonical satır artık YOK (hardDeleteCanonicalRow ile hard-delete edildi) — bu durumda
+//      TEK kalıntı iz legacy_content_hidden'daki blacklist damgasıdır (bkz.
+//      src/lib/canonicalSync.js#blacklistLegacyKey/hardDeleteCanonicalRow).
+// Önceki hata: bu sorgu yalnızca "hidden_at IS NOT NULL AND deleted_at IS NULL" arıyordu — bir
+// kayıt SİLİNDİĞİNDE (deleted_at set edildiğinde, hidden_at hiç dokunulmadığından NULL kalır) bu
+// koşulla EŞLEŞMİYOR, yani silinen statik kayıt hiçbir zaman bu listeye girmiyor, dolayısıyla
+// data.js'teki karşılığı sitede sonsuza kadar görünmeye devam ediyordu (gerçek bulgu: "Galata
+// Apartmanı" silinip "Silindi" mesajı alınmasına rağmen /proje'de kalmaya devam etmesi).
 async function fetchHiddenMap(env) {
   const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
   for (const type of ['projects', 'architects', 'offices', 'products', 'materials']) {
     const table = CANONICAL_TABLE_BY_TYPE[type];
     const kindClause = (type === 'products' || type === 'materials') ? `AND kind = '${type === 'products' ? 'product' : 'material'}'` : '';
-    const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE hidden_at IS NOT NULL AND deleted_at IS NULL ${kindClause}`).all();
-    out[type] = results.map(row => canonicalKeyFor(type, row));
+    const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE (hidden_at IS NOT NULL OR deleted_at IS NOT NULL) ${kindClause}`).all();
+    const keys = new Set(results.map(row => canonicalKeyFor(type, row)).filter(Boolean));
+    const { results: blacklisted } = await env.DB.prepare(`SELECT content_key FROM legacy_content_hidden WHERE content_type = ?`).bind(type).all();
+    for (const row of blacklisted) keys.add(row.content_key);
+    out[type] = [...keys];
   }
   const { results: newsHidden } = await env.DB.prepare(`SELECT content_key FROM legacy_content_hidden WHERE content_type = 'news'`).all();
   out.news = newsHidden.map(r => r.content_key);
@@ -257,12 +264,15 @@ async function handleProjectAction(request, env, user) {
     const now = Date.now();
     const targetSlug = row.claimed_slug || row.slug;
     if (action === 'delete') {
+      await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
       await env.DB.prepare(`DELETE FROM project_submissions WHERE id = ?`).bind(id).run();
       await cascadeDeleteProject(env, targetSlug);
       // Bu içeriği CANLIDAN kaldırmak — hem bağımsız üye projesi hem (arşivlenmiş) claimed_slug'lı
-      // bir taslak için de canonical satırı KALICI olarak işaretler.
+      // bir taslak için de canonical satırı KALICI olarak (hard delete) siler + statik data.js
+      // karşılığının bir daha görünmemesi için blacklist'e damgalar.
       const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', targetSlug);
-      if (canonRow) await env.DB.prepare(`UPDATE projects SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
+      if (canonRow) await hardDeleteCanonicalRow(env, 'projects', canonRow, user.id);
+      else await blacklistLegacyKey(env, user.id, 'projects', targetSlug);
       await bumpFacetCounts(env, 'projects');
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
@@ -284,7 +294,12 @@ async function handleProjectAction(request, env, user) {
 
   if (action === 'delete') {
     const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', slug);
-    if (canonRow) await env.DB.prepare(`UPDATE projects SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
+    if (canonRow) await hardDeleteCanonicalRow(env, 'projects', canonRow, user.id);
+    // canonical satır hiç yoksa (ör. statik migration hiç çalıştırılmadıysa) bile blacklist'e
+    // damgalamak GEREKİR — aksi halde data.js'teki karşılığı asla gizlenmeyecek bir "hayalet" olur.
+    else await blacklistLegacyKey(env, user.id, 'projects', slug);
+    const { results: draftRows } = await env.DB.prepare(`SELECT * FROM project_submissions WHERE claimed_slug = ?`).bind(slug).all();
+    for (const draft of draftRows) await deleteR2MediaKeys(env, collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
     await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
     await cascadeDeleteProject(env, slug);
     await bumpFacetCounts(env, 'projects');
@@ -398,13 +413,12 @@ async function handleContentAction(request, env, user) {
     const now = Date.now();
     const targetKey = (config.claimedColumn && row[config.claimedColumn]) || key;
     if (action === 'delete') {
+      await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
       await runContentCascadeDelete(env, user, type, { id, row });
       const canonRow = targetKey ? await findCanonicalRowByNaturalKey(env, type, targetKey) : null;
-      if (canonRow) {
-        const table = CANONICAL_TABLE_BY_TYPE[type];
-        await env.DB.prepare(`UPDATE ${table} SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
-      }
+      if (canonRow) await hardDeleteCanonicalRow(env, type, canonRow, user.id);
+      else if (targetKey) await blacklistLegacyKey(env, user.id, type, targetKey);
       if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
@@ -427,11 +441,11 @@ async function handleContentAction(request, env, user) {
 
   if (action === 'delete') {
     const canonRow = await findCanonicalRowByNaturalKey(env, type, key);
-    if (canonRow) {
-      const table = CANONICAL_TABLE_BY_TYPE[type];
-      await env.DB.prepare(`UPDATE ${table} SET deleted_at = datetime('now') WHERE id = ?`).bind(canonRow.id).run();
-    }
+    if (canonRow) await hardDeleteCanonicalRow(env, type, canonRow, user.id);
+    else await blacklistLegacyKey(env, user.id, type, key);
     if (config.claimedColumn) {
+      const { results: draftRows } = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).all();
+      for (const draft of draftRows) await deleteR2MediaKeys(env, collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
     }
     await runContentCascadeDelete(env, user, type, { key });
