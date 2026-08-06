@@ -730,10 +730,6 @@ wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/sear
 wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search');
 wireAutocompleteLive('p-brand-input', 'ac-marka-suggestions', '/api/offices/search', {multi:false});
 
-// Onaylı profil düzenlemeleriyle (fotoğraf/logo/firma adı değişikliği) offices[]/architects[]
-// dizilerini güncel tutar (bkz. data.js#applyProfileEditPhotos) — yukarıdaki Firma/Mimar önerileri
-// ve prefillForEdit'teki mevcut designer eşleştirmesi bunu kullanır.
-applyProfileEditPhotos().catch(()=>{});
 wireAutocomplete('p-product-input', 'ac-urun-suggestions', () => URUN_SUGGESTIONS, {multi:false, onPick: (item)=>{
   const brandInput = document.getElementById('p-brand-input');
   if(!brandInput.value.trim() && item.brand) brandInput.value = item.brand;
