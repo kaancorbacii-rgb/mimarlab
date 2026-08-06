@@ -349,7 +349,7 @@ const ArchitectModal = (function () {
     const infoFactsEl = document.getElementById('am-info-facts');
     const infoFacts = [];
     if (a.dob) infoFacts.push(`<div><strong>Doğum Tarihi:</strong> ${escapeHtml(String(a.dob))}</div>`);
-    if (a.school || a.dept) infoFacts.push(`<div><strong>Üniversite / Bölüm:</strong> ${[a.school, a.dept].filter(Boolean).map(escapeHtml).join(' / ')}</div>`);
+    if (a.school || a.dept) infoFacts.push(`<div><strong>Üniversite:</strong> ${[a.school, a.dept].filter(Boolean).map(escapeHtml).join(' / ')}</div>`);
     const profession = a.profession || DEPT_TO_PROFESSION[a.dept] || null;
     if (a.role || profession) infoFacts.push(`<div><strong>Pozisyon / Meslek:</strong> ${[a.role, profession].filter(Boolean).map(escapeHtml).join(' / ')}</div>`);
     if (a.awards && a.awards.length) infoFacts.push(`<div><strong>Ödüller:</strong> ${a.awards.map(escapeHtml).join(', ')}</div>`);
