@@ -174,7 +174,7 @@ const RelatedProjects = (function () {
       .filter(({ score }) => score > -Infinity)
       .sort((a, b) => b.score - a.score);
 
-    const merged = scored.slice(0, 6).map(({ p }) => p);
+    const merged = scored.slice(0, 9).map(({ p }) => p);
 
     if (!merged.length) { section.style.display = 'none'; return; }
     section.style.display = '';

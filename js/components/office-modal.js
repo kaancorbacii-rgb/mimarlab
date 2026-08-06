@@ -229,6 +229,7 @@ const OfficeModal = (function () {
     const panels = ModalShell.getPanels();
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
+    ModalShell.wireGridScrollArrows(panels.rightPanelEl);
     mountedOnce = true;
   }
 

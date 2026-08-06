@@ -27,6 +27,12 @@ const ProjectModal = (function () {
       <h2 class="comments-title">Yorumlar (<span id="pm-comments-count">0</span>)</h2>
       <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
       <div class="comments-list" id="pm-comments-list"></div>
+    </div>
+    <hr class="pm-info-divider" id="pm-info-divider">
+    <div class="pm-feedback-card" id="pm-feedback-card">
+      <h5>Bilgi Kaynağı &amp; Geri Bildirim</h5>
+      <p>Bu içerik ekibimiz veya kayıtlı üyeler tarafından eklendi. Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
+      <div id="pm-feedback-body"></div>
     </div>`;
 
   const RIGHT_TEMPLATE = `
@@ -83,6 +89,7 @@ const ProjectModal = (function () {
     const panels = ModalShell.getPanels();
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
+    ModalShell.wireGridScrollArrows(panels.rightPanelEl);
     mountedOnce = true;
   }
 
@@ -121,11 +128,55 @@ const ProjectModal = (function () {
     if (timeoutMs) timer = setTimeout(trigger, timeoutMs);
   }
 
+  // "Bilgi Kaynağı & Geri Bildirim" kutusu — js/components/claim-correction-box.js#loadCorrectionCard
+  // ile BİREBİR aynı UX/istek deseni (boş not koruması, gönderim sırasında disable, başarı/hata mesajı),
+  // ama profil sahiplenme semantiğinden bağımsız olduğundan burada kendi başına, sade tutulur. /api/corrections
+  // artık 'project'/'product' profileType'larını da kabul ediyor (bkz. src/routes/claims.js#CORRECTION_PROFILE_TYPES).
+  function wireFeedbackBox(item) {
+    const body = document.getElementById('pm-feedback-body');
+    if (!body) return;
+    if (!currentUser) {
+      body.innerHTML = `<p style="margin-top:10px; font-size:13px; color:var(--ink-soft);">Bir bildirim göndermek için <a href="giris-yap.html" style="color:var(--walnut); font-weight:600; text-decoration:underline;">giriş yap</a>.</p>`;
+      return;
+    }
+    body.innerHTML = `
+      <textarea id="pm-feedback-note" placeholder="Gördüğün bir hatayı ya da eksik bilgiyi buraya yaz."></textarea>
+      <button type="button" class="comment-submit-btn" id="pm-feedback-btn" style="margin-top:10px;">Bildir</button>
+      <p id="pm-feedback-result" style="display:none;"></p>`;
+    document.getElementById('pm-feedback-btn').addEventListener('click', async (e) => {
+      const btn = e.target;
+      const note = document.getElementById('pm-feedback-note').value.trim();
+      const feedback = document.getElementById('pm-feedback-result');
+      if (!note) {
+        feedback.textContent = 'Lütfen bir not yaz.';
+        feedback.style.display = '';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Gönderiliyor…';
+      try {
+        const res = await fetch('/api/corrections', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileType: 'project', profileKey: item.slug, note }),
+        });
+        feedback.textContent = res.ok ? 'Teşekkürler, önerini aldık.' : 'Bir şeyler ters gitti, tekrar dene.';
+        feedback.style.display = '';
+        if (res.ok) document.getElementById('pm-feedback-note').value = '';
+      } catch {
+        feedback.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+        feedback.style.display = '';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Bildir';
+      }
+    });
+  }
+
   function armDeferredSections(item, mySeq) {
     const commentsSection = document.getElementById('pm-comments-section');
     document.getElementById('pm-comments-list').innerHTML = '';
     document.getElementById('pm-comment-form-wrap').innerHTML = `<div class="comment-form"><div class="skeleton-line" style="height:90px;border-radius:12px;"></div></div>`;
     observeOnce(commentsSection, () => { if (mySeq === requestSeq) ProjectComments.mount(commentsSection, item.slug); }, 1200);
+    document.getElementById('pm-feedback-body').innerHTML = '';
+    savedWidgetReady.then(() => { if (mySeq === requestSeq) wireFeedbackBox(item); });
 
     const sameDesignerSection = document.getElementById('pm-same-designer-section');
     const relatedSection = document.getElementById('pm-related-section');
@@ -219,8 +270,8 @@ const ProjectModal = (function () {
   function renderNotFound() {
     document.getElementById('pm-title').textContent = 'Proje bulunamadı';
     ['pm-rating-save-row', 'pm-actions', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
-      'pm-comments-section', 'pm-same-designer-section', 'pm-related-section', 'pm-products-section',
-      'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'].forEach(id => {
+      'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section', 'pm-related-section',
+      'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });

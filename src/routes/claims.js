@@ -3,6 +3,10 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
+// /api/corrections (bkz. handleCorrectionsRoute) sahiplenme değil salt bilgi-bildirimi olduğundan
+// project/product de kabul eder — proje/ürün modallarındaki "Bilgi Kaynağı & Geri Bildirim" kutusu
+// (bkz. kullanıcı isteği) BU uç noktayı kullanır. /api/claims (sahiplenme) mimar/firma ile sınırlı kalır.
+const CORRECTION_PROFILE_TYPES = new Set(['architect', 'office', 'project', 'product']);
 
 export async function handleClaimsRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "claims", maybe "status"]
@@ -34,7 +38,7 @@ export async function handleCorrectionsRoute(request, env, url) {
   const profileType = body.profileType;
   const profileKey = (body.profileKey || '').trim();
   const note = (body.note || '').trim().slice(0, 1000);
-  if (!PROFILE_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
+  if (!CORRECTION_PROFILE_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
   if (!note) return errorJson('Lütfen bir not yaz.');
 
   const id = newId();

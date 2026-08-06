@@ -726,6 +726,45 @@ function projectSlideHtml(p, i){
   </a>`;
 }
 
+// Dokunmatik (mobil/tablet) parmak kaydırması ve trackpad yatay tekerlek hareketini crossfade
+// carousel'lerin next/prev fonksiyonlarına bağlar (bkz. kullanıcı isteği: anasayfa carousel'lerine
+// dokunmatik/trackpad kaydırma deste ği). Aynı eşik/wheel-lock deseni js/components/gallery.js'deki
+// lightbox swipe mantığından alınmıştır. Slaytlar birer <a> linki olduğundan gerçek mouse
+// click-and-drag BİLEREK kapsam dışı bırakıldı (link tıklamasını sürüklemeden ayırt etmek ek
+// karmaşıklık katardı) — yalnızca touch swipe + wheel deltaX (trackpad iki parmak kaydırma).
+function wireSwipe(el, { onNext, onPrev }) {
+  const SWIPE_THRESHOLD = 40;
+  let startX = 0, startY = 0, active = false, intentHorizontal = false;
+  el.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    active = true; intentHorizontal = false;
+  }, { passive: true });
+  el.addEventListener('touchmove', (e) => {
+    if (!active || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY;
+    if (!intentHorizontal && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) intentHorizontal = true;
+    if (intentHorizontal) e.preventDefault();
+  }, { passive: false });
+  el.addEventListener('touchend', (e) => {
+    if (!active) return;
+    active = false;
+    if (!intentHorizontal) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (dx <= -SWIPE_THRESHOLD) onNext();
+    else if (dx >= SWIPE_THRESHOLD) onPrev();
+  });
+  let wheelLock = false;
+  el.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    if (wheelLock) return;
+    wheelLock = true;
+    setTimeout(() => { wheelLock = false; }, 350);
+    if (e.deltaX > 0) onNext(); else onPrev();
+  }, { passive: false });
+}
+
 let sliderIndex = 0;
 let sliderTimer = null;
 let sliderSlugs = '';
@@ -764,6 +803,7 @@ document.getElementById('slider-prev').addEventListener('click', ()=>{ prevSlide
 const sliderEl = document.getElementById('proje-slider');
 sliderEl.addEventListener('mouseenter', ()=> clearInterval(sliderTimer));
 sliderEl.addEventListener('mouseleave', restartAutoplay);
+wireSwipe(sliderEl, { onNext: () => { nextSlide(); restartAutoplay(); }, onPrev: () => { prevSlide(); restartAutoplay(); } });
 
 // Görseli olmayan projeler (bkz. projeler-data.js künye eksiklikleri) carousel'e alınmaz —
 // aksi halde slider'da kırık bir görsel gösterilirdi.
@@ -848,6 +888,7 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
   document.getElementById(prevId).addEventListener('click', ()=>{ prev(); restart(); });
   wrapEl.addEventListener('mouseenter', ()=> clearInterval(timer));
   wrapEl.addEventListener('mouseleave', restart);
+  wireSwipe(wrapEl, { onNext: () => { next(); restart(); }, onPrev: () => { prev(); restart(); } });
 
   return { render, renderError };
 }

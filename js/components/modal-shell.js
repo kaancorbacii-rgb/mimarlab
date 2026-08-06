@@ -116,8 +116,65 @@ const ModalShell = (function () {
            birbirinden bağımsız iki blok olarak DEĞİL, tek bir listenin parçaları olarak davranır. */
         .modal-shell-left, .modal-shell-right{display:contents;}
       }
+      /* .related-grid-scroll/.catalog-grid-scroll carousel'lerine (proje/mimar/firma/ürün modallarında
+         tekrar eden aynı sınıflar) sağ/sol gezinme okları — bkz. kullanıcı isteği. Tek paylaşılan
+         sarmalayıcı+ok stili burada, wireGridScrollArrows() ile birlikte tanımlanır ki dört modal
+         dosyası da kendi CSS/JS'ini tekrarlamasın. */
+      .grid-scroll-wrap{ position:relative; }
+      .grid-scroll-arrow{
+        position:absolute; top:50%; transform:translateY(-50%); z-index:2;
+        width:36px; height:36px; border-radius:50%; border:1px solid var(--line);
+        background:var(--paper-card); box-shadow:0 4px 12px rgba(27,42,61,0.12);
+        display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink);
+        transition:background .15s ease;
+      }
+      .grid-scroll-arrow:hover{ background:var(--paper); }
+      .grid-scroll-arrow.prev{ left:-4px; }
+      .grid-scroll-arrow.next{ right:-4px; }
+      .grid-scroll-arrow[hidden]{ display:none; }
+      @media (max-width:860px){ .grid-scroll-arrow{ width:30px; height:30px; } }
     `;
     document.head.appendChild(style);
+  }
+
+  // .related-grid-scroll/.catalog-grid-scroll içeren tüm yatay şeritlere sol/sağ ok butonu ekler —
+  // proje/mimar/firma/ürün modalları içerik mount edildikten SONRA bunu kendi root'larıyla (genelde
+  // rightPanelEl) çağırır. Idempotent (aynı elemente iki kez sarılmaz) ve MutationObserver ile
+  // async fetch sonrası yeniden doldurulan grid'lerde de kendini otomatik günceller (ekstra çağrıya
+  // gerek yok — bkz. kullanıcı isteği: içerik asenkron geldiğinde de oklar doğru çalışmalı).
+  function wireGridScrollArrows(root) {
+    if (!root) return;
+    root.querySelectorAll('.related-grid-scroll, .catalog-grid-scroll').forEach(setupOneGridScrollArrows);
+  }
+
+  function setupOneGridScrollArrows(el) {
+    if (el.dataset.arrowsWired) return;
+    el.dataset.arrowsWired = '1';
+    const wrap = document.createElement('div');
+    wrap.className = 'grid-scroll-wrap';
+    el.parentNode.insertBefore(wrap, el);
+    wrap.appendChild(el);
+    const prevBtn = document.createElement('button');
+    prevBtn.type = 'button'; prevBtn.className = 'grid-scroll-arrow prev'; prevBtn.setAttribute('aria-label', 'Geri');
+    prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>';
+    const nextBtn = document.createElement('button');
+    nextBtn.type = 'button'; nextBtn.className = 'grid-scroll-arrow next'; nextBtn.setAttribute('aria-label', 'İleri');
+    nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
+    wrap.appendChild(prevBtn); wrap.appendChild(nextBtn);
+
+    const step = () => Math.max(el.clientWidth * 0.8, 200);
+    prevBtn.addEventListener('click', () => el.scrollBy({ left: -step(), behavior: 'smooth' }));
+    nextBtn.addEventListener('click', () => el.scrollBy({ left: step(), behavior: 'smooth' }));
+
+    function update() {
+      const overflow = el.scrollWidth > el.clientWidth + 4;
+      prevBtn.hidden = !overflow || el.scrollLeft <= 4;
+      nextBtn.hidden = !overflow || el.scrollLeft >= el.scrollWidth - el.clientWidth - 4;
+    }
+    el.addEventListener('scroll', update, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(update).observe(el);
+    new MutationObserver(update).observe(el, { childList: true });
+    update();
   }
 
   function ensureDom() {
@@ -237,5 +294,5 @@ const ModalShell = (function () {
 
   function scrollToTop() { if (bodyEl) bodyEl.scrollTop = 0; }
 
-  return { open, close, isOpen, getPanels, scrollToTop };
+  return { open, close, isOpen, getPanels, scrollToTop, wireGridScrollArrows };
 })();

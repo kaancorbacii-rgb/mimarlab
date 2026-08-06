@@ -230,6 +230,7 @@ const ArchitectModal = (function () {
     const panels = ModalShell.getPanels();
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
+    ModalShell.wireGridScrollArrows(panels.rightPanelEl);
     mountedOnce = true;
   }
 
@@ -418,6 +419,7 @@ const ArchitectModal = (function () {
       profileType: PROFILE_TYPE,
       ready: savedWidgetReady,
       getProfileKey: () => a.name,
+      getClaimLinkKey: () => a._claimKey || a.name,
       getStaticBadges: () => a.badges,
       editUrlBase: 'mimar-ekle.html',
       listUrl: 'mimar.html',

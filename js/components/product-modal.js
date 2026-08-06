@@ -187,15 +187,27 @@ const ProductModal = (function () {
       .prevnext a.next{text-align:right; margin-left:auto;}
       .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
       .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+      /* ---------- ÜRÜN MODALI — Bilgi Kaynağı & Geri Bildirim (bkz. proje.html'deki AYNI #pm-info-divider/
+         #pm-feedback-card kuralları — burada yorum bölümü olmadığından .detail-info'nun hemen altına,
+         kendi enjekte edilen <style>'ında tutulur, proje.html'e dokunmaya gerek kalmaz). */
+      .pr-info-divider{margin:28px 0 0; border:none; border-top:1px solid var(--line);}
+      .pr-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
+      .pr-feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
+      .pr-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
+      .pr-feedback-card textarea{width:100%; min-height:64px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
+      #pr-feedback-btn{background:var(--ink); color:var(--paper-card); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px; border:none;}
+      #pr-feedback-btn:hover{background:var(--walnut);}
+      #pr-feedback-btn:disabled{opacity:0.5; cursor:not-allowed;}
+      #pr-feedback-result{margin:8px 0 0; font-size:12px; color:var(--sage);}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
         .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
-        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Benzer
-           Ürünler (bkz. proje.html'deki AYNI #pm-* order deseni, kullanıcı isteği: Ürün pop-up'ı
-           Proje pop-up'ıyla birebir aynı grid yapısına getirilsin) — modal-shell.js bu kırılma
-           noktasında sol/sağ paneli display:contents yaptığından tüm bölümler AYNI dikey flex
+        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Bilgi
+           Kaynağı → Benzer Ürünler (bkz. proje.html'deki AYNI #pm-* order deseni, kullanıcı isteği:
+           Ürün pop-up'ı Proje pop-up'ıyla birebir aynı grid yapısına getirilsin) — modal-shell.js bu
+           kırılma noktasında sol/sağ paneli display:contents yaptığından tüm bölümler AYNI dikey flex
            akışının parçası. .detail-info künye/açıklama/teknik özellikleri TEK blok olarak taşır.
            Proje modalının aksine burada yorum/aynı-tasarımcı/malzeme bölümleri yok, tek related
            section (Benzer Ürünler) var. */
@@ -204,6 +216,8 @@ const ProductModal = (function () {
         #pr-rating-save-row{order:3;}
         #pr-actions{order:4;}
         .detail-info{order:5;}
+        #pr-info-divider{order:5.5;}
+        #pr-feedback-card{order:5.6;}
         #pr-related-section{order:6;}
         #pr-prevnext{order:7;}
 
@@ -257,6 +271,12 @@ const ProductModal = (function () {
         <div class="specs-title">Teknik Özellikler</div>
         <table class="specs-table" id="pr-specs-table"></table>
       </div>
+    </div>
+    <hr class="pr-info-divider" id="pr-info-divider">
+    <div class="pr-feedback-card" id="pr-feedback-card">
+      <h5>Bilgi Kaynağı &amp; Geri Bildirim</h5>
+      <p>Bu içerik ekibimiz veya kayıtlı üyeler tarafından eklendi. Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
+      <div id="pr-feedback-body"></div>
     </div>`;
 
   const RIGHT_TEMPLATE = `
@@ -299,6 +319,7 @@ const ProductModal = (function () {
     const panels = ModalShell.getPanels();
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
+    ModalShell.wireGridScrollArrows(panels.rightPanelEl);
     mountedOnce = true;
   }
 
@@ -502,9 +523,52 @@ const ProductModal = (function () {
     mountEditAndAdminButtons(p, key);
 
     loadRelated(p, key);
+    savedWidgetReady.then(() => { if (currentItem === p) wireFeedbackBox(p, key); });
 
     wireInternalNav();
     ModalShell.scrollToTop();
+  }
+
+  // js/components/project-modal.js#wireFeedbackBox ile BİREBİR aynı (bkz. o dosyadaki AYNI yorum) —
+  // bu modalda yorum bölümü olmadığından .detail-info'nun hemen altına, bağımsız kendi kutusu olarak
+  // eklenir. /api/corrections 'product' profileType'ını da kabul eder (bkz. src/routes/claims.js).
+  function wireFeedbackBox(p, key) {
+    const body = document.getElementById('pr-feedback-body');
+    if (!body) return;
+    body.innerHTML = '';
+    if (!currentUser) {
+      body.innerHTML = `<p style="margin-top:10px; font-size:13px; color:var(--ink-soft);">Bir bildirim göndermek için <a href="giris-yap.html" style="color:var(--walnut); font-weight:600; text-decoration:underline;">giriş yap</a>.</p>`;
+      return;
+    }
+    body.innerHTML = `
+      <textarea id="pr-feedback-note" placeholder="Gördüğün bir hatayı ya da eksik bilgiyi buraya yaz."></textarea>
+      <button type="button" id="pr-feedback-btn" style="margin-top:10px;">Bildir</button>
+      <p id="pr-feedback-result" style="display:none;"></p>`;
+    document.getElementById('pr-feedback-btn').addEventListener('click', async (e) => {
+      const btn = e.target;
+      const note = document.getElementById('pr-feedback-note').value.trim();
+      const feedback = document.getElementById('pr-feedback-result');
+      if (!note) {
+        feedback.textContent = 'Lütfen bir not yaz.';
+        feedback.style.display = '';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Gönderiliyor…';
+      try {
+        const res = await fetch('/api/corrections', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileType: 'product', profileKey: key, note }),
+        });
+        feedback.textContent = res.ok ? 'Teşekkürler, önerini aldık.' : 'Bir şeyler ters gitti, tekrar dene.';
+        feedback.style.display = '';
+        if (res.ok) document.getElementById('pr-feedback-note').value = '';
+      } catch {
+        feedback.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+        feedback.style.display = '';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Bildir';
+      }
+    });
   }
 
   async function mountEditAndAdminButtons(p, key) {
@@ -577,7 +641,7 @@ const ProductModal = (function () {
   function renderNotFound() {
     document.getElementById('pr-title').textContent = 'Ürün bulunamadı';
     ['pr-byline', 'pr-rating-save-row', 'pr-actions', 'pr-brand-section', 'pr-architect-section',
-      'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'].forEach(id => {
+      'pr-info-divider', 'pr-feedback-card', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });

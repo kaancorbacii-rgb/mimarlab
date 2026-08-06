@@ -248,14 +248,23 @@ async function buildArchitectPayload(env, key) {
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category };
   });
 
+  const item = {
+    name: a.name, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
+    role: a.position, awards: a.awards, about: a.about, photo: a.photo_url, office: office ? office.name : null,
+    badges: [],
+  };
+  // bkz. src/routes/office.js#buildOfficePayload'daki AYNI _claimKey gerekçesi — renderProfileEditButton'ın
+  // "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key) kullanmalı, a.name bir yeniden
+  // adlandırmadan sonra değişmiş olabilir. Aksi halde mimar-ekle.html'in ?claim= prefill'i eski
+  // claimed_profile_key ile eşleşmez, PATCH yerine POST'a düşer ve mükerrer bir architect_submissions/
+  // canonical satır oluşur (gerçek bulgu: bu, ofis tarafında zaten önlenmişken mimar tarafında eksikti).
+  const isSubmissionMarker = typeof a.legacy_key === 'string' && a.legacy_key.startsWith('submission:');
+  if (a.legacy_key && !isSubmissionMarker && a.legacy_key !== a.name) item._claimKey = a.legacy_key;
+
   const adjacent = await fetchAdjacentArchitect(env, a.id);
 
   return {
-    item: {
-      name: a.name, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
-      role: a.position, awards: a.awards, about: a.about, photo: a.photo_url, office: office ? office.name : null,
-      badges: [],
-    },
+    item,
     office: office ? { name: office.name, loc: office.loc, cats: office.cats, yil: office.yil, logo: office.logo_url, badges: [] } : null,
     offices: [
       ...offices.map(o => ({ name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, logo: o.logo_url, badges: [] })),
