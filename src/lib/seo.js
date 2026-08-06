@@ -1,12 +1,17 @@
 import { slugify } from './slugify.js';
-import { parseSubmissionRow } from './submissionTypes.js';
 import { parseCanonicalRow } from './canonicalRead.js';
-// data.js/projeler-data.js/haberler-data.js tarayıcıda classic <script> olarak yüklenen, export
-// içermeyen dosyalar; Worker tarafında okunabilmeleri için dosya sonlarına eklenen guard'lı
+// haberler-data.js/urunler-data.js/malzemeler-data.js tarayıcıda classic <script> olarak yüklenen,
+// export içermeyen dosyalar; Worker tarafında okunabilmeleri için dosya sonlarına eklenen guard'lı
 // `module.exports` bloğu sayesinde esbuild bunları CJS modülü olarak paketler (bkz. o dosyalardaki
 // yorum). Tarayıcı davranışı değişmez çünkü `typeof module !== 'undefined'` orada hep false'tur.
-import dataJs from '../../data.js';
-import projeJs from '../../projeler-data.js';
+// data.js/projeler-data.js BİLEREK burada YOK — Legacy Bundle Elimination Faz 1 (bkz. kullanıcı
+// isteği): mimar/firma/proje SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/
+// offices/projects) tablolarından okunuyor, src/routes/architect.js|office.js|project.js'in Faz
+// 3'te zaten yaptığı AYNI geçiş (o dosyalarda da request-time overlay YOK, bkz. src/routes/
+// architect.js dosya başı yorumu: onaylı submission'lar artık merge-time'da (scripts/
+// merge-submissions-to-id-first.js, src/lib/canonicalSync.js#syncApprovedSubmissionToCanonical —
+// admin onayında CANLI çalışır) canonical satıra yazılıyor). haberler-data.js/urunler-data.js/
+// malzemeler-data.js sonraki Legacy Bundle Elimination fazlarının kapsamında, burada dokunulmadı.
 import haberJs from '../../haberler-data.js';
 import urunJs from '../../urunler-data.js';
 import malzemeJs from '../../malzemeler-data.js';
@@ -16,8 +21,6 @@ import ilIlceJs from '../../il-ilce-data.js';
 
 const { parseLocationFull } = ilIlceJs;
 
-const { offices, architects } = dataJs;
-const { projects } = projeJs;
 const { newsItems } = haberJs;
 const { products } = urunJs;
 const { materials } = malzemeJs;
@@ -67,24 +70,6 @@ function breadcrumbJsonLd(type, name, canonicalUrl) {
   };
 }
 
-let architectBySlug;
-function getArchitectMap() {
-  if (!architectBySlug) {
-    architectBySlug = new Map();
-    for (const a of architects) architectBySlug.set(slugify(a.name), a);
-  }
-  return architectBySlug;
-}
-
-let officeBySlug;
-function getOfficeMap() {
-  if (!officeBySlug) {
-    officeBySlug = new Map();
-    for (const o of offices) officeBySlug.set(slugify(o.name), o);
-  }
-  return officeBySlug;
-}
-
 let newsById;
 function getNewsMap() {
   if (!newsById) {
@@ -94,25 +79,10 @@ function getNewsMap() {
   return newsById;
 }
 
-// claimed_profile_key/claimed_slug'lı onaylı bir düzenleme varsa (bkz. src/routes/public.js#
-// handlePublicProfileEdits/handlePublicProjectEdits — *-detay.html sayfalarının istemci tarafında
-// yaptığı AYNI bindirme), statik kaydın üzerine son onaylı hâlini bindirir. Önceden build*Meta
-// fonksiyonları yalnızca statik data.js/projeler-data.js okuyordu — admin bir kapak görselini/
-// açıklamayı değiştirip onayladığında SSR'a gömülü <title>/og:image/JSON-LD eski kalmaya devam
-// ediyordu (gerçek bulgu, bkz. src/lib/ssrCache.js'teki purge ile birlikte çözülen aynı sorun).
-async function fetchApprovedOverlay(env, table, claimedColumn, key) {
-  if (!env || !env.DB || !key) return null;
-  try {
-    return await env.DB.prepare(
-      `SELECT * FROM ${table} WHERE ${claimedColumn} = ? AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`
-    ).bind(key).first();
-  } catch { return null; }
-}
-
 // office_founders (bkz. src/routes/office.js#handleOfficeRoute'un AYNI join'i, src/lib/
-// officeFounderCascade.js) — canonical bir ofis kaydı henüz yoksa (yalnızca statik data.js'te var)
-// ya da isim eşleşmezse sessizce boş dizi döner; JSON-LD'nin sayfada görünenle (ofis-detay.html'in
-// kendi founders sorgusuyla) tutarsız kalması yerine hiç göstermemesi tercih edildi.
+// officeFounderCascade.js) — canonical bir ofis kaydı henüz yoksa ya da isim eşleşmezse sessizce
+// boş dizi döner; JSON-LD'nin sayfada görünenle (ofis-detay.html'in kendi founders sorgusuyla)
+// tutarsız kalması yerine hiç göstermemesi tercih edildi.
 async function fetchFounderNames(env, officeName) {
   if (!env || !env.DB || !officeName) return [];
   try {
@@ -126,23 +96,25 @@ async function fetchFounderNames(env, officeName) {
   } catch { return []; }
 }
 
-// D1 canonical tablolardan tekil kayıt bulma — src/routes/architect.js#findArchitect/src/routes/
-// office.js#findOffice/src/routes/product.js#handleProductDetailRoute ile BİREBİR aynı arama deseni
-// (name/slug/legacy_key eşleşmesi, yoksa slugify-tarama fallback'i). O dosyalardan import ETMİYORUZ
-// (route handler'ları başka bağımlılıklar taşıyor, seo.js'in yalnızca DB'ye ihtiyacı var) — statik
-// data.js/urunler-data.js/malzemeler-data.js dizilerinde bulunamayan (yalnızca D1'de var olan,
-// ör. admin panelinden eklenmiş) kayıtlar için build*Meta fonksiyonlarının jenerik placeholder'a
-// düşmek yerine gerçek SSR title/og/JSON-LD üretmesini sağlar (bkz. kullanıcı isteği).
+// D1 canonical tablolardan tekil mimar/firma kaydı bulma — src/routes/architect.js#findArchitect/
+// src/routes/office.js#findOffice/src/routes/product.js#handleProductDetailRoute ile BİREBİR aynı
+// arama deseni (name/slug/legacy_key eşleşmesi, yoksa slugify-tarama fallback'i). O dosyalardan
+// import ETMİYORUZ (route handler'ları başka bağımlılıklar taşıyor, seo.js'in yalnızca DB'ye
+// ihtiyacı var). findArchitectRow, mimarın bağlı olduğu ofis adını (architects.office_id → offices)
+// AYRI bir round-trip AÇMADAN tek sorguda LEFT JOIN ile getirir (bkz. kullanıcı isteği: "N+1 sorgu
+// oluşturma" — eski sürüm önce mimarı, sonra office_id'siyle ayrı bir SELECT ile ofisi okuyordu).
 async function findArchitectRow(env, key) {
   if (!env || !env.DB) return null;
+  const joinSql = `FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL`;
   const row = await env.DB.prepare(
-    `SELECT * FROM architects WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
+    `SELECT a.*, o.name AS office_name ${joinSql}
+     WHERE a.deleted_at IS NULL AND (a.name = ? OR a.slug = ? OR a.legacy_key = ?) LIMIT 1`
   ).bind(key, key, key).first();
   if (row) return row;
   const { results } = await env.DB.prepare(`SELECT id, name FROM architects WHERE deleted_at IS NULL`).all();
   const match = results.find(r => slugify(r.name) === key);
   if (!match) return null;
-  return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(match.id).first();
+  return env.DB.prepare(`SELECT a.*, o.name AS office_name ${joinSql} WHERE a.id = ?`).bind(match.id).first();
 }
 
 async function findOfficeRow(env, key) {
@@ -157,6 +129,34 @@ async function findOfficeRow(env, key) {
   return env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(match.id).first();
 }
 
+// project_designers'a bağlı mimar/firma isimlerini TEK sorguda, tipine göre ÖNCEDEN ayrılmış
+// (architect_names / office_names) iki GROUP_CONCAT sütunu olarak döner — src/routes/project.js#
+// fetchDesignerDetails'teki AYNI architect_id/office_id tip ayrımını ikinci bir round-trip AÇMADAN
+// sağlar (bkz. kullanıcı isteği: "N+1 sorgu oluşturma"). JSON-LD'nin `creator` alanı Person/
+// Organization ayrımını bu yüzden GERÇEK project_designers.architect_id/office_id'den alır — eski
+// statik projeler-data.js#designer[] dizisinin data.js#architects[]/offices[] üzerinde AD
+// EŞLEŞTİRMESİYLE (isim çakışması riski taşıyan) yaptığı dolaylı çıkarımın yerini alır. Ayraç olarak
+// src/routes/project.js#DESIGNER_SEP ile AYNI görünmez kontrol karakteri () kullanılır — isim
+// içinde geçmesi imkansız olduğundan virgül/boşluk gibi ayraçların aksine isimleri asla bölmez.
+const DESIGNER_SEP = '';
+function namesFromConcat(concat) {
+  return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
+}
+async function findProjectRow(env, slug) {
+  if (!env || !env.DB) return null;
+  return env.DB.prepare(
+    `SELECT p.*,
+            GROUP_CONCAT(ar.name, '${DESIGNER_SEP}') AS architect_names,
+            GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS office_names
+     FROM projects p
+     LEFT JOIN project_designers pd ON pd.project_id = p.id
+     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
+     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+     WHERE p.slug = ? AND p.deleted_at IS NULL
+     GROUP BY p.id`
+  ).bind(slug).first();
+}
+
 async function findProductRow(env, key) {
   if (!env || !env.DB) return null;
   const row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(key).first();
@@ -167,9 +167,6 @@ async function findProductRow(env, key) {
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
 }
 
-// Statik data.js kaydı (approved-overlay bindirilmiş) İLE canonical D1 architects satırından
-// türetilen normalize kayıt AYNI şekli ({name, role, photo, school, dept}) taşıdığından tek bir
-// meta/JSON-LD üretim fonksiyonu paylaşılır — bkz. buildArchitectMeta'daki iki çağıran.
 function architectMetaFromRecord(a, officeName, slug) {
   const title = `${a.name} — MİMARLAB`;
   const description = officeName
@@ -190,37 +187,13 @@ function architectMetaFromRecord(a, officeName, slug) {
 }
 
 async function buildArchitectMeta(slug, env) {
-  const base = getArchitectMap().get(slug);
-  if (base) {
-    let a = base;
-    const editRow = await fetchApprovedOverlay(env, 'architect_submissions', 'claimed_profile_key', base.name);
-    if (editRow) {
-      const parsed = parseSubmissionRow('architects', editRow);
-      a = {
-        ...base,
-        dob: parsed.dob ?? base.dob, school: parsed.school ?? base.school, dept: parsed.dept ?? base.dept,
-        office: parsed.office ?? base.office, role: parsed.position ?? base.role,
-        photo: parsed.photo_url || base.photo, about: parsed.about || base.about,
-      };
-    }
-    const office = offices.find(x => x.name === a.office);
-    return architectMetaFromRecord(a, office ? office.name : null, slug);
-  }
-
-  // Statik data.js'te yok — canonical D1 architects tablosuna bak (Faz 3 migrasyonundan sonra
-  // gerçek mimar kayıtlarının büyük kısmı yalnızca burada yaşıyor).
   const row = await findArchitectRow(env, slug);
   if (!row) return null;
   const a = parseCanonicalRow('architects', row);
-  let officeName = null;
-  if (a.office_id) {
-    const officeRow = await env.DB.prepare(`SELECT name FROM offices WHERE id = ? AND deleted_at IS NULL`).bind(a.office_id).first();
-    officeName = officeRow ? officeRow.name : null;
-  }
-  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept }, officeName, slug);
+  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept }, row.office_name || null, slug);
 }
 
-// architectMetaFromRecord ile AYNI paylaşım deseni — statik + canonical D1 offices satırı ortak şekle
+// architectMetaFromRecord ile AYNI paylaşım deseni — canonical D1 offices satırı ortak şekle
 // ({name, about, yil, loc, logo, website}) indirgenip tek fonksiyondan geçirilir.
 async function officeMetaFromRecord(o, slug, env) {
   const title = `${o.name} — MİMARLAB`;
@@ -242,23 +215,6 @@ async function officeMetaFromRecord(o, slug, env) {
 }
 
 async function buildOfficeMeta(slug, env) {
-  const base = getOfficeMap().get(slug);
-  if (base) {
-    let o = base;
-    const editRow = await fetchApprovedOverlay(env, 'office_submissions', 'claimed_profile_key', base.name);
-    if (editRow) {
-      const parsed = parseSubmissionRow('offices', editRow);
-      o = {
-        ...base,
-        loc: parsed.loc ?? base.loc, cats: parsed.cats ?? base.cats, yil: parsed.yil ?? base.yil,
-        website: parsed.website || base.website, about: parsed.about || base.about, logo: parsed.logo_url || base.logo,
-      };
-    }
-    return officeMetaFromRecord(o, slug, env);
-  }
-
-  // Statik data.js'te yok — canonical D1 offices tablosuna bak (bkz. buildArchitectMeta'daki AYNI
-  // gerekçe).
   const row = await findOfficeRow(env, slug);
   if (!row) return null;
   const o = parseCanonicalRow('offices', row);
@@ -266,19 +222,9 @@ async function buildOfficeMeta(slug, env) {
 }
 
 async function buildProjectMeta(slug, env) {
-  const base = projects.find(x => x.slug === slug);
-  if (!base) return null;
-  let p = base;
-  const editRow = await fetchApprovedOverlay(env, 'project_submissions', 'claimed_slug', base.slug);
-  if (editRow) {
-    const parsed = parseSubmissionRow('projects', editRow);
-    p = {
-      ...base,
-      title: parsed.title || base.title, description: parsed.description ?? base.description,
-      location: parsed.location ?? base.location, designer: (parsed.designer && parsed.designer.length) ? parsed.designer : base.designer,
-      images: (parsed.images && parsed.images.length) ? parsed.images : base.images,
-    };
-  }
+  const row = await findProjectRow(env, slug);
+  if (!row) return null;
+  const p = parseCanonicalRow('projects', row);
   const title = `${p.title} — MİMARLAB`;
   const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
   const description = truncate(rawDesc, 200);
@@ -298,14 +244,10 @@ async function buildProjectMeta(slug, env) {
     if (!info.district && !info.city) address.addressLocality = p.location;
     jsonLd.locationCreated = { '@type': 'Place', address };
   }
-  const creators = [];
-  for (const d of (p.designer || [])) {
-    const arch = architects.find(a => a.name === d);
-    if (arch) { creators.push({ '@type': 'Person', name: arch.name }); continue; }
-    const off = offices.find(o => o.name === d);
-    if (off) { creators.push({ '@type': 'Organization', name: off.name }); continue; }
-    creators.push({ '@type': 'Organization', name: d });
-  }
+  const creators = [
+    ...namesFromConcat(row.architect_names).map(name => ({ '@type': 'Person', name })),
+    ...namesFromConcat(row.office_names).map(name => ({ '@type': 'Organization', name })),
+  ];
   if (creators.length) jsonLd.creator = creators.length === 1 ? creators[0] : creators;
   return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
 }
@@ -381,25 +323,25 @@ function buildNewsMeta(id) {
 const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta, news: buildNewsMeta };
 
 // type: 'architect' | 'office' | 'project' | 'product' | 'news'; slugOrId: URL'den çözülen slug/id.
-// Kayıt bulunamazsa null döner — çağıran taraf mevcut jenerik placeholder meta'yı olduğu gibi bırakır.
-// env; buildArchitectMeta/buildOfficeMeta/buildProductMeta tarafından hem onaylı-overlay bindirmesi
-// hem de statik dizide bulunamayan kayıtlar için canonical D1 fallback'i amacıyla kullanılır (bkz.
-// findArchitectRow/findOfficeRow/findProductRow) — buildProjectMeta/buildNewsMeta hâlâ yalnızca
-// statik projeler-data.js/haberler-data.js okur (D1 fallback'i bu iki tip için kapsam dışı kaldı,
-// çünkü proje/haber detay modalları zaten kendi statik+overlay veri kaynaklarını başka şekilde
-// tam kapsıyor — bkz. kullanıcı isteği yalnızca mimar/firma/ürün istedi).
+// Kayıt bulunamazsa (veya D1 sorgusu hata verirse, bkz. aşağıdaki try/catch) null döner — çağıran
+// taraf (src/index.js#serveDetailPage) mevcut jenerik placeholder meta'yı (şablonun kendi <title>/
+// meta description'ı) olduğu gibi bırakır, ASLA 500 üretmez ya da boş/kırık etiket enjekte etmez.
+// env artık architect/office/project'in TEK veri kaynağı (Legacy Bundle Elimination Faz 1, bkz.
+// yukarıdaki import yorumu) — yalnızca product hâlâ statik urunler-data.js/malzemeler-data.js'i
+// önce dener (D1'e ikinci bir round-trip açmadan), news hâlâ tamamen statik haberler-data.js okur
+// (bu iki tip bu turun kapsamı dışında, bkz. kullanıcı isteği: yalnızca data.js/projeler-data.js).
 export async function buildMeta(type, slugOrId, env) {
   const builder = BUILDERS[type];
   if (!builder) return null;
   try { return await builder(slugOrId, env); } catch { return null; }
 }
 
-// /sitemap.xml için: statik verideki tüm mimar/ofis/proje/haber detay URL'leri.
+// /sitemap.xml için: statik haberler-data.js'teki haber URL'leri. Mimar/ofis/proje URL'leri artık
+// yalnızca D1'de yaşadığından (bkz. yukarıdaki Legacy Bundle Elimination Faz 1 yorumu) buradan
+// KASITLI olarak kaldırıldı — src/index.js#listCanonicalEntityUrls zaten architects/offices/
+// projects/products tablolarının TAMAMINI (statik kökenli + admin panelinden eklenenler) D1'den
+// okuyup aynı sitemap'e Set birleştirmesiyle ekliyordu (Faz 3'ten beri statik diziler D1'in kesin
+// bir alt kümesi olduğundan bu, URL kapsamında hiçbir kayıp yaratmaz — bkz. kullanıcı isteği).
 export function listEntityUrls() {
-  const urls = [];
-  for (const a of architects) urls.push(`/mimar/${encodeURIComponent(slugify(a.name))}`);
-  for (const o of offices) urls.push(`/firma/${encodeURIComponent(slugify(o.name))}`);
-  for (const p of projects) urls.push(`/projeler/${encodeURIComponent(p.slug)}`);
-  for (const n of newsItems) urls.push(`/haberler/${encodeURIComponent(n.id)}`);
-  return urls;
+  return newsItems.map(n => `/haberler/${encodeURIComponent(n.id)}`);
 }
