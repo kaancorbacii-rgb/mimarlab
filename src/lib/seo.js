@@ -258,7 +258,7 @@ function productMetaFromRecord(record, canonicalUrl) {
 // async'tir, bu yüzden fonksiyon her koşulda Promise döner.
 function staticProductKey(x) { return slugify(`${x.title}-${x.brand || ''}`); }
 async function buildProductMeta(key, env) {
-  const canonicalUrl = `${SITE_ORIGIN}/urunler/${encodeURIComponent(key)}`;
+  const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(key)}`;
   const staticMatch = products.find(x => staticProductKey(x) === key)
     || materials.find(x => staticProductKey(x) === key);
   if (staticMatch) return productMetaFromRecord(staticMatch, canonicalUrl);

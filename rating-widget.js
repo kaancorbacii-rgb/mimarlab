@@ -68,7 +68,7 @@ async function mountRatingWidget(el){
     }
     const summary = current.count
       ? `${current.average.toFixed(1)} · ${current.count} oy`
-      : 'Puan ver';
+      : 'Puanla';
     el.innerHTML = `<div class="rating-star-row">${starsHtml}</div><span class="rating-summary">${summary}</span>`;
     el.querySelectorAll('.rating-star-btn').forEach(btn=>{
       btn.addEventListener('click', ()=> submit(parseInt(btn.dataset.value)));

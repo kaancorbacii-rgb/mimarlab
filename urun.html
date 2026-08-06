@@ -7,19 +7,24 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Ürünler — MİMARLAB</title>
-<meta name="description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet.">
-<link rel="canonical" href="https://mimarlab.com/urun">
+<meta name="description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/urun" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Ürünler — MİMARLAB">
-<meta property="og:description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet.">
-<meta property="og:url" content="https://mimarlab.com/urun">
-<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta property="og:title" content="Ürünler — MİMARLAB" id="og-title">
+<meta property="og:description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/urun" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Ürünler — MİMARLAB">
-<meta name="twitter:description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet.">
-<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:title" content="Ürünler — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<!-- Temiz URL'lerle bu sayfa /urun dışında /urun/:slug altında da (ürün modalını doğrudan açan bir
+     iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe
+     yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
+     gerekçe). -->
+<base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -279,7 +284,11 @@
 <script src="auth-nav.js"></script>
 <script src="save-widget.js"></script>
 <script src="rating-widget.js"></script>
+<script src="badge-shared.js"></script>
 <script src="catalog-taxonomy.js"></script>
+<script src="js/components/gallery.js"></script>
+<script src="js/components/modal-shell.js"></script>
+<script src="js/components/product-modal.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -643,7 +652,10 @@ async function render(){
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('a')) return;
-      window.location.href = '/urunler/' + encodeURIComponent(pageItems[i].ratingKey);
+      if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // Ürün modalı (bkz. js/components/product-modal.js) proje.html#card-grid'in AYNI deseniyle
+      // sayfa yenilenmeden açılsın diye tam sayfa yönlendirme yerine modal açılır.
+      ProductModal.open(pageItems[i].ratingKey, { triggerEl: card });
     });
   });
 }
@@ -694,11 +706,25 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
-window.addEventListener('popstate', ()=>{ applyStateFromUrl(); buildSidebar(); render(); });
+// Tarayıcı geri/ileri tuşu: /urun/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca ürün modalını
+// güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ.
+window.addEventListener('popstate', ()=>{
+  const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+  if(m){ ProductModal.handlePopState(decodeURIComponent(m[1])); return; }
+  if(ProductModal.isOpen()){ ProductModal.handlePopState(null); return; }
+  applyStateFromUrl();
+  buildSidebar();
+  render();
+});
 
 applyStateFromUrl();
 buildSidebar();
-render();
+render().then(()=>{
+  // Doğrudan /urun/:slug adresine girildiğinde ya da o adreste F5 yapıldığında ürün modalı
+  // otomatik açılsın (bkz. proje.html'deki AYNI desen).
+  const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+  if(m) ProductModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+});
 
 function wireNavSearch(){
   function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }

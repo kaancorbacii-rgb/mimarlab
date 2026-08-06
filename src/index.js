@@ -57,14 +57,16 @@ const CLEAN_URL_REDIRECTS = {
 // (auto-trailing-slash) davranışıyla bunu tekrar uzantısız hale 301 yönlendirir — bu da orijinal
 // /projeler/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
 const CLEAN_URL_ASSETS = [
-  // /projeler/:slug artık proje.html'e eşleniyor (proje-detay.html kaldırıldı) — proje.html kendi
-  // JS'inde bu yolu algılayıp proje modalını doğrudan açar (bkz. proje.html#initProjectRouteOnLoad),
-  // injectMeta() ise AYNI HTMLRewriter mekanizmasıyla artık proje.html'in <head>'indeki id'li meta
-  // etiketlerini hedefler (bkz. proje.html#meta-description vb.).
+  // /projeler/:slug, /mimar/:slug, /firma/:slug, /urun/:slug artık kendi listeleme sayfalarına
+  // eşleniyor (proje-detay.html/mimar-detay.html/ofis-detay.html/urun-detay.html kaldırıldı) — her
+  // sayfa kendi JS'inde bu yolu algılayıp ilgili modalı (ProjectModal/ArchitectModal/OfficeModal/
+  // ProductModal, bkz. js/components/) doğrudan açar, injectMeta() ise AYNI HTMLRewriter
+  // mekanizmasıyla o listeleme sayfasının <head>'indeki id'li meta etiketlerini hedefler (bkz.
+  // proje.html/mimar.html/firma.html/urun.html#meta-description vb.).
   { prefix: '/projeler/', asset: '/proje', type: 'project' },
-  { prefix: '/mimar/', asset: '/mimar-detay', type: 'architect' },
-  { prefix: '/firma/', asset: '/ofis-detay', type: 'office' },
-  { prefix: '/urunler/', asset: '/urun-detay', type: 'product' },
+  { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
+  { prefix: '/firma/', asset: '/firma', type: 'office' },
+  { prefix: '/urun/', asset: '/urun', type: 'product' },
   { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
 ];
 
@@ -84,9 +86,13 @@ const PATH_RENAME_REDIRECTS = {
 
 // Eski /markalar/:slug firma detay URL'leri artık /firma/:slug (bkz. kullanıcı isteği: SEO/backlink
 // koruması) — yukarıdaki PATH_RENAME_REDIRECTS'in aksine slug segmenti dinamik olduğundan tam eşleşme
-// yerine önek (prefix) bazlı yönlendirme gerekiyor; slug/sorgu string'i olduğu gibi korunur.
+// yerine önek (prefix) bazlı yönlendirme gerekiyor; slug/sorgu string'i olduğu gibi korunur. Aynı
+// desenle eski /urunler/:key ürün detay URL'leri de artık /urun/:key'e (bkz. kullanıcı isteği: ürün
+// modalının URL öneki /urun olsun) — bu kontrol routeAsset() içinde CLEAN_URL_ASSETS eşleşmesinden
+// ÖNCE çalıştığından eski linkler önce yeni öneke 301'lenir, sonra normal şekilde servis edilir.
 const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
+  { from: '/urunler/', to: '/urun/' },
 ];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık

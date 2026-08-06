@@ -594,7 +594,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       notice.textContent = editId ? 'Değişiklikler kaydedildi ve yayına girdi.' : 'Ürün eklendi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/urunler/${encodeURIComponent('m-' + data.id)}`; }, 1200);
+      setTimeout(()=>{ window.location.href = `/urun/${encodeURIComponent('m-' + data.id)}`; }, 1200);
       return;
     }
     if(editId){

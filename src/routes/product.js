@@ -14,16 +14,22 @@ const { CATALOG_TAXONOMY, taxonomyGroupOf } = catalogTaxonomyJs;
 // merge-time'da zaten uygulandı" yorumu — products/materials'ta zaten claim/overlay sistemi
 // olmadığından (bkz. schema.sql yorumu) bu dosya diğer üçünden daha basit kalmaya devam ediyor.
 
+// isSubmissionMarker: handleProductListRoute'taki (aşağıda) AYNI "legacy_key 'submission:' ile
+// başlıyorsa üye/marka gönderisi kökenli" kontrolü — js/components/product-modal.js#mountAdminActions
+// admin Arşivle/Sil isteğinde id (üye gönderisi) mi key (statik kayıt) mi göndereceğine bununla karar verir.
 function shapeProductItem(row) {
   const p = parseCanonicalRow('products', row);
+  const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
   return {
     title: p.title, brand: p.brand_name_raw, website: p.website, category: p.category,
     description: p.description, images: p.images, specs: p.specs, kind: p.kind,
+    submissionId: isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null,
   };
 }
 
-// GET /api/product/:key — urun-detay.html henüz bu uca bağlanmadı (bkz. eski yorum, Faz 3'te de
-// değişmedi). `key`, ya doğrudan canonical `slug` (statik kayıtlarda "<başlık-marka>-<id>", üye
+// GET /api/product/:key — js/components/product-modal.js#fetchItem bu uca bağlanır (proje.html'in
+// ProjectModal'ı proje-detay.html'i tamamen ikame ettiği desenin ürün karşılığı, bkz. plan dosyası).
+// `key`, ya doğrudan canonical `slug` (statik kayıtlarda "<başlık-marka>-<id>", üye
 // kökenli kayıtlarda "m-<eski submission id>") ya da urun.html/urun-detay.html#productKey'in ÜRETTİĞİ
 // eski biçim (id'siz `slugify(title + '-' + brand)`, bkz. o dosyalardaki AYNI fonksiyon) olabilir —
 // ikincisi için tabloyu tarayıp aynı fonksiyonla yeniden üretilen anahtarla karşılaştırma yapılır

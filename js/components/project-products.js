@@ -15,10 +15,10 @@ const ProjectProducts = (function () {
         <div class="catalog-card-title">${escapeHtml(p.title)}</div>
         ${p.brand ? `<div class="catalog-card-by">${escapeHtml(p.brand)}</div>` : ''}
       </div>`;
-    // Ürün/malzeme kartı öncelikle kendi katalog sayfasına (/urunler/:slug) linklenir — artık
+    // Ürün/malzeme kartı öncelikle kendi katalog sayfasına (/urun/:slug) linklenir — artık
     // her satır gerçek bir canonical products kaydına karşılık geldiğinden (bkz. dosya başı yorum)
     // proje-detay.html'in eski "ofis profiline, o da yoksa dış siteye" fallback zincirine gerek yok.
-    return `<a class="catalog-card" href="/urunler/${encodeURIComponent(p.slug)}">${inner}</a>`;
+    return `<a class="catalog-card" href="/urun/${encodeURIComponent(p.slug)}">${inner}</a>`;
   }
 
   function renderGroup(items, sectionId, gridId) {

@@ -7,19 +7,24 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Mimarlar — MİMARLAB</title>
-<meta name="description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.">
-<link rel="canonical" href="https://mimarlab.com/mimar">
+<meta name="description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/mimar" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Mimarlar — MİMARLAB">
-<meta property="og:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.">
-<meta property="og:url" content="https://mimarlab.com/mimar">
-<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta property="og:title" content="Mimarlar — MİMARLAB" id="og-title">
+<meta property="og:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/mimar" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Mimarlar — MİMARLAB">
-<meta name="twitter:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.">
-<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:title" content="Mimarlar — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<!-- Temiz URL'lerle bu sayfa /mimar dışında /mimar/:slug altında da (mimar modalını doğrudan açan
+     bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç
+     içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
+     gerekçe). -->
+<base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -425,6 +430,9 @@
   </footer>
 
 <script src="badge-shared.js"></script>
+<script src="js/components/claim-correction-box.js"></script>
+<script src="js/components/modal-shell.js"></script>
+<script src="js/components/architect-modal.js"></script>
 <script>
 // Faz 3 sonrası: mimar.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
 // sayfalama, filtreleme ve sıralama backend'de (/api/architects) canonical D1 tablosu üzerinden
@@ -608,6 +616,20 @@ async function render(){
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+// Kart tıklaması: mimar modalı (bkz. js/components/architect-modal.js) proje.html#card-grid'in AYNI
+// deseniyle sayfa yenilenmeden açılsın diye düz sol tıklamalar burada yakalanır — orta tık/Ctrl/Cmd/
+// Shift/Alt ile açma tarayıcının kendi doğal davranışına bırakılır. Tek bir delege dinleyici
+// #card-grid üzerine BİR KEZ bağlanır, grid.innerHTML her render()'da değişse de konteyner sabit kalır.
+document.getElementById('card-grid').addEventListener('click', (e)=>{
+  if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a.person-card');
+  if(!a) return;
+  const m = (a.getAttribute('href') || '').match(/^\/mimar\/([^/?#]+)/);
+  if(!m) return;
+  e.preventDefault();
+  ArchitectModal.open(decodeURIComponent(m[1]), { triggerEl: a });
+});
+
 let searchDebounce = null;
 ['g-sort','g-dob','g-award','g-position'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
@@ -631,7 +653,16 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   syncBrowserUrl(true);
   render();
 });
-window.addEventListener('popstate', ()=>{ applyStateFromUrl(); render(); });
+// Tarayıcı geri/ileri tuşu: /mimar/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca mimar modalını
+// güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ, modal kapanana kadar
+// arka plandaki liste durumu sabit kalır.
+window.addEventListener('popstate', ()=>{
+  const m = location.pathname.match(/^\/mimar\/([^/]+)\/?$/);
+  if(m){ ArchitectModal.handlePopState(decodeURIComponent(m[1])); return; }
+  if(ArchitectModal.isOpen()){ ArchitectModal.handlePopState(null); return; }
+  applyStateFromUrl();
+  render();
+});
 
 function wireNavSearch(){
   function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -729,7 +760,12 @@ document.addEventListener('click', (e)=>{
 });
 
 applyStateFromUrl();
-render();
+render().then(()=>{
+  // Doğrudan /mimar/:slug adresine girildiğinde ya da o adreste F5 yapıldığında mimar modalı
+  // otomatik açılsın (bkz. proje.html'deki AYNI desen) — pushHistory:false: URL zaten doğru.
+  const m = location.pathname.match(/^\/mimar\/([^/]+)\/?$/);
+  if(m) ArchitectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+});
 window.addEventListener('mimarlab-badges-ready', render);
 </script>
 </body>

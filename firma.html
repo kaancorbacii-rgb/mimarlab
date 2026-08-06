@@ -7,19 +7,24 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Firmalar — MİMARLAB</title>
-<meta name="description" content="Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı firmalarını keşfet.">
-<link rel="canonical" href="https://mimarlab.com/firma">
+<meta name="description" content="Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı firmalarını keşfet." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/firma" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Firmalar — MİMARLAB">
-<meta property="og:description" content="Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı firmalarını keşfet.">
-<meta property="og:url" content="https://mimarlab.com/firma">
-<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta property="og:title" content="Firmalar — MİMARLAB" id="og-title">
+<meta property="og:description" content="Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı firmalarını keşfet." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/firma" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Firmalar — MİMARLAB">
-<meta name="twitter:description" content="Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı firmalarını keşfet.">
-<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<meta name="twitter:title" content="Firmalar — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı firmalarını keşfet." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<!-- Temiz URL'lerle bu sayfa /firma dışında /firma/:slug altında da (firma modalını doğrudan açan
+     bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç
+     içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
+     gerekçe). -->
+<base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -439,6 +444,9 @@
   </footer>
 
 <script src="badge-shared.js"></script>
+<script src="js/components/claim-correction-box.js"></script>
+<script src="js/components/modal-shell.js"></script>
+<script src="js/components/office-modal.js"></script>
 <script>
 // Faz 3 sonrası: firma.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
 // sayfalama, filtreleme ve sıralama backend'de (/api/offices) canonical D1 tablosu üzerinden
@@ -613,6 +621,18 @@ async function render(){
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+// Kart tıklaması: firma modalı (bkz. js/components/office-modal.js) proje.html#card-grid'in AYNI
+// deseniyle sayfa yenilenmeden açılsın diye düz sol tıklamalar burada yakalanır.
+document.getElementById('card-grid').addEventListener('click', (e)=>{
+  if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a.office-card');
+  if(!a) return;
+  const m = (a.getAttribute('href') || '').match(/^\/firma\/([^/?#]+)/);
+  if(!m) return;
+  e.preventDefault();
+  OfficeModal.open(decodeURIComponent(m[1]), { triggerEl: a });
+});
+
 let searchDebounce = null;
 ['g-sort','g-loc','g-cat','g-exp'].forEach(id=>{
   document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
@@ -636,7 +656,15 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   syncBrowserUrl(true);
   render();
 });
-window.addEventListener('popstate', ()=>{ applyStateFromUrl(); render(); });
+// Tarayıcı geri/ileri tuşu: /firma/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca firma modalını
+// güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ.
+window.addEventListener('popstate', ()=>{
+  const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
+  if(m){ OfficeModal.handlePopState(decodeURIComponent(m[1])); return; }
+  if(OfficeModal.isOpen()){ OfficeModal.handlePopState(null); return; }
+  applyStateFromUrl();
+  render();
+});
 
 function wireNavSearch(){
   function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -734,7 +762,12 @@ document.addEventListener('click', (e)=>{
 });
 
 applyStateFromUrl();
-render();
+render().then(()=>{
+  // Doğrudan /firma/:slug adresine girildiğinde ya da o adreste F5 yapıldığında firma modalı
+  // otomatik açılsın (bkz. proje.html'deki AYNI desen).
+  const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
+  if(m) OfficeModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+});
 window.addEventListener('mimarlab-badges-ready', render);
 </script>
 </body>

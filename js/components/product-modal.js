@@ -1,0 +1,566 @@
+// ProductModal — ürün/malzeme detay modalının orkestratörü (bkz. js/components/architect-modal.js /
+// js/components/project-modal.js'teki AYNI open/swap/close/handlePopState state machine deseni). DOM
+// çerçevesi js/components/modal-shell.js'ten, galeri/lightbox js/components/gallery.js'ten gelir.
+// urun-detay.html'in aksine `/api/product/:key`'i kullanan İLK tüketici budur (bkz. src/routes/
+// product.js) — statik urunler-data.js/malzemeler-data.js dizilerini/data.js'i hiç yüklemez, proje
+// modalıyla aynı "sunucudan tek JSON çek" desenine geçer. "X tarafından" byline'ı KAPSAM DIŞI
+// bırakıldı — canonical products tablosu owner_name taşımıyor (bu alan yalnızca eski /api/public/
+// products'un submission-join'li şeklinde vardı), küçük bir kozmetik kayıp kabul edildi.
+const ProductModal = (function () {
+  // .detail-title/.designer-*/.gallery-*/.lightbox*/.related-*/.specs-* urun-detay.html'den taşınan
+  // AYNI değerler — urun.html farklı bir sayfa olduğundan bunları miras alamaz. .rating-widget/
+  // .card-save-btn/.card-edit-btn/.card-delete-btn İSE urun.html'in KENDİ kart bağlamı için ZATEN
+  // TANIMLI (bkz. urun.html #card-grid kartları) — burada AYNI sınıf adlarını kart bağlamındakinden
+  // FARKLI (detay/modal) görünümde kullanmak gerektiğinden, proje.html'in `.pm-rating-save-row
+  // .card-save-btn` deseniyle BİREBİR aynı şekilde yalnızca `.pr-*` kapsayıcıların İÇİNDEKİ kopyaları
+  // hedefleyen daha ÖZGÜL seçicilerle override edilir — kart bağlamındaki görünüm HİÇ etkilenmez.
+  function injectStyles() {
+    if (document.getElementById('product-modal-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'product-modal-styles';
+    style.textContent = `
+      .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+      .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+      .detail-byline strong{color:var(--ink); font-weight:600;}
+      .detail-byline-avatar{
+        width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
+        display:flex; align-items:center; justify-content:center; color:#fff;
+        font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
+      }
+      .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .pr-rating-save-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;}
+      .pr-rating-save-row .rating-widget{
+        display:flex; align-items:center; gap:6px; flex-wrap:nowrap; flex-shrink:0;
+        height:36px; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 16px; margin:0; transition:border-color .15s ease;
+      }
+      .pr-rating-save-row .rating-widget:hover{border-color:var(--walnut);}
+      .pr-rating-save-row .rating-star-row{display:flex; gap:1px;}
+      .pr-rating-save-row .rating-star-btn{background:none; border:none; padding:0; color:var(--line); display:flex; transition:transform .1s ease;}
+      .pr-rating-save-row .rating-star-btn.filled{color:var(--accent);}
+      .pr-rating-save-row .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
+      .pr-rating-save-row .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
+      .pr-rating-save-row .rating-summary{font-size:14px; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap;}
+      .pr-rating-save-row .card-save-btn{
+        position:static; width:auto; height:36px; z-index:auto;
+        background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
+        display:inline-flex; align-items:center; gap:7px; padding:0 16px; border:1px solid var(--line);
+        font-size:14px; font-weight:600;
+      }
+      .pr-rating-save-row .card-save-btn:hover{background:var(--paper-card); border-color:var(--walnut); color:var(--ink);}
+      .pr-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+      .pr-rating-save-row .save-btn-label-saved{display:none;}
+      .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
+      .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
+      .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+      .pr-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 18px;}
+      .pr-actions .card-edit-btn{
+        display:inline-flex; align-items:center;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:8px 16px; font-size:13px; font-weight:600; color:var(--walnut); white-space:nowrap;
+      }
+      .pr-actions .card-edit-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+      .pr-actions .card-delete-btn{
+        display:inline-flex; align-items:center;
+        background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); border-radius:100px;
+        padding:8px 16px; font-size:13px; font-weight:600; color:#B84C4C; white-space:nowrap;
+      }
+      .pr-actions .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+      .designer-section{margin-top:0;}
+      .designer-section + .designer-section{margin-top:16px;}
+      .designer-label{font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+      .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
+      .designer-chip{
+        display:flex; align-items:center; gap:9px;
+        background:var(--paper-card); border:1px solid var(--line-soft);
+        border-radius:100px; padding:6px 16px 6px 6px;
+        transition:border-color .15s ease, transform .15s ease;
+      }
+      a.designer-chip:hover{border-color:var(--brass); transform:translateY(-1px);}
+      .designer-chip-avatar{
+        width:32px; height:32px; border-radius:50%; flex-shrink:0;
+        border:1px solid var(--line); overflow:hidden; position:relative;
+        display:flex; align-items:center; justify-content:center;
+        color:var(--paper-card); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+      }
+      .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
+      .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
+      .designer-name-plain{font-size:14.5px; color:var(--ink); padding:6px 4px; align-self:center; font-weight:600;}
+      .detail-info{margin-top:8px;}
+      .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
+      .detail-meta strong{font-weight:600; color:var(--ink);}
+      .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
+      .detail-meta a:hover{color:var(--ink);}
+      .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px; white-space:pre-line;}
+      .specs-title{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin:28px 0 4px;}
+      .specs-table{width:100%; border-collapse:collapse; margin-top:12px; font-size:14px;}
+      .specs-table tr{border-bottom:1px solid var(--line-soft);}
+      .specs-table tr:last-child{border-bottom:none;}
+      .specs-table td{padding:10px 0; vertical-align:top;}
+      .specs-table td:first-child{color:var(--ink-soft); font-weight:600; width:38%; padding-right:16px;}
+      .gallery-wrap{position:relative; min-width:0;}
+      .gallery-media{position:relative;}
+      .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .detail-gallery::-webkit-scrollbar{display:none;}
+      .detail-gallery a{flex:0 0 auto;}
+      .detail-gallery img{height:340px; width:auto; max-width:80vw; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:var(--paper-card); display:block;}
+      .gallery-placeholder{flex:0 0 auto; height:340px; width:auto; aspect-ratio:4/3; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:34px; font-weight:700;}
+      .gallery-placeholder img{height:36px; width:36px; border-radius:9px; background:#fff; padding:6px; object-fit:contain;}
+      .gallery-nav{
+        position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+        width:38px; height:38px; border-radius:50%; border:none;
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(27,42,61,0.45); color:#fff;
+      }
+      .gallery-nav:hover{background:rgba(27,42,61,0.72);}
+      .gallery-prev{left:14px;}
+      .gallery-next{right:14px;}
+      .gallery-counter{text-align:center; margin-top:8px; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);}
+      .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
+      .lightbox.open{display:flex;}
+      .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
+      .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+      .lightbox-close:hover{opacity:1;}
+      .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
+      .lightbox-nav:hover{opacity:1;}
+      .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
+      .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
+      .lightbox-counter{
+        position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+        color:#fff; font-size:13px; font-weight:600; font-family:'IBM Plex Mono', monospace;
+        background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
+      }
+      .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+      .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+      .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+      .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
+      .related-card-title{
+        position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
+        background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
+        color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+      }
+      .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
+      .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+      .related-grid-scroll::-webkit-scrollbar{display:none;}
+      .related-grid-scroll .related-card{flex:0 0 200px;}
+      @media (max-width:860px){
+        .related-grid-scroll .related-card{flex:0 0 140px;}
+        .related-grid-scroll{gap:10px;}
+        .detail-gallery img, .gallery-placeholder{height:240px;}
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  const LEFT_TEMPLATE = `
+    <h1 class="detail-title" id="pr-title"></h1>
+    <div class="detail-byline" id="pr-byline" style="display:none;">
+      <span class="detail-byline-avatar" id="pr-byline-avatar"></span>
+      <span id="pr-byline-text"></span>
+    </div>
+    <div class="pr-rating-save-row" id="pr-rating-save-row">
+      <div class="rating-widget" id="pr-rating"></div>
+      <div id="pr-save-slot"></div>
+    </div>
+    <div class="pr-actions" id="pr-actions"></div>
+    <div class="detail-info">
+      <div class="designer-section" id="pr-brand-section" style="display:none;">
+        <div class="designer-label">Marka</div>
+        <div class="designer-chips" id="pr-brand-chips"></div>
+      </div>
+      <div class="designer-section" id="pr-architect-section" style="display:none;">
+        <div class="designer-label">Mimar</div>
+        <div class="designer-chips" id="pr-architect-chips"></div>
+      </div>
+      <div class="detail-meta" id="pr-meta"></div>
+      <div class="detail-desc" id="pr-desc"></div>
+      <div id="pr-specs-wrap" style="display:none;">
+        <div class="specs-title">Teknik Özellikler</div>
+        <table class="specs-table" id="pr-specs-table"></table>
+      </div>
+    </div>`;
+
+  const RIGHT_TEMPLATE = `
+    <div class="gallery-wrap" id="pr-gallery-wrap">
+      <div class="gallery-media">
+        <div class="detail-gallery" id="pr-gallery"></div>
+        <button class="gallery-nav gallery-prev" id="pr-gallery-prev" type="button" aria-label="Önceki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <button class="gallery-nav gallery-next" id="pr-gallery-next" type="button" aria-label="Sonraki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="gallery-counter" id="pr-gallery-counter"></div>
+    </div>
+    <div class="related-section" id="pr-related-section" style="display:none;">
+      <h2 class="related-title" id="pr-related-title">Benzer Ürünler</h2>
+      <div class="related-grid-scroll" id="pr-related-grid"></div>
+    </div>
+    <div class="lightbox" id="pr-lightbox">
+      <button class="lightbox-close" id="pr-lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button class="lightbox-nav lightbox-prev" id="pr-lightbox-prev" aria-label="Önceki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <img id="pr-lightbox-img" src="" alt="">
+      <button class="lightbox-nav lightbox-next" id="pr-lightbox-next" aria-label="Sonraki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+      <div class="lightbox-counter" id="pr-lightbox-counter"></div>
+    </div>`;
+
+  const GALLERY_IDS = {
+    gallery: 'pr-gallery', galleryPrev: 'pr-gallery-prev', galleryNext: 'pr-gallery-next', galleryCounter: 'pr-gallery-counter',
+    lightbox: 'pr-lightbox', lightboxImg: 'pr-lightbox-img', lightboxCounter: 'pr-lightbox-counter',
+    lightboxClose: 'pr-lightbox-close', lightboxPrev: 'pr-lightbox-prev', lightboxNext: 'pr-lightbox-next',
+  };
+
+  let mountedOnce = false;
+  let currentSlug = null;
+  let currentItem = null;
+  let openedViaPush = false;
+  let pushCountSinceOpen = 0;
+  let requestSeq = 0;
+
+  function ensureTemplate() {
+    if (mountedOnce) return;
+    const panels = ModalShell.getPanels();
+    panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
+    panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
+    mountedOnce = true;
+  }
+
+  function cardHtml(href, title, image, subtitle) {
+    return `<a class="related-card" href="${href}">
+      ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
+      <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
+    </a>`;
+  }
+
+  function safeUrl(u) {
+    try {
+      const parsed = new URL(u, window.location.href);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+    } catch {}
+    return '';
+  }
+
+  function kindPlural(p) { return p.kind === 'material' ? 'materials' : 'products'; }
+  function ratingKindFor(p) { return p.kind === 'material' ? 'material' : 'product'; }
+  function legacyKeyFor(p) { return `${p.brand || ''}|||${p.title}`; }
+
+  function updateHeadMeta(p, key) {
+    document.title = `${p.title} — MİMARLAB`;
+    const rawDesc = p.description || `${p.title}${p.brand ? ' — ' + p.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
+    const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
+    const canonicalUrl = `https://mimarlab.com/urun/${encodeURIComponent(key)}`;
+    const image = (p.images && p.images[0]) ? new URL(p.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
+    setIf('meta-description', 'content', desc);
+    setIf('canonical-link', 'href', canonicalUrl);
+    setIf('og-title', 'content', document.title);
+    setIf('og-description', 'content', desc);
+    setIf('og-url', 'content', canonicalUrl);
+    setIf('og-image', 'content', image);
+    setIf('twitter-title', 'content', document.title);
+    setIf('twitter-description', 'content', desc);
+    setIf('twitter-image', 'content', image);
+  }
+
+  function renderStructuredData(p) {
+    let tag = document.getElementById('pr-ld-json');
+    if (!tag) {
+      tag = document.createElement('script');
+      tag.type = 'application/ld+json';
+      tag.id = 'pr-ld-json';
+      document.head.appendChild(tag);
+    }
+    const data = { '@context': 'https://schema.org', '@type': 'Product', name: p.title, url: window.location.href };
+    if (p.description) data.description = p.description;
+    if (p.brand) data.brand = { '@type': 'Brand', name: p.brand };
+    if (p.images && p.images.length) { try { data.image = p.images.map(img => new URL(img, window.location.href).href); } catch {} }
+    tag.textContent = JSON.stringify(data);
+  }
+
+  // Marka/mimar chip'leri: canonical products satırı yalnızca serbest metin brand/architect adı
+  // taşır (join yok) — MİMARLAB dizininde bir profili var mı diye AYNI /api/office/:slug ve
+  // /api/architect/:slug uçları (ArchitectModal/OfficeModal'ın da kullandığı) tek bir isimle
+  // deneme-yanılma sorgulanır; bulunursa logolu/fotoğraflı bir chip, bulunmazsa düz metin.
+  async function tryOfficeChip(name) {
+    try {
+      const res = await fetch(`/api/office/${encodeURIComponent(slugify(name))}`);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      return (payload && payload.item && !payload.hidden) ? payload.item : null;
+    } catch { return null; }
+  }
+  async function tryArchitectChip(name) {
+    try {
+      const res = await fetch(`/api/architect/${encodeURIComponent(slugify(name))}`);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      return (payload && payload.item && !payload.hidden) ? payload.item : null;
+    } catch { return null; }
+  }
+
+  async function renderBrandSection(p) {
+    if (!p.brand) return;
+    document.getElementById('pr-brand-section').style.display = '';
+    document.getElementById('pr-brand-chips').innerHTML = `<span class="designer-name-plain">${escapeHtml(p.brand)}</span>`;
+    const off = await tryOfficeChip(p.brand);
+    if (!off) return;
+    const logo = logoUrl(off);
+    document.getElementById('pr-brand-chips').innerHTML = `<a class="designer-chip" href="/firma/${encodeURIComponent(slugify(off.name))}">
+      <div class="designer-chip-avatar office-avatar" style="background:${logo ? 'var(--paper-alt)' : officeColor(off.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : escapeHtml(initials(off.name))}</div>
+      <span class="designer-chip-name">${escapeHtml(off.name)}</span>
+    </a>`;
+  }
+
+  async function renderArchitectSection(p) {
+    if (!p.architect) return;
+    const names = p.architect.split(',').map(s => s.trim()).filter(Boolean);
+    if (!names.length) return;
+    document.getElementById('pr-architect-section').style.display = '';
+    document.getElementById('pr-architect-chips').innerHTML = names.map(name => `<span class="designer-name-plain">${escapeHtml(name)}</span>`).join('');
+    const resolved = await Promise.all(names.map(name => tryArchitectChip(name)));
+    document.getElementById('pr-architect-chips').innerHTML = names.map((name, i) => {
+      const arch = resolved[i];
+      return arch
+        ? `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
+            <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(arch.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
+            <span class="designer-chip-name">${escapeHtml(arch.name)}</span>
+          </a>`
+        : `<span class="designer-name-plain">${escapeHtml(name)}</span>`;
+    }).join('');
+  }
+
+  async function renderItem(p, key) {
+    currentItem = p;
+    updateHeadMeta(p, key);
+    document.getElementById('pr-title').textContent = p.title;
+    document.getElementById('pr-byline').style.display = 'none';
+
+    document.getElementById('pr-brand-section').style.display = 'none';
+    document.getElementById('pr-architect-section').style.display = 'none';
+    renderBrandSection(p);
+    renderArchitectSection(p);
+
+    let metaHtml = '';
+    if (p.category) metaHtml += `<div><strong>Kategori:</strong> ${escapeHtml(p.category)}</div>`;
+    if (p.website) {
+      const site = safeUrl(p.website);
+      if (site) metaHtml += `<div><strong>Web Sitesi:</strong> <a href="${escapeAttr(site)}" target="_blank" rel="noopener">${escapeHtml(p.website)}</a></div>`;
+    }
+    document.getElementById('pr-meta').innerHTML = metaHtml;
+    document.getElementById('pr-desc').textContent = p.description || '';
+
+    const specsWrap = document.getElementById('pr-specs-wrap');
+    if (p.specs && p.specs.length) {
+      specsWrap.style.display = '';
+      document.getElementById('pr-specs-table').innerHTML = p.specs
+        .filter(s => s && (s.label || s.value))
+        .map(s => `<tr><td>${escapeHtml(s.label || '')}</td><td>${escapeHtml(s.value || '')}</td></tr>`).join('');
+    } else specsWrap.style.display = 'none';
+
+    renderStructuredData(p);
+
+    const images = p.images || [];
+    const favicon = (typeof catalogBrandFavicon === 'function') ? catalogBrandFavicon(p.brand) : null;
+    initDetailGallery({
+      images, title: p.title,
+      placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(p.brand || p.title)}">
+        ${favicon ? `<img src="${escapeAttr(favicon)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
+        <span>${escapeHtml(initials(p.brand || p.title))}</span>
+      </div>`,
+      ids: GALLERY_IDS,
+    });
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'save-btn card-save-btn';
+    saveBtn.id = 'pr-save-btn';
+    saveBtn.setAttribute('aria-label', 'Kaydet');
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span>`;
+    saveBtn.dataset.type = ratingKindFor(p);
+    saveBtn.dataset.key = key;
+    saveBtn.dataset.title = p.title;
+    saveBtn.dataset.meta = [p.category, p.brand].filter(Boolean).join(' · ');
+    saveBtn.dataset.image = images[0] || '';
+    saveBtn.dataset.href = `/urun/${encodeURIComponent(key)}`;
+    const saveSlot = document.getElementById('pr-save-slot');
+    saveSlot.innerHTML = '<span class="save-count" id="pr-save-count"></span>';
+    saveSlot.prepend(saveBtn);
+    wireSaveButtons(ratingKindFor(p));
+    fetch(`/api/public/save-count?type=${ratingKindFor(p)}&key=${encodeURIComponent(key)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) document.getElementById('pr-save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : ''; })
+      .catch(() => {});
+
+    const ratingWidget = document.getElementById('pr-rating');
+    ratingWidget.dataset.type = ratingKindFor(p);
+    ratingWidget.dataset.key = key;
+    mountRatingWidget(ratingWidget);
+
+    const actionsEl = document.getElementById('pr-actions');
+    actionsEl.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
+    mountEditAndAdminButtons(p, key);
+
+    loadRelated(p, key);
+
+    wireInternalNav();
+    ModalShell.scrollToTop();
+  }
+
+  async function mountEditAndAdminButtons(p, key) {
+    await savedWidgetReady;
+    if (p.submissionId) {
+      const html = await editSubmissionBtnHtml(kindPlural(p), p.submissionId);
+      if (html) document.getElementById('pr-edit-slot').innerHTML = html;
+    }
+    if (!currentUser || currentUser.role !== 'admin') return;
+    const slot = document.getElementById('pr-admin-slot');
+    slot.innerHTML = `<button type="button" class="card-edit-btn" id="pr-archive-btn">Arşivle</button><button type="button" class="card-delete-btn" id="pr-delete-btn">Sil</button>`;
+    document.getElementById('pr-archive-btn').addEventListener('click', () => runContentModeration(p, key, 'archive'));
+    document.getElementById('pr-delete-btn').addEventListener('click', () => runContentModeration(p, key, 'delete'));
+  }
+
+  async function runContentModeration(p, key, action) {
+    const confirmText = action === 'delete'
+      ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
+      : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+    if (!confirm(confirmText)) return;
+    const btn = document.getElementById(action === 'delete' ? 'pr-delete-btn' : 'pr-archive-btn');
+    const otherBtn = document.getElementById(action === 'delete' ? 'pr-archive-btn' : 'pr-delete-btn');
+    if (btn) btn.disabled = true;
+    if (otherBtn) otherBtn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/legacy/content-action', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p.submissionId ? { type: kindPlural(p), action, id: p.submissionId } : { type: kindPlural(p), action, key: legacyKeyFor(p) }),
+      });
+      if (!res.ok) throw new Error('request failed');
+      window.location.href = '/urun';
+    } catch {
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      if (btn) btn.disabled = false;
+      if (otherBtn) otherBtn.disabled = false;
+    }
+  }
+
+  // Benzer Ürünler: aynı markadan, yetmezse aynı kategoriden — mevcut ürün/malzeme listesinin
+  // sayfalanmış /api/products ucundan (limit yüksek tutularak) çekilir.
+  async function loadRelated(p, key) {
+    const section = document.getElementById('pr-related-section');
+    section.style.display = 'none';
+    try {
+      const params = new URLSearchParams({ limit: '96' });
+      if (p.brand) params.set('brand', p.brand);
+      const res = await fetch(`/api/products?${params.toString()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      let related = (data.items || []).filter(x => x.ratingKey !== key);
+      if (related.length < 6 && p.category) {
+        const catParams = new URLSearchParams({ limit: '96', category: p.category });
+        const catRes = await fetch(`/api/products?${catParams.toString()}`);
+        if (catRes.ok) {
+          const catData = await catRes.json();
+          const seen = new Set(related.map(x => x.ratingKey).concat([key]));
+          (catData.items || []).forEach(x => { if (!seen.has(x.ratingKey)) { seen.add(x.ratingKey); related.push(x); } });
+        }
+      }
+      related = related.slice(0, 8);
+      if (!related.length) return;
+      document.getElementById('pr-related-title').textContent = p.brand ? `${p.brand} Markasından Diğer Ürünler` : 'Benzer Ürünler';
+      document.getElementById('pr-related-grid').innerHTML = related.map(r =>
+        cardHtml(`/urun/${encodeURIComponent(r.ratingKey)}`, r.title, r.image, r.brand)
+      ).join('');
+      section.style.display = '';
+    } catch {}
+  }
+
+  function renderNotFound() {
+    document.getElementById('pr-title').textContent = 'Ürün bulunamadı';
+    ['pr-byline', 'pr-rating-save-row', 'pr-actions', 'pr-brand-section', 'pr-architect-section',
+      'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+
+  function wireInternalNav() {
+    const panels = ModalShell.getPanels();
+    if (!panels || panels.bodyEl.dataset.prNavWired) return;
+    panels.bodyEl.dataset.prNavWired = '1';
+    panels.bodyEl.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href^="/urun/"]');
+      if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const m = a.getAttribute('href').match(/^\/urun\/([^/?#]+)/);
+      if (!m) return;
+      e.preventDefault();
+      swap(decodeURIComponent(m[1]));
+    });
+  }
+
+  async function fetchItem(key) {
+    const res = await fetch(`/api/product/${encodeURIComponent(key)}`);
+    if (!res.ok) return null;
+    const payload = await res.json();
+    if (!payload || !payload.item || payload.hidden) return null;
+    return payload.item;
+  }
+
+  async function open(slug, { pushHistory = true, triggerEl = null } = {}) {
+    currentSlug = slug;
+    openedViaPush = pushHistory;
+    pushCountSinceOpen = pushHistory ? 1 : 0;
+    if (pushHistory) history.pushState({ mimarlabModal: 'product', slug, depth: 1 }, '', `/urun/${encodeURIComponent(slug)}`);
+    injectStyles();
+    ModalShell.open({ triggerEl, onRequestClose: close });
+    ensureTemplate();
+
+    const mySeq = ++requestSeq;
+    const item = await fetchItem(slug);
+    if (mySeq !== requestSeq || currentSlug !== slug) return;
+    if (!item) { renderNotFound(); return; }
+    await renderItem(item, slug);
+  }
+
+  async function swap(slug) {
+    if (!ModalShell.isOpen()) return open(slug, { pushHistory: true });
+    currentSlug = slug;
+    const currentDepth = (history.state && history.state.mimarlabModal === 'product') ? history.state.depth : pushCountSinceOpen;
+    pushCountSinceOpen = currentDepth + 1;
+    history.pushState({ mimarlabModal: 'product', slug, depth: pushCountSinceOpen }, '', `/urun/${encodeURIComponent(slug)}`);
+    const mySeq = ++requestSeq;
+    const item = await fetchItem(slug);
+    if (mySeq !== requestSeq || currentSlug !== slug) return;
+    if (!item) { renderNotFound(); return; }
+    await renderItem(item, slug);
+  }
+
+  function close() {
+    currentSlug = null;
+    currentItem = null;
+    if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
+    else history.pushState({}, '', '/urun');
+    ModalShell.close();
+    pushCountSinceOpen = 0;
+  }
+
+  function handlePopState(slug) {
+    if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
+    if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
+    if (history.state && history.state.mimarlabModal === 'product' && typeof history.state.depth === 'number') {
+      pushCountSinceOpen = history.state.depth;
+    }
+    if (slug === currentSlug) return;
+    currentSlug = slug;
+    (async () => {
+      const mySeq = ++requestSeq;
+      const item = await fetchItem(slug);
+      if (mySeq !== requestSeq || currentSlug !== slug) return;
+      if (!item) { renderNotFound(); return; }
+      await renderItem(item, slug);
+    })();
+  }
+
+  function isOpen() { return ModalShell.isOpen(); }
+  function getCurrentSlug() { return currentSlug; }
+
+  return { open, swap, close, handlePopState, isOpen, getCurrentSlug };
+})();
