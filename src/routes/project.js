@@ -2,6 +2,7 @@ import { errorJson } from '../lib/http.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
+import { fetchOwnerByline } from '../lib/ownerByline.js';
 // bkz. src/routes/architect.js'teki AYNI CJS-interop yorumu — il-ilce-data.js proje.html'deki
 // parseLocationFull ile BİREBİR aynı il/ilçe çözümlemesini kullanmak için (~970 ilçelik veriyi
 // burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğuyla import ediliyor. Bu dosya
@@ -186,11 +187,13 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     if (!row) return { item: null, hidden: false };
     if (row.hidden_at) return { item: null, hidden: true };
     const item = shapeProjectItem(row);
-    const [designerDetails, catalog, rawNames] = await Promise.all([
+    const [designerDetails, catalog, rawNames, owner] = await Promise.all([
       fetchDesignerDetails(env, row.id),
       fetchProjectProducts(env, row.id),
       fetchRawDesignerNames(env, row),
+      fetchOwnerByline(env, row.claimed_by_user_id),
     ]);
+    if (owner) Object.assign(item, owner);
     // Zaten eşleşmiş (profilli) isimlerin ÜZERİNE yazmayan, formda yazılan ama hiçbir profile
     // bağlanamamış isimler için künyede baş harfli, tıklanamaz bir "rozet" fallback'i (bkz. yukarıdaki
     // fetchRawDesignerNames yorumu ve kullanıcı isteği) — isOfficeName() (aşağıda tanımlı, proje.html

@@ -1,0 +1,19 @@
+// "X tarafından" byline verisi — proje/ürün detay uçlarının (src/routes/project.js,
+// src/routes/product.js) paylaştığı ortak sorgu. src/routes/public.js#listPublicNews'teki AYNI
+// users+badge_requests join deseni (haber-detay.html'de canlı çalışan tek örnek). projects/products
+// satırlarındaki claimed_by_user_id yalnızca canonicalSync.js#syncProject/syncProduct'ta gönderi
+// sahibinden (row.owner_user_id) BİR KEZ, satır oluşturulurken yazılır — başka hiçbir akış bunu
+// sonradan değiştirmez, dolayısıyla her zaman "bu kaydı gönderen kişi" anlamına gelir (legacy_static/
+// admin kökenli kayıtlarda NULL kalır, byline o kayıtlarda hiç gösterilmez).
+export async function fetchOwnerByline(env, userId) {
+  if (!userId) return null;
+  const row = await env.DB.prepare(
+    `SELECT u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
+     FROM users u
+     LEFT JOIN badge_requests b ON b.user_id = u.id AND b.target_type = 'self' AND b.status = 'active'
+       AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
+     WHERE u.id = ?`
+  ).bind(Date.now(), userId).first();
+  if (!row || !row.owner_name) return null;
+  return { ownerName: row.owner_name, ownerPhoto: row.owner_photo || null, ownerBadge: row.owner_badge || null };
+}

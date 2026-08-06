@@ -3,9 +3,10 @@
 // çerçevesi js/components/modal-shell.js'ten, galeri/lightbox js/components/gallery.js'ten gelir.
 // urun-detay.html'in aksine `/api/product/:key`'i kullanan İLK tüketici budur (bkz. src/routes/
 // product.js) — statik urunler-data.js/malzemeler-data.js dizilerini/data.js'i hiç yüklemez, proje
-// modalıyla aynı "sunucudan tek JSON çek" desenine geçer. "X tarafından" byline'ı KAPSAM DIŞI
-// bırakıldı — canonical products tablosu owner_name taşımıyor (bu alan yalnızca eski /api/public/
-// products'un submission-join'li şeklinde vardı), küçük bir kozmetik kayıp kabul edildi.
+// modalıyla aynı "sunucudan tek JSON çek" desenine geçer. "X tarafından" byline'ı (bkz. renderByline
+// aşağıda) src/routes/product.js#fetchOwnerByline'ın claimed_by_user_id üzerinden users/badge_requests
+// join'iyle beslediği item.ownerName alanına yeniden bağlandı (kullanıcı isteği) — yalnızca üye
+// gönderisi kökenli ürünlerde dolu, legacy_static/admin kayıtlarında gizli kalır.
 const ProductModal = (function () {
   // .detail-title/.designer-*/.gallery-*/.lightbox*/.related-*/.specs-* urun-detay.html'den taşınan
   // AYNI değerler — urun.html farklı bir sayfa olduğundan bunları miras alamaz. .rating-widget/
@@ -204,22 +205,27 @@ const ProductModal = (function () {
         .related-grid-scroll{gap:10px;}
         .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
-        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Bilgi
-           Kaynağı → Benzer Ürünler (bkz. proje.html'deki AYNI #pm-* order deseni, kullanıcı isteği:
-           Ürün pop-up'ı Proje pop-up'ıyla birebir aynı grid yapısına getirilsin) — modal-shell.js bu
-           kırılma noktasında sol/sağ paneli display:contents yaptığından tüm bölümler AYNI dikey flex
+        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Benzer
+           Ürünler → Bilgi Kaynağı (bkz. proje.html'deki AYNI #pm-* order deseni, kullanıcı isteği:
+           Ürün pop-up'ı Proje pop-up'ıyla birebir aynı grid yapısına getirilsin; Bilgi Kaynağı & Geri
+           Bildirim kutusu bu breakpoint'te sayfanın en altına taşındı) — modal-shell.js bu kırılma
+           noktasında sol/sağ paneli display:contents yaptığından tüm bölümler AYNI dikey flex
            akışının parçası. .detail-info künye/açıklama/teknik özellikleri TEK blok olarak taşır.
            Proje modalının aksine burada yorum/aynı-tasarımcı/malzeme bölümleri yok, tek related
            section (Benzer Ürünler) var. */
+        /* order KESİNLİKLE tam sayı olmalı (CSS <integer> — bkz. proje.html'deki AYNI gerçek bulgu:
+           ondalıklı order değerleri geçersiz sayılıp sessizce order:0'a düşüyor, ilgili öğeyi
+           modalın EN ÜSTÜNE zıplatıyordu). */
         #pr-gallery-wrap{order:1;}
         #pr-title{order:2; margin-top:20px;}
         #pr-rating-save-row{order:3;}
-        #pr-actions{order:4;}
-        .detail-info{order:5;}
-        #pr-info-divider{order:5.5;}
-        #pr-feedback-card{order:5.6;}
-        #pr-related-section{order:6;}
-        #pr-prevnext{order:7;}
+        #pr-byline{order:4;}
+        #pr-actions{order:5;}
+        .detail-info{order:6;}
+        #pr-related-section{order:7;}
+        #pr-prevnext{order:8;}
+        #pr-info-divider{order:9;}
+        #pr-feedback-card{order:10;}
 
         /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki AYNI kural,
            kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü
@@ -247,13 +253,13 @@ const ProductModal = (function () {
 
   const LEFT_TEMPLATE = `
     <h1 class="detail-title" id="pr-title"></h1>
-    <div class="detail-byline" id="pr-byline" style="display:none;">
-      <span class="detail-byline-avatar" id="pr-byline-avatar"></span>
-      <span id="pr-byline-text"></span>
-    </div>
     <div class="pr-rating-save-row" id="pr-rating-save-row">
       <div class="rating-widget" id="pr-rating"></div>
       <div id="pr-save-slot"></div>
+    </div>
+    <div class="detail-byline" id="pr-byline" style="display:none;">
+      <span class="detail-byline-avatar" id="pr-byline-avatar"></span>
+      <span id="pr-byline-text"></span>
     </div>
     <div class="pr-actions" id="pr-actions"></div>
     <div class="detail-info">
@@ -274,8 +280,8 @@ const ProductModal = (function () {
     </div>
     <hr class="pr-info-divider" id="pr-info-divider">
     <div class="pr-feedback-card" id="pr-feedback-card">
-      <h5>Bilgi Kaynağı &amp; Geri Bildirim</h5>
-      <p>Bu içerik ekibimiz veya kayıtlı üyeler tarafından eklendi. Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
+      <h5>Geri Bildirim</h5>
+      <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
       <div id="pr-feedback-body"></div>
     </div>`;
 
@@ -446,11 +452,23 @@ const ProductModal = (function () {
     }).join('');
   }
 
+  // "X tarafından" satırı — proje-modal.js#renderByline ile BİREBİR aynı (yalnızca üye gönderisi
+  // kökenli ürünlerde dolu, bkz. src/routes/product.js#fetchOwnerByline item.ownerName alanı).
+  function renderByline(item) {
+    const wrap = document.getElementById('pr-byline');
+    if (!item.ownerName) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    const avatar = document.getElementById('pr-byline-avatar');
+    avatar.style.background = officeColor(item.ownerName);
+    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
+    document.getElementById('pr-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
+  }
+
   async function renderItem(p, key) {
     currentItem = p;
     updateHeadMeta(p, key);
     document.getElementById('pr-title').textContent = p.title;
-    document.getElementById('pr-byline').style.display = 'none';
+    renderByline(p);
 
     document.getElementById('pr-brand-section').style.display = 'none';
     document.getElementById('pr-architect-section').style.display = 'none';
@@ -541,7 +559,7 @@ const ProductModal = (function () {
       return;
     }
     body.innerHTML = `
-      <textarea id="pr-feedback-note" placeholder="Gördüğün bir hatayı ya da eksik bilgiyi buraya yaz."></textarea>
+      <textarea id="pr-feedback-note" placeholder=""></textarea>
       <button type="button" id="pr-feedback-btn" style="margin-top:10px;">Bildir</button>
       <p id="pr-feedback-result" style="display:none;"></p>`;
     document.getElementById('pr-feedback-btn').addEventListener('click', async (e) => {

@@ -301,6 +301,18 @@
      (.rating-widget, .designer-chip, .comment-row vb.) proje-detay.html ile BİREBİR aynı — aynı
      paylaşılan JS (rating-widget.js, js/components/project-*.js) bu isimlere yazıyor. */
   .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+  /* "X tarafından" satırı — js/components/product-modal.js/haber-detay.html'deki AYNI .detail-byline
+     kuralları (kullanıcı isteği: Puanla/Kaydet/Paylaş satırının hemen altına yeniden eklendi). Yalnızca
+     üye gönderisi kökenli projelerde dolu (bkz. src/routes/project.js#fetchOwnerByline), diğerlerinde
+     gizli kalır. */
+  .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+  .detail-byline strong{color:var(--ink); font-weight:600;}
+  .detail-byline-avatar{
+    width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
+  }
+  .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   /* Puanlama + Kaydet: kullanıcı isteği üzerine aynı satırda, ikisi de "pill" görünümlü (bkz.
      .rating-widget kuralı aşağıda — save-btn ile AYNI çerçeve/dolgu dilini paylaşır). */
   /* flex-wrap:nowrap !important — kullanıcı isteği: Puanla/Kaydet/Paylaş HİÇBİR genişlikte 2. satıra
@@ -594,19 +606,28 @@
        paylaşılan padding-top'undan (bkz. kullanıcı isteği: X butonu/içerik çakışması, TÜM modallerde)
        geliyor; ikisi birlikte kalsaydı boşluk iki katına çıkardı (gerçek bulgu).
     */
+    /* order KESİNLİKLE tam sayı olmalı (CSS <integer> — bkz. gerçek bulgu: bu blokta önceden
+       kullanılan 6.5/6.6 gibi ondalıklı değerler geçersiz sayılıp sessizce order:0'a düşüyordu,
+       böylece #pm-info-divider/#pm-feedback-card modalın EN ÜSTÜNE, galeriden bile önce zıplıyordu
+       — yalnızca hiçbir görsel QA bunu yakalamadığından fark edilmemişti). Aşağıdaki tüm değerler
+       bu yüzden ARALIKSIZ tam sayı dizisi olarak yeniden numaralandırıldı. */
     #pm-gallery-wrap{order:1;}
     #pm-title{order:2; margin-top:20px;}
     #pm-rating-save-row{order:3;}
-    #pm-actions{order:4;}
-    .detail-info{order:5;}
-    #pm-comments-section{order:6;}
-    #pm-info-divider{order:6.5;}
-    #pm-feedback-card{order:6.6;}
-    #pm-same-designer-section{order:7;}
-    #pm-related-section{order:8;}
-    #pm-products-section{order:9;}
-    #pm-materials-section{order:10;}
-    #pm-prevnext{order:11;}
+    #pm-byline{order:4;}
+    #pm-actions{order:5;}
+    .detail-info{order:6;}
+    #pm-comments-section{order:7;}
+    #pm-same-designer-section{order:8;}
+    #pm-related-section{order:9;}
+    #pm-products-section{order:10;}
+    #pm-materials-section{order:11;}
+    #pm-prevnext{order:12;}
+    /* Bilgi Kaynağı & Geri Bildirim — mobil/tablette sayfanın en altına taşındı (kullanıcı isteği),
+       masaüstünde DOM sırası (Yorumlar'dan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order
+       değerleri etkilenir. */
+    #pm-info-divider{order:13;}
+    #pm-feedback-card{order:14;}
 
     /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
        yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural

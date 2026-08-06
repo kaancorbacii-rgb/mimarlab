@@ -2,6 +2,7 @@ import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { fetchOwnerByline } from '../lib/ownerByline.js';
 // bkz. src/routes/project.js'teki AYNI CJS-interop yorumu (il-ilce-data.js için) — bu dosya da
 // canonical veri DEĞİL, salt statik bir taksonomi referans tablosu.
 import catalogTaxonomyJs from '../../catalog-taxonomy.js';
@@ -72,9 +73,13 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     const row = await findProductByKey(env, key);
     if (!row) return { item: null, hidden: false };
     const item = shapeProductItem(row);
-    const adjacent = await fetchAdjacentProduct(env, row.id);
+    const [adjacent, owner] = await Promise.all([
+      fetchAdjacentProduct(env, row.id),
+      fetchOwnerByline(env, row.claimed_by_user_id),
+    ]);
     item.prevItem = adjacent.prevItem;
     item.nextItem = adjacent.nextItem;
+    if (owner) Object.assign(item, owner);
     return { item, hidden: !!row.hidden_at };
   });
 }

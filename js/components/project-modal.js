@@ -10,6 +10,10 @@ const ProjectModal = (function () {
       <div class="rating-widget" id="pm-rating" data-type="project"></div>
       <div id="pm-save-slot"></div>
     </div>
+    <div class="detail-byline" id="pm-byline" style="display:none;">
+      <span class="detail-byline-avatar" id="pm-byline-avatar"></span>
+      <span id="pm-byline-text"></span>
+    </div>
     <div class="detail-title-actions" id="pm-actions"></div>
     <div class="detail-info">
       <div class="designer-section" id="pm-architect-section" style="display:none;">
@@ -30,8 +34,8 @@ const ProjectModal = (function () {
     </div>
     <hr class="pm-info-divider" id="pm-info-divider">
     <div class="pm-feedback-card" id="pm-feedback-card">
-      <h5>Bilgi Kaynağı &amp; Geri Bildirim</h5>
-      <p>Bu içerik ekibimiz veya kayıtlı üyeler tarafından eklendi. Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
+      <h5>Geri Bildirim</h5>
+      <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
       <div id="pm-feedback-body"></div>
     </div>`;
 
@@ -140,7 +144,7 @@ const ProjectModal = (function () {
       return;
     }
     body.innerHTML = `
-      <textarea id="pm-feedback-note" placeholder="Gördüğün bir hatayı ya da eksik bilgiyi buraya yaz."></textarea>
+      <textarea id="pm-feedback-note" placeholder=""></textarea>
       <button type="button" class="comment-submit-btn" id="pm-feedback-btn" style="margin-top:10px;">Bildir</button>
       <p id="pm-feedback-result" style="display:none;"></p>`;
     document.getElementById('pm-feedback-btn').addEventListener('click', async (e) => {
@@ -250,9 +254,22 @@ const ProjectModal = (function () {
     return data.item || null;
   }
 
+  // "X tarafından" satırı — yalnızca üye gönderisi kökenli projelerde dolu (bkz. src/routes/
+  // project.js#fetchOwnerByline item.ownerName alanı), statik/admin kökenli projelerde gizli kalır.
+  function renderByline(item) {
+    const wrap = document.getElementById('pm-byline');
+    if (!item.ownerName) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    const avatar = document.getElementById('pm-byline-avatar');
+    avatar.style.background = officeColor(item.ownerName);
+    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
+    document.getElementById('pm-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
+  }
+
   async function renderItem(item, mySeq) {
     currentItem = item;
     updateHeadMeta(item);
+    renderByline(item);
     ProjectMeta.render(item);
     ProjectGallery.render(item);
     ProjectActions.render(item);
@@ -269,7 +286,7 @@ const ProjectModal = (function () {
 
   function renderNotFound() {
     document.getElementById('pm-title').textContent = 'Proje bulunamadı';
-    ['pm-rating-save-row', 'pm-actions', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
+    ['pm-rating-save-row', 'pm-byline', 'pm-actions', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
       'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section', 'pm-related-section',
       'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'].forEach(id => {
       const el = document.getElementById(id);
