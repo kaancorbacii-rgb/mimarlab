@@ -414,7 +414,13 @@ export async function handleProjectListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit);
+    // rating/ratingCount: js/components/project-related.js#RelatedProjects'in puan bazlı skorlama
+    // algoritmasındaki "yüksek puanlama" bileşeni için — ratingBySlug zaten yukarıda hesaplanmış,
+    // burada sadece sayfalanmış dilime iğneleniyor, ek bir sorgu gerekmiyor.
+    const items = filtered.slice(start, start + limit).map(p => {
+      const r = ratingBySlug.get(p.slug);
+      return { ...p, rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
+    });
     return { items, total, page: Math.min(page, totalPages), totalPages };
   });
 }

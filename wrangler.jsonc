@@ -35,6 +35,15 @@
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler
     // secret put` ile ayrı ayrı tanımlanır.
+    //
+    // Google/LinkedIn Sosyal Giriş (bkz. src/lib/oauth.js, kullanıcı isteği) — GOOGLE_CLIENT_ID/
+    // GOOGLE_CLIENT_SECRET (Google Cloud Console > OAuth 2.0 istemci, yetkilendirilmiş yönlendirme
+    // URI'si: https://mimarlab.com/api/auth/google/callback) ve LINKEDIN_CLIENT_ID/
+    // LINKEDIN_CLIENT_SECRET (LinkedIn Developer Portal > "Sign In with LinkedIn using OpenID
+    // Connect" ürünü eklenmiş bir uygulama, yönlendirme URI'si: https://mimarlab.com/api/auth/
+    // linkedin/callback) de AYNI şekilde `wrangler secret put` ile tanımlanmalı. Tanımlı değilse
+    // ilgili "... ile Giriş Yap" butonu tıklandığında sessizce giris-yap.html?oauth_error=not_
+    // configured'a yönlendirir — mevcut e-posta/şifre akışı bundan ETKİLENMEZ.
     "IYZICO_BASE_URL": "https://sandbox-api.iyzipay.com"
   }
 }

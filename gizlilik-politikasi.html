@@ -6,19 +6,19 @@
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
-<title>Reklam — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'da reklam ve iş birliği fırsatları.">
-<link rel="canonical" href="https://mimarlab.com/reklam">
+<title>Gizlilik Politikası — MİMARLAB</title>
+<meta name="description" content="MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.">
+<link rel="canonical" href="https://mimarlab.com/gizlilik-politikasi">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Reklam — MİMARLAB">
-<meta property="og:description" content="MİMARLAB'da reklam ve iş birliği fırsatları.">
-<meta property="og:url" content="https://mimarlab.com/reklam">
+<meta property="og:title" content="Gizlilik Politikası — MİMARLAB">
+<meta property="og:description" content="MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.">
+<meta property="og:url" content="https://mimarlab.com/gizlilik-politikasi">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Reklam — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB'da reklam ve iş birliği fırsatları.">
+<meta name="twitter:title" content="Gizlilik Politikası — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,6 +38,7 @@
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
   .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
 
+  /* ---------- NAV ---------- */
   .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:10px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
   .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
   .nav-search svg{flex-shrink:0; opacity:0.5;}
@@ -59,32 +60,34 @@
   .nav-rate{background:none; color:var(--ink); padding:8px 17px; border-radius:100px; border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;}
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
 
+  /* ---------- BREADCRUMB ---------- */
   .breadcrumb-bar{background:var(--ink); color:rgba(237,240,243,0.7); padding:14px 32px; font-size:13.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
   .breadcrumb-bar a:hover{color:var(--brass-soft);}
   .breadcrumb-bar .sep{opacity:0.4;}
   .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
 
+  /* ---------- CONTENT ---------- */
   .content-wrap{max-width:760px; margin:0 auto; padding:56px 32px 90px;}
   .content-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
-  .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
+  .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 10px; letter-spacing:-0.01em;}
+  .content-updated{font-size:12.5px; color:var(--ink-soft); margin:0 0 24px;}
   .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px;}
-  .opt-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px;}
-  .opt-card{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px;}
-  .opt-card h3{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin:0 0 8px;}
-  .opt-card p{font-size:13.5px; line-height:1.6; color:var(--ink-soft); margin:0;}
   .content-section{margin-bottom:32px;}
-  .content-section h2{font-family:'Inter', sans-serif; font-size:19px; font-weight:700; margin:0 0 10px;}
+  .content-section h2{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; margin:0 0 12px;}
+  .content-section h3{font-family:'Inter', sans-serif; font-size:15.5px; font-weight:700; margin:20px 0 8px;}
   .content-section p{font-size:14.5px; line-height:1.75; color:var(--ink-soft); margin:0 0 12px;}
   .content-section a{color:var(--walnut); font-weight:600;}
   .content-section a:hover{text-decoration:underline;}
-  .cta-card{background:var(--ink); color:var(--paper-card); border-radius:16px; padding:28px; text-align:center;}
-  .cta-card p{color:rgba(237,240,243,0.7); font-size:13.5px; margin:6px 0 18px;}
-  .cta-btn{display:inline-block; background:var(--paper-card); color:var(--ink); padding:12px 24px; border-radius:100px; font-weight:600; font-size:14px;}
-  .cta-btn:hover{background:var(--brass-soft);}
+  .content-section ul{margin:0 0 12px; padding-left:20px; font-size:14.5px; line-height:1.8; color:var(--ink-soft);}
+  .content-section li{margin-bottom:4px;}
+  .content-toc{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:0 0 36px;}
+  .content-toc h2{font-size:14px; margin:0 0 10px;}
+  .content-toc ol{margin:0; padding-left:20px; font-size:13.5px; line-height:1.9; color:var(--ink-soft); columns:2; column-gap:24px;}
+  .content-toc a{color:var(--ink-soft); font-weight:500;}
+  .content-toc a:hover{color:var(--walnut); text-decoration:underline;}
 
-  @media (max-width:600px){ .opt-grid{grid-template-columns:1fr;} }
-
+  /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
   .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
@@ -109,6 +112,7 @@
   @media (max-width:720px){
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .content-wrap{padding:36px 18px 70px;}
+    .content-toc ol{columns:1;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -160,42 +164,145 @@
   <div class="breadcrumb-bar">
     <a href="index.html">Ana Sayfa</a>
     <span class="sep">›</span>
-    <span class="current">Reklam</span>
+    <span class="current">Gizlilik Politikası</span>
   </div>
 
   <div class="content-wrap">
-    <div class="content-eyebrow">Reklam</div>
-    <h1 class="content-title">MİMARLAB'da Yer Alın</h1>
-    <p class="content-lead">Mimarlık, iç mimarlık ve peyzaj mimarlığı ekosistemindeki hedef kitlenize ulaşmak için MİMARLAB'da çeşitli görünürlük seçenekleri sunuyoruz.</p>
+    <div class="content-eyebrow">Kurumsal</div>
+    <h1 class="content-title">Gizlilik Politikası</h1>
+    <p class="content-updated">Son güncelleme: 6 Ağustos 2026</p>
+    <p class="content-lead">Bu Gizlilik Politikası, MİMARLAB'ı (mimarlab.com) kullanırken hangi kişisel verilerinizi topladığımızı, bunları neden ve nasıl işlediğimizi, kimlerle paylaştığımızı ve 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ile Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) kapsamındaki haklarınızı açıklar.</p>
 
-    <div class="opt-grid">
-      <div class="opt-card">
-        <h3>Öne Çıkan Profil</h3>
-        <p>Firma profilinizi ilgili listeleme sayfalarında öne çıkan konumda gösterelim.</p>
-      </div>
-      <div class="opt-card">
-        <h3>Doğrulanmış Profil Rozeti</h3>
-        <p>Hesabım sayfasından satın alabileceğiniz rozetler, profilinizin yanında güven işareti olarak görünür. Detaylar için <a href="hesabim.html">hesabım</a> sayfasına bakın.</p>
-      </div>
-      <div class="opt-card">
-        <h3>Sponsorlu İçerik</h3>
-        <p>Proje ya da ürün sayfalarınızın öne çıkarılması için sponsorluk seçenekleri sunuyoruz.</p>
-      </div>
-      <div class="opt-card">
-        <h3>Banner ve Görsel Alanlar</h3>
-        <p>Site içi banner ve görsel reklam alanlarımız için bizimle iletişime geçin.</p>
-      </div>
+    <div class="content-toc">
+      <h2>Bu sayfada</h2>
+      <ol>
+        <li><a href="#toplanan-veriler">Topladığımız veriler</a></li>
+        <li><a href="#kullanim-amaclari">Kullanım amaçları</a></li>
+        <li><a href="#uyelik-profil">Üyelik ve profil yönetimi</a></li>
+        <li><a href="#favoriler">Favoriler / Kaydedilenler</a></li>
+        <li><a href="#claim">Mimar/Firma sahiplik (claim) talepleri</a></li>
+        <li><a href="#ugc">Kullanıcı içerikleri ve telif hakları</a></li>
+        <li><a href="#cerezler">Çerezler ve analytics</a></li>
+        <li><a href="#altyapi">Altyapı ve veri saklama</a></li>
+        <li><a href="#paylasim">Üçüncü taraflarla paylaşım</a></li>
+        <li><a href="#guvenlik">Veri güvenliği ve saklama süresi</a></li>
+        <li><a href="#haklar">KVKK / GDPR kapsamındaki haklarınız</a></li>
+        <li><a href="#cocuklar">Çocukların gizliliği</a></li>
+        <li><a href="#degisiklikler">Politikadaki değişiklikler</a></li>
+        <li><a href="#iletisim">İletişim</a></li>
+      </ol>
     </div>
 
-    <div class="content-section">
-      <h2>Fiyatlandırma</h2>
-      <p>Reklam ve sponsorluk fiyatlandırmamız henüz yayında değil; ihtiyacınıza göre bir teklif hazırlamak için bize yazın, size uygun bir medya kiti paylaşalım.</p>
+    <div class="content-section" id="toplanan-veriler">
+      <h2>1. Topladığımız veriler</h2>
+      <p>MİMARLAB'ı ziyaret eden herkesten değil, yalnızca gerçekleştirdiğiniz işlemle orantılı veriler toplarız:</p>
+      <ul>
+        <li><strong>Hesap verileri</strong> — üye olurken ad soyad, e-posta adresi ve şifrenizin güvenli (hash'lenmiş) hâli.</li>
+        <li><strong>Profil verileri</strong> — mimar/firma profilinizi sahiplendiyseniz (claim) veya düzenlediyseniz eklediğiniz fotoğraf, biyografi, üniversite/bölüm, web sitesi gibi bilgiler.</li>
+        <li><strong>Kullanıcı içerikleri</strong> — gönderdiğiniz proje/ürün/mimar/firma/iş ilanı formları, yorumlar, puanlamalar ve yüklediğiniz görseller.</li>
+        <li><strong>Kullanım verileri</strong> — kaydettiğiniz (favorilediğiniz) içerikler, bildirim tercihleri, oturum durumu.</li>
+        <li><strong>Teknik veriler</strong> — IP adresi, tarayıcı/cihaz bilgisi, ziyaret edilen sayfalar; bunlar Cloudflare edge altyapısı ve Google Analytics aracılığıyla toplanır (bkz. <a href="#cerezler">Çerezler ve analytics</a>).</li>
+        <li><strong>Ödeme verileri</strong> — rozet satın alımlarında kart bilgileriniz bizim sunucularımıza hiç ulaşmaz; ödeme doğrudan iyzico'nun güvenli altyapısında işlenir, biz yalnızca işlemin sonucunu (başarılı/başarısız, tutar, tarih) saklarız.</li>
+      </ul>
+      <p>Sitede yer alan proje/mimar/firma profillerinin büyük bir kısmı, ilgili kişi veya kurumla üyelik ilişkisi olmadan halka açık kaynaklardan derlenmiştir; bu durum <a href="hakkinda.html">Hakkında</a> sayfasında ayrıca açıklanır.</p>
     </div>
 
-    <div class="cta-card">
-      <div style="font-family:'Inter', sans-serif; font-size:19px; font-weight:700;">Teklif almak ister misiniz?</div>
-      <p>Firma ya da ürününüz için en uygun seçeneği birlikte belirleyelim.</p>
-      <a class="cta-btn" href="mailto:info@mimarlab.com">info@mimarlab.com</a>
+    <div class="content-section" id="kullanim-amaclari">
+      <h2>2. Kullanım amaçları</h2>
+      <ul>
+        <li>Hesabınızı oluşturmak, kimliğinizi doğrulamak ve size hizmet sunmak,</li>
+        <li>Gönderdiğiniz içerikleri (proje, ürün, profil, yorum) inceleyip yayına almak,</li>
+        <li>Sahiplik (claim) ve düzeltme taleplerinizi değerlendirmek,</li>
+        <li>Rozet/üyelik satın alımlarınızı ve iade taleplerinizi işleme almak,</li>
+        <li>Platformun güvenliğini sağlamak, kötüye kullanımı önlemek ve hataları teşhis etmek,</li>
+        <li>Yasal yükümlülüklerimizi yerine getirmek,</li>
+        <li>Açık rızanız varsa ürün/hizmetlerimiz hakkında sizinle iletişime geçmek.</li>
+      </ul>
+    </div>
+
+    <div class="content-section" id="uyelik-profil">
+      <h2>3. Üyelik ve profil yönetimi</h2>
+      <p>Üye olduğunuzda oluşturduğunuz hesap, oturumunuzu (session) sunucu tarafında yönetmemizi sağlar; şifreniz asla düz metin olarak saklanmaz. <a href="hesabim.html">Hesabım</a> sayfanızdan e-posta ve şifre bilgilerinizi güncelleyebilir, gönderdiğiniz içerikleri ve rozet aboneliğinizi görüntüleyebilir, hesabınızı silme talebinde bulunabilirsiniz. Hesap silme talebi, yasal saklama yükümlülüğü bulunan kayıtlar (örn. ödeme geçmişi) dışındaki tüm kişisel verilerinizin silinmesiyle sonuçlanır.</p>
+    </div>
+
+    <div class="content-section" id="favoriler">
+      <h2>4. Favoriler / Kaydedilenler</h2>
+      <p>Proje, ürün, mimar veya firma kartlarındaki "Kaydet" butonuyla oluşturduğunuz favori listesi hesabınıza bağlı olarak saklanır ve yalnızca siz görebilirsiniz; bu liste üçüncü taraflarla paylaşılmaz ve içerikleri kişiselleştirme veya öneri amacıyla kullanılmaz — yalnızca sizin daha sonra tekrar erişebilmeniz için tutulur.</p>
+    </div>
+
+    <div class="content-section" id="claim">
+      <h2>5. Mimar/Firma sahiplik (claim) talepleri</h2>
+      <p>Halka açık kaynaklardan derlenmiş bir mimar veya firma profilinin sahibi olduğunuzu düşünüyorsanız, ilgili profildeki "Bu profil sana mı ait?" bağlantısı üzerinden sahiplik talebinde bulunabilirsiniz. Bu süreçte kimliğinizi/yetkinizi doğrulamamıza yardımcı olacak bilgiler (ör. kurumsal e-posta, web sitesi bağlantısı) talep edebiliriz. Talep onaylandığında profil hesabınıza bağlanır; artık profilinize gelen yorumları yönetebilir, bilgilerini güncelleyebilir ve (varsa) rozet kademenize uygun ayrıcalıklardan yararlanabilirsiniz. Doğrulama amacıyla paylaştığınız bilgiler yalnızca talebi değerlendiren ekibimizle sınırlı tutulur.</p>
+    </div>
+
+    <div class="content-section" id="ugc">
+      <h2>6. Kullanıcı içerikleri (UGC) ve telif hakları</h2>
+      <p>Platforma gönderdiğiniz proje, ürün, yorum, puanlama ve görseller "kullanıcı tarafından oluşturulan içerik" (UGC) sayılır. Bu içerikleri göndererek, içeriği yayınlamak, göstermek ve platformumuzda tanıtmak için MİMARLAB'a münhasır olmayan, dünya çapında, telifsiz bir kullanım hakkı verirsiniz; içeriğin mülkiyeti ve telif hakkı sizde (veya gerçek hak sahibinde) kalmaya devam eder.</p>
+      <p>Yalnızca yayınlama hakkına sahip olduğunuz içerikleri yüklemekle yükümlüsünüz. Bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, ilgili sayfanın bağlantısı ve hak sahipliğinizi gösteren bilgilerle birlikte <a href="iletisim.html">iletişim sayfamızdan</a> bize ulaşın; bildirimi inceleyip gerekirse içeriği kaldırırız. Ayrıntılı UGC ve telif kuralları için <a href="hizmet-sartlari.html">Hizmet Şartları</a> sayfasına bakabilirsiniz.</p>
+    </div>
+
+    <div class="content-section" id="cerezler">
+      <h2>7. Çerezler ve analytics</h2>
+      <p>MİMARLAB, sitenin çalışması için gerekli <strong>oturum çerezleri</strong> (giriş durumunuzu hatırlamak için) kullanır; bunlar devre dışı bırakılamaz çünkü hesabınızla ilgili özellikler bunlara bağlıdır.</p>
+      <p>Ayrıca site trafiğini ve kullanım eğilimlerini anlamak için <strong>Google Analytics</strong> (gtag.js) kullanıyoruz; bu araç, tarayıcınıza analiz amaçlı üçüncü taraf çerezleri yerleştirebilir ve anonimleştirilmiş kullanım verilerini Google'ın sunucularına iletebilir. Tarayıcı ayarlarınızdan çerezleri reddedebilir veya Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilirsiniz; bu durumda temel site işlevleri (oturum açma dışında) etkilenmez.</p>
+    </div>
+
+    <div class="content-section" id="altyapi">
+      <h2>8. Altyapı ve veri saklama</h2>
+      <p>MİMARLAB, Cloudflare'in küresel edge altyapısı üzerinde çalışır:</p>
+      <ul>
+        <li><strong>Cloudflare Workers</strong> — sunucu tarafı mantığımızı (API uçları, oturum doğrulama, önbellekleme) kullanıcıya en yakın veri merkezinde çalıştırır.</li>
+        <li><strong>Cloudflare D1</strong> — hesap, profil, içerik, yorum ve puanlama verilerinizin saklandığı ilişkisel veritabanı.</li>
+        <li><strong>Cloudflare R2</strong> — yüklediğiniz görsellerin (proje fotoğrafları, profil fotoğrafları/logolar) saklandığı nesne depolama servisi.</li>
+        <li><strong>Cloudflare KV</strong> — sayfa yükleme hızını artırmak için kullanılan, kişisel veri içermeyen kısa ömürlü önbellek (facet/filtre sayaçları gibi).</li>
+      </ul>
+      <p>Bu servis sağlayıcıların tamamı, kendi güvenlik ve veri koruma standartlarına tabidir; MİMARLAB, verilerinizi bu altyapı dışında üçüncü taraf sunucularda depolamaz.</p>
+    </div>
+
+    <div class="content-section" id="paylasim">
+      <h2>9. Üçüncü taraflarla paylaşım</h2>
+      <p>Kişisel verilerinizi pazarlama amacıyla satmayız veya kiralamayız. Verileriniz yalnızca şu durumlarda paylaşılabilir:</p>
+      <ul>
+        <li>Yukarıda belirtilen altyapı sağlayıcılarımızla (Cloudflare) ve ödeme işlemleriniz için iyzico ile, hizmeti sunabilmek amacıyla,</li>
+        <li>Yasal bir yükümlülük, mahkeme kararı veya yetkili bir kamu kurumunun talebi doğrultusunda,</li>
+        <li>Platformun, kullanıcıların veya üçüncü kişilerin haklarını, güvenliğini veya mülkiyetini korumak için gerekli olduğunda,</li>
+        <li>Açık rızanızı aldığımız diğer durumlarda.</li>
+      </ul>
+    </div>
+
+    <div class="content-section" id="guvenlik">
+      <h2>10. Veri güvenliği ve saklama süresi</h2>
+      <p>Şifreleriniz hash'lenerek saklanır, veri trafiği HTTPS ile şifrelenir ve erişim yalnızca yetkili ekip üyeleriyle sınırlıdır. Verilerinizi, hesabınız aktif olduğu sürece ve yasal saklama yükümlülüklerimizin gerektirdiği süre boyunca saklarız; hesap silme talebinizin ardından yasal zorunluluk bulunmayan veriler makul bir süre içinde silinir.</p>
+    </div>
+
+    <div class="content-section" id="haklar">
+      <h2>11. KVKK / GDPR kapsamındaki haklarınız</h2>
+      <p>KVKK'nın 11. maddesi ve (Avrupa Ekonomik Alanı'ndaki kullanıcılar için) GDPR kapsamında aşağıdaki haklara sahipsiniz:</p>
+      <ul>
+        <li>Verilerinizin işlenip işlenmediğini öğrenme,</li>
+        <li>İşlenen verileriniz hakkında bilgi talep etme,</li>
+        <li>Verilerinizin işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,</li>
+        <li>Eksik veya yanlış işlenmişse düzeltilmesini isteme,</li>
+        <li>Yasal şartlar oluştuğunda silinmesini veya yok edilmesini isteme,</li>
+        <li>Verilerinizin taşınabilir bir formatta size veya başka bir hizmete aktarılmasını isteme (GDPR),</li>
+        <li>İşlemeye itiraz etme ve rızanızı istediğiniz zaman geri çekme.</li>
+      </ul>
+      <p>Bu haklarınızı kullanmak için <a href="#iletisim">iletişim</a> bölümündeki adresten bize ulaşabilirsiniz; talebiniz kimlik doğrulamasının ardından yasal süreler içinde sonuçlandırılır.</p>
+    </div>
+
+    <div class="content-section" id="cocuklar">
+      <h2>12. Çocukların gizliliği</h2>
+      <p>MİMARLAB, 18 yaşından küçük kullanıcılara yönelik değildir; bilerek 18 yaş altı kullanıcılardan veri toplamayız. Bir çocuğa ait veri topladığımızı fark edersek bu veriyi derhal sileriz.</p>
+    </div>
+
+    <div class="content-section" id="degisiklikler">
+      <h2>13. Politikadaki değişiklikler</h2>
+      <p>Bu politikayı zaman zaman güncelleyebiliriz; önemli değişikliklerde sayfanın üst kısmındaki "son güncelleme" tarihini değiştirir, gerektiğinde sitede veya e-posta yoluyla bilgilendirme yaparız. Politikayı düzenli aralıklarla gözden geçirmenizi öneririz.</p>
+    </div>
+
+    <div class="content-section" id="iletisim">
+      <h2>14. İletişim</h2>
+      <p>Gizlilik politikamız veya kişisel verilerinizle ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Platform kullanım kurallarımız için <a href="hizmet-sartlari.html">Hizmet Şartları</a> sayfasına göz atabilirsiniz.</p>
     </div>
   </div>
 

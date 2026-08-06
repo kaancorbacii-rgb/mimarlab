@@ -6,19 +6,19 @@
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
-<title>Reklam — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'da reklam ve iş birliği fırsatları.">
-<link rel="canonical" href="https://mimarlab.com/reklam">
+<title>Hizmet Şartları — MİMARLAB</title>
+<meta name="description" content="MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.">
+<link rel="canonical" href="https://mimarlab.com/hizmet-sartlari">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Reklam — MİMARLAB">
-<meta property="og:description" content="MİMARLAB'da reklam ve iş birliği fırsatları.">
-<meta property="og:url" content="https://mimarlab.com/reklam">
+<meta property="og:title" content="Hizmet Şartları — MİMARLAB">
+<meta property="og:description" content="MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.">
+<meta property="og:url" content="https://mimarlab.com/hizmet-sartlari">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Reklam — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB'da reklam ve iş birliği fırsatları.">
+<meta name="twitter:title" content="Hizmet Şartları — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,6 +38,7 @@
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
   .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
 
+  /* ---------- NAV ---------- */
   .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:10px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
   .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
   .nav-search svg{flex-shrink:0; opacity:0.5;}
@@ -59,32 +60,34 @@
   .nav-rate{background:none; color:var(--ink); padding:8px 17px; border-radius:100px; border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;}
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
 
+  /* ---------- BREADCRUMB ---------- */
   .breadcrumb-bar{background:var(--ink); color:rgba(237,240,243,0.7); padding:14px 32px; font-size:13.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
   .breadcrumb-bar a:hover{color:var(--brass-soft);}
   .breadcrumb-bar .sep{opacity:0.4;}
   .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
 
+  /* ---------- CONTENT ---------- */
   .content-wrap{max-width:760px; margin:0 auto; padding:56px 32px 90px;}
   .content-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
-  .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
+  .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 10px; letter-spacing:-0.01em;}
+  .content-updated{font-size:12.5px; color:var(--ink-soft); margin:0 0 24px;}
   .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px;}
-  .opt-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px;}
-  .opt-card{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px;}
-  .opt-card h3{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin:0 0 8px;}
-  .opt-card p{font-size:13.5px; line-height:1.6; color:var(--ink-soft); margin:0;}
   .content-section{margin-bottom:32px;}
-  .content-section h2{font-family:'Inter', sans-serif; font-size:19px; font-weight:700; margin:0 0 10px;}
+  .content-section h2{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; margin:0 0 12px;}
+  .content-section h3{font-family:'Inter', sans-serif; font-size:15.5px; font-weight:700; margin:20px 0 8px;}
   .content-section p{font-size:14.5px; line-height:1.75; color:var(--ink-soft); margin:0 0 12px;}
   .content-section a{color:var(--walnut); font-weight:600;}
   .content-section a:hover{text-decoration:underline;}
-  .cta-card{background:var(--ink); color:var(--paper-card); border-radius:16px; padding:28px; text-align:center;}
-  .cta-card p{color:rgba(237,240,243,0.7); font-size:13.5px; margin:6px 0 18px;}
-  .cta-btn{display:inline-block; background:var(--paper-card); color:var(--ink); padding:12px 24px; border-radius:100px; font-weight:600; font-size:14px;}
-  .cta-btn:hover{background:var(--brass-soft);}
+  .content-section ul{margin:0 0 12px; padding-left:20px; font-size:14.5px; line-height:1.8; color:var(--ink-soft);}
+  .content-section li{margin-bottom:4px;}
+  .content-toc{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:0 0 36px;}
+  .content-toc h2{font-size:14px; margin:0 0 10px;}
+  .content-toc ol{margin:0; padding-left:20px; font-size:13.5px; line-height:1.9; color:var(--ink-soft); columns:2; column-gap:24px;}
+  .content-toc a{color:var(--ink-soft); font-weight:500;}
+  .content-toc a:hover{color:var(--walnut); text-decoration:underline;}
 
-  @media (max-width:600px){ .opt-grid{grid-template-columns:1fr;} }
-
+  /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
   .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
@@ -109,6 +112,7 @@
   @media (max-width:720px){
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .content-wrap{padding:36px 18px 70px;}
+    .content-toc ol{columns:1;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -160,42 +164,105 @@
   <div class="breadcrumb-bar">
     <a href="index.html">Ana Sayfa</a>
     <span class="sep">›</span>
-    <span class="current">Reklam</span>
+    <span class="current">Hizmet Şartları</span>
   </div>
 
   <div class="content-wrap">
-    <div class="content-eyebrow">Reklam</div>
-    <h1 class="content-title">MİMARLAB'da Yer Alın</h1>
-    <p class="content-lead">Mimarlık, iç mimarlık ve peyzaj mimarlığı ekosistemindeki hedef kitlenize ulaşmak için MİMARLAB'da çeşitli görünürlük seçenekleri sunuyoruz.</p>
+    <div class="content-eyebrow">Kurumsal</div>
+    <h1 class="content-title">Hizmet Şartları</h1>
+    <p class="content-updated">Son güncelleme: 6 Ağustos 2026</p>
+    <p class="content-lead">Bu Hizmet Şartları, MİMARLAB'ı (mimarlab.com) kullanımınızı düzenleyen kuralları içerir. Siteyi ziyaret ederek, üye olarak veya içerik göndererek bu şartları kabul etmiş sayılırsınız. Kişisel verilerinizin nasıl işlendiğini öğrenmek için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
 
-    <div class="opt-grid">
-      <div class="opt-card">
-        <h3>Öne Çıkan Profil</h3>
-        <p>Firma profilinizi ilgili listeleme sayfalarında öne çıkan konumda gösterelim.</p>
-      </div>
-      <div class="opt-card">
-        <h3>Doğrulanmış Profil Rozeti</h3>
-        <p>Hesabım sayfasından satın alabileceğiniz rozetler, profilinizin yanında güven işareti olarak görünür. Detaylar için <a href="hesabim.html">hesabım</a> sayfasına bakın.</p>
-      </div>
-      <div class="opt-card">
-        <h3>Sponsorlu İçerik</h3>
-        <p>Proje ya da ürün sayfalarınızın öne çıkarılması için sponsorluk seçenekleri sunuyoruz.</p>
-      </div>
-      <div class="opt-card">
-        <h3>Banner ve Görsel Alanlar</h3>
-        <p>Site içi banner ve görsel reklam alanlarımız için bizimle iletişime geçin.</p>
-      </div>
+    <div class="content-toc">
+      <h2>Bu sayfada</h2>
+      <ol>
+        <li><a href="#tanimlar">Tanımlar</a></li>
+        <li><a href="#uyelik">Üyelik ve hesap</a></li>
+        <li><a href="#ugc">Kullanıcı içerikleri ve lisans</a></li>
+        <li><a href="#telif">Telif hakları ve ihlal bildirimi</a></li>
+        <li><a href="#claim">Mimar/Firma sahiplik (claim) süreci</a></li>
+        <li><a href="#topluluk">Puanlama, yorum ve topluluk kuralları</a></li>
+        <li><a href="#rozet">Rozet/üyelik paketleri ve ödemeler</a></li>
+        <li><a href="#yasaklar">Yasaklı kullanımlar</a></li>
+        <li><a href="#fikri-mulkiyet">Fikri mülkiyet</a></li>
+        <li><a href="#sorumluluk">Sorumluluğun sınırlandırılması</a></li>
+        <li><a href="#degisiklik">Hizmetin değiştirilmesi ve sonlandırılması</a></li>
+        <li><a href="#hukuk">Uygulanacak hukuk</a></li>
+        <li><a href="#iletisim">İletişim</a></li>
+      </ol>
     </div>
 
-    <div class="content-section">
-      <h2>Fiyatlandırma</h2>
-      <p>Reklam ve sponsorluk fiyatlandırmamız henüz yayında değil; ihtiyacınıza göre bir teklif hazırlamak için bize yazın, size uygun bir medya kiti paylaşalım.</p>
+    <div class="content-section" id="tanimlar">
+      <h2>1. Tanımlar</h2>
+      <p>"MİMARLAB", "biz", "bize" ifadeleri mimarlab.com platformunu; "Kullanıcı", "siz" ifadeleri siteyi ziyaret eden veya kullanan herkesi; "İçerik" ifadesi platformda yer alan proje, ürün, profil, yorum, puanlama, görsel ve metinleri; "Üye" ifadesi hesap oluşturmuş kullanıcıları ifade eder.</p>
     </div>
 
-    <div class="cta-card">
-      <div style="font-family:'Inter', sans-serif; font-size:19px; font-weight:700;">Teklif almak ister misiniz?</div>
-      <p>Firma ya da ürününüz için en uygun seçeneği birlikte belirleyelim.</p>
-      <a class="cta-btn" href="mailto:info@mimarlab.com">info@mimarlab.com</a>
+    <div class="content-section" id="uyelik">
+      <h2>2. Üyelik ve hesap</h2>
+      <p>Üye olmak için doğru ve güncel bilgiler vermeniz gerekir. Hesabınızın ve şifrenizin gizliliğinden siz sorumlusunuz; hesabınız üzerinden gerçekleştirilen tüm işlemlerden sorumlu tutulursunuz. Hesabınızda yetkisiz bir erişim şüphesi varsa derhal <a href="iletisim.html">bize bildirin</a>. MİMARLAB, şartları ihlal eden hesapları uyarmadan askıya alma veya kapatma hakkını saklı tutar.</p>
+    </div>
+
+    <div class="content-section" id="ugc">
+      <h2>3. Kullanıcı içerikleri ve lisans</h2>
+      <p>Platforma proje, ürün, profil, yorum, puanlama veya görsel gönderdiğinizde (Kullanıcı İçeriği), bu içeriğin sizin tarafınızdan oluşturulduğunu veya yayınlama hakkına sahip olduğunuzu beyan etmiş olursunuz. İçeriğin mülkiyeti sizde kalır; ancak içeriği platformda göstermek, saklamak, biçimlendirmek (ör. görsel boyutlandırma/optimize etme) ve tanıtım amacıyla kullanmak üzere bize dünya çapında, telifsiz, münhasır olmayan bir lisans vermiş olursunuz.</p>
+      <p>Gönderdiğiniz proje/ürün/profil/iş ilanı içerikleri yayına alınmadan önce ekibimizin incelemesinden geçer; MİMARLAB, kurallara aykırı, yanıltıcı veya hak ihlali içeren içerikleri yayınlamayı reddetme ya da sonradan kaldırma hakkını saklı tutar.</p>
+    </div>
+
+    <div class="content-section" id="telif">
+      <h2>4. Telif hakları ve ihlal bildirimi</h2>
+      <p>Sitede yer alan proje fotoğrafları ve görseller, ilgili mimar, firma, fotoğrafçı veya hak sahibine aittir; künyelerde belirtilen fotoğraf kaynağı bilgisi bu nedenle korunur. Yalnızca kendinize ait olan veya yayınlama izniniz bulunan içerikleri yükleyebilirsiniz.</p>
+      <p>Bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, (a) ihlal edildiğini iddia ettiğiniz eserin tanımını, (b) ihlal eden içeriğin bulunduğu sayfanın bağlantısını ve (c) hak sahipliğinizi gösteren bilgileri <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresine ileterek bildirimde bulunabilirsiniz. Bildirimi inceleyip haklı bulunması durumunda içeriği makul bir süre içinde kaldırırız.</p>
+    </div>
+
+    <div class="content-section" id="claim">
+      <h2>5. Mimar/Firma sahiplik (claim) süreci</h2>
+      <p>Sitede halka açık kaynaklardan derlenmiş bir mimar/firma profilinin gerçek sahibi veya yetkilisiyseniz, profil üzerinden sahiplik talebinde bulunabilirsiniz. Talebiniz incelenirken kimliğinizi/yetkinizi doğrulayacak belge veya bilgi isteyebiliriz; yanlış beyanla sahiplik talebinde bulunmak bu şartların ihlali sayılır ve hesabınızın kapatılmasına yol açabilir. Onaylanan talepler profilinizi hesabınıza bağlar; sahiplendiğiniz profildeki bilgileri güncelleme ve gelen yorumları yönetme yetkisi kazanırsınız. MİMARLAB, uyuşmazlık (aynı profil için birden fazla talep) durumunda ek doğrulama isteme veya talebi reddetme hakkını saklı tutar.</p>
+    </div>
+
+    <div class="content-section" id="topluluk">
+      <h2>6. Puanlama, yorum ve topluluk kuralları</h2>
+      <p>Projelere yıldız puanı verebilir ve yorum yazabilirsiniz. Yorumlarınızın gerçek deneyiminize dayanması, hakaret, ayrımcılık, taciz, spam veya yanıltıcı bilgi içermemesi gerekir. Bu kurallara aykırı yorumları/puanlamaları kaldırma ve tekrarlayan ihlallerde hesabı kısıtlama hakkımız saklıdır. Bir profilin sahibiyseniz, kendi profilinize gelen uygunsuz yorumları yönetme (gizleme/bildirme) ayrıcalığından yararlanabilirsiniz.</p>
+    </div>
+
+    <div class="content-section" id="rozet">
+      <h2>7. Rozet/üyelik paketleri ve ödemeler</h2>
+      <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, aylık ürün yükleme hakkı, yorum yönetimi vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz; güncel kademeler ve fiyatlar <a href="satin-al.html">Rozet Al</a> sayfasında yer alır. Ödemeleriniz iyzico'nun güvenli altyapısı üzerinden işlenir; kart bilgileriniz MİMARLAB sunucularında saklanmaz. Rozet abonelikleri aylık yenilenir; iptal ve iade koşulları için <a href="iade-et.html">İade Et</a> sayfasına bakabilirsiniz.</p>
+    </div>
+
+    <div class="content-section" id="yasaklar">
+      <h2>8. Yasaklı kullanımlar</h2>
+      <ul>
+        <li>Sahte hesap oluşturmak veya başka bir kişi/kurum adına yetkisiz şekilde profil sahiplenmek,</li>
+        <li>Hak ihlali içeren, yanıltıcı veya izinsiz içerik yüklemek,</li>
+        <li>Platformu kötüye kullanmak, otomatikleştirilmiş araçlarla (bot/scraper) aşırı yük bindirmek veya güvenlik açıklarını istismar etmeye çalışmak,</li>
+        <li>Diğer kullanıcıları taciz etmek, spam göndermek veya yanıltıcı ticari içerik paylaşmak,</li>
+        <li>Yürürlükteki yasalara aykırı herhangi bir faaliyette bulunmak.</li>
+      </ul>
+    </div>
+
+    <div class="content-section" id="fikri-mulkiyet">
+      <h2>9. Fikri mülkiyet</h2>
+      <p>MİMARLAB adı, logosu, arayüz tasarımı ve yazılımı MİMARLAB'a aittir ve telif/marka hakları ile korunur. Kullanıcı İçerikleri dışında, sitenin görsel tasarımı ve kodu izinsiz kopyalanamaz, çoğaltılamaz veya ticari amaçla kullanılamaz.</p>
+    </div>
+
+    <div class="content-section" id="sorumluluk">
+      <h2>10. Sorumluluğun sınırlandırılması</h2>
+      <p>MİMARLAB, sitede yer alan halka açık kaynaklardan derlenmiş profil bilgilerinin veya kullanıcılar tarafından gönderilen içeriklerin doğruluğunu garanti etmez; içerikler "olduğu gibi" sunulur. Platform kullanımından doğabilecek dolaylı, arızi veya sonuç niteliğindeki zararlardan, yürürlükteki mevzuatın izin verdiği azami ölçüde sorumlu tutulamayız. Bir bilginin hatalı olduğunu düşünüyorsanız <a href="iletisim.html">bize bildirin</a>.</p>
+    </div>
+
+    <div class="content-section" id="degisiklik">
+      <h2>11. Hizmetin değiştirilmesi ve sonlandırılması</h2>
+      <p>MİMARLAB, hizmetin herhangi bir bölümünü önceden bildirmeksizin değiştirme, geçici olarak durdurma veya sonlandırma hakkını saklı tutar. Bu şartları ihlal eden hesapları askıya alabilir veya kapatabiliriz. Bu şartlarda yapılacak önemli değişikliklerde sayfanın üst kısmındaki "son güncelleme" tarihi güncellenir.</p>
+    </div>
+
+    <div class="content-section" id="hukuk">
+      <h2>12. Uygulanacak hukuk</h2>
+      <p>Bu şartlar Türkiye Cumhuriyeti kanunlarına tabidir. Bu şartlardan doğabilecek uyuşmazlıklarda Türkiye mahkemeleri ve icra daireleri yetkilidir.</p>
+    </div>
+
+    <div class="content-section" id="iletisim">
+      <h2>13. İletişim</h2>
+      <p>Hizmet şartlarımızla ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin işlenmesi hakkında bilgi için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
     </div>
   </div>
 
