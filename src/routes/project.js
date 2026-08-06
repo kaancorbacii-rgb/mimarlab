@@ -62,6 +62,25 @@ async function fetchDesignerDetails(env, projectId) {
     .filter(Boolean);
 }
 
+// proje-ekle.html'in Mimar/Firma alanlarına yazılan ama architects/offices'te eşleşen bir kaydı
+// olmayan isimler resolveDesignerLink() tarafından sessizce ATLANIYOR (bkz. src/lib/canonicalSync.js
+// #syncProject — CHECK ((architect_id IS NOT NULL) != (office_id IS NOT NULL)) eşleşmeyen isim için
+// project_designers'a hiçbir satır yazılmasına izin vermiyor, dolayısıyla künyede hiç görünmüyorlardı
+// — bkz. kullanıcı isteği). Bu isimler hâlâ TEK yerde hayatta: onları oluşturan/son düzenleyen
+// project_submissions.designer JSON dizisi (form'a yazıldığı haliyle, hiç mutasyona uğramaz). O
+// satırı geriye doğru bulmak için canonicalSync'teki AYNI eşleştirmeyi (claimed_slug=slug YA DA
+// legacy_key="submission:<id>") tersine kullanıyoruz; en son güncellenen satır esas alınır çünkü
+// syncProject() her düzenlemede project_designers'ı BAŞTAN yazıyor (bkz. "DELETE FROM
+// project_designers WHERE project_id = ?").
+async function fetchRawDesignerNames(env, project) {
+  const submissionId = (project.legacy_key || '').startsWith('submission:') ? project.legacy_key.slice('submission:'.length) : '';
+  const row = await env.DB.prepare(
+    `SELECT designer FROM project_submissions WHERE claimed_slug = ?1 OR id = ?2 ORDER BY updated_at DESC LIMIT 1`
+  ).bind(project.slug, submissionId).first();
+  if (!row || !row.designer) return [];
+  try { return JSON.parse(row.designer) || []; } catch { return []; }
+}
+
 // "Kullanılan Ürünler/Malzemeler" — project_products join tablosundan (bkz. resolveProjectProductLinks
 // içinde src/lib/canonicalSync.js, burada canlı doldurulur) gerçek ürün/malzeme kayıtlarını okur;
 // artık istemci tarafında brand-string eşleştirmesi (proje-detay.html#renderRelatedCatalog'un eski
@@ -102,10 +121,21 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     if (!row) return { item: null, hidden: false };
     if (row.hidden_at) return { item: null, hidden: true };
     const item = shapeProjectItem(row);
-    const [designerDetails, catalog] = await Promise.all([
+    const [designerDetails, catalog, rawNames] = await Promise.all([
       fetchDesignerDetails(env, row.id),
       fetchProjectProducts(env, row.id),
+      fetchRawDesignerNames(env, row),
     ]);
+    // Zaten eşleşmiş (profilli) isimlerin ÜZERİNE yazmayan, formda yazılan ama hiçbir profile
+    // bağlanamamış isimler için künyede baş harfli, tıklanamaz bir "rozet" fallback'i (bkz. yukarıdaki
+    // fetchRawDesignerNames yorumu ve kullanıcı isteği) — isOfficeName() (aşağıda tanımlı, proje.html
+    // #OFFICE_NAME_OVERRIDES ile birebir aynı liste) Mimar/Firma bölümü ayrımını burada da uygular.
+    const knownNames = new Set(designerDetails.map(d => d.name));
+    for (const name of rawNames) {
+      if (!name || knownNames.has(name)) continue;
+      knownNames.add(name);
+      designerDetails.push({ name, type: isOfficeName(name) ? 'office' : 'architect', slug: null, photo: null, unregistered: true });
+    }
     item.designerDetails = designerDetails;
     item.products = catalog.products;
     item.materials = catalog.materials;

@@ -19,7 +19,6 @@ const ProjectMeta = (function () {
   window.safeUrl = window.safeUrl || safeUrl;
 
   function designerChipHtml(d) {
-    const href = d.type === 'architect' ? `/mimar/${encodeURIComponent(slugify(d.name))}` : `/firma/${encodeURIComponent(slugify(d.name))}`;
     const avatarClass = d.type === 'office' ? ' office-avatar' : '';
     // gerçek bulgu: fotoğraf/logo VARSA yalnızca <img> basılıyordu (baş harfler hiç DOM'a
     // yazılmıyordu) — img 404 verip onerror ile kaldırıldığında (ör. R2'de artık var olmayan bir
@@ -27,10 +26,16 @@ const ProjectMeta = (function () {
     // ZAMAN yazılır, fotoğraf (varsa) bunun ÜZERİNE mutlak konumlu olarak biner (bkz. proje.html
     // #.designer-chip-avatar img{position:absolute}) — onerror onu kaldırdığında altındaki baş
     // harfler zaten oradaydı, otomatik olarak görünür hale gelir.
-    return `<a class="designer-chip" href="${href}">
-      <div class="designer-chip-avatar${avatarClass}" style="background:${officeColor(d.name)}">${escapeHtml(initials(d.name))}${d.photo ? `<img src="${escapeAttr(d.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
-      <span class="designer-chip-name">${escapeHtml(d.name)}</span>
-    </a>`;
+    const avatarHtml = `<div class="designer-chip-avatar${avatarClass}" style="background:${officeColor(d.name)}">${escapeHtml(initials(d.name))}${d.photo ? `<img src="${escapeAttr(d.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
+    // d.unregistered: proje-ekle formundaki Mimar/Firma alanına yazılmış ama architects/offices'te
+    // karşılığı olmayan isim (bkz. src/routes/project.js#fetchRawDesignerNames, kullanıcı isteği) —
+    // hiçbir profile bağlanamadığından tıklanabilir bir bağlantı DEĞİL, sabit bir "rozet" olarak
+    // (aynı avatar/isim düzeniyle, görsel olarak kayıtlı chip'lerle aynı hizada) render edilir.
+    if (d.unregistered) {
+      return `<span class="designer-chip">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></span>`;
+    }
+    const href = d.type === 'architect' ? `/mimar/${encodeURIComponent(slugify(d.name))}` : `/firma/${encodeURIComponent(slugify(d.name))}`;
+    return `<a class="designer-chip" href="${href}">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></a>`;
   }
 
   function renderDesigners(item, ids) {

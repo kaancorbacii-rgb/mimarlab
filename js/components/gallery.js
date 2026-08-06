@@ -114,13 +114,65 @@ function initDetailGallery(opts){
   if(lightboxPrevBtn) lightboxPrevBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(galleryEl._pmGalleryState.lightboxIndex - 1); });
   if(lightboxNextBtn) lightboxNextBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(galleryEl._pmGalleryState.lightboxIndex + 1); });
   lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) lightbox.classList.remove('open'); });
+  // gerçek bulgu: e.stopPropagation() TEK BAŞINA burada işe yaramıyordu — proje modalı (bkz.
+  // js/components/modal-shell.js#onKeydown) KENDİ Escape dinleyicisini document'e bu koddan ÖNCE
+  // (ModalShell.open() her zaman ensureTemplate()'ten, dolayısıyla bu initDetailGallery çağrısından
+  // önce çalışır) bubble fazında bağlıyor; stopPropagation yalnızca üst elemanlara YAYILMAYI durdurur,
+  // AYNI elemandaki (document) BAŞKA bir dinleyiciyi durdurmaz — modal-shell'in dinleyicisi bağlanma
+  // SIRASINA göre zaten önce çalışıp modalı kapatıyordu, lightbox'ın kendi kapanışı hiç fark
+  // etmeksizin. Çözüm: bu dinleyici CAPTURE fazında (üçüncü argüman=true) bağlanır — capture fazı
+  // HER ZAMAN bubble fazından önce çalışır (bağlanma sırasından bağımsız olarak), lightbox açıkken
+  // burada çağrılan stopPropagation olayın capture'da document'ten hedefe inmesini (dolayısıyla
+  // sonraki bubble fazını, yani modal-shell'in dinleyicisini) tamamen durdurur.
   document.addEventListener('keydown', (e)=>{
     if(!lightbox.classList.contains('open')) return;
-    // stopPropagation: proje modalı (bkz. js/components/project-modal.js) de kendi Escape'te
-    // kapanan bir role="dialog" olduğundan, lightbox modalın ÜSTÜNDE açıkken Escape'in ikisini
-    // birden AYNI tuşta kapatmaması gerekir — önce lightbox kapanır, ikinci Escape modalı kapatır.
     if(e.key === 'Escape'){ e.stopPropagation(); lightbox.classList.remove('open'); }
     else if(e.key === 'ArrowLeft') showLightboxImage(galleryEl._pmGalleryState.lightboxIndex - 1);
     else if(e.key === 'ArrowRight') showLightboxImage(galleryEl._pmGalleryState.lightboxIndex + 1);
+  }, true);
+
+  // Dokunmatik kaydırma (bkz. kullanıcı isteği: mobil/tablette parmakla görseller arası geçiş) —
+  // yatay hareket dikeyden belirgin şekilde baskınsa (aksi halde sayfayı dikey kaydırmaya çalışan bir
+  // dokunuş yanlışlıkla görsel değiştirebilirdi) ve eşiği (SWIPE_THRESHOLD) geçiyorsa bir sonraki/
+  // önceki görsele geçilir; touchmove'da preventDefault YALNIZCA yatay niyet netleştiğinde çağrılır,
+  // aksi halde dikey sayfa kaydırması (varsa) engellenmiş olurdu.
+  const SWIPE_THRESHOLD = 40;
+  let touchStartX = 0, touchStartY = 0, touchActive = false, touchIntentHorizontal = false;
+  lightbox.addEventListener('touchstart', (e)=>{
+    if(e.touches.length !== 1) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchActive = true;
+    touchIntentHorizontal = false;
+  }, { passive: true });
+  lightbox.addEventListener('touchmove', (e)=>{
+    if(!touchActive || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    if(!touchIntentHorizontal && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) touchIntentHorizontal = true;
+    if(touchIntentHorizontal) e.preventDefault();
+  }, { passive: false });
+  lightbox.addEventListener('touchend', (e)=>{
+    if(!touchActive) return;
+    touchActive = false;
+    if(!touchIntentHorizontal) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if(dx <= -SWIPE_THRESHOLD) showLightboxImage(galleryEl._pmGalleryState.lightboxIndex + 1);
+    else if(dx >= SWIPE_THRESHOLD) showLightboxImage(galleryEl._pmGalleryState.lightboxIndex - 1);
   });
+
+  // Trackpad/mouse tekerleği yatay kaydırma (bkz. kullanıcı isteği: Macbook touchpad'i) — deltaX
+  // dikey deltaY'den baskınsa yatay bir kaydırma jesti olarak yorumlanır. Ardışık wheel event'leri
+  // (bir tek "kaydırma" ondan onlarca event üretebilir) küçük bir zaman aşımıyla debounce edilir —
+  // aksi halde tek bir trackpad hareketi aynı anda birden fazla görsel atlardı.
+  let wheelLock = false;
+  lightbox.addEventListener('wheel', (e)=>{
+    if(Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    if(wheelLock) return;
+    wheelLock = true;
+    setTimeout(()=>{ wheelLock = false; }, 350);
+    if(e.deltaX > 0) showLightboxImage(galleryEl._pmGalleryState.lightboxIndex + 1);
+    else showLightboxImage(galleryEl._pmGalleryState.lightboxIndex - 1);
+  }, { passive: false });
 }

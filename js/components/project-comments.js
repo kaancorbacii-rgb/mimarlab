@@ -16,11 +16,25 @@ const ProjectComments = (function () {
     if (!items.length) { list.innerHTML = ''; return; }
     list.innerHTML = items.map(c => {
       const canDelete = currentUser && (currentUser.id === c.user_id || canModerate);
+      // commenterProfile: yorumcunun hesabı bir mimar/firma profiline bağlıysa (bkz.
+      // src/routes/comments.js#listComments) varsayılan baş harf avatarı/düz isim yerine profil
+      // fotoğrafı+adı gösterilir, ikisi de /mimar veya /firma sayfasına link olur (kullanıcı isteği).
+      // href, proje künyesindeki designer-chip ile AYNI kuralı (slugify(name), stored slug değil —
+      // bkz. js/components/project-meta.js#designerChipHtml yorumu) izler.
+      const cp = c.commenterProfile;
+      const profileHref = cp ? `/${cp.type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(slugify(cp.name))}` : null;
+      const avatarInner = cp
+        ? `${escapeHtml(initials(cp.name))}${cp.photo ? `<img src="${escapeAttr(cp.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`
+        : escapeHtml((c.user_name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
+      const avatarHtml = cp
+        ? `<a class="comment-avatar" href="${profileHref}" style="background:${officeColor(cp.name)}">${avatarInner}</a>`
+        : `<div class="comment-avatar">${avatarInner}</div>`;
+      const nameHtml = cp ? `<a class="comment-author-link" href="${profileHref}">${escapeHtml(cp.name)}</a>` : escapeHtml(c.user_name);
       return `
       <div class="comment-row">
-        <div class="comment-avatar">${escapeHtml((c.user_name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>
+        ${avatarHtml}
         <div style="flex:1;">
-          <div class="comment-meta"><strong>${escapeHtml(c.user_name)}</strong>${badgeIconHtml(c.user_badge, 14)}<span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${c.id}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
+          <div class="comment-meta"><strong>${nameHtml}</strong>${badgeIconHtml(c.user_badge, 14)}<span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${c.id}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
           <p class="comment-body-text">${escapeHtml(c.body)}</p>
         </div>
       </div>`;

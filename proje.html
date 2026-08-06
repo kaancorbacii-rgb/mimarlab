@@ -424,8 +424,16 @@
   .comment-row{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line-soft);}
   .comment-row:last-child{border-bottom:none;}
   .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; flex-shrink:0;}
+  /* Yorumcu bir mimar/firma profiline bağlıysa (bkz. js/components/project-comments.js#commenterProfile,
+     kullanıcı isteği) .comment-avatar bir <a>'ya dönüşür — position:relative/overflow:hidden fotoğrafın
+     (varsa) baş harflerin ÜZERİNE mutlak konumlanmasını sağlar (bkz. .designer-chip-avatar img ile
+     AYNI desen); text-decoration sıfırlanır ki bir bağlantı gibi altı çizili görünmesin. */
+  a.comment-avatar{position:relative; overflow:hidden; text-decoration:none;}
+  .comment-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
   .comment-meta strong{color:var(--ink); font-weight:600;}
+  .comment-author-link{color:inherit; text-decoration:none;}
+  .comment-author-link:hover{text-decoration:underline;}
   .comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:4px; text-decoration:underline; padding:0;}
   .comment-delete-btn:hover{color:#c0392b;}
   .comment-body-text{margin:0; font-size:13.5px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}

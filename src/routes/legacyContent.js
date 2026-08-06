@@ -1,4 +1,5 @@
 import { json, errorJson, readJson } from '../lib/http.js';
+import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
 import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
@@ -250,11 +251,21 @@ function bindProjectFields(fields) {
 }
 
 // POST /api/admin/legacy/project-action  body: {action:'delete'|'archive'|'publish', id?, slug?}
+// requireAdmin kontrolü çağıran (handleAdminRoute) tarafından zaten yapıldı — gövde parse edilip
+// runProjectAction'a (aşağıda, gerçek işlem mantığı) devredilir.
 async function handleProjectAction(request, env, user) {
   const body = await readJson(request);
-  const action = body.action;
-  const id = (body.id || '').trim();
-  const slug = (body.slug || '').trim();
+  return runProjectAction(env, user, body);
+}
+
+// runProjectAction: handleProjectAction'ın (admin, yukarıda) VE handleSelfProjectDelete'in (proje
+// sahibi kendi popup'ından "Sil"e bastığında, bkz. kullanıcı isteği "Kullanıcı Gönderi Düzenleme &
+// Silme İzinleri") paylaştığı gerçek işlem mantığı — iki çağıran da (request gövdesi parse edilmiş
+// biçimde) BURAYA gelmeden önce KENDİ yetki kontrolünü (admin rolü / proje sahipliği) yapmış olmalı,
+// bu fonksiyon kendi başına hiçbir yetki kontrolü YAPMAZ.
+export async function runProjectAction(env, user, { action, id, slug } = {}) {
+  id = (id || '').trim();
+  slug = (slug || '').trim();
   if (!['delete', 'archive', 'publish'].includes(action)) return errorJson('Geçersiz işlem.');
   if (!id && !slug) return errorJson('Geçersiz istek.');
 
@@ -329,6 +340,28 @@ async function handleProjectAction(request, env, user) {
   await invalidatePublicCache();
   await purgeSsrDetailCache('project', slug);
   return json({ ok: true });
+}
+
+// DELETE /api/project/:slug — proje sahibinin (admin-panel DIŞINDA, doğrudan proje pop-up'ından)
+// kendi projesini silmesi (bkz. kullanıcı isteği: "Kullanıcı Gönderi Düzenleme & Silme İzinleri").
+// Admin'in /api/admin/legacy/project-action'ından farkı: burası admin ÖN-YETKİ KONTROLÜNDEN
+// (handleAdminRoute) GEÇMİYOR, dolayısıyla admin olmayan bir çağıran için sahiplik BURADA açıkça
+// doğrulanır — proje-comments.js#canModerate ile AYNI kaynağı (project_submissions.owner_user_id,
+// slug YA DA claimed_slug ile eşleşen) kullanır; bu, proje.html'in "Sil" butonunu göstermeden ÖNCE
+// istemci tarafında yaptığı AYNI kontrolün sunucu tarafı garantisidir — istemci kontrolü tek başına
+// güvenlik sağlamaz. Admin isteği ownership kontrolüne takılmadan geçer (mevcut admin uçlarıyla aynı
+// davranış). İşlem her zaman slug tabanlı silme yolunu (runProjectAction action:'delete', id YOK)
+// kullanır — sıradan bir kullanıcının kendi project_submissions.id'sini bilmesi gerekmez.
+export async function handleSelfProjectDelete(request, env, slug) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+  if (user.role !== 'admin') {
+    const owns = await env.DB.prepare(
+      `SELECT 1 FROM project_submissions WHERE owner_user_id = ? AND (slug = ? OR claimed_slug = ?) LIMIT 1`
+    ).bind(user.id, slug, slug).first();
+    if (!owns) return errorJson('Bu projeyi silme yetkin yok.', 403);
+  }
+  return runProjectAction(env, user, { action: 'delete', slug });
 }
 
 // architects/offices/products/materials için "arşivle" — canonical satırın GÜNCEL hâlini bir

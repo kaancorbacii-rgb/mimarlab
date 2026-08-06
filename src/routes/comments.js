@@ -20,21 +20,40 @@ export async function handleCommentsRoute(request, env, url) {
 // user_badge: yorumu yapan kişinin KENDİSİ için aldığı (target_type='self') aktif rozeti —
 // profile_claims'ten tamamen bağımsız, mimar/marka profili olmasa bile ismi yanında gözükür
 // (bkz. kullanıcı talebi). 'destekci' hiçbir görünür rozet vermediği için hariç tutulur.
+//
+// commenterProfile: yorumu yapan kullanıcının hesabı bir mimar/firma profiline BAĞLIYSA (bkz.
+// architects/offices.claimed_by_user_id — profile_claims onayında kanonik satıra yazılır) o
+// profilin fotoğrafı/adı/slug'ı (kullanıcı isteği: yorumda varsayılan avatar yerine profil fotosu,
+// tıklanınca /mimar veya /firma'ya git). Bir hesap teorik olarak hem bir mimar HEM bir firma
+// kaydını claim etmiş olabilir — architects/offices'ten en fazla BİRER satırı garanti eden
+// korelasyonlu alt sorgularla (LIMIT 1) satır çoğalması önlenir, ikisi de doluysa proje.html
+// #DESIGNER_JOIN_SQL'deki COALESCE(ar, ofc) ile AYNI önceliğe (mimar > firma) uyulur.
 async function listComments(env, url) {
   const targetType = url.searchParams.get('targetType');
   const targetId = url.searchParams.get('targetId');
   if (!TARGET_TYPES.has(targetType) || !targetId) return errorJson('Geçersiz istek.');
 
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, b.badge_type AS user_badge
+    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, b.badge_type AS user_badge,
+            ar.name AS profile_ar_name, ar.photo_url AS profile_ar_photo,
+            ofc.name AS profile_ofc_name, ofc.logo_url AS profile_ofc_logo
      FROM comments c JOIN users u ON u.id = c.user_id
      LEFT JOIN badge_requests b ON b.user_id = c.user_id AND b.target_type = 'self' AND b.status = 'active'
        AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
+     LEFT JOIN architects ar ON ar.id = (SELECT id FROM architects WHERE claimed_by_user_id = c.user_id AND deleted_at IS NULL LIMIT 1)
+     LEFT JOIN offices ofc ON ofc.id = (SELECT id FROM offices WHERE claimed_by_user_id = c.user_id AND deleted_at IS NULL LIMIT 1)
      WHERE c.target_type = ? AND c.target_id = ?
      ORDER BY c.created_at ASC`
   ).bind(Date.now(), targetType, targetId).all();
 
-  return json({ items: results });
+  const items = results.map(r => {
+    const item = { id: r.id, body: r.body, created_at: r.created_at, user_name: r.user_name, user_id: r.user_id, user_badge: r.user_badge };
+    if (r.profile_ar_name) item.commenterProfile = { type: 'architect', name: r.profile_ar_name, photo: r.profile_ar_photo || null };
+    else if (r.profile_ofc_name) item.commenterProfile = { type: 'office', name: r.profile_ofc_name, photo: r.profile_ofc_logo || null };
+    return item;
+  });
+
+  return json({ items });
 }
 
 async function createComment(request, env) {

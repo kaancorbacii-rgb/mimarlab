@@ -9,6 +9,7 @@ import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListR
 import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
 import { handleFacetsRoute } from './routes/facets.js';
 import { handleAdminRoute } from './routes/admin.js';
+import { handleSelfProjectDelete } from './routes/legacyContent.js';
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
@@ -316,7 +317,14 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
-  if (path.startsWith('/api/project/')) return handleProjectDetailRoute(request, env, url, path.slice('/api/project/'.length));
+  if (path.startsWith('/api/project/')) {
+    const projectSlug = path.slice('/api/project/'.length);
+    // DELETE: proje sahibinin (ya da admin'in) pop-up içinden kendi projesini silmesi (bkz.
+    // js/components/project-actions.js#runOwnerDelete, kullanıcı isteği) — GET (yukarıdaki
+    // handleProjectDetailRoute, herkese açık detay) ile AYNI path'i paylaşır, method'a göre ayrılır.
+    if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, decodeURIComponent(projectSlug));
+    return handleProjectDetailRoute(request, env, url, projectSlug);
+  }
   if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);

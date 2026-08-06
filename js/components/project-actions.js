@@ -20,14 +20,50 @@ const ProjectActions = (function () {
       <span class="save-count" id="pm-save-count"></span>`;
   }
 
-  async function mountEditButton(item) {
+  // Oturum açmış kullanıcının bu projeyi yükleyen/paylaşan kişi olup olmadığını kontrol eder (bkz.
+  // kullanıcı isteği: "Kullanıcı Gönderi Düzenleme & Silme İzinleri") — /api/project/:slug yanıtı
+  // hiçbir sahiplik/submission id'si taşımadığından (item.submissionId HER ZAMAN undefined'dı, bu
+  // yüzden Düzenle butonu şimdiye dek fiilen HİÇBİR sahip için görünmüyordu — gerçek bulgu), aynı
+  // /api/projects/mine ucu ve slug eşleşmesi ProjectComments#canModerate'te ZATEN kullanılan AYNI
+  // yöntemle burada da sahiplik belirlemek için sorgulanır. Admin isteği bu sorguyu atlar — admin
+  // için "Düzenle" her zaman claim linkine, "Sil/Arşivle" mountAdminModerationButtons'a gider
+  // (mevcut davranış korunur).
+  async function mountOwnerActions(item) {
     await savedWidgetReady;
-    const slot = document.getElementById('pm-edit-submission-slot');
-    if (item.submissionId) {
-      const html = await editSubmissionBtnHtml('projects', item.submissionId);
-      if (html) slot.innerHTML = html;
-    } else if (currentUser && currentUser.role === 'admin') {
-      slot.innerHTML = `<a class="card-edit-btn" href="proje-ekle.html?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
+    const editSlot = document.getElementById('pm-edit-submission-slot');
+    if (!currentUser) return;
+    let mySubmission = null;
+    if (currentUser.role !== 'admin') {
+      try {
+        const res = await fetch('/api/projects/mine');
+        const data = res.ok ? await res.json() : { items: [] };
+        mySubmission = (data.items || []).find(it => it.slug === item.slug || it.claimed_slug === item.slug) || null;
+      } catch { /* sahiplik kontrolü başarısız — güvenli varsayılan: buton gösterme */ }
+    }
+    if (mySubmission) {
+      const html = await editSubmissionBtnHtml('projects', mySubmission.id);
+      if (html) editSlot.innerHTML = html;
+      // Sahip için Sil butonu — admin'in Arşivle/Sil çiftinden farklı olarak (bkz.
+      // mountAdminModerationButtons) sahibe yalnızca doğrudan Sil sunulur (kullanıcı isteği).
+      const adminSlot = document.getElementById('pm-admin-actions-slot');
+      adminSlot.innerHTML = `<button type="button" class="card-delete-btn" id="pm-owner-delete-btn">Sil</button>`;
+      document.getElementById('pm-owner-delete-btn').addEventListener('click', () => runOwnerDelete(item));
+    } else if (currentUser.role === 'admin') {
+      editSlot.innerHTML = `<a class="card-edit-btn" href="proje-ekle.html?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
+    }
+  }
+
+  async function runOwnerDelete(item) {
+    if (!confirm('Bu projeyi silmek istediğine emin misin? Proje anında canlı siteden kaldırılır.')) return;
+    const btn = document.getElementById('pm-owner-delete-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(`/api/project/${encodeURIComponent(item.slug)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('request failed');
+      window.location.href = '/proje';
+    } catch {
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -76,7 +112,7 @@ const ProjectActions = (function () {
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data) document.getElementById('pm-save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : ''; })
       .catch(() => {});
-    mountEditButton(item).then(() => mountAdminModerationButtons(item));
+    mountOwnerActions(item).then(() => mountAdminModerationButtons(item));
   }
 
   return { render };
