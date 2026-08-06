@@ -28,38 +28,50 @@ const ProductModal = (function () {
         font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
       }
       .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .pr-rating-save-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;}
+      .pr-rating-save-row{
+        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+        align-items:center !important; justify-content:flex-start !important; width:100% !important;
+        gap:4px !important; margin:0 0 14px;
+      }
       .pr-rating-save-row .rating-widget{
-        display:flex; align-items:center; gap:6px; flex-wrap:nowrap; flex-shrink:0;
-        height:36px; box-sizing:border-box;
+        display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
+        flex-shrink:1 !important; min-width:0 !important;
+        height:32px !important; box-sizing:border-box;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 16px; margin:0; transition:border-color .15s ease;
+        padding:0 8px !important; margin:0; transition:border-color .15s ease;
       }
       .pr-rating-save-row .rating-widget:hover{border-color:var(--walnut);}
-      .pr-rating-save-row .rating-star-row{display:flex; gap:1px;}
+      .pr-rating-save-row .rating-star-row{display:flex; gap:2px; flex-shrink:0;}
       .pr-rating-save-row .rating-star-btn{background:none; border:none; padding:0; color:var(--line); display:flex; transition:transform .1s ease;}
       .pr-rating-save-row .rating-star-btn.filled{color:var(--accent);}
       .pr-rating-save-row .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
       .pr-rating-save-row .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-      .pr-rating-save-row .rating-summary{font-size:14px; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap;}
+      .pr-rating-save-row .rating-summary{font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap !important;}
       .pr-rating-save-row .card-save-btn{
-        position:static; width:auto; height:36px; z-index:auto;
+        position:static; width:auto; height:32px !important; z-index:auto;
         background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
-        display:inline-flex; align-items:center; gap:7px; padding:0 16px; border:1px solid var(--line);
-        font-size:14px; font-weight:600;
+        display:inline-flex; align-items:center; gap:5px;
+        padding:0 8px !important; border:1px solid var(--line);
+        font-size:12px !important; font-weight:600;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
       }
       .pr-rating-save-row .card-save-btn:hover{background:var(--paper-card); border-color:var(--walnut); color:var(--ink);}
       .pr-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
       /* Paylaş butonu (bkz. js/components/share-button.js) bu satırda Kaydet ile BİREBİR aynı pil
-         olsun diye .card-save-btn'in yukarıdaki AYNI padding/font override'ını miras alır — genel
-         .share-btn (padding:0 18px; font-size:13.5px) diğer modallarla tutarlı ama bu satırdaki
-         .card-save-btn'in kompakt 16px/14px değerinden biraz farklı. */
-      .pr-rating-save-row .share-btn{padding:0 16px; font-size:14px;}
+         olsun diye .card-save-btn'in yukarıdaki AYNI padding/font override'ını miras alır. */
+      .pr-rating-save-row .share-btn{
+        padding:0 8px !important; font-size:12px !important;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+      }
       .pr-rating-save-row .save-btn-label-saved{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
       .save-btn-count{font-weight:600;}
-      .pr-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 18px;}
+      .pr-actions{
+        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+        align-items:center !important; justify-content:flex-start !important; width:100% !important;
+        gap:4px !important; margin:0 0 18px;
+      }
       .pr-actions .card-edit-btn{
         display:inline-flex; align-items:center;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
@@ -163,6 +175,19 @@ const ProductModal = (function () {
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
         .detail-gallery img, .gallery-placeholder{height:240px;}
+      }
+
+      @media (max-width:500px){
+        /* Puanla/Kaydet/Paylaş pilini mobilde tek satırda tutmak için sıkıştırma (bkz. kullanıcı
+           isteği, proje.html'deki AYNI desen). */
+        .pr-rating-save-row{gap:4px !important;}
+        .pr-rating-save-row .rating-widget{height:30px !important; padding:0 6px !important;}
+        .pr-rating-save-row .rating-star-row{gap:2px;}
+        .pr-rating-save-row .rating-summary{font-size:11px !important;}
+        .pr-rating-save-row .card-save-btn, .pr-rating-save-row .share-btn{
+          height:30px !important; padding:0 6px !important; font-size:11px !important;
+        }
+        .pr-rating-save-row .share-btn{gap:0;}
       }
     `;
     document.head.appendChild(style);

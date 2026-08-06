@@ -24,25 +24,43 @@ const OfficeModal = (function () {
         font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:20px;
       }
       .profile-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper-card);}
-      .detail-title-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 18px;}
+      .detail-title-actions{
+        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+        align-items:center !important; justify-content:flex-start !important; width:100% !important;
+        gap:4px !important; margin:0 0 18px;
+      }
       .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+      /* profile-edit-slot GERÇEK BULGU: Düzenle/Arşivle/Sil bu <span>'in İÇİNE claim-correction-box.js
+         tarafından enjekte ediliyor (bkz. o dosya #renderProfileEditButton) — span kendisi flex
+         katılımcısı OLMADIĞINDAN (sıradan inline eleman), .detail-title-actions'daki flex-wrap:nowrap
+         yalnızca span'in KENDİSİNİ tek satırda tutuyordu, İÇİNDEKİ 3 butonu DEĞİL — onlar normal metin
+         gibi kendi aralarında satır kırıyordu (bu, kullanıcının bildirdiği "Düzenle" üstte kalıp
+         "Arşivle"/"Sil" altta kalan 2 satır kırılmasının GERÇEK kök nedeniydi). display:contents span'i
+         kutu modelinden çıkarır, çocuklarını doğrudan #om-actions'ın flex öğesi yapar — böylece AYNI
+         nowrap+shrink kuralları onlara da uygulanır. */
+      #profile-edit-slot{display:contents;}
       .card-edit-btn{
         display:inline-flex; align-items:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:8px 16px; font-size:13px; font-weight:600; color:var(--walnut); white-space:nowrap;
+        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--walnut);
       }
       .card-edit-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
       .card-delete-btn{
         display:inline-flex; align-items:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
         background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); border-radius:100px;
-        padding:8px 16px; font-size:13px; font-weight:600; color:#B84C4C; white-space:nowrap;
+        padding:0 8px !important; font-size:12px !important; font-weight:600; color:#B84C4C;
       }
       .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
       .save-btn{
-        display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
-        height:36px; box-sizing:border-box;
+        display:inline-flex; align-items:center; gap:5px;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 18px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
         font-family:inherit; line-height:1; text-decoration:none;
       }
       .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
@@ -53,9 +71,11 @@ const OfficeModal = (function () {
       .save-btn.saved .save-btn-label-saved{display:inline;}
       .save-btn-count{font-weight:600;}
       .profile-edit-btn{
-        display:inline-flex; align-items:center; gap:7px;
+        display:inline-flex; align-items:center; gap:5px;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
         background:none; border:1.5px solid var(--ink); color:var(--ink);
-        padding:9px 18px; border-radius:100px; font-weight:600; font-size:13.5px;
+        padding:0 8px !important; border-radius:100px; font-weight:600; font-size:12px !important;
       }
       .profile-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
       .btn-outline{
@@ -132,6 +152,18 @@ const OfficeModal = (function () {
         .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
       }
       .prevnext-mobile-divider{display:none;}
+      @media (max-width:500px){
+        /* Websitesi/Kaydet/Paylaş pilini mobilde tek satırda tutmak için sıkıştırma (bkz. kullanıcı
+           isteği) — "Websitesi" .save-btn sınıfını Kaydet ile PAYLAŞTIĞINDAN (bkz. yukarısı,
+           visitBtn.className) tek kural ikisini birden kapsar. .share-btn burada scoped bir override
+           taşımadığı için (bkz. share-button.js#injectStyles'ın generic .share-btn 500px kuralı, bu
+           dosyanın <style>'ından SONRA enjekte edildiğinden eşit özgüllükte kazanır) ayrıca tekrar
+           edilmez. */
+        .save-btn{height:30px !important; padding:0 6px !important; font-size:11px !important;}
+        .card-edit-btn, .card-delete-btn, .profile-edit-btn{
+          height:30px !important; padding:0 6px !important; font-size:11px !important;
+        }
+      }
     `;
     document.head.appendChild(style);
   }
@@ -342,7 +374,7 @@ const OfficeModal = (function () {
       ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
     }
 
-    // "Websitesini Gör" — Kaydet ile AYNI satırda, hemen soluna (bkz. kullanıcı isteği) —
+    // "Websitesi" — Kaydet ile AYNI satırda, hemen soluna (bkz. kullanıcı isteği) —
     // .save-btn sınıfını (kart bağlamındaki değil, bu enjekte edilen stil) birebir paylaşarak
     // font/boyut/yükseklik/padding/radius otomatik olarak Kaydet'le eş değer kalır.
     const visitUrl = o.website ? safeUrl(o.website) : '';
@@ -352,7 +384,7 @@ const OfficeModal = (function () {
       visitBtn.href = visitUrl;
       visitBtn.target = '_blank';
       visitBtn.rel = 'noopener';
-      visitBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesini Gör</span>`;
+      visitBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span>`;
       actionsEl.prepend(visitBtn);
     }
 

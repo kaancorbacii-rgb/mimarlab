@@ -223,7 +223,15 @@
     position:relative; border-radius:20px; overflow:hidden;
     aspect-ratio:4/3; background:var(--paper-alt);
   }
-  .slider-track{position:relative; width:100%; height:100%;}
+  /* GERÇEK BULGU: slider-track ilk statik veriyle (projeler-data.js) HEMEN dolduruluyor, sonra
+     canlı /api/public/projects cevabı gelince FARKLI bir seçkiyle sertçe (innerHTML) değiştiriliyordu
+     — bu da sayfa her yenilendiğinde gözle görülür bir "eski içerik → yeni içerik" sıçramasına
+     (FOUC) yol açıyordu (bkz. kullanıcı isteği). opacity:0 başlangıç durumu + .loaded'da 1'e geçiş,
+     içerik HENÜZ hazır değilken boş (.proje-slider'ın kendi background:var(--paper-alt) rengiyle
+     nötr bir "iskelet" gibi duran) kapsayıcıyı gösterir; veri gelip DOM'a yazıldığında yumuşak bir
+     fade-in ile belirir, sert bir sıçrama olmaz. */
+  .slider-track{position:relative; width:100%; height:100%; opacity:0; transition:opacity .4s ease;}
+  .slider-track.loaded{opacity:1;}
   .proje-slide{
     position:absolute; inset:0; opacity:0; pointer-events:none;
     transition:opacity .6s ease; text-decoration:none; color:inherit; display:block;
@@ -726,7 +734,9 @@ function renderSlider(items){
   if(slugs === sliderSlugs) return; // içerik aynıysa mevcut slaytı/otomatik oynatma ilerlemesini bozma
   sliderSlugs = slugs;
   sliderIndex = 0;
-  document.getElementById('slider-track').innerHTML = items.map(projectSlideHtml).join('');
+  const trackEl = document.getElementById('slider-track');
+  trackEl.innerHTML = items.map(projectSlideHtml).join('');
+  trackEl.classList.add('loaded');
   restartAutoplay();
 }
 
@@ -753,7 +763,13 @@ sliderEl.addEventListener('mouseleave', restartAutoplay);
 // Görseli olmayan projeler (bkz. projeler-data.js künye eksiklikleri) carousel'e alınmaz —
 // aksi halde slider'da kırık bir görsel gösterilirdi.
 const projectsWithImages = projects.filter(p => p.images && p.images[0]);
-renderSlider(carouselSlides([], projectsWithImages));
+// GERÇEK BULGU: burada projeler-data.js'in STATİK anlık görüntüsüyle ERKEN bir renderSlider(...)
+// çağrısı vardı — Promise.all'daki canlı /api/public/projects cevabı gelince FARKLI bir seçkiyle
+// (dinamik+statik karışım, gizlenenler filtrelenmiş) yeniden yazılıyor, bu da her sayfa
+// yenilemesinde gözle görülür bir içerik sıçramasına yol açıyordu (bkz. kullanıcı isteği: FOUC
+// fix). Artık TEK render aşağıdaki Promise.all'ın .then() bloğunda, canlı veriyle birlikte olur;
+// bu arada boş kalan #slider-track kendi nötr .proje-slider arka planını (bkz. yukarısı) gösterir,
+// veri gelince .loaded ile fade-in yapar.
 
 function architectSlideHtml(a, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/mimar/${encodeURIComponent(slugify(a.name))}" data-index="${i}">
@@ -800,6 +816,7 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
     cacheKey = key;
     index = 0;
     trackEl.innerHTML = items.map(slideHtmlFn).join('');
+    trackEl.classList.add('loaded');
     restart();
   }
   function goTo(i){

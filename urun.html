@@ -205,7 +205,9 @@
     color:#fff;
   }
   .content-card-cat{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:5px;}
-  .content-card-title{font-family:'Inter', sans-serif; font-size:16.5px; font-weight:700; line-height:1.25; margin-bottom:3px;}
+  /* Kart üstü başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
+     isteği) — punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun isimler daha az kesilsin. */
+  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .content-card-by{font-size:11.5px; color:rgba(237,240,243,0.75);}
 
   .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
@@ -273,7 +275,7 @@
     .page-head{padding:20px 16px 0;}
     .grid-layout{padding:16px 16px 70px; gap:16px;}
     .content-grid{grid-template-columns:1fr 1fr; gap:12px;}
-    .content-card-title{font-size:14.5px;}
+    .content-card-title{font-size:13.5px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }

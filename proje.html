@@ -226,7 +226,9 @@
     background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
     color:var(--paper);
   }
-  .content-card-title{font-family:'Inter', sans-serif; font-size:16.5px; font-weight:700; line-height:1.25; margin-bottom:3px;}
+  /* Kart üstü başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
+     isteği) — punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun isimler daha az kesilsin. */
+  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .content-card-by{font-size:11.5px; color:rgba(237,240,243,0.75);}
   .card-save-btn{
     position:absolute; top:10px; right:10px; z-index:2;
@@ -283,7 +285,7 @@
     .page-head{padding:20px 16px 0;}
     .grid-layout{padding:16px 16px 70px; gap:16px;}
     .content-grid{grid-template-columns:1fr 1fr; gap:12px;}
-    .content-card-title{font-size:14.5px;}
+    .content-card-title{font-size:13.5px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -301,7 +303,16 @@
   .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
   /* Puanlama + Kaydet: kullanıcı isteği üzerine aynı satırda, ikisi de "pill" görünümlü (bkz.
      .rating-widget kuralı aşağıda — save-btn ile AYNI çerçeve/dolgu dilini paylaşır). */
-  .pm-rating-save-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;}
+  /* flex-wrap:nowrap !important — kullanıcı isteği: Puanla/Kaydet/Paylaş HİÇBİR genişlikte 2. satıra
+     düşmesin; dar ekranlarda satırın sığması aşağıdaki @media (max-width:500px) bloğundaki boyut
+     küçültmeleriyle (.rating-widget/.save-btn/.share-btn) ve share-button.js'in ikon-only
+     düşüşüyle sağlanır, taşma yerine ölçeklenme tercih edilir. Tüm bayraklar !important — kullanıcı
+     isteği: bu satır başka hiçbir kuralın ele geçiremeyeceği kadar katı olsun. */
+  .pm-rating-save-row{
+    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+    align-items:center !important; justify-content:flex-start !important; width:100% !important;
+    gap:4px !important; margin:0 0 14px;
+  }
   /* Düzenle/Arşivle/Sil: Kaydet artık bu satırda OLMADIĞINDAN (bkz. yukarısı) üç buton normalde
      her ekran boyutunda tek satıra sığar — nowrap ile bu garanti edilir. GERÇEK BULGU: buraya
      ayrıca overflow-x:auto eklemek (taşma güvenlik ağı olarak düşünülmüştü) mobilde bu satırı
@@ -312,7 +323,11 @@
      orada #pm-actions sıradan bir blok elemanı, bir flex ÖĞESİ değil. Üç pill zaten en dar ekranda
      bile rahatça sığdığından overflow-x hiç gerekmiyordu, kaldırıldı.
   */
-  .detail-title-actions{display:flex; align-items:center; gap:10px; flex-wrap:nowrap; margin:0 0 18px;}
+  .detail-title-actions{
+    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+    align-items:center !important; justify-content:flex-start !important; width:100% !important;
+    gap:4px !important; margin:0 0 18px;
+  }
   .card-edit-btn{
     display:inline-flex; align-items:center;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
@@ -330,10 +345,11 @@
      bile (ikon vs yıldız satırı) dış kutuyu piksel piksel eşitler; yazı tipi/punto/kalınlık da sol
      paneldeki künye etiketleriyle (.detail-meta strong: 14px/600) birebir aynı. */
   .save-btn{
-    display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
-    height:36px; box-sizing:border-box;
+    display:inline-flex; align-items:center; gap:5px;
+    flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+    height:32px !important; box-sizing:border-box;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-    padding:0 16px; font-size:14px; font-weight:600; line-height:1; color:var(--ink-soft);
+    padding:0 8px !important; font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft);
   }
   .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
@@ -360,34 +376,38 @@
      yüksek özgüllüğüne sahip olduğundan .save-btn'in (0,1,0) height'ını görmezden geliyordu) —
      .rating-widget ile piksel piksel eşit dursun diye height burada da AÇIKÇA 36px olarak yazılır. */
   .pm-rating-save-row .card-save-btn{
-    position:static; width:auto; height:36px; z-index:auto;
+    position:static; width:auto; height:32px !important; z-index:auto;
     background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
   }
   .pm-rating-save-row .card-save-btn:hover{background:var(--paper-card);}
   .pm-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
   /* Paylaş butonu (bkz. js/components/share-button.js) Kaydet ile BİREBİR aynı pil olsun diye
      yukarıdaki .card-save-btn ile AYNI padding/font'u miras alır — genel .share-btn (padding:0 18px;
-     font-size:13.5px) bu satırdaki .save-btn'in kompakt 16px/14px değerinden farklı. */
-  .pm-rating-save-row .share-btn{padding:0 16px; font-size:14px;}
+     font-size:13.5px) bu satırdaki .save-btn'in kompakt 8px/12px değerinden farklı. */
+  .pm-rating-save-row .share-btn{
+    padding:0 8px !important; font-size:12px !important;
+    flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+  }
 
   /* Kaydet butonuyla (.save-btn) AYNI pill çerçeve dili — kullanıcı isteği: "Kaydet butonundaki gibi
      dış çerçeve, border-radius/pill, hafif arka plan ve padding". Yıldız butonlarının kendi
      padding'i zaten var, bu yüzden kapsayıcının solundan hafif negatif margin ile hizalanır ki
      pill kenarına gereğinden fazla boşluk binmesin. */
   .rating-widget{
-    display:flex; align-items:center; gap:6px; flex-wrap:nowrap; flex-shrink:0;
-    height:36px; box-sizing:border-box;
+    display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
+    flex-shrink:1 !important; min-width:0 !important;
+    height:32px !important; box-sizing:border-box;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-    padding:0 16px; margin:0;
+    padding:0 8px !important; margin:0;
     transition:border-color .15s ease;
   }
   .rating-widget:hover{border-color:var(--walnut);}
-  .rating-star-row{display:flex; gap:1px;}
+  .rating-star-row{display:flex; gap:2px; flex-shrink:0;}
   .rating-star-btn{background:none; border:none; padding:0; color:var(--line); display:flex; transition:transform .1s ease;}
   .rating-star-btn.filled{color:var(--accent);}
   .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
   .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-  .rating-summary{font-size:14px; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap;}
+  .rating-summary{font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap !important;}
 
   .detail-info{margin-top:8px;}
   .designer-section{margin-top:0;}
@@ -572,6 +592,23 @@
     #pm-products-section{order:9;}
     #pm-materials-section{order:10;}
     #pm-prevnext{order:11;}
+
+  }
+
+  @media (max-width:500px){
+    /* Puanla/Kaydet/Paylaş pilini mobilde tek satırda tutmak için sıkıştırma (bkz. kullanıcı
+       isteği) — yükseklik/dolgu/punto birlikte küçülür, üçü de piksel piksel eşit kalır. */
+    .pm-rating-save-row{gap:4px !important;}
+    .rating-widget{height:30px !important; padding:0 6px !important;}
+    .rating-star-row{gap:2px;}
+    .rating-summary{font-size:11px !important;}
+    .save-btn, .pm-rating-save-row .card-save-btn, .pm-rating-save-row .share-btn{
+      height:30px !important; padding:0 6px !important; font-size:11px !important;
+    }
+    /* share-button.js#injectStyles bu genişlikte .share-text'i gizleyip butonu ikona daraltır —
+       bu satırdaki DAHA ÖZGÜL .pm-rating-save-row .share-btn override'ı aksi halde o daralmayı
+       geçersiz kılardı, burada da aynı ikon-only dolguya eşitlenir. */
+    .pm-rating-save-row .share-btn{padding:0 6px !important; gap:0;}
   }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
@@ -1005,7 +1042,10 @@ async function render(){
 
   grid.innerHTML = data.items.map((p, i) => {
     const loc = parseLocation(p.location);
-    const locLabel = loc.district ? `${loc.district}, ${loc.city}` : loc.city;
+    // Kart altyazısında yalnızca İL gösterilir, ilçe ATLANIR (bkz. kullanıcı isteği: "İl · Yıl",
+    // ör. "İstanbul · 2024") — ilçe bilgisi hâlâ modalin "Yer:" satırında (bkz. project-meta.js)
+    // tam haliyle görünmeye devam eder, yalnızca kart özetindeki kısa format sadeleştirilir.
+    const locLabel = loc.city;
     // İlk sıradaki (i<3, 3 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
     // çizgisinin üstünde görünür — bunları da loading="lazy" ile geciktirmek tarayıcının layout'u
     // bekleyip isteği ERTELEMESİNE yol açıp ilk yüklenmeyi YAVAŞLATIYORDU (bkz. kullanıcı isteği:

@@ -80,9 +80,20 @@
   .form-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:26px; margin-bottom:20px;}
   .form-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
   .form-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px;}
+  /* GERÇEK BULGU: bazı form-section'larda h2'den hemen sonra .section-hint YOK, doğrudan ilk
+     alan geliyor — h2'nin margin-bottom:4px'i o zaman başlığı ilk etiketin neredeyse üstüne
+     yapıştırıyordu (bkz. kullanıcı isteği: mobil/tablette sıkışıklığı gider). .section-hint
+     kendi margin-bottom:18px'i ile zaten yeterli boşluk bıraktığından yalnızca hint'i ATLAYIP
+     doğrudan ilk alana geçen başlıklara telafi edici bir üst boşluk eklenir. */
+  .form-section h2 + :not(.section-hint){margin-top:14px;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .form-field{margin-bottom:16px;}
-  .form-field:last-child{margin-bottom:0;}
+  /* GERÇEK BULGU: bare .form-field:last-child bir .form-row içindeki 2. (sağ sütun) alanı da
+     eşleştiriyordu — mobilde/tablette .form-row tek sütuna düşünce bu alanın alt boşluğu
+     SIFIRLANMIŞ oluyor, bir sonraki satır doğrudan üstüne yapışıyordu (bkz. kullanıcı isteği:
+     sıkışıklığı gider). ">" yalnızca .form-section'ın DOĞRUDAN çocuğu olan gerçek son alanı
+     hedefler, .form-row içindeki iç içe alanları etkilemez. */
+  .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
   .form-field input[type=text], .form-field input[type=date], .form-field input[type=number], .form-field input[type=url], .form-field textarea, .form-field select{

@@ -15,12 +15,13 @@ const ShareWidget = (function () {
     // bu dosya her sayfada .save-btn'DEN SONRA yüklendiğinden burada tekrar tanımlanır, cascade'e
     // güvenmek (sayfalar arası enjeksiyon sırası garanti değil) yerine aynı değerler kopyalanır.
     style.textContent = `
-      .share-widget{position:relative; display:inline-flex; flex-shrink:0;}
+      .share-widget{position:relative; display:inline-flex; flex-shrink:1; min-width:0;}
       .share-btn{
-        display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
-        height:36px; box-sizing:border-box;
+        display:inline-flex; align-items:center; gap:5px;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 18px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
         font-family:inherit; line-height:1;
       }
       .share-btn:hover{border-color:var(--walnut); color:var(--ink);}
@@ -43,7 +44,15 @@ const ShareWidget = (function () {
         background:var(--ink); color:var(--paper-card); font-size:12.5px; font-weight:600;
         padding:8px 14px; border-radius:100px; box-shadow:0 8px 20px rgba(27,42,61,0.2);
       }
-      @media (max-width:480px){ .share-popover{left:auto; right:0;} }
+      /* Dar ekranlarda Puanla/Kaydet/Paylaş(/Websitesi) satırının TEK satırda kalması (bkz.
+         kullanıcı isteği) metin genişliğine bağımlı — .share-text burada gizlenip buton sadece ikona
+         daralır, satırdaki diğer pil butonlarının (bkz. proje.html/js/components/product-modal.js/
+         architect-modal.js/office-modal.js#injectStyles) alanı sıkışmasın diye pay bırakır. */
+      @media (max-width:500px){
+        .share-popover{left:auto; right:0;}
+        .share-text{display:none !important;}
+        .share-btn{height:30px !important; padding:0 6px !important; font-size:11px !important; gap:0;}
+      }
     `;
     document.head.appendChild(style);
   }
@@ -58,7 +67,7 @@ const ShareWidget = (function () {
     return `
       <span class="share-widget">
         <button class="share-btn" type="button" id="${id}" aria-haspopup="true" aria-expanded="false">
-          ${ICON_SHARE}<span>Paylaş</span>
+          ${ICON_SHARE}<span class="share-text">Paylaş</span>
         </button>
         <div class="share-popover" id="${id}-popover">
           <button type="button" class="share-popover-item" data-action="copy">${ICON_COPY}Bağlantıyı Kopyala</button>
