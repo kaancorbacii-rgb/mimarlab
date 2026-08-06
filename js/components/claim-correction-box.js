@@ -24,6 +24,17 @@ function createClaimCorrectionBox(config){
   let isProfileOwner = false;
   const getClaimLinkKey = config.getClaimLinkKey || config.getProfileKey;
 
+  // Onaylı bir rozeti (Doğrulanmış/Altın/Elmas Üye) olan profillerde "Bu profil sana mı ait?"
+  // daveti anlamsız — kimliği zaten doğrulanmış demektir. badge-shared.js#dynamicBadges (satın
+  // alınıp onaylanmış gerçek rozetler) VE config.getStaticBadges (seed/statik rozet) birlikte
+  // kontrol edilir, tıpkı verifiedBadgeHtml'in kendisi gibi.
+  async function hasActiveBadge(profileKey){
+    if(typeof badgesReadyPromise !== 'undefined') await badgesReadyPromise;
+    const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges[config.profileType] && dynamicBadges[config.profileType][profileKey]) || [];
+    const staticBadges = config.getStaticBadges ? (config.getStaticBadges() || []) : [];
+    return (dynamic.length ? dynamic : staticBadges).length > 0;
+  }
+
   async function loadClaimCard(){
     isProfileOwner = false;
     const card = document.getElementById('claim-info-card');
@@ -40,9 +51,12 @@ function createClaimCorrectionBox(config){
       const claimStatusRes = await fetch(`/api/public/claim-status?profileType=${config.profileType}&profileKey=${encodeURIComponent(profileKey)}`);
       if(claimStatusRes.ok) alreadyClaimed = !!(await claimStatusRes.json()).claimed;
     }catch{}
+    const badged = await hasActiveBadge(profileKey);
 
     if(!currentUser){
-      if(alreadyClaimed){ card.style.display = 'none'; return; }
+      // Anonim ziyaretçi asla profil sahibi olamayacağından (isProfileOwner burada hep false kalır),
+      // rozetli bir profilde davet kutusunu göstermeden hemen çıkabiliriz.
+      if(alreadyClaimed || badged){ card.style.display = 'none'; return; }
       body.innerHTML = `<h5>${config.labels.claimTitle}</h5><p>${config.labels.loginPromptHtml}</p>`;
       return;
     }
@@ -71,6 +85,11 @@ function createClaimCorrectionBox(config){
         });
       }
     }catch{}
+
+    // isProfileOwner (yukarıda) bu bloktan ETKİLENMEDEN doğru hesaplanmış olsun diye kutunun
+    // görünürlüğü en son burada, tüm dallardan SONRA zorlanır — sahibi olsa bile "Düzenle" butonu
+    // (renderProfileEditButton) hâlâ görünür kalmalı, yalnızca bu davet kutusu gizlenir.
+    if(!isProfileOwner && badged) card.style.display = 'none';
   }
 
   function loadCorrectionCard(){

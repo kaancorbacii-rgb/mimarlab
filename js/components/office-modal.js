@@ -410,6 +410,7 @@ const OfficeModal = (function () {
       ready: savedWidgetReady,
       getProfileKey: () => o.name,
       getClaimLinkKey: () => o._claimKey || o.name,
+      getStaticBadges: () => o.badges,
       editUrlBase: 'firma-ekle.html',
       listUrl: 'firma.html',
       contentType: 'offices',

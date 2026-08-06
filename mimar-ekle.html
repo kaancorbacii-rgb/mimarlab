@@ -292,7 +292,7 @@
 
       <div class="form-section">
         <h2>Firmalar</h2>
-        <p class="section-hint">Bağlı olduğun firma(lar) — MİMARLAB dizinindeki bir firma adıyla birebir eşleşirse profil sayfasına otomatik bağlanır.</p>
+        <p class="section-hint">Bağlı olduğun firma(lar) — MİMARLAB dizinindeki bir firma adıyla birebir eşleşirse profil sayfasına otomatik bağlanır. Birden fazla firman varsa aralarına virgül koyarak yaz.</p>
         <div class="form-row">
           <div class="form-field">
             <label>Pozisyon</label>
@@ -305,8 +305,8 @@
             </div>
           </div>
           <div class="form-field ac-field" id="ac-marka-field">
-            <label for="m-office">Varsa Firma Adı <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="m-office" name="office" placeholder="ör. EAA — Emre Arolat Architecture" autocomplete="off">
+            <label for="m-office">Varsa Firma Adı/Adları <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="m-office" name="office" placeholder="ör. EAA — Emre Arolat Architecture, B Tasarım Studio" autocomplete="off">
             <div class="ac-suggestions" id="ac-marka-suggestions"></div>
           </div>
         </div>
@@ -541,7 +541,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('focus', onInput);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
-wireAutocompleteLive('m-office', 'ac-marka-suggestions', '/api/offices/search', {multi:false});
+wireAutocompleteLive('m-office', 'ac-marka-suggestions', '/api/offices/search');
 applyProfileEditPhotos().catch(()=>{});
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite (sitede kayıtlı mimarların okuduğu okullar) ----------

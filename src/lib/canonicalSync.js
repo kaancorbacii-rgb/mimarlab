@@ -171,13 +171,21 @@ async function logConflict(env, entity_type, conflict_key, context, candidates) 
   ).bind(entity_type, conflict_key, context, JSON.stringify(candidates.map(r => ({ id: r.id, name: r.name }))), 'pending').run();
 }
 
-async function syncOfficeFounderLink(env, architectId, officeId) {
-  if (officeId === null || officeId === undefined) {
+// officeIds: bir mimarın Firma alanına virgülle ayırarak girdiği TÜM eşleşen firma id'leri (bkz.
+// syncArchitect — "A Mimarlık, B Tasarım Studio" gibi birden çok firma desteği, kullanıcı isteği).
+// Bu listede OLMAYAN mevcut bağlantılar çıkarılır (form artık o firmayı içermiyorsa), listedeki
+// her firma için bağlantı eklenir/korunur.
+async function syncOfficeFounderLink(env, architectId, officeIds) {
+  const ids = [...new Set((officeIds || []).filter(id => id !== null && id !== undefined))];
+  if (!ids.length) {
     await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ?`).bind(architectId).run();
     return;
   }
-  await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ? AND office_id != ?`).bind(architectId, officeId).run();
-  await env.DB.prepare(`INSERT OR IGNORE INTO office_founders (office_id, architect_id) VALUES (?, ?)`).bind(officeId, architectId).run();
+  const placeholders = ids.map(() => '?').join(', ');
+  await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ? AND office_id NOT IN (${placeholders})`).bind(architectId, ...ids).run();
+  for (const officeId of ids) {
+    await env.DB.prepare(`INSERT OR IGNORE INTO office_founders (office_id, architect_id) VALUES (?, ?)`).bind(officeId, architectId).run();
+  }
 }
 
 // Kurucular kutusuna yazılan isimleri architects tablosuyla eşleştirip office_founders FK'sine
@@ -279,12 +287,22 @@ async function syncArchitect(env, row) {
   const claimedKey = row.claimed_profile_key;
   const marker = submissionMarker(row.id);
 
-  let officeId = null;
-  if (row.office) {
-    const match = await findOneByName(env, 'offices', row.office);
-    if (match.ambiguous) await logConflict(env, 'office_founder', row.office, `architect_submission:${row.id}`, match.candidates);
-    officeId = match.row ? match.row.id : null;
+  // mimar-ekle.html'in Firma alanına virgülle ayrılmış birden fazla firma adı girilebilir (bkz.
+  // kullanıcı isteği: "A Mimarlık, B Tasarım Studio"). architect_submissions.office tek bir TEXT
+  // kolonu olduğundan (schema değişikliği gerektirmemek için) burada virgüle göre bölünüp her adı
+  // ayrı ayrı offices tablosuyla eşleştirilir. İlk eşleşen firma "birincil" firma olarak architects.
+  // office_id'ye yazılır (profildeki tekil "office" alanı, mimar-detay eski davranışıyla uyumlu
+  // kalsın diye) — TÜM eşleşen firmalar ise office_founders'a bağlanır (bkz. syncOfficeFounderLink
+  // ve buildArchitectPayload'daki "Kurucu/ortak olduğu TÜM firmalar" okuma mantığı, zaten bu join
+  // tablosunu okuyor).
+  const officeNames = (row.office || '').split(',').map(s => s.trim()).filter(Boolean);
+  const officeIds = [];
+  for (const officeName of officeNames) {
+    const match = await findOneByName(env, 'offices', officeName);
+    if (match.ambiguous) await logConflict(env, 'office_founder', officeName, `architect_submission:${row.id}`, match.candidates);
+    if (match.row) officeIds.push(match.row.id);
   }
+  const officeId = officeIds.length ? officeIds[0] : null;
 
   const target = claimedKey
     ? await env.DB.prepare(`SELECT * FROM architects WHERE deleted_at IS NULL AND (legacy_key = ? OR name = ?) LIMIT 1`).bind(claimedKey, claimedKey).first()
@@ -314,7 +332,7 @@ async function syncArchitect(env, row) {
     sets.push('hidden_at = NULL');
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
-    await syncOfficeFounderLink(env, target.id, officeId);
+    await syncOfficeFounderLink(env, target.id, officeIds);
     return target;
   }
 
@@ -327,7 +345,7 @@ async function syncArchitect(env, row) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
   ).bind(slug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, officeId, marker, row.owner_user_id).run();
   const architectId = insert.meta.last_row_id;
-  await syncOfficeFounderLink(env, architectId, officeId);
+  await syncOfficeFounderLink(env, architectId, officeIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
   if (claimedKey) await blacklistLegacyKey(env, row.owner_user_id, 'architects', claimedKey);
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(architectId).first();

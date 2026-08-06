@@ -418,6 +418,7 @@ const ArchitectModal = (function () {
       profileType: PROFILE_TYPE,
       ready: savedWidgetReady,
       getProfileKey: () => a.name,
+      getStaticBadges: () => a.badges,
       editUrlBase: 'mimar-ekle.html',
       listUrl: 'mimar.html',
       contentType: 'architects',

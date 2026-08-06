@@ -40,10 +40,14 @@ function logoUrl(o){
 // render edildiğinde henüz hazır olmayabileceğinden 'mimarlab-badges-ready' event'i ile
 // dinleyen sayfalar rozetler gelince yeniden render edebilir.
 const dynamicBadges = { architect: {}, office: {} };
+// claim-correction-box.js "Bu profil sana mı ait?" kutusunu rozetli profillerde göstermemek için
+// rozetlerin fetch'i bitene kadar bekleyebilsin diye (bkz. o dosya#hasActiveBadge).
+let resolveBadgesReady;
+const badgesReadyPromise = new Promise(resolve => { resolveBadgesReady = resolve; });
 fetch('/api/public/badges').then(r => r.ok ? r.json() : null).then(d => {
   if(d){ Object.assign(dynamicBadges.architect, d.architect || {}); Object.assign(dynamicBadges.office, d.office || {}); }
   window.dispatchEvent(new Event('mimarlab-badges-ready'));
-}).catch(()=>{});
+}).catch(()=>{}).finally(()=>{ resolveBadgesReady(); });
 
 // Üç rozet kademesi: Doğrulanmış Üye kimlik doğrulamasını temsil eder (Instagram'ın mavi
 // doğrulanmış profil rozeti gibi); Altın Üye ve Elmas Üye ise daha üst kademe, aylık abonelik
