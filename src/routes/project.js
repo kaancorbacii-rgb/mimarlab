@@ -19,15 +19,41 @@ const DESIGNER_SEP = '';
 
 // bir projenin tasarımcı adları dizisini (mimar VEYA ofis adı, project_designers join'inden) tek
 // bir GROUP_CONCAT sütununa toplayan ortak sorgu parçası — hem tekil proje hem filtre listesi
-// sorgusu bunu kullanır.
+// sorgusu bunu kullanır. ar_ofc: bir mimar-tipi tasarımcının BAĞLI OLDUĞU ofis (architects.office_id
+// üzerinden) — index.html'in proje slaytı altyazısında "Mimar adı" değil "bağlı olduğu ofis adı"
+// göstermesi gerektiğinden (bkz. kullanıcı isteği, eskiden data.js offices[]/architects[] üzerinde
+// istemci tarafında yapılan AYNI eşleştirme) eklendi; ofc (tasarımcı doğrudan bir ofisse) ile
+// COALESCE edilerek aşağıdaki OFFICE_NAMES_SQL sütununu besler.
 const DESIGNER_JOIN_SQL = `
   LEFT JOIN project_designers pd ON pd.project_id = p.id
   LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
   LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+  LEFT JOIN offices ar_ofc ON ar_ofc.id = ar.office_id AND ar_ofc.deleted_at IS NULL
 `;
+// office_names GROUP_CONCAT sütunu — designer_names'ten AYRI tutulur çünkü designer_names künyede
+// görünen HAM tasarımcı isimlerini (mimar veya ofis) taşımaya devam etmeli; office_names yalnızca
+// "bu projenin görüntülenecek ofis adı/adları" için additive bir alandır (bkz. kullanıcı isteği:
+// "mevcut designer alanını bozmadan").
+const OFFICE_NAMES_SQL = `GROUP_CONCAT(COALESCE(ofc.name, ar_ofc.name), '${DESIGNER_SEP}') AS office_names`;
 
 function designerNamesFrom(concat) {
   return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
+}
+
+// office_names GROUP_CONCAT'i NULL'ları (SQLite GROUP_CONCAT NULL değerleri zaten atlar) ve
+// tekrarları (ör. bir ofis + o ofisin bir mimarı aynı projede iki ayrı project_designers satırıysa)
+// içerebilir — SQLite GROUP_CONCAT(DISTINCT ..., özel ayraç) birlikte desteklemediğinden
+// ("DISTINCT aggregates must have exactly one argument", yerel D1'de doğrulandı) tekilleştirme
+// burada JS tarafında yapılır; index.html'deki eski `if(!officeNames.includes(d))` mantığıyla
+// BİREBİR aynı sırayı korur.
+function officeNamesFrom(concat) {
+  if (!concat) return [];
+  const seen = new Set();
+  const out = [];
+  for (const name of concat.split(DESIGNER_SEP)) {
+    if (name && !seen.has(name)) { seen.add(name); out.push(name); }
+  }
+  return out;
 }
 
 function shapeProjectItem(row) {
@@ -36,6 +62,7 @@ function shapeProjectItem(row) {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
     location: p.location, locationDetail: p.location_detail, date: p.project_date, dateBucket: p.date_bucket,
     period: p.period, designer: designerNamesFrom(row.designer_names),
+    officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
     description: p.description, images: p.images,
   };
@@ -152,7 +179,7 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
 
   return cachedPublicJson(request, env, url.pathname, async () => {
     const row = await env.DB.prepare(
-      `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
+      `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
        FROM projects p ${DESIGNER_JOIN_SQL}
        WHERE p.slug = ? AND p.deleted_at IS NULL GROUP BY p.id`
     ).bind(slug).first();
@@ -218,7 +245,7 @@ export async function fetchActiveProjectPool(env) {
   // eklenen ilk sırada") birebir aynı; facet sayaçları (bu havuzun diğer tüketicisi,
   // handleProjectFiltersRoute/recomputeProjectFacets) sıradan bağımsız olduğundan etkilenmez.
   const { results } = await env.DB.prepare(
-    `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
+    `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id ORDER BY p.id DESC`
   ).all();
@@ -296,7 +323,7 @@ export async function handleProjectFiltersRoute(request, env, url) {
 
     const [projectsRes, ratingRows] = await Promise.all([
       env.DB.prepare(
-        `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
+        `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
          FROM projects p ${DESIGNER_JOIN_SQL}
          WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id`
       ).all(),

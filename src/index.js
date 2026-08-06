@@ -18,6 +18,7 @@ import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
 import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
+import { handleCspReportRoute } from './routes/cspReport.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
 import { slugify } from './lib/slugify.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
@@ -40,7 +41,11 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // İLE üst seviye yönlendirme (top-level navigation) — CSP bunu kısıtlamaz, bu yüzden connect-src/
 // form-action'a ayrıca eklenmedi. Sitede hiçbir <iframe> yok (bkz. X-Frame-Options: DENY yorumu),
 // frame-src/object-src bu yüzden 'none'. BİLEREK sadece Report-Only: canlıda hiçbir kaynağı
-// bloklamaz, yalnızca ihlalleri tarayıcı konsoluna loglar — enforce moduna geçiş ayrı bir karar.
+// bloklamaz, yalnızca ihlalleri loglar — enforce moduna geçiş ayrı bir karar.
+// report-to — ihlaller artık yalnızca o anki sekmenin DevTools konsoluna değil, aşağıdaki
+// Reporting-Endpoints header'ının gösterdiği POST /api/csp-report'a da gönderilir (bkz.
+// src/routes/cspReport.js) — "0 ihlal" iddiası artık wrangler tail/console.log ile gerçekten
+// doğrulanabilir (gerçek bulgu: önceden hiçbir toplama mekanizması yoktu, bkz. kullanıcı isteği).
 const CONTENT_SECURITY_POLICY_REPORT_ONLY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
@@ -52,7 +57,12 @@ const CONTENT_SECURITY_POLICY_REPORT_ONLY = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  "report-to csp-endpoint",
 ].join('; ');
+
+// Reporting API (bkz. yukarıdaki report-to yorumu) — "csp-endpoint" grup adı CSP direktifindeki
+// report-to değeriyle BİREBİR aynı olmalı, tarayıcı bu isim üzerinden eşleştirir.
+const REPORTING_ENDPOINTS_HEADER = 'csp-endpoint="https://mimarlab.com/api/csp-report"';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -61,6 +71,7 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   'Strict-Transport-Security': 'max-age=31536000',
   'Content-Security-Policy-Report-Only': CONTENT_SECURITY_POLICY_REPORT_ONLY,
+  'Reporting-Endpoints': REPORTING_ENDPOINTS_HEADER,
 };
 
 // Temiz URL yapısı: eski ?param= sorgu dizesi yerine yol tabanlı adresler (SEO ve paylaşılabilirlik
@@ -348,6 +359,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);
   if (path === '/api/uploads') return handleUploadRoute(request, env);
   if (path === '/api/contact') return handleContactRoute(request, env, url);
+  if (path === '/api/csp-report') return handleCspReportRoute(request);
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);
   if (path === '/api/public/badges') return handlePublicBadges(env);
   if (path.startsWith('/api/public/')) return handlePublicRoute(request, env, url);

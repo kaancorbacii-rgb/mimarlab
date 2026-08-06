@@ -3,9 +3,19 @@
 MVP'den 50.000–500.000 içerik ölçeğine geçiş için hazırlanan, mevcut kod tabanına (Cloudflare
 Workers + D1 + statik veri dosyaları) dayanan fazlı refactoring planı. Faz 1 uygulanmıştır (bkz.
 `src/routes/architect.js`, `office.js`, `project.js`, `product.js`). Faz 2 **daraltılmış kapsamla**
-uygulanmıştır (bkz. §4) — ID-first şema + migration altyapısı + frontend componentizasyonu kuruldu,
-ancak canonical tabloları gerçek okuma yoluna bağlamak (statik dosyaların/submissions'ın yerini
-alması) ve polimorfik claim/correction/revisions geçişi Faz 3'e bırakıldı. Faz 3 henüz uygulanmamıştır.
+uygulanmıştır (bkz. §4) — ID-first şema + migration altyapısı + frontend componentizasyonu kuruldu.
+Faz 3 de **büyük ölçüde uygulanmıştır** (bkz. §4, commit `ad998c2` "Faz 3: D1 read-path, facet
+counts KV ve canonical sync" + bu turdaki anasayfa geçişi): canonical tablolar artık gerçek okuma
+yolu — `architect.js`/`office.js`/`project.js`/`product.js` statik dosya/submission overlay yerine
+doğrudan D1'den okuyor, submission onay/düzenlemeleri `src/lib/canonicalSync.js` ile CANLI olarak
+canonical satırlara yazılıyor, `facet_counts` KV'de materyalize ediliyor, `legacy_content_hidden`
+architects/offices/projects/products/materials için `deleted_at`/`hidden_at` kolonlarıyla
+değiştirildi (yalnızca `news` — henüz kendi ID-first tablosu olmadığından — eski sistemde kaldı).
+**Kalan kapsam:** `data.js`/`projeler-data.js` anasayfada (`index.html`) kaldırıldı, ama `src/lib/
+seo.js` (SSR meta), `src/routes/submissions.js` (slug/isim çakışma kontrolü) ve birkaç istemci
+sayfası (`arama.html`, `hesabim.html`, `*-ekle.html` formları) hâlâ bu statik dosyaları okuyor —
+dosyaların TAMAMEN silinmesi ayrı, henüz planlanmamış bir adımdır. Polimorfik `claims`/`corrections`
+ve `revisions` tabloları da henüz uygulanmamıştır (bkz. §4.4).
 
 ## 1. Refactoring Yol Haritası
 
@@ -43,23 +53,38 @@ FK'si BU TURDA yok — fotoğrafçı bilgisi mevcut haliyle serbest metin fallba
    claim/correction kutusu → ortak `js/components/claim-correction-box.js`; `proje-detay.html` ile
    `urun-detay.html`'deki birebir aynı galeri/lightbox → ortak `js/components/gallery.js`.
 
-### Faz 3 — Okuma Yolunu Taşıma + Graph Derinliği + Canlı Facet Sayaçları + `data.js` Sonlandırma (planlandı, uygulanmadı)
+### Faz 3 — Okuma Yolunu Taşıma + Graph Derinliği + Canlı Facet Sayaçları + `data.js` Sonlandırma (büyük ölçüde uygulandı)
 
-1. Faz 2'de eklenen canonical tabloları gerçek okuma yoluna bağla: `src/routes/architect.js`/
-   `office.js`/`project.js`/`product.js`, statik dosya + submission overlay yerine `architects`/
-   `offices`/`projects`/`products`'tan okumaya geçer (bugün bu tablolar `scripts/migrate-to-id-first.js`
-   ile doldurulabilir durumda ama hiçbir okuma yolu onlara bağlı değil — bkz. §4).
-   Bu geçişle birlikte onaylı `*_submissions` satırlarının (Faz 2'nin script'i tarafından işlenmeyen)
-   canonical tablolara ikinci bir migration geçişiyle aktarılması da gerekir.
+1. ✅ **Uygulandı** (commit `ad998c2`) — Faz 2'de eklenen canonical tablolar gerçek okuma yolu:
+   `src/routes/architect.js`/`office.js`/`project.js`/`product.js` artık statik dosya + submission
+   overlay okumuyor, doğrudan `architects`/`offices`/`projects`/`products`'tan okuyor (bkz. §4.1).
+   Onaylı `*_submissions` satırlarının canonical tablolara aktarımı da öngörüldüğü gibi İKİ parçalı
+   çözüldü: `scripts/merge-submissions-to-id-first.js` geçmiş onaylı gönderileri tek seferlik taşıdı,
+   `src/lib/canonicalSync.js` ise onay/düzenleme anında CANLI olarak canonical satırı günceller —
+   böylece okuma yolu tamamen canonical tablolara taşındıktan sonra da submission akışı kesintisiz çalışır.
    *(Not: `photographers` varlığı/`projects.photographer_id` — kullanıcı isteğiyle plandan tamamen
    çıkarıldı, bkz. Faz 2 notu; fotoğrafçı bilgisi kalıcı olarak `photo_credit_text` fallback'i olarak kalacak.)*
-2. `profile_claims`/`profile_corrections`'ı polimorfik `claims`/`corrections` tablolarıyla değiştir
-   (zaten `comments`/`ratings`/`legacy_content_hidden`'daki generic `target_type`+`target_id`
-   desenini genişletiyor); `revisions` tablosu — ilk aşamada admin edit + correction-approval
-   akışlarında yazılır.
-3. `facet_counts` tablosunu canlı tut — Cache API değil **KV** kullan (Workers Cache API purge'ü sadece yazan edge node'da çalışıyor, bkz. `src/lib/ssrCache.js`; sayaç gibi global-tutarlı veri için KV'nin global replikasyonu gerekli).
-4. `data.js`/`projeler-data.js`/`urunler-data.js`/`malzemeler-data.js`'i kaynak olmaktan çıkar, D1'den üretilen bir build-time export haline getir.
-5. `legacy_content_hidden`'ı canonical tablolardaki `deleted_at`/`hidden_at` kolonlarıyla değiştir.
+2. ❌ **Uygulanmadı** — `profile_claims`/`profile_corrections`'ı polimorfik `claims`/`corrections`
+   tablolarıyla değiştirme; `revisions` tablosu. Bkz. §4.4.
+3. ✅ **Uygulandı** (commit `ad998c2`) — `facet_counts` tablosu D1'de tutuluyor, `env.FACET_CACHE`
+   KV'de materyalize ediliyor (bkz. `src/lib/facetCounts.js`). Kapsam yalnızca `projects`/`products`
+   ile sınırlı — `architects`/`offices`'in facet modeli düz `list_type/facet_key/facet_value`
+   şemasına oturmadığından bilinçli olarak dışarıda bırakıldı.
+4. 🔶 **Kısmen uygulandı** — `data.js`/`projeler-data.js` `index.html` (anasayfa) üzerinden
+   kaldırıldı (bkz. §4.5, kullanıcı isteği): carousel artık `/api/projects?limit=N` + yeni
+   `officeNames` alanını kullanıyor. `urunler-data.js`/`malzemeler-data.js` bu kapsamın dışında.
+   **Hâlâ statik dosyaları okuyan yerler:** `src/lib/seo.js` (SSR meta/JSON-LD üretimi — D1 ile
+   birlikte fallback olarak), `src/routes/submissions.js` (yeni gönderi slug/isim çakışma kontrolü),
+   ve `arama.html`/`hesabim.html`/`mimar-ekle.html`/`firma-ekle.html`/`proje-ekle.html`/
+   `urun-ekle.html`/`uye-ol.html` (çoğu zaten `/api/*/search` canlı uçlarına geçmiş ama statik
+   diziye `typeof x !== 'undefined'` fallback'iyle hâlâ bağlı). Dosyaları TAMAMEN kaldırmak bu
+   tüketicilerin ayrı ayrı taşınmasını gerektirir — planlanmadı.
+5. ✅ **Uygulandı** (commit `ad998c2`) — `legacy_content_hidden`, architects/offices/projects/
+   products/materials için canonical tablolardaki `deleted_at`/`hidden_at` kolonlarıyla değiştirildi
+   (bkz. `migrations/0023_canonical_hidden_at.sql`). **İstisna:** `news` kendi ID-first tablosuna
+   hiç taşınmadığı için (statik `haberler-data.js`'in canonical karşılığı yok) `legacy_content_hidden`
+   yalnızca `content_type='news'` için kullanılmaya devam ediyor (bkz.
+   `migrations/0025_drop_legacy_content_hidden.sql`'daki gerekçe notu — tablo bilinçli olarak DÜŞÜRÜLMEDİ).
 
 ---
 
@@ -370,14 +395,83 @@ Faz 1 planlanan pseudocode'un aksine, kod tabanında zaten `import dataJs from '
   kutuları doğru render oldu (konsol hatası yok), proje detay sayfasında 21 görsellik galeri +
   lightbox ok/sayaç davranışı, ürün detay sayfasında tekil-görsel (`<=1`) placeholder davranışı test edildi.
 
-### 4.4 Bu turda uygulanmayanlar (Faz 3'e kalanlar)
+### 4.4 Bu turda uygulanmayanlar → Faz 3'te tamamlandı (bkz. §5)
 
-- Canonical tabloların gerçek okuma yoluna bağlanması — `src/routes/architect.js`/`office.js`/
-  `project.js`/`product.js` hâlâ statik dosya + submission overlay okuyor; yeni tablolar dolu ama
-  hiçbir API ucu onlardan okumuyor.
-- `profile_claims`/`profile_corrections` → polimorfik `claims`/`corrections`.
-- `revisions` tablosu.
-- Onaylı submission'ların canonical tablolara ikinci geçişle aktarımı (bkz. 4.1).
-- `product_architects`/`project_products` doldurma (submission'lardaki `architect`/`brands` serbest
-  metin alanları henüz işlenmedi — statik `urunler-data.js`/`malzemeler-data.js` kayıtlarında zaten
-  bu alanlar yok).
+*(Bu bölüm eskiden Faz 2 sonrası bekleyen işleri listeliyordu — canonical okuma yolu, submission
+ikinci geçişi ve `product_architects`/`project_products` doldurma dahil hepsi Faz 3'te
+tamamlandı, bkz. §5.1/§5.3. Yalnızca `profile_claims`/`profile_corrections` → polimorfik
+`claims`/`corrections` ve `revisions` tablosu hâlâ bekliyor, bkz. §5.4.)*
+
+## 5. Faz 3 Uygulaması — Gerçek Kod
+
+### 5.1 D1 okuma yolu + canlı submission senkronizasyonu
+
+- Commit `ad998c2` — `src/routes/architect.js`/`office.js`/`project.js`/`product.js` artık statik
+  `data.js`/`projeler-data.js`/`urunler-data.js`/`malzemeler-data.js` + submission overlay okumuyor;
+  doğrudan `architects`/`offices`/`projects`/`products` (+ `office_founders`/`project_designers`/
+  `product_architects`/`project_products` join tabloları) üzerinden `src/lib/canonicalRead.js#
+  parseCanonicalRow` ile okuyor.
+- `scripts/merge-submissions-to-id-first.js` — Faz 2'nin script'inin (yalnızca statik "taban" veriyi
+  taşıyordu) ikinci geçişi: geçmişte onaylanmış `*_submissions` satırlarını tek seferlik canonical
+  tablolara taşıdı.
+- `src/lib/canonicalSync.js` — bu ikisinin CANLI karşılığı: bir gönderi onaylandığında/onaylıyken
+  düzenlendiğinde (bkz. `src/routes/admin.js#handleSubmissionsAdmin`, `src/routes/submissions.js#
+  createSubmission/updateOwnSubmission`) canonical satır AYNI anda güncellenir — okuma yolu tamamen
+  canonical tablolara taşındığı için bu senkronizasyon olmadan onay ekranı "başarılı" derdi ama
+  siteye hiçbir şey yansımazdı. `product_architects`/`project_products` graph kenarları da (Faz 2'de
+  şema eklenmiş ama doldurulmamıştı) artık bu modül üzerinden canlı dolduruluyor.
+
+### 5.2 Facet sayaçları — D1 + KV
+
+- `migrations/0024_facet_counts.sql` + `src/lib/facetCounts.js` — `facet_counts` D1'de kalıcı
+  tutulur, `env.FACET_CACHE` KV'de önbelleklenir (Workers Cache API'nin aksine KV global replikasyon
+  sağlar). Kapsam bilinçli olarak yalnızca `projects`/`products` ile sınırlı (bkz. dosya başı yorumu)
+  — `architects`/`offices`'in facet modeli bu düz `list_type/facet_key/facet_value` şemasına
+  oturmuyor.
+
+### 5.3 `legacy_content_hidden` → canonical `deleted_at`/`hidden_at`
+
+- `migrations/0023_canonical_hidden_at.sql` — architects/offices/projects/products/materials kendi
+  `deleted_at`/`hidden_at` kolonlarını kazandı.
+- `migrations/0025_drop_legacy_content_hidden.sql` — **planlanan tam kaldırma UYGULANMADI**: uygulama
+  sırasında `news`'in (statik `haberler-data.js`) hiçbir zaman ID-first migration'a dahil edilmediği
+  ortaya çıktı, bu yüzden `legacy_content_hidden` tablosu KALDI ama yalnızca `content_type='news'`
+  için kullanılmaya devam ediyor. `news`'in kendi canonical tabloya geçişi ayrı, planlanmamış bir adım.
+
+### 5.4 Bu turda uygulanmayanlar (hâlâ bekliyor)
+
+- `profile_claims`/`profile_corrections` → polimorfik `claims`/`corrections` (bkz. §2b).
+- `revisions` tablosu (bkz. §2b).
+- `news`'in kendi ID-first canonical tablosuna taşınması (bkz. §5.3).
+- `data.js`/`projeler-data.js`'in TÜM tüketicilerden kaldırılması — yalnızca `index.html` (bkz.
+  §5.5) taşındı; `src/lib/seo.js`, `src/routes/submissions.js`, `arama.html`, `hesabim.html`,
+  `mimar-ekle.html`, `firma-ekle.html`, `proje-ekle.html`, `urun-ekle.html`, `uye-ol.html` hâlâ
+  statik dosyaları okuyor — dosyaları fiziksel olarak silmek bu tüketicilerin ayrı ayrı taşınmasını
+  gerektirir.
+
+### 5.5 Anasayfa (`index.html`) D1 geçişi (kullanıcı isteği)
+
+- **API sözleşmesi genişletmesi (additive, geriye dönük uyumlu):** `src/routes/project.js` — mevcut
+  `designer` alanı DEĞİŞTİRİLMEDEN, `DESIGNER_JOIN_SQL`'e `architects.office_id → offices` LEFT
+  JOIN'i eklendi, üç sorguya (`handleProjectDetailRoute`, `fetchActiveProjectPool`,
+  `handleProjectFiltersRoute`) `office_names` GROUP_CONCAT sütunu ve `shapeProjectItem()`'a
+  `officeNames: string[]` alanı eklendi (SQLite `GROUP_CONCAT(DISTINCT ..., ayraç)` bir arada
+  desteklenmediğinden tekilleştirme JS tarafında yapılıyor). `GET /api/projects` zaten var olan,
+  proje.html'in de kullandığı uçtur — yeni bir endpoint AÇILMADI.
+- **`index.html` carousel migrasyonu:** eskiden istemci tarafında statik `projeler-data.js`'in 571
+  kayıtlık anlık görüntüsünü üye gönderileriyle serpiştiren (`latestPublishedProjectOrder`/
+  `RECENT_WINDOW_MS`) algoritma kaldırıldı — `/api/projects?limit=24` zaten `id DESC` sıralı,
+  statik+submission birleşik, gizli/silinmiş satırları filtrelenmiş TEK bir havuz döndürdüğü için
+  gerek kalmadı. Görselsiz kayıtlara (ör. test/taslak satırlar) karşı tampon olarak 24 kayıt çekilip
+  görseli olan ilk 6'sı gösteriliyor (eski `projectsWithImages.slice(0,6)` davranışının karşılığı).
+  Slayt altyazısındaki ofis adı artık `p.officeNames`'ten geliyor (data.js `offices[]`/`architects[]`
+  üzerinde istemci tarafında yapılan eski eşleştirmenin sunucu tarafı karşılığı).
+  `data.js`/`projeler-data.js` `<script>` etiketleri `index.html`'den kaldırıldı — dosyaların
+  kendisi silinmedi (bkz. §5.4'teki diğer tüketiciler).
+- **Hata/fallback:** `/api/projects` başarısız olursa (ağ hatası/5xx) mini-carousel'lerdeki
+  (`createMiniSlider#renderError`) AYNI `.slider-fallback` deseni ana carousel'e de uygulandı
+  (`renderSliderError()`) — artık statik yedek katalog olmadığından bu, boş bir slider yerine geçen
+  tek güvenlik ağı.
+- Yerel `wrangler dev`'de doğrulandı: 0 konsol hatası, `/api/projects` yanıtında `officeNames`
+  eksiksiz, carousel 6 öğe + doğru sırayla (görselsiz en yeni test satırı doğru filtrelendi),
+  fallback path'i (`renderSliderError` doğrudan çağrılarak) DOM'da doğru render edildiği doğrulandı.
