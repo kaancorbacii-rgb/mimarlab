@@ -151,7 +151,7 @@ export default {
     } else if (url.pathname.startsWith('/media/')) {
       response = await handleMediaRoute(request, env, url);
     } else if (url.pathname === '/sitemap.xml') {
-      response = await handleSitemapRoute(request, ctx);
+      response = await handleSitemapRoute(request, env, ctx);
     } else {
       response = await routeAsset(request, env, url, ctx);
     }
@@ -274,19 +274,47 @@ function injectMeta(response, meta) {
     .transform(response);
 }
 
-async function handleSitemapRoute(request, ctx) {
+async function handleSitemapRoute(request, env, ctx) {
   const cached = await cacheMatch(request);
   if (cached) return cached;
 
+  // listEntityUrls() yalnızca statik data.js/projeler-data.js/haberler-data.js dizilerini okur —
+  // Faz 3 migrasyonundan sonra yalnızca canonical D1'de yaşayan (admin panelinden eklenmiş) mimar/
+  // ofis/proje/ürün kayıtları bu dizilerde HİÇ görünmez, dolayısıyla sitemap'te de eksik kalırdı
+  // (bkz. kullanıcı isteği: "sitemap.xml ... eksiksiz servis edildiğinden emin ol" — gerçek bulgu).
+  // İki kaynak da bir Set üzerinden birleştirilip aynı slug için TEKİL bir <url> üretilir.
+  const entityUrls = new Set([...listEntityUrls(), ...await listCanonicalEntityUrls(env)]);
   const urls = [
     ...SITEMAP_STATIC_PAGES.map(p => `  <url>\n    <loc>${SITE_ORIGIN}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`),
-    ...listEntityUrls().map(loc => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <changefreq>monthly</changefreq>\n  </url>`),
+    ...[...entityUrls].map(loc => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <changefreq>monthly</changefreq>\n  </url>`),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
   const response = new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', ...SITEMAP_CACHE_HEADERS } });
 
   if (ctx) ctx.waitUntil(cachePut(request, response.clone()));
   return response;
+}
+
+// listEntityUrls (yalnızca statik diziler) ile birleştirilen canonical D1 kaynağı — architects/
+// offices/projects/products tablolarının TAMAMI (statik + admin panelinden eklenenler) buradan
+// gelir. products, listEntityUrls()'te hiç yoktu (ürün/malzeme detay sayfaları sitemap'te hiç
+// listelenmiyordu) — buildMeta('product', ...) SSR meta'sı zaten destekliyor (bkz. src/lib/seo.js#
+// buildProductMeta), yalnızca sitemap'e eklenmemişti.
+async function listCanonicalEntityUrls(env) {
+  if (!env || !env.DB) return [];
+  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
+  const [archRes, officeRes, projRes, prodRes] = await Promise.all([
+    env.DB.prepare(`SELECT slug FROM architects WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug FROM offices WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug FROM projects WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug FROM products WHERE ${where}`).all(),
+  ]);
+  return [
+    ...archRes.results.map(r => `/mimar/${encodeURIComponent(r.slug)}`),
+    ...officeRes.results.map(r => `/firma/${encodeURIComponent(r.slug)}`),
+    ...projRes.results.map(r => `/projeler/${encodeURIComponent(r.slug)}`),
+    ...prodRes.results.map(r => `/urun/${encodeURIComponent(r.slug)}`),
+  ];
 }
 
 async function routeApi(request, env, url) {

@@ -120,7 +120,18 @@ const OfficeModal = (function () {
            modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/bilgi
            kaynağı kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
         #claim-info-card, #correction-info-card{order:99;}
+        /* :first-child kuralı masaüstünde sağ panelin İLK bölümü olduğu için gerekliydi (üstte
+           gereksiz çizgi olmasın) — ama mobilde birleşik akışta "Kurucular / Ortaklar" artık görsel
+           olarak ilk değil, hemen üstünde kimlik/künye bölümünün hr.detail-info-divider'ı var (bkz.
+           kullanıcı isteği: "Projeler" başlığıyla BİREBİR aynı boşluk). :first-child sıfırlamasını
+           burada geri alıp diğer .related-section'larla eşit boşluk/çizgiye döndürür. */
+        .related-section:first-child{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+        /* Önceki/Sonraki butonlarından hemen sonra, claim/bilgi kaynağı kutularından ÖNCE bir ayırıcı
+           (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
+           çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
+        .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
       }
+      .prevnext-mobile-divider{display:none;}
     `;
     document.head.appendChild(style);
   }
@@ -169,7 +180,8 @@ const OfficeModal = (function () {
       <h2 class="related-title">Malzemeler</h2>
       <div class="related-grid-scroll" id="om-related-materials-grid"></div>
     </div>
-    <div class="prevnext" id="om-prevnext"></div>`;
+    <div class="prevnext" id="om-prevnext"></div>
+    <hr class="prevnext-mobile-divider">`;
 
   let mountedOnce = false;
   let currentSlug = null;

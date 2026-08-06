@@ -122,7 +122,18 @@ const ArchitectModal = (function () {
            modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/bilgi
            kaynağı kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
         #claim-info-card, #correction-info-card{order:99;}
+        /* :first-child kuralı masaüstünde sağ panelin İLK bölümü olduğu için gerekliydi (üstte
+           gereksiz çizgi olmasın) — ama mobilde birleşik akışta "Firmalar" artık görsel olarak ilk
+           değil, hemen üstünde kimlik/künye bölümünün hr.detail-info-divider'ı var (bkz. kullanıcı
+           isteği: "Projeler" başlığıyla BİREBİR aynı boşluk). :first-child sıfırlamasını burada geri
+           alıp diğer .related-section'larla eşit boşluk/çizgiye döndürür. */
+        .related-section:first-child{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+        /* Önceki/Sonraki butonlarından hemen sonra, claim/bilgi kaynağı kutularından ÖNCE bir ayırıcı
+           (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
+           çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
+        .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
       }
+      .prevnext-mobile-divider{display:none;}
     `;
     document.head.appendChild(style);
   }
@@ -172,7 +183,8 @@ const ArchitectModal = (function () {
       <h2 class="related-title">Ürünler</h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
     </div>
-    <div class="prevnext" id="am-prevnext"></div>`;
+    <div class="prevnext" id="am-prevnext"></div>
+    <hr class="prevnext-mobile-divider">`;
 
   let mountedOnce = false;
   let currentSlug = null;
@@ -256,7 +268,14 @@ const ArchitectModal = (function () {
     setIf('twitter-image', 'content', image);
   }
 
-  function renderStructuredData(a, office) {
+  // displayOffice: office_id ile bağlı TEK firma (office) boşsa, buildArchitectPayload'ın döndürdüğü
+  // TÜM firmalar listesine (offices — office_founders ters join'i + eşleşmeyen serbest metin firma adı,
+  // bkz. src/routes/architect.js#buildArchitectPayload) düşer (bkz. gerçek bulgu: Şefik Birkiye gibi
+  // office_id'si boş ama office_founders'a bağlı ya da yalnızca serbest metinde firma adı geçen
+  // mimarlarda unvan yanında hiç firma adı görünmüyordu — kullanıcı isteği). offices[] zaten önce
+  // gerçek (kayıtlı) firmaları, "unregistered" serbest-metin adını EN SONA koyar, bu yüzden offices[0]
+  // her zaman en iyi adaydır.
+  function renderStructuredData(a, displayOffice) {
     let tag = document.getElementById('am-ld-json');
     if (!tag) {
       tag = document.createElement('script');
@@ -268,7 +287,12 @@ const ArchitectModal = (function () {
     if (a.role) data.jobTitle = a.role;
     if (a.photo) { try { data.image = new URL(a.photo, window.location.href).href; } catch {} }
     if (a.school) data.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
-    if (office) data.worksFor = { '@type': 'Organization', name: office.name, url: new URL('/firma/' + encodeURIComponent(slugify(office.name)), window.location.href).href };
+    if (displayOffice) {
+      data.worksFor = { '@type': 'Organization', name: displayOffice.name };
+      // Yalnızca gerçekten kayıtlı (linkli /firma/:slug sayfası olan) bir firma için url ekle —
+      // "unregistered" serbest-metin adının kendi sayfası yok, JSON-LD'ye kırık bir URL koymamak için.
+      if (!displayOffice.unregistered) data.worksFor.url = new URL('/firma/' + encodeURIComponent(slugify(displayOffice.name)), window.location.href).href;
+    }
     tag.textContent = JSON.stringify(data);
   }
 
@@ -276,15 +300,16 @@ const ArchitectModal = (function () {
     const a = payload.item;
     const office = payload.office;
     const offices = payload.offices || (office ? [office] : []);
+    const displayOffice = office || offices[0] || null;
     const colleagues = payload.colleagues || [];
     const relatedProjectsData = payload.relatedProjects || [];
     currentItem = a;
 
-    updateHeadMeta(a, office);
+    updateHeadMeta(a, displayOffice);
     document.getElementById('am-name-text').textContent = a.name;
-    document.getElementById('am-category').innerHTML = `<strong>${escapeHtml([a.role, office ? office.name : null].filter(Boolean).join(' · '))}</strong>`;
-    const aboutText = a.about || (office
-      ? `${a.name}, ${office.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
+    document.getElementById('am-category').innerHTML = `<strong>${escapeHtml([a.role, displayOffice ? displayOffice.name : null].filter(Boolean).join(' · '))}</strong>`;
+    const aboutText = a.about || (displayOffice
+      ? `${a.name}, ${displayOffice.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
       : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`));
     renderTruncatedDesc('am-about', aboutText);
 
@@ -323,7 +348,7 @@ const ArchitectModal = (function () {
     actionsEl.prepend(saveBtn);
     saveBtn.dataset.key = slugify(a.name);
     saveBtn.dataset.title = a.name;
-    saveBtn.dataset.meta = office ? office.name : (a.role || '');
+    saveBtn.dataset.meta = displayOffice ? displayOffice.name : (a.role || '');
     saveBtn.dataset.image = a.photo || '';
     saveBtn.dataset.href = `/mimar/${encodeURIComponent(slugify(a.name))}`;
     wireSaveButtons('architect');
@@ -336,7 +361,7 @@ const ArchitectModal = (function () {
       ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
     }
 
-    renderStructuredData(a, office);
+    renderStructuredData(a, displayOffice);
     renderPrevNext(payload);
 
     const officeSectionEl = document.getElementById('am-office-section');

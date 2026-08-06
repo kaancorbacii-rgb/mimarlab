@@ -20,6 +20,13 @@
 <meta name="twitter:title" content="Mimarlar — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
+     sayfalarının <head>'ine ... application/ld+json ekle") — /mimar/:slug detay görünümünde
+     ArchitectModal (bkz. js/components/architect-modal.js#renderStructuredData) kendi Person
+     şemasını AYRI bir <script id="am-ld-json"> olarak ekler, bu ikisiyle çakışmaz. -->
+<script type="application/ld+json" id="list-jsonld">
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Mimarlar — MİMARLAB","url":"https://mimarlab.com/mimar","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+</script>
 <!-- Temiz URL'lerle bu sayfa /mimar dışında /mimar/:slug altında da (mimar modalını doğrudan açan
      bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç
      içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI

@@ -63,6 +63,23 @@ function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
 }
 
+// trLower zaten BÜYÜK->küçük Türkçe eşlemesini doğru yapıyor (İ/I/Ş/Ğ/Ü/Ö/Ç) — foldTr onun üstüne
+// Türkçe harflerin ASCII benzerlerine de indirger (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) ki kullanıcı Türkçe
+// karakter olmadan yazsa da ("sirket") ya da tam tersi eşleşsin (bkz. kullanıcı isteği: "Türkçe
+// karakter toleransı"). Sorgu VE hedef metin AYNI foldTr'den geçirilerek tutarlı karşılaştırılır.
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+}
+
+// Sorgu kelimelere bölünür, hedef metin HER kelimeyi (bitişik olmasına gerek kalmadan, herhangi bir
+// sırada) içeriyorsa eşleşme sayılır (bkz. kullanıcı isteği: "kelime parçalamalı esnek arama") — ör.
+// "sefik mimarlik" sorgusu aralarında başka kelime geçse de "Şefik Birkiye Mimarlık" başlığıyla eşleşir.
+function fuzzyMatch(text, queryWords) {
+  if (!queryWords.length) return false;
+  const folded = foldTr(text || '');
+  return queryWords.every(w => folded.includes(w));
+}
+
 // /api/admin/legacy?type=<tip>&q=<arama>  (GET: kayıtlarda başlık/isim araması)
 // /api/admin/legacy/hidden  (PATCH: {type, key, hidden} — gizle/tekrar göster)
 // requireAdmin kontrolü çağıran (src/routes/admin.js#handleAdminRoute) tarafından zaten yapıldı.
@@ -180,33 +197,43 @@ const SEARCH_SUGGEST_PER_GROUP = 3;
 const SEARCH_SUGGEST_TOTAL = 8;
 
 export async function handlePublicSearchSuggest(request, env, url) {
-  const q = trLower((url.searchParams.get('q') || '').trim());
-  if (!q) return json({ items: [], total: 0 });
+  const rawQ = (url.searchParams.get('q') || '').trim();
+  if (!rawQ) return json({ items: [], total: 0 });
+  const queryWords = foldTr(rawQ).split(/\s+/).filter(Boolean);
 
   return cachedPublicJson(request, env, url.pathname, async () => {
-    const like = `%${q}%`;
+    // SQL LIKE Türkçe diakritik foldlamasını (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) bilmediğinden ve
+    // kelime-parçalamalı eşleşme (bkz. fuzzyMatch) tek bir LIKE deseniyle ifade edilemediğinden,
+    // her tablo TAMAMEN çekilip fuzzyMatch ile JS tarafında filtrelenir — tablolar küçük olduğundan
+    // (mimar/ofis/proje ~600-800, ürün ~80 satır, bkz. src/routes/architect.js#handleArchitectSearchRoute
+    // ile AYNI "tablo küçük, tam tarama ucuz" gerekçesi) bu tam tarama ucuzdur.
     const [archRes, officeRes, projRes, prodRes, newsHiddenRes] = await Promise.all([
-      env.DB.prepare(`SELECT name, office_id FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL AND name LIKE ? LIMIT 20`).bind(like).all(),
-      env.DB.prepare(`SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL AND name LIKE ? LIMIT 20`).bind(like).all(),
-      env.DB.prepare(`SELECT slug, title, location, project_date FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL AND (title LIKE ? OR location LIKE ?) LIMIT 20`).bind(like, like).all(),
-      env.DB.prepare(`SELECT title, category, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND (title LIKE ? OR category LIKE ? OR brand_name_raw LIKE ?) LIMIT 20`).bind(like, like, like).all(),
+      env.DB.prepare(`SELECT name, office_id FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT slug, title, location, project_date FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT slug, title, category, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
       env.DB.prepare(`SELECT content_key FROM legacy_content_hidden WHERE content_type = 'news'`).all(),
     ]);
 
     const hiddenNews = new Set(newsHiddenRes.results.map(r => r.content_key));
+    const archMatches = archRes.results.filter(a => fuzzyMatch(a.name, queryWords)).slice(0, 20);
+    const officeMatches = officeRes.results.filter(o => fuzzyMatch(o.name, queryWords)).slice(0, 20);
+    const projMatches = projRes.results.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords)).slice(0, 20);
+    const prodMatches = prodRes.results.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand_name_raw, queryWords)).slice(0, 20);
+
     const officeNameById = new Map();
-    const officeIds = archRes.results.map(r => r.office_id).filter(Boolean);
+    const officeIds = archMatches.map(r => r.office_id).filter(Boolean);
     if (officeIds.length) {
       const { results } = await env.DB.prepare(`SELECT id, name FROM offices WHERE id IN (${officeIds.map(() => '?').join(', ')})`).bind(...officeIds).all();
       results.forEach(o => officeNameById.set(o.id, o.name));
     }
 
     const groups = [
-      { label: 'Mimar', items: archRes.results.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}` })) },
-      { label: 'Firma', items: officeRes.results.map(o => ({ title: o.name, meta: o.loc || '', href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}` })) },
-      { label: 'Proje', items: projRes.results.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/projeler/${encodeURIComponent(p.slug)}` })) },
-      { label: 'Ürün', items: prodRes.results.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: 'urun.html' })) },
-      { label: 'Haber', items: newsItems.filter(n => !hiddenNews.has(n.id) && (trLower(n.title).includes(q) || trLower(n.category || '').includes(q))).map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })) },
+      { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/mimar/${encodeURIComponent(slugify(a.name))}` })) },
+      { label: 'Firma', items: officeMatches.map(o => ({ title: o.name, meta: o.loc || '', href: `/firma/${encodeURIComponent(slugify(o.name))}` })) },
+      { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/projeler/${encodeURIComponent(p.slug)}` })) },
+      { label: 'Ürün', items: prodMatches.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}` })) },
+      { label: 'Haber', items: newsItems.filter(n => !hiddenNews.has(n.id) && (fuzzyMatch(n.title, queryWords) || fuzzyMatch(n.category, queryWords))).map(n => ({ title: n.title, meta: n.category || '', href: 'haber.html' })) },
     ];
 
     const items = [];

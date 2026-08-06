@@ -254,6 +254,23 @@ function trLower(s){
     .toLowerCase();
 }
 
+// trLower'ın üstüne Türkçe harfleri ASCII benzerlerine de indirger (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) —
+// kullanıcı Türkçe karakter olmadan yazsa da ("sirket") ya da tam tersi eşleşsin (bkz. kullanıcı
+// isteği: "Türkçe karakter toleransı"), src/routes/legacyContent.js#foldTr ile AYNI mantık, istemci
+// tarafında (statik data.js/projeler-data.js üzerinde) tekrarlanır.
+function foldTr(s){
+  return trLower(s).replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o');
+}
+
+// Sorgu kelimelere bölünür, hedef metin HER kelimeyi (bitişik olmasına gerek kalmadan) içeriyorsa
+// eşleşme sayılır (bkz. kullanıcı isteği: "kelime parçalamalı esnek arama") — src/routes/
+// legacyContent.js#fuzzyMatch ile AYNI mantık.
+function fuzzyMatch(text, queryWords){
+  if(!queryWords.length) return false;
+  const folded = foldTr(text||'');
+  return queryWords.every(w => folded.includes(w));
+}
+
 const MAX_PER_GROUP = 20;
 
 // Admin'in admin panelinden gizlediği statik kayıtlar (bkz. src/routes/legacyContent.js, GET
@@ -322,12 +339,12 @@ function runSearch(){
   titleEl.textContent = `"${query}" için sonuçlar`;
   const queryHtml = escapeHtml(query);
 
-  const q = trLower(query);
-  const mimarResults = architects.filter(a => !isHiddenLegacy('architects', a.name) && (trLower(a.name).includes(q) || (a.office && trLower(a.office).includes(q))));
-  const markaResults = offices.filter(o => !isHiddenLegacy('offices', o.name) && (trLower(o.name).includes(q) || trLower(o.loc||'').includes(q)));
-  const projeResults = projects.filter(p => !isHiddenLegacy('projects', p.slug) && (trLower(p.title).includes(q) || trLower(p.location||'').includes(q) || (p.designer||[]).some(d=>trLower(d).includes(q))));
-  const urunResults = products.filter(p => !isHiddenLegacy('products', `${p.brand||''}|||${p.title}`) && (trLower(p.title).includes(q) || trLower(p.category||'').includes(q) || trLower(p.brand||'').includes(q)));
-  const haberResults = newsItems.filter(n => !isHiddenLegacy('news', n.id) && (trLower(n.title).includes(q) || trLower(n.category||'').includes(q)));
+  const queryWords = foldTr(query).split(/\s+/).filter(Boolean);
+  const mimarResults = architects.filter(a => !isHiddenLegacy('architects', a.name) && (fuzzyMatch(a.name, queryWords) || fuzzyMatch(a.office, queryWords)));
+  const markaResults = offices.filter(o => !isHiddenLegacy('offices', o.name) && (fuzzyMatch(o.name, queryWords) || fuzzyMatch(o.loc, queryWords)));
+  const projeResults = projects.filter(p => !isHiddenLegacy('projects', p.slug) && (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords) || (p.designer||[]).some(d=>fuzzyMatch(d, queryWords))));
+  const urunResults = products.filter(p => !isHiddenLegacy('products', `${p.brand||''}|||${p.title}`) && (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand, queryWords)));
+  const haberResults = newsItems.filter(n => !isHiddenLegacy('news', n.id) && (fuzzyMatch(n.title, queryWords) || fuzzyMatch(n.category, queryWords)));
 
   const total = mimarResults.length + markaResults.length + projeResults.length + urunResults.length + haberResults.length;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';

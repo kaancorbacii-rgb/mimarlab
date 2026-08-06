@@ -20,6 +20,13 @@
 <meta name="twitter:title" content="Projeler — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
+     sayfalarının <head>'ine ... application/ld+json ekle") — /projeler/:slug detay görünümü
+     src/index.js#injectMeta ile SSR'da AYRI CreativeWork + BreadcrumbList şeması ekler, bu ikisiyle
+     çakışmaz. -->
+<script type="application/ld+json" id="list-jsonld">
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Projeler — MİMARLAB","url":"https://mimarlab.com/proje","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+</script>
 <!-- Temiz URL'lerle bu sayfa /proje dışında /projeler/:slug altında da (proje modalını doğrudan
      açan bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları
      o iç içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, eski

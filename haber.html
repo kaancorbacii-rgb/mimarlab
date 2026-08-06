@@ -20,6 +20,13 @@
 <meta name="twitter:title" content="Haberler — MİMARLAB">
 <meta name="twitter:description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png">
+<!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
+     sayfalarının <head>'ine ... application/ld+json ekle") — haber-detay.html kendi NewsArticle +
+     BreadcrumbList şemasını SSR'da AYRI olarak alır (bkz. src/lib/seo.js#buildNewsMeta), bu ikisiyle
+     çakışmaz. -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Haberler — MİMARLAB","url":"https://mimarlab.com/haber","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
