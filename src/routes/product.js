@@ -27,6 +27,22 @@ function shapeProductItem(row) {
   };
 }
 
+// Önceki/Sonraki Ürün — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen. kind
+// (product/material) sınırı GÖZETİLMEZ — id sırası tüm `products` tablosu üzerinden dairesel/sıralı.
+async function fetchAdjacentProduct(env, id) {
+  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
+  let prev = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+  if (prev && prev.id === id) prev = null;
+  if (next && next.id === id) next = null;
+  return {
+    prevItem: prev ? { slug: prev.slug, title: prev.title } : null,
+    nextItem: next ? { slug: next.slug, title: next.title } : null,
+  };
+}
+
 // GET /api/product/:key — js/components/product-modal.js#fetchItem bu uca bağlanır (proje.html'in
 // ProjectModal'ı proje-detay.html'i tamamen ikame ettiği desenin ürün karşılığı, bkz. plan dosyası).
 // `key`, ya doğrudan canonical `slug` (statik kayıtlarda "<başlık-marka>-<id>", üye
@@ -47,7 +63,11 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
       if (match) row = await env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
     }
     if (!row) return { item: null, hidden: false };
-    return { item: shapeProductItem(row), hidden: !!row.hidden_at };
+    const item = shapeProductItem(row);
+    const adjacent = await fetchAdjacentProduct(env, row.id);
+    item.prevItem = adjacent.prevItem;
+    item.nextItem = adjacent.nextItem;
+    return { item, hidden: !!row.hidden_at };
   });
 }
 

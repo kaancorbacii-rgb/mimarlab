@@ -173,6 +173,23 @@ async function fetchRawOfficeName(env, a) {
   return (row && row.office) ? row.office.trim() : '';
 }
 
+// Önceki/Sonraki Mimar — bkz. src/routes/project.js#fetchAdjacentProject'teki AYNI dairesel/sıralı
+// id-tabanlı desen (kullanıcı isteği: proje.html'deki gezinme yapısının birebir aynısı mimar/firma/
+// ürün pop-up'larına da eklensin).
+async function fetchAdjacentArchitect(env, id) {
+  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
+  let prev = await env.DB.prepare(`SELECT id, slug, name FROM architects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, name FROM architects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, name FROM architects WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, name FROM architects WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+  if (prev && prev.id === id) prev = null;
+  if (next && next.id === id) next = null;
+  return {
+    prevItem: prev ? { slug: prev.slug, title: prev.name } : null,
+    nextItem: next ? { slug: next.slug, title: next.name } : null,
+  };
+}
+
 async function buildArchitectPayload(env, key) {
   const row = await findArchitect(env, key);
   // bkz. gerçek bulgu: eski "eşleşme yoksa ilk kaydı döndür" fallback'i, silinmiş/eşleşmeyen bir key
@@ -231,6 +248,8 @@ async function buildArchitectPayload(env, key) {
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category };
   });
 
+  const adjacent = await fetchAdjacentArchitect(env, a.id);
+
   return {
     item: {
       name: a.name, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
@@ -244,6 +263,8 @@ async function buildArchitectPayload(env, key) {
     ],
     colleagues,
     relatedProjects,
+    prevItem: adjacent.prevItem,
+    nextItem: adjacent.nextItem,
     hidden: !!a.hidden_at,
   };
 }

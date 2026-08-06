@@ -177,6 +177,21 @@ async function fetchRawFounderNames(env, o) {
   try { return JSON.parse(row.founders) || []; } catch { return []; }
 }
 
+// Önceki/Sonraki Firma — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen.
+async function fetchAdjacentOffice(env, id) {
+  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
+  let prev = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+  if (prev && prev.id === id) prev = null;
+  if (next && next.id === id) next = null;
+  return {
+    prevItem: prev ? { slug: prev.slug, title: prev.name } : null,
+    nextItem: next ? { slug: next.slug, title: next.name } : null,
+  };
+}
+
 async function buildOfficePayload(env, key) {
   const row = await findOffice(env, key);
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
@@ -224,5 +239,7 @@ async function buildOfficePayload(env, key) {
   const isSubmissionMarker = typeof o.legacy_key === 'string' && o.legacy_key.startsWith('submission:');
   if (o.legacy_key && !isSubmissionMarker && o.legacy_key !== o.name) item._claimKey = o.legacy_key;
 
-  return { item, founders, relatedProjects, hidden: !!o.hidden_at };
+  const adjacent = await fetchAdjacentOffice(env, o.id);
+
+  return { item, founders, relatedProjects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
 }

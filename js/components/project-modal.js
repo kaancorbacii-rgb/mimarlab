@@ -72,7 +72,6 @@ const ProjectModal = (function () {
   let mountedOnce = false;
   let currentSlug = null;
   let currentItem = null;
-  let navList = null; // proje.html'in AÇILIŞ ANINDAKİ sayfasının kart listesi (bkz. §4, önceki/sonraki)
   let openedViaPush = false; // bu açılış gerçek bir tıklamadan mı geldi (history.back güvenli mi)
   let pushCountSinceOpen = 0; // open() + o zamandan beri yapılan swap() sayısı — kapatırken TÜMÜNÜ
   // tek seferde geri sarmak için (bkz. close(), history.go(-N)) — modal içinde birden fazla projeye
@@ -146,16 +145,15 @@ const ProjectModal = (function () {
     observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); }, 1200);
   }
 
+  // Önceki/Sonraki Proje — bkz. src/routes/project.js#fetchAdjacentProject: dairesel/sıralı
+  // gezinme artık sunucuda id sırasına göre hesaplanıp item.prevProject/nextProject olarak gelir,
+  // istemci hafızasındaki eski `navList` (yalnızca karttan tıklanarak açıldığında dolu olan, F5/
+  // doğrudan URL girişinde boş kalan) yöntemi yerine HER AÇILIŞTA eksiksiz çıkar (bkz. kullanıcı isteği).
   function renderPrevNext(item) {
     const el = document.getElementById('pm-prevnext');
-    if (!navList || !navList.length) { el.innerHTML = ''; return; }
-    const idx = navList.findIndex(p => p.slug === item.slug);
-    if (idx === -1) { el.innerHTML = ''; return; }
-    const prevP = idx > 0 ? navList[idx - 1] : null;
-    const nextP = idx < navList.length - 1 ? navList[idx + 1] : null;
     let html = '';
-    if (prevP) html += `<a class="prev" href="/projeler/${encodeURIComponent(prevP.slug)}" data-pm-slug="${escapeAttr(prevP.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(prevP.title)}</span></a>`;
-    if (nextP) html += `<a class="next" href="/projeler/${encodeURIComponent(nextP.slug)}" data-pm-slug="${escapeAttr(nextP.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(nextP.title)}</span></a>`;
+    if (item.prevProject) html += `<a class="prev" href="/projeler/${encodeURIComponent(item.prevProject.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></a>`;
+    if (item.nextProject) html += `<a class="next" href="/projeler/${encodeURIComponent(item.nextProject.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></a>`;
     el.innerHTML = html;
   }
 
@@ -228,8 +226,7 @@ const ProjectModal = (function () {
     });
   }
 
-  async function open(slug, { pushHistory = true, sourceListItems = null, triggerEl = null } = {}) {
-    if (sourceListItems) navList = sourceListItems;
+  async function open(slug, { pushHistory = true, triggerEl = null } = {}) {
     currentSlug = slug;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;

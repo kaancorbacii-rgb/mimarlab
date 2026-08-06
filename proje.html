@@ -523,7 +523,7 @@
   .prevnext a{flex:1; max-width:48%; padding:14px 18px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
   .prevnext a:hover{border-color:var(--walnut);}
   .prevnext a.next{text-align:right; margin-left:auto;}
-  .prevnext-label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+  .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
   .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
 
   /* Skeleton — ertelenmiş bölümler (yorumlar/diğer projeler/ilgili projeler/ürünler) veri gelene
@@ -701,12 +701,6 @@ const FILTER_GROUPS = [
   { key: 'designer', label: 'Mimar' },
   { key: 'designerOffice', label: 'Mimarlık Firması' },
 ];
-
-// Proje modalının önceki/sonraki proje gezinmesi için (bkz. js/components/project-modal.js §4) —
-// modal, bir karta tıklanarak açıldığında BU sayfanın o anki (filtrelenmiş/sıralanmış) sayfasının
-// içeriğinin bir anlık görüntüsünü alır; arka plandaki liste sonradan değişse bile (mümkün değil,
-// modal açıkken scroll/etkileşim kilitli) görüntülenen proje bağlamı sabit kalır.
-let currentPageItems = [];
 
 const activeFilters = {};
 FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
@@ -997,7 +991,6 @@ async function render(){
   if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
   empty.style.display = 'none';
 
-  currentPageItems = data.items;
   grid.innerHTML = data.items.map((p, i) => {
     const loc = parseLocation(p.location);
     const locLabel = loc.district ? `${loc.district}, ${loc.city}` : loc.city;
@@ -1058,7 +1051,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   if(!m) return;
   const slug = decodeURIComponent(m[1]);
   e.preventDefault();
-  ProjectModal.open(slug, { sourceListItems: currentPageItems, triggerEl: a });
+  ProjectModal.open(slug, { triggerEl: a });
 });
 
 // Tarayıcı geri/ileri tuşu: /projeler/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
@@ -1087,7 +1080,7 @@ render().then(()=>{
   // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir
   // geçmiş girdisi açılmaz (bkz. ProjectModal.open).
   const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
-  if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false, sourceListItems: currentPageItems });
+  if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
 });
 
 function wireNavSearch(){

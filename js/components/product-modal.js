@@ -148,6 +148,12 @@ const ProductModal = (function () {
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
+      .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+      .prevnext a{flex:1; max-width:48%; padding:14px 18px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+      .prevnext a:hover{border-color:var(--walnut);}
+      .prevnext a.next{text-align:right; margin-left:auto;}
+      .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+      .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
@@ -198,6 +204,7 @@ const ProductModal = (function () {
       <h2 class="related-title" id="pr-related-title">Benzer Ürünler</h2>
       <div class="related-grid-scroll" id="pr-related-grid"></div>
     </div>
+    <div class="prevnext" id="pr-prevnext"></div>
     <div class="lightbox" id="pr-lightbox">
       <button class="lightbox-close" id="pr-lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <button class="lightbox-nav lightbox-prev" id="pr-lightbox-prev" aria-label="Önceki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -250,6 +257,15 @@ const ProductModal = (function () {
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
+  }
+
+  // bkz. js/components/architect-modal.js#renderPrevNext — BİREBİR aynı desen, Ürün etiketleriyle.
+  function renderPrevNext(p) {
+    const el = document.getElementById('pr-prevnext');
+    let html = '';
+    if (p.prevItem) html += `<a class="prev" href="/urun/${encodeURIComponent(p.prevItem.slug)}"><span class="prevnext-label">← Önceki Ürün</span><span class="prevnext-title">${escapeHtml(p.prevItem.title)}</span></a>`;
+    if (p.nextItem) html += `<a class="next" href="/urun/${encodeURIComponent(p.nextItem.slug)}"><span class="prevnext-label">Sonraki Ürün →</span><span class="prevnext-title">${escapeHtml(p.nextItem.title)}</span></a>`;
+    el.innerHTML = html;
   }
 
   function kindPlural(p) { return p.kind === 'material' ? 'materials' : 'products'; }
@@ -370,6 +386,7 @@ const ProductModal = (function () {
     } else specsWrap.style.display = 'none';
 
     renderStructuredData(p);
+    renderPrevNext(p);
 
     const images = p.images || [];
     const favicon = (typeof catalogBrandFavicon === 'function') ? catalogBrandFavicon(p.brand) : null;
@@ -488,7 +505,7 @@ const ProductModal = (function () {
   function renderNotFound() {
     document.getElementById('pr-title').textContent = 'Ürün bulunamadı';
     ['pr-byline', 'pr-rating-save-row', 'pr-actions', 'pr-brand-section', 'pr-architect-section',
-      'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap'].forEach(id => {
+      'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });

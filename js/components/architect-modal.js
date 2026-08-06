@@ -82,6 +82,7 @@ const ArchitectModal = (function () {
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
       .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
       .detail-desc-more:hover{color:var(--ink);}
+      .detail-info-divider{border:none; border-top:1px solid var(--line-soft); margin:24px 0 0;}
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
       .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
@@ -108,6 +109,12 @@ const ArchitectModal = (function () {
         color:#fff; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
       }
       .unregistered-badge-name{font-size:13px; font-weight:600; color:var(--ink);}
+      .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+      .prevnext a{flex:1; max-width:48%; padding:14px 18px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+      .prevnext a:hover{border-color:var(--walnut);}
+      .prevnext a.next{text-align:right; margin-left:auto;}
+      .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+      .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
@@ -130,6 +137,7 @@ const ArchitectModal = (function () {
       <div class="detail-meta" id="am-category"></div>
       <div class="detail-meta" id="am-info-facts" style="display:none;"></div>
       <div class="detail-desc" id="am-about"></div>
+      <hr class="detail-info-divider">
     </div>
     <div class="info-card" id="claim-info-card">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
@@ -163,7 +171,8 @@ const ArchitectModal = (function () {
     <div class="related-section" id="am-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler</h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
-    </div>`;
+    </div>
+    <div class="prevnext" id="am-prevnext"></div>`;
 
   let mountedOnce = false;
   let currentSlug = null;
@@ -216,6 +225,16 @@ const ArchitectModal = (function () {
       <span class="unregistered-badge-avatar" style="background:${officeColor(name)}">${escapeHtml(initials(name))}</span>
       <span class="unregistered-badge-name">${escapeHtml(name)}</span>
     </span>`;
+  }
+
+  // Önceki/Sonraki Mimar — bkz. js/components/project-modal.js#renderPrevNext'teki AYNI desen,
+  // src/routes/architect.js#fetchAdjacentArchitect'in döndürdüğü dairesel/sıralı id komşuları.
+  function renderPrevNext(payload) {
+    const el = document.getElementById('am-prevnext');
+    let html = '';
+    if (payload.prevItem) html += `<a class="prev" href="/mimar/${encodeURIComponent(payload.prevItem.slug)}"><span class="prevnext-label">← Önceki Mimar</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></a>`;
+    if (payload.nextItem) html += `<a class="next" href="/mimar/${encodeURIComponent(payload.nextItem.slug)}"><span class="prevnext-label">Sonraki Mimar →</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></a>`;
+    el.innerHTML = html;
   }
 
   function updateHeadMeta(a, office) {
@@ -314,6 +333,7 @@ const ArchitectModal = (function () {
       .catch(() => {});
 
     renderStructuredData(a, office);
+    renderPrevNext(payload);
 
     const officeSectionEl = document.getElementById('am-office-section');
     officeSectionEl.style.display = offices.length ? '' : 'none';
@@ -380,7 +400,7 @@ const ArchitectModal = (function () {
   function renderNotFound() {
     document.getElementById('am-name-text').textContent = 'Mimar bulunamadı';
     ['am-actions', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
-      'am-related-products-section', 'am-detail-info'].forEach(id => {
+      'am-related-products-section', 'am-detail-info', 'am-prevnext'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });

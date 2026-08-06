@@ -80,6 +80,7 @@ const OfficeModal = (function () {
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
       .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
       .detail-desc-more:hover{color:var(--ink);}
+      .detail-info-divider{border:none; border-top:1px solid var(--line-soft); margin:24px 0 0;}
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
       .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
@@ -106,6 +107,12 @@ const OfficeModal = (function () {
         color:#fff; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
       }
       .unregistered-badge-name{font-size:13px; font-weight:600; color:var(--ink);}
+      .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+      .prevnext a{flex:1; max-width:48%; padding:14px 18px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+      .prevnext a:hover{border-color:var(--walnut);}
+      .prevnext a.next{text-align:right; margin-left:auto;}
+      .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+      .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
@@ -125,9 +132,9 @@ const OfficeModal = (function () {
     </div>
     <div class="detail-title-actions" id="om-actions"></div>
     <div class="detail-info" id="om-detail-info">
-      <div class="detail-meta" id="om-category"></div>
       <div class="detail-meta" id="om-info-facts" style="display:none;"></div>
       <div class="detail-desc" id="om-about"></div>
+      <hr class="detail-info-divider">
     </div>
     <div class="info-card" id="claim-info-card">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
@@ -161,7 +168,8 @@ const OfficeModal = (function () {
     <div class="related-section" id="om-related-materials-section" style="display:none;">
       <h2 class="related-title">Malzemeler</h2>
       <div class="related-grid-scroll" id="om-related-materials-grid"></div>
-    </div>`;
+    </div>
+    <div class="prevnext" id="om-prevnext"></div>`;
 
   let mountedOnce = false;
   let currentSlug = null;
@@ -220,6 +228,15 @@ const OfficeModal = (function () {
     return '';
   }
 
+  // bkz. js/components/architect-modal.js#renderPrevNext — BİREBİR aynı desen, Firma etiketleriyle.
+  function renderPrevNext(payload) {
+    const el = document.getElementById('om-prevnext');
+    let html = '';
+    if (payload.prevItem) html += `<a class="prev" href="/firma/${encodeURIComponent(payload.prevItem.slug)}"><span class="prevnext-label">← Önceki Firma</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></a>`;
+    if (payload.nextItem) html += `<a class="next" href="/firma/${encodeURIComponent(payload.nextItem.slug)}"><span class="prevnext-label">Sonraki Firma →</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></a>`;
+    el.innerHTML = html;
+  }
+
   function updateHeadMeta(o) {
     document.title = `${o.name} — MİMARLAB`;
     const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
@@ -264,7 +281,6 @@ const OfficeModal = (function () {
 
     updateHeadMeta(o);
     document.getElementById('om-name-text').textContent = o.name;
-    document.getElementById('om-category').innerHTML = `<strong>${escapeHtml(o.cats || '')}</strong>`;
     renderTruncatedDesc('om-about', o.about || '');
 
     const infoFacts = [];
@@ -325,6 +341,7 @@ const OfficeModal = (function () {
     }
 
     renderStructuredData(o);
+    renderPrevNext(payload);
 
     document.getElementById('om-founders-section').style.display = founders.length ? '' : 'none';
     document.getElementById('om-founders-grid').innerHTML = founders.map(a => a.unregistered
@@ -389,7 +406,7 @@ const OfficeModal = (function () {
   function renderNotFound() {
     document.getElementById('om-name-text').textContent = 'Firma bulunamadı';
     ['om-actions', 'om-founders-section', 'om-related-projects-section', 'om-related-products-section',
-      'om-related-materials-section', 'om-detail-info'].forEach(id => {
+      'om-related-materials-section', 'om-detail-info', 'om-prevnext'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });

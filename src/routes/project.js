@@ -105,6 +105,44 @@ async function fetchProjectProducts(env, projectId) {
   return { products, materials };
 }
 
+// Önceki/Sonraki Proje — proje.html'deki grid'in o anki (filtrelenmiş/sıralanmış) sayfasını
+// istemci hafızasında tutan eski `navList` yöntemi yerine (bkz. kullanıcı isteği: "kökten çözüm"),
+// dairesel/sıralı gezinme artık HER İSTEKTE burada, id sırasına göre hesaplanır — proje doğrudan
+// URL ile açıldığında ya da liste hiç yüklenmediğinde (F5, deep link) de butonlar eksiksiz çıkar.
+// id küçüldükçe "sonraki" (daha eski), id büyüdükçe "önceki" (daha yeni) — uçlarda dairesel sarar.
+async function fetchAdjacentProject(env, id) {
+  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
+  let prev = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+  if (prev && prev.id === id) prev = null;
+  if (next && next.id === id) next = null;
+  return {
+    prevProject: prev ? { slug: prev.slug, title: prev.title } : null,
+    nextProject: next ? { slug: next.slug, title: next.title } : null,
+  };
+}
+
+// Mimarı girilmemiş, sadece Mimarlık Firması tanımlı projeler (ör. Foster + Partners'ın Dolunay
+// Villa'sı, bkz. kullanıcı isteği) için "Mimar:" alanı boş kalmasın diye firmanın office_founders
+// kayıtlarını otomatik doldurur. Yalnızca kayıtlı (unregistered OLMAYAN, gerçek bir offices satırına
+// bağlı) firmalar için çalışır — kaydı olmayan bir firma adı için kurucu sorgusu zaten sonuçsuz kalır.
+async function fetchFoundersForOffices(env, officeNames) {
+  if (!officeNames.length) return [];
+  const founders = [];
+  for (const name of officeNames) {
+    const { results } = await env.DB.prepare(
+      `SELECT ar.name, ar.slug, ar.photo_url FROM office_founders f
+       JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
+       JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL
+       WHERE o.name = ?`
+    ).bind(name).all();
+    for (const r of results) founders.push({ name: r.name, type: 'architect', slug: r.slug, photo: r.photo_url });
+  }
+  return founders;
+}
+
 // GET /api/project/:slug — Faz 4: proje.html'deki proje modalı bu uca bağlandı (eski yorum artık
 // geçersiz), canonical D1'den doğrudan okur.
 export async function handleProjectDetailRoute(request, env, url, rawSlug) {
@@ -136,9 +174,23 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
       knownNames.add(name);
       designerDetails.push({ name, type: isOfficeName(name) ? 'office' : 'architect', slug: null, photo: null, unregistered: true });
     }
+    // Mimar alanı hiç doldurulmamışsa (bkz. yukarıdaki fetchFoundersForOffices yorumu) tanımlı
+    // firma(lar)ın kurucu/ortak mimarlarını otomatik "Mimar:" chip'i olarak ekle — Mimar alanı boş kalmasın.
+    if (!designerDetails.some(d => d.type === 'architect')) {
+      const officeNames = designerDetails.filter(d => d.type === 'office' && !d.unregistered).map(d => d.name);
+      const autoFounders = await fetchFoundersForOffices(env, officeNames);
+      for (const founder of autoFounders) {
+        if (knownNames.has(founder.name)) continue;
+        knownNames.add(founder.name);
+        designerDetails.push(founder);
+      }
+    }
     item.designerDetails = designerDetails;
     item.products = catalog.products;
     item.materials = catalog.materials;
+    const adjacent = await fetchAdjacentProject(env, row.id);
+    item.prevProject = adjacent.prevProject;
+    item.nextProject = adjacent.nextProject;
     return { item, hidden: false };
   });
 }
