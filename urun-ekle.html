@@ -478,38 +478,6 @@ async function prefillForEdit(){
 }
 prefillForEdit();
 
-function trLower(s){
-  return (s || '').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
-}
-// bkz. proje-ekle.html'deki aynı fonksiyon (Mimar/Firma/Marka alanları) — burada tekliflerin
-// hepsi tek-değerli olduğundan (multi:false) lastCommaSegment/replaceLastCommaSegment yok.
-function wireAutocomplete(inputId, suggestionsId, getItems, opts){
-  opts = opts || {};
-  const input = document.getElementById(inputId);
-  const box = document.getElementById(suggestionsId);
-  function close(){ box.classList.remove('show'); box.innerHTML = ''; }
-  function renderSuggestions(){
-    const q = trLower(input.value.trim());
-    if(!q){ close(); return; }
-    const items = getItems().filter(it => trLower(it.label).includes(q)).slice(0, 8);
-    if(!items.length){ close(); return; }
-    box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
-    box.classList.add('show');
-    box.querySelectorAll('.ac-suggestion').forEach((el, i)=>{
-      el.addEventListener('mousedown', (e)=>{
-        e.preventDefault();
-        const item = items[i];
-        input.value = item.label;
-        close();
-        if(opts.onPick) opts.onPick(item);
-      });
-    });
-  }
-  input.addEventListener('input', renderSuggestions);
-  input.addEventListener('focus', renderSuggestions);
-  input.addEventListener('blur', ()=> setTimeout(close, 150));
-}
-
 // Marka/Mimar önerileri artık data.js'in statik offices[]/architects[] dizileri yerine canlı D1
 // aramasından beslenir (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — mimar-ekle.html/
 // firma-ekle.html/proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe, statik
