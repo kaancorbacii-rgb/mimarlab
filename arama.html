@@ -239,8 +239,7 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="data.js"></script>
-<script src="projeler-data.js"></script>
+<script src="badge-shared.js"></script>
 <script src="urunler-data.js"></script>
 <script src="haberler-data.js"></script>
 <script>
@@ -274,23 +273,17 @@ function fuzzyMatch(text, queryWords){
 
 const MAX_PER_GROUP = 20;
 
-// Admin'in admin panelinden gizlediği statik kayıtlar (bkz. src/routes/legacyContent.js, GET
-// /api/public/hidden) arama sonuçlarından da çıkarılmalı — ilk sonuç fetch tamamlanmadan
-// çizildiğinden, veri gelince runSearch() bir kez daha çalıştırılır.
+// Admin'in admin panelinden gizlediği statik ürün/haber kayıtları (bkz. src/routes/
+// legacyContent.js, GET /api/public/hidden) arama sonuçlarından da çıkarılmalı — ilk sonuç fetch
+// tamamlanmadan çizildiğinden, veri gelince runSearch() bir kez daha çalıştırılır. Legacy Bundle
+// Elimination Faz 3'ten beri (bkz. kullanıcı isteği) yalnızca products/news için geçerli — mimar/
+// firma/proje artık /api/public/search'ten (aşağıda) gelir, o uç zaten hidden_at IS NULL filtresini
+// D1 tarafında uyguluyor, ayrı bir gizleme kontrolüne gerek yok.
 let hiddenLegacy = {};
 function isHiddenLegacy(type, key){
   return (hiddenLegacy[type] || []).includes(key);
 }
 fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(data => { hiddenLegacy = data || {}; }).catch(()=>{}).finally(() => { runSearch(); });
-
-// Admin'in statik bir projeye yaptığı onaylı düzenlemesi (ör. kapak görseli değişikliği) — bkz.
-// proje-detay.html'deki aynı fetch, sonuç satırındaki küçük önizleme görseli de dahil olmak üzere.
-fetch('/api/public/project-edits').then(res => res.ok ? res.json() : {}).then(edits => {
-  for(const slug in edits){
-    const match = projects.find(p => p.slug === slug);
-    if(match) Object.assign(match, edits[slug]);
-  }
-}).catch(()=>{}).finally(() => { runSearch(); });
 
 function rowHtml({href, avatarStyle, avatarContent, title, meta}){
   return `<a class="result-row" href="${href}">
@@ -303,18 +296,33 @@ function rowHtml({href, avatarStyle, avatarContent, title, meta}){
   </a>`;
 }
 
-function groupHtml(label, items, toRow){
+// totalCount: mimar/firma/proje için /api/public/search zaten grup başına en fazla
+// SEARCH_FULL_PER_GROUP (bkz. src/routes/legacyContent.js) satır dönüyor ama GERÇEK toplam sayıyı
+// ayrıca veriyor — "(N)" başlığı ve "+N sonuç daha var" notu bu gerçek sayıyı kullanmalı, `items.
+// length` (sunucu tarafından zaten kırpılmış diziyi) DEĞİL. Ürün/haber (istemci tarafında hâlâ
+// statik dizi üzerinde filtrelendiğinden, bkz. kullanıcı isteği: Faz 3 kapsamı yalnızca data.js/
+// projeler-data.js) items.length zaten gerçek toplamdır, bu yüzden parametre opsiyonel.
+function groupHtml(label, items, toRow, totalCount){
   if(!items.length) return '';
+  const total = totalCount == null ? items.length : totalCount;
   const shown = items.slice(0, MAX_PER_GROUP);
-  const rest = items.length - shown.length;
+  const rest = total - shown.length;
   return `<div class="result-group">
-    <h2 class="result-group-title">${label} <span class="result-group-count">(${items.length})</span></h2>
+    <h2 class="result-group-title">${label} <span class="result-group-count">(${total})</span></h2>
     <div class="result-list">${shown.map(toRow).join('')}</div>
     ${rest > 0 ? `<div class="result-more-note">+${rest} sonuç daha var, aramanı daraltmayı dene</div>` : ''}
   </div>`;
 }
 
-function runSearch(){
+// runSearch her çağrıldığında (ilk yüklemede + hiddenLegacy verisi gelince tekrar, bkz. yukarısı)
+// artık bir D1 fetch'i (aşağıdaki /api/public/search) tetiklediğinden, art arda hızlı iki çağrı
+// arasında bir yarış durumu oluşabilir (ikinci çağrı DAHA ÖNCE dönerse, ilk çağrının GEÇ dönen
+// yanıtı sonucu üzerine yazardı) — nav arama kutusundaki AYNI runToken/currentQuery karşılaştırma
+// deseniyle en son başlatılan çağrı her zaman kazanır.
+let searchRunToken = 0;
+
+async function runSearch(){
+  const runToken = ++searchRunToken;
   const params = new URLSearchParams(window.location.search);
   const query = (params.get('q') || '').trim();
   const wrap = document.getElementById('search-wrap');
@@ -340,14 +348,22 @@ function runSearch(){
   titleEl.textContent = `"${query}" için sonuçlar`;
   const queryHtml = escapeHtml(query);
 
+  // Mimar/Firma/Proje artık canonical D1'den (bkz. src/routes/legacyContent.js#
+  // handlePublicSearchFull, kullanıcı isteği: Legacy Bundle Elimination Faz 3) — Ürün/Haber bu
+  // turun kapsamı dışında kaldığından (yalnızca data.js/projeler-data.js) hâlâ istemci tarafında
+  // urunler-data.js/malzemeler-data.js/haberler-data.js üzerinde filtrelenir.
   const queryWords = foldTr(query).split(/\s+/).filter(Boolean);
-  const mimarResults = architects.filter(a => !isHiddenLegacy('architects', a.name) && (fuzzyMatch(a.name, queryWords) || fuzzyMatch(a.office, queryWords)));
-  const markaResults = offices.filter(o => !isHiddenLegacy('offices', o.name) && (fuzzyMatch(o.name, queryWords) || fuzzyMatch(o.loc, queryWords)));
-  const projeResults = projects.filter(p => !isHiddenLegacy('projects', p.slug) && (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords) || (p.designer||[]).some(d=>fuzzyMatch(d, queryWords))));
+  let full = { architects: [], offices: [], projects: [], totals: { architects: 0, offices: 0, projects: 0 } };
+  try{
+    const res = await fetch('/api/public/search?q=' + encodeURIComponent(query));
+    if(res.ok) full = await res.json();
+  }catch{}
+  if(runToken !== searchRunToken) return; // yarış durumu — daha yeni bir çağrı zaten başladı
+
   const urunResults = products.filter(p => !isHiddenLegacy('products', `${p.brand||''}|||${p.title}`) && (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand, queryWords)));
   const haberResults = newsItems.filter(n => !isHiddenLegacy('news', n.id) && (fuzzyMatch(n.title, queryWords) || fuzzyMatch(n.category, queryWords)));
 
-  const total = mimarResults.length + markaResults.length + projeResults.length + urunResults.length + haberResults.length;
+  const total = full.totals.architects + full.totals.offices + full.totals.projects + urunResults.length + haberResults.length;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
@@ -363,26 +379,26 @@ function runSearch(){
   }
 
   wrap.innerHTML = [
-    groupHtml('Mimarlar', mimarResults, a => rowHtml({
-      href: `mimar-detay.html?mimar=${encodeURIComponent(a.name)}`,
+    groupHtml('Mimarlar', full.architects, a => rowHtml({
+      href: `/mimar/${encodeURIComponent(a.slug)}`,
       avatarStyle: `background:${officeColor(a.name)}`,
       avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: a.name,
       meta: a.office || 'Mimar',
-    })),
-    groupHtml('Firmalar', markaResults, o => rowHtml({
-      href: `ofis-detay.html?ofis=${encodeURIComponent(o.name)}`,
+    }), full.totals.architects),
+    groupHtml('Firmalar', full.offices, o => rowHtml({
+      href: `/firma/${encodeURIComponent(o.slug)}`,
       avatarStyle: `background:${officeColor(o.name)}`,
       avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(logoUrl(o))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: o.name,
       meta: o.loc || '',
-    })),
-    groupHtml('Projeler', projeResults, p => rowHtml({
+    }), full.totals.offices),
+    groupHtml('Projeler', full.projects, p => rowHtml({
       href: `/projeler/${encodeURIComponent(p.slug)}`,
-      avatarContent: p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="" loading="lazy" decoding="async">` : '',
+      avatarContent: p.image ? `<img src="${escapeAttr(p.image)}" alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.location, p.date].filter(Boolean).join(' · '),
-    })),
+    }), full.totals.projects),
     groupHtml('Ürünler', urunResults, p => rowHtml({
       href: 'urun.html',
       avatarContent: p.image ? `<img src="${escapeAttr(p.image)}" alt="" loading="lazy" decoding="async">` : '',

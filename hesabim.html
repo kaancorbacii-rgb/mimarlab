@@ -529,7 +529,6 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="data.js"></script>
 <script>
 const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
@@ -1011,20 +1010,27 @@ async function loadMyClaims(){
   syncClaimedArchitectData(items);
 }
 
-// Onaylı bir mimar profili sahiplenildiğinde (claim), o profil data.js'te zaten kayıtlıysa ve
-// orada fotoğraf/okul gibi bilgiler varsa, kullanıcının kendi hesap profilinde bu alanlar
-// hâlâ boşsa (elle hiç doldurulmamışsa) otomatik olarak hesap profiline aktarılır — statik mimar
-// profili daha önce yüklenmiş, kullanıcı sonradan hesap açıp o profili sahiplenmiş olabilir.
-// Kullanıcının kendi girdiği bir değerin üzerine YAZMAZ, yalnızca boş alanları doldurur.
+// Onaylı bir mimar profili sahiplenildiğinde (claim), o profilin canonical D1 kaydında fotoğraf/
+// okul gibi bilgiler varsa, kullanıcının kendi hesap profilinde bu alanlar hâlâ boşsa (elle hiç
+// doldurulmamışsa) otomatik olarak hesap profiline aktarılır — mimar profili daha önce
+// oluşturulmuş, kullanıcı sonradan hesap açıp o profili sahiplenmiş olabilir. Kullanıcının kendi
+// girdiği bir değerin üzerine YAZMAZ, yalnızca boş alanları doldurur. Legacy Bundle Elimination
+// Faz 3 (bkz. kullanıcı isteği): data.js'in statik architects[] dizisi yerine GET /api/architect/:key
+// (mimar-ekle.html#prefillForClaim'in de kullandığı AYNI canonical uç) okunur.
 async function syncClaimedArchitectData(items){
-  if(typeof architects === 'undefined' || !currentUser) return;
+  if(!currentUser) return;
   const claim = items.find(c => c.profile_type === 'architect' && c.status === 'approved');
   if(!claim) return;
-  const staticArch = architects.find(a => a.name === claim.profile_key);
-  if(!staticArch) return;
+  let arch;
+  try{
+    const res = await fetch(`/api/architect/${encodeURIComponent(claim.profile_key)}`);
+    if(!res.ok) return;
+    arch = (await res.json()).item;
+  }catch{ return; }
+  if(!arch) return;
   const patch = {};
-  if(!currentUser.photoUrl && staticArch.photo) patch.photo_url = staticArch.photo;
-  if(!currentUser.school && staticArch.school) patch.school = staticArch.school;
+  if(!currentUser.photoUrl && arch.photo) patch.photo_url = arch.photo;
+  if(!currentUser.school && arch.school) patch.school = arch.school;
   if(!Object.keys(patch).length) return;
   try{
     const res = await fetch('/api/profile', {

@@ -245,6 +245,66 @@ export async function handlePublicSearchSuggest(request, env, url) {
   });
 }
 
+// GET /api/public/search?q=<metin> — arama.html'in tam sonuç sayfası için, handlePublicSearchSuggest
+// (üst nav'ın küçük açılır penceresi, 3/grup + 8 toplam sınırı) ile AYNI D1 sorgu/fuzzyMatch
+// altyapısını paylaşır ama grup başına daha yüksek bir sınırla (bkz. SEARCH_FULL_PER_GROUP) ham
+// alanları (fotoğraf/logo/görsel dahil) döner — arama.html kendi avatar/kart render mantığını
+// (officeColor/initials/logoUrl, bkz. badge-shared.js) bu alanlar üzerinde çalıştırır. Legacy Bundle
+// Elimination Faz 3 kapsamı yalnızca data.js/projeler-data.js olduğundan (bkz. kullanıcı isteği)
+// yalnızca mimar/firma/proje kapsanır — ürün/haber arama.html'de İSTEĞE BAĞLI olarak statik
+// urunler-data.js/malzemeler-data.js/haberler-data.js üzerinde İSTEMCİ tarafında aranmaya devam
+// eder (bu turun kapsamı dışında).
+const SEARCH_FULL_PER_GROUP = 20;
+
+const PROJECT_DESIGNER_JOIN_SQL = `
+  LEFT JOIN project_designers pd ON pd.project_id = p.id
+  LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
+  LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+`;
+const DESIGNER_SEP = '';
+
+export async function handlePublicSearchFull(request, env, url) {
+  const rawQ = (url.searchParams.get('q') || '').trim();
+  if (!rawQ) return json({ architects: [], offices: [], projects: [], totals: { architects: 0, offices: 0, projects: 0 } });
+  const queryWords = foldTr(rawQ).split(/\s+/).filter(Boolean);
+
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const [archRes, officeRes, projRes] = await Promise.all([
+      env.DB.prepare(
+        `SELECT a.name, a.slug, a.photo_url, o.name AS office_name FROM architects a
+         LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+         WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL`
+      ).all(),
+      env.DB.prepare(`SELECT name, slug, loc, logo_url FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(
+        `SELECT p.slug, p.title, p.location, p.project_date, p.images,
+                GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names
+         FROM projects p ${PROJECT_DESIGNER_JOIN_SQL}
+         WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id`
+      ).all(),
+    ]);
+
+    const archMatches = archRes.results.filter(a => fuzzyMatch(a.name, queryWords) || fuzzyMatch(a.office_name, queryWords));
+    const officeMatches = officeRes.results.filter(o => fuzzyMatch(o.name, queryWords) || fuzzyMatch(o.loc, queryWords));
+    const projMatches = projRes.results.filter(p => {
+      if (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords)) return true;
+      const designers = p.designer_names ? p.designer_names.split(DESIGNER_SEP) : [];
+      return designers.some(d => fuzzyMatch(d, queryWords));
+    });
+
+    return {
+      architects: archMatches.slice(0, SEARCH_FULL_PER_GROUP).map(a => ({ name: a.name, slug: a.slug, photo: a.photo_url, office: a.office_name || null })),
+      offices: officeMatches.slice(0, SEARCH_FULL_PER_GROUP).map(o => ({ name: o.name, slug: o.slug, loc: o.loc, logo: o.logo_url })),
+      projects: projMatches.slice(0, SEARCH_FULL_PER_GROUP).map(p => {
+        let images = [];
+        try { images = p.images ? JSON.parse(p.images) : []; } catch { images = []; }
+        return { slug: p.slug, title: p.title, location: p.location, date: p.project_date, image: images[0] || null };
+      }),
+      totals: { architects: archMatches.length, offices: officeMatches.length, projects: projMatches.length },
+    };
+  });
+}
+
 // Bir projenin "şu an canlıda görünen" hâli, canonical satırdan doğrudan okunur (artık statik +
 // overlay birleştirmesi gerekmiyor — bkz. src/routes/project.js'teki AYNI okuma). Arşivleme, projeyi
 // bu haliyle bir project_submissions taslağına kopyalar ki admin panelde düzenlerken en son

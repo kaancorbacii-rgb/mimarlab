@@ -360,7 +360,6 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="data.js"></script>
 <script>
 // Kaydettikten sonra mimarın kendi profiline yönlendirmek için (bkz. aşağıdaki submit handler) —
 // bu sayfa save-widget.js YÜKLEMEZ (bkz. proje kuralı: currentUser çakışması), o yüzden oradaki
@@ -542,12 +541,14 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 wireAutocompleteLive('m-office', 'ac-marka-suggestions', '/api/offices/search');
-applyProfileEditPhotos().catch(()=>{});
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite (sitede kayıtlı mimarların okuduğu okullar) ----------
-const UNIVERSITY_SUGGESTIONS = [...new Set((typeof architects !== 'undefined' ? architects : []).map(a => a.school).filter(Boolean))]
-  .sort((a, b) => a.localeCompare(b, 'tr'))
-  .map(s => ({label: s}));
+// Liste artık data.js'in statik architects[] dizisi yerine canonical D1'den tek seferlik çekilir
+// (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3, src/routes/architect.js#
+// handleArchitectSchoolsRoute, uye-ol.html'deki AYNI değişiklik) — wireAutocomplete zaten getItems()'i
+// her tuş vuruşunda YENİDEN çağırdığından, fetch tamamlandığında liste otomatik güncel olur.
+let UNIVERSITY_SUGGESTIONS = [];
+fetch('/api/architects/schools').then(r => r.ok ? r.json() : {items:[]}).then(d => { UNIVERSITY_SUGGESTIONS = (d.items || []).map(s => ({label: s})); }).catch(()=>{});
 wireAutocomplete('m-school', 'ac-school-suggestions', () => UNIVERSITY_SUGGESTIONS);
 
 function renderPreviews(){
@@ -652,8 +653,10 @@ async function prefillForClaim(){
   document.querySelector('.page-head h1').textContent = 'Profilini düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
-  const staticArch = architects.find(a => a.name === claimName) || { name: claimName };
-  let merged = { ...staticArch };
+  // Legacy Bundle Elimination Faz 3 (bkz. kullanıcı isteği): data.js'in statik architects[]
+  // dizisinden seed alma adımı kaldırıldı — bkz. firma-ekle.html#prefillForClaim'deki AYNI gerekçe,
+  // aşağıdaki canonical D1 fetch zaten aynı alanların tamamını döndürüyor.
+  let merged = { name: claimName };
 
   // Bağımsız dizin kaydı — data.js'in statik architects[] dizisinde hiç yer almayan, doğrudan
   // canonical D1'de var olan bir mimar profili olabilir (bkz. gerçek bulgu: "Ezgi San" gibi bir

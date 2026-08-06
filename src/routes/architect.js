@@ -32,23 +32,50 @@ function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
 }
 
-// GET /api/architects/search?q=... — proje-ekle.html/urun-ekle.html gibi formlardaki Mimar
-// autocomplete kutularının canlı D1 sorgusu (bkz. kullanıcı isteği: "Admin panelinden yeni
-// eklenen mimarlar Proje Ekle'deki öneri kutusunda görünmüyor" — eski hâli data.js'teki statik
-// architects[] dizisini kullanıyordu, D1'e yeni eklenen kayıtları hiç görmüyordu). Türkçe harf
-// duyarlılığı için SQL LIKE yerine tüm adaylar çekilip trLower ile JS tarafında filtrelenir
-// (tablo küçük olduğundan, bkz. findArchitect'teki AYNI tam-tarama gerekçesi).
+// GET /api/architects/search?q=...&office=<tam ofis adı> — proje-ekle.html/urun-ekle.html gibi
+// formlardaki Mimar autocomplete kutularının canlı D1 sorgusu (bkz. kullanıcı isteği: "Admin
+// panelinden yeni eklenen mimarlar Proje Ekle'deki öneri kutusunda görünmüyor" — eski hâli data.js'
+// teki statik architects[] dizisini kullanıyordu, D1'e yeni eklenen kayıtları hiç görmüyordu).
+// Türkçe harf duyarlılığı için SQL LIKE yerine tüm adaylar çekilip trLower ile JS tarafında
+// filtrelenir (tablo küçük olduğundan, bkz. findArchitect'teki AYNI tam-tarama gerekçesi).
+// office parametresi (q ile birlikte DEĞİL, onun yerine kullanılır) — urun-ekle.html'in "Marka"
+// alanından bir firma seçildiğinde o firmanın bünyesindeki TÜM mimarları (architects.office_id
+// eşleşmesi) döner; Legacy Bundle Elimination Faz 3'ten önce bu istemci tarafında data.js'in statik
+// architects[] dizisi üzerinde `a.office === seçilenFirma` filtresiyle yapılıyordu (bkz. kullanıcı
+// isteği).
 export async function handleArchitectSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const officeParam = (url.searchParams.get('office') || '').trim();
     const q = trLower((url.searchParams.get('q') || '').trim());
-    if (!q) return { items: [] };
+    if (!q && !officeParam) return { items: [] };
     const { results } = await env.DB.prepare(
       `SELECT a.name AS name, o.name AS office_name FROM architects a
        LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.name`
     ).all();
-    const items = results.filter(r => trLower(r.name).includes(q)).slice(0, 20).map(r => ({ label: r.name, sub: r.office_name || '' }));
+    const filtered = officeParam
+      ? results.filter(r => r.office_name === officeParam)
+      : results.filter(r => trLower(r.name).includes(q));
+    const items = filtered.slice(0, 20).map(r => ({ label: r.name, sub: r.office_name || '' }));
+    return { items };
+  });
+}
+
+// GET /api/architects/schools — uye-ol.html (kayıt formu) / mimar-ekle.html'deki "Üniversite"
+// otomatik tamamlama kutusu için canonical D1'deki tüm mimarların KAYITLI OLDUĞU okulların
+// tekilleştirilmiş listesini döner (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 —
+// eskiden data.js'in statik architects[] dizisi üzerinde `[...new Set(architects.map(a=>a.school))]`
+// ile istemci tarafında hesaplanıyordu). Sonuç istemci tarafında zaten yerel/senkron substring
+// filtrelendiğinden (bkz. o sayfalardaki wireAutocomplete — canlı arama DEĞİL, tek seferlik tam
+// liste + yerel filtre) burada sayfalama/arama parametresi yok, tek seferlik tam liste döner.
+export async function handleArchitectSchoolsRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT school FROM architects WHERE deleted_at IS NULL AND school IS NOT NULL AND school != ''`
+    ).all();
+    const items = results.map(r => r.school).sort((a, b) => a.localeCompare(b, 'tr'));
     return { items };
   });
 }

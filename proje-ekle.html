@@ -297,8 +297,6 @@
 <body>
 <script src="js/overlay-manager.js" defer></script>
 <script src="auth-nav.js" defer></script>
-<script src="data.js"></script>
-<script src="projeler-data.js"></script>
 <script src="urunler-data.js"></script>
 <script src="malzemeler-data.js"></script>
 <script src="il-ilce-data.js"></script>
@@ -713,7 +711,17 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('focus', onInput);
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
-const TYPE_SUGGESTIONS = [...new Set((typeof projects !== 'undefined' ? projects : []).flatMap(p => p.type || []))].sort((a,b)=>a.localeCompare(b,'tr')).map(t => ({label: t}));
+// Liste artık data.js'in statik projeler-data.js dizisi yerine proje.html'in de sidebar
+// sayaçları için kullandığı AYNI /api/projects/filters uçtan (bkz. src/routes/project.js#
+// handleProjectFiltersRoute) tek seferlik çekilir (bkz. kullanıcı isteği: Legacy Bundle Elimination
+// Faz 3) — o uç zaten TÜM projelerdeki distinct 'type' değerlerini facet olarak hesaplıyor, ayrı
+// bir uca gerek yok. wireAutocomplete zaten getItems()'i her tuş vuruşunda YENİDEN çağırdığından,
+// fetch tamamlandığında liste otomatik güncel olur.
+let TYPE_SUGGESTIONS = [];
+fetch('/api/projects/filters').then(r => r.ok ? r.json() : {filters:{}}).then(d => {
+  const options = (d.filters && d.filters.type && d.filters.type.options) || [];
+  TYPE_SUGGESTIONS = [...options].sort((a,b)=>a.localeCompare(b,'tr')).map(t => ({label: t}));
+}).catch(()=>{});
 const URUN_SUGGESTIONS = [...(typeof products !== 'undefined' ? products : []), ...(typeof materials !== 'undefined' ? materials : [])]
   .filter(p => p.title).map(p => ({label: p.title, sub: p.brand || '', brand: p.brand || ''}));
 
@@ -848,6 +856,45 @@ const meReady = fetch('/api/auth/me').then(async res=>{
   currentUserRole = (await res.json()).user.role;
 });
 
+// proje.html#OFFICE_NAME_OVERRIDES/OFFICE_KEYWORDS, src/routes/project.js#isOfficeName ile BİREBİR
+// aynı liste — yalnızca canonical bir proje kaydı henüz yokken (aşağıdaki splitDesignerNamesIntoBoxes
+// fallback dalı) kullanılır.
+const OFFICE_NAME_OVERRIDES = new Set(["Autoban","Escapefromsofa","Per Se","Grimshaw","SOM","REX","ACPV Antonio Citterio & Patricia Viel","Salon Alper Derinboğaz",
+  "AOMTD","Gensler","KPF","OMA","FXCollaborative","Chapman Taylor","Powerhouse Company","Carve",
+  "GEOMIM","Ofist","Ofisvesaire","FREA","MuuM","Neowe","Nēowe","Superpool","PLUG",
+  "SdARCH Trivelli & Associati","T-ingénierie","UN Architectural Services","ZAAS","ŞANALarc",
+  "GEO_ID","ARK-Itecture","Acararch","Dolmus AG","caps.","the | work","indissoluble","Lazzoni",
+]);
+const OFFICE_KEYWORDS = ["mimarlık","architecture","architects","architekten","studio","design","partner","group","proje","workshop","associates","concept","ortaklığı","mühendislik","danışmanlık","atölye","işliği","tasarım","grubu"];
+function isOfficeNameHeuristic(name){
+  if(OFFICE_NAME_OVERRIDES.has(name)) return true;
+  return OFFICE_KEYWORDS.some(k => name.toLowerCase().includes(k));
+}
+
+// Var olan designer listesindeki isimleri Mimar/Ofis kutularına geri dağıtır — Legacy Bundle
+// Elimination Faz 3 (bkz. kullanıcı isteği): eskiden data.js'in statik offices[] dizisine karşı
+// isim eşleştirmesi yapılıyordu. slug'ı bilinen (daha önce en az bir kez onaylanıp canonical'a
+// senkronlanmış) bir proje için artık proje modalının da okuduğu AYNI GERÇEK sınıflandırmayı
+// (GET /api/project/:slug#designerDetails, architect_id/office_id join'inden — bkz.
+// prefillForClaim'deki AYNI yorum) kullanır; slug'sız (hiç onaylanmamış, taze bir taslak) durumda
+// canonical kayıt henüz yok, bu yüzden proje.html/project.js'teki AYNI isim-heuristiğine (yukarıdaki
+// isOfficeNameHeuristic) düşülür.
+async function splitDesignerNamesIntoBoxes(names, slug){
+  let officeNames = null;
+  if(slug){
+    try{
+      const res = await fetch(`/api/project/${encodeURIComponent(slug)}`);
+      if(res.ok){
+        const { item } = await res.json();
+        if(item && item.designerDetails) officeNames = new Set(item.designerDetails.filter(d => d.type === 'office').map(d => d.name));
+      }
+    }catch{}
+  }
+  const isOffice = officeNames ? (n => officeNames.has(n)) : isOfficeNameHeuristic;
+  document.getElementById('p-designer').value = names.filter(n => !isOffice(n)).join(', ');
+  document.getElementById('p-office').value = names.filter(n => isOffice(n)).join(', ');
+}
+
 async function prefillForEdit(){
   if(!editId) return;
   await meReady;
@@ -891,15 +938,7 @@ async function prefillForEdit(){
     }
     document.getElementById('p-date').value = item.date || '';
     document.getElementById('p-type').value = (item.type || []).join(', ');
-    {
-      // Var olan designer listesindeki isimler architects[]/offices[] ile eşleştirilerek Mimar/
-      // Ofis kutularına geri dağıtılır — hiçbirine eşleşmeyen (ör. tarihi bir isim) Mimar kutusuna düşer.
-      const names = item.designer || [];
-      const mimarNames = names.filter(n => !offices.some(o => o.name === n));
-      const ofisNames = names.filter(n => offices.some(o => o.name === n));
-      document.getElementById('p-designer').value = mimarNames.join(', ');
-      document.getElementById('p-office').value = ofisNames.join(', ');
-    }
+    await splitDesignerNamesIntoBoxes(item.designer || [], item.slug);
     document.getElementById('p-desc').value = item.description || '';
     document.getElementById('p-credit-text').value = item.photoCreditText || '';
     document.getElementById('p-credit-url').value = item.photoCreditUrl || '';

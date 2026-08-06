@@ -1,7 +1,7 @@
 import { json, errorJson } from '../lib/http.js';
 import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
-import { handlePublicHidden, handlePublicSearchSuggest } from './legacyContent.js';
+import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 
 // Onaylanmış (status='approved') satırları, statik urunler-data.js/malzemeler-data.js
@@ -32,6 +32,7 @@ export async function handlePublicRoute(request, env, url) {
   if (segments[2] === 'news') return listPublicNews(request, env);
   if (segments[2] === 'hidden') return handlePublicHidden(request, env);
   if (segments[2] === 'search-suggest') return handlePublicSearchSuggest(request, env, url);
+  if (segments[2] === 'search') return handlePublicSearchFull(request, env, url);
   if (segments[2] === 'profile-edits') return handlePublicProfileEdits(request, env);
   if (segments[2] === 'project-edits') return handlePublicProjectEdits(request, env);
   if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);

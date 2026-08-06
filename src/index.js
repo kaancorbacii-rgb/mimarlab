@@ -3,7 +3,7 @@ import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
-import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute } from './routes/architect.js';
+import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
@@ -384,6 +384,7 @@ async function routeApi(request, env, url) {
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki
   // /api/projects/filters'daki AYNI çakışma önleme deseni).
   if (path === '/api/architects/search') return handleArchitectSearchRoute(request, env, url);
+  if (path === '/api/architects/schools') return handleArchitectSchoolsRoute(request, env, url);
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));

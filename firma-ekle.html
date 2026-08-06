@@ -383,7 +383,6 @@
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
-<script src="data.js"></script>
 <script src="il-ilce-data.js"></script>
 <script>
 // Kaydettikten sonra firmanın kendi profiline yönlendirmek için (bkz. aşağıdaki submit handler) —
@@ -698,8 +697,12 @@ async function prefillForClaim(){
   document.querySelector('.page-head h1').textContent = 'Firmanı düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
-  const staticOffice = offices.find(o => o.name === claimName) || { name: claimName };
-  let merged = { ...staticOffice };
+  // Legacy Bundle Elimination Faz 3 (bkz. kullanıcı isteği): data.js'in statik offices[] dizisinden
+  // seed alma adımı kaldırıldı — aşağıdaki canonical D1 fetch (GET /api/office/:key) zaten AYNI
+  // alanların TAMAMINI (statik kökenli olsun olmasın) döndürüyor, statik dizi Faz 2'den beri D1'in
+  // kesin bir alt kümesi olduğundan bu seed hiçbir zaman canonical fetch'in sağlayamayacağı bir
+  // alan katmıyordu.
+  let merged = { name: claimName };
 
   // Bağımsız dizin kaydı — bkz. mimar-ekle.html#prefillForClaim'deki AYNI gerekçe/düzeltme (gerçek
   // bulgu: data.js'in statik offices[] dizisinde hiç yer almayan bir firma profilinin Düzenle
