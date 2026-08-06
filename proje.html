@@ -304,9 +304,9 @@
   /* Puanlama + Kaydet: kullanıcı isteği üzerine aynı satırda, ikisi de "pill" görünümlü (bkz.
      .rating-widget kuralı aşağıda — save-btn ile AYNI çerçeve/dolgu dilini paylaşır). */
   /* flex-wrap:nowrap !important — kullanıcı isteği: Puanla/Kaydet/Paylaş HİÇBİR genişlikte 2. satıra
-     düşmesin; dar ekranlarda satırın sığması aşağıdaki @media (max-width:500px) bloğundaki boyut
-     küçültmeleriyle (.rating-widget/.save-btn/.share-btn) ve share-button.js'in ikon-only
-     düşüşüyle sağlanır, taşma yerine ölçeklenme tercih edilir. Tüm bayraklar !important — kullanıcı
+     düşmesin; dar ekranlarda satırın sığması Paylaş'ın ikon-only sabit boyutu (bkz. share-button.js)
+     ve Puanla/Kaydet'in flex-shrink+ellipsis ile daralması (metinleri HER ZAMAN görünür kalır, kullanıcı
+     isteği) ile sağlanır, taşma yerine ölçeklenme tercih edilir. Tüm bayraklar !important — kullanıcı
      isteği: bu satır başka hiçbir kuralın ele geçiremeyeceği kadar katı olsun. */
   .pm-rating-save-row{
     display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
@@ -390,13 +390,8 @@
   }
   .pm-rating-save-row .card-save-btn:hover{background:var(--paper-card);}
   .pm-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
-  /* Paylaş butonu (bkz. js/components/share-button.js) Kaydet ile BİREBİR aynı pil olsun diye
-     yukarıdaki .card-save-btn ile AYNI padding/font'u miras alır — genel .share-btn (padding:0 18px;
-     font-size:13.5px) bu satırdaki .save-btn'in kompakt 8px/12px değerinden farklı. */
-  .pm-rating-save-row .share-btn{
-    padding:0 8px !important; font-size:12px !important;
-    flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
-  }
+  /* Paylaş artık ikon-only (bkz. js/components/share-button.js) — boyutu tamamen o dosyadaki
+     paylaşılan .share-btn kuralından gelir, burada ayrı bir override gerekmiyor. */
 
   /* Kaydet butonuyla (.save-btn) AYNI pill çerçeve dili — kullanıcı isteği: "Kaydet butonundaki gibi
      dış çerçeve, border-radius/pill, hafif arka plan ve padding". Yıldız butonlarının kendi
@@ -603,42 +598,25 @@
     #pm-materials-section{order:10;}
     #pm-prevnext{order:11;}
 
-    /* Puanla/Kaydet/Paylaş — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
+    /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
        yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural
        yalnızca bu kırılma noktasının altında geçerli. Satırın tek satırda kalma zorunluluğu (üstteki
        .pm-rating-save-row flex-wrap:nowrap + her pildeki flex-shrink:1/min-width:0/overflow:hidden/
-       ellipsis) korunur — büyüyen pil genişliği dar ekranlarda ellipsis ile kendi içinde daralır. */
+       ellipsis) korunur — büyüyen pil genişliği dar ekranlarda ellipsis ile kendi içinde daralır.
+       Paylaş artık ikon-only olduğundan (bkz. share-button.js) buradaki listeden çıkarıldı, kendi
+       boyutunu paylaşılan .share-btn 860px kuralından alır. */
     .pm-rating-save-row{gap:8px !important;}
-    .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn, .pm-rating-save-row .share-btn{
+    .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn{
       height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
     }
     /* .rating-summary'nin ("Puanla" metni) KENDİ font-size:12px !important kuralı var (bkz. yukarıdaki
        taban kural) — bu, yalnızca kapsayıcıya (.rating-widget) uygulanan font-size değişikliğini miras
-       almasını ENGELLİYORDU, "Puanla" metni bu kırılma noktasının altında Kaydet/Paylaş'tan (13.5px)
-       daha küçük (12px) kalıyordu (gerçek bulgu). Aynı satırdaki üç pilin punto/hiyerarşisi birebir
-       eşit olsun diye burada da açıkça 13.5px'e yükseltilir. */
+       almasını ENGELLİYORDU, "Puanla" metni bu kırılma noktasının altında Kaydet'ten (13.5px) daha
+       küçük (12px) kalıyordu (gerçek bulgu). İki pilin punto/hiyerarşisi birebir eşit olsun diye
+       burada da açıkça 13.5px'e yükseltilir. */
     .rating-summary{font-size:13.5px !important;}
     .rating-star-row{gap:4px;}
     .rating-star-btn svg{width:15px; height:15px;}
-  }
-
-  /* Çok dar ekranlarda (bkz. kullanıcı isteği: Puanla/Kaydet/Paylaş hiçbir genişlikte üst üste
-     binmesin/iç içe girmesin) satır metinleri kaldırılmaz, yalnızca CSS ile GİZLENİR (display:none —
-     DOM'dan silinmez, ekran genişleyince otomatik geri döner) ve ikonlar korunur; share-button.js'in
-     .share-widget/mimar-firma modallerindeki AYNI desen (bkz. o dosyadaki @media (max-width:400px)
-     bloğu). Puanla'nın 5 yıldız satırı butonun ASIL kontrolü olduğundan tek bir ikona indirgenemez —
-     yalnızca özet metni (.rating-summary, "4.2 (12)"/"Puanla") gizlenir, yıldızlar korunur. Kaydet/
-     Paylaş ise tek ikonlu kare bir dokunma hedefine daralır. */
-  @media (max-width:400px){
-    .rating-summary{display:none !important;}
-    .save-btn-label-default, .save-btn-label-saved, .save-btn-count{display:none !important;}
-    .save-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
-    /* gerçek bulgu: share-button.js'in kendi <400px kuralı (.share-btn{width:48px...}) burada
-       ETKİSİZ — proje.html'nin 860px bloğundaki .pm-rating-save-row .share-btn (0,2,0) her zaman
-       bare .share-btn (0,1,0) seçicisinden daha özgül olduğundan onu eziyor (.share-text{display:none}
-       kısmı ayrı bir seçici olduğundan sorunsuz uygulanıyor). Aynı kutu modeli burada AYNI özgüllükte
-       tekrarlanarak düzeltilir. */
-    .pm-rating-save-row .share-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
   }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
