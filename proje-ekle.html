@@ -524,7 +524,7 @@ let mediaItems = []; // {key, kind:'existing'|'file', url?, file?, objectUrl?}
 let mediaKeySeq = 0;
 const editParams = new URLSearchParams(window.location.search);
 let editId = editParams.get('edit');
-const claimSlug = editParams.get('claim');
+let claimSlug = editParams.get('claim');
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -855,6 +855,10 @@ async function prefillForEdit(){
     }
     if(!item) return;
     existingSlug = item.slug || null;
+    // bkz. mimar-ekle.html#prefillForEdit'teki AYNI geri-doldurma ve gerçek bulgu — claimed_slug'sız
+    // kaydedilirse bu taslak bağımsız bir kayda düşer, sonraki onayda statik projenin YANINDA yeni
+    // bir canonical satır daha oluşur ("mükerrer kayıt").
+    if(item.claimed_slug) claimSlug = item.claimed_slug;
     document.querySelector('.eyebrow').textContent = 'Proje Düzenle';
     document.querySelector('.page-head h1').textContent = 'Projeni düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
@@ -1096,6 +1100,17 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       setTimeout(()=>{ window.location.href = `/projeler/${encodeURIComponent(existingSlug)}`; }, 1200);
+      return;
+    }
+    // claimSlug/existingSlug'lı yukarıdaki iki durumun DIŞINDA kalan, admin'in SIFIRDAN (editId'siz)
+    // eklediği bir proje de anında yayına girer — bu durumda slug istemci tarafında ÖNCEDEN bilinmez
+    // (rastgele ek içerir, bkz. normalizeSubmission), bu yüzden backend'in POST yanıtındaki slug'a
+    // ihtiyaç var (bkz. src/routes/submissions.js#createSubmission).
+    if(!editId && data.status === 'approved' && data.slug){
+      notice.textContent = 'Proje eklendi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/projeler/${encodeURIComponent(data.slug)}`; }, 1200);
       return;
     }
     if(editId){

@@ -238,10 +238,16 @@ async function syncOffice(env, row) {
       sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?');
       vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null);
     }
-    if (sets.length) {
-      sets.push(`updated_at = datetime('now')`);
-      await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
-    }
+    // hidden_at HER onaylı senkronda temizlenir — bir bağımsız (claimed_profile_key'siz) kaydın
+    // sahibi onaylı içeriğini tekrar düzenlediğinde durum geçici olarak 'pending'e döner ve
+    // hideCanonicalForUnapprovedSubmission bu satırı gizler (bkz. o fonksiyonun yorumu); admin bu
+    // ikinci düzenlemeyi onayladığında BURASI (target bulunduğu için UPDATE dalı) çalışır ama daha
+    // önce hiçbir çağıran satırın gizliliğini geri açmıyordu — kayıt kalıcı olarak "onaylı ama
+    // sitede görünmez" kalıyordu (gerçek bulgu). claimed'lı satırlarda bu no-op'tur (zaten
+    // unhideIfClaimedApproved ayrıca temizler), bu yüzden koşulsuz eklemek zararsız.
+    sets.push('hidden_at = NULL');
+    sets.push(`updated_at = datetime('now')`);
+    await env.DB.prepare(`UPDATE offices SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     result = { ...target, id: target.id, name: row.name || target.name };
   } else {
     // Yeni bağımsız kayıt (claimedKey varsa ve hedef bulunamadıysa da — bozuk bir claim'i sessizce
@@ -255,6 +261,14 @@ async function syncOffice(env, row) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(slug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, marker, row.owner_user_id).run();
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
+    // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate
+    // edilmemiş olduğu anlamına gelir (gerçek bulgu: "mükerrer kayıt" — bu yeni satır firma.html/
+    // mimar.html gibi Faz 3 sayfalarında görünürken, arama.html gibi ham data.js okuyan sayfalar
+    // hâlâ ESKİ/bayat statik girdiyi gösteriyordu, aynı firma/mimar İKİ farklı sayfada iki farklı
+    // içerikle görünüyordu). Statik girdiyi legacy_content_hidden'a blacklist'leyip bu ham
+    // okuyuculardan (bkz. src/routes/legacyContent.js#fetchHiddenMap) düşürmek, bu yeni canonical
+    // satırı TEK görünür kaynak yapar.
+    if (claimedKey) await blacklistLegacyKey(env, row.owner_user_id, 'offices', claimedKey);
   }
 
   if (row.founders && row.founders.length) await syncOfficeFoundersFromNames(env, result.id, row.founders);
@@ -296,6 +310,8 @@ async function syncArchitect(env, row) {
       sets.push('name = ?', 'dob = ?', 'school = ?', 'dept = ?', 'profession = ?', 'awards = ?', 'photo_url = ?', 'about = ?', 'position = ?', 'office_id = ?');
       vals.push(row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, awards, row.photo_url || null, row.about || null, row.position || null, officeId);
     }
+    // bkz. syncOffice'teki AYNI koşulsuz hidden_at temizliği ve gerekçesi.
+    sets.push('hidden_at = NULL');
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     await syncOfficeFounderLink(env, target.id, officeId);
@@ -312,6 +328,8 @@ async function syncArchitect(env, row) {
   ).bind(slug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, officeId, marker, row.owner_user_id).run();
   const architectId = insert.meta.last_row_id;
   await syncOfficeFounderLink(env, architectId, officeId);
+  // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
+  if (claimedKey) await blacklistLegacyKey(env, row.owner_user_id, 'architects', claimedKey);
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(architectId).first();
 }
 
@@ -381,7 +399,7 @@ async function syncProject(env, row) {
     const sets = [
       'title = ?', 'category = ?', 'type = ?', 'discipline = ?', 'location = ?', 'location_detail = ?',
       'project_date = ?', 'date_bucket = ?', 'period = ?', 'photo_credit_text = ?', 'photo_credit_url = ?',
-      'description = ?', `updated_at = datetime('now')`,
+      'description = ?', 'hidden_at = NULL', `updated_at = datetime('now')`,
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
@@ -406,6 +424,8 @@ async function syncProject(env, row) {
       marker, row.owner_user_id
     ).run();
     projectId = insert.meta.last_row_id;
+    // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
+    if (claimedSlug) await blacklistLegacyKey(env, row.owner_user_id, 'projects', claimedSlug);
   }
 
   if (row.designer && row.designer.length) {
@@ -446,8 +466,10 @@ async function syncProduct(env, row, kind) {
 
   let productId;
   if (existing) {
+    // hidden_at temizliği — bkz. syncOffice'teki AYNI gerekçe (sahibi onaylı bir ürünü tekrar
+    // düzenleyip admin onayladığında görünürlük geri gelmeliydi, gelmiyordu).
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, updated_at = datetime('now') WHERE id = ?`
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
     ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, existing.id).run();
     productId = existing.id;
     await env.DB.prepare(`DELETE FROM product_architects WHERE product_id = ?`).bind(productId).run();

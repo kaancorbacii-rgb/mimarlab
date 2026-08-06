@@ -393,7 +393,7 @@ let selectedFiles = [];
 let existingLogoUrl = null;
 const params = new URLSearchParams(window.location.search);
 let editId = params.get('edit');
-const claimName = params.get('claim');
+let claimName = params.get('claim');
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -650,6 +650,10 @@ async function prefillForEdit(){
     const res = await fetch(`/api/offices/${encodeURIComponent(editId)}`);
     if(!res.ok) return;
     const { item } = await res.json();
+    // bkz. mimar-ekle.html#prefillForEdit'teki AYNI geri-doldurma ve gerçek bulgu — claimed_profile_key'siz
+    // kaydedilirse bu taslak bağımsız bir kayda düşer, sonraki onayda statik firmanın YANINDA yeni
+    // bir canonical satır daha oluşur ("mükerrer kayıt").
+    if(item.claimed_profile_key) claimName = item.claimed_profile_key;
     document.querySelector('.eyebrow').textContent = 'Firma Düzenle';
     document.querySelector('.page-head h1').textContent = 'Firmanı düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';

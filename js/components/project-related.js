@@ -18,7 +18,7 @@ const ArchitectProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }
@@ -56,7 +56,7 @@ const RelatedProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }

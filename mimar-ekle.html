@@ -369,7 +369,7 @@ let selectedFiles = [];
 let existingPhotoUrl = null;
 const params = new URLSearchParams(window.location.search);
 let editId = params.get('edit');
-const claimName = params.get('claim');
+let claimName = params.get('claim');
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -600,6 +600,14 @@ async function prefillForEdit(){
     const res = await fetch(`/api/architects/${encodeURIComponent(editId)}`);
     if(!res.ok) return;
     const { item } = await res.json();
+    // Bu taslak zaten sahiplenilmiş bir statik profile bağlıysa (claimed_profile_key) claimName'i
+    // buradan geri doldur — aksi halde aşağıdaki payload.claimed_profile_key hiç set edilmez ve
+    // kaydet, bu taslağı sahiplenmemiş/bağımsız bir kayda çevirir (gerçek bulgu: hesabim.html'in
+    // "Düzenle" linki ?claim= DEĞİL ?edit= kullanıyor, bu yüzden bu olmadan İKİNCİ bir düzenleme
+    // claimed_profile_key'i sessizce NULL'a düşürüyordu — sonraki onayda syncArchitect artık
+    // eski statik kaydı bulamayıp YENİ bir "bağımsız" mimar kaydı oluşturuyordu, yani aynı mimar
+    // sitede İKİ kez görünüyordu — "mükerrer kayıt" bulgusunun kök nedeni).
+    if(item.claimed_profile_key) claimName = item.claimed_profile_key;
     document.querySelector('.eyebrow').textContent = 'Mimar Düzenle';
     document.querySelector('.page-head h1').textContent = 'Bilgilerini düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';

@@ -50,6 +50,11 @@ const ProductModal = (function () {
       }
       .pr-rating-save-row .card-save-btn:hover{background:var(--paper-card); border-color:var(--walnut); color:var(--ink);}
       .pr-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+      /* Paylaş butonu (bkz. js/components/share-button.js) bu satırda Kaydet ile BİREBİR aynı pil
+         olsun diye .card-save-btn'in yukarıdaki AYNI padding/font override'ını miras alır — genel
+         .share-btn (padding:0 18px; font-size:13.5px) diğer modallarla tutarlı ama bu satırdaki
+         .card-save-btn'in kompakt 16px/14px değerinden biraz farklı. */
+      .pr-rating-save-row .share-btn{padding:0 16px; font-size:14px;}
       .pr-rating-save-row .save-btn-label-saved{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
@@ -236,7 +241,7 @@ const ProductModal = (function () {
 
   function cardHtml(href, title, image, subtitle) {
     return `<a class="related-card" href="${href}">
-      ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
+      ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
       <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
   }
@@ -419,6 +424,10 @@ const ProductModal = (function () {
       .then(res => res.ok ? res.json() : null)
       .then(data => { const el = document.getElementById('pr-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
+    if (typeof ShareWidget !== 'undefined') {
+      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('pr-share-btn'));
+      ShareWidget.wire('pr-share-btn', () => ({ title: p.title, url: `${window.location.origin}/urun/${encodeURIComponent(key)}` }));
+    }
 
     const ratingWidget = document.getElementById('pr-rating');
     ratingWidget.dataset.type = ratingKindFor(p);

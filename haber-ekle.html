@@ -404,6 +404,17 @@ document.getElementById('haber-ekle-form').addEventListener('submit', async (e)=
       submitBtn.disabled = false;
       return;
     }
+    // bkz. mimar-ekle.html/urun-ekle.html'deki AYNI "admin'in gönderisi anında yayına girer" deseni
+    // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile
+    // gitsin") — haberler-detay.html /haberler/:id ile servis edildiğinden, hem yeni ekleme hem
+    // düzenleme için data.id zaten yeterli, ayrı bir slug'a gerek yok.
+    if(data.status === 'approved'){
+      notice.textContent = editId ? 'Değişiklikler kaydedildi ve yayına girdi.' : 'Haber eklendi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/haberler/${encodeURIComponent(data.id || editId)}`; }, 1200);
+      return;
+    }
     if(editId){
       notice.textContent = isAdminEditingOther
         ? 'Değişiklikler kaydedildi.'

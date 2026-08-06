@@ -358,6 +358,10 @@
   }
   .pm-rating-save-row .card-save-btn:hover{background:var(--paper-card);}
   .pm-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
+  /* Paylaş butonu (bkz. js/components/share-button.js) Kaydet ile BİREBİR aynı pil olsun diye
+     yukarıdaki .card-save-btn ile AYNI padding/font'u miras alır — genel .share-btn (padding:0 18px;
+     font-size:13.5px) bu satırdaki .save-btn'in kompakt 16px/14px değerinden farklı. */
+  .pm-rating-save-row .share-btn{padding:0 16px; font-size:14px;}
 
   /* Kaydet butonuyla (.save-btn) AYNI pill çerçeve dili — kullanıcı isteği: "Kaydet butonundaki gibi
      dış çerçeve, border-radius/pill, hafif arka plan ve padding". Yıldız butonlarının kendi
@@ -579,6 +583,7 @@
 <script src="catalog-taxonomy.js"></script>
 <script src="js/components/gallery.js"></script>
 <script src="js/components/modal-shell.js"></script>
+<script src="js/components/share-button.js"></script>
 <script src="js/components/project-gallery.js"></script>
 <script src="js/components/project-meta.js"></script>
 <script src="js/components/project-actions.js"></script>

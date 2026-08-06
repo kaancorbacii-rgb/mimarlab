@@ -405,17 +405,21 @@
 
     <div class="dash-section">
       <h2>Profil Bilgileri</h2>
-      <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="fact-name">—</span></div>
-      <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="fact-dob">—</span></div>
-      <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
-      <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="fact-profession">—</span></div>
-      <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="fact-position">—</span></div>
-      <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="fact-joined">—</span></div>
-    </div>
-
-    <div class="dash-section" id="claims-section" style="display:none;">
-      <h2>Mimar/Firma Profilim</h2>
-      <div id="claims-mine-list"></div>
+      <div class="saved-filter" id="profile-info-tabs">
+        <button type="button" class="saved-filter-btn active" data-tab="facts">Genel Bilgiler</button>
+        <button type="button" class="saved-filter-btn" data-tab="claims" id="profile-claims-tab-btn" style="display:none;">Mimar/Firma Profilim</button>
+      </div>
+      <div id="profile-tab-facts">
+        <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="fact-name">—</span></div>
+        <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="fact-dob">—</span></div>
+        <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
+        <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="fact-profession">—</span></div>
+        <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="fact-position">—</span></div>
+        <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="fact-joined">—</span></div>
+      </div>
+      <div id="profile-tab-claims" style="display:none;">
+        <div id="claims-mine-list"></div>
+      </div>
     </div>
 
     <div class="dash-section">
@@ -456,6 +460,18 @@
       </div>
       <div id="dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="saved-pagination"></div>
+    </div>
+
+    <div class="dash-section">
+      <h2>Beğendiklerim</h2>
+      <div class="saved-filter" id="rated-filter">
+        <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+        <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+        <button type="button" class="saved-filter-btn" data-filter="material">Malzeme</button>
+      </div>
+      <div id="dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
+      <div class="dash-pagination" id="rated-pagination"></div>
     </div>
 
     <div class="dash-section">
@@ -767,6 +783,68 @@ function renderSaved(){
   renderDashPagination('saved-pagination', savedPage, totalPages, (p)=>{ savedPage = p; renderSaved(); });
 }
 
+let ratedItems = [];
+let ratedFilter = '';
+let ratedPage = 1;
+
+// "Beğendiklerim" — loadSaved/renderSaved ile BİREBİR aynı desen, farklı uç nokta (bkz. kullanıcı
+// isteği: "Kaydettiklerim kutusunun yanına Beğendiklerim kutusu ekle ... kullanıcının puanladığı
+// gönderiler burada listelensin"). saved_items'ın aksine ratings tablosu başlık/görsel tutmadığından
+// (bkz. src/routes/ratings.js#myRatings) sunucu tarafında zenginleştirilmiş halde gelir.
+async function loadRated(){
+  const res = await fetch('/api/ratings/mine');
+  const data = res.ok ? await res.json() : { items: [] };
+  ratedItems = data.items || [];
+  renderRated();
+}
+
+function renderRated(){
+  const container = document.getElementById('dash-rated');
+  const items = ratedFilter ? ratedItems.filter(it => it.type === ratedFilter) : ratedItems;
+  if(!ratedItems.length){
+    container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+    document.getElementById('rated-pagination').innerHTML = '';
+    return;
+  }
+  if(!items.length){
+    container.innerHTML = '<div class="dash-empty">Bu türde puanladığın bir içerik yok.</div>';
+    document.getElementById('rated-pagination').innerHTML = '';
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+  if(ratedPage > totalPages) ratedPage = totalPages;
+  const startIdx = (ratedPage - 1) * PAGE_SIZE_DASH;
+  const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+  container.innerHTML = pageItems.map(it => `
+    <div class="saved-row">
+      <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
+        ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+        <div style="min-width:0;">
+          <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
+          <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''}${it.meta ? ' · ' + escapeHtml(it.meta) : ''} · ${'★'.repeat(it.stars)}${'☆'.repeat(5 - it.stars)}</div>
+        </div>
+      </a>
+    </div>`).join('');
+  renderDashPagination('rated-pagination', ratedPage, totalPages, (p)=>{ ratedPage = p; renderRated(); });
+}
+
+document.getElementById('rated-filter').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.saved-filter-btn');
+  if(!btn) return;
+  ratedFilter = btn.dataset.filter;
+  ratedPage = 1;
+  document.querySelectorAll('#rated-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderRated();
+});
+
+document.getElementById('profile-info-tabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.saved-filter-btn');
+  if(!btn) return;
+  document.querySelectorAll('#profile-info-tabs .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('profile-tab-facts').style.display = btn.dataset.tab === 'facts' ? '' : 'none';
+  document.getElementById('profile-tab-claims').style.display = btn.dataset.tab === 'claims' ? '' : 'none';
+});
+
 document.getElementById('submissions-filter').addEventListener('click', (e)=>{
   const btn = e.target.closest('.submissions-filter-btn');
   if(!btn) return;
@@ -892,9 +970,9 @@ async function loadMyClaims(){
   const res = await fetch('/api/claims/mine');
   const data = res.ok ? await res.json() : { items: [] };
   const items = data.items || [];
-  const section = document.getElementById('claims-section');
-  if(!items.length){ section.style.display = 'none'; return; }
-  section.style.display = '';
+  const tabBtn = document.getElementById('profile-claims-tab-btn');
+  if(!items.length){ tabBtn.style.display = 'none'; return; }
+  tabBtn.style.display = '';
   document.getElementById('claims-mine-list').innerHTML = items.map(c => `
     <div class="profile-fact">
       <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
@@ -991,7 +1069,7 @@ document.getElementById('notif-delete-all-btn').addEventListener('click', async 
 
 loadUser().then(() => {
   if(currentUser){
-    loadSubmissions(); loadSaved(); loadBadges(); loadMyClaims(); loadNotifications();
+    loadSubmissions(); loadSaved(); loadRated(); loadBadges(); loadMyClaims(); loadNotifications();
     if(new URLSearchParams(window.location.search).get('payment') === 'success'){
       document.getElementById('payment-success-banner').style.display = 'block';
     }

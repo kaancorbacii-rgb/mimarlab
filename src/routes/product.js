@@ -50,18 +50,26 @@ async function fetchAdjacentProduct(env, id) {
 // eski biçim (id'siz `slugify(title + '-' + brand)`, bkz. o dosyalardaki AYNI fonksiyon) olabilir —
 // ikincisi için tabloyu tarayıp aynı fonksiyonla yeniden üretilen anahtarla karşılaştırma yapılır
 // (tablo küçük olduğundan ucuz, bkz. src/routes/architect.js#findArchitect'teki AYNI fallback deseni).
+// bkz. yukarıdaki dosya başı yorumu — hem GET /api/product/:key hem de src/routes/ratings.js#myRatings
+// (Beğendiklerim kutusu, ratingKeyFor'un ürettiği AYNI eski/yeni biçimli anahtarları çözmesi gerekiyor)
+// tarafından paylaşılır — iki ayrı kopya, biri güncellenip diğeri unutulursa sessizce ayrışabilirdi.
+export async function findProductByKey(env, key) {
+  let row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(key).first();
+  if (!row) {
+    const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL`).all();
+    const match = results.find(r => slugify(`${r.title}-${r.brand_name_raw || ''}`) === key);
+    if (match) row = await env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
+  }
+  return row || null;
+}
+
 export async function handleProductDetailRoute(request, env, url, rawKey) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   const key = decodeURIComponent(rawKey || '');
   if (!key) return errorJson('Geçersiz istek.');
 
   return cachedPublicJson(request, env, url.pathname, async () => {
-    let row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(key).first();
-    if (!row) {
-      const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL`).all();
-      const match = results.find(r => slugify(`${r.title}-${r.brand_name_raw || ''}`) === key);
-      if (match) row = await env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
-    }
+    const row = await findProductByKey(env, key);
     if (!row) return { item: null, hidden: false };
     const item = shapeProductItem(row);
     const adjacent = await fetchAdjacentProduct(env, row.id);

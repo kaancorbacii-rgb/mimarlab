@@ -105,9 +105,12 @@ const ProjectActions = (function () {
 
   function render(item, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
-    document.getElementById(mergedIds.saveSlot).innerHTML = saveBtnHtml(item);
+    document.getElementById(mergedIds.saveSlot).innerHTML = saveBtnHtml(item) + (typeof ShareWidget !== 'undefined' ? ShareWidget.html('pm-share-btn') : '');
     document.getElementById(mergedIds.root).innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
     wireSaveButtons('project');
+    if (typeof ShareWidget !== 'undefined') {
+      ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}/projeler/${encodeURIComponent(item.slug)}` }));
+    }
     fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(item.slug)}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => { const el = document.getElementById('pm-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })

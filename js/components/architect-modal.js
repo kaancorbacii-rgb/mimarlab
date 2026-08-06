@@ -212,7 +212,7 @@ const ArchitectModal = (function () {
 
   function cardHtml(href, title, image, subtitle) {
     return `<a class="related-card" href="${href}">
-      ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
+      ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
       <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
   }
@@ -331,6 +331,10 @@ const ArchitectModal = (function () {
       .then(r => r.json())
       .then(data => { const el = document.getElementById('am-save-count'); if (el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
+    if (typeof ShareWidget !== 'undefined') {
+      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('am-share-btn'));
+      ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
+    }
 
     renderStructuredData(a, office);
     renderPrevNext(payload);

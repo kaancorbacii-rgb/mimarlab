@@ -212,11 +212,9 @@
         <button class="admin-tab active" data-tab="pending">Bekleyen Gönderiler<span class="admin-tab-dot" data-dot="pending"></span></button>
         <button class="admin-tab" data-tab="content">Yayındaki İçerikler</button>
         <button class="admin-tab" data-tab="archive">Arşiv</button>
-        <button class="admin-tab" data-tab="legacy">Statik İçerikler</button>
         <button class="admin-tab" data-tab="claims">Profil Talepleri<span class="admin-tab-dot" data-dot="claims"></span></button>
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
-        <button class="admin-tab" data-tab="migration">Migrasyon Çakışmaları<span class="admin-tab-dot" data-dot="migration"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
       </div>
 
@@ -236,17 +234,6 @@
         <div id="archive-list"></div>
       </div>
 
-      <div class="admin-section" id="section-legacy">
-        <div class="admin-subtabs" id="legacy-subtabs"></div>
-        <div class="admin-form">
-          <div class="admin-field" style="margin-bottom:0;">
-            <label for="legacy-search">Ara</label>
-            <input type="text" id="legacy-search" placeholder="İsim / başlık ara (en az 2 karakter)...">
-          </div>
-        </div>
-        <div id="legacy-list"></div>
-      </div>
-
       <div class="admin-section" id="section-claims">
         <div class="admin-subtabs" id="claims-kind-tabs"></div>
         <div class="admin-subtabs" id="claims-subtabs"></div>
@@ -260,17 +247,6 @@
 
       <div class="admin-section" id="section-contact">
         <div id="contact-list"></div>
-      </div>
-
-      <div class="admin-section" id="section-migration">
-        <p style="color:var(--ink-soft); font-size:13px; margin:0 0 12px;">
-          Faz 2 ID-first veri taşıması (bkz. scripts/migrate-to-id-first.js) aynı isimde birden fazla
-          mimar/ofis bulduğunda ya da bir proje/ürünün belirsiz bir isme referans verdiğinde bunları
-          otomatik seçip taşımaz — buradaki her satır elle incelenip mevcut mimar/ofis düzenleme
-          araçlarınla (yeniden adlandırma, birleştirme) çözülmeli, sonra "İncelendi" ile işaretlenmeli.
-        </p>
-        <div class="admin-subtabs" id="migration-subtabs"></div>
-        <div id="migration-list"></div>
       </div>
 
       <div class="admin-section" id="section-users">
@@ -290,6 +266,15 @@ const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', m
 // TYPE_LABELS'in kendisi hâlâ tüm 7 tipi içerir, bu yüzden "Tümü" seçiliyken (varsayılan) diğer
 // tipler de (etiketleriyle birlikte) listede görünmeye devam eder, yalnızca kendi filtre butonları yok.
 const SUBTAB_TYPES = ['offices', 'projects', 'products'];
+// Bekleyen Gönderiler listesindeki "Düzenle / İncele" bağlantısı için — hesabim.html#EDIT_PAGE_BY_TYPE
+// ile BİREBİR aynı eşleme, admin onaylamadan önce gönderiyi ?edit=<id> modunda (kendi taslağını
+// okuyan, claimed_profile_key/claimed_slug'ı koruyarak kaydeden mod — bkz. mimar-ekle.html/
+// firma-ekle.html/proje-ekle.html#prefillForEdit'teki claimName/claimSlug geri-doldurma) formda görüp
+// gerekirse düzenleyebilsin diye (bkz. kullanıcı isteği).
+const EDIT_PAGE_BY_TYPE = {
+  offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
+  architects: 'mimar-ekle.html', news: 'haber-ekle.html',
+};
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 let pendingType = 'all';
 let contentType = 'all';
@@ -468,6 +453,7 @@ async function loadPending(){
           </div>
         </div>
         <div class="admin-actions">
+          <a class="admin-btn" href="${EDIT_PAGE_BY_TYPE[item.__type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(item.__type)}">Düzenle / İncele</a>
           <button class="admin-btn primary" data-action="approve">Onayla</button>
           <button class="admin-btn danger" data-action="reject">Reddet</button>
         </div>
@@ -608,88 +594,6 @@ async function loadArchive(){
     });
   });
 }
-
-// "Statik İçerikler" sekmesi: DB satırı olmayan miras kayıtları (projeler-data.js/data.js/
-// urunler-data.js/malzemeler-data.js/haberler-data.js) için admin panelinden gizle/tekrar göster
-// (bkz. src/routes/legacyContent.js, kullanıcı isteği: "admin tüm sitede tüm yetkilere sahip
-// olsun ... arşivleme"). Kayıt sayısı çok yüksek olduğundan (2650+) her zaman tip + en az 2
-// karakterlik bir arama gerektirir, tüm liste tek seferde dökülmez.
-const LEGACY_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
-let legacyType = 'projects';
-let legacySearchTimer = null;
-
-function loadLegacyContent(){
-  const subtabs = document.getElementById('legacy-subtabs');
-  subtabs.innerHTML = Object.keys(LEGACY_TYPE_LABELS).map(t =>
-    `<button class="admin-subtab ${t===legacyType?'active':''}" data-type="${t}">${LEGACY_TYPE_LABELS[t]}</button>`
-  ).join('');
-  subtabs.querySelectorAll('.admin-subtab').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ legacyType = btn.dataset.type; loadLegacyContent(); });
-  });
-
-  const list = document.getElementById('legacy-list');
-  const q = document.getElementById('legacy-search').value.trim();
-  if(q.length < 2){
-    list.innerHTML = '<div class="admin-empty">Aramak için en az 2 karakter yaz.</div>';
-    return;
-  }
-  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  api(`/api/admin/legacy?type=${legacyType}&q=${encodeURIComponent(q)}`).then(data=>{
-    const items = data.items || [];
-    if(!items.length){ list.innerHTML = '<div class="admin-empty">Sonuç yok.</div>'; return; }
-    list.innerHTML = items.map(item => `
-      <div class="admin-card" data-key="${escapeAttr(item.key)}">
-        <div class="admin-card-head">
-          <div class="admin-card-body">
-            ${item.image ? `<img class="admin-card-thumb" src="${escapeAttr(item.image)}" alt="" loading="lazy" decoding="async">` : ''}
-            <div>
-              <div class="admin-card-title">${escapeHtml(item.title)} ${item.hidden ? '<span class="admin-badge badge-rejected">Gizli</span>' : ''}</div>
-              <div class="admin-card-meta">${escapeHtml(item.subtitle || '')}</div>
-            </div>
-          </div>
-          <div class="admin-actions">
-            <button class="admin-btn ${item.hidden ? 'primary' : 'danger'}" data-action="toggle" data-hidden="${item.hidden ? '1' : '0'}">${item.hidden ? 'Göster' : 'Gizle'}</button>
-            <button class="admin-btn danger" data-action="delete">Sil</button>
-          </div>
-        </div>
-      </div>
-    `).join('');
-    list.querySelectorAll('[data-action="toggle"]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const key = btn.closest('.admin-card').dataset.key;
-        const currentlyHidden = btn.dataset.hidden === '1';
-        if(!currentlyHidden && !confirm('Bu kaydı canlı siteden gizlemek istediğine emin misin?')) return;
-        btn.disabled = true;
-        await api('/api/admin/legacy/hidden', {
-          method: 'PATCH', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ type: legacyType, key, hidden: !currentlyHidden }),
-        });
-        loadLegacyContent();
-      });
-    });
-    // "Gizle" (hidden_at, geri alınabilir) yalnızca bir toggle sunuyordu — kalıcı "Sil" (deleted_at +
-    // cascade) için hiçbir buton yoktu, halbuki backend'de (src/routes/legacyContent.js#handleContentAction
-    // key-based dal) bu zaten profil detay sayfasının Sil butonuyla AYNI, çalışan uç noktaydı (bkz.
-    // gerçek bulgu: kullanıcı "admin panelinden silme çalışmıyor" derken aslında bu sekmede silme
-    // seçeneği hiç YOKTU — endpoint'in kendisi bozuk değildi).
-    list.querySelectorAll('[data-action="delete"]').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const key = btn.closest('.admin-card').dataset.key;
-        if(!confirm(`Bu ${LEGACY_TYPE_LABELS[legacyType].toLowerCase()} kaydını KALICI olarak silmek istediğine emin misin? Bu işlem geri alınamaz.`)) return;
-        btn.disabled = true;
-        await api('/api/admin/legacy/content-action', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ type: legacyType, action: 'delete', key }),
-        });
-        loadLegacyContent();
-      });
-    });
-  });
-}
-document.getElementById('legacy-search').addEventListener('input', ()=>{
-  clearTimeout(legacySearchTimer);
-  legacySearchTimer = setTimeout(loadLegacyContent, 300);
-});
 
 let claimsKind = 'ownership';
 let claimsStatus = 'pending';
@@ -862,50 +766,6 @@ async function loadContactMessages(){
   });
 }
 
-const MIGRATION_STATUS_LABELS = { pending: 'Beklemede', resolved: 'İncelendi', ignored: 'Yoksayıldı' };
-const MIGRATION_ENTITY_LABELS = {
-  architect: 'Mimar adı çakışması', office: 'Firma adı çakışması',
-  project_designer: 'Proje tasarımcısı eşleşmesi belirsiz', office_founder: 'Ofis kurucusu eşleşmesi belirsiz',
-  product_brand: 'Ürün markası eşleşmesi belirsiz', product_architect: 'Ürün mimarı eşleşmesi belirsiz',
-};
-let migrationStatus = 'pending';
-
-async function loadMigrationConflicts(){
-  const subtabs = document.getElementById('migration-subtabs');
-  subtabs.innerHTML = Object.keys(MIGRATION_STATUS_LABELS).map(s =>
-    `<button class="admin-subtab ${s===migrationStatus?'active':''}" data-status="${s}">${MIGRATION_STATUS_LABELS[s]}</button>`
-  ).join('');
-  subtabs.querySelectorAll('.admin-subtab').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ migrationStatus = btn.dataset.status; loadMigrationConflicts(); });
-  });
-
-  const list = document.getElementById('migration-list');
-  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api(`/api/admin/migration-conflicts?status=${migrationStatus}`);
-  const items = data.items || [];
-  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda çakışma yok.</div>'; return; }
-  list.innerHTML = items.map(c => `
-    <div class="admin-card" data-id="${c.id}">
-      <div class="admin-card-head">
-        <div>
-          <div class="admin-card-title">${escapeHtml(c.conflict_key)} <span class="admin-badge badge-pending">${MIGRATION_ENTITY_LABELS[c.entity_type] || c.entity_type}</span></div>
-          ${c.context ? `<div class="admin-card-meta">${escapeHtml(c.context)}</div>` : ''}
-        </div>
-        ${migrationStatus !== 'resolved' ? `<div class="admin-actions"><button class="admin-btn" data-action="resolved">İncelendi Olarak İşaretle</button></div>` : `<div class="admin-actions"><button class="admin-btn" data-action="pending">Beklemeye Al</button></div>`}
-      </div>
-      <div class="admin-card-details">${c.candidates.map((cand, i) => `<div><span>Aday ${i+1}:</span> ${escapeHtml(JSON.stringify(cand))}</div>`).join('')}</div>
-    </div>
-  `).join('');
-  list.querySelectorAll('[data-action]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const id = btn.closest('.admin-card').dataset.id;
-      await api(`/api/admin/migration-conflicts/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: btn.dataset.action }) });
-      loadMigrationConflicts();
-      refreshAdminSummary();
-    });
-  });
-}
-
 async function loadUsers(){
   const list = document.getElementById('users-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
@@ -936,7 +796,6 @@ async function refreshAdminSummary(){
       claims: data.pendingClaims > 0,
       badges: data.pendingBadges > 0,
       contact: data.unreadContact > 0,
-      migration: data.pendingMigrationConflicts > 0,
     };
     Object.entries(dots).forEach(([key, show])=>{
       const dot = document.querySelector(`.admin-tab-dot[data-dot="${key}"]`);
@@ -954,11 +813,9 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'pending') loadPending();
     if(tab.dataset.tab === 'content') loadContent();
     if(tab.dataset.tab === 'archive') loadArchive();
-    if(tab.dataset.tab === 'legacy') loadLegacyContent();
     if(tab.dataset.tab === 'claims') loadClaims();
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
     if(tab.dataset.tab === 'contact') loadContactMessages();
-    if(tab.dataset.tab === 'migration') loadMigrationConflicts();
     if(tab.dataset.tab === 'users') loadUsers();
   });
 });

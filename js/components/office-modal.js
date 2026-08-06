@@ -198,7 +198,7 @@ const OfficeModal = (function () {
 
   function cardHtml(href, title, image, subtitle) {
     return `<a class="related-card" href="${href}">
-      ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
+      ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
       <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
   }
@@ -325,6 +325,10 @@ const OfficeModal = (function () {
       .then(r => r.json())
       .then(data => { const el = document.getElementById('om-save-count'); if (el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
+    if (typeof ShareWidget !== 'undefined') {
+      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('om-share-btn'));
+      ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
+    }
 
     // "Websitesini Gör" — Kaydet ile AYNI satırda, hemen soluna (bkz. kullanıcı isteği) —
     // .save-btn sınıfını (kart bağlamındaki değil, bu enjekte edilen stil) birebir paylaşarak

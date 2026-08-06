@@ -255,7 +255,11 @@ async function createSubmission(request, env, user, typeKey) {
     const target = ssrPurgeTargetFor(typeKey, { ...row, id });
     if (target) await purgeSsrDetailCache(target.type, target.key);
   }
-  return json({ id, status }, 201);
+  // slug: proje-ekle.html'in kaydettikten sonra doğrudan canlı sayfaya yönlendirebilmesi için (bkz.
+  // kullanıcı isteği) — yalnızca projelerde anlamlı, slug title'dan rastgele bir ek ile üretildiğinden
+  // (bkz. normalizeSubmission) istemci tarafında ÖNCEDEN tahmin edilemez (mimar/firma/ürünün aksine,
+  // onlarda yönlendirme adı/id'den istemci tarafında yeniden üretilebiliyor).
+  return json(typeKey === 'projects' ? { id, status, slug: row.slug } : { id, status }, 201);
 }
 
 async function listMine(env, user, typeKey) {
