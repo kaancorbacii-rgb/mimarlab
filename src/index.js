@@ -31,12 +31,36 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // kullanıcı isteği) — tüm alt alan adlarının HTTPS desteği doğrulanmadan bunlar geri dönüşü zor bir
 // risk taşır (preload listesine girmek ayları bulan bir kaldırma süreci gerektirir, includeSubDomains
 // HTTPS'siz bir alt alan adını anında kırar).
+// Report-Only CSP — repo çapında origin taraması (script/link/fetch/iframe) sonucu: Google
+// Fonts (fonts.googleapis.com/fonts.gstatic.com), Google Tag Manager (gtag.js + GA4 collect
+// uçları), ve site genelindeki HTML sayfalarının kendi inline <script>/<style> bloklarından
+// (bu depoda henüz nonce/hash altyapısı yok, script-src/style-src bu yüzden 'unsafe-inline'
+// içeriyor — bu ilk denetim aşamasında hiçbir şeyi bloklamamak öncelikli, sıkılaştırma ayrı
+// bir adım). Google/LinkedIn OAuth ve iyzico ödeme sayfası ikisi de düz <a href>/window.location
+// İLE üst seviye yönlendirme (top-level navigation) — CSP bunu kısıtlamaz, bu yüzden connect-src/
+// form-action'a ayrıca eklenmedi. Sitede hiçbir <iframe> yok (bkz. X-Frame-Options: DENY yorumu),
+// frame-src/object-src bu yüzden 'none'. BİLEREK sadece Report-Only: canlıda hiçbir kaynağı
+// bloklamaz, yalnızca ihlalleri tarayıcı konsoluna loglar — enforce moduna geçiş ayrı bir karar.
+const CONTENT_SECURITY_POLICY_REPORT_ONLY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com",
+  "frame-src 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   'Strict-Transport-Security': 'max-age=31536000',
+  'Content-Security-Policy-Report-Only': CONTENT_SECURITY_POLICY_REPORT_ONLY,
 };
 
 // Temiz URL yapısı: eski ?param= sorgu dizesi yerine yol tabanlı adresler (SEO ve paylaşılabilirlik
