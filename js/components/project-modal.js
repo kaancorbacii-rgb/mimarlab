@@ -64,7 +64,7 @@ const ProjectModal = (function () {
     <div class="lightbox" id="pm-lightbox">
       <button class="lightbox-close" id="pm-lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <button class="lightbox-nav lightbox-prev" id="pm-lightbox-prev" aria-label="Önceki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-      <img id="pm-lightbox-img" src="" alt="">
+      <img id="pm-lightbox-img" src="" alt="" decoding="async">
       <button class="lightbox-nav lightbox-next" id="pm-lightbox-next" aria-label="Sonraki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
       <div class="lightbox-counter" id="pm-lightbox-counter"></div>
     </div>`;

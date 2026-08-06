@@ -160,6 +160,19 @@ export async function handleArchitectRoute(request, env, url, rawKey) {
   return cachedPublicJson(request, env, url.pathname, () => buildArchitectPayload(env, key));
 }
 
+// Mimar Ekle formundaki Firma alanına yazılıp offices tablosunda karşılığı bulunamadığı için
+// office_id/office_founders'a hiç bağlanamamış (bkz. src/lib/canonicalSync.js#syncArchitect —
+// eşleşmeyen isim officeId=null bırakılır) firma adını kurtarır — src/routes/office.js#
+// fetchRawFounderNames ile AYNI desen, tek fark architect_submissions.office'in (aksine founders'ın)
+// dizi değil DÜZ TEK bir string olması (bkz. src/lib/submissionTypes.js#architects.fields).
+async function fetchRawOfficeName(env, a) {
+  const submissionId = (a.legacy_key || '').startsWith('submission:') ? a.legacy_key.slice('submission:'.length) : '';
+  const row = await env.DB.prepare(
+    `SELECT office FROM architect_submissions WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
+  ).bind(a.name, a.legacy_key || '', submissionId).first();
+  return (row && row.office) ? row.office.trim() : '';
+}
+
 async function buildArchitectPayload(env, key) {
   const row = await findArchitect(env, key);
   // bkz. gerçek bulgu: eski "eşleşme yoksa ilk kaydı döndür" fallback'i, silinmiş/eşleşmeyen bir key
@@ -193,6 +206,10 @@ async function buildArchitectPayload(env, key) {
   }
   const offices = [...officesById.values()];
 
+  const rawOfficeName = await fetchRawOfficeName(env, a);
+  const hasOffice = rawOfficeName && offices.some(o => trLower(o.name) === trLower(rawOfficeName));
+  const unregisteredOffice = rawOfficeName && !hasOffice ? { name: rawOfficeName, unregistered: true } : null;
+
   const [colleaguesRes, relatedRes] = await Promise.all([
     office
       ? env.DB.prepare(
@@ -221,7 +238,10 @@ async function buildArchitectPayload(env, key) {
       badges: [],
     },
     office: office ? { name: office.name, loc: office.loc, cats: office.cats, yil: office.yil, logo: office.logo_url, badges: [] } : null,
-    offices: offices.map(o => ({ name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, logo: o.logo_url, badges: [] })),
+    offices: [
+      ...offices.map(o => ({ name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, logo: o.logo_url, badges: [] })),
+      ...(unregisteredOffice ? [unregisteredOffice] : []),
+    ],
     colleagues,
     relatedProjects,
     hidden: !!a.hidden_at,

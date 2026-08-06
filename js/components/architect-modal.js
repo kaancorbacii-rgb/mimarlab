@@ -43,8 +43,10 @@ const ArchitectModal = (function () {
       .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
       .save-btn{
         display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
+        height:36px; box-sizing:border-box;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:9px 18px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+        padding:0 18px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+        font-family:inherit; line-height:1;
       }
       .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
       .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
@@ -52,6 +54,7 @@ const ArchitectModal = (function () {
       .save-btn-label-saved{display:none;}
       .save-btn.saved .save-btn-label-default{display:none;}
       .save-btn.saved .save-btn-label-saved{display:inline;}
+      .save-btn-count{font-weight:600;}
       .profile-edit-btn{
         display:inline-flex; align-items:center; gap:7px;
         background:none; border:1.5px solid var(--ink); color:var(--ink);
@@ -77,6 +80,8 @@ const ArchitectModal = (function () {
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
+      .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
+      .detail-desc-more:hover{color:var(--ink);}
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
       .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
@@ -92,9 +97,24 @@ const ArchitectModal = (function () {
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
+      .unregistered-badge{
+        display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;
+        background:var(--paper-card); border:1px solid var(--line-soft);
+        border-radius:100px; padding:6px 16px 6px 6px; cursor:default;
+      }
+      .unregistered-badge-avatar{
+        width:32px; height:32px; border-radius:50%; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        color:#fff; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+      }
+      .unregistered-badge-name{font-size:13px; font-weight:600; color:var(--ink);}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
+        /* mobil/tablette .modal-shell-left/.modal-shell-right display:contents olduğundan (bkz.
+           modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/bilgi
+           kaynağı kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
+        #claim-info-card, #correction-info-card{order:99;}
       }
     `;
     document.head.appendChild(style);
@@ -108,8 +128,8 @@ const ArchitectModal = (function () {
     <div class="detail-title-actions" id="am-actions"></div>
     <div class="detail-info" id="am-detail-info">
       <div class="detail-meta" id="am-category"></div>
-      <div class="detail-desc" id="am-about"></div>
       <div class="detail-meta" id="am-info-facts" style="display:none;"></div>
+      <div class="detail-desc" id="am-about"></div>
     </div>
     <div class="info-card" id="claim-info-card">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
@@ -118,7 +138,7 @@ const ArchitectModal = (function () {
         <p>Bilgilerini güncellemek ya da fotoğrafını değiştirmek için bizimle iletişime geç.</p>
       </div>
     </div>
-    <div class="info-card">
+    <div class="info-card" id="correction-info-card">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="4" x2="8" y2="9"/></svg>
       <div>
         <h5>Bilgi kaynağı</h5>
@@ -169,11 +189,33 @@ const ArchitectModal = (function () {
     'Restorasyon': 'Restoratör',
   };
 
+  // Uzun biyografilerde belirli bir uzunluktan sonra kes + "Devamını gör..." genişletme (bkz.
+  // kullanıcı isteği) — js/components/project-meta.js#renderDescription/DESC_TRUNCATE_AT ile
+  // BİREBİR aynı desen, bu modül proje modalıyla import paylaşamadığından burada tekrarlanır.
+  const DESC_TRUNCATE_AT = 320;
+  function renderTruncatedDesc(elId, text) {
+    const el = document.getElementById(elId);
+    if (text.length <= DESC_TRUNCATE_AT) { el.textContent = text; return; }
+    const truncated = text.slice(0, DESC_TRUNCATE_AT).trim();
+    el.innerHTML = `${escapeHtml(truncated)}… <button type="button" class="detail-desc-more">Devamını gör...</button>`;
+    el.querySelector('.detail-desc-more').addEventListener('click', () => { el.textContent = text; });
+  }
+
   function cardHtml(href, title, image, subtitle) {
     return `<a class="related-card" href="${href}">
       ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
       <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
+  }
+
+  // Mimar profiline yazılmış ama offices tablosunda karşılığı olmayan (bkz. src/routes/
+  // architect.js#fetchRawOfficeName, `unregistered: true`) firma adı — js/components/
+  // office-modal.js#unregisteredBadgeHtml ile BİREBİR aynı, yuvarlak baş harfli pasif rozet.
+  function unregisteredBadgeHtml(name) {
+    return `<span class="unregistered-badge" aria-disabled="true">
+      <span class="unregistered-badge-avatar" style="background:${officeColor(name)}">${escapeHtml(initials(name))}</span>
+      <span class="unregistered-badge-name">${escapeHtml(name)}</span>
+    </span>`;
   }
 
   function updateHeadMeta(a, office) {
@@ -222,9 +264,10 @@ const ArchitectModal = (function () {
     updateHeadMeta(a, office);
     document.getElementById('am-name-text').textContent = a.name;
     document.getElementById('am-category').innerHTML = `<strong>${escapeHtml([a.role, office ? office.name : null].filter(Boolean).join(' · '))}</strong>`;
-    document.getElementById('am-about').textContent = a.about || (office
+    const aboutText = a.about || (office
       ? `${a.name}, ${office.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
       : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`));
+    renderTruncatedDesc('am-about', aboutText);
 
     const infoFactsEl = document.getElementById('am-info-facts');
     const infoFacts = [];
@@ -244,6 +287,7 @@ const ArchitectModal = (function () {
       const img = document.createElement('img');
       img.src = a.photo;
       img.alt = '';
+      img.decoding = 'async';
       img.fetchPriority = 'high';
       img.onerror = () => img.remove();
       logoEl.appendChild(img);
@@ -254,9 +298,9 @@ const ArchitectModal = (function () {
     saveBtn.className = 'save-btn card-save-btn';
     saveBtn.id = 'am-save-btn';
     saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span>`;
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="am-save-count"></span>`;
     const actionsEl = document.getElementById('am-actions');
-    actionsEl.innerHTML = '<span class="save-count" id="am-save-count"></span><span id="profile-edit-slot"></span>';
+    actionsEl.innerHTML = '<span id="profile-edit-slot"></span>';
     actionsEl.prepend(saveBtn);
     saveBtn.dataset.key = slugify(a.name);
     saveBtn.dataset.title = a.name;
@@ -266,15 +310,16 @@ const ArchitectModal = (function () {
     wireSaveButtons('architect');
     fetch(`/api/public/save-count?type=architect&key=${encodeURIComponent(saveBtn.dataset.key)}`)
       .then(r => r.json())
-      .then(data => { document.getElementById('am-save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : ''; })
+      .then(data => { const el = document.getElementById('am-save-count'); if (el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
 
     renderStructuredData(a, office);
 
     const officeSectionEl = document.getElementById('am-office-section');
     officeSectionEl.style.display = offices.length ? '' : 'none';
-    document.getElementById('am-office-grid').innerHTML = offices.map(off =>
-      cardHtml(`/firma/${encodeURIComponent(slugify(off.name))}`, off.name, logoUrl(off), [off.loc, off.yil ? 'K. ' + off.yil : null].filter(Boolean).join(' · '))
+    document.getElementById('am-office-grid').innerHTML = offices.map(off => off.unregistered
+      ? unregisteredBadgeHtml(off.name)
+      : cardHtml(`/firma/${encodeURIComponent(slugify(off.name))}`, off.name, logoUrl(off), [off.loc, off.yil ? 'K. ' + off.yil : null].filter(Boolean).join(' · '))
     ).join('');
 
     document.getElementById('am-colleagues-section').style.display = colleagues.length ? '' : 'none';

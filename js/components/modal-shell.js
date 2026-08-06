@@ -101,7 +101,10 @@ const ModalShell = (function () {
            kurallar (width:95vw; height:92vh; border-radius:20px) tüm kırılma noktalarında geçerli.
         */
         .modal-shell-panel{border-radius:16px;}
-        .modal-shell-body{grid-template-columns:1fr; display:flex; flex-direction:column; padding:0 18px 28px;}
+        /* padding-top: kapatma (X) butonu panele position:absolute (top:16px, height:36px) — içerik
+           kaydırma öncesi tam bu bölgenin ALTINDA başlamazsa başlık/görseller X ile çakışıyordu (bkz.
+           kullanıcı isteği). 16+36=52px'lik buton alanına en az 16-24px pay eklenir. */
+        .modal-shell-body{grid-template-columns:1fr; display:flex; flex-direction:column; padding:72px 18px 28px;}
         /* display:contents: sol/sağ panel kapsayıcıları kendi kutularını üretmez, çocukları
            doğrudan .modal-shell-body'nin flex bağlamına katılır — böylece proje.html'in kendi CSS'i
            (bkz. #pm-* id'lerine order ataması) galeri/başlık/aksiyon/künye/yorum/carousel'leri TEK

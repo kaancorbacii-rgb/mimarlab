@@ -162,6 +162,21 @@ export async function handleOfficeRoute(request, env, url, rawKey) {
   return cachedPublicJson(request, env, url.pathname, () => buildOfficePayload(env, key));
 }
 
+// Kurucular kutusuna yazılıp architects tablosunda karşılığı bulunamadığı için office_founders'a
+// hiç bağlanamamış (bkz. src/lib/canonicalSync.js#syncOfficeFoundersFromNames — eşleşmeyen isim
+// sessizce atlanır) isimleri kurtarır — js/components/project-meta.js'nin designerDetails
+// `unregistered: true` deseninin (bkz. src/routes/project.js#fetchRawDesignerNames) ofis
+// karşılığı. En son (varsa onaylı) office_submissions satırı, ofisin claimed_profile_key'i ya da
+// (bağımsız kayıtlarda) submissionMarker id'si üzerinden bulunur.
+async function fetchRawFounderNames(env, o) {
+  const submissionId = (o.legacy_key || '').startsWith('submission:') ? o.legacy_key.slice('submission:'.length) : '';
+  const row = await env.DB.prepare(
+    `SELECT founders FROM office_submissions WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
+  ).bind(o.name, o.legacy_key || '', submissionId).first();
+  if (!row || !row.founders) return [];
+  try { return JSON.parse(row.founders) || []; } catch { return []; }
+}
+
 async function buildOfficePayload(env, key) {
   const row = await findOffice(env, key);
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
@@ -169,7 +184,7 @@ async function buildOfficePayload(env, key) {
   if (!row) return { item: null, founders: [], relatedProjects: [], hidden: false };
   const o = parseCanonicalRow('offices', row);
 
-  const [foundersRes, relatedRes] = await Promise.all([
+  const [foundersRes, relatedRes, rawFounderNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL`
@@ -178,9 +193,16 @@ async function buildOfficePayload(env, key) {
       `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND pd.office_id = ?`
     ).bind(o.id).all(),
+    fetchRawFounderNames(env, o),
   ]);
 
   const founders = foundersRes.results.map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
+  const knownFounderNames = new Set(founders.map(f => trLower(f.name)));
+  for (const name of rawFounderNames) {
+    if (!name || knownFounderNames.has(trLower(name))) continue;
+    knownFounderNames.add(trLower(name));
+    founders.push({ name, role: null, photo: null, badges: [], unregistered: true });
+  }
   const relatedProjects = relatedRes.results.map(p => {
     const parsed = parseCanonicalRow('projects', p);
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category };

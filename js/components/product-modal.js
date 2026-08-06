@@ -53,7 +53,7 @@ const ProductModal = (function () {
       .pr-rating-save-row .save-btn-label-saved{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
-      .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+      .save-btn-count{font-weight:600;}
       .pr-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 18px;}
       .pr-actions .card-edit-btn{
         display:inline-flex; align-items:center;
@@ -94,6 +94,8 @@ const ProductModal = (function () {
       .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
       .detail-meta a:hover{color:var(--ink);}
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px; white-space:pre-line;}
+      .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer; white-space:normal;}
+      .detail-desc-more:hover{color:var(--ink);}
       .specs-title{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin:28px 0 4px;}
       .specs-table{width:100%; border-collapse:collapse; margin-top:12px; font-size:14px;}
       .specs-table tr{border-bottom:1px solid var(--line-soft);}
@@ -199,7 +201,7 @@ const ProductModal = (function () {
     <div class="lightbox" id="pr-lightbox">
       <button class="lightbox-close" id="pr-lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <button class="lightbox-nav lightbox-prev" id="pr-lightbox-prev" aria-label="Önceki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-      <img id="pr-lightbox-img" src="" alt="">
+      <img id="pr-lightbox-img" src="" alt="" decoding="async">
       <button class="lightbox-nav lightbox-next" id="pr-lightbox-next" aria-label="Sonraki görsel"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
       <div class="lightbox-counter" id="pr-lightbox-counter"></div>
     </div>`;
@@ -230,6 +232,16 @@ const ProductModal = (function () {
       ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
       <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
+  }
+
+  // bkz. js/components/architect-modal.js#renderTruncatedDesc — BİREBİR aynı desen.
+  const DESC_TRUNCATE_AT = 320;
+  function renderTruncatedDesc(elId, text) {
+    const el = document.getElementById(elId);
+    if (text.length <= DESC_TRUNCATE_AT) { el.textContent = text; return; }
+    const truncated = text.slice(0, DESC_TRUNCATE_AT).trim();
+    el.innerHTML = `${escapeHtml(truncated)}… <button type="button" class="detail-desc-more">Devamını gör...</button>`;
+    el.querySelector('.detail-desc-more').addEventListener('click', () => { el.textContent = text; });
   }
 
   function safeUrl(u) {
@@ -347,7 +359,7 @@ const ProductModal = (function () {
       if (site) metaHtml += `<div><strong>Web Sitesi:</strong> <a href="${escapeAttr(site)}" target="_blank" rel="noopener">${escapeHtml(p.website)}</a></div>`;
     }
     document.getElementById('pr-meta').innerHTML = metaHtml;
-    document.getElementById('pr-desc').textContent = p.description || '';
+    renderTruncatedDesc('pr-desc', p.description || '');
 
     const specsWrap = document.getElementById('pr-specs-wrap');
     if (p.specs && p.specs.length) {
@@ -375,7 +387,7 @@ const ProductModal = (function () {
     saveBtn.className = 'save-btn card-save-btn';
     saveBtn.id = 'pr-save-btn';
     saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span>`;
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="pr-save-count"></span>`;
     saveBtn.dataset.type = ratingKindFor(p);
     saveBtn.dataset.key = key;
     saveBtn.dataset.title = p.title;
@@ -383,12 +395,12 @@ const ProductModal = (function () {
     saveBtn.dataset.image = images[0] || '';
     saveBtn.dataset.href = `/urun/${encodeURIComponent(key)}`;
     const saveSlot = document.getElementById('pr-save-slot');
-    saveSlot.innerHTML = '<span class="save-count" id="pr-save-count"></span>';
+    saveSlot.innerHTML = '';
     saveSlot.prepend(saveBtn);
     wireSaveButtons(ratingKindFor(p));
     fetch(`/api/public/save-count?type=${ratingKindFor(p)}&key=${encodeURIComponent(key)}`)
       .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data) document.getElementById('pr-save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : ''; })
+      .then(data => { const el = document.getElementById('pr-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
 
     const ratingWidget = document.getElementById('pr-rating');

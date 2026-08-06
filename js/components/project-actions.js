@@ -16,8 +16,8 @@ const ProjectActions = (function () {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
         <span class="save-btn-label-default">Kaydet</span>
         <span class="save-btn-label-saved">Kaydedildi</span>
-      </button>
-      <span class="save-count" id="pm-save-count"></span>`;
+        <span class="save-btn-count" id="pm-save-count"></span>
+      </button>`;
   }
 
   // Oturum açmış kullanıcının bu projeyi yükleyen/paylaşan kişi olup olmadığını kontrol eder (bkz.
@@ -110,7 +110,7 @@ const ProjectActions = (function () {
     wireSaveButtons('project');
     fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(item.slug)}`)
       .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data) document.getElementById('pm-save-count').textContent = data.count > 0 ? `${data.count} kez kaydedildi` : ''; })
+      .then(data => { const el = document.getElementById('pm-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
     mountOwnerActions(item).then(() => mountAdminModerationButtons(item));
   }

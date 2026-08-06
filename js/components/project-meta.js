@@ -89,7 +89,7 @@ const ProjectMeta = (function () {
       return;
     }
     const truncated = text.slice(0, DESC_TRUNCATE_AT).trim();
-    el.innerHTML = `<p class="detail-desc-text">${escapeHtml(truncated)}… <button type="button" class="detail-desc-more">Devamını oku...</button></p>`;
+    el.innerHTML = `<p class="detail-desc-text">${escapeHtml(truncated)}… <button type="button" class="detail-desc-more">Devamını gör...</button></p>`;
     el.querySelector('.detail-desc-more').addEventListener('click', () => {
       el.innerHTML = `<p class="detail-desc-text">${escapeHtml(text)}</p>`;
     });

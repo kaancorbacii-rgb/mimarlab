@@ -306,7 +306,6 @@
      bile rahatça sığdığından overflow-x hiç gerekmiyordu, kaldırıldı.
   */
   .detail-title-actions{display:flex; align-items:center; gap:10px; flex-wrap:nowrap; margin:0 0 18px;}
-  .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
   .card-edit-btn{
     display:inline-flex; align-items:center;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
@@ -335,6 +334,7 @@
   .save-btn-label-saved{display:none;}
   .save-btn.saved .save-btn-label-default{display:none;}
   .save-btn.saved .save-btn-label-saved{display:inline;}
+  .save-btn-count{font-weight:600;}
   /* gerçek bulgu: proje modalının Kaydet butonu save-widget.js'in .card-save-btn seçicisiyle
      bulunabilmesi için hem .save-btn hem .card-save-btn sınıflarını birlikte taşıyor (bkz.
      ProjectActions.render) — ama .card-save-btn KART bağlamında (üstteki kural, position:absolute;
@@ -545,9 +545,12 @@
        bu kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
        bu bölümler artık AYNI dikey flex akışının parçası; sıra burada, sırayla artan order değerleriyle
        verilir. .detail-info künye VE açıklamayı TEK blok olarak taşır (zaten aralarında ayrı bir sıra
-       gerekmiyor, ikisi de kendi içinde doğru DOM sırasında).
+       gerekmiyor, ikisi de kendi içinde doğru DOM sırasında). #pm-gallery-wrap'ın kendi margin-top'u
+       KALDIRILDI — kapatma butonuna karşı üst boşluk artık modal-shell.js#.modal-shell-body'nin
+       paylaşılan padding-top'undan (bkz. kullanıcı isteği: X butonu/içerik çakışması, TÜM modallerde)
+       geliyor; ikisi birlikte kalsaydı boşluk iki katına çıkardı (gerçek bulgu).
     */
-    #pm-gallery-wrap{order:1; margin-top:72px;}
+    #pm-gallery-wrap{order:1;}
     #pm-title{order:2; margin-top:20px;}
     #pm-rating-save-row{order:3;}
     #pm-actions{order:4;}
