@@ -156,18 +156,16 @@ const ArchitectModal = (function () {
            (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
            çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
         .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
+        /* Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil yüksekliği
+           en az 48px, tıklanabilir alan en az 44x44px. "Paylaş" burada scoped bir override taşımadığı
+           için share-button.js#injectStyles'daki AYNI kırılma noktasındaki generic .share-btn kuralı
+           uygulanır (bkz. o dosya). Satırın tek satırda kalma zorunluluğu (üstteki
+           .detail-title-actions flex-wrap:nowrap + flex-shrink:1/min-width:0/overflow:hidden/
+           ellipsis) korunur. */
+        .save-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
+        .detail-title-actions{gap:8px !important;}
       }
       .prevnext-mobile-divider{display:none;}
-      @media (max-width:500px){
-        /* Kaydet/Paylaş pilini mobilde tek satırda tutmak için sıkıştırma (bkz. kullanıcı isteği)
-           — .share-btn burada scoped bir override taşımadığı için (bkz. share-button.js#injectStyles'ın
-           generic .share-btn 500px kuralı, bu dosyanın <style>'ından SONRA enjekte edildiğinden eşit
-           özgüllükte kazanır) yalnızca .save-btn burada küçültülür. */
-        .save-btn{height:30px !important; padding:0 6px !important; font-size:11px !important;}
-        .card-edit-btn, .card-delete-btn, .profile-edit-btn{
-          height:30px !important; padding:0 6px !important; font-size:11px !important;
-        }
-      }
     `;
     document.head.appendChild(style);
   }

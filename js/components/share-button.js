@@ -44,14 +44,28 @@ const ShareWidget = (function () {
         background:var(--ink); color:var(--paper-card); font-size:12.5px; font-weight:600;
         padding:8px 14px; border-radius:100px; box-shadow:0 8px 20px rgba(27,42,61,0.2);
       }
-      /* Dar ekranlarda Puanla/Kaydet/Paylaş(/Websitesi) satırının TEK satırda kalması (bkz.
-         kullanıcı isteği) metin genişliğine bağımlı — .share-text burada gizlenip buton sadece ikona
-         daralır, satırdaki diğer pil butonlarının (bkz. proje.html/js/components/product-modal.js/
-         architect-modal.js/office-modal.js#injectStyles) alanı sıkışmasın diye pay bırakır. */
-      @media (max-width:500px){
+      /* Puanla/Kaydet/Paylaş(/Websitesi) — Apple/Google dokunma hedefi standartları (bkz. kullanıcı
+         isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Bu kural yalnızca
+         mimar.html/firma.html modalleri (architect-modal.js/office-modal.js) için geçerlidir — proje.
+         html/product-modal.js kendi .pm-rating-save-row/.pr-rating-save-row .share-btn scoped
+         override'larını taşıdığından (bkz. o dosyalardaki AYNI kırılma noktası) burayı geçersiz kılar. */
+      @media (max-width:860px){
         .share-popover{left:auto; right:0;}
+        .share-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
+        /* gerçek bulgu: Düzenle/Arşivle/Sil gibi admin butonlarıyla AYNI satırı paylaşan sayfalarda
+           (bkz. office-modal.js#injectStyles — Websitesi/Kaydet/Paylaş/Düzenle/Arşivle/Sil altı pil
+           tek satırda) hepsi flex-shrink:1 miras aldığından satır sıkışınca Paylaş de 44px dokunma
+           hedefinin ALTINA küçülüyordu — .share-widget (asıl flex ÖĞESİ, .share-btn'i SARAN <span>)
+           burada flex-shrink:0 ile sabit tutulur, admin butonları (bu kırılma noktasında hâlâ
+           flex-shrink:1) ellipsis ile daha fazla daralarak farkı absorbe eder. */
+        .share-widget{flex-shrink:0 !important; min-width:44px !important;}
+      }
+      /* Çok dar ekranlarda (bkz. kullanıcı isteği: satır hiçbir genişlikte 2. satıra düşmemeli)
+         .share-text gizlenip buton ikona daralır — yükseklik/dolgu 48px'lik dokunma hedefini korur,
+         yalnızca metin kaldırılır. */
+      @media (max-width:400px){
         .share-text{display:none !important;}
-        .share-btn{height:30px !important; padding:0 6px !important; font-size:11px !important; gap:0;}
+        .share-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
       }
     `;
     document.head.appendChild(style);

@@ -313,6 +313,15 @@
     align-items:center !important; justify-content:flex-start !important; width:100% !important;
     gap:4px !important; margin:0 0 14px;
   }
+  /* gerçek bulgu: #pm-save-slot (Kaydet+Paylaş'ı BİRLİKTE tutan div, proje-actions.js#mount)
+     kendisi flex konteyner DEĞİLDİ — içindeki .save-btn/.share-widget salt inline-flex kutular
+     olduğundan sıradan satır-içi akışla dizilip konteynerin genişliğini aştıklarında (bkz. büyütülmüş
+     48px'lik pil boyutları, kullanıcı isteği) normal metin gibi ALT SATIRA kayıyorlardı — dıştaki
+     .pm-rating-save-row'un flex-wrap:nowrap'ı yalnızca KENDİ doğrudan çocuklarını (rating-widget +
+     bu slot) etkiliyor, slot'un İÇİNDEKİLERİ değil. Slot'u da flex/nowrap yapmak, .save-btn/
+     .share-btn'deki mevcut flex-shrink:1/min-width:0 kurallarının (yalnızca bir flex öğesindeyken
+     anlamlı) burada da devreye girmesini sağlar. */
+  #pm-save-slot{display:flex; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;}
   /* Düzenle/Arşivle/Sil: Kaydet artık bu satırda OLMADIĞINDAN (bkz. yukarısı) üç buton normalde
      her ekran boyutunda tek satıra sığar — nowrap ile bu garanti edilir. GERÇEK BULGU: buraya
      ayrıca overflow-x:auto eklemek (taşma güvenlik ağı olarak düşünülmüştü) mobilde bu satırı
@@ -593,22 +602,17 @@
     #pm-materials-section{order:10;}
     #pm-prevnext{order:11;}
 
-  }
-
-  @media (max-width:500px){
-    /* Puanla/Kaydet/Paylaş pilini mobilde tek satırda tutmak için sıkıştırma (bkz. kullanıcı
-       isteği) — yükseklik/dolgu/punto birlikte küçülür, üçü de piksel piksel eşit kalır. */
-    .pm-rating-save-row{gap:4px !important;}
-    .rating-widget{height:30px !important; padding:0 6px !important;}
-    .rating-star-row{gap:2px;}
-    .rating-summary{font-size:11px !important;}
-    .save-btn, .pm-rating-save-row .card-save-btn, .pm-rating-save-row .share-btn{
-      height:30px !important; padding:0 6px !important; font-size:11px !important;
+    /* Puanla/Kaydet/Paylaş — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
+       yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural
+       yalnızca bu kırılma noktasının altında geçerli. Satırın tek satırda kalma zorunluluğu (üstteki
+       .pm-rating-save-row flex-wrap:nowrap + her pildeki flex-shrink:1/min-width:0/overflow:hidden/
+       ellipsis) korunur — büyüyen pil genişliği dar ekranlarda ellipsis ile kendi içinde daralır. */
+    .pm-rating-save-row{gap:8px !important;}
+    .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn, .pm-rating-save-row .share-btn{
+      height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
     }
-    /* share-button.js#injectStyles bu genişlikte .share-text'i gizleyip butonu ikona daraltır —
-       bu satırdaki DAHA ÖZGÜL .pm-rating-save-row .share-btn override'ı aksi halde o daralmayı
-       geçersiz kılardı, burada da aynı ikon-only dolguya eşitlenir. */
-    .pm-rating-save-row .share-btn{padding:0 6px !important; gap:0;}
+    .rating-star-row{gap:4px;}
+    .rating-star-btn svg{width:15px; height:15px;}
   }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
@@ -620,6 +624,7 @@
 </script>
 </head>
 <body>
+<script src="js/overlay-manager.js"></script>
 <script src="auth-nav.js"></script>
 <script src="save-widget.js"></script>
 <script src="rating-widget.js"></script>
@@ -718,7 +723,7 @@
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>

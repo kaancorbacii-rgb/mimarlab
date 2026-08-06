@@ -140,6 +140,16 @@
     color:var(--ink); font-size:12.5px; line-height:1.6;
   }
   .auth-notice.show{display:block;}
+  .auth-oauth{display:flex; flex-direction:column; gap:10px; margin-bottom:20px;}
+  .auth-oauth-btn{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; padding:11px; border-radius:100px; border:1px solid var(--line);
+    background:var(--paper); font-size:13.5px; font-weight:600; color:var(--ink);
+  }
+  .auth-oauth-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+  .auth-oauth-btn svg{flex-shrink:0;}
+  .auth-divider{display:flex; align-items:center; gap:12px; margin:0 0 20px; font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em;}
+  .auth-divider::before, .auth-divider::after{content:''; flex:1; height:1px; background:var(--line);}
 
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
@@ -179,6 +189,7 @@
 </script>
 </head>
 <body>
+<script src="js/overlay-manager.js"></script>
 <script src="auth-nav.js"></script>
 
   <nav class="nav">
@@ -224,6 +235,17 @@
     <h1 class="auth-title">Tekrar hoş geldin</h1>
     <p class="auth-sub">Devam etmek için hesabına giriş yap.</p>
     <div class="auth-card">
+      <div class="auth-oauth">
+        <a class="auth-oauth-btn" href="/api/auth/google/start?next=%2Fhesabim.html">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.46c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.58-5.17 3.58-8.81Z"/><path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.92l-3.88-3c-1.08.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.94H1.28v3.1C3.25 21.3 7.31 24 12 24Z"/><path fill="#FBBC05" d="M5.29 14.29A7.2 7.2 0 0 1 4.91 12c0-.8.14-1.57.38-2.29v-3.1H1.28A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.28 5.39l4.01-3.1Z"/><path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.59 1.79l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.28 6.61l4.01 3.1C6.23 6.88 8.88 4.77 12 4.77Z"/></svg>
+          Google ile Giriş Yap
+        </a>
+        <a class="auth-oauth-btn" href="/api/auth/linkedin/start?next=%2Fhesabim.html">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2"><path d="M4.98 3.5A2.5 2.5 0 1 0 4.98 8.5 2.5 2.5 0 0 0 4.98 3.5zM3 9.98h4v11.02H3zM10.5 9.98h3.83v1.51h.05c.53-1 1.85-2.06 3.8-2.06 4.06 0 4.82 2.67 4.82 6.14v6.43h-4v-5.7c0-1.36-.02-3.1-1.89-3.1-1.9 0-2.19 1.48-2.19 3v5.8h-4z"/></svg>
+          LinkedIn ile Giriş Yap
+        </a>
+      </div>
+      <div class="auth-divider"><span>veya e-posta ile</span></div>
       <form id="login-form">
         <div class="auth-field">
           <label for="login-email">E-posta</label>
@@ -256,12 +278,29 @@
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
 
 <script>
+(function(){
+  const OAUTH_ERROR_MESSAGES = {
+    not_configured: 'Sosyal giriş şu anda kullanılamıyor, lütfen e-posta ile giriş yap.',
+    invalid_state: 'Oturum isteğinin süresi doldu, lütfen tekrar dene.',
+    token_exchange_failed: 'Sağlayıcıyla bağlantı kurulamadı, lütfen tekrar dene.',
+    profile_fetch_failed: 'Profil bilgilerine ulaşılamadı, lütfen tekrar dene.',
+    email_not_verified: 'Hesabının e-posta adresi doğrulanmamış görünüyor.',
+    rate_limited: 'Çok fazla deneme yaptın, lütfen biraz sonra tekrar dene.',
+  };
+  const err = new URLSearchParams(window.location.search).get('oauth_error');
+  if(err){
+    const notice = document.getElementById('login-notice');
+    notice.textContent = OAUTH_ERROR_MESSAGES[err] || 'Sosyal girişte bir sorun oluştu, lütfen tekrar dene.';
+    notice.classList.add('show');
+  }
+})();
+
 document.getElementById('login-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('login-notice');

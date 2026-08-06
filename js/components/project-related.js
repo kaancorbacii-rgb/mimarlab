@@ -7,11 +7,10 @@
 //   - ArchitectProjects: item.designerDetails'teki her isim zaten 'architect'/'office' olarak
 //     sınıflandırılmış (bkz. src/routes/project.js#fetchDesignerDetails) — bu yüzden proje-detay.html'in
 //     aksine hangi filtre grubuna (designer/designerOffice) gideceğini tahmin etmeye GEREK YOK.
-//   - RelatedProjects: eski relatedScore (3=Tür+Tip, 2=Tip, 1=Tür) sıralaması, aynı isimli iki
-//     filtre grubunu (type/category) AYNI istekte birlikte (score 3), sonra ayrı ayrı (score 2/1)
-//     göndermenin doğal sonucudur — handleProjectFiltersRoute/handleProjectListRoute farklı grupları
-//     AND, aynı grup içindeki değerleri OR'lar (bkz. o dosyadaki passesFilters), yani
-//     category+type birlikte istek = "sameType && sameCategory" ile MATEMATİKSEL OLARAK ÖZDEŞ.
+//   - RelatedProjects: puan bazlı deterministik skorlama (bkz. kullanıcı isteği ve RelatedProjects
+//     içindeki SCORE sabiti) — mimar/tip/kategori/şehir/ülke/yıl/puan filtreleriyle geniş bir aday
+//     havuzu toplanır, ardından her adayın puanı kaynak projeyle TÜM alanları karşılaştırılarak
+//     hesaplanır (hangi sorgunun adayı getirdiğinden bağımsız).
 const ArchitectProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-same-designer-section', grid: 'pm-same-designer-grid' };
 
@@ -50,8 +49,17 @@ const ArchitectProjects = (function () {
   return { mount };
 })();
 
+// Puan bazlı deterministik öneri skorlaması (bkz. kullanıcı isteği). Adaylar hâlâ /api/projects'e
+// birkaç geniş sorgu (mimar/tip/kategori/şehir + genel havuz) atılarak toplanır — Faz 3 sayfalama
+// migrasyonundan beri istemcide TÜM projelerin bir kopyası olmadığından tam tablo taraması mümkün
+// değil (bkz. dosya başı yorum) — ama asıl puanlama, hangi sorgunun adayı getirdiğine bakılmaksızın
+// kaynak projeyle adayın TÜM alanları karşılaştırılarak hesaplanır, böylece aday birden çok kritere
+// uysa bile (örn. hem aynı mimar hem aynı şehir) puanı eksiksiz toplanır.
 const RelatedProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-related-section', grid: 'pm-related-grid' };
+  const SCORE = { ARCHITECT: 150, TYPE: 100, CATEGORY: 40, CITY: 25, COUNTRY: 20, YEAR: 15, RATING: 10 };
+  const YEAR_WINDOW = 5;
+  const RATING_THRESHOLD = 4;
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
@@ -61,22 +69,77 @@ const RelatedProjects = (function () {
     </a>`;
   }
 
-  function buildQuery(item, { category, type }) {
-    const params = new URLSearchParams();
-    if (category) (item.category || []).forEach(c => params.append('category', c));
-    if (type) (item.type || []).forEach(t => params.append('type', t));
-    params.set('limit', '12');
-    return params.toString();
+  function extractYear(dateStr) {
+    const m = /(\d{4})/.exec(dateStr || '');
+    return m ? parseInt(m[1], 10) : null;
   }
 
-  async function fetchScored(item, opts) {
-    const qs = buildQuery(item, opts);
+  // parseLocationFull (il-ilce-data.js) tek bir {city,district} çifti döner; o dosyadaki IL_ILCE
+  // tablosu yurt dışı ülkeleri de "il" seviyesinde anahtar olarak tuttuğundan (bkz. il-ilce-data.js),
+  // info.city aslında "il/ülke" seviyesi, info.district ise "ilçe/yurt dışı şehir" seviyesidir. Bu
+  // yardımcı, IL_LIST (Türkiye illeri) ile karşılaştırıp bunu gerçek {city,country} çiftine çevirir.
+  function locationParts(location) {
+    if (typeof parseLocationFull !== 'function') return { city: null, country: null };
+    const info = parseLocationFull(location);
+    if (!info.city) return { city: null, country: null };
+    const isDomestic = typeof IL_LIST !== 'undefined' && IL_LIST.includes(info.city);
+    return isDomestic
+      ? { city: info.district || info.city, country: 'Türkiye' }
+      : { city: info.district || null, country: info.city };
+  }
+
+  function scoreCandidate(source, candidate) {
+    if (candidate.slug === source.slug) return -Infinity;
+    let score = 0;
+
+    const sourceDesigners = new Set((source.designerDetails || []).map(d => d.name));
+    if ((candidate.designer || []).some(name => sourceDesigners.has(name))) score += SCORE.ARCHITECT;
+
+    const sourceTypes = new Set(source.type || []);
+    if ((candidate.type || []).some(t => sourceTypes.has(t))) score += SCORE.TYPE;
+
+    const sourceCategories = new Set(source.category || []);
+    if ((candidate.category || []).some(c => sourceCategories.has(c))) score += SCORE.CATEGORY;
+
+    const sourceLoc = locationParts(source.location);
+    const candLoc = locationParts(candidate.location);
+    if (sourceLoc.city && sourceLoc.city === candLoc.city) score += SCORE.CITY;
+    if (sourceLoc.country && sourceLoc.country === candLoc.country) score += SCORE.COUNTRY;
+
+    const sourceYear = extractYear(source.date);
+    const candYear = extractYear(candidate.date);
+    if (sourceYear != null && candYear != null && Math.abs(sourceYear - candYear) <= YEAR_WINDOW) score += SCORE.YEAR;
+
+    if ((candidate.rating || 0) >= RATING_THRESHOLD) score += SCORE.RATING;
+
+    return score;
+  }
+
+  async function fetchByParams(paramList, limit) {
+    const params = new URLSearchParams();
+    paramList.forEach(([k, v]) => params.append(k, v));
+    params.set('limit', String(limit));
     try {
-      const res = await fetch(`/api/projects?${qs}`);
+      const res = await fetch(`/api/projects?${params.toString()}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.items || [];
     } catch { return []; }
+  }
+
+  function gatherCandidateQueries(item) {
+    const queries = [];
+    (item.designerDetails || []).forEach(d => {
+      if (d.unregistered) return;
+      queries.push(fetchByParams([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]], 8));
+    });
+    (item.type || []).forEach(t => queries.push(fetchByParams([['type', t]], 12)));
+    (item.category || []).forEach(c => queries.push(fetchByParams([['category', c]], 12)));
+    const topLevelLocation = locationParts(item.location);
+    const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
+    if (rawCity) queries.push(fetchByParams([['location', rawCity]], 12));
+    queries.push(fetchByParams([['sort', 'rating_desc']], 12)); // genel havuz — boşluk doldurma + puan sinyali
+    return { queries, topLevelLocation };
   }
 
   async function mount(item, excludeSlugs, ids) {
@@ -85,23 +148,22 @@ const RelatedProjects = (function () {
     const exclude = new Set(excludeSlugs || []);
     exclude.add(item.slug);
 
-    const hasCategory = !!(item.category && item.category.length);
-    const hasType = !!(item.type && item.type.length);
-    const [scoreThree, scoreTwo, scoreOne] = await Promise.all([
-      (hasCategory && hasType) ? fetchScored(item, { category: true, type: true }) : Promise.resolve([]),
-      hasType ? fetchScored(item, { type: true }) : Promise.resolve([]),
-      hasCategory ? fetchScored(item, { category: true }) : Promise.resolve([]),
-    ]);
+    const { queries } = gatherCandidateQueries(item);
+    const lists = await Promise.all(queries);
 
-    const seen = new Set(exclude);
-    const merged = [];
-    [scoreThree, scoreTwo, scoreOne].forEach(list => {
-      list.forEach(p => { if (!seen.has(p.slug)) { seen.add(p.slug); merged.push(p); } });
-    });
+    const candidates = new Map();
+    lists.flat().forEach(p => { if (!exclude.has(p.slug) && !candidates.has(p.slug)) candidates.set(p.slug, p); });
+
+    const scored = Array.from(candidates.values())
+      .map(p => ({ p, score: scoreCandidate(item, p) }))
+      .filter(({ score }) => score > -Infinity)
+      .sort((a, b) => b.score - a.score);
+
+    const merged = scored.slice(0, 6).map(({ p }) => p);
 
     if (!merged.length) { section.style.display = 'none'; return; }
     section.style.display = '';
-    document.getElementById(mergedIds.grid).innerHTML = merged.slice(0, 6).map(cardHtml).join('');
+    document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
   }
 
   return { mount };

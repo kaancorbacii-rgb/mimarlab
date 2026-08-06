@@ -3,6 +3,10 @@ import { hashPassword, verifyPassword, newId, randomToken, sha256Hex } from '../
 import { createSession, destroySession, getSessionUser, publicUser } from '../lib/auth.js';
 import { isSafeUrlValue } from '../lib/submissionTypes.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
+import {
+  isGoogleConfigured, buildGoogleAuthUrl, handleGoogleCallback,
+  isLinkedInConfigured, buildLinkedInAuthUrl, handleLinkedInCallback,
+} from '../lib/oauth.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
@@ -22,7 +26,78 @@ export async function handleAuthRoute(request, env, url) {
   if (path === '/api/auth/change-password' && method === 'POST') return changePassword(request, env);
   if (path === '/api/auth/forgot-password' && method === 'POST') return forgotPassword(request, env);
   if (path === '/api/auth/reset-password' && method === 'POST') return resetPassword(request, env);
+  if (path === '/api/auth/google/start' && method === 'GET') return oauthStart(request, env, url, 'google');
+  if (path === '/api/auth/google/callback' && method === 'GET') return oauthCallback(request, env, url, 'google');
+  if (path === '/api/auth/linkedin/start' && method === 'GET') return oauthStart(request, env, url, 'linkedin');
+  if (path === '/api/auth/linkedin/callback' && method === 'GET') return oauthCallback(request, env, url, 'linkedin');
   return errorJson('Bulunamadı', 404);
+}
+
+// "next" yalnızca SİTE İÇİ göreli bir yol olabilir (bkz. kullanıcı isteği: açık yönlendirme/open
+// redirect'e izin verilmez) — "//evil.com" (protokole göreli) ve "https://..." gibi mutlak/harici
+// hedefler reddedilir, geçersizse güvenli varsayılana (hesabim.html) düşülür.
+function safeNextPath(raw) {
+  const next = (raw || '').trim();
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('://')) return '/hesabim.html';
+  return next;
+}
+
+function redirectResponse(location, extraHeaders) {
+  return new Response(null, { status: 302, headers: { Location: location, ...extraHeaders } });
+}
+
+async function oauthStart(request, env, url, provider) {
+  const configured = provider === 'google' ? isGoogleConfigured(env) : isLinkedInConfigured(env);
+  if (!configured) {
+    return redirectResponse(`/giris-yap.html?oauth_error=not_configured`);
+  }
+  const next = safeNextPath(url.searchParams.get('next'));
+  const authUrl = provider === 'google'
+    ? await buildGoogleAuthUrl(request, env, next)
+    : await buildLinkedInAuthUrl(request, env, next);
+  return redirectResponse(authUrl);
+}
+
+// Google/LinkedIn callback: e-posta sağlayıcı tarafından doğrulanmış sayıldığından (bkz.
+// handleGoogleCallback/handleLinkedInCallback'teki email_verified kontrolü), aynı e-postayla var
+// olan bir hesap varsa doğrudan oturum açılır (hesap eşleştirme = e-posta) — yoksa `users`
+// tablosuna (bkz. kullanıcı isteği: şemaya DOKUNULMADAN) mevcut sütunlarla yeni bir satır eklenir.
+// Kullanıcı şifresini asla girmediğinden password_hash rastgele/kullanılamaz bir değerle NOT NULL
+// kısıtını karşılar — bu kullanıcı ileride yalnızca sosyal girişle oturum açabilir (bkz. login()'in
+// DUMMY_PASSWORD_HASH ile eşleşme olasılığı olmadığından güvenlik açığı oluşturmaz).
+async function upsertOAuthUser(env, { email, name, photoUrl }) {
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  let user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(normalizedEmail).first();
+  if (!user) {
+    const id = newId();
+    const now = Date.now();
+    const passwordHash = await hashPassword(randomToken());
+    const displayName = (name || '').trim() || normalizedEmail.split('@')[0];
+    await env.DB.prepare(
+      'INSERT INTO users (id, email, password_hash, name, photo_url, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(id, normalizedEmail, passwordHash, displayName, photoUrl || null, now, 'user', now).run();
+    user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+  }
+  return user;
+}
+
+async function oauthCallback(request, env, url, provider) {
+  const configured = provider === 'google' ? isGoogleConfigured(env) : isLinkedInConfigured(env);
+  if (!configured) return redirectResponse('/giris-yap.html?oauth_error=not_configured');
+
+  const result = provider === 'google'
+    ? await handleGoogleCallback(request, env, url)
+    : await handleLinkedInCallback(request, env, url);
+  if (result.error) return redirectResponse(`/giris-yap.html?oauth_error=${encodeURIComponent(result.error)}`);
+
+  const ip = clientIp(request);
+  if (!(await checkRateLimit(env, `oauth-${provider}`, ip, 20, 15 * 60 * 1000))) {
+    return redirectResponse('/giris-yap.html?oauth_error=rate_limited');
+  }
+
+  const user = await upsertOAuthUser(env, result.profile);
+  const { token, maxAge } = await createSession(env, user.id);
+  return redirectResponse(safeNextPath(result.next), { 'Set-Cookie': sessionCookieHeader(token, request, maxAge) });
 }
 
 async function signup(request, env) {

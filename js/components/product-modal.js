@@ -33,6 +33,9 @@ const ProductModal = (function () {
         align-items:center !important; justify-content:flex-start !important; width:100% !important;
         gap:4px !important; margin:0 0 14px;
       }
+      /* bkz. proje.html#pm-save-slot AYNI gerçek bulgu — #pr-save-slot kendisi flex konteyner
+         olmadığından içindeki .save-btn/.share-widget büyütülmüş boyutlarda alt satıra kayabiliyordu. */
+      #pr-save-slot{display:flex; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;}
       .pr-rating-save-row .rating-widget{
         display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
         flex-shrink:1 !important; min-width:0 !important;
@@ -175,19 +178,16 @@ const ProductModal = (function () {
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
         .detail-gallery img, .gallery-placeholder{height:240px;}
-      }
-
-      @media (max-width:500px){
-        /* Puanla/Kaydet/Paylaş pilini mobilde tek satırda tutmak için sıkıştırma (bkz. kullanıcı
-           isteği, proje.html'deki AYNI desen). */
-        .pr-rating-save-row{gap:4px !important;}
-        .pr-rating-save-row .rating-widget{height:30px !important; padding:0 6px !important;}
-        .pr-rating-save-row .rating-star-row{gap:2px;}
-        .pr-rating-save-row .rating-summary{font-size:11px !important;}
-        .pr-rating-save-row .card-save-btn, .pr-rating-save-row .share-btn{
-          height:30px !important; padding:0 6px !important; font-size:11px !important;
+        /* Puanla/Kaydet/Paylaş — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği):
+           pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez.
+           Satırın tek satırda kalma zorunluluğu (üstteki .pr-rating-save-row flex-wrap:nowrap +
+           her pildeki flex-shrink:1/min-width:0/overflow:hidden/ellipsis) korunur. */
+        .pr-rating-save-row{gap:8px !important;}
+        .pr-rating-save-row .rating-widget, .pr-rating-save-row .card-save-btn, .pr-rating-save-row .share-btn{
+          height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
         }
-        .pr-rating-save-row .share-btn{gap:0;}
+        .pr-rating-save-row .rating-star-row{gap:4px;}
+        .pr-rating-save-row .rating-star-btn svg{width:15px; height:15px;}
       }
     `;
     document.head.appendChild(style);

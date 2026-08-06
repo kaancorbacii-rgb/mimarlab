@@ -144,6 +144,11 @@ const ModalShell = (function () {
     overlayEl.addEventListener('click', (e) => { if (e.target === overlayEl) requestClose(); });
     closeButtonEl.addEventListener('click', () => requestClose());
     document.addEventListener('keydown', onKeydown);
+
+    // Global Overlay Manager (bkz. js/overlay-manager.js) — modal açıkken hamburger/Hesabım/arama/
+    // Paylaş gibi diğer paneller altta açık kalmasın diye kaydolur; close() gerçek DOM/scroll/focus
+    // temizliğini yaptığından (bkz. yukarısı) salt bir CSS sınıfı silmek yerine BU fonksiyon çağrılır.
+    if (typeof OverlayManager !== 'undefined') OverlayManager.register('modal-shell', close);
   }
 
   function requestClose() {
@@ -197,6 +202,9 @@ const ModalShell = (function () {
     triggerEl = trigger;
     onRequestClose = onClose || null;
     if (!opened) {
+      // bkz. js/overlay-manager.js — modal açılmadan ÖNCE altta açık kalmış hamburger/Hesabım/arama/
+      // Paylaş panelleri kapatılır (bkz. yukarısı #ensureDom'daki register).
+      if (typeof OverlayManager !== 'undefined') OverlayManager.notifyOpen('modal-shell');
       lockBodyScroll();
       // Overlay ilk kez ensureDom() ile YENİ oluşturulduysa .open eklemeden önce hiç boyanmamış
       // olur — .open'ı aynı senkron çağrı içinde eklemek tarayıcının geçiş için bir "önce" karesi
