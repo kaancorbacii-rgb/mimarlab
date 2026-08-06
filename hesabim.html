@@ -402,6 +402,12 @@
       <button class="dash-edit-btn" id="pw-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Şifreyi Güncelle</button>
       <span id="pw-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
       <p style="margin:14px 0 0; font-size:12.5px;"><a href="#" id="pw-forgot-link" style="color:var(--walnut); font-weight:600;">Şifremi unuttum</a></p>
+
+      <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
+      <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 8px; color:#B3261E;">Hesabımı Sil</h2>
+      <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
+      <button type="button" class="dash-edit-btn" id="delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
+      <span id="delete-account-msg" style="font-size:12.5px; color:#B3261E; margin-left:10px;"></span>
     </div>
 
     <div class="dash-section">
@@ -931,6 +937,21 @@ document.getElementById('pw-save-btn').addEventListener('click', async ()=>{
   document.getElementById('pw-new').value = '';
   document.getElementById('pw-new-confirm').value = '';
   setTimeout(()=> msg.textContent = '', 3000);
+});
+
+document.getElementById('delete-account-btn').addEventListener('click', async ()=>{
+  if(!confirm('Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
+  const btn = document.getElementById('delete-account-btn');
+  const msg = document.getElementById('delete-account-msg');
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/account', { method: 'DELETE' });
+    if(!res.ok) throw new Error('request failed');
+    window.location.href = '/index.html';
+  }catch{
+    msg.textContent = 'Bir şeyler ters gitti, tekrar dene.';
+    btn.disabled = false;
+  }
 });
 
 document.getElementById('pw-forgot-link').addEventListener('click', async (e)=>{

@@ -72,6 +72,7 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
   if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
+  if (sub === 'comments') return handleCommentsAdmin(request, env, segments);
   if (sub === 'migration-conflicts') return handleMigrationConflictsAdmin(request, env, url, segments, user);
   if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
@@ -87,12 +88,13 @@ async function handleAdminSummary(env) {
   );
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM migration_name_conflicts WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE admin_seen = 0`).first(),
   ]);
 
   return json({
@@ -101,7 +103,53 @@ async function handleAdminSummary(env) {
     pendingBadges: badgesRow?.n || 0,
     unreadContact: contactRow?.n || 0,
     pendingMigrationConflicts: migrationRow?.n || 0,
+    unseenComments: commentsRow?.n || 0,
   });
+}
+
+// /api/admin/comments  (GET: son yorumları listeler)
+// /api/admin/comments/:id  (PATCH: admin_seen günceller, DELETE: siler)
+// Projelere/haberlere gelen her yeni yorum burada görünür (bkz. kullanıcı isteği: "yorum admin
+// paneline düşsün") — contact_messages ile AYNI okunmadı/okundu deseni (bkz. migrations/
+// 0027_comment_admin_seen.sql). architect/office hedefli yorumlar da target_id üzerinden aynı
+// listede görünür, ancak künye başlığı yalnızca project/news için zenginleştirilir çünkü şu an
+// yorum arayüzü yalnızca proje/haber sayfalarında etkin (bkz. "Detail page template gaps" belleği).
+async function handleCommentsAdmin(request, env, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      `SELECT c.id, c.target_type, c.target_id, c.body, c.created_at, c.admin_seen,
+              u.name AS user_name, u.email AS user_email,
+              p.title AS project_title, p.slug AS project_slug,
+              n.title AS news_title
+       FROM comments c
+       JOIN users u ON u.id = c.user_id
+       LEFT JOIN projects p ON c.target_type = 'project' AND p.slug = c.target_id
+       LEFT JOIN news n ON c.target_type = 'news' AND n.id = c.target_id
+       ORDER BY c.created_at DESC
+       LIMIT 200`
+    ).all();
+    const items = results.map(r => ({
+      id: r.id, targetType: r.target_type, targetId: r.target_id, body: r.body,
+      created_at: r.created_at, admin_seen: r.admin_seen,
+      user_name: r.user_name, user_email: r.user_email,
+      targetLabel: r.project_title || r.news_title || r.target_id,
+      targetHref: r.project_slug ? `/projeler/${encodeURIComponent(r.project_slug)}` : null,
+    }));
+    return json({ items });
+  }
+  if (segments.length === 4) {
+    const id = segments[3];
+    if (request.method === 'PATCH') {
+      const body = await readJson(request);
+      await env.DB.prepare('UPDATE comments SET admin_seen = ? WHERE id = ?').bind(body.admin_seen ? 1 : 0, id).run();
+      return json({ ok: true });
+    }
+    if (request.method === 'DELETE') {
+      await env.DB.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
+      return json({ ok: true });
+    }
+  }
+  return errorJson('Bulunamadı', 404);
 }
 
 // /api/admin/contact  (GET: listeler)

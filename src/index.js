@@ -1,6 +1,6 @@
 import { errorJson } from './lib/http.js';
 import { buildMeta, listEntityUrls } from './lib/seo.js';
-import { handleAuthRoute, handleProfileRoute } from './routes/auth.js';
+import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute } from './routes/architect.js';
@@ -345,6 +345,7 @@ async function routeApi(request, env, url) {
   const path = url.pathname;
   if (path.startsWith('/api/auth/')) return handleAuthRoute(request, env, url);
   if (path === '/api/profile') return handleProfileRoute(request, env, url);
+  if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);
   if (path === '/api/uploads') return handleUploadRoute(request, env);
   if (path === '/api/contact') return handleContactRoute(request, env, url);
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);

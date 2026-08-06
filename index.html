@@ -170,8 +170,9 @@
   .hero{
     /* "Sen de Katıl" butonu DOM'dan kaldırıldı (bkz. kullanıcı isteği) — alt padding, artık hemen
        altındaki carousel'e kesintisiz akması için sıkılaştırıldı (eskiden buton+36px'lik boşluğu
-       taşıyordu). */
-    padding:44px 32px 18px;
+       taşıyordu). Alt padding daha sonra kullanıcı isteğiyle +15px artırıldı (18px → 33px) — metin
+       bloğu ile altındaki ana carousel arasındaki boşluk fazla sıkı duruyordu. */
+    padding:44px 32px 33px;
     text-align:center;
     max-width:880px; margin:0 auto;
   }
@@ -368,8 +369,11 @@
 
   @media (max-width: 720px){
     /* bkz. yukarıdaki .hero yorumu — bu breakpoint'te alt padding (26px) + .bento-grid'in üst
-       padding'i (0) = 26px, üst padding de buna eşitlendi (eskiden 44px'ti). */
-    .hero{padding:26px 18px 26px;}
+       padding'i (0) = 26px, üst padding de buna eşitlendi (eskiden 44px'ti). Alt padding burada da
+       AYNI +15px artışı (26px → 41px) alır ki mobilde de carousel'e olan boşluk masaüstüyle tutarlı
+       şekilde genişlesin — üst padding kasıtlı olarak 26px'te bırakıldı (bu artış yalnızca metin
+       bloğu/carousel arası boşlukla ilgili, üst simetriyle değil).*/
+    .hero{padding:26px 18px 41px;}
     .hero h1{font-size:clamp(30px, 8vw, 46px);}
     .hero-break-m{display:inline;}
     .hero-break-d{display:none;}

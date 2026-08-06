@@ -216,6 +216,7 @@
         <button class="admin-tab" data-tab="claims">Profil Talepleri<span class="admin-tab-dot" data-dot="claims"></span></button>
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
+        <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
       </div>
 
@@ -248,6 +249,10 @@
 
       <div class="admin-section" id="section-contact">
         <div id="contact-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-comments">
+        <div id="comments-list"></div>
       </div>
 
       <div class="admin-section" id="section-users">
@@ -767,6 +772,48 @@ async function loadContactMessages(){
   });
 }
 
+const COMMENT_TARGET_LABELS = { project: 'Proje', news: 'Haber', architect: 'Mimar', office: 'Firma' };
+
+async function loadCommentsAdmin(){
+  const list = document.getElementById('comments-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api('/api/admin/comments');
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Henüz yorum yok.</div>'; return; }
+  list.innerHTML = items.map(c => `
+    <div class="admin-card" data-id="${c.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(c.user_name)} ${!c.admin_seen ? '<span class="admin-badge badge-pending">Yeni</span>' : ''}</div>
+          <div class="admin-card-meta">${COMMENT_TARGET_LABELS[c.targetType] || c.targetType}: ${c.targetHref ? `<a href="${c.targetHref}" target="_blank">${escapeHtml(c.targetLabel)}</a>` : escapeHtml(c.targetLabel)} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+        <div class="admin-actions">
+          ${!c.admin_seen ? `<button class="admin-btn" data-action="seen">Okundu İşaretle</button>` : ''}
+          <button class="admin-btn danger" data-action="delete">Sil</button>
+        </div>
+      </div>
+      <div class="admin-card-desc">${escapeHtml(c.body)}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action="seen"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      await api(`/api/admin/comments/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({admin_seen: true}) });
+      loadCommentsAdmin();
+      refreshAdminSummary();
+    });
+  });
+  list.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Bu yorumu silmek istediğine emin misin?')) return;
+      const id = btn.closest('.admin-card').dataset.id;
+      await api(`/api/admin/comments/${id}`, { method:'DELETE' });
+      loadCommentsAdmin();
+      refreshAdminSummary();
+    });
+  });
+}
+
 async function loadUsers(){
   const list = document.getElementById('users-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
@@ -797,6 +844,7 @@ async function refreshAdminSummary(){
       claims: data.pendingClaims > 0,
       badges: data.pendingBadges > 0,
       contact: data.unreadContact > 0,
+      comments: data.unseenComments > 0,
     };
     Object.entries(dots).forEach(([key, show])=>{
       const dot = document.querySelector(`.admin-tab-dot[data-dot="${key}"]`);
@@ -817,6 +865,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'claims') loadClaims();
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
     if(tab.dataset.tab === 'contact') loadContactMessages();
+    if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     if(tab.dataset.tab === 'users') loadUsers();
   });
 });

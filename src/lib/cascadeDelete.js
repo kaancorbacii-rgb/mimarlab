@@ -88,3 +88,23 @@ export async function cascadeDeleteProduct(env, engagementType, key) {
 export async function cascadeDeleteMisc(env, engagementType, key) {
   await deleteEngagement(env, engagementType, key);
 }
+
+// Kullanıcı "Hesabımı Sil" dediğinde (KVKK/GDPR silme talebi, bkz. src/routes/auth.js#deleteAccount)
+// — kendi kişisel/etkileşim verileri (oturumlar, kaydettikleri, yorumları, puanları, bildirimleri,
+// profil talepleri/düzeltmeleri/rozet talepleri, şifre sıfırlama token'ları) ve users satırı silinir.
+// Onaylı gönderileri (project_submissions/office_submissions/architect_submissions vb. — canlı
+// projeler/profiller, başka kullanıcıların yorum/puanlarının bağlı olduğu içerik) KASITLI OLARAK
+// silinmez; owner_user_id yetim kalır (bkz. kullanıcı isteği: yalnızca "sessions, saved_items,
+// notifications vb." bağlı kişisel veriler silinsin, canlı site içeriği değil).
+export async function cascadeDeleteAccount(env, userId) {
+  await env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM saved_items WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM notifications WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM comments WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM ratings WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM profile_claims WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM profile_corrections WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM badge_requests WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM password_resets WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(userId).run();
+}

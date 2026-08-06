@@ -23,9 +23,12 @@ const ProjectComments = (function () {
       // bkz. js/components/project-meta.js#designerChipHtml yorumu) izler.
       const cp = c.commenterProfile;
       const profileHref = cp ? `/${cp.type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(slugify(cp.name))}` : null;
+      const userInitials = escapeHtml((c.user_name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
+      // commenterProfile yoksa (mimar/firma sahiplenmesi olmayan sıradan üye) kendi hesap
+      // fotoğrafı (users.photo_url) gösterilir, o da yoksa baş harflere düşülür (kullanıcı isteği).
       const avatarInner = cp
         ? `${escapeHtml(initials(cp.name))}${cp.photo ? `<img src="${escapeAttr(cp.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`
-        : escapeHtml((c.user_name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
+        : `${userInitials}${c.user_photo ? `<img src="${escapeAttr(c.user_photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`;
       const avatarHtml = cp
         ? `<a class="comment-avatar" href="${profileHref}" style="background:${officeColor(cp.name)}">${avatarInner}</a>`
         : `<div class="comment-avatar">${avatarInner}</div>`;

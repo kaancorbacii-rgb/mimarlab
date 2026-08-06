@@ -133,5 +133,10 @@ export async function handleLinkedInCallback(request, env, url) {
   const profile = await profileRes.json();
   if (!profile.email) return { error: 'email_not_verified' };
 
-  return { profile: { email: profile.email, name: profile.name || '', photoUrl: profile.picture || null }, next: payload.next };
+  // users tablosunda ayrı ad/soyad kolonu yok (tek `name` alanı, bkz. schema.sql) — LinkedIn OIDC
+  // userinfo'da `name` genelde dolu gelir, boş geldiği nadir durumda given_name/family_name'den
+  // birleştirilir (bkz. kullanıcı isteği: given_name/family_name de eşleştirilsin).
+  const fullName = profile.name || [profile.given_name, profile.family_name].filter(Boolean).join(' ');
+
+  return { profile: { email: profile.email, name: fullName || '', photoUrl: profile.picture || null }, next: payload.next };
 }

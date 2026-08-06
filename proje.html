@@ -463,12 +463,13 @@
   .comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
   .comment-row{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line-soft);}
   .comment-row:last-child{border-bottom:none;}
-  .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; flex-shrink:0;}
-  /* Yorumcu bir mimar/firma profiline bağlıysa (bkz. js/components/project-comments.js#commenterProfile,
-     kullanıcı isteği) .comment-avatar bir <a>'ya dönüşür — position:relative/overflow:hidden fotoğrafın
-     (varsa) baş harflerin ÜZERİNE mutlak konumlanmasını sağlar (bkz. .designer-chip-avatar img ile
-     AYNI desen); text-decoration sıfırlanır ki bir bağlantı gibi altı çizili görünmesin. */
-  a.comment-avatar{position:relative; overflow:hidden; text-decoration:none;}
+  .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; flex-shrink:0; position:relative; overflow:hidden;}
+  /* Hem sıradan üyenin kendi profil fotoğrafı (<div>, bkz. js/components/project-comments.js#user_photo)
+     hem de bir mimar/firma profiline bağlı yorumcunun profil fotoğrafı (<a>, #commenterProfile) aynı
+     mutlak konumlanan <img> desenini kullanır (bkz. .designer-chip-avatar img ile AYNI desen) — bu
+     yüzden position:relative/overflow:hidden yukarıdaki ORTAK .comment-avatar kuralında tanımlı.
+     a.comment-avatar için ayrıca text-decoration sıfırlanır ki bir bağlantı gibi altı çizili görünmesin. */
+  a.comment-avatar{text-decoration:none;}
   .comment-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
   .comment-meta strong{color:var(--ink); font-weight:600;}
@@ -611,8 +612,33 @@
     .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn, .pm-rating-save-row .share-btn{
       height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
     }
+    /* .rating-summary'nin ("Puanla" metni) KENDİ font-size:12px !important kuralı var (bkz. yukarıdaki
+       taban kural) — bu, yalnızca kapsayıcıya (.rating-widget) uygulanan font-size değişikliğini miras
+       almasını ENGELLİYORDU, "Puanla" metni bu kırılma noktasının altında Kaydet/Paylaş'tan (13.5px)
+       daha küçük (12px) kalıyordu (gerçek bulgu). Aynı satırdaki üç pilin punto/hiyerarşisi birebir
+       eşit olsun diye burada da açıkça 13.5px'e yükseltilir. */
+    .rating-summary{font-size:13.5px !important;}
     .rating-star-row{gap:4px;}
     .rating-star-btn svg{width:15px; height:15px;}
+  }
+
+  /* Çok dar ekranlarda (bkz. kullanıcı isteği: Puanla/Kaydet/Paylaş hiçbir genişlikte üst üste
+     binmesin/iç içe girmesin) satır metinleri kaldırılmaz, yalnızca CSS ile GİZLENİR (display:none —
+     DOM'dan silinmez, ekran genişleyince otomatik geri döner) ve ikonlar korunur; share-button.js'in
+     .share-widget/mimar-firma modallerindeki AYNI desen (bkz. o dosyadaki @media (max-width:400px)
+     bloğu). Puanla'nın 5 yıldız satırı butonun ASIL kontrolü olduğundan tek bir ikona indirgenemez —
+     yalnızca özet metni (.rating-summary, "4.2 (12)"/"Puanla") gizlenir, yıldızlar korunur. Kaydet/
+     Paylaş ise tek ikonlu kare bir dokunma hedefine daralır. */
+  @media (max-width:400px){
+    .rating-summary{display:none !important;}
+    .save-btn-label-default, .save-btn-label-saved, .save-btn-count{display:none !important;}
+    .save-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
+    /* gerçek bulgu: share-button.js'in kendi <400px kuralı (.share-btn{width:48px...}) burada
+       ETKİSİZ — proje.html'nin 860px bloğundaki .pm-rating-save-row .share-btn (0,2,0) her zaman
+       bare .share-btn (0,1,0) seçicisinden daha özgül olduğundan onu eziyor (.share-text{display:none}
+       kısmı ayrı bir seçici olduğundan sorunsuz uygulanıyor). Aynı kutu modeli burada AYNI özgüllükte
+       tekrarlanarak düzeltilir. */
+    .pm-rating-save-row .share-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
   }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>

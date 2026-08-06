@@ -186,8 +186,19 @@ const ProductModal = (function () {
         .pr-rating-save-row .rating-widget, .pr-rating-save-row .card-save-btn, .pr-rating-save-row .share-btn{
           height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
         }
+        /* bkz. proje.html'deki AYNI gerçek bulgu — .rating-summary'nin kendi font-size:12px !important
+           kuralı (yukarıda) kapsayıcıdan miras almadığından burada da açıkça eşitlenir. */
+        .pr-rating-save-row .rating-summary{font-size:13.5px !important;}
         .pr-rating-save-row .rating-star-row{gap:4px;}
         .pr-rating-save-row .rating-star-btn svg{width:15px; height:15px;}
+      }
+      /* bkz. proje.html'deki AYNI desen — çok dar ekranlarda metinler DOM'dan silinmez, yalnızca
+         display:none ile gizlenir (ekran genişleyince otomatik geri döner), ikonlar korunur. */
+      @media (max-width:400px){
+        .pr-rating-save-row .rating-summary{display:none !important;}
+        .pr-rating-save-row .save-btn-label-default, .pr-rating-save-row .save-btn-label-saved, .pr-rating-save-row .save-btn-count{display:none !important;}
+        .pr-rating-save-row .card-save-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
+        .pr-rating-save-row .share-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
       }
     `;
     document.head.appendChild(style);

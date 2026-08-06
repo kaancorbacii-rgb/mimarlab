@@ -34,7 +34,7 @@ async function listComments(env, url) {
   if (!TARGET_TYPES.has(targetType) || !targetId) return errorJson('Geçersiz istek.');
 
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, b.badge_type AS user_badge,
+    `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, u.photo_url AS user_photo, b.badge_type AS user_badge,
             ar.name AS profile_ar_name, ar.photo_url AS profile_ar_photo,
             ofc.name AS profile_ofc_name, ofc.logo_url AS profile_ofc_logo
      FROM comments c JOIN users u ON u.id = c.user_id
@@ -47,7 +47,7 @@ async function listComments(env, url) {
   ).bind(Date.now(), targetType, targetId).all();
 
   const items = results.map(r => {
-    const item = { id: r.id, body: r.body, created_at: r.created_at, user_name: r.user_name, user_id: r.user_id, user_badge: r.user_badge };
+    const item = { id: r.id, body: r.body, created_at: r.created_at, user_name: r.user_name, user_id: r.user_id, user_photo: r.user_photo || null, user_badge: r.user_badge };
     if (r.profile_ar_name) item.commenterProfile = { type: 'architect', name: r.profile_ar_name, photo: r.profile_ar_photo || null };
     else if (r.profile_ofc_name) item.commenterProfile = { type: 'office', name: r.profile_ofc_name, photo: r.profile_ofc_logo || null };
     return item;
@@ -80,34 +80,56 @@ async function createComment(request, env) {
   return json({ id, body: text, created_at: now, user_name: user.name, user_id: user.id }, 201);
 }
 
-// Yorum gelen içeriğin sahibine bildirim düşer: mimar/marka profillerinde onaylı profile_claims
-// sahibine, proje/haberlerde ise gönderiyi yükleyen owner_user_id'ye (kendi yorumunda bildirim yok).
+// Yorum gelen içeriğin sahibine/sahiplerine bildirim düşer: mimar/marka profillerinde onaylı
+// profile_claims sahibine; proje/haberlerde gönderiyi yükleyen owner_user_id'ye. Projede ayrıca
+// projenin tasarımcısı olan mimar/firma hesaplarına da (project_designers → architects/offices
+// .claimed_by_user_id, bkz. migrations/0022_id_first_entities.sql) bildirim gider — gönderiyi
+// yükleyen kişi ile projenin künyesindeki mimar/firma FARKLI hesaplar olabilir (bkz. kullanıcı
+// isteği: "projenin sahibi olan firma ve mimar kullanıcı kimliklerine bildirim gönder"). Kendi
+// yorumuna bildirim gitmez; aynı kullanıcı birden çok rolle eşleşse bile Set ile tekilleştirilir.
 async function notifyCommentOwner(env, commenter, targetType, targetId, commentBody) {
-  let ownerUserId = null;
+  const recipients = new Set();
   let subjectLabel = '';
   if (targetType === 'architect' || targetType === 'office') {
     const row = await env.DB.prepare(
       "SELECT user_id FROM profile_claims WHERE profile_type = ? AND profile_key = ? AND status = 'approved'"
     ).bind(targetType, targetId).first();
-    if (row) ownerUserId = row.user_id;
+    if (row) recipients.add(row.user_id);
     subjectLabel = targetType === 'architect' ? 'mimar profiline' : 'firma profiline';
   } else if (targetType === 'project') {
-    const row = await env.DB.prepare('SELECT owner_user_id FROM project_submissions WHERE slug = ?').bind(targetId).first();
-    if (row) ownerUserId = row.owner_user_id;
+    const submissionRow = await env.DB.prepare('SELECT owner_user_id FROM project_submissions WHERE slug = ?').bind(targetId).first();
+    if (submissionRow) recipients.add(submissionRow.owner_user_id);
+    const { results: designerRows } = await env.DB.prepare(
+      `SELECT ar.claimed_by_user_id AS arch_uid, ofc.claimed_by_user_id AS office_uid
+       FROM project_designers pd
+       JOIN projects p ON p.id = pd.project_id
+       LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
+       LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+       WHERE p.slug = ?`
+    ).bind(targetId).all();
+    for (const d of designerRows) {
+      if (d.arch_uid) recipients.add(d.arch_uid);
+      if (d.office_uid) recipients.add(d.office_uid);
+    }
     subjectLabel = 'projene';
   } else if (targetType === 'news') {
     const row = await env.DB.prepare('SELECT owner_user_id FROM news_submissions WHERE id = ?').bind(targetId).first();
-    if (row) ownerUserId = row.owner_user_id;
+    if (row) recipients.add(row.owner_user_id);
     subjectLabel = 'haberine';
   }
-  if (!ownerUserId || ownerUserId === commenter.id) return;
+  recipients.delete(commenter.id);
+  recipients.delete(null);
+  recipients.delete(undefined);
+  if (!recipients.size) return;
   const preview = commentBody.length > 120 ? commentBody.slice(0, 117) + '…' : commentBody;
-  await createNotification(
-    env, ownerUserId, 'comment_received',
-    `${commenter.name} ${subjectLabel} yorum yaptı`,
-    preview,
-    null
-  );
+  for (const userId of recipients) {
+    await createNotification(
+      env, userId, 'comment_received',
+      `${commenter.name} ${subjectLabel} yorum yaptı`,
+      preview,
+      null
+    );
+  }
 }
 
 async function deleteComment(request, env, id) {

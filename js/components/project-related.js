@@ -22,14 +22,26 @@ const ArchitectProjects = (function () {
     </a>`;
   }
 
+  // /api/projects sayfalanmış bir uç (bkz. src/routes/project.js#handleProjectListRoute, limit
+  // sunucuda 96'ya sabitlenir) — tek bir limit=8 isteği yerine Mimar Sinan gibi çok projesi olan
+  // mimar/firmaların TÜM projelerini kaçırmamak için (bkz. kullanıcı isteği: "eksiksiz listelenmesin")
+  // dönen totalPages tükenene kadar sayfa sayfa (96'şar) çekilip birleştirilir.
   async function fetchByDesigner(name, type) {
     const key = type === 'architect' ? 'designer' : 'designerOffice';
+    const items = [];
+    let page = 1;
+    let totalPages = 1;
     try {
-      const res = await fetch(`/api/projects?${key}=${encodeURIComponent(name)}&limit=8`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.items || [];
-    } catch { return []; }
+      do {
+        const res = await fetch(`/api/projects?${key}=${encodeURIComponent(name)}&limit=96&page=${page}`);
+        if (!res.ok) break;
+        const data = await res.json();
+        items.push(...(data.items || []));
+        totalPages = data.totalPages || 1;
+        page++;
+      } while (page <= totalPages);
+    } catch { /* şimdiye kadar toplanan kısmi sonuçla devam edilir */ }
+    return items;
   }
 
   async function mount(item, ids) {
@@ -42,7 +54,10 @@ const ArchitectProjects = (function () {
     lists.flat().forEach(p => { if (!seen.has(p.slug)) { seen.add(p.slug); merged.push(p); } });
     if (!merged.length) { section.style.display = 'none'; return { slugs: new Set() }; }
     section.style.display = '';
-    document.getElementById(mergedIds.grid).innerHTML = merged.slice(0, 8).map(cardHtml).join('');
+    // Sabit bir üst sınır YOK (kullanıcı isteği: "TÜM projelerinin eksiksiz listelenmesi") —
+    // .related-grid-scroll zaten yatay kaydırmalı bir satır (bkz. proje.html), liste ne kadar
+    // uzarsa uzasın taşma olmadan kaydırılarak gezilebilir.
+    document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
     return { slugs: new Set(merged.map(p => p.slug)) };
   }
 

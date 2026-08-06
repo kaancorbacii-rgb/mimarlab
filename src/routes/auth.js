@@ -7,6 +7,7 @@ import {
   isGoogleConfigured, buildGoogleAuthUrl, handleGoogleCallback,
   isLinkedInConfigured, buildLinkedInAuthUrl, handleLinkedInCallback,
 } from '../lib/oauth.js';
+import { cascadeDeleteAccount } from '../lib/cascadeDelete.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
@@ -77,6 +78,20 @@ async function upsertOAuthUser(env, { email, name, photoUrl }) {
       'INSERT INTO users (id, email, password_hash, name, photo_url, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(id, normalizedEmail, passwordHash, displayName, photoUrl || null, now, 'user', now).run();
     user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+  } else {
+    // Mevcut hesap sosyal girişle eşleşti (bkz. yukarıdaki e-posta eşleştirme yorumu) — profilinde
+    // ad soyad veya fotoğraf eksikse sağlayıcıdan (Google/LinkedIn) gelen verilerle otomatik doldurulur;
+    // dolu alanların ÜZERİNE YAZILMAZ (kullanıcı isteği: yalnızca boş alanlar otomatik doldurulsun).
+    const trimmedName = (name || '').trim();
+    const updates = [];
+    const values = [];
+    if (!user.name && trimmedName) { updates.push('name = ?'); values.push(trimmedName); }
+    if (!user.photo_url && photoUrl) { updates.push('photo_url = ?'); values.push(photoUrl); }
+    if (updates.length) {
+      values.push(user.id);
+      await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+      user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
+    }
   }
   return user;
 }
@@ -305,4 +320,16 @@ export async function handleProfileRoute(request, env, url) {
     'SELECT id, email, name, dob, school, dept, photo_url, profession, position, role, created_at FROM users WHERE id = ?'
   ).bind(user.id).first();
   return json({ user: publicUser(updated) });
+}
+
+// DELETE /api/account — "Hesabımı Sil" (bkz. hesabim.html). Kullanıcının kendi isteğiyle hesabını
+// ve bağlı kişisel verilerini kalıcı olarak siler (bkz. cascadeDeleteAccount), tüm oturumlarını
+// (sadece isteği yapan tarayıcı değil, DELETE FROM sessions WHERE user_id=... ile HEPSİ) sonlandırır.
+export async function handleAccountDeleteRoute(request, env, url) {
+  if (url.pathname !== '/api/account' || request.method !== 'DELETE') return errorJson('Bulunamadı', 404);
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  await cascadeDeleteAccount(env, user.id);
+  return json({ ok: true }, 200, { 'Set-Cookie': clearSessionCookieHeader(request) });
 }
