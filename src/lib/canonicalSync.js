@@ -20,6 +20,30 @@ import { newId } from './crypto.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
+// architects/offices/projects.slug hepsi TEXT UNIQUE NOT NULL (bkz. migrations/
+// 0022_id_first_entities.sql) — syncArchitect/syncOffice/syncProject'in "yeni bağımsız kayıt"
+// dalları önce bir SELECT ile slug çakışmasına bakıp (yaygın/beklenen durumda ek bir -${row.id}
+// sonekinden kaçınmak için) INSERT'i buna göre kurar, ama bu SELECT-sonra-INSERT ikilisi arasında
+// yarış durumu vardır (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 2, "slug çakışma
+// kontrolü ile kayıt oluşturma arasında yarış durumu" — ör. admin panelinden art arda hızlı
+// onaylanan iki gönderi aynı slug'ı ikisi de "boş" görüp aynı anda INSERT deneyebilir). Asıl
+// savunma hattı SELECT değil, DB'nin kendi UNIQUE kısıtlaması: INSERT SQLITE_CONSTRAINT ile
+// başarısız olursa TEK bir kez, mevcut kod tabanındaki AYNI dedupe sonekiyle (${slug}-${row.id})
+// yeniden denenir — row.id (submission kimliği, bkz. src/lib/crypto.js#newId) kriptografik olarak
+// rastgele olduğundan bu ikinci denemenin de çakışması pratikte imkânsızdır. Üç canonical tip
+// (architects/offices/projects) arasında paylaşılan tek bir yardımcı — kod tekrarını önler.
+function isUniqueSlugConstraintError(err) {
+  return !!err && typeof err.message === 'string' && /UNIQUE constraint failed/i.test(err.message);
+}
+async function insertWithSlugRetry(env, baseSlug, dedupeSuffix, buildStatement) {
+  try {
+    return await buildStatement(baseSlug).run();
+  } catch (err) {
+    if (!isUniqueSlugConstraintError(err)) throw err;
+    return buildStatement(`${baseSlug}-${dedupeSuffix}`).run();
+  }
+}
+
 // bkz. src/routes/legacyContent.js#CANONICAL_TABLE_BY_TYPE — tek kaynak burada tutulur, o dosya
 // buradan import eder (aksi halde hard-delete/blacklist mantığı ile o dosyadaki okuma yolları
 // farklı tablo eşlemeleri kullanma riskiyle çatallanabilirdi).
@@ -264,10 +288,10 @@ async function syncOffice(env, row) {
     let slug = slugify(row.name) || `firma-${row.id}`;
     const clash = await env.DB.prepare(`SELECT id FROM offices WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
-    const insert = await env.DB.prepare(
+    const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
       `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, awards, source, legacy_key, claimed_by_user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(slug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, marker, row.owner_user_id).run();
+    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, marker, row.owner_user_id));
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
     // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate
     // edilmemiş olduğu anlamına gelir (gerçek bulgu: "mükerrer kayıt" — bu yeni satır firma.html/
@@ -340,10 +364,10 @@ async function syncArchitect(env, row) {
   let slug = slugify(row.name) || `mimar-${row.id}`;
   const clash = await env.DB.prepare(`SELECT id FROM architects WHERE slug = ?`).bind(slug).first();
   if (clash) slug = `${slug}-${row.id}`;
-  const insert = await env.DB.prepare(
+  const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
     `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, office_id, source, legacy_key, claimed_by_user_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-  ).bind(slug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, officeId, marker, row.owner_user_id).run();
+  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, officeId, marker, row.owner_user_id));
   const architectId = insert.meta.last_row_id;
   await syncOfficeFounderLink(env, architectId, officeIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
@@ -432,15 +456,15 @@ async function syncProject(env, row) {
     let slug = row.slug;
     const clash = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
-    const insert = await env.DB.prepare(
+    const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
       `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, photo_credit_text, photo_credit_url, source_url, ai_generated, source, legacy_key, claimed_by_user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(
-      slug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
+      finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
       row.date || null, row.dateBucket || null, period, row.description || null, images,
       row.photoCreditText || null, row.photoCreditUrl || null, row.source_url || null, row.ai_generated ? 1 : 0,
       marker, row.owner_user_id
-    ).run();
+    ));
     projectId = insert.meta.last_row_id;
     // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
     if (claimedSlug) await blacklistLegacyKey(env, row.owner_user_id, 'projects', claimedSlug);

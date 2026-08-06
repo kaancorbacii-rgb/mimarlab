@@ -9,16 +9,16 @@ import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhe
 import { setLegacyHidden } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
+import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 const FACET_TYPES = new Set(['projects', 'products', 'materials']);
-// projeler-data.js tarayıcıda classic <script> olarak yüklenen, export içermeyen bir dosya; dosya
-// sonundaki guard'lı `module.exports` bloğu sayesinde esbuild bunu CJS modülü olarak paketler (bkz.
-// src/lib/seo.js'teki aynı desen — orada da SSR meta için kullanılıyor).
-import projeJs from '../../projeler-data.js';
-import dataJs from '../../data.js';
-
-const { architects: staticArchitects, offices: staticOffices } = dataJs;
+// data.js/projeler-data.js BİLEREK burada YOK — Legacy Bundle Elimination Faz 2 (bkz. kullanıcı
+// isteği): claimed_profile_key/claimed_slug doğrulaması artık doğrudan canonical D1 (architects/
+// offices/projects) tablolarından okunuyor, src/lib/seo.js'in Faz 1'de zaten yaptığı AYNI geçiş
+// (o dosyada da "statik dizide ara, yoksa D1'e bak" ikili deseni kaldırılmıştı — Faz 2'nin
+// migrate-to-id-first.js script'i her statik kaydı canonical bir satıra taşıdığından statik dizi
+// artık D1'in KESİN bir alt kümesi, ayrı bir statik kontrole gerek yok).
 
 const TYPE_BY_PATH = {
   offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
@@ -39,8 +39,6 @@ const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
 // sitede hiç var olmayan bir kayıt (gerçek bulgu: GAD Architecture'ı arşivleyip normal formdan
 // düzenleyince firma sitede tamamen kayboluyordu, admin panelinde her şey normal görünüyordu).
 const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'claimed_profile_key', projects: 'claimed_slug' };
-
-const STATIC_LIST_BY_TYPE = { architects: staticArchitects, offices: staticOffices };
 
 // Admin'in claimed_profile_key'den FARKLI bir isim gönderebildiği (bkz. aşağıdaki istisnalar) ve
 // buna bağlı olarak bir yeniden adlandırma cascade'i tetiklenen tipler — mimar ve firma (bkz.
@@ -77,29 +75,19 @@ async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue)
 const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices' };
 
 async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
-  // claimed_profile_key statik data.js kaydının orijinal adıyla birebir eşleşmeli — aksi halde (ör.
-  // bir yeniden adlandırma sonrası bayatlamış bir "Düzenle" linki, ya da elle uydurulmuş bir URL ile)
-  // statik kayda hiç bağlı olmayan "hayalet" bir gönderi oluşabilirdi (bkz. gerçek bulgu: Han
-  // Tümertekin → Tümertekin Architects yeniden adlandırıldıktan SONRA firmanın kendi sayfasındaki
-  // "Düzenle" butonu YENİ adı ?claim= olarak kullanmaya devam ediyordu; bu kontrol olmadan bu ikinci
-  // gönderi statik kayıttan kopuk, boş bir formla oluşuyor ve kullanıcıya "her şey silindi" gibi
-  // görünüyordu).
-  const staticList = STATIC_LIST_BY_TYPE[typeKey];
-  const isStatic = !staticList || staticList.some(x => x.name === profileKey);
-  if (!isStatic) {
-    // Bağımsız dizin kaydı — data.js'in statik dizisinde HİÇ yer almayan, doğrudan canonical D1'de
-    // var olan bir mimar/firma profili (bkz. gerçek bulgu: "Ezgi San" gibi bağımsız bir mimar
-    // profilinin "Düzenle" butonu, statik listede hiç bulunmadığı için burada her zaman reddediliyor
-    // ve formu boş açıyordu — "Bu profil artık bu adla mevcut değil" statik olmayan geçerli kayıtlar
-    // için de yanlışlıkla tetikleniyordu). Statik listede yoksa canonical tabloda ara; orada da yoksa
-    // gerçekten "hayalet" bir bağlantıdır.
-    const canonicalTable = CANONICAL_TABLE_BY_TYPE[typeKey];
-    const canonicalRow = canonicalTable
-      ? await env.DB.prepare(
-          `SELECT id FROM ${canonicalTable} WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
-        ).bind(profileKey, profileKey, profileKey).first()
-      : null;
-    if (!canonicalRow) return errorJson('Bu profil artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.');
+  // claimed_profile_key canonical architects/offices satırının adı/slug'ı/legacy_key'iyle birebir
+  // eşleşmeli — aksi halde (ör. bir yeniden adlandırma sonrası bayatlamış bir "Düzenle" linki, ya da
+  // elle uydurulmuş bir URL ile) hiçbir gerçek profile bağlı olmayan "hayalet" bir gönderi
+  // oluşabilirdi (bkz. gerçek bulgu: Han Tümertekin → Tümertekin Architects yeniden
+  // adlandırıldıktan SONRA firmanın kendi sayfasındaki "Düzenle" butonu YENİ adı ?claim= olarak
+  // kullanmaya devam ediyordu; bu kontrol olmadan bu ikinci gönderi statik kayıttan kopuk, boş bir
+  // formla oluşuyor ve kullanıcıya "her şey silindi" gibi görünüyordu). Faz 2'den önce burada önce
+  // statik data.js dizisi, orada yoksa canonical D1 aranıyordu (bkz. gerçek bulgu: "Ezgi San" gibi
+  // statik dizide hiç yer almayan bağımsız bir mimar profilinin "Düzenle" butonu bu yüzden her zaman
+  // reddediliyordu) — artık TEK kaynak canonical D1 (bkz. yukarıdaki import yorumu).
+  const canonicalTable = CANONICAL_TABLE_BY_TYPE[typeKey];
+  if (canonicalTable && !(await canonicalRowExistsByKey(env, canonicalTable, profileKey))) {
+    return errorJson('Bu profil artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.');
   }
   if (user.role === 'admin') return null; // admin, sahiplenmiş olsun olmasın her mimar/marka profilini düzenleyebilir
   const profileType = CLAIM_PROFILE_TYPE[typeKey];
@@ -112,21 +100,18 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   return null;
 }
 
-// Statik projeler (projeler-data.js) için mimar/ofis'teki profile_claims'e karşılık gelen bir
-// sahiplenme/onay akışı YOK — projelerin bir "sahibi" kavramı yok, bu yüzden bu tamamen admin'e
+// Statik projeler (eskiden projeler-data.js) için mimar/ofis'teki profile_claims'e karşılık gelen
+// bir sahiplenme/onay akışı YOK — projelerin bir "sahibi" kavramı yok, bu yüzden bu tamamen admin'e
 // özel (bkz. kullanıcı isteği: "admin hesabına tüm projeleri düzenleyebilme yetkisi ver"). Sıradan
 // üyeler claimed_slug göndermeye çalışırsa reddedilir.
 //
-// gerçek bulgu: slug'ı SADECE projeler-data.js dizisinde arıyordu — canonical D1 projects tablosuna
-// taşınmış (bkz. src/lib/canonicalSync.js#syncProject) ya da hiç statik karşılığı olmayan D1-özgün
-// bir proje düzenlenmek istendiğinde slug orada asla bulunamadığından kayıt her zaman "Böyle bir
-// statik proje bulunamadı" ile reddediliyordu. verifyClaimedProfileKey'deki (mimar/firma) AYNI
-// statik-önce-canonical-sonra deseni burada da uygulanır — statik dizide yoksa D1'deki canonical
-// projects tablosuna (slug ya da legacy_key ile) bakılır, orada da yoksa gerçekten "hayalet" bir
-// bağlantıdır.
+// gerçek bulgu (Faz 2 öncesi): slug'ı SADECE projeler-data.js dizisinde arıyordu — canonical D1
+// projects tablosuna taşınmış (bkz. src/lib/canonicalSync.js#syncProject) ya da hiç statik
+// karşılığı olmayan D1-özgün bir proje düzenlenmek istendiğinde slug orada asla bulunamadığından
+// kayıt her zaman "Böyle bir statik proje bulunamadı" ile reddediliyordu. Artık TEK kaynak
+// canonical D1 (bkz. verifyClaimedProfileKey'in dosya başındaki AYNI Faz 2 gerekçesi).
 async function verifyClaimedSlug(env, user, slug) {
   if (user.role !== 'admin') return errorJson('Bu işlem için yetkin yok.', 403);
-  if (projeJs.projectBySlug(slug)) return null;
   const canonicalRow = await env.DB.prepare(
     `SELECT id FROM projects WHERE deleted_at IS NULL AND (slug = ? OR legacy_key = ?) LIMIT 1`
   ).bind(slug, slug).first();
