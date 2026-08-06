@@ -618,6 +618,14 @@
     .rating-star-row{gap:4px;}
     .rating-star-btn svg{width:15px; height:15px;}
   }
+
+  /* Mobil galeri oranı — kullanıcı isteği: masaüstünde 2:1 korunur, yalnızca ≤768px'te dikey alanı
+     daha iyi kullanan 4:3'e geçilir. 860px bloğundan SONRA tanımlanır ki aynı özgüllükteki
+     aspect-ratio kuralı ≤768px genişliklerde (768px de 860px sorgusunu karşıladığından) kaynak
+     sırasına göre onu ezsin. */
+  @media (max-width:768px){
+    .detail-gallery a, .gallery-placeholder{aspect-ratio:4/3;}
+  }
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>

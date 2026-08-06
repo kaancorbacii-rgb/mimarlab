@@ -60,12 +60,9 @@ const ProductModal = (function () {
       }
       .pr-rating-save-row .card-save-btn:hover{background:var(--paper-card); border-color:var(--walnut); color:var(--ink);}
       .pr-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-      /* Paylaş butonu (bkz. js/components/share-button.js) bu satırda Kaydet ile BİREBİR aynı pil
-         olsun diye .card-save-btn'in yukarıdaki AYNI padding/font override'ını miras alır. */
-      .pr-rating-save-row .share-btn{
-        padding:0 8px !important; font-size:12px !important;
-        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
-      }
+      /* Paylaş artık ikon-only (bkz. js/components/share-button.js, proje.html'deki AYNI kaldırma) —
+         boyutu tamamen o dosyadaki paylaşılan .share-btn kuralından gelir, burada ayrı bir override
+         gerekmiyor. */
       .pr-rating-save-row .save-btn-label-saved{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
@@ -93,7 +90,7 @@ const ProductModal = (function () {
       .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
       .designer-chip{
         display:flex; align-items:center; gap:9px;
-        background:var(--paper-card); border:1px solid var(--line-soft);
+        background:var(--paper); border:1px solid var(--line-soft);
         border-radius:100px; padding:6px 16px 6px 6px;
         transition:border-color .15s ease, transform .15s ease;
       }
@@ -107,7 +104,8 @@ const ProductModal = (function () {
       .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
       .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
-      .designer-name-plain{font-size:14.5px; color:var(--ink); padding:6px 4px; align-self:center; font-weight:600;}
+      .designer-name-plain{font-size:14px; color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line); padding:6px 4px; align-self:center;}
+      .designer-name-plain:hover{color:var(--ink);}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -126,9 +124,24 @@ const ProductModal = (function () {
       .gallery-media{position:relative;}
       .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .detail-gallery::-webkit-scrollbar{display:none;}
-      .detail-gallery a{flex:0 0 auto;}
-      .detail-gallery img{height:340px; width:auto; max-width:80vw; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:var(--paper-card); display:block;}
-      .gallery-placeholder{flex:0 0 auto; height:340px; width:auto; aspect-ratio:4/3; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:34px; font-weight:700;}
+      /* proje.html'deki AYNI 2:1 desen — kutunun boyutu ANKORDA (.detail-gallery a) sabitlenir,
+         img/placeholder onu object-fit:cover ile doldurur (bkz. o dosyadaki AYNI yorum). Ürün
+         galerisi eskiden kendi 4:3/sabit-yükseklik kutu modelini taşıyordu (kullanıcı isteği: Ürün
+         pop-up'ı Proje pop-up'ıyla birebir aynı kart/grid yapısına getirilsin), o desen kaldırıldı. */
+      .detail-gallery a{
+        flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px; overflow:hidden;
+        display:block; background:var(--paper-card);
+      }
+      .detail-gallery img{width:100%; height:100%; object-fit:cover; display:block;}
+      /* flex-direction:column+gap proje.html'in placeholder'ında YOK — yalnızca ürün galerisinde
+         marka favicon'u (bkz. renderItem#catalogBrandFavicon) initials'in ÜSTÜNDE ayrı bir satırda
+         gösterilir, bu içerik farkı ürüne özgü olduğundan korunur; kutunun kendisi (flex-basis/
+         aspect-ratio/border-radius/font-size) proje.html ile birebir aynıdır. */
+      .gallery-placeholder{
+        flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px;
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+        color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;
+      }
       .gallery-placeholder img{height:36px; width:36px; border-radius:9px; background:#fff; padding:6px; object-fit:contain;}
       .gallery-nav{
         position:absolute; top:50%; transform:translateY(-50%); z-index:3;
@@ -177,13 +190,29 @@ const ProductModal = (function () {
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
-        .detail-gallery img, .gallery-placeholder{height:240px;}
-        /* Puanla/Kaydet/Paylaş — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği):
-           pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez.
-           Satırın tek satırda kalma zorunluluğu (üstteki .pr-rating-save-row flex-wrap:nowrap +
-           her pildeki flex-shrink:1/min-width:0/overflow:hidden/ellipsis) korunur. */
+        .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
+
+        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Benzer
+           Ürünler (bkz. proje.html'deki AYNI #pm-* order deseni, kullanıcı isteği: Ürün pop-up'ı
+           Proje pop-up'ıyla birebir aynı grid yapısına getirilsin) — modal-shell.js bu kırılma
+           noktasında sol/sağ paneli display:contents yaptığından tüm bölümler AYNI dikey flex
+           akışının parçası. .detail-info künye/açıklama/teknik özellikleri TEK blok olarak taşır.
+           Proje modalının aksine burada yorum/aynı-tasarımcı/malzeme bölümleri yok, tek related
+           section (Benzer Ürünler) var. */
+        #pr-gallery-wrap{order:1;}
+        #pr-title{order:2; margin-top:20px;}
+        #pr-rating-save-row{order:3;}
+        #pr-actions{order:4;}
+        .detail-info{order:5;}
+        #pr-related-section{order:6;}
+        #pr-prevnext{order:7;}
+
+        /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki AYNI kural,
+           kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü
+           boyutları değişmez. Paylaş artık ikon-only olduğundan (bkz. share-button.js) buradaki
+           listeden çıkarıldı, kendi boyutunu paylaşılan .share-btn 860px kuralından alır. */
         .pr-rating-save-row{gap:8px !important;}
-        .pr-rating-save-row .rating-widget, .pr-rating-save-row .card-save-btn, .pr-rating-save-row .share-btn{
+        .pr-rating-save-row .rating-widget, .pr-rating-save-row .card-save-btn{
           height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
         }
         /* bkz. proje.html'deki AYNI gerçek bulgu — .rating-summary'nin kendi font-size:12px !important
@@ -192,13 +221,11 @@ const ProductModal = (function () {
         .pr-rating-save-row .rating-star-row{gap:4px;}
         .pr-rating-save-row .rating-star-btn svg{width:15px; height:15px;}
       }
-      /* bkz. proje.html'deki AYNI desen — çok dar ekranlarda metinler DOM'dan silinmez, yalnızca
-         display:none ile gizlenir (ekran genişleyince otomatik geri döner), ikonlar korunur. */
-      @media (max-width:400px){
-        .pr-rating-save-row .rating-summary{display:none !important;}
-        .pr-rating-save-row .save-btn-label-default, .pr-rating-save-row .save-btn-label-saved, .pr-rating-save-row .save-btn-count{display:none !important;}
-        .pr-rating-save-row .card-save-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
-        .pr-rating-save-row .share-btn{padding:0 !important; width:48px !important; min-width:44px !important; flex-shrink:0 !important; justify-content:center;}
+      /* Mobil galeri oranı — proje.html'deki AYNI kural (kullanıcı isteği): masaüstünde 2:1 korunur,
+         yalnızca ≤768px'te 4:3'e geçilir. 860px bloğundan SONRA tanımlanır ki aynı özgüllükteki
+         aspect-ratio kuralı ≤768px genişliklerde kaynak sırasına göre onu ezsin. */
+      @media (max-width:768px){
+        .detail-gallery a, .gallery-placeholder{aspect-ratio:4/3;}
       }
     `;
     document.head.appendChild(style);
