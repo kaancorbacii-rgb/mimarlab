@@ -23,7 +23,7 @@ const { products } = urunJs;
 const { materials } = malzemeJs;
 
 const SITE_ORIGIN = 'https://mimarlab.com';
-const DEFAULT_IMAGE = `${SITE_ORIGIN}/logos/site/mimarlab-logo.png`;
+const DEFAULT_IMAGE = `${SITE_ORIGIN}/logos/site/mimarlab-og-image.png`;
 
 function absoluteUrl(path) {
   if (!path) return null;

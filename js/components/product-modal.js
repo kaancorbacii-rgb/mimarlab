@@ -307,7 +307,7 @@ const ProductModal = (function () {
     const rawDesc = p.description || `${p.title}${p.brand ? ' — ' + p.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
     const canonicalUrl = `https://mimarlab.com/urun/${encodeURIComponent(key)}`;
-    const image = (p.images && p.images[0]) ? new URL(p.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    const image = (p.images && p.images[0]) ? new URL(p.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
     setIf('meta-description', 'content', desc);
     setIf('canonical-link', 'href', canonicalUrl);

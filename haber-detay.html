@@ -19,11 +19,11 @@
 <meta property="og:title" content="Haber — MİMARLAB" id="og-title">
 <meta property="og:description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler — MİMARLAB." id="og-description">
 <meta property="og:url" content="https://mimarlab.com/haber-detay" id="og-url">
-<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="og-image">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Haber — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Mimarlık, iç mimarlık ve tasarım dünyasından güncel haberler — MİMARLAB." id="twitter-description">
-<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-logo.png" id="twitter-image">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -346,7 +346,7 @@ function renderNewsDetail(item){
     const rawDesc = item.description || `${item.title}${item.category ? ' — ' + item.category : ''}. MİMARLAB'da haberin devamını oku.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
     const canonicalUrl = `https://mimarlab.com/haberler/${encodeURIComponent(item.id)}`;
-    const image = item.image ? new URL(item.image, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    const image = item.image ? new URL(item.image, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     document.getElementById('meta-description').setAttribute('content', desc);
     document.getElementById('canonical-link').setAttribute('href', canonicalUrl);
     document.getElementById('og-title').setAttribute('content', document.title);

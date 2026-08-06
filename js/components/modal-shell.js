@@ -101,6 +101,10 @@ const ModalShell = (function () {
            kurallar (width:95vw; height:92vh; border-radius:20px) tüm kırılma noktalarında geçerli.
         */
         .modal-shell-panel{border-radius:16px;}
+        /* kapatma butonu masaüstünde sol üstte (bkz. yukarısı left:32px) ama mobil/tablette sağ üste
+           taşınır (bkz. kullanıcı isteği: X her zaman sağ üstte olmalı, tek elle erişim/alışılmış
+           konum) — left:auto ile masaüstü değerini iptal edip right ile konumlandırıyoruz. */
+        .modal-shell-close{left:auto; right:16px;}
         /* padding-top: kapatma (X) butonu panele position:absolute (top:16px, height:36px) — içerik
            kaydırma öncesi tam bu bölgenin ALTINDA başlamazsa başlık/görseller X ile çakışıyordu (bkz.
            kullanıcı isteği). 16+36=52px'lik buton alanına en az 16-24px pay eklenir. */

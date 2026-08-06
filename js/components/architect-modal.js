@@ -101,7 +101,7 @@ const ArchitectModal = (function () {
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
       .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
       .detail-desc-more:hover{color:var(--ink);}
-      .detail-info-divider{border:none; border-top:1px solid var(--line-soft); margin:24px 0 0;}
+      .detail-info-divider{border:none; border-top:1px solid var(--line-soft); margin:24px 0;}
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
       .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
@@ -147,6 +147,11 @@ const ArchitectModal = (function () {
            isteği: "Projeler" başlığıyla BİREBİR aynı boşluk). :first-child sıfırlamasını burada geri
            alıp diğer .related-section'larla eşit boşluk/çizgiye döndürür. */
         .related-section:first-child{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+        /* related-section:first-child'ın üstteki border-top'u zaten açıklamadan sonra TEK bir çizgi
+           oluşturuyor — detail-info-divider (açıklamanın hemen altındaki hr) burada hala görünür
+           kalsaydı üst üste 2 çizgi (bkz. kullanıcı isteği: çift çizgi hatası) belirirdi, bu yüzden
+           mobil/tablette gizlenir. */
+        .detail-info-divider{display:none;}
         /* Önceki/Sonraki butonlarından hemen sonra, claim/bilgi kaynağı kutularından ÖNCE bir ayırıcı
            (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
            çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
@@ -284,7 +289,7 @@ const ArchitectModal = (function () {
       ? `${a.name}, ${office.name} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
       : `${a.name} — MİMARLAB'da mimar profilini incele.`;
     const canonicalUrl = `https://mimarlab.com/mimar/${encodeURIComponent(slugify(a.name))}`;
-    const image = a.photo ? new URL(a.photo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    const image = a.photo ? new URL(a.photo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
     setIf('meta-description', 'content', desc);
     setIf('canonical-link', 'href', canonicalUrl);

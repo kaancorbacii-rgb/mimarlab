@@ -162,7 +162,7 @@ const ProjectModal = (function () {
     const rawDesc = item.description || `${item.title}${item.location ? ' — ' + item.location : ''}. MİMARLAB'da proje detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
     const canonicalUrl = `https://mimarlab.com/projeler/${encodeURIComponent(item.slug)}`;
-    const image = (item.images && item.images[0]) ? new URL(item.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-logo.png';
+    const image = (item.images && item.images[0]) ? new URL(item.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
     setIf('meta-description', 'content', desc);
     setIf('canonical-link', 'href', canonicalUrl);
