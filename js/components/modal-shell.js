@@ -29,6 +29,14 @@ const ModalShell = (function () {
     // CSS özel değişkenleri (--ink, --paper-card, --line vb.) her sayfanın kendi :root'unda zaten
     // tanımlı (bkz. proje.html) — burada yeniden tanımlamaya gerek yok, cascade zaten çözer.
     style.textContent = `
+      /* Motion/radius token'ları (bkz. kullanıcı isteği: Design Token katmanı) — bu dosya proje/mimar/
+         firma/ürün modallarının HEPSİ tarafından paylaşıldığından, popup'larda tekrar eden süre/easing/
+         köşe değerleri için TEK kaynak burası; sayfaların kendi :root'unu değiştirmeye gerek kalmaz. */
+      :root{
+        --motion-fast:150ms; --motion-normal:300ms; --motion-slow:450ms;
+        --ease-standard:cubic-bezier(0.4, 0, 0.2, 1);
+        --ease-emphasized:cubic-bezier(0.16, 1, 0.3, 1);
+      }
       .modal-shell-overlay{
         display:flex; position:fixed; inset:0; z-index:150;
         background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
@@ -40,7 +48,7 @@ const ModalShell = (function () {
         padding-top:calc(16px + env(safe-area-inset-top, 0px));
         padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));
         opacity:0; visibility:hidden; pointer-events:none;
-        transition:opacity .3s ease, visibility 0s linear .3s;
+        transition:opacity var(--motion-normal) var(--ease-standard), visibility 0s linear var(--motion-normal);
       }
       /* display:none/flex ile anlık açılıp kapanıyordu — opacity/transform GEÇİŞ ALAMAZ, tarayıcı
          display değişimini hiçbir ara kare olmadan uygular (bkz. kullanıcı isteği: yumuşak
@@ -50,7 +58,7 @@ const ModalShell = (function () {
          transition-delay sayesinde opacity geçişi bitene kadar (kapanışta) hidden'a geçmez. */
       .modal-shell-overlay.open{
         opacity:1; visibility:visible; pointer-events:auto;
-        transition:opacity .3s ease;
+        transition:opacity var(--motion-normal) var(--ease-standard);
       }
       /* gerçek bulgu: height:92vh TEK BAŞINA mobil/tablette bazı tarayıcılarda (adres çubuğunun
          100vh hesabına dahil olup olmamasına göre) panelin üst/alt kenara neredeyse yapışmış
@@ -59,10 +67,10 @@ const ModalShell = (function () {
          16px'ten (overlay padding'i) daha yakına giremez. */
       .modal-shell-panel{
         position:relative; width:95vw; height:92vh; max-height:calc(100vh - 32px); max-width:1440px;
-        background:var(--paper-card); border-radius:20px; box-shadow:0 24px 60px rgba(27,42,61,0.28);
+        background:var(--paper-card); border-radius:var(--radius-xl, 20px); box-shadow:0 24px 60px rgba(27,42,61,0.28);
         overflow:hidden; display:flex; flex-direction:column;
         opacity:0; transform:scale(0.95);
-        transition:transform .35s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s ease;
+        transition:transform var(--motion-normal) var(--ease-emphasized), opacity var(--motion-normal) var(--ease-standard);
       }
       /* dvh (dynamic viewport height) — iOS Safari'de vh, adres çubuğu GİZLİYMİŞ gibi en büyük
          viewport'a göre sabitlenir; adres çubuğu görünür olduğunda gerçek görünür alan bundan
@@ -100,7 +108,7 @@ const ModalShell = (function () {
            tam ekran (100vw/100vh, radius:0, padding:0) geçersiz kılması KALDIRILDI, üstteki temel
            kurallar (width:95vw; height:92vh; border-radius:20px) tüm kırılma noktalarında geçerli.
         */
-        .modal-shell-panel{border-radius:16px;}
+        .modal-shell-panel{border-radius:var(--radius-lg, 16px);}
         /* kapatma butonu masaüstünde sol üstte (bkz. yukarısı left:32px) ama mobil/tablette sağ üste
            taşınır (bkz. kullanıcı isteği: X her zaman sağ üstte olmalı, tek elle erişim/alışılmış
            konum) — left:auto ile masaüstü değerini iptal edip right ile konumlandırıyoruz. */

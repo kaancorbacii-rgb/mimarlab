@@ -64,7 +64,7 @@ const ProjectComments = (function () {
       <div class="comment-form">
         <div class="comment-input-wrap">
           <textarea id="pm-comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
-          <button class="comment-submit-btn" id="pm-comment-submit-btn" type="button">Yorum Yap</button>
+          <button class="comment-submit-btn" id="pm-comment-submit-btn" type="button">Gönder</button>
         </div>
       </div>`;
     const submitBtn = document.getElementById('pm-comment-submit-btn');

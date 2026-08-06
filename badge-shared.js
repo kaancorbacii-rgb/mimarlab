@@ -67,7 +67,7 @@ if(!document.getElementById('verified-badge-style')){
   const badgeStyle = document.createElement('style');
   badgeStyle.id = 'verified-badge-style';
   badgeStyle.textContent = `
-    .verified-badge-icon{position:relative; cursor:pointer;}
+    .verified-badge-icon{position:relative; cursor:pointer; display:inline-flex; align-items:center; vertical-align:middle; margin-left:var(--space-1, 4px); flex-shrink:0;}
     .verified-badge-tip-floating{
       position:absolute; top:-9999px; left:-9999px;
       background:#1B2A3D; color:#fff; font-family:'Inter', sans-serif; font-size:11px; font-weight:600;
