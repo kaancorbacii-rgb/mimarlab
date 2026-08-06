@@ -128,7 +128,7 @@ export async function handleArchitectListRoute(request, env, url) {
       // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
       // fallback'inin karşılığı) — bucketed `position` (Kurucu/Çalışan/İşsiz) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
-      return { name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, badges: [] };
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, badges: [] };
     });
 
     function passes(a) {

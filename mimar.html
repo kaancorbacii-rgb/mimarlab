@@ -614,7 +614,7 @@ async function render(){
   grid.innerHTML = data.items.map(a=>{
     const sub = a.office || a.positionRaw || '';
     return `
-    <a class="person-card" href="/mimar/${encodeURIComponent(slugify(a.name))}">
+    <a class="person-card" href="/mimar/${encodeURIComponent(a.slug || slugify(a.name))}">
       <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
       <div class="person-card-body">
         <div class="person-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>

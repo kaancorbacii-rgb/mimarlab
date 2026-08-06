@@ -103,7 +103,7 @@ export async function handleOfficeListRoute(request, env, url) {
       // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
       // (sayı/boolean/obje) güvenli bir düz metne düşer.
       const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
-      return { name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, badges: [] };
+      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, badges: [] };
     });
 
     function passes(o) {

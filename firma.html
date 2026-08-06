@@ -618,7 +618,7 @@ async function render(){
     const safeInitialsAttr = escapeAttr(initials(o.name));
     const safeInitialsText = escapeHtml(initials(o.name));
     return `
-    <a class="office-card" href="/firma/${encodeURIComponent(slugify(o.name))}">
+    <a class="office-card" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}">
       <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
       <div class="office-card-body">
         <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
