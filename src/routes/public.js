@@ -1,66 +1,31 @@
 import { json, errorJson } from '../lib/http.js';
-import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
+import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
 import { handlePublicHidden, handlePublicSearchSuggest } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 
-const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
-  architects: 'architects',
-};
-
-// Onaylanmış (status='approved') satırları, statik data.js/projeler-data.js/urunler-data.js
+// Onaylanmış (status='approved') satırları, statik urunler-data.js/malzemeler-data.js
 // dizilerindeki mevcut şekle olabildiğince uyacak biçimde dönüştürür — böylece istemci
 // tarafında tek satırlık bir fetch+push ile mevcut render() koduna karışabilirler.
+// (offices/projects/architects dalları — bkz. eski TYPE_BY_PATH/handlePublicRoute genel liste
+// ucu — proje.html/mimar.html/firma.html/urun.html'in canonical /api/{type} uçlarına taşınmasıyla
+// (Faz 1-3) hiçbir istemci tarafından çağrılmaz hale geldi, kaldırıldı; bkz. kullanıcı isteği:
+// "Post-Migration Cleanup". mostVisited/recommendations stub alanları da yalnızca o ölü dalda
+// yaşıyordu, ayrıca kaldırılmasına gerek kalmadı.)
 function toPublicShape(type, row) {
   const parsed = parseSubmissionRow(type, row);
   // "X tarafından" satırı (bkz. *-detay.html, urun/malzeme/is-ilani modalları) için — yalnızca
-  // owner join'i yapılmış sorgulardan gelen satırlarda dolu (bkz. handlePublicRoute), diğer
-  // çağıranlarda (ör. handlePublicProfileContent) sessizce undefined kalır, byline gösterilmez.
+  // owner join'i yapılmış sorgulardan gelen satırlarda dolu, diğer çağıranlarda (ör.
+  // handlePublicProfileContent) sessizce undefined kalır, byline gösterilmez.
   const owner = row.owner_name ? { ownerName: row.owner_name, ownerPhoto: row.owner_photo, ownerBadge: row.owner_badge } : {};
-  if (type === 'offices') {
-    return {
-      name: parsed.name, loc: parsed.loc, cats: parsed.cats, yil: parsed.yil,
-      website: parsed.website, about: parsed.about, logo: parsed.logo_url,
-      awards: parsed.awards, source: 'member', submissionId: parsed.id, ...owner,
-    };
-  }
-  if (type === 'projects') {
-    return {
-      slug: parsed.slug, title: parsed.title, category: parsed.category, type: parsed.type,
-      discipline: parsed.discipline,
-      location: parsed.location, locationDetail: parsed.locationDetail, date: parsed.date,
-      dateBucket: parsed.dateBucket, period: parsed.period, designer: parsed.designer,
-      photoCredit: { text: parsed.photoCreditText || '', url: parsed.photoCreditUrl || '' },
-      description: parsed.description, mostVisited: null, recommendations: [],
-      images: parsed.images, brands: parsed.brands, source: 'member', submissionId: parsed.id,
-      createdAt: parsed.created_at, ...owner,
-    };
-  }
-  if (type === 'products' || type === 'materials') {
-    return {
-      title: parsed.title, brand: parsed.brand, architect: parsed.architect, website: parsed.website, category: parsed.category,
-      description: parsed.description, images: parsed.images, specs: parsed.specs,
-      image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
-      source: 'member', submissionId: parsed.id, ...owner,
-    };
-  }
-  // architects
+  // products/materials (architects/offices/projects dalları için bkz. yukarıdaki yorum)
   return {
-    name: parsed.name, dob: parsed.dob, school: parsed.school, dept: parsed.dept, office: parsed.office,
-    role: parsed.position, status: parsed.position, awards: parsed.awards, photo: parsed.photo_url,
-    about: parsed.about, source: 'member', submissionId: parsed.id, ...owner,
+    title: parsed.title, brand: parsed.brand, architect: parsed.architect, website: parsed.website, category: parsed.category,
+    description: parsed.description, images: parsed.images, specs: parsed.specs,
+    image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
+    source: 'member', submissionId: parsed.id, ...owner,
   };
 }
-
-// architects/offices'te claimed_profile_key, projects'te claimed_slug dolu satırlar yeni bir kayıt
-// değil, mevcut statik bir kayda (architects[]/offices[].name ya da projeler[].slug) yapılan bir
-// düzenleme talebidir (bkz. handlePublicProfileEdits/handlePublicProjectEdits) — bu yüzden bu genel
-// "yeni kayıt" listesine dahil edilmezler, aksi halde aynı kayıt iki kez (biri statik biri "yeni
-// üye kaydı" olarak) görünürdü. projects'in claimed_slug'ı yalnızca admin tarafından set edilebilir
-// (bkz. src/routes/submissions.js#verifyClaimedSlug) — projelerin mimar/ofis'teki gibi bir sıradan
-// üye "sahiplenme" akışı yok.
-const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'claimed_profile_key', projects: 'claimed_slug' };
 
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
@@ -72,30 +37,7 @@ export async function handlePublicRoute(request, env, url) {
   if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);
   if (segments[2] === 'claim-status') return handlePublicClaimStatus(request, env, url);
   if (segments[2] === 'save-count') return handlePublicSaveCount(request, env, url);
-
-  const typeKey = TYPE_BY_PATH[segments[2]];
-  if (!typeKey || request.method !== 'GET') return errorJson('Bulunamadı', 404);
-
-  return cachedPublicJson(request, env, url.pathname, async () => {
-    const config = SUBMISSION_TYPES[typeKey];
-    const claimedColumn = CLAIMED_COLUMN_BY_TYPE[typeKey];
-    let whereClause = claimedColumn
-      ? `WHERE s.status = 'approved' AND s.${claimedColumn} IS NULL`
-      : `WHERE s.status = 'approved'`;
-    // Gönderiyi yayınlayan hesabın adı/fotoğrafı ("X tarafından" satırı, bkz. *-detay.html) ve
-    // yalnızca KENDİSİ için aldığı (target_type='self') aktif rozeti — marka rozeti burada asla
-    // sızmaz, bkz. src/routes/badges.js#handlePublicBadges'teki aynı ayrım.
-    const params = [Date.now()];
-    const { results } = await env.DB.prepare(
-      `SELECT s.*, u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
-       FROM ${config.table} s
-       JOIN users u ON u.id = s.owner_user_id
-       LEFT JOIN badge_requests b ON b.user_id = s.owner_user_id AND b.target_type = 'self' AND b.status = 'active'
-         AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
-       ${whereClause} ORDER BY s.created_at DESC`
-    ).bind(...params).all();
-    return { items: results.map(r => toPublicShape(typeKey, r)) };
-  });
+  return errorJson('Bulunamadı', 404);
 }
 
 // GET /api/public/claim-status?profileType=architect|office&profileKey=<isim> — auth gerektirmez.
