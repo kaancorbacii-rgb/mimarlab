@@ -224,6 +224,13 @@
      fade-in ile belirir, sert bir sıçrama olmaz. */
   .slider-track{position:relative; width:100%; height:100%; opacity:0; transition:opacity .4s ease;}
   .slider-track.loaded{opacity:1;}
+  /* API isteği başarısız olursa (ağ hatası/5xx) mini-carousel'ler boş bir renkli kutu olarak
+     kalmasın diye (bkz. kullanıcı isteği: "boş ekran gösterme") — trackEl'in kendisi bu metni
+     ortalar, .proje-slide'ların absolute konumlanmasından etkilenmez. */
+  .slider-fallback{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:14px; font-size:12px; color:var(--ink-soft); line-height:1.4;
+  }
   .proje-slide{
     position:absolute; inset:0; opacity:0; pointer-events:none;
     transition:opacity .6s ease; text-decoration:none; color:inherit; display:block;
@@ -399,8 +406,8 @@
 </script>
 </head>
 <body>
-<script src="js/overlay-manager.js"></script>
-<script src="auth-nav.js"></script>
+<script src="js/overlay-manager.js" defer></script>
+<script src="auth-nav.js" defer></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -408,7 +415,7 @@
     </a>
     <div class="nav-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="f-search-topnav" placeholder="Ara...">
+      <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
     </div>
     <div class="nav-links">
       <a class="nav-link" href="proje.html">Proje</a>
@@ -425,7 +432,7 @@
     <div class="nav-mobile-menu" id="nav-mobile-menu">
       <div class="nav-mobile-search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="f-search-nav" placeholder="Ara...">
+        <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
@@ -809,9 +816,19 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
     if(key === cacheKey) return; // içerik aynıysa mevcut slaytı/otomatik oynatma ilerlemesini bozma
     cacheKey = key;
     index = 0;
+    clearInterval(timer);
     trackEl.innerHTML = items.map(slideHtmlFn).join('');
     trackEl.classList.add('loaded');
     restart();
+  }
+  // API isteği ağ hatası/5xx ile başarısız olduğunda çağrılır — trackEl'i boş bırakmak yerine
+  // kısa bir bilgi metni gösterir (bkz. yukarıdaki .slider-fallback yorumu).
+  function renderError(message){
+    if(cacheKey === '__error__') return;
+    cacheKey = '__error__';
+    clearInterval(timer);
+    trackEl.innerHTML = `<div class="slider-fallback">${escapeHtml(message)}</div>`;
+    trackEl.classList.add('loaded');
   }
   function goTo(i){
     const slides = trackEl.querySelectorAll('.proje-slide');
@@ -828,15 +845,24 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
   wrapEl.addEventListener('mouseenter', ()=> clearInterval(timer));
   wrapEl.addEventListener('mouseleave', restart);
 
-  return { render };
+  return { render, renderError };
 }
 
 const mimarSlider = createMiniSlider('mimar-slider-track', 'mimar-prev', 'mimar-next', architectSlideHtml, a => a.name);
 const markaSlider = createMiniSlider('marka-slider-track', 'marka-prev', 'marka-next', officeSlideHtml, o => o.name);
 const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next', urunSlideHtml, p => `${p.kind}:${p.brand || ''}|||${p.title}`);
 
+// Ağ hatası/5xx durumunda {items:[]} ile "gerçekten boş" arasında ayrım yapabilmek için (bkz.
+// aşağıdaki kullanım — kullanıcı isteği: "API isteği başarısız olursa ... boş ekran gösterme,
+// zarif bir hata/fallback görünümü sun") başarısız istekler items:[] YERİNE failed:true döner.
+function fetchPublicJson(url){
+  return fetch(url)
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .catch(()=>({items:[], failed:true}));
+}
+
 Promise.all([
-  fetch('/api/public/projects').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  fetchPublicJson('/api/public/projects'),
   fetch('/api/public/hidden').then(r => r.ok ? r.json() : {}).catch(()=>({})),
   // Admin'in statik bir projeye yaptığı onaylı düzenlemesi (ör. kapak görseli değişikliği) — bkz.
   // proje-detay.html'deki aynı fetch, doğrudan projectsWithImages'in referans aldığı nesneleri
@@ -847,9 +873,9 @@ Promise.all([
   // kullandığı genel D1 uçlarından ?limit=6 ile doğrudan "son eklenen 6" çekilir (src/routes/
   // architect.js|office.js|product.js artık ORDER BY id DESC varsayılanına sahip, proje.html'in
   // /api/projects'iyle AYNI desen).
-  fetch('/api/architects?limit=6').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
-  fetch('/api/offices?limit=6').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
-  fetch('/api/products?limit=6').then(r => r.ok ? r.json() : {items:[]}).catch(()=>({items:[]})),
+  fetchPublicJson('/api/architects?limit=6'),
+  fetchPublicJson('/api/offices?limit=6'),
+  fetchPublicJson('/api/products?limit=6'),
 ]).then(([projRes, hiddenRes, editsRes, architectRes, officeRes, productRes])=>{
   for(const slug in editsRes){
     const match = projects.find(p => p.slug === slug);
@@ -859,12 +885,21 @@ Promise.all([
   // Admin'in admin panelinden gizlediği statik projeler (bkz. src/routes/legacyContent.js) carousel'e alınmaz.
   const hiddenSlugs = new Set(hiddenRes.projects || []);
   const visibleStaticWithImages = hiddenSlugs.size ? projectsWithImages.filter(p => !hiddenSlugs.has(p.slug)) : projectsWithImages;
+  // /api/public/projects başarısız olsa bile statik miras kataloğu (projectsWithImages) her zaman
+  // dolu olduğundan proje-slider zaten hiç boş kalmaz — buraya ayrı bir hata görünümü gerekmez.
   renderSlider(carouselSlides(dynamicWithImages, visibleStaticWithImages));
 
-  // Fotoğrafı/logosu/görseli olmayan kayıtlar mini-carousel'e alınmaz (bkz. projectsWithImages'teki AYNI kural).
-  mimarSlider.render((architectRes.items || []).filter(a => a.photo));
-  markaSlider.render((officeRes.items || []).filter(o => o.logo));
-  urunSlider.render((productRes.items || []).filter(p => p.image));
+  // Mimar/Firma/Ürün mini-carousel'lerinin AKSİNE (bkz. yukarısı) hiçbir statik yedek dizisi yok —
+  // istek başarısız olursa trackEl kalıcı olarak boş bir renkli kutu olarak kalırdı, bu yüzden
+  // failed:true burada ayrıca ele alınır.
+  if(architectRes.failed) mimarSlider.renderError('Mimarlar şu an yüklenemedi.');
+  else mimarSlider.render((architectRes.items || []).filter(a => a.photo));
+
+  if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
+  else markaSlider.render((officeRes.items || []).filter(o => o.logo));
+
+  if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
+  else urunSlider.render((productRes.items || []).filter(p => p.image));
 });
 </script>
 
