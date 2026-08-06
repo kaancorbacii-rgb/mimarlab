@@ -461,8 +461,12 @@
   .comments-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
   .comments-title{font-family:'Inter', sans-serif; font-size:18px; font-weight:700; margin:0 0 16px;}
   .comment-form-wrap{margin-bottom:20px;}
-  .comment-form textarea{width:100%; min-height:80px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
-  .comment-form-actions{display:flex; justify-content:flex-end; margin-top:10px;}
+  /* Gönder butonu textarea'nın İÇİNE, sağ alt köşeye bindirilir (bkz. kullanıcı isteği) — yazının
+     butonun altına/arkasına denk gelmemesi için textarea'nın sağ ve alt iç boşluğu büyütülür, buton
+     o boşluğun içinde mutlak konumlanır. */
+  .comment-input-wrap{position:relative;}
+  .comment-form textarea{width:100%; min-height:80px; padding:12px 108px 50px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
+  .comment-input-wrap .comment-submit-btn{position:absolute; right:8px; bottom:8px;}
   .comment-submit-btn{background:var(--ink); color:var(--paper-card); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
   .comment-submit-btn:hover{background:var(--walnut);}
   .comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
@@ -491,7 +495,10 @@
   .pm-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
   .pm-feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
   .pm-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
-  .pm-feedback-card textarea{width:100%; min-height:64px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
+  /* Bildir butonu da yorum kutusuyla AYNI desende textarea'nın içine, sağ alt köşeye bindirilir. */
+  .feedback-input-wrap{position:relative;}
+  .pm-feedback-card textarea{width:100%; min-height:64px; padding:9px 92px 40px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
+  .feedback-input-wrap .comment-submit-btn{position:absolute; right:6px; bottom:6px; padding:7px 14px; font-size:12px;}
   #pm-feedback-result{margin:8px 0 0; font-size:12px; color:var(--sage);}
 
   /* ---------- PROJE MODALI — sağ panel (medya + doğal akış) ---------- */

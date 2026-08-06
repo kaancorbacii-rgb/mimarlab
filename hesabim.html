@@ -871,11 +871,14 @@ document.getElementById('saved-filter').addEventListener('click', (e)=>{
   renderSaved();
 });
 
+// Fiyatlar bireysel ("Kendim için") kademe tutarlarıdır — kurumsal/firma fiyatı bunun
+// SELF_DISCOUNT_TRY (60 TL) kadar üzerinde (bkz. satin-al.html#priceForTier,
+// src/routes/badges.js#getBadgePrice — buradaki gösterim yalnızca bilgilendirme amaçlı).
 const BADGE_TIERS = [
-  { type:'destekci', label:'Destekçi', price:'79,90 TL' },
-  { type:'verified', label:'Doğrulanmış Üye', price:'99,90 TL' },
-  { type:'gold', label:'Altın Üye', price:'139,90 TL' },
-  { type:'platinum', label:'Elmas Üye', price:'199,90 TL' },
+  { type:'destekci', label:'Destekçi', price:'19,90 TL' },
+  { type:'verified', label:'Doğrulanmış Üye', price:'39,90 TL' },
+  { type:'gold', label:'Altın Üye', price:'79,90 TL' },
+  { type:'platinum', label:'Elmas Üye', price:'139,90 TL' },
 ];
 const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
 const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };

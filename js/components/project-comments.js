@@ -62,8 +62,8 @@ const ProjectComments = (function () {
     }
     wrap.innerHTML = `
       <div class="comment-form">
-        <textarea id="pm-comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
-        <div class="comment-form-actions">
+        <div class="comment-input-wrap">
+          <textarea id="pm-comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
           <button class="comment-submit-btn" id="pm-comment-submit-btn" type="button">Yorum Yap</button>
         </div>
       </div>`;

@@ -144,8 +144,10 @@ const ProjectModal = (function () {
       return;
     }
     body.innerHTML = `
-      <textarea id="pm-feedback-note" placeholder=""></textarea>
-      <button type="button" class="comment-submit-btn" id="pm-feedback-btn" style="margin-top:10px;">Bildir</button>
+      <div class="feedback-input-wrap">
+        <textarea id="pm-feedback-note" placeholder=""></textarea>
+        <button type="button" class="comment-submit-btn" id="pm-feedback-btn">Bildir</button>
+      </div>
       <p id="pm-feedback-result" style="display:none;"></p>`;
     document.getElementById('pm-feedback-btn').addEventListener('click', async (e) => {
       const btn = e.target;

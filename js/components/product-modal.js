@@ -195,8 +195,13 @@ const ProductModal = (function () {
       .pr-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
       .pr-feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
       .pr-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
-      .pr-feedback-card textarea{width:100%; min-height:64px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
-      #pr-feedback-btn{background:var(--ink); color:var(--paper-card); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px; border:none;}
+      /* Bildir butonu textarea'nın İÇİNE, sağ alt köşeye bindirilir (bkz. kullanıcı isteği,
+         js/components/project-modal.js#wireFeedbackBox ile AYNI desen) — yazının butonun altına/
+         arkasına denk gelmemesi için textarea'nın sağ ve alt iç boşluğu büyütülür. */
+      .feedback-input-wrap{position:relative;}
+      .pr-feedback-card textarea{width:100%; min-height:64px; padding:9px 92px 40px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
+      .feedback-input-wrap #pr-feedback-btn{position:absolute; right:6px; bottom:6px;}
+      #pr-feedback-btn{background:var(--ink); color:var(--paper-card); padding:7px 14px; border-radius:100px; font-weight:600; font-size:12px; border:none;}
       #pr-feedback-btn:hover{background:var(--walnut);}
       #pr-feedback-btn:disabled{opacity:0.5; cursor:not-allowed;}
       #pr-feedback-result{margin:8px 0 0; font-size:12px; color:var(--sage);}
@@ -559,8 +564,10 @@ const ProductModal = (function () {
       return;
     }
     body.innerHTML = `
-      <textarea id="pr-feedback-note" placeholder=""></textarea>
-      <button type="button" id="pr-feedback-btn" style="margin-top:10px;">Bildir</button>
+      <div class="feedback-input-wrap">
+        <textarea id="pr-feedback-note" placeholder=""></textarea>
+        <button type="button" id="pr-feedback-btn">Bildir</button>
+      </div>
       <p id="pr-feedback-result" style="display:none;"></p>`;
     document.getElementById('pr-feedback-btn').addEventListener('click', async (e) => {
       const btn = e.target;
