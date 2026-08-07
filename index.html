@@ -892,11 +892,13 @@ Promise.all([
   fetchPublicJson('/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
   // Mimar/Firma/Ürün mini-carousel'leri (bkz. kullanıcı isteği) artık statik dizi/el ile seçilmiş
   // vitrin OKUMUYOR — proje.html/mimar.html/firma.html/urun.html'in kendi listeleme sayfalarında da
-  // kullandığı genel D1 uçlarından ?limit=6 ile doğrudan "son eklenen 6" çekilir (src/routes/
-  // architect.js|office.js|product.js artık ORDER BY id DESC varsayılanına sahip, proje.html'in
-  // /api/projects'iyle AYNI desen).
-  fetchPublicJson('/api/architects?limit=6'),
-  fetchPublicJson('/api/offices?limit=6'),
+  // kullandığı genel D1 uçlarından ?limit=6 ile doğrudan "son eklenen 6" çekilir. Mimar/Firma
+  // uçlarının sort PARAMETRESİZ varsayılanı artık popülerlik (en çok projesi olan önce, bkz. src/
+  // routes/architect.js|office.js#handleArchitectListRoute — "Default Popularity-Based Sorting"
+  // kullanıcı isteği) — bu carousel'in "son eklenen" beklentisini korumak için sort=newest AÇIKÇA
+  // gönderilir (product.js'te bu değişiklik yok, ?limit=6 hâlâ ORDER BY id DESC varsayılanına sahip).
+  fetchPublicJson('/api/architects?limit=6&sort=newest'),
+  fetchPublicJson('/api/offices?limit=6&sort=newest'),
   fetchPublicJson('/api/products?limit=6'),
 ]).then(([projRes, architectRes, officeRes, productRes])=>{
   if(projRes.failed){

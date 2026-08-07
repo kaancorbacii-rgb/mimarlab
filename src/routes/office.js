@@ -88,14 +88,21 @@ export async function handleOfficeListRoute(request, env, url) {
     const expParam = url.searchParams.get('exp') || '';
     const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
 
-    // ORDER BY id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
-    // (sort seçilmemişse "son eklenen ilk") — anasayfa Firma carousel'i (bkz. index.html) bu
-    // varsayılana güvenerek ?limit=6 ile doğrudan son eklenen 6 firmayı çeker.
+    // Varsayılan sıralama artık "en popüler" (en çok projesi olan firma önce) — bkz. kullanıcı
+    // isteği: "Default Popularity-Based Sorting". ?sort=newest EXPLICIT olarak eski "son eklenen
+    // ilk" (id DESC) davranışını korur — anasayfa Firma carousel'i (bkz. index.html) artık bu
+    // değeri açıkça göndererek kendi "son eklenen 6 firma" beklentisini korur (bkz. src/routes/
+    // architect.js#handleArchitectListRoute'daki AYNI gerekçe).
     // Faz 4A — Projection Optimization: kart listesi yalnızca aşağıdaki alanları render eder (bkz.
     // aşağıdaki pool.map) — about/awards gibi yalnızca tekil profil sayfasında (buildOfficePayload,
-    // burada dokunulmayan ayrı bir sorgu) gereken kolonlar bu listeye dahil edilmiyor.
+    // burada dokunulmayan ayrı bir sorgu) gereken kolonlar bu listeye dahil edilmiyor. project_count
+    // — idx_project_designers_office indeksi üzerinden ucuz bir correlated subquery (bkz. src/routes/
+    // architect.js#handleArchitectListRoute'daki AYNI desen).
     const { results } = await env.DB.prepare(
-      `SELECT slug, name, loc, cats, yil, website, logo_url FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`
+      `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url,
+         (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+          WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
+       FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
     ).all();
     const pool = results.map(row => {
       const o = parseCanonicalRow('offices', row);
@@ -107,7 +114,7 @@ export async function handleOfficeListRoute(request, env, url) {
       // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
       // (sayı/boolean/obje) güvenli bir düz metne düşer.
       const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
-      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, badges: [] };
+      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, projectCount: row.project_count || 0, badges: [] };
     });
 
     function passes(o) {
@@ -120,16 +127,20 @@ export async function handleOfficeListRoute(request, env, url) {
 
     const filtered = pool.filter(passes);
 
-    if (sort) {
-      filtered.sort((a, b) => {
-        switch (sort) {
-          case 'name_asc': return a.name.localeCompare(b.name, 'tr');
-          case 'year_desc': return (b.yil || 0) - (a.yil || 0);
-          case 'year_asc': return (a.yil || 9999) - (b.yil || 9999);
-          default: return 0;
-        }
-      });
-    }
+    // sort boşsa (varsayılan) ya da 'popular' ise en çok projesi olan firma önce gelir, eşitlikte
+    // isim A-Z (bkz. src/routes/architect.js#handleArchitectListRoute'daki AYNI desen). 'newest' —
+    // id DESC — anasayfa carousel'inin AÇIKÇA istediği eski varsayılan davranış.
+    filtered.sort((a, b) => {
+      switch (sort) {
+        case 'name_asc': return a.name.localeCompare(b.name, 'tr');
+        case 'year_desc': return (b.yil || 0) - (a.yil || 0);
+        case 'year_asc': return (a.yil || 9999) - (b.yil || 9999);
+        case 'newest': return 0; // pool zaten id DESC ile geldi, ek bir JS sıralaması gerekmiyor
+        case 'popular':
+        default:
+          return (b.projectCount - a.projectCount) || a.name.localeCompare(b.name, 'tr');
+      }
+    });
 
     // firma.html#populateFilters — sayaçlar tüm havuz üzerinden, aktif filtrelerden bağımsız
     // (mimar.html#handleArchitectListRoute'daki AYNI gerekçe). Türkiye tek başına bir konum
@@ -144,7 +155,7 @@ export async function handleOfficeListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit);
+    const items = filtered.slice(start, start + limit).map(({ projectCount, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,

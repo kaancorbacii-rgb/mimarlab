@@ -113,15 +113,22 @@ export async function handleArchitectListRoute(request, env, url) {
     const positionParam = url.searchParams.get('position') || '';
     const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
 
-    // ORDER BY a.id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
-    // (sort seçilmemişse "son eklenen ilk") — anasayfa Mimar carousel'i (bkz. index.html) bu
-    // varsayılana güvenerek ?limit=6 ile doğrudan son eklenen 6 mimarı çeker.
+    // Varsayılan sıralama artık "en popüler" (en çok projesi olan mimar önce) — bkz. kullanıcı
+    // isteği: "Default Popularity-Based Sorting". ?sort=newest EXPLICIT olarak eski "son eklenen
+    // ilk" (id DESC) davranışını korur — anasayfa Mimar carousel'i (bkz. index.html) artık bu
+    // değeri açıkça göndererek kendi "son eklenen 6 mimar" beklentisini korur (aksi halde sort
+    // parametresiz istekler artık popülerlik sıralı döneceğinden carousel sessizce bozulurdu).
     // Faz 4A — Projection Optimization: kart listesi yalnızca aşağıdaki alanları render eder (bkz.
     // aşağıdaki pool.map) — about/school/dept/profession/awards gibi yalnızca tekil profil
     // sayfasında (buildArchitectPayload, a.* ile ayrı okunur) gereken kolonlar bu listeye dahil
-    // edilmiyor.
+    // edilmiyor. project_count — idx_project_designers_architect indeksi üzerinden ucuz bir
+    // correlated subquery (bkz. migrations/0022_id_first_entities.sql) — yalnızca DOĞRUDAN o mimara
+    // atanmış projeler sayılır (ofisi üzerinden ilişkili olduğu projeler DEĞİL; mimar-detay.html'deki
+    // relatedProjects'in aksine, popülerlik burada kişisel proje sayısını yansıtır).
     const { results } = await env.DB.prepare(
-      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards,
+         (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+          WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.id DESC`
     ).all();
@@ -133,7 +140,7 @@ export async function handleArchitectListRoute(request, env, url) {
       // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
       // fallback'inin karşılığı) — bucketed `position` (Kurucu/Çalışan/İşsiz) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, badges: [] };
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
     });
 
     function passes(a) {
@@ -146,16 +153,20 @@ export async function handleArchitectListRoute(request, env, url) {
 
     const filtered = pool.filter(passes);
 
-    if (sort) {
-      filtered.sort((x, y) => {
-        switch (sort) {
-          case 'name_asc': return x.name.localeCompare(y.name, 'tr');
-          case 'year_desc': return (y.dob || 0) - (x.dob || 0);
-          case 'year_asc': return (x.dob || 9999) - (y.dob || 9999);
-          default: return 0;
-        }
-      });
-    }
+    // sort boşsa (varsayılan) ya da 'popular' ise en çok projesi olan mimar önce gelir, eşitlikte
+    // isim A-Z (bkz. yukarıdaki "Varsayılan sıralama" notu). 'newest' — id DESC — anasayfa
+    // carousel'inin AÇIKÇA istediği eski varsayılan davranış.
+    filtered.sort((x, y) => {
+      switch (sort) {
+        case 'name_asc': return x.name.localeCompare(y.name, 'tr');
+        case 'year_desc': return (y.dob || 0) - (x.dob || 0);
+        case 'year_asc': return (x.dob || 9999) - (y.dob || 9999);
+        case 'newest': return 0; // pool zaten id DESC ile geldi, ek bir JS sıralaması gerekmiyor
+        case 'popular':
+        default:
+          return (y.projectCount - x.projectCount) || x.name.localeCompare(y.name, 'tr');
+      }
+    });
 
     // mimar.html#populateFilters — sayaçlar aktif filtrelerden BAĞIMSIZ, tüm havuz üzerinden
     // (proje.html'deki bağımlı/faceted sayaçların aksine; mimar.html'de zaten hiç öyle çalışmıyordu).
@@ -169,7 +180,7 @@ export async function handleArchitectListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ officeAwards, ...rest }) => rest);
+    const items = filtered.slice(start, start + limit).map(({ officeAwards, projectCount, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
