@@ -115,8 +115,12 @@ export async function handleArchitectListRoute(request, env, url) {
     // ORDER BY a.id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
     // (sort seçilmemişse "son eklenen ilk") — anasayfa Mimar carousel'i (bkz. index.html) bu
     // varsayılana güvenerek ?limit=6 ile doğrudan son eklenen 6 mimarı çeker.
+    // Faz 4A — Projection Optimization: kart listesi yalnızca aşağıdaki alanları render eder (bkz.
+    // aşağıdaki pool.map) — about/school/dept/profession/awards gibi yalnızca tekil profil
+    // sayfasında (buildArchitectPayload, a.* ile ayrı okunur) gereken kolonlar bu listeye dahil
+    // edilmiyor.
     const { results } = await env.DB.prepare(
-      `SELECT a.*, o.name AS office_name, o.awards AS office_awards
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.id DESC`
     ).all();

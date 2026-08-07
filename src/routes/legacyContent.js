@@ -170,12 +170,18 @@ async function toggleLegacyHidden(request, env, user) {
 // koşulla EŞLEŞMİYOR, yani silinen statik kayıt hiçbir zaman bu listeye girmiyor, dolayısıyla
 // data.js'teki karşılığı sitede sonsuza kadar görünmeye devam ediyordu (gerçek bulgu: "Galata
 // Apartmanı" silinip "Silindi" mesajı alınmasına rağmen /proje'de kalmaya devam etmesi).
+// Faz 4A — Projection Optimization: canonicalKeyFor() yalnızca aşağıdaki kolonları okur (name/slug/
+// legacy_key+brand_name_raw+title) — SELECT * ile satırın tamamını (about/awards/description/specs
+// gibi bu uçta hiç kullanılmayan ağır metin kolonları dahil) çekmenin okuma tarafında hiçbir faydası
+// yoktu; WHERE'deki hidden_at/deleted_at zaten migrations/0028'deki partial indeksle karşılanıyor.
+const HIDDEN_MAP_PROJECTION = { architects: 'name', offices: 'name', projects: 'slug', products: 'legacy_key, brand_name_raw, title', materials: 'legacy_key, brand_name_raw, title' };
+
 async function fetchHiddenMap(env) {
   const out = { projects: [], architects: [], offices: [], products: [], materials: [], news: [] };
   for (const type of ['projects', 'architects', 'offices', 'products', 'materials']) {
     const table = CANONICAL_TABLE_BY_TYPE[type];
     const kindClause = (type === 'products' || type === 'materials') ? `AND kind = '${type === 'products' ? 'product' : 'material'}'` : '';
-    const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE (hidden_at IS NOT NULL OR deleted_at IS NOT NULL) ${kindClause}`).all();
+    const { results } = await env.DB.prepare(`SELECT ${HIDDEN_MAP_PROJECTION[type]} FROM ${table} WHERE (hidden_at IS NOT NULL OR deleted_at IS NOT NULL) ${kindClause}`).all();
     const keys = new Set(results.map(row => canonicalKeyFor(type, row)).filter(Boolean));
     const { results: blacklisted } = await env.DB.prepare(`SELECT content_key FROM legacy_content_hidden WHERE content_type = ?`).bind(type).all();
     for (const row of blacklisted) keys.add(row.content_key);

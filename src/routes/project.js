@@ -156,19 +156,19 @@ async function fetchAdjacentProject(env, id) {
 // Villa'sı, bkz. kullanıcı isteği) için "Mimar:" alanı boş kalmasın diye firmanın office_founders
 // kayıtlarını otomatik doldurur. Yalnızca kayıtlı (unregistered OLMAYAN, gerçek bir offices satırına
 // bağlı) firmalar için çalışır — kaydı olmayan bir firma adı için kurucu sorgusu zaten sonuçsuz kalır.
+// Faz 4A — N+1 düzeltmesi: officeNames listesi eskiden tek tek sorgulanıyordu (bir proje birden
+// fazla ofis içerdiğinde D1'e ofis sayısı kadar ayrı round-trip); tek bir IN(...) sorgusuna
+// indirgendi (bkz. kullanıcı isteği: Phase 4A N+1 temizliği).
 async function fetchFoundersForOffices(env, officeNames) {
   if (!officeNames.length) return [];
-  const founders = [];
-  for (const name of officeNames) {
-    const { results } = await env.DB.prepare(
-      `SELECT ar.name, ar.slug, ar.photo_url FROM office_founders f
-       JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
-       JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL
-       WHERE o.name = ?`
-    ).bind(name).all();
-    for (const r of results) founders.push({ name: r.name, type: 'architect', slug: r.slug, photo: r.photo_url });
-  }
-  return founders;
+  const placeholders = officeNames.map(() => '?').join(', ');
+  const { results } = await env.DB.prepare(
+    `SELECT ar.name, ar.slug, ar.photo_url FROM office_founders f
+     JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
+     JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL
+     WHERE o.name IN (${placeholders})`
+  ).bind(...officeNames).all();
+  return results.map(r => ({ name: r.name, type: 'architect', slug: r.slug, photo: r.photo_url }));
 }
 
 // GET /api/project/:slug — Faz 4: proje.html'deki proje modalı bu uca bağlandı (eski yorum artık
