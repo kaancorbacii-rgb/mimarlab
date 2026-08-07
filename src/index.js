@@ -32,29 +32,28 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // kullanıcı isteği) — tüm alt alan adlarının HTTPS desteği doğrulanmadan bunlar geri dönüşü zor bir
 // risk taşır (preload listesine girmek ayları bulan bir kaldırma süreci gerektirir, includeSubDomains
 // HTTPS'siz bir alt alan adını anında kırar).
-// Report-Only CSP — repo çapında origin taraması (script/link/fetch/iframe) sonucu: Google
+// Enforce CSP — repo çapında origin taraması (script/link/fetch/iframe) sonucu: Google
 // Fonts (fonts.googleapis.com/fonts.gstatic.com), Google Tag Manager (gtag.js + GA4 collect
 // uçları), ve site genelindeki HTML sayfalarının kendi inline <script>/<style> bloklarından
 // (bu depoda henüz nonce/hash altyapısı yok, script-src/style-src bu yüzden 'unsafe-inline'
-// içeriyor — bu ilk denetim aşamasında hiçbir şeyi bloklamamak öncelikli, sıkılaştırma ayrı
-// bir adım). Google/LinkedIn OAuth ve iyzico ödeme sayfası ikisi de düz <a href>/window.location
+// içeriyor). Google/LinkedIn OAuth ve iyzico ödeme sayfası ikisi de düz <a href>/window.location
 // İLE üst seviye yönlendirme (top-level navigation) — CSP bunu kısıtlamaz, bu yüzden connect-src/
 // form-action'a ayrıca eklenmedi. Sitede hiçbir <iframe> yok (bkz. X-Frame-Options: DENY yorumu),
-// frame-src/object-src bu yüzden 'none'. BİLEREK sadece Report-Only: canlıda hiçbir kaynağı
-// bloklamaz, yalnızca ihlalleri loglar — enforce moduna geçiş ayrı bir karar.
+// frame-src/object-src bu yüzden 'none'.
 // report-to — ihlaller artık yalnızca o anki sekmenin DevTools konsoluna değil, aşağıdaki
 // Reporting-Endpoints header'ının gösterdiği POST /api/csp-report'a da gönderilir (bkz.
-// src/routes/cspReport.js) — "0 ihlal" iddiası artık wrangler tail/console.log ile gerçekten
-// doğrulanabilir (gerçek bulgu: önceden hiçbir toplama mekanizması yoktu, bkz. kullanıcı isteği).
+// src/routes/cspReport.js) — enforce modunda da AÇIK bırakıldı, böylece ileride ortaya çıkabilecek
+// yeni bir üçüncü taraf kaynağı sessizce kırılmak yerine loglanır.
 // Faz 4C: canlıda kısa bir `wrangler tail` örneklemesi (proje/mimar/firma sayfaları, filtreler,
 // yorum/puanlama/kaydet widget'ları gezilerek) TEK gerçek ihlal buldu: Cloudflare'ın zone
 // panelinden otomatik enjekte ettiği kendi RUM/Analytics beacon'ı (static.cloudflareinsights.com/
 // beacon.min.js) script-src tarafından engelleniyordu — bu repo'da hiçbir yerde referans edilmediği
 // için önceki origin taramasında görünmüyordu (edge'in kendisi enjekte ediyor). Bu meşru bir
 // Cloudflare servisi olduğundan script-src'ye eklendi; beacon'ın kendi telemetri POST'u da aynı
-// origin'e gittiğinden connect-src'ye de eklendi. Bu düzeltme sonrası HENÜZ yeniden örneklenmedi —
-// bu yüzden enforce'a geçiş bu turda YAPILMADI, Report-Only kalmaya devam ediyor (bkz. final rapor).
-const CONTENT_SECURITY_POLICY_REPORT_ONLY = [
+// origin'e gittiğinden connect-src'ye de eklendi. Düzeltme SONRASI canlıda ikinci bir örnekleme
+// (proje/ofis/mimar sayfaları, karışık gerçek+test trafiği, ~40sn) SIFIR ihlal buldu — bu temiz
+// örneklem üzerine Report-Only'den Enforce'a geçildi (bkz. kullanıcı isteği: Faz 4C kapanışı).
+const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -78,7 +77,7 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), accelerometer=(), gyroscope=(), magnetometer=(), payment=(), usb=(), bluetooth=(), midi=()',
   'Strict-Transport-Security': 'max-age=31536000',
-  'Content-Security-Policy-Report-Only': CONTENT_SECURITY_POLICY_REPORT_ONLY,
+  'Content-Security-Policy': CONTENT_SECURITY_POLICY,
   'Reporting-Endpoints': REPORTING_ENDPOINTS_HEADER,
 };
 
