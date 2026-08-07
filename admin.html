@@ -252,6 +252,7 @@
       </div>
 
       <div class="admin-section" id="section-comments">
+        <div class="admin-subtabs" id="comments-subtabs"></div>
         <div id="comments-list"></div>
       </div>
 
@@ -773,32 +774,36 @@ async function loadContactMessages(){
 }
 
 const COMMENT_TARGET_LABELS = { project: 'Proje', news: 'Haber', architect: 'Mimar', office: 'Firma' };
+const COMMENT_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı' };
+let commentsStatus = 'pending';
 
 async function loadCommentsAdmin(){
+  renderStatusSubtabs(document.getElementById('comments-subtabs'), COMMENT_STATUS_LABELS, commentsStatus, (s)=>{ commentsStatus = s; loadCommentsAdmin(); }, true);
   const list = document.getElementById('comments-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
-  const data = await api('/api/admin/comments');
+  const data = await api(`/api/admin/comments?status=${commentsStatus}`);
   const items = data.items || [];
-  if(!items.length){ list.innerHTML = '<div class="admin-empty">Henüz yorum yok.</div>'; return; }
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda yorum yok.</div>'; return; }
   list.innerHTML = items.map(c => `
     <div class="admin-card" data-id="${c.id}">
       <div class="admin-card-head">
         <div>
-          <div class="admin-card-title">${escapeHtml(c.user_name)} ${!c.admin_seen ? '<span class="admin-badge badge-pending">Yeni</span>' : ''}</div>
+          <div class="admin-card-title">${escapeHtml(c.user_name)} <span class="admin-badge ${c.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${COMMENT_STATUS_LABELS[c.status] || c.status}</span></div>
           <div class="admin-card-meta">${COMMENT_TARGET_LABELS[c.targetType] || c.targetType}: ${c.targetHref ? `<a href="${c.targetHref}" target="_blank">${escapeHtml(c.targetLabel)}</a>` : escapeHtml(c.targetLabel)} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
         <div class="admin-actions">
-          ${!c.admin_seen ? `<button class="admin-btn" data-action="seen">Okundu İşaretle</button>` : ''}
-          <button class="admin-btn danger" data-action="delete">Sil</button>
+          ${c.status === 'pending' ? `<button class="admin-btn primary" data-action="approve">Onayla</button>` : ''}
+          <button class="admin-btn danger" data-action="delete">${c.status === 'pending' ? 'Reddet' : 'Sil'}</button>
         </div>
       </div>
       <div class="admin-card-desc">${escapeHtml(c.body)}</div>
     </div>
   `).join('');
-  list.querySelectorAll('[data-action="seen"]').forEach(btn=>{
+  list.querySelectorAll('[data-action="approve"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const id = btn.closest('.admin-card').dataset.id;
-      await api(`/api/admin/comments/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({admin_seen: true}) });
+      btn.disabled = true;
+      await api(`/api/admin/comments/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'approved'}) });
       loadCommentsAdmin();
       refreshAdminSummary();
     });

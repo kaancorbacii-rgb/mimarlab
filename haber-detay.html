@@ -161,6 +161,7 @@
   .comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
   .comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
   .comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
+  .comment-submit-notice{margin:10px 0 0; font-size:12.5px; color:var(--sage);}
   .comment-row{display:flex; gap:12px; padding:16px 0; border-bottom:1px solid var(--line-soft);}
   .comment-row:last-child{border-bottom:none;}
   .comment-avatar{width:36px; height:36px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
@@ -461,19 +462,28 @@ function renderCommentForm(targetId){
         <textarea id="comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
         <button class="comment-submit-btn" id="comment-submit-btn" type="button">Yorum Yap</button>
       </div>
+      <p class="comment-submit-notice" id="comment-submit-notice" style="display:none;"></p>
     </div>`;
   const submitBtn = document.getElementById('comment-submit-btn');
   submitBtn.addEventListener('click', async ()=>{
     const input = document.getElementById('comment-input');
     const body = input.value.trim();
     if(!body) return;
+    const notice = document.getElementById('comment-submit-notice');
     submitBtn.disabled = true;
     try{
       const res = await fetch('/api/comments', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ targetType:'news', targetId, body }),
       });
-      if(res.ok){ input.value = ''; loadComments(targetId); }
+      // Yorum admin onayına düşer, hemen listede görünmez (bkz. src/routes/comments.js#listComments
+      // status='approved' filtresi, kullanıcı isteği: yorum moderasyonu) — bu yüzden loadComments()
+      // ÇAĞRILMAZ, kullanıcıya yalnızca bir bilgilendirme mesajı gösterilir.
+      if(res.ok){
+        input.value = '';
+        notice.textContent = 'Yorumunuz alındı. Admin onayından sonra yayınlanacaktır.';
+        notice.style.display = '';
+      }
     } finally { submitBtn.disabled = false; }
   });
 }

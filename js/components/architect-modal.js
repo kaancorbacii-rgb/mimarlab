@@ -10,8 +10,9 @@ const ArchitectModal = (function () {
   // içeriğinde tanımladığı AYNI sınıflar/değerler — mimar.html farklı bir sayfa olduğundan proje.html'in
   // <style>'ını miras alamaz, bu yüzden modal-shell.js'in injectStyles() deseniyle burada KENDİ
   // <style>'ını bir kez enjekte eder (görsel bütünlük için proje modalıyla BİREBİR aynı değerler).
-  // .info-card/.btn-outline/.profile-edit-btn ise mimar-detay.html'den taşınan claim/correction kutusu
-  // (js/components/claim-correction-box.js) için gerekli, proje modalında hiç kullanılmıyordu.
+  // .profile-edit-btn ise mimar-detay.html'den taşınan claim/correction kutusu (js/components/
+  // claim-correction-box.js) için gerekli, proje modalında hiç kullanılmıyordu — .feedback-card/
+  // .feedback-input-wrap o dosyanın KENDİ injectStyles()'ında tanımlı (bkz. o dosya).
   function injectStyles() {
     if (document.getElementById('architect-modal-styles')) return;
     const style = document.createElement('style');
@@ -80,21 +81,6 @@ const ArchitectModal = (function () {
         padding:0 8px !important; border-radius:100px; font-weight:600; font-size:12px !important;
       }
       .profile-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
-      .btn-outline{
-        background:none; border:1.5px solid var(--ink); color:var(--ink);
-        padding:12px 24px; border-radius:100px;
-        font-weight:600; font-size:14.5px; display:inline-flex; align-items:center; gap:8px;
-      }
-      .btn-outline:hover{background:var(--ink); color:var(--paper-card);}
-      .info-card{
-        background:var(--paper-card); border:1px solid var(--line);
-        border-radius:14px; padding:18px; margin-top:16px;
-        display:flex; gap:14px;
-      }
-      .info-card svg{flex-shrink:0; color:var(--brass); margin-top:2px;}
-      .info-card h5{margin:0 0 4px; font-size:13.5px; font-weight:600;}
-      .info-card p{margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.5;}
-      .info-card-link{font-weight:700; text-decoration:underline;}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -138,8 +124,8 @@ const ArchitectModal = (function () {
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
         /* mobil/tablette .modal-shell-left/.modal-shell-right display:contents olduğundan (bkz.
-           modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/bilgi
-           kaynağı kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
+           modal-shell.js) tüm doğrudan çocuklar TEK bir dikey flex akışına katılır — claim/geri
+           bildirim kutuları burada order:99 ile akışın EN ALTINA (bkz. kullanıcı isteği) taşınır. */
         #claim-info-card, #correction-info-card{order:99;}
         /* :first-child kuralı masaüstünde sağ panelin İLK bölümü olduğu için gerekliydi (üstte
            gereksiz çizgi olmasın) — ama mobilde birleşik akışta "Firmalar" artık görsel olarak ilk
@@ -152,7 +138,7 @@ const ArchitectModal = (function () {
            kalsaydı üst üste 2 çizgi (bkz. kullanıcı isteği: çift çizgi hatası) belirirdi, bu yüzden
            mobil/tablette gizlenir. */
         .detail-info-divider{display:none;}
-        /* Önceki/Sonraki butonlarından hemen sonra, claim/bilgi kaynağı kutularından ÖNCE bir ayırıcı
+        /* Önceki/Sonraki butonlarından hemen sonra, claim/geri bildirim kutularından ÖNCE bir ayırıcı
            (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
            çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
         .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
@@ -182,20 +168,16 @@ const ArchitectModal = (function () {
       <div class="detail-desc" id="am-about"></div>
       <hr class="detail-info-divider">
     </div>
-    <div class="info-card" id="claim-info-card">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
+    <div class="feedback-card" id="claim-info-card">
       <div id="claim-card-body">
         <h5>Bu profil sana mı ait?</h5>
         <p>Bilgilerini güncellemek ya da fotoğrafını değiştirmek için bizimle iletişime geç.</p>
       </div>
     </div>
-    <div class="info-card" id="correction-info-card">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="4" x2="8" y2="9"/></svg>
-      <div>
-        <h5>Bilgi kaynağı</h5>
-        <p>Buradaki bilgiler kişinin / firmanın websitesinden ve halka açık kaynaklardan derlenmiştir.</p>
-        <div id="correction-card-extra"></div>
-      </div>
+    <div class="feedback-card" id="correction-info-card">
+      <h5>Geri Bildirim</h5>
+      <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
+      <div id="correction-card-extra"></div>
     </div>`;
 
   const RIGHT_TEMPLATE = `
@@ -429,7 +411,7 @@ const ArchitectModal = (function () {
         claimTitle: 'Bu profil sana mı ait?',
         loginPromptHtml: 'Bilgilerini güncellemek ve doğrulanmış üye rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.',
         pendingHtml: '"Bu profil bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.',
-        claimNotePlaceholder: 'Bu profilin sana ait olduğunu doğrulamamıza yardımcı olacak bir not ekle: Örn. Instagram/LinkedIn hesabın.',
+        claimNoteDescription: 'Bu profilin sana ait olduğunu doğrulayabileceğimiz bir not ekle.',
         claimButtonText: 'Bu profil bana ait',
         deleteConfirm: 'Bu mimar profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.',
         archiveConfirm: 'Bu mimar profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.',

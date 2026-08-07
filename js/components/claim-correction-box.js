@@ -1,11 +1,13 @@
-// Paylaşılan "Bu profil sana mı ait?" (claim) + "Bilgi kaynağı" (correction) yan sütun kutuları ve
+// Paylaşılan "Bu profil sana mı ait?" (claim) + "Geri Bildirim" (correction) yan sütun kutuları ve
 // bunlara bağlı "Düzenle"/"Arşivle"/"Sil" butonu: mimar-detay.html ve ofis-detay.html'de birebir
 // aynı akışı (yalnızca metin/anahtar/uç nokta farklarıyla) tekilleştirir (bkz.
 // docs/architecture-roadmap.md Faz 2). save-widget.js gibi diğer paylaşılan script'lerle aynı
 // desen: her sayfa <script src="js/components/claim-correction-box.js"> ile dahil eder ve
 // createClaimCorrectionBox(config) çağırıp döneni kullanır — bu dosya `currentUser` (save-widget.js)
 // ile `escapeAttr`/`escapeHtml` (her sayfanın kendi inline script'i) global'lerinin zaten
-// tanımlı olduğunu varsayar.
+// tanımlı olduğunu varsayar. Görsel stili js/components/product-modal.js#wireFeedbackBox'daki
+// .pr-feedback-card/.feedback-input-wrap deseniyle BİREBİR aynı (bkz. kullanıcı isteği) —
+// tekilleştirmek için o desen buraya .feedback-card/.feedback-input-wrap adıyla taşındı.
 //
 // config alanları:
 //   profileType        'architect' | 'office'
@@ -18,11 +20,35 @@
 //   listUrl            silme/arşivleme sonrası yönlendirilecek liste sayfası ('mimar.html' | 'firma.html')
 //   contentType         /api/admin/legacy/content-action için 'type' alanı ('architects' | 'offices')
 //   getModerationTarget() moderasyon isteğine eklenecek { key } ya da { id } döner
-//   labels             { claimTitle, loginPromptHtml, pendingHtml, claimNotePlaceholder,
+//   labels             { claimTitle, loginPromptHtml, pendingHtml, claimNoteDescription,
 //                         claimButtonText, deleteConfirm, archiveConfirm }
 function createClaimCorrectionBox(config){
   let isProfileOwner = false;
   const getClaimLinkKey = config.getClaimLinkKey || config.getProfileKey;
+
+  // product-modal.js#injectStyles'daki AYNI .pr-feedback-card kuralları — burada iki kutu (claim +
+  // geri bildirim) AYNI sayfada yan yana durduğundan ID yerine class seçiciler kullanılır. Claim
+  // kutusunun CTA'sı ("Bu profil/firma bana ait") "Bildir"den uzun olduğundan --wide varyantı
+  // metnin buton altına gizlenmemesi için textarea'nın sağ iç boşluğunu büyütür.
+  function injectStyles(){
+    if(document.getElementById('claim-correction-box-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'claim-correction-box-styles';
+    style.textContent = `
+      .feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
+      .feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
+      .feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
+      .feedback-card .info-card-link{font-weight:700; text-decoration:underline;}
+      .feedback-input-wrap{position:relative;}
+      .feedback-input-wrap textarea{width:100%; min-height:64px; padding:9px 92px 40px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
+      .feedback-input-wrap--wide textarea{padding-right:160px;}
+      .feedback-input-wrap button{position:absolute; right:6px; bottom:6px; background:var(--ink); color:var(--paper-card); padding:7px 14px; border-radius:100px; font-weight:600; font-size:12px; border:none;}
+      .feedback-input-wrap button:hover{background:var(--walnut);}
+      .feedback-input-wrap button:disabled{opacity:0.5; cursor:not-allowed;}
+      .feedback-result{margin:8px 0 0; font-size:12px; color:var(--sage);}
+    `;
+    document.head.appendChild(style);
+  }
 
   // Onaylı bir rozeti (Doğrulanmış/Altın/Elmas Üye) olan profillerde "Bu profil sana mı ait?"
   // daveti anlamsız — kimliği zaten doğrulanmış demektir. badge-shared.js#dynamicBadges (satın
@@ -72,8 +98,11 @@ function createClaimCorrectionBox(config){
         card.style.display = 'none';
       } else {
         body.innerHTML = `<h5>${config.labels.claimTitle}</h5>
-          <textarea id="claim-note" placeholder="${config.labels.claimNotePlaceholder}" style="width:100%; min-height:64px; margin-top:10px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;"></textarea>
-          <button type="button" class="btn-outline" id="claim-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">${config.labels.claimButtonText}</button>`;
+          <p>${config.labels.claimNoteDescription}</p>
+          <div class="feedback-input-wrap feedback-input-wrap--wide">
+            <textarea id="claim-note" placeholder=""></textarea>
+            <button type="button" id="claim-btn">${config.labels.claimButtonText}</button>
+          </div>`;
         document.getElementById('claim-btn').addEventListener('click', async (e)=>{
           e.target.disabled = true; e.target.textContent = 'Gönderiliyor…';
           const note = document.getElementById('claim-note').value;
@@ -95,13 +124,15 @@ function createClaimCorrectionBox(config){
   function loadCorrectionCard(){
     const extra = document.getElementById('correction-card-extra');
     if(!currentUser){
-      extra.innerHTML = `<p style="margin-top:10px;">Bir düzeltme önermek için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
+      extra.innerHTML = `<p style="margin-top:10px;">Bir bildirim göndermek için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
       return;
     }
     extra.innerHTML = `
-      <textarea id="correction-note" placeholder="Gördüğün bir hatayı ya da eksik bilgiyi buraya yaz." style="width:100%; min-height:64px; margin-top:10px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;"></textarea>
-      <button type="button" class="btn-outline" id="correction-btn" style="margin-top:10px; padding:8px 16px; font-size:12.5px;">Düzeltme Öner</button>
-      <p id="correction-feedback" style="margin:8px 0 0; font-size:12px; color:var(--sage); display:none;"></p>`;
+      <div class="feedback-input-wrap">
+        <textarea id="correction-note" placeholder=""></textarea>
+        <button type="button" id="correction-btn">Bildir</button>
+      </div>
+      <p id="correction-feedback" class="feedback-result" style="display:none;"></p>`;
     document.getElementById('correction-btn').addEventListener('click', async (e)=>{
       const btn = e.target;
       const note = document.getElementById('correction-note').value.trim();
@@ -124,7 +155,7 @@ function createClaimCorrectionBox(config){
         feedback.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
         feedback.style.display = '';
       } finally {
-        btn.disabled = false; btn.textContent = 'Düzeltme Öner';
+        btn.disabled = false; btn.textContent = 'Bildir';
       }
     });
   }
@@ -176,6 +207,7 @@ function createClaimCorrectionBox(config){
   }
 
   async function init(){
+    injectStyles();
     await loadClaimCard();
     renderProfileEditButton();
     loadCorrectionCard();

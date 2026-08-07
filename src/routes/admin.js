@@ -72,7 +72,7 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
   if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
-  if (sub === 'comments') return handleCommentsAdmin(request, env, segments);
+  if (sub === 'comments') return handleCommentsAdmin(request, env, url, segments);
   if (sub === 'migration-conflicts') return handleMigrationConflictsAdmin(request, env, url, segments, user);
   if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
@@ -94,7 +94,7 @@ async function handleAdminSummary(env) {
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM migration_name_conflicts WHERE status = 'pending'`).first(),
-    env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE admin_seen = 0`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first(),
   ]);
 
   return json({
@@ -107,30 +107,50 @@ async function handleAdminSummary(env) {
   });
 }
 
-// /api/admin/comments  (GET: son yorumları listeler)
-// /api/admin/comments/:id  (PATCH: admin_seen günceller, DELETE: siler)
+// /api/admin/comments  (GET: ?status=pending|approved|'' ile filtrelenmiş son yorumları listeler)
+// /api/admin/comments/:id  (PATCH: status ve/veya admin_seen günceller, DELETE: siler/reddeder)
 // Projelere/haberlere gelen her yeni yorum burada görünür (bkz. kullanıcı isteği: "yorum admin
-// paneline düşsün") — contact_messages ile AYNI okunmadı/okundu deseni (bkz. migrations/
-// 0027_comment_admin_seen.sql). architect/office hedefli yorumlar da target_id üzerinden aynı
-// listede görünür, ancak künye başlığı yalnızca project/news için zenginleştirilir çünkü şu an
-// yorum arayüzü yalnızca proje/haber sayfalarında etkin (bkz. "Detail page template gaps" belleği).
-async function handleCommentsAdmin(request, env, segments) {
+// paneline düşsün") — status (migrations/0029_comment_moderation.sql) yorumun kamuya açık listede
+// görünüp görünmediğini belirler ("Onayla" = status='approved'; "Sil/Reddet" = doğrudan silme,
+// profile_corrections'daki 'dismissed' gibi ayrı bir statü tutmaya gerek yok çünkü reddedilen bir
+// yorumun kalıcı bir kaydı tutulmasını gerektiren bir akış yok). admin_seen (migrations/
+// 0027_comment_admin_seen.sql) BUNDAN bağımsız, "Yeni" rozetini kontrol eden ayrı bir alan.
+// architect/office hedefli yorumlar da target_id üzerinden aynı listede görünür, ancak künye
+// başlığı yalnızca project/news için zenginleştirilir çünkü şu an yorum arayüzü yalnızca proje/haber
+// sayfalarında etkin (bkz. "Detail page template gaps" belleği).
+async function handleCommentsAdmin(request, env, url, segments) {
   if (segments.length === 3 && request.method === 'GET') {
-    const { results } = await env.DB.prepare(
-      `SELECT c.id, c.target_type, c.target_id, c.body, c.created_at, c.admin_seen,
-              u.name AS user_name, u.email AS user_email,
-              p.title AS project_title, p.slug AS project_slug,
-              n.title AS news_title
-       FROM comments c
-       JOIN users u ON u.id = c.user_id
-       LEFT JOIN projects p ON c.target_type = 'project' AND p.slug = c.target_id
-       LEFT JOIN news n ON c.target_type = 'news' AND n.id = c.target_id
-       ORDER BY c.created_at DESC
-       LIMIT 200`
-    ).all();
+    const status = url.searchParams.get('status');
+    const query = status
+      ? env.DB.prepare(
+          `SELECT c.id, c.target_type, c.target_id, c.body, c.created_at, c.admin_seen, c.status,
+                  u.name AS user_name, u.email AS user_email,
+                  p.title AS project_title, p.slug AS project_slug,
+                  n.title AS news_title
+           FROM comments c
+           JOIN users u ON u.id = c.user_id
+           LEFT JOIN projects p ON c.target_type = 'project' AND p.slug = c.target_id
+           LEFT JOIN news n ON c.target_type = 'news' AND n.id = c.target_id
+           WHERE c.status = ?
+           ORDER BY c.created_at DESC
+           LIMIT 200`
+        ).bind(status)
+      : env.DB.prepare(
+          `SELECT c.id, c.target_type, c.target_id, c.body, c.created_at, c.admin_seen, c.status,
+                  u.name AS user_name, u.email AS user_email,
+                  p.title AS project_title, p.slug AS project_slug,
+                  n.title AS news_title
+           FROM comments c
+           JOIN users u ON u.id = c.user_id
+           LEFT JOIN projects p ON c.target_type = 'project' AND p.slug = c.target_id
+           LEFT JOIN news n ON c.target_type = 'news' AND n.id = c.target_id
+           ORDER BY c.created_at DESC
+           LIMIT 200`
+        );
+    const { results } = await query.all();
     const items = results.map(r => ({
       id: r.id, targetType: r.target_type, targetId: r.target_id, body: r.body,
-      created_at: r.created_at, admin_seen: r.admin_seen,
+      created_at: r.created_at, admin_seen: r.admin_seen, status: r.status,
       user_name: r.user_name, user_email: r.user_email,
       targetLabel: r.project_title || r.news_title || r.target_id,
       targetHref: r.project_slug ? `/projeler/${encodeURIComponent(r.project_slug)}` : null,
@@ -141,7 +161,19 @@ async function handleCommentsAdmin(request, env, segments) {
     const id = segments[3];
     if (request.method === 'PATCH') {
       const body = await readJson(request);
-      await env.DB.prepare('UPDATE comments SET admin_seen = ? WHERE id = ?').bind(body.admin_seen ? 1 : 0, id).run();
+      const updates = [];
+      const values = [];
+      if (body.status && ['pending', 'approved'].includes(body.status)) {
+        updates.push('status = ?');
+        values.push(body.status);
+      }
+      if ('admin_seen' in body) {
+        updates.push('admin_seen = ?');
+        values.push(body.admin_seen ? 1 : 0);
+      }
+      if (!updates.length) return errorJson('Güncellenecek bir şey yok.');
+      values.push(id);
+      await env.DB.prepare(`UPDATE comments SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
       return json({ ok: true });
     }
     if (request.method === 'DELETE') {

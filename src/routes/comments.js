@@ -33,6 +33,9 @@ async function listComments(env, url) {
   const targetId = url.searchParams.get('targetId');
   if (!TARGET_TYPES.has(targetType) || !targetId) return errorJson('Geçersiz istek.');
 
+  // Onay bekleyen (status='pending') ya da reddedilen yorumlar kamuya açık listede hiç görünmez
+  // (bkz. kullanıcı isteği: yorum moderasyonu, migrations/0029_comment_moderation.sql) — admin
+  // panelindeki src/routes/admin.js#handleCommentsAdmin bu filtreden ETKİLENMEZ, tüm statüleri görür.
   const { results } = await env.DB.prepare(
     `SELECT c.id, c.body, c.created_at, u.name AS user_name, u.id AS user_id, u.photo_url AS user_photo, b.badge_type AS user_badge,
             ar.name AS profile_ar_name, ar.photo_url AS profile_ar_photo,
@@ -42,7 +45,7 @@ async function listComments(env, url) {
        AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
      LEFT JOIN architects ar ON ar.id = (SELECT id FROM architects WHERE claimed_by_user_id = c.user_id AND deleted_at IS NULL LIMIT 1)
      LEFT JOIN offices ofc ON ofc.id = (SELECT id FROM offices WHERE claimed_by_user_id = c.user_id AND deleted_at IS NULL LIMIT 1)
-     WHERE c.target_type = ? AND c.target_id = ?
+     WHERE c.target_type = ? AND c.target_id = ? AND c.status = 'approved'
      ORDER BY c.created_at ASC`
   ).bind(Date.now(), targetType, targetId).all();
 
@@ -71,13 +74,15 @@ async function createComment(request, env) {
 
   const id = newId();
   const now = Date.now();
+  // status='pending' — admin onaylayana kadar listComments()'te GÖRÜNMEZ (bkz. yukarısı,
+  // migrations/0029_comment_moderation.sql, kullanıcı isteği: yorum moderasyonu).
   await env.DB.prepare(
-    'INSERT INTO comments (id, target_type, target_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    "INSERT INTO comments (id, target_type, target_id, user_id, body, created_at, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')"
   ).bind(id, targetType, targetId, user.id, text, now).run();
 
   await notifyCommentOwner(env, user, targetType, targetId, text);
 
-  return json({ id, body: text, created_at: now, user_name: user.name, user_id: user.id }, 201);
+  return json({ id, body: text, created_at: now, user_name: user.name, user_id: user.id, status: 'pending' }, 201);
 }
 
 // Yorum gelen içeriğin sahibine/sahiplerine bildirim düşer: mimar/marka profillerinde onaylı

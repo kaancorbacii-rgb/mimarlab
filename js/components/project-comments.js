@@ -66,19 +66,28 @@ const ProjectComments = (function () {
           <textarea id="pm-comment-input" placeholder="Bir yorum yaz..." maxlength="2000"></textarea>
           <button class="comment-submit-btn" id="pm-comment-submit-btn" type="button">Gönder</button>
         </div>
+        <p class="comment-submit-notice" id="pm-comment-submit-notice" style="display:none;"></p>
       </div>`;
     const submitBtn = document.getElementById('pm-comment-submit-btn');
     submitBtn.addEventListener('click', async () => {
       const input = document.getElementById('pm-comment-input');
       const body = input.value.trim();
       if (!body) return;
+      const notice = document.getElementById('pm-comment-submit-notice');
       submitBtn.disabled = true;
       try {
         const res = await fetch('/api/comments', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ targetType: 'project', targetId, body }),
         });
-        if (res.ok) { input.value = ''; loadComments(targetId, ids); }
+        // Yorum admin onayına düşer, hemen listede görünmez (bkz. src/routes/comments.js#listComments
+        // status='approved' filtresi, kullanıcı isteği: yorum moderasyonu) — bu yüzden loadComments()
+        // ÇAĞRILMAZ, kullanıcıya yalnızca bir bilgilendirme mesajı gösterilir.
+        if (res.ok) {
+          input.value = '';
+          notice.textContent = 'Yorumunuz alındı. Admin onayından sonra yayınlanacaktır.';
+          notice.style.display = '';
+        }
       } finally { submitBtn.disabled = false; }
     });
   }
