@@ -140,6 +140,8 @@
   .form-submit:hover{background:var(--walnut);}
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
   .form-notice.show{display:block;}
+  .form-loading{display:none; margin-top:12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
+  .form-loading.show{display:block;}
 
   .access-gate{max-width:820px; margin:28px auto 0; background:var(--paper-card); border:1px solid var(--accent); border-radius:16px; padding:28px; text-align:center;}
   .access-gate h3{font-family:'Inter', sans-serif; font-size:19px; margin:0 0 8px;}
@@ -308,6 +310,7 @@
       </div>
 
       <button class="form-submit" type="submit">Ürünü Gönder</button>
+      <div class="form-loading" id="form-loading">Gönderiliyor...</div>
       <div class="form-notice" id="form-notice"></div>
     </form>
   </div>
@@ -558,10 +561,12 @@ async function uploadFiles(files){
 document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('form-notice');
+  const loading = document.getElementById('form-loading');
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
   submitBtn.disabled = true;
+  loading.classList.add('show');
   let uploadedImages = [];
   try{
     if(selectedFiles.length) uploadedImages = await uploadFiles(selectedFiles);
@@ -570,6 +575,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     submitBtn.disabled = false;
+    loading.classList.remove('show');
     return;
   }
 
@@ -603,8 +609,10 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       submitBtn.disabled = false;
+      loading.classList.remove('show');
       return;
     }
+    loading.classList.remove('show');
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
     // routes/submissions.js) sayfa hesabim.html'e değil, doğrudan ürünün kendi profiline gitsin
     // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile
@@ -636,6 +644,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');
     submitBtn.disabled = false;
+    loading.classList.remove('show');
   }
 });
 

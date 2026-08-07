@@ -94,7 +94,10 @@ function catalogBrandFavicon(brand) {
 // zaman gerçek bir ürün fotoğrafı taklit edilmez (bkz. kullanıcı isteği: telif riski almadan).
 function catalogCardMediaHtml(item, escapeHtmlFn, escapeAttrFn) {
   if (item.image) {
-    return `<img src="${escapeAttrFn(item.image)}" alt="${escapeAttrFn(item.title)}" loading="lazy">`;
+    // cdnImg/cdnSrcset (bkz. image-cdn.js) sayfayı çağıran her yerde (urun.html, js/components/
+    // project-products.js) zaten yüklü — IMAGE_CDN_ENABLED false olduğu sürece passthrough, srcset boş.
+    const srcset = cdnSrcset(item.image, [400, 600, 800]);
+    return `<img src="${escapeAttrFn(cdnImg(item.image, 600))}"${srcset ? ` srcset="${escapeAttrFn(srcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="${escapeAttrFn(item.title)}" loading="lazy" decoding="async">`;
   }
   const label = item.brand || item.title;
   const favicon = catalogBrandFavicon(item.brand);

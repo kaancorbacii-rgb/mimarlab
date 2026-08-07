@@ -171,6 +171,7 @@
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
+<script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
 
   <nav class="nav">
@@ -382,32 +383,32 @@ async function runSearch(){
     groupHtml('Mimarlar', full.architects, a => rowHtml({
       href: `/mimar/${encodeURIComponent(a.slug)}`,
       avatarStyle: `background:${officeColor(a.name)}`,
-      avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(a.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
+      avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 200))}"${cdnSrcset(a.photo, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(a.photo, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: a.name,
       meta: a.office || 'Mimar',
     }), full.totals.architects),
     groupHtml('Firmalar', full.offices, o => rowHtml({
       href: `/firma/${encodeURIComponent(o.slug)}`,
       avatarStyle: `background:${officeColor(o.name)}`,
-      avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(logoUrl(o))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
+      avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: o.name,
       meta: o.loc || '',
     }), full.totals.offices),
     groupHtml('Projeler', full.projects, p => rowHtml({
       href: `/projeler/${encodeURIComponent(p.slug)}`,
-      avatarContent: p.image ? `<img src="${escapeAttr(p.image)}" alt="" loading="lazy" decoding="async">` : '',
+      avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.location, p.date].filter(Boolean).join(' · '),
     }), full.totals.projects),
     groupHtml('Ürünler', urunResults, p => rowHtml({
       href: 'urun.html',
-      avatarContent: p.image ? `<img src="${escapeAttr(p.image)}" alt="" loading="lazy" decoding="async">` : '',
+      avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.category, p.brand].filter(Boolean).join(' · '),
     })),
     groupHtml('Haberler', haberResults, n => rowHtml({
       href: 'haber.html',
-      avatarContent: n.image ? `<img src="${escapeAttr(n.image)}" alt="" loading="lazy" decoding="async">` : '',
+      avatarContent: n.image ? `<img src="${escapeAttr(cdnImg(n.image, 200))}"${cdnSrcset(n.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(n.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: n.title,
       meta: n.category || '',
     })),

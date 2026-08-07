@@ -697,6 +697,7 @@
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
+<script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
 <script src="save-widget.js" defer></script>
 <script src="rating-widget.js" defer></script>
@@ -1128,16 +1129,18 @@ async function render(){
     // bekleyip isteği ERTELEMESİNE yol açıp ilk yüklenmeyi YAVAŞLATIYORDU (bkz. kullanıcı isteği:
     // "ilk yüklenme hızını artır"); bu üçü eager + fetchpriority="high" ile hemen istenir, alttaki
     // (katlanma çizgisinin altındaki) kartlar lazy kalır. sizes, grid'in kırılma noktalarındaki
-    // (bkz. .content-grid @media 720px/960px) gerçek kart genişliğine karşılık gelir — henüz
-    // srcset yok (bkz. image-cdn.js#IMAGE_CDN_ENABLED, zone onayı bekleniyor) ama sizes şimdiden
-    // doğru tanımlanırsa CDN aktifleştiğinde ekstra bir düzeltme gerekmez.
+    // (bkz. .content-grid @media 720px/960px) gerçek kart genişliğine karşılık gelir — srcset
+    // cdnSrcset() ile üretilir ama IMAGE_CDN_ENABLED false olduğu sürece boş döner (bkz.
+    // image-cdn.js#IMAGE_CDN_ENABLED, zone onayı bekleniyor), o ana kadar davranış değişmez.
     const aboveFold = i < 3;
     const imgAttrs = aboveFold
       ? `loading="eager" fetchpriority="high"`
       : `loading="lazy" fetchpriority="low"`;
+    const cardImg = p.images && p.images[0];
+    const cardSrcset = cardImg ? cdnSrcset(cardImg, [400, 600, 800]) : '';
     return `
     <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${p.images && p.images[0] ? `<img src="${escapeAttr(p.images[0])}" alt="${escapeAttr(p.title)}" ${imgAttrs} decoding="async" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${cardImg ? `<img src="${escapeAttr(cdnImg(cardImg, 600))}"${cardSrcset ? ` srcset="${escapeAttr(cardSrcset)}"` : ''} alt="${escapeAttr(p.title)}" ${imgAttrs} decoding="async" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr((p.images && p.images[0])||'')}" data-href="/projeler/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
       </button>

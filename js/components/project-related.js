@@ -16,8 +16,9 @@ const ArchitectProjects = (function () {
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
+    const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }
@@ -72,14 +73,19 @@ const ArchitectProjects = (function () {
 // uysa bile (örn. hem aynı mimar hem aynı şehir) puanı eksiksiz toplanır.
 const RelatedProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-related-section', grid: 'pm-related-grid' };
-  const SCORE = { ARCHITECT: 150, TYPE: 100, CATEGORY: 40, CITY: 25, COUNTRY: 20, YEAR: 15, RATING: 10 };
+  // Öncelik sırası (bkz. kullanıcı isteği): 1) kategori 2) mimar/ofis 3) şehir/ülke 4) etiket
+  // (veri modelinde ayrı bir "tags" alanı yok — bkz. grep sonucu — en yakın karşılığı "type").
+  // YEAR/RATING düşük ağırlıklı ikincil sinyaller olarak kalır.
+  const SCORE = { CATEGORY: 90, ARCHITECT: 70, CITY: 45, COUNTRY: 35, TYPE: 20, YEAR: 10, RATING: 8 };
   const YEAR_WINDOW = 5;
   const RATING_THRESHOLD = 4;
+  const RESULT_COUNT = 12;
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
+    const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }
@@ -146,35 +152,60 @@ const RelatedProjects = (function () {
     const queries = [];
     (item.designerDetails || []).forEach(d => {
       if (d.unregistered) return;
-      queries.push(fetchByParams([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]], 8));
+      queries.push(fetchByParams([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]], 12));
     });
-    (item.type || []).forEach(t => queries.push(fetchByParams([['type', t]], 12)));
-    (item.category || []).forEach(c => queries.push(fetchByParams([['category', c]], 12)));
+    (item.type || []).forEach(t => queries.push(fetchByParams([['type', t]], 16)));
+    (item.category || []).forEach(c => queries.push(fetchByParams([['category', c]], 16)));
     const topLevelLocation = locationParts(item.location);
     const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
-    if (rawCity) queries.push(fetchByParams([['location', rawCity]], 12));
-    queries.push(fetchByParams([['sort', 'rating_desc']], 12)); // genel havuz — boşluk doldurma + puan sinyali
+    if (rawCity) queries.push(fetchByParams([['location', rawCity]], 16));
+    queries.push(fetchByParams([['sort', 'rating_desc']], 16)); // genel havuz — boşluk doldurma + puan sinyali
     return { queries, topLevelLocation };
   }
 
-  async function mount(item, excludeSlugs, ids) {
+  // D1'de ORDER BY RANDOM() KULLANILMAZ (bkz. kullanıcı isteği: büyük veri kümelerinde yük riski) —
+  // rastgelelik tamamen istemcide, zaten çekilmiş aday havuzu üzerinde çalışır. Ağırlıklı örnekleme
+  // (rulet çarkı): yüksek puanlı adaylar havuzda daha ağır bastığından genelde seçilir, ama HER
+  // mount() çağrısında (= her popup açılışında/geçişinde) Math.random() yeniden çalıştığından hangi
+  // adayların seçildiği ve sırası değişir (bkz. kullanıcı isteği: "her açıldığında farklı öneriler").
+  // +1: puanı 0 olan (yalnızca genel havuzdan gelen) adaylar da sıfır olmayan bir şansa sahip olsun.
+  function weightedSample(scored, n) {
+    const pool = scored.slice();
+    const picked = [];
+    for (let i = 0; i < n && pool.length; i++) {
+      const total = pool.reduce((s, c) => s + (c.score + 1), 0);
+      let r = Math.random() * total, idx = 0;
+      for (; idx < pool.length - 1; idx++) { r -= (pool[idx].score + 1); if (r <= 0) break; }
+      picked.push(pool.splice(idx, 1)[0]);
+    }
+    return picked.map(({ p }) => p);
+  }
+
+  // excludeSlugsPromise: bir Promise<Set<string>> (bkz. js/components/project-modal.js#armDeferredSections)
+  // — "Diğer Projeleri" ile ÇAKIŞMAYAN bir seçki için o bölümün slug'larını bekler, ama BU fonksiyonun
+  // kendi /api/projects sorguları (gatherCandidateQueries) o bekleyişten BAĞIMSIZ hemen ateşlenir
+  // (bkz. gerçek bulgu: eskiden RelatedProjects, ArchitectProjects'in TÜM sayfalarını bitirmesini
+  // bekledikten SONRA kendi isteklerine başlıyordu — çok projeli bir mimar için bu, "İlgili Projeler"i
+  // gereksiz yere geciktiriyordu). Yalnızca dışlama+render adımı excludeSlugsPromise'i bekler.
+  async function mount(item, excludeSlugsPromise, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const section = document.getElementById(mergedIds.section);
-    const exclude = new Set(excludeSlugs || []);
-    exclude.add(item.slug);
 
     const { queries } = gatherCandidateQueries(item);
-    const lists = await Promise.all(queries);
+    const listsPromise = Promise.all(queries);
+    const [lists, excludeSlugs] = await Promise.all([listsPromise, excludeSlugsPromise]);
+
+    const exclude = new Set(excludeSlugs || []);
+    exclude.add(item.slug);
 
     const candidates = new Map();
     lists.flat().forEach(p => { if (!exclude.has(p.slug) && !candidates.has(p.slug)) candidates.set(p.slug, p); });
 
     const scored = Array.from(candidates.values())
       .map(p => ({ p, score: scoreCandidate(item, p) }))
-      .filter(({ score }) => score > -Infinity)
-      .sort((a, b) => b.score - a.score);
+      .filter(({ score }) => score > -Infinity);
 
-    const merged = scored.slice(0, 9).map(({ p }) => p);
+    const merged = weightedSample(scored, RESULT_COUNT);
 
     if (!merged.length) { section.style.display = 'none'; return; }
     section.style.display = '';

@@ -43,9 +43,13 @@ function initDetailGallery(opts){
   // tutarlılık için burada açıkça sıfırlanır.
   galleryEl.scrollLeft = 0;
 
-  galleryEl.innerHTML = images.length ? images.map((img, i) => `
-    <a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(img)}" alt="${escapeAttr(title)}" ${i === 0 ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" decoding="async"'}></a>
-  `).join('') : placeholderHtml;
+  // Şerit her zaman KÜÇÜK bir önizleme (cdnImg/cdnSrcset, bkz. image-cdn.js) yükler — orijinal
+  // çözünürlük yalnızca lightbox açıldığında istenir (bkz. showLightboxImage, state.images ORİJİNAL
+  // URL'leri değişmeden tutar, yalnızca burada şerit <img>'inin src/srcset'i küçültülür).
+  galleryEl.innerHTML = images.length ? images.map((img, i) => {
+    const srcset = cdnSrcset(img, [320, 480, 640]);
+    return `<a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(cdnImg(img, 480))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="480px"` : ''} alt="${escapeAttr(title)}" ${i === 0 ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" decoding="async"'}></a>`;
+  }).join('') : placeholderHtml;
   state.galleryItems = Array.from(galleryEl.querySelectorAll('.gallery-item'));
 
   function updateGalleryCounter(){

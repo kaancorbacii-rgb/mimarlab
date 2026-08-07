@@ -187,11 +187,16 @@ const ProjectModal = (function () {
     const relatedSection = document.getElementById('pm-related-section');
     document.getElementById('pm-same-designer-grid').innerHTML = skeletonCardsHtml(4);
     document.getElementById('pm-related-grid').innerHTML = skeletonCardsHtml(4);
-    observeOnce(sameDesignerSection, async () => {
+    // ArchitectProjects/RelatedProjects artık PARALEL yüklenir (bkz. kullanıcı isteği: ana renderı
+    // bloklamadan Promise.allSettled ile arka planda yükleme) — RelatedProjects kendi /api/projects
+    // sorgularını ArchitectProjects'in (çok projeli mimarlarda yavaş olabilen, sayfalanmış) fetch'i
+    // TAMAMEN bitmeden başlatır, yalnızca dışlama seti için architectSlugsPromise'i bekler (bkz.
+    // js/components/project-related.js#mount dosya başı yorumu).
+    observeOnce(sameDesignerSection, () => {
       if (mySeq !== requestSeq) return;
-      const result = await ArchitectProjects.mount(item);
-      if (mySeq !== requestSeq) return; // bu arada başka bir proje açıldı — yazma sonucu at (bkz. bir sonraki swap kendi armDeferredSections'ını çalıştırıp bölümü zaten doğru veriyle geçersiz kılar)
-      await RelatedProjects.mount(item, result ? result.slugs : new Set());
+      const architectSlugsPromise = ArchitectProjects.mount(item).then(r => (mySeq === requestSeq && r) ? r.slugs : new Set());
+      const relatedPromise = RelatedProjects.mount(item, architectSlugsPromise);
+      Promise.allSettled([architectSlugsPromise, relatedPromise]);
     }, 600);
 
     const productsSection = document.getElementById('pm-products-section');

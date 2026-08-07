@@ -157,6 +157,8 @@
   .form-submit:hover{background:var(--walnut);}
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
   .form-notice.show{display:block;}
+  .form-loading{display:none; margin-top:12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
+  .form-loading.show{display:block;}
 
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
@@ -361,6 +363,7 @@
       </div>
 
       <button class="form-submit" type="submit">Gönder</button>
+      <div class="form-loading" id="form-loading">Gönderiliyor...</div>
       <div class="form-notice" id="form-notice"></div>
     </form>
   </div>
@@ -785,6 +788,7 @@ async function uploadFiles(files){
 document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('form-notice');
+  const loading = document.getElementById('form-loading');
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
@@ -799,6 +803,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   const founders = document.getElementById('o-founders').value.split(',').map(s => s.trim()).filter(Boolean);
 
   submitBtn.disabled = true;
+  loading.classList.add('show');
   let logoUrl = existingLogoUrl;
   try{
     if(selectedFiles.length) logoUrl = (await uploadFiles(selectedFiles))[0];
@@ -807,6 +812,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     submitBtn.disabled = false;
+    loading.classList.remove('show');
     return;
   }
 
@@ -835,8 +841,10 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       submitBtn.disabled = false;
+      loading.classList.remove('show');
       return;
     }
+    loading.classList.remove('show');
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
     // routes/submissions.js) sayfa hesabim.html'e değil, doğrudan firmanın kendi profiline gitsin
     // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile
@@ -872,6 +880,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');
     submitBtn.disabled = false;
+    loading.classList.remove('show');
   }
 });
 
