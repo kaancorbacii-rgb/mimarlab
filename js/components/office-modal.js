@@ -402,7 +402,7 @@ const OfficeModal = (function () {
         loginPromptHtml: 'Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.',
         pendingHtml: '"Bu firma bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.',
         claimNoteDescription: 'Bu firmanın sana ait olduğunu doğrulayabileceğimiz bir not ekle.',
-        claimButtonText: 'Bu firma bana ait',
+        claimButtonText: 'Gönder',
         deleteConfirm: 'Bu firma profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.',
         archiveConfirm: 'Bu firma profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.',
       },
