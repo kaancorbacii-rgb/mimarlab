@@ -132,6 +132,19 @@ const PATH_RENAME_REDIRECTS = {
   '/giris-yap.html': '/giris',
   '/uye-ol.html': '/uye-ol',
   '/hesabim.html': '/hesabim',
+  // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer de artık popup
+  // modallar (bkz. kullanıcı isteği, js/components/info-modal.js) — AYNI gerekçe. "Rozet Al" ile
+  // kod tabanındaki tek ödeme/checkout sayfası (satin-al.html) aynı şey olduğundan (ayrı bir "ödeme
+  // sayfası" yok — kart bilgisi iyzico'nun hosted sayfasında girilir) kullanıcı isteğindeki yeni
+  // /rozet-al yolu burada satin-al'ın kanonik adı olur.
+  '/satin-al': '/rozet-al',
+  '/satin-al.html': '/rozet-al',
+  '/iade-et.html': '/iade-et',
+  '/iletisim.html': '/iletisim',
+  '/hakkinda.html': '/hakkinda',
+  '/gizlilik-politikasi.html': '/gizlilik-politikasi',
+  '/hizmet-sartlari.html': '/hizmet-sartlari',
+  '/kariyer.html': '/kariyer',
 };
 
 // Giriş/Üye Ol/Hesabım modallarının doğrudan URL ile açılması (F5/deep-link) — CLEAN_URL_ASSETS'in
@@ -141,6 +154,28 @@ const PATH_RENAME_REDIRECTS = {
 // zaten noindex olduğundan (bkz. giris-yap.html/uye-ol.html/hesabim.html <meta name="robots">)
 // serveDetailPage'deki HTMLRewriter/meta enjeksiyonuna burada ihtiyaç yok.
 const AUTH_MODAL_ROUTES = new Set(['/giris', '/uye-ol', '/hesabim']);
+
+// Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer — AYNI "ana sayfayı
+// servis et, istemci JS'i (bkz. js/components/info-modal.js) location.pathname'e göre ilgili modalı
+// kendisi açsın" yaklaşımı (bkz. AUTH_MODAL_ROUTES yukarısı, AYNI gerekçe). AUTH_MODAL_ROUTES'un
+// aksine Rozet Al/İade Et dışındakiler (İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/
+// Kariyer) GERÇEKTEN indexlenen, sitemap'te yer alan sayfalar (bkz. SITEMAP_STATIC_PAGES) — index.html
+// homepage içeriğini serveceğinden title/description/canonical/OG enjekte edilmezse Google bu
+// sayfaları ana sayfayla AYNI başlık/açıklamayla görürdü (gerçek bulgu). Bu yüzden her giriş kendi
+// title/description'ını taşır, injectInfoPageMeta() ile serveDetailPage'in injectMeta()'sıyla AYNI
+// HTMLRewriter tekniğiyle enjekte edilir; noindex:true olanlar (Rozet Al/İade Et, satin-al.html/
+// iade-et.html'deki <meta name="robots" content="noindex, follow"> ile AYNI, giriş gerektiren
+// işlemsel sayfalar) ayrıca bir robots meta etiketi de alır — index.html'in kendisi tamamen
+// indexlenebilir olduğundan üzerine yazılacak bir robots etiketi yoktur.
+const INFO_MODAL_META = {
+  '/rozet-al': { title: 'Rozet Satın Al — MİMARLAB', description: 'MİMARLAB rozet satın al — profilini doğrulanmış üye, altın üye ya da elmas üye rozetiyle öne çıkar.', noindex: true },
+  '/iade-et': { title: 'Rozet İadesi Talep Et — MİMARLAB', description: 'MİMARLAB rozet iadesi talep et — satın aldığın rozet için iade talebinde bulun.', noindex: true },
+  '/iletisim': { title: 'İletişim — MİMARLAB', description: 'MİMARLAB ile iletişime geç — soru, öneri ve iş birliği için bize ulaş.', noindex: false },
+  '/hakkinda': { title: 'Hakkında — MİMARLAB', description: 'MİMARLAB hakkında — Türkiye\'nin mimarlık, iç mimarlık ve peyzaj mimarlığı platformu.', noindex: false },
+  '/gizlilik-politikasi': { title: 'Gizlilik Politikası — MİMARLAB', description: 'MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.', noindex: false },
+  '/hizmet-sartlari': { title: 'Hizmet Şartları — MİMARLAB', description: 'MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.', noindex: false },
+  '/kariyer': { title: 'Kariyer — MİMARLAB', description: 'Mimarlık ve tasarım alanında kariyer fırsatları ve rehberi.', noindex: false },
+};
 
 // Eski /markalar/:slug firma detay URL'leri artık /firma/:slug (bkz. kullanıcı isteği: SEO/backlink
 // koruması) — yukarıdaki PATH_RENAME_REDIRECTS'in aksine slug segmenti dinamik olduğundan tam eşleşme
@@ -167,6 +202,10 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   { loc: '/kariyer', changefreq: 'monthly', priority: '0.4' },
   { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },
+  // gerçek bulgu: bu ikisi indexlenebilir (robots noindex YOK, bkz. INFO_MODAL_META) ama sitemap'te
+  // hiç yer almıyordu — Rozet Al/İade Et bilerek dışında bırakıldı, onlar noindex.
+  { loc: '/gizlilik-politikasi', changefreq: 'yearly', priority: '0.2' },
+  { loc: '/hizmet-sartlari', changefreq: 'yearly', priority: '0.2' },
 ];
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|webp|avif|gif|svg)$/i;
@@ -263,8 +302,43 @@ async function routeAsset(request, env, url, ctx) {
     return withStaticImageCacheHeaders(url, response);
   }
 
+  const infoMeta = INFO_MODAL_META[url.pathname];
+  if (infoMeta) return serveInfoModalPage(request, env, url, infoMeta);
+
   const response = await env.ASSETS.fetch(request);
   return withStaticImageCacheHeaders(url, response);
+}
+
+// Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer — AUTH_MODAL_ROUTES
+// ile AYNI "ana sayfayı servis et" yaklaşımı ama title/description/canonical/OG enjeksiyonu da
+// eklenir (bkz. INFO_MODAL_META yukarısındaki yorum — bu sayfaların çoğu, Rozet Al/İade Et'in aksine
+// gerçekten indexlenir). serveDetailPage'in Cache API katmanını (D1'den okuyan buildMeta çağrısına
+// bağımlı, admin bir kayıt değiştirdiğinde purge edilmesi gereken) BİLEREK kullanmaz — buradaki meta
+// tamamen statik (INFO_MODAL_META), yalnızca kod deploy edildiğinde değişir; Worker zaten her
+// deploy'da yeniden başladığından ayrı bir sürüm/cache-invalidasyon mekanizmasına gerek yok.
+async function serveInfoModalPage(request, env, url, meta) {
+  const assetUrl = new URL(url);
+  assetUrl.pathname = '/';
+  const assetResponse = await env.ASSETS.fetch(new Request(assetUrl, request));
+  if (assetResponse.status !== 200) return assetResponse;
+
+  const canonicalUrl = `${SITE_ORIGIN}${url.pathname}`;
+  const rewritten = injectMeta(assetResponse, {
+    title: meta.title,
+    description: meta.description,
+    canonicalUrl,
+    image: `${SITE_ORIGIN}/logos/site/mimarlab-og-image.png`,
+    jsonLd: { '@context': 'https://schema.org', '@type': 'WebPage', name: meta.title, url: canonicalUrl, isPartOf: { '@type': 'WebSite', name: 'MİMARLAB', url: `${SITE_ORIGIN}/` } },
+  });
+  const headers = new Headers(rewritten.headers);
+  for (const [k, v] of Object.entries(SSR_PAGE_CACHE_HEADERS)) headers.set(k, v);
+  let finalResponse = new Response(rewritten.body, { status: rewritten.status, statusText: rewritten.statusText, headers });
+  if (meta.noindex) {
+    finalResponse = new HTMLRewriter()
+      .on('head', { element(el) { el.append('<meta name="robots" content="noindex, follow">', { html: true }); } })
+      .transform(finalResponse);
+  }
+  return finalResponse;
 }
 
 function withStaticImageCacheHeaders(url, response) {

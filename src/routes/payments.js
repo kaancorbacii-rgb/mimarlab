@@ -161,7 +161,7 @@ async function startCheckout(request, env, url) {
 // edileceğini oturum/çerez olmadan güvenle belirler (Lax çerezler cross-site POST'ta gitmeyebilir).
 async function handleCallback(request, env, url) {
   const origin = new URL(request.url).origin;
-  const fail = () => Response.redirect(`${origin}/satin-al.html?payment=failed`, 302);
+  const fail = () => Response.redirect(`${origin}/rozet-al?payment=failed`, 302);
 
   if (!isIyzicoConfigured(env)) return fail();
 
@@ -204,8 +204,8 @@ async function handleCallback(request, env, url) {
     await env.DB.prepare(
       `UPDATE badge_requests SET status='active', expires_at=?, payment_id=?, updated_at=? WHERE id=?`
     ).bind(expiresAt, result.paymentId || null, now, row.id).run();
-    await createNotification(env, row.user_id, 'badge_active', 'Rozetin aktif edildi', 'Ödemen alındı, rozetin artık aktif.', 'hesabim.html');
-    return Response.redirect(`${origin}/hesabim.html?payment=success`, 302);
+    await createNotification(env, row.user_id, 'badge_active', 'Rozetin aktif edildi', 'Ödemen alındı, rozetin artık aktif.', '/hesabim');
+    return Response.redirect(`${origin}/hesabim?payment=success`, 302);
   }
 
   await env.DB.prepare(`UPDATE badge_requests SET status='rejected', updated_at=? WHERE id=?`).bind(Date.now(), row.id).run();
