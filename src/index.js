@@ -46,13 +46,21 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // Reporting-Endpoints header'ının gösterdiği POST /api/csp-report'a da gönderilir (bkz.
 // src/routes/cspReport.js) — "0 ihlal" iddiası artık wrangler tail/console.log ile gerçekten
 // doğrulanabilir (gerçek bulgu: önceden hiçbir toplama mekanizması yoktu, bkz. kullanıcı isteği).
+// Faz 4C: canlıda kısa bir `wrangler tail` örneklemesi (proje/mimar/firma sayfaları, filtreler,
+// yorum/puanlama/kaydet widget'ları gezilerek) TEK gerçek ihlal buldu: Cloudflare'ın zone
+// panelinden otomatik enjekte ettiği kendi RUM/Analytics beacon'ı (static.cloudflareinsights.com/
+// beacon.min.js) script-src tarafından engelleniyordu — bu repo'da hiçbir yerde referans edilmediği
+// için önceki origin taramasında görünmüyordu (edge'in kendisi enjekte ediyor). Bu meşru bir
+// Cloudflare servisi olduğundan script-src'ye eklendi; beacon'ın kendi telemetri POST'u da aynı
+// origin'e gittiğinden connect-src'ye de eklendi. Bu düzeltme sonrası HENÜZ yeniden örneklenmedi —
+// bu yüzden enforce'a geçiş bu turda YAPILMADI, Report-Only kalmaya devam ediyor (bkz. final rapor).
 const CONTENT_SECURITY_POLICY_REPORT_ONLY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data:",
-  "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com",
+  "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://static.cloudflareinsights.com",
   "frame-src 'none'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -68,7 +76,7 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), accelerometer=(), gyroscope=(), magnetometer=(), payment=(), usb=(), bluetooth=(), midi=()',
   'Strict-Transport-Security': 'max-age=31536000',
   'Content-Security-Policy-Report-Only': CONTENT_SECURITY_POLICY_REPORT_ONLY,
   'Reporting-Endpoints': REPORTING_ENDPOINTS_HEADER,

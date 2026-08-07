@@ -796,7 +796,7 @@ wireSwipe(sliderEl, { onNext: () => { nextSlide(); restartAutoplay(); }, onPrev:
 
 function architectSlideHtml(a, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/mimar/${encodeURIComponent(a.slug || slugify(a.name))}" data-index="${i}">
-    <img src="${escapeAttr(a.photo)}" alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
+    <img src="${escapeAttr(a.photo)}" alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">Mimar</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(a.name)}</div>
@@ -806,7 +806,7 @@ function architectSlideHtml(a, i){
 
 function officeSlideHtml(o, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}" data-index="${i}">
-    <img class="slide-logo-img" src="${escapeAttr(o.logo)}" alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
+    <img class="slide-logo-img" src="${escapeAttr(o.logo)}" alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">Firma</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(o.name)}</div>
@@ -816,7 +816,7 @@ function officeSlideHtml(o, i){
 
 function urunSlideHtml(p, i){
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="urun.html" data-index="${i}">
-    <img class="slide-logo-img" src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}">
+    <img class="slide-logo-img" src="${escapeAttr(p.image)}" alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">Ürün</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(p.title)}</div>
