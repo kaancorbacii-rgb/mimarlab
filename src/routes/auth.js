@@ -118,7 +118,7 @@ async function oauthCallback(request, env, url, provider) {
 async function signup(request, env) {
   const ip = clientIp(request);
   if (!(await checkRateLimit(env, 'signup', ip, 10, 60 * 60 * 1000))) {
-    return errorJson('Çok fazla kayıt denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429);
+    return errorJson('Çok fazla kayıt denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
   }
 
   const body = await readJson(request);
@@ -169,14 +169,14 @@ const DUMMY_PASSWORD_HASH = `${'a'.repeat(32)}:${'b'.repeat(64)}`;
 async function login(request, env) {
   const ip = clientIp(request);
   if (!(await checkRateLimit(env, 'login', ip, 20, 15 * 60 * 1000))) {
-    return errorJson('Çok fazla giriş denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429);
+    return errorJson('Çok fazla giriş denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '900' });
   }
 
   const body = await readJson(request);
   const email = (body.email || '').trim().toLowerCase();
   const password = body.password || '';
   if (email && !(await checkRateLimit(env, 'login-email', email, 10, 15 * 60 * 1000))) {
-    return errorJson('Çok fazla giriş denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429);
+    return errorJson('Çok fazla giriş denemesi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '900' });
   }
 
   const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();

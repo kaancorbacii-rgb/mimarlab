@@ -13,8 +13,8 @@ export function json(data, status = 200, headers = {}) {
   });
 }
 
-export function errorJson(message, status = 400) {
-  return json({ error: message }, status);
+export function errorJson(message, status = 400, headers = {}) {
+  return json({ error: message }, status, headers);
 }
 
 export async function readJson(request) {

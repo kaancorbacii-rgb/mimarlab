@@ -21,6 +21,13 @@
       "bucket_name": "mimarlab-uploads"
     }
   ],
+  // Faz 4D — Workers Logs: console.* çıktısını Cloudflare Dashboard/`wrangler tail`den
+  // filtrelenebilir hale getirir (bkz. src/lib/logger.js, docs/disaster-recovery.md). Ekstra
+  // maliyet yok (Workers Logs, Workers planına dahil sample'lı/tam loglama).
+  "observability": { "enabled": true },
+  // Faz 4D — deploy edilen worker'ın gerçek version id/tag'ini runtime'da okumak için (bkz.
+  // src/lib/logger.js#worker_version, GET /api/_health). Yalnızca metadata döner, secret DEĞİLDİR.
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Faz 3 — facet_counts hızlı okuma önbelleği (bkz. src/lib/facetCounts.js, migrations/
   // 0024_facet_counts.sql). Gerçek Cloudflare KV namespace'i (`wrangler kv namespace create
   // FACET_CACHE` ile oluşturuldu, bkz. docs/architecture-roadmap.md). Yerel `wrangler dev`
@@ -44,6 +51,8 @@
     // linkedin/callback) de AYNI şekilde `wrangler secret put` ile tanımlanmalı. Tanımlı değilse
     // ilgili "... ile Giriş Yap" butonu tıklandığında sessizce giris-yap.html?oauth_error=not_
     // configured'a yönlendirir — mevcut e-posta/şifre akışı bundan ETKİLENMEZ.
+    // Faz 4D — yapılandırılmış loglardaki "environment" alanı için (bkz. src/lib/logger.js).
+    "ENVIRONMENT": "production",
     "IYZICO_BASE_URL": "https://sandbox-api.iyzipay.com",
     "GOOGLE_CLIENT_ID": "199792276072-t5n6va38ulc9q62f594vfcjknnsrrmj7.apps.googleusercontent.com",
     "LINKEDIN_CLIENT_ID": "77kuxochovm0xt"

@@ -28,7 +28,7 @@ export async function handleUploadRoute(request, env) {
   // tutulur — asıl amaç gerçek kullanımı engellemek değil, R2 kotasını (bkz. r2Quota.js) tüketen
   // otomatik/kötüye kullanım kaynaklı yükleme patlamalarına karşı ikinci bir savunma katmanı.
   if (!(await checkRateLimit(env, 'upload', user.id, 60, 10 * 60 * 1000))) {
-    return errorJson('Çok fazla görsel yüklemeye çalıştın, birkaç dakika sonra tekrar dene.', 429);
+    return errorJson('Çok fazla görsel yüklemeye çalıştın, birkaç dakika sonra tekrar dene.', 429, { 'Retry-After': '600' });
   }
 
   let form;

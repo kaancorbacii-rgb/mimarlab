@@ -3,7 +3,7 @@
 # worktree that never had it rsynced in looks "empty" to wrangler and a deploy
 # from there drops all miras/*.webp from the live asset manifest (every legacy
 # project photo 404s). Always deploy through this script, not raw `wrangler deploy`.
-set -e
+set -eo pipefail
 cd "$(dirname "$0")"
 
 MIN_MIRAS_FILES=2500
@@ -21,7 +21,14 @@ fi
 
 echo "miras/ kontrolü geçti ($miras_count dosya)."
 
-npx wrangler deploy "$@"
+# Faz 4D — wrangler'ın stdout'unu hem normal şekilde ekrana basıp hem de deployed Version ID'yi
+# ayrıştırmak için ayrıca bir dosyaya yakalıyoruz (bkz. scripts/health-check.sh#worker_version
+# teyidi). `set -o pipefail` (yukarıda) sayesinde `wrangler deploy` başarısız olursa `tee`
+# borusundan sonra da script yine hata ile durur.
+deploy_log="$(mktemp)"
+npx wrangler deploy "$@" | tee "$deploy_log"
+deployed_version=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$deploy_log" | tail -1 || true)
+rm -f "$deploy_log"
 
 echo "Deploy sonrası hızlı görsel sağlık kontrolü..."
 sample_files=$(find miras -maxdepth 1 -type f | awk 'NR % 400 == 1' | head -6)
@@ -40,3 +47,7 @@ if [ "$fail" -eq 1 ]; then
 else
   echo "Örnek görseller canlıda doğrulandı (200)."
 fi
+
+echo ""
+echo "Faz 4D kapsamlı sağlık kontrolü çalıştırılıyor (scripts/health-check.sh)..."
+./scripts/health-check.sh "$deployed_version"

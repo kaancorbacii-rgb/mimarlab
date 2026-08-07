@@ -50,10 +50,10 @@ async function startCheckout(request, env, url) {
 
   const ip = clientIp(request);
   if (!(await checkRateLimit(env, 'payment-checkout', user.id, 8, 60 * 60 * 1000))) {
-    return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429);
+    return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
   }
   if (!(await checkRateLimit(env, 'payment-checkout-ip', ip, 20, 60 * 60 * 1000))) {
-    return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429);
+    return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
   }
 
   const body = await readJson(request);

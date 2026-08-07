@@ -10,7 +10,7 @@ export async function handleContactRoute(request, env, url) {
   if (url.pathname !== '/api/contact' || request.method !== 'POST') return errorJson('Bulunamadı', 404);
 
   if (!(await checkRateLimit(env, 'contact', clientIp(request), 8, 60 * 60 * 1000))) {
-    return errorJson('Çok fazla mesaj gönderdin. Lütfen biraz sonra tekrar dene.', 429);
+    return errorJson('Çok fazla mesaj gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
   }
 
   const body = await readJson(request);

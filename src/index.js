@@ -1,4 +1,5 @@
-import { errorJson } from './lib/http.js';
+import { json, errorJson } from './lib/http.js';
+import { logRequest } from './lib/logger.js';
 import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
@@ -181,24 +182,31 @@ const SITEMAP_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=3600, stale-wh
 
 export default {
   async fetch(request, env, ctx) {
+    const startedAt = performance.now();
+    const requestId = crypto.randomUUID();
     const url = new URL(request.url);
     let response;
-    if (url.pathname.startsWith('/api/')) {
-      try {
+    let errorMessage = null;
+    // Faz 4D — bu try/catch artık YALNIZCA /api/ dalını değil TÜM dalları (asset/media/sitemap)
+    // sarmalıyor: öncesinde /api/ dışındaki bir dalda fırlayan beklenmeyen bir hata Worker'ı
+    // çökertip Cloudflare'in kendi genel hata sayfasını döndürürdü, hem de hiç loglanmadan.
+    try {
+      if (url.pathname.startsWith('/api/')) {
         response = await routeApi(request, env, url);
-      } catch (err) {
-        console.error(err);
-        response = errorJson('Sunucu hatası oluştu.', 500);
+      } else if (url.pathname.startsWith('/media/')) {
+        response = await handleMediaRoute(request, env, url);
+      } else if (url.pathname === '/sitemap.xml') {
+        response = await handleSitemapRoute(request, env, ctx);
+      } else {
+        response = await routeAsset(request, env, url, ctx);
       }
-    } else if (url.pathname.startsWith('/media/')) {
-      response = await handleMediaRoute(request, env, url);
-    } else if (url.pathname === '/sitemap.xml') {
-      response = await handleSitemapRoute(request, env, ctx);
-    } else {
-      response = await routeAsset(request, env, url, ctx);
+    } catch (err) {
+      errorMessage = err?.message || String(err);
+      response = errorJson('Sunucu hatası oluştu.', 500);
     }
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
+    logRequest({ request, url, env, requestId, startedAt, status: response.status, errorMessage });
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   },
 };
@@ -361,6 +369,10 @@ async function listCanonicalEntityUrls(env) {
 
 async function routeApi(request, env, url) {
   const path = url.pathname;
+  // Faz 4D — deploy sonrası sağlık kontrolü (bkz. scripts/health-check.sh) deploy edilen
+  // worker_version'ın gerçekten değiştiğini bu uçtan teyit eder. Auth gerektirmez, hassas veri
+  // dönmez (version id/tag secret DEĞİLDİR).
+  if (path === '/api/_health' && request.method === 'GET') return handleHealthRoute(env);
   if (path.startsWith('/api/auth/')) return handleAuthRoute(request, env, url);
   if (path === '/api/profile') return handleProfileRoute(request, env, url);
   if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);
@@ -426,4 +438,13 @@ async function routeApi(request, env, url) {
     path.startsWith('/api/architects') || path.startsWith('/api/news')
   ) return handleSubmissionRoute(request, env, url);
   return errorJson('Bulunamadı', 404);
+}
+
+function handleHealthRoute(env) {
+  return json({
+    status: 'ok',
+    version: env.CF_VERSION_METADATA ? { id: env.CF_VERSION_METADATA.id, tag: env.CF_VERSION_METADATA.tag } : null,
+    environment: env.ENVIRONMENT ?? null,
+    timestamp: new Date().toISOString(),
+  });
 }
