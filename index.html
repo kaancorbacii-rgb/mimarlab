@@ -922,8 +922,15 @@ const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next
 // Ağ hatası/5xx durumunda {items:[]} ile "gerçekten boş" arasında ayrım yapabilmek için (bkz.
 // aşağıdaki kullanım — kullanıcı isteği: "API isteği başarısız olursa ... boş ekran gösterme,
 // zarif bir hata/fallback görünümü sun") başarısız istekler items:[] YERİNE failed:true döner.
+// cache: 'no-store' — GERÇEK BULGU: Cloudflare zone'undaki Browser Cache TTL, origin'in
+// Cache-Control: max-age=60 değerini yok sayıp tarayıcıya çok daha uzun bir max-age (gözlemlenen:
+// 14400s/4sa) dönebiliyor; bu da ziyaretçinin tarayıcısının /api/projects gibi uçları saatlerce
+// AĞA HİÇ GİTMEDEN önbellekten sunmasına, dolayısıyla ana sayfa carousel'inin yeni eklenen
+// projeleri asla göstermeyip "takılı" görünmesine yol açıyordu (bkz. kullanıcı isteği). no-store
+// bu tarayıcı önbelleğini tamamen devre dışı bırakır — güncellik artık yalnızca edge/CDN katmanının
+// s-maxage=300 (5dk) + publicCache.js#invalidatePublicCache ile sınırlanır.
 function fetchPublicJson(url){
-  return fetch(url)
+  return fetch(url, { cache: 'no-store' })
     .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
     .catch(()=>({items:[], failed:true}));
 }

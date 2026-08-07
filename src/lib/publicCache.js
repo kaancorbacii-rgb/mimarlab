@@ -59,7 +59,17 @@ const CACHEABLE_PATHS = [
 // her kombinasyon kendi caches.default girdisi olarak güvenle tutulabilir. NOT: `/api/news` prefix'i
 // `/api/public/news` ile ÇAKIŞMAZ — farklı path segmentleri (bkz. isListPath'teki tam-önek eşleşmesi).
 const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products', '/api/news'];
-const BARE_LIST_PATHS = CACHEABLE_LIST_PREFIXES;
+// Ana sayfanın (index.html) mini-carousel'leri BARE (sorgu dizesiz) varyantı DEĞİL, kendi
+// ?limit=N varyantını çeker (bkz. index.html#PROJECT_CAROUSEL_FETCH_LIMIT/Promise.all) — bu da
+// caches.default'ta AYRI bir anahtar altında saklanır (bkz. cacheKeyFor). Yalnızca BARE_LIST_PATHS
+// temizlenirse bu varyantlar hiçbir zaman aktif geçersiz kılınmaz, en kötü durumda s-maxage (5dk)
+// dolana kadar bayat kalır (gerçek bulgu: "ana sayfa Proje carousel'i yeni eklenen projeyi
+// göstermiyor" — bkz. kullanıcı isteği). Bu yüzden en sık ziyaret edilen ana sayfa varyantları da
+// AÇIKÇA listelenip her yazma işleminde birlikte temizlenir.
+const HOMEPAGE_LIST_PATHS = [
+  '/api/projects?limit=24', '/api/architects?limit=6', '/api/offices?limit=6', '/api/products?limit=6',
+];
+const BARE_LIST_PATHS = [...CACHEABLE_LIST_PREFIXES, ...HOMEPAGE_LIST_PATHS];
 
 function isListPath(pathname) {
   return CACHEABLE_LIST_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '?'));
