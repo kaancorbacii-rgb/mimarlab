@@ -3,6 +3,7 @@ import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
+import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 // bkz. src/routes/project.js'teki AYNI CJS-interop yorumu (il-ilce-data.js için) — bu dosya da
 // canonical veri DEĞİL, salt statik bir taksonomi referans tablosu.
 import catalogTaxonomyJs from '../../catalog-taxonomy.js';
@@ -197,7 +198,7 @@ export async function handleProductListRoute(request, env, url) {
     const items = filtered.slice(start, start + limit).map(({ group, rating, ...rest }) => rest);
 
     return {
-      items, total, page: Math.min(page, totalPages), totalPages,
+      items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
       filters: {
         group: countsFor('group', p => [p.group]),
         category: countsFor('category', p => [p.category]),
@@ -205,5 +206,13 @@ export async function handleProductListRoute(request, env, url) {
         rating: countsFor('rating', p => ratingBuckets(p.rating.average)),
       },
     };
-  });
+  }, () => productListFingerprint(env));
+}
+
+// Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
+// desen.
+function productListFingerprint(env) {
+  return env.DB.prepare(
+    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
 }

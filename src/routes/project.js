@@ -3,6 +3,7 @@ import { cachedPublicJson } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
+import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 // bkz. src/routes/architect.js'teki AYNI CJS-interop yorumu — il-ilce-data.js proje.html'deki
 // parseLocationFull ile BİREBİR aynı il/ilçe çözümlemesini kullanmak için (~970 ilçelik veriyi
 // burada tekrar tanımlamak yerine) aynı guard'lı module.exports bloğuyla import ediliyor. Bu dosya
@@ -451,6 +452,17 @@ export async function handleProjectListRoute(request, env, url) {
       const r = ratingBySlug.get(p.slug);
       return { ...p, rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
     });
-    return { items, total, page: Math.min(page, totalPages), totalPages };
-  });
+    return { items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages };
+  }, () => projectListFingerprint(env));
+}
+
+// Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
+// desen. BİLİNEN SINIRLAMA: yalnızca `projects` tablosunu izler — bir tasarımcının (mimar/ofis)
+// profili güncellendiğinde proje kartındaki "Mimar" adı ya da bir projeye yeni puan verildiğinde
+// değişebilecek `rating`/`ratingCount` bu parmak izine YANSIMAZ (bkz. src/lib/publicCache.js#
+// cachedPublicJson üzerindeki AYNI not) — s-maxage (5dk) bu durumlar için güvenlik ağıdır.
+function projectListFingerprint(env) {
+  return env.DB.prepare(
+    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
 }

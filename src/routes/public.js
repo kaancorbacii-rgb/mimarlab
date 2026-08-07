@@ -3,6 +3,7 @@ import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
 import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
+import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 
 // Onaylanmış (status='approved') satırları, statik urunler-data.js/malzemeler-data.js
 // dizilerindeki mevcut şekle olabildiğince uyacak biçimde dönüştürür — böylece istemci
@@ -204,7 +205,7 @@ async function listPublicNews(request, env) {
        ORDER BY created_at DESC`
     ).bind(Date.now()).all();
     return {
-      items: results.map(n => ({
+      items: serializePublicEntity(results.map(n => ({
         title: n.title, category: n.category, source: n.source, description: n.description,
         image: n.image_url, id: n.id, createdAt: n.created_at,
         // Yalnızca news_submissions kaynaklı satırlarda dolu: haber-detay.html "Gönderiyi Düzenle"
@@ -212,7 +213,16 @@ async function listPublicNews(request, env) {
         // news tablosu/haberler-data.js kayıtlarının düzenlenecek bir gönderi karşılığı yoktur.
         submissionId: n.is_submission ? n.id : undefined,
         ownerName: n.owner_name || undefined, ownerPhoto: n.owner_photo || undefined, ownerBadge: n.owner_badge || undefined,
-      })),
+      }))),
     };
-  });
+  }, () => newsListFingerprint(env));
+}
+
+// Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
+// desen — hem statik `news` hem üye kaynaklı `news_submissions` tablosunu birlikte izler.
+function newsListFingerprint(env) {
+  return env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM news WHERE published = 1) + (SELECT COUNT(*) FROM news_submissions WHERE status = 'approved') AS cnt,
+            MAX((SELECT MAX(created_at) FROM news WHERE published = 1), (SELECT MAX(created_at) FROM news_submissions WHERE status = 'approved')) AS latest`
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
 }

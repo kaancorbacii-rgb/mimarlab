@@ -2,6 +2,7 @@ import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -171,14 +172,23 @@ export async function handleArchitectListRoute(request, env, url) {
     const items = filtered.slice(start, start + limit).map(({ officeAwards, ...rest }) => rest);
 
     return {
-      items, total, page: Math.min(page, totalPages), totalPages,
+      items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
       filters: {
         dob: Object.keys(dobCounts).sort((x, y) => y - x).map(v => ({ value: v, count: dobCounts[v] })),
         award: Object.keys(awardCounts).sort((x, y) => awardCounts[y] - awardCounts[x] || x.localeCompare(y, 'tr')).map(v => ({ value: v, count: awardCounts[v] })),
         position: positionCounts,
       },
     };
-  });
+  }, () => architectListFingerprint(env));
+}
+
+// Faz 4B — Conditional Requests: yukarıdaki tam liste sorgusundan (JOIN + JS filtre/sırala/sayfala)
+// çok daha ucuz bir "içerik değişti mi" özeti — bkz. src/lib/publicCache.js#cachedPublicJson
+// listFingerprint parametresi.
+function architectListFingerprint(env) {
+  return env.DB.prepare(
+    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
 }
 
 // GET /api/architect/:key — mimar-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:

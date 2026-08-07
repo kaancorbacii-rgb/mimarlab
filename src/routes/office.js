@@ -2,6 +2,7 @@ import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 
 // Faz 3 — bkz. src/routes/architect.js'teki AYNI "canonical tablodan doğrudan okuma, overlay
 // merge-time'da zaten uygulandı" yorumu.
@@ -146,13 +147,21 @@ export async function handleOfficeListRoute(request, env, url) {
     const items = filtered.slice(start, start + limit);
 
     return {
-      items, total, page: Math.min(page, totalPages), totalPages,
+      items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
       filters: {
         loc: Object.keys(locCounts).sort((a, b) => locCounts[b] - locCounts[a] || a.localeCompare(b, 'tr')).map(v => ({ value: v, count: locCounts[v] })),
         cat: Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a] || a.localeCompare(b, 'tr')).map(v => ({ value: v, count: catCounts[v] })),
       },
     };
-  });
+  }, () => officeListFingerprint(env));
+}
+
+// Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
+// desen.
+function officeListFingerprint(env) {
+  return env.DB.prepare(
+    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
 }
 
 // GET /api/office/:key — ofis-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
