@@ -125,7 +125,22 @@ const PATH_RENAME_REDIRECTS = {
   '/malzeme.html': '/urun',
   '/malzeme-ekle': '/urun-ekle',
   '/malzeme-ekle.html': '/urun-ekle',
+  // Giriş Yap/Üye Ol/Hesabım artık bağımsız sayfalar değil, her sayfada açılabilen popup modallar
+  // (bkz. kullanıcı isteği, js/components/auth-modal.js) — eski dosya adlarına gelen istekler/
+  // yer imleri temiz yol adlarına yönlendirilir, oradan AUTH_MODAL_ROUTES devralır (bkz. aşağısı).
+  '/giris-yap': '/giris',
+  '/giris-yap.html': '/giris',
+  '/uye-ol.html': '/uye-ol',
+  '/hesabim.html': '/hesabim',
 };
+
+// Giriş/Üye Ol/Hesabım modallarının doğrudan URL ile açılması (F5/deep-link) — CLEAN_URL_ASSETS'in
+// aksine bir slug'a değil TEK bir sabit yola karşılık geldiklerinden ayrı, basit bir eşleme yeterli.
+// index.html HER sayfada zaten yüklü olan auth-modal.js'i barındırdığından burada "ana sayfa" servis
+// edilir, o da location.pathname'e bakıp ilgili modalı kendisi açar (bkz. auth-modal.js). Bu 3 sayfa
+// zaten noindex olduğundan (bkz. giris-yap.html/uye-ol.html/hesabim.html <meta name="robots">)
+// serveDetailPage'deki HTMLRewriter/meta enjeksiyonuna burada ihtiyaç yok.
+const AUTH_MODAL_ROUTES = new Set(['/giris', '/uye-ol', '/hesabim']);
 
 // Eski /markalar/:slug firma detay URL'leri artık /firma/:slug (bkz. kullanıcı isteği: SEO/backlink
 // koruması) — yukarıdaki PATH_RENAME_REDIRECTS'in aksine slug segmenti dinamik olduğundan tam eşleşme
@@ -237,6 +252,16 @@ async function routeAsset(request, env, url, ctx) {
 
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
   if (cleanRoute) return serveDetailPage(request, env, url, cleanRoute, ctx);
+
+  if (AUTH_MODAL_ROUTES.has(url.pathname)) {
+    // gerçek bulgu: '/index' Cloudflare Assets tarafından kanonik doküman (index.html'in kendi
+    // kanonik yolu '/'dir) olarak özel ele alınıyor ve '/'e 307 yönlendiriliyor — CLEAN_URL_ASSETS'teki
+    // '/proje' gibi sıradan bir sayfa adı DEĞİL. '/' doğrudan istenirse bu ek yönlendirme hiç olmaz.
+    const assetUrl = new URL(url);
+    assetUrl.pathname = '/';
+    const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+    return withStaticImageCacheHeaders(url, response);
+  }
 
   const response = await env.ASSETS.fetch(request);
   return withStaticImageCacheHeaders(url, response);

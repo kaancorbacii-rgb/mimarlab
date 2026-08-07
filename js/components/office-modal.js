@@ -231,11 +231,14 @@ const OfficeModal = (function () {
   }
 
   // bkz. js/components/architect-modal.js#renderPrevNext — BİREBİR aynı desen, Firma etiketleriyle.
+  // Yön kasıtlı olarak TERS çevrilmiştir (bkz. js/components/project-modal.js#renderPrevNext'teki
+  // AYNI gerekçe/kullanıcı isteği) — payload.nextItem/prevItem'in kendisi değişmedi, yalnızca hangisi
+  // .prev/.next slotunu doldurduğu swap edildi.
   function renderPrevNext(payload) {
     const el = document.getElementById('om-prevnext');
     let html = '';
-    if (payload.prevItem) html += `<a class="prev" href="/firma/${encodeURIComponent(payload.prevItem.slug)}"><span class="prevnext-label">← Önceki Firma</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></a>`;
-    if (payload.nextItem) html += `<a class="next" href="/firma/${encodeURIComponent(payload.nextItem.slug)}"><span class="prevnext-label">Sonraki Firma →</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></a>`;
+    if (payload.nextItem) html += `<a class="prev" href="/firma/${encodeURIComponent(payload.nextItem.slug)}"><span class="prevnext-label">← Önceki Firma</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></a>`;
+    if (payload.prevItem) html += `<a class="next" href="/firma/${encodeURIComponent(payload.prevItem.slug)}"><span class="prevnext-label">Sonraki Firma →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></a>`;
     el.innerHTML = html;
   }
 

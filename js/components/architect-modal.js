@@ -228,12 +228,14 @@ const ArchitectModal = (function () {
   }
 
   // Önceki/Sonraki Mimar — bkz. js/components/project-modal.js#renderPrevNext'teki AYNI desen,
-  // src/routes/architect.js#fetchAdjacentArchitect'in döndürdüğü dairesel/sıralı id komşuları.
+  // src/routes/architect.js#fetchAdjacentArchitect'in döndürdüğü dairesel/sıralı id komşuları. Yön
+  // kasıtlı olarak TERS çevrilmiştir (bkz. AYNI dosyadaki kullanıcı isteği/gerekçe) — payload.nextItem/
+  // prevItem'in kendisi değişmedi, yalnızca hangisi .prev/.next slotunu doldurduğu swap edildi.
   function renderPrevNext(payload) {
     const el = document.getElementById('am-prevnext');
     let html = '';
-    if (payload.prevItem) html += `<a class="prev" href="/mimar/${encodeURIComponent(payload.prevItem.slug)}"><span class="prevnext-label">← Önceki Mimar</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></a>`;
-    if (payload.nextItem) html += `<a class="next" href="/mimar/${encodeURIComponent(payload.nextItem.slug)}"><span class="prevnext-label">Sonraki Mimar →</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></a>`;
+    if (payload.nextItem) html += `<a class="prev" href="/mimar/${encodeURIComponent(payload.nextItem.slug)}"><span class="prevnext-label">← Önceki Mimar</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></a>`;
+    if (payload.prevItem) html += `<a class="next" href="/mimar/${encodeURIComponent(payload.prevItem.slug)}"><span class="prevnext-label">Sonraki Mimar →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></a>`;
     el.innerHTML = html;
   }
 

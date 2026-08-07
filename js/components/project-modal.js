@@ -210,11 +210,15 @@ const ProjectModal = (function () {
   // gezinme artık sunucuda id sırasına göre hesaplanıp item.prevProject/nextProject olarak gelir,
   // istemci hafızasındaki eski `navList` (yalnızca karttan tıklanarak açıldığında dolu olan, F5/
   // doğrudan URL girişinde boş kalan) yöntemi yerine HER AÇILIŞTA eksiksiz çıkar (bkz. kullanıcı isteği).
+  // Yön kasıtlı olarak TERS çevrilmiştir (bkz. kullanıcı isteği): "Önceki" butonu artık kronolojik
+  // olarak SONRAKİ (id büyüyen) projeye, "Sonraki" butonu artık kronolojik olarak ÖNCEKİ (id küçülen)
+  // projeye gider — item.nextProject/item.prevProject'in KENDİSİ (bkz. src/routes/project.js#
+  // fetchAdjacentProject) değişmedi, yalnızca hangisinin .prev/.next slotunu doldurduğu swap edildi.
   function renderPrevNext(item) {
     const el = document.getElementById('pm-prevnext');
     let html = '';
-    if (item.prevProject) html += `<a class="prev" href="/projeler/${encodeURIComponent(item.prevProject.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></a>`;
-    if (item.nextProject) html += `<a class="next" href="/projeler/${encodeURIComponent(item.nextProject.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></a>`;
+    if (item.nextProject) html += `<a class="prev" href="/projeler/${encodeURIComponent(item.nextProject.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></a>`;
+    if (item.prevProject) html += `<a class="next" href="/projeler/${encodeURIComponent(item.prevProject.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></a>`;
     el.innerHTML = html;
   }
 

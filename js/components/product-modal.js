@@ -350,11 +350,13 @@ const ProductModal = (function () {
   }
 
   // bkz. js/components/architect-modal.js#renderPrevNext — BİREBİR aynı desen, Ürün etiketleriyle.
+  // Yön kasıtlı olarak TERS çevrilmiştir (bkz. AYNI dosyadaki kullanıcı isteği/gerekçe) —
+  // p.nextItem/prevItem'in kendisi değişmedi, yalnızca hangisi .prev/.next slotunu doldurduğu swap edildi.
   function renderPrevNext(p) {
     const el = document.getElementById('pr-prevnext');
     let html = '';
-    if (p.prevItem) html += `<a class="prev" href="/urun/${encodeURIComponent(p.prevItem.slug)}"><span class="prevnext-label">← Önceki Ürün</span><span class="prevnext-title">${escapeHtml(p.prevItem.title)}</span></a>`;
-    if (p.nextItem) html += `<a class="next" href="/urun/${encodeURIComponent(p.nextItem.slug)}"><span class="prevnext-label">Sonraki Ürün →</span><span class="prevnext-title">${escapeHtml(p.nextItem.title)}</span></a>`;
+    if (p.nextItem) html += `<a class="prev" href="/urun/${encodeURIComponent(p.nextItem.slug)}"><span class="prevnext-label">← Önceki Ürün</span><span class="prevnext-title">${escapeHtml(p.nextItem.title)}</span></a>`;
+    if (p.prevItem) html += `<a class="next" href="/urun/${encodeURIComponent(p.prevItem.slug)}"><span class="prevnext-label">Sonraki Ürün →</span><span class="prevnext-title">${escapeHtml(p.prevItem.title)}</span></a>`;
     el.innerHTML = html;
   }
 

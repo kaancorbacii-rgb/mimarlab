@@ -81,4 +81,8 @@
   } else {
     initAuthNav();
   }
+
+  // auth-modal.js login/signup başarılı olduğunda artık sayfayı yeniden YÜKLEMEDEN (bkz. kullanıcı
+  // isteği: modal içinde kalınsın) header'ı güncelleyebilsin diye dışa açılır.
+  window.refreshAuthNav = initAuthNav;
 })();
