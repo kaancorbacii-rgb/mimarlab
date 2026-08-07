@@ -3,12 +3,11 @@
 // wireSaveButtons/editSubmissionBtnHtml fonksiyonlarını AYNEN yeniden kullanır (bkz. kullanıcı
 // isteği: mevcut çalışan yardımcı fonksiyonları tekrar üretme).
 const ProjectActions = (function () {
-  // root: Düzenle/Arşivle/Sil satırı. saveSlot: Kaydet butonu artık Puanlama ile AYNI satırda
-  // (bkz. kullanıcı isteği: "Puanlama alanı ile Kaydet butonu yan yana, tek bir satırda") — proje-
-  // modal.js#LEFT_TEMPLATE'te bu iki kapsayıcı FARKLI DOM konumlarında (rating widget'ın yanında ve
-  // yönetici butonlarından ayrı) yer alır, o yüzden Kaydet'i saveBtnHtml burada değil ayrı bir
-  // slot'a yazan render() ayırır.
-  const DEFAULT_IDS = { root: 'pm-actions', saveSlot: 'pm-save-slot' };
+  // saveSlot: Kaydet butonu Puanlama ile AYNI satırda (bkz. kullanıcı isteği: "Puanlama alanı ile
+  // Kaydet butonu yan yana, tek bir satırda"). Düzenle/Arşivle/Sil ARTIK bu slot'un yanında bir yerde
+  // DEĞİL — modal-shell.js'in paylaşılan header'ında, X butonunun yanında render edilir (bkz.
+  // kullanıcı isteği: aksiyon butonları X'in yanına taşınsın) — ModalShell.getHeaderActionsSlot().
+  const DEFAULT_IDS = { saveSlot: 'pm-save-slot' };
 
   function saveBtnHtml(item) {
     return `
@@ -31,7 +30,7 @@ const ProjectActions = (function () {
   async function mountOwnerActions(item) {
     await savedWidgetReady;
     const editSlot = document.getElementById('pm-edit-submission-slot');
-    if (!currentUser) return;
+    if (!currentUser || !editSlot) return;
     let mySubmission = null;
     if (currentUser.role !== 'admin') {
       try {
@@ -70,6 +69,7 @@ const ProjectActions = (function () {
   function mountAdminModerationButtons(item) {
     if (!currentUser || currentUser.role !== 'admin') return;
     const slot = document.getElementById('pm-admin-actions-slot');
+    if (!slot) return;
     slot.innerHTML = `
       <button type="button" class="card-edit-btn" id="pm-archive-btn">Arşivle</button>
       <button type="button" class="card-delete-btn" id="pm-delete-btn">Sil</button>
@@ -106,7 +106,8 @@ const ProjectActions = (function () {
   function render(item, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     document.getElementById(mergedIds.saveSlot).innerHTML = saveBtnHtml(item) + (typeof ShareWidget !== 'undefined' ? ShareWidget.html('pm-share-btn') : '');
-    document.getElementById(mergedIds.root).innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
     wireSaveButtons('project');
     if (typeof ShareWidget !== 'undefined') {
       ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}/projeler/${encodeURIComponent(item.slug)}` }));

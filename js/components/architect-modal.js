@@ -6,13 +6,13 @@
 // açan bir modale taşır. Yorum/puanlama YOK — mimar-detay.html'de de hiç yoktu, kapsam dışı kalmaya
 // devam ediyor (bkz. proje hafızası: "comments/ratings stay project/product-only").
 const ArchitectModal = (function () {
-  // .detail-title/.related-*/.save-btn/.card-edit-btn/.card-delete-btn proje.html'in modal
-  // içeriğinde tanımladığı AYNI sınıflar/değerler — mimar.html farklı bir sayfa olduğundan proje.html'in
-  // <style>'ını miras alamaz, bu yüzden modal-shell.js'in injectStyles() deseniyle burada KENDİ
-  // <style>'ını bir kez enjekte eder (görsel bütünlük için proje modalıyla BİREBİR aynı değerler).
-  // .profile-edit-btn ise mimar-detay.html'den taşınan claim/correction kutusu (js/components/
-  // claim-correction-box.js) için gerekli, proje modalında hiç kullanılmıyordu — .feedback-card/
-  // .feedback-input-wrap o dosyanın KENDİ injectStyles()'ında tanımlı (bkz. o dosya).
+  // .detail-title/.related-*/.save-btn proje.html'in modal içeriğinde tanımladığı AYNI sınıflar/
+  // değerler — mimar.html farklı bir sayfa olduğundan proje.html'in <style>'ını miras alamaz, bu
+  // yüzden modal-shell.js'in injectStyles() deseniyle burada KENDİ <style>'ını bir kez enjekte eder
+  // (görsel bütünlük için proje modalıyla BİREBİR aynı değerler). .card-edit-btn/.card-delete-btn/
+  // .profile-edit-btn ARTIK burada değil — Düzenle/Arşivle/Sil modal-shell.js'in paylaşılan
+  // header'ında render edilir (bkz. kullanıcı isteği). .feedback-card/.feedback-input-wrap o
+  // dosyanın KENDİ injectStyles()'ında tanımlı (bkz. js/components/claim-correction-box.js).
   function injectStyles() {
     if (document.getElementById('architect-modal-styles')) return;
     const style = document.createElement('style');
@@ -34,30 +34,10 @@ const ArchitectModal = (function () {
         gap:4px !important; margin:0 0 18px;
       }
       .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
-      /* profile-edit-slot GERÇEK BULGU: Düzenle/Arşivle/Sil bu <span>'in İÇİNE claim-correction-box.js
-         tarafından enjekte ediliyor (bkz. o dosya #renderProfileEditButton) — span kendisi flex
-         katılımcısı OLMADIĞINDAN (sıradan inline eleman), .detail-title-actions'daki flex-wrap:nowrap
-         yalnızca span'in KENDİSİNİ tek satırda tutuyordu, İÇİNDEKİ 3 butonu DEĞİL — onlar normal metin
-         gibi kendi aralarında satır kırıyordu (bu, kullanıcının bildirdiği 2 satır kırılmasının GERÇEK
-         kök nedeniydi). display:contents span'i kutu modelinden çıkarır, çocuklarını doğrudan
-         #am-actions'ın flex öğesi yapar — böylece AYNI nowrap+shrink kuralları onlara da uygulanır. */
-      #profile-edit-slot{display:contents;}
-      .card-edit-btn{
-        display:inline-flex; align-items:center;
-        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
-        height:32px !important; box-sizing:border-box;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--walnut);
-      }
-      .card-edit-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
-      .card-delete-btn{
-        display:inline-flex; align-items:center;
-        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
-        height:32px !important; box-sizing:border-box;
-        background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); border-radius:100px;
-        padding:0 8px !important; font-size:12px !important; font-weight:600; color:#B84C4C;
-      }
-      .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+      /* Düzenle/Arşivle/Sil artık #am-actions'ın İÇİNDE DEĞİL — modal-shell.js'in paylaşılan
+         header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği). Bu yüzden
+         .card-edit-btn/.card-delete-btn/.profile-edit-btn ve #profile-edit-slot'un display:contents
+         kuralı buradan kaldırıldı; TEK stil kaynağı artık modal-shell.js#injectStyles. */
       .save-btn{
         display:inline-flex; align-items:center; gap:5px;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -73,14 +53,6 @@ const ArchitectModal = (function () {
       .save-btn.saved .save-btn-label-default{display:none;}
       .save-btn.saved .save-btn-label-saved{display:inline;}
       .save-btn-count{font-weight:600;}
-      .profile-edit-btn{
-        display:inline-flex; align-items:center; gap:5px;
-        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
-        height:32px !important; box-sizing:border-box;
-        background:none; border:1.5px solid var(--ink); color:var(--ink);
-        padding:0 8px !important; border-radius:100px; font-weight:600; font-size:12px !important;
-      }
-      .profile-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -359,8 +331,13 @@ const ArchitectModal = (function () {
     saveBtn.setAttribute('aria-label', 'Kaydet');
     saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="am-save-count"></span>`;
     const actionsEl = document.getElementById('am-actions');
-    actionsEl.innerHTML = '<span id="profile-edit-slot"></span>';
+    actionsEl.innerHTML = '';
     actionsEl.prepend(saveBtn);
+    // Düzenle/Arşivle/Sil artık bu satırda DEĞİL — modal-shell.js'in paylaşılan header'ında, X
+    // butonunun yanında render edilir (bkz. kullanıcı isteği) — claim-correction-box.js#
+    // renderProfileEditButton hâlâ #profile-edit-slot id'sini arıyor, yalnızca DOM konumu değişti.
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = '<span id="profile-edit-slot"></span>';
     saveBtn.dataset.key = slugify(a.name);
     saveBtn.dataset.title = a.name;
     saveBtn.dataset.meta = displayOffice ? displayOffice.name : (a.role || '');
@@ -445,6 +422,8 @@ const ArchitectModal = (function () {
 
   function renderNotFound() {
     document.getElementById('am-name-text').textContent = 'Mimar bulunamadı';
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = '';
     ['am-actions', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
       'am-related-products-section', 'am-detail-info', 'am-prevnext'].forEach(id => {
       const el = document.getElementById(id);

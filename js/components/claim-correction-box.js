@@ -160,12 +160,15 @@ function createClaimCorrectionBox(config){
     });
   }
 
-  // Profilin onaylı sahibi (isProfileOwner, bkz. loadClaimCard) ya da admin ise sağ üstte bir
-  // "Düzenle" butonu gösterir — admin hiçbir profili sahiplenmeden de düzenleyebilir (bkz.
-  // src/routes/submissions.js#verifyClaimedProfileKey admin bypass). Admin ayrıca bu profili
-  // arşivleyip/silebilsin diye "Düzenle"nin yanına Arşivle/Sil butonları ekler.
+  // Profilin onaylı sahibi (isProfileOwner, bkz. loadClaimCard) ya da admin ise modal-shell.js'in
+  // paylaşılan header'ında, X butonunun yanında bir "Düzenle" butonu gösterir (bkz. kullanıcı
+  // isteği) — admin hiçbir profili sahiplenmeden de düzenleyebilir (bkz. src/routes/
+  // submissions.js#verifyClaimedProfileKey admin bypass). Admin ayrıca bu profili arşivleyip/
+  // silebilsin diye "Düzenle"nin yanına Arşivle/Sil butonları ekler. #profile-edit-slot artık
+  // architect-modal.js/office-modal.js tarafından header'ın İÇİNE yazılıyor (bkz. o dosyalar).
   function renderProfileEditButton(){
     const slot = document.getElementById('profile-edit-slot');
+    if(!slot) return;
     if(!currentUser || !(isProfileOwner || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
     const adminButtonsHtml = currentUser.role === 'admin' ? `
       <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>

@@ -86,13 +86,53 @@ const ModalShell = (function () {
         }
       }
       .modal-shell-overlay.open .modal-shell-panel{opacity:1; transform:scale(1);}
-      .modal-shell-close{
+      /* Kapatma (X) butonu + Düzenle/Arşivle/Sil — proje/mimar/firma/ürün modallarının HEPSİ
+         tarafından paylaşılan tek bir header satırı (bkz. kullanıcı isteği: aksiyon butonları X'in
+         yanına taşınsın, [X] [Düzenle] [Arşivle] [Sil] tek satırda sola dizilsin). Her modal kendi
+         butonlarını ModalShell.getHeaderActionsSlot() üzerinden buraya yazar; X'in kendisi artık
+         kendi başına absolute değil, bu satırın bir flex öğesi. */
+      .modal-shell-header{
         position:absolute; top:16px; left:32px; z-index:5;
+        display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center;
+        gap:8px; max-width:calc(100% - 64px);
+      }
+      .modal-shell-close{
+        flex:0 0 auto;
         width:36px; height:36px; border-radius:50%; border:none;
         background:var(--paper-card); color:var(--ink); box-shadow:0 4px 12px rgba(27,42,61,0.18);
         display:flex; align-items:center; justify-content:center;
       }
       .modal-shell-close:hover{background:var(--paper-alt);}
+      .modal-shell-header-actions{
+        display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;
+      }
+      .modal-shell-header-actions:empty{display:none;}
+      /* Her modal dosyası kendi Düzenle/Arşivle/Sil butonlarını (bazen owner/admin durumuna göre
+         async doldurulan) boş bir <span id="..."> sarmalayıcının İÇİNE yazıyor — bkz. proje-actions.js/
+         claim-correction-box.js/product-modal.js. Sıradan bir <span> flex katılımcısı OLMADIĞINDAN
+         (bkz. office-modal.js/architect-modal.js'teki AYNI gerçek bulgu), display:contents span'i
+         kutu modelinden çıkarır, çocuklarını doğrudan bu satırın flex öğesi yapar. */
+      .modal-shell-header-actions > span{display:contents;}
+      .modal-shell-header-actions a, .modal-shell-header-actions button{
+        flex:0 0 auto; display:inline-flex; align-items:center; gap:5px;
+        height:36px; box-sizing:border-box; white-space:nowrap;
+        border-radius:100px; padding:0 14px; font-size:12.5px; font-weight:600;
+        font-family:inherit; text-decoration:none; box-shadow:0 4px 12px rgba(27,42,61,0.12);
+      }
+      /* Sayfaların KENDİ .card-edit-btn/.card-delete-btn/.profile-edit-btn kuralları (kart bağlamı
+         için tamamen farklı boyut/görünüm taşıyabilir, bkz. urun.html'deki altçizgili metin varyantı)
+         burada ele geçirilmesin diye header bağlamı ID yerine bu sınıfla kapsamlanır — özgüllüğü
+         (0,2,0) her sayfanın kendi bare .card-edit-btn (0,1,0) kuralından her zaman yüksektir. */
+      .modal-shell-header-actions .card-edit-btn, .modal-shell-header-actions .profile-edit-btn{
+        background:var(--paper-card); border:1px solid var(--line); color:var(--walnut);
+      }
+      .modal-shell-header-actions .card-edit-btn:hover, .modal-shell-header-actions .profile-edit-btn:hover{
+        border-color:var(--walnut); background:var(--paper-alt);
+      }
+      .modal-shell-header-actions .card-delete-btn{
+        background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); color:#B84C4C;
+      }
+      .modal-shell-header-actions .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
       .modal-shell-body{
         flex:1; min-height:0; overflow-y:auto;
         display:grid; grid-template-columns:32% 68%;
@@ -109,10 +149,14 @@ const ModalShell = (function () {
            kurallar (width:95vw; height:92vh; border-radius:20px) tüm kırılma noktalarında geçerli.
         */
         .modal-shell-panel{border-radius:var(--radius-lg, 16px);}
-        /* kapatma butonu masaüstünde sol üstte (bkz. yukarısı left:32px) ama mobil/tablette sağ üste
-           taşınır (bkz. kullanıcı isteği: X her zaman sağ üstte olmalı, tek elle erişim/alışılmış
-           konum) — left:auto ile masaüstü değerini iptal edip right ile konumlandırıyoruz. */
-        .modal-shell-close{left:auto; right:16px;}
+        /* header satırı (X + Düzenle/Arşivle/Sil) masaüstünde sol üstte (bkz. yukarısı left:32px) ama
+           mobil/tablette sağ üste taşınır (bkz. kullanıcı isteği: X her zaman sağ üstte olmalı, tek
+           elle erişim/alışılmış konum) — left:auto ile masaüstü değerini iptal edip right ile
+           konumlandırıyoruz; satırın kendisi (X → Düzenle → Arşivle → Sil sırası) hiçbir kırılma
+           noktasında bozulmaz (bkz. kullanıcı isteği: tek satır, tüm görünümlerde AYNI sıra). */
+        .modal-shell-header{left:auto; right:16px; gap:6px;}
+        .modal-shell-header-actions{gap:4px;}
+        .modal-shell-header-actions a, .modal-shell-header-actions button{padding:0 10px; font-size:11.5px;}
         /* padding-top: kapatma (X) butonu panele position:absolute (top:16px, height:36px) — içerik
            kaydırma öncesi tam bu bölgenin ALTINDA başlamazsa başlık/görseller X ile çakışıyordu (bkz.
            kullanıcı isteği). 16+36=52px'lik buton alanına en az 16-24px pay eklenir. */
@@ -193,9 +237,12 @@ const ModalShell = (function () {
     overlayEl.className = 'modal-shell-overlay';
     overlayEl.innerHTML = `
       <div class="modal-shell-panel" role="dialog" aria-modal="true" tabindex="-1">
-        <button type="button" class="modal-shell-close" aria-label="Kapat">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div class="modal-shell-header">
+          <button type="button" class="modal-shell-close" aria-label="Kapat">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <div class="modal-shell-header-actions" id="modal-shell-header-actions"></div>
+        </div>
         <div class="modal-shell-body">
           <div class="modal-shell-left"></div>
           <div class="modal-shell-right"></div>
@@ -302,5 +349,13 @@ const ModalShell = (function () {
 
   function scrollToTop() { if (bodyEl) bodyEl.scrollTop = 0; }
 
-  return { open, close, isOpen, getPanels, scrollToTop, wireGridScrollArrows };
+  // Düzenle/Arşivle/Sil butonlarının X'in yanına yazıldığı paylaşılan yuva (bkz. kullanıcı isteği) —
+  // proje/mimar/firma/ürün modalları (bkz. js/components/project-actions.js, claim-correction-box.js,
+  // product-modal.js) kendi butonlarını render ederken bu elementi hedefler; ensureDom() henüz
+  // çalışmadıysa (overlay hiç açılmadıysa) null döner.
+  function getHeaderActionsSlot() {
+    return overlayEl ? overlayEl.querySelector('#modal-shell-header-actions') : null;
+  }
+
+  return { open, close, isOpen, getPanels, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot };
 })();

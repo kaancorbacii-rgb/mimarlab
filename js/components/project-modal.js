@@ -14,7 +14,6 @@ const ProjectModal = (function () {
       <span class="detail-byline-avatar" id="pm-byline-avatar"></span>
       <span id="pm-byline-text"></span>
     </div>
-    <div class="detail-title-actions" id="pm-actions"></div>
     <div class="detail-info">
       <div class="designer-section" id="pm-architect-section" style="display:none;">
         <div class="designer-label">Mimar:</div>
@@ -288,7 +287,9 @@ const ProjectModal = (function () {
 
   function renderNotFound() {
     document.getElementById('pm-title').textContent = 'Proje bulunamadı';
-    ['pm-rating-save-row', 'pm-byline', 'pm-actions', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = '';
+    ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
       'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section', 'pm-related-section',
       'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'].forEach(id => {
       const el = document.getElementById(id);

@@ -21,7 +21,11 @@ const ProductModal = (function () {
     style.id = 'product-modal-styles';
     style.textContent = `
       .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
-      .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 14px;}
+      /* margin-bottom 18px (14px değil) — Düzenle/Arşivle/Sil satırı (eski .pr-actions) buradan
+         kaldırılıp X'in yanına taşındığından (bkz. kullanıcı isteği) bu artık künye bloğuna en yakın
+         komşu; sayfadaki diğer blok aralarıyla (.detail-meta/.detail-desc margin-top:18px) AYNI
+         dikey ritme oturur. */
+      .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 18px;}
       .detail-byline strong{color:var(--ink); font-weight:600;}
       .detail-byline-avatar{
         width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
@@ -68,23 +72,10 @@ const ProductModal = (function () {
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
       .save-btn-count{font-weight:600;}
-      .pr-actions{
-        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
-        align-items:center !important; justify-content:flex-start !important; width:100% !important;
-        gap:4px !important; margin:0 0 18px;
-      }
-      .pr-actions .card-edit-btn{
-        display:inline-flex; align-items:center;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:8px 16px; font-size:13px; font-weight:600; color:var(--walnut); white-space:nowrap;
-      }
-      .pr-actions .card-edit-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
-      .pr-actions .card-delete-btn{
-        display:inline-flex; align-items:center;
-        background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); border-radius:100px;
-        padding:8px 16px; font-size:13px; font-weight:600; color:#B84C4C; white-space:nowrap;
-      }
-      .pr-actions .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+      /* Düzenle (Gönderiyi Düzenle)/Arşivle/Sil artık burada DEĞİL — modal-shell.js'in paylaşılan
+         header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons).
+         Eski .pr-actions/.card-edit-btn/.card-delete-btn kuralları kaldırıldı; TEK stil kaynağı artık
+         modal-shell.js#injectStyles. */
       .designer-section{margin-top:0;}
       .designer-section + .designer-section{margin-top:16px;}
       .designer-label{font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
@@ -225,7 +216,6 @@ const ProductModal = (function () {
         #pr-title{order:2; margin-top:20px;}
         #pr-rating-save-row{order:3;}
         #pr-byline{order:4;}
-        #pr-actions{order:5;}
         .detail-info{order:6;}
         #pr-related-section{order:7;}
         #pr-prevnext{order:8;}
@@ -266,7 +256,6 @@ const ProductModal = (function () {
       <span class="detail-byline-avatar" id="pr-byline-avatar"></span>
       <span id="pr-byline-text"></span>
     </div>
-    <div class="pr-actions" id="pr-actions"></div>
     <div class="detail-info">
       <div class="designer-section" id="pr-brand-section" style="display:none;">
         <div class="designer-label">Marka</div>
@@ -541,8 +530,8 @@ const ProductModal = (function () {
     ratingWidget.dataset.key = key;
     mountRatingWidget(ratingWidget);
 
-    const actionsEl = document.getElementById('pr-actions');
-    actionsEl.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
     mountEditAndAdminButtons(p, key);
 
     loadRelated(p, key);
@@ -600,10 +589,12 @@ const ProductModal = (function () {
     await savedWidgetReady;
     if (p.submissionId) {
       const html = await editSubmissionBtnHtml(kindPlural(p), p.submissionId);
-      if (html) document.getElementById('pr-edit-slot').innerHTML = html;
+      const editSlot = document.getElementById('pr-edit-slot');
+      if (html && editSlot) editSlot.innerHTML = html;
     }
     if (!currentUser || currentUser.role !== 'admin') return;
     const slot = document.getElementById('pr-admin-slot');
+    if (!slot) return;
     slot.innerHTML = `<button type="button" class="card-edit-btn" id="pr-archive-btn">Arşivle</button><button type="button" class="card-delete-btn" id="pr-delete-btn">Sil</button>`;
     document.getElementById('pr-archive-btn').addEventListener('click', () => runContentModeration(p, key, 'archive'));
     document.getElementById('pr-delete-btn').addEventListener('click', () => runContentModeration(p, key, 'delete'));
@@ -665,7 +656,9 @@ const ProductModal = (function () {
 
   function renderNotFound() {
     document.getElementById('pr-title').textContent = 'Ürün bulunamadı';
-    ['pr-byline', 'pr-rating-save-row', 'pr-actions', 'pr-brand-section', 'pr-architect-section',
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = '';
+    ['pr-byline', 'pr-rating-save-row', 'pr-brand-section', 'pr-architect-section',
       'pr-info-divider', 'pr-feedback-card', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
