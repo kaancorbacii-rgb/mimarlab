@@ -2,7 +2,7 @@ import { errorJson } from './lib/http.js';
 import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
-import { handlePublicRoute } from './routes/public.js';
+import { handlePublicRoute, handleNewsListRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
@@ -379,6 +379,13 @@ async function routeApi(request, env, url) {
   if (path === '/api/architects' && request.method === 'GET') return handleArchitectListRoute(request, env, url);
   if (path === '/api/offices' && request.method === 'GET') return handleOfficeListRoute(request, env, url);
   if (path === '/api/products' && request.method === 'GET') return handleProductListRoute(request, env, url);
+  // Faz 4B doğrulama turunda bulunan gerçek bulgu: BARE /api/news GET, handleSubmissionRoute'ta
+  // segments.length===2 için hiç GET dalı olmadığından (yalnızca POST, bkz. o dosyadaki createSubmission
+  // satırı) hiçbir zaman genel bir liste dönmüyor, auth kontrolüne takılıp 401 veriyordu — yukarıdaki
+  // 4 uçla AYNI desende, gerçek bir public liste ucu buraya eklendi (bkz. src/routes/public.js#
+  // handleNewsListRoute). /api/news/mine (üyenin KENDİ gönderileri, auth gerekli) bu satırdan
+  // ETKİLENMEZ — yalnızca segments.length===2 (tam "/api/news") burada yakalanıyor.
+  if (path === '/api/news' && request.method === 'GET') return handleNewsListRoute(request, env, url);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki

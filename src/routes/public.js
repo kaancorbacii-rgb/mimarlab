@@ -188,33 +188,64 @@ async function handlePublicProfileContent(request, env, url) {
   });
 }
 
+// Faz 4B — /api/public/news (haber.html'in mevcut, parametresiz tam liste tüketicisi) ile YENİ
+// /api/news (aşağıda, sayfalanmış public liste) arasında paylaşılan satır çekme/şekillendirme —
+// tek SQL/şekillendirme kopyası, ikisi de aynı satırları farklı şekilde (tam liste vs sayfalanmış)
+// sunar.
+async function fetchAllNewsItems(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT id, title, category, source, description, image_url, created_at, 0 AS is_submission,
+            NULL AS owner_name, NULL AS owner_photo, NULL AS owner_badge
+     FROM news WHERE published = 1
+     UNION ALL
+     SELECT n.id, n.title, n.category, n.source, n.description, n.image_url, n.created_at, 1 AS is_submission,
+            u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
+     FROM news_submissions n
+     JOIN users u ON u.id = n.owner_user_id
+     LEFT JOIN badge_requests b ON b.user_id = n.owner_user_id AND b.target_type = 'self' AND b.status = 'active'
+       AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
+     WHERE n.status = 'approved'
+     ORDER BY created_at DESC`
+  ).bind(Date.now()).all();
+  return results.map(n => ({
+    title: n.title, category: n.category, source: n.source, description: n.description,
+    image: n.image_url, id: n.id, createdAt: n.created_at,
+    // Yalnızca news_submissions kaynaklı satırlarda dolu: haber-detay.html "Gönderiyi Düzenle"
+    // butonunu yalnızca gerçek bir gönderisi olan haberlerde göstermek için bunu kullanır — statik
+    // news tablosu/haberler-data.js kayıtlarının düzenlenecek bir gönderi karşılığı yoktur.
+    submissionId: n.is_submission ? n.id : undefined,
+    ownerName: n.owner_name || undefined, ownerPhoto: n.owner_photo || undefined, ownerBadge: n.owner_badge || undefined,
+  }));
+}
+
 async function listPublicNews(request, env) {
   return cachedPublicJson(request, env, '/api/public/news', async () => {
-    const { results } = await env.DB.prepare(
-      `SELECT id, title, category, source, description, image_url, created_at, 0 AS is_submission,
-              NULL AS owner_name, NULL AS owner_photo, NULL AS owner_badge
-       FROM news WHERE published = 1
-       UNION ALL
-       SELECT n.id, n.title, n.category, n.source, n.description, n.image_url, n.created_at, 1 AS is_submission,
-              u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
-       FROM news_submissions n
-       JOIN users u ON u.id = n.owner_user_id
-       LEFT JOIN badge_requests b ON b.user_id = n.owner_user_id AND b.target_type = 'self' AND b.status = 'active'
-         AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
-       WHERE n.status = 'approved'
-       ORDER BY created_at DESC`
-    ).bind(Date.now()).all();
-    return {
-      items: serializePublicEntity(results.map(n => ({
-        title: n.title, category: n.category, source: n.source, description: n.description,
-        image: n.image_url, id: n.id, createdAt: n.created_at,
-        // Yalnızca news_submissions kaynaklı satırlarda dolu: haber-detay.html "Gönderiyi Düzenle"
-        // butonunu yalnızca gerçek bir gönderisi olan haberlerde göstermek için bunu kullanır — statik
-        // news tablosu/haberler-data.js kayıtlarının düzenlenecek bir gönderi karşılığı yoktur.
-        submissionId: n.is_submission ? n.id : undefined,
-        ownerName: n.owner_name || undefined, ownerPhoto: n.owner_photo || undefined, ownerBadge: n.owner_badge || undefined,
-      }))),
-    };
+    const items = await fetchAllNewsItems(env);
+    return { items: serializePublicEntity(items) };
+  }, () => newsListFingerprint(env));
+}
+
+// GET /api/news?page=&limit= — Faz 4B: diğer 4 canonical liste ucuyla (handleProjectListRoute/
+// handleArchitectListRoute/handleOfficeListRoute/handleProductListRoute) AYNI sayfalanmış public
+// liste şekli ({items,total,page,totalPages}). ÖNCESİNDE bu bare path hiç ele alınmıyordu — src/
+// index.js'teki genel `/api/news` prefix eşleşmesi (handleSubmissionRoute, üye "Haberlerim" CRUD'u,
+// auth GEREKTİRİR) GET isteklerini de yakalıyordu, bu yüzden /api/news?limit=6 gibi bir istek 401
+// dönüyordu (bkz. Faz 4B doğrulama raporu — gerçek bulgu). /api/public/news (haber.html'in mevcut
+// parametresiz tüketicisi) DOKUNULMADAN aynen kalır; bu YENİ, ayrı bir uçtur.
+export async function handleNewsListRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
+    const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
+
+    const items = await fetchAllNewsItems(env);
+    const total = items.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (Math.min(page, totalPages) - 1) * limit;
+    const pageItems = items.slice(start, start + limit);
+
+    return { items: serializePublicEntity(pageItems), total, page: Math.min(page, totalPages), totalPages };
   }, () => newsListFingerprint(env));
 }
 

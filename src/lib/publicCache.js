@@ -50,12 +50,15 @@ const CACHEABLE_PATHS = [
   '/api/public/news',
 ];
 
-// Faz 4B — GET /api/projects, /api/architects, /api/offices, /api/products (sayfalama/filtre query
-// string'i taşıyan liste uçları). CACHEABLE_PATHS'teki sabit yollardan farkı: anahtar TAM URL'dir
-// (pathname + query string BİRLİKTE) — sayfa/limit/sıralama/filtre kombinasyonu, profil anahtarları
-// gibi sınırsız DEĞİL (pratikte kullanıcılar birkaç sayfa/filtre kombinasyonunu ziyaret eder),
-// bu yüzden her kombinasyon kendi caches.default girdisi olarak güvenle tutulabilir.
-const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products'];
+// Faz 4B — GET /api/projects, /api/architects, /api/offices, /api/products, /api/news (sayfalama/
+// filtre query string'i taşıyan liste uçları — /api/news, Faz 4B doğrulama turunda routing
+// çakışması bulunup düzeltildikten sonra buraya eklendi, bkz. src/routes/public.js#
+// handleNewsListRoute). CACHEABLE_PATHS'teki sabit yollardan farkı: anahtar TAM URL'dir (pathname +
+// query string BİRLİKTE) — sayfa/limit/sıralama/filtre kombinasyonu, profil anahtarları gibi
+// sınırsız DEĞİL (pratikte kullanıcılar birkaç sayfa/filtre kombinasyonunu ziyaret eder), bu yüzden
+// her kombinasyon kendi caches.default girdisi olarak güvenle tutulabilir. NOT: `/api/news` prefix'i
+// `/api/public/news` ile ÇAKIŞMAZ — farklı path segmentleri (bkz. isListPath'teki tam-önek eşleşmesi).
+const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products', '/api/news'];
 const BARE_LIST_PATHS = CACHEABLE_LIST_PREFIXES;
 
 function isListPath(pathname) {
