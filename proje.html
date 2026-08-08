@@ -265,9 +265,12 @@
     background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
     color:var(--paper);
   }
-  /* Kart üstü başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
-     isteği) — punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun isimler daha az kesilsin. */
-  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* Kart üstü başlık artık EN FAZLA 2 satır (bkz. kullanıcı isteği) — tek satıra sıkıştırmak yerine
+     -webkit-line-clamp ile 2. satırın sonunda "…" ile kesilir, çok uzun proje isimleri (ör. "Batı
+     Akdeniz Teknokenti Teknoloji Geliştirme Bölgesi İdare Binası ve Kuluçka Merkezi") artık kartın
+     görselini kaplayacak şekilde taşmaz. Punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun
+     isimler daha az kesilsin. */
+  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word;}
   .content-card-by{font-size:11.5px; color:rgba(237,240,243,0.75);}
   .card-save-btn{
     position:absolute; top:10px; right:10px; z-index:2;
@@ -610,6 +613,9 @@
     position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
     background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
     color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+    /* bkz. kullanıcı isteği: bu sınıf hiç kesilmiyordu — uzun bir proje ismi position:absolute
+       kutuyu yukarı doğru büyütüp kartın görselinin büyük kısmını kapatıyordu. En fazla 2 satır. */
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word;
   }
   .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
   .related-grid-scroll::-webkit-scrollbar{display:none;}

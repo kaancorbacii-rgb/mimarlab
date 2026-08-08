@@ -70,6 +70,10 @@ const OfficeModal = (function () {
         background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
         color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
       }
+      /* bkz. js/components/architect-modal.js#related-card-title-text — AYNI gerekçe: -webkit-box
+         doğrudan .related-card-title'a uygulansaydı altındaki .related-card-subtitle satırını da
+         satır sayımına dahil ederdi, bu yüzden yalnızca bu iç sarmalayıcıya uygulanır. */
+      .related-card-title-text{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word;}
       .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
@@ -197,11 +201,14 @@ const OfficeModal = (function () {
     el.querySelector('.detail-desc-more').addEventListener('click', () => { el.textContent = text; });
   }
 
-  function cardHtml(href, title, image, subtitle) {
+  // badgeHtml: yalnızca kurucu/ortak kartlarında geçilir (bkz. kullanıcı isteği: mavi onay rozetinin
+  // ilişkili TÜM alanlarda görünmesi) — proje/ürün/malzeme kartlarında rozet anlamsız olduğundan
+  // çağıranlar orada bu parametreyi hiç geçmez.
+  function cardHtml(href, title, image, subtitle, badgeHtml) {
     const srcset = image ? cdnSrcset(image, [300, 450, 600]) : '';
     return `<a class="related-card" href="${href}">
       ${image ? `<img src="${escapeAttr(cdnImg(image, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
-      <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
+      <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(title)}${badgeHtml || ''}</span>${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
   }
 
@@ -358,10 +365,15 @@ const OfficeModal = (function () {
     renderPrevNext(payload);
 
     document.getElementById('om-founders-section').style.display = founders.length ? '' : 'none';
-    document.getElementById('om-founders-grid').innerHTML = founders.map(a => a.unregistered
-      ? unregisteredBadgeHtml(a.name)
-      : cardHtml(`/mimar/${encodeURIComponent(slugify(a.name))}`, a.name, a.photo, a.role)
-    ).join('');
+    // renderFoundersGrid ayrı bir fonksiyon olarak tutulur — aşağıdaki renderVerifiedBadges ile AYNI
+    // /api/public/badges gecikmesi burada da var, rozetler geldiğinde tekrar çizilir.
+    function renderFoundersGrid() {
+      document.getElementById('om-founders-grid').innerHTML = founders.map(a => a.unregistered
+        ? unregisteredBadgeHtml(a.name)
+        : cardHtml(`/mimar/${encodeURIComponent(slugify(a.name))}`, a.name, a.photo, a.role, verifiedBadgeHtml('architect', a.name, a.badges, 14))
+      ).join('');
+    }
+    renderFoundersGrid();
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('om-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
@@ -406,6 +418,9 @@ const OfficeModal = (function () {
 
     function renderVerifiedBadges() {
       document.getElementById('om-verified-badge-wrap').innerHTML = verifiedBadgeHtml(PROFILE_TYPE, o.name, o.badges, 20);
+      // bkz. kullanıcı isteği: mavi rozet kurucu/ortak kartlarında da görünmeli — isim bazlı
+      // dynamicBadges önbelleğine bağlı olduğundan başlıktaki rozetle AYNI anda tazelenir.
+      renderFoundersGrid();
     }
     renderVerifiedBadges();
     window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges, { once: true });

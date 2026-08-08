@@ -71,6 +71,12 @@ const ArchitectModal = (function () {
         background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
         color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
       }
+      /* bkz. kullanıcı isteği: uzun bir isim/proje adı position:absolute kutuyu yukarı doğru büyütüp
+         kartın görselinin büyük kısmını kapatıyordu. En fazla 2 satır — .related-card-title'ın
+         KENDİSİNE değil, yalnızca bu iç sarmalayıcıya uygulanır: bazı kartlarda (ör. meslektaş/firma
+         kartlarındaki rol/konum) altında ayrı bir .related-card-subtitle satırı da var, -webkit-box
+         doğrudan .related-card-title'a uygulansaydı o alt satırı da satır sayımına dahil ederdi. */
+      .related-card-title-text{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word;}
       .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
@@ -209,11 +215,14 @@ const ArchitectModal = (function () {
     el.querySelector('.detail-desc-more').addEventListener('click', () => { el.textContent = text; });
   }
 
-  function cardHtml(href, title, image, subtitle) {
+  // badgeHtml: yalnızca firma/meslektaş kartlarında geçilir (bkz. kullanıcı isteği: mavi onay
+  // rozetinin ilişkili TÜM alanlarda görünmesi) — proje/ürün kartlarında rozet anlamsız olduğundan
+  // çağıranlar orada bu parametreyi hiç geçmez, boş string varsayılanı hiçbir şey render etmez.
+  function cardHtml(href, title, image, subtitle, badgeHtml) {
     const srcset = image ? cdnSrcset(image, [300, 450, 600]) : '';
     return `<a class="related-card" href="${href}">
       ${image ? `<img src="${escapeAttr(cdnImg(image, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
-      <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
+      <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(title)}${badgeHtml || ''}</span>${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
   }
 
@@ -366,15 +375,24 @@ const ArchitectModal = (function () {
 
     const officeSectionEl = document.getElementById('am-office-section');
     officeSectionEl.style.display = offices.length ? '' : 'none';
-    document.getElementById('am-office-grid').innerHTML = offices.map(off => off.unregistered
-      ? unregisteredBadgeHtml(off.name)
-      : cardHtml(`/firma/${encodeURIComponent(slugify(off.name))}`, off.name, logoUrl(off), [off.loc, off.yil ? 'K. ' + off.yil : null].filter(Boolean).join(' · '))
-    ).join('');
+    // renderOfficeGrid/renderColleaguesGrid ayrı fonksiyonlar olarak tutulur (yalnızca innerHTML'i
+    // yeniden çizer) — aşağıdaki renderVerifiedBadges ile AYNI /api/public/badges gecikmesi burada
+    // da var: rozetler ilk çizimde henüz gelmemiş olabilir, 'mimarlab-badges-ready' ile tekrar çizilir.
+    function renderOfficeGrid() {
+      document.getElementById('am-office-grid').innerHTML = offices.map(off => off.unregistered
+        ? unregisteredBadgeHtml(off.name)
+        : cardHtml(`/firma/${encodeURIComponent(slugify(off.name))}`, off.name, logoUrl(off), [off.loc, off.yil ? 'K. ' + off.yil : null].filter(Boolean).join(' · '), verifiedBadgeHtml('office', off.name, off.badges, 14))
+      ).join('');
+    }
+    renderOfficeGrid();
 
     document.getElementById('am-colleagues-section').style.display = colleagues.length ? '' : 'none';
-    document.getElementById('am-colleagues-grid').innerHTML = colleagues.map(c =>
-      cardHtml(`/mimar/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role)
-    ).join('');
+    function renderColleaguesGrid() {
+      document.getElementById('am-colleagues-grid').innerHTML = colleagues.map(c =>
+        cardHtml(`/mimar/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
+      ).join('');
+    }
+    renderColleaguesGrid();
 
     document.getElementById('am-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('am-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
@@ -416,6 +434,10 @@ const ArchitectModal = (function () {
 
     function renderVerifiedBadges() {
       document.getElementById('am-verified-badge-wrap').innerHTML = verifiedBadgeHtml(PROFILE_TYPE, a.name, a.badges, 20);
+      // bkz. kullanıcı isteği: mavi rozet firma/meslektaş kartlarında da görünmeli — bu ikisi de
+      // isim bazlı dynamicBadges önbelleğine bağlı olduğundan başlıktaki rozetle AYNI anda tazelenir.
+      renderOfficeGrid();
+      renderColleaguesGrid();
     }
     renderVerifiedBadges();
     window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges, { once: true });

@@ -31,11 +31,15 @@ const ProjectMeta = (function () {
     // karşılığı olmayan isim (bkz. src/routes/project.js#fetchRawDesignerNames, kullanıcı isteği) —
     // hiçbir profile bağlanamadığından tıklanabilir bir bağlantı DEĞİL, sabit bir "rozet" olarak
     // (aynı avatar/isim düzeniyle, görsel olarak kayıtlı chip'lerle aynı hizada) render edilir.
+    // unregistered çipler hiçbir profile bağlı değildir (bkz. yukarıdaki yorum) — rozet bir profil
+    // güven sinyali olduğundan yalnızca kayıtlı (gerçek architects/offices satırına bağlı) çiplerde
+    // gösterilir (bkz. kullanıcı isteği: mavi rozetin ilişkili TÜM alanlarda görünmesi).
     if (d.unregistered) {
       return `<span class="designer-chip">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></span>`;
     }
     const href = d.type === 'architect' ? `/mimar/${encodeURIComponent(slugify(d.name))}` : `/firma/${encodeURIComponent(slugify(d.name))}`;
-    return `<a class="designer-chip" href="${href}">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></a>`;
+    const badge = verifiedBadgeHtml(d.type, d.name, d.badges, 13);
+    return `<a class="designer-chip" href="${href}">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}${badge}</span></a>`;
   }
 
   function renderDesigners(item, ids) {
@@ -126,6 +130,11 @@ const ProjectMeta = (function () {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     document.getElementById(mergedIds.title).textContent = item.title;
     renderDesigners(item, mergedIds);
+    // Rozetler /api/public/badges'ten sayfa yüklenirken asenkron gelir (bkz. badge-shared.js) —
+    // proje modalı bu fetch tamamlanmadan açılmışsa çipler baş harfli/rozetsiz render edilmiş
+    // olabilir; js/components/architect-modal.js#renderVerifiedBadges ile AYNI desen, geldiğinde
+    // Mimar/Firma çipleri bir kez daha çizilir.
+    window.addEventListener('mimarlab-badges-ready', () => renderDesigners(item, mergedIds), { once: true });
     renderMeta(item, mergedIds);
     renderDescription(item, mergedIds);
     renderStructuredData(item);

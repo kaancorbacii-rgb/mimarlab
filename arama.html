@@ -289,11 +289,14 @@ function isHiddenLegacy(type, key){
 }
 fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(data => { hiddenLegacy = data || {}; }).catch(()=>{}).finally(() => { runSearch(); });
 
-function rowHtml({href, avatarStyle, avatarContent, title, meta}){
+// badge: yalnızca Mimarlar/Firmalar gruplarında geçilir (bkz. kullanıcı isteği: mavi onay
+// rozetinin arama sonuçlarında da görünmesi) — proje/ürün/haber satırlarında rozet anlamsız
+// olduğundan çağıranlar orada bu parametreyi hiç geçmez.
+function rowHtml({href, avatarStyle, avatarContent, title, meta, badge}){
   return `<a class="result-row" href="${href}">
     <div class="result-avatar" style="${avatarStyle||''}">${avatarContent||''}</div>
     <div class="result-info">
-      <div class="result-title">${escapeHtml(title)}</div>
+      <div class="result-title">${escapeHtml(title)}${badge||''}</div>
       <div class="result-meta">${escapeHtml(meta||'')}</div>
     </div>
     <div class="result-go">→</div>
@@ -389,6 +392,7 @@ async function runSearch(){
       avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 200))}"${cdnSrcset(a.photo, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(a.photo, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: a.name,
       meta: a.office || 'Mimar',
+      badge: verifiedBadgeHtml('architect', a.name, a.badges, 13),
     }), full.totals.architects),
     groupHtml('Firmalar', full.offices, o => rowHtml({
       href: `/firma/${encodeURIComponent(o.slug)}`,
@@ -396,6 +400,7 @@ async function runSearch(){
       avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
       title: o.name,
       meta: o.loc || '',
+      badge: verifiedBadgeHtml('office', o.name, o.badges, 13),
     }), full.totals.offices),
     groupHtml('Projeler', full.projects, p => rowHtml({
       href: `/projeler/${encodeURIComponent(p.slug)}`,
@@ -515,6 +520,10 @@ document.addEventListener('click', (e)=>{
 });
 
 runSearch();
+// Rozetler /api/public/badges'ten asenkron gelir (bkz. badge-shared.js) — ilk arama sonucu bu fetch
+// tamamlanmadan çizilmişse Mimarlar/Firmalar satırları rozetsiz kalmış olabilir; hiddenLegacy
+// fetch'inin runSearch()'ü tekrar tetiklemesiyle AYNI desen (yukarısı), yalnızca bir kez.
+window.addEventListener('mimarlab-badges-ready', () => runSearch(), { once: true });
 </script>
 </body>
 </html>
