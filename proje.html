@@ -623,7 +623,15 @@
        -webkit-line-clamp'e rağmen 3. satıra taştığı bildirildi) — line-height em cinsinden
        SABİTLENİP max-height tam 2 satırla (2 × 1.25em) sınırlanarak üçüncü satır kesin gizlenir.
        Alt padding üstten daha büyük tutulur (bkz. kullanıcı isteği: metin kartın alt sınırına
-       yapışmasın, görsel sınırların içinde yukarı çekilsin). */
+       yapışmasın, görsel sınırların içinde yukarı çekilsin).
+       gerçek bulgu: sayfanın genelindeki *{box-sizing:border-box} kuralı (bkz. proje.html başı)
+       bu elemana da miras kalıyordu — max-height BORDER-box'a göre hesaplanınca üstteki 24px'lik
+       padding onu neredeyse tamamen yiyor, 2 satırlık metne ~10px kalıyor (1 satırdan bile az) ve
+       ikinci satır kelimenin ortasından kesiliyordu (bkz. kullanıcı ekran görüntüsü). box-sizing
+       burada content-box'a döndürülür ki max-height yalnızca METNE ayrılsın, padding bunun
+       ÜSTÜNE eklensin — kutu toplamda büyür ama .related-card'ın overflow:hidden'ı (yukarısı)
+       hâlâ kartın kendisinden taşmasını engeller. */
+    box-sizing:content-box !important;
     display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;
   }
   .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
