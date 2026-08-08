@@ -85,8 +85,16 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
   });
 }
 
-function trLowerSearch(s) {
+function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+
+// trLower Türkçe BÜYÜK->küçük eşlemesini doğru yapar ama bu yüzden ASCII "I" (ör. Türkçe olmayan/
+// ALL-CAPS yazılmış isimlerde) noktasız 'ı'ya döner — kullanıcı normal klavyeyle (düz 'i' ile)
+// yazdığında eşleşme kaçırılabiliyordu (bkz. src/routes/project.js#foldTr'deki AYNI gerçek bulgu/
+// gerekçe — SANKAI proje arama hatası). Sorgu VE hedef metin AYNI foldTr'den geçirilir.
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
 // rating-widget.js#ratingBuckets ile BİREBİR aynı — "en az N yıldız" kovaları.
@@ -122,7 +130,7 @@ export async function handleProductListRoute(request, env, url) {
     const categoryParam = url.searchParams.get('category') || '';
     const brandParam = url.searchParams.get('brand') || '';
     const ratingParam = url.searchParams.get('rating') || '';
-    const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
+    const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     // ORDER BY id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
     // (sort seçilmemişse "son eklenen ilk") — anasayfa Ürün carousel'i (bkz. index.html) bu
@@ -160,7 +168,7 @@ export async function handleProductListRoute(request, env, url) {
       if (ratingParam && exceptKey !== 'rating' && !ratingBuckets(p.rating.average).includes(ratingParam)) return false;
       if (searchQuery) {
         const fields = [p.title, p.category, p.brand];
-        if (!fields.some(v => v && trLowerSearch(String(v)).includes(searchQuery))) return false;
+        if (!fields.some(v => v && foldTr(String(v)).includes(searchQuery))) return false;
       }
       return true;
     }

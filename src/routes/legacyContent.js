@@ -98,8 +98,8 @@ async function searchLegacy(env, url) {
   if (q.length < 2) return json({ items: [] });
 
   if (type === 'news') {
-    const needle = trLower(q);
-    const matches = newsItems.filter(item => trLower(item.title).includes(needle)).slice(0, 50);
+    const needle = foldTr(q);
+    const matches = newsItems.filter(item => foldTr(item.title).includes(needle)).slice(0, 50);
     const keys = matches.map(item => item.id);
     const hiddenSet = keys.length
       ? new Set((await env.DB.prepare(

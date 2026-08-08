@@ -33,6 +33,14 @@ function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
 }
 
+// trLower Türkçe BÜYÜK->küçük eşlemesini doğru yapar ama bu yüzden ASCII "I" (ör. Türkçe olmayan/
+// ALL-CAPS yazılmış isimlerde) noktasız 'ı'ya döner — kullanıcı normal klavyeyle (düz 'i' ile)
+// yazdığında eşleşme kaçırılabiliyordu (bkz. src/routes/project.js#foldTr'deki AYNI gerçek bulgu/
+// gerekçe — SANKAI proje arama hatası). Sorgu VE hedef metin AYNI foldTr'den geçirilir.
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+}
+
 // GET /api/architects/search?q=...&office=<tam ofis adı> — proje-ekle.html/urun-ekle.html gibi
 // formlardaki Mimar autocomplete kutularının canlı D1 sorgusu (bkz. kullanıcı isteği: "Admin
 // panelinden yeni eklenen mimarlar Proje Ekle'deki öneri kutusunda görünmüyor" — eski hâli data.js'
@@ -48,7 +56,7 @@ export async function handleArchitectSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const officeParam = (url.searchParams.get('office') || '').trim();
-    const q = trLower((url.searchParams.get('q') || '').trim());
+    const q = foldTr((url.searchParams.get('q') || '').trim());
     if (!q && !officeParam) return { items: [] };
     const { results } = await env.DB.prepare(
       `SELECT a.name AS name, o.name AS office_name FROM architects a
@@ -57,7 +65,7 @@ export async function handleArchitectSearchRoute(request, env, url) {
     ).all();
     const filtered = officeParam
       ? results.filter(r => r.office_name === officeParam)
-      : results.filter(r => trLower(r.name).includes(q));
+      : results.filter(r => foldTr(r.name).includes(q));
     const items = filtered.slice(0, 20).map(r => ({ label: r.name, sub: r.office_name || '' }));
     return { items };
   });
@@ -93,10 +101,6 @@ function positionOf(position) {
   return position.startsWith('Kurucu') ? 'Kurucu' : 'Çalışan';
 }
 
-function trLowerSearch(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
-
 // GET /api/architects — mimar.html#render()'ın sayfalanmış sunucu karşılığı (bkz. kullanıcı isteği:
 // "Bütün sayfaların verisini tek seferde DOM'a yükleme"). mimar.html#populateFilters()'ın dob/award/
 // position sayaçlarını `filters` alanında birlikte döner — tablo küçük (~800 satır) olduğundan tam
@@ -111,7 +115,7 @@ export async function handleArchitectListRoute(request, env, url) {
     const dobParam = url.searchParams.get('dob') || '';
     const awardParam = url.searchParams.get('award') || '';
     const positionParam = url.searchParams.get('position') || '';
-    const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
+    const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     // Varsayılan sıralama artık "en popüler" (en çok projesi olan mimar önce) — bkz. kullanıcı
     // isteği: "Default Popularity-Based Sorting". ?sort=newest EXPLICIT olarak eski "son eklenen
@@ -147,7 +151,7 @@ export async function handleArchitectListRoute(request, env, url) {
       if (dobParam && String(a.dob) !== dobParam) return false;
       if (awardParam && !a.officeAwards.includes(awardParam)) return false;
       if (positionParam && a.position !== positionParam) return false;
-      if (searchQuery && !trLowerSearch(a.name).includes(searchQuery)) return false;
+      if (searchQuery && !foldTr(a.name).includes(searchQuery)) return false;
       return true;
     }
 

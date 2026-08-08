@@ -27,19 +27,27 @@ function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
 }
 
+// trLower Türkçe BÜYÜK->küçük eşlemesini doğru yapar ama bu yüzden ASCII "I" (ör. Türkçe olmayan/
+// ALL-CAPS yazılmış isimlerde) noktasız 'ı'ya döner — kullanıcı normal klavyeyle (düz 'i' ile)
+// yazdığında eşleşme kaçırılabiliyordu (bkz. src/routes/project.js#foldTr'deki AYNI gerçek bulgu/
+// gerekçe — SANKAI proje arama hatası). Sorgu VE hedef metin AYNI foldTr'den geçirilir.
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+}
+
 // GET /api/offices/search?q=... — src/routes/architect.js#handleArchitectSearchRoute'un firma
 // karşılığı; proje-ekle.html'deki Firma/Marka autocomplete kutularının canlı D1 sorgusu. Türkçe
-// harf duyarlılığı için SQL LIKE yerine tüm adaylar çekilip trLower ile JS tarafında filtrelenir
+// harf duyarlılığı için SQL LIKE yerine tüm adaylar çekilip foldTr ile JS tarafında filtrelenir
 // (tablo küçük olduğundan, bkz. findOffice'teki AYNI tam-tarama gerekçesi).
 export async function handleOfficeSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const q = trLower((url.searchParams.get('q') || '').trim());
+    const q = foldTr((url.searchParams.get('q') || '').trim());
     if (!q) return { items: [] };
     const { results } = await env.DB.prepare(
       `SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY name`
     ).all();
-    const items = results.filter(r => trLower(r.name).includes(q)).slice(0, 20).map(r => ({ label: r.name, sub: r.loc || '' }));
+    const items = results.filter(r => foldTr(r.name).includes(q)).slice(0, 20).map(r => ({ label: r.name, sub: r.loc || '' }));
     return { items };
   });
 }
@@ -70,10 +78,6 @@ function expBucketOf(yil) {
   return '30+';
 }
 
-function trLowerSearch(s) {
-  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
-}
-
 // GET /api/offices — firma.html#render()'ın sayfalanmış sunucu karşılığı (bkz. src/routes/
 // architect.js#handleArchitectListRoute'daki AYNI desen).
 export async function handleOfficeListRoute(request, env, url) {
@@ -86,7 +90,7 @@ export async function handleOfficeListRoute(request, env, url) {
     const locParam = url.searchParams.get('loc') || '';
     const catParam = url.searchParams.get('cat') || '';
     const expParam = url.searchParams.get('exp') || '';
-    const searchQuery = trLowerSearch((url.searchParams.get('search') || '').trim());
+    const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     // Varsayılan sıralama artık "en popüler" (en çok projesi olan firma önce) — bkz. kullanıcı
     // isteği: "Default Popularity-Based Sorting". ?sort=newest EXPLICIT olarak eski "son eklenen
@@ -121,7 +125,7 @@ export async function handleOfficeListRoute(request, env, url) {
       if (locParam && cityOf(o.loc) !== locParam) return false;
       if (catParam && !(o.cats || '').includes(catParam)) return false;
       if (expParam && expBucketOf(o.yil) !== expParam) return false;
-      if (searchQuery && !trLowerSearch(o.name).includes(searchQuery)) return false;
+      if (searchQuery && !foldTr(o.name).includes(searchQuery)) return false;
       return true;
     }
 

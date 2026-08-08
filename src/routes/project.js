@@ -286,6 +286,18 @@ function trLower(s) {
   return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
 }
 
+// trLower zaten BÜYÜK->küçük Türkçe eşlemesini doğru yapıyor ama bu yüzden ASCII "I" (ör. ALL-CAPS
+// "SANKAI" gibi Türkçe olmayan/İngilizce yazılmış başlıklarda) küçük harfe 'ı' (noktasız) olarak
+// döner — kullanıcı normal klavyeyle "sankai" yazdığında (zaten küçük 'i', trLower'dan etkilenmez)
+// eşleşme kaçırılıyordu (gerçek bulgu: /api/projects?search=sankai 0 sonuç, ?search=SANKAI 1 sonuç
+// dönüyordu). foldTr (bkz. src/routes/legacyContent.js/arama.html'deki AYNI desen, orada zaten bu
+// sorunu çözüyordu) trLower'ın üstüne Türkçe harfleri ASCII benzerlerine de indirger (ı/i, ş/s, ç/c,
+// ğ/g, ü/u, ö/o) — sorgu VE hedef metin AYNI foldTr'den geçirildiğinden hangi yazımla arandığından
+// bağımsız tutarlı eşleşir.
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+}
+
 function dateBucketSortKey(s) {
   let m = /^(\d+)\.\s*Yüzyıl$/.exec(s);
   if (m) return (parseInt(m[1], 10) - 1) * 100;
@@ -340,12 +352,12 @@ export async function handleProjectFiltersRoute(request, env, url) {
     const FILTER_GROUPS = buildFilterGroups(ratingByProject);
     const activeFilters = {};
     FILTER_GROUPS.forEach(g => { activeFilters[g.key] = new Set(url.searchParams.getAll(g.key)); });
-    const searchQuery = trLower((url.searchParams.get('search') || '').trim());
+    const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     function matchesLocalSearch(p) {
       if (!searchQuery) return true;
       const fields = [p.title, p.location, p.locationDetail, ...(p.designer || [])];
-      return fields.some(v => v && trLower(String(v)).includes(searchQuery));
+      return fields.some(v => v && foldTr(String(v)).includes(searchQuery));
     }
     function passesFilters(p, exceptKey) {
       if (!matchesLocalSearch(p)) return false;
@@ -403,12 +415,12 @@ export async function handleProjectListRoute(request, env, url) {
     const FILTER_GROUPS = buildFilterGroups(new Map(ratingRows.results.map(r => [r.target_id, { average: r.average }])));
     const activeFilters = {};
     FILTER_GROUPS.forEach(g => { activeFilters[g.key] = new Set(url.searchParams.getAll(g.key)); });
-    const searchQuery = trLower((url.searchParams.get('search') || '').trim());
+    const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     function matchesLocalSearch(p) {
       if (!searchQuery) return true;
       const fields = [p.title, p.location, p.locationDetail, ...(p.designer || [])];
-      return fields.some(v => v && trLower(String(v)).includes(searchQuery));
+      return fields.some(v => v && foldTr(String(v)).includes(searchQuery));
     }
     function passesFilters(p) {
       if (!matchesLocalSearch(p)) return false;
