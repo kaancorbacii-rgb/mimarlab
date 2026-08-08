@@ -76,7 +76,10 @@ const ArchitectModal = (function () {
          KENDİSİNE değil, yalnızca bu iç sarmalayıcıya uygulanır: bazı kartlarda (ör. meslektaş/firma
          kartlarındaki rol/konum) altında ayrı bir .related-card-subtitle satırı da var, -webkit-box
          doğrudan .related-card-title'a uygulansaydı o alt satırı da satır sayımına dahil ederdi. */
-      .related-card-title-text{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word;}
+      /* line-height/max-height + !important (bkz. kullanıcı isteği, gerçek bulgu: son kelimenin
+         -webkit-line-clamp'e rağmen 3. satıra taştığı bildirildi) — line-height em cinsinden
+         SABİTLENİP max-height tam 2 satırla (2 × 1.25em) sınırlanarak üçüncü satır kesin gizlenir. */
+      .related-card-title-text{display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
       .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}

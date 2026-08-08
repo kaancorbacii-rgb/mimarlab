@@ -263,8 +263,12 @@
     color:#fff; padding:14px 18px; border-radius:12px;
   }
   /* bkz. kullanıcı isteği: uzun bir proje ismi .slide-caption kutusunu yukarı doğru büyütüp
-     slaytın görselini kaplayabiliyordu. En fazla 2 satır. */
-  .slide-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word;}
+     slaytın görselini kaplayabiliyordu. En fazla 2 satır. line-height/max-height + !important
+     (bkz. kullanıcı isteği, gerçek bulgu: son kelimenin -webkit-line-clamp'e rağmen 3. satıra
+     taştığı bildirildi) — line-height em cinsinden SABİTLENİP max-height tam 2 satırla (2 ×
+     1.25em) sınırlanarak üçüncü satır kesin gizlenir; em birimleri .side-slider/mobil font-size
+     override'larıyla (aşağıda) OTOMATİK ölçeklenir, ayrıca dokunmaya gerek yok. */
+  .slide-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
   .slide-designer{font-size:12.5px; color:rgba(255,255,255,0.72); margin-top:3px;}
   .slider-arrow{
     position:absolute; top:50%; transform:translateY(-50%); z-index:3;
