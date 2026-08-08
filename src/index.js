@@ -540,7 +540,9 @@ async function routeApi(request, env, url) {
     return handleConsultantRoute(request, env, url, rest);
   }
   // "Görüşme Ayarla" Havale/EFT talep akışı (bkz. kullanıcı isteği, src/routes/consultantBookings.js)
-  if (path === '/api/consultant-bookings') return handleConsultantBookingsRoute(request, env, url);
+  // — startsWith, çünkü GET .../mine (hesabim.html "Danışmanlık" sekmesi) AYNI dosyadaki AYNI
+  // dispatcher'a düşer, yalnızca method+son segmente göre dallanır.
+  if (path.startsWith('/api/consultant-bookings')) return handleConsultantBookingsRoute(request, env, url);
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) {
     const projectSlug = path.slice('/api/project/'.length);

@@ -222,6 +222,7 @@
         <button class="admin-tab" data-tab="badges">Rozet Talepleri<span class="admin-tab-dot" data-dot="badges"></span></button>
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
+        <button class="admin-tab" data-tab="consulting">Danışmanlık Satın Alımları<span class="admin-tab-dot" data-dot="consulting"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
       </div>
 
@@ -259,6 +260,11 @@
       <div class="admin-section" id="section-comments">
         <div class="admin-subtabs" id="comments-subtabs"></div>
         <div id="comments-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-consulting">
+        <div class="admin-subtabs" id="consulting-subtabs"></div>
+        <div id="consulting-list"></div>
       </div>
 
       <div class="admin-section" id="section-users">
@@ -638,6 +644,8 @@ const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', reject
 const CORRECTION_STATUS_LABELS = { pending:'Beklemede', resolved:'Çözüldü', dismissed:'Reddedildi' };
 const CLAIM_KIND_LABELS = { ownership:'Sahiplenme Talepleri', correction:'Düzeltme Önerileri' };
 const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
+let consultingStatus = 'pending';
+const CONSULTING_STATUS_LABELS_ADMIN = { pending:'Beklemede', confirmed:'Onaylandı', rejected:'Reddedildi', cancelled:'İptal Edildi' };
 const PROFILE_TYPE_LABELS = { architect:'Mimar', office:'Firma', project:'Proje', product:'Ürün' };
 const BADGE_TYPE_LABELS = { destekci:'Destekçi', verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye' };
 
@@ -761,6 +769,30 @@ async function loadBadgeRequests(){
   });
 }
 
+// "Danışmanlık Satın Alımları" — loadBadgeRequests ile AYNI desen, tek fark bu sekmenin salt
+// listeleme olması (bkz. kullanıcı isteği: "oraya tüm danışmanlık satın alım işlemleri düşsün") —
+// consultation_requests zaten kullanıcı "Ödemeyi Yaptım" dediğinde 'pending' oluşuyor, onay/red
+// akışı bu turda istenmedi.
+async function loadConsultantBookingsAdmin(){
+  renderStatusSubtabs(document.getElementById('consulting-subtabs'), CONSULTING_STATUS_LABELS_ADMIN, consultingStatus, (s)=>{ consultingStatus = s; loadConsultantBookingsAdmin(); }, true);
+  const list = document.getElementById('consulting-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/consultant-bookings?status=${consultingStatus}`);
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda talep yok.</div>'; return; }
+  const statusBadgeClass = { pending:'badge-pending', confirmed:'badge-approved', rejected:'badge-rejected', cancelled:'badge-rejected' };
+  list.innerHTML = items.map(b => `
+    <div class="admin-card" data-id="${b.id}">
+      <div class="admin-card-head">
+        <div>
+          <div class="admin-card-title">${escapeHtml(b.consultant_key)} <span class="admin-badge ${statusBadgeClass[b.status] || 'badge-neutral'}">${CONSULTING_STATUS_LABELS_ADMIN[b.status] || b.status}</span>${b.price_try != null ? ` <span class="admin-badge badge-neutral">₺${b.price_try}</span>` : ''}</div>
+          <div class="admin-card-meta">${escapeHtml(b.user_name)} · ${escapeHtml(b.user_email)} · ${new Date(`${b.requested_date}T00:00:00`).toLocaleDateString('tr-TR')} ${escapeHtml(b.requested_time)} · Talep: ${new Date(b.created_at).toLocaleDateString('tr-TR')}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
 async function loadContactMessages(){
   const list = document.getElementById('contact-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
@@ -878,6 +910,7 @@ async function refreshAdminSummary(){
       badges: data.pendingBadges > 0,
       contact: data.unreadContact > 0,
       comments: data.unseenComments > 0,
+      consulting: data.pendingConsultantBookings > 0,
     };
     Object.entries(dots).forEach(([key, show])=>{
       const dot = document.querySelector(`.admin-tab-dot[data-dot="${key}"]`);
@@ -899,6 +932,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'badges') loadBadgeRequests();
     if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
+    if(tab.dataset.tab === 'consulting') loadConsultantBookingsAdmin();
     if(tab.dataset.tab === 'users') loadUsers();
   });
 });

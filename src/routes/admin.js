@@ -73,6 +73,7 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
   if (sub === 'comments') return handleCommentsAdmin(request, env, url, segments);
+  if (sub === 'consultant-bookings') return handleConsultantBookingsAdmin(request, env, url, segments);
   if (sub === 'migration-conflicts') return handleMigrationConflictsAdmin(request, env, url, segments, user);
   if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
@@ -88,13 +89,14 @@ async function handleAdminSummary(env) {
   );
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultingRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM migration_name_conflicts WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_requests WHERE status = 'pending'`).first(),
   ]);
 
   return json({
@@ -104,6 +106,7 @@ async function handleAdminSummary(env) {
     unreadContact: contactRow?.n || 0,
     pendingMigrationConflicts: migrationRow?.n || 0,
     unseenComments: commentsRow?.n || 0,
+    pendingConsultantBookings: consultingRow?.n || 0,
   });
 }
 
@@ -499,6 +502,27 @@ async function handleBadgesAdmin(request, env, url, segments) {
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);
+}
+
+// GET /api/admin/consultant-bookings?status=... — admin panelinde "Danışmanlık Satın Alımları"
+// sekmesi (bkz. kullanıcı isteği: "admin panelinde de bir sekme aç ve oraya tüm danışmanlık
+// satın alım işlemleri düşsün") — handleBadgesAdmin ile AYNI desen, yalnızca READ-ONLY liste
+// (onay/red akışı istenmedi, consultation_requests zaten kullanıcı "Ödemeyi Yaptım" dediği anda
+// oluşuyor, bkz. src/routes/consultantBookings.js dosya başı yorumu).
+async function handleConsultantBookingsAdmin(request, env, url, segments) {
+  if (segments.length !== 3 || request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  const status = url.searchParams.get('status');
+  const query = status
+    ? env.DB.prepare(
+        `SELECT cr.*, u.name AS user_name, u.email AS user_email FROM consultation_requests cr
+         JOIN users u ON u.id = cr.user_id WHERE cr.status = ? ORDER BY cr.created_at DESC`
+      ).bind(status)
+    : env.DB.prepare(
+        `SELECT cr.*, u.name AS user_name, u.email AS user_email FROM consultation_requests cr
+         JOIN users u ON u.id = cr.user_id ORDER BY cr.created_at DESC`
+      );
+  const { results } = await query.all();
+  return json({ items: results });
 }
 
 // iz-birakan: "İz Bırakanlar" (bkz. kullanıcı isteği) — vefat etmiş mimarlar için siyah rozet,

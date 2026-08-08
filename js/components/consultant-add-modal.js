@@ -2,7 +2,7 @@
 // formu (bkz. kullanıcı isteği). Yeni bir backend uç noktası GEREKMEZ: mevcut self-serve mimar
 // gönderi akışını (POST /api/architects, bkz. src/routes/submissions.js#createSubmission) aynen
 // kullanır, yalnızca ek bir consultant_request:true bayrağı + danışmanlığa özgü alanlar (uzmanlık
-// etiketleri/saatlik ücret/seans süresi/tecrübe/haftalık müsaitlik, bkz. migrations/
+// etiketleri/saatlik ücret/seans süresi/haftalık müsaitlik, bkz. migrations/
 // 0034_consultant_submission_fields.sql) gönderir. Diğer *-ekle.html sayfaları gibi ADMIN ONAYINA
 // düşer (status='pending') — onaylanınca src/lib/canonicalSync.js#syncArchitect/applyConsultantFields
 // architects.is_consultant=1 yazıp profili /danisman'da canlıya alır (bkz. kullanıcı isteği: "admin
@@ -22,6 +22,7 @@ const ConsultantAddModal = (function () {
   let pozisyonDropdown = null;
   let odullerDropdown = null;
   let selectedFiles = [];
+  let existingPhotoUrl = null;
   let universitySuggestions = null; // lazy: ilk açılışta çekilir
 
   function escapeHtml(s) {
@@ -328,11 +329,6 @@ const ConsultantAddModal = (function () {
           </select>
         </div>
       </div>
-      <div class="cam-field">
-        <label class="cam-label" for="cam-experience">Tecrübe (yıl) <small>(opsiyonel)</small></label>
-        <input type="number" id="cam-experience" min="0" step="1" style="max-width:120px;">
-      </div>
-
       <div class="cam-section-title">Haftalık Müsaitlik <small>(opsiyonel)</small></div>
       <div class="cam-slots-days-grid" id="cam-slots-days"></div>
 
@@ -353,7 +349,7 @@ const ConsultantAddModal = (function () {
   // proje-ekle.html'deki wireAutocompleteLive ile AYNI desen: canlı D1 aramasından (bkz.
   // src/routes/architect.js#handleArchitectSearchRoute, src/routes/office.js#handleOfficeSearchRoute)
   // beslenir, 300ms debounce, tek değerli alan (virgülle çoklu isim desteklenmiyor).
-  function wireConsultantAutocomplete(inputId, suggestionsId, searchUrl) {
+  function wireConsultantAutocomplete(inputId, suggestionsId, searchUrl, onSelect) {
     const input = document.getElementById(inputId);
     const box = document.getElementById(suggestionsId);
     let debounceTimer = null;
@@ -368,6 +364,7 @@ const ConsultantAddModal = (function () {
           e.preventDefault();
           input.value = items[i].label;
           close();
+          if (onSelect) onSelect(items[i]);
         });
       });
     }
@@ -422,12 +419,10 @@ const ConsultantAddModal = (function () {
   }
 
   // ---------- Fotoğraf yükleme kutusu — mimar-ekle.html/danisman-ekle.html#dropZone ile AYNI ----------
-  function wireImageDrop() {
-    const dropZone = document.getElementById('cam-image-drop');
-    const fileInput = document.getElementById('cam-image-input');
+  function renderPreviews() {
     const previewGrid = document.getElementById('cam-image-preview-grid');
-    selectedFiles = [];
-    function renderPreviews() {
+    if (!previewGrid) return;
+    if (selectedFiles.length) {
       previewGrid.innerHTML = selectedFiles.map((file, i) => {
         const url = URL.createObjectURL(file);
         return `<div class="cam-image-preview-item"><img src="${url}" alt=""><button type="button" class="cam-image-preview-remove" data-index="${i}" aria-label="Kaldır">✕</button></div>`;
@@ -435,11 +430,23 @@ const ConsultantAddModal = (function () {
       previewGrid.querySelectorAll('.cam-image-preview-remove').forEach(btn => {
         btn.addEventListener('click', () => { selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
       });
+    } else if (existingPhotoUrl) {
+      previewGrid.innerHTML = `<div class="cam-image-preview-item"><img src="${escapeAttr(existingPhotoUrl)}" alt=""><button type="button" class="cam-image-preview-remove" id="cam-remove-existing-photo" aria-label="Kaldır">✕</button></div>`;
+      document.getElementById('cam-remove-existing-photo').addEventListener('click', () => { existingPhotoUrl = null; renderPreviews(); });
+    } else {
+      previewGrid.innerHTML = '';
     }
-    function addFiles(fileList) {
-      selectedFiles = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0, 1);
-      renderPreviews();
-    }
+  }
+  function addFiles(fileList) {
+    selectedFiles = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0, 1);
+    renderPreviews();
+  }
+  function wireImageDrop() {
+    const dropZone = document.getElementById('cam-image-drop');
+    const fileInput = document.getElementById('cam-image-input');
+    selectedFiles = [];
+    existingPhotoUrl = null;
+    renderPreviews();
     fileInput.addEventListener('change', (e) => addFiles(e.target.files));
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -459,6 +466,28 @@ const ConsultantAddModal = (function () {
     return urls;
   }
 
+  // Ad Soyad'dan var olan bir mimar seçilince profildeki bilgileri otomatik doldur — danisman-ekle.html#
+  // prefillFromArchitect ile AYNI desen/uç nokta (bkz. kullanıcı isteği: "Eğer bir kişi ad soyad
+  // kısmından bir mimar profilini seçerse bilgiler otomatik olarak mimar profilinden çekerek dolsun").
+  async function prefillFromArchitect(name) {
+    try {
+      const res = await fetch(`/api/architect/${encodeURIComponent(name)}`);
+      if (!res.ok) return;
+      const payload = await res.json();
+      const a = payload && payload.item;
+      if (!a) return;
+      if (a.dob) document.getElementById('cam-dob').value = String(a.dob).slice(0, 4);
+      document.getElementById('cam-school').value = a.school || '';
+      document.getElementById('cam-office').value = a.office || '';
+      document.getElementById('cam-about').value = a.about || '';
+      meslekDropdown.set(a.profession || null);
+      pozisyonDropdown.set(a.role || null);
+      odullerDropdown.setChecked(a.awards || []);
+      existingPhotoUrl = a.photo || null;
+      renderPreviews();
+    } catch {}
+  }
+
   function wireForm() {
     slotsWorking = emptySlots();
     renderSlotsDays();
@@ -466,7 +495,7 @@ const ConsultantAddModal = (function () {
     pozisyonDropdown = wireSingleDropdown('cam-dd-pozisyon', 'cam-dd-pozisyon-btn', 'cam-dd-pozisyon-btn-label', 'cam-dd-pozisyon-options', POZISYON_OPTIONS, 'Pozisyon seç');
     odullerDropdown = wireMultiDropdown('cam-dd-oduller', 'cam-dd-oduller-btn', 'cam-dd-oduller-btn-label', 'cam-dd-oduller-options', ODUL_OPTIONS, 'award', 'Ödül seç');
     document.getElementById('cam-submit-btn').addEventListener('click', submit);
-    wireConsultantAutocomplete('cam-name', 'cam-name-suggestions', '/api/architects/search');
+    wireConsultantAutocomplete('cam-name', 'cam-name-suggestions', '/api/architects/search', (item) => prefillFromArchitect(item.label));
     wireConsultantAutocomplete('cam-office', 'cam-office-suggestions', '/api/offices/search');
     ensureUniversitySuggestions();
     wireStaticAutocomplete('cam-school', 'cam-school-suggestions', () => universitySuggestions || []);
@@ -493,14 +522,13 @@ const ConsultantAddModal = (function () {
       weekday: d.weekday, times: d.times.map(time => ({ time, available: true })),
     }));
     const expertiseTags = document.getElementById('cam-tags').value.split(',').map(s => s.trim()).filter(Boolean);
-    const experienceRaw = document.getElementById('cam-experience').value;
     const dobRaw = document.getElementById('cam-dob').value;
     const dob = dobRaw ? String(dobRaw).slice(0, 4) : null;
     const school = document.getElementById('cam-school').value.trim();
 
     btn.disabled = true;
     btn.textContent = 'Gönderiliyor…';
-    let photoUrl = null;
+    let photoUrl = existingPhotoUrl;
     try {
       if (selectedFiles.length) photoUrl = (await uploadFiles(selectedFiles))[0];
     } catch (err) {
@@ -524,7 +552,6 @@ const ConsultantAddModal = (function () {
           consultant_request: true,
           hourly_rate: Number(hourlyRateRaw),
           session_duration_min: Number(document.getElementById('cam-duration').value),
-          consultant_experience_years: experienceRaw ? Number(experienceRaw) : null,
           expertise_tags: expertiseTags,
           available_slots: availableSlots,
           photo_url: photoUrl,

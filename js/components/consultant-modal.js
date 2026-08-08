@@ -80,6 +80,19 @@ const ConsultantModal = (function () {
       .cm-insight-desc{font-size:12px; color:var(--ink-soft); margin-top:2px;}
 
       /* ---------- Sağ panel: sticky rezervasyon kutusu ---------- */
+      /* modal-shell.js#.modal-shell-left'i TÜM modallarda (mimar/firma/ürün) varsayılan olarak
+         sticky yapar — o modallarda sol panel kısa (kimlik+künye), sağ panel uzun (ilgili
+         içerik) olduğundan doğru davranış budur. Danışman pop-up'ında ise TERSİ: sol panel artık
+         Yorumlar bölümünü de içerdiğinden (bkz. kullanıcı isteği) sağ panelden UZUN olabiliyor —
+         sol panel sticky kalırsa Yorumlar'ın alt kısmı görünüme hiç girmeden ekranın dışında
+         kalır. Bu yüzden burada, yalnızca /danisman sayfasında (bu dosya danisman.html'DE
+         yüklenir), paylaşılan kuralı geçersiz kılıp sol paneli normal akışa döndürüyoruz — sticky
+         davranış tamamen aşağıdaki .cm-booking'e (sağ panel içindeki satın alma kutusu) taşınır
+         (bkz. kullanıcı isteği: "satın alma kısmı aşağı kaymasın"). Aynı özgüllükte ama modal-
+         shell.js'in stili DAHA SONRA enjekte edildiğinden (bkz. ConsultantModal.open sırası) sıradan
+         kural kaybeder — !important şart.
+      */
+      .modal-shell-left{position:static !important;}
       .cm-booking{position:sticky; top:0; display:flex; flex-direction:column; gap:20px; padding-bottom:24px;}
       .cm-stats{display:flex; gap:24px;}
       .cm-stat{flex:1;}
@@ -209,6 +222,11 @@ const ConsultantModal = (function () {
         .save-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
         .detail-title-actions{gap:8px !important;}
         .cm-time-grid{grid-template-columns:repeat(2, 1fr);}
+        /* Mobil/tablette (bkz. modal-shell.js#display:contents — tüm sol/sağ panel çocukları TEK
+           dikey akışa katılır) Yorumlar en alta iner (bkz. kullanıcı isteği: "tablet ve mobil
+           görünümde yorumlar kısmı en alta gelsin") — architect-modal.js#claim/correction
+           kutularındaki AYNI order:99 deseni. */
+        #cm-comments-section{order:99;}
       }
     `;
     document.head.appendChild(style);

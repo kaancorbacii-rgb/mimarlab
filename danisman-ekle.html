@@ -347,10 +347,6 @@
             </select>
           </div>
         </div>
-        <div class="form-field">
-          <label for="d-experience">Tecrübe (yıl) <span class="opt">(opsiyonel)</span></label>
-          <input type="number" id="d-experience" min="0" step="1" style="max-width:160px;">
-        </div>
       </div>
 
       <div class="form-section">
@@ -614,7 +610,7 @@ async function uploadFiles(files){
 
 // ---------- Otomatik tamamlama: Ad Soyad (var olan mimar kaydı yakalansın) / Firma — canlı D1
 // aramasından beslenir (bkz. consultant-add-modal.js#wireConsultantAutocomplete ile AYNI desen) ----------
-function wireLiveAutocomplete(inputId, suggestionsId, searchUrl){
+function wireLiveAutocomplete(inputId, suggestionsId, searchUrl, onSelect){
   const input = document.getElementById(inputId);
   const box = document.getElementById(suggestionsId);
   let debounceTimer = null;
@@ -629,6 +625,7 @@ function wireLiveAutocomplete(inputId, suggestionsId, searchUrl){
         e.preventDefault();
         input.value = items[i].label;
         close();
+        if(onSelect) onSelect(items[i]);
       });
     });
   }
@@ -650,6 +647,30 @@ function wireLiveAutocomplete(inputId, suggestionsId, searchUrl){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 wireLiveAutocomplete('d-office', 'ac-office-suggestions', '/api/offices/search');
+
+// ---------- Ad Soyad'dan var olan bir mimar seçilince profildeki bilgileri otomatik doldur (bkz.
+// kullanıcı isteği: "Eğer bir kişi ad soyad kısmından bir mimar profilini seçerse bilgiler otomatik
+// olarak mimar profilinden çekerek dolsun") — GET /api/architect/:key architect-modal.js'in kullandığı
+// AYNI tekil profil uç noktası, danışmanlığa özgü alanları (ücret/süre/etiketler) İÇERMEZ, o yüzden
+// yalnızca Kişisel Bilgiler/Firmalar kutularındaki ortak alanlar doldurulur ----------
+async function prefillFromArchitect(name){
+  try{
+    const res = await fetch(`/api/architect/${encodeURIComponent(name)}`);
+    if(!res.ok) return;
+    const payload = await res.json();
+    const a = payload && payload.item;
+    if(!a) return;
+    if(a.dob) document.getElementById('d-dob').value = String(a.dob).slice(0, 4);
+    document.getElementById('d-school').value = a.school || '';
+    document.getElementById('d-office').value = a.office || '';
+    document.getElementById('d-about').value = a.about || '';
+    meslekDropdown.set(a.profession || null);
+    pozisyonDropdown.set(a.role || null);
+    odullerDropdown.setChecked(a.awards || []);
+    existingPhotoUrl = a.photo || null;
+    renderPreviews();
+  }catch{}
+}
 
 let isAdmin = false;
 const currentUserReady = fetch('/api/auth/me').then(res=>{
@@ -693,7 +714,6 @@ async function prefillForClaim(){
     document.getElementById('d-tags').value = (a.expertiseTags || []).join(', ');
     document.getElementById('d-rate').value = a.hourlyRate || '';
     document.getElementById('d-duration').value = String(a.sessionDurationMin || 45);
-    if(a.experienceYears != null) document.getElementById('d-experience').value = a.experienceYears;
     existingPhotoUrl = a.photo || null;
     renderPreviews();
     setSlotsFromTemplate(a.availableSlots);
@@ -744,7 +764,6 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
   const availableSlots = slotsWorking.filter(d => d.times.length).map(d => ({
     weekday: d.weekday, times: d.times.map(time => ({ time, available: true })),
   }));
-  const experienceRaw = document.getElementById('d-experience').value;
   const dobRaw = document.getElementById('d-dob').value;
   const dob = dobRaw ? String(dobRaw).slice(0, 4) : null;
   const school = document.getElementById('d-school').value.trim();
@@ -766,7 +785,6 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
           expertiseTags,
           hourlyRate: Number(hourlyRateRaw),
           sessionDurationMin: Number(document.getElementById('d-duration').value),
-          experienceYears: experienceRaw ? Number(experienceRaw) : null,
           photoUrl,
           availableSlotsTemplate: availableSlots,
         }),
@@ -786,7 +804,6 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
           consultant_request: true,
           hourly_rate: Number(hourlyRateRaw),
           session_duration_min: Number(document.getElementById('d-duration').value),
-          consultant_experience_years: experienceRaw ? Number(experienceRaw) : null,
           expertise_tags: expertiseTags,
           available_slots: availableSlots,
           photo_url: photoUrl,
@@ -841,7 +858,7 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
 });
 
 if(!claimName){
-  wireLiveAutocomplete('d-name', 'ac-name-suggestions', '/api/architects/search');
+  wireLiveAutocomplete('d-name', 'ac-name-suggestions', '/api/architects/search', (item)=> prefillFromArchitect(item.label));
 }
 
 function wireNavSearch(){
