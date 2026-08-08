@@ -124,31 +124,49 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   if (!cacheable) return json(await computeData(), 200, headers);
 
   const cacheKey = cacheKeyFor(pathname);
-  try {
-    // caches.default.match() Cache-Control/max-age'e göre kendi taze/bayat kontrolünü zaten yapar
-    // (süresi geçmiş bir girdi asla dönmez) — burada ayrıca bir TTL kontrolüne gerek yok. Bu PoP'ta
-    // taze bir kopya varsa D1'e HİÇ gidilmeden doğrudan dönülür (en ucuz yol, ETag zaten üzerinde).
-    // İstemci ZATEN bu ETag'e sahipse (If-None-Match eşleşiyorsa) gövdeyi dahi tekrar göndermeden
-    // 304 dönülür — hem D1 hem bant genişliği tasarrufu.
-    const cached = await caches.default.match(cacheKey);
-    if (cached) {
-      const cachedEtag = cached.headers.get('ETag');
-      const ifNoneMatch = request.headers.get('If-None-Match');
-      if (cachedEtag && ifNoneMatch === cachedEtag) {
-        return new Response(null, { status: 304, headers: { ETag: cachedEtag, 'Cache-Control': cached.headers.get('Cache-Control') || '' } });
-      }
-      return cached;
-    }
-  } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev http://) kullanılamayabilir */ }
 
   // ETag HER ZAMAN hesaplanır (yalnızca istek zaten If-None-Match taşıyorsa DEĞİL) — aksi halde
   // ilk istekte (henüz hiçbir ETag'i olmayan bir istemci) hiç ETag dönülmez, istemcinin bir sonraki
   // istekte gönderecek bir değeri olmaz ve conditional request akışı hiçbir zaman devreye giremez
   // (gerçek bulgu: ilk sürümde tam olarak bu hataya düşülmüştü — bkz. Faz 4B doğrulama notları).
-  let etag = null;
-  if (listFingerprint) {
+  // NOT bu değer artık cache HIT yolunda da hesaplanır (aşağıya bkz.) — MISS yolunda tekrar
+  // hesaplanmasın diye burada bir kez üretilip paylaşılır.
+  let freshEtag = null;
+  async function computeFreshEtag() {
+    if (freshEtag !== null) return freshEtag;
+    if (!listFingerprint) return null;
     const fp = await listFingerprint();
-    etag = `W/"${contentHash(`${pathname}::${fp}`)}"`;
+    freshEtag = `W/"${contentHash(`${pathname}::${fp}`)}"`;
+    return freshEtag;
+  }
+
+  try {
+    // caches.default.match() Cache-Control/max-age'e göre kendi taze/bayat kontrolünü zaten yapar
+    // (süresi geçmiş bir girdi asla dönmez) — ama bu yalnızca YAZILDIĞI ANDAKİ s-maxage'a göredir;
+    // aradan geçen sürede invalidatePublicCache() bu PoP'u ATLAMIŞSA (ör. başka bir PoP'tan yazma,
+    // ya da invalidatePublicCache() hiç çağrılmayan bir yazma yolu — ör. doğrudan D1 script/migration)
+    // caches.default hâlâ "taze" sayıp bayat içeriği dönmeye devam eder (gerçek bulgu: bir projenin
+    // kapak görseli D1'de güncellenmiş olsa bile /api/projects bu PoP'ta hâlâ eski sırayı dönüyordu —
+    // bkz. kullanıcı isteği "SANKAI kapak görseli senkron hatası"). listFingerprint verilen uçlarda
+    // (bugün yalnızca /api/projects) bu yüzden HIT yolunda da ucuz parmak izi sorgusuyla gerçek
+    // tazelik doğrulanır — fingerprint uyuşmuyorsa bu girdi bayat sayılıp MISS gibi devam edilir.
+    const cached = await caches.default.match(cacheKey);
+    if (cached) {
+      const cachedEtag = cached.headers.get('ETag');
+      const currentEtag = await computeFreshEtag();
+      const stale = listFingerprint && cachedEtag && currentEtag && cachedEtag !== currentEtag;
+      if (!stale) {
+        const ifNoneMatch = request.headers.get('If-None-Match');
+        if (cachedEtag && ifNoneMatch === cachedEtag) {
+          return new Response(null, { status: 304, headers: { ETag: cachedEtag, 'Cache-Control': cached.headers.get('Cache-Control') || '' } });
+        }
+        return cached;
+      }
+    }
+  } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev http://) kullanılamayabilir */ }
+
+  const etag = await computeFreshEtag();
+  if (etag) {
     const ifNoneMatch = request.headers.get('If-None-Match');
     if (ifNoneMatch === etag) {
       return new Response(null, { status: 304, headers: { ...headers, ETag: etag } });
