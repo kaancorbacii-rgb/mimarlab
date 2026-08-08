@@ -41,8 +41,15 @@ export const SUBMISSION_TYPES = {
   },
   architects: {
     table: 'architect_submissions',
-    fields: ['name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'claimed_profile_key'],
-    arrayFields: ['awards'],
+    // consultant_request/hourly_rate/session_duration_min/expertise_tags/available_slots/
+    // consultant_experience_years — /danisman'daki "Danışman Ekle" pop-up'ının gönderdiği ek alanlar
+    // (bkz. migrations/0034_consultant_submission_fields.sql, kullanıcı isteği). Sıradan bir
+    // "beni mimar olarak ekle" gönderisinde (mimar-ekle.html) bu alanlar hiç gönderilmez, boş kalır.
+    fields: [
+      'name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'claimed_profile_key',
+      'consultant_request', 'hourly_rate', 'session_duration_min', 'expertise_tags', 'available_slots', 'consultant_experience_years',
+    ],
+    arrayFields: ['awards', 'expertise_tags', 'available_slots'],
     required: ['name'],
     urlFields: ['photo_url'],
   },
@@ -142,7 +149,7 @@ export function normalizeSubmission(type, body) {
   const row = {};
   for (const field of config.fields) {
     let value = body[field];
-    if (field === 'ai_generated') {
+    if (field === 'ai_generated' || field === 'consultant_request') {
       value = value ? 1 : 0;
     } else if (config.arrayFields.includes(field)) {
       if (!Array.isArray(value)) value = value ? [value] : [];

@@ -357,6 +357,7 @@ async function syncArchitect(env, row) {
     sets.push(`updated_at = datetime('now')`);
     await env.DB.prepare(`UPDATE architects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     await syncOfficeFounderLink(env, target.id, officeIds);
+    if (row.consultant_request) await applyConsultantFields(env, target.id, row);
     return target;
   }
 
@@ -372,7 +373,28 @@ async function syncArchitect(env, row) {
   await syncOfficeFounderLink(env, architectId, officeIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.
   if (claimedKey) await blacklistLegacyKey(env, row.owner_user_id, 'architects', claimedKey);
+  if (row.consultant_request) await applyConsultantFields(env, architectId, row);
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(architectId).first();
+}
+
+// Danışman Ekle onayı — consultant_request=1 olan bir architect_submissions gönderisi onaylandığında
+// (bkz. migrations/0034_consultant_submission_fields.sql, kullanıcı isteği) architects satırına
+// is_consultant bayrağını ve danışmanlığa özgü alanları yazar. about zaten yukarıdaki UPDATE/INSERT'te
+// architects.about'a kopyalandı — src/routes/consultant.js#renderItem 'a.consultant_bio || a.about'
+// fallback'ini kullandığından ayrıca consultant_bio'ya yazmaya GEREK YOK (consultant_bio yalnızca
+// profil sahibi sonradan inline "Düzenle" panelinden ayrı bir metin girerse dolar).
+async function applyConsultantFields(env, architectId, row) {
+  await env.DB.prepare(
+    `UPDATE architects SET is_consultant = 1, hourly_rate = ?, session_duration_min = ?,
+       expertise_tags = ?, available_slots = ?, consultant_experience_years = ? WHERE id = ?`
+  ).bind(
+    row.hourly_rate || null,
+    row.session_duration_min || 45,
+    (row.expertise_tags && row.expertise_tags.length) ? JSON.stringify(row.expertise_tags) : null,
+    (row.available_slots && row.available_slots.length) ? JSON.stringify(row.available_slots) : null,
+    row.consultant_experience_years || null,
+    architectId
+  ).run();
 }
 
 // Kök neden düzeltmesi (bkz. migrations/0030_project_submission_office.sql, kullanıcı isteği): eskiden

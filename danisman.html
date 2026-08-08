@@ -207,6 +207,23 @@
   .sidebar-price-row{display:flex; align-items:center; gap:8px;}
   .sidebar-price-row input{width:100%; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:9px 10px; font-family:inherit; font-size:13px; color:var(--ink);}
 
+  /* "Danışman Ekle" — proje.html/mimar.html/firma.html/urun.html'in sidebar altındaki AYNI
+     .sidebar-add/.sidebar-add-btn deseni (bkz. kullanıcı isteği: "tasarımı diğer sayfalardaki gibi
+     olsun"), tek fark: <a href> yerine <button> — tıklanınca bir sayfaya gitmek yerine bu dosyanın
+     js/components/consultant-add-modal.js'in kendi pop-up'ını (ConsultantAddModal.open()) açar. */
+  .sidebar-add{padding:16px; border-top:1px solid var(--line-soft);}
+  .sidebar-add-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; background:var(--ink); color:var(--paper-card);
+    padding:12px; border-radius:100px; font-weight:600; font-size:13.5px; border:none; cursor:pointer;
+  }
+  .sidebar-add-btn:hover{background:var(--walnut);}
+  .sidebar-add-icon{
+    display:flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:50%;
+    background:rgba(237,240,243,0.2); font-size:14px; line-height:1;
+  }
+
   .result-bar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
   .result-count{font-size:13px; color:var(--ink-soft); flex:1;}
   .sort-select{position:relative;}
@@ -448,6 +465,7 @@
 <script src="js/components/project-comments.js"></script>
 <script src="js/components/share-button.js"></script>
 <script src="js/components/consultant-modal.js"></script>
+<script src="js/components/consultant-add-modal.js"></script>
 <script>
 // mimar.html'in Legacy Bundle Elimination sonrası deseniyle AYNI: liste/filtre/sayfalama
 // backend'de (/api/consultants) yapılır, tüm danışman listesi hiçbir zaman tarayıcıya inmez.
@@ -585,7 +603,7 @@ async function buildSidebar(){
       <input type="text" id="g-local-search" placeholder="İsim, uzmanlık veya unvan ara..." value="${escapeAttr(localSearchQuery)}">
     </div>`;
   if(tags.length){
-    html += `<div class="filter-group open" data-key="tag">
+    html += `<div class="filter-group" data-key="tag">
       <button class="filter-group-head" data-toggle="tag">Uzmanlık Alanı <span class="filter-group-toggle">+</span></button>
       <div class="filter-group-body" id="fg-tag">
         ${tags.map(t => `
@@ -598,7 +616,7 @@ async function buildSidebar(){
     </div>`;
   }
   if(experience.length){
-    html += `<div class="filter-group open" data-key="experience">
+    html += `<div class="filter-group" data-key="experience">
       <button class="filter-group-head" data-toggle="experience">Tecrübe <span class="filter-group-toggle">+</span></button>
       <div class="filter-group-body" id="fg-experience">
         ${experience.map(e => `
@@ -610,11 +628,14 @@ async function buildSidebar(){
       </div>
     </div>`;
   }
+  html += `<div class="sidebar-add"><button type="button" class="sidebar-add-btn" id="g-add-consultant"><span class="sidebar-add-icon">+</span> Danışman Ekle</button></div>`;
   sidebar.innerHTML = html;
 
   sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
     btn.addEventListener('click', ()=> btn.parentElement.classList.toggle('open'));
   });
+  const addConsultantBtn = document.getElementById('g-add-consultant');
+  if(addConsultantBtn) addConsultantBtn.addEventListener('click', ()=> ConsultantAddModal.open());
   const resetBtn = document.getElementById('g-reset');
   if(resetBtn) resetBtn.addEventListener('click', ()=>{
     activeTags.clear();

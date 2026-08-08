@@ -389,11 +389,26 @@ function claimBadgeHtml(item){
   // claimed_slug: admin'in statik bir projeye (projeler-data.js) yaptığı düzenleme — bkz.
   // src/routes/submissions.js#verifyClaimedSlug, yalnızca admin oluşturabilir, her zaman onaylı.
   if(item.claimed_slug) return `<div class="admin-card-claim-note">✎ Proje düzenlemesi — mevcut slug: ${escapeHtml(item.claimed_slug)}</div>`;
+  // consultant_request: /danisman'daki "Danışman Ekle" pop-up'ından gelen bir gönderi (bkz.
+  // migrations/0034_consultant_submission_fields.sql, kullanıcı isteği) — onaylanınca sadece bir
+  // mimar profili değil, is_consultant=1 aktif bir dinlenme/rezervasyon profili yaratır, bu yüzden
+  // sıradan bir mimar gönderisinden ayırt edici bir rozetle işaretlenir.
+  if(item.consultant_request) return `<div class="admin-card-claim-note">💬 Danışmanlık başvurusu</div>`;
   // ai_generated/source_url: artık kaldırılmış olan AI destekli otomatik ekleme akışıyla oluşturulmuş
   // eski gönderileri işaretler — moderasyonda kaynağı görüp doğrulayabilmek için kaynak linkiyle
   // birlikte belirgin bir rozet olarak gösterilir.
   if(item.ai_generated && item.source_url) return `<div class="admin-card-claim-note">🤖 AI ile eklendi — kaynak: <a href="${escapeAttr(safeUrl(item.source_url))}" target="_blank" rel="noopener">${escapeHtml(item.source_url)}</a></div>`;
   return '';
+}
+
+// Haftalık müsaitlik şablonunu ([{weekday:0-6, times:[{time,available}]}]) admin panelinde okunabilir
+// tek satıra sıkıştırır — consultant-modal.js#WEEKDAY_LABELS ile AYNI kısaltmalar.
+const ADMIN_WEEKDAY_SHORT = { 1:'Pzt', 2:'Sal', 3:'Çar', 4:'Per', 5:'Cum', 6:'Cmt', 0:'Paz' };
+function formatAvailableSlots(slots){
+  if(!slots || !slots.length) return '';
+  return slots.filter(d => d.times && d.times.length)
+    .map(d => `${ADMIN_WEEKDAY_SHORT[d.weekday] || d.weekday} ${d.times.map(t => t.time).join(', ')}`)
+    .join(' · ');
 }
 
 // itemMeta'nın tek satırına sığmayan ek alanları (web sitesi, ödüller, etiketler, başvuru
@@ -405,6 +420,14 @@ function itemDetails(type, item){
   if(type === 'offices' && item.founders && item.founders.length) rows.push(['Kurucular', escapeHtml(item.founders.join(', '))]);
   if(type === 'architects' && item.position) rows.push(['Pozisyon', escapeHtml(item.position)]);
   if(type === 'architects' && item.profession) rows.push(['Meslek', escapeHtml(item.profession)]);
+  if(type === 'architects' && item.consultant_request){
+    if(item.hourly_rate) rows.push(['Saatlik Ücret', `₺${escapeHtml(String(item.hourly_rate))}`]);
+    if(item.session_duration_min) rows.push(['Seans Süresi', `${escapeHtml(String(item.session_duration_min))} dk`]);
+    if(item.consultant_experience_years != null) rows.push(['Tecrübe', `${escapeHtml(String(item.consultant_experience_years))} yıl`]);
+    if(item.expertise_tags && item.expertise_tags.length) rows.push(['Uzmanlık Alanları', escapeHtml(item.expertise_tags.join(', '))]);
+    const slotsText = formatAvailableSlots(item.available_slots);
+    if(slotsText) rows.push(['Haftalık Müsaitlik', escapeHtml(slotsText)]);
+  }
   if(type === 'projects'){
     if(item.category && item.category.length) rows.push(['Kategori', escapeHtml(item.category.join(', '))]);
     if(item.type && item.type.length) rows.push(['Tip', escapeHtml(item.type.join(', '))]);
