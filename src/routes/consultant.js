@@ -258,9 +258,9 @@ async function resolveOfficeId(env, officeName) {
   return row ? row.id : null;
 }
 
-// PATCH /api/consultant/:key  body: {consultantBio?, role?, profession?, officeName?, photoUrl?,
-// expertiseTags?, hourlyRate?, sessionDurationMin?, experienceYears?, availableSlotsTemplate?} —
-// danışmanın kendi
+// PATCH /api/consultant/:key  body: {consultantBio?, role?, profession?, dob?, school?, awards?,
+// officeName?, photoUrl?, expertiseTags?, hourlyRate?, sessionDurationMin?, experienceYears?,
+// availableSlotsTemplate?} — danışmanın kendi
 // profilini (isim hariç — yeniden adlandırma bu uç noktanın kapsamı DIŞINDA) doğrudan yazar (bkz.
 // kullanıcı isteği: danisman-ekle.html?claim= düzenleme sayfası, "düzenleme yapınca danışman
 // gönderisine hemen yansısın") — submission-approval kuyruğunu BİLEREK atlar, zamanlama verisi
@@ -285,6 +285,21 @@ export async function handleConsultantEditRoute(request, env, rawKey) {
   if (typeof body.profession === 'string') {
     fields.push('profession = ?');
     values.push(body.profession.trim().slice(0, 80) || null);
+  }
+  // künye alanları (bkz. buildConsultantPayload'daki AYNI gerekçe) — mimar-ekle.html#Kişisel
+  // Bilgiler kutusuyla birebir aynı Doğum Yılı/Üniversite/Ödüller alanları, danisman-ekle.html'in
+  // ?claim= düzenleme formundan gelir.
+  if (typeof body.dob === 'string' || body.dob === null) {
+    fields.push('dob = ?');
+    values.push(body.dob || null);
+  }
+  if (typeof body.school === 'string') {
+    fields.push('school = ?');
+    values.push(body.school.trim().slice(0, 120) || null);
+  }
+  if (Array.isArray(body.awards)) {
+    fields.push('awards = ?');
+    values.push(JSON.stringify(body.awards.filter(a => typeof a === 'string' && a.trim()).map(a => a.trim())));
   }
   if (typeof body.officeName === 'string') {
     fields.push('office_id = ?');
