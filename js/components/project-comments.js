@@ -22,7 +22,7 @@ const ProjectComments = (function () {
       // href, proje künyesindeki designer-chip ile AYNI kuralı (slugify(name), stored slug değil —
       // bkz. js/components/project-meta.js#designerChipHtml yorumu) izler.
       const cp = c.commenterProfile;
-      const profileHref = cp ? `/${cp.type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(slugify(cp.name))}` : null;
+      const profileHref = cp ? escapeAttr(`/${cp.type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(slugify(cp.name))}`) : null;
       const userInitials = escapeHtml((c.user_name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
       // commenterProfile yoksa (mimar/firma sahiplenmesi olmayan sıradan üye) kendi hesap
       // fotoğrafı (users.photo_url) gösterilir, o da yoksa baş harflere düşülür (kullanıcı isteği).

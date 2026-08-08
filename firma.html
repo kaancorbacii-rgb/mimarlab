@@ -616,14 +616,18 @@ async function render(){
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan firma bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
-  grid.innerHTML = data.items.map(o=>{
+  grid.innerHTML = data.items.map((o, i)=>{
     const logo = logoUrl(o);
     const safeInitialsAttr = escapeAttr(initials(o.name));
     const safeInitialsText = escapeHtml(initials(o.name));
     const logoSrcset = logo ? cdnSrcset(logo, [400, 600, 800]) : '';
+    // İlk sıradaki (i<4, 4 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
+    // çizgisinin üstünde görünür — proje.html#renderProjects'teki AYNI desen/gerekçe (bkz. o
+    // dosyadaki yorum): bu dördü eager + fetchpriority="high", alttakiler lazy kalır.
+    const imgAttrs = i < 4 ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
     return `
     <a class="office-card" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}">
-      <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(cdnImg(logo, 600))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
+      <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(cdnImg(logo, 600))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
       <div class="office-card-body">
         <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
         <div class="office-card-loc">${escapeHtml(o.loc)} · ${escapeHtml((o.cats||'').split(' · ')[0])}</div>

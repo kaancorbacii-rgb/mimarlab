@@ -792,7 +792,7 @@ async function loadCommentsAdmin(){
       <div class="admin-card-head">
         <div>
           <div class="admin-card-title">${escapeHtml(c.user_name)} <span class="admin-badge ${c.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${COMMENT_STATUS_LABELS[c.status] || c.status}</span></div>
-          <div class="admin-card-meta">${COMMENT_TARGET_LABELS[c.targetType] || c.targetType}: ${c.targetHref ? `<a href="${c.targetHref}" target="_blank">${escapeHtml(c.targetLabel)}</a>` : escapeHtml(c.targetLabel)} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
+          <div class="admin-card-meta">${COMMENT_TARGET_LABELS[c.targetType] || c.targetType}: ${c.targetHref ? `<a href="${escapeAttr(c.targetHref)}" target="_blank">${escapeHtml(c.targetLabel)}</a>` : escapeHtml(c.targetLabel)} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
         <div class="admin-actions">
           ${c.status === 'pending' ? `<button class="admin-btn primary" data-action="approve">Onayla</button>` : ''}

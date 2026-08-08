@@ -613,12 +613,16 @@ async function render(){
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan mimar bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
-  grid.innerHTML = data.items.map(a=>{
+  grid.innerHTML = data.items.map((a, i)=>{
     const sub = a.office || a.positionRaw || '';
     const photoSrcset = a.photo ? cdnSrcset(a.photo, [400, 600, 800]) : '';
+    // İlk sıradaki (i<4, 4 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
+    // çizgisinin üstünde görünür — proje.html#renderProjects'teki AYNI desen/gerekçe (bkz. o
+    // dosyadaki yorum): bu dördü eager + fetchpriority="high", alttakiler lazy kalır.
+    const imgAttrs = i < 4 ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
     return `
     <a class="person-card" href="/mimar/${encodeURIComponent(a.slug || slugify(a.name))}">
-      <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
+      <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
       <div class="person-card-body">
         <div class="person-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
         ${sub ? `<div class="person-card-office">${escapeHtml(sub)}</div>` : ''}
