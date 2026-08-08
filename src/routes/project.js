@@ -28,9 +28,9 @@ const DESIGNER_SEP = '';
 // COALESCE edilerek aşağıdaki OFFICE_NAMES_SQL sütununu besler.
 const DESIGNER_JOIN_SQL = `
   LEFT JOIN project_designers pd ON pd.project_id = p.id
-  LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
-  LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
-  LEFT JOIN offices ar_ofc ON ar_ofc.id = ar.office_id AND ar_ofc.deleted_at IS NULL
+  LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+  LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL AND ofc.hidden_at IS NULL
+  LEFT JOIN offices ar_ofc ON ar_ofc.id = ar.office_id AND ar_ofc.deleted_at IS NULL AND ar_ofc.hidden_at IS NULL
 `;
 // office_names GROUP_CONCAT sütunu — designer_names'ten AYRI tutulur çünkü designer_names künyede
 // görünen HAM tasarımcı isimlerini (mimar veya ofis) taşımaya devam etmeli; office_names yalnızca
@@ -80,8 +80,8 @@ async function fetchDesignerDetails(env, projectId) {
             ar.name AS ar_name, ar.slug AS ar_slug, ar.photo_url AS ar_photo,
             ofc.name AS ofc_name, ofc.slug AS ofc_slug, ofc.logo_url AS ofc_logo
      FROM project_designers pd
-     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
-     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL AND ofc.hidden_at IS NULL
      WHERE pd.project_id = ?`
   ).bind(projectId).all();
   return results
