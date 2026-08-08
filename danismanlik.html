@@ -6,25 +6,25 @@
 <meta name="color-scheme" content="light only">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
-<title>Online Mimari Danışmanlık & Mentörlük — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük seansı ayırt." id="meta-description">
+<title>Danışman — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük görüşmesi ayırt." id="meta-description">
 <link rel="canonical" href="https://mimarlab.com/danismanlik" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Online Mimari Danışmanlık & Mentörlük — MİMARLAB" id="og-title">
-<meta property="og:description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük seansı ayırt." id="og-description">
+<meta property="og:title" content="Danışman — MİMARLAB" id="og-title">
+<meta property="og:description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük görüşmesi ayırt." id="og-description">
 <meta property="og:url" content="https://mimarlab.com/danismanlik" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Online Mimari Danışmanlık & Mentörlük — MİMARLAB" id="twitter-title">
-<meta name="twitter:description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük seansı ayırt." id="twitter-description">
+<meta name="twitter:title" content="Danışman — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük görüşmesi ayırt." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <!-- mimar.html#list-jsonld ile AYNI desen — /danismanlik/:slug detay görünümünde ConsultantModal
      (bkz. js/components/consultant-modal.js) kendi Person şemasını AYRI bir <script id="cs-ld-json">
      olarak ekler. -->
 <script type="application/ld+json" id="list-jsonld">
-{"@context":"https://schema.org","@type":"CollectionPage","name":"Online Mimari Danışmanlık & Mentörlük — MİMARLAB","url":"https://mimarlab.com/danismanlik","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Danışman — MİMARLAB","url":"https://mimarlab.com/danismanlik","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
 <!-- mimar.html'deki AYNI gerekçe: /danismanlik dışında /danismanlik/:slug altında da servis edilir. -->
 <base href="/">
@@ -155,34 +155,81 @@
   .filter-select select:hover{border-color:var(--walnut);}
   .select-arrow{position:absolute; right:14px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
 
-  /* ---------- TOOLBAR (ADPList Explore tarzı arama binası — bkz. kullanıcı isteği) ---------- */
-  .consult-toolbar{max-width:1260px; margin:0 auto; padding:20px 32px 0; display:flex; flex-direction:column; gap:14px;}
-  .consult-search{display:flex; align-items:center; gap:10px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:13px 20px;}
-  .consult-search svg{flex-shrink:0; opacity:0.5;}
-  .consult-search input{border:none; background:none; outline:none; font-family:inherit; font-size:15px; width:100%; color:var(--ink);}
-  .consult-toolbar-row{display:flex; align-items:center; gap:12px;}
-  .consult-chip-row{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; flex:1; padding-bottom:2px;}
-  .consult-chip-row::-webkit-scrollbar{display:none;}
-  .consult-chip{flex-shrink:0; padding:8px 16px; border-radius:100px; border:1px solid var(--line); background:var(--paper-card); font-size:13px; font-weight:600; color:var(--ink-soft); white-space:nowrap;}
-  .consult-chip:hover{border-color:var(--walnut); color:var(--ink);}
-  .consult-chip.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-  .consult-filter-wrap{position:relative; flex-shrink:0;}
-  .consult-filter-btn{display:flex; align-items:center; gap:8px; padding:10px 18px; border-radius:100px; border:1px solid var(--line); background:var(--paper-card); font-size:13.5px; font-weight:600; color:var(--ink);}
-  .consult-filter-btn:hover{border-color:var(--walnut);}
-  .consult-filter-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-  .consult-filter-panel{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:50; background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:0 12px 28px rgba(27,42,61,0.15); min-width:240px; flex-direction:column; gap:12px;}
-  .consult-filter-panel.open{display:flex;}
-  .consult-filter-panel label{font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em;}
-  .consult-price-row{display:flex; align-items:center; gap:8px;}
-  .consult-price-row input{width:100%; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:9px 10px; font-family:inherit; font-size:13px; color:var(--ink);}
-  .consult-filter-apply{background:var(--ink); color:var(--paper-card); border-radius:100px; padding:10px; font-weight:600; font-size:13px;}
-  .consult-filter-apply:hover{background:var(--walnut);}
-  .consult-filter-reset{background:none; border:1px solid var(--line); border-radius:100px; padding:9px; font-weight:600; font-size:13px; color:var(--ink-soft);}
-  .consult-filter-reset:hover{border-color:var(--walnut); color:var(--ink);}
+  /* ---------- GRID LAYOUT (proje.html ile birebir aynı mizanpaj — bkz. kullanıcı isteği) ---------- */
+  .grid-layout{
+    max-width:1260px; margin:0 auto;
+    padding:20px 32px 90px;
+    display:grid; grid-template-columns:250px 1fr;
+    gap:28px; align-items:start;
+  }
+  .grid-sidebar{
+    position:sticky; top:90px;
+    display:flex; flex-direction:column;
+    background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
+    overflow:hidden;
+  }
+  .sidebar-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line-soft);
+  }
+  .sidebar-head-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
+  .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
+  .sidebar-search svg{flex-shrink:0; opacity:0.5;}
+  .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
+  .sidebar-close-btn{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0;
+    border:1px solid var(--line); background:var(--paper-card);
+    color:var(--ink-soft); font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sidebar-close-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .filter-group{border-bottom:1px solid var(--line-soft);}
+  .filter-group:last-of-type{border-bottom:none;}
+  .filter-group-head{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; background:none; border:none; text-align:left;
+    font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .filter-group-head:hover{background:var(--paper-alt);}
+  .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
+  .filter-group-body{display:none; padding:0 16px 14px; max-height:260px; overflow-y:auto;}
+  .filter-group.open .filter-group-body{display:block;}
+  .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
+  .filter-opt{
+    display:flex; align-items:center; gap:8px;
+    padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;
+  }
+  .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
+  .filter-opt:hover{color:var(--ink);}
+  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .sidebar-price{padding:14px 16px;}
+  .sidebar-price-label{font-size:14px; font-weight:600; color:var(--ink); margin-bottom:10px;}
+  .sidebar-price-row{display:flex; align-items:center; gap:8px;}
+  .sidebar-price-row input{width:100%; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:9px 10px; font-family:inherit; font-size:13px; color:var(--ink);}
+
+  .result-bar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .result-count{font-size:13px; color:var(--ink-soft); flex:1;}
+  .sort-select{position:relative;}
+  .sort-select select{
+    appearance:none; -webkit-appearance:none;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:100px; padding:9px 32px 9px 16px;
+    font-size:13px; font-weight:500; color:var(--ink); font-family:inherit;
+  }
+  .sort-select select:hover{border-color:var(--walnut);}
+  .sort-arrow{position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
+
+  .active-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .active-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--ink); color:var(--paper-card);
+    border-radius:100px; padding:6px 8px 6px 14px; font-size:12.5px; font-weight:600;
+  }
+  .active-chip button{background:none; border:none; color:var(--paper-card); opacity:0.7; display:flex; padding:2px;}
+  .active-chip button:hover{opacity:1;}
 
   /* ---------- CARD GRID ---------- */
-  .consult-main{max-width:1260px; margin:0 auto; padding:20px 32px 90px;}
-  .card-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:20px;}
+  .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; transition:opacity .15s ease;}
   .consult-card{
     display:block; background:var(--paper-card);
     border:1px solid var(--line-soft); border-radius:14px; overflow:hidden;
@@ -195,7 +242,6 @@
     color:var(--paper-card); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:30px;
   }
   .consult-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .consult-card-ribbon{position:absolute; top:10px; left:10px; background:rgba(27,42,61,0.85); color:#fff; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; padding:5px 10px; border-radius:100px;}
   .consult-card-available{position:absolute; bottom:10px; left:10px; display:flex; align-items:center; gap:5px; background:rgba(79,150,105,0.92); color:#fff; font-size:10.5px; font-weight:700; padding:5px 10px; border-radius:100px;}
   .consult-card-available::before{content:''; width:6px; height:6px; border-radius:50%; background:#fff;}
   .consult-card-body{padding:14px;}
@@ -205,9 +251,6 @@
   }
   .verified-badge-icon{display:inline-flex; align-items:center; color:var(--accent); vertical-align:middle; margin-left:4px; flex-shrink:0;}
   .consult-card-office{font-size:11.5px; color:var(--ink-soft); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .consult-card-stats{font-size:11.5px; color:var(--ink-soft); margin-top:8px;}
-  .consult-card-footer{display:flex; align-items:baseline; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid var(--line-soft); font-size:13px; font-weight:700; color:var(--ink);}
-  .consult-card-footer span{font-size:11px; font-weight:500; color:var(--ink-soft);}
   .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); font-size:14px; display:none;}
 
   .pagination{
@@ -251,7 +294,9 @@
   .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
 
   @media (max-width:960px){
-    .card-grid{grid-template-columns:repeat(3, 1fr);}
+    .grid-layout{grid-template-columns:1fr;}
+    .grid-sidebar{position:static;}
+    .content-grid{grid-template-columns:repeat(3, 1fr);}
   }
   @media (max-width:960px){
     .nav{padding:10px 18px; gap:10px;}
@@ -264,10 +309,8 @@
   @media (max-width:720px){
     .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
     .page-head{padding:20px 16px 0;}
-    .consult-toolbar{padding:16px 16px 0;}
-    .consult-toolbar-row{flex-wrap:wrap;}
-    .consult-main{padding:16px 16px 70px;}
-    .card-grid{grid-template-columns:repeat(2, 1fr); gap:12px;}
+    .grid-layout{padding:16px 16px 70px; gap:16px;}
+    .content-grid{grid-template-columns:1fr 1fr; gap:12px;}
     .consult-card-name{font-size:13px;}
     .consult-card-body{padding:9px 10px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
@@ -289,6 +332,7 @@
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
 <script src="save-widget.js"></script>
+<script src="rating-widget.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -327,59 +371,36 @@
   <div class="breadcrumb-bar">
     <a href="index.html">Ana Sayfa</a>
     <span class="sep">›</span>
-    <span class="current">Danışmanlık</span>
+    <span class="current">Danışman</span>
   </div>
 
   <div class="page-head">
-    <h1>Online Mimari Danışmanlık & Mentörlük</h1>
-    <p id="result-count"></p>
+    <h1>Danışman</h1>
+    <p>MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık ve mentörlük görüşmesi ayırt.</p>
   </div>
 
-  <div class="consult-toolbar">
-    <div class="consult-search">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="cs-search" placeholder="İsim, uzmanlık alanı veya unvan ile ara">
-    </div>
-    <div class="consult-toolbar-row">
-      <div class="consult-chip-row" id="cs-chip-row"></div>
-      <div class="consult-filter-wrap">
-        <button class="consult-filter-btn" id="cs-filter-btn" type="button" aria-haspopup="true" aria-expanded="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-          Filtreler
-        </button>
-        <div class="consult-filter-panel" id="cs-filter-panel">
-          <div>
-            <label>Ücret Aralığı</label>
-            <div class="consult-price-row">
-              <input type="number" min="0" id="cs-min-price" placeholder="Min ₺">
-              <span>—</span>
-              <input type="number" min="0" id="cs-max-price" placeholder="Max ₺">
-            </div>
-          </div>
-          <div>
-            <label>Sırala</label>
-            <div class="filter-select">
-              <select id="cs-sort">
-                <option value="" selected>En Çok Seans</option>
-                <option value="availability">Müsaitliğe Göre</option>
-                <option value="price_asc">Fiyat: Azdan Çoğa</option>
-                <option value="price_desc">Fiyat: Çoktan Aza</option>
-              </select>
-              <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-            </div>
-          </div>
-          <button class="consult-filter-apply" id="cs-filter-apply" type="button">Uygula</button>
-          <button class="consult-filter-reset" id="cs-filter-reset" type="button">Filtreleri Sıfırla</button>
+  <div class="grid-layout">
+    <aside class="grid-sidebar" id="sidebar"></aside>
+
+    <main>
+      <div class="result-bar">
+        <div class="result-count" id="result-count"></div>
+        <div class="sort-select">
+          <select id="cs-sort">
+            <option value="" selected>En Çok Görüşme</option>
+            <option value="availability">Müsaitliğe Göre</option>
+            <option value="price_asc">Fiyat: Azdan Çoğa</option>
+            <option value="price_desc">Fiyat: Çoktan Aza</option>
+          </select>
+          <svg class="sort-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
         </div>
       </div>
-    </div>
+      <div class="active-chips" id="active-chips"></div>
+      <div class="content-grid" id="card-grid"></div>
+      <div class="empty-state" id="empty-state">Şu anda danışmanlık hizmeti veren bir mimar bulunmuyor. Yakında burada olacağız!</div>
+      <div class="pagination" id="pagination"></div>
+    </main>
   </div>
-
-  <main class="consult-main">
-    <div class="card-grid" id="card-grid"></div>
-    <div class="empty-state" id="empty-state">Şu anda danışmanlık hizmeti veren bir mimar bulunmuyor. Yakında burada olacağız!</div>
-    <div class="pagination" id="pagination"></div>
-  </main>
 
   <footer class="site-footer">
     <div class="footer-top">
@@ -428,41 +449,17 @@
 <script>
 // mimar.html'in Legacy Bundle Elimination sonrası deseniyle AYNI: liste/filtre/sayfalama
 // backend'de (/api/consultants) yapılır, tüm danışman listesi hiçbir zaman tarayıcıya inmez.
+// Sidebar/result-bar/active-chips yapısı proje.html#buildSidebar ile BİREBİR aynı desen (bkz.
+// kullanıcı isteği: "/danismanlik sayfa yapısını birebir /projeler sayfasının mizanpajına
+// dönüştür") — tek fark: proje.html'in çok gruplu FILTER_GROUPS'u yerine burada TEK bir grup
+// (Uzmanlık Alanı, çok-seçmeli) + ayrı bir Ücret Aralığı sayısal aralık kutusu var.
 const PAGE_SIZE = 24;
 let currentPage = 1;
-let searchQuery = '';
-let activeTag = '';
-
-const CATEGORIES = [
-  { label: 'Tümü', tag: '' },
-  { label: 'Mimari Danışmanlık', tag: 'Mimari Danışmanlık' },
-  { label: 'İç Mekan & Dekorasyon', tag: 'İç Mekan & Dekorasyon' },
-  { label: 'Portfolyo & Kariyer Mentörlüğü', tag: 'Portfolyo & Kariyer Mentörlüğü' },
-  { label: 'Restorasyon & Ruhsat', tag: 'Restorasyon & Ruhsat' },
-  { label: 'Uygulama & Detay', tag: 'Uygulama & Detay' },
-  { label: '3D & Visualisation', tag: '3D & Visualisation' },
-  { label: 'Geleneksel Konut Mimarisi', tag: 'Geleneksel Konut Mimarisi' },
-  { label: 'Mimaride Dijital Yayıncılık', tag: 'Mimaride Dijital Yayıncılık' },
-  { label: 'Tasarım & Mimarlık Tarihi', tag: 'Tasarım & Mimarlık Tarihi' },
-];
+let localSearchQuery = '';
+const activeTags = new Set();
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-
-function renderChips(){
-  const row = document.getElementById('cs-chip-row');
-  row.innerHTML = CATEGORIES.map(c =>
-    `<button type="button" class="consult-chip${c.tag === activeTag ? ' active' : ''}" data-tag="${escapeAttr(c.tag)}">${escapeHtml(c.label)}</button>`
-  ).join('');
-  row.querySelectorAll('.consult-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeTag = btn.dataset.tag;
-      currentPage = 1;
-      syncBrowserUrl(true);
-      render();
-    });
-  });
-}
 
 function getPageWindowSize(){
   const w = window.innerWidth;
@@ -512,14 +509,17 @@ function renderPagination(totalPages){
 
 function currentQueryParams(){
   const params = new URLSearchParams();
-  const minPrice = document.getElementById('cs-min-price').value;
-  const maxPrice = document.getElementById('cs-max-price').value;
+  // lastMinPrice/lastMaxPrice TEK doğruluk kaynağı — buildSidebar()'ın #cs-min-price/#cs-max-price
+  // input'larını DOM'a async olarak eklemesiyle bu fonksiyonun ilk render() çağrısı yarışabilir
+  // (bkz. gerçek bulgu: doğrudan ?minPrice=... ile gelen bir bağlantıda DOM'dan okumak henüz var
+  // olmayan elementten '' okuyup filtreyi sessizce kaybediyordu) — input change handler'ları zaten
+  // bu değişkenleri güncel tutuyor (bkz. buildSidebar), activeTags/localSearchQuery ile AYNI desen.
+  activeTags.forEach(t => params.append('tag', t));
+  if(lastMinPrice) params.set('minPrice', lastMinPrice);
+  if(lastMaxPrice) params.set('maxPrice', lastMaxPrice);
   const sort = document.getElementById('cs-sort').value;
-  if(activeTag) params.set('tag', activeTag);
-  if(minPrice) params.set('minPrice', minPrice);
-  if(maxPrice) params.set('maxPrice', maxPrice);
   if(sort) params.set('sort', sort);
-  if(searchQuery.trim()) params.set('search', searchQuery.trim());
+  if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
   return params;
 }
 function syncBrowserUrl(push){
@@ -530,16 +530,130 @@ function syncBrowserUrl(push){
   if(newUrl === location.pathname + location.search) return;
   if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
 }
-function applyStateFromUrl(){
+function applyInitialFiltersFromQuery(){
   const params = new URLSearchParams(location.search);
-  activeTag = params.get('tag') || '';
-  document.getElementById('cs-min-price').value = params.get('minPrice') || '';
-  document.getElementById('cs-max-price').value = params.get('maxPrice') || '';
+  params.getAll('tag').forEach(t => activeTags.add(t));
+  localSearchQuery = params.get('search') || '';
+  // Sıralama statik #cs-sort'a hemen uygulanır; min/maxPrice ise buildSidebar()'ın DİNAMİK olarak
+  // oluşturduğu #cs-min-price/#cs-max-price henüz DOM'da yokken çağrıldığından lastMinPrice/
+  // lastMaxPrice değişkenlerine yazılıp buildSidebar() bunları value= olarak kullanır (bkz. o
+  // fonksiyondaki AYNI desen).
   document.getElementById('cs-sort').value = params.get('sort') || '';
-  searchQuery = params.get('search') || '';
-  document.getElementById('cs-search').value = searchQuery;
+  lastMinPrice = params.get('minPrice') || '';
+  lastMaxPrice = params.get('maxPrice') || '';
   const pageParam = parseInt(params.get('page'), 10);
   currentPage = (pageParam > 1) ? pageParam : 1;
+}
+
+function renderActiveChips(){
+  const el = document.getElementById('active-chips');
+  let html = [...activeTags].map(t => `<span class="active-chip">${escapeHtml(t)}<button type="button" data-remove-tag="${escapeAttr(t)}" aria-label="Kaldır">✕</button></span>`).join('');
+  if(lastMinPrice || lastMaxPrice){
+    const label = `₺${lastMinPrice || '0'} — ₺${lastMaxPrice || '∞'}`;
+    html += `<span class="active-chip">${escapeHtml(label)}<button type="button" id="remove-price-chip" aria-label="Kaldır">✕</button></span>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-remove-tag]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      activeTags.delete(btn.dataset.removeTag);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      buildSidebar();
+      render();
+    });
+  });
+  const removePrice = document.getElementById('remove-price-chip');
+  if(removePrice) removePrice.addEventListener('click', ()=>{
+    lastMinPrice = ''; lastMaxPrice = '';
+    const minEl = document.getElementById('cs-min-price');
+    const maxEl = document.getElementById('cs-max-price');
+    if(minEl) minEl.value = '';
+    if(maxEl) maxEl.value = '';
+    currentPage = 1;
+    syncBrowserUrl(true);
+    render();
+  });
+}
+
+// Sidebar — proje.html#buildSidebar ile AYNI desen (tek grup: Uzmanlık Alanı, çok-seçmeli
+// checkbox'lar) + altında ayrı bir Ücret Aralığı kutusu. Seçenek/sayaç kaynağı /api/consultants'ın
+// zaten döndürdüğü filters.tags (bkz. src/routes/consultant.js).
+let lastMinPrice = '', lastMaxPrice = '';
+async function buildSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  let tags = [];
+  try{
+    const res = await fetch(`/api/consultants?${currentQueryParams().toString()}`);
+    if(res.ok){ const data = await res.json(); tags = (data.filters && data.filters.tags) || []; }
+  }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
+
+  let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
+    <div class="sidebar-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="g-local-search" placeholder="İsim, uzmanlık veya unvan ara..." value="${escapeAttr(localSearchQuery)}">
+    </div>`;
+  if(tags.length){
+    html += `<div class="filter-group open" data-key="tag">
+      <button class="filter-group-head" data-toggle="tag">Uzmanlık Alanı <span class="filter-group-toggle">+</span></button>
+      <div class="filter-group-body" id="fg-tag">
+        ${tags.map(t => `
+        <label class="filter-opt">
+          <input type="checkbox" data-key="tag" value="${escapeAttr(t.value)}" ${activeTags.has(t.value)?'checked':''}>
+          <span>${escapeHtml(t.value)}</span>
+          <span class="filter-opt-count">(${t.count})</span>
+        </label>`).join('')}
+      </div>
+    </div>`;
+  }
+  html += `<div class="sidebar-price">
+    <div class="sidebar-price-label">Ücret Aralığı</div>
+    <div class="sidebar-price-row">
+      <input type="number" min="0" id="cs-min-price" placeholder="Min ₺" value="${escapeAttr(lastMinPrice)}">
+      <span>—</span>
+      <input type="number" min="0" id="cs-max-price" placeholder="Max ₺" value="${escapeAttr(lastMaxPrice)}">
+    </div>
+  </div>`;
+  sidebar.innerHTML = html;
+
+  sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=> btn.parentElement.classList.toggle('open'));
+  });
+  const resetBtn = document.getElementById('g-reset');
+  if(resetBtn) resetBtn.addEventListener('click', ()=>{
+    activeTags.clear();
+    localSearchQuery = '';
+    lastMinPrice = ''; lastMaxPrice = '';
+    currentPage = 1;
+    syncBrowserUrl(true);
+    buildSidebar();
+    render();
+  });
+  sidebar.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) activeTags.add(cb.value); else activeTags.delete(cb.value);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      render();
+      renderActiveChips();
+    });
+  });
+  const localSearch = document.getElementById('g-local-search');
+  let sidebarSearchDebounce = null;
+  localSearch.addEventListener('input', (e)=>{
+    localSearchQuery = e.target.value;
+    currentPage = 1;
+    clearTimeout(sidebarSearchDebounce);
+    sidebarSearchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
+  });
+  const minInput = document.getElementById('cs-min-price');
+  const maxInput = document.getElementById('cs-max-price');
+  let priceDebounce = null;
+  [minInput, maxInput].forEach(inp => inp.addEventListener('input', ()=>{
+    lastMinPrice = minInput.value; lastMaxPrice = maxInput.value;
+    currentPage = 1;
+    clearTimeout(priceDebounce);
+    priceDebounce = setTimeout(()=>{ syncBrowserUrl(true); render(); renderActiveChips(); }, 400);
+  }));
 }
 
 let renderRequestId = 0;
@@ -548,7 +662,7 @@ async function render(){
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
-  renderChips();
+  renderActiveChips();
 
   const params = currentQueryParams();
   params.set('page', String(currentPage));
@@ -584,23 +698,18 @@ async function render(){
   empty.style.display = 'none';
 
   grid.innerHTML = data.items.map((a, i)=>{
-    const sub = a.office || a.positionRaw || '';
+    const sub = [a.positionRaw, a.office].filter(Boolean).join(' - ');
     const photoSrcset = a.photo ? cdnSrcset(a.photo, [400, 600, 800]) : '';
     const imgAttrs = i < 4 ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
-    const isTopRated = (a.sessionsCompleted || 0) > 50;
-    const priceLabel = a.hourlyRate ? `${a.sessionDurationMin || 45} Dk / ₺${a.hourlyRate}` : 'Ücret belirtilmemiş';
     return `
     <a class="consult-card" href="/danismanlik/${encodeURIComponent(a.slug || slugify(a.name))}">
       <div class="consult-card-photo" style="background:${officeColor(a.name)}">
         ${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}
-        ${isTopRated ? `<div class="consult-card-ribbon">Top Rated</div>` : ''}
         ${a.available ? `<div class="consult-card-available">Müsait</div>` : ''}
       </div>
       <div class="consult-card-body">
         <div class="consult-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
         ${sub ? `<div class="consult-card-office">${escapeHtml(sub)}</div>` : ''}
-        <div class="consult-card-stats">${a.sessionsCompleted || 0} seans tamamlandı</div>
-        <div class="consult-card-footer">${escapeHtml(priceLabel)}</div>
       </div>
     </a>`;
   }).join('');
@@ -616,49 +725,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   ConsultantModal.open(decodeURIComponent(m[1]), { triggerEl: a });
 });
 
-let searchDebounce = null;
-document.getElementById('cs-search').addEventListener('input', (e)=>{
-  searchQuery = e.target.value;
-  currentPage = 1;
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
-});
 document.getElementById('cs-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
-
-const filterBtn = document.getElementById('cs-filter-btn');
-const filterPanel = document.getElementById('cs-filter-panel');
-filterBtn.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  const willOpen = !filterPanel.classList.contains('open');
-  filterPanel.classList.toggle('open', willOpen);
-  filterBtn.classList.toggle('active', willOpen);
-  filterBtn.setAttribute('aria-expanded', String(willOpen));
-});
-document.addEventListener('click', (e)=>{
-  if(!filterPanel.classList.contains('open')) return;
-  if(!filterPanel.contains(e.target) && e.target !== filterBtn && !filterBtn.contains(e.target)){
-    filterPanel.classList.remove('open');
-    filterBtn.classList.remove('active');
-    filterBtn.setAttribute('aria-expanded', 'false');
-  }
-});
-document.getElementById('cs-filter-apply').addEventListener('click', ()=>{
-  filterPanel.classList.remove('open');
-  filterBtn.classList.remove('active');
-  filterBtn.setAttribute('aria-expanded', 'false');
-  currentPage = 1;
-  syncBrowserUrl(true);
-  render();
-});
-document.getElementById('cs-filter-reset').addEventListener('click', ()=>{
-  document.getElementById('cs-min-price').value = '';
-  document.getElementById('cs-max-price').value = '';
-  document.getElementById('cs-sort').value = '';
-  activeTag = '';
-  currentPage = 1;
-  syncBrowserUrl(true);
-  render();
-});
 
 // Tarayıcı geri/ileri tuşu: /danismanlik/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca danışman
 // modalını güncelle (bkz. mimar.html'deki AYNI desen).
@@ -666,7 +733,8 @@ window.addEventListener('popstate', ()=>{
   const m = location.pathname.match(/^\/danismanlik\/([^/]+)\/?$/);
   if(m){ ConsultantModal.handlePopState(decodeURIComponent(m[1])); return; }
   if(ConsultantModal.isOpen()){ ConsultantModal.handlePopState(null); return; }
-  applyStateFromUrl();
+  applyInitialFiltersFromQuery();
+  buildSidebar();
   render();
 });
 
@@ -768,7 +836,8 @@ document.addEventListener('click', (e)=>{
   if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
 });
 
-applyStateFromUrl();
+applyInitialFiltersFromQuery();
+buildSidebar();
 render().then(()=>{
   // Doğrudan /danismanlik/:slug adresine girildiğinde ya da o adreste F5 yapıldığında danışman
   // modalı otomatik açılsın (bkz. mimar.html'deki AYNI desen) — pushHistory:false: URL zaten doğru.

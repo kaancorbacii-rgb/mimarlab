@@ -47,7 +47,10 @@ export async function handleConsultantListRoute(request, env, url) {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
-    const tagParam = url.searchParams.get('tag') || '';
+    // proje.html#FILTER_GROUPS ile AYNI çok-seçmeli desen (bkz. kullanıcı isteği: "/danismanlik
+    // sayfa yapısını birebir /projeler sayfasının mizanpajına dönüştür") — grup İÇİNDE OR (herhangi
+    // bir seçili etiketi taşıyan danışman geçer), tek grup olduğundan gruplar arası AND yok.
+    const tagParams = new Set(url.searchParams.getAll('tag').filter(Boolean));
     const minPrice = parseInt(url.searchParams.get('minPrice'), 10);
     const maxPrice = parseInt(url.searchParams.get('maxPrice'), 10);
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
@@ -73,7 +76,7 @@ export async function handleConsultantListRoute(request, env, url) {
     });
 
     function passes(a) {
-      if (tagParam && !a.expertiseTags.includes(tagParam)) return false;
+      if (tagParams.size && !a.expertiseTags.some(t => tagParams.has(t))) return false;
       if (!Number.isNaN(minPrice) && (a.hourlyRate == null || a.hourlyRate < minPrice)) return false;
       if (!Number.isNaN(maxPrice) && (a.hourlyRate == null || a.hourlyRate > maxPrice)) return false;
       if (searchQuery) {
@@ -138,6 +141,17 @@ async function buildConsultantPayload(env, key) {
     : null;
   const office = officeRow ? parseCanonicalRow('offices', officeRow) : null;
 
+  // "Projeler" bölümü (bkz. kullanıcı isteği) — src/routes/architect.js#buildArchitectPayload'ın
+  // AYNI relatedProjects sorgusu (mimarın kendisine YA DA bağlı olduğu ofise atanmış projeler).
+  const { results: relatedProjectRows } = await env.DB.prepare(
+    `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND (pd.architect_id = ? OR pd.office_id = ?)`
+  ).bind(a.id, office ? office.id : -1).all();
+  const relatedProjects = relatedProjectRows.map(p => {
+    const parsed = parseCanonicalRow('projects', p);
+    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category };
+  });
+
   // Benzer danışmanlar: aynı ofis VEYA en az bir ortak uzmanlık etiketi paylaşan diğer
   // is_consultant=1 kayıtlar (bkz. plan: "Benzer Danışmanlar" carousel) — LIMIT 6.
   const { results: candidateRows } = await env.DB.prepare(
@@ -166,6 +180,7 @@ async function buildConsultantPayload(env, key) {
   return {
     item,
     office: office ? { name: office.name, loc: office.loc, logo: office.logo_url, badges: [] } : null,
+    relatedProjects,
     similar,
     hidden: !!a.hidden_at,
   };

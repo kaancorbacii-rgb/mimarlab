@@ -6,6 +6,7 @@ import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute, handleNewsListRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
 import { handleConsultantListRoute, handleConsultantRoute } from './routes/consultant.js';
+import { handleConsultantBookingsRoute } from './routes/consultantBookings.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
@@ -523,6 +524,8 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/consultant/')) return handleConsultantRoute(request, env, url, path.slice('/api/consultant/'.length));
+  // "Görüşme Ayarla" Havale/EFT talep akışı (bkz. kullanıcı isteği, src/routes/consultantBookings.js)
+  if (path === '/api/consultant-bookings') return handleConsultantBookingsRoute(request, env, url);
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) {
     const projectSlug = path.slice('/api/project/'.length);

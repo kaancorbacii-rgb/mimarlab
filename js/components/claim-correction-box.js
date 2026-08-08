@@ -173,9 +173,13 @@ function createClaimCorrectionBox(config){
     const adminButtonsHtml = currentUser.role === 'admin' ? `
       <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>
       <button type="button" class="card-delete-btn" id="profile-delete-btn">Sil</button>` : '';
+    // editButtonText — opsiyonel, verilmezse mimar/firma modallarındaki AYNI "Düzenle" varsayılanı
+    // korunur (bkz. kullanıcı isteği: danışman modalında "Profili Düzenle" yazsın — diğer çağıranlar
+    // etkilenmesin diye buraya bir varsayılan değerle eklendi).
+    const editLabel = (config.labels && config.labels.editButtonText) || 'Düzenle';
     slot.innerHTML = `<a class="profile-edit-btn" href="${config.editUrlBase}?claim=${encodeURIComponent(getClaimLinkKey())}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-      Düzenle
+      ${editLabel}
     </a>${adminButtonsHtml}`;
     if(currentUser.role === 'admin'){
       document.getElementById('profile-archive-btn').addEventListener('click', () => runProfileModeration('archive'));
