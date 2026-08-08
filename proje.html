@@ -617,22 +617,15 @@
     position:absolute; left:0; right:0; bottom:0; padding:10px 14px 14px;
     background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
     color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
-    /* bkz. kullanıcı isteği: bu sınıf hiç kesilmiyordu — uzun bir proje ismi position:absolute
-       kutuyu yukarı doğru büyütüp kartın görselinin büyük kısmını kapatıyordu. En fazla 2 satır.
-       line-height/max-height + !important (bkz. kullanıcı isteği, gerçek bulgu: son kelimenin
-       -webkit-line-clamp'e rağmen 3. satıra taştığı bildirildi) — line-height em cinsinden
-       SABİTLENİP max-height tam 2 satırla (2 × 1.25em) sınırlanarak üçüncü satır kesin gizlenir.
-       Alt padding üstten daha büyük tutulur (bkz. kullanıcı isteği: metin kartın alt sınırına
-       yapışmasın, görsel sınırların içinde yukarı çekilsin).
-       gerçek bulgu: sayfanın genelindeki *{box-sizing:border-box} kuralı (bkz. proje.html başı)
-       bu elemana da miras kalıyordu — max-height BORDER-box'a göre hesaplanınca üstteki 24px'lik
-       padding onu neredeyse tamamen yiyor, 2 satırlık metne ~10px kalıyor (1 satırdan bile az) ve
-       ikinci satır kelimenin ortasından kesiliyordu (bkz. kullanıcı ekran görüntüsü). box-sizing
-       burada content-box'a döndürülür ki max-height yalnızca METNE ayrılsın, padding bunun
-       ÜSTÜNE eklensin — kutu toplamda büyür ama .related-card'ın overflow:hidden'ı (yukarısı)
-       hâlâ kartın kendisinden taşmasını engeller. */
-    box-sizing:content-box !important;
-    display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;
+    /* gerçek bulgu: -webkit-line-clamp + text-overflow:ellipsis kombinasyonu tarayıcıya göre
+       tutarsız davranıyordu (bkz. kullanıcı ekran görüntüsü) — bazı durumlarda "…" ekleyip
+       ARDINDAN yine de bir sonraki satırı kısmen gösteriyor, metin kartın dışına taşıyordu.
+       Üç noktalı kırpma TAMAMEN kaldırıldı (bkz. kullanıcı isteği) — kutu artık satır sayısına
+       göre doğal olarak büyür (bottom:0 sabit, yukarı doğru genişler), gerçek satır sayısı ne
+       olursa olsun metin asla ortadan kesilmez/dots eklenmez. .related-card'ın overflow:hidden'ı
+       (yukarısı) tek güvenlik ağı olarak kalır — normal kart boyutlarında (>=105px yükseklik)
+       birkaç satırlık bir başlık bile bu sınıra asla ulaşmaz. */
+    line-height:1.3; word-break:break-word;
   }
   .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
   .related-grid-scroll::-webkit-scrollbar{display:none;}
