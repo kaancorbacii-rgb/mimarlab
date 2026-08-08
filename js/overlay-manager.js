@@ -28,6 +28,12 @@ const OverlayManager = (function () {
     });
     document.querySelectorAll(AUTO_SELECTOR).forEach(el => {
       if (el === exceptEl) return;
+      // exceptEl'in ÜST kapsayıcısını kapatma — gerçek bulgu: hamburger menüsü içindeki arama
+      // kutusunun .nav-search-suggest paneli .nav-mobile-search'ün (dolayısıyla .nav-mobile-menu'nün)
+      // İÇİNDE render ediliyor; panel .open olunca bu kontrol olmadan kendi ebeveyni olan
+      // .nav-mobile-menu de "diğer panel" sayılıp kapatılıyor, kullanıcı arama kutusuna yazar yazmaz
+      // hamburger menüsü kapanıyordu.
+      if (exceptEl && el.contains(exceptEl)) return;
       el.classList.remove('open');
     });
   }

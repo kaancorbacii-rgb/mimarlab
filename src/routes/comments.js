@@ -3,12 +3,15 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { getActiveBadge } from '../lib/badgeAccess.js';
 import { createNotification } from '../lib/notify.js';
+import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
+import { parseCanonicalRow } from '../lib/canonicalRead.js';
 
 const TARGET_TYPES = new Set(['project', 'news', 'architect', 'office']);
 
 export async function handleCommentsRoute(request, env, url) {
-  const segments = url.pathname.split('/').filter(Boolean); // ["api", "comments", maybe id]
+  const segments = url.pathname.split('/').filter(Boolean); // ["api", "comments", maybe "mine"/id]
 
+  if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') return myComments(request, env);
   if (segments.length === 2) {
     if (request.method === 'GET') return listComments(env, url);
     if (request.method === 'POST') return createComment(request, env);
@@ -56,6 +59,49 @@ async function listComments(env, url) {
     return item;
   });
 
+  return json({ items });
+}
+
+// GET /api/comments/mine — hesabim.html'in "Yorumlarım" kutusu için, giriş yapmış kullanıcının
+// yaptığı TÜM yorumları (statüden bağımsız — kendi yorumu, onay bekleyen de dahil) hedefin başlık/
+// görsel/bağlantısıyla zenginleştirip döner. ratings.js#myRatings ile AYNI desen: ratings tablosu
+// gibi comments da hedefi yalnızca (target_type, target_id) doğal anahtarıyla tutuyor, görüntüleme
+// alanlarını KAYDETMİYOR — bu yüzden her satır için canonical satır ayrıca bulunur; 'news' hariç
+// (CANONICAL_TYPE_BY_TARGET'te yok, kendi 'news' tablosundan id'yle çekilir — bkz. haber-detay.html
+// targetId=news.id kullanımı). Sonradan silinmiş/gizlenmiş bir hedefse sessizce atlanır.
+const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
+const HREF_BASE_BY_TARGET = { project: '/projeler/', architect: '/mimar/', office: '/firma/' };
+
+function commentCardShape(targetType, row) {
+  if (targetType === 'project') {
+    const p = parseCanonicalRow('projects', row);
+    return { title: p.title, image: (p.images && p.images[0]) || null, href: HREF_BASE_BY_TARGET.project + encodeURIComponent(p.slug) };
+  }
+  return { title: row.name, image: (targetType === 'architect' ? row.photo_url : row.logo_url) || null, href: HREF_BASE_BY_TARGET[targetType] + encodeURIComponent(row.slug) };
+}
+
+async function myComments(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  const { results } = await env.DB.prepare(
+    'SELECT id, target_type, target_id, body, status, created_at FROM comments WHERE user_id = ? ORDER BY created_at DESC'
+  ).bind(user.id).all();
+
+  const items = [];
+  for (const r of results) {
+    let shaped = null;
+    if (r.target_type === 'news') {
+      const n = await env.DB.prepare('SELECT id, title, image_url FROM news WHERE id = ?').bind(r.target_id).first();
+      if (n) shaped = { title: n.title, image: n.image_url || null, href: '/haberler/' + encodeURIComponent(n.id) };
+    } else {
+      const canonicalType = CANONICAL_TYPE_BY_TARGET[r.target_type];
+      const row = canonicalType ? await findCanonicalRowByNaturalKey(env, canonicalType, r.target_id) : null;
+      if (row && !row.deleted_at && !row.hidden_at) shaped = commentCardShape(r.target_type, row);
+    }
+    if (!shaped) continue;
+    items.push({ id: r.id, type: r.target_type, body: r.body, status: r.status, createdAt: r.created_at, ...shaped });
+  }
   return json({ items });
 }
 

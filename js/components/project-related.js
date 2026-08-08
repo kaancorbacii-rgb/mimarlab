@@ -7,10 +7,12 @@
 //   - ArchitectProjects: item.designerDetails'teki her isim zaten 'architect'/'office' olarak
 //     sınıflandırılmış (bkz. src/routes/project.js#fetchDesignerDetails) — bu yüzden proje-detay.html'in
 //     aksine hangi filtre grubuna (designer/designerOffice) gideceğini tahmin etmeye GEREK YOK.
-//   - RelatedProjects: puan bazlı deterministik skorlama (bkz. kullanıcı isteği ve RelatedProjects
-//     içindeki SCORE sabiti) — mimar/tip/kategori/şehir/ülke/yıl/puan filtreleriyle geniş bir aday
-//     havuzu toplanır, ardından her adayın puanı kaynak projeyle TÜM alanları karşılaştırılarak
-//     hesaplanır (hangi sorgunun adayı getirdiğinden bağımsız).
+//   - RelatedProjects: ağırlıklı yüzde skorlaması (bkz. kullanıcı isteği ve RelatedProjects
+//     içindeki WEIGHT sabiti — Tip %30, Tip Grubu %40, Yıl Yakınlığı %30) — mimar/tip/kategori/
+//     şehir/genel puan filtreleriyle geniş bir aday havuzu toplanır, ardından her adayın skoru
+//     kaynak projeyle YALNIZCA bu 3 alan karşılaştırılarak hesaplanır (hangi sorgunun adayı
+//     getirdiğinden bağımsız); son liste her mount()'ta ağırlıklı-rastgele karıştırılır (bkz.
+//     weightedSample) — popup her açıldığında birebir aynı sıralama/liste çıkmaz.
 const ArchitectProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-same-designer-section', grid: 'pm-same-designer-grid' };
 
@@ -73,12 +75,14 @@ const ArchitectProjects = (function () {
 // uysa bile (örn. hem aynı mimar hem aynı şehir) puanı eksiksiz toplanır.
 const RelatedProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-related-section', grid: 'pm-related-grid' };
-  // Öncelik sırası (bkz. kullanıcı isteği): 1) kategori 2) mimar/ofis 3) şehir/ülke 4) etiket
-  // (veri modelinde ayrı bir "tags" alanı yok — bkz. grep sonucu — en yakın karşılığı "type").
-  // YEAR/RATING düşük ağırlıklı ikincil sinyaller olarak kalır.
-  const SCORE = { CATEGORY: 90, ARCHITECT: 70, CITY: 45, COUNTRY: 35, TYPE: 20, YEAR: 10, RATING: 8 };
-  const YEAR_WINDOW = 5;
-  const RATING_THRESHOLD = 4;
+  // Ağırlıklı yüzde skorlaması (bkz. kullanıcı isteği): Tip Uyum %30 (proje.html'deki "Tip" =
+  // category[] alanı kesişim oranı), Tip Grubu Uyum %40 (proje.html'deki "Tip Grubu" = type[] alanı
+  // kesişim oranı), Yıl Yakınlığı/Eşleşmesi %30 — üçü toplamda 0-100 aralığında tek bir skor verir.
+  // Mimar/ofis, şehir/ülke, puan artık SKORA girmiyor (kullanıcı isteğiyle 3 faktöre daraltıldı) —
+  // ama aday havuzunu zenginleştirmek için ilgili /api/projects sorguları hâlâ gatherCandidateQueries
+  // içinde kalır (bkz. aşağısı).
+  const WEIGHT = { CATEGORY: 30, TYPE: 40, YEAR: 30 };
+  const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
   const RESULT_COUNT = 12;
 
   function cardHtml(p) {
@@ -109,31 +113,34 @@ const RelatedProjects = (function () {
       : { city: info.district || null, country: info.city };
   }
 
+  // Kaynağın alan listesindeki KAÇ değerin adayda da bulunduğunun oranı (kaynak temelli, Jaccard
+  // değil) — kaynağın tek kategorisi/tipi varsa ve aday da onu taşıyorsa tam ağırlık, kaynağın
+  // birden çok değeri varsa kısmi eşleşme kısmi ağırlık alır. Kaynakta alan boşsa (ör. type[] hiç
+  // girilmemiş) o faktör 0 katkı yapar — cezalandırma değil, sadece o sinyalin yokluğu.
+  function matchFraction(sourceArr, candArr) {
+    const source = new Set(sourceArr || []);
+    if (!source.size) return 0;
+    const cand = new Set(candArr || []);
+    let hits = 0;
+    source.forEach(v => { if (cand.has(v)) hits++; });
+    return hits / source.size;
+  }
+
+  function yearProximity(sourceDate, candDate) {
+    const sourceYear = extractYear(sourceDate);
+    const candYear = extractYear(candDate);
+    if (sourceYear == null || candYear == null) return 0;
+    const diff = Math.abs(sourceYear - candYear);
+    if (diff >= YEAR_FULL_ZERO_WINDOW) return 0;
+    return 1 - diff / YEAR_FULL_ZERO_WINDOW;
+  }
+
   function scoreCandidate(source, candidate) {
     if (candidate.slug === source.slug) return -Infinity;
-    let score = 0;
-
-    const sourceDesigners = new Set((source.designerDetails || []).map(d => d.name));
-    if ((candidate.designer || []).some(name => sourceDesigners.has(name))) score += SCORE.ARCHITECT;
-
-    const sourceTypes = new Set(source.type || []);
-    if ((candidate.type || []).some(t => sourceTypes.has(t))) score += SCORE.TYPE;
-
-    const sourceCategories = new Set(source.category || []);
-    if ((candidate.category || []).some(c => sourceCategories.has(c))) score += SCORE.CATEGORY;
-
-    const sourceLoc = locationParts(source.location);
-    const candLoc = locationParts(candidate.location);
-    if (sourceLoc.city && sourceLoc.city === candLoc.city) score += SCORE.CITY;
-    if (sourceLoc.country && sourceLoc.country === candLoc.country) score += SCORE.COUNTRY;
-
-    const sourceYear = extractYear(source.date);
-    const candYear = extractYear(candidate.date);
-    if (sourceYear != null && candYear != null && Math.abs(sourceYear - candYear) <= YEAR_WINDOW) score += SCORE.YEAR;
-
-    if ((candidate.rating || 0) >= RATING_THRESHOLD) score += SCORE.RATING;
-
-    return score;
+    const categoryFrac = matchFraction(source.category, candidate.category);
+    const typeFrac = matchFraction(source.type, candidate.type);
+    const yearFrac = yearProximity(source.date, candidate.date);
+    return categoryFrac * WEIGHT.CATEGORY + typeFrac * WEIGHT.TYPE + yearFrac * WEIGHT.YEAR;
   }
 
   async function fetchByParams(paramList, limit) {

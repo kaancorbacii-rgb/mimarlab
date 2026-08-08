@@ -306,9 +306,14 @@ const ArchitectModal = (function () {
     const infoFactsEl = document.getElementById('am-info-facts');
     const infoFacts = [];
     if (a.dob) infoFacts.push(`<div><strong>Doğum Tarihi:</strong> ${escapeHtml(String(a.dob))}</div>`);
-    if (a.school || a.dept) infoFacts.push(`<div><strong>Üniversite:</strong> ${[a.school, a.dept].filter(Boolean).map(escapeHtml).join(' / ')}</div>`);
+    // Künyede yalnızca okul/meslek adı gösterilir — a.dept (bölüm) ve a.role (pozisyon/unvan, ör.
+    // "Kurucu Ortak") burada BİLEREK dışlanır (bkz. kullanıcı isteği: "Meslek: Kurucu / Mimar" yerine
+    // sadece "Meslek: Mimar"). Bu iki alan başka yerlerde (meslektaş kartları, DEPT_TO_PROFESSION
+    // fallback'i, üstteki başlık satırı) hâlâ kullanıldığından DB'de DEĞİŞTİRİLMEZ, sadece bu
+    // künye satırlarının derlenişinden çıkarılır.
+    if (a.school) infoFacts.push(`<div><strong>Üniversite:</strong> ${escapeHtml(a.school)}</div>`);
     const profession = a.profession || DEPT_TO_PROFESSION[a.dept] || null;
-    if (a.role || profession) infoFacts.push(`<div><strong>Meslek:</strong> ${[a.role, profession].filter(Boolean).map(escapeHtml).join(' / ')}</div>`);
+    if (profession) infoFacts.push(`<div><strong>Meslek:</strong> ${escapeHtml(profession)}</div>`);
     if (a.awards && a.awards.length) infoFacts.push(`<div><strong>Ödüller:</strong> ${a.awards.map(escapeHtml).join(', ')}</div>`);
     infoFactsEl.innerHTML = infoFacts.join('');
     infoFactsEl.style.display = infoFacts.length ? '' : 'none';

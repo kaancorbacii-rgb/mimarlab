@@ -558,6 +558,19 @@ const AuthModal = (function () {
       </div>
 
       <div class="dash-section">
+        <h2>Yorumlarım</h2>
+        <div class="saved-filter" id="am-comments-filter">
+          <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+          <button type="button" class="saved-filter-btn" data-filter="news">Haber</button>
+          <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+          <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+        </div>
+        <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
+        <div class="dash-pagination" id="am-comments-pagination"></div>
+      </div>
+
+      <div class="dash-section">
         <h2>Rozet Ayrıcalıklarından Faydalan</h2>
         <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
         <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
@@ -860,6 +873,62 @@ const AuthModal = (function () {
       renderDashPagination('am-rated-pagination', ratedPage, totalPages, (p) => { ratedPage = p; renderRated(); });
     }
 
+    let commentItems = [];
+    let commentsFilter = '';
+    let commentsPage = 1;
+    async function loadComments() {
+      const res = await fetch('/api/comments/mine');
+      const data = res.ok ? await res.json() : { items: [] };
+      commentItems = data.items || [];
+      renderComments();
+    }
+    function renderComments() {
+      const container = document.getElementById('am-dash-comments');
+      const items = commentsFilter ? commentItems.filter(it => it.type === commentsFilter) : commentItems;
+      if (!commentItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
+        document.getElementById('am-comments-pagination').innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde bir yorumun yok.</div>';
+        document.getElementById('am-comments-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (commentsPage > totalPages) commentsPage = totalPages;
+      const startIdx = (commentsPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(it => `
+        <div class="saved-row" data-id="${escapeAttr(it.id)}">
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
+            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
+              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''} · ${escapeHtml(it.body.length > 80 ? it.body.slice(0, 77) + '…' : it.body)}</div>
+            </div>
+          </a>
+          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
+        </div>`).join('');
+      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.saved-row');
+          btn.disabled = true;
+          await fetch(`/api/comments/${encodeURIComponent(row.dataset.id)}`, { method: 'DELETE' });
+          loadComments();
+        });
+      });
+      renderDashPagination('am-comments-pagination', commentsPage, totalPages, (p) => { commentsPage = p; renderComments(); });
+    }
+    on('am-comments-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      commentsFilter = btn.dataset.filter;
+      commentsPage = 1;
+      document.querySelectorAll('#am-comments-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderComments();
+    });
+
     on('am-rated-filter', 'click', (e) => {
       const btn = e.target.closest('.saved-filter-btn');
       if (!btn) return;
@@ -1070,7 +1139,7 @@ const AuthModal = (function () {
 
     loadUser().then(() => {
       if (accountUser) {
-        loadSubmissions(); loadSaved(); loadRated(); loadBadges(); loadMyClaims(); loadNotifications();
+        loadSubmissions(); loadSaved(); loadRated(); loadComments(); loadBadges(); loadMyClaims(); loadNotifications();
         if (new URLSearchParams(window.location.search).get('payment') === 'success') {
           document.getElementById('am-payment-success-banner').style.display = 'block';
         }
