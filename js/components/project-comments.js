@@ -3,12 +3,20 @@
 // yetki mantığı (bkz. kullanıcı isteği: v1'de yalnızca mevcut düz liste, reply/like YOK — ayrı bir
 // işe bırakıldı). Tek fark: sabit sayfa id'leri yerine bir konteyner elemanı alır (bkz. kullanıcı
 // isteği: modüler, ileride başka bir varlık modalında da kullanılabilir bir yapı).
+//
+// targetType (mount()'un 4. argümanı, options.targetType) — varsayılan 'project', consultant-modal.js
+// bunu 'architect' vererek AYNI bileşeni danışman profilinin (bir architects satırı, bkz. o dosyanın
+// dosya başı yorumu) yorumları için yeniden kullanır (bkz. kullanıcı isteği: Değerlendirmeler
+// sekmesine standart yorum bileşeni). Sahiplik/moderasyon kontrolü hedefe göre DEĞİŞİR: 'project' için
+// gönderi sahipliği + aktif rozet (mevcut davranış, DEĞİŞMEDİ); 'architect'/'office' için
+// src/routes/comments.js#canDeleteComment'teki AYNI kural — profile_claims'te onaylı sahiplik yeterli,
+// rozet ŞARTI YOK.
 const ProjectComments = (function () {
   const DEFAULT_IDS = { count: 'pm-comments-count', formWrap: 'pm-comment-form-wrap', list: 'pm-comments-list' };
   let canModerate = false;
 
-  async function loadComments(targetId, ids) {
-    const res = await fetch(`/api/comments?targetType=project&targetId=${encodeURIComponent(targetId)}`);
+  async function loadComments(targetId, ids, targetType) {
+    const res = await fetch(`/api/comments?targetType=${encodeURIComponent(targetType)}&targetId=${encodeURIComponent(targetId)}`);
     const data = res.ok ? await res.json() : { items: [] };
     const items = data.items || [];
     document.getElementById(ids.count).textContent = items.length;
@@ -48,13 +56,13 @@ const ProjectComments = (function () {
         btn.disabled = true;
         try {
           const res = await fetch(`/api/comments/${btn.dataset.id}`, { method: 'DELETE' });
-          if (res.ok) loadComments(targetId, ids);
+          if (res.ok) loadComments(targetId, ids, targetType);
         } finally { btn.disabled = false; }
       });
     });
   }
 
-  function renderCommentForm(targetId, ids) {
+  function renderCommentForm(targetId, ids, targetType) {
     const wrap = document.getElementById(ids.formWrap);
     if (!currentUser) {
       wrap.innerHTML = `<div class="comment-login-note">Yorum yapmak için <a href="giris-yap.html">giriş yap</a>.</div>`;
@@ -78,7 +86,7 @@ const ProjectComments = (function () {
       try {
         const res = await fetch('/api/comments', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetType: 'project', targetId, body }),
+          body: JSON.stringify({ targetType, targetId, body }),
         });
         // Yorum admin onayına düşer, hemen listede görünmez (bkz. src/routes/comments.js#listComments
         // status='approved' filtresi, kullanıcı isteği: yorum moderasyonu) — bu yüzden loadComments()
@@ -92,23 +100,32 @@ const ProjectComments = (function () {
     });
   }
 
-  async function mount(container, slug, ids) {
+  async function mount(container, slug, ids, options) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
+    const targetType = (options && options.targetType) || 'project';
     canModerate = false;
     await savedWidgetReady;
     if (currentUser) {
       try {
-        const [projRes, badgesRes] = await Promise.all([fetch('/api/projects/mine'), fetch('/api/badges/mine')]);
-        const data = projRes.ok ? await projRes.json() : { items: [] };
-        const isOwner = (data.items || []).some(it => it.slug === slug);
-        const badgesData = badgesRes.ok ? await badgesRes.json() : { items: [] };
-        const now = Date.now();
-        const hasActiveBadge = (badgesData.items || []).some(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
-        canModerate = isOwner && hasActiveBadge;
+        if (targetType === 'project') {
+          const [projRes, badgesRes] = await Promise.all([fetch('/api/projects/mine'), fetch('/api/badges/mine')]);
+          const data = projRes.ok ? await projRes.json() : { items: [] };
+          const isOwner = (data.items || []).some(it => it.slug === slug);
+          const badgesData = badgesRes.ok ? await badgesRes.json() : { items: [] };
+          const now = Date.now();
+          const hasActiveBadge = (badgesData.items || []).some(b => b.status === 'active' && (!b.expires_at || b.expires_at > now));
+          canModerate = isOwner && hasActiveBadge;
+        } else {
+          // architect/office — src/routes/comments.js#canDeleteComment ile AYNI kural: rozet
+          // ŞARTI YOK, yalnızca bu profil için onaylı bir profile_claims kaydı yeterli.
+          const res = await fetch(`/api/claims/status?profileType=${targetType}&profileKey=${encodeURIComponent(slug)}`);
+          const data = res.ok ? await res.json() : { status: 'none' };
+          canModerate = data.status === 'approved';
+        }
       } catch { /* yetki kontrolü başarısız — güvenli varsayılan: canModerate=false */ }
     }
-    renderCommentForm(slug, mergedIds);
-    await loadComments(slug, mergedIds);
+    renderCommentForm(slug, mergedIds, targetType);
+    await loadComments(slug, mergedIds, targetType);
   }
 
   return { mount };

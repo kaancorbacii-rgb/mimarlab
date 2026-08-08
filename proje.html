@@ -614,14 +614,16 @@
   .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
   .related-card-title{
-    position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
+    position:absolute; left:0; right:0; bottom:0; padding:10px 14px 14px;
     background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
     color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
     /* bkz. kullanıcı isteği: bu sınıf hiç kesilmiyordu — uzun bir proje ismi position:absolute
        kutuyu yukarı doğru büyütüp kartın görselinin büyük kısmını kapatıyordu. En fazla 2 satır.
        line-height/max-height + !important (bkz. kullanıcı isteği, gerçek bulgu: son kelimenin
        -webkit-line-clamp'e rağmen 3. satıra taştığı bildirildi) — line-height em cinsinden
-       SABİTLENİP max-height tam 2 satırla (2 × 1.25em) sınırlanarak üçüncü satır kesin gizlenir. */
+       SABİTLENİP max-height tam 2 satırla (2 × 1.25em) sınırlanarak üçüncü satır kesin gizlenir.
+       Alt padding üstten daha büyük tutulur (bkz. kullanıcı isteği: metin kartın alt sınırına
+       yapışmasın, görsel sınırların içinde yukarı çekilsin). */
     display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;
   }
   .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}

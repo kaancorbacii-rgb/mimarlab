@@ -163,6 +163,36 @@ const ConsultantModal = (function () {
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
 
+      /* ---------- Değerlendirmeler sekmesi: yorum listesi/formu — proje.html'deki AYNI
+         .comment-*/.comments-* kuralları (bkz. kullanıcı isteği: standart MİMARLAB yorum yapısı,
+         js/components/project-comments.js). danisman.html'in kendi :root'unda proje.html'in Design
+         Token katmanı (--color-primary vb.) yok, bu yüzden burada doğrudan bu sayfanın kendi
+         --ink/--walnut/--paper-card token'larıyla eşdeğerleri yazılır (bkz. kullanıcı isteği). ---------- */
+      .comments-section{margin-top:24px; padding-top:20px; border-top:1px solid var(--line);}
+      .comments-title{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin:0 0 14px;}
+      .comment-form-wrap{margin-bottom:18px;}
+      .comment-input-wrap{position:relative;}
+      .comment-form textarea{width:100%; min-height:80px; padding:12px 108px 50px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
+      .comment-input-wrap .comment-submit-btn{position:absolute; right:8px; bottom:8px;}
+      .comment-submit-btn{background:var(--ink); color:var(--paper-card); padding:8px 16px; border-radius:999px; font-weight:600; font-size:12px; line-height:1.2; border:none;}
+      .comment-submit-btn:hover{background:var(--walnut);}
+      .comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
+      .comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
+      .comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
+      .comment-submit-notice{margin:10px 0 0; font-size:12.5px; color:var(--sage);}
+      .comment-row{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line-soft);}
+      .comment-row:last-child{border-bottom:none;}
+      .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; flex-shrink:0; position:relative; overflow:hidden;}
+      a.comment-avatar{text-decoration:none;}
+      .comment-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+      .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+      .comment-meta strong{color:var(--ink); font-weight:600;}
+      .comment-author-link{color:inherit; text-decoration:none;}
+      .comment-author-link:hover{text-decoration:underline;}
+      .comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:4px; text-decoration:underline; padding:0;}
+      .comment-delete-btn:hover{color:#c0392b;}
+      .comment-body-text{margin:0; font-size:13.5px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}
+
       /* ---------- Havale/EFT ödeme pop-up'ı — satin-al.html'in AYNI ödeme yöntemi UI'ı (bkz.
          kullanıcı isteği), ModalShell'in ÜSTÜNDE (z-index) ayrı bir hafif overlay. ---------- */
       .cm-payment-overlay{
@@ -248,6 +278,11 @@ const ConsultantModal = (function () {
     <div class="cm-tab-panel" id="cm-tab-reviews">
       <div class="cm-rating-summary" id="cm-rating-summary"></div>
       <div class="cm-tab-empty" id="cm-rating-empty" style="display:none;">Henüz değerlendirme yok — ilk değerlendirmeyi sen yap.</div>
+      <div class="comments-section" id="cm-comments-section" aria-live="polite">
+        <h2 class="comments-title">Yorumlar (<span id="pm-comments-count">0</span>)</h2>
+        <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
+        <div class="comments-list" id="pm-comments-list"></div>
+      </div>
     </div>`;
 
   const RIGHT_TEMPLATE = `
@@ -774,6 +809,12 @@ const ConsultantModal = (function () {
     actionsEl.appendChild(ratingEl);
     mountRatingWidget(ratingEl);
     loadRatingSummary(a.name);
+    // Değerlendirmeler sekmesindeki standart yorum bileşeni — proje/mimar pop-up'larındaki AYNI
+    // js/components/project-comments.js, targetType:'architect' ile (bkz. kullanıcı isteği: danışman
+    // profili zaten bir architects satırı, bkz. dosya başı yorumu) — yeni bir backend GEREKMEZ.
+    if (typeof ProjectComments !== 'undefined') {
+      ProjectComments.mount(document.getElementById('cm-comments-section'), a.name, null, { targetType: 'architect' });
+    }
 
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
