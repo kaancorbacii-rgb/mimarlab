@@ -63,6 +63,16 @@ const ConsultantAddModal = (function () {
       .cam-notice{display:none; margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
       .cam-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
       .cam-notice.show{display:block;}
+      .cam-ac-field{position:relative;}
+      .cam-ac-suggestions{
+        display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+        box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
+      }
+      .cam-ac-suggestions.show{display:block;}
+      .cam-ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
+      .cam-ac-suggestion:hover{background:var(--paper-alt);}
+      .cam-ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
       @media (max-width:520px){ .cam-row{grid-template-columns:1fr;} }
     `;
     document.head.appendChild(style);
@@ -122,19 +132,21 @@ const ConsultantAddModal = (function () {
   function formHtml() {
     return `
       <h2>Danışman Ekle</h2>
-      <p class="cam-hint">Bilgilerin gönderiminden sonra ekibimiz inceleyip onaylayacak — onaylandığında profilin /danisman'da yayına girer.</p>
-      <div class="cam-field">
+      <p class="cam-hint">Bilgi gönderiminden sonra talep incelenecek, onaylandığında profilin yayına girecek.</p>
+      <div class="cam-field cam-ac-field" id="cam-name-field">
         <label class="cam-label" for="cam-name">Ad Soyad *</label>
-        <input type="text" id="cam-name" maxlength="120">
+        <input type="text" id="cam-name" maxlength="120" autocomplete="off">
+        <div class="cam-ac-suggestions" id="cam-name-suggestions"></div>
       </div>
       <div class="cam-row">
         <div class="cam-field">
           <label class="cam-label" for="cam-position">Unvan</label>
           <input type="text" id="cam-position" placeholder="ör. Mimar, Kurucu" maxlength="80">
         </div>
-        <div class="cam-field">
-          <label class="cam-label" for="cam-office">Mimarlık Firması</label>
-          <input type="text" id="cam-office" maxlength="120">
+        <div class="cam-field cam-ac-field" id="cam-office-field">
+          <label class="cam-label" for="cam-office">Firma</label>
+          <input type="text" id="cam-office" maxlength="120" autocomplete="off">
+          <div class="cam-ac-suggestions" id="cam-office-suggestions"></div>
         </div>
       </div>
       <div class="cam-field">
@@ -151,7 +163,7 @@ const ConsultantAddModal = (function () {
           <input type="number" id="cam-rate" min="0" step="1">
         </div>
         <div class="cam-field">
-          <label class="cam-label" for="cam-duration">Seans Süresi</label>
+          <label class="cam-label" for="cam-duration">Görüşme Süresi</label>
           <select id="cam-duration">
             <option value="30">30 dk</option>
             <option value="45" selected>45 dk</option>
@@ -172,10 +184,51 @@ const ConsultantAddModal = (function () {
       <div class="cam-notice" id="cam-notice"></div>`;
   }
 
+  // proje-ekle.html'deki wireAutocompleteLive ile AYNI desen: canlı D1 aramasından (bkz.
+  // src/routes/architect.js#handleArchitectSearchRoute, src/routes/office.js#handleOfficeSearchRoute)
+  // beslenir, 300ms debounce, tek değerli alan (virgülle çoklu isim desteklenmiyor).
+  function wireConsultantAutocomplete(inputId, suggestionsId, searchUrl) {
+    const input = document.getElementById(inputId);
+    const box = document.getElementById(suggestionsId);
+    let debounceTimer = null;
+    let currentQuery = '';
+    function close() { box.classList.remove('show'); box.innerHTML = ''; }
+    function renderItems(items) {
+      if (!items.length) { close(); return; }
+      box.innerHTML = items.map((it, i) => `<div class="cam-ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
+      box.classList.add('show');
+      box.querySelectorAll('.cam-ac-suggestion').forEach((el, i) => {
+        el.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          input.value = items[i].label;
+          close();
+        });
+      });
+    }
+    function fetchSuggestions(q) {
+      currentQuery = q;
+      fetch(`${searchUrl}?q=${encodeURIComponent(q)}`)
+        .then(res => res.ok ? res.json() : { items: [] })
+        .then(data => { if (q === currentQuery) renderItems((data.items || []).slice(0, 8)); })
+        .catch(() => {});
+    }
+    function onInput() {
+      const q = input.value.trim();
+      if (!q) { close(); currentQuery = ''; return; }
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchSuggestions(q), 300);
+    }
+    input.addEventListener('input', onInput);
+    input.addEventListener('focus', onInput);
+    input.addEventListener('blur', () => setTimeout(close, 150));
+  }
+
   function wireForm() {
     slotsWorking = emptySlots();
     renderSlotsDays();
     document.getElementById('cam-submit-btn').addEventListener('click', submit);
+    wireConsultantAutocomplete('cam-name', 'cam-name-suggestions', '/api/architects/search');
+    wireConsultantAutocomplete('cam-office', 'cam-office-suggestions', '/api/offices/search');
   }
 
   async function submit() {
