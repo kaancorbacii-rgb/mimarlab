@@ -159,6 +159,30 @@ const ProductModal = (function () {
         color:#fff; font-size:13px; font-weight:600; font-family:'IBM Plex Mono', monospace;
         background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
       }
+      /* "Tümünü Gör" ızgara görünümü — bkz. proje.html'deki AYNI blok, paylaşılan stylesheet
+         olmadığından burada da ayrıca tutulur (bkz. js/components/gallery.js#initDetailGallery). */
+      .lightbox-grid-toggle{
+        position:absolute; top:24px; right:78px; z-index:2;
+        display:flex; align-items:center; gap:6px;
+        background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.28); border-radius:100px;
+        padding:7px 14px; color:var(--paper); font-family:'Inter', sans-serif; font-size:12.5px; font-weight:600;
+        opacity:0.85; transition:opacity .15s ease, background .15s ease;
+      }
+      .lightbox-grid-toggle:hover{opacity:1; background:rgba(255,255,255,0.16);}
+      .lightbox-grid{display:none; position:absolute; inset:0; z-index:1; background:rgba(27,42,61,0.97); overflow-y:auto; padding:76px 24px 32px;}
+      .lightbox.grid-mode .lightbox-grid{display:block;}
+      .lightbox.grid-mode img,
+      .lightbox.grid-mode .lightbox-nav,
+      .lightbox.grid-mode .lightbox-counter{display:none;}
+      .lightbox-grid-list{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; max-width:1080px; margin:0 auto;}
+      .lightbox-grid-item{aspect-ratio:1/1; border-radius:10px; overflow:hidden; display:block; background:var(--paper-card);}
+      .lightbox-grid-item img{width:100%; height:100%; object-fit:cover; display:block;}
+      @media (max-width:768px){
+        .lightbox-grid-toggle{padding:6px 11px; font-size:11px; gap:4px;}
+        .lightbox-grid-toggle svg{width:13px; height:13px;}
+        .lightbox-grid{padding:60px 14px 24px;}
+        .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
+      }
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
       .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
