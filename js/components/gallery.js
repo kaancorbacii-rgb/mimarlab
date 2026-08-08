@@ -94,11 +94,17 @@ function initDetailGallery(opts){
     if(lightboxCounter) lightboxCounter.textContent = `${st.lightboxIndex + 1} / ${st.images.length}`;
   }
 
-  const GRID_TOGGLE_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
-  const SLIDES_TOGGLE_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 5-6 4 5"/></svg>';
+  // İkon-only, metinsiz (bkz. kullanıcı isteği: minimalist) — boyut/stroke-width lightbox-close'daki
+  // ("X") svg ile BİREBİR AYNI (26x26, stroke-width 2) ki iki buton görsel olarak eşleşsin.
+  // Grid: 3x2 (üstte 3, altta 3) toplam 6 kare. Slaytlara dön: tekli fotoğraf/resim ikonu (çerçeve+dağ+güneş).
+  const GRID_TOGGLE_ICON = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="5" height="5"/><rect x="9.5" y="4" width="5" height="5"/><rect x="17" y="4" width="5" height="5"/><rect x="2" y="15" width="5" height="5"/><rect x="9.5" y="15" width="5" height="5"/><rect x="17" y="15" width="5" height="5"/></svg>';
+  const SLIDES_TOGGLE_ICON = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg>';
   function setGridMode(on){
     lightbox.classList.toggle('grid-mode', on);
-    lightboxGridToggle.innerHTML = (on ? SLIDES_TOGGLE_ICON : GRID_TOGGLE_ICON) + `<span class="lightbox-grid-toggle-label">${on ? 'Slaytlara dön' : 'Tümünü gör'}</span>`;
+    lightboxGridToggle.innerHTML = on ? SLIDES_TOGGLE_ICON : GRID_TOGGLE_ICON;
+    // Metin etiketi kaldırıldığından (bkz. kullanıcı isteği: yalnızca ikon) erişilebilirlik için
+    // aria-label state'e göre güncellenir.
+    lightboxGridToggle.setAttribute('aria-label', on ? 'Slaytlara dön' : 'Tümünü gör');
   }
   // Izgara HTML'i şerit gibi HER çağrıda (yeni proje/ürün geldiğinde) yeniden üretilir — küçük
   // önizleme boyutları kullanılır (şeritteki AYNI cdnImg/cdnSrcset deseni), orijinal çözünürlük

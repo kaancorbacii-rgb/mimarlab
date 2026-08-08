@@ -160,26 +160,27 @@ const ProductModal = (function () {
         background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
       }
       /* "Tümünü Gör" ızgara görünümü — bkz. proje.html'deki AYNI blok, paylaşılan stylesheet
-         olmadığından burada da ayrıca tutulur (bkz. js/components/gallery.js#initDetailGallery). */
+         olmadığından burada da ayrıca tutulur (bkz. js/components/gallery.js#initDetailGallery).
+         Buton .lightbox-close İLE BİREBİR AYNI çerçevesiz/metinsiz/ikon-only stile sahip (bkz.
+         kullanıcı isteği: minimalist, X ile aynı boyut/renk). */
       .lightbox-grid-toggle{
-        position:absolute; top:24px; right:78px; z-index:2;
-        display:flex; align-items:center; gap:6px;
-        background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.28); border-radius:100px;
-        padding:7px 14px; color:var(--paper); font-family:'Inter', sans-serif; font-size:12.5px; font-weight:600;
-        opacity:0.85; transition:opacity .15s ease, background .15s ease;
+        position:absolute; top:24px; right:78px; background:none; border:none;
+        color:var(--paper); opacity:0.8; z-index:2;
       }
-      .lightbox-grid-toggle:hover{opacity:1; background:rgba(255,255,255,0.16);}
+      .lightbox-grid-toggle:hover{opacity:1;}
       .lightbox-grid{display:none; position:absolute; inset:0; z-index:1; background:rgba(27,42,61,0.97); overflow-y:auto; padding:76px 24px 32px;}
       .lightbox.grid-mode .lightbox-grid{display:block;}
-      .lightbox.grid-mode img,
+      /* ÖNEMLİ gerçek bulgu (bkz. proje.html'deki AYNI yorum) — çocuk kısıtlaması OLMADAN ".lightbox.
+         grid-mode img" ızgara kutucuklarının İÇİNDEKİ img'leri de eşleştirip .lightbox-grid-item
+         img'nin display:block kuralını eziyordu, thumbnail'lar boş/beyaz kutu render oluyordu.
+         Doğrudan-çocuk (>) kısıtlaması yalnızca tekli lightbox görselini hedefler. */
+      .lightbox.grid-mode > img,
       .lightbox.grid-mode .lightbox-nav,
       .lightbox.grid-mode .lightbox-counter{display:none;}
       .lightbox-grid-list{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; max-width:1080px; margin:0 auto;}
       .lightbox-grid-item{aspect-ratio:1/1; border-radius:10px; overflow:hidden; display:block; background:var(--paper-card);}
       .lightbox-grid-item img{width:100%; height:100%; object-fit:cover; display:block;}
       @media (max-width:768px){
-        .lightbox-grid-toggle{padding:6px 11px; font-size:11px; gap:4px;}
-        .lightbox-grid-toggle svg{width:13px; height:13px;}
         .lightbox-grid{padding:60px 14px 24px;}
         .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
       }
