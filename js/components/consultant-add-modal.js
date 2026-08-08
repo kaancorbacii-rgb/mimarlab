@@ -144,7 +144,7 @@ const ConsultantAddModal = (function () {
           <input type="text" id="cam-position" placeholder="ör. Mimar, Kurucu" maxlength="80">
         </div>
         <div class="cam-field cam-ac-field" id="cam-office-field">
-          <label class="cam-label" for="cam-office">Firma</label>
+          <label class="cam-label" for="cam-office">Firma <small>(opsiyonel)</small></label>
           <input type="text" id="cam-office" maxlength="120" autocomplete="off">
           <div class="cam-ac-suggestions" id="cam-office-suggestions"></div>
         </div>

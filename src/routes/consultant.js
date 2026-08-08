@@ -196,7 +196,8 @@ async function buildConsultantPayload(env, key) {
     about: a.consultant_bio || a.about, expertiseTags: a.expertise_tags || [],
     hourlyRate: a.hourly_rate || null, sessionDurationMin: a.session_duration_min || 45,
     availableSlots: a.available_slots || [], totalMinutes: a.consultant_total_minutes || 0,
-    sessionsCompleted: a.consultant_sessions_completed || 0, badges: [],
+    sessionsCompleted: a.consultant_sessions_completed || 0,
+    experienceYears: a.consultant_experience_years ?? null, badges: [],
   };
 
   return {
@@ -240,9 +241,22 @@ export async function handleConsultantModerateRoute(request, env, rawKey) {
   return runContentAction(env, user, { type: 'architects', action: body.action, key: row.name });
 }
 
-// PATCH /api/consultant/:key  body: {consultantBio?, availableSlotsTemplate?} — danışmanın kendi
-// açıklama metnini ve haftalık müsaitlik şablonunu doğrudan yazar (bkz. kullanıcı isteği: pop-up
-// üzerinden düzenlenebilsin) — submission-approval kuyruğunu BİLEREK atlar, zamanlama verisi
+// danisman-ekle.html'in ?claim= düzenleme modunda gönderdiği "Firma" serbest metnini offices
+// tablosundaki birebir isim eşleşmesine çözer — mimar-ekle.html'deki çoklu/virgüllü firma
+// eşlemesinin (bkz. src/lib/canonicalSync.js#syncArchitect) tek-firma sadeleştirilmiş hâli, bu
+// uç nokta submission-approval'ı ATLADIĞINDAN eşleşmeyen bir ad sessizce office_id'yi NULL bırakır.
+async function resolveOfficeId(env, officeName) {
+  const name = (officeName || '').trim();
+  if (!name) return null;
+  const row = await env.DB.prepare(`SELECT id FROM offices WHERE deleted_at IS NULL AND name = ? LIMIT 1`).bind(name).first();
+  return row ? row.id : null;
+}
+
+// PATCH /api/consultant/:key  body: {consultantBio?, role?, officeName?, photoUrl?, expertiseTags?,
+// hourlyRate?, sessionDurationMin?, experienceYears?, availableSlotsTemplate?} — danışmanın kendi
+// profilini (isim hariç — yeniden adlandırma bu uç noktanın kapsamı DIŞINDA) doğrudan yazar (bkz.
+// kullanıcı isteği: danisman-ekle.html?claim= düzenleme sayfası, "düzenleme yapınca danışman
+// gönderisine hemen yansısın") — submission-approval kuyruğunu BİLEREK atlar, zamanlama verisi
 // gerçek zamanlı olmalı. availableSlotsTemplate: [{weekday:0-6, times:[{time,available}]}].
 export async function handleConsultantEditRoute(request, env, rawKey) {
   if (request.method !== 'PATCH') return errorJson('Bulunamadı', 404);
@@ -256,6 +270,37 @@ export async function handleConsultantEditRoute(request, env, rawKey) {
   if (typeof body.consultantBio === 'string') {
     fields.push('consultant_bio = ?');
     values.push(body.consultantBio.trim().slice(0, 2000));
+  }
+  if (typeof body.role === 'string') {
+    fields.push('position = ?');
+    values.push(body.role.trim().slice(0, 80) || null);
+  }
+  if (typeof body.officeName === 'string') {
+    fields.push('office_id = ?');
+    values.push(await resolveOfficeId(env, body.officeName));
+  }
+  if (typeof body.photoUrl === 'string' || body.photoUrl === null) {
+    fields.push('photo_url = ?');
+    values.push(body.photoUrl || null);
+  }
+  if (Array.isArray(body.expertiseTags)) {
+    fields.push('expertise_tags = ?');
+    values.push(JSON.stringify(body.expertiseTags.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())));
+  }
+  if (body.hourlyRate !== undefined) {
+    const n = Number(body.hourlyRate);
+    fields.push('hourly_rate = ?');
+    values.push(Number.isFinite(n) && n >= 0 ? n : null);
+  }
+  if (body.sessionDurationMin !== undefined) {
+    const n = Number(body.sessionDurationMin);
+    fields.push('session_duration_min = ?');
+    values.push(Number.isFinite(n) && n > 0 ? n : 45);
+  }
+  if (body.experienceYears !== undefined) {
+    const n = body.experienceYears === null ? NaN : Number(body.experienceYears);
+    fields.push('consultant_experience_years = ?');
+    values.push(Number.isFinite(n) && n >= 0 ? n : null);
   }
   if (Array.isArray(body.availableSlotsTemplate)) {
     const template = body.availableSlotsTemplate
