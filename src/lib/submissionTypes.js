@@ -12,10 +12,13 @@ export const SUBMISSION_TYPES = {
     table: 'project_submissions',
     fields: [
       'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
-      'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
+      'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
       'claimed_slug', 'source_url', 'ai_generated',
     ],
-    arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'images', 'brands'],
+    // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
+    // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,
+    // hangi kutudan geldiği künye render'ına kadar korunur.
+    arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'office', 'images', 'brands'],
     required: ['title'],
     urlFields: ['photoCreditUrl', 'source_url'],
     urlArrayFields: ['images'],
@@ -160,6 +163,12 @@ export function parseSubmissionRow(type, row) {
   const config = SUBMISSION_TYPES[type];
   const out = { ...row };
   for (const field of config.arrayFields) {
+    // office: bkz. migrations/0030_project_submission_office.sql — ham sütun NULL'sa bu satır bu
+    // alan hiç var olmadan (Mimar/Firma kutuları birleştirilerek) kaydedilmiş DEMEKTİR; diğer
+    // arrayField'ların aksine burada [] yerine null bırakılır ki proje-ekle.html#prefillForEdit
+    // "hiç Firma girilmemiş" ile "eski/birleşik kayıt" durumunu ayırt edebilsin (birincisinde
+    // designer'ı olduğu gibi güvenip heuristiğe hiç düşmemeli).
+    if (type === 'projects' && field === 'office' && row.office == null) { out.office = null; continue; }
     try { out[field] = row[field] ? JSON.parse(row[field]) : []; }
     catch { out[field] = []; }
   }

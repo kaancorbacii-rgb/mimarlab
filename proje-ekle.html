@@ -937,7 +937,16 @@ async function prefillForEdit(){
     }
     document.getElementById('p-date').value = item.date || '';
     document.getElementById('p-type').value = (item.type || []).join(', ');
-    await splitDesignerNamesIntoBoxes(item.designer || [], item.slug);
+    // item.office === null: bu taslak migrations/0030'dan ÖNCE kaydedilmiş, designer alanı Mimar+Firma
+    // birleşik hâliyle geliyor — eski heuristik/canonical-lookup yoluna düş (bkz. splitDesignerNamesIntoBoxes
+    // dosya başı yorumu). item.office bir dizi (boş da olsa) ise bu taslak ZATEN ayrı kutulara sahipti,
+    // designer/office'i OLDUĞU GİBİ güven — tekrar tahmin etmeye gerek yok.
+    if (item.office != null) {
+      document.getElementById('p-designer').value = (item.designer || []).join(', ');
+      document.getElementById('p-office').value = item.office.join(', ');
+    } else {
+      await splitDesignerNamesIntoBoxes(item.designer || [], item.slug);
+    }
     document.getElementById('p-desc').value = item.description || '';
     document.getElementById('p-credit-text').value = item.photoCreditText || '';
     document.getElementById('p-credit-url').value = item.photoCreditUrl || '';
@@ -1068,9 +1077,12 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   const category = Array.from(form.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
   const discipline = Array.from(form.querySelectorAll('input[name="discipline"]:checked')).map(el => el.value);
   const type = document.getElementById('p-type').value.split(',').map(s => s.trim()).filter(Boolean);
-  const mimarNames = document.getElementById('p-designer').value.split(',').map(s => s.trim()).filter(Boolean);
-  const ofisNames = document.getElementById('p-office').value.split(',').map(s => s.trim()).filter(Boolean);
-  const designer = [...mimarNames, ...ofisNames];
+  // Mimar/Firma kutuları KESİNLİKLE ayrı tutulur, tek bir designer dizisinde birleştirilmez (bkz.
+  // migrations/0030_project_submission_office.sql, kullanıcı isteği "kökten çöz") — aksi halde hangi
+  // ismin hangi kutudan geldiği bilgisi kaybolur ve künyede eşleşmeyen firma adları isOfficeName()
+  // anahtar kelime tahminiyle yanlışlıkla "Mimar:" altına düşebilir (bkz. gerçek bulgu: Createct).
+  const designer = document.getElementById('p-designer').value.split(',').map(s => s.trim()).filter(Boolean);
+  const office = document.getElementById('p-office').value.split(',').map(s => s.trim()).filter(Boolean);
   const brands = brandChips.map(c => ({ brand: c.brand, product: c.product || null }));
 
   if(!selectedIl){
@@ -1079,7 +1091,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(!designer.length){
+  if(!designer.length && !office.length){
     notice.textContent = 'En az bir mimar ya da firma adı gir.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
@@ -1104,7 +1116,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     location: selectedIlce || selectedIl,
     locationDetail: null,
     date: document.getElementById('p-date').value,
-    category, type, discipline, designer, brands,
+    category, type, discipline, designer, office, brands,
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
     photoCreditUrl: document.getElementById('p-credit-url').value || null,

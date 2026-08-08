@@ -375,13 +375,23 @@ async function syncArchitect(env, row) {
   return env.DB.prepare(`SELECT * FROM architects WHERE id = ?`).bind(architectId).first();
 }
 
-async function resolveDesignerLink(env, name, contextLabel) {
-  const officeMatch = await findOneByName(env, 'offices', name);
-  if (officeMatch.row) return { office_id: officeMatch.row.id, architect_id: null };
-  if (officeMatch.ambiguous) { await logConflict(env, 'project_designer', name, contextLabel, officeMatch.candidates); return null; }
-  const archMatch = await findOneByName(env, 'architects', name);
-  if (archMatch.row) return { office_id: null, architect_id: archMatch.row.id };
-  if (archMatch.ambiguous) { await logConflict(env, 'project_designer', name, contextLabel, archMatch.candidates); return null; }
+// Kök neden düzeltmesi (bkz. migrations/0030_project_submission_office.sql, kullanıcı isteği): eskiden
+// TEK bir resolveDesignerLink() önce offices'te, bulamazsa architects'te arıyordu çünkü designer
+// dizisi Mimar+Firma birleşikti ve hangi kutudan geldiği bilinmiyordu. Artık syncProject() her ismi
+// GELDİĞİ kutuya göre (row.designer → yalnızca architects, row.office → yalnızca offices) çözer —
+// "Createct" gibi offices'te KAYITLI OLMAYAN ama Firma kutusuna yazılmış bir isim artık asla
+// architects tablosunda aranmaz/yanlışlıkla oraya "Mimar" olarak bağlanmaz.
+async function resolveArchitectLink(env, name, contextLabel) {
+  const match = await findOneByName(env, 'architects', name);
+  if (match.row) return { office_id: null, architect_id: match.row.id };
+  if (match.ambiguous) await logConflict(env, 'project_designer', name, contextLabel, match.candidates);
+  return null;
+}
+
+async function resolveOfficeLink(env, name, contextLabel) {
+  const match = await findOneByName(env, 'offices', name);
+  if (match.row) return { office_id: match.row.id, architect_id: null };
+  if (match.ambiguous) await logConflict(env, 'project_designer', name, contextLabel, match.candidates);
   return null;
 }
 
@@ -451,7 +461,13 @@ async function syncProject(env, row) {
     if (row.images && row.images.length) { sets.splice(-1, 0, 'images = ?'); vals.push(images); }
     await env.DB.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     projectId = target.id;
-    if (row.designer && row.designer.length) await env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(projectId).run();
+    // Mimar/Firma artık ayrı alanlar (bkz. yukarı) — biri boş diğeri dolu gönderilebileceğinden
+    // (ör. yalnızca Firma girildi) DELETE tetiği İKİSİNDEN BİRİNİN dolu olmasına bakmalı, eskiden
+    // olduğu gibi yalnızca row.designer'a değil (aksi halde salt-firma bir düzenlemede eski
+    // project_designers satırları hiç temizlenmezdi).
+    if ((row.designer && row.designer.length) || (row.office && row.office.length)) {
+      await env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(projectId).run();
+    }
   } else {
     let slug = row.slug;
     const clash = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
@@ -472,7 +488,16 @@ async function syncProject(env, row) {
 
   if (row.designer && row.designer.length) {
     for (const name of row.designer) {
-      const resolved = await resolveDesignerLink(env, name, `project_submission:${row.id}`);
+      const resolved = await resolveArchitectLink(env, name, `project_submission:${row.id}`);
+      if (resolved) {
+        await env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`)
+          .bind(projectId, resolved.architect_id, resolved.office_id).run();
+      }
+    }
+  }
+  if (row.office && row.office.length) {
+    for (const name of row.office) {
+      const resolved = await resolveOfficeLink(env, name, `project_submission:${row.id}`);
       if (resolved) {
         await env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`)
           .bind(projectId, resolved.architect_id, resolved.office_id).run();

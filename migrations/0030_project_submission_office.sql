@@ -1,0 +1,11 @@
+-- Kök neden düzeltmesi (bkz. kullanıcı isteği): proje-ekle.html'in "Mimar" ve "Firma" kutuları
+-- şimdiye kadar TEK bir project_submissions.designer JSON dizisine birleştirilip gönderiliyordu —
+-- hangi ismin hangi kutudan geldiği bilgisi kayboluyordu. Eşleşen bir architects/offices kaydı
+-- olmayan (bkz. src/routes/project.js#fetchRawDesignerNames) isimler künyede daha sonra
+-- isOfficeName() anahtar kelime tahminiyle Mimar/Firma'ya dağıtılıyordu — "Createct" gibi hiçbir
+-- OFFICE_KEYWORDS eşleşmesi taşımayan firma adları yanlışlıkla "Mimar:" altında görünüyordu (bkz.
+-- gerçek bulgu: Galata Otel Projesi). Bu sütun, Firma kutusundan gelen ham isimleri designer'dan
+-- AYRI taşır — mevcut satırlarda NULL kalır (bkz. src/routes/project.js#fetchRawDesignerNames'teki
+-- "legacy: NULL ise eski tahmin yoluna düş" ayrımı), yeniden kaydedilen/onaylanan HER satır artık
+-- kesin kaynak bilgisiyle gelir.
+ALTER TABLE project_submissions ADD COLUMN office TEXT;

@@ -92,22 +92,35 @@ async function fetchDesignerDetails(env, projectId) {
 }
 
 // proje-ekle.html'in Mimar/Firma alanlarına yazılan ama architects/offices'te eşleşen bir kaydı
-// olmayan isimler resolveDesignerLink() tarafından sessizce ATLANIYOR (bkz. src/lib/canonicalSync.js
-// #syncProject — CHECK ((architect_id IS NOT NULL) != (office_id IS NOT NULL)) eşleşmeyen isim için
-// project_designers'a hiçbir satır yazılmasına izin vermiyor, dolayısıyla künyede hiç görünmüyorlardı
-// — bkz. kullanıcı isteği). Bu isimler hâlâ TEK yerde hayatta: onları oluşturan/son düzenleyen
-// project_submissions.designer JSON dizisi (form'a yazıldığı haliyle, hiç mutasyona uğramaz). O
-// satırı geriye doğru bulmak için canonicalSync'teki AYNI eşleştirmeyi (claimed_slug=slug YA DA
-// legacy_key="submission:<id>") tersine kullanıyoruz; en son güncellenen satır esas alınır çünkü
-// syncProject() her düzenlemede project_designers'ı BAŞTAN yazıyor (bkz. "DELETE FROM
-// project_designers WHERE project_id = ?").
+// olmayan isimler resolveArchitectLink()/resolveOfficeLink() tarafından sessizce ATLANIYOR (bkz.
+// src/lib/canonicalSync.js#syncProject — CHECK ((architect_id IS NOT NULL) != (office_id IS NOT
+// NULL)) eşleşmeyen isim için project_designers'a hiçbir satır yazılmasına izin vermiyor, dolayısıyla
+// künyede hiç görünmüyorlardı — bkz. kullanıcı isteği). Bu isimler hâlâ TEK yerde hayatta: onları
+// oluşturan/son düzenleyen project_submissions.designer/office JSON dizileri (form'a yazıldığı
+// haliyle, hiç mutasyona uğramaz). O satırı geriye doğru bulmak için canonicalSync'teki AYNI
+// eşleştirmeyi (claimed_slug=slug YA DA legacy_key="submission:<id>") tersine kullanıyoruz; en son
+// güncellenen satır esas alınır çünkü syncProject() her düzenlemede project_designers'ı BAŞTAN
+// yazıyor (bkz. "DELETE FROM project_designers WHERE project_id = ?").
+//
+// office sütunu (bkz. migrations/0030_project_submission_office.sql) NULL ise bu satır o migration'dan
+// ÖNCE kaydedilmiş demektir — Mimar/Firma kutuları o zaman TEK bir designer dizisinde birleştirilerek
+// gönderiliyordu, bu yüzden isLegacy=true döner ve çağıran (handleProjectDetailRoute) eski
+// isOfficeName() anahtar kelime tahminine düşmeye devam eder (kökten çözülemeyen, geriye dönük TEK
+// durum — bkz. kullanıcı isteği: "Mevcut Veri Düzeltmesi", etkilenen satırlar ayrıca D1'de elle
+// düzeltilir). office NOT NULL ise (satır bu düzeltmeden SONRA kaydedilmiş) isimler ARTIK KESİN
+// kaynaklıdır — hiçbir tahmine gerek yok.
 async function fetchRawDesignerNames(env, project) {
   const submissionId = (project.legacy_key || '').startsWith('submission:') ? project.legacy_key.slice('submission:'.length) : '';
   const row = await env.DB.prepare(
-    `SELECT designer FROM project_submissions WHERE claimed_slug = ?1 OR id = ?2 ORDER BY updated_at DESC LIMIT 1`
+    `SELECT designer, office FROM project_submissions WHERE claimed_slug = ?1 OR id = ?2 ORDER BY updated_at DESC LIMIT 1`
   ).bind(project.slug, submissionId).first();
-  if (!row || !row.designer) return [];
-  try { return JSON.parse(row.designer) || []; } catch { return []; }
+  if (!row) return { architects: [], offices: [], isLegacy: true };
+  let architects = [];
+  try { architects = row.designer ? JSON.parse(row.designer) || [] : []; } catch { architects = []; }
+  if (row.office == null) return { architects, offices: [], isLegacy: true };
+  let offices = [];
+  try { offices = JSON.parse(row.office) || []; } catch { offices = []; }
+  return { architects, offices, isLegacy: false };
 }
 
 // "Kullanılan Ürünler/Malzemeler" — project_products join tablosundan (bkz. resolveProjectProductLinks
@@ -197,13 +210,29 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     if (owner) Object.assign(item, owner);
     // Zaten eşleşmiş (profilli) isimlerin ÜZERİNE yazmayan, formda yazılan ama hiçbir profile
     // bağlanamamış isimler için künyede baş harfli, tıklanamaz bir "rozet" fallback'i (bkz. yukarıdaki
-    // fetchRawDesignerNames yorumu ve kullanıcı isteği) — isOfficeName() (aşağıda tanımlı, proje.html
-    // #OFFICE_NAME_OVERRIDES ile birebir aynı liste) Mimar/Firma bölümü ayrımını burada da uygular.
+    // fetchRawDesignerNames yorumu ve kullanıcı isteği). rawNames.isLegacy=false (bkz. migrations/
+    // 0030_project_submission_office.sql) ise Mimar/Firma ayrımı ARTIK TAHMİN edilmez — isim hangi
+    // kutudan geldiyse (rawNames.architects/rawNames.offices) doğrudan o başlığa yazılır. Yalnızca
+    // bu düzeltmeden ÖNCE kaydedilmiş (isLegacy=true, designer/office birleşik) satırlarda eski
+    // isOfficeName() anahtar kelime tahminine düşülür — geriye dönük bozmama amaçlı, TEK istisna.
     const knownNames = new Set(designerDetails.map(d => d.name));
-    for (const name of rawNames) {
-      if (!name || knownNames.has(name)) continue;
-      knownNames.add(name);
-      designerDetails.push({ name, type: isOfficeName(name) ? 'office' : 'architect', slug: null, photo: null, unregistered: true });
+    if (rawNames.isLegacy) {
+      for (const name of [...rawNames.architects, ...rawNames.offices]) {
+        if (!name || knownNames.has(name)) continue;
+        knownNames.add(name);
+        designerDetails.push({ name, type: isOfficeName(name) ? 'office' : 'architect', slug: null, photo: null, unregistered: true });
+      }
+    } else {
+      for (const name of rawNames.architects) {
+        if (!name || knownNames.has(name)) continue;
+        knownNames.add(name);
+        designerDetails.push({ name, type: 'architect', slug: null, photo: null, unregistered: true });
+      }
+      for (const name of rawNames.offices) {
+        if (!name || knownNames.has(name)) continue;
+        knownNames.add(name);
+        designerDetails.push({ name, type: 'office', slug: null, photo: null, unregistered: true });
+      }
     }
     // Mimar alanı hiç doldurulmamışsa (bkz. yukarıdaki fetchFoundersForOffices yorumu) tanımlı
     // firma(lar)ın kurucu/ortak mimarlarını otomatik "Mimar:" chip'i olarak ekle — Mimar alanı boş kalmasın.
