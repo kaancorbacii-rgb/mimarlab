@@ -501,7 +501,11 @@ async function handleBadgesAdmin(request, env, url, segments) {
   return errorJson('Bulunamadı', 404);
 }
 
-const ADMIN_GRANTABLE_BADGES = new Set(['verified', 'gold', 'platinum']);
+// iz-birakan: "İz Bırakanlar" (bkz. kullanıcı isteği) — vefat etmiş mimarlar için siyah rozet,
+// admin mimar-ekle.html'deki AYNI rozet seçicisinden (bkz. o dosyadaki #admin-badge-select) elle
+// verir; src/routes/badges.js#handlePublicBadges bu rozeti taşıyan bir profilin diğer TÜM
+// rozetlerini (satın alınmış olsa bile) gizler — mavi Doğrulanmış Üye rozetinin YERİNİ alır.
+const ADMIN_GRANTABLE_BADGES = new Set(['verified', 'gold', 'platinum', 'iz-birakan']);
 
 // GET/PUT /api/admin/profile-badge?profileType=architect|office&profileKey=<isim> — admin'in
 // bir mimar/marka profiline satın alma/sahiplenme olmadan doğrudan verdiği rozet (bkz. schema.sql#

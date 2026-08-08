@@ -143,5 +143,14 @@ export async function handlePublicBadges(env) {
     if (!bucket[row.profile_key]) bucket[row.profile_key] = [];
     if (!bucket[row.profile_key].includes(row.badge_type)) bucket[row.profile_key].push(row.badge_type);
   }
+  // "İz Bırakan" (bkz. kullanıcı isteği: vefat etmiş mimarlar için siyah rozet) o profilin diğer
+  // TÜM rozetlerinin (satın alınmış Doğrulanmış Üye/Altın Üye/Elmas Üye dahil) YERİNİ alır — aynı
+  // kişi hem ödeyip aktif bir üyelik rozetine sahip OLABİLİR hem de admin onu "İz Bırakan"
+  // işaretleyebilir, bu durumda yalnızca İz Bırakan gösterilir.
+  for (const bucket of Object.values(out)) {
+    for (const key of Object.keys(bucket)) {
+      if (bucket[key].includes('iz-birakan')) bucket[key] = ['iz-birakan'];
+    }
+  }
   return json(out);
 }

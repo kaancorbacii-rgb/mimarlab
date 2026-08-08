@@ -55,8 +55,12 @@ fetch('/api/public/badges').then(r => r.ok ? r.json() : null).then(d => {
 // hesabim.html#BADGE_TIERS ve src/routes/badges.js#BADGE_PRICES ile aynı isimler/anahtarlar).
 // 'destekci' (Destekçi) kasıtlı olarak burada yok: yalnızca destek amaçlıdır, hiçbir görünür
 // rozet ya da hak vermez (bkz. src/routes/badges.js#handlePublicBadges, orada da hariç tutulur).
-const BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye' };
-const BADGE_COLORS = { verified:'#0095F6', gold:'#D4A72C', platinum:'#4FB3D9' };
+// 'iz-birakan' (İz Bırakan, bkz. kullanıcı isteği): vefat etmiş mimarlar için — mavi mühür ile
+// AYNI ikon, yalnızca rengi siyah/antrasit. admin_badges'ten geldiği ve satın alınabilir bir
+// kademe OLMADIĞI için src/routes/badges.js#BADGE_PRICES/ADMIN_GRANTABLE_BADGES'te ayrı ele
+// alınır — o profilin diğer TÜM rozetlerinin yerini alır (bkz. handlePublicBadges).
+const BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye', 'iz-birakan':'İz Bırakan' };
+const BADGE_COLORS = { verified:'#0095F6', gold:'#D4A72C', platinum:'#4FB3D9', 'iz-birakan':'#1B1F24' };
 
 // Native `title` tooltip'i masaüstünde gecikmeli/tutarsız, mobilde ise dokunmayla hiç çalışmıyor;
 // bu yüzden kendi tooltip'imizi kuruyoruz. document.body'ye eklenmiş TEK PAYLAŞILAN bir tooltip
@@ -122,8 +126,12 @@ document.addEventListener('mouseout', (e)=>{
 // Rozet <span> olarak kalır (gerçek bir <a> DEĞİL) çünkü çoğunlukla zaten bir kart linkinin
 // (ör. mimar/ofis kartı) İÇİNDE render edilir — iç içe <a> geçersiz HTML olacağından yönlendirme
 // burada JS ile yapılır; stopPropagation ile dıştaki kart linkinin tetiklenmesi engellenir.
+// iz-birakan: satın alınabilir bir kademe DEĞİL (bkz. src/routes/badges.js#BADGE_PRICES'te yok,
+// yalnızca admin_badges'ten gelir) — tıklanınca satin-al.html'e yönlendirmek anlamsız olurdu,
+// bu yüzden burada erken çıkılır: tıklama olayı normal şekilde altındaki kart linkine devam eder.
 document.addEventListener('click', (e)=>{
   const badge = e.target.closest('.verified-badge-icon');
+  if(badge && badge.dataset.badgeType === 'iz-birakan') return;
   if(badge){
     e.preventDefault();
     e.stopPropagation();
