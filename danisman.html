@@ -600,7 +600,7 @@ async function buildSidebar(){
   let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
     <div class="sidebar-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="g-local-search" placeholder="İsim, uzmanlık veya unvan ara..." value="${escapeAttr(localSearchQuery)}">
+      <input type="text" id="g-local-search" placeholder="Danışman ara..." value="${escapeAttr(localSearchQuery)}">
     </div>`;
   if(tags.length){
     html += `<div class="filter-group" data-key="tag">

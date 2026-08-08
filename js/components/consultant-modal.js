@@ -62,15 +62,6 @@ const ConsultantModal = (function () {
       .detail-title-actions .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
       .detail-title-actions .rating-summary{font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap !important;}
 
-      /* Sekmeler — Genel Bakış/Değerlendirmeler (bkz. kullanıcı isteği: "Uzmanlıklar" sekmesi
-         tamamen kalksın, yalnızca bu ikisi kalsın). Kutu/çizgi yok — sadece bold metin, ayrım
-         renkle (bkz. kullanıcı isteği). */
-      .cm-tabs{display:flex; gap:4px; margin-bottom:20px; overflow-x:auto; scrollbar-width:none;}
-      .cm-tabs::-webkit-scrollbar{display:none;}
-      .cm-tab{flex-shrink:0; padding:10px 4px; margin-right:20px; font-size:13.5px; font-weight:700; color:var(--ink-soft); border:none; background:none; border-radius:0;}
-      .cm-tab.active{color:var(--ink);}
-      .cm-tab-panel{display:none;}
-      .cm-tab-panel.active{display:block;}
       .cm-tab-empty{padding:32px 0; text-align:center; color:var(--ink-soft); font-size:13.5px;}
       .cm-rating-summary{display:flex; align-items:center; gap:10px; padding:8px 0 24px;}
       .rating-badge{display:flex; align-items:center; gap:6px;}
@@ -116,7 +107,7 @@ const ConsultantModal = (function () {
       .cm-edit-cancel-btn{background:var(--paper-card);}
 
       /* ---------- Sağ panel: sticky rezervasyon kutusu ---------- */
-      .cm-booking{position:sticky; top:0; display:flex; flex-direction:column; gap:20px; padding-bottom:24px; border-bottom:1px solid var(--line); margin-bottom:24px;}
+      .cm-booking{position:sticky; top:0; display:flex; flex-direction:column; gap:20px; padding-bottom:24px;}
       .cm-stats{display:flex; gap:24px;}
       .cm-stat{flex:1;}
       .cm-stat-value{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; color:var(--ink);}
@@ -129,7 +120,10 @@ const ConsultantModal = (function () {
       .cm-date-row{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin-bottom:14px;}
       .cm-date-row::-webkit-scrollbar{display:none;}
       .cm-date-chip.disabled{opacity:0.4; cursor:not-allowed;}
-      .cm-date-chip{flex-shrink:0; min-width:64px; text-align:center; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:600; color:var(--ink-soft);}
+      .cm-date-chip{position:relative; flex-shrink:0; min-width:64px; text-align:center; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:600; color:var(--ink-soft);}
+      .cm-date-dot{position:absolute; top:6px; right:6px; width:6px; height:6px; border-radius:50%; background:#B84C4C;}
+      .cm-date-dot.available{background:var(--good, #3E7A55);}
+      .cm-date-chip.active .cm-date-dot{box-shadow:0 0 0 1px var(--ink);}
       .cm-date-chip .cm-date-day{font-size:14px; font-weight:700; color:var(--ink); display:block; margin-top:2px;}
       .cm-date-chip.active{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
       .cm-date-chip.active .cm-date-day{color:var(--paper-card);}
@@ -256,33 +250,25 @@ const ConsultantModal = (function () {
     <div class="detail-info" id="cm-detail-info">
       <div class="detail-meta" id="cm-category"></div>
     </div>
-    <div class="cm-tabs" id="cm-tabs">
-      <button type="button" class="cm-tab active" data-tab="overview">Genel Bakış</button>
-      <button type="button" class="cm-tab" data-tab="reviews">Değerlendirmeler</button>
-    </div>
-    <div class="cm-tab-panel active" id="cm-tab-overview">
-      <div class="detail-desc" id="cm-about"></div>
-      <div class="cm-tags" id="cm-tags"></div>
-      <div class="cm-insights" id="cm-insights"></div>
-      <div class="cm-edit-panel" id="cm-edit-panel">
-        <div class="cm-edit-label">Açıklama</div>
-        <textarea class="cm-edit-bio" id="cm-edit-bio-input" maxlength="2000"></textarea>
-        <div class="cm-edit-label">Haftalık Müsaitlik</div>
-        <div id="cm-edit-days"></div>
-        <div class="cm-edit-actions">
-          <button type="button" class="cm-edit-cancel-btn" id="cm-edit-cancel-btn">Vazgeç</button>
-          <button type="button" class="cm-edit-save-btn" id="cm-edit-save-btn">Kaydet</button>
-        </div>
+    <div class="detail-desc" id="cm-about"></div>
+    <div class="cm-tags" id="cm-tags"></div>
+    <div class="cm-insights" id="cm-insights"></div>
+    <div class="cm-edit-panel" id="cm-edit-panel">
+      <div class="cm-edit-label">Açıklama</div>
+      <textarea class="cm-edit-bio" id="cm-edit-bio-input" maxlength="2000"></textarea>
+      <div class="cm-edit-label">Haftalık Müsaitlik</div>
+      <div id="cm-edit-days"></div>
+      <div class="cm-edit-actions">
+        <button type="button" class="cm-edit-cancel-btn" id="cm-edit-cancel-btn">Vazgeç</button>
+        <button type="button" class="cm-edit-save-btn" id="cm-edit-save-btn">Kaydet</button>
       </div>
     </div>
-    <div class="cm-tab-panel" id="cm-tab-reviews">
-      <div class="cm-rating-summary" id="cm-rating-summary"></div>
-      <div class="cm-tab-empty" id="cm-rating-empty" style="display:none;">Henüz değerlendirme yok — ilk değerlendirmeyi sen yap.</div>
-      <div class="comments-section" id="cm-comments-section" aria-live="polite">
-        <h2 class="comments-title">Yorumlar (<span id="pm-comments-count">0</span>)</h2>
-        <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
-        <div class="comments-list" id="pm-comments-list"></div>
-      </div>
+    <div class="cm-rating-summary" id="cm-rating-summary"></div>
+    <div class="cm-tab-empty" id="cm-rating-empty" style="display:none;">Henüz değerlendirme yok — ilk değerlendirmeyi sen yap.</div>
+    <div class="comments-section" id="cm-comments-section" aria-live="polite">
+      <h2 class="comments-title">Yorumlar (<span id="pm-comments-count">0</span>)</h2>
+      <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
+      <div class="comments-list" id="pm-comments-list"></div>
     </div>`;
 
   const RIGHT_TEMPLATE = `
@@ -293,7 +279,7 @@ const ConsultantModal = (function () {
       </div>
       <div id="cm-slots-wrap">
         <div class="cm-slots-title">
-          <span>Uygun Görüşmeler</span>
+          <span>Uygun Tarih ve Saatler</span>
           <span class="cm-week-nav">
             <button type="button" class="cm-week-btn" id="cm-week-prev" aria-label="Önceki hafta">‹</button>
             <span class="cm-week-label" id="cm-week-label"></span>
@@ -358,18 +344,8 @@ const ConsultantModal = (function () {
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);
-    wireTabs();
     wireEditPanel();
     mountedOnce = true;
-  }
-
-  function wireTabs() {
-    document.getElementById('cm-tabs').addEventListener('click', (e) => {
-      const btn = e.target.closest('.cm-tab');
-      if (!btn) return;
-      document.querySelectorAll('.cm-tab').forEach(t => t.classList.toggle('active', t === btn));
-      document.querySelectorAll('.cm-tab-panel').forEach(p => p.classList.toggle('active', p.id === `cm-tab-${btn.dataset.tab}`));
-    });
   }
 
   // Havale/EFT pop-up'ı bir kez body'ye eklenir (ModalShell'den BAĞIMSIZ, tekrar açılıp
@@ -530,7 +506,7 @@ const ConsultantModal = (function () {
     selectedBooking = null;
 
     if (!template.length) {
-      wrap.innerHTML = `<div class="cm-slots-title">Uygun Görüşmeler</div><div class="cm-empty-slots">Şu anda müsait bir görüşme saati yok.</div>`;
+      wrap.innerHTML = `<div class="cm-slots-title">Uygun Tarih ve Saatler</div><div class="cm-empty-slots">Şu anda müsait bir görüşme saati yok.</div>`;
       return;
     }
 
@@ -576,11 +552,22 @@ const ConsultantModal = (function () {
       }
       weekLabel.textContent = `${dates[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} – ${dates[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}`;
       const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+      const now = new Date();
+      function dateHasAvailability(d, isPastDay) {
+        if (isPastDay) return false;
+        return timesForDate(d).some(t => {
+          if (!t.available) return false;
+          const [hh, mm] = t.time.split(':').map(Number);
+          const slotMoment = new Date(d); slotMoment.setHours(hh, mm, 0, 0);
+          return slotMoment.getTime() > now.getTime();
+        });
+      }
       dateRow.innerHTML = dates.map((d, i) => {
         const dateStr = toDateStr(d);
         const isPastDay = startOfDay(d).getTime() < todayStart.getTime();
         const active = dateStr === selectedDate;
-        return `<div class="cm-date-chip${active ? ' active' : ''}${isPastDay ? ' disabled' : ''}" data-date="${dateStr}">${dayNames[i]}<span class="cm-date-day">${d.getDate()}</span></div>`;
+        const hasAvail = dateHasAvailability(d, isPastDay);
+        return `<div class="cm-date-chip${active ? ' active' : ''}${isPastDay ? ' disabled' : ''}" data-date="${dateStr}"><span class="cm-date-dot${hasAvail ? ' available' : ''}"></span>${dayNames[i]}<span class="cm-date-day">${d.getDate()}</span></div>`;
       }).join('');
       dateRow.querySelectorAll('.cm-date-chip:not(.disabled)').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -608,7 +595,8 @@ const ConsultantModal = (function () {
     document.getElementById('cm-name-text').textContent = 'Danışman bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
-    ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking', 'cm-office-section',
+    ['cm-actions', 'cm-about', 'cm-tags', 'cm-insights', 'cm-rating-summary', 'cm-rating-empty',
+      'cm-comments-section', 'cm-booking', 'cm-office-section',
       'cm-related-projects-section', 'cm-similar-section', 'cm-detail-info'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -763,7 +751,8 @@ const ConsultantModal = (function () {
     selectedDate = null;
     closeEditMode();
 
-    ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking', 'cm-detail-info']
+    ['cm-actions', 'cm-about', 'cm-tags', 'cm-insights', 'cm-rating-summary', 'cm-comments-section',
+      'cm-booking', 'cm-detail-info']
       .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
 
     updateHeadMeta(a);
