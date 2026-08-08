@@ -214,6 +214,17 @@ const ConsultantModal = (function () {
     document.head.appendChild(style);
   }
 
+  // architect-modal.js#DEPT_TO_PROFESSION ile AYNI eşleme — künyedeki "Meslek" satırı için
+  // a.profession boşsa bölümden (a.dept) türetilen yedek.
+  const DEPT_TO_PROFESSION = {
+    'Mimarlık': 'Mimar',
+    'İç Mimarlık': 'İç Mimar',
+    'İç Mimarlık ve Çevre Tasarımı': 'İç Mimar',
+    'Peyzaj Mimarlığı': 'Peyzaj Mimarı',
+    'Şehir ve Bölge Planlama': 'Şehir Plancısı',
+    'Restorasyon': 'Restoratör',
+  };
+
   const LEFT_TEMPLATE = `
     <div class="cm-identity">
       <div class="profile-logo" id="cm-logo"></div>
@@ -222,6 +233,7 @@ const ConsultantModal = (function () {
     <div class="detail-title-actions" id="cm-actions"></div>
     <div class="detail-info" id="cm-detail-info">
       <div class="detail-meta" id="cm-category"></div>
+      <div class="detail-meta" id="cm-info-facts" style="display:none;"></div>
     </div>
     <div class="detail-desc" id="cm-about"></div>
     <div class="cm-tags" id="cm-tags"></div>
@@ -600,6 +612,21 @@ const ConsultantModal = (function () {
     updateHeadMeta(a);
     document.getElementById('cm-name-text').textContent = a.name;
     document.getElementById('cm-category').innerHTML = `<strong>${escapeHtml([a.role, office ? office.name : null].filter(Boolean).join(' · '))}</strong>`;
+
+    // Künye — architect-modal.js#renderItem'daki AYNI Doğum Tarihi/Üniversite/Meslek/Ödüller
+    // satırları (bkz. kullanıcı isteği: "danışman pop-up tasarımında sol taraftaki künye kısmı
+    // mimar pop-up künye tasarımıyla aynı olsun") — consultant zaten bir architects satırı
+    // olduğundan (bkz. dosya başı yorumu) aynı alanlar üzerinden birebir üretilir.
+    const infoFactsEl = document.getElementById('cm-info-facts');
+    const infoFacts = [];
+    if (a.dob) infoFacts.push(`<div><strong>Doğum Tarihi:</strong> ${escapeHtml(String(a.dob))}</div>`);
+    if (a.school) infoFacts.push(`<div><strong>Üniversite:</strong> ${escapeHtml(a.school)}</div>`);
+    const profession = a.profession || DEPT_TO_PROFESSION[a.dept] || null;
+    if (profession) infoFacts.push(`<div><strong>Meslek:</strong> ${escapeHtml(profession)}</div>`);
+    if (a.awards && a.awards.length) infoFacts.push(`<div><strong>Ödüller:</strong> ${a.awards.map(escapeHtml).join(', ')}</div>`);
+    infoFactsEl.innerHTML = infoFacts.join('');
+    infoFactsEl.style.display = infoFacts.length ? '' : 'none';
+
     const aboutText = a.about || `${a.name} — MİMARLAB'da online mimari danışmanlık/mentörlük hizmeti veriyor.`;
     renderTruncatedDesc('cm-about', aboutText);
 

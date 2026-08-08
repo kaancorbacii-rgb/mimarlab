@@ -107,6 +107,26 @@
   .ac-suggestion:hover{background:var(--paper-alt);}
   .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
 
+  /* ---------- AÇILIR PANEL (Meslek, Pozisyon) — mimar-ekle.html'deki AYNI .dd-* desen ---------- */
+  .dd-field{position:relative;}
+  .dd-btn{
+    width:100%; text-align:left; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .dd-btn-arrow{flex-shrink:0; opacity:0.5; transition:transform .15s ease;}
+  .dd-field.open .dd-btn-arrow{transform:rotate(180deg);}
+  .dd-panel{
+    display:none; flex-direction:column; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:25;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); padding:8px; max-height:280px;
+  }
+  .dd-field.open .dd-panel{display:flex;}
+  .dd-options{overflow-y:auto;}
+  .dd-option{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
+  .dd-option:hover{background:var(--paper-alt);}
+  .dd-option.selected{background:var(--paper-alt); font-weight:600;}
+
   /* ---------- Haftalık Müsaitlik ---------- */
   .slots-day{margin-bottom:12px;}
   .slots-day-label{font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:6px;}
@@ -237,15 +257,33 @@
     <form id="danisman-ekle-form">
       <div class="form-section">
         <h2>Kişisel Bilgiler</h2>
-        <div class="form-field ac-field" id="ac-name-field">
-          <label for="d-name">Ad Soyad</label>
-          <input type="text" id="d-name" name="name" placeholder="ör. Emre Arolat" autocomplete="off" required>
-          <div class="ac-suggestions" id="ac-name-suggestions"></div>
+        <div class="form-row">
+          <div class="form-field ac-field" id="ac-name-field">
+            <label for="d-name">Ad Soyad</label>
+            <input type="text" id="d-name" name="name" placeholder="ör. Emre Arolat" autocomplete="off" required>
+            <div class="ac-suggestions" id="ac-name-suggestions"></div>
+          </div>
+          <div class="form-field">
+            <label>Meslek <span class="opt">(opsiyonel)</span></label>
+            <div class="dd-field" id="dd-meslek">
+              <button type="button" class="dd-btn" id="dd-meslek-btn">
+                <span id="dd-meslek-btn-label">Meslek seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel"><div class="dd-options" id="dd-meslek-options"></div></div>
+            </div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="d-position">Unvan <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="d-position" placeholder="ör. Mimar, Kurucu" maxlength="80">
+            <label>Pozisyon <span class="opt">(opsiyonel)</span></label>
+            <div class="dd-field" id="dd-pozisyon">
+              <button type="button" class="dd-btn" id="dd-pozisyon-btn">
+                <span id="dd-pozisyon-btn-label">Pozisyon seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel"><div class="dd-options" id="dd-pozisyon-options"></div></div>
+            </div>
           </div>
           <div class="form-field ac-field" id="ac-office-field">
             <label for="d-office">Firma <span class="opt">(opsiyonel)</span></label>
@@ -345,6 +383,48 @@ function escapeAttr(s){
   d.textContent = s || '';
   return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+// ---------- AÇILIR PANEL: Meslek / Pozisyon — mimar-ekle.html#wireSingleDropdown ile BİREBİR AYNI
+// desen/seçenek listeleri (bkz. kullanıcı isteği: "ikisi de açılır menü olsun ve seçenekleri mimar
+// ekle sayfasındakilerle aynı olsun") ----------
+function closeAllDropdowns(){
+  document.querySelectorAll('.dd-field.open').forEach(f => f.classList.remove('open'));
+}
+document.addEventListener('click', (e)=>{
+  document.querySelectorAll('.dd-field.open').forEach(f=>{ if(!f.contains(e.target)) f.classList.remove('open'); });
+});
+function wireSingleDropdown(fieldId, btnId, labelId, optionsId, options, placeholderText){
+  const field = document.getElementById(fieldId);
+  const btn = document.getElementById(btnId);
+  const label = document.getElementById(labelId);
+  const container = document.getElementById(optionsId);
+  let selected = null;
+  function render(){
+    container.innerHTML = options.map(o => `<div class="dd-option${o===selected?' selected':''}" data-value="${escapeAttr(o)}">${escapeAttr(o)}</div>`).join('');
+    container.querySelectorAll('[data-value]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        selected = el.dataset.value;
+        label.textContent = selected;
+        field.classList.remove('open');
+        render();
+      });
+    });
+  }
+  btn.addEventListener('click', ()=>{
+    const willOpen = !field.classList.contains('open');
+    closeAllDropdowns();
+    if(willOpen) field.classList.add('open');
+  });
+  render();
+  return {
+    get: ()=>selected,
+    set(v){ selected = v || null; label.textContent = selected || placeholderText; render(); },
+  };
+}
+const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Öğrenci','Diğer'];
+const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Çalışan','Akademisyen','Freelance','Öğrenci','Emekli','İşsiz'];
+const meslekDropdown = wireSingleDropdown('dd-meslek', 'dd-meslek-btn', 'dd-meslek-btn-label', 'dd-meslek-options', MESLEK_OPTIONS, 'Meslek seç');
+const pozisyonDropdown = wireSingleDropdown('dd-pozisyon', 'dd-pozisyon-btn', 'dd-pozisyon-btn-label', 'dd-pozisyon-options', POZISYON_OPTIONS, 'Pozisyon seç');
 
 const params = new URLSearchParams(window.location.search);
 const claimName = params.get('claim');
@@ -515,7 +595,8 @@ async function prefillForClaim(){
     nameInput.readOnly = true;
     document.getElementById('ac-name-field').style.display = '';
 
-    document.getElementById('d-position').value = a.role || '';
+    pozisyonDropdown.set(a.role || null);
+    meslekDropdown.set(a.profession || null);
     document.getElementById('d-office').value = a.office || '';
     document.getElementById('d-about').value = a.about || '';
     document.getElementById('d-tags').value = (a.expertiseTags || []).join(', ');
@@ -580,7 +661,8 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
       res = await fetch(`/api/consultant/${encodeURIComponent(claimName)}`, {
         method: 'PATCH', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          role: document.getElementById('d-position').value.trim(),
+          role: pozisyonDropdown.get() || '',
+          profession: meslekDropdown.get() || '',
           officeName: document.getElementById('d-office').value.trim(),
           consultantBio: document.getElementById('d-about').value.trim(),
           expertiseTags,
@@ -596,7 +678,8 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           name,
-          position: document.getElementById('d-position').value.trim(),
+          position: pozisyonDropdown.get() || '',
+          profession: meslekDropdown.get() || '',
           office: document.getElementById('d-office').value.trim(),
           about: document.getElementById('d-about').value.trim(),
           consultant_request: true,
@@ -639,6 +722,8 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
     notice.classList.add('show', 'success');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     form.reset();
+    meslekDropdown.set(null);
+    pozisyonDropdown.set(null);
     selectedFiles = [];
     existingPhotoUrl = null;
     renderPreviews();

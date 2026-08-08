@@ -198,6 +198,12 @@ async function buildConsultantPayload(env, key) {
     availableSlots: a.available_slots || [], totalMinutes: a.consultant_total_minutes || 0,
     sessionsCompleted: a.consultant_sessions_completed || 0,
     experienceYears: a.consultant_experience_years ?? null, badges: [],
+    // künye (mimar pop-up'ıyla AYNI: Doğum Tarihi/Üniversite/Meslek/Ödüller, bkz. kullanıcı isteği)
+    // + danisman-ekle.html?claim= düzenleme formunun Meslek açılır menüsünü doldurması için —
+    // consultant zaten bir architects satırı olduğundan (bkz. dosya başı yorumu) bu alanlar
+    // architects.dob/school/profession/awards'tan doğrudan gelir, yeni bir sütun GEREKMEZ.
+    dob: a.dob || null, school: a.school || null, dept: a.dept || null,
+    profession: a.profession || null, awards: a.awards || [],
   };
 
   return {
@@ -252,8 +258,9 @@ async function resolveOfficeId(env, officeName) {
   return row ? row.id : null;
 }
 
-// PATCH /api/consultant/:key  body: {consultantBio?, role?, officeName?, photoUrl?, expertiseTags?,
-// hourlyRate?, sessionDurationMin?, experienceYears?, availableSlotsTemplate?} — danışmanın kendi
+// PATCH /api/consultant/:key  body: {consultantBio?, role?, profession?, officeName?, photoUrl?,
+// expertiseTags?, hourlyRate?, sessionDurationMin?, experienceYears?, availableSlotsTemplate?} —
+// danışmanın kendi
 // profilini (isim hariç — yeniden adlandırma bu uç noktanın kapsamı DIŞINDA) doğrudan yazar (bkz.
 // kullanıcı isteği: danisman-ekle.html?claim= düzenleme sayfası, "düzenleme yapınca danışman
 // gönderisine hemen yansısın") — submission-approval kuyruğunu BİLEREK atlar, zamanlama verisi
@@ -274,6 +281,10 @@ export async function handleConsultantEditRoute(request, env, rawKey) {
   if (typeof body.role === 'string') {
     fields.push('position = ?');
     values.push(body.role.trim().slice(0, 80) || null);
+  }
+  if (typeof body.profession === 'string') {
+    fields.push('profession = ?');
+    values.push(body.profession.trim().slice(0, 80) || null);
   }
   if (typeof body.officeName === 'string') {
     fields.push('office_id = ?');
