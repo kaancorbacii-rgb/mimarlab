@@ -12,12 +12,16 @@ const PREFIX_BY_TYPE = {
   office: '/firma/',
   product: '/urun/',
   news: '/haberler/',
+  // /danismanlik modülü — bu turda çağıran yok (admin/self-serve düzenleme akışı henüz eklenmedi,
+  // bkz. kullanıcı isteği), ileride bir purge noktası eklendiğinde diğer tiplerle AYNI eşleme
+  // hazır olsun diye eklendi.
+  consultant: '/danismanlik/',
 };
 
 // architect/office temiz URL'leri isimden slugify edilir (bkz. src/index.js#CLEAN_URL_REDIRECTS
 // slugifyValue:true) — project/news zaten kendi slug/id'sini, product zaten kendi anahtarını (ör.
 // "m-<submissionId>") kullanır, ayrıca slugify edilmez.
-const SLUGIFY_TYPES = new Set(['architect', 'office']);
+const SLUGIFY_TYPES = new Set(['architect', 'office', 'consultant']);
 
 // Admin panelinden (ya da admin'in kendi gönderisinin anında yayına girmesiyle) bir proje/mimar/
 // firma/ürün değiştiğinde, o kaydın SSR HTML önbelleğini (bkz. src/index.js#serveDetailPage)

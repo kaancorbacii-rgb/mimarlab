@@ -51,6 +51,7 @@ function truncate(text, max) {
 // verinin sayfada görünen içerikle tutarlı olmasını bekler (bkz. structured data guidelines).
 const CATALOG_CRUMB = {
   architect: { label: 'Mimarlar', path: '/mimar' },
+  consultant: { label: 'Danışmanlık', path: '/danismanlik' },
   office: { label: 'Firmalar', path: '/firma' },
   project: { label: 'Projeler', path: '/proje' },
   product: { label: 'Ürün', path: '/urun' },
@@ -193,6 +194,31 @@ async function buildArchitectMeta(slug, env) {
   return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept }, row.office_name || null, slug);
 }
 
+// /danismanlik/:slug — architectMetaFromRecord ile AYNI kaynak satır (findArchitectRow), ama
+// AYRI title/canonical/breadcrumb üretir (bkz. kullanıcı isteği: danışmanlık sayfası kendi SEO
+// kimliğini taşısın) ve is_consultant=1 olmayan/silinmiş satırlar için null döner — çağıran
+// (src/index.js#serveDetailPage) null'da meta enjeksiyonunu atlar, danismanlik.html ham haliyle
+// servis edilir (istemci tarafında ConsultantModal "bulunamadı" durumunu kendisi ele alır, bkz.
+// js/components/consultant-modal.js#renderNotFound).
+async function buildConsultantMeta(slug, env) {
+  const row = await findArchitectRow(env, slug);
+  if (!row || !row.is_consultant) return null;
+  const a = parseCanonicalRow('architects', row);
+  const officeName = row.office_name || null;
+  const title = `${a.name} — Online Danışmanlık | MİMARLAB`;
+  const description = a.consultant_bio || a.about
+    ? truncate(a.consultant_bio || a.about, 200)
+    : `${a.name}${officeName ? `, ${officeName}` : ''} ile MİMARLAB'da online mimari danışmanlık/mentörlük seansı ayırt.`;
+  const canonicalUrl = `${SITE_ORIGIN}/danismanlik/${encodeURIComponent(slug)}`;
+  const photoUrl = a.photo_url ? absoluteUrl(a.photo_url) : null;
+  const jsonLd = { '@context': 'https://schema.org', '@type': 'Person', name: a.name, url: canonicalUrl };
+  if (a.position) jsonLd.jobTitle = a.position;
+  if (photoUrl) jsonLd.image = photoUrl;
+  if (officeName) jsonLd.worksFor = { '@type': 'Organization', name: officeName, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(slugify(officeName))}` };
+  if (a.expertise_tags && a.expertise_tags.length) jsonLd.knowsAbout = a.expertise_tags;
+  return { title, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('consultant', a.name, canonicalUrl) };
+}
+
 // architectMetaFromRecord ile AYNI paylaşım deseni — canonical D1 offices satırı ortak şekle
 // ({name, about, yil, loc, logo, website}) indirgenip tek fonksiyondan geçirilir.
 async function officeMetaFromRecord(o, slug, env) {
@@ -320,7 +346,7 @@ function buildNewsMeta(id) {
   return { title, description, canonicalUrl, image: imageUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('news', n.title, canonicalUrl) };
 }
 
-const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta, news: buildNewsMeta };
+const BUILDERS = { architect: buildArchitectMeta, consultant: buildConsultantMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta, news: buildNewsMeta };
 
 // type: 'architect' | 'office' | 'project' | 'product' | 'news'; slugOrId: URL'den çözülen slug/id.
 // Kayıt bulunamazsa (veya D1 sorgusu hata verirse, bkz. aşağıdaki try/catch) null döner — çağıran

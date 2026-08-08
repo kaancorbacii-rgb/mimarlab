@@ -5,6 +5,7 @@ import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from '.
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute, handleNewsListRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
+import { handleConsultantListRoute, handleConsultantRoute } from './routes/consultant.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
@@ -111,6 +112,10 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
   { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
+  // /danismanlik/:slug — danismanlik.html'in kendisi listeleme+detay ikisini birden barındırır
+  // (bkz. kullanıcı isteği), yukarıdaki /mimar ile AYNI desen (architect-detay.html gibi ayrı bir
+  // dosya yok, tek sayfa kendi JS'inde path'e göre ConsultantModal'ı açar).
+  { prefix: '/danismanlik/', asset: '/danismanlik', type: 'consultant' },
 ];
 
 // Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
@@ -198,6 +203,7 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
   { loc: '/haber', changefreq: 'daily', priority: '0.7' },
   { loc: '/is-ilani', changefreq: 'daily', priority: '0.7' },
+  { loc: '/danismanlik', changefreq: 'daily', priority: '0.8' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   { loc: '/kariyer', changefreq: 'monthly', priority: '0.4' },
@@ -495,6 +501,9 @@ async function routeApi(request, env, url) {
   // path'ler GET için önceden zaten boştu, çakışma yok).
   if (path === '/api/projects' && request.method === 'GET') return handleProjectListRoute(request, env, url);
   if (path === '/api/architects' && request.method === 'GET') return handleArchitectListRoute(request, env, url);
+  // /danismanlik modülü (bkz. kullanıcı isteği) — architects.is_consultant=1 satırları, /api/
+  // architects ile AYNI liste/detay desen çifti (bkz. src/routes/consultant.js).
+  if (path === '/api/consultants' && request.method === 'GET') return handleConsultantListRoute(request, env, url);
   if (path === '/api/offices' && request.method === 'GET') return handleOfficeListRoute(request, env, url);
   if (path === '/api/products' && request.method === 'GET') return handleProductListRoute(request, env, url);
   // Faz 4B doğrulama turunda bulunan gerçek bulgu: BARE /api/news GET, handleSubmissionRoute'ta
@@ -513,6 +522,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
+  if (path.startsWith('/api/consultant/')) return handleConsultantRoute(request, env, url, path.slice('/api/consultant/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) {
     const projectSlug = path.slice('/api/project/'.length);

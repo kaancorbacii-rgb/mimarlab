@@ -6,7 +6,9 @@
 // AYNI "arrayFields listesine göre JSON.parse et" deseninin canonical tablo karşılığı.
 
 const JSON_FIELDS = {
-  architects: ['awards'],
+  // expertise_tags/available_slots — migrations/0031_architect_consultant.sql (bkz. kullanıcı
+  // isteği: /danismanlik modülü), diğer JSON kolonlarla AYNI JSON.stringify/parse deseni.
+  architects: ['awards', 'expertise_tags', 'available_slots'],
   offices: ['cats', 'awards'],
   projects: ['category', 'type', 'discipline', 'period', 'images'],
   products: ['images', 'specs'],
