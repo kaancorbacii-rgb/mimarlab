@@ -20,7 +20,7 @@ const ArchitectProjects = (function () {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }
@@ -89,7 +89,7 @@ const RelatedProjects = (function () {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="eager" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }
@@ -111,6 +111,18 @@ const RelatedProjects = (function () {
     return isDomestic
       ? { city: info.district || info.city, country: 'Türkiye' }
       : { city: info.district || null, country: info.city };
+  }
+
+  // Kural 1 (ZORUNLU, bkz. kullanıcı isteği): aday havuzu kaynak projeyle AYNI "Tür"e (discipline —
+  // Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon) sahip olmayan hiçbir projeyi içeremez.
+  // Bu filtre hem sorgu seviyesinde (gatherCandidateQueries'teki discipline param'ı, server
+  // passesFilters — bkz. src/routes/project.js#buildFilterGroups) hem istemci tarafında (mount()
+  // candidates.set öncesi) uygulanır. Kaynak projede discipline verisi YOKSA (eski/eksik kayıt)
+  // filtre uygulanamaz — geriye dönük davranış korunur, bölüm tamamen boş kalmaz.
+  function hasSameDiscipline(source, candidate) {
+    const sourceDisciplines = source.discipline || [];
+    if (!sourceDisciplines.length) return true;
+    return (candidate.discipline || []).some(d => sourceDisciplines.includes(d));
   }
 
   // Kaynağın alan listesindeki KAÇ değerin adayda da bulunduğunun oranı (kaynak temelli, Jaccard
@@ -155,18 +167,25 @@ const RelatedProjects = (function () {
     } catch { return []; }
   }
 
+  // Kural 1 — 'discipline' zaten desteklenen bir /api/projects filtre param'ı (bkz.
+  // src/routes/project.js#buildFilterGroups 'Tür'), her aday sorgusuna eklenerek havuzun
+  // KAYNAĞINDA (client-side hasSameDiscipline() beklemeden) farklı türdeki projeler elenir. Çoklu
+  // discipline değeri OR mantığıyla eşleşir (bkz. passesFilters#vals.some).
   function gatherCandidateQueries(item) {
     const queries = [];
+    const disciplineParams = (item.discipline || []).map(d => ['discipline', d]);
+    const withDiscipline = params => disciplineParams.length ? [...params, ...disciplineParams] : params;
     (item.designerDetails || []).forEach(d => {
       if (d.unregistered) return;
-      queries.push(fetchByParams([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]], 12));
+      queries.push(fetchByParams(withDiscipline([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
     });
-    (item.type || []).forEach(t => queries.push(fetchByParams([['type', t]], 16)));
-    (item.category || []).forEach(c => queries.push(fetchByParams([['category', c]], 16)));
+    (item.type || []).forEach(t => queries.push(fetchByParams(withDiscipline([['type', t]]), 16)));
+    (item.category || []).forEach(c => queries.push(fetchByParams(withDiscipline([['category', c]]), 16)));
     const topLevelLocation = locationParts(item.location);
     const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
-    if (rawCity) queries.push(fetchByParams([['location', rawCity]], 16));
-    queries.push(fetchByParams([['sort', 'rating_desc']], 16)); // genel havuz — boşluk doldurma + puan sinyali
+    if (rawCity) queries.push(fetchByParams(withDiscipline([['location', rawCity]]), 16));
+    queries.push(fetchByParams(withDiscipline([['sort', 'rating_desc']]), 16)); // genel havuz — boşluk doldurma
+    if (disciplineParams.length) queries.push(fetchByParams(disciplineParams, 24)); // Tür'e özel geniş havuz
     return { queries, topLevelLocation };
   }
 
@@ -205,8 +224,11 @@ const RelatedProjects = (function () {
     const exclude = new Set(excludeSlugs || []);
     exclude.add(item.slug);
 
+    // Kural 1 KESİN — sorgular zaten discipline'a göre daraltılmıştı (bkz. gatherCandidateQueries),
+    // ama burada da kontrol edilir: farklı türdeki hiçbir proje (ör. mimari altında iç mekan) bu
+    // filtreyi atlayıp havuza giremez.
     const candidates = new Map();
-    lists.flat().forEach(p => { if (!exclude.has(p.slug) && !candidates.has(p.slug)) candidates.set(p.slug, p); });
+    lists.flat().forEach(p => { if (!exclude.has(p.slug) && !candidates.has(p.slug) && hasSameDiscipline(item, p)) candidates.set(p.slug, p); });
 
     const scored = Array.from(candidates.values())
       .map(p => ({ p, score: scoreCandidate(item, p) }))

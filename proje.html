@@ -362,10 +362,12 @@
      ve Puanla/Kaydet'in flex-shrink+ellipsis ile daralması (metinleri HER ZAMAN görünür kalır, kullanıcı
      isteği) ile sağlanır, taşma yerine ölçeklenme tercih edilir. Tüm bayraklar !important — kullanıcı
      isteği: bu satır başka hiçbir kuralın ele geçiremeyeceği kadar katı olsun. */
+  /* gap 6px — #pm-save-slot'un (Kaydet-Paylaş arası) gap'iyle BİREBİR aynı (bkz. kullanıcı isteği:
+     Puanla-Kaydet ile Kaydet-Paylaş aralıkları eşitlensin). */
   .pm-rating-save-row{
     display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
     align-items:center !important; justify-content:flex-start !important; width:100% !important;
-    gap:4px !important; margin:0 0 14px;
+    gap:6px !important; margin:0 0 14px;
   }
   /* gerçek bulgu: #pm-save-slot (Kaydet+Paylaş'ı BİRLİKTE tutan div, proje-actions.js#mount)
      kendisi flex konteyner DEĞİLDİ — içindeki .save-btn/.share-widget salt inline-flex kutular
@@ -695,6 +697,7 @@
        Paylaş artık ikon-only olduğundan (bkz. share-button.js) buradaki listeden çıkarıldı, kendi
        boyutunu paylaşılan .share-btn 860px kuralından alır. */
     .pm-rating-save-row{gap:8px !important;}
+    #pm-save-slot{gap:8px !important;}
     .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn{
       height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
     }
