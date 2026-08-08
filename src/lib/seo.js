@@ -51,7 +51,7 @@ function truncate(text, max) {
 // verinin sayfada görünen içerikle tutarlı olmasını bekler (bkz. structured data guidelines).
 const CATALOG_CRUMB = {
   architect: { label: 'Mimarlar', path: '/mimar' },
-  consultant: { label: 'Danışmanlık', path: '/danismanlik' },
+  consultant: { label: 'Danışmanlık', path: '/danisman' },
   office: { label: 'Firmalar', path: '/firma' },
   project: { label: 'Projeler', path: '/proje' },
   product: { label: 'Ürün', path: '/urun' },
@@ -209,7 +209,7 @@ async function buildConsultantMeta(slug, env) {
   const description = a.consultant_bio || a.about
     ? truncate(a.consultant_bio || a.about, 200)
     : `${a.name}${officeName ? `, ${officeName}` : ''} ile MİMARLAB'da online mimari danışmanlık/mentörlük seansı ayırt.`;
-  const canonicalUrl = `${SITE_ORIGIN}/danismanlik/${encodeURIComponent(slug)}`;
+  const canonicalUrl = `${SITE_ORIGIN}/danisman/${encodeURIComponent(slug)}`;
   const photoUrl = a.photo_url ? absoluteUrl(a.photo_url) : null;
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Person', name: a.name, url: canonicalUrl };
   if (a.position) jsonLd.jobTitle = a.position;

@@ -296,7 +296,7 @@
       <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
-      <a class="nav-link" href="danismanlik.html">Danışmanlık</a>
+      <a class="nav-link" href="danisman.html">Danışmanlık</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -313,7 +313,7 @@
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
-      <a class="nav-mobile-link" href="danismanlik.html">Danışmanlık</a>
+      <a class="nav-mobile-link" href="danisman.html">Danışmanlık</a>
     </div>
   </nav>
 
@@ -480,10 +480,18 @@
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
         <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
         <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-        <button type="button" class="saved-filter-btn" data-filter="material">Malzeme</button>
       </div>
       <div id="dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="rated-pagination"></div>
+    </div>
+
+    <div class="dash-section">
+      <h2>Yorumlarım</h2>
+      <div class="saved-filter" id="comments-filter">
+        <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+      </div>
+      <div id="dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
+      <div class="dash-pagination" id="comments-pagination"></div>
     </div>
 
     <div class="dash-section">
@@ -514,7 +522,7 @@
         <a href="urun.html">Ürün</a>
         <a href="mimar.html">Mimar</a>
         <a href="firma.html">Firma</a>
-        <a href="danismanlik.html">Danışmanlık</a>
+        <a href="danisman.html">Danışmanlık</a>
       </div>
       <div class="footer-col">
         <h4>Topluluk</h4>
@@ -851,6 +859,51 @@ document.getElementById('rated-filter').addEventListener('click', (e)=>{
   renderRated();
 });
 
+let commentItems = [];
+let commentsPage = 1;
+
+// "Yorumlarım" — loadRated/renderRated ile AYNI desen, farklı uç nokta
+// (src/routes/comments.js#myComments). Filtre satırında yalnızca "Tümü" var (bkz. kullanıcı isteği).
+async function loadComments(){
+  const res = await fetch('/api/comments/mine');
+  const data = res.ok ? await res.json() : { items: [] };
+  commentItems = data.items || [];
+  renderComments();
+}
+
+function renderComments(){
+  const container = document.getElementById('dash-comments');
+  if(!commentItems.length){
+    container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
+    document.getElementById('comments-pagination').innerHTML = '';
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(commentItems.length / PAGE_SIZE_DASH));
+  if(commentsPage > totalPages) commentsPage = totalPages;
+  const startIdx = (commentsPage - 1) * PAGE_SIZE_DASH;
+  const pageItems = commentItems.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+  container.innerHTML = pageItems.map(it => `
+    <div class="saved-row" data-id="${escapeAttr(it.id)}">
+      <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
+        ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+        <div style="min-width:0;">
+          <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
+          <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''} · ${escapeHtml(it.body.length > 80 ? it.body.slice(0, 77) + '…' : it.body)}</div>
+        </div>
+      </a>
+      <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
+    </div>`).join('');
+  container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.saved-row');
+      btn.disabled = true;
+      await fetch(`/api/comments/${encodeURIComponent(row.dataset.id)}`, { method: 'DELETE' });
+      loadComments();
+    });
+  });
+  renderDashPagination('comments-pagination', commentsPage, totalPages, (p)=>{ commentsPage = p; renderComments(); });
+}
+
 document.getElementById('profile-info-tabs').addEventListener('click', (e)=>{
   const btn = e.target.closest('.saved-filter-btn');
   if(!btn) return;
@@ -1108,7 +1161,7 @@ document.getElementById('notif-delete-all-btn').addEventListener('click', async 
 
 loadUser().then(() => {
   if(currentUser){
-    loadSubmissions(); loadSaved(); loadRated(); loadBadges(); loadMyClaims(); loadNotifications();
+    loadSubmissions(); loadSaved(); loadRated(); loadComments(); loadBadges(); loadMyClaims(); loadNotifications();
     if(new URLSearchParams(window.location.search).get('payment') === 'success'){
       document.getElementById('payment-success-banner').style.display = 'block';
     }

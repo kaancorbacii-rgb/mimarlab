@@ -8,25 +8,25 @@
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Danışman — MİMARLAB</title>
 <meta name="description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük görüşmesi ayırt." id="meta-description">
-<link rel="canonical" href="https://mimarlab.com/danismanlik" id="canonical-link">
+<link rel="canonical" href="https://mimarlab.com/danisman" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Danışman — MİMARLAB" id="og-title">
 <meta property="og:description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük görüşmesi ayırt." id="og-description">
-<meta property="og:url" content="https://mimarlab.com/danismanlik" id="og-url">
+<meta property="og:url" content="https://mimarlab.com/danisman" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Danışman — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık, portfolyo incelemesi ve mentörlük görüşmesi ayırt." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
-<!-- mimar.html#list-jsonld ile AYNI desen — /danismanlik/:slug detay görünümünde ConsultantModal
+<!-- mimar.html#list-jsonld ile AYNI desen — /danisman/:slug detay görünümünde ConsultantModal
      (bkz. js/components/consultant-modal.js) kendi Person şemasını AYRI bir <script id="cs-ld-json">
      olarak ekler. -->
 <script type="application/ld+json" id="list-jsonld">
-{"@context":"https://schema.org","@type":"CollectionPage","name":"Danışman — MİMARLAB","url":"https://mimarlab.com/danismanlik","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Danışman — MİMARLAB","url":"https://mimarlab.com/danisman","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
-<!-- mimar.html'deki AYNI gerekçe: /danismanlik dışında /danismanlik/:slug altında da servis edilir. -->
+<!-- mimar.html'deki AYNI gerekçe: /danisman dışında /danisman/:slug altında da servis edilir. -->
 <base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -347,7 +347,7 @@
       <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
-      <a class="nav-link active" href="danismanlik.html">Danışmanlık</a>
+      <a class="nav-link active" href="danisman.html">Danışmanlık</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -364,7 +364,7 @@
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
-      <a class="nav-mobile-link active" href="danismanlik.html">Danışmanlık</a>
+      <a class="nav-mobile-link active" href="danisman.html">Danışmanlık</a>
     </div>
   </nav>
 
@@ -375,8 +375,8 @@
   </div>
 
   <div class="page-head">
-    <h1>Danışman</h1>
-    <p>MİMARLAB'daki doğrulanmış mimarlardan online danışmanlık ve mentörlük görüşmesi ayırt.</p>
+    <h1>Online Danışmanlık &amp; Mentörlük</h1>
+    <p>MİMARLAB'da fikir almak istediğin mimarlardan online danışmanlık &amp; mentörlük görüşmesi ayırt.</p>
   </div>
 
   <div class="grid-layout">
@@ -421,7 +421,7 @@
         <a href="urun.html">Ürün</a>
         <a href="mimar.html">Mimar</a>
         <a href="firma.html">Firma</a>
-        <a href="danismanlik.html">Danışmanlık</a>
+        <a href="danisman.html">Danışmanlık</a>
       </div>
       <div class="footer-col">
         <h4>Topluluk</h4>
@@ -450,13 +450,15 @@
 // mimar.html'in Legacy Bundle Elimination sonrası deseniyle AYNI: liste/filtre/sayfalama
 // backend'de (/api/consultants) yapılır, tüm danışman listesi hiçbir zaman tarayıcıya inmez.
 // Sidebar/result-bar/active-chips yapısı proje.html#buildSidebar ile BİREBİR aynı desen (bkz.
-// kullanıcı isteği: "/danismanlik sayfa yapısını birebir /projeler sayfasının mizanpajına
-// dönüştür") — tek fark: proje.html'in çok gruplu FILTER_GROUPS'u yerine burada TEK bir grup
-// (Uzmanlık Alanı, çok-seçmeli) + ayrı bir Ücret Aralığı sayısal aralık kutusu var.
+// kullanıcı isteği: "/danisman sayfa yapısını birebir /projeler sayfasının mizanpajına
+// dönüştür") — tek fark: proje.html'in çok gruplu FILTER_GROUPS'u yerine burada iki sabit grup var
+// (Uzmanlık Alanı ve Tecrübe, ikisi de çok-seçmeli).
 const PAGE_SIZE = 24;
 let currentPage = 1;
 let localSearchQuery = '';
 const activeTags = new Set();
+const activeExperience = new Set();
+const EXPERIENCE_LABELS = { '0-5': '0-5 Yıl', '5-10': '5-10 Yıl', '10+': '10+ Yıl' };
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -509,14 +511,8 @@ function renderPagination(totalPages){
 
 function currentQueryParams(){
   const params = new URLSearchParams();
-  // lastMinPrice/lastMaxPrice TEK doğruluk kaynağı — buildSidebar()'ın #cs-min-price/#cs-max-price
-  // input'larını DOM'a async olarak eklemesiyle bu fonksiyonun ilk render() çağrısı yarışabilir
-  // (bkz. gerçek bulgu: doğrudan ?minPrice=... ile gelen bir bağlantıda DOM'dan okumak henüz var
-  // olmayan elementten '' okuyup filtreyi sessizce kaybediyordu) — input change handler'ları zaten
-  // bu değişkenleri güncel tutuyor (bkz. buildSidebar), activeTags/localSearchQuery ile AYNI desen.
   activeTags.forEach(t => params.append('tag', t));
-  if(lastMinPrice) params.set('minPrice', lastMinPrice);
-  if(lastMaxPrice) params.set('maxPrice', lastMaxPrice);
+  activeExperience.forEach(e => params.append('experience', e));
   const sort = document.getElementById('cs-sort').value;
   if(sort) params.set('sort', sort);
   if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
@@ -533,14 +529,9 @@ function syncBrowserUrl(push){
 function applyInitialFiltersFromQuery(){
   const params = new URLSearchParams(location.search);
   params.getAll('tag').forEach(t => activeTags.add(t));
+  params.getAll('experience').forEach(e => activeExperience.add(e));
   localSearchQuery = params.get('search') || '';
-  // Sıralama statik #cs-sort'a hemen uygulanır; min/maxPrice ise buildSidebar()'ın DİNAMİK olarak
-  // oluşturduğu #cs-min-price/#cs-max-price henüz DOM'da yokken çağrıldığından lastMinPrice/
-  // lastMaxPrice değişkenlerine yazılıp buildSidebar() bunları value= olarak kullanır (bkz. o
-  // fonksiyondaki AYNI desen).
   document.getElementById('cs-sort').value = params.get('sort') || '';
-  lastMinPrice = params.get('minPrice') || '';
-  lastMaxPrice = params.get('maxPrice') || '';
   const pageParam = parseInt(params.get('page'), 10);
   currentPage = (pageParam > 1) ? pageParam : 1;
 }
@@ -548,10 +539,7 @@ function applyInitialFiltersFromQuery(){
 function renderActiveChips(){
   const el = document.getElementById('active-chips');
   let html = [...activeTags].map(t => `<span class="active-chip">${escapeHtml(t)}<button type="button" data-remove-tag="${escapeAttr(t)}" aria-label="Kaldır">✕</button></span>`).join('');
-  if(lastMinPrice || lastMaxPrice){
-    const label = `₺${lastMinPrice || '0'} — ₺${lastMaxPrice || '∞'}`;
-    html += `<span class="active-chip">${escapeHtml(label)}<button type="button" id="remove-price-chip" aria-label="Kaldır">✕</button></span>`;
-  }
+  html += [...activeExperience].map(e => `<span class="active-chip">${escapeHtml(EXPERIENCE_LABELS[e] || e)}<button type="button" data-remove-experience="${escapeAttr(e)}" aria-label="Kaldır">✕</button></span>`).join('');
   el.innerHTML = html;
   el.querySelectorAll('[data-remove-tag]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -562,29 +550,31 @@ function renderActiveChips(){
       render();
     });
   });
-  const removePrice = document.getElementById('remove-price-chip');
-  if(removePrice) removePrice.addEventListener('click', ()=>{
-    lastMinPrice = ''; lastMaxPrice = '';
-    const minEl = document.getElementById('cs-min-price');
-    const maxEl = document.getElementById('cs-max-price');
-    if(minEl) minEl.value = '';
-    if(maxEl) maxEl.value = '';
-    currentPage = 1;
-    syncBrowserUrl(true);
-    render();
+  el.querySelectorAll('[data-remove-experience]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      activeExperience.delete(btn.dataset.removeExperience);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      buildSidebar();
+      render();
+    });
   });
 }
 
-// Sidebar — proje.html#buildSidebar ile AYNI desen (tek grup: Uzmanlık Alanı, çok-seçmeli
-// checkbox'lar) + altında ayrı bir Ücret Aralığı kutusu. Seçenek/sayaç kaynağı /api/consultants'ın
-// zaten döndürdüğü filters.tags (bkz. src/routes/consultant.js).
-let lastMinPrice = '', lastMaxPrice = '';
+// Sidebar — proje.html#buildSidebar ile AYNI desen: iki çok-seçmeli grup (Uzmanlık Alanı,
+// Tecrübe). Seçenek/sayaç kaynağı /api/consultants'ın zaten döndürdüğü filters.tags/filters.experience
+// (bkz. src/routes/consultant.js). Ücret Aralığı kaldırıldı (bkz. kullanıcı isteği).
 async function buildSidebar(){
   const sidebar = document.getElementById('sidebar');
   let tags = [];
+  let experience = [];
   try{
     const res = await fetch(`/api/consultants?${currentQueryParams().toString()}`);
-    if(res.ok){ const data = await res.json(); tags = (data.filters && data.filters.tags) || []; }
+    if(res.ok){
+      const data = await res.json();
+      tags = (data.filters && data.filters.tags) || [];
+      experience = (data.filters && data.filters.experience) || [];
+    }
   }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
 
   let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
@@ -605,14 +595,19 @@ async function buildSidebar(){
       </div>
     </div>`;
   }
-  html += `<div class="sidebar-price">
-    <div class="sidebar-price-label">Ücret Aralığı</div>
-    <div class="sidebar-price-row">
-      <input type="number" min="0" id="cs-min-price" placeholder="Min ₺" value="${escapeAttr(lastMinPrice)}">
-      <span>—</span>
-      <input type="number" min="0" id="cs-max-price" placeholder="Max ₺" value="${escapeAttr(lastMaxPrice)}">
-    </div>
-  </div>`;
+  if(experience.length){
+    html += `<div class="filter-group open" data-key="experience">
+      <button class="filter-group-head" data-toggle="experience">Tecrübe <span class="filter-group-toggle">+</span></button>
+      <div class="filter-group-body" id="fg-experience">
+        ${experience.map(e => `
+        <label class="filter-opt">
+          <input type="checkbox" data-key="experience" value="${escapeAttr(e.value)}" ${activeExperience.has(e.value)?'checked':''}>
+          <span>${escapeHtml(e.label)}</span>
+          <span class="filter-opt-count">(${e.count})</span>
+        </label>`).join('')}
+      </div>
+    </div>`;
+  }
   sidebar.innerHTML = html;
 
   sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
@@ -621,16 +616,25 @@ async function buildSidebar(){
   const resetBtn = document.getElementById('g-reset');
   if(resetBtn) resetBtn.addEventListener('click', ()=>{
     activeTags.clear();
+    activeExperience.clear();
     localSearchQuery = '';
-    lastMinPrice = ''; lastMaxPrice = '';
     currentPage = 1;
     syncBrowserUrl(true);
     buildSidebar();
     render();
   });
-  sidebar.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+  sidebar.querySelectorAll('input[data-key=tag]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
       if(cb.checked) activeTags.add(cb.value); else activeTags.delete(cb.value);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      render();
+      renderActiveChips();
+    });
+  });
+  sidebar.querySelectorAll('input[data-key=experience]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) activeExperience.add(cb.value); else activeExperience.delete(cb.value);
       currentPage = 1;
       syncBrowserUrl(true);
       render();
@@ -645,15 +649,6 @@ async function buildSidebar(){
     clearTimeout(sidebarSearchDebounce);
     sidebarSearchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
   });
-  const minInput = document.getElementById('cs-min-price');
-  const maxInput = document.getElementById('cs-max-price');
-  let priceDebounce = null;
-  [minInput, maxInput].forEach(inp => inp.addEventListener('input', ()=>{
-    lastMinPrice = minInput.value; lastMaxPrice = maxInput.value;
-    currentPage = 1;
-    clearTimeout(priceDebounce);
-    priceDebounce = setTimeout(()=>{ syncBrowserUrl(true); render(); renderActiveChips(); }, 400);
-  }));
 }
 
 let renderRequestId = 0;
@@ -702,7 +697,7 @@ async function render(){
     const photoSrcset = a.photo ? cdnSrcset(a.photo, [400, 600, 800]) : '';
     const imgAttrs = i < 4 ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
     return `
-    <a class="consult-card" href="/danismanlik/${encodeURIComponent(a.slug || slugify(a.name))}">
+    <a class="consult-card" href="/danisman/${encodeURIComponent(a.slug || slugify(a.name))}">
       <div class="consult-card-photo" style="background:${officeColor(a.name)}">
         ${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}
         ${a.available ? `<div class="consult-card-available">Müsait</div>` : ''}
@@ -719,7 +714,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest('a.consult-card');
   if(!a) return;
-  const m = (a.getAttribute('href') || '').match(/^\/danismanlik\/([^/?#]+)/);
+  const m = (a.getAttribute('href') || '').match(/^\/danisman\/([^/?#]+)/);
   if(!m) return;
   e.preventDefault();
   ConsultantModal.open(decodeURIComponent(m[1]), { triggerEl: a });
@@ -727,10 +722,10 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 
 document.getElementById('cs-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
 
-// Tarayıcı geri/ileri tuşu: /danismanlik/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca danışman
+// Tarayıcı geri/ileri tuşu: /danisman/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca danışman
 // modalını güncelle (bkz. mimar.html'deki AYNI desen).
 window.addEventListener('popstate', ()=>{
-  const m = location.pathname.match(/^\/danismanlik\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/danisman\/([^/]+)\/?$/);
   if(m){ ConsultantModal.handlePopState(decodeURIComponent(m[1])); return; }
   if(ConsultantModal.isOpen()){ ConsultantModal.handlePopState(null); return; }
   applyInitialFiltersFromQuery();
@@ -839,9 +834,9 @@ document.addEventListener('click', (e)=>{
 applyInitialFiltersFromQuery();
 buildSidebar();
 render().then(()=>{
-  // Doğrudan /danismanlik/:slug adresine girildiğinde ya da o adreste F5 yapıldığında danışman
+  // Doğrudan /danisman/:slug adresine girildiğinde ya da o adreste F5 yapıldığında danışman
   // modalı otomatik açılsın (bkz. mimar.html'deki AYNI desen) — pushHistory:false: URL zaten doğru.
-  const m = location.pathname.match(/^\/danismanlik\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/danisman\/([^/]+)\/?$/);
   if(m) ConsultantModal.open(decodeURIComponent(m[1]), { pushHistory:false });
 });
 window.addEventListener('mimarlab-badges-ready', render);

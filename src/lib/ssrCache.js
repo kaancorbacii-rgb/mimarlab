@@ -4,7 +4,7 @@ import { slugify } from './slugify.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v59';
+export const SSR_CACHE_VERSION = 'v60';
 
 const PREFIX_BY_TYPE = {
   project: '/projeler/',
@@ -12,10 +12,10 @@ const PREFIX_BY_TYPE = {
   office: '/firma/',
   product: '/urun/',
   news: '/haberler/',
-  // /danismanlik modülü — bu turda çağıran yok (admin/self-serve düzenleme akışı henüz eklenmedi,
-  // bkz. kullanıcı isteği), ileride bir purge noktası eklendiğinde diğer tiplerle AYNI eşleme
-  // hazır olsun diye eklendi.
-  consultant: '/danismanlik/',
+  // /danisman modülü (eski adı "/danismanlik") — bu turda çağıran yok (admin/self-serve düzenleme
+  // akışı henüz eklenmedi, bkz. kullanıcı isteği), ileride bir purge noktası eklendiğinde diğer
+  // tiplerle AYNI eşleme hazır olsun diye eklendi.
+  consultant: '/danisman/',
 };
 
 // architect/office temiz URL'leri isimden slugify edilir (bkz. src/index.js#CLEAN_URL_REDIRECTS

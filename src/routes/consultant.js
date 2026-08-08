@@ -1,8 +1,11 @@
-import { errorJson } from '../lib/http.js';
+import { json, errorJson, readJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson } from '../lib/publicCache.js';
+import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
+import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
+import { getSessionUser } from '../lib/auth.js';
+import { runContentAction } from './legacyContent.js';
 
 // "/danismanlik" modülü (bkz. kullanıcı isteği: ADPList tarzı ücretli danışmanlık/mentörlük keşif
 // sayfası) — ayrı bir tablo değil, architects.is_consultant=1 satırları (bkz. migrations/
@@ -22,6 +25,18 @@ function foldTr(s) {
 // Müsaitlik sıralamasında kullanılır.
 function hasOpenSlot(slots) {
   return (slots || []).some(day => (day.times || []).some(t => t.available));
+}
+
+// "Tecrübe" filtresi bucket'ları (bkz. kullanıcı isteği: 0-5/5-10/10+ Yıl) — Ücret Aralığı'nın
+// yerini alan sabit aralık grubu, "Uzmanlık Alanı" ile AYNI çok-seçmeli filter-group deseninde.
+const EXPERIENCE_BUCKETS = [
+  { value: '0-5', label: '0-5 Yıl', min: 0, max: 5 },
+  { value: '5-10', label: '5-10 Yıl', min: 5, max: 10 },
+  { value: '10+', label: '10+ Yıl', min: 10, max: Infinity },
+];
+function experienceBucket(years) {
+  const bucket = EXPERIENCE_BUCKETS.find(b => years >= b.min && years <= b.max) || EXPERIENCE_BUCKETS[EXPERIENCE_BUCKETS.length - 1];
+  return bucket.value;
 }
 
 async function findConsultant(env, key) {
@@ -51,14 +66,13 @@ export async function handleConsultantListRoute(request, env, url) {
     // sayfa yapısını birebir /projeler sayfasının mizanpajına dönüştür") — grup İÇİNDE OR (herhangi
     // bir seçili etiketi taşıyan danışman geçer), tek grup olduğundan gruplar arası AND yok.
     const tagParams = new Set(url.searchParams.getAll('tag').filter(Boolean));
-    const minPrice = parseInt(url.searchParams.get('minPrice'), 10);
-    const maxPrice = parseInt(url.searchParams.get('maxPrice'), 10);
+    const experienceParams = new Set(url.searchParams.getAll('experience').filter(Boolean));
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     const { results } = await env.DB.prepare(
       `SELECT a.id, a.slug, a.name, a.photo_url, a.position, a.hourly_rate, a.session_duration_min,
          a.expertise_tags, a.available_slots, a.consultant_total_minutes, a.consultant_sessions_completed,
-         o.name AS office_name
+         a.consultant_experience_years, o.name AS office_name
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.is_consultant = 1
        ORDER BY a.id DESC`
@@ -71,14 +85,17 @@ export async function handleConsultantListRoute(request, env, url) {
         positionRaw: a.position || null, hourlyRate: a.hourly_rate || null,
         sessionDurationMin: a.session_duration_min || 45, expertiseTags: a.expertise_tags || [],
         availableSlots: a.available_slots || [], totalMinutes: a.consultant_total_minutes || 0,
-        sessionsCompleted: a.consultant_sessions_completed || 0, badges: [],
+        sessionsCompleted: a.consultant_sessions_completed || 0,
+        experienceYears: a.consultant_experience_years ?? null, badges: [],
       };
     });
 
     function passes(a) {
       if (tagParams.size && !a.expertiseTags.some(t => tagParams.has(t))) return false;
-      if (!Number.isNaN(minPrice) && (a.hourlyRate == null || a.hourlyRate < minPrice)) return false;
-      if (!Number.isNaN(maxPrice) && (a.hourlyRate == null || a.hourlyRate > maxPrice)) return false;
+      if (experienceParams.size) {
+        if (a.experienceYears == null) return false;
+        if (!experienceParams.has(experienceBucket(a.experienceYears))) return false;
+      }
       if (searchQuery) {
         const haystack = foldTr(`${a.name} ${a.positionRaw || ''} ${a.office || ''} ${a.expertiseTags.join(' ')}`);
         if (!haystack.includes(searchQuery)) return false;
@@ -106,10 +123,15 @@ export async function handleConsultantListRoute(request, env, url) {
 
     const tagCounts = {};
     pool.forEach(a => a.expertiseTags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+    const experienceCounts = {};
+    pool.forEach(a => { if (a.experienceYears != null) { const b = experienceBucket(a.experienceYears); experienceCounts[b] = (experienceCounts[b] || 0) + 1; } });
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
-      filters: { tags: Object.keys(tagCounts).sort((x, y) => tagCounts[y] - tagCounts[x]).map(v => ({ value: v, count: tagCounts[v] })) },
+      filters: {
+        tags: Object.keys(tagCounts).sort((x, y) => tagCounts[y] - tagCounts[x]).map(v => ({ value: v, count: tagCounts[v] })),
+        experience: EXPERIENCE_BUCKETS.map(b => ({ value: b.value, label: b.label, count: experienceCounts[b.value] || 0 })),
+      },
     };
   }, () => consultantListFingerprint(env));
 }
@@ -184,4 +206,74 @@ async function buildConsultantPayload(env, key) {
     similar,
     hidden: !!a.hidden_at,
   };
+}
+
+// Danışman kendi profilini yönetebilsin (bkz. kullanıcı isteği: Sil/Arşivle sadece admin değil,
+// profil sahibi danışman tarafından da kullanılabilsin) — comments.js#canDeleteComment ve
+// legacyContent.js#handleSelfProjectDelete ile AYNI desen: admin DEĞİLSE profile_claims'te
+// 'approved' bir sahiplik kaydı arar. Bu yetki SADECE is_consultant=1 satırlara özel bırakılır
+// (genel bir "her mimar kendi profilini silebilir" davranışı DEĞİL, bkz. kullanıcı isteği).
+async function authorizeConsultantSelf(env, request, key) {
+  const user = await getSessionUser(request, env);
+  if (!user) return { error: errorJson('Bu işlem için giriş yapmalısın.', 401) };
+  const row = await findConsultant(env, key);
+  if (!row) return { error: errorJson('Danışman bulunamadı.', 404) };
+  if (user.role !== 'admin') {
+    const owns = await env.DB.prepare(
+      `SELECT 1 FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND profile_key = ? AND status = 'approved'`
+    ).bind(user.id, row.name).first();
+    if (!owns) return { error: errorJson('Bu işlem için yetkin yok.', 403) };
+  }
+  return { user, row };
+}
+
+// POST /api/consultant/:key/moderate  body: {action:'archive'|'delete'} — admin dispatcher'ın
+// kullandığı AYNI runContentAction'ı (bkz. legacyContent.js#handleContentAction) çağırır, tek fark
+// yetki kontrolünün burada (yukarıdaki authorizeConsultantSelf) yapılması.
+export async function handleConsultantModerateRoute(request, env, rawKey) {
+  if (request.method !== 'POST') return errorJson('Bulunamadı', 404);
+  const key = decodeURIComponent(rawKey || '');
+  const { user, row, error } = await authorizeConsultantSelf(env, request, key);
+  if (error) return error;
+  const body = await readJson(request);
+  if (!['archive', 'delete'].includes(body.action)) return errorJson('Geçersiz işlem.');
+  return runContentAction(env, user, { type: 'architects', action: body.action, key: row.name });
+}
+
+// PATCH /api/consultant/:key  body: {consultantBio?, availableSlotsTemplate?} — danışmanın kendi
+// açıklama metnini ve haftalık müsaitlik şablonunu doğrudan yazar (bkz. kullanıcı isteği: pop-up
+// üzerinden düzenlenebilsin) — submission-approval kuyruğunu BİLEREK atlar, zamanlama verisi
+// gerçek zamanlı olmalı. availableSlotsTemplate: [{weekday:0-6, times:[{time,available}]}].
+export async function handleConsultantEditRoute(request, env, rawKey) {
+  if (request.method !== 'PATCH') return errorJson('Bulunamadı', 404);
+  const key = decodeURIComponent(rawKey || '');
+  const { row, error } = await authorizeConsultantSelf(env, request, key);
+  if (error) return error;
+
+  const body = await readJson(request);
+  const fields = [];
+  const values = [];
+  if (typeof body.consultantBio === 'string') {
+    fields.push('consultant_bio = ?');
+    values.push(body.consultantBio.trim().slice(0, 2000));
+  }
+  if (Array.isArray(body.availableSlotsTemplate)) {
+    const template = body.availableSlotsTemplate
+      .filter(d => Number.isInteger(d.weekday) && d.weekday >= 0 && d.weekday <= 6 && Array.isArray(d.times))
+      .map(d => ({
+        weekday: d.weekday,
+        times: d.times
+          .filter(t => typeof t.time === 'string' && /^\d{2}:\d{2}$/.test(t.time))
+          .map(t => ({ time: t.time, available: !!t.available })),
+      }));
+    fields.push('available_slots = ?');
+    values.push(JSON.stringify(template));
+  }
+  if (!fields.length) return errorJson('Geçersiz istek.');
+
+  await env.DB.prepare(`UPDATE architects SET ${fields.join(', ')}, updated_at = ? WHERE id = ?`)
+    .bind(...values, Date.now(), row.id).run();
+  await invalidatePublicCache();
+  await purgeSsrDetailCache('consultant', row.name);
+  return json({ ok: true });
 }

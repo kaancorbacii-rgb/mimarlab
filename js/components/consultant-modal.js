@@ -1,6 +1,6 @@
-// ConsultantModal — /danismanlik detay modalının orkestratörü. js/components/architect-modal.js
+// ConsultantModal — /danisman detay modalının orkestratörü. js/components/architect-modal.js
 // ile AYNI state machine deseni (open/swap/close/handlePopState, history key farklı:
-// mimarlabModal:'consultant', URL /danismanlik/:slug) — DOM çerçevesi (overlay/panel/focus-trap/
+// mimarlabModal:'consultant', URL /danisman/:slug) — DOM çerçevesi (overlay/panel/focus-trap/
 // scroll-lock) js/components/modal-shell.js'ten gelir. Sağ panel architect-modal.js'teki "ilgili
 // firma/proje" grid'leri yerine ADPList Yan Liu profilinden ilham alan sticky rezervasyon kutusu
 // (topluluk istatistikleri + tarih/saat slotları + Havale/EFT ödeme pop-up'ı + Firmalar/Projeler/
@@ -63,11 +63,12 @@ const ConsultantModal = (function () {
       .detail-title-actions .rating-summary{font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap !important;}
 
       /* Sekmeler — Genel Bakış/Değerlendirmeler (bkz. kullanıcı isteği: "Uzmanlıklar" sekmesi
-         tamamen kalksın, yalnızca bu ikisi kalsın). */
-      .cm-tabs{display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:20px; overflow-x:auto; scrollbar-width:none;}
+         tamamen kalksın, yalnızca bu ikisi kalsın). Kutu/çizgi yok — sadece bold metin, ayrım
+         renkle (bkz. kullanıcı isteği). */
+      .cm-tabs{display:flex; gap:4px; margin-bottom:20px; overflow-x:auto; scrollbar-width:none;}
       .cm-tabs::-webkit-scrollbar{display:none;}
-      .cm-tab{flex-shrink:0; padding:10px 4px; margin-right:20px; font-size:13.5px; font-weight:600; color:var(--ink-soft); border-bottom:2px solid transparent; background:none; border-radius:0;}
-      .cm-tab.active{color:var(--ink); border-bottom-color:var(--ink);}
+      .cm-tab{flex-shrink:0; padding:10px 4px; margin-right:20px; font-size:13.5px; font-weight:700; color:var(--ink-soft); border:none; background:none; border-radius:0;}
+      .cm-tab.active{color:var(--ink);}
       .cm-tab-panel{display:none;}
       .cm-tab-panel.active{display:block;}
       .cm-tab-empty{padding:32px 0; text-align:center; color:var(--ink-soft); font-size:13.5px;}
@@ -93,15 +94,41 @@ const ConsultantModal = (function () {
       .cm-insight-title{font-size:13.5px; font-weight:700; color:var(--ink);}
       .cm-insight-desc{font-size:12px; color:var(--ink-soft); margin-top:2px;}
 
+      /* ---------- Sahip/admin için inline "Düzenle" modu (bio + haftalık slot şablonu, bkz.
+         kullanıcı isteği: pop-up üzerinden düzenlenebilsin) ---------- */
+      .cm-edit-panel{display:none; margin-top:14px; padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--paper);}
+      .cm-edit-panel.open{display:block;}
+      .cm-edit-label{font-size:12px; font-weight:700; color:var(--ink); margin:0 0 6px;}
+      .cm-edit-bio{width:100%; min-height:90px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:13px; color:var(--ink); resize:vertical; margin-bottom:16px;}
+      .cm-edit-day{margin-bottom:12px;}
+      .cm-edit-day-label{font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:6px;}
+      .cm-edit-times{display:flex; flex-wrap:wrap; gap:6px;}
+      .cm-edit-time-chip{display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:100px; border:1px solid var(--line); background:var(--paper-card); font-size:12px; font-family:'IBM Plex Mono', monospace;}
+      .cm-edit-time-chip button{background:none; border:none; color:var(--ink-soft); padding:0; line-height:1; cursor:pointer;}
+      .cm-edit-time-chip button:hover{color:#B84C4C;}
+      .cm-edit-add-row{display:flex; gap:6px; margin-top:6px;}
+      .cm-edit-add-row input[type=time]{border:1px solid var(--line); border-radius:8px; padding:5px 8px; font-family:inherit; font-size:12px;}
+      .cm-edit-add-row button{background:none; border:1px solid var(--line); border-radius:8px; padding:5px 10px; font-size:12px; font-weight:600; color:var(--ink);}
+      .cm-edit-actions{display:flex; gap:8px; margin-top:16px;}
+      .cm-edit-actions button{flex:1; padding:11px; border-radius:100px; font-weight:600; font-size:13px; border:1px solid var(--line);}
+      .cm-edit-save-btn{background:var(--ink) !important; color:var(--paper-card) !important; border-color:var(--ink) !important;}
+      .cm-edit-save-btn:hover{background:var(--walnut) !important;}
+      .cm-edit-cancel-btn{background:var(--paper-card);}
+
       /* ---------- Sağ panel: sticky rezervasyon kutusu ---------- */
       .cm-booking{position:sticky; top:0; display:flex; flex-direction:column; gap:20px; padding-bottom:24px; border-bottom:1px solid var(--line); margin-bottom:24px;}
       .cm-stats{display:flex; gap:24px;}
       .cm-stat{flex:1;}
       .cm-stat-value{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; color:var(--ink);}
       .cm-stat-label{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
-      .cm-slots-title{font-size:13px; font-weight:700; color:var(--ink); margin:0 0 10px;}
+      .cm-slots-title{font-size:13px; font-weight:700; color:var(--ink); margin:0 0 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+      .cm-week-nav{display:flex; align-items:center; gap:6px;}
+      .cm-week-label{font-size:11.5px; font-weight:600; color:var(--ink-soft); white-space:nowrap;}
+      .cm-week-btn{width:26px; height:26px; border-radius:50%; border:1px solid var(--line); background:var(--paper); color:var(--ink); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+      .cm-week-btn:hover{border-color:var(--walnut);}
       .cm-date-row{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin-bottom:14px;}
       .cm-date-row::-webkit-scrollbar{display:none;}
+      .cm-date-chip.disabled{opacity:0.4; cursor:not-allowed;}
       .cm-date-chip{flex-shrink:0; min-width:64px; text-align:center; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:600; color:var(--ink-soft);}
       .cm-date-chip .cm-date-day{font-size:14px; font-weight:700; color:var(--ink); display:block; margin-top:2px;}
       .cm-date-chip.active{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
@@ -130,7 +157,7 @@ const ConsultantModal = (function () {
         background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
         color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
       }
-      .related-card-title-text{display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
+      .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
       .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
@@ -207,21 +234,20 @@ const ConsultantModal = (function () {
       <div class="detail-desc" id="cm-about"></div>
       <div class="cm-tags" id="cm-tags"></div>
       <div class="cm-insights" id="cm-insights"></div>
+      <div class="cm-edit-panel" id="cm-edit-panel">
+        <div class="cm-edit-label">Açıklama</div>
+        <textarea class="cm-edit-bio" id="cm-edit-bio-input" maxlength="2000"></textarea>
+        <div class="cm-edit-label">Haftalık Müsaitlik</div>
+        <div id="cm-edit-days"></div>
+        <div class="cm-edit-actions">
+          <button type="button" class="cm-edit-cancel-btn" id="cm-edit-cancel-btn">Vazgeç</button>
+          <button type="button" class="cm-edit-save-btn" id="cm-edit-save-btn">Kaydet</button>
+        </div>
+      </div>
     </div>
     <div class="cm-tab-panel" id="cm-tab-reviews">
       <div class="cm-rating-summary" id="cm-rating-summary"></div>
       <div class="cm-tab-empty" id="cm-rating-empty" style="display:none;">Henüz değerlendirme yok — ilk değerlendirmeyi sen yap.</div>
-    </div>
-    <div class="feedback-card" id="claim-info-card">
-      <div id="claim-card-body">
-        <h5>Bu profil sana mı ait?</h5>
-        <p>Bilgilerini güncellemek ya da fotoğrafını değiştirmek için bizimle iletişime geç.</p>
-      </div>
-    </div>
-    <div class="feedback-card" id="correction-info-card">
-      <h5>Geri Bildirim</h5>
-      <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
-      <div id="correction-card-extra"></div>
     </div>`;
 
   const RIGHT_TEMPLATE = `
@@ -231,7 +257,14 @@ const ConsultantModal = (function () {
         <div class="cm-stat"><div class="cm-stat-value" id="cm-stat-sessions"></div><div class="cm-stat-label">Tamamlanan Görüşme</div></div>
       </div>
       <div id="cm-slots-wrap">
-        <div class="cm-slots-title">Uygun Görüşmeler</div>
+        <div class="cm-slots-title">
+          <span>Uygun Görüşmeler</span>
+          <span class="cm-week-nav">
+            <button type="button" class="cm-week-btn" id="cm-week-prev" aria-label="Önceki hafta">‹</button>
+            <span class="cm-week-label" id="cm-week-label"></span>
+            <button type="button" class="cm-week-btn" id="cm-week-next" aria-label="Sonraki hafta">›</button>
+          </span>
+        </div>
         <div class="cm-date-row" id="cm-date-row"></div>
         <div class="cm-time-grid" id="cm-time-grid"></div>
         <button type="button" class="cm-cta-btn" id="cm-cta-btn">Görüşme Ayarla</button>
@@ -256,6 +289,7 @@ const ConsultantModal = (function () {
       <button type="button" class="cm-payment-close" id="cm-payment-close" aria-label="Kapat">✕</button>
       <h2>Görüşme Ayarla</h2>
       <p class="section-hint" id="cm-payment-summary"></p>
+      <p class="section-hint">Ödeme sonrası görüşme linki açıklamaya yazdığın e-posta adresinden sana iletilecek.</p>
       <h3>Ödeme Yöntemi</h3>
       <p class="section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
       <label class="target-option"><input type="radio" name="cm-payment-method" id="cm-payment-havale" checked> Havale / EFT</label>
@@ -277,9 +311,11 @@ const ConsultantModal = (function () {
   let openedViaPush = false;
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
-  let selectedDateIndex = 0;
+  let weekOffset = 0; // 0 = bugünün içinde bulunduğu hafta (bkz. kullanıcı isteği: haftalık takvim)
+  let selectedDate = null; // 'YYYY-MM-DD', görüntülenen hafta içinde
   let selectedBooking = null; // { date, time }
   let paymentOverlayEl = null;
+  let editMode = false;
 
   function ensureTemplate() {
     if (mountedOnce) return;
@@ -288,6 +324,7 @@ const ConsultantModal = (function () {
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);
     wireTabs();
+    wireEditPanel();
     mountedOnce = true;
   }
 
@@ -391,7 +428,7 @@ const ConsultantModal = (function () {
   function updateHeadMeta(a) {
     document.title = `${a.name} — Online Danışmanlık | MİMARLAB`;
     const desc = a.about ? a.about.slice(0, 200) : `${a.name} — MİMARLAB'da online danışmanlık/mentörlük görüşmesi ayırt.`;
-    const canonicalUrl = `https://mimarlab.com/danismanlik/${encodeURIComponent(slugify(a.name))}`;
+    const canonicalUrl = `https://mimarlab.com/danisman/${encodeURIComponent(slugify(a.name))}`;
     const image = a.photo ? new URL(a.photo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
     setIf('meta-description', 'content', desc);
@@ -428,63 +465,108 @@ const ConsultantModal = (function () {
     } catch { return { weekday: '', day: '', month: '' }; }
   }
 
-  // available_slots: [{date:'2026-08-10', times:[{time:'12:00', available:true}, ...]}] — bkz.
-  // migrations/0031_architect_consultant.sql. "Görüşme Ayarla" bir saat seçilmeden tıklanırsa
-  // yalnızca #cm-cta-note nudge'ı gösterilir; bir saat seçiliyse Havale/EFT pop-up'ı açılır
-  // (bkz. openPaymentOverlay).
+  function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+  function toDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+
+  // Pazartesi başlangıçlı 7 günlük hafta, offsetWeeks kadar kaydırılmış (bkz. kullanıcı isteği:
+  // haftalık dinamik takvim, sağ/sol ok butonlarıyla gezinme). Her çağrıda "bugün" yeniden
+  // hesaplanır (cache yok) — bu, haftanın kendiliğinden yenilenmesini sağlar.
+  function weekDates(offsetWeeks) {
+    const now = new Date();
+    const day = now.getDay();
+    const monday = startOfDay(now);
+    monday.setDate(monday.getDate() + (day === 0 ? -6 : 1 - day) + offsetWeeks * 7);
+    return Array.from({ length: 7 }, (_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; });
+  }
+
+  // available_slots: [{weekday:0-6 (Date.getDay() ile aynı, 0=Pazar), times:[{time,available}]}] —
+  // haftanın günlerine bağlı tekrarlayan şablon (bkz. kullanıcı isteği: takvim her yeni haftada
+  // otomatik yenilensin). "Görüşme Ayarla" bir saat seçilmeden tıklanırsa yalnızca #cm-cta-note
+  // nudge'ı gösterilir; bir saat seçiliyse Havale/EFT pop-up'ı açılır (bkz. openPaymentOverlay).
   function renderSlots(a) {
-    const slots = a.availableSlots || [];
+    const template = a.availableSlots || [];
     const wrap = document.getElementById('cm-slots-wrap');
     const dateRow = document.getElementById('cm-date-row');
     const timeGrid = document.getElementById('cm-time-grid');
     const ctaBtn = document.getElementById('cm-cta-btn');
     const ctaNote = document.getElementById('cm-cta-note');
+    const weekLabel = document.getElementById('cm-week-label');
     ctaNote.classList.remove('show');
     selectedBooking = null;
 
-    if (!slots.length) {
+    if (!template.length) {
       wrap.innerHTML = `<div class="cm-slots-title">Uygun Görüşmeler</div><div class="cm-empty-slots">Şu anda müsait bir görüşme saati yok.</div>`;
       return;
     }
-    selectedDateIndex = Math.min(selectedDateIndex, slots.length - 1);
 
     function ctaLabel() {
       return a.hourlyRate ? `Görüşme Ayarla — ₺${a.hourlyRate}` : 'Görüşme Ayarla';
     }
 
-    function renderTimeGrid() {
-      const day = slots[selectedDateIndex];
-      timeGrid.innerHTML = (day.times || []).map(t =>
-        `<button type="button" class="cm-time-btn${selectedBooking && selectedBooking.date === day.date && selectedBooking.time === t.time ? ' active' : ''}" data-time="${escapeAttr(t.time)}" ${t.available ? '' : 'disabled'}>${escapeHtml(t.time)}</button>`
-      ).join('');
+    function timesForDate(d) {
+      const entry = template.find(t => t.weekday === d.getDay());
+      return (entry && entry.times) || [];
+    }
+
+    // Bugünün tarihinden/saatinden önceki slotlar hem disabled hem tıklanamaz (bkz. kullanıcı
+    // isteği: geçmiş gün kısıtlaması) — istemci tarafı kontrolü; sunucu tarafı aynı kontrolü
+    // consultantBookings.js#handleConsultantBookingsRoute'ta ayrıca tekrarlar.
+    function renderTimeGridFor(dateStr, dateObj) {
+      const now = new Date();
+      const times = timesForDate(dateObj);
+      if (!times.length) { timeGrid.innerHTML = `<div class="cm-empty-slots">Bu gün için müsait saat yok.</div>`; return; }
+      timeGrid.innerHTML = times.map(t => {
+        const [hh, mm] = t.time.split(':').map(Number);
+        const slotMoment = new Date(dateObj); slotMoment.setHours(hh, mm, 0, 0);
+        const disabled = !t.available || slotMoment.getTime() <= now.getTime();
+        const active = selectedBooking && selectedBooking.date === dateStr && selectedBooking.time === t.time;
+        return `<button type="button" class="cm-time-btn${active ? ' active' : ''}" data-time="${escapeAttr(t.time)}" ${disabled ? 'disabled' : ''}>${escapeHtml(t.time)}</button>`;
+      }).join('');
       timeGrid.querySelectorAll('.cm-time-btn:not(:disabled)').forEach(btn => {
         btn.addEventListener('click', () => {
-          selectedBooking = { date: day.date, time: btn.dataset.time };
+          selectedBooking = { date: dateStr, time: btn.dataset.time };
           timeGrid.querySelectorAll('.cm-time-btn').forEach(b => b.classList.toggle('active', b === btn));
           ctaNote.classList.remove('show');
         });
       });
     }
 
-    dateRow.innerHTML = slots.map((day, i) => {
-      const { weekday, day: dayNum } = formatDateChip(day.date);
-      const openCount = (day.times || []).filter(t => t.available).length;
-      return `<div class="cm-date-chip${i === selectedDateIndex ? ' active' : ''}" data-index="${i}" title="${openCount} boş görüşme">${escapeHtml(weekday)}<span class="cm-date-day">${dayNum}</span></div>`;
-    }).join('');
-    dateRow.querySelectorAll('.cm-date-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        selectedDateIndex = parseInt(chip.dataset.index, 10);
+    function renderWeek() {
+      const dates = weekDates(weekOffset);
+      const todayStart = startOfDay(new Date());
+      if (!selectedDate || !dates.some(d => toDateStr(d) === selectedDate)) {
+        const firstEnabled = dates.find(d => startOfDay(d).getTime() >= todayStart.getTime());
+        selectedDate = toDateStr(firstEnabled || dates[0]);
         selectedBooking = null;
-        dateRow.querySelectorAll('.cm-date-chip').forEach(c => c.classList.toggle('active', c === chip));
-        renderTimeGrid();
+      }
+      weekLabel.textContent = `${dates[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} – ${dates[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}`;
+      const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+      dateRow.innerHTML = dates.map((d, i) => {
+        const dateStr = toDateStr(d);
+        const isPastDay = startOfDay(d).getTime() < todayStart.getTime();
+        const active = dateStr === selectedDate;
+        return `<div class="cm-date-chip${active ? ' active' : ''}${isPastDay ? ' disabled' : ''}" data-date="${dateStr}">${dayNames[i]}<span class="cm-date-day">${d.getDate()}</span></div>`;
+      }).join('');
+      dateRow.querySelectorAll('.cm-date-chip:not(.disabled)').forEach(chip => {
+        chip.addEventListener('click', () => {
+          selectedDate = chip.dataset.date;
+          selectedBooking = null;
+          dateRow.querySelectorAll('.cm-date-chip').forEach(c => c.classList.toggle('active', c === chip));
+          renderTimeGridFor(selectedDate, dates.find(d => toDateStr(d) === selectedDate));
+        });
       });
-    });
-    renderTimeGrid();
+      const selDateObj = dates.find(d => toDateStr(d) === selectedDate) || dates[0];
+      renderTimeGridFor(selectedDate, selDateObj);
+    }
+
+    renderWeek();
     ctaBtn.textContent = ctaLabel();
     ctaBtn.onclick = () => {
       if (!selectedBooking) { ctaNote.classList.add('show'); return; }
       openPaymentOverlay();
     };
+    document.getElementById('cm-week-prev').onclick = () => { weekOffset--; renderWeek(); };
+    document.getElementById('cm-week-next').onclick = () => { weekOffset++; renderWeek(); };
   }
 
   function renderNotFound() {
@@ -492,7 +574,7 @@ const ConsultantModal = (function () {
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
     ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking', 'cm-office-section',
-      'cm-related-projects-section', 'cm-similar-section', 'cm-detail-info', 'claim-info-card', 'correction-info-card'].forEach(id => {
+      'cm-related-projects-section', 'cm-similar-section', 'cm-detail-info'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -503,9 +585,9 @@ const ConsultantModal = (function () {
     if (!panels || panels.bodyEl.dataset.cmNavWired) return;
     panels.bodyEl.dataset.cmNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
-      const a = e.target.closest('a[href^="/danismanlik/"]');
+      const a = e.target.closest('a[href^="/danisman/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const m = a.getAttribute('href').match(/^\/danismanlik\/([^/?#]+)/);
+      const m = a.getAttribute('href').match(/^\/danisman\/([^/?#]+)/);
       if (!m) return;
       e.preventDefault();
       swap(decodeURIComponent(m[1]));
@@ -518,6 +600,103 @@ const ConsultantModal = (function () {
     const payload = await res.json();
     if (!payload || !payload.item || payload.hidden) return null;
     return payload;
+  }
+
+  // İnline "Düzenle" modu — profil sahibi/admin pop-up üzerinden bio + haftalık müsaitlik
+  // şablonunu doğrudan düzenler (bkz. kullanıcı isteği), PATCH /api/consultant/:key'e yazar
+  // (src/routes/consultant.js#handleConsultantEditRoute).
+  const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Pzt..Paz
+  const WEEKDAY_LABELS = { 1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma', 6: 'Cumartesi', 0: 'Pazar' };
+  let editSlotsWorking = [];
+
+  function cloneSlotsForEdit(template) {
+    return WEEKDAY_ORDER.map(weekday => {
+      const entry = (template || []).find(t => t.weekday === weekday);
+      return { weekday, times: entry ? entry.times.filter(t => t.available).map(t => ({ time: t.time, available: true })) : [] };
+    });
+  }
+
+  function renderEditDays() {
+    const container = document.getElementById('cm-edit-days');
+    if (!container) return;
+    container.innerHTML = editSlotsWorking.map(day => `
+      <div class="cm-edit-day" data-weekday="${day.weekday}">
+        <div class="cm-edit-day-label">${WEEKDAY_LABELS[day.weekday]}</div>
+        <div class="cm-edit-times">
+          ${day.times.map(t => `<span class="cm-edit-time-chip">${escapeHtml(t.time)}<button type="button" data-remove-time="${escapeAttr(t.time)}">✕</button></span>`).join('') || '<span style="font-size:11.5px;color:var(--ink-soft);">Saat yok</span>'}
+        </div>
+        <div class="cm-edit-add-row">
+          <input type="time" class="cm-edit-time-input">
+          <button type="button" class="cm-edit-add-time-btn">+ Saat Ekle</button>
+        </div>
+      </div>`).join('');
+    container.querySelectorAll('.cm-edit-day').forEach(dayEl => {
+      const weekday = parseInt(dayEl.dataset.weekday, 10);
+      const day = editSlotsWorking.find(d => d.weekday === weekday);
+      dayEl.querySelectorAll('[data-remove-time]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          day.times = day.times.filter(t => t.time !== btn.dataset.removeTime);
+          renderEditDays();
+        });
+      });
+      dayEl.querySelector('.cm-edit-add-time-btn').addEventListener('click', () => {
+        const input = dayEl.querySelector('.cm-edit-time-input');
+        const val = input.value;
+        if (!val || day.times.some(t => t.time === val)) return;
+        day.times.push({ time: val, available: true });
+        day.times.sort((x, y) => x.time.localeCompare(y.time));
+        renderEditDays();
+      });
+    });
+  }
+
+  function openEditMode() {
+    if (!currentItem) return;
+    editMode = true;
+    ['cm-about', 'cm-tags', 'cm-insights'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    document.getElementById('cm-edit-panel').classList.add('open');
+    document.getElementById('cm-edit-bio-input').value = currentItem.about || '';
+    editSlotsWorking = cloneSlotsForEdit(currentItem.availableSlots);
+    renderEditDays();
+  }
+
+  function closeEditMode() {
+    editMode = false;
+    ['cm-about', 'cm-tags', 'cm-insights'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    const panel = document.getElementById('cm-edit-panel');
+    if (panel) panel.classList.remove('open');
+  }
+
+  async function saveEditMode() {
+    const saveBtn = document.getElementById('cm-edit-save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Kaydediliyor…';
+    const bio = document.getElementById('cm-edit-bio-input').value.trim();
+    const availableSlotsTemplate = editSlotsWorking.filter(d => d.times.length);
+    try {
+      const res = await fetch(`/api/consultant/${encodeURIComponent(currentItem.name)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consultantBio: bio, availableSlotsTemplate }),
+      });
+      if (!res.ok) { alert('Kaydedilemedi, tekrar dene.'); saveBtn.disabled = false; saveBtn.textContent = 'Kaydet'; return; }
+      currentItem.about = bio;
+      currentItem.availableSlots = availableSlotsTemplate;
+      const aboutText = bio || `${currentItem.name} — MİMARLAB'da online mimari danışmanlık/mentörlük hizmeti veriyor.`;
+      renderTruncatedDesc('cm-about', aboutText);
+      weekOffset = 0;
+      selectedDate = null;
+      renderSlots(currentItem);
+      closeEditMode();
+    } catch {
+      alert('Sunucuya ulaşılamadı, tekrar dene.');
+    }
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Kaydet';
+  }
+
+  function wireEditPanel() {
+    document.getElementById('cm-edit-cancel-btn').addEventListener('click', closeEditMode);
+    document.getElementById('cm-edit-save-btn').addEventListener('click', saveEditMode);
   }
 
   async function loadRatingSummary(targetId) {
@@ -545,10 +724,12 @@ const ConsultantModal = (function () {
     const relatedProjectsData = payload.relatedProjects || [];
     const similar = payload.similar || [];
     currentItem = a;
-    selectedDateIndex = 0;
+    weekOffset = 0;
+    selectedDate = null;
+    closeEditMode();
 
-    ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking', 'cm-detail-info',
-      'claim-info-card', 'correction-info-card'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking', 'cm-detail-info']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
 
     updateHeadMeta(a);
     document.getElementById('cm-name-text').textContent = a.name;
@@ -560,7 +741,6 @@ const ConsultantModal = (function () {
 
     const insights = [];
     if ((a.sessionsCompleted || 0) > 50) insights.push({ icon: '🏆', title: 'Süper Mentör', desc: 'Yüksek puanlı ve hızlı yanıt veren danışmanlar arasında.' });
-    if ((a.sessionsCompleted || 0) > 0) insights.push({ icon: '💬', title: 'İletişimi Güçlü', desc: 'Geçmiş görüşmelerde olumlu geri bildirim aldı.' });
     document.getElementById('cm-insights').innerHTML = insights.map(i =>
       `<div class="cm-insight-card"><span class="cm-insight-icon">${i.icon}</span><div><div class="cm-insight-title">${escapeHtml(i.title)}</div><div class="cm-insight-desc">${escapeHtml(i.desc)}</div></div></div>`
     ).join('');
@@ -579,33 +759,14 @@ const ConsultantModal = (function () {
       logoEl.appendChild(img);
     }
 
-    const saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'save-btn card-save-btn';
-    saveBtn.id = 'cm-save-btn';
-    saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="cm-save-count"></span>`;
     const actionsEl = document.getElementById('cm-actions');
     actionsEl.innerHTML = '';
-    actionsEl.prepend(saveBtn);
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '<span id="profile-edit-slot"></span>';
-    saveBtn.dataset.key = slugify(a.name);
-    saveBtn.dataset.title = a.name;
-    saveBtn.dataset.meta = office ? office.name : (a.role || '');
-    saveBtn.dataset.image = a.photo || '';
-    saveBtn.dataset.href = `/danismanlik/${encodeURIComponent(slugify(a.name))}`;
-    wireSaveButtons('architect');
-    fetch(`/api/public/save-count?type=architect&key=${encodeURIComponent(saveBtn.dataset.key)}`)
-      .then(r => r.json())
-      .then(data => { const el = document.getElementById('cm-save-count'); if (el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
-      .catch(() => {});
-    if (typeof ShareWidget !== 'undefined') {
-      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('cm-share-btn'));
-      ShareWidget.wire('cm-share-btn', () => ({ title: a.name, url: `${window.location.origin}/danismanlik/${encodeURIComponent(slugify(a.name))}` }));
-    }
-    // Puanla — rating-widget.js#mountRatingWidget, 'architect' zaten desteklenen bir targetType
-    // (bkz. src/routes/ratings.js#TARGET_TYPES) — hiçbir backend değişikliği gerekmez.
+
+    // Sıralama Puanla → Kaydet → Paylaş (bkz. kullanıcı isteği) — Puanla önce eklenir, Kaydet
+    // sonra appendChild edilir (actionsEl.innerHTML='' ile temizlendiği için prepend'e gerek yok),
+    // Paylaş widget'ı Kaydet'ten hemen sonra (afterend) eklenir.
     const ratingEl = document.createElement('div');
     ratingEl.className = 'rating-widget';
     ratingEl.dataset.type = 'architect';
@@ -614,9 +775,31 @@ const ConsultantModal = (function () {
     mountRatingWidget(ratingEl);
     loadRatingSummary(a.name);
 
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'save-btn card-save-btn';
+    saveBtn.id = 'cm-save-btn';
+    saveBtn.setAttribute('aria-label', 'Kaydet');
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="cm-save-count"></span>`;
+    actionsEl.appendChild(saveBtn);
+    saveBtn.dataset.key = slugify(a.name);
+    saveBtn.dataset.title = a.name;
+    saveBtn.dataset.meta = office ? office.name : (a.role || '');
+    saveBtn.dataset.image = a.photo || '';
+    saveBtn.dataset.href = `/danisman/${encodeURIComponent(slugify(a.name))}`;
+    wireSaveButtons('architect');
+    fetch(`/api/public/save-count?type=architect&key=${encodeURIComponent(saveBtn.dataset.key)}`)
+      .then(r => r.json())
+      .then(data => { const el = document.getElementById('cm-save-count'); if (el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
+      .catch(() => {});
+    if (typeof ShareWidget !== 'undefined') {
+      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('cm-share-btn'));
+      ShareWidget.wire('cm-share-btn', () => ({ title: a.name, url: `${window.location.origin}/danisman/${encodeURIComponent(slugify(a.name))}` }));
+    }
+
     renderStructuredData(a);
 
-    document.getElementById('cm-stat-minutes').textContent = (a.totalMinutes || 0).toLocaleString('tr-TR');
+    document.getElementById('cm-stat-minutes').textContent = `${(a.totalMinutes || 0).toLocaleString('tr-TR')} Dakika`;
     document.getElementById('cm-stat-sessions').textContent = (a.sessionsCompleted || 0).toLocaleString('tr-TR');
     renderSlots(a);
 
@@ -634,7 +817,7 @@ const ConsultantModal = (function () {
 
     document.getElementById('cm-similar-section').style.display = similar.length ? '' : 'none';
     document.getElementById('cm-similar-grid').innerHTML = similar.map(c =>
-      cardHtml(`/danismanlik/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.hourlyRate ? `₺${c.hourlyRate}` : '', verifiedBadgeHtml('architect', c.name, c.badges, 14))
+      cardHtml(`/danisman/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.hourlyRate ? `₺${c.hourlyRate}` : '', verifiedBadgeHtml('architect', c.name, c.badges, 14))
     ).join('');
 
     function renderVerifiedBadges() {
@@ -652,9 +835,15 @@ const ConsultantModal = (function () {
       getClaimLinkKey: () => a._claimKey || a.name,
       getStaticBadges: () => a.badges,
       editUrlBase: 'mimar-ekle.html',
-      listUrl: 'danismanlik.html',
+      listUrl: 'danisman.html',
       contentType: 'architects',
       getModerationTarget: () => ({ key: a.name }),
+      // Danışman kendi profilini pop-up üzerinden inline düzenleyebilsin ve Sil/Arşivle de
+      // kullanabilsin (bkz. kullanıcı isteği) — self-servis yetki kontrolü/uç noktaları
+      // src/routes/consultant.js#authorizeConsultantSelf'te, mimar/ofis modalları ETKİLENMEZ.
+      ownerCanModerate: true,
+      moderateUrl: `/api/consultant/${encodeURIComponent(a.name)}/moderate`,
+      onEditClick: () => openEditMode(),
       labels: {
         claimTitle: 'Bu profil sana mı ait?',
         loginPromptHtml: 'Bilgilerini güncellemek ve doğrulanmış üye rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.',
@@ -677,7 +866,7 @@ const ConsultantModal = (function () {
     currentSlug = slug;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'consultant', slug, depth: 1 }, '', `/danismanlik/${encodeURIComponent(slug)}`);
+    if (pushHistory) history.pushState({ mimarlabModal: 'consultant', slug, depth: 1 }, '', `/danisman/${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -694,7 +883,7 @@ const ConsultantModal = (function () {
     currentSlug = slug;
     const currentDepth = (history.state && history.state.mimarlabModal === 'consultant') ? history.state.depth : pushCountSinceOpen;
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'consultant', slug, depth: pushCountSinceOpen }, '', `/danismanlik/${encodeURIComponent(slug)}`);
+    history.pushState({ mimarlabModal: 'consultant', slug, depth: pushCountSinceOpen }, '', `/danisman/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
     const payload = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
@@ -707,7 +896,7 @@ const ConsultantModal = (function () {
     currentItem = null;
     if (paymentOverlayEl) paymentOverlayEl.classList.remove('open');
     if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
-    else history.pushState({}, '', '/danismanlik');
+    else history.pushState({}, '', '/danisman');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }

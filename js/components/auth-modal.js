@@ -551,7 +551,6 @@ const AuthModal = (function () {
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
           <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
           <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-          <button type="button" class="saved-filter-btn" data-filter="material">Malzeme</button>
         </div>
         <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-rated-pagination"></div>
@@ -561,10 +560,6 @@ const AuthModal = (function () {
         <h2>Yorumlarım</h2>
         <div class="saved-filter" id="am-comments-filter">
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-          <button type="button" class="saved-filter-btn" data-filter="news">Haber</button>
-          <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
-          <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
         </div>
         <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-comments-pagination"></div>

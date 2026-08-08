@@ -5,7 +5,7 @@ import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from '.
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute, handleNewsListRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
-import { handleConsultantListRoute, handleConsultantRoute } from './routes/consultant.js';
+import { handleConsultantListRoute, handleConsultantRoute, handleConsultantModerateRoute, handleConsultantEditRoute } from './routes/consultant.js';
 import { handleConsultantBookingsRoute } from './routes/consultantBookings.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
@@ -113,10 +113,12 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
   { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
-  // /danismanlik/:slug — danismanlik.html'in kendisi listeleme+detay ikisini birden barındırır
+  // /danisman/:slug — danisman.html'in kendisi listeleme+detay ikisini birden barındırır
   // (bkz. kullanıcı isteği), yukarıdaki /mimar ile AYNI desen (architect-detay.html gibi ayrı bir
-  // dosya yok, tek sayfa kendi JS'inde path'e göre ConsultantModal'ı açar).
-  { prefix: '/danismanlik/', asset: '/danismanlik', type: 'consultant' },
+  // dosya yok, tek sayfa kendi JS'inde path'e göre ConsultantModal'ı açar). Eski ad "danismanlik"ti
+  // (bkz. kullanıcı isteği: /danisman'a yeniden adlandırma), PATH_RENAME_REDIRECTS/
+  // PREFIX_RENAME_REDIRECTS eski bağlantıları buraya 301'ler.
+  { prefix: '/danisman/', asset: '/danisman', type: 'consultant' },
 ];
 
 // Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
@@ -131,6 +133,8 @@ const PATH_RENAME_REDIRECTS = {
   '/malzeme.html': '/urun',
   '/malzeme-ekle': '/urun-ekle',
   '/malzeme-ekle.html': '/urun-ekle',
+  '/danismanlik': '/danisman',
+  '/danismanlik.html': '/danisman',
   // Giriş Yap/Üye Ol/Hesabım artık bağımsız sayfalar değil, her sayfada açılabilen popup modallar
   // (bkz. kullanıcı isteği, js/components/auth-modal.js) — eski dosya adlarına gelen istekler/
   // yer imleri temiz yol adlarına yönlendirilir, oradan AUTH_MODAL_ROUTES devralır (bkz. aşağısı).
@@ -192,6 +196,7 @@ const INFO_MODAL_META = {
 const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
   { from: '/urunler/', to: '/urun/' },
+  { from: '/danismanlik/', to: '/danisman/' },
 ];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
@@ -204,7 +209,7 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
   { loc: '/haber', changefreq: 'daily', priority: '0.7' },
   { loc: '/is-ilani', changefreq: 'daily', priority: '0.7' },
-  { loc: '/danismanlik', changefreq: 'daily', priority: '0.8' },
+  { loc: '/danisman', changefreq: 'daily', priority: '0.8' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   { loc: '/kariyer', changefreq: 'monthly', priority: '0.4' },
@@ -523,7 +528,17 @@ async function routeApi(request, env, url) {
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
-  if (path.startsWith('/api/consultant/')) return handleConsultantRoute(request, env, url, path.slice('/api/consultant/'.length));
+  if (path.startsWith('/api/consultant/')) {
+    const rest = path.slice('/api/consultant/'.length);
+    // Danışmanın kendi profilini yönetmesi (bkz. kullanıcı isteği: Düzenle/Sil/Arşivle pop-up
+    // üzerinden) — GET (herkese açık detay, yukarıdaki handleConsultantRoute) ile AYNI path
+    // öneki, method/son segmente göre ayrılır (bkz. src/routes/consultant.js).
+    if (rest.endsWith('/moderate') && request.method === 'POST') {
+      return handleConsultantModerateRoute(request, env, rest.slice(0, -'/moderate'.length));
+    }
+    if (request.method === 'PATCH') return handleConsultantEditRoute(request, env, rest);
+    return handleConsultantRoute(request, env, url, rest);
+  }
   // "Görüşme Ayarla" Havale/EFT talep akışı (bkz. kullanıcı isteği, src/routes/consultantBookings.js)
   if (path === '/api/consultant-bookings') return handleConsultantBookingsRoute(request, env, url);
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));

@@ -22,6 +22,16 @@
 //   getModerationTarget() moderasyon isteğine eklenecek { key } ya da { id } döner
 //   labels             { claimTitle, loginPromptHtml, pendingHtml, claimNoteDescription,
 //                         claimButtonText, deleteConfirm, archiveConfirm }
+//   ownerCanModerate   (opsiyonel, varsayılan false) true ise profil sahibi (admin olmasa da)
+//                      Arşivle/Sil butonlarını da görür (bkz. kullanıcı isteği: danışman kendi
+//                      profilini yönetebilsin) — diğer çağıranları (mimar/ofis) ETKİLEMEZ.
+//   moderateUrl        (opsiyonel, varsayılan '/api/admin/legacy/content-action') Arşivle/Sil
+//                      isteğinin gönderileceği uç nokta — ownerCanModerate ile birlikte, admin
+//                      olmayan sahiplerin de yetkilendirilebileceği self-servis bir rotaya işaret
+//                      edebilir (bkz. kullanıcı isteği).
+//   onEditClick        (opsiyonel) verilirse "Düzenle" bir <a href> yerine <button> olur ve
+//                      tıklanınca bu callback çağrılır (sayfa değiştirmeden inline düzenleme
+//                      açmak için, bkz. kullanıcı isteği) — verilmezse mevcut link davranışı korunur.
 function createClaimCorrectionBox(config){
   let isProfileOwner = false;
   const getClaimLinkKey = config.getClaimLinkKey || config.getProfileKey;
@@ -65,6 +75,19 @@ function createClaimCorrectionBox(config){
     isProfileOwner = false;
     const card = document.getElementById('claim-info-card');
     const body = document.getElementById('claim-card-body');
+    // consultant-modal.js bu kutuyu DOM'a hiç koymuyor (bkz. kullanıcı isteği: "Bu profil sana mı
+    // ait?" kaldırıldı) — isProfileOwner hesaplaması yine de aşağıda çalışmalı ki Düzenle butonu
+    // doğru görünürlükte kalsın, yalnızca görünür kart güncellemeleri atlanır.
+    if(!card || !body){
+      if(config.ready) await config.ready;
+      if(!currentUser) return;
+      try{
+        const res = await fetch(`/api/claims/status?profileType=${config.profileType}&profileKey=${encodeURIComponent(config.getProfileKey())}`);
+        const data = res.ok ? await res.json() : { status: 'none' };
+        isProfileOwner = data.status === 'approved';
+      }catch{}
+      return;
+    }
     card.style.display = '';
     if(config.ready) await config.ready;
     const profileKey = config.getProfileKey();
@@ -123,6 +146,7 @@ function createClaimCorrectionBox(config){
 
   function loadCorrectionCard(){
     const extra = document.getElementById('correction-card-extra');
+    if(!extra) return;
     if(!currentUser){
       extra.innerHTML = `<p style="margin-top:10px;">Bir bildirim göndermek için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
       return;
@@ -170,18 +194,28 @@ function createClaimCorrectionBox(config){
     const slot = document.getElementById('profile-edit-slot');
     if(!slot) return;
     if(!currentUser || !(isProfileOwner || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
-    const adminButtonsHtml = currentUser.role === 'admin' ? `
+    // Arşivle/Sil normalde yalnızca admin'e açık; ownerCanModerate:true veren çağıranlarda (bkz.
+    // kullanıcı isteği: danışman kendi profilini yönetebilsin) profil sahibi de görür.
+    const canModerate = currentUser.role === 'admin' || (config.ownerCanModerate && isProfileOwner);
+    const adminButtonsHtml = canModerate ? `
       <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>
       <button type="button" class="card-delete-btn" id="profile-delete-btn">Sil</button>` : '';
     // editButtonText — opsiyonel, verilmezse mimar/firma modallarındaki AYNI "Düzenle" varsayılanı
     // korunur (bkz. kullanıcı isteği: danışman modalında "Profili Düzenle" yazsın — diğer çağıranlar
     // etkilenmesin diye buraya bir varsayılan değerle eklendi).
     const editLabel = (config.labels && config.labels.editButtonText) || 'Düzenle';
-    slot.innerHTML = `<a class="profile-edit-btn" href="${config.editUrlBase}?claim=${encodeURIComponent(getClaimLinkKey())}">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-      ${editLabel}
-    </a>${adminButtonsHtml}`;
-    if(currentUser.role === 'admin'){
+    const editButtonHtml = config.onEditClick
+      ? `<button type="button" class="profile-edit-btn" id="profile-edit-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          ${editLabel}
+        </button>`
+      : `<a class="profile-edit-btn" href="${config.editUrlBase}?claim=${encodeURIComponent(getClaimLinkKey())}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          ${editLabel}
+        </a>`;
+    slot.innerHTML = editButtonHtml + adminButtonsHtml;
+    if(config.onEditClick) document.getElementById('profile-edit-btn').addEventListener('click', () => config.onEditClick());
+    if(canModerate){
       document.getElementById('profile-archive-btn').addEventListener('click', () => runProfileModeration('archive'));
       document.getElementById('profile-delete-btn').addEventListener('click', () => runProfileModeration('delete'));
     }
@@ -195,7 +229,7 @@ function createClaimCorrectionBox(config){
     if(btn) btn.disabled = true;
     if(otherBtn) otherBtn.disabled = true;
     try{
-      const res = await fetch('/api/admin/legacy/content-action', {
+      const res = await fetch(config.moderateUrl || '/api/admin/legacy/content-action', {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify(Object.assign({ type: config.contentType, action }, config.getModerationTarget())),
       });

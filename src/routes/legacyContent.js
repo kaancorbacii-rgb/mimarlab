@@ -524,12 +524,18 @@ function bindContentFields(type, fields) {
 // POST /api/admin/legacy/content-action  body: {type:'architects'|'offices'|'products'|'materials', action:'delete'|'archive'|'publish', id?, key?}
 async function handleContentAction(request, env, user) {
   const body = await readJson(request);
-  const type = body.type;
+  return runContentAction(env, user, { type: body.type, action: body.action, id: body.id, key: body.key });
+}
+
+// runProjectAction (bu dosyada aşağıda) ile AYNI desen — bu fonksiyon kendi başına hiçbir yetki
+// kontrolü YAPMAZ, çağıranı (admin dispatcher YA DA bir self-servis rota, bkz.
+// src/routes/consultant.js#handleConsultantModerateRoute) kendi yetki kontrolünü yapıp buraya
+// düşer. handleContentAction (admin) ve consultant self-servis rotası AYNI mantığı paylaşır.
+export async function runContentAction(env, user, { type, action, id, key }) {
   const config = CONTENT_ACTION_TYPES[type];
   if (!config) return errorJson('Geçersiz tip.');
-  const action = body.action;
-  const id = (body.id || '').trim();
-  const key = (body.key || '').trim();
+  id = (id || '').trim();
+  key = (key || '').trim();
   if (!['delete', 'archive', 'publish'].includes(action)) return errorJson('Geçersiz işlem.');
   if (!id && !key) return errorJson('Geçersiz istek.');
 

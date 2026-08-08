@@ -194,6 +194,11 @@ const ProductModal = (function () {
         background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
         color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
       }
+      /* Pop-up içindeki ilgili ürün kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği,
+         js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
+         satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
+         sonuna ellipsis eklenir. */
+      .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
       .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
@@ -352,7 +357,7 @@ const ProductModal = (function () {
     const srcset = image ? cdnSrcset(image, [300, 450, 600]) : '';
     return `<a class="related-card" href="${href}">
       ${image ? `<img src="${escapeAttr(cdnImg(image, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(title)}">${escapeHtml(initials(title))}</div>`}
-      <div class="related-card-title">${escapeHtml(title)}${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
+      <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(title)}</span>${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
   }
 

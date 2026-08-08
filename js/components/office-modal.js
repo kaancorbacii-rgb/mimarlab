@@ -70,13 +70,11 @@ const OfficeModal = (function () {
         background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
         color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
       }
-      /* bkz. js/components/architect-modal.js#related-card-title-text — AYNI gerekçe: -webkit-box
-         doğrudan .related-card-title'a uygulansaydı altındaki .related-card-subtitle satırını da
-         satır sayımına dahil ederdi, bu yüzden yalnızca bu iç sarmalayıcıya uygulanır. */
-      /* line-height/max-height + !important (bkz. kullanıcı isteği, gerçek bulgu: son kelimenin
-         -webkit-line-clamp'e rağmen 3. satıra taştığı bildirildi) — line-height em cinsinden
-         SABİTLENİP max-height tam 2 satırla (2 × 1.25em) sınırlanarak üçüncü satır kesin gizlenir. */
-      .related-card-title-text{display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
+      /* Pop-up içindeki proje/mimar kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği,
+         js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
+         satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
+         sonuna ellipsis eklenir. */
+      .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
       .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
