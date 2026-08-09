@@ -3,8 +3,10 @@
 export const SUBMISSION_TYPES = {
   offices: {
     table: 'office_submissions',
-    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'claimed_profile_key'],
-    arrayFields: ['awards', 'founders'],
+    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'claimed_profile_key', 'social_links'],
+    // social_links: [{platform,url}] — awards/founders ile AYNI JSON dizi deseni (bkz. kullanıcı
+    // isteği: "sosyal medya kutusunun yanına ekle butonu koy", migrations/0036_social_links.sql).
+    arrayFields: ['awards', 'founders', 'social_links'],
     required: ['name'],
     urlFields: ['website', 'logo_url'],
   },
@@ -48,8 +50,9 @@ export const SUBMISSION_TYPES = {
     fields: [
       'name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'claimed_profile_key',
       'consultant_request', 'hourly_rate', 'session_duration_min', 'expertise_tags', 'available_slots', 'consultant_experience_years',
+      'social_links',
     ],
-    arrayFields: ['awards', 'expertise_tags', 'available_slots'],
+    arrayFields: ['awards', 'expertise_tags', 'available_slots', 'social_links'],
     required: ['name'],
     urlFields: ['photo_url'],
   },

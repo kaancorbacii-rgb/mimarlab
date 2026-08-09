@@ -56,6 +56,10 @@ const ArchitectModal = (function () {
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
+      /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (mimar-ekle.html#social-row) */
+      .social-icons{display:flex; gap:12px; margin-top:12px;}
+      .social-icons a{color:var(--ink-soft); display:flex;}
+      .social-icons a:hover{color:var(--walnut);}
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
       .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
       .detail-desc-more:hover{color:var(--ink);}
@@ -143,6 +147,7 @@ const ArchitectModal = (function () {
     <div class="detail-title-actions" id="am-actions"></div>
     <div class="detail-info" id="am-detail-info">
       <div class="detail-meta" id="am-category"></div>
+      <div id="am-social-icons"></div>
       <div class="detail-meta" id="am-info-facts" style="display:none;"></div>
       <div class="detail-desc" id="am-about"></div>
       <hr class="detail-info-divider">
@@ -208,6 +213,32 @@ const ArchitectModal = (function () {
   // kullanıcı isteği) — js/components/project-meta.js#renderDescription/DESC_TRUNCATE_AT ile
   // BİREBİR aynı desen, bu modül proje modalıyla import paylaşamadığından burada tekrarlanır.
   const DESC_TRUNCATE_AT = 320;
+  function safeUrl(u) {
+    try {
+      const parsed = new URL(u, window.location.href);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+    } catch {}
+    return '';
+  }
+
+  // bkz. kullanıcı isteği: profile birden fazla sosyal medya bağlantısı eklenebilsin
+  // (mimar-ekle.html#social-row, migrations/0036_social_links.sql) — office-modal.js/
+  // consultant-modal.js'te AYNI ikon seti/fonksiyon kopyalanır.
+  const SOCIAL_ICON_SVG = {
+    instagram: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>',
+    linkedin: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg>',
+    x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg>',
+    youtube: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l6 3-6 3V9z" fill="currentColor" stroke="none"/></svg>',
+    behance: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><text x="12" y="15.5" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-family="Arial, sans-serif" font-weight="700">Be</text></svg>',
+    website: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>',
+  };
+  const SOCIAL_LABELS = { instagram: 'Instagram', linkedin: 'LinkedIn', x: 'X (Twitter)', youtube: 'YouTube', behance: 'Behance', website: 'Web Sitesi' };
+  function socialIconsHtml(links) {
+    const valid = (links || []).map(s => ({ platform: s.platform, url: safeUrl(s.url) })).filter(s => s.url);
+    if (!valid.length) return '';
+    return `<div class="social-icons">${valid.map(s => `<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener" aria-label="${escapeAttr(SOCIAL_LABELS[s.platform] || s.platform)}">${SOCIAL_ICON_SVG[s.platform] || SOCIAL_ICON_SVG.website}</a>`).join('')}</div>`;
+  }
+
   function renderTruncatedDesc(elId, text) {
     const el = document.getElementById(elId);
     if (text.length <= DESC_TRUNCATE_AT) { el.textContent = text; return; }
@@ -325,6 +356,7 @@ const ArchitectModal = (function () {
     updateHeadMeta(a, displayOffice);
     document.getElementById('am-name-text').textContent = a.name;
     document.getElementById('am-category').innerHTML = `<strong>${escapeHtml([a.role, displayOffice ? displayOffice.name : null].filter(Boolean).join(' · '))}</strong>`;
+    document.getElementById('am-social-icons').innerHTML = socialIconsHtml(a.social_links);
     const aboutText = a.about || (displayOffice
       ? `${a.name}, ${displayOffice.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
       : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`));

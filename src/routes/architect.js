@@ -307,6 +307,7 @@ async function buildArchitectPayload(env, key) {
   const item = {
     name: a.name, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
     role: a.position, awards: a.awards, about: a.about, photo: a.photo_url, office: office ? office.name : null,
+    social_links: a.social_links || [],
     badges: [],
   };
   // bkz. src/routes/office.js#buildOfficePayload'daki AYNI _claimKey gerekçesi — renderProfileEditButton'ın

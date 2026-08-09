@@ -196,8 +196,17 @@ async function createSubmission(request, env, user, typeKey) {
   // Admin'in kendi gönderisi/düzenlemesi başka bir onaycıya muhtaç değil — admin zaten onaycının
   // kendisi olduğundan doğrudan yayına girer (bkz. kullanıcı isteği: "admin tüm sitede tüm
   // yetkilere sahip olsun ... admin canlıdaki siteden yaptığı değişiklikler doğrudan canlı siteye
-  // yansısın"). Diğer tüm kullanıcıların gönderileri eskisi gibi 'pending'.
-  const status = user.role === 'admin' ? 'approved' : 'pending';
+  // yansısın"). AYNI şekilde, bir kullanıcının ZATEN sahiplenip onayı geçmiş kendi profilini
+  // (claimed_profile_key doluysa — yukarıdaki verifyClaimedProfileKey bunu zaten doğruladı)
+  // düzenlemesi de admin onayına muhtaç değil (bkz. kullanıcı isteği: "kendi mimar/danışman/firma
+  // profilini ... düzenliyorsa admin onayına gerek yok direkt kaydet") — bu yalnızca profilin
+  // İLK kez bu sahip tarafından düzenlendiği (henüz kendi architect_submissions/office_submissions
+  // satırı olmadığı) durumda buraya (createSubmission) düşer; sonraki düzenlemeler
+  // updateOwnSubmission'a (PATCH) gider. Marka yeni (claimed_profile_key'siz) bir gönderi/proje/ürün
+  // hâlâ normal moderasyon kuyruğuna girer — bu yalnızca "zaten kendi olan bir şeyi düzenleme"
+  // durumunu kapsar, ilk kez içerik göndermeyi DEĞİL.
+  const isOwnerProfileEdit = !!body.claimed_profile_key;
+  const status = (user.role === 'admin' || isOwnerProfileEdit) ? 'approved' : 'pending';
 
   const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.fields];
   const placeholders = columns.map(() => '?').join(', ');
@@ -294,8 +303,15 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (typeKey === 'projects') row.slug = existing.slug; // düzenlemede slug'ı (ve ona bağlı bağlantıları/yorumları) koru
 
   const now = Date.now();
-  // bkz. createSubmission'daki aynı yorum — admin'in kendi düzenlemesi anında yayına girer.
-  const status = user.role === 'admin' ? 'approved' : 'pending';
+  // Bu satıra ulaşan HERKES zaten sahip (existing.owner_user_id === user.id) ya da admin'dir —
+  // yukarıdaki 404 koruması (satır 270) bunu ZATEN garanti ediyor. Yani kendi profilini/kendi
+  // yüklediği proje-ürünü düzenleyen sıradan bir üye de admin ile AYNI şekilde anında yayına
+  // girer (bkz. kullanıcı isteği: "kendi ... düzenliyorsa admin onayına gerek yok direkt kaydet").
+  // Eskiden burası niyet olmadan 'pending'e düşüp (bkz. createSubmission'daki AYNI eski satır)
+  // zaten ONAYLI/CANLI bir kaydı hideCanonicalForUnapprovedSubmission ile sitenin ÜZERİNDEN
+  // ÇEKİYORDU (bkz. aşağısı) — sahibi kendi profilini güncellediği an profilinin siteden
+  // kaybolması olarak yaşanıyordu.
+  const status = 'approved';
   const updates = config.fields.map(f => `${f} = ?`);
   const values = config.fields.map(f => row[f]);
   updates.push('status = ?', 'updated_at = ?');

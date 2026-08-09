@@ -252,7 +252,7 @@ async function buildOfficePayload(env, key) {
 
   const item = {
     name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
-    logo: o.logo_url, awards: o.awards, badges: [],
+    logo: o.logo_url, awards: o.awards, social_links: o.social_links || [], badges: [],
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html

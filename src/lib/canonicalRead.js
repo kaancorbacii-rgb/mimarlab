@@ -8,8 +8,8 @@
 const JSON_FIELDS = {
   // expertise_tags/available_slots — migrations/0031_architect_consultant.sql (bkz. kullanıcı
   // isteği: /danismanlik modülü), diğer JSON kolonlarla AYNI JSON.stringify/parse deseni.
-  architects: ['awards', 'expertise_tags', 'available_slots'],
-  offices: ['cats', 'awards'],
+  architects: ['awards', 'expertise_tags', 'available_slots', 'social_links'],
+  offices: ['cats', 'awards', 'social_links'],
   projects: ['category', 'type', 'discipline', 'period', 'images'],
   products: ['images', 'specs'],
 };

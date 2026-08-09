@@ -251,6 +251,7 @@ async function syncOffice(env, row) {
   // render edilmiyordu — veri kaybı değil, istemci tarafı kırılan bir render zinciriydi).
   const cats = row.cats ? JSON.stringify(row.cats) : null;
   const awards = row.awards ? JSON.stringify(row.awards) : null;
+  const socialLinks = row.social_links ? JSON.stringify(row.social_links) : null;
 
   let result;
   if (target) {
@@ -265,10 +266,11 @@ async function syncOffice(env, row) {
       if (row.website) { sets.push('website = ?'); vals.push(row.website); }
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.logo_url) { sets.push('logo_url = ?'); vals.push(row.logo_url); }
+      if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
     } else {
       // bağımsız kayıt — kendi taslağının her düzenlemesi tam birebir yansır.
-      sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?');
-      vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null);
+      sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?', 'social_links = ?');
+      vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, socialLinks);
     }
     // hidden_at HER onaylı senkronda temizlenir — bir bağımsız (claimed_profile_key'siz) kaydın
     // sahibi onaylı içeriğini tekrar düzenlediğinde durum geçici olarak 'pending'e döner ve
@@ -289,9 +291,9 @@ async function syncOffice(env, row) {
     const clash = await env.DB.prepare(`SELECT id FROM offices WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, awards, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, marker, row.owner_user_id));
+      `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, awards, social_links, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, socialLinks, marker, row.owner_user_id));
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
     // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate
     // edilmemiş olduğu anlamına gelir (gerçek bulgu: "mükerrer kayıt" — bu yeni satır firma.html/
@@ -333,6 +335,7 @@ async function syncArchitect(env, row) {
     : await env.DB.prepare(`SELECT * FROM architects WHERE legacy_key = ?`).bind(marker).first();
 
   const awards = row.awards ? JSON.stringify(row.awards) : null;
+  const socialLinks = row.social_links ? JSON.stringify(row.social_links) : null;
 
   if (target) {
     const sets = [];
@@ -347,10 +350,11 @@ async function syncArchitect(env, row) {
       if (row.photo_url) { sets.push('photo_url = ?'); vals.push(row.photo_url); }
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.position) { sets.push('position = ?'); vals.push(row.position); }
+      if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
       sets.push('office_id = ?'); vals.push(officeId);
     } else {
-      sets.push('name = ?', 'dob = ?', 'school = ?', 'dept = ?', 'profession = ?', 'awards = ?', 'photo_url = ?', 'about = ?', 'position = ?', 'office_id = ?');
-      vals.push(row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, awards, row.photo_url || null, row.about || null, row.position || null, officeId);
+      sets.push('name = ?', 'dob = ?', 'school = ?', 'dept = ?', 'profession = ?', 'awards = ?', 'photo_url = ?', 'about = ?', 'position = ?', 'social_links = ?', 'office_id = ?');
+      vals.push(row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, awards, row.photo_url || null, row.about || null, row.position || null, socialLinks, officeId);
     }
     // bkz. syncOffice'teki AYNI koşulsuz hidden_at temizliği ve gerekçesi.
     sets.push('hidden_at = NULL');
@@ -366,9 +370,9 @@ async function syncArchitect(env, row) {
   const clash = await env.DB.prepare(`SELECT id FROM architects WHERE slug = ?`).bind(slug).first();
   if (clash) slug = `${slug}-${row.id}`;
   const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-    `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, office_id, source, legacy_key, claimed_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, officeId, marker, row.owner_user_id));
+    `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, social_links, office_id, source, legacy_key, claimed_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, officeId, marker, row.owner_user_id));
   const architectId = insert.meta.last_row_id;
   await syncOfficeFounderLink(env, architectId, officeIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.

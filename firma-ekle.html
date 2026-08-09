@@ -141,6 +141,17 @@
   .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
   .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
+  /* ---------- SOSYAL MEDYA (birden fazla bağlantı — bkz. kullanıcı isteği: "sosyal medya
+     kutusunun yanına ekle butonu koy") — mimar-ekle.html#social-row ile AYNI desen. ---------- */
+  .social-row{display:grid; grid-template-columns:150px 1fr auto; gap:10px; margin-bottom:10px; align-items:center;}
+  .social-row select, .social-row input{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); box-sizing:border-box;
+  }
+  .social-remove-btn{width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); flex-shrink:0;}
+  .social-remove-btn:hover{background:var(--paper-alt); color:#B84C4C;}
+  .social-add-btn{display:inline-flex; align-items:center; gap:6px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; color:var(--walnut);}
+  .social-add-btn:hover{border-color:var(--brass); background:var(--paper-alt);}
 
   .image-drop{display:block; border:2px dashed var(--line); border-radius:14px; padding:30px; text-align:center; color:var(--ink-soft); cursor:pointer; transition:border-color .15s ease, background .15s ease;}
   .image-drop:hover, .image-drop.dragover{border-color:var(--brass); background:var(--paper-alt);}
@@ -340,6 +351,13 @@
           <label for="o-desc">Firma Hakkında Açıklama</label>
           <textarea id="o-desc" name="about" placeholder="Firma hakkında kısa bir metin yaz..." required></textarea>
         </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Sosyal Medya <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <p class="section-hint">Instagram, LinkedIn gibi profillerinizi ekleyin — firma sayfasında tıklanabilir birer ikon olarak gösterilir.</p>
+        <div id="social-rows"></div>
+        <button type="button" class="social-add-btn" id="social-add-btn">+ Sosyal Medya Ekle</button>
       </div>
 
       <div class="form-section">
@@ -554,6 +572,35 @@ function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
 }
 const updateHizmetLabel = wireMultiDropdown('dd-hizmet', 'dd-hizmet-btn', 'dd-hizmet-btn-label', 'Hizmet alanı seç');
 
+// ---------- SOSYAL MEDYA: tekrarlanabilir satır (bkz. mimar-ekle.html#addSocialRow AYNI desen) ----------
+const SOCIAL_PLATFORMS = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'x', label: 'X (Twitter)' },
+  { value: 'behance', label: 'Behance' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'website', label: 'Web Sitesi / Diğer' },
+];
+const socialRows = document.getElementById('social-rows');
+function addSocialRow(platform, url){
+  const row = document.createElement('div');
+  row.className = 'social-row';
+  row.innerHTML = `
+    <select class="social-platform">${SOCIAL_PLATFORMS.map(p => `<option value="${p.value}"${p.value === platform ? ' selected' : ''}>${p.label}</option>`).join('')}</select>
+    <input type="url" class="social-url" placeholder="https://..." value="${escapeAttr(url || '')}">
+    <button type="button" class="social-remove-btn" aria-label="Kaldır">✕</button>
+  `;
+  row.querySelector('.social-remove-btn').addEventListener('click', ()=> row.remove());
+  socialRows.appendChild(row);
+}
+function collectSocialLinks(){
+  return Array.from(socialRows.querySelectorAll('.social-row')).map(row => ({
+    platform: row.querySelector('.social-platform').value,
+    url: row.querySelector('.social-url').value.trim(),
+  })).filter(s => s.url);
+}
+document.getElementById('social-add-btn').addEventListener('click', ()=> addSocialRow());
+
 // ---------- OTOMATİK TAMAMLAMA: Kurucular ----------
 function lastCommaSegment(value){
   const parts = value.split(',');
@@ -686,6 +733,7 @@ async function prefillForEdit(){
     const catList = (item.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
     document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
     updateHizmetLabel();
+    (item.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
     existingLogoUrl = item.logo_url || null;
     renderPreviews();
     wireAdminBadgePicker(item.name);
@@ -741,7 +789,7 @@ async function prefillForClaim(){
       const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
       if(mine){
         editId = mine.id;
-        merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, logo: mine.logo_url };
+        merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, logo: mine.logo_url, social_links: mine.social_links };
       }
     }
   }catch{}
@@ -769,6 +817,7 @@ async function prefillForClaim(){
   const catList = Array.isArray(merged.cats) ? merged.cats : (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
   document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
   updateHizmetLabel();
+  (merged.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
   existingLogoUrl = merged.logo || merged.logo_url || null;
   renderPreviews();
   wireAdminBadgePicker(merged.name || claimName);
@@ -830,6 +879,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     founders,
     about: document.getElementById('o-desc').value,
     logo_url: logoUrl,
+    social_links: collectSocialLinks(),
   };
   if(claimName) payload.claimed_profile_key = claimName;
 

@@ -103,6 +103,18 @@
   .form-field textarea{resize:vertical; min-height:100px; line-height:1.5;}
   .form-field input:focus-visible, .form-field textarea:focus-visible, .form-field select:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
+  /* ---------- SOSYAL MEDYA (birden fazla bağlantı — bkz. kullanıcı isteği: "sosyal medya
+     kutusunun yanına ekle butonu koy") — urun-ekle.html#specs-row/specs-add-btn ile AYNI
+     "tekrarlanabilir satır" deseni, yalnızca etiket/değer yerine platform seç + URL. ---------- */
+  .social-row{display:grid; grid-template-columns:150px 1fr auto; gap:10px; margin-bottom:10px; align-items:center;}
+  .social-row select, .social-row input{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); box-sizing:border-box;
+  }
+  .social-remove-btn{width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); flex-shrink:0;}
+  .social-remove-btn:hover{background:var(--paper-alt); color:#B84C4C;}
+  .social-add-btn{display:inline-flex; align-items:center; gap:6px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; color:var(--walnut);}
+  .social-add-btn:hover{border-color:var(--brass); background:var(--paper-alt);}
   /* ---------- DROPDOWN (Meslek, Pozisyon, Ödüller) ---------- */
   .dd-field{position:relative;}
   .dd-btn{
@@ -298,6 +310,13 @@
       </div>
 
       <div class="form-section">
+        <h2>Sosyal Medya <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <p class="section-hint">Instagram, LinkedIn gibi profillerini ekle — profil sayfanda tıklanabilir birer ikon olarak gösterilir.</p>
+        <div id="social-rows"></div>
+        <button type="button" class="social-add-btn" id="social-add-btn">+ Sosyal Medya Ekle</button>
+      </div>
+
+      <div class="form-section">
         <h2>Firmalar</h2>
         <p class="section-hint">Bağlı olduğun firma(lar) — MİMARLAB dizinindeki bir firma adıyla birebir eşleşirse profil sayfasına otomatik bağlanır. Birden fazla firman varsa aralarına virgül koyarak yaz.</p>
         <div class="form-row">
@@ -478,6 +497,37 @@ const meslekDropdown = wireSingleDropdown('dd-meslek', 'dd-meslek-btn', 'dd-mesl
 const pozisyonDropdown = wireSingleDropdown('dd-pozisyon', 'dd-pozisyon-btn', 'dd-pozisyon-btn-label', 'dd-pozisyon-options', POZISYON_OPTIONS, 'Pozisyon seç');
 const odullerDropdown = wireMultiDropdown('dd-oduller', 'dd-oduller-btn', 'dd-oduller-btn-label', 'dd-oduller-options', ODUL_OPTIONS, 'award', 'Ödül seç');
 
+// ---------- SOSYAL MEDYA: tekrarlanabilir satır (bkz. urun-ekle.html#addSpecRow/collectSpecs
+// AYNI desen — architect-modal.js/office-modal.js/consultant-modal.js#socialIconsHtml bu platform
+// adlarını simge seçimi için kullanır, ikisi de senkron tutulmalı). ---------
+const SOCIAL_PLATFORMS = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'x', label: 'X (Twitter)' },
+  { value: 'behance', label: 'Behance' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'website', label: 'Web Sitesi / Diğer' },
+];
+const socialRows = document.getElementById('social-rows');
+function addSocialRow(platform, url){
+  const row = document.createElement('div');
+  row.className = 'social-row';
+  row.innerHTML = `
+    <select class="social-platform">${SOCIAL_PLATFORMS.map(p => `<option value="${p.value}"${p.value === platform ? ' selected' : ''}>${p.label}</option>`).join('')}</select>
+    <input type="url" class="social-url" placeholder="https://..." value="${escapeAttr(url || '')}">
+    <button type="button" class="social-remove-btn" aria-label="Kaldır">✕</button>
+  `;
+  row.querySelector('.social-remove-btn').addEventListener('click', ()=> row.remove());
+  socialRows.appendChild(row);
+}
+function collectSocialLinks(){
+  return Array.from(socialRows.querySelectorAll('.social-row')).map(row => ({
+    platform: row.querySelector('.social-platform').value,
+    url: row.querySelector('.social-url').value.trim(),
+  })).filter(s => s.url);
+}
+document.getElementById('social-add-btn').addEventListener('click', ()=> addSocialRow());
+
 // ---------- OTOMATİK TAMAMLAMA: Varsa Marka Adı ----------
 function wireAutocomplete(inputId, suggestionsId, getItems){
   const input = document.getElementById(inputId);
@@ -645,6 +695,7 @@ async function prefillForEdit(){
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
     document.getElementById('m-about').value = item.about || '';
+    (item.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
     wireAdminBadgePicker(item.name);
@@ -701,7 +752,7 @@ async function prefillForClaim(){
       const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
       if(mine){
         editId = mine.id;
-        merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about };
+        merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links };
       }
     }
   }catch{}
@@ -724,6 +775,7 @@ async function prefillForClaim(){
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
   document.getElementById('m-about').value = merged.about || '';
+  (merged.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
   wireAdminBadgePicker(claimName);
@@ -779,6 +831,7 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
     awards: odullerDropdown.getChecked(),
     photo_url: photoUrl,
     about: document.getElementById('m-about').value || null,
+    social_links: collectSocialLinks(),
   };
   if(claimName) payload.claimed_profile_key = claimName;
 

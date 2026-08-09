@@ -196,7 +196,7 @@ async function buildConsultantPayload(env, key) {
     about: a.consultant_bio || a.about, expertiseTags: a.expertise_tags || [],
     hourlyRate: a.hourly_rate || null, sessionDurationMin: a.session_duration_min || 45,
     availableSlots: a.available_slots || [], totalMinutes: a.consultant_total_minutes || 0,
-    sessionsCompleted: a.consultant_sessions_completed || 0, badges: [],
+    sessionsCompleted: a.consultant_sessions_completed || 0, social_links: a.social_links || [], badges: [],
   };
 
   return {

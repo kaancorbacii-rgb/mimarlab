@@ -69,7 +69,15 @@ const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offic
 const HOMEPAGE_LIST_PATHS = [
   '/api/projects?limit=24', '/api/architects?limit=6', '/api/offices?limit=6', '/api/products?limit=6',
 ];
-const BARE_LIST_PATHS = [...CACHEABLE_LIST_PREFIXES, ...HOMEPAGE_LIST_PATHS];
+// proje.html/urun.html'in filtresiz/sıralamasız ilk ziyarette gerçekten çektiği TAM URL (bkz.
+// proje.html#render/urun.html#render — page=1&limit=24, hiçbir filtre/arama/sort aktif değilken) —
+// bu, HOMEPAGE_LIST_PATHS'teki `?limit=24` varyantından FARKLI bir cache anahtarı (query string
+// birebir eşleşmeli). Bu satır BARE_LIST_PATHS'te yoksa yeni onaylanan bir proje/ürün, admin
+// onayından sonra bu en sık görülen "1. sayfa" görünümünde en fazla s-maxage (5dk) kadar hiç
+// görünmeyebilirdi (gerçek bulgu: kullanıcı isteği — "yeni yüklenen proje 1. sayfaya 1. post
+// olarak gelmedi").
+const DEFAULT_FIRST_PAGE_PATHS = ['/api/projects?page=1&limit=24', '/api/products?page=1&limit=24'];
+const BARE_LIST_PATHS = [...CACHEABLE_LIST_PREFIXES, ...HOMEPAGE_LIST_PATHS, ...DEFAULT_FIRST_PAGE_PATHS];
 
 function isListPath(pathname) {
   return CACHEABLE_LIST_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '?'));
