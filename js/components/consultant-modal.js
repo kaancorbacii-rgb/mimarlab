@@ -129,16 +129,15 @@ const ConsultantModal = (function () {
 
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
-      .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
-      .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
+      .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+      .related-card img{display:block; width:100%; aspect-ratio:4/3; object-fit:cover;}
+      .related-card-placeholder{width:100%; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
       .related-card-title{
-        position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
-        background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
-        color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+        padding:10px 14px 12px;
+        color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
       }
       .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
-      .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
+      .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.7; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
@@ -249,6 +248,7 @@ const ConsultantModal = (function () {
       <h1 class="detail-title"><span id="cm-name-text"></span><span id="cm-verified-badge-wrap"></span></h1>
     </div>
     <div class="detail-title-actions" id="cm-actions"></div>
+    <div id="cm-social-links"></div>
     <div class="detail-info" id="cm-detail-info">
       <div class="detail-meta" id="cm-category"></div>
       <div class="detail-meta" id="cm-info-facts" style="display:none;"></div>
@@ -712,6 +712,8 @@ const ConsultantModal = (function () {
       saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('cm-share-btn'));
       ShareWidget.wire('cm-share-btn', () => ({ title: a.name, url: `${window.location.origin}/danisman/${encodeURIComponent(slugify(a.name))}` }));
     }
+    const socialLinksEl = document.getElementById('cm-social-links');
+    if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(a.socialPlatform, a.socialUrl) : '';
 
     renderStructuredData(a);
 

@@ -6,6 +6,8 @@ import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { getSessionUser } from '../lib/auth.js';
 import { runContentAction } from './legacyContent.js';
+import { isSafeUrlValue, SOCIAL_PLATFORMS } from '../lib/submissionTypes.js';
+import { positionOf } from './architect.js';
 
 // "/danismanlik" modülü (bkz. kullanıcı isteği: ADPList tarzı ücretli danışmanlık/mentörlük keşif
 // sayfası) — ayrı bir tablo değil, architects.is_consultant=1 satırları (bkz. migrations/
@@ -27,18 +29,6 @@ function hasOpenSlot(slots) {
   return (slots || []).some(day => (day.times || []).some(t => t.available));
 }
 
-// "Tecrübe" filtresi bucket'ları (bkz. kullanıcı isteği: 0-5/5-10/10+ Yıl) — Ücret Aralığı'nın
-// yerini alan sabit aralık grubu, "Uzmanlık Alanı" ile AYNI çok-seçmeli filter-group deseninde.
-const EXPERIENCE_BUCKETS = [
-  { value: '0-5', label: '0-5 Yıl', min: 0, max: 5 },
-  { value: '5-10', label: '5-10 Yıl', min: 5, max: 10 },
-  { value: '10+', label: '10+ Yıl', min: 10, max: Infinity },
-];
-function experienceBucket(years) {
-  const bucket = EXPERIENCE_BUCKETS.find(b => years >= b.min && years <= b.max) || EXPERIENCE_BUCKETS[EXPERIENCE_BUCKETS.length - 1];
-  return bucket.value;
-}
-
 async function findConsultant(env, key) {
   const row = await env.DB.prepare(
     `SELECT * FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL AND is_consultant = 1 AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
@@ -54,7 +44,12 @@ async function findConsultant(env, key) {
 
 // GET /api/consultants — danismanlik.html#render()'ın sayfalanmış sunucu karşılığı — mimar.html'in
 // /api/architects'iyle AYNI desen (bkz. handleArchitectListRoute), yalnızca is_consultant=1 filtresi
-// ve danışmanlığa özgü alanlar (hourly_rate/expertise_tags/available_slots) eklenir.
+// ve danışmanlığa özgü alanlar (hourly_rate/expertise_tags/available_slots) eklenir. dob/award/
+// position filtreleri artık handleArchitectListRoute ile BİREBİR aynı (bkz. kullanıcı isteği:
+// "Danışman sayfasındaki filtreyi mimar sayfasındaki filtreyle aynı yap") — yalnızca ek olarak
+// Uzmanlık Alanı (tag) ve Danışman Ekle kalıyor; eskiden burada olan "Tecrübe" filtresi bu
+// değişiklikle KALDIRILDI (bkz. danisman.html'in yeniden yapılandırılmış sidebar'ı, artık
+// consultant_experience_years'ı hiçbir yerde okumuyor).
 export async function handleConsultantListRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
 
@@ -62,27 +57,32 @@ export async function handleConsultantListRoute(request, env, url) {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
+    const dobParam = url.searchParams.get('dob') || '';
+    const awardParam = url.searchParams.get('award') || '';
+    const positionParam = url.searchParams.get('position') || '';
     // proje.html#FILTER_GROUPS ile AYNI çok-seçmeli desen (bkz. kullanıcı isteği: "/danismanlik
     // sayfa yapısını birebir /projeler sayfasının mizanpajına dönüştür") — grup İÇİNDE OR (herhangi
     // bir seçili etiketi taşıyan danışman geçer), tek grup olduğundan gruplar arası AND yok.
     const tagParams = new Set(url.searchParams.getAll('tag').filter(Boolean));
-    const experienceParams = new Set(url.searchParams.getAll('experience').filter(Boolean));
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     const { results } = await env.DB.prepare(
-      `SELECT a.id, a.slug, a.name, a.photo_url, a.position, a.hourly_rate, a.session_duration_min,
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.hourly_rate, a.session_duration_min,
          a.expertise_tags, a.available_slots, a.consultant_total_minutes, a.consultant_sessions_completed,
-         a.consultant_experience_years, o.name AS office_name
-       FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+         a.consultant_experience_years, o.name AS office_name, o.awards AS office_awards
+       FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL AND o.hidden_at IS NULL
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.is_consultant = 1
        ORDER BY a.id DESC`
     ).all();
 
     const pool = results.map(row => {
       const a = parseCanonicalRow('architects', row);
+      let officeAwards = [];
+      if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
       return {
-        slug: a.slug, name: a.name, photo: a.photo_url, office: row.office_name || null,
-        positionRaw: a.position || null, hourlyRate: a.hourly_rate || null,
+        slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null,
+        position: positionOf(a.position), positionRaw: a.position || null, officeAwards,
+        hourlyRate: a.hourly_rate || null,
         sessionDurationMin: a.session_duration_min || 45, expertiseTags: a.expertise_tags || [],
         availableSlots: a.available_slots || [], totalMinutes: a.consultant_total_minutes || 0,
         sessionsCompleted: a.consultant_sessions_completed || 0,
@@ -91,11 +91,10 @@ export async function handleConsultantListRoute(request, env, url) {
     });
 
     function passes(a) {
+      if (dobParam && String(a.dob) !== dobParam) return false;
+      if (awardParam && !a.officeAwards.includes(awardParam)) return false;
+      if (positionParam && a.position !== positionParam) return false;
       if (tagParams.size && !a.expertiseTags.some(t => tagParams.has(t))) return false;
-      if (experienceParams.size) {
-        if (a.experienceYears == null) return false;
-        if (!experienceParams.has(experienceBucket(a.experienceYears))) return false;
-      }
       if (searchQuery) {
         const haystack = foldTr(`${a.name} ${a.positionRaw || ''} ${a.office || ''} ${a.expertiseTags.join(' ')}`);
         if (!haystack.includes(searchQuery)) return false;
@@ -119,18 +118,24 @@ export async function handleConsultantListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(a => ({ ...a, available: hasOpenSlot(a.availableSlots), availableSlots: undefined }));
+    const items = filtered.slice(start, start + limit).map(({ officeAwards, ...rest }) => ({ ...rest, available: hasOpenSlot(rest.availableSlots), availableSlots: undefined }));
 
-    const tagCounts = {};
-    pool.forEach(a => a.expertiseTags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
-    const experienceCounts = {};
-    pool.forEach(a => { if (a.experienceYears != null) { const b = experienceBucket(a.experienceYears); experienceCounts[b] = (experienceCounts[b] || 0) + 1; } });
+    // mimar.html#populateFilters ile AYNI: sayaçlar aktif filtrelerden BAĞIMSIZ, tüm havuz üzerinden.
+    const dobCounts = {}, awardCounts = {}, positionCounts = {}, tagCounts = {};
+    pool.forEach(a => {
+      if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
+      a.officeAwards.forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
+      if (a.position) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
+      a.expertiseTags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+    });
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
       filters: {
+        dob: Object.keys(dobCounts).sort((x, y) => y - x).map(v => ({ value: v, count: dobCounts[v] })),
+        award: Object.keys(awardCounts).sort((x, y) => awardCounts[y] - awardCounts[x] || x.localeCompare(y, 'tr')).map(v => ({ value: v, count: awardCounts[v] })),
+        position: positionCounts,
         tags: Object.keys(tagCounts).sort((x, y) => tagCounts[y] - tagCounts[x]).map(v => ({ value: v, count: tagCounts[v] })),
-        experience: EXPERIENCE_BUCKETS.map(b => ({ value: b.value, label: b.label, count: experienceCounts[b.value] || 0 })),
       },
     };
   }, () => consultantListFingerprint(env));
@@ -159,7 +164,7 @@ async function buildConsultantPayload(env, key) {
   const a = parseCanonicalRow('architects', row);
 
   const officeRow = a.office_id
-    ? await env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL`).bind(a.office_id).first()
+    ? await env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL AND hidden_at IS NULL`).bind(a.office_id).first()
     : null;
   const office = officeRow ? parseCanonicalRow('offices', officeRow) : null;
 
@@ -204,6 +209,7 @@ async function buildConsultantPayload(env, key) {
     // architects.dob/school/profession/awards'tan doğrudan gelir, yeni bir sütun GEREKMEZ.
     dob: a.dob || null, school: a.school || null, dept: a.dept || null,
     profession: a.profession || null, awards: a.awards || [],
+    socialPlatform: a.social_platform || null, socialUrl: a.social_url || null,
   };
 
   return {
@@ -327,6 +333,16 @@ export async function handleConsultantEditRoute(request, env, rawKey) {
     const n = body.experienceYears === null ? NaN : Number(body.experienceYears);
     fields.push('consultant_experience_years = ?');
     values.push(Number.isFinite(n) && n >= 0 ? n : null);
+  }
+  if (typeof body.socialPlatform === 'string' || body.socialPlatform === null) {
+    if (body.socialPlatform && !SOCIAL_PLATFORMS.has(body.socialPlatform)) return errorJson('Geçersiz sosyal medya platformu.');
+    fields.push('social_platform = ?');
+    values.push(body.socialPlatform || null);
+  }
+  if (typeof body.socialUrl === 'string' || body.socialUrl === null) {
+    if (body.socialUrl && !isSafeUrlValue(body.socialUrl)) return errorJson('Geçersiz sosyal medya bağlantısı.');
+    fields.push('social_url = ?');
+    values.push(body.socialUrl || null);
   }
   if (Array.isArray(body.availableSlotsTemplate)) {
     const template = body.availableSlotsTemplate

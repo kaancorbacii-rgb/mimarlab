@@ -3,10 +3,10 @@
 export const SUBMISSION_TYPES = {
   offices: {
     table: 'office_submissions',
-    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'claimed_profile_key'],
+    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'claimed_profile_key', 'social_platform', 'social_url'],
     arrayFields: ['awards', 'founders'],
     required: ['name'],
-    urlFields: ['website', 'logo_url'],
+    urlFields: ['website', 'logo_url', 'social_url'],
   },
   projects: {
     table: 'project_submissions',
@@ -48,10 +48,11 @@ export const SUBMISSION_TYPES = {
     fields: [
       'name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'claimed_profile_key',
       'consultant_request', 'hourly_rate', 'session_duration_min', 'expertise_tags', 'available_slots', 'consultant_experience_years',
+      'social_platform', 'social_url',
     ],
     arrayFields: ['awards', 'expertise_tags', 'available_slots'],
     required: ['name'],
-    urlFields: ['photo_url'],
+    urlFields: ['photo_url', 'social_url'],
   },
   news: {
     table: 'news_submissions',
@@ -61,6 +62,18 @@ export const SUBMISSION_TYPES = {
     urlFields: ['image_url'],
   },
 };
+
+// Mimar/Firma/Danışman ekle-düzenle sayfalarındaki Sosyal Medya kutucuğunun platform seçim listesi
+// (bkz. kullanıcı isteği) — istemci (mimar-ekle.html/firma-ekle.html/danisman-ekle.html) VE burası
+// (submissions.js#createSubmission/updateOwnSubmission, src/routes/consultant.js#
+// handleConsultantEditRoute) AYNI enum'u kullanır.
+export const SOCIAL_PLATFORMS = new Set(['instagram', 'linkedin', 'x']);
+
+export function findInvalidSocialPlatform(type, body) {
+  if (!('social_platform' in body)) return false;
+  const value = body.social_platform;
+  return !!value && !SOCIAL_PLATFORMS.has(value);
+}
 
 // Görsel/website/başvuru linki gibi alanlarda saklanan değerin, bir HTML özniteliğine
 // (src="..."/href="...") gömüldüğünde tırnak kaçışıyla enjeksiyona izin vermeyecek güvenli bir

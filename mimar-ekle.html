@@ -295,6 +295,21 @@
           <label for="m-about">Açıklama <span class="opt">(opsiyonel)</span></label>
           <textarea id="m-about" name="about" placeholder="Kendin hakkında kısa bir metin yaz..."></textarea>
         </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="m-social-platform">Sosyal Medya <span class="opt">(opsiyonel)</span></label>
+            <select id="m-social-platform" name="social_platform">
+              <option value="">Platform seç</option>
+              <option value="instagram">Instagram</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="x">X</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="m-social-url">Bağlantı</label>
+            <input type="url" id="m-social-url" name="social_url" placeholder="https://instagram.com/kullaniciadi">
+          </div>
+        </div>
       </div>
 
       <div class="form-section">
@@ -645,6 +660,8 @@ async function prefillForEdit(){
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
     document.getElementById('m-about').value = item.about || '';
+    document.getElementById('m-social-platform').value = item.social_platform || '';
+    document.getElementById('m-social-url').value = item.social_url || '';
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
     wireAdminBadgePicker(item.name);
@@ -701,7 +718,7 @@ async function prefillForClaim(){
       const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
       if(mine){
         editId = mine.id;
-        merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about };
+        merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, socialPlatform: mine.social_platform, socialUrl: mine.social_url };
       }
     }
   }catch{}
@@ -724,6 +741,8 @@ async function prefillForClaim(){
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
   document.getElementById('m-about').value = merged.about || '';
+  document.getElementById('m-social-platform').value = merged.socialPlatform || '';
+  document.getElementById('m-social-url').value = merged.socialUrl || '';
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
   wireAdminBadgePicker(claimName);
@@ -779,6 +798,8 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
     awards: odullerDropdown.getChecked(),
     photo_url: photoUrl,
     about: document.getElementById('m-about').value || null,
+    social_platform: document.getElementById('m-social-platform').value || null,
+    social_url: document.getElementById('m-social-url').value || null,
   };
   if(claimName) payload.claimed_profile_key = claimName;
 

@@ -132,8 +132,8 @@ async function fetchProjectProducts(env, projectId) {
     `SELECT pr.slug, pr.title, pr.kind, pr.category, pr.images,
             COALESCE(off.name, pr.brand_name_raw) AS brand_name
      FROM project_products pp
-     JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL
-     LEFT JOIN offices off ON off.id = pr.brand_office_id AND off.deleted_at IS NULL
+     JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+     LEFT JOIN offices off ON off.id = pr.brand_office_id AND off.deleted_at IS NULL AND off.hidden_at IS NULL
      WHERE pp.project_id = ?`
   ).bind(projectId).all();
   const products = [];
@@ -178,8 +178,8 @@ async function fetchFoundersForOffices(env, officeNames) {
   const placeholders = officeNames.map(() => '?').join(', ');
   const { results } = await env.DB.prepare(
     `SELECT ar.name, ar.slug, ar.photo_url FROM office_founders f
-     JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
-     JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL
+     JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL AND o.hidden_at IS NULL
+     JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
      WHERE o.name IN (${placeholders})`
   ).bind(...officeNames).all();
   return results.map(r => ({ name: r.name, type: 'architect', slug: r.slug, photo: r.photo_url }));

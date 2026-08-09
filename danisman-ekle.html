@@ -302,6 +302,21 @@
           <label for="d-about">Açıklama <span class="opt">(opsiyonel)</span></label>
           <textarea id="d-about" maxlength="2000" placeholder="Danışmanlık/mentörlük olarak neler sunduğunu anlat..."></textarea>
         </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="d-social-platform">Sosyal Medya <span class="opt">(opsiyonel)</span></label>
+            <select id="d-social-platform" name="social_platform">
+              <option value="">Platform seç</option>
+              <option value="instagram">Instagram</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="x">X</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="d-social-url">Bağlantı</label>
+            <input type="url" id="d-social-url" name="social_url" placeholder="https://instagram.com/kullaniciadi">
+          </div>
+        </div>
       </div>
 
       <div class="form-section">
@@ -664,6 +679,8 @@ async function prefillFromArchitect(name){
     document.getElementById('d-school').value = a.school || '';
     document.getElementById('d-office').value = a.office || '';
     document.getElementById('d-about').value = a.about || '';
+    document.getElementById('d-social-platform').value = a.socialPlatform || '';
+    document.getElementById('d-social-url').value = a.socialUrl || '';
     meslekDropdown.set(a.profession || null);
     pozisyonDropdown.set(a.role || null);
     odullerDropdown.setChecked(a.awards || []);
@@ -711,6 +728,8 @@ async function prefillForClaim(){
     document.getElementById('d-school').value = a.school || '';
     document.getElementById('d-office').value = a.office || '';
     document.getElementById('d-about').value = a.about || '';
+    document.getElementById('d-social-platform').value = a.socialPlatform || '';
+    document.getElementById('d-social-url').value = a.socialUrl || '';
     document.getElementById('d-tags').value = (a.expertiseTags || []).join(', ');
     document.getElementById('d-rate').value = a.hourlyRate || '';
     document.getElementById('d-duration').value = String(a.sessionDurationMin || 45);
@@ -782,6 +801,8 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
           awards,
           officeName: document.getElementById('d-office').value.trim(),
           consultantBio: document.getElementById('d-about').value.trim(),
+          socialPlatform: document.getElementById('d-social-platform').value || null,
+          socialUrl: document.getElementById('d-social-url').value || null,
           expertiseTags,
           hourlyRate: Number(hourlyRateRaw),
           sessionDurationMin: Number(document.getElementById('d-duration').value),
@@ -801,6 +822,8 @@ document.getElementById('danisman-ekle-form').addEventListener('submit', async (
           awards,
           office: document.getElementById('d-office').value.trim(),
           about: document.getElementById('d-about').value.trim(),
+          social_platform: document.getElementById('d-social-platform').value || null,
+          social_url: document.getElementById('d-social-url').value || null,
           consultant_request: true,
           hourly_rate: Number(hourlyRateRaw),
           session_duration_min: Number(document.getElementById('d-duration').value),

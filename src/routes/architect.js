@@ -95,7 +95,7 @@ export async function handleArchitectSchoolsRoute(request, env, url) {
 // verisinde (doğrulandı: 485 "Kurucu Ortak" + 312 "Kurucu", birkaç meslek etiketi, "İş arıyor"
 // değeri şu an hiç yok) bu birleşme gözlemlenebilir bir fark yaratmıyor; "İş arıyor"/"İş Arıyor" için
 // İşsiz eşlemesi yine de korunuyor, gelecekte böyle bir kayıt girilirse doğru kova bulunsun diye.
-function positionOf(position) {
+export function positionOf(position) {
   if (!position) return null;
   if (position === 'İş arıyor' || position === 'İş Arıyor') return 'İşsiz';
   return position.startsWith('Kurucu') ? 'Kurucu' : 'Çalışan';
@@ -258,7 +258,7 @@ async function buildArchitectPayload(env, key) {
   const a = parseCanonicalRow('architects', row);
 
   const officeRow = a.office_id
-    ? await env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL`).bind(a.office_id).first()
+    ? await env.DB.prepare(`SELECT * FROM offices WHERE id = ? AND deleted_at IS NULL AND hidden_at IS NULL`).bind(a.office_id).first()
     : null;
   const office = officeRow ? parseCanonicalRow('offices', officeRow) : null;
 
@@ -269,7 +269,7 @@ async function buildArchitectPayload(env, key) {
   // office_founders'a bağlanmış olsa bile). Tekilleştirilmiş, office_id'deki varsa önce o sırayla.
   const { results: founderOfficeRows } = await env.DB.prepare(
     `SELECT o.* FROM office_founders f JOIN offices o ON o.id = f.office_id
-     WHERE f.architect_id = ? AND o.deleted_at IS NULL`
+     WHERE f.architect_id = ? AND o.deleted_at IS NULL AND o.hidden_at IS NULL`
   ).bind(a.id).all();
   const officesById = new Map();
   if (office) officesById.set(office.id, office);
@@ -287,7 +287,7 @@ async function buildArchitectPayload(env, key) {
     office
       ? env.DB.prepare(
           `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
-           WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.id != ?`
+           WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL AND ar.id != ?`
         ).bind(office.id, a.id).all()
       : Promise.resolve({ results: [] }),
     env.DB.prepare(
@@ -307,6 +307,7 @@ async function buildArchitectPayload(env, key) {
   const item = {
     name: a.name, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
     role: a.position, awards: a.awards, about: a.about, photo: a.photo_url, office: office ? office.name : null,
+    socialPlatform: a.social_platform || null, socialUrl: a.social_url || null,
     badges: [],
   };
   // bkz. src/routes/office.js#buildOfficePayload'daki AYNI _claimKey gerekçesi — renderProfileEditButton'ın

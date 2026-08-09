@@ -229,7 +229,7 @@ async function buildOfficePayload(env, key) {
   const [foundersRes, relatedRes, rawFounderNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
-       WHERE f.office_id = ? AND ar.deleted_at IS NULL`
+       WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
     ).bind(o.id).all(),
     env.DB.prepare(
       `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
@@ -252,7 +252,8 @@ async function buildOfficePayload(env, key) {
 
   const item = {
     name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
-    logo: o.logo_url, awards: o.awards, badges: [],
+    logo: o.logo_url, awards: o.awards, socialPlatform: o.social_platform || null, socialUrl: o.social_url || null,
+    badges: [],
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html

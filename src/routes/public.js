@@ -168,10 +168,14 @@ async function handlePublicProfileContent(request, env, url) {
 
     const [productsRes, materialsRes, newsRes] = await Promise.all([
       env.DB.prepare(
-        `SELECT * FROM product_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
+        `SELECT ps.* FROM product_submissions ps
+         JOIN products pr ON pr.slug = 'm-' || ps.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+         WHERE ps.status = 'approved' AND ps.owner_user_id IN (${placeholders}) ORDER BY ps.created_at DESC`
       ).bind(...userIds).all(),
       env.DB.prepare(
-        `SELECT * FROM material_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
+        `SELECT ms.* FROM material_submissions ms
+         JOIN products pr ON pr.slug = 'm-' || ms.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+         WHERE ms.status = 'approved' AND ms.owner_user_id IN (${placeholders}) ORDER BY ms.created_at DESC`
       ).bind(...userIds).all(),
       env.DB.prepare(
         `SELECT id, title, category, source, description, image_url FROM news_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`

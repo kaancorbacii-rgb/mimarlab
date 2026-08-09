@@ -610,21 +610,15 @@
 
   .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
   .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
-  .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
-  .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
+  .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+  .related-card img{display:block; width:100%; aspect-ratio:4/3; object-fit:cover;}
+  .related-card-placeholder{width:100%; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
   .related-card-title{
-    position:absolute; left:0; right:0; bottom:0; padding:10px 14px 14px;
-    background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
-    color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
-    /* gerçek bulgu: -webkit-line-clamp + text-overflow:ellipsis kombinasyonu tarayıcıya göre
-       tutarsız davranıyordu (bkz. kullanıcı ekran görüntüsü) — bazı durumlarda "…" ekleyip
-       ARDINDAN yine de bir sonraki satırı kısmen gösteriyor, metin kartın dışına taşıyordu.
-       Üç noktalı kırpma TAMAMEN kaldırıldı (bkz. kullanıcı isteği) — kutu artık satır sayısına
-       göre doğal olarak büyür (bottom:0 sabit, yukarı doğru genişler), gerçek satır sayısı ne
-       olursa olsun metin asla ortadan kesilmez/dots eklenmez. .related-card'ın overflow:hidden'ı
-       (yukarısı) tek güvenlik ağı olarak kalır — normal kart boyutlarında (>=105px yükseklik)
-       birkaç satırlık bir başlık bile bu sınıra asla ulaşmaz. */
+    padding:10px 14px 14px;
+    color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+    /* gerçek bulgu: başlık artık görselin ALTINDA normal akışta (bkz. kullanıcı isteği: görsel
+       üzerindeki overlay kaldırılsın) — kutu satır sayısına göre doğal olarak büyür, gerçek
+       satır sayısı ne olursa olsun metin asla ortadan kesilmez/dots eklenmez. */
     line-height:1.3; word-break:break-word;
   }
   .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}

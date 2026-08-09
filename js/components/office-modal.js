@@ -62,20 +62,19 @@ const OfficeModal = (function () {
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
       .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
-      .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
-      .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
+      .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+      .related-card img{display:block; width:100%; aspect-ratio:4/3; object-fit:cover;}
+      .related-card-placeholder{width:100%; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
       .related-card-title{
-        position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
-        background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
-        color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+        padding:10px 14px 12px;
+        color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
       }
       /* Pop-up içindeki proje/mimar kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği,
          js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
          satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
          sonuna ellipsis eklenir. */
       .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
-      .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.85; margin-top:2px;}
+      .related-card-subtitle{font-size:11px; font-weight:500; opacity:0.7; margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
@@ -139,6 +138,7 @@ const OfficeModal = (function () {
       <h1 class="detail-title"><span id="om-name-text"></span><span id="om-verified-badge-wrap"></span></h1>
     </div>
     <div class="detail-title-actions" id="om-actions"></div>
+    <div id="om-social-links"></div>
     <div class="detail-info" id="om-detail-info">
       <div class="detail-meta" id="om-info-facts" style="display:none;"></div>
       <div class="detail-desc" id="om-about"></div>
@@ -361,6 +361,9 @@ const OfficeModal = (function () {
       visitBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span>`;
       actionsEl.prepend(visitBtn);
     }
+
+    const socialLinksEl = document.getElementById('om-social-links');
+    if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(o.socialPlatform, o.socialUrl) : '';
 
     renderStructuredData(o);
     renderPrevNext(payload);

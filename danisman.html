@@ -162,37 +162,37 @@
     display:grid; grid-template-columns:250px 1fr;
     gap:28px; align-items:start;
   }
+  /* ---------- GRID SIDEBAR — mimar.html#grid-sidebar ile BİREBİR aynı (bkz. kullanıcı isteği:
+     "Danışman Sayfasındaki filtreyi mimar sayfasındaki filtreyle aynı yap") — düz, tek sütun
+     yığın, bordersız kartlar/akordeon yok. Uzmanlık Alanı (.filter-group/.filter-opt) TEK istisna:
+     çok-seçimli olduğundan mimar'ın tekli <select>'leriyle aynı görünüme zorlanmadı, ama artık
+     kendi başlık/kapatma çerçevesi olmadan aynı düz yığının içinde akıyor. ---------- */
   .grid-sidebar{
-    position:sticky; top:90px;
-    display:flex; flex-direction:column;
     background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
-    overflow:hidden;
+    padding:18px; display:flex; flex-direction:column; gap:12px;
+    position:sticky; top:90px;
   }
-  .sidebar-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:14px 16px; border-bottom:1px solid var(--line-soft);
-  }
-  .sidebar-head-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
-  .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
+  .sidebar-filters-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
+  .sidebar-search{display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
   .sidebar-search svg{flex-shrink:0; opacity:0.5;}
   .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
-  .sidebar-close-btn{
-    width:26px; height:26px; border-radius:50%; flex-shrink:0;
-    border:1px solid var(--line); background:var(--paper-card);
-    color:var(--ink-soft); font-size:12px;
-    display:flex; align-items:center; justify-content:center;
+  .grid-sidebar-head{display:flex; align-items:center; gap:8px; margin-bottom:2px;}
+  .grid-icon-btn{
+    width:32px; height:32px; border-radius:8px; flex-shrink:0;
+    border:1px solid var(--line); background:var(--paper);
+    display:flex; align-items:center; justify-content:center; color:var(--ink-soft);
   }
-  .sidebar-close-btn:hover{border-color:var(--walnut); color:var(--ink);}
-  .filter-group{border-bottom:1px solid var(--line-soft);}
-  .filter-group:last-of-type{border-bottom:none;}
+  .grid-icon-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .grid-icon-btn.reset{margin-left:auto;}
+
+  .filter-group{border-top:1px solid var(--line-soft); margin-top:2px; padding-top:8px;}
   .filter-group-head{
     width:100%; display:flex; align-items:center; justify-content:space-between;
-    padding:13px 16px; background:none; border:none; text-align:left;
-    font-size:14px; font-weight:600; color:var(--ink);
+    padding:5px 0; background:none; border:none; text-align:left;
+    font-size:13.5px; font-weight:500; color:var(--ink);
   }
-  .filter-group-head:hover{background:var(--paper-alt);}
   .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
-  .filter-group-body{display:none; padding:0 16px 14px; max-height:260px; overflow-y:auto;}
+  .filter-group-body{display:none; padding:4px 0 6px; max-height:220px; overflow-y:auto;}
   .filter-group.open .filter-group-body{display:block;}
   .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
   .filter-opt{
@@ -202,16 +202,10 @@
   .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
   .filter-opt:hover{color:var(--ink);}
   .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
-  .sidebar-price{padding:14px 16px;}
-  .sidebar-price-label{font-size:14px; font-weight:600; color:var(--ink); margin-bottom:10px;}
-  .sidebar-price-row{display:flex; align-items:center; gap:8px;}
-  .sidebar-price-row input{width:100%; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:9px 10px; font-family:inherit; font-size:13px; color:var(--ink);}
 
-  /* "Danışman Ekle" — proje.html/mimar.html/firma.html/urun.html'in sidebar altındaki AYNI
-     .sidebar-add/.sidebar-add-btn deseni (bkz. kullanıcı isteği: "tasarımı diğer sayfalardaki gibi
-     olsun"), tek fark: <a href> yerine <button> — tıklanınca bir sayfaya gitmek yerine bu dosyanın
+  /* "Danışman Ekle" — mimar.html#sidebar-add-btn ile BİREBİR aynı düz (bordersız) buton, tek fark:
+     <a href> yerine <button> — tıklanınca bir sayfaya gitmek yerine bu dosyanın
      js/components/consultant-add-modal.js'in kendi pop-up'ını (ConsultantAddModal.open()) açar. */
-  .sidebar-add{padding:16px; border-top:1px solid var(--line-soft);}
   .sidebar-add-btn{
     display:flex; align-items:center; justify-content:center; gap:8px;
     width:100%; background:var(--ink); color:var(--paper-card);
@@ -226,24 +220,6 @@
 
   .result-bar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
   .result-count{font-size:13px; color:var(--ink-soft); flex:1;}
-  .sort-select{position:relative;}
-  .sort-select select{
-    appearance:none; -webkit-appearance:none;
-    background:var(--paper-card); border:1px solid var(--line);
-    border-radius:100px; padding:9px 32px 9px 16px;
-    font-size:13px; font-weight:500; color:var(--ink); font-family:inherit;
-  }
-  .sort-select select:hover{border-color:var(--walnut);}
-  .sort-arrow{position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
-
-  .active-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
-  .active-chip{
-    display:inline-flex; align-items:center; gap:6px;
-    background:var(--ink); color:var(--paper-card);
-    border-radius:100px; padding:6px 8px 6px 14px; font-size:12.5px; font-weight:600;
-  }
-  .active-chip button{background:none; border:none; color:var(--paper-card); opacity:0.7; display:flex; padding:2px;}
-  .active-chip button:hover{opacity:1;}
 
   /* ---------- CARD GRID ---------- */
   .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; transition:opacity .15s ease;}
@@ -397,22 +373,55 @@
   </div>
 
   <div class="grid-layout">
-    <aside class="grid-sidebar" id="sidebar"></aside>
-
-    <main>
-      <div class="result-bar">
-        <div class="result-count" id="result-count"></div>
-        <div class="sort-select">
+    <aside class="grid-sidebar">
+      <div class="sidebar-filters-title">Filtreler</div>
+      <div class="sidebar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="g-local-search" placeholder="Danışman ara...">
+      </div>
+      <div class="grid-sidebar-head">
+        <div class="filter-select" style="flex:1;">
           <select id="cs-sort">
             <option value="" selected>En Çok Görüşme</option>
             <option value="availability">Müsaitliğe Göre</option>
             <option value="price_asc">Fiyat: Azdan Çoğa</option>
             <option value="price_desc">Fiyat: Çoktan Aza</option>
           </select>
-          <svg class="sort-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
         </div>
+        <button class="grid-icon-btn reset" id="g-reset" title="Filtreleri sıfırla" aria-label="Filtreleri sıfırla">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
       </div>
-      <div class="active-chips" id="active-chips"></div>
+      <div class="filter-select">
+        <select id="g-dob"><option value="">Doğum Yılı Seç</option></select>
+      </div>
+      <div class="filter-select">
+        <select id="g-award"><option value="">Ödül</option></select>
+      </div>
+      <div class="filter-select">
+        <select id="g-position">
+          <option value="">Pozisyon</option>
+          <option value="Kurucu">Kurucu</option>
+          <option value="Çalışan">Çalışan</option>
+          <option value="Akademisyen">Akademisyen</option>
+          <option value="Freelance">Freelance</option>
+          <option value="Öğrenci">Öğrenci</option>
+          <option value="Emekli">Emekli</option>
+          <option value="İşsiz">İşsiz</option>
+        </select>
+      </div>
+      <div class="filter-group" data-key="tag">
+        <button type="button" class="filter-group-head" data-toggle="tag">Uzmanlık Alanı <span class="filter-group-toggle">+</span></button>
+        <div class="filter-group-body" id="fg-tag"></div>
+      </div>
+      <button type="button" class="sidebar-add-btn" id="g-add-consultant"><span class="sidebar-add-icon">+</span> Danışman Ekle</button>
+    </aside>
+
+    <main>
+      <div class="result-bar">
+        <div class="result-count" id="result-count"></div>
+      </div>
       <div class="content-grid" id="card-grid"></div>
       <div class="empty-state" id="empty-state">Şu anda danışmanlık hizmeti veren bir mimar bulunmuyor. Yakında burada olacağız!</div>
       <div class="pagination" id="pagination"></div>
@@ -464,24 +473,74 @@
 <script src="js/components/claim-correction-box.js"></script>
 <script src="js/components/project-comments.js"></script>
 <script src="js/components/share-button.js"></script>
+<script src="js/components/social-links.js"></script>
 <script src="js/components/consultant-modal.js"></script>
 <script src="js/components/consultant-add-modal.js"></script>
 <script>
 // mimar.html'in Legacy Bundle Elimination sonrası deseniyle AYNI: liste/filtre/sayfalama
 // backend'de (/api/consultants) yapılır, tüm danışman listesi hiçbir zaman tarayıcıya inmez.
-// Sidebar/result-bar/active-chips yapısı proje.html#buildSidebar ile BİREBİR aynı desen (bkz.
-// kullanıcı isteği: "/danisman sayfa yapısını birebir /projeler sayfasının mizanpajına
-// dönüştür") — tek fark: proje.html'in çok gruplu FILTER_GROUPS'u yerine burada iki sabit grup var
-// (Uzmanlık Alanı ve Tecrübe, ikisi de çok-seçmeli).
+// Sidebar artık mimar.html#grid-sidebar ile BİREBİR aynı statik yapı/desen (bkz. kullanıcı isteği:
+// "Danışman Sayfasındaki filtreyi mimar sayfasındaki filtreyle aynı yap. Sadece ek olarak uzmanlık
+// alanı ve danışman ekle kısımları kalsın") — dob/award/position mimar'la AYNI, Uzmanlık Alanı
+// (çok-seçmeli) ve Danışman Ekle EK olarak kalıyor, eski Tecrübe filtresi ve active-chips satırı
+// kaldırıldı.
 const PAGE_SIZE = 24;
 let currentPage = 1;
-let localSearchQuery = '';
+let searchQuery = '';
 const activeTags = new Set();
-const activeExperience = new Set();
-const EXPERIENCE_LABELS = { '0-5': '0-5 Yıl', '5-10': '5-10 Yıl', '10+': '10+ Yıl' };
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+// Sunucudan (data.filters) gelen dob/award seçeneklerini <select>'lere yeniden çizer, position
+// select'inin (sabit HTML seçenekleri) sayaçlarını günceller — mimar.html#populateFilterOptions ile
+// BİREBİR aynı desen. Uzmanlık Alanı (tag) TEK fark: çok-seçmeli olduğundan checkbox listesi olarak
+// #fg-tag'e yeniden çizilir, her çizimde change dinleyicileri yeniden bağlanır (DOM düğümleri
+// yeniden oluşturulduğundan).
+function populateFilterOptions(filtersData){
+  const dobSel = document.getElementById('g-dob');
+  const prevDob = dobSel.value;
+  dobSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
+  (filtersData.dob || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
+    dobSel.appendChild(o);
+  });
+  dobSel.value = prevDob;
+
+  const awardSel = document.getElementById('g-award');
+  const prevAward = awardSel.value;
+  awardSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
+  (filtersData.award || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
+    awardSel.appendChild(o);
+  });
+  awardSel.value = prevAward;
+
+  const positionSel = document.getElementById('g-position');
+  const positionCounts = filtersData.position || {};
+  Array.from(positionSel.options).forEach(opt=>{
+    if(!opt.value) return;
+    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
+    opt.textContent = `${opt.dataset.baseLabel} (${positionCounts[opt.value] || 0})`;
+  });
+
+  const tagBody = document.getElementById('fg-tag');
+  const tags = filtersData.tags || [];
+  tagBody.innerHTML = tags.map(t => `
+    <label class="filter-opt">
+      <input type="checkbox" data-key="tag" value="${escapeAttr(t.value)}" ${activeTags.has(t.value)?'checked':''}>
+      <span>${escapeHtml(t.value)}</span>
+      <span class="filter-opt-count">(${t.count})</span>
+    </label>`).join('');
+  tagBody.querySelectorAll('input[data-key=tag]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) activeTags.add(cb.value); else activeTags.delete(cb.value);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      render();
+    });
+  });
+}
 
 function getPageWindowSize(){
   const w = window.innerWidth;
@@ -529,13 +588,21 @@ function renderPagination(totalPages){
   if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
 }
 
+// Aktif filtre/arama/sıralama/sayfa durumundan ?query string üretir — mimar.html#currentQueryParams
+// ile AYNI desen, dob/award/position/sort/search BİREBİR aynı; tag (Uzmanlık Alanı) proje.html'in
+// çok-seçmeli deseniyle eklenir.
 function currentQueryParams(){
   const params = new URLSearchParams();
-  activeTags.forEach(t => params.append('tag', t));
-  activeExperience.forEach(e => params.append('experience', e));
+  const dob = document.getElementById('g-dob').value;
+  const award = document.getElementById('g-award').value;
+  const position = document.getElementById('g-position').value;
   const sort = document.getElementById('cs-sort').value;
+  if(dob) params.set('dob', dob);
+  if(award) params.set('award', award);
+  if(position) params.set('position', position);
   if(sort) params.set('sort', sort);
-  if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
+  activeTags.forEach(t => params.append('tag', t));
+  if(searchQuery.trim()) params.set('search', searchQuery.trim());
   return params;
 }
 function syncBrowserUrl(push){
@@ -546,132 +613,18 @@ function syncBrowserUrl(push){
   if(newUrl === location.pathname + location.search) return;
   if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
 }
-function applyInitialFiltersFromQuery(){
+function applyStateFromUrl(){
   const params = new URLSearchParams(location.search);
-  params.getAll('tag').forEach(t => activeTags.add(t));
-  params.getAll('experience').forEach(e => activeExperience.add(e));
-  localSearchQuery = params.get('search') || '';
+  document.getElementById('g-dob').value = params.get('dob') || '';
+  document.getElementById('g-award').value = params.get('award') || '';
+  document.getElementById('g-position').value = params.get('position') || '';
   document.getElementById('cs-sort').value = params.get('sort') || '';
+  activeTags.clear();
+  params.getAll('tag').forEach(t => activeTags.add(t));
+  searchQuery = params.get('search') || '';
+  document.getElementById('g-local-search').value = searchQuery;
   const pageParam = parseInt(params.get('page'), 10);
   currentPage = (pageParam > 1) ? pageParam : 1;
-}
-
-function renderActiveChips(){
-  const el = document.getElementById('active-chips');
-  let html = [...activeTags].map(t => `<span class="active-chip">${escapeHtml(t)}<button type="button" data-remove-tag="${escapeAttr(t)}" aria-label="Kaldır">✕</button></span>`).join('');
-  html += [...activeExperience].map(e => `<span class="active-chip">${escapeHtml(EXPERIENCE_LABELS[e] || e)}<button type="button" data-remove-experience="${escapeAttr(e)}" aria-label="Kaldır">✕</button></span>`).join('');
-  el.innerHTML = html;
-  el.querySelectorAll('[data-remove-tag]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      activeTags.delete(btn.dataset.removeTag);
-      currentPage = 1;
-      syncBrowserUrl(true);
-      buildSidebar();
-      render();
-    });
-  });
-  el.querySelectorAll('[data-remove-experience]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      activeExperience.delete(btn.dataset.removeExperience);
-      currentPage = 1;
-      syncBrowserUrl(true);
-      buildSidebar();
-      render();
-    });
-  });
-}
-
-// Sidebar — proje.html#buildSidebar ile AYNI desen: iki çok-seçmeli grup (Uzmanlık Alanı,
-// Tecrübe). Seçenek/sayaç kaynağı /api/consultants'ın zaten döndürdüğü filters.tags/filters.experience
-// (bkz. src/routes/consultant.js). Ücret Aralığı kaldırıldı (bkz. kullanıcı isteği).
-async function buildSidebar(){
-  const sidebar = document.getElementById('sidebar');
-  let tags = [];
-  let experience = [];
-  try{
-    const res = await fetch(`/api/consultants?${currentQueryParams().toString()}`);
-    if(res.ok){
-      const data = await res.json();
-      tags = (data.filters && data.filters.tags) || [];
-      experience = (data.filters && data.filters.experience) || [];
-    }
-  }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
-
-  let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
-    <div class="sidebar-search">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="g-local-search" placeholder="Danışman ara..." value="${escapeAttr(localSearchQuery)}">
-    </div>`;
-  if(tags.length){
-    html += `<div class="filter-group" data-key="tag">
-      <button class="filter-group-head" data-toggle="tag">Uzmanlık Alanı <span class="filter-group-toggle">+</span></button>
-      <div class="filter-group-body" id="fg-tag">
-        ${tags.map(t => `
-        <label class="filter-opt">
-          <input type="checkbox" data-key="tag" value="${escapeAttr(t.value)}" ${activeTags.has(t.value)?'checked':''}>
-          <span>${escapeHtml(t.value)}</span>
-          <span class="filter-opt-count">(${t.count})</span>
-        </label>`).join('')}
-      </div>
-    </div>`;
-  }
-  if(experience.length){
-    html += `<div class="filter-group" data-key="experience">
-      <button class="filter-group-head" data-toggle="experience">Tecrübe <span class="filter-group-toggle">+</span></button>
-      <div class="filter-group-body" id="fg-experience">
-        ${experience.map(e => `
-        <label class="filter-opt">
-          <input type="checkbox" data-key="experience" value="${escapeAttr(e.value)}" ${activeExperience.has(e.value)?'checked':''}>
-          <span>${escapeHtml(e.label)}</span>
-          <span class="filter-opt-count">(${e.count})</span>
-        </label>`).join('')}
-      </div>
-    </div>`;
-  }
-  html += `<div class="sidebar-add"><button type="button" class="sidebar-add-btn" id="g-add-consultant"><span class="sidebar-add-icon">+</span> Danışman Ekle</button></div>`;
-  sidebar.innerHTML = html;
-
-  sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
-    btn.addEventListener('click', ()=> btn.parentElement.classList.toggle('open'));
-  });
-  const addConsultantBtn = document.getElementById('g-add-consultant');
-  if(addConsultantBtn) addConsultantBtn.addEventListener('click', ()=> ConsultantAddModal.open());
-  const resetBtn = document.getElementById('g-reset');
-  if(resetBtn) resetBtn.addEventListener('click', ()=>{
-    activeTags.clear();
-    activeExperience.clear();
-    localSearchQuery = '';
-    currentPage = 1;
-    syncBrowserUrl(true);
-    buildSidebar();
-    render();
-  });
-  sidebar.querySelectorAll('input[data-key=tag]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      if(cb.checked) activeTags.add(cb.value); else activeTags.delete(cb.value);
-      currentPage = 1;
-      syncBrowserUrl(true);
-      render();
-      renderActiveChips();
-    });
-  });
-  sidebar.querySelectorAll('input[data-key=experience]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      if(cb.checked) activeExperience.add(cb.value); else activeExperience.delete(cb.value);
-      currentPage = 1;
-      syncBrowserUrl(true);
-      render();
-      renderActiveChips();
-    });
-  });
-  const localSearch = document.getElementById('g-local-search');
-  let sidebarSearchDebounce = null;
-  localSearch.addEventListener('input', (e)=>{
-    localSearchQuery = e.target.value;
-    currentPage = 1;
-    clearTimeout(sidebarSearchDebounce);
-    sidebarSearchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
-  });
 }
 
 let renderRequestId = 0;
@@ -680,7 +633,6 @@ async function render(){
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
-  renderActiveChips();
 
   const params = currentQueryParams();
   params.set('page', String(currentPage));
@@ -705,6 +657,7 @@ async function render(){
 
   currentPage = data.page;
   document.getElementById('result-count').textContent = data.total > 0 ? `${data.total} danışman listeleniyor` : '';
+  populateFilterOptions(data.filters || {});
   renderPagination(data.totalPages);
 
   if(data.items.length === 0){
@@ -743,16 +696,44 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   ConsultantModal.open(decodeURIComponent(m[1]), { triggerEl: a });
 });
 
-document.getElementById('cs-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
+// mimar.html#['g-sort','g-dob','g-award','g-position'] ile AYNI desen — tek-seçmeli filtreler,
+// statik DOM düğümlerine bir kez bağlanır (sidebar artık her render()'da yeniden çizilmiyor).
+let searchDebounce = null;
+['cs-sort','g-dob','g-award','g-position'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
+});
+document.getElementById('g-local-search').addEventListener('input', (e)=>{
+  searchQuery = e.target.value;
+  currentPage = 1;
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
+});
+document.getElementById('g-reset').addEventListener('click', ()=>{
+  document.getElementById('cs-sort').value = '';
+  document.getElementById('g-dob').value = '';
+  document.getElementById('g-award').value = '';
+  document.getElementById('g-position').value = '';
+  activeTags.clear();
+  searchQuery = '';
+  document.getElementById('g-local-search').value = '';
+  document.getElementById('f-search-topnav').value = '';
+  document.getElementById('f-search-nav').value = '';
+  currentPage = 1;
+  syncBrowserUrl(true);
+  render();
+});
+document.getElementById('g-add-consultant').addEventListener('click', ()=> ConsultantAddModal.open());
+document.querySelectorAll('.filter-group-head[data-toggle]').forEach(btn=>{
+  btn.addEventListener('click', ()=> btn.closest('.filter-group').classList.toggle('open'));
+});
 
 // Tarayıcı geri/ileri tuşu: /danisman/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca danışman
-// modalını güncelle (bkz. mimar.html'deki AYNI desen).
+// modalını güncelle (bkz. mimar.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ.
 window.addEventListener('popstate', ()=>{
   const m = location.pathname.match(/^\/danisman\/([^/]+)\/?$/);
   if(m){ ConsultantModal.handlePopState(decodeURIComponent(m[1])); return; }
   if(ConsultantModal.isOpen()){ ConsultantModal.handlePopState(null); return; }
-  applyInitialFiltersFromQuery();
-  buildSidebar();
+  applyStateFromUrl();
   render();
 });
 
@@ -854,8 +835,7 @@ document.addEventListener('click', (e)=>{
   if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
 });
 
-applyInitialFiltersFromQuery();
-buildSidebar();
+applyStateFromUrl();
 render().then(()=>{
   // Doğrudan /danisman/:slug adresine girildiğinde ya da o adreste F5 yapıldığında danışman
   // modalı otomatik açılsın (bkz. mimar.html'deki AYNI desen) — pushHistory:false: URL zaten doğru.
