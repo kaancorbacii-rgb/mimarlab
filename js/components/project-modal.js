@@ -214,11 +214,18 @@ const ProjectModal = (function () {
   // olarak SONRAKİ (id büyüyen) projeye, "Sonraki" butonu artık kronolojik olarak ÖNCEKİ (id küçülen)
   // projeye gider — item.nextProject/item.prevProject'in KENDİSİ (bkz. src/routes/project.js#
   // fetchAdjacentProject) değişmedi, yalnızca hangisinin .prev/.next slotunu doldurduğu swap edildi.
+  // bkz. kullanıcı isteği: Önceki/Sonraki butonlarının içine önizleme görseli eklenmesi.
+  function prevNextThumbHtml(item) {
+    return item.image
+      ? `<img class="prevnext-thumb" src="${escapeAttr(cdnImg(item.image, 120))}" alt="" loading="lazy" decoding="async">`
+      : `<div class="prevnext-thumb prevnext-thumb-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`;
+  }
+
   function renderPrevNext(item) {
     const el = document.getElementById('pm-prevnext');
     let html = '';
-    if (item.nextProject) html += `<a class="prev" href="/projeler/${encodeURIComponent(item.nextProject.slug)}"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></a>`;
-    if (item.prevProject) html += `<a class="next" href="/projeler/${encodeURIComponent(item.prevProject.slug)}"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></a>`;
+    if (item.nextProject) html += `<a class="prev" href="/projeler/${encodeURIComponent(item.nextProject.slug)}">${prevNextThumbHtml(item.nextProject)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></span></a>`;
+    if (item.prevProject) html += `<a class="next" href="/projeler/${encodeURIComponent(item.prevProject.slug)}">${prevNextThumbHtml(item.prevProject)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></span></a>`;
     el.innerHTML = html;
   }
 
@@ -276,8 +283,23 @@ const ProjectModal = (function () {
     document.getElementById('pm-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
   }
 
+  // renderNotFound() bu ID'leri gizler (bkz. aşağısı); ModalShell'in şablonu sayfa ömrü boyunca
+  // TEK SEFER mount edip yeniden kullandığı için (bkz. ensureTemplate#mountedOnce), bir kez 404/ağ
+  // hatası alınıp bu bölümler gizlendikten sonra bir sonraki BAŞARILI render bunları geri
+  // AÇMAZSA aynı sekmede açılan sıradaki projeler kalıcı olarak yarı-boş görünürdü (gerçek bulgu —
+  // bkz. kullanıcı isteği: "bazı sayfalar boş geliyor"). Bu yüzden her başarılı renderItem() en
+  // başta hepsini görünür durumuna sıfırlar; ilgili alt render fonksiyonları (renderByline,
+  // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
+  const HIDE_ON_NOT_FOUND_IDS = ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section',
+    'pm-meta', 'pm-desc', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
+    'pm-related-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'];
+
   async function renderItem(item, mySeq) {
     currentItem = item;
+    HIDE_ON_NOT_FOUND_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
     updateHeadMeta(item);
     renderByline(item);
     ProjectMeta.render(item);
@@ -298,9 +320,7 @@ const ProjectModal = (function () {
     document.getElementById('pm-title').textContent = 'Proje bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
-    ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section', 'pm-meta', 'pm-desc',
-      'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section', 'pm-related-section',
-      'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'].forEach(id => {
+    HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });

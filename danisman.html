@@ -183,25 +183,39 @@
     display:flex; align-items:center; justify-content:center;
   }
   .sidebar-close-btn:hover{border-color:var(--walnut); color:var(--ink);}
-  .filter-group{border-bottom:1px solid var(--line-soft);}
-  .filter-group:last-of-type{border-bottom:none;}
-  .filter-group-head{
-    width:100%; display:flex; align-items:center; justify-content:space-between;
-    padding:13px 16px; background:none; border:none; text-align:left;
-    font-size:14px; font-weight:600; color:var(--ink);
+  /* ---------- FİLTRE DROPDOWN-BUTON (Uzmanlık Alanı / Tecrübe) ----------
+     bkz. kullanıcı isteği: bu iki grup eskiden aç/kapa akordeon + checkbox listesiydi, artık
+     proje-ekle.html#dd-kategori ile AYNI "kapalı, yuvarlak buton -> tıklanınca panel açılır" çoklu
+     seçim deseni. .dd-panel .grid-sidebar'ın overflow:hidden'ından (bkz. yukarısı) KAÇMAK için
+     position:fixed kullanır — konumu JS'te butonun getBoundingClientRect()'i ile hesaplanır (bkz.
+     wireDropdownFilter), aksi halde panel köşeleri yuvarlatılmış sidebar kutusunun dışına taşan
+     kısmı kırpılırdı (gerçek bulgu). */
+  .sidebar-filters{padding:6px 16px 14px; display:flex; flex-direction:column; gap:10px;}
+  .dd-field{position:relative;}
+  .dd-btn{
+    width:100%; text-align:left; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper); font-family:inherit; font-size:13.5px; font-weight:500; color:var(--ink);
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
   }
-  .filter-group-head:hover{background:var(--paper-alt);}
-  .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
-  .filter-group-body{display:none; padding:0 16px 14px; max-height:260px; overflow-y:auto;}
-  .filter-group.open .filter-group-body{display:block;}
-  .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
-  .filter-opt{
+  .dd-btn:hover{border-color:var(--walnut);}
+  .dd-field.open .dd-btn{border-color:var(--walnut);}
+  .dd-btn-arrow{flex-shrink:0; opacity:0.5; transition:transform .15s ease;}
+  .dd-field.open .dd-btn-arrow{transform:rotate(180deg);}
+  .dd-panel{
+    display:none; flex-direction:column; position:fixed; z-index:60;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); padding:8px; max-height:280px;
+  }
+  .dd-field.open .dd-panel{display:flex;}
+  .dd-options{overflow-y:auto;}
+  .dd-option{
     display:flex; align-items:center; gap:8px;
-    padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;
+    padding:8px 10px; border-radius:8px; font-size:13px; color:var(--ink-soft); cursor:pointer;
   }
-  .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
-  .filter-opt:hover{color:var(--ink);}
-  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .dd-option:hover{background:var(--paper-alt); color:var(--ink);}
+  .dd-option input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
+  .dd-option-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
   .sidebar-price{padding:14px 16px;}
   .sidebar-price-label{font-size:14px; font-weight:600; color:var(--ink); margin-bottom:10px;}
   .sidebar-price-row{display:flex; align-items:center; gap:8px;}
@@ -581,6 +595,45 @@ function renderActiveChips(){
   });
 }
 
+// Uzmanlık Alanı/Tecrübe dropdown-butonları — proje-ekle.html#wireMultiDropdown ile AYNI çoklu
+// seçim deseni (bkz. kullanıcı isteği: "diğer butonlar gibi aynı yap"), tek fark: panel burada
+// position:fixed (bkz. .dd-panel CSS yorumu) olduğundan açılışta konumu JS'te hesaplanır.
+function closeAllDropdowns(){
+  document.querySelectorAll('.dd-field.open').forEach(f => f.classList.remove('open'));
+}
+document.addEventListener('click', (e)=>{
+  document.querySelectorAll('.dd-field.open').forEach(f=>{ if(!f.contains(e.target)) f.classList.remove('open'); });
+});
+window.addEventListener('scroll', closeAllDropdowns, { passive:true, capture:true });
+window.addEventListener('resize', closeAllDropdowns);
+
+function positionDropdownPanel(field){
+  const btn = field.querySelector('.dd-btn');
+  const panel = field.querySelector('.dd-panel');
+  const rect = btn.getBoundingClientRect();
+  panel.style.left = rect.left + 'px';
+  panel.style.top = (rect.bottom + 6) + 'px';
+  panel.style.width = rect.width + 'px';
+}
+
+function wireDropdownFilter(fieldId, btnId, labelId, placeholderText){
+  const field = document.getElementById(fieldId);
+  if(!field) return;
+  const btn = document.getElementById(btnId);
+  const label = document.getElementById(labelId);
+  function updateLabel(){
+    const checked = Array.from(field.querySelectorAll('input:checked')).map(i => i.value);
+    label.textContent = checked.length ? (checked.length === 1 ? checked[0] : `${checked.length} seçili`) : placeholderText;
+  }
+  btn.addEventListener('click', ()=>{
+    const willOpen = !field.classList.contains('open');
+    closeAllDropdowns();
+    if(willOpen){ positionDropdownPanel(field); field.classList.add('open'); }
+  });
+  field.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', updateLabel));
+  updateLabel();
+}
+
 // Sidebar — proje.html#buildSidebar ile AYNI desen: iki çok-seçmeli grup (Uzmanlık Alanı,
 // Tecrübe). Seçenek/sayaç kaynağı /api/consultants'ın zaten döndürdüğü filters.tags/filters.experience
 // (bkz. src/routes/consultant.js). Ücret Aralığı kaldırıldı (bkz. kullanıcı isteği).
@@ -602,38 +655,40 @@ async function buildSidebar(){
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="g-local-search" placeholder="İsim, uzmanlık veya unvan ara..." value="${escapeAttr(localSearchQuery)}">
     </div>`;
+  const ddArrowSvg = `<svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+  html += `<div class="sidebar-filters">`;
   if(tags.length){
-    html += `<div class="filter-group" data-key="tag">
-      <button class="filter-group-head" data-toggle="tag">Uzmanlık Alanı <span class="filter-group-toggle">+</span></button>
-      <div class="filter-group-body" id="fg-tag">
+    html += `<div class="dd-field" id="dd-tag">
+      <button type="button" class="dd-btn" id="dd-tag-btn"><span id="dd-tag-btn-label">Uzmanlık Alanı</span>${ddArrowSvg}</button>
+      <div class="dd-panel"><div class="dd-options">
         ${tags.map(t => `
-        <label class="filter-opt">
+        <label class="dd-option">
           <input type="checkbox" data-key="tag" value="${escapeAttr(t.value)}" ${activeTags.has(t.value)?'checked':''}>
           <span>${escapeHtml(t.value)}</span>
-          <span class="filter-opt-count">(${t.count})</span>
+          <span class="dd-option-count">(${t.count})</span>
         </label>`).join('')}
-      </div>
+      </div></div>
     </div>`;
   }
   if(experience.length){
-    html += `<div class="filter-group" data-key="experience">
-      <button class="filter-group-head" data-toggle="experience">Tecrübe <span class="filter-group-toggle">+</span></button>
-      <div class="filter-group-body" id="fg-experience">
+    html += `<div class="dd-field" id="dd-experience">
+      <button type="button" class="dd-btn" id="dd-experience-btn"><span id="dd-experience-btn-label">Tecrübe</span>${ddArrowSvg}</button>
+      <div class="dd-panel"><div class="dd-options">
         ${experience.map(e => `
-        <label class="filter-opt">
+        <label class="dd-option">
           <input type="checkbox" data-key="experience" value="${escapeAttr(e.value)}" ${activeExperience.has(e.value)?'checked':''}>
           <span>${escapeHtml(e.label)}</span>
-          <span class="filter-opt-count">(${e.count})</span>
+          <span class="dd-option-count">(${e.count})</span>
         </label>`).join('')}
-      </div>
+      </div></div>
     </div>`;
   }
+  html += `</div>`;
   html += `<div class="sidebar-add"><button type="button" class="sidebar-add-btn" id="g-add-consultant"><span class="sidebar-add-icon">+</span> Danışman Ekle</button></div>`;
   sidebar.innerHTML = html;
 
-  sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
-    btn.addEventListener('click', ()=> btn.parentElement.classList.toggle('open'));
-  });
+  wireDropdownFilter('dd-tag', 'dd-tag-btn', 'dd-tag-btn-label', 'Uzmanlık Alanı');
+  wireDropdownFilter('dd-experience', 'dd-experience-btn', 'dd-experience-btn-label', 'Tecrübe');
   const addConsultantBtn = document.getElementById('g-add-consultant');
   if(addConsultantBtn) addConsultantBtn.addEventListener('click', ()=> ConsultantAddModal.open());
   const resetBtn = document.getElementById('g-reset');

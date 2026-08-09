@@ -207,15 +207,15 @@ async function fetchRawFounderNames(env, o) {
 // Önceki/Sonraki Firma — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen.
 async function fetchAdjacentOffice(env, id) {
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  let prev = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
-  let next = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
-  if (!next) next = await env.DB.prepare(`SELECT id, slug, name FROM offices WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+  let prev = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
   if (prev && prev.id === id) prev = null;
   if (next && next.id === id) next = null;
   return {
-    prevItem: prev ? { slug: prev.slug, title: prev.name } : null,
-    nextItem: next ? { slug: next.slug, title: next.name } : null,
+    prevItem: prev ? { slug: prev.slug, title: prev.name, image: prev.logo_url || null } : null,
+    nextItem: next ? { slug: next.slug, title: next.name, image: next.logo_url || null } : null,
   };
 }
 

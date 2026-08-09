@@ -189,35 +189,28 @@
 
   /* ---------- CONTENT GRID ---------- */
   .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;}
+  /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği); puan ve kategori
+     görsel üzerinden tamamen kaldırıldı (bkz. aşağıdaki render() — .content-card-cat/.rating-widget
+     artık kart şablonunda YOK). .content-card-photo görseli aspect-ratio'lu bir kutuya alır,
+     .content-card-info normal akışta onun altına düz arkaplanla oturur. */
   .content-card{
-    position:relative; display:block; aspect-ratio:1/1; border-radius:16px; overflow:hidden;
+    display:flex; flex-direction:column; border-radius:16px; overflow:hidden;
     background:var(--paper-card); border:1px solid var(--line-soft);
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .content-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
-  .content-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .content-card-photo{position:relative; aspect-ratio:1/1; overflow:hidden;}
+  .content-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .catalog-placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:rgba(255,255,255,0.92);}
   .content-card .catalog-placeholder-favicon{position:static; width:28px; height:28px; border-radius:6px; background:#fff; padding:4px; object-fit:contain;}
   .catalog-placeholder-initials{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; letter-spacing:0.02em;}
-  .content-card-info{
-    position:absolute; left:0; right:0; bottom:0; padding:16px 18px;
-    background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
-    color:#fff;
-  }
-  .content-card-cat{font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:5px;}
-  /* Kart üstü başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
+  .content-card-info{padding:12px 14px; color:var(--ink);}
+  /* Kart altı başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
      isteği) — punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun isimler daha az kesilsin. */
-  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .content-card-by{font-size:11.5px; color:rgba(237,240,243,0.75);}
+  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .content-card-by{font-size:11.5px; color:var(--ink-soft);}
 
   .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
-  .rating-widget{display:flex; align-items:center; gap:6px; margin-top:5px; flex-wrap:wrap;}
-  .rating-star-row{display:flex; gap:1px;}
-  .rating-star-btn{background:none; border:none; padding:1px; color:rgba(237,240,243,0.4); display:flex;}
-  .rating-star-btn.filled{color:var(--accent);}
-  .rating-star-btn:hover:not(:disabled){color:var(--accent);}
-  .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-  .rating-summary{font-size:10.5px; color:rgba(237,240,243,0.75);}
   .card-save-btn{
     position:absolute; top:10px; right:10px; z-index:2;
     width:32px; height:32px; border-radius:50%;
@@ -226,7 +219,7 @@
   }
   .card-save-btn:hover{background:rgba(27,42,61,0.75);}
   .card-save-btn.saved{background:var(--accent); color:var(--ink);}
-  .card-edit-btn{display:inline-block; margin-top:4px; color:#fff; font-size:11px; font-weight:600; text-decoration:underline; background:none; border:none; padding:0; font-family:inherit; cursor:pointer;}
+  .card-edit-btn{display:inline-block; margin-top:4px; color:var(--ink-soft); font-size:11px; font-weight:600; text-decoration:underline; background:none; border:none; padding:0; font-family:inherit; cursor:pointer;}
   .edit-slot:not(:empty) + .admin-action-slot .card-edit-btn{margin-left:10px;}
   .card-edit-btn:hover{color:#F5CFA0;}
   .card-delete-btn{display:inline-block; margin-top:4px; margin-left:10px; color:#F5A3A3; font-size:11px; font-weight:600; text-decoration:underline; background:none; border:none; padding:0; font-family:inherit; cursor:pointer;}
@@ -645,15 +638,15 @@ async function render(){
   const pageItems = data.items;
   grid.innerHTML = pageItems.map(p => `
     <div class="content-card">
-      ${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}
-      <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="urun.html" aria-label="Kaydet">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
-      </button>
+      <div class="content-card-photo">
+        ${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}
+        <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="urun.html" aria-label="Kaydet">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
+        </button>
+      </div>
       <div class="content-card-info">
-        <div class="content-card-cat">${escapeHtml(p.category)}</div>
         <div class="content-card-title">${escapeHtml(p.title)}</div>
         ${p.brand ? `<div class="content-card-by">${escapeHtml(p.brand)}</div>` : ''}
-        <div class="rating-widget" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}"></div>
         <span class="edit-slot" data-type="${submissionTypeFor(p)}" data-id="${escapeAttr(p.submissionId || '')}"></span>
         ${p.kind !== 'material' ? `<span class="admin-action-slot" data-id="${escapeAttr(p.submissionId || '')}" data-key="${escapeAttr(`${p.brand || ''}|||${p.title}`)}"></span>` : ''}
       </div>

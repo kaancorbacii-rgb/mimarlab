@@ -83,7 +83,7 @@ const RelatedProjects = (function () {
   // içinde kalır (bkz. aşağısı).
   const WEIGHT = { CATEGORY: 30, TYPE: 40, YEAR: 30 };
   const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
-  const RESULT_COUNT = 12;
+  const RESULT_COUNT = 15;
 
   function cardHtml(p) {
     const img = p.images && p.images[0];

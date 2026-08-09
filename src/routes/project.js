@@ -152,17 +152,24 @@ async function fetchProjectProducts(env, projectId) {
 // dairesel/sıralı gezinme artık HER İSTEKTE burada, id sırasına göre hesaplanır — proje doğrudan
 // URL ile açıldığında ya da liste hiç yüklenmediğinde (F5, deep link) de butonlar eksiksiz çıkar.
 // id küçüldükçe "sonraki" (daha eski), id büyüdükçe "önceki" (daha yeni) — uçlarda dairesel sarar.
+// bkz. kullanıcı isteği: Önceki/Sonraki butonlarına önizleme görseli eklenmesi — images JSON
+// dizisinin ilk elemanı, kart render'larındaki AYNI "kapak görseli" kuralıyla (bkz. yukarıdaki
+// item.image = images[0]) alınır.
+function firstImage(imagesJson) {
+  try { const arr = imagesJson ? JSON.parse(imagesJson) : []; return arr[0] || null; } catch { return null; }
+}
+
 async function fetchAdjacentProject(env, id) {
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  let prev = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
-  let next = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
-  if (!next) next = await env.DB.prepare(`SELECT id, slug, title FROM projects WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+  let prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
   if (prev && prev.id === id) prev = null;
   if (next && next.id === id) next = null;
   return {
-    prevProject: prev ? { slug: prev.slug, title: prev.title } : null,
-    nextProject: next ? { slug: next.slug, title: next.title } : null,
+    prevProject: prev ? { slug: prev.slug, title: prev.title, image: firstImage(prev.images) } : null,
+    nextProject: next ? { slug: next.slug, title: next.title, image: firstImage(next.images) } : null,
   };
 }
 

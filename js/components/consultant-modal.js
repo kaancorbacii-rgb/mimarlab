@@ -215,6 +215,12 @@ const ConsultantModal = (function () {
       .cm-payment-modal h2{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; margin:0 0 6px;}
       .cm-payment-modal h3{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; margin:20px 0 4px;}
       .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;}
+      .cm-field{margin:14px 0;}
+      .cm-field-label{display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:6px;}
+      .cm-field input[type=tel]{
+        width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+        background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); box-sizing:border-box;
+      }
       .target-option{display:flex; align-items:center; gap:9px; font-size:14px; font-weight:500; cursor:pointer; padding:9px 4px;}
       .target-option input{width:17px; height:17px; accent-color:var(--walnut); flex-shrink:0;}
       .payment-option-disabled{opacity:0.55; cursor:default;}
@@ -325,6 +331,10 @@ const ConsultantModal = (function () {
       <h2>Görüşme Ayarla</h2>
       <p class="section-hint" id="cm-payment-summary"></p>
       <p class="section-hint">Ödeme sonrası görüşme linki açıklamaya yazdığın e-posta adresinden sana iletilecek.</p>
+      <div class="cm-field">
+        <label class="cm-field-label" for="cm-payment-phone">Telefon Numarası</label>
+        <input type="tel" id="cm-payment-phone" placeholder="05XX XXX XX XX" autocomplete="tel">
+      </div>
       <h3>Ödeme Yöntemi</h3>
       <p class="section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
       <label class="target-option"><input type="radio" name="cm-payment-method" id="cm-payment-havale" checked> Havale / EFT</label>
@@ -339,6 +349,11 @@ const ConsultantModal = (function () {
       <button class="form-submit" id="cm-payment-confirm" type="button" style="margin-top:18px;">Ödemeyi Yaptım</button>
       <div class="form-notice" id="cm-payment-notice"></div>
     </div>`;
+
+  // renderNotFound() bu ID'leri gizler; her başarılı renderItem() aynı listeyi kullanarak
+  // geri açar (bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu).
+  const HIDE_ON_NOT_FOUND_IDS = ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking',
+    'cm-office-section', 'cm-related-projects-section', 'cm-similar-section', 'cm-detail-info'];
 
   let mountedOnce = false;
   let currentSlug = null;
@@ -403,12 +418,19 @@ const ConsultantModal = (function () {
       const notice = document.getElementById('cm-payment-notice');
       notice.classList.remove('show', 'success');
       if (!currentItem || !selectedBooking) return;
+      // bkz. kullanıcı isteği: satın alım yaparken kişiden telefon numarası istensin.
+      const phone = document.getElementById('cm-payment-phone').value.trim();
+      if (!phone) {
+        notice.textContent = 'Devam etmek için telefon numaranı gir.';
+        notice.classList.add('show');
+        return;
+      }
       btn.disabled = true;
       btn.textContent = 'Gönderiliyor…';
       try {
         const res = await fetch('/api/consultant-bookings', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ consultantKey: currentItem.name, requestedDate: selectedBooking.date, requestedTime: selectedBooking.time }),
+          body: JSON.stringify({ consultantKey: currentItem.name, requestedDate: selectedBooking.date, requestedTime: selectedBooking.time, phone }),
         });
         if (res.status === 401) { window.location.href = 'giris-yap.html'; return; }
         const data = await res.json().catch(() => ({}));
@@ -596,8 +618,15 @@ const ConsultantModal = (function () {
 
     renderWeek();
     ctaBtn.textContent = ctaLabel();
-    ctaBtn.onclick = () => {
+    // bkz. kullanıcı isteği: ödeme ekranında hesaba girme zorunluluğu getir — eskiden yalnızca
+    // "Ödemeyi Yaptım"a tıklanınca sunucu 401 döndürüp giriş sayfasına yönlendiriyordu (kullanıcı
+    // formu doldurup saatini seçtikten SONRA fark ediyordu); artık ödeme pop-up'ı hiç açılmadan,
+    // save-widget.js'in AYNI "giriş gerekiyorsa giris-yap.html'e yönlendir" deseniyle (bkz.
+    // save-widget.js#wireSaveButtons) en baştan engelleniyor.
+    ctaBtn.onclick = async () => {
       if (!selectedBooking) { ctaNote.classList.add('show'); return; }
+      await savedWidgetReady;
+      if (!currentUser) { window.location.href = 'giris-yap.html'; return; }
       openPaymentOverlay();
     };
     document.getElementById('cm-week-prev').onclick = () => { weekOffset--; renderWeek(); };
@@ -608,8 +637,7 @@ const ConsultantModal = (function () {
     document.getElementById('cm-name-text').textContent = 'Danışman bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
-    ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking', 'cm-office-section',
-      'cm-related-projects-section', 'cm-similar-section', 'cm-detail-info'].forEach(id => {
+    HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -763,8 +791,12 @@ const ConsultantModal = (function () {
     selectedDate = null;
     closeEditMode();
 
-    ['cm-actions', 'cm-tabs', 'cm-tab-overview', 'cm-tab-reviews', 'cm-booking', 'cm-detail-info']
-      .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: bu liste
+    // eskiden renderNotFound()'ın gizlediği ID kümesiyle EŞLEŞMİYORDU (cm-office-section,
+    // cm-related-projects-section, cm-similar-section eksikti) — bir kez 404/ağ hatası alan bir
+    // danışman modalı, ardından açılan başka bir danışmanda bu üç bölümü kalıcı olarak gizli
+    // bırakırdı. Artık renderNotFound() ile AYNI sabit listeyi kullanıyor.
+    HIDE_ON_NOT_FOUND_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
 
     updateHeadMeta(a);
     document.getElementById('cm-name-text').textContent = a.name;

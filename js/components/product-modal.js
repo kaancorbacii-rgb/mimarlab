@@ -204,11 +204,14 @@ const ProductModal = (function () {
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
       .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
-      .prevnext a{flex:1; max-width:48%; padding:14px 18px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+      .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
       .prevnext a:hover{border-color:var(--walnut);}
-      .prevnext a.next{text-align:right; margin-left:auto;}
+      .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
+      .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
+      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
+      .prevnext-text{min-width:0; flex:1;}
       .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
-      .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+      .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
       /* ---------- ÜRÜN MODALI — Bilgi Kaynağı & Geri Bildirim (bkz. proje.html'deki AYNI #pm-info-divider/
          #pm-feedback-card kuralları — burada yorum bölümü olmadığından .detail-info'nun hemen altına,
          kendi enjekte edilen <style>'ında tutulur, proje.html'e dokunmaya gerek kalmaz). */
@@ -382,11 +385,18 @@ const ProductModal = (function () {
   // bkz. js/components/architect-modal.js#renderPrevNext — BİREBİR aynı desen, Ürün etiketleriyle.
   // Yön kasıtlı olarak TERS çevrilmiştir (bkz. AYNI dosyadaki kullanıcı isteği/gerekçe) —
   // p.nextItem/prevItem'in kendisi değişmedi, yalnızca hangisi .prev/.next slotunu doldurduğu swap edildi.
+  // bkz. kullanıcı isteği: Önceki/Sonraki butonlarının içine önizleme görseli eklenmesi.
+  function prevNextThumbHtml(item) {
+    return item.image
+      ? `<img class="prevnext-thumb" src="${escapeAttr(cdnImg(item.image, 120))}" alt="" loading="lazy" decoding="async">`
+      : `<div class="prevnext-thumb prevnext-thumb-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`;
+  }
+
   function renderPrevNext(p) {
     const el = document.getElementById('pr-prevnext');
     let html = '';
-    if (p.nextItem) html += `<a class="prev" href="/urun/${encodeURIComponent(p.nextItem.slug)}"><span class="prevnext-label">← Önceki Ürün</span><span class="prevnext-title">${escapeHtml(p.nextItem.title)}</span></a>`;
-    if (p.prevItem) html += `<a class="next" href="/urun/${encodeURIComponent(p.prevItem.slug)}"><span class="prevnext-label">Sonraki Ürün →</span><span class="prevnext-title">${escapeHtml(p.prevItem.title)}</span></a>`;
+    if (p.nextItem) html += `<a class="prev" href="/urun/${encodeURIComponent(p.nextItem.slug)}">${prevNextThumbHtml(p.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Ürün</span><span class="prevnext-title">${escapeHtml(p.nextItem.title)}</span></span></a>`;
+    if (p.prevItem) html += `<a class="next" href="/urun/${encodeURIComponent(p.prevItem.slug)}">${prevNextThumbHtml(p.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Ürün →</span><span class="prevnext-title">${escapeHtml(p.prevItem.title)}</span></span></a>`;
     el.innerHTML = html;
   }
 
@@ -491,8 +501,18 @@ const ProductModal = (function () {
     document.getElementById('pr-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
   }
 
+  // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
+  // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
+  // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
+  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section', 'pr-architect-section',
+    'pr-info-divider', 'pr-feedback-card', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
+
   async function renderItem(p, key) {
     currentItem = p;
+    HIDE_ON_NOT_FOUND_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
     updateHeadMeta(p, key);
     document.getElementById('pr-title').textContent = p.title;
     renderByline(p);
@@ -691,8 +711,7 @@ const ProductModal = (function () {
     document.getElementById('pr-title').textContent = 'Ürün bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
-    ['pr-byline', 'pr-rating-save-row', 'pr-brand-section', 'pr-architect-section',
-      'pr-info-divider', 'pr-feedback-card', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'].forEach(id => {
+    HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });

@@ -31,17 +31,22 @@ function shapeProductItem(row) {
 
 // Önceki/Sonraki Ürün — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen. kind
 // (product/material) sınırı GÖZETİLMEZ — id sırası tüm `products` tablosu üzerinden dairesel/sıralı.
+// bkz. kullanıcı isteği: Önceki/Sonraki butonlarına önizleme görseli eklenmesi.
+function firstImage(imagesJson) {
+  try { const arr = imagesJson ? JSON.parse(imagesJson) : []; return arr[0] || null; } catch { return null; }
+}
+
 async function fetchAdjacentProduct(env, id) {
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  let prev = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
-  let next = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
-  if (!next) next = await env.DB.prepare(`SELECT id, slug, title FROM products WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+  let prev = await env.DB.prepare(`SELECT id, slug, title, images FROM products WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, title, images FROM products WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title, images FROM products WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, title, images FROM products WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
   if (prev && prev.id === id) prev = null;
   if (next && next.id === id) next = null;
   return {
-    prevItem: prev ? { slug: prev.slug, title: prev.title } : null,
-    nextItem: next ? { slug: next.slug, title: next.title } : null,
+    prevItem: prev ? { slug: prev.slug, title: prev.title, image: firstImage(prev.images) } : null,
+    nextItem: next ? { slug: next.slug, title: next.title, image: firstImage(next.images) } : null,
   };
 }
 
