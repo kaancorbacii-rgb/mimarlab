@@ -5,7 +5,9 @@ export const SUBMISSION_TYPES = {
     table: 'office_submissions',
     fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'claimed_profile_key', 'social_links'],
     // social_links: [{platform,url}] — awards/founders ile AYNI JSON dizi deseni (bkz. kullanıcı
-    // isteği: "sosyal medya kutusunun yanına ekle butonu koy", migrations/0036_social_links.sql).
+    // isteği: "sosyal medya kutusunun yanına ekle butonu koy", migrations/0036_social_links.sql —
+    // paralel bir oturumun tekli social_platform/social_url kolonları yerine bu tercih edildi,
+    // bkz. kullanıcı isteği: "1'den fazla sosyal medya eklenebilsin").
     arrayFields: ['awards', 'founders', 'social_links'],
     required: ['name'],
     urlFields: ['website', 'logo_url'],
@@ -64,6 +66,18 @@ export const SUBMISSION_TYPES = {
     urlFields: ['image_url'],
   },
 };
+
+// Mimar/Firma/Danışman ekle-düzenle sayfalarındaki Sosyal Medya kutucuğunun platform seçim listesi
+// (bkz. kullanıcı isteği) — istemci (mimar-ekle.html/firma-ekle.html/danisman-ekle.html) VE burası
+// (submissions.js#createSubmission/updateOwnSubmission, src/routes/consultant.js#
+// handleConsultantEditRoute) AYNI enum'u kullanır.
+export const SOCIAL_PLATFORMS = new Set(['instagram', 'linkedin', 'x']);
+
+export function findInvalidSocialPlatform(type, body) {
+  if (!('social_platform' in body)) return false;
+  const value = body.social_platform;
+  return !!value && !SOCIAL_PLATFORMS.has(value);
+}
 
 // Görsel/website/başvuru linki gibi alanlarda saklanan değerin, bir HTML özniteliğine
 // (src="..."/href="...") gömüldüğünde tırnak kaçışıyla enjeksiyona izin vermeyecek güvenli bir

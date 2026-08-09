@@ -145,6 +145,7 @@ const OfficeModal = (function () {
       <h1 class="detail-title"><span id="om-name-text"></span><span id="om-verified-badge-wrap"></span></h1>
     </div>
     <div class="detail-title-actions" id="om-actions"></div>
+    <div id="om-social-links"></div>
     <div class="detail-info" id="om-detail-info">
       <div id="om-social-icons"></div>
       <div class="detail-meta" id="om-info-facts" style="display:none;"></div>
@@ -405,6 +406,9 @@ const OfficeModal = (function () {
       visitBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span>`;
       actionsEl.prepend(visitBtn);
     }
+
+    const socialLinksEl = document.getElementById('om-social-links');
+    if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(o.socialPlatform, o.socialUrl) : '';
 
     renderStructuredData(o);
     renderPrevNext(payload);

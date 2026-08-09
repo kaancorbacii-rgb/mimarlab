@@ -28,9 +28,9 @@ const DESIGNER_SEP = '';
 // COALESCE edilerek aşağıdaki OFFICE_NAMES_SQL sütununu besler.
 const DESIGNER_JOIN_SQL = `
   LEFT JOIN project_designers pd ON pd.project_id = p.id
-  LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
-  LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
-  LEFT JOIN offices ar_ofc ON ar_ofc.id = ar.office_id AND ar_ofc.deleted_at IS NULL
+  LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+  LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL AND ofc.hidden_at IS NULL
+  LEFT JOIN offices ar_ofc ON ar_ofc.id = ar.office_id AND ar_ofc.deleted_at IS NULL AND ar_ofc.hidden_at IS NULL
 `;
 // office_names GROUP_CONCAT sütunu — designer_names'ten AYRI tutulur çünkü designer_names künyede
 // görünen HAM tasarımcı isimlerini (mimar veya ofis) taşımaya devam etmeli; office_names yalnızca
@@ -80,8 +80,8 @@ async function fetchDesignerDetails(env, projectId) {
             ar.name AS ar_name, ar.slug AS ar_slug, ar.photo_url AS ar_photo,
             ofc.name AS ofc_name, ofc.slug AS ofc_slug, ofc.logo_url AS ofc_logo
      FROM project_designers pd
-     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
-     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
+     LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+     LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL AND ofc.hidden_at IS NULL
      WHERE pd.project_id = ?`
   ).bind(projectId).all();
   return results
@@ -132,8 +132,8 @@ async function fetchProjectProducts(env, projectId) {
     `SELECT pr.slug, pr.title, pr.kind, pr.category, pr.images,
             COALESCE(off.name, pr.brand_name_raw) AS brand_name
      FROM project_products pp
-     JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL
-     LEFT JOIN offices off ON off.id = pr.brand_office_id AND off.deleted_at IS NULL
+     JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+     LEFT JOIN offices off ON off.id = pr.brand_office_id AND off.deleted_at IS NULL AND off.hidden_at IS NULL
      WHERE pp.project_id = ?`
   ).bind(projectId).all();
   const products = [];
@@ -185,8 +185,8 @@ async function fetchFoundersForOffices(env, officeNames) {
   const placeholders = officeNames.map(() => '?').join(', ');
   const { results } = await env.DB.prepare(
     `SELECT ar.name, ar.slug, ar.photo_url FROM office_founders f
-     JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
-     JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL
+     JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL AND o.hidden_at IS NULL
+     JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
      WHERE o.name IN (${placeholders})`
   ).bind(...officeNames).all();
   return results.map(r => ({ name: r.name, type: 'architect', slug: r.slug, photo: r.photo_url }));

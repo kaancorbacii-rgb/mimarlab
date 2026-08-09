@@ -144,6 +144,7 @@ const ArchitectModal = (function () {
       <h1 class="detail-title"><span id="am-name-text"></span><span id="am-verified-badge-wrap"></span></h1>
     </div>
     <div class="detail-title-actions" id="am-actions"></div>
+    <div id="am-social-links"></div>
     <div class="detail-info" id="am-detail-info">
       <div class="detail-meta" id="am-category"></div>
       <div id="am-social-icons"></div>
@@ -420,6 +421,8 @@ const ArchitectModal = (function () {
       saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('am-share-btn'));
       ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
     }
+    const socialLinksEl = document.getElementById('am-social-links');
+    if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(a.socialPlatform, a.socialUrl) : '';
 
     renderStructuredData(a, displayOffice);
     renderPrevNext(payload);

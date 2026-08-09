@@ -6,13 +6,42 @@ import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { createNotification } from '../lib/notify.js';
 
+// GET /api/consultant-bookings/mine — hesabim.html'in "Danışmanlık" sekmesi: kullanıcının SAHİP
+// OLDUĞU danışman profil(ler)ine (is_consultant=1 + profile_claims'te 'approved' sahiplik, bkz.
+// src/routes/consultant.js#authorizeConsultantSelf ile AYNI mülkiyet kontrolü) gelen TÜM görüşme/
+// satın alma taleplerini döner. isConsultant:false ise sekme hiç gösterilmez (bkz. kullanıcı
+// isteği: "Danışman profili olanlar için... 1 sekme daha açıp").
+async function myConsultantBookings(env, user) {
+  const { results: ownedRows } = await env.DB.prepare(
+    `SELECT a.name FROM architects a
+     JOIN profile_claims c ON c.profile_type = 'architect' AND c.profile_key = a.name AND c.status = 'approved'
+     WHERE a.deleted_at IS NULL AND a.is_consultant = 1 AND c.user_id = ?`
+  ).bind(user.id).all();
+  const names = ownedRows.map(r => r.name);
+  if (!names.length) return json({ isConsultant: false, items: [] });
+  const placeholders = names.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT cr.*, u.name AS buyer_name, u.email AS buyer_email FROM consultation_requests cr
+     JOIN users u ON u.id = cr.user_id
+     WHERE cr.consultant_key IN (${placeholders}) ORDER BY cr.created_at DESC`
+  ).bind(...names).all();
+  return json({ isConsultant: true, items: results });
+}
+
 // POST /api/consultant-bookings — "Görüşme Ayarla" Havale/EFT talep akışı (bkz. kullanıcı isteği,
 // src/routes/badges.js#createBadgeRequest ile AYNI desen: giriş zorunlu, talep 'pending' oluşur,
 // admin havaleyi banka ekstresinden doğrulayıp elle onaylar — bu turda admin tarafı/onay ekranı
 // EKLENMEDİ, yalnızca kayıt oluşturma). Gerçek slot rezervasyonu (available_slots'ta o saati
 // available:false yapma) KASITLI olarak kapsam dışı — bkz. proje hafızası: ilk /danismanlik
-// planında da aynı sınır çizilmişti.
+// planında da aynı sınır çizilmişti. GET .../mine yukarıdaki myConsultantBookings'e (kullanıcının
+// KENDİ danışman profiline gelen talepler) düşer, aynı path'in AYNI dosyadaki AYNI dispatcher'ı
+// (bkz. src/routes/consultant.js#handleConsultantRoute'daki AYNI method-bazlı ayrım deseni).
 export async function handleConsultantBookingsRoute(request, env, url) {
+  if (url.pathname === '/api/consultant-bookings/mine' && request.method === 'GET') {
+    const user = await getSessionUser(request, env);
+    if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+    return myConsultantBookings(env, user);
+  }
   if (request.method !== 'POST') return errorJson('Bulunamadı', 404);
 
   const user = await getSessionUser(request, env);
