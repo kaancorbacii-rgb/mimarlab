@@ -627,7 +627,7 @@ async function render(){
       <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(cdnImg(logo, 600))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
       <div class="office-card-body">
         <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
-        <div class="office-card-loc">${escapeHtml(o.loc)} · ${escapeHtml((o.cats||'').split(' · ')[0])}</div>
+        <div class="office-card-loc">${escapeHtml(o.loc)}${o.yil ? ' · ' + escapeHtml(String(o.yil)) : ''}</div>
       </div>
     </a>`;
   }).join('');
