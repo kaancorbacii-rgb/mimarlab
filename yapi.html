@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<link rel="icon" type="image/png" href="logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="logos/site/favicon-180.png">
+<title id="page-title">Yapılar — MİMARLAB</title>
+<meta name="description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı yapıları." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/yapi.html" id="canonical-link">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Yapılar — MİMARLAB" id="og-title">
+<meta property="og:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı yapıları." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/yapi.html" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Yapılar — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı yapıları." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
+<!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
+     sayfalarının <head>'ine ... application/ld+json ekle") — /projeler/:slug detay görünümü
+     src/index.js#injectMeta ile SSR'da AYRI CreativeWork + BreadcrumbList şeması ekler, bu ikisiyle
+     çakışmaz. -->
+<script type="application/ld+json" id="list-jsonld">
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Yapılar — MİMARLAB","url":"https://mimarlab.com/yapi.html","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+</script>
+<!-- Temiz URL'lerle bu sayfa /proje dışında /projeler/:slug altında da (proje modalını doğrudan
+     açan bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları
+     o iç içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, eski
+     proje-detay.html'deki AYNI gerekçe). -->
+<base href="/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D;
+    --ink-soft:#4E6478;
+    --paper:#EDF0F3;
+    --paper-card:#F8FAFB;
+    --paper-alt:#E0E6EC;
+    --walnut:#2B425F;
+    --brass:#5B7A9B;
+    --brass-soft:#AFC5D8;
+    --sage:#4F6478;
+    --accent:#E08A3E;
+    --line: rgba(27,42,61,0.14);
+    --line-soft: rgba(27,42,61,0.08);
+
+    /* Design Token katmanı (bkz. kullanıcı isteği: UI/UX revizyonu) — yalnızca bu pass'te dokunulan
+       bileşenlerde (Yorum/Bildir butonu) kullanılır; mevcut --ink/--walnut/--brass paletinin ÜZERİNE
+       kurulur, yeni bir RENK yok, sadece semantik isimlendirme. Sayfa başına :root kopyalama deseni
+       zaten mevcut mimari olduğundan, ileride dokunulacak diğer sayfalar bu bloğu aynen kopyalayabilir. */
+    --color-primary-900: var(--ink);
+    --color-primary-700: var(--walnut);
+    --color-primary-500: var(--brass);
+    --color-primary-100: var(--brass-soft);
+    --color-accent: var(--accent);
+    --color-accent-hover: #C97530;
+
+    --color-text-primary: var(--ink);
+    --color-text-secondary: var(--ink-soft);
+    --color-surface: var(--paper-card);
+    --color-surface-hover: var(--paper-alt);
+    --color-border: var(--line);
+    --color-primary: var(--color-primary-900);
+    --color-primary-hover: var(--color-primary-700);
+    --color-primary-active: var(--color-primary-700);
+
+    --font-h1: 28px;
+    --font-h2: 22px;
+    --font-h3: 18px;
+    --font-body-1: 14px;
+    --font-body-2: 12px;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-full: 999px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:24px;
+    padding:10px 32px;
+    background:rgba(237,240,243,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-search{
+    flex:1; max-width:380px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:9px 16px;
+  }
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-logo{height:24px; width:auto; display:block;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
+  .nav-link:hover, .nav-link.active{color:var(--ink);}
+  .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
+  .nav-mobile-menu{
+    display:none; position:absolute; top:100%; right:18px; z-index:95;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
+  }
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .nav-rate{
+    background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
+    border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;
+  }
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+
+  /* ---------- BREADCRUMB ---------- */
+  .breadcrumb-bar{
+    background:var(--ink); color:rgba(237,240,243,0.7);
+    padding:14px 32px; font-size:13.5px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
+  .breadcrumb-bar a:hover{color:var(--brass-soft);}
+  .breadcrumb-bar .sep{opacity:0.4;}
+  .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
+
+  /* ---------- PAGE HEAD ---------- */
+  .page-head{max-width:1260px; margin:0 auto; padding:28px 32px 0;}
+  .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
+  .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
+
+  /* ---------- GRID LAYOUT ---------- */
+  .grid-layout{
+    max-width:1260px; margin:0 auto;
+    padding:20px 32px 90px;
+    display:grid; grid-template-columns:250px 1fr;
+    gap:28px; align-items:start;
+  }
+  .grid-sidebar{
+    position:sticky; top:90px;
+    display:flex; flex-direction:column;
+    background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
+    overflow:hidden;
+  }
+  .sidebar-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line-soft);
+  }
+  .sidebar-head-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
+  .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
+  .sidebar-search svg{flex-shrink:0; opacity:0.5;}
+  .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
+  .sidebar-close-btn{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0;
+    border:1px solid var(--line); background:var(--paper-card);
+    color:var(--ink-soft); font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sidebar-close-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .filter-group{border-bottom:1px solid var(--line-soft);}
+  .filter-group:last-of-type{border-bottom:none;}
+  .sidebar-add{padding:16px; border-top:1px solid var(--line-soft);}
+  .sidebar-add-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; background:var(--ink); color:var(--paper-card);
+    padding:12px; border-radius:100px; font-weight:600; font-size:13.5px;
+  }
+  .sidebar-add-btn:hover{background:var(--walnut);}
+  .sidebar-add-icon{
+    display:flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:50%;
+    background:rgba(237,240,243,0.2); font-size:14px; line-height:1;
+  }
+  .filter-group-head{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; background:none; border:none; text-align:left;
+    font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .filter-group-head:hover{background:var(--paper-alt);}
+  .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
+  .filter-group-body{display:none; padding:0 16px 14px; max-height:260px; overflow-y:auto;}
+  .filter-group.open .filter-group-body{display:block;}
+  .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
+  .filter-opt{
+    display:flex; align-items:center; gap:8px;
+    padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;
+  }
+  .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
+  .filter-opt:hover{color:var(--ink);}
+  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .filter-opt-nested{padding-left:20px;}
+  .filter-opt-nested input{width:12px; height:12px;}
+  .filter-search-row{
+    display:flex; align-items:center; gap:6px; margin:2px 0 8px;
+    padding:6px 10px; background:var(--paper); border:1px solid var(--line); border-radius:100px;
+    position:sticky; top:0; z-index:1;
+  }
+  .filter-search-row svg{flex-shrink:0; opacity:0.5;}
+  .filter-search-row input{border:none; background:none; outline:none; font-family:inherit; font-size:12px; width:100%; color:var(--ink);}
+
+  .result-bar{
+    display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;
+  }
+  .result-count{font-size:13px; color:var(--ink-soft); flex:1;}
+  .sort-select{position:relative;}
+  .sort-select select{
+    appearance:none; -webkit-appearance:none;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:100px; padding:9px 32px 9px 16px;
+    font-size:13px; font-weight:500; color:var(--ink); font-family:inherit;
+  }
+  .sort-select select:hover{border-color:var(--walnut);}
+  .sort-arrow{position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
+
+  .active-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .active-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--ink); color:var(--paper-card);
+    border-radius:100px; padding:6px 8px 6px 14px; font-size:12.5px; font-weight:600;
+  }
+  .active-chip button{background:none; border:none; color:var(--paper-card); opacity:0.7; display:flex; padding:2px;}
+  .active-chip button:hover{opacity:1;}
+
+  /* ---------- CONTENT GRID ---------- */
+  .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; transition:opacity .15s ease;}
+  /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği) — .content-card-photo
+     görseli aspect-ratio'lu bir kutuya alır, .content-card-info normal akışta onun altına düz
+     arkaplanla oturur (eski absolute-overlay + gradient yerine). */
+  .content-card{
+    display:flex; flex-direction:column; border-radius:14px; overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .content-card:hover{transform:translateY(-3px); box-shadow:0 12px 28px rgba(27,42,61,0.14);}
+  .content-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden;}
+  .content-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .content-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:28px; font-weight:700; letter-spacing:0.02em;}
+  .content-card-info{padding:12px 14px; color:var(--ink);}
+  /* Kart altı başlık EN FAZLA 2 satır (bkz. kullanıcı isteği) — -webkit-line-clamp ile 2. satırın
+     sonunda "…" ile kesilir, çok uzun proje isimleri (ör. "Batı Akdeniz Teknokenti Teknoloji
+     Geliştirme Bölgesi İdare Binası ve Kuluçka Merkezi") kartı taşırmaz. line-height/max-height +
+     !important (bkz. kullanıcı isteği, gerçek bulgu: "...Projesi" gibi bir son kelimenin
+     -webkit-line-clamp'in kendi satır sayımına rağmen 3. satıra taşarak göründüğü durumlar
+     bildirildi) — line-height em cinsinden SABİTLENİP max-height tam olarak 2 satır (2 × 1.25em)
+     ile sınırlanarak, satır sayımı motoru tam kesmese bile üçüncü satır kesin olarak gizlenir. */
+  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; margin-bottom:3px; color:var(--ink); display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
+  .content-card-by{font-size:11.5px; color:var(--ink-soft);}
+  .card-save-btn{
+    position:absolute; top:10px; right:10px; z-index:2;
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(27,42,61,0.55); border:none; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .card-save-btn:hover{background:rgba(27,42,61,0.75);}
+  .card-save-btn.saved{background:var(--accent); color:var(--ink);}
+
+  .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); font-size:14px; display:none;}
+
+  .pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:28px; flex-wrap:wrap;}
+  .page-btn{
+    min-width:38px; height:38px; padding:0 10px;
+    border:1px solid var(--line); background:var(--paper-card);
+    border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
+  .page-ellipsis{color:var(--ink-soft); padding:0 4px;}
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
+  @media (max-width:960px){
+    .grid-layout{grid-template-columns:1fr;}
+    .grid-sidebar{position:static;}
+    .content-grid{grid-template-columns:repeat(3, 1fr);}
+  }
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
+    .page-head{padding:20px 16px 0;}
+    .grid-layout{padding:16px 16px 70px; gap:16px;}
+    .content-grid{grid-template-columns:1fr 1fr; gap:12px;}
+    .content-card-title{font-size:13.5px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+  }
+
+  @media (max-width:768px){
+    .content-card-by{display:none;}
+  }
+
+  /* ---------- PROJE MODALI — sol panel (bilgi) ----------
+     Eski proje-detay.html'in .detail-header/.detail-byline grid'i buraya taşınmadı: modal sol
+     paneli tek bir dikey akış (DOM sırası zaten Başlık → Puan → Aksiyon → Künye → Açıklama →
+     Yorumlar, bkz. kullanıcı isteği), grid-template-areas'a gerek yok. Kalan sınıf adları
+     (.rating-widget, .designer-chip, .comment-row vb.) proje-detay.html ile BİREBİR aynı — aynı
+     paylaşılan JS (rating-widget.js, js/components/project-*.js) bu isimlere yazıyor. */
+  .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+  /* "X tarafından" satırı — js/components/product-modal.js/haber-detay.html'deki AYNI .detail-byline
+     kuralları (kullanıcı isteği: Puanla/Kaydet/Paylaş satırının hemen altına yeniden eklendi). Yalnızca
+     üye gönderisi kökenli projelerde dolu (bkz. src/routes/project.js#fetchOwnerByline), diğerlerinde
+     gizli kalır. */
+  /* margin-bottom 18px (14px değil) — Düzenle/Arşivle/Sil satırı buradan kaldırılıp X'in yanına
+     taşındığından (bkz. kullanıcı isteği) bu artık künye bloğuna en yakın komşu; sayfadaki diğer
+     blok aralarıyla (.detail-meta/.detail-desc margin-top:18px) AYNI dikey ritme oturur. */
+  .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 18px;}
+  .detail-byline strong{color:var(--ink); font-weight:600;}
+  .detail-byline-avatar{
+    width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
+  }
+  .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  /* Puanlama + Kaydet: kullanıcı isteği üzerine aynı satırda, ikisi de "pill" görünümlü (bkz.
+     .rating-widget kuralı aşağıda — save-btn ile AYNI çerçeve/dolgu dilini paylaşır). */
+  /* flex-wrap:nowrap !important — kullanıcı isteği: Puanla/Kaydet/Paylaş HİÇBİR genişlikte 2. satıra
+     düşmesin; dar ekranlarda satırın sığması Paylaş'ın ikon-only sabit boyutu (bkz. share-button.js)
+     ve Puanla/Kaydet'in flex-shrink+ellipsis ile daralması (metinleri HER ZAMAN görünür kalır, kullanıcı
+     isteği) ile sağlanır, taşma yerine ölçeklenme tercih edilir. Tüm bayraklar !important — kullanıcı
+     isteği: bu satır başka hiçbir kuralın ele geçiremeyeceği kadar katı olsun. */
+  /* gap 6px — #pm-save-slot'un (Kaydet-Paylaş arası) gap'iyle BİREBİR aynı (bkz. kullanıcı isteği:
+     Puanla-Kaydet ile Kaydet-Paylaş aralıkları eşitlensin). */
+  .pm-rating-save-row{
+    display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
+    align-items:center !important; justify-content:flex-start !important; width:100% !important;
+    gap:6px !important; margin:0 0 14px;
+  }
+  /* gerçek bulgu: #pm-save-slot (Kaydet+Paylaş'ı BİRLİKTE tutan div, proje-actions.js#mount)
+     kendisi flex konteyner DEĞİLDİ — içindeki .save-btn/.share-widget salt inline-flex kutular
+     olduğundan sıradan satır-içi akışla dizilip konteynerin genişliğini aştıklarında (bkz. büyütülmüş
+     48px'lik pil boyutları, kullanıcı isteği) normal metin gibi ALT SATIRA kayıyorlardı — dıştaki
+     .pm-rating-save-row'un flex-wrap:nowrap'ı yalnızca KENDİ doğrudan çocuklarını (rating-widget +
+     bu slot) etkiliyor, slot'un İÇİNDEKİLERİ değil. Slot'u da flex/nowrap yapmak, .save-btn/
+     .share-btn'deki mevcut flex-shrink:1/min-width:0 kurallarının (yalnızca bir flex öğesindeyken
+     anlamlı) burada da devreye girmesini sağlar. */
+  #pm-save-slot{display:flex; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;}
+  /* Düzenle/Arşivle/Sil artık bu sütunda DEĞİL — modal-shell.js'in paylaşılan header'ında, X
+     butonunun yanında render edilir (bkz. kullanıcı isteği, js/components/project-actions.js). O
+     yüzden .detail-title-actions/.card-edit-btn/.card-delete-btn kuralları buradan kaldırıldı;
+     görsel stilleri artık TEK kaynaktan (modal-shell.js#injectStyles) geliyor. */
+  /* Yükseklik/dolgu/satır-yüksekliği .rating-widget ile BİREBİR aynı (bkz. kullanıcı isteği: "yan
+     yana geldiklerinde tam simetrik dursunlar") — height+box-sizing:border-box, içerik farklı olsa
+     bile (ikon vs yıldız satırı) dış kutuyu piksel piksel eşitler; yazı tipi/punto/kalınlık da sol
+     paneldeki künye etiketleriyle (.detail-meta strong: 14px/600) birebir aynı. */
+  .save-btn{
+    display:inline-flex; align-items:center; gap:5px;
+    flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+    height:32px !important; box-sizing:border-box;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:0 8px !important; font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft);
+  }
+  .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .save-btn svg{flex-shrink:0;}
+  .save-btn-label-saved{display:none;}
+  .save-btn.saved .save-btn-label-default{display:none;}
+  .save-btn.saved .save-btn-label-saved{display:inline;}
+  .save-btn-count{font-weight:600;}
+  /* gerçek bulgu: proje modalının Kaydet butonu save-widget.js'in .card-save-btn seçicisiyle
+     bulunabilmesi için hem .save-btn hem .card-save-btn sınıflarını birlikte taşıyor (bkz.
+     ProjectActions.render) — ama .card-save-btn KART bağlamında (üstteki kural, position:absolute;
+     top/right) mutlak konumlandırılmış dairesel bir simge olacak şekilde tanımlı; bu, modaldeki
+     butonu normal akıştan koparıp panelin sağ üst köşesine yapıştırıyordu. Aşağıdaki daha spesifik
+     seçici yalnızca modalin Puanlama+Kaydet satırı İÇİNDEKİ kopyayı normal akışa geri döndürür,
+     kart bağlamındaki (.content-card .card-save-btn) davranışı etkilemez. İKİNCİ gerçek bulgu: bu
+     seçici Kaydet'in DOM konumu proje-actions.js'te #pm-actions'tan #pm-save-slot'a taşındığında
+     (bkz. kullanıcı isteği: "Puanlama ile Kaydet aynı satırda") eski ".detail-title-actions
+     .card-save-btn" hedefini kaçırmıştı — buton yeniden köşeye yapıştı; seçici doğru kapsayıcıya
+     (.pm-rating-save-row) güncellendi.
+  */
+  /* height:auto DEĞİL — bare .card-save-btn kart bağlamı kuralı (height:32px) bu seçiciden DAHA
+     DÜŞÜK özgüllükte olsa da, height:auto burada .save-btn{height:36px}'i EZİYORDU (bkz. gerçek
+     bulgu: iki sınıfı birden taşıyan bu buton .pm-rating-save-row .card-save-btn'in (0,2,0) daha
+     yüksek özgüllüğüne sahip olduğundan .save-btn'in (0,1,0) height'ını görmezden geliyordu) —
+     .rating-widget ile piksel piksel eşit dursun diye height burada da AÇIKÇA 36px olarak yazılır. */
+  .pm-rating-save-row .card-save-btn{
+    position:static; width:auto; height:32px !important; z-index:auto;
+    background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
+  }
+  .pm-rating-save-row .card-save-btn:hover{background:var(--paper-card);}
+  .pm-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
+  /* Paylaş artık ikon-only (bkz. js/components/share-button.js) — boyutu tamamen o dosyadaki
+     paylaşılan .share-btn kuralından gelir, burada ayrı bir override gerekmiyor. */
+
+  /* Kaydet butonuyla (.save-btn) AYNI pill çerçeve dili — kullanıcı isteği: "Kaydet butonundaki gibi
+     dış çerçeve, border-radius/pill, hafif arka plan ve padding". Yıldız butonlarının kendi
+     padding'i zaten var, bu yüzden kapsayıcının solundan hafif negatif margin ile hizalanır ki
+     pill kenarına gereğinden fazla boşluk binmesin. */
+  .rating-widget{
+    display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
+    flex-shrink:1 !important; min-width:0 !important;
+    height:32px !important; box-sizing:border-box;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:0 8px !important; margin:0;
+    transition:border-color .15s ease;
+  }
+  .rating-widget:hover{border-color:var(--walnut);}
+  .rating-star-row{display:flex; gap:2px; flex-shrink:0;}
+  .rating-star-btn{background:none; border:none; padding:0; color:var(--line); display:flex; transition:transform .1s ease;}
+  .rating-star-btn.filled{color:var(--accent);}
+  .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
+  .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
+  .rating-summary{font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap !important;}
+
+  .detail-info{margin-top:8px;}
+  .designer-section{margin-top:0;}
+  .designer-section + .designer-section{margin-top:16px;}
+  .designer-label{font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+  .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
+  .designer-chip{
+    display:flex; align-items:center; gap:9px;
+    background:var(--paper); border:1px solid var(--line-soft);
+    border-radius:100px; padding:6px 16px 6px 6px;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  a.designer-chip:hover{border-color:var(--brass); transform:translateY(-1px);}
+  .designer-chip-avatar{
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    border:1px solid var(--line); overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+  }
+  .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
+  .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
+  .designer-name-plain{font-size:14px; color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line); padding:6px 4px; align-self:center;}
+  .designer-name-plain:hover{color:var(--ink);}
+
+  .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
+  .detail-meta strong{font-weight:600; color:var(--ink);}
+  .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
+  .detail-meta a:hover{color:var(--ink);}
+  .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
+  .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
+  .detail-desc-more:hover{color:var(--ink);}
+
+  /* ---------- PROJE MODALI — yorumlar ---------- */
+  .comments-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+  .comments-title{font-family:'Inter', sans-serif; font-size:18px; font-weight:700; margin:0 0 16px;}
+  .comment-form-wrap{margin-bottom:20px;}
+  /* Gönder butonu textarea'nın İÇİNE, sağ alt köşeye bindirilir (bkz. kullanıcı isteği) — yazının
+     butonun altına/arkasına denk gelmemesi için textarea'nın sağ ve alt iç boşluğu büyütülür, buton
+     o boşluğun içinde mutlak konumlanır. */
+  .comment-input-wrap{position:relative;}
+  .comment-form textarea{width:100%; min-height:80px; padding:12px 108px 50px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
+  .comment-input-wrap .comment-submit-btn{position:absolute; right:8px; bottom:8px;}
+  /* Gönder ve Bildir (bkz. .feedback-input-wrap altında) AYNI boyut/tipografi Design Token'larını
+     kullanır (bkz. kullanıcı isteği) — sarmalayıcılar (bkz. yukarısı/aşağısı) yalnızca konum farkını
+     taşır, boyutla ilgili hiçbir override yoktur. */
+  .comment-submit-btn{background:var(--color-primary); color:var(--paper-card); padding:var(--space-2) var(--space-4); border-radius:var(--radius-full); font-weight:600; font-size:var(--font-body-2); line-height:1.2;}
+  .comment-submit-btn:hover{background:var(--color-primary-hover);}
+  .comment-submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
+  .comment-login-note{padding:16px 18px; border:1px dashed var(--line); border-radius:12px; font-size:13.5px; color:var(--ink-soft);}
+  .comment-login-note a{color:var(--walnut); font-weight:600; text-decoration:underline;}
+  .comment-submit-notice{margin:10px 0 0; font-size:12.5px; color:var(--sage);}
+  .comment-row{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line-soft);}
+  .comment-row:last-child{border-bottom:none;}
+  .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; flex-shrink:0; position:relative; overflow:hidden;}
+  /* Hem sıradan üyenin kendi profil fotoğrafı (<div>, bkz. js/components/project-comments.js#user_photo)
+     hem de bir mimar/firma profiline bağlı yorumcunun profil fotoğrafı (<a>, #commenterProfile) aynı
+     mutlak konumlanan <img> desenini kullanır (bkz. .designer-chip-avatar img ile AYNI desen) — bu
+     yüzden position:relative/overflow:hidden yukarıdaki ORTAK .comment-avatar kuralında tanımlı.
+     a.comment-avatar için ayrıca text-decoration sıfırlanır ki bir bağlantı gibi altı çizili görünmesin. */
+  a.comment-avatar{text-decoration:none;}
+  .comment-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .comment-meta{font-size:12.5px; color:var(--ink-soft); margin-bottom:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .comment-meta strong{color:var(--ink); font-weight:600;}
+  .comment-author-link{color:inherit; text-decoration:none;}
+  .comment-author-link:hover{text-decoration:underline;}
+  .comment-delete-btn{background:none; border:none; color:var(--ink-soft); font-size:12px; font-family:inherit; cursor:pointer; margin-left:4px; text-decoration:underline; padding:0;}
+  .comment-delete-btn:hover{color:#c0392b;}
+  .comment-body-text{margin:0; font-size:13.5px; line-height:1.6; color:var(--ink); white-space:pre-wrap;}
+
+  /* ---------- PROJE MODALI — Bilgi Kaynağı & Geri Bildirim ---------- */
+  .pm-info-divider{margin:28px 0 0; border:none; border-top:1px solid var(--line);}
+  .pm-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
+  .pm-feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
+  .pm-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
+  /* Bildir butonu da yorum kutusuyla AYNI desende textarea'nın içine, sağ alt köşeye bindirilir. */
+  .feedback-input-wrap{position:relative;}
+  .pm-feedback-card textarea{width:100%; min-height:64px; padding:9px 92px 40px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
+  .feedback-input-wrap .comment-submit-btn{position:absolute; right:6px; bottom:6px;}
+  #pm-feedback-result{margin:8px 0 0; font-size:12px; color:var(--sage);}
+
+  /* ---------- PROJE MODALI — sağ panel (medya + doğal akış) ---------- */
+  .gallery-wrap{position:relative; min-width:0;}
+  .gallery-media{position:relative;}
+  .detail-gallery{display:flex; gap:12px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+  .detail-gallery::-webkit-scrollbar{display:none;}
+  /* 2:1 (landscape) medya oranı — kutunun boyutu ANKORDA (.detail-gallery a) sabitlenir, img/placeholder
+     onu object-fit:cover ile doldurur. Genişliği doğrudan img üzerinde yüzde ile vermek yerine
+     ankorda flex-basis olarak tanımlamak dairesel bir boyutlandırma sorununu önler (bkz. gerçek bulgu:
+     img'nin kendi genişliği hem içeriğinden hem yüzdesinden gelemeyeceğinden 4:3'ten 2:1'e geçişte
+     img'ye doğrudan width:% verilseydi ankor da auto olduğundan boyut belirsiz kalırdı). */
+  .detail-gallery a{
+    flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px; overflow:hidden;
+    display:block; background:var(--paper-card);
+  }
+  .detail-gallery img{width:100%; height:100%; object-fit:cover; display:block;}
+  .gallery-placeholder{
+    flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;
+  }
+  .gallery-nav{
+    position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+    width:38px; height:38px; border-radius:50%; border:none;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(27,42,61,0.45); color:#fff;
+  }
+  .gallery-nav:hover{background:rgba(27,42,61,0.72);}
+  .gallery-prev{left:14px;}
+  .gallery-next{right:14px;}
+  .gallery-counter{text-align:center; margin-top:8px; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);}
+
+  .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
+  .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
+  .lightbox-close:hover{opacity:1;}
+  .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
+  .lightbox-nav:hover{opacity:1;}
+  .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
+  .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
+  .lightbox-counter{
+    position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+    color:#fff; font-size:13px; font-weight:600; font-family:'IBM Plex Mono', monospace;
+    background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
+  }
+  /* "Tümünü Gör" ızgara görünümü — bkz. js/components/gallery.js#initDetailGallery, buton/ızgara
+     elemanları buradaki markup'ta değil, .lightbox'ın İÇİNE JS tarafından dinamik eklenir; burada
+     yalnızca CSS tanımlanır (bkz. AYNI blok js/components/product-modal.js#injectStyles, paylaşılan
+     stylesheet olmadığından iki yerde de tutulur). Buton .lightbox-close İLE BİREBİR AYNI çerçevesiz/
+     metinsiz/ikon-only stile sahip (bkz. kullanıcı isteği: minimalist, X ile aynı boyut/renk). */
+  .lightbox-grid-toggle{
+    position:absolute; top:24px; right:78px; background:none; border:none;
+    color:var(--paper); opacity:0.8; z-index:2;
+  }
+  .lightbox-grid-toggle:hover{opacity:1;}
+  .lightbox-grid{display:none; position:absolute; inset:0; z-index:1; background:rgba(27,42,61,0.97); overflow-y:auto; padding:76px 24px 32px;}
+  .lightbox.grid-mode .lightbox-grid{display:block;}
+  /* ÖNEMLİ gerçek bulgu: `.lightbox.grid-mode img` (doğrudan çocuk kısıtlaması OLMADAN) ızgara
+     kutucuklarının İÇİNDEKİ <img>'leri de eşleştiriyordu — .lightbox-grid-item img'nin kendi
+     display:block kuralından (aşağıda) daha yüksek özgüllüğe sahip olduğundan onu eziyordu, thumbnail'lar
+     boş/beyaz kutu olarak render oluyordu. `>` (doğrudan çocuk) sınırlaması yalnızca tekli lightbox
+     görselini (lightbox'ın DOĞRUDAN çocuğu) hedefler, ızgaradaki (birkaç seviye iç içe) img'lere hiç
+     dokunmaz — artık özgüllük çakışması bile yok, seçici yapısal olarak eşleşmiyor.
+   */
+  .lightbox.grid-mode > img,
+  .lightbox.grid-mode .lightbox-nav,
+  .lightbox.grid-mode .lightbox-counter{display:none;}
+  .lightbox-grid-list{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; max-width:1080px; margin:0 auto;}
+  .lightbox-grid-item{aspect-ratio:1/1; border-radius:10px; overflow:hidden; display:block; background:var(--paper-card);}
+  .lightbox-grid-item img{width:100%; height:100%; object-fit:cover; display:block;}
+  @media (max-width:768px){
+    .lightbox-grid{padding:60px 14px 24px;}
+    .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
+  }
+
+  .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+  .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+  /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/görünümlerde
+     gönderi başlıkları görselin altında olsun) — .related-card-photo görseli aspect-ratio'lu bir
+     kutuya alır, .related-card-title normal akışta onun altına düz arkaplanla oturur. */
+  .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+  .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden;}
+  .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
+  .related-card-title{
+    padding:10px 14px 12px;
+    color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+    /* gerçek bulgu: -webkit-line-clamp + text-overflow:ellipsis kombinasyonu tarayıcıya göre
+       tutarsız davranıyordu — bazı durumlarda "…" ekleyip ARDINDAN yine de bir sonraki satırı
+       kısmen gösteriyor, metin kartın dışına taşıyordu. Üç noktalı kırpma TAMAMEN kaldırıldı
+       (bkz. kullanıcı isteği) — kutu artık satır sayısına göre doğal olarak büyür, gerçek satır
+       sayısı ne olursa olsun metin asla ortadan kesilmez/dots eklenmez. */
+    line-height:1.3; word-break:break-word;
+  }
+  .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
+  .related-grid-scroll::-webkit-scrollbar{display:none;}
+  .related-grid-scroll .related-card{flex:0 0 200px;}
+
+  .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
+  .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
+  .prevnext a:hover{border-color:var(--walnut);}
+  .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
+  .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
+  .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
+  .prevnext-text{min-width:0; flex:1;}
+  .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
+  .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  /* Skeleton — ertelenmiş bölümler (yorumlar/diğer projeler/ilgili projeler/ürünler) veri gelene
+     kadar (bkz. kullanıcı isteği: lazy/deferred). display:none DEĞİL, gerçek bir layout kutusu
+     olması gerekiyor ki IntersectionObserver tetiklenebilsin (bkz. project-modal.js#observeOnce). */
+  .skeleton-card{background:linear-gradient(90deg, var(--paper-alt) 25%, var(--paper) 37%, var(--paper-alt) 63%); background-size:400% 100%; animation:skeleton-pulse 1.4s ease infinite; border:none;}
+  .skeleton-line{background:linear-gradient(90deg, var(--paper-alt) 25%, var(--paper) 37%, var(--paper-alt) 63%); background-size:400% 100%; animation:skeleton-pulse 1.4s ease infinite;}
+  @keyframes skeleton-pulse{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+
+  @media (max-width:860px){
+    .related-grid-scroll .related-card{flex:0 0 140px;}
+    .related-grid-scroll{gap:10px;}
+    .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
+
+    /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Yorumlar →
+       Diğer Projeler → İlgili Projeler → Ürünler/Malzemeler (bkz. kullanıcı isteği) — modal-shell.js
+       bu kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
+       bu bölümler artık AYNI dikey flex akışının parçası; sıra burada, sırayla artan order değerleriyle
+       verilir. .detail-info künye VE açıklamayı TEK blok olarak taşır (zaten aralarında ayrı bir sıra
+       gerekmiyor, ikisi de kendi içinde doğru DOM sırasında). #pm-gallery-wrap'ın kendi margin-top'u
+       KALDIRILDI — kapatma butonuna karşı üst boşluk artık modal-shell.js#.modal-shell-body'nin
+       paylaşılan padding-top'undan (bkz. kullanıcı isteği: X butonu/içerik çakışması, TÜM modallerde)
+       geliyor; ikisi birlikte kalsaydı boşluk iki katına çıkardı (gerçek bulgu).
+    */
+    /* order KESİNLİKLE tam sayı olmalı (CSS <integer> — bkz. gerçek bulgu: bu blokta önceden
+       kullanılan 6.5/6.6 gibi ondalıklı değerler geçersiz sayılıp sessizce order:0'a düşüyordu,
+       böylece #pm-info-divider/#pm-feedback-card modalın EN ÜSTÜNE, galeriden bile önce zıplıyordu
+       — yalnızca hiçbir görsel QA bunu yakalamadığından fark edilmemişti). Aşağıdaki tüm değerler
+       bu yüzden ARALIKSIZ tam sayı dizisi olarak yeniden numaralandırıldı. */
+    #pm-gallery-wrap{order:1;}
+    #pm-title{order:2; margin-top:20px;}
+    #pm-rating-save-row{order:3;}
+    #pm-byline{order:4;}
+    .detail-info{order:6;}
+    #pm-comments-section{order:7;}
+    #pm-same-designer-section{order:8;}
+    #pm-related-section{order:9;}
+    #pm-prevnext{order:10;}
+    /* Bilgi Kaynağı & Geri Bildirim — mobil/tablette sayfanın en altına taşındı (kullanıcı isteği),
+       masaüstünde DOM sırası (Yorumlar'dan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order
+       değerleri etkilenir. */
+    #pm-info-divider{order:11;}
+    #pm-feedback-card{order:12;}
+
+    /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
+       yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural
+       yalnızca bu kırılma noktasının altında geçerli. Satırın tek satırda kalma zorunluluğu (üstteki
+       .pm-rating-save-row flex-wrap:nowrap + her pildeki flex-shrink:1/min-width:0/overflow:hidden/
+       ellipsis) korunur — büyüyen pil genişliği dar ekranlarda ellipsis ile kendi içinde daralır.
+       Paylaş artık ikon-only olduğundan (bkz. share-button.js) buradaki listeden çıkarıldı, kendi
+       boyutunu paylaşılan .share-btn 860px kuralından alır. */
+    .pm-rating-save-row{gap:8px !important;}
+    #pm-save-slot{gap:8px !important;}
+    .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn{
+      height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
+    }
+    /* .rating-summary'nin ("Puanla" metni) KENDİ font-size:12px !important kuralı var (bkz. yukarıdaki
+       taban kural) — bu, yalnızca kapsayıcıya (.rating-widget) uygulanan font-size değişikliğini miras
+       almasını ENGELLİYORDU, "Puanla" metni bu kırılma noktasının altında Kaydet'ten (13.5px) daha
+       küçük (12px) kalıyordu (gerçek bulgu). İki pilin punto/hiyerarşisi birebir eşit olsun diye
+       burada da açıkça 13.5px'e yükseltilir. */
+    .rating-summary{font-size:13.5px !important;}
+    .rating-star-row{gap:4px;}
+    .rating-star-btn svg{width:15px; height:15px;}
+  }
+
+  /* Mobil galeri oranı — kullanıcı isteği: masaüstünde 2:1 korunur, yalnızca ≤768px'te dikey alanı
+     daha iyi kullanan 4:3'e geçilir. 860px bloğundan SONRA tanımlanır ki aynı özgüllükteki
+     aspect-ratio kuralı ≤768px genişliklerde (768px de 860px sorgusunu karşıladığından) kaynak
+     sırasına göre onu ezsin. */
+  @media (max-width:768px){
+    .detail-gallery a, .gallery-placeholder{aspect-ratio:4/3;}
+  }
+</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
+</head>
+<body>
+<script src="js/overlay-manager.js" defer></script>
+<script src="image-cdn.js"></script>
+<script src="auth-nav.js" defer></script>
+<script src="save-widget.js" defer></script>
+<script src="rating-widget.js" defer></script>
+<script src="badge-shared.js" defer></script>
+<script src="catalog-taxonomy.js" defer></script>
+<script src="js/components/gallery.js" defer></script>
+<script src="js/components/modal-shell.js" defer></script>
+<script src="js/components/auth-modal.js" defer></script>
+<script src="js/components/info-modal.js" defer></script>
+<script src="js/components/share-button.js" defer></script>
+<script src="js/components/project-gallery.js" defer></script>
+<script src="js/components/project-meta.js" defer></script>
+<script src="js/components/project-actions.js" defer></script>
+<script src="js/components/project-comments.js" defer></script>
+<script src="js/components/project-related.js" defer></script>
+<script src="js/components/project-modal.js" defer></script>
+
+  <nav class="nav">
+    <a class="brand" href="index.html">
+      <img class="brand-logo" src="logos/site/mimarlab-logo.png" alt="MimarLab">
+    </a>
+    <div class="nav-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
+    </div>
+    <div class="nav-links">
+      <a class="nav-link active" href="yapi.html">Yapı</a>
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="firma.html">Firma</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
+    </div>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-mobile-menu" id="nav-mobile-menu">
+      <div class="nav-mobile-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
+      </div>
+      <a class="nav-mobile-link active" href="yapi.html">Yapı</a>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="firma.html">Firma</a>
+    </div>
+  </nav>
+
+  <div class="breadcrumb-bar">
+    <a href="index.html">Ana Sayfa</a>
+    <span class="sep">›</span>
+    <span class="current">Yapılar</span>
+  </div>
+
+  <div class="page-head">
+    <h1>Yapılar</h1>
+    <p>Türkiye'nin geçmişten günümüze yapı arşivi.</p>
+  </div>
+
+  <div class="grid-layout">
+    <aside class="grid-sidebar" id="sidebar"></aside>
+
+    <main>
+      <div class="result-bar">
+        <div class="result-count" id="result-count"></div>
+        <div class="sort-select">
+          <select id="g-sort">
+            <option value="" selected>Sıralama</option>
+            <option value="name_asc">A-Z</option>
+            <option value="date_desc">En Yeni</option>
+            <option value="date_asc">En Eski</option>
+            <option value="rating_desc">Puan: Yüksekten Düşüğe</option>
+          </select>
+          <svg class="sort-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="active-chips" id="active-chips"></div>
+      <div class="content-grid" id="card-grid"></div>
+      <div class="empty-state" id="empty-state">Bu kritere uyan yapı bulunamadı.</div>
+      <div class="pagination" id="pagination"></div>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
+        </a>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
+        <div class="footer-social">
+          <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="yapi.html">Yapı</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
+    </div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
+  </footer>
+
+<script src="il-ilce-data.js"></script>
+<script>
+// Faz 3 sonrası: proje.html artık projeler-data.js'in tüm veri setini indirmiyor — sayfalama,
+// filtreleme ve sıralama backend'de (/api/projects, /api/projects/filters) canonical D1 tablosu
+// üzerinden yapılıyor (bkz. src/routes/project.js#handleProjectListRoute). Bu sayfa yalnızca
+// il-ilce-data.js'i (parseLocation için, küçük statik referans tablosu) yükler.
+const PAGE_SIZE = 24;
+let currentPage = 1;
+
+// il-ilce-data.js#parseLocationFull artık 81 ilin tamamında ilçe -> il çözümlemesi yapıyor
+// (eskiden yalnızca İstanbul ilçeleri tanınırdı) — bu dosyadaki tüm çağrılar (filtre, künye linki
+// çözümü) parseLocation adıyla değişmeden çalışsın diye burada aynı isimle yeniden dışa verilir.
+const parseLocation = parseLocationFull;
+
+// Sunucudaki src/routes/project.js#buildFilterGroups ile AYNI grup listesi — burada yalnızca
+// sidebar'ın nasıl çizileceğini (etiket/iç içelik) bilmesi için metadata tutulur, gerçek
+// seçenek/sayaç hesabı artık /api/projects/filters'tan gelir.
+const FILTER_GROUPS = [
+  { key: 'discipline', label: 'Tür' },
+  { key: 'category', label: 'Tip' },
+  { key: 'type', label: 'Tip Grubu' },
+  { key: 'location', label: 'Yer' },
+  { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul' },
+  { key: 'dateBucket', label: 'Yıl' },
+  { key: 'designer', label: 'Mimar' },
+  { key: 'designerOffice', label: 'Mimarlık Firması' },
+];
+
+const activeFilters = {};
+FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
+let localSearchQuery = '';
+
+// proje-detay.html künyesindeki Tür/Tip/Yer/Yıl değerleri buraya bu filtreyi önceden uygulanmış
+// şekilde bağlanır (bkz. o dosyadaki filterLinkHtml) — ve artık ?page=N ile doğrudan girilen bir
+// link de o sayfa numarasıyla açılır (bkz. kullanıcı isteği). "location" parametresi künyedeki ham
+// `location` alanı (ör. "Üsküdar") olarak gelir; hangi filtre grubuna (şehir mi, ilçe mi) karşılık
+// geldiği burada parseLocation() ile aynı mantıkla çözülür. Aynı grup için birden fazla değer
+// (?category=Konut&category=Ticari) desteklenir (getAll) — URL artık geri/ileri ve paylaşılan
+// linkler için TEK doğruluk kaynağı olduğundan (bkz. syncBrowserUrl), yalnızca ilk değeri almak
+// (eski .get() kullanımı) çoklu seçimi sessizce kaybederdi.
+function applyInitialFiltersFromQuery(){
+  const params = new URLSearchParams(window.location.search);
+  FILTER_GROUPS.forEach(g => {
+    if(g.nested || g.key === 'location') return;
+    params.getAll(g.key).forEach(v => activeFilters[g.key].add(v));
+  });
+  const locParam = params.get('location');
+  if(locParam){
+    const parsed = parseLocation(locParam);
+    if(parsed.city) activeFilters.location.add(parsed.city);
+    if(parsed.district) activeFilters.district.add(parsed.district);
+  }
+  const searchParam = params.get('search');
+  localSearchQuery = searchParam || '';
+  document.getElementById('g-sort').value = params.get('sort') || '';
+  const pageParam = parseInt(params.get('page'), 10);
+  currentPage = (pageParam > 1) ? pageParam : 1;
+}
+
+function trLower(s){
+  return s.replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
+}
+
+// Aktif filtreler/arama/sıralama/sayfa numarasından ?query string üretir — hem tarayıcı URL'ini
+// senkronlamak hem de /api/projects ve /api/projects/filters isteklerinin gövdesini kurmak için
+// TEK noktadan kullanılır.
+function currentQueryParams(){
+  const params = new URLSearchParams();
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
+  if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
+  const sort = document.getElementById('g-sort').value;
+  if(sort) params.set('sort', sort);
+  return params;
+}
+
+// push=true: gerçek bir geçmiş girdisi (sayfa/filtre/sıralama değişimi — geri tuşu bir önceki
+// duruma döner, link paylaşılabilir, bkz. kullanıcı isteği). push=false: replaceState (serbest
+// metin arama kutusunda her debounce tetiklemesinde YENİ bir geçmiş girdisi açmamak için — aksi
+// halde "istanbul" yazarken 8 harf 8 ayrı geri tuşu adımına dönüşürdü).
+function syncBrowserUrl(push){
+  const params = currentQueryParams();
+  if(currentPage > 1) params.set('page', String(currentPage));
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  if(newUrl === location.pathname + location.search) return;
+  if(push) history.pushState({}, '', newUrl);
+  else history.replaceState({}, '', newUrl);
+}
+
+function optRow(g, opt, count, nested){
+  return `
+        <label class="filter-opt${nested ? ' filter-opt-nested' : ''}">
+          <input type="checkbox" data-key="${g.key}" value="${escapeAttr(opt)}" ${activeFilters[g.key].has(opt)?'checked':''}>
+          <span>${escapeHtml(opt)}</span>
+          <span class="filter-opt-count">(${count})</span>
+        </label>`;
+}
+
+// Sidebar artık kendi kendine (client-side computeOptions ile) hesap yapmıyor — /api/projects/filters
+// (bkz. src/routes/project.js#handleProjectFiltersRoute) TEK doğruluk kaynağı: hem hangi seçeneklerin
+// var olduğunu hem de faceted (diğer aktif filtrelerle bağımlı) sayaçları döner.
+async function buildSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  let filtersData = {};
+  try{
+    const res = await fetch(`/api/projects/filters?${currentQueryParams().toString()}`);
+    if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
+  }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
+
+  let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
+    <div class="sidebar-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="g-local-search" placeholder="Yapı ara..." value="${escapeAttr(localSearchQuery)}">
+    </div>`;
+  FILTER_GROUPS.forEach(g => {
+    if(g.nested) return; // ana grubun (örn. Yer) seçeneklerinin arasına gömülü olarak ayrıca çiziliyor
+    const groupData = filtersData[g.key];
+    const options = groupData ? groupData.options : [];
+    if(options.length === 0) return;
+    // Bu gruba bağlı iç içe bir alt grup var mı? (örn. Yer -> İlçe, "İstanbul" seçeneğinin altında)
+    const childGroup = FILTER_GROUPS.find(cg => cg.nested && cg.parentKey === g.key);
+    const childData = childGroup ? filtersData[childGroup.key] : null;
+    html += `<div class="filter-group" data-key="${g.key}">
+      <button class="filter-group-head" data-toggle="${g.key}">${escapeHtml(g.label)} <span class="filter-group-toggle">+</span></button>
+      <div class="filter-group-body" id="fg-${g.key}">
+        <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
+        ${options.map(opt => {
+          let row = optRow(g, opt, groupData.counts[opt], false);
+          if(childGroup && opt === childGroup.parentValue && childData && childData.options.length){
+            row += childData.options.map(cOpt => optRow(childGroup, cOpt, childData.counts[cOpt], true)).join('');
+          }
+          return row;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="proje-ekle.html"><span class="sidebar-add-icon">+</span> Yapı Ekle</a></div>`;
+  sidebar.innerHTML = html;
+
+  // Bir künye linkinden (?category=...) ya da doğrudan URL'den önceden seçili gelen bir filtre
+  // varsa, ilgili akordeon grubunu kapalı bırakmak yerine açık göster (ana grup + varsa nested/iç grubu).
+  FILTER_GROUPS.forEach(g => {
+    if(activeFilters[g.key].size === 0) return;
+    const openKey = (g.nested && g.parentKey) ? g.parentKey : g.key;
+    const grp = sidebar.querySelector(`.filter-group[data-key="${openKey}"]`);
+    if(grp) grp.classList.add('open');
+  });
+
+  sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      btn.parentElement.classList.toggle('open');
+    });
+  });
+  const resetBtn = document.getElementById('g-reset');
+  if(resetBtn) resetBtn.addEventListener('click', ()=>{
+    FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
+    localSearchQuery = '';
+    currentPage = 1;
+    syncBrowserUrl(true);
+    buildSidebar();
+    render();
+  });
+  sidebar.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const key = cb.dataset.key, val = cb.value;
+      if(cb.checked) activeFilters[key].add(val); else activeFilters[key].delete(val);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      buildSidebar();
+      render();
+      // restore open state for the group just interacted with (iç içe bir grupsa ana grubunu aç)
+      const fg = FILTER_GROUPS.find(f => f.key === key);
+      const openKey = (fg && fg.nested && fg.parentKey) ? fg.parentKey : key;
+      const grp = sidebar.querySelector(`.filter-group[data-key="${openKey}"]`);
+      if(grp) grp.classList.add('open');
+    });
+  });
+  const localSearchInput = document.getElementById('g-local-search');
+  let searchDebounce = null;
+  if(localSearchInput) localSearchInput.addEventListener('input', ()=>{
+    localSearchQuery = localSearchInput.value;
+    currentPage = 1;
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
+  });
+  // Her grubun kendi arama kutusu YALNIZCA o grubun altındaki .filter-opt satırlarını gösterip
+  // gizler — activeFilters/genel arama kutusundan bağımsız, seçim/sayaç mantığını etkilemez.
+  sidebar.querySelectorAll('.filter-search-input').forEach(input => {
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('input', () => {
+      const body = input.closest('.filter-group-body');
+      const q = trLower(input.value.trim());
+      body.querySelectorAll('.filter-opt').forEach(opt => {
+        const label = trLower(opt.querySelector('span').textContent);
+        opt.style.display = !q || label.includes(q) ? '' : 'none';
+      });
+    });
+  });
+}
+
+function renderActiveChips(){
+  const wrap = document.getElementById('active-chips');
+  let chips = [];
+  FILTER_GROUPS.forEach(g=>{
+    activeFilters[g.key].forEach(v=>{
+      chips.push({key:g.key, val:v});
+    });
+  });
+  if(chips.length === 0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = chips.map(c=>`
+    <span class="active-chip" data-key="${c.key}" data-val="${escapeAttr(c.val)}">
+      ${escapeHtml(c.val)}
+      <button aria-label="Kaldır"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </span>`).join('');
+  wrap.querySelectorAll('.active-chip button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const chip = btn.parentElement;
+      activeFilters[chip.dataset.key].delete(chip.dataset.val);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      buildSidebar(); render();
+    });
+  });
+}
+
+function getPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  return 9;
+}
+// Mevcut sayfayı her zaman ortalayan kayan pencere; ilk ve son sayfa (bkz. kullanıcı isteği:
+// "1. ve son sayfa her zaman görünür olsun") ayrıca her zaman ayrı buton olarak eklenir, pencereye
+// dahil değillerse aralarına '...' konur. Pencere bir uca yaklaştığında diğer ucu genişletip N
+// sayfa göstermeye devam eder (bkz. start===2/end===totalPages-1 dallari).
+function getPageList(totalPages, currentPage){
+  const N = getPageWindowSize();
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
+}
+// Sayfa/gezinme butonlarının HEPSİ buradan geçer — URL'i (?page=N) günceller, mevcut sayfayı
+// yeniden çeker ve en üste yumuşak kaydırır (bkz. kullanıcı isteği).
+function goToPage(p){
+  currentPage = p;
+  syncBrowserUrl(true);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function renderPagination(totalPages){
+  const el = document.getElementById('pagination');
+  if(totalPages <= 1){ el.innerHTML=''; return; }
+  let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  getPageList(totalPages, currentPage).forEach(p=>{
+    if(p==='...') html += `<span class="page-ellipsis">…</span>`;
+    else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+  });
+  html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=> goToPage(parseInt(btn.dataset.page)));
+  });
+  const prevBtn=document.getElementById('page-prev'), nextBtn=document.getElementById('page-next');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goToPage(currentPage-1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
+}
+
+// render() artık yalnızca mevcut sayfanın kartlarını /api/projects'ten çeker (bkz. kullanıcı
+// isteği: "Her sayfa geçişinde sadece o sayfadaki proje verisini çek ve render et") — tüm veri
+// seti hiçbir zaman tarayıcıya inmiyor.
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
+  const grid = document.getElementById('card-grid');
+  const empty = document.getElementById('empty-state');
+  grid.style.opacity = '0.5';
+
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/projects?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){
+    console.error('Yapı listesi alınamadı:', err);
+  }
+  if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Yapılar yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} yapı listeleniyor`;
+  renderActiveChips();
+  renderPagination(data.totalPages);
+
+  if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan yapı bulunamadı.'; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  grid.innerHTML = data.items.map((p, i) => {
+    const loc = parseLocation(p.location);
+    // Kart altyazısında yalnızca İL gösterilir, ilçe ATLANIR (bkz. kullanıcı isteği: "İl · Yıl",
+    // ör. "İstanbul · 2024") — ilçe bilgisi hâlâ modalin "Yer:" satırında (bkz. project-meta.js)
+    // tam haliyle görünmeye devam eder, yalnızca kart özetindeki kısa format sadeleştirilir.
+    const locLabel = loc.city;
+    // İlk sıradaki (i<3, 3 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
+    // çizgisinin üstünde görünür — bunları da loading="lazy" ile geciktirmek tarayıcının layout'u
+    // bekleyip isteği ERTELEMESİNE yol açıp ilk yüklenmeyi YAVAŞLATIYORDU (bkz. kullanıcı isteği:
+    // "ilk yüklenme hızını artır"); bu üçü eager + fetchpriority="high" ile hemen istenir, alttaki
+    // (katlanma çizgisinin altındaki) kartlar lazy kalır. sizes, grid'in kırılma noktalarındaki
+    // (bkz. .content-grid @media 720px/960px) gerçek kart genişliğine karşılık gelir — srcset
+    // cdnSrcset() ile üretilir ama IMAGE_CDN_ENABLED false olduğu sürece boş döner (bkz.
+    // image-cdn.js#IMAGE_CDN_ENABLED, zone onayı bekleniyor), o ana kadar davranış değişmez.
+    const aboveFold = i < 3;
+    const imgAttrs = aboveFold
+      ? `loading="eager" fetchpriority="high"`
+      : `loading="lazy" fetchpriority="low"`;
+    const cardImg = p.images && p.images[0];
+    const cardSrcset = cardImg ? cdnSrcset(cardImg, [400, 600, 800]) : '';
+    return `
+    <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
+      <div class="content-card-photo">
+        ${cardImg ? `<img src="${escapeAttr(cdnImg(cardImg, 600))}"${cardSrcset ? ` srcset="${escapeAttr(cardSrcset)}"` : ''} alt="${escapeAttr(p.title)}" ${imgAttrs} decoding="async" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+        <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr((p.images && p.images[0])||'')}" data-href="/projeler/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
+        </button>
+      </div>
+      <div class="content-card-info">
+        <div class="content-card-title">${escapeHtml(p.title)}</div>
+        <div class="content-card-by">${escapeHtml(locLabel)}${p.date ? ' · ' + escapeHtml(p.date) : ''}</div>
+      </div>
+    </a>`;
+  }).join('');
+  wireSaveButtons('project');
+}
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+// data.js'teki initials()/officeColor() ile birebir aynı — bu sayfa performans için data.js'i
+// yüklemiyor, görseli olmayan proje kartları için sadece bu iki küçük saf fonksiyon gerekiyor.
+function initials(name){
+  return (name || '?').replace(/[—.]/g,' ').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+}
+const CARD_PALETTE = ['#2B425F','#3E5A78','#5B7A9B','#4F6478','#7C4B4B'];
+function officeColor(name){
+  let hash = 0;
+  for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
+  return CARD_PALETTE[Math.abs(hash) % CARD_PALETTE.length];
+}
+
+document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
+
+// Kart tıklaması: proje modalı (bkz. js/components/project-modal.js) sayfa yenilenmeden açılsın diye
+// düz sol tıklamalar burada yakalanır — orta tık/Ctrl/Cmd/Shift/Alt ile açma (yeni sekme vb.)
+// tarayıcının kendi doğal davranışına bırakılır (bkz. kullanıcı isteği). Tek bir delege dinleyici
+// #card-grid üzerine BİR KEZ bağlanır — grid.innerHTML her render()'da değişse de konteynerin
+// kendisi hiç değişmediğinden yeniden bağlamaya gerek yok.
+document.getElementById('card-grid').addEventListener('click', (e)=>{
+  if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a.content-card');
+  if(!a || e.target.closest('.card-save-btn')) return;
+  const m = (a.getAttribute('href') || '').match(/^\/projeler\/([^/?#]+)/);
+  if(!m) return;
+  const slug = decodeURIComponent(m[1]);
+  e.preventDefault();
+  ProjectModal.open(slug, { triggerEl: a });
+});
+
+// Tarayıcı geri/ileri tuşu: /projeler/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
+// güncelle (bkz. ProjectModal.handlePopState) — listeyi burada YENİDEN ÇİZME, modal kapanana kadar
+// arka plandaki liste durumu zaten sabit kalmalı (bkz. kullanıcı isteği). Diğer TÜM durumlarda
+// (ör. /proje?filtre=...) eski davranış aynen korunur; modal açıksa önce (URL zaten doğru olduğundan
+// history'e TEKRAR yazmadan) kapatılır.
+window.addEventListener('popstate', ()=>{
+  const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
+  if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
+  // Modal kapanırken buraya (bare /proje) dönülüyorsa arka plandaki liste modal açıkken hiç
+  // değişmedi (etkileşim kilitliydi) — filtreleri sıfırlayıp grid'i YENİDEN ÇEKMEYE gerek yok;
+  // bunu yapmak modal-shell.js'in geri yüklediği scroll konumunu, grid yeniden render olurken
+  // (async fetch + layout shift) bozuyordu (bkz. kullanıcı isteği: scroll konumu tam korunmalı).
+  if(ProjectModal.isOpen()){ ProjectModal.handlePopState(null); return; }
+  FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
+  applyInitialFiltersFromQuery();
+  buildSidebar();
+  render();
+});
+
+applyInitialFiltersFromQuery();
+buildSidebar();
+render();
+
+// Doğrudan /projeler/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
+// otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir geçmiş
+// girdisi açılmaz (bkz. ProjectModal.open). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek
+// bulgu: "Ertegün Evi carousel'den tıklanınca açılmıyor" raporu — aslında TÜM projelerde/mimar/
+// firma sayfalarında genel bir sorundu) — /api/projects edge cache'ten render()'ın kendisinden
+// DAHA HIZLI dönebildiğinden, bu callback bazen ProjectModal (defer script) henüz tanımlanmadan
+// tetikleniyor, "ProjectModal is not defined" hatasıyla SESSİZCE (unhandled promise rejection,
+// konsolda görünmüyor) modalı hiç açmıyordu. DOMContentLoaded'a bağlamak deferred script'lerin
+// (ProjectModal dahil) KESİN olarak tanımlanmış olmasını garantiler — render()/network
+// zamanlamasından tamamen bağımsız.
+document.addEventListener('DOMContentLoaded', () => {
+  const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
+  if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+});
+
+function wireNavSearch(){
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && e.target.value.trim()){
+        window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
+      }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
+    });
+  });
+}
+wireNavSearch();
+
+const navHamburger = document.getElementById('nav-hamburger');
+const navMobileMenu = document.getElementById('nav-mobile-menu');
+navHamburger.addEventListener('click', ()=>{ navMobileMenu.classList.toggle('open'); });
+document.addEventListener('click', (e)=>{
+  if(!navMobileMenu.classList.contains('open')) return;
+  if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
+});
+</script>
+</body>
+</html>
