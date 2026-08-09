@@ -66,7 +66,7 @@ function shapeProjectItem(row) {
     period: p.period, designer: designerNamesFrom(row.designer_names),
     officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
-    description: p.description, images: p.images,
+    description: p.description, images: p.images, buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
   };
 }
 
@@ -159,12 +159,15 @@ function firstImage(imagesJson) {
   try { const arr = imagesJson ? JSON.parse(imagesJson) : []; return arr[0] || null; } catch { return null; }
 }
 
-async function fetchAdjacentProject(env, id) {
-  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  let prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
-  let next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
-  if (!next) next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
+// buildStatus: önceki/sonraki gezinme kaynak projeyle AYNI kategoride kalır (bkz. kullanıcı
+// isteği, migrations/0037_project_build_status.sql) — aksi halde "Sonraki" bir yapıdan bir
+// konsept projeye (ya da tersi) sıçrayabilirdi.
+async function fetchAdjacentProject(env, id, buildStatus) {
+  const where = `deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?`;
+  let prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(buildStatus, id).first();
+  let next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(buildStatus, id).first();
+  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id DESC LIMIT 1`).bind(buildStatus).first();
+  if (!next) next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id ASC LIMIT 1`).bind(buildStatus).first();
   if (prev && prev.id === id) prev = null;
   if (next && next.id === id) next = null;
   return {
@@ -255,7 +258,7 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     item.designerDetails = designerDetails;
     item.products = catalog.products;
     item.materials = catalog.materials;
-    const adjacent = await fetchAdjacentProject(env, row.id);
+    const adjacent = await fetchAdjacentProject(env, row.id, row.build_status === 'concept' ? 'concept' : 'built');
     item.prevProject = adjacent.prevProject;
     item.nextProject = adjacent.nextProject;
     return { item, hidden: false };
@@ -280,15 +283,20 @@ function isOfficeName(name) {
 // bkz. src/lib/facetCounts.js#recomputeProjectFacets — facet_counts'ın "hiçbir filtre aktif değil"
 // anlık görüntüsünü üretmek için handleProjectFiltersRoute ile AYNI havuzu (aktif/gizli olmayan
 // projeler + designer isim dizisi) paylaşır, tek sorgu mantığını burada tekilleştirir.
-export async function fetchActiveProjectPool(env) {
+// buildStatus: 'built' (yapi.html — inşa edilmiş eserler) | 'concept' (proje.html — öğrenci/
+// yarışma/fikir/konsept projeleri, bkz. kullanıcı isteği, migrations/0037_project_build_status.sql).
+// Parametre verilmezse eski/harici çağıranlarla (ör. index.html vitrin carousel'i) geriye dönük
+// uyumluluk için 'built' varsayılır — canlıda halihazırda var olan TÜM projeler bu kategoridedir.
+export async function fetchActiveProjectPool(env, buildStatus) {
+  const status = buildStatus === 'concept' ? 'concept' : 'built';
   // ORDER BY p.id DESC — proje.html#render()'daki varsayılan sıralamayla (sort seçilmemişse "son
   // eklenen ilk sırada") birebir aynı; facet sayaçları (bu havuzun diğer tüketicisi,
   // handleProjectFiltersRoute/recomputeProjectFacets) sıradan bağımsız olduğundan etkilenmez.
   const { results } = await env.DB.prepare(
     `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
-     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id ORDER BY p.id DESC`
-  ).all();
+     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ? GROUP BY p.id ORDER BY p.id DESC`
+  ).bind(status).all();
   return results.map(shapeProjectItem);
 }
 
@@ -356,15 +364,21 @@ export async function handleProjectFiltersRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    // Hızlı yol: HİÇBİR filtre/arama aktif değilse (proje.html'in ilk sayfa yüklemesindeki durum),
-    // facet_counts + KV'den (bkz. src/lib/facetCounts.js) anlık oku — tam tarama gerekmez. Yalnızca
-    // o tablonun kapsadığı grupları (rating/district hariç, bkz. facetCounts.js dosya başı kapsam
+    const buildStatus = url.searchParams.get('buildStatus') === 'concept' ? 'concept' : 'built';
+    // Hızlı yol: buildStatus DIŞINDA HİÇBİR filtre/arama aktif değilse (yapi.html'in ilk sayfa
+    // yüklemesindeki durum), facet_counts + KV'den (bkz. src/lib/facetCounts.js) anlık oku — tam
+    // tarama gerekmez. Bu KV önbelleği yalnızca 'built' projeler için hesaplanmıştır (bkz.
+    // migrations/0037_project_build_status.sql — canlıdaki TÜM mevcut projeler bu kategoride); bu
+    // yüzden buildStatus='concept' isteği bu yolu ASLA kullanmaz, her zaman aşağıdaki tam taramaya
+    // düşer (proje.html'in konsept havuzu küçük olduğundan performans sorunu değildir). Yalnızca o
+    // tablonun kapsadığı grupları (rating/district hariç, bkz. facetCounts.js dosya başı kapsam
     // notu) doldurur; istemci taraf zaten bu iki grup için kendi anlık hesabını korur, TAM sayaç
     // seti yalnızca herhangi bir filtre aktifken (aşağıdaki tam tarama yoluyla) hesaplanır.
-    if ([...url.searchParams.keys()].length === 0) {
+    const otherParams = [...url.searchParams.keys()].filter(k => k !== 'buildStatus');
+    if (otherParams.length === 0 && buildStatus === 'built') {
       const cached = await getCachedFacetCounts(env, 'projects');
       if (Object.keys(cached).length) {
-        const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`).first();
+        const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = 'built'`).first();
         const out = {};
         for (const [key, counts] of Object.entries(cached)) {
           out[key] = { counts, options: Object.keys(counts).sort((a, b) => (key === 'dateBucket' ? dateBucketSortKey(b) - dateBucketSortKey(a) : counts[b] - counts[a] || a.localeCompare(b))) };
@@ -377,8 +391,8 @@ export async function handleProjectFiltersRoute(request, env, url) {
       env.DB.prepare(
         `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
          FROM projects p ${DESIGNER_JOIN_SQL}
-         WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL GROUP BY p.id`
-      ).all(),
+         WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ? GROUP BY p.id`
+      ).bind(buildStatus).all(),
       env.DB.prepare(`SELECT target_id, AVG(stars) AS average FROM ratings WHERE target_type = 'project' GROUP BY target_id`).all(),
     ]);
 
@@ -434,9 +448,10 @@ export async function handleProjectListRoute(request, env, url) {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
+    const buildStatus = url.searchParams.get('buildStatus') === 'concept' ? 'concept' : 'built';
 
     const [pool, ratingRows] = await Promise.all([
-      fetchActiveProjectPool(env),
+      fetchActiveProjectPool(env, buildStatus),
       env.DB.prepare(`SELECT target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type = 'project' GROUP BY target_id`).all(),
     ]);
     const ratingBySlug = new Map();

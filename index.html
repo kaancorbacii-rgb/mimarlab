@@ -440,6 +440,7 @@
       <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="yapi.html">Yapı</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
@@ -455,6 +456,7 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
+      <a class="nav-mobile-link" href="yapi.html">Yapı</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
@@ -526,6 +528,7 @@
       </div>
       <div class="footer-col">
         <h4>Ana Menü</h4>
+        <a href="yapi.html">Yapı</a>
         <a href="proje.html">Proje</a>
         <a href="mimar.html">Mimar</a>
         <a href="firma.html">Firma</a>
@@ -915,7 +918,9 @@ Promise.all([
   // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
   // düzenlemeleri/gizlemeleri satırın kendisinde, ayrı /api/public/hidden ve /api/public/project-
   // edits fetch'lerine (ve client-side overlay'e) artık gerek yok.
-  fetchPublicJson('/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
+  // buildStatus=built: anasayfa vitrini yalnızca inşa edilmiş eserleri gösterir (bkz. kullanıcı
+  // isteği, migrations/0037_project_build_status.sql) — konsept/öğrenci/yarışma projeleri proje.html'e.
+  fetchPublicJson('/api/projects?buildStatus=built&limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
   // Mimar/Firma mini-carousel'leri (bkz. kullanıcı isteği: "en çok projesi olan ilk 6 Mimar ve
   // Firma") artık statik dizi/el ile seçilmiş vitrin OKUMUYOR — proje.html/mimar.html/firma.html'in
   // kendi listeleme sayfalarında da kullandığı genel D1 uçlarından ?limit=6 ile çekilir. sort

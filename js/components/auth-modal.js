@@ -162,7 +162,7 @@ const AuthModal = (function () {
     return `
     <div class="auth-wrap">
       <div class="auth-eyebrow">Hesap</div>
-      <h1 class="auth-title">Tekrar hoş geldin</h1>
+      <h1 class="auth-title">Hoş geldin</h1>
       <p class="auth-sub">Devam etmek için hesabına giriş yap.</p>
       <div class="auth-card">
         <div class="auth-oauth">

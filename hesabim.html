@@ -292,6 +292,7 @@
       <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
     </div>
     <div class="nav-links">
+      <a class="nav-link" href="yapi.html">Yapı</a>
       <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
@@ -307,6 +308,7 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
+      <a class="nav-mobile-link" href="yapi.html">Yapı</a>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
@@ -514,6 +516,7 @@
       </div>
       <div class="footer-col">
         <h4>Ana Menü</h4>
+        <a href="yapi.html">Yapı</a>
         <a href="proje.html">Proje</a>
         <a href="mimar.html">Mimar</a>
         <a href="firma.html">Firma</a>
@@ -768,7 +771,7 @@ function renderSaved(){
   const container = document.getElementById('dash-saved');
   const items = savedFilter ? savedItems.filter(it => it.item_type === savedFilter) : savedItems;
   if(!savedItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="yapi.html">Projelere göz at</a></div>';
     document.getElementById('saved-pagination').innerHTML = '';
     return;
   }
@@ -824,7 +827,7 @@ function renderRated(){
   const container = document.getElementById('dash-rated');
   const items = ratedFilter ? ratedItems.filter(it => it.type === ratedFilter) : ratedItems;
   if(!ratedItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="yapi.html">Projelere göz at</a></div>';
     document.getElementById('rated-pagination').innerHTML = '';
     return;
   }
@@ -874,7 +877,7 @@ async function loadComments(){
 function renderComments(){
   const container = document.getElementById('dash-comments');
   if(!commentItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="yapi.html">Projelere göz at</a></div>';
     document.getElementById('comments-pagination').innerHTML = '';
     return;
   }

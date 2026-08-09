@@ -17,7 +17,7 @@ export const SUBMISSION_TYPES = {
     fields: [
       'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
-      'claimed_slug', 'source_url', 'ai_generated',
+      'claimed_slug', 'source_url', 'ai_generated', 'build_status',
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,
@@ -168,6 +168,13 @@ export function normalizeSubmission(type, body) {
     let value = body[field];
     if (field === 'ai_generated' || field === 'consultant_request') {
       value = value ? 1 : 0;
+    } else if (field === 'build_status') {
+      // build_status NOT NULL'dur (bkz. migrations/0037_project_build_status.sql) — bu alanı
+      // henüz göndermeyen çağıranlarda (ör. AI ile otomatik ekleme, src/routes/ai.js) undefined/''
+      // asla ham NULL olarak INSERT edilmemeli (DEFAULT yalnızca sütun sorguda hiç YOKSA devreye
+      // girer, ?'li bind'da NULL constraint'i ihlal eder) — bu yüzden burada da güvenli varsayılan
+      // 'built'e düşülür.
+      value = value === 'concept' ? 'concept' : 'built';
     } else if (config.arrayFields.includes(field)) {
       if (!Array.isArray(value)) value = value ? [value] : [];
       value = JSON.stringify(value.filter(Boolean));

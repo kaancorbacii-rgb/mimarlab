@@ -8,13 +8,13 @@
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title id="page-title">Yapılar — MİMARLAB</title>
 <meta name="description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı yapıları." id="meta-description">
-<link rel="canonical" href="https://mimarlab.com/yapi.html" id="canonical-link">
+<link rel="canonical" href="https://mimarlab.com/yapi" id="canonical-link">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Yapılar — MİMARLAB" id="og-title">
 <meta property="og:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı yapıları." id="og-description">
-<meta property="og:url" content="https://mimarlab.com/yapi.html" id="og-url">
+<meta property="og:url" content="https://mimarlab.com/yapi" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Yapılar — MİMARLAB" id="twitter-title">
@@ -25,7 +25,7 @@
      src/index.js#injectMeta ile SSR'da AYRI CreativeWork + BreadcrumbList şeması ekler, bu ikisiyle
      çakışmaz. -->
 <script type="application/ld+json" id="list-jsonld">
-{"@context":"https://schema.org","@type":"CollectionPage","name":"Yapılar — MİMARLAB","url":"https://mimarlab.com/yapi.html","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Yapılar — MİMARLAB","url":"https://mimarlab.com/yapi","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
 <!-- Temiz URL'lerle bu sayfa /proje dışında /projeler/:slug altında da (proje modalını doğrudan
      açan bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları
@@ -751,6 +751,7 @@
     </div>
     <div class="nav-links">
       <a class="nav-link active" href="yapi.html">Yapı</a>
+      <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
     </div>
@@ -766,6 +767,7 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link active" href="yapi.html">Yapı</a>
+      <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
     </div>
@@ -819,7 +821,7 @@
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="yapi.html">Yapı</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="yapi.html">Yapı</a><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
     </div>
@@ -894,6 +896,9 @@ function trLower(s){
 // TEK noktadan kullanılır.
 function currentQueryParams(){
   const params = new URLSearchParams();
+  // Bu sayfa yalnızca inşa edilmiş yapıları listeler (bkz. kullanıcı isteği, migrations/
+  // 0037_project_build_status.sql) — proje.html'in AYNI fonksiyonu buildStatus='concept' gönderir.
+  params.set('buildStatus', 'built');
   FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
   if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
   const sort = document.getElementById('g-sort').value;

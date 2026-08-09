@@ -106,7 +106,7 @@ const CLEAN_URL_ASSETS = [
   // ProductModal, bkz. js/components/) doğrudan açar, injectMeta() ise AYNI HTMLRewriter
   // mekanizmasıyla o listeleme sayfasının <head>'indeki id'li meta etiketlerini hedefler (bkz.
   // proje.html/mimar.html/firma.html/urun.html#meta-description vb.).
-  { prefix: '/projeler/', asset: '/proje', type: 'project' },
+  { prefix: '/projeler/', asset: '/yapi', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
@@ -224,7 +224,7 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/', changefreq: 'daily', priority: '1.0' },
   { loc: '/mimar', changefreq: 'daily', priority: '0.9' },
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
-  { loc: '/proje', changefreq: 'daily', priority: '0.9' },
+  { loc: '/yapi', changefreq: 'daily', priority: '0.9' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },

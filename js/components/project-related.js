@@ -31,14 +31,14 @@ const ArchitectProjects = (function () {
   // sunucuda 96'ya sabitlenir) — tek bir limit=8 isteği yerine Mimar Sinan gibi çok projesi olan
   // mimar/firmaların TÜM projelerini kaçırmamak için (bkz. kullanıcı isteği: "eksiksiz listelenmesin")
   // dönen totalPages tükenene kadar sayfa sayfa (96'şar) çekilip birleştirilir.
-  async function fetchByDesigner(name, type) {
+  async function fetchByDesigner(name, type, buildStatus) {
     const key = type === 'architect' ? 'designer' : 'designerOffice';
     const items = [];
     let page = 1;
     let totalPages = 1;
     try {
       do {
-        const res = await fetch(`/api/projects?${key}=${encodeURIComponent(name)}&limit=96&page=${page}`);
+        const res = await fetch(`/api/projects?${key}=${encodeURIComponent(name)}&buildStatus=${encodeURIComponent(buildStatus)}&limit=96&page=${page}`);
         if (!res.ok) break;
         const data = await res.json();
         items.push(...(data.items || []));
@@ -53,7 +53,9 @@ const ArchitectProjects = (function () {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const section = document.getElementById(mergedIds.section);
     const designers = item.designerDetails || [];
-    const lists = await Promise.all(designers.map(d => fetchByDesigner(d.name, d.type)));
+    // buildStatus: kaynak projeyle AYNI kategori (bkz. gatherCandidateQueries'teki AYNI gerekçe).
+    const buildStatus = item.buildStatus === 'concept' ? 'concept' : 'built';
+    const lists = await Promise.all(designers.map(d => fetchByDesigner(d.name, d.type, buildStatus)));
     const seen = new Set([item.slug]);
     const merged = [];
     lists.flat().forEach(p => { if (!seen.has(p.slug)) { seen.add(p.slug); merged.push(p); } });
@@ -177,8 +179,15 @@ const RelatedProjects = (function () {
   // discipline değeri OR mantığıyla eşleşir (bkz. passesFilters#vals.some).
   function gatherCandidateQueries(item) {
     const queries = [];
+    // buildStatus: aday havuzu kaynak projeyle AYNI kategoride kalmalı (bkz. kullanıcı isteği,
+    // migrations/0037_project_build_status.sql) — aksi halde bir konsept/öğrenci projesinin
+    // "İlgili Projeler"i arasına inşa edilmiş eserler (ya da tersi) karışırdı.
+    const buildStatusParam = ['buildStatus', item.buildStatus === 'concept' ? 'concept' : 'built'];
     const disciplineParams = (item.discipline || []).map(d => ['discipline', d]);
-    const withDiscipline = params => disciplineParams.length ? [...params, ...disciplineParams] : params;
+    const withDiscipline = params => {
+      const withBuildStatus = [...params, buildStatusParam];
+      return disciplineParams.length ? [...withBuildStatus, ...disciplineParams] : withBuildStatus;
+    };
     (item.designerDetails || []).forEach(d => {
       if (d.unregistered) return;
       queries.push(fetchByParams(withDiscipline([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
@@ -189,7 +198,7 @@ const RelatedProjects = (function () {
     const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
     if (rawCity) queries.push(fetchByParams(withDiscipline([['location', rawCity]]), 16));
     queries.push(fetchByParams(withDiscipline([['sort', 'rating_desc']]), 16)); // genel havuz — boşluk doldurma
-    if (disciplineParams.length) queries.push(fetchByParams(disciplineParams, 24)); // Tür'e özel geniş havuz
+    if (disciplineParams.length) queries.push(fetchByParams([...disciplineParams, buildStatusParam], 24)); // Tür'e özel geniş havuz
     return { queries, topLevelLocation };
   }
 

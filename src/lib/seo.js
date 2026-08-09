@@ -53,7 +53,7 @@ const CATALOG_CRUMB = {
   architect: { label: 'Mimarlar', path: '/mimar' },
   consultant: { label: 'Danışmanlık', path: '/danisman' },
   office: { label: 'Firmalar', path: '/firma' },
-  project: { label: 'Projeler', path: '/proje' },
+  project: { label: 'Yapılar', path: '/yapi' },
   product: { label: 'Ürün', path: '/urun' },
   news: { label: 'Haberler', path: '/haber' },
 };
