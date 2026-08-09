@@ -707,7 +707,10 @@ let submissionsFilter = '';
 let submissionsPage = 1;
 
 async function loadSubmissions(){
-  const types = Object.keys(TYPE_LABELS);
+  // Ürün/malzeme artık yayında değil (bkz. kullanıcı isteği) — bu kutuda hiç görünmesinler diye
+  // TYPE_LABELS'ta hâlâ tanımlı olsalar da (SAVED_TYPE_LABELS'ta da AYNI gerekçeyle) burada
+  // isteğe dahil edilmiyorlar.
+  const types = Object.keys(TYPE_LABELS).filter(t => t !== 'products' && t !== 'materials');
   const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : {items:[]})));
   allSubmissions = [];
   types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({type: t, item})));
@@ -755,7 +758,9 @@ let savedPage = 1;
 async function loadSaved(){
   const res = await fetch('/api/saved');
   const data = res.ok ? await res.json() : { items: [] };
-  savedItems = data.items || [];
+  // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski kaydedilmiş ürün kayıtları (varsa)
+  // artık 404 olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
+  savedItems = (data.items || []).filter(it => it.item_type !== 'product' && it.item_type !== 'material');
   renderSaved();
 }
 
@@ -809,7 +814,9 @@ let ratedPage = 1;
 async function loadRated(){
   const res = await fetch('/api/ratings/mine');
   const data = res.ok ? await res.json() : { items: [] };
-  ratedItems = data.items || [];
+  // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski ürün puanlamaları (varsa) artık 404
+  // olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
+  ratedItems = (data.items || []).filter(it => it.type !== 'product' && it.type !== 'material');
   renderRated();
 }
 
