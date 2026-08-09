@@ -30,13 +30,20 @@ function toPublicShape(type, row) {
 
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
-  if (segments[2] === 'news') return listPublicNews(request, env);
+  // Haber artık yayında değil (bkz. kullanıcı isteği, src/index.js#DISABLED_PAGE_PATHS) —
+  // haber.html'in tükettiği bu tam-liste ucu kapatıldı, listPublicNews/fetchAllNewsItems
+  // DOKUNULMADAN kalır (yalnızca artık çağrılmıyor).
+  if (segments[2] === 'news') return errorJson('Bulunamadı', 404);
   if (segments[2] === 'hidden') return handlePublicHidden(request, env);
   if (segments[2] === 'search-suggest') return handlePublicSearchSuggest(request, env, url);
   if (segments[2] === 'search') return handlePublicSearchFull(request, env, url);
   if (segments[2] === 'profile-edits') return handlePublicProfileEdits(request, env);
   if (segments[2] === 'project-edits') return handlePublicProjectEdits(request, env);
-  if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);
+  // Ürün/malzeme/haber artık yayında değil (bkz. kullanıcı isteği) — mimar/firma pop-uplarındaki
+  // bu ürün/malzeme/haber kutuları kaldırıldığından (bkz. architect-modal.js/office-modal.js)
+  // bu uç artık hiç çağrılmıyor; ek güvence olarak burada da kapatıldı. handlePublicProfileContent
+  // DOKUNULMADAN kalır.
+  if (segments[2] === 'profile-content') return errorJson('Bulunamadı', 404);
   if (segments[2] === 'claim-status') return handlePublicClaimStatus(request, env, url);
   if (segments[2] === 'save-count') return handlePublicSaveCount(request, env, url);
   return errorJson('Bulunamadı', 404);

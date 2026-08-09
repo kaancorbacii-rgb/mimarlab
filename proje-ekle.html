@@ -169,7 +169,7 @@
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
 
-  /* ---------- AUTOCOMPLETE (Tip, Mimar, Ofis, Marka, Ürün) ---------- */
+  /* ---------- AUTOCOMPLETE (Tip, Mimar, Ofis) ---------- */
   .ac-field{position:relative;}
   .ac-suggestions{
     display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
@@ -180,25 +180,6 @@
   .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
   .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
   .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
-
-  /* ---------- MARKA/ÜRÜN CHIP LİSTESİ ---------- */
-  .brand-add-row{display:flex; gap:10px; align-items:flex-start;}
-  .brand-add-row .ac-field{flex:1; min-width:0;}
-  .brand-add-btn{
-    flex-shrink:0; background:var(--ink); color:var(--paper-card); border:none; border-radius:10px;
-    padding:0 18px; height:42px; font-weight:600; font-size:13px; white-space:nowrap;
-  }
-  .brand-add-btn:hover{background:var(--walnut);}
-  .brand-chip-list{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
-  .brand-chip{
-    display:inline-flex; align-items:center; gap:8px; background:var(--paper-alt); border-radius:100px;
-    padding:7px 8px 7px 14px; font-size:13px; color:var(--ink);
-  }
-  .brand-chip-remove{
-    width:20px; height:20px; border-radius:50%; border:none; background:rgba(27,42,61,0.14);
-    color:var(--ink); display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;
-  }
-  .brand-chip-remove:hover{background:rgba(27,42,61,0.28);}
 
   .image-drop{
     display:block; border:2px dashed var(--line); border-radius:14px; padding:30px; text-align:center;
@@ -300,8 +281,6 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
-<script src="urunler-data.js"></script>
-<script src="malzemeler-data.js"></script>
 <script src="il-ilce-data.js"></script>
 
   <nav class="nav">
@@ -314,10 +293,8 @@
     </div>
     <div class="nav-links">
       <a class="nav-link active" href="proje.html">Proje</a>
-      <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
-      <a class="nav-link" href="danisman.html">Danışman</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -331,10 +308,8 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link active" href="proje.html">Proje</a>
-      <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
-      <a class="nav-mobile-link" href="danisman.html">Danışman</a>
     </div>
   </nav>
 
@@ -469,26 +444,6 @@
       </div>
 
       <div class="form-section">
-        <h2>Kullanılan Ürünler / Firmalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Projede kullanılan ürünleri eklemek için önce firmayı, sonra ürünü yaz. Dizindeki bir firma adıyla eşleşirse otomatik bağlanır.</p>
-        <div class="form-field">
-          <div class="brand-add-row">
-            <div class="ac-field" id="ac-urun-field">
-              <input type="text" id="p-product-input" placeholder="Ürün" autocomplete="off">
-              <div class="ac-suggestions" id="ac-urun-suggestions"></div>
-            </div>
-            <div class="ac-field" id="ac-marka-field">
-              <input type="text" id="p-brand-input" placeholder="Firma" autocomplete="off">
-              <div class="ac-suggestions" id="ac-marka-suggestions"></div>
-            </div>
-            <button type="button" class="brand-add-btn" id="brand-add-btn">+ Ekle</button>
-          </div>
-          <div class="form-hint">Eklemek için "+ Ekle"ye ya da Enter'a bas.</div>
-          <div class="brand-chip-list" id="brand-chip-list"></div>
-        </div>
-      </div>
-
-      <div class="form-section">
         <h2>Görseller</h2>
         <p class="section-hint">İlk görsel kapak fotoğrafı olarak kullanılır. Varsa önce dış mekan, sonrasında iç mekan ve en son çizim vb. diğer görselleri yükleyin lütfen.</p>
         <label class="image-drop" id="image-drop">
@@ -520,9 +475,9 @@
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="danisman.html">Danışman</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>
@@ -635,7 +590,7 @@ function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
 const updateKategoriLabel = wireMultiDropdown('dd-kategori', 'dd-kategori-btn', 'dd-kategori-btn-label', 'Kategori seç');
 const updateTurLabel = wireMultiDropdown('dd-tur', 'dd-tur-btn', 'dd-tur-btn-label', 'Tür seç');
 
-// ---------- OTOMATİK TAMAMLAMA: Tip, Mimar, Ofis, Marka, Ürün ----------
+// ---------- OTOMATİK TAMAMLAMA: Tip, Mimar, Ofis ----------
 function lastCommaSegment(value){
   const parts = value.split(',');
   return parts[parts.length - 1].trim();
@@ -727,53 +682,9 @@ fetch('/api/projects/filters').then(r => r.ok ? r.json() : {filters:{}}).then(d 
   const options = (d.filters && d.filters.type && d.filters.type.options) || [];
   TYPE_SUGGESTIONS = [...options].sort((a,b)=>a.localeCompare(b,'tr')).map(t => ({label: t}));
 }).catch(()=>{});
-const URUN_SUGGESTIONS = [...(typeof products !== 'undefined' ? products : []), ...(typeof materials !== 'undefined' ? materials : [])]
-  .filter(p => p.title).map(p => ({label: p.title, sub: p.brand || '', brand: p.brand || ''}));
-
 wireAutocomplete('p-type', 'ac-type-suggestions', () => TYPE_SUGGESTIONS);
 wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
 wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search');
-wireAutocompleteLive('p-brand-input', 'ac-marka-suggestions', '/api/offices/search', {multi:false});
-
-wireAutocomplete('p-product-input', 'ac-urun-suggestions', () => URUN_SUGGESTIONS, {multi:false, onPick: (item)=>{
-  const brandInput = document.getElementById('p-brand-input');
-  if(!brandInput.value.trim() && item.brand) brandInput.value = item.brand;
-}});
-
-// ---------- KULLANILAN ÜRÜNLER / MARKALAR: marka+ürün çiftlerinden oluşan chip listesi ----------
-let brandChips = [];
-function renderBrandChips(){
-  const list = document.getElementById('brand-chip-list');
-  list.innerHTML = brandChips.map((c, i) => `
-    <span class="brand-chip">
-      ${escapeAttr(c.product ? `${c.product} — ${c.brand}` : c.brand)}
-      <button type="button" class="brand-chip-remove" data-index="${i}" aria-label="Kaldır">✕</button>
-    </span>`).join('');
-  list.querySelectorAll('.brand-chip-remove').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      brandChips.splice(parseInt(btn.dataset.index), 1);
-      renderBrandChips();
-    });
-  });
-}
-function addBrandChip(){
-  const brandInput = document.getElementById('p-brand-input');
-  const productInput = document.getElementById('p-product-input');
-  const brand = brandInput.value.trim();
-  const product = productInput.value.trim();
-  if(!brand){ brandInput.focus(); return; }
-  brandChips.push({ brand, product: product || null });
-  brandInput.value = '';
-  productInput.value = '';
-  renderBrandChips();
-  brandInput.focus();
-}
-document.getElementById('brand-add-btn').addEventListener('click', addBrandChip);
-['p-brand-input','p-product-input'].forEach(id=>{
-  document.getElementById(id).addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter'){ e.preventDefault(); addBrandChip(); }
-  });
-});
 
 function mediaItemSrc(item){
   return item.kind === 'existing' ? item.url : item.objectUrl;
@@ -956,8 +867,6 @@ async function prefillForEdit(){
     updateKategoriLabel();
     document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (item.discipline || []).includes(cb.value));
     updateTurLabel();
-    brandChips = (item.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
-    renderBrandChips();
     setExistingImages(item.images || []);
     renderPreviews();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -1038,10 +947,6 @@ async function prefillForClaim(){
   updateKategoriLabel();
   document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (merged.discipline || []).includes(cb.value));
   updateTurLabel();
-  // brands artık project_products join'inden gelen gerçek products/materials dizileri (bkz. dosya
-  // başı yorum) — form chip listesi bunlardan {brand, product} çiftleri olarak yeniden kurulur.
-  brandChips = [...(merged.products || []), ...(merged.materials || [])].map(p => ({ brand: p.brand || '', product: p.title || null }));
-  renderBrandChips();
   setExistingImages(merged.images || []);
   renderPreviews();
 }
@@ -1085,7 +990,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   // anahtar kelime tahminiyle yanlışlıkla "Mimar:" altına düşebilir (bkz. gerçek bulgu: Createct).
   const designer = document.getElementById('p-designer').value.split(',').map(s => s.trim()).filter(Boolean);
   const office = document.getElementById('p-office').value.split(',').map(s => s.trim()).filter(Boolean);
-  const brands = brandChips.map(c => ({ brand: c.brand, product: c.product || null }));
 
   if(!selectedIl){
     notice.textContent = 'Bir il seç.';
@@ -1118,7 +1022,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     location: selectedIlce || selectedIl,
     locationDetail: null,
     date: document.getElementById('p-date').value,
-    category, type, discipline, designer, office, brands,
+    category, type, discipline, designer, office,
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
     photoCreditUrl: document.getElementById('p-credit-url').value || null,
@@ -1197,8 +1101,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     document.getElementById('dd-il-btn-label').textContent = 'İl seç';
     document.getElementById('dd-ilce-btn-label').textContent = 'Önce il seç';
     document.getElementById('dd-ilce-btn').disabled = true;
-    brandChips = [];
-    renderBrandChips();
     updateKategoriLabel();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';

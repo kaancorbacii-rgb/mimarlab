@@ -628,25 +628,6 @@
   .related-grid-scroll::-webkit-scrollbar{display:none;}
   .related-grid-scroll .related-card{flex:0 0 200px;}
 
-  .catalog-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
-  .catalog-grid-scroll::-webkit-scrollbar{display:none;}
-  /* bkz. .related-card yorumu — aynı gerekçeyle başlık artık görselin altında. */
-  .catalog-card{
-    display:block; flex:0 0 180px; border-radius:12px; overflow:hidden;
-    background:var(--paper-card); border:1px solid var(--line-soft);
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  a.catalog-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
-  .catalog-card-photo{position:relative; aspect-ratio:1/1; overflow:hidden;}
-  .catalog-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .catalog-card .catalog-placeholder-favicon{position:static; width:24px; height:24px; border-radius:6px; background:#fff; padding:3px; object-fit:contain;}
-  .catalog-placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; color:rgba(255,255,255,0.92);}
-  .catalog-placeholder-initials{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; letter-spacing:0.02em;}
-  .catalog-card-info{padding:10px 12px; color:var(--ink);}
-  .catalog-card-cat{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--sage); margin-bottom:4px;}
-  .catalog-card-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; line-height:1.25; margin-bottom:2px; color:var(--ink);}
-  .catalog-card-by{font-size:11px; color:var(--ink-soft);}
-
   .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
   .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
   .prevnext a:hover{border-color:var(--walnut);}
@@ -667,8 +648,6 @@
   @media (max-width:860px){
     .related-grid-scroll .related-card{flex:0 0 140px;}
     .related-grid-scroll{gap:10px;}
-    .catalog-card{flex:0 0 130px;}
-    .catalog-grid-scroll{gap:10px;}
     .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
     /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Yorumlar →
@@ -694,14 +673,12 @@
     #pm-comments-section{order:7;}
     #pm-same-designer-section{order:8;}
     #pm-related-section{order:9;}
-    #pm-products-section{order:10;}
-    #pm-materials-section{order:11;}
-    #pm-prevnext{order:12;}
+    #pm-prevnext{order:10;}
     /* Bilgi Kaynağı & Geri Bildirim — mobil/tablette sayfanın en altına taşındı (kullanıcı isteği),
        masaüstünde DOM sırası (Yorumlar'dan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order
        değerleri etkilenir. */
-    #pm-info-divider{order:13;}
-    #pm-feedback-card{order:14;}
+    #pm-info-divider{order:11;}
+    #pm-feedback-card{order:12;}
 
     /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
        yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural
@@ -759,7 +736,6 @@
 <script src="js/components/project-actions.js" defer></script>
 <script src="js/components/project-comments.js" defer></script>
 <script src="js/components/project-related.js" defer></script>
-<script src="js/components/project-products.js" defer></script>
 <script src="js/components/project-modal.js" defer></script>
 
   <nav class="nav">
@@ -772,10 +748,8 @@
     </div>
     <div class="nav-links">
       <a class="nav-link active" href="proje.html">Proje</a>
-      <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
-      <a class="nav-link" href="danisman.html">Danışman</a>
     </div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
@@ -789,10 +763,8 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link active" href="proje.html">Proje</a>
-      <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
-      <a class="nav-mobile-link" href="danisman.html">Danışman</a>
     </div>
   </nav>
 
@@ -844,9 +816,9 @@
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="danisman.html">Danışman</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="kariyer.html">Kariyer</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>

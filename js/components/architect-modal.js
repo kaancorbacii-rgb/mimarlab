@@ -177,10 +177,6 @@ const ArchitectModal = (function () {
       <h2 class="related-title">Projeler</h2>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
     </div>
-    <div class="related-section" id="am-related-products-section" style="display:none;">
-      <h2 class="related-title">Ürünler</h2>
-      <div class="related-grid-scroll" id="am-related-products-grid"></div>
-    </div>
     <div class="prevnext" id="am-prevnext"></div>
     <hr class="prevnext-mobile-divider">`;
 
@@ -340,7 +336,7 @@ const ArchitectModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['am-actions', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
-    'am-related-products-section', 'am-detail-info', 'am-prevnext'];
+    'am-detail-info', 'am-prevnext'];
 
   async function renderItem(payload) {
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
@@ -475,17 +471,6 @@ const ArchitectModal = (function () {
       },
     });
 
-    async function loadProfileContent() {
-      try {
-        const res = await fetch(`/api/public/profile-content?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(a.name)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const products = data.products || [];
-        document.getElementById('am-related-products-section').style.display = products.length ? '' : 'none';
-        document.getElementById('am-related-products-grid').innerHTML = products.map(p => cardHtml('urun.html', p.title, p.image, p.category)).join('');
-      } catch {}
-    }
-
     function renderVerifiedBadges() {
       document.getElementById('am-verified-badge-wrap').innerHTML = verifiedBadgeHtml(PROFILE_TYPE, a.name, a.badges, 20);
       // bkz. kullanıcı isteği: mavi rozet firma/meslektaş kartlarında da görünmeli — bu ikisi de
@@ -496,7 +481,6 @@ const ArchitectModal = (function () {
     renderVerifiedBadges();
     window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges, { once: true });
 
-    loadProfileContent();
     await savedWidgetReady;
     await claimBox.init();
 

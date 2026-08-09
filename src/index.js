@@ -3,13 +3,11 @@ import { logRequest } from './lib/logger.js';
 import { buildMeta, listEntityUrls } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
-import { handlePublicRoute, handleNewsListRoute } from './routes/public.js';
+import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
-import { handleConsultantListRoute, handleConsultantRoute, handleConsultantModerateRoute, handleConsultantEditRoute } from './routes/consultant.js';
 import { handleConsultantBookingsRoute } from './routes/consultantBookings.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
-import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
 import { handleFacetsRoute } from './routes/facets.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete } from './routes/legacyContent.js';
@@ -121,6 +119,26 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/danisman/', asset: '/danisman', type: 'consultant' },
 ];
 
+// Ürün/Danışman/Haber/İş İlanı (Kariyer) — yayından kaldırıldı (bkz. kullanıcı isteği). Sayfa
+// dosyaları, route'lar ve D1 verisi SİLİNMEDİ (geri açılması kolay olsun diye) — yalnızca public
+// erişim burada kapatılıyor. Hem uzantısız hem ".html" biten biçim eşlenir (bare karşılaştırma
+// aşağıda isDisabledPagePath() içinde .html'i atıyor).
+const DISABLED_PAGE_PATHS = new Set([
+  '/urun', '/urun-ekle',
+  '/danisman', '/danisman-ekle',
+  '/haber', '/haber-ekle', '/haber-detay',
+  '/kariyer',
+]);
+// /urun/:slug, /haberler/:id, /danisman/:slug — CLEAN_URL_ASSETS'teki karşılık gelen detay
+// önekleri, aynı gerekçeyle.
+const DISABLED_PAGE_PREFIXES = ['/urun/', '/haberler/', '/danisman/'];
+
+function isDisabledPagePath(pathname) {
+  const bare = pathname.replace(/\.html$/, '');
+  if (DISABLED_PAGE_PATHS.has(bare)) return true;
+  return DISABLED_PAGE_PREFIXES.some(p => bare.startsWith(p) && bare.length > p.length);
+}
+
 // Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
 // (bkz. kullanıcı isteği: /ofis -> /firma, Malzeme'nin Ürün'e taşınması) eski bağlantıların/
 // yer imlerinin kırılmaması için. Hem uzantısız hem ".html" biten biçim eşlenir.
@@ -154,7 +172,6 @@ const PATH_RENAME_REDIRECTS = {
   '/hakkinda.html': '/hakkinda',
   '/gizlilik-politikasi.html': '/gizlilik-politikasi',
   '/hizmet-sartlari.html': '/hizmet-sartlari',
-  '/kariyer.html': '/kariyer',
 };
 
 // Giriş/Üye Ol/Hesabım modallarının doğrudan URL ile açılması (F5/deep-link) — CLEAN_URL_ASSETS'in
@@ -184,7 +201,9 @@ const INFO_MODAL_META = {
   '/hakkinda': { title: 'Hakkında — MİMARLAB', description: 'MİMARLAB hakkında — Türkiye\'nin mimarlık, iç mimarlık ve peyzaj mimarlığı platformu.', noindex: false },
   '/gizlilik-politikasi': { title: 'Gizlilik Politikası — MİMARLAB', description: 'MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.', noindex: false },
   '/hizmet-sartlari': { title: 'Hizmet Şartları — MİMARLAB', description: 'MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.', noindex: false },
-  '/kariyer': { title: 'Kariyer — MİMARLAB', description: 'Mimarlık ve tasarım alanında kariyer fırsatları ve rehberi.', noindex: false },
+  // Kariyer artık yayında değil (bkz. kullanıcı isteği, DISABLED_PAGE_PATHS) — /kariyer isteği
+  // routeAsset()'in en başındaki isDisabledPagePath() kontrolünde 404'e düştüğünden buraya hiç
+  // ulaşmaz.
 };
 
 // Eski /markalar/:slug firma detay URL'leri artık /firma/:slug (bkz. kullanıcı isteği: SEO/backlink
@@ -206,13 +225,8 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/mimar', changefreq: 'daily', priority: '0.9' },
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
-  { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
-  { loc: '/haber', changefreq: 'daily', priority: '0.7' },
-  { loc: '/is-ilani', changefreq: 'daily', priority: '0.7' },
-  { loc: '/danisman', changefreq: 'daily', priority: '0.8' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
-  { loc: '/kariyer', changefreq: 'monthly', priority: '0.4' },
   { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },
   // gerçek bulgu: bu ikisi indexlenebilir (robots noindex YOK, bkz. INFO_MODAL_META) ama sitemap'te
   // hiç yer almıyordu — Rozet Al/İade Et bilerek dışında bırakıldı, onlar noindex.
@@ -278,6 +292,8 @@ export default {
 };
 
 async function routeAsset(request, env, url, ctx) {
+  if (isDisabledPagePath(url.pathname)) return notFoundPageResponse();
+
   const renameTarget = PATH_RENAME_REDIRECTS[url.pathname];
   if (renameTarget) {
     const dest = new URL(renameTarget, url.origin);
@@ -351,6 +367,26 @@ async function serveInfoModalPage(request, env, url, meta) {
       .transform(finalResponse);
   }
   return finalResponse;
+}
+
+// DISABLED_PAGE_PATHS/PREFIXES için basit, markalı bir 404 — site genelinde ayrı bir statik
+// 404.html dosyası olmadığından (Cloudflare Assets varsayılanı kullanılıyordu) burada minimal
+// bir sayfa döndürülür.
+function notFoundPageResponse() {
+  const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, follow">
+<title>Sayfa Bulunamadı — MİMARLAB</title>
+<style>
+body{font-family:'Inter',sans-serif; background:#F5F3EF; color:#1B2A3D; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; text-align:center; padding:24px;}
+.box{max-width:420px;}
+h1{font-size:22px; margin:0 0 12px;}
+p{font-size:14.5px; color:rgba(27,42,61,0.7); margin:0 0 24px;}
+a{display:inline-block; background:#1B2A3D; color:#F5F3EF; text-decoration:none; padding:11px 22px; border-radius:100px; font-size:14px; font-weight:600;}
+</style></head><body>
+<div class="box"><h1>Bu sayfa artık yayında değil</h1><p>Aradığınız içerik kaldırılmış olabilir.</p><a href="/">Ana Sayfaya Dön</a></div>
+</body></html>`;
+  return new Response(html, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 function withStaticImageCacheHeaders(url, response) {
@@ -508,17 +544,19 @@ async function routeApi(request, env, url) {
   if (path === '/api/projects' && request.method === 'GET') return handleProjectListRoute(request, env, url);
   if (path === '/api/architects' && request.method === 'GET') return handleArchitectListRoute(request, env, url);
   // /danismanlik modülü (bkz. kullanıcı isteği) — architects.is_consultant=1 satırları, /api/
-  // architects ile AYNI liste/detay desen çifti (bkz. src/routes/consultant.js).
-  if (path === '/api/consultants' && request.method === 'GET') return handleConsultantListRoute(request, env, url);
+  // architects ile AYNI liste/detay desen çifti (bkz. src/routes/consultant.js). Danışman artık
+  // yayında değil (bkz. kullanıcı isteği, DISABLED_PAGE_PATHS) — bu public liste ucu kapatıldı,
+  // architects tablosundaki satırlar/is_consultant bayrağı DOKUNULMADAN kalır.
+  if (path === '/api/consultants' && request.method === 'GET') return errorJson('Bulunamadı', 404);
   if (path === '/api/offices' && request.method === 'GET') return handleOfficeListRoute(request, env, url);
-  if (path === '/api/products' && request.method === 'GET') return handleProductListRoute(request, env, url);
-  // Faz 4B doğrulama turunda bulunan gerçek bulgu: BARE /api/news GET, handleSubmissionRoute'ta
-  // segments.length===2 için hiç GET dalı olmadığından (yalnızca POST, bkz. o dosyadaki createSubmission
-  // satırı) hiçbir zaman genel bir liste dönmüyor, auth kontrolüne takılıp 401 veriyordu — yukarıdaki
-  // 4 uçla AYNI desende, gerçek bir public liste ucu buraya eklendi (bkz. src/routes/public.js#
-  // handleNewsListRoute). /api/news/mine (üyenin KENDİ gönderileri, auth gerekli) bu satırdan
-  // ETKİLENMEZ — yalnızca segments.length===2 (tam "/api/news") burada yakalanıyor.
-  if (path === '/api/news' && request.method === 'GET') return handleNewsListRoute(request, env, url);
+  // Ürün artık yayında değil (bkz. kullanıcı isteği) — public liste ucu kapatıldı, products
+  // tablosu DOKUNULMADAN kalır (üyenin kendi gönderi yönetimi hâlâ handleSubmissionRoute'tan
+  // çalışır, bkz. aşağıdaki /api/products prefix dalı).
+  if (path === '/api/products' && request.method === 'GET') return errorJson('Bulunamadı', 404);
+  // Haber artık yayında değil (bkz. kullanıcı isteği) — bu public liste ucu (Faz 4B'de eklenen
+  // /api/news?page=&limit=) kapatıldı; /api/news/mine (üyenin kendi gönderileri) bu satırdan
+  // ETKİLENMEZ, aşağıdaki handleSubmissionRoute dalından işlenmeye devam eder.
+  if (path === '/api/news' && request.method === 'GET') return errorJson('Bulunamadı', 404);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki
@@ -528,17 +566,10 @@ async function routeApi(request, env, url) {
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
-  if (path.startsWith('/api/consultant/')) {
-    const rest = path.slice('/api/consultant/'.length);
-    // Danışmanın kendi profilini yönetmesi (bkz. kullanıcı isteği: Düzenle/Sil/Arşivle pop-up
-    // üzerinden) — GET (herkese açık detay, yukarıdaki handleConsultantRoute) ile AYNI path
-    // öneki, method/son segmente göre ayrılır (bkz. src/routes/consultant.js).
-    if (rest.endsWith('/moderate') && request.method === 'POST') {
-      return handleConsultantModerateRoute(request, env, rest.slice(0, -'/moderate'.length));
-    }
-    if (request.method === 'PATCH') return handleConsultantEditRoute(request, env, rest);
-    return handleConsultantRoute(request, env, url, rest);
-  }
+  // Danışman profil detay/Düzenle/Arşivle akışının TEK giriş noktası danisman.html'in kendi
+  // ConsultantModal'ıydı — o sayfa artık yayında değil (bkz. yukarısı, DISABLED_PAGE_PATHS),
+  // dolayısıyla bu öneke ulaşan başka hiçbir istemci yok; tamamı kapatıldı (bkz. kullanıcı isteği).
+  if (path.startsWith('/api/consultant/')) return errorJson('Bulunamadı', 404);
   // "Görüşme Ayarla" Havale/EFT talep akışı (bkz. kullanıcı isteği, src/routes/consultantBookings.js)
   // — startsWith, çünkü GET .../mine (hesabim.html "Danışmanlık" sekmesi) AYNI dosyadaki AYNI
   // dispatcher'a düşer, yalnızca method+son segmente göre dallanır.
@@ -552,7 +583,9 @@ async function routeApi(request, env, url) {
     if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, decodeURIComponent(projectSlug));
     return handleProjectDetailRoute(request, env, url, projectSlug);
   }
-  if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
+  // Ürün detay — TEK giriş noktası olan urun.html/ProductModal artık yayında değil (bkz. yukarısı),
+  // bu öneke ulaşan başka istemci yok; kapatıldı (bkz. kullanıcı isteği).
+  if (path.startsWith('/api/product/')) return errorJson('Bulunamadı', 404);
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);

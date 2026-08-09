@@ -173,14 +173,6 @@ const OfficeModal = (function () {
       <h2 class="related-title">Projeler</h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
-    <div class="related-section" id="om-related-products-section" style="display:none;">
-      <h2 class="related-title">Ürünler</h2>
-      <div class="related-grid-scroll" id="om-related-products-grid"></div>
-    </div>
-    <div class="related-section" id="om-related-materials-section" style="display:none;">
-      <h2 class="related-title">Malzemeler</h2>
-      <div class="related-grid-scroll" id="om-related-materials-grid"></div>
-    </div>
     <div class="prevnext" id="om-prevnext"></div>
     <hr class="prevnext-mobile-divider">`;
 
@@ -323,8 +315,8 @@ const OfficeModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['om-actions', 'om-founders-section', 'om-related-projects-section', 'om-related-products-section',
-    'om-related-materials-section', 'om-detail-info', 'om-prevnext'];
+  const HIDE_ON_NOT_FOUND_IDS = ['om-actions', 'om-founders-section', 'om-related-projects-section',
+    'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
@@ -451,20 +443,6 @@ const OfficeModal = (function () {
       },
     });
 
-    async function loadRelatedProducts() {
-      try {
-        const res = await fetch(`/api/public/profile-content?profileType=office&profileKey=${encodeURIComponent(o.name)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const products = data.products || [];
-        document.getElementById('om-related-products-section').style.display = products.length ? '' : 'none';
-        document.getElementById('om-related-products-grid').innerHTML = products.map(p => cardHtml('urun.html', p.title, p.image, p.category)).join('');
-        const materials = data.materials || [];
-        document.getElementById('om-related-materials-section').style.display = materials.length ? '' : 'none';
-        document.getElementById('om-related-materials-grid').innerHTML = materials.map(m => cardHtml('urun.html', m.title, m.image, m.category)).join('');
-      } catch {}
-    }
-
     function renderVerifiedBadges() {
       document.getElementById('om-verified-badge-wrap').innerHTML = verifiedBadgeHtml(PROFILE_TYPE, o.name, o.badges, 20);
       // bkz. kullanıcı isteği: mavi rozet kurucu/ortak kartlarında da görünmeli — isim bazlı
@@ -474,7 +452,6 @@ const OfficeModal = (function () {
     renderVerifiedBadges();
     window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges, { once: true });
 
-    loadRelatedProducts();
     await savedWidgetReady;
     await claimBox.init();
 

@@ -1,6 +1,6 @@
 // ProjectModal — proje detay modalının orkestratörü. Route/history state machine'i, eager/deferred
 // içerik sıralamasını ve alt bileşenlerin (ProjectGallery/ProjectMeta/ProjectActions/
-// ProjectComments/ArchitectProjects/RelatedProjects/ProjectProducts) tek bir DOM iskeletine
+// ProjectComments/ArchitectProjects/RelatedProjects) tek bir DOM iskeletine
 // bağlanmasını yönetir. DOM çerçevesi (overlay/panel/focus-trap/scroll-lock) js/components/
 // modal-shell.js'ten gelir — bu dosya yalnızca PROJEYE ÖZGÜ kısmı bilir.
 const ProjectModal = (function () {
@@ -56,16 +56,6 @@ const ProjectModal = (function () {
     <div class="related-section" id="pm-related-section" aria-live="polite">
       <h2 class="related-title">İlgili Projeler</h2>
       <div class="related-grid-scroll" id="pm-related-grid"></div>
-    </div>
-
-    <div class="related-section" id="pm-products-section" aria-live="polite">
-      <h2 class="related-title">Kullanılan Ürünler</h2>
-      <div class="catalog-grid-scroll" id="pm-products-grid"></div>
-    </div>
-
-    <div class="related-section" id="pm-materials-section" aria-live="polite">
-      <h2 class="related-title">Kullanılan Malzemeler</h2>
-      <div class="catalog-grid-scroll" id="pm-materials-grid"></div>
     </div>
 
     <div class="prevnext" id="pm-prevnext"></div>
@@ -198,12 +188,6 @@ const ProjectModal = (function () {
       const relatedPromise = RelatedProjects.mount(item, architectSlugsPromise);
       Promise.allSettled([architectSlugsPromise, relatedPromise]);
     }, 600);
-
-    const productsSection = document.getElementById('pm-products-section');
-    const materialsSection = document.getElementById('pm-materials-section');
-    document.getElementById('pm-products-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
-    document.getElementById('pm-materials-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
-    observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); }, 1200);
   }
 
   // Önceki/Sonraki Proje — bkz. src/routes/project.js#fetchAdjacentProject: dairesel/sıralı
@@ -292,7 +276,7 @@ const ProjectModal = (function () {
   // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
   const HIDE_ON_NOT_FOUND_IDS = ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section',
     'pm-meta', 'pm-desc', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
-    'pm-related-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'];
+    'pm-related-section', 'pm-prevnext', 'pm-gallery-wrap'];
 
   async function renderItem(item, mySeq) {
     currentItem = item;
