@@ -63,6 +63,17 @@ const ConsultantAddModal = (function () {
       .cam-notice{display:none; margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
       .cam-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
       .cam-notice.show{display:block;}
+      /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin — mimar-ekle.html#social-row
+         ile AYNI desen (danışman zaten bir architects satırı, aynı social_links alanını paylaşır). */
+      .social-row{display:grid; grid-template-columns:130px 1fr auto; gap:8px; margin-bottom:8px; align-items:center;}
+      .social-row select, .social-row input{
+        width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+        background:var(--paper); font-family:inherit; font-size:13px; color:var(--ink); box-sizing:border-box;
+      }
+      .social-remove-btn{width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); flex-shrink:0;}
+      .social-remove-btn:hover{background:var(--paper-alt); color:#B84C4C;}
+      .social-add-btn{display:inline-flex; align-items:center; gap:6px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; padding:8px 14px; font-size:12.5px; font-weight:600; color:var(--walnut);}
+      .social-add-btn:hover{border-color:var(--brass); background:var(--paper-alt);}
       @media (max-width:520px){ .cam-row{grid-template-columns:1fr;} }
     `;
     document.head.appendChild(style);
@@ -165,6 +176,11 @@ const ConsultantAddModal = (function () {
         <input type="number" id="cam-experience" min="0" step="1" style="max-width:120px;">
       </div>
       <div class="cam-field">
+        <label class="cam-label">Sosyal Medya <small>(opsiyonel)</small></label>
+        <div id="cam-social-rows"></div>
+        <button type="button" class="social-add-btn" id="cam-social-add-btn">+ Sosyal Medya Ekle</button>
+      </div>
+      <div class="cam-field">
         <label class="cam-label">Haftalık Müsaitlik</label>
         <div id="cam-slots-days"></div>
       </div>
@@ -172,9 +188,39 @@ const ConsultantAddModal = (function () {
       <div class="cam-notice" id="cam-notice"></div>`;
   }
 
+  // bkz. mimar-ekle.html#addSocialRow/collectSocialLinks AYNI desen.
+  const SOCIAL_PLATFORMS = [
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'x', label: 'X (Twitter)' },
+    { value: 'behance', label: 'Behance' },
+    { value: 'youtube', label: 'YouTube' },
+    { value: 'website', label: 'Web Sitesi / Diğer' },
+  ];
+  function addSocialRow() {
+    const rows = document.getElementById('cam-social-rows');
+    const row = document.createElement('div');
+    row.className = 'social-row';
+    row.innerHTML = `
+      <select class="social-platform">${SOCIAL_PLATFORMS.map(p => `<option value="${p.value}">${p.label}</option>`).join('')}</select>
+      <input type="url" class="social-url" placeholder="https://...">
+      <button type="button" class="social-remove-btn" aria-label="Kaldır">✕</button>
+    `;
+    row.querySelector('.social-remove-btn').addEventListener('click', () => row.remove());
+    rows.appendChild(row);
+  }
+  function collectSocialLinks() {
+    return Array.from(document.getElementById('cam-social-rows').querySelectorAll('.social-row')).map(row => ({
+      platform: row.querySelector('.social-platform').value,
+      url: row.querySelector('.social-url').value.trim(),
+    })).filter(s => s.url);
+  }
+
   function wireForm() {
     slotsWorking = emptySlots();
     renderSlotsDays();
+    document.getElementById('cam-social-rows').innerHTML = '';
+    document.getElementById('cam-social-add-btn').addEventListener('click', addSocialRow);
     document.getElementById('cam-submit-btn').addEventListener('click', submit);
   }
 
@@ -216,6 +262,7 @@ const ConsultantAddModal = (function () {
           consultant_experience_years: experienceRaw ? Number(experienceRaw) : null,
           expertise_tags: expertiseTags,
           available_slots: availableSlots,
+          social_links: collectSocialLinks(),
         }),
       });
       if (res.status === 401) { window.location.href = 'giris-yap.html'; return; }
