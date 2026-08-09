@@ -1,4 +1,4 @@
-// ArchitectProjects ("Mimarın/Firmanın Diğer Projeleri") + RelatedProjects ("İlgili Projeler").
+// ArchitectProjects ("Mimarın/Firmanın Diğer Yapıları") + RelatedProjects ("İlgili Yapılar").
 // proje-detay.html'in eski istemci-taraf tam-dizi taramasının (sameDesigner/relatedScore, statik
 // projects[] üzerinde) yerini alır — artık proje.html'de bellekte TÜM projelerin bir kopyası
 // olmadığından (Faz 3 sayfalama migrasyonu, bkz. proje.html dosya başı yorumu) her ikisi de mevcut
@@ -19,7 +19,7 @@ const ArchitectProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
-    return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
+    return `<a class="related-card" href="/yapi/${encodeURIComponent(p.slug)}">
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
@@ -92,7 +92,7 @@ const RelatedProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
-    return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
+    return `<a class="related-card" href="/yapi/${encodeURIComponent(p.slug)}">
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
@@ -181,7 +181,7 @@ const RelatedProjects = (function () {
     const queries = [];
     // buildStatus: aday havuzu kaynak projeyle AYNI kategoride kalmalı (bkz. kullanıcı isteği,
     // migrations/0037_project_build_status.sql) — aksi halde bir konsept/öğrenci projesinin
-    // "İlgili Projeler"i arasına inşa edilmiş eserler (ya da tersi) karışırdı.
+    // "İlgili Yapılar"ı arasına inşa edilmiş eserler (ya da tersi) karışırdı.
     const buildStatusParam = ['buildStatus', item.buildStatus === 'concept' ? 'concept' : 'built'];
     const disciplineParams = (item.discipline || []).map(d => ['discipline', d]);
     const withDiscipline = params => {
@@ -221,10 +221,10 @@ const RelatedProjects = (function () {
   }
 
   // excludeSlugsPromise: bir Promise<Set<string>> (bkz. js/components/project-modal.js#armDeferredSections)
-  // — "Diğer Projeleri" ile ÇAKIŞMAYAN bir seçki için o bölümün slug'larını bekler, ama BU fonksiyonun
+  // — "Diğer Yapıları" ile ÇAKIŞMAYAN bir seçki için o bölümün slug'larını bekler, ama BU fonksiyonun
   // kendi /api/projects sorguları (gatherCandidateQueries) o bekleyişten BAĞIMSIZ hemen ateşlenir
   // (bkz. gerçek bulgu: eskiden RelatedProjects, ArchitectProjects'in TÜM sayfalarını bitirmesini
-  // bekledikten SONRA kendi isteklerine başlıyordu — çok projeli bir mimar için bu, "İlgili Projeler"i
+  // bekledikten SONRA kendi isteklerine başlıyordu — çok projeli bir mimar için bu, "İlgili Yapılar"ı
   // gereksiz yere geciktiriyordu). Yalnızca dışlama+render adımı excludeSlugsPromise'i bekler.
   async function mount(item, excludeSlugsPromise, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});

@@ -21,13 +21,13 @@
 <meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı yapıları." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
-     sayfalarının <head>'ine ... application/ld+json ekle") — /projeler/:slug detay görünümü
+     sayfalarının <head>'ine ... application/ld+json ekle") — /yapi/:slug detay görünümü
      src/index.js#injectMeta ile SSR'da AYRI CreativeWork + BreadcrumbList şeması ekler, bu ikisiyle
      çakışmaz. -->
 <script type="application/ld+json" id="list-jsonld">
 {"@context":"https://schema.org","@type":"CollectionPage","name":"Yapılar — MİMARLAB","url":"https://mimarlab.com/yapi","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
-<!-- Temiz URL'lerle bu sayfa /proje dışında /projeler/:slug altında da (proje modalını doğrudan
+<!-- Temiz URL'lerle bu sayfa /proje dışında /yapi/:slug altında da (proje modalını doğrudan
      açan bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları
      o iç içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, eski
      proje-detay.html'deki AYNI gerekçe). -->
@@ -653,7 +653,7 @@
     .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
     /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Diğer
-       Projeler → İlgili Projeler → Yorumlar → Bilgi Kaynağı/Geri Bildirim (bkz. kullanıcı isteği:
+       Yapılar → İlgili Yapılar → Yorumlar → Bilgi Kaynağı/Geri Bildirim (bkz. kullanıcı isteği:
        Yorumlar aşağı taşınıp Geri Bildirim kutusunun hemen üstüne alındı) — modal-shell.js bu
        kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
        bu bölümler artık AYNI dikey flex akışının parçası; sıra burada, sırayla artan order değerleriyle
@@ -1169,10 +1169,10 @@ async function render(){
     const cardImg = p.images && p.images[0];
     const cardSrcset = cardImg ? cdnSrcset(cardImg, [400, 600, 800]) : '';
     return `
-    <a class="content-card" href="/projeler/${encodeURIComponent(p.slug)}">
+    <a class="content-card" href="/yapi/${encodeURIComponent(p.slug)}">
       <div class="content-card-photo">
         ${cardImg ? `<img src="${escapeAttr(cdnImg(cardImg, 600))}"${cardSrcset ? ` srcset="${escapeAttr(cardSrcset)}"` : ''} alt="${escapeAttr(p.title)}" ${imgAttrs} decoding="async" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px">` : `<div class="content-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
-        <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr((p.images && p.images[0])||'')}" data-href="/projeler/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
+        <button class="card-save-btn" type="button" data-key="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr(p.location||'')}" data-image="${escapeAttr((p.images && p.images[0])||'')}" data-href="/yapi/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
         </button>
       </div>
@@ -1211,20 +1211,20 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest('a.content-card');
   if(!a || e.target.closest('.card-save-btn')) return;
-  const m = (a.getAttribute('href') || '').match(/^\/projeler\/([^/?#]+)/);
+  const m = (a.getAttribute('href') || '').match(/^\/yapi\/([^/?#]+)/);
   if(!m) return;
   const slug = decodeURIComponent(m[1]);
   e.preventDefault();
   ProjectModal.open(slug, { triggerEl: a });
 });
 
-// Tarayıcı geri/ileri tuşu: /projeler/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
+// Tarayıcı geri/ileri tuşu: /yapi/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
 // güncelle (bkz. ProjectModal.handlePopState) — listeyi burada YENİDEN ÇİZME, modal kapanana kadar
 // arka plandaki liste durumu zaten sabit kalmalı (bkz. kullanıcı isteği). Diğer TÜM durumlarda
 // (ör. /proje?filtre=...) eski davranış aynen korunur; modal açıksa önce (URL zaten doğru olduğundan
 // history'e TEKRAR yazmadan) kapatılır.
 window.addEventListener('popstate', ()=>{
-  const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/yapi\/([^/]+)\/?$/);
   if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
   // Modal kapanırken buraya (bare /proje) dönülüyorsa arka plandaki liste modal açıkken hiç
   // değişmedi (etkileşim kilitliydi) — filtreleri sıfırlayıp grid'i YENİDEN ÇEKMEYE gerek yok;
@@ -1241,7 +1241,7 @@ applyInitialFiltersFromQuery();
 buildSidebar();
 render();
 
-// Doğrudan /projeler/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
+// Doğrudan /yapi/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
 // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir geçmiş
 // girdisi açılmaz (bkz. ProjectModal.open). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek
 // bulgu: "Ertegün Evi carousel'den tıklanınca açılmıyor" raporu — aslında TÜM projelerde/mimar/
@@ -1252,7 +1252,7 @@ render();
 // (ProjectModal dahil) KESİN olarak tanımlanmış olmasını garantiler — render()/network
 // zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
-  const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/yapi\/([^/]+)\/?$/);
   if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
 });
 

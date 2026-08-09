@@ -4,10 +4,10 @@ import { slugify } from './slugify.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v66';
+export const SSR_CACHE_VERSION = 'v67';
 
 const PREFIX_BY_TYPE = {
-  project: '/projeler/',
+  project: '/yapi/',
   architect: '/mimar/',
   office: '/firma/',
   product: '/urun/',

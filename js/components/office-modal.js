@@ -170,7 +170,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-founders-grid"></div>
     </div>
     <div class="related-section" id="om-related-projects-section" style="display:none;">
-      <h2 class="related-title">Projeler</h2>
+      <h2 class="related-title">Yapılar</h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
     <div class="prevnext" id="om-prevnext"></div>
@@ -418,7 +418,7 @@ const OfficeModal = (function () {
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('om-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
-      cardHtml(`/projeler/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
+      cardHtml(`/yapi/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
 
     const PROFILE_TYPE = 'office';

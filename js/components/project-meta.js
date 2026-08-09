@@ -118,7 +118,7 @@ const ProjectMeta = (function () {
       tag.id = 'pm-ld-json';
       document.head.appendChild(tag);
     }
-    const data = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: item.title, url: new URL(`/projeler/${encodeURIComponent(item.slug)}`, window.location.origin).href };
+    const data = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: item.title, url: new URL(`/yapi/${encodeURIComponent(item.slug)}`, window.location.origin).href };
     if (item.description) data.description = item.description;
     if (item.images && item.images.length) {
       try { data.image = item.images.map(img => new URL(img, window.location.href).href); } catch { /* göreli çözümlenemeyen — atla */ }

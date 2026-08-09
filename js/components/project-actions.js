@@ -11,7 +11,7 @@ const ProjectActions = (function () {
 
   function saveBtnHtml(item) {
     return `
-      <button class="save-btn card-save-btn" id="pm-save-btn" type="button" data-key="${escapeAttr(item.slug)}" data-title="${escapeAttr(item.title)}" data-meta="${escapeAttr(item.location || '')}" data-image="${escapeAttr((item.images && item.images[0]) || '')}" data-href="/projeler/${encodeURIComponent(item.slug)}" aria-label="Kaydet">
+      <button class="save-btn card-save-btn" id="pm-save-btn" type="button" data-key="${escapeAttr(item.slug)}" data-title="${escapeAttr(item.title)}" data-meta="${escapeAttr(item.location || '')}" data-image="${escapeAttr((item.images && item.images[0]) || '')}" data-href="/yapi/${encodeURIComponent(item.slug)}" aria-label="Kaydet">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
         <span class="save-btn-label-default">Kaydet</span>
         <span class="save-btn-label-saved">Kaydedildi</span>
@@ -110,7 +110,7 @@ const ProjectActions = (function () {
     if (headerActions) headerActions.innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
     wireSaveButtons('project');
     if (typeof ShareWidget !== 'undefined') {
-      ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}/projeler/${encodeURIComponent(item.slug)}` }));
+      ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}/yapi/${encodeURIComponent(item.slug)}` }));
     }
     fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(item.slug)}`)
       .then(res => res.ok ? res.json() : null)

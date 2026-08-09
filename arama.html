@@ -405,7 +405,7 @@ async function runSearch(){
       badge: verifiedBadgeHtml('office', o.name, o.badges, 13),
     }), full.totals.offices),
     groupHtml('Projeler', full.projects, p => rowHtml({
-      href: `/projeler/${encodeURIComponent(p.slug)}`,
+      href: `/yapi/${encodeURIComponent(p.slug)}`,
       avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.location, p.date].filter(Boolean).join(' · '),

@@ -792,7 +792,7 @@ const ConsultantModal = (function () {
 
     document.getElementById('cm-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('cm-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
-      cardHtml(`/projeler/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
+      cardHtml(`/yapi/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
 
     document.getElementById('cm-similar-section').style.display = similar.length ? '' : 'none';

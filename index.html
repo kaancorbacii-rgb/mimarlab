@@ -692,7 +692,7 @@ function projectSlideHtml(p, i){
   const meta = [(p.officeNames || []).join(', '), cityName].filter(Boolean).join(' — ');
   const slideImg = (p.images && p.images[0]) || '';
   const slideSrcset = slideImg ? cdnSrcset(slideImg, [600, 900, 1200]) : '';
-  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/projeler/${encodeURIComponent(p.slug)}" data-index="${i}">
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/yapi/${encodeURIComponent(p.slug)}" data-index="${i}">
     <img src="${escapeAttr(cdnImg(slideImg, 900))}"${slideSrcset ? ` srcset="${escapeAttr(slideSrcset)}" sizes="(max-width: 720px) 100vw, 700px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">Proje</span>
     <div class="slide-caption">

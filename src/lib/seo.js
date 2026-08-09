@@ -254,7 +254,7 @@ async function buildProjectMeta(slug, env) {
   const title = `${p.title} — MİMARLAB`;
   const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
   const description = truncate(rawDesc, 200);
-  const canonicalUrl = `${SITE_ORIGIN}/projeler/${encodeURIComponent(p.slug)}`;
+  const canonicalUrl = `${SITE_ORIGIN}/yapi/${encodeURIComponent(p.slug)}`;
   const images = (p.images || []).map(absoluteUrl).filter(Boolean);
   const jsonLd = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.title, url: canonicalUrl };
   if (p.description) jsonLd.description = p.description;

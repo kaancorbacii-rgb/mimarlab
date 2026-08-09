@@ -49,12 +49,12 @@ const ProjectModal = (function () {
     </div>
 
     <div class="related-section" id="pm-same-designer-section" aria-live="polite">
-      <h2 class="related-title">Mimarın/Firmanın Diğer Projeleri</h2>
+      <h2 class="related-title">Mimarın/Firmanın Diğer Yapıları</h2>
       <div class="related-grid-scroll" id="pm-same-designer-grid"></div>
     </div>
 
     <div class="related-section" id="pm-related-section" aria-live="polite">
-      <h2 class="related-title">İlgili Projeler</h2>
+      <h2 class="related-title">İlgili Yapılar</h2>
       <div class="related-grid-scroll" id="pm-related-grid"></div>
     </div>
 
@@ -96,7 +96,7 @@ const ProjectModal = (function () {
   // BAŞTAN görünür bir iskelet (skeleton) ile render edilir, veri geldiğinde ya gerçek içerikle
   // değiştirilir ya da (sonuç boşsa) o zaman gizlenir.
   //
-  // gerçek bulgu: "İlgili Projeler" bazı durumlarda kalıcı olarak boş/iskelet kalıyordu — bölüm açılış
+  // gerçek bulgu: "İlgili Yapılar" bazı durumlarda kalıcı olarak boş/iskelet kalıyordu — bölüm açılış
   // anında zaten görünür alanın İÇİNDE olsa bile IntersectionObserver'ın tetiklenmesi tarayıcı/cihaza
   // göre gözle görülür şekilde gecikebiliyor (bir sonraki layout/compositor turuna kadar). Salt IO'ya
   // güvenmek yerine, timeoutMs verildiğinde bir de zaman aşımı yedeği kurulur — hangisi önce olursa
@@ -190,7 +190,7 @@ const ProjectModal = (function () {
     }, 600);
   }
 
-  // Önceki/Sonraki Proje — bkz. src/routes/project.js#fetchAdjacentProject: dairesel/sıralı
+  // Önceki/Sonraki Yapı — bkz. src/routes/project.js#fetchAdjacentProject: dairesel/sıralı
   // gezinme artık sunucuda id sırasına göre hesaplanıp item.prevProject/nextProject olarak gelir,
   // istemci hafızasındaki eski `navList` (yalnızca karttan tıklanarak açıldığında dolu olan, F5/
   // doğrudan URL girişinde boş kalan) yöntemi yerine HER AÇILIŞTA eksiksiz çıkar (bkz. kullanıcı isteği).
@@ -208,8 +208,8 @@ const ProjectModal = (function () {
   function renderPrevNext(item) {
     const el = document.getElementById('pm-prevnext');
     let html = '';
-    if (item.nextProject) html += `<a class="prev" href="/projeler/${encodeURIComponent(item.nextProject.slug)}">${prevNextThumbHtml(item.nextProject)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></span></a>`;
-    if (item.prevProject) html += `<a class="next" href="/projeler/${encodeURIComponent(item.prevProject.slug)}">${prevNextThumbHtml(item.prevProject)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></span></a>`;
+    if (item.nextProject) html += `<a class="prev" href="/yapi/${encodeURIComponent(item.nextProject.slug)}">${prevNextThumbHtml(item.nextProject)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Yapı</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></span></a>`;
+    if (item.prevProject) html += `<a class="next" href="/yapi/${encodeURIComponent(item.prevProject.slug)}">${prevNextThumbHtml(item.prevProject)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Yapı →</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></span></a>`;
     el.innerHTML = html;
   }
 
@@ -217,7 +217,7 @@ const ProjectModal = (function () {
     document.title = `${item.title} — MİMARLAB`;
     const rawDesc = item.description || `${item.title}${item.location ? ' — ' + item.location : ''}. MİMARLAB'da proje detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
-    const canonicalUrl = `https://mimarlab.com/projeler/${encodeURIComponent(item.slug)}`;
+    const canonicalUrl = `https://mimarlab.com/yapi/${encodeURIComponent(item.slug)}`;
     const image = (item.images && item.images[0]) ? new URL(item.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
     setIf('meta-description', 'content', desc);
@@ -231,17 +231,17 @@ const ProjectModal = (function () {
     setIf('twitter-image', 'content', image);
   }
 
-  // Delege edilmiş tıklama dinleyicisi: modal içindeki HERHANGİ bir /projeler/:slug bağlantısına
-  // (İlgili Projeler, Diğer Projeler, önceki/sonraki) tıklanınca overlay kapanıp yeniden AÇILMAZ —
+  // Delege edilmiş tıklama dinleyicisi: modal içindeki HERHANGİ bir /yapi/:slug bağlantısına
+  // (İlgili Yapılar, Diğer Yapılar, önceki/sonraki) tıklanınca overlay kapanıp yeniden AÇILMAZ —
   // yalnızca içerik ve URL güncellenir (bkz. kullanıcı isteği).
   function wireInternalNav() {
     const panels = ModalShell.getPanels();
     if (!panels || panels.bodyEl.dataset.pmNavWired) return;
     panels.bodyEl.dataset.pmNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
-      const a = e.target.closest('a[href^="/projeler/"]');
+      const a = e.target.closest('a[href^="/yapi/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const m = a.getAttribute('href').match(/^\/projeler\/([^/?#]+)/);
+      const m = a.getAttribute('href').match(/^\/yapi\/([^/?#]+)/);
       if (!m) return;
       e.preventDefault();
       swap(decodeURIComponent(m[1]));
@@ -314,7 +314,7 @@ const ProjectModal = (function () {
     currentSlug = slug;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: 1 }, '', `/projeler/${encodeURIComponent(slug)}`);
+    if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: 1 }, '', `/yapi/${encodeURIComponent(slug)}`);
     // ModalShell.open() ÖNCE çağrılır (overlay/panel DOM'unu ilk kez o oluşturur) — ensureTemplate()
     // panellere innerHTML basmaya çalıştığında panel elemanları henüz yoksa (bkz. gerçek bulgu) null
     // referans hatası verirdi.
@@ -339,7 +339,7 @@ const ProjectModal = (function () {
     // mekanizması) her zaman doğru "buradan modal-öncesi duruma kaç adım var" bilgisini verir.
     const currentDepth = (history.state && history.state.mimarlabModal === 'project') ? history.state.depth : pushCountSinceOpen;
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `/projeler/${encodeURIComponent(slug)}`);
+    history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `/yapi/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
     const item = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
@@ -349,8 +349,8 @@ const ProjectModal = (function () {
 
   // X/backdrop/Escape tetiklediğinde çağrılır (bkz. modal-shell.js#onRequestClose) — geçerli bir
   // aynı-sekme geçmiş girdisi varsa history.back() ile oraya (liste durumu korunarak) dönülür;
-  // yoksa (doğrudan /projeler/:slug ile açılmış bir sekme) '/proje' listesine pushState edilir —
-  // '/projeler' (slug'sız) hiçbir asset'e karşılık gelmediğinden 404 verirdi (bkz. plan düzeltmesi).
+  // yoksa (doğrudan /yapi/:slug ile açılmış bir sekme) '/proje' listesine pushState edilir (bkz.
+  // plan düzeltmesi).
   function close() {
     currentSlug = null;
     currentItem = null;
@@ -365,7 +365,7 @@ const ProjectModal = (function () {
     pushCountSinceOpen = 0;
   }
 
-  // proje.html'in popstate dinleyicisi /projeler/:slug yoluna geri/ileri gidildiğinde bunu çağırır
+  // proje.html'in popstate dinleyicisi /yapi/:slug yoluna geri/ileri gidildiğinde bunu çağırır
   // (bkz. proje.html). Burada TEKRAR pushState YAPILMAZ — URL zaten doğru.
   function handlePopState(slug) {
     // ensureTemplate() burada YOK — DOM'u ilk kez ModalShell.open() oluşturur (bkz. open()'daki AYNI

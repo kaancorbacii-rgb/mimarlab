@@ -88,7 +88,7 @@ const SECURITY_HEADERS = {
 // segmentine taşıyoruz. Mimar/marka isimleri slugify edilir (save-widget.js/src/lib/slugify.js ile
 // birebir aynı algoritma); proje slug'ı ve haber id'si zaten URL-güvenli olduğundan dönüştürülmez.
 const CLEAN_URL_REDIRECTS = {
-  '/proje-detay': { param: 'proje', prefix: '/projeler/', slugifyValue: false },
+  '/proje-detay': { param: 'proje', prefix: '/yapi/', slugifyValue: false },
   '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
   '/ofis-detay': { param: 'ofis', prefix: '/firma/', slugifyValue: true },
   '/haber-detay': { param: 'haber', prefix: '/haberler/', slugifyValue: false },
@@ -98,15 +98,15 @@ const CLEAN_URL_REDIRECTS = {
 // *-detay.html dosyalarındaki path-tabanlı fallback lookup). Uzantısız yol kullanılır çünkü
 // env.ASSETS.fetch'e ".html" ile biten bir istek verilirse Cloudflare Assets kendi html_handling
 // (auto-trailing-slash) davranışıyla bunu tekrar uzantısız hale 301 yönlendirir — bu da orijinal
-// /projeler/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
+// /yapi/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
 const CLEAN_URL_ASSETS = [
-  // /projeler/:slug, /mimar/:slug, /firma/:slug, /urun/:slug artık kendi listeleme sayfalarına
+  // /yapi/:slug, /mimar/:slug, /firma/:slug, /urun/:slug artık kendi listeleme sayfalarına
   // eşleniyor (proje-detay.html/mimar-detay.html/ofis-detay.html/urun-detay.html kaldırıldı) — her
   // sayfa kendi JS'inde bu yolu algılayıp ilgili modalı (ProjectModal/ArchitectModal/OfficeModal/
   // ProductModal, bkz. js/components/) doğrudan açar, injectMeta() ise AYNI HTMLRewriter
   // mekanizmasıyla o listeleme sayfasının <head>'indeki id'li meta etiketlerini hedefler (bkz.
   // proje.html/mimar.html/firma.html/urun.html#meta-description vb.).
-  { prefix: '/projeler/', asset: '/yapi', type: 'project' },
+  { prefix: '/yapi/', asset: '/yapi', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
@@ -216,6 +216,9 @@ const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
   { from: '/urunler/', to: '/urun/' },
   { from: '/danismanlik/', to: '/danisman/' },
+  // Proje detay URL öneki artık /yapi/:slug (bkz. kullanıcı isteği) — eski /projeler/:slug
+  // bağlantıları/yer imleri/indexlenmiş sonuçlar kırılmasın diye AYNI desenle 301'lenir.
+  { from: '/projeler/', to: '/yapi/' },
 ];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
@@ -396,7 +399,7 @@ function withStaticImageCacheHeaders(url, response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// /mimar/:slug, /firma/:slug, /projeler/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
+// /mimar/:slug, /firma/:slug, /yapi/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
 // slug data.js/projeler-data.js/haberler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
 // HTMLRewriter ile (Google/sosyal medya botları JS çalıştırmadan da) doğru değerlerle değiştirir.
 // Bulunamazsa (ör. yalnızca D1'de var olan, henüz bu detay sayfalarını desteklemeyen bir kayıt)
@@ -507,7 +510,7 @@ async function listCanonicalEntityUrls(env) {
   return [
     ...archRes.results.map(r => `/mimar/${encodeURIComponent(r.slug)}`),
     ...officeRes.results.map(r => `/firma/${encodeURIComponent(r.slug)}`),
-    ...projRes.results.map(r => `/projeler/${encodeURIComponent(r.slug)}`),
+    ...projRes.results.map(r => `/yapi/${encodeURIComponent(r.slug)}`),
   ];
 }
 
