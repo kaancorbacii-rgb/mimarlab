@@ -1231,10 +1231,19 @@ window.addEventListener('popstate', ()=>{
 
 applyInitialFiltersFromQuery();
 buildSidebar();
-render().then(()=>{
-  // Doğrudan /projeler/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
-  // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir
-  // geçmiş girdisi açılmaz (bkz. ProjectModal.open).
+render();
+
+// Doğrudan /projeler/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
+// otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir geçmiş
+// girdisi açılmaz (bkz. ProjectModal.open). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek
+// bulgu: "Ertegün Evi carousel'den tıklanınca açılmıyor" raporu — aslında TÜM projelerde/mimar/
+// firma sayfalarında genel bir sorundu) — /api/projects edge cache'ten render()'ın kendisinden
+// DAHA HIZLI dönebildiğinden, bu callback bazen ProjectModal (defer script) henüz tanımlanmadan
+// tetikleniyor, "ProjectModal is not defined" hatasıyla SESSİZCE (unhandled promise rejection,
+// konsolda görünmüyor) modalı hiç açmıyordu. DOMContentLoaded'a bağlamak deferred script'lerin
+// (ProjectModal dahil) KESİN olarak tanımlanmış olmasını garantiler — render()/network
+// zamanlamasından tamamen bağımsız.
+document.addEventListener('DOMContentLoaded', () => {
   const m = location.pathname.match(/^\/projeler\/([^/]+)\/?$/);
   if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
 });

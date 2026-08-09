@@ -205,6 +205,10 @@
     max-width:1220px; margin:0 auto;
     padding:0 32px 64px;
     display:grid; grid-template-columns:2fr 1fr;
+    /* Mimar/Firma kutucukları artık kare (bkz. kullanıcı isteği) — kendi aspect-ratio'larıyla
+       yükseklik belirlediklerinden, proje-slider'ın (aspect-ratio:4/3) yüksekliğine zorla
+       stretch edilmemeli, aksi halde kare oranları bozulurdu. */
+    align-items:start;
     gap:16px;
   }
   /* Grid track'lerinin (ve iç içe hero-side grid'inin) içerik minimum genişliğine göre taşmasını
@@ -280,16 +284,16 @@
   .slider-arrow.prev{left:14px;}
   .slider-arrow.next{right:14px;}
 
-  /* small carousels (right, "mimar + marka" yan yana — bkz. kullanıcı isteği: proje-slider'la
-     aynı görsel dilde, siteye son eklenen 5 mimar/firma'yı döngüyle ve oklarla gösteren mini
-     carousel'ler. PROJE artık ayrı bir küçük kart değil — zaten solda kendi büyük carousel'ine
-     sahip. Ürün carousel'i kaldırıldı, bkz. kullanıcı isteği). */
+  /* small carousels (right, "mimar üstte, firma hemen altında" altlı üstlü — bkz. kullanıcı
+     isteği: proje-slider'la aynı görsel dilde, siteye son eklenen 5 mimar/firma'yı döngüyle ve
+     oklarla gösteren mini carousel'ler. PROJE artık ayrı bir küçük kart değil — zaten solda
+     kendi büyük carousel'ine sahip. Ürün carousel'i kaldırıldı, bkz. kullanıcı isteği). */
   .hero-side{
     display:grid;
-    grid-template-columns:repeat(2, 1fr);
-    grid-template-rows:1fr;
+    grid-template-columns:1fr;
     gap:12px;
   }
+  .card-mimar, .card-marka{aspect-ratio:1/1;}
 
   .side-slider{
     position:relative; width:100%; height:100%; border-radius:16px; overflow:hidden;
@@ -370,11 +374,6 @@
     .nav-hamburger{display:flex;}
     .nav-cta{display:none;}
     .nav-right{margin-left:auto;}
-    /* Tablet/mobilde (bkz. kullanıcı isteği) "1fr" satırın artık dayanacağı bir yükseklik
-       kalmaz — Mimar/Firma kartları kendi aspect-ratio'larıyla (kare, 1:1) yüksekliklerini
-       kendileri belirler. */
-    .hero-side{grid-template-rows:none;}
-    .card-mimar, .card-marka{aspect-ratio:1/1;}
   }
 
   @media (max-width: 720px){

@@ -775,9 +775,17 @@ document.addEventListener('click', (e)=>{
 });
 
 applyStateFromUrl();
-render().then(()=>{
-  // Doğrudan /mimar/:slug adresine girildiğinde ya da o adreste F5 yapıldığında mimar modalı
-  // otomatik açılsın (bkz. proje.html'deki AYNI desen) — pushHistory:false: URL zaten doğru.
+render();
+
+// Doğrudan /mimar/:slug adresine girildiğinde ya da o adreste F5 yapıldığında mimar modalı
+// otomatik açılsın (bkz. kullanıcı isteği). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek
+// bulgu — proje.html'de bulunup buraya da uygulandı) — /api/architects edge cache'ten render()'ın
+// kendisinden DAHA HIZLI dönebildiğinden, bu callback bazen ArchitectModal (defer script) henüz
+// tanımlanmadan tetikleniyor, "ArchitectModal is not defined" hatasıyla SESSİZCE (unhandled
+// promise rejection, konsolda görünmüyor) modalı hiç açmıyordu. DOMContentLoaded'a bağlamak
+// deferred script'lerin (ArchitectModal dahil) KESİN olarak tanımlanmış olmasını garantiler —
+// render()/network zamanlamasından tamamen bağımsız.
+document.addEventListener('DOMContentLoaded', () => {
   const m = location.pathname.match(/^\/mimar\/([^/]+)\/?$/);
   if(m) ArchitectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
 });
