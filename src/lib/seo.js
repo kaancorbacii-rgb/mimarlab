@@ -362,12 +362,11 @@ export async function buildMeta(type, slugOrId, env) {
   try { return await builder(slugOrId, env); } catch { return null; }
 }
 
-// /sitemap.xml için: statik haberler-data.js'teki haber URL'leri. Mimar/ofis/proje URL'leri artık
-// yalnızca D1'de yaşadığından (bkz. yukarıdaki Legacy Bundle Elimination Faz 1 yorumu) buradan
-// KASITLI olarak kaldırıldı — src/index.js#listCanonicalEntityUrls zaten architects/offices/
-// projects/products tablolarının TAMAMINI (statik kökenli + admin panelinden eklenenler) D1'den
-// okuyup aynı sitemap'e Set birleştirmesiyle ekliyordu (Faz 3'ten beri statik diziler D1'in kesin
-// bir alt kümesi olduğundan bu, URL kapsamında hiçbir kayıp yaratmaz — bkz. kullanıcı isteği).
+// /sitemap.xml için: statik haberler-data.js'teki haber URL'leri. Haber artık yayında değil (bkz.
+// kullanıcı isteği, src/index.js#DISABLED_PAGE_PATHS) — /haberler/:id 404 döndüğünden burada boş
+// dizi döner, newsItems/haberler-data.js DOKUNULMADAN kalır. Mimar/ofis/proje URL'leri artık
+// yalnızca D1'de yaşadığından (bkz. yukarıdaki Legacy Bundle Elimination Faz 1 yorumu) zaten
+// buradan değil src/index.js#listCanonicalEntityUrls'ten gelir.
 export function listEntityUrls() {
-  return newsItems.map(n => `/haberler/${encodeURIComponent(n.id)}`);
+  return [];
 }

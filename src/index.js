@@ -493,24 +493,21 @@ async function handleSitemapRoute(request, env, ctx) {
 }
 
 // listEntityUrls (yalnızca statik diziler) ile birleştirilen canonical D1 kaynağı — architects/
-// offices/projects/products tablolarının TAMAMI (statik + admin panelinden eklenenler) buradan
-// gelir. products, listEntityUrls()'te hiç yoktu (ürün/malzeme detay sayfaları sitemap'te hiç
-// listelenmiyordu) — buildMeta('product', ...) SSR meta'sı zaten destekliyor (bkz. src/lib/seo.js#
-// buildProductMeta), yalnızca sitemap'e eklenmemişti.
+// offices/projects tablolarının TAMAMI (statik + admin panelinden eklenenler) buradan gelir.
+// products BİLEREK dışlanır (bkz. kullanıcı isteği: ürün yayından kaldırıldı, DISABLED_PAGE_PATHS)
+// — /urun/:slug artık 404 döndüğünden sitemap'te listelenmemeli.
 async function listCanonicalEntityUrls(env) {
   if (!env || !env.DB) return [];
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  const [archRes, officeRes, projRes, prodRes] = await Promise.all([
+  const [archRes, officeRes, projRes] = await Promise.all([
     env.DB.prepare(`SELECT slug FROM architects WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug FROM offices WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug FROM projects WHERE ${where}`).all(),
-    env.DB.prepare(`SELECT slug FROM products WHERE ${where}`).all(),
   ]);
   return [
     ...archRes.results.map(r => `/mimar/${encodeURIComponent(r.slug)}`),
     ...officeRes.results.map(r => `/firma/${encodeURIComponent(r.slug)}`),
     ...projRes.results.map(r => `/projeler/${encodeURIComponent(r.slug)}`),
-    ...prodRes.results.map(r => `/urun/${encodeURIComponent(r.slug)}`),
   ];
 }
 
