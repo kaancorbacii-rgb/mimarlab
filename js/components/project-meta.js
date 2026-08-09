@@ -5,7 +5,6 @@
 // bir /api/architect//api/office "eşleşmeyen isim" fallback sorgusuna GEREK YOK, her satır zaten
 // gerçek bir mimar/ofis kaydına karşılık gelir) üzerinden okunur.
 const ProjectMeta = (function () {
-  const DESC_TRUNCATE_AT = 320;
 
   // bkz. XSS escaping convention (memory) — depolanmış herhangi bir URL http(s) değilse asla
   // href/src'e basılmaz. proje-detay.html#safeUrl ile birebir aynı.
@@ -85,17 +84,26 @@ const ProjectMeta = (function () {
     document.getElementById(ids.meta).innerHTML = html;
   }
 
+  // gerçek bulgu (bkz. kullanıcı isteği): eski karakter-sayısı bazlı kırpma (320 karakter) satır
+  // sayısıyla ORANTISIZDI — panel genişliğine göre 320 karakter bazen 3 satırdan fazla, bazen az
+  // sürüyordu. Artık saf CSS -webkit-line-clamp:3 ile TAM 3 satırda kırpılıp "…" ile biter (bkz.
+  // .detail-desc-text.clamped) — metin TAM olarak DOM'a yazılır, gerçek taşma (scrollHeight >
+  // clientHeight) bir sonraki frame'de ölçülüp yalnızca gerçekten 3 satırı aşan açıklamalarda
+  // "Devamını gör" butonu eklenir.
   function renderDescription(item, ids) {
     const el = document.getElementById(ids.desc);
     const text = item.description || '';
-    if (text.length <= DESC_TRUNCATE_AT) {
-      el.innerHTML = `<p class="detail-desc-text">${escapeHtml(text)}</p>`;
-      return;
-    }
-    const truncated = text.slice(0, DESC_TRUNCATE_AT).trim();
-    el.innerHTML = `<p class="detail-desc-text">${escapeHtml(truncated)}… <button type="button" class="detail-desc-more">Devamını gör...</button></p>`;
-    el.querySelector('.detail-desc-more').addEventListener('click', () => {
-      el.innerHTML = `<p class="detail-desc-text">${escapeHtml(text)}</p>`;
+    if (!text) { el.innerHTML = ''; return; }
+    el.innerHTML = `<p class="detail-desc-text clamped">${escapeHtml(text)}</p>`;
+    const p = el.querySelector('.detail-desc-text');
+    requestAnimationFrame(() => {
+      if (!p.isConnected || p.scrollHeight <= p.clientHeight + 1) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'detail-desc-more';
+      btn.textContent = 'Devamını gör...';
+      btn.addEventListener('click', () => { p.classList.remove('clamped'); btn.remove(); });
+      el.appendChild(btn);
     });
   }
 

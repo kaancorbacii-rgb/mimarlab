@@ -521,12 +521,10 @@ const AuthModal = (function () {
         <h2>Paylaştığım İçerikler</h2>
         <div class="submissions-toolbar-row">
           <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
-          <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
         </div>
         <div class="submissions-toolbar-row" id="am-submissions-filter">
           <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
           <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
-          <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
         </div>
         <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-submissions-pagination"></div>
@@ -537,7 +535,6 @@ const AuthModal = (function () {
         <div class="saved-filter" id="am-saved-filter">
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
           <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
           <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
           <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
         </div>
@@ -550,7 +547,6 @@ const AuthModal = (function () {
         <div class="saved-filter" id="am-rated-filter">
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
           <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
         </div>
         <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-rated-pagination"></div>
@@ -742,7 +738,10 @@ const AuthModal = (function () {
     let submissionsFilter = '';
     let submissionsPage = 1;
     async function loadSubmissions() {
-      const types = Object.keys(TYPE_LABELS);
+      // Ürün/malzeme artık yayında değil (bkz. kullanıcı isteği) — bu kutuda hiç görünmesinler diye
+      // TYPE_LABELS'ta hâlâ tanımlı olsalar da (SAVED_TYPE_LABELS'ta da AYNI gerekçeyle) burada
+      // isteğe dahil edilmiyorlar.
+      const types = Object.keys(TYPE_LABELS).filter(t => t !== 'products' && t !== 'materials');
       const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : { items: [] })));
       allSubmissions = [];
       types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({ type: t, item })));
@@ -752,7 +751,7 @@ const AuthModal = (function () {
     function renderSubmissions() {
       const container = document.getElementById('am-dash-submissions');
       if (!allSubmissions.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="urun-ekle.html">Ürün Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
+        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
         document.getElementById('am-submissions-pagination').innerHTML = '';
         return;
       }
@@ -773,7 +772,7 @@ const AuthModal = (function () {
             <div style="font-size:11.5px; color:var(--ink-soft);">${TYPE_LABELS[type]} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
           </div>
           <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-            <a class="submission-edit-link" href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>
+            ${(type === 'products' || type === 'materials') ? '' : `<a class="submission-edit-link" href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`}
             <span style="font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:100px; color:${STATUS_COLORS[item.status]}; background:${STATUS_COLORS[item.status]}22;">${STATUS_LABELS[item.status]}</span>
           </div>
         </div>
@@ -787,7 +786,9 @@ const AuthModal = (function () {
     async function loadSaved() {
       const res = await fetch('/api/saved');
       const data = res.ok ? await res.json() : { items: [] };
-      savedItems = data.items || [];
+      // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski kaydedilmiş ürün kayıtları (varsa)
+      // artık 404 olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
+      savedItems = (data.items || []).filter(it => it.item_type !== 'product' && it.item_type !== 'material');
       renderSaved();
     }
     function renderSaved() {
@@ -835,7 +836,9 @@ const AuthModal = (function () {
     async function loadRated() {
       const res = await fetch('/api/ratings/mine');
       const data = res.ok ? await res.json() : { items: [] };
-      ratedItems = data.items || [];
+      // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski ürün puanlamaları (varsa) artık 404
+      // olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
+      ratedItems = (data.items || []).filter(it => it.type !== 'product' && it.type !== 'material');
       renderRated();
     }
     function renderRated() {

@@ -479,7 +479,11 @@
   .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
   .detail-meta a:hover{color:var(--ink);}
   .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
-  .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
+  /* bkz. kullanıcı isteği: açıklama TAM olarak 3 satırda kırpılıp "…" ile bitsin, 4. satıra
+     geçmesin — js/components/project-meta.js#renderDescription bu class'ı DOM'a yazar, gerçek
+     taşma varsa "Devamını gör" ile kaldırılır. */
+  .detail-desc-text.clamped{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis;}
+  .detail-desc-more{display:block; margin-top:6px; background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
   .detail-desc-more:hover{color:var(--ink);}
 
   /* ---------- PROJE MODALI — yorumlar ---------- */
@@ -650,9 +654,10 @@
     .related-grid-scroll{gap:10px;}
     .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
-    /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Yorumlar →
-       Diğer Projeler → İlgili Projeler → Ürünler/Malzemeler (bkz. kullanıcı isteği) — modal-shell.js
-       bu kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
+    /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Diğer
+       Projeler → İlgili Projeler → Yorumlar → Bilgi Kaynağı/Geri Bildirim (bkz. kullanıcı isteği:
+       Yorumlar aşağı taşınıp Geri Bildirim kutusunun hemen üstüne alındı) — modal-shell.js bu
+       kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
        bu bölümler artık AYNI dikey flex akışının parçası; sıra burada, sırayla artan order değerleriyle
        verilir. .detail-info künye VE açıklamayı TEK blok olarak taşır (zaten aralarında ayrı bir sıra
        gerekmiyor, ikisi de kendi içinde doğru DOM sırasında). #pm-gallery-wrap'ın kendi margin-top'u
@@ -670,13 +675,13 @@
     #pm-rating-save-row{order:3;}
     #pm-byline{order:4;}
     .detail-info{order:6;}
-    #pm-comments-section{order:7;}
-    #pm-same-designer-section{order:8;}
-    #pm-related-section{order:9;}
-    #pm-prevnext{order:10;}
-    /* Bilgi Kaynağı & Geri Bildirim — mobil/tablette sayfanın en altına taşındı (kullanıcı isteği),
-       masaüstünde DOM sırası (Yorumlar'dan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order
-       değerleri etkilenir. */
+    #pm-same-designer-section{order:7;}
+    #pm-related-section{order:8;}
+    #pm-prevnext{order:9;}
+    /* Yorumlar — Bilgi Kaynağı & Geri Bildirim ile AYNI gerekçeyle (bkz. kullanıcı isteği) mobil/
+       tablette aşağı, Geri Bildirim kutusunun hemen üstüne taşındı; masaüstünde DOM sırası (künye/
+       açıklamadan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order değerleri etkilenir. */
+    #pm-comments-section{order:10;}
     #pm-info-divider{order:11;}
     #pm-feedback-card{order:12;}
 
