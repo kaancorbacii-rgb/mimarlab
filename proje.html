@@ -607,21 +607,21 @@
 
   .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
   .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
-  .related-card{position:relative; display:block; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
-  .related-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/görünümlerde
+     gönderi başlıkları görselin altında olsun) — .related-card-photo görseli aspect-ratio'lu bir
+     kutuya alır, .related-card-title normal akışta onun altına düz arkaplanla oturur. */
+  .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
+  .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden;}
+  .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
   .related-card-title{
-    position:absolute; left:0; right:0; bottom:0; padding:10px 14px 14px;
-    background:linear-gradient(to top, rgba(27,42,61,0.85), rgba(27,42,61,0));
-    color:#fff; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+    padding:10px 14px 12px;
+    color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
     /* gerçek bulgu: -webkit-line-clamp + text-overflow:ellipsis kombinasyonu tarayıcıya göre
-       tutarsız davranıyordu (bkz. kullanıcı ekran görüntüsü) — bazı durumlarda "…" ekleyip
-       ARDINDAN yine de bir sonraki satırı kısmen gösteriyor, metin kartın dışına taşıyordu.
-       Üç noktalı kırpma TAMAMEN kaldırıldı (bkz. kullanıcı isteği) — kutu artık satır sayısına
-       göre doğal olarak büyür (bottom:0 sabit, yukarı doğru genişler), gerçek satır sayısı ne
-       olursa olsun metin asla ortadan kesilmez/dots eklenmez. .related-card'ın overflow:hidden'ı
-       (yukarısı) tek güvenlik ağı olarak kalır — normal kart boyutlarında (>=105px yükseklik)
-       birkaç satırlık bir başlık bile bu sınıra asla ulaşmaz. */
+       tutarsız davranıyordu — bazı durumlarda "…" ekleyip ARDINDAN yine de bir sonraki satırı
+       kısmen gösteriyor, metin kartın dışına taşıyordu. Üç noktalı kırpma TAMAMEN kaldırıldı
+       (bkz. kullanıcı isteği) — kutu artık satır sayısına göre doğal olarak büyür, gerçek satır
+       sayısı ne olursa olsun metin asla ortadan kesilmez/dots eklenmez. */
     line-height:1.3; word-break:break-word;
   }
   .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
@@ -630,24 +630,22 @@
 
   .catalog-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
   .catalog-grid-scroll::-webkit-scrollbar{display:none;}
+  /* bkz. .related-card yorumu — aynı gerekçeyle başlık artık görselin altında. */
   .catalog-card{
-    position:relative; display:block; flex:0 0 180px; aspect-ratio:1/1; border-radius:12px; overflow:hidden;
+    display:block; flex:0 0 180px; border-radius:12px; overflow:hidden;
     background:var(--paper-card); border:1px solid var(--line-soft);
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   a.catalog-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
-  .catalog-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .catalog-card-photo{position:relative; aspect-ratio:1/1; overflow:hidden;}
+  .catalog-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .catalog-card .catalog-placeholder-favicon{position:static; width:24px; height:24px; border-radius:6px; background:#fff; padding:3px; object-fit:contain;}
   .catalog-placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; color:rgba(255,255,255,0.92);}
   .catalog-placeholder-initials{font-family:'Inter', sans-serif; font-size:22px; font-weight:700; letter-spacing:0.02em;}
-  .catalog-card-info{
-    position:absolute; left:0; right:0; bottom:0; padding:12px 14px;
-    background:linear-gradient(to top, rgba(27,42,61,0.88), rgba(27,42,61,0));
-    color:#fff;
-  }
-  .catalog-card-cat{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:#F5CFA0; margin-bottom:4px;}
-  .catalog-card-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; line-height:1.25; margin-bottom:2px;}
-  .catalog-card-by{font-size:11px; color:rgba(237,240,243,0.75);}
+  .catalog-card-info{padding:10px 12px; color:var(--ink);}
+  .catalog-card-cat{font-family:'IBM Plex Mono', monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--sage); margin-bottom:4px;}
+  .catalog-card-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; line-height:1.25; margin-bottom:2px; color:var(--ink);}
+  .catalog-card-by{font-size:11px; color:var(--ink-soft);}
 
   .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
   .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}

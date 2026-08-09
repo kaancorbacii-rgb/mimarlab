@@ -9,7 +9,7 @@ const ProjectProducts = (function () {
 
   function cardHtml(p) {
     const inner = `
-      ${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}
+      <div class="catalog-card-photo">${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}</div>
       <div class="catalog-card-info">
         <div class="catalog-card-cat">${escapeHtml(p.category || '')}</div>
         <div class="catalog-card-title">${escapeHtml(p.title)}</div>

@@ -20,7 +20,9 @@ const ArchitectProjects = (function () {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      <div class="related-card-photo">
+        ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      </div>
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }
@@ -89,7 +91,9 @@ const RelatedProjects = (function () {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
     return `<a class="related-card" href="/projeler/${encodeURIComponent(p.slug)}">
-      ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      <div class="related-card-photo">
+        ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      </div>
       <div class="related-card-title">${escapeHtml(p.title)}</div>
     </a>`;
   }
