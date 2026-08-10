@@ -58,15 +58,25 @@ function officeNamesFrom(concat) {
   return out;
 }
 
-function shapeProjectItem(row) {
+// opts.coverOnly — YALNIZCA liste/kart bağlamı için (bkz. fetchActiveProjectPool aşağısı):
+// kartlar/İlgili Yapılar/Mimarın Diğer Yapıları (proje.html/yapi.html/index.html/js/components/
+// project-related.js) her zaman yalnızca `images[0]`'ı render ediyor (bkz. kullanıcı isteği: "API
+// Payload Reduction" — tüm tüketim noktaları tek tek grep'lenip doğrulandı), tam diziyi hiçbiri
+// okumuyor. Tekil proje detayı (handleProjectDetailRoute aşağıda, GALERİ için tam diziye ihtiyaç
+// duyar) ve handleProjectFiltersRoute'un kendi ayrı havuzu (images'ı response'a hiç yazmıyor, bu
+// parametreyi hiç GEÇMİYOR) bu fonksiyonu opts'suz çağırmaya devam ediyor — varsayılan (opts yok)
+// davranış ESKİSİYLE BİREBİR AYNI (tam images dizisi), bu yüzden o iki çağrı noktası hiç değişmedi.
+function shapeProjectItem(row, opts) {
   const p = parseCanonicalRow('projects', row);
+  const coverOnly = opts && opts.coverOnly;
   return {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
     location: p.location, locationDetail: p.location_detail, date: p.project_date, dateBucket: p.date_bucket,
     period: p.period, designer: designerNamesFrom(row.designer_names),
     officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
-    description: p.description, images: p.images, buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
+    description: p.description, images: coverOnly ? p.images.slice(0, 1) : p.images,
+    buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
     conceptCategory: p.concept_category || null,
   };
 }
@@ -266,12 +276,24 @@ export async function fetchActiveProjectPool(env, buildStatus) {
   // ORDER BY p.id DESC — proje.html#render()'daki varsayılan sıralamayla (sort seçilmemişse "son
   // eklenen ilk sırada") birebir aynı; facet sayaçları (bu havuzun diğer tüketicisi,
   // handleProjectFiltersRoute/recomputeProjectFacets) sıradan bağımsız olduğundan etkilenmez.
+  // `p.*` yerine açık sütun listesi (bkz. kullanıcı isteği: "API Payload Reduction" madde 7) —
+  // bu havuzun TEK tüketicileri handleProjectListRoute (kart listesi) ve recomputeProjectFacets
+  // (facet sayaçları, bkz. src/lib/facetCounts.js) olduğundan, ikisinin de hiç okumadığı
+  // source_url/ai_generated/source/legacy_key/claimed_by_user_id/created_at/updated_at D1'den hiç
+  // çekilmiyor (deleted_at/hidden_at yalnızca WHERE'de kullanılıyor, SELECT'e gerek yok). `images`
+  // sütunu yine TAM metin olarak çekiliyor (SQL'de json_extract KULLANILMADI — bir satırın images
+  // JSON'ı bozuksa bu tüm sorguyu 500'letebilirdi; mevcut JS tarafı parseCanonicalRow/try-catch
+  // güvenliği korunuyor), yalnızca shapeProjectItem'a coverOnly:true geçirilerek İLK görsele
+  // aşağıda JS'te indirgeniyor.
   const { results } = await env.DB.prepare(
-    `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
+    `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
+            p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
+            p.photo_credit_url, p.build_status, p.concept_category,
+            GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ? GROUP BY p.id ORDER BY p.id DESC`
   ).bind(status).all();
-  return results.map(shapeProjectItem);
+  return results.map(row => shapeProjectItem(row, { coverOnly: true }));
 }
 
 // proje.html#FILTER_GROUPS ile BİREBİR aynı alan çıkarımı — yalnızca `field` fonksiyonları burada
