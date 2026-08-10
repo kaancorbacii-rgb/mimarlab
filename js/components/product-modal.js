@@ -213,7 +213,10 @@ const ProductModal = (function () {
       /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
          inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
          dışına taşıyordu (bkz. kullanıcı isteği). */
-      .prevnext-title{display:block; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+      /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
+         butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
+         sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
+      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
       /* ---------- ÜRÜN MODALI — Bilgi Kaynağı & Geri Bildirim (bkz. proje.html'deki AYNI #pm-info-divider/
          #pm-feedback-card kuralları — burada yorum bölümü olmadığından .detail-info'nun hemen altına,
          kendi enjekte edilen <style>'ında tutulur, proje.html'e dokunmaya gerek kalmaz). */

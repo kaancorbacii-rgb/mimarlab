@@ -23,7 +23,7 @@ const ArchitectProjects = (function () {
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
-      <div class="related-card-title">${escapeHtml(p.title)}</div>
+      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span></div>
     </a>`;
   }
 
@@ -96,7 +96,7 @@ const RelatedProjects = (function () {
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
-      <div class="related-card-title">${escapeHtml(p.title)}</div>
+      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span></div>
     </a>`;
   }
 

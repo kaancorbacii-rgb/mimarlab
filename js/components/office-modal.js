@@ -111,7 +111,10 @@ const OfficeModal = (function () {
       /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
          inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
          dışına taşıyordu (bkz. kullanıcı isteği). */
-      .prevnext-title{display:block; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+      /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
+         butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
+         sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
+      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}

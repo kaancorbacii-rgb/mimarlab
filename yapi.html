@@ -621,8 +621,16 @@
   .related-card-title{
     padding:10px 14px 12px;
     color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
-    /* bkz. kullanıcı isteği: proje başlıkları pop-up içindeki kartlarda EN FAZLA 3 satır, sonrası
-       "…" ile kırpılsın (bkz. AYNI desen .detail-desc-text.clamped'de). */
+  }
+  /* -webkit-line-clamp KESİNLİKLE padding taşıyan elemanın ÜZERİNDE değil, padding'siz bir İÇ
+     elemanda uygulanmalı (bkz. kullanıcı isteği: "üç noktadan sonra kelime gelmemeli") — WebKit'in
+     bilinen bir kusuru: line-clamp + padding-bottom AYNI kutuda olduğunda, kırpılan 4. satırın bir
+     kısmı padding alanının içinden sızıp görünür kalıyordu (gerçek bulgu: "İzmir Musevi Cemaati
+     Merkez Binası — Şaar…" satırının hemen altında "Aşamavim" kelimesi görünüyordu). Padding'i
+     .related-card-title'da (dış kutu), kırpmayı padding'siz .related-card-title-clamp'te (iç metin)
+     ayırmak bu sızıntıyı ortadan kaldırır.
+  */
+  .related-card-title-clamp{
     line-height:1.3; word-break:break-word;
     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis;
   }
@@ -641,7 +649,10 @@
   /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
      inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun dışına
      taşıyordu (bkz. kullanıcı isteği). */
-  .prevnext-title{display:block; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
+     butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
+     sonlandır") — .related-card-title-clamp İLE AYNI desen, bkz. o dosyadaki AYNI gerekçe. */
+  .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
 
   /* Skeleton — ertelenmiş bölümler (yorumlar/diğer projeler/ilgili projeler/ürünler) veri gelene
      kadar (bkz. kullanıcı isteği: lazy/deferred). display:none DEĞİL, gerçek bir layout kutusu
