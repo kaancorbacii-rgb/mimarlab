@@ -309,22 +309,16 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // yalnızca bilgilendirme amaçlı, gerçek tutar her zaman sunucuda targetType'a göre doğrulanır).
 const BADGE_TIERS = [
   { type:'destekci', label:'Destekçi', officePrice:79.90, perks:[
-    'Herhangi bir ayrıcalık ya da rozet vermez — sadece MİMARLAB\'a destek olmak isteyenler içindir.',
+    'Bir rozet vermez, destek olmak isteyenler içindir.',
   ] },
   { type:'verified', label:'Doğrulanmış Üye', officePrice:99.90, perks:[
-    'Profilinde mavi doğrulanmış rozet',
-    'Ayda 3 ürün yükleme hakkı',
-    'Kendi içeriğine gelen yorumları silme yetkisi',
+    'Doğrulanmış Üye rozeti verir.',
   ] },
   { type:'gold', label:'Altın Üye', officePrice:139.90, perks:[
-    'Doğrulanmış rozet',
-    'Ayda 10 ürün yükleme hakkı',
-    'Kendi içeriğine gelen yorumları silme yetkisi',
+    'Altın Üye rozeti verir.',
   ] },
   { type:'platinum', label:'Elmas Üye', officePrice:199.90, perks:[
-    'Doğrulanmış rozet',
-    'Ayda 50 ürün yükleme hakkı',
-    'Kendi içeriğine gelen yorumları silme yetkisi',
+    'Elmas Üye rozeti verir.',
   ] },
 ];
 const SELF_DISCOUNT_TRY = 60;
