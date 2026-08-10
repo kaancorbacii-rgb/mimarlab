@@ -22,6 +22,7 @@ import { handleCspReportRoute } from './routes/cspReport.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
 import { slugify } from './lib/slugify.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
+import { resolveSlugRedirect } from './lib/slugRedirects.js';
 
 const SITE_ORIGIN = 'https://mimarlab.com';
 
@@ -117,6 +118,11 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
 ];
+
+// serveDetailPage#type ('project'/'architect'/'office') -> slug_redirects.entity_type (bkz.
+// migrations/0041_slug_redirects.sql) — src/lib/canonicalSync.js/officeFounderCascade.js'teki AYNI
+// çoğul isimlendirme ('projects'/'architects'/'offices').
+const ENTITY_TYPE_BY_DETAIL_TYPE = { project: 'projects', architect: 'architects', office: 'offices' };
 
 // Kariyer — yayında değil (bkz. kullanıcı isteği). Ürün/Danışman/Haber'in aksine sayfası hâlâ
 // repoda duruyor (bkz. kariyer.html) ama bu görevin kapsamı dışında bırakıldı — yalnızca public
@@ -400,6 +406,21 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
 
   const rawSlug = decodeURIComponent(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
   const meta = rawSlug ? await buildMeta(cleanRoute.type, rawSlug, env) : null;
+  // Slug bulunamadıysa, bu bir yeniden adlandırma sonrası bayatlamış (paylaşılmış/indekslenmiş) bir
+  // eski URL olabilir (bkz. migrations/0041_slug_redirects.sql, kullanıcı isteği: "ismi değişirse
+  // URL'si de değişmeli ... eski URL'ler kırılmasın") — varsa güncel slug'a 301 ile yönlendirilir.
+  if (!meta && rawSlug) {
+    const entityType = ENTITY_TYPE_BY_DETAIL_TYPE[cleanRoute.type];
+    const newSlug = entityType ? await resolveSlugRedirect(env, entityType, rawSlug) : null;
+    if (newSlug) {
+      const newMeta = await buildMeta(cleanRoute.type, newSlug, env);
+      if (newMeta) {
+        const dest = new URL(newMeta.canonicalUrl);
+        dest.search = url.search;
+        return Response.redirect(dest.href, 301);
+      }
+    }
+  }
   if (!meta || assetResponse.status !== 200) return assetResponse;
 
   const rewritten = injectMeta(assetResponse, meta);

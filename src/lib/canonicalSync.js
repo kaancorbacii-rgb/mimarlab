@@ -17,8 +17,29 @@
 // gerekiyor).
 
 import { newId } from './crypto.js';
+import { freshSlugFor } from './officeFounderCascade.js';
+import { recordSlugRedirect } from './slugRedirects.js';
+import { purgeSsrDetailCache } from './ssrCache.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
+
+// Bir projenin başlığı (dolayısıyla slug'ı) değiştiğinde — mimar/firma yeniden adlandırmasındaki
+// renameOfficeEverywhere/renameArchitectEverywhere'in proje karşılığı. Projeye slug ile referans
+// veren TEK üç tablo comments/ratings/saved_items (bkz. src/lib/cascadeDelete.js dosya başı yorumu
+// "Başka hiçbir tablo bir projeye slug ile referans vermez") + legacy_content_hidden (bkz.
+// src/routes/legacyContent.js#setLegacyHidden — content_type='projects', content_key=slug).
+async function renameProjectSlugEverywhere(env, oldSlug, newSlug) {
+  await Promise.all([
+    env.DB.prepare(`UPDATE comments SET target_id = ? WHERE target_type = 'project' AND target_id = ?`).bind(newSlug, oldSlug).run(),
+    env.DB.prepare(`UPDATE OR IGNORE ratings SET target_id = ? WHERE target_type = 'project' AND target_id = ?`).bind(newSlug, oldSlug).run(),
+    env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'project' AND item_key = ?`).bind(newSlug, oldSlug).run(),
+    env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'projects' AND content_key = ?`).bind(newSlug, oldSlug).run(),
+  ]);
+  // bkz. migrations/0041_slug_redirects.sql — eski /yapi/:slug ve /proje/:slug hâlâ çalışsın (301 ile yeniye).
+  await recordSlugRedirect(env, 'projects', oldSlug, newSlug);
+  await purgeSsrDetailCache('project', oldSlug);
+  await purgeSsrDetailCache('project', newSlug);
+}
 
 // architects/offices/projects.slug hepsi TEXT UNIQUE NOT NULL (bkz. migrations/
 // 0022_id_first_entities.sql) — syncArchitect/syncOffice/syncProject'in "yeni bağımsız kayıt"
@@ -463,8 +484,21 @@ async function syncProject(env, row) {
       row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null,
     ];
     if (row.images && row.images.length) { sets.splice(-1, 0, 'images = ?'); vals.push(images); }
+    // Başlık değiştiyse slug da değişir (bkz. kullanıcı isteği: "ismi değişirse URL'si de değişmeli"
+    // — mimar/firma yeniden adlandırmasında zaten var olan davranışın proje karşılığı, bkz.
+    // src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere). Karşılaştırma
+    // İSİMLE (target.title) yapılır, mevcut slug'la DEĞİL — aksi halde daha önce bir çakışma yüzünden
+    // "-2" gibi bir sonek almış slug'lar, başlık hiç değişmese bile her kayıtta yeniden adlandırma
+    // gibi görünürdü.
+    let newSlug = target.slug;
+    if (row.title && row.title !== target.title) {
+      newSlug = await freshSlugFor(env, 'projects', target.id, row.title);
+      sets.splice(-1, 0, 'slug = ?');
+      vals.push(newSlug);
+    }
     await env.DB.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     projectId = target.id;
+    if (newSlug !== target.slug) await renameProjectSlugEverywhere(env, target.slug, newSlug);
     // Mimar/Firma artık ayrı alanlar (bkz. yukarı) — biri boş diğeri dolu gönderilebileceğinden
     // (ör. yalnızca Firma girildi) DELETE tetiği İKİSİNDEN BİRİNİN dolu olmasına bakmalı, eskiden
     // olduğu gibi yalnızca row.designer'a değil (aksi halde salt-firma bir düzenlemede eski

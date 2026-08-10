@@ -258,9 +258,38 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
         await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
       }
 
+      // Onaylı içerik ya şimdi onaylandı ya da onaylıyken bir alanı/durumu değişti (her iki
+      // durumda da public'e yansıyan bir şey değişmiş olabilir) — bkz. src/lib/publicCache.js. BU
+      // BLOK, aşağıdaki adminRenameCascade'DEN ÖNCE çalışmalı — bkz. src/routes/submissions.js#
+      // updateOwnSubmission'daki AYNI sıralama yorumu/gerekçesi (syncArchitect/syncOffice claimed
+      // profilleri claimed_profile_key/SABİT ad ile bulur; cascade önce çalışırsa canonical adı
+      // değiştirip senkronun kendi hedefini bulamamasına, ikinci bir "hayalet" kayıt oluşmasına yol açar).
+      if (existing.status === 'approved' || body.status === 'approved') {
+        // Okuma yolları artık *_submissions'ı DEĞİL, canonical tabloları okuyor (bkz.
+        // src/routes/architect.js/office.js/project.js/product.js, Faz 3) — bu yüzden bu satırın
+        // canonical karşılığı da AYNI anda güncellenmeli, aksi halde onay ekranda "başarılı" görünür
+        // ama site hiçbir şey göstermez (bkz. src/lib/canonicalSync.js dosya başı yorumu).
+        if (CANONICAL_TYPES.has(typeKey)) {
+          const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+          const finalStatus = freshRow.status;
+          if (finalStatus === 'approved') {
+            await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+          } else if (existing.status === 'approved') {
+            // onaylıyken reddedildi/pending'e alındı — bkz. src/lib/canonicalSync.js#hideCanonicalForUnapprovedSubmission.
+            await hideCanonicalForUnapprovedSubmission(env, typeKey, freshRow);
+          }
+          if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
+        }
+        await invalidatePublicCache();
+        // Var olan (güncelleme ÖNCESİ) kaydın kimliğini hedefler — bkz. src/lib/ssrCache.js.
+        const target = ssrPurgeTargetFor(typeKey, existing);
+        if (target) await purgeSsrDetailCache(target.type, target.key);
+      }
+
       // Admin panelinden doğrudan firma/mimar adı değiştirildiyse (bkz. src/routes/submissions.js#
       // updateOwnSubmission'daki AYNI cascade, "Düzenle" formu için) diğer TÜM D1 satırlarını da
-      // yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere).
+      // yeni ada taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere) —
+      // yukarıdaki senkrondan SONRA çalışır (bkz. o bloğun başındaki yorum).
       const adminRenameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
       if (adminRenameCascade && body.name && body.name !== existing.name && (existing.status === 'approved' || body.status === 'approved')) {
         await adminRenameCascade(env, existing.name, body.name);
@@ -297,29 +326,6 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
             'hesabim.html'
           );
         }
-      }
-      // Onaylı içerik ya şimdi onaylandı ya da onaylıyken bir alanı/durumu değişti (her iki
-      // durumda da public'e yansıyan bir şey değişmiş olabilir) — bkz. src/lib/publicCache.js.
-      if (existing.status === 'approved' || body.status === 'approved') {
-        // Okuma yolları artık *_submissions'ı DEĞİL, canonical tabloları okuyor (bkz.
-        // src/routes/architect.js/office.js/project.js/product.js, Faz 3) — bu yüzden bu satırın
-        // canonical karşılığı da AYNI anda güncellenmeli, aksi halde onay ekranda "başarılı" görünür
-        // ama site hiçbir şey göstermez (bkz. src/lib/canonicalSync.js dosya başı yorumu).
-        if (CANONICAL_TYPES.has(typeKey)) {
-          const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-          const finalStatus = freshRow.status;
-          if (finalStatus === 'approved') {
-            await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
-          } else if (existing.status === 'approved') {
-            // onaylıyken reddedildi/pending'e alındı — bkz. src/lib/canonicalSync.js#hideCanonicalForUnapprovedSubmission.
-            await hideCanonicalForUnapprovedSubmission(env, typeKey, freshRow);
-          }
-          if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
-        }
-        await invalidatePublicCache();
-        // Var olan (güncelleme ÖNCESİ) kaydın kimliğini hedefler — bkz. src/lib/ssrCache.js.
-        const target = ssrPurgeTargetFor(typeKey, existing);
-        if (target) await purgeSsrDetailCache(target.type, target.key);
       }
       return json({ ok: true });
     }

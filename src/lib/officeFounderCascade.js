@@ -2,6 +2,7 @@ import { newId } from './crypto.js';
 import { parseSubmissionRow } from './submissionTypes.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
 import { slugify } from './slugify.js';
+import { recordSlugRedirect } from './slugRedirects.js';
 
 const ARCHITECT_COPY_FIELDS = ['dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'];
 
@@ -56,7 +57,7 @@ export async function cascadeRemovedFounders(env, user, officeName, oldFounders,
   }
 }
 
-async function freshSlugFor(env, table, currentId, newName) {
+export async function freshSlugFor(env, table, currentId, newName) {
   const base = slugify(newName) || `kayit-${currentId}`;
   let slug = base, n = 2;
   while (true) {
@@ -76,8 +77,18 @@ async function freshSlugFor(env, table, currentId, newName) {
 // güncellenir (bkz. src/routes/office.js — canonical artık okuma yolunun asıl kaynağı, `slug`
 // tazeyken clean URL'ler yeniden derlenme/tam-tarama fallback'ine ihtiyaç duymadan hemen çalışır).
 export async function renameOfficeEverywhere(env, oldName, newName) {
-  if (!oldName || !newName || oldName === newName) return;
-  const canonRow = await env.DB.prepare(`SELECT id FROM offices WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ?) LIMIT 1`).bind(oldName, oldName).first();
+  if (!oldName || !newName || oldName === newName) return null;
+  // name=newName da denenir: bu fonksiyon syncApprovedSubmissionToCanonical'DAN SONRA çağrılır (bkz.
+  // src/routes/submissions.js#updateOwnSubmission/admin.js#handleSubmissionsAdmin) — claimed bir
+  // profilde syncOffice, canonical satırı claimed_profile_key (SABİT, orijinal statik ad) ile bulup
+  // adını burada ÇAĞRILMADAN ÖNCE zaten yeni ada çevirmiş olabilir (özellikle legacy_static
+  // OLMAYAN, sonradan sahiplenilmiş bir profilde legacy_key orijinal adı taşımaz — bkz. gerçek
+  // bulgu, ikinci bir "hayalet" canonical satır oluşturuyordu). name=oldName clause'u legacy_static
+  // (legacy_key HER ZAMAN orijinal ad, hiç değişmez) profillerde ve bu fonksiyon sync'TEN ÖNCE
+  // çağrılan diğer yollarda (ör. admin.js'in eski sırası) hâlâ çalışsın diye korunur.
+  const canonRow = await env.DB.prepare(
+    `SELECT id, slug FROM offices WHERE deleted_at IS NULL AND (name = ? OR name = ? OR legacy_key = ?) LIMIT 1`
+  ).bind(oldName, newName, oldName).first();
   await Promise.all([
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'office' AND item_key = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE OR IGNORE profile_claims SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
@@ -90,9 +101,21 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
     env.DB.prepare(`UPDATE OR IGNORE admin_badges SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
   ]);
 
+  let finalSlug = null;
   if (canonRow) {
-    const newSlug = await freshSlugFor(env, 'offices', canonRow.id, newName);
-    await env.DB.prepare(`UPDATE offices SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, newSlug, canonRow.id).run();
+    finalSlug = await freshSlugFor(env, 'offices', canonRow.id, newName);
+    if (finalSlug !== canonRow.slug) {
+      await env.DB.prepare(`UPDATE offices SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, finalSlug, canonRow.id).run();
+      // bkz. migrations/0041_slug_redirects.sql — eski /firma/:slug hâlâ çalışsın (301 ile yeniye).
+      await recordSlugRedirect(env, 'offices', canonRow.slug, finalSlug);
+      // purgeSsrDetailCache zaten-slug bir değer alırsa slugify idempotent olduğundan sorun çıkarmaz —
+      // isim yerine BİLİNEN gerçek eski/yeni slug'ı vermek, isimden yeniden türetmenin (bkz.
+      // ssrPurgeTargetFor) daha önce bir çakışma soneki almış slug'larda yanlış anahtarı hedeflemesini önler.
+      await purgeSsrDetailCache('office', canonRow.slug);
+      await purgeSsrDetailCache('office', finalSlug);
+    } else {
+      await env.DB.prepare(`UPDATE offices SET name = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, canonRow.id).run();
+    }
   }
 
   // project_submissions.designer bir JSON dizisi (metin olarak saklanır) — SQL ile tek satırda
@@ -108,6 +131,9 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
       await env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id).run();
     } catch { /* bozuk JSON — dokunma */ }
   }
+  // src/routes/submissions.js/admin.js, düzenlemeden sonra istemciyi (olası yeni) profil sayfasına
+  // yönlendirebilmek için nihai slug'a ihtiyaç duyar (bkz. kullanıcı isteği).
+  return finalSlug;
 }
 
 // renameOfficeEverywhere'in mimar karşılığı (bkz. src/routes/submissions.js#updateOwnSubmission,
@@ -116,8 +142,13 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
 // taşır. Faz 3: canonical architects.name/slug de burada güncellenir (bkz. yukarıdaki
 // renameOfficeEverywhere'deki AYNI gerekçe).
 export async function renameArchitectEverywhere(env, oldName, newName) {
-  if (!oldName || !newName || oldName === newName) return;
-  const canonRow = await env.DB.prepare(`SELECT id FROM architects WHERE deleted_at IS NULL AND (name = ? OR legacy_key = ?) LIMIT 1`).bind(oldName, oldName).first();
+  if (!oldName || !newName || oldName === newName) return null;
+  // name=newName da denenir — bkz. renameOfficeEverywhere'deki AYNI gerekçe (bu fonksiyon
+  // syncApprovedSubmissionToCanonical'dan SONRA çağrılır, syncArchitect claimed bir profilde
+  // canonical adı burada ÇAĞRILMADAN ÖNCE zaten yeni ada çevirmiş olabilir).
+  const canonRow = await env.DB.prepare(
+    `SELECT id, slug FROM architects WHERE deleted_at IS NULL AND (name = ? OR name = ? OR legacy_key = ?) LIMIT 1`
+  ).bind(oldName, newName, oldName).first();
   await Promise.all([
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'architect' AND item_key = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE OR IGNORE profile_claims SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),
@@ -129,9 +160,18 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
     env.DB.prepare(`UPDATE OR IGNORE admin_badges SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),
   ]);
 
+  let finalSlug = null;
   if (canonRow) {
-    const newSlug = await freshSlugFor(env, 'architects', canonRow.id, newName);
-    await env.DB.prepare(`UPDATE architects SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, newSlug, canonRow.id).run();
+    finalSlug = await freshSlugFor(env, 'architects', canonRow.id, newName);
+    if (finalSlug !== canonRow.slug) {
+      await env.DB.prepare(`UPDATE architects SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, finalSlug, canonRow.id).run();
+      // bkz. migrations/0041_slug_redirects.sql — eski /mimar/:slug hâlâ çalışsın (301 ile yeniye).
+      await recordSlugRedirect(env, 'architects', canonRow.slug, finalSlug);
+      await purgeSsrDetailCache('architect', canonRow.slug);
+      await purgeSsrDetailCache('architect', finalSlug);
+    } else {
+      await env.DB.prepare(`UPDATE architects SET name = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, canonRow.id).run();
+    }
   }
 
   const { results: projectRows } = await env.DB.prepare(
@@ -169,4 +209,5 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
       await env.DB.prepare(`UPDATE ${table} SET architect = ? WHERE id = ?`).bind(updated, row.id).run();
     }
   }
+  return finalSlug;
 }

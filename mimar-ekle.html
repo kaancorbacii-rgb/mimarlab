@@ -859,7 +859,11 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/mimar/${encodeURIComponent(slugify(payload.name))}`; }, 1200);
+      // İsim değiştiyse slug de değişmiş olabilir (bkz. kullanıcı isteği) — düzenlemede backend'in
+      // döndüğü GÜNCEL slug'a güvenilir (bkz. src/routes/submissions.js#updateOwnSubmission), yeni
+      // kayıtta (data.slug yoksa) isimden aynı algoritmayla türetilen slug'a düşülür.
+      const finalSlug = data.slug || slugify(payload.name);
+      setTimeout(()=>{ window.location.href = `/mimar/${encodeURIComponent(finalSlug)}`; }, 1200);
       return;
     }
     if(editId || claimName){

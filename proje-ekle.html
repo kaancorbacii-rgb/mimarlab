@@ -1136,10 +1136,14 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     if(claimSlug){
       // Admin'in statik proje düzenlemesi onay beklemeden anında yayına girer (bkz. src/routes/
       // submissions.js#createSubmission/updateOwnSubmission — claimed_slug'lı satırlar 'approved').
+      // Başlık değiştiyse slug de değişmiş olabilir (bkz. kullanıcı isteği: "ismi değişirse URL'si
+      // de değişmeli") — backend'in döndüğü GÜNCEL slug/prefix'e güvenilir, sayfa yüklenirken
+      // bilinen eski claimSlug'a değil.
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/yapi/${encodeURIComponent(claimSlug)}`; }, 1200);
+      const dest = data.slug ? `${data.prefix || '/yapi/'}${encodeURIComponent(data.slug)}` : `/yapi/${encodeURIComponent(claimSlug)}`;
+      setTimeout(()=>{ window.location.href = dest; }, 1200);
       return;
     }
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi düzenlemesi, bkz. src/routes/
@@ -1147,22 +1151,22 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     // gitsin (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o
     // profile gitsin"). claimSlug'lı durum bunu zaten yukarıda ayrıca ele alıyor (slug'ı en baştan
     // biliniyor); burası claimSlug'sız (sıradan bir üye projesi) düzenlemeler için.
-    if(editId && data.status === 'approved' && existingSlug){
+    if(editId && data.status === 'approved' && (data.slug || existingSlug)){
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/yapi/${encodeURIComponent(existingSlug)}`; }, 1200);
+      const dest = data.slug ? `${data.prefix || '/yapi/'}${encodeURIComponent(data.slug)}` : `/yapi/${encodeURIComponent(existingSlug)}`;
+      setTimeout(()=>{ window.location.href = dest; }, 1200);
       return;
     }
     // claimSlug/existingSlug'lı yukarıdaki iki durumun DIŞINDA kalan, admin'in SIFIRDAN (editId'siz)
-    // eklediği bir proje de anında yayına girer — bu durumda slug istemci tarafında ÖNCEDEN bilinmez
-    // (rastgele ek içerir, bkz. normalizeSubmission), bu yüzden backend'in POST yanıtındaki slug'a
-    // ihtiyaç var (bkz. src/routes/submissions.js#createSubmission).
+    // eklediği bir proje de anında yayına girer — bu durumda slug istemci tarafında ÖNCEDEN bilinmez,
+    // bu yüzden backend'in POST yanıtındaki slug'a ihtiyaç var (bkz. src/routes/submissions.js#createSubmission).
     if(!editId && data.status === 'approved' && data.slug){
       notice.textContent = 'Proje eklendi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/yapi/${encodeURIComponent(data.slug)}`; }, 1200);
+      setTimeout(()=>{ window.location.href = `${data.prefix || '/yapi/'}${encodeURIComponent(data.slug)}`; }, 1200);
       return;
     }
     if(editId){

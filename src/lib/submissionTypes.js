@@ -164,7 +164,11 @@ export function normalizeSubmission(type, body) {
     row[field] = value;
   }
   if (type === 'projects') {
-    row.slug = slugify(body.title) + '-' + Math.random().toString(36).slice(2, 7);
+    // Eskiden title'a rastgele bir ek eklenirdi (ör. "co-port-jxepq") — bkz. kullanıcı isteği: temiz
+    // URL. Bu yalnızca project_submissions.slug (taslak/bookkeeping) için bir aday değerdir; canonical
+    // projects.slug'daki asıl tekillik/çakışma çözümü src/lib/canonicalSync.js#syncProject'te yapılır
+    // (yeni kayıtta clash+`-${id}` soneki, düzenlemede freshSlugFor ile "-2","-3"... sıralı sonek).
+    row.slug = slugify(body.title);
     row.dateBucket = dateBucketFor(body.date);
   }
   return row;

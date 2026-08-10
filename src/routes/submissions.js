@@ -198,12 +198,13 @@ async function createSubmission(request, env, user, typeKey) {
   // Yalnızca admin'in kendi gönderisi anında 'approved' olarak yayına girdiğinden (yukarıdaki
   // yorum) public önbelleği yalnızca bu durumda değişir — sıradan üye gönderileri 'pending' kalıp
   // onay bekleyene dek zaten hiçbir public uçta görünmez, gereksiz yere temizlemeye gerek yok.
+  let syncedRow = null;
   if (status === 'approved') {
     // bkz. src/lib/canonicalSync.js dosya başı yorumu — okuma yolları artık canonical tabloları
     // okuyor, admin'in anında yayına giren kendi gönderisi de aynı anda oraya senkronlanmalı.
     if (CANONICAL_TYPES.has(typeKey)) {
       const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-      await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+      syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
       if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
     }
     await invalidatePublicCache();
@@ -215,10 +216,15 @@ async function createSubmission(request, env, user, typeKey) {
     if (target) await purgeSsrDetailCache(target.type, target.key);
   }
   // slug: proje-ekle.html'in kaydettikten sonra doğrudan canlı sayfaya yönlendirebilmesi için (bkz.
-  // kullanıcı isteği) — yalnızca projelerde anlamlı, slug title'dan rastgele bir ek ile üretildiğinden
-  // (bkz. normalizeSubmission) istemci tarafında ÖNCEDEN tahmin edilemez (mimar/firma/ürünün aksine,
-  // onlarda yönlendirme adı/id'den istemci tarafında yeniden üretilebiliyor).
-  return json(typeKey === 'projects' ? { id, status, slug: row.slug } : { id, status }, 201);
+  // kullanıcı isteği) — syncedRow'dan (canonical satırın KENDİSİ) okunur, row.slug'dan DEĞİL: bir
+  // slug çakışması olduysa (bkz. src/lib/canonicalSync.js#syncProject) canonical'daki gerçek slug
+  // row.slug'dan farklı olabilir, istemciye HER ZAMAN gerçek/nihai slug dönmeli.
+  if (typeKey === 'projects') {
+    const finalSlug = (syncedRow && syncedRow.slug) || row.slug;
+    const prefix = syncedRow && syncedRow.build_status === 'concept' ? '/proje/' : '/yapi/';
+    return json({ id, status, slug: finalSlug, prefix }, 201);
+  }
+  return json({ id, status }, 201);
 }
 
 async function listMine(env, user, typeKey) {
@@ -265,8 +271,12 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     if (err) return err;
   }
 
+  // slug artık düzenlemede KORUNMAZ — başlık değiştiyse project_submissions.slug de yeni başlıktan
+  // yeniden üretilir (bkz. kullanıcı isteği: "ismi değişirse URL'si de değişmeli"). Canonical
+  // projects.slug'daki asıl değişiklik/çakışma çözümü + eski URL'lerin 301 ile yönlendirilmesi
+  // src/lib/canonicalSync.js#syncProject'te yapılır (aşağıdaki syncApprovedSubmissionToCanonical
+  // çağrısı) — burası yalnızca bu taslak satırın kendi bookkeeping'i.
   const row = normalizeSubmission(typeKey, body);
-  if (typeKey === 'projects') row.slug = existing.slug; // düzenlemede slug'ı (ve ona bağlı bağlantıları/yorumları) koru
 
   const now = Date.now();
   // Bu satıra ulaşan HERKES zaten sahip (existing.owner_user_id === user.id) ya da admin'dir —
@@ -295,24 +305,15 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
   }
 
-  // Firma/mimar yeniden adlandırıldıysa (statik/claimed profilde yalnızca admin, claim'siz sıradan
-  // bir profilde sahibi de yapabilir — bkz. yukarıdaki istisna) diğer TÜM D1 satırlarını da yeni ada
-  // taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere).
-  // claimed profillerde eski ad HER ZAMAN body.claimed_profile_key'dir (claimed_profile_key kendisi
-  // değişmez); claim'siz profillerde eski ad existing.name'dir.
-  const updateRenameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
-  if (status === 'approved' && updateRenameCascade) {
-    const oldName = body.claimed_profile_key || existing.name;
-    if (row.name !== oldName) await updateRenameCascade(env, oldName, row.name);
-  }
-
-  // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
-  // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
-  await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key);
-
   // Onaylı içerik ya şimdi onaylandı ya da (sıradan üye kendi onaylı içeriğini düzenlediğinde,
   // bkz. yukarıdaki status ataması) tekrar onay bekler duruma düşüp public'ten kalkmış olabilir —
-  // her iki yönde de public önbellek eskimiş olacağından temizlenir.
+  // her iki yönde de public önbellek eskimiş olacağından temizlenir. BU BLOK, aşağıdaki
+  // updateRenameCascade'DEN ÖNCE çalışmalı: syncArchitect/syncOffice claimed profillerde canonical
+  // satırı claimed_profile_key (SABİT, orijinal statik ad) ile bulur — cascade önce çalışıp
+  // canonical name/slug'ı DEĞİŞTİRSEYDİ, bu senkron kendi hedefini bulamayıp YANLIŞLIKLA ikinci bir
+  // "yeni kayıt" oluştururdu (gerçek bulgu: submission kökenli — legacy_static OLMAYAN — sonradan
+  // sahiplenilmiş bir profilde, claimed_profile_key'in ait olduğu ad zaten değişmiş oluyordu).
+  let syncedRow = null;
   if (status === 'approved' || existing.status === 'approved') {
     // bkz. src/lib/canonicalSync.js dosya başı yorumu — bkz. src/routes/admin.js#handleSubmissionsAdmin'daki
     // AYNI mantık: onaylandıysa canonical'a senkronla, onaylıyken onay bekler duruma düştüyse
@@ -320,7 +321,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     if (CANONICAL_TYPES.has(typeKey)) {
       if (status === 'approved') {
         const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
-        await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+        syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
       } else if (existing.status === 'approved') {
         await hideCanonicalForUnapprovedSubmission(env, typeKey, existing);
       }
@@ -328,9 +329,41 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     }
     await invalidatePublicCache();
     // Değişiklik ÖNCESİ kaydın kimliğini hedefler (görüntülenen sayfa hâlâ bu anahtar altında
-    // önbelleklenmiş olabilir) — bkz. src/lib/ssrCache.js.
+    // önbelleklenmiş olabilir) — bkz. src/lib/ssrCache.js. Slug değiştiyse ESKİ slug'ın önbelleği
+    // syncProject/renameOfficeEverywhere/renameArchitectEverywhere içinde ZATEN temizlenir (bkz. o
+    // fonksiyonların recordSlugRedirect/purgeSsrDetailCache çağrıları) — burası hâlâ gerekli çünkü
+    // slug DEĞİŞMEDEN yapılan bir düzenlemede de (ör. görsel/açıklama güncellemesi) sayfa önbelleği
+    // eskimiş olur.
     const target = ssrPurgeTargetFor(typeKey, existing);
     if (target) await purgeSsrDetailCache(target.type, target.key);
+  }
+
+  // Firma/mimar yeniden adlandırıldıysa (statik/claimed profilde yalnızca admin, claim'siz sıradan
+  // bir profilde sahibi de yapabilir — bkz. yukarıdaki istisna) diğer TÜM D1 satırlarını da yeni ada
+  // taşı (bkz. src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere) —
+  // yukarıdaki senkrondan SONRA çalışır (bkz. o bloğun başındaki yorum). claimed profillerde eski ad
+  // HER ZAMAN body.claimed_profile_key'dir (claimed_profile_key kendisi değişmez); claim'siz
+  // profillerde eski ad existing.name'dir.
+  const updateRenameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
+  let renamedSlug = null;
+  if (status === 'approved' && updateRenameCascade) {
+    const oldName = body.claimed_profile_key || existing.name;
+    if (row.name !== oldName) renamedSlug = await updateRenameCascade(env, oldName, row.name);
+  }
+
+  // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
+  // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
+  await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key);
+  // slug/prefix: proje-ekle.html/mimar-ekle.html/firma-ekle.html'in kaydettikten sonra doğrudan
+  // (olası yeni) canlı sayfaya yönlendirebilmesi için (bkz. kullanıcı isteği). architects/offices'te
+  // slug'ı asıl DEĞİŞTİREN updateRenameCascade'dir (syncedRow.slug bu adımdan ÖNCEki değeri taşır,
+  // bkz. yukarıdaki sıralama yorumu) — renamedSlug varsa o esas alınır, yoksa (isim değişmediyse)
+  // syncedRow.slug zaten güncel/değişmemiştir.
+  if (typeKey === 'projects' && syncedRow) {
+    return json({ id, status, slug: syncedRow.slug, prefix: syncedRow.build_status === 'concept' ? '/proje/' : '/yapi/' });
+  }
+  if ((typeKey === 'architects' || typeKey === 'offices') && (renamedSlug || syncedRow)) {
+    return json({ id, status, slug: renamedSlug || syncedRow.slug });
   }
   return json({ id, status });
 }
