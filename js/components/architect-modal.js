@@ -271,7 +271,7 @@ const ArchitectModal = (function () {
   }
 
   // Mimar profiline yazılmış ama offices tablosunda karşılığı olmayan (bkz. src/routes/
-  // architect.js#fetchRawOfficeName, `unregistered: true`) firma adı — js/components/
+  // architect.js#fetchRawOfficeNames, `unregistered: true`) firma adı — js/components/
   // office-modal.js#unregisteredBadgeHtml ile BİREBİR aynı, yuvarlak baş harfli pasif rozet.
   function unregisteredBadgeHtml(name) {
     return `<span class="unregistered-badge" aria-disabled="true">

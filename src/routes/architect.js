@@ -218,15 +218,19 @@ export async function handleArchitectRoute(request, env, url, rawKey) {
 
 // Mimar Ekle formundaki Firma alanına yazılıp offices tablosunda karşılığı bulunamadığı için
 // office_id/office_founders'a hiç bağlanamamış (bkz. src/lib/canonicalSync.js#syncArchitect —
-// eşleşmeyen isim officeId=null bırakılır) firma adını kurtarır — src/routes/office.js#
-// fetchRawFounderNames ile AYNI desen, tek fark architect_submissions.office'in (aksine founders'ın)
-// dizi değil DÜZ TEK bir string olması (bkz. src/lib/submissionTypes.js#architects.fields).
-async function fetchRawOfficeName(env, a) {
+// eşleşmeyen isim officeId=null bırakılır) firma adını/adlarını kurtarır — src/routes/office.js#
+// fetchRawFounderNames ile AYNI desen. architect_submissions.office, founders'ın aksine JSON dizi
+// değil virgülle ayrılmış DÜZ TEK bir string (bkz. src/lib/submissionTypes.js#architects.fields),
+// bu yüzden canonicalSync.js#syncArchitect'teki AYNI split(',') burada da uygulanmalı — aksi halde
+// "GEOMIM, GEO_ID" gibi çok firmalı bir giriş, hiçbir canonical isimle eşleşmeyen TEK bir sahte
+// "unregistered" firma olarak (gerçek bulgu: her iki firma da zaten kayıtlıyken bile) render edilir.
+async function fetchRawOfficeNames(env, a) {
   const submissionId = (a.legacy_key || '').startsWith('submission:') ? a.legacy_key.slice('submission:'.length) : '';
   const row = await env.DB.prepare(
     `SELECT office FROM architect_submissions WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
   ).bind(a.name, a.legacy_key || '', submissionId).first();
-  return (row && row.office) ? row.office.trim() : '';
+  if (!row || !row.office) return [];
+  return row.office.split(',').map(s => s.trim()).filter(Boolean);
 }
 
 // Önceki/Sonraki Mimar — bkz. src/routes/project.js#fetchAdjacentProject'teki AYNI dairesel/sıralı
@@ -279,9 +283,14 @@ async function buildArchitectPayload(env, key) {
   }
   const offices = [...officesById.values()];
 
-  const rawOfficeName = await fetchRawOfficeName(env, a);
-  const hasOffice = rawOfficeName && offices.some(o => trLower(o.name) === trLower(rawOfficeName));
-  const unregisteredOffice = rawOfficeName && !hasOffice ? { name: rawOfficeName, unregistered: true } : null;
+  const rawOfficeNames = await fetchRawOfficeNames(env, a);
+  const knownOfficeNames = new Set(offices.map(o => trLower(o.name)));
+  const unregisteredOffices = [];
+  for (const name of rawOfficeNames) {
+    if (!name || knownOfficeNames.has(trLower(name))) continue;
+    knownOfficeNames.add(trLower(name));
+    unregisteredOffices.push({ name, unregistered: true });
+  }
 
   const [colleaguesRes, relatedRes] = await Promise.all([
     office
@@ -325,7 +334,7 @@ async function buildArchitectPayload(env, key) {
     office: office ? { name: office.name, loc: office.loc, cats: office.cats, yil: office.yil, logo: office.logo_url, badges: [] } : null,
     offices: [
       ...offices.map(o => ({ name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, logo: o.logo_url, badges: [] })),
-      ...(unregisteredOffice ? [unregisteredOffice] : []),
+      ...unregisteredOffices,
     ],
     colleagues,
     relatedProjects,
