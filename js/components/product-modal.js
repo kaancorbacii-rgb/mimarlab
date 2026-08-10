@@ -210,7 +210,10 @@ const ProductModal = (function () {
       .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
       .prevnext-text{min-width:0; flex:1;}
       .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
-      .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+      /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
+         inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
+         dışına taşıyordu (bkz. kullanıcı isteği). */
+      .prevnext-title{display:block; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
       /* ---------- ÜRÜN MODALI — Bilgi Kaynağı & Geri Bildirim (bkz. proje.html'deki AYNI #pm-info-divider/
          #pm-feedback-card kuralları — burada yorum bölümü olmadığından .detail-info'nun hemen altına,
          kendi enjekte edilen <style>'ında tutulur, proje.html'e dokunmaya gerek kalmaz). */

@@ -1,3 +1,9 @@
+// proje.html "Kategori" filtresi (bkz. migrations/0038_project_concept_category.sql, kullanıcı
+// isteği) — yalnızca build_status='concept' projelerde anlamlı, proje-ekle.html'deki seçeneklerle
+// BİREBİR aynı 4 sabit değer (category/discipline/type alanlarındaki gibi ham görünen-metin olarak
+// saklanır, ayrı bir id/label eşlemesi yok).
+export const CONCEPT_CATEGORIES = new Set(['Öğrenci', 'Yarışma', 'Fikir', 'Konsept']);
+
 // 4 gönderi tipinin ortak yapılandırması: tablo adı, kabul edilen alanlar,
 // hangi alanların JSON dizisi olarak saklandığı ve zorunlu alanlar.
 export const SUBMISSION_TYPES = {
@@ -17,7 +23,7 @@ export const SUBMISSION_TYPES = {
     fields: [
       'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
-      'claimed_slug', 'source_url', 'ai_generated', 'build_status',
+      'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory',
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,
@@ -175,6 +181,10 @@ export function normalizeSubmission(type, body) {
       // girer, ?'li bind'da NULL constraint'i ihlal eder) — bu yüzden burada da güvenli varsayılan
       // 'built'e düşülür.
       value = value === 'concept' ? 'concept' : 'built';
+    } else if (field === 'conceptCategory') {
+      // build_status='built' gönderilerde (ya da geçersiz/boş bir değerde) her zaman NULL — proje
+      // konsept'ten inşa edilmişe çevrilirse eski kategori sessizce takılı kalmasın.
+      value = (body.build_status === 'concept' && CONCEPT_CATEGORIES.has(value)) ? value : null;
     } else if (config.arrayFields.includes(field)) {
       if (!Array.isArray(value)) value = value ? [value] : [];
       value = JSON.stringify(value.filter(Boolean));

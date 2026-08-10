@@ -638,7 +638,13 @@
   .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
   .prevnext-text{min-width:0; flex:1;}
   .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
-  .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* display:block ZORUNLU — .prevnext-title bir span, ve overflow:hidden + text-overflow:ellipsis
+     bir inline eleman üzerinde genişliği kısıtlamaz (satır kutusuyla sınırlı değil, içerik kadar
+     büyür) — bu yüzden mobilde uzun yapı başlıkları .prevnext a kutusunun dışına taşıyordu
+     (bkz. kullanıcı isteği: "önceki/sonraki yapı butonlarının metinleri dışına taşıyor"). Blok
+     olunca kapsayan .prevnext-text'in (flex item, min-width:0) genişliğini miras alır ve ellipsis
+     gerçekten çalışır. */
+  .prevnext-title{display:block; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   /* Skeleton — ertelenmiş bölümler (yorumlar/diğer projeler/ilgili projeler/ürünler) veri gelene
      kadar (bkz. kullanıcı isteği: lazy/deferred). display:none DEĞİL, gerçek bir layout kutusu
@@ -848,6 +854,11 @@ const parseLocation = parseLocationFull;
 const FILTER_GROUPS = [
   { key: 'discipline', label: 'Tür' },
   { key: 'category', label: 'Tip' },
+  // Yalnızca bu sayfada (yapi.html buildStatus='built' gönderdiğinden bu grup orada hep boş
+  // kalır ve hiç eklenmez, bkz. src/routes/project.js#buildFilterGroups) — kullanıcı isteği:
+  // "Proje sayfasındaki filtrelere Kategori filtresi aç ve altına öğrenci, yarışma, fikir,
+  // konsept seçeneklerini ekle" (bkz. migrations/0038_project_concept_category.sql).
+  { key: 'conceptCategory', label: 'Kategori' },
   { key: 'type', label: 'Tip Grubu' },
   { key: 'location', label: 'Yer' },
   { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul' },

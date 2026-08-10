@@ -67,6 +67,7 @@ function shapeProjectItem(row) {
     officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
     description: p.description, images: p.images, buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
+    conceptCategory: p.concept_category || null,
   };
 }
 
@@ -306,6 +307,11 @@ export function buildFilterGroups(ratingByProject) {
   return [
     { key: 'discipline', label: 'Tür', nested: false, field: p => p.discipline || [] },
     { key: 'category', label: 'Tip', nested: false, field: p => p.category || [] },
+    // Yalnızca build_status='concept' projelerde dolu (bkz. migrations/0038_project_concept_category.sql,
+    // kullanıcı isteği: "Proje sayfasındaki filtrelere Kategori filtresi aç ... öğrenci, yarışma,
+    // fikir, konsept") — 'built' projelerde her zaman [] döner, bu yüzden yapi.html tarafında (o
+    // sayfa bu grubu kendi FILTER_GROUPS listesine hiç eklemiyor) hiçbir etkisi olmaz.
+    { key: 'conceptCategory', label: 'Kategori', nested: false, field: p => p.conceptCategory ? [p.conceptCategory] : [] },
     { key: 'type', label: 'Tip Grubu', nested: false, field: p => p.type || [] },
     { key: 'location', label: 'Yer', nested: false, field: p => [parseLocationFull(p.location).city] },
     { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul', field: p => {

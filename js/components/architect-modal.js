@@ -78,6 +78,12 @@ const ArchitectModal = (function () {
          uzun başlıklar tek satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle
          geçmez, satır sonuna ellipsis eklenir. */
       .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
+      /* "Yapılar" (bu mimarın/firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR
+         (bkz. kullanıcı isteği: "ismi uzun olan mimarın/firmanın diğer yapılarında metinlerindeki üç
+         nokta sistemini sil") — yukarıdaki genel kural Firmalar/Diğer Firma Ortakları kartlarında
+         (isim tek satır) aynen kalır, yalnızca #am-related-projects-grid'e özel bu override başlığın
+         normal şekilde birden çok satıra sarmasına izin verir. */
+      #am-related-projects-grid .related-card-title-text{white-space:normal !important; overflow:visible !important; text-overflow:clip !important;}
       .related-card-subtitle{font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
@@ -101,7 +107,10 @@ const ArchitectModal = (function () {
       .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
       .prevnext-text{min-width:0; flex:1;}
       .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
-      .prevnext-title{font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+      /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
+         inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun
+         dışına taşıyordu (bkz. kullanıcı isteği). */
+      .prevnext-title{display:block; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}

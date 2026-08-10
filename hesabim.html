@@ -455,7 +455,7 @@
       </div>
       <div class="submissions-toolbar-row" id="submissions-filter">
         <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
+        <button type="button" class="submissions-filter-btn" data-filter="projects">Yapı</button>
       </div>
       <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="submissions-pagination"></div>
@@ -465,7 +465,7 @@
       <h2>Kaydettiklerim</h2>
       <div class="saved-filter" id="saved-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="project">Yapı</button>
         <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
         <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
       </div>
@@ -477,7 +477,7 @@
       <h2>Beğendiklerim</h2>
       <div class="saved-filter" id="rated-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="project">Yapı</button>
       </div>
       <div id="dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="rated-pagination"></div>
@@ -540,14 +540,14 @@
   </footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
+const TYPE_LABELS = { offices: 'Ofis', projects: 'Yapı', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
   offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
   architects: 'mimar-ekle.html', news: 'haber-ekle.html',
 };
-const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
+const SAVED_TYPE_LABELS = { project: 'Yapı', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
 const PAGE_SIZE_DASH = 10;
 // Bildirimler/Paylaştığım İçerikler/Kaydettiklerim kutularının paylaştığı basit sayfalama —
 // proje.html'deki .pagination/.page-btn/getPageWindowSize/getPageList ile BİREBİR aynı: ilk/son
