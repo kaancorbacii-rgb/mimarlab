@@ -11,3 +11,4 @@ package-lock.json
 migrations
 .db-backups
 scripts
+.localdev-assets/
