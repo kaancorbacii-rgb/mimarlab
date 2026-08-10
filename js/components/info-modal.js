@@ -154,18 +154,16 @@ const InfoModal = (function () {
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">MİMARLAB Hakkında</h1>
-      <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık, peyzaj mimarlığı ve restorasyon alanlarındaki firmaları, mimarları, projeleri ve ürünleri tek bir yerde toplayan bağımsız bir dizin ve topluluk platformudur.</p>
+      <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık, peyzaj mimarlığı ve restorasyon alanlarındaki yapıları, projeleri, mimarları ve firmaları tek bir yerde toplayan bağımsız bir dizin ve topluluk platformudur.</p>
 
       <div class="content-section">
         <h2>Ne sunuyoruz?</h2>
         <p>Türkiye'deki mimarlık ekosistemini tek bir çatı altında topluyoruz:</p>
         <ul>
+          <li><strong>Yapı arşivi</strong> — geçmişten günümüze öne çıkan yapıları yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
           <li><strong>Proje arşivi</strong> — tamamlanmış projeleri tür, tip, yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
           <li><strong>Mimar ve firma profilleri</strong> — bireysel mimarların ve mimarlık ofislerinin/markalarının profillerini inceleyebilirsiniz.</li>
-          <li><strong>Ürün kataloğu</strong> — sektördeki üretici firmaların ürünlerini kategori ve markaya göre listeleriz.</li>
-          <li><strong>İş ilanları</strong> — mimarlık ofisleri açık pozisyonlarını paylaşır, iş arayanlar ilanları filtreleyerek başvurabilir.</li>
-          <li><strong>Haberler</strong> — sektörden güncel gelişmeleri, yarışmaları ve sergileri takip edebilirsiniz.</li>
-          <li><strong>Puanlama, yorum ve kaydetme</strong> — projelere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri hesabınıza kaydedebilirsiniz.</li>
+          <li><strong>Puanlama, yorum ve kaydetme</strong> — yapılara, projelere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri hesabınıza kaydedebilirsiniz.</li>
         </ul>
         <p>İçeriklerin bir kısmı halka açık kaynaklardan derlenir, bir kısmı ise üyelerimizin gönderdiği ve ekibimizin incelemesinden geçen katkılardan oluşur.</p>
       </div>
@@ -177,7 +175,7 @@ const InfoModal = (function () {
 
       <div class="content-section">
         <h2>Üyelik, katkı ve rozetler</h2>
-        <p>Üye olarak proje, ürün, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
+        <p>Üye olarak yapı, proje, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
         <p>Platformu desteklemek ya da profilinizi öne çıkarmak isteyenler için aylık kiralanan rozet kademeleri sunuyoruz — Destekçi, Doğrulanmış Üye, Altın Üye ve Elmas Üye. Kademeye göre profilinizde doğrulanmış rozet, aylık ürün yükleme hakkı ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
       </div>
 
@@ -651,10 +649,10 @@ const InfoModal = (function () {
     fetch('/api/auth/me').then(res => { if (!res.ok) window.location.href = '/giris'; });
 
     const BADGE_TIERS = [
-      { type: 'destekci', label: 'Destekçi', officePrice: 79.90, perks: ['Herhangi bir ayrıcalık ya da rozet vermez — sadece MİMARLAB\'a destek olmak isteyenler içindir.'] },
-      { type: 'verified', label: 'Doğrulanmış Üye', officePrice: 99.90, perks: ['Profilinde mavi doğrulanmış rozet', 'Ayda 3 ürün yükleme hakkı', 'Kendi içeriğine gelen yorumları silme yetkisi'] },
-      { type: 'gold', label: 'Altın Üye', officePrice: 139.90, perks: ['Doğrulanmış rozet', 'Ayda 10 ürün yükleme hakkı', 'Kendi içeriğine gelen yorumları silme yetkisi'] },
-      { type: 'platinum', label: 'Elmas Üye', officePrice: 199.90, perks: ['Doğrulanmış rozet', 'Ayda 50 ürün yükleme hakkı', 'Kendi içeriğine gelen yorumları silme yetkisi'] },
+      { type: 'destekci', label: 'Destekçi', officePrice: 79.90, perks: ['Bir rozet vermez, destek olmak isteyenler içindir.'] },
+      { type: 'verified', label: 'Doğrulanmış Üye', officePrice: 99.90, perks: ['Doğrulanmış Üye rozeti verir.'] },
+      { type: 'gold', label: 'Altın Üye', officePrice: 139.90, perks: ['Altın Üye rozeti verir.'] },
+      { type: 'platinum', label: 'Elmas Üye', officePrice: 199.90, perks: ['Elmas Üye rozeti verir.'] },
     ];
     const SELF_DISCOUNT_TRY = 60;
     const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };
