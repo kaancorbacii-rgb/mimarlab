@@ -1,3 +1,12 @@
 .DS_Store
 .wrangler/
 scripts/output/
+# Yerel `wrangler dev` için hafif asset kopyası (bkz. .claude/launch.json) — repo kökündeki
+# ~14.000 dosyalık projects//miras//mimarlar(-thumb)//logos(-thumb)/ dizinlerini tarayınca
+# macOS'un process başına dosya tanıtıcı tavanına (kern.maxfilesperproc) çarpıp Wrangler'ın
+# local asset-manifest adımını sessizce kilitlemesini önlemek için. Yalnızca kök seviyesindeki
+# HTML/JS + logos/site/ marka görselleri kopyalanır; gerçek proje/miras/mimar/firma görselleri
+# BİLEREK burada değil (local dev'de o görseller için ayrı bir 404 beklenir, işlevsel değil).
+# `wrangler deploy` (deploy.sh) bu dizini KULLANMAZ — production, wrangler.jsonc'daki
+# değişmeyen "." dizinini eksiksiz tarar. Yeniden üretilebilir, commit edilmez.
+.localdev-assets/

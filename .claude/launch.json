@@ -10,7 +10,7 @@
     {
       "name": "mimarlab-worker",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["wrangler", "dev", "--port", "8787", "--persist-to", "/Users/kaancorbaci/.mimarlab-dev-state"],
+      "runtimeArgs": ["wrangler", "dev", "--port", "8787", "--persist-to", "/Users/kaancorbaci/.mimarlab-dev-state", "--assets", ".localdev-assets"],
       "port": 8787
     }
   ]
