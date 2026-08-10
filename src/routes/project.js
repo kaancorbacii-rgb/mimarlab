@@ -436,6 +436,84 @@ export async function handleProjectFiltersRoute(request, env, url) {
   });
 }
 
+// handleProjectListRoute'daki sort switch'inin BİREBİR eşlemesi (bkz. o dosyadaki case listesi) —
+// yalnızca bu dört değer pool'un D1'den gelen id DESC sırasını GERÇEKTEN değiştirir (Türkçe
+// localeCompare, tarih parseInt'i ya da rating join'i gerektirir); '' dahil BAŞKA HER değer switch'in
+// default dalına düşüp no-op kalır (bkz. "sort boşsa ek sıralama gerekmez" yorumu).
+const SORT_REQUIRES_JS_FILTER = new Set(['name_asc', 'date_desc', 'date_asc', 'rating_desc']);
+
+// D1 hızlı-yolun (fetchProjectListPageFromD1) devreye girip giremeyeceğini belirler — buildFilterGroups'un
+// KENDİ anahtar listesinden türetilir (bkz. kullanıcı isteği: ayrı bir sabit listeyle elle
+// senkronize tutmak yerine, yeni bir filtre grubu eklendiğinde burası KENDİLİĞİNDEN güncel kalır).
+// `url.searchParams.has(key)` — passesFilters'taki `new Set(getAll(key)).size > 0` ile BİREBİR aynı
+// koşul (bir parametre en az bir kez, boş değerle bile verilmişse "aktif" sayılır).
+function hasActiveProjectListFilters(url) {
+  const filterKeys = buildFilterGroups(new Map()).map(g => g.key);
+  if (filterKeys.some(k => url.searchParams.has(k))) return true;
+  return !!(url.searchParams.get('search') || '').trim();
+}
+
+// fetchActiveProjectPool'daki (yukarıda) AYNI açık sütun listesi + JOIN/GROUP BY — tek fark LIMIT/
+// OFFSET eklenmesi. p.id ile ORDER BY zaten fetchActiveProjectPool'la BİREBİR aynı sırayı üretir.
+async function fetchProjectPageRows(env, buildStatus, limit, offset) {
+  const { results } = await env.DB.prepare(
+    `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
+            p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
+            p.photo_credit_url, p.build_status, p.concept_category,
+            GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
+     FROM projects p ${DESIGNER_JOIN_SQL}
+     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?
+     GROUP BY p.id ORDER BY p.id DESC LIMIT ? OFFSET ?`
+  ).bind(buildStatus, limit, offset).all();
+  return results;
+}
+
+// handleProjectListRoute'daki ratingBySlug oluşturma döngüsüyle BİREBİR AYNI eşleştirme mantığı
+// (bkz. o dosyadaki "target_id proje slug'ı değil id'si olabilir" notu — burada da AYNI belirsiz
+// target_id değeri, sayfadaki projelerin slug'larıyla IN(...) eşleştirilir, davranış korunur) —
+// tek fark tüm `ratings` tablosu yerine yalnızca bu sayfadaki slug'larla sınırlı bir sorgu.
+async function fetchRatingsForSlugs(env, slugs) {
+  const ratingBySlug = new Map();
+  if (!slugs.length) return ratingBySlug;
+  const placeholders = slugs.map(() => '?').join(', ');
+  const { results } = await env.DB.prepare(
+    `SELECT target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings
+     WHERE target_type = 'project' AND target_id IN (${placeholders}) GROUP BY target_id`
+  ).bind(...slugs).all();
+  results.forEach(r => ratingBySlug.set(r.target_id, { average: r.average, count: r.count }));
+  return ratingBySlug;
+}
+
+// handleProjectListRoute'un hiçbir filtre/arama aktif olmadığındaki (bkz. hasActiveProjectListFilters)
+// D1-seviyeli hızlı yolu. `total`/`totalPages`/`page` hesaplaması handleProjectListRoute'daki JS
+// yoluyla BİREBİR AYNI formülü kullanır (bkz. aşağıdaki Math.min(page,totalPages) kırpması) — TEK
+// fark COUNT(*) ve sayfa satırlarının D1'den zaten süzülmüş gelmesi.
+async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
+  const where = `deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?`;
+  const rawOffset = (page - 1) * limit;
+  // COUNT(*) ve sayfa sorgusu PARALEL çalışır — page normal önyüz kullanımında (bilinen totalPages
+  // içinde) hemen hemen HER ZAMAN aralık içinde olduğundan (frontend asla kendi hesapladığı
+  // totalPages'in dışında bir sayfa istemez), rawOffset ile alınan sayfa genelde zaten doğrudur.
+  // page aralık dışıysa (ör. elle URL değiştirme) aşağıda TEK bir ek sorguyla (nadiren tetiklenir)
+  // eski JS yolundaki Math.min(page,totalPages) kırpmasıyla BİREBİR aynı sonuca düzeltilir.
+  const [countRow, rawRows] = await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE ${where}`).bind(buildStatus).first(),
+    fetchProjectPageRows(env, buildStatus, limit, rawOffset),
+  ]);
+  const total = countRow?.n || 0;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const clampedPage = Math.min(page, totalPages);
+  const rows = clampedPage === page ? rawRows : await fetchProjectPageRows(env, buildStatus, limit, (clampedPage - 1) * limit);
+
+  const items = rows.map(row => shapeProjectItem(row, { coverOnly: true }));
+  const ratingBySlug = await fetchRatingsForSlugs(env, items.map(p => p.slug));
+  const withRatings = items.map(p => {
+    const r = ratingBySlug.get(p.slug);
+    return { ...p, rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
+  });
+  return { items: serializePublicEntity(withRatings), total, page: clampedPage, totalPages };
+}
+
 // GET /api/projects — proje.html#render()'ın sayfalanmış sunucu karşılığı. `/api/projects/filters`
 // (yukarıda) sidebar sayaçlarını döndürmeye devam eder; bu uç YALNIZCA mevcut sayfanın kartlarını
 // döner (bkz. kullanıcı isteği: "Bütün sayfaların verisini tek seferde DOM'a yükleme"). Filtre
@@ -450,6 +528,22 @@ export async function handleProjectListRoute(request, env, url) {
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
     const buildStatus = url.searchParams.get('buildStatus') === 'concept' ? 'concept' : 'built';
+
+    // Faz 5 — D1 seviyesinde sayfalama (bkz. kullanıcı isteği: "Database-Level Filtering &
+    // Pagination"). Hiçbir filtre/arama parametresi aktif değilken VE sort, pool'un zaten geldiği
+    // id DESC sırasını bozmayan bir değerdeyken (bkz. SORT_REQUIRES_JS_FILTER — switch'teki dört özel
+    // case DIŞINDAKİ HER değer, '' ve 'newest' dahil, aşağıdaki "sort boşsa ek sıralama gerekmez"
+    // yorumuyla AYNI şekilde no-op'tur) proje.html/yapi.html'in İLK YÜKLEME görünümü tam olarak
+    // budur — bu durumda tüm havuzu (fetchActiveProjectPool, LIMIT'siz) Worker belleğine çekmek
+    // yerine D1'e doğrudan LIMIT/OFFSET verilir (bkz. fetchProjectListPageFromD1 aşağısı).
+    // Herhangi bir filtre/arama alanı aktifse bu yola HİÇ girilmez — facet'lerin ("bu grup HARİÇ
+    // diğer aktif filtrelerle eşleşen" bağımlı sayımı) ve serbest metin aramasının (Türkçe foldTr,
+    // il/ilçe çözümleme, isOfficeName sezgisi) hiçbiri SQL'de güvenle yeniden üretilemez (bkz.
+    // kullanıcı isteği: "riskli biçimde yeniden yazma" YASAĞI) — o durumda aşağıdaki eski tam-havuz
+    // yolu AYNEN korunur.
+    if (!hasActiveProjectListFilters(url) && !SORT_REQUIRES_JS_FILTER.has(sort)) {
+      return fetchProjectListPageFromD1(env, buildStatus, page, limit);
+    }
 
     const [pool, ratingRows] = await Promise.all([
       fetchActiveProjectPool(env, buildStatus),
