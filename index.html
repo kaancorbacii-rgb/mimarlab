@@ -667,32 +667,9 @@ document.addEventListener('click', (e)=>{
 // filtresi) — bu yüzden 6'dan daha büyük bir tampon (24) çekilip görseli olanlar arasından ilk 6'sı
 // alınır, tam olarak eski `projectsWithImages.slice(0,6)` davranışının karşılığı.
 const PROJECT_CAROUSEL_FETCH_LIMIT = 24;
-// bkz. kullanıcı isteği: ana sayfa vitrini artık yalnızca Yapı (buildStatus=built) değil, son
-// paylaşılan YAPI/PROJE gönderilerini 2 Yapı + 1 Proje deseniyle sırayla gösteriyor (toplam
-// 9 = 6 Yapı + 3 Proje) — migrations/0037_project_build_status.sql#build_status alanı üzerinden
-// /api/projects?buildStatus=built|concept ile iki ayrı havuz ayrı ayrı çekilip aşağıdaki
-// interleaveProjectSlides ile birleştiriliyor.
-const PROJECT_CAROUSEL_SLOTS = 9;
-const PROJECT_CAROUSEL_YAPI_SLOTS = 6;
-const PROJECT_CAROUSEL_PROJE_SLOTS = 3;
-
-// yapiItems/projeItems (her biri kendi buildStatus'üyle zaten en yeniden en eskiye sıralı)
-// üzerinde 2 Yapı + 1 Proje desenini döngüyle uygular; bir kuyruk tükenirse diğerinden
-// doldurmaya devam eder (ör. hiç Proje yoksa carousel boş kalmak yerine YAPI'larla dolar).
-function interleaveProjectSlides(yapiItems, projeItems){
-  const out = [];
-  let yi = 0, pi = 0;
-  while(out.length < PROJECT_CAROUSEL_SLOTS && (yi < yapiItems.length || pi < projeItems.length)){
-    for(let n = 0; n < 2 && out.length < PROJECT_CAROUSEL_SLOTS; n++){
-      if(yi < yapiItems.length) out.push(yapiItems[yi++]);
-      else if(pi < projeItems.length) out.push(projeItems[pi++]);
-    }
-    if(out.length >= PROJECT_CAROUSEL_SLOTS) break;
-    if(pi < projeItems.length) out.push(projeItems[pi++]);
-    else if(yi < yapiItems.length) out.push(yapiItems[yi++]);
-  }
-  return out;
-}
+// bkz. kullanıcı isteği: ana sayfa vitrini yalnızca Yapı (buildStatus=built) gönderilerini
+// gösterir — Proje (concept) gönderileri carousel'den kaldırıldı.
+const PROJECT_CAROUSEL_YAPI_SLOTS = 9;
 
 // Mimar/Firma mini-carousel'leri artık (bkz. kullanıcı isteği) Proje carousel'iyle aynı
 // desende — statik dizi/el ile seçilmiş vitir YOK, doğrudan D1'den "son eklenen 6 gönderi"
@@ -720,14 +697,9 @@ function projectSlideHtml(p, i){
   const meta = [(p.officeNames || []).join(', '), cityName].filter(Boolean).join(' — ');
   const slideImg = (p.images && p.images[0]) || '';
   const slideSrcset = slideImg ? cdnSrcset(slideImg, [600, 900, 1200]) : '';
-  // buildStatus='concept' → proje.html'in /proje/:slug'ı, aksi halde (built) yapi.html'in
-  // /yapi/:slug'ı (bkz. kullanıcı isteği: her kartın rozeti VE tıklama hedefi kendi gerçek
-  // türüne göre olsun — eskiden bu carousel yalnızca buildStatus=built çektiğinden href her
-  // zaman sabit /yapi/ idi, artık iki havuz karışık olduğundan öğeye göre seçilmeli).
-  const isConcept = p.buildStatus === 'concept';
-  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="${isConcept ? '/proje/' : '/yapi/'}${encodeURIComponent(p.slug)}" data-index="${i}">
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/yapi/${encodeURIComponent(p.slug)}" data-index="${i}">
     <img src="${escapeAttr(cdnImg(slideImg, 900))}"${slideSrcset ? ` srcset="${escapeAttr(slideSrcset)}" sizes="(max-width: 720px) 100vw, 700px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
-    <span class="slide-tag">${isConcept ? 'PROJE' : 'YAPI'}</span>
+    <span class="slide-tag">YAPI</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(p.title)}</div>
       ${meta ? `<div class="slide-designer">${escapeHtml(meta)}</div>` : ''}
@@ -951,11 +923,9 @@ Promise.all([
   // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
   // düzenlemeleri/gizlemeleri satırın kendisinde, ayrı /api/public/hidden ve /api/public/project-
   // edits fetch'lerine (ve client-side overlay'e) artık gerek yok.
-  // buildStatus=built|concept — anasayfa vitrini artık HER İKİ havuzdan da son paylaşılanları
-  // ayrı ayrı çekip 2 Yapı + 1 Proje deseniyle birleştiriyor (bkz. yukarıdaki PROJECT_CAROUSEL_
-  // SLOTS yorumu ve migrations/0037_project_build_status.sql).
+  // buildStatus=built — anasayfa vitrini yalnızca Yapı gönderilerini gösterir (bkz. kullanıcı
+  // isteği: Proje/concept gönderileri carousel'den kaldırıldı).
   fetchPublicJson('/api/projects?buildStatus=built&limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
-  fetchPublicJson('/api/projects?buildStatus=concept&limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
   // Mimar/Firma mini-carousel'leri (bkz. kullanıcı isteği: "en çok projesi olan ilk 6 Mimar ve
   // Firma") artık statik dizi/el ile seçilmiş vitrin OKUMUYOR — proje.html/mimar.html/firma.html'in
   // kendi listeleme sayfalarında da kullandığı genel D1 uçlarından ?limit=6 ile çekilir. sort
@@ -965,13 +935,12 @@ Promise.all([
   // eklenen 6" isteniyordu, bu davranış kullanıcı isteğiyle "en popüler 6"ya çevrildi.
   fetchPublicJson('/api/architects?limit=6'),
   fetchPublicJson('/api/offices?limit=6'),
-]).then(([yapiRes, projeRes, architectRes, officeRes])=>{
-  if(yapiRes.failed && projeRes.failed){
+]).then(([yapiRes, architectRes, officeRes])=>{
+  if(yapiRes.failed){
     renderSliderError('Projeler şu an yüklenemedi.');
   } else {
     const yapiWithImages = (yapiRes.items || []).filter(p => p.images && p.images[0]).slice(0, PROJECT_CAROUSEL_YAPI_SLOTS);
-    const projeWithImages = (projeRes.items || []).filter(p => p.images && p.images[0]).slice(0, PROJECT_CAROUSEL_PROJE_SLOTS);
-    renderSlider(interleaveProjectSlides(yapiWithImages, projeWithImages));
+    renderSlider(yapiWithImages);
   }
 
   // Mimar/Firma mini-carousel'lerinin AKSİNE (bkz. yukarısı) hiçbir statik yedek dizisi yok —

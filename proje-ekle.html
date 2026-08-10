@@ -168,24 +168,6 @@
   .dd-option.selected{background:var(--paper-alt); font-weight:600;}
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
-  .build-status-row{display:flex; flex-wrap:wrap; gap:10px;}
-  /* Proje Kategorisi'nin 4 seçeneği (bkz. kullanıcı isteği): masaüstünde tek satırda 4 eşit sütun,
-     tablet/mobilde (960px altı) 2x2 sığsın diye ayrı bir grid — build-status-row'un flex-wrap'i
-     (2 uzun etiketli ana Yapım Durumu seçeneği için tasarlanmış) burada satır sayısını garanti etmiyordu. */
-  .concept-category-row{display:grid; grid-template-columns:repeat(4, 1fr);}
-  @media (max-width:960px){
-    .concept-category-row{grid-template-columns:repeat(2, 1fr);}
-  }
-  /* .build-status-option'ın min-width:200px'i (aşağıda, 2 uzun etiketli Yapım Durumu seçeneği için)
-     bir grid item'a uygulandığında sütunun 1fr'ye küçülmesini ENGELLER (gerçek bulgu: Proje
-     Kategorisi'nin 4 butonu kartın sağından taşıyordu) — bu yüzden grid içindeki kopyalar burada
-     min-width:0 ile geçersiz kılınır, kısa etiketler (Öğrenci/Yarışma/Fikir/Konsept) zaten tek
-     satıra rahatça sığar.
-  */
-  .concept-category-row .build-status-option{min-width:0;}
-  .build-status-option{border:1px solid var(--line); border-radius:10px; padding:10px 14px; flex:1; min-width:200px;}
-  .build-status-option:has(input:checked){border-color:var(--ink); background:var(--paper-alt); font-weight:600;}
-
   /* ---------- AUTOCOMPLETE (Tip, Mimar, Ofis) ---------- */
   .ac-field{position:relative;}
   .ac-suggestions{
@@ -350,22 +332,6 @@
       <div class="form-section">
         <h2>Temel Bilgiler</h2>
         <div class="form-field">
-          <label>Yapım Durumu</label>
-          <div class="build-status-row">
-            <label class="dd-option build-status-option"><input type="radio" name="build_status" value="built" checked> İnşa Edilmiş Yapı</label>
-            <label class="dd-option build-status-option"><input type="radio" name="build_status" value="concept"> Öğrenci / Yarışma / Fikir / Konsept Projesi</label>
-          </div>
-        </div>
-        <div class="form-field" id="concept-category-field" style="display:none;">
-          <label>Proje Kategorisi</label>
-          <div class="build-status-row concept-category-row">
-            <label class="dd-option build-status-option"><input type="radio" name="concept_category" value="Öğrenci"> Öğrenci</label>
-            <label class="dd-option build-status-option"><input type="radio" name="concept_category" value="Yarışma"> Yarışma</label>
-            <label class="dd-option build-status-option"><input type="radio" name="concept_category" value="Fikir"> Fikir</label>
-            <label class="dd-option build-status-option"><input type="radio" name="concept_category" value="Konsept"> Konsept</label>
-          </div>
-        </div>
-        <div class="form-field">
           <label for="p-title" id="p-title-label">Yapı Adı</label>
           <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
         </div>
@@ -529,44 +495,6 @@ let mediaKeySeq = 0;
 const editParams = new URLSearchParams(window.location.search);
 let editId = editParams.get('edit');
 let claimSlug = editParams.get('claim');
-// proje.html'in "Proje Ekle" butonu ?tur=proje ile bağlanır (bkz. kullanıcı isteği, migrations/
-// 0037_project_build_status.sql) — yapi.html'in "Yapı Ekle" butonu hiç parametre eklemez, varsayılan
-// zaten "İnşa Edilmiş Yapı"dır. Yalnızca YENİ bir gönderi için ön-seçim yapar; ?edit=/?claim=
-// modlarında prefillForEdit/prefillForClaim gerçek kayıttaki değeri baz alıp üzerine yazar.
-if(editParams.get('tur') === 'proje' && !editId && !claimSlug){
-  const conceptRadio = document.querySelector('input[name="build_status"][value="concept"]');
-  if(conceptRadio) conceptRadio.checked = true;
-}
-
-// Proje Kategorisi (öğrenci/yarışma/fikir/konsept) yalnızca "Öğrenci/Yarışma/Fikir/Konsept
-// Projesi" seçiliyken anlamlı (bkz. migrations/0038_project_concept_category.sql, kullanıcı
-// isteği) — İnşa Edilmiş Yapı seçiliyken kutu gizlenir VE seçili radio temizlenir ki yanlışlıkla
-// gönderilen eski bir değer sunucu tarafında zaten normalizeSubmission() ile null'a düşse de
-// kullanıcıya kafa karıştırıcı görünmesin.
-// Yapım Durumu'na göre etiket metinleri (bkz. kullanıcı isteği): "İnşa Edilmiş Yapı" seçiliyken
-// alan gerçekten inşa edilmiş bir YAPI'yı tanımladığından "Yapı Adı"/"Yapı Açıklaması", "Mimar"/
-// "Firma"/"Kaynak / Fotoğrafçı"; "Öğrenci/Yarışma/Fikir/Konsept Projesi" seçiliyken aynı alanlar bir
-// öğrenci/yarışma PROJESİ'ni tanımladığından "Proje Adı"/"Proje Açıklaması", tasarımcı bir öğrenci/
-// ekip olabileceğinden "Mimar / Öğrenci", kurumsal olmayabileceğinden "Firma / Kurum", kaynak/
-// fotoğrafçı bilgisi bu tür projelerde çoğu zaman bulunmadığından "Kaynak" + (opsiyonel) ibaresi.
-function syncBuildStatusLabels(isConcept){
-  document.getElementById('p-title-label').textContent = isConcept ? 'Proje Adı' : 'Yapı Adı';
-  document.getElementById('p-desc-label').textContent = isConcept ? 'Proje Açıklaması' : 'Yapı Açıklaması';
-  document.getElementById('p-designer-label').textContent = isConcept ? 'Mimar / Öğrenci' : 'Mimar';
-  document.getElementById('p-office-label').textContent = isConcept ? 'Firma / Kurum' : 'Firma';
-  const creditLabel = document.getElementById('p-credit-text-label');
-  creditLabel.innerHTML = isConcept ? 'Kaynak <span class="opt">(opsiyonel)</span>' : 'Kaynak / Fotoğrafçı';
-}
-
-function syncConceptCategoryVisibility(){
-  const isConcept = document.querySelector('input[name="build_status"]:checked')?.value === 'concept';
-  const field = document.getElementById('concept-category-field');
-  field.style.display = isConcept ? '' : 'none';
-  if(!isConcept) document.querySelectorAll('input[name="concept_category"]').forEach(rb => rb.checked = false);
-  syncBuildStatusLabels(isConcept);
-}
-document.querySelectorAll('input[name="build_status"]').forEach(rb => rb.addEventListener('change', syncConceptCategoryVisibility));
-syncConceptCategoryVisibility();
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -934,9 +862,6 @@ async function prefillForEdit(){
     document.getElementById('p-desc').value = item.description || '';
     document.getElementById('p-credit-text').value = item.photoCreditText || '';
     document.getElementById('p-credit-url').value = item.photoCreditUrl || '';
-    document.querySelectorAll('input[name="build_status"]').forEach(rb => rb.checked = rb.value === (item.build_status === 'concept' ? 'concept' : 'built'));
-    document.querySelectorAll('input[name="concept_category"]').forEach(rb => rb.checked = rb.value === item.conceptCategory);
-    syncConceptCategoryVisibility();
     document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (item.category || []).includes(cb.value));
     updateKategoriLabel();
     document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (item.discipline || []).includes(cb.value));
@@ -1017,9 +942,6 @@ async function prefillForClaim(){
   document.getElementById('p-desc').value = merged.description || '';
   document.getElementById('p-credit-text').value = (merged.photoCredit && merged.photoCredit.text) || '';
   document.getElementById('p-credit-url').value = (merged.photoCredit && merged.photoCredit.url) || '';
-  document.querySelectorAll('input[name="build_status"]').forEach(rb => rb.checked = rb.value === (merged.buildStatus === 'concept' ? 'concept' : 'built'));
-  document.querySelectorAll('input[name="concept_category"]').forEach(rb => rb.checked = rb.value === merged.conceptCategory);
-  syncConceptCategoryVisibility();
   document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (merged.category || []).includes(cb.value));
   updateKategoriLabel();
   document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (merged.discipline || []).includes(cb.value));
@@ -1058,10 +980,8 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
-  const buildStatusEl = form.querySelector('input[name="build_status"]:checked');
-  const build_status = buildStatusEl ? buildStatusEl.value : 'built';
-  const conceptCategoryEl = form.querySelector('input[name="concept_category"]:checked');
-  const conceptCategory = build_status === 'concept' && conceptCategoryEl ? conceptCategoryEl.value : null;
+  const build_status = 'built';
+  const conceptCategory = null;
   const category = Array.from(form.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
   const discipline = Array.from(form.querySelectorAll('input[name="discipline"]:checked')).map(el => el.value);
   const type = document.getElementById('p-type').value.split(',').map(s => s.trim()).filter(Boolean);
