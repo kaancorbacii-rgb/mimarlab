@@ -107,6 +107,14 @@ const CLEAN_URL_ASSETS = [
   // mekanizmasıyla o listeleme sayfasının <head>'indeki id'li meta etiketlerini hedefler (bkz.
   // proje.html/mimar.html/firma.html/urun.html#meta-description vb.).
   { prefix: '/yapi/', asset: '/yapi', type: 'project' },
+  // /proje/:slug — build_status='concept' (öğrenci/yarışma/fikir/konsept) projelerin URL öneki
+  // (bkz. kullanıcı isteği: "Proje sayfasındaki projelerin URL uzantısının proje olması gerekiyor",
+  // js/components/project-modal.js#detailPrefix). asset='/proje' proje.html'i servis eder — o dosya
+  // /yapi/:slug ile BİREBİR AYNI ProjectModal'ı açar, popup tasarımı değişmez. buildMeta('project', slug)
+  // slug'a göre arar (build_status filtrelemez), bu yüzden bu prefix ile /yapi/ prefix'i AYNI slug'ı
+  // sorunsuz servis edebilir — canonicalUrl (bkz. src/lib/seo.js#buildProjectMeta) satırın GERÇEK
+  // build_status'una göre kendini düzeltir, yanlış prefix'ten erişimde de doğru kanonik URL'i gösterir.
+  { prefix: '/proje/', asset: '/proje', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
@@ -228,6 +236,7 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/mimar', changefreq: 'daily', priority: '0.9' },
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/yapi', changefreq: 'daily', priority: '0.9' },
+  { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },
@@ -505,12 +514,14 @@ async function listCanonicalEntityUrls(env) {
   const [archRes, officeRes, projRes] = await Promise.all([
     env.DB.prepare(`SELECT slug FROM architects WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug FROM offices WHERE ${where}`).all(),
-    env.DB.prepare(`SELECT slug FROM projects WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug, build_status FROM projects WHERE ${where}`).all(),
   ]);
   return [
     ...archRes.results.map(r => `/mimar/${encodeURIComponent(r.slug)}`),
     ...officeRes.results.map(r => `/firma/${encodeURIComponent(r.slug)}`),
-    ...projRes.results.map(r => `/yapi/${encodeURIComponent(r.slug)}`),
+    // build_status='concept' -> /proje/:slug, 'built' -> /yapi/:slug (bkz. kullanıcı isteği,
+    // js/components/project-modal.js#detailPrefix ile AYNI ayrım).
+    ...projRes.results.map(r => `${r.build_status === 'concept' ? '/proje/' : '/yapi/'}${encodeURIComponent(r.slug)}`),
   ];
 }
 

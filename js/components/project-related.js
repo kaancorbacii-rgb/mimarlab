@@ -19,7 +19,10 @@ const ArchitectProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
-    return `<a class="related-card" href="/yapi/${encodeURIComponent(p.slug)}">
+    // p.buildStatus (bkz. src/routes/project.js#shapeProjectItem): 'concept' -> /proje/:slug,
+    // 'built' -> /yapi/:slug (bkz. kullanıcı isteği, js/components/project-modal.js#detailPrefix).
+    const hrefPrefix = p.buildStatus === 'concept' ? '/proje/' : '/yapi/';
+    return `<a class="related-card" href="${hrefPrefix}${encodeURIComponent(p.slug)}">
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
@@ -92,7 +95,10 @@ const RelatedProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
-    return `<a class="related-card" href="/yapi/${encodeURIComponent(p.slug)}">
+    // p.buildStatus (bkz. src/routes/project.js#shapeProjectItem): 'concept' -> /proje/:slug,
+    // 'built' -> /yapi/:slug (bkz. kullanıcı isteği, js/components/project-modal.js#detailPrefix).
+    const hrefPrefix = p.buildStatus === 'concept' ? '/proje/' : '/yapi/';
+    return `<a class="related-card" href="${hrefPrefix}${encodeURIComponent(p.slug)}">
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>

@@ -189,7 +189,9 @@ const ProductModal = (function () {
       /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/
          görünümlerde gönderi başlıkları görselin altında olsun). */
       .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
-      .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden;}
+      /* background: yükleme sırasında (yavaş bağlantı) veya görsel 404/hata verirse kutu şeffaf/beyaz
+         kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
+      .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
       .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
       .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;}

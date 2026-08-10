@@ -169,6 +169,13 @@
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
   .build-status-row{display:flex; flex-wrap:wrap; gap:10px;}
+  /* Proje Kategorisi'nin 4 seçeneği (bkz. kullanıcı isteği): masaüstünde tek satırda 4 eşit sütun,
+     tablet/mobilde (960px altı) 2x2 sığsın diye ayrı bir grid — build-status-row'un flex-wrap'i
+     (2 uzun etiketli ana Yapım Durumu seçeneği için tasarlanmış) burada satır sayısını garanti etmiyordu. */
+  .concept-category-row{display:grid; grid-template-columns:repeat(4, 1fr);}
+  @media (max-width:960px){
+    .concept-category-row{grid-template-columns:repeat(2, 1fr);}
+  }
   .build-status-option{border:1px solid var(--line); border-radius:10px; padding:10px 14px; flex:1; min-width:200px;}
   .build-status-option:has(input:checked){border-color:var(--ink); background:var(--paper-alt); font-weight:600;}
 
@@ -346,7 +353,7 @@
         </div>
         <div class="form-field" id="concept-category-field" style="display:none;">
           <label>Proje Kategorisi</label>
-          <div class="build-status-row">
+          <div class="build-status-row concept-category-row">
             <label class="dd-option build-status-option"><input type="radio" name="concept_category" value="Öğrenci"> Öğrenci</label>
             <label class="dd-option build-status-option"><input type="radio" name="concept_category" value="Yarışma"> Yarışma</label>
             <label class="dd-option build-status-option"><input type="radio" name="concept_category" value="Fikir"> Fikir</label>
@@ -354,7 +361,7 @@
           </div>
         </div>
         <div class="form-field">
-          <label for="p-title">Proje Adı</label>
+          <label for="p-title" id="p-title-label">Yapı Adı</label>
           <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
         </div>
         <div class="form-field">
@@ -435,25 +442,25 @@
         </div>
         <div class="form-row">
           <div class="form-field ac-field" id="ac-mimar-field">
-            <label for="p-designer">Mimar</label>
+            <label for="p-designer" id="p-designer-label">Mimar</label>
             <input type="text" id="p-designer" name="designer" placeholder="ör. Emre Arolat" autocomplete="off">
             <div class="ac-suggestions" id="ac-mimar-suggestions"></div>
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
           </div>
           <div class="form-field ac-field" id="ac-ofis-field">
-            <label for="p-office">Firma</label>
+            <label for="p-office" id="p-office-label">Firma</label>
             <input type="text" id="p-office" name="office" placeholder="ör. Autoban" autocomplete="off">
             <div class="ac-suggestions" id="ac-ofis-suggestions"></div>
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
           </div>
         </div>
         <div class="form-field">
-          <label for="p-desc">Proje Açıklaması</label>
+          <label for="p-desc" id="p-desc-label">Yapı Açıklaması</label>
           <textarea id="p-desc" name="description" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="p-credit-text">Kaynak / Fotoğrafçı</label>
+            <label for="p-credit-text" id="p-credit-text-label">Kaynak / Fotoğrafçı</label>
             <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden">
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
           </div>
@@ -531,11 +538,27 @@ if(editParams.get('tur') === 'proje' && !editId && !claimSlug){
 // isteği) — İnşa Edilmiş Yapı seçiliyken kutu gizlenir VE seçili radio temizlenir ki yanlışlıkla
 // gönderilen eski bir değer sunucu tarafında zaten normalizeSubmission() ile null'a düşse de
 // kullanıcıya kafa karıştırıcı görünmesin.
+// Yapım Durumu'na göre etiket metinleri (bkz. kullanıcı isteği): "İnşa Edilmiş Yapı" seçiliyken
+// alan gerçekten inşa edilmiş bir YAPI'yı tanımladığından "Yapı Adı"/"Yapı Açıklaması", "Mimar"/
+// "Firma"/"Kaynak / Fotoğrafçı"; "Öğrenci/Yarışma/Fikir/Konsept Projesi" seçiliyken aynı alanlar bir
+// öğrenci/yarışma PROJESİ'ni tanımladığından "Proje Adı"/"Proje Açıklaması", tasarımcı bir öğrenci/
+// ekip olabileceğinden "Mimar / Öğrenci", kurumsal olmayabileceğinden "Firma / Kurum", kaynak/
+// fotoğrafçı bilgisi bu tür projelerde çoğu zaman bulunmadığından "Kaynak" + (opsiyonel) ibaresi.
+function syncBuildStatusLabels(isConcept){
+  document.getElementById('p-title-label').textContent = isConcept ? 'Proje Adı' : 'Yapı Adı';
+  document.getElementById('p-desc-label').textContent = isConcept ? 'Proje Açıklaması' : 'Yapı Açıklaması';
+  document.getElementById('p-designer-label').textContent = isConcept ? 'Mimar / Öğrenci' : 'Mimar';
+  document.getElementById('p-office-label').textContent = isConcept ? 'Firma / Kurum' : 'Firma';
+  const creditLabel = document.getElementById('p-credit-text-label');
+  creditLabel.innerHTML = isConcept ? 'Kaynak <span class="opt">(opsiyonel)</span>' : 'Kaynak / Fotoğrafçı';
+}
+
 function syncConceptCategoryVisibility(){
   const isConcept = document.querySelector('input[name="build_status"]:checked')?.value === 'concept';
   const field = document.getElementById('concept-category-field');
   field.style.display = isConcept ? '' : 'none';
   if(!isConcept) document.querySelectorAll('input[name="concept_category"]').forEach(rb => rb.checked = false);
+  syncBuildStatusLabels(isConcept);
 }
 document.querySelectorAll('input[name="build_status"]').forEach(rb => rb.addEventListener('change', syncConceptCategoryVisibility));
 syncConceptCategoryVisibility();

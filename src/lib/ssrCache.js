@@ -4,10 +4,14 @@ import { slugify } from './slugify.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v70';
+export const SSR_CACHE_VERSION = 'v71';
 
+// project: build_status='concept' projeler /proje/:slug, 'built' projeler /yapi/:slug altında
+// önbelleklenebilir (bkz. kullanıcı isteği, src/index.js#CLEAN_URL_ASSETS'teki AYNI çift-prefix) —
+// hangi kategoride olduğunu burada bilmediğimizden (yalnızca rawKey/slug elimizde) purge her ikisini
+// de temizler; var olmayan taraf zaten boş bir cache girdisini siler, zararsız.
 const PREFIX_BY_TYPE = {
-  project: '/yapi/',
+  project: ['/yapi/', '/proje/'],
   architect: '/mimar/',
   office: '/firma/',
   product: '/urun/',
@@ -35,15 +39,17 @@ const SLUGIFY_TYPES = new Set(['architect', 'office', 'consultant']);
 // tutulur, bu purge sadece en yaygın durumda (aynı PoP'a düşen sonraki istek) anlık bir düzeltme
 // sağlar. rawKey boşsa ya da tip tanınmıyorsa sessizce hiçbir şey yapmaz.
 export async function purgeSsrDetailCache(type, rawKey) {
-  const prefix = PREFIX_BY_TYPE[type];
-  if (!prefix || !rawKey) return;
+  const prefixes = PREFIX_BY_TYPE[type];
+  if (!prefixes || !rawKey) return;
   const slug = SLUGIFY_TYPES.has(type) ? slugify(rawKey) : rawKey;
   if (!slug) return;
-  try {
-    const keyUrl = new URL(`https://mimarlab.com${prefix}${encodeURIComponent(slug)}`);
-    keyUrl.searchParams.set('__cv', SSR_CACHE_VERSION);
-    await caches.default.delete(new Request(keyUrl));
-  } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev) kullanılamayabilir */ }
+  for (const prefix of Array.isArray(prefixes) ? prefixes : [prefixes]) {
+    try {
+      const keyUrl = new URL(`https://mimarlab.com${prefix}${encodeURIComponent(slug)}`);
+      keyUrl.searchParams.set('__cv', SSR_CACHE_VERSION);
+      await caches.default.delete(new Request(keyUrl));
+    } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev) kullanılamayabilir */ }
+  }
 }
 
 // src/lib/submissionTypes.js#SUBMISSION_TYPES anahtarlarını (offices/projects/products/materials/

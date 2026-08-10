@@ -53,7 +53,11 @@ const CATALOG_CRUMB = {
   architect: { label: 'Mimarlar', path: '/mimar' },
   consultant: { label: 'Danışmanlık', path: '/danisman' },
   office: { label: 'Firmalar', path: '/firma' },
+  // buildProjectMeta aşağıda build_status'a göre 'project' ya da 'project-concept' seçer (bkz.
+  // kullanıcı isteği: "Proje sayfasındaki projelerin URL uzantısının proje olması gerekiyor") —
+  // popup tasarımı AYNI kaldığından ayrı bir CreativeWork @type yok, yalnızca breadcrumb kataloğu değişir.
   project: { label: 'Yapılar', path: '/yapi' },
+  'project-concept': { label: 'Projeler', path: '/proje' },
   product: { label: 'Ürün', path: '/urun' },
   news: { label: 'Haberler', path: '/haber' },
 };
@@ -254,7 +258,11 @@ async function buildProjectMeta(slug, env) {
   const title = `${p.title} — MİMARLAB`;
   const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
   const description = truncate(rawDesc, 200);
-  const canonicalUrl = `${SITE_ORIGIN}/yapi/${encodeURIComponent(p.slug)}`;
+  // build_status='concept' (öğrenci/yarışma/fikir/konsept) -> /proje/:slug, 'built' -> /yapi/:slug
+  // (bkz. kullanıcı isteği, js/components/project-modal.js#detailPrefix ile AYNI ayrım) — bu satıra
+  // hangi prefix'ten erişildiğine bakılmaksızın DAİMA satırın gerçek kategorisine göre kanonik URL üretilir.
+  const isConcept = row.build_status === 'concept';
+  const canonicalUrl = `${SITE_ORIGIN}${isConcept ? '/proje/' : '/yapi/'}${encodeURIComponent(p.slug)}`;
   const images = (p.images || []).map(absoluteUrl).filter(Boolean);
   const jsonLd = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.title, url: canonicalUrl };
   if (p.description) jsonLd.description = p.description;
@@ -275,7 +283,7 @@ async function buildProjectMeta(slug, env) {
     ...namesFromConcat(row.office_names).map(name => ({ '@type': 'Organization', name })),
   ];
   if (creators.length) jsonLd.creator = creators.length === 1 ? creators[0] : creators;
-  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
+  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd(isConcept ? 'project-concept' : 'project', p.title, canonicalUrl) };
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
