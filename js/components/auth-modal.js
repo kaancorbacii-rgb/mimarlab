@@ -524,7 +524,8 @@ const AuthModal = (function () {
         </div>
         <div class="submissions-toolbar-row" id="am-submissions-filter">
           <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
+          <button type="button" class="submissions-filter-btn" data-filter="projects:built">Yapı</button>
+          <button type="button" class="submissions-filter-btn" data-filter="projects:concept">Proje</button>
         </div>
         <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-submissions-pagination"></div>
@@ -534,7 +535,8 @@ const AuthModal = (function () {
         <h2>Kaydettiklerim</h2>
         <div class="saved-filter" id="am-saved-filter">
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+          <button type="button" class="saved-filter-btn" data-filter="project:built">Yapı</button>
+          <button type="button" class="saved-filter-btn" data-filter="project:concept">Proje</button>
           <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
           <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
         </div>
@@ -546,7 +548,8 @@ const AuthModal = (function () {
         <h2>Beğendiklerim</h2>
         <div class="saved-filter" id="am-rated-filter">
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+          <button type="button" class="saved-filter-btn" data-filter="project:built">Yapı</button>
+          <button type="button" class="saved-filter-btn" data-filter="project:concept">Proje</button>
         </div>
         <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-rated-pagination"></div>
@@ -755,7 +758,12 @@ const AuthModal = (function () {
         document.getElementById('am-submissions-pagination').innerHTML = '';
         return;
       }
-      const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
+      // hesabim.html#renderSubmissions ile AYNI Yapı/Proje ayrımı (bkz. kullanıcı isteği).
+      const all = submissionsFilter ? allSubmissions.filter(s => {
+        if (submissionsFilter === 'projects:built') return s.type === 'projects' && s.item.build_status !== 'concept';
+        if (submissionsFilter === 'projects:concept') return s.type === 'projects' && s.item.build_status === 'concept';
+        return s.type === submissionsFilter;
+      }) : allSubmissions;
       if (!all.length) {
         container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
         document.getElementById('am-submissions-pagination').innerHTML = '';
@@ -793,7 +801,12 @@ const AuthModal = (function () {
     }
     function renderSaved() {
       const container = document.getElementById('am-dash-saved');
-      const items = savedFilter ? savedItems.filter(it => it.item_type === savedFilter) : savedItems;
+      // hesabim.html#renderSaved ile AYNI Yapı/Proje ayrımı (bkz. kullanıcı isteği).
+      const items = savedFilter ? savedItems.filter(it => {
+        if (savedFilter === 'project:built') return it.item_type === 'project' && it.item_build_status !== 'concept';
+        if (savedFilter === 'project:concept') return it.item_type === 'project' && it.item_build_status === 'concept';
+        return it.item_type === savedFilter;
+      }) : savedItems;
       if (!savedItems.length) {
         container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
         document.getElementById('am-saved-pagination').innerHTML = '';
@@ -843,7 +856,12 @@ const AuthModal = (function () {
     }
     function renderRated() {
       const container = document.getElementById('am-dash-rated');
-      const items = ratedFilter ? ratedItems.filter(it => it.type === ratedFilter) : ratedItems;
+      // hesabim.html#renderRated ile AYNI Yapı/Proje ayrımı (bkz. kullanıcı isteği).
+      const items = ratedFilter ? ratedItems.filter(it => {
+        if (ratedFilter === 'project:built') return it.type === 'project' && it.buildStatus !== 'concept';
+        if (ratedFilter === 'project:concept') return it.type === 'project' && it.buildStatus === 'concept';
+        return it.type === ratedFilter;
+      }) : ratedItems;
       if (!ratedItems.length) {
         container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
         document.getElementById('am-rated-pagination').innerHTML = '';
