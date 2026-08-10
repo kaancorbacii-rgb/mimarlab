@@ -307,7 +307,7 @@ export function buildFilterGroups(ratingByProject) {
     // fikir, konsept") — 'built' projelerde her zaman [] döner, bu yüzden yapi.html tarafında (o
     // sayfa bu grubu kendi FILTER_GROUPS listesine hiç eklemiyor) hiçbir etkisi olmaz.
     { key: 'conceptCategory', label: 'Kategori', nested: false, field: p => p.conceptCategory ? [p.conceptCategory] : [] },
-    { key: 'type', label: 'Tip Grubu', nested: false, field: p => p.type || [] },
+    { key: 'type', label: 'Grup', nested: false, field: p => p.type || [] },
     { key: 'location', label: 'Yer', nested: false, field: p => [parseLocationFull(p.location).city] },
     { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul', field: p => {
         const info = parseLocationFull(p.location);

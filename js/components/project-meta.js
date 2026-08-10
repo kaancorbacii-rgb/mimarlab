@@ -60,23 +60,27 @@ const ProjectMeta = (function () {
     }
   }
 
-  // Künyedeki Tür/Tip/Yer/Yıl değerleri /proje?key=value şeklinde filtrelenmiş listeye bağlanır —
-  // proje-detay.html#filterLinkHtml ile birebir aynı.
-  function filterLinkHtml(key, value, label) {
-    return `<a href="/proje?${encodeURIComponent(key)}=${encodeURIComponent(value)}">${escapeHtml(label !== undefined ? label : value)}</a>`;
+  // Künyedeki Tür/Tip/Yer/Yıl değerleri filtrelenmiş listeye bağlanır — hedef sayfa item'ın
+  // buildStatus'una göre seçilir (bkz. renderStructuredData'daki AYNI hrefPrefix mantığı): 'concept'
+  // /proje'ye, diğer her şey ('built' — yapı gönderileri) /yapi'ye gider. Eskiden hep /proje'ye
+  // sabitliydi, bu yüzden Yapı gönderilerindeki künye linkleri yanlışlıkla proje sayfasının
+  // filtrelerini açıyordu (bkz. kullanıcı isteği).
+  function filterLinkHtml(item, key, value, label) {
+    const page = item.buildStatus === 'concept' ? '/proje' : '/yapi';
+    return `<a href="${page}?${encodeURIComponent(key)}=${encodeURIComponent(value)}">${escapeHtml(label !== undefined ? label : value)}</a>`;
   }
 
   function renderMeta(item, ids) {
     let html = '';
-    if (item.discipline && item.discipline.length) html += `<div><strong>Tür:</strong> ${item.discipline.map(v => filterLinkHtml('discipline', v)).join(' / ')}</div>`;
-    if (item.category && item.category.length) html += `<div><strong>Tip:</strong> ${item.category.map(v => filterLinkHtml('category', v)).join(' / ')}</div>`;
-    if (item.type && item.type.length) html += `<div><strong>Tip Grubu:</strong> ${item.type.map(v => filterLinkHtml('type', v)).join(' / ')}</div>`;
+    if (item.discipline && item.discipline.length) html += `<div><strong>Tür:</strong> ${item.discipline.map(v => filterLinkHtml(item, 'discipline', v)).join(' / ')}</div>`;
+    if (item.category && item.category.length) html += `<div><strong>Tip:</strong> ${item.category.map(v => filterLinkHtml(item, 'category', v)).join(' / ')}</div>`;
+    if (item.type && item.type.length) html += `<div><strong>Tip Grubu:</strong> ${item.type.map(v => filterLinkHtml(item, 'type', v)).join(' / ')}</div>`;
     if (item.location) {
       const loc = parseLocation(item.location);
       const districtText = loc.district ? escapeHtml(loc.district) + ', ' : '';
-      html += `<div><strong>Yer:</strong> ${districtText}${filterLinkHtml('location', loc.city, loc.city)}</div>`;
+      html += `<div><strong>Yer:</strong> ${districtText}${filterLinkHtml(item, 'location', loc.city, loc.city)}</div>`;
     }
-    if (item.date) html += `<div><strong>Yıl:</strong> ${item.dateBucket ? filterLinkHtml('dateBucket', item.dateBucket, item.date) : escapeHtml(item.date)}</div>`;
+    if (item.date) html += `<div><strong>Yıl:</strong> ${item.dateBucket ? filterLinkHtml(item, 'dateBucket', item.dateBucket, item.date) : escapeHtml(item.date)}</div>`;
     if (item.photoCredit && item.photoCredit.text) {
       const creditUrl = item.photoCredit.url ? safeUrl(item.photoCredit.url) : '';
       html += `<div><strong>Fotoğraf:</strong> ${creditUrl ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(item.photoCredit.text)}</a>` : escapeHtml(item.photoCredit.text)}</div>`;
