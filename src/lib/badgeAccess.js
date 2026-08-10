@@ -1,10 +1,7 @@
-// Rozet sahipliğine bağlı ek haklar (ürün yükleme limitleri, yorum silme yetkisi vb.)
-// için paylaşılan yardımcılar. Hak veren rozet tipleri: verified (Doğrulanmış Üye), gold (Altın
-// Üye), platinum (Elmas Üye) — bkz. data.js#BADGE_LABELS, src/routes/badges.js#BADGE_PRICES.
-// 'destekci' (Destekçi) kasıtlı olarak burada yok: hiçbir hak/limit vermez (bkz. src/routes/
-// comments.js#canDeleteComment'teki ayrı istisna).
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+// Rozet sahipliğine bağlı ek haklar (yorum silme yetkisi vb.) için paylaşılan yardımcılar. Hak
+// veren rozet tipleri: verified (Doğrulanmış Üye), gold (Altın Üye), platinum (Elmas Üye) — bkz.
+// data.js#BADGE_LABELS, src/routes/badges.js#BADGE_PRICES. 'destekci' (Destekçi) kasıtlı olarak
+// burada yok: hiçbir hak/limit vermez (bkz. src/routes/comments.js#canDeleteComment'teki ayrı istisna).
 
 // Bir kullanıcı artık aynı anda birden fazla aktif rozet tutabilir — biri kendisi (target_type
 // 'self'), diğerleri sahip olduğu her marka için ayrı ayrı (target_type 'office') — bkz.
@@ -23,16 +20,3 @@ export async function getActiveBadge(env, userId) {
     (BADGE_RANK[row.badge_type] || 0) > (BADGE_RANK[best.badge_type] || 0) ? row : best
   );
 }
-
-// Rozetin şu anki "ay"ının başlangıcı: expires_at varsa ondan 30 gün geriye gider (aktivasyon/
-// yenilenme anı), yoksa (eski/legacy satırlar için) created_at'e düşer.
-export function periodStart(badge) {
-  if (badge.expires_at) return badge.expires_at - THIRTY_DAYS_MS;
-  return badge.created_at;
-}
-
-// Aylık ürün yükleme limitleri (bkz. src/routes/submissions.js).
-export const PRODUCT_MONTHLY_LIMITS = { verified: 3, gold: 10, platinum: 50 };
-
-// Aylık yapı malzemesi yükleme limitleri — ürünlerden ayrı bir kota havuzu (bkz. src/routes/submissions.js).
-export const MATERIAL_MONTHLY_LIMITS = { verified: 3, gold: 10, platinum: 50 };

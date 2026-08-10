@@ -14,18 +14,11 @@ const PREFIX_BY_TYPE = {
   project: ['/yapi/', '/proje/'],
   architect: '/mimar/',
   office: '/firma/',
-  product: '/urun/',
-  news: '/haberler/',
-  // /danisman modülü (eski adı "/danismanlik") — bu turda çağıran yok (admin/self-serve düzenleme
-  // akışı henüz eklenmedi, bkz. kullanıcı isteği), ileride bir purge noktası eklendiğinde diğer
-  // tiplerle AYNI eşleme hazır olsun diye eklendi.
-  consultant: '/danisman/',
 };
 
 // architect/office temiz URL'leri isimden slugify edilir (bkz. src/index.js#CLEAN_URL_REDIRECTS
-// slugifyValue:true) — project/news zaten kendi slug/id'sini, product zaten kendi anahtarını (ör.
-// "m-<submissionId>") kullanır, ayrıca slugify edilmez.
-const SLUGIFY_TYPES = new Set(['architect', 'office', 'consultant']);
+// slugifyValue:true) — project zaten kendi slug'ını kullanır, ayrıca slugify edilmez.
+const SLUGIFY_TYPES = new Set(['architect', 'office']);
 
 // Admin panelinden (ya da admin'in kendi gönderisinin anında yayına girmesiyle) bir proje/mimar/
 // firma/ürün değiştiğinde, o kaydın SSR HTML önbelleğini (bkz. src/index.js#serveDetailPage)
@@ -52,25 +45,19 @@ export async function purgeSsrDetailCache(type, rawKey) {
   }
 }
 
-// src/lib/submissionTypes.js#SUBMISSION_TYPES anahtarlarını (offices/projects/products/materials/
-// architects/news) yukarıdaki PREFIX_BY_TYPE anahtarlarına eşler — materials, products ile
-// aynı /urun/ modalını (urun.html + js/components/product-modal.js) paylaşır.
+// src/lib/submissionTypes.js#SUBMISSION_TYPES anahtarlarını (offices/projects/architects)
+// yukarıdaki PREFIX_BY_TYPE anahtarlarına eşler.
 const SSR_TYPE_BY_SUBMISSION_TYPE = {
   projects: 'project', architects: 'architect', offices: 'office',
-  products: 'product', materials: 'product', news: 'news',
 };
 
 // Bir <tip>_submissions satırından (claimed_slug/claimed_profile_key varsa statik kaydın kendi
 // anahtarı, yoksa satırın kendi slug/name/id'si) purgeSsrDetailCache'e verilecek {type, key} çiftini
-// çıkarır. Ürün/malzeme için satırın kendi id'sinden türeyen "m-<id>" anahtarı kullanılır (bkz.
-// js/components/product-modal.js#fetchItem — üye gönderili kayıtlar için aynı desen). Eşlemede
-// karşılığı olmayan tipler için null döner.
+// çıkarır. Eşlemede karşılığı olmayan tipler için null döner.
 export function ssrPurgeTargetFor(typeKey, row) {
   const type = SSR_TYPE_BY_SUBMISSION_TYPE[typeKey];
   if (!type || !row) return null;
   if (typeKey === 'projects') return { type, key: row.claimed_slug || row.slug };
   if (typeKey === 'architects' || typeKey === 'offices') return { type, key: row.claimed_profile_key || row.name };
-  if (typeKey === 'products' || typeKey === 'materials') return row.id ? { type, key: `m-${row.id}` } : null;
-  if (typeKey === 'news') return { type, key: row.id };
   return null;
 }

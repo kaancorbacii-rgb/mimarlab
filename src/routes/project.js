@@ -124,30 +124,6 @@ async function fetchRawDesignerNames(env, project) {
   return { architects, offices, isLegacy: false };
 }
 
-// "Kullanılan Ürünler/Malzemeler" — project_products join tablosundan (bkz. resolveProjectProductLinks
-// içinde src/lib/canonicalSync.js, burada canlı doldurulur) gerçek ürün/malzeme kayıtlarını okur;
-// artık istemci tarafında brand-string eşleştirmesi (proje-detay.html#renderRelatedCatalog'un eski
-// yöntemi) gerekmiyor.
-async function fetchProjectProducts(env, projectId) {
-  const { results } = await env.DB.prepare(
-    `SELECT pr.slug, pr.title, pr.kind, pr.category, pr.images,
-            COALESCE(off.name, pr.brand_name_raw) AS brand_name
-     FROM project_products pp
-     JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-     LEFT JOIN offices off ON off.id = pr.brand_office_id AND off.deleted_at IS NULL AND off.hidden_at IS NULL
-     WHERE pp.project_id = ?`
-  ).bind(projectId).all();
-  const products = [];
-  const materials = [];
-  for (const row of results) {
-    let images = [];
-    try { images = row.images ? JSON.parse(row.images) : []; } catch { /* bozuk JSON — atla */ }
-    const item = { slug: row.slug, title: row.title, category: row.category || '', image: images[0] || null, brand: row.brand_name || '' };
-    (row.kind === 'material' ? materials : products).push(item);
-  }
-  return { products, materials };
-}
-
 // Önceki/Sonraki Proje — proje.html'deki grid'in o anki (filtrelenmiş/sıralanmış) sayfasını
 // istemci hafızasında tutan eski `navList` yöntemi yerine (bkz. kullanıcı isteği: "kökten çözüm"),
 // dairesel/sıralı gezinme artık HER İSTEKTE burada, id sırasına göre hesaplanır — proje doğrudan
@@ -212,9 +188,8 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     if (!row) return { item: null, hidden: false };
     if (row.hidden_at) return { item: null, hidden: true };
     const item = shapeProjectItem(row);
-    const [designerDetails, catalog, rawNames, owner] = await Promise.all([
+    const [designerDetails, rawNames, owner] = await Promise.all([
       fetchDesignerDetails(env, row.id),
-      fetchProjectProducts(env, row.id),
       fetchRawDesignerNames(env, row),
       fetchOwnerByline(env, row.claimed_by_user_id),
     ]);
@@ -257,8 +232,6 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
       }
     }
     item.designerDetails = designerDetails;
-    item.products = catalog.products;
-    item.materials = catalog.materials;
     const adjacent = await fetchAdjacentProject(env, row.id, row.build_status === 'concept' ? 'concept' : 'built');
     item.prevProject = adjacent.prevProject;
     item.nextProject = adjacent.nextProject;

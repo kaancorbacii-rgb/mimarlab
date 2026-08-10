@@ -33,50 +33,21 @@ export const SUBMISSION_TYPES = {
     urlFields: ['photoCreditUrl', 'source_url'],
     urlArrayFields: ['images'],
   },
-  products: {
-    table: 'product_submissions',
-    fields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs'],
-    required: ['title'],
-    urlFields: ['website', 'source_url'],
-    urlArrayFields: ['images'],
-  },
-  materials: {
-    table: 'material_submissions',
-    fields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs'],
-    required: ['title'],
-    urlFields: ['website', 'source_url'],
-    urlArrayFields: ['images'],
-  },
   architects: {
     table: 'architect_submissions',
-    // consultant_request/hourly_rate/session_duration_min/expertise_tags/available_slots/
-    // consultant_experience_years — /danisman'daki "Danışman Ekle" pop-up'ının gönderdiği ek alanlar
-    // (bkz. migrations/0034_consultant_submission_fields.sql, kullanıcı isteği). Sıradan bir
-    // "beni mimar olarak ekle" gönderisinde (mimar-ekle.html) bu alanlar hiç gönderilmez, boş kalır.
     fields: [
       'name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'claimed_profile_key',
-      'consultant_request', 'hourly_rate', 'session_duration_min', 'expertise_tags', 'available_slots', 'consultant_experience_years',
       'social_links',
     ],
-    arrayFields: ['awards', 'expertise_tags', 'available_slots', 'social_links'],
+    arrayFields: ['awards', 'social_links'],
     required: ['name'],
     urlFields: ['photo_url'],
   },
-  news: {
-    table: 'news_submissions',
-    fields: ['title', 'category', 'source', 'description', 'image_url'],
-    arrayFields: [],
-    required: ['title'],
-    urlFields: ['image_url'],
-  },
 };
 
-// Mimar/Firma/Danışman ekle-düzenle sayfalarındaki Sosyal Medya kutucuğunun platform seçim listesi
-// (bkz. kullanıcı isteği) — istemci (mimar-ekle.html/firma-ekle.html/danisman-ekle.html) VE burası
-// (submissions.js#createSubmission/updateOwnSubmission, src/routes/consultant.js#
-// handleConsultantEditRoute) AYNI enum'u kullanır.
+// Mimar/Firma ekle-düzenle sayfalarındaki Sosyal Medya kutucuğunun platform seçim listesi
+// (bkz. kullanıcı isteği) — istemci (mimar-ekle.html/firma-ekle.html) VE burası
+// (submissions.js#createSubmission/updateOwnSubmission) AYNI enum'u kullanır.
 export const SOCIAL_PLATFORMS = new Set(['instagram', 'linkedin', 'x']);
 
 export function findInvalidSocialPlatform(type, body) {
@@ -162,17 +133,16 @@ function dateBucketFor(dateStr) {
 // Ham form verisini (client'tan gelen) satır olarak D1'e yazılacak hale getirir:
 // dizi alanları JSON'a çevirir, eksik/boş alanları null yapar, projeler için slug/dateBucket türetir.
 // ai_generated (bkz. migrations/0015_ai_submission_source.sql) NOT NULL DEFAULT 0 olduğundan diğer
-// alanlar gibi boşken null bırakılamaz — proje-ekle.html/urun-ekle.html'in AI paneli kullanılmadığı
-// her gönderimde bu alan payload'da hiç yer almaz, null yazılırsa INSERT/UPDATE anında
-// "NOT NULL constraint failed" ile 500 döner (bkz. kullanıcı raporu: kapak/sıra değişikliğini
-// kaydederken "Sunucu hatası oluştu" — aslında AI akışı dışındaki HER proje/ürün/malzeme
-// ekleme-düzenleme işlemini etkiliyordu, görsellerle ilgisi yoktu).
+// alanlar gibi boşken null bırakılamaz — proje-ekle.html'in AI paneli kullanılmadığı her gönderimde
+// bu alan payload'da hiç yer almaz, null yazılırsa INSERT/UPDATE anında "NOT NULL constraint failed"
+// ile 500 döner (bkz. kullanıcı raporu: kapak/sıra değişikliğini kaydederken "Sunucu hatası oluştu"
+// — aslında AI akışı dışındaki HER proje ekleme-düzenleme işlemini etkiliyordu, görsellerle ilgisi yoktu).
 export function normalizeSubmission(type, body) {
   const config = SUBMISSION_TYPES[type];
   const row = {};
   for (const field of config.fields) {
     let value = body[field];
-    if (field === 'ai_generated' || field === 'consultant_request') {
+    if (field === 'ai_generated') {
       value = value ? 1 : 0;
     } else if (field === 'build_status') {
       // build_status NOT NULL'dur (bkz. migrations/0037_project_build_status.sql) — bu alanı

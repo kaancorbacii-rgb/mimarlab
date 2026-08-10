@@ -5,7 +5,6 @@ import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from '.
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
-import { handleConsultantBookingsRoute } from './routes/consultantBookings.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
 import { handleFacetsRoute } from './routes/facets.js';
@@ -117,34 +116,16 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/proje/', asset: '/proje', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
-  { prefix: '/urun/', asset: '/urun', type: 'product' },
-  { prefix: '/haberler/', asset: '/haber-detay', type: 'news' },
-  // /danisman/:slug — danisman.html'in kendisi listeleme+detay ikisini birden barındırır
-  // (bkz. kullanıcı isteği), yukarıdaki /mimar ile AYNI desen (architect-detay.html gibi ayrı bir
-  // dosya yok, tek sayfa kendi JS'inde path'e göre ConsultantModal'ı açar). Eski ad "danismanlik"ti
-  // (bkz. kullanıcı isteği: /danisman'a yeniden adlandırma), PATH_RENAME_REDIRECTS/
-  // PREFIX_RENAME_REDIRECTS eski bağlantıları buraya 301'ler.
-  { prefix: '/danisman/', asset: '/danisman', type: 'consultant' },
 ];
 
-// Ürün/Danışman/Haber/İş İlanı (Kariyer) — yayından kaldırıldı (bkz. kullanıcı isteği). Sayfa
-// dosyaları, route'lar ve D1 verisi SİLİNMEDİ (geri açılması kolay olsun diye) — yalnızca public
-// erişim burada kapatılıyor. Hem uzantısız hem ".html" biten biçim eşlenir (bare karşılaştırma
-// aşağıda isDisabledPagePath() içinde .html'i atıyor).
-const DISABLED_PAGE_PATHS = new Set([
-  '/urun', '/urun-ekle',
-  '/danisman', '/danisman-ekle',
-  '/haber', '/haber-ekle', '/haber-detay',
-  '/kariyer',
-]);
-// /urun/:slug, /haberler/:id, /danisman/:slug — CLEAN_URL_ASSETS'teki karşılık gelen detay
-// önekleri, aynı gerekçeyle.
-const DISABLED_PAGE_PREFIXES = ['/urun/', '/haberler/', '/danisman/'];
+// Kariyer — yayında değil (bkz. kullanıcı isteği). Ürün/Danışman/Haber'in aksine sayfası hâlâ
+// repoda duruyor (bkz. kariyer.html) ama bu görevin kapsamı dışında bırakıldı — yalnızca public
+// erişim burada kapatılıyor. Hem uzantısız hem ".html" biten biçim eşlenir.
+const DISABLED_PAGE_PATHS = new Set(['/kariyer']);
 
 function isDisabledPagePath(pathname) {
   const bare = pathname.replace(/\.html$/, '');
-  if (DISABLED_PAGE_PATHS.has(bare)) return true;
-  return DISABLED_PAGE_PREFIXES.some(p => bare.startsWith(p) && bare.length > p.length);
+  return DISABLED_PAGE_PATHS.has(bare);
 }
 
 // Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
@@ -155,12 +136,6 @@ const PATH_RENAME_REDIRECTS = {
   '/ofis.html': '/firma',
   '/ofis-ekle': '/firma-ekle',
   '/ofis-ekle.html': '/firma-ekle',
-  '/malzeme': '/urun',
-  '/malzeme.html': '/urun',
-  '/malzeme-ekle': '/urun-ekle',
-  '/malzeme-ekle.html': '/urun-ekle',
-  '/danismanlik': '/danisman',
-  '/danismanlik.html': '/danisman',
   // Giriş Yap/Üye Ol/Hesabım artık bağımsız sayfalar değil, her sayfada açılabilen popup modallar
   // (bkz. kullanıcı isteği, js/components/auth-modal.js) — eski dosya adlarına gelen istekler/
   // yer imleri temiz yol adlarına yönlendirilir, oradan AUTH_MODAL_ROUTES devralır (bkz. aşağısı).
@@ -215,15 +190,11 @@ const INFO_MODAL_META = {
 };
 
 // Eski /markalar/:slug firma detay URL'leri artık /firma/:slug (bkz. kullanıcı isteği: SEO/backlink
-// koruması) — yukarıdaki PATH_RENAME_REDIRECTS'in aksine slug segmenti dinamik olduğundan tam eşleşme
-// yerine önek (prefix) bazlı yönlendirme gerekiyor; slug/sorgu string'i olduğu gibi korunur. Aynı
-// desenle eski /urunler/:key ürün detay URL'leri de artık /urun/:key'e (bkz. kullanıcı isteği: ürün
-// modalının URL öneki /urun olsun) — bu kontrol routeAsset() içinde CLEAN_URL_ASSETS eşleşmesinden
-// ÖNCE çalıştığından eski linkler önce yeni öneke 301'lenir, sonra normal şekilde servis edilir.
+// koruması) — slug segmenti dinamik olduğundan tam eşleşme yerine önek (prefix) bazlı yönlendirme
+// gerekiyor; slug/sorgu string'i olduğu gibi korunur. Bu kontrol routeAsset() içinde CLEAN_URL_ASSETS
+// eşleşmesinden ÖNCE çalıştığından eski linkler önce yeni öneke 301'lenir, sonra normal şekilde servis edilir.
 const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
-  { from: '/urunler/', to: '/urun/' },
-  { from: '/danismanlik/', to: '/danisman/' },
   // Proje detay URL öneki artık /yapi/:slug (bkz. kullanıcı isteği) — eski /projeler/:slug
   // bağlantıları/yer imleri/indexlenmiş sonuçlar kırılmasın diye AYNI desenle 301'lenir.
   { from: '/projeler/', to: '/yapi/' },
@@ -506,8 +477,6 @@ async function handleSitemapRoute(request, env, ctx) {
 
 // listEntityUrls (yalnızca statik diziler) ile birleştirilen canonical D1 kaynağı — architects/
 // offices/projects tablolarının TAMAMI (statik + admin panelinden eklenenler) buradan gelir.
-// products BİLEREK dışlanır (bkz. kullanıcı isteği: ürün yayından kaldırıldı, DISABLED_PAGE_PATHS)
-// — /urun/:slug artık 404 döndüğünden sitemap'te listelenmemeli.
 async function listCanonicalEntityUrls(env) {
   if (!env || !env.DB) return [];
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
@@ -554,20 +523,7 @@ async function routeApi(request, env, url) {
   // path'ler GET için önceden zaten boştu, çakışma yok).
   if (path === '/api/projects' && request.method === 'GET') return handleProjectListRoute(request, env, url);
   if (path === '/api/architects' && request.method === 'GET') return handleArchitectListRoute(request, env, url);
-  // /danismanlik modülü (bkz. kullanıcı isteği) — architects.is_consultant=1 satırları, /api/
-  // architects ile AYNI liste/detay desen çifti (bkz. src/routes/consultant.js). Danışman artık
-  // yayında değil (bkz. kullanıcı isteği, DISABLED_PAGE_PATHS) — bu public liste ucu kapatıldı,
-  // architects tablosundaki satırlar/is_consultant bayrağı DOKUNULMADAN kalır.
-  if (path === '/api/consultants' && request.method === 'GET') return errorJson('Bulunamadı', 404);
   if (path === '/api/offices' && request.method === 'GET') return handleOfficeListRoute(request, env, url);
-  // Ürün artık yayında değil (bkz. kullanıcı isteği) — public liste ucu kapatıldı, products
-  // tablosu DOKUNULMADAN kalır (üyenin kendi gönderi yönetimi hâlâ handleSubmissionRoute'tan
-  // çalışır, bkz. aşağıdaki /api/products prefix dalı).
-  if (path === '/api/products' && request.method === 'GET') return errorJson('Bulunamadı', 404);
-  // Haber artık yayında değil (bkz. kullanıcı isteği) — bu public liste ucu (Faz 4B'de eklenen
-  // /api/news?page=&limit=) kapatıldı; /api/news/mine (üyenin kendi gönderileri) bu satırdan
-  // ETKİLENMEZ, aşağıdaki handleSubmissionRoute dalından işlenmeye devam eder.
-  if (path === '/api/news' && request.method === 'GET') return errorJson('Bulunamadı', 404);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki
@@ -577,14 +533,6 @@ async function routeApi(request, env, url) {
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
-  // Danışman profil detay/Düzenle/Arşivle akışının TEK giriş noktası danisman.html'in kendi
-  // ConsultantModal'ıydı — o sayfa artık yayında değil (bkz. yukarısı, DISABLED_PAGE_PATHS),
-  // dolayısıyla bu öneke ulaşan başka hiçbir istemci yok; tamamı kapatıldı (bkz. kullanıcı isteği).
-  if (path.startsWith('/api/consultant/')) return errorJson('Bulunamadı', 404);
-  // "Görüşme Ayarla" Havale/EFT talep akışı (bkz. kullanıcı isteği, src/routes/consultantBookings.js)
-  // — startsWith, çünkü GET .../mine (hesabim.html "Danışmanlık" sekmesi) AYNI dosyadaki AYNI
-  // dispatcher'a düşer, yalnızca method+son segmente göre dallanır.
-  if (path.startsWith('/api/consultant-bookings')) return handleConsultantBookingsRoute(request, env, url);
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) {
     const projectSlug = path.slice('/api/project/'.length);
@@ -594,9 +542,6 @@ async function routeApi(request, env, url) {
     if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, decodeURIComponent(projectSlug));
     return handleProjectDetailRoute(request, env, url, projectSlug);
   }
-  // Ürün detay — TEK giriş noktası olan urun.html/ProductModal artık yayında değil (bkz. yukarısı),
-  // bu öneke ulaşan başka istemci yok; kapatıldı (bkz. kullanıcı isteği).
-  if (path.startsWith('/api/product/')) return errorJson('Bulunamadı', 404);
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
@@ -607,8 +552,7 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/notifications')) return handleNotificationsRoute(request, env, url);
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
-    path.startsWith('/api/products') || path.startsWith('/api/materials') ||
-    path.startsWith('/api/architects') || path.startsWith('/api/news')
+    path.startsWith('/api/architects')
   ) return handleSubmissionRoute(request, env, url);
   return errorJson('Bulunamadı', 404);
 }

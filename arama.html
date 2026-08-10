@@ -7,19 +7,19 @@
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>Arama — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'da mimar, ofis, proje, ürün ve haber ara.">
+<meta name="description" content="MİMARLAB'da mimar, firma, proje ve yapı ara.">
 <link rel="canonical" href="https://mimarlab.com/arama">
 <meta name="robots" content="noindex, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Arama — MİMARLAB">
-<meta property="og:description" content="MİMARLAB'da mimar, ofis, proje, ürün ve haber ara.">
+<meta property="og:description" content="MİMARLAB'da mimar, firma, proje ve yapı ara.">
 <meta property="og:url" content="https://mimarlab.com/arama">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Arama — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB'da mimar, ofis, proje, ürün ve haber ara.">
+<meta name="twitter:description" content="MİMARLAB'da mimar, firma, proje ve yapı ara.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -244,9 +244,6 @@
   </footer>
 
 <script src="badge-shared.js"></script>
-<script src="urunler-data.js"></script>
-<script src="malzemeler-data.js"></script>
-<script src="haberler-data.js"></script>
 <script>
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -278,21 +275,9 @@ function fuzzyMatch(text, queryWords){
 
 const MAX_PER_GROUP = 20;
 
-// Admin'in admin panelinden gizlediği statik ürün/haber kayıtları (bkz. src/routes/
-// legacyContent.js, GET /api/public/hidden) arama sonuçlarından da çıkarılmalı — ilk sonuç fetch
-// tamamlanmadan çizildiğinden, veri gelince runSearch() bir kez daha çalıştırılır. Legacy Bundle
-// Elimination Faz 3'ten beri (bkz. kullanıcı isteği) yalnızca products/news için geçerli — mimar/
-// firma/proje artık /api/public/search'ten (aşağıda) gelir, o uç zaten hidden_at IS NULL filtresini
-// D1 tarafında uyguluyor, ayrı bir gizleme kontrolüne gerek yok.
-let hiddenLegacy = {};
-function isHiddenLegacy(type, key){
-  return (hiddenLegacy[type] || []).includes(key);
-}
-fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(data => { hiddenLegacy = data || {}; }).catch(()=>{}).finally(() => { runSearch(); });
-
 // badge: yalnızca Mimarlar/Firmalar gruplarında geçilir (bkz. kullanıcı isteği: mavi onay
-// rozetinin arama sonuçlarında da görünmesi) — proje/ürün/haber satırlarında rozet anlamsız
-// olduğundan çağıranlar orada bu parametreyi hiç geçmez.
+// rozetinin arama sonuçlarında da görünmesi) — proje satırlarında rozet anlamsız olduğundan
+// çağıranlar orada bu parametreyi hiç geçmez.
 function rowHtml({href, avatarStyle, avatarContent, title, meta, badge}){
   return `<a class="result-row" href="${href}">
     <div class="result-avatar" style="${avatarStyle||''}">${avatarContent||''}</div>
@@ -307,9 +292,7 @@ function rowHtml({href, avatarStyle, avatarContent, title, meta, badge}){
 // totalCount: mimar/firma/proje için /api/public/search zaten grup başına en fazla
 // SEARCH_FULL_PER_GROUP (bkz. src/routes/legacyContent.js) satır dönüyor ama GERÇEK toplam sayıyı
 // ayrıca veriyor — "(N)" başlığı ve "+N sonuç daha var" notu bu gerçek sayıyı kullanmalı, `items.
-// length` (sunucu tarafından zaten kırpılmış diziyi) DEĞİL. Ürün/haber (istemci tarafında hâlâ
-// statik dizi üzerinde filtrelendiğinden, bkz. kullanıcı isteği: Faz 3 kapsamı yalnızca data.js/
-// projeler-data.js) items.length zaten gerçek toplamdır, bu yüzden parametre opsiyonel.
+// length` (sunucu tarafından zaten kırpılmış diziyi) DEĞİL.
 function groupHtml(label, items, toRow, totalCount){
   if(!items.length) return '';
   const total = totalCount == null ? items.length : totalCount;
@@ -343,7 +326,7 @@ async function runSearch(){
     titleEl.textContent = 'Arama';
     subtitleEl.textContent = '';
     wrap.innerHTML = `<div class="search-empty">
-      <p>Mimar, firma, proje, ürün veya haber aramak için üstteki arama kutusunu kullan.</p>
+      <p>Mimar, firma veya proje aramak için üstteki arama kutusunu kullan.</p>
       <div class="nav-search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" placeholder="Ara...">
@@ -356,10 +339,7 @@ async function runSearch(){
   titleEl.textContent = `"${query}" için sonuçlar`;
   const queryHtml = escapeHtml(query);
 
-  // Mimar/Firma/Proje artık canonical D1'den (bkz. src/routes/legacyContent.js#
-  // handlePublicSearchFull, kullanıcı isteği: Legacy Bundle Elimination Faz 3) — Ürün/Haber bu
-  // turun kapsamı dışında kaldığından (yalnızca data.js/projeler-data.js) hâlâ istemci tarafında
-  // urunler-data.js/malzemeler-data.js/haberler-data.js üzerinde filtrelenir.
+  // Mimar/Firma/Proje canonical D1'den (bkz. src/routes/legacyContent.js#handlePublicSearchFull).
   const queryWords = foldTr(query).split(/\s+/).filter(Boolean);
   let full = { architects: [], offices: [], projects: [], totals: { architects: 0, offices: 0, projects: 0 } };
   try{
@@ -368,11 +348,7 @@ async function runSearch(){
   }catch{}
   if(runToken !== searchRunToken) return; // yarış durumu — daha yeni bir çağrı zaten başladı
 
-  const urunResults = products.filter(p => !isHiddenLegacy('products', `${p.brand||''}|||${p.title}`) && (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand, queryWords)))
-    .concat(materials.filter(m => !isHiddenLegacy('materials', `${m.brand||''}|||${m.title}`) && (fuzzyMatch(m.title, queryWords) || fuzzyMatch(m.category, queryWords) || fuzzyMatch(m.brand, queryWords))));
-  const haberResults = newsItems.filter(n => !isHiddenLegacy('news', n.id) && (fuzzyMatch(n.title, queryWords) || fuzzyMatch(n.category, queryWords)));
-
-  const total = full.totals.architects + full.totals.offices + full.totals.projects + urunResults.length + haberResults.length;
+  const total = full.totals.architects + full.totals.offices + full.totals.projects;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
@@ -410,18 +386,6 @@ async function runSearch(){
       title: p.title,
       meta: [p.location, p.date].filter(Boolean).join(' · '),
     }), full.totals.projects),
-    groupHtml('Ürünler', urunResults, p => rowHtml({
-      href: 'urun.html',
-      avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
-      title: p.title,
-      meta: [p.category, p.brand].filter(Boolean).join(' · '),
-    })),
-    groupHtml('Haberler', haberResults, n => rowHtml({
-      href: 'haber.html',
-      avatarContent: n.image ? `<img src="${escapeAttr(cdnImg(n.image, 200))}"${cdnSrcset(n.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(n.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
-      title: n.title,
-      meta: n.category || '',
-    })),
   ].join('');
 
   wireNavSearch();

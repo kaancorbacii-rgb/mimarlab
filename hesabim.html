@@ -418,7 +418,6 @@
       <div class="saved-filter" id="profile-info-tabs">
         <button type="button" class="saved-filter-btn active" data-tab="facts">Genel Bilgiler</button>
         <button type="button" class="saved-filter-btn" data-tab="claims" id="profile-claims-tab-btn" style="display:none;">Mimar/Firma Profilim</button>
-        <button type="button" class="saved-filter-btn" data-tab="consulting" id="profile-consulting-tab-btn" style="display:none;">Danışmanlık</button>
       </div>
       <div id="profile-tab-facts">
         <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="fact-name">—</span></div>
@@ -430,9 +429,6 @@
       </div>
       <div id="profile-tab-claims" style="display:none;">
         <div id="claims-mine-list"></div>
-      </div>
-      <div id="profile-tab-consulting" style="display:none;">
-        <div id="consulting-bookings-list"></div>
       </div>
     </div>
 
@@ -543,12 +539,11 @@
   </footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Ofis', projects: 'Yapı', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
+const TYPE_LABELS = { offices: 'Ofis', projects: 'Yapı', architects: 'Mimar' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
-  offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
-  architects: 'mimar-ekle.html', news: 'haber-ekle.html',
+  offices: 'firma-ekle.html', projects: 'proje-ekle.html', architects: 'mimar-ekle.html',
 };
 const SAVED_TYPE_LABELS = { project: 'Yapı', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
 const PAGE_SIZE_DASH = 10;
@@ -713,10 +708,7 @@ let submissionsFilter = '';
 let submissionsPage = 1;
 
 async function loadSubmissions(){
-  // Ürün/malzeme artık yayında değil (bkz. kullanıcı isteği) — bu kutuda hiç görünmesinler diye
-  // TYPE_LABELS'ta hâlâ tanımlı olsalar da (SAVED_TYPE_LABELS'ta da AYNI gerekçeyle) burada
-  // isteğe dahil edilmiyorlar.
-  const types = Object.keys(TYPE_LABELS).filter(t => t !== 'products' && t !== 'materials');
+  const types = Object.keys(TYPE_LABELS);
   const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : {items:[]})));
   allSubmissions = [];
   types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({type: t, item})));
@@ -935,7 +927,6 @@ document.getElementById('profile-info-tabs').addEventListener('click', (e)=>{
   document.querySelectorAll('#profile-info-tabs .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
   document.getElementById('profile-tab-facts').style.display = btn.dataset.tab === 'facts' ? '' : 'none';
   document.getElementById('profile-tab-claims').style.display = btn.dataset.tab === 'claims' ? '' : 'none';
-  document.getElementById('profile-tab-consulting').style.display = btn.dataset.tab === 'consulting' ? '' : 'none';
 });
 
 document.getElementById('submissions-filter').addEventListener('click', (e)=>{
@@ -1098,37 +1089,6 @@ async function loadMyClaims(){
   syncClaimedArchitectData(items);
 }
 
-const CONSULTING_STATUS_LABELS = { pending: 'Ödeme Bekleniyor/İnceleniyor', confirmed: 'Onaylandı', rejected: 'Reddedildi', cancelled: 'İptal Edildi' };
-const CONSULTING_STATUS_COLORS = { pending: 'var(--accent)', confirmed: '#3E7A55', rejected: '#B84C4C', cancelled: 'var(--ink-soft)' };
-
-// Danışman profili olan kullanıcılar için "Danışmanlık" sekmesi (bkz. kullanıcı isteği: "Danışman
-// profili olanlar için Hesabım kısmında... buraya gelen satın alım istekleri düşsün") — GET
-// /api/consultant-bookings/mine yalnızca kullanıcının SAHİP OLDUĞU (profile_claims'te approved +
-// architects.is_consultant=1) danışman profil(ler)ine gelen consultation_requests satırlarını
-// döner; danışman profili yoksa sekme hiç gösterilmez.
-async function loadMyConsultantBookings(){
-  const res = await fetch('/api/consultant-bookings/mine');
-  const data = res.ok ? await res.json() : { isConsultant: false, items: [] };
-  const tabBtn = document.getElementById('profile-consulting-tab-btn');
-  if(!data.isConsultant){ tabBtn.style.display = 'none'; return; }
-  tabBtn.style.display = '';
-  const items = data.items || [];
-  const listEl = document.getElementById('consulting-bookings-list');
-  if(!items.length){ listEl.innerHTML = '<div class="dash-empty">Henüz bir görüşme talebi yok.</div>'; return; }
-  listEl.innerHTML = items.map(b => {
-    const dateLabel = new Date(`${b.requested_date}T00:00:00`).toLocaleDateString('tr-TR', {day:'numeric', month:'long', year:'numeric'});
-    const priceLabel = b.price_try != null ? `₺${b.price_try}` : '';
-    return `
-      <div class="my-badge-row">
-        <div>
-          <strong>${escapeHtml(b.buyer_name || b.buyer_email || 'Üye')}</strong> — ${escapeHtml(dateLabel)}, ${escapeHtml(b.requested_time)}${priceLabel ? ` — ${priceLabel}` : ''}
-          <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(b.buyer_email || '')}</div>
-        </div>
-        <span class="badge-status-pill" style="color:${CONSULTING_STATUS_COLORS[b.status] || 'var(--ink-soft)'}; background:${CONSULTING_STATUS_COLORS[b.status] || 'var(--ink-soft)'}22;">${CONSULTING_STATUS_LABELS[b.status] || b.status}</span>
-      </div>`;
-  }).join('');
-}
-
 // Onaylı bir mimar profili sahiplenildiğinde (claim), o profilin canonical D1 kaydında fotoğraf/
 // okul gibi bilgiler varsa, kullanıcının kendi hesap profilinde bu alanlar hâlâ boşsa (elle hiç
 // doldurulmamışsa) otomatik olarak hesap profiline aktarılır — mimar profili daha önce
@@ -1218,7 +1178,7 @@ document.getElementById('notif-delete-all-btn').addEventListener('click', async 
 
 loadUser().then(() => {
   if(currentUser){
-    loadSubmissions(); loadSaved(); loadRated(); loadComments(); loadBadges(); loadMyClaims(); loadMyConsultantBookings(); loadNotifications();
+    loadSubmissions(); loadSaved(); loadRated(); loadComments(); loadBadges(); loadMyClaims(); loadNotifications();
     if(new URLSearchParams(window.location.search).get('payment') === 'success'){
       document.getElementById('payment-success-banner').style.display = 'block';
     }

@@ -6,17 +6,15 @@ import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct, cascadeDeleteMisc } from '../lib/cascadeDelete.js';
+import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 
-// canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
-// bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
-// açıkça belirtmek çağıran yeri okunaklı kılıyor.
-const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
-// facet_counts yalnızca bu ikisi için doldurulur (bkz. src/lib/facetCounts.js dosya başı kapsam notu).
-const FACET_TYPES = new Set(['projects', 'products', 'materials']);
+// canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql).
+const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects']);
+// facet_counts yalnızca bu tip için doldurulur (bkz. src/lib/facetCounts.js dosya başı kapsam notu).
+const FACET_TYPES = new Set(['projects']);
 
 // bkz. src/routes/submissions.js#RENAME_CASCADE_BY_TYPE (aynı eşleme) — admin panelinden doğrudan
 // isim değiştirmenin kapsandığı tipler.
@@ -31,21 +29,13 @@ async function runCascadeDelete(env, user, typeKey, row) {
   if (typeKey === 'architects') return cascadeDeleteArchitect(env, row.name);
   if (typeKey === 'offices') return cascadeDeleteOffice(env, user, row.name);
   if (typeKey === 'projects') return cascadeDeleteProject(env, row.claimed_slug || row.slug);
-  if (typeKey === 'products') return cascadeDeleteProduct(env, 'product', `m-${row.id}`);
-  if (typeKey === 'materials') return cascadeDeleteProduct(env, 'material', `m-${row.id}`);
-  if (typeKey === 'news') return cascadeDeleteMisc(env, 'news', row.id);
 }
 
-const TYPE_BY_PATH = {
-  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
-  architects: 'architects', news: 'news',
-};
+const TYPE_BY_PATH = { offices: 'offices', projects: 'projects', architects: 'architects' };
 
 // Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
 // de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
-const SUBMISSION_TYPE_LABELS = {
-  offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber',
-};
+const SUBMISSION_TYPE_LABELS = { offices: 'Firma', projects: 'Proje', architects: 'Mimar' };
 
 const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
 const BADGE_TYPE_LABELS_SERVER = { destekci: 'Destekçi', verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye' };
@@ -73,7 +63,6 @@ export async function handleAdminRoute(request, env, url) {
   if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
   if (sub === 'contact') return handleContactAdmin(request, env, segments);
   if (sub === 'comments') return handleCommentsAdmin(request, env, url, segments);
-  if (sub === 'consultant-bookings') return handleConsultantBookingsAdmin(request, env, url, segments);
   if (sub === 'migration-conflicts') return handleMigrationConflictsAdmin(request, env, url, segments, user);
   if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
   return errorJson('Bulunamadı', 404);
@@ -89,14 +78,13 @@ async function handleAdminSummary(env) {
   );
   const pendingSubmissions = submissionCounts.reduce((sum, row) => sum + (row?.n || 0), 0);
 
-  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow, consultingRow] = await Promise.all([
+  const [claimsRow, correctionsRow, badgesRow, contactRow, migrationRow, commentsRow] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM profile_corrections WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM badge_requests WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM migration_name_conflicts WHERE status = 'pending'`).first(),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first(),
-    env.DB.prepare(`SELECT COUNT(*) AS n FROM consultation_requests WHERE status = 'pending'`).first(),
   ]);
 
   return json({
@@ -106,7 +94,6 @@ async function handleAdminSummary(env) {
     unreadContact: contactRow?.n || 0,
     pendingMigrationConflicts: migrationRow?.n || 0,
     unseenComments: commentsRow?.n || 0,
-    pendingConsultantBookings: consultingRow?.n || 0,
   });
 }
 
@@ -502,27 +489,6 @@ async function handleBadgesAdmin(request, env, url, segments) {
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);
-}
-
-// GET /api/admin/consultant-bookings?status=... — admin panelinde "Danışmanlık Satın Alımları"
-// sekmesi (bkz. kullanıcı isteği: "admin panelinde de bir sekme aç ve oraya tüm danışmanlık
-// satın alım işlemleri düşsün") — handleBadgesAdmin ile AYNI desen, yalnızca READ-ONLY liste
-// (onay/red akışı istenmedi, consultation_requests zaten kullanıcı "Ödemeyi Yaptım" dediği anda
-// oluşuyor, bkz. src/routes/consultantBookings.js dosya başı yorumu).
-async function handleConsultantBookingsAdmin(request, env, url, segments) {
-  if (segments.length !== 3 || request.method !== 'GET') return errorJson('Bulunamadı', 404);
-  const status = url.searchParams.get('status');
-  const query = status
-    ? env.DB.prepare(
-        `SELECT cr.*, u.name AS user_name, u.email AS user_email FROM consultation_requests cr
-         JOIN users u ON u.id = cr.user_id WHERE cr.status = ? ORDER BY cr.created_at DESC`
-      ).bind(status)
-    : env.DB.prepare(
-        `SELECT cr.*, u.name AS user_name, u.email AS user_email FROM consultation_requests cr
-         JOIN users u ON u.id = cr.user_id ORDER BY cr.created_at DESC`
-      );
-  const { results } = await query.all();
-  return json({ items: results });
 }
 
 // iz-birakan: "İz Bırakanlar" (bkz. kullanıcı isteği) — vefat etmiş mimarlar için siyah rozet,

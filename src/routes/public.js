@@ -1,49 +1,16 @@
-import { json, errorJson } from '../lib/http.js';
+import { errorJson } from '../lib/http.js';
 import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
 import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
-import { serializePublicEntity } from '../lib/serializePublicEntity.js';
-
-// Onaylanmış (status='approved') satırları, statik urunler-data.js/malzemeler-data.js
-// dizilerindeki mevcut şekle olabildiğince uyacak biçimde dönüştürür — böylece istemci
-// tarafında tek satırlık bir fetch+push ile mevcut render() koduna karışabilirler.
-// (offices/projects/architects dalları — bkz. eski TYPE_BY_PATH/handlePublicRoute genel liste
-// ucu — proje.html/mimar.html/firma.html/urun.html'in canonical /api/{type} uçlarına taşınmasıyla
-// (Faz 1-3) hiçbir istemci tarafından çağrılmaz hale geldi, kaldırıldı; bkz. kullanıcı isteği:
-// "Post-Migration Cleanup". mostVisited/recommendations stub alanları da yalnızca o ölü dalda
-// yaşıyordu, ayrıca kaldırılmasına gerek kalmadı.)
-function toPublicShape(type, row) {
-  const parsed = parseSubmissionRow(type, row);
-  // "X tarafından" satırı (bkz. *-detay.html, urun/malzeme/is-ilani modalları) için — yalnızca
-  // owner join'i yapılmış sorgulardan gelen satırlarda dolu, diğer çağıranlarda (ör.
-  // handlePublicProfileContent) sessizce undefined kalır, byline gösterilmez.
-  const owner = row.owner_name ? { ownerName: row.owner_name, ownerPhoto: row.owner_photo, ownerBadge: row.owner_badge } : {};
-  // products/materials (architects/offices/projects dalları için bkz. yukarıdaki yorum)
-  return {
-    title: parsed.title, brand: parsed.brand, architect: parsed.architect, website: parsed.website, category: parsed.category,
-    description: parsed.description, images: parsed.images, specs: parsed.specs,
-    image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
-    source: 'member', submissionId: parsed.id, ...owner,
-  };
-}
 
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
-  // Haber artık yayında değil (bkz. kullanıcı isteği, src/index.js#DISABLED_PAGE_PATHS) —
-  // haber.html'in tükettiği bu tam-liste ucu kapatıldı, listPublicNews/fetchAllNewsItems
-  // DOKUNULMADAN kalır (yalnızca artık çağrılmıyor).
-  if (segments[2] === 'news') return errorJson('Bulunamadı', 404);
   if (segments[2] === 'hidden') return handlePublicHidden(request, env);
   if (segments[2] === 'search-suggest') return handlePublicSearchSuggest(request, env, url);
   if (segments[2] === 'search') return handlePublicSearchFull(request, env, url);
   if (segments[2] === 'profile-edits') return handlePublicProfileEdits(request, env);
   if (segments[2] === 'project-edits') return handlePublicProjectEdits(request, env);
-  // Ürün/malzeme/haber artık yayında değil (bkz. kullanıcı isteği) — mimar/firma pop-uplarındaki
-  // bu ürün/malzeme/haber kutuları kaldırıldığından (bkz. architect-modal.js/office-modal.js)
-  // bu uç artık hiç çağrılmıyor; ek güvence olarak burada da kapatıldı. handlePublicProfileContent
-  // DOKUNULMADAN kalır.
-  if (segments[2] === 'profile-content') return errorJson('Bulunamadı', 404);
   if (segments[2] === 'claim-status') return handlePublicClaimStatus(request, env, url);
   if (segments[2] === 'save-count') return handlePublicSaveCount(request, env, url);
   return errorJson('Bulunamadı', 404);
@@ -147,124 +114,4 @@ async function handlePublicProjectEdits(request, env) {
     }
     return out;
   });
-}
-
-const PROFILE_CONTENT_TYPES = new Set(['architect', 'office']);
-
-// GET /api/public/profile-content?profileType=architect|office&profileKey=<isim> — auth
-// gerektirmez. Ürün/malzeme/haber gönderilerinde mimar/ofis adını tutan bir alan olmadığından
-// (bkz. product_submissions.brand, news_submissions — ikisi de serbest metin, isme göre
-// eşleştirilemez), bu profili sahiplenip onayı geçmiş kullanıcı(lar)ın (bkz. profile_claims)
-// owner_user_id'si üzerinden eşleştirme yapılır: "kişinin/markanın siteye girdiği" içerik budur.
-// mimar-detay.html/ofis-detay.html bunu Projeler'in altında Projeler'le aynı yatay kaydırmalı
-// tasarımda gösterir. Ürün/malzeme/haber her iki profil tipinde de gösterilir (bkz. kullanıcı
-// isteği: ofis profillerinde de "varsa" ürün/malzeme/haber başlıkları).
-async function handlePublicProfileContent(request, env, url) {
-  const profileType = url.searchParams.get('profileType');
-  const profileKey = (url.searchParams.get('profileKey') || '').trim();
-  if (!PROFILE_CONTENT_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
-
-  return cachedPublicJson(request, env, url.pathname, async () => {
-    const { results: claimRows } = await env.DB.prepare(
-      `SELECT DISTINCT user_id FROM profile_claims WHERE status = 'approved' AND profile_type = ? AND profile_key = ?`
-    ).bind(profileType, profileKey).all();
-    const userIds = claimRows.map(r => r.user_id);
-    if (!userIds.length) return { products: [], materials: [], news: [] };
-
-    const placeholders = userIds.map(() => '?').join(', ');
-
-    const [productsRes, materialsRes, newsRes] = await Promise.all([
-      env.DB.prepare(
-        `SELECT ps.* FROM product_submissions ps
-         JOIN products pr ON pr.slug = 'm-' || ps.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-         WHERE ps.status = 'approved' AND ps.owner_user_id IN (${placeholders}) ORDER BY ps.created_at DESC`
-      ).bind(...userIds).all(),
-      env.DB.prepare(
-        `SELECT ms.* FROM material_submissions ms
-         JOIN products pr ON pr.slug = 'm-' || ms.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-         WHERE ms.status = 'approved' AND ms.owner_user_id IN (${placeholders}) ORDER BY ms.created_at DESC`
-      ).bind(...userIds).all(),
-      env.DB.prepare(
-        `SELECT id, title, category, source, description, image_url FROM news_submissions WHERE status = 'approved' AND owner_user_id IN (${placeholders}) ORDER BY created_at DESC`
-      ).bind(...userIds).all(),
-    ]);
-
-    return {
-      products: productsRes.results.map(r => toPublicShape('products', r)),
-      materials: materialsRes.results.map(r => toPublicShape('materials', r)),
-      news: newsRes.results.map(r => ({
-        id: r.id, title: r.title, category: r.category, source: r.source, description: r.description, image: r.image_url,
-      })),
-    };
-  });
-}
-
-// Faz 4B — /api/public/news (haber.html'in mevcut, parametresiz tam liste tüketicisi) ile YENİ
-// /api/news (aşağıda, sayfalanmış public liste) arasında paylaşılan satır çekme/şekillendirme —
-// tek SQL/şekillendirme kopyası, ikisi de aynı satırları farklı şekilde (tam liste vs sayfalanmış)
-// sunar.
-async function fetchAllNewsItems(env) {
-  const { results } = await env.DB.prepare(
-    `SELECT id, title, category, source, description, image_url, created_at, 0 AS is_submission,
-            NULL AS owner_name, NULL AS owner_photo, NULL AS owner_badge
-     FROM news WHERE published = 1
-     UNION ALL
-     SELECT n.id, n.title, n.category, n.source, n.description, n.image_url, n.created_at, 1 AS is_submission,
-            u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
-     FROM news_submissions n
-     JOIN users u ON u.id = n.owner_user_id
-     LEFT JOIN badge_requests b ON b.user_id = n.owner_user_id AND b.target_type = 'self' AND b.status = 'active'
-       AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
-     WHERE n.status = 'approved'
-     ORDER BY created_at DESC`
-  ).bind(Date.now()).all();
-  return results.map(n => ({
-    title: n.title, category: n.category, source: n.source, description: n.description,
-    image: n.image_url, id: n.id, createdAt: n.created_at,
-    // Yalnızca news_submissions kaynaklı satırlarda dolu: haber-detay.html "Gönderiyi Düzenle"
-    // butonunu yalnızca gerçek bir gönderisi olan haberlerde göstermek için bunu kullanır — statik
-    // news tablosu/haberler-data.js kayıtlarının düzenlenecek bir gönderi karşılığı yoktur.
-    submissionId: n.is_submission ? n.id : undefined,
-    ownerName: n.owner_name || undefined, ownerPhoto: n.owner_photo || undefined, ownerBadge: n.owner_badge || undefined,
-  }));
-}
-
-async function listPublicNews(request, env) {
-  return cachedPublicJson(request, env, '/api/public/news', async () => {
-    const items = await fetchAllNewsItems(env);
-    return { items: serializePublicEntity(items) };
-  }, () => newsListFingerprint(env));
-}
-
-// GET /api/news?page=&limit= — Faz 4B: diğer 4 canonical liste ucuyla (handleProjectListRoute/
-// handleArchitectListRoute/handleOfficeListRoute/handleProductListRoute) AYNI sayfalanmış public
-// liste şekli ({items,total,page,totalPages}). ÖNCESİNDE bu bare path hiç ele alınmıyordu — src/
-// index.js'teki genel `/api/news` prefix eşleşmesi (handleSubmissionRoute, üye "Haberlerim" CRUD'u,
-// auth GEREKTİRİR) GET isteklerini de yakalıyordu, bu yüzden /api/news?limit=6 gibi bir istek 401
-// dönüyordu (bkz. Faz 4B doğrulama raporu — gerçek bulgu). /api/public/news (haber.html'in mevcut
-// parametresiz tüketicisi) DOKUNULMADAN aynen kalır; bu YENİ, ayrı bir uçtur.
-export async function handleNewsListRoute(request, env, url) {
-  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
-
-  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
-    const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
-
-    const items = await fetchAllNewsItems(env);
-    const total = items.length;
-    const totalPages = Math.max(1, Math.ceil(total / limit));
-    const start = (Math.min(page, totalPages) - 1) * limit;
-    const pageItems = items.slice(start, start + limit);
-
-    return { items: serializePublicEntity(pageItems), total, page: Math.min(page, totalPages), totalPages };
-  }, () => newsListFingerprint(env));
-}
-
-// Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
-// desen — hem statik `news` hem üye kaynaklı `news_submissions` tablosunu birlikte izler.
-function newsListFingerprint(env) {
-  return env.DB.prepare(
-    `SELECT (SELECT COUNT(*) FROM news WHERE published = 1) + (SELECT COUNT(*) FROM news_submissions WHERE status = 'approved') AS cnt,
-            MAX((SELECT MAX(created_at) FROM news WHERE published = 1), (SELECT MAX(created_at) FROM news_submissions WHERE status = 'approved')) AS latest`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
 }
