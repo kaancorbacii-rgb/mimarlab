@@ -13,15 +13,24 @@ export const ITEM_TYPES = new Set(['project', 'product', 'material', 'news', 'jo
 // için hide sistemi olmadığından (bkz. ratings.js'in de bu ikisini kapsamaması) kontrol dışı bırakıldı.
 const CANONICAL_TYPE_BY_ITEM = { project: 'projects', architect: 'architects', office: 'offices' };
 
-async function isSavedTargetLive(env, itemType, itemKey) {
+// live + (yalnızca item_type='project' için) GÜNCEL build_status — hesabim.html'in "Kaydettiklerim"
+// kutusundaki Yapı/Proje filtre butonları (bkz. kullanıcı isteği) saved_items'ın kaydedildiği andaki
+// item_href'ine GÜVENEMEZ (bu sütun eski kayıtlarda hep /yapi/ önekiyle yazılmıştı, proje-modal.js#
+// detailPrefix eklenmeden önce) — bunun yerine her satır için zaten TEK sorguda okunan canonical
+// satırdan (findCanonicalRowByNaturalKey#SELECT *) build_status'u da aynı round-trip'te alırız,
+// ayrı bir sorguya gerek kalmaz.
+async function fetchSavedTargetInfo(env, itemType, itemKey) {
   if (itemType === 'product' || itemType === 'material') {
     const row = await findProductByKey(env, itemKey);
-    return !!row && !row.deleted_at && !row.hidden_at;
+    return { live: !!row && !row.deleted_at && !row.hidden_at, buildStatus: null };
   }
   const canonicalType = CANONICAL_TYPE_BY_ITEM[itemType];
-  if (!canonicalType) return true; // news/job — hide sistemi yok
+  if (!canonicalType) return { live: true, buildStatus: null }; // news/job — hide sistemi yok
   const row = await findCanonicalRowByNaturalKey(env, canonicalType, itemKey);
-  return !!row && !row.deleted_at && !row.hidden_at;
+  return {
+    live: !!row && !row.deleted_at && !row.hidden_at,
+    buildStatus: (itemType === 'project' && row) ? row.build_status : null,
+  };
 }
 
 export async function handleSavedRoute(request, env, url) {
@@ -40,8 +49,11 @@ async function listSaved(env, user) {
   const { results } = await env.DB.prepare(
     'SELECT item_type, item_key, item_title, item_meta, item_image, item_href, created_at FROM saved_items WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
-  const live = await Promise.all(results.map(r => isSavedTargetLive(env, r.item_type, r.item_key)));
-  return json({ items: results.filter((_, i) => live[i]) });
+  const info = await Promise.all(results.map(r => fetchSavedTargetInfo(env, r.item_type, r.item_key)));
+  const items = results
+    .map((r, i) => (info[i].buildStatus ? { ...r, item_build_status: info[i].buildStatus } : r))
+    .filter((_, i) => info[i].live);
+  return json({ items });
 }
 
 async function createSaved(request, env, user) {

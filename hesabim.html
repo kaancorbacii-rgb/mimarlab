@@ -455,7 +455,8 @@
       </div>
       <div class="submissions-toolbar-row" id="submissions-filter">
         <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="submissions-filter-btn" data-filter="projects">Yapı</button>
+        <button type="button" class="submissions-filter-btn" data-filter="projects:built">Yapı</button>
+        <button type="button" class="submissions-filter-btn" data-filter="projects:concept">Proje</button>
       </div>
       <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="submissions-pagination"></div>
@@ -465,7 +466,8 @@
       <h2>Kaydettiklerim</h2>
       <div class="saved-filter" id="saved-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="saved-filter-btn" data-filter="project">Yapı</button>
+        <button type="button" class="saved-filter-btn" data-filter="project:built">Yapı</button>
+        <button type="button" class="saved-filter-btn" data-filter="project:concept">Proje</button>
         <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
         <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
       </div>
@@ -477,7 +479,8 @@
       <h2>Beğendiklerim</h2>
       <div class="saved-filter" id="rated-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="saved-filter-btn" data-filter="project">Yapı</button>
+        <button type="button" class="saved-filter-btn" data-filter="project:built">Yapı</button>
+        <button type="button" class="saved-filter-btn" data-filter="project:concept">Proje</button>
       </div>
       <div id="dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="rated-pagination"></div>
@@ -729,7 +732,14 @@ function renderSubmissions(){
     document.getElementById('submissions-pagination').innerHTML = '';
     return;
   }
-  const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
+  // submissionsFilter: 'projects:built'/'projects:concept' Yapı/Proje'yi ayırt eder (bkz. kullanıcı
+  // isteği), diğer tipler ('architects' vb.) düz eşleşir — item.build_status NOT NULL DEFAULT 'built'
+  // olduğundan (migrations/0037_project_build_status.sql) 'concept' dışındaki her değer Yapı'dır.
+  const all = submissionsFilter ? allSubmissions.filter(s => {
+    if (submissionsFilter === 'projects:built') return s.type === 'projects' && s.item.build_status !== 'concept';
+    if (submissionsFilter === 'projects:concept') return s.type === 'projects' && s.item.build_status === 'concept';
+    return s.type === submissionsFilter;
+  }) : allSubmissions;
   if(!all.length){
     container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
     document.getElementById('submissions-pagination').innerHTML = '';
@@ -769,7 +779,13 @@ async function loadSaved(){
 
 function renderSaved(){
   const container = document.getElementById('dash-saved');
-  const items = savedFilter ? savedItems.filter(it => it.item_type === savedFilter) : savedItems;
+  // savedFilter: 'project:built'/'project:concept' — it.item_build_status src/routes/saved.js#
+  // listSaved'te GÜNCEL canonical satırdan gelir (bkz. kullanıcı isteği, o dosyadaki AYNI gerekçe).
+  const items = savedFilter ? savedItems.filter(it => {
+    if (savedFilter === 'project:built') return it.item_type === 'project' && it.item_build_status !== 'concept';
+    if (savedFilter === 'project:concept') return it.item_type === 'project' && it.item_build_status === 'concept';
+    return it.item_type === savedFilter;
+  }) : savedItems;
   if(!savedItems.length){
     container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="yapi.html">Projelere göz at</a></div>';
     document.getElementById('saved-pagination').innerHTML = '';
@@ -825,7 +841,13 @@ async function loadRated(){
 
 function renderRated(){
   const container = document.getElementById('dash-rated');
-  const items = ratedFilter ? ratedItems.filter(it => it.type === ratedFilter) : ratedItems;
+  // ratedFilter: 'project:built'/'project:concept' — it.buildStatus src/routes/ratings.js#myRatings'te
+  // GÜNCEL canonical satırdan gelir (bkz. kullanıcı isteği, o dosyadaki AYNI gerekçe).
+  const items = ratedFilter ? ratedItems.filter(it => {
+    if (ratedFilter === 'project:built') return it.type === 'project' && it.buildStatus !== 'concept';
+    if (ratedFilter === 'project:concept') return it.type === 'project' && it.buildStatus === 'concept';
+    return it.type === ratedFilter;
+  }) : ratedItems;
   if(!ratedItems.length){
     container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="yapi.html">Projelere göz at</a></div>';
     document.getElementById('rated-pagination').innerHTML = '';

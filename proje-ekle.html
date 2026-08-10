@@ -176,6 +176,13 @@
   @media (max-width:960px){
     .concept-category-row{grid-template-columns:repeat(2, 1fr);}
   }
+  /* .build-status-option'ın min-width:200px'i (aşağıda, 2 uzun etiketli Yapım Durumu seçeneği için)
+     bir grid item'a uygulandığında sütunun 1fr'ye küçülmesini ENGELLER (gerçek bulgu: Proje
+     Kategorisi'nin 4 butonu kartın sağından taşıyordu) — bu yüzden grid içindeki kopyalar burada
+     min-width:0 ile geçersiz kılınır, kısa etiketler (Öğrenci/Yarışma/Fikir/Konsept) zaten tek
+     satıra rahatça sığar.
+  */
+  .concept-category-row .build-status-option{min-width:0;}
   .build-status-option{border:1px solid var(--line); border-radius:10px; padding:10px 14px; flex:1; min-width:200px;}
   .build-status-option:has(input:checked){border-color:var(--ink); background:var(--paper-alt); font-weight:600;}
 
