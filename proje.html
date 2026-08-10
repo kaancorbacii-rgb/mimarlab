@@ -802,7 +802,7 @@
 
   <div class="page-head">
     <h1>Projeler</h1>
-    <p>Türkiye'nin geçmişten günümüze yapı arşivi.</p>
+    <p>Türkiye'den öğrenci, yarışma, fikir ve konsept projeler arşivi.</p>
   </div>
 
   <div class="grid-layout">
@@ -867,13 +867,14 @@ const parseLocation = parseLocationFull;
 // sidebar'ın nasıl çizileceğini (etiket/iç içelik) bilmesi için metadata tutulur, gerçek
 // seçenek/sayaç hesabı artık /api/projects/filters'tan gelir.
 const FILTER_GROUPS = [
-  { key: 'discipline', label: 'Tür' },
-  { key: 'category', label: 'Tip' },
   // Yalnızca bu sayfada (yapi.html buildStatus='built' gönderdiğinden bu grup orada hep boş
   // kalır ve hiç eklenmez, bkz. src/routes/project.js#buildFilterGroups) — kullanıcı isteği:
   // "Proje sayfasındaki filtrelere Kategori filtresi aç ve altına öğrenci, yarışma, fikir,
-  // konsept seçeneklerini ekle" (bkz. migrations/0038_project_concept_category.sql).
+  // konsept seçeneklerini ekle" (bkz. migrations/0038_project_concept_category.sql). Arama
+  // kutusundan hemen sonra ilk sırada gösterilir (bkz. kullanıcı isteği).
   { key: 'conceptCategory', label: 'Kategori' },
+  { key: 'discipline', label: 'Tür' },
+  { key: 'category', label: 'Tip' },
   { key: 'type', label: 'Tip Grubu' },
   { key: 'location', label: 'Yer' },
   { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul' },
