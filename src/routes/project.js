@@ -59,7 +59,7 @@ function officeNamesFrom(concat) {
 }
 
 // opts.coverOnly — YALNIZCA liste/kart bağlamı için (bkz. fetchActiveProjectPool aşağısı):
-// kartlar/İlgili Yapılar/Mimarın Diğer Yapıları (proje.html/yapi.html/index.html/js/components/
+// kartlar/İlgili Yapılar/Mimarın Diğer Yapıları (proje.html/index.html/js/components/
 // project-related.js) her zaman yalnızca `images[0]`'ı render ediyor (bkz. kullanıcı isteği: "API
 // Payload Reduction" — tüm tüketim noktaları tek tek grep'lenip doğrulandı), tam diziyi hiçbiri
 // okumuyor. Tekil proje detayı (handleProjectDetailRoute aşağıda, GALERİ için tam diziye ihtiyaç
@@ -163,6 +163,23 @@ async function fetchAdjacentProject(env, id, buildStatus) {
   };
 }
 
+// "Kullanılan Ürünler/Malzemeler" (bkz. js/components/project-products.js) — project_products
+// join'inden o projeye bağlı ürün/malzemeleri okur, kind alanına göre iki gruba ayırır (bkz.
+// migrations/0022_id_first_entities.sql). Bağlama proje-ekle.html'deki Firma/Ürün girişi
+// onaylandığında src/lib/canonicalSync.js#resolveProjectProductLinks tarafından yapılır.
+async function fetchProjectProducts(env, projectId) {
+  const { results } = await env.DB.prepare(
+    `SELECT p.slug, p.title, p.brand_name_raw, p.category, p.kind, p.images
+     FROM project_products pp JOIN products p ON p.id = pp.product_id
+     WHERE pp.project_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
+  ).bind(projectId).all();
+  const items = results.map(row => ({
+    slug: row.slug, title: row.title, brand: row.brand_name_raw, category: row.category,
+    kind: row.kind, image: firstImage(row.images),
+  }));
+  return { products: items.filter(i => i.kind !== 'material'), materials: items.filter(i => i.kind === 'material') };
+}
+
 // Mimarı girilmemiş, sadece Mimarlık Firması tanımlı projeler (ör. Foster + Partners'ın Dolunay
 // Villa'sı, bkz. kullanıcı isteği) için "Mimar:" alanı boş kalmasın diye firmanın office_founders
 // kayıtlarını otomatik doldurur. Yalnızca kayıtlı (unregistered OLMAYAN, gerçek bir offices satırına
@@ -245,6 +262,9 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     const adjacent = await fetchAdjacentProject(env, row.id, row.build_status === 'concept' ? 'concept' : 'built');
     item.prevProject = adjacent.prevProject;
     item.nextProject = adjacent.nextProject;
+    const catalog = await fetchProjectProducts(env, row.id);
+    item.products = catalog.products;
+    item.materials = catalog.materials;
     return { item, hidden: false };
   });
 }
@@ -267,7 +287,7 @@ function isOfficeName(name) {
 // bkz. src/lib/facetCounts.js#recomputeProjectFacets — facet_counts'ın "hiçbir filtre aktif değil"
 // anlık görüntüsünü üretmek için handleProjectFiltersRoute ile AYNI havuzu (aktif/gizli olmayan
 // projeler + designer isim dizisi) paylaşır, tek sorgu mantığını burada tekilleştirir.
-// buildStatus: 'built' (yapi.html — inşa edilmiş eserler) | 'concept' (proje.html — öğrenci/
+// buildStatus: 'built' (normal, inşa edilmiş eserler) | 'concept' (kullanılmıyor, eski
 // yarışma/fikir/konsept projeleri, bkz. kullanıcı isteği, migrations/0037_project_build_status.sql).
 // Parametre verilmezse eski/harici çağıranlarla (ör. index.html vitrin carousel'i) geriye dönük
 // uyumluluk için 'built' varsayılır — canlıda halihazırda var olan TÜM projeler bu kategoridedir.
@@ -304,7 +324,7 @@ export function buildFilterGroups(ratingByProject) {
     { key: 'category', label: 'Tip', nested: false, field: p => p.category || [] },
     // Yalnızca build_status='concept' projelerde dolu (bkz. migrations/0038_project_concept_category.sql,
     // kullanıcı isteği: "Proje sayfasındaki filtrelere Kategori filtresi aç ... öğrenci, yarışma,
-    // fikir, konsept") — 'built' projelerde her zaman [] döner, bu yüzden yapi.html tarafında (o
+    // fikir, konsept") — 'built' projelerde her zaman [] döner, bu yüzden proje.html tarafında (o
     // sayfa bu grubu kendi FILTER_GROUPS listesine hiç eklemiyor) hiçbir etkisi olmaz.
     { key: 'conceptCategory', label: 'Kategori', nested: false, field: p => p.conceptCategory ? [p.conceptCategory] : [] },
     { key: 'type', label: 'Grup', nested: false, field: p => p.type || [] },
@@ -366,7 +386,7 @@ export async function handleProjectFiltersRoute(request, env, url) {
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const buildStatus = url.searchParams.get('buildStatus') === 'concept' ? 'concept' : 'built';
-    // Hızlı yol: buildStatus DIŞINDA HİÇBİR filtre/arama aktif değilse (yapi.html'in ilk sayfa
+    // Hızlı yol: buildStatus DIŞINDA HİÇBİR filtre/arama aktif değilse (proje.html'in ilk sayfa
     // yüklemesindeki durum), facet_counts + KV'den (bkz. src/lib/facetCounts.js) anlık oku — tam
     // tarama gerekmez. Bu KV önbelleği yalnızca 'built' projeler için hesaplanmıştır (bkz.
     // migrations/0037_project_build_status.sql — canlıdaki TÜM mevcut projeler bu kategoride); bu
@@ -533,7 +553,7 @@ export async function handleProjectListRoute(request, env, url) {
     // Pagination"). Hiçbir filtre/arama parametresi aktif değilken VE sort, pool'un zaten geldiği
     // id DESC sırasını bozmayan bir değerdeyken (bkz. SORT_REQUIRES_JS_FILTER — switch'teki dört özel
     // case DIŞINDAKİ HER değer, '' ve 'newest' dahil, aşağıdaki "sort boşsa ek sıralama gerekmez"
-    // yorumuyla AYNI şekilde no-op'tur) proje.html/yapi.html'in İLK YÜKLEME görünümü tam olarak
+    // yorumuyla AYNI şekilde no-op'tur) proje.html'in İLK YÜKLEME görünümü tam olarak
     // budur — bu durumda tüm havuzu (fetchActiveProjectPool, LIMIT'siz) Worker belleğine çekmek
     // yerine D1'e doğrudan LIMIT/OFFSET verilir (bkz. fetchProjectListPageFromD1 aşağısı).
     // Herhangi bir filtre/arama alanı aktifse bu yola HİÇ girilmez — facet'lerin ("bu grup HARİÇ

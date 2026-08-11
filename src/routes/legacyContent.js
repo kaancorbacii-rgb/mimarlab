@@ -201,7 +201,7 @@ export async function handlePublicSearchSuggest(request, env, url) {
     const groups = [
       { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/mimar/${encodeURIComponent(slugify(a.name))}` })) },
       { label: 'Firma', items: officeMatches.map(o => ({ title: o.name, meta: o.loc || '', href: `/firma/${encodeURIComponent(slugify(o.name))}` })) },
-      { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/yapi/${encodeURIComponent(p.slug)}` })) },
+      { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/proje/${encodeURIComponent(p.slug)}` })) },
       { label: 'Ürün', items: prodMatches.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}` })) },
     ];
 

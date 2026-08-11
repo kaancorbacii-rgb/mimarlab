@@ -4,14 +4,10 @@ import { slugify } from './slugify.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v72';
+export const SSR_CACHE_VERSION = 'v73';
 
-// project: build_status='concept' projeler /proje/:slug, 'built' projeler /yapi/:slug altında
-// önbelleklenebilir (bkz. kullanıcı isteği, src/index.js#CLEAN_URL_ASSETS'teki AYNI çift-prefix) —
-// hangi kategoride olduğunu burada bilmediğimizden (yalnızca rawKey/slug elimizde) purge her ikisini
-// de temizler; var olmayan taraf zaten boş bir cache girdisini siler, zararsız.
 const PREFIX_BY_TYPE = {
-  project: ['/yapi/', '/proje/'],
+  project: '/proje/',
   architect: '/mimar/',
   office: '/firma/',
   product: '/urun/',

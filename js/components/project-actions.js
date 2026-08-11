@@ -10,10 +10,7 @@ const ProjectActions = (function () {
   const DEFAULT_IDS = { saveSlot: 'pm-save-slot' };
 
   function saveBtnHtml(item) {
-    // item.buildStatus: 'concept' -> /proje/:slug, 'built' -> /yapi/:slug (bkz. kullanıcı isteği,
-    // js/components/project-modal.js#detailPrefix ile AYNI ayrım) — kaydedilen link Hesabım'daki
-    // Kaydedilenler listesinde de doğru öneke gitsin diye.
-    const hrefPrefix = item.buildStatus === 'concept' ? '/proje/' : '/yapi/';
+    const hrefPrefix = '/proje/';
     return `
       <button class="save-btn card-save-btn" id="pm-save-btn" type="button" data-key="${escapeAttr(item.slug)}" data-title="${escapeAttr(item.title)}" data-meta="${escapeAttr(item.location || '')}" data-image="${escapeAttr((item.images && item.images[0]) || '')}" data-href="${hrefPrefix}${encodeURIComponent(item.slug)}" aria-label="Kaydet">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
@@ -114,7 +111,7 @@ const ProjectActions = (function () {
     if (headerActions) headerActions.innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
     wireSaveButtons('project');
     if (typeof ShareWidget !== 'undefined') {
-      ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}${item.buildStatus === 'concept' ? '/proje/' : '/yapi/'}${encodeURIComponent(item.slug)}` }));
+      ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}/proje/${encodeURIComponent(item.slug)}` }));
     }
     fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(item.slug)}`)
       .then(res => res.ok ? res.json() : null)

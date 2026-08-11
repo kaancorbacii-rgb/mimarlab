@@ -292,7 +292,7 @@
       <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
     </div>
     <div class="nav-links">
-      <a class="nav-link" href="yapi.html">Yapı</a>
+      <a class="nav-link" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
@@ -308,7 +308,7 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
-      <a class="nav-mobile-link" href="yapi.html">Yapı</a>
+      <a class="nav-mobile-link" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
@@ -451,8 +451,7 @@
       </div>
       <div class="submissions-toolbar-row" id="submissions-filter">
         <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="submissions-filter-btn" data-filter="projects:built">Yapı</button>
-        <button type="button" class="submissions-filter-btn" data-filter="projects:concept">Proje</button>
+        <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
       </div>
       <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="submissions-pagination"></div>
@@ -462,8 +461,7 @@
       <h2>Kaydettiklerim</h2>
       <div class="saved-filter" id="saved-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="saved-filter-btn" data-filter="project:built">Yapı</button>
-        <button type="button" class="saved-filter-btn" data-filter="project:concept">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
         <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
         <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
       </div>
@@ -475,8 +473,7 @@
       <h2>Beğendiklerim</h2>
       <div class="saved-filter" id="rated-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-        <button type="button" class="saved-filter-btn" data-filter="project:built">Yapı</button>
-        <button type="button" class="saved-filter-btn" data-filter="project:concept">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
       </div>
       <div id="dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="rated-pagination"></div>
@@ -515,7 +512,7 @@
       </div>
       <div class="footer-col">
         <h4>Ana Menü</h4>
-        <a href="yapi.html">Yapı</a>
+        <a href="proje.html">Proje</a>
         <a href="urun.html">Ürün</a>
         <a href="mimar.html">Mimar</a>
         <a href="firma.html">Firma</a>
@@ -539,14 +536,14 @@
   </footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Ofis', projects: 'Yapı', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
+const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
   offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
   architects: 'mimar-ekle.html',
 };
-const SAVED_TYPE_LABELS = { project: 'Yapı', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
+const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
 const PAGE_SIZE_DASH = 10;
 // Bildirimler/Paylaştığım İçerikler/Kaydettiklerim kutularının paylaştığı basit sayfalama —
 // proje.html'deki .pagination/.page-btn/getPageWindowSize/getPageList ile BİREBİR aynı: ilk/son
@@ -725,14 +722,7 @@ function renderSubmissions(){
     document.getElementById('submissions-pagination').innerHTML = '';
     return;
   }
-  // submissionsFilter: 'projects:built'/'projects:concept' Yapı/Proje'yi ayırt eder (bkz. kullanıcı
-  // isteği), diğer tipler ('architects' vb.) düz eşleşir — item.build_status NOT NULL DEFAULT 'built'
-  // olduğundan (migrations/0037_project_build_status.sql) 'concept' dışındaki her değer Yapı'dır.
-  const all = submissionsFilter ? allSubmissions.filter(s => {
-    if (submissionsFilter === 'projects:built') return s.type === 'projects' && s.item.build_status !== 'concept';
-    if (submissionsFilter === 'projects:concept') return s.type === 'projects' && s.item.build_status === 'concept';
-    return s.type === submissionsFilter;
-  }) : allSubmissions;
+  const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
   if(!all.length){
     container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
     document.getElementById('submissions-pagination').innerHTML = '';
@@ -772,15 +762,9 @@ async function loadSaved(){
 
 function renderSaved(){
   const container = document.getElementById('dash-saved');
-  // savedFilter: 'project:built'/'project:concept' — it.item_build_status src/routes/saved.js#
-  // listSaved'te GÜNCEL canonical satırdan gelir (bkz. kullanıcı isteği, o dosyadaki AYNI gerekçe).
-  const items = savedFilter ? savedItems.filter(it => {
-    if (savedFilter === 'project:built') return it.item_type === 'project' && it.item_build_status !== 'concept';
-    if (savedFilter === 'project:concept') return it.item_type === 'project' && it.item_build_status === 'concept';
-    return it.item_type === savedFilter;
-  }) : savedItems;
+  const items = savedFilter ? savedItems.filter(it => it.item_type === savedFilter) : savedItems;
   if(!savedItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="yapi.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
     document.getElementById('saved-pagination').innerHTML = '';
     return;
   }
@@ -834,15 +818,9 @@ async function loadRated(){
 
 function renderRated(){
   const container = document.getElementById('dash-rated');
-  // ratedFilter: 'project:built'/'project:concept' — it.buildStatus src/routes/ratings.js#myRatings'te
-  // GÜNCEL canonical satırdan gelir (bkz. kullanıcı isteği, o dosyadaki AYNI gerekçe).
-  const items = ratedFilter ? ratedItems.filter(it => {
-    if (ratedFilter === 'project:built') return it.type === 'project' && it.buildStatus !== 'concept';
-    if (ratedFilter === 'project:concept') return it.type === 'project' && it.buildStatus === 'concept';
-    return it.type === ratedFilter;
-  }) : ratedItems;
+  const items = ratedFilter ? ratedItems.filter(it => it.type === ratedFilter) : ratedItems;
   if(!ratedItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="yapi.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
     document.getElementById('rated-pagination').innerHTML = '';
     return;
   }
@@ -892,7 +870,7 @@ async function loadComments(){
 function renderComments(){
   const container = document.getElementById('dash-comments');
   if(!commentItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="yapi.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
     document.getElementById('comments-pagination').innerHTML = '';
     return;
   }

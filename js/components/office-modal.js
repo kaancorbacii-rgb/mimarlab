@@ -80,7 +80,7 @@ const OfficeModal = (function () {
          satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
          sonuna ellipsis eklenir. */
       .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
-      /* "Yapılar" (bu firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR (bkz.
+      /* "Projeler" (bu firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR (bkz.
          kullanıcı isteği: "ismi uzun olan mimarın/firmanın diğer yapılarında metinlerindeki üç nokta
          sistemini sil", js/components/architect-modal.js#am-related-projects-grid ile AYNI) —
          yukarıdaki genel kural Kurucular/Ortaklar kartlarında (isim tek satır) aynen kalır, yalnızca
@@ -185,7 +185,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-founders-grid"></div>
     </div>
     <div class="related-section" id="om-related-projects-section" style="display:none;">
-      <h2 class="related-title">Yapılar</h2>
+      <h2 class="related-title">Projeler</h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
     <div class="related-section" id="om-related-products-section" style="display:none;">
@@ -441,7 +441,7 @@ const OfficeModal = (function () {
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('om-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
-      cardHtml(`/yapi/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
+      cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
 
     const PROFILE_TYPE = 'office';

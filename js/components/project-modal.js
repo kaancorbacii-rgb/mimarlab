@@ -20,7 +20,7 @@ const ProjectModal = (function () {
         <div class="designer-chips" id="pm-architect-chips"></div>
       </div>
       <div class="designer-section" id="pm-office-section" style="display:none;">
-        <div class="designer-label">Firma / Kurum:</div>
+        <div class="designer-label">Mimarlık Firması:</div>
         <div class="designer-chips" id="pm-office-chips"></div>
       </div>
       <div class="detail-meta" id="pm-meta"></div>
@@ -49,13 +49,23 @@ const ProjectModal = (function () {
     </div>
 
     <div class="related-section" id="pm-same-designer-section" aria-live="polite">
-      <h2 class="related-title">Mimarın/Firmanın Diğer Yapıları</h2>
+      <h2 class="related-title">Mimarın/Firmanın Diğer Projeleri</h2>
       <div class="related-grid-scroll" id="pm-same-designer-grid"></div>
     </div>
 
     <div class="related-section" id="pm-related-section" aria-live="polite">
-      <h2 class="related-title">İlgili Yapılar</h2>
+      <h2 class="related-title">İlgili Projeler</h2>
       <div class="related-grid-scroll" id="pm-related-grid"></div>
+    </div>
+
+    <div class="related-section" id="pm-products-section" aria-live="polite">
+      <h2 class="related-title">Kullanılan Ürünler</h2>
+      <div class="catalog-grid-scroll" id="pm-products-grid"></div>
+    </div>
+
+    <div class="related-section" id="pm-materials-section" aria-live="polite">
+      <h2 class="related-title">Kullanılan Malzemeler</h2>
+      <div class="catalog-grid-scroll" id="pm-materials-grid"></div>
     </div>
 
     <div class="prevnext" id="pm-prevnext"></div>
@@ -68,20 +78,10 @@ const ProjectModal = (function () {
       <div class="lightbox-counter" id="pm-lightbox-counter"></div>
     </div>`;
 
-  // buildStatus='concept' (öğrenci/yarışma/fikir/konsept, proje.html) projeler /proje/:slug,
-  // 'built' (inşa edilmiş, yapi.html) projeler /yapi/:slug altında yaşar (bkz. kullanıcı isteği:
-  // "Proje sayfasındaki projelerin URL uzantısının proje olması gerekiyor" — popup tasarımı AYNI
-  // kalır, yalnızca URL öneki kaynak kategoriye göre değişir).
-  function detailPrefix(buildStatus) { return buildStatus === 'concept' ? '/proje/' : '/yapi/'; }
-
   let mountedOnce = false;
   let currentSlug = null;
   let currentItem = null;
-  // open()/swap() henüz item verisini çekmeden ÖNCE (optimistic pushState) hangi öneki kullanacağını
-  // bilmesi gerekir — çağıran taraf zaten biliyor (proje.html yalnızca concept slug'ları açar, yapi.html
-  // yalnızca built) ya da wireInternalNav tıklanan linkin kendi href'inden çözer. Fetch tamamlanınca
-  // renderItem() bunu item.buildStatus'tan yeniden senkronlar (bkz. aşağısı) — sapma olursa kendi kendini düzeltir.
-  let currentBasePath = '/yapi/';
+  let currentBasePath = '/proje/';
   let openedViaPush = false; // bu açılış gerçek bir tıklamadan mı geldi (history.back güvenli mi)
   let pushCountSinceOpen = 0; // open() + o zamandan beri yapılan swap() sayısı — kapatırken TÜMÜNÜ
   // tek seferde geri sarmak için (bkz. close(), history.go(-N)) — modal içinde birden fazla projeye
@@ -107,7 +107,7 @@ const ProjectModal = (function () {
   // BAŞTAN görünür bir iskelet (skeleton) ile render edilir, veri geldiğinde ya gerçek içerikle
   // değiştirilir ya da (sonuç boşsa) o zaman gizlenir.
   //
-  // gerçek bulgu: "İlgili Yapılar" bazı durumlarda kalıcı olarak boş/iskelet kalıyordu — bölüm açılış
+  // gerçek bulgu: "İlgili Projeler" bazı durumlarda kalıcı olarak boş/iskelet kalıyordu — bölüm açılış
   // anında zaten görünür alanın İÇİNDE olsa bile IntersectionObserver'ın tetiklenmesi tarayıcı/cihaza
   // göre gözle görülür şekilde gecikebiliyor (bir sonraki layout/compositor turuna kadar). Salt IO'ya
   // güvenmek yerine, timeoutMs verildiğinde bir de zaman aşımı yedeği kurulur — hangisi önce olursa
@@ -199,9 +199,15 @@ const ProjectModal = (function () {
       const relatedPromise = RelatedProjects.mount(item, architectSlugsPromise);
       Promise.allSettled([architectSlugsPromise, relatedPromise]);
     }, 600);
+
+    const productsSection = document.getElementById('pm-products-section');
+    const materialsSection = document.getElementById('pm-materials-section');
+    document.getElementById('pm-products-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
+    document.getElementById('pm-materials-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
+    observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); }, 1200);
   }
 
-  // Önceki/Sonraki Yapı — bkz. src/routes/project.js#fetchAdjacentProject: dairesel/sıralı
+  // Önceki/Sonraki Proje — bkz. src/routes/project.js#fetchAdjacentProject: dairesel/sıralı
   // gezinme artık sunucuda id sırasına göre hesaplanıp item.prevProject/nextProject olarak gelir,
   // istemci hafızasındaki eski `navList` (yalnızca karttan tıklanarak açıldığında dolu olan, F5/
   // doğrudan URL girişinde boş kalan) yöntemi yerine HER AÇILIŞTA eksiksiz çıkar (bkz. kullanıcı isteği).
@@ -218,12 +224,9 @@ const ProjectModal = (function () {
 
   function renderPrevNext(item) {
     const el = document.getElementById('pm-prevnext');
-    // fetchAdjacentProject (src/routes/project.js) prev/next'i her zaman KAYNAK projeyle AYNI
-    // build_status'tan seçer — bu yüzden item.nextProject/prevProject'in kendi öneki de item'ınkiyle aynıdır.
-    const prefix = detailPrefix(item.buildStatus);
     let html = '';
-    if (item.nextProject) html += `<a class="prev" href="${prefix}${encodeURIComponent(item.nextProject.slug)}">${prevNextThumbHtml(item.nextProject)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Yapı</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></span></a>`;
-    if (item.prevProject) html += `<a class="next" href="${prefix}${encodeURIComponent(item.prevProject.slug)}">${prevNextThumbHtml(item.prevProject)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Yapı →</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></span></a>`;
+    if (item.nextProject) html += `<a class="prev" href="/proje/${encodeURIComponent(item.nextProject.slug)}">${prevNextThumbHtml(item.nextProject)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Proje</span><span class="prevnext-title">${escapeHtml(item.nextProject.title)}</span></span></a>`;
+    if (item.prevProject) html += `<a class="next" href="/proje/${encodeURIComponent(item.prevProject.slug)}">${prevNextThumbHtml(item.prevProject)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Proje →</span><span class="prevnext-title">${escapeHtml(item.prevProject.title)}</span></span></a>`;
     el.innerHTML = html;
   }
 
@@ -231,7 +234,7 @@ const ProjectModal = (function () {
     document.title = `${item.title} — MİMARLAB`;
     const rawDesc = item.description || `${item.title}${item.location ? ' — ' + item.location : ''}. MİMARLAB'da proje detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
-    const canonicalUrl = `https://mimarlab.com${detailPrefix(item.buildStatus)}${encodeURIComponent(item.slug)}`;
+    const canonicalUrl = `https://mimarlab.com/proje/${encodeURIComponent(item.slug)}`;
     const image = (item.images && item.images[0]) ? new URL(item.images[0], window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
     setIf('meta-description', 'content', desc);
@@ -245,20 +248,17 @@ const ProjectModal = (function () {
     setIf('twitter-image', 'content', image);
   }
 
-  // Delege edilmiş tıklama dinleyicisi: modal içindeki HERHANGİ bir /yapi/:slug ya da /proje/:slug
-  // bağlantısına (İlgili Yapılar, Diğer Yapılar, önceki/sonraki) tıklanınca overlay kapanıp yeniden
-  // AÇILMAZ — yalnızca içerik ve URL güncellenir (bkz. kullanıcı isteği). Öneki tıklanan linkin
-  // kendi href'inden okuruz (renderPrevNext/project-related.js#cardHtml zaten hedefin KENDİ
-  // buildStatus'una göre doğru öneki üretir) — bu yüzden swap() burada AYRICA bir buildStatus
-  // hesabına gerek duymaz.
+  // Delege edilmiş tıklama dinleyicisi: modal içindeki HERHANGİ bir /proje/:slug bağlantısına
+  // (İlgili Projeler, Diğer Projeleri, önceki/sonraki) tıklanınca overlay kapanıp yeniden AÇILMAZ —
+  // yalnızca içerik ve URL güncellenir (bkz. kullanıcı isteği).
   function wireInternalNav() {
     const panels = ModalShell.getPanels();
     if (!panels || panels.bodyEl.dataset.pmNavWired) return;
     panels.bodyEl.dataset.pmNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
-      const a = e.target.closest('a[href^="/yapi/"], a[href^="/proje/"]');
+      const a = e.target.closest('a[href^="/proje/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const m = a.getAttribute('href').match(/^(\/(?:yapi|proje)\/)([^/?#]+)/);
+      const m = a.getAttribute('href').match(/^(\/proje\/)([^/?#]+)/);
       if (!m) return;
       e.preventDefault();
       swap(decodeURIComponent(m[2]), m[1]);
@@ -293,11 +293,10 @@ const ProjectModal = (function () {
   // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
   const HIDE_ON_NOT_FOUND_IDS = ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section',
     'pm-meta', 'pm-desc', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
-    'pm-related-section', 'pm-prevnext', 'pm-gallery-wrap'];
+    'pm-related-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'];
 
   async function renderItem(item, mySeq) {
     currentItem = item;
-    currentBasePath = detailPrefix(item.buildStatus); // fetch sonrası öneki gerçek veriyle senkronla
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';
@@ -328,7 +327,7 @@ const ProjectModal = (function () {
     });
   }
 
-  async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/yapi/' } = {}) {
+  async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/proje/' } = {}) {
     currentSlug = slug;
     currentBasePath = basePath;
     openedViaPush = pushHistory;
@@ -348,7 +347,7 @@ const ProjectModal = (function () {
   }
 
   async function swap(slug, basePath) {
-    if (!ModalShell.isOpen()) return open(slug, { pushHistory: true, basePath: basePath || '/yapi/' });
+    if (!ModalShell.isOpen()) return open(slug, { pushHistory: true, basePath: basePath || '/proje/' });
     if (basePath) currentBasePath = basePath;
     currentSlug = slug;
     // pushCountSinceOpen'ı doğrudan artırmak yerine mevcut history.state.depth'ten türetilir — bkz.
@@ -369,10 +368,9 @@ const ProjectModal = (function () {
 
   // X/backdrop/Escape tetiklediğinde çağrılır (bkz. modal-shell.js#onRequestClose) — geçerli bir
   // aynı-sekme geçmiş girdisi varsa history.back() ile oraya (liste durumu korunarak) dönülür;
-  // yoksa (doğrudan /yapi/:slug ya da /proje/:slug ile açılmış bir sekme) currentBasePath'in
-  // KENDİ listesine (sırasıyla /yapi ya da /proje) pushState edilir — kaynak kategoriye göre.
+  // yoksa (doğrudan /proje/:slug ile açılmış bir sekme) /proje listesine pushState edilir.
   function close() {
-    const listPath = currentBasePath.replace(/\/$/, '') || '/yapi';
+    const listPath = currentBasePath.replace(/\/$/, '') || '/proje';
     currentSlug = null;
     currentItem = null;
     // openedViaPush yalnızca İLK open() gerçek bir tıklamadan geldiyse true (bkz. yukarıdaki alan
@@ -386,16 +384,14 @@ const ProjectModal = (function () {
     pushCountSinceOpen = 0;
   }
 
-  // proje.html/yapi.html'in popstate dinleyicisi /proje/:slug ya da /yapi/:slug yoluna geri/ileri
-  // gidildiğinde bunu çağırır (bkz. o dosyalar) — çağıran kendi sabit önekini (basePath) geçer, çünkü
-  // her sayfa yalnızca KENDİ önekiyle eşleşen popstate'i zaten kendi regex'iyle yakalar. Burada TEKRAR
-  // pushState YAPILMAZ — URL zaten doğru.
+  // proje.html'in popstate dinleyicisi /proje/:slug yoluna geri/ileri gidildiğinde bunu çağırır
+  // (bkz. o dosya). Burada TEKRAR pushState YAPILMAZ — URL zaten doğru.
   function handlePopState(slug, basePath) {
     // ensureTemplate() burada YOK — DOM'u ilk kez ModalShell.open() oluşturur (bkz. open()'daki AYNI
     // gerçek bulgu yorumu); modal zaten açıksa mountedOnce=true olduğundan zaten no-op olurdu.
     if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
     if (basePath) currentBasePath = basePath;
-    if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false, basePath: basePath || '/yapi/' }); return; }
+    if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false, basePath: basePath || '/proje/' }); return; }
     // Geri/ileri ile bu projeye gelindi — history.state.depth (bkz. swap()'taki AYNI mekanizma)
     // pushCountSinceOpen'ı YENİDEN senkronlar, böylece buradan sonra X/Escape'e basılırsa
     // history.go(-N) doğru mesafeyi kullanır (geri navigasyon sırasında biriken sayaç sapmasını önler).

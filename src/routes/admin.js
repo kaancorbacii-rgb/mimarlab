@@ -150,7 +150,7 @@ async function handleCommentsAdmin(request, env, url, segments) {
       created_at: r.created_at, admin_seen: r.admin_seen, status: r.status,
       user_name: r.user_name, user_email: r.user_email,
       targetLabel: r.project_title || r.news_title || r.target_id,
-      targetHref: r.project_slug ? `/yapi/${encodeURIComponent(r.project_slug)}` : null,
+      targetHref: r.project_slug ? `/proje/${encodeURIComponent(r.project_slug)}` : null,
     }));
     return json({ items });
   }

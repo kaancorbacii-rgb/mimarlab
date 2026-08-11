@@ -257,8 +257,7 @@ async function createSubmission(request, env, user, typeKey) {
   // row.slug'dan farklı olabilir, istemciye HER ZAMAN gerçek/nihai slug dönmeli.
   if (typeKey === 'projects') {
     const finalSlug = (syncedRow && syncedRow.slug) || row.slug;
-    const prefix = syncedRow && syncedRow.build_status === 'concept' ? '/proje/' : '/yapi/';
-    return json({ id, status, slug: finalSlug, prefix }, 201);
+    return json({ id, status, slug: finalSlug, prefix: '/proje/' }, 201);
   }
   return json({ id, status }, 201);
 }
@@ -396,7 +395,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // bkz. yukarıdaki sıralama yorumu) — renamedSlug varsa o esas alınır, yoksa (isim değişmediyse)
   // syncedRow.slug zaten güncel/değişmemiştir.
   if (typeKey === 'projects' && syncedRow) {
-    return json({ id, status, slug: syncedRow.slug, prefix: syncedRow.build_status === 'concept' ? '/proje/' : '/yapi/' });
+    return json({ id, status, slug: syncedRow.slug, prefix: '/proje/' });
   }
   if ((typeKey === 'architects' || typeKey === 'offices') && (renamedSlug || syncedRow)) {
     return json({ id, status, slug: renamedSlug || syncedRow.slug });

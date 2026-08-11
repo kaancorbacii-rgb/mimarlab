@@ -7,7 +7,7 @@ import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
-import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
+import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
 import { handleFacetsRoute } from './routes/facets.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete } from './routes/legacyContent.js';
@@ -89,7 +89,7 @@ const SECURITY_HEADERS = {
 // segmentine taşıyoruz. Mimar/marka isimleri slugify edilir (save-widget.js/src/lib/slugify.js ile
 // birebir aynı algoritma); proje slug'ı ve haber id'si zaten URL-güvenli olduğundan dönüştürülmez.
 const CLEAN_URL_REDIRECTS = {
-  '/proje-detay': { param: 'proje', prefix: '/yapi/', slugifyValue: false },
+  '/proje-detay': { param: 'proje', prefix: '/proje/', slugifyValue: false },
   '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
   '/ofis-detay': { param: 'ofis', prefix: '/firma/', slugifyValue: true },
   '/haber-detay': { param: 'haber', prefix: '/haberler/', slugifyValue: false },
@@ -101,20 +101,16 @@ const CLEAN_URL_REDIRECTS = {
 // (auto-trailing-slash) davranışıyla bunu tekrar uzantısız hale 301 yönlendirir — bu da orijinal
 // /yapi/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
 const CLEAN_URL_ASSETS = [
-  // /yapi/:slug, /mimar/:slug, /firma/:slug, /urun/:slug artık kendi listeleme sayfalarına
+  // /proje/:slug, /mimar/:slug, /firma/:slug, /urun/:slug artık kendi listeleme sayfalarına
   // eşleniyor (proje-detay.html/mimar-detay.html/ofis-detay.html/urun-detay.html kaldırıldı) — her
   // sayfa kendi JS'inde bu yolu algılayıp ilgili modalı (ProjectModal/ArchitectModal/OfficeModal/
   // ProductModal, bkz. js/components/) doğrudan açar, injectMeta() ise AYNI HTMLRewriter
   // mekanizmasıyla o listeleme sayfasının <head>'indeki id'li meta etiketlerini hedefler (bkz.
   // proje.html/mimar.html/firma.html/urun.html#meta-description vb.).
-  { prefix: '/yapi/', asset: '/yapi', type: 'project' },
-  // /proje/:slug — build_status='concept' (öğrenci/yarışma/fikir/konsept) projelerin URL öneki
-  // (bkz. kullanıcı isteği: "Proje sayfasındaki projelerin URL uzantısının proje olması gerekiyor",
-  // js/components/project-modal.js#detailPrefix). asset='/proje' proje.html'i servis eder — o dosya
-  // /yapi/:slug ile BİREBİR AYNI ProjectModal'ı açar, popup tasarımı değişmez. buildMeta('project', slug)
-  // slug'a göre arar (build_status filtrelemez), bu yüzden bu prefix ile /yapi/ prefix'i AYNI slug'ı
-  // sorunsuz servis edebilir — canonicalUrl (bkz. src/lib/seo.js#buildProjectMeta) satırın GERÇEK
-  // build_status'una göre kendini düzeltir, yanlış prefix'ten erişimde de doğru kanonik URL'i gösterir.
+  // Eskiden "Yapı" (buildStatus='built', /yapi/:slug) ve "Proje" (buildStatus='concept', /proje/:slug)
+  // ayrı sayfa/önek çiftiydi (bkz. kullanıcı isteği) — konsept kategori tamamen kaldırıldı, Yapı
+  // sayfası "Proje" adını aldı, tek önek kaldı. Eski /yapi/:slug bağlantıları PREFIX_RENAME_REDIRECTS'te
+  // buraya 301'lenir.
   { prefix: '/proje/', asset: '/proje', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
@@ -140,6 +136,10 @@ function isDisabledPagePath(pathname) {
 // (bkz. kullanıcı isteği: /ofis -> /firma, Malzeme'nin Ürün'e taşınması) eski bağlantıların/
 // yer imlerinin kırılmaması için. Hem uzantısız hem ".html" biten biçim eşlenir.
 const PATH_RENAME_REDIRECTS = {
+  // "Yapı" listeleme sayfası "Proje" adını aldı, eski konsept "Proje" sayfası kaldırıldı (bkz.
+  // kullanıcı isteği) — eski /yapi bağlantıları/yer imleri kırılmasın diye 301'lenir.
+  '/yapi': '/proje',
+  '/yapi.html': '/proje',
   '/ofis': '/firma',
   '/ofis.html': '/firma',
   '/ofis-ekle': '/firma-ekle',
@@ -208,9 +208,11 @@ const INFO_MODAL_META = {
 const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
   { from: '/urunler/', to: '/urun/' },
-  // Proje detay URL öneki artık /yapi/:slug (bkz. kullanıcı isteği) — eski /projeler/:slug
-  // bağlantıları/yer imleri/indexlenmiş sonuçlar kırılmasın diye AYNI desenle 301'lenir.
-  { from: '/projeler/', to: '/yapi/' },
+  // Proje detay URL öneki artık /proje/:slug (bkz. kullanıcı isteği: Yapı sayfası Proje adını aldı)
+  // — eski /projeler/:slug ve /yapi/:slug bağlantıları/yer imleri/indexlenmiş sonuçlar kırılmasın
+  // diye AYNI desenle 301'lenir.
+  { from: '/projeler/', to: '/proje/' },
+  { from: '/yapi/', to: '/proje/' },
 ];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
@@ -219,7 +221,6 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/', changefreq: 'daily', priority: '1.0' },
   { loc: '/mimar', changefreq: 'daily', priority: '0.9' },
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
-  { loc: '/yapi', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
@@ -513,15 +514,13 @@ async function listCanonicalEntityUrls(env) {
   const [archRes, officeRes, projRes, prodRes] = await Promise.all([
     env.DB.prepare(`SELECT slug FROM architects WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug FROM offices WHERE ${where}`).all(),
-    env.DB.prepare(`SELECT slug, build_status FROM projects WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug FROM projects WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug FROM products WHERE ${where}`).all(),
   ]);
   return [
     ...archRes.results.map(r => `/mimar/${encodeURIComponent(r.slug)}`),
     ...officeRes.results.map(r => `/firma/${encodeURIComponent(r.slug)}`),
-    // build_status='concept' -> /proje/:slug, 'built' -> /yapi/:slug (bkz. kullanıcı isteği,
-    // js/components/project-modal.js#detailPrefix ile AYNI ayrım).
-    ...projRes.results.map(r => `${r.build_status === 'concept' ? '/proje/' : '/yapi/'}${encodeURIComponent(r.slug)}`),
+    ...projRes.results.map(r => `/proje/${encodeURIComponent(r.slug)}`),
     ...prodRes.results.map(r => `/urun/${encodeURIComponent(r.slug)}`),
   ];
 }
@@ -564,6 +563,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/architects/search') return handleArchitectSearchRoute(request, env, url);
   if (path === '/api/architects/schools') return handleArchitectSchoolsRoute(request, env, url);
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
+  if (path === '/api/products/search') return handleProductSearchRoute(request, env, url);
   if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));

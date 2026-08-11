@@ -60,21 +60,17 @@ const ProjectMeta = (function () {
     }
   }
 
-  // Künyedeki Tür/Tip/Yer/Yıl değerleri filtrelenmiş listeye bağlanır — hedef sayfa item'ın
-  // buildStatus'una göre seçilir (bkz. renderStructuredData'daki AYNI hrefPrefix mantığı): 'concept'
-  // /proje'ye, diğer her şey ('built' — yapı gönderileri) /yapi'ye gider. Eskiden hep /proje'ye
-  // sabitliydi, bu yüzden Yapı gönderilerindeki künye linkleri yanlışlıkla proje sayfasının
-  // filtrelerini açıyordu (bkz. kullanıcı isteği).
+  // Künyedeki Tür/Tip/Grup/Yer/Yıl değerleri filtrelenmiş proje listesine bağlanır (bkz. kullanıcı
+  // isteği: künyedeki linkler artık proje URL'sine yönlendirsin).
   function filterLinkHtml(item, key, value, label) {
-    const page = item.buildStatus === 'concept' ? '/proje' : '/yapi';
-    return `<a href="${page}?${encodeURIComponent(key)}=${encodeURIComponent(value)}">${escapeHtml(label !== undefined ? label : value)}</a>`;
+    return `<a href="/proje?${encodeURIComponent(key)}=${encodeURIComponent(value)}">${escapeHtml(label !== undefined ? label : value)}</a>`;
   }
 
   function renderMeta(item, ids) {
     let html = '';
     if (item.discipline && item.discipline.length) html += `<div><strong>Tür:</strong> ${item.discipline.map(v => filterLinkHtml(item, 'discipline', v)).join(' / ')}</div>`;
     if (item.category && item.category.length) html += `<div><strong>Tip:</strong> ${item.category.map(v => filterLinkHtml(item, 'category', v)).join(' / ')}</div>`;
-    if (item.type && item.type.length) html += `<div><strong>Tip Grubu:</strong> ${item.type.map(v => filterLinkHtml(item, 'type', v)).join(' / ')}</div>`;
+    if (item.type && item.type.length) html += `<div><strong>Grup:</strong> ${item.type.map(v => filterLinkHtml(item, 'type', v)).join(' / ')}</div>`;
     if (item.location) {
       const loc = parseLocation(item.location);
       const districtText = loc.district ? escapeHtml(loc.district) + ', ' : '';
@@ -122,8 +118,7 @@ const ProjectMeta = (function () {
       tag.id = 'pm-ld-json';
       document.head.appendChild(tag);
     }
-    const hrefPrefix = item.buildStatus === 'concept' ? '/proje/' : '/yapi/';
-    const data = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: item.title, url: new URL(`${hrefPrefix}${encodeURIComponent(item.slug)}`, window.location.origin).href };
+    const data = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: item.title, url: new URL(`/proje/${encodeURIComponent(item.slug)}`, window.location.origin).href };
     if (item.description) data.description = item.description;
     if (item.images && item.images.length) {
       try { data.image = item.images.map(img => new URL(img, window.location.href).href); } catch { /* göreli çözümlenemeyen — atla */ }

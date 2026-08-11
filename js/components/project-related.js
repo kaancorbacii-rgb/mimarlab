@@ -1,4 +1,4 @@
-// ArchitectProjects ("Mimarın/Firmanın Diğer Yapıları") + RelatedProjects ("İlgili Yapılar").
+// ArchitectProjects ("Mimarın/Firmanın Diğer Projeleri") + RelatedProjects ("İlgili Projeler").
 // proje-detay.html'in eski istemci-taraf tam-dizi taramasının (sameDesigner/relatedScore, statik
 // projects[] üzerinde) yerini alır — artık proje.html'de bellekte TÜM projelerin bir kopyası
 // olmadığından (Faz 3 sayfalama migrasyonu, bkz. proje.html dosya başı yorumu) her ikisi de mevcut
@@ -19,10 +19,7 @@ const ArchitectProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
-    // p.buildStatus (bkz. src/routes/project.js#shapeProjectItem): 'concept' -> /proje/:slug,
-    // 'built' -> /yapi/:slug (bkz. kullanıcı isteği, js/components/project-modal.js#detailPrefix).
-    const hrefPrefix = p.buildStatus === 'concept' ? '/proje/' : '/yapi/';
-    return `<a class="related-card" href="${hrefPrefix}${encodeURIComponent(p.slug)}">
+    return `<a class="related-card" href="/proje/${encodeURIComponent(p.slug)}">
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
@@ -95,10 +92,7 @@ const RelatedProjects = (function () {
   function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
-    // p.buildStatus (bkz. src/routes/project.js#shapeProjectItem): 'concept' -> /proje/:slug,
-    // 'built' -> /yapi/:slug (bkz. kullanıcı isteği, js/components/project-modal.js#detailPrefix).
-    const hrefPrefix = p.buildStatus === 'concept' ? '/proje/' : '/yapi/';
-    return `<a class="related-card" href="${hrefPrefix}${encodeURIComponent(p.slug)}">
+    return `<a class="related-card" href="/proje/${encodeURIComponent(p.slug)}">
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
@@ -187,7 +181,7 @@ const RelatedProjects = (function () {
     const queries = [];
     // buildStatus: aday havuzu kaynak projeyle AYNI kategoride kalmalı (bkz. kullanıcı isteği,
     // migrations/0037_project_build_status.sql) — aksi halde bir konsept/öğrenci projesinin
-    // "İlgili Yapılar"ı arasına inşa edilmiş eserler (ya da tersi) karışırdı.
+    // "İlgili Projeler"ı arasına inşa edilmiş eserler (ya da tersi) karışırdı.
     const buildStatusParam = ['buildStatus', item.buildStatus === 'concept' ? 'concept' : 'built'];
     const disciplineParams = (item.discipline || []).map(d => ['discipline', d]);
     const withDiscipline = params => {
@@ -227,10 +221,10 @@ const RelatedProjects = (function () {
   }
 
   // excludeSlugsPromise: bir Promise<Set<string>> (bkz. js/components/project-modal.js#armDeferredSections)
-  // — "Diğer Yapıları" ile ÇAKIŞMAYAN bir seçki için o bölümün slug'larını bekler, ama BU fonksiyonun
+  // — "Diğer Projeleri" ile ÇAKIŞMAYAN bir seçki için o bölümün slug'larını bekler, ama BU fonksiyonun
   // kendi /api/projects sorguları (gatherCandidateQueries) o bekleyişten BAĞIMSIZ hemen ateşlenir
   // (bkz. gerçek bulgu: eskiden RelatedProjects, ArchitectProjects'in TÜM sayfalarını bitirmesini
-  // bekledikten SONRA kendi isteklerine başlıyordu — çok projeli bir mimar için bu, "İlgili Yapılar"ı
+  // bekledikten SONRA kendi isteklerine başlıyordu — çok projeli bir mimar için bu, "İlgili Projeler"ı
   // gereksiz yere geciktiriyordu). Yalnızca dışlama+render adımı excludeSlugsPromise'i bekler.
   async function mount(item, excludeSlugsPromise, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});

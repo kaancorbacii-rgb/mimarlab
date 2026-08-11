@@ -84,7 +84,7 @@ async function upsertRating(request, env) {
 // slugify(title-brand) biçimi) — bu yüzden onlar findProductByKey ile (findCanonicalRowByNaturalKey
 // DEĞİL) ayrıca çözülür, bkz. aşağıdaki myRatings.
 const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
-const HREF_BASE_BY_TARGET = { project: '/yapi/', product: '/urun/', material: '/urun/', architect: '/mimar/', office: '/firma/' };
+const HREF_BASE_BY_TARGET = { project: '/proje/', product: '/urun/', material: '/urun/', architect: '/mimar/', office: '/firma/' };
 
 function ratingCardShape(targetType, row) {
   if (targetType === 'project') {
@@ -123,10 +123,7 @@ async function myRatings(request, env) {
       : (CANONICAL_TYPE_BY_TARGET[r.target_type] ? await findCanonicalRowByNaturalKey(env, CANONICAL_TYPE_BY_TARGET[r.target_type], r.target_id) : null);
     if (!row || row.deleted_at || row.hidden_at) continue;
     const shaped = ratingCardShape(r.target_type, row);
-    // 'project' hedefler için önek build_status'a göre değişir (bkz. kullanıcı isteği:
-    // js/components/project-modal.js#detailPrefix ile AYNI ayrım) — row zaten SELECT * ile geldiğinden
-    // (findCanonicalRowByNaturalKey) ekstra sorguya gerek yok.
-    const hrefBase = (r.target_type === 'project' && row.build_status === 'concept') ? '/proje/' : HREF_BASE_BY_TARGET[r.target_type];
+    const hrefBase = HREF_BASE_BY_TARGET[r.target_type];
     items.push({
       type: r.target_type, key: r.target_id, stars: r.stars, updatedAt: r.updated_at,
       href: hrefBase + encodeURIComponent(row.slug || r.target_id),

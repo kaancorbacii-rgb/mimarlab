@@ -154,16 +154,15 @@ const InfoModal = (function () {
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">MİMARLAB Hakkında</h1>
-      <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık, peyzaj mimarlığı ve restorasyon alanlarındaki yapıları, projeleri, mimarları ve firmaları tek bir yerde toplayan bağımsız bir dizin ve topluluk platformudur.</p>
+      <p class="content-lead">MİMARLAB; mimarlık, iç mimarlık, peyzaj mimarlığı ve restorasyon alanlarındaki projeleri, mimarları ve firmaları tek bir yerde toplayan bağımsız bir dizin ve topluluk platformudur.</p>
 
       <div class="content-section">
         <h2>Ne sunuyoruz?</h2>
         <p>Türkiye'deki mimarlık ekosistemini tek bir çatı altında topluyoruz:</p>
         <ul>
-          <li><strong>Yapı arşivi</strong> — geçmişten günümüze öne çıkan yapıları yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
-          <li><strong>Proje arşivi</strong> — tamamlanmış projeleri tür, tip, yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
+          <li><strong>Proje arşivi</strong> — geçmişten günümüze öne çıkan projeleri tür, tip, yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
           <li><strong>Mimar ve firma profilleri</strong> — bireysel mimarların ve mimarlık ofislerinin/markalarının profillerini inceleyebilirsiniz.</li>
-          <li><strong>Puanlama, yorum ve kaydetme</strong> — yapılara, projelere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri hesabınıza kaydedebilirsiniz.</li>
+          <li><strong>Puanlama, yorum ve kaydetme</strong> — projelere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri hesabınıza kaydedebilirsiniz.</li>
         </ul>
         <p>İçeriklerin bir kısmı halka açık kaynaklardan derlenir, bir kısmı ise üyelerimizin gönderdiği ve ekibimizin incelemesinden geçen katkılardan oluşur.</p>
       </div>

@@ -29,6 +29,25 @@ function shapeProductItem(row) {
   };
 }
 
+// GET /api/products/search?q=... — src/routes/office.js#handleOfficeSearchRoute'un ürün karşılığı;
+// proje-ekle.html'deki "Kullanılan Ürünler / Firmalar" kutusundaki Ürün autocomplete'inin canlı D1
+// sorgusu (bkz. kullanıcı isteği: "Kullanılan ürünler kısmını geri getir").
+export async function handleProductSearchRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const q = foldTr((url.searchParams.get('q') || '').trim());
+    if (!q) return { items: [] };
+    const { results } = await env.DB.prepare(
+      `SELECT slug, title, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY title`
+    ).all();
+    const items = results
+      .filter(r => foldTr(r.title).includes(q))
+      .slice(0, 20)
+      .map(r => ({ label: r.title, sub: r.brand_name_raw || '', brand: r.brand_name_raw || '' }));
+    return { items };
+  });
+}
+
 // Önceki/Sonraki Ürün — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen. kind
 // (product/material) sınırı GÖZETİLMEZ — id sırası tüm `products` tablosu üzerinden dairesel/sıralı.
 // bkz. kullanıcı isteği: Önceki/Sonraki butonlarına önizleme görseli eklenmesi.

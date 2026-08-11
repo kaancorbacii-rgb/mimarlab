@@ -80,7 +80,7 @@ const ArchitectModal = (function () {
          uzun başlıklar tek satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle
          geçmez, satır sonuna ellipsis eklenir. */
       .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
-      /* "Yapılar" (bu mimarın/firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR
+      /* "Projeler" (bu mimarın/firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR
          (bkz. kullanıcı isteği: "ismi uzun olan mimarın/firmanın diğer yapılarında metinlerindeki üç
          nokta sistemini sil") — yukarıdaki genel kural Firmalar/Diğer Firma Ortakları kartlarında
          (isim tek satır) aynen kalır, yalnızca #am-related-projects-grid'e özel bu override başlığın
@@ -188,7 +188,7 @@ const ArchitectModal = (function () {
       <div class="related-grid-scroll" id="am-colleagues-grid"></div>
     </div>
     <div class="related-section" id="am-related-projects-section" style="display:none;">
-      <h2 class="related-title">Yapılar</h2>
+      <h2 class="related-title">Projeler</h2>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
     </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
@@ -464,7 +464,7 @@ const ArchitectModal = (function () {
 
     document.getElementById('am-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('am-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
-      cardHtml(`/yapi/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
+      cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
 
     const PROFILE_TYPE = 'architect';

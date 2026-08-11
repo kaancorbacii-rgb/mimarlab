@@ -70,7 +70,7 @@ async function listComments(env, url) {
 // (CANONICAL_TYPE_BY_TARGET'te yok, kendi 'news' tablosundan id'yle çekilir — bkz. haber-detay.html
 // targetId=news.id kullanımı). Sonradan silinmiş/gizlenmiş bir hedefse sessizce atlanır.
 const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
-const HREF_BASE_BY_TARGET = { project: '/yapi/', architect: '/mimar/', office: '/firma/' };
+const HREF_BASE_BY_TARGET = { project: '/proje/', architect: '/mimar/', office: '/firma/' };
 
 function commentCardShape(targetType, row) {
   if (targetType === 'project') {

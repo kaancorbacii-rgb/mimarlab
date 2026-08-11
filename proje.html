@@ -21,13 +21,13 @@
 <meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
-     sayfalarının <head>'ine ... application/ld+json ekle") — /yapi/:slug detay görünümü
+     sayfalarının <head>'ine ... application/ld+json ekle") — /proje/:slug detay görünümü
      src/index.js#injectMeta ile SSR'da AYRI CreativeWork + BreadcrumbList şeması ekler, bu ikisiyle
      çakışmaz. -->
 <script type="application/ld+json" id="list-jsonld">
 {"@context":"https://schema.org","@type":"CollectionPage","name":"Projeler — MİMARLAB","url":"https://mimarlab.com/proje","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
-<!-- Temiz URL'lerle bu sayfa /proje dışında /yapi/:slug altında da (proje modalını doğrudan
+<!-- Temiz URL'lerle bu sayfa /proje/:slug altında (proje modalını doğrudan
      açan bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları
      o iç içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, eski
      proje-detay.html'deki AYNI gerekçe). -->
@@ -648,17 +648,12 @@
   .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
   .prevnext-text{min-width:0; flex:1;}
   .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
-  /* display:block ZORUNLU — .prevnext-title bir span, ve overflow:hidden + text-overflow:ellipsis
-     bir inline eleman üzerinde genişliği kısıtlamaz (satır kutusuyla sınırlı değil, içerik kadar
-     büyür) — bu yüzden mobilde uzun yapı başlıkları .prevnext a kutusunun dışına taşıyordu
-     (bkz. kullanıcı isteği: "önceki/sonraki yapı butonlarının metinleri dışına taşıyor"). Blok
-     olunca kapsayan .prevnext-text'in (flex item, min-width:0) genişliğini miras alır ve ellipsis
-     gerçekten çalışır. */
+  /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
+     inline olduğundan overflow:hidden/ellipsis genişlik kısıtlamaz, mobilde metin kutunun dışına
+     taşıyordu (bkz. kullanıcı isteği). */
   /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
      butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
-     sonlandır") — .related-card-title-clamp İLE AYNI desen. .prevnext-title'ın kendi/atalarının
-     (.prevnext-text, .prevnext a) padding-bottom'u YOK, bu yüzden .related-card-title'daki padding
-     sızıntısı riski burada geçerli değil, ayrı bir sarmalayıcıya gerek kalmadan doğrudan uygulanabilir. */
+     sonlandır") — .related-card-title-clamp İLE AYNI desen, bkz. o dosyadaki AYNI gerekçe. */
   .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
 
   /* Skeleton — ertelenmiş bölümler (yorumlar/diğer projeler/ilgili projeler/ürünler) veri gelene
@@ -674,7 +669,7 @@
     .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
     /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Diğer
-       Yapılar → İlgili Yapılar → Yorumlar → Bilgi Kaynağı/Geri Bildirim (bkz. kullanıcı isteği:
+       Projeler → İlgili Projeler → Yorumlar → Bilgi Kaynağı/Geri Bildirim (bkz. kullanıcı isteği:
        Yorumlar aşağı taşınıp Geri Bildirim kutusunun hemen üstüne alındı) — modal-shell.js bu
        kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
        bu bölümler artık AYNI dikey flex akışının parçası; sıra burada, sırayla artan order değerleriyle
@@ -760,6 +755,7 @@
 <script src="js/components/project-actions.js" defer></script>
 <script src="js/components/project-comments.js" defer></script>
 <script src="js/components/project-related.js" defer></script>
+<script src="js/components/project-products.js" defer></script>
 <script src="js/components/project-modal.js" defer></script>
 
   <nav class="nav">
@@ -771,7 +767,7 @@
       <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
     </div>
     <div class="nav-links">
-      <a class="nav-link" href="yapi.html">Yapı</a>
+      <a class="nav-link active" href="proje.html">Proje</a>
       <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
@@ -787,7 +783,7 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
-      <a class="nav-mobile-link" href="yapi.html">Yapı</a>
+      <a class="nav-mobile-link active" href="proje.html">Proje</a>
       <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
@@ -802,7 +798,7 @@
 
   <div class="page-head">
     <h1>Projeler</h1>
-    <p>Türkiye'den öğrenci, yarışma, fikir ve konsept projeler arşivi.</p>
+    <p>Türkiye'nin geçmişten günümüze proje arşivi.</p>
   </div>
 
   <div class="grid-layout">
@@ -842,7 +838,7 @@
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
         </div>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="yapi.html">Yapı</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
     </div>
@@ -867,12 +863,6 @@ const parseLocation = parseLocationFull;
 // sidebar'ın nasıl çizileceğini (etiket/iç içelik) bilmesi için metadata tutulur, gerçek
 // seçenek/sayaç hesabı artık /api/projects/filters'tan gelir.
 const FILTER_GROUPS = [
-  // Yalnızca bu sayfada (yapi.html buildStatus='built' gönderdiğinden bu grup orada hep boş
-  // kalır ve hiç eklenmez, bkz. src/routes/project.js#buildFilterGroups) — kullanıcı isteği:
-  // "Proje sayfasındaki filtrelere Kategori filtresi aç ve altına öğrenci, yarışma, fikir,
-  // konsept seçeneklerini ekle" (bkz. migrations/0038_project_concept_category.sql). Arama
-  // kutusundan hemen sonra ilk sırada gösterilir (bkz. kullanıcı isteği).
-  { key: 'conceptCategory', label: 'Kategori' },
   { key: 'discipline', label: 'Tür' },
   { key: 'category', label: 'Tip' },
   { key: 'type', label: 'Grup' },
@@ -880,7 +870,7 @@ const FILTER_GROUPS = [
   { key: 'district', label: 'İlçe', nested: true, parentKey: 'location', parentValue: 'İstanbul' },
   { key: 'dateBucket', label: 'Yıl' },
   { key: 'designer', label: 'Mimar' },
-  { key: 'designerOffice', label: 'Mimarlık Firması' },
+  { key: 'designerOffice', label: 'Firma' },
 ];
 
 const activeFilters = {};
@@ -923,10 +913,7 @@ function trLower(s){
 // TEK noktadan kullanılır.
 function currentQueryParams(){
   const params = new URLSearchParams();
-  // Bu sayfa yalnızca inşa edilmemiş (öğrenci/yarışma/fikir/konsept) projeleri listeler (bkz.
-  // kullanıcı isteği, migrations/0037_project_build_status.sql) — yapi.html'in AYNI fonksiyonu
-  // buildStatus='built' gönderir.
-  params.set('buildStatus', 'concept');
+  params.set('buildStatus', 'built');
   FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
   if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
   const sort = document.getElementById('g-sort').value;
@@ -995,7 +982,7 @@ async function buildSidebar(){
       </div>
     </div>`;
   });
-  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="proje-ekle.html?tur=proje"><span class="sidebar-add-icon">+</span> Proje Ekle</a></div>`;
+  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="proje-ekle.html"><span class="sidebar-add-icon">+</span> Proje Ekle</a></div>`;
   sidebar.innerHTML = html;
 
   // Bir künye linkinden (?category=...) ya da doğrudan URL'den önceden seçili gelen bir filtre
@@ -1137,9 +1124,7 @@ function renderPagination(totalPages){
 
 // render() artık yalnızca mevcut sayfanın kartlarını /api/projects'ten çeker (bkz. kullanıcı
 // isteği: "Her sayfa geçişinde sadece o sayfadaki proje verisini çek ve render et") — tüm veri
-// seti hiçbir zaman tarayıcıya inmiyor. currentQueryParams() buildStatus='concept' gönderdiğinden
-// (bkz. yukarısı) bu sayfa yalnızca öğrenci/yarışma/fikir/konsept projelerini döner — inşa
-// edilmiş eserler yapi.html'de kalır (bkz. kullanıcı isteği, migrations/0037_project_build_status.sql).
+// seti hiçbir zaman tarayıcıya inmiyor.
 let renderRequestId = 0;
 async function render(){
   const myRequest = ++renderRequestId;
@@ -1245,7 +1230,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   if(!m) return;
   const slug = decodeURIComponent(m[1]);
   e.preventDefault();
-  ProjectModal.open(slug, { triggerEl: a, basePath: '/proje/' });
+  ProjectModal.open(slug, { triggerEl: a });
 });
 
 // Tarayıcı geri/ileri tuşu: /proje/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
@@ -1255,7 +1240,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 // history'e TEKRAR yazmadan) kapatılır.
 window.addEventListener('popstate', ()=>{
   const m = location.pathname.match(/^\/proje\/([^/]+)\/?$/);
-  if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1]), '/proje/'); return; }
+  if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
   // Modal kapanırken buraya (bare /proje) dönülüyorsa arka plandaki liste modal açıkken hiç
   // değişmedi (etkileşim kilitliydi) — filtreleri sıfırlayıp grid'i YENİDEN ÇEKMEYE gerek yok;
   // bunu yapmak modal-shell.js'in geri yüklediği scroll konumunu, grid yeniden render olurken
@@ -1283,7 +1268,7 @@ render();
 // zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
   const m = location.pathname.match(/^\/proje\/([^/]+)\/?$/);
-  if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false, basePath: '/proje/' });
+  if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
 });
 
 function wireNavSearch(){
