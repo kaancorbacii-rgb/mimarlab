@@ -49,7 +49,8 @@ const CATALOG_MENU_COLUMNS = [
   ['Mobilya', 'Dekorasyon & Aksesuar'],
   ['Aydınlatma', 'Tekstil & Halı'],
   ['Mutfak & Beyaz Eşya', 'Dış Mekan', 'Banyo'],
-  ['Doğal Taş & Zemin', 'Boya & Kaplama', 'Cephe & Cam Sistemleri', 'Sıva & Alçı', 'Yalıtım', 'Kapı & Pencere'],
+  ['Doğal Taş & Zemin', 'Boya & Kaplama', 'Cephe & Cam Sistemleri'],
+  ['Sıva & Alçı', 'Yalıtım', 'Kapı & Pencere'],
 ];
 
 function taxonomyGroupOf(taxonomy, category) {

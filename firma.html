@@ -314,6 +314,8 @@
 <script src="js/overlay-manager.js" defer></script>
 <script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
+<script src="catalog-taxonomy.js" defer></script>
+<script src="js/components/nav-product-menu.js" defer></script>
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
 <script src="save-widget.js"></script>
@@ -328,10 +330,16 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="proje.html">Proje</a>
-      <a class="nav-link" href="urun.html">Ürün</a>
+      <div class="nav-link-wrap" id="urun-menu-wrap">
+        <button class="nav-link nav-link-trigger" id="urun-menu-trigger" type="button" aria-expanded="false" aria-controls="urun-mega-menu">
+          Ürün
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </button>
+      </div>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link active" href="firma.html">Firma</a>
     </div>
+    <div class="mega-menu" id="urun-mega-menu"></div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
     </div>
@@ -344,7 +352,13 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
-      <a class="nav-mobile-link" href="urun.html">Ürün</a>
+      <div class="nav-mobile-accordion">
+        <button type="button" class="nav-mobile-link nav-mobile-accordion-trigger" id="urun-mobile-trigger" aria-expanded="false" aria-controls="urun-mobile-panel">
+          Ürün
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </button>
+        <div class="nav-mobile-accordion-panel" id="urun-mobile-panel"></div>
+      </div>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link active" href="firma.html">Firma</a>
     </div>

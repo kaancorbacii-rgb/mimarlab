@@ -86,28 +86,48 @@
      DOM'da .nav-link-wrap içinde değil, .nav'ın doğrudan çocuğu olarak durur. */
   .mega-menu{
     display:none; position:absolute; top:calc(100% + 14px); left:50%; transform:translateX(-50%);
-    z-index:90; width:min(94vw, 980px);
+    z-index:90; width:min(96vw, 1160px);
     background:var(--paper-card); border:1px solid var(--line); border-radius:16px;
     box-shadow:0 18px 40px rgba(27,42,61,0.18);
     padding:26px 30px;
   }
   .mega-menu.open{display:block;}
-  .mega-menu-cols{display:grid; grid-template-columns:repeat(4, 1fr); gap:26px;}
+  .mega-menu-cols{display:grid; grid-template-columns:repeat(5, 1fr); gap:24px;}
   .mega-col{display:flex; flex-direction:column; gap:20px; min-width:0;}
   .mega-group-title{display:block; font-family:'Inter', sans-serif; font-size:14.5px; font-weight:700; color:var(--ink); margin-bottom:8px;}
   .mega-group-title:hover{color:var(--walnut);}
   .mega-cat-link{display:block; font-size:13.5px; color:var(--ink-soft); padding:4px 0;}
   .mega-cat-link:hover{color:var(--ink); text-decoration:underline;}
+  .mega-menu-footer{margin-top:22px; padding-top:18px; border-top:1px solid var(--line);}
+  .mega-viewall{display:inline-flex; align-items:center; gap:7px; font-family:'Fraunces', serif; font-size:21px; font-weight:600; color:var(--ink);}
+  .mega-viewall:hover{color:var(--walnut);}
   @media (max-width:960px){ .mega-menu{display:none !important;} }
   .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
   .nav-mobile-menu{
     display:none; position:absolute; top:100%; right:18px; z-index:95;
     background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
-    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px; max-height:calc(100vh - 90px); overflow-y:auto;
   }
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
   .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-accordion{display:flex; flex-direction:column;}
+  .nav-mobile-accordion-trigger{display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:none;}
+  .nav-mobile-accordion-trigger svg{transition:transform .15s ease;}
+  .nav-mobile-accordion-trigger[aria-expanded="true"] svg{transform:rotate(180deg);}
+  .nav-mobile-accordion-panel{display:none; flex-direction:column; padding:2px 0 8px 12px;}
+  .nav-mobile-accordion-panel.open{display:flex;}
+  .nav-mobile-subgroup{display:flex; flex-direction:column;}
+  .nav-mobile-subtrigger{display:flex; align-items:center; justify-content:space-between; width:100%; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer; text-transform:none;}
+  .nav-mobile-subtrigger:hover{background:var(--paper-alt);}
+  .nav-mobile-subtrigger svg{transition:transform .15s ease; flex-shrink:0;}
+  .nav-mobile-subtrigger[aria-expanded="true"] svg{transform:rotate(180deg);}
+  .nav-mobile-subpanel{display:none; flex-direction:column; padding:0 0 4px 14px;}
+  .nav-mobile-subpanel.open{display:flex;}
+  .nav-mobile-subcat{display:block; padding:8px 12px; border-radius:8px; font-size:13px; color:var(--ink-soft); text-transform:none;}
+  .nav-mobile-subcat:hover{background:var(--paper-alt); color:var(--ink);}
+  .nav-mobile-viewall{display:block; padding:10px 12px; margin-top:2px; border-radius:8px; font-size:13.5px; font-weight:700; color:var(--walnut); text-transform:none;}
+  .nav-mobile-viewall:hover{background:var(--paper-alt);}
   .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
   .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
   .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
@@ -375,7 +395,13 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
-      <a class="nav-mobile-link active" href="urun.html">Ürün</a>
+      <div class="nav-mobile-accordion">
+        <button type="button" class="nav-mobile-link nav-mobile-accordion-trigger active" id="urun-mobile-trigger" aria-expanded="false" aria-controls="urun-mobile-panel">
+          Ürün
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </button>
+        <div class="nav-mobile-accordion-panel" id="urun-mobile-panel"></div>
+      </div>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
     </div>
@@ -799,12 +825,53 @@ function buildMegaMenu(){
         </div>`;
       }).join('')}
     </div>`).join('');
-  panel.innerHTML = `<div class="mega-menu-cols">${html}</div>`;
+  panel.innerHTML = `<div class="mega-menu-cols">${html}</div>
+    <div class="mega-menu-footer"><a class="mega-viewall" href="urun.html">Tümünü Gör →</a></div>`;
   wireInternalLinks(panel);
+}
+let mobileMenuBuilt = false;
+function buildMobileProductMenu(){
+  if(mobileMenuBuilt) return;
+  const panel = document.getElementById('urun-mobile-panel');
+  if(!panel || typeof CATALOG_MENU_COLUMNS === 'undefined' || typeof CATALOG_TAXONOMY === 'undefined') return;
+  mobileMenuBuilt = true;
+  const groups = CATALOG_MENU_COLUMNS.flat();
+  const html = groups.map((group, i) => {
+    const cats = CATALOG_TAXONOMY[group] || [];
+    const gid = `urun-mobile-sub-${i}`;
+    return `<div class="nav-mobile-subgroup">
+      <button type="button" class="nav-mobile-subtrigger" data-target="${gid}" aria-expanded="false" aria-controls="${gid}">
+        ${escapeHtml(group)}
+        <svg width="9" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      </button>
+      <div class="nav-mobile-subpanel" id="${gid}">
+        <a class="nav-mobile-subcat" href="${escapeAttr(groupHref(group))}">Tümü — ${escapeHtml(group)}</a>
+        ${cats.map(cat => `<a class="nav-mobile-subcat" href="${escapeAttr(categoryHref(group, cat))}">${escapeHtml(cat)}</a>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  panel.innerHTML = html + `<a class="nav-mobile-viewall" href="urun.html">Tümünü Gör</a>`;
+  wireInternalLinks(panel);
+  panel.querySelectorAll('.nav-mobile-subtrigger').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const sub = document.getElementById(btn.dataset.target);
+      const willOpen = !sub.classList.contains('open');
+      panel.querySelectorAll('.nav-mobile-subpanel.open').forEach(p=>{ if(p!==sub) p.classList.remove('open'); });
+      panel.querySelectorAll('.nav-mobile-subtrigger[aria-expanded="true"]').forEach(b=>{ if(b!==btn) b.setAttribute('aria-expanded','false'); });
+      sub.classList.toggle('open', willOpen);
+      btn.setAttribute('aria-expanded', String(willOpen));
+    });
+  });
 }
 function closeMegaMenu(){
   document.getElementById('urun-mega-menu').classList.remove('open');
   document.getElementById('urun-menu-trigger').setAttribute('aria-expanded', 'false');
+  const mobileMenu = document.getElementById('nav-mobile-menu');
+  const mobilePanel = document.getElementById('urun-mobile-panel');
+  const mobileTrigger = document.getElementById('urun-mobile-trigger');
+  if(mobileMenu) mobileMenu.classList.remove('open');
+  if(mobilePanel) mobilePanel.classList.remove('open');
+  if(mobileTrigger) mobileTrigger.setAttribute('aria-expanded', 'false');
 }
 function toggleMegaMenu(){
   buildMegaMenu();
@@ -817,6 +884,8 @@ document.getElementById('urun-menu-trigger').addEventListener('click', (e)=>{ e.
 document.addEventListener('click', (e)=>{
   const wrap = document.getElementById('urun-menu-wrap');
   const panel = document.getElementById('urun-mega-menu');
+  const mobileMenu = document.getElementById('nav-mobile-menu');
+  if(mobileMenu && mobileMenu.contains(e.target)) return;
   if(wrap && panel && !wrap.contains(e.target) && !panel.contains(e.target)) closeMegaMenu();
 });
 document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeMegaMenu(); });
@@ -1091,6 +1160,16 @@ wireNavSearch();
 const navHamburger = document.getElementById('nav-hamburger');
 const navMobileMenu = document.getElementById('nav-mobile-menu');
 navHamburger.addEventListener('click', ()=>{ navMobileMenu.classList.toggle('open'); });
+const urunMobileTrigger = document.getElementById('urun-mobile-trigger');
+const urunMobilePanel = document.getElementById('urun-mobile-panel');
+if(urunMobileTrigger && urunMobilePanel){
+  urunMobileTrigger.addEventListener('click', ()=>{
+    buildMobileProductMenu();
+    const willOpen = !urunMobilePanel.classList.contains('open');
+    urunMobilePanel.classList.toggle('open', willOpen);
+    urunMobileTrigger.setAttribute('aria-expanded', String(willOpen));
+  });
+}
 document.addEventListener('click', (e)=>{
   if(!navMobileMenu.classList.contains('open')) return;
   if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
