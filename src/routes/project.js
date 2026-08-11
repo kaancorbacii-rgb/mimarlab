@@ -363,6 +363,56 @@ function foldTr(s) {
   return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
+// project_date SERBEST METİN bir alan (admin panelinden elle girilir) — "1506-1513", "MÖ 360",
+// "19. Yüzyıl", "MÖ 479 / MS 324", "4-5. yüzyıl / 1458", "16. yy / 2026" gibi çok çeşitli
+// formatlarda olabilir (bkz. gerçek D1 verisi). Eski date_asc/date_desc karşılaştırıcısı sadece
+// `parseInt(date, 10)` kullanıyordu — bu "19. Yüzyıl" gibi bir string'i "19" (MS 19 yılı) olarak
+// okuyup MS 300'lü yıllardan bile ÖNCE sıralıyordu (gerçek bulgu: kullanıcı "En Eski" sıralamasında
+// 19. yüzyıl projelerinin 4./5. yüzyıl projelerinden önce çıktığını bildirdi). parseProjectDateYear
+// projenin en ERKEN (en eski) noktasını temsil eden tek bir sayısal yıl döndürür:
+//   - "/" ile ayrılmış her parça (çoğunlukla "yapım / restorasyon" ya da "MÖ.../MS..." aralığı)
+//     ayrı ayrı değerlendirilir, en küçük (en eski) sonuç kullanılır — restorasyon/ikinci parça
+//     her zaman yapım tarihinden sonra olduğundan bu, verinin parça sırasından bağımsız çalışır.
+//   - Bir parça "MÖ" içeriyorsa (foldTr üzerinden Türkçe harf bağımsız aranır) yıl(lar) NEGATİF
+//     kabul edilir; parça içinde birden çok sayı varsa (ör. "MÖ 5500-3500") BÜYÜK olan seçilir,
+//     çünkü MÖ'de büyük sayı = daha eski (MÖ 5500, MÖ 3500'den öncedir).
+//   - Parça "yüzyıl"/"yy" içeriyorsa (ör. "4-5. yüzyıl", "19. yy") yüzyıl NUMARALARINDAN en erken
+//     olanı (MÖ ise en BÜYÜK, MS ise en KÜÇÜK) o yüzyılın başlangıç yılına çevrilir (MS: (N-1)*100+1,
+//     MÖ: -(N*100)) — böylece "4. yüzyıl" (MS 301) ile "330" gibi düz bir yıl doğru sırada karşılaştırılır.
+//   - Aksi halde parçadaki sayılardan en küçüğü (MÖ ise en büyüğü, negatifleştirilerek) düz yıl
+//     olarak kullanılır (mevcut "408-450" -> 408, "1506-1513" -> 1506 davranışı korunur).
+//   - Hiçbir sayı bulunamazsa null döner (bilinmeyen tarih) — çağıran taraf bunu her iki yönde de
+//     (en eski/en yeni) listenin SONUNA koyar, eskiden olduğu gibi rastgele "0" değeriyle diğer
+//     tarihlerin arasına karışmaz.
+//   - Gerçek bulgu: "MS 4. / 10. Yüzyıl" gibi bir "yüzyıl" sözcüğü SADECE ikinci parçaya ait tek
+//     bir aralık, "/" ile bölününce ilk parça ("MS 4.") yüzyıl işaretini kaybediyor ve "4" düz yıl
+//     sanılıyordu. 1-2 haneli, tek başına "N." (ops. "MS " önekiyle) şeklindeki bir parça, string'in
+//     GENELİNDE yüzyıl sözcüğü geçiyorsa yine yüzyıl kabul edilir (isCenturyFragment) — 3+ haneli
+//     sayılar (gerçek yıllar) bu sezgiye asla girmez, yanlış eşleşme riski yok.
+function parseProjectDateYear(dateStr) {
+  if (!dateStr) return null;
+  const hasCenturyWordAnywhere = /yuzyil|\byy\b/.test(foldTr(dateStr));
+  let best = null;
+  for (const rawSegment of String(dateStr).split('/')) {
+    const folded = foldTr(rawSegment);
+    const isBC = /\bmo\b/.test(folded);
+    const isCenturyFragment = hasCenturyWordAnywhere && /^\s*(ms\s*)?\d{1,2}\.\s*$/.test(folded);
+    const isCentury = isCenturyFragment || /yuzyil|\byy\b/.test(folded);
+    const nums = (rawSegment.match(/\d+/g) || []).map(n => parseInt(n, 10));
+    if (!nums.length) continue;
+    let year;
+    if (isCentury) {
+      const century = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -(century * 100) : (century - 1) * 100 + 1;
+    } else {
+      const magnitude = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -magnitude : magnitude;
+    }
+    if (best === null || year < best) best = year;
+  }
+  return best;
+}
+
 function dateBucketSortKey(s) {
   let m = /^(\d+)\.\s*Yüzyıl$/.exec(s);
   if (m) return (parseInt(m[1], 10) - 1) * 100;
@@ -606,8 +656,20 @@ export async function handleProjectListRoute(request, env, url) {
       filtered = [...filtered].sort((a, b) => {
         switch (sort) {
           case 'name_asc': return a.title.localeCompare(b.title, 'tr');
-          case 'date_desc': return (parseInt(b.date, 10) || 0) - (parseInt(a.date, 10) || 0);
-          case 'date_asc': return (parseInt(a.date, 10) || 0) - (parseInt(b.date, 10) || 0);
+          case 'date_desc': {
+            const ya = parseProjectDateYear(a.date), yb = parseProjectDateYear(b.date);
+            if (ya == null && yb == null) return 0;
+            if (ya == null) return 1;
+            if (yb == null) return -1;
+            return yb - ya;
+          }
+          case 'date_asc': {
+            const ya = parseProjectDateYear(a.date), yb = parseProjectDateYear(b.date);
+            if (ya == null && yb == null) return 0;
+            if (ya == null) return 1;
+            if (yb == null) return -1;
+            return ya - yb;
+          }
           case 'rating_desc': {
             const ra = ratingBySlug.get(a.slug) || { count: 0 }, rb = ratingBySlug.get(b.slug) || { count: 0 };
             if (!ra.count && !rb.count) return 0;
