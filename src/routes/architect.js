@@ -1,6 +1,6 @@
 import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 
@@ -129,22 +129,31 @@ export async function handleArchitectListRoute(request, env, url) {
     // correlated subquery (bkz. migrations/0022_id_first_entities.sql) — yalnızca DOĞRUDAN o mimara
     // atanmış projeler sayılır (ofisi üzerinden ilişkili olduğu projeler DEĞİL; mimar-detay.html'deki
     // relatedProjects'in aksine, popülerlik burada kişisel proje sayısını yansıtır).
-    const { results } = await env.DB.prepare(
-      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards,
-         (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-          WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
-       FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.id DESC`
-    ).all();
+    // gerçek bulgu: bu sorgu (JOIN + satır başı correlated subquery) ve aşağıdaki .map() dönüşümü
+    // önceden HER istekte (filtre/sort/sayfa fark etmeksizin) yeniden çalışıyordu — sidebar sayaçları
+    // (dob/award/position) TÜM havuzdan hesaplandığından project.js#fetchProjectListPageFromD1'deki
+    // D1 LIMIT/OFFSET deseni burada uygulanamaz (bkz. publicCache.js#getCachedPool dosya başı
+    // yorumu). Bunun yerine ham sorgu+şekillendirme sonucu (pool) KV'de önbelleklenir — farklı sayfa/
+    // sort/filtre kombinasyonları (farklı TAM URL, farklı caches.default anahtarı) AYNI pool'u
+    // paylaşır. Filtre/sıralama mantığı (aşağısı) DEĞİŞMEDİ, hâlâ her istekte JS'te çalışır.
+    const pool = await getCachedPool(env, 'architects', async () => {
+      const { results } = await env.DB.prepare(
+        `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards,
+           (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+            WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
+         FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+         WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.id DESC`
+      ).all();
 
-    const pool = results.map(row => {
-      const a = parseCanonicalRow('architects', row);
-      let officeAwards = [];
-      if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
-      // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
-      // fallback'inin karşılığı) — bucketed `position` (Kurucu/Çalışan/İşsiz) filtre eşleştirme için,
-      // ham metin ise kart altyazısı için ayrı tutulur.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
+      return results.map(row => {
+        const a = parseCanonicalRow('architects', row);
+        let officeAwards = [];
+        if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
+        // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
+        // fallback'inin karşılığı) — bucketed `position` (Kurucu/Çalışan/İşsiz) filtre eşleştirme için,
+        // ham metin ise kart altyazısı için ayrı tutulur.
+        return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
+      });
     });
 
     function passes(a) {

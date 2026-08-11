@@ -1,6 +1,6 @@
 import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 
@@ -102,23 +102,29 @@ export async function handleOfficeListRoute(request, env, url) {
     // burada dokunulmayan ayrı bir sorgu) gereken kolonlar bu listeye dahil edilmiyor. project_count
     // — idx_project_designers_office indeksi üzerinden ucuz bir correlated subquery (bkz. src/routes/
     // architect.js#handleArchitectListRoute'daki AYNI desen).
-    const { results } = await env.DB.prepare(
-      `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url,
-         (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-          WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
-       FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
-    ).all();
-    const pool = results.map(row => {
-      const o = parseCanonicalRow('offices', row);
-      // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
-      // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de
-      // olduğu gibi döner (bkz. o dosyadaki JSON_FIELDS notu). firma.html'in her yerde beklediği
-      // düz " · "-ayrımlı string biçimine burada TEK noktadan normalize edilir. Yalnızca dizi/string
-      // değil (bkz. gerçek bulgu: bir kayıtta cats JSON.parse sonrası ne dizi ne string bir değere
-      // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
-      // (sayı/boolean/obje) güvenli bir düz metne düşer.
-      const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
-      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, projectCount: row.project_count || 0, badges: [] };
+    // gerçek bulgu: bkz. src/routes/architect.js#handleArchitectListRoute'daki AYNI gerekçe/desen —
+    // sidebar sayaçları (loc/cat) TÜM havuzdan hesaplandığından D1 LIMIT/OFFSET burada işe yaramaz,
+    // bunun yerine ham sorgu+şekillendirme sonucu KV'de önbelleklenir (bkz. publicCache.js#
+    // getCachedPool). Filtre/sıralama mantığı DEĞİŞMEDİ.
+    const pool = await getCachedPool(env, 'offices', async () => {
+      const { results } = await env.DB.prepare(
+        `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url,
+           (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+            WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
+         FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
+      ).all();
+      return results.map(row => {
+        const o = parseCanonicalRow('offices', row);
+        // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
+        // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de
+        // olduğu gibi döner (bkz. o dosyadaki JSON_FIELDS notu). firma.html'in her yerde beklediği
+        // düz " · "-ayrımlı string biçimine burada TEK noktadan normalize edilir. Yalnızca dizi/string
+        // değil (bkz. gerçek bulgu: bir kayıtta cats JSON.parse sonrası ne dizi ne string bir değere
+        // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
+        // (sayı/boolean/obje) güvenli bir düz metne düşer.
+        const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
+        return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, projectCount: row.project_count || 0, badges: [] };
+      });
     });
 
     function passes(o) {

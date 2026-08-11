@@ -287,7 +287,7 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
           }
           if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
         }
-        await invalidatePublicCache();
+        await invalidatePublicCache(env);
         // Var olan (güncelleme ÖNCESİ) kaydın kimliğini hedefler — bkz. src/lib/ssrCache.js.
         const target = ssrPurgeTargetFor(typeKey, existing);
         if (target) await purgeSsrDetailCache(target.type, target.key);
@@ -350,7 +350,7 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       // (statik köken) bu no-op'tur, o kaydın kendi yaşam döngüsü legacyContent.js'e ait.
       if (existing && CANONICAL_TYPES.has(typeKey)) await markCanonicalDeletedForSubmission(env, typeKey, existing, user.id);
       if (existing && existing.status === 'approved' && FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
-      await invalidatePublicCache();
+      await invalidatePublicCache(env);
       if (target) await purgeSsrDetailCache(target.type, target.key);
       return json({ ok: true });
     }
@@ -499,6 +499,10 @@ async function handleBadgesAdmin(request, env, url, segments) {
         'hesabim.html'
       );
     }
+    // gerçek bulgu: /api/public/badges artık önbelleklendiğinden (bkz. publicCache.js#
+    // CACHEABLE_PATHS) burada temizlenmezse onay/red profil sayfalarına en fazla s-maxage (5dk)
+    // kadar hiç yansımazdı.
+    await invalidatePublicCache(env);
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);
@@ -515,8 +519,10 @@ const ADMIN_GRANTABLE_BADGES = new Set(['verified', 'gold', 'platinum', 'iz-bira
 // admin_badges, kullanıcı isteği: "Admin mimar veya marka profilini düzenlerken istediği rozeti
 // seçebilsin ve profile ekleyebilsin. Adminin yaptığı bu değişiklik hemen canlıya yansısın").
 // src/routes/badges.js#handlePublicBadges bu tabloyu satın alınan rozetlerle aynı çıktıya
-// birleştirir; o uç önbelleklenmediğinden (bkz. publicCache.js#CACHEABLE_PATHS) değişiklik bir
-// sonraki sayfa yüklemesinde hemen görünür — ayrıca ekstra bir cache temizleme adımına gerek yok.
+// birleştirir. gerçek bulgu (2026-08-11): o uç önceden hiç önbelleklenmiyordu, bu yorum o zamanki
+// "ekstra bir cache temizleme adımına gerek yok" gerekçesiydi — artık publicCache.js#
+// CACHEABLE_PATHS'e eklendiğinden PUT altındaki invalidatePublicCache() çağrısı olmadan bu
+// değişiklik en fazla s-maxage (5dk) kadar görünmezdi.
 async function handleProfileBadgeAdmin(request, env, url) {
   const profileType = url.searchParams.get('profileType');
   const profileKey = (url.searchParams.get('profileKey') || '').trim();
@@ -542,6 +548,7 @@ async function handleProfileBadgeAdmin(request, env, url) {
          ON CONFLICT (profile_type, profile_key) DO UPDATE SET badge_type = excluded.badge_type, updated_at = excluded.updated_at`
       ).bind(profileType, profileKey, badgeType, now).run();
     }
+    await invalidatePublicCache(env);
     return json({ ok: true });
   }
 

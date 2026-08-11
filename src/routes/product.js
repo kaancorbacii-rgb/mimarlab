@@ -1,6 +1,6 @@
 import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
@@ -77,9 +77,10 @@ async function fetchAdjacentProduct(env, id) {
 // eski biçim (id'siz `slugify(title + '-' + brand)`, bkz. o dosyalardaki AYNI fonksiyon) olabilir —
 // ikincisi için tabloyu tarayıp aynı fonksiyonla yeniden üretilen anahtarla karşılaştırma yapılır
 // (tablo küçük olduğundan ucuz, bkz. src/routes/architect.js#findArchitect'teki AYNI fallback deseni).
-// bkz. yukarıdaki dosya başı yorumu — hem GET /api/product/:key hem de src/routes/ratings.js#myRatings
-// (Beğendiklerim kutusu, ratingKeyFor'un ürettiği AYNI eski/yeni biçimli anahtarları çözmesi gerekiyor)
-// tarafından paylaşılır — iki ayrı kopya, biri güncellenip diğeri unutulursa sessizce ayrışabilirdi.
+// bkz. yukarıdaki dosya başı yorumu — GET /api/product/:key gibi TEK bir anahtarı çözen çağıranlar
+// için kullanılır (bkz. aşağıdaki handleProductDetailRoute). Birden çok anahtarı aynı anda çözen
+// çağıranlar (ratings.js#myRatings, saved.js#listSaved) bunun yerine aşağıdaki toplu karşılığı
+// findProductsByKeys'i kullanır — AYNI iki-aşamalı eşleştirme mantığı, iki ayrı kopya değil.
 export async function findProductByKey(env, key) {
   let row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(key).first();
   if (!row) {
@@ -88,6 +89,31 @@ export async function findProductByKey(env, key) {
     if (match) row = await env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
   }
   return row || null;
+}
+
+// findProductByKey'in TOPLU karşılığı — src/routes/ratings.js#myRatings (Beğendiklerim kutusu) ve
+// src/routes/saved.js#listSaved (Kaydettiklerim kutusu) her puanlanan/kaydedilen ürün için
+// findProductByKey'i ayrı ayrı çağırıyordu; legacy_static ürünlerde canonical `slug` id sonekli
+// olduğundan (yukarıdaki yorum) birincil `WHERE slug = ?` HER ZAMAN kaçırıyor ve N kez ayrı bir
+// tam-tablo taraması + JS karşılaştırması tetikleniyordu (gerçek bulgu — kullanıcının puanladığı/
+// kaydettiği her ürün için ayrı bir O(tablo) tarama, katalog büyüdükçe çarpımsal). Bu fonksiyon AYNI
+// iki-aşamalı eşleştirmeyi (önce doğrudan slug, sonra eski id'siz `slugify(title-brand)` anahtarı)
+// TEK bir sorgu + tek bir JS taramasıyla, istenen TÜM anahtarlar için bir kerede çözer.
+// findProductByKey'in kendisi (tek seferlik çağrılarda, ör. handleProductDetailRoute) DEĞİŞTİRİLMEDİ.
+export async function findProductsByKeys(env, keys) {
+  const map = new Map();
+  const wanted = new Set(keys.filter(Boolean));
+  if (!wanted.size) return map;
+
+  const { results } = await env.DB.prepare(`SELECT * FROM products WHERE deleted_at IS NULL`).all();
+  const bySlug = new Map();
+  const byLegacyKey = new Map();
+  for (const row of results) {
+    bySlug.set(row.slug, row);
+    byLegacyKey.set(slugify(`${row.title}-${row.brand_name_raw || ''}`), row);
+  }
+  for (const key of wanted) map.set(key, bySlug.get(key) || byLegacyKey.get(key) || null);
+  return map;
 }
 
 export async function handleProductDetailRoute(request, env, url, rawKey) {
@@ -164,24 +190,35 @@ export async function handleProductListRoute(request, env, url) {
     // submissionId'yi render eder (bkz. aşağıdaki pool.map) — description/specs/website gibi
     // yalnızca tekil ürün sayfasında (handleProductDetailRoute, ayrı bir sorgu) gereken ağır metin
     // kolonları bu listeye dahil edilmiyor.
-    const [productsRes, ratingRows] = await Promise.all([
-      env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
-      env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
-    ]);
-    const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
+    // gerçek bulgu: bkz. src/routes/architect.js#handleArchitectListRoute'daki AYNI gerekçe/desen —
+    // sidebar sayaçları (group/category/brand/rating) TÜM havuzdan hesaplandığından D1 LIMIT/OFFSET
+    // burada işe yaramaz, bunun yerine ham sorgu+şekillendirme sonucu KV'de önbelleklenir (bkz.
+    // publicCache.js#getCachedPool). NOT — pool'a gömülen `rating` alanı (ratings tablosundan) yalnızca
+    // dahili filtre/sıralama için kullanılır, ASLA `items` çıktısına yansımaz (bkz. aşağıdaki
+    // `.map(({ group, rating, ...rest }) => rest)`) — bu yüzden yeni bir puanlama, ürün/mimar/firma
+    // içerik yazmalarıyla AYNI invalidatePublicCache() tetiklenmediğinden ("Puan" filtre sayacı VE
+    // rating_desc/rating_asc sıralaması için) en fazla POOL_CACHE_TTL_SECONDS (5dk) kadar bayat
+    // kalabilir — facet_counts.js'in kendi KV_TTL_SECONDS'ı ile AYNI kabul edilebilir pencere.
+    const pool = await getCachedPool(env, 'products', async () => {
+      const [productsRes, ratingRows] = await Promise.all([
+        env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
+        env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
+      ]);
+      const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
 
-    const pool = productsRes.results.map(row => {
-      const p = shapeProductItem(row);
-      const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
-      const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
-      const ratingKey = ratingKeyFor(p.title, p.brand, submissionId);
-      const group = taxonomyGroupOf(CATALOG_TAXONOMY, p.category);
-      const ratingKind = p.kind === 'material' ? 'material' : 'product';
-      const rating = ratingByKey.get(`${ratingKind}:${ratingKey}`) || { average: 0, count: 0 };
-      return {
-        slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
-        image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
-      };
+      return productsRes.results.map(row => {
+        const p = shapeProductItem(row);
+        const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
+        const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
+        const ratingKey = ratingKeyFor(p.title, p.brand, submissionId);
+        const group = taxonomyGroupOf(CATALOG_TAXONOMY, p.category);
+        const ratingKind = p.kind === 'material' ? 'material' : 'product';
+        const rating = ratingByKey.get(`${ratingKind}:${ratingKey}`) || { average: 0, count: 0 };
+        return {
+          slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
+          image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
+        };
+      });
     });
 
     // urun.html#passesFilters ile BİREBİR aynı — exceptKey ile o grubun kendi seçimi hariç tutularak

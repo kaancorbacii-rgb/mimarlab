@@ -38,6 +38,15 @@
       "id": "9a8a1cfde13447a498bc5dcc4bc7d4ae"
     }
   ],
+  // Yükleme anında görsel optimizasyonu (bkz. src/lib/imageOptimize.js, kullanıcı isteği: R2
+  // deposuna yazılan görselleri orijinal boyutta değil, yeniden boyutlandırılmış/WebP'ye
+  // dönüştürülmüş olarak yaz). Cloudflare Workers Images binding — Worker içinden doğrudan görsel
+  // byte'ları üzerinde işlem yapar (URL tabanlı /cdn-cgi/image/ istekleri GEREKMEZ, bu da image-cdn.js'in
+  // serve-time kullanımından AYRI bir mekanizma). Aylık 5.000 ücretsiz "unique transformation"
+  // (sonrası $0,50/1000, bkz. https://developers.cloudflare.com/images/pricing/) — imageOptimize.js
+  // her hatada (kota aşımı dahil) SESSİZCE orijinali değiştirmeden bırakır, yükleme akışını
+  // ASLA engellemez.
+  "images": { "binding": "IMAGES" },
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler

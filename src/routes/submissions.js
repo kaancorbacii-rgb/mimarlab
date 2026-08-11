@@ -10,6 +10,7 @@ import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 const FACET_TYPES = new Set(['projects', 'products', 'materials']);
@@ -170,6 +171,16 @@ export async function handleSubmissionRoute(request, env, url) {
 }
 
 async function createSubmission(request, env, user, typeKey) {
+  // gerçek bulgu: checkSubmissionQuota yalnızca products/materials için (rozet kademesine bağlı
+  // aylık bir üst sınırla) koruma sağlıyor — projects/architects/offices'te HİÇBİR sınır yoktu,
+  // oturum açmış tek bir hesap sınırsız gönderi oluşturup admin moderasyon kuyruğunu doldurabilirdi.
+  // Bu, tüm gönderi tiplerini kapsayan genel bir üst sınır; products/materials için zaten var olan
+  // daha katı aylık kotayı DEĞİŞTİRMEZ, yalnızca kısa vadeli patlama (burst) senaryosuna karşı ek
+  // bir savunma katmanı ekler.
+  if (!(await checkRateLimit(env, 'submission', user.id, 20, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla gönderi oluşturdun. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+
   const body = await readJson(request);
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
@@ -249,7 +260,7 @@ async function createSubmission(request, env, user, typeKey) {
       syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
       if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
     }
-    await invalidatePublicCache();
+    await invalidatePublicCache(env);
     // claimed_slug/claimed_profile_key'liyse bu, ziyaretçilerin ZATEN görüntülemiş olabileceği
     // statik bir sayfaya bindirilen bir düzenlemedir — o sayfanın SSR önbelleğini temizle (bkz.
     // src/lib/ssrCache.js). Marka yeni (claim'siz) bir kayıt için bu bir no-op'tur (henüz hiç
@@ -368,7 +379,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
       }
       if (FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
     }
-    await invalidatePublicCache();
+    await invalidatePublicCache(env);
     // Değişiklik ÖNCESİ kaydın kimliğini hedefler (görüntülenen sayfa hâlâ bu anahtar altında
     // önbelleklenmiş olabilir) — bkz. src/lib/ssrCache.js. Slug değiştiyse ESKİ slug'ın önbelleği
     // syncProject/renameOfficeEverywhere/renameArchitectEverywhere içinde ZATEN temizlenir (bkz. o

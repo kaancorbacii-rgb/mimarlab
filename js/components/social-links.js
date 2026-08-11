@@ -1,9 +1,9 @@
-// SocialLinks — mimar/firma/danışman profil pop-up'larında Kaydet/Paylaş satırının altına eklenen
+// SocialLinks — mimar/firma profil pop-up'larında Kaydet/Paylaş satırının altına eklenen
 // tek satırlık sosyal medya ikon(lar)ı (bkz. kullanıcı isteği: "kaydet, paylaş vs. butonlarının
 // altındaki satırda en soldan başlayarak sağa doğru sıralansınlar"). save-widget.js/share-button.js
 // ile AYNI desen — modal-shell.js gibi içerikten bağımsız, her sayfada
 // <script src="js/components/social-links.js"> ile dahil edilir, global `SocialLinks` nesnesini
-// dışa verir. mimar-ekle.html/firma-ekle.html/danisman-ekle.html'deki Sosyal Medya kutucuğunun
+// dışa verir. mimar-ekle.html/firma-ekle.html'deki Sosyal Medya kutucuğunun
 // platform seçenekleriyle (instagram/linkedin/x) BİREBİR aynı enum — bkz. src/lib/
 // submissionTypes.js#SOCIAL_PLATFORMS.
 const SocialLinks = (function () {
@@ -39,9 +39,9 @@ const SocialLinks = (function () {
     return '';
   }
 
-  // platform/url: buildArchitectPayload/buildOfficePayload/buildConsultantPayload'ın item.socialPlatform/
-  // item.socialUrl alanları (bkz. src/routes/architect.js|office.js|consultant.js) — link yoksa/
-  // geçersizse boş string döner, çağıran satırı hiç render etmez.
+  // platform/url: buildArchitectPayload/buildOfficePayload'ın item.socialPlatform/item.socialUrl
+  // alanları (bkz. src/routes/architect.js|office.js) — link yoksa/geçersizse boş string döner,
+  // çağıran satırı hiç render etmez.
   function html(platform, url) {
     const href = url ? safeUrl(url) : '';
     if (!platform || !href || !ICONS[platform]) return '';

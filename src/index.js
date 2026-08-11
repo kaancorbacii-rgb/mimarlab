@@ -387,6 +387,17 @@ a{display:inline-block; background:#1B2A3D; color:#F5F3EF; text-decoration:none;
   return new Response(html, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
+// /proje|mimar|firma|urun/:slug altında eşleşmeyen bir slug için serveDetailPage tarafından
+// çağrılır — listeleme şablonunun AYNI HTML gövdesi korunur (client JS zaten doğru "bulunamadı"
+// durumunu kendi başına render ediyor), yalnızca durum kodu 404'e çevrilir ve bot'ların bu boş
+// kabuğu indekslememesi için noindex meta'sı eklenir.
+function notFoundDetailPageResponse(assetResponse) {
+  const rewritten = new HTMLRewriter()
+    .on('head', { element(el) { el.append('<meta name="robots" content="noindex, follow">', { html: true }); } })
+    .transform(assetResponse);
+  return new Response(rewritten.body, { status: 404, statusText: 'Not Found', headers: rewritten.headers });
+}
+
 function withStaticImageCacheHeaders(url, response) {
   if (response.status !== 200 || !IMAGE_EXT_RE.test(url.pathname)) return response;
   const headers = new Headers(response.headers);
@@ -430,7 +441,15 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
       }
     }
   }
-  if (!meta || assetResponse.status !== 200) return assetResponse;
+  if (assetResponse.status !== 200) return assetResponse;
+  // gerçek bulgu: slug hiçbir kayıtla eşleşmiyorsa (silinmiş/yeniden adlandırılmış/yanlış yazılmış,
+  // yukarıdaki slug-redirect kontrolü de boşsa) burası önceden hep 200 OK ile çıplak listeleme
+  // şablonunu dönüyordu — istemci tarafı (bkz. js/components/project-modal.js#renderNotFound vb.)
+  // zaten item:null'ı doğru şekilde "bulunamadı" modalıyla render ediyordu, yalnızca HTTP durum kodu
+  // yanlıştı. Arama motorları bunu "soft 404" olarak işaretleyip tarama bütçesini/indeksleme
+  // güvenini düşürüyordu (bkz. src/lib/publicCache.js#statusFor — /api/project|architect|office|
+  // product/:slug uçlarındaki AYNI düzeltmenin sayfa-seviyesi karşılığı).
+  if (!meta) return notFoundDetailPageResponse(assetResponse);
 
   const rewritten = injectMeta(assetResponse, meta);
   const headers = new Headers(rewritten.headers);
@@ -538,7 +557,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/contact') return handleContactRoute(request, env, url);
   if (path === '/api/csp-report') return handleCspReportRoute(request);
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);
-  if (path === '/api/public/badges') return handlePublicBadges(env);
+  if (path === '/api/public/badges') return handlePublicBadges(request, env, url);
   if (path.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
   // Faz 1 — mimar-detay.html/ofis-detay.html/proje.html'nin eskiden istemci tarafında yaptığı
   // statik veri + onaylı gönderi overlay birleştirmesinin sunucu tarafı karşılığı (bkz.

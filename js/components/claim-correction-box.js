@@ -75,9 +75,12 @@ function createClaimCorrectionBox(config){
     isProfileOwner = false;
     const card = document.getElementById('claim-info-card');
     const body = document.getElementById('claim-card-body');
-    // consultant-modal.js bu kutuyu DOM'a hiç koymuyor (bkz. kullanıcı isteği: "Bu profil sana mı
-    // ait?" kaldırıldı) — isProfileOwner hesaplaması yine de aşağıda çalışmalı ki Düzenle butonu
-    // doğru görünürlükte kalsın, yalnızca görünür kart güncellemeleri atlanır.
+    // Bu fonksiyon TÜM ClaimCorrectionBox çağıranları için (init() üzerinden) çalışır, ama yalnızca
+    // architect-modal.js/office-modal.js şablonlarında bir #claim-info-card elemanı var — project/
+    // product profilleri (yalnızca loadCorrectionCard'ı kullanır, bkz. src/routes/claims.js#
+    // PROFILE_TYPES'ın architect/office ile sınırlı olması) bu kutuyu DOM'a hiç koymaz.
+    // isProfileOwner hesaplaması yine de aşağıda çalışmalı ki Düzenle butonu doğru görünürlükte
+    // kalsın, yalnızca görünür kart güncellemeleri atlanır.
     if(!card || !body){
       if(config.ready) await config.ready;
       if(!currentUser) return;

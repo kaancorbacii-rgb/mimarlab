@@ -236,8 +236,8 @@ const ArchitectModal = (function () {
   }
 
   // bkz. kullanıcı isteği: profile birden fazla sosyal medya bağlantısı eklenebilsin
-  // (mimar-ekle.html#social-row, migrations/0036_social_links.sql) — office-modal.js/
-  // consultant-modal.js'te AYNI ikon seti/fonksiyon kopyalanır.
+  // (mimar-ekle.html#social-row, migrations/0036_social_links.sql) — office-modal.js'te
+  // AYNI ikon seti/fonksiyon kopyalanır.
   const SOCIAL_ICON_SVG = {
     instagram: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>',
     linkedin: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg>',

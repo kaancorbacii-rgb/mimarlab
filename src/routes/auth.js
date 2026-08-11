@@ -100,9 +100,22 @@ async function oauthCallback(request, env, url, provider) {
   const configured = provider === 'google' ? isGoogleConfigured(env) : isLinkedInConfigured(env);
   if (!configured) return redirectResponse('/giris-yap.html?oauth_error=not_configured');
 
-  const result = provider === 'google'
-    ? await handleGoogleCallback(request, env, url)
-    : await handleLinkedInCallback(request, env, url);
+  // gerçek bulgu: handleGoogleCallback/handleLinkedInCallback içindeki token-exchange/userinfo
+  // fetch() çağrıları (bkz. src/lib/oauth.js) try/catch içinde değildi — HTTP durumu kötü dönerse
+  // zaten { error: '...' } ile nazikçe ele alınıyor, ama Workers'ta gerçekleşebilecek bir ağ
+  // seviyesi istisna (DNS/timeout/geçici kesinti) src/index.js'teki genel catch'e düşüp kullanıcıyı
+  // Google/LinkedIn'in onay ekranından döndüğünde çıplak bir 500 JSON'una bırakıyordu — bu
+  // fonksiyondaki HER DİĞER hata yolu zaten aynı oauth_error yönlendirme desenini kullanıyor,
+  // burası da aynı desene alınır.
+  let result;
+  try {
+    result = provider === 'google'
+      ? await handleGoogleCallback(request, env, url)
+      : await handleLinkedInCallback(request, env, url);
+  } catch (err) {
+    console.error(`oauthCallback(${provider}) failed`, err);
+    return redirectResponse('/giris-yap.html?oauth_error=network_error');
+  }
   if (result.error) return redirectResponse(`/giris-yap.html?oauth_error=${encodeURIComponent(result.error)}`);
 
   const ip = clientIp(request);
@@ -110,9 +123,14 @@ async function oauthCallback(request, env, url, provider) {
     return redirectResponse('/giris-yap.html?oauth_error=rate_limited');
   }
 
-  const user = await upsertOAuthUser(env, result.profile);
-  const { token, maxAge } = await createSession(env, user.id);
-  return redirectResponse(safeNextPath(result.next), { 'Set-Cookie': sessionCookieHeader(token, request, maxAge) });
+  try {
+    const user = await upsertOAuthUser(env, result.profile);
+    const { token, maxAge } = await createSession(env, user.id);
+    return redirectResponse(safeNextPath(result.next), { 'Set-Cookie': sessionCookieHeader(token, request, maxAge) });
+  } catch (err) {
+    console.error(`oauthCallback(${provider}) session creation failed`, err);
+    return redirectResponse('/giris-yap.html?oauth_error=network_error');
+  }
 }
 
 async function signup(request, env) {
@@ -207,6 +225,13 @@ async function changePassword(request, env) {
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
+  // gerçek bulgu: mevcut şifre denemesinde login'deki gibi bir hız sınırı yoktu — çalınmış/paylaşılan
+  // bir oturum çerezine sahip biri currentPassword'ü deneme-yanılmayla bulmaya çalışabilirdi.
+  // login-email limitiyle AYNI oran (15dk'da 10 deneme), burada e-posta yerine oturumdaki user.id anahtar.
+  if (!(await checkRateLimit(env, 'change-password', user.id, 10, 15 * 60 * 1000))) {
+    return errorJson('Çok fazla deneme yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '900' });
+  }
+
   const body = await readJson(request);
   const currentPassword = body.currentPassword || '';
   const newPassword = body.newPassword || '';
@@ -219,6 +244,20 @@ async function changePassword(request, env) {
 
   const passwordHash = await hashPassword(newPassword);
   await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(passwordHash, user.id).run();
+
+  // gerçek bulgu: resetPassword (unutulan şifre akışı) şifre değişince TÜM oturumları kapatıyor, ama
+  // oturum-içi bu akışta o desen hiç uygulanmıyordu — çalınmış/paylaşılan bir çerezle giriş yapmış bir
+  // saldırganın oturumu, meşru kullanıcı şifresini değiştirdikten SONRA bile geçerli kalmaya devam
+  // ederdi. resetPassword'ün aksine burada isteği yapan kendi oturumu (mevcut token) hariç tutulur —
+  // kullanıcı kendi şifresini değiştirdiğinde beklenmedik şekilde çıkışa zorlanmamalı.
+  const currentToken = parseCookies(request)[SESSION_COOKIE];
+  const currentTokenHash = currentToken ? await sha256Hex(currentToken) : null;
+  if (currentTokenHash) {
+    await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').bind(user.id, currentTokenHash).run();
+  } else {
+    await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id).run();
+  }
+
   return json({ ok: true });
 }
 

@@ -6,6 +6,7 @@ import { createNotification } from '../lib/notify.js';
 import { initializeCheckoutForm, retrieveCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
 import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership } from './badges.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
+import { invalidatePublicCache } from '../lib/publicCache.js';
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır (bkz. src/routes/badges.js)
 
@@ -204,7 +205,20 @@ async function handleCallback(request, env, url) {
     await env.DB.prepare(
       `UPDATE badge_requests SET status='active', expires_at=?, payment_id=?, updated_at=? WHERE id=?`
     ).bind(expiresAt, result.paymentId || null, now, row.id).run();
-    await createNotification(env, row.user_id, 'badge_active', 'Rozetin aktif edildi', 'Ödemen alındı, rozetin artık aktif.', '/hesabim');
+    // gerçek bulgu: /api/public/badges artık önbelleklendiğinden (bkz. publicCache.js#
+    // CACHEABLE_PATHS) burada temizlenmezse yeni aktive edilen rozet mimar/marka profil sayfasında
+    // en fazla s-maxage (5dk) kadar görünmezdi — admin.js#handleBadgesAdmin'in manuel onay yolundaki
+    // AYNI çağrının kart ödemesi karşılığı.
+    await invalidatePublicCache(env);
+    // gerçek bulgu: ödeme zaten doğrulanıp rozet zaten 'active' yapıldıktan SONRA çalışan bu
+    // best-effort bildirim adımı sarmalanmamıştı — atarsa kullanıcı, parası çekilip rozeti aktive
+    // olmuş olmasına rağmen çıplak 500 hatasına düşüyordu (bkz. src/index.js'teki genel catch).
+    // sendContactNotificationEmail/sendPasswordResetEmail'deki AYNI "logla, yut" deseni.
+    try {
+      await createNotification(env, row.user_id, 'badge_active', 'Rozetin aktif edildi', 'Ödemen alındı, rozetin artık aktif.', '/hesabim');
+    } catch (err) {
+      console.error('badge_active notification failed', err);
+    }
     return Response.redirect(`${origin}/hesabim?payment=success`, 302);
   }
 

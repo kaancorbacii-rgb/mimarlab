@@ -3,7 +3,8 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
-import { findProductByKey } from './product.js';
+import { findProductsByKeys } from './product.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 const TARGET_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
 
@@ -51,6 +52,12 @@ async function upsertRating(request, env) {
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Puan vermek için giriş yapmalısın.', 401);
 
+  // gerçek bulgu: bu uçta hiç hız sınırı yoktu. saved.js#createSaved ile AYNI gerekçe/oran —
+  // bir oturumda birçok proje/ürünü puanlamak meşru bir kullanım olduğundan cömert bir üst sınır.
+  if (!(await checkRateLimit(env, 'rating', user.id, 100, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla puanlama işlemi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+
   const body = await readJson(request);
   const targetType = body.targetType;
   const targetId = (body.targetId || '').trim();
@@ -81,7 +88,7 @@ async function upsertRating(request, env) {
 // anahtar (mimar/firma için bare isim, proje için slug) olarak saklanır, bkz. rating-widget.js#
 // dataset.key/js/components/project-modal.js#renderItem. product/material İSTİSNA: target_id
 // src/routes/product.js#ratingKeyFor'un ürettiği ayrı bir anahtar (m-<id> ya da eski
-// slugify(title-brand) biçimi) — bu yüzden onlar findProductByKey ile (findCanonicalRowByNaturalKey
+// slugify(title-brand) biçimi) — bu yüzden onlar findProductsByKeys ile (findCanonicalRowByNaturalKey
 // DEĞİL) ayrıca çözülür, bkz. aşağıdaki myRatings.
 const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
 const HREF_BASE_BY_TARGET = { project: '/proje/', product: '/urun/', material: '/urun/', architect: '/mimar/', office: '/firma/' };
@@ -116,10 +123,18 @@ async function myRatings(request, env) {
     'SELECT target_type, target_id, stars, updated_at FROM ratings WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(user.id).all();
 
+  // gerçek bulgu: burada eskiden her puanlanan ürün için ayrı ayrı findProductByKey çağrılıyordu —
+  // legacy_static ürünlerde bu HER SEFERİNDE bir tam-tablo taraması tetikliyordu (bkz. product.js#
+  // findProductsByKeys yorumu). Tek bir toplu sorguyla N ayrı tarama 1'e indirilir.
+  const productKeys = results
+    .filter(r => r.target_type === 'product' || r.target_type === 'material')
+    .map(r => r.target_id);
+  const productRows = await findProductsByKeys(env, productKeys);
+
   const items = [];
   for (const r of results) {
     const row = (r.target_type === 'product' || r.target_type === 'material')
-      ? await findProductByKey(env, r.target_id)
+      ? (productRows.get(r.target_id) || null)
       : (CANONICAL_TYPE_BY_TARGET[r.target_type] ? await findCanonicalRowByNaturalKey(env, CANONICAL_TYPE_BY_TARGET[r.target_type], r.target_id) : null);
     if (!row || row.deleted_at || row.hidden_at) continue;
     const shaped = ratingCardShape(r.target_type, row);

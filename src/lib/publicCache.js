@@ -48,6 +48,18 @@ const PUBLIC_LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxa
 const CACHEABLE_PATHS = [
   '/api/public/hidden', '/api/public/project-edits', '/api/public/profile-edits',
   '/api/public/news',
+  // gerçek bulgu: bu uç önceden hiç önbelleklenmiyordu — badge-shared.js onu index.html/mimar.html/
+  // firma.html/proje.html/urun.html/arama.html olmak üzere 6 çekirdek sayfanın HER açılışında fetch
+  // ediyordu, sorgu iki JOIN (profile_claims × badge_requests + admin_badges tam taraması) içeriyor.
+  // Admin rozet mutasyon uçları (handleBadgesAdmin/handleProfileBadgeAdmin, bkz. admin.js) artık
+  // invalidatePublicCache() çağırıyor, bu yüzden buraya eklenmesi güvenli.
+  '/api/public/badges',
+  // gerçek bulgu: proje.html/urun.html kenar çubuğu sayaçları (bkz. src/routes/facets.js) edge
+  // Cache API katmanını tamamen atlıyordu — altındaki facetCounts.js#getCachedFacetCounts KV'nin
+  // kendi 300s TTL'i D1'i koruyordu ama her sayfa yüklemesi yine de Worker+KV'ye gidiyordu.
+  // facetCounts.js#bumpFacetCounts ile AYNI admin/gönderi onayı yazma yollarından zaten
+  // invalidatePublicCache() çağrıldığından buraya eklenmesi güvenli, ayrı bir invalidation gerekmez.
+  '/api/facets/projects', '/api/facets/products',
 ];
 
 // Faz 4B — GET /api/projects, /api/architects, /api/offices, /api/products, /api/news (sayfalama/
@@ -105,6 +117,16 @@ function contentHash(str) {
   return (hash >>> 0).toString(16);
 }
 
+// Tekil kayıt uçları (mimar/firma/proje/ürün detay) computeData() sonucunda {item:null,...}
+// döndürdüğünde artık gerçek bir HTTP 404 dönülür (gerçek bulgu: önceden hep 200 OK dönüyordu —
+// arama motorları bunu "soft 404" olarak işaretleyip tarama bütçesini/indeksleme güvenini
+// düşürüyordu; istemci tarafı zaten item:null'ı "bulunamadı" olarak render ediyordu, yalnızca
+// durum kodu yanlıştı). Liste uçlarının gövdesi bu şekli hiç almadığından (dizi döner, `item`
+// alanı yok) yalnızca proje.js/architect.js/office.js/product.js'teki tekil detay uçlarını etkiler.
+function statusFor(data) {
+  return data && data.item === null ? 404 : 200;
+}
+
 // GET /api/public/* + sayfalanmış liste uçlarının ortak sarmalayıcısı. computeData(), yanıt
 // gövdesini (JSON'a çevrilecek düz obje) üreten async bir fonksiyondur.
 //
@@ -123,13 +145,13 @@ function contentHash(str) {
 // gidilmeden) ETag eklenir.
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
-  if (admin) return json(await computeData(), 200, ADMIN_CACHE_HEADERS);
+  if (admin) { const data = await computeData(); return json(data, statusFor(data), ADMIN_CACHE_HEADERS); }
 
   const listPath = isListPath(pathname);
   const cacheable = CACHEABLE_PATHS.includes(pathname) || listPath;
   const headers = listPath ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
 
-  if (!cacheable) return json(await computeData(), 200, headers);
+  if (!cacheable) { const data = await computeData(); return json(data, statusFor(data), headers); }
 
   const cacheKey = cacheKeyFor(pathname);
 
@@ -187,15 +209,53 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   return response;
 }
 
+// gerçek bulgu: architect.js/office.js/product.js liste uçları, sidebar filtre sayaçlarını (dob/
+// award/position; loc/cat; group/category/brand/rating) AYNI yanıtın içinde, HER İSTEKTE tüm
+// havuzdan (filtresiz) hesaplıyor — project.js'in aksine (orada filtreler AYRI bir uçta, /api/
+// projects/filters) bu üç uç sayaçları liste yanıtından ayıramaz (bkz. kullanıcı isteği: mevcut API
+// şekli korunsun). Bu yüzden project.js#fetchProjectListPageFromD1'in D1 LIMIT/OFFSET deseni burada
+// işe yaramaz — sayaçlar için zaten TÜM havuzun taranması gerekir, ayrı bir sayfalanmış sorgu
+// yalnızca EK bir D1 çağrısı olurdu. Bunun yerine PAHALI kısmın kendisi (JOIN + correlated subquery
+// ile ham/filtresiz havuzu çekmek) KV'de önbelleklenir — sayfa/sort/filtre kombinasyonu farklı bir
+// TAM URL üretse bile (bkz. cacheKeyFor, üstteki önbellek TAM URL anahtarlıdır) hepsi AYNI havuzu
+// paylaşır; D1'e yalnızca KV boşken gidilir, filtre/sıralama/sayfalama mantığının kendisi (Türkçe
+// locale tie-break dahil) JS'te DEĞİŞMEDEN kalır — SQL'de güvenle yeniden üretilemeyecek bir sıralama
+// riskine (ör. Ç/Ğ/İ/Ö/Ş/Ü harfli isimlerin SQLite'ın collation'ı olmadığı için yanlış sırada
+// çıkması) hiç girilmez.
+const POOL_CACHE_TTL_SECONDS = 300;
+const POOL_CACHE_KINDS = ['architects', 'offices', 'products'];
+function poolCacheKey(kind) { return `pool:${kind}`; }
+
+// fetchPool() yalnızca KV boşsa çağrılır (pahalı JOIN+subquery sorgusu) — dönen değer, çağıranın
+// zaten filtre/sırala/sayfala için kullandığı ŞEKİLLENDİRİLMİŞ (map edilmiş) pool dizisidir, ham D1
+// satırları DEĞİL; böylece cache HIT'te satır->obje dönüşümü de atlanır.
+export async function getCachedPool(env, kind, fetchPool) {
+  if (env.FACET_CACHE) {
+    const cached = await env.FACET_CACHE.get(poolCacheKey(kind), 'json');
+    if (cached) return cached;
+  }
+  const pool = await fetchPool();
+  if (env.FACET_CACHE) await env.FACET_CACHE.put(poolCacheKey(kind), JSON.stringify(pool), { expirationTtl: POOL_CACHE_TTL_SECONDS });
+  return pool;
+}
+
 // Admin panelinden bir POST/PATCH/DELETE ile içerik değiştiğinde çağrılır (bkz. src/routes/
-// admin.js#handleSubmissionsAdmin, src/routes/submissions.js, src/routes/legacyContent.js).
-// Hangi public uç(lar)ın etkilendiğini tek tek izlemek yerine (7 gönderi tipi + statik içerik +
-// claimed_slug/claimed_profile_key çapraz etkileri nedeniyle kolayca eksik/hatalı olurdu)
-// sabit anahtar listesinin TAMAMI (4 sabit yol + 4 liste ucunun PARAMETRESİZ varyantı) temizlenir
-// — bu uçlar hafif D1 sorguları olduğundan gereksiz yere temizlenmelerinin maliyeti düşük (bkz.
-// kullanıcı isteği: "ilgili cache tag'ini invalidation yapacak ... mantığı kur").
-export async function invalidatePublicCache() {
-  await Promise.all([...CACHEABLE_PATHS, ...BARE_LIST_PATHS].map(async p => {
-    try { await caches.default.delete(cacheKeyFor(p)); } catch {}
-  }));
+// admin.js#handleSubmissionsAdmin, src/routes/submissions.js, src/routes/legacyContent.js,
+// src/routes/payments.js). Hangi public uç(lar)ın etkilendiğini tek tek izlemek yerine (7 gönderi
+// tipi + statik içerik + claimed_slug/claimed_profile_key çapraz etkileri nedeniyle kolayca eksik/
+// hatalı olurdu) sabit anahtar listesinin TAMAMI (4 sabit yol + 4 liste ucunun PARAMETRESİZ
+// varyantı) VE yukarıdaki üç pool cache anahtarı BİRLİKTE temizlenir — bu uçlar hafif D1 sorguları
+// olduğundan gereksiz yere temizlenmelerinin maliyeti düşük (bkz. kullanıcı isteği: "ilgili cache
+// tag'ini invalidation yapacak ... mantığı kur"). `env` parametresi — yukarıdaki pool cache KV
+// binding'ine (FACET_CACHE) erişmek için gerekli, öncesinde bu fonksiyon parametresizdi; TÜM çağıran
+// noktalar (13 tanesi) buna göre güncellendi.
+export async function invalidatePublicCache(env) {
+  await Promise.all([
+    ...[...CACHEABLE_PATHS, ...BARE_LIST_PATHS].map(async p => {
+      try { await caches.default.delete(cacheKeyFor(p)); } catch {}
+    }),
+    ...(env && env.FACET_CACHE ? POOL_CACHE_KINDS.map(async kind => {
+      try { await env.FACET_CACHE.delete(poolCacheKey(kind)); } catch {}
+    }) : []),
+  ]);
 }

@@ -1,6 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
 // /api/corrections (bkz. handleCorrectionsRoute) sahiplenme değil salt bilgi-bildirimi olduğundan
@@ -34,6 +35,13 @@ export async function handleCorrectionsRoute(request, env, url) {
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
+  // gerçek bulgu: bu uçta hiç hız sınırı yoktu — dosya başı yorumunda da belirtildiği gibi
+  // profile_corrections'ın unique kısıtı yok (aynı kullanıcı aynı profil için sınırsız öneri
+  // gönderebilir), admin kuyruğunu doldurma riskine karşı kullanıcı bazlı bir üst sınır.
+  if (!(await checkRateLimit(env, 'correction', user.id, 20, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla öneri gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+
   const body = await readJson(request);
   const profileType = body.profileType;
   const profileKey = (body.profileKey || '').trim();
@@ -60,6 +68,13 @@ async function myClaims(env, user) {
 }
 
 async function createClaim(request, env, user) {
+  // gerçek bulgu: bu uçta hiç hız sınırı yoktu — AYNI hedef için mükerrer satır oluşturulamasa da
+  // (bkz. aşağıdaki 'existing' kontrolü) tek bir hesap FARKLI onlarca profil için ardı ardına talep
+  // açıp admin "Profil Talepleri" kuyruğunu doldurabilirdi.
+  if (!(await checkRateLimit(env, 'claim', user.id, 20, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla talep gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+
   const body = await readJson(request);
   const profileType = body.profileType;
   const profileKey = (body.profileKey || '').trim();

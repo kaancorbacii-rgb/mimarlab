@@ -119,7 +119,7 @@ async function toggleLegacyHidden(request, env, user) {
   const key = (body.key || '').trim();
   if (!key) return errorJson('Geçersiz kayıt.');
   await setLegacyHidden(env, user, body.type, key, !!body.hidden);
-  await invalidatePublicCache();
+  await invalidatePublicCache(env);
   return json({ ok: true });
 }
 
@@ -352,7 +352,7 @@ export async function runProjectAction(env, user, { action, id, slug } = {}) {
       if (row.claimed_slug) await setLegacyHidden(env, user, 'projects', row.claimed_slug, false);
       else await bumpFacetCounts(env, 'projects');
     }
-    await invalidatePublicCache();
+    await invalidatePublicCache(env);
     await purgeSsrDetailCache('project', targetSlug);
     return json({ ok: true });
   }
@@ -371,7 +371,7 @@ export async function runProjectAction(env, user, { action, id, slug } = {}) {
     await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
     await cascadeDeleteProject(env, slug);
     await bumpFacetCounts(env, 'projects');
-    await invalidatePublicCache();
+    await invalidatePublicCache(env);
     await purgeSsrDetailCache('project', slug);
     return json({ ok: true });
   }
@@ -394,7 +394,7 @@ export async function runProjectAction(env, user, { action, id, slug } = {}) {
     ).bind(newId(), user.id, 'archived', now, now, slug, slug, ...bindProjectFields(fields)).run();
   }
   await setLegacyHidden(env, user, 'projects', slug, true);
-  await invalidatePublicCache();
+  await invalidatePublicCache(env);
   await purgeSsrDetailCache('project', slug);
   return json({ ok: true });
 }
@@ -532,7 +532,7 @@ export async function runContentAction(env, user, { type, action, id, key }) {
       if (targetKey) await setLegacyHidden(env, user, type, targetKey, false);
       else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     }
-    await invalidatePublicCache();
+    await invalidatePublicCache(env);
     const target = ssrPurgeTargetFor(type, row);
     if (target) await purgeSsrDetailCache(target.type, target.key);
     return json({ ok: true });
@@ -552,7 +552,7 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     }
     await runContentCascadeDelete(env, user, type, { key });
     if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
-    await invalidatePublicCache();
+    await invalidatePublicCache(env);
     const target = ssrPurgeTargetFor(type, { name: key });
     if (target) await purgeSsrDetailCache(target.type, target.key);
     return json({ ok: true });
@@ -587,7 +587,7 @@ export async function runContentAction(env, user, { type, action, id, key }) {
   }
 
   await setLegacyHidden(env, user, type, key, true);
-  await invalidatePublicCache();
+  await invalidatePublicCache(env);
   const target = ssrPurgeTargetFor(type, { name: key });
   if (target) await purgeSsrDetailCache(target.type, target.key);
   return json({ ok: true });

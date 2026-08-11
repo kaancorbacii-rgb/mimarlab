@@ -2,6 +2,8 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
+import { cachedPublicJson } from '../lib/publicCache.js';
+import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 
 // Fiyatlar TL/ay cinsinden (aylık abonelik); ödeme yöntemi havale/EFT (bkz. satin-al.html) —
 // kredi/banka kartı (iyzico, bkz. src/routes/payments.js) henüz UI'da aktif değil. Havale
@@ -69,6 +71,16 @@ export async function verifyOfficeTargetOwnership(env, userId, target) {
 }
 
 async function createBadgeRequest(request, env, user) {
+  // gerçek bulgu: bu havale/EFT yolunda hiç hız sınırı yoktu — aynı özelliğin kart ödemesi
+  // karşılığı (payments.js#startCheckout) hem kullanıcı hem IP bazlı limit uyguluyor, buradaki
+  // DELETE+INSERT pending döngüsü (bkz. aşağısı) sınırsız tekrarlanabiliyordu. AYNI oranlar.
+  if (!(await checkRateLimit(env, 'badge-request', user.id, 8, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla talep gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+  if (!(await checkRateLimit(env, 'badge-request-ip', clientIp(request), 20, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla talep gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+
   const body = await readJson(request);
   const badgeType = body.badgeType;
   const target = normalizeTarget(body);
@@ -114,7 +126,17 @@ async function listMyBadges(env, user) {
 // yorum/gönderi yanında gösterimi ayrı bir mekanizma (bkz. src/routes/comments.js, public.js),
 // bu uç yalnızca mimar/marka PROFİL sayfalarını besler. 'destekci' kasıtlı olarak dışarıda
 // bırakılır — o kademe herhangi bir hak ya da görünür rozet vermez, yalnızca destek amaçlıdır.
-export async function handlePublicBadges(env) {
+// gerçek bulgu: bu uç önceden cachedPublicJson'dan hiç geçmiyordu (doğrudan json() çağrılıyordu,
+// dolayısıyla varsayılan private/no-store başlığı uygulanıyordu) — badge-shared.js onu index.html/
+// mimar.html/firma.html/proje.html/urun.html/arama.html olmak üzere 6 çekirdek sayfanın HER
+// açılışında fetch ediyor, sorgu iki JOIN içeriyor. Artık publicCache.js#CACHEABLE_PATHS'e eklendi;
+// admin.js#handleBadgesAdmin/handleProfileBadgeAdmin artık bir değişiklikten sonra
+// invalidatePublicCache() çağırıyor (bkz. o dosyadaki yorumlar).
+export async function handlePublicBadges(request, env, url) {
+  return cachedPublicJson(request, env, url.pathname, () => computeBadgesPayload(env));
+}
+
+async function computeBadgesPayload(env) {
   const now = Date.now();
   const [{ results }, { results: adminResults }] = await Promise.all([
     env.DB.prepare(
@@ -152,5 +174,5 @@ export async function handlePublicBadges(env) {
       if (bucket[key].includes('iz-birakan')) bucket[key] = ['iz-birakan'];
     }
   }
-  return json(out);
+  return out;
 }

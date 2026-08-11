@@ -2,6 +2,7 @@ import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { checkR2Quota, recordR2Usage, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
+import { optimizeUploadedImage } from '../lib/imageOptimize.js';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (haber/iş ilanı görselleri)
 const CONTEXT_MAX_BYTES = {
@@ -51,11 +52,23 @@ export async function handleUploadRoute(request, env) {
   const quota = await checkR2Quota(env, file.size);
   if (!quota.ok) return r2QuotaErrorResponse(quota.reason);
 
-  const key = `u/${user.id}/${crypto.randomUUID()}.${ext}`;
-  await env.UPLOADS.put(key, await file.arrayBuffer(), {
-    httpMetadata: { contentType: file.type },
+  // gerçek bulgu: R2'ye eskiden dosya olduğu gibi yazılıyordu — depolama kotasını orijinal
+  // (genelde birkaç MB'lık telefon fotoğrafı) boyutlarla dolduruyordu. optimizeUploadedImage
+  // (bkz. src/lib/imageOptimize.js) best-effort'tur: başarısız olursa (GIF, binding yapılandırılmamış,
+  // kota aşımı, geçersiz görsel) null döner ve orijinal dosya olduğu gibi yazılmaya devam eder —
+  // yükleme akışı hiçbir durumda kullanıcıya hata göstermez ya da başarısız olmaz.
+  const optimized = await optimizeUploadedImage(env, file, file.type);
+  const bytes = optimized ? optimized.arrayBuffer : await file.arrayBuffer();
+  const contentType = optimized ? optimized.contentType : file.type;
+  const finalExt = optimized ? optimized.ext : ext;
+
+  const key = `u/${user.id}/${crypto.randomUUID()}.${finalExt}`;
+  await env.UPLOADS.put(key, bytes, {
+    httpMetadata: { contentType },
   });
-  await recordR2Usage(env, file.size);
+  // Gerçekte yazılan byte sayısı — optimize edildiyse orijinal file.size'dan KÜÇÜK olacağından
+  // (bkz. r2Quota.js) kotayı gereksiz yere şişirmemek için asıl depolanan boyut kaydedilir.
+  await recordR2Usage(env, bytes.byteLength);
 
   return json({ url: `/media/${key}` }, 201);
 }

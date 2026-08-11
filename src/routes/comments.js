@@ -5,6 +5,7 @@ import { getActiveBadge } from '../lib/badgeAccess.js';
 import { createNotification } from '../lib/notify.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 const TARGET_TYPES = new Set(['project', 'news', 'architect', 'office']);
 
@@ -88,11 +89,28 @@ async function myComments(request, env) {
     'SELECT id, target_type, target_id, body, status, created_at FROM comments WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
 
+  // gerçek bulgu: 'news' hedefleri eskiden her satır için ayrı bir SELECT ... WHERE id = ? atıyordu
+  // (ucuz, tek satır primary-key sorgusu olsa da N ayrı round-trip anlamına geliyordu) — burada tek
+  // bir IN(...) sorgusuyla toplu çözülür. project/architect/office için AYNI batching yapılmadı:
+  // findCanonicalRowByNaturalKey mimar/firma'da BARE isimle eşleşiyor ([[project_duplicate_name_key_
+  // limitation]]) — aynı isme sahip iki kayıt varsa hangi satırın hangi target_id'ye ait olduğu
+  // IN(...) sonucunda güvenle geri eşlenemez; zaten tek satırlık indeksli sorgular olduğundan (tam
+  // tablo taraması DEĞİL) bu riski göze almaya değecek bir performans kazancı da yok.
+  const newsIds = [...new Set(results.filter(r => r.target_type === 'news').map(r => r.target_id))];
+  const newsById = new Map();
+  if (newsIds.length) {
+    const placeholders = newsIds.map(() => '?').join(',');
+    const { results: newsRows } = await env.DB.prepare(
+      `SELECT id, title, image_url FROM news WHERE id IN (${placeholders})`
+    ).bind(...newsIds).all();
+    for (const n of newsRows) newsById.set(n.id, n);
+  }
+
   const items = [];
   for (const r of results) {
     let shaped = null;
     if (r.target_type === 'news') {
-      const n = await env.DB.prepare('SELECT id, title, image_url FROM news WHERE id = ?').bind(r.target_id).first();
+      const n = newsById.get(r.target_id);
       if (n) shaped = { title: n.title, image: n.image_url || null, href: '/haberler/' + encodeURIComponent(n.id) };
     } else {
       const canonicalType = CANONICAL_TYPE_BY_TARGET[r.target_type];
@@ -108,6 +126,14 @@ async function myComments(request, env) {
 async function createComment(request, env) {
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Yorum yapmak için giriş yapmalısın.', 401);
+
+  // gerçek bulgu: bu uçta hiç hız sınırı yoktu — her yorum notifyCommentOwner ile hedef sahibine
+  // bildirim gönderdiğinden, tek bir hesap hem comments moderasyon kuyruğunu hem hedef kullanıcıların
+  // bildirim kutusunu spam'leyebilirdi. upload.js#checkRateLimit ile AYNI "yalnızca kullanıcı bazlı"
+  // desen (yorum yapmak oturum gerektirir, IP bazlı ayrıca gerek yok).
+  if (!(await checkRateLimit(env, 'comment', user.id, 30, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla yorum gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
 
   const body = await readJson(request);
   const targetType = body.targetType;
@@ -126,7 +152,15 @@ async function createComment(request, env) {
     "INSERT INTO comments (id, target_type, target_id, user_id, body, created_at, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')"
   ).bind(id, targetType, targetId, user.id, text, now).run();
 
-  await notifyCommentOwner(env, user, targetType, targetId, text);
+  // gerçek bulgu: yorum zaten DB'ye başarıyla yazıldıktan SONRA çalışan bu best-effort bildirim
+  // adımı sarmalanmamıştı — atarsa istemci 500 görüyordu, kullanıcı muhtemelen formu tekrar
+  // gönderiyor ve yorumun moderasyon kuyruğunda mükerrer bir satırı oluşuyordu. payments.js#
+  // handleCallback'teki AYNI "logla, yut" deseni.
+  try {
+    await notifyCommentOwner(env, user, targetType, targetId, text);
+  } catch (err) {
+    console.error('notifyCommentOwner failed', err);
+  }
 
   return json({ id, body: text, created_at: now, user_name: user.name, user_id: user.id, status: 'pending' }, 201);
 }

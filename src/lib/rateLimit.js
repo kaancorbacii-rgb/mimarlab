@@ -16,11 +16,15 @@ export function clientIp(request) {
 export async function checkRateLimit(env, scope, identifier, limit, windowMs) {
   const key = windowKey(scope, identifier, windowMs);
   const now = Date.now();
-  await env.DB.prepare(
+  // gerçek bulgu: burada eskiden ayrı bir INSERT + SELECT (2 D1 round-trip) yapılıyordu — login/
+  // signup/forgot-password/contact/upload/comment/badge-request/saved-item/claim/correction/
+  // submission gibi rate-limitli her yazma ucunun HER isteğinde 2 D1 çağrısı anlamına geliyordu.
+  // SQLite'ın (D1'in temeli) desteklediği RETURNING ifadesiyle tek sorguya indirilir.
+  const row = await env.DB.prepare(
     `INSERT INTO rate_limits (key, count, expires_at) VALUES (?, 1, ?)
-     ON CONFLICT(key) DO UPDATE SET count = count + 1`
-  ).bind(key, now + windowMs).run();
-  const row = await env.DB.prepare('SELECT count FROM rate_limits WHERE key = ?').bind(key).first();
+     ON CONFLICT(key) DO UPDATE SET count = count + 1
+     RETURNING count`
+  ).bind(key, now + windowMs).first();
   // Fırsatçı temizlik: her ~100 istekte bir, süresi dolmuş eski satırları sil (ayrı bir cron
   // gerektirmemesi için burada, ağırlığa yaymak amacıyla yalnızca olasılıksal olarak çalışır).
   if (Math.random() < 0.01) {

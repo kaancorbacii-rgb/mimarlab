@@ -4,10 +4,9 @@
 // işe bırakıldı). Tek fark: sabit sayfa id'leri yerine bir konteyner elemanı alır (bkz. kullanıcı
 // isteği: modüler, ileride başka bir varlık modalında da kullanılabilir bir yapı).
 //
-// targetType (mount()'un 4. argümanı, options.targetType) — varsayılan 'project', consultant-modal.js
-// bunu 'architect' vererek AYNI bileşeni danışman profilinin (bir architects satırı, bkz. o dosyanın
-// dosya başı yorumu) yorumları için yeniden kullanır (bkz. kullanıcı isteği: Değerlendirmeler
-// sekmesine standart yorum bileşeni). Sahiplik/moderasyon kontrolü hedefe göre DEĞİŞİR: 'project' için
+// targetType (mount()'un 4. argümanı, options.targetType) — varsayılan 'project'; bileşen 'architect'/
+// 'office' hedeflerini de destekleyecek şekilde tasarlandı ama şu an yalnızca project-modal.js
+// tarafından, varsayılan değerle çağrılıyor. Sahiplik/moderasyon kontrolü hedefe göre DEĞİŞİR: 'project' için
 // gönderi sahipliği + aktif rozet (mevcut davranış, DEĞİŞMEDİ); 'architect'/'office' için
 // src/routes/comments.js#canDeleteComment'teki AYNI kural — profile_claims'te onaylı sahiplik yeterli,
 // rozet ŞARTI YOK.
