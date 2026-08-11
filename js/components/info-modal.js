@@ -174,7 +174,7 @@ const InfoModal = (function () {
 
       <div class="content-section">
         <h2>Üyelik, katkı ve rozetler</h2>
-        <p>Üye olarak yapı, proje, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
+        <p>Üye olarak proje, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
         <p>Platformu desteklemek ya da profilinizi öne çıkarmak isteyenler için aylık kiralanan rozet kademeleri sunuyoruz — Destekçi, Doğrulanmış Üye, Altın Üye ve Elmas Üye. Kademeye göre profilinizde doğrulanmış rozet, aylık ürün yükleme hakkı ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
       </div>
 

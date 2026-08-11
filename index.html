@@ -670,9 +670,7 @@ document.addEventListener('click', (e)=>{
 // filtresi) — bu yüzden 6'dan daha büyük bir tampon (24) çekilip görseli olanlar arasından ilk 6'sı
 // alınır, tam olarak eski `projectsWithImages.slice(0,6)` davranışının karşılığı.
 const PROJECT_CAROUSEL_FETCH_LIMIT = 24;
-// bkz. kullanıcı isteği: ana sayfa vitrini yalnızca Yapı (buildStatus=built) gönderilerini
-// gösterir — Proje (concept) gönderileri carousel'den kaldırıldı.
-const PROJECT_CAROUSEL_YAPI_SLOTS = 9;
+const PROJECT_CAROUSEL_SLOTS = 9;
 
 // Mimar/Firma mini-carousel'leri artık (bkz. kullanıcı isteği) Proje carousel'iyle aynı
 // desende — statik dizi/el ile seçilmiş vitir YOK, doğrudan D1'den "son eklenen 6 gönderi"
@@ -702,7 +700,7 @@ function projectSlideHtml(p, i){
   const slideSrcset = slideImg ? cdnSrcset(slideImg, [600, 900, 1200]) : '';
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/proje/${encodeURIComponent(p.slug)}" data-index="${i}">
     <img src="${escapeAttr(cdnImg(slideImg, 900))}"${slideSrcset ? ` srcset="${escapeAttr(slideSrcset)}" sizes="(max-width: 720px) 100vw, 700px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
-    <span class="slide-tag">YAPI</span>
+    <span class="slide-tag">PROJE</span>
     <div class="slide-caption">
       <div class="slide-title">${escapeHtml(p.title)}</div>
       ${meta ? `<div class="slide-designer">${escapeHtml(meta)}</div>` : ''}
@@ -926,9 +924,7 @@ Promise.all([
   // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
   // düzenlemeleri/gizlemeleri satırın kendisinde, ayrı /api/public/hidden ve /api/public/project-
   // edits fetch'lerine (ve client-side overlay'e) artık gerek yok.
-  // buildStatus=built — anasayfa vitrini yalnızca Yapı gönderilerini gösterir (bkz. kullanıcı
-  // isteği: Proje/concept gönderileri carousel'den kaldırıldı).
-  fetchPublicJson('/api/projects?buildStatus=built&limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
+  fetchPublicJson('/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
   // Mimar/Firma mini-carousel'leri (bkz. kullanıcı isteği: "en çok projesi olan ilk 6 Mimar ve
   // Firma") artık statik dizi/el ile seçilmiş vitrin OKUMUYOR — proje.html/mimar.html/firma.html'in
   // kendi listeleme sayfalarında da kullandığı genel D1 uçlarından ?limit=6 ile çekilir. sort
@@ -942,7 +938,7 @@ Promise.all([
   if(yapiRes.failed){
     renderSliderError('Projeler şu an yüklenemedi.');
   } else {
-    const yapiWithImages = (yapiRes.items || []).filter(p => p.images && p.images[0]).slice(0, PROJECT_CAROUSEL_YAPI_SLOTS);
+    const yapiWithImages = (yapiRes.items || []).filter(p => p.images && p.images[0]).slice(0, PROJECT_CAROUSEL_SLOTS);
     renderSlider(yapiWithImages);
   }
 

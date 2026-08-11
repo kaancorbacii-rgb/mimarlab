@@ -13,12 +13,11 @@ export const ITEM_TYPES = new Set(['project', 'product', 'material', 'news', 'jo
 // için hide sistemi olmadığından (bkz. ratings.js'in de bu ikisini kapsamaması) kontrol dışı bırakıldı.
 const CANONICAL_TYPE_BY_ITEM = { project: 'projects', architect: 'architects', office: 'offices' };
 
-// live + (yalnızca item_type='project' için) GÜNCEL build_status — hesabim.html'in "Kaydettiklerim"
-// kutusundaki Yapı/Proje filtre butonları (bkz. kullanıcı isteği) saved_items'ın kaydedildiği andaki
-// item_href'ine GÜVENEMEZ (bu sütun eski kayıtlarda hep /yapi/ önekiyle yazılmıştı, proje-modal.js#
-// detailPrefix eklenmeden önce) — bunun yerine her satır için zaten TEK sorguda okunan canonical
-// satırdan (findCanonicalRowByNaturalKey#SELECT *) build_status'u da aynı round-trip'te alırız,
-// ayrı bir sorguya gerek kalmaz.
+// live + (yalnızca item_type='project' için) GÜNCEL build_status — saved_items'ın kaydedildiği
+// andaki item_href'ine GÜVENEMEZ (bu sütun eski kayıtlarda /yapi/ önekiyle yazılmış olabilir) —
+// bunun yerine her satır için zaten TEK sorguda okunan canonical satırdan
+// (findCanonicalRowByNaturalKey#SELECT *) build_status'u da aynı round-trip'te alırız, ayrı bir
+// sorguya gerek kalmaz.
 async function fetchSavedTargetInfo(env, itemType, itemKey) {
   if (itemType === 'product' || itemType === 'material') {
     const row = await findProductByKey(env, itemKey);
