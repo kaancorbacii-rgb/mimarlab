@@ -135,8 +135,9 @@
   .image-preview-item img{width:100%; height:100%; object-fit:cover;}
   .image-preview-remove{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:11px;}
 
-  .specs-row{display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:10px; align-items:center;}
-  .specs-row input{width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
+  .specs-row{display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:10px; align-items:start;}
+  .specs-row input, .specs-row select{width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
+  .spec-label-wrap{display:flex; flex-direction:column; gap:8px;}
   .specs-remove-btn{width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); flex-shrink:0;}
   .specs-remove-btn:hover{background:var(--paper-alt); color:#B84C4C;}
   .specs-add-btn{display:inline-flex; align-items:center; gap:6px; background:var(--paper); border:1px dashed var(--line); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; color:var(--walnut);}
@@ -202,6 +203,7 @@
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
 <script src="catalog-taxonomy.js"></script>
+<script src="js/components/nav-product-menu.js" defer></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -213,10 +215,16 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="proje.html">Proje</a>
-      <a class="nav-link active" href="urun.html">Ürün</a>
+      <div class="nav-link-wrap" id="urun-menu-wrap">
+        <button class="nav-link nav-link-trigger active" id="urun-menu-trigger" type="button" aria-expanded="false" aria-controls="urun-mega-menu">
+          Ürün
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </button>
+      </div>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
     </div>
+    <div class="mega-menu" id="urun-mega-menu"></div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
     </div>
@@ -229,7 +237,13 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link" href="proje.html">Proje</a>
-      <a class="nav-mobile-link active" href="urun.html">Ürün</a>
+      <div class="nav-mobile-accordion">
+        <button type="button" class="nav-mobile-link nav-mobile-accordion-trigger" id="urun-mobile-trigger" aria-expanded="false" aria-controls="urun-mobile-panel">
+          Ürün
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </button>
+        <div class="nav-mobile-accordion-panel" id="urun-mobile-panel"></div>
+      </div>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
     </div>
@@ -385,23 +399,44 @@ function renderPreviews(){
     btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
   });
 }
+// Kullanıcı önce HANGİ özelliği eklemek istediğini seçsin (Boyut, Malzeme, Temizlik ve Bakım,
+// Kurulum, Detay vb.) — serbest metin etiket kutusu yerine bir seçim listesi (bkz. kullanıcı isteği).
+// Listede olmayan bir özellik için "Diğer" seçilince altında serbest metin etiket kutusu açılır.
+const SPEC_LABEL_PRESETS = ['Boyut', 'Malzeme', 'Renk', 'Ağırlık', 'Temizlik ve Bakım', 'Kurulum', 'Garanti', 'Menşei', 'Detay'];
 const specsRows = document.getElementById('specs-rows');
 function addSpecRow(label, value){
+  const isPreset = label && SPEC_LABEL_PRESETS.includes(label);
+  const isCustom = !!label && !isPreset;
   const row = document.createElement('div');
   row.className = 'specs-row';
   row.innerHTML = `
-    <input type="text" class="spec-label" placeholder="Etiket (ör. Ölçüler)" value="${escapeAttr(label || '')}">
+    <div class="spec-label-wrap">
+      <select class="spec-label-select">
+        <option value="">Özellik seç...</option>
+        ${SPEC_LABEL_PRESETS.map(p => `<option value="${escapeAttr(p)}"${p === label ? ' selected' : ''}>${escapeAttr(p)}</option>`).join('')}
+        <option value="__custom__"${isCustom ? ' selected' : ''}>Diğer (özel etiket)</option>
+      </select>
+      <input type="text" class="spec-label-custom" placeholder="Özellik adını yaz..." value="${escapeAttr(isCustom ? label : '')}" style="${isCustom ? '' : 'display:none;'}">
+    </div>
     <input type="text" class="spec-value" placeholder="Değer (ör. 220x90x75 cm)" value="${escapeAttr(value || '')}">
     <button type="button" class="specs-remove-btn" aria-label="Kaldır">✕</button>
   `;
+  const select = row.querySelector('.spec-label-select');
+  const customInput = row.querySelector('.spec-label-custom');
+  select.addEventListener('change', ()=>{
+    const showCustom = select.value === '__custom__';
+    customInput.style.display = showCustom ? '' : 'none';
+    if(showCustom) customInput.focus();
+  });
   row.querySelector('.specs-remove-btn').addEventListener('click', ()=> row.remove());
   specsRows.appendChild(row);
 }
 function collectSpecs(){
-  return Array.from(specsRows.querySelectorAll('.specs-row')).map(row => ({
-    label: row.querySelector('.spec-label').value.trim(),
-    value: row.querySelector('.spec-value').value.trim(),
-  })).filter(s => s.label || s.value);
+  return Array.from(specsRows.querySelectorAll('.specs-row')).map(row => {
+    const select = row.querySelector('.spec-label-select');
+    const label = select.value === '__custom__' ? row.querySelector('.spec-label-custom').value.trim() : select.value;
+    return { label, value: row.querySelector('.spec-value').value.trim() };
+  }).filter(s => s.label || s.value);
 }
 document.getElementById('specs-add-btn').addEventListener('click', ()=> addSpecRow());
 

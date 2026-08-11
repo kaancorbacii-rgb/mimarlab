@@ -96,8 +96,6 @@ const ProductModal = (function () {
       .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
       .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
-      .designer-name-plain{font-size:14px; color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line); padding:6px 4px; align-self:center;}
-      .designer-name-plain:hover{color:var(--ink);}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -457,7 +455,12 @@ const ProductModal = (function () {
   async function renderBrandSection(p) {
     if (!p.brand) return;
     document.getElementById('pr-brand-section').style.display = '';
-    document.getElementById('pr-brand-chips').innerHTML = `<span class="designer-name-plain">${escapeHtml(p.brand)}</span>`;
+    // Sisteme kayıtlı olmayan firma adları için yeni bir firma kaydı AÇILMAZ (bkz. kullanıcı isteği) —
+    // yalnızca proje-meta.js#d.unregistered ile AYNI baş harf avatarlı, linksiz bir chip gösterilir.
+    document.getElementById('pr-brand-chips').innerHTML = `<span class="designer-chip">
+      <div class="designer-chip-avatar" style="background:${officeColor(p.brand)}">${escapeHtml(initials(p.brand))}</div>
+      <span class="designer-chip-name">${escapeHtml(p.brand)}</span>
+    </span>`;
     const off = await tryOfficeChip(p.brand);
     if (!off) return;
     const logo = logoUrl(off);

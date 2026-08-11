@@ -521,10 +521,12 @@ const AuthModal = (function () {
         <h2>Paylaştığım İçerikler</h2>
         <div class="submissions-toolbar-row">
           <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
+          <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
         </div>
         <div class="submissions-toolbar-row" id="am-submissions-filter">
           <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
           <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
+          <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
         </div>
         <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-submissions-pagination"></div>
@@ -535,6 +537,7 @@ const AuthModal = (function () {
         <div class="saved-filter" id="am-saved-filter">
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
           <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
           <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
           <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
         </div>
@@ -547,6 +550,7 @@ const AuthModal = (function () {
         <div class="saved-filter" id="am-rated-filter">
           <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
           <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
         </div>
         <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
         <div class="dash-pagination" id="am-rated-pagination"></div>
@@ -571,8 +575,8 @@ const AuthModal = (function () {
   }
 
   const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
-  const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
-  const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
+  const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi', archived: 'Arşivlendi' };
+  const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C', archived: 'var(--ink-soft)' };
   const EDIT_PAGE_BY_TYPE = { offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html' };
   const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
   const PAGE_SIZE_DASH = 10;
@@ -738,10 +742,7 @@ const AuthModal = (function () {
     let submissionsFilter = '';
     let submissionsPage = 1;
     async function loadSubmissions() {
-      // Ürün/malzeme artık yayında değil (bkz. kullanıcı isteği) — bu kutuda hiç görünmesinler diye
-      // TYPE_LABELS'ta hâlâ tanımlı olsalar da (SAVED_TYPE_LABELS'ta da AYNI gerekçeyle) burada
-      // isteğe dahil edilmiyorlar.
-      const types = Object.keys(TYPE_LABELS).filter(t => t !== 'products' && t !== 'materials');
+      const types = Object.keys(TYPE_LABELS);
       const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : { items: [] })));
       allSubmissions = [];
       types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({ type: t, item })));
@@ -786,14 +787,20 @@ const AuthModal = (function () {
     async function loadSaved() {
       const res = await fetch('/api/saved');
       const data = res.ok ? await res.json() : { items: [] };
-      // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski kaydedilmiş ürün kayıtları (varsa)
-      // artık 404 olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
-      savedItems = (data.items || []).filter(it => it.item_type !== 'product' && it.item_type !== 'material');
+      savedItems = data.items || [];
       renderSaved();
+    }
+    // "Ürün" filtresi hem product hem material tipini kapsar — urun.html'de bu ikisi zaten TEK
+    // katalog olarak birleşti, Kaydettiklerim/Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından
+    // ikisi de tek "Ürün" butonunun altında toplanır.
+    function matchesCatalogFilter(itemType, filter) {
+      if (!filter) return true;
+      if (filter === 'product') return itemType === 'product' || itemType === 'material';
+      return itemType === filter;
     }
     function renderSaved() {
       const container = document.getElementById('am-dash-saved');
-      const items = savedFilter ? savedItems.filter(it => it.item_type === savedFilter) : savedItems;
+      const items = savedFilter ? savedItems.filter(it => matchesCatalogFilter(it.item_type, savedFilter)) : savedItems;
       if (!savedItems.length) {
         container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
         document.getElementById('am-saved-pagination').innerHTML = '';
@@ -836,14 +843,12 @@ const AuthModal = (function () {
     async function loadRated() {
       const res = await fetch('/api/ratings/mine');
       const data = res.ok ? await res.json() : { items: [] };
-      // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski ürün puanlamaları (varsa) artık 404
-      // olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
-      ratedItems = (data.items || []).filter(it => it.type !== 'product' && it.type !== 'material');
+      ratedItems = data.items || [];
       renderRated();
     }
     function renderRated() {
       const container = document.getElementById('am-dash-rated');
-      const items = ratedFilter ? ratedItems.filter(it => it.type === ratedFilter) : ratedItems;
+      const items = ratedFilter ? ratedItems.filter(it => matchesCatalogFilter(it.type, ratedFilter)) : ratedItems;
       if (!ratedItems.length) {
         container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
         document.getElementById('am-rated-pagination').innerHTML = '';
