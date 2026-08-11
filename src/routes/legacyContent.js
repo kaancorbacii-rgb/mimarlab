@@ -271,11 +271,10 @@ export async function handlePublicSearchSuggest(request, env, url) {
 // (üst nav'ın küçük açılır penceresi, 3/grup + 8 toplam sınırı) ile AYNI D1 sorgu/fuzzyMatch
 // altyapısını paylaşır ama grup başına daha yüksek bir sınırla (bkz. SEARCH_FULL_PER_GROUP) ham
 // alanları (fotoğraf/logo/görsel dahil) döner — arama.html kendi avatar/kart render mantığını
-// (officeColor/initials/logoUrl, bkz. badge-shared.js) bu alanlar üzerinde çalıştırır. Legacy Bundle
-// Elimination Faz 3 kapsamı yalnızca data.js/projeler-data.js olduğundan (bkz. kullanıcı isteği)
-// yalnızca mimar/firma/proje kapsanır — ürün/haber arama.html'de İSTEĞE BAĞLI olarak statik
-// urunler-data.js/malzemeler-data.js/haberler-data.js üzerinde İSTEMCİ tarafında aranmaya devam
-// eder (bu turun kapsamı dışında).
+// (officeColor/initials/logoUrl, bkz. badge-shared.js) bu alanlar üzerinde çalıştırır. Yalnızca
+// mimar/firma/proje kapsanır — ürün araması arama.html'de ayrı bir /api/products?search= çağrısıyla
+// yapılır (kullanıcı isteği: statik urunler-data.js/malzemeler-data.js kaldırıldı); haber araması
+// hâlâ istemci tarafında statik haberler-data.js üzerinde yapılıyor (bu turun kapsamı dışında).
 const SEARCH_FULL_PER_GROUP = 20;
 
 const PROJECT_DESIGNER_JOIN_SQL = `

@@ -244,50 +244,11 @@
   </footer>
 
 <script src="badge-shared.js"></script>
-<script src="urunler-data.js"></script>
-<script src="malzemeler-data.js"></script>
 <script>
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-function trLower(s){
-  // JS'in varsayılan toLowerCase()'i Türkçe İ/I harflerini yanlış çevirir, bu yüzden elle eşliyoruz.
-  return String(s||'')
-    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
-    .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
-    .toLowerCase();
-}
-
-// trLower'ın üstüne Türkçe harfleri ASCII benzerlerine de indirger (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) —
-// kullanıcı Türkçe karakter olmadan yazsa da ("sirket") ya da tam tersi eşleşsin (bkz. kullanıcı
-// isteği: "Türkçe karakter toleransı"), src/routes/legacyContent.js#foldTr ile AYNI mantık, istemci
-// tarafında (statik data.js/projeler-data.js üzerinde) tekrarlanır.
-function foldTr(s){
-  return trLower(s).replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o');
-}
-
-// Sorgu kelimelere bölünür, hedef metin HER kelimeyi (bitişik olmasına gerek kalmadan) içeriyorsa
-// eşleşme sayılır (bkz. kullanıcı isteği: "kelime parçalamalı esnek arama") — src/routes/
-// legacyContent.js#fuzzyMatch ile AYNI mantık.
-function fuzzyMatch(text, queryWords){
-  if(!queryWords.length) return false;
-  const folded = foldTr(text||'');
-  return queryWords.every(w => folded.includes(w));
-}
-
 const MAX_PER_GROUP = 20;
-
-// Admin'in admin panelinden gizlediği statik ürün kayıtları (bkz. src/routes/
-// legacyContent.js, GET /api/public/hidden) arama sonuçlarından da çıkarılmalı — ilk sonuç fetch
-// tamamlanmadan çizildiğinden, veri gelince runSearch() bir kez daha çalıştırılır. Legacy Bundle
-// Elimination Faz 3'ten beri (bkz. kullanıcı isteği) yalnızca products için geçerli — mimar/
-// firma/proje artık /api/public/search'ten (aşağıda) gelir, o uç zaten hidden_at IS NULL filtresini
-// D1 tarafında uyguluyor, ayrı bir gizleme kontrolüne gerek yok.
-let hiddenLegacy = {};
-function isHiddenLegacy(type, key){
-  return (hiddenLegacy[type] || []).includes(key);
-}
-fetch('/api/public/hidden').then(res => res.ok ? res.json() : {}).then(data => { hiddenLegacy = data || {}; }).catch(()=>{}).finally(() => { runSearch(); });
 
 // badge: yalnızca Mimarlar/Firmalar gruplarında geçilir (bkz. kullanıcı isteği: mavi onay
 // rozetinin arama sonuçlarında da görünmesi) — proje/ürün satırlarında rozet anlamsız
@@ -303,12 +264,10 @@ function rowHtml({href, avatarStyle, avatarContent, title, meta, badge}){
   </a>`;
 }
 
-// totalCount: mimar/firma/proje için /api/public/search zaten grup başına en fazla
-// SEARCH_FULL_PER_GROUP (bkz. src/routes/legacyContent.js) satır dönüyor ama GERÇEK toplam sayıyı
-// ayrıca veriyor — "(N)" başlığı ve "+N sonuç daha var" notu bu gerçek sayıyı kullanmalı, `items.
-// length` (sunucu tarafından zaten kırpılmış diziyi) DEĞİL. Ürün (istemci tarafında hâlâ statik
-// dizi üzerinde filtrelendiğinden, bkz. kullanıcı isteği: Faz 3 kapsamı yalnızca data.js/
-// projeler-data.js) items.length zaten gerçek toplamdır, bu yüzden parametre opsiyonel.
+// totalCount: her grup sunucu tarafından zaten kırpılmış (grup başına en fazla MAX_PER_GROUP)
+// bir dizi döner ama GERÇEK toplam sayıyı ayrıca verir (mimar/firma/proje için /api/public/
+// search#totals, ürün için /api/products#total) — "(N)" başlığı ve "+N sonuç daha var" notu bu
+// gerçek sayıyı kullanmalı, `items.length`i DEĞİL, aksi halde hep MAX_PER_GROUP'ta tıkanır kalır.
 function groupHtml(label, items, toRow, totalCount){
   if(!items.length) return '';
   const total = totalCount == null ? items.length : totalCount;
@@ -321,11 +280,10 @@ function groupHtml(label, items, toRow, totalCount){
   </div>`;
 }
 
-// runSearch her çağrıldığında (ilk yüklemede + hiddenLegacy verisi gelince tekrar, bkz. yukarısı)
-// artık bir D1 fetch'i (aşağıdaki /api/public/search) tetiklediğinden, art arda hızlı iki çağrı
-// arasında bir yarış durumu oluşabilir (ikinci çağrı DAHA ÖNCE dönerse, ilk çağrının GEÇ dönen
-// yanıtı sonucu üzerine yazardı) — nav arama kutusundaki AYNI runToken/currentQuery karşılaştırma
-// deseniyle en son başlatılan çağrı her zaman kazanır.
+// runSearch her çağrıldığında D1 fetch'leri (aşağıdaki /api/public/search + /api/products)
+// tetiklediğinden, art arda hızlı iki çağrı arasında bir yarış durumu oluşabilir (ikinci çağrı
+// DAHA ÖNCE dönerse, ilk çağrının GEÇ dönen yanıtı sonucu üzerine yazardı) — nav arama kutusundaki
+// AYNI runToken/currentQuery karşılaştırma deseniyle en son başlatılan çağrı her zaman kazanır.
 let searchRunToken = 0;
 
 async function runSearch(){
@@ -355,22 +313,28 @@ async function runSearch(){
   titleEl.textContent = `"${query}" için sonuçlar`;
   const queryHtml = escapeHtml(query);
 
-  // Mimar/Firma/Proje artık canonical D1'den (bkz. src/routes/legacyContent.js#
-  // handlePublicSearchFull, kullanıcı isteği: Legacy Bundle Elimination Faz 3) — Ürün bu turun
-  // kapsamı dışında kaldığından (yalnızca data.js/projeler-data.js) hâlâ istemci tarafında
-  // urunler-data.js/malzemeler-data.js üzerinde filtrelenir.
-  const queryWords = foldTr(query).split(/\s+/).filter(Boolean);
+  // Mimar/Firma/Proje canonical D1'den (bkz. src/routes/legacyContent.js#handlePublicSearchFull),
+  // Ürün/Malzeme de artık AYNI şekilde canonical `products` tablosundan (bkz. src/routes/
+  // product.js#handleProductListRoute'un `search` parametresi) — statik urunler-data.js/
+  // malzemeler-data.js dizileri kaldırıldı (kullanıcı isteği). İkisi de zaten hidden_at IS NULL
+  // filtresini D1 tarafında uyguladığından ayrı bir gizleme kontrolüne gerek yok. Paralel çalıştırılır,
+  // aksi halde ürün sorgusu toplam gecikmeyi ikiye katlardı.
   let full = { architects: [], offices: [], projects: [], totals: { architects: 0, offices: 0, projects: 0 } };
-  try{
-    const res = await fetch('/api/public/search?q=' + encodeURIComponent(query));
-    if(res.ok) full = await res.json();
-  }catch{}
+  let urunResults = [];
+  let urunTotal = 0;
+  const [fullRes, productsRes] = await Promise.allSettled([
+    fetch('/api/public/search?q=' + encodeURIComponent(query)),
+    fetch('/api/products?search=' + encodeURIComponent(query) + '&limit=' + MAX_PER_GROUP),
+  ]);
+  if(fullRes.status === 'fulfilled' && fullRes.value.ok) full = await fullRes.value.json();
+  if(productsRes.status === 'fulfilled' && productsRes.value.ok){
+    const data = await productsRes.value.json();
+    urunResults = data.items || [];
+    urunTotal = data.total || 0;
+  }
   if(runToken !== searchRunToken) return; // yarış durumu — daha yeni bir çağrı zaten başladı
 
-  const urunResults = products.filter(p => !isHiddenLegacy('products', `${p.brand||''}|||${p.title}`) && (fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand, queryWords)))
-    .concat(materials.filter(m => !isHiddenLegacy('materials', `${m.brand||''}|||${m.title}`) && (fuzzyMatch(m.title, queryWords) || fuzzyMatch(m.category, queryWords) || fuzzyMatch(m.brand, queryWords))));
-
-  const total = full.totals.architects + full.totals.offices + full.totals.projects + urunResults.length;
+  const total = full.totals.architects + full.totals.offices + full.totals.projects + urunTotal;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
@@ -409,11 +373,11 @@ async function runSearch(){
       meta: [p.location, p.date].filter(Boolean).join(' · '),
     }), full.totals.projects),
     groupHtml('Ürünler', urunResults, p => rowHtml({
-      href: 'urun.html',
+      href: `/urun/${encodeURIComponent(p.slug)}`,
       avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.category, p.brand].filter(Boolean).join(' · '),
-    })),
+    }), urunTotal),
   ].join('');
 
   wireNavSearch();
@@ -514,8 +478,8 @@ document.addEventListener('click', (e)=>{
 
 runSearch();
 // Rozetler /api/public/badges'ten asenkron gelir (bkz. badge-shared.js) — ilk arama sonucu bu fetch
-// tamamlanmadan çizilmişse Mimarlar/Firmalar satırları rozetsiz kalmış olabilir; hiddenLegacy
-// fetch'inin runSearch()'ü tekrar tetiklemesiyle AYNI desen (yukarısı), yalnızca bir kez.
+// tamamlanmadan çizilmişse Mimarlar/Firmalar satırları rozetsiz kalmış olabilir, bu yüzden rozetler
+// gelince runSearch() bir kez daha (ve yalnızca bir kez) çalıştırılır.
 window.addEventListener('mimarlab-badges-ready', () => runSearch(), { once: true });
 </script>
 </body>

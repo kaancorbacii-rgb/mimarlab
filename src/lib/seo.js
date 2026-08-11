@@ -1,22 +1,18 @@
 import { slugify } from './slugify.js';
 import { parseCanonicalRow } from './canonicalRead.js';
-// data.js/projeler-data.js BİLEREK burada YOK — Legacy Bundle Elimination Faz 1 (bkz. kullanıcı
-// isteği): mimar/firma/proje SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/
-// offices/projects) tablolarından okunuyor, src/routes/architect.js|office.js|project.js'in Faz
-// 3'te zaten yaptığı AYNI geçiş (o dosyalarda da request-time overlay YOK, bkz. src/routes/
+// data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
+// proje/ürün SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/offices/projects/
+// products) tablolarından okunuyor, src/routes/architect.js|office.js|project.js|product.js'in
+// zaten yaptığı AYNI geçiş (o dosyalarda da request-time overlay YOK, bkz. src/routes/
 // architect.js dosya başı yorumu: onaylı submission'lar artık merge-time'da (scripts/
 // merge-submissions-to-id-first.js, src/lib/canonicalSync.js#syncApprovedSubmissionToCanonical —
 // admin onayında CANLI çalışır) canonical satıra yazılıyor). urunler-data.js/malzemeler-data.js
-// sonraki Legacy Bundle Elimination fazlarının kapsamında, burada dokunulmadı.
-import urunJs from '../../urunler-data.js';
-import malzemeJs from '../../malzemeler-data.js';
+// kaldırıldı (kullanıcı isteği) — bkz. aşağıdaki buildProductMeta.
 // src/routes/project.js'teki AYNI CJS-interop yorumu — il/ilçe çözümlemesini proje konumundan
 // (Place/PostalAddress JSON-LD için) tekrar tanımlamak yerine paylaşılan referans tablosundan alır.
 import ilIlceJs from '../../il-ilce-data.js';
 
 const { parseLocationFull } = ilIlceJs;
-const { products } = urunJs;
-const { materials } = malzemeJs;
 
 const SITE_ORIGIN = 'https://mimarlab.com';
 const DEFAULT_IMAGE = `${SITE_ORIGIN}/logos/site/mimarlab-og-image.png`;
@@ -238,7 +234,7 @@ async function buildProjectMeta(slug, env) {
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
-// hem statik urunler-data.js/malzemeler-data.js kayıtları hem D1'deki onaylı product_submissions/
+// hem canonical `products` tablosu satırları hem eski üye-gönderisi kökenli product_submissions/
 // material_submissions satırları (bkz. buildProductMeta) aynı şekli taşıdığından paylaşılabilir.
 function productMetaFromRecord(record, canonicalUrl) {
   const title = `${record.title} — MİMARLAB`;
@@ -252,16 +248,15 @@ function productMetaFromRecord(record, canonicalUrl) {
   return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
 }
 
-// key: urun.html#productKey ile birebir aynı üretim — statik kayıtlarda slugify(title + '-' + brand),
-// D1 kayıtlarında "m-<submissionId>". Önce iki statik dizide (products/materials) arar; orada yoksa
-// D1'e (önce product_submissions, sonra material_submissions) bakar — statik arama zaten senkron
-// olduğundan yalnızca D1 dalı gerçekten async'tir, bu yüzden fonksiyon her koşulda Promise döner.
-function staticProductKey(x) { return slugify(`${x.title}-${x.brand || ''}`); }
+// key: urun.html#productKey ile birebir aynı üretim — canonical D1 kayıtlarında slugify(title +
+// '-' + brand) ya da doğrudan `slug`, eski üye-gönderisi kökenli kayıtlarda "m-<submissionId>".
+// Önce "m-" biçimini eski submission tablolarında dener, yoksa canonical `products` tablosuna
+// bakar (bkz. src/routes/product.js#handleProductDetailRoute'taki AYNI arama deseni: önce doğrudan
+// slug eşleşmesi, yoksa id'siz eski anahtar formatıyla tam tarama). Statik urunler-data.js/
+// malzemeler-data.js dizileri kaldırıldı (kullanıcı isteği) — Faz 3 migrasyonundan beri gerçek
+// ürün/malzeme kataloğu zaten yalnızca burada (canonical products tablosu) yaşıyor.
 async function buildProductMeta(key, env) {
   const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(key)}`;
-  const staticMatch = products.find(x => staticProductKey(x) === key)
-    || materials.find(x => staticProductKey(x) === key);
-  if (staticMatch) return productMetaFromRecord(staticMatch, canonicalUrl);
 
   const m = /^m-(.+)$/.exec(key);
   if (m && env && env.DB) {
@@ -275,10 +270,6 @@ async function buildProductMeta(key, env) {
     }
   }
 
-  // Ne statik dizide ne eski üye-gönderisi tablolarında bulundu — canonical `products` tablosuna
-  // bak (bkz. src/routes/product.js#handleProductDetailRoute'taki AYNI arama deseni: önce doğrudan
-  // slug eşleşmesi, yoksa id'siz eski anahtar formatıyla tam tarama). Faz 3 migrasyonundan sonra
-  // gerçek ürün/malzeme kataloğunun büyük kısmı yalnızca burada yaşıyor, statik dizilerde değil.
   const row = await findProductRow(env, key);
   if (!row) return null;
   const p = parseCanonicalRow('products', row);
@@ -291,9 +282,9 @@ const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, proje
 // Kayıt bulunamazsa (veya D1 sorgusu hata verirse, bkz. aşağıdaki try/catch) null döner — çağıran
 // taraf (src/index.js#serveDetailPage) mevcut jenerik placeholder meta'yı (şablonun kendi <title>/
 // meta description'ı) olduğu gibi bırakır, ASLA 500 üretmez ya da boş/kırık etiket enjekte etmez.
-// env artık architect/office/project'in TEK veri kaynağı (Legacy Bundle Elimination Faz 1, bkz.
-// yukarıdaki import yorumu) — yalnızca product hâlâ statik urunler-data.js/malzemeler-data.js'i
-// önce dener (D1'e ikinci bir round-trip açmadan).
+// env artık dördü için de TEK veri kaynağı (bkz. yukarıdaki import yorumu) — product yalnızca
+// eski "m-<submissionId>" biçimini önce eski submission tablolarında dener, aksi halde canonical
+// `products` tablosuna bakar (bkz. buildProductMeta).
 export async function buildMeta(type, slugOrId, env) {
   const builder = BUILDERS[type];
   if (!builder) return null;

@@ -54,12 +54,6 @@ const CACHEABLE_PATHS = [
   // Admin rozet mutasyon uçları (handleBadgesAdmin/handleProfileBadgeAdmin, bkz. admin.js) artık
   // invalidatePublicCache() çağırıyor, bu yüzden buraya eklenmesi güvenli.
   '/api/public/badges',
-  // gerçek bulgu: proje.html/urun.html kenar çubuğu sayaçları (bkz. src/routes/facets.js) edge
-  // Cache API katmanını tamamen atlıyordu — altındaki facetCounts.js#getCachedFacetCounts KV'nin
-  // kendi 300s TTL'i D1'i koruyordu ama her sayfa yüklemesi yine de Worker+KV'ye gidiyordu.
-  // facetCounts.js#bumpFacetCounts ile AYNI admin/gönderi onayı yazma yollarından zaten
-  // invalidatePublicCache() çağrıldığından buraya eklenmesi güvenli, ayrı bir invalidation gerekmez.
-  '/api/facets/projects', '/api/facets/products',
 ];
 
 // Faz 4B — GET /api/projects, /api/architects, /api/offices, /api/products, /api/news (sayfalama/

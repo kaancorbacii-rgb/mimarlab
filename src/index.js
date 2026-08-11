@@ -8,7 +8,6 @@ import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRo
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
-import { handleFacetsRoute } from './routes/facets.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete } from './routes/legacyContent.js';
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
@@ -583,7 +582,6 @@ async function routeApi(request, env, url) {
   if (path === '/api/architects/schools') return handleArchitectSchoolsRoute(request, env, url);
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path === '/api/products/search') return handleProductSearchRoute(request, env, url);
-  if (path.startsWith('/api/facets/')) return handleFacetsRoute(request, env, url, path.slice('/api/facets/'.length));
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) {

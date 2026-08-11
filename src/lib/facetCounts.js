@@ -74,8 +74,11 @@ export async function bumpFacetCounts(env, listType) {
   // architects/offices: bkz. dosya başı kapsam notu — no-op.
 }
 
-// GET /api/facets/:listType — proje.html/urun.html'in "önce anlık client, sonra sessiz sunucu
-// düzeltmesi" reconcile çağrısını KV/facet_counts'tan hızlıca besler (bkz. src/routes/facets.js).
+// src/routes/project.js#handleProjectFiltersRoute'un "hiçbir filtre aktif değil" hızlı yolu için
+// KV/facet_counts'tan anlık okur (bkz. o dosyadaki çağrı noktası). Standalone GET /api/facets/:listType
+// ucu (proje.html/urun.html'in kullanmadığı, ölü kod) kaldırıldı — bu fonksiyon artık yalnızca
+// listType='projects' ile çağrılıyor; 'products' dalı hâlâ bumpFacetCounts ile yazılıyor ama
+// okuyan kalmadı (ayrı temizlik konusu, bkz. kullanıcıya bildirilen bulgu).
 export async function getCachedFacetCounts(env, listType) {
   if (env.FACET_CACHE) {
     const cached = await env.FACET_CACHE.get(kvKey(listType), 'json');

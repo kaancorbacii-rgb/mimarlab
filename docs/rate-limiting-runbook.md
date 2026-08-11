@@ -33,7 +33,6 @@ Amaç: normal kullanıcı/arama motoru trafiğini kısıtlamadan, otomatik kazı
       "/api/projects/filters"
     }
     or starts_with(http.request.uri.path, "/api/public/")
-    or starts_with(http.request.uri.path, "/api/facets/")
     or starts_with(http.request.uri.path, "/api/architect/")
     or starts_with(http.request.uri.path, "/api/office/")
     or starts_with(http.request.uri.path, "/api/project/")
