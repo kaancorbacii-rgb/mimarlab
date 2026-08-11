@@ -27,37 +27,71 @@ async function loadUsageRow(env) {
   return row;
 }
 
-// upload.js/ai.js, env.UPLOADS.put() ÇAĞRISINDAN ÖNCE bunu çağırır — {ok:false} dönerse hiçbir
-// yazma denemesi yapılmaz, kullanıcıya reason mesajıyla net bir hata döner.
-export async function checkR2Quota(env, additionalBytes) {
-  const usage = await loadUsageRow(env);
-  if (usage.total_bytes + additionalBytes > SAFE_STORAGE_BYTES) {
-    return { ok: false, reason: 'Ücretsiz R2 depolama kotasının güvenlik sınırına ulaşıldı, yeni görsel yüklenemiyor. Bu, ücretli kullanıma geçilmesini önlemek için bilinçli bir sınırdır.' };
-  }
-  if (usage.ops_count + 1 > SAFE_OPS_PER_MONTH) {
-    return { ok: false, reason: 'Bu ayki ücretsiz R2 işlem kotasının güvenlik sınırına ulaşıldı, yeni görsel yüklenemiyor. Gelecek ay tekrar dene.' };
-  }
-  return { ok: true };
-}
-
 export function r2QuotaErrorResponse(reason) {
   return errorJson(reason, 403);
 }
 
-// Başarılı bir env.UPLOADS.put()'tan SONRA çağrılır — sayaç ancak yazma gerçekten başarılı
-// olduysa artırılır (bkz. checkR2Quota'nın hemen öncesinde çağrıldığı yerler).
-export async function recordR2Usage(env, bytes) {
+// gerçek bulgu: eskiden ayrı bir checkR2Quota() (SELECT) + recordR2Usage() (SELECT+UPDATE) çifti
+// vardı — ikisi arasında bir R2 yazımı geçtiğinden, aynı anda başlayan iki yükleme ikisi de
+// checkR2Quota'yı kotanın altındayken geçebilir, ikisi de yazar, ikisinin recordR2Usage'ı da
+// kotayı fiilen aşırdı (TOCTOU). Burada tek bir atomik UPDATE...RETURNING ile "rezervasyon" yapılır:
+// artış VE limit kontrolü aynı SQLite ifadesinde gerçekleşir, D1/SQLite bir satırı aynı anda yalnızca
+// tek bir yazma ifadesiyle güncelleyebildiğinden iki eşzamanlı istek asla ikisi birden "geçti"
+// sonucunu alamaz — WHERE koşulunu sağlamayan istek RETURNING'de hiçbir satır almaz (row === null).
+// Optimize edilmemiş orijinal file.size ÜST SINIR olarak rezerve edilir (optimizeUploadedImage
+// henüz çalışmadığından gerçek yazılacak boyut bilinmez, WebP dönüşümü boyutu KÜÇÜLTÜR ya da
+// olduğu gibi bırakır — büyütmez, bkz. imageOptimize.js MAX_DIMENSION/fit:'scale-down'), R2
+// yazımından SONRA finalizeR2Reservation ile gerçek boyuta düzeltilir (bkz. upload.js).
+export async function reserveR2Usage(env, estimatedBytes) {
   const month = currentMonthKey();
-  const existing = await env.DB.prepare(`SELECT * FROM r2_usage WHERE id = 'singleton'`).first();
   const now = Date.now();
-  if (!existing) {
-    await env.DB.prepare(
-      `INSERT INTO r2_usage (id, total_bytes, ops_count, ops_month, updated_at) VALUES ('singleton', ?, 1, ?, ?)`
-    ).bind(bytes, month, now).run();
-    return;
+  const row = await env.DB.prepare(
+    `UPDATE r2_usage
+     SET total_bytes = total_bytes + ?,
+         ops_count = CASE WHEN ops_month = ? THEN ops_count + 1 ELSE 1 END,
+         ops_month = ?,
+         updated_at = ?
+     WHERE id = 'singleton'
+       AND (total_bytes + ?) <= ?
+       AND (CASE WHEN ops_month = ? THEN ops_count + 1 ELSE 1 END) <= ?
+     RETURNING total_bytes`
+  ).bind(
+    estimatedBytes, month, month, now,
+    estimatedBytes, SAFE_STORAGE_BYTES,
+    month, SAFE_OPS_PER_MONTH,
+  ).first();
+
+  if (row) return { ok: true, reservedBytes: estimatedBytes };
+
+  // Reddedildi — hangi sınırın aşıldığını bulup kullanıcıya doğru mesajı vermek için sadece
+  // OKUMA amaçlı bir takip sorgusu (yarış riski yok, hiçbir şey yazmıyor).
+  const usage = await loadUsageRow(env);
+  if (usage.total_bytes + estimatedBytes > SAFE_STORAGE_BYTES) {
+    return { ok: false, reason: 'Ücretsiz R2 depolama kotasının güvenlik sınırına ulaşıldı, yeni görsel yüklenemiyor. Bu, ücretli kullanıma geçilmesini önlemek için bilinçli bir sınırdır.' };
   }
-  const opsCount = existing.ops_month === month ? existing.ops_count + 1 : 1;
+  return { ok: false, reason: 'Bu ayki ücretsiz R2 işlem kotasının güvenlik sınırına ulaşıldı, yeni görsel yüklenemiyor. Gelecek ay tekrar dene.' };
+}
+
+// R2'ye başarıyla yazıldıktan SONRA çağrılır — rezerve edilen üst sınır (estimatedBytes) gerçekte
+// yazılan boyuta (actualBytes, optimize edildiyse genelde daha küçük) düzeltilir. Fark her zaman
+// <= 0 olacağından (yukarıdaki yorum) yeniden limit kontrolüne gerek yok, yalnızca düzeltme.
+export async function finalizeR2Reservation(env, reservedBytes, actualBytes) {
+  const delta = actualBytes - reservedBytes;
+  if (delta === 0) return;
   await env.DB.prepare(
-    `UPDATE r2_usage SET total_bytes = total_bytes + ?, ops_count = ?, ops_month = ?, updated_at = ? WHERE id = 'singleton'`
-  ).bind(bytes, opsCount, month, now).run();
+    `UPDATE r2_usage SET total_bytes = total_bytes + ?, updated_at = ? WHERE id = 'singleton'`
+  ).bind(delta, Date.now()).run();
+}
+
+// R2 yazımı BAŞARISIZ olursa çağrılır — rezervasyon tamamen geri alınır (byte VE bu isteğin
+// ops_count artışı), aksi halde hiç gerçekleşmemiş bir yükleme kotayı kalıcı olarak tüketirdi.
+export async function releaseR2Reservation(env, reservedBytes) {
+  const month = currentMonthKey();
+  await env.DB.prepare(
+    `UPDATE r2_usage
+     SET total_bytes = total_bytes - ?,
+         ops_count = CASE WHEN ops_month = ? THEN MAX(ops_count - 1, 0) ELSE ops_count END,
+         updated_at = ?
+     WHERE id = 'singleton'`
+  ).bind(reservedBytes, month, Date.now()).run();
 }

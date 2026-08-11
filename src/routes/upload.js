@@ -1,6 +1,6 @@
 import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
-import { checkR2Quota, recordR2Usage, r2QuotaErrorResponse } from '../lib/r2Quota.js';
+import { reserveR2Usage, finalizeR2Reservation, releaseR2Reservation, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { optimizeUploadedImage } from '../lib/imageOptimize.js';
 
@@ -49,7 +49,9 @@ export async function handleUploadRoute(request, env) {
     return errorJson(`Görsel en fazla ${Math.round(maxBytes / (1024 * 1024))} MB olabilir.`);
   }
 
-  const quota = await checkR2Quota(env, file.size);
+  // file.size ÜST SINIR olarak rezerve edilir (bkz. r2Quota.js#reserveR2Usage) — atomik olduğundan
+  // eşzamanlı iki yükleme artık ikisi de kotanın altındayken "geçemez" (önceki TOCTOU'nun düzeltmesi).
+  const quota = await reserveR2Usage(env, file.size);
   if (!quota.ok) return r2QuotaErrorResponse(quota.reason);
 
   // gerçek bulgu: R2'ye eskiden dosya olduğu gibi yazılıyordu — depolama kotasını orijinal
@@ -63,12 +65,19 @@ export async function handleUploadRoute(request, env) {
   const finalExt = optimized ? optimized.ext : ext;
 
   const key = `u/${user.id}/${crypto.randomUUID()}.${finalExt}`;
-  await env.UPLOADS.put(key, bytes, {
-    httpMetadata: { contentType },
-  });
-  // Gerçekte yazılan byte sayısı — optimize edildiyse orijinal file.size'dan KÜÇÜK olacağından
-  // (bkz. r2Quota.js) kotayı gereksiz yere şişirmemek için asıl depolanan boyut kaydedilir.
-  await recordR2Usage(env, bytes.byteLength);
+  try {
+    await env.UPLOADS.put(key, bytes, {
+      httpMetadata: { contentType },
+    });
+  } catch (err) {
+    // Yazım başarısız oldu — hiç gerçekleşmemiş bir yükleme kotayı kalıcı olarak tüketmesin diye
+    // rezervasyon tamamen geri alınır.
+    await releaseR2Reservation(env, file.size);
+    throw err;
+  }
+  // Rezerve edilen üst sınır (file.size), gerçekte yazılan boyuta (optimize edildiyse daha küçük)
+  // düzeltilir.
+  await finalizeR2Reservation(env, file.size, bytes.byteLength);
 
   return json({ url: `/media/${key}` }, 201);
 }
