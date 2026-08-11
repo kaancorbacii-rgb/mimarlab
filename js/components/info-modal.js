@@ -162,6 +162,7 @@ const InfoModal = (function () {
         <ul>
           <li><strong>Proje arşivi</strong> — geçmişten günümüze öne çıkan projeleri tür, tip, yer, yıl ve mimarına göre filtreleyerek keşfedebilirsiniz.</li>
           <li><strong>Mimar ve firma profilleri</strong> — bireysel mimarların ve mimarlık ofislerinin/markalarının profillerini inceleyebilirsiniz.</li>
+          <li><strong>Ürün ve malzeme kataloğu</strong> — projelerde kullanılan mobilya, aydınlatma, aksesuar ve yapı malzemelerini marka, kategori ve puanına göre filtreleyerek keşfedebilirsiniz.</li>
           <li><strong>Puanlama, yorum ve kaydetme</strong> — projelere ve profillere puan verebilir, yorum yapabilir, beğendiğiniz içerikleri hesabınıza kaydedebilirsiniz.</li>
         </ul>
         <p>İçeriklerin bir kısmı halka açık kaynaklardan derlenir, bir kısmı ise üyelerimizin gönderdiği ve ekibimizin incelemesinden geçen katkılardan oluşur.</p>
@@ -180,7 +181,7 @@ const InfoModal = (function () {
 
       <div class="content-section">
         <h2>İletişim</h2>
-        <p>Sorularınız, düzeltme talepleriniz ya da iş birliği önerileriniz için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. MİMARLAB'da yer almak isteyen firmalar <a href="reklam.html">reklam seçeneklerimize</a>, ekibe katılmak isteyenler ise <a href="kariyer.html">kariyer sayfamıza</a> göz atabilir.</p>
+        <p>Sorularınız, düzeltme talepleriniz ya da iş birliği önerileriniz için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Ekibe katılmak isteyenler <a href="kariyer.html">kariyer sayfamıza</a> göz atabilir.</p>
       </div>
     </div>`;
   }

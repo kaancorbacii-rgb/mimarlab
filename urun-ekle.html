@@ -86,6 +86,12 @@
      kendi margin-bottom:18px'i ile zaten yeterli boşluk bıraktığından yalnızca hint'i ATLAYIP
      doğrudan ilk alana geçen başlıklara telafi edici bir üst boşluk eklenir. */
   .form-section h2 + :not(.section-hint){margin-top:14px;}
+  /* Teknik Özellikler/Ürün Açıklaması artık ayrı .form-section kutuları DEĞİL, tek "Ürün Bilgileri"
+     kutusunun içindeki alt bölümler (bkz. kullanıcı isteği: bu iki kutu Ürün Bilgileri'nin içine,
+     Teknik Özellikler açıklamanın ÜSTÜNE gelecek şekilde taşınsın) — üstteki h2 ile aynı ailede ama
+     daha düşük görsel ağırlıkta, öncesindeki alandan bir üst çizgiyle ayrılan alt başlık. */
+  .form-subheading{font-family:'Inter', sans-serif; font-size:14.5px; font-weight:700; margin:22px 0 4px; padding-top:20px; border-top:1px solid var(--line-soft);}
+  .form-subheading .opt{font-weight:400; color:var(--ink-soft); font-size:12.5px;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .form-field{margin-bottom:16px;}
   .ac-field{position:relative;}
@@ -259,19 +265,14 @@
         </div>
         <div class="form-row">
           <div class="form-field ac-field" id="ac-brand-field">
-            <label for="u-brand">Firma <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-brand" name="brand" placeholder="ör. VitrA" autocomplete="off">
+            <label for="u-brand">Firma</label>
+            <input type="text" id="u-brand" name="brand" placeholder="ör. VitrA" autocomplete="off" required>
             <div class="ac-suggestions" id="ac-brand-suggestions"></div>
           </div>
-          <div class="form-field ac-field" id="ac-architect-field">
-            <label for="u-architect">Mimar <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-architect" name="architect" placeholder="ör. Emre Arolat" autocomplete="off">
-            <div class="ac-suggestions" id="ac-architect-suggestions"></div>
+          <div class="form-field">
+            <label for="u-website">Ürün / Firma Web Sitesi <span class="opt">(opsiyonel)</span></label>
+            <input type="url" id="u-website" name="website" placeholder="https://...">
           </div>
-        </div>
-        <div class="form-field">
-          <label for="u-website">Ürün / Firma Web Sitesi <span class="opt">(opsiyonel)</span></label>
-          <input type="url" id="u-website" name="website" placeholder="https://...">
         </div>
         <div class="form-row">
           <div class="form-field">
@@ -283,20 +284,26 @@
             <select id="u-category"></select>
           </div>
         </div>
-      </div>
-
-      <div class="form-section">
-        <h2>Ürün Açıklaması</h2>
-        <div class="form-field">
-          <textarea id="u-desc" name="description" placeholder="Ürün hakkında kısa bir metin yaz..." aria-label="Ürün Açıklaması" required></textarea>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="u-year">Yıl <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="u-year" name="year" placeholder="ör. 2022" inputmode="numeric">
+          </div>
+          <div class="form-field">
+            <label for="u-designer">Tasarımcı <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="u-designer" name="designer" placeholder="ör. Ahmet Çınar">
+          </div>
         </div>
-      </div>
 
-      <div class="form-section">
-        <h2>Teknik Özellikler <span class="opt">(opsiyonel)</span></h2>
+        <h3 class="form-subheading">Teknik Özellikler <span class="opt">(opsiyonel)</span></h3>
         <p class="section-hint">Ölçü, malzeme, renk gibi teknik detayları etiket/değer çifti olarak ekle — ürün detay sayfasında bir tablo olarak gösterilir.</p>
         <div id="specs-rows"></div>
         <button type="button" class="specs-add-btn" id="specs-add-btn">+ Özellik Ekle</button>
+
+        <h3 class="form-subheading">Ürün Açıklaması</h3>
+        <div class="form-field">
+          <textarea id="u-desc" name="description" placeholder="Ürün hakkında kısa bir metin yaz..." aria-label="Ürün Açıklaması" required></textarea>
+        </div>
       </div>
 
       <div class="form-section">
@@ -467,8 +474,9 @@ async function prefillForEdit(){
 
     document.getElementById('u-title').value = item.title || '';
     document.getElementById('u-brand').value = item.brand || '';
-    document.getElementById('u-architect').value = item.architect || '';
     document.getElementById('u-website').value = item.website || '';
+    document.getElementById('u-year').value = item.year || '';
+    document.getElementById('u-designer').value = item.designer || '';
     document.getElementById('u-desc').value = item.description || '';
     // Eski çoklu-seçim verisi ' · ' ile ayrılmış olabilir (bkz. eski check-grid); yalnızca ilk
     // değeri alıp yeni Grup/Kategori taksonomisine eşleriz.
@@ -484,11 +492,10 @@ async function prefillForEdit(){
 }
 prefillForEdit();
 
-// Marka/Mimar önerileri artık data.js'in statik offices[]/architects[] dizileri yerine canlı D1
-// aramasından beslenir (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — mimar-ekle.html/
-// firma-ekle.html/proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe, statik
-// dizi yalnızca deploy anındaki anlık görüntüyü içerdiğinden D1'e az önce eklenmiş bir firma/mimar
-// burada hiç görünmüyordu).
+// Marka önerileri artık data.js'in statik offices[] dizisi yerine canlı D1 aramasından beslenir
+// (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — mimar-ekle.html/firma-ekle.html/
+// proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe, statik dizi yalnızca
+// deploy anındaki anlık görüntüyü içerdiğinden D1'e az önce eklenmiş bir firma burada hiç görünmüyordu).
 function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   opts = opts || {};
   const input = document.getElementById(inputId);
@@ -528,24 +535,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 
-// Firma seçildiğinde Mimar kutucuğu, o firmanın bünyesindeki mimarlarla otomatik doldurulur — ama
-// Mimar alanına zaten elle bir şey yazılmışsa ezilmez (bkz. kullanıcı isteği: "gerekirse manuel
-// değişiklik yapılabilsin"). Eşleşme artık src/routes/architect.js#handleArchitectSearchRoute'un
-// office= parametresiyle (architects.office_id → offices join) sunucu tarafında yapılır.
-wireAutocompleteLive('u-brand', 'ac-brand-suggestions', '/api/offices/search', {
-  onPick: (item) => {
-    const architectInput = document.getElementById('u-architect');
-    if(architectInput.value.trim()) return;
-    fetch(`/api/architects/search?office=${encodeURIComponent(item.label)}`)
-      .then(res => res.ok ? res.json() : {items: []})
-      .then(data => {
-        const matches = (data.items || []).map(it => it.label);
-        if(matches.length) architectInput.value = matches.join(', ');
-      })
-      .catch(()=>{});
-  },
-});
-wireAutocompleteLive('u-architect', 'ac-architect-suggestions', '/api/architects/search');
+wireAutocompleteLive('u-brand', 'ac-brand-suggestions', '/api/offices/search');
 
 async function uploadFiles(files){
   const urls = [];
@@ -585,8 +575,9 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   const payload = {
     title: document.getElementById('u-title').value,
     brand: document.getElementById('u-brand').value || null,
-    architect: document.getElementById('u-architect').value || null,
     website: document.getElementById('u-website').value || null,
+    year: document.getElementById('u-year').value || null,
+    designer: document.getElementById('u-designer').value || null,
     category: categorySelect.value,
     description: document.getElementById('u-desc').value,
     images: [...existingImages, ...uploadedImages],

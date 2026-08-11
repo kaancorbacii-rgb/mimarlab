@@ -570,28 +570,29 @@ async function syncProduct(env, row, kind) {
     brandOfficeId = match.row ? match.row.id : null;
   }
 
+  // "submission:<id>" işareti — src/routes/product.js#shapeProductItem'ın isSubmissionMarker
+  // kontrolü (ve dolayısıyla item.submissionId, editSubmissionBtnHtml/owner Sil-Arşivle akışının
+  // TAMAMI, bkz. js/components/product-modal.js#mountEditAndAdminButtons) bu satıra bakar.
+  // GERÇEK BULGU: legacy_key buraya kadar HİÇ yazılmıyordu — slug='m-<id>' zaten idempotent
+  // eşleştirme için yeterli olduğundan atlanmış, ama bu yüzden HİÇBİR üye/marka gönderisi kökenli
+  // ürün/malzeme için "Gönderiyi Düzenle" butonu (dolayısıyla artık sahibin Sil/Arşivle yetkisi de)
+  // hiçbir zaman görünmüyordu — item.submissionId sessizce hep null geliyordu.
+  const legacyKey = submissionMarker(row.id);
+
   let productId;
   if (existing) {
     // hidden_at temizliği — bkz. syncOffice'teki AYNI gerekçe (sahibi onaylı bir ürünü tekrar
     // düzenleyip admin onayladığında görünürlük geri gelmeliydi, gelmiyordu).
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
-    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, existing.id).run();
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, designer = ?, year = ?, legacy_key = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
+    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.designer || null, row.year || null, legacyKey, existing.id).run();
     productId = existing.id;
-    await env.DB.prepare(`DELETE FROM product_architects WHERE product_id = ?`).bind(productId).run();
   } else {
     const insert = await env.DB.prepare(
-      `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, source_url, ai_generated, source, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?)`
-    ).bind(slug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.source_url || null, row.ai_generated ? 1 : 0, row.owner_user_id).run();
+      `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, designer, year, source_url, ai_generated, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+    ).bind(slug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, legacyKey, row.owner_user_id).run();
     productId = insert.meta.last_row_id;
-  }
-
-  const architectNames = (row.architect || '').split(',').map(s => s.trim()).filter(Boolean);
-  for (const name of architectNames) {
-    const match = await findOneByName(env, 'architects', name);
-    if (match.row) await env.DB.prepare(`INSERT INTO product_architects (product_id, architect_id) VALUES (?, ?)`).bind(productId, match.row.id).run();
-    else if (match.ambiguous) await logConflict(env, 'product_architect', name, `${kind}_submission:${row.id}`, match.candidates);
   }
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(productId).first();
 }

@@ -448,10 +448,12 @@
       <h2>Paylaştığım İçerikler</h2>
       <div class="submissions-toolbar-row">
         <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
+        <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
       </div>
       <div class="submissions-toolbar-row" id="submissions-filter">
         <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
         <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
+        <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
       </div>
       <div id="dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="submissions-pagination"></div>
@@ -462,6 +464,7 @@
       <div class="saved-filter" id="saved-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
         <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
         <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
         <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
       </div>
@@ -474,6 +477,7 @@
       <div class="saved-filter" id="rated-filter">
         <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
         <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+        <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
       </div>
       <div id="dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
       <div class="dash-pagination" id="rated-pagination"></div>
@@ -754,15 +758,22 @@ let savedPage = 1;
 async function loadSaved(){
   const res = await fetch('/api/saved');
   const data = res.ok ? await res.json() : { items: [] };
-  // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski kaydedilmiş ürün kayıtları (varsa)
-  // artık 404 olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
-  savedItems = (data.items || []).filter(it => it.item_type !== 'product' && it.item_type !== 'material');
+  savedItems = data.items || [];
   renderSaved();
+}
+
+// "Ürün" filtresi hem product hem material tipini kapsar — urun.html'de bu ikisi zaten TEK
+// katalog olarak birleşti (bkz. o dosyadaki AYNI kind==='material'/'product' ayrımı), Kaydettiklerim/
+// Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından ikisi de tek "Ürün" butonunun altında toplanır.
+function matchesCatalogFilter(itemType, filter){
+  if(!filter) return true;
+  if(filter === 'product') return itemType === 'product' || itemType === 'material';
+  return itemType === filter;
 }
 
 function renderSaved(){
   const container = document.getElementById('dash-saved');
-  const items = savedFilter ? savedItems.filter(it => it.item_type === savedFilter) : savedItems;
+  const items = savedFilter ? savedItems.filter(it => matchesCatalogFilter(it.item_type, savedFilter)) : savedItems;
   if(!savedItems.length){
     container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
     document.getElementById('saved-pagination').innerHTML = '';
@@ -810,15 +821,13 @@ let ratedPage = 1;
 async function loadRated(){
   const res = await fetch('/api/ratings/mine');
   const data = res.ok ? await res.json() : { items: [] };
-  // Ürün artık yayında değil (bkz. kullanıcı isteği) — eski ürün puanlamaları (varsa) artık 404
-  // olan /urun/:slug'a gittiğinden bu listede hiç gösterilmiyor.
-  ratedItems = (data.items || []).filter(it => it.type !== 'product' && it.type !== 'material');
+  ratedItems = data.items || [];
   renderRated();
 }
 
 function renderRated(){
   const container = document.getElementById('dash-rated');
-  const items = ratedFilter ? ratedItems.filter(it => it.type === ratedFilter) : ratedItems;
+  const items = ratedFilter ? ratedItems.filter(it => matchesCatalogFilter(it.type, ratedFilter)) : ratedItems;
   if(!ratedItems.length){
     container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
     document.getElementById('rated-pagination').innerHTML = '';

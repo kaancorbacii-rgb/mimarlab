@@ -100,7 +100,9 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   specs TEXT, -- JSON dizi [{label, value}] — urun-detay.html "Teknik Özellikler" tablosu (bkz. migrations/0018_product_specs.sql)
   source_url TEXT,
   ai_generated INTEGER NOT NULL DEFAULT 0,
-  architect TEXT -- serbest metin (virgülle ayrılmış birden fazla isim olabilir) — bkz. migrations/0020_product_architect.sql
+  architect TEXT, -- artık urun-ekle.html'de kutusu yok, hiçbir yazma yolu yok (bkz. migrations/0020_product_architect.sql) — yalnızca eski satırlar için korunuyor
+  designer TEXT, -- serbest metin ürün tasarımcısı adı — bkz. migrations/0042_product_designer_year.sql
+  year TEXT -- serbest metin üretim/tasarım yılı — bkz. migrations/0042_product_designer_year.sql
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status ON product_submissions(status);
@@ -123,7 +125,9 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   specs TEXT, -- bkz. product_submissions.specs açıklaması
   source_url TEXT,
   ai_generated INTEGER NOT NULL DEFAULT 0,
-  architect TEXT -- bkz. product_submissions.architect açıklaması
+  architect TEXT, -- bkz. product_submissions.architect açıklaması
+  designer TEXT, -- bkz. product_submissions.designer açıklaması
+  year TEXT -- bkz. product_submissions.year açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_material_status ON material_submissions(status);

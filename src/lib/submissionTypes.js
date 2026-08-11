@@ -35,17 +35,20 @@ export const SUBMISSION_TYPES = {
   },
   products: {
     table: 'product_submissions',
-    fields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
+    // architect KASITLI OLARAK burada yok — urun-ekle.html'deki Mimar kutusu kaldırıldı (bkz.
+    // kullanıcı isteği), yerine designer/year (Tasarımcı/Yıl) geldi. Sütun schema.sql'de eski
+    // kayıtlar için hâlâ duruyor, sadece artık bu listeden okunup yazılmıyor.
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
     arrayFields: ['images', 'specs'],
-    required: ['title'],
+    required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
   },
   materials: {
     table: 'material_submissions',
-    fields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
     arrayFields: ['images', 'specs'],
-    required: ['title'],
+    required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
   },

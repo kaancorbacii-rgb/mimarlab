@@ -225,7 +225,6 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
-  { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },
   // gerçek bulgu: bu ikisi indexlenebilir (robots noindex YOK, bkz. INFO_MODAL_META) ama sitemap'te
   // hiç yer almıyordu — Rozet Al/İade Et bilerek dışında bırakıldı, onlar noindex.
   { loc: '/gizlilik-politikasi', changefreq: 'yearly', priority: '0.2' },

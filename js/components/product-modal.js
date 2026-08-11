@@ -301,16 +301,12 @@ const ProductModal = (function () {
         <div class="designer-label">Marka</div>
         <div class="designer-chips" id="pr-brand-chips"></div>
       </div>
-      <div class="designer-section" id="pr-architect-section" style="display:none;">
-        <div class="designer-label">Mimar</div>
-        <div class="designer-chips" id="pr-architect-chips"></div>
-      </div>
       <div class="detail-meta" id="pr-meta"></div>
-      <div class="detail-desc" id="pr-desc"></div>
       <div id="pr-specs-wrap" style="display:none;">
         <div class="specs-title">Teknik Özellikler</div>
         <table class="specs-table" id="pr-specs-table"></table>
       </div>
+      <div class="detail-desc" id="pr-desc"></div>
     </div>
     <hr class="pr-info-divider" id="pr-info-divider">
     <div class="pr-feedback-card" id="pr-feedback-card">
@@ -446,21 +442,12 @@ const ProductModal = (function () {
     tag.textContent = JSON.stringify(data);
   }
 
-  // Marka/mimar chip'leri: canonical products satırı yalnızca serbest metin brand/architect adı
-  // taşır (join yok) — MİMARLAB dizininde bir profili var mı diye AYNI /api/office/:slug ve
-  // /api/architect/:slug uçları (ArchitectModal/OfficeModal'ın da kullandığı) tek bir isimle
-  // deneme-yanılma sorgulanır; bulunursa logolu/fotoğraflı bir chip, bulunmazsa düz metin.
+  // Marka chip'i: canonical products satırı yalnızca serbest metin brand adı taşır (join yok) —
+  // MİMARLAB dizininde bir profili var mı diye AYNI /api/office/:slug ucu (OfficeModal'ın da
+  // kullandığı) tek bir isimle deneme-yanılma sorgulanır; bulunursa logolu bir chip, bulunmazsa düz metin.
   async function tryOfficeChip(name) {
     try {
       const res = await fetch(`/api/office/${encodeURIComponent(slugify(name))}`);
-      if (!res.ok) return null;
-      const payload = await res.json();
-      return (payload && payload.item && !payload.hidden) ? payload.item : null;
-    } catch { return null; }
-  }
-  async function tryArchitectChip(name) {
-    try {
-      const res = await fetch(`/api/architect/${encodeURIComponent(slugify(name))}`);
       if (!res.ok) return null;
       const payload = await res.json();
       return (payload && payload.item && !payload.hidden) ? payload.item : null;
@@ -480,24 +467,6 @@ const ProductModal = (function () {
     </a>`;
   }
 
-  async function renderArchitectSection(p) {
-    if (!p.architect) return;
-    const names = p.architect.split(',').map(s => s.trim()).filter(Boolean);
-    if (!names.length) return;
-    document.getElementById('pr-architect-section').style.display = '';
-    document.getElementById('pr-architect-chips').innerHTML = names.map(name => `<span class="designer-name-plain">${escapeHtml(name)}</span>`).join('');
-    const resolved = await Promise.all(names.map(name => tryArchitectChip(name)));
-    document.getElementById('pr-architect-chips').innerHTML = names.map((name, i) => {
-      const arch = resolved[i];
-      return arch
-        ? `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
-            <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(arch.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
-            <span class="designer-chip-name">${escapeHtml(arch.name)}</span>
-          </a>`
-        : `<span class="designer-name-plain">${escapeHtml(name)}</span>`;
-    }).join('');
-  }
-
   // "X tarafından" satırı — proje-modal.js#renderByline ile BİREBİR aynı (yalnızca üye gönderisi
   // kökenli ürünlerde dolu, bkz. src/routes/product.js#fetchOwnerByline item.ownerName alanı).
   function renderByline(item) {
@@ -513,7 +482,7 @@ const ProductModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section', 'pr-architect-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section',
     'pr-info-divider', 'pr-feedback-card', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   async function renderItem(p, key) {
@@ -527,16 +496,18 @@ const ProductModal = (function () {
     renderByline(p);
 
     document.getElementById('pr-brand-section').style.display = 'none';
-    document.getElementById('pr-architect-section').style.display = 'none';
     renderBrandSection(p);
-    renderArchitectSection(p);
 
+    // Künye sırası urun-ekle.html'deki form sırasıyla AYNI (bkz. kullanıcı isteği): Marka (üstteki
+    // designer-section), Web Sitesi, Kategori, Yıl, Tasarımcı, ardından Teknik Özellikler/Açıklama.
     let metaHtml = '';
-    if (p.category) metaHtml += `<div><strong>Kategori:</strong> ${escapeHtml(p.category)}</div>`;
     if (p.website) {
       const site = safeUrl(p.website);
       if (site) metaHtml += `<div><strong>Web Sitesi:</strong> <a href="${escapeAttr(site)}" target="_blank" rel="noopener">${escapeHtml(p.website)}</a></div>`;
     }
+    if (p.category) metaHtml += `<div><strong>Kategori:</strong> ${escapeHtml(p.category)}</div>`;
+    if (p.year) metaHtml += `<div><strong>Yıl:</strong> ${escapeHtml(p.year)}</div>`;
+    if (p.designer) metaHtml += `<div><strong>Tasarımcı:</strong> ${escapeHtml(p.designer)}</div>`;
     document.getElementById('pr-meta').innerHTML = metaHtml;
     renderTruncatedDesc('pr-desc', p.description || '');
 
@@ -647,6 +618,13 @@ const ProductModal = (function () {
     });
   }
 
+  // Admin HER ürünü/malzemeyi (legacy_static dahil) düzenleyebilir/arşivleyebilir/silebilir; ürünü
+  // yükleyen üye ise YALNIZCA kendi gönderisi (p.submissionId dolu) üzerinde aynı üç yetkiye sahiptir
+  // (bkz. kullanıcı isteği: "Admine ve ürünü yükleyen kullanıcıya ürünü düzenleme, silme ve
+  // arşivleme yetkisi ver") — proje pop-up'ının aksine (bkz. js/components/project-actions.js#
+  // mountOwnerActions, sahibe yalnızca Sil verir) burada sahibe Arşivle de açıktır, kullanıcı bunu
+  // AÇIKÇA istedi. Sahiplik ProjectActions'daki AYNI desenle (/api/<tip>/mine sorgusu + id eşleşmesi)
+  // belirlenir — admin bu sorguyu atlar, kendi Arşivle/Sil butonları admin'e özel uca gider.
   async function mountEditAndAdminButtons(p, key) {
     await savedWidgetReady;
     if (p.submissionId) {
@@ -654,12 +632,26 @@ const ProductModal = (function () {
       const editSlot = document.getElementById('pr-edit-slot');
       if (html && editSlot) editSlot.innerHTML = html;
     }
-    if (!currentUser || currentUser.role !== 'admin') return;
+    if (!currentUser) return;
     const slot = document.getElementById('pr-admin-slot');
     if (!slot) return;
+    if (currentUser.role === 'admin') {
+      slot.innerHTML = `<button type="button" class="card-edit-btn" id="pr-archive-btn">Arşivle</button><button type="button" class="card-delete-btn" id="pr-delete-btn">Sil</button>`;
+      document.getElementById('pr-archive-btn').addEventListener('click', () => runContentModeration(p, key, 'archive'));
+      document.getElementById('pr-delete-btn').addEventListener('click', () => runContentModeration(p, key, 'delete'));
+      return;
+    }
+    if (!p.submissionId) return;
+    let mine = false;
+    try {
+      const res = await fetch(`/api/${kindPlural(p)}/mine`);
+      const data = res.ok ? await res.json() : { items: [] };
+      mine = (data.items || []).some(it => it.id === p.submissionId);
+    } catch { mine = false; }
+    if (!mine) return;
     slot.innerHTML = `<button type="button" class="card-edit-btn" id="pr-archive-btn">Arşivle</button><button type="button" class="card-delete-btn" id="pr-delete-btn">Sil</button>`;
-    document.getElementById('pr-archive-btn').addEventListener('click', () => runContentModeration(p, key, 'archive'));
-    document.getElementById('pr-delete-btn').addEventListener('click', () => runContentModeration(p, key, 'delete'));
+    document.getElementById('pr-archive-btn').addEventListener('click', () => runOwnerModeration(p, 'archive'));
+    document.getElementById('pr-delete-btn').addEventListener('click', () => runOwnerModeration(p, 'delete'));
   }
 
   async function runContentModeration(p, key, action) {
@@ -675,6 +667,33 @@ const ProductModal = (function () {
       const res = await fetch('/api/admin/legacy/content-action', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p.submissionId ? { type: kindPlural(p), action, id: p.submissionId } : { type: kindPlural(p), action, key: legacyKeyFor(p) }),
+      });
+      if (!res.ok) throw new Error('request failed');
+      window.location.href = '/urun';
+    } catch {
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      if (btn) btn.disabled = false;
+      if (otherBtn) otherBtn.disabled = false;
+    }
+  }
+
+  // Sahibin kendi gönderisi üzerinde Arşivle/Sil'i — admin'in genel /api/admin/legacy/content-action
+  // ucu (yukarısı) role='admin' zorunlu tuttuğundan sahip için KULLANILAMAZ; bunun yerine sahiplik
+  // kontrolünü kendisi yapan /api/<tip>/:id/moderate ucuna gider (bkz. src/routes/submissions.js#
+  // moderateOwnSubmission).
+  async function runOwnerModeration(p, action) {
+    const confirmText = action === 'delete'
+      ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
+      : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılır, Gönderiyi Düzenle üzerinden tekrar yayınlayabilirsin.';
+    if (!confirm(confirmText)) return;
+    const btn = document.getElementById(action === 'delete' ? 'pr-delete-btn' : 'pr-archive-btn');
+    const otherBtn = document.getElementById(action === 'delete' ? 'pr-archive-btn' : 'pr-delete-btn');
+    if (btn) btn.disabled = true;
+    if (otherBtn) otherBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/${kindPlural(p)}/${encodeURIComponent(p.submissionId)}/moderate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
       });
       if (!res.ok) throw new Error('request failed');
       window.location.href = '/urun';

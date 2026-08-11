@@ -6,7 +6,7 @@ import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_L
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { setLegacyHidden } from './legacyContent.js';
+import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
@@ -160,6 +160,12 @@ export async function handleSubmissionRoute(request, env, url) {
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') return listMine(env, user, typeKey);
   if (segments.length === 3 && segments[2] !== 'mine' && request.method === 'GET') return getOwnSubmission(env, user, typeKey, segments[2]);
   if (segments.length === 3 && segments[2] !== 'mine' && request.method === 'PATCH') return updateOwnSubmission(request, env, user, typeKey, segments[2]);
+  // Ürün/malzeme sahibinin (ya da admin'in) pop-up içinden kendi gönderisini silmesi/arşivlemesi
+  // (bkz. js/components/product-modal.js#mountEditAndAdminButtons, kullanıcı isteği: "Admine ve
+  // ürünü yükleyen kullanıcıya ürünü düzenleme, silme ve arşivleme yetkisi ver") — projects'in
+  // aksine (bkz. handleSelfProjectDelete, yalnızca Sil) burada sahibe Arşivle de açıktır, bu yüzden
+  // proje'deki DELETE method'u yerine tek bir POST .../moderate ucu {action} gövdesiyle ikisini de taşır.
+  if (segments.length === 4 && segments[3] === 'moderate' && request.method === 'POST') return moderateOwnSubmission(request, env, user, typeKey, segments[2]);
   return errorJson('Bulunamadı', 404);
 }
 
@@ -401,4 +407,19 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     return json({ id, status, slug: renamedSlug || syncedRow.slug });
   }
   return json({ id, status });
+}
+
+// POST /api/products/:id/moderate ve /api/materials/:id/moderate  body: {action:'delete'|'archive'} —
+// runContentAction (bkz. src/routes/legacyContent.js) kendi başına yetki kontrolü YAPMAZ, o yüzden
+// sahiplik burada doğrulanır (admin ya da bu gönderinin owner_user_id'si) — handleContentAction'ın
+// (admin panelindeki AYNI fonksiyon) tam tersine, burada 'key' (statik kayıt) YOLU hiç kullanılmaz;
+// yalnızca bir kullanıcının/marka gönderisinin (id'li) kendi kaydı hedeflenebilir.
+async function moderateOwnSubmission(request, env, user, typeKey, id) {
+  if (typeKey !== 'products' && typeKey !== 'materials') return errorJson('Bulunamadı', 404);
+  const config = SUBMISSION_TYPES[typeKey];
+  const existing = await env.DB.prepare(`SELECT id, owner_user_id FROM ${config.table} WHERE id = ?`).bind(id).first();
+  if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
+  const body = await readJson(request);
+  if (!['delete', 'archive'].includes(body.action)) return errorJson('Geçersiz işlem.');
+  return runContentAction(env, user, { type: typeKey, action: body.action, id });
 }

@@ -457,23 +457,23 @@ const CONTENT_ACTION_TYPES = {
   products: {
     table: 'product_submissions',
     claimedColumn: null,
-    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
+    copyFields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs'],
     async canonicalFields(env, key) {
       const row = await findCanonicalRowByNaturalKey(env, 'products', key);
       if (!row) return null;
       const p = parseCanonicalRow('products', row);
-      return { title: p.title, brand: p.brand_name_raw, architect: null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
+      return { title: p.title, brand: p.brand_name_raw, designer: row.designer || null, year: row.year || null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
     },
   },
   materials: {
     table: 'material_submissions',
     claimedColumn: null,
-    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
+    copyFields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs'],
     async canonicalFields(env, key) {
       const row = await findCanonicalRowByNaturalKey(env, 'materials', key);
       if (!row) return null;
       const p = parseCanonicalRow('products', row);
-      return { title: p.title, brand: p.brand_name_raw, architect: null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
+      return { title: p.title, brand: p.brand_name_raw, designer: row.designer || null, year: row.year || null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
     },
   },
 };
@@ -505,7 +505,15 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     const row = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
     if (!row) return errorJson('Bulunamadı.', 404);
     const now = Date.now();
-    const targetKey = (config.claimedColumn && row[config.claimedColumn]) || key;
+    // products/materials'ın claimedColumn'u yok (bkz. CONTENT_ACTION_TYPES) — canonical satırları
+    // legacy_key = 'submission:<id>' işaretiyle bulunur (bkz. src/lib/canonicalSync.js#syncProduct).
+    // GERÇEK BULGU: targetKey eskiden yalnızca claimedColumn/key'e düşüyordu, ikisi de products/
+    // materials'ta hep boş olduğundan Sil (canonical satır HİÇ silinmiyor/karalisteye alınmıyordu,
+    // yalnızca moderasyon satırı gidiyordu — ürün canlıda kalmaya devam ediyordu) VE Arşivle
+    // (hidden_at HİÇ set edilmiyordu, yalnızca facet sayaçları güncelleniyordu — ürün canlıdan asla
+    // kalkmıyordu) products/materials için sessizce hiçbir şey yapmıyordu.
+    const legacyKeyFallback = (type === 'products' || type === 'materials') ? `submission:${id}` : null;
+    const targetKey = (config.claimedColumn && row[config.claimedColumn]) || key || legacyKeyFallback;
     if (action === 'delete') {
       await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
@@ -516,12 +524,12 @@ export async function runContentAction(env, user, { type, action, id, key }) {
       if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
-      if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], true);
+      if (targetKey) await setLegacyHidden(env, user, type, targetKey, true);
       else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'approved', updated_at = ? WHERE id = ?`).bind(now, id).run();
       await syncApprovedSubmissionToCanonical(env, type, parseSubmissionRow(type, { ...row, status: 'approved' }));
-      if (config.claimedColumn && row[config.claimedColumn]) await setLegacyHidden(env, user, type, row[config.claimedColumn], false);
+      if (targetKey) await setLegacyHidden(env, user, type, targetKey, false);
       else if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     }
     await invalidatePublicCache();
