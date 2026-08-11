@@ -186,13 +186,48 @@ const RelatedProjects = (function () {
       if (d.unregistered) return;
       queries.push(fetchByParams(withFilters([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
     });
-    (item.type || []).forEach(t => queries.push(fetchByParams(withFilters([['type', t]]), 16)));
+    (item.type || []).forEach(t => queries.push(fetchByParams(withFilters([['type', t]]), 32)));
     const topLevelLocation = locationParts(item.location);
     const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
-    if (rawCity) queries.push(fetchByParams(withFilters([['location', rawCity]]), 16));
-    queries.push(fetchByParams(withFilters([['sort', 'rating_desc']]), 16)); // genel havuz — boşluk doldurma
-    if (disciplineParams.length || categoryParams.length) queries.push(fetchByParams([...disciplineParams, ...categoryParams, buildStatusParam], 24)); // Tür+Tip'e özel geniş havuz
+    if (rawCity) queries.push(fetchByParams(withFilters([['location', rawCity]]), 32));
+    // Kural 3 (bkz. yukarısı, mount()'taki loadSeenSlugs) — bu iki sorgu proje-BAĞIMSIZ (sort=
+    // rating_desc / discipline+category'ye göre id DESC), yani AYNI Tip'teki her proje için neredeyse
+    // birebir aynı sonucu döner. Limitler eskiden 16/24'tü — bu, "seen" havuzunun hızla tükenip her
+    // yeni proje pop-up'ının aynı dar kümeye geri dönmesine yol açıyordu (gerçek bulgu: iki farklı
+    // Dini proje arasında %60 çakışma). Limitleri büyütmek (sunucu üst sınırı 96, bkz.
+    // src/routes/project.js#handleProjectListRoute) "seen" filtresine rotasyon yapacak gerçek bir
+    // havuz sağlar.
+    queries.push(fetchByParams(withFilters([['sort', 'rating_desc']]), 40)); // genel havuz — boşluk doldurma
+    if (disciplineParams.length || categoryParams.length) queries.push(fetchByParams([...disciplineParams, ...categoryParams, buildStatusParam], 80)); // Tür+Tip'e özel geniş havuz
     return { queries, topLevelLocation };
+  }
+
+  // Kural 3 (bkz. kullanıcı isteği: "Bir projeden diğerine geçerken aynı önerileri görmeyelim") —
+  // weightedSample TEK bir mount() çağrısı içindeki havuzu karıştırır ama havuzun kendisi (özellikle
+  // dar bir Tip/Tür kombinasyonunda) birçok farklı proje için neredeyse AYNI aday kümesinden gelir;
+  // bu yüzden art arda açılan farklı proje pop-up'ları görsel olarak "hep aynı önerileri gösteriyor"
+  // hissi verebiliyordu. SEEN_SSKEY altında sessionStorage'a (sekme kapanınca temizlenir, kalıcı
+  // değil) bu TARAYICI OTURUMUNDA daha önce "İlgili Projeler"de gösterilmiş slug'lar biriktirilir;
+  // her mount() önce HİÇ gösterilmemiş adaylardan seçim yapar, yalnızca havuz onları tüketirse
+  // (ör. çok dar bir kategori) daha önce görülmüş adaylarla tamamlar — böylece tekrar sıfıra
+  // inmeden rotasyon sağlanır. SEEN_MAX: sınırsız büyümesin diye en eski girişler FIFO düşürülür —
+  // bu da eski adayların bir süre sonra tekrar "taze" sayılıp havuza dönmesini sağlar.
+  const SEEN_SSKEY = 'mimarlab.relatedProjectsSeen';
+  const SEEN_MAX = 150;
+
+  function loadSeenSlugs() {
+    try {
+      const raw = sessionStorage.getItem(SEEN_SSKEY);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  }
+
+  function rememberSeenSlugs(seen, newSlugs) {
+    newSlugs.forEach(s => seen.delete(s)); // en sona taşınacak, FIFO sırasını güncel tutar
+    newSlugs.forEach(s => seen.add(s));
+    try {
+      sessionStorage.setItem(SEEN_SSKEY, JSON.stringify(Array.from(seen).slice(-SEEN_MAX)));
+    } catch { /* sessionStorage kapalı/dolu olabilir - oturum-içi rotasyon sessizce devre dışı kalır */ }
   }
 
   // D1'de ORDER BY RANDOM() KULLANILMAZ (bkz. kullanıcı isteği: büyük veri kümelerinde yük riski) —
@@ -242,11 +277,18 @@ const RelatedProjects = (function () {
       .map(p => ({ p, score: scoreCandidate(item, p) }))
       .filter(({ score }) => score > -Infinity);
 
-    const merged = weightedSample(scored, RESULT_COUNT);
+    // Kural 3 — önce bu oturumda hiç gösterilmemiş adaylardan seç, havuz yetmezse (ör. dar bir
+    // Tip/Tür kombinasyonu) daha önce görülmüş adaylarla tamamla (bkz. yukarısı, loadSeenSlugs).
+    const seen = loadSeenSlugs();
+    const fresh = scored.filter(({ p }) => !seen.has(p.slug));
+    const stale = scored.filter(({ p }) => seen.has(p.slug));
+    let merged = weightedSample(fresh, RESULT_COUNT);
+    if (merged.length < RESULT_COUNT) merged = merged.concat(weightedSample(stale, RESULT_COUNT - merged.length));
 
     if (!merged.length) { section.style.display = 'none'; return; }
     section.style.display = '';
     document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
+    rememberSeenSlugs(seen, merged.map(p => p.slug));
   }
 
   return { mount };
