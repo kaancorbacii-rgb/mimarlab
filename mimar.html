@@ -777,8 +777,16 @@ document.addEventListener('click', (e)=>{
   if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
 });
 
-applyStateFromUrl();
-render();
+// İlk otomatik render() DOMContentLoaded'a ertelenir — render() içindeki cdnImg() (image-cdn.js,
+// defer ile yüklenir) de tıpkı aşağıdaki ArchitectModal yorumunda anlatılan AYNI riskle karşı
+// karşıya: /api/architects isteği bazen deferred script'ten daha hızlı dönebiliyor, bu da
+// "cdnImg is not defined" hatasıyla mimar listesini sessizce boş bırakabiliyordu (bkz.
+// urun.html'deki BİREBİR AYNI gerçek bulgu/düzeltme — orada catalogCardMediaHtml ile yaşandı).
+// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
+document.addEventListener('DOMContentLoaded', () => {
+  applyStateFromUrl();
+  render();
+});
 
 // Doğrudan /mimar/:slug adresine girildiğinde ya da o adreste F5 yapıldığında mimar modalı
 // otomatik açılsın (bkz. kullanıcı isteği). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek

@@ -1252,9 +1252,17 @@ window.addEventListener('popstate', ()=>{
   render();
 });
 
-applyInitialFiltersFromQuery();
-buildSidebar();
-render();
+// İlk otomatik render() DOMContentLoaded'a ertelenir — render() içindeki cdnImg() (image-cdn.js,
+// defer ile yüklenir) de tıpkı aşağıdaki ProjectModal yorumunda anlatılan AYNI riskle karşı
+// karşıya: /api/projects isteği bazen deferred script'ten daha hızlı dönebiliyor, bu da
+// "cdnImg is not defined" hatasıyla proje listesini sessizce boş bırakabiliyordu (bkz.
+// urun.html'deki BİREBİR AYNI gerçek bulgu/düzeltme — orada catalogCardMediaHtml ile yaşandı).
+// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
+document.addEventListener('DOMContentLoaded', () => {
+  applyInitialFiltersFromQuery();
+  buildSidebar();
+  render();
+});
 
 // Doğrudan /proje/:slug adresine girildiğinde ya da o adreste F5 yapıldığında proje modalı
 // otomatik açılsın (bkz. kullanıcı isteği) — pushHistory:false: URL zaten doğru, YENİ bir geçmiş
