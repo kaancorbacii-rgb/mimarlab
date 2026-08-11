@@ -122,25 +122,35 @@ const RelatedProjects = (function () {
       : { city: info.district || null, country: info.city };
   }
 
-  // Kural 1 (ZORUNLU, bkz. kullanıcı isteği): aday havuzu kaynak projeyle AYNI "Tür"e (discipline —
-  // Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon) sahip olmayan hiçbir projeyi içeremez.
-  // Bu filtre hem sorgu seviyesinde (gatherCandidateQueries'teki discipline param'ı, server
-  // passesFilters — bkz. src/routes/project.js#buildFilterGroups) hem istemci tarafında (mount()
-  // candidates.set öncesi) uygulanır. Kaynak projede discipline verisi YOKSA (eski/eksik kayıt)
-  // filtre uygulanamaz — geriye dönük davranış korunur, bölüm tamamen boş kalmaz.
+  // Kural 1 (ZORUNLU, bkz. kullanıcı isteği: "en üst katman tür olsun... restorasyonsa
+  // önerilenlerin de hepsi restorasyon olsun"): aday havuzu kaynak projeyle AYNI "Tür"e (discipline
+  // — Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon) sahip olmayan hiçbir projeyi içeremez.
+  // Bir proje BİRDEN ÇOK discipline taşıyabilir (ör. ["Mimari","Restorasyon"]) — gerçek bulgu: eski
+  // "some" (HERHANGİ BİR ortak değer yeter) mantığı, kaynak ["Mimari","Restorasyon"] olduğunda salt
+  // "Mimari" (restorasyon bileşeni SIFIR) adayları da "Mimari" ortak olduğu için geçiriyordu
+  // (Santralistanbul Enerji Müzesi'nde 15 öneriden 12'si restorasyon içermiyordu). "every" — kaynağın
+  // TÜM discipline etiketleri adayda da bulunmalı (aday FAZLADAN etiket taşıyabilir, sorun değil) —
+  // bunu düzeltir: restorasyon içeren bir kaynak SADECE restorasyon içeren adaylar önerir. Bu filtre
+  // hem sorgu seviyesinde (gatherCandidateQueries'teki discipline param'ı — server OR mantığıyla geniş
+  // bir üst küme getirir, bkz. src/routes/project.js#buildFilterGroups) hem istemci tarafında (mount()
+  // candidates.set öncesi, burada asıl KESİN "every" daraltması yapılır) uygulanır. Kaynak projede
+  // discipline verisi YOKSA (eski/eksik kayıt) filtre uygulanamaz — geriye dönük davranış korunur,
+  // bölüm tamamen boş kalmaz.
   function hasSameDiscipline(source, candidate) {
     const sourceDisciplines = source.discipline || [];
     if (!sourceDisciplines.length) return true;
-    return (candidate.discipline || []).some(d => sourceDisciplines.includes(d));
+    const candSet = new Set(candidate.discipline || []);
+    return sourceDisciplines.every(d => candSet.has(d));
   }
 
-  // Kural 2 (ZORUNLU, bkz. yukarısı) — hasSameDiscipline ile BİREBİR aynı desen, ama "Tip"
-  // (category[]) alanı üzerinde. Kaynakta category verisi YOKSA filtre uygulanamaz (geriye dönük
-  // davranış korunur).
+  // Kural 2 (ZORUNLU, bkz. yukarısı ve kullanıcı isteği: "aynı tip olsun") — hasSameDiscipline ile
+  // BİREBİR aynı "every" deseni, ama "Tip" (category[]) alanı üzerinde. Kaynakta category verisi
+  // YOKSA filtre uygulanamaz (geriye dönük davranış korunur).
   function hasSameCategory(source, candidate) {
     const sourceCategories = source.category || [];
     if (!sourceCategories.length) return true;
-    return (candidate.category || []).some(c => sourceCategories.includes(c));
+    const candSet = new Set(candidate.category || []);
+    return sourceCategories.every(c => candSet.has(c));
   }
 
   function yearProximity(sourceDate, candDate) {
