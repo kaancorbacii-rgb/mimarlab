@@ -120,8 +120,16 @@
   .brand{display:flex; align-items:center; gap:10px;}
   .brand-logo{height:24px; width:auto; display:block;}
   .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
-  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase; background:none; border:none; font-family:inherit;}
   .nav-link:hover, .nav-link.active{color:var(--ink);}
+  /* Ürün açılır menü düğmesi (bkz. js/components/nav-product-menu.js) — bu reset burada, sayfanın
+     KENDİ <style>'ında olmalı, yalnızca JS'in enjekte ettiği stilde değil: nav-product-menu.js
+     defer'lı olduğundan ilk boyamadan SONRA çalışır, o ana kadar <button> tarayıcı varsayılan
+     çerçeve/arkaplanıyla görünüp kaybolan bir gri dikdörtgen gibi çakıyordu (bkz. kullanıcı isteği). */
+  .nav-link-wrap{position:relative;}
+  .nav-link-trigger{display:flex; align-items:center; gap:5px; cursor:pointer; background:none; border:none; padding:0; margin:0;}
+  .nav-link-trigger svg{transition:transform .15s ease;}
+  .nav-link-trigger[aria-expanded="true"] svg{transform:rotate(180deg);}
   .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
   .nav-mobile-menu{
     display:none; position:absolute; top:100%; right:18px; z-index:95;
@@ -844,7 +852,7 @@
         <a class="footer-logo" href="index.html">
           <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
-        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>

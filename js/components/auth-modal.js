@@ -10,8 +10,8 @@
 // linkleri) HİÇ değiştirilmedi — bunun yerine burada TEK bir delege edilmiş click dinleyicisiyle
 // yakalanıp preventDefault edilir (bkz. aşağısı).
 const AuthModal = (function () {
-  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim' };
-  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/ };
+  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', forgot: '/sifremi-unuttum' };
+  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -61,6 +61,7 @@ const AuthModal = (function () {
     #am-panel .auth-forgot a:hover{text-decoration:underline;}
     #am-panel .auth-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
     #am-panel .auth-notice.show{display:block;}
+    #am-panel .auth-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
     #am-panel .auth-oauth{display:flex; flex-direction:column; gap:10px; margin-bottom:20px;}
     #am-panel .auth-oauth-btn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:11px; border-radius:100px; border:1px solid var(--line); background:var(--paper); font-size:13.5px; font-weight:600; color:var(--ink);}
     #am-panel .auth-oauth-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
@@ -192,6 +193,53 @@ const AuthModal = (function () {
       </div>
       <p class="auth-switch">Hesabın yok mu? <a id="am-goto-signup">Üye Ol</a></p>
     </div>`;
+  }
+
+  // sifremi-unuttum.html'in KENDİ tasarımını birebir koruyarak (bkz. dosya başı yorumu, AYNI
+  // gerekçe) popup'a taşır — login/signup ile AYNI desen.
+  function forgotTemplate() {
+    return `
+    <div class="auth-wrap">
+      <div class="auth-eyebrow">Hesap</div>
+      <h1 class="auth-title">Şifremi Unuttum</h1>
+      <p class="auth-sub">E-posta adresini gir, şifre sıfırlama bağlantısını gönderelim.</p>
+      <div class="auth-card">
+        <form id="am-forgot-form">
+          <div class="auth-field">
+            <label for="am-forgot-email">E-posta</label>
+            <input type="email" id="am-forgot-email" name="email" placeholder="ornek@eposta.com" required>
+          </div>
+          <button class="auth-submit" type="submit">Sıfırlama Bağlantısı Gönder</button>
+          <div class="auth-notice" id="am-forgot-notice"></div>
+        </form>
+      </div>
+      <p class="auth-switch"><a id="am-goto-login-from-forgot">Giriş sayfasına dön</a></p>
+    </div>`;
+  }
+
+  function wireForgot() {
+    document.getElementById('am-goto-login-from-forgot').addEventListener('click', () => swap('login'));
+    document.getElementById('am-forgot-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const notice = document.getElementById('am-forgot-notice');
+      const submitBtn = e.target.querySelector('.auth-submit');
+      submitBtn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: document.getElementById('am-forgot-email').value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        notice.textContent = data.message || 'Bu e-posta ile bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.';
+        notice.classList.add('show', 'success');
+      } catch (err) {
+        notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+        notice.classList.add('show');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
   }
 
   function wireLogin() {
@@ -1169,6 +1217,7 @@ const AuthModal = (function () {
     panels.leftPanelEl.appendChild(wrap);
     if (view === 'login') { wrap.innerHTML = loginTemplate(); wireLogin(); }
     else if (view === 'signup') { wrap.innerHTML = signupTemplate(); wireSignup(); }
+    else if (view === 'forgot') { wrap.innerHTML = forgotTemplate(); wireForgot(); }
     else { wrap.innerHTML = accountTemplate(); mountAccount(); }
     ModalShell.scrollToTop();
   }
@@ -1226,6 +1275,7 @@ const AuthModal = (function () {
     if (path === '/giris') return 'login';
     if (path === '/uye-ol') return 'signup';
     if (path === '/hesabim') return 'account';
+    if (path === '/sifremi-unuttum') return 'forgot';
     return null;
   }
 
@@ -1239,6 +1289,7 @@ const AuthModal = (function () {
     if (HREF_VIEW_RE.login.test(href)) view = 'login';
     else if (HREF_VIEW_RE.signup.test(href)) view = 'signup';
     else if (HREF_VIEW_RE.account.test(href)) view = 'account';
+    else if (HREF_VIEW_RE.forgot.test(href)) view = 'forgot';
     if (!view) return;
     e.preventDefault();
     if (isOpen()) swap(view); else open(view, { triggerEl: a });

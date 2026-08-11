@@ -131,11 +131,16 @@
     box-shadow:0 12px 28px rgba(27,42,61,0.15); padding:8px; max-height:280px;
   }
   .dd-field.open .dd-panel{display:flex;}
+  .dd-search{
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-family:inherit;
+    font-size:13px; margin-bottom:6px; background:var(--paper); color:var(--ink); flex-shrink:0;
+  }
   .dd-options{overflow-y:auto;}
   .dd-option{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
   .dd-option:hover{background:var(--paper-alt);}
   .dd-option.selected{background:var(--paper-alt); font-weight:600;}
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
+  .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
 
   /* ---------- AUTOCOMPLETE (Varsa Marka Adı) ---------- */
   .ac-field{position:relative;}
@@ -270,8 +275,17 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="m-dob">Doğum Yılı <span class="opt">(opsiyonel)</span></label>
-            <input type="number" id="m-dob" name="dob" placeholder="ör. 1975" min="1000" max="2026" inputmode="numeric">
+            <label>Doğum Yılı <span class="opt">(opsiyonel)</span></label>
+            <div class="dd-field" id="dd-dob">
+              <button type="button" class="dd-btn" id="dd-dob-btn">
+                <span id="dd-dob-btn-label">Yıl seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <input type="text" class="dd-search" id="dd-dob-search" placeholder="Yıl ara...">
+                <div class="dd-options" id="dd-dob-options"></div>
+              </div>
+            </div>
           </div>
           <div class="form-field ac-field" id="ac-school-field">
             <label for="m-school">Üniversite <span class="opt">(opsiyonel)</span></label>
@@ -375,7 +389,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html"><img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async"></a>
-        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
         <div class="footer-social">
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
@@ -494,6 +508,36 @@ const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü','Ulusal Mimarlık Ödülleri
 const meslekDropdown = wireSingleDropdown('dd-meslek', 'dd-meslek-btn', 'dd-meslek-btn-label', 'dd-meslek-options', MESLEK_OPTIONS, 'Meslek seç');
 const pozisyonDropdown = wireSingleDropdown('dd-pozisyon', 'dd-pozisyon-btn', 'dd-pozisyon-btn-label', 'dd-pozisyon-options', POZISYON_OPTIONS, 'Pozisyon seç');
 const odullerDropdown = wireMultiDropdown('dd-oduller', 'dd-oduller-btn', 'dd-oduller-btn-label', 'dd-oduller-options', ODUL_OPTIONS, 'award', 'Ödül seç');
+
+// ---------- DOĞUM YILI: firma-ekle.html#dd-yil ile AYNI arama kutulu tek seçimlik açılır pencere
+// (bkz. kullanıcı isteği), yalnızca alt sınır 1923 değil 1299 (mimarların Kuruluş Yılı'ndan çok
+// daha eski doğum tarihleri olabilir — ör. Mimar Sinan gibi tarihi figürler).
+const DOB_MIN_YEAR = 1299;
+const DOB_MAX_YEAR = new Date().getFullYear();
+const DOB_YEAR_OPTIONS = Array.from({length: DOB_MAX_YEAR - DOB_MIN_YEAR + 1}, (_, i) => DOB_MAX_YEAR - i);
+let selectedDob = null;
+function renderDobOptions(filter){
+  const q = (filter || '').trim();
+  const container = document.getElementById('dd-dob-options');
+  const list = DOB_YEAR_OPTIONS.filter(y => !q || String(y).includes(q));
+  container.innerHTML = list.length ? list.map(y => `<div class="dd-option${y === selectedDob ? ' selected' : ''}" data-dob="${y}">${y}</div>`).join('') : '<div class="dd-empty">Sonuç yok</div>';
+  container.querySelectorAll('[data-dob]').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      selectedDob = parseInt(opt.dataset.dob, 10);
+      document.getElementById('dd-dob-btn-label').textContent = String(selectedDob);
+      document.getElementById('dd-dob').classList.remove('open');
+    });
+  });
+}
+document.getElementById('dd-dob-btn').addEventListener('click', ()=>{
+  const field = document.getElementById('dd-dob');
+  const willOpen = !field.classList.contains('open');
+  closeAllDropdowns();
+  if(willOpen){ field.classList.add('open'); document.getElementById('dd-dob-search').value = ''; renderDobOptions(''); document.getElementById('dd-dob-search').focus(); }
+});
+document.getElementById('dd-dob-search').addEventListener('input', (e)=> renderDobOptions(e.target.value));
+document.getElementById('dd-dob-search').addEventListener('click', (e)=> e.stopPropagation());
+renderDobOptions('');
 
 // ---------- SOSYAL MEDYA: tekrarlanabilir satır (bkz. urun-ekle.html#addSpecRow/collectSpecs
 // AYNI desen — architect-modal.js/office-modal.js/consultant-modal.js#socialIconsHtml bu platform
@@ -686,7 +730,7 @@ async function prefillForEdit(){
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
     document.getElementById('m-name').value = item.name || '';
-    if(item.dob) document.getElementById('m-dob').value = String(item.dob).slice(0, 4);
+    if(item.dob){ selectedDob = parseInt(String(item.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
     document.getElementById('m-school').value = item.school || '';
     meslekDropdown.set(item.profession || null);
     document.getElementById('m-office').value = item.office || '';
@@ -766,7 +810,7 @@ async function prefillForClaim(){
     nameInput.readOnly = true;
     nameInput.style.background = 'var(--paper-alt)';
   }
-  if(merged.dob) document.getElementById('m-dob').value = String(merged.dob).slice(0, 4);
+  if(merged.dob){ selectedDob = parseInt(String(merged.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
   document.getElementById('m-school').value = merged.school || '';
   meslekDropdown.set(merged.profession || null);
   document.getElementById('m-office').value = merged.office || '';
@@ -802,8 +846,7 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
-  const dobRaw = document.getElementById('m-dob').value;
-  const dob = dobRaw ? String(dobRaw).slice(0, 4) : null;
+  const dob = selectedDob ? String(selectedDob) : null;
 
   submitBtn.disabled = true;
   loading.classList.add('show');
