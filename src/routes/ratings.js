@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { findProductByKey } from './product.js';
 
 const TARGET_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
 
@@ -78,9 +79,12 @@ async function upsertRating(request, env) {
 
 // bkz. src/lib/canonicalSync.js#canonicalKeyFor — target_id ratings tablosunda HER ZAMAN doğal
 // anahtar (mimar/firma için bare isim, proje için slug) olarak saklanır, bkz. rating-widget.js#
-// dataset.key/js/components/project-modal.js#renderItem.
+// dataset.key/js/components/project-modal.js#renderItem. product/material İSTİSNA: target_id
+// src/routes/product.js#ratingKeyFor'un ürettiği ayrı bir anahtar (m-<id> ya da eski
+// slugify(title-brand) biçimi) — bu yüzden onlar findProductByKey ile (findCanonicalRowByNaturalKey
+// DEĞİL) ayrıca çözülür, bkz. aşağıdaki myRatings.
 const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
-const HREF_BASE_BY_TARGET = { project: '/yapi/', architect: '/mimar/', office: '/firma/' };
+const HREF_BASE_BY_TARGET = { project: '/yapi/', product: '/urun/', material: '/urun/', architect: '/mimar/', office: '/firma/' };
 
 function ratingCardShape(targetType, row) {
   if (targetType === 'project') {
@@ -90,8 +94,12 @@ function ratingCardShape(targetType, row) {
   if (targetType === 'architect') {
     return { title: row.name, meta: [row.school, row.dept].filter(Boolean).join(' · '), image: row.photo_url || null };
   }
-  // office
-  return { title: row.name, meta: row.loc || '', image: row.logo_url || null };
+  if (targetType === 'office') {
+    return { title: row.name, meta: row.loc || '', image: row.logo_url || null };
+  }
+  // product/material
+  const p = parseCanonicalRow('products', row);
+  return { title: p.title, meta: [p.brand_name_raw, p.category].filter(Boolean).join(' · '), image: (p.images && p.images[0]) || null };
 }
 
 // GET /api/ratings/mine — hesabim.html'in "Beğendiklerim" kutusu için, giriş yapmış kullanıcının
@@ -110,10 +118,9 @@ async function myRatings(request, env) {
 
   const items = [];
   for (const r of results) {
-    // Ürün/malzeme sayfası artık yayında değil (bkz. kullanıcı isteği) — bu tiplerdeki eski
-    // puanlamalar için gidilecek canlı bir sayfa kalmadığından her zaman atlanır.
-    if (r.target_type === 'product' || r.target_type === 'material') continue;
-    const row = CANONICAL_TYPE_BY_TARGET[r.target_type] ? await findCanonicalRowByNaturalKey(env, CANONICAL_TYPE_BY_TARGET[r.target_type], r.target_id) : null;
+    const row = (r.target_type === 'product' || r.target_type === 'material')
+      ? await findProductByKey(env, r.target_id)
+      : (CANONICAL_TYPE_BY_TARGET[r.target_type] ? await findCanonicalRowByNaturalKey(env, CANONICAL_TYPE_BY_TARGET[r.target_type], r.target_id) : null);
     if (!row || row.deleted_at || row.hidden_at) continue;
     const shaped = ratingCardShape(r.target_type, row);
     // 'project' hedefler için önek build_status'a göre değişir (bkz. kullanıcı isteği:

@@ -6,15 +6,17 @@ import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject } from '../lib/cascadeDelete.js';
+import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 
-// canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql).
-const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects']);
-// facet_counts yalnızca bu tip için doldurulur (bkz. src/lib/facetCounts.js dosya başı kapsam notu).
-const FACET_TYPES = new Set(['projects']);
+// canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
+// bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
+// açıkça belirtmek çağıran yeri okunaklı kılıyor.
+const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
+// facet_counts yalnızca bu ikisi için doldurulur (bkz. src/lib/facetCounts.js dosya başı kapsam notu).
+const FACET_TYPES = new Set(['projects', 'products', 'materials']);
 
 // bkz. src/routes/submissions.js#RENAME_CASCADE_BY_TYPE (aynı eşleme) — admin panelinden doğrudan
 // isim değiştirmenin kapsandığı tipler.
@@ -29,13 +31,18 @@ async function runCascadeDelete(env, user, typeKey, row) {
   if (typeKey === 'architects') return cascadeDeleteArchitect(env, row.name);
   if (typeKey === 'offices') return cascadeDeleteOffice(env, user, row.name);
   if (typeKey === 'projects') return cascadeDeleteProject(env, row.claimed_slug || row.slug);
+  if (typeKey === 'products') return cascadeDeleteProduct(env, 'product', `m-${row.id}`);
+  if (typeKey === 'materials') return cascadeDeleteProduct(env, 'material', `m-${row.id}`);
 }
 
-const TYPE_BY_PATH = { offices: 'offices', projects: 'projects', architects: 'architects' };
+const TYPE_BY_PATH = {
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
+  architects: 'architects',
+};
 
 // Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
 // de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
-const SUBMISSION_TYPE_LABELS = { offices: 'Firma', projects: 'Proje', architects: 'Mimar' };
+const SUBMISSION_TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
 
 const CLAIM_TYPE_LABELS_SERVER = { architect: 'Mimar', office: 'Firma' };
 const BADGE_TYPE_LABELS_SERVER = { destekci: 'Destekçi', verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye' };

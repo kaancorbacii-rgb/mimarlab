@@ -7,6 +7,7 @@ import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
+import { handleProductDetailRoute, handleProductListRoute } from './routes/product.js';
 import { handleFacetsRoute } from './routes/facets.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete } from './routes/legacyContent.js';
@@ -117,6 +118,7 @@ const CLEAN_URL_ASSETS = [
   { prefix: '/proje/', asset: '/proje', type: 'project' },
   { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
+  { prefix: '/urun/', asset: '/urun', type: 'product' },
 ];
 
 // serveDetailPage#type ('project'/'architect'/'office') -> slug_redirects.entity_type (bkz.
@@ -142,6 +144,10 @@ const PATH_RENAME_REDIRECTS = {
   '/ofis.html': '/firma',
   '/ofis-ekle': '/firma-ekle',
   '/ofis-ekle.html': '/firma-ekle',
+  '/malzeme': '/urun',
+  '/malzeme.html': '/urun',
+  '/malzeme-ekle': '/urun-ekle',
+  '/malzeme-ekle.html': '/urun-ekle',
   // Giriş Yap/Üye Ol/Hesabım artık bağımsız sayfalar değil, her sayfada açılabilen popup modallar
   // (bkz. kullanıcı isteği, js/components/auth-modal.js) — eski dosya adlarına gelen istekler/
   // yer imleri temiz yol adlarına yönlendirilir, oradan AUTH_MODAL_ROUTES devralır (bkz. aşağısı).
@@ -201,6 +207,7 @@ const INFO_MODAL_META = {
 // eşleşmesinden ÖNCE çalıştığından eski linkler önce yeni öneke 301'lenir, sonra normal şekilde servis edilir.
 const PREFIX_RENAME_REDIRECTS = [
   { from: '/markalar/', to: '/firma/' },
+  { from: '/urunler/', to: '/urun/' },
   // Proje detay URL öneki artık /yapi/:slug (bkz. kullanıcı isteği) — eski /projeler/:slug
   // bağlantıları/yer imleri/indexlenmiş sonuçlar kırılmasın diye AYNI desenle 301'lenir.
   { from: '/projeler/', to: '/yapi/' },
@@ -214,6 +221,7 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/yapi', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
+  { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   { loc: '/reklam', changefreq: 'monthly', priority: '0.3' },
@@ -497,14 +505,16 @@ async function handleSitemapRoute(request, env, ctx) {
 }
 
 // listEntityUrls (yalnızca statik diziler) ile birleştirilen canonical D1 kaynağı — architects/
-// offices/projects tablolarının TAMAMI (statik + admin panelinden eklenenler) buradan gelir.
+// offices/projects/products tablolarının TAMAMI (statik + admin panelinden eklenenler) buradan
+// gelir.
 async function listCanonicalEntityUrls(env) {
   if (!env || !env.DB) return [];
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  const [archRes, officeRes, projRes] = await Promise.all([
+  const [archRes, officeRes, projRes, prodRes] = await Promise.all([
     env.DB.prepare(`SELECT slug FROM architects WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug FROM offices WHERE ${where}`).all(),
     env.DB.prepare(`SELECT slug, build_status FROM projects WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug FROM products WHERE ${where}`).all(),
   ]);
   return [
     ...archRes.results.map(r => `/mimar/${encodeURIComponent(r.slug)}`),
@@ -512,6 +522,7 @@ async function listCanonicalEntityUrls(env) {
     // build_status='concept' -> /proje/:slug, 'built' -> /yapi/:slug (bkz. kullanıcı isteği,
     // js/components/project-modal.js#detailPrefix ile AYNI ayrım).
     ...projRes.results.map(r => `${r.build_status === 'concept' ? '/proje/' : '/yapi/'}${encodeURIComponent(r.slug)}`),
+    ...prodRes.results.map(r => `/urun/${encodeURIComponent(r.slug)}`),
   ];
 }
 
@@ -545,6 +556,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/projects' && request.method === 'GET') return handleProjectListRoute(request, env, url);
   if (path === '/api/architects' && request.method === 'GET') return handleArchitectListRoute(request, env, url);
   if (path === '/api/offices' && request.method === 'GET') return handleOfficeListRoute(request, env, url);
+  if (path === '/api/products' && request.method === 'GET') return handleProductListRoute(request, env, url);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki
@@ -563,6 +575,9 @@ async function routeApi(request, env, url) {
     if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, decodeURIComponent(projectSlug));
     return handleProjectDetailRoute(request, env, url, projectSlug);
   }
+  // Ürün detay — js/components/product-modal.js#fetchItem bu uca bağlanır (urun.html'in ProductModal'ı
+  // urun-detay.html'i tamamen ikame ettiği desenin ürün karşılığı).
+  if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
@@ -573,6 +588,7 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/notifications')) return handleNotificationsRoute(request, env, url);
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
+    path.startsWith('/api/products') || path.startsWith('/api/materials') ||
     path.startsWith('/api/architects')
   ) return handleSubmissionRoute(request, env, url);
   return errorJson('Bulunamadı', 404);

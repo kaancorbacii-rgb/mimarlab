@@ -2,6 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
+import { findProductByKey } from './product.js';
 
 export const ITEM_TYPES = new Set(['project', 'product', 'material', 'news', 'job', 'architect', 'office']);
 
@@ -19,11 +20,9 @@ const CANONICAL_TYPE_BY_ITEM = { project: 'projects', architect: 'architects', o
 // satırdan (findCanonicalRowByNaturalKey#SELECT *) build_status'u da aynı round-trip'te alırız,
 // ayrı bir sorguya gerek kalmaz.
 async function fetchSavedTargetInfo(env, itemType, itemKey) {
-  // Ürün/malzeme sayfası artık yayında değil (bkz. kullanıcı isteği) — bu tiplerdeki eski
-  // saved_items kayıtları her zaman "artık mevcut değil" olarak işaretlenir, gidilecek canlı bir
-  // sayfa kalmadı.
   if (itemType === 'product' || itemType === 'material') {
-    return { live: false, buildStatus: null };
+    const row = await findProductByKey(env, itemKey);
+    return { live: !!row && !row.deleted_at && !row.hidden_at, buildStatus: null };
   }
   const canonicalType = CANONICAL_TYPE_BY_ITEM[itemType];
   if (!canonicalType) return { live: true, buildStatus: null }; // news/job — hide sistemi yok

@@ -78,6 +78,12 @@ export async function cascadeDeleteProject(env, slug) {
   await deleteEngagement(env, 'project', slug);
 }
 
+// Bir ürün/malzeme SİLİNDİĞİNDE — aldığı puan/kaydetme kayıtları silinir (comments bu tipleri hiç
+// desteklemiyor, bkz. src/routes/comments.js#TARGET_TYPES).
+export async function cascadeDeleteProduct(env, engagementType, key) {
+  await deleteEngagement(env, engagementType, key);
+}
+
 // Kullanıcı "Hesabımı Sil" dediğinde (KVKK/GDPR silme talebi, bkz. src/routes/auth.js#deleteAccount)
 // — kendi kişisel/etkileşim verileri (oturumlar, kaydettikleri, yorumları, puanları, bildirimleri,
 // profil talepleri/düzeltmeleri/rozet talepleri, şifre sıfırlama token'ları) ve users satırı silinir.

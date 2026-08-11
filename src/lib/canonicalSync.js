@@ -554,12 +554,56 @@ async function syncProject(env, row) {
   return env.DB.prepare(`SELECT * FROM projects WHERE id = ?`).bind(projectId).first();
 }
 
+async function syncProduct(env, row, kind) {
+  // products/materials'ta claim sistemi yok (bkz. schema.sql yorumu) — her onaylı satırın kendi
+  // canonical karşılığı slug='m-<submissionId>' ile idempotent bulunur (bkz. scripts/
+  // merge-submissions-to-id-first.js'teki AYNI slug şeması).
+  const slug = `m-${row.id}`;
+  const existing = await env.DB.prepare(`SELECT * FROM products WHERE slug = ?`).bind(slug).first();
+  const images = JSON.stringify(row.images || []);
+  const specs = JSON.stringify(row.specs || []);
+
+  let brandOfficeId = null;
+  if (row.brand) {
+    const match = await findOneByName(env, 'offices', row.brand);
+    if (match.ambiguous) await logConflict(env, 'product_brand', row.brand, `${kind}_submission:${row.id}`, match.candidates);
+    brandOfficeId = match.row ? match.row.id : null;
+  }
+
+  let productId;
+  if (existing) {
+    // hidden_at temizliği — bkz. syncOffice'teki AYNI gerekçe (sahibi onaylı bir ürünü tekrar
+    // düzenleyip admin onayladığında görünürlük geri gelmeliydi, gelmiyordu).
+    await env.DB.prepare(
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
+    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, existing.id).run();
+    productId = existing.id;
+    await env.DB.prepare(`DELETE FROM product_architects WHERE product_id = ?`).bind(productId).run();
+  } else {
+    const insert = await env.DB.prepare(
+      `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, source_url, ai_generated, source, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?)`
+    ).bind(slug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.source_url || null, row.ai_generated ? 1 : 0, row.owner_user_id).run();
+    productId = insert.meta.last_row_id;
+  }
+
+  const architectNames = (row.architect || '').split(',').map(s => s.trim()).filter(Boolean);
+  for (const name of architectNames) {
+    const match = await findOneByName(env, 'architects', name);
+    if (match.row) await env.DB.prepare(`INSERT INTO product_architects (product_id, architect_id) VALUES (?, ?)`).bind(productId, match.row.id).run();
+    else if (match.ambiguous) await logConflict(env, 'product_architect', name, `${kind}_submission:${row.id}`, match.candidates);
+  }
+  return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(productId).first();
+}
+
 // row: parseSubmissionRow(typeKey, rawRow) ile ZATEN parse edilmiş (JSON alanları diziye çevrilmiş)
 // olmalı — bkz. src/lib/submissionTypes.js#parseSubmissionRow. jobs/news canonical modelde yok, no-op.
 export async function syncApprovedSubmissionToCanonical(env, typeKey, row) {
   if (typeKey === 'architects') return syncArchitect(env, row);
   if (typeKey === 'offices') return syncOffice(env, row);
   if (typeKey === 'projects') return syncProject(env, row);
+  if (typeKey === 'products') return syncProduct(env, row, 'product');
+  if (typeKey === 'materials') return syncProduct(env, row, 'material');
   return null;
 }
 
@@ -574,6 +618,10 @@ export async function hideCanonicalForUnapprovedSubmission(env, typeKey, row) {
   const table = { architects: 'architects', offices: 'offices', projects: 'projects' }[typeKey];
   if (table) {
     await env.DB.prepare(`UPDATE ${table} SET hidden_at = datetime('now') WHERE legacy_key = ?`).bind(marker).run();
+    return;
+  }
+  if (typeKey === 'products' || typeKey === 'materials') {
+    await env.DB.prepare(`UPDATE products SET hidden_at = datetime('now') WHERE slug = ?`).bind(`m-${row.id}`).run();
   }
 }
 
@@ -586,13 +634,18 @@ export async function markCanonicalDeletedForSubmission(env, typeKey, row, userI
   const marker = submissionMarker(row.id);
   const claimedKey = typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key;
   const table = { architects: 'architects', offices: 'offices', projects: 'projects' }[typeKey];
-  if (!table) return;
-  if (claimedKey) {
-    // Claim edilmiş bir statik/canonical kaydın SİLİNMESİ, o kaydın kendisini değil yalnızca bu
-    // gönderi/taslağı hedefler — legacyContent.js'in kendi hide/delete akışı canonical satırı
-    // ayrıca yönetir, burada dokunmuyoruz.
+  if (table) {
+    if (claimedKey) {
+      // Claim edilmiş bir statik/canonical kaydın SİLİNMESİ, o kaydın kendisini değil yalnızca bu
+      // gönderi/taslağı hedefler — legacyContent.js'in kendi hide/delete akışı canonical satırı
+      // ayrıca yönetir, burada dokunmuyoruz.
+      return;
+    }
+    const canonRow = await env.DB.prepare(`SELECT * FROM ${table} WHERE legacy_key = ?`).bind(marker).first();
+    if (canonRow) await hardDeleteCanonicalRow(env, typeKey, canonRow, userId);
     return;
   }
-  const canonRow = await env.DB.prepare(`SELECT * FROM ${table} WHERE legacy_key = ?`).bind(marker).first();
+  // products/materials
+  const canonRow = await env.DB.prepare(`SELECT * FROM products WHERE slug = ?`).bind(`m-${row.id}`).first();
   if (canonRow) await hardDeleteCanonicalRow(env, typeKey, canonRow, userId);
 }

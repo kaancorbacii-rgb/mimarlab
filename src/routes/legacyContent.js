@@ -5,7 +5,7 @@ import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js'
 import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { slugify } from '../lib/slugify.js';
-import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject } from '../lib/cascadeDelete.js';
+import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
 import {
   findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical, CANONICAL_TABLE_BY_TYPE, canonicalKeyFor,
   hardDeleteCanonicalRow, blacklistLegacyKey, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
@@ -13,21 +13,29 @@ import {
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 
-const FACET_TYPES = new Set(['projects']);
+const FACET_TYPES = new Set(['projects', 'products', 'materials']);
 
-// Faz 3 — architects/offices/projects artık canonical tablolardan (bkz.
-// migrations/0022_id_first_entities.sql) okunuyor/gizleniyor/siliniyor. "Gizle" (hidden_at, geri
-// alınabilir) ile "Sil" (deleted_at, kalıcı + cascade) canonical satırın KENDİSİNDE tutulur — ayrı
-// bir moderasyon tablosuna gerek yok.
+// Faz 3 — architects/offices/projects/products/materials artık canonical tablolardan (bkz.
+// migrations/0022_id_first_entities.sql) okunuyor/gizleniyor/siliniyor; legacy_content_hidden bu 5
+// tip için ARTIK KULLANILMIYOR (bkz. migrations/0025_drop_legacy_content_hidden.sql'deki gerekçe —
+// tablo yalnızca 'news' için, o tipin kendi ID-first karşılığı henüz olmadığından, canlı kalıyor).
+// "Gizle" (hidden_at, geri alınabilir) ile "Sil" (deleted_at, kalıcı + cascade) artık canonical
+// satırın KENDİSİNDE tutulur — ayrı bir moderasyon tablosuna gerek kalmadı.
 
 async function runContentCascadeDelete(env, user, type, { id, row, key }) {
   const name = row ? row.name : key;
   if (type === 'architects') return cascadeDeleteArchitect(env, name);
   if (type === 'offices') return cascadeDeleteOffice(env, user, name);
+  if (type === 'products' || type === 'materials') {
+    const engagementType = type === 'products' ? 'product' : 'material';
+    if (id && row) return cascadeDeleteProduct(env, engagementType, `m-${id}`);
+    const [brand, title] = (key || '').split('|||');
+    return cascadeDeleteProduct(env, engagementType, slugify(`${title || ''}-${brand || ''}`));
+  }
 }
 
-const CANONICAL_NAME_COL = { architects: 'name', offices: 'name', projects: 'title' };
-const CANONICAL_KEY_COL = { architects: 'name', offices: 'name', projects: 'slug' };
+const CANONICAL_NAME_COL = { architects: 'name', offices: 'name', projects: 'title', products: 'title', materials: 'title' };
+const CANONICAL_KEY_COL = { architects: 'name', offices: 'name', projects: 'slug' }; // products: legacy_key ("marka|||başlık")
 
 function shapeCanonicalCard(type, row) {
   if (type === 'projects') {
@@ -37,9 +45,13 @@ function shapeCanonicalCard(type, row) {
   if (type === 'architects') {
     return { title: row.name, subtitle: [row.school].filter(Boolean).join(' · '), image: row.photo_url || null };
   }
-  // offices
-  const cats = (() => { try { return row.cats ? JSON.parse(row.cats) : null; } catch { return null; } })();
-  return { title: row.name, subtitle: [row.loc, cats].filter(Boolean).join(' · '), image: row.logo_url || null };
+  if (type === 'offices') {
+    const cats = (() => { try { return row.cats ? JSON.parse(row.cats) : null; } catch { return null; } })();
+    return { title: row.name, subtitle: [row.loc, cats].filter(Boolean).join(' · '), image: row.logo_url || null };
+  }
+  // products/materials
+  const p = parseCanonicalRow('products', row);
+  return { title: p.title, subtitle: [p.brand_name_raw, p.category].filter(Boolean).join(' · '), image: (p.images && p.images[0]) || null };
 }
 
 function trLower(s) {
@@ -77,13 +89,14 @@ export async function handleLegacyAdmin(request, env, url, segments, user) {
 async function searchLegacy(env, url) {
   const type = url.searchParams.get('type');
   const q = (url.searchParams.get('q') || '').trim();
-  if (!['projects', 'architects', 'offices'].includes(type)) return errorJson('Geçersiz tip.');
+  if (!['projects', 'architects', 'offices', 'products', 'materials'].includes(type)) return errorJson('Geçersiz tip.');
   if (q.length < 2) return json({ items: [] });
 
   const table = CANONICAL_TABLE_BY_TYPE[type];
   const nameCol = CANONICAL_NAME_COL[type];
+  const kindClause = (type === 'products' || type === 'materials') ? `AND kind = '${type === 'products' ? 'product' : 'material'}'` : '';
   const { results } = await env.DB.prepare(
-    `SELECT * FROM ${table} WHERE deleted_at IS NULL AND ${nameCol} LIKE ? ORDER BY ${nameCol} LIMIT 50`
+    `SELECT * FROM ${table} WHERE deleted_at IS NULL ${kindClause} AND ${nameCol} LIKE ? ORDER BY ${nameCol} LIMIT 50`
   ).bind(`%${q}%`).all();
 
   return json({
@@ -102,7 +115,7 @@ export async function setLegacyHidden(env, user, type, key, hidden) {
 
 async function toggleLegacyHidden(request, env, user) {
   const body = await readJson(request);
-  if (!['projects', 'architects', 'offices'].includes(body.type)) return errorJson('Geçersiz tip.');
+  if (!['projects', 'architects', 'offices', 'products', 'materials'].includes(body.type)) return errorJson('Geçersiz tip.');
   const key = (body.key || '').trim();
   if (!key) return errorJson('Geçersiz kayıt.');
   await setLegacyHidden(env, user, body.type, key, !!body.hidden);
@@ -129,13 +142,14 @@ async function toggleLegacyHidden(request, env, user) {
 // legacy_key+brand_name_raw+title) — SELECT * ile satırın tamamını (about/awards/description/specs
 // gibi bu uçta hiç kullanılmayan ağır metin kolonları dahil) çekmenin okuma tarafında hiçbir faydası
 // yoktu; WHERE'deki hidden_at/deleted_at zaten migrations/0028'deki partial indeksle karşılanıyor.
-const HIDDEN_MAP_PROJECTION = { architects: 'name', offices: 'name', projects: 'slug' };
+const HIDDEN_MAP_PROJECTION = { architects: 'name', offices: 'name', projects: 'slug', products: 'legacy_key, brand_name_raw, title', materials: 'legacy_key, brand_name_raw, title' };
 
 async function fetchHiddenMap(env) {
-  const out = { projects: [], architects: [], offices: [] };
-  for (const type of ['projects', 'architects', 'offices']) {
+  const out = { projects: [], architects: [], offices: [], products: [], materials: [] };
+  for (const type of ['projects', 'architects', 'offices', 'products', 'materials']) {
     const table = CANONICAL_TABLE_BY_TYPE[type];
-    const { results } = await env.DB.prepare(`SELECT ${HIDDEN_MAP_PROJECTION[type]} FROM ${table} WHERE (hidden_at IS NOT NULL OR deleted_at IS NOT NULL)`).all();
+    const kindClause = (type === 'products' || type === 'materials') ? `AND kind = '${type === 'products' ? 'product' : 'material'}'` : '';
+    const { results } = await env.DB.prepare(`SELECT ${HIDDEN_MAP_PROJECTION[type]} FROM ${table} WHERE (hidden_at IS NOT NULL OR deleted_at IS NOT NULL) ${kindClause}`).all();
     const keys = new Set(results.map(row => canonicalKeyFor(type, row)).filter(Boolean));
     const { results: blacklisted } = await env.DB.prepare(`SELECT content_key FROM legacy_content_hidden WHERE content_type = ?`).bind(type).all();
     for (const row of blacklisted) keys.add(row.content_key);
@@ -163,17 +177,19 @@ export async function handlePublicSearchSuggest(request, env, url) {
     // SQL LIKE Türkçe diakritik foldlamasını (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) bilmediğinden ve
     // kelime-parçalamalı eşleşme (bkz. fuzzyMatch) tek bir LIKE deseniyle ifade edilemediğinden,
     // her tablo TAMAMEN çekilip fuzzyMatch ile JS tarafında filtrelenir — tablolar küçük olduğundan
-    // (mimar/ofis/proje ~600-800, bkz. src/routes/architect.js#handleArchitectSearchRoute
+    // (mimar/ofis/proje ~600-800, ürün ~80 satır, bkz. src/routes/architect.js#handleArchitectSearchRoute
     // ile AYNI "tablo küçük, tam tarama ucuz" gerekçesi) bu tam tarama ucuzdur.
-    const [archRes, officeRes, projRes] = await Promise.all([
+    const [archRes, officeRes, projRes, prodRes] = await Promise.all([
       env.DB.prepare(`SELECT name, office_id FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
       env.DB.prepare(`SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
       env.DB.prepare(`SELECT slug, title, location, project_date FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT slug, title, category, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
     ]);
 
     const archMatches = archRes.results.filter(a => fuzzyMatch(a.name, queryWords)).slice(0, 20);
     const officeMatches = officeRes.results.filter(o => fuzzyMatch(o.name, queryWords)).slice(0, 20);
     const projMatches = projRes.results.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.location, queryWords)).slice(0, 20);
+    const prodMatches = prodRes.results.filter(p => fuzzyMatch(p.title, queryWords) || fuzzyMatch(p.category, queryWords) || fuzzyMatch(p.brand_name_raw, queryWords)).slice(0, 20);
 
     const officeNameById = new Map();
     const officeIds = archMatches.map(r => r.office_id).filter(Boolean);
@@ -186,6 +202,7 @@ export async function handlePublicSearchSuggest(request, env, url) {
       { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/mimar/${encodeURIComponent(slugify(a.name))}` })) },
       { label: 'Firma', items: officeMatches.map(o => ({ title: o.name, meta: o.loc || '', href: `/firma/${encodeURIComponent(slugify(o.name))}` })) },
       { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/yapi/${encodeURIComponent(p.slug)}` })) },
+      { label: 'Ürün', items: prodMatches.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}` })) },
     ];
 
     const items = [];
@@ -437,6 +454,28 @@ const CONTENT_ACTION_TYPES = {
       };
     },
   },
+  products: {
+    table: 'product_submissions',
+    claimedColumn: null,
+    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
+    async canonicalFields(env, key) {
+      const row = await findCanonicalRowByNaturalKey(env, 'products', key);
+      if (!row) return null;
+      const p = parseCanonicalRow('products', row);
+      return { title: p.title, brand: p.brand_name_raw, architect: null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
+    },
+  },
+  materials: {
+    table: 'material_submissions',
+    claimedColumn: null,
+    copyFields: ['title', 'brand', 'architect', 'website', 'category', 'description', 'images', 'specs'],
+    async canonicalFields(env, key) {
+      const row = await findCanonicalRowByNaturalKey(env, 'materials', key);
+      if (!row) return null;
+      const p = parseCanonicalRow('products', row);
+      return { title: p.title, brand: p.brand_name_raw, architect: null, website: p.website, category: p.category, description: p.description, images: p.images, specs: p.specs };
+    },
+  },
 };
 
 function bindContentFields(type, fields) {
@@ -445,7 +484,7 @@ function bindContentFields(type, fields) {
   return copyFields.map(f => (arrayFields.includes(f) ? JSON.stringify(fields[f] || []) : (fields[f] ?? null)));
 }
 
-// POST /api/admin/legacy/content-action  body: {type:'architects'|'offices', action:'delete'|'archive'|'publish', id?, key?}
+// POST /api/admin/legacy/content-action  body: {type:'architects'|'offices'|'products'|'materials', action:'delete'|'archive'|'publish', id?, key?}
 async function handleContentAction(request, env, user) {
   const body = await readJson(request);
   return runContentAction(env, user, { type: body.type, action: body.action, id: body.id, key: body.key });

@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<link rel="icon" type="image/png" href="logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="logos/site/favicon-180.png">
+<title>Ürünler — MİMARLAB</title>
+<meta name="description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/urun" id="canonical-link">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Ürünler — MİMARLAB" id="og-title">
+<meta property="og:description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/urun" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ürünler — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
+<!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
+     sayfalarının <head>'ine ... application/ld+json ekle") — /urun/:slug detay görünümü
+     src/index.js#injectMeta ile SSR'da AYRI Product şeması ekler, bu ikisiyle çakışmaz. -->
+<script type="application/ld+json" id="list-jsonld">
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Ürünler — MİMARLAB","url":"https://mimarlab.com/urun","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+</script>
+<!-- Temiz URL'lerle bu sayfa /urun dışında /urun/:slug altında da (ürün modalını doğrudan açan bir
+     iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç içe
+     yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
+     gerekçe). -->
+<base href="/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D;
+    --ink-soft:#4E6478;
+    --paper:#EDF0F3;
+    --paper-card:#F8FAFB;
+    --paper-alt:#E0E6EC;
+    --walnut:#2B425F;
+    --brass:#5B7A9B;
+    --brass-soft:#AFC5D8;
+    --sage:#4F6478;
+    --accent:#E08A3E;
+    --line: rgba(27,42,61,0.14);
+    --line-soft: rgba(27,42,61,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:24px;
+    padding:10px 32px;
+    background:rgba(237,240,243,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-logo{height:24px; width:auto; display:block;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase;}
+  .nav-link:hover, .nav-link.active{color:var(--ink);}
+  .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
+  .nav-mobile-menu{
+    display:none; position:absolute; top:100%; right:18px; z-index:95;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
+  }
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{display:flex; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 14px; margin-bottom:8px;}
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{border:none; background:none; outline:none; font-family:inherit; font-size:16px; width:100%; color:var(--ink);}
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .nav-rate{
+    background:none; color:var(--ink); padding:8px 17px; border-radius:100px;
+    border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;
+  }
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+
+  /* ---------- BREADCRUMB ---------- */
+  .breadcrumb-bar{
+    background:var(--ink); color:rgba(237,240,243,0.7);
+    padding:14px 32px; font-size:13.5px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
+  .breadcrumb-bar a:hover{color:var(--brass-soft);}
+  .breadcrumb-bar .sep{opacity:0.4;}
+  .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
+
+  /* ---------- PAGE HEAD ---------- */
+  .page-head{max-width:1260px; margin:0 auto; padding:28px 32px 0;}
+  .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
+  .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
+
+  /* ---------- GRID LAYOUT (sidebar + içerik) ---------- */
+  .grid-layout{
+    max-width:1260px; margin:0 auto;
+    padding:20px 32px 90px;
+    display:grid; grid-template-columns:250px 1fr;
+    gap:28px; align-items:start;
+  }
+  .grid-sidebar{
+    position:sticky; top:90px;
+    display:flex; flex-direction:column;
+    background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
+    overflow:hidden;
+  }
+  .sidebar-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line-soft);}
+  .sidebar-head-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
+  .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
+  .sidebar-search svg{flex-shrink:0; opacity:0.5;}
+  .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
+  .sidebar-close-btn{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0;
+    border:1px solid var(--line); background:var(--paper-card);
+    color:var(--ink-soft); font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sidebar-close-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .filter-group{border-bottom:1px solid var(--line-soft);}
+  .filter-group:last-of-type{border-bottom:none;}
+  .filter-group-head{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; background:none; border:none; text-align:left;
+    font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .filter-group-head:hover{background:var(--paper-alt);}
+  .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
+  .filter-group-body{display:none; padding:0 16px 14px; max-height:260px; overflow-y:auto;}
+  .filter-group.open .filter-group-body{display:block;}
+  .filter-search-row{
+    display:flex; align-items:center; gap:6px; margin:2px 0 8px;
+    padding:6px 10px; background:var(--paper); border:1px solid var(--line); border-radius:100px;
+    position:sticky; top:0; z-index:1;
+  }
+  .filter-search-row svg{flex-shrink:0; opacity:0.5;}
+  .filter-search-row input{border:none; background:none; outline:none; font-family:inherit; font-size:12px; width:100%; color:var(--ink);}
+  .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
+  .filter-opt{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;}
+  .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
+  .filter-opt:hover{color:var(--ink);}
+  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .sidebar-add{padding:16px; border-top:1px solid var(--line-soft);}
+  .sidebar-add-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; background:var(--ink); color:var(--paper-card);
+    padding:12px; border-radius:100px; font-weight:600; font-size:13.5px;
+  }
+  .sidebar-add-btn:hover{background:var(--walnut);}
+  .sidebar-add-icon{
+    display:flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:50%;
+    background:rgba(237,240,243,0.2); font-size:14px; line-height:1;
+  }
+
+  .result-bar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .result-count{font-size:13px; color:var(--ink-soft); flex:1;}
+  .sort-select{position:relative;}
+  .sort-select select{
+    appearance:none; -webkit-appearance:none;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:100px; padding:9px 32px 9px 16px;
+    font-size:13px; font-weight:500; color:var(--ink); font-family:inherit;
+  }
+  .sort-select select:hover{border-color:var(--walnut);}
+  .sort-arrow{position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
+  .active-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .active-chip{display:inline-flex; align-items:center; gap:6px; background:var(--ink); color:var(--paper-card); border-radius:100px; padding:6px 8px 6px 14px; font-size:12.5px; font-weight:600;}
+  .active-chip button{background:none; border:none; color:var(--paper-card); opacity:0.7; display:flex; padding:2px;}
+  .active-chip button:hover{opacity:1;}
+
+  /* ---------- CONTENT GRID ---------- */
+  .content-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;}
+  /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği); puan ve kategori
+     görsel üzerinden tamamen kaldırıldı (bkz. aşağıdaki render() — .content-card-cat/.rating-widget
+     artık kart şablonunda YOK). .content-card-photo görseli aspect-ratio'lu bir kutuya alır,
+     .content-card-info normal akışta onun altına düz arkaplanla oturur. */
+  .content-card{
+    display:flex; flex-direction:column; border-radius:16px; overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .content-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
+  .content-card-photo{position:relative; aspect-ratio:1/1; overflow:hidden;}
+  .content-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .catalog-placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:rgba(255,255,255,0.92);}
+  .content-card .catalog-placeholder-favicon{position:static; width:28px; height:28px; border-radius:6px; background:#fff; padding:4px; object-fit:contain;}
+  .catalog-placeholder-initials{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; letter-spacing:0.02em;}
+  .content-card-info{padding:12px 14px; color:var(--ink);}
+  /* Kart altı başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
+     isteği) — punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun isimler daha az kesilsin. */
+  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .content-card-by{font-size:11.5px; color:var(--ink-soft);}
+
+  .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
+  .card-save-btn{
+    position:absolute; top:10px; right:10px; z-index:2;
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(27,42,61,0.55); border:none; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .card-save-btn:hover{background:rgba(27,42,61,0.75);}
+  .card-save-btn.saved{background:var(--accent); color:var(--ink);}
+  .card-edit-btn{display:inline-block; margin-top:4px; color:var(--ink-soft); font-size:11px; font-weight:600; text-decoration:underline; background:none; border:none; padding:0; font-family:inherit; cursor:pointer;}
+  .edit-slot:not(:empty) + .admin-action-slot .card-edit-btn{margin-left:10px;}
+  .card-edit-btn:hover{color:#F5CFA0;}
+  .card-delete-btn{display:inline-block; margin-top:4px; margin-left:10px; color:#F5A3A3; font-size:11px; font-weight:600; text-decoration:underline; background:none; border:none; padding:0; font-family:inherit; cursor:pointer;}
+  .card-delete-btn:hover{color:#fff;}
+
+  .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); font-size:14px; display:none;}
+
+  .pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:28px; flex-wrap:wrap;}
+  .page-btn{min-width:38px; height:38px; padding:0 10px; border:1px solid var(--line); background:var(--paper-card); border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink-soft);}
+  .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
+  .page-ellipsis{color:var(--ink-soft); padding:0 4px;}
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .city-select{display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:8px 16px; color:var(--paper);}
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
+  @media (max-width:960px){
+    .grid-layout{grid-template-columns:1fr;}
+    .grid-sidebar{position:static;}
+    .content-grid{grid-template-columns:repeat(3, 1fr);}
+  }
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
+    .page-head{padding:20px 16px 0;}
+    .grid-layout{padding:16px 16px 70px; gap:16px;}
+    .content-grid{grid-template-columns:1fr 1fr; gap:12px;}
+    .content-card-title{font-size:13.5px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+  }
+</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
+</head>
+<body>
+<script src="js/overlay-manager.js" defer></script>
+<script src="image-cdn.js"></script>
+<script src="auth-nav.js" defer></script>
+<script src="save-widget.js" defer></script>
+<script src="rating-widget.js" defer></script>
+<script src="badge-shared.js" defer></script>
+<script src="catalog-taxonomy.js" defer></script>
+<script src="js/components/gallery.js" defer></script>
+<script src="js/components/modal-shell.js" defer></script>
+<script src="js/components/auth-modal.js" defer></script>
+<script src="js/components/info-modal.js" defer></script>
+<script src="js/components/share-button.js" defer></script>
+<script src="js/components/product-modal.js" defer></script>
+
+  <nav class="nav">
+    <a class="brand" href="index.html">
+      <img class="brand-logo" src="logos/site/mimarlab-logo.png" alt="MimarLab">
+    </a>
+    <div class="nav-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="yapi.html">Yapı</a>
+      <a class="nav-link active" href="urun.html">Ürün</a>
+      <a class="nav-link" href="proje.html">Proje</a>
+      <a class="nav-link" href="mimar.html">Mimar</a>
+      <a class="nav-link" href="firma.html">Firma</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
+    </div>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-mobile-menu" id="nav-mobile-menu">
+      <div class="nav-mobile-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
+      </div>
+      <a class="nav-mobile-link" href="yapi.html">Yapı</a>
+      <a class="nav-mobile-link active" href="urun.html">Ürün</a>
+      <a class="nav-mobile-link" href="proje.html">Proje</a>
+      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
+      <a class="nav-mobile-link" href="firma.html">Firma</a>
+    </div>
+  </nav>
+
+  <div class="breadcrumb-bar">
+    <a href="index.html">Ana Sayfa</a>
+    <span class="sep">›</span>
+    <span class="current">Ürünler</span>
+  </div>
+
+  <div class="page-head">
+    <h1>Ürünler</h1>
+    <p>Projelerinde kullanabileceğin mobilya, aydınlatma, aksesuar, yapı malzemeleri ve firmaları keşfet.</p>
+  </div>
+
+  <div class="grid-layout">
+    <aside class="grid-sidebar" id="sidebar"></aside>
+
+    <main>
+      <div class="result-bar">
+        <div class="result-count" id="result-count"></div>
+        <div class="sort-select">
+          <select id="g-sort">
+            <option value="" selected>Sıralama</option>
+            <option value="name_asc">A-Z</option>
+            <option value="rating_desc">Puan: Yüksekten Düşüğe</option>
+            <option value="rating_asc">Puan: Düşükten Yükseğe</option>
+          </select>
+          <svg class="sort-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="active-chips" id="active-chips"></div>
+      <div class="content-grid" id="card-grid"></div>
+      <div class="empty-state" id="empty-state">Bu kritere uyan ürün bulunamadı.</div>
+      <div class="pagination" id="pagination"></div>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html">
+          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
+        </a>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli üretici firmaları bir araya getiren mimar platformu.</p>
+        <div class="footer-social">
+          <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+          <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="yapi.html">Yapı</a><a href="urun.html">Ürün</a><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
+    </div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
+  </footer>
+
+<script>
+// Faz 3 sonrası: urun.html artık data.js/urunler-data.js/malzemeler-data.js'in ağır dizilerini hiç
+// indirmiyor — bu sayfa zaten architects[]/offices[] dizilerini, verifiedBadgeHtml/badges'i ya da
+// slugify'ı hiç kullanmıyordu (doğrulandı), yani bu üç dosyanın hiçbirine gerçek bir bağımlılığı
+// yoktu. Sayfalama/filtreleme/sıralama artık backend'de (/api/products) canonical D1 `products`
+// tablosu üzerinden yapılıyor — `kind` kolonu zaten 'product'/'material' ayrımını tuttuğundan
+// (bkz. src/routes/product.js#handleProductListRoute) eski client-side `products.push(...materials)`
+// birleştirmesi gerekmiyor.
+const PAGE_SIZE = 24;
+let currentPage = 1;
+let localSearchQuery = '';
+
+const FILTER_GROUPS = [
+  { key: 'group', label: 'Grup' },
+  { key: 'category', label: 'Kategori' },
+  { key: 'brand', label: 'Firma' },
+  { key: 'rating', label: 'Puan' },
+];
+const activeFilters = {};
+FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
+
+function getPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  return 9;
+}
+// Mevcut sayfayı her zaman ortalayan kayan pencere; ilk ve son sayfa (bkz. kullanıcı isteği:
+// "1. ve son sayfa her zaman görünür olsun") ayrıca her zaman ayrı buton olarak eklenir, pencereye
+// dahil değillerse aralarına '...' konur. Pencere bir uca yaklaştığında diğer ucu genişletip N
+// sayfa göstermeye devam eder (bkz. start===2/end===totalPages-1 dallari).
+function getPageList(totalPages, currentPage){
+  const N = getPageWindowSize();
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
+}
+function renderPagination(totalPages){
+  const el = document.getElementById('pagination');
+  if(totalPages <= 1){ el.innerHTML=''; return; }
+  let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  getPageList(totalPages, currentPage).forEach(p=>{
+    if(p==='...') html += `<span class="page-ellipsis">…</span>`;
+    else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+  });
+  html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=> goToPage(parseInt(btn.dataset.page)));
+  });
+  const prevBtn=document.getElementById('page-prev'), nextBtn=document.getElementById('page-next');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goToPage(currentPage-1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
+}
+
+// Aktif filtre/arama/sıralama durumundan ?query string üretir (page/limit HARİÇ — bkz. çağıranlar)
+// — hem /api/products isteği hem de tarayıcı URL senkronu için TEK noktadan kullanılır.
+function currentQueryParams(){
+  const params = new URLSearchParams();
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
+  if(localSearchQuery.trim()) params.set('search', localSearchQuery.trim());
+  const sort = document.getElementById('g-sort').value;
+  if(sort) params.set('sort', sort);
+  return params;
+}
+
+// Sidebar artık /api/products'ın döndürdüğü `filters` alanından çizilir (proje.html#buildSidebar
+// ile AYNI desen) — kendi küçük isteğini atar (limit=1, yalnızca facet sayaçları için, kart
+// listesini render()'ın kendi isteğiyle tekrar çekmemek amacıyla page verisi burada önemsiz).
+async function buildSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  let filtersData = {};
+  try{
+    const params = currentQueryParams();
+    params.set('page', '1');
+    params.set('limit', '1');
+    const res = await fetch(`/api/products?${params.toString()}`);
+    if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
+  }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
+
+  let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
+    <div class="sidebar-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="g-local-search" placeholder="Ürün ara..." value="${escapeAttr(localSearchQuery)}">
+    </div>`;
+  FILTER_GROUPS.forEach(g => {
+    const options = filtersData[g.key] || [];
+    if(options.length === 0) return;
+    html += `<div class="filter-group" data-key="${g.key}">
+      <button class="filter-group-head" data-toggle="${g.key}">${g.label} <span class="filter-group-toggle">+</span></button>
+      <div class="filter-group-body" id="fg-${g.key}">
+        <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
+        ${options.map(({value, count}) => `
+          <label class="filter-opt">
+            <input type="checkbox" data-key="${g.key}" value="${escapeAttr(value)}" ${activeFilters[g.key].has(value)?'checked':''}>
+            <span>${escapeHtml(value)}</span>
+            <span class="filter-opt-count">(${count})</span>
+          </label>`).join('')}
+      </div>
+    </div>`;
+  });
+  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="urun-ekle.html"><span class="sidebar-add-icon">+</span> Ürün Ekle</a></div>`;
+  sidebar.innerHTML = html;
+
+  FILTER_GROUPS.forEach(g => {
+    if(activeFilters[g.key].size === 0) return;
+    const grp = sidebar.querySelector(`.filter-group[data-key="${g.key}"]`);
+    if(grp) grp.classList.add('open');
+  });
+
+  sidebar.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=> btn.parentElement.classList.toggle('open'));
+  });
+  const resetBtn = document.getElementById('g-reset');
+  if(resetBtn) resetBtn.addEventListener('click', ()=>{
+    FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
+    localSearchQuery = '';
+    currentPage = 1;
+    syncBrowserUrl(true);
+    buildSidebar(); render();
+  });
+  sidebar.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const key = cb.dataset.key, val = cb.value;
+      if(cb.checked) activeFilters[key].add(val); else activeFilters[key].delete(val);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      buildSidebar(); render();
+      const grp = sidebar.querySelector(`.filter-group[data-key="${key}"]`);
+      if(grp) grp.classList.add('open');
+    });
+  });
+  const localSearchInput = document.getElementById('g-local-search');
+  let searchDebounce = null;
+  if(localSearchInput) localSearchInput.addEventListener('input', ()=>{
+    localSearchQuery = localSearchInput.value;
+    currentPage = 1;
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
+  });
+  sidebar.querySelectorAll('.filter-search-input').forEach(input => {
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('input', () => {
+      const body = input.closest('.filter-group-body');
+      const q = input.value.trim().toLowerCase();
+      body.querySelectorAll('.filter-opt').forEach(opt => {
+        const label = opt.querySelector('span').textContent.toLowerCase();
+        opt.style.display = !q || label.includes(q) ? '' : 'none';
+      });
+    });
+  });
+}
+
+function syncBrowserUrl(push){
+  const params = currentQueryParams();
+  if(currentPage > 1) params.set('page', String(currentPage));
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  if(newUrl === location.pathname + location.search) return;
+  if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
+}
+function applyStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].clear(); params.getAll(g.key).forEach(v => activeFilters[g.key].add(v)); });
+  localSearchQuery = params.get('search') || '';
+  document.getElementById('g-sort').value = params.get('sort') || '';
+  const pageParam = parseInt(params.get('page'), 10);
+  currentPage = (pageParam > 1) ? pageParam : 1;
+}
+function goToPage(p){
+  currentPage = p;
+  syncBrowserUrl(true);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderActiveChips(){
+  const wrap = document.getElementById('active-chips');
+  let chips = [];
+  FILTER_GROUPS.forEach(g => activeFilters[g.key].forEach(v => chips.push({key:g.key, val:v})));
+  if(chips.length === 0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = chips.map(c => `
+    <span class="active-chip" data-key="${c.key}" data-val="${escapeAttr(c.val)}">
+      ${escapeHtml(c.val)}
+      <button aria-label="Kaldır"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </span>`).join('');
+  wrap.querySelectorAll('.active-chip button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const chip = btn.parentElement;
+      activeFilters[chip.dataset.key].delete(chip.dataset.val);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      buildSidebar(); render();
+    });
+  });
+}
+
+// ratingKindFor/submissionType: backend `kind` alanı 'product'|'material' (tekil, canonical şema) —
+// save-widget.js#EDIT_PAGE_BY_SUBMISSION_TYPE ve applyEditButtons ise 'products'|'materials' (çoğul,
+// eski submission tablosu adları) bekliyor; kart render'ı ikisini de bu tek noktadan üretir.
+function ratingKindFor(p){ return p.kind === 'material' ? 'material' : 'product'; }
+function submissionTypeFor(p){ return p.kind === 'material' ? 'materials' : 'products'; }
+
+// render() artık yalnızca mevcut sayfanın kartlarını /api/products'ten çeker (bkz. kullanıcı
+// isteği: her sayfa geçişinde sadece o sayfadaki veriyi çek) — tüm ürün/malzeme listesi hiçbir
+// zaman tarayıcıya inmiyor.
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
+  const grid = document.getElementById('card-grid');
+  const empty = document.getElementById('empty-state');
+  grid.style.opacity = '0.5';
+
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/products?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){ console.error('Ürün listesi alınamadı:', err); }
+  if(myRequest !== renderRequestId) return;
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Ürünler yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} ürün listeleniyor`;
+  renderActiveChips();
+  renderPagination(data.totalPages);
+
+  if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan ürün bulunamadı.'; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  const pageItems = data.items;
+  grid.innerHTML = pageItems.map(p => `
+    <div class="content-card">
+      <div class="content-card-photo">
+        ${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}
+        <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="urun.html" aria-label="Kaydet">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
+        </button>
+      </div>
+      <div class="content-card-info">
+        <div class="content-card-title">${escapeHtml(p.title)}</div>
+        ${p.brand ? `<div class="content-card-by">${escapeHtml(p.brand)}</div>` : ''}
+        <span class="edit-slot" data-type="${submissionTypeFor(p)}" data-id="${escapeAttr(p.submissionId || '')}"></span>
+        ${p.kind !== 'material' ? `<span class="admin-action-slot" data-id="${escapeAttr(p.submissionId || '')}" data-key="${escapeAttr(`${p.brand || ''}|||${p.title}`)}"></span>` : ''}
+      </div>
+    </div>`).join('');
+  wireSaveButtons('product');
+  mountAllRatingWidgets();
+  applyEditButtons('products');
+  applyEditButtons('materials');
+  applyAdminActions();
+  grid.querySelectorAll('.content-card').forEach((card, i)=>{
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('a')) return;
+      if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // Ürün modalı (bkz. js/components/product-modal.js) proje.html#card-grid'in AYNI deseniyle
+      // sayfa yenilenmeden açılsın diye tam sayfa yönlendirme yerine modal açılır.
+      ProductModal.open(pageItems[i].ratingKey, { triggerEl: card });
+    });
+  });
+}
+
+// Admin, ürün kartlarında "Gönderiyi Düzenle"nin yanına Arşivle/Sil butonları görür (bkz. kullanıcı
+// isteği: "ürüne silme ve arşivleme yetkisi ver ... düzenle butonunun yanında") — üye gönderisi
+// ürünlerde (submissionId dolu) id ile, statik ürünlerde "marka|||başlık" anahtarıyla işlem yapılır
+// (bkz. src/routes/legacyContent.js#handleContentAction). Yalnızca gerçek ürünler için (malzemeler
+// için değil, bkz. render() içindeki p.kind !== 'material' koşulu).
+async function applyAdminActions(){
+  await savedWidgetReady;
+  if(!currentUser || currentUser.role !== 'admin') return;
+  document.querySelectorAll('.admin-action-slot').forEach(slot=>{
+    slot.innerHTML = `
+      <button type="button" class="card-edit-btn admin-archive-btn">Arşivle</button>
+      <button type="button" class="card-delete-btn admin-delete-btn">Sil</button>`;
+    slot.querySelector('.admin-archive-btn').addEventListener('click', (e)=>{ e.stopPropagation(); runContentModeration(slot, 'archive'); });
+    slot.querySelector('.admin-delete-btn').addEventListener('click', (e)=>{ e.stopPropagation(); runContentModeration(slot, 'delete'); });
+  });
+}
+
+async function runContentModeration(slot, action){
+  const confirmText = action === 'delete'
+    ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
+    : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+  if(!confirm(confirmText)) return;
+  const id = slot.dataset.id;
+  const key = slot.dataset.key;
+  slot.querySelectorAll('button').forEach(b => b.disabled = true);
+  try{
+    const res = await fetch('/api/admin/legacy/content-action', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(id ? { type: 'products', action, id } : { type: 'products', action, key }),
+    });
+    if(!res.ok){
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      slot.querySelectorAll('button').forEach(b => b.disabled = false);
+      return;
+    }
+    window.location.reload();
+  }catch{
+    alert('Bir şeyler ters gitti, tekrar dene.');
+    slot.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+}
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
+// Tarayıcı geri/ileri tuşu: /urun/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca ürün modalını
+// güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ.
+window.addEventListener('popstate', ()=>{
+  const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+  if(m){ ProductModal.handlePopState(decodeURIComponent(m[1])); return; }
+  if(ProductModal.isOpen()){ ProductModal.handlePopState(null); return; }
+  applyStateFromUrl();
+  buildSidebar();
+  render();
+});
+
+applyStateFromUrl();
+buildSidebar();
+render().then(()=>{
+  // Doğrudan /urun/:slug adresine girildiğinde ya da o adreste F5 yapıldığında ürün modalı
+  // otomatik açılsın (bkz. proje.html'deki AYNI desen).
+  const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+  if(m) ProductModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+});
+
+function wireNavSearch(){
+  function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  if(!document.getElementById('nav-search-suggest-style')){
+    const style = document.createElement('style');
+    style.id = 'nav-search-suggest-style';
+    style.textContent = `
+      .nav-search, .nav-mobile-search{position:relative;}
+      .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
+      .nav-search-suggest.open{display:block;}
+      .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
+      .nav-search-suggest-row:hover{background:var(--paper-alt);}
+      .nav-search-suggest-row:last-child{border-bottom:none;}
+      .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+      .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+      .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+      .nav-mobile-search .nav-search-suggest{position:static; margin-top:8px; box-shadow:none;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
+    const inp = wrap.querySelector('input');
+    if(!inp || inp.dataset.navSuggestWired) return;
+    inp.dataset.navSuggestWired = '1';
+
+    const panel = document.createElement('div');
+    panel.className = 'nav-search-suggest';
+    wrap.appendChild(panel);
+
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function closePanel(){ panel.classList.remove('open'); }
+
+    function renderPanel(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
+        panel.classList.add('open');
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
+          <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
+          <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
+          <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
+      panel.classList.add('open');
+    }
+
+    inp.addEventListener('input', ()=>{
+      const query = inp.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ closePanel(); return; }
+      debounceTimer = setTimeout(()=>{
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : {items:[], total:0})
+          .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
+          .catch(()=>{});
+      }, 200);
+    });
+
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && e.target.value.trim()){
+        window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
+      } else if(e.key === 'Escape'){
+        closePanel();
+      }
+    });
+
+    inp.addEventListener('focus', ()=>{
+      if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
+    });
+
+    document.addEventListener('click', (e)=>{
+      if(!wrap.contains(e.target)) closePanel();
+    });
+  });
+}
+wireNavSearch();
+
+const navHamburger = document.getElementById('nav-hamburger');
+const navMobileMenu = document.getElementById('nav-mobile-menu');
+navHamburger.addEventListener('click', ()=>{ navMobileMenu.classList.toggle('open'); });
+document.addEventListener('click', (e)=>{
+  if(!navMobileMenu.classList.contains('open')) return;
+  if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
+});
+</script>
+</body>
+</html>

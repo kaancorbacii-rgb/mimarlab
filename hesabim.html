@@ -293,6 +293,7 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="yapi.html">Yapı</a>
+      <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
     </div>
@@ -308,6 +309,7 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link" href="yapi.html">Yapı</a>
+      <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
     </div>
@@ -514,6 +516,7 @@
       <div class="footer-col">
         <h4>Ana Menü</h4>
         <a href="yapi.html">Yapı</a>
+        <a href="urun.html">Ürün</a>
         <a href="mimar.html">Mimar</a>
         <a href="firma.html">Firma</a>
       </div>
@@ -536,11 +539,12 @@
   </footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Ofis', projects: 'Yapı', architects: 'Mimar' };
+const TYPE_LABELS = { offices: 'Ofis', projects: 'Yapı', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
-  offices: 'firma-ekle.html', projects: 'proje-ekle.html', architects: 'mimar-ekle.html',
+  offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
+  architects: 'mimar-ekle.html',
 };
 const SAVED_TYPE_LABELS = { project: 'Yapı', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
 const PAGE_SIZE_DASH = 10;

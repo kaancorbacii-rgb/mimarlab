@@ -2,6 +2,7 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform } from '../lib/submissionTypes.js';
+import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -10,8 +11,8 @@ import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 
-const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects']);
-const FACET_TYPES = new Set(['projects']);
+const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
+const FACET_TYPES = new Set(['projects', 'products', 'materials']);
 // data.js/projeler-data.js BİLEREK burada YOK — Legacy Bundle Elimination Faz 2 (bkz. kullanıcı
 // isteği): claimed_profile_key/claimed_slug doğrulaması artık doğrudan canonical D1 (architects/
 // offices/projects) tablolarından okunuyor, src/lib/seo.js'in Faz 1'de zaten yaptığı AYNI geçiş
@@ -19,7 +20,10 @@ const FACET_TYPES = new Set(['projects']);
 // migrate-to-id-first.js script'i her statik kaydı canonical bir satıra taşıdığından statik dizi
 // artık D1'in KESİN bir alt kümesi, ayrı bir statik kontrole gerek yok).
 
-const TYPE_BY_PATH = { offices: 'offices', projects: 'projects', architects: 'architects' };
+const TYPE_BY_PATH = {
+  offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
+  architects: 'architects',
+};
 
 // architects/offices gönderileri, claimed_profile_key doluysa yeni bir kayıt değil, o kullanıcının
 // onaylı bir profile_claims kaydına sahip olduğu STATİK bir profile (architects[]/offices[].name)
@@ -115,6 +119,35 @@ async function verifyClaimedSlug(env, user, slug) {
   return null;
 }
 
+// Ürün gönderimi rozet sahipliğine bağlıdır (yalnızca yeni gönderiler için — mevcut bir gönderiyi
+// düzenlemek aylık hakkı harcamaz, bkz. updateOwnSubmission). Her üç rozet kademesi de farklı
+// aylık limitle yükleyebilir.
+async function checkSubmissionQuota(env, user, typeKey) {
+  if (typeKey === 'products') {
+    const badge = await getActiveBadge(env, user.id);
+    const limit = badge ? PRODUCT_MONTHLY_LIMITS[badge.badge_type] : undefined;
+    if (!limit) return errorJson('Ürün eklemek için Doğrulanmış Üye, Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+    const since = periodStart(badge);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM product_submissions WHERE owner_user_id = ? AND created_at >= ?`
+    ).bind(user.id, since).first();
+    if (row.count >= limit) return errorJson(`Bu ayki ürün yükleme hakkını kullandın (${limit}/${limit}). Yeni hak için bir sonraki döneme kadar bekleyebilir ya da daha üst bir rozete geçebilirsin.`, 403);
+    return null;
+  }
+  if (typeKey === 'materials') {
+    const badge = await getActiveBadge(env, user.id);
+    const limit = badge ? MATERIAL_MONTHLY_LIMITS[badge.badge_type] : undefined;
+    if (!limit) return errorJson('Malzeme eklemek için Doğrulanmış Üye, Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+    const since = periodStart(badge);
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM material_submissions WHERE owner_user_id = ? AND created_at >= ?`
+    ).bind(user.id, since).first();
+    if (row.count >= limit) return errorJson(`Bu ayki malzeme yükleme hakkını kullandın (${limit}/${limit}). Yeni hak için bir sonraki döneme kadar bekleyebilir ya da daha üst bir rozete geçebilirsin.`, 403);
+    return null;
+  }
+  return null;
+}
+
 export async function handleSubmissionRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "offices", ...]
   const typeKey = TYPE_BY_PATH[segments[1]];
@@ -152,6 +185,9 @@ async function createSubmission(request, env, user, typeKey) {
     const err = await verifyClaimedSlug(env, user, body.claimed_slug);
     if (err) return err;
   }
+
+  const quotaErr = await checkSubmissionQuota(env, user, typeKey);
+  if (quotaErr) return quotaErr;
 
   const config = SUBMISSION_TYPES[typeKey];
   const row = normalizeSubmission(typeKey, body);

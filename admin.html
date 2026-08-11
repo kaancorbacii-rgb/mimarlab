@@ -172,6 +172,7 @@
     </div>
     <div class="nav-links">
       <a class="nav-link" href="yapi.html">Yapı</a>
+      <a class="nav-link" href="urun.html">Ürün</a>
       <a class="nav-link" href="mimar.html">Mimar</a>
       <a class="nav-link" href="firma.html">Firma</a>
     </div>
@@ -187,6 +188,7 @@
         <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
       </div>
       <a class="nav-mobile-link" href="yapi.html">Yapı</a>
+      <a class="nav-mobile-link" href="urun.html">Ürün</a>
       <a class="nav-mobile-link" href="mimar.html">Mimar</a>
       <a class="nav-mobile-link" href="firma.html">Firma</a>
     </div>
@@ -268,15 +270,20 @@
   </footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', architects: 'Mimar' };
-const SUBTAB_TYPES = ['offices', 'projects'];
+const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
+// Bekleyen Gönderiler/Yayındaki İçerikler sekmelerinde filtre BUTONU olarak yalnızca bu tipler
+// gösterilir (bkz. kullanıcı isteği: "malzeme, mimar butonlarını kaldır") — TYPE_LABELS'in kendisi
+// hâlâ tüm tipleri içerir, bu yüzden "Tümü" seçiliyken (varsayılan) diğer tipler de (etiketleriyle
+// birlikte) listede görünmeye devam eder, yalnızca kendi filtre butonları yok.
+const SUBTAB_TYPES = ['offices', 'projects', 'products'];
 // Bekleyen Gönderiler listesindeki "Düzenle / İncele" bağlantısı için — hesabim.html#EDIT_PAGE_BY_TYPE
 // ile BİREBİR aynı eşleme, admin onaylamadan önce gönderiyi ?edit=<id> modunda (kendi taslağını
 // okuyan, claimed_profile_key/claimed_slug'ı koruyarak kaydeden mod — bkz. mimar-ekle.html/
 // firma-ekle.html/proje-ekle.html#prefillForEdit'teki claimName/claimSlug geri-doldurma) formda görüp
 // gerekirse düzenleyebilsin diye (bkz. kullanıcı isteği).
 const EDIT_PAGE_BY_TYPE = {
-  offices: 'firma-ekle.html', projects: 'proje-ekle.html', architects: 'mimar-ekle.html',
+  offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
+  architects: 'mimar-ekle.html',
 };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 let pendingType = 'all';
@@ -401,7 +408,7 @@ function itemDetails(type, item){
     if(item.type && item.type.length) rows.push(['Tip', escapeHtml(item.type.join(', '))]);
     if(item.brands && item.brands.length) rows.push(['Kullanılan Firmalar', escapeHtml(item.brands.join(', '))]);
   }
-  if(type === 'projects' && item.images && item.images.length > 1){
+  if((type === 'projects' || type === 'products' || type === 'materials') && item.images && item.images.length > 1){
     rows.push(['Görseller', `${item.images.length} görsel`]);
   }
   if(!rows.length) return '';
@@ -535,9 +542,9 @@ async function loadContent(resetPage){
 // olarak burada aynı listede görünür (bkz. kullanıcı isteği: "mimar, firma ve ürüne silme ve
 // arşivleme yetkisi ver"). "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider
 // (ürünlerin claim akışı yok, her zaman edit=); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
-const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma' };
-const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'firma-ekle.html' };
-const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key' };
+const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
+const ARCHIVE_EDIT_PAGE = { projects: 'proje-ekle.html', architects: 'mimar-ekle.html', offices: 'firma-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html' };
+const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null, materials: null };
 let archiveType = 'projects';
 
 function archiveEditHref(type, item){

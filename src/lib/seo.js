@@ -6,12 +6,17 @@ import { parseCanonicalRow } from './canonicalRead.js';
 // 3'te zaten yaptığı AYNI geçiş (o dosyalarda da request-time overlay YOK, bkz. src/routes/
 // architect.js dosya başı yorumu: onaylı submission'lar artık merge-time'da (scripts/
 // merge-submissions-to-id-first.js, src/lib/canonicalSync.js#syncApprovedSubmissionToCanonical —
-// admin onayında CANLI çalışır) canonical satıra yazılıyor).
+// admin onayında CANLI çalışır) canonical satıra yazılıyor). urunler-data.js/malzemeler-data.js
+// sonraki Legacy Bundle Elimination fazlarının kapsamında, burada dokunulmadı.
+import urunJs from '../../urunler-data.js';
+import malzemeJs from '../../malzemeler-data.js';
 // src/routes/project.js'teki AYNI CJS-interop yorumu — il/ilçe çözümlemesini proje konumundan
 // (Place/PostalAddress JSON-LD için) tekrar tanımlamak yerine paylaşılan referans tablosundan alır.
 import ilIlceJs from '../../il-ilce-data.js';
 
 const { parseLocationFull } = ilIlceJs;
+const { products } = urunJs;
+const { materials } = malzemeJs;
 
 const SITE_ORIGIN = 'https://mimarlab.com';
 const DEFAULT_IMAGE = `${SITE_ORIGIN}/logos/site/mimarlab-og-image.png`;
@@ -45,6 +50,7 @@ const CATALOG_CRUMB = {
   // popup tasarımı AYNI kaldığından ayrı bir CreativeWork @type yok, yalnızca breadcrumb kataloğu değişir.
   project: { label: 'Yapılar', path: '/yapi' },
   'project-concept': { label: 'Projeler', path: '/proje' },
+  product: { label: 'Ürün', path: '/urun' },
 };
 function breadcrumbJsonLd(type, name, canonicalUrl) {
   const catalog = CATALOG_CRUMB[type];
@@ -78,8 +84,8 @@ async function fetchFounderNames(env, officeName) {
 }
 
 // D1 canonical tablolardan tekil mimar/firma kaydı bulma — src/routes/architect.js#findArchitect/
-// src/routes/office.js#findOffice ile BİREBİR aynı arama deseni (name/slug/legacy_key eşleşmesi,
-// yoksa slugify-tarama fallback'i). O dosyalardan
+// src/routes/office.js#findOffice/src/routes/product.js#handleProductDetailRoute ile BİREBİR aynı
+// arama deseni (name/slug/legacy_key eşleşmesi, yoksa slugify-tarama fallback'i). O dosyalardan
 // import ETMİYORUZ (route handler'ları başka bağımlılıklar taşıyor, seo.js'in yalnızca DB'ye
 // ihtiyacı var). findArchitectRow, mimarın bağlı olduğu ofis adını (architects.office_id → offices)
 // AYRI bir round-trip AÇMADAN tek sorguda LEFT JOIN ile getirir (bkz. kullanıcı isteği: "N+1 sorgu
@@ -136,6 +142,16 @@ async function findProjectRow(env, slug) {
      WHERE p.slug = ? AND p.deleted_at IS NULL
      GROUP BY p.id`
   ).bind(slug).first();
+}
+
+async function findProductRow(env, key) {
+  if (!env || !env.DB) return null;
+  const row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(key).first();
+  if (row) return row;
+  const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL`).all();
+  const match = results.find(r => slugify(`${r.title}-${r.brand_name_raw || ''}`) === key);
+  if (!match) return null;
+  return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
 }
 
 function architectMetaFromRecord(a, officeName, slug) {
@@ -227,14 +243,63 @@ async function buildProjectMeta(slug, env) {
   return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd(isConcept ? 'project-concept' : 'project', p.title, canonicalUrl) };
 }
 
-const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta };
+// Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
+// hem statik urunler-data.js/malzemeler-data.js kayıtları hem D1'deki onaylı product_submissions/
+// material_submissions satırları (bkz. buildProductMeta) aynı şekli taşıdığından paylaşılabilir.
+function productMetaFromRecord(record, canonicalUrl) {
+  const title = `${record.title} — MİMARLAB`;
+  const rawDesc = record.description || `${record.title}${record.brand ? ' — ' + record.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
+  const description = truncate(rawDesc, 200);
+  const images = (record.images || []).map(absoluteUrl).filter(Boolean);
+  const jsonLd = { '@context': 'https://schema.org', '@type': 'Product', name: record.title, url: canonicalUrl };
+  if (record.description) jsonLd.description = record.description;
+  if (images.length) jsonLd.image = images;
+  if (record.brand) jsonLd.brand = { '@type': 'Brand', name: record.brand };
+  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
+}
 
-// type: 'architect' | 'office' | 'project'; slugOrId: URL'den çözülen slug/id.
+// key: urun.html#productKey ile birebir aynı üretim — statik kayıtlarda slugify(title + '-' + brand),
+// D1 kayıtlarında "m-<submissionId>". Önce iki statik dizide (products/materials) arar; orada yoksa
+// D1'e (önce product_submissions, sonra material_submissions) bakar — statik arama zaten senkron
+// olduğundan yalnızca D1 dalı gerçekten async'tir, bu yüzden fonksiyon her koşulda Promise döner.
+function staticProductKey(x) { return slugify(`${x.title}-${x.brand || ''}`); }
+async function buildProductMeta(key, env) {
+  const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(key)}`;
+  const staticMatch = products.find(x => staticProductKey(x) === key)
+    || materials.find(x => staticProductKey(x) === key);
+  if (staticMatch) return productMetaFromRecord(staticMatch, canonicalUrl);
+
+  const m = /^m-(.+)$/.exec(key);
+  if (m && env && env.DB) {
+    const id = m[1];
+    const productRow = await env.DB.prepare(`SELECT * FROM product_submissions WHERE id = ? AND status = 'approved'`).bind(id).first();
+    const row = productRow || await env.DB.prepare(`SELECT * FROM material_submissions WHERE id = ? AND status = 'approved'`).bind(id).first();
+    if (row) {
+      let images = [];
+      try { images = row.images ? JSON.parse(row.images) : []; } catch { images = []; }
+      return productMetaFromRecord({ title: row.title, brand: row.brand, description: row.description, images }, canonicalUrl);
+    }
+  }
+
+  // Ne statik dizide ne eski üye-gönderisi tablolarında bulundu — canonical `products` tablosuna
+  // bak (bkz. src/routes/product.js#handleProductDetailRoute'taki AYNI arama deseni: önce doğrudan
+  // slug eşleşmesi, yoksa id'siz eski anahtar formatıyla tam tarama). Faz 3 migrasyonundan sonra
+  // gerçek ürün/malzeme kataloğunun büyük kısmı yalnızca burada yaşıyor, statik dizilerde değil.
+  const row = await findProductRow(env, key);
+  if (!row) return null;
+  const p = parseCanonicalRow('products', row);
+  return productMetaFromRecord({ title: p.title, brand: p.brand_name_raw, description: p.description, images: p.images }, canonicalUrl);
+}
+
+const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta };
+
+// type: 'architect' | 'office' | 'project' | 'product'; slugOrId: URL'den çözülen slug/id.
 // Kayıt bulunamazsa (veya D1 sorgusu hata verirse, bkz. aşağıdaki try/catch) null döner — çağıran
 // taraf (src/index.js#serveDetailPage) mevcut jenerik placeholder meta'yı (şablonun kendi <title>/
 // meta description'ı) olduğu gibi bırakır, ASLA 500 üretmez ya da boş/kırık etiket enjekte etmez.
 // env artık architect/office/project'in TEK veri kaynağı (Legacy Bundle Elimination Faz 1, bkz.
-// yukarıdaki import yorumu).
+// yukarıdaki import yorumu) — yalnızca product hâlâ statik urunler-data.js/malzemeler-data.js'i
+// önce dener (D1'e ikinci bir round-trip açmadan).
 export async function buildMeta(type, slugOrId, env) {
   const builder = BUILDERS[type];
   if (!builder) return null;
