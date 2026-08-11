@@ -110,6 +110,9 @@
     border-radius:12px; padding:8px;
     box-shadow:0 12px 28px rgba(27,42,61,0.15);
     flex-direction:column; min-width:220px;
+    /* bkz. index.html'deki AYNI gerçek bulgu/gerekçe — kullanıcı isteği: mobil hamburger menüde
+       Ürün akordeonu açılınca panelin altına kaydırılamaması sorununun kökten çözümü. */
+    max-height:calc(100vh - 90px); overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{

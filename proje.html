@@ -135,6 +135,9 @@
     display:none; position:absolute; top:100%; right:18px; z-index:95;
     background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px;
     box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;
+    /* bkz. index.html'deki AYNI gerçek bulgu/gerekçe — kullanıcı isteği: mobil hamburger menüde
+       Ürün akordeonu açılınca panelin altına kaydırılamaması sorununun kökten çözümü. */
+    max-height:calc(100vh - 90px); overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}

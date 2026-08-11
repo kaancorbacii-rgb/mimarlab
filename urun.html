@@ -885,7 +885,13 @@ document.addEventListener('click', (e)=>{
   const wrap = document.getElementById('urun-menu-wrap');
   const panel = document.getElementById('urun-mega-menu');
   const mobileMenu = document.getElementById('nav-mobile-menu');
+  const hamburger = document.getElementById('nav-hamburger');
   if(mobileMenu && mobileMenu.contains(e.target)) return;
+  // Gerçek bulgu: hamburger düğmesi wrap/panel'in (masaüstü mega menü) DIŞINDA olduğundan, bu kontrol
+  // olmadan hamburger'a her tıklayışta closeMegaMenu() de tetiklenip nav-mobile-menu'yü AÇILDIĞI ANDA
+  // geri kapatıyordu (bkz. kullanıcı isteği: "Ürünler sayfasında hamburger menü açılmıyor") — hamburger
+  // kendi açma/kapama mantığını (aşağıdaki navHamburger listener'ı) zaten kendi başına yönetiyor.
+  if(hamburger && hamburger.contains(e.target)) return;
   if(wrap && panel && !wrap.contains(e.target) && !panel.contains(e.target)) closeMegaMenu();
 });
 document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeMegaMenu(); });

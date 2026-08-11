@@ -209,8 +209,14 @@
   .image-drop span{font-size:12px;}
   .image-spec-hint{font-size:11.5px; color:var(--ink-soft); margin:8px 2px 0; line-height:1.5;}
   .image-preview-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px; margin-top:14px;}
-  .image-preview-item{position:relative; aspect-ratio:1/1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--paper);}
-  .image-preview-item img{width:100%; height:100%; object-fit:cover;}
+  /* touch-action:none + basılı-tut-sürükle sıralama (bkz. kullanıcı isteği, aşağıdaki JS#wireDragReorder)
+     — kutu, dokunmatik cihazlarda sürükleme başladığında sayfanın kendisini kaydırmaya çalışmasın diye
+     kendi varsayılan dokunma kaydırmasını devre dışı bırakır; butonlar (Sil/Kapak/Sola-Sağa) normal
+     dokunuşla ZATEN çalışmaya devam eder, touch-action yalnızca kaydırma jestini etkiler. */
+  .image-preview-item{position:relative; aspect-ratio:1/1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--paper); touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab;}
+  .image-preview-item img{width:100%; height:100%; object-fit:cover; pointer-events:none;}
+  .image-preview-item button{cursor:pointer;}
+  .image-preview-item.dragging{opacity:0.55; cursor:grabbing; z-index:2; box-shadow:0 10px 24px rgba(27,42,61,0.28);}
   .image-preview-item .cover-badge{
     position:absolute; left:4px; bottom:4px; background:var(--ink); color:var(--paper-card);
     font-size:9px; font-weight:600; padding:2px 6px; border-radius:100px; text-transform:uppercase;
@@ -779,7 +785,7 @@ function renderPreviews(){
   previewGrid.innerHTML = mediaItems.map((item, i) => {
     const isCover = i === 0;
     const isLast = i === mediaItems.length - 1;
-    return `<div class="image-preview-item">
+    return `<div class="image-preview-item" data-key="${escapeAttr(item.key)}">
       <img src="${escapeAttr(mediaItemSrc(item))}" alt="">
       <button type="button" class="image-move-btn image-move-left" data-move-index="${i}" data-dir="-1" aria-label="Sola taşı"${i === 0 ? ' disabled' : ''}>‹</button>
       <button type="button" class="image-move-btn image-move-right" data-move-index="${i}" data-dir="1" aria-label="Sağa taşı"${isLast ? ' disabled' : ''}>›</button>
@@ -812,6 +818,75 @@ function renderPreviews(){
     });
   });
 }
+
+// Basılı tutup sürükleyerek sıralama (bkz. kullanıcı isteği: "görseller üzerlerine basılı tutulup
+// kaydırılarak da sıraları değiştirilebilsin") — sol/sağ ok butonları (yukarısı) korunur, bu sadece
+// EK bir yol. HTML5 dragstart/drop yalnızca fare ile çalışıp dokunmatik cihazları desteklemediğinden,
+// fare VE dokunmayı TEK bir API'de birleştiren Pointer Events ile "basılı tut → sürükle" (uzun-basma
+// eşiği) deseni kullanılır. previewGrid her renderPreviews() çağrısında innerHTML ile YENİDEN
+// oluşturulduğundan (bkz. yukarısı) dinleyiciler TEK SEFER kapsayıcıya (previewGrid) event delegation
+// ile bağlanır; sürükleme sırasında renderPreviews() ÇAĞRILMAZ (aksi halde sürüklenen düğüm imha
+// edilip pointer capture kaybolurdu) — sıra yalnızca bırakıldığında (pointerup) DOM sırasından
+// mediaItems'a senkronize edilip TEK seferlik bir renderPreviews() ile buton index'leri
+// (data-move-index vb.) tazelenir.
+const DRAG_LONG_PRESS_MS = 260;
+const DRAG_MOVE_CANCEL_PX = 8;
+let dragPending = null; // {tile, pointerId, startX, startY, timer} — henüz basılı-tutma eşiğini geçmedi
+let dragState = null;   // {tile, pointerId} — sürükleme fiilen başladı
+
+function clearDragPending(){
+  if(dragPending && dragPending.timer) clearTimeout(dragPending.timer);
+  dragPending = null;
+}
+
+previewGrid.addEventListener('pointerdown', (e)=>{
+  if(e.target.closest('button')) return;
+  const tile = e.target.closest('.image-preview-item');
+  if(!tile) return;
+  clearDragPending();
+  const pointerId = e.pointerId;
+  dragPending = { tile, pointerId, startX: e.clientX, startY: e.clientY, timer: null };
+  dragPending.timer = setTimeout(()=>{
+    if(!dragPending || dragPending.pointerId !== pointerId) return;
+    dragState = { tile: dragPending.tile, pointerId };
+    dragPending = null;
+    tile.classList.add('dragging');
+    try{ tile.setPointerCapture(pointerId); }catch{}
+  }, DRAG_LONG_PRESS_MS);
+});
+
+previewGrid.addEventListener('pointermove', (e)=>{
+  if(dragState && e.pointerId === dragState.pointerId){
+    e.preventDefault();
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const overTile = el ? el.closest('.image-preview-item') : null;
+    if(!overTile || overTile === dragState.tile || !previewGrid.contains(overTile)) return;
+    const tiles = [...previewGrid.children];
+    const dragIndex = tiles.indexOf(dragState.tile);
+    const overIndex = tiles.indexOf(overTile);
+    if(dragIndex < overIndex) previewGrid.insertBefore(dragState.tile, overTile.nextSibling);
+    else previewGrid.insertBefore(dragState.tile, overTile);
+    return;
+  }
+  if(dragPending && e.pointerId === dragPending.pointerId){
+    if(Math.abs(e.clientX - dragPending.startX) > DRAG_MOVE_CANCEL_PX || Math.abs(e.clientY - dragPending.startY) > DRAG_MOVE_CANCEL_PX) clearDragPending();
+  }
+});
+
+function finishDragReorder(e){
+  if(dragPending && (!e || e.pointerId === dragPending.pointerId)) clearDragPending();
+  if(!dragState || (e && e.pointerId !== dragState.pointerId)) return;
+  const tile = dragState.tile;
+  tile.classList.remove('dragging');
+  try{ tile.releasePointerCapture(dragState.pointerId); }catch{}
+  dragState = null;
+  const order = [...previewGrid.children].map(el => el.dataset.key);
+  const byKey = new Map(mediaItems.map(item => [item.key, item]));
+  mediaItems = order.map(k => byKey.get(k)).filter(Boolean);
+  renderPreviews();
+}
+previewGrid.addEventListener('pointerup', finishDragReorder);
+previewGrid.addEventListener('pointercancel', finishDragReorder);
 
 const MAX_PROJECT_IMAGES = 50;
 

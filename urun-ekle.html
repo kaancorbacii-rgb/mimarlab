@@ -57,7 +57,7 @@
   .nav-link-trigger svg{transition:transform .15s ease;}
   .nav-link-trigger[aria-expanded="true"] svg{transform:rotate(180deg);}
   .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
-  .nav-mobile-menu{display:none; position:absolute; top:100%; right:18px; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px;}
+  .nav-mobile-menu{display:none; position:absolute; top:100%; right:18px; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column; min-width:220px; max-height:calc(100vh - 90px); overflow-y:auto; -webkit-overflow-scrolling:touch;}
   .nav-mobile-menu.open{display:flex;}
   .nav-mobile-link{padding:11px 14px; border-radius:8px; font-size:14.5px; font-weight:500; color:var(--ink); text-transform:uppercase;}
   .nav-mobile-link:hover{background:var(--paper-alt);}
@@ -469,6 +469,14 @@ dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.
 
 let isAdminEditingOther = false;
 let currentUserRole = null;
+// ?adminedit=<id>: yalnızca admin için — hiçbir gönderiden gelmeyen (legacy_static kökenli) bir
+// canonical `products` satırını, gönderi/onay sistemine hiç uğramadan DOĞRUDAN düzenler (bkz.
+// kullanıcı isteği: "Admine tüm ürünleri düzenleyebilme yetkisi ver"; bkz. src/routes/
+// legacyContent.js#handleAdminProductEdit). Normal ?edit=<submissionId> modundan (yukarısı) farklı
+// olarak bu satırların products/materials'ta bir claim sistemi (proje-ekle.html#claimSlug'ın ürün
+// karşılığı) hiç olmadığından ayrı bir yol gerekti.
+const adminEditId = new URLSearchParams(window.location.search).get('adminedit');
+let adminEditSlug = null;
 const meReady = fetch('/api/auth/me').then(async res=>{
   if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
   currentUserRole = (await res.json()).user.role;
@@ -478,7 +486,7 @@ const meReady = fetch('/api/auth/me').then(async res=>{
 // bir ürünü düzenlemek aylık hakkı harcamaz). Sunucu tarafı asıl kontrolü zaten yapıyor
 // (src/routes/submissions.js#checkSubmissionQuota); bu sadece formu doldurmadan önce uyarmak için.
 async function checkProductAccess(){
-  if(editId) return;
+  if(editId || adminEditId) return;
   try{
     const res = await fetch('/api/badges/mine');
     if(!res.ok) return;
@@ -492,6 +500,31 @@ async function checkProductAccess(){
   }catch{}
 }
 checkProductAccess();
+
+// ?edit= (gönderi düzenleme) ve ?adminedit= (admin'in legacy_static kaydı doğrudan düzenlemesi)
+// AYNI alan setini dolduruyor — tek kopyada tutulur.
+function applyPrefillItem(item){
+  document.querySelector('.eyebrow').textContent = 'Ürün Düzenle';
+  document.querySelector('.page-head h1').textContent = 'Ürününü düzenle';
+  document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
+
+  document.getElementById('u-title').value = item.title || '';
+  document.getElementById('u-brand').value = item.brand || '';
+  document.getElementById('u-website').value = item.website || '';
+  document.getElementById('u-year').value = item.year || '';
+  document.getElementById('u-designer').value = item.designer || '';
+  document.getElementById('u-desc').value = item.description || '';
+  // Eski çoklu-seçim verisi ' · ' ile ayrılmış olabilir (bkz. eski check-grid); yalnızca ilk
+  // değeri alıp yeni Grup/Kategori taksonomisine eşleriz.
+  const cat = (item.category || '').split(' · ')[0].trim();
+  const group = taxonomyGroupOf(CATALOG_TAXONOMY, cat) || Object.keys(CATALOG_TAXONOMY)[0];
+  groupSelect.value = group;
+  populateCategoryOptions(group);
+  if(cat) categorySelect.value = cat;
+  existingImages = item.images || [];
+  renderPreviews();
+  (item.specs || []).forEach(s => addSpecRow(s.label, s.value));
+}
 
 async function prefillForEdit(){
   if(!editId) return;
@@ -511,29 +544,24 @@ async function prefillForEdit(){
       }
     }
     if(!item) return;
-    document.querySelector('.eyebrow').textContent = 'Ürün Düzenle';
-    document.querySelector('.page-head h1').textContent = 'Ürününü düzenle';
-    document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
+    applyPrefillItem(item);
+  }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
+}
 
-    document.getElementById('u-title').value = item.title || '';
-    document.getElementById('u-brand').value = item.brand || '';
-    document.getElementById('u-website').value = item.website || '';
-    document.getElementById('u-year').value = item.year || '';
-    document.getElementById('u-designer').value = item.designer || '';
-    document.getElementById('u-desc').value = item.description || '';
-    // Eski çoklu-seçim verisi ' · ' ile ayrılmış olabilir (bkz. eski check-grid); yalnızca ilk
-    // değeri alıp yeni Grup/Kategori taksonomisine eşleriz.
-    const cat = (item.category || '').split(' · ')[0].trim();
-    const group = taxonomyGroupOf(CATALOG_TAXONOMY, cat) || Object.keys(CATALOG_TAXONOMY)[0];
-    groupSelect.value = group;
-    populateCategoryOptions(group);
-    if(cat) categorySelect.value = cat;
-    existingImages = item.images || [];
-    renderPreviews();
-    (item.specs || []).forEach(s => addSpecRow(s.label, s.value));
+async function prefillForAdminEdit(){
+  if(!adminEditId) return;
+  await meReady;
+  if(currentUserRole !== 'admin'){ window.location.href = 'urun.html'; return; }
+  try{
+    const res = await fetch(`/api/admin/legacy/product/${encodeURIComponent(adminEditId)}`);
+    if(!res.ok) return;
+    const item = (await res.json()).item;
+    adminEditSlug = item.slug;
+    applyPrefillItem(item);
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 prefillForEdit();
+prefillForAdminEdit();
 
 // Marka önerileri artık data.js'in statik offices[] dizisi yerine canlı D1 aramasından beslenir
 // (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — mimar-ekle.html/firma-ekle.html/
@@ -630,12 +658,22 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   // Seçilen Grup'un ait olduğu tür (bkz. catalog-taxonomy.js#CATALOG_GROUP_KIND) hangi API'ye
   // gönderileceğini belirler — Ürün ve Malzeme tek formda birleştiği için (bkz. kullanıcı isteği).
   const kind = CATALOG_GROUP_KIND[groupSelect.value] || 'products';
-  const patchUrl = isAdminEditingOther
-    ? `/api/admin/submissions/${kind}/${encodeURIComponent(editId)}`
-    : `/api/${kind}/${encodeURIComponent(editId)}`;
+  let requestUrl, requestMethod;
+  if(adminEditId){
+    requestUrl = `/api/admin/legacy/product/${encodeURIComponent(adminEditId)}`;
+    requestMethod = 'PATCH';
+  } else if(editId){
+    requestUrl = isAdminEditingOther
+      ? `/api/admin/submissions/${kind}/${encodeURIComponent(editId)}`
+      : `/api/${kind}/${encodeURIComponent(editId)}`;
+    requestMethod = 'PATCH';
+  } else {
+    requestUrl = `/api/${kind}`;
+    requestMethod = 'POST';
+  }
   try{
-    const res = await fetch(editId ? patchUrl : `/api/${kind}`, {
-      method: editId ? 'PATCH' : 'POST',
+    const res = await fetch(requestUrl, {
+      method: requestMethod,
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
@@ -650,6 +688,13 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       return;
     }
     loading.classList.remove('show');
+    if(adminEditId){
+      notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
+      notice.classList.add('show');
+      notice.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ window.location.href = `/urun/${encodeURIComponent(data.slug || adminEditSlug)}`; }, 1200);
+      return;
+    }
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
     // routes/submissions.js) sayfa hesabim.html'e değil, doğrudan ürünün kendi profiline gitsin
     // (bkz. kullanıcı isteği: "kaydet butonuna tıkladıktan sonra sayfa otomatik olarak o profile

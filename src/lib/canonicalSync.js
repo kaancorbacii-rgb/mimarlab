@@ -202,7 +202,10 @@ export async function findCanonicalRowByNaturalKey(env, typeKey, key) {
   return null;
 }
 
-async function findOneByName(env, table, name) {
+// export edilir — bkz. src/routes/legacyContent.js#handleAdminProductEdit, admin'in legacy_static
+// kökenli bir ürünün markasını doğrudan düzenlerken brand_office_id'yi AYNI mantıkla yeniden çözmesi
+// için (syncProduct'takiyle iki ayrı kopya olmasın diye).
+export async function findOneByName(env, table, name) {
   if (!name) return { row: null, ambiguous: false };
   const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL AND name = ?`).bind(name).all();
   if (results.length === 0) return { row: null, ambiguous: false };

@@ -634,6 +634,14 @@ const ProductModal = (function () {
       const html = await editSubmissionBtnHtml(kindPlural(p), p.submissionId);
       const editSlot = document.getElementById('pr-edit-slot');
       if (html && editSlot) editSlot.innerHTML = html;
+    } else if (currentUser && currentUser.role === 'admin' && p.id) {
+      // legacy_static kökenli (hiçbir gönderiden gelmeyen) ürünler için admin'e AYRI bir doğrudan
+      // düzenleme yolu — yukarıdaki editSubmissionBtnHtml submission tablosuna dayanır, bu satırların
+      // hiç submission'ı olmadığından o buton bu satırlarda hiçbir zaman görünmüyordu (bkz. kullanıcı
+      // isteği: "Admine tüm ürünleri düzenleyebilme yetkisi ver"; bkz. src/routes/legacyContent.js#
+      // handleAdminProductEdit, canonical `products` satırını doğrudan id'siyle günceller).
+      const editSlot = document.getElementById('pr-edit-slot');
+      if (editSlot) editSlot.innerHTML = `<a class="card-edit-btn" href="urun-ekle.html?adminedit=${encodeURIComponent(p.id)}">Düzenle</a>`;
     }
     if (!currentUser) return;
     const slot = document.getElementById('pr-admin-slot');

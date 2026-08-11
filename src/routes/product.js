@@ -23,7 +23,7 @@ function shapeProductItem(row) {
   const p = parseCanonicalRow('products', row);
   const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
   return {
-    title: p.title, brand: p.brand_name_raw, website: p.website, category: p.category,
+    id: p.id, title: p.title, brand: p.brand_name_raw, website: p.website, category: p.category,
     designer: p.designer || null, year: p.year || null,
     description: p.description, images: p.images, specs: p.specs, kind: p.kind,
     submissionId: isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null,

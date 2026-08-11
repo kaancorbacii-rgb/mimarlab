@@ -9,6 +9,7 @@ import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, casc
 import {
   findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical, CANONICAL_TABLE_BY_TYPE, canonicalKeyFor,
   hardDeleteCanonicalRow, blacklistLegacyKey, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
+  findOneByName,
 } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -83,7 +84,59 @@ export async function handleLegacyAdmin(request, env, url, segments, user) {
   if (segments.length === 4 && segments[3] === 'hidden' && request.method === 'PATCH') return toggleLegacyHidden(request, env, user);
   if (segments.length === 4 && segments[3] === 'project-action' && request.method === 'POST') return handleProjectAction(request, env, user);
   if (segments.length === 4 && segments[3] === 'content-action' && request.method === 'POST') return handleContentAction(request, env, user);
+  if (segments.length === 5 && segments[3] === 'product' && request.method === 'GET') return handleAdminProductDetail(env, segments[4]);
+  if (segments.length === 5 && segments[3] === 'product' && request.method === 'PATCH') return handleAdminProductEdit(request, env, segments[4]);
   return errorJson('Bulunamadı', 404);
+}
+
+// GET/PATCH /api/admin/legacy/product/:id — admin'in HİÇ gönderiden gelmeyen (legacy_static kökenli)
+// ürün/malzeme satırlarını doğrudan düzenleyebilmesi için (bkz. kullanıcı isteği: "Admine tüm
+// ürünleri düzenleyebilme yetkisi ver") — products/materials'ta architects/offices/projects'teki gibi
+// bir claim sistemi yok (bkz. src/routes/submissions.js#CLAIMED_COLUMN_BY_TYPE, bu ikisi orada yok),
+// bu yüzden gönderi tablosuna hiç uğramadan canonical `products` satırını id'siyle doğrudan okuyup
+// güncelleyen ayrı, basit bir yol. slug/legacy_key'e KASITLI OLARAK dokunulmaz — products/materials
+// hiçbir rename cascade'i desteklemediğinden (bkz. syncProduct'ın da slug'ı hiç değiştirmemesi),
+// başlık değişse bile kaydın mevcut URL'si (canonical `slug`) korunur. `id`, hem 'product' hem
+// 'material' satırları için AYNI (tek) `products` tablosunun paylaşılan PK'sı olduğundan (bkz.
+// migrations/0022_id_first_entities.sql#kind kolonu) tip parametresi gerekmez, satırın kendi `kind`
+// kolonundan okunur.
+async function handleAdminProductDetail(env, id) {
+  const row = await env.DB.prepare(`SELECT * FROM products WHERE id = ? AND deleted_at IS NULL`).bind(id).first();
+  if (!row) return errorJson('Bulunamadı', 404);
+  const p = parseCanonicalRow('products', row);
+  return json({
+    item: {
+      id: p.id, slug: p.slug, kind: p.kind, title: p.title, brand: p.brand_name_raw, website: p.website,
+      category: p.category, description: p.description, images: p.images, specs: p.specs,
+      designer: p.designer, year: p.year,
+    },
+  });
+}
+
+async function handleAdminProductEdit(request, env, id) {
+  const row = await env.DB.prepare(`SELECT * FROM products WHERE id = ? AND deleted_at IS NULL`).bind(id).first();
+  if (!row) return errorJson('Bulunamadı', 404);
+  const body = await readJson(request);
+  const title = (body.title || '').trim();
+  if (!title) return errorJson('Başlık zorunlu.');
+
+  let brandOfficeId = null;
+  if (body.brand) {
+    const match = await findOneByName(env, 'offices', body.brand);
+    if (match.ambiguous) return errorJson('Bu marka adıyla birden fazla firma eşleşiyor, önce admin panelinden tekilleştirmen gerekiyor.');
+    brandOfficeId = match.row ? match.row.id : null;
+  }
+
+  const images = JSON.stringify(body.images || []);
+  const specs = JSON.stringify(body.specs || []);
+  await env.DB.prepare(
+    `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, designer = ?, year = ?, updated_at = datetime('now') WHERE id = ?`
+  ).bind(title, brandOfficeId, body.brand || null, body.website || null, body.category || null, body.description || null, images, specs, body.designer || null, body.year || null, id).run();
+
+  await invalidatePublicCache(env);
+  await purgeSsrDetailCache('product', row.slug);
+  if (row.category !== (body.category || null)) await bumpFacetCounts(env, 'products');
+  return json({ ok: true, slug: row.slug });
 }
 
 async function searchLegacy(env, url) {
