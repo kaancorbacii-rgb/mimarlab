@@ -41,6 +41,17 @@ const CATALOG_GROUP_KIND = {};
 Object.keys(PRODUCT_TAXONOMY).forEach(g => { CATALOG_GROUP_KIND[g] = 'products'; });
 Object.keys(MATERIAL_TAXONOMY).forEach(g => { CATALOG_GROUP_KIND[g] = 'materials'; });
 
+// urun.html'deki mega menü (bkz. kullanıcı isteği: Architonic tarzı açılır menü) — sadece görsel
+// kolon dizilimi, veri CATALOG_TAXONOMY'den gelir (buradaki grup adları o objedeki anahtarlarla
+// birebir eşleşmeli, yoksa mega menüde görünmez). Yeni bir Grup eklendiğinde burada da bir kolona
+// eklenmezse menüde çıkmaz ama urun.html filtrelerinde çıkmaya devam eder (bu dosya salt görüntü).
+const CATALOG_MENU_COLUMNS = [
+  ['Mobilya', 'Dekorasyon & Aksesuar'],
+  ['Aydınlatma', 'Tekstil & Halı'],
+  ['Mutfak & Beyaz Eşya', 'Dış Mekan', 'Banyo'],
+  ['Doğal Taş & Zemin', 'Boya & Kaplama', 'Cephe & Cam Sistemleri', 'Sıva & Alçı', 'Yalıtım', 'Kapı & Pencere'],
+];
+
 function taxonomyGroupOf(taxonomy, category) {
   for (const [group, cats] of Object.entries(taxonomy)) {
     if (cats.includes(category)) return group;
