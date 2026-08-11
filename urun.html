@@ -972,22 +972,34 @@ window.addEventListener('popstate', ()=>{
   refreshView();
 });
 
-applyStateFromUrl();
-if(currentViewMode() === 'landing'){
-  updateHeader('landing');
-  document.querySelector('.grid-layout').style.display = 'none';
-  document.getElementById('group-landing').style.display = '';
-  renderLanding();
-} else {
-  updateHeader('listing');
-  buildSidebar();
-  render().then(()=>{
-    // Doğrudan /urun/:slug adresine girildiğinde ya da o adreste F5 yapıldığında ürün modalı
-    // otomatik açılsın (bkz. proje.html'deki AYNI desen).
-    const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
-    if(m) ProductModal.open(decodeURIComponent(m[1]), { pushHistory:false });
-  });
-}
+// İlk otomatik çizim DOMContentLoaded'a kadar ertelenir — catalog-taxonomy.js gibi deferred
+// script'ler DOMContentLoaded'dan ÖNCE (parse sırasıyla) çalışmayı GARANTİ eder, ama bu inline
+// script (defer OLMADAN, parse anında senkron çalışır) deferred script'lerden ÖNCE çalışabilir.
+// gerçek bulgu: canlıda render()'ın ilk otomatik çağrısı bazen catalog-taxonomy.js henüz
+// tanımlanmadan (`catalogCardMediaHtml is not defined`) çalışıyor, ürün grid'i sessizce boş
+// kalıyordu — "network isteği deferred script'ten her zaman yavaştır" varsayımı (bkz. render()
+// içindeki catalogCardMediaHtml kullanımının konumu) canlıda YANLIŞ çıktı, /api/products bazen
+// deferred script'in yüklenmesinden daha hızlı dönüyor. Sonraki tüm render()/renderLanding()
+// çağrıları (filtre/sıralama/mega menü tıklaması) kullanıcı etkileşimiyle tetiklendiğinden zaten
+// DOMContentLoaded sonrası gerçekleşiyor, bu yüzden yalnızca İLK otomatik çağrı sarmalanır.
+document.addEventListener('DOMContentLoaded', ()=>{
+  applyStateFromUrl();
+  if(currentViewMode() === 'landing'){
+    updateHeader('landing');
+    document.querySelector('.grid-layout').style.display = 'none';
+    document.getElementById('group-landing').style.display = '';
+    renderLanding();
+  } else {
+    updateHeader('listing');
+    buildSidebar();
+    render().then(()=>{
+      // Doğrudan /urun/:slug adresine girildiğinde ya da o adreste F5 yapıldığında ürün modalı
+      // otomatik açılsın (bkz. proje.html'deki AYNI desen).
+      const m = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+      if(m) ProductModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+    });
+  }
+});
 
 function wireNavSearch(){
   function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
