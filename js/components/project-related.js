@@ -79,13 +79,16 @@ const ArchitectProjects = (function () {
 // uysa bile (örn. hem aynı mimar hem aynı şehir) puanı eksiksiz toplanır.
 const RelatedProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-related-section', grid: 'pm-related-grid' };
-  // Ağırlıklı yüzde skorlaması (bkz. kullanıcı isteği): Tip Uyum %30 (proje.html'deki "Tip" =
-  // category[] alanı kesişim oranı), Tip Grubu Uyum %40 (proje.html'deki "Tip Grubu" = type[] alanı
-  // kesişim oranı), Yıl Yakınlığı/Eşleşmesi %30 — üçü toplamda 0-100 aralığında tek bir skor verir.
-  // Mimar/ofis, şehir/ülke, puan artık SKORA girmiyor (kullanıcı isteğiyle 3 faktöre daraltıldı) —
-  // ama aday havuzunu zenginleştirmek için ilgili /api/projects sorguları hâlâ gatherCandidateQueries
-  // içinde kalır (bkz. aşağısı).
-  const WEIGHT = { CATEGORY: 30, TYPE: 40, YEAR: 30 };
+  // Kural 2 (ZORUNLU, bkz. kullanıcı isteği: "Selçuklu Kongre Merkezi Kültürel tipte bir projeye
+  // Dini tipte olan bir cami önerilmiş... Önce aynı tip olmalı"): aday havuzu kaynak projeyle AYNI
+  // "Tip"e (category[] — proje.html'deki "Tip" etiketi) sahip olmayan hiçbir projeyi içeremez. Tip
+  // artık ağırlıklı bir skor bileşeni DEĞİL, discipline (Tür) gibi sert bir filtre — eşleşmeyen
+  // adaylar havuza hiç girmez (bkz. hasSameCategory ve gatherCandidateQueries'teki categoryParams).
+  // Sıralama artık tek sinyale dayanır: Yıl Yakınlığı (bkz. kullanıcı isteği: "sonra yakın yıllarda
+  // olmalı") — weightedSample zaten var olan rastgelelik davranışını (her açılışta farklı sıralama)
+  // korumak için bu skoru kullanmaya devam eder. Aynı mimara/firmaya ait projeler ayrıca hiç bu
+  // bölüme girmez (bkz. kullanıcı isteği: "aynı mimara ait başka proje bu kısımda olmamalı") — bu,
+  // mount()'a geçirilen excludeSlugsPromise (ArchitectProjects'in gösterdiği TÜM slug'lar) ile sağlanır.
   const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
   const RESULT_COUNT = 15;
 
@@ -131,17 +134,13 @@ const RelatedProjects = (function () {
     return (candidate.discipline || []).some(d => sourceDisciplines.includes(d));
   }
 
-  // Kaynağın alan listesindeki KAÇ değerin adayda da bulunduğunun oranı (kaynak temelli, Jaccard
-  // değil) — kaynağın tek kategorisi/tipi varsa ve aday da onu taşıyorsa tam ağırlık, kaynağın
-  // birden çok değeri varsa kısmi eşleşme kısmi ağırlık alır. Kaynakta alan boşsa (ör. type[] hiç
-  // girilmemiş) o faktör 0 katkı yapar — cezalandırma değil, sadece o sinyalin yokluğu.
-  function matchFraction(sourceArr, candArr) {
-    const source = new Set(sourceArr || []);
-    if (!source.size) return 0;
-    const cand = new Set(candArr || []);
-    let hits = 0;
-    source.forEach(v => { if (cand.has(v)) hits++; });
-    return hits / source.size;
+  // Kural 2 (ZORUNLU, bkz. yukarısı) — hasSameDiscipline ile BİREBİR aynı desen, ama "Tip"
+  // (category[]) alanı üzerinde. Kaynakta category verisi YOKSA filtre uygulanamaz (geriye dönük
+  // davranış korunur).
+  function hasSameCategory(source, candidate) {
+    const sourceCategories = source.category || [];
+    if (!sourceCategories.length) return true;
+    return (candidate.category || []).some(c => sourceCategories.includes(c));
   }
 
   function yearProximity(sourceDate, candDate) {
@@ -155,10 +154,7 @@ const RelatedProjects = (function () {
 
   function scoreCandidate(source, candidate) {
     if (candidate.slug === source.slug) return -Infinity;
-    const categoryFrac = matchFraction(source.category, candidate.category);
-    const typeFrac = matchFraction(source.type, candidate.type);
-    const yearFrac = yearProximity(source.date, candidate.date);
-    return categoryFrac * WEIGHT.CATEGORY + typeFrac * WEIGHT.TYPE + yearFrac * WEIGHT.YEAR;
+    return yearProximity(source.date, candidate.date) * 100;
   }
 
   async function fetchByParams(paramList, limit) {
@@ -173,10 +169,10 @@ const RelatedProjects = (function () {
     } catch { return []; }
   }
 
-  // Kural 1 — 'discipline' zaten desteklenen bir /api/projects filtre param'ı (bkz.
-  // src/routes/project.js#buildFilterGroups 'Tür'), her aday sorgusuna eklenerek havuzun
-  // KAYNAĞINDA (client-side hasSameDiscipline() beklemeden) farklı türdeki projeler elenir. Çoklu
-  // discipline değeri OR mantığıyla eşleşir (bkz. passesFilters#vals.some).
+  // Kural 1 & 2 — 'discipline' ve 'category' zaten desteklenen /api/projects filtre param'ları
+  // (bkz. src/routes/project.js#buildFilterGroups 'Tür'/'Tip'), her aday sorgusuna eklenerek
+  // havuzun KAYNAĞINDA (client-side hasSameDiscipline()/hasSameCategory() beklemeden) farklı
+  // türde/tipte projeler elenir. Çoklu değer OR mantığıyla eşleşir (bkz. passesFilters#vals.some).
   function gatherCandidateQueries(item) {
     const queries = [];
     // buildStatus: aday havuzu kaynak projeyle AYNI kategoride kalmalı (bkz. kullanıcı isteği,
@@ -184,21 +180,18 @@ const RelatedProjects = (function () {
     // "İlgili Projeler"ı arasına inşa edilmiş eserler (ya da tersi) karışırdı.
     const buildStatusParam = ['buildStatus', item.buildStatus === 'concept' ? 'concept' : 'built'];
     const disciplineParams = (item.discipline || []).map(d => ['discipline', d]);
-    const withDiscipline = params => {
-      const withBuildStatus = [...params, buildStatusParam];
-      return disciplineParams.length ? [...withBuildStatus, ...disciplineParams] : withBuildStatus;
-    };
+    const categoryParams = (item.category || []).map(c => ['category', c]);
+    const withFilters = params => [...params, buildStatusParam, ...disciplineParams, ...categoryParams];
     (item.designerDetails || []).forEach(d => {
       if (d.unregistered) return;
-      queries.push(fetchByParams(withDiscipline([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
+      queries.push(fetchByParams(withFilters([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
     });
-    (item.type || []).forEach(t => queries.push(fetchByParams(withDiscipline([['type', t]]), 16)));
-    (item.category || []).forEach(c => queries.push(fetchByParams(withDiscipline([['category', c]]), 16)));
+    (item.type || []).forEach(t => queries.push(fetchByParams(withFilters([['type', t]]), 16)));
     const topLevelLocation = locationParts(item.location);
     const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
-    if (rawCity) queries.push(fetchByParams(withDiscipline([['location', rawCity]]), 16));
-    queries.push(fetchByParams(withDiscipline([['sort', 'rating_desc']]), 16)); // genel havuz — boşluk doldurma
-    if (disciplineParams.length) queries.push(fetchByParams([...disciplineParams, buildStatusParam], 24)); // Tür'e özel geniş havuz
+    if (rawCity) queries.push(fetchByParams(withFilters([['location', rawCity]]), 16));
+    queries.push(fetchByParams(withFilters([['sort', 'rating_desc']]), 16)); // genel havuz — boşluk doldurma
+    if (disciplineParams.length || categoryParams.length) queries.push(fetchByParams([...disciplineParams, ...categoryParams, buildStatusParam], 24)); // Tür+Tip'e özel geniş havuz
     return { queries, topLevelLocation };
   }
 
@@ -237,11 +230,13 @@ const RelatedProjects = (function () {
     const exclude = new Set(excludeSlugs || []);
     exclude.add(item.slug);
 
-    // Kural 1 KESİN — sorgular zaten discipline'a göre daraltılmıştı (bkz. gatherCandidateQueries),
-    // ama burada da kontrol edilir: farklı türdeki hiçbir proje (ör. mimari altında iç mekan) bu
-    // filtreyi atlayıp havuza giremez.
+    // Kural 1 & 2 KESİN — sorgular zaten discipline/category'ye göre daraltılmıştı (bkz.
+    // gatherCandidateQueries), ama burada da kontrol edilir: farklı türdeki (ör. mimari altında iç
+    // mekan) ya da farklı tipteki (ör. Kültürel projeye Dini tipte proje) hiçbir aday bu filtreyi
+    // atlayıp havuza giremez. exclude Seti zaten "aynı mimara ait" projeleri dışarıda tutar (bkz.
+    // dosya başı mount() yorumu — excludeSlugsPromise, ArchitectProjects'in gösterdiği TÜM slug'lar).
     const candidates = new Map();
-    lists.flat().forEach(p => { if (!exclude.has(p.slug) && !candidates.has(p.slug) && hasSameDiscipline(item, p)) candidates.set(p.slug, p); });
+    lists.flat().forEach(p => { if (!exclude.has(p.slug) && !candidates.has(p.slug) && hasSameDiscipline(item, p) && hasSameCategory(item, p)) candidates.set(p.slug, p); });
 
     const scored = Array.from(candidates.values())
       .map(p => ({ p, score: scoreCandidate(item, p) }))
