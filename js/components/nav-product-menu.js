@@ -14,7 +14,7 @@
     style.id = 'nav-product-menu-style';
     style.textContent = `
       .nav-link-wrap{position:relative;}
-      .nav-link-trigger{display:flex; align-items:center; gap:5px; cursor:pointer;}
+      .nav-link-trigger{display:flex; align-items:center; gap:5px; cursor:pointer; background:none; border:none; padding:0; margin:0;}
       .nav-link-trigger svg{transition:transform .15s ease;}
       .nav-link-trigger[aria-expanded="true"] svg{transform:rotate(180deg);}
       .mega-menu{display:none; position:absolute; top:calc(100% + 14px); left:50%; transform:translateX(-50%); z-index:90; width:min(96vw, 1160px); background:var(--paper-card); border:1px solid var(--line); border-radius:16px; box-shadow:0 18px 40px rgba(27,42,61,0.18); padding:26px 30px;}
