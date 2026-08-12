@@ -211,6 +211,7 @@
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
 <script src="catalog-taxonomy.js"></script>
+<script src="js/components/duplicate-name-check.js"></script>
 <script src="js/components/nav-product-menu.js" defer></script>
 
   <nav class="nav">
@@ -377,6 +378,20 @@ const editId = new URLSearchParams(window.location.search).get('edit');
 // editSubmissionBtnHtml/applyEditButtons). Yeni gönderilerde bu değer, seçilen Grup'a göre
 // CATALOG_GROUP_KIND'dan yeniden hesaplanır (bkz. submit handler).
 const editTypeParam = new URLSearchParams(window.location.search).get('stype');
+// applyPrefillItem'in doldurduğu ORİJİNAL başlık/marka — kendi ürününü değiştirmeden kaydederken
+// "zaten yayınlandı" yanlış pozitifine düşmemek için (bkz. js/components/duplicate-name-check.js#
+// attach getExclude). Tür (products/materials) sabit değil, gönderim anında seçili Grup'tan
+// hesaplanır (bkz. aşağıdaki submit handler#kind) — attach'a bunu döndüren bir fonksiyon verilir.
+let originalTitle = '';
+let originalBrand = '';
+const dupNameCheck = DuplicateNameCheck.attach({
+  input: document.getElementById('u-title'),
+  brandInput: document.getElementById('u-brand'),
+  type: () => (editTypeParam === 'materials' ? 'materials' : (CATALOG_GROUP_KIND[groupSelect.value] || 'products')),
+  message: 'Bu ürün zaten yayınlandı.',
+  getExclude: () => originalTitle,
+  getExcludeBrand: () => originalBrand,
+});
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -510,6 +525,8 @@ function applyPrefillItem(item){
 
   document.getElementById('u-title').value = item.title || '';
   document.getElementById('u-brand').value = item.brand || '';
+  originalTitle = item.title || '';
+  originalBrand = item.brand || '';
   document.getElementById('u-website').value = item.website || '';
   document.getElementById('u-year').value = item.year || '';
   document.getElementById('u-designer').value = item.designer || '';
@@ -628,6 +645,13 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
   const loading = document.getElementById('form-loading');
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
+
+  if(dupNameCheck.isDuplicate()){
+    notice.textContent = 'Bu ürün zaten yayınlandı.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
 
   submitBtn.disabled = true;
   loading.classList.add('show');

@@ -36,6 +36,34 @@ function foldTr(s) {
   return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
+// src/routes/submissions.js#createSubmission'ın sunucu tarafı doğrulaması için — istemci tarafı
+// canlı uyarı (bkz. src/routes/public.js#handlePublicCheckName, AYNI foldTr TAM eşleşme deseni)
+// debounce'landığından hızlı yazıp göndermede atlanabilir; burası yetkili son kontroldür (bkz.
+// kullanıcı isteği: "daha önce siteye yüklenen ... aynı isimde proje yüklenemesin"). Yalnızca
+// GERÇEKTEN yeni (claimed_profile_key/claimed_slug'sız) gönderiler için çağrılır — sahiplenilmiş bir
+// statik kaydın ilk düzenlemesinde body.name zaten claimed_profile_key ile AYNI olacağından (bkz.
+// createSubmission'daki atama), o akışta bu her zaman yanlışlıkla "çakışma" derdi.
+export async function isDuplicateCanonicalName(env, typeKey, name, { brand } = {}) {
+  const folded = foldTr((name || '').trim());
+  if (!folded) return false;
+  if (typeKey === 'architects' || typeKey === 'offices') {
+    const { results } = await env.DB.prepare(`SELECT name FROM ${typeKey} WHERE deleted_at IS NULL`).all();
+    return results.some(r => foldTr(r.name || '') === folded);
+  }
+  if (typeKey === 'projects') {
+    const { results } = await env.DB.prepare(`SELECT title FROM projects WHERE deleted_at IS NULL`).all();
+    return results.some(r => foldTr(r.title || '') === folded);
+  }
+  if (typeKey === 'products' || typeKey === 'materials') {
+    const foldedBrand = foldTr((brand || '').trim());
+    if (!foldedBrand) return false; // doğal anahtar marka+başlık ikilisi — markasız tek başına başlık anlamsız
+    const kind = typeKey === 'products' ? 'product' : 'material';
+    const { results } = await env.DB.prepare(`SELECT title, brand_name_raw FROM products WHERE deleted_at IS NULL AND kind = ?`).bind(kind).all();
+    return results.some(r => foldTr(r.title || '') === folded && foldTr(r.brand_name_raw || '') === foldedBrand);
+  }
+  return false;
+}
+
 // Bir projenin başlığı (dolayısıyla slug'ı) değiştiğinde — mimar/firma yeniden adlandırmasındaki
 // renameOfficeEverywhere/renameArchitectEverywhere'in proje karşılığı. Projeye slug ile referans
 // veren TEK üç tablo comments/ratings/saved_items (bkz. src/lib/cascadeDelete.js dosya başı yorumu

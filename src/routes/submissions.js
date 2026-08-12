@@ -7,13 +7,23 @@ import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
-import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission } from '../lib/canonicalSync.js';
+import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 const FACET_TYPES = new Set(['projects', 'products', 'materials']);
+// bkz. src/routes/public.js#handlePublicCheckName (istemci tarafı canlı uyarının AYNI metinleri) —
+// proje-ekle.html/mimar-ekle.html/firma-ekle.html/urun-ekle.html buradaki hatayı form-notice
+// kutusunda gösterir (bkz. aşağıdaki createSubmission çağrısı).
+const DUPLICATE_NAME_ERROR = {
+  projects: 'Bu proje zaten yayınlandı.',
+  architects: 'Bu mimar zaten yayınlandı.',
+  offices: 'Bu firma zaten yayınlandı.',
+  products: 'Bu ürün zaten yayınlandı.',
+  materials: 'Bu malzeme zaten yayınlandı.',
+};
 // data.js/projeler-data.js BİLEREK burada YOK — Legacy Bundle Elimination Faz 2 (bkz. kullanıcı
 // isteği): claimed_profile_key/claimed_slug doğrulaması artık doğrudan canonical D1 (architects/
 // offices/projects) tablolarından okunuyor, src/lib/seo.js'in Faz 1'de zaten yaptığı AYNI geçiş
@@ -201,6 +211,17 @@ async function createSubmission(request, env, user, typeKey) {
   if (typeKey === 'projects' && body.claimed_slug) {
     const err = await verifyClaimedSlug(env, user, body.claimed_slug);
     if (err) return err;
+  }
+
+  // claimed_profile_key/claimed_slug'lı gönderiler statik bir kayda "bağlanan" düzenlemelerdir —
+  // body.name yukarıda zaten claimed_profile_key ile AYNI değere ayarlandığından (rename istisnası
+  // dışında), bu iki tip ZATEN kasıtlı olarak mevcut bir isimle eşleşir; bu yüzden çakışma kontrolü
+  // yalnızca GERÇEKTEN yeni bir kayıt oluşturulurken çalışır (bkz. isDuplicateCanonicalName yorumu).
+  if (!body.claimed_profile_key && !(typeKey === 'projects' && body.claimed_slug)) {
+    const dupName = typeKey === 'projects' ? body.title : body.name;
+    if (dupName && (await isDuplicateCanonicalName(env, typeKey, dupName, { brand: body.brand }))) {
+      return errorJson(DUPLICATE_NAME_ERROR[typeKey]);
+    }
   }
 
   const quotaErr = await checkSubmissionQuota(env, user, typeKey);

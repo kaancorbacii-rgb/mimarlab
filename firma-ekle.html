@@ -409,6 +409,7 @@
   </footer>
 
 <script src="il-ilce-data.js"></script>
+<script src="js/components/duplicate-name-check.js"></script>
 <script>
 // Kaydettikten sonra firmanın kendi profiline yönlendirmek için (bkz. aşağıdaki submit handler) —
 // bu sayfa save-widget.js YÜKLEMEZ (bkz. proje kuralı: currentUser çakışması), o yüzden oradaki
@@ -430,6 +431,16 @@ let existingLogoUrl = null;
 const params = new URLSearchParams(window.location.search);
 let editId = params.get('edit');
 let claimName = params.get('claim');
+// prefillForEdit/prefillForClaim'in doldurduğu ORİJİNAL isim — kendi profilini değiştirmeden
+// kaydederken "zaten yayınlandı" yanlış pozitifine düşmemek için (bkz. js/components/
+// duplicate-name-check.js#attach getExclude).
+let originalName = '';
+const dupNameCheck = DuplicateNameCheck.attach({
+  input: document.getElementById('o-name'),
+  type: 'offices',
+  message: 'Bu firma zaten yayınlandı.',
+  getExclude: () => originalName,
+});
 
 function escapeAttr(s){
   const d = document.createElement('div');
@@ -741,6 +752,7 @@ async function prefillForEdit(){
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
     document.getElementById('o-name').value = item.name || '';
+    originalName = item.name || '';
     applyLocToDropdowns(item.loc || '');
     if(item.yil){ selectedYil = item.yil; document.getElementById('dd-yil-btn-label').textContent = String(item.yil); }
     document.getElementById('o-website').value = item.website || '';
@@ -816,6 +828,7 @@ async function prefillForClaim(){
   // Böyle görünüyorsa kutuyu ham ID ile doldurmak yerine boş bırak.
   const nameInput = document.getElementById('o-name');
   nameInput.value = merged.name || (looksLikeInternalId(claimName) ? '' : claimName);
+  originalName = nameInput.value;
   if(isAdmin){
     nameInput.readOnly = false;
     nameInput.style.background = '';
@@ -862,6 +875,12 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   const form = e.target;
   const submitBtn = form.querySelector('.form-submit');
 
+  if(dupNameCheck.isDuplicate()){
+    notice.textContent = 'Bu firma zaten yayınlandı.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
   if(!selectedIl){
     notice.textContent = 'Lütfen konum için bir il seç.';
     notice.classList.add('show');

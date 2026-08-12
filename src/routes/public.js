@@ -1,4 +1,4 @@
-import { errorJson } from '../lib/http.js';
+import { json, errorJson } from '../lib/http.js';
 import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
 import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
@@ -25,6 +25,7 @@ export async function handlePublicRoute(request, env, url) {
   if (segments[2] === 'hidden') return handlePublicHidden(request, env);
   if (segments[2] === 'search-suggest') return handlePublicSearchSuggest(request, env, url);
   if (segments[2] === 'search') return handlePublicSearchFull(request, env, url);
+  if (segments[2] === 'check-name') return handlePublicCheckName(request, env, url);
   if (segments[2] === 'profile-edits') return handlePublicProfileEdits(request, env);
   if (segments[2] === 'project-edits') return handlePublicProjectEdits(request, env);
   if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);
@@ -65,6 +66,71 @@ async function handlePublicSaveCount(request, env, url) {
       'SELECT COUNT(*) AS count FROM saved_items WHERE item_type = ? AND item_key = ?'
     ).bind(itemType, itemKey).first();
     return { count: row?.count || 0 };
+  });
+}
+
+// bkz. src/routes/legacyContent.js#foldTr (AYNI desen, dosyalar arası paylaşılan bir modüle
+// çıkarılmadan kopyalanmış — o dosyanın başındaki yorumla aynı gerekçe).
+function trLower(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+}
+
+const CHECK_NAME_TYPES = new Set(['projects', 'architects', 'offices', 'products', 'materials']);
+
+// GET /api/public/check-name?type=projects|architects|offices|products|materials&name=<metin>
+// [&brand=<metin>][&exclude=<metin>][&excludeBrand=<metin>] — auth gerektirmez. proje-ekle.html/
+// mimar-ekle.html/firma-ekle.html/urun-ekle.html'in Proje/Mimar/Firma/Ürün Adı kutusuna, o adla
+// ZATEN yayınlanmış bir kayıt varsa yazarken canlı uyarı verebilmesi için (bkz. kullanıcı isteği:
+// "daha önce siteye yüklenen projelerle aynı isimde proje yüklenemesin"). Karşılaştırma TR-duyarlı
+// foldTr ile TAM eşleşme arar (fuzzyMatch'teki kelime-parçalamalı GİBİ DEĞİL — burada amaç "aynı isim",
+// alt dize/eş anlamlı eşleşme değil). exclude(Brand), düzenleme sırasında kaydın KENDİ mevcut
+// adını/markasını çakışma saymamak için (bkz. istemci tarafı: prefill'de yüklenen orijinal değer).
+// products/materials'ta doğal anahtar marka+başlık İKİLİSİDİR (bkz. src/lib/canonicalSync.js#
+// canonicalKeyFor — legacy_key = "marka|||başlık"), bu yüzden brand boşken hiç kontrol yapılmaz
+// (aynı başlıklı farklı markaların ürünleri meşru — ör. iki markanın "Model A" koltuğu).
+async function handlePublicCheckName(request, env, url) {
+  const type = url.searchParams.get('type');
+  const rawName = (url.searchParams.get('name') || '').trim();
+  if (!CHECK_NAME_TYPES.has(type) || !rawName) return json({ exists: false });
+  const folded = foldTr(rawName);
+  const excludeFolded = foldTr((url.searchParams.get('exclude') || '').trim());
+
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    if (type === 'architects' || type === 'offices') {
+      const table = type;
+      const { results } = await env.DB.prepare(`SELECT name FROM ${table} WHERE deleted_at IS NULL`).all();
+      const exists = results.some(r => {
+        const f = foldTr(r.name || '');
+        return f === folded && !(excludeFolded && f === excludeFolded);
+      });
+      return { exists };
+    }
+    if (type === 'projects') {
+      const { results } = await env.DB.prepare(`SELECT title FROM projects WHERE deleted_at IS NULL`).all();
+      const exists = results.some(r => {
+        const f = foldTr(r.title || '');
+        return f === folded && !(excludeFolded && f === excludeFolded);
+      });
+      return { exists };
+    }
+    // products/materials — brand boşsa (ör. mimar/firma marka kutusunu henüz doldurmadan başlığı
+    // yazdı) tek başına başlığın anlamı yok, çakışma aranmaz.
+    const rawBrand = (url.searchParams.get('brand') || '').trim();
+    if (!rawBrand) return { exists: false };
+    const foldedBrand = foldTr(rawBrand);
+    const excludeBrandFolded = foldTr((url.searchParams.get('excludeBrand') || '').trim());
+    const kind = type === 'products' ? 'product' : 'material';
+    const { results } = await env.DB.prepare(`SELECT title, brand_name_raw FROM products WHERE deleted_at IS NULL AND kind = ?`).bind(kind).all();
+    const exists = results.some(r => {
+      const fTitle = foldTr(r.title || '');
+      const fBrand = foldTr(r.brand_name_raw || '');
+      const isSelf = excludeFolded && excludeBrandFolded && fTitle === excludeFolded && fBrand === excludeBrandFolded;
+      return fTitle === folded && fBrand === foldedBrand && !isSelf;
+    });
+    return { exists };
   });
 }
 

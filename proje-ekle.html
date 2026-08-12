@@ -306,6 +306,7 @@
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
 <script src="il-ilce-data.js"></script>
+<script src="js/components/duplicate-name-check.js"></script>
 
   <nav class="nav">
     <a class="brand" href="index.html">
@@ -918,6 +919,16 @@ let currentUserRole = null;
 // sonra profile yönlendirebilmek için (bkz. aşağıdaki submit handler) — slug düzenlemede değişmez
 // (bkz. updateOwnSubmission#row.slug = existing.slug), bu yüzden prefillForEdit'te bir kez okunur.
 let existingSlug = null;
+// Düzenleme/sahiplenme modunda prefillForEdit/prefillForClaim'in doldurduğu ORİJİNAL başlık — kendi
+// kaydının adını değiştirmeden kaydederken "zaten yayınlandı" yanlış pozitifine düşmemek için (bkz.
+// js/components/duplicate-name-check.js#attach getExclude).
+let originalTitle = '';
+const dupNameCheck = DuplicateNameCheck.attach({
+  input: document.getElementById('p-title'),
+  type: 'projects',
+  message: 'Bu proje zaten yayınlandı.',
+  getExclude: () => originalTitle,
+});
 const meReady = fetch('/api/auth/me').then(async res=>{
   if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
   currentUserRole = (await res.json()).user.role;
@@ -991,6 +1002,7 @@ async function prefillForEdit(){
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
     document.getElementById('p-title').value = item.title || '';
+    originalTitle = item.title || '';
     {
       const loc = parseLocationFull(item.location || '');
       if(loc.city){
@@ -1075,6 +1087,7 @@ async function prefillForClaim(){
   }catch{}
 
   document.getElementById('p-title').value = merged.title || '';
+  originalTitle = merged.title || '';
   {
     const loc = parseLocationFull(merged.location || '');
     if(loc.city){
@@ -1155,6 +1168,12 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   const office = document.getElementById('p-office').value.split(',').map(s => s.trim()).filter(Boolean);
   const brands = brandChips.map(c => ({ brand: c.brand, product: c.product || null }));
 
+  if(dupNameCheck.isDuplicate()){
+    notice.textContent = 'Bu proje zaten yayınlandı.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
   if(!selectedIl){
     notice.textContent = 'Bir il seç.';
     notice.classList.add('show');
