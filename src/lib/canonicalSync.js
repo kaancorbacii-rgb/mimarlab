@@ -303,7 +303,7 @@ export async function findOneByName(env, table, name) {
 async function logConflict(env, entity_type, conflict_key, context, candidates) {
   await env.DB.prepare(
     `INSERT INTO migration_name_conflicts (entity_type, conflict_key, context, candidates, status) VALUES (?, ?, ?, ?, 'pending')`
-  ).bind(entity_type, conflict_key, context, JSON.stringify(candidates.map(r => ({ id: r.id, name: r.name }))), 'pending').run();
+  ).bind(entity_type, conflict_key, context, JSON.stringify(candidates.map(r => ({ id: r.id, name: r.name })))).run();
 }
 
 // officeIds: bir mimarın Firma alanına virgülle ayırarak girdiği TÜM eşleşen firma id'leri (bkz.
