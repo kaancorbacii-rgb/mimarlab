@@ -8,6 +8,10 @@ const ProjectActions = (function () {
   // DEĞİL — modal-shell.js'in paylaşılan header'ında, X butonunun yanında render edilir (bkz.
   // kullanıcı isteği: aksiyon butonları X'in yanına taşınsın) — ModalShell.getHeaderActionsSlot().
   const DEFAULT_IDS = { saveSlot: 'pm-save-slot' };
+  // renderSeq: project-comments.js#mountSeq ile AYNI desen/gerekçe — proje popup'ı hızla
+  // değiştirildiğinde önceki projenin yavaş kalan sahiplik (/api/projects/mine) ya da kayıt-sayısı
+  // isteği, artık ekranda olan YENİ projenin Düzenle/Sil butonlarını ya da Kaydet sayacını ezmesin diye.
+  let renderSeq = 0;
 
   function saveBtnHtml(item) {
     const hrefPrefix = '/proje/';
@@ -28,7 +32,7 @@ const ProjectActions = (function () {
   // yöntemle burada da sahiplik belirlemek için sorgulanır. Admin isteği bu sorguyu atlar — admin
   // için "Düzenle" her zaman claim linkine, "Sil/Arşivle" mountAdminModerationButtons'a gider
   // (mevcut davranış korunur).
-  async function mountOwnerActions(item) {
+  async function mountOwnerActions(item, mySeq) {
     await savedWidgetReady;
     const editSlot = document.getElementById('pm-edit-submission-slot');
     if (!currentUser || !editSlot) return;
@@ -40,6 +44,7 @@ const ProjectActions = (function () {
         mySubmission = (data.items || []).find(it => it.slug === item.slug || it.claimed_slug === item.slug) || null;
       } catch { /* sahiplik kontrolü başarısız — güvenli varsayılan: buton gösterme */ }
     }
+    if (mySeq !== renderSeq) return;
     if (mySubmission) {
       const html = await editSubmissionBtnHtml('projects', mySubmission.id);
       if (html) editSlot.innerHTML = html;
@@ -105,6 +110,7 @@ const ProjectActions = (function () {
   }
 
   function render(item, ids) {
+    const mySeq = ++renderSeq;
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     document.getElementById(mergedIds.saveSlot).innerHTML = saveBtnHtml(item) + (typeof ShareWidget !== 'undefined' ? ShareWidget.html('pm-share-btn') : '');
     const headerActions = ModalShell.getHeaderActionsSlot();
@@ -115,9 +121,9 @@ const ProjectActions = (function () {
     }
     fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(item.slug)}`)
       .then(res => res.ok ? res.json() : null)
-      .then(data => { const el = document.getElementById('pm-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
+      .then(data => { if (mySeq !== renderSeq) return; const el = document.getElementById('pm-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
-    mountOwnerActions(item).then(() => mountAdminModerationButtons(item));
+    mountOwnerActions(item, mySeq).then(() => { if (mySeq === renderSeq) mountAdminModerationButtons(item); });
   }
 
   return { render };

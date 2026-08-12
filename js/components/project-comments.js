@@ -12,11 +12,18 @@
 // rozet ŞARTI YOK.
 const ProjectComments = (function () {
   const DEFAULT_IDS = { count: 'pm-comments-count', formWrap: 'pm-comment-form-wrap', list: 'pm-comments-list' };
-  let canModerate = false;
+  // mountSeq: proje popup'ı hızla değiştirildiğinde önceki projenin yavaş kalan /api/comments
+  // isteği, artık ekranda olan YENİ projenin yorum listesinin üzerine yazabiliyordu (gerçek bulgu —
+  // bkz. kullanıcı isteği: "bir önceki projeyi kapatıp başka açıyorum, ilk açtığımı gösteriyor").
+  // project-modal.js#requestSeq ile AYNI desen: her mount() kendi sıra numarasını alır, o an en
+  // güncel mountSeq ile eşleşmeyen (= aradan yeni bir mount() başlamış) sonuçlar DOM'a yazılmaz.
+  let mountSeq = 0;
 
-  async function loadComments(targetId, ids, targetType) {
+  async function loadComments(targetId, ids, targetType, canModerate, mySeq) {
     const res = await fetch(`/api/comments?targetType=${encodeURIComponent(targetType)}&targetId=${encodeURIComponent(targetId)}`);
+    if (mySeq !== mountSeq) return;
     const data = res.ok ? await res.json() : { items: [] };
+    if (mySeq !== mountSeq) return;
     const items = data.items || [];
     document.getElementById(ids.count).textContent = items.length;
     const list = document.getElementById(ids.list);
@@ -55,7 +62,7 @@ const ProjectComments = (function () {
         btn.disabled = true;
         try {
           const res = await fetch(`/api/comments/${btn.dataset.id}`, { method: 'DELETE' });
-          if (res.ok) loadComments(targetId, ids, targetType);
+          if (res.ok) loadComments(targetId, ids, targetType, canModerate, mySeq);
         } finally { btn.disabled = false; }
       });
     });
@@ -100,9 +107,10 @@ const ProjectComments = (function () {
   }
 
   async function mount(container, slug, ids, options) {
+    const mySeq = ++mountSeq;
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const targetType = (options && options.targetType) || 'project';
-    canModerate = false;
+    let canModerate = false;
     await savedWidgetReady;
     if (currentUser) {
       try {
@@ -123,8 +131,9 @@ const ProjectComments = (function () {
         }
       } catch { /* yetki kontrolü başarısız — güvenli varsayılan: canModerate=false */ }
     }
+    if (mySeq !== mountSeq) return;
     renderCommentForm(slug, mergedIds, targetType);
-    await loadComments(slug, mergedIds, targetType);
+    await loadComments(slug, mergedIds, targetType, canModerate, mySeq);
   }
 
   return { mount };

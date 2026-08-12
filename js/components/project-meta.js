@@ -5,6 +5,10 @@
 // bir /api/architect//api/office "eşleşmeyen isim" fallback sorgusuna GEREK YOK, her satır zaten
 // gerçek bir mimar/ofis kaydına karşılık gelir) üzerinden okunur.
 const ProjectMeta = (function () {
+  // renderSeq: project-comments.js#mountSeq ile AYNI desen/gerekçe — 'mimarlab-badges-ready'
+  // henüz ateşlenmeden proje popup'ı hızla değiştirilirse, event geldiğinde artık ekranda olmayan
+  // ESKİ projenin kapanışta kaydettiği dinleyici de tetiklenip mimar/firma çiplerini ezebilirdi.
+  let renderSeq = 0;
 
   // bkz. XSS escaping convention (memory) — depolanmış herhangi bir URL http(s) değilse asla
   // href/src'e basılmaz. proje-detay.html#safeUrl ile birebir aynı.
@@ -135,6 +139,7 @@ const ProjectMeta = (function () {
   };
 
   function render(item, ids) {
+    const mySeq = ++renderSeq;
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     document.getElementById(mergedIds.title).textContent = item.title;
     renderDesigners(item, mergedIds);
@@ -142,7 +147,7 @@ const ProjectMeta = (function () {
     // proje modalı bu fetch tamamlanmadan açılmışsa çipler baş harfli/rozetsiz render edilmiş
     // olabilir; js/components/architect-modal.js#renderVerifiedBadges ile AYNI desen, geldiğinde
     // Mimar/Firma çipleri bir kez daha çizilir.
-    window.addEventListener('mimarlab-badges-ready', () => renderDesigners(item, mergedIds), { once: true });
+    window.addEventListener('mimarlab-badges-ready', () => { if (mySeq === renderSeq) renderDesigners(item, mergedIds); }, { once: true });
     renderMeta(item, mergedIds);
     renderDescription(item, mergedIds);
     renderStructuredData(item);
