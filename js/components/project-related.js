@@ -15,6 +15,10 @@
 //     weightedSample) — popup her açıldığında birebir aynı sıralama/liste çıkmaz.
 const ArchitectProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-same-designer-section', grid: 'pm-same-designer-grid' };
+  // mountSeq: project-comments.js#mountSeq ile AYNI desen/gerekçe — proje popup'ı hızla
+  // değiştirildiğinde önceki projenin yavaş kalan sayfalanmış /api/projects isteği, artık ekranda
+  // olan YENİ projenin "Diğer Projeleri" bölümünü ezmesin diye.
+  let mountSeq = 0;
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
@@ -50,12 +54,14 @@ const ArchitectProjects = (function () {
   }
 
   async function mount(item, ids) {
+    const mySeq = ++mountSeq;
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const section = document.getElementById(mergedIds.section);
     const designers = item.designerDetails || [];
     // buildStatus: kaynak projeyle AYNI kategori (bkz. gatherCandidateQueries'teki AYNI gerekçe).
     const buildStatus = item.buildStatus === 'concept' ? 'concept' : 'built';
     const lists = await Promise.all(designers.map(d => fetchByDesigner(d.name, d.type, buildStatus)));
+    if (mySeq !== mountSeq) return { slugs: new Set() };
     const seen = new Set([item.slug]);
     const merged = [];
     lists.flat().forEach(p => { if (!seen.has(p.slug)) { seen.add(p.slug); merged.push(p); } });
@@ -79,6 +85,8 @@ const ArchitectProjects = (function () {
 // uysa bile (örn. hem aynı mimar hem aynı şehir) puanı eksiksiz toplanır.
 const RelatedProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-related-section', grid: 'pm-related-grid' };
+  // mountSeq: ArchitectProjects#mountSeq ile AYNI desen/gerekçe (bkz. yukarısı).
+  let mountSeq = 0;
   // Kural 2 (bkz. kullanıcı isteği: "Selçuklu Kongre Merkezi Kültürel tipte bir projeye Dini tipte
   // olan bir cami önerilmiş... Önce aynı tip olmalı"): hasSameCategory (Tip) ve hasSameDiscipline
   // (Tür) BİRİNCİL öncelik sırasıdır — havuz önce bu iki kritere TAM uyan adaylarla doldurulur.
@@ -266,12 +274,14 @@ const RelatedProjects = (function () {
   // bekledikten SONRA kendi isteklerine başlıyordu — çok projeli bir mimar için bu, "İlgili Projeler"ı
   // gereksiz yere geciktiriyordu). Yalnızca dışlama+render adımı excludeSlugsPromise'i bekler.
   async function mount(item, excludeSlugsPromise, ids) {
+    const mySeq = ++mountSeq;
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const section = document.getElementById(mergedIds.section);
 
     const { queries } = gatherCandidateQueries(item);
     const listsPromise = Promise.all(queries);
     const [lists, excludeSlugs] = await Promise.all([listsPromise, excludeSlugsPromise]);
+    if (mySeq !== mountSeq) return;
 
     const exclude = new Set(excludeSlugs || []);
     exclude.add(item.slug);
