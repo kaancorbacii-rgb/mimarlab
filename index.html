@@ -776,15 +776,16 @@ Promise.all([
   // düzenlemeleri/gizlemeleri satırın kendisinde, ayrı /api/public/hidden ve /api/public/project-
   // edits fetch'lerine (ve client-side overlay'e) artık gerek yok.
   fetchPublicJson('/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
-  // Mimar/Firma mini-carousel'leri (bkz. kullanıcı isteği: "en çok projesi olan ilk 6 Mimar ve
+  // Mimar/Firma mini-carousel'leri (bkz. kullanıcı isteği: "en çok projesi olan ilk N Mimar ve
   // Firma") artık statik dizi/el ile seçilmiş vitrin OKUMUYOR — proje.html/mimar.html/firma.html'in
-  // kendi listeleme sayfalarında da kullandığı genel D1 uçlarından ?limit=6 ile çekilir. sort
-  // PARAMETRESİZ varsayılanı popülerlik sıralamasıdır (en çok projesi olan önce, bkz. src/routes/
+  // kendi listeleme sayfalarında da kullandığı genel D1 uçlarından, Proje carousel'iyle AYNI slot
+  // sayısıyla (PROJECT_CAROUSEL_SLOTS=9, bkz. kullanıcı isteği) çekilir. sort PARAMETRESİZ
+  // varsayılanı popülerlik sıralamasıdır (en çok projesi olan önce, bkz. src/routes/
   // architect.js|office.js#handleArchitectListRoute — "Default Popularity-Based Sorting"), bu yüzden
   // burada AYRICA bir sort değeri gönderilmez — eskiden burada açıkça sort=newest gönderilip "son
-  // eklenen 6" isteniyordu, bu davranış kullanıcı isteğiyle "en popüler 6"ya çevrildi.
-  fetchPublicJson('/api/architects?limit=6'),
-  fetchPublicJson('/api/offices?limit=6'),
+  // eklenen 6" isteniyordu, bu davranış kullanıcı isteğiyle "en popüler N"ye çevrildi.
+  fetchPublicJson('/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS),
+  fetchPublicJson('/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS),
 ]).then(([yapiRes, architectRes, officeRes])=>{
   if(yapiRes.failed){
     renderSliderError('Projeler şu an yüklenemedi.');
