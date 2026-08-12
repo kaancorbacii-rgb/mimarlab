@@ -80,7 +80,7 @@ const AuthModal = (function () {
     #am-panel .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
     #am-panel .dash-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;}
     #am-panel .dash-row{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; align-items:start;}
-    #am-panel .dash-row .dash-section{margin-bottom:0;}
+    #am-panel .dash-row .dash-section{margin-bottom:0; min-width:0;}
     #am-panel .dash-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
     #am-panel .dash-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
     #am-panel .dash-empty{border:1px dashed var(--line); border-radius:12px; padding:24px; text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.6;}
@@ -111,7 +111,8 @@ const AuthModal = (function () {
     #am-panel .dash-field{margin-bottom:12px;}
     #am-panel .dash-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
     #am-panel .dash-field input{width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
-    #am-panel .dash-pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px; flex-wrap:wrap;}
+    #am-panel .dash-pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+    #am-panel .dash-pagination::-webkit-scrollbar{display:none;}
     #am-panel .dash-pagination .page-btn{min-width:32px; height:32px; padding:0 8px; border:1px solid var(--line); background:var(--paper); border-radius:8px; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
     #am-panel .dash-pagination .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
     #am-panel .dash-pagination .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
@@ -652,9 +653,10 @@ const AuthModal = (function () {
   const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
-  function dashPageWindowSize() { const w = window.innerWidth; if (w <= 480) return 3; if (w <= 720) return 5; return 9; }
-  function dashPageList(totalPages, currentPage) {
-    const N = dashPageWindowSize();
+  // Kutular masaüstünde 2 sütunlu (bkz. .dash-row) olduğundan asıl genişlik window.innerWidth değil
+  // KUTUNUN kendisi — bu yüzden sabit bir eşik yerine gerçek konteyner genişliğine göre, taşıyorsa
+  // pencere daraltılarak tek satıra sığdırılır (bkz. renderDashPagination).
+  function dashPageList(totalPages, currentPage, N) {
     if (totalPages <= N + 2) { const pages = []; for (let p = 1; p <= totalPages; p++) pages.push(p); return pages; }
     const half = Math.floor(N / 2);
     let start = Math.max(2, currentPage - half);
@@ -668,16 +670,24 @@ const AuthModal = (function () {
     pages.push(totalPages);
     return pages;
   }
-  function renderDashPagination(containerId, currentPage, totalPages, onChange) {
-    const el = document.getElementById(containerId);
-    if (totalPages <= 1) { el.innerHTML = ''; return; }
+  function dashPaginationHtml(currentPage, totalPages, N) {
     let html = `<button class="page-btn page-btn-arrow" data-nav="prev" aria-label="Önceki" ${currentPage === 1 ? 'disabled' : ''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
-    dashPageList(totalPages, currentPage).forEach(p => {
+    dashPageList(totalPages, currentPage, N).forEach(p => {
       if (p === '...') html += `<span class="page-ellipsis">…</span>`;
       else html += `<button class="page-btn${p === currentPage ? ' active' : ''}" data-page="${p}">${p}</button>`;
     });
     html += `<button class="page-btn page-btn-arrow" data-nav="next" aria-label="Sonraki" ${currentPage === totalPages ? 'disabled' : ''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
-    el.innerHTML = html;
+    return html;
+  }
+  function renderDashPagination(containerId, currentPage, totalPages, onChange) {
+    const el = document.getElementById(containerId);
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    let N = 9;
+    el.innerHTML = dashPaginationHtml(currentPage, totalPages, N);
+    while (N > 1 && el.scrollWidth > el.clientWidth) {
+      N -= 2;
+      el.innerHTML = dashPaginationHtml(currentPage, totalPages, Math.max(N, 1));
+    }
     el.querySelectorAll('[data-page]').forEach(btn => { btn.addEventListener('click', () => onChange(parseInt(btn.dataset.page))); });
     const prevBtn = el.querySelector('[data-nav="prev"]');
     const nextBtn = el.querySelector('[data-nav="next"]');
