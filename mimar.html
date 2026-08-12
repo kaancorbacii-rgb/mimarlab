@@ -364,16 +364,7 @@
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
       <div class="filter-select">
-        <select id="g-position">
-          <option value="">Pozisyon</option>
-          <option value="Kurucu">Kurucu</option>
-          <option value="Çalışan">Çalışan</option>
-          <option value="Akademisyen">Akademisyen</option>
-          <option value="Freelance">Freelance</option>
-          <option value="Öğrenci">Öğrenci</option>
-          <option value="Emekli">Emekli</option>
-          <option value="İşsiz">İşsiz</option>
-        </select>
+        <select id="g-position"><option value="">Pozisyon</option></select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
       <a class="sidebar-add-btn" href="mimar-ekle.html"><span class="sidebar-add-icon">+</span> Mimar Ekle</a>
@@ -404,9 +395,16 @@ const PAGE_SIZE = 24;
 let currentPage = 1;
 let searchQuery = '';
 
-// Sunucudan (data.filters) gelen dob/award seçeneklerini <select>'lere yeniden çizer, position
-// select'inin (sabit HTML seçenekleri) sayaçlarını günceller — mimar.html#populateFilters'ın eski
-// client-side hesaplı hâliyle AYNI görsel sonucu üretir, yalnızca veri kaynağı sunucu.
+// Bilinen pozisyon kovaları için tercih edilen görüntüleme sırası — listede olmayan (gelecekte
+// mimar-ekle.html#POZISYON_OPTIONS'a eklenebilecek) bir değer sona, alfabetik eklenir (bkz. aşağıdaki
+// positionSel bloğu — artık HTML'de sabit <option> yok, TÜMÜ sunucudan gelen sayaçlardan üretilir).
+const POSITION_ORDER = ['Kurucu', 'Ortak', 'Ekip Lideri', 'Çalışan', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İşsiz'];
+
+// Sunucudan (data.filters) gelen dob/award/position seçeneklerini <select>'lere yeniden çizer —
+// mimar.html#populateFilters'ın eski client-side hesaplı hâliyle AYNI görsel sonucu üretir, yalnızca
+// veri kaynağı sunucu. GERÇEK BULGU: position select'i eskiden sabit HTML seçenekleriydi, sunucunun
+// üretebileceği ama HTML'de karşılığı olmayan bir kova (ör. "Ortak") hiç seçilemez durumdaydı (bkz.
+// kullanıcı isteği) — artık dob/award ile AYNI desende tamamen dinamik.
 function populateFilterOptions(filtersData){
   const dobSel = document.getElementById('g-dob');
   const prevDob = dobSel.value;
@@ -427,12 +425,22 @@ function populateFilterOptions(filtersData){
   awardSel.value = prevAward;
 
   const positionSel = document.getElementById('g-position');
+  const prevPosition = positionSel.value;
   const positionCounts = filtersData.position || {};
-  Array.from(positionSel.options).forEach(opt=>{
-    if(!opt.value) return;
-    if(opt.dataset.baseLabel === undefined) opt.dataset.baseLabel = opt.textContent;
-    opt.textContent = `${opt.dataset.baseLabel} (${positionCounts[opt.value] || 0})`;
-  });
+  positionSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
+  Object.keys(positionCounts)
+    .sort((a, b)=>{
+      const ia = POSITION_ORDER.indexOf(a), ib = POSITION_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b, 'tr');
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    })
+    .forEach(value=>{
+      const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${positionCounts[value]})`; o.dataset.dynamic = '1';
+      positionSel.appendChild(o);
+    });
+  positionSel.value = prevPosition;
 }
 
 function getPageWindowSize(){

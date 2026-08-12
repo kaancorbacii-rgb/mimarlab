@@ -91,16 +91,19 @@ export async function handleArchitectSchoolsRoute(request, env, url) {
   });
 }
 
-// mimar.html#positionOf'un sunucu karşılığı — TEK farkla: statik data.js'te ayrı iki alan olan
-// a.status/a.role, canonical migrasyonda (bkz. scripts/migrate-to-id-first.js#a.role || a.status)
-// tek bir `position` koluna kayıpla birleştirildi (role varsa o, yoksa status yazıldı). Üretim
-// verisinde (doğrulandı: 485 "Kurucu Ortak" + 312 "Kurucu", birkaç meslek etiketi, "İş arıyor"
-// değeri şu an hiç yok) bu birleşme gözlemlenebilir bir fark yaratmıyor; "İş arıyor"/"İş Arıyor" için
-// İşsiz eşlemesi yine de korunuyor, gelecekte böyle bir kayıt girilirse doğru kova bulunsun diye.
+// Pozisyon filtre kovası — "Kurucu"/"Kurucu Ortak" tarihsel olarak tek "Kurucu" kovasında
+// gruplanır (bkz. eski yorum: 485 "Kurucu Ortak" + 312 "Kurucu"), "İş arıyor"/"İş Arıyor" normalize
+// edilip "İşsiz" olur. GERÇEK BULGU: eski sürüm burada tanınmayan HER değeri (ör. "Ortak",
+// "Akademisyen", "Freelance", "Ekip Lideri") sessizce "Çalışan" kovasına düşürüyordu — bir mimarın
+// profili "Ortak"/"Akademisyen" olarak düzenlense bile mimar.html filtresinde hâlâ "Çalışan" altında
+// görünüyordu (bkz. kullanıcı isteği: Melkan Gürsel/Nur Urfalıoğlu). Artık tanınmayan her değer
+// OLDUĞU GİBİ kendi kovasına döner — mimar-ekle.html#POZISYON_OPTIONS'a yeni bir değer eklendiğinde
+// bile sessizce yanlış kovaya düşme riski kalmaz.
 export function positionOf(position) {
   if (!position) return null;
   if (position === 'İş arıyor' || position === 'İş Arıyor') return 'İşsiz';
-  return position.startsWith('Kurucu') ? 'Kurucu' : 'Çalışan';
+  if (position.startsWith('Kurucu')) return 'Kurucu';
+  return position;
 }
 
 // GET /api/architects — mimar.html#render()'ın sayfalanmış sunucu karşılığı (bkz. kullanıcı isteği:
@@ -152,7 +155,7 @@ export async function handleArchitectListRoute(request, env, url) {
         let officeAwards = [];
         if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
         // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
-        // fallback'inin karşılığı) — bucketed `position` (Kurucu/Çalışan/İşsiz) filtre eşleştirme için,
+        // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
         // ham metin ise kart altyazısı için ayrı tutulur.
         return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
       });
