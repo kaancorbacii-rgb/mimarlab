@@ -23,6 +23,19 @@ import { purgeSsrDetailCache } from './ssrCache.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
+// bkz. src/routes/{architect,office,project,product,legacyContent}.js#foldTr — AYNI TR-duyarlı
+// casefold deseni (İ/I/ı vb. doğru katlanır, sonra diyakritikler ASCII karşılığına indirgenir).
+// findOneByName'in birebir eşleşme bulamadığında ikinci denemesi için burada da gerekiyor (bkz. o
+// fonksiyonun yorumu) — arama eşleştirmesiyle aynı davranışı istemeden ayrı bir kopya tutmak yerine
+// paylaşılan bir modüle çıkarmak ileride yapılabilecek bir sadeleştirme, şimdilik mevcut kod
+// convention'ıyla (5 dosyada zaten ayrı ayrı kopyalanmış) tutarlı kalınıyor.
+function trLower(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
+function foldTr(s) {
+  return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+}
+
 // Bir projenin başlığı (dolayısıyla slug'ı) değiştiğinde — mimar/firma yeniden adlandırmasındaki
 // renameOfficeEverywhere/renameArchitectEverywhere'in proje karşılığı. Projeye slug ile referans
 // veren TEK üç tablo comments/ratings/saved_items (bkz. src/lib/cascadeDelete.js dosya başı yorumu
@@ -207,10 +220,25 @@ export async function findCanonicalRowByNaturalKey(env, typeKey, key) {
 // için (syncProduct'takiyle iki ayrı kopya olmasın diye).
 export async function findOneByName(env, table, name) {
   if (!name) return { row: null, ambiguous: false };
-  const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL AND name = ?`).bind(name).all();
-  if (results.length === 0) return { row: null, ambiguous: false };
+  const trimmed = name.trim();
+  if (!trimmed) return { row: null, ambiguous: false };
+  const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL AND name = ?`).bind(trimmed).all();
+  if (results.length === 1) return { row: results[0], ambiguous: false };
   if (results.length > 1) return { row: null, ambiguous: true, candidates: results };
-  return { row: results[0], ambiguous: false };
+  // Birebir eşleşme yok — gerçek bulgu: proje-ekle.html/mimar-ekle.html'in Mimar/Firma kutusuna
+  // otomatik tamamlamadan seçmeden serbestçe yazılan bir isim ("nevzat sayın" vb.), canonical
+  // "Nevzat Sayın" kaydıyla yalnızca harf büyüklüğü/baştaki-sondaki boşluk/TR karakter farkı
+  // yüzünden hiç eşleşmiyor, bağlantı (project_designers/office_founders/architects.office_id)
+  // sessizce hiç kurulmuyordu — ne bir hata ne de bir log. TR-duyarlı casefold (bkz. yukarısı
+  // foldTr, src/routes/*.js'teki arama eşleştirmesiyle AYNI desen) ile ikinci bir deneme yapılır.
+  // architects/offices tabloları küçük olduğundan (yüzler-binler mertebesi) burada tam tablo
+  // taraması kabul edilebilir bir maliyet.
+  const folded = foldTr(trimmed);
+  const { results: all } = await env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL`).all();
+  const matches = all.filter(r => foldTr((r.name || '').trim()) === folded);
+  if (matches.length === 1) return { row: matches[0], ambiguous: false };
+  if (matches.length > 1) return { row: null, ambiguous: true, candidates: matches };
+  return { row: null, ambiguous: false };
 }
 
 async function logConflict(env, entity_type, conflict_key, context, candidates) {
@@ -249,8 +277,11 @@ async function syncOfficeFoundersFromNames(env, officeId, names) {
     const match = await findOneByName(env, 'architects', name);
     if (match.row) {
       await env.DB.prepare(`INSERT OR IGNORE INTO office_founders (office_id, architect_id) VALUES (?, ?)`).bind(officeId, match.row.id).run();
-    } else if (match.ambiguous) {
-      await logConflict(env, 'office_founder', name, `office:${officeId}`, match.candidates);
+    } else {
+      // candidates=[] "hiç eşleşme yok" anlamına gelir (bkz. migrations/0022 tablo yorumu) — eskiden
+      // yalnızca ambiguous (birden fazla eşleşme) loglanıyordu, bu dal (gerçek bulgu: sessiz atlanan
+      // isimler) hiçbir yerde görünmüyordu.
+      await logConflict(env, 'office_founder', name, `office:${officeId}`, match.ambiguous ? match.candidates : []);
     }
   }
 }
@@ -349,8 +380,10 @@ async function syncArchitect(env, row) {
   const officeIds = [];
   for (const officeName of officeNames) {
     const match = await findOneByName(env, 'offices', officeName);
-    if (match.ambiguous) await logConflict(env, 'office_founder', officeName, `architect_submission:${row.id}`, match.candidates);
     if (match.row) officeIds.push(match.row.id);
+    // candidates=[] "hiç eşleşme yok" anlamına gelir (bkz. syncOfficeFoundersFromNames'teki AYNI
+    // gerekçe) — sessiz atlanan isimler artık en azından burada iz bırakır.
+    else await logConflict(env, 'office_founder', officeName, `architect_submission:${row.id}`, match.ambiguous ? match.candidates : []);
   }
   const officeId = officeIds.length ? officeIds[0] : null;
 
@@ -412,14 +445,18 @@ async function syncArchitect(env, row) {
 async function resolveArchitectLink(env, name, contextLabel) {
   const match = await findOneByName(env, 'architects', name);
   if (match.row) return { office_id: null, architect_id: match.row.id };
-  if (match.ambiguous) await logConflict(env, 'project_designer', name, contextLabel, match.candidates);
+  // candidates=[] "hiç eşleşme yok" anlamına gelir (bkz. migrations/0022 tablo yorumu, gerçek
+  // bulgu: eskiden yalnızca ambiguous loglanıyordu — hiç eşleşmeyen bir isim project_designers'a
+  // hiç yazılmadan tamamen sessizce kaybolup gidiyordu, ne bir hata ne de bir iz bırakıyordu).
+  await logConflict(env, 'project_designer', name, contextLabel, match.ambiguous ? match.candidates : []);
   return null;
 }
 
 async function resolveOfficeLink(env, name, contextLabel) {
   const match = await findOneByName(env, 'offices', name);
   if (match.row) return { office_id: match.row.id, architect_id: null };
-  if (match.ambiguous) await logConflict(env, 'project_designer', name, contextLabel, match.candidates);
+  // bkz. resolveArchitectLink'teki AYNI gerekçe.
+  await logConflict(env, 'project_designer', name, contextLabel, match.ambiguous ? match.candidates : []);
   return null;
 }
 
