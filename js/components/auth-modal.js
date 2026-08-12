@@ -455,7 +455,10 @@ const AuthModal = (function () {
             <h1 id="am-dash-title">Hoş Geldin</h1>
             <p id="am-dash-sub">—</p>
           </div>
-          <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
+          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
+            <button type="button" class="dash-edit-btn" id="am-logout-btn">Çıkış Yap</button>
+          </div>
         </div>
       </div>
 
@@ -786,6 +789,14 @@ const AuthModal = (function () {
     on('am-dash-edit-btn', 'click', () => {
       const form = document.getElementById('am-dash-edit-form');
       form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // nav-avatar-menu'deki "Çıkış Yap" (bkz. auth-nav.js#nav-logout-btn) ile AYNI davranış — logout
+    // sonrası header'ın (nav-avatar -> "Giriş Yap") tekrar tazelenmesi için zaten tam sayfa yönlendirme
+    // yapılıyor, ayrıca refreshAuthNav çağırmaya gerek yok.
+    on('am-logout-btn', 'click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = 'index.html';
     });
 
     on('am-dash-save-btn', 'click', async () => {
@@ -1150,8 +1161,14 @@ const AuthModal = (function () {
       const res = await fetch('/api/claims/mine');
       const data = res.ok ? await res.json() : { items: [] };
       const items = data.items || [];
-      if (!items.length) { document.getElementById('am-claims-mine-list').innerHTML = ''; return; }
-      document.getElementById('am-claims-mine-list').innerHTML = items.map(c => `
+      const list = document.getElementById('am-claims-mine-list');
+      // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
+      // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
+      // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
+      // kullanıcı isteği: "üyelik ve firma başlıkları arasında ... diğer satırlarla aynı şekilde line").
+      if (!items.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
+      list.style.borderTop = '1px solid var(--line-soft)';
+      list.innerHTML = items.map(c => `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
@@ -1341,6 +1358,16 @@ const AuthModal = (function () {
     else if (HREF_VIEW_RE.forgot.test(href)) view = 'forgot';
     if (!view) return;
     e.preventDefault();
+    // "Giriş Yap" tıklandığında oturum zaten açıksa (ör. auth-nav.js'in header'ı henüz güncellemediği
+    // kısa an, bookmark/eski sekme ya da footer'daki statik link) Giriş görünümü yerine doğrudan
+    // Hesabım'a gidilir (bkz. kullanıcı isteği). loadUser() zaten aynı /api/auth/me isteğini attığından
+    // (bkz. mountAccount()#loadUser) bu, view==='account' olduğunda ekstra bir round-trip DEĞİL.
+    if (view === 'login') {
+      fetch('/api/auth/me').then(r => (r.ok ? 'account' : 'login')).catch(() => 'login').then(resolvedView => {
+        if (isOpen()) swap(resolvedView); else open(resolvedView, { triggerEl: a });
+      });
+      return;
+    }
     if (isOpen()) swap(view); else open(view, { triggerEl: a });
   });
 
