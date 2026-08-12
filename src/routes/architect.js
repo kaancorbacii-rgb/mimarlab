@@ -273,6 +273,13 @@ async function buildArchitectPayload(env, key) {
   // AYNI durumdaki "item: null, hidden: false" dönüşüyle tutarlı hale getirildi — istemci
   // (mimar-detay.html) bunu zaten "bulunamadı" olarak ele alıp mimar.html'e yönlendiriyor.
   if (!row) return { item: null, hidden: false };
+  // gerçek bulgu (denetim raporu): findArchitect yalnızca deleted_at IS NULL filtreliyor, hidden_at'a
+  // hiç bakmıyor — bu uç gizlenmiş bir mimarın TAM verisini `hidden:true` bayrağıyla birlikte ama
+  // item NULL'lanmadan döndürüyordu. Client-side (architect-modal.js) bayrağı kontrol edip
+  // "bulunamadı" gösteriyor, ama /api/architect/:key'i doğrudan çağıran biri tam veriyi alabiliyordu
+  // — src/routes/project.js#handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada
+  // da null'lanır.
+  if (row.hidden_at) return { item: null, hidden: true };
   const a = parseCanonicalRow('architects', row);
 
   const officeRow = a.office_id

@@ -243,6 +243,13 @@ async function buildOfficePayload(env, key) {
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
   if (!row) return { item: null, founders: [], relatedProjects: [], hidden: false };
+  // gerçek bulgu (denetim raporu): satır yukarıdaki redirect-birleştirmeden SONRA hâlâ hidden_at
+  // taşıyorsa (yani gerçekten gizli, yeniden adlandırma/birleştirme DEĞİL) bu uç item'ı yine de tam
+  // olarak döndürüyordu — yalnızca `hidden:true` bayrağı ekleniyordu, veri gizlenmiyordu. Client-side
+  // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
+  // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
+  // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
+  if (row.hidden_at) return { item: null, founders: [], relatedProjects: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
 
   const [foundersRes, relatedRes, rawFounderNames] = await Promise.all([

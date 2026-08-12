@@ -124,6 +124,13 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
   return cachedPublicJson(request, env, url.pathname, async () => {
     const row = await findProductByKey(env, key);
     if (!row) return { item: null, hidden: false };
+    // gerçek bulgu (denetim raporu): findProductByKey yalnızca deleted_at IS NULL filtreliyor,
+    // hidden_at'a hiç bakmıyor — bu uç gizlenmiş bir ürünün TAM verisini `hidden:true` bayrağıyla
+    // birlikte ama item NULL'lanmadan döndürüyordu. Client-side (product-modal.js) bayrağı kontrol
+    // edip "bulunamadı" gösteriyor, ama /api/product/:key'i doğrudan çağıran biri tam veriyi
+    // alabiliyordu — src/routes/project.js#handleProjectDetailRoute'un AYNI durumda zaten yaptığı
+    // gibi item burada da null'lanır.
+    if (row.hidden_at) return { item: null, hidden: true };
     const item = shapeProductItem(row);
     const [adjacent, owner] = await Promise.all([
       fetchAdjacentProduct(env, row.id),
