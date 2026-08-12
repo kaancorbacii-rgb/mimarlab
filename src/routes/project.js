@@ -1,5 +1,5 @@
 import { errorJson } from '../lib/http.js';
-import { cachedPublicJson } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
@@ -316,6 +316,19 @@ export async function fetchActiveProjectPool(env, buildStatus) {
   return results.map(row => shapeProjectItem(row, { coverOnly: true }));
 }
 
+// fetchActiveProjectPool'un KV önbellekli sarmalayıcısı — architects/offices/products'ın
+// getCachedPool desenindeki AYNI mantık (bkz. publicCache.js#getCachedPool dosya başı yorumu). YALNIZCA
+// handleProjectListRoute/handleProjectFiltersRoute (public okuma yolları) burayı kullanır;
+// facetCounts.js#recomputeProjectFacets bilerek HAM fetchActiveProjectPool'u doğrudan çağırmaya devam
+// eder (bir yazma işleminden hemen sonra çalıştığından KV'deki olası bayat pool'u okursa facet_counts
+// tablosuna YANLIŞ/eski sayaç yazardı — audit bulgusu, bkz. kullanıcı isteği "kritik maddeleri düzelt").
+// Anahtar buildStatus'e göre ayrılır ('projects:built'/'projects:concept') çünkü ikisi tamamen ayrı
+// havuzlardır; publicCache.js#invalidatePublicCache her ikisini de her admin/onay yazımında temizler.
+export async function fetchActiveProjectPoolCached(env, buildStatus) {
+  const status = buildStatus === 'concept' ? 'concept' : 'built';
+  return getCachedPool(env, `projects:${status}`, () => fetchActiveProjectPool(env, status));
+}
+
 // proje.html#FILTER_GROUPS ile BİREBİR aynı alan çıkarımı — yalnızca `field` fonksiyonları burada
 // (parseLocation/isOfficeName/ratingBuckets sunucu tarafı karşılıklarıyla) yeniden ifade edilir.
 export function buildFilterGroups(ratingByProject) {
@@ -458,17 +471,17 @@ export async function handleProjectFiltersRoute(request, env, url) {
       }
     }
 
-    const [projectsRes, ratingRows] = await Promise.all([
-      env.DB.prepare(
-        `SELECT p.*, GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
-         FROM projects p ${DESIGNER_JOIN_SQL}
-         WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ? GROUP BY p.id`
-      ).bind(buildStatus).all(),
+    // Bu blok ÖNCEDEN kendi ayrı `p.*` JOIN sorgusunu çalıştırıyordu — handleProjectListRoute'daki
+    // fetchActiveProjectPool ile İÇERİK OLARAK aynı satırları (yalnızca images tam/kısaltılmış farkıyla,
+    // bu grup buildFilterGroups'un hiç okumadığı bir alan) ayrı ayrı tarıyordu; bir filtreli sayfa
+    // görünümü bu yüzden İKİ tam tabloya scan'e mal oluyordu (audit bulgusu). Artık AYNI KV önbellekli
+    // havuzu (fetchActiveProjectPoolCached) paylaşıyor.
+    const [pool, ratingRows] = await Promise.all([
+      fetchActiveProjectPoolCached(env, buildStatus),
       env.DB.prepare(`SELECT target_id, AVG(stars) AS average FROM ratings WHERE target_type = 'project' GROUP BY target_id`).all(),
     ]);
 
     const ratingByProject = new Map(ratingRows.results.map(r => [r.target_id, { average: r.average }]));
-    const pool = projectsRes.results.map(shapeProjectItem);
 
     const FILTER_GROUPS = buildFilterGroups(ratingByProject);
     const activeFilters = {};
@@ -616,7 +629,7 @@ export async function handleProjectListRoute(request, env, url) {
     }
 
     const [pool, ratingRows] = await Promise.all([
-      fetchActiveProjectPool(env, buildStatus),
+      fetchActiveProjectPoolCached(env, buildStatus),
       env.DB.prepare(`SELECT target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type = 'project' GROUP BY target_id`).all(),
     ]);
     const ratingBySlug = new Map();

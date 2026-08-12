@@ -38,7 +38,13 @@ export async function optimizeUploadedImage(env, file, mimeType) {
     const arrayBuffer = await (result.response()).arrayBuffer();
     return { arrayBuffer, contentType: 'image/webp', ext: 'webp' };
   } catch (err) {
-    console.error('optimizeUploadedImage failed, storing original', err);
+    // audit bulgusu: önceden yalnızca console.error(string, err) idi — Workers Logs'ta (bkz.
+    // observability.enabled, src/lib/logger.js dosya başı yorumu) görünür ama filtrelenebilir/
+    // sayılabilir bir alan taşımıyordu; bu yüzden kota aşımı gibi SİSTEMİK bir arızayı tek seferlik
+    // bozuk bir görselden ayırt etmek mümkün değildi. JSON satırı diğer yapılandırılmış loglarla
+    // (bkz. logger.js) aynı şekle uyar — Dashboard'da `event = "image_optimize_failed"` ile
+    // filtrelenip sıklığı izlenebilir.
+    console.error(JSON.stringify({ event: 'image_optimize_failed', reason: (err && err.message) || String(err), mimeType }));
     return null;
   }
 }

@@ -13,7 +13,8 @@ import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
-const FACET_TYPES = new Set(['projects', 'products', 'materials']);
+// bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
+const FACET_TYPES = new Set(['projects']);
 // bkz. src/routes/public.js#handlePublicCheckName (istemci tarafı canlı uyarının AYNI metinleri) —
 // proje-ekle.html/mimar-ekle.html/firma-ekle.html/urun-ekle.html buradaki hatayı form-notice
 // kutusunda gösterir (bkz. aşağıdaki createSubmission çağrısı).
@@ -426,7 +427,13 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   let renamedSlug = null;
   if (status === 'approved' && updateRenameCascade) {
     const oldName = body.claimed_profile_key || existing.name;
-    if (row.name !== oldName) renamedSlug = await updateRenameCascade(env, oldName, row.name);
+    if (row.name !== oldName) {
+      renamedSlug = await updateRenameCascade(env, oldName, row.name);
+      // bkz. src/routes/admin.js#handleSubmissionsAdmin'deki AYNI ikinci invalidation — cascade
+      // isim/slug'ı DB'de değiştirdikten SONRA public liste/pool önbelleğini tekrar temizler (yukarıdaki
+      // ilk invalidatePublicCache() ile cascade arasındaki yarış penceresi düzeltmesi, audit bulgusu).
+      await invalidatePublicCache(env);
+    }
   }
 
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın

@@ -14,7 +14,8 @@ import {
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 
-const FACET_TYPES = new Set(['projects', 'products', 'materials']);
+// bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
+const FACET_TYPES = new Set(['projects']);
 
 // Faz 3 — architects/offices/projects/products/materials artık canonical tablolardan (bkz.
 // migrations/0022_id_first_entities.sql) okunuyor/gizleniyor/siliniyor; legacy_content_hidden bu 5

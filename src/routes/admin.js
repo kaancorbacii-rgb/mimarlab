@@ -17,7 +17,10 @@ import { BADGE_RANK } from '../lib/badgeAccess.js';
 // açıkça belirtmek çağıran yeri okunaklı kılıyor.
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 // facet_counts yalnızca bu ikisi için doldurulur (bkz. src/lib/facetCounts.js dosya başı kapsam notu).
-const FACET_TYPES = new Set(['projects', 'products', 'materials']);
+// audit bulgusu: 'products'/'materials' burada hâlâ duruyordu ama facetCounts.js#bumpFacetCounts
+// artık yalnızca 'projects' için çalışıyor (ürün/malzeme facet okuyucusu kaldırıldı, bkz. o dosyanın
+// dosya başı yorumu) — ikisi de zaten no-op'tu, yalnızca kod okuyanı yanıltıyordu.
+const FACET_TYPES = new Set(['projects']);
 
 // bkz. src/routes/submissions.js#RENAME_CASCADE_BY_TYPE (aynı eşleme) — admin panelinden doğrudan
 // isim değiştirmenin kapsandığı tipler.
@@ -315,6 +318,11 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       const adminRenameCascade = RENAME_CASCADE_BY_TYPE[typeKey];
       if (adminRenameCascade && body.name && body.name !== existing.name && (existing.status === 'approved' || body.status === 'approved')) {
         await adminRenameCascade(env, existing.name, body.name);
+        // Cascade isim/slug'ı DB'de değiştirdikten SONRA public liste/pool önbelleğini TEKRAR temizle —
+        // yukarıdaki ilk invalidatePublicCache() cascade'den ÖNCE çalıştığından, ikisi arasındaki kısa
+        // aralıkta gelen paralel bir istek cache'i ESKİ adla yeniden doldurabilirdi (audit bulgusu,
+        // SANKAI kapak görseli bug'ıyla aynı sınıf — bkz. src/lib/publicCache.js dosya başı notu).
+        await invalidatePublicCache(env);
       }
 
       // Bu satır önceden arşivlenmiş bir statik kaydın taslağıysa (bkz. src/routes/legacyContent.js
@@ -402,6 +410,12 @@ async function handleClaimsAdmin(request, env, url, segments) {
     await env.DB.prepare(
       'UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?'
     ).bind(body.status, Date.now(), id).run();
+    // audit bulgusu: diğer 13 admin mutasyon noktasının aksine bu uç invalidatePublicCache()
+    // çağırmıyordu — /api/public/badges (bkz. src/routes/badges.js#computeBadgesPayload) doğrudan
+    // `profile_claims.status = 'approved'` filtresine JOIN olduğundan, bir talep onaylandığında/
+    // reddedildiğinde o profilin rozet görünümü en fazla ANON_CACHE_HEADERS penceresi (15sn) kadar
+    // eski kalabiliyordu.
+    await invalidatePublicCache(env);
 
     const typeLabel = CLAIM_TYPE_LABELS_SERVER[claim.profile_type] || claim.profile_type;
     if (body.status === 'approved') {
@@ -450,6 +464,9 @@ async function handleCorrectionsAdmin(request, env, url, segments) {
       'UPDATE profile_corrections SET status = ?, updated_at = ? WHERE id = ?'
     ).bind(body.status, Date.now(), id).run();
     if (!result.meta.changes) return errorJson('Bulunamadı', 404);
+    // bkz. yukarıdaki handleClaimsAdmin'deki AYNI ekleme — tutarlılık için (diğer 13 admin mutasyon
+    // noktasıyla aynı desen), bu uç bugüne kadar hiçbir public önbelleği hedeflemiyor olsa da.
+    await invalidatePublicCache(env);
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);

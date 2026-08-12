@@ -30,17 +30,27 @@
     document.head.appendChild(style);
   }
 
-  async function initAuthNav() {
+  function fetchMe() {
+    return fetch('/api/auth/me').then(res => (res.ok ? res.json() : { user: null })).catch(() => ({ user: null }));
+  }
+  // audit bulgusu: auth-nav.js (hemen hemen her sayfada) ve save-widget.js (kart ızgaralı
+  // sayfalarda, bkz. o dosyadaki initSavedWidget) AYNI sayfada birbirinden habersiz iki ayrı
+  // /api/auth/me isteği atıyordu (ör. /proje'de canlıda doğrulandı). fetchMe() SENKRON başlar
+  // (yalnızca çözümü async'tir) — bu yüzden bu satır script'in ilk çalıştığı anda, herhangi bir
+  // await'ten ÖNCE window'a atanır; auth-nav.js her zaman save-widget.js'den ÖNCE <script defer>
+  // olarak yüklendiğinden (bkz. proje/mimar/firma/urun.html script sırası), o script kendi
+  // isteğini atmadan önce bunu bulur ve AYNI Promise'i paylaşır — tek network isteği.
+  window.__authMeFetch = window.__authMeFetch || fetchMe();
+
+  // fresh:true — window.refreshAuthNav() login/signup SONRASI (bkz. dosya sonu) çağrıldığında,
+  // yukarıdaki paylaşılan promise ARTIK BAYAT (sayfa ilk yüklendiğindeki, login ÖNCESİ) sonucu
+  // taşır — bu durumda MUTLAKA taze bir istek atılmalı, aksi halde giriş yapan kullanıcıya hâlâ
+  // "Giriş Yap" görünmeye devam ederdi.
+  async function initAuthNav(opts) {
     const navRight = document.querySelector('.nav-right');
     if (!navRight) return;
-    let user = null;
-    try {
-      const res = await fetch('/api/auth/me');
-      if (res.ok) {
-        const data = await res.json();
-        user = data.user;
-      }
-    } catch (e) { /* backend yoksa sessizce "Giriş Yap" görünmeye devam eder */ }
+    const data = opts && opts.fresh ? await (window.__authMeFetch = fetchMe()) : await window.__authMeFetch;
+    const user = data.user;
 
     if (!user) return;
 
@@ -83,6 +93,7 @@
   }
 
   // auth-modal.js login/signup başarılı olduğunda artık sayfayı yeniden YÜKLEMEDEN (bkz. kullanıcı
-  // isteği: modal içinde kalınsın) header'ı güncelleyebilsin diye dışa açılır.
-  window.refreshAuthNav = initAuthNav;
+  // isteği: modal içinde kalınsın) header'ı güncelleyebilsin diye dışa açılır. fresh:true — bkz.
+  // initAuthNav yukarısındaki yorum.
+  window.refreshAuthNav = () => initAuthNav({ fresh: true });
 })();

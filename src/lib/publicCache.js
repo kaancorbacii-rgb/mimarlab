@@ -121,6 +121,30 @@ function statusFor(data) {
   return data && data.item === null ? 404 : 200;
 }
 
+// Cache-stampede koruması (audit bulgusu — bkz. kullanıcı isteği "kritik maddeleri düzelt"):
+// caches.default/FACET_CACHE'de MISS anında eşzamanlı gelen N istek, kilit/memoization olmadan
+// AYNI pahalı computeData()/fetchPool()'u N kez paralel çalıştırıyordu (ör. viral paylaşım sonrası
+// ani trafik artışında). Bir Workers isolate'ı TEK bir istekten fazlasını eşzamanlı işleyebildiğinden
+// (aynı colo'da gelen art arda istekler genelde aynı isolate'i paylaşır) modül-scope'lu bu Map, AYNI
+// isolate içindeki eşzamanlı çağrıları tek bir in-flight Promise'e yönlendirir — hesaplama BİR KEZ
+// çalışır, sonucu bekleyen herkese paylaşılır. Bu, isolate/colo sınırları ARASI bir kilit DEĞİLDİR
+// (Workers'ta paylaşımlı bir mutex birincil olarak yok) — yine de en sık görülen "aynı PoP'ta art arda
+// gelen çoklu istek" senaryosunu (asıl stampede riski) kapsar, ek altyapı (Durable Object vb.)
+// gerektirmez.
+const inFlight = new Map();
+async function withSingleFlight(key, fn) {
+  if (inFlight.has(key)) return inFlight.get(key);
+  const promise = (async () => {
+    try {
+      return await fn();
+    } finally {
+      inFlight.delete(key);
+    }
+  })();
+  inFlight.set(key, promise);
+  return promise;
+}
+
 // GET /api/public/* + sayfalanmış liste uçlarının ortak sarmalayıcısı. computeData(), yanıt
 // gövdesini (JSON'a çevrilecek düz obje) üreten async bir fonksiyondur.
 //
@@ -145,7 +169,7 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   const cacheable = CACHEABLE_PATHS.includes(pathname) || listPath;
   const headers = listPath ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
 
-  if (!cacheable) { const data = await computeData(); return json(data, statusFor(data), headers); }
+  if (!cacheable) { const data = await withSingleFlight(`json:${pathname}`, computeData); return json(data, statusFor(data), headers); }
 
   const cacheKey = cacheKeyFor(pathname);
 
@@ -200,7 +224,8 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   }
 
   const responseHeaders = etag ? { ...headers, ETag: etag } : headers;
-  const response = json(await computeData(), 200, responseHeaders);
+  const data = await withSingleFlight(`json:${pathname}`, computeData);
+  const response = json(data, 200, responseHeaders);
   try { await caches.default.put(cacheKey, response.clone()); } catch {}
   return response;
 }
@@ -218,8 +243,18 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
 // locale tie-break dahil) JS'te DEĞİŞMEDEN kalır — SQL'de güvenle yeniden üretilemeyecek bir sıralama
 // riskine (ör. Ç/Ğ/İ/Ö/Ş/Ü harfli isimlerin SQLite'ın collation'ı olmadığı için yanlış sırada
 // çıkması) hiç girilmez.
-const POOL_CACHE_TTL_SECONDS = 300;
-const POOL_CACHE_KINDS = ['architects', 'offices', 'products'];
+// audit bulgusu: 300sn (5dk) idi — bu TTL yalnızca invalidatePublicCache()'in KV delete()'i bu okuyan
+// PoP'a HENÜZ ulaşmadığı nadir durum için bir GÜVENLİK AĞI (asıl tazelik, her yazımda çağrılan
+// env.FACET_CACHE.delete() ile SESLİCE sağlanır, bkz. invalidatePublicCache aşağısı) — mutasyon
+// noktalarının hepsi zaten bunu çağırdığından (bkz. kullanıcı isteği "kritik/orta maddeleri düzelt"
+// turlarında eklenen/doğrulanan invalidation'lar) süreyi uzatmak asıl okuma trafiğindeki KV MISS
+// (dolayısıyla pahalı JOIN+subquery) sıklığını azaltır, gerçek bayatlık riskini ARTIRMAZ.
+const POOL_CACHE_TTL_SECONDS = 1800;
+// 'projects:built'/'projects:concept' — bkz. src/routes/project.js#fetchActiveProjectPoolCached
+// (audit bulgusu: proje havuzu daha önce hiç KV'de önbelleklenmiyordu, her filtreli/aramalı istekte
+// TAM tablo taranıyordu). facetCounts.js#recomputeProjectFacets bu önbelleği ATLAYIP ham
+// fetchActiveProjectPool'u çağırmaya devam eder (bir yazma sonrası her zaman TAZE veri gerekir).
+const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept'];
 function poolCacheKey(kind) { return `pool:${kind}`; }
 
 // fetchPool() yalnızca KV boşsa çağrılır (pahalı JOIN+subquery sorgusu) — dönen değer, çağıranın
@@ -230,7 +265,9 @@ export async function getCachedPool(env, kind, fetchPool) {
     const cached = await env.FACET_CACHE.get(poolCacheKey(kind), 'json');
     if (cached) return cached;
   }
-  const pool = await fetchPool();
+  // withSingleFlight — bkz. dosya başı yorumu: KV MISS anında AYNI isolate'e düşen eşzamanlı
+  // istekler pahalı fetchPool()'u tek seferde paylaşır.
+  const pool = await withSingleFlight(`pool:${kind}`, fetchPool);
   if (env.FACET_CACHE) await env.FACET_CACHE.put(poolCacheKey(kind), JSON.stringify(pool), { expirationTtl: POOL_CACHE_TTL_SECONDS });
   return pool;
 }

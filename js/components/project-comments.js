@@ -51,7 +51,7 @@ const ProjectComments = (function () {
       <div class="comment-row">
         ${avatarHtml}
         <div style="flex:1;">
-          <div class="comment-meta"><strong>${nameHtml}</strong>${badgeIconHtml(c.user_badge, 14)}<span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${c.id}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
+          <div class="comment-meta"><strong>${nameHtml}</strong>${badgeIconHtml(c.user_badge, 14)}<span>${new Date(c.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>${canDelete ? `<button type="button" class="comment-delete-btn" data-id="${escapeAttr(c.id)}" aria-label="Yorumu sil">Sil</button>` : ''}</div>
           <p class="comment-body-text">${escapeHtml(c.body)}</p>
         </div>
       </div>`;

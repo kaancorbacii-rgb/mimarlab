@@ -1,7 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
-import { checkRateLimit } from '../lib/rateLimit.js';
+import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
 // /api/corrections (bkz. handleCorrectionsRoute) sahiplenme değil salt bilgi-bildirimi olduğundan
@@ -41,6 +41,14 @@ export async function handleCorrectionsRoute(request, env, url) {
   if (!(await checkRateLimit(env, 'correction', user.id, 20, 60 * 60 * 1000))) {
     return errorJson('Çok fazla öneri gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
   }
+  // audit bulgusu: kullanıcı bazlı limit tek başına, birden çok hesap açıp aynı IP'den kuyruğu
+  // doldurmayı engellemiyordu — bkz. src/routes/badges.js#handleBadgeRequestRoute'daki AYNI
+  // ikili (kullanıcı + IP) desen. Eşik kullanıcı bazlı limitten yüksek tutulur (bir ofis/kurumda
+  // aynı IP'yi paylaşan birden çok meşru kullanıcı olabilir), yalnızca gerçek çoklu-hesap istismarını
+  // hedefler.
+  if (!(await checkRateLimit(env, 'correction-ip', clientIp(request), 60, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla öneri gönderildi. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
 
   const body = await readJson(request);
   const profileType = body.profileType;
@@ -73,6 +81,10 @@ async function createClaim(request, env, user) {
   // açıp admin "Profil Talepleri" kuyruğunu doldurabilirdi.
   if (!(await checkRateLimit(env, 'claim', user.id, 20, 60 * 60 * 1000))) {
     return errorJson('Çok fazla talep gönderdin. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+  // bkz. handleCorrectionsRoute'daki AYNI ikili (kullanıcı + IP) desen/gerekçe.
+  if (!(await checkRateLimit(env, 'claim-ip', clientIp(request), 60, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla talep gönderildi. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
   }
 
   const body = await readJson(request);

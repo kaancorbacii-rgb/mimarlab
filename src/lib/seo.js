@@ -230,7 +230,10 @@ async function buildProjectMeta(slug, env) {
     ...namesFromConcat(row.office_names).map(name => ({ '@type': 'Organization', name })),
   ];
   if (creators.length) jsonLd.creator = creators.length === 1 ? creators[0] : creators;
-  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
+  // audit bulgusu: og:type tüm detay sayfalarında sabit "website" kalıyordu — proje sayfaları
+  // editoryal/içerik niteliğinde olduğundan (Open Graph çekirdek sözlüğünde "creative_work" gibi bir
+  // tip yok) sosyal önizlemelerde en yakın karşılığı "article"dır (bkz. src/index.js#injectMeta).
+  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
@@ -245,7 +248,41 @@ function productMetaFromRecord(record, canonicalUrl) {
   if (record.description) jsonLd.description = record.description;
   if (images.length) jsonLd.image = images;
   if (record.brand) jsonLd.brand = { '@type': 'Brand', name: record.brand };
-  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
+  // audit bulgusu: bu obje daha önce offers/aggregateRating/review'dan HİÇBİRİNİ taşımıyordu — Google
+  // Product zengin sonuçları için (2023'ten beri) en az birini şart koşuyor. `products` tablosunda
+  // fiyat kolonu hiç yok (ürün kataloğu bir e-ticaret listesi değil, bkz. schema.sql) — bu yüzden
+  // `offers` UYDURULMUYOR (yanlış/eksik fiyat markup'ı Google'da manuel işlem riski taşır); bunun
+  // yerine, ürünün GERÇEK kullanıcı puanlaması varsa (bkz. fetchProductAggregateRating) aggregateRating
+  // eklenir — bu tek başına zengin sonuç uygunluğu için yeterli VE her zaman doğrulanabilir gerçek
+  // veriye dayanır. Puanı olmayan ürünlerde Product şeması hâlâ bu üç alandan hiçbirini taşımaz.
+  if (record.rating && record.rating.count > 0) {
+    jsonLd.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: Math.round(record.rating.average * 10) / 10,
+      reviewCount: record.rating.count,
+    };
+  }
+  // bkz. buildProjectMeta'daki AYNI og:type gerekçesi — ürün sayfaları için Open Graph'ın kendi
+  // "product" tipi zaten var.
+  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'product', breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
+}
+
+// urun.html/rating-widget.js'in target_id olarak kullandığı ANAHTARLA (bkz. src/routes/product.js#
+// ratingKeyFor) BİREBİR aynı üretim — buradan bilerek AYRI/yerel tutulur (proje.js/product.js'teki
+// trLower/foldTr'nin her dosyada yerel tanımlı olmasıyla AYNI gerekçe, bkz. o dosyalardaki yorum):
+// seo.js dosya başı notu route dosyalarından hiç import YAPMAMA kararını zaten açıklıyor.
+function productRatingKeyFor(title, brand, submissionId) {
+  if (submissionId) return `m-${submissionId}`;
+  return slugify(`${title}-${brand || ''}`);
+}
+
+async function fetchProductAggregateRating(env, targetType, targetId) {
+  if (!env || !env.DB || !targetId) return null;
+  const row = await env.DB.prepare(
+    `SELECT AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type = ? AND target_id = ?`
+  ).bind(targetType, targetId).first();
+  if (!row || !row.count) return null;
+  return { average: row.average, count: row.count };
 }
 
 // key: urun.html#productKey ile birebir aynı üretim — canonical D1 kayıtlarında slugify(title +
@@ -262,18 +299,26 @@ async function buildProductMeta(key, env) {
   if (m && env && env.DB) {
     const id = m[1];
     const productRow = await env.DB.prepare(`SELECT * FROM product_submissions WHERE id = ? AND status = 'approved'`).bind(id).first();
+    const isMaterial = !productRow;
     const row = productRow || await env.DB.prepare(`SELECT * FROM material_submissions WHERE id = ? AND status = 'approved'`).bind(id).first();
     if (row) {
       let images = [];
       try { images = row.images ? JSON.parse(row.images) : []; } catch { images = []; }
-      return productMetaFromRecord({ title: row.title, brand: row.brand, description: row.description, images }, canonicalUrl);
+      const rating = await fetchProductAggregateRating(env, isMaterial ? 'material' : 'product', `m-${id}`);
+      return productMetaFromRecord({ title: row.title, brand: row.brand, description: row.description, images, rating }, canonicalUrl);
     }
   }
 
   const row = await findProductRow(env, key);
   if (!row) return null;
   const p = parseCanonicalRow('products', row);
-  return productMetaFromRecord({ title: p.title, brand: p.brand_name_raw, description: p.description, images: p.images }, canonicalUrl);
+  // rating-widget.js/product.js#handleProductListRoute'daki AYNI iki yol: legacy_key "submission:"
+  // ile başlıyorsa gerçek anahtar m-<submissionId>'dir, aksi halde slugify(title-brand) türetilir.
+  const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
+  const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
+  const ratingKey = productRatingKeyFor(p.title, p.brand_name_raw, submissionId);
+  const rating = await fetchProductAggregateRating(env, row.kind === 'material' ? 'material' : 'product', ratingKey);
+  return productMetaFromRecord({ title: p.title, brand: p.brand_name_raw, description: p.description, images: p.images, rating }, canonicalUrl);
 }
 
 const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta };

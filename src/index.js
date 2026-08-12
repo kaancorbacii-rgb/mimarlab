@@ -87,11 +87,12 @@ const SECURITY_HEADERS = {
 // (html_handling varsayılanı auto-trailing-slash) — burada yalnızca sorgu parametresini yol
 // segmentine taşıyoruz. Mimar/marka isimleri slugify edilir (save-widget.js/src/lib/slugify.js ile
 // birebir aynı algoritma); proje slug'ı ve haber id'si zaten URL-güvenli olduğundan dönüştürülmez.
+// '/haber-detay' burada YOK — bkz. DISABLED_PAGE_PATHS'teki yorum, artık isDisabledPagePath()
+// tarafından bu tablo hiç kontrol edilmeden doğrudan 404'e yönlendiriliyor.
 const CLEAN_URL_REDIRECTS = {
   '/proje-detay': { param: 'proje', prefix: '/proje/', slugifyValue: false },
   '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
   '/ofis-detay': { param: 'ofis', prefix: '/firma/', slugifyValue: true },
-  '/haber-detay': { param: 'haber', prefix: '/haberler/', slugifyValue: false },
 };
 // Yeni temiz yol önekini, aynı içeriği render eden gerçek statik HTML dosyasına eşler — istemci
 // tarafındaki sayfa JS'i slug'ı URL yolundan okuyacak şekilde ayrıca güncellenmiştir (bkz. ilgili
@@ -124,7 +125,13 @@ const ENTITY_TYPE_BY_DETAIL_TYPE = { project: 'projects', architect: 'architects
 // Kariyer — yayında değil (bkz. kullanıcı isteği). Ürün/Danışman/Haber'in aksine sayfası hâlâ
 // repoda duruyor (bkz. kariyer.html) ama bu görevin kapsamı dışında bırakıldı — yalnızca public
 // erişim burada kapatılıyor. Hem uzantısız hem ".html" biten biçim eşlenir.
-const DISABLED_PAGE_PATHS = new Set(['/kariyer']);
+// /haber-detay — audit bulgusu: haber özelliği yayından tamamen kaldırıldığından (CLEAN_URL_ASSETS'te
+// '/haberler/' girişi yok) aşağıdaki CLEAN_URL_REDIRECTS'teki eski kural bu isteği /haberler/:id'ye
+// 301'liyor, oraya giden istek de gerçek 404'e düşüyordu (301→404 zinciri, eski indekslenmiş/
+// paylaşılmış linkler için gereksiz bir ekstra hop). Burada listelenmesi bu zinciri kısa devre
+// yaptırıp doğrudan (markalı) 404 döndürür — CLEAN_URL_REDIRECTS'teki '/haber-detay' girişi bu
+// yüzden artık erişilemez, o da kaldırıldı.
+const DISABLED_PAGE_PATHS = new Set(['/kariyer', '/haber-detay']);
 
 function isDisabledPagePath(pathname) {
   const bare = pathname.replace(/\.html$/, '');
@@ -246,7 +253,21 @@ const STATIC_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, s
 // 300'e (5 dk) indirmek, purge'ün kaçırdığı PoP'lar için de en kötü durumdaki bayatlık penceresini
 // makul bir aralığa çeker.
 const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' };
-const SITEMAP_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=21600' };
+// audit bulgusu: bu 5 liste sayfası tamamen statik bir HTML kabuğu döner (veri her zaman istemci
+// tarafında /api/* uçlarından çekilir, bkz. proje.js/mimar.js vb. — SSR_PAGE_CACHE_HEADERS'ın aksine
+// burada D1'e bağlı hiçbir enjeksiyon/purge gereksinimi yok), ama Cloudflare Assets'in varsayılan
+// `max-age=0, must-revalidate` başlığıyla serviliyordu — her ziyaret tam bir round-trip'e mal
+// oluyordu. SSR_PAGE_CACHE_HEADERS'la AYNI süreler kullanılır (tutarlılık); içerik değişimi zaten
+// istemci tarafı fetch'lerle (kendi kısa TTL'li önbellekleriyle) yansıdığından kabuğun birkaç dakika
+// bayat kalması sorun yaratmaz.
+const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun']);
+// audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
+// kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
+// gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
+// olmadığından (4 basit SELECT) süre kısaltılır; <lastmod> eklenmesiyle birlikte (bkz.
+// handleSitemapRoute) Google'ın kendi tarama sıklığı da artık gerçek veriye dayanabilir.
+const SITEMAP_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=600, stale-while-revalidate=3600' };
 
 // Cache API girdileri deploy'dan bağımsızdır — kod/şablon değiştiğinde eski deploy'dan kalan
 // cache girdileri otomatik geçersizleşmez (s-maxage boyunca eski HTML sunulmaya devam eder).
@@ -314,6 +335,19 @@ async function routeAsset(request, env, url, ctx) {
     return Response.redirect(dest.href, 301);
   }
 
+  // audit bulgusu: /proje.html?slug=X (ve mimar/firma/urun eşdeğerleri) gibi eski sorgu-dizesi
+  // biçimindeki linkler artık site içinde HİÇ üretilmiyor (bkz. js/pages/proje.js#"/proje/${slug}"
+  // path-tabanlı linkleme) ama olası eski dış bağlantılar/yer imleri için canlıda hâlâ erişilebilirdi
+  // — CLEAN_URL_ASSETS'teki '/proje/' öneki bir sorgu dizesiyle EŞLEŞMEDİĞİNDEN bu istek aşağıdaki
+  // ASSETS.fetch'e düşüp o projeye özgü DEĞİL, GENERİK liste sayfası title/meta/canonical'ıyla
+  // serviliyordu (redirectKey burada zaten '/proje' olur, bu yüzden yukarısı yakalayamaz — o yalnızca
+  // CLEAN_URL_REDIRECTS'teki '-detay' önekli eski anahtarları hedefler).
+  const legacySlugAsset = CLEAN_URL_ASSETS.find(r => r.asset === redirectKey);
+  const legacySlugValue = legacySlugAsset ? url.searchParams.get('slug') : null;
+  if (legacySlugValue) {
+    return Response.redirect(new URL(`${legacySlugAsset.asset}/${encodeURIComponent(legacySlugValue)}`, url.origin).href, 301);
+  }
+
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
   if (cleanRoute) return serveDetailPage(request, env, url, cleanRoute, ctx);
 
@@ -331,6 +365,11 @@ async function routeAsset(request, env, url, ctx) {
   if (infoMeta) return serveInfoModalPage(request, env, url, infoMeta);
 
   const response = await env.ASSETS.fetch(request);
+  if (request.method === 'GET' && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
+    const headers = new Headers(response.headers);
+    for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
   return withStaticImageCacheHeaders(url, response);
 }
 
@@ -491,6 +530,11 @@ function injectMeta(response, meta) {
     .on('title', { element(el) { el.setInnerContent(meta.title); } })
     .on('meta#meta-description', { element(el) { el.setAttribute('content', meta.description); } })
     .on('link#canonical-link', { element(el) { el.setAttribute('href', meta.canonicalUrl); } })
+    // audit bulgusu: og:type tüm detay sayfalarında şablondaki sabit "website" değerinde kalıyordu —
+    // meta.ogType YALNIZCA proje ('article')/ürün ('product') üreticilerinde set edilir (bkz.
+    // src/lib/seo.js#buildProjectMeta/productMetaFromRecord); mimar/firma için Open Graph çekirdek
+    // sözlüğünde kuruma/kişiye uyan iyi bir tip yok, "website" doğru varsayılan olarak kalır.
+    .on('meta#og-type', { element(el) { el.setAttribute('content', meta.ogType || 'website'); } })
     .on('meta#og-title', { element(el) { el.setAttribute('content', meta.title); } })
     .on('meta#og-description', { element(el) { el.setAttribute('content', meta.description); } })
     .on('meta#og-url', { element(el) { el.setAttribute('content', meta.canonicalUrl); } })
@@ -510,11 +554,14 @@ async function handleSitemapRoute(request, env, ctx) {
   // Faz 3 migrasyonundan sonra yalnızca canonical D1'de yaşayan (admin panelinden eklenmiş) mimar/
   // ofis/proje/ürün kayıtları bu dizilerde HİÇ görünmez, dolayısıyla sitemap'te de eksik kalırdı
   // (bkz. kullanıcı isteği: "sitemap.xml ... eksiksiz servis edildiğinden emin ol" — gerçek bulgu).
-  // İki kaynak da bir Set üzerinden birleştirilip aynı slug için TEKİL bir <url> üretilir.
-  const entityUrls = new Set([...listEntityUrls(), ...await listCanonicalEntityUrls(env)]);
+  // İki kaynak da bir Map üzerinden (url -> lastmod) birleştirilip aynı slug için TEKİL bir <url>
+  // üretilir — listEntityUrls() lastmod taşımadığından (statik/build-zamanlı) null ile eklenir,
+  // canonical D1 kaynağı kendi updated_at'ini taşır (audit bulgusu: <lastmod> daha önce hiç yoktu).
+  const entityUrls = new Map([...listEntityUrls().map(loc => [loc, null]), ...await listCanonicalEntityUrls(env)]);
+  const lastmodTag = lastmod => lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : '';
   const urls = [
     ...SITEMAP_STATIC_PAGES.map(p => `  <url>\n    <loc>${SITE_ORIGIN}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`),
-    ...[...entityUrls].map(loc => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>\n    <changefreq>monthly</changefreq>\n  </url>`),
+    ...[...entityUrls].map(([loc, lastmod]) => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>${lastmodTag(lastmod)}\n    <changefreq>monthly</changefreq>\n  </url>`),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
   const response = new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', ...SITEMAP_CACHE_HEADERS } });
@@ -523,23 +570,31 @@ async function handleSitemapRoute(request, env, ctx) {
   return response;
 }
 
+// D1'in `datetime('now')` varsayılanı "YYYY-MM-DD HH:MM:SS" (UTC, boşluk ayraçlı) üretir — W3C
+// datetime (sitemap <lastmod> için gereken biçim) ISO 8601 ister; yalnızca ayracı 'T'ye çevirip
+// 'Z' eklemek yeterlidir (zaten UTC).
+function toLastmod(sqliteDatetime) {
+  return sqliteDatetime ? `${sqliteDatetime.replace(' ', 'T')}Z` : null;
+}
+
 // listEntityUrls (yalnızca statik diziler) ile birleştirilen canonical D1 kaynağı — architects/
 // offices/projects/products tablolarının TAMAMI (statik + admin panelinden eklenenler) buradan
-// gelir.
+// gelir. lastmod: audit bulgusu — sitemap'in tarama önceliklendirmesi için Google'a hangi sayfaların
+// güncellendiğini bildirmenin tek yolu, bkz. handleSitemapRoute.
 async function listCanonicalEntityUrls(env) {
   if (!env || !env.DB) return [];
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
   const [archRes, officeRes, projRes, prodRes] = await Promise.all([
-    env.DB.prepare(`SELECT slug FROM architects WHERE ${where}`).all(),
-    env.DB.prepare(`SELECT slug FROM offices WHERE ${where}`).all(),
-    env.DB.prepare(`SELECT slug FROM projects WHERE ${where}`).all(),
-    env.DB.prepare(`SELECT slug FROM products WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug, updated_at FROM architects WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug, updated_at FROM offices WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug, updated_at FROM projects WHERE ${where}`).all(),
+    env.DB.prepare(`SELECT slug, updated_at FROM products WHERE ${where}`).all(),
   ]);
   return [
-    ...archRes.results.map(r => `/mimar/${encodeURIComponent(r.slug)}`),
-    ...officeRes.results.map(r => `/firma/${encodeURIComponent(r.slug)}`),
-    ...projRes.results.map(r => `/proje/${encodeURIComponent(r.slug)}`),
-    ...prodRes.results.map(r => `/urun/${encodeURIComponent(r.slug)}`),
+    ...archRes.results.map(r => [`/mimar/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
+    ...officeRes.results.map(r => [`/firma/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
+    ...projRes.results.map(r => [`/proje/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
+    ...prodRes.results.map(r => [`/urun/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
   ];
 }
 

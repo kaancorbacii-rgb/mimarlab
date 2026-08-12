@@ -64,8 +64,13 @@ function wireSaveButtons(type){
 
 async function initSavedWidget(){
   try{
-    const meRes = await fetch('/api/auth/me');
-    if(meRes.ok) currentUser = (await meRes.json()).user;
+    // bkz. auth-nav.js#fetchMe/window.__authMeFetch — auth-nav.js her zaman bu script'ten ÖNCE
+    // <script defer> olarak yüklendiğinden (proje/mimar/firma/urun.html script sırası), o script
+    // AYNI /api/auth/me isteğini zaten başlatmış olur; burada tekrar atmak yerine paylaşılan
+    // sonucu bekleriz (audit bulgusu: ikisi bağımsız çalışınca aynı sayfada 2 istek atılıyordu).
+    // window.__authMeFetch YOKSA (bu script auth-nav.js olmadan dahil edilirse) kendi isteğini atar.
+    const data = window.__authMeFetch ? await window.__authMeFetch : await fetch('/api/auth/me').then(r => r.ok ? r.json() : { user: null }).catch(() => ({ user: null }));
+    currentUser = data.user;
   }catch{}
   if(currentUser){
     try{
