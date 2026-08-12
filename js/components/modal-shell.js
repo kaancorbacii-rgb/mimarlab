@@ -21,6 +21,8 @@ const ModalShell = (function () {
   let onRequestClose = null;
   let savedScrollY = 0;
   let opened = false;
+  let pendingGoBack = null; // bkz. goBackAndWait/waitForPendingNav
+  let pendingGoBackSuperseded = false; // bkz. waitForPendingNav/wasCurrentPopSuperseded
 
   function injectStyles() {
     if (document.getElementById('modal-shell-styles')) return;
@@ -357,5 +359,43 @@ const ModalShell = (function () {
     return overlayEl ? overlayEl.querySelector('#modal-shell-header-actions') : null;
   }
 
-  return { open, close, isOpen, getPanels, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot };
+  // gerçek bulgu: proje/mimar/firma/ürün modallarının close()'u, birden fazla proje gezindikten
+  // sonra X/Escape'e basılınca asıl listeye TEK seferde dönmek için history.go(-N) kullanıyor (bkz.
+  // o dosyalardaki close() yorumu) — ama history.go() ASENKRON'dur, karşılık gelen popstate hemen
+  // değil tarayıcının bir sonraki görev turunda fırlar. Bu pencerede kullanıcı BAŞKA bir modal
+  // open()/swap() ile YENİ bir pushState yaparsa (ör. proje.html'de bir ürün modalını kapatıp hemen
+  // başka bir projeye geçmek — bu sayfa proje-modal.js VE product-modal.js'i AYNI paylaşılan
+  // overlay üzerinde birlikte kullanıyor), geç gelen o popstate işlendiğinde artık güncel olmayan
+  // bir navigasyon gibi davranıp az önce açılan modalı eskiye döndürebiliyordu ("bir popup'tan
+  // diğerine geçince eski popup tekrar açılıyor", sayfa yenilenince düzeliyordu çünkü modül state'i
+  // sıfırlanıyordu). Bu yarış TÜR-bağımsızdır (aynı ya da farklı modal tipleri arasında oluşabilir)
+  // çünkü dördü de bu TEK paylaşılan overlay'i kullanır — bu yüzden çözüm de burada, paylaşılan
+  // katmanda: goBackAndWait() history.go()'yu tetikler ve karşılık gelen popstate GERÇEKTEN
+  // işlenene kadar çözülmeyen bir Promise döner; open()/swap() artık kendi pushState'ini yapmadan
+  // ÖNCE waitForPendingNav() ile bekleyen bir go() varsa onu bekler — böylece iki history mutasyonu
+  // asla iç içe geçmez.
+  function goBackAndWait(steps) {
+    if (pendingGoBack) return pendingGoBack; // zaten bekleyen biri var — tekrar tetikleme, ona katıl
+    pendingGoBackSuperseded = false;
+    pendingGoBack = new Promise((resolve) => {
+      window.addEventListener('popstate', () => { pendingGoBack = null; resolve(); }, { once: true });
+    });
+    history.go(-steps);
+    return pendingGoBack;
+  }
+
+  // Bir open()/swap() burada GERÇEKTEN bekleyen bir go() bulup ona katıldığında (bkz. yukarısı) bu
+  // döngü "superseded" (ele geçirilmiş) işaretlenir — yani sonunda gelecek olan popstate artık
+  // kimsenin özgün isteği DEĞİL, önceden kuyruklanmış bir geri-navigasyon kalıntısı; onu tetikleyen
+  // handlePopState (bkz. proje/mimar/firma/ürün-modal.js) bu durumda kendi reaktif open()'ını
+  // ATLAMALI, aksi halde tam o an render edilmekte olan YENİ (superseded eden) modalın üzerine
+  // eskisini yeniden yazar (bkz. goBackAndWait'in dosya başı yorumu — gerçek bulgu).
+  function waitForPendingNav() {
+    if (pendingGoBack) { pendingGoBackSuperseded = true; return pendingGoBack; }
+    return Promise.resolve();
+  }
+
+  function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
+
+  return { open, close, isOpen, getPanels, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded };
 })();

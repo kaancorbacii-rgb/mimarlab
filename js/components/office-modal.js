@@ -530,6 +530,7 @@ const OfficeModal = (function () {
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null } = {}) {
+    await ModalShell.waitForPendingNav();
     currentSlug = slug;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
@@ -547,6 +548,7 @@ const OfficeModal = (function () {
 
   async function swap(slug) {
     if (!ModalShell.isOpen()) return open(slug, { pushHistory: true });
+    await ModalShell.waitForPendingNav();
     currentSlug = slug;
     const currentDepth = (history.state && history.state.mimarlabModal === 'office') ? history.state.depth : pushCountSinceOpen;
     pushCountSinceOpen = currentDepth + 1;
@@ -561,13 +563,15 @@ const OfficeModal = (function () {
   function close() {
     currentSlug = null;
     currentItem = null;
-    if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
+    if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
     else history.pushState({}, '', '/firma');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }
 
+  // bkz. js/components/project-modal.js#handlePopState AYNI wasCurrentPopSuperseded gerekçesi.
   function handlePopState(slug) {
+    if (ModalShell.wasCurrentPopSuperseded()) return;
     if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
     if (history.state && history.state.mimarlabModal === 'office' && typeof history.state.depth === 'number') {

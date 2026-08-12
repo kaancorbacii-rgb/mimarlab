@@ -328,6 +328,7 @@ const ProjectModal = (function () {
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/proje/' } = {}) {
+    await ModalShell.waitForPendingNav();
     currentSlug = slug;
     currentBasePath = basePath;
     openedViaPush = pushHistory;
@@ -348,6 +349,7 @@ const ProjectModal = (function () {
 
   async function swap(slug, basePath) {
     if (!ModalShell.isOpen()) return open(slug, { pushHistory: true, basePath: basePath || '/proje/' });
+    await ModalShell.waitForPendingNav();
     if (basePath) currentBasePath = basePath;
     currentSlug = slug;
     // pushCountSinceOpen'ı doğrudan artırmak yerine mevcut history.state.depth'ten türetilir — bkz.
@@ -378,7 +380,7 @@ const ProjectModal = (function () {
     // tek seferde geri sarılır, böylece birden fazla proje gezildikten sonra bile X/Escape doğrudan
     // asıl listeye döner. Hydration ile açılmışsa (deep link/F5) listeye ait GÜVENLİ bir geçmiş
     // girdisi hiç yok — o durumda doğrudan listPath'e pushState edilir.
-    if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
+    if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
     else history.pushState({}, '', listPath);
     ModalShell.close();
     pushCountSinceOpen = 0;
@@ -389,6 +391,12 @@ const ProjectModal = (function () {
   function handlePopState(slug, basePath) {
     // ensureTemplate() burada YOK — DOM'u ilk kez ModalShell.open() oluşturur (bkz. open()'daki AYNI
     // gerçek bulgu yorumu); modal zaten açıksa mountedOnce=true olduğundan zaten no-op olurdu.
+    // wasCurrentPopSuperseded(): bu popstate, kapatılmakta olan BAŞKA bir modalın (ör. proje.html'de
+    // aynı sayfada birlikte yaşayan ProductModal) gecikmiş history.go(-N)'i tarafından tetiklenmiş
+    // olabilir — o sırada kullanıcı zaten YENİ bir open()/swap() başlatıp bu döngüye katıldıysa (bkz.
+    // ModalShell.waitForPendingNav) bu geç gelen popstate artık bayat demektir, reaktif olarak
+    // burada bir şey açıp/kapatmamalıyız (aksi halde az önce açılan modalın üzerine yazardık).
+    if (ModalShell.wasCurrentPopSuperseded()) return;
     if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
     if (basePath) currentBasePath = basePath;
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false, basePath: basePath || '/proje/' }); return; }

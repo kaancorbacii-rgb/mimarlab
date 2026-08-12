@@ -79,15 +79,18 @@ const ArchitectProjects = (function () {
 // uysa bile (örn. hem aynı mimar hem aynı şehir) puanı eksiksiz toplanır.
 const RelatedProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-related-section', grid: 'pm-related-grid' };
-  // Kural 2 (ZORUNLU, bkz. kullanıcı isteği: "Selçuklu Kongre Merkezi Kültürel tipte bir projeye
-  // Dini tipte olan bir cami önerilmiş... Önce aynı tip olmalı"): aday havuzu kaynak projeyle AYNI
-  // "Tip"e (category[] — proje.html'deki "Tip" etiketi) sahip olmayan hiçbir projeyi içeremez. Tip
-  // artık ağırlıklı bir skor bileşeni DEĞİL, discipline (Tür) gibi sert bir filtre — eşleşmeyen
-  // adaylar havuza hiç girmez (bkz. hasSameCategory ve gatherCandidateQueries'teki categoryParams).
-  // Sıralama artık tek sinyale dayanır: Yıl Yakınlığı (bkz. kullanıcı isteği: "sonra yakın yıllarda
-  // olmalı") — weightedSample zaten var olan rastgelelik davranışını (her açılışta farklı sıralama)
-  // korumak için bu skoru kullanmaya devam eder. Aynı mimara/firmaya ait projeler ayrıca hiç bu
-  // bölüme girmez (bkz. kullanıcı isteği: "aynı mimara ait başka proje bu kısımda olmamalı") — bu,
+  // Kural 2 (bkz. kullanıcı isteği: "Selçuklu Kongre Merkezi Kültürel tipte bir projeye Dini tipte
+  // olan bir cami önerilmiş... Önce aynı tip olmalı"): hasSameCategory (Tip) ve hasSameDiscipline
+  // (Tür) BİRİNCİL öncelik sırasıdır — havuz önce bu iki kritere TAM uyan adaylarla doldurulur.
+  // ANCAK artık sert bir filtre DEĞİL (bkz. kullanıcı isteği, gerçek bulgu: "bu kritere göre bazı
+  // projelerde hiç eşleşen aday kalmıyor, bölüm boş/eksik kalıyordu — tam eşleşme olmasa bile
+  // benzer örnekler vererek İlgili Projeler sayısı her zaman 15'te sabit kalsın"): strict havuz
+  // RESULT_COUNT'u karşılamazsa mount() geri kalan yeri, AYNI havuzun geri kalanından (Tip/Tür
+  // filtrelenmemiş "fallback" adaylar) tamamlar — bkz. mount()'taki iki aşamalı sampleTier çağrısı.
+  // Sıralama sinyali: Yıl Yakınlığı (bkz. kullanıcı isteği: "sonra yakın yıllarda olmalı") —
+  // weightedSample zaten var olan rastgelelik davranışını (her açılışta farklı sıralama) korumak
+  // için bu skoru kullanmaya devam eder. Aynı mimara/firmaya ait projeler ayrıca hiç bu bölüme
+  // girmez (bkz. kullanıcı isteği: "aynı mimara ait başka proje bu kısımda olmamalı") — bu,
   // mount()'a geçirilen excludeSlugsPromise (ArchitectProjects'in gösterdiği TÜM slug'lar) ile sağlanır.
   const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
   const RESULT_COUNT = 15;
@@ -122,20 +125,18 @@ const RelatedProjects = (function () {
       : { city: info.district || null, country: info.city };
   }
 
-  // Kural 1 (ZORUNLU, bkz. kullanıcı isteği: "en üst katman tür olsun... restorasyonsa
-  // önerilenlerin de hepsi restorasyon olsun"): aday havuzu kaynak projeyle AYNI "Tür"e (discipline
-  // — Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon) sahip olmayan hiçbir projeyi içeremez.
+  // Kural 1 (bkz. kullanıcı isteği: "en üst katman tür olsun... restorasyonsa önerilenlerin de
+  // hepsi restorasyon olsun"): strict havuz kaynak projeyle AYNI "Tür"e (discipline — Mimari/İç
+  // Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon) sahip projelerle önce doldurulur (bkz. mount()'taki
+  // iki aşamalı sampleTier — bu artık bir sert filtre değil, ÖNCELİK sırası, bkz. dosya başı yorum).
   // Bir proje BİRDEN ÇOK discipline taşıyabilir (ör. ["Mimari","Restorasyon"]) — gerçek bulgu: eski
   // "some" (HERHANGİ BİR ortak değer yeter) mantığı, kaynak ["Mimari","Restorasyon"] olduğunda salt
   // "Mimari" (restorasyon bileşeni SIFIR) adayları da "Mimari" ortak olduğu için geçiriyordu
   // (Santralistanbul Enerji Müzesi'nde 15 öneriden 12'si restorasyon içermiyordu). "every" — kaynağın
   // TÜM discipline etiketleri adayda da bulunmalı (aday FAZLADAN etiket taşıyabilir, sorun değil) —
-  // bunu düzeltir: restorasyon içeren bir kaynak SADECE restorasyon içeren adaylar önerir. Bu filtre
-  // hem sorgu seviyesinde (gatherCandidateQueries'teki discipline param'ı — server OR mantığıyla geniş
-  // bir üst küme getirir, bkz. src/routes/project.js#buildFilterGroups) hem istemci tarafında (mount()
-  // candidates.set öncesi, burada asıl KESİN "every" daraltması yapılır) uygulanır. Kaynak projede
-  // discipline verisi YOKSA (eski/eksik kayıt) filtre uygulanamaz — geriye dönük davranış korunur,
-  // bölüm tamamen boş kalmaz.
+  // bunu düzeltir: restorasyon içeren bir kaynak SADECE restorasyon içeren adayları strict havuza alır
+  // (yeterli sayıda yoksa geri kalan yer fallback havuzdan tamamlanır). Kaynak projede discipline
+  // verisi YOKSA (eski/eksik kayıt) bu ayrım uygulanamaz, TÜM adaylar strict sayılır.
   function hasSameDiscipline(source, candidate) {
     const sourceDisciplines = source.discipline || [];
     if (!sourceDisciplines.length) return true;
@@ -143,9 +144,9 @@ const RelatedProjects = (function () {
     return sourceDisciplines.every(d => candSet.has(d));
   }
 
-  // Kural 2 (ZORUNLU, bkz. yukarısı ve kullanıcı isteği: "aynı tip olsun") — hasSameDiscipline ile
-  // BİREBİR aynı "every" deseni, ama "Tip" (category[]) alanı üzerinde. Kaynakta category verisi
-  // YOKSA filtre uygulanamaz (geriye dönük davranış korunur).
+  // Kural 2 (bkz. yukarısı ve kullanıcı isteği: "aynı tip olsun") — hasSameDiscipline ile BİREBİR
+  // aynı "every" deseni, ama "Tip" (category[]) alanı üzerinde. Kaynakta category verisi YOKSA bu
+  // ayrım uygulanamaz, TÜM adaylar strict sayılır.
   function hasSameCategory(source, candidate) {
     const sourceCategories = source.category || [];
     if (!sourceCategories.length) return true;
@@ -275,25 +276,39 @@ const RelatedProjects = (function () {
     const exclude = new Set(excludeSlugs || []);
     exclude.add(item.slug);
 
-    // Kural 1 & 2 KESİN — sorgular zaten discipline/category'ye göre daraltılmıştı (bkz.
-    // gatherCandidateQueries), ama burada da kontrol edilir: farklı türdeki (ör. mimari altında iç
-    // mekan) ya da farklı tipteki (ör. Kültürel projeye Dini tipte proje) hiçbir aday bu filtreyi
-    // atlayıp havuza giremez. exclude Seti zaten "aynı mimara ait" projeleri dışarıda tutar (bkz.
-    // dosya başı mount() yorumu — excludeSlugsPromise, ArchitectProjects'in gösterdiği TÜM slug'lar).
-    const candidates = new Map();
-    lists.flat().forEach(p => { if (!exclude.has(p.slug) && !candidates.has(p.slug) && hasSameDiscipline(item, p) && hasSameCategory(item, p)) candidates.set(p.slug, p); });
-
-    const scored = Array.from(candidates.values())
-      .map(p => ({ p, score: scoreCandidate(item, p) }))
-      .filter(({ score }) => score > -Infinity);
+    // Kural 1 & 2 artık BİRİNCİL öncelik, sert filtre DEĞİL (bkz. dosya başı yorum, kullanıcı isteği:
+    // "tam eşleşme olmasa bile... ilgili proje sayısını her zaman 15'te sabit tutalım") — havuz
+    // strictPool (Tür+Tip tam eşleşen) ve fallbackPool (eşleşmeyen ama yine de aynı buildStatus'ta ve
+    // aynı mimara ait OLMAYAN "benzer" adaylar) olarak ikiye ayrılır. exclude Seti zaten "aynı mimara
+    // ait" projeleri dışarıda tutar (bkz. dosya başı mount() yorumu — excludeSlugsPromise,
+    // ArchitectProjects'in gösterdiği TÜM slug'lar).
+    const strictPool = new Map();
+    const fallbackPool = new Map();
+    lists.flat().forEach(p => {
+      if (exclude.has(p.slug) || strictPool.has(p.slug) || fallbackPool.has(p.slug)) return;
+      (hasSameDiscipline(item, p) && hasSameCategory(item, p) ? strictPool : fallbackPool).set(p.slug, p);
+    });
 
     // Kural 3 — önce bu oturumda hiç gösterilmemiş adaylardan seç, havuz yetmezse (ör. dar bir
     // Tip/Tür kombinasyonu) daha önce görülmüş adaylarla tamamla (bkz. yukarısı, loadSeenSlugs).
     const seen = loadSeenSlugs();
-    const fresh = scored.filter(({ p }) => !seen.has(p.slug));
-    const stale = scored.filter(({ p }) => seen.has(p.slug));
-    let merged = weightedSample(fresh, RESULT_COUNT);
-    if (merged.length < RESULT_COUNT) merged = merged.concat(weightedSample(stale, RESULT_COUNT - merged.length));
+    function sampleTier(pool, n) {
+      const scored = Array.from(pool.values())
+        .map(p => ({ p, score: scoreCandidate(item, p) }))
+        .filter(({ score }) => score > -Infinity);
+      const fresh = scored.filter(({ p }) => !seen.has(p.slug));
+      const stale = scored.filter(({ p }) => seen.has(p.slug));
+      let picked = weightedSample(fresh, n);
+      if (picked.length < n) picked = picked.concat(weightedSample(stale, n - picked.length));
+      return picked;
+    }
+
+    // Önce strictPool (Tür+Tip tam eşleşen) tüketilir; RESULT_COUNT'a ulaşmak için yetmezse geri
+    // kalan yer fallbackPool'dan tamamlanır — böylece bölüm, kaynak proje ne kadar niş olursa olsun
+    // (strictPool boş bile olsa) neredeyse her zaman 15 kartla dolu görünür, yalnızca sitede o
+    // buildStatus'ta/hariç tutulanlar dışında GERÇEKTEN 15'ten az proje varsa daha az kart gösterir.
+    let merged = sampleTier(strictPool, RESULT_COUNT);
+    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(fallbackPool, RESULT_COUNT - merged.length));
 
     if (!merged.length) { section.style.display = 'none'; return; }
     section.style.display = '';
