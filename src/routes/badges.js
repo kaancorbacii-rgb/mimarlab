@@ -152,27 +152,36 @@ async function computeBadgesPayload(env) {
     env.DB.prepare(`SELECT profile_type, profile_key, badge_type FROM admin_badges`).all(),
   ]);
 
-  const out = { architect: {}, office: {} };
+  // Bir profilin AYNI ANDA birden fazla rozeti asla gösterilmez (kullanıcı isteği: "hiçbir zaman
+  // bir kullanıcıya 2 rozet verilemesin"). Önce satın alınan rozetlerden profil başına TEK
+  // (en yüksek kademeli) rozeti seçiyoruz — teoride aynı profile bağlı birden fazla onaylı
+  // profile_claims farklı kullanıcılardan farklı aktif rozetler getirebilir, o durumda bile tek
+  // kazanan olmalı.
+  const purchased = { architect: {}, office: {} };
   for (const row of results) {
-    const bucket = out[row.profile_type];
+    const bucket = purchased[row.profile_type];
     if (!bucket) continue;
-    if (!bucket[row.profile_key]) bucket[row.profile_key] = [];
-    bucket[row.profile_key].push(row.badge_type);
+    const current = bucket[row.profile_key];
+    if (!current || (BADGE_RANK[row.badge_type] || 0) > (BADGE_RANK[current] || 0)) {
+      bucket[row.profile_key] = row.badge_type;
+    }
   }
+
+  const out = { architect: {}, office: {} };
+  for (const type of ['architect', 'office']) {
+    for (const key of Object.keys(purchased[type])) out[type][key] = [purchased[type][key]];
+  }
+  // Admin'in sahiplenme/satın alma olmadan doğrudan verdiği rozet (bkz. schema.sql#admin_badges)
+  // satın alınan rozetin YERİNİ alır, YANINA eklenmez — admin bir profile rozet ver/değiştir/
+  // kaldır dediğinde bu, o profilde görünen TEK rozeti belirler (kullanıcı isteği: "admin rozeti
+  // değiştiğinde her yerden rozet değişsin"; "İz Bırakan" artık ayrı bir özel durum değil, bu
+  // genel override kuralının bir örneği — vefat etmiş bir mimar hem aktif ödemeli bir üyelik
+  // rozetine sahip OLABİLİR hem de admin onu İz Bırakan işaretleyebilir, override kuralı zaten
+  // yalnızca İz Bırakan'ın görünmesini sağlar).
   for (const row of adminResults) {
     const bucket = out[row.profile_type];
     if (!bucket) continue;
-    if (!bucket[row.profile_key]) bucket[row.profile_key] = [];
-    if (!bucket[row.profile_key].includes(row.badge_type)) bucket[row.profile_key].push(row.badge_type);
-  }
-  // "İz Bırakan" (bkz. kullanıcı isteği: vefat etmiş mimarlar için siyah rozet) o profilin diğer
-  // TÜM rozetlerinin (satın alınmış Doğrulanmış Üye/Altın Üye/Elmas Üye dahil) YERİNİ alır — aynı
-  // kişi hem ödeyip aktif bir üyelik rozetine sahip OLABİLİR hem de admin onu "İz Bırakan"
-  // işaretleyebilir, bu durumda yalnızca İz Bırakan gösterilir.
-  for (const bucket of Object.values(out)) {
-    for (const key of Object.keys(bucket)) {
-      if (bucket[key].includes('iz-birakan')) bucket[key] = ['iz-birakan'];
-    }
+    bucket[row.profile_key] = [row.badge_type];
   }
   return out;
 }

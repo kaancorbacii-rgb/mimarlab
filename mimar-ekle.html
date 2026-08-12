@@ -699,13 +699,15 @@ async function wireAdminBadgePicker(profileKey){
   const select = document.getElementById('admin-badge-select');
   const sourceHint = document.getElementById('admin-badge-source-hint');
   // source==='purchase': gösterilen değer bir satın almadan geliyor, admin_badges'te henüz
-  // hiçbir satır yok (bkz. src/routes/admin.js#handleProfileBadgeAdmin GET). Bu yüzden "Rozet
-  // yok" seçip kaydetmek bu satın alınan rozeti KALDIRMAZ — admin_badges'te zaten olmayan bir
-  // satırı silmeye çalışır, no-op olur. Bu notu görmezden gelip yine de değiştirirse (ör. daha
-  // üst bir kademeyi doğrudan vermek isterse) normal admin override akışı işler.
+  // hiçbir satır yok (bkz. src/routes/admin.js#handleProfileBadgeAdmin GET). Buradan bir rozet
+  // SEÇMEK (Rozet yok DAHİL) admin_badges'e bir satır yazar/siler; profilde HER ZAMAN admin
+  // override VARSA yalnızca o gösterilir (satın alınanın YERİNE geçer, yanına eklenmez — bkz.
+  // src/routes/badges.js#computeBadgesPayload, kullanıcı isteği: "hiçbir zaman bir kullanıcıya 2
+  // rozet verilemesin"). "Rozet yok" seçmek admin_badges satırını siler; admin override yoksa
+  // profil satın alınan rozete otomatik geri döner.
   function renderSourceHint(source, badgeType){
     if(source === 'purchase'){
-      sourceHint.textContent = `Bu rozet şu anda satın alma yoluyla aktif. Buradan farklı bir seçim yaparsan, satın alınan rozetin ÜZERİNE bir admin rozeti eklenir/değiştirilir — satın alınanı kaldırmaz.`;
+      sourceHint.textContent = `Bu rozet şu anda satın alma yoluyla aktif. Buradan farklı bir rozet seçersen (İz Bırakan dahil) profilde SADECE seçtiğin görünür — satın alınan otomatik olarak gizlenir (satın alma kaydı silinmez). "Rozet yok" bırakırsan satın alınan rozet görünmeye devam eder.`;
       sourceHint.style.display = '';
     } else {
       sourceHint.style.display = 'none';

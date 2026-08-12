@@ -537,8 +537,13 @@ async function handleProfileBadgeAdmin(request, env, url) {
     // tek bir profileType/profileKey'e daraltılmış hali. 'source' alanı istemciye bu değerin
     // admin override'tan mı yoksa bir satın almadan mı geldiğini bildirir — PUT davranışını
     // DEĞİŞTİRMEZ, yalnızca gösterim amaçlıdır.
+    //
+    // Öncelik AYNI computeBadgesPayload'daki gibi: admin_badges'te bir satır VARSA o TEK başına
+    // kazanır (kademe farketmez, satın alınan rozet varsa bile GÖRÜNMEZ) — bir profilde asla 2
+    // rozet birden gösterilmez (kullanıcı isteği). admin_badges'te satır YOKSA satın alınanlardan
+    // en yüksek kademeli olan gösterilir.
     const now = Date.now();
-    const [adminRow, purchasedRow] = await Promise.all([
+    const [adminRow, { results: purchasedRows }] = await Promise.all([
       env.DB.prepare(`SELECT badge_type FROM admin_badges WHERE profile_type = ? AND profile_key = ?`)
         .bind(profileType, profileKey).first(),
       env.DB.prepare(
@@ -546,17 +551,13 @@ async function handleProfileBadgeAdmin(request, env, url) {
          JOIN badge_requests b ON b.user_id = c.user_id AND b.status = 'active' AND (b.expires_at IS NULL OR b.expires_at > ?) AND b.badge_type != 'destekci'
            AND ((b.target_type = 'self' AND c.profile_type = 'architect') OR (b.target_type = 'office' AND c.profile_type = 'office' AND b.target_key = c.profile_key))
          WHERE c.status = 'approved' AND c.profile_type = ? AND c.profile_key = ?`
-      ).bind(now, profileType, profileKey).first(),
+      ).bind(now, profileType, profileKey).all(),
     ]);
     const adminBadge = adminRow?.badge_type || null;
-    const purchasedBadge = purchasedRow?.badge_type || null;
-    // iz-birakan yalnızca admin_badges'ten gelebilir ve diğer her şeyin yerini alır (bkz.
-    // handlePublicBadges ile aynı öncelik kuralı).
-    let badgeType;
-    if (adminBadge === 'iz-birakan') badgeType = adminBadge;
-    else if (adminBadge && purchasedBadge) badgeType = (BADGE_RANK[adminBadge] || 0) >= (BADGE_RANK[purchasedBadge] || 0) ? adminBadge : purchasedBadge;
-    else badgeType = adminBadge || purchasedBadge || null;
-    const source = !badgeType ? null : (badgeType === adminBadge ? 'admin' : 'purchase');
+    const purchasedBadge = purchasedRows.reduce((best, row) =>
+      !best || (BADGE_RANK[row.badge_type] || 0) > (BADGE_RANK[best] || 0) ? row.badge_type : best, null);
+    const badgeType = adminBadge || purchasedBadge || null;
+    const source = !badgeType ? null : (adminBadge ? 'admin' : 'purchase');
     return json({ badgeType, source });
   }
 
