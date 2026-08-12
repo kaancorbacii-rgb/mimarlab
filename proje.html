@@ -770,49 +770,8 @@
 <script src="js/components/project-products.js" defer></script>
 <script src="js/components/project-modal.js" defer></script>
 
-  <nav class="nav">
-    <a class="brand" href="index.html">
-      <img class="brand-logo" src="logos/site/mimarlab-logo.png" alt="MimarLab">
-    </a>
-    <div class="nav-search">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
-    </div>
-    <div class="nav-links">
-      <a class="nav-link active" href="proje.html">Proje</a>
-      <div class="nav-link-wrap" id="urun-menu-wrap">
-        <button class="nav-link nav-link-trigger" id="urun-menu-trigger" type="button" aria-expanded="false" aria-controls="urun-mega-menu">
-          Ürün
-          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-        </button>
-      </div>
-      <a class="nav-link" href="mimar.html">Mimar</a>
-      <a class="nav-link" href="firma.html">Firma</a>
-    </div>
-    <div class="mega-menu" id="urun-mega-menu"></div>
-    <div class="nav-right">
-      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
-    </div>
-    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
-    </button>
-    <div class="nav-mobile-menu" id="nav-mobile-menu">
-      <div class="nav-mobile-search">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
-      </div>
-      <a class="nav-mobile-link active" href="proje.html">Proje</a>
-      <div class="nav-mobile-accordion">
-        <button type="button" class="nav-mobile-link nav-mobile-accordion-trigger" id="urun-mobile-trigger" aria-expanded="false" aria-controls="urun-mobile-panel">
-          Ürün
-          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-        </button>
-        <div class="nav-mobile-accordion-panel" id="urun-mobile-panel"></div>
-      </div>
-      <a class="nav-mobile-link" href="mimar.html">Mimar</a>
-      <a class="nav-mobile-link" href="firma.html">Firma</a>
-    </div>
-  </nav>
+  <div id="site-header-mount" data-nav-active="proje"></div>
+  <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
     <a href="index.html">Ana Sayfa</a>
@@ -849,25 +808,7 @@
     </main>
   </div>
 
-  <footer class="site-footer">
-    <div class="footer-top">
-      <div class="footer-brand">
-        <a class="footer-logo" href="index.html">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
-        </a>
-        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
-        <div class="footer-social">
-          <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
-          <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
-        </div>
-      </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
-    </div>
-    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
-  </footer>
+  <footer id="site-footer-mount"></footer>
 
 <script src="il-ilce-data.js"></script>
 <script src="js/pages/proje.js" defer></script>
