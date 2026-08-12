@@ -509,6 +509,10 @@ const AuthModal = (function () {
               <option value="İşsiz">İşsiz</option>
             </select>
           </div>
+          <div id="am-edit-office-field" style="display:none;">
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma</label>
+            <select id="am-edit-office" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);"></select>
+          </div>
         </div>
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
         <span id="am-dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
@@ -541,10 +545,6 @@ const AuthModal = (function () {
       <div class="dash-row">
         <div class="dash-section">
           <h2>Profil Bilgileri</h2>
-          <div class="saved-filter" id="am-profile-info-tabs">
-            <button type="button" class="saved-filter-btn active" data-tab="facts">Genel Bilgiler</button>
-            <button type="button" class="saved-filter-btn" data-tab="claims" id="am-profile-claims-tab-btn" style="display:none;">Mimar/Firma Profilim</button>
-          </div>
           <div id="am-profile-tab-facts">
             <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
@@ -553,9 +553,7 @@ const AuthModal = (function () {
             <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
           </div>
-          <div id="am-profile-tab-claims" style="display:none;">
-            <div id="am-claims-mine-list"></div>
-          </div>
+          <div id="am-claims-mine-list"></div>
         </div>
 
         <div class="dash-section">
@@ -754,6 +752,35 @@ const AuthModal = (function () {
       document.getElementById('am-edit-school').value = accountUser.school || '';
       document.getElementById('am-edit-profession').value = accountUser.profession || '';
       document.getElementById('am-edit-position').value = accountUser.position || '';
+      await loadFirmaOptions();
+    }
+
+    // Firma kutusu (Pozisyon'un yanında) yalnızca onaylı bir mimar profili sahiplenilmişse VE o
+    // mimar en az bir firmada office_founders ile "kurucu/ortak" olarak bağlıysa gösterilir (bkz.
+    // kullanıcı isteği: "firmasını ortağı olduğu başka bir firmayla değiştirebilsin"). Seçenekler
+    // GET /api/architect/:key'in zaten döndürdüğü `offices` dizisinden (mimar-detay'daki "kurucu/
+    // ortak olduğu firmalar" listesiyle AYNI kaynak) gelir — rastgele bir firma adı yazılamaz,
+    // yalnızca gerçekten bağlı olunan firmalardan biri seçilebilir (bkz. src/routes/architect.js
+    // #handleArchitectPrimaryOfficeRoute).
+    async function loadFirmaOptions() {
+      const field = document.getElementById('am-edit-office-field');
+      const select = document.getElementById('am-edit-office');
+      try {
+        const claimsRes = await fetch('/api/claims/mine');
+        const claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
+        const archClaim = claims.find(c => c.profile_type === 'architect' && c.status === 'approved');
+        if (!archClaim) { field.style.display = 'none'; return; }
+        const archRes = await fetch(`/api/architect/${encodeURIComponent(archClaim.profile_key)}`);
+        if (!archRes.ok) { field.style.display = 'none'; return; }
+        const data = await archRes.json();
+        const offices = (data.offices || []).filter(o => !o.unregistered);
+        if (!offices.length) { field.style.display = 'none'; return; }
+        field.style.display = '';
+        select.innerHTML = offices.map(o => `<option value="${escapeAttr(o.name)}">${escapeHtml(o.name)}</option>`).join('');
+        select.value = (data.item && data.item.office) || offices[0].name;
+      } catch {
+        field.style.display = 'none';
+      }
     }
 
     on('am-dash-edit-btn', 'click', () => {
@@ -774,6 +801,16 @@ const AuthModal = (function () {
         }),
       });
       if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
+
+      const officeField = document.getElementById('am-edit-office-field');
+      if (officeField.style.display !== 'none') {
+        const officeRes = await fetch('/api/profile/office', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ office: document.getElementById('am-edit-office').value }),
+        });
+        if (!officeRes.ok) { msg.textContent = 'Firma güncellenemedi.'; return; }
+      }
+
       msg.textContent = 'Kaydedildi.';
       setTimeout(() => msg.textContent = '', 2000);
       await loadUser();
@@ -1007,13 +1044,6 @@ const AuthModal = (function () {
       document.querySelectorAll('#am-rated-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
       renderRated();
     });
-    on('am-profile-info-tabs', 'click', (e) => {
-      const btn = e.target.closest('.saved-filter-btn');
-      if (!btn) return;
-      document.querySelectorAll('#am-profile-info-tabs .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      document.getElementById('am-profile-tab-facts').style.display = btn.dataset.tab === 'facts' ? '' : 'none';
-      document.getElementById('am-profile-tab-claims').style.display = btn.dataset.tab === 'claims' ? '' : 'none';
-    });
     on('am-submissions-filter', 'click', (e) => {
       const btn = e.target.closest('.submissions-filter-btn');
       if (!btn) return;
@@ -1114,13 +1144,13 @@ const AuthModal = (function () {
       }
     });
 
+    // Artık ayrı bir sekme değil, Profil Bilgileri kutusunun son satırları olarak doğrudan
+    // gösterilir (bkz. kullanıcı isteği: "başlık altındaki butonları kaldır... son satırlarına yaz").
     async function loadMyClaims() {
       const res = await fetch('/api/claims/mine');
       const data = res.ok ? await res.json() : { items: [] };
       const items = data.items || [];
-      const tabBtn = document.getElementById('am-profile-claims-tab-btn');
-      if (!items.length) { tabBtn.style.display = 'none'; return; }
-      tabBtn.style.display = '';
+      if (!items.length) { document.getElementById('am-claims-mine-list').innerHTML = ''; return; }
       document.getElementById('am-claims-mine-list').innerHTML = items.map(c => `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>

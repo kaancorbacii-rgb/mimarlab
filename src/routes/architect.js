@@ -1,8 +1,10 @@
-import { errorJson } from '../lib/http.js';
+import { json, errorJson, readJson } from '../lib/http.js';
+import { getSessionUser } from '../lib/auth.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
+import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -351,4 +353,43 @@ async function buildArchitectPayload(env, key) {
     nextItem: adjacent.nextItem,
     hidden: !!a.hidden_at,
   };
+}
+
+// PATCH /api/profile/office — js/components/auth-modal.js "Profili Düzenle" içindeki Firma kutusu
+// (Hesabım artık site-wide bir popup, hesabim.html değil). Kullanıcının
+// sahiplendiği (approved) mimar profilinin GÖRÜNEN firmasını (architects.office_id) değiştirir —
+// ama yalnızca office_founders'ta zaten "ortak/kurucu" olarak bağlı olduğu firmalar arasında (bkz.
+// buildArchitectPayload'daki AYNI office_founders sorgusu, mimar-detay sayfasındaki "kurucu/ortak
+// olduğu firmalar" listesiyle birebir aynı kaynak). Rastgele bir firma adı YAZILAMAZ, yalnızca zaten
+// bağlı olduğu firmalardan biri seçilebilir ya da boş bırakılıp firma bağlantısı kaldırılabilir.
+export async function handleArchitectPrimaryOfficeRoute(request, env, url) {
+  if (url.pathname !== '/api/profile/office' || request.method !== 'PATCH') return errorJson('Bulunamadı', 404);
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  const claim = await env.DB.prepare(
+    `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND status = 'approved' LIMIT 1`
+  ).bind(user.id).first();
+  if (!claim) return errorJson('Önce bir mimar profili sahiplenmen gerekiyor.', 403);
+
+  const architect = await findArchitect(env, claim.profile_key);
+  if (!architect) return errorJson('Mimar profili bulunamadı.', 404);
+
+  const body = await readJson(request);
+  const officeName = (body.office || '').trim();
+
+  if (!officeName) {
+    await env.DB.prepare(`UPDATE architects SET office_id = NULL, updated_at = datetime('now') WHERE id = ?`).bind(architect.id).run();
+  } else {
+    const officeRow = await env.DB.prepare(
+      `SELECT o.id FROM office_founders f JOIN offices o ON o.id = f.office_id
+       WHERE f.architect_id = ? AND o.name = ? AND o.deleted_at IS NULL LIMIT 1`
+    ).bind(architect.id, officeName).first();
+    if (!officeRow) return errorJson('Yalnızca ortağı olduğun bir firmayı seçebilirsin.');
+    await env.DB.prepare(`UPDATE architects SET office_id = ?, updated_at = datetime('now') WHERE id = ?`).bind(officeRow.id, architect.id).run();
+  }
+
+  await purgeSsrDetailCache('architect', architect.slug);
+  if (architect.legacy_key && architect.legacy_key !== architect.slug) await purgeSsrDetailCache('architect', architect.legacy_key);
+  return json({ ok: true });
 }
