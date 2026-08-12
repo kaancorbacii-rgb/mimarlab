@@ -1358,12 +1358,13 @@ const AuthModal = (function () {
     else if (HREF_VIEW_RE.forgot.test(href)) view = 'forgot';
     if (!view) return;
     e.preventDefault();
-    // "Giriş Yap" tıklandığında oturum zaten açıksa (ör. auth-nav.js'in header'ı henüz güncellemediği
-    // kısa an, bookmark/eski sekme ya da footer'daki statik link) Giriş görünümü yerine doğrudan
-    // Hesabım'a gidilir (bkz. kullanıcı isteği). loadUser() zaten aynı /api/auth/me isteğini attığından
-    // (bkz. mountAccount()#loadUser) bu, view==='account' olduğunda ekstra bir round-trip DEĞİL.
-    if (view === 'login') {
-      fetch('/api/auth/me').then(r => (r.ok ? 'account' : 'login')).catch(() => 'login').then(resolvedView => {
+    // "Giriş Yap" veya "Üye Ol" tıklandığında oturum zaten açıksa (ör. auth-nav.js'in header'ı henüz
+    // güncellemediği kısa an, bookmark/eski sekme ya da footer'daki statik link) o görünüm yerine
+    // doğrudan Hesabım'a gidilir (bkz. kullanıcı isteği). loadUser() zaten aynı /api/auth/me isteğini
+    // attığından (bkz. mountAccount()#loadUser) bu, view==='account' olduğunda ekstra bir round-trip DEĞİL.
+    if (view === 'login' || view === 'signup') {
+      const fallbackView = view;
+      fetch('/api/auth/me').then(r => (r.ok ? 'account' : fallbackView)).catch(() => fallbackView).then(resolvedView => {
         if (isOpen()) swap(resolvedView); else open(resolvedView, { triggerEl: a });
       });
       return;
