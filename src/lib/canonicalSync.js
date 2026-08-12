@@ -198,6 +198,23 @@ export async function blacklistLegacyKey(env, userId, type, key) {
   ).bind(newId(), type, key, userId, Date.now()).run();
 }
 
+// Bir taslak satır SİLİNMEDEN, yalnızca DÜZENLENİRKEN (galeriden bir görsel çıkarıldı, ya da
+// photo_url/logo_url üzerine yeni bir yükleme ile değiştirildi) artık hiçbir alandan referans
+// edilmeyen ESKİ R2 nesnelerini temizler — bkz. kullanıcı isteği: "Admin bir görseli ... canlı
+// siteden sildiği zaman ... D1 sisteminde de içerik kalıcı olarak silinsin". GERÇEK BULGU: bu
+// temizlik önceden HİÇ yapılmıyordu (yalnızca tam satır silme R2'ye dokunuyordu, bkz.
+// hardDeleteCanonicalRow) — bir galeri fotoğrafını kaldırıp kaydetmek ya da bir mimar fotoğrafını/
+// firma logosunu değiştirmek eski R2 nesnesini sonsuza kadar erişilemez ama silinmemiş bırakıyordu.
+export async function cleanupReplacedR2Media(env, type, oldRow, newRow) {
+  const fields = MEDIA_IMAGE_FIELDS_BY_TYPE[type];
+  if (!fields || !oldRow || !newRow) return;
+  const oldKeys = collectR2MediaKeys(oldRow, fields);
+  if (!oldKeys.length) return;
+  const newKeys = new Set(collectR2MediaKeys(newRow, fields));
+  const removedKeys = oldKeys.filter(key => !newKeys.has(key));
+  if (removedKeys.length) await deleteR2MediaKeys(env, removedKeys);
+}
+
 // Bir canonical satırı GERÇEKTEN (hard delete) D1'den siler — bkz. kullanıcı isteği: "Admin
 // panelinden sil dediğimde kayıt veritabanından TAMAMEN silinsin, sadece işaretlenmesin".
 // Sırasıyla: (1) satıra bağlı R2 görsellerini temizler, (2) FK ile bu satıra referans veren
@@ -712,20 +729,29 @@ export async function hideCanonicalForUnapprovedSubmission(env, typeKey, row) {
 // DELETE) eşleşen canonical satırı da bulup hard-delete eder (bkz. hardDeleteCanonicalRow) — aksi
 // halde canonical satır (bu senkron mekanizmasıyla zaten oluşmuş olabilir) sitede "hayalet" olarak
 // görünmeye devam ederdi.
+//
+// GERÇEK BULGU (kullanıcı isteği: "Admin bir ... mimarı veya firmayı canlı siteden sildiği zaman
+// ... D1 sisteminde de içerik kalıcı olarak silinsin"): claimed_slug/claimed_profile_key dolu
+// (statik kökenli, sahiplenilmiş) satırlarda burası önceden no-op'tu — "legacyContent.js'in Arşiv
+// sekmesi zaten yönetiyor" varsayımıyla. Ama admin.html'in "İçerikler" sekmesindeki Yayından Kaldır
+// butonu da (görünüşte AYNI silme işlemi) claimed satırlar için buraya düşüyor: taslak satır +
+// yorum/puan/rozet/talep geçmişi kalıcı silinirken canonical satıra (ve dolayısıyla canlı sayfaya)
+// hiç dokunulmuyor, üstelik taslağın kendi R2 görselleri (canonical satırın hâlâ işaret ettiği AYNI
+// URL'ler) siliniyordu — sonuç: kayıt canlıda kırık görsellerle kalmaya devam ediyordu.
+// runProjectAction/runContentAction (src/routes/legacyContent.js) claimed satırlarda AYNI şekilde
+// davranır (claimed key ile canonical satırı bulup hardDeleteCanonicalRow çağırır) — burası da artık
+// o desenle eşleşiyor.
 export async function markCanonicalDeletedForSubmission(env, typeKey, row, userId) {
   if (!row) return;
   const marker = submissionMarker(row.id);
   const claimedKey = typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key;
   const table = { architects: 'architects', offices: 'offices', projects: 'projects' }[typeKey];
   if (table) {
-    if (claimedKey) {
-      // Claim edilmiş bir statik/canonical kaydın SİLİNMESİ, o kaydın kendisini değil yalnızca bu
-      // gönderi/taslağı hedefler — legacyContent.js'in kendi hide/delete akışı canonical satırı
-      // ayrıca yönetir, burada dokunmuyoruz.
-      return;
-    }
-    const canonRow = await env.DB.prepare(`SELECT * FROM ${table} WHERE legacy_key = ?`).bind(marker).first();
+    const canonRow = claimedKey
+      ? await findCanonicalRowByNaturalKey(env, typeKey, claimedKey)
+      : await env.DB.prepare(`SELECT * FROM ${table} WHERE legacy_key = ?`).bind(marker).first();
     if (canonRow) await hardDeleteCanonicalRow(env, typeKey, canonRow, userId);
+    else if (claimedKey) await blacklistLegacyKey(env, userId, typeKey, claimedKey);
     return;
   }
   // products/materials

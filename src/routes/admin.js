@@ -8,7 +8,7 @@ import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
-import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
+import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, cleanupReplacedR2Media, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 
@@ -257,6 +257,20 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       values.push(Date.now());
       values.push(id);
       await env.DB.prepare(`UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+
+      // Galeriden çıkarılan/üzerine yeni yükleme ile değiştirilen görsellerin eski R2 nesnelerini
+      // temizle (bkz. src/lib/canonicalSync.js#cleanupReplacedR2Media, src/routes/submissions.js#
+      // updateOwnSubmission'daki AYNI çağrı) — PATCH kısmi olabildiğinden (yalnızca body'de geçen
+      // alanlar güncellenir), karşılaştırma için existing üzerine yalnızca body'de geçen alanları
+      // uygulayan bir "sonraki durum" satırı kurulur.
+      if (CANONICAL_TYPES.has(typeKey)) {
+        const mergedRow = { ...existing };
+        for (const field of config.fields) {
+          if (!(field in body)) continue;
+          mergedRow[field] = config.arrayFields.includes(field) ? JSON.stringify(Array.isArray(body[field]) ? body[field] : []) : body[field];
+        }
+        await cleanupReplacedR2Media(env, typeKey, existing, mergedRow);
+      }
 
       // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle
       // (bkz. src/lib/officeFounderCascade.js — src/routes/submissions.js#updateOwnSubmission'daki

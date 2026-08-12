@@ -7,7 +7,7 @@ import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
-import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName } from '../lib/canonicalSync.js';
+import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
@@ -369,6 +369,11 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   await env.DB.prepare(
     `UPDATE ${config.table} SET ${updates.join(', ')} WHERE id = ?`
   ).bind(...values).run();
+
+  // Galeriden çıkarılan/üzerine yeni yükleme ile değiştirilen görsellerin eski R2 nesnelerini
+  // temizle (bkz. src/lib/canonicalSync.js#cleanupReplacedR2Media) — D1 yazısı BAŞARILI olduktan
+  // SONRA çalışır, yazı başarısız olursa (yukarıdaki .run() fırlatırsa) buraya hiç ulaşılmaz.
+  if (CANONICAL_TYPES.has(typeKey)) await cleanupReplacedR2Media(env, typeKey, existing, row);
 
   // Kurucular listesinden çıkarılan bir isim varsa, o kişinin kendi office alanını temizle (bkz.
   // src/lib/officeFounderCascade.js — gerçek "kurucu/ortak" görünürlüğü bu alandan gelir, founders
