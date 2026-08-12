@@ -42,14 +42,26 @@ export function isHttps(request) {
   return new URL(request.url).protocol === 'https:';
 }
 
-export const SESSION_COOKIE = 'mimarlab_session';
+// gerçek bulgu (denetim raporu): __Host- öneki tarayıcının KENDİSİNİN zorunlu kıldığı ekstra bir
+// garanti — bu önekle ayarlanan bir çerezi tarayıcı yalnızca Secure + Path=/ + Domain YOK ise kabul
+// eder (bkz. RFC 6265bis), yani bir alt alan adı ya da düz HTTP üzerinden bu çerez ASLA
+// ayarlanamaz/ele geçirilemez (defense-in-depth, oturum çalınması riskini azaltan ekstra bir katman
+// — mevcut HttpOnly/SameSite=Lax/koşullu Secure zaten yeterliydi, bu yalnızca bir sıkılaştırma).
+// __Host- SADECE Secure ile birlikte kullanılabilir (aksi halde tarayıcı çerezi TAMAMEN reddeder) —
+// bu yüzden yerel `wrangler dev` (http://, bkz. isHttps) üzerinde hâlâ eski düz isim kullanılır,
+// aksi halde yerel girişte session cookie hiç set edilmez, giriş sessizce çalışmaz olurdu. İsim
+// isteğe göre değiştiğinden (SESSION_COOKIE artık sabit bir string DEĞİL) hem yazan hem OKUYAN
+// tarafın AYNI request için sessionCookieName(request) çağırması gerekir — bkz. tüm çağıran noktalar.
+export function sessionCookieName(request) {
+  return isHttps(request) ? '__Host-mimarlab_session' : 'mimarlab_session';
+}
 
 export function sessionCookieHeader(token, request, maxAgeSeconds) {
   const secure = isHttps(request) ? '; Secure' : '';
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`;
+  return `${sessionCookieName(request)}=${encodeURIComponent(token)}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`;
 }
 
 export function clearSessionCookieHeader(request) {
   const secure = isHttps(request) ? '; Secure' : '';
-  return `${SESSION_COOKIE}=; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=0`;
+  return `${sessionCookieName(request)}=; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=0`;
 }

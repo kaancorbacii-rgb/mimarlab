@@ -95,3 +95,15 @@ export async function releaseR2Reservation(env, reservedBytes) {
      WHERE id = 'singleton'`
   ).bind(reservedBytes, month, Date.now()).run();
 }
+
+// gerçek bulgu (denetim raporu): bir görsel R2'den silindiğinde (bkz. canonicalSync.js#deleteR2MediaKeys)
+// total_bytes hiç düşürülmüyordu — sayaç yalnızca artıyor, gerçek kullanımdan sürekli uzaklaşıp
+// yükseliyor, bu da olması gerekenden ÇOK ÖNCE yeni yüklemeleri (yanlışlıkla) bloke edebiliyordu.
+// ops_count'a dokunulmaz: R2'de DeleteObject ücretsizdir/Class A-B sayaçlarına dahil değildir, bkz.
+// reserveR2Usage'ın yalnızca PUT rezervasyonunda ops_count artırması.
+export async function releaseR2StorageBytes(env, freedBytes) {
+  if (!freedBytes) return;
+  await env.DB.prepare(
+    `UPDATE r2_usage SET total_bytes = MAX(total_bytes - ?, 0), updated_at = ? WHERE id = 'singleton'`
+  ).bind(freedBytes, Date.now()).run();
+}

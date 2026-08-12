@@ -16,11 +16,26 @@ export async function hashPassword(password) {
   return `${toHex(salt)}:${toHex(derived)}`;
 }
 
+// gerçek bulgu (denetim raporu): `===` ile karşılaştırma sabit-zamanlı DEĞİL — JS motorları string
+// eşitliğini genelde ilk farklı karakterde durur, bu yüzden teorik olarak doğru hash'e ne kadar
+// "yakın" bir tahminin süresi ölçülerek sızdırılabilir. Pratikte PBKDF2'nin kendi maliyeti (100k
+// iterasyon, milisaniyeler) bu farkı ağ üzerinden ölçülemez ölçüde gürültüye boğar, ama en az
+// maliyetli yerde doğru olanı yapmak için burası tüm karakterleri HER ZAMAN gezen, erken çıkışsız
+// bir karşılaştırmaya çevrildi.
+function constantTimeEqual(a, b) {
+  const len = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < len; i++) {
+    diff |= (i < a.length ? a.charCodeAt(i) : 0) ^ (i < b.length ? b.charCodeAt(i) : 0);
+  }
+  return diff === 0;
+}
+
 export async function verifyPassword(password, stored) {
   const [saltHex, hashHex] = (stored || '').split(':');
   if (!saltHex || !hashHex) return false;
   const derived = await deriveBits(password, fromHex(saltHex));
-  return toHex(derived) === hashHex;
+  return constantTimeEqual(toHex(derived), hashHex);
 }
 
 async function deriveBits(password, salt) {

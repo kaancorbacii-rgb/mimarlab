@@ -20,6 +20,7 @@ import { newId } from './crypto.js';
 import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
+import { releaseR2StorageBytes } from './r2Quota.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
@@ -151,10 +152,23 @@ export function collectR2MediaKeys(row, { arrayFields = [], stringFields = [] } 
 
 // R2 silme hatası (ör. zaten yok) satırın kendisinin silinmesini ENGELLEMEMELİ — kota/temizlik
 // ikincil bir işlem, asıl kayıt silme işlemi her koşulda tamamlanmalı.
+//
+// gerçek bulgu (denetim raporu): silinen görsellerin boyutu r2_usage.total_bytes'tan hiç
+// düşürülmüyordu (bkz. r2Quota.js#releaseR2StorageBytes) — sayaç yalnızca artıyor, zamanla gerçek
+// R2 kullanımından uzaklaşıp yeni yüklemeleri erkenden bloke edebiliyordu. Silmeden ÖNCE head() ile
+// gerçek boyut okunur (rezervasyondaki file.size TAHMİNİ değil, R2'nin kendi kayıtlı boyutu — WebP
+// optimizasyonundan sonraki GERÇEK yazılan boyut budur); head() de silme de ayrı ayrı best-effort'tur,
+// biri başarısız olsa da döngü/satır silme işlemi devam eder.
 export async function deleteR2MediaKeys(env, keys) {
+  let freedBytes = 0;
   for (const key of keys) {
+    try {
+      const obj = await env.UPLOADS.head(key);
+      if (obj) freedBytes += obj.size;
+    } catch { /* yoksay */ }
     try { await env.UPLOADS.delete(key); } catch { /* yoksay */ }
   }
+  if (freedBytes) await releaseR2StorageBytes(env, freedBytes);
 }
 
 // Aynı kolon adları (images/photo_url/logo_url) *_submissions taslak tablolarında da kullanılır

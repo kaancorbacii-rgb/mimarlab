@@ -1,4 +1,4 @@
-import { parseCookies, SESSION_COOKIE } from './http.js';
+import { parseCookies, sessionCookieName } from './http.js';
 import { randomToken, sha256Hex } from './crypto.js';
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 gün
@@ -21,7 +21,7 @@ export async function destroySession(env, token) {
 
 export async function getSessionUser(request, env) {
   const cookies = parseCookies(request);
-  const token = cookies[SESSION_COOKIE];
+  const token = cookies[sessionCookieName(request)];
   if (!token) return null;
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(

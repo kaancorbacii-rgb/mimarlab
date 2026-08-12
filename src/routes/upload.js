@@ -18,6 +18,21 @@ const EXT_BY_MIME = {
   'image/gif': 'gif',
 };
 
+// gerçek bulgu (denetim raporu): eskiden yalnızca istemcinin gönderdiği (kolayca sahtelenebilen)
+// Content-Type başlığına güveniliyordu — bir dosyanın GERÇEK baytları hiç kontrol edilmiyordu. Bu
+// tam olarak miras/*.webp'nin yıllar önce yanlış etiketlenmesine (bkz. proje geçmişi) yol açan
+// sınıftaki bir açık: keyfi bir dosya, izin verilen bir Content-Type ile R2'ye ve
+// imageOptimize.js'e kadar sorunsuz ilerleyebilirdi. Yalnızca ilk 12 bayt (en uzun imza olan
+// WEBP'nin RIFF....WEBP deseni için yeterli) her formatın dosya imzasıyla (magic bytes)
+// karşılaştırılır.
+function sniffImageMime(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 && bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) return 'image/png';
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38 && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61) return 'image/gif';
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
+  return null;
+}
+
 export async function handleUploadRoute(request, env) {
   if (request.method !== 'POST') return errorJson('Bulunamadı', 404);
 
@@ -47,6 +62,13 @@ export async function handleUploadRoute(request, env) {
   const maxBytes = CONTEXT_MAX_BYTES[form.get('context')] || MAX_UPLOAD_BYTES;
   if (file.size > maxBytes) {
     return errorJson(`Görsel en fazla ${Math.round(maxBytes / (1024 * 1024))} MB olabilir.`);
+  }
+
+  // file.slice() orijinal dosya akışını TÜKETMEZ (bkz. aşağıdaki optimizeUploadedImage'in AYNI
+  // file nesnesi üzerinde file.stream() çağırması) — yalnızca ilk 12 baytı ayrı bir görünüm olarak okur.
+  const headerBytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (sniffImageMime(headerBytes) !== file.type) {
+    return errorJson('Dosya içeriği belirtilen görsel formatıyla uyuşmuyor.');
   }
 
   // file.size ÜST SINIR olarak rezerve edilir (bkz. r2Quota.js#reserveR2Usage) — atomik olduğundan

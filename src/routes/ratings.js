@@ -5,6 +5,7 @@ import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { findProductsByKeys } from './product.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
+import { invalidatePublicCache } from '../lib/publicCache.js';
 
 const TARGET_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
 
@@ -81,6 +82,12 @@ async function upsertRating(request, env) {
   }
 
   const { average, count } = await summarize(env, targetType, targetId);
+  // gerçek bulgu (denetim raporu): puanlama yazımı invalidatePublicCache() hiç tetiklemiyordu —
+  // proje/mimar/firma/ürün liste uçlarının "Puan" facet/sıralaması listFingerprint'in izlemediği
+  // (yalnızca ana tablonun updated_at'ini izler, bkz. cachedPublicJson yorumu) bu değişikliği hiç
+  // görmüyor, en kötü durumda POOL_CACHE_TTL_SECONDS/s-maxage (5dk) kadar bayat kalabiliyordu. Diğer
+  // tüm admin/onay/gizleme yazma yollarıyla AYNI global temizlik burada da uygulanır.
+  await invalidatePublicCache(env);
   return json({ average, count, mine: stars });
 }
 

@@ -172,8 +172,10 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
     // caches.default hâlâ "taze" sayıp bayat içeriği dönmeye devam eder (gerçek bulgu: bir projenin
     // kapak görseli D1'de güncellenmiş olsa bile /api/projects bu PoP'ta hâlâ eski sırayı dönüyordu —
     // bkz. kullanıcı isteği "SANKAI kapak görseli senkron hatası"). listFingerprint verilen uçlarda
-    // (bugün yalnızca /api/projects) bu yüzden HIT yolunda da ucuz parmak izi sorgusuyla gerçek
-    // tazelik doğrulanır — fingerprint uyuşmuyorsa bu girdi bayat sayılıp MISS gibi devam edilir.
+    // (/api/projects, /api/architects, /api/offices, /api/products — dördü de kendi listFingerprint
+    // fonksiyonlarını geçirir, bkz. project.js/architect.js/office.js/product.js) bu yüzden HIT
+    // yolunda da ucuz parmak izi sorgusuyla gerçek tazelik doğrulanır — fingerprint uyuşmuyorsa bu
+    // girdi bayat sayılıp MISS gibi devam edilir.
     const cached = await caches.default.match(cacheKey);
     if (cached) {
       const cachedEtag = cached.headers.get('ETag');

@@ -4,12 +4,14 @@
 // global replikasyon sağlar, bkz. src/lib/ssrCache.js#purgeSsrDetailCache'teki AYNI "caches.default
 // PoP-başınadır" gerekçesi).
 //
-// ÖNEMLİ KAPSAM NOTU: yalnızca 'projects' ve 'products' için dolduruluyor — bunlar kullanıcının
-// verdiği örneklerle ("Mimari (461)", "Mobilya (42)") birebir örtüşen, sayfalarında gerçek bir
-// GENEL (filtresiz) kategori facet'i olan iki tip. 'architects' (mimar.html'in "Kurucu/Çalışan"
-// pozisyon sayacı ve OFİSİN ödüllerinden türetilen bambaşka bir sayaç) ve 'offices' (firma.html'de
-// hiç per-option sayaç YOK, yalnızca toplam sonuç sayısı) bu düz list_type/facet_key/facet_value
-// modeline doğal olarak oturmuyor — bu iki tip bu turda kapsam dışı bırakıldı.
+// ÖNEMLİ KAPSAM NOTU: yalnızca 'projects' için dolduruluyor — kullanıcının verdiği örneklerle
+// ("Mimari (461)") birebir örtüşen, sayfasında gerçek bir GENEL (filtresiz) kategori facet'i olan
+// tip. 'architects' (mimar.html'in "Kurucu/Çalışan" pozisyon sayacı ve OFİSİN ödüllerinden türetilen
+// bambaşka bir sayaç) ve 'offices' (firma.html'de hiç per-option sayaç YOK, yalnızca toplam sonuç
+// sayısı) bu düz list_type/facet_key/facet_value modeline doğal olarak oturmuyor — bu iki tip
+// kapsam dışı bırakıldı. 'products' bir süre dolduruluyordu ama HİÇBİR okuyucusu yoktu (urun.html
+// kendi facet sayaçlarını client-side, çekilen havuzdan hesaplıyor) — gerçek bulgu (denetim raporu):
+// her ürün/malzeme yazımında D1 DELETE+INSERT + KV temizliği olarak boşuna çalışıyordu, kaldırıldı.
 //
 // bumpFacetCounts() "gerçek delta" (belirli bir yazma işleminin ETKİLEDİĞİ tek tek facet_value'ları
 // +1/-1 güncelleme) yerine BİLEREK tam yeniden hesaplama yapar: mevcut veri ölçeğinde (yüzlerce-
@@ -52,33 +54,17 @@ async function recomputeProjectFacets(env) {
   await replaceFacetCounts(env, 'projects', groups);
 }
 
-async function recomputeProductFacets(env) {
-  const { results } = await env.DB.prepare(`SELECT category, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all();
-  const category = {};
-  const brand = {};
-  for (const row of results) {
-    if (row.category) category[row.category] = (category[row.category] || 0) + 1;
-    if (row.brand_name_raw) brand[row.brand_name_raw] = (brand[row.brand_name_raw] || 0) + 1;
-  }
-  await replaceFacetCounts(env, 'products', { category, brand });
-}
-
 // Bir yazma işleminden (onay/silme/güncelleme/gizleme) sonra çağrılır — bkz. src/routes/admin.js,
-// src/routes/legacyContent.js, src/lib/officeFounderCascade.js çağrı noktaları. listType 'materials'
-// gönderilirse de 'products' olarak ele alınır (urun.html'in kendi client-side birleştirmesiyle
-// AYNI, bkz. urun.html#FILTER_GROUPS — ikisi tek bir listede gösteriliyor).
+// src/routes/legacyContent.js, src/lib/officeFounderCascade.js çağrı noktaları. listType
+// 'products'/'materials' (dosya başı kapsam notu — okuyucusu yok) ve 'architects'/'offices' için
+// no-op'tur.
 export async function bumpFacetCounts(env, listType) {
-  const effective = listType === 'materials' ? 'products' : listType;
-  if (effective === 'projects') return recomputeProjectFacets(env);
-  if (effective === 'products') return recomputeProductFacets(env);
-  // architects/offices: bkz. dosya başı kapsam notu — no-op.
+  if (listType === 'projects') return recomputeProjectFacets(env);
 }
 
 // src/routes/project.js#handleProjectFiltersRoute'un "hiçbir filtre aktif değil" hızlı yolu için
-// KV/facet_counts'tan anlık okur (bkz. o dosyadaki çağrı noktası). Standalone GET /api/facets/:listType
-// ucu (proje.html/urun.html'in kullanmadığı, ölü kod) kaldırıldı — bu fonksiyon artık yalnızca
-// listType='projects' ile çağrılıyor; 'products' dalı hâlâ bumpFacetCounts ile yazılıyor ama
-// okuyan kalmadı (ayrı temizlik konusu, bkz. kullanıcıya bildirilen bulgu).
+// KV/facet_counts'tan anlık okur (bkz. o dosyadaki çağrı noktası) — yalnızca listType='projects'
+// ile çağrılır.
 export async function getCachedFacetCounts(env, listType) {
   if (env.FACET_CACHE) {
     const cached = await env.FACET_CACHE.get(kvKey(listType), 'json');

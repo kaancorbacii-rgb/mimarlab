@@ -1,4 +1,4 @@
-import { json, errorJson, readJson, sessionCookieHeader, clearSessionCookieHeader, parseCookies, SESSION_COOKIE } from '../lib/http.js';
+import { json, errorJson, readJson, sessionCookieHeader, clearSessionCookieHeader, parseCookies, sessionCookieName } from '../lib/http.js';
 import { hashPassword, verifyPassword, newId, randomToken, sha256Hex } from '../lib/crypto.js';
 import { createSession, destroySession, getSessionUser, publicUser } from '../lib/auth.js';
 import { isSafeUrlValue } from '../lib/submissionTypes.js';
@@ -211,7 +211,7 @@ async function login(request, env) {
 
 async function logout(request, env) {
   const cookies = parseCookies(request);
-  await destroySession(env, cookies[SESSION_COOKIE]);
+  await destroySession(env, cookies[sessionCookieName(request)]);
   return json({ ok: true }, 200, { 'Set-Cookie': clearSessionCookieHeader(request) });
 }
 
@@ -250,7 +250,7 @@ async function changePassword(request, env) {
   // saldırganın oturumu, meşru kullanıcı şifresini değiştirdikten SONRA bile geçerli kalmaya devam
   // ederdi. resetPassword'ün aksine burada isteği yapan kendi oturumu (mevcut token) hariç tutulur —
   // kullanıcı kendi şifresini değiştirdiğinde beklenmedik şekilde çıkışa zorlanmamalı.
-  const currentToken = parseCookies(request)[SESSION_COOKIE];
+  const currentToken = parseCookies(request)[sessionCookieName(request)];
   const currentTokenHash = currentToken ? await sha256Hex(currentToken) : null;
   if (currentTokenHash) {
     await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').bind(user.id, currentTokenHash).run();
