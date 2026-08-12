@@ -1,5 +1,6 @@
 import { json } from './http.js';
 import { getSessionUser } from './auth.js';
+import { reserveKvWrite } from './kvQuota.js';
 
 // Admin oturumu taşıyan istekler (mimarlab_session çerezi + role==='admin') hiçbir zaman
 // önbelleklenmez — admin panelinden yapılan bir değişikliğin aynı oturumda anında görünmesi için
@@ -268,7 +269,14 @@ export async function getCachedPool(env, kind, fetchPool) {
   // withSingleFlight — bkz. dosya başı yorumu: KV MISS anında AYNI isolate'e düşen eşzamanlı
   // istekler pahalı fetchPool()'u tek seferde paylaşır.
   const pool = await withSingleFlight(`pool:${kind}`, fetchPool);
-  if (env.FACET_CACHE) await env.FACET_CACHE.put(poolCacheKey(kind), JSON.stringify(pool), { expirationTtl: POOL_CACHE_TTL_SECONDS });
+  // gerçek bulgu (denetim raporu): R2 için var olan r2Quota.js'e benzer bir KV yazma-kotası koruması
+  // yoktu — 5 havuz türü her PoP'ta bağımsız MISS/yeniden-yazma yapabildiğinden ("read-your-own-write"
+  // PoP-başına), ücretsiz kotanın (günde 1000 yazma) sanılandan önce zorlanması riski vardı (bkz.
+  // src/lib/kvQuota.js). reserveKvWrite false dönerse yazma sessizce atlanır — bir sonraki istek
+  // yalnızca tekrar D1'den okur, hiçbir kullanıcı işlemi bozulmaz.
+  if (env.FACET_CACHE && await reserveKvWrite(env)) {
+    await env.FACET_CACHE.put(poolCacheKey(kind), JSON.stringify(pool), { expirationTtl: POOL_CACHE_TTL_SECONDS });
+  }
   return pool;
 }
 

@@ -159,14 +159,19 @@ export function collectR2MediaKeys(row, { arrayFields = [], stringFields = [] } 
 // gerçek boyut okunur (rezervasyondaki file.size TAHMİNİ değil, R2'nin kendi kayıtlı boyutu — WebP
 // optimizasyonundan sonraki GERÇEK yazılan boyut budur); head() de silme de ayrı ayrı best-effort'tur,
 // biri başarısız olsa da döngü/satır silme işlemi devam eder.
+// gerçek bulgu (denetim raporu): önceki sürüm her anahtar için AYRI AYRI ve SIRALI head()+delete()
+// çağırıyordu (20 görsellik bir galeri = 40 sıralı R2 subrequest'i) — Workers'ın free tier istek
+// başına 50 subrequest limitine, D1 cascade + facet recompute + cache invalidation'ın AYNI istekte
+// eklediği subrequest'lerle birlikte gerçekçi biçimde yaklaşıyor/aşıyordu. head() çağrıları artık
+// paralel (Promise.all), delete() ise R2Bucket'ın tek çağrıda 1000 anahtara kadar kabul eden toplu
+// silme API'siyle (chunk'lanarak) tek subrequest'e indirgeniyor.
 export async function deleteR2MediaKeys(env, keys) {
+  if (!keys.length) return;
   let freedBytes = 0;
-  for (const key of keys) {
-    try {
-      const obj = await env.UPLOADS.head(key);
-      if (obj) freedBytes += obj.size;
-    } catch { /* yoksay */ }
-    try { await env.UPLOADS.delete(key); } catch { /* yoksay */ }
+  const heads = await Promise.all(keys.map(key => env.UPLOADS.head(key).catch(() => null)));
+  for (const obj of heads) { if (obj) freedBytes += obj.size; }
+  for (let i = 0; i < keys.length; i += 1000) {
+    try { await env.UPLOADS.delete(keys.slice(i, i + 1000)); } catch { /* yoksay */ }
   }
   if (freedBytes) await releaseR2StorageBytes(env, freedBytes);
 }
@@ -254,6 +259,7 @@ export async function hardDeleteCanonicalRow(env, type, row, userId) {
 
   await env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(row.id).run();
   await blacklistLegacyKey(env, userId, type, canonicalKeyFor(type, row));
+  if (type === 'architects' || type === 'offices') await pruneConflictsReferencingId(env, row.id);
 }
 
 // bkz. src/routes/legacyContent.js#LEGACY_TYPES.key — admin panelinin "içerik anahtarı" (mimar/ofis
@@ -304,6 +310,25 @@ async function logConflict(env, entity_type, conflict_key, context, candidates) 
   await env.DB.prepare(
     `INSERT INTO migration_name_conflicts (entity_type, conflict_key, context, candidates, status) VALUES (?, ?, ?, ?, 'pending')`
   ).bind(entity_type, conflict_key, context, JSON.stringify(candidates.map(r => ({ id: r.id, name: r.name })))).run();
+}
+
+// gerçek bulgu (denetim raporu): logConflict tek seferlik migrate-to-id-first.js scripti DEĞİL, canlı
+// onay akışında da çalışıyor (bkz. yukarıdaki çağrı noktaları) — bir mimar/ofis daha sonra kalıcı
+// olarak silinirse (hardDeleteCanonicalRow), onu ADAY olarak taşıyan bekleyen çakışma satırları hiç
+// güncellenmiyordu; admin panelindeki "Migrasyon Çakışmaları" listesi zamanla artık var olmayan bir
+// id'ye işaret eden ölü adaylarla doluyordu (seçilirse hiçbir yere bağlanmayan resolvedTargetId).
+// candidates bir JSON dizisi olduğundan (SQL'de doğrudan sorgulanamaz) satırlar JS'te filtrelenip TEK
+// bir env.DB.batch() ile silinir.
+async function pruneConflictsReferencingId(env, id) {
+  const { results } = await env.DB.prepare(`SELECT id, candidates FROM migration_name_conflicts WHERE status = 'pending'`).all();
+  const staleIds = [];
+  for (const row of results) {
+    let candidates;
+    try { candidates = JSON.parse(row.candidates || '[]'); } catch { continue; }
+    if (Array.isArray(candidates) && candidates.some(c => c && c.id === id)) staleIds.push(row.id);
+  }
+  if (!staleIds.length) return;
+  await env.DB.batch(staleIds.map(cid => env.DB.prepare(`DELETE FROM migration_name_conflicts WHERE id = ?`).bind(cid)));
 }
 
 // officeIds: bir mimarın Firma alanına virgülle ayırarak girdiği TÜM eşleşen firma id'leri (bkz.

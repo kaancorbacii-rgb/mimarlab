@@ -119,18 +119,24 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
   }
 
   // project_submissions.designer bir JSON dizisi (metin olarak saklanır) — SQL ile tek satırda
-  // güvenle değiştirilemeyeceğinden satır satır okunup yazılır.
+  // güvenle değiştirilemeyeceğinden satır satır okunup yazılır. gerçek bulgu (denetim raporu):
+  // önceki sürüm eşleşen HER satır için AYRI, SIRALI bir UPDATE .run() çağırıyordu — tanınmış bir
+  // ofis onlarca projede geçiyorsa, tek bir yeniden adlandırma işlemi sınırsız sayıda sıralı D1
+  // subrequest'i tetikliyordu (free tier'da 50/istek limitine yaklaşabilir). Artık eşleşen satırlar
+  // toplanıp TEK bir env.DB.batch() çağrısıyla yazılıyor (facetCounts.js'teki AYNI desen).
   const { results } = await env.DB.prepare(
     `SELECT id, designer FROM project_submissions WHERE designer LIKE ?`
   ).bind(`%${oldName}%`).all();
+  const designerUpdates = [];
   for (const row of results) {
     try {
       const list = JSON.parse(row.designer || '[]');
       if (!Array.isArray(list) || !list.includes(oldName)) continue;
       const updated = list.map(d => d === oldName ? newName : d);
-      await env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id).run();
+      designerUpdates.push(env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id));
     } catch { /* bozuk JSON — dokunma */ }
   }
+  if (designerUpdates.length) await env.DB.batch(designerUpdates);
   // src/routes/submissions.js/admin.js, düzenlemeden sonra istemciyi (olası yeni) profil sayfasına
   // yönlendirebilmek için nihai slug'a ihtiyaç duyar (bkz. kullanıcı isteği).
   return finalSlug;
@@ -174,6 +180,13 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
     }
   }
 
+  // gerçek bulgu (denetim raporu): aşağıdaki üç döngü önceden eşleşen HER satır için AYRI, SIRALI
+  // bir UPDATE .run() çağırıyordu — tanınmış bir mimar onlarca proje/ofis/ürün başvurusunda
+  // geçiyorsa, tek bir yeniden adlandırma sınırsız sayıda sıralı D1 subrequest'i tetikliyordu (free
+  // tier'da 50/istek limitine yaklaşabilir). Artık üç tablodan toplanan TÜM güncellemeler TEK bir
+  // env.DB.batch() çağrısıyla yazılıyor.
+  const updates = [];
+
   const { results: projectRows } = await env.DB.prepare(
     `SELECT id, designer FROM project_submissions WHERE designer LIKE ?`
   ).bind(`%${oldName}%`).all();
@@ -182,7 +195,7 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
       const list = JSON.parse(row.designer || '[]');
       if (!Array.isArray(list) || !list.includes(oldName)) continue;
       const updated = list.map(d => d === oldName ? newName : d);
-      await env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id).run();
+      updates.push(env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id));
     } catch { /* bozuk JSON — dokunma */ }
   }
 
@@ -194,7 +207,7 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
       const list = JSON.parse(row.founders || '[]');
       if (!Array.isArray(list) || !list.includes(oldName)) continue;
       const updated = list.map(f => f === oldName ? newName : f);
-      await env.DB.prepare(`UPDATE office_submissions SET founders = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id).run();
+      updates.push(env.DB.prepare(`UPDATE office_submissions SET founders = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id));
     } catch { /* bozuk JSON — dokunma */ }
   }
 
@@ -206,8 +219,9 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
       const names = (row.architect || '').split(',').map(s => s.trim()).filter(Boolean);
       if (!names.includes(oldName)) continue;
       const updated = names.map(n => n === oldName ? newName : n).join(', ');
-      await env.DB.prepare(`UPDATE ${table} SET architect = ? WHERE id = ?`).bind(updated, row.id).run();
+      updates.push(env.DB.prepare(`UPDATE ${table} SET architect = ? WHERE id = ?`).bind(updated, row.id));
     }
   }
+  if (updates.length) await env.DB.batch(updates);
   return finalSlug;
 }

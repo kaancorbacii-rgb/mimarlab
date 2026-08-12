@@ -79,6 +79,27 @@ const ShareWidget = (function () {
     document.querySelectorAll('.share-popover.open').forEach(p => p.classList.remove('open'));
   }
 
+  // gerçek bulgu: wire() önceden her çağrıda (yani her modal açılışında) YENİ bir
+  // document.addEventListener('click', ...) ekliyordu — modaller innerHTML ile sıfırlandığından
+  // btn/popover her seferinde yeni DOM düğümleri oluyor, dataset.shareWired koruması yeni düğümde
+  // hiç set olmadığından işe yaramıyor. Sonuç: her modal açılışında document'a bir tane daha kalıcı
+  // listener birikiyordu (temizlenmiyordu) — uzun bir oturumda bellek sızıntısı + gitgide artan
+  // tıklama işleme maliyeti. Çözüm: TEK bir modül-seviyesi delegated listener, tüm .share-popover.open
+  // öğelerini kendi tetikleyici butonuyla eşleştirip dışına tıklamayı kontrol eder.
+  let outsideClickWired = false;
+  function wireOutsideClick() {
+    if (outsideClickWired) return;
+    outsideClickWired = true;
+    document.addEventListener('click', (e) => {
+      document.querySelectorAll('.share-popover.open').forEach(popover => {
+        const btn = document.getElementById(popover.id.replace(/-popover$/, ''));
+        if (btn && (btn.contains(e.target) || popover.contains(e.target))) return;
+        popover.classList.remove('open');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
   function showToast(btn, text) {
     const host = btn.parentElement;
     const existing = host.querySelector('.share-toast');
@@ -137,13 +158,7 @@ const ShareWidget = (function () {
       btn.setAttribute('aria-expanded', String(willOpen));
     });
 
-    document.addEventListener('click', (e) => {
-      if (!popover.classList.contains('open')) return;
-      if (!btn.contains(e.target) && !popover.contains(e.target)) {
-        popover.classList.remove('open');
-        btn.setAttribute('aria-expanded', 'false');
-      }
-    });
+    wireOutsideClick();
   }
 
   return { html, wire, injectStyles };

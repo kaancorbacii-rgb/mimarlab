@@ -87,10 +87,10 @@ async function findArchitectRow(env, key) {
   const joinSql = `FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL`;
   const row = await env.DB.prepare(
     `SELECT a.*, o.name AS office_name ${joinSql}
-     WHERE a.deleted_at IS NULL AND (a.name = ? OR a.slug = ? OR a.legacy_key = ?) LIMIT 1`
+     WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND (a.name = ? OR a.slug = ? OR a.legacy_key = ?) LIMIT 1`
   ).bind(key, key, key).first();
   if (row) return row;
-  const { results } = await env.DB.prepare(`SELECT id, name FROM architects WHERE deleted_at IS NULL`).all();
+  const { results } = await env.DB.prepare(`SELECT id, name FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all();
   const match = results.find(r => slugify(r.name) === key);
   if (!match) return null;
   return env.DB.prepare(`SELECT a.*, o.name AS office_name ${joinSql} WHERE a.id = ?`).bind(match.id).first();
@@ -99,10 +99,10 @@ async function findArchitectRow(env, key) {
 async function findOfficeRow(env, key) {
   if (!env || !env.DB) return null;
   const row = await env.DB.prepare(
-    `SELECT * FROM offices WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
+    `SELECT * FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
   ).bind(key, key, key).first();
   if (row) return row;
-  const { results } = await env.DB.prepare(`SELECT id, name FROM offices WHERE deleted_at IS NULL`).all();
+  const { results } = await env.DB.prepare(`SELECT id, name FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all();
   const match = results.find(r => slugify(r.name) === key);
   if (!match) return null;
   return env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(match.id).first();
@@ -131,16 +131,16 @@ async function findProjectRow(env, slug) {
      LEFT JOIN project_designers pd ON pd.project_id = p.id
      LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
      LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL
-     WHERE p.slug = ? AND p.deleted_at IS NULL
+     WHERE p.slug = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL
      GROUP BY p.id`
   ).bind(slug).first();
 }
 
 async function findProductRow(env, key) {
   if (!env || !env.DB) return null;
-  const row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(key).first();
+  const row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL AND hidden_at IS NULL`).bind(key).first();
   if (row) return row;
-  const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL`).all();
+  const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all();
   const match = results.find(r => slugify(`${r.title}-${r.brand_name_raw || ''}`) === key);
   if (!match) return null;
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
@@ -246,7 +246,11 @@ function productMetaFromRecord(record, canonicalUrl) {
   const images = (record.images || []).map(absoluteUrl).filter(Boolean);
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Product', name: record.title, url: canonicalUrl };
   if (record.description) jsonLd.description = record.description;
-  if (images.length) jsonLd.image = images;
+  // gerçek bulgu (denetim raporu): fotoğrafsız bir ürün/malzeme kaydında (spec-sheet-only başvuru)
+  // bu satır jsonLd.image'ı hiç set etmiyordu — Google Rich Results Product tipi için `image`'ı
+  // zorunlu görüyor. meta.image (OG/Twitter) zaten DEFAULT_IMAGE'a düşüyor, JSON-LD de AYNI görsel
+  // varsayılanını kullanmalı ki sayfada görünen içerikle tutarlı, geçerli bir Product şeması olsun.
+  jsonLd.image = images.length ? images : [DEFAULT_IMAGE];
   if (record.brand) jsonLd.brand = { '@type': 'Brand', name: record.brand };
   // audit bulgusu: bu obje daha önce offers/aggregateRating/review'dan HİÇBİRİNİ taşımıyordu — Google
   // Product zengin sonuçları için (2023'ten beri) en az birini şart koşuyor. `products` tablosunda

@@ -21,6 +21,7 @@
 // taşırdı — doğruluk, "gerçek incremental" olmaktan daha öncelikli.
 
 import { fetchActiveProjectPool, buildFilterGroups } from '../routes/project.js';
+import { reserveKvWrite } from './kvQuota.js';
 
 const KV_TTL_SECONDS = 300;
 function kvKey(listType) { return `facet_counts:${listType}`; }
@@ -76,6 +77,11 @@ export async function getCachedFacetCounts(env, listType) {
     if (!out[row.facet_key]) out[row.facet_key] = {};
     out[row.facet_key][row.facet_value] = row.count;
   }
-  if (env.FACET_CACHE) await env.FACET_CACHE.put(kvKey(listType), JSON.stringify(out), { expirationTtl: KV_TTL_SECONDS });
+  // gerçek bulgu (denetim raporu): R2 için var olan r2Quota.js'e benzer bir KV yazma-kotası koruması
+  // yoktu — bkz. src/lib/kvQuota.js. reserveKvWrite false dönerse (günlük güvenlik payı aşıldıysa)
+  // yazma sessizce atlanır, bir sonraki okuma D1'den devam eder (bkz. o dosyadaki gerekçe).
+  if (env.FACET_CACHE && await reserveKvWrite(env)) {
+    await env.FACET_CACHE.put(kvKey(listType), JSON.stringify(out), { expirationTtl: KV_TTL_SECONDS });
+  }
   return out;
 }

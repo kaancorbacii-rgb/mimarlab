@@ -24,10 +24,26 @@ async function pullNameFromArrayColumn(env, table, column, name) {
   }
 }
 
+// product_submissions/material_submissions.architect serbest metin, virgülle ayrılmış isim listesi
+// tutar (JSON dizi DEĞİL — bkz. migrations/0020_product_architect.sql yorumu) — bu yüzden
+// pullNameFromArrayColumn'daki JSON.parse deseni burada kullanılamaz. src/lib/officeFounderCascade.js
+// #renameArchitectEverywhere'in AYNI split(',')/trim deseniyle ismi çıkarıp geri yazar.
+async function pullNameFromCsvColumn(env, table, name) {
+  const { results } = await env.DB.prepare(`SELECT id, architect FROM ${table} WHERE architect LIKE ?`).bind(`%${name}%`).all();
+  for (const row of results) {
+    const names = (row.architect || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!names.includes(name)) continue;
+    const updated = names.filter(n => n !== name).join(', ');
+    await env.DB.prepare(`UPDATE ${table} SET architect = ? WHERE id = ?`).bind(updated, row.id).run();
+  }
+}
+
 // Bir mimar SİLİNDİĞİNDE (bkz. src/routes/legacyContent.js#handleContentAction, src/routes/admin.js
 // DELETE) — kendi profil talepleri/düzeltme önerileri, aldığı yorum/puan/kaydetme kayıtları silinir;
-// adı hâlâ başka bir firmanın Kurucular listesinde ya da bir projenin mimar/tasarımcı listesinde
-// geçiyorsa oradan da çıkarılır (bkz. kullanıcı isteği: "tüm sistemden o bilgi silinsin"). Statik
+// adı hâlâ başka bir firmanın Kurucular listesinde, bir projenin mimar/tasarımcı listesinde ya da bir
+// ürün/malzeme başvurusunun tasarımcı alanında geçiyorsa oradan da çıkarılır (bkz. kullanıcı isteği:
+// "tüm sistemden o bilgi silinsin" — rename cascade'i (officeFounderCascade.js#renameArchitectEverywhere)
+// bu iki tabloyu zaten güncelliyordu, delete cascade'i güncellemiyordu: gerçek bulgu). Statik
 // (projeler-data.js/data.js) kayıtlardaki isim referansları çalışma zamanında düzenlenemez — bu,
 // projenin bilinen bir kısıtı (bkz. "Duplicate name key limitation" belleği).
 export async function cascadeDeleteArchitect(env, name) {
@@ -37,6 +53,8 @@ export async function cascadeDeleteArchitect(env, name) {
   await deleteEngagement(env, 'architect', slugify(name));
   await pullNameFromArrayColumn(env, 'office_submissions', 'founders', name);
   await pullNameFromArrayColumn(env, 'project_submissions', 'designer', name);
+  await pullNameFromCsvColumn(env, 'product_submissions', name);
+  await pullNameFromCsvColumn(env, 'material_submissions', name);
 }
 
 // Bir firma SİLİNDİĞİNDE — kendi profil talepleri/düzeltme önerileri/marka rozeti talepleri, aldığı
