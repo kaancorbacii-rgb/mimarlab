@@ -10,6 +10,7 @@ import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, casc
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
+import { BADGE_RANK } from '../lib/badgeAccess.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -529,10 +530,34 @@ async function handleProfileBadgeAdmin(request, env, url) {
   if (!['architect', 'office'].includes(profileType) || !profileKey) return errorJson('Geçersiz profil.');
 
   if (request.method === 'GET') {
-    const row = await env.DB.prepare(
-      `SELECT badge_type FROM admin_badges WHERE profile_type = ? AND profile_key = ?`
-    ).bind(profileType, profileKey).first();
-    return json({ badgeType: row?.badge_type || null });
+    // Bu kutu artık yalnızca admin_badges'i değil, satın alınıp onaylanmış (aktif) rozeti de
+    // yansıtır (bkz. kullanıcı isteği: "kutu dinamik olsun" — admin, bir kullanıcının satın
+    // alarak kazandığı rozeti burada "Rozet yok" olarak görüp yanlışlıkla boş sanmasın).
+    // src/routes/badges.js#computeBadgesPayload'daki AYNI profile_claims+badge_requests join'i,
+    // tek bir profileType/profileKey'e daraltılmış hali. 'source' alanı istemciye bu değerin
+    // admin override'tan mı yoksa bir satın almadan mı geldiğini bildirir — PUT davranışını
+    // DEĞİŞTİRMEZ, yalnızca gösterim amaçlıdır.
+    const now = Date.now();
+    const [adminRow, purchasedRow] = await Promise.all([
+      env.DB.prepare(`SELECT badge_type FROM admin_badges WHERE profile_type = ? AND profile_key = ?`)
+        .bind(profileType, profileKey).first(),
+      env.DB.prepare(
+        `SELECT b.badge_type FROM profile_claims c
+         JOIN badge_requests b ON b.user_id = c.user_id AND b.status = 'active' AND (b.expires_at IS NULL OR b.expires_at > ?) AND b.badge_type != 'destekci'
+           AND ((b.target_type = 'self' AND c.profile_type = 'architect') OR (b.target_type = 'office' AND c.profile_type = 'office' AND b.target_key = c.profile_key))
+         WHERE c.status = 'approved' AND c.profile_type = ? AND c.profile_key = ?`
+      ).bind(now, profileType, profileKey).first(),
+    ]);
+    const adminBadge = adminRow?.badge_type || null;
+    const purchasedBadge = purchasedRow?.badge_type || null;
+    // iz-birakan yalnızca admin_badges'ten gelebilir ve diğer her şeyin yerini alır (bkz.
+    // handlePublicBadges ile aynı öncelik kuralı).
+    let badgeType;
+    if (adminBadge === 'iz-birakan') badgeType = adminBadge;
+    else if (adminBadge && purchasedBadge) badgeType = (BADGE_RANK[adminBadge] || 0) >= (BADGE_RANK[purchasedBadge] || 0) ? adminBadge : purchasedBadge;
+    else badgeType = adminBadge || purchasedBadge || null;
+    const source = !badgeType ? null : (badgeType === adminBadge ? 'admin' : 'purchase');
+    return json({ badgeType, source });
   }
 
   if (request.method === 'PUT') {

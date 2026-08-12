@@ -380,6 +380,7 @@
             <option value="gold">Altın Üye</option>
             <option value="platinum">Elmas Üye</option>
           </select>
+          <p class="section-hint" id="admin-badge-source-hint" style="display:none; margin-top:6px;"></p>
         </div>
       </div>
 
@@ -693,12 +694,27 @@ async function wireAdminBadgePicker(profileKey){
   if(!isAdmin || !profileKey) return;
   document.getElementById('admin-badge-section').style.display = '';
   const select = document.getElementById('admin-badge-select');
+  const sourceHint = document.getElementById('admin-badge-source-hint');
+  // source==='purchase': gösterilen değer bir satın almadan geliyor, admin_badges'te henüz
+  // hiçbir satır yok (bkz. src/routes/admin.js#handleProfileBadgeAdmin GET). Bu yüzden "Rozet
+  // yok" seçip kaydetmek bu satın alınan rozeti KALDIRMAZ — admin_badges'te zaten olmayan bir
+  // satırı silmeye çalışır, no-op olur. Bu notu görmezden gelip yine de değiştirirse (ör. daha
+  // üst bir kademeyi doğrudan vermek isterse) normal admin override akışı işler.
+  function renderSourceHint(source, badgeType){
+    if(source === 'purchase'){
+      sourceHint.textContent = `Bu rozet şu anda satın alma yoluyla aktif. Buradan farklı bir seçim yaparsan, satın alınan rozetin ÜZERİNE bir admin rozeti eklenir/değiştirilir — satın alınanı kaldırmaz.`;
+      sourceHint.style.display = '';
+    } else {
+      sourceHint.style.display = 'none';
+    }
+  }
   try{
     const res = await fetch(`/api/admin/profile-badge?profileType=office&profileKey=${encodeURIComponent(profileKey)}`);
-    if(res.ok){ const data = await res.json(); select.value = data.badgeType || ''; }
+    if(res.ok){ const data = await res.json(); select.value = data.badgeType || ''; renderSourceHint(data.source, data.badgeType); }
   }catch{}
   select.addEventListener('change', async ()=>{
     select.disabled = true;
+    sourceHint.style.display = 'none';
     try{
       await fetch(`/api/admin/profile-badge?profileType=office&profileKey=${encodeURIComponent(profileKey)}`, {
         method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ badgeType: select.value || null }),
