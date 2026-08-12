@@ -3,6 +3,7 @@ import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
+import { resolveSlugRedirect } from '../lib/slugRedirects.js';
 
 // Faz 3 — bkz. src/routes/architect.js'teki AYNI "canonical tablodan doğrudan okuma, overlay
 // merge-time'da zaten uygulandı" yorumu.
@@ -226,7 +227,19 @@ async function fetchAdjacentOffice(env, id) {
 }
 
 async function buildOfficePayload(env, key) {
-  const row = await findOffice(env, key);
+  let row = await findOffice(env, key);
+  // Mükerrer kayıt birleştirmesi: satır gizlendiyse ama bu slug için kanonik bir kayda
+  // slug_redirects girişi varsa (bkz. migrations/0041_slug_redirects.sql), gerçek "gizle"
+  // (moderasyon) yerine burada sessizce kanonik kayda düş — eski slug/link "bulunamadı" göstermesin.
+  if (row && row.hidden_at) {
+    const newSlug = await resolveSlugRedirect(env, 'offices', row.slug);
+    if (newSlug && newSlug !== row.slug) {
+      const canonical = await env.DB.prepare(
+        `SELECT * FROM offices WHERE slug = ? AND deleted_at IS NULL AND hidden_at IS NULL`
+      ).bind(newSlug).first();
+      if (canonical) row = canonical;
+    }
+  }
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
   if (!row) return { item: null, founders: [], relatedProjects: [], hidden: false };
