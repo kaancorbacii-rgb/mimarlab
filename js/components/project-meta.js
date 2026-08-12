@@ -37,7 +37,14 @@ const ProjectMeta = (function () {
     // unregistered çipler hiçbir profile bağlı değildir (bkz. yukarıdaki yorum) — rozet bir profil
     // güven sinyali olduğundan yalnızca kayıtlı (gerçek architects/offices satırına bağlı) çiplerde
     // gösterilir (bkz. kullanıcı isteği: mavi rozetin ilişkili TÜM alanlarda görünmesi).
+    // kullanıcı isteği: kayıtlı mimar karşılığı olmayan bir isim için baş harf/foto avatarı da
+    // yanıltıcı bir profil izlenimi veriyordu — mimar (architect) tipinde unregistered çiplerde
+    // avatar tamamen kaldırılır, yalnızca isim düz metin olarak butonda kalır (firma/office tipi
+    // etkilenmez, orada avatar korunur).
     if (d.unregistered) {
+      if (d.type === 'architect') {
+        return `<span class="designer-chip designer-chip-no-avatar"><span class="designer-chip-name">${escapeHtml(d.name)}</span></span>`;
+      }
       return `<span class="designer-chip">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></span>`;
     }
     const href = d.type === 'architect' ? `/mimar/${encodeURIComponent(slugify(d.name))}` : `/firma/${encodeURIComponent(slugify(d.name))}`;
