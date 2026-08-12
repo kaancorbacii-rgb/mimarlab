@@ -79,6 +79,8 @@ const AuthModal = (function () {
     #am-panel .dash-edit-btn{flex-shrink:0; background:none; border:1.5px solid var(--ink); color:var(--ink); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
     #am-panel .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
     #am-panel .dash-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;}
+    #am-panel .dash-row{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; align-items:start;}
+    #am-panel .dash-row .dash-section{margin-bottom:0;}
     #am-panel .dash-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
     #am-panel .dash-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
     #am-panel .dash-empty{border:1px dashed var(--line); border-radius:12px; padding:24px; text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.6;}
@@ -142,6 +144,7 @@ const AuthModal = (function () {
     #am-panel .my-badge-row:last-child{margin-bottom:0;}
     @media (max-width:480px){ #am-panel .badge-grid{grid-template-columns:1fr;} }
     @media (max-width:720px){ #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px;} }
+    @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
 
     /* login/signup/hesabim modal-shell'in 32/68 ızgarasına DEĞİL, ortalı kart/tam genişlik dashboard
        biçimine ihtiyaç duyar (bkz. dosya başı yorumu) — yalnızca bu modal açıkken bodyEl'e eklenen
@@ -534,83 +537,89 @@ const AuthModal = (function () {
         <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E; margin-left:10px;"></span>
       </div>
 
-      <div class="dash-section">
-        <h2>Profil Bilgileri</h2>
-        <div class="saved-filter" id="am-profile-info-tabs">
-          <button type="button" class="saved-filter-btn active" data-tab="facts">Genel Bilgiler</button>
-          <button type="button" class="saved-filter-btn" data-tab="claims" id="am-profile-claims-tab-btn" style="display:none;">Mimar/Firma Profilim</button>
-        </div>
-        <div id="am-profile-tab-facts">
-          <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
-          <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
-        </div>
-        <div id="am-profile-tab-claims" style="display:none;">
-          <div id="am-claims-mine-list"></div>
-        </div>
-      </div>
-
-      <div class="dash-section">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
-          <h2 style="margin:0;">Bildirimler</h2>
-          <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
-            <button type="button" id="am-notif-read-all-btn" style="background:none; border:none; color:var(--walnut); font-weight:600; font-size:12px; padding:0;">Tümü okundu</button>
-            <button type="button" id="am-notif-delete-all-btn" style="background:none; border:none; color:#B84C4C; font-weight:600; font-size:12px; padding:0;">Bildirimleri sil</button>
+      <div class="dash-row">
+        <div class="dash-section">
+          <h2>Profil Bilgileri</h2>
+          <div class="saved-filter" id="am-profile-info-tabs">
+            <button type="button" class="saved-filter-btn active" data-tab="facts">Genel Bilgiler</button>
+            <button type="button" class="saved-filter-btn" data-tab="claims" id="am-profile-claims-tab-btn" style="display:none;">Mimar/Firma Profilim</button>
+          </div>
+          <div id="am-profile-tab-facts">
+            <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
+            <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
+            <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
+            <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
+            <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
+            <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
+          </div>
+          <div id="am-profile-tab-claims" style="display:none;">
+            <div id="am-claims-mine-list"></div>
           </div>
         </div>
-        <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
-        <div class="dash-pagination" id="am-notif-pagination"></div>
+
+        <div class="dash-section">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
+            <h2 style="margin:0;">Bildirimler</h2>
+            <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
+              <button type="button" id="am-notif-read-all-btn" style="background:none; border:none; color:var(--walnut); font-weight:600; font-size:12px; padding:0;">Tümü okundu</button>
+              <button type="button" id="am-notif-delete-all-btn" style="background:none; border:none; color:#B84C4C; font-weight:600; font-size:12px; padding:0;">Bildirimleri sil</button>
+            </div>
+          </div>
+          <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-notif-pagination"></div>
+        </div>
       </div>
 
-      <div class="dash-section">
-        <h2>Paylaştığım İçerikler</h2>
-        <div class="submissions-toolbar-row">
-          <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
-          <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
+      <div class="dash-row">
+        <div class="dash-section">
+          <h2>Paylaştığım İçerikler</h2>
+          <div class="submissions-toolbar-row">
+            <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
+            <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
+          </div>
+          <div class="submissions-toolbar-row" id="am-submissions-filter">
+            <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
+            <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
+          </div>
+          <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-submissions-pagination"></div>
         </div>
-        <div class="submissions-toolbar-row" id="am-submissions-filter">
-          <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
-          <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
+
+        <div class="dash-section">
+          <h2>Kaydettiklerim</h2>
+          <div class="saved-filter" id="am-saved-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+          </div>
+          <div id="am-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-saved-pagination"></div>
         </div>
-        <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
-        <div class="dash-pagination" id="am-submissions-pagination"></div>
       </div>
 
-      <div class="dash-section">
-        <h2>Kaydettiklerim</h2>
-        <div class="saved-filter" id="am-saved-filter">
-          <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-          <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
-          <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+      <div class="dash-row">
+        <div class="dash-section">
+          <h2>Beğendiklerim</h2>
+          <div class="saved-filter" id="am-rated-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+          </div>
+          <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-rated-pagination"></div>
         </div>
-        <div id="am-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
-        <div class="dash-pagination" id="am-saved-pagination"></div>
-      </div>
 
-      <div class="dash-section">
-        <h2>Beğendiklerim</h2>
-        <div class="saved-filter" id="am-rated-filter">
-          <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+        <div class="dash-section">
+          <h2>Yorumlarım</h2>
+          <div class="saved-filter" id="am-comments-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+          </div>
+          <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-comments-pagination"></div>
         </div>
-        <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
-        <div class="dash-pagination" id="am-rated-pagination"></div>
-      </div>
-
-      <div class="dash-section">
-        <h2>Yorumlarım</h2>
-        <div class="saved-filter" id="am-comments-filter">
-          <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-        </div>
-        <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
-        <div class="dash-pagination" id="am-comments-pagination"></div>
       </div>
 
       <div class="dash-section">
