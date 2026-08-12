@@ -1,12 +1,21 @@
 // DuplicateNameCheck — proje-ekle.html/mimar-ekle.html/firma-ekle.html/urun-ekle.html'in Proje/
 // Mimar/Firma/Ürün Adı kutusuna bağlanır (bkz. kullanıcı isteği: "daha önce siteye yüklenen
 // projelerle aynı isimde proje yüklenemesin ... kutu kırmızıya dönsün ve 'Bu proje zaten
-// yayınlandı' uyarısı versin"). GET /api/public/check-name (bkz. src/routes/public.js#
-// handlePublicCheckName) ile TR-duyarlı TAM isim eşleşmesi arar; yalnızca istemci tarafı uyarı
-// içindir — asıl yetkili engelleme createSubmission'da sunucu tarafında yapılır (bkz.
-// src/lib/canonicalSync.js#isDuplicateCanonicalName), bu yüzden burası ağ hatasında sessizce
-// geçebilir.
+// yayınlandı' uyarısı versin"; ikinci istek: uyarının yanında altı çizili "Projeye git./Ürüne
+// git./Mimara git./Firmaya git." linki). GET /api/public/check-name (bkz. src/routes/public.js#
+// handlePublicCheckName) ile TR-duyarlı TAM isim eşleşmesi arar ve eşleşen kaydın detay linkini
+// döner; yalnızca istemci tarafı uyarı içindir — asıl yetkili engelleme createSubmission'da
+// sunucu tarafında yapılır (bkz. src/lib/canonicalSync.js#isDuplicateCanonicalName), bu yüzden
+// burası ağ hatasında sessizce geçebilir.
 const DuplicateNameCheck = (function () {
+  const LINK_LABELS = {
+    projects: 'Projeye git.',
+    architects: 'Mimara git.',
+    offices: 'Firmaya git.',
+    products: 'Ürüne git.',
+    materials: 'Ürüne git.',
+  };
+
   function foldTr(s) {
     return (s || '')
       .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
@@ -21,6 +30,8 @@ const DuplicateNameCheck = (function () {
     style.textContent = `
       .dup-name-warning{display:none; font-size:11.5px; color:#B84C4C; margin-top:5px; line-height:1.5;}
       .dup-name-warning.show{display:block;}
+      .dup-name-warning-link{color:#B84C4C; text-decoration:underline; font-weight:600; margin-left:4px;}
+      .dup-name-warning-link:hover{color:#8f3838;}
       .form-field input.dup-name-input-error{border-color:#B84C4C !important; background:rgba(184,76,76,0.06) !important;}
     `;
     document.head.appendChild(style);
@@ -40,7 +51,15 @@ const DuplicateNameCheck = (function () {
     const getType = typeof typeOpt === 'function' ? typeOpt : () => typeOpt;
     const hint = document.createElement('div');
     hint.className = 'dup-name-warning';
-    hint.textContent = message;
+    const msgSpan = document.createElement('span');
+    msgSpan.textContent = message;
+    const link = document.createElement('a');
+    link.className = 'dup-name-warning-link';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    hint.appendChild(msgSpan);
+    hint.appendChild(link);
     input.insertAdjacentElement('afterend', hint);
 
     let duplicate = false;
@@ -51,11 +70,23 @@ const DuplicateNameCheck = (function () {
       duplicate = false;
       input.classList.remove('dup-name-input-error');
       hint.classList.remove('show');
+      link.style.display = 'none';
+      link.removeAttribute('href');
     }
-    function setError() {
+    function setError(href) {
       duplicate = true;
       input.classList.add('dup-name-input-error');
       hint.classList.add('show');
+      // href boşsa (bkz. handlePublicCheckName — eşleşen kayıt hidden_at'lı, detay sayfası zaten
+      // "bulunamadı" gösterir) kırık bir linke yönlendirmektense link hiç gösterilmez.
+      if (href) {
+        link.href = href;
+        link.textContent = LINK_LABELS[getType()] || '';
+        link.style.display = '';
+      } else {
+        link.style.display = 'none';
+        link.removeAttribute('href');
+      }
     }
 
     async function check() {
@@ -81,7 +112,7 @@ const DuplicateNameCheck = (function () {
         if (!res.ok) return;
         const data = await res.json();
         if (seq !== requestSeq) return; // eskimiş yanıt (daha yeni bir tuş vuruşu araya girdi)
-        if (data.exists) setError(); else clearError();
+        if (data.exists) setError(data.href); else clearError();
       } catch (e) { /* sessizce geç — asıl engelleme sunucu tarafında (bkz. dosya başı yorumu) */ }
     }
 

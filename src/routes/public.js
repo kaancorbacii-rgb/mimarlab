@@ -80,6 +80,10 @@ function foldTr(s) {
 
 const CHECK_NAME_TYPES = new Set(['projects', 'architects', 'offices', 'products', 'materials']);
 
+// bkz. src/routes/ratings.js#HREF_BASE_BY_TARGET (AYNI eşleme) — check-name eşleşen kaydın
+// detay sayfasına "Projeye/Mimara/Firmaya/Ürüne git." linki için (bkz. kullanıcı isteği).
+const CHECK_NAME_HREF_BASE = { projects: '/proje/', architects: '/mimar/', offices: '/firma/', products: '/urun/', materials: '/urun/' };
+
 // GET /api/public/check-name?type=projects|architects|offices|products|materials&name=<metin>
 // [&brand=<metin>][&exclude=<metin>][&excludeBrand=<metin>] — auth gerektirmez. proje-ekle.html/
 // mimar-ekle.html/firma-ekle.html/urun-ekle.html'in Proje/Mimar/Firma/Ürün Adı kutusuna, o adla
@@ -91,46 +95,54 @@ const CHECK_NAME_TYPES = new Set(['projects', 'architects', 'offices', 'products
 // products/materials'ta doğal anahtar marka+başlık İKİLİSİDİR (bkz. src/lib/canonicalSync.js#
 // canonicalKeyFor — legacy_key = "marka|||başlık"), bu yüzden brand boşken hiç kontrol yapılmaz
 // (aynı başlıklı farklı markaların ürünleri meşru — ör. iki markanın "Model A" koltuğu).
+// href: eşleşen kaydın detay sayfası (bkz. kullanıcı isteği: "Projeye git./Ürüne git./Mimara git./
+// Firmaya git." linki) — kayıt hidden_at'lıysa (admin arşivlemiş) null döner, çünkü detay sayfası
+// zaten "bulunamadı" gösterir (bkz. src/routes/project.js#handleProjectDetailRoute: "if (row.hidden_at)
+// return { item: null, hidden: true }") — kırık bir linke yönlendirmektense hiç link göstermemek.
 async function handlePublicCheckName(request, env, url) {
   const type = url.searchParams.get('type');
   const rawName = (url.searchParams.get('name') || '').trim();
-  if (!CHECK_NAME_TYPES.has(type) || !rawName) return json({ exists: false });
+  if (!CHECK_NAME_TYPES.has(type) || !rawName) return json({ exists: false, href: null });
   const folded = foldTr(rawName);
   const excludeFolded = foldTr((url.searchParams.get('exclude') || '').trim());
+  const hrefFor = (slug) => `${CHECK_NAME_HREF_BASE[type]}${encodeURIComponent(slug)}`;
 
   return cachedPublicJson(request, env, url.pathname, async () => {
     if (type === 'architects' || type === 'offices') {
       const table = type;
-      const { results } = await env.DB.prepare(`SELECT name FROM ${table} WHERE deleted_at IS NULL`).all();
-      const exists = results.some(r => {
+      const { results } = await env.DB.prepare(`SELECT name, slug, hidden_at FROM ${table} WHERE deleted_at IS NULL`).all();
+      const match = results.find(r => {
         const f = foldTr(r.name || '');
         return f === folded && !(excludeFolded && f === excludeFolded);
       });
-      return { exists };
+      if (!match) return { exists: false, href: null };
+      return { exists: true, href: match.hidden_at ? null : hrefFor(match.slug) };
     }
     if (type === 'projects') {
-      const { results } = await env.DB.prepare(`SELECT title FROM projects WHERE deleted_at IS NULL`).all();
-      const exists = results.some(r => {
+      const { results } = await env.DB.prepare(`SELECT title, slug, hidden_at FROM projects WHERE deleted_at IS NULL`).all();
+      const match = results.find(r => {
         const f = foldTr(r.title || '');
         return f === folded && !(excludeFolded && f === excludeFolded);
       });
-      return { exists };
+      if (!match) return { exists: false, href: null };
+      return { exists: true, href: match.hidden_at ? null : hrefFor(match.slug) };
     }
     // products/materials — brand boşsa (ör. mimar/firma marka kutusunu henüz doldurmadan başlığı
     // yazdı) tek başına başlığın anlamı yok, çakışma aranmaz.
     const rawBrand = (url.searchParams.get('brand') || '').trim();
-    if (!rawBrand) return { exists: false };
+    if (!rawBrand) return { exists: false, href: null };
     const foldedBrand = foldTr(rawBrand);
     const excludeBrandFolded = foldTr((url.searchParams.get('excludeBrand') || '').trim());
     const kind = type === 'products' ? 'product' : 'material';
-    const { results } = await env.DB.prepare(`SELECT title, brand_name_raw FROM products WHERE deleted_at IS NULL AND kind = ?`).bind(kind).all();
-    const exists = results.some(r => {
+    const { results } = await env.DB.prepare(`SELECT title, brand_name_raw, slug, hidden_at FROM products WHERE deleted_at IS NULL AND kind = ?`).bind(kind).all();
+    const match = results.find(r => {
       const fTitle = foldTr(r.title || '');
       const fBrand = foldTr(r.brand_name_raw || '');
       const isSelf = excludeFolded && excludeBrandFolded && fTitle === excludeFolded && fBrand === excludeBrandFolded;
       return fTitle === folded && fBrand === foldedBrand && !isSelf;
     });
-    return { exists };
+    if (!match) return { exists: false, href: null };
+    return { exists: true, href: match.hidden_at ? null : hrefFor(match.slug) };
   });
 }
 
