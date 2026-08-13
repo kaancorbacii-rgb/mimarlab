@@ -512,9 +512,10 @@ const AuthModal = (function () {
               <option value="İşsiz">İşsiz</option>
             </select>
           </div>
-          <div id="am-edit-office-field" style="display:none;">
+          <div id="am-edit-office-field">
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma</label>
-            <select id="am-edit-office" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);"></select>
+            <select id="am-edit-office" style="display:none; width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);"></select>
+            <div id="am-edit-office-display" style="width:100%; min-height:38.5px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); display:flex; align-items:center; justify-content:space-between; gap:10px;">—</div>
           </div>
         </div>
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
@@ -554,6 +555,7 @@ const AuthModal = (function () {
             <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
+            <div class="profile-fact"><span class="profile-fact-label">Firma</span><span class="profile-fact-value" id="am-fact-firma">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
           </div>
           <div id="am-claims-mine-list"></div>
@@ -758,32 +760,56 @@ const AuthModal = (function () {
       await loadFirmaOptions();
     }
 
-    // Firma kutusu (Pozisyon'un yanında) yalnızca onaylı bir mimar profili sahiplenilmişse VE o
-    // mimar en az bir firmada office_founders ile "kurucu/ortak" olarak bağlıysa gösterilir (bkz.
-    // kullanıcı isteği: "firmasını ortağı olduğu başka bir firmayla değiştirebilsin"). Seçenekler
-    // GET /api/architect/:key'in zaten döndürdüğü `offices` dizisinden (mimar-detay'daki "kurucu/
-    // ortak olduğu firmalar" listesiyle AYNI kaynak) gelir — rastgele bir firma adı yazılamaz,
-    // yalnızca gerçekten bağlı olunan firmalardan biri seçilebilir (bkz. src/routes/architect.js
-    // #handleArchitectPrimaryOfficeRoute).
+    // Firma kutusu (Pozisyon'un yanında) artık her zaman görünür — üç durumdan biri gösterilir
+    // (bkz. kullanıcı isteği: "firma sahibi olmasa bile hesabım sayfasında firma bilgisi gözüksün...
+    // herhangi bir firmaya bağlı değilse bu kısımdan firma ekle diyebilsin"):
+    //  1) Onaylı bir OFİS sahiplik talebi (profile_claims, profile_type='office') varsa — doğrudan
+    //     sahiplenilen firma salt-okunur gösterilir, Düzenle linki firma-ekle.html?claim=...'a gider.
+    //  2) Yoksa ama onaylı bir MİMAR profili sahiplenilmişse VE o mimar en az bir firmada
+    //     office_founders ile "kurucu/ortak" olarak bağlıysa — ESKİ davranış: hangi firmanın birincil
+    //     gösterileceğini seçebildiği bir açılır liste (bkz. kullanıcı isteği: "firmasını ortağı
+    //     olduğu başka bir firmayla değiştirebilsin", src/routes/architect.js
+    //     #handleArchitectPrimaryOfficeRoute — rastgele bir firma adı yazılamaz, yalnızca gerçekten
+    //     bağlı olunan firmalardan biri seçilebilir).
+    //  3) Hiçbiri yoksa — "Bağlı bir firman yok" + firma-ekle.html'e giden "+ Firma Ekle" linki.
+    // Sahiplik CANLI hesaplanır (users tablosunda hiçbir yerde saklanmaz) — bu yüzden bir claim
+    // reddedilir/silinirse bir sonraki yüklemede otomatik olarak boşa döner.
     async function loadFirmaOptions() {
-      const field = document.getElementById('am-edit-office-field');
       const select = document.getElementById('am-edit-office');
+      const display = document.getElementById('am-edit-office-display');
+      select.style.display = 'none';
+      display.style.display = 'flex';
+      let claims = [];
       try {
         const claimsRes = await fetch('/api/claims/mine');
-        const claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
-        const archClaim = claims.find(c => c.profile_type === 'architect' && c.status === 'approved');
-        if (!archClaim) { field.style.display = 'none'; return; }
-        const archRes = await fetch(`/api/architect/${encodeURIComponent(archClaim.profile_key)}`);
-        if (!archRes.ok) { field.style.display = 'none'; return; }
-        const data = await archRes.json();
-        const offices = (data.offices || []).filter(o => !o.unregistered);
-        if (!offices.length) { field.style.display = 'none'; return; }
-        field.style.display = '';
-        select.innerHTML = offices.map(o => `<option value="${escapeAttr(o.name)}">${escapeHtml(o.name)}</option>`).join('');
-        select.value = (data.item && data.item.office) || offices[0].name;
-      } catch {
-        field.style.display = 'none';
+        claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
+      } catch {}
+
+      const officeClaim = claims.find(c => c.profile_type === 'office' && c.status === 'approved');
+      if (officeClaim) {
+        display.innerHTML = `<span style="font-weight:600;">${escapeHtml(officeClaim.profile_key)}</span><a class="submission-edit-link" href="firma-ekle.html?claim=${encodeURIComponent(officeClaim.profile_key)}">Düzenle</a>`;
+        return;
       }
+
+      const archClaim = claims.find(c => c.profile_type === 'architect' && c.status === 'approved');
+      if (archClaim) {
+        try {
+          const archRes = await fetch(`/api/architect/${encodeURIComponent(archClaim.profile_key)}`);
+          if (archRes.ok) {
+            const data = await archRes.json();
+            const offices = (data.offices || []).filter(o => !o.unregistered);
+            if (offices.length) {
+              display.style.display = 'none';
+              select.style.display = '';
+              select.innerHTML = offices.map(o => `<option value="${escapeAttr(o.name)}">${escapeHtml(o.name)}</option>`).join('');
+              select.value = (data.item && data.item.office) || offices[0].name;
+              return;
+            }
+          }
+        } catch {}
+      }
+
+      display.innerHTML = `<span style="color:var(--ink-soft);">Bağlı bir firman yok</span><a class="submission-edit-link" href="firma-ekle.html">+ Firma Ekle</a>`;
     }
 
     on('am-dash-edit-btn', 'click', () => {
@@ -813,8 +839,8 @@ const AuthModal = (function () {
       });
       if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
 
-      const officeField = document.getElementById('am-edit-office-field');
-      if (officeField.style.display !== 'none') {
+      const officeSelect = document.getElementById('am-edit-office');
+      if (officeSelect.style.display !== 'none') {
         const officeRes = await fetch('/api/profile/office', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ office: document.getElementById('am-edit-office').value }),
@@ -1161,14 +1187,25 @@ const AuthModal = (function () {
       const res = await fetch('/api/claims/mine');
       const data = res.ok ? await res.json() : { items: [] };
       const items = data.items || [];
+
+      // Sabit "Firma" satırı (bkz. kullanıcı isteği: "firma sahibi olmasa bile hesabım sayfasında
+      // firma bilgisi gözüksün ama firma sahibi değişse boş gözüksün") — onaylı bir ofis sahiplik
+      // talebi varsa firma adı, yoksa "—" gösterir; CANLI hesaplanır, hiçbir yerde önbelleklenmez.
+      const officeClaim = items.find(c => c.profile_type === 'office' && c.status === 'approved');
+      document.getElementById('am-fact-firma').textContent = officeClaim ? officeClaim.profile_key : '—';
+
       const list = document.getElementById('am-claims-mine-list');
+      // Onaylı ofis sahipliği artık yukarıdaki sabit "Firma" satırında gösterildiğinden, aynı bilginin
+      // burada tekrar etmemesi için listeden çıkarılır — bekleyen/reddedilen ofis talepleri ile mimar
+      // talepleri (her statüde) burada kalmaya devam eder.
+      const listItems = officeClaim ? items.filter(c => c !== officeClaim) : items;
       // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
       // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
       // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
       // kullanıcı isteği: "üyelik ve firma başlıkları arasında ... diğer satırlarla aynı şekilde line").
-      if (!items.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
+      if (!listItems.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
       list.style.borderTop = '1px solid var(--line-soft)';
-      list.innerHTML = items.map(c => `
+      list.innerHTML = listItems.map(c => `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">

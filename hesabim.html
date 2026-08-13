@@ -388,6 +388,10 @@
             <option value="İşsiz">İşsiz</option>
           </select>
         </div>
+        <div>
+          <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Firma</label>
+          <div id="edit-firma-box" style="width:100%; min-height:38.5px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink-soft); display:flex; align-items:center; justify-content:space-between; gap:10px;">Yükleniyor…</div>
+        </div>
       </div>
       <button class="dash-edit-btn" id="dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
       <span id="dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
@@ -430,6 +434,7 @@
           <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="fact-school">—</span></div>
           <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="fact-profession">—</span></div>
           <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="fact-position">—</span></div>
+          <div class="profile-fact"><span class="profile-fact-label">Firma</span><span class="profile-fact-value" id="fact-firma">—</span></div>
           <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="fact-joined">—</span></div>
         </div>
         <div id="profile-tab-claims" style="display:none;">
@@ -1032,24 +1037,46 @@ const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html
 
 // "Bu profil bana ait" ile onaylanan mimar/ofis profilleri: onaylı olanlar için ilgili ekle
 // formunu ?claim=<isim> modunda açan bir Düzenle bağlantısı gösterir (bkz. mimar-ekle.html/firma-ekle.html).
+// Firma bilgisi bir profile_claims sorgusu ile CANLI hesaplanır, users tablosunda hiçbir yerde
+// saklanmaz (bkz. src/routes/claims.js) — bu yüzden sahiplik değişince (claim reddedilir/silinirse)
+// bir sonraki yüklemede otomatik olarak boşa döner, ayrıca bir "temizleme" gerekmez.
+function currentOfficeClaim(items){
+  return items.find(c => c.profile_type === 'office' && c.status === 'approved') || null;
+}
+function renderEditFirmaBox(officeClaim){
+  const box = document.getElementById('edit-firma-box');
+  box.style.color = 'var(--ink)';
+  if(officeClaim){
+    box.innerHTML = `<span style="font-weight:600;">${escapeHtml(officeClaim.profile_key)}</span><a class="submission-edit-link" href="firma-ekle.html?claim=${encodeURIComponent(officeClaim.profile_key)}">Düzenle</a>`;
+  } else {
+    box.innerHTML = `<span style="color:var(--ink-soft);">Bağlı bir firman yok</span><a class="submission-edit-link" href="firma-ekle.html">+ Firma Ekle</a>`;
+  }
+}
+
 async function loadMyClaims(){
   const res = await fetch('/api/claims/mine');
   const data = res.ok ? await res.json() : { items: [] };
   const items = data.items || [];
   const tabBtn = document.getElementById('profile-claims-tab-btn');
-  if(!items.length){ tabBtn.style.display = 'none'; return; }
-  tabBtn.style.display = '';
-  document.getElementById('claims-mine-list').innerHTML = items.map(c => `
-    <div class="profile-fact">
-      <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
-      <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
-        <span>${escapeHtml(c.profile_key)}</span>
-        ${c.status === 'approved'
-          ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
-          : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
-      </span>
-    </div>
-  `).join('');
+  if(!items.length){
+    tabBtn.style.display = 'none';
+  } else {
+    tabBtn.style.display = '';
+    document.getElementById('claims-mine-list').innerHTML = items.map(c => `
+      <div class="profile-fact">
+        <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
+        <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
+          <span>${escapeHtml(c.profile_key)}</span>
+          ${c.status === 'approved'
+            ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
+            : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
+        </span>
+      </div>
+    `).join('');
+  }
+  const officeClaim = currentOfficeClaim(items);
+  document.getElementById('fact-firma').textContent = officeClaim ? officeClaim.profile_key : '—';
+  renderEditFirmaBox(officeClaim);
   syncClaimedArchitectData(items);
 }
 
