@@ -425,6 +425,18 @@ async function syncOffice(env, row) {
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.logo_url) { sets.push('logo_url = ?'); vals.push(row.logo_url); }
       if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
+      // GERÇEK BULGU (bkz. kullanıcı isteği: "Diğer profillerde de benzer bir yanlış eşleşme var mı
+      // kontrol et" → "MİMARLAB" firma profili onaylı bir profile_claims kaydına sahip olduğu halde
+      // claimed_by_user_id hep NULL kalmıştı): bu UPDATE dalı (mevcut statik/legacy bir kayda
+      // bindirilen düzenleme) claimed_by_user_id'yi HİÇ yazmıyordu — yalnızca INSERT dalı (aşağıda,
+      // gerçekten YENİ bir kayıt oluşturulduğunda) yazıyordu. Onaylı bir claimed_profile_key'li
+      // düzenleme UPDATE dalına düştüğünde (statik kayıt zaten var olduğundan neredeyse HER zaman
+      // buraya düşer) sahiplik hiç kaydedilmiyordu — kullanıcı onaylı olsa bile "Düzenle" butonunu/
+      // doğrulanmış rozetini hiç göremiyordu. resolveClaimedByUserId burada da admin ise null döner
+      // (admin'in salt küratöryel bir düzenlemesi bir başkasının GERÇEK sahipliğini SİLMESİN diye
+      // yalnızca truthy'yse SET'e eklenir — admin düzenlemesinde satır dokunulmadan kalır).
+      const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
+      if (claimedByUserId) { sets.push('claimed_by_user_id = ?'); vals.push(claimedByUserId); }
     } else {
       // bağımsız kayıt — kendi taslağının her düzenlemesi tam birebir yansır.
       sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?', 'social_links = ?');
@@ -513,6 +525,11 @@ async function syncArchitect(env, row) {
       if (row.position) { sets.push('position = ?'); vals.push(row.position); }
       if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
       sets.push('office_id = ?'); vals.push(officeId);
+      // bkz. syncOffice'teki AYNI gerçek bulgu/gerekçe — bu UPDATE dalı claimed_by_user_id'yi hiç
+      // yazmıyordu, onaylı bir claim UPDATE dalına düştüğünde (statik kayıt zaten var olduğundan
+      // neredeyse hep buraya düşer) sahiplik hiç kaydedilmiyordu.
+      const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
+      if (claimedByUserId) { sets.push('claimed_by_user_id = ?'); vals.push(claimedByUserId); }
     } else {
       sets.push('name = ?', 'dob = ?', 'school = ?', 'dept = ?', 'profession = ?', 'awards = ?', 'photo_url = ?', 'about = ?', 'position = ?', 'social_links = ?', 'office_id = ?');
       vals.push(row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, awards, row.photo_url || null, row.about || null, row.position || null, socialLinks, officeId);
