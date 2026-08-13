@@ -365,13 +365,16 @@ async function buildArchitectPayload(env, key) {
   };
 }
 
-// PATCH /api/profile/office — js/components/auth-modal.js "Profili Düzenle" içindeki Firma kutusu
-// (Hesabım artık site-wide bir popup, hesabim.html değil). Kullanıcının
-// sahiplendiği (approved) mimar profilinin GÖRÜNEN firmasını (architects.office_id) değiştirir —
-// ama yalnızca office_founders'ta zaten "ortak/kurucu" olarak bağlı olduğu firmalar arasında (bkz.
-// buildArchitectPayload'daki AYNI office_founders sorgusu, mimar-detay sayfasındaki "kurucu/ortak
-// olduğu firmalar" listesiyle birebir aynı kaynak). Rastgele bir firma adı YAZILAMAZ, yalnızca zaten
-// bağlı olduğu firmalardan biri seçilebilir ya da boş bırakılıp firma bağlantısı kaldırılabilir.
+// PATCH /api/profile/office — kullanıcının sahiplendiği (approved) mimar profilinin GÖRÜNEN
+// firmasını (architects.office_id) değiştirir, ama yalnızca office_founders'ta zaten "ortak/kurucu"
+// olarak bağlı olduğu firmalar arasında (bkz. buildArchitectPayload'daki AYNI office_founders
+// sorgusu, mimar-detay sayfasındaki "kurucu/ortak olduğu firmalar" listesiyle birebir aynı kaynak).
+// Rastgele bir firma adı YAZILAMAZ, yalnızca zaten bağlı olduğu firmalardan biri seçilebilir ya da
+// boş bırakılıp firma bağlantısı kaldırılabilir. Not: js/components/auth-modal.js "Profili Düzenle"
+// içindeki Firma kutusu artık bunu ÇAĞIRMIYOR (bkz. kullanıcı isteği: "tüm firmaları görüp istediği
+// firmayı seçebilsin" — o kutu artık ownership'ten bağımsız serbest bir etiket, users.company'e
+// yazıyor); bu route başka bir istemci ihtiyacı için canlı bırakıldı, mevcut mimar-detay davranışını
+// (architects.office_id) etkilemeye devam ediyor.
 export async function handleArchitectPrimaryOfficeRoute(request, env, url) {
   if (url.pathname !== '/api/profile/office' || request.method !== 'PATCH') return errorJson('Bulunamadı', 404);
   const user = await getSessionUser(request, env);
