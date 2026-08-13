@@ -525,27 +525,24 @@ const AuthModal = (function () {
           </div>
         </div>
 
-        <!-- Yalnızca onaylı bir MİMAR profili sahiplenilmişse görünür (bkz. kullanıcı isteği: "Mimar
-             ekle sayfası ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — bu
-             alanlar kaydedilince yukarıdaki temel alanlarla (Ad Soyad/Doğum Yılı/Üniversite/Meslek/
-             Pozisyon) BİRLİKTE aynı architect_submissions/architects kaydına yazılır (bkz.
-             submitArchitectSyncIfNeeded), mimar-ekle.html?claim= ile AYNI uç noktalar üzerinden. -->
-        <div id="am-architect-sync-fields" style="display:none;">
-          <div style="border-top:1px solid var(--line); margin:18px 0 16px;"></div>
-          <h3 style="font-family:'Inter', sans-serif; font-size:14.5px; font-weight:700; margin:0 0 4px;">Mimar Profili</h3>
-          <p style="font-size:12px; color:var(--ink-soft); margin:0 0 14px;">Bu alanlar onaylı mimar profilinle senkronize — buradan kaydettiğinde mimar profilin de güncellenir.</p>
-          <div style="margin-bottom:14px;">
+        <!-- Yalnızca onaylı bir MİMAR profili sahiplenilmişse görünür — tüm form (yukarıdaki Ad Soyad/
+             Doğum Yılı/Üniversite/Meslek/Pozisyon dahil) tek bir Kaydet'te AYNI architect_submissions/
+             architects kaydına da yazılır (bkz. submitArchitectSyncIfNeeded, kullanıcı isteği: "Tüm
+             profil mimar profiliyle senkronize olacak") — bu yüzden burada ayrı bir başlık/açıklama
+             metni ya da görsel bölüm çizgisi yok, yukarıdaki alanlarla aynı akışın devamı gibi görünür. -->
+        <div id="am-architect-sync-fields" style="display:none; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+          <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ödüller</label>
-            <div id="am-edit-awards" style="border:1px solid var(--line); border-radius:9px; padding:10px 12px; background:var(--paper); display:flex; flex-direction:column; gap:7px;"></div>
+            <select id="am-edit-awards" multiple size="5" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);"></select>
           </div>
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Açıklama</label>
-            <textarea id="am-edit-about" rows="4" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); resize:vertical;"></textarea>
-          </div>
-          <div style="margin-bottom:14px;">
+          <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Sosyal Medya</label>
             <div id="am-social-rows" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
             <button type="button" id="am-add-social-row" style="background:none; border:1px dashed var(--line); color:var(--walnut); border-radius:9px; padding:8px 12px; font-size:12.5px; font-weight:600; width:100%;">+ Sosyal Medya Ekle</button>
+          </div>
+          <div style="grid-column:1 / -1;">
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Açıklama</label>
+            <textarea id="am-edit-about" rows="4" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); resize:vertical;"></textarea>
           </div>
         </div>
 
@@ -872,17 +869,12 @@ const AuthModal = (function () {
     // günceller. office/photo_url mevcut kayıttan olduğu gibi korunur — bu formda düzenlenmiyorlar,
     // bu yüzden burada sıfırlanmamaları için saklanırlar.
     let architectSyncState = null;
-    function renderAwardsCheckboxes(checked) {
-      const box = document.getElementById('am-edit-awards');
-      box.innerHTML = ODUL_OPTIONS.map(o => `
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); cursor:pointer;">
-          <input type="checkbox" value="${escapeAttr(o)}"${(checked || []).includes(o) ? ' checked' : ''}>
-          ${escapeHtml(o)}
-        </label>
-      `).join('');
+    function renderAwardsOptions(checked) {
+      const select = document.getElementById('am-edit-awards');
+      select.innerHTML = ODUL_OPTIONS.map(o => `<option value="${escapeAttr(o)}"${(checked || []).includes(o) ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('');
     }
     function collectAwardsChecked() {
-      return Array.from(document.querySelectorAll('#am-edit-awards input:checked')).map(i => i.value);
+      return Array.from(document.getElementById('am-edit-awards').selectedOptions).map(o => o.value);
     }
     function addAmSocialRow(platform, url) {
       const row = document.createElement('div');
@@ -947,10 +939,10 @@ const AuthModal = (function () {
       const claim = claimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
       const section = document.getElementById('am-architect-sync-fields');
       if (!claim) { section.style.display = 'none'; architectSyncState = null; return; }
-      section.style.display = '';
+      section.style.display = 'grid';
       const { merged, editId } = await fetchArchitectRecordForSync(claim.profile_key);
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
-      renderAwardsCheckboxes(merged.awards);
+      renderAwardsOptions(merged.awards);
       document.getElementById('am-edit-about').value = merged.about || '';
       document.getElementById('am-social-rows').innerHTML = '';
       (merged.social_links || []).forEach(s => addAmSocialRow(s.platform, s.url));
