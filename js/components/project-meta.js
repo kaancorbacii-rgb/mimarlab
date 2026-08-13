@@ -12,9 +12,19 @@ const ProjectMeta = (function () {
 
   // bkz. XSS escaping convention (memory) — depolanmış herhangi bir URL http(s) değilse asla
   // href/src'e basılmaz. proje-detay.html#safeUrl ile birebir aynı.
+  //
+  // gerçek bulgu (regresyon, 2026-08-13): base window.location.href idi — ama proje.html/mimar.html/
+  // firma.html/urun.html'in HEPSİNDE <base href="/"> var (tam olarak "göreli src'ler /proje/:slug gibi
+  // iç içe bir yolda yanlış çözülmesin" diye, bkz. proje.html içindeki <base> yorumu). window.location.href
+  // kullanmak bu <base>'i BYPASS ediyordu: legacy_static kaynaklı, başında "/" olmayan bir logo_url
+  // (ör. offices.logo_url = "logos-thumb/arkiv/buda-mimarlik.jpg", D1'de doğru/beklenen format — bkz.
+  // badge-shared.js#logoUrl'in de aynı ham değeri kullanması) /proje/:slug sayfasında
+  // "/proje/logos-thumb/..." gibi YANLIŞ bir mutlak URL'e çözülüp 404 veriyordu. document.baseURI
+  // <base> tag'ini hesaba katar, tarayıcının ham `src="..."` attribute'unu HTML parse ederken yaptığı
+  // çözümlemeyle AYNI sonucu üretir.
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, window.location.href);
+      const parsed = new URL(u, document.baseURI);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch { /* geçersiz URL — boş dön */ }
     return '';

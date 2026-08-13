@@ -228,9 +228,13 @@ const ArchitectModal = (function () {
   // kullanıcı isteği) — js/components/project-meta.js#renderDescription/DESC_TRUNCATE_AT ile
   // BİREBİR aynı desen, bu modül proje modalıyla import paylaşamadığından burada tekrarlanır.
   const DESC_TRUNCATE_AT = 320;
+  // gerçek bulgu (regresyon, 2026-08-13): bkz. project-meta.js#safeUrl'deki AYNI düzeltme —
+  // window.location.href yerine document.baseURI kullanılır, mimar.html'deki <base href="/">
+  // dikkate alınır (legacy_static kaynaklı, başında "/" olmayan photo_url değerleri artık doğru
+  // mutlak yola çözülür).
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, window.location.href);
+      const parsed = new URL(u, document.baseURI);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
@@ -340,7 +344,9 @@ const ArchitectModal = (function () {
     }
     const data = { '@context': 'https://schema.org', '@type': 'Person', name: a.name, url: window.location.href };
     if (a.role) data.jobTitle = a.role;
-    if (a.photo) { try { data.image = new URL(a.photo, window.location.href).href; } catch {} }
+    // aynı <base href="/"> gerekçesi (bkz. yukarıdaki safeUrl yorumu) — JSON-LD'de de göreli
+    // photo_url'ler window.location.href yerine document.baseURI'ye göre çözülmeli.
+    if (a.photo) { try { data.image = new URL(a.photo, document.baseURI).href; } catch {} }
     if (a.school) data.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
     if (displayOffice) {
       data.worksFor = { '@type': 'Organization', name: displayOffice.name };
