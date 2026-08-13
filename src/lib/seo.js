@@ -62,16 +62,18 @@ function breadcrumbJsonLd(type, name, canonicalUrl) {
 // officeFounderCascade.js) — canonical bir ofis kaydı henüz yoksa ya da isim eşleşmezse sessizce
 // boş dizi döner; JSON-LD'nin sayfada görünenle (ofis-detay.html'in kendi founders sorgusuyla)
 // tutarsız kalması yerine hiç göstermemesi tercih edildi.
+// ar.slug de döner (bkz. officeMetaFromRecord'daki denetim notu) — founder[].url artık slugify(name)
+// tahmini yerine kurucunun GERÇEK a.slug'ını kullanabilsin diye.
 async function fetchFounderNames(env, officeName) {
   if (!env || !env.DB || !officeName) return [];
   try {
     const { results } = await env.DB.prepare(
-      `SELECT ar.name FROM office_founders f
+      `SELECT ar.name, ar.slug FROM office_founders f
        JOIN offices o ON o.id = f.office_id AND o.deleted_at IS NULL
        JOIN architects ar ON ar.id = f.architect_id AND ar.deleted_at IS NULL
        WHERE o.name = ?`
     ).bind(officeName).all();
-    return results.map(r => r.name).filter(Boolean);
+    return results.filter(r => r.name).map(r => ({ name: r.name, slug: r.slug || null }));
   } catch { return []; }
 }
 
@@ -84,16 +86,21 @@ async function fetchFounderNames(env, officeName) {
 // oluşturma" — eski sürüm önce mimarı, sonra office_id'siyle ayrı bir SELECT ile ofisi okuyordu).
 async function findArchitectRow(env, key) {
   if (!env || !env.DB) return null;
+  // o.slug AS office_slug — audit bulgusu (2026-08-14): canonicalUrl/worksFor.url önceden bu
+  // sorgunun eşleştiği kayıttan bağımsız, çağıranın ham URL parametresinden/slugify(name)'den
+  // kuruluyordu; name/slug/legacy_key alias'larının HER BİRİ 200 döndüğünden bu, aynı kaydın kendi
+  // kendine canonical olduğu birden çok URL'ye (duplicate content) yol açıyordu. Artık her zaman bu
+  // sorgunun bulduğu satırın GERÇEK a.slug/o.slug'ı kullanılır (bkz. buildArchitectMeta).
   const joinSql = `FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL`;
   const row = await env.DB.prepare(
-    `SELECT a.*, o.name AS office_name ${joinSql}
+    `SELECT a.*, o.name AS office_name, o.slug AS office_slug ${joinSql}
      WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND (a.name = ? OR a.slug = ? OR a.legacy_key = ?) LIMIT 1`
   ).bind(key, key, key).first();
   if (row) return row;
   const { results } = await env.DB.prepare(`SELECT id, name FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all();
   const match = results.find(r => slugify(r.name) === key);
   if (!match) return null;
-  return env.DB.prepare(`SELECT a.*, o.name AS office_name ${joinSql} WHERE a.id = ?`).bind(match.id).first();
+  return env.DB.prepare(`SELECT a.*, o.name AS office_name, o.slug AS office_slug ${joinSql} WHERE a.id = ?`).bind(match.id).first();
 }
 
 async function findOfficeRow(env, key) {
@@ -146,7 +153,12 @@ async function findProductRow(env, key) {
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
 }
 
-function architectMetaFromRecord(a, officeName, slug) {
+// slug: kaydın GERÇEK canonical a.slug'ı (bkz. findArchitectRow'daki denetim notu) — çağıranın URL'de
+// kullandığı ham anahtar (name/legacy_key alias'ı olabilir) DEĞİL, aksi halde aynı kayıt birden çok
+// URL'den kendi kendine canonical olur (duplicate content). officeSlug de aynı gerekçeyle GERÇEK
+// o.slug'tır; eşleşen bir ofis kaydı yoksa (ör. serbest metin ofis adı) slugify(officeName) fallback'ine
+// düşer — önceki (tek) davranışla aynı, yalnızca gerçek bir eşleşme varken daha doğru URL üretir.
+function architectMetaFromRecord(a, officeName, slug, officeSlug) {
   const title = `${a.name} — MİMARLAB`;
   const description = officeName
     ? `${a.name}, ${officeName} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
@@ -157,7 +169,7 @@ function architectMetaFromRecord(a, officeName, slug) {
   if (a.role) jsonLd.jobTitle = a.role;
   if (photoUrl) jsonLd.image = photoUrl;
   if (a.school) jsonLd.alumniOf = { '@type': 'CollegeOrUniversity', name: a.school };
-  if (officeName) jsonLd.worksFor = { '@type': 'Organization', name: officeName, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(slugify(officeName))}` };
+  if (officeName) jsonLd.worksFor = { '@type': 'Organization', name: officeName, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(officeSlug || slugify(officeName))}` };
   // Schema.org'da ayrı bir "Architect" tipi yok (bkz. vocabulary) — Person kalıp uzmanlık alanını
   // knowsAbout ile ifade ediyoruz, aksi halde geçersiz @type Google'ın yapılandırılmış veri
   // ayrıştırıcısı tarafından sessizce yok sayılırdı.
@@ -169,7 +181,7 @@ async function buildArchitectMeta(slug, env) {
   const row = await findArchitectRow(env, slug);
   if (!row) return null;
   const a = parseCanonicalRow('architects', row);
-  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept }, row.office_name || null, slug);
+  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept }, row.office_name || null, row.slug, row.office_slug || null);
 }
 
 // architectMetaFromRecord ile AYNI paylaşım deseni — canonical D1 offices satırı ortak şekle
@@ -186,18 +198,24 @@ async function officeMetaFromRecord(o, slug, env) {
   if (logoUrl) jsonLd.logo = logoUrl;
   const site = safeHttpUrl(o.website);
   if (site) jsonLd.sameAs = [site];
-  const founderNames = await fetchFounderNames(env, o.name);
-  if (founderNames.length) {
-    jsonLd.founder = founderNames.map(n => ({ '@type': 'Person', name: n, url: `${SITE_ORIGIN}/mimar/${encodeURIComponent(slugify(n))}` }));
+  const founders = await fetchFounderNames(env, o.name);
+  if (founders.length) {
+    // founder.slug — bulunan kurucunun GERÇEK a.slug'ı (bkz. fetchFounderNames); eşleşen bir
+    // architects satırı yoksa (teoride olmaz, join zaten architects üzerinden geliyor) slugify(name)
+    // fallback'ine düşer — audit bulgusu: önceden HER ZAMAN slugify(name) kullanılıyordu, legacy
+    // city-suffixed slug'larla (bkz. proje memory notu) uyuşmayabiliyordu.
+    jsonLd.founder = founders.map(f => ({ '@type': 'Person', name: f.name, url: `${SITE_ORIGIN}/mimar/${encodeURIComponent(f.slug || slugify(f.name))}` }));
   }
   return { title, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl) };
 }
 
+// slug: kaydın GERÇEK canonical o.slug'ı — bkz. findArchitectRow'daki AYNI denetim notu
+// (2026-08-14); çağıranın URL'de kullandığı ham anahtar (name/legacy_key alias'ı olabilir) DEĞİL.
 async function buildOfficeMeta(slug, env) {
   const row = await findOfficeRow(env, slug);
   if (!row) return null;
   const o = parseCanonicalRow('offices', row);
-  return officeMetaFromRecord({ name: o.name, about: o.about, yil: o.yil, loc: o.loc, logo: o.logo_url, website: o.website }, slug, env);
+  return officeMetaFromRecord({ name: o.name, about: o.about, yil: o.yil, loc: o.loc, logo: o.logo_url, website: o.website }, row.slug, env);
 }
 
 async function buildProjectMeta(slug, env) {
@@ -297,8 +315,12 @@ async function fetchProductAggregateRating(env, targetType, targetId) {
 // malzemeler-data.js dizileri kaldırıldı (kullanıcı isteği) — Faz 3 migrasyonundan beri gerçek
 // ürün/malzeme kataloğu zaten yalnızca burada (canonical products tablosu) yaşıyor.
 async function buildProductMeta(key, env) {
-  const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(key)}`;
-
+  // "m-<submissionId>" biçimi kendi başına zaten canonical (submission satırlarının slug'ı yok) —
+  // bu dal için key'den kurulan URL doğru. Aşağıdaki canonical `products` dalı ise artık row.slug
+  // kullanır (bkz. findArchitectRow'daki AYNI denetim notu, 2026-08-14): findProductRow name/slug/
+  // legacy_key/slugify(title-brand) alias'larından HERHANGİ biriyle eşleşebildiğinden, önceden
+  // olduğu gibi ham `key`'i canonical sanmak aynı ürünün birden çok URL'den kendi kendine canonical
+  // olmasına (duplicate content) yol açıyordu.
   const m = /^m-(.+)$/.exec(key);
   if (m && env && env.DB) {
     const id = m[1];
@@ -309,6 +331,7 @@ async function buildProductMeta(key, env) {
       let images = [];
       try { images = row.images ? JSON.parse(row.images) : []; } catch { images = []; }
       const rating = await fetchProductAggregateRating(env, isMaterial ? 'material' : 'product', `m-${id}`);
+      const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(key)}`;
       return productMetaFromRecord({ title: row.title, brand: row.brand, description: row.description, images, rating }, canonicalUrl);
     }
   }
@@ -316,6 +339,7 @@ async function buildProductMeta(key, env) {
   const row = await findProductRow(env, key);
   if (!row) return null;
   const p = parseCanonicalRow('products', row);
+  const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(row.slug)}`;
   // rating-widget.js/product.js#handleProductListRoute'daki AYNI iki yol: legacy_key "submission:"
   // ile başlıyorsa gerçek anahtar m-<submissionId>'dir, aksi halde slugify(title-brand) türetilir.
   const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');

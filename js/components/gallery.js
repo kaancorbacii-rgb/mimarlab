@@ -90,7 +90,17 @@ function initDetailGallery(opts){
     const st = galleryEl._pmGalleryState;
     if(!st.images.length) return;
     st.lightboxIndex = (i + st.images.length) % st.images.length;
-    lightboxImg.src = st.images[st.lightboxIndex];
+    const img = st.images[st.lightboxIndex];
+    // gerçek bulgu (denetim raporu, AUDIT-006): burada önceden ORİJİNAL, hiç yeniden boyutlandırılmamış
+    // görsel yükleniyordu (bkz. yukarıdaki dosya başı yorum) — projects/ altındaki ortalama ~260KB'lık
+    // (bazıları çok daha büyük) orijinaller hiçbir üst sınır/srcset olmadan mobilde bile tam boyutuyla
+    // indiriliyordu. Şerit/ızgaradaki AYNI cdnImg/cdnSrcset deseni burada da uygulanır — lightbox tam
+    // ekran genişliğinde göründüğünden sizes="100vw", üst sınır 2000px (ekranların büyük çoğunluğu için
+    // yeterli çözünürlük, yine de orijinalden belirgin küçük).
+    const srcset = cdnSrcset(img, [800, 1200, 1600, 2000]);
+    lightboxImg.src = cdnImg(img, 1600);
+    if(srcset){ lightboxImg.srcset = srcset; lightboxImg.sizes = '100vw'; }
+    else { lightboxImg.removeAttribute('srcset'); lightboxImg.removeAttribute('sizes'); }
     if(lightboxCounter) lightboxCounter.textContent = `${st.lightboxIndex + 1} / ${st.images.length}`;
   }
 

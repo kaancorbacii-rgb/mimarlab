@@ -759,12 +759,21 @@ const AuthModal = (function () {
   // GÖRMESE de buradan firma-ekle.html?claim=...'a ulaşabiliyordu — sunucu yine de reddeder ama
   // kullanıcıya önce boş yere doldurabileceği bir form gösterip sonra 403 ile karşılaştırıyordu.
   const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+  // officePrice + SELF_DISCOUNT_TRY, src/routes/badges.js#BADGE_PRICES/getBadgePrice ile AYNI
+  // kaynaktan kopyalanmıştır (bkz. info-modal.js#mountRozetAl'daki BİREBİR aynı desen) — bu grid
+  // yalnızca "Kendim için" fiyatını gösterir, gerçek tutar her zaman satın alma anında sunucuda
+  // yeniden hesaplanır. gerçek bulgu (2026-08-14 audit): önceden bu dizi kendi içinde önceden
+  // indirimli fiyatları ayrı string olarak tutuyordu, backend fiyatı değişirse burası sessizce
+  // yanlış kalıyordu.
   const BADGE_TIERS = [
-    { type: 'destekci', label: 'Destekçi', price: '19,90 TL' },
-    { type: 'verified', label: 'Doğrulanmış Üye', price: '39,90 TL' },
-    { type: 'gold', label: 'Altın Üye', price: '79,90 TL' },
-    { type: 'platinum', label: 'Elmas Üye', price: '139,90 TL' },
+    { type: 'destekci', label: 'Destekçi', officePrice: 79.90 },
+    { type: 'verified', label: 'Doğrulanmış Üye', officePrice: 99.90 },
+    { type: 'gold', label: 'Altın Üye', officePrice: 139.90 },
+    { type: 'platinum', label: 'Elmas Üye', officePrice: 199.90 },
   ];
+  const BADGE_SELF_DISCOUNT_TRY = 60;
+  function badgeSelfPrice(tier) { return Math.round((tier.officePrice - BADGE_SELF_DISCOUNT_TRY) * 100) / 100; }
+  function formatTRY(n) { return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'; }
   const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
   const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };
 
@@ -1469,7 +1478,7 @@ const AuthModal = (function () {
       grid.innerHTML = BADGE_TIERS.map(tier => `
         <div class="badge-card">
           <div class="badge-card-name">${tier.label}</div>
-          <div class="badge-card-price">${tier.price} / ay</div>
+          <div class="badge-card-price">${formatTRY(badgeSelfPrice(tier))} / ay</div>
           <a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>
         </div>`).join('');
     }

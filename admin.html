@@ -388,7 +388,7 @@ function itemDesc(type, item){
 function safeUrl(u){
   if(!u) return '';
   try{
-    const parsed = new URL(u, window.location.href);
+    const parsed = new URL(u, document.baseURI);
     if(parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
   }catch{}
   return '';

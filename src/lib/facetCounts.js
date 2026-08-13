@@ -20,7 +20,7 @@
 // için her elemanı ayrı ayrı izlemek vb.) çok daha fazla kod ve çift-sayma/eksik-azaltma riski
 // taşırdı — doğruluk, "gerçek incremental" olmaktan daha öncelikli.
 
-import { fetchActiveProjectPool, buildFilterGroups } from '../routes/project.js';
+import { fetchActiveProjectPool, buildFilterGroups } from './projectPool.js';
 import { reserveKvWrite } from './kvQuota.js';
 
 const KV_TTL_SECONDS = 300;
