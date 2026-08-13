@@ -527,7 +527,12 @@
 
   /* ---------- PROJE MODALI — yorumlar ---------- */
   .comments-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
-  .comments-title{font-family:'Inter', sans-serif; font-size:18px; font-weight:700; margin:0 0 16px;}
+  /* Yorumlar da ilk açılışta kapalı (bkz. kullanıcı isteği, .pm-feedback-card İLE AYNI <details>/
+     <summary> deseni) — comments-title artık <h2> değil doğrudan clickable <summary>. */
+  .comments-title{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:18px; font-weight:700; margin:0;}
+  .comments-title::-webkit-details-marker{display:none;}
+  .comments-section[open] .comments-title{margin-bottom:16px;}
+  .comments-section[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
   .comment-form-wrap{margin-bottom:20px;}
   /* Gönder butonu textarea'nın İÇİNE, sağ alt köşeye bindirilir (bkz. kullanıcı isteği) — yazının
      butonun altına/arkasına denk gelmemesi için textarea'nın sağ ve alt iç boşluğu büyütülür, buton

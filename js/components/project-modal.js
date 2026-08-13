@@ -26,11 +26,11 @@ const ProjectModal = (function () {
       <div class="detail-meta" id="pm-meta"></div>
       <div class="detail-desc" id="pm-desc"></div>
     </div>
-    <div class="comments-section" id="pm-comments-section" aria-live="polite">
-      <h2 class="comments-title">Yorumlar (<span id="pm-comments-count">0</span>)</h2>
+    <details class="comments-section" id="pm-comments-section" aria-live="polite">
+      <summary class="comments-title">Yorumlar (<span id="pm-comments-count">0</span>)<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
       <div class="comments-list" id="pm-comments-list"></div>
-    </div>
+    </details>
     <hr class="pm-info-divider" id="pm-info-divider">
     <details class="pm-feedback-card" id="pm-feedback-card">
       <summary>Geri Bildirim<span class="feedback-card-plus" aria-hidden="true"></span></summary>
