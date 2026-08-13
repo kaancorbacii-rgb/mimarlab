@@ -18,6 +18,7 @@ import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
 import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
+import { handleNewsletterRoute } from './routes/newsletter.js';
 import { handleCspReportRoute } from './routes/cspReport.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
 import { slugify } from './lib/slugify.js';
@@ -610,6 +611,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);
   if (path === '/api/uploads') return handleUploadRoute(request, env);
   if (path === '/api/contact') return handleContactRoute(request, env, url);
+  if (path.startsWith('/api/newsletter/')) return handleNewsletterRoute(request, env, url);
   if (path === '/api/csp-report') return handleCspReportRoute(request);
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);
   if (path === '/api/public/badges') return handlePublicBadges(request, env, url);

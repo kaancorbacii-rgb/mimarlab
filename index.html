@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="color-scheme" content="light only">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="logos/site/favicon-180.png">
 <title>MİMARLAB — Türkiye'nin Mimar Platformu</title>
@@ -68,6 +69,32 @@
     --accent-soft:#F5CFA0;
     --line: rgba(27,42,61,0.14);
     --line-soft: rgba(27,42,61,0.08);
+  }
+
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ink:#E8ECF1;
+    --ink-soft:#93A4B8;
+    --paper:#12171F;
+    --paper-card:#1A212B;
+    --paper-alt:#212A35;
+    --walnut:#8FB0DA;
+    --brass:#7FA0C4;
+    --brass-soft:#2E3F52;
+    --sage:#8CA3BA;
+    --rust:#D08F8F;
+    --accent:#E8A968;
+    --accent-soft:#4A3624;
+    --good:#5FB37D;
+    --bad:#DD7676;
+    --line: rgba(232,236,241,0.14);
+    --line-soft: rgba(232,236,241,0.08);
+  }
+  [data-theme="dark"] .nav{background:rgba(18,23,31,0.92);}
+  [data-theme="dark"] .site-footer,
+  [data-theme="dark"] .cta-band,
+  [data-theme="dark"] .breadcrumb-bar{
+    --ink:#17202B; --ink-soft:#1E2836; --paper:#EDF0F3; --paper-card:#232C38; --brass-soft:#AFC5D8;
   }
 
   *{box-sizing:border-box;}

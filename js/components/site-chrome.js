@@ -87,6 +87,19 @@
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+          <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir" title="Gece Modu">
+            <svg class="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5z"/></svg>
+            <svg class="theme-icon theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </button>
+        </div>
+        <div class="footer-newsletter">
+          <h4>Bülten</h4>
+          <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firma profilleri e-postana gelsin.</p>
+          <form class="footer-newsletter-form" id="footer-newsletter-form">
+            <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
+            <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
+          </form>
+          <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
         </div>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
@@ -95,6 +108,107 @@
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>`;
+  }
+
+  // Footer'da enjekte edilen ek stiller (bkz. wireNavSearch'teki AYNI "bir kere enjekte et" deseni) —
+  // footer'ın kendi :root override'ı (bkz. her sayfanın <style>'ındaki [data-theme="dark"] .site-footer
+  // bloğu, kullanıcı isteği: "gece modu") --ink/--paper/--brass-soft'u footer içinde SABİT tuttuğundan,
+  // burada var(--paper) vb. kullanmak footer HER ZAMAN aynı (koyu zemin + açık yazı) görünmesini sağlar.
+  function injectFooterStyle(){
+    if(document.getElementById('footer-extra-style')) return;
+    const style = document.createElement('style');
+    style.id = 'footer-extra-style';
+    style.textContent = `
+      .footer-theme-toggle{background:none; border:none; padding:0; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; color:var(--paper); opacity:0.75; cursor:pointer;}
+      .footer-theme-toggle:hover{opacity:1;}
+      .footer-theme-toggle .theme-icon-sun{display:none;}
+      [data-theme="dark"] .footer-theme-toggle .theme-icon-moon{display:none;}
+      [data-theme="dark"] .footer-theme-toggle .theme-icon-sun{display:block;}
+      .footer-newsletter{margin-top:20px;}
+      .footer-newsletter h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 8px; font-weight:600;}
+      .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 10px; max-width:280px;}
+      .footer-newsletter-form{display:flex; gap:8px; max-width:320px;}
+      .footer-newsletter-input{flex:1; min-width:0; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:9px 14px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
+      .footer-newsletter-input::placeholder{color:rgba(237,240,243,0.45);}
+      .footer-newsletter-input:focus-visible{box-shadow:0 0 0 2px var(--brass-soft) inset;}
+      .footer-newsletter-btn{flex-shrink:0; background:var(--brass-soft); color:var(--ink); border:none; border-radius:100px; padding:9px 16px; font-weight:600; font-size:12.5px; white-space:nowrap;}
+      .footer-newsletter-btn:hover{opacity:0.9;}
+      .footer-newsletter-btn:disabled{opacity:0.6; cursor:default;}
+      .footer-newsletter-msg{font-size:12px; margin-top:8px; min-height:16px;}
+      .footer-newsletter-msg.ok{color:#8FD6A8;}
+      .footer-newsletter-msg.err{color:#E39B9B;}
+      @media (max-width: 520px){
+        .footer-newsletter-form{max-width:none;}
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function currentTheme(){
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  }
+
+  function applyTheme(theme){
+    if(theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    document.documentElement.style.colorScheme = theme;
+    try{ localStorage.setItem('mimarlab-theme', theme); }catch(e){}
+  }
+
+  function wireFooterTheme(){
+    const btn = document.getElementById('footer-theme-toggle');
+    if(!btn || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.setAttribute('aria-pressed', String(currentTheme() === 'dark'));
+    btn.addEventListener('click', ()=>{
+      const next = currentTheme() === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      btn.setAttribute('aria-pressed', String(next === 'dark'));
+    });
+  }
+
+  const NEWSLETTER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function wireFooterNewsletter(){
+    const form = document.getElementById('footer-newsletter-form');
+    const msg = document.getElementById('footer-newsletter-msg');
+    if(!form || !msg || form.dataset.wired) return;
+    form.dataset.wired = '1';
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const input = document.getElementById('footer-newsletter-email');
+      const email = (input.value || '').trim();
+      const btn = form.querySelector('button[type="submit"]');
+      msg.textContent = '';
+      msg.className = 'footer-newsletter-msg';
+      if(!NEWSLETTER_EMAIL_RE.test(email)){
+        msg.textContent = 'Geçerli bir e-posta adresi gir.';
+        msg.className = 'footer-newsletter-msg err';
+        return;
+      }
+      btn.disabled = true;
+      try{
+        const res = await fetch('/api/newsletter/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json().catch(()=>({}));
+        if(res.ok){
+          msg.textContent = 'Abone oldun, teşekkürler!';
+          msg.className = 'footer-newsletter-msg ok';
+          form.reset();
+        } else {
+          msg.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
+          msg.className = 'footer-newsletter-msg err';
+        }
+      } catch(err){
+        msg.textContent = 'Bağlantı hatası, tekrar dene.';
+        msg.className = 'footer-newsletter-msg err';
+      } finally {
+        btn.disabled = false;
+      }
+    });
   }
 
   function wireNavSearch(){
@@ -205,6 +319,9 @@
   function mountFooter(){
     const footerMount = document.getElementById('site-footer-mount');
     if(footerMount) footerMount.outerHTML = footerHtml();
+    injectFooterStyle();
+    wireFooterTheme();
+    wireFooterNewsletter();
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', mountFooter);

@@ -11,6 +11,7 @@ import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
+import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
@@ -289,6 +290,15 @@ async function createSubmission(request, env, user, typeKey) {
     // önbelleklenmemiş bir anahtarı silmeye çalışmak zararsızdır).
     const target = ssrPurgeTargetFor(typeKey, { ...row, id });
     if (target) await purgeSsrDetailCache(target.type, target.key);
+
+    // Bülten bildirimi (bkz. src/lib/newsletterNotify.js dosya başı yorumu) — YALNIZCA gerçekten
+    // yeni bir kayıt için (isOwnerProfileEdit/claimed_slug'lı gönderiler mevcut statik bir kaydın
+    // ÜZERİNE bindirilen düzenlemelerdir, "yeni içerik" değil). Bu blok yalnızca admin'in kendi
+    // gönderisinin ANINDA yayına girdiği yola girer (bkz. yukarıdaki status ataması) — sıradan üye
+    // gönderileri 'pending' kalır, bildirim admin onayladığında src/routes/admin.js'te gönderilir.
+    if (CANONICAL_TYPES.has(typeKey) && !isOwnerProfileEdit && !(typeKey === 'projects' && body.claimed_slug)) {
+      await notifyNewsletterOfNewContent(env, typeKey, syncedRow || { ...row, id });
+    }
   }
   // slug: proje-ekle.html'in kaydettikten sonra doğrudan canlı sayfaya yönlendirebilmesi için (bkz.
   // kullanıcı isteği) — syncedRow'dan (canonical satırın KENDİSİ) okunur, row.slug'dan DEĞİL: bir

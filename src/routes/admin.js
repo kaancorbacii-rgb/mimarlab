@@ -11,6 +11,7 @@ import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, cleanupReplacedR2Media, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
+import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -298,7 +299,17 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
           const freshRow = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
           const finalStatus = freshRow.status;
           if (finalStatus === 'approved') {
-            await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+            const syncedRow = await syncApprovedSubmissionToCanonical(env, typeKey, parseSubmissionRow(typeKey, freshRow));
+            // Bülten bildirimi (bkz. src/lib/newsletterNotify.js) — YALNIZCA bu onayla İLK KEZ
+            // 'approved'a geçen ve claimed_slug/claimed_profile_key'siz (yani mevcut statik bir
+            // kaydın üzerine bindirilen bir düzenleme DEĞİL, gerçekten yeni bir kayıt olan) satırlar
+            // için. existing.status !== 'approved' koşulu olmadan onaylı bir kaydın her PATCH'inde
+            // (ör. admin bir yazım hatasını düzeltirken) tekrar mail giderdi.
+            if (existing.status !== 'approved') {
+              const claimedColumn = typeKey === 'projects' ? 'claimed_slug' : (typeKey === 'architects' || typeKey === 'offices') ? 'claimed_profile_key' : null;
+              const isClaimEdit = claimedColumn && freshRow[claimedColumn];
+              if (!isClaimEdit) await notifyNewsletterOfNewContent(env, typeKey, syncedRow || parseSubmissionRow(typeKey, freshRow));
+            }
           } else if (existing.status === 'approved') {
             // onaylıyken reddedildi/pending'e alındı — bkz. src/lib/canonicalSync.js#hideCanonicalForUnapprovedSubmission.
             await hideCanonicalForUnapprovedSubmission(env, typeKey, freshRow);
