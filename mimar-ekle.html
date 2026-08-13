@@ -878,6 +878,22 @@ async function maybeAutoFillFromAccount(){
     existingPhotoUrl = user.photoUrl;
     renderPreviews();
   }
+  // Firma — bkz. kullanıcı isteği: "firma alanında da aynı otomatik doldurmayı yap". Hesap
+  // profilinin kendisinde firma adı diye bir alan yok (bkz. js/components/auth-modal.js "Firma"
+  // kutusu), o kutudaki seçim aslında profile_claims('office') talebine dönüşüyor — bu yüzden AYNI
+  // kaynak burada da okunur: onaylı (yoksa beklemede) bir ofis talebi varsa adı buraya yazılır.
+  const officeInput = document.getElementById('m-office');
+  if(!officeInput.value){
+    try{
+      const claimsRes = await fetch('/api/claims/mine');
+      if(claimsRes.ok){
+        const claims = (await claimsRes.json()).items || [];
+        const officeClaim = claims.find(c => c.profile_type === 'office' && c.status === 'approved')
+          || claims.find(c => c.profile_type === 'office' && c.status === 'pending');
+        if(officeClaim) officeInput.value = officeClaim.profile_key;
+      }
+    }catch{}
+  }
 }
 document.getElementById('m-name').addEventListener('input', maybeAutoFillFromAccount);
 document.getElementById('m-name').addEventListener('blur', maybeAutoFillFromAccount);
