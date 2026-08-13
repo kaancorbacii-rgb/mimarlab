@@ -86,10 +86,24 @@
         <div class="footer-newsletter">
           <h4>Bülten</h4>
           <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
-          <form class="footer-newsletter-form" id="footer-newsletter-form">
-            <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
-            <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
-          </form>
+          <div class="footer-newsletter-row">
+            <form class="footer-newsletter-form" id="footer-newsletter-form">
+              <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
+              <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
+            </form>
+            <div class="footer-bottom-actions">
+              <div class="footer-social">
+                <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+                <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+                <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+              </div>
+              <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir">
+                <span class="theme-toggle-label theme-label-moon">Gece</span>
+                <span class="theme-toggle-label theme-label-sun">Gündüz</span>
+                <span class="theme-toggle-knob" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
           <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
         </div>
       </div>
@@ -97,21 +111,7 @@
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
     </div>
-    <div class="footer-bottom">
-      <span class="footer-copyright">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</span>
-      <div class="footer-bottom-actions">
-        <div class="footer-social">
-          <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-          <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
-          <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
-        </div>
-        <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir">
-          <span class="theme-toggle-label theme-label-moon">Gece</span>
-          <span class="theme-toggle-label theme-label-sun">Gündüz</span>
-          <span class="theme-toggle-knob" aria-hidden="true"></span>
-        </button>
-      </div>
-    </div>
+    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2024-2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
   </footer>`;
   }
 
@@ -124,9 +124,8 @@
     const style = document.createElement('style');
     style.id = 'footer-extra-style';
     style.textContent = `
-      .footer-bottom{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; text-align:left;}
-      .footer-copyright{flex:1; min-width:220px;}
-      .footer-bottom-actions{display:flex; align-items:center; gap:16px; flex-shrink:0;}
+      .footer-newsletter-row{display:flex; align-items:center; flex-wrap:wrap; gap:14px 20px; justify-content:space-between;}
+      .footer-bottom-actions{display:flex; align-items:center; gap:14px; flex-shrink:0; margin-left:auto;}
       .footer-social{display:flex; align-items:center; gap:14px;}
       .footer-theme-toggle{
         position:relative; display:inline-flex; align-items:center; flex-shrink:0;
@@ -148,14 +147,10 @@
         transition: left 0.2s ease;
       }
       [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:4px;}
-      @media (max-width: 640px){
-        .footer-bottom{flex-direction:column; text-align:center;}
-        .footer-bottom-actions{justify-content:center;}
-      }
       .footer-newsletter{margin-top:20px;}
       .footer-newsletter h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 8px; font-weight:600;}
-      .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 10px; max-width:280px;}
-      .footer-newsletter-form{display:flex; gap:8px; max-width:320px;}
+      .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 12px; max-width:280px;}
+      .footer-newsletter-form{display:flex; gap:8px; flex:1; min-width:220px; max-width:320px;}
       .footer-newsletter-input{flex:1; min-width:0; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:9px 14px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
       .footer-newsletter-input::placeholder{color:rgba(237,240,243,0.45);}
       .footer-newsletter-input:focus-visible{box-shadow:0 0 0 2px var(--brass-soft) inset;}
@@ -165,8 +160,9 @@
       .footer-newsletter-msg{font-size:12px; margin-top:8px; min-height:16px;}
       .footer-newsletter-msg.ok{color:#8FD6A8;}
       .footer-newsletter-msg.err{color:#E39B9B;}
-      @media (max-width: 520px){
-        .footer-newsletter-form{max-width:none;}
+      @media (max-width: 900px){
+        .footer-newsletter-row{justify-content:flex-start;}
+        .footer-bottom-actions{margin-left:0;}
       }
     `;
     document.head.appendChild(style);
