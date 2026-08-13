@@ -5,7 +5,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
-import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
+import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -402,7 +402,17 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // dizisinin kendisi yalnızca kozmetiktir).
   if (typeKey === 'offices' && 'founders' in body) {
     const oldFounders = parseSubmissionRow('offices', existing).founders;
-    await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
+    const newFounders = Array.isArray(body.founders) ? body.founders : [];
+    await cascadeRemovedFounders(env, user, existing.name, oldFounders, newFounders);
+    await cascadeRemovedProfileClaims(env, existing.name, newFounders, { founders: true });
+  }
+  // Ekip kutusundan çıkarılan bir isim, o firmaya onaylı bir profile_claims sahibiyse (bkz.
+  // src/lib/officeFounderCascade.js#cascadeRemovedProfileClaims dosya başı yorumu) claim'i de
+  // reddedilmiş işaretlenir — aksi halde office.js#buildOfficePayload profile_claims'i approved
+  // bulup kişiyi Ekip'te GERİ gösteriyordu (gerçek bulgu, bkz. kullanıcı isteği).
+  if (typeKey === 'offices' && 'team' in body) {
+    const newTeam = Array.isArray(body.team) ? body.team : [];
+    await cascadeRemovedProfileClaims(env, existing.name, newTeam, { founders: false });
   }
 
   // Onaylı içerik ya şimdi onaylandı ya da (sıradan üye kendi onaylı içeriğini düzenlediğinde,

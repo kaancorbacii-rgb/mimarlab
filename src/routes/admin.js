@@ -5,7 +5,7 @@ import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
-import { cascadeRemovedFounders, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
+import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
 import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, cleanupReplacedR2Media, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
@@ -281,7 +281,18 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       // aynı çağrı, admin'in doğrudan düzenlediği durum için).
       if (typeKey === 'offices' && 'founders' in body) {
         const oldFounders = parseSubmissionRow('offices', existing).founders;
-        await cascadeRemovedFounders(env, user, existing.name, oldFounders, Array.isArray(body.founders) ? body.founders : []);
+        const newFounders = Array.isArray(body.founders) ? body.founders : [];
+        await cascadeRemovedFounders(env, user, existing.name, oldFounders, newFounders);
+        await cascadeRemovedProfileClaims(env, existing.name, newFounders, { founders: true });
+      }
+      // Ekip kutusundan çıkarılan bir isim, o firmaya onaylı bir profile_claims sahibiyse (bkz.
+      // src/lib/officeFounderCascade.js#cascadeRemovedProfileClaims dosya başı yorumu) claim'i de
+      // reddedilmiş işaretlenir — admin panelinden Ekip'ten çıkarıp kaydetmek görünürde başarılı
+      // olsa da kişi hâlâ firma pop-up'ından/Hesabım'dan silinmiyordu (gerçek bulgu, bkz. kullanıcı
+      // isteği).
+      if (typeKey === 'offices' && 'team' in body) {
+        const newTeam = Array.isArray(body.team) ? body.team : [];
+        await cascadeRemovedProfileClaims(env, existing.name, newTeam, { founders: false });
       }
 
       // Onaylı içerik ya şimdi onaylandı ya da onaylıyken bir alanı/durumu değişti (her iki

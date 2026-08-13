@@ -991,7 +991,9 @@ const InfoModal = (function () {
 
   function renderView(view) {
     ensureStyles();
-    const panels = ModalShell.getPanels();
+    // bkz. js/components/modal-shell.js#claimContent — auth-modal.js#renderView'daki AYNI gerçek
+    // bulgu: sahip değiştiyse paneller zaten boşaltılmış/bodyEl temel sınıfa sıfırlanmış olur.
+    const panels = ModalShell.claimContent('info');
     panels.bodyEl.classList.add('info-single');
     panels.rightPanelEl.innerHTML = '';
     const wrap = document.createElement('div');

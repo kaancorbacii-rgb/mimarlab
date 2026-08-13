@@ -746,6 +746,13 @@ const AuthModal = (function () {
   const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
   const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
   const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html' };
+  // bkz. src/routes/submissions.js#OFFICE_EDIT_POSITIONS / js/components/claim-correction-box.js
+  // (firma sayfasındaki Düzenle butonu) ile BİREBİR aynı liste — kullanıcı isteği: "Firmayı sadece
+  // kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir". Hesabım'daki Firma satırı bu kontrolü
+  // UYGULAMIYORDU (gerçek bulgu): Ekip Üyesi pozisyonundaki biri firma sayfasından Düzenle'yi hiç
+  // GÖRMESE de buradan firma-ekle.html?claim=...'a ulaşabiliyordu — sunucu yine de reddeder ama
+  // kullanıcıya önce boş yere doldurabileceği bir form gösterip sonra 403 ile karşılaştırıyordu.
+  const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
   const BADGE_TIERS = [
     { type: 'destekci', label: 'Destekçi', price: '19,90 TL' },
     { type: 'verified', label: 'Doğrulanmış Üye', price: '39,90 TL' },
@@ -1530,17 +1537,26 @@ const AuthModal = (function () {
       // kararlı (stable) olduğundan aynı tip içindeki göreli sıra (API'nin updated_at DESC'i)
       // korunur, yalnızca office/architect grupları arasında sıra sabitlenir.
       const sortedItems = items.slice().sort((a, b) => (a.profile_type === 'office' ? 0 : 1) - (b.profile_type === 'office' ? 0 : 1));
-      list.innerHTML = sortedItems.map(c => `
+      list.innerHTML = sortedItems.map(c => {
+        // office için: pozisyon Kurucu/Kurucu Ortak/Ortak/Ekip Lideri DEĞİLSE Düzenle linki hiç
+        // gösterilmez (bkz. yukarıdaki OFFICE_EDIT_POSITIONS yorumu) — mimar profili kendi pozisyonundan
+        // bağımsız düzenlenebildiğinden (bkz. src/routes/submissions.js#verifyClaimedProfileKey) bu
+        // kısıtlama yalnızca office tipinde uygulanır.
+        const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(accountUser && accountUser.position));
+        return `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
             <span>${escapeHtml(c.profile_key)}</span>
-            ${c.status === 'approved'
+            ${canEdit
               ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
-              : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
+              : c.status === 'approved'
+                ? ''
+                : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
           </span>
         </div>
-      `).join('');
+      `;
+      }).join('');
       syncClaimedArchitectData(items);
     }
 
@@ -1652,7 +1668,11 @@ const AuthModal = (function () {
 
   function renderView(view) {
     ensureStyles();
-    const panels = ModalShell.getPanels();
+    // bkz. js/components/modal-shell.js#claimContent — sahip değiştiyse (proje/mimar/firma/ürün
+    // modalından geçildiyse) paneller zaten boşaltılmış/bodyEl temel sınıfa sıfırlanmış olur; aynı
+    // kalırsa (login↔signup↔account arası geçiş) hiçbir şey silinmez, aşağıdaki manuel temizlik
+    // (view'i yeniden kurmak için) değişmeden çalışmaya devam eder.
+    const panels = ModalShell.claimContent('auth');
     panels.bodyEl.classList.add('am-single');
     panels.rightPanelEl.innerHTML = '';
     const wrap = document.createElement('div');

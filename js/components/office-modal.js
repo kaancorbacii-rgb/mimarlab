@@ -214,9 +214,14 @@ const OfficeModal = (function () {
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
 
+  // bkz. js/components/modal-shell.js#claimContent — paneller EN SON bu modal (office) tarafından
+  // doldurulmadıysa (ör. araya Hesabım/başka bir detay modalı girdiyse) isNewOwner:true döner ve
+  // panelleri zaten boşaltmış olur; bu durumda mountedOnce true olsa bile şablon KOŞULSUZ yeniden
+  // kurulur, aksi halde renderItem() var olmayan (silinmiş) om-* id'lerine yazmaya çalışıp bozuk/
+  // yarım bir popup üretiyordu (gerçek bulgu).
   function ensureTemplate() {
-    if (mountedOnce) return;
-    const panels = ModalShell.getPanels();
+    const panels = ModalShell.claimContent('office');
+    if (mountedOnce && !panels.isNewOwner) return;
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);

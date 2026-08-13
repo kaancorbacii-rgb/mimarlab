@@ -88,9 +88,12 @@ const ProjectModal = (function () {
   // bakıldıktan sonra X/Escape'e basmak, yalnızca son swap'ı değil doğrudan asıl listeye dönmeli.
   let requestSeq = 0; // yarışan open()/swap() çağrılarından yalnızca sonuncusunun render etmesi için
 
+  // bkz. js/components/modal-shell.js#claimContent — sahip DEĞİŞTİYSE (Hesabım/başka bir detay
+  // modalından geçildiyse) panelleri boşaltıp isNewOwner:true döner, bu durumda mountedOnce true
+  // olsa da şablon KOŞULSUZ yeniden kurulur (bkz. office-modal.js#ensureTemplate AYNI gerçek bulgu).
   function ensureTemplate() {
-    if (mountedOnce) return;
-    const panels = ModalShell.getPanels();
+    const panels = ModalShell.claimContent('project');
+    if (mountedOnce && !panels.isNewOwner) return;
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);

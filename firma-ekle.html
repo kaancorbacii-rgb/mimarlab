@@ -765,7 +765,10 @@ async function wireAdminBadgePicker(profileKey){
 // Ekip kutusunun serbest metin listesini onaylı profile_claims('office', kurucu olmayan pozisyon)
 // üzerinden bu firmaya bağlanmış hesap isimleriyle (case-insensitive, tekrarsız) birleştirir —
 // bkz. kullanıcı isteği: "firma düzenle sayfasındaki ekip kutucuğu ile firma sayfasındaki ekip
-// kısmı senkronizasyonlu/bağlantılı olacak".
+// kısmı senkronizasyonlu/bağlantılı olacak". Aşağıda Kurucular kutusu için de AYNEN yeniden
+// kullanılır (bkz. kullanıcı isteği: bir mimarın kendi profilinde bu firmada Kurucu olarak
+// seçilmesi Kurucular kutusunda da OTOMATIK görünmeli) — mantık isim listesi birleştirmekten
+// ibaret, "ekip" kavramına özgü değil.
 function mergeTeamNames(existing, claimed){
   const seen = new Set((existing || []).map(n => n.trim().toLowerCase()).filter(Boolean));
   const merged = (existing || []).slice();
@@ -803,8 +806,14 @@ async function prefillForEdit(){
     try{
       const publicRes = await fetch(`/api/office/${encodeURIComponent(item.claimed_profile_key || item.name)}`);
       if(publicRes.ok){
-        const { team } = await publicRes.json();
+        const { founders, team } = await publicRes.json();
+        // bkz. mergeTeamNames yorumu — bir mimarın kendi profilinde bu firmada Kurucu/Kurucu Ortak
+        // seçilmesi (GET /api/office/:key'in üst seviye `founders` alanı, bkz. src/routes/office.js#
+        // buildOfficePayload) Kurucular kutusuna da OTOMATIK yansımalı, yalnızca Ekip'e değil
+        // (gerçek bulgu: bu satır önceden yalnızca `team`'i okuyup `founders`'ı hiç kullanmıyordu).
+        const claimedFounderNames = (founders || []).map(f => f.name).filter(Boolean);
         const claimedTeamNames = (team || []).map(t => t.name).filter(Boolean);
+        document.getElementById('o-founders').value = mergeTeamNames(item.founders || [], claimedFounderNames).join(', ');
         document.getElementById('o-team').value = mergeTeamNames(item.team || [], claimedTeamNames).join(', ');
       }
     }catch{}
@@ -842,6 +851,12 @@ async function prefillForClaim(){
   // aşağıda merged.team ile birleştirilir (bkz. kullanıcı isteği: "firma düzenle sayfasındaki ekip
   // kutucuğu ile firma sayfasındaki ekip kısmı senkronizasyonlu/bağlantılı olacak").
   let claimedTeamNames = [];
+  // Kendi mimar profilinde bu firmayı Kurucu/Kurucu Ortak olarak seçmiş hesaplar — GET /api/office/
+  // :key'in üst seviye `founders` alanından (bkz. src/routes/office.js#buildOfficePayload), aşağıda
+  // merged.founders ile birleştirilir (bkz. mergeTeamNames yorumu, kullanıcı isteği: Ervin Garip
+  // firma sayfasında Kurucu görünürken Kurucular kutusuna manuel yazılmadığı için düzenle formunda
+  // hiç görünmüyordu — bu artık OTOMATIK doldurulur).
+  let claimedFounderNames = [];
 
   // Bağımsız dizin kaydı — bkz. mimar-ekle.html#prefillForClaim'deki AYNI gerekçe/düzeltme (gerçek
   // bulgu: data.js'in statik offices[] dizisinde hiç yer almayan bir firma profilinin Düzenle
@@ -851,10 +866,11 @@ async function prefillForClaim(){
   try{
     const canonicalRes = await fetch(`/api/office/${encodeURIComponent(claimName)}`);
     if(canonicalRes.ok){
-      const { item, team } = await canonicalRes.json();
+      const { item, team, founders } = await canonicalRes.json();
       if(item && item.name === claimName){
         merged = { ...merged, ...item };
         claimedTeamNames = (team || []).map(t => t.name).filter(Boolean);
+        claimedFounderNames = (founders || []).map(f => f.name).filter(Boolean);
       }
     }
   }catch{}
@@ -904,7 +920,7 @@ async function prefillForClaim(){
   if(merged.yil){ selectedYil = merged.yil; document.getElementById('dd-yil-btn-label').textContent = String(merged.yil); }
   document.getElementById('o-website').value = merged.website || '';
   document.getElementById('o-desc').value = merged.about || '';
-  document.getElementById('o-founders').value = (merged.founders || []).join(', ');
+  document.getElementById('o-founders').value = mergeTeamNames(merged.founders || [], claimedFounderNames).join(', ');
   document.getElementById('o-team').value = mergeTeamNames(merged.team || [], claimedTeamNames).join(', ');
   // merged.cats statik/overlay/mine kaynaklarında " · " ile ayrılmış düz metin, canonical
   // /api/office/:key kaynağında ise zaten bir dizi (bkz. src/lib/canonicalRead.js) — ikisini de kabul eder.

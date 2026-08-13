@@ -3,6 +3,15 @@ import { parseSubmissionRow } from './submissionTypes.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
 import { slugify } from './slugify.js';
 import { recordSlugRedirect } from './slugRedirects.js';
+import { createNotification } from './notify.js';
+
+// src/routes/office.js#trLower ile BİREBİR aynı (bu dosyada da aynı sebeple yerel olarak tekrar
+// tanımlanmış — bkz. o dosyadaki yorum) — Kurucular/Ekip kutusundaki bir isim, o firmaya onaylı bir
+// profile_claims hesabıyla eşleştirilirken Türkçe İ/I/ı/i büyük-küçük harf katlamasının SQL LIKE'ın
+// bilmediği kurallarla doğru yapılması gerekir.
+function trLower(s) {
+  return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
+}
 
 const ARCHITECT_COPY_FIELDS = ['dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about'];
 
@@ -54,6 +63,54 @@ export async function cascadeRemovedFounders(env, user, officeName, oldFounders,
   const removed = [...oldSet].filter(name => !newSet.has(name));
   for (const name of removed) {
     await clearArchitectOfficeIfMatches(env, user, name, officeName);
+  }
+}
+
+// office.js#buildOfficePayload'daki AYNI kurucu/ekip ayrımı — bir profile_claims('office') satırı
+// bu pozisyonlardaysa Kurucular'a, değilse Ekip'e sayılır.
+const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak']);
+
+// gerçek bulgu (kullanıcı isteği): Kurucular/Ekip kutusundan bir isim çıkarılıp kaydedildiğinde
+// (ör. admin panelinden firma düzenle > Ekip), o kişinin buildOfficePayload'da (bkz. src/routes/
+// office.js) hâlâ görünmeye devam etmesinin nedeni cascadeRemovedFounders'ın YALNIZCA architects.
+// office_id bağlantısını temizlemesiydi — asıl "kurucu/ekip" görünürlüğü çoğu zaman bundan değil,
+// kullanıcının kendi hesabına ait onaylı bir profile_claims('office', ...) satırından geliyor (bkz.
+// office.js#buildOfficePayload teamClaimRows) ve o satıra hiç dokunulmuyordu.
+//
+// ESKİ/NAİF tasarım (isim listesinin ÖNCEKİ ve YENİ office_submissions.founders/team sütunlarını
+// karşılaştırmak) burada KASITLI OLARAK kullanılmadı: bu sütunlar yalnızca elle yazılmış ham metindir
+// — bir claim sahibinin adı firma-ekle.html'in kendisi tarafından kutuya yalnızca GÖRÜNTÜLEME anında
+// (bkz. mergeTeamNames) eklenir, satıra hiç YAZILMAMIŞ olabilir. Bu durumda "eski sütun" o ismi hiç
+// içermediğinden bir "çıkarma" tespit edilemez, kişi kutudan silinip kaydedilse bile claim'i asla
+// reddedilmezdi. Bunun yerine bu firmaya ait TÜM onaylı profile_claims satırları doğrudan sorgulanır:
+// kutunun bu bölüme karşılık gelen (Kurucu/Kurucu Ortak ya da diğerleri) her onaylı claim sahibi için,
+// adı YENİ gönderilen listede yoksa reddedilmiş sayılır. Bu güvenli: firma-ekle.html#prefillForEdit/
+// prefillForClaim ARTIK (bkz. kullanıcı isteği'ndeki Kurucular otomatik doldurma düzeltmesi) formu
+// AÇARKEN tüm claim sahiplerinin adını zaten kutuya yazıyor, yani normal bir düzenlemede (kimseyi
+// silmeden kaydetmek) bu isimler YENİ listede de olur — yalnızca editör GERÇEKTEN o ismi kutudan
+// silip kaydederse "reddedilmiş" sayılır.
+export async function cascadeRemovedProfileClaims(env, officeName, newNames, { founders = false } = {}) {
+  const newSet = new Set((newNames || []).filter(Boolean).map(n => trLower(n.trim())));
+
+  const { results } = await env.DB.prepare(
+    `SELECT c.id, c.user_id, u.name, u.position FROM profile_claims c JOIN users u ON u.id = c.user_id
+     WHERE c.profile_type = 'office' AND c.profile_key = ? AND c.status = 'approved'`
+  ).bind(officeName).all();
+  const relevant = (results || []).filter(r => founders === FOUNDER_POSITIONS.has(r.position));
+  const toRevoke = relevant.filter(r => !newSet.has(trLower((r.name || '').trim())));
+  if (!toRevoke.length) return;
+
+  const now = Date.now();
+  await env.DB.batch(toRevoke.map(r =>
+    env.DB.prepare(`UPDATE profile_claims SET status = 'rejected', updated_at = ? WHERE id = ?`).bind(now, r.id)
+  ));
+  for (const r of toRevoke) {
+    await createNotification(
+      env, r.user_id, 'claim_rejected',
+      'Firma profili talebin reddedildi',
+      `"${officeName}" firmasının ${founders ? 'Kurucular' : 'Ekip'} listesinden çıkarıldığın için profil bağlantın kaldırıldı.`,
+      'hesabim.html'
+    );
   }
 }
 

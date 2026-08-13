@@ -23,6 +23,7 @@ const ModalShell = (function () {
   let opened = false;
   let pendingGoBack = null; // bkz. goBackAndWait/waitForPendingNav
   let pendingGoBackSuperseded = false; // bkz. waitForPendingNav/wasCurrentPopSuperseded
+  let contentOwner = null; // bkz. claimContent — panelleri en son hangi modal (auth/office/architect/project/product) doldurdu
 
   function injectStyles() {
     if (document.getElementById('modal-shell-styles')) return;
@@ -354,6 +355,34 @@ const ModalShell = (function () {
     return { leftPanelEl: overlayEl.querySelector('.modal-shell-left'), rightPanelEl: overlayEl.querySelector('.modal-shell-right'), bodyEl, panelEl };
   }
 
+  // gerçek bulgu: Hesabım (auth-modal.js) ve proje/mimar/firma/ürün modallarının HEPSİ aynı paylaşılan
+  // leftPanelEl/rightPanelEl/bodyEl'i kullanır, ama hiçbiri diğerinin panelleri en son NE zaman/KİM
+  // tarafından dolduruldu bilmiyordu — ör. Hesabım açıkken (bodyEl'e .am-single eklenmiş, tek sütun)
+  // bir firma linkine tıklanıp OfficeModal.open() tetiklendiğinde, office-modal.js'in kendi
+  // `mountedOnce` bayrağı (sayfa ömrü boyunca zaten true) şablonu YENİDEN kurmadan renderItem()'a
+  // geçiyor, ama Hesabım'ın en son DOM'u/CSS sınıfı hâlâ panellerde kalmış oluyordu — sonuç: bozuk/
+  // dar tek sütun içine yarım render olmuş firma popup'ı (bkz. kullanıcı isteği). claimContent() bu
+  // "kim doldurdu" bilgisini TEK yerde (ModalShell) tutar: sahip DEĞİŞTİYSE panelleri boşaltır VE
+  // bodyEl'in class listesini temel duruma sıfırlar (am-single gibi modale özgü sınıflar dahil),
+  // isNewOwner:true döner ki çağıran modal kendi şablonunu KOŞULSUZ yeniden kursun; aynı modal
+  // ardışık slug'lar arasında geçiş yaparken (isNewOwner:false) hiçbir şey silinmez, mevcut hızlı yol
+  // (mountedOnce) korunur.
+  function claimContent(ownerKey) {
+    ensureDom();
+    const isNewOwner = ownerKey !== contentOwner;
+    if (isNewOwner) {
+      contentOwner = ownerKey;
+      bodyEl.className = 'modal-shell-body';
+      overlayEl.querySelector('.modal-shell-left').innerHTML = '';
+      overlayEl.querySelector('.modal-shell-right').innerHTML = '';
+    }
+    return {
+      leftPanelEl: overlayEl.querySelector('.modal-shell-left'),
+      rightPanelEl: overlayEl.querySelector('.modal-shell-right'),
+      bodyEl, panelEl, isNewOwner,
+    };
+  }
+
   function scrollToTop() { if (bodyEl) bodyEl.scrollTop = 0; }
 
   // Düzenle/Arşivle/Sil butonlarının X'in yanına yazıldığı paylaşılan yuva (bkz. kullanıcı isteği) —
@@ -402,5 +431,5 @@ const ModalShell = (function () {
 
   function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
 
-  return { open, close, isOpen, getPanels, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded };
+  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded };
 })();

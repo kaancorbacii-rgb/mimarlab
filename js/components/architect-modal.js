@@ -203,9 +203,12 @@ const ArchitectModal = (function () {
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
 
+  // bkz. js/components/modal-shell.js#claimContent — sahip DEĞİŞTİYSE (Hesabım/başka bir detay
+  // modalından geçildiyse) panelleri boşaltıp isNewOwner:true döner, bu durumda mountedOnce true
+  // olsa da şablon KOŞULSUZ yeniden kurulur (bkz. office-modal.js#ensureTemplate AYNI gerçek bulgu).
   function ensureTemplate() {
-    if (mountedOnce) return;
-    const panels = ModalShell.getPanels();
+    const panels = ModalShell.claimContent('architect');
+    if (mountedOnce && !panels.isNewOwner) return;
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);
