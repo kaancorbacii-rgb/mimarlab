@@ -52,6 +52,11 @@ const ModalShell = (function () {
         opacity:0; visibility:hidden; pointer-events:none;
         transition:opacity var(--motion-normal) var(--ease-standard), visibility 0s linear var(--motion-normal);
       }
+      /* Gece modunda hem sayfa arkaplanı hem panel zaten koyu olduğundan aynı koyu overlay
+         (rgba(27,42,61,...)) ikisini birbirinden ayırt edilemez kılıyordu (bkz. kullanıcı isteği:
+         "pop-up olduğu belli olmuyor") — panel her zaman --paper-card kadar koyu kalacağından,
+         daha AÇIK renkli bir örtü kontrastı geri getirir. */
+      [data-theme="dark"] .modal-shell-overlay{background:rgba(255,255,255,0.16);}
       /* display:none/flex ile anlık açılıp kapanıyordu — opacity/transform GEÇİŞ ALAMAZ, tarayıcı
          display değişimini hiçbir ara kare olmadan uygular (bkz. kullanıcı isteği: yumuşak
          büyüme/belirme animasyonu). Bunun yerine overlay HER ZAMAN display:flex kalır, kapalıyken

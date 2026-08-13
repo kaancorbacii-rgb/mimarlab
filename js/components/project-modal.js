@@ -27,7 +27,7 @@ const ProjectModal = (function () {
       <div class="detail-desc" id="pm-desc"></div>
     </div>
     <details class="comments-section" id="pm-comments-section" aria-live="polite">
-      <summary class="comments-title">Yorumlar (<span id="pm-comments-count">0</span>)<span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <summary class="comments-title">Yorumlar<span id="pm-comments-count" style="display:none;">0</span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
       <div class="comments-list" id="pm-comments-list"></div>
     </details>
