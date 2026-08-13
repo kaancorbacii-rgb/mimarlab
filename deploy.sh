@@ -21,6 +21,42 @@ fi
 
 echo "miras/ kontrolü geçti ($miras_count dosya)."
 
+# Gerçek bulgu (2026-08-13): main ve bir Claude oturumu worktree'si (claude/terminal-yaz-
+# sorusu-e4c8aa) aynı noktadan ayrışıp saatlerce birbirinden habersiz commit aldı; deploy hep
+# main'den (worktree'lerin GERİSİNDE kalmış bir daldan) çalıştırıldığından o günün TÜM hesabım
+# pop-up/mimar-ekle senkron/footer/rozet işi canlıdan saatlerce yok görünmüştü — kod hiç
+# kaybolmamıştı, sadece deploy edilen dal yanlış/eskiydi. Bu kontrol, deploy edilecek dalın
+# başka bir worktree'nin dalından GERİDE olduğu (yani o dalda burada olmayan commit'ler
+# bulunduğu) durumu tespit edip deploy'u durdurur - `git worktree list --porcelain` paylaşılan
+# .git nesnelerinden dolayı diğer worktree'lerin dallarını da (checkout edilmemiş olsalar bile)
+# görebilir.
+current_branch=$(git branch --show-current)
+if [ -n "$current_branch" ]; then
+  behind_found=0
+  wt_path=""
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ refs/heads/*)
+        wt_branch="${line#branch refs/heads/}"
+        if [ "$wt_path" != "$(pwd)" ] && [ "$wt_branch" != "$current_branch" ]; then
+          ahead=$(git rev-list --count "$current_branch..$wt_branch" 2>/dev/null || echo 0)
+          if [ "$ahead" -gt 0 ]; then
+            echo "DEPLOY DURDURULDU: '$wt_branch' dalı ($wt_path worktree'sinde) bu daldan ($current_branch) $ahead commit ileride." >&2
+            echo "Bu tam olarak main/terminal-yaz-sorusu-e4c8aa'nın ayrışıp canlıya eksik kod deploy edilmesine yol açtığı senaryo - önce birleştir:" >&2
+            echo "  git merge $wt_branch" >&2
+            behind_found=1
+          fi
+        fi
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+  if [ "$behind_found" -eq 1 ]; then
+    exit 1
+  fi
+  echo "Git dal senkronizasyon kontrolü geçti (diğer worktree'lerde eksik commit yok)."
+fi
+
 # Faz 4D — wrangler'ın stdout'unu hem normal şekilde ekrana basıp hem de deployed Version ID'yi
 # ayrıştırmak için ayrıca bir dosyaya yakalıyoruz (bkz. scripts/health-check.sh#worker_version
 # teyidi). `set -o pipefail` (yukarıda) sayesinde `wrangler deploy` başarısız olursa `tee`
