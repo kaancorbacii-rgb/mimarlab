@@ -468,6 +468,11 @@ async function syncOffice(env, row) {
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.logo_url) { sets.push('logo_url = ?'); vals.push(row.logo_url); }
       if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
+      // GERÇEK BULGU: 'awards' bu dalda hiç yoktu — firma-ekle.html'de bir Ödül alanı olmadığından
+      // (bkz. kullanıcı isteği: proje-ekle.html'e Ödül eklenirken firma-ekle.html'e de eklendi) bugüne
+      // kadar tetiklenmemiş, ama offices.awards kolonu/config zaten vardı (bkz. schema.sql, migrations/
+      // 0022_id_first_entities.sql). Diğer alanlarla AYNI desen: yalnızca truthy'yse SET'e eklenir.
+      if (row.awards && row.awards.length) { sets.push('awards = ?'); vals.push(awards); }
       // GERÇEK BULGU (bkz. kullanıcı isteği: "Diğer profillerde de benzer bir yanlış eşleşme var mı
       // kontrol et" → "MİMARLAB" firma profili onaylı bir profile_claims kaydına sahip olduğu halde
       // claimed_by_user_id hep NULL kalmıştı): bu UPDATE dalı (mevcut statik/legacy bir kayda
@@ -482,8 +487,8 @@ async function syncOffice(env, row) {
       if (claimedByUserId) { sets.push('claimed_by_user_id = ?'); vals.push(claimedByUserId); }
     } else {
       // bağımsız kayıt — kendi taslağının her düzenlemesi tam birebir yansır.
-      sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?', 'social_links = ?');
-      vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, socialLinks);
+      sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?', 'social_links = ?', 'awards = ?');
+      vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, socialLinks, awards);
     }
     // hidden_at HER onaylı senkronda temizlenir — bir bağımsız (claimed_profile_key'siz) kaydın
     // sahibi onaylı içeriğini tekrar düzenlediğinde durum geçici olarak 'pending'e döner ve
@@ -679,6 +684,7 @@ async function syncProject(env, row) {
   const discipline = JSON.stringify(row.discipline || []);
   const period = JSON.stringify(row.period || []);
   const images = JSON.stringify(row.images || []);
+  const awards = JSON.stringify(row.awards || []);
 
   let projectId;
   if (target) {
@@ -688,12 +694,12 @@ async function syncProject(env, row) {
     const sets = [
       'title = ?', 'category = ?', 'type = ?', 'discipline = ?', 'location = ?', 'location_detail = ?',
       'project_date = ?', 'date_bucket = ?', 'period = ?', 'photo_credit_text = ?', 'photo_credit_url = ?',
-      'description = ?', 'build_status = ?', 'concept_category = ?', 'hidden_at = NULL', `updated_at = datetime('now')`,
+      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'hidden_at = NULL', `updated_at = datetime('now')`,
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
       row.date || null, row.dateBucket || null, period, row.photoCreditText || '', row.photoCreditUrl || '',
-      row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null,
+      row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards,
     ];
     if (row.images && row.images.length) { sets.splice(-1, 0, 'images = ?'); vals.push(images); }
     // Başlık değiştiyse slug da değişir (bkz. kullanıcı isteği: "ismi değişirse URL'si de değişmeli"
@@ -723,13 +729,13 @@ async function syncProject(env, row) {
     const clash = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(
       finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
       row.date || null, row.dateBucket || null, period, row.description || null, images,
       row.photoCreditText || null, row.photoCreditUrl || null, row.source_url || null, row.ai_generated ? 1 : 0,
-      row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null,
+      row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards,
       marker, row.owner_user_id
     ));
     projectId = insert.meta.last_row_id;

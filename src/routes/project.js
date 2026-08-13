@@ -79,6 +79,7 @@ function shapeProjectItem(row, opts) {
     description: p.description, images: coverOnly ? p.images.slice(0, 1) : p.images,
     buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
     conceptCategory: p.concept_category || null,
+    awards: p.awards || [],
   };
 }
 

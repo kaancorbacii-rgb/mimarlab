@@ -251,6 +251,7 @@
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
 <script src="js/components/modal-shell.js" defer></script>
+<script src="awards-shared.js"></script>
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
@@ -312,7 +313,7 @@
             </div>
           </div>
           <div class="form-field">
-            <label>Ödüller <span class="opt">(opsiyonel)</span></label>
+            <label>Ödül <span class="opt">(opsiyonel)</span></label>
             <div class="dd-field" id="dd-oduller">
               <button type="button" class="dd-btn" id="dd-oduller-btn">
                 <span id="dd-oduller-btn-label">Ödül seç</span>
@@ -518,7 +519,8 @@ function wireMultiDropdown(fieldId, btnId, labelId, optionsId, options, name, pl
 
 const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Öğrenci','Diğer'];
 const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Ekip Üyesi','Akademisyen','Freelance','Öğrenci','Emekli','İşsiz'];
-const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü','Ulusal Mimarlık Ödülleri','TürkSMD Mimarlık Ödülleri','Ağa Han Mimarlık Ödülü','EU Mies Award','World Architecture Festival Ödülleri','International Architecture Awards'];
+// ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
+// geliyor (proje-ekle.html/js/components/auth-modal.js ile ortak, bkz. o dosyanın başındaki yorum).
 // users.profession kodlu bir slug'dır (ör. "mimar"), MESLEK_OPTIONS/architects.profession ise ham
 // Türkçe etiket ("Mimar") — bkz. js/components/auth-modal.js#PROFESSION_LABELS ile AYNI eşleme,
 // aşağıdaki maybeAutoFillFromAccount'ta ters yönde kullanılır.

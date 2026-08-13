@@ -332,6 +332,7 @@
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
 <script src="js/components/modal-shell.js" defer></script>
+<script src="awards-shared.js"></script>
 <script src="js/components/auth-modal.js" defer></script>
 <script src="js/components/info-modal.js" defer></script>
 <script src="il-ilce-data.js"></script>
@@ -359,9 +360,15 @@
 
       <div class="form-section">
         <h2>Temel Bilgiler</h2>
-        <div class="form-field">
-          <label for="p-title" id="p-title-label">Proje Adı</label>
-          <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="p-title" id="p-title-label">Proje Adı</label>
+            <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
+          </div>
+          <div class="form-field">
+            <label for="p-date">Tarih</label>
+            <input type="text" id="p-date" name="date" placeholder="ör. 2025 ya da 2007-2012" required>
+          </div>
         </div>
         <div class="form-field">
           <label>Konum</label>
@@ -390,8 +397,14 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="p-date">Tarih</label>
-            <input type="text" id="p-date" name="date" placeholder="ör. 2025 ya da 2007-2012" required>
+            <label>Ödül <span class="opt">(opsiyonel)</span></label>
+            <div class="dd-field" id="dd-odul">
+              <button type="button" class="dd-btn" id="dd-odul-btn">
+                <span id="dd-odul-btn-label">Ödül seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel"><div class="dd-options" id="dd-odul-options"></div></div>
+            </div>
           </div>
           <div class="form-field">
             <label>Tür</label>
@@ -618,6 +631,11 @@ function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
 }
 const updateKategoriLabel = wireMultiDropdown('dd-kategori', 'dd-kategori-btn', 'dd-kategori-btn-label', 'Kategori seç');
 const updateTurLabel = wireMultiDropdown('dd-tur', 'dd-tur-btn', 'dd-tur-btn-label', 'Tür seç');
+// Ödül: mimar-ekle.html'in aksine burada checkbox'lar HTML'de sabit değil — ODUL_OPTIONS
+// (awards-shared.js, mimar-ekle.html/js/components/auth-modal.js ile PAYLAŞILAN tek kaynak) dinamik
+// olarak üretilir, sonra AYNI wireMultiDropdown ile (kategori/tür gibi) bağlanır.
+document.getElementById('dd-odul-options').innerHTML = ODUL_OPTIONS.map(o => `<label class="dd-option"><input type="checkbox" name="award" value="${escapeAttr(o)}"> ${escapeAttr(o)}</label>`).join('');
+const updateOdulLabel = wireMultiDropdown('dd-odul', 'dd-odul-btn', 'dd-odul-btn-label', 'Ödül seç');
 
 // ---------- OTOMATİK TAMAMLAMA: Tip, Mimar, Ofis ----------
 function lastCommaSegment(value){
@@ -1041,6 +1059,8 @@ async function prefillForEdit(){
     updateKategoriLabel();
     document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (item.discipline || []).includes(cb.value));
     updateTurLabel();
+    document.querySelectorAll('input[name="award"]').forEach(cb => cb.checked = (item.awards || []).includes(cb.value));
+    updateOdulLabel();
     brandChips = (item.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
     renderBrandChips();
     setExistingImages(item.images || []);
@@ -1124,6 +1144,8 @@ async function prefillForClaim(){
   updateKategoriLabel();
   document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (merged.discipline || []).includes(cb.value));
   updateTurLabel();
+  document.querySelectorAll('input[name="award"]').forEach(cb => cb.checked = (merged.awards || []).includes(cb.value));
+  updateOdulLabel();
   // brands artık project_products join'inden gelen gerçek products/materials dizileri (bkz. dosya
   // başı yorumu) — form chip listesi bunlardan {brand, product} çiftleri olarak yeniden kurulur.
   brandChips = [...(merged.products || []), ...(merged.materials || [])].map(p => ({ brand: p.brand || '', product: p.title || null }));
@@ -1166,6 +1188,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
   const conceptCategory = null;
   const category = Array.from(form.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
   const discipline = Array.from(form.querySelectorAll('input[name="discipline"]:checked')).map(el => el.value);
+  const awards = Array.from(form.querySelectorAll('input[name="award"]:checked')).map(el => el.value);
   const type = document.getElementById('p-type').value.split(',').map(s => s.trim()).filter(Boolean);
   // Mimar/Firma kutuları KESİNLİKLE ayrı tutulur, tek bir designer dizisinde birleştirilmez (bkz.
   // migrations/0030_project_submission_office.sql, kullanıcı isteği "kökten çöz") — aksi halde hangi
@@ -1212,7 +1235,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     location: selectedIlce || selectedIl,
     locationDetail: null,
     date: document.getElementById('p-date').value,
-    build_status, conceptCategory, category, type, discipline, designer, office, brands,
+    build_status, conceptCategory, category, type, discipline, designer, office, brands, awards,
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
     photoCreditUrl: document.getElementById('p-credit-url').value || null,
@@ -1298,6 +1321,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     brandChips = [];
     renderBrandChips();
     updateKategoriLabel();
+    updateOdulLabel();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

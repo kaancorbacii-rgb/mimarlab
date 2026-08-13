@@ -584,7 +584,7 @@ const AuthModal = (function () {
                kapalı/açılır davranışı verir, mimar-ekle.html#dd-oduller ile BİREBİR aynı widget
                (bkz. wireAmMultiDropdown), ama çoklu seçim destekler. -->
           <div>
-            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ödüller</label>
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ödül</label>
             <div class="dd-field" id="am-dd-awards">
               <button type="button" class="dd-btn" id="am-dd-awards-btn">
                 <span id="am-dd-awards-btn-label">Ödül seç</span>
@@ -729,11 +729,12 @@ const AuthModal = (function () {
   const PAGE_SIZE_DASH = 10;
   const PROFESSION_LABELS = { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', ogrenci: 'Öğrenci', diger: 'Diğer' };
   const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
-  // mimar-ekle.html#ODUL_OPTIONS/SOCIAL_PLATFORMS ile BİREBİR AYNI (bkz. kullanıcı isteği: "Mimar ekle
-  // sayfası ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — bu iki liste
-  // buradaki "Mimar Profili" alt bölümünü besler, yalnızca onaylı bir mimar profili sahiplenilmişse
-  // görünür (bkz. loadArchitectSyncFields).
-  const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü', 'Ulusal Mimarlık Ödülleri', 'TürkSMD Mimarlık Ödülleri', 'Ağa Han Mimarlık Ödülü', 'EU Mies Award', 'World Architecture Festival Ödülleri', 'International Architecture Awards'];
+  // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
+  // (mimar-ekle.html/proje-ekle.html ile ortak) geliyor, bu dosyanın <script> etiketinden HEMEN
+  // önce her sayfada senkron yüklenir (bkz. o dosyanın başındaki yorum). Buradaki "Mimar Profili"
+  // alt bölümünü besler, yalnızca onaylı bir mimar profili sahiplenilmişse görünür (bkz.
+  // loadArchitectSyncFields). SOCIAL_PLATFORMS ise mimar-ekle.html#SOCIAL_PLATFORMS ile BİREBİR
+  // AYNI kalmaya devam ediyor (henüz ayrı bir paylaşım dosyasına taşınmadı).
   const SOCIAL_PLATFORMS = [
     { value: 'instagram', label: 'Instagram' },
     { value: 'linkedin', label: 'LinkedIn' },

@@ -28,12 +28,13 @@ export const SUBMISSION_TYPES = {
     fields: [
       'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
-      'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory',
+      'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory', 'awards',
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,
-    // hangi kutudan geldiği künye render'ına kadar korunur.
-    arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'office', 'images', 'brands'],
+    // hangi kutudan geldiği künye render'ına kadar korunur. awards: mimar-ekle.html/firma-ekle.html
+    // ile AYNI JSON dizi deseni (bkz. migrations/0049_project_awards.sql).
+    arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'office', 'images', 'brands', 'awards'],
     required: ['title'],
     urlFields: ['photoCreditUrl', 'source_url'],
     urlArrayFields: ['images'],

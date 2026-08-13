@@ -83,6 +83,7 @@ if(!document.getElementById('verified-badge-style')){
       border:5px solid transparent; border-top-color:#1B2A3D;
     }
     .verified-badge-tip-floating.show{opacity:1;}
+    .verified-badge-tip-floating.tappable{pointer-events:auto; cursor:pointer;}
   `;
   document.head.appendChild(badgeStyle);
 }
@@ -96,9 +97,16 @@ function ensureBadgeTooltip(){
   }
   return badgeTooltipEl;
 }
-function showBadgeTooltip(icon){
+// tappable: mobil "dokun -> ismi göster" akışında true geçilir; tooltip'i pointer-events:auto
+// yapıp üzerine tekrar dokununca satin-al.html'e yönlendirilebilir hale getirir (bkz. aşağıdaki
+// click delegasyonu). Masaüstü hover akışında (tappable geçilmez) tooltip her zaman
+// pointer-events:none kalır — aksi halde fare tooltip'e değince mouseout'un `icon.contains`
+// kontrolü tooltip'i içermediğinden yanlışlıkla titreşerek kapanırdı.
+function showBadgeTooltip(icon, tappable){
   const tip = ensureBadgeTooltip();
   tip.textContent = icon.dataset.tip || '';
+  tip.dataset.badgeType = icon.dataset.badgeType || '';
+  tip.classList.toggle('tappable', !!tappable);
   const iconRect = icon.getBoundingClientRect();
   const tipRect = tip.getBoundingClientRect();
   const left = iconRect.left + window.scrollX + iconRect.width / 2 - tipRect.width / 2;
@@ -122,7 +130,15 @@ document.addEventListener('mouseout', (e)=>{
   const icon = e.target.closest('.verified-badge-icon');
   if(icon && !icon.contains(e.relatedTarget)) hideBadgeTooltip();
 });
-// Rozete dokunma/tıklama: kullanıcıyı rozet satın alma sayfasına yönlendirir.
+// hover imkanı olmayan (dokunmatik) cihaz tespiti — ekran genişliği yerine bu kullanılır çünkü
+// asıl ayrım "mobil" değil "hover çalışmıyor mu" (ör. büyük bir tablet de bu akışa girmeli).
+function isTouchBadgeUI(){
+  return window.matchMedia && window.matchMedia('(hover: none)').matches;
+}
+// Rozete dokunma/tıklama: masaüstünde (hover var) doğrudan rozet satın alma sayfasına yönlendirir.
+// Mobilde (hover yok) native `title`/hover tooltip'i çalışmadığından ilk dokunuş yalnızca rozetin
+// ismini gösterir (bkz. kullanıcı isteği); ismin kendisine (gösterilen tooltip'e) İKİNCİ kez
+// dokununca satin-al.html'e yönlendirir. Rozet dışında bir yere dokununca açık tooltip kapanır.
 // Rozet <span> olarak kalır (gerçek bir <a> DEĞİL) çünkü çoğunlukla zaten bir kart linkinin
 // (ör. mimar/ofis kartı) İÇİNDE render edilir — iç içe <a> geçersiz HTML olacağından yönlendirme
 // burada JS ile yapılır; stopPropagation ile dıştaki kart linkinin tetiklenmesi engellenir.
@@ -130,14 +146,29 @@ document.addEventListener('mouseout', (e)=>{
 // yalnızca admin_badges'ten gelir) — tıklanınca satin-al.html'e yönlendirmek anlamsız olurdu,
 // bu yüzden burada erken çıkılır: tıklama olayı normal şekilde altındaki kart linkine devam eder.
 document.addEventListener('click', (e)=>{
+  // Açık, dokunmayla gösterilmiş tooltip'in ÜZERİNE (ismin kendisine) dokunma -> yönlendir.
+  if(badgeTooltipEl && badgeTooltipEl.classList.contains('show') && badgeTooltipEl.classList.contains('tappable') && e.target.closest('.verified-badge-tip-floating')){
+    e.preventDefault();
+    e.stopPropagation();
+    const tier = badgeTooltipEl.dataset.badgeType;
+    window.location.href = tier ? `satin-al.html?tier=${encodeURIComponent(tier)}` : 'satin-al.html';
+    return;
+  }
   const badge = e.target.closest('.verified-badge-icon');
   if(badge && badge.dataset.badgeType === 'iz-birakan') return;
   if(badge){
     e.preventDefault();
     e.stopPropagation();
+    if(isTouchBadgeUI()){
+      showBadgeTooltip(badge, true);
+      return;
+    }
     const tier = badge.dataset.badgeType;
     window.location.href = tier ? `satin-al.html?tier=${encodeURIComponent(tier)}` : 'satin-al.html';
+    return;
   }
+  // Rozet ya da açık tooltip dışında bir yere dokunuldu -> dokunmayla açılmış tooltip'i kapat.
+  if(badgeTooltipEl && badgeTooltipEl.classList.contains('tappable')) hideBadgeTooltip();
 });
 // Sayfa kaydırılınca (kartın kendisi ya da bir üst konteyner) konumu bayatlamasın diye tooltip
 // kapatılır — filtre/sayfa değişimiyle tetiklenen bir yeniden render de rozet elemanını DOM'dan

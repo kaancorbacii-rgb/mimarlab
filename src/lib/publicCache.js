@@ -37,7 +37,19 @@ const ANON_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=5, s-maxage=15' }
 // tek tek temizlenmez (kombinasyon sayısı pratikte sınırsız), bunlar en kötü durumda s-maxage (5dk)
 // kadar bayat kalabilir — stale-while-revalidate bu süreyi arka planda tazeler, kullanıcı asla 24
 // saatlik değer kadar eski veri GÖRMEZ (yalnızca Cloudflare'in arkaplan yenileme penceresi budur).
-const PUBLIC_LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' };
+// KÖKTEN BULGU (2026-08-13): burada daha önce `stale-while-revalidate=86400` de vardı. Bu direktif
+// caches.default'un kendi iç davranışını ETKİLEMİYOR (Cloudflare Cache API swr'yi uygulamıyor,
+// yalnızca max-age/s-maxage'a bakıyor) — ama AYNI header, yanıtla birlikte doğrudan TARAYICIYA da
+// gidiyordu, ve modern Chrome/Firefox swr'yi harfiyen uyguluyor: bir sekme /api/projects'i daha önce
+// çekmişse, sonraki her açılışta max-age (60sn) geçmiş olsa bile TAMAMEN BAYAT yanıtı ANINDA (ağa hiç
+// gitmeden) gösterip arka planda sessizce yeniliyordu — kullanıcıya hiçbir "yenileniyor" sinyali
+// olmadan. Bu pencere 24 saate kadar çıkabiliyordu. Gerçek bulgu: yeni eklenen "Aselsan Konya"
+// projesi normal sekmede 1. sırada görünmüyordu ve "1215 proje listeleniyor" yazıyordu (gizli
+// sekmede — hiç tarayıcı önbelleği yokken — doğru "1216" ve doğru sıralama görünüyordu). cachedPublicJson
+// zaten her caches.default HIT'inde bir fingerprint kontrolüyle PoP-düzeyinde bayatlığa karşı koruma
+// sağlıyor (bkz. aşağıdaki cachedPublicJson yorumu); swr'nin CDN tarafında sağladığı ek fayda yok,
+// yalnızca tarayıcıda bu görünmez 24 saatlik bayatlık riskini yaratıyordu — bu yüzden tamamen kaldırıldı.
+const PUBLIC_LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300' };
 
 // Sorgu dizesi taşımayan (dolayısıyla sonlu/sabit) public uçların tam listesi — her biri
 // caches.default'ta kendi URL'siyle anahtarlanır ve bir admin yazma işleminden sonra tek seferde

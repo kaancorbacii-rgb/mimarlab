@@ -8,7 +8,7 @@
 const JSON_FIELDS = {
   architects: ['awards', 'social_links'],
   offices: ['cats', 'awards', 'social_links'],
-  projects: ['category', 'type', 'discipline', 'period', 'images'],
+  projects: ['category', 'type', 'discipline', 'period', 'images', 'awards'],
   products: ['images', 'specs'],
 };
 

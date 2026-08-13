@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   brands TEXT,
   claimed_slug TEXT,
   source_url TEXT, -- AI ile otomatik ekleme akışının çıkarım yaptığı kaynak sayfa (bkz. src/routes/ai.js)
-  ai_generated INTEGER NOT NULL DEFAULT 0 -- moderasyonda görünür bir işaret; manuel gönderimlerde 0/NULL
+  ai_generated INTEGER NOT NULL DEFAULT 0, -- moderasyonda görünür bir işaret; manuel gönderimlerde 0/NULL
+  awards TEXT -- JSON dizi (serbest metin ödül adları) — architect_submissions/office_submissions.awards ile AYNI desen, bkz. migrations/0049_project_awards.sql
 );
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_project_status ON project_submissions(status);

@@ -331,7 +331,7 @@ export async function handlePublicSearchFull(request, env, url) {
 // overlay birleştirmesi gerekmiyor — bkz. src/routes/project.js'teki AYNI okuma). Arşivleme, projeyi
 // bu haliyle bir project_submissions taslağına kopyalar ki admin panelde düzenlerken en son
 // görünen içerikten devam etsin.
-const PROJECT_FIELD_KEYS = ['title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket', 'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands', 'build_status'];
+const PROJECT_FIELD_KEYS = ['title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket', 'period', 'designer', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands', 'build_status', 'awards'];
 
 async function currentCanonicalProjectFields(env, slug) {
   const row = await env.DB.prepare(`SELECT * FROM projects WHERE (slug = ? OR legacy_key = ?) AND deleted_at IS NULL`).bind(slug, slug).first();
@@ -351,6 +351,7 @@ async function currentCanonicalProjectFields(env, slug) {
     photoCreditText: p.photo_credit_text || null, photoCreditUrl: p.photo_credit_url || null,
     description: p.description, images: p.images, brands: [], // bkz. src/routes/project.js#shapeProjectItem'daki AYNI kapsam notu
     build_status: p.build_status === 'concept' ? 'concept' : 'built',
+    awards: p.awards || [],
   };
 }
 
