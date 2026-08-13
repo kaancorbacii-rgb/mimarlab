@@ -9,7 +9,7 @@ import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, casc
 import {
   findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical, CANONICAL_TABLE_BY_TYPE, canonicalKeyFor,
   hardDeleteCanonicalRow, blacklistLegacyKey, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
-  findOneByName,
+  findOneByName, findOrHealSubmissionDraft,
 } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -556,7 +556,13 @@ export async function runContentAction(env, user, { type, action, id, key }) {
   if (!id && !key) return errorJson('Geçersiz istek.');
 
   if (id) {
-    const row = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+    // bkz. src/lib/canonicalSync.js#findOrHealSubmissionDraft dosya başı yorumu — products/materials'ta
+    // taslak (product_submissions/material_submissions) satırı eksik ama canonical `products` satırı
+    // hâlâ varsa, taslağı canonical'dan yeniden türetir ki id tabanlı Sil/Arşivle/Yayınla sessizce
+    // 404 vermesin (gerçek bulgu: doğrudan D1'e geri yüklenen ürünler için taslak hiç yoktu).
+    const row = (type === 'products' || type === 'materials')
+      ? await findOrHealSubmissionDraft(env, type, id)
+      : await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
     if (!row) return errorJson('Bulunamadı.', 404);
     const now = Date.now();
     // products/materials'ın claimedColumn'u yok (bkz. CONTENT_ACTION_TYPES) — canonical satırları

@@ -21,8 +21,54 @@ import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
 import { releaseR2StorageBytes } from './r2Quota.js';
+import { SUBMISSION_TYPES } from './submissionTypes.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
+
+// GERÇEK BULGU (kullanıcı bulgusu: "gola ve toledoyu arşivlemeye çalıştım bir şeyler ters gitti,
+// sonra sildim ama hâlâ ürün sayfasında gözüküyorlar" — kökten çöz isteği): bir ürün/malzemenin
+// canonical `products` satırı (legacy_key='submission:<id>') var olduğu hâlde kendi
+// product_submissions/material_submissions taslağı hiç yoksa (ör. doğrudan D1'e geri yüklenen
+// kayıtlar — bkz. bu oturumdaki ürün veri geri yükleme — ama teorik olarak taslağı SONRADAN silinip
+// canonical satırı kalan HERHANGİ bir kayıt için de aynı boşluk oluşabilir), id tabanlı Düzenle/
+// Arşivle/Sil (src/routes/submissions.js#getOwnSubmission/updateOwnSubmission/moderateOwnSubmission,
+// src/routes/legacyContent.js#runContentAction'ın id yolu) taslağı `WHERE id = ?` ile arayıp
+// bulamadığından sessizce "Bulunamadı" (404) döner — ne admin ne de yükleyen kullanıcı (owner) hiçbir
+// zaman düzenleyemez/arşivleyemez/silemez, satır de facto kilitli kalır. Bu fonksiyon, taslak eksikse
+// canonical satırdan kendini onarır (sahiplik canonical'ın claimed_by_user_id'sinden devralınır) ki
+// yukarıdaki 4 uç normal (taslak zaten varmış gibi) çalışmaya devam etsin. Yalnızca products/materials
+// için anlamlıdır (architects/offices/projects'in kendi ayrı claim mekanizması var, bu boşluk sınıfı
+// onlarda yok); diğer tipler için davranış AYNEN eski `SELECT * FROM ${table} WHERE id = ?` ile özdeştir.
+export async function findOrHealSubmissionDraft(env, type, id) {
+  const config = SUBMISSION_TYPES[type];
+  if (!config) return null;
+  const existing = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+  if (existing) return existing;
+  if (type !== 'products' && type !== 'materials') return null;
+
+  const canonical = await env.DB
+    .prepare(`SELECT * FROM products WHERE legacy_key = ? AND deleted_at IS NULL`)
+    .bind(submissionMarker(id))
+    .first();
+  // claimed_by_user_id yoksa (sahipsiz canonical satır) bir sahip UYDURMAK yanlış olur — böyle bir
+  // satır zaten yalnızca admin'in ayrı, taslak GEREKTİRMEYEN /api/admin/legacy/product/:id ucuyla
+  // (bkz. src/routes/legacyContent.js#handleAdminProductEdit) düzenlenmelidir.
+  if (!canonical || !canonical.claimed_by_user_id) return null;
+
+  const now = Date.now();
+  await env.DB.prepare(
+    `INSERT INTO ${config.table}
+       (id, owner_user_id, status, created_at, updated_at, title, brand, designer, year, website, category, description, images, specs, source_url, ai_generated)
+     VALUES (?, ?, 'approved', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    id, canonical.claimed_by_user_id, now, now,
+    canonical.title, canonical.brand_name_raw, canonical.designer, canonical.year,
+    canonical.website, canonical.category, canonical.description, canonical.images, canonical.specs,
+    canonical.source_url, canonical.ai_generated ? 1 : 0,
+  ).run();
+
+  return env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+}
 
 // GERÇEK BULGU (bkz. kullanıcı isteği: "Admin hesabından bir projeye yorum yazdım ve ... Renzo Piano
 // hesabıyla yorumum gözüktü ... kökten çöz"): syncOffice/syncArchitect'in INSERT dalı, YENİ bir

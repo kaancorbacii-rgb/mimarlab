@@ -7,7 +7,7 @@ import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
-import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media } from '../lib/canonicalSync.js';
+import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
@@ -334,15 +334,14 @@ async function listMine(env, user, typeKey) {
 // Sahiplik kontrolü admin için atlanır — admin herhangi bir kullanıcının gönderisini görüntüleyip
 // düzenleyebilir (bkz. kullanıcı isteği: "admin hesabının tüm gönderilerin düzenleme yetkisi olsun").
 async function getOwnSubmission(env, user, typeKey, id) {
-  const config = SUBMISSION_TYPES[typeKey];
-  const row = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+  const row = await findOrHealSubmissionDraft(env, typeKey, id);
   if (!row || (row.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
   return json({ item: parseSubmissionRow(typeKey, row) });
 }
 
 async function updateOwnSubmission(request, env, user, typeKey, id) {
   const config = SUBMISSION_TYPES[typeKey];
-  const existing = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id = ?`).bind(id).first();
+  const existing = await findOrHealSubmissionDraft(env, typeKey, id);
   if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
 
   const body = await readJson(request);
@@ -493,8 +492,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
 // yalnızca bir kullanıcının/marka gönderisinin (id'li) kendi kaydı hedeflenebilir.
 async function moderateOwnSubmission(request, env, user, typeKey, id) {
   if (typeKey !== 'products' && typeKey !== 'materials') return errorJson('Bulunamadı', 404);
-  const config = SUBMISSION_TYPES[typeKey];
-  const existing = await env.DB.prepare(`SELECT id, owner_user_id FROM ${config.table} WHERE id = ?`).bind(id).first();
+  const existing = await findOrHealSubmissionDraft(env, typeKey, id);
   if (!existing || (existing.owner_user_id !== user.id && user.role !== 'admin')) return errorJson('Bulunamadı', 404);
   const body = await readJson(request);
   if (!['delete', 'archive'].includes(body.action)) return errorJson('Geçersiz işlem.');
