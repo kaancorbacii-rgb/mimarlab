@@ -143,7 +143,9 @@ const ProjectMeta = (function () {
     const data = { '@context': 'https://schema.org', '@type': 'CreativeWork', name: item.title, url: new URL(`/proje/${encodeURIComponent(item.slug)}`, window.location.origin).href };
     if (item.description) data.description = item.description;
     if (item.images && item.images.length) {
-      try { data.image = item.images.map(img => new URL(img, window.location.href).href); } catch { /* göreli çözümlenemeyen — atla */ }
+      // gerçek bulgu (2026-08-13): item.images D1'de 767 projede başında "/" olmadan saklanıyor
+      // (ör. "miras/dolunay-villa-1.webp") — document.baseURI kullan (bkz. yukarıdaki safeUrl).
+      try { data.image = item.images.map(img => new URL(img, document.baseURI).href); } catch { /* göreli çözümlenemeyen — atla */ }
     }
     if (item.location) data.locationCreated = { '@type': 'Place', address: item.location };
     const creators = (item.designerDetails || []).map(d => ({ '@type': d.type === 'architect' ? 'Person' : 'Organization', name: d.name }));

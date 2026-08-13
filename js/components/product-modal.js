@@ -390,9 +390,11 @@ const ProductModal = (function () {
     el.querySelector('.detail-desc-more').addEventListener('click', () => { el.textContent = text; });
   }
 
+  // bkz. auth-modal.js#safeUrl'deki AYNI kök neden/düzeltme — window.location.href yerine
+  // document.baseURI (urun.html'deki <base href="/">'yi dikkate alır).
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, window.location.href);
+      const parsed = new URL(u, document.baseURI);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
@@ -449,7 +451,9 @@ const ProductModal = (function () {
     const data = { '@context': 'https://schema.org', '@type': 'Product', name: p.title, url: window.location.href };
     if (p.description) data.description = p.description;
     if (p.brand) data.brand = { '@type': 'Brand', name: p.brand };
-    if (p.images && p.images.length) { try { data.image = p.images.map(img => new URL(img, window.location.href).href); } catch {} }
+    // ürün görselleri D1'de şu an hep mutlak (/media/...) ama tutarlılık için document.baseURI
+    // (bkz. project-meta.js#renderStructuredData'daki AYNI düzeltme).
+    if (p.images && p.images.length) { try { data.image = p.images.map(img => new URL(img, document.baseURI).href); } catch {} }
     tag.textContent = JSON.stringify(data);
   }
 

@@ -283,9 +283,11 @@ const OfficeModal = (function () {
     return m ? `${m[2].trim()}, ${m[1].trim()}` : loc;
   }
 
+  // bkz. auth-modal.js#safeUrl'deki AYNI kök neden/düzeltme — window.location.href yerine
+  // document.baseURI (firma.html'deki <base href="/">'yi dikkate alır).
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, window.location.href);
+      const parsed = new URL(u, document.baseURI);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
@@ -358,7 +360,9 @@ const OfficeModal = (function () {
     if (o.yil) data.foundingDate = String(o.yil);
     if (o.loc) data.address = { '@type': 'PostalAddress', addressLocality: o.loc };
     const logo = logoUrl(o);
-    if (logo) { try { data.logo = new URL(logo, window.location.href).href; } catch {} }
+    // gerçek bulgu (2026-08-13): o.logo (=logoUrl(o)) D1'de 597 kayıtta başında "/" olmadan
+    // saklanıyor (ör. "logos-thumb/eaa.jpg") — document.baseURI kullan (bkz. yukarıdaki safeUrl).
+    if (logo) { try { data.logo = new URL(logo, document.baseURI).href; } catch {} }
     if (o.website && safeUrl(o.website)) data.sameAs = [safeUrl(o.website)];
     tag.textContent = JSON.stringify(data);
   }

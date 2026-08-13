@@ -15,10 +15,16 @@ const AuthModal = (function () {
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  // gerçek bulgu (2026-08-13, bkz. project-meta.js#safeUrl'deki AYNI kök neden): window.location.href
+  // yerine document.baseURI — bu modal site genelinde (her sayfada, farklı <base href> bağlamlarında)
+  // yükleniyor; "Kaydedilenler" listesindeki item_image D1'de legacy_static kaynaklı çoğu kayıtta
+  // başında "/" olmadan saklanıyor (ör. "logos-thumb/eaa.jpg", "miras/dolunay-villa-1.webp" — D1'de
+  // doğrulandı, canonical/beklenen format), window.location.href bunu güncel sayfanın path'ine göre
+  // yanlış çözüp kırık görsellere yol açıyordu.
   function safeUrl(u) {
     if (!u) return '';
     try {
-      const parsed = new URL(u, window.location.href);
+      const parsed = new URL(u, document.baseURI);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';

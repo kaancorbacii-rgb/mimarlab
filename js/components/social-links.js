@@ -31,9 +31,11 @@ const SocialLinks = (function () {
     document.head.appendChild(style);
   }
 
+  // bkz. auth-modal.js#safeUrl'deki AYNI kök neden/düzeltme — window.location.href yerine
+  // document.baseURI.
   function safeUrl(u) {
     try {
-      const parsed = new URL(u, window.location.href);
+      const parsed = new URL(u, document.baseURI);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
     } catch {}
     return '';
