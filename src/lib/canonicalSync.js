@@ -325,6 +325,37 @@ export async function findOneByName(env, table, name) {
   return { row: null, ambiguous: false };
 }
 
+// Kök neden düzeltmesi (bkz. kullanıcı isteği: "neden 2 tane Kaan Çorbacı mimar profili oluşmuş?
+// Aynı isimle mimar, firma, ürün, proje oluşmasına asla izin verme") — syncArchitect/syncOffice'in
+// "bu claimed_profile_key'e karşılık gelen canonical satır hangisi" sorgusu ÖNCEDEN strict SQL
+// `legacy_key = ? OR name = ?` kullanıyordu. claimed_profile_key (mimar-ekle.html/firma-ekle.html/
+// js/components/auth-modal.js'in gönderdiği ham isim) canonical satırın name'inden yalnızca büyük/
+// küçük harf, baştaki-sondaki boşluk ya da TR karakter (İ/I/ı/Ş/Ğ/Ü/Ö/Ç) katlamasıyla ayrışsa bile
+// bu strict eşleşme sessizce BAŞARISIZ olup çağıranı "canonical karşılığı yok" sanıp İKİNCİ, mükerrer
+// bir canonical satır (yeni slug + UUID sonekli, bkz. gerçek bulgu: /mimar/kaan-corbaci-<uuid>)
+// oluşturmaya sürüklüyordu — findOneByName'in ("Nevzat Sayın" gerçek bulgusu, bkz. yukarısı) AYNI
+// foldTr'lı ikinci deneme mantığı burada da (legacy_key'i de kapsayacak şekilde) uygulanır. Birden
+// fazla bulanık eşleşme varsa (ör. iki farklı mimar tesadüfen aynı ada foldTr sonrası indirgeniyorsa)
+// sessizce YANLIŞ birini seçmek yerine migration_name_conflicts'e loglanır ve null döner (çağıran
+// yine de yeni bir satır oluşturur — mevcut davranışla aynı, yalnızca artık görünür bir kayıt bırakır).
+async function findSyncTargetByClaim(env, table, claimedKey) {
+  const trimmed = (claimedKey || '').trim();
+  if (!trimmed) return null;
+  const strict = await env.DB.prepare(
+    `SELECT * FROM ${table} WHERE deleted_at IS NULL AND (legacy_key = ? OR name = ?) LIMIT 1`
+  ).bind(trimmed, trimmed).first();
+  if (strict) return strict;
+  const folded = foldTr(trimmed);
+  const { results: all } = await env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL`).all();
+  const matches = all.filter(r => foldTr((r.name || '').trim()) === folded || (r.legacy_key && foldTr(r.legacy_key.trim()) === folded));
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    await logConflict(env, `${table === 'architects' ? 'architect' : 'office'}_claim_sync`, trimmed, `${table}_sync_target`, matches);
+    return null;
+  }
+  return null;
+}
+
 async function logConflict(env, entity_type, conflict_key, context, candidates) {
   await env.DB.prepare(
     `INSERT INTO migration_name_conflicts (entity_type, conflict_key, context, candidates, status) VALUES (?, ?, ?, ?, 'pending')`
@@ -392,9 +423,21 @@ async function syncOfficeFoundersFromNames(env, officeId, names) {
 async function syncOffice(env, row) {
   const claimedKey = row.claimed_profile_key;
   const marker = submissionMarker(row.id);
-  const target = claimedKey
-    ? await env.DB.prepare(`SELECT * FROM offices WHERE deleted_at IS NULL AND (legacy_key = ? OR name = ?) LIMIT 1`).bind(claimedKey, claimedKey).first()
+  let target = claimedKey
+    ? await findSyncTargetByClaim(env, 'offices', claimedKey)
     : await env.DB.prepare(`SELECT * FROM offices WHERE legacy_key = ?`).bind(marker).first();
+  // SON GÜVENLİK KONTROLÜ (bkz. kullanıcı isteği: "Aynı isimle mimar, firma, ürün, proje oluşmasına
+  // asla izin verme") — buraya kadar hedef bulunamamış olması bu adı taşıyan BAŞKA bir canonical
+  // satırın hiç olmadığı anlamına gelmez: haftalar önce oluşturulup hiç onaylanmamış/senkronlanmamış
+  // BAĞIMSIZ bir taslak, bugün ilk kez onaylanınca (isDuplicateCanonicalName yalnızca YENİ gönderi
+  // ANINDA kontrol eder, updateOwnSubmission/admin PATCH akışında hiç çalışmaz) canonical'da ZATEN
+  // var olan aynı adlı satırın YANINA ikinci bir satır eklerdi (gerçek bulgu: "Kaan Çorbacı" — aynı
+  // isimle iki, hatta üç mimar profili oluşmuştu). Insert'ten hemen önce foldTr'lı bir isim taraması
+  // ile son kez kontrol edilir; bulunursa INSERT yerine O satır güncellenir.
+  if (!target) {
+    const nameMatch = await findOneByName(env, 'offices', row.name);
+    if (nameMatch.row) target = nameMatch.row;
+  }
 
   // row.cats gönderi formundan (ofisin "Hizmet Alanı" alanı) DÜZ METİN olarak gelir — bkz.
   // src/lib/submissionTypes.js#SUBMISSION_TYPES.offices.arrayFields, 'cats' orada YOK (yalnızca
@@ -503,9 +546,16 @@ async function syncArchitect(env, row) {
   }
   const officeId = officeIds.length ? officeIds[0] : null;
 
-  const target = claimedKey
-    ? await env.DB.prepare(`SELECT * FROM architects WHERE deleted_at IS NULL AND (legacy_key = ? OR name = ?) LIMIT 1`).bind(claimedKey, claimedKey).first()
+  let target = claimedKey
+    ? await findSyncTargetByClaim(env, 'architects', claimedKey)
     : await env.DB.prepare(`SELECT * FROM architects WHERE legacy_key = ?`).bind(marker).first();
+  // SON GÜVENLİK KONTROLÜ — bkz. syncOffice'teki AYNI gerekçe/gerçek bulgu ("Kaan Çorbacı"): buraya
+  // kadar hedef bulunamamış olması bu adı taşıyan BAŞKA bir canonical satırın hiç olmadığı anlamına
+  // gelmez, INSERT'ten hemen önce foldTr'lı bir isim taraması ile son kez kontrol edilir.
+  if (!target) {
+    const nameMatch = await findOneByName(env, 'architects', row.name);
+    if (nameMatch.row) target = nameMatch.row;
+  }
 
   const awards = row.awards ? JSON.stringify(row.awards) : null;
   const socialLinks = row.social_links ? JSON.stringify(row.social_links) : null;
