@@ -172,7 +172,7 @@ async function signup(request, env) {
 
   const { token, maxAge } = await createSession(env, id);
   const user = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
   ).bind(id).first();
 
   return json({ user: publicUser(user) }, 201, {
@@ -347,18 +347,34 @@ export async function handleProfileRoute(request, env, url) {
   if ('position' in body && body.position && !POSITIONS.has(body.position)) {
     return errorJson('Geçersiz pozisyon.');
   }
-  const fields = ['name', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position'];
+  // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
+  // ödül, sosyal medya ve açıklama ekleyebilsinler" — mimar-ekle.html'in aynı alanlarıyla AYNI JSON
+  // dizi kalıbı (bkz. src/lib/submissionTypes.js#SUBMISSION_TYPES.architects). social_links'teki her
+  // URL, photo_url ile AYNI isSafeUrlValue kontrolünden geçirilir (mevcut submission pipeline'ından
+  // daha sıkı — orada bu alan hiç doğrulanmıyor, burada baştan güvenli tutulur).
+  const fields = ['name', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position', 'about'];
   const updates = [];
   const values = [];
   for (const f of fields) {
     if (f in body) { updates.push(`${f} = ?`); values.push(body[f] || null); }
+  }
+  if ('awards' in body) {
+    const awards = Array.isArray(body.awards) ? body.awards.filter(a => typeof a === 'string' && a) : [];
+    updates.push('awards = ?'); values.push(JSON.stringify(awards));
+  }
+  if ('social_links' in body) {
+    const links = Array.isArray(body.social_links)
+      ? body.social_links.filter(s => s && typeof s.platform === 'string' && typeof s.url === 'string' && s.url && isSafeUrlValue(s.url))
+        .map(s => ({ platform: s.platform, url: s.url }))
+      : [];
+    updates.push('social_links = ?'); values.push(JSON.stringify(links));
   }
   if (!updates.length) return errorJson('Güncellenecek bir şey yok.');
   values.push(user.id);
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
   const updated = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
   ).bind(user.id).first();
   return json({ user: publicUser(updated) });
 }

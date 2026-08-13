@@ -111,6 +111,19 @@ const AuthModal = (function () {
     #am-panel .dash-field{margin-bottom:12px;}
     #am-panel .dash-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
     #am-panel .dash-field input{width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
+    /* mimar-ekle.html#dd-field ile BİREBİR aynı açılır çoklu-seçim widget'ı (bkz. kullanıcı isteği:
+       "aynı firma kutucuğu gibi ama birden fazla seçenek seçilebilsin") — yalnızca Ödüller kutusunda
+       kullanılır. */
+    #am-panel .dd-field{position:relative;}
+    #am-panel .dd-btn{width:100%; text-align:left; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); display:flex; align-items:center; justify-content:space-between; gap:8px;}
+    #am-panel .dd-btn-arrow{flex-shrink:0; opacity:0.5; transition:transform .15s ease;}
+    #am-panel .dd-field.open .dd-btn-arrow{transform:rotate(180deg);}
+    #am-panel .dd-panel{display:none; flex-direction:column; position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:25; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); padding:8px; max-height:240px;}
+    #am-panel .dd-field.open .dd-panel{display:flex;}
+    #am-panel .dd-options{overflow-y:auto;}
+    #am-panel .dd-option{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
+    #am-panel .dd-option:hover{background:var(--paper-alt);}
+    #am-panel .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
     #am-panel .dash-pagination{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
     #am-panel .dash-pagination::-webkit-scrollbar{display:none;}
     #am-panel .dash-pagination .page-btn{min-width:32px; height:32px; padding:0 8px; border:1px solid var(--line); background:var(--paper); border-radius:8px; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
@@ -523,17 +536,22 @@ const AuthModal = (function () {
               <option value="">Seç... (opsiyonel)</option>
             </select>
           </div>
-        </div>
-
-        <!-- Yalnızca onaylı bir MİMAR profili sahiplenilmişse görünür — tüm form (yukarıdaki Ad Soyad/
-             Doğum Yılı/Üniversite/Meslek/Pozisyon dahil) tek bir Kaydet'te AYNI architect_submissions/
-             architects kaydına da yazılır (bkz. submitArchitectSyncIfNeeded, kullanıcı isteği: "Tüm
-             profil mimar profiliyle senkronize olacak") — bu yüzden burada ayrı bir başlık/açıklama
-             metni ya da görsel bölüm çizgisi yok, yukarıdaki alanlarla aynı akışın devamı gibi görünür. -->
-        <div id="am-architect-sync-fields" style="display:none; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+          <!-- Ödüller/Sosyal Medya/Açıklama — bkz. kullanıcı isteği: "Mimar profiliyle henüz
+               eşleşmemiş kullanıcılar da ödül, sosyal medya ve açıklama ekleyebilsinler" — herkes
+               için her zaman görünür, users.awards/about/social_links'e yazılır; onaylı bir mimar
+               profili sahiplenilmişse AYNI Kaydet'te architect_submissions/architects kaydına da
+               senkronize edilir (bkz. submitArchitectSyncIfNeeded). Ödüller kutusu Firma ile AYNI
+               kapalı/açılır davranışı verir, mimar-ekle.html#dd-oduller ile BİREBİR aynı widget
+               (bkz. wireAmMultiDropdown), ama çoklu seçim destekler. -->
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ödüller</label>
-            <select id="am-edit-awards" multiple size="5" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);"></select>
+            <div class="dd-field" id="am-dd-awards">
+              <button type="button" class="dd-btn" id="am-dd-awards-btn">
+                <span id="am-dd-awards-btn-label">Ödül seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel"><div class="dd-options" id="am-dd-awards-options"></div></div>
+            </div>
           </div>
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Sosyal Medya</label>
@@ -798,6 +816,11 @@ const AuthModal = (function () {
       document.getElementById('am-edit-school').value = accountUser.school || '';
       document.getElementById('am-edit-profession').value = accountUser.profession || '';
       document.getElementById('am-edit-position').value = accountUser.position || '';
+      ensureAwardsDropdown();
+      awardsDropdown.setChecked(accountUser.awards || []);
+      document.getElementById('am-edit-about').value = accountUser.about || '';
+      document.getElementById('am-social-rows').innerHTML = '';
+      (accountUser.social_links || []).forEach(s => addAmSocialRow(s.platform, s.url));
       await loadFirmaOptions();
       await prefillFirmaSelect();
     }
@@ -861,21 +884,48 @@ const AuthModal = (function () {
       } catch {}
     }
 
-    // "Mimar Profili" alt bölümü — bkz. kullanıcı isteği: "Eğer bir kullanıcı bir mimar profiliyle
-    // eşleştiyse mimar düzenle sayfası ile profilini düzenle bölümü eş zamanlı ve ortak çalışan
-    // sorular olmalı". architectSyncState null'sa (onaylı mimar talebi yok) bölüm gizli kalır ve
-    // Kaydet yalnızca users tablosuna yazar (eskisi gibi); doluysa Kaydet AYRICA aynı architect_
-    // submissions/architects kaydını (mimar-ekle.html?claim= ile TAM AYNI uç noktalar üzerinden)
-    // günceller. office/photo_url mevcut kayıttan olduğu gibi korunur — bu formda düzenlenmiyorlar,
-    // bu yüzden burada sıfırlanmamaları için saklanırlar.
+    // Ödüller kutusu — mimar-ekle.html#wireMultiDropdown ile BİREBİR aynı desen: kapalı bir düğme
+    // (seçili sayıyı/tek seçimi gösterir), tıklanınca checkbox'lı bir panel açılır. Bir kere kurulur
+    // (ensureAwardsDropdown), her loadUser()'da yalnızca setChecked çağrılır.
+    let awardsDropdown = null;
+    function closeAllAmDropdowns() {
+      document.querySelectorAll('#am-panel .dd-field.open').forEach(f => f.classList.remove('open'));
+    }
+    function ensureAwardsDropdown() {
+      if (awardsDropdown) return;
+      const field = document.getElementById('am-dd-awards');
+      const btn = document.getElementById('am-dd-awards-btn');
+      const label = document.getElementById('am-dd-awards-btn-label');
+      const container = document.getElementById('am-dd-awards-options');
+      container.innerHTML = ODUL_OPTIONS.map(o => `<label class="dd-option"><input type="checkbox" value="${escapeAttr(o)}"> ${escapeHtml(o)}</label>`).join('');
+      function updateLabel() {
+        const checked = Array.from(field.querySelectorAll('input:checked')).map(i => i.value);
+        label.textContent = checked.length ? (checked.length === 1 ? checked[0] : `${checked.length} seçili`) : 'Ödül seç';
+      }
+      btn.addEventListener('click', () => {
+        const willOpen = !field.classList.contains('open');
+        closeAllAmDropdowns();
+        if (willOpen) field.classList.add('open');
+      });
+      field.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', updateLabel));
+      awardsDropdown = {
+        getChecked: () => Array.from(field.querySelectorAll('input:checked')).map(i => i.value),
+        setChecked(vals) { field.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = (vals || []).includes(cb.value)); updateLabel(); },
+      };
+    }
+    document.addEventListener('click', (e) => {
+      document.querySelectorAll('#am-panel .dd-field.open').forEach(f => { if (!f.contains(e.target)) f.classList.remove('open'); });
+    });
+
+    // Onaylı bir mimar profili sahiplenilmişse yukarıdaki TÜM alanlar (Ad Soyad/Doğum Yılı/Üniversite/
+    // Meslek/Pozisyon/Ödüller/Açıklama/Sosyal Medya) AYNI Kaydet'te architect_submissions/architects
+    // kaydına da yazılır (bkz. submitArchitectSyncIfNeeded, mimar-ekle.html?claim= ile TAM AYNI uç
+    // noktalar). architectSyncState null'sa (henüz bir mimar profiliyle eşleşilmemişse) bu alanlar
+    // yine de görünür ve users tablosuna kaydedilir (bkz. kullanıcı isteği: "Mimar profiliyle henüz
+    // eşleşmemiş kullanıcılar da ödül, sosyal medya ve açıklama ekleyebilsinler") — yalnızca ikinci,
+    // paralel yazma adımı atlanır. office/photo_url mevcut mimar kaydından olduğu gibi korunur — bu
+    // formda düzenlenmiyorlar, bu yüzden burada sıfırlanmamaları için saklanırlar.
     let architectSyncState = null;
-    function renderAwardsOptions(checked) {
-      const select = document.getElementById('am-edit-awards');
-      select.innerHTML = ODUL_OPTIONS.map(o => `<option value="${escapeAttr(o)}"${(checked || []).includes(o) ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('');
-    }
-    function collectAwardsChecked() {
-      return Array.from(document.getElementById('am-edit-awards').selectedOptions).map(o => o.value);
-    }
     function addAmSocialRow(platform, url) {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex; gap:8px; align-items:center;';
@@ -935,17 +985,13 @@ const AuthModal = (function () {
       } catch {}
       return { merged, editId };
     }
-    async function refreshArchitectSyncFields(claimItems) {
+    // Alanların GÖRÜNÜRLÜĞÜNÜ artık etkilemez (her zaman görünürler) — yalnızca varsa architectSyncState'i
+    // (editId/office/photoUrl) kurar ki Kaydet'te submitArchitectSyncIfNeeded doğru uca yazsın.
+    async function refreshArchitectSyncState(claimItems) {
       const claim = claimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
-      const section = document.getElementById('am-architect-sync-fields');
-      if (!claim) { section.style.display = 'none'; architectSyncState = null; return; }
-      section.style.display = 'grid';
+      if (!claim) { architectSyncState = null; return; }
       const { merged, editId } = await fetchArchitectRecordForSync(claim.profile_key);
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
-      renderAwardsOptions(merged.awards);
-      document.getElementById('am-edit-about').value = merged.about || '';
-      document.getElementById('am-social-rows').innerHTML = '';
-      (merged.social_links || []).forEach(s => addAmSocialRow(s.platform, s.url));
     }
 
     on('am-dash-edit-btn', 'click', () => {
@@ -986,17 +1032,17 @@ const AuthModal = (function () {
     // gerçekten TEK bir veri kaynağını düzenlemiş olur (bkz. kullanıcı isteği: "tam bir
     // senkronizasyon"). office/photo_url bu formda düzenlenmediğinden fetchArchitectRecordForSync'in
     // getirdiği son bilinen değerleriyle olduğu gibi geri gönderilir, sıfırlanmazlar.
-    async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position) {
+    async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks) {
       if (!architectSyncState) return;
       const payload = {
         name, dob: dob || null, school: school || null,
         profession: PROFESSION_LABELS[professionSlug] || professionSlug || null,
         office: architectSyncState.office || null,
         position: position || null,
-        awards: collectAwardsChecked(),
+        awards,
         photo_url: architectSyncState.photoUrl || null,
-        about: document.getElementById('am-edit-about').value || null,
-        social_links: collectAmSocialLinks(),
+        about: about || null,
+        social_links: socialLinks,
       };
       if (!architectSyncState.editId) payload.claimed_profile_key = architectSyncState.profileKey;
       try {
@@ -1018,13 +1064,16 @@ const AuthModal = (function () {
       const school = document.getElementById('am-edit-school').value;
       const profession = document.getElementById('am-edit-profession').value;
       const position = document.getElementById('am-edit-position').value;
+      const awards = awardsDropdown ? awardsDropdown.getChecked() : [];
+      const about = document.getElementById('am-edit-about').value;
+      const socialLinks = collectAmSocialLinks();
       const res = await fetch('/api/profile', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, dob, school, profession, position }),
+        body: JSON.stringify({ name, dob, school, profession, position, awards, about, social_links: socialLinks }),
       });
       if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
       const claimSubmitted = await submitFirmaClaimIfChanged();
-      await submitArchitectSyncIfNeeded(name, dob, school, profession, position);
+      await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
 
       msg.textContent = claimSubmitted ? 'Kaydedildi. Firma talebi admin onayına gönderildi.' : 'Kaydedildi.';
       setTimeout(() => msg.textContent = '', claimSubmitted ? 4000 : 2000);
@@ -1367,7 +1416,7 @@ const AuthModal = (function () {
       const data = res.ok ? await res.json() : { items: [] };
       const items = data.items || [];
       const list = document.getElementById('am-claims-mine-list');
-      refreshArchitectSyncFields(items);
+      refreshArchitectSyncState(items);
       // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
       // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
       // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
@@ -1415,6 +1464,13 @@ const AuthModal = (function () {
         const slug = Object.keys(PROFESSION_LABELS).find(k => PROFESSION_LABELS[k] === arch.profession);
         if (slug) patch.profession = slug;
       }
+      // Ödüller/Açıklama/Sosyal Medya artık her kullanıcının hesap profilinde de var (bkz. kullanıcı
+      // isteği) — yeni onaylanan bir talepte mimar kaydında zaten dolu olan bu alanlar, hesap
+      // profili henüz boşsa bir kerelik buraya da taşınır (school/position/profession ile AYNI
+      // "yalnızca boşsa doldur" kuralı, kullanıcının kendi elle girdiği bir değerin üzerine yazmaz).
+      if (!(accountUser.awards || []).length && (arch.awards || []).length) patch.awards = arch.awards;
+      if (!accountUser.about && arch.about) patch.about = arch.about;
+      if (!(accountUser.social_links || []).length && (arch.social_links || []).length) patch.social_links = arch.social_links;
       if (!Object.keys(patch).length) return;
       try {
         const res = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });

@@ -500,6 +500,10 @@ function wireMultiDropdown(fieldId, btnId, labelId, optionsId, options, name, pl
 const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Öğrenci','Diğer'];
 const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Çalışan','Akademisyen','Freelance','Öğrenci','Emekli','İşsiz'];
 const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü','Ulusal Mimarlık Ödülleri','TürkSMD Mimarlık Ödülleri','Ağa Han Mimarlık Ödülü','EU Mies Award','World Architecture Festival Ödülleri','International Architecture Awards'];
+// users.profession kodlu bir slug'dır (ör. "mimar"), MESLEK_OPTIONS/architects.profession ise ham
+// Türkçe etiket ("Mimar") — bkz. js/components/auth-modal.js#PROFESSION_LABELS ile AYNI eşleme,
+// aşağıdaki maybeAutoFillFromAccount'ta ters yönde kullanılır.
+const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
 
 const meslekDropdown = wireSingleDropdown('dd-meslek', 'dd-meslek-btn', 'dd-meslek-btn-label', 'dd-meslek-options', MESLEK_OPTIONS, 'Meslek seç');
 const pozisyonDropdown = wireSingleDropdown('dd-pozisyon', 'dd-pozisyon-btn', 'dd-pozisyon-btn-label', 'dd-pozisyon-options', POZISYON_OPTIONS, 'Pozisyon seç');
@@ -837,6 +841,46 @@ async function prefillForClaim(){
   renderPreviews();
   wireAdminBadgePicker(claimName);
 }
+
+// "Ad Soyad" alanına kendi hesap adını yazan, henüz bir mimar profiliyle eşleşmemiş bir kullanıcı
+// için — bkz. kullanıcı isteği: "profili doldurduysa ve henüz mimar profili yoksa ... kendi isim
+// kısmına kendi ismini yazdığında kalan kısımların bilgileri otomatik olarak profil ekranından
+// çekilsin". Yalnızca YENİ bir profil eklenirken (claim=/edit= YOKKEN) devreye girer, yalnızca BOŞ
+// alanları doldurur (o ana kadar elle girilmiş hiçbir değerin üzerine yazmaz) ve tek seferliktir
+// (autoFilledFromAccount bayrağı — isim tekrar değiştirilse bile ikinci kez doldurmaz).
+let autoFilledFromAccount = false;
+async function maybeAutoFillFromAccount(){
+  if(claimName || editId || autoFilledFromAccount) return;
+  const data = await currentUserReady;
+  const user = data && data.user;
+  if(!user || !user.name) return;
+  const typed = document.getElementById('m-name').value.trim();
+  if(!typed || trLower(typed) !== trLower(user.name)) return;
+  autoFilledFromAccount = true;
+  if(!selectedDob && user.dob){
+    const year = parseInt(String(user.dob).slice(0, 4), 10);
+    if(!Number.isNaN(year)){ selectedDob = year; document.getElementById('dd-dob-btn-label').textContent = String(year); }
+  }
+  const schoolInput = document.getElementById('m-school');
+  if(!schoolInput.value && user.school) schoolInput.value = user.school;
+  if(!meslekDropdown.get() && user.profession){
+    const label = PROFESSION_LABELS[user.profession];
+    if(label) meslekDropdown.set(label);
+  }
+  if(!pozisyonDropdown.get() && user.position) pozisyonDropdown.set(user.position);
+  if(!odullerDropdown.getChecked().length && (user.awards || []).length) odullerDropdown.setChecked(user.awards);
+  const aboutInput = document.getElementById('m-about');
+  if(!aboutInput.value && user.about) aboutInput.value = user.about;
+  if(!socialRows.children.length && (user.social_links || []).length){
+    user.social_links.forEach(s => addSocialRow(s.platform, s.url));
+  }
+  if(!existingPhotoUrl && !selectedFiles.length && user.photoUrl){
+    existingPhotoUrl = user.photoUrl;
+    renderPreviews();
+  }
+}
+document.getElementById('m-name').addEventListener('input', maybeAutoFillFromAccount);
+document.getElementById('m-name').addEventListener('blur', maybeAutoFillFromAccount);
 
 if(claimName) prefillForClaim(); else prefillForEdit();
 

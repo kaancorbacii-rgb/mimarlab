@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
   photo_url TEXT,
   profession TEXT,
   position TEXT,
+  awards TEXT,
+  about TEXT,
+  social_links TEXT,
   kvkk_accepted_at INTEGER,
   role TEXT NOT NULL DEFAULT 'user',
   created_at INTEGER NOT NULL
