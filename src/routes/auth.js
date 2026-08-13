@@ -1,7 +1,7 @@
 import { json, errorJson, readJson, sessionCookieHeader, clearSessionCookieHeader, parseCookies, sessionCookieName } from '../lib/http.js';
 import { hashPassword, verifyPassword, newId, randomToken, sha256Hex } from '../lib/crypto.js';
 import { createSession, destroySession, getSessionUser, publicUser } from '../lib/auth.js';
-import { isSafeUrlValue } from '../lib/submissionTypes.js';
+import { isSafeUrlValue, isInvalidSchoolValue } from '../lib/submissionTypes.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import {
   isGoogleConfigured, buildGoogleAuthUrl, handleGoogleCallback,
@@ -157,6 +157,7 @@ async function signup(request, env) {
   if (body.password !== body.password_confirm) return errorJson('Şifreler eşleşmiyor.');
   if (profession && !PROFESSIONS.has(profession)) return errorJson('Geçersiz meslek.');
   if (dept && !DEPTS.has(dept)) return errorJson('Geçersiz bölüm.');
+  if (isInvalidSchoolValue(school)) return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
   if (!body.botCheck) return errorJson('Lütfen "Ben bir bot değilim" kutucuğunu işaretle.');
   if (!body.kvkkAccepted) return errorJson('Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.');
 
@@ -346,6 +347,9 @@ export async function handleProfileRoute(request, env, url) {
   }
   if ('position' in body && body.position && !POSITIONS.has(body.position)) {
     return errorJson('Geçersiz pozisyon.');
+  }
+  if ('school' in body && isInvalidSchoolValue(body.school)) {
+    return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
   }
   // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
   // ödül, sosyal medya ve açıklama ekleyebilsinler" — mimar-ekle.html'in aynı alanlarıyla AYNI JSON

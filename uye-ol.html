@@ -277,8 +277,8 @@
           </select>
         </div>
         <div class="auth-field ac-field" id="ac-school-field">
-          <label for="signup-school">Okul</label>
-          <input type="text" id="signup-school" name="school" placeholder="Üniversite" autocomplete="off">
+          <label for="signup-school">Üniversite</label>
+          <input type="text" id="signup-school" name="school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off">
           <div class="ac-suggestions" id="ac-school-suggestions"></div>
         </div>
         <div class="auth-field">
@@ -326,6 +326,14 @@ function escapeAttr(s){
   const d = document.createElement('div');
   d.textContent = s || '';
   return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// src/lib/submissionTypes.js#isInvalidSchoolValue ile AYNI kural — kısaltmaları (YTÜ, İTÜ, ODTÜ,
+// MSGSÜ gibi) reddetmek için sunucudakiyle birebir aynı mantık istemci tarafında da tekrarlanır.
+function isInvalidSchoolValue(v){
+  v = (v || '').trim();
+  if(!v) return false;
+  if(v.length < 5) return true;
+  return !/[a-zçğıöşü]/.test(v);
 }
 // ---------- DOĞUM YILI: 1950'den bugüne, en yeni yıl en üstte ----------
 (function fillDobYears(){
@@ -401,6 +409,11 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
   }
   if(!document.getElementById('signup-kvkk').checked){
     notice.textContent = 'Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.';
+    notice.classList.add('show');
+    return;
+  }
+  if(isInvalidSchoolValue(document.getElementById('signup-school').value)){
+    notice.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).';
     notice.classList.add('show');
     return;
   }

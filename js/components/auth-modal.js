@@ -352,8 +352,8 @@ const AuthModal = (function () {
             <select id="am-signup-dob" name="dob" required><option value="">Yıl seç</option></select>
           </div>
           <div class="auth-field ac-field" id="am-school-field">
-            <label for="am-signup-school">Okul</label>
-            <input type="text" id="am-signup-school" name="school" placeholder="Üniversite" autocomplete="off">
+            <label for="am-signup-school">Üniversite</label>
+            <input type="text" id="am-signup-school" name="school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off">
             <div class="ac-suggestions" id="am-school-suggestions"></div>
           </div>
           <div class="auth-field">
@@ -396,18 +396,16 @@ const AuthModal = (function () {
     return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
   }
 
-  // İTÜ/YTÜ/ODTÜ'nün açık adı yazılsa/seçilse bile her zaman kısaltma olarak kaydedilir (bkz.
-  // kullanıcı isteği) — mimar-ekle.html'in kendi Üniversite kutusu bu üç okulu zaten kısaltmayla
-  // saklıyordu, Profilini Düzenle'de açık ad girilmesi aynı okulun iki farklı yazımla (arama/
-  // filtrelemeyi bölen) dağılmasına yol açıyordu.
-  const SCHOOL_ABBREVIATIONS = {
-    'istanbul teknik üniversitesi': 'İTÜ',
-    'yıldız teknik üniversitesi': 'YTÜ',
-    'orta doğu teknik üniversitesi': 'ODTÜ',
-  };
-  function normalizeSchoolName(v) {
-    const key = trLower((v || '').trim());
-    return SCHOOL_ABBREVIATIONS[key] || v;
+  // src/lib/submissionTypes.js#isInvalidSchoolValue ile AYNI kural — kısaltmaları (YTÜ, İTÜ, ODTÜ,
+  // MSGSÜ gibi) reddetmek için sunucudakiyle birebir aynı mantık istemci tarafında da tekrarlanır
+  // (bkz. kullanıcı isteği: "üniversite isimlerinin kısaltma olmasına izin verme"). Eskiden burada
+  // TAM TERSİ bir normalizeSchoolName vardı (İTÜ/YTÜ/ODTÜ'nün açık adını KASITLI OLARAK kısaltmaya
+  // ÇEVİRİYORDU) — o davranış kaldırıldı, artık kısaltma HİÇBİR yoldan kaydedilmiyor.
+  function isInvalidSchoolValue(v) {
+    v = (v || '').trim();
+    if (!v) return false;
+    if (v.length < 5) return true;
+    return !/[a-zçğıöşü]/.test(v);
   }
 
   function wireSignup() {
@@ -451,6 +449,7 @@ const AuthModal = (function () {
       if (pw !== pwConfirm) { notice.textContent = 'Şifreler eşleşmiyor. Lütfen tekrar dene.'; notice.classList.add('show'); return; }
       if (!document.getElementById('am-signup-bot').checked) { notice.textContent = 'Lütfen "Ben bir bot değilim" kutucuğunu işaretle.'; notice.classList.add('show'); return; }
       if (!document.getElementById('am-signup-kvkk').checked) { notice.textContent = 'Devam etmek için KVKK Aydınlatma Metni\'ni kabul etmelisin.'; notice.classList.add('show'); return; }
+      if (isInvalidSchoolValue(schoolInput.value)) { notice.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; notice.classList.add('show'); return; }
       const payload = {
         name: document.getElementById('am-signup-name').value,
         dob: document.getElementById('am-signup-dob').value || null,
@@ -538,7 +537,7 @@ const AuthModal = (function () {
           </div>
           <div class="auth-field ac-field" id="am-edit-school-field" style="margin-bottom:0;">
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Üniversite</label>
-            <input type="text" id="am-edit-school" autocomplete="off" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
+            <input type="text" id="am-edit-school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
             <div class="ac-suggestions" id="am-edit-school-suggestions"></div>
           </div>
           <div>
@@ -1169,12 +1168,13 @@ const AuthModal = (function () {
       const msg = document.getElementById('am-dash-save-msg');
       const name = document.getElementById('am-edit-name').value;
       const dob = document.getElementById('am-edit-dob').value;
-      const school = normalizeSchoolName(document.getElementById('am-edit-school').value);
+      const school = document.getElementById('am-edit-school').value;
       const profession = document.getElementById('am-edit-profession').value;
       const position = document.getElementById('am-edit-position').value;
       const awards = awardsDropdown ? awardsDropdown.getChecked() : [];
       const about = document.getElementById('am-edit-about').value;
       const socialLinks = collectAmSocialLinks();
+      if (isInvalidSchoolValue(school)) { msg.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; return; }
       const res = await fetch('/api/profile', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, dob, school, profession, position, awards, about, social_links: socialLinks }),

@@ -80,6 +80,22 @@ export function findInvalidSocialPlatform(type, body) {
   return !!value && !SOCIAL_PLATFORMS.has(value);
 }
 
+// Üye ol / mimar-ekle-düzenle / hesabım "Üniversite" kutucuğuna kısaltma girilmesini engeller
+// (bkz. kullanıcı isteği: "YTÜ, İTÜ, ODTÜ, MSGSÜ gibi kısaltmalara izin verme"). Türkçe üniversite
+// kısaltmalarının neredeyse tamamı yalnızca büyük harflerle yazılır — bu yüzden değerde HİÇ küçük
+// harf yoksa kısaltma sayılır (hardcoded bir liste yerine genel bir kural: yeni/az bilinen bir
+// kısaltma da aynı şekilde yakalanır). Buna ek olarak (kullanıcı isteği: "Minimum 5 harf sınırı
+// koy ama bunu belirtme" — sınır kullanıcıya asla bir ipucu/placeholder olarak gösterilmez, yalnızca
+// sessizce reddedilir) 5 karakterden kısa her değer de reddedilir; bu ikisi BİRLİKTE MSGSÜ (5
+// harf ama tamamı büyük) dahil örneklenen tüm kısaltmaları kapsar.
+const MIN_SCHOOL_NAME_LENGTH = 5;
+export function isInvalidSchoolValue(value) {
+  const v = (value == null ? '' : String(value)).trim();
+  if (!v) return false; // okul alanı opsiyonel — boş bırakmak geçerli
+  if (v.length < MIN_SCHOOL_NAME_LENGTH) return true;
+  return !/[a-zçğıöşü]/.test(v);
+}
+
 // Görsel/website/başvuru linki gibi alanlarda saklanan değerin, bir HTML özniteliğine
 // (src="..."/href="...") gömüldüğünde tırnak kaçışıyla enjeksiyona izin vermeyecek güvenli bir
 // bağlantı olduğunu garantiler: ya kendi /media/ yükleme yolumuz, ya da düz bir http(s) URL'i,

@@ -296,7 +296,7 @@
           </div>
           <div class="form-field ac-field" id="ac-school-field">
             <label for="m-school">Üniversite <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="m-school" name="school" placeholder="ör. MSGSÜ" autocomplete="off">
+            <input type="text" id="m-school" name="school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off">
             <div class="ac-suggestions" id="ac-school-suggestions"></div>
           </div>
         </div>
@@ -440,6 +440,14 @@ function escapeAttr(s){
 
 function trLower(s){
   return (s||'').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
+}
+// src/lib/submissionTypes.js#isInvalidSchoolValue ile AYNI kural — kısaltmaları (YTÜ, İTÜ, ODTÜ,
+// MSGSÜ gibi) reddetmek için sunucudakiyle birebir aynı mantık istemci tarafında da tekrarlanır.
+function isInvalidSchoolValue(v){
+  v = (v || '').trim();
+  if(!v) return false;
+  if(v.length < 5) return true;
+  return !/[a-zçğıöşü]/.test(v);
 }
 // bkz. prefillForClaim'deki kullanım — firma-ekle.html#looksLikeInternalId ile BİREBİR aynı; ?claim=
 // değeri src/lib/canonicalSync.js#submissionMarker'ın dahili "submission:<uuid>" işareti olabilir.
@@ -968,6 +976,12 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
 
   if(dupNameCheck.isDuplicate()){
     notice.textContent = 'Bu mimar zaten yayınlandı.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(isInvalidSchoolValue(document.getElementById('m-school').value)){
+    notice.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
