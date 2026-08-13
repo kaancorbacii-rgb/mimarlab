@@ -1763,18 +1763,17 @@ const AuthModal = (function () {
     else if (HREF_VIEW_RE.forgot.test(href)) view = 'forgot';
     if (!view) return;
     e.preventDefault();
+    if (isOpen()) swap(view); else open(view, { triggerEl: a });
     // "Giriş Yap" veya "Üye Ol" tıklandığında oturum zaten açıksa (ör. auth-nav.js'in header'ı henüz
     // güncellemediği kısa an, bookmark/eski sekme ya da footer'daki statik link) o görünüm yerine
-    // doğrudan Hesabım'a gidilir (bkz. kullanıcı isteği). loadUser() zaten aynı /api/auth/me isteğini
-    // attığından (bkz. mountAccount()#loadUser) bu, view==='account' olduğunda ekstra bir round-trip DEĞİL.
+    // Hesabım'a geçilir (bkz. kullanıcı isteği). gerçek bulgu (2026-08-14): bu kontrol eskiden popup'ı
+    // AÇMADAN ÖNCE bekleniyordu — /api/auth/me yavaş/gecikmeli olduğunda popup tıklamadan saniyelerce
+    // sonra açılıyor, hatta hiç açılmıyormuş gibi görünüyordu ("bazen yavaş açılıyor/takılıyor"). Artık
+    // her modal gibi (bkz. project-modal.js#open AYNI desen) önce popup ANINDA açılır, oturum kontrolü
+    // arka planda yapılır; zaten girişliyse sessizce Hesabım'a geçilir.
     if (view === 'login' || view === 'signup') {
-      const fallbackView = view;
-      fetch('/api/auth/me').then(r => (r.ok ? 'account' : fallbackView)).catch(() => fallbackView).then(resolvedView => {
-        if (isOpen()) swap(resolvedView); else open(resolvedView, { triggerEl: a });
-      });
-      return;
+      fetch('/api/auth/me').then(r => { if (r.ok) swap('account'); }).catch(() => {});
     }
-    if (isOpen()) swap(view); else open(view, { triggerEl: a });
   });
 
   window.addEventListener('popstate', () => {
