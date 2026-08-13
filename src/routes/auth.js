@@ -170,7 +170,7 @@ async function signup(request, env) {
 
   const { token, maxAge } = await createSession(env, id);
   const user = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, company, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, role, created_at FROM users WHERE id = ?'
   ).bind(id).first();
 
   return json({ user: publicUser(user) }, 201, {
@@ -345,7 +345,7 @@ export async function handleProfileRoute(request, env, url) {
   if ('position' in body && body.position && !POSITIONS.has(body.position)) {
     return errorJson('Geçersiz pozisyon.');
   }
-  const fields = ['name', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position', 'company'];
+  const fields = ['name', 'dob', 'school', 'dept', 'photo_url', 'profession', 'position'];
   const updates = [];
   const values = [];
   for (const f of fields) {
@@ -356,7 +356,7 @@ export async function handleProfileRoute(request, env, url) {
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
   const updated = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, company, role, created_at FROM users WHERE id = ?'
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, role, created_at FROM users WHERE id = ?'
   ).bind(user.id).first();
   return json({ user: publicUser(updated) });
 }

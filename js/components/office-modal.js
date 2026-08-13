@@ -102,6 +102,12 @@ const OfficeModal = (function () {
         color:#fff; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
       }
       .unregistered-badge-name{font-size:13px; font-weight:600; color:var(--ink);}
+      /* Ekip kartları (bkz. kullanıcı isteği: "kurucular/ortaklar kısmının altında bir de Ekip
+         kısmı olsun") — .unregistered-badge ile AYNI pasif/tıklanamaz rozet biçimi (bu kişilerin
+         kendi profil sayfası yok), yalnızca kullanıcı hesabından geldikleri için (bkz.
+         src/routes/office.js#buildOfficePayload) fotoğraf ve pozisyon gösterebilirler. */
+      .om-team-avatar{width:32px; height:32px; border-radius:50%; flex-shrink:0; object-fit:cover; background:var(--paper-alt);}
+      .om-team-role{display:block; font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:1px;}
       .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
       .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
       .prevnext a:hover{border-color:var(--walnut);}
@@ -182,6 +188,10 @@ const OfficeModal = (function () {
       <h2 class="related-title">Kurucular / Ortaklar</h2>
       <div class="related-grid-scroll" id="om-founders-grid"></div>
     </div>
+    <div class="related-section" id="om-team-section" style="display:none;">
+      <h2 class="related-title">Ekip</h2>
+      <div class="related-grid-scroll" id="om-team-grid"></div>
+    </div>
     <div class="related-section" id="om-related-projects-section" style="display:none;">
       <h2 class="related-title">Projeler</h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
@@ -243,6 +253,21 @@ const OfficeModal = (function () {
     return `<span class="unregistered-badge" aria-disabled="true">
       <span class="unregistered-badge-avatar" style="background:${officeColor(name)}">${escapeHtml(initials(name))}</span>
       <span class="unregistered-badge-name">${escapeHtml(name)}</span>
+    </span>`;
+  }
+
+  // Ekip kartları — bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı".
+  // Onaylı bir profile_claims('office') sahibi olup pozisyonu Kurucu/Kurucu Ortak OLMAYAN kullanıcılar
+  // (bkz. src/routes/office.js#buildOfficePayload `team`) — bunların kendi profil sayfası yok, bu
+  // yüzden unregisteredBadgeHtml ile AYNI pasif rozet biçimi, yalnızca hesap fotoğrafı + pozisyonu
+  // (varsa) eklenmiş haliyle.
+  function teamBadgeHtml(person) {
+    const avatar = person.photo
+      ? `<img class="om-team-avatar" src="${escapeAttr(cdnImg(person.photo, 64))}" alt="" loading="lazy" decoding="async">`
+      : `<span class="unregistered-badge-avatar" style="background:${officeColor(person.name)}">${escapeHtml(initials(person.name))}</span>`;
+    return `<span class="unregistered-badge" aria-disabled="true">
+      ${avatar}
+      <span class="unregistered-badge-name">${escapeHtml(person.name)}${person.role ? `<span class="om-team-role">${escapeHtml(person.role)}</span>` : ''}</span>
     </span>`;
   }
 
@@ -336,7 +361,7 @@ const OfficeModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['om-actions', 'om-founders-section', 'om-related-projects-section', 'om-related-products-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['om-actions', 'om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-related-products-section',
     'om-related-materials-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
@@ -346,6 +371,7 @@ const OfficeModal = (function () {
     });
     const o = payload.item;
     const founders = payload.founders || [];
+    const team = payload.team || [];
     const relatedProjectsData = payload.relatedProjects || [];
     currentItem = o;
 
@@ -436,6 +462,9 @@ const OfficeModal = (function () {
       ).join('');
     }
     renderFoundersGrid();
+
+    document.getElementById('om-team-section').style.display = team.length ? '' : 'none';
+    document.getElementById('om-team-grid').innerHTML = team.map(teamBadgeHtml).join('');
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('om-related-projects-grid').innerHTML = relatedProjectsData.map(p =>

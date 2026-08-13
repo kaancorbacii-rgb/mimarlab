@@ -479,7 +479,9 @@ const AuthModal = (function () {
           </div>
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Doğum Yılı</label>
-            <input type="number" id="am-edit-dob" min="1900" max="2026" inputmode="numeric" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
+            <select id="am-edit-dob" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
+              <option value="">Seç... (opsiyonel)</option>
+            </select>
           </div>
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Okul</label>
@@ -504,6 +506,7 @@ const AuthModal = (function () {
             <select id="am-edit-position" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
               <option value="">Seç... (opsiyonel)</option>
               <option value="Kurucu">Kurucu</option>
+              <option value="Kurucu Ortak">Kurucu Ortak</option>
               <option value="Çalışan">Çalışan</option>
               <option value="Akademisyen">Akademisyen</option>
               <option value="Freelance">Freelance</option>
@@ -556,7 +559,6 @@ const AuthModal = (function () {
             <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
-            <div class="profile-fact"><span class="profile-fact-label">Firma</span><span class="profile-fact-value" id="am-fact-firma">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
           </div>
           <div id="am-claims-mine-list"></div>
@@ -750,23 +752,41 @@ const AuthModal = (function () {
       document.getElementById('am-fact-name').textContent = accountUser.name || '—';
       document.getElementById('am-fact-profession').textContent = PROFESSION_LABELS[accountUser.profession] || accountUser.profession || '—';
       document.getElementById('am-fact-position').textContent = accountUser.position || '—';
-      document.getElementById('am-fact-firma').textContent = accountUser.company || '—';
       document.getElementById('am-fact-school').textContent = accountUser.school || '—';
       document.getElementById('am-fact-dob').textContent = accountUser.dob ? String(accountUser.dob).slice(0, 4) : '—';
       document.getElementById('am-fact-joined').textContent = new Date(accountUser.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' });
       document.getElementById('am-edit-name').value = accountUser.name || '';
+      ensureDobYearOptions();
       document.getElementById('am-edit-dob').value = accountUser.dob ? String(accountUser.dob).slice(0, 4) : '';
       document.getElementById('am-edit-school').value = accountUser.school || '';
       document.getElementById('am-edit-profession').value = accountUser.profession || '';
       document.getElementById('am-edit-position').value = accountUser.position || '';
       await loadFirmaOptions();
-      document.getElementById('am-edit-office').value = accountUser.company || '';
+      await prefillFirmaSelect();
     }
 
-    // Firma kutusu (Pozisyon'un yanında) — sahiplik/claim sisteminden bağımsız, serbest bir profil
-    // etiketi (bkz. kullanıcı isteği: "açılır menü ile tüm firmaları görüp istediği firmayı
-    // seçebilsin", "Firma ekle seçeneğini kaldır"). /api/offices sayfalı döndüğünden (en fazla 96/
-    // sayfa) tüm firmaları toplamak için totalPages'e kadar döngüyle çekilir; sonuç bu modülün
+    // Doğum Yılı artık bir açılır liste (bkz. kullanıcı isteği) — yıl aralığı önceki number
+    // input'un min/max'ıyla AYNI (1900 — bugünün yılı), en yeni yıl en üstte. Bir kere üretilip
+    // eklenir, her loadUser()'da yeniden kurulmaz.
+    let dobOptionsReady = false;
+    function ensureDobYearOptions() {
+      if (dobOptionsReady) return;
+      dobOptionsReady = true;
+      const select = document.getElementById('am-edit-dob');
+      const currentYear = new Date().getFullYear();
+      let html = '';
+      for (let y = currentYear; y >= 1900; y--) html += `<option value="${y}">${y}</option>`;
+      select.insertAdjacentHTML('beforeend', html);
+    }
+
+    // Firma kutusu (Pozisyon'un yanında) — açılır liste TÜM firmaları listeler (bkz. kullanıcı
+    // isteği: "açılır menü ile tüm firmaları görüp istediği firmayı seçebilsin"), ama seçim artık
+    // doğrudan profile yazılmıyor: "Bu firma sana mı ait?" kutusuyla (js/components/
+    // claim-correction-box.js) AYNI profile_claims('office') talebini (POST /api/claims) oluşturur
+    // ve admin onayı bekler (bkz. src/routes/admin.js#handleClaimsAdmin, admin.html "Profil
+    // Talepleri"). Onaylanınca CANLI olarak Profil Bilgileri kutusundaki Mimar satırının ÜSTÜNDEki
+    // "Firma" satırında görünür (bkz. loadMyClaims). /api/offices sayfalı döndüğünden (en fazla
+    // 96/sayfa) tüm firmaları toplamak için totalPages'e kadar döngüyle çekilir; sonuç bu modülün
     // ömrü boyunca önbelleklenir (allOfficeNamesPromise) — modal her açıldığında/loadUser her
     // çalıştığında yeniden istek atılmaz.
     let allOfficeNamesPromise = null;
@@ -789,6 +809,20 @@ const AuthModal = (function () {
       const names = await allOfficeNamesPromise;
       select.innerHTML = '<option value="">Seç... (opsiyonel)</option>' + names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('');
     }
+    // Kutunun başlangıç değeri, kullanıcının hâlihazırda onaylı ya da beklemede bir ofis talebi
+    // varsa onu yansıtır — böylece kaydet'e tekrar basmak (seçim değiştirilmeden) createClaim'in
+    // no-op dallarına düşer (bkz. src/routes/claims.js — approved/pending için ikinci bir POST hiçbir
+    // şey yazmaz), yalnızca GERÇEKTEN farklı bir firma seçilirse yeni bir talep oluşur.
+    async function prefillFirmaSelect() {
+      const select = document.getElementById('am-edit-office');
+      try {
+        const claimsRes = await fetch('/api/claims/mine');
+        const claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
+        const officeClaim = claims.find(c => c.profile_type === 'office' && c.status === 'approved')
+          || claims.find(c => c.profile_type === 'office' && c.status === 'pending');
+        select.value = officeClaim ? officeClaim.profile_key : '';
+      } catch {}
+    }
 
     on('am-dash-edit-btn', 'click', () => {
       const form = document.getElementById('am-dash-edit-form');
@@ -803,6 +837,25 @@ const AuthModal = (function () {
       window.location.href = 'index.html';
     });
 
+    // Firma seçimi ("Bu firma sana mı ait?" ile AYNI profile_claims('office') talebi) yalnızca
+    // seçim GERÇEKTEN kullanıcının mevcut onaylı/beklemedeki talebinden farklıysa gönderilir —
+    // aksi halde her Kaydet'te aynı isim için gereksiz bir POST atılır (zararsız no-op olsa da).
+    async function submitFirmaClaimIfChanged() {
+      const selected = document.getElementById('am-edit-office').value;
+      if (!selected) return false;
+      try {
+        const claimsRes = await fetch('/api/claims/mine');
+        const claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
+        const existing = claims.find(c => c.profile_type === 'office' && c.profile_key === selected);
+        if (existing && (existing.status === 'approved' || existing.status === 'pending')) return false;
+        await fetch('/api/claims', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileType: 'office', profileKey: selected }),
+        });
+        return true;
+      } catch { return false; }
+    }
+
     on('am-dash-save-btn', 'click', async () => {
       const msg = document.getElementById('am-dash-save-msg');
       const res = await fetch('/api/profile', {
@@ -813,14 +866,15 @@ const AuthModal = (function () {
           school: document.getElementById('am-edit-school').value,
           profession: document.getElementById('am-edit-profession').value,
           position: document.getElementById('am-edit-position').value,
-          company: document.getElementById('am-edit-office').value,
         }),
       });
       if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
+      const claimSubmitted = await submitFirmaClaimIfChanged();
 
-      msg.textContent = 'Kaydedildi.';
-      setTimeout(() => msg.textContent = '', 2000);
+      msg.textContent = claimSubmitted ? 'Kaydedildi. Firma talebi admin onayına gönderildi.' : 'Kaydedildi.';
+      setTimeout(() => msg.textContent = '', claimSubmitted ? 4000 : 2000);
       await loadUser();
+      await loadMyClaims();
     });
 
     on('am-avatar-upload-btn', 'click', () => document.getElementById('am-avatar-file-input').click());
@@ -1164,7 +1218,11 @@ const AuthModal = (function () {
       // kullanıcı isteği: "üyelik ve firma başlıkları arasında ... diğer satırlarla aynı şekilde line").
       if (!items.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
       list.style.borderTop = '1px solid var(--line-soft)';
-      list.innerHTML = items.map(c => `
+      // Firma satırı Mimar satırının ÜSTÜNDE gösterilir (bkz. kullanıcı isteği) — Array.sort
+      // kararlı (stable) olduğundan aynı tip içindeki göreli sıra (API'nin updated_at DESC'i)
+      // korunur, yalnızca office/architect grupları arasında sıra sabitlenir.
+      const sortedItems = items.slice().sort((a, b) => (a.profile_type === 'office' ? 0 : 1) - (b.profile_type === 'office' ? 0 : 1));
+      list.innerHTML = sortedItems.map(c => `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">

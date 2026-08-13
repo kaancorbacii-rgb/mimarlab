@@ -668,7 +668,7 @@ async function loadOwnershipClaims(){
       <div class="admin-card-head">
         <div>
           <div class="admin-card-title">${escapeHtml(c.profile_key)} <span class="admin-badge badge-pending">${PROFILE_TYPE_LABELS[c.profile_type] || c.profile_type}</span></div>
-          <div class="admin-card-meta">${escapeHtml(c.user_name)} · ${escapeHtml(c.user_email)} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
+          <div class="admin-card-meta">${escapeHtml(c.user_name)} · ${escapeHtml(c.user_email)}${c.user_position ? ` · Pozisyon: ${escapeHtml(c.user_position)}` : ''} · ${new Date(c.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
         ${c.status === 'pending' ? `
         <div class="admin-actions">

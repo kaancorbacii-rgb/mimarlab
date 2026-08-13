@@ -187,7 +187,8 @@ function officeListFingerprint(env) {
 }
 
 // GET /api/office/:key — ofis-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
-// { item, founders, relatedProjects, hidden } — eski overlay tabanlı sürümle BİREBİR aynı.
+// { item, founders, team, relatedProjects, hidden } — `team` (bkz. kullanıcı isteği: "Ekip kısmı"),
+// onaylı profile_claims('office') sahibi olup pozisyonu Kurucu/Kurucu Ortak OLMAYAN kullanıcılar.
 export async function handleOfficeRoute(request, env, url, rawKey) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   const key = decodeURIComponent(rawKey || '');
@@ -242,17 +243,17 @@ async function buildOfficePayload(env, key) {
   }
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
-  if (!row) return { item: null, founders: [], relatedProjects: [], hidden: false };
+  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], hidden: false };
   // gerçek bulgu (denetim raporu): satır yukarıdaki redirect-birleştirmeden SONRA hâlâ hidden_at
   // taşıyorsa (yani gerçekten gizli, yeniden adlandırma/birleştirme DEĞİL) bu uç item'ı yine de tam
   // olarak döndürüyordu — yalnızca `hidden:true` bayrağı ekleniyordu, veri gizlenmiyordu. Client-side
   // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
   // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
   // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
-  if (row.hidden_at) return { item: null, founders: [], relatedProjects: [], hidden: true };
+  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
 
-  const [foundersRes, relatedRes, rawFounderNames] = await Promise.all([
+  const [foundersRes, relatedRes, rawFounderNames, teamClaimRows] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
@@ -262,6 +263,17 @@ async function buildOfficePayload(env, key) {
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND pd.office_id = ?`
     ).bind(o.id).all(),
     fetchRawFounderNames(env, o),
+    // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
+    // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
+    // bkz. kullanıcı isteği: "Pozisyon ile firma danışıklı çalışan bir sistem olmalı". Pozisyonu
+    // Kurucu/Kurucu Ortak olanlar aşağıda foundersFromClaims'e (Kurucular/Ortaklar'a karışır, isim
+    // eşleşmesi office_founders'daki gibi bir architects kaydına dayanmadığından hep `unregistered`
+    // rozet olarak render edilir), diğerleri Ekip'e (team) düşer.
+    env.DB.prepare(
+      `SELECT u.name, u.position, u.photo_url FROM profile_claims c JOIN users u ON u.id = c.user_id
+       WHERE c.profile_type = 'office' AND c.profile_key = ? AND c.status = 'approved'
+       ORDER BY u.name COLLATE NOCASE ASC`
+    ).bind(o.name).all(),
   ]);
 
   const founders = foundersRes.results.map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
@@ -270,6 +282,17 @@ async function buildOfficePayload(env, key) {
     if (!name || knownFounderNames.has(trLower(name))) continue;
     knownFounderNames.add(trLower(name));
     founders.push({ name, role: null, photo: null, badges: [], unregistered: true });
+  }
+  const FOUNDER_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak']);
+  const team = [];
+  for (const row of teamClaimRows.results || []) {
+    if (!row.name || knownFounderNames.has(trLower(row.name))) continue;
+    if (FOUNDER_POSITIONS.has(row.position)) {
+      knownFounderNames.add(trLower(row.name));
+      founders.push({ name: row.name, role: row.position, photo: null, badges: [], unregistered: true });
+    } else {
+      team.push({ name: row.name, role: row.position || null, photo: row.photo_url || null });
+    }
   }
   const relatedProjects = relatedRes.results.map(p => {
     const parsed = parseCanonicalRow('projects', p);
@@ -294,5 +317,5 @@ async function buildOfficePayload(env, key) {
 
   const adjacent = await fetchAdjacentOffice(env, o.id);
 
-  return { item, founders, relatedProjects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
+  return { item, founders, team, relatedProjects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
 }

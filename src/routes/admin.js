@@ -397,13 +397,16 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
 async function handleClaimsAdmin(request, env, url, segments) {
   if (segments.length === 3 && request.method === 'GET') {
     const status = url.searchParams.get('status');
+    // u.position — bkz. kullanıcı isteği: admin bir ofis talebinin "firma sahibi" mi yoksa (Kurucu/
+    // Kurucu Ortak DIŞINDA bir pozisyonla) "ekip üyeliği" mi anlamına geleceğini onaylamadan önce
+    // görebilsin (bkz. src/routes/office.js#buildOfficePayload Kurucu/Ekip ayrımıyla AYNI kaynak).
     const query = status
       ? env.DB.prepare(
-          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM profile_claims c
+          `SELECT c.*, u.name AS user_name, u.email AS user_email, u.position AS user_position FROM profile_claims c
            JOIN users u ON u.id = c.user_id WHERE c.status = ? ORDER BY c.created_at DESC`
         ).bind(status)
       : env.DB.prepare(
-          `SELECT c.*, u.name AS user_name, u.email AS user_email FROM profile_claims c
+          `SELECT c.*, u.name AS user_name, u.email AS user_email, u.position AS user_position FROM profile_claims c
            JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC`
         );
     const { results } = await query.all();

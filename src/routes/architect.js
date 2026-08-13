@@ -371,10 +371,10 @@ async function buildArchitectPayload(env, key) {
 // sorgusu, mimar-detay sayfasındaki "kurucu/ortak olduğu firmalar" listesiyle birebir aynı kaynak).
 // Rastgele bir firma adı YAZILAMAZ, yalnızca zaten bağlı olduğu firmalardan biri seçilebilir ya da
 // boş bırakılıp firma bağlantısı kaldırılabilir. Not: js/components/auth-modal.js "Profili Düzenle"
-// içindeki Firma kutusu artık bunu ÇAĞIRMIYOR (bkz. kullanıcı isteği: "tüm firmaları görüp istediği
-// firmayı seçebilsin" — o kutu artık ownership'ten bağımsız serbest bir etiket, users.company'e
-// yazıyor); bu route başka bir istemci ihtiyacı için canlı bırakıldı, mevcut mimar-detay davranışını
-// (architects.office_id) etkilemeye devam ediyor.
+// içindeki Firma kutusu bunu ÇAĞIRMIYOR — o kutu artık POST /api/claims ile "Bu firma sana mı ait?"
+// kutusuyla AYNI profile_claims('office') admin-onay talebini oluşturuyor (bkz. kullanıcı isteği:
+// "iki talep de admin panelinde onaya sunulsun"); bu route başka bir istemci ihtiyacı için canlı
+// bırakıldı, mevcut mimar-detay davranışını (architects.office_id) etkilemeye devam ediyor.
 export async function handleArchitectPrimaryOfficeRoute(request, env, url) {
   if (url.pathname !== '/api/profile/office' || request.method !== 'PATCH') return errorJson('Bulunamadı', 404);
   const user = await getSessionUser(request, env);
