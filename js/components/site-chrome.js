@@ -95,10 +95,8 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
-      <div class="footer-col-group">
-        <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
-        <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
-      </div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
       <div class="footer-col footer-newsletter">
         <h4>Bülten</h4>
         <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
@@ -134,36 +132,37 @@
     const style = document.createElement('style');
     style.id = 'footer-extra-style';
     style.textContent = `
-      .footer-top{grid-template-columns: 1.3fr 0.9fr 1.3fr 1.3fr;}
-      .footer-col-group{display:flex; flex-direction:column; gap:26px;}
+      .footer-top{grid-template-columns: 1.15fr 0.75fr 0.85fr 0.95fr 1.15fr;}
       .footer-bottom-actions{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:16px;}
-      .footer-social{display:flex; align-items:center; gap:14px;}
+      .footer-social{display:flex; align-items:center; gap:14px; height:28px;}
+      .footer-social a{display:flex; align-items:center; justify-content:center;}
+      .footer-social svg{display:block;}
       .footer-theme-toggle{
         position:relative; display:inline-flex; align-items:center; flex-shrink:0;
-        width:100px; height:34px; padding:0; border-radius:100px; border:none;
+        width:92px; height:28px; padding:0; border-radius:100px; border:none;
         background:var(--brass); color:#fff; cursor:pointer; overflow:hidden;
       }
       .footer-theme-toggle:hover{opacity:0.92;}
       .footer-theme-toggle .theme-toggle-label{
         position:absolute; top:50%; transform:translateY(-50%);
-        font-size:11.5px; font-weight:700; letter-spacing:0.01em; white-space:nowrap;
+        font-size:11px; font-weight:700; letter-spacing:0.01em; white-space:nowrap;
       }
-      .footer-theme-toggle .theme-label-moon{left:14px;}
-      .footer-theme-toggle .theme-label-sun{right:14px; display:none;}
+      .footer-theme-toggle .theme-label-moon{left:12px;}
+      .footer-theme-toggle .theme-label-sun{right:12px; display:none;}
       [data-theme="dark"] .footer-theme-toggle .theme-label-moon{display:none;}
       [data-theme="dark"] .footer-theme-toggle .theme-label-sun{display:block;}
       .footer-theme-toggle .theme-toggle-knob{
-        position:absolute; top:4px; left:70px;
-        width:26px; height:26px; border-radius:50%; background:#fff;
+        position:absolute; top:3px; left:61px;
+        width:22px; height:22px; border-radius:50%; background:#fff;
         transition: left 0.2s ease;
       }
-      [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:4px;}
+      [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:3px;}
       .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 12px; max-width:260px;}
-      .footer-newsletter-form{display:flex; gap:8px;}
-      .footer-newsletter-input{flex:1; min-width:0; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:9px 14px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
+      .footer-newsletter-form{position:relative;}
+      .footer-newsletter-input{width:100%; box-sizing:border-box; height:36px; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 92px 0 14px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
       .footer-newsletter-input::placeholder{color:rgba(237,240,243,0.45);}
       .footer-newsletter-input:focus-visible{box-shadow:0 0 0 2px var(--brass-soft) inset;}
-      .footer-newsletter-btn{flex-shrink:0; background:var(--brass-soft); color:var(--ink); border:none; border-radius:100px; padding:9px 16px; font-weight:600; font-size:12.5px; white-space:nowrap;}
+      .footer-newsletter-btn{position:absolute; top:4px; right:4px; bottom:4px; background:var(--brass-soft); color:var(--ink); border:none; border-radius:100px; padding:0 16px; font-weight:600; font-size:12px; white-space:nowrap; cursor:pointer;}
       .footer-newsletter-btn:hover{opacity:0.9;}
       .footer-newsletter-btn:disabled{opacity:0.6; cursor:default;}
       .footer-newsletter-msg{font-size:12px; margin-top:8px; min-height:16px;}
