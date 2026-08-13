@@ -204,10 +204,17 @@ function createClaimCorrectionBox(config){
   // submissions.js#verifyClaimedProfileKey admin bypass). Admin ayrıca bu profili arşivleyip/
   // silebilsin diye "Düzenle"nin yanına Arşivle/Sil butonları ekler. #profile-edit-slot artık
   // architect-modal.js/office-modal.js tarafından header'ın İÇİNE yazılıyor (bkz. o dosyalar).
+  // Firma düzenleme yetkisi artık yalnızca onaylı bir sahiplenmeye değil pozisyona da bağlı (bkz.
+  // kullanıcı isteği: "Firma düzenleme yetkisi sadece admin, firma kurucusu, kurucu ortağı, ortağı
+  // ve ekip liderinde olsun") — src/routes/submissions.js#OFFICE_EDIT_POSITIONS ile BİREBİR aynı
+  // liste; sunucu tarafı asıl kapı, bu yalnızca artık kaydedemeyecek bir Ekip Üyesi'ne baştan
+  // yanıltıcı bir "Düzenle" butonu göstermemek için.
+  const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
   function renderProfileEditButton(){
     const slot = document.getElementById('profile-edit-slot');
     if(!slot) return;
-    if(!currentUser || !(isProfileOwner || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
+    const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(currentUser && currentUser.position);
+    if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
     // Arşivle/Sil normalde yalnızca admin'e açık; ownerCanModerate:true veren çağıranlarda (bkz.
     // kullanıcı isteği: danışman kendi profilini yönetebilsin) profil sahibi de görür.
     const canModerate = currentUser.role === 'admin' || (config.ownerCanModerate && isProfileOwner);

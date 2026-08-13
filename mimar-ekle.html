@@ -844,7 +844,16 @@ async function prefillForClaim(){
     const mineRes = await fetch('/api/architects/mine');
     if(mineRes.ok){
       const mineData = await mineRes.json();
-      const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
+      // /api/architects/mine created_at DESC sıralı döner ve owner_user_id'nin BİRDEN FAZLA
+      // architect_submissions satırı olabilir (ör. js/components/auth-modal.js#
+      // fetchArchitectRecordForSync bu satırı bulamayıp yanlışlıkla ikinci bir taslak oluşturmuşsa,
+      // bkz. o dosyadaki AYNI gerçek bulgu) — ilk eşleşeni (en SON OLUŞTURULAN) almak yerine
+      // updated_at'i EN YENİ olanı seçilir, aksi halde "Profilini Düzenle"den az önce güncellenmiş
+      // sosyal medya/ödül gibi alanlar burada eski/boş bir taslaktan geri okunup kayboluyormuş gibi
+      // görünüyordu (gerçek bulgu: sosyal medya linkleri profilde görünüyor ama mimar-ekle.html'de
+      // boş geliyordu).
+      const claimMatches = (mineData.items || []).filter(it => it.claimed_profile_key === claimName);
+      const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
       if(mine){
         editId = mine.id;
         merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links };

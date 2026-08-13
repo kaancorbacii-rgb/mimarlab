@@ -396,6 +396,20 @@ const AuthModal = (function () {
     return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase();
   }
 
+  // İTÜ/YTÜ/ODTÜ'nün açık adı yazılsa/seçilse bile her zaman kısaltma olarak kaydedilir (bkz.
+  // kullanıcı isteği) — mimar-ekle.html'in kendi Üniversite kutusu bu üç okulu zaten kısaltmayla
+  // saklıyordu, Profilini Düzenle'de açık ad girilmesi aynı okulun iki farklı yazımla (arama/
+  // filtrelemeyi bölen) dağılmasına yol açıyordu.
+  const SCHOOL_ABBREVIATIONS = {
+    'istanbul teknik üniversitesi': 'İTÜ',
+    'yıldız teknik üniversitesi': 'YTÜ',
+    'orta doğu teknik üniversitesi': 'ODTÜ',
+  };
+  function normalizeSchoolName(v) {
+    const key = trLower((v || '').trim());
+    return SCHOOL_ABBREVIATIONS[key] || v;
+  }
+
   function wireSignup() {
     document.getElementById('am-goto-login').addEventListener('click', () => swap('login'));
 
@@ -522,9 +536,10 @@ const AuthModal = (function () {
               <option value="">Seç... (opsiyonel)</option>
             </select>
           </div>
-          <div>
+          <div class="auth-field ac-field" id="am-edit-school-field" style="margin-bottom:0;">
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Üniversite</label>
-            <input type="text" id="am-edit-school" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
+            <input type="text" id="am-edit-school" autocomplete="off" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
+            <div class="ac-suggestions" id="am-edit-school-suggestions"></div>
           </div>
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Meslek</label>
@@ -827,6 +842,30 @@ const AuthModal = (function () {
       document.getElementById('am-avatar-preview').innerHTML = img || dashInitials(accountUser.name);
     }
 
+    // Üniversite otomatik tamamlama — am-signup-school (bkz. wireSignup) ile BİREBİR aynı desen,
+    // Profilini Düzenle'de de canlı öneri sunar (bkz. kullanıcı isteği).
+    (function wireAmEditSchoolAutocomplete(){
+      const input = document.getElementById('am-edit-school');
+      const box = document.getElementById('am-edit-school-suggestions');
+      let items = [];
+      fetch('/api/architects/schools').then(r => r.ok ? r.json() : { items: [] }).then(d => { items = d.items || []; }).catch(() => {});
+      function closeBox() { box.classList.remove('show'); box.innerHTML = ''; }
+      function renderBox() {
+        const q = trLower(input.value.trim());
+        if (!q) { closeBox(); return; }
+        const matches = items.filter(it => trLower(it).includes(q)).slice(0, 8);
+        if (!matches.length) { closeBox(); return; }
+        box.innerHTML = matches.map(it => `<div class="ac-suggestion">${escapeHtml(it)}</div>`).join('');
+        box.classList.add('show');
+        box.querySelectorAll('.ac-suggestion').forEach((el, i) => {
+          el.addEventListener('mousedown', (e) => { e.preventDefault(); input.value = matches[i]; closeBox(); });
+        });
+      }
+      input.addEventListener('input', renderBox);
+      input.addEventListener('focus', renderBox);
+      input.addEventListener('blur', () => setTimeout(closeBox, 150));
+    })();
+
     async function loadUser() {
       const res = await fetch('/api/auth/me');
       if (!res.ok) { swap('login'); return; }
@@ -1002,7 +1041,14 @@ const AuthModal = (function () {
         const mineRes = await fetch('/api/architects/mine');
         if (mineRes.ok) {
           const mineData = await mineRes.json();
-          const mine = (mineData.items || []).find(m => m.claimed_profile_key === profileKey);
+          // /api/architects/mine created_at DESC sıralı döner ve owner_user_id'nin BİRDEN FAZLA
+          // architect_submissions satırı olabilir — ilk eşleşeni (en SON OLUŞTURULAN) almak yerine
+          // updated_at'i EN YENİ olanı seçilir (bkz. mimar-ekle.html#prefillForClaim'deki AYNI
+          // gerçek bulgu: Profilini Düzenle'de eklenen sosyal medya linkleri mimar-ekle.html'de
+          // görünmüyordu — bu editId, o iki taslaktan biri diğerinden GÜNCEL olsa bile ilk (en eski
+          // oluşturulan) eşleşeni bulup ona yazıyordu).
+          const claimMatches = (mineData.items || []).filter(m => m.claimed_profile_key === profileKey);
+          const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
           if (mine) {
             editId = mine.id;
             merged = {
@@ -1116,7 +1162,7 @@ const AuthModal = (function () {
       const msg = document.getElementById('am-dash-save-msg');
       const name = document.getElementById('am-edit-name').value;
       const dob = document.getElementById('am-edit-dob').value;
-      const school = document.getElementById('am-edit-school').value;
+      const school = normalizeSchoolName(document.getElementById('am-edit-school').value);
       const profession = document.getElementById('am-edit-profession').value;
       const position = document.getElementById('am-edit-position').value;
       const awards = awardsDropdown ? awardsDropdown.getChecked() : [];

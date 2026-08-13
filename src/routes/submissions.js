@@ -87,6 +87,14 @@ async function unhideIfClaimedApproved(env, user, typeKey, status, claimedValue)
 
 const CANONICAL_TABLE_BY_TYPE = { architects: 'architects', offices: 'offices' };
 
+// Bir firmayı düzenleme yetkisi artık yalnızca onaylı bir profile_claims('office') kaydına değil,
+// kullanıcının O ANKİ pozisyonuna da bağlı (bkz. kullanıcı isteği: "Firma düzenleme yetkisi sadece
+// admin, firma kurucusu, kurucu ortağı, ortağı ve ekip liderinde olsun") — Ekip Üyesi (ya da başka
+// bir pozisyon) ile onaylanmış bir claim artık düzenleme HAKKI vermez, yalnızca firma.html#Ekip'te
+// görünmeyi sağlar (bkz. src/routes/office.js#buildOfficePayload). Yalnızca 'offices' için geçerli —
+// bir mimarın kendi profilini düzenlemesi pozisyonundan bağımsızdır.
+const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+
 async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   // claimed_profile_key canonical architects/offices satırının adı/slug'ı/legacy_key'iyle birebir
   // eşleşmeli — aksi halde (ör. bir yeniden adlandırma sonrası bayatlamış bir "Düzenle" linki, ya da
@@ -110,6 +118,9 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
     `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
   ).bind(user.id, profileType, currentName).first();
   if (!claim) return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
+  if (typeKey === 'offices' && !OFFICE_EDIT_POSITIONS.has(user.position)) {
+    return errorJson('Bu firmayı düzenlemek için Kurucu, Kurucu Ortak, Ortak ya da Ekip Lideri pozisyonunda olman gerekiyor.', 403);
+  }
   return null;
 }
 

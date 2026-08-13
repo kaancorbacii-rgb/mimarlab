@@ -318,18 +318,6 @@
             </div>
           </div>
           <div class="form-field">
-            <label for="o-website">Web Sitesi <span class="opt">(opsiyonel)</span></label>
-            <input type="url" id="o-website" name="website" placeholder="https://...">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-field ac-field" id="ac-kurucular-field">
-            <label for="o-founders">Kurucular <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="o-founders" name="founders" placeholder="ör. Emre Arolat, Gonca Paşolar" autocomplete="off">
-            <div class="ac-suggestions" id="ac-kurucular-suggestions"></div>
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
-          </div>
-          <div class="form-field">
             <label>Hizmet Alanı</label>
             <div class="dd-field" id="dd-hizmet">
               <button type="button" class="dd-btn" id="dd-hizmet-btn">
@@ -349,6 +337,18 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field ac-field" id="ac-kurucular-field">
+            <label for="o-founders">Kurucular <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="o-founders" name="founders" placeholder="ör. Emre Arolat, Gonca Paşolar" autocomplete="off">
+            <div class="ac-suggestions" id="ac-kurucular-suggestions"></div>
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+          </div>
+          <div class="form-field">
+            <label for="o-website">Websitesi <span class="opt">(opsiyonel)</span></label>
+            <input type="url" id="o-website" name="website" placeholder="https://...">
           </div>
         </div>
         <div class="form-field ac-field" id="ac-ekip-field">
@@ -872,7 +872,13 @@ async function prefillForClaim(){
     const mineRes = await fetch('/api/offices/mine');
     if(mineRes.ok){
       const mineData = await mineRes.json();
-      const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
+      // /api/offices/mine created_at DESC sıralı döner ve owner_user_id'nin BİRDEN FAZLA
+      // office_submissions satırı olabilir (bkz. mimar-ekle.html#prefillForClaim'deki AYNI gerçek
+      // bulgu) — ilk eşleşeni (en SON OLUŞTURULAN) almak yerine updated_at'i EN YENİ olanı seçilir,
+      // aksi halde az önce kaydedilmiş alanlar burada eski/boş bir taslaktan geri okunup kayboluyormuş
+      // gibi görünüyordu.
+      const claimMatches = (mineData.items || []).filter(it => it.claimed_profile_key === claimName);
+      const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
       if(mine){
         editId = mine.id;
         merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, team: mine.team, logo: mine.logo_url, social_links: mine.social_links };
