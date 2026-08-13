@@ -440,17 +440,17 @@
           </div>
         </div>
         <div class="form-row">
-          <div class="form-field ac-field" id="ac-mimar-field">
-            <label for="p-designer" id="p-designer-label">Mimar</label>
-            <input type="text" id="p-designer" name="designer" placeholder="ör. Emre Arolat" autocomplete="off">
-            <div class="ac-suggestions" id="ac-mimar-suggestions"></div>
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
-          </div>
           <div class="form-field ac-field" id="ac-ofis-field">
             <label for="p-office" id="p-office-label">Firma</label>
             <input type="text" id="p-office" name="office" placeholder="ör. Autoban" autocomplete="off">
             <div class="ac-suggestions" id="ac-ofis-suggestions"></div>
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+          </div>
+          <div class="form-field ac-field" id="ac-mimar-field">
+            <label for="p-designer" id="p-designer-label">Mimar</label>
+            <input type="text" id="p-designer" name="designer" placeholder="ör. Emre Arolat" autocomplete="off">
+            <div class="ac-suggestions" id="ac-mimar-suggestions"></div>
+            <div class="form-hint">Firma seçtiğinde ortakları/ekip üyeleri otomatik eklenir — dilersen silip kendin ekleyebilirsin.</div>
           </div>
         </div>
         <div class="form-field">
@@ -713,7 +713,32 @@ fetch('/api/projects/filters').then(r => r.ok ? r.json() : {filters:{}}).then(d 
 }).catch(()=>{});
 wireAutocomplete('p-type', 'ac-type-suggestions', () => TYPE_SUGGESTIONS);
 wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
-wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search');
+// Firma kutusundan bir öneri seçildiğinde Mimar kutusu o firmanın ortakları/kurucuları VE ekip
+// üyeleriyle otomatik doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in
+// Ekip/Kurucular bölümünü besleyen AYNI birleşik listeyi döner (bkz. src/routes/office.js#
+// buildOfficePayload). Kullanıcı bu otomatik dolan isimleri dilediği gibi silip kendi elleriyle
+// başka isim ekleyebilir — kutunun kendisi hâlâ sıradan bir serbest metin girişi.
+async function fillDesignerFromOffice(officeName){
+  try{
+    const res = await fetch(`/api/office/${encodeURIComponent(officeName)}`);
+    if(!res.ok) return;
+    const { founders, team } = await res.json();
+    const names = [...(founders || []), ...(team || [])].map(p => p.name).filter(Boolean);
+    if(!names.length) return;
+    const designerInput = document.getElementById('p-designer');
+    const existing = designerInput.value.split(',').map(s => s.trim()).filter(Boolean);
+    const seen = new Set(existing.map(n => n.toLowerCase()));
+    const merged = existing.slice();
+    for(const name of names){
+      const key = name.toLowerCase();
+      if(seen.has(key)) continue;
+      seen.add(key);
+      merged.push(name);
+    }
+    designerInput.value = merged.join(', ');
+  }catch{}
+}
+wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search', { onPick: (item) => fillDesignerFromOffice(item.label) });
 wireAutocompleteLive('p-brand-input', 'ac-marka-suggestions', '/api/offices/search', {multi:false});
 wireAutocompleteLive('p-product-input', 'ac-urun-suggestions', '/api/products/search', {multi:false, onPick: (item)=>{
   const brandInput = document.getElementById('p-brand-input');

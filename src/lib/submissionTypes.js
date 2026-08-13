@@ -17,7 +17,10 @@ export const SUBMISSION_TYPES = {
     // desende serbest isim listesi (bkz. migrations/0048_office_team.sql) — kurucu olmayıp firmada
     // çalışabilecek kişiler, opsiyonel.
     arrayFields: ['awards', 'founders', 'team', 'social_links'],
-    required: ['name'],
+    // cats: firma-ekle.html'de en az bir hizmet alanı işaretlenmeden gönderilemez (bkz. kullanıcı
+    // isteği) — client tarafı doğrulamanın sunucu tarafı karşılığı, ' · ' ile ayrılmış boş olmayan
+    // bir dize beklenir (validateRequired zaten boş/whitespace dizeyi reddeder).
+    required: ['name', 'cats'],
     urlFields: ['website', 'logo_url'],
   },
   projects: {

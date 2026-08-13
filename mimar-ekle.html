@@ -194,6 +194,12 @@
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
+  /* ---------- ROZET (salt-okunur — admin-badge-section'ın aksine adminde DEĞİL, profilin
+     sahibinde gösterilir; sadece mevcut durumu bildirir, düzenleme yetkisi yalnızca admindedir). ---------- */
+  .my-badge-box{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--paper);}
+  .my-badge-box .my-badge-label{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .my-badge-box .my-badge-cta{flex-shrink:0; background:none; border:1px dashed var(--line); color:var(--walnut); border-radius:100px; padding:8px 16px; font-size:12.5px; font-weight:600; text-decoration:none;}
+  .my-badge-box .my-badge-cta:hover{border-color:var(--walnut); background:var(--paper-alt);}
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
   .form-notice.show{display:block;}
   .form-loading{display:none; margin-top:12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
@@ -361,6 +367,11 @@
         </label>
         <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
+      </div>
+
+      <div class="form-section" id="my-badge-section" style="display:none;">
+        <h2>Rozet</h2>
+        <div class="my-badge-box" id="my-badge-box"></div>
       </div>
 
       <div class="form-section" id="admin-badge-section" style="display:none;">
@@ -686,6 +697,29 @@ const currentUserReady = fetch('/api/auth/me').then(res=>{
   return res.json();
 }).then(data => { isAdmin = !!(data && data.user && data.user.role === 'admin'); return data; }).catch(()=>null);
 
+const MY_BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye', 'iz-birakan':'İz Bırakan' };
+// Kaydet'in üstünde salt-okunur rozet durumu (bkz. kullanıcı isteği) — admin-badge-section'ın
+// aksine düzenlenemez, yalnızca /api/public/badges'teki (mimar.html/firma.html kartlarını da
+// besleyen AYNI genel uç) güncel rozeti gösterir ya da yoksa satin-al.html'e yönlendirir. Rozeti
+// değiştirme/verme yetkisi yalnızca admindedir (bkz. wireAdminBadgePicker) — admin zaten kendi
+// düzenleme kutusunu gördüğünden bu kutu admine hiç gösterilmez.
+async function wireMyBadgeBox(profileKey, profileType){
+  await currentUserReady;
+  if(isAdmin || !profileKey) return;
+  const section = document.getElementById('my-badge-section');
+  const box = document.getElementById('my-badge-box');
+  try{
+    const res = await fetch('/api/public/badges');
+    if(!res.ok) return;
+    const data = await res.json();
+    const badgeType = (data[profileType] && data[profileType][profileKey] && data[profileType][profileKey][0]) || null;
+    box.innerHTML = badgeType
+      ? `<span class="my-badge-label">${escapeAttr(MY_BADGE_LABELS[badgeType] || badgeType)} rozeti aktif.</span>`
+      : `<span class="my-badge-label">Henüz bir rozetin yok.</span><a class="my-badge-cta" href="satin-al.html">Rozet Al</a>`;
+    section.style.display = '';
+  }catch{}
+}
+
 // Admin, bir profili (claim= ya da edit=) düzenlerken satın alma olmadan doğrudan rozet
 // verebilir (bkz. src/routes/admin.js#handleProfileBadgeAdmin, kullanıcı isteği: "Admin mimar
 // veya marka profilini düzenlerken istediği rozeti seçebilsin ve profile ekleyebilsin").
@@ -759,6 +793,7 @@ async function prefillForEdit(){
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
     wireAdminBadgePicker(item.name);
+    wireMyBadgeBox(item.name, 'architect');
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
@@ -840,6 +875,7 @@ async function prefillForClaim(){
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
   wireAdminBadgePicker(claimName);
+  wireMyBadgeBox(claimName, 'architect');
 }
 
 // "Ad Soyad" alanına kendi hesap adını yazan, henüz bir mimar profiliyle eşleşmemiş bir kullanıcı

@@ -193,6 +193,12 @@
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
+  /* ---------- ROZET (salt-okunur — admin-badge-section'ın aksine adminde DEĞİL, profilin
+     sahibinde gösterilir; sadece mevcut durumu bildirir, düzenleme yetkisi yalnızca admindedir). ---------- */
+  .my-badge-box{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--paper);}
+  .my-badge-box .my-badge-label{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .my-badge-box .my-badge-cta{flex-shrink:0; background:none; border:1px dashed var(--line); color:var(--walnut); border-radius:100px; padding:8px 16px; font-size:12.5px; font-weight:600; text-decoration:none;}
+  .my-badge-box .my-badge-cta:hover{border-color:var(--walnut); background:var(--paper-alt);}
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
   .form-notice.show{display:block;}
   .form-loading{display:none; margin-top:12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
@@ -324,7 +330,7 @@
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
           </div>
           <div class="form-field">
-            <label>Hizmet Alanı <span class="opt">(opsiyonel)</span></label>
+            <label>Hizmet Alanı</label>
             <div class="dd-field" id="dd-hizmet">
               <button type="button" class="dd-btn" id="dd-hizmet-btn">
                 <span id="dd-hizmet-btn-label">Hizmet alanı seç</span>
@@ -374,6 +380,11 @@
         </label>
         <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
+      </div>
+
+      <div class="form-section" id="my-badge-section" style="display:none;">
+        <h2>Rozet</h2>
+        <div class="my-badge-box" id="my-badge-box"></div>
       </div>
 
       <div class="form-section" id="admin-badge-section" style="display:none;">
@@ -686,6 +697,29 @@ const currentUserReady = fetch('/api/auth/me').then(res=>{
   return res.json();
 }).then(data => { isAdmin = !!(data && data.user && data.user.role === 'admin'); return data; }).catch(()=>null);
 
+const MY_BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye', 'iz-birakan':'İz Bırakan' };
+// Kaydet'in üstünde salt-okunur rozet durumu (bkz. kullanıcı isteği) — admin-badge-section'ın
+// aksine düzenlenemez, yalnızca /api/public/badges'teki (mimar.html/firma.html kartlarını da
+// besleyen AYNI genel uç) güncel rozeti gösterir ya da yoksa satin-al.html'e yönlendirir. Rozeti
+// değiştirme/verme yetkisi yalnızca admindedir (bkz. wireAdminBadgePicker) — admin zaten kendi
+// düzenleme kutusunu gördüğünden bu kutu admine hiç gösterilmez.
+async function wireMyBadgeBox(profileKey, profileType){
+  await currentUserReady;
+  if(isAdmin || !profileKey) return;
+  const section = document.getElementById('my-badge-section');
+  const box = document.getElementById('my-badge-box');
+  try{
+    const res = await fetch('/api/public/badges');
+    if(!res.ok) return;
+    const data = await res.json();
+    const badgeType = (data[profileType] && data[profileType][profileKey] && data[profileType][profileKey][0]) || null;
+    box.innerHTML = badgeType
+      ? `<span class="my-badge-label">${escapeAttr(MY_BADGE_LABELS[badgeType] || badgeType)} rozeti aktif.</span>`
+      : `<span class="my-badge-label">Henüz bir rozetin yok.</span><a class="my-badge-cta" href="satin-al.html">Rozet Al</a>`;
+    section.style.display = '';
+  }catch{}
+}
+
 // Admin, bir profili (claim= ya da edit=) düzenlerken satın alma olmadan doğrudan rozet
 // verebilir (bkz. src/routes/admin.js#handleProfileBadgeAdmin, kullanıcı isteği: "Admin mimar
 // veya marka profilini düzenlerken istediği rozeti seçebilsin ve profile ekleyebilsin"). Yeni
@@ -728,6 +762,22 @@ async function wireAdminBadgePicker(profileKey){
   });
 }
 
+// Ekip kutusunun serbest metin listesini onaylı profile_claims('office', kurucu olmayan pozisyon)
+// üzerinden bu firmaya bağlanmış hesap isimleriyle (case-insensitive, tekrarsız) birleştirir —
+// bkz. kullanıcı isteği: "firma düzenle sayfasındaki ekip kutucuğu ile firma sayfasındaki ekip
+// kısmı senkronizasyonlu/bağlantılı olacak".
+function mergeTeamNames(existing, claimed){
+  const seen = new Set((existing || []).map(n => n.trim().toLowerCase()).filter(Boolean));
+  const merged = (existing || []).slice();
+  for(const name of (claimed || [])){
+    const key = (name || '').trim().toLowerCase();
+    if(!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(name);
+  }
+  return merged;
+}
+
 async function prefillForEdit(){
   if(!editId) return;
   try{
@@ -750,6 +800,14 @@ async function prefillForEdit(){
     document.getElementById('o-desc').value = item.about || '';
     document.getElementById('o-founders').value = (item.founders || []).join(', ');
     document.getElementById('o-team').value = (item.team || []).join(', ');
+    try{
+      const publicRes = await fetch(`/api/office/${encodeURIComponent(item.claimed_profile_key || item.name)}`);
+      if(publicRes.ok){
+        const { team } = await publicRes.json();
+        const claimedTeamNames = (team || []).map(t => t.name).filter(Boolean);
+        document.getElementById('o-team').value = mergeTeamNames(item.team || [], claimedTeamNames).join(', ');
+      }
+    }catch{}
     const catList = (item.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
     document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
     updateHizmetLabel();
@@ -757,6 +815,7 @@ async function prefillForEdit(){
     existingLogoUrl = item.logo_url || null;
     renderPreviews();
     wireAdminBadgePicker(item.name);
+    wireMyBadgeBox(item.name, 'office');
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
@@ -779,6 +838,10 @@ async function prefillForClaim(){
   // kesin bir alt kümesi olduğundan bu seed hiçbir zaman canonical fetch'in sağlayamayacağı bir
   // alan katmıyordu.
   let merged = { name: claimName };
+  // Onaylı profile_claims('office', kurucu olmayan pozisyon) ile bu firmaya bağlanmış hesaplar —
+  // aşağıda merged.team ile birleştirilir (bkz. kullanıcı isteği: "firma düzenle sayfasındaki ekip
+  // kutucuğu ile firma sayfasındaki ekip kısmı senkronizasyonlu/bağlantılı olacak").
+  let claimedTeamNames = [];
 
   // Bağımsız dizin kaydı — bkz. mimar-ekle.html#prefillForClaim'deki AYNI gerekçe/düzeltme (gerçek
   // bulgu: data.js'in statik offices[] dizisinde hiç yer almayan bir firma profilinin Düzenle
@@ -788,8 +851,11 @@ async function prefillForClaim(){
   try{
     const canonicalRes = await fetch(`/api/office/${encodeURIComponent(claimName)}`);
     if(canonicalRes.ok){
-      const { item } = await canonicalRes.json();
-      if(item && item.name === claimName) merged = { ...merged, ...item };
+      const { item, team } = await canonicalRes.json();
+      if(item && item.name === claimName){
+        merged = { ...merged, ...item };
+        claimedTeamNames = (team || []).map(t => t.name).filter(Boolean);
+      }
     }
   }catch{}
 
@@ -833,7 +899,7 @@ async function prefillForClaim(){
   document.getElementById('o-website').value = merged.website || '';
   document.getElementById('o-desc').value = merged.about || '';
   document.getElementById('o-founders').value = (merged.founders || []).join(', ');
-  document.getElementById('o-team').value = (merged.team || []).join(', ');
+  document.getElementById('o-team').value = mergeTeamNames(merged.team || [], claimedTeamNames).join(', ');
   // merged.cats statik/overlay/mine kaynaklarında " · " ile ayrılmış düz metin, canonical
   // /api/office/:key kaynağında ise zaten bir dizi (bkz. src/lib/canonicalRead.js) — ikisini de kabul eder.
   const catList = Array.isArray(merged.cats) ? merged.cats : (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
@@ -843,6 +909,7 @@ async function prefillForClaim(){
   existingLogoUrl = merged.logo || merged.logo_url || null;
   renderPreviews();
   wireAdminBadgePicker(merged.name || claimName);
+  wireMyBadgeBox(merged.name || claimName, 'office');
 }
 
 if(claimName) prefillForClaim(); else prefillForEdit();
@@ -881,6 +948,12 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     return;
   }
   const cats = Array.from(form.querySelectorAll('input[name="cats"]:checked')).map(el => el.value);
+  if(!cats.length){
+    notice.textContent = 'Lütfen en az bir hizmet alanı seç.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
   const loc = selectedIlce ? `${selectedIl} / ${selectedIlce}` : selectedIl;
   const founders = document.getElementById('o-founders').value.split(',').map(s => s.trim()).filter(Boolean);
   const team = document.getElementById('o-team').value.split(',').map(s => s.trim()).filter(Boolean);
