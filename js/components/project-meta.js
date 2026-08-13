@@ -29,7 +29,8 @@ const ProjectMeta = (function () {
     // ZAMAN yazılır, fotoğraf (varsa) bunun ÜZERİNE mutlak konumlu olarak biner (bkz. proje.html
     // #.designer-chip-avatar img{position:absolute}) — onerror onu kaldırdığında altındaki baş
     // harfler zaten oradaydı, otomatik olarak görünür hale gelir.
-    const avatarHtml = `<div class="designer-chip-avatar${avatarClass}" style="background:${officeColor(d.name)}">${escapeHtml(initials(d.name))}${d.photo ? `<img src="${escapeAttr(d.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
+    const photoUrl = d.photo ? safeUrl(d.photo) : '';
+    const avatarHtml = `<div class="designer-chip-avatar${avatarClass}" style="background:${officeColor(d.name)}">${escapeHtml(initials(d.name))}${photoUrl ? `<img src="${escapeAttr(photoUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
     // d.unregistered: proje-ekle formundaki Mimar/Firma alanına yazılmış ama architects/offices'te
     // karşılığı olmayan isim (bkz. src/routes/project.js#fetchRawDesignerNames, kullanıcı isteği) —
     // hiçbir profile bağlanamadığından tıklanabilir bir bağlantı DEĞİL, sabit bir "rozet" olarak

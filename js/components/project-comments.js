@@ -40,9 +40,11 @@ const ProjectComments = (function () {
       const userInitials = escapeHtml((c.user_name || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
       // commenterProfile yoksa (mimar/firma sahiplenmesi olmayan sıradan üye) kendi hesap
       // fotoğrafı (users.photo_url) gösterilir, o da yoksa baş harflere düşülür (kullanıcı isteği).
+      const cpPhotoUrl = cp && cp.photo ? safeUrl(cp.photo) : '';
+      const userPhotoUrl = c.user_photo ? safeUrl(c.user_photo) : '';
       const avatarInner = cp
-        ? `${escapeHtml(initials(cp.name))}${cp.photo ? `<img src="${escapeAttr(cp.photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`
-        : `${userInitials}${c.user_photo ? `<img src="${escapeAttr(c.user_photo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`;
+        ? `${escapeHtml(initials(cp.name))}${cpPhotoUrl ? `<img src="${escapeAttr(cpPhotoUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`
+        : `${userInitials}${userPhotoUrl ? `<img src="${escapeAttr(userPhotoUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`;
       const avatarHtml = cp
         ? `<a class="comment-avatar" href="${profileHref}" style="background:${officeColor(cp.name)}">${avatarInner}</a>`
         : `<div class="comment-avatar">${avatarInner}</div>`;

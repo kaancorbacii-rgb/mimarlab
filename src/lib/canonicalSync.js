@@ -184,13 +184,26 @@ export function collectR2MediaKeys(row, { arrayFields = [], stringFields = [] } 
 // eklediği subrequest'lerle birlikte gerçekçi biçimde yaklaşıyor/aşıyordu. head() çağrıları artık
 // paralel (Promise.all), delete() ise R2Bucket'ın tek çağrıda 1000 anahtara kadar kabul eden toplu
 // silme API'siyle (chunk'lanarak) tek subrequest'e indirgeniyor.
+// denetim bulgusu (2026-08-13): freedBytes önceden delete() SONUCUNDAN BAĞIMSIZ olarak
+// koşulsuz düşürülüyordu — bir chunk'ın delete() çağrısı başarısız olsa (ör. geçici R2 hatası)
+// bile o chunk'taki key'lerin boyutu kota sayacından düşüyordu, yani nesneler R2'de fiilen
+// hâlâ dururken sayaç "silindi" varsayıyordu. Bu, releaseR2StorageBytes'ın gerçek kullanımdan
+// sapmasına (drift) yol açar. Artık yalnızca delete() BAŞARILI olan chunk'ların head() boyutu
+// toplanıp düşürülüyor; başarısız chunk yapılandırılmış olarak loglanıyor (sessizce yutulmuyor).
 export async function deleteR2MediaKeys(env, keys) {
   if (!keys.length) return;
-  let freedBytes = 0;
   const heads = await Promise.all(keys.map(key => env.UPLOADS.head(key).catch(() => null)));
-  for (const obj of heads) { if (obj) freedBytes += obj.size; }
+  const sizeByKey = new Map();
+  keys.forEach((key, i) => { if (heads[i]) sizeByKey.set(key, heads[i].size); });
+  let freedBytes = 0;
   for (let i = 0; i < keys.length; i += 1000) {
-    try { await env.UPLOADS.delete(keys.slice(i, i + 1000)); } catch { /* yoksay */ }
+    const chunk = keys.slice(i, i + 1000);
+    try {
+      await env.UPLOADS.delete(chunk);
+      for (const key of chunk) freedBytes += sizeByKey.get(key) || 0;
+    } catch (err) {
+      console.error(JSON.stringify({ event: 'r2_delete_chunk_failed', keyCount: chunk.length, reason: (err && err.message) || String(err) }));
+    }
   }
   if (freedBytes) await releaseR2StorageBytes(env, freedBytes);
 }

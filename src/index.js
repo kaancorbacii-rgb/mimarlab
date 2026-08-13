@@ -253,7 +253,14 @@ const STATIC_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, s
 // (bkz. publicCache.js#ANON_CACHE_HEADERS'taki aynı gerekçeyle önceden 300'den 15'e indirilmesi).
 // 300'e (5 dk) indirmek, purge'ün kaçırdığı PoP'lar için de en kötü durumdaki bayatlık penceresini
 // makul bir aralığa çeker.
-const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' };
+// KÖKTEN BULGU (2026-08-13): burada daha önce `stale-while-revalidate=86400` de vardı — publicCache.js
+// #PUBLIC_LIST_CACHE_HEADERS'ta tam bu sebeple kaldırılmış aynı direktif, buraya hiç sıçratılmamıştı.
+// Bu header doğrudan tarayıcıya gidiyor ve modern Chrome/Firefox swr'yi harfiyen uyguluyor: bir sekme
+// bir detay/liste sayfasını daha önce açmışsa, max-age (60sn) geçmiş olsa bile TAMAMEN BAYAT HTML'i
+// (eski title/OG/JSON-LD dahil) ağa hiç gitmeden ANINDA gösterip arka planda sessizce yeniliyordu —
+// bu pencere 24 saate kadar çıkabiliyordu. Kaldırılması yeni bir ağ isteğine yol açar ama edge zaten
+// s-maxage=300 ile Cache API'de tutuluyor, bu yüzden CDN tarafında ek maliyet yok.
+const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300' };
 // audit bulgusu: bu 5 liste sayfası tamamen statik bir HTML kabuğu döner (veri her zaman istemci
 // tarafında /api/* uçlarından çekilir, bkz. proje.js/mimar.js vb. — SSR_PAGE_CACHE_HEADERS'ın aksine
 // burada D1'e bağlı hiçbir enjeksiyon/purge gereksinimi yok), ama Cloudflare Assets'in varsayılan
@@ -296,6 +303,8 @@ export default {
         response = await handleMediaRoute(request, env, url);
       } else if (url.pathname === '/sitemap.xml') {
         response = await handleSitemapRoute(request, env, ctx);
+      } else if (SITEMAP_CHUNK_PATH_RE.test(url.pathname)) {
+        response = await handleSitemapChunkRoute(request, env, ctx, Number(url.pathname.match(SITEMAP_CHUNK_PATH_RE)[1]));
       } else {
         response = await routeAsset(request, env, url, ctx);
       }
@@ -370,6 +379,14 @@ async function routeAsset(request, env, url, ctx) {
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+  // denetim bulgusu: DISABLED_PAGE_PATHS/detay-slug 404'lerinin (notFoundPageResponse/
+  // notFoundDetailPageResponse) aksine, buraya kadar hiçbir kurala uymayan TAMAMEN rastgele bir yol
+  // (ör. /rastgele-yol) Cloudflare Assets'in markasız varsayılan 404 sayfasına düşüyordu. Yalnızca
+  // gerçek sayfa/navigasyon istekleri (Accept: text/html) için markalı 404'e çevrilir — eksik statik
+  // dosyalar (görsel/CSS/JS/favicon vb.) hâlâ sade bir 404 alır, HTML gövdesiyle "onarılmaz".
+  if (response.status === 404 && request.method === 'GET' && (request.headers.get('Accept') || '').includes('text/html')) {
+    return notFoundPageResponse();
   }
   return withStaticImageCacheHeaders(url, response);
 }
@@ -547,24 +564,66 @@ function injectMeta(response, meta) {
     .transform(response);
 }
 
+// denetim bulgusu (2026-08-13): sitemap tek <urlset> içinde TÜM kayıtları dönüyordu, sitemaps.org
+// protokolünün 50.000 URL limitine karşı hiçbir bölme/kontrol yoktu — bugünkü kayıt sayısı limitin
+// çok altında olsa da mimari büyümeye karşı kırılgandı. SITEMAP_CHUNK_SIZE limitin altında güvenli
+// bir pay bırakır; toplam URL sayısı bunu aşarsa /sitemap.xml artık <sitemapindex>'e geçer ve gerçek
+// URL'ler /sitemap-1.xml, /sitemap-2.xml ... üzerinden dağıtılır (bkz. handleSitemapChunkRoute).
+// Aşmadığı sürece (bugünkü durum) /sitemap.xml eskisi gibi TEK <urlset> döner — mevcut davranış/
+// Google Search Console'daki kayıtlı URL DEĞİŞMEZ.
+const SITEMAP_CHUNK_SIZE = 40000;
+const SITEMAP_CHUNK_PATH_RE = /^\/sitemap-(\d+)\.xml$/;
+
+// listEntityUrls() yalnızca statik data.js/projeler-data.js/haberler-data.js dizilerini okur —
+// Faz 3 migrasyonundan sonra yalnızca canonical D1'de yaşayan (admin panelinden eklenmiş) mimar/
+// ofis/proje/ürün kayıtları bu dizilerde HİÇ görünmez, dolayısıyla sitemap'te de eksik kalırdı
+// (bkz. kullanıcı isteği: "sitemap.xml ... eksiksiz servis edildiğinden emin ol" — gerçek bulgu).
+// İki kaynak da bir Map üzerinden (url -> lastmod) birleştirilip aynı slug için TEKİL bir <url>
+// üretilir — listEntityUrls() lastmod taşımadığından (statik/build-zamanlı) null ile eklenir,
+// canonical D1 kaynağı kendi updated_at'ini taşır (audit bulgusu: <lastmod> daha önce hiç yoktu).
+async function buildSitemapUrlBlocks(env) {
+  const entityUrls = new Map([...listEntityUrls().map(loc => [loc, null]), ...await listCanonicalEntityUrls(env)]);
+  const lastmodTag = lastmod => lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : '';
+  return [
+    ...SITEMAP_STATIC_PAGES.map(p => `  <url>\n    <loc>${SITE_ORIGIN}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`),
+    ...[...entityUrls].map(([loc, lastmod]) => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>${lastmodTag(lastmod)}\n    <changefreq>monthly</changefreq>\n  </url>`),
+  ];
+}
+
 async function handleSitemapRoute(request, env, ctx) {
   const cached = await cacheMatch(request);
   if (cached) return cached;
 
-  // listEntityUrls() yalnızca statik data.js/projeler-data.js/haberler-data.js dizilerini okur —
-  // Faz 3 migrasyonundan sonra yalnızca canonical D1'de yaşayan (admin panelinden eklenmiş) mimar/
-  // ofis/proje/ürün kayıtları bu dizilerde HİÇ görünmez, dolayısıyla sitemap'te de eksik kalırdı
-  // (bkz. kullanıcı isteği: "sitemap.xml ... eksiksiz servis edildiğinden emin ol" — gerçek bulgu).
-  // İki kaynak da bir Map üzerinden (url -> lastmod) birleştirilip aynı slug için TEKİL bir <url>
-  // üretilir — listEntityUrls() lastmod taşımadığından (statik/build-zamanlı) null ile eklenir,
-  // canonical D1 kaynağı kendi updated_at'ini taşır (audit bulgusu: <lastmod> daha önce hiç yoktu).
-  const entityUrls = new Map([...listEntityUrls().map(loc => [loc, null]), ...await listCanonicalEntityUrls(env)]);
-  const lastmodTag = lastmod => lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : '';
-  const urls = [
-    ...SITEMAP_STATIC_PAGES.map(p => `  <url>\n    <loc>${SITE_ORIGIN}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`),
-    ...[...entityUrls].map(([loc, lastmod]) => `  <url>\n    <loc>${SITE_ORIGIN}${loc}</loc>${lastmodTag(lastmod)}\n    <changefreq>monthly</changefreq>\n  </url>`),
-  ];
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
+  const urls = await buildSitemapUrlBlocks(env);
+  let xml;
+  if (urls.length > SITEMAP_CHUNK_SIZE) {
+    const chunkCount = Math.ceil(urls.length / SITEMAP_CHUNK_SIZE);
+    const now = new Date().toISOString();
+    const sitemaps = Array.from({ length: chunkCount }, (_, i) =>
+      `  <sitemap>\n    <loc>${SITE_ORIGIN}/sitemap-${i + 1}.xml</loc>\n    <lastmod>${now}</lastmod>\n  </sitemap>`
+    );
+    xml = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemaps.join('\n')}\n</sitemapindex>\n`;
+  } else {
+    xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
+  }
+  const response = new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', ...SITEMAP_CACHE_HEADERS } });
+
+  if (ctx) ctx.waitUntil(cachePut(request, response.clone()));
+  return response;
+}
+
+// SITEMAP_CHUNK_SIZE aşıldığında handleSitemapRoute'un <sitemapindex>'te işaret ettiği alt
+// sitemap'ler — geçersiz/aralık dışı bir chunk index'i için düz 404 döner.
+async function handleSitemapChunkRoute(request, env, ctx, chunkIndex) {
+  const cached = await cacheMatch(request);
+  if (cached) return cached;
+
+  const urls = await buildSitemapUrlBlocks(env);
+  const start = (chunkIndex - 1) * SITEMAP_CHUNK_SIZE;
+  const slice = chunkIndex >= 1 ? urls.slice(start, start + SITEMAP_CHUNK_SIZE) : [];
+  if (!slice.length) return new Response('Bulunamadı', { status: 404 });
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${slice.join('\n')}\n</urlset>\n`;
   const response = new Response(xml, { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', ...SITEMAP_CACHE_HEADERS } });
 
   if (ctx) ctx.waitUntil(cachePut(request, response.clone()));

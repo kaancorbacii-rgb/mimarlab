@@ -1,4 +1,4 @@
-import { hmacSha256Hex } from './crypto.js';
+import { hmacSha256Hex, constantTimeEqual } from './crypto.js';
 
 // Google / LinkedIn Sosyal Giriş (bkz. kullanıcı isteği) — mevcut kimlik doğrulama altyapısına
 // (bkz. src/lib/auth.js#createSession, D1 `sessions` tablosu, mimarlab_session çerezi) dokunmadan
@@ -39,7 +39,10 @@ async function verifyState(secret, provider, state) {
   if (!state || !state.includes('.')) return null;
   const [encoded, sig] = state.split('.');
   const expectedSig = await hmacSha256Hex(secret, `${provider}.${encoded}`);
-  if (sig !== expectedSig) return null;
+  // denetim bulgusu: `!==` sabit-zamanlı değil — crypto.js#verifyPassword'de tam bu sebeple
+  // constantTimeEqual kullanılırken burada aynı düzeltme uygulanmamıştı (HMAC+10dk TTL nedeniyle
+  // pratik risk çok düşüktü, ama diğer imza karşılaştırmasıyla aynı desene getirildi).
+  if (!constantTimeEqual(sig, expectedSig)) return null;
   let payload;
   try { payload = JSON.parse(b64urlDecode(encoded)); } catch { return null; }
   if (!payload.ts || Date.now() - payload.ts > STATE_TTL_MS) return null;

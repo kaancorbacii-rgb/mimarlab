@@ -107,7 +107,12 @@ export async function handleUploadRoute(request, env) {
 export async function handleMediaRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
-  const key = decodeURIComponent(url.pathname.slice('/media/'.length));
+  // denetim bulgusu: bozuk `%`-encoding içeren bir path (ör. tek başına "%") decodeURIComponent'ten
+  // URIError fırlatır — bu, index.js'teki genel catch-all'a düşüp temiz bir 404 yerine jenerik
+  // "Sunucu hatası oluştu." 500'e çevriliyordu. Gerçek kullanıcı verisi asla malformed encoding
+  // üretmez ama kenar durumu doğru status koduna (404) getirmek için burada yakalanır.
+  let key;
+  try { key = decodeURIComponent(url.pathname.slice('/media/'.length)); } catch { return errorJson('Bulunamadı', 404); }
   if (!key) return errorJson('Bulunamadı', 404);
 
   const object = await env.UPLOADS.get(key);

@@ -1,3 +1,5 @@
+import { slugify } from './slugify.js';
+
 // proje.html "Kategori" filtresi (bkz. migrations/0038_project_concept_category.sql, kullanıcı
 // isteği) — yalnızca build_status='concept' projelerde anlamlı, proje-ekle.html'deki seçeneklerle
 // BİREBİR aynı 4 sabit değer (category/discipline/type alanlarındaki gibi ham görünen-metin olarak
@@ -132,15 +134,6 @@ export function findInvalidUrlField(type, body) {
     if (values.some(v => !isSafeUrlValue(v))) return field;
   }
   return null;
-}
-
-function slugify(text) {
-  const trMap = { ç: 'c', Ç: 'c', ğ: 'g', Ğ: 'g', ı: 'i', I: 'i', İ: 'i', ö: 'o', Ö: 'o', ş: 's', Ş: 's', ü: 'u', Ü: 'u' };
-  return (text || '')
-    .split('').map(ch => trMap[ch] || ch).join('')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 // Projeler sayfasındaki statik "N. Yüzyıl" / "N0'lar" bucket kuralıyla (bkz. projeler-data.js

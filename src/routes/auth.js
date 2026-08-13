@@ -311,6 +311,14 @@ async function forgotPassword(request, env) {
 }
 
 async function resetPassword(request, env) {
+  const ip = clientIp(request);
+  // denetim bulgusu: bu uç, kardeşleri (login/forgot-password/change-password) aksine rate limit'siz
+  // idi — token 32-byte rastgele + sha256 hash olduğundan kaba kuvvetle kırılması pratikte imkansız,
+  // ama savunma derinliği için diğer hassas auth uçlarıyla aynı desene getirildi.
+  if (!(await checkRateLimit(env, 'reset-password', ip, 10, 15 * 60 * 1000))) {
+    return errorJson('Çok fazla deneme yapıldı, lütfen biraz sonra tekrar dene.', 429);
+  }
+
   const body = await readJson(request);
   const token = body.token || '';
   const newPassword = body.newPassword || '';

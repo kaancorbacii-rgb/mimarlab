@@ -398,9 +398,10 @@ const ArchitectModal = (function () {
     logoEl.innerHTML = '';
     logoEl.textContent = initials(a.name);
     logoEl.style.background = officeColor(a.name);
-    if (a.photo) {
+    const photoUrl = a.photo ? safeUrl(a.photo) : '';
+    if (photoUrl) {
       const img = document.createElement('img');
-      img.src = a.photo;
+      img.src = photoUrl;
       img.alt = '';
       img.decoding = 'async';
       img.fetchPriority = 'high';

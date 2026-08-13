@@ -66,18 +66,29 @@ export async function handleAdminRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "admin", ...]
   const sub = segments[2];
 
-  if (sub === 'users' && request.method === 'GET') return listUsers(env);
-  if (sub === 'legacy') return handleLegacyAdmin(request, env, url, segments, user);
-  if (sub === 'submissions') return handleSubmissionsAdmin(request, env, url, segments, user);
-  if (sub === 'claims') return handleClaimsAdmin(request, env, url, segments);
-  if (sub === 'corrections') return handleCorrectionsAdmin(request, env, url, segments);
-  if (sub === 'badges') return handleBadgesAdmin(request, env, url, segments);
-  if (sub === 'profile-badge') return handleProfileBadgeAdmin(request, env, url);
-  if (sub === 'contact') return handleContactAdmin(request, env, segments);
-  if (sub === 'comments') return handleCommentsAdmin(request, env, url, segments);
-  if (sub === 'migration-conflicts') return handleMigrationConflictsAdmin(request, env, url, segments, user);
-  if (sub === 'summary' && request.method === 'GET') return handleAdminSummary(env);
-  return errorJson('Bulunamadı', 404);
+  // denetim bulgusu: bu dosyadaki 600+ satırlık hiçbir alt-dispatch kendi try/catch'ine sahip
+  // değildi, tamamen src/index.js'teki genel catch-all'a güveniyordu — bu, çökmeyi önlese de HANGİ
+  // admin alt-rotasının (submissions/claims/badges/...) hataya düştüğünü Workers Logs'ta ayırt
+  // edilemez kılıyordu (hepsi aynı jenerik "Sunucu hatası oluştu." kaydı olarak görünüyordu). Her
+  // handler'ı ayrı ayrı sarmalamak yerine (12+ nokta, gereksiz risk) TEK bir noktadan `sub` etiketiyle
+  // yapılandırılmış loglama eklenir — istemciye dönen yanıt DEĞİŞMEZ, yalnızca teşhis kolaylaşır.
+  try {
+    if (sub === 'users' && request.method === 'GET') return await listUsers(env);
+    if (sub === 'legacy') return await handleLegacyAdmin(request, env, url, segments, user);
+    if (sub === 'submissions') return await handleSubmissionsAdmin(request, env, url, segments, user);
+    if (sub === 'claims') return await handleClaimsAdmin(request, env, url, segments);
+    if (sub === 'corrections') return await handleCorrectionsAdmin(request, env, url, segments);
+    if (sub === 'badges') return await handleBadgesAdmin(request, env, url, segments);
+    if (sub === 'profile-badge') return await handleProfileBadgeAdmin(request, env, url);
+    if (sub === 'contact') return await handleContactAdmin(request, env, segments);
+    if (sub === 'comments') return await handleCommentsAdmin(request, env, url, segments);
+    if (sub === 'migration-conflicts') return await handleMigrationConflictsAdmin(request, env, url, segments, user);
+    if (sub === 'summary' && request.method === 'GET') return await handleAdminSummary(env);
+    return errorJson('Bulunamadı', 404);
+  } catch (err) {
+    console.error(JSON.stringify({ event: 'admin_route_failed', sub, method: request.method, reason: (err && err.message) || String(err) }));
+    return errorJson('Sunucu hatası oluştu.', 500);
+  }
 }
 
 // GET /api/admin/summary — admin.html'deki sekme başlıklarında kırmızı nokta göstermek için

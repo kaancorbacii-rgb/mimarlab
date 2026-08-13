@@ -22,7 +22,7 @@ export async function hashPassword(password) {
 // iterasyon, milisaniyeler) bu farkı ağ üzerinden ölçülemez ölçüde gürültüye boğar, ama en az
 // maliyetli yerde doğru olanı yapmak için burası tüm karakterleri HER ZAMAN gezen, erken çıkışsız
 // bir karşılaştırmaya çevrildi.
-function constantTimeEqual(a, b) {
+export function constantTimeEqual(a, b) {
   const len = Math.max(a.length, b.length);
   let diff = a.length ^ b.length;
   for (let i = 0; i < len; i++) {
