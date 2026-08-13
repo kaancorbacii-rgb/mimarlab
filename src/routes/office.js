@@ -212,6 +212,18 @@ async function fetchRawFounderNames(env, o) {
   try { return JSON.parse(row.founders) || []; } catch { return []; }
 }
 
+// firma-ekle.html'deki opsiyonel "Ekip" kutusu (bkz. migrations/0048_office_team.sql, kullanıcı
+// isteği) — fetchRawFounderNames ile AYNI desen, ama office_founders'a hiç bağlanmaz (bu kişiler
+// kurucu/ortak DEĞİL, sadece firmada çalışabilecek serbest bir isim listesi).
+async function fetchRawTeamNames(env, o) {
+  const submissionId = (o.legacy_key || '').startsWith('submission:') ? o.legacy_key.slice('submission:'.length) : '';
+  const row = await env.DB.prepare(
+    `SELECT team FROM office_submissions WHERE claimed_profile_key = ?1 OR claimed_profile_key = ?2 OR id = ?3 ORDER BY updated_at DESC LIMIT 1`
+  ).bind(o.name, o.legacy_key || '', submissionId).first();
+  if (!row || !row.team) return [];
+  try { return JSON.parse(row.team) || []; } catch { return []; }
+}
+
 // Önceki/Sonraki Firma — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen.
 async function fetchAdjacentOffice(env, id) {
   const where = `deleted_at IS NULL AND hidden_at IS NULL`;
@@ -253,7 +265,7 @@ async function buildOfficePayload(env, key) {
   if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
 
-  const [foundersRes, relatedRes, rawFounderNames, teamClaimRows] = await Promise.all([
+  const [foundersRes, relatedRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
@@ -274,6 +286,7 @@ async function buildOfficePayload(env, key) {
        WHERE c.profile_type = 'office' AND c.profile_key = ? AND c.status = 'approved'
        ORDER BY u.name COLLATE NOCASE ASC`
     ).bind(o.name).all(),
+    fetchRawTeamNames(env, o),
   ]);
 
   const founders = foundersRes.results.map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
@@ -293,6 +306,14 @@ async function buildOfficePayload(env, key) {
     } else {
       team.push({ name: row.name, role: row.position || null, photo: row.photo_url || null });
     }
+  }
+  // firma-ekle.html'deki opsiyonel "Ekip" kutusuna serbest metin girilen isimler — foundersFromClaims
+  // ile AYNI dedup (kurucu ya da hesap üzerinden zaten eklenmiş biriyle çakışan isim atlanır).
+  const knownTeamNames = new Set(team.map(t => trLower(t.name)));
+  for (const name of rawTeamNames) {
+    if (!name || knownFounderNames.has(trLower(name)) || knownTeamNames.has(trLower(name))) continue;
+    knownTeamNames.add(trLower(name));
+    team.push({ name, role: null, photo: null });
   }
   const relatedProjects = relatedRes.results.map(p => {
     const parsed = parseCanonicalRow('projects', p);

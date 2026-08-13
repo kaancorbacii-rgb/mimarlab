@@ -78,6 +78,28 @@ const AuthModal = (function () {
     #am-panel .dash-head p{color:var(--ink-soft); font-size:13.5px; margin:0;}
     #am-panel .dash-edit-btn{flex-shrink:0; background:none; border:1.5px solid var(--ink); color:var(--ink); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
     #am-panel .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
+    /* Profili Düzenle pop-up — hesabim.html#profile-edit-overlay ile BİREBİR aynı desen (bkz. o
+       dosya). ModalShell'in KENDİSİ burada kullanılmaz çünkü Hesabım zaten ModalShell'in TEK
+       overlay'i İÇİNDE render ediliyor (bkz. ensureStyles/#am-panel) — bağımsız, daha yüksek
+       z-index'li (200 > ModalShell'in 150'si) kendi overlay'i onun üstüne biner. */
+    #am-panel .profile-edit-overlay{
+      display:flex; position:fixed; inset:0; z-index:200; align-items:center; justify-content:center;
+      padding:16px; background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+      opacity:0; visibility:hidden; pointer-events:none; transition:opacity .3s ease, visibility 0s linear .3s;
+    }
+    [data-theme="dark"] #am-panel .profile-edit-overlay{background:rgba(255,255,255,0.16);}
+    #am-panel .profile-edit-overlay.open{opacity:1; visibility:visible; pointer-events:auto; transition:opacity .3s ease;}
+    #am-panel .profile-edit-overlay .dash-form{
+      display:block; position:relative; width:100%; max-width:640px; max-height:88vh; overflow-y:auto;
+      margin:0; opacity:0; transform:scale(0.96); transition:opacity .3s ease, transform .3s ease;
+    }
+    #am-panel .profile-edit-overlay.open .dash-form{opacity:1; transform:scale(1);}
+    #am-panel .profile-edit-close{
+      position:absolute; top:16px; right:16px; width:36px; height:36px; border-radius:50%; border:none;
+      background:var(--paper); color:var(--ink); box-shadow:0 4px 12px rgba(27,42,61,0.18);
+      display:flex; align-items:center; justify-content:center; z-index:2;
+    }
+    #am-panel .profile-edit-close:hover{background:var(--paper-alt);}
     #am-panel .dash-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;}
     #am-panel .dash-row{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; align-items:start;}
     #am-panel .dash-row .dash-section{margin-bottom:0; min-width:0;}
@@ -475,7 +497,11 @@ const AuthModal = (function () {
         </div>
       </div>
 
-      <div class="dash-form" id="am-dash-edit-form" style="display:none; background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;">
+      <div class="profile-edit-overlay" id="am-profile-edit-overlay">
+      <div class="dash-form" id="am-dash-edit-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;">
+        <button type="button" class="profile-edit-close" id="am-profile-edit-close" aria-label="Kapat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
         <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Profili Düzenle</h2>
         <div class="avatar-upload-row">
           <div class="avatar-upload-preview" id="am-avatar-preview">–</div>
@@ -522,7 +548,7 @@ const AuthModal = (function () {
               <option value="Kurucu Ortak">Kurucu Ortak</option>
               <option value="Ortak">Ortak</option>
               <option value="Ekip Lideri">Ekip Lideri</option>
-              <option value="Çalışan">Çalışan</option>
+              <option value="Ekip Üyesi">Ekip Üyesi</option>
               <option value="Akademisyen">Akademisyen</option>
               <option value="Freelance">Freelance</option>
               <option value="Öğrenci">Öğrenci</option>
@@ -590,6 +616,7 @@ const AuthModal = (function () {
         <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
         <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
         <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E; margin-left:10px;"></span>
+      </div>
       </div>
 
       <div class="dash-row">
@@ -779,6 +806,10 @@ const AuthModal = (function () {
   // bulgu: save-widget.js sayfa genelinde 'let currentUser' tanımlıyor) çakışmasın diye bu modül
   // kapsamına özgü ayrı bir değişken (accountUser) kullanılır.
   let accountUser = null;
+  // mountAccount() Hesabım'a her navigasyonda yeniden çalışır (bkz. wired Set'in fonksiyon İÇİNDE
+  // olması) — document'e bağlı Escape dinleyicisi bu yüzden `on()` yerine tek seferlik bu bayrakla
+  // korunur, aksi halde her ziyarette bir kopya daha eklenip yığılırdı.
+  let amProfileEditEscapeWired = false;
 
   function mountAccount() {
     const wired = new Set();
@@ -994,10 +1025,34 @@ const AuthModal = (function () {
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
     }
 
-    on('am-dash-edit-btn', 'click', () => {
-      const form = document.getElementById('am-dash-edit-form');
-      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    // Profili Düzenle artık ayrı bir pop-up (bkz. hesabim.html#openProfileEditPopup ile AYNI desen) —
+    // TEK fark: bu görünüm zaten ModalShell'in overlay'i İÇİNDE render edildiğinden gövde kaydırması
+    // ZATEN kilitli (bkz. ModalShell#lockBodyScroll), burada ikinci kez kilitlenmez.
+    function openAmProfileEditPopup() {
+      document.getElementById('am-profile-edit-overlay').classList.add('open');
+      document.getElementById('am-profile-edit-close').focus();
+    }
+    function closeAmProfileEditPopup() {
+      document.getElementById('am-profile-edit-overlay').classList.remove('open');
+    }
+    on('am-dash-edit-btn', 'click', openAmProfileEditPopup);
+    on('am-profile-edit-close', 'click', closeAmProfileEditPopup);
+    on('am-profile-edit-overlay', 'click', (e) => {
+      if (e.target.id === 'am-profile-edit-overlay') closeAmProfileEditPopup();
     });
+    // Yakalama (capture) aşamasında dinlenir — ModalShell'in KENDİ Escape dinleyicisi (bkz.
+    // modal-shell.js#onKeydown) balonlama aşamasında `document`e bağlı ve tetiklendiğinde TÜM
+    // Hesabım pop-up'ını kapatır; bu iç pop-up açıkken Escape'in ÖNCE buraya gelip olayı durdurması
+    // (stopPropagation) gerekir, aksi halde bir Escape basışı ikisini BİRDEN kapatırdı.
+    if (!amProfileEditEscapeWired) {
+      amProfileEditEscapeWired = true;
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!document.getElementById('am-profile-edit-overlay')?.classList.contains('open')) return;
+        e.stopPropagation();
+        closeAmProfileEditPopup();
+      }, true);
+    }
 
     // nav-avatar-menu'deki "Çıkış Yap" (bkz. auth-nav.js#nav-logout-btn) ile AYNI davranış — logout
     // sonrası header'ın (nav-avatar -> "Giriş Yap") tekrar tazelenmesi için zaten tam sayfa yönlendirme
@@ -1076,9 +1131,11 @@ const AuthModal = (function () {
       await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
 
       msg.textContent = claimSubmitted ? 'Kaydedildi. Firma talebi admin onayına gönderildi.' : 'Kaydedildi.';
-      setTimeout(() => msg.textContent = '', claimSubmitted ? 4000 : 2000);
       await loadUser();
       await loadMyClaims();
+      // Kaydetme başarılıysa kısa bir onay anından sonra pop-up kapanıp Hesabım'a dönülür (bkz.
+      // kullanıcı isteği) — hesabim.html#dash-save-btn ile AYNI davranış.
+      setTimeout(() => { msg.textContent = ''; closeAmProfileEditPopup(); }, claimSubmitted ? 2500 : 700);
     });
 
     on('am-avatar-upload-btn', 'click', () => document.getElementById('am-avatar-file-input').click());

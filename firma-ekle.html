@@ -345,6 +345,12 @@
             </div>
           </div>
         </div>
+        <div class="form-field ac-field" id="ac-ekip-field">
+          <label for="o-team">Ekip <span class="opt">(opsiyonel)</span></label>
+          <input type="text" id="o-team" name="team" placeholder="ör. Ahmet Yılmaz, Ayşe Demir" autocomplete="off">
+          <div class="ac-suggestions" id="ac-ekip-suggestions"></div>
+          <div class="form-hint">Firmada çalışabilecek kişileri virgülle ayırarak yaz. Mimar profili olanlar aşağıda önerilir.</div>
+        </div>
         <div class="form-field">
           <label for="o-desc">Firma Hakkında Açıklama</label>
           <textarea id="o-desc" name="about" placeholder="Firma hakkında kısa bir metin yaz..." required></textarea>
@@ -647,6 +653,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 wireAutocompleteLive('o-founders', 'ac-kurucular-suggestions', '/api/architects/search');
+wireAutocompleteLive('o-team', 'ac-ekip-suggestions', '/api/architects/search');
 
 function renderPreviews(){
   if(selectedFiles.length){
@@ -742,6 +749,7 @@ async function prefillForEdit(){
     document.getElementById('o-website').value = item.website || '';
     document.getElementById('o-desc').value = item.about || '';
     document.getElementById('o-founders').value = (item.founders || []).join(', ');
+    document.getElementById('o-team').value = (item.team || []).join(', ');
     const catList = (item.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
     document.querySelectorAll('input[name="cats"]').forEach(cb => cb.checked = catList.includes(cb.value));
     updateHizmetLabel();
@@ -801,7 +809,7 @@ async function prefillForClaim(){
       const mine = (mineData.items || []).find(it => it.claimed_profile_key === claimName);
       if(mine){
         editId = mine.id;
-        merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, logo: mine.logo_url, social_links: mine.social_links };
+        merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, team: mine.team, logo: mine.logo_url, social_links: mine.social_links };
       }
     }
   }catch{}
@@ -825,6 +833,7 @@ async function prefillForClaim(){
   document.getElementById('o-website').value = merged.website || '';
   document.getElementById('o-desc').value = merged.about || '';
   document.getElementById('o-founders').value = (merged.founders || []).join(', ');
+  document.getElementById('o-team').value = (merged.team || []).join(', ');
   // merged.cats statik/overlay/mine kaynaklarında " · " ile ayrılmış düz metin, canonical
   // /api/office/:key kaynağında ise zaten bir dizi (bkz. src/lib/canonicalRead.js) — ikisini de kabul eder.
   const catList = Array.isArray(merged.cats) ? merged.cats : (merged.cats || '').split(' · ').map(s => s.trim()).filter(Boolean);
@@ -874,6 +883,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   const cats = Array.from(form.querySelectorAll('input[name="cats"]:checked')).map(el => el.value);
   const loc = selectedIlce ? `${selectedIl} / ${selectedIlce}` : selectedIl;
   const founders = document.getElementById('o-founders').value.split(',').map(s => s.trim()).filter(Boolean);
+  const team = document.getElementById('o-team').value.split(',').map(s => s.trim()).filter(Boolean);
 
   submitBtn.disabled = true;
   loading.classList.add('show');
@@ -896,6 +906,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     website: document.getElementById('o-website').value || null,
     cats: cats.join(' · '),
     founders,
+    team,
     about: document.getElementById('o-desc').value,
     logo_url: logoUrl,
     social_links: collectSocialLinks(),

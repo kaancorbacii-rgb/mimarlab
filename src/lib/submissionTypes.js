@@ -9,12 +9,14 @@ export const CONCEPT_CATEGORIES = new Set(['Öğrenci', 'Yarışma', 'Fikir', 'K
 export const SUBMISSION_TYPES = {
   offices: {
     table: 'office_submissions',
-    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'claimed_profile_key', 'social_links'],
+    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'team', 'claimed_profile_key', 'social_links'],
     // social_links: [{platform,url}] — awards/founders ile AYNI JSON dizi deseni (bkz. kullanıcı
     // isteği: "sosyal medya kutusunun yanına ekle butonu koy", migrations/0036_social_links.sql —
     // paralel bir oturumun tekli social_platform/social_url kolonları yerine bu tercih edildi,
-    // bkz. kullanıcı isteği: "1'den fazla sosyal medya eklenebilsin").
-    arrayFields: ['awards', 'founders', 'social_links'],
+    // bkz. kullanıcı isteği: "1'den fazla sosyal medya eklenebilsin"). team: Kurucular ile AYNI
+    // desende serbest isim listesi (bkz. migrations/0048_office_team.sql) — kurucu olmayıp firmada
+    // çalışabilecek kişiler, opsiyonel.
+    arrayFields: ['awards', 'founders', 'team', 'social_links'],
     required: ['name'],
     urlFields: ['website', 'logo_url'],
   },

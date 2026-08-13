@@ -425,6 +425,7 @@ function itemDetails(type, item){
   if(item.website) rows.push(['Web Sitesi', `<a href="${escapeAttr(safeUrl(item.website))}" target="_blank" rel="noopener">${escapeHtml(item.website)}</a>`]);
   if(item.awards && item.awards.length) rows.push(['Ödüller', escapeHtml(item.awards.join(', '))]);
   if(type === 'offices' && item.founders && item.founders.length) rows.push(['Kurucular', escapeHtml(item.founders.join(', '))]);
+  if(type === 'offices' && item.team && item.team.length) rows.push(['Ekip', escapeHtml(item.team.join(', '))]);
   if(type === 'architects' && item.position) rows.push(['Pozisyon', escapeHtml(item.position)]);
   if(type === 'architects' && item.profession) rows.push(['Meslek', escapeHtml(item.profession)]);
   if(type === 'projects'){

@@ -147,6 +147,26 @@
   }
   .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
 
+  /* ---------- PROFİL DÜZENLE POP-UP ---------- */
+  .profile-edit-overlay{
+    display:flex; position:fixed; inset:0; z-index:200; align-items:center; justify-content:center;
+    padding:16px; background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    opacity:0; visibility:hidden; pointer-events:none; transition:opacity .3s ease, visibility 0s linear .3s;
+  }
+  [data-theme="dark"] .profile-edit-overlay{background:rgba(255,255,255,0.16);}
+  .profile-edit-overlay.open{opacity:1; visibility:visible; pointer-events:auto; transition:opacity .3s ease;}
+  .profile-edit-overlay .dash-form{
+    display:block; position:relative; width:100%; max-width:640px; max-height:88vh; overflow-y:auto;
+    margin:0; opacity:0; transform:scale(0.96); transition:opacity .3s ease, transform .3s ease;
+  }
+  .profile-edit-overlay.open .dash-form{opacity:1; transform:scale(1);}
+  .profile-edit-close{
+    position:absolute; top:16px; right:16px; width:36px; height:36px; border-radius:50%; border:none;
+    background:var(--paper); color:var(--ink); box-shadow:0 4px 12px rgba(27,42,61,0.18);
+    display:flex; align-items:center; justify-content:center; z-index:2;
+  }
+  .profile-edit-close:hover{background:var(--paper-alt);}
+
   .dash-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;}
   .dash-row{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; align-items:start;}
   .dash-row .dash-section{margin-bottom:0; min-width:0;}
@@ -338,7 +358,11 @@
       </div>
     </div>
 
-    <div class="dash-form" id="dash-edit-form" style="display:none; background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;">
+    <div class="profile-edit-overlay" id="profile-edit-overlay">
+    <div class="dash-form" id="dash-edit-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;">
+      <button type="button" class="profile-edit-close" id="profile-edit-close" aria-label="Kapat">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Profili Düzenle</h2>
       <div class="avatar-upload-row">
         <div class="avatar-upload-preview" id="avatar-preview">–</div>
@@ -380,7 +404,7 @@
           <select id="edit-position" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
             <option value="">Seç... (opsiyonel)</option>
             <option value="Kurucu">Kurucu</option>
-            <option value="Çalışan">Çalışan</option>
+            <option value="Ekip Üyesi">Ekip Üyesi</option>
             <option value="Akademisyen">Akademisyen</option>
             <option value="Freelance">Freelance</option>
             <option value="Öğrenci">Öğrenci</option>
@@ -419,6 +443,7 @@
       <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
       <button type="button" class="dash-edit-btn" id="delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
       <span id="delete-account-msg" style="font-size:12.5px; color:#B3261E; margin-left:10px;"></span>
+    </div>
     </div>
 
     <div class="dash-row">
@@ -614,9 +639,49 @@ async function loadUser(){
   document.getElementById('edit-position').value = currentUser.position || '';
 }
 
-document.getElementById('dash-edit-btn').addEventListener('click', ()=>{
-  const form = document.getElementById('dash-edit-form');
-  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+// Profili Düzenle artık sayfa içinde açılıp kapanan bir bölüm değil, ayrı bir pop-up (bkz. kullanıcı
+// isteği) — ModalShell'in kendisi kullanılmadı çünkü Hesabım zaten (site genelinde) bir ModalShell
+// pop-up'ının İÇİNDE açılabiliyor (bkz. js/components/auth-modal.js) ve ModalShell tek seferde tek
+// bir overlay'i destekleyen bir singleton; bunun yerine kendi z-index'i (200, ModalShell'in 150'sinin
+// üstünde) daha yüksek bağımsız bir overlay kullanılır, böylece Hesabım pop-up olarak açıkken de
+// üstüne sorunsuz biner.
+let profileEditTriggerEl = null;
+let profileEditSavedScrollY = 0;
+function openProfileEditPopup(triggerEl){
+  const overlay = document.getElementById('profile-edit-overlay');
+  profileEditTriggerEl = triggerEl || null;
+  profileEditSavedScrollY = window.scrollY || window.pageYOffset || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${profileEditSavedScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+  overlay.classList.add('open');
+  if(typeof OverlayManager !== 'undefined') OverlayManager.notifyOpen('profile-edit');
+  document.getElementById('profile-edit-close').focus();
+}
+function closeProfileEditPopup(){
+  const overlay = document.getElementById('profile-edit-overlay');
+  if(!overlay.classList.contains('open')) return;
+  overlay.classList.remove('open');
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  window.scrollTo({ top: profileEditSavedScrollY, left: 0, behavior: 'instant' });
+  if(profileEditTriggerEl && document.contains(profileEditTriggerEl)) profileEditTriggerEl.focus();
+  profileEditTriggerEl = null;
+}
+if(typeof OverlayManager !== 'undefined') OverlayManager.register('profile-edit', closeProfileEditPopup);
+
+document.getElementById('dash-edit-btn').addEventListener('click', (e)=> openProfileEditPopup(e.currentTarget));
+document.getElementById('profile-edit-close').addEventListener('click', closeProfileEditPopup);
+document.getElementById('profile-edit-overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'profile-edit-overlay') closeProfileEditPopup();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && document.getElementById('profile-edit-overlay').classList.contains('open')) closeProfileEditPopup();
 });
 
 document.getElementById('dash-save-btn').addEventListener('click', async ()=>{
@@ -634,8 +699,9 @@ document.getElementById('dash-save-btn').addEventListener('click', async ()=>{
   });
   if(!res.ok){ msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
   msg.textContent = 'Kaydedildi.';
-  setTimeout(()=> msg.textContent = '', 2000);
   await loadUser();
+  // Kaydetme başarılıysa kısa bir onay anından sonra pop-up kapanıp Hesabım'a dönülür (bkz. kullanıcı isteği).
+  setTimeout(()=>{ msg.textContent = ''; closeProfileEditPopup(); }, 700);
 });
 
 // Profil fotoğrafını tarayıcıda küçültüp sıkıştırarak yükler; sunucuya büyük dosya gitmez.
