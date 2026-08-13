@@ -484,7 +484,7 @@ const AuthModal = (function () {
             </select>
           </div>
           <div>
-            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Okul</label>
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Üniversite</label>
             <input type="text" id="am-edit-school" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px;">
           </div>
           <div>
@@ -507,6 +507,8 @@ const AuthModal = (function () {
               <option value="">Seç... (opsiyonel)</option>
               <option value="Kurucu">Kurucu</option>
               <option value="Kurucu Ortak">Kurucu Ortak</option>
+              <option value="Ortak">Ortak</option>
+              <option value="Ekip Lideri">Ekip Lideri</option>
               <option value="Çalışan">Çalışan</option>
               <option value="Akademisyen">Akademisyen</option>
               <option value="Freelance">Freelance</option>
@@ -522,6 +524,31 @@ const AuthModal = (function () {
             </select>
           </div>
         </div>
+
+        <!-- Yalnızca onaylı bir MİMAR profili sahiplenilmişse görünür (bkz. kullanıcı isteği: "Mimar
+             ekle sayfası ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — bu
+             alanlar kaydedilince yukarıdaki temel alanlarla (Ad Soyad/Doğum Yılı/Üniversite/Meslek/
+             Pozisyon) BİRLİKTE aynı architect_submissions/architects kaydına yazılır (bkz.
+             submitArchitectSyncIfNeeded), mimar-ekle.html?claim= ile AYNI uç noktalar üzerinden. -->
+        <div id="am-architect-sync-fields" style="display:none;">
+          <div style="border-top:1px solid var(--line); margin:18px 0 16px;"></div>
+          <h3 style="font-family:'Inter', sans-serif; font-size:14.5px; font-weight:700; margin:0 0 4px;">Mimar Profili</h3>
+          <p style="font-size:12px; color:var(--ink-soft); margin:0 0 14px;">Bu alanlar onaylı mimar profilinle senkronize — buradan kaydettiğinde mimar profilin de güncellenir.</p>
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ödüller</label>
+            <div id="am-edit-awards" style="border:1px solid var(--line); border-radius:9px; padding:10px 12px; background:var(--paper); display:flex; flex-direction:column; gap:7px;"></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Açıklama</label>
+            <textarea id="am-edit-about" rows="4" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); resize:vertical;"></textarea>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Sosyal Medya</label>
+            <div id="am-social-rows" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+            <button type="button" id="am-add-social-row" style="background:none; border:1px dashed var(--line); color:var(--walnut); border-radius:9px; padding:8px 12px; font-size:12.5px; font-weight:600; width:100%;">+ Sosyal Medya Ekle</button>
+          </div>
+        </div>
+
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
         <span id="am-dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
 
@@ -556,7 +583,7 @@ const AuthModal = (function () {
           <div id="am-profile-tab-facts">
             <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
-            <div class="profile-fact"><span class="profile-fact-label">Okul</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
+            <div class="profile-fact"><span class="profile-fact-label">Üniversite</span><span class="profile-fact-value" id="am-fact-school">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Meslek</span><span class="profile-fact-value" id="am-fact-profession">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
@@ -646,6 +673,19 @@ const AuthModal = (function () {
   const PAGE_SIZE_DASH = 10;
   const PROFESSION_LABELS = { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', ogrenci: 'Öğrenci', diger: 'Diğer' };
   const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
+  // mimar-ekle.html#ODUL_OPTIONS/SOCIAL_PLATFORMS ile BİREBİR AYNI (bkz. kullanıcı isteği: "Mimar ekle
+  // sayfası ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — bu iki liste
+  // buradaki "Mimar Profili" alt bölümünü besler, yalnızca onaylı bir mimar profili sahiplenilmişse
+  // görünür (bkz. loadArchitectSyncFields).
+  const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü', 'Ulusal Mimarlık Ödülleri', 'TürkSMD Mimarlık Ödülleri', 'Ağa Han Mimarlık Ödülü', 'EU Mies Award', 'World Architecture Festival Ödülleri', 'International Architecture Awards'];
+  const SOCIAL_PLATFORMS = [
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'x', label: 'X (Twitter)' },
+    { value: 'behance', label: 'Behance' },
+    { value: 'youtube', label: 'YouTube' },
+    { value: 'website', label: 'Web Sitesi / Diğer' },
+  ];
   const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
   const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
   const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html' };
@@ -824,6 +864,98 @@ const AuthModal = (function () {
       } catch {}
     }
 
+    // "Mimar Profili" alt bölümü — bkz. kullanıcı isteği: "Eğer bir kullanıcı bir mimar profiliyle
+    // eşleştiyse mimar düzenle sayfası ile profilini düzenle bölümü eş zamanlı ve ortak çalışan
+    // sorular olmalı". architectSyncState null'sa (onaylı mimar talebi yok) bölüm gizli kalır ve
+    // Kaydet yalnızca users tablosuna yazar (eskisi gibi); doluysa Kaydet AYRICA aynı architect_
+    // submissions/architects kaydını (mimar-ekle.html?claim= ile TAM AYNI uç noktalar üzerinden)
+    // günceller. office/photo_url mevcut kayıttan olduğu gibi korunur — bu formda düzenlenmiyorlar,
+    // bu yüzden burada sıfırlanmamaları için saklanırlar.
+    let architectSyncState = null;
+    function renderAwardsCheckboxes(checked) {
+      const box = document.getElementById('am-edit-awards');
+      box.innerHTML = ODUL_OPTIONS.map(o => `
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); cursor:pointer;">
+          <input type="checkbox" value="${escapeAttr(o)}"${(checked || []).includes(o) ? ' checked' : ''}>
+          ${escapeHtml(o)}
+        </label>
+      `).join('');
+    }
+    function collectAwardsChecked() {
+      return Array.from(document.querySelectorAll('#am-edit-awards input:checked')).map(i => i.value);
+    }
+    function addAmSocialRow(platform, url) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; gap:8px; align-items:center;';
+      row.innerHTML = `
+        <select class="am-social-platform" style="flex:0 0 130px; padding:8px 10px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink);">${SOCIAL_PLATFORMS.map(p => `<option value="${p.value}"${p.value === platform ? ' selected' : ''}>${p.label}</option>`).join('')}</select>
+        <input type="url" class="am-social-url" placeholder="https://..." value="${escapeAttr(url || '')}" style="flex:1; min-width:0; padding:8px 10px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink);">
+        <button type="button" class="am-social-remove-btn" aria-label="Kaldır" style="flex:0 0 auto; width:28px; height:28px; border-radius:50%; border:1px solid var(--line); background:var(--paper-card); color:var(--ink-soft);">✕</button>
+      `;
+      row.querySelector('.am-social-remove-btn').addEventListener('click', () => row.remove());
+      document.getElementById('am-social-rows').appendChild(row);
+    }
+    function collectAmSocialLinks() {
+      return Array.from(document.querySelectorAll('#am-social-rows > div')).map(row => ({
+        platform: row.querySelector('.am-social-platform').value,
+        url: row.querySelector('.am-social-url').value.trim(),
+      })).filter(s => s.url);
+    }
+    on('am-add-social-row', 'click', () => addAmSocialRow());
+
+    // mimar-ekle.html#prefillForClaim ile AYNI iki aşamalı kaynak: önce canonical (/api/architect/:key,
+    // `item.role`/`item.photo` alan adlarıyla), sonra varsa kullanıcının kendi architect_submissions
+    // satırı (/api/architects/mine, claimed_profile_key eşleşmesiyle) ÜZERİNE yazılır — böylece
+    // kullanıcı daha önce mimar-ekle.html'den bir taslak kaydettiyse o taslak esas alınır.
+    async function fetchArchitectRecordForSync(profileKey) {
+      let merged = { name: '', dob: '', school: '', profession: '', position: '', office: '', awards: [], about: '', social_links: [], photo_url: '' };
+      try {
+        const res = await fetch(`/api/architect/${encodeURIComponent(profileKey)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const item = data.item;
+          if (item && item.name === profileKey) {
+            merged = {
+              name: item.name || '', dob: item.dob || '', school: item.school || '',
+              profession: item.profession || '', position: item.role || '', office: item.office || '',
+              awards: item.awards || [], about: item.about || '', social_links: item.social_links || [],
+              photo_url: item.photo || '',
+            };
+          }
+        }
+      } catch {}
+      let editId = null;
+      try {
+        const mineRes = await fetch('/api/architects/mine');
+        if (mineRes.ok) {
+          const mineData = await mineRes.json();
+          const mine = (mineData.items || []).find(m => m.claimed_profile_key === profileKey);
+          if (mine) {
+            editId = mine.id;
+            merged = {
+              name: mine.name || '', dob: mine.dob || '', school: mine.school || '',
+              profession: mine.profession || '', position: mine.position || '', office: mine.office || '',
+              awards: mine.awards || [], about: mine.about || '', social_links: mine.social_links || [],
+              photo_url: mine.photo_url || '',
+            };
+          }
+        }
+      } catch {}
+      return { merged, editId };
+    }
+    async function refreshArchitectSyncFields(claimItems) {
+      const claim = claimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
+      const section = document.getElementById('am-architect-sync-fields');
+      if (!claim) { section.style.display = 'none'; architectSyncState = null; return; }
+      section.style.display = '';
+      const { merged, editId } = await fetchArchitectRecordForSync(claim.profile_key);
+      architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
+      renderAwardsCheckboxes(merged.awards);
+      document.getElementById('am-edit-about').value = merged.about || '';
+      document.getElementById('am-social-rows').innerHTML = '';
+      (merged.social_links || []).forEach(s => addAmSocialRow(s.platform, s.url));
+    }
+
     on('am-dash-edit-btn', 'click', () => {
       const form = document.getElementById('am-dash-edit-form');
       form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -856,20 +988,51 @@ const AuthModal = (function () {
       } catch { return false; }
     }
 
+    // Onaylı bir mimar profili sahiplenilmişse "Mimar Profili" alt bölümündeki alanlar AYNI Kaydet
+    // tıklamasıyla architect_submissions/architects kaydına da yazılır — mimar-ekle.html?claim='in
+    // kullandığı UÇLARLA (createSubmission/updateOwnSubmission) BİREBİR aynı, bu yüzden ikisi de
+    // gerçekten TEK bir veri kaynağını düzenlemiş olur (bkz. kullanıcı isteği: "tam bir
+    // senkronizasyon"). office/photo_url bu formda düzenlenmediğinden fetchArchitectRecordForSync'in
+    // getirdiği son bilinen değerleriyle olduğu gibi geri gönderilir, sıfırlanmazlar.
+    async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position) {
+      if (!architectSyncState) return;
+      const payload = {
+        name, dob: dob || null, school: school || null,
+        profession: PROFESSION_LABELS[professionSlug] || professionSlug || null,
+        office: architectSyncState.office || null,
+        position: position || null,
+        awards: collectAwardsChecked(),
+        photo_url: architectSyncState.photoUrl || null,
+        about: document.getElementById('am-edit-about').value || null,
+        social_links: collectAmSocialLinks(),
+      };
+      if (!architectSyncState.editId) payload.claimed_profile_key = architectSyncState.profileKey;
+      try {
+        const res = await fetch(architectSyncState.editId ? `/api/architects/${encodeURIComponent(architectSyncState.editId)}` : '/api/architects', {
+          method: architectSyncState.editId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.id) architectSyncState.editId = data.id;
+        }
+      } catch {}
+    }
+
     on('am-dash-save-btn', 'click', async () => {
       const msg = document.getElementById('am-dash-save-msg');
+      const name = document.getElementById('am-edit-name').value;
+      const dob = document.getElementById('am-edit-dob').value;
+      const school = document.getElementById('am-edit-school').value;
+      const profession = document.getElementById('am-edit-profession').value;
+      const position = document.getElementById('am-edit-position').value;
       const res = await fetch('/api/profile', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: document.getElementById('am-edit-name').value,
-          dob: document.getElementById('am-edit-dob').value,
-          school: document.getElementById('am-edit-school').value,
-          profession: document.getElementById('am-edit-profession').value,
-          position: document.getElementById('am-edit-position').value,
-        }),
+        body: JSON.stringify({ name, dob, school, profession, position }),
       });
       if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
       const claimSubmitted = await submitFirmaClaimIfChanged();
+      await submitArchitectSyncIfNeeded(name, dob, school, profession, position);
 
       msg.textContent = claimSubmitted ? 'Kaydedildi. Firma talebi admin onayına gönderildi.' : 'Kaydedildi.';
       setTimeout(() => msg.textContent = '', claimSubmitted ? 4000 : 2000);
@@ -1212,6 +1375,7 @@ const AuthModal = (function () {
       const data = res.ok ? await res.json() : { items: [] };
       const items = data.items || [];
       const list = document.getElementById('am-claims-mine-list');
+      refreshArchitectSyncFields(items);
       // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
       // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
       // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
@@ -1250,6 +1414,15 @@ const AuthModal = (function () {
       const patch = {};
       if (!accountUser.photoUrl && arch.photo) patch.photo_url = arch.photo;
       if (!accountUser.school && arch.school) patch.school = arch.school;
+      // Pozisyon (bkz. kullanıcı isteği: "tam bir senkronizasyon") — mimar kaydındaki `role` ile AYNI
+      // metin kümesini paylaşır (bkz. am-edit-position'daki genişletilmiş 10 seçenek), bu yüzden
+      // doğrudan kopyalanabilir. Meslek ise mimar kaydında ham Türkçe etiket ("Mimar"), users.profession
+      // ise kodlu bir slug ("mimar") olduğundan PROFESSION_LABELS ters çevrilerek eşleştirilir.
+      if (!accountUser.position && arch.role) patch.position = arch.role;
+      if (!accountUser.profession && arch.profession) {
+        const slug = Object.keys(PROFESSION_LABELS).find(k => PROFESSION_LABELS[k] === arch.profession);
+        if (slug) patch.profession = slug;
+      }
       if (!Object.keys(patch).length) return;
       try {
         const res = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
