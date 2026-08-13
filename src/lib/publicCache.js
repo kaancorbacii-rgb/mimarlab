@@ -82,8 +82,16 @@ const HOMEPAGE_LIST_PATHS = [
 // birebir eşleşmeli). Bu satır BARE_LIST_PATHS'te yoksa yeni onaylanan bir proje/ürün, admin
 // onayından sonra bu en sık görülen "1. sayfa" görünümünde en fazla s-maxage (5dk) kadar hiç
 // görünmeyebilirdi (gerçek bulgu: kullanıcı isteği — "yeni yüklenen proje 1. sayfaya 1. post
-// olarak gelmedi").
-const DEFAULT_FIRST_PAGE_PATHS = ['/api/projects?page=1&limit=24', '/api/products?page=1&limit=24'];
+// olarak gelmedi"). proje.js#currentQueryParams HER ZAMAN `buildStatus=built`'i ilk parametre
+// olarak set ediyor (proje.js:77) — bu yüzden gerçek istek `/api/projects?page=1&limit=24` DEĞİL,
+// `/api/projects?buildStatus=built&page=1&limit=24`'tür; cacheKeyFor TAM STRING eşleşmesi
+// aradığından ('=='), buildStatus'süz eski hali burada hiçbir zaman gerçek trafikle eşleşmiyor ve
+// bu proje için invalidation'ı sessizce no-op'a çeviriyordu (kökten bulgu — kullanıcı bu sorunu
+// "daha önce de yaşadığını" bildirdi; yalnızca ayrı bir fingerprint/ETag kontrolü sayesinde birkaç
+// istek içinde kendiliğinden düzeliyordu, bu satır olmadan gerçek "anında" invalidation hiç
+// çalışmıyordu). /api/products için urun.html#currentQueryParams böyle sabit bir varsayılan
+// parametre SET ETMİYOR, bu yüzden o girdi zaten doğru.
+const DEFAULT_FIRST_PAGE_PATHS = ['/api/projects?buildStatus=built&page=1&limit=24', '/api/products?page=1&limit=24'];
 const BARE_LIST_PATHS = [...CACHEABLE_LIST_PREFIXES, ...HOMEPAGE_LIST_PATHS, ...DEFAULT_FIRST_PAGE_PATHS];
 
 function isListPath(pathname) {
