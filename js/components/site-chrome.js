@@ -93,18 +93,6 @@
           <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
-        <div class="footer-bottom-actions">
-          <div class="footer-social">
-            <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-            <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
-            <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
-          </div>
-          <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir">
-            <span class="theme-toggle-label theme-label-moon">Gece</span>
-            <span class="theme-toggle-label theme-label-sun">Gündüz</span>
-            <span class="theme-toggle-knob" aria-hidden="true"></span>
-          </button>
-        </div>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
@@ -119,7 +107,19 @@
         <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
       </div>
     </div>
-    <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
+    <div class="footer-bottom">
+      <div class="footer-social">
+        <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+        <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
+        <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
+      </div>
+      <span class="footer-copyright">© Tüm hakları saklıdır. MİMARLAB, 2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</span>
+      <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir">
+        <span class="theme-toggle-label theme-label-moon">Gece</span>
+        <span class="theme-toggle-label theme-label-sun">Gündüz</span>
+        <span class="theme-toggle-knob" aria-hidden="true"></span>
+      </button>
+    </div>
   </footer>`;
   }
 
@@ -133,8 +133,13 @@
     style.id = 'footer-extra-style';
     style.textContent = `
       .footer-top{grid-template-columns: 1.15fr 0.75fr 0.85fr 0.95fr 1.15fr;}
-      .footer-brand{display:flex; flex-direction:column;}
-      .footer-bottom-actions{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:auto; padding-top:16px;}
+      /* Alt satır: sosyal ikonlar sol kenara, telif hakkı ortaya, gece/gündüz düğmesi sağ kenara
+         (bkz. kullanıcı isteği: "sol ve sağ hizayla eşitle") — grid'in dış iki sütunu 1fr olduğundan
+         orta sütun (telif metni) sosyal/toggle genişliklerinden bağımsız her zaman TAM ortada kalır. */
+      .footer-bottom{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; max-width:1080px; margin:0 auto; box-sizing:border-box;}
+      .footer-bottom .footer-social{justify-self:start;}
+      .footer-copyright{justify-self:center; text-align:center;}
+      .footer-bottom .footer-theme-toggle{justify-self:end;}
       .footer-social{display:flex; align-items:center; gap:14px; height:28px;}
       .footer-social a{display:flex; align-items:center; justify-content:center;}
       .footer-social svg{display:block;}
@@ -142,7 +147,6 @@
         position:relative; display:inline-flex; align-items:center; flex-shrink:0;
         width:92px; height:28px; padding:0; border-radius:100px; border:none;
         background:var(--brass); color:#fff; cursor:pointer; overflow:hidden;
-        margin-top:-3px;
       }
       .footer-theme-toggle:hover{opacity:0.92;}
       .footer-theme-toggle .theme-toggle-label{
@@ -172,6 +176,8 @@
       .footer-newsletter-msg.err{color:#E39B9B;}
       @media (max-width: 860px){
         .footer-top{grid-template-columns: 1fr;}
+        .footer-bottom{grid-template-columns:1fr; justify-items:center; text-align:center;}
+        .footer-bottom .footer-social, .footer-bottom .footer-theme-toggle{justify-self:center;}
       }
     `;
     document.head.appendChild(style);

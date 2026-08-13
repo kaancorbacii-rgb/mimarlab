@@ -224,6 +224,16 @@ const ProductModal = (function () {
       .pr-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
       .pr-feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
       .pr-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
+      /* Kart ilk açılışta kapalı (bkz. kullanıcı isteği: "Geri Bildirim +" ön başlığı) — native
+         <details>/<summary>, proje.html#.pm-feedback-card İLE AYNI desen. */
+      .pr-feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+      .pr-feedback-card > summary::-webkit-details-marker{display:none;}
+      .pr-feedback-card[open] > summary{margin-bottom:6px;}
+      .feedback-card-plus{flex-shrink:0; width:18px; height:18px; position:relative; margin-left:10px;}
+      .feedback-card-plus::before, .feedback-card-plus::after{content:''; position:absolute; top:50%; left:50%; background:var(--ink-soft); transform:translate(-50%,-50%); transition:transform 0.15s ease;}
+      .feedback-card-plus::before{width:12px; height:2px;}
+      .feedback-card-plus::after{width:2px; height:12px;}
+      .pr-feedback-card[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
       /* Bildir butonu textarea'nın İÇİNE, sağ alt köşeye bindirilir (bkz. kullanıcı isteği,
          js/components/project-modal.js#wireFeedbackBox ile AYNI desen) — yazının butonun altına/
          arkasına denk gelmemesi için textarea'nın sağ ve alt iç boşluğu büyütülür. */
@@ -307,11 +317,11 @@ const ProductModal = (function () {
       <div class="detail-desc" id="pr-desc"></div>
     </div>
     <hr class="pr-info-divider" id="pr-info-divider">
-    <div class="pr-feedback-card" id="pr-feedback-card">
-      <h5>Geri Bildirim</h5>
+    <details class="pr-feedback-card" id="pr-feedback-card">
+      <summary>Geri Bildirim<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
       <div id="pr-feedback-body"></div>
-    </div>`;
+    </details>`;
 
   const RIGHT_TEMPLATE = `
     <div class="gallery-wrap" id="pr-gallery-wrap">

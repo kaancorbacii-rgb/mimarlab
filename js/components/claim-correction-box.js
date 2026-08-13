@@ -46,9 +46,21 @@ function createClaimCorrectionBox(config){
     style.id = 'claim-correction-box-styles';
     style.textContent = `
       .feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
+      .feedback-card[open]{padding-bottom:18px;}
       .feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
       .feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
       .feedback-card .info-card-link{font-weight:700; text-decoration:underline;}
+      /* Kartlar ilk açılışta kapalı (bkz. kullanıcı isteği: "Geri Bildirim +" ön başlığı, tıklanınca
+         açılsın) — native <details>/<summary> kullanılır, JS state yönetimi gerekmez. summary'nin
+         varsayılan üçgen imleci kaldırılıp yerine dönen bir "+" konur. */
+      .feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+      .feedback-card > summary::-webkit-details-marker{display:none;}
+      .feedback-card[open] > summary{margin-bottom:6px;}
+      .feedback-card-plus{flex-shrink:0; width:18px; height:18px; position:relative; margin-left:10px;}
+      .feedback-card-plus::before, .feedback-card-plus::after{content:''; position:absolute; top:50%; left:50%; background:var(--ink-soft); transform:translate(-50%,-50%); transition:transform 0.15s ease;}
+      .feedback-card-plus::before{width:12px; height:2px;}
+      .feedback-card-plus::after{width:2px; height:12px;}
+      .feedback-card[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
       .feedback-input-wrap{position:relative;}
       .feedback-input-wrap textarea{width:100%; min-height:64px; padding:9px 92px 40px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-card); font-family:inherit; font-size:12.5px; color:var(--ink); resize:vertical;}
       .feedback-input-wrap--wide textarea{padding-right:160px;}
@@ -109,7 +121,7 @@ function createClaimCorrectionBox(config){
       // Anonim ziyaretçi asla profil sahibi olamayacağından (isProfileOwner burada hep false kalır),
       // rozetli bir profilde davet kutusunu göstermeden hemen çıkabiliriz.
       if(alreadyClaimed || badged){ card.style.display = 'none'; return; }
-      body.innerHTML = `<h5>${config.labels.claimTitle}</h5><p>${config.labels.loginPromptHtml}</p>`;
+      body.innerHTML = `<p>${config.labels.loginPromptHtml}</p>`;
       return;
     }
     try{
@@ -119,12 +131,11 @@ function createClaimCorrectionBox(config){
         isProfileOwner = true;
         card.style.display = 'none';
       } else if(data.status === 'pending'){
-        body.innerHTML = `<h5>Talebin inceleniyor</h5><p>${config.labels.pendingHtml}</p>`;
+        body.innerHTML = `<p>${config.labels.pendingHtml}</p>`;
       } else if(alreadyClaimed){
         card.style.display = 'none';
       } else {
-        body.innerHTML = `<h5>${config.labels.claimTitle}</h5>
-          <p>${config.labels.claimNoteDescription}</p>
+        body.innerHTML = `<p>${config.labels.claimNoteDescription}</p>
           <div class="feedback-input-wrap feedback-input-wrap--wide">
             <textarea id="claim-note" placeholder=""></textarea>
             <button type="button" id="claim-btn">${config.labels.claimButtonText}</button>

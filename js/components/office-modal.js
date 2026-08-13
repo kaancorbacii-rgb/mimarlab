@@ -167,17 +167,15 @@ const OfficeModal = (function () {
       <div class="detail-desc" id="om-about"></div>
       <hr class="detail-info-divider">
     </div>
-    <div class="feedback-card" id="claim-info-card">
-      <div id="claim-card-body">
-        <h5>Bu firma sana mı ait?</h5>
-        <p>Bilgilerini güncellemek ya da açık pozisyon yayınlamak için bizimle iletişime geç.</p>
-      </div>
-    </div>
-    <div class="feedback-card" id="correction-info-card">
-      <h5>Geri Bildirim</h5>
+    <details class="feedback-card" id="claim-info-card">
+      <summary>Bu firma sana mı ait?<span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <div id="claim-card-body"></div>
+    </details>
+    <details class="feedback-card" id="correction-info-card">
+      <summary>Geri Bildirim<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
       <div id="correction-card-extra"></div>
-    </div>`;
+    </details>`;
 
   const RIGHT_TEMPLATE = `
     <div class="related-section" id="om-founders-section" style="display:none;">

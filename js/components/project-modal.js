@@ -32,11 +32,11 @@ const ProjectModal = (function () {
       <div class="comments-list" id="pm-comments-list"></div>
     </div>
     <hr class="pm-info-divider" id="pm-info-divider">
-    <div class="pm-feedback-card" id="pm-feedback-card">
-      <h5>Geri Bildirim</h5>
+    <details class="pm-feedback-card" id="pm-feedback-card">
+      <summary>Geri Bildirim<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
       <div id="pm-feedback-body"></div>
-    </div>`;
+    </details>`;
 
   const RIGHT_TEMPLATE = `
     <div class="gallery-wrap" id="pm-gallery-wrap">
