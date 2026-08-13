@@ -24,6 +24,25 @@ import { releaseR2StorageBytes } from './r2Quota.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
+// GERÇEK BULGU (bkz. kullanıcı isteği: "Admin hesabından bir projeye yorum yazdım ve ... Renzo Piano
+// hesabıyla yorumum gözüktü ... kökten çöz"): syncOffice/syncArchitect'in INSERT dalı, YENİ bir
+// mimar/firma kaydı oluşturulduğunda claimed_by_user_id'yi KOŞULSUZ gönderiyi yapan hesaba
+// (row.owner_user_id) yazıyordu — bu, bir üyenin KENDİ profilini eklemesinde doğru olsa da, admin
+// platform içeriği olarak (kendi kimliği DEĞİL) onlarca üçüncü şahıs mimar/firma profili eklerken de
+// AYNI şekilde çalışıyor, admin'in hesabını o profillerin "sahibi" gibi işaretliyordu (gerçek veri:
+// mimarlabcom@gmail.com hesabı 18 mimar + 6 firma profilinin claimed_by_user_id'siydi). Bu satır
+// src/routes/comments.js#listComments'teki commenterProfile JOIN'ini (yorumu yapan hesabın sahip
+// olduğu bir profil varsa adı/fotoğrafı o profilden gösterilir) etkiliyordu — admin hangi yorumu
+// yaparsa yapsın, bu 24 profilden RASTGELE biri (LIMIT 1, sıralama garantisi yok) "yorumu yapan" gibi
+// görünüyordu. Admin kurumsal/platform hesabı olduğundan (kişisel bir mimar/firma kimliği DEĞİL) bu
+// otomatik sahiplenme hiçbir zaman doğru değil — admin'in eklediği yeni kayıtlarda claimed_by_user_id
+// artık hep NULL kalır, yalnızca gerçek (admin olmayan) bir üyenin kendi gönderisi bu alanı doldurur.
+async function resolveClaimedByUserId(env, ownerUserId) {
+  if (!ownerUserId) return ownerUserId;
+  const owner = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(ownerUserId).first();
+  return owner && owner.role === 'admin' ? null : ownerUserId;
+}
+
 // bkz. src/routes/{architect,office,project,product,legacyContent}.js#foldTr — AYNI TR-duyarlı
 // casefold deseni (İ/I/ı vb. doğru katlanır, sonra diyakritikler ASCII karşılığına indirgenir).
 // findOneByName'in birebir eşleşme bulamadığında ikinci denemesi için burada da gerekiyor (bkz. o
@@ -429,10 +448,11 @@ async function syncOffice(env, row) {
     let slug = slugify(row.name) || `firma-${row.id}`;
     const clash = await env.DB.prepare(`SELECT id FROM offices WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
+    const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
       `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, awards, social_links, source, legacy_key, claimed_by_user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, socialLinks, marker, row.owner_user_id));
+    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, socialLinks, marker, claimedByUserId));
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
     // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate
     // edilmemiş olduğu anlamına gelir (gerçek bulgu: "mükerrer kayıt" — bu yeni satır firma.html/
@@ -509,10 +529,11 @@ async function syncArchitect(env, row) {
   let slug = slugify(row.name) || `mimar-${row.id}`;
   const clash = await env.DB.prepare(`SELECT id FROM architects WHERE slug = ?`).bind(slug).first();
   if (clash) slug = `${slug}-${row.id}`;
+  const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
   const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
     `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, social_links, office_id, source, legacy_key, claimed_by_user_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, officeId, marker, row.owner_user_id));
+  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, officeId, marker, claimedByUserId));
   const architectId = insert.meta.last_row_id;
   await syncOfficeFounderLink(env, architectId, officeIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.

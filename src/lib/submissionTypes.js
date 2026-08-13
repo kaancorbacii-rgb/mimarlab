@@ -128,6 +128,21 @@ function slugify(text) {
 // üretiyordu (bkz. gerçek bulgu).
 const DECADE_SUFFIX = { 0: 'ler', 10: 'lar', 20: 'ler', 30: 'lar', 40: 'lar', 50: 'ler', 60: 'lar', 70: 'ler', 80: 'ler', 90: 'lar' };
 
+// bkz. kullanıcı isteği: proje.html Yıl filtresindeki "Antik Çağ" ismi "Milattan Önce" olarak
+// değişti, künyesi "MÖ"/"Milattan Önce" ile BAŞLAYAN her proje (statik/legacy elle etiketlenenler
+// DIŞINDA, artık normalizeSubmission'dan geçen HER yeni/düzenlenen proje için de) buraya dinamik
+// olarak düşer — bkz. aşağıdaki dateBucketFor.
+export const BC_DATE_BUCKET = 'Milattan Önce';
+
+function isBcDateString(dateStr) {
+  const s = (dateStr || '').trim().toLowerCase();
+  // GERÇEK BULGU: \b (kelime sınırı) JS regex'inde \w = [A-Za-z0-9_] baz alınır, Türkçe "ö" bu
+  // kümede DEĞİLDİR — /^mö\b/ "mö 9600" gibi bir girdide "ö" ile boşluk arasında hiçbir sınır
+  // bulamadığından SESSİZCE eşleşmiyordu (isBcDateString hep false dönüyordu). Boşluk/dize sonu
+  // AÇIKÇA arandığında bu tuzağa düşülmez.
+  return /^m[öo](\s|$)/.test(s) || s.startsWith('milattan önce') || s.startsWith('milattan once');
+}
+
 // bkz. kullanıcı isteği: "Projeler sayfasında Yıl filtresinin içindeki seçeneklerde 1750'ler ve
 // 1700'lar seçeneklerini kaldır ... bunu engelle". Eski hali serbest metin "date" alanındaki İLK
 // 4 haneli sayıyı alıp HER ZAMAN bir on yıl bucket'ı üretiyordu — bu iki gerçek soruna yol
@@ -137,7 +152,14 @@ const DECADE_SUFFIX = { 0: 'ler', 10: 'lar', 20: 'ler', 30: 'lar', 40: 'lar', 50
 // tamamlanan bir restorasyon "1700'ler" gibi anlamsız bir bucket'a düşüyordu. Şimdi: metindeki TÜM
 // 4 haneli sayılardan EN BÜYÜĞÜ (en güncel/tamamlanma yılı) esas alınır; 1900 öncesiyse statik
 // veriyle aynı "N. Yüzyıl" biçimi kullanılır.
+//
+// GERÇEK BULGU (bkz. kullanıcı isteği): "MÖ" (milattan önce) hiç ele alınmıyordu — "MÖ 9600" gibi
+// bir tarihteki "9600" düz bir MS yılı sanılıp "9600'ler" gibi anlamsız bir bucket üretiyordu
+// (Göbeklitepe). Künye "MÖ"/"Milattan Önce" ile BAŞLIYORSA (bkz. isBcDateString) — ikinci bir MS
+// parçası olsa bile (ör. "MÖ 410 / 1725", Kız Kulesi) — artık koşulsuz BC_DATE_BUCKET döner; bu,
+// kullanıcının "başından MÖ ... yazan HER proje bu kategoriye girsin" isteğiyle birebir eşleşir.
 function dateBucketFor(dateStr) {
+  if (isBcDateString(dateStr)) return BC_DATE_BUCKET;
   const matches = (dateStr || '').match(/\d{4}/g);
   if (!matches) return null;
   const year = Math.max(...matches.map(Number));

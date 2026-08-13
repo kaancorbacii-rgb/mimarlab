@@ -10,6 +10,7 @@ import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 // canonical veri DEĞİL, salt statik bir referans tablosu olduğundan (data.js/projeler-data.js'in
 // aksine) Faz 3 kapsamı dışında bırakıldı.
 import ilIlceJs from '../../il-ilce-data.js';
+import { BC_DATE_BUCKET } from '../lib/submissionTypes.js';
 
 const { parseLocationFull } = ilIlceJs;
 
@@ -427,6 +428,9 @@ function parseProjectDateYear(dateStr) {
 }
 
 function dateBucketSortKey(s) {
+  // Milattan Önce her zaman en eski kategori — en küçük anahtarla listenin (en yeniden en eskiye
+  // sıralanan) EN SONUNA düşer, herhangi bir yüzyıl/on yıl bucket'ından daha eski kabul edilir.
+  if (s === BC_DATE_BUCKET) return -Infinity;
   let m = /^(\d+)\.\s*Yüzyıl$/.exec(s);
   if (m) return (parseInt(m[1], 10) - 1) * 100;
   m = /^(\d{4})'l/.exec(s);
