@@ -526,12 +526,16 @@
   .detail-desc-more:hover{color:var(--ink);}
 
   /* ---------- PROJE MODALI — yorumlar ---------- */
-  .comments-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
+  /* Yorumlar kutusu artık .pm-feedback-card (Geri Bildirim) İLE BİREBİR AYNI kart görünümünde —
+     aynı margin/padding/border/radius/arkaplan, aynı summary punto/hiza (bkz. kullanıcı isteği:
+     "iki kutucuğun da + sembolü aynı hizada ve aynı büyüklükte olsun"). Yalnızca ikisi arasında
+     .pm-info-divider (<hr>) korunur. */
+  .comments-section{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
   /* Yorumlar da ilk açılışta kapalı (bkz. kullanıcı isteği, .pm-feedback-card İLE AYNI <details>/
      <summary> deseni) — comments-title artık <h2> değil doğrudan clickable <summary>. */
-  .comments-title{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:18px; font-weight:700; margin:0;}
+  .comments-title{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); margin:0;}
   .comments-title::-webkit-details-marker{display:none;}
-  .comments-section[open] .comments-title{margin-bottom:16px;}
+  .comments-section[open] .comments-title{margin-bottom:6px;}
   .comments-section[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
   .comment-form-wrap{margin-bottom:20px;}
   /* Gönder butonu textarea'nın İÇİNE, sağ alt köşeye bindirilir (bkz. kullanıcı isteği) — yazının
