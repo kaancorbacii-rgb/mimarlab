@@ -87,9 +87,12 @@
           <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
           <a href="https://x.com/mimarlabcom?s=11&amp;t=ijRg66Se2p_FxlB3-aK-6w" target="_blank" rel="noopener" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 2H21l-7.3 8.3L22.2 22h-6.8l-5.3-6.9L4 22H1.3l7.8-8.9L1.5 2h6.9l4.8 6.3L18.3 2z"/></svg></a>
           <a href="https://www.linkedin.com/company/mimarlab/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.5A2 2 0 1 0 4.5 7.5 2 2 0 0 0 4.5 3.5zM3 9h3v12H3zM10 9h2.9v1.6h.1c.4-.8 1.5-1.6 3-1.6 3.2 0 3.8 2.1 3.8 4.9V21h-3v-6.6c0-1.6 0-3.6-2.2-3.6s-2.5 1.7-2.5 3.5V21H10z"/></svg></a>
-          <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir" title="Gece Modu">
+          <span class="footer-social-sep" aria-hidden="true"></span>
+          <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir">
             <svg class="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5z"/></svg>
             <svg class="theme-icon theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <span class="theme-label theme-label-moon">Gece Modu</span>
+            <span class="theme-label theme-label-sun">Gündüz Modu</span>
           </button>
         </div>
         <div class="footer-newsletter">
@@ -119,11 +122,16 @@
     const style = document.createElement('style');
     style.id = 'footer-extra-style';
     style.textContent = `
-      .footer-theme-toggle{background:none; border:none; padding:0; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; color:var(--paper); opacity:0.75; cursor:pointer;}
+      .footer-social-sep{width:1px; height:18px; background:rgba(237,240,243,0.25); flex-shrink:0;}
+      .footer-theme-toggle{background:none; border:none; padding:0; display:inline-flex; align-items:center; gap:7px; color:var(--paper); opacity:0.75; cursor:pointer;}
       .footer-theme-toggle:hover{opacity:1;}
       .footer-theme-toggle .theme-icon-sun{display:none;}
       [data-theme="dark"] .footer-theme-toggle .theme-icon-moon{display:none;}
       [data-theme="dark"] .footer-theme-toggle .theme-icon-sun{display:block;}
+      .footer-theme-toggle .theme-label{font-size:12.5px; font-weight:600; white-space:nowrap;}
+      .footer-theme-toggle .theme-label-sun{display:none;}
+      [data-theme="dark"] .footer-theme-toggle .theme-label-moon{display:none;}
+      [data-theme="dark"] .footer-theme-toggle .theme-label-sun{display:inline;}
       .footer-newsletter{margin-top:20px;}
       .footer-newsletter h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 8px; font-weight:600;}
       .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 10px; max-width:280px;}
