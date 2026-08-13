@@ -93,18 +93,6 @@
           <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
-      </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
-      <div class="footer-col footer-newsletter">
-        <h4>Bülten</h4>
-        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
-        <form class="footer-newsletter-form" id="footer-newsletter-form">
-          <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
-          <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
-        </form>
-        <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
         <div class="footer-bottom-actions">
           <div class="footer-social">
             <a href="https://www.instagram.com/mimarlabcom/" target="_blank" rel="noopener" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
@@ -117,6 +105,18 @@
             <span class="theme-toggle-knob" aria-hidden="true"></span>
           </button>
         </div>
+      </div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
+      <div class="footer-col footer-newsletter">
+        <h4>Bülten</h4>
+        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
+        <form class="footer-newsletter-form" id="footer-newsletter-form">
+          <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
+          <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
+        </form>
+        <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
       </div>
     </div>
     <div class="footer-bottom">© Tüm hakları saklıdır. MİMARLAB, 2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</div>
@@ -133,7 +133,8 @@
     style.id = 'footer-extra-style';
     style.textContent = `
       .footer-top{grid-template-columns: 1.15fr 0.75fr 0.85fr 0.95fr 1.15fr;}
-      .footer-bottom-actions{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:16px;}
+      .footer-brand{display:flex; flex-direction:column;}
+      .footer-bottom-actions{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:auto; padding-top:16px;}
       .footer-social{display:flex; align-items:center; gap:14px; height:28px;}
       .footer-social a{display:flex; align-items:center; justify-content:center;}
       .footer-social svg{display:block;}
@@ -141,6 +142,7 @@
         position:relative; display:inline-flex; align-items:center; flex-shrink:0;
         width:92px; height:28px; padding:0; border-radius:100px; border:none;
         background:var(--brass); color:#fff; cursor:pointer; overflow:hidden;
+        margin-top:-3px;
       }
       .footer-theme-toggle:hover{opacity:0.92;}
       .footer-theme-toggle .theme-toggle-label{
