@@ -324,21 +324,24 @@ async function render(){
   if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
   empty.style.display = 'none';
 
+  // .content-grid ≤720px'de 2 sütuna düşüyor (bkz. proje.html'deki @media 720px), aksi halde 3 —
+  // sabit bir eşik yerine gerçek sütun sayısına göre hesaplanır (denetim bulgusu, 2026-08-14).
+  const eagerCardCount = window.innerWidth <= 720 ? 2 : 3;
   grid.innerHTML = data.items.map((p, i) => {
     const loc = parseLocation(p.location);
     // Kart altyazısında yalnızca İL gösterilir, ilçe ATLANIR (bkz. kullanıcı isteği: "İl · Yıl",
     // ör. "İstanbul · 2024") — ilçe bilgisi hâlâ modalin "Yer:" satırında (bkz. project-meta.js)
     // tam haliyle görünmeye devam eder, yalnızca kart özetindeki kısa format sadeleştirilir.
     const locLabel = loc.city;
-    // İlk sıradaki (i<3, 3 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
+    // İlk sıradaki (i<eagerCardCount, yukarıda hesaplandı) kartlar sayfa açılışında ZATEN katlanma
     // çizgisinin üstünde görünür — bunları da loading="lazy" ile geciktirmek tarayıcının layout'u
     // bekleyip isteği ERTELEMESİNE yol açıp ilk yüklenmeyi YAVAŞLATIYORDU (bkz. kullanıcı isteği:
-    // "ilk yüklenme hızını artır"); bu üçü eager + fetchpriority="high" ile hemen istenir, alttaki
-    // (katlanma çizgisinin altındaki) kartlar lazy kalır. sizes, grid'in kırılma noktalarındaki
-    // (bkz. .content-grid @media 720px/960px) gerçek kart genişliğine karşılık gelir — srcset
-    // cdnSrcset() ile üretilir ama IMAGE_CDN_ENABLED false olduğu sürece boş döner (bkz.
-    // image-cdn.js#IMAGE_CDN_ENABLED, zone onayı bekleniyor), o ana kadar davranış değişmez.
-    const aboveFold = i < 3;
+    // "ilk yüklenme hızını artır"); ilk satır eager + fetchpriority="high" ile hemen istenir,
+    // alttaki (katlanma çizgisinin altındaki) kartlar lazy kalır. sizes, grid'in kırılma
+    // noktalarındaki gerçek kart genişliğine karşılık gelir — srcset cdnSrcset() ile üretilir ama
+    // IMAGE_CDN_ENABLED false olduğu sürece boş döner (bkz. image-cdn.js#IMAGE_CDN_ENABLED, zone
+    // onayı bekleniyor), o ana kadar davranış değişmez.
+    const aboveFold = i < eagerCardCount;
     const imgAttrs = aboveFold
       ? `loading="eager" fetchpriority="high"`
       : `loading="lazy" fetchpriority="low"`;

@@ -123,6 +123,12 @@
   .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
+  /* denetim bulgusu (2026-08-14): "Konum" gibi TEK bir kontrolü değil birden fazla dropdown'ı
+     (İl+İlçe) birlikte etiketleyen label'lar artık <fieldset><legend> — tarayıcının varsayılan
+     fieldset kenarlığı/iç boşluğu sıfırlanıp legend, .form-field label ile GÖRSEL OLARAK BİREBİR
+     AYNI görünecek şekilde stillenir (yalnızca semantik/erişilebilirlik değişimi, görünüm aynı). */
+  fieldset.form-field{border:none; padding:0; margin:0 0 16px;}
+  .form-field legend{display:block; width:100%; padding:0; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field input[type=text], .form-field input[type=url], .form-field textarea, .form-field select{
     width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
@@ -279,8 +285,8 @@
           <label for="o-name">Firma Adı</label>
           <input type="text" id="o-name" name="name" placeholder="ör. Autoban" required>
         </div>
-        <div class="form-field">
-          <label>Konum</label>
+        <fieldset class="form-field">
+          <legend>Konum</legend>
           <div class="form-row">
             <div class="dd-field" id="dd-il">
               <button type="button" class="dd-btn" id="dd-il-btn">
@@ -303,10 +309,10 @@
               </div>
             </div>
           </div>
-        </div>
+        </fieldset>
         <div class="form-row">
           <div class="form-field">
-            <label>Kuruluş Yılı <span class="opt">(opsiyonel)</span></label>
+            <label for="dd-yil-btn">Kuruluş Yılı <span class="opt">(opsiyonel)</span></label>
             <div class="dd-field" id="dd-yil">
               <button type="button" class="dd-btn" id="dd-yil-btn">
                 <span id="dd-yil-btn-label">Yıl seç</span>
@@ -319,7 +325,7 @@
             </div>
           </div>
           <div class="form-field">
-            <label>Hizmet Alanı</label>
+            <label for="dd-hizmet-btn">Hizmet Alanı</label>
             <div class="dd-field" id="dd-hizmet">
               <button type="button" class="dd-btn" id="dd-hizmet-btn">
                 <span id="dd-hizmet-btn-label">Hizmet alanı seç</span>
@@ -348,7 +354,7 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label>Ödül <span class="opt">(opsiyonel)</span></label>
+            <label for="dd-odul-btn">Ödül <span class="opt">(opsiyonel)</span></label>
             <div class="dd-field" id="dd-odul">
               <button type="button" class="dd-btn" id="dd-odul-btn">
                 <span id="dd-odul-btn-label">Ödül seç</span>

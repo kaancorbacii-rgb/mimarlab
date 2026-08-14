@@ -393,6 +393,19 @@ const ModalShell = (function () {
     return overlayEl ? overlayEl.querySelector('#modal-shell-header-actions') : null;
   }
 
+  // denetim bulgusu (2026-08-14): panel role="dialog" aria-modal="true" taşıyor ama aria-label/
+  // aria-labelledby hiç yoktu — ekran okuyucu kullanıcıları modal açıldığında sadece "iletişim
+  // kutusu" duyuyordu, NE olduğunu değil. Panel içeriği proje/mimar/firma/ürün/auth/info
+  // modallarının HER BİRİ tarafından ayrı ayrı doldurulduğundan (bkz. claimContent) ortak bir
+  // başlık id'sine bağlamak yerine (altı ayrı dosyanın DOM yapısını koordine etmesi gerekirdi) her
+  // modal kendi başlığını (document.title'a yazdığı AYNI okunabilir metni) burada ayarlar —
+  // aria-label, aria-labelledby ile aynı işlevi görür ve tek bir string set etmek yeterlidir.
+  function setLabel(text) {
+    if (!panelEl) return;
+    if (text) panelEl.setAttribute('aria-label', text);
+    else panelEl.removeAttribute('aria-label');
+  }
+
   // gerçek bulgu: proje/mimar/firma/ürün modallarının close()'u, birden fazla proje gezindikten
   // sonra X/Escape'e basılınca asıl listeye TEK seferde dönmek için history.go(-N) kullanıyor (bkz.
   // o dosyalardaki close() yorumu) — ama history.go() ASENKRON'dur, karşılık gelen popstate hemen
@@ -431,5 +444,5 @@ const ModalShell = (function () {
 
   function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
 
-  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded };
+  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded };
 })();

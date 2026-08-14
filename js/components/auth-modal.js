@@ -30,6 +30,19 @@ const AuthModal = (function () {
     return '';
   }
 
+  // Bu modal site genelinde (image-cdn.js'in YÜKLENMEDİĞİ birçok sayfa dahil — hesabim.html,
+  // giris-yap.html, admin.html, *-ekle.html formları vb.) çalışır, cdnImg/cdnSrcset globallerine
+  // KOŞULSUZ güvenilemez (denetim bulgusu, 2026-08-14: bu modaldaki avatar/kayıtlı-öğe görselleri
+  // önceden hep orijinal çözünürlükte isteniyordu). Yüklüyse (proje.html/mimar.html/firma.html/
+  // urun.html/arama.html/index.html) cdnImg'in ham (göreli) path'i beklediği için `rawUrl` kullanılıp
+  // küçültülmüş, KÖK-göreli ("/cdn-cgi/...") bir URL döner — <base href> bağlamından bağımsız güvenli.
+  // Yüklü DEĞİLSE `resolvedUrl` (çağıranın zaten safeUrl() ile document.baseURI'ye göre çözdüğü
+  // MUTLAK URL) döner — ham göreli path'i OLDUĞU GİBİ kullanmak, tam da document.baseURI fix'inin
+  // (bkz. yukarıdaki safeUrl yorumu) çözdüğü <base href> hatasını geri getirirdi.
+  function avatarImg(rawUrl, size, resolvedUrl) {
+    return (typeof cdnImg === 'function') ? cdnImg(rawUrl, size) : resolvedUrl;
+  }
+
   // giris-yap.html/uye-ol.html'in AUTH bölümü (bkz. o dosyalardaki <style> "---------- AUTH
   // ----------" bloğu) + hesabim.html'in DASHBOARD bölümü — BİREBİR kopya, yalnızca her kuralın
   // başına #am-panel eklenerek scope'landı (bkz. dosya başı yorumu — sayfaların KENDİ nav/breadcrumb/
@@ -859,7 +872,7 @@ const AuthModal = (function () {
     }
 
     function renderAvatar() {
-      const img = accountUser.photoUrl ? `<img src="${escapeAttr(accountUser.photoUrl)}" alt="">` : '';
+      const img = accountUser.photoUrl ? `<img src="${escapeAttr(avatarImg(accountUser.photoUrl, 128, accountUser.photoUrl))}" alt="">` : '';
       document.getElementById('am-dash-avatar').innerHTML = img || dashInitials(accountUser.name);
       document.getElementById('am-avatar-preview').innerHTML = img || dashInitials(accountUser.name);
     }
@@ -1313,7 +1326,7 @@ const AuthModal = (function () {
       container.innerHTML = pageItems.map(it => `
         <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
           <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
-            ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(safeUrl(it.item_image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
             <div style="min-width:0;">
               <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
               <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.item_type] || ''}${it.item_meta ? ' · ' + escapeHtml(it.item_meta) : ''}</div>
@@ -1699,6 +1712,11 @@ const AuthModal = (function () {
     else if (view === 'signup') { wrap.innerHTML = signupTemplate(); wireSignup(); }
     else if (view === 'forgot') { wrap.innerHTML = forgotTemplate(); wireForgot(); }
     else { wrap.innerHTML = accountTemplate(); mountAccount(); }
+    // denetim bulgusu (AUDIT-009): bu modal document.title'ı hiç değiştirmiyor (sayfanın kendi
+    // başlığı korunur), o yüzden diğer modallardaki gibi document.title'ı yeniden kullanamayız —
+    // aria-label için ayrı, sabit bir Türkçe etiket haritası.
+    const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum' };
+    ModalShell.setLabel(AUTH_VIEW_LABELS[view] || 'Hesabım');
     ModalShell.scrollToTop();
   }
 

@@ -153,6 +153,10 @@
   .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
+  /* denetim bulgusu (2026-08-14): bkz. firma-ekle.html'deki AYNI düzeltme — "Konum" birden fazla
+     dropdown'ı (İl+İlçe) birlikte etiketliyordu, artık <fieldset><legend>; görünüm aynı kalır. */
+  fieldset.form-field{border:none; padding:0; margin:0 0 16px;}
+  .form-field legend{display:block; width:100%; padding:0; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field input[type=text], .form-field input[type=url], .form-field textarea{
     width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
@@ -370,8 +374,8 @@
             <input type="text" id="p-date" name="date" placeholder="ör. 2025 ya da 2007-2012" required>
           </div>
         </div>
-        <div class="form-field">
-          <label>Konum</label>
+        <fieldset class="form-field">
+          <legend>Konum</legend>
           <div class="form-row">
             <div class="dd-field" id="dd-il">
               <button type="button" class="dd-btn" id="dd-il-btn">
@@ -394,10 +398,10 @@
               </div>
             </div>
           </div>
-        </div>
+        </fieldset>
         <div class="form-row">
           <div class="form-field">
-            <label>Tür</label>
+            <label for="dd-tur-btn">Tür</label>
             <div class="dd-field" id="dd-tur">
               <button type="button" class="dd-btn" id="dd-tur-btn">
                 <span id="dd-tur-btn-label">Tür seç</span>
@@ -414,7 +418,7 @@
             </div>
           </div>
           <div class="form-field">
-            <label>Tip</label>
+            <label for="dd-kategori-btn">Tip</label>
             <div class="dd-field" id="dd-kategori">
               <button type="button" class="dd-btn" id="dd-kategori-btn">
                 <span id="dd-kategori-btn-label">Kategori seç</span>
@@ -442,7 +446,7 @@
             <div class="form-hint">Birden fazla tip gireceksen virgülle ayır.</div>
           </div>
           <div class="form-field">
-            <label>Ödül <span class="opt">(opsiyonel)</span></label>
+            <label for="dd-odul-btn">Ödül <span class="opt">(opsiyonel)</span></label>
             <div class="dd-field" id="dd-odul">
               <button type="button" class="dd-btn" id="dd-odul-btn">
                 <span id="dd-odul-btn-label">Ödül seç</span>

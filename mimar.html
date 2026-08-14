@@ -597,13 +597,18 @@ async function render(){
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan mimar bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
+  // .card-grid sütun sayısı breakpoint'e göre değişiyor (4 -> ≤960px'de 3 -> ≤720px'de 2, bkz.
+  // yukarıdaki <style>) — "ilk satır katlanma çizgisinin üstünde" varsayımı sabit 4 kullanırsa
+  // mobilde (2 sütun) 3./4. kart aslında ikinci satırda olduğu halde gereksiz yere eager+
+  // fetchpriority=high ile istenir (denetim bulgusu, 2026-08-14). Gerçek sütun sayısına göre hesapla.
+  const eagerCardCount = window.innerWidth <= 720 ? 2 : window.innerWidth <= 960 ? 3 : 4;
   grid.innerHTML = data.items.map((a, i)=>{
     const sub = a.office || a.positionRaw || '';
     const photoSrcset = a.photo ? cdnSrcset(a.photo, [400, 600, 800]) : '';
-    // İlk sıradaki (i<4, 4 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
-    // çizgisinin üstünde görünür — proje.html#renderProjects'teki AYNI desen/gerekçe (bkz. o
-    // dosyadaki yorum): bu dördü eager + fetchpriority="high", alttakiler lazy kalır.
-    const imgAttrs = i < 4 ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
+    // İlk sıradaki (i<eagerCardCount) kartlar sayfa açılışında ZATEN katlanma çizgisinin üstünde
+    // görünür — js/pages/proje.js#render'daki AYNI desen/gerekçe: bunlar eager + fetchpriority="high",
+    // alttakiler lazy kalır.
+    const imgAttrs = i < eagerCardCount ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
     return `
     <a class="person-card" href="/mimar/${encodeURIComponent(a.slug || slugify(a.name))}">
       <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>

@@ -11,10 +11,18 @@ doğrudan D1'den okuyor, submission onay/düzenlemeleri `src/lib/canonicalSync.j
 canonical satırlara yazılıyor, `facet_counts` KV'de materyalize ediliyor, `legacy_content_hidden`
 architects/offices/projects/products/materials için `deleted_at`/`hidden_at` kolonlarıyla
 değiştirildi (yalnızca `news` — henüz kendi ID-first tablosu olmadığından — eski sistemde kaldı).
-**Kalan kapsam:** `data.js`/`projeler-data.js` anasayfada (`index.html`) kaldırıldı, ama `src/lib/
-seo.js` (SSR meta), `src/routes/submissions.js` (slug/isim çakışma kontrolü) ve birkaç istemci
-sayfası (`arama.html`, `hesabim.html`, `*-ekle.html` formları) hâlâ bu statik dosyaları okuyor —
-dosyaların TAMAMEN silinmesi ayrı, henüz planlanmamış bir adımdır. Polimorfik `claims`/`corrections`
+**Güncelleme (2026-08-14 denetim):** `data.js`/`projeler-data.js`/`urunler-data.js`/
+`malzemeler-data.js` artık repo'da HİÇ yok — aşağıdaki "Kalan kapsam" notu (bu dosyaların `seo.js`/
+`submissions.js`/`arama.html`/`hesabim.html`/`*-ekle.html` tarafından hâlâ okunduğunu söylüyordu)
+güncelliğini yitirmişti; grep ile doğrulandı, o dosyalardaki tüm "data.js" geçişleri yalnızca
+"eskiden X'ten okunuyordu, şimdi D1'den okunuyor" diyen açıklayıcı yorumlar, gerçek bir import/fetch
+değil. Aşağıdaki paragraf artık tarihsel bir kayıt olarak okunmalı, güncel durum tarifi değil.
+
+**Kalan kapsam (tarihsel not):** `data.js`/`projeler-data.js` anasayfada (`index.html`) kaldırıldı,
+o dönem `src/lib/seo.js` (SSR meta), `src/routes/submissions.js` (slug/isim çakışma kontrolü) ve
+birkaç istemci sayfası (`arama.html`, `hesabim.html`, `*-ekle.html` formları) hâlâ bu statik
+dosyaları okuyordu — dosyaların TAMAMEN silinmesi o zaman ayrı, henüz planlanmamış bir adımdı (artık
+tamamlandı, yukarıdaki güncelleme notuna bkz.). Polimorfik `claims`/`corrections`
 ve `revisions` tabloları da henüz uygulanmamıştır (bkz. §4.4).
 
 ## 1. Refactoring Yol Haritası
@@ -342,7 +350,9 @@ Faz 1 planlanan pseudocode'un aksine, kod tabanında zaten `import dataJs from '
 - `migrations/0022_id_first_entities.sql` — §2a'daki tabloların tamamını ekler; mevcut hiçbir
   tabloyu değiştirmez/silmez, tamamen additive. Yerel dev DB'ye (`--persist-to
   /Users/kaancorbaci/.mimarlab-dev-state`) uygulanıp doğrulandı.
-- `scripts/migrate-to-id-first.js` — plain `node` ile çalışan (proje kökünde `package.json` yok,
+- `scripts/migrate-to-id-first.js` (2026-08-14 denetim: bu script tek seferlik kullanımdan sonra
+  repo'dan silinmiş, artık `scripts/` altında yok — aşağıdaki tarif tarihsel bir kayıttır, çalışan
+  bir dosyayı tarif etmiyor) — plain `node` ile çalışan (proje kökünde `package.json` yok,
   bu yüzden CJS `require()` kullanır), statik `data.js`/`projeler-data.js`/`urunler-data.js`/
   `malzemeler-data.js`'i okuyup canonical tablolara `INSERT` üreten tek seferlik script. **Hiçbir
   veritabanına doğrudan yazmaz** — `scripts/output/id-first-seed.sql` dosyasını üretir, operatör

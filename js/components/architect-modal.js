@@ -310,6 +310,7 @@ const ArchitectModal = (function () {
 
   function updateHeadMeta(a, office) {
     document.title = `${a.name} — MİMARLAB`;
+    ModalShell.setLabel(a.name);
     const desc = office
       ? `${a.name}, ${office.name} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
       : `${a.name} — MİMARLAB'da mimar profilini incele.`;

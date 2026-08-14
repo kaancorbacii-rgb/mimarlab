@@ -424,6 +424,7 @@ const ProductModal = (function () {
 
   function updateHeadMeta(p, key) {
     document.title = `${p.title} — MİMARLAB`;
+    ModalShell.setLabel(p.title);
     const rawDesc = p.description || `${p.title}${p.brand ? ' — ' + p.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
     const canonicalUrl = `https://mimarlab.com/urun/${encodeURIComponent(key)}`;
@@ -495,7 +496,9 @@ const ProductModal = (function () {
     wrap.style.display = '';
     const avatar = document.getElementById('pr-byline-avatar');
     avatar.style.background = officeColor(item.ownerName);
-    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
+    // cdnImg (bkz. image-cdn.js, bu sayfada — urun.html/proje.html — her zaman yüklü) — denetim
+    // bulgusu (2026-08-14): bu küçük (~24-64px) avatar önceden yükleme çözünürlüğünde isteniyordu.
+    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(cdnImg(item.ownerPhoto, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
     document.getElementById('pr-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
   }
 

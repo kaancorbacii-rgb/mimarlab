@@ -13,6 +13,7 @@ import {
   shapeProjectItem, isOfficeName, ratingBuckets,
   fetchActiveProjectPool, buildFilterGroups,
 } from '../lib/projectPool.js';
+import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 
 // Faz 3 — statik projeler-data.js + project_submissions overlay yerine doğrudan canonical
 // `projects`/`project_designers` tablolarından okur (bkz. src/routes/architect.js'teki AYNI
@@ -87,17 +88,11 @@ function firstImage(imagesJson) {
 // isteği, migrations/0037_project_build_status.sql) — aksi halde "Sonraki" bir yapıdan bir
 // konsept projeye (ya da tersi) sıçrayabilirdi.
 async function fetchAdjacentProject(env, id, buildStatus) {
-  const where = `deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?`;
-  let prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(buildStatus, id).first();
-  let next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(buildStatus, id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id DESC LIMIT 1`).bind(buildStatus).first();
-  if (!next) next = await env.DB.prepare(`SELECT id, slug, title, images FROM projects WHERE ${where} ORDER BY id ASC LIMIT 1`).bind(buildStatus).first();
-  if (prev && prev.id === id) prev = null;
-  if (next && next.id === id) next = null;
-  return {
-    prevProject: prev ? { slug: prev.slug, title: prev.title, image: firstImage(prev.images) } : null,
-    nextProject: next ? { slug: next.slug, title: next.title, image: firstImage(next.images) } : null,
-  };
+  const { prev, next } = await fetchAdjacentEntity(env, 'projects', id, {
+    titleCol: 'title', imageCol: 'images', imageIsJsonArray: true,
+    extraWhere: 'build_status = ?', extraBindValue: buildStatus,
+  });
+  return { prevProject: prev, nextProject: next };
 }
 
 // "Kullanılan Ürünler/Malzemeler" (bkz. js/components/project-products.js) — project_products

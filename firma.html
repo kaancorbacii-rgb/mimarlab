@@ -592,15 +592,20 @@ async function render(){
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan firma bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
+  // .card-grid sütun sayısı breakpoint'e göre değişiyor (4 -> ≤960px'de 3 -> ≤720px'de 2, bkz.
+  // yukarıdaki <style>) — sabit "4" varsayımı mobilde (2 sütun) 3./4. kartı aslında ikinci satırda
+  // olduğu halde gereksiz eager+fetchpriority=high ile isterdi (denetim bulgusu, 2026-08-14,
+  // bkz. mimar.html'deki AYNI düzeltme).
+  const eagerCardCount = window.innerWidth <= 720 ? 2 : window.innerWidth <= 960 ? 3 : 4;
   grid.innerHTML = data.items.map((o, i)=>{
     const logo = logoUrl(o);
     const safeInitialsAttr = escapeAttr(initials(o.name));
     const safeInitialsText = escapeHtml(initials(o.name));
     const logoSrcset = logo ? cdnSrcset(logo, [400, 600, 800]) : '';
-    // İlk sıradaki (i<4, 4 sütunlu grid'in ilk satırı) kartlar sayfa açılışında ZATEN katlanma
-    // çizgisinin üstünde görünür — proje.html#renderProjects'teki AYNI desen/gerekçe (bkz. o
-    // dosyadaki yorum): bu dördü eager + fetchpriority="high", alttakiler lazy kalır.
-    const imgAttrs = i < 4 ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
+    // İlk sıradaki (i<eagerCardCount) kartlar sayfa açılışında ZATEN katlanma çizgisinin üstünde
+    // görünür — js/pages/proje.js#render'daki AYNI desen/gerekçe: bunlar eager + fetchpriority="high",
+    // alttakiler lazy kalır.
+    const imgAttrs = i < eagerCardCount ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
     return `
     <a class="office-card" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}">
       <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(cdnImg(logo, 600))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>

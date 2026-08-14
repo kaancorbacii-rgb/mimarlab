@@ -1007,6 +1007,14 @@ const InfoModal = (function () {
     else if (view === 'gizlilik-politikasi') { wrap.innerHTML = gizlilikTemplate(); wireInPanelAnchors(wrap); }
     else if (view === 'hizmet-sartlari') { wrap.innerHTML = hizmetTemplate(); wireInPanelAnchors(wrap); }
     else { wrap.innerHTML = kariyerTemplate(); }
+    // denetim bulgusu (AUDIT-009): bkz. auth-modal.js#renderView'daki AYNI gerekçe — bu modal da
+    // document.title'ı değiştirmiyor, src/index.js#INFO_MODAL_META'daki başlıklarla (- MİMARLAB
+    // soneki hariç) tutarlı sabit bir Türkçe etiket haritası.
+    const INFO_VIEW_LABELS = {
+      'rozet-al': 'Rozet Satın Al', 'iade-et': 'Rozet İadesi Talep Et', 'iletisim': 'İletişim',
+      'hakkinda': 'Hakkında', 'gizlilik-politikasi': 'Gizlilik Politikası', 'hizmet-sartlari': 'Hizmet Şartları',
+    };
+    ModalShell.setLabel(INFO_VIEW_LABELS[view] || 'Kariyer');
     ModalShell.scrollToTop();
   }
 

@@ -1,6 +1,14 @@
 .DS_Store
 .wrangler/
 scripts/output/
+# Gizli anahtarlar (IYZICO_API_KEY, GOOGLE_CLIENT_SECRET vb.) `wrangler secret put` ile ayrı ayrı
+# tanımlanır (bkz. wrangler.jsonc#vars yorumu), hiçbir zaman bu dosyalarda YAŞAMAZ — ama biri yerel
+# geliştirme için böyle bir dosya oluşturursa (henüz oluşturulmadı) yine de güvenlik payı olarak
+# burada engellensin (denetim bulgusu, 2026-08-14).
+.dev.vars
+.dev.vars.*
+.env
+.env.*
 # Yerel `wrangler dev` için hafif asset kopyası (bkz. .claude/launch.json) — repo kökündeki
 # ~14.000 dosyalık projects//miras//mimarlar(-thumb)//logos(-thumb)/ dizinlerini tarayınca
 # macOS'un process başına dosya tanıtıcı tavanına (kern.maxfilesperproc) çarpıp Wrangler'ın

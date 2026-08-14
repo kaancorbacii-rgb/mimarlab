@@ -4,6 +4,7 @@ import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { resolveSlugRedirect } from '../lib/slugRedirects.js';
+import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 
 // Faz 3 — bkz. src/routes/architect.js'teki AYNI "canonical tablodan doğrudan okuma, overlay
 // merge-time'da zaten uygulandı" yorumu.
@@ -226,17 +227,8 @@ async function fetchRawTeamNames(env, o) {
 
 // Önceki/Sonraki Firma — bkz. src/routes/architect.js#fetchAdjacentArchitect'teki AYNI desen.
 async function fetchAdjacentOffice(env, id) {
-  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  let prev = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
-  let next = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
-  if (!next) next = await env.DB.prepare(`SELECT id, slug, name, logo_url FROM offices WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
-  if (prev && prev.id === id) prev = null;
-  if (next && next.id === id) next = null;
-  return {
-    prevItem: prev ? { slug: prev.slug, title: prev.name, image: prev.logo_url || null } : null,
-    nextItem: next ? { slug: next.slug, title: next.name, image: next.logo_url || null } : null,
-  };
+  const { prev, next } = await fetchAdjacentEntity(env, 'offices', id, { titleCol: 'name', imageCol: 'logo_url' });
+  return { prevItem: prev, nextItem: next };
 }
 
 async function buildOfficePayload(env, key) {

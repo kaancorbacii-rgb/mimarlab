@@ -138,8 +138,14 @@ function contentHash(str) {
 // düşürüyordu; istemci tarafı zaten item:null'ı "bulunamadı" olarak render ediyordu, yalnızca
 // durum kodu yanlıştı). Liste uçlarının gövdesi bu şekli hiç almadığından (dizi döner, `item`
 // alanı yok) yalnızca proje.js/architect.js/office.js/product.js'teki tekil detay uçlarını etkiler.
+// denetim bulgusu (2026-08-14): item:null iken data.hidden'a hiç bakılmıyordu, "hiç var olmamış"
+// bir slug ile "admin tarafından bilerek gizlenmiş" bir kayıt (bkz. yukarıdaki route'ların
+// `{item:null, hidden:true}` dönüşü) AYNI 404'ü alıyordu. 410, arama motorlarına 404'ten daha
+// güçlü, kalıcı bir "bu içerik bilerek kaldırıldı" sinyali verir — src/index.js#serveDetailPage'in
+// (SSR sayfa) AYNI ayrımının API karşılığı.
 function statusFor(data) {
-  return data && data.item === null ? 404 : 200;
+  if (!data || data.item !== null) return 200;
+  return data.hidden ? 410 : 404;
 }
 
 // Cache-stampede koruması (audit bulgusu — bkz. kullanıcı isteği "kritik maddeleri düzelt"):

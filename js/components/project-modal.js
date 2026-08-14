@@ -235,6 +235,7 @@ const ProjectModal = (function () {
 
   function updateHeadMeta(item) {
     document.title = `${item.title} — MİMARLAB`;
+    ModalShell.setLabel(item.title);
     const rawDesc = item.description || `${item.title}${item.location ? ' — ' + item.location : ''}. MİMARLAB'da proje detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
     const canonicalUrl = `https://mimarlab.com/proje/${encodeURIComponent(item.slug)}`;
@@ -283,7 +284,9 @@ const ProjectModal = (function () {
     wrap.style.display = '';
     const avatar = document.getElementById('pm-byline-avatar');
     avatar.style.background = officeColor(item.ownerName);
-    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(item.ownerPhoto)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
+    // cdnImg (bkz. image-cdn.js, bu sayfada — proje.html — her zaman yüklü) — denetim bulgusu
+    // (2026-08-14): bu küçük (~24-64px) avatar önceden yükleme çözünürlüğünde isteniyordu.
+    avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(cdnImg(item.ownerPhoto, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
     document.getElementById('pm-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
   }
 

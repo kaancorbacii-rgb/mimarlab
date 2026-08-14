@@ -274,8 +274,10 @@ export async function handlePublicSearchSuggest(request, env, url) {
 // alanları (fotoğraf/logo/görsel dahil) döner — arama.html kendi avatar/kart render mantığını
 // (officeColor/initials/logoUrl, bkz. badge-shared.js) bu alanlar üzerinde çalıştırır. Yalnızca
 // mimar/firma/proje kapsanır — ürün araması arama.html'de ayrı bir /api/products?search= çağrısıyla
-// yapılır (kullanıcı isteği: statik urunler-data.js/malzemeler-data.js kaldırıldı); haber araması
-// hâlâ istemci tarafında statik haberler-data.js üzerinde yapılıyor (bu turun kapsamı dışında).
+// yapılır (kullanıcı isteği: statik urunler-data.js/malzemeler-data.js kaldırıldı); haber özelliği
+// (haberler-data.js/haber-detay.html) tamamen kaldırıldığından (bkz. src/index.js#DISABLED_PAGE_PATHS)
+// haber araması artık hiç yok — bu satırdaki eski "istemci tarafında statik haberler-data.js
+// üzerinde yapılıyor" notu güncelliğini yitirmişti (denetim bulgusu, 2026-08-14).
 const SEARCH_FULL_PER_GROUP = 20;
 
 const PROJECT_DESIGNER_JOIN_SQL = `

@@ -653,7 +653,7 @@ function initials(name){
   return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 function renderAvatar(){
-  const img = currentUser.photoUrl ? `<img src="${escapeAttr(currentUser.photoUrl)}" alt="">` : '';
+  const img = currentUser.photoUrl ? `<img src="${escapeAttr(avatarImg(currentUser.photoUrl, 128, currentUser.photoUrl))}" alt="">` : '';
   document.getElementById('dash-avatar').innerHTML = img || initials(currentUser.name);
   document.getElementById('avatar-preview').innerHTML = img || initials(currentUser.name);
 }
@@ -889,7 +889,7 @@ function renderSaved(){
   container.innerHTML = pageItems.map(it => `
     <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
       <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
-        ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(safeUrl(it.item_image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+        ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
         <div style="min-width:0;">
           <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
           <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.item_type] || ''}${it.item_meta ? ' · ' + escapeHtml(it.item_meta) : ''}</div>
@@ -1145,6 +1145,16 @@ function safeUrl(u){
     if(parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
   }catch{}
   return '';
+}
+// Bu sayfa image-cdn.js'i YÜKLEMİYOR (bkz. <script src> listesi) — cdnImg/cdnSrcset globallerine
+// KOŞULSUZ güvenilemez (denetim bulgusu, 2026-08-14: bu sayfadaki avatar/kayıtlı-öğe görselleri
+// önceden hep orijinal çözünürlükte isteniyordu). Yüklüyse (bu sayfada asla, ama js/components/
+// auth-modal.js#avatarImg ile AYNI korumayı burada da tutarlı bırakır) cdnImg'in ham (göreli) path'i
+// beklediği için `rawUrl` kullanılıp küçültülmüş, KÖK-göreli bir URL döner; yüklü değilse
+// `resolvedUrl` (çağıranın zaten safeUrl() ile document.baseURI'ye göre çözdüğü MUTLAK URL, ya da
+// hiç safeUrl uygulanmamışsa ham değerin kendisi) döner.
+function avatarImg(rawUrl, size, resolvedUrl){
+  return (typeof cdnImg === 'function') ? cdnImg(rawUrl, size) : resolvedUrl;
 }
 
 const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };

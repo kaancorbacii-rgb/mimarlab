@@ -40,7 +40,13 @@ const ProjectMeta = (function () {
     // #.designer-chip-avatar img{position:absolute}) — onerror onu kaldırdığında altındaki baş
     // harfler zaten oradaydı, otomatik olarak görünür hale gelir.
     const photoUrl = d.photo ? safeUrl(d.photo) : '';
-    const avatarHtml = `<div class="designer-chip-avatar${avatarClass}" style="background:${officeColor(d.name)}">${escapeHtml(initials(d.name))}${photoUrl ? `<img src="${escapeAttr(photoUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
+    // cdnImg (bkz. image-cdn.js, bu sayfada — proje.html — her zaman yüklü) HAM (göreli) d.photo'yu
+    // bekler, safeUrl()'ün ürettiği MUTLAK URL'i değil (aksi halde "https://..." kendi path segmenti
+    // olarak /cdn-cgi/image/.../ altına eklenip bozuk bir istek üretirdi) — safeUrl(photoUrl) burada
+    // yalnızca GÜVENLİK KAPISI olarak kalır (d.photo gerçekten http(s)'e çözülüyor mu), src için HAM
+    // d.photo cdnImg'e geçirilir. Denetim bulgusu (2026-08-14): bu küçük (~24-64px) avatar önceden
+    // yükleme çözünürlüğünde isteniyordu.
+    const avatarHtml = `<div class="designer-chip-avatar${avatarClass}" style="background:${officeColor(d.name)}">${escapeHtml(initials(d.name))}${photoUrl ? `<img src="${escapeAttr(cdnImg(d.photo, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
     // d.unregistered: proje-ekle formundaki Mimar/Firma alanına yazılmış ama architects/offices'te
     // karşılığı olmayan isim (bkz. src/routes/project.js#fetchRawDesignerNames, kullanıcı isteği) —
     // hiçbir profile bağlanamadığından tıklanabilir bir bağlantı DEĞİL, sabit bir "rozet" olarak

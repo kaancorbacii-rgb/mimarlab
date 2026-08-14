@@ -370,3 +370,35 @@ export async function buildMeta(type, slugOrId, env) {
 export function listEntityUrls() {
   return [];
 }
+
+// type -> tablo adı + eşleşme sütunları. architects/offices name/slug/legacy_key alias'larının
+// HERHANGİ biriyle bulunabilir (bkz. find*Row'daki AYNI eşleşme deseni); projects yalnızca exact
+// slug ile (bkz. findProjectRow — alias yok), products da yalnızca slug ile (findProductRow'un
+// slugify-türetilmiş fallback taraması burada BİLEREK tekrarlanmaz — ek bir tam tablo taraması
+// gerektirirdi, kapsam dışı bırakıldı; en yaygın erişim yolu zaten doğrudan slug).
+const HIDDEN_CHECK_CONFIG = {
+  architect: { table: 'architects', cols: ['name', 'slug', 'legacy_key'] },
+  office: { table: 'offices', cols: ['name', 'slug', 'legacy_key'] },
+  project: { table: 'projects', cols: ['slug'] },
+  product: { table: 'products', cols: ['slug'] },
+};
+
+// buildMeta(type, key, env) null döndüğünde (kayıt bulunamadı) çağıran (src/index.js#serveDetailPage)
+// bunu 404 mü yoksa 410 mu döneceğine karar vermek için kullanır — denetim bulgusu (2026-08-14):
+// "hiç var olmamış" bir slug ile "admin tarafından bilerek gizlenmiş/silinmiş" bir slug önceden
+// AYNI 404'ü alıyordu; arama motorları 410'u (kalıcı, bilinçli kaldırma) 404'ten (belki geçici)
+// daha güçlü bir indeksten-çıkarma sinyali olarak yorumluyor. deleted_at/hidden_at FİLTRESİZ eşleşme
+// varsa true — yani bu anahtar GERÇEKTEN bir kayda karşılık geliyordu, yalnızca artık görünür değil.
+export async function isKnownButHidden(type, key, env) {
+  if (!env || !env.DB || !key) return false;
+  const config = HIDDEN_CHECK_CONFIG[type];
+  if (!config) return false;
+  try {
+    const where = config.cols.map(c => `${c} = ?`).join(' OR ');
+    const binds = config.cols.map(() => key);
+    const row = await env.DB.prepare(
+      `SELECT 1 FROM ${config.table} WHERE (${where}) AND (deleted_at IS NOT NULL OR hidden_at IS NOT NULL) LIMIT 1`
+    ).bind(...binds).first();
+    return !!row;
+  } catch { return false; }
+}

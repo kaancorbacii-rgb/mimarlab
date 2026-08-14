@@ -5,6 +5,7 @@ import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
+import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -251,17 +252,8 @@ async function fetchRawOfficeNames(env, a) {
 // id-tabanlı desen (kullanıcı isteği: proje.html'deki gezinme yapısının birebir aynısı mimar/firma/
 // ürün pop-up'larına da eklensin).
 async function fetchAdjacentArchitect(env, id) {
-  const where = `deleted_at IS NULL AND hidden_at IS NULL`;
-  let prev = await env.DB.prepare(`SELECT id, slug, name, photo_url FROM architects WHERE ${where} AND id < ? ORDER BY id DESC LIMIT 1`).bind(id).first();
-  let next = await env.DB.prepare(`SELECT id, slug, name, photo_url FROM architects WHERE ${where} AND id > ? ORDER BY id ASC LIMIT 1`).bind(id).first();
-  if (!prev) prev = await env.DB.prepare(`SELECT id, slug, name, photo_url FROM architects WHERE ${where} ORDER BY id DESC LIMIT 1`).first();
-  if (!next) next = await env.DB.prepare(`SELECT id, slug, name, photo_url FROM architects WHERE ${where} ORDER BY id ASC LIMIT 1`).first();
-  if (prev && prev.id === id) prev = null;
-  if (next && next.id === id) next = null;
-  return {
-    prevItem: prev ? { slug: prev.slug, title: prev.name, image: prev.photo_url || null } : null,
-    nextItem: next ? { slug: next.slug, title: next.name, image: next.photo_url || null } : null,
-  };
+  const { prev, next } = await fetchAdjacentEntity(env, 'architects', id, { titleCol: 'name', imageCol: 'photo_url' });
+  return { prevItem: prev, nextItem: next };
 }
 
 async function buildArchitectPayload(env, key) {

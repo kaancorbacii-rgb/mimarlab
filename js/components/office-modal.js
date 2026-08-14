@@ -331,6 +331,7 @@ const OfficeModal = (function () {
 
   function updateHeadMeta(o) {
     document.title = `${o.name} — MİMARLAB`;
+    ModalShell.setLabel(o.name);
     const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
     const canonicalUrl = `https://mimarlab.com/firma/${encodeURIComponent(slugify(o.name))}`;
     const logo = logoUrl(o);

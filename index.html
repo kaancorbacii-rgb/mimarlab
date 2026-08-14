@@ -314,7 +314,12 @@
      taştığı bildirildi) — line-height em cinsinden SABİTLENİP max-height tam 2 satırla (2 ×
      1.25em) sınırlanarak üçüncü satır kesin gizlenir; em birimleri .side-slider/mobil font-size
      override'larıyla (aşağıda) OTOMATİK ölçeklenir, ayrıca dokunmaya gerek yok. */
-  .slide-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
+  /* margin:0 — denetim bulgusu (2026-08-14): bu eleman artık bir <div> değil <h2> (bkz. aşağıdaki
+     projectSlideHtml/mimar/marka slide fonksiyonları — carousel'in o an gösterdiği tek proje/mimar/
+     firma adı, önceden yalnızca div olduğundan başlık hiyerarşisinde hiç görünmüyordu), tarayıcının
+     varsayılan h2 dış boşluğu (margin-block) sıfırlanır ki görsel yerleşim ÖNCEKİYLE BİREBİR AYNI
+     kalsın. */
+  .slide-title{margin:0; font-family:'Inter', sans-serif; font-size:17px; font-weight:700; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
   .slide-designer{font-size:12.5px; color:rgba(255,255,255,0.72); margin-top:3px;}
   .slider-arrow{
     position:absolute; top:50%; transform:translateY(-50%); z-index:3;
@@ -581,7 +586,7 @@ function projectSlideHtml(p, i){
     <img src="${escapeAttr(cdnImg(slideImg, 900))}"${slideSrcset ? ` srcset="${escapeAttr(slideSrcset)}" sizes="(max-width: 720px) 100vw, 700px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>
     <span class="slide-tag">PROJE</span>
     <div class="slide-caption">
-      <div class="slide-title">${escapeHtml(p.title)}</div>
+      <h2 class="slide-title">${escapeHtml(p.title)}</h2>
       ${meta ? `<div class="slide-designer">${escapeHtml(meta)}</div>` : ''}
     </div>
   </a>`;
@@ -709,7 +714,7 @@ function architectSlideHtml(a, i){
     ${media}
     <span class="slide-tag">Mimar</span>
     <div class="slide-caption">
-      <div class="slide-title">${escapeHtml(a.name)}</div>
+      <h2 class="slide-title">${escapeHtml(a.name)}</h2>
     </div>
   </a>`;
 }
@@ -723,7 +728,7 @@ function officeSlideHtml(o, i){
     ${media}
     <span class="slide-tag">Firma</span>
     <div class="slide-caption">
-      <div class="slide-title">${escapeHtml(o.name)}</div>
+      <h2 class="slide-title">${escapeHtml(o.name)}</h2>
     </div>
   </a>`;
 }

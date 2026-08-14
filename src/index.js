@@ -1,6 +1,6 @@
 import { json, errorJson } from './lib/http.js';
 import { logRequest } from './lib/logger.js';
-import { buildMeta, listEntityUrls } from './lib/seo.js';
+import { buildMeta, listEntityUrls, isKnownButHidden } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
@@ -320,6 +320,19 @@ export default {
 };
 
 async function routeAsset(request, env, url, ctx) {
+  // Trailing-slash normalizasyonu (denetim bulgusu, 2026-08-14): /proje/:slug/ (sondaki eğik
+  // çizgiyle) ile /proje/:slug birebir AYNI içeriği 200 ile döndürüyordu — serveDetailPage zaten
+  // slug'ı ayıklarken sondaki eğik çizgiyi siliyordu (bkz. aşağıdaki rawSlug), ama gerçek bir 301
+  // hiçbir zaman yoktu, yalnızca canonical <link> etiketi duplicate-content'i HAFİFLETİYORDU,
+  // ORTADAN KALDIRMIYORDU. Kök '/' hariç (o zaten kanonik biçim) tüm sondaki eğik çizgileri (birden
+  // fazlaysa TEK adımda) 301 ile kaldırır — sorgu dizesi korunur. GET+HEAD (redirect'in anlamlı
+  // olduğu iki yöntem — POST bu dallara zaten hiç ulaşmaz, tümü /api/ altında).
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.length > 1 && url.pathname.endsWith('/')) {
+    const dest = new URL(url);
+    dest.pathname = url.pathname.replace(/\/+$/, '');
+    return Response.redirect(dest.href, 301);
+  }
+
   if (isDisabledPagePath(url.pathname)) return notFoundPageResponse();
 
   const renameTarget = PATH_RENAME_REDIRECTS[url.pathname];
@@ -447,11 +460,16 @@ a{display:inline-block; background:#1B2A3D; color:#F5F3EF; text-decoration:none;
 // çağrılır — listeleme şablonunun AYNI HTML gövdesi korunur (client JS zaten doğru "bulunamadı"
 // durumunu kendi başına render ediyor), yalnızca durum kodu 404'e çevrilir ve bot'ların bu boş
 // kabuğu indekslememesi için noindex meta'sı eklenir.
-function notFoundDetailPageResponse(assetResponse) {
+// status: 404 (hiç var olmamış/yanlış yazılmış slug) | 410 (denetim bulgusu, 2026-08-14: kayıt
+// GERÇEKTEN vardı, admin tarafından bilerek gizlendi/silindi — bkz. çağıran taraftaki
+// isKnownButHidden kontrolü). 410 arama motorlarına 404'ten daha güçlü, kalıcı bir "bu içerik
+// bilerek kaldırıldı, tekrar deneme" sinyali verir.
+function notFoundDetailPageResponse(assetResponse, status = 404) {
   const rewritten = new HTMLRewriter()
     .on('head', { element(el) { el.append('<meta name="robots" content="noindex, follow">', { html: true }); } })
     .transform(assetResponse);
-  return new Response(rewritten.body, { status: 404, statusText: 'Not Found', headers: rewritten.headers });
+  const statusText = status === 410 ? 'Gone' : 'Not Found';
+  return new Response(rewritten.body, { status, statusText, headers: rewritten.headers });
 }
 
 function withStaticImageCacheHeaders(url, response) {
@@ -505,7 +523,10 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   // yanlıştı. Arama motorları bunu "soft 404" olarak işaretleyip tarama bütçesini/indeksleme
   // güvenini düşürüyordu (bkz. src/lib/publicCache.js#statusFor — /api/project|architect|office|
   // product/:slug uçlarındaki AYNI düzeltmenin sayfa-seviyesi karşılığı).
-  if (!meta) return notFoundDetailPageResponse(assetResponse);
+  if (!meta) {
+    const wasHidden = await isKnownButHidden(cleanRoute.type, rawSlug, env);
+    return notFoundDetailPageResponse(assetResponse, wasHidden ? 410 : 404);
+  }
 
   const rewritten = injectMeta(assetResponse, meta);
   const headers = new Headers(rewritten.headers);
