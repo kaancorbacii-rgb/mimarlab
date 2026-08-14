@@ -174,7 +174,7 @@ function architectMetaFromRecord(a, officeName, slug, officeSlug) {
   // knowsAbout ile ifade ediyoruz, aksi halde geçersiz @type Google'ın yapılandırılmış veri
   // ayrıştırıcısı tarafından sessizce yok sayılırdı.
   if (a.dept) jsonLd.knowsAbout = [a.dept];
-  return { title, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl) };
+  return { title, h1: a.name, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl) };
 }
 
 async function buildArchitectMeta(slug, env) {
@@ -206,7 +206,7 @@ async function officeMetaFromRecord(o, slug, env) {
     // city-suffixed slug'larla (bkz. proje memory notu) uyuşmayabiliyordu.
     jsonLd.founder = founders.map(f => ({ '@type': 'Person', name: f.name, url: `${SITE_ORIGIN}/mimar/${encodeURIComponent(f.slug || slugify(f.name))}` }));
   }
-  return { title, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl) };
+  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl) };
 }
 
 // slug: kaydın GERÇEK canonical o.slug'ı — bkz. findArchitectRow'daki AYNI denetim notu
@@ -251,7 +251,7 @@ async function buildProjectMeta(slug, env) {
   // audit bulgusu: og:type tüm detay sayfalarında sabit "website" kalıyordu — proje sayfaları
   // editoryal/içerik niteliğinde olduğundan (Open Graph çekirdek sözlüğünde "creative_work" gibi bir
   // tip yok) sosyal önizlemelerde en yakın karşılığı "article"dır (bkz. src/index.js#injectMeta).
-  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
+  return { title, h1: p.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
@@ -286,7 +286,7 @@ function productMetaFromRecord(record, canonicalUrl) {
   }
   // bkz. buildProjectMeta'daki AYNI og:type gerekçesi — ürün sayfaları için Open Graph'ın kendi
   // "product" tipi zaten var.
-  return { title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'product', breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
+  return { title, h1: record.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'product', breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
 }
 
 // urun.html/rating-widget.js'in target_id olarak kullandığı ANAHTARLA (bkz. src/routes/product.js#

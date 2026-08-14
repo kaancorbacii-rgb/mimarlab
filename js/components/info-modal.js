@@ -1101,3 +1101,5 @@ const InfoModal = (function () {
 
   return { open, swap, close, handlePopState, isOpen };
 })();
+// bkz. auth-modal.js sonundaki AYNI window.AuthModal notu — lazy-modals.js'in dinamik yüklemesi için.
+window.InfoModal = InfoModal;

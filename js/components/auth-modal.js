@@ -1816,3 +1816,7 @@ const AuthModal = (function () {
 
   return { open, swap, close, handlePopState, isOpen };
 })();
+// window.AuthModal — üst satırdaki `const AuthModal` klasik <script> global scope'unda kalır,
+// window'un ÖZELLİĞİ değildir; js/components/lazy-modals.js bu modülü dinamik <script> enjeksiyonuyla
+// SONRADAN yüklediğinde onload callback'i içinden window.AuthModal ile erişebilmesi için eklenir.
+window.AuthModal = AuthModal;

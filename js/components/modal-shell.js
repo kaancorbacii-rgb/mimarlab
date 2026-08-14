@@ -21,6 +21,7 @@ const ModalShell = (function () {
   let onRequestClose = null;
   let savedScrollY = 0;
   let opened = false;
+  let pageHeadingEl = null;
   let pendingGoBack = null; // bkz. goBackAndWait/waitForPendingNav
   let pendingGoBackSuperseded = false; // bkz. waitForPendingNav/wasCurrentPopSuperseded
   let contentOwner = null; // bkz. claimContent — panelleri en son hangi modal (auth/office/architect/project/product) doldurdu
@@ -333,6 +334,12 @@ const ModalShell = (function () {
       void overlayEl.offsetHeight;
       overlayEl.classList.add('open');
       opened = true;
+      // denetim bulgusu: proje/mimar/firma/urun.html'in altta kalan .page-head h1'i (artık SSR'da
+      // gerçek kayıt adını taşıyor, bkz. src/index.js#injectMeta) modal içindeki .detail-title h1 ile
+      // aynı anda DOM'da yaşıyordu — ekran okuyucular/JS çalıştıran botlar için iki canlı h1. Modal
+      // açıkken altta kalan h1 aria-hidden yapılır, kapanınca geri alınır.
+      pageHeadingEl = document.querySelector('.page-head h1');
+      if (pageHeadingEl) pageHeadingEl.setAttribute('aria-hidden', 'true');
     }
     closeButtonEl.focus();
     return { leftPanelEl: overlayEl.querySelector('.modal-shell-left'), rightPanelEl: overlayEl.querySelector('.modal-shell-right'), bodyEl, panelEl };
@@ -343,6 +350,7 @@ const ModalShell = (function () {
     opened = false;
     overlayEl.classList.remove('open');
     unlockBodyScroll();
+    if (pageHeadingEl) { pageHeadingEl.removeAttribute('aria-hidden'); pageHeadingEl = null; }
     if (triggerEl && document.contains(triggerEl)) triggerEl.focus();
     triggerEl = null;
     onRequestClose = null;

@@ -565,8 +565,17 @@ function injectMeta(response, meta) {
   const breadcrumbScript = meta.breadcrumbJsonLd
     ? `<script type="application/ld+json">${JSON.stringify(meta.breadcrumbJsonLd).replace(/</g, '\\u003c')}</script>`
     : '';
+  // denetim bulgusu (2026-08-14): proje/mimar/firma/urun.html'in paylaşılan listeleme şablonundaki
+  // statik <h1> ("Projeler"/"Mimarlar"/"Firmalar"/"Ürünler") bu fonksiyon SSR'da title/canonical/OG/
+  // JSON-LD'yi kayda göre güncellerken HİÇ dokunulmadan kalıyordu — botlar/sosyal önizlemeler için
+  // <title> kayıt adını, <h1> jenerik liste başlığını gösteriyordu. meta.h1 YALNIZCA architect/office/
+  // project/product üreticilerinde set edilir (bkz. src/lib/seo.js) — INFO_MODAL_META gibi h1'i
+  // olmayan/güncellenmesi gerekmeyen çağrılarda kural sessizce hiçbir şey yapmaz.
+  const h1Handler = { element(el) { if (meta.h1) el.setInnerContent(meta.h1); } };
   return new HTMLRewriter()
     .on('title', { element(el) { el.setInnerContent(meta.title); } })
+    .on('h1#entity-h1', h1Handler)
+    .on('h1#page-title', h1Handler)
     .on('meta#meta-description', { element(el) { el.setAttribute('content', meta.description); } })
     .on('link#canonical-link', { element(el) { el.setAttribute('href', meta.canonicalUrl); } })
     // audit bulgusu: og:type tüm detay sayfalarında şablondaki sabit "website" değerinde kalıyordu —
@@ -692,7 +701,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/uploads') return handleUploadRoute(request, env);
   if (path === '/api/contact') return handleContactRoute(request, env, url);
   if (path.startsWith('/api/newsletter/')) return handleNewsletterRoute(request, env, url);
-  if (path === '/api/csp-report') return handleCspReportRoute(request);
+  if (path === '/api/csp-report') return handleCspReportRoute(request, env);
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);
   if (path === '/api/public/badges') return handlePublicBadges(request, env, url);
   if (path.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
