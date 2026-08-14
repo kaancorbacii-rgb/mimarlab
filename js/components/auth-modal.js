@@ -685,11 +685,15 @@ const AuthModal = (function () {
           <div class="submissions-toolbar-row">
             <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
             <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
+            <a class="submissions-add-link" href="mimar-ekle.html">Mimar Ekle</a>
+            <a class="submissions-add-link" href="firma-ekle.html">Firma Ekle</a>
           </div>
           <div class="submissions-toolbar-row" id="am-submissions-filter">
             <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
             <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
+            <button type="button" class="submissions-filter-btn" data-filter="architects">Mimar</button>
+            <button type="button" class="submissions-filter-btn" data-filter="offices">Firma</button>
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
@@ -1556,16 +1560,23 @@ const AuthModal = (function () {
       const items = data.items || [];
       const list = document.getElementById('am-claims-mine-list');
       refreshArchitectSyncState(items);
+      // Reddedilen talepler (ya da bir firmanın Kurucular/Ekip listesinden çıkarılıp officeFounderCascade.js#
+      // cascadeRemovedProfileClaims tarafından 'rejected'e çevrilmiş satırlar — bkz. kullanıcı isteği: "reddedilen
+      // firma sahibi talebi ... profil bilgileri kutusunda hala gözüküyor") burada hiç gösterilmez — kullanıcının
+      // artık geçerli olmayan bir talebi/bağlantıyı kalıcı şekilde görmesinin bir faydası yok, yalnızca kafa
+      // karıştırıyor. Talep tekrar gönderilirse (bkz. src/routes/claims.js#createClaim'in rejected→pending reset'i)
+      // zaten yeniden 'pending' olarak burada görünür.
+      const visibleItems = items.filter(c => c.status !== 'rejected');
       // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
       // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
       // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
       // kullanıcı isteği: "üyelik ve firma başlıkları arasında ... diğer satırlarla aynı şekilde line").
-      if (!items.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
+      if (!visibleItems.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
       list.style.borderTop = '1px solid var(--line-soft)';
       // Firma satırı Mimar satırının ÜSTÜNDE gösterilir (bkz. kullanıcı isteği) — Array.sort
       // kararlı (stable) olduğundan aynı tip içindeki göreli sıra (API'nin updated_at DESC'i)
       // korunur, yalnızca office/architect grupları arasında sıra sabitlenir.
-      const sortedItems = items.slice().sort((a, b) => (a.profile_type === 'office' ? 0 : 1) - (b.profile_type === 'office' ? 0 : 1));
+      const sortedItems = visibleItems.slice().sort((a, b) => (a.profile_type === 'office' ? 0 : 1) - (b.profile_type === 'office' ? 0 : 1));
       list.innerHTML = sortedItems.map(c => {
         // office için: pozisyon Kurucu/Kurucu Ortak/Ortak/Ekip Lideri DEĞİLSE Düzenle linki hiç
         // gösterilmez (bkz. yukarıdaki OFFICE_EDIT_POSITIONS yorumu) — mimar profili kendi pozisyonundan

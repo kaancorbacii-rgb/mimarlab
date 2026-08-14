@@ -1,5 +1,9 @@
 import { json, errorJson, readJson } from '../lib/http.js';
-import { getSessionUser } from '../lib/auth.js';
+import { getSessionUser, publicUser } from '../lib/auth.js';
+import { updateUserProfileFields } from './auth.js';
+import { listSaved } from './saved.js';
+import { myRatings } from './ratings.js';
+import { myComments } from './comments.js';
 import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../lib/submissionTypes.js';
 import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
@@ -73,7 +77,7 @@ export async function handleAdminRoute(request, env, url) {
   // handler'ı ayrı ayrı sarmalamak yerine (12+ nokta, gereksiz risk) TEK bir noktadan `sub` etiketiyle
   // yapılandırılmış loglama eklenir — istemciye dönen yanıt DEĞİŞMEZ, yalnızca teşhis kolaylaşır.
   try {
-    if (sub === 'users' && request.method === 'GET') return await listUsers(env);
+    if (sub === 'users') return await handleUsersAdmin(request, env, url, segments);
     if (sub === 'legacy') return await handleLegacyAdmin(request, env, url, segments, user);
     if (sub === 'submissions') return await handleSubmissionsAdmin(request, env, url, segments, user);
     if (sub === 'claims') return await handleClaimsAdmin(request, env, url, segments);
@@ -223,6 +227,79 @@ async function listUsers(env) {
   const { results } = await env.DB.prepare(
     'SELECT id, email, name, dob, school, dept, role, created_at FROM users ORDER BY created_at DESC'
   ).all();
+  return json({ items: results });
+}
+
+// /api/admin/users                          (GET: listUsers, bkz. yukarısı)
+// /api/admin/users/:id                       (GET: profil detayı, PATCH: profili düzenle)
+// /api/admin/users/:id/submissions?type=X    (GET)
+// /api/admin/users/:id/saved                 (GET)
+// /api/admin/users/:id/rated                 (GET)
+// /api/admin/users/:id/comments              (GET)
+// /api/admin/users/:id/claims                (GET)
+//
+// Admin Paneli > Üyeler listesindeki bir üyeye tıklayınca o kişinin Hesabım sayfasındaki TÜM
+// bilgileri (bkz. kullanıcı isteği: "kullanıcıların hesabım sayfasını görme ve düzenleme yetkisine
+// sahip olsun") admin.html içinde bir panelde gösterilsin diye eklendi. Profil bilgileri (ad/doğum
+// tarihi/üniversite/meslek/pozisyon/hakkında) PATCH ile düzenlenebilir (auth.js#
+// updateUserProfileFields ile AYNI doğrulama — kullanıcının kendi PATCH /api/profile'ıyla birebir
+// aynı kod yolu). Diğer kutular (Mimar/Firma Profilim, Paylaştığım İçerikler, Kaydettiklerim,
+// Beğendiklerim, Yorumlarım) salt-okunur listelenir — içerik düzenlemesi zaten *-ekle.html?edit=
+// sayfaları üzerinden mümkün (submissions.js#getOwnSubmission/updateOwnSubmission admin için
+// sahiplik kontrolünü zaten atlıyor, bkz. o dosyadaki yorum). Şifre/hesap silme gibi güvenlik
+// hassasiyeti yüksek işlemler burada BİLEREK yok — admin bir üyenin şifresini görmemeli/
+// değiştirmemeli, hesabını da sessizce silmemeli.
+async function handleUsersAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') return await listUsers(env);
+
+  const targetId = segments[3];
+  if (!targetId) return errorJson('Bulunamadı', 404);
+
+  if (segments.length === 4 && request.method === 'GET') return await getUserAdmin(env, targetId);
+  if (segments.length === 4 && request.method === 'PATCH') return await updateUserAdmin(request, env, targetId);
+
+  if (segments.length === 5 && request.method === 'GET') {
+    const resource = segments[4];
+    if (resource === 'submissions') return await listUserSubmissionsAdmin(env, targetId, url);
+    if (resource === 'saved') return await listSaved(env, { id: targetId });
+    if (resource === 'rated') return await myRatings(env, { id: targetId });
+    if (resource === 'comments') return await myComments(env, { id: targetId });
+    if (resource === 'claims') return await listUserClaimsAdmin(env, targetId);
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+async function getUserAdmin(env, targetId) {
+  const row = await env.DB.prepare(
+    'SELECT id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
+  ).bind(targetId).first();
+  if (!row) return errorJson('Kullanıcı bulunamadı.', 404);
+  return json({ user: publicUser(row) });
+}
+
+async function updateUserAdmin(request, env, targetId) {
+  const exists = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(targetId).first();
+  if (!exists) return errorJson('Kullanıcı bulunamadı.', 404);
+  const body = await readJson(request);
+  const result = await updateUserProfileFields(env, targetId, body);
+  if (result.error) return errorJson(result.error);
+  return json({ user: result.user });
+}
+
+async function listUserSubmissionsAdmin(env, targetId, url) {
+  const typeKey = TYPE_BY_PATH[url.searchParams.get('type')];
+  if (!typeKey) return errorJson('Geçersiz tip.');
+  const config = SUBMISSION_TYPES[typeKey];
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM ${config.table} WHERE owner_user_id = ? ORDER BY created_at DESC`
+  ).bind(targetId).all();
+  return json({ items: results.map(r => parseSubmissionRow(typeKey, r)) });
+}
+
+async function listUserClaimsAdmin(env, targetId) {
+  const { results } = await env.DB.prepare(
+    'SELECT profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
+  ).bind(targetId).all();
   return json({ items: results });
 }
 

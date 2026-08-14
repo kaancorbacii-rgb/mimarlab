@@ -11,7 +11,7 @@ import { cascadeDeleteAccount } from '../lib/cascadeDelete.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
-const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'ogrenci', 'diger']);
+export const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'ogrenci', 'diger']);
 const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bolge_planlama', 'restorasyon', 'diger']);
 // mimar-ekle.html'deki POZISYON_OPTIONS ile BİREBİR aynı (bkz. kullanıcı isteği: "Mimar ekle sayfası
 // ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — 'Ortak'/'Ekip Lideri' bu
@@ -341,23 +341,23 @@ async function resetPassword(request, env) {
   return json({ ok: true });
 }
 
-export async function handleProfileRoute(request, env, url) {
-  if (url.pathname !== '/api/profile' || request.method !== 'PATCH') return errorJson('Bulunamadı', 404);
-  const user = await getSessionUser(request, env);
-  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
-
-  const body = await readJson(request);
+// Profil alanlarını doğrulayıp günceller — hem kullanıcının kendi PATCH /api/profile isteğinde
+// (aşağıda) hem de admin'in bir üyenin hesabını Admin Paneli > Üyeler'den düzenlemesinde (bkz.
+// src/routes/admin.js#updateUserAdmin, kullanıcı isteği: "adminin üye hesaplarını görme ve
+// düzenleme yetkisi olsun") AYNI doğrulama/kaydetme mantığı kullanılsın diye ayrı bir fonksiyona
+// çıkarıldı — iki çağıran arasındaki tek fark hangi user id'nin güncellendiği.
+export async function updateUserProfileFields(env, userId, body) {
   if ('photo_url' in body && !isSafeUrlValue(body.photo_url)) {
-    return errorJson('Profil fotoğrafı bağlantısı geçersiz.');
+    return { error: 'Profil fotoğrafı bağlantısı geçersiz.' };
   }
   if ('profession' in body && body.profession && !PROFESSIONS.has(body.profession)) {
-    return errorJson('Geçersiz meslek.');
+    return { error: 'Geçersiz meslek.' };
   }
   if ('position' in body && body.position && !POSITIONS.has(body.position)) {
-    return errorJson('Geçersiz pozisyon.');
+    return { error: 'Geçersiz pozisyon.' };
   }
   if ('school' in body && isInvalidSchoolValue(body.school)) {
-    return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
+    return { error: 'Geçerli bir üniversite adı gir (kısaltma kullanma).' };
   }
   // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
   // ödül, sosyal medya ve açıklama ekleyebilsinler" — mimar-ekle.html'in aynı alanlarıyla AYNI JSON
@@ -381,14 +381,25 @@ export async function handleProfileRoute(request, env, url) {
       : [];
     updates.push('social_links = ?'); values.push(JSON.stringify(links));
   }
-  if (!updates.length) return errorJson('Güncellenecek bir şey yok.');
-  values.push(user.id);
+  if (!updates.length) return { error: 'Güncellenecek bir şey yok.' };
+  values.push(userId);
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
 
   const updated = await env.DB.prepare(
     'SELECT id, email, name, dob, school, dept, photo_url, profession, position, awards, about, social_links, role, created_at FROM users WHERE id = ?'
-  ).bind(user.id).first();
-  return json({ user: publicUser(updated) });
+  ).bind(userId).first();
+  return { user: publicUser(updated) };
+}
+
+export async function handleProfileRoute(request, env, url) {
+  if (url.pathname !== '/api/profile' || request.method !== 'PATCH') return errorJson('Bulunamadı', 404);
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  const body = await readJson(request);
+  const result = await updateUserProfileFields(env, user.id, body);
+  if (result.error) return errorJson(result.error);
+  return json({ user: result.user });
 }
 
 // DELETE /api/account — "Hesabımı Sil" (bkz. hesabim.html). Kullanıcının kendi isteğiyle hesabını

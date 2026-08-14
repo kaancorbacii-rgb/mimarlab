@@ -204,6 +204,27 @@
   .form-notice.show{display:block;}
   .form-loading{display:none; margin-top:12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
   .form-loading.show{display:block;}
+  /* ---------- Gönderim sonrası "sana mı ait?" claim kutusu (bkz. kullanıcı isteği) — js/components/
+     claim-correction-box.js#injectStyles'daki .feedback-card ile AYNI kapalı/"+" deseni, burada tek
+     bir kutu için ayrı bir prefiksle (psc-) tekrarlanır: o bileşen bir profil DETAY sayfasındaki
+     hazır #claim-info-card/#claim-card-body DOM'una bağlanacak şekilde tasarlandığından (bkz. o
+     dosyanın loadClaimCard'ı), az önce gönderilmiş YENİ bir kayıt için burada uygun değil. ---------- */
+  .psc-box{display:none; margin-top:14px; padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:var(--paper-card);}
+  .psc-box[open]{padding-bottom:18px;}
+  .psc-box.show{display:block;}
+  .psc-box > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Fraunces', serif; font-size:14.5px; font-weight:600; color:var(--ink);}
+  .psc-box > summary::-webkit-details-marker{display:none;}
+  .psc-box[open] > summary{margin-bottom:10px;}
+  .psc-plus{flex-shrink:0; width:18px; height:18px; position:relative; margin-left:10px;}
+  .psc-plus::before, .psc-plus::after{content:''; position:absolute; top:50%; left:50%; background:var(--ink-soft); transform:translate(-50%,-50%); transition:transform 0.15s ease;}
+  .psc-plus::before{width:12px; height:2px;}
+  .psc-plus::after{width:2px; height:12px;}
+  .psc-box[open] .psc-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
+  .psc-box p{margin:0 0 12px; font-size:12.5px; color:var(--ink-soft); line-height:1.5;}
+  .psc-box button{background:var(--ink); color:var(--paper-card); border:none; padding:9px 18px; border-radius:100px; font-weight:600; font-size:12.5px;}
+  .psc-box button:hover{background:var(--walnut);}
+  .psc-box button:disabled{opacity:0.5; cursor:not-allowed;}
+  .psc-box .psc-msg{margin-top:10px; font-size:12px; color:var(--sage);}
 
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
@@ -395,6 +416,12 @@
       <button class="form-submit" type="submit">Gönder</button>
       <div class="form-loading" id="form-loading">Gönderiliyor...</div>
       <div class="form-notice" id="form-notice"></div>
+      <details class="psc-box" id="psc-box">
+        <summary><span>Gönderdiğin Profil sana mı ait?</span><span class="psc-plus"></span></summary>
+        <p>Az önce gönderdiğin mimar profili sana aitse, sahiplenme talebini şimdi gönderebilirsin — admin onayının ardından bu profili kendi hesabından yönetebilirsin.</p>
+        <button type="button" id="psc-claim-btn">Evet, bana ait — talep gönder</button>
+        <p class="psc-msg" id="psc-msg" style="display:none;"></p>
+      </details>
     </form>
   </div>
 
@@ -1061,6 +1088,7 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
     notice.textContent = 'Kaydın alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
+    showPostSubmitClaimBox(payload.name);
     form.reset();
     selectedFiles = [];
     renderPreviews();
@@ -1072,6 +1100,43 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
   }
 });
 
+// Gönderdiğin (yeni, admin onayı bekleyen) mimar profili sana aitse, formu tekrar doldurup
+// mimar-detay/mimar.html'e gitmeye gerek kalmadan aynı sayfadan sahiplenme talebi gönderebilsin diye
+// (bkz. kullanıcı isteği) — POST /api/claims claim-correction-box.js#loadClaimCard'daki AYNI uç,
+// admin talebi "Profil Talepleri" kuyruğunda normal şekilde görür (src/routes/claims.js#createClaim
+// canonical satırın önceden var olmasını gerektirmiyor).
+let pscProfileKey = null;
+const pscBox = document.getElementById('psc-box');
+const pscBtn = document.getElementById('psc-claim-btn');
+const pscMsg = document.getElementById('psc-msg');
+function showPostSubmitClaimBox(profileKey){
+  pscProfileKey = profileKey;
+  pscBox.open = false;
+  pscBox.classList.add('show');
+  pscBtn.disabled = false;
+  pscBtn.style.display = '';
+  pscBtn.textContent = 'Evet, bana ait — talep gönder';
+  pscMsg.style.display = 'none';
+}
+pscBtn.addEventListener('click', async ()=>{
+  if(!pscProfileKey) return;
+  pscBtn.disabled = true;
+  pscBtn.textContent = 'Gönderiliyor…';
+  try{
+    await fetch('/api/claims', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ profileType:'architect', profileKey: pscProfileKey }),
+    });
+    pscMsg.textContent = 'Talebin alındı — admin onayının ardından profil hesabına bağlanacak.';
+    pscMsg.style.display = '';
+    pscBtn.style.display = 'none';
+  }catch{
+    pscMsg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+    pscMsg.style.display = '';
+    pscBtn.disabled = false;
+    pscBtn.textContent = 'Evet, bana ait — talep gönder';
+  }
+});
 
 </script>
 </body>

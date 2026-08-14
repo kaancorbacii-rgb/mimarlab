@@ -16,7 +16,9 @@ export async function handleRatingsRoute(request, env, url) {
     return bulkRatings(env, url);
   }
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
-    return myRatings(request, env);
+    const user = await getSessionUser(request, env);
+    if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+    return myRatings(env, user);
   }
   if (segments.length === 2 && request.method === 'GET') return getRating(request, env, url);
   if (segments.length === 2 && request.method === 'POST') return upsertRating(request, env);
@@ -122,10 +124,9 @@ function ratingCardShape(targetType, row) {
 // ratings tablosu bu görüntüleme alanlarını kaydetmediğinden (yalnızca stars + doğal anahtar),
 // canonical satır bulunup findCanonicalRowByNaturalKey ile eşleştirilir; sonradan silinmiş/gizlenmiş
 // bir hedefse (canonical satır artık yok ya da hidden_at/deleted_at doluysa) sessizce atlanır.
-async function myRatings(request, env) {
-  const user = await getSessionUser(request, env);
-  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
-
+// admin.js#listUserRatingsAdmin de bunu (env, {id: targetUserId}) ile çağırır — bkz. kullanıcı
+// isteği: admin Üyeler listesinden bir üyenin Beğendiklerim'ini görebilsin.
+export async function myRatings(env, user) {
   const { results } = await env.DB.prepare(
     'SELECT target_type, target_id, stars, updated_at FROM ratings WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(user.id).all();

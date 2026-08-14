@@ -12,7 +12,11 @@ const TARGET_TYPES = new Set(['project', 'news', 'architect', 'office']);
 export async function handleCommentsRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "comments", maybe "mine"/id]
 
-  if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') return myComments(request, env);
+  if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
+    const user = await getSessionUser(request, env);
+    if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+    return myComments(env, user);
+  }
   if (segments.length === 2) {
     if (request.method === 'GET') return listComments(env, url);
     if (request.method === 'POST') return createComment(request, env);
@@ -91,10 +95,9 @@ function commentCardShape(targetType, row) {
   return { title: row.name, image: (targetType === 'architect' ? row.photo_url : row.logo_url) || null, href: HREF_BASE_BY_TARGET[targetType] + encodeURIComponent(row.slug) };
 }
 
-async function myComments(request, env) {
-  const user = await getSessionUser(request, env);
-  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
-
+// admin.js#listUserCommentsAdmin de bunu (env, {id: targetUserId}) ile çağırır — bkz. kullanıcı
+// isteği: admin Üyeler listesinden bir üyenin Yorumlarım'ını görebilsin.
+export async function myComments(env, user) {
   const { results } = await env.DB.prepare(
     'SELECT id, target_type, target_id, body, status, created_at FROM comments WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();

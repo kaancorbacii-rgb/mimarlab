@@ -42,7 +42,9 @@ export async function handleSavedRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
-async function listSaved(env, user) {
+// admin.js#listUserSavedAdmin de bunu (env, {id: targetUserId}) ile çağırır — bkz. kullanıcı
+// isteği: admin Üyeler listesinden bir üyenin Kaydettiklerim'ini görebilsin.
+export async function listSaved(env, user) {
   const { results } = await env.DB.prepare(
     'SELECT item_type, item_key, item_title, item_meta, item_image, item_href, created_at FROM saved_items WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();

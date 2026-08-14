@@ -158,6 +158,28 @@
   .admin-denied{max-width:520px; margin:80px auto; text-align:center; padding:0 24px;}
   .admin-denied h1{font-family:'Inter', sans-serif; font-size:24px;}
 
+  /* ---------- Üyeler > kullanıcı detay paneli (bkz. kullanıcı isteği: admin bir üyeye tıklayınca
+     o kişinin Hesabım sayfasındaki bilgileri görüp düzenleyebilsin) ---------- */
+  .users-list-row{cursor:pointer;}
+  .users-list-row:hover{border-color:var(--walnut);}
+  .ud-overlay{display:none; position:fixed; inset:0; z-index:200; background:rgba(15,20,28,0.55); padding:40px 20px; overflow-y:auto;}
+  .ud-overlay.show{display:block;}
+  .ud-panel{max-width:820px; margin:0 auto; background:var(--paper); border-radius:16px; padding:28px; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+  .ud-close{position:absolute; top:18px; right:18px; width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--paper-card); font-size:18px; line-height:1; color:var(--ink);}
+  .ud-close:hover{border-color:var(--walnut);}
+  .ud-title{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; margin:0 0 2px; padding-right:40px;}
+  .ud-subtitle{font-size:13px; color:var(--ink-soft); margin:0 0 20px;}
+  .ud-section{margin-top:22px;}
+  .ud-section h3{font-family:'Inter', sans-serif; font-size:14.5px; font-weight:700; margin:0 0 10px;}
+  .ud-fact-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:12.5px;}
+  .ud-fact-row:last-child{border-bottom:none;}
+  .ud-fact-label{color:var(--ink-soft); font-weight:600; flex-shrink:0;}
+  .ud-fact-value{text-align:right;}
+  .ud-list-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line-soft); font-size:12.5px;}
+  .ud-list-row:last-child{border-bottom:none;}
+  .ud-list-empty{color:var(--ink-soft); font-size:12.5px; padding:8px 0;}
+  .ud-save-msg{font-size:12.5px; color:var(--ink-soft); margin-left:10px;}
+
   .site-footer{background:var(--ink); color:var(--paper); margin-top:40px;}
   .footer-top{
     max-width:1080px; margin:0 auto;
@@ -287,6 +309,59 @@
 
       <div class="admin-section" id="section-users">
         <div id="users-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ud-overlay" id="ud-overlay">
+    <div class="ud-panel">
+      <button type="button" class="ud-close" id="ud-close-btn" aria-label="Kapat">&times;</button>
+      <h2 class="ud-title" id="ud-title">—</h2>
+      <p class="ud-subtitle" id="ud-subtitle">—</p>
+
+      <div class="ud-section">
+        <h3>Profil Bilgileri</h3>
+        <div class="admin-form" style="margin-bottom:0;">
+          <div class="admin-field"><label>Ad Soyad</label><input type="text" id="ud-f-name"></div>
+          <div class="admin-field"><label>Doğum Tarihi</label><input type="date" id="ud-f-dob"></div>
+          <div class="admin-field"><label>Üniversite</label><input type="text" id="ud-f-school"></div>
+          <div class="admin-field">
+            <label>Meslek</label>
+            <select id="ud-f-profession"></select>
+          </div>
+          <div class="admin-field">
+            <label>Pozisyon</label>
+            <select id="ud-f-position"></select>
+          </div>
+          <div class="admin-field"><label>Hakkında</label><textarea id="ud-f-about"></textarea></div>
+          <button type="button" class="admin-btn primary" id="ud-save-btn">Kaydet</button>
+          <span class="ud-save-msg" id="ud-save-msg"></span>
+        </div>
+      </div>
+
+      <div class="ud-section">
+        <h3>Mimar/Firma Profili</h3>
+        <div id="ud-claims-list"></div>
+      </div>
+
+      <div class="ud-section">
+        <h3>Paylaştığım İçerikler</h3>
+        <div id="ud-submissions-list"></div>
+      </div>
+
+      <div class="ud-section">
+        <h3>Kaydettiklerim</h3>
+        <div id="ud-saved-list"></div>
+      </div>
+
+      <div class="ud-section">
+        <h3>Beğendiklerim</h3>
+        <div id="ud-rated-list"></div>
+      </div>
+
+      <div class="ud-section">
+        <h3>Yorumlarım</h3>
+        <div id="ud-comments-list"></div>
       </div>
     </div>
   </div>
@@ -854,7 +929,7 @@ async function loadUsers(){
   const items = data.items || [];
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Henüz üye yok.</div>'; return; }
   list.innerHTML = items.map(u => `
-    <div class="admin-card">
+    <div class="admin-card users-list-row" data-id="${escapeAttr(u.id)}">
       <div class="admin-card-head">
         <div>
           <div class="admin-card-title">${escapeHtml(u.name)} ${u.role === 'admin' ? '<span class="admin-badge badge-approved">Admin</span>' : ''}</div>
@@ -863,9 +938,162 @@ async function loadUsers(){
       </div>
     </div>
   `).join('');
+  list.querySelectorAll('.users-list-row').forEach(row=>{
+    row.addEventListener('click', () => openUserDetail(row.dataset.id));
+  });
 }
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// ---------- Üyeler > kullanıcı detay paneli ----------
+// Admin Panelindeki bir üyeye tıklayınca o kişinin Hesabım sayfasındaki bilgilerini (profil,
+// mimar/firma profili, gönderdiği içerikler, kaydettikleri, beğendikleri, yorumları) gösterir ve
+// profil bilgilerini düzenlemesine izin verir (bkz. kullanıcı isteği, src/routes/admin.js#
+// handleUsersAdmin). İçerik düzenlemesi (proje/mimar/firma/ürün) burada değil, "Düzenle" linkiyle
+// açılan *-ekle.html?edit= sayfasında yapılır (admin zaten o sayfalarda herkesin gönderisini
+// düzenleyebiliyor, bkz. src/routes/submissions.js#getOwnSubmission).
+const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
+const UD_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İşsiz'];
+const UD_CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
+const UD_CLAIM_STATUS_LABELS = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
+
+(function wireUdSelects(){
+  const prof = document.getElementById('ud-f-profession');
+  prof.innerHTML = '<option value="">—</option>' + Object.entries(UD_PROFESSION_LABELS).map(([k,v]) => `<option value="${escapeAttr(k)}">${escapeHtml(v)}</option>`).join('');
+  const pos = document.getElementById('ud-f-position');
+  pos.innerHTML = '<option value="">—</option>' + UD_POSITIONS.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
+})();
+
+let udCurrentUserId = null;
+
+async function openUserDetail(userId){
+  udCurrentUserId = userId;
+  document.getElementById('ud-overlay').classList.add('show');
+  document.getElementById('ud-save-msg').textContent = '';
+  document.getElementById('ud-title').textContent = 'Yükleniyor…';
+  document.getElementById('ud-subtitle').textContent = '';
+  ['ud-claims-list','ud-submissions-list','ud-saved-list','ud-rated-list','ud-comments-list'].forEach(id=>{
+    document.getElementById(id).innerHTML = '<div class="ud-list-empty">Yükleniyor…</div>';
+  });
+
+  const data = await api(`/api/admin/users/${encodeURIComponent(userId)}`);
+  const u = data.user;
+  document.getElementById('ud-title').textContent = u.name || '—';
+  document.getElementById('ud-subtitle').textContent = u.email + (u.role === 'admin' ? ' · Admin' : '');
+  document.getElementById('ud-f-name').value = u.name || '';
+  document.getElementById('ud-f-dob').value = u.dob || '';
+  document.getElementById('ud-f-school').value = u.school || '';
+  document.getElementById('ud-f-profession').value = u.profession || '';
+  document.getElementById('ud-f-position').value = u.position || '';
+  document.getElementById('ud-f-about').value = u.about || '';
+
+  loadUdClaims(userId);
+  loadUdSubmissions(userId);
+  loadUdSaved(userId);
+  loadUdRated(userId);
+  loadUdComments(userId);
+}
+
+function closeUserDetail(){
+  document.getElementById('ud-overlay').classList.remove('show');
+  udCurrentUserId = null;
+}
+document.getElementById('ud-close-btn').addEventListener('click', closeUserDetail);
+document.getElementById('ud-overlay').addEventListener('click', (e)=>{ if(e.target.id === 'ud-overlay') closeUserDetail(); });
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && document.getElementById('ud-overlay').classList.contains('show')) closeUserDetail(); });
+
+document.getElementById('ud-save-btn').addEventListener('click', async ()=>{
+  if(!udCurrentUserId) return;
+  const btn = document.getElementById('ud-save-btn');
+  const msg = document.getElementById('ud-save-msg');
+  const body = {
+    name: document.getElementById('ud-f-name').value,
+    dob: document.getElementById('ud-f-dob').value || null,
+    school: document.getElementById('ud-f-school').value || null,
+    profession: document.getElementById('ud-f-profession').value || null,
+    position: document.getElementById('ud-f-position').value || null,
+    about: document.getElementById('ud-f-about').value || null,
+  };
+  btn.disabled = true;
+  msg.textContent = 'Kaydediliyor…';
+  try{
+    const data = await api(`/api/admin/users/${encodeURIComponent(udCurrentUserId)}`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    if(data.error){ msg.textContent = data.error; }
+    else{
+      msg.textContent = 'Kaydedildi.';
+      loadUsers();
+      document.getElementById('ud-title').textContent = data.user.name || '—';
+    }
+  }catch{
+    msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+async function loadUdClaims(userId){
+  const container = document.getElementById('ud-claims-list');
+  const data = await api(`/api/admin/users/${encodeURIComponent(userId)}/claims`);
+  const items = data.items || [];
+  if(!items.length){ container.innerHTML = '<div class="ud-list-empty">Bağlı bir mimar/firma profili yok.</div>'; return; }
+  container.innerHTML = items.map(c => `
+    <div class="ud-list-row">
+      <span><strong>${UD_CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</strong> · ${escapeHtml(c.profile_key)}</span>
+      <span class="admin-badge ${c.status === 'approved' ? 'badge-approved' : c.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}">${UD_CLAIM_STATUS_LABELS[c.status] || c.status}</span>
+    </div>
+  `).join('');
+}
+
+async function loadUdSubmissions(userId){
+  const container = document.getElementById('ud-submissions-list');
+  const types = Object.keys(TYPE_LABELS);
+  const results = await Promise.all(types.map(t => api(`/api/admin/users/${encodeURIComponent(userId)}/submissions?type=${t}`).catch(() => ({items:[]}))));
+  const all = [];
+  types.forEach((t, i) => (results[i].items || []).forEach(item => all.push({type: t, item})));
+  all.sort((a, b) => b.item.created_at - a.item.created_at);
+  if(!all.length){ container.innerHTML = '<div class="ud-list-empty">Henüz bir içerik gönderilmemiş.</div>'; return; }
+  container.innerHTML = all.map(({type, item}) => `
+    <div class="ud-list-row">
+      <span><strong>${TYPE_LABELS[type]}</strong> · ${escapeHtml(itemTitle(type, item))}</span>
+      <span style="display:flex; align-items:center; gap:10px;">
+        ${(type === 'products' || type === 'materials') ? '' : `<a href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}" target="_blank" rel="noopener" style="color:var(--walnut); font-weight:600;">Düzenle</a>`}
+        <span class="admin-badge ${item.status === 'approved' ? 'badge-approved' : item.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}">${STATUS_LABELS[item.status] || item.status}</span>
+      </span>
+    </div>
+  `).join('');
+}
+
+async function loadUdSaved(userId){
+  const container = document.getElementById('ud-saved-list');
+  const data = await api(`/api/admin/users/${encodeURIComponent(userId)}/saved`);
+  const items = data.items || [];
+  if(!items.length){ container.innerHTML = '<div class="ud-list-empty">Hiçbir şey kaydetmemiş.</div>'; return; }
+  container.innerHTML = items.map(it => `
+    <div class="ud-list-row"><span>${escapeHtml(it.item_title || it.item_key)}</span><span style="color:var(--ink-soft);">${escapeHtml(it.item_type)}</span></div>
+  `).join('');
+}
+
+async function loadUdRated(userId){
+  const container = document.getElementById('ud-rated-list');
+  const data = await api(`/api/admin/users/${encodeURIComponent(userId)}/rated`);
+  const items = data.items || [];
+  if(!items.length){ container.innerHTML = '<div class="ud-list-empty">Hiçbir şey puanlamamış.</div>'; return; }
+  container.innerHTML = items.map(it => `
+    <div class="ud-list-row"><span>${escapeHtml(it.title || it.key)}</span><span style="color:var(--ink-soft);">${'★'.repeat(it.stars)}${'☆'.repeat(5 - it.stars)}</span></div>
+  `).join('');
+}
+
+async function loadUdComments(userId){
+  const container = document.getElementById('ud-comments-list');
+  const data = await api(`/api/admin/users/${encodeURIComponent(userId)}/comments`);
+  const items = data.items || [];
+  if(!items.length){ container.innerHTML = '<div class="ud-list-empty">Hiç yorum yapmamış.</div>'; return; }
+  container.innerHTML = items.map(it => `
+    <div class="ud-list-row"><span>${escapeHtml(it.title || '')} — ${escapeHtml(it.body.length > 70 ? it.body.slice(0, 67) + '…' : it.body)}</span><span class="admin-badge ${it.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${STATUS_LABELS[it.status] || it.status}</span></div>
+  `).join('');
+}
 
 // Sekme başlıklarındaki kırmızı noktaları /api/admin/summary'den gelen sayılara göre günceller;
 // her onay/red/okundu-işaretle işleminden sonra tekrar çağrılır ki nokta anlık güncel kalsın.
