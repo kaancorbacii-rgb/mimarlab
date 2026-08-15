@@ -48,20 +48,45 @@ const ProjectActions = (function () {
     if (mySubmission) {
       const html = await editSubmissionBtnHtml('projects', mySubmission.id);
       if (html) editSlot.innerHTML = html;
-      // Sahip için Sil butonu — admin'in Arşivle/Sil çiftinden farklı olarak (bkz.
-      // mountAdminModerationButtons) sahibe yalnızca doğrudan Sil sunulur (kullanıcı isteği).
+      // Sahip için Arşivle + Sil — admin'in aynı çiftiyle AYNI görünüm (kullanıcı isteği: sahip
+      // popup'ından Düzenle/Arşivle/Sil üçünü de görebilsin).
       const adminSlot = document.getElementById('pm-admin-actions-slot');
-      adminSlot.innerHTML = `<button type="button" class="card-delete-btn" id="pm-owner-delete-btn">Sil</button>`;
+      adminSlot.innerHTML = `
+        <button type="button" class="card-edit-btn" id="pm-owner-archive-btn">Arşivle</button>
+        <button type="button" class="card-delete-btn" id="pm-owner-delete-btn">Sil</button>
+      `;
+      document.getElementById('pm-owner-archive-btn').addEventListener('click', () => runOwnerArchive(item));
       document.getElementById('pm-owner-delete-btn').addEventListener('click', () => runOwnerDelete(item));
     } else if (currentUser.role === 'admin') {
       editSlot.innerHTML = `<a class="card-edit-btn" href="proje-ekle.html?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
     }
   }
 
+  async function runOwnerArchive(item) {
+    if (!confirm('Bu projeyi arşivlemek istediğine emin misin? Proje canlıdan kaldırılıp hesabından tekrar düzenleyebilirsin.')) return;
+    const btn = document.getElementById('pm-owner-archive-btn');
+    const otherBtn = document.getElementById('pm-owner-delete-btn');
+    if (btn) btn.disabled = true;
+    if (otherBtn) otherBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/project/${encodeURIComponent(item.slug)}/moderate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'archive' }),
+      });
+      if (!res.ok) throw new Error('request failed');
+      window.location.href = '/proje';
+    } catch {
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      if (btn) btn.disabled = false;
+      if (otherBtn) otherBtn.disabled = false;
+    }
+  }
+
   async function runOwnerDelete(item) {
     if (!confirm('Bu projeyi silmek istediğine emin misin? Proje anında canlı siteden kaldırılır.')) return;
     const btn = document.getElementById('pm-owner-delete-btn');
+    const otherBtn = document.getElementById('pm-owner-archive-btn');
     if (btn) btn.disabled = true;
+    if (otherBtn) otherBtn.disabled = true;
     try {
       const res = await fetch(`/api/project/${encodeURIComponent(item.slug)}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('request failed');
@@ -69,6 +94,7 @@ const ProjectActions = (function () {
     } catch {
       alert('Bir şeyler ters gitti, tekrar dene.');
       if (btn) btn.disabled = false;
+      if (otherBtn) otherBtn.disabled = false;
     }
   }
 

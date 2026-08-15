@@ -9,7 +9,7 @@ import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } fro
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
 import { handleAdminRoute } from './routes/admin.js';
-import { handleSelfProjectDelete } from './routes/legacyContent.js';
+import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
@@ -737,6 +737,12 @@ async function routeApi(request, env, url) {
     // js/components/project-actions.js#runOwnerDelete, kullanıcı isteği) — GET (yukarıdaki
     // handleProjectDetailRoute, herkese açık detay) ile AYNI path'i paylaşır, method'a göre ayrılır.
     if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, decodeURIComponent(projectSlug));
+    // POST .../moderate {action:'archive'}: sahibin/admin'in pop-up'tan "Arşivle"ye basması (bkz.
+    // js/components/project-actions.js#runOwnerModerate) — GET'ten ÖNCE özel olarak yakalanmalı,
+    // aksi halde handleProjectDetailRoute slug'ı "some-slug/moderate" olarak arardı.
+    if (projectSlug.endsWith('/moderate') && request.method === 'POST') {
+      return handleSelfProjectModerate(request, env, decodeURIComponent(projectSlug.slice(0, -'/moderate'.length)));
+    }
     return handleProjectDetailRoute(request, env, url, projectSlug);
   }
   // Ürün detay — js/components/product-modal.js#fetchItem bu uca bağlanır (urun.html'in ProductModal'ı

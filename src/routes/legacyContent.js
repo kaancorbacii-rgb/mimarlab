@@ -477,6 +477,24 @@ export async function handleSelfProjectDelete(request, env, slug) {
   return runProjectAction(env, user, { action: 'delete', slug });
 }
 
+// POST /api/project/:slug/moderate  body: {action:'archive'}  — proje sahibinin (ya da admin'in)
+// kendi popup'ından "Arşivle"ye basması (bkz. kullanıcı isteği: sahibe Düzenle/Arşivle/Sil üçü
+// birden gösterilsin). handleSelfProjectDelete ile AYNI sahiplik doğrulaması kullanılır; delete
+// zaten ayrı bir DELETE metoduna sahip olduğundan burada yalnızca 'archive' kabul edilir.
+export async function handleSelfProjectModerate(request, env, slug) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+  const body = await readJson(request);
+  if (body.action !== 'archive') return errorJson('Geçersiz işlem.');
+  if (user.role !== 'admin') {
+    const owns = await env.DB.prepare(
+      `SELECT 1 FROM project_submissions WHERE owner_user_id = ? AND (slug = ? OR claimed_slug = ?) LIMIT 1`
+    ).bind(user.id, slug, slug).first();
+    if (!owns) return errorJson('Bu proje için yetkin yok.', 403);
+  }
+  return runProjectAction(env, user, { action: 'archive', slug });
+}
+
 // architects/offices için "arşivle" — canonical satırın GÜNCEL hâlini bir *_submissions taslağına
 // kopyalar (admin'in mevcut düzenleme formlarıyla düzenleyebilmesi için), sonra canonical satırı
 // hidden_at ile canlıdan çeker. "Yayınla" taslağı onaylar (canonical'a senkronlar) ve hidden_at'i temizler.

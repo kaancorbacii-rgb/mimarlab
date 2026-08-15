@@ -794,6 +794,33 @@ const AuthModal = (function () {
   const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
   const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };
 
+  // badge-shared.js#badgeIconHtml'in AYNEN kopyası (bkz. hesabim.html#accountBadgeIconHtml'deki AYNI
+  // gerekçe — badge-shared.js bu sayfaya YÜKLENMİYOR, kendi initials()/palette gibi globalleriyle
+  // çakışabilir) — Ad Soyad/Firma satırlarının yanına aktif rozet ikonu basmak için kullanılır (bkz.
+  // kullanıcı isteği). 'destekci' KASITLI OLARAK gösterilmez — bkz. src/lib/badgeAccess.js.
+  const ACCOUNT_BADGE_LABELS = { verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye', 'iz-birakan': 'İz Bırakan' };
+  const ACCOUNT_BADGE_COLORS = { verified: '#0095F6', gold: '#D4A72C', platinum: '#4FB3D9', 'iz-birakan': '#1B1F24' };
+  const ACCOUNT_SEAL_BADGE_SVG = '<path d="M12 2 14.5 5.5 19 5l-.5 4.5L22 12l-3.5 2.5.5 4.5-4.5-.5L12 22l-2.5-3.5-4.5.5.5-4.5L2 12l3.5-2.5L5 5l4.5.5Z"/><path d="M9 12.5l2 2 4-4.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+  const ACCOUNT_GEM_BADGE_SVG = '<path d="M4.5 9 8 3.5h8L19.5 9 12 21.5 4.5 9Z"/><path d="M4.5 9h15M8 3.5 12 9m4-5.5L12 9M12 9v12.5" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>';
+  function accountBadgeIconHtml(badgeType) {
+    if (!badgeType || badgeType === 'destekci') return '';
+    const isGem = badgeType === 'platinum';
+    const size = 14, width = isGem ? Math.round(size * 1.3) : size;
+    return `<span title="${escapeAttr(ACCOUNT_BADGE_LABELS[badgeType] || badgeType)}" style="display:inline-flex; vertical-align:middle; margin-left:6px; flex-shrink:0; color:${ACCOUNT_BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? ACCOUNT_GEM_BADGE_SVG : ACCOUNT_SEAL_BADGE_SVG}</svg></span>`;
+  }
+  // amBadgeItems (loadBadges) ve amClaimItems (loadMyClaims) birbirinden bağımsız/paralel yüklenir
+  // (bkz. aşağıdaki loadUser().then(...) toplu tetikleme) — Ad Soyad/Firma satırlarındaki rozet
+  // ikonu bu yüzden ikisi de kendi fetch'i bittiğinde (hangisi önce biterse) ilgili render
+  // fonksiyonunu tekrar çağırarak, o ana kadar hazır olan veriyle yeniden çizilir.
+  let amBadgeItems = [];
+  let amClaimItems = [];
+  function renderAmNameBadge() {
+    const nameEl = document.getElementById('am-fact-name');
+    if (!nameEl) return;
+    const selfBadge = amBadgeItems.find(b => b.target_type === 'self' && b.status === 'active');
+    nameEl.innerHTML = `${escapeHtml(accountUser ? (accountUser.name || '—') : '—')}${selfBadge ? accountBadgeIconHtml(selfBadge.badge_type) : ''}`;
+  }
+
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
   // Kutular masaüstünde 2 sütunlu (bkz. .dash-row) olduğundan asıl genişlik window.innerWidth değil
   // KUTUNUN kendisi — bu yüzden sabit bir eşik yerine gerçek konteyner genişliğine göre, taşıyorsa
@@ -837,6 +864,19 @@ const AuthModal = (function () {
     if (nextBtn) nextBtn.addEventListener('click', () => { if (currentPage < totalPages) onChange(currentPage + 1); });
   }
   function itemTitle(type, item) { if (type === 'offices') return item.name; if (type === 'architects') return item.name; return item.title; }
+  // hesabim.html#itemDetailUrl ile AYNI mantık/gerekçe (bkz. o dosyadaki AYNI yorum) — proje.html/
+  // mimar.html/firma.html/urun.html location.pathname'i ayrıştırıp ilgili modalı otomatik açar, bu
+  // yüzden yalnızca YAYINDA (approved) gönderiler için (canonical satır var olduğundan) bir link
+  // üretilir; anahtar canonicalSync.js'in senkron sırasında GERÇEKTEN yazdığı değerle birebir aynı
+  // olmalı (istemci tarafı slugify(name) çakışma soneki alabileceğinden YANLIŞ olurdu).
+  function itemDetailUrl(type, item) {
+    if (item.status !== 'approved') return null;
+    if (type === 'projects') return `/proje/${encodeURIComponent(item.claimed_slug || item.slug)}`;
+    if (type === 'offices') return `/firma/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
+    if (type === 'architects') return `/mimar/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
+    if (type === 'products' || type === 'materials') return `/urun/${encodeURIComponent('m-' + item.id)}`;
+    return null;
+  }
   function resizeImageFile(file, maxEdge, quality) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -913,7 +953,7 @@ const AuthModal = (function () {
       renderAvatar();
       document.getElementById('am-dash-title').textContent = 'Hoş Geldin, ' + (accountUser.name || '').split(' ')[0];
       document.getElementById('am-dash-sub').textContent = accountUser.email + ' · MİMARLAB üyesi';
-      document.getElementById('am-fact-name').textContent = accountUser.name || '—';
+      renderAmNameBadge();
       document.getElementById('am-fact-profession').textContent = PROFESSION_LABELS[accountUser.profession] || accountUser.profession || '—';
       document.getElementById('am-fact-position').textContent = accountUser.position || '—';
       document.getElementById('am-fact-school').textContent = accountUser.school || '—';
@@ -1278,10 +1318,15 @@ const AuthModal = (function () {
       if (submissionsPage > totalPages) submissionsPage = totalPages;
       const startIdx = (submissionsPage - 1) * PAGE_SIZE_DASH;
       const pageItems = all.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(({ type, item }) => `
+      container.innerHTML = pageItems.map(({ type, item }) => {
+        const detailUrl = itemDetailUrl(type, item);
+        const titleHtml = detailUrl
+          ? `<a href="${escapeAttr(detailUrl)}" style="font-weight:600; font-size:13.5px; color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(itemTitle(type, item))}</a>`
+          : `<div style="font-weight:600; font-size:13.5px;">${escapeHtml(itemTitle(type, item))}</div>`;
+        return `
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft);">
           <div>
-            <div style="font-weight:600; font-size:13.5px;">${escapeHtml(itemTitle(type, item))}</div>
+            ${titleHtml}
             <div style="font-size:11.5px; color:var(--ink-soft);">${TYPE_LABELS[type]} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
           </div>
           <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
@@ -1289,7 +1334,8 @@ const AuthModal = (function () {
             <span style="font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:100px; color:${STATUS_COLORS[item.status]}; background:${STATUS_COLORS[item.status]}22;">${STATUS_LABELS[item.status]}</span>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
       renderDashPagination('am-submissions-pagination', submissionsPage, totalPages, (p) => { submissionsPage = p; renderSubmissions(); });
     }
 
@@ -1473,6 +1519,9 @@ const AuthModal = (function () {
       const res = await fetch('/api/badges/mine');
       const data = res.ok ? await res.json() : { items: [] };
       const items = data.items || [];
+      amBadgeItems = items;
+      renderAmNameBadge();
+      renderClaimsList();
       const listEl = document.getElementById('am-my-badges-list');
       if (!items.length) {
         listEl.style.display = 'none';
@@ -1554,19 +1603,19 @@ const AuthModal = (function () {
 
     // Artık ayrı bir sekme değil, Profil Bilgileri kutusunun son satırları olarak doğrudan
     // gösterilir (bkz. kullanıcı isteği: "başlık altındaki butonları kaldır... son satırlarına yaz").
-    async function loadMyClaims() {
-      const res = await fetch('/api/claims/mine');
-      const data = res.ok ? await res.json() : { items: [] };
-      const items = data.items || [];
+    // renderClaimsList: loadMyClaims'in DOM render kısmı ayrı bir fonksiyona çıkarıldı — amBadgeItems
+    // (loadBadges) ve amClaimItems (bu fonksiyon) birbirinden bağımsız/paralel yüklendiğinden (bkz.
+    // renderAmNameBadge'deki AYNI gerekçe), hangi rozet isteği önce biterse Firma satırındaki rozet
+    // ikonunu güncellemek için bu render'ı YENİDEN çağırabilmesi gerekir.
+    function renderClaimsList() {
       const list = document.getElementById('am-claims-mine-list');
-      refreshArchitectSyncState(items);
       // Reddedilen talepler (ya da bir firmanın Kurucular/Ekip listesinden çıkarılıp officeFounderCascade.js#
       // cascadeRemovedProfileClaims tarafından 'rejected'e çevrilmiş satırlar — bkz. kullanıcı isteği: "reddedilen
       // firma sahibi talebi ... profil bilgileri kutusunda hala gözüküyor") burada hiç gösterilmez — kullanıcının
       // artık geçerli olmayan bir talebi/bağlantıyı kalıcı şekilde görmesinin bir faydası yok, yalnızca kafa
       // karıştırıyor. Talep tekrar gönderilirse (bkz. src/routes/claims.js#createClaim'in rejected→pending reset'i)
       // zaten yeniden 'pending' olarak burada görünür.
-      const visibleItems = items.filter(c => c.status !== 'rejected');
+      const visibleItems = amClaimItems.filter(c => c.status !== 'rejected');
       // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
       // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
       // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
@@ -1583,11 +1632,17 @@ const AuthModal = (function () {
         // bağımsız düzenlenebildiğinden (bkz. src/routes/submissions.js#verifyClaimedProfileKey) bu
         // kısıtlama yalnızca office tipinde uygulanır.
         const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(accountUser && accountUser.position));
+        // Yalnızca onaylı Firma satırları rozet ikonu taşıyabilir (bkz. kullanıcı isteği: Ad Soyad ile
+        // AYNI şekilde, Firma da alınmış rozetini adının yanında göstersin) — 'self' rozetler zaten
+        // renderAmNameBadge()'te ayrı gösterildiğinden burada yalnızca target_type==='office' aranır.
+        const officeBadge = c.status === 'approved' && c.profile_type === 'office'
+          ? amBadgeItems.find(b => b.target_type === 'office' && b.target_key === c.profile_key && b.status === 'active')
+          : null;
         return `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
-            <span>${escapeHtml(c.profile_key)}</span>
+            <span>${escapeHtml(c.profile_key)}${officeBadge ? accountBadgeIconHtml(officeBadge.badge_type) : ''}</span>
             ${canEdit
               ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
               : c.status === 'approved'
@@ -1597,6 +1652,15 @@ const AuthModal = (function () {
         </div>
       `;
       }).join('');
+    }
+
+    async function loadMyClaims() {
+      const res = await fetch('/api/claims/mine');
+      const data = res.ok ? await res.json() : { items: [] };
+      const items = data.items || [];
+      amClaimItems = items;
+      refreshArchitectSyncState(items);
+      renderClaimsList();
       syncClaimedArchitectData(items);
     }
 
