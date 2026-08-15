@@ -197,6 +197,10 @@ const AuthModal = (function () {
     #am-panel .badge-status-pill{display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:100px; flex-shrink:0;}
     #am-panel .my-badge-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid var(--line-soft); border-radius:12px; margin-bottom:8px; font-size:13.5px;}
     #am-panel .my-badge-row:last-child{margin-bottom:0;}
+    #am-panel .am-badge-icon{position:relative; cursor:pointer;}
+    #am-panel .am-badge-tooltip{position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper-card); font-size:11px; font-weight:600; white-space:nowrap; padding:4px 9px; border-radius:6px; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .15s; z-index:20;}
+    #am-panel .am-badge-icon:hover .am-badge-tooltip,
+    #am-panel .am-badge-icon.am-badge-tooltip-show .am-badge-tooltip{opacity:1; visibility:visible;}
     @media (max-width:480px){ #am-panel .badge-grid{grid-template-columns:1fr;} }
     @media (max-width:720px){ #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px;} }
     @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
@@ -806,19 +810,25 @@ const AuthModal = (function () {
     if (!badgeType || badgeType === 'destekci') return '';
     const isGem = badgeType === 'platinum';
     const size = 14, width = isGem ? Math.round(size * 1.3) : size;
-    return `<span title="${escapeAttr(ACCOUNT_BADGE_LABELS[badgeType] || badgeType)}" style="display:inline-flex; vertical-align:middle; margin-left:6px; flex-shrink:0; color:${ACCOUNT_BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? ACCOUNT_GEM_BADGE_SVG : ACCOUNT_SEAL_BADGE_SVG}</svg></span>`;
+    const label = ACCOUNT_BADGE_LABELS[badgeType] || badgeType;
+    // title yerine tıklama/dokunma ile de açılabilen özel tooltip (bkz. kullanıcı isteği: "tablet
+    // ve mobilde dokununca rozetin ismi yazsın") — native title mobilde çalışmadığından am-badge-icon
+    // click delegasyonu (bkz. aşağıdaki document click listener) bunu tetikler.
+    return `<span class="am-badge-icon" aria-label="${escapeAttr(label)}" style="display:inline-flex; vertical-align:middle; margin-left:6px; flex-shrink:0; color:${ACCOUNT_BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? ACCOUNT_GEM_BADGE_SVG : ACCOUNT_SEAL_BADGE_SVG}</svg><span class="am-badge-tooltip">${escapeHtml(label)}</span></span>`;
   }
   // amBadgeItems (loadBadges) ve amClaimItems (loadMyClaims) birbirinden bağımsız/paralel yüklenir
-  // (bkz. aşağıdaki loadUser().then(...) toplu tetikleme) — Ad Soyad/Firma satırlarındaki rozet
-  // ikonu bu yüzden ikisi de kendi fetch'i bittiğinde (hangisi önce biterse) ilgili render
-  // fonksiyonunu tekrar çağırarak, o ana kadar hazır olan veriyle yeniden çizilir.
+  // (bkz. aşağıdaki loadUser().then(...) toplu tetikleme) — Mimar/Firma satırlarındaki rozet ikonu
+  // bu yüzden ikisi de kendi fetch'i bittiğinde (hangisi önce biterse) renderClaimsList'i tekrar
+  // çağırarak, o ana kadar hazır olan veriyle yeniden çizilir.
   let amBadgeItems = [];
   let amClaimItems = [];
+  // Ad Soyad satırı artık rozet taşımaz — self rozet, sahiplenilmiş Mimar profili varsa onun
+  // satırındaki adın yanında gösterilir (bkz. kullanıcı isteği: "rozet ... mimar başlığının
+  // yanındaki ad soyadın yanında yer alsın"), yoksa hiçbir yerde gösterilmez.
   function renderAmNameBadge() {
     const nameEl = document.getElementById('am-fact-name');
     if (!nameEl) return;
-    const selfBadge = amBadgeItems.find(b => b.target_type === 'self' && b.status === 'active');
-    nameEl.innerHTML = `${escapeHtml(accountUser ? (accountUser.name || '—') : '—')}${selfBadge ? accountBadgeIconHtml(selfBadge.badge_type) : ''}`;
+    nameEl.textContent = accountUser ? (accountUser.name || '—') : '—';
   }
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
@@ -904,6 +914,10 @@ const AuthModal = (function () {
   // olması) — document'e bağlı Escape dinleyicisi bu yüzden `on()` yerine tek seferlik bu bayrakla
   // korunur, aksi halde her ziyarette bir kopya daha eklenip yığılırdı.
   let amProfileEditEscapeWired = false;
+  // mountAccount() her navigasyonda yeniden çalıştığından (bkz. yukarıdaki AYNI gerekçe) rozet
+  // tooltip tıklama dinleyicisi de bu bayrakla korunmazsa her ziyarette bir kopya daha eklenip
+  // yığılır — çift (ya da tek sayıda olmayan) toggle çağrısı tooltip'i açıp kapatmayı bozar.
+  let amBadgeTooltipClickWired = false;
 
   function mountAccount() {
     const wired = new Set();
@@ -1065,6 +1079,18 @@ const AuthModal = (function () {
     document.addEventListener('click', (e) => {
       document.querySelectorAll('#am-panel .dd-field.open').forEach(f => { if (!f.contains(e.target)) f.classList.remove('open'); });
     });
+
+    // Rozet ikonları :hover ile masaüstünde tooltip'i zaten CSS'ten gösterir; dokunmatik cihazlarda
+    // hover olmadığından tıklama/dokunma ile açıp kapatmak için delegasyon (bkz. kullanıcı isteği:
+    // "tablet ve mobilde dokununca rozetin ismi yazsın").
+    if (!amBadgeTooltipClickWired) {
+      amBadgeTooltipClickWired = true;
+      document.addEventListener('click', (e) => {
+        const icon = e.target.closest('#am-panel .am-badge-icon');
+        document.querySelectorAll('#am-panel .am-badge-icon.am-badge-tooltip-show').forEach(el => { if (el !== icon) el.classList.remove('am-badge-tooltip-show'); });
+        if (icon) icon.classList.toggle('am-badge-tooltip-show');
+      });
+    }
 
     // Onaylı bir mimar profili sahiplenilmişse yukarıdaki TÜM alanlar (Ad Soyad/Doğum Yılı/Üniversite/
     // Meslek/Pozisyon/Ödüller/Açıklama/Sosyal Medya) AYNI Kaydet'te architect_submissions/architects
@@ -1632,17 +1658,21 @@ const AuthModal = (function () {
         // bağımsız düzenlenebildiğinden (bkz. src/routes/submissions.js#verifyClaimedProfileKey) bu
         // kısıtlama yalnızca office tipinde uygulanır.
         const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(accountUser && accountUser.position));
-        // Yalnızca onaylı Firma satırları rozet ikonu taşıyabilir (bkz. kullanıcı isteği: Ad Soyad ile
-        // AYNI şekilde, Firma da alınmış rozetini adının yanında göstersin) — 'self' rozetler zaten
-        // renderAmNameBadge()'te ayrı gösterildiğinden burada yalnızca target_type==='office' aranır.
+        // Onaylı Firma satırı kendi 'office' rozetini, onaylı Mimar satırı ise kullanıcının 'self'
+        // rozetini adının yanında taşır (bkz. kullanıcı isteği: rozet Ad Soyad satırından Mimar
+        // başlığının yanındaki ada taşınsın).
         const officeBadge = c.status === 'approved' && c.profile_type === 'office'
           ? amBadgeItems.find(b => b.target_type === 'office' && b.target_key === c.profile_key && b.status === 'active')
           : null;
+        const selfBadge = c.status === 'approved' && c.profile_type === 'architect'
+          ? amBadgeItems.find(b => b.target_type === 'self' && b.status === 'active')
+          : null;
+        const rowBadge = officeBadge || selfBadge;
         return `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
-            <span>${escapeHtml(c.profile_key)}${officeBadge ? accountBadgeIconHtml(officeBadge.badge_type) : ''}</span>
+            <span>${escapeHtml(c.profile_key)}${rowBadge ? accountBadgeIconHtml(rowBadge.badge_type) : ''}</span>
             ${canEdit
               ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
               : c.status === 'approved'
