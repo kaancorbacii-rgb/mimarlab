@@ -247,17 +247,17 @@ async function buildOfficePayload(env, key) {
   }
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
-  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], hidden: false };
+  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedProducts: [], relatedMaterials: [], hidden: false };
   // gerçek bulgu (denetim raporu): satır yukarıdaki redirect-birleştirmeden SONRA hâlâ hidden_at
   // taşıyorsa (yani gerçekten gizli, yeniden adlandırma/birleştirme DEĞİL) bu uç item'ı yine de tam
   // olarak döndürüyordu — yalnızca `hidden:true` bayrağı ekleniyordu, veri gizlenmiyordu. Client-side
   // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
   // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
   // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
-  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], hidden: true };
+  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedProducts: [], relatedMaterials: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
 
-  const [foundersRes, relatedRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
+  const [foundersRes, relatedRes, brandProductsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
@@ -266,6 +266,16 @@ async function buildOfficePayload(env, key) {
       `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND pd.office_id = ?`
     ).bind(o.id).all(),
+    // Ürün/malzeme markası olarak bu firmaya ait katalog — brand_office_id yalnızca onaylanan bir
+    // gönderi üzerinden sync edilirken doldurulur (bkz. canonicalSync.js#syncProduct), toplu/legacy
+    // eklenen satırlarda boş kalır; bu yüzden client-side tryOfficeChip'teki (product-modal.js) AYNI
+    // isim eşleşmesi burada da kullanılır (brand_office_id VARSA o da OR ile kabul edilir, isim
+    // değişse bile eski eşleşme kaybolmasın diye).
+    env.DB.prepare(
+      `SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL
+       AND (brand_office_id = ? OR brand_name_raw = ? COLLATE NOCASE)
+       ORDER BY title COLLATE NOCASE`
+    ).bind(o.id, o.name).all(),
     fetchRawFounderNames(env, o),
     // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
     // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
@@ -311,6 +321,12 @@ async function buildOfficePayload(env, key) {
     const parsed = parseCanonicalRow('projects', p);
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category };
   });
+  const brandCatalog = brandProductsRes.results.map(p => {
+    const parsed = parseCanonicalRow('products', p);
+    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, kind: parsed.kind };
+  });
+  const relatedProducts = brandCatalog.filter(p => p.kind !== 'material');
+  const relatedMaterials = brandCatalog.filter(p => p.kind === 'material');
 
   const item = {
     name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
@@ -330,5 +346,5 @@ async function buildOfficePayload(env, key) {
 
   const adjacent = await fetchAdjacentOffice(env, o.id);
 
-  return { item, founders, team, relatedProjects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
+  return { item, founders, team, relatedProjects, relatedProducts, relatedMaterials, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
 }

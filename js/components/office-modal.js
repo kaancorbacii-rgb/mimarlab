@@ -481,6 +481,26 @@ const OfficeModal = (function () {
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
 
+    // Marka kataloğu — bu firmanın adı ürün/malzeme markası olarak eşleşen canonical products
+    // satırları (bkz. src/routes/office.js#buildOfficePayload, relatedProducts/relatedMaterials).
+    // "Bu firma sana mı ait?" ile bir kullanıcının KİŞİSEL olarak gönderip onaylattığı ürünlerden
+    // (aşağıdaki loadRelatedProducts) AYRI bir kaynak — ikisi aynı gridde birleştirilir (dedupe:
+    // aynı başlık ikisinde de varsa marka kataloğu kazanır, çünkü slug'ı olduğundan doğru /urun/
+    // linkine gider, submission kaynağının href'i yok — bkz. aşağıdaki gerçek bulgu notu).
+    const brandProductsData = payload.relatedProducts || [];
+    const brandMaterialsData = payload.relatedMaterials || [];
+    function productCardHtml(p) {
+      return cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category);
+    }
+    function renderProductGrid(sectionId, gridId, brandItems, submissionItems) {
+      const seenTitles = new Set(brandItems.map(p => (p.title || '').trim().toLowerCase()));
+      const merged = [...brandItems, ...submissionItems.filter(p => !seenTitles.has((p.title || '').trim().toLowerCase()))];
+      document.getElementById(sectionId).style.display = merged.length ? '' : 'none';
+      document.getElementById(gridId).innerHTML = merged.map(productCardHtml).join('');
+    }
+    renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, []);
+    renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, []);
+
     const PROFILE_TYPE = 'office';
     const claimBox = createClaimCorrectionBox({
       profileType: PROFILE_TYPE,
@@ -508,12 +528,8 @@ const OfficeModal = (function () {
         const res = await fetch(`/api/public/profile-content?profileType=office&profileKey=${encodeURIComponent(o.name)}`);
         if (!res.ok) return;
         const data = await res.json();
-        const products = data.products || [];
-        document.getElementById('om-related-products-section').style.display = products.length ? '' : 'none';
-        document.getElementById('om-related-products-grid').innerHTML = products.map(p => cardHtml('urun.html', p.title, p.image, p.category)).join('');
-        const materials = data.materials || [];
-        document.getElementById('om-related-materials-section').style.display = materials.length ? '' : 'none';
-        document.getElementById('om-related-materials-grid').innerHTML = materials.map(m => cardHtml('urun.html', m.title, m.image, m.category)).join('');
+        renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, data.products || []);
+        renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, data.materials || []);
       } catch {}
     }
 

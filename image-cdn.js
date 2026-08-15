@@ -16,6 +16,12 @@ const IMAGE_CDN_ENABLED = true;
 // yol biçimini de aynı, çalışan URL'e indirger.
 function cdnImg(path, width) {
   if (!IMAGE_CDN_ENABLED || !path) return path;
+  // gerçek bulgu: Cloudflare Image Resizing SVG rasterizasyonu tutarsız — bazı vektör dosyalarında
+  // (ör. <filter> primitifleri kullananlarda) sessizce 415 Unsupported Media Type dönüyor, bazılarında
+  // da yalnızca değişmeden geçiriyor. SVG zaten çözünürlükten bağımsız olduğundan resize'a hiç gerek
+  // yok — path'i olduğu gibi döndürüp transform'u atlamak hem 415 riskini ortadan kaldırıyor hem de
+  // orijinal vektör kalitesini koruyor.
+  if (/\.svg(\?|$)/i.test(path)) return path;
   return `/cdn-cgi/image/width=${width},format=auto,fit=cover/${path.replace(/^\/+/, '')}`;
 }
 
