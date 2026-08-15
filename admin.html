@@ -933,7 +933,7 @@ async function loadUsers(){
       <div class="admin-card-head">
         <div>
           <div class="admin-card-title">${escapeHtml(u.name)} ${u.role === 'admin' ? '<span class="admin-badge badge-approved">Admin</span>' : ''}</div>
-          <div class="admin-card-meta">${escapeHtml(u.email)} ${u.school ? '· ' + escapeHtml(u.school) : ''} · ${new Date(u.created_at).toLocaleDateString('tr-TR')}</div>
+          <div class="admin-card-meta">${escapeHtml(u.email)} ${u.dob ? '· doğ. ' + escapeHtml(String(u.dob).slice(0,4)) : ''} ${u.school ? '· ' + escapeHtml(u.school) : ''} · ${new Date(u.created_at).toLocaleDateString('tr-TR')}</div>
         </div>
       </div>
     </div>
@@ -955,6 +955,8 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
 const UD_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İşsiz'];
 const UD_CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
+const UD_CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html' };
+const UD_CLAIM_EDIT_STYPE = { architect: 'architects', office: 'offices' };
 const UD_CLAIM_STATUS_LABELS = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
 
 (function wireUdSelects(){
@@ -1041,7 +1043,10 @@ async function loadUdClaims(userId){
   container.innerHTML = items.map(c => `
     <div class="ud-list-row">
       <span><strong>${UD_CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</strong> · ${escapeHtml(c.profile_key)}</span>
-      <span class="admin-badge ${c.status === 'approved' ? 'badge-approved' : c.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}">${UD_CLAIM_STATUS_LABELS[c.status] || c.status}</span>
+      <span style="display:flex; align-items:center; gap:10px;">
+        ${c.submissionId && UD_CLAIM_EDIT_PAGE[c.profile_type] ? `<a href="${UD_CLAIM_EDIT_PAGE[c.profile_type]}?edit=${encodeURIComponent(c.submissionId)}&stype=${encodeURIComponent(UD_CLAIM_EDIT_STYPE[c.profile_type])}" target="_blank" rel="noopener" style="color:var(--walnut); font-weight:600;">Düzenle</a>` : ''}
+        <span class="admin-badge ${c.status === 'approved' ? 'badge-approved' : c.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}">${UD_CLAIM_STATUS_LABELS[c.status] || c.status}</span>
+      </span>
     </div>
   `).join('');
 }

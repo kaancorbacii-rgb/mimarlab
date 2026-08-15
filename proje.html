@@ -528,8 +528,9 @@
   /* ---------- PROJE MODALI — yorumlar ---------- */
   /* Yorumlar kutusu artık .pm-feedback-card (Geri Bildirim) İLE BİREBİR AYNI kart görünümünde —
      aynı margin/padding/border/radius/arkaplan, aynı summary punto/hiza (bkz. kullanıcı isteği:
-     "iki kutucuğun da + sembolü aynı hizada ve aynı büyüklükte olsun"). Yalnızca ikisi arasında
-     .pm-info-divider (<hr>) korunur. */
+     "iki kutucuğun da + sembolü aynı hizada ve aynı büyüklükte olsun"). .pm-info-divider (<hr>)
+     artık Yorumlar'ın ÜSTÜNDE, açıklamayla arasında (bkz. kullanıcı isteği: "geri bildirim ile
+     yorumlar arasındaki line'ı sil, yorumların üstüne line koy"). */
   .comments-section{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
   /* Yorumlar da ilk açılışta kapalı (bkz. kullanıcı isteği, .pm-feedback-card İLE AYNI <details>/
      <summary> deseni) — comments-title artık <h2> değil doğrudan clickable <summary>. */
@@ -753,9 +754,10 @@
     #pm-prevnext{order:9;}
     /* Yorumlar — Bilgi Kaynağı & Geri Bildirim ile AYNI gerekçeyle (bkz. kullanıcı isteği) mobil/
        tablette aşağı, Geri Bildirim kutusunun hemen üstüne taşındı; masaüstünde DOM sırası (künye/
-       açıklamadan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order değerleri etkilenir. */
-    #pm-comments-section{order:10;}
-    #pm-info-divider{order:11;}
+       açıklamadan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order değerleri etkilenir.
+       #pm-info-divider Yorumlar'ın ÜSTÜNDE kalır (bkz. kullanıcı isteği). */
+    #pm-info-divider{order:10;}
+    #pm-comments-section{order:11;}
     #pm-feedback-card{order:12;}
 
     /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil

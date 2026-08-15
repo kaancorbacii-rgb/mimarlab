@@ -296,11 +296,27 @@ async function listUserSubmissionsAdmin(env, targetId, url) {
   return json({ items: results.map(r => parseSubmissionRow(typeKey, r)) });
 }
 
+// submissionId: bu claim'e karşılık gelen architect_submissions/office_submissions satırının id'si
+// (bkz. kullanıcı isteği: admin, Üyeler > kullanıcı detayındaki Mimar/Firma Profili'ni de
+// düzenleyebilsin) — ud-claims-list'te "Paylaştığım İçerikler" ile AYNI Düzenle linkini
+// (*-ekle.html?edit=<submissionId>&stype=) kurabilmek için lazım, profile_claims kendisi bir
+// submission id taşımıyor.
 async function listUserClaimsAdmin(env, targetId) {
   const { results } = await env.DB.prepare(
     'SELECT profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(targetId).all();
-  return json({ items: results });
+  const items = await Promise.all(results.map(async (c) => {
+    const table = c.profile_type === 'architect' ? 'architect_submissions' : c.profile_type === 'office' ? 'office_submissions' : null;
+    let submissionId = null;
+    if (table) {
+      const row = await env.DB.prepare(
+        `SELECT id FROM ${table} WHERE owner_user_id = ? AND claimed_profile_key = ? ORDER BY updated_at DESC LIMIT 1`
+      ).bind(targetId, c.profile_key).first();
+      submissionId = row ? row.id : null;
+    }
+    return { ...c, submissionId };
+  }));
+  return json({ items });
 }
 
 // /api/admin/submissions?type=offices&status=pending
