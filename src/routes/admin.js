@@ -205,7 +205,7 @@ async function handleCommentsAdmin(request, env, url, segments) {
 // /api/admin/contact/:id  (PATCH: is_read günceller, DELETE: siler)
 async function handleContactAdmin(request, env, segments) {
   if (segments.length === 3 && request.method === 'GET') {
-    const { results } = await env.DB.prepare('SELECT * FROM contact_messages ORDER BY created_at DESC').all();
+    const { results } = await env.DB.prepare('SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT 1000').all();
     return json({ items: results });
   }
   if (segments.length === 4) {
@@ -225,7 +225,7 @@ async function handleContactAdmin(request, env, segments) {
 
 async function listUsers(env) {
   const { results } = await env.DB.prepare(
-    'SELECT id, email, name, dob, school, dept, role, created_at FROM users ORDER BY created_at DESC'
+    'SELECT id, email, name, dob, school, dept, role, created_at FROM users ORDER BY created_at DESC LIMIT 2000'
   ).all();
   return json({ items: results });
 }
@@ -312,8 +312,8 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
     const status = url.searchParams.get('status');
     const config = SUBMISSION_TYPES[typeKey];
     const query = status
-      ? env.DB.prepare(`SELECT * FROM ${config.table} WHERE status = ? ORDER BY created_at DESC`).bind(status)
-      : env.DB.prepare(`SELECT * FROM ${config.table} ORDER BY created_at DESC`);
+      ? env.DB.prepare(`SELECT * FROM ${config.table} WHERE status = ? ORDER BY created_at DESC LIMIT 2000`).bind(status)
+      : env.DB.prepare(`SELECT * FROM ${config.table} ORDER BY created_at DESC LIMIT 2000`);
     const { results } = await query.all();
     return json({ items: results.map(r => parseSubmissionRow(typeKey, r)) });
   }

@@ -646,7 +646,7 @@ const InfoModal = (function () {
   }
 
   function mountRozetAl() {
-    fetch('/api/auth/me').then(res => { if (!res.ok) window.location.href = '/giris'; });
+    fetch('/api/auth/me').then(res => { if (!res.ok) window.location.href = '/giris'; }).catch(() => {});
 
     const BADGE_TIERS = [
       { type: 'destekci', label: 'Destekçi', officePrice: 79.90, perks: ['Bir rozet vermez, destek olmak isteyenler içindir.'] },

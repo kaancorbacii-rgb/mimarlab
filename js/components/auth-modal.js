@@ -1754,7 +1754,8 @@ const AuthModal = (function () {
 
     loadUser().then(() => {
       if (accountUser) {
-        loadSubmissions(); loadSaved(); loadRated(); loadComments(); loadBadges(); loadMyClaims(); loadNotifications();
+        [loadSubmissions(), loadSaved(), loadRated(), loadComments(), loadBadges(), loadMyClaims(), loadNotifications()]
+          .forEach(p => p.catch(() => {}));
         if (new URLSearchParams(window.location.search).get('payment') === 'success') {
           document.getElementById('am-payment-success-banner').style.display = 'block';
         }
