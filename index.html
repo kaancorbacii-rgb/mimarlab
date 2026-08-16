@@ -569,16 +569,19 @@ function slugify(text){
     .replace(/^-+|-+$/g, '');
 }
 
-// Mimar isimleri değil, mimarlık ofisi + konum gösterilir (bkz. kullanıcı isteği). officeNames
-// artık /api/projects'ten hazır gelir (bkz. src/routes/project.js#OFFICE_NAMES_SQL) — eskiden
-// burada data.js'in statik offices[]/architects[] dizileri üzerinde yapılan AYNI "designer[] bir
-// ofis adıysa doğrudan kullan, bir mimar ismiyse bağlı olduğu ofisi bul" eşleştirmesi artık
-// sunucu tarafında (architects.office_id → offices LEFT JOIN) yapılıyor.
+// Ofis adı öncelikli, o yoksa künyedeki HAM mimar/ofis isimleri, sonra konum gösterilir (bkz.
+// kullanıcı isteği + gerçek bulgu: Kapicciiiinoo projesinin altyazısında künyede hiç eklenmemiş
+// bir firma görünüyordu — mimarlardan biri o firmaya KENDİ profilinde ortak olduğu için otomatik
+// ekleniyordu). officeNames artık SADECE proje künyesine doğrudan ofis olarak eklenmiş isimleri
+// taşır (bkz. src/lib/projectPool.js#OFFICE_NAMES_SQL) — mimarın kişisel ofis bağlantısı üzerinden
+// asla türetilmez. Künyede hiç ofis yoksa (yalnızca mimar eklenmişse) p.designer'daki HAM isimler
+// (künyede yazan ne ise o) kullanılır, uydurma bir ofis adı gösterilmez.
 function projectSlideHtml(p, i){
   // Konum künyesinde ilçe DEĞİL yalnızca il/şehir gösterilir (bkz. kullanıcı isteği) —
   // il-ilce-data.js#parseLocationFull p.location'ı (ilçe ya da il adı) {city,district}'e çözer.
   const cityName = (typeof parseLocationFull === 'function') ? parseLocationFull(p.location).city : p.location;
-  const meta = [(p.officeNames || []).join(', '), cityName].filter(Boolean).join(' — ');
+  const designerNames = (p.officeNames && p.officeNames.length) ? p.officeNames : (p.designer || []);
+  const meta = [designerNames.join(', '), cityName].filter(Boolean).join(' — ');
   const slideImg = (p.images && p.images[0]) || '';
   const slideSrcset = slideImg ? cdnSrcset(slideImg, [600, 900, 1200]) : '';
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/proje/${encodeURIComponent(p.slug)}" data-index="${i}">

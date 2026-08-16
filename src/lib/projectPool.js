@@ -17,20 +17,25 @@ export const DESIGNER_SEP = '';
 
 // bir projenin tasarımcı adları dizisini (mimar VEYA ofis adı, project_designers join'inden) tek
 // bir GROUP_CONCAT sütununa toplayan ortak sorgu parçası — hem tekil proje hem filtre listesi
-// sorgusu bunu kullanır. ar_ofc: bir mimar-tipi tasarımcının BAĞLI OLDUĞU ofis (architects.office_id
-// üzerinden) — index.html'in proje slaytı altyazısında "Mimar adı" değil "bağlı olduğu ofis adı"
-// göstermesi gerektiğinden eklendi; ofc (tasarımcı doğrudan bir ofisse) ile COALESCE edilerek
-// aşağıdaki OFFICE_NAMES_SQL sütununu besler.
+// sorgusu bunu kullanır.
+// DÜZELTME (bkz. gerçek bulgu: ana sayfa carousel'inde Kapicciiiinoo projesinin altyazısında künyede
+// hiç eklenmemiş "GEO_ID" firması görünüyordu) — eskiden burada bir `ar_ofc` join'i vardı ve
+// OFFICE_NAMES_SQL bir mimarın KENDİ profilinde kayıtlı BAĞLI OLDUĞU ofisi (architects.office_id,
+// projeyle hiç ilgisi olmayan, mimarın güncel/kişisel bir alanı) otomatik künyeye ekliyordu. Bu,
+// proje ekle/düzenle sayfasında o firma HİÇ seçilmemiş olsa bile firmanın gösterilmesine yol
+// açıyordu (mimar başka bir firmaya da ortaksa özellikle). Kural: proje ekle/düzenle'de ekli
+// OLMAYAN hiçbir bilgi hiçbir yerde görünmemeli — bu yüzden ofis adı SADECE pd.office_id ile
+// doğrudan künyeye eklenmiş satırlardan (ofc) gelir, mimarın kişisel ofis bağlantısından asla.
 export const DESIGNER_JOIN_SQL = `
   LEFT JOIN project_designers pd ON pd.project_id = p.id
   LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
   LEFT JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL AND ofc.hidden_at IS NULL
-  LEFT JOIN offices ar_ofc ON ar_ofc.id = ar.office_id AND ar_ofc.deleted_at IS NULL AND ar_ofc.hidden_at IS NULL
 `;
 // office_names GROUP_CONCAT sütunu — designer_names'ten AYRI tutulur çünkü designer_names künyede
 // görünen HAM tasarımcı isimlerini (mimar veya ofis) taşımaya devam etmeli; office_names yalnızca
-// "bu projenin görüntülenecek ofis adı/adları" için additive bir alandır.
-export const OFFICE_NAMES_SQL = `GROUP_CONCAT(COALESCE(ofc.name, ar_ofc.name), '${DESIGNER_SEP}') AS office_names`;
+// künyeye DOĞRUDAN ofis olarak eklenmiş isimleri taşır (bkz. yukarıdaki DÜZELTME notu) — src/lib/
+// seo.js#findProjectRow zaten baştan beri bu şekilde (ar_ofc'siz) yazılmıştı.
+export const OFFICE_NAMES_SQL = `GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS office_names`;
 
 export function designerNamesFrom(concat) {
   return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
