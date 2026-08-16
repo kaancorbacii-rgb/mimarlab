@@ -17,6 +17,10 @@ import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
 import { findR2Orphans, confirmStillOrphaned } from '../lib/r2Reconcile.js';
+import { buildMeta } from '../lib/seo.js';
+import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSettings.js';
+import { SAFE_STORAGE_BYTES, SAFE_OPS_PER_MONTH } from '../lib/r2Quota.js';
+import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -95,6 +99,9 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'comments') return await handleCommentsAdmin(request, env, url, segments);
     if (sub === 'migration-conflicts') return await handleMigrationConflictsAdmin(request, env, url, segments, user);
     if (sub === 'r2-orphans') return await handleR2OrphansAdmin(request, env);
+    if (sub === 'seo') return await handleSeoAdmin(request, env, url, segments);
+    if (sub === 'settings') return await handleSiteSettingsAdmin(request, env);
+    if (sub === 'performance') return await handlePerformanceAdmin(request, env, segments);
     if (sub === 'summary' && request.method === 'GET') return await handleAdminSummary(env);
     return errorJson('Bulunamadı', 404);
   } catch (err) {
@@ -117,6 +124,110 @@ async function handleR2OrphansAdmin(request, env) {
     const stillOrphaned = await confirmStillOrphaned(env, keys);
     if (stillOrphaned.length) await deleteR2MediaKeys(env, stillOrphaned);
     return json({ deleted: stillOrphaned, skipped: keys.filter(k => !stillOrphaned.includes(k)) });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// type -> canonical tablo/kolon eşlemesi. entity_type olarak src/lib/seo.js#buildMeta'nın kabul
+// ettiği TEKİL değerler kullanılır (architect/office/project/product) — seo_overrides.entity_type
+// bununla BİREBİR eşleşmeli (bkz. o dosyadaki applySeoOverride), aksi halde admin panelde kaydedilen
+// bir override canlı sayfada hiç okunmaz.
+const SEO_TYPE_CONFIG = {
+  architect: { table: 'architects', nameCol: 'name' },
+  office: { table: 'offices', nameCol: 'name' },
+  project: { table: 'projects', nameCol: 'title' },
+  product: { table: 'products', nameCol: 'title' },
+};
+
+// GET /api/admin/seo?type=project&q=...  — proje/mimar/firma/ürün arasında isim/başlık araması,
+// her sonuç için o anda bir override var mı bilgisi (liste görünümü hafif kalsın diye türetilmiş
+// title/description BURADA hesaplanmaz — bkz. GET /api/admin/seo/:type/:key).
+// GET /api/admin/seo/:type/:key  — türetilmiş (buildMeta) + varsa kayıtlı override değerleri.
+// PUT /api/admin/seo/:type/:key  — body {meta_title, meta_description}; boş string override'ı SİLER.
+async function handleSeoAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const type = url.searchParams.get('type');
+    const config = SEO_TYPE_CONFIG[type];
+    if (!config) return errorJson('Geçersiz tip.');
+    const q = (url.searchParams.get('q') || '').trim();
+    const rows = q
+      ? await env.DB.prepare(`SELECT slug, ${config.nameCol} AS name FROM ${config.table} WHERE deleted_at IS NULL AND hidden_at IS NULL AND ${config.nameCol} LIKE ? ORDER BY ${config.nameCol} LIMIT 30`).bind(`%${q}%`).all()
+      : await env.DB.prepare(`SELECT slug, ${config.nameCol} AS name FROM ${config.table} WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY updated_at DESC LIMIT 30`).all();
+    const { results: overrideRows } = await env.DB.prepare(`SELECT entity_key FROM seo_overrides WHERE entity_type = ?`).bind(type).all();
+    const overridden = new Set(overrideRows.map(r => r.entity_key));
+    return json({ items: rows.results.map(r => ({ key: r.slug, name: r.name, hasOverride: overridden.has(r.slug) })) });
+  }
+  if (segments.length === 5) {
+    const type = segments[3];
+    const key = segments[4];
+    if (!SEO_TYPE_CONFIG[type]) return errorJson('Geçersiz tip.');
+    if (request.method === 'GET') {
+      const derived = await buildMeta(type, key, env);
+      if (!derived) return errorJson('Bulunamadı', 404);
+      const override = await env.DB.prepare(`SELECT meta_title, meta_description FROM seo_overrides WHERE entity_type = ? AND entity_key = ?`).bind(type, key).first();
+      return json({ derived: { title: derived.title, description: derived.description }, override: override || null });
+    }
+    if (request.method === 'PUT') {
+      const body = await readJson(request);
+      const metaTitle = (body.meta_title || '').trim();
+      const metaDescription = (body.meta_description || '').trim();
+      if (!metaTitle && !metaDescription) {
+        await env.DB.prepare(`DELETE FROM seo_overrides WHERE entity_type = ? AND entity_key = ?`).bind(type, key).run();
+      } else {
+        await env.DB.prepare(
+          `INSERT INTO seo_overrides (entity_type, entity_key, meta_title, meta_description, updated_at) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(entity_type, entity_key) DO UPDATE SET meta_title = excluded.meta_title, meta_description = excluded.meta_description, updated_at = excluded.updated_at`
+        ).bind(type, key, metaTitle || null, metaDescription || null, Date.now()).run();
+      }
+      await purgeSsrDetailCache(type, key);
+      return json({ ok: true });
+    }
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// GET /api/admin/settings — tüm site ayarları (bkz. src/lib/siteSettings.js).
+// PATCH /api/admin/settings — body'deki bilinen key'leri tek tek yazar (whitelist — bilinmeyen bir
+// key sessizce yok sayılır, setSiteSetting zaten böyle bir key için hata fırlatır).
+async function handleSiteSettingsAdmin(request, env) {
+  if (request.method === 'GET') return json(await getSiteSettings(env));
+  if (request.method === 'PATCH') {
+    const body = await readJson(request);
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      if (key in body) await setSiteSetting(env, key, body[key]);
+    }
+    return json(await getSiteSettings(env));
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// GET /api/admin/performance — R2/KV kota kullanımı (bkz. r2Quota.js/kvQuota.js) + içerik tablosu
+// satır sayıları, admin panelde tek bakışta "canlı site ne kadar büyük/kotaya ne kadar yakın"
+// görünürlüğü için. POST /api/admin/performance/purge-cache — publicCache.js/FACET_CACHE'i temizler
+// (bkz. çağrı noktasındaki PoP-local uyarı notu, admin.html'de AYNEN gösterilir).
+async function handlePerformanceAdmin(request, env, segments) {
+  if (segments.length === 3 && request.method === 'GET') {
+    const [r2Row, kvRow, projects, architects, offices, products, comments, ratings] = await Promise.all([
+      env.DB.prepare(`SELECT total_bytes, ops_count, ops_month FROM r2_usage WHERE id = 'singleton'`).first(),
+      env.DB.prepare(`SELECT writes_count, writes_day FROM kv_usage WHERE id = 'singleton'`).first(),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM projects WHERE deleted_at IS NULL`).first(),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM architects WHERE deleted_at IS NULL`).first(),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM offices WHERE deleted_at IS NULL`).first(),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM products WHERE deleted_at IS NULL`).first(),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM comments`).first(),
+      env.DB.prepare(`SELECT COUNT(*) AS c FROM ratings`).first(),
+    ]);
+    return json({
+      r2: { totalBytes: r2Row?.total_bytes || 0, opsCount: r2Row?.ops_count || 0, safeStorageBytes: SAFE_STORAGE_BYTES, safeOpsPerMonth: SAFE_OPS_PER_MONTH },
+      kv: { writesCount: kvRow?.writes_count || 0, writesDay: kvRow?.writes_day || '', safeWritesPerDay: SAFE_WRITES_PER_DAY },
+      counts: { projects: projects.c, architects: architects.c, offices: offices.c, products: products.c, comments: comments.c, ratings: ratings.c },
+    });
+  }
+  if (segments.length === 4 && segments[3] === 'purge-cache' && request.method === 'POST') {
+    await invalidatePublicCache(env);
+    if (env.FACET_CACHE) await env.FACET_CACHE.delete('site_settings_v1');
+    try { await caches.default.delete(new Request('https://mimarlab.com/sitemap.xml')); } catch {}
+    return json({ ok: true, note: "Bu işlem yalnızca isteği işleyen edge PoP'unu temizler, global anında temizlik garantisi yoktur." });
   }
   return errorJson('Bulunamadı', 404);
 }

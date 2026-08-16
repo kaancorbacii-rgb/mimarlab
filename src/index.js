@@ -24,6 +24,8 @@ import { handleNotificationsRoute } from './routes/notifications.js';
 import { slugify } from './lib/slugify.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
+import { getSessionUser } from './lib/auth.js';
+import { getSiteSettings } from './lib/siteSettings.js';
 
 const SITE_ORIGIN = 'https://mimarlab.com';
 
@@ -137,6 +139,51 @@ const DISABLED_PAGE_PATHS = new Set(['/kariyer', '/haber-detay']);
 function isDisabledPagePath(pathname) {
   const bare = pathname.replace(/\.html$/, '');
   return DISABLED_PAGE_PATHS.has(bare);
+}
+
+// Admin panelden (Site Ayarları) açılıp kapatılan bakım modu (bkz. src/lib/siteSettings.js) —
+// bu YOLLAR her koşulda geçer, oturumu düşmüş/hiç açmamış bir admin'in bile giriş yapıp panele
+// geri dönebilmesi için: '/' + '/giris' (auth-modal.js'in yaşadığı ana sayfa, giriş formu burada
+// açılır), '/giris-yap'(.html) (eski URL, '/giris'e 301'lenir — bu yönlendirmenin KENDİSİ de
+// engellenmemeli), '/admin' (panelin kendisi).
+const MAINTENANCE_BYPASS_PATHS = new Set(['/', '/admin', '/admin.html', '/giris', '/giris-yap', '/giris-yap.html']);
+
+// Yalnızca "sayfa" isteklerini hedefler (son yol parçasında nokta YOKSA) — .css/.js/.png/.svg/.woff
+// gibi statik varlıklar bakım modundan HİÇ etkilenmez (maintenanceResponse'un kendi inline stili
+// zaten bunlara bağımlı değil, ama site JS'inin bakım sırasında bile normal çalışması istenmeyen bir
+// yan etki yaratmasın diye bu ayrım bilinçli).
+function isPageRequestPath(pathname) {
+  const lastSegment = pathname.slice(pathname.lastIndexOf('/') + 1);
+  return !lastSegment.includes('.');
+}
+
+function maintenanceResponse() {
+  const html = `<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Bakımdayız — MİMARLAB</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f1ea;color:#1b2a3d;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;text-align:center}main{max-width:420px}h1{font-size:22px;margin:0 0 12px}p{font-size:15px;line-height:1.5;color:#5a6472;margin:0}</style>
+</head><body><main><h1>Kısa bir bakımdayız</h1><p>MİMARLAB şu anda planlı bir bakım çalışması nedeniyle geçici olarak erişime kapalı. Kısa süre içinde geri döneceğiz.</p></main></body></html>`;
+  return new Response(html, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '1800', 'X-Robots-Tag': 'noindex', 'Cache-Control': 'no-store' } });
+}
+
+// null dönerse (bakım modu kapalı/muaf yol/admin oturumu) çağıran normal routeAsset akışına devam
+// eder — bkz. fetch()'teki çağrı noktası. getSiteSettings KV-önbellekli olduğundan (bkz.
+// src/lib/siteSettings.js) bu kontrol her sayfa isteğinde ek bir D1 sorgusu YARATMAZ.
+async function maybeServeMaintenancePage(request, env, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return null;
+  if (!isPageRequestPath(url.pathname)) return null;
+  if (MAINTENANCE_BYPASS_PATHS.has(url.pathname)) return null;
+  const settings = await getSiteSettings(env);
+  if (settings.maintenance_mode !== '1') return null;
+  const user = await getSessionUser(request, env);
+  if (user && user.role === 'admin') return null;
+  return maintenanceResponse();
+}
+
+async function handleRobotsTxt(env) {
+  const settings = await getSiteSettings(env);
+  if (!settings.robots_txt) return null;
+  return new Response(settings.robots_txt, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=60' } });
 }
 
 // Sayfa yeniden adlandırmaları (301) — eski URL/dosya adı kaldırılıp yerine yenisi geçtiğinde
@@ -305,8 +352,12 @@ export default {
         response = await handleSitemapRoute(request, env, ctx);
       } else if (SITEMAP_CHUNK_PATH_RE.test(url.pathname)) {
         response = await handleSitemapChunkRoute(request, env, ctx, Number(url.pathname.match(SITEMAP_CHUNK_PATH_RE)[1]));
+      } else if (url.pathname === '/robots.txt') {
+        // Admin panelden (Site Ayarları) düzenlenebilir robots.txt (bkz. src/lib/siteSettings.js) —
+        // ayar boşsa (varsayılan) statik kök dosyaya AYNEN düşer, davranış değişmez.
+        response = await handleRobotsTxt(env) || await routeAsset(request, env, url, ctx);
       } else {
-        response = await routeAsset(request, env, url, ctx);
+        response = await maybeServeMaintenancePage(request, env, url) || await routeAsset(request, env, url, ctx);
       }
     } catch (err) {
       errorMessage = err?.message || String(err);

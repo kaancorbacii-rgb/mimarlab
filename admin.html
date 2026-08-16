@@ -270,6 +270,9 @@
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
         <button class="admin-tab" data-tab="r2orphans">R2 Yetim Dosyalar</button>
+        <button class="admin-tab" data-tab="seo">SEO</button>
+        <button class="admin-tab" data-tab="settings">Site Ayarları</button>
+        <button class="admin-tab" data-tab="performance">Performans</button>
       </div>
 
       <div class="admin-section active" id="section-pending">
@@ -319,6 +322,62 @@
           <button class="admin-btn danger" id="r2orphans-delete-selected" disabled>Seçilenleri Sil (0)</button>
         </div>
         <div id="r2orphans-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-seo">
+        <div class="admin-subtabs" id="seo-type-tabs">
+          <button class="admin-subtab active" data-seo-type="project">Proje</button>
+          <button class="admin-subtab" data-seo-type="architect">Mimar</button>
+          <button class="admin-subtab" data-seo-type="office">Firma</button>
+          <button class="admin-subtab" data-seo-type="product">Ürün</button>
+        </div>
+        <div class="admin-form">
+          <h3>Arama</h3>
+          <div class="admin-field"><input type="text" id="seo-search-input" placeholder="İsim/başlık ara… (boş bırakılırsa son güncellenenler listelenir)"></div>
+        </div>
+        <div id="seo-results"></div>
+        <div id="seo-edit-panel"></div>
+        <div class="admin-form" style="margin-top:24px;">
+          <h3>robots.txt</h3>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Boş bırakılırsa sitedeki varsayılan statik dosya kullanılır.</p>
+          <div class="admin-field"><textarea id="seo-robots-textarea" style="min-height:140px; font-family:monospace;"></textarea></div>
+          <button class="admin-btn primary" id="seo-robots-save">Kaydet</button>
+          <span class="ud-save-msg" id="seo-robots-msg"></span>
+        </div>
+      </div>
+
+      <div class="admin-section" id="section-settings">
+        <div class="admin-form">
+          <h3>Bakım Modu</h3>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">Açıkken canlı sitedeki ADMİN OLMAYAN tüm ziyaretçiler bakım sayfası görür — API, giriş ekranı ve admin paneli her koşulda çalışmaya devam eder.</p>
+          <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600;">
+            <input type="checkbox" id="settings-maintenance"> Bakım modunu aç
+          </label>
+        </div>
+        <div class="admin-form">
+          <h3>Duyuru Banner'ı</h3>
+          <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; margin-bottom:12px;">
+            <input type="checkbox" id="settings-announcement-enabled"> Banner'ı göster
+          </label>
+          <div class="admin-field"><label>Metin</label><input type="text" id="settings-announcement-text" placeholder="Ör. Yeni özellik: artık projelerinize ödül ekleyebilirsiniz."></div>
+          <div class="admin-field"><label>Link (opsiyonel)</label><input type="text" id="settings-announcement-link" placeholder="https://…"></div>
+        </div>
+        <div class="admin-form">
+          <h3>Öne Çıkan Projeler</h3>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">Proje slug'larını virgülle ayır. Yalnızca anasayfadaki güncel proje havuzunda olan slug'lar öne çıkar.</p>
+          <div class="admin-field"><input type="text" id="settings-featured-projects" placeholder="ornek-proje-slug, baska-proje-slug"></div>
+        </div>
+        <button class="admin-btn primary" id="settings-save">Kaydet</button>
+        <span class="ud-save-msg" id="settings-save-msg"></span>
+      </div>
+
+      <div class="admin-section" id="section-performance">
+        <div id="performance-cards"></div>
+        <div class="admin-actions" style="margin-top:16px;">
+          <button class="admin-btn" id="performance-refresh">Yenile</button>
+          <button class="admin-btn danger" id="performance-purge">Önbelleği Temizle</button>
+        </div>
+        <div id="performance-purge-msg" style="margin-top:10px; font-size:12.5px; color:var(--ink-soft);"></div>
       </div>
     </div>
   </div>
@@ -622,24 +681,34 @@ async function loadContent(resetPage){
   if(contentPage > totalPages) contentPage = totalPages;
   const pageItems = items.slice((contentPage - 1) * CONTENT_PAGE_SIZE, contentPage * CONTENT_PAGE_SIZE);
   renderDashPagination('content-pagination', contentPage, totalPages, (p)=>{ contentPage = p; loadContent(); });
+
+  // Öne Çıkar rozetini/buton metnini doğru göstermek için — yalnızca sayfada proje varsa (gereksiz
+  // istek yapmamak için) featured_project_slugs ayarı önceden okunur (bkz. src/lib/siteSettings.js,
+  // GET /api/admin/settings zaten KV-önbellekli, hafif).
+  const featuredSlugs = pageItems.some(it => it.__type === 'projects') ? await loadFeaturedProjectSlugs() : [];
+
   list.innerHTML = pageItems.map(item => `
     <div class="admin-card" data-id="${item.id}" data-type="${item.__type}">
       <div class="admin-card-head">
         <div class="admin-card-body">
           ${itemImage(item.__type, item) ? `<img class="admin-card-thumb" src="${escapeAttr(itemImage(item.__type, item))}" alt="" loading="lazy" decoding="async">` : ''}
           <div>
-            <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))} <span class="admin-badge badge-approved">Yayında</span>${contentType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}</div>
+            <div class="admin-card-title">${escapeHtml(itemTitle(item.__type, item))} <span class="admin-badge badge-approved">Yayında</span>${contentType === 'all' ? ` <span class="admin-badge badge-pending">${TYPE_LABELS[item.__type]}</span>` : ''}${item.__type === 'projects' && featuredSlugs.includes(item.slug) ? ' <span class="admin-badge badge-neutral">Öne Çıkan</span>' : ''}</div>
             ${claimBadgeHtml(item)}
             <div class="admin-card-meta">${escapeHtml(itemMeta(item.__type, item))}</div>
             ${itemDetails(item.__type, item)}
           </div>
         </div>
         <div class="admin-actions">
+          <button class="admin-btn" data-action="edit">Düzenle</button>
+          ${item.__type === 'projects' ? `<button class="admin-btn" data-action="feature">${featuredSlugs.includes(item.slug) ? 'Öne Çıkanlardan Çıkar' : 'Öne Çıkar'}</button>` : ''}
           <button class="admin-btn danger" data-action="unpublish">Yayından Kaldır</button>
         </div>
       </div>
+      <div class="content-edit-form" style="display:none; margin-top:14px;"></div>
     </div>
   `).join('');
+
   list.querySelectorAll('[data-action="unpublish"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const card = btn.closest('.admin-card');
@@ -651,6 +720,71 @@ async function loadContent(resetPage){
       loadContent();
     });
   });
+  list.querySelectorAll('[data-action="edit"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const card = btn.closest('.admin-card');
+      const item = pageItems.find(it => String(it.id) === card.dataset.id && it.__type === card.dataset.type);
+      if(item) toggleContentEditForm(card, item);
+    });
+  });
+  list.querySelectorAll('[data-action="feature"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const card = btn.closest('.admin-card');
+      const item = pageItems.find(it => String(it.id) === card.dataset.id && it.__type === card.dataset.type);
+      if(!item || !item.slug) return;
+      btn.disabled = true;
+      await toggleFeaturedProject(item.slug);
+      loadContent();
+    });
+  });
+}
+
+// Yayındaki İçerikler sekmesinden hızlı düzenleme — yalnızca serbest metin alanları (bkz. plan
+// notu: taksonomi/dizi alanları BİLEREK burada YOK, tam düzenleme hâlâ Arşiv sekmesi → mevcut
+// ekle/düzenle formu akışından yapılır). Mevcut PATCH /api/admin/submissions/:type/:id endpoint'i
+// hiç değişmeden kullanılır (bu alanlar zaten submissionTypes.js#fields listelerinde).
+const CONTENT_EDITABLE_FIELDS = {
+  projects: [{ key: 'title', label: 'Başlık' }, { key: 'description', label: 'Açıklama', textarea: true }],
+  architects: [{ key: 'name', label: 'İsim' }, { key: 'about', label: 'Hakkında', textarea: true }],
+  offices: [{ key: 'name', label: 'İsim' }, { key: 'about', label: 'Hakkında', textarea: true }],
+  products: [{ key: 'title', label: 'Başlık' }, { key: 'description', label: 'Açıklama', textarea: true }],
+  materials: [{ key: 'title', label: 'Başlık' }, { key: 'description', label: 'Açıklama', textarea: true }],
+};
+function toggleContentEditForm(card, item){
+  const box = card.querySelector('.content-edit-form');
+  if(box.style.display !== 'none'){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  const fields = CONTENT_EDITABLE_FIELDS[item.__type] || [];
+  box.innerHTML = `
+    <div class="admin-form" style="margin:0;">
+      ${fields.map(f => `<div class="admin-field"><label>${f.label}</label>${f.textarea ? `<textarea data-field="${f.key}">${escapeHtml(item[f.key] || '')}</textarea>` : `<input type="text" data-field="${f.key}" value="${escapeAttr(item[f.key] || '')}">`}</div>`).join('')}
+      <div class="admin-actions">
+        <button class="admin-btn primary" data-action="save-edit">Kaydet</button>
+        <button class="admin-btn" data-action="cancel-edit">Vazgeç</button>
+      </div>
+    </div>
+  `;
+  box.style.display = 'block';
+  box.querySelector('[data-action="cancel-edit"]').addEventListener('click', ()=>{ box.style.display = 'none'; box.innerHTML = ''; });
+  box.querySelector('[data-action="save-edit"]').addEventListener('click', async (e)=>{
+    e.target.disabled = true;
+    const body = {};
+    fields.forEach(f => { body[f.key] = box.querySelector(`[data-field="${f.key}"]`).value; });
+    await api(`/api/admin/submissions/${item.__type}/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    loadContent();
+  });
+}
+
+// Öne Çıkan Projeler (bkz. src/lib/siteSettings.js#featured_project_slugs, index.html'in ana sayfa
+// carousel'inde istemci tarafı sıralama için okuduğu AYNI ayar) — admin panelden ayrı bir seçim
+// arayüzü yerine, Yayındaki İçerikler kartındaki tek bir butonla ayarın kendisine slug ekler/çıkarır.
+async function loadFeaturedProjectSlugs(){
+  const s = await api('/api/admin/settings');
+  return (s.featured_project_slugs || '').split(',').map(v => v.trim()).filter(Boolean);
+}
+async function toggleFeaturedProject(slug){
+  const current = await loadFeaturedProjectSlugs();
+  const next = current.includes(slug) ? current.filter(v => v !== slug) : [...current, slug];
+  await api('/api/admin/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ featured_project_slugs: next.join(', ') }) });
 }
 
 // "Arşiv" sekmesi: proje/mimar/firma/ürün detay sayfalarındaki (yalnızca admin görür) "Arşivle"
@@ -1136,6 +1270,154 @@ async function refreshAdminSummary(){
   }catch{}
 }
 
+// ---------- SEO sekmesi (bkz. src/routes/admin.js#handleSeoAdmin) ----------
+let seoType = 'project';
+async function loadSeoResults(q){
+  const results = document.getElementById('seo-results');
+  results.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api(`/api/admin/seo?type=${seoType}&q=${encodeURIComponent(q || '')}`);
+  const items = data.items || [];
+  if(!items.length){ results.innerHTML = '<div class="admin-empty">Sonuç yok.</div>'; return; }
+  results.innerHTML = items.map(it => `
+    <div class="admin-card" data-key="${escapeAttr(it.key)}" data-name="${escapeAttr(it.name)}" style="cursor:pointer; padding:12px 16px;">
+      <div class="admin-card-title" style="font-size:14px; margin:0;">${escapeHtml(it.name)} ${it.hasOverride ? '<span class="admin-badge badge-neutral">Override var</span>' : ''}</div>
+    </div>
+  `).join('');
+  results.querySelectorAll('.admin-card').forEach(card=>{
+    card.addEventListener('click', async ()=>{
+      const key = card.dataset.key, name = card.dataset.name;
+      const detail = await api(`/api/admin/seo/${seoType}/${encodeURIComponent(key)}`);
+      renderSeoEditor(key, name, detail.derived, detail.override);
+    });
+  });
+}
+function renderSeoEditor(key, name, derived, override){
+  const panel = document.getElementById('seo-edit-panel');
+  panel.innerHTML = `
+    <div class="admin-form">
+      <h3>${escapeHtml(name)}</h3>
+      <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Varsayılan (türetilmiş) değerler yer tutucu olarak gösterilir — boş bırakırsan bu değerler kullanılmaya devam eder.</p>
+      <div class="admin-field"><label>Başlık (title)</label><input type="text" id="seo-edit-title" placeholder="${escapeAttr(derived.title)}" value="${escapeAttr(override ? override.meta_title || '' : '')}"></div>
+      <div class="admin-field"><label>Açıklama (description)</label><textarea id="seo-edit-desc" placeholder="${escapeAttr(derived.description)}">${escapeHtml(override ? override.meta_description || '' : '')}</textarea></div>
+      <div class="admin-actions">
+        <button class="admin-btn primary" id="seo-edit-save">Kaydet</button>
+        <button class="admin-btn danger" id="seo-edit-clear">Varsayılana Döndür</button>
+      </div>
+      <span class="ud-save-msg" id="seo-edit-msg"></span>
+    </div>
+  `;
+  document.getElementById('seo-edit-save').addEventListener('click', async ()=>{
+    await api(`/api/admin/seo/${seoType}/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meta_title: document.getElementById('seo-edit-title').value, meta_description: document.getElementById('seo-edit-desc').value }) });
+    document.getElementById('seo-edit-msg').textContent = 'Kaydedildi.';
+    loadSeoResults(document.getElementById('seo-search-input').value);
+  });
+  document.getElementById('seo-edit-clear').addEventListener('click', async ()=>{
+    await api(`/api/admin/seo/${seoType}/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meta_title: '', meta_description: '' }) });
+    document.getElementById('seo-edit-msg').textContent = 'Varsayılana döndürüldü.';
+    loadSeoResults(document.getElementById('seo-search-input').value);
+  });
+}
+async function loadSeoRobots(){
+  const settings = await api('/api/admin/settings');
+  document.getElementById('seo-robots-textarea').value = settings.robots_txt || '';
+}
+function loadSeo(){
+  document.getElementById('seo-edit-panel').innerHTML = '';
+  document.getElementById('seo-search-input').value = '';
+  loadSeoResults('');
+  loadSeoRobots();
+}
+document.querySelectorAll('#seo-type-tabs .admin-subtab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#seo-type-tabs .admin-subtab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    seoType = btn.dataset.seoType;
+    document.getElementById('seo-edit-panel').innerHTML = '';
+    loadSeoResults(document.getElementById('seo-search-input').value);
+  });
+});
+let seoSearchTimer = null;
+document.getElementById('seo-search-input').addEventListener('input', (e)=>{
+  clearTimeout(seoSearchTimer);
+  const value = e.target.value;
+  seoSearchTimer = setTimeout(()=> loadSeoResults(value), 300);
+});
+document.getElementById('seo-robots-save').addEventListener('click', async ()=>{
+  await api('/api/admin/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ robots_txt: document.getElementById('seo-robots-textarea').value }) });
+  document.getElementById('seo-robots-msg').textContent = 'Kaydedildi.';
+});
+
+// ---------- Site Ayarları sekmesi (bkz. src/routes/admin.js#handleSiteSettingsAdmin) ----------
+async function loadSiteSettings(){
+  const s = await api('/api/admin/settings');
+  document.getElementById('settings-maintenance').checked = s.maintenance_mode === '1';
+  document.getElementById('settings-announcement-enabled').checked = s.announcement_enabled === '1';
+  document.getElementById('settings-announcement-text').value = s.announcement_text || '';
+  document.getElementById('settings-announcement-link').value = s.announcement_link || '';
+  document.getElementById('settings-featured-projects').value = s.featured_project_slugs || '';
+  document.getElementById('settings-save-msg').textContent = '';
+}
+document.getElementById('settings-save').addEventListener('click', async ()=>{
+  const body = {
+    maintenance_mode: document.getElementById('settings-maintenance').checked ? '1' : '0',
+    announcement_enabled: document.getElementById('settings-announcement-enabled').checked ? '1' : '0',
+    announcement_text: document.getElementById('settings-announcement-text').value,
+    announcement_link: document.getElementById('settings-announcement-link').value,
+    featured_project_slugs: document.getElementById('settings-featured-projects').value,
+  };
+  await api('/api/admin/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  document.getElementById('settings-save-msg').textContent = 'Kaydedildi — değişiklik ~30 saniye içinde yansır.';
+});
+
+// ---------- Performans sekmesi (bkz. src/routes/admin.js#handlePerformanceAdmin) ----------
+function formatBytesGeneric(n){
+  if(n < 1024) return `${n} B`;
+  if(n < 1024*1024) return `${(n/1024).toFixed(1)} KB`;
+  if(n < 1024*1024*1024) return `${(n/(1024*1024)).toFixed(1)} MB`;
+  return `${(n/(1024*1024*1024)).toFixed(2)} GB`;
+}
+function perfBar(label, used, limit, usedLabel){
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  return `
+    <div class="admin-card">
+      <div class="admin-card-title" style="font-size:14px;">${label}</div>
+      <div style="background:var(--paper-alt); border-radius:100px; height:8px; margin:10px 0 6px; overflow:hidden;">
+        <div style="background:${pct > 85 ? 'var(--bad)' : 'var(--walnut)'}; height:100%; width:${pct}%;"></div>
+      </div>
+      <div class="admin-card-meta">${usedLabel} · %${pct}</div>
+    </div>
+  `;
+}
+async function loadPerformance(){
+  const cards = document.getElementById('performance-cards');
+  cards.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  document.getElementById('performance-purge-msg').textContent = '';
+  const data = await api('/api/admin/performance');
+  const { r2, kv, counts } = data;
+  cards.innerHTML = [
+    perfBar('R2 Depolama', r2.totalBytes, r2.safeStorageBytes, `${formatBytesGeneric(r2.totalBytes)} / ${formatBytesGeneric(r2.safeStorageBytes)}`),
+    perfBar('R2 Aylık İşlem', r2.opsCount, r2.safeOpsPerMonth, `${r2.opsCount.toLocaleString('tr-TR')} / ${r2.safeOpsPerMonth.toLocaleString('tr-TR')}`),
+    perfBar('KV Günlük Yazma', kv.writesCount, kv.safeWritesPerDay, `${kv.writesCount} / ${kv.safeWritesPerDay}${kv.writesDay ? ' · ' + kv.writesDay : ''}`),
+    `<div class="admin-card"><div class="admin-card-title" style="font-size:14px;">İçerik Sayıları</div><div class="admin-card-details" style="margin-top:10px;">
+      <div><span>Proje:</span> ${counts.projects}</div>
+      <div><span>Mimar:</span> ${counts.architects}</div>
+      <div><span>Firma:</span> ${counts.offices}</div>
+      <div><span>Ürün/Malzeme:</span> ${counts.products}</div>
+      <div><span>Yorum:</span> ${counts.comments}</div>
+      <div><span>Puanlama:</span> ${counts.ratings}</div>
+    </div></div>`,
+  ].join('');
+}
+document.getElementById('performance-refresh').addEventListener('click', loadPerformance);
+document.getElementById('performance-purge').addEventListener('click', async ()=>{
+  if(!confirm("Önbelleği temizlemek istediğine emin misin? (Yalnızca isteği işleyen edge PoP'unu temizler, global anında temizlik garantisi yoktur.)")) return;
+  const res = await api('/api/admin/performance/purge-cache', { method: 'POST' });
+  document.getElementById('performance-purge-msg').textContent = res.note || 'Temizlendi.';
+});
+
 // GET/DELETE /api/admin/r2-orphans (bkz. src/lib/r2Reconcile.js) — yalnızca RAPORLAR, hiçbir şeyi
 // kendiliğinden silmez (R2 free tier guard ilkesi); admin burada gördüğü anahtarları TEK TEK ya da
 // seçip toplu olarak, kendi onayıyla siler. Sunucu tarafı silmeden hemen önce referans durumunu
@@ -1232,6 +1514,9 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     if(tab.dataset.tab === 'users') loadUsers();
     if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
+    if(tab.dataset.tab === 'seo') loadSeo();
+    if(tab.dataset.tab === 'settings') loadSiteSettings();
+    if(tab.dataset.tab === 'performance') loadPerformance();
   });
 });
 

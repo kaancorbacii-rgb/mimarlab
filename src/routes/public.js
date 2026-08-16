@@ -3,6 +3,7 @@ import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
 import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
+import { getSiteSettings } from '../lib/siteSettings.js';
 
 // Onaylanmış (status='approved') satırları, statik urunler-data.js/malzemeler-data.js
 // dizilerindeki mevcut şekle olabildiğince uyacak biçimde dönüştürür — böylece istemci
@@ -31,7 +32,25 @@ export async function handlePublicRoute(request, env, url) {
   if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);
   if (segments[2] === 'claim-status') return handlePublicClaimStatus(request, env, url);
   if (segments[2] === 'save-count') return handlePublicSaveCount(request, env, url);
+  if (segments[2] === 'site-settings') return handlePublicSiteSettings(request, env, url);
   return errorJson('Bulunamadı', 404);
+}
+
+// GET /api/public/site-settings — auth gerektirmez. Admin panelin Site Ayarları sekmesinden
+// (bkz. src/routes/admin.js#handleSiteSettingsAdmin) yönetilen ayarların YALNIZCA public-safe alt
+// kümesi — maintenance_mode/robots_txt buradan HİÇ dönülmez (ikisi de zaten sunucu tarafında ayrıca
+// uygulanıyor, bkz. src/index.js#maybeServeMaintenancePage/handleRobotsTxt). auth-nav.js (duyuru
+// banner'ı) ve index.html (öne çıkan proje sıralaması) tarafından okunur.
+async function handlePublicSiteSettings(request, env, url) {
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    const s = await getSiteSettings(env);
+    return {
+      announcementEnabled: s.announcement_enabled === '1',
+      announcementText: s.announcement_text || '',
+      announcementLink: s.announcement_link || '',
+      featuredProjectSlugs: (s.featured_project_slugs || '').split(',').map(v => v.trim()).filter(Boolean),
+    };
+  });
 }
 
 // GET /api/public/claim-status?profileType=architect|office&profileKey=<isim> — auth gerektirmez.

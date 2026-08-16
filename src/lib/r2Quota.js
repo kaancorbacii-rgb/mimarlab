@@ -12,8 +12,10 @@ import { errorJson } from './http.js';
 
 // Ücretsiz kotanın (10 GB / 1M işlem) altında bilinçli bir güvenlik payı — kalan pay diğer
 // olası kullanım kaynaklarını (ör. wrangler CLI ile elle yüklenen dosyalar) da tolere eder.
-const SAFE_STORAGE_BYTES = 9 * 1024 * 1024 * 1024; // 9 GB
-const SAFE_OPS_PER_MONTH = 900000; // 900k
+// export edildi — src/routes/admin.js#handlePerformanceAdmin bunu Performans sekmesinde
+// kullanılan/limit gösterimi için okur (bkz. o dosyadaki çağrı noktası).
+export const SAFE_STORAGE_BYTES = 9 * 1024 * 1024 * 1024; // 9 GB
+export const SAFE_OPS_PER_MONTH = 900000; // 900k
 
 function currentMonthKey() {
   return new Date().toISOString().slice(0, 7); // 'YYYY-MM'

@@ -14,6 +14,16 @@
   function escapeAttr(s) {
     return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  // mimar-detay.html/ofis-detay.html'deki inline safeUrl() ile aynı — yalnızca http(s) kabul eder
+  // (bkz. XSS escaping convention: stored URL'ler her zaman safeUrl'den geçirilir).
+  function safeUrl(u) {
+    if (!u) return '';
+    try {
+      const parsed = new URL(u, document.baseURI);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+    } catch {}
+    return '';
+  }
   function injectStyleOnce() {
     if (document.getElementById('auth-nav-style')) return;
     const style = document.createElement('style');
@@ -86,10 +96,57 @@
     });
   }
 
+  // Admin panelin Site Ayarları sekmesinden (bkz. src/routes/admin.js#handleSiteSettingsAdmin,
+  // src/routes/public.js#handlePublicSiteSettings) açılıp kapatılan duyuru banner'ı — auth-nav.js
+  // hemen her sayfada zaten yüklü olduğundan (bkz. dosya başı yorumu) ayrı bir <script> eklemeye
+  // gerek kalmadan buraya eklendi. Kapatma tercihi duyuru METNİNİN hash'iyle saklanır — metin
+  // değişirse (yeni bir duyuru) eski "kapatıldı" durumu geçersiz olur, yeniden gösterilir.
+  function announcementDismissKey(text) {
+    let h = 0;
+    for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+    return `mimarlab-announcement-dismissed-${h}`;
+  }
+  function injectAnnouncementStyleOnce() {
+    if (document.getElementById('announcement-banner-style')) return;
+    const style = document.createElement('style');
+    style.id = 'announcement-banner-style';
+    style.textContent = `
+      .announcement-banner{display:flex; align-items:center; justify-content:center; gap:12px; background:var(--walnut); color:var(--paper-card); font-size:13px; font-weight:600; padding:10px 44px 10px 16px; text-align:center; position:relative;}
+      .announcement-banner a{color:inherit; text-decoration:underline;}
+      .announcement-banner-close{position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:inherit; font-size:16px; line-height:1; cursor:pointer; padding:6px; opacity:0.8;}
+      .announcement-banner-close:hover{opacity:1;}
+    `;
+    document.head.appendChild(style);
+  }
+  async function initAnnouncementBanner() {
+    let settings;
+    try {
+      const res = await fetch('/api/public/site-settings');
+      settings = res.ok ? await res.json() : null;
+    } catch { settings = null; }
+    if (!settings || !settings.announcementEnabled || !settings.announcementText) return;
+    const dismissKey = announcementDismissKey(settings.announcementText);
+    try { if (localStorage.getItem(dismissKey) === '1') return; } catch {}
+    if (document.getElementById('announcement-banner')) return;
+    injectAnnouncementStyleOnce();
+    const link = safeUrl(settings.announcementLink);
+    const banner = document.createElement('div');
+    banner.className = 'announcement-banner';
+    banner.id = 'announcement-banner';
+    banner.innerHTML = `<span>${escapeHtml(settings.announcementText)}${link ? ` <a href="${escapeAttr(link)}">Detaylar</a>` : ''}</span><button type="button" class="announcement-banner-close" aria-label="Kapat">&times;</button>`;
+    document.body.prepend(banner);
+    banner.querySelector('.announcement-banner-close').addEventListener('click', () => {
+      try { localStorage.setItem(dismissKey, '1'); } catch {}
+      banner.remove();
+    });
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAuthNav);
+    document.addEventListener('DOMContentLoaded', initAnnouncementBanner);
   } else {
     initAuthNav();
+    initAnnouncementBanner();
   }
 
   // auth-modal.js login/signup başarılı olduğunda artık sayfayı yeniden YÜKLEMEDEN (bkz. kullanıcı

@@ -380,10 +380,34 @@ const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, proje
 // env artık dördü için de TEK veri kaynağı (bkz. yukarıdaki import yorumu) — product yalnızca
 // eski "m-<submissionId>" biçimini önce eski submission tablolarında dener, aksi halde canonical
 // `products` tablosuna bakar (bkz. buildProductMeta).
+// admin panelin SEO sekmesinden (bkz. src/routes/admin.js#handleSeoAdmin) kaydedilen title/
+// description override'ları — seo_overrides.entity_key HER ZAMAN kaydın GERÇEK canonical slug'ı
+// (meta.canonicalUrl'in son parçası) ile anahtarlanır, çağıranın URL'de kullandığı ham alias
+// (name/legacy_key) DEĞİL — aksi halde aynı kayda farklı alias'larla ulaşan istekler override'ı
+// kaçırabilirdi (bkz. findArchitectRow/findOfficeRow'daki AYNI "gerçek slug" denetim notu).
+async function applySeoOverride(type, meta, env) {
+  if (!env || !env.DB || !meta) return meta;
+  const key = decodeURIComponent(meta.canonicalUrl.split('/').pop());
+  let override;
+  try {
+    override = await env.DB.prepare(
+      `SELECT meta_title, meta_description FROM seo_overrides WHERE entity_type = ? AND entity_key = ?`
+    ).bind(type, key).first();
+  } catch { return meta; }
+  if (!override) return meta;
+  const next = { ...meta };
+  if (override.meta_title) next.title = pageTitle(override.meta_title);
+  if (override.meta_description) next.description = truncate(override.meta_description, 200);
+  return next;
+}
+
 export async function buildMeta(type, slugOrId, env) {
   const builder = BUILDERS[type];
   if (!builder) return null;
-  try { return await builder(slugOrId, env); } catch { return null; }
+  try {
+    const meta = await builder(slugOrId, env);
+    return await applySeoOverride(type, meta, env);
+  } catch { return null; }
 }
 
 // /sitemap.xml için — mimar/ofis/proje URL'leri artık yalnızca D1'de yaşadığından (bkz. yukarıdaki

@@ -821,12 +821,27 @@ Promise.all([
   // eklenen 6" isteniyordu, bu davranış kullanıcı isteğiyle "en popüler N"ye çevrildi.
   fetchPublicJson('/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS),
   fetchPublicJson('/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS),
-]).then(([yapiRes, architectRes, officeRes])=>{
+  // Admin panelin Site Ayarları sekmesinden seçilen öne çıkan projeler (bkz. src/lib/siteSettings.js#
+  // featured_project_slugs) — ayrı, düşük riskli bir istek: başarısız olursa (ya da hiç ayar
+  // yoksa) featuredProjectSlugs boş kabul edilir, carousel her zamanki (id DESC) sırasında kalır.
+  fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null),
+]).then(([yapiRes, architectRes, officeRes, siteSettings])=>{
   if(yapiRes.failed){
     renderSliderError('Projeler şu an yüklenemedi.');
   } else {
-    const yapiWithImages = (yapiRes.items || []).filter(p => p.images && p.images[0]).slice(0, PROJECT_CAROUSEL_SLOTS);
-    renderSlider(yapiWithImages);
+    let pool = (yapiRes.items || []).filter(p => p.images && p.images[0]);
+    // Öne çıkan projeler bu havuz İÇİNDE başa alınır — proje.js#handleProjectListRoute'un bilerek
+    // dokunulmayan D1-seviyeli hızlı yoluna (bkz. o dosyadaki "riskli biçimde yeniden yazma YASAĞI"
+    // yorumu) HİÇ dokunulmadan, tamamen istemci tarafında. Havuzda olmayan bir featured slug (ör.
+    // güncel havuza girmeyecek kadar eski bir proje) sessizce atlanır.
+    const featured = (siteSettings && siteSettings.featuredProjectSlugs) || [];
+    if(featured.length){
+      pool = [
+        ...featured.map(slug => pool.find(p => p.slug === slug)).filter(Boolean),
+        ...pool.filter(p => !featured.includes(p.slug)),
+      ];
+    }
+    renderSlider(pool.slice(0, PROJECT_CAROUSEL_SLOTS));
   }
 
   // Mimar/Firma mini-carousel'lerinin AKSİNE (bkz. yukarısı) hiçbir statik yedek dizisi yok —

@@ -5,7 +5,7 @@
 // bir sonraki istek KV MISS olarak D1'den okumaya devam eder, hiçbir şey bozulmaz, yalnızca yavaşlar.
 // Bu yüzden R2 guard'ındaki gibi bir errorJson(403) reddi YOK — çağıran taraf true/false alır.
 
-const SAFE_WRITES_PER_DAY = 900; // ücretsiz kotanın (1000/gün) altında güvenlik payı
+export const SAFE_WRITES_PER_DAY = 900; // ücretsiz kotanın (1000/gün) altında güvenlik payı
 
 function currentDayKey() {
   return new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
