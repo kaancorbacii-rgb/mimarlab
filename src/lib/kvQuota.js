@@ -27,6 +27,11 @@ export async function reserveKvWrite(env) {
          AND (CASE WHEN writes_day = ? THEN writes_count + 1 ELSE 1 END) <= ?
        RETURNING writes_count`
     ).bind(day, day, now, day, SAFE_WRITES_PER_DAY).first();
+    // gerçek bulgu (denetim raporu, 2026-08-16): kota aşıldığında yazma sessizce D1'e düşüyordu,
+    // hiçbir yerde loglanmıyordu — "önbellek neden hep MISS/yavaş" teşhisi Workers Logs'ta hiçbir
+    // iz bırakmadığından zorlaşıyordu. Kullanıcı işlemini ENGELLEMİYOR (dosya başı yorum), yalnızca
+    // gözlemlenebilirlik için yapılandırılmış (bkz. logger.js'teki AYNI JSON satır deseni) bir uyarı.
+    if (!row) console.warn(JSON.stringify({ timestamp: new Date().toISOString(), event: 'kv_quota_exhausted', writes_day: day, limit: SAFE_WRITES_PER_DAY }));
     return !!row;
   } catch {
     // kv_usage tablosu henüz migrate edilmemişse (ör. yerel dev) yazmayı ENGELLEME — bu yalnızca

@@ -35,6 +35,23 @@ function truncate(text, max) {
   return text && text.length > max ? text.slice(0, max - 1) + '…' : text;
 }
 
+// gerçek bulgu (denetim raporu, 2026-08-16): <title> hiçbir yerde uzunluk sınırına kırpılmıyordu —
+// çok uzun mimar/firma/proje/ürün adlarında (ör. cümle uzunluğunda proje başlıkları) Google'ın SERP'te
+// gösterdiği pratik ~60 karakterlik sınırı aşılıp başlık ortasından kesilebiliyordu. Sabit " — MİMARLAB"
+// soneki HER ZAMAN görünür kalsın diye kırpma yalnızca ada/başlığa uygulanır, sonek payı düşülerek.
+const TITLE_SUFFIX = ' — MİMARLAB';
+const TITLE_MAX = 60;
+function pageTitle(name) {
+  return `${truncate(name, TITLE_MAX - TITLE_SUFFIX.length)}${TITLE_SUFFIX}`;
+}
+
+// created_at kolonu SQLite datetime('now') formatındadır ('YYYY-MM-DD HH:MM:SS', UTC, T/Z yok) —
+// Open Graph'ın article:published_time'ı ISO 8601 bekler (bkz. aşağıdaki buildProjectMeta).
+function toIso8601(sqliteDatetime) {
+  if (!sqliteDatetime) return null;
+  return sqliteDatetime.includes('T') ? sqliteDatetime : `${sqliteDatetime.replace(' ', 'T')}Z`;
+}
+
 // Katalog sayfası etiket/yolu — ilgili *-detay.html'deki görünür .breadcrumb-bar zinciriyle
 // (ör. proje-detay.html "Ana Sayfa › Projeler › <başlık>") BİREBİR aynı olmalı; Google yapılandırılmış
 // verinin sayfada görünen içerikle tutarlı olmasını bekler (bkz. structured data guidelines).
@@ -159,7 +176,7 @@ async function findProductRow(env, key) {
 // o.slug'tır; eşleşen bir ofis kaydı yoksa (ör. serbest metin ofis adı) slugify(officeName) fallback'ine
 // düşer — önceki (tek) davranışla aynı, yalnızca gerçek bir eşleşme varken daha doğru URL üretir.
 function architectMetaFromRecord(a, officeName, slug, officeSlug) {
-  const title = `${a.name} — MİMARLAB`;
+  const title = pageTitle(a.name);
   const description = officeName
     ? `${a.name}, ${officeName} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
     : `${a.name} — MİMARLAB'da mimar profilini incele.`;
@@ -187,7 +204,7 @@ async function buildArchitectMeta(slug, env) {
 // architectMetaFromRecord ile AYNI paylaşım deseni — canonical D1 offices satırı ortak şekle
 // ({name, about, yil, loc, logo, website}) indirgenip tek fonksiyondan geçirilir.
 async function officeMetaFromRecord(o, slug, env) {
-  const title = `${o.name} — MİMARLAB`;
+  const title = pageTitle(o.name);
   const description = o.about ? truncate(o.about, 200) : `${o.name} — MİMARLAB'da firma profilini incele.`;
   const canonicalUrl = `${SITE_ORIGIN}/firma/${encodeURIComponent(slug)}`;
   const logoUrl = o.logo ? absoluteUrl(o.logo) : null;
@@ -222,7 +239,7 @@ async function buildProjectMeta(slug, env) {
   const row = await findProjectRow(env, slug);
   if (!row) return null;
   const p = parseCanonicalRow('projects', row);
-  const title = `${p.title} — MİMARLAB`;
+  const title = pageTitle(p.title);
   const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
   const description = truncate(rawDesc, 200);
   // Proje (eski "Yapı") tek URL öneki: /proje/:slug (bkz. kullanıcı isteği: Yapı sayfası Proje
@@ -251,14 +268,19 @@ async function buildProjectMeta(slug, env) {
   // audit bulgusu: og:type tüm detay sayfalarında sabit "website" kalıyordu — proje sayfaları
   // editoryal/içerik niteliğinde olduğundan (Open Graph çekirdek sözlüğünde "creative_work" gibi bir
   // tip yok) sosyal önizlemelerde en yakın karşılığı "article"dır (bkz. src/index.js#injectMeta).
-  return { title, h1: p.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
+  // gerçek bulgu (denetim raporu, 2026-08-16): og:type="article" set edilirken Open Graph'ın article
+  // ad alanı (article:published_time) hiç eşlik etmiyordu — Facebook/LinkedIn gibi paylaşım kartları
+  // bu alanı bekleyebilir. article:author kasıtlı olarak EKLENMEDİ: OG'nin bu alanı bir Facebook
+  // Profile URL'si bekler, mimar/firma sayfalarımız bu değil — yanlış/anlamsız bir değer uydurmak
+  // eksik bırakmaktan daha kötü olurdu (JSON-LD'deki creator zaten doğru yazarlığı taşıyor).
+  return { title, h1: p.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', publishedTime: toIso8601(row.created_at), breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
 // hem canonical `products` tablosu satırları hem eski üye-gönderisi kökenli product_submissions/
 // material_submissions satırları (bkz. buildProductMeta) aynı şekli taşıdığından paylaşılabilir.
 function productMetaFromRecord(record, canonicalUrl) {
-  const title = `${record.title} — MİMARLAB`;
+  const title = pageTitle(record.title);
   const rawDesc = record.description || `${record.title}${record.brand ? ' — ' + record.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
   const description = truncate(rawDesc, 200);
   const images = (record.images || []).map(absoluteUrl).filter(Boolean);

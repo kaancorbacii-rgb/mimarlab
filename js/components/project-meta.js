@@ -174,7 +174,12 @@ const ProjectMeta = (function () {
     // proje modalı bu fetch tamamlanmadan açılmışsa çipler baş harfli/rozetsiz render edilmiş
     // olabilir; js/components/architect-modal.js#renderVerifiedBadges ile AYNI desen, geldiğinde
     // Mimar/Firma çipleri bir kez daha çizilir.
-    window.addEventListener('mimarlab-badges-ready', () => { if (mySeq === renderSeq) renderDesigners(item, mergedIds); }, { once: true });
+    // gerçek bulgu (denetim, 2026-08-16): window.addEventListener(..., {once:true}) her render()
+    // çağrısında (proje A→B gezintisinde) kalıcı bir window listener biriktiriyordu — event sayfa
+    // ömründe genelde tek sefer ateşlendiğinden ilk fetch'ten sonraki her render kendini asla
+    // temizlemeyen bir listener bırakıyordu. badgesReadyPromise (bkz. badge-shared.js) zaten fetch
+    // bitince bir kez resolve olur; .then() kalıcı kayıt bırakmadan (renderSeq koruması AYNEN kalır).
+    if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(() => { if (mySeq === renderSeq) renderDesigners(item, mergedIds); });
     renderMeta(item, mergedIds);
     renderDescription(item, mergedIds);
     renderStructuredData(item);

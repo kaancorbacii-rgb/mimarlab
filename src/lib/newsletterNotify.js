@@ -94,6 +94,17 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
     const summary = buildSummary(typeKey, row);
     const safeSummary = summary ? escapeHtml(summary) : null;
     const coverImage = buildCoverImage(typeKey, row);
+    // gerçek bulgu (denetim raporu, 2026-08-16): coverImage/link daha önce escapeHtml'den GEÇMEDEN
+    // doğrudan src=""/href="" attribute'larına gömülüyordu — bugün safeAbsoluteUrl()'un URL() ile
+    // parse edip yeniden serialize etmesi (tırnak karakterleri otomatik percent-encode edilir) ve
+    // link'in slug/encodeURIComponent'ten gelmesi nedeniyle fiilen güvenli, ama proje konvansiyonu
+    // ("attribute context → escapeAttr/escapeHtml") ihlal ediliyordu — buildCoverImage/buildLink
+    // ileride farklı bir yoldan (ör. doğrudan D1 yazımı) doğrulanmamış bir değer dönerse render
+    // noktasında sessiz bir stored-injection açığına dönüşebilirdi. Render noktasında da savunma
+    // katmanı olarak escapeHtml (bu dosyada zaten tırnak dahil 5 karakteri encode ediyor, escapeAttr
+    // ile eşdeğer) uygulanır.
+    const safeCoverImage = coverImage ? escapeHtml(coverImage) : null;
+    const safeLink = escapeHtml(link);
 
     const emails = results.map((sub) => ({
       from,
@@ -101,11 +112,11 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
       subject,
       html: `<div style="max-width:480px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;">
         <p style="margin:0 0 24px;"><img src="https://mimarlab.com/logos/site/mimarlab-logo.png" alt="MİMARLAB" height="28" style="height:28px;width:auto;"></p>
-        ${coverImage ? `<p style="margin:0 0 20px;"><img src="${coverImage}" alt="${safeTitle}" width="480" style="width:100%;max-width:480px;height:auto;border-radius:8px;display:block;"></p>` : ''}
+        ${safeCoverImage ? `<p style="margin:0 0 20px;"><img src="${safeCoverImage}" alt="${safeTitle}" width="480" style="width:100%;max-width:480px;height:auto;border-radius:8px;display:block;"></p>` : ''}
         <p>MİMARLAB'da ${label.toLowerCase()} yayında:</p>
         <p style="font-size:16px;font-weight:600;">${safeTitle}</p>
         ${safeSummary ? `<p style="font-size:14px;color:#555;line-height:1.5;">${safeSummary}</p>` : ''}
-        <p><a href="${link}">İncele →</a></p>
+        <p><a href="${safeLink}">İncele →</a></p>
         <p style="margin-top:28px;font-size:12px;color:#888;">
           Bu e-postayı MİMARLAB bültenine abone olduğun için aldın.
           <a href="https://mimarlab.com/api/newsletter/unsubscribe?token=${encodeURIComponent(sub.unsubscribe_token)}">Abonelikten çık</a>

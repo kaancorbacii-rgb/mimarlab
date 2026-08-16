@@ -308,8 +308,19 @@ const ArchitectModal = (function () {
     el.innerHTML = html;
   }
 
+  // gerçek bulgu (denetim raporu, 2026-08-16): src/lib/seo.js#pageTitle SSR'daki <title>'ı zaten
+  // ~60 karakterde kırpıyor, ama modal açıldığında bu client-side atama UZUN/kırpılmamış adla
+  // document.title'ı eziyordu — Google'ın render-then-index akışında JS SONRASI son DOM durumu esas
+  // alınır. AYNI kırpma mantığı (ad + sabit " — MİMARLAB" soneki) burada tekrarlanır.
+  const TITLE_SUFFIX = ' — MİMARLAB';
+  const TITLE_MAX = 60;
+  function pageTitle(name) {
+    const maxNameLen = TITLE_MAX - TITLE_SUFFIX.length;
+    return `${name && name.length > maxNameLen ? name.slice(0, maxNameLen - 1) + '…' : name}${TITLE_SUFFIX}`;
+  }
+
   function updateHeadMeta(a, office) {
-    document.title = `${a.name} — MİMARLAB`;
+    document.title = pageTitle(a.name);
     ModalShell.setLabel(a.name);
     const desc = office
       ? `${a.name}, ${office.name} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
@@ -517,7 +528,14 @@ const ArchitectModal = (function () {
       renderColleaguesGrid();
     }
     renderVerifiedBadges();
-    window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges, { once: true });
+    // gerçek bulgu (denetim, 2026-08-16): window.addEventListener(..., {once:true}) her renderItem()
+    // çağrısında (mimar A→B gezintisinde) yeni bir kalıcı listener ekliyordu — 'mimarlab-badges-ready'
+    // sayfa ömründe genelde TEK sefer ateşlendiğinden, ilk fetch'ten SONRA açılan her profil kendini
+    // asla temizlemeyen bir window listener'ı (+ kapsadığı a/offices/colleagues closure'ı) biriktiriyordu.
+    // badgesReadyPromise (bkz. badge-shared.js) zaten fetch bitince bir kez resolve olan paylaşılan
+    // bir promise — .then() ÇOKTAN resolve olmuşsa bile kalıcı bir kayıt bırakmadan mikro-görev
+    // kuyruğunda bir kez çalışıp kendini temizler.
+    if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
 
     loadProfileContent();
     await savedWidgetReady;

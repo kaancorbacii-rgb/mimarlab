@@ -422,8 +422,17 @@ const ProductModal = (function () {
   function ratingKindFor(p) { return p.kind === 'material' ? 'material' : 'product'; }
   function legacyKeyFor(p) { return `${p.brand || ''}|||${p.title}`; }
 
+  // gerçek bulgu (denetim raporu, 2026-08-16): js/components/architect-modal.js#pageTitle ile AYNI
+  // sızıntı/gerekçe.
+  const TITLE_SUFFIX = ' — MİMARLAB';
+  const TITLE_MAX = 60;
+  function pageTitle(name) {
+    const maxNameLen = TITLE_MAX - TITLE_SUFFIX.length;
+    return `${name && name.length > maxNameLen ? name.slice(0, maxNameLen - 1) + '…' : name}${TITLE_SUFFIX}`;
+  }
+
   function updateHeadMeta(p, key) {
-    document.title = `${p.title} — MİMARLAB`;
+    document.title = pageTitle(p.title);
     ModalShell.setLabel(p.title);
     const rawDesc = p.description || `${p.title}${p.brand ? ' — ' + p.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;

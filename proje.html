@@ -17,6 +17,11 @@
 <meta property="og:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="og-description">
 <meta property="og:url" content="https://mimarlab.com/proje" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
+<!-- gerçek bulgu (denetim raporu, 2026-08-16): og:type="article" (yalnızca /proje/:slug detayında,
+     bkz. src/lib/seo.js#buildProjectMeta) article:published_time'sız kalıyordu. Bu sabit yer
+     tutucu yalnızca proje detay sayfalarında src/index.js#injectMeta tarafından doldurulur; liste
+     sayfasında (bu şablonun kendisi) veya published_time'ı olmayan çağrılarda kaldırılır. -->
+<meta property="article:published_time" content="" id="og-article-published-time">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Projeler — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri." id="twitter-description">

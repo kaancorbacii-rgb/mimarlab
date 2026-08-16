@@ -14,28 +14,38 @@ async function deleteEngagement(env, type, key) {
 // Bir <tip>_submissions JSON dizi kolonundan (designer/brands/founders) belirli bir ismi çıkarıp
 // geri yazar — LIKE yerine tüm satırları çekip JS'te filtreler (isimde SQL LIKE özel karakterleri
 // (%, _) olsa bile yanlış eşleşme riski olmasın diye; tablo boyutları bu siteye göre küçük).
+// gerçek bulgu (denetim raporu, 2026-08-16): önceki sürüm eşleşen HER satır için AYRI, SIRALI bir
+// UPDATE .run() çağırıyordu — src/lib/officeFounderCascade.js#renameOfficeEverywhere'deki AYNI sınıf
+// sorun (tanınmış bir mimar/ofis onlarca satırda geçiyorsa Workers'ın subrequest limitine
+// yaklaşabilir/silme yarıda kalabilir). Artık eşleşen satırlar toplanıp TEK bir env.DB.batch()
+// çağrısıyla yazılıyor (rename fonksiyonlarındaki AYNI desen).
 async function pullNameFromArrayColumn(env, table, column, name) {
   const { results } = await env.DB.prepare(`SELECT id, ${column} FROM ${table} WHERE ${column} IS NOT NULL`).all();
+  const updates = [];
   for (const row of results) {
     let arr;
     try { arr = JSON.parse(row[column]); } catch { continue; }
     if (!Array.isArray(arr) || !arr.includes(name)) continue;
-    await env.DB.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).bind(JSON.stringify(arr.filter(v => v !== name)), row.id).run();
+    updates.push(env.DB.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).bind(JSON.stringify(arr.filter(v => v !== name)), row.id));
   }
+  if (updates.length) await env.DB.batch(updates);
 }
 
 // product_submissions/material_submissions.architect serbest metin, virgülle ayrılmış isim listesi
 // tutar (JSON dizi DEĞİL — bkz. migrations/0020_product_architect.sql yorumu) — bu yüzden
 // pullNameFromArrayColumn'daki JSON.parse deseni burada kullanılamaz. src/lib/officeFounderCascade.js
-// #renameArchitectEverywhere'in AYNI split(',')/trim deseniyle ismi çıkarıp geri yazar.
+// #renameArchitectEverywhere'in AYNI split(',')/trim deseniyle ismi çıkarıp geri yazar. Aynı
+// gerekçeyle (yukarısı) eşleşen satırlar TEK bir env.DB.batch() çağrısıyla yazılır.
 async function pullNameFromCsvColumn(env, table, name) {
   const { results } = await env.DB.prepare(`SELECT id, architect FROM ${table} WHERE architect LIKE ?`).bind(`%${name}%`).all();
+  const updates = [];
   for (const row of results) {
     const names = (row.architect || '').split(',').map(s => s.trim()).filter(Boolean);
     if (!names.includes(name)) continue;
     const updated = names.filter(n => n !== name).join(', ');
-    await env.DB.prepare(`UPDATE ${table} SET architect = ? WHERE id = ?`).bind(updated, row.id).run();
+    updates.push(env.DB.prepare(`UPDATE ${table} SET architect = ? WHERE id = ?`).bind(updated, row.id));
   }
+  if (updates.length) await env.DB.batch(updates);
 }
 
 // Bir mimar SİLİNDİĞİNDE (bkz. src/routes/legacyContent.js#handleContentAction, src/routes/admin.js
@@ -119,5 +129,19 @@ export async function cascadeDeleteAccount(env, userId) {
   await env.DB.prepare(`DELETE FROM profile_corrections WHERE user_id = ?`).bind(userId).run();
   await env.DB.prepare(`DELETE FROM badge_requests WHERE user_id = ?`).bind(userId).run();
   await env.DB.prepare(`DELETE FROM password_resets WHERE user_id = ?`).bind(userId).run();
+  // gerçek bulgu (denetim raporu, 2026-08-16): architects/offices/projects/products.claimed_by_user_id
+  // (bkz. migrations/0022_id_first_entities.sql) hesap silinirken temizlenmiyordu — PRAGMA foreign_keys
+  // hiçbir yerde açık olmadığından D1 da reddetmiyor, profil artık var olmayan bir user_id'ye kalıcı
+  // "sahiplenilmiş" görünüp yeniden claim edilemez hale geliyordu. Yukarıdaki dosya-başı yorumdaki AYNI
+  // ilke burada da geçerli: canlı içeriğin KENDİSİ (profil/proje) silinmez, yalnızca bu kullanıcıyla
+  // kişisel bağı (sahiplik/talep durumu) temizlenir — profil claim edilmemiş duruma döner.
+  await env.DB.prepare(`UPDATE architects SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`UPDATE offices SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`UPDATE projects SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`UPDATE products SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
+  // migration_name_conflicts.resolved_by_user_id (bkz. migrations/0022_id_first_entities.sql) yalnızca
+  // admin panelinde "kim çözdü" bilgisini gösterir, canlı içerik değildir — dangling referans admin
+  // panelinde boş/kırık kullanıcı bilgisi göstermesin diye NULL'lanır.
+  await env.DB.prepare(`UPDATE migration_name_conflicts SET resolved_by_user_id = NULL WHERE resolved_by_user_id = ?`).bind(userId).run();
   await env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(userId).run();
 }

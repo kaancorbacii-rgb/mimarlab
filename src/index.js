@@ -583,6 +583,11 @@ function injectMeta(response, meta) {
     // src/lib/seo.js#buildProjectMeta/productMetaFromRecord); mimar/firma için Open Graph çekirdek
     // sözlüğünde kuruma/kişiye uyan iyi bir tip yok, "website" doğru varsayılan olarak kalır.
     .on('meta#og-type', { element(el) { el.setAttribute('content', meta.ogType || 'website'); } })
+    // gerçek bulgu (denetim raporu, 2026-08-16): og:type="article" article:published_time'sız
+    // kalıyordu (bkz. src/lib/seo.js#buildProjectMeta) — meta.publishedTime YALNIZCA proje
+    // üreticisinde set edilir, diğer tüm çağrılarda (mimar/firma/ürün/liste sayfaları) etiket
+    // anlamsız boş content taşımasın diye tamamen kaldırılır.
+    .on('meta#og-article-published-time', { element(el) { if (meta.publishedTime) el.setAttribute('content', meta.publishedTime); else el.remove(); } })
     .on('meta#og-title', { element(el) { el.setAttribute('content', meta.title); } })
     .on('meta#og-description', { element(el) { el.setAttribute('content', meta.description); } })
     .on('meta#og-url', { element(el) { el.setAttribute('content', meta.canonicalUrl); } })

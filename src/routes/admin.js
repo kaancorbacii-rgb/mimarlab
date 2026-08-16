@@ -16,6 +16,7 @@ import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, h
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
+import { findR2Orphans, confirmStillOrphaned } from '../lib/r2Reconcile.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -44,10 +45,16 @@ async function runCascadeDelete(env, user, typeKey, row) {
   if (typeKey === 'materials') return cascadeDeleteProduct(env, 'material', `m-${row.id}`);
 }
 
-const TYPE_BY_PATH = {
+// gerçek bulgu (denetim raporu, 2026-08-16): düz {} obje literalinde TYPE_BY_PATH['__proto__']
+// gibi bir sorgu Object.prototype'ı (truthy) döndürüp aşağıdaki `if (!typeKey)` kontrollerini
+// atlatabiliyordu (istismar edilebilir bir veri sızıntısı değil — SUBMISSION_TYPES[typeKey]
+// undefined kalıp genel try/catch 500'e çeviriyordu — ama ucuza kapatılabilir). Object.create(null)
+// prototype zinciri hiç taşımaz, __proto__/constructor/toString gibi miras alınan anahtarlar için
+// de undefined döner.
+const TYPE_BY_PATH = Object.assign(Object.create(null), {
   offices: 'offices', projects: 'projects', products: 'products', materials: 'materials',
   architects: 'architects',
-};
+});
 
 // Hesabim.html'in "Gönderdiğim İçerikler" bölümündeki TYPE_LABELS ile aynı — bildirim metninde
 // de aynı Türkçe adlandırma kullanılsın diye burada tekrarlanır.
@@ -87,12 +94,31 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'contact') return await handleContactAdmin(request, env, segments);
     if (sub === 'comments') return await handleCommentsAdmin(request, env, url, segments);
     if (sub === 'migration-conflicts') return await handleMigrationConflictsAdmin(request, env, url, segments, user);
+    if (sub === 'r2-orphans') return await handleR2OrphansAdmin(request, env);
     if (sub === 'summary' && request.method === 'GET') return await handleAdminSummary(env);
     return errorJson('Bulunamadı', 404);
   } catch (err) {
     console.error(JSON.stringify({ event: 'admin_route_failed', sub, method: request.method, reason: (err && err.message) || String(err) }));
     return errorJson('Sunucu hatası oluştu.', 500);
   }
+}
+
+// GET /api/admin/r2-orphans — bkz. src/lib/r2Reconcile.js dosya başı tasarım notu: yalnızca hiçbir
+// D1 satırından referans edilmeyen `u/` önekli R2 nesnelerini RAPORLAR, hiçbir şeyi kendiliğinden
+// silmez (R2 free tier guard ilkesiyle tutarlı — kullanıcı asla beklenmedik bir R2 işlemi istemiyor).
+// DELETE /api/admin/r2-orphans — body: { keys: string[] } — admin'in GET'ten görüp SEÇTİĞİ anahtarları
+// siler; silmeden önce referans durumu yeniden kontrol edilir (bkz. confirmStillOrphaned).
+async function handleR2OrphansAdmin(request, env) {
+  if (request.method === 'GET') return json(await findR2Orphans(env));
+  if (request.method === 'DELETE') {
+    const body = await readJson(request);
+    const keys = Array.isArray(body.keys) ? body.keys.filter(k => typeof k === 'string' && k.startsWith('u/')) : [];
+    if (!keys.length) return errorJson('Silinecek anahtar listesi (keys) gerekli.');
+    const stillOrphaned = await confirmStillOrphaned(env, keys);
+    if (stillOrphaned.length) await deleteR2MediaKeys(env, stillOrphaned);
+    return json({ deleted: stillOrphaned, skipped: keys.filter(k => !stillOrphaned.includes(k)) });
+  }
+  return errorJson('Bulunamadı', 404);
 }
 
 // GET /api/admin/summary — admin.html'deki sekme başlıklarında kırmızı nokta göstermek için

@@ -329,8 +329,17 @@ const OfficeModal = (function () {
     el.innerHTML = html;
   }
 
+  // gerçek bulgu (denetim raporu, 2026-08-16): js/components/architect-modal.js#pageTitle ile AYNI
+  // sızıntı/gerekçe.
+  const TITLE_SUFFIX = ' — MİMARLAB';
+  const TITLE_MAX = 60;
+  function pageTitle(name) {
+    const maxNameLen = TITLE_MAX - TITLE_SUFFIX.length;
+    return `${name && name.length > maxNameLen ? name.slice(0, maxNameLen - 1) + '…' : name}${TITLE_SUFFIX}`;
+  }
+
   function updateHeadMeta(o) {
-    document.title = `${o.name} — MİMARLAB`;
+    document.title = pageTitle(o.name);
     ModalShell.setLabel(o.name);
     const desc = `${o.name}${o.loc ? ' — ' + o.loc : ''}. MİMARLAB'da firma profilini incele.`;
     const canonicalUrl = `https://mimarlab.com/firma/${encodeURIComponent(slugify(o.name))}`;
@@ -540,7 +549,9 @@ const OfficeModal = (function () {
       renderFoundersGrid();
     }
     renderVerifiedBadges();
-    window.addEventListener('mimarlab-badges-ready', renderVerifiedBadges, { once: true });
+    // gerçek bulgu (denetim, 2026-08-16): js/components/architect-modal.js#renderVerifiedBadges ile
+    // AYNI listener-birikimi sorunu — badgesReadyPromise'e geçiş, kalıcı window listener'ı kaldırır.
+    if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
 
     loadRelatedProducts();
     await savedWidgetReady;

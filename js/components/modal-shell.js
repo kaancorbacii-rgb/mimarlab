@@ -25,6 +25,14 @@ const ModalShell = (function () {
   let pendingGoBack = null; // bkz. goBackAndWait/waitForPendingNav
   let pendingGoBackSuperseded = false; // bkz. waitForPendingNav/wasCurrentPopSuperseded
   let contentOwner = null; // bkz. claimContent — panelleri en son hangi modal (auth/office/architect/project/product) doldurdu
+  // gerçek bulgu (denetim, 2026-08-16): setupOneGridScrollArrows() her .related-grid-scroll/
+  // .catalog-grid-scroll elemanına bir ResizeObserver + bir MutationObserver bağlıyordu ama hiçbiri
+  // asla disconnect() edilmiyordu. claimContent() sahip DEĞİŞTİĞİNDE (ör. proje popup'ından firma
+  // popup'ına geçiş) eski grid'leri innerHTML='' ile DOM'dan koparıyor — observer'lar artık kopuk bir
+  // elemente bağlı, hiçbir zaman GC edilemeyen canlı nesneler olarak sonsuza kadar birikiyordu. Bu
+  // dizi, o modalın ömrü boyunca oluşturulan TÜM observer'ları tutar; sahip değiştiğinde hepsi
+  // disconnect edilip dizi sıfırlanır (bkz. claimContent).
+  let gridObservers = [];
 
   function injectStyles() {
     if (document.getElementById('modal-shell-styles')) return;
@@ -233,9 +241,23 @@ const ModalShell = (function () {
       nextBtn.hidden = !overflow || el.scrollLeft >= el.scrollWidth - el.clientWidth - 4;
     }
     el.addEventListener('scroll', update, { passive: true });
-    if (window.ResizeObserver) new ResizeObserver(update).observe(el);
-    new MutationObserver(update).observe(el, { childList: true });
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      gridObservers.push(ro);
+    }
+    const mo = new MutationObserver(update);
+    mo.observe(el, { childList: true });
+    gridObservers.push(mo);
     update();
+  }
+
+  // bkz. yukarısı #gridObservers — sahip değişirken (claimContent) veya modal tamamen kapanırken
+  // (close) eski grid'lere bağlı observer'ları temizler, aksi halde koptukları DOM'u sonsuza kadar
+  // referanslı tutup GC'yi engellerler.
+  function disconnectGridObservers() {
+    gridObservers.forEach(o => o.disconnect());
+    gridObservers = [];
   }
 
   function ensureDom() {
@@ -380,6 +402,7 @@ const ModalShell = (function () {
     const isNewOwner = ownerKey !== contentOwner;
     if (isNewOwner) {
       contentOwner = ownerKey;
+      disconnectGridObservers();
       bodyEl.className = 'modal-shell-body';
       overlayEl.querySelector('.modal-shell-left').innerHTML = '';
       overlayEl.querySelector('.modal-shell-right').innerHTML = '';

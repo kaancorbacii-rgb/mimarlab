@@ -233,8 +233,18 @@ const ProjectModal = (function () {
     el.innerHTML = html;
   }
 
+  // gerçek bulgu (denetim raporu, 2026-08-16): js/components/architect-modal.js#pageTitle ile AYNI
+  // sızıntı/gerekçe — src/lib/seo.js#pageTitle SSR <title>'ı kırpar ama modal açılışı client-side
+  // document.title'ı uzun/kırpılmamış başlıkla eziyordu.
+  const TITLE_SUFFIX = ' — MİMARLAB';
+  const TITLE_MAX = 60;
+  function pageTitle(name) {
+    const maxNameLen = TITLE_MAX - TITLE_SUFFIX.length;
+    return `${name && name.length > maxNameLen ? name.slice(0, maxNameLen - 1) + '…' : name}${TITLE_SUFFIX}`;
+  }
+
   function updateHeadMeta(item) {
-    document.title = `${item.title} — MİMARLAB`;
+    document.title = pageTitle(item.title);
     ModalShell.setLabel(item.title);
     const rawDesc = item.description || `${item.title}${item.location ? ' — ' + item.location : ''}. MİMARLAB'da proje detaylarını incele.`;
     const desc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + '…' : rawDesc;
