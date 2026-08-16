@@ -19,6 +19,36 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+const SITE_ORIGIN = 'https://mimarlab.com';
+
+// src/lib/seo.js#absoluteUrl/safeHttpUrl ile aynı desen (oradan export edilmediği için burada
+// yerel kopyası) — DB'deki images/photo_url/logo_url kolonları hem göreli (/media/...,
+// R2-backed, bkz. proje hafızası) hem de mutlak URL içerebiliyor, ikisini de tek biçime getirir
+// ve yalnızca http(s) kabul ederek e-posta img src'sine enjeksiyonu engeller.
+function safeAbsoluteUrl(path) {
+  if (!path) return null;
+  try {
+    const parsed = new URL(path, SITE_ORIGIN);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildCoverImage(typeKey, row) {
+  if (typeKey === 'projects' || typeKey === 'products' || typeKey === 'materials') {
+    try {
+      const arr = row.images ? JSON.parse(row.images) : [];
+      return safeAbsoluteUrl(arr[0] || null);
+    } catch {
+      return null;
+    }
+  }
+  if (typeKey === 'architects') return safeAbsoluteUrl(row.photo_url);
+  if (typeKey === 'offices') return safeAbsoluteUrl(row.logo_url);
+  return null;
+}
+
 function buildLink(typeKey, row) {
   if (typeKey === 'projects') return row.slug ? `https://mimarlab.com/proje/${encodeURIComponent(row.slug)}` : null;
   if (typeKey === 'products' || typeKey === 'materials') return row.slug ? `https://mimarlab.com/urun/${encodeURIComponent(row.slug)}` : null;
@@ -63,6 +93,7 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
     const safeTitle = escapeHtml(title);
     const summary = buildSummary(typeKey, row);
     const safeSummary = summary ? escapeHtml(summary) : null;
+    const coverImage = buildCoverImage(typeKey, row);
 
     const emails = results.map((sub) => ({
       from,
@@ -70,6 +101,7 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
       subject,
       html: `<div style="max-width:480px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;">
         <p style="margin:0 0 24px;"><img src="https://mimarlab.com/logos/site/mimarlab-logo.png" alt="MİMARLAB" height="28" style="height:28px;width:auto;"></p>
+        ${coverImage ? `<p style="margin:0 0 20px;"><img src="${coverImage}" alt="${safeTitle}" width="480" style="width:100%;max-width:480px;height:auto;border-radius:8px;display:block;"></p>` : ''}
         <p>MİMARLAB'da ${label.toLowerCase()} yayında:</p>
         <p style="font-size:16px;font-weight:600;">${safeTitle}</p>
         ${safeSummary ? `<p style="font-size:14px;color:#555;line-height:1.5;">${safeSummary}</p>` : ''}
