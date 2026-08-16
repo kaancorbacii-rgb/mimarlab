@@ -92,9 +92,15 @@ const RelatedProjects = (function () {
   // (Tür) BİRİNCİL öncelik sırasıdır — havuz önce bu iki kritere TAM uyan adaylarla doldurulur.
   // ANCAK artık sert bir filtre DEĞİL (bkz. kullanıcı isteği, gerçek bulgu: "bu kritere göre bazı
   // projelerde hiç eşleşen aday kalmıyor, bölüm boş/eksik kalıyordu — tam eşleşme olmasa bile
-  // benzer örnekler vererek İlgili Projeler sayısı her zaman 15'te sabit kalsın"): strict havuz
-  // RESULT_COUNT'u karşılamazsa mount() geri kalan yeri, AYNI havuzun geri kalanından (Tip/Tür
-  // filtrelenmemiş "fallback" adaylar) tamamlar — bkz. mount()'taki iki aşamalı sampleTier çağrısı.
+  // benzer örnekler vererek İlgili Projeler sayısı her zaman en az 15 olsun, kategoriye uymasa bile
+  // aynı türden farklı projeler önerilsin"): havuz ÜÇ seviyeye ayrılır — strictPool (Tür+Tip tam
+  // eşleşen), disciplinePool (yalnızca Tür eşleşen, Tip farklı) ve fallbackPool (ne Tür ne Tip
+  // eşleşen) — strictPool RESULT_COUNT'u karşılamazsa mount() sırasıyla disciplinePool'dan, o da
+  // yetmezse fallbackPool'dan tamamlar (bkz. mount()'taki üç aşamalı sampleTier çağrısı ve
+  // gatherCandidateQueries'teki withDisciplineFilters/withBuildStatusOnly sorguları — sunucu
+  // tarafında discipline+category filtreleri AND'lendiğinden, "aynı Tür farklı Tip" adayların
+  // sorgu sonucuna hiç girebilmesi için category kısıtı BİLEREK dışarıda bırakılan ayrı bir sorgu
+  // gerekir, bkz. src/routes/project.js#passesFilters).
   // Sıralama sinyali: Yıl Yakınlığı (bkz. kullanıcı isteği: "sonra yakın yıllarda olmalı") —
   // weightedSample zaten var olan rastgelelik davranışını (her açılışta farklı sıralama) korumak
   // için bu skoru kullanmaya devam eder. Aynı mimara/firmaya ait projeler ayrıca hiç bu bölüme
@@ -191,7 +197,17 @@ const RelatedProjects = (function () {
   // Kural 1 & 2 — 'discipline' ve 'category' zaten desteklenen /api/projects filtre param'ları
   // (bkz. src/routes/project.js#buildFilterGroups 'Tür'/'Tip'), her aday sorgusuna eklenerek
   // havuzun KAYNAĞINDA (client-side hasSameDiscipline()/hasSameCategory() beklemeden) farklı
-  // türde/tipte projeler elenir. Çoklu değer OR mantığıyla eşleşir (bkz. passesFilters#vals.some).
+  // türde/tipte projeler elenir. Çoklu değer OR mantığıyla eşleşir (bkz. passesFilters#vals.some) —
+  // AMA discipline ve category AYRI filtre grupları oldukları için birbirleriyle AND'lenir (bkz.
+  // src/routes/project.js#passesFilters "FILTER_GROUPS.every"). GERÇEK BULGU: withFilters ESKİDEN
+  // HER sorguya hem disciplineParams HEM categoryParams'ı BİRLİKTE ekliyordu — bu da sunucu
+  // tarafında "aynı Tür ama farklı Tip" adaylarını (kullanıcı isteği: "aynı kategoriye uyan olmasa
+  // bile aynı türden farklı projeler öner") client'taki hasSameDiscipline/hasSameCategory ayrımına
+  // HİÇ ULAŞTIRMADAN eliyordu — çünkü candidate zaten sorgu sonucunda yoktu. Bu yüzden aşağıda ÜÇ
+  // ayrı filtre seviyesi kullanılır: withStrictFilters (Tür+Tip birlikte — en iyi eşleşme),
+  // withDisciplineFilters (yalnızca Tür — Tip serbest, "aynı türden farklı projeler" havuzu) ve
+  // withBuildStatusOnly (ne Tür ne Tip — yalnızca buildStatus, mount()'taki RESULT_COUNT
+  // garantisini besleyen genel/geniş havuz).
   function gatherCandidateQueries(item) {
     const queries = [];
     // buildStatus: aday havuzu kaynak projeyle AYNI kategoride kalmalı (bkz. kullanıcı isteği,
@@ -200,24 +216,35 @@ const RelatedProjects = (function () {
     const buildStatusParam = ['buildStatus', item.buildStatus === 'concept' ? 'concept' : 'built'];
     const disciplineParams = (item.discipline || []).map(d => ['discipline', d]);
     const categoryParams = (item.category || []).map(c => ['category', c]);
-    const withFilters = params => [...params, buildStatusParam, ...disciplineParams, ...categoryParams];
+    const withStrictFilters = params => [...params, buildStatusParam, ...disciplineParams, ...categoryParams];
+    const withDisciplineFilters = params => [...params, buildStatusParam, ...disciplineParams];
+    const withBuildStatusOnly = params => [...params, buildStatusParam];
     (item.designerDetails || []).forEach(d => {
       if (d.unregistered) return;
-      queries.push(fetchByParams(withFilters([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
+      queries.push(fetchByParams(withStrictFilters([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
     });
-    (item.type || []).forEach(t => queries.push(fetchByParams(withFilters([['type', t]]), 32)));
+    (item.type || []).forEach(t => queries.push(fetchByParams(withStrictFilters([['type', t]]), 32)));
     const topLevelLocation = locationParts(item.location);
     const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
-    if (rawCity) queries.push(fetchByParams(withFilters([['location', rawCity]]), 32));
-    // Kural 3 (bkz. yukarısı, mount()'taki loadSeenSlugs) — bu iki sorgu proje-BAĞIMSIZ (sort=
+    if (rawCity) queries.push(fetchByParams(withStrictFilters([['location', rawCity]]), 32));
+    // Kural 3 (bkz. yukarısı, mount()'taki loadSeenSlugs) — bu sorgular proje-BAĞIMSIZ (sort=
     // rating_desc / discipline+category'ye göre id DESC), yani AYNI Tip'teki her proje için neredeyse
     // birebir aynı sonucu döner. Limitler eskiden 16/24'tü — bu, "seen" havuzunun hızla tükenip her
     // yeni proje pop-up'ının aynı dar kümeye geri dönmesine yol açıyordu (gerçek bulgu: iki farklı
     // Dini proje arasında %60 çakışma). Limitleri büyütmek (sunucu üst sınırı 96, bkz.
     // src/routes/project.js#handleProjectListRoute) "seen" filtresine rotasyon yapacak gerçek bir
     // havuz sağlar.
-    queries.push(fetchByParams(withFilters([['sort', 'rating_desc']]), 40)); // genel havuz — boşluk doldurma
+    queries.push(fetchByParams(withStrictFilters([['sort', 'rating_desc']]), 40)); // Tür+Tip'e uyan genel havuz
     if (disciplineParams.length || categoryParams.length) queries.push(fetchByParams([...disciplineParams, ...categoryParams, buildStatusParam], 80)); // Tür+Tip'e özel geniş havuz
+    // "aynı türden farklı projeler öner" havuzu (kullanıcı isteği) — category BİLEREK dışarıda
+    // bırakılır ki sunucu tarafındaki AND birleşimi (yukarıdaki dosya başı not) farklı Tip'teki
+    // aynı-Tür adayları elemesin; disciplinePool bunları mount()'ta ikinci öncelik olarak kullanır.
+    if (disciplineParams.length) queries.push(fetchByParams(withDisciplineFilters([['sort', 'rating_desc']]), 80));
+    // Kural 4 (kullanıcı isteği: "ilgili proje sayısı her zaman en az 15 olsun") — ne Tür ne Tip
+    // kısıtı taşımayan, yalnızca buildStatus'a bağlı geniş bir genel havuz: strictPool+disciplinePool
+    // niş bir kaynak proje için RESULT_COUNT'u dolduramazsa mount()'taki fallbackPool bu sorgudan
+    // beslenir, böylece bölüm neredeyse hiçbir zaman 15'in altında kalmaz (bkz. mount()).
+    queries.push(fetchByParams(withBuildStatusOnly([['sort', 'rating_desc']]), 96));
     return { queries, topLevelLocation };
   }
 
@@ -287,16 +314,22 @@ const RelatedProjects = (function () {
     exclude.add(item.slug);
 
     // Kural 1 & 2 artık BİRİNCİL öncelik, sert filtre DEĞİL (bkz. dosya başı yorum, kullanıcı isteği:
-    // "tam eşleşme olmasa bile... ilgili proje sayısını her zaman 15'te sabit tutalım") — havuz
-    // strictPool (Tür+Tip tam eşleşen) ve fallbackPool (eşleşmeyen ama yine de aynı buildStatus'ta ve
-    // aynı mimara ait OLMAYAN "benzer" adaylar) olarak ikiye ayrılır. exclude Seti zaten "aynı mimara
-    // ait" projeleri dışarıda tutar (bkz. dosya başı mount() yorumu — excludeSlugsPromise,
-    // ArchitectProjects'in gösterdiği TÜM slug'lar).
+    // "aynı kategoriye uyan olmasa bile aynı türden farklı projeler öner... ilgili proje sayısı her
+    // zaman en az 15 olsun") — havuz ÜÇ seviyeye ayrılır: strictPool (Tür+Tip TAM eşleşen — en iyi
+    // eşleşme), disciplinePool (Tür aynı ama Tip FARKLI — "aynı türden farklı projeler") ve
+    // fallbackPool (ne Tür ne Tip eşleşen, yalnızca aynı buildStatus'ta ve aynı mimara ait OLMAYAN
+    // "benzer" adaylar — RESULT_COUNT'u dolduramayan niş projeler için son çare). exclude Seti zaten
+    // "aynı mimara ait" projeleri dışarıda tutar (bkz. dosya başı mount() yorumu —
+    // excludeSlugsPromise, ArchitectProjects'in gösterdiği TÜM slug'lar).
     const strictPool = new Map();
+    const disciplinePool = new Map();
     const fallbackPool = new Map();
     lists.flat().forEach(p => {
-      if (exclude.has(p.slug) || strictPool.has(p.slug) || fallbackPool.has(p.slug)) return;
-      (hasSameDiscipline(item, p) && hasSameCategory(item, p) ? strictPool : fallbackPool).set(p.slug, p);
+      if (exclude.has(p.slug) || strictPool.has(p.slug) || disciplinePool.has(p.slug) || fallbackPool.has(p.slug)) return;
+      const sameDiscipline = hasSameDiscipline(item, p);
+      const sameCategory = hasSameCategory(item, p);
+      const tier = sameDiscipline && sameCategory ? strictPool : sameDiscipline ? disciplinePool : fallbackPool;
+      tier.set(p.slug, p);
     });
 
     // Kural 3 — önce bu oturumda hiç gösterilmemiş adaylardan seç, havuz yetmezse (ör. dar bir
@@ -313,11 +346,14 @@ const RelatedProjects = (function () {
       return picked;
     }
 
-    // Önce strictPool (Tür+Tip tam eşleşen) tüketilir; RESULT_COUNT'a ulaşmak için yetmezse geri
-    // kalan yer fallbackPool'dan tamamlanır — böylece bölüm, kaynak proje ne kadar niş olursa olsun
-    // (strictPool boş bile olsa) neredeyse her zaman 15 kartla dolu görünür, yalnızca sitede o
+    // Önce strictPool (Tür+Tip tam eşleşen), sonra disciplinePool (Tür aynı, Tip farklı — kullanıcı
+    // isteği: "aynı kategoriye uyan olmasa bile aynı türden farklı projeler öner") tüketilir;
+    // RESULT_COUNT'a ulaşmak için hâlâ yetmezse geri kalan yer fallbackPool'dan tamamlanır —
+    // böylece bölüm, kaynak proje ne kadar niş olursa olsun neredeyse her zaman en az 15 kartla dolu
+    // görünür (kullanıcı isteği: "ilgili proje sayısı her zaman en az 15 olsun"), yalnızca sitede o
     // buildStatus'ta/hariç tutulanlar dışında GERÇEKTEN 15'ten az proje varsa daha az kart gösterir.
     let merged = sampleTier(strictPool, RESULT_COUNT);
+    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(disciplinePool, RESULT_COUNT - merged.length));
     if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(fallbackPool, RESULT_COUNT - merged.length));
 
     if (!merged.length) { section.style.display = 'none'; return; }
