@@ -448,12 +448,19 @@ function itemTitle(type, item){
   return item.title;
 }
 function itemMeta(type, item){
-  if(type === 'offices') return [item.loc, item.cats, item.yil].filter(Boolean).join(' · ');
-  if(type === 'projects') return [item.location, item.date, (item.designer||[]).join(', ')].filter(Boolean).join(' · ');
-  if(type === 'products' || type === 'materials') return [item.brand, item.category].filter(Boolean).join(' · ');
-  if(type === 'architects') return [item.office, item.school, item.dept, item.dob].filter(Boolean).join(' · ');
-  if(type === 'news') return [item.category, item.source].filter(Boolean).join(' · ');
-  return '';
+  let base = '';
+  if(type === 'offices') base = [item.loc, item.cats, item.yil].filter(Boolean).join(' · ');
+  else if(type === 'projects') base = [item.location, item.date, (item.designer||[]).join(', ')].filter(Boolean).join(' · ');
+  else if(type === 'products' || type === 'materials') base = [item.brand, item.category].filter(Boolean).join(' · ');
+  else if(type === 'architects') base = [item.office, item.school, item.dept, item.dob].filter(Boolean).join(' · ');
+  else if(type === 'news') base = [item.category, item.source].filter(Boolean).join(' · ');
+  // Gönderiyi kim yolladı (bkz. kullanıcı isteği: "talepleri hangi kullanıcılar gönderdi isim
+  // soyisim ve mail adresleriyle görünsün") — src/routes/admin.js#handleSubmissionsAdmin'deki
+  // users LEFT JOIN'inden gelir; owner_user_id NULL olan eski/statik kayıtlarda boş kalır.
+  const submitter = item.submitter_name || item.submitter_email
+    ? `Gönderen: ${[item.submitter_name, item.submitter_email].filter(Boolean).join(' · ')}`
+    : '';
+  return [base, submitter].filter(Boolean).join(' · ');
 }
 function itemDesc(type, item){
   return item.description || item.about || '';

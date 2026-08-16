@@ -202,7 +202,15 @@ const AuthModal = (function () {
     #am-panel .am-badge-icon:hover .am-badge-tooltip,
     #am-panel .am-badge-icon.am-badge-tooltip-show .am-badge-tooltip{opacity:1; visibility:visible;}
     @media (max-width:480px){ #am-panel .badge-grid{grid-template-columns:1fr;} }
-    @media (max-width:720px){ #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px;} }
+    /* gerçek bulgu (kullanıcı isteği: "mobil görünümde ... butonlarını sol tarafa hizala") — üstteki
+       stack kuralı, satırı kırıp .dash-head-actions'ı kendi içeriği kadar dar bırakarak (üstteki
+       align-items:flex-start'a güvenerek) dolaylı biçimde sola yaslıyordu; burada width:100% +
+       justify-content:flex-start ile KOŞULSUZ/açık olarak sabitlenir, herhangi bir üst/flex
+       davranış değişikliğinden bağımsız hale gelir. */
+    @media (max-width:720px){
+      #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px;}
+      #am-panel .dash-head-actions{width:100%; justify-content:flex-start;}
+    }
     @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
 
     /* login/signup/hesabim modal-shell'in 32/68 ızgarasına DEĞİL, ortalı kart/tam genişlik dashboard
@@ -526,7 +534,7 @@ const AuthModal = (function () {
             <h1 id="am-dash-title">Hoş Geldin</h1>
             <p id="am-dash-sub">—</p>
           </div>
-          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+          <div class="dash-head-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
             <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
             <button type="button" class="dash-edit-btn" id="am-logout-btn">Çıkış Yap</button>
           </div>
@@ -822,6 +830,11 @@ const AuthModal = (function () {
   // çağırarak, o ana kadar hazır olan veriyle yeniden çizilir.
   let amBadgeItems = [];
   let amClaimItems = [];
+  // /api/public/badges: profil başına TEK, nihai rozeti döndürür (admin_badges satın alınanın
+  // yerine geçer, bkz. src/routes/badges.js#computeBadgesPayload) — Mimar/Firma satırındaki rozet
+  // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
+  // görünümle her zaman birebir aynı kalır.
+  let amPublicBadges = { architect: {}, office: {} };
   // Ad Soyad satırı artık rozet taşımaz — self rozet, sahiplenilmiş Mimar profili varsa onun
   // satırındaki adın yanında gösterilir (bkz. kullanıcı isteği: "rozet ... mimar başlığının
   // yanındaki ad soyadın yanında yer alsın"), yoksa hiçbir yerde gösterilmez.
@@ -1658,21 +1671,22 @@ const AuthModal = (function () {
         // bağımsız düzenlenebildiğinden (bkz. src/routes/submissions.js#verifyClaimedProfileKey) bu
         // kısıtlama yalnızca office tipinde uygulanır.
         const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(accountUser && accountUser.position));
-        // Onaylı Firma satırı kendi 'office' rozetini, onaylı Mimar satırı ise kullanıcının 'self'
-        // rozetini adının yanında taşır (bkz. kullanıcı isteği: rozet Ad Soyad satırından Mimar
-        // başlığının yanındaki ada taşınsın).
-        const officeBadge = c.status === 'approved' && c.profile_type === 'office'
-          ? amBadgeItems.find(b => b.target_type === 'office' && b.target_key === c.profile_key && b.status === 'active')
+        // gerçek bulgu: bu satır kendi satın alınan rozetinden (amBadgeItems) seçim yapıyordu, ama
+        // /api/public/badges (mimar/firma kartlarında, profil modallarında gösterilen TEK doğru
+        // kaynak — bkz. src/routes/badges.js#computeBadgesPayload) admin_badges'i satın alınanın
+        // ÜZERİNE yazıyor. Sonuç: admin bir profile elle daha yüksek kademe rozet verdiğinde (ör.
+        // Elmas Üye) Hesabım'daki satır hâlâ kullanıcının kendi satın aldığı eski/düşük kademeyi
+        // gösteriyordu. Kökten çözüm: burada da AYNI kaynağı (amPublicBadges, bkz. aşağıdaki
+        // loadPublicBadgesForClaims) kullanmak — artık site genelinde görünenle bire bir aynı.
+        const publicBadgeList = c.status === 'approved'
+          ? (amPublicBadges[c.profile_type] && amPublicBadges[c.profile_type][c.profile_key])
           : null;
-        const selfBadge = c.status === 'approved' && c.profile_type === 'architect'
-          ? amBadgeItems.find(b => b.target_type === 'self' && b.status === 'active')
-          : null;
-        const rowBadge = officeBadge || selfBadge;
+        const rowBadgeType = publicBadgeList && publicBadgeList.length ? publicBadgeList[0] : null;
         return `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
-            <span>${escapeHtml(c.profile_key)}${rowBadge ? accountBadgeIconHtml(rowBadge.badge_type) : ''}</span>
+            <span>${escapeHtml(c.profile_key)}${rowBadgeType ? accountBadgeIconHtml(rowBadgeType) : ''}</span>
             ${canEdit
               ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
               : c.status === 'approved'
@@ -1682,6 +1696,15 @@ const AuthModal = (function () {
         </div>
       `;
       }).join('');
+    }
+
+    async function loadPublicBadgesForClaims() {
+      try {
+        const res = await fetch('/api/public/badges');
+        const data = res.ok ? await res.json() : {};
+        amPublicBadges = { architect: data.architect || {}, office: data.office || {} };
+      } catch { /* amPublicBadges varsayılanında kalır */ }
+      renderClaimsList();
     }
 
     async function loadMyClaims() {
@@ -1784,7 +1807,7 @@ const AuthModal = (function () {
 
     loadUser().then(() => {
       if (accountUser) {
-        [loadSubmissions(), loadSaved(), loadRated(), loadComments(), loadBadges(), loadMyClaims(), loadNotifications()]
+        [loadSubmissions(), loadSaved(), loadRated(), loadComments(), loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications()]
           .forEach(p => p.catch(() => {}));
         if (new URLSearchParams(window.location.search).get('payment') === 'success') {
           document.getElementById('am-payment-success-banner').style.display = 'block';

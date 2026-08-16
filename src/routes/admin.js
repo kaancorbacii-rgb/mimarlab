@@ -327,9 +327,13 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
     if (!typeKey) return errorJson('Geçersiz tip.');
     const status = url.searchParams.get('status');
     const config = SUBMISSION_TYPES[typeKey];
+    // LEFT JOIN: eski/statik kayıtlarda owner_user_id NULL olabilir (gerçek bir kullanıcı
+    // göndermedi) — admin panelinde "kim gönderdi" bilgisi (bkz. kullanıcı isteği) bu durumda
+    // boş kalır, satır yine de listelenir. profile_claims yönetim ekranındaki AYNI u.name/u.email
+    // deseni (bkz. yukarıdaki handleClaimsAdmin).
     const query = status
-      ? env.DB.prepare(`SELECT * FROM ${config.table} WHERE status = ? ORDER BY created_at DESC LIMIT 2000`).bind(status)
-      : env.DB.prepare(`SELECT * FROM ${config.table} ORDER BY created_at DESC LIMIT 2000`);
+      ? env.DB.prepare(`SELECT s.*, u.name AS submitter_name, u.email AS submitter_email FROM ${config.table} s LEFT JOIN users u ON u.id = s.owner_user_id WHERE s.status = ? ORDER BY s.created_at DESC LIMIT 2000`).bind(status)
+      : env.DB.prepare(`SELECT s.*, u.name AS submitter_name, u.email AS submitter_email FROM ${config.table} s LEFT JOIN users u ON u.id = s.owner_user_id ORDER BY s.created_at DESC LIMIT 2000`);
     const { results } = await query.all();
     return json({ items: results.map(r => parseSubmissionRow(typeKey, r)) });
   }
