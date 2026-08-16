@@ -269,6 +269,7 @@
         <button class="admin-tab" data-tab="contact">Mesajlar<span class="admin-tab-dot" data-dot="contact"></span></button>
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
+        <button class="admin-tab" data-tab="r2orphans">R2 Yetim Dosyalar</button>
       </div>
 
       <div class="admin-section active" id="section-pending">
@@ -309,6 +310,15 @@
 
       <div class="admin-section" id="section-users">
         <div id="users-list"></div>
+      </div>
+
+      <div class="admin-section" id="section-r2orphans">
+        <div id="r2orphans-summary" style="margin-bottom:14px; font-size:13px; color:var(--ink-soft);"></div>
+        <div class="admin-actions" style="margin-bottom:14px;">
+          <button class="admin-btn" id="r2orphans-refresh">Yenile</button>
+          <button class="admin-btn danger" id="r2orphans-delete-selected" disabled>Seçilenleri Sil (0)</button>
+        </div>
+        <div id="r2orphans-list"></div>
       </div>
     </div>
   </div>
@@ -1126,6 +1136,87 @@ async function refreshAdminSummary(){
   }catch{}
 }
 
+// GET/DELETE /api/admin/r2-orphans (bkz. src/lib/r2Reconcile.js) — yalnızca RAPORLAR, hiçbir şeyi
+// kendiliğinden silmez (R2 free tier guard ilkesi); admin burada gördüğü anahtarları TEK TEK ya da
+// seçip toplu olarak, kendi onayıyla siler. Sunucu tarafı silmeden hemen önce referans durumunu
+// yeniden kontrol ettiğinden (confirmStillOrphaned) burada listede görünen bir anahtar arada
+// gerçekten kullanılmaya başlamışsa sessizce atlanır (skipped) — kullanıcıya ayrıca bildirilir.
+function formatR2Bytes(n){
+  if(n < 1024) return `${n} B`;
+  if(n < 1024*1024) return `${(n/1024).toFixed(1)} KB`;
+  return `${(n/(1024*1024)).toFixed(1)} MB`;
+}
+// gerçek bulgu (bu fonksiyonun ilk taslağında): deleteSelectedBtn her loadR2Orphans() çağrısında
+// (her yenilemede VE her silme sonrası kendi kendini çağırışında) YENİDEN addEventListener alıyordu
+// — düğmenin kendisi list.innerHTML'in DIŞINDA, sabit bir DOM elementi olduğundan (r2orphans-refresh
+// düğmesiyle AYNI durum) eskisi hiç kaldırılmadan üst üste biniyordu (bkz. bu oturumdaki modal-shell.js/
+// badge-ready listener-birikimi düzeltmeleriyle AYNI sınıf hata). Düzeltme: dış düğmelerin (refresh +
+// deleteSelected) listener'ları modül yüklenirken TEK SEFER bağlanır; list içindeki (checkbox/tekil-sil
+// düğmesi) listener'lar innerHTML her seferinde TAMAMEN yeniden kurulduğundan güvenle tekrar bağlanabilir.
+async function deleteR2OrphanKeys(keys){
+  const res = await api('/api/admin/r2-orphans', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keys }),
+  });
+  if(res.skipped && res.skipped.length){
+    alert(`${res.skipped.length} dosya arada başka bir kayıtta kullanılmaya başlamış olduğundan silinmedi, listede kalacak.`);
+  }
+  loadR2Orphans();
+}
+async function loadR2Orphans(){
+  const summary = document.getElementById('r2orphans-summary');
+  const list = document.getElementById('r2orphans-list');
+  const deleteSelectedBtn = document.getElementById('r2orphans-delete-selected');
+  summary.textContent = '';
+  list.innerHTML = '<div class="admin-empty">Taranıyor… (R2 bucket boyutuna göre biraz sürebilir)</div>';
+  deleteSelectedBtn.disabled = true;
+  deleteSelectedBtn.textContent = 'Seçilenleri Sil (0)';
+  const data = await api('/api/admin/r2-orphans');
+  const items = data.orphans || [];
+  summary.textContent = `${data.scannedObjects} yükleme tarandı, ${data.referencedKeys} referanslı anahtar bulundu — ${data.orphanCount} yetim dosya (${formatR2Bytes(data.orphanBytes)}). Yalnızca en az 24 saattir yüklü, hiçbir kayıttan referans edilmeyen dosyalar listelenir.`;
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Yetim dosya bulunamadı — R2 depolaman temiz.</div>'; return; }
+
+  list.innerHTML = items.map(o => `
+    <div class="admin-card" data-key="${escapeAttr(o.key)}">
+      <div class="admin-card-head">
+        <div class="admin-card-body">
+          <input type="checkbox" class="r2orphan-check" style="margin-top:4px;">
+          <img class="admin-card-thumb" src="/media/${escapeAttr(o.key)}" alt="" loading="lazy" onerror="this.style.display='none'">
+          <div>
+            <div class="admin-card-title" style="font-size:12.5px; font-family:monospace; font-weight:600; word-break:break-all;">${escapeHtml(o.key)}</div>
+            <div class="admin-card-meta">${formatR2Bytes(o.size)} · ${new Date(o.uploaded).toLocaleString('tr-TR')}</div>
+          </div>
+        </div>
+        <div class="admin-actions">
+          <button class="admin-btn danger" data-action="delete-one">Sil</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.r2orphan-check').forEach(cb => cb.addEventListener('change', ()=>{
+    const checked = list.querySelectorAll('.r2orphan-check:checked');
+    deleteSelectedBtn.disabled = checked.length === 0;
+    deleteSelectedBtn.textContent = `Seçilenleri Sil (${checked.length})`;
+  }));
+
+  list.querySelectorAll('[data-action="delete-one"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const key = btn.closest('.admin-card').dataset.key;
+      if(!confirm('Bu dosyayı R2\'den kalıcı olarak silmek istediğine emin misin?')) return;
+      await deleteR2OrphanKeys([key]);
+    });
+  });
+}
+document.getElementById('r2orphans-refresh').addEventListener('click', loadR2Orphans);
+document.getElementById('r2orphans-delete-selected').addEventListener('click', async ()=>{
+  const keys = Array.from(document.querySelectorAll('#r2orphans-list .r2orphan-check:checked')).map(cb => cb.closest('.admin-card').dataset.key);
+  if(!keys.length) return;
+  if(!confirm(`${keys.length} dosyayı R2'den kalıcı olarak silmek istediğine emin misin?`)) return;
+  await deleteR2OrphanKeys(keys);
+});
+
 document.querySelectorAll('.admin-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
@@ -1140,6 +1231,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'contact') loadContactMessages();
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     if(tab.dataset.tab === 'users') loadUsers();
+    if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
   });
 });
 
