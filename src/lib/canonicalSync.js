@@ -21,7 +21,7 @@ import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
 import { releaseR2StorageBytes } from './r2Quota.js';
-import { SUBMISSION_TYPES } from './submissionTypes.js';
+import { SUBMISSION_TYPES, dateBucketFor } from './submissionTypes.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
@@ -750,6 +750,13 @@ async function syncProject(env, row) {
     // bkz. src/routes/project.js (eski)#handleProjectDetailRoute overlay kuralları — title/category/
     // type/discipline/location/date/period/description/photoCredit koşulsuz, designer/images boşsa
     // eskisi korunur.
+    //
+    // date_bucket HER ZAMAN row.date'ten dateBucketFor() ile YENİDEN türetilir, row.dateBucket
+    // (submission satırında saklanan) asla doğrudan yazılmaz — eski (ünlü uyumsuz, hep "'lar") bir
+    // dateBucketFor sürümüyle oluşmuş satırlar bu satırda dokunulmadan sonsuza dek yanlış kalırdı,
+    // bu da aynı on yıl için "2000'lar"/"2000'ler" gibi iki ayrı filtre seçeneğine yol açıyordu
+    // (bkz. kullanıcı bulgusu). Tek doğru kaynak burada zorlanınca her düzenleme/onay eski satırı
+    // kendiliğinden düzeltir, yeni bir yanlış-ek satırı da hiçbir çağrı yolu ÜRETEMEZ.
     const sets = [
       'title = ?', 'category = ?', 'type = ?', 'discipline = ?', 'location = ?', 'location_detail = ?',
       'project_date = ?', 'date_bucket = ?', 'period = ?', 'photo_credit_text = ?', 'photo_credit_url = ?',
@@ -757,7 +764,7 @@ async function syncProject(env, row) {
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
-      row.date || null, row.dateBucket || null, period, row.photoCreditText || '', row.photoCreditUrl || '',
+      row.date || null, dateBucketFor(row.date) || null, period, row.photoCreditText || '', row.photoCreditUrl || '',
       row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards,
     ];
     if (row.images && row.images.length) { sets.splice(-1, 0, 'images = ?'); vals.push(images); }
@@ -792,7 +799,7 @@ async function syncProject(env, row) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(
       finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
-      row.date || null, row.dateBucket || null, period, row.description || null, images,
+      row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images,
       row.photoCreditText || null, row.photoCreditUrl || null, row.source_url || null, row.ai_generated ? 1 : 0,
       row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards,
       marker, row.owner_user_id

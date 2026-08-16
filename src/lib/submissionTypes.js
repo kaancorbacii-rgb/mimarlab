@@ -173,7 +173,7 @@ function isBcDateString(dateStr) {
 // (Göbeklitepe). Künye "MÖ"/"Milattan Önce" ile BAŞLIYORSA (bkz. isBcDateString) — ikinci bir MS
 // parçası olsa bile (ör. "MÖ 410 / 1725", Kız Kulesi) — artık koşulsuz BC_DATE_BUCKET döner; bu,
 // kullanıcının "başından MÖ ... yazan HER proje bu kategoriye girsin" isteğiyle birebir eşleşir.
-function dateBucketFor(dateStr) {
+export function dateBucketFor(dateStr) {
   if (isBcDateString(dateStr)) return BC_DATE_BUCKET;
   const matches = (dateStr || '').match(/\d{4}/g);
   if (!matches) return null;
