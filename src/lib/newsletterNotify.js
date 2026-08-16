@@ -31,6 +31,13 @@ function buildTitle(typeKey, row) {
   return (typeKey === 'projects' || typeKey === 'products' || typeKey === 'materials') ? row.title : row.name;
 }
 
+function buildSummary(typeKey, row) {
+  const text = (typeKey === 'architects' || typeKey === 'offices') ? row.about : row.description;
+  if (!text) return null;
+  const trimmed = String(text).trim();
+  return trimmed.length > 160 ? trimmed.slice(0, 160).trimEnd() + '…' : trimmed;
+}
+
 // Resend'in /emails/batch ucu (bkz. src/routes/contact.js/auth.js'teki AYNI tekli /emails deseni) —
 // burada batch kullanılıyor çünkü her abone kendi unsubscribe_token'ıyla KİŞİSELLEŞTİRİLMİŞ bir
 // "Abonelikten çık" linki almalı (bkz. src/routes/newsletter.js#GET /api/newsletter/unsubscribe);
@@ -54,18 +61,24 @@ export async function notifyNewsletterOfNewContent(env, typeKey, row) {
     const from = env.RESEND_FROM || 'MİMARLAB <no-reply@mimarlab.com>';
     const subject = `${label}: ${title}`;
     const safeTitle = escapeHtml(title);
+    const summary = buildSummary(typeKey, row);
+    const safeSummary = summary ? escapeHtml(summary) : null;
 
     const emails = results.map((sub) => ({
       from,
       to: sub.email,
       subject,
-      html: `<p>MİMARLAB'da ${label.toLowerCase()} yayında:</p>
+      html: `<div style="max-width:480px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;">
+        <p style="margin:0 0 24px;"><img src="https://mimarlab.com/logos/site/mimarlab-logo.png" alt="MİMARLAB" height="28" style="height:28px;width:auto;"></p>
+        <p>MİMARLAB'da ${label.toLowerCase()} yayında:</p>
         <p style="font-size:16px;font-weight:600;">${safeTitle}</p>
+        ${safeSummary ? `<p style="font-size:14px;color:#555;line-height:1.5;">${safeSummary}</p>` : ''}
         <p><a href="${link}">İncele →</a></p>
         <p style="margin-top:28px;font-size:12px;color:#888;">
           Bu e-postayı MİMARLAB bültenine abone olduğun için aldın.
           <a href="https://mimarlab.com/api/newsletter/unsubscribe?token=${encodeURIComponent(sub.unsubscribe_token)}">Abonelikten çık</a>
-        </p>`,
+        </p>
+      </div>`,
     }));
 
     for (let i = 0; i < emails.length; i += BATCH_SIZE) {
