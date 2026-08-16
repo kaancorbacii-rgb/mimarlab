@@ -105,6 +105,7 @@ const ProjectMeta = (function () {
       html += `<div><strong>Yer:</strong> ${districtText}${filterLinkHtml(item, 'location', loc.city, loc.city)}</div>`;
     }
     if (item.date) html += `<div><strong>Yıl:</strong> ${item.dateBucket ? filterLinkHtml(item, 'dateBucket', item.dateBucket, item.date) : escapeHtml(item.date)}</div>`;
+    if (item.awards && item.awards.length) html += `<div><strong>Ödül:</strong> ${item.awards.map(v => filterLinkHtml(item, 'award', v)).join(' / ')}</div>`;
     if (item.photoCredit && item.photoCredit.text) {
       const creditUrl = item.photoCredit.url ? safeUrl(item.photoCredit.url) : '';
       html += `<div><strong>Fotoğraf:</strong> ${creditUrl ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(item.photoCredit.text)}</a>` : escapeHtml(item.photoCredit.text)}</div>`;

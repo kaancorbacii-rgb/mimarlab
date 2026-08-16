@@ -108,7 +108,7 @@ export async function fetchActiveProjectPool(env, buildStatus) {
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
-            p.photo_credit_url, p.build_status, p.concept_category,
+            p.photo_credit_url, p.build_status, p.concept_category, p.awards,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ? GROUP BY p.id ORDER BY p.id DESC`
@@ -135,6 +135,7 @@ export function buildFilterGroups(ratingByProject) {
     { key: 'dateBucket', label: 'Yıl', nested: false, field: p => [p.dateBucket] },
     { key: 'designer', label: 'Mimar', nested: false, field: p => (p.designer || []).filter(d => !isOfficeName(d)) },
     { key: 'designerOffice', label: 'Mimarlık Firması', nested: false, field: p => (p.designer || []).filter(d => isOfficeName(d)) },
+    { key: 'award', label: 'Ödül', nested: false, field: p => p.awards || [] },
     { key: 'rating', label: 'Puan', nested: false, field: p => ratingBuckets((ratingByProject.get(p.slug) || { average: 0 }).average) },
   ];
 }

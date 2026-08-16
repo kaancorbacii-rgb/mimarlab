@@ -32,6 +32,7 @@ const FILTER_GROUPS = [
   { key: 'dateBucket', label: 'Yıl' },
   { key: 'designer', label: 'Mimar' },
   { key: 'designerOffice', label: 'Firma' },
+  { key: 'award', label: 'Ödül' },
 ];
 
 const activeFilters = {};
