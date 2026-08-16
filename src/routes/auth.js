@@ -16,7 +16,7 @@ const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bol
 // mimar-ekle.html'deki POZISYON_OPTIONS ile BİREBİR aynı (bkz. kullanıcı isteği: "Mimar ekle sayfası
 // ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — 'Ortak'/'Ekip Lideri' bu
 // listede eskiden yoktu, hesap profili formu o formdaki tüm seçenekleri sunmadığından.
-export const POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Freelance', 'Öğrenci', 'Emekli', 'İşsiz']);
+export const POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz']);
 
 export async function handleAuthRoute(request, env, url) {
   const path = url.pathname;
