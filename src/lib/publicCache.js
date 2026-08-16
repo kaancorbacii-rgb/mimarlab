@@ -61,13 +61,23 @@ const PUBLIC_LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxa
 const CACHEABLE_PATHS = [
   '/api/public/hidden', '/api/public/project-edits', '/api/public/profile-edits',
   '/api/public/news',
-  // gerçek bulgu: bu uç önceden hiç önbelleklenmiyordu — badge-shared.js onu index.html/mimar.html/
-  // firma.html/proje.html/urun.html/arama.html olmak üzere 6 çekirdek sayfanın HER açılışında fetch
-  // ediyordu, sorgu iki JOIN (profile_claims × badge_requests + admin_badges tam taraması) içeriyor.
-  // Admin rozet mutasyon uçları (handleBadgesAdmin/handleProfileBadgeAdmin, bkz. admin.js) artık
-  // invalidatePublicCache() çağırıyor, bu yüzden buraya eklenmesi güvenli.
-  '/api/public/badges',
 ];
+
+// kökten bulgu (2026-08-16): '/api/public/badges' bir ara CACHEABLE_PATHS'teydi (bkz. bir üstteki
+// eski yorumun geçmişi) — invalidatePublicCache() PUT anında çağrılsa bile caches.default PoP-
+// başına bir önbellektir (bkz. cachedPublicJson içindeki yorum): yalnızca yazma isteğini işleyen
+// PoP'un girdisi temizlenir, admin farklı bir PoP'tan (ör. farklı ağ/telefon) hemen sonra profili
+// kontrol ederse s-maxage (15sn) dolana kadar hâlâ eski rozeti görebiliyordu — kullanıcı isteği
+// "hangi rozeti verirsem vereyim HEMEN her rozet alanında gözükmesi gerekiyor" bunu kabul etmiyor.
+// Cloudflare'de Worker'dan tüm PoP'ları TEK seferde temizleyen ücretsiz bir "global purge" yok,
+// bu yüzden gecikme penceresini küçültmek yerine bu uç için edge/tarayıcı önbelleğinin TAMAMI
+// kaldırıldı — sorgu iki küçük indeksli JOIN + admin_badges'in (küçük bir tablo) tam taraması,
+// önbelleksiz her istekte çalıştırılabilecek kadar hafif (bkz. schema.sql#admin_badges/
+// badge_requests/profile_claims index'leri). handlePublicBadges artık BADGE_NO_CACHE_HEADERS ile
+// (aşağıya bkz.) private/no-store döner — hem caches.default'a hiç yazılmaz hem de tarayıcı
+// kendi başına önceki max-age=5'lik kopyayı tutmaz, stampede koruması withSingleFlight ile
+// (aşağıdaki `!cacheable` dalı zaten bunu çağırıyor) korunmaya devam eder.
+const BADGE_NO_CACHE_HEADERS = { 'Cache-Control': 'private, no-store, must-revalidate' };
 
 // Faz 4B — GET /api/projects, /api/architects, /api/offices, /api/products, /api/news (sayfalama/
 // filtre query string'i taşıyan liste uçları — /api/news, Faz 4B doğrulama turunda routing
@@ -194,7 +204,12 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
 
   const listPath = isListPath(pathname);
   const cacheable = CACHEABLE_PATHS.includes(pathname) || listPath;
-  const headers = listPath ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
+  // bkz. yukarıdaki BADGE_NO_CACHE_HEADERS yorumu — bu uç kasıtlı olarak CACHEABLE_PATHS'te
+  // DEĞİL (cacheable burada zaten false döner), ama ANON_CACHE_HEADERS'ın public/max-age=5'i de
+  // istenmiyor (tarayıcı bile kısa süreliğine eski rozeti tutmasın diye) — bu yüzden pathname'e
+  // göre ayrıca no-store'a zorlanıyor.
+  const headers = pathname === '/api/public/badges' ? BADGE_NO_CACHE_HEADERS
+    : listPath ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
 
   if (!cacheable) { const data = await withSingleFlight(`json:${pathname}`, computeData); return json(data, statusFor(data), headers); }
 

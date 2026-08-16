@@ -664,9 +664,11 @@ async function handleBadgesAdmin(request, env, url, segments) {
         'hesabim.html'
       );
     }
-    // gerçek bulgu: /api/public/badges artık önbelleklendiğinden (bkz. publicCache.js#
-    // CACHEABLE_PATHS) burada temizlenmezse onay/red profil sayfalarına en fazla s-maxage (5dk)
-    // kadar hiç yansımazdı.
+    // /api/public/badges artık edge/tarayıcı önbelleğinin TAMAMEN DIŞINDA (bkz. publicCache.js#
+    // BADGE_NO_CACHE_HEADERS, kökten bulgu 2026-08-16 — PoP-başına invalidation'ın bıraktığı
+    // gecikme penceresini kapatmak için), bu yüzden buradaki çağrı artık badge görünümü için
+    // gerekli DEĞİL; diğer 13 admin mutasyon noktasıyla tutarlılık için (ör. ileride başka bir
+    // uç buraya eklenirse) bir güvenlik ağı olarak bırakıldı.
     await invalidatePublicCache(env);
     return json({ ok: true });
   }
@@ -684,10 +686,14 @@ const ADMIN_GRANTABLE_BADGES = new Set(['verified', 'gold', 'platinum', 'iz-bira
 // admin_badges, kullanıcı isteği: "Admin mimar veya marka profilini düzenlerken istediği rozeti
 // seçebilsin ve profile ekleyebilsin. Adminin yaptığı bu değişiklik hemen canlıya yansısın").
 // src/routes/badges.js#handlePublicBadges bu tabloyu satın alınan rozetlerle aynı çıktıya
-// birleştirir. gerçek bulgu (2026-08-11): o uç önceden hiç önbelleklenmiyordu, bu yorum o zamanki
-// "ekstra bir cache temizleme adımına gerek yok" gerekçesiydi — artık publicCache.js#
-// CACHEABLE_PATHS'e eklendiğinden PUT altındaki invalidatePublicCache() çağrısı olmadan bu
-// değişiklik en fazla s-maxage (5dk) kadar görünmezdi.
+// birleştirir. gecikme geçmişi: bir ara /api/public/badges publicCache.js#CACHEABLE_PATHS'te
+// edge-önbellekliydi ve PUT altındaki invalidatePublicCache() çağrısı bunu temizliyordu — ama
+// caches.default PoP-başına olduğundan admin farklı bir PoP'tan kontrol ederse hâlâ en fazla
+// s-maxage (15sn) kadar eski rozeti görebiliyordu ("hemen canlıya yansısın" isteğini karşılamıyordu).
+// Kökten çözüm (2026-08-16): /api/public/badges artık publicCache.js#BADGE_NO_CACHE_HEADERS ile
+// edge/tarayıcı önbelleğinin TAMAMEN DIŞINDA — her istek D1'den taze okur, PUT altındaki
+// invalidatePublicCache() çağrısı artık badge görünümü için gerekli DEĞİL (diğer mutasyon
+// noktalarıyla tutarlılık için güvenlik ağı olarak bırakıldı).
 async function handleProfileBadgeAdmin(request, env, url) {
   const profileType = url.searchParams.get('profileType');
   const profileKey = (url.searchParams.get('profileKey') || '').trim();

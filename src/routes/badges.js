@@ -126,12 +126,14 @@ async function listMyBadges(env, user) {
 // yorum/gönderi yanında gösterimi ayrı bir mekanizma (bkz. src/routes/comments.js, public.js),
 // bu uç yalnızca mimar/marka PROFİL sayfalarını besler. 'destekci' kasıtlı olarak dışarıda
 // bırakılır — o kademe herhangi bir hak ya da görünür rozet vermez, yalnızca destek amaçlıdır.
-// gerçek bulgu: bu uç önceden cachedPublicJson'dan hiç geçmiyordu (doğrudan json() çağrılıyordu,
-// dolayısıyla varsayılan private/no-store başlığı uygulanıyordu) — badge-shared.js onu index.html/
-// mimar.html/firma.html/proje.html/urun.html/arama.html olmak üzere 6 çekirdek sayfanın HER
-// açılışında fetch ediyor, sorgu iki JOIN içeriyor. Artık publicCache.js#CACHEABLE_PATHS'e eklendi;
-// admin.js#handleBadgesAdmin/handleProfileBadgeAdmin artık bir değişiklikten sonra
-// invalidatePublicCache() çağırıyor (bkz. o dosyadaki yorumlar).
+// gecikme geçmişi (2026-08-16): bu uç bir ara publicCache.js#CACHEABLE_PATHS'teydi (caches.default
+// edge önbelleği + invalidatePublicCache() ile temizleniyordu) — ama o önbellek PoP-başınadır,
+// admin farklı bir PoP'tan hemen sonra kontrol ederse en fazla s-maxage kadar eski rozeti görmeye
+// devam edebiliyordu (kullanıcı isteği: "hangi rozeti verirsem vereyim HEMEN her rozet alanında
+// gözükmesi gerekiyor" bunu kabul etmiyor). Artık publicCache.js#BADGE_NO_CACHE_HEADERS ile
+// bilerek edge/tarayıcı önbelleğinin DIŞINDA tutuluyor (cachedPublicJson içinde pathname'e göre
+// zorlanıyor) — sorgu iki küçük indeksli JOIN'den ibaret olduğundan önbelleksiz her istekte
+// çalıştırılabilecek kadar hafif, stampede koruması yine withSingleFlight ile sağlanıyor.
 export async function handlePublicBadges(request, env, url) {
   return cachedPublicJson(request, env, url.pathname, () => computeBadgesPayload(env));
 }
