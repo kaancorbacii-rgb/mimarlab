@@ -211,7 +211,8 @@
     position:sticky; top:90px;
     display:flex; flex-direction:column;
     background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
-    overflow:hidden;
+    max-height:calc(100vh - 110px); overflow-y:auto; overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
   }
   .sidebar-head{
     display:flex; align-items:center; justify-content:space-between;
@@ -355,7 +356,7 @@
 
   @media (max-width:960px){
     .grid-layout{grid-template-columns:1fr;}
-    .grid-sidebar{position:static;}
+    .grid-sidebar{position:static; max-height:none; overflow:visible;}
     .content-grid{grid-template-columns:repeat(3, 1fr);}
   }
   @media (max-width:960px){
