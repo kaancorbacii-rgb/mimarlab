@@ -492,7 +492,12 @@ const ArchitectModal = (function () {
       profileType: PROFILE_TYPE,
       ready: savedWidgetReady,
       getProfileKey: () => a.name,
-      getClaimLinkKey: () => a._claimKey || a.name,
+      // bkz. kullanıcı isteği (2026-08-17): "?claim=" URL'si isim yerine slug kullanınca boşluk/
+      // TR karakter/em-dash içeren isimler (ör. "EAA — Emre Arolat Architecture") çirkin %-encode'lu
+      // URL'ler üretiyordu. mimar-ekle.html#prefillForClaim artık slug/legacy_key/isim'in HERHANGİ
+      // birini kabul edip gerçek `name`'e çözüyor (bkz. o dosyadaki AYNI 2026-08-17 güncellemesi),
+      // bu yüzden burada temiz olan slug'a öncelik verilebilir.
+      getClaimLinkKey: () => a.slug || a._claimKey || a.name,
       getStaticBadges: () => a.badges,
       editUrlBase: 'mimar-ekle.html',
       listUrl: 'mimar.html',

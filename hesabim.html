@@ -697,16 +697,18 @@ function itemTitle(type, item){
 // açıyor (bkz. o dosyalardaki AYNI desen) — yalnızca YAYINDA (approved) gönderiler için bir canonical
 // satır var olduğundan link sadece o durumda üretilir. Anahtar, canonicalSync.js'in senkron sırasında
 // gerçekten yazdığı değerle BİREBİR aynı olmalı: claimed_profile_key/claimed_slug'lı gönderiler için
-// o değer, aksi halde canonicalSync.js#submissionMarker'ın ürettiği "submission:<id>"/"m-<id>" (ürünler
-// zaten kendi slug'ı olarak bunu kullanıyor, bkz. src/routes/product.js#ratingKeyFor) — istemci
-// tarafında slugify(name) YANLIŞ olurdu çünkü çakışma durumunda canonical slug "-<id>" soneki alabilir
-// (bkz. src/lib/canonicalSync.js#syncArchitect/syncOffice).
+// o değer, aksi halde canonicalSync.js#submissionMarker'ın ürettiği "submission:<id>" işareti —
+// istemci tarafında slugify(name) YANLIŞ olurdu çünkü çakışma durumunda canonical slug "-<id>" soneki
+// alabilir (bkz. src/lib/canonicalSync.js#syncArchitect/syncOffice). Ürün/malzeme artık kendi
+// (isim+marka'dan üretilen) canonical slug'ını burada bilmediğinden mimar/firma ile AYNI
+// "submission:<id>" işaretine döner — src/routes/product.js#findProductByLegacyMarker bunu
+// legacy_key üzerinden çözer (2026-08-17, bkz. kullanıcı isteği: ürün URL'lerinin isme dönmesi).
 function itemDetailUrl(type, item){
   if(item.status !== 'approved') return null;
   if(type === 'projects') return `/proje/${encodeURIComponent(item.claimed_slug || item.slug)}`;
   if(type === 'offices') return `/firma/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
   if(type === 'architects') return `/mimar/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
-  if(type === 'products' || type === 'materials') return `/urun/${encodeURIComponent('m-' + item.id)}`;
+  if(type === 'products' || type === 'materials') return `/urun/${encodeURIComponent('submission:' + item.id)}`;
   return null;
 }
 
@@ -1229,7 +1231,9 @@ function renderEditFirmaBox(officeClaim){
   const box = document.getElementById('edit-firma-box');
   box.style.color = 'var(--ink)';
   if(officeClaim){
-    box.innerHTML = `<span style="font-weight:600;">${escapeHtml(officeClaim.profile_key)}</span><a class="submission-edit-link" href="firma-ekle.html?claim=${encodeURIComponent(officeClaim.profile_key)}">Düzenle</a>`;
+    // bkz. kullanıcı isteği (2026-08-17): profile_key (bare isim) yerine varsa temiz slug'a
+    // öncelik verilir — src/routes/claims.js#myClaims artık onaylı taleplerde bunu ayrıca döner.
+    box.innerHTML = `<span style="font-weight:600;">${escapeHtml(officeClaim.profile_key)}</span><a class="submission-edit-link" href="firma-ekle.html?claim=${encodeURIComponent(officeClaim.slug || officeClaim.profile_key)}">Düzenle</a>`;
   } else {
     box.innerHTML = `<span style="color:var(--ink-soft);">Bağlı bir firman yok</span><a class="submission-edit-link" href="firma-ekle.html">+ Firma Ekle</a>`;
   }
@@ -1250,7 +1254,7 @@ async function loadMyClaims(){
         <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
           <span>${escapeHtml(c.profile_key)}</span>
           ${c.status === 'approved'
-            ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
+            ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.slug || c.profile_key)}">Düzenle</a>`
             : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
         </span>
       </div>

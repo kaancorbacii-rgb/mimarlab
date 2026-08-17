@@ -334,6 +334,13 @@ async function createSubmission(request, env, user, typeKey) {
     const finalSlug = (syncedRow && syncedRow.slug) || row.slug;
     return json({ id, status, slug: finalSlug, prefix: '/proje/' }, 201);
   }
+  // slug: urun-ekle.html'in kaydettikten sonra doğrudan (artık isim/marka'dan üretilen) canlı ürün
+  // sayfasına yönlendirebilmesi için (bkz. src/lib/canonicalSync.js#syncProduct, kullanıcı isteği:
+  // "Ürün sayfalarındaki ürünlerin URL'lerini ürün adları olarak düzgünce düzelt") — projects'teki
+  // AYNI gerekçe, eskiden buradan hiç dönmüyordu (client 'm-' + data.id'yi KENDİSİ üretiyordu).
+  if ((typeKey === 'products' || typeKey === 'materials') && syncedRow) {
+    return json({ id, status, slug: syncedRow.slug, prefix: '/urun/' }, 201);
+  }
   return json({ id, status }, 201);
 }
 
@@ -495,6 +502,11 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   }
   if ((typeKey === 'architects' || typeKey === 'offices') && (renamedSlug || syncedRow)) {
     return json({ id, status, slug: renamedSlug || syncedRow.slug });
+  }
+  // bkz. createSubmission'daki AYNI ekleme/gerekçe — düzenleme sonrası da urun-ekle.html'in
+  // gerçek/nihai slug'a yönlendirebilmesi için.
+  if ((typeKey === 'products' || typeKey === 'materials') && syncedRow) {
+    return json({ id, status, slug: syncedRow.slug });
   }
   return json({ id, status });
 }

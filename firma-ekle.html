@@ -913,8 +913,13 @@ async function prefillForClaim(){
     const canonicalRes = await fetch(`/api/office/${encodeURIComponent(claimName)}`);
     if(canonicalRes.ok){
       const { item, team, founders } = await canonicalRes.json();
-      if(item && item.name === claimName){
+      // bkz. kullanıcı isteği (2026-08-17): claimName artık ham isim yerine temiz bir slug da olabilir
+      // (bkz. js/components/office-modal.js#getClaimLinkKey) — eşleşme onaylandığında claimName
+      // GERÇEK bare isme çözülür, aksi halde payload.claimed_profile_key (aşağıda) profile_claims'in
+      // bare-isim anahtarıyla uyuşmayan bir değer gönderip sahiplik sessizce kırılırdı.
+      if(item && (item.name === claimName || item.slug === claimName || item.legacy_key === claimName)){
         merged = { ...merged, ...item };
+        claimName = item.name;
         claimedTeamNames = (team || []).map(t => t.name).filter(Boolean);
         claimedFounderNames = (founders || []).map(f => f.name).filter(Boolean);
       }

@@ -69,8 +69,25 @@ async function fetchAdjacentProduct(env, id) {
 // için kullanılır (bkz. aşağıdaki handleProductDetailRoute). Birden çok anahtarı aynı anda çözen
 // çağıranlar (ratings.js#myRatings, saved.js#listSaved) bunun yerine aşağıdaki toplu karşılığı
 // findProductsByKeys'i kullanır — AYNI iki-aşamalı eşleştirme mantığı, iki ayrı kopya değil.
+// bkz. src/lib/canonicalSync.js#syncProduct dosya başı yorumu (2026-08-17, kullanıcı isteği: "Ürün
+// sayfalarındaki ürünlerin URL'lerini ürün adları olarak düzgünce düzelt") — ürün/malzeme slug'ı
+// artık başlık+marka'dan üretiliyor, önceki "m-<submissionId>" biçimi DEĞİL. Zaten paylaşılmış/
+// indekslenmiş eski "/urun/m-<id>" bağlantılarının kırılmaması için (bkz. scripts/
+// backfill-product-slugs.js'in canonical `products.slug`ı bu geçişte yeniden yazdığı satırlar)
+// "m-<id>" biçimi hâlâ legacy_key='submission:<id>' üzerinden bir kerelik ayrıca denenir.
+// "submission:<id>" biçimi de doğrudan denenir — src/routes/architect.js#findArchitect/office.js#
+// findOffice'in name/slug/legacy_key alias'larıyla AYNI "submission:" işareti (bkz. hesabim.html#
+// itemDetailUrl'in mimar/firma satırları için ürettiği AYNI biçim, ürün/malzeme artık aynısını kullanır).
+function findProductByLegacyMarker(env, key) {
+  const m = /^m-(.+)$/.exec(key);
+  const legacyKey = m ? `submission:${m[1]}` : (key.startsWith('submission:') ? key : null);
+  if (!legacyKey) return null;
+  return env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ? AND deleted_at IS NULL`).bind(legacyKey).first();
+}
+
 export async function findProductByKey(env, key) {
   let row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(key).first();
+  if (!row) row = await findProductByLegacyMarker(env, key);
   if (!row) {
     const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL`).all();
     const match = results.find(r => slugify(`${r.title}-${r.brand_name_raw || ''}`) === key);
@@ -96,11 +113,18 @@ export async function findProductsByKeys(env, keys) {
   const { results } = await env.DB.prepare(`SELECT * FROM products WHERE deleted_at IS NULL`).all();
   const bySlug = new Map();
   const byLegacyKey = new Map();
+  const bySubmissionMarker = new Map();
   for (const row of results) {
     bySlug.set(row.slug, row);
     byLegacyKey.set(slugify(`${row.title}-${row.brand_name_raw || ''}`), row);
+    // bkz. yukarıdaki findProductByLegacyMarker'daki AYNI gerekçe — eski "m-<id>" anahtarları
+    // (ör. ratingKeyFor'un submission-kökenli satırlar için ürettiği target_id) artık slug'la
+    // eşleşmiyor, legacy_key'den yeniden üretilip ayrıca aranmalı.
+    if (typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:')) {
+      bySubmissionMarker.set(`m-${row.legacy_key.slice('submission:'.length)}`, row);
+    }
   }
-  for (const key of wanted) map.set(key, bySlug.get(key) || byLegacyKey.get(key) || null);
+  for (const key of wanted) map.set(key, bySlug.get(key) || bySubmissionMarker.get(key) || byLegacyKey.get(key) || null);
   return map;
 }
 

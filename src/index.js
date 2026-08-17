@@ -123,7 +123,12 @@ const CLEAN_URL_ASSETS = [
 // serveDetailPage#type ('project'/'architect'/'office') -> slug_redirects.entity_type (bkz.
 // migrations/0041_slug_redirects.sql) — src/lib/canonicalSync.js/officeFounderCascade.js'teki AYNI
 // çoğul isimlendirme ('projects'/'architects'/'offices').
-const ENTITY_TYPE_BY_DETAIL_TYPE = { project: 'projects', architect: 'architects', office: 'offices' };
+// product: eklendi (2026-08-17) — ürün/malzeme slug'ı artık başlık+marka'dan üretiliyor (bkz.
+// src/lib/canonicalSync.js#syncProduct), bu yüzden eski "m-<id>" tam sayfa yüklemeleri de diğer
+// üç tip gibi slug_redirects üzerinden 301 alabilsin (bkz. scripts/backfill-product-slugs.js'in
+// yazdığı girdiler) — client-taraflı GET /api/product/:key zaten legacy_key ile ayrıca çözülüyor
+// (bkz. src/routes/product.js#findProductByLegacyMarker), bu yalnızca tam sayfa/bot yüklemesi içindir.
+const ENTITY_TYPE_BY_DETAIL_TYPE = { project: 'projects', architect: 'architects', office: 'offices', product: 'products' };
 
 // Kariyer — yayında değil (bkz. kullanıcı isteği). Ürün/Danışman/Haber'in aksine sayfası hâlâ
 // repoda duruyor (bkz. kariyer.html) ama bu görevin kapsamı dışında bırakıldı — yalnızca public

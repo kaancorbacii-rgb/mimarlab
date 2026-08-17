@@ -515,7 +515,10 @@ const OfficeModal = (function () {
       profileType: PROFILE_TYPE,
       ready: savedWidgetReady,
       getProfileKey: () => o.name,
-      getClaimLinkKey: () => o._claimKey || o.name,
+      // bkz. js/components/architect-modal.js'teki AYNI 2026-08-17 güncellemesi/gerekçe — çirkin
+      // %-encode'lu "?claim=" URL'leri yerine temiz slug'a öncelik verilir (firma-ekle.html#
+      // prefillForClaim slug/legacy_key/isim'in herhangi birini kabul edip gerçek `name`'e çözer).
+      getClaimLinkKey: () => o.slug || o._claimKey || o.name,
       getStaticBadges: () => o.badges,
       editUrlBase: 'firma-ekle.html',
       listUrl: 'firma.html',

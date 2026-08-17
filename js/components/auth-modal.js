@@ -897,7 +897,11 @@ const AuthModal = (function () {
     if (type === 'projects') return `/proje/${encodeURIComponent(item.claimed_slug || item.slug)}`;
     if (type === 'offices') return `/firma/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
     if (type === 'architects') return `/mimar/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
-    if (type === 'products' || type === 'materials') return `/urun/${encodeURIComponent('m-' + item.id)}`;
+    // bkz. hesabim.html#itemDetailUrl'deki AYNI 2026-08-17 güncellemesi — ürün/malzeme slug'ı artık
+    // isim+marka'dan üretiliyor (src/lib/canonicalSync.js#syncProduct), "m-<id>" DEĞİL; mimar/firma
+    // ile AYNI "submission:<id>" işaretine dönülür (src/routes/product.js#findProductByLegacyMarker
+    // bunu legacy_key üzerinden çözer).
+    if (type === 'products' || type === 'materials') return `/urun/${encodeURIComponent('submission:' + item.id)}`;
     return null;
   }
   function resizeImageFile(file, maxEdge, quality) {
@@ -1688,7 +1692,7 @@ const AuthModal = (function () {
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
             <span>${escapeHtml(c.profile_key)}${rowBadgeType ? accountBadgeIconHtml(rowBadgeType) : ''}</span>
             ${canEdit
-              ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.profile_key)}">Düzenle</a>`
+              ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.slug || c.profile_key)}">Düzenle</a>`
               : c.status === 'approved'
                 ? ''
                 : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}

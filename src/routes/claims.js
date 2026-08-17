@@ -72,7 +72,18 @@ async function myClaims(env, user) {
   const { results } = await env.DB.prepare(
     'SELECT profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(user.id).all();
-  return json({ items: results });
+  // slug: hesabim.html/auth-modal.js'in "Düzenle" linkini profile_key (bare isim, boşluk/TR karakter
+  // içerebilir — bkz. kullanıcı isteği 2026-08-17: "?claim= şeklinde bozuk bir URL çıkıyor") yerine
+  // temiz bir slug'la kurabilmesi için — yalnızca onaylı taleplerde anlamlı (canonical satır ancak
+  // o zaman kesin var), bulunamazsa (ör. henüz senkronlanmamış) sessizce null kalır ve çağıran taraf
+  // profile_key'e düşer.
+  const items = await Promise.all(results.map(async r => {
+    if (r.status !== 'approved' || (r.profile_type !== 'architect' && r.profile_type !== 'office')) return r;
+    const table = r.profile_type === 'architect' ? 'architects' : 'offices';
+    const row = await env.DB.prepare(`SELECT slug FROM ${table} WHERE name = ? AND deleted_at IS NULL`).bind(r.profile_key).first();
+    return { ...r, slug: row ? row.slug : null };
+  }));
+  return json({ items });
 }
 
 async function createClaim(request, env, user) {

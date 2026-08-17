@@ -840,10 +840,14 @@ async function syncProject(env, row) {
 
 async function syncProduct(env, row, kind) {
   // products/materials'ta claim sistemi yok (bkz. schema.sql yorumu) — her onaylı satırın kendi
-  // canonical karşılığı slug='m-<submissionId>' ile idempotent bulunur (bkz. scripts/
-  // merge-submissions-to-id-first.js'teki AYNI slug şeması).
-  const slug = `m-${row.id}`;
-  const existing = await env.DB.prepare(`SELECT * FROM products WHERE slug = ?`).bind(slug).first();
+  // canonical karşılığı idempotent bulunmalı. GERÇEK BULGU (kullanıcı isteği: "Ürün sayfalarındaki
+  // ürünlerin URL'lerini ürün adları olarak düzgünce düzelt"): bu idempotent arama önceden
+  // slug='m-<submissionId>' üzerinden yapılıyordu — slug artık aşağıda title/marka'dan üretildiğinden
+  // (architects/offices/projects'teki AYNI desen) bu arama artık HER ZAMAN legacy_key='submission:<id>'
+  // üzerinden yapılır (bu değer her onaylı senkronda zaten koşulsuz yazılıyor, aşağıya bkz.) —
+  // idempotency artık slug'ın biçiminden tamamen bağımsız.
+  const legacyKey = submissionMarker(row.id);
+  const existing = await env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ?`).bind(legacyKey).first();
   const images = JSON.stringify(row.images || []);
   const specs = JSON.stringify(row.specs || []);
 
@@ -856,26 +860,32 @@ async function syncProduct(env, row, kind) {
 
   // "submission:<id>" işareti — src/routes/product.js#shapeProductItem'ın isSubmissionMarker
   // kontrolü (ve dolayısıyla item.submissionId, editSubmissionBtnHtml/owner Sil-Arşivle akışının
-  // TAMAMI, bkz. js/components/product-modal.js#mountEditAndAdminButtons) bu satıra bakar.
-  // GERÇEK BULGU: legacy_key buraya kadar HİÇ yazılmıyordu — slug='m-<id>' zaten idempotent
-  // eşleştirme için yeterli olduğundan atlanmış, ama bu yüzden HİÇBİR üye/marka gönderisi kökenli
-  // ürün/malzeme için "Gönderiyi Düzenle" butonu (dolayısıyla artık sahibin Sil/Arşivle yetkisi de)
-  // hiçbir zaman görünmüyordu — item.submissionId sessizce hep null geliyordu.
-  const legacyKey = submissionMarker(row.id);
+  // TAMAMI, bkz. js/components/product-modal.js#mountEditAndAdminButtons) bu satıra bakar — ayrıca
+  // artık yukarıdaki idempotent aramanın da tek kaynağı.
 
   let productId;
   if (existing) {
     // hidden_at temizliği — bkz. syncOffice'teki AYNI gerekçe (sahibi onaylı bir ürünü tekrar
-    // düzenleyip admin onayladığında görünürlük geri gelmeliydi, gelmiyordu).
+    // düzenleyip admin onayladığında görünürlük geri gelmeliydi, gelmiyordu). slug'a BİLEREK
+    // dokunulmaz — bkz. src/routes/legacyContent.js#handleAdminProductEdit'teki AYNI gerekçe
+    // (products/materials hiçbir rename cascade'i desteklemiyor, başlık değişse bile URL sabit kalır).
     await env.DB.prepare(
       `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, designer = ?, year = ?, legacy_key = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
     ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.designer || null, row.year || null, legacyKey, existing.id).run();
     productId = existing.id;
   } else {
-    const insert = await env.DB.prepare(
+    // architects/offices/projects'teki AYNI desen (bkz. syncArchitect/syncOffice) — yeni bir
+    // ürün/malzeme kaydı artık başlık+marka'dan türetilmiş okunabilir bir slug alır, yalnızca
+    // slugify boş dönerse (ör. başlık tamamen özel karakterlerden oluşuyorsa) eski "m-<id>" biçimine
+    // düşülür.
+    const { slugify } = await import('./slugify.js');
+    let slug = slugify(`${row.title}-${row.brand || ''}`) || `m-${row.id}`;
+    const clash = await env.DB.prepare(`SELECT id FROM products WHERE slug = ?`).bind(slug).first();
+    if (clash) slug = `${slug}-${row.id}`;
+    const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
       `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, designer, year, source_url, ai_generated, source, legacy_key, claimed_by_user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(slug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, legacyKey, row.owner_user_id).run();
+    ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, legacyKey, row.owner_user_id));
     productId = insert.meta.last_row_id;
   }
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(productId).first();

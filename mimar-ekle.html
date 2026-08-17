@@ -863,7 +863,17 @@ async function prefillForClaim(){
     const canonicalRes = await fetch(`/api/architect/${encodeURIComponent(claimName)}`);
     if(canonicalRes.ok){
       const { item } = await canonicalRes.json();
-      if(item && item.name === claimName) merged = { ...merged, ...item };
+      // bkz. kullanıcı isteği (2026-08-17): claimName artık ham isim yerine temiz bir slug da
+      // olabilir (bkz. js/components/architect-modal.js#getClaimLinkKey) — GET /api/architect/:key
+      // zaten name/slug/legacy_key alias'larının herhangi biriyle bulur (bkz. src/lib/
+      // canonicalRead.js), ama claimName'in KENDİSİ payload.claimed_profile_key olarak sunucuya
+      // gönderileceğinden (aşağıda), eşleşme onaylandığında claimName GERÇEK bare isme çözülür —
+      // aksi halde profile_claims/claimed_profile_key (her zaman bare isimle anahtarlanır) ile
+      // uyuşmayan bir değer gönderilip sahiplik sessizce kırılırdı.
+      if(item && (item.name === claimName || item.slug === claimName || item.legacy_key === claimName)){
+        merged = { ...merged, ...item };
+        claimName = item.name;
+      }
     }
   }catch{}
 
