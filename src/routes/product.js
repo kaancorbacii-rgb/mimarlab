@@ -110,21 +110,42 @@ export async function findProductsByKeys(env, keys) {
   const wanted = new Set(keys.filter(Boolean));
   if (!wanted.size) return map;
 
-  const { results } = await env.DB.prepare(`SELECT * FROM products WHERE deleted_at IS NULL`).all();
+  // gerçek bulgu (production audit, 2026-08-17): bu fonksiyon eşleştirme anahtarını hesaplamak için
+  // TÜM ürün/malzeme satırlarını (images/specs/description dahil) `SELECT *` ile çekiyordu — istenen
+  // anahtar sayısı (genelde birkaç Beğenilen/Kaydedilen ürün) kaç olursa olsun, HER çağrıda
+  // katalogdaki her satırın tüm sütunları D1'den taşınıyordu. findProductByKey'deki AYNI iki-aşamalı
+  // desen (önce dar sütunlarla tara, sonra yalnızca eşleşen id'ler için tam satırı çek) burada da
+  // uygulanır: eşleştirme mantığı/önceliği (slug > submission marker > eski title-brand) ve dönen
+  // sonuç birebir AYNI kalır, yalnızca eşleşmeyen satırların ağır sütunları artık hiç okunmaz.
+  const { results } = await env.DB.prepare(`SELECT id, slug, title, brand_name_raw, legacy_key FROM products WHERE deleted_at IS NULL`).all();
   const bySlug = new Map();
   const byLegacyKey = new Map();
   const bySubmissionMarker = new Map();
   for (const row of results) {
-    bySlug.set(row.slug, row);
-    byLegacyKey.set(slugify(`${row.title}-${row.brand_name_raw || ''}`), row);
+    bySlug.set(row.slug, row.id);
+    byLegacyKey.set(slugify(`${row.title}-${row.brand_name_raw || ''}`), row.id);
     // bkz. yukarıdaki findProductByLegacyMarker'daki AYNI gerekçe — eski "m-<id>" anahtarları
     // (ör. ratingKeyFor'un submission-kökenli satırlar için ürettiği target_id) artık slug'la
     // eşleşmiyor, legacy_key'den yeniden üretilip ayrıca aranmalı.
     if (typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:')) {
-      bySubmissionMarker.set(`m-${row.legacy_key.slice('submission:'.length)}`, row);
+      bySubmissionMarker.set(`m-${row.legacy_key.slice('submission:'.length)}`, row.id);
     }
   }
-  for (const key of wanted) map.set(key, bySlug.get(key) || bySubmissionMarker.get(key) || byLegacyKey.get(key) || null);
+
+  const idByKey = new Map();
+  for (const key of wanted) {
+    const id = bySlug.get(key) ?? bySubmissionMarker.get(key) ?? byLegacyKey.get(key);
+    if (id != null) idByKey.set(key, id);
+  }
+  if (!idByKey.size) { for (const key of wanted) map.set(key, null); return map; }
+
+  const uniqueIds = [...new Set(idByKey.values())];
+  const { results: fullRows } = await env.DB.prepare(
+    `SELECT * FROM products WHERE id IN (${uniqueIds.map(() => '?').join(',')})`
+  ).bind(...uniqueIds).all();
+  const rowById = new Map(fullRows.map(r => [r.id, r]));
+
+  for (const key of wanted) map.set(key, rowById.get(idByKey.get(key)) || null);
   return map;
 }
 

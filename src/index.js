@@ -552,10 +552,34 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
 
   const assetUrl = new URL(url);
   assetUrl.pathname = cleanRoute.asset;
-  const assetResponse = await env.ASSETS.fetch(new Request(assetUrl, request));
 
   const rawSlug = decodeURIComponent(url.pathname.slice(cleanRoute.prefix.length).replace(/\/$/, ''));
-  const meta = rawSlug ? await buildMeta(cleanRoute.type, rawSlug, env) : null;
+  // gerçek bulgu (production audit, 2026-08-17): ASSETS.fetch (statik şablon) ve buildMeta (D1
+  // sorgusu) birbirinden bağımsızdır ama sıralı await ediliyordu — cache MISS'te (ilk istek/
+  // SSR_CACHE_VERSION bump sonrası/TTL sonrası) TTFB'ye gereksiz bir D1 round-trip'i ekliyordu.
+  const [assetResponse, meta] = await Promise.all([
+    env.ASSETS.fetch(new Request(assetUrl, request)),
+    rawSlug ? buildMeta(cleanRoute.type, rawSlug, env) : Promise.resolve(null),
+  ]);
+
+  // gerçek bulgu (production audit, 2026-08-17): slug büyük/küçük harf duyarlıydı — ör.
+  // /proje/Khalkedon-Kalintilari canonical küçük-harf slug'a değil düz 404'e düşüyordu. Depolanan
+  // tüm slug'lar zaten slugify() ile üretilip yalnızca [a-z0-9-] içerir (bkz. slugify.js) —
+  // rawSlug'ın slugify'lanmış hâli KENDİSİNDEN FARKLIYSA ve bu normalize edilmiş slug gerçekten bir
+  // kayıtla eşleşiyorsa canonical URL'e 301 ile yönlendirilir. slugify() idempotent olduğundan
+  // (normalizedSlug'ı tekrar slugify etmek aynı sonucu verir) bu redirect döngü oluşturmaz —
+  // eşleşmezse mevcut slug_redirects/404 akışı DEĞİŞMEDEN aşağıda devam eder.
+  if (!meta && rawSlug) {
+    const normalizedSlug = slugify(rawSlug);
+    if (normalizedSlug && normalizedSlug !== rawSlug) {
+      const normalizedMeta = await buildMeta(cleanRoute.type, normalizedSlug, env);
+      if (normalizedMeta) {
+        const dest = new URL(normalizedMeta.canonicalUrl);
+        dest.search = url.search;
+        return Response.redirect(dest.href, 301);
+      }
+    }
+  }
   // Slug bulunamadıysa, bu bir yeniden adlandırma sonrası bayatlamış (paylaşılmış/indekslenmiş) bir
   // eski URL olabilir (bkz. migrations/0041_slug_redirects.sql, kullanıcı isteği: "ismi değişirse
   // URL'si de değişmeli ... eski URL'ler kırılmasın") — varsa güncel slug'a 301 ile yönlendirilir.
