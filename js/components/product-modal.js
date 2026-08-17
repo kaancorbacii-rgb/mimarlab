@@ -565,6 +565,15 @@ const ProductModal = (function () {
       ids: GALLERY_IDS,
     });
 
+    // ratingKey: puanlama/kaydetme sistemi (ratings.target_id/saved_items.item_key) `key`'den (URL
+    // slug'ı) BİLEREK AYRI bir anahtar kullanır (bkz. src/routes/product.js#ratingKeyFor'un dosya
+    // başı yorumu) — GERÇEK BULGU (2026-08-17, kullanıcı isteği: ürün URL'lerinin isme dönmesi):
+    // slug artık ratingKey'den farklı olabildiğinden (öncesinde ikisi de "m-<id>" olduğundan
+    // tesadüfen aynıydı), burada `key` kullanmak yeni bir puanlama/kaydetmeyi YANLIŞ bir target_id'ye
+    // yazıp mevcut ortalamadan/sayaçtan koparırdı — GET /api/product/:key artık bu doğru anahtarı
+    // ayrıca (p.ratingKey) döndürüyor, save/rating işlemleri onu kullanmalı; `key` yalnızca URL/paylaşım
+    // amaçlı kalır.
+    const ratingKey = p.ratingKey || key;
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'save-btn card-save-btn';
@@ -572,7 +581,7 @@ const ProductModal = (function () {
     saveBtn.setAttribute('aria-label', 'Kaydet');
     saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="pr-save-count"></span>`;
     saveBtn.dataset.type = ratingKindFor(p);
-    saveBtn.dataset.key = key;
+    saveBtn.dataset.key = ratingKey;
     saveBtn.dataset.title = p.title;
     saveBtn.dataset.meta = [p.category, p.brand].filter(Boolean).join(' · ');
     saveBtn.dataset.image = images[0] || '';
@@ -581,7 +590,7 @@ const ProductModal = (function () {
     saveSlot.innerHTML = '';
     saveSlot.prepend(saveBtn);
     wireSaveButtons(ratingKindFor(p));
-    fetch(`/api/public/save-count?type=${ratingKindFor(p)}&key=${encodeURIComponent(key)}`)
+    fetch(`/api/public/save-count?type=${ratingKindFor(p)}&key=${encodeURIComponent(ratingKey)}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => { const el = document.getElementById('pr-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
       .catch(() => {});
@@ -592,7 +601,7 @@ const ProductModal = (function () {
 
     const ratingWidget = document.getElementById('pr-rating');
     ratingWidget.dataset.type = ratingKindFor(p);
-    ratingWidget.dataset.key = key;
+    ratingWidget.dataset.key = ratingKey;
     mountRatingWidget(ratingWidget);
 
     const headerActions = ModalShell.getHeaderActionsSlot();
@@ -749,27 +758,36 @@ const ProductModal = (function () {
   async function loadRelated(p, key) {
     const section = document.getElementById('pr-related-section');
     section.style.display = 'none';
+    // kendi kendini hariç tutmak için /api/products'ın döndürdüğü ratingKey ile karşılaştırılmalı
+    // (bkz. yukarıdaki renderItem'daki AYNI 2026-08-17 gerekçesi) — `key` (URL slug) ile karşılaştırmak
+    // artık ürünü kendi "Diğer Ürünler" listesinde tekrar gösterirdi.
+    const selfKey = p.ratingKey || key;
     try {
       const params = new URLSearchParams({ limit: '96' });
       if (p.brand) params.set('brand', p.brand);
       const res = await fetch(`/api/products?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
-      let related = (data.items || []).filter(x => x.ratingKey !== key);
+      let related = (data.items || []).filter(x => x.ratingKey !== selfKey);
       if (related.length < 6 && p.category) {
         const catParams = new URLSearchParams({ limit: '96', category: p.category });
         const catRes = await fetch(`/api/products?${catParams.toString()}`);
         if (catRes.ok) {
           const catData = await catRes.json();
-          const seen = new Set(related.map(x => x.ratingKey).concat([key]));
+          const seen = new Set(related.map(x => x.ratingKey).concat([selfKey]));
           (catData.items || []).forEach(x => { if (!seen.has(x.ratingKey)) { seen.add(x.ratingKey); related.push(x); } });
         }
       }
       related = related.slice(0, 8);
       if (!related.length) return;
       document.getElementById('pr-related-title').textContent = p.brand ? `${p.brand} Markasından Diğer Ürünler` : 'Benzer Ürünler';
+      // bkz. kullanıcı isteği (2026-08-17): burada r.ratingKey kullanılıyordu — puanlama/kaydetme
+      // hedef anahtarı (src/routes/product.js#ratingKeyFor), submission kökenli satırlarda hâlâ
+      // "m-<id>" biçiminde ve BİLEREK slug'dan bağımsız (bkz. src/lib/canonicalSync.js#syncProduct
+      // dosya başı yorumu) — bu yüzden "X Markasından Diğer Ürünler" kartları hâlâ eski çirkin
+      // URL'ye gidiyordu. Kartın kendi canonical slug'ı (r.slug, /api/products zaten döner) kullanılmalı.
       document.getElementById('pr-related-grid').innerHTML = related.map(r =>
-        cardHtml(`/urun/${encodeURIComponent(r.ratingKey)}`, r.title, r.image, r.brand)
+        cardHtml(`/urun/${encodeURIComponent(r.slug)}`, r.title, r.image, r.brand)
       ).join('');
       section.style.display = '';
     } catch {}

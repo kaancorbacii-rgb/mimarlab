@@ -144,6 +144,14 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     // gibi item burada da null'lanır.
     if (row.hidden_at) return { item: null, hidden: true };
     const item = shapeProductItem(row);
+    // ratingKey: puanlama/kaydetme (ratings.target_id / saved_items.item_key) hâlâ BURADAKİ
+    // ratingKeyFor ile üretilen eski anahtarı kullanıyor (bkz. dosya başı yorumu — slug'dan BİLEREK
+    // ayrık). GERÇEK BULGU (2026-08-17, kullanıcı isteği: ürün URL'lerinin isme dönmesi): item.slug
+    // artık ratingKey'den FARKLI olabildiğinden, js/components/product-modal.js buraya kadar
+    // istemeden URL slug'ını rating/kaydetme hedef anahtarı olarak (dataset.key üzerinden) kullanıyordu
+    // — yeni bir puanlama/kaydetme SessizCE yanlış bir target_id'ye yazılıp mevcut ortalamadan/sayaçtan
+    // kopardı. Doğru anahtar burada AYRICA döndürülüp istemci tarafında slug yerine bu kullanılmalı.
+    item.ratingKey = ratingKeyFor(item.title, item.brand, item.submissionId);
     const [adjacent, owner] = await Promise.all([
       fetchAdjacentProduct(env, row.id),
       fetchOwnerByline(env, row.claimed_by_user_id),

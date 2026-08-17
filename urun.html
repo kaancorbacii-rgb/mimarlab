@@ -722,7 +722,12 @@ async function render(){
       if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       // Ürün modalı (bkz. js/components/product-modal.js) proje.html#card-grid'in AYNI deseniyle
       // sayfa yenilenmeden açılsın diye tam sayfa yönlendirme yerine modal açılır.
-      ProductModal.open(pageItems[i].ratingKey, { triggerEl: card });
+      // bkz. kullanıcı isteği (2026-08-17): burada ratingKey kullanılıyordu — puanlama/kaydetme
+      // hedef anahtarı (bkz. src/routes/product.js#ratingKeyFor), canonical `slug`'dan BİLEREK ayrık
+      // ve submission kökenli satırlarda hâlâ "m-<id>" biçiminde. Ana ürün listesindeki HER kart
+      // tıklaması bu yüzden hâlâ eski çirkin URL'ye açılıyordu — kartın kendi slug'ı (p.slug,
+      // /api/products zaten döner) kullanılmalı.
+      ProductModal.open(pageItems[i].slug, { triggerEl: card });
     });
   });
 }
@@ -983,7 +988,8 @@ async function renderLanding(){
     </div>`).join('');
   topGrid.querySelectorAll('.content-card').forEach((card, i)=>{
     card.style.cursor = 'pointer';
-    card.addEventListener('click', ()=>{ ProductModal.open(items[i].ratingKey, { triggerEl: card }); });
+    // bkz. yukarıdaki render()'daki AYNI 2026-08-17 düzeltmesi/gerekçe.
+    card.addEventListener('click', ()=>{ ProductModal.open(items[i].slug, { triggerEl: card }); });
   });
 }
 
