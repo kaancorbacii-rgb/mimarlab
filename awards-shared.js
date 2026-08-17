@@ -7,4 +7,4 @@
 // üçünde de anında yansır. Diğer paylaşılan veri dosyalarıyla (catalog-taxonomy.js, il-ilce-data.js)
 // aynı desen: sade bir global `const`, `<script>` ile defer OLMADAN (bu üç dosyanın kendi satır içi
 // scriptlerinden ÖNCE, senkron olarak) yüklenir.
-const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü', 'Ulusal Mimarlık Ödülleri', 'TürkSMD Mimarlık Ödülleri', 'TürkSMD Mimarlık Ödülü', 'Ağa Han Mimarlık Ödülü', 'EU Mies Award', 'World Architecture Festival Ödülleri', 'International Architecture Awards'];
+const ODUL_OPTIONS = ['Pritzker Mimarlık Ödülü', 'Ulusal Mimarlık Ödülleri', 'TürkSMD Mimarlık Ödülleri', 'Ağa Han Mimarlık Ödülü', 'EU Mies Award', 'World Architecture Festival Ödülleri', 'International Architecture Awards'];
