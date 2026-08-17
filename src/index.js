@@ -6,7 +6,7 @@ import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
-import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute } from './routes/project.js';
+import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
@@ -798,6 +798,12 @@ async function routeApi(request, env, url) {
     // aksi halde handleProjectDetailRoute slug'ı "some-slug/moderate" olarak arardı.
     if (projectSlug.endsWith('/moderate') && request.method === 'POST') {
       return handleSelfProjectModerate(request, env, decodeURIComponent(projectSlug.slice(0, -'/moderate'.length)));
+    }
+    // GET .../can-edit: sahiplik/claim tabanlı düzenleme yetkisi kontrolü (bkz. js/components/
+    // project-actions.js#mountOwnerActions, proje-ekle.html#prefillForClaim) — yukarıdaki iki dal
+    // gibi GET handleProjectDetailRoute'tan ÖNCE özel olarak yakalanmalı.
+    if (projectSlug.endsWith('/can-edit') && request.method === 'GET') {
+      return handleProjectCanEditRoute(request, env, projectSlug.slice(0, -'/can-edit'.length));
     }
     return handleProjectDetailRoute(request, env, url, projectSlug);
   }

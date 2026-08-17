@@ -1,9 +1,11 @@
-import { errorJson } from '../lib/http.js';
+import { json, errorJson } from '../lib/http.js';
+import { getSessionUser } from '../lib/auth.js';
 import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { BC_DATE_BUCKET } from '../lib/submissionTypes.js';
+import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
 // Proje "havuz" mantığı (fetchActiveProjectPool/buildFilterGroups + shapeProjectItem ve
 // destekleyicileri) src/lib/projectPool.js'e taşındı (bkz. o dosyanın başındaki yorum) — bu route
 // dosyası ile src/lib/facetCounts.js aynı fonksiyonları artık ORTAK, doğru katmandan (lib) import
@@ -129,6 +131,20 @@ async function fetchFoundersForOffices(env, officeNames) {
      WHERE o.name IN (${placeholders})`
   ).bind(...officeNames).all();
   return results.map(r => ({ name: r.name, type: 'architect', slug: r.slug, photo: r.photo_url }));
+}
+
+// GET /api/project/:slug/can-edit — oturum açmış kullanıcının bu projeyi düzenleyip arşivleyip/
+// silebilip silemeyeceğini döner (bkz. js/components/project-actions.js#mountOwnerActions,
+// proje-ekle.html#prefillForClaim) — künyedeki bir mimar/firmayı onaylı bir profile_claims ile
+// sahiplenen kullanıcılar da admin gibi düzenleyebilir (bkz. src/lib/projectClaimAccess.js dosya
+// başı yorumu, kullanıcı isteği). Oturum yoksa sessizce false döner, 401 fırlatmaz — çağıranlar bunu
+// "Düzenle" butonunu göstermeyip göstermeme kararı için kullanıyor.
+export async function handleProjectCanEditRoute(request, env, rawSlug) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  const user = await getSessionUser(request, env);
+  if (!user) return json({ canEdit: false });
+  const slug = decodeURIComponent(rawSlug || '');
+  return json({ canEdit: await canUserEditProjectBySlug(env, user, slug) });
 }
 
 // GET /api/project/:slug — Faz 4: proje.html'deki proje modalı bu uca bağlandı (eski yorum artık

@@ -180,6 +180,20 @@
   .ud-list-empty{color:var(--ink-soft); font-size:12.5px; padding:8px 0;}
   .ud-save-msg{font-size:12.5px; color:var(--ink-soft); margin-left:10px;}
 
+  /* Mimar/Firma Profili — iki sütun (bkz. kullanıcı isteği: "mimar ve firmayı iki ayrı sütuna
+     ayır"), her sütunda o an atanmış profil(ler) + yeni bir profil atamak için arama kutusu. */
+  .ud-claims-cols{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  @media (max-width:640px){ .ud-claims-cols{grid-template-columns:1fr;} }
+  .ud-claims-col h4{font-family:'Inter', sans-serif; font-size:13px; font-weight:700; margin:0 0 8px; color:var(--ink-soft);}
+  .ud-assign-box{margin-top:10px; position:relative;}
+  .ud-assign-box input{width:100%; padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:12.5px; color:var(--ink);}
+  .ud-assign-results{margin-top:4px; max-height:180px; overflow-y:auto; border:1px solid var(--line); border-radius:9px; background:var(--paper-card);}
+  .ud-assign-results:empty{display:none; border:none;}
+  .ud-assign-result-row{padding:8px 11px; font-size:12.5px; cursor:pointer; border-bottom:1px solid var(--line-soft);}
+  .ud-assign-result-row:last-child{border-bottom:none;}
+  .ud-assign-result-row:hover{background:var(--paper);}
+  .ud-claim-remove-btn{background:none; border:none; color:#B84C4C; font-size:11.5px; font-weight:600; padding:0; cursor:pointer;}
+
   .site-footer{background:var(--ink); color:var(--paper); margin-top:40px;}
   .footer-top{
     max-width:1080px; margin:0 auto;
@@ -410,7 +424,24 @@
 
       <div class="ud-section">
         <h3>Mimar/Firma Profili</h3>
-        <div id="ud-claims-list"></div>
+        <div class="ud-claims-cols">
+          <div class="ud-claims-col">
+            <h4>Mimar</h4>
+            <div id="ud-claims-architect-list"></div>
+            <div class="ud-assign-box">
+              <input type="text" id="ud-assign-architect-q" placeholder="Atamak için mimar ara…">
+              <div class="ud-assign-results" id="ud-assign-architect-results"></div>
+            </div>
+          </div>
+          <div class="ud-claims-col">
+            <h4>Firma</h4>
+            <div id="ud-claims-office-list"></div>
+            <div class="ud-assign-box">
+              <input type="text" id="ud-assign-office-q" placeholder="Atamak için firma ara…">
+              <div class="ud-assign-results" id="ud-assign-office-results"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="ud-section">
@@ -1105,7 +1136,6 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 // düzenleyebiliyor, bkz. src/routes/submissions.js#getOwnSubmission).
 const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
 const UD_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
-const UD_CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
 const UD_CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html' };
 const UD_CLAIM_EDIT_STYPE = { architect: 'architects', office: 'offices' };
 const UD_CLAIM_STATUS_LABELS = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
@@ -1125,9 +1155,11 @@ async function openUserDetail(userId){
   document.getElementById('ud-save-msg').textContent = '';
   document.getElementById('ud-title').textContent = 'Yükleniyor…';
   document.getElementById('ud-subtitle').textContent = '';
-  ['ud-claims-list','ud-submissions-list','ud-saved-list','ud-rated-list','ud-comments-list'].forEach(id=>{
+  ['ud-claims-architect-list','ud-claims-office-list','ud-submissions-list','ud-saved-list','ud-rated-list','ud-comments-list'].forEach(id=>{
     document.getElementById(id).innerHTML = '<div class="ud-list-empty">Yükleniyor…</div>';
   });
+  ['ud-assign-architect-q','ud-assign-office-q'].forEach(id=>{ document.getElementById(id).value = ''; });
+  ['ud-assign-architect-results','ud-assign-office-results'].forEach(id=>{ document.getElementById(id).innerHTML = ''; });
 
   const data = await api(`/api/admin/users/${encodeURIComponent(userId)}`);
   const u = data.user;
@@ -1186,21 +1218,77 @@ document.getElementById('ud-save-btn').addEventListener('click', async ()=>{
   }
 });
 
+// Mimar/Firma Profili — iki ayrı sütun (bkz. kullanıcı isteği) + her sütunda admin'in doğrudan yeni
+// bir profil atayabileceği bir arama kutusu (wireUdAssign, aşağıda). Kaldır butonu DELETE
+// /api/admin/claims/:id'yi çağırır — atama geri alınır, kullanıcı o profili artık düzenleyemez
+// (bkz. src/routes/submissions.js#verifyClaimedProfileKey/verifyClaimedSlug, ikisi de yalnızca
+// status='approved' bir profile_claims satırına bakıyor).
 async function loadUdClaims(userId){
-  const container = document.getElementById('ud-claims-list');
   const data = await api(`/api/admin/users/${encodeURIComponent(userId)}/claims`);
   const items = data.items || [];
-  if(!items.length){ container.innerHTML = '<div class="ud-list-empty">Bağlı bir mimar/firma profili yok.</div>'; return; }
+  renderUdClaimCol('ud-claims-architect-list', items.filter(c => c.profile_type === 'architect'));
+  renderUdClaimCol('ud-claims-office-list', items.filter(c => c.profile_type === 'office'));
+}
+
+function renderUdClaimCol(containerId, items){
+  const container = document.getElementById(containerId);
+  if(!items.length){ container.innerHTML = '<div class="ud-list-empty">Atanmış profil yok.</div>'; return; }
   container.innerHTML = items.map(c => `
     <div class="ud-list-row">
-      <span><strong>${UD_CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</strong> · ${escapeHtml(c.profile_key)}</span>
+      <span>${escapeHtml(c.profile_key)}</span>
       <span style="display:flex; align-items:center; gap:10px;">
         ${c.submissionId && UD_CLAIM_EDIT_PAGE[c.profile_type] ? `<a href="${UD_CLAIM_EDIT_PAGE[c.profile_type]}?edit=${encodeURIComponent(c.submissionId)}&stype=${encodeURIComponent(UD_CLAIM_EDIT_STYPE[c.profile_type])}" target="_blank" rel="noopener" style="color:var(--walnut); font-weight:600;">Düzenle</a>` : ''}
         <span class="admin-badge ${c.status === 'approved' ? 'badge-approved' : c.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}">${UD_CLAIM_STATUS_LABELS[c.status] || c.status}</span>
+        <button type="button" class="ud-claim-remove-btn" data-id="${c.id}">Kaldır</button>
       </span>
     </div>
   `).join('');
+  container.querySelectorAll('.ud-claim-remove-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Bu profil ataması kaldırılsın mı? Kullanıcı bu profili artık düzenleyemez.')) return;
+      btn.disabled = true;
+      await api(`/api/admin/claims/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
+      loadUdClaims(udCurrentUserId);
+    });
+  });
 }
+
+// wireUdAssign — admin panelinden tüm mimar/firma listesini arayıp bir tanesini seçince doğrudan
+// (bekleyen talep akışını atlayarak) o kullanıcıya onaylı bir profile_claims olarak atar (bkz.
+// kullanıcı isteği: "admin panelinden tüm mimar ve firmaları görebileceğim şekilde açılır bir menü
+// yap ... o profil o kullanıcıya atanmış olsun").
+function wireUdAssign(profileType, inputId, resultsId){
+  const input = document.getElementById(inputId);
+  const results = document.getElementById(resultsId);
+  let timer = null;
+  function runSearch(){
+    clearTimeout(timer);
+    timer = setTimeout(async ()=>{
+      const data = await api(`/api/admin/profile-options?type=${profileType}&q=${encodeURIComponent(input.value.trim())}`);
+      const names = data.items || [];
+      results.innerHTML = names.length
+        ? names.map(n => `<div class="ud-assign-result-row" data-name="${escapeAttr(n)}">${escapeHtml(n)}</div>`).join('')
+        : '<div class="ud-assign-result-row" style="cursor:default; color:var(--ink-soft);">Sonuç yok.</div>';
+      results.querySelectorAll('.ud-assign-result-row[data-name]').forEach(row=>{
+        row.addEventListener('click', async ()=>{
+          if(!udCurrentUserId) return;
+          row.style.opacity = '0.5';
+          await api('/api/admin/claims', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ userId: udCurrentUserId, profileType, profileKey: row.dataset.name }),
+          });
+          input.value = '';
+          results.innerHTML = '';
+          loadUdClaims(udCurrentUserId);
+        });
+      });
+    }, 250);
+  }
+  input.addEventListener('input', runSearch);
+  input.addEventListener('focus', ()=>{ if(!results.innerHTML) runSearch(); });
+}
+wireUdAssign('architect', 'ud-assign-architect-q', 'ud-assign-architect-results');
+wireUdAssign('office', 'ud-assign-office-q', 'ud-assign-office-results');
 
 async function loadUdSubmissions(userId){
   const container = document.getElementById('ud-submissions-list');

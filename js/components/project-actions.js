@@ -31,7 +31,10 @@ const ProjectActions = (function () {
   // /api/projects/mine ucu ve slug eşleşmesi ProjectComments#canModerate'te ZATEN kullanılan AYNI
   // yöntemle burada da sahiplik belirlemek için sorgulanır. Admin isteği bu sorguyu atlar — admin
   // için "Düzenle" her zaman claim linkine, "Sil/Arşivle" mountAdminModerationButtons'a gider
-  // (mevcut davranış korunur).
+  // (mevcut davranış korunur). Kendi göndermediği ama künyesindeki bir mimar/firmayı onaylı bir
+  // profile_claims ile sahiplendiği bir proje için de (bkz. kullanıcı isteği: "o firmaya/mimara ait
+  // projelerde de istediği zaman değişiklik yapabilsin") GET /api/project/:slug/can-edit ile AYNI
+  // Düzenle/Arşivle/Sil üçlüsü gösterilir.
   async function mountOwnerActions(item, mySeq) {
     await savedWidgetReady;
     const editSlot = document.getElementById('pm-edit-submission-slot');
@@ -50,16 +53,31 @@ const ProjectActions = (function () {
       if (html) editSlot.innerHTML = html;
       // Sahip için Arşivle + Sil — admin'in aynı çiftiyle AYNI görünüm (kullanıcı isteği: sahip
       // popup'ından Düzenle/Arşivle/Sil üçünü de görebilsin).
-      const adminSlot = document.getElementById('pm-admin-actions-slot');
-      adminSlot.innerHTML = `
-        <button type="button" class="card-edit-btn" id="pm-owner-archive-btn">Arşivle</button>
-        <button type="button" class="card-delete-btn" id="pm-owner-delete-btn">Sil</button>
-      `;
-      document.getElementById('pm-owner-archive-btn').addEventListener('click', () => runOwnerArchive(item));
-      document.getElementById('pm-owner-delete-btn').addEventListener('click', () => runOwnerDelete(item));
+      mountClaimBasedActions(item);
     } else if (currentUser.role === 'admin') {
       editSlot.innerHTML = `<a class="card-edit-btn" href="proje-ekle.html?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
+    } else {
+      let canEdit = false;
+      try {
+        const res = await fetch(`/api/project/${encodeURIComponent(item.slug)}/can-edit`);
+        canEdit = res.ok && (await res.json()).canEdit;
+      } catch { /* claim tabanlı yetki kontrolü başarısız — güvenli varsayılan: buton gösterme */ }
+      if (mySeq !== renderSeq) return;
+      if (canEdit) {
+        editSlot.innerHTML = `<a class="card-edit-btn" href="proje-ekle.html?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
+        mountClaimBasedActions(item);
+      }
     }
+  }
+
+  function mountClaimBasedActions(item) {
+    const adminSlot = document.getElementById('pm-admin-actions-slot');
+    adminSlot.innerHTML = `
+      <button type="button" class="card-edit-btn" id="pm-owner-archive-btn">Arşivle</button>
+      <button type="button" class="card-delete-btn" id="pm-owner-delete-btn">Sil</button>
+    `;
+    document.getElementById('pm-owner-archive-btn').addEventListener('click', () => runOwnerArchive(item));
+    document.getElementById('pm-owner-delete-btn').addEventListener('click', () => runOwnerDelete(item));
   }
 
   async function runOwnerArchive(item) {

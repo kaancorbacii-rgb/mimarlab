@@ -1087,11 +1087,22 @@ async function prefillForEdit(){
 async function prefillForClaim(){
   if(!claimSlug) return;
   await meReady;
+  // ?claim=<slug>: admin YA DA künyedeki bir mimar/firmayı onaylı bir profile_claims ile sahiplenen
+  // bir kullanıcı için (bkz. kullanıcı isteği: "Admin bir mimar ya da firmayı bir kullanıcı üzerine
+  // atasın, kullanıcı o firmaya/mimara ait projelerde de değişiklik yapabilsin" — src/routes/
+  // submissions.js#verifyClaimedSlug'daki AYNI yetki kuralı, GET /api/project/:slug/can-edit üzerinden).
   if(currentUserRole !== 'admin'){
-    document.querySelector('.form-submit').disabled = true;
-    document.getElementById('form-notice').textContent = 'Bu projeyi düzenlemek için admin girişi gerekiyor.';
-    document.getElementById('form-notice').classList.add('show');
-    return;
+    let canEdit = false;
+    try{
+      const res = await fetch(`/api/project/${encodeURIComponent(claimSlug)}/can-edit`);
+      if(res.ok) canEdit = (await res.json()).canEdit;
+    }catch{}
+    if(!canEdit){
+      document.querySelector('.form-submit').disabled = true;
+      document.getElementById('form-notice').textContent = 'Bu projeyi düzenlemek için künyesindeki bir mimar ya da firma profilinin sahibi olman gerekiyor.';
+      document.getElementById('form-notice').classList.add('show');
+      return;
+    }
   }
   document.querySelector('.eyebrow').textContent = 'Proje Düzenle';
   document.querySelector('.page-head h1').textContent = 'Projeyi düzenle';
@@ -1267,8 +1278,9 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     }
     loading.classList.remove('show');
     if(claimSlug){
-      // Admin'in statik proje düzenlemesi onay beklemeden anında yayına girer (bkz. src/routes/
-      // submissions.js#createSubmission/updateOwnSubmission — claimed_slug'lı satırlar 'approved').
+      // Admin'in ya da künyedeki bir mimar/firmayı sahiplenen kullanıcının statik proje düzenlemesi
+      // onay beklemeden anında yayına girer (bkz. src/routes/submissions.js#createSubmission/
+      // updateOwnSubmission — claimed_slug'lı satırlar 'approved').
       // Başlık değiştiyse slug de değişmiş olabilir (bkz. kullanıcı isteği: "ismi değişirse URL'si
       // de değişmeli") — backend'in döndüğü GÜNCEL slug/prefix'e güvenilir, sayfa yüklenirken
       // bilinen eski claimSlug'a değil.

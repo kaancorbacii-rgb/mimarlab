@@ -13,6 +13,7 @@ import {
 } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
+import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
 
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
 const FACET_TYPES = new Set(['projects']);
@@ -455,24 +456,41 @@ export async function runProjectAction(env, user, { action, id, slug } = {}) {
   return json({ ok: true });
 }
 
+// Admin olmayan bir çağıranın bir projeyi silip/arşivleyebilmesi için gereken sahiplik kontrolü —
+// handleSelfProjectDelete/handleSelfProjectModerate'te ORTAK. İki AYRI kaynaktan gelebilir:
+//   1) Bağımsız kendi gönderisi (claimed_slug YOK) — owner_user_id eşleşmesi TEK BAŞINA yeterli,
+//      bu bir mimar/firma sahiplenmesinden bağımsız, kalıcı bir haktır (bkz. kullanıcı isteği:
+//      "Kullanıcı Gönderi Düzenleme & Silme İzinleri").
+//   2) Künyedeki bir mimar/firmayı sahiplenerek düzenlenen bir statik proje (claimed_slug DOLU) —
+//      BURADA owner_user_id eşleşmesi TEK BAŞINA YETERLİ DEĞİL: bu satır, aşağıdaki runProjectAction
+//      'archive' dalının (claimed_slug'lı, sahibi=user.id) OTOMATİK OLUŞTURDUĞU bir taslaktır ve admin
+//      o profil atamasını (profile_claims) SONRADAN geri alsa bile kalıcı olarak DB'de kalır — gerçek
+//      bulgu: bir mimar/firma ataması Kaldır'la geri alındıktan SONRA bile, o profile daha önce erişimi
+//      olmuş kullanıcı bu satır üzerinden projeyi silmeye devam edebiliyordu. Bu yüzden claimed_slug'lı
+//      satırlarda yetki HER SEFERİNDE canUserEditProjectBySlug (profile_claims.status='approved'i CANLI
+//      okuyan) ile yeniden doğrulanır — kalıcı bir "bir kere erişti, sonsuza dek erişir" hakkı YOKTUR.
+async function canDeleteOrModerateProject(env, user, slug) {
+  const owns = await env.DB.prepare(
+    `SELECT 1 FROM project_submissions WHERE owner_user_id = ? AND slug = ? AND claimed_slug IS NULL LIMIT 1`
+  ).bind(user.id, slug).first();
+  if (owns) return true;
+  return canUserEditProjectBySlug(env, user, slug);
+}
+
 // DELETE /api/project/:slug — proje sahibinin (admin-panel DIŞINDA, doğrudan proje pop-up'ından)
 // kendi projesini silmesi (bkz. kullanıcı isteği: "Kullanıcı Gönderi Düzenleme & Silme İzinleri").
 // Admin'in /api/admin/legacy/project-action'ından farkı: burası admin ÖN-YETKİ KONTROLÜNDEN
 // (handleAdminRoute) GEÇMİYOR, dolayısıyla admin olmayan bir çağıran için sahiplik BURADA açıkça
-// doğrulanır — proje-comments.js#canModerate ile AYNI kaynağı (project_submissions.owner_user_id,
-// slug YA DA claimed_slug ile eşleşen) kullanır; bu, proje.html'in "Sil" butonunu göstermeden ÖNCE
-// istemci tarafında yaptığı AYNI kontrolün sunucu tarafı garantisidir — istemci kontrolü tek başına
-// güvenlik sağlamaz. Admin isteği ownership kontrolüne takılmadan geçer (mevcut admin uçlarıyla aynı
-// davranış). İşlem her zaman slug tabanlı silme yolunu (runProjectAction action:'delete', id YOK)
+// doğrulanır — bkz. yukarıdaki canDeleteOrModerateProject; bu, proje.html'in "Sil" butonunu göstermeden
+// ÖNCE istemci tarafında yaptığı AYNI kontrolün sunucu tarafı garantisidir — istemci kontrolü tek
+// başına güvenlik sağlamaz. Admin isteği ownership kontrolüne takılmadan geçer (mevcut admin uçlarıyla
+// aynı davranış). İşlem her zaman slug tabanlı silme yolunu (runProjectAction action:'delete', id YOK)
 // kullanır — sıradan bir kullanıcının kendi project_submissions.id'sini bilmesi gerekmez.
 export async function handleSelfProjectDelete(request, env, slug) {
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
   if (user.role !== 'admin') {
-    const owns = await env.DB.prepare(
-      `SELECT 1 FROM project_submissions WHERE owner_user_id = ? AND (slug = ? OR claimed_slug = ?) LIMIT 1`
-    ).bind(user.id, slug, slug).first();
-    if (!owns) return errorJson('Bu projeyi silme yetkin yok.', 403);
+    if (!(await canDeleteOrModerateProject(env, user, slug))) return errorJson('Bu projeyi silme yetkin yok.', 403);
   }
   return runProjectAction(env, user, { action: 'delete', slug });
 }
@@ -487,10 +505,7 @@ export async function handleSelfProjectModerate(request, env, slug) {
   const body = await readJson(request);
   if (body.action !== 'archive') return errorJson('Geçersiz işlem.');
   if (user.role !== 'admin') {
-    const owns = await env.DB.prepare(
-      `SELECT 1 FROM project_submissions WHERE owner_user_id = ? AND (slug = ? OR claimed_slug = ?) LIMIT 1`
-    ).bind(user.id, slug, slug).first();
-    if (!owns) return errorJson('Bu proje için yetkin yok.', 403);
+    if (!(await canDeleteOrModerateProject(env, user, slug))) return errorJson('Bu proje için yetkin yok.', 403);
   }
   return runProjectAction(env, user, { action: 'archive', slug });
 }

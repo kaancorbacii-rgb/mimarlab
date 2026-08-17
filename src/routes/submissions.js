@@ -6,6 +6,7 @@ import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_L
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
+import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -134,12 +135,20 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
 // karşılığı olmayan D1-özgün bir proje düzenlenmek istendiğinde slug orada asla bulunamadığından
 // kayıt her zaman "Böyle bir statik proje bulunamadı" ile reddediliyordu. Artık TEK kaynak
 // canonical D1 (bkz. verifyClaimedProfileKey'in dosya başındaki AYNI Faz 2 gerekçesi).
+// Admin her projeyi düzenleyebilir; admin olmayan bir kullanıcı yalnızca projenin künyesindeki bir
+// mimar/firmayı onaylı bir profile_claims ile sahipleniyorsa düzenleyebilir (bkz. kullanıcı isteği:
+// "Admin bir mimar ya da firmayı bir kullanıcı üzerine atasın, kullanıcı o firmaya/mimara ait
+// projelerde de değişiklik yapabilsin" — src/lib/projectClaimAccess.js#canUserEditProjectBySlug ile
+// AYNI kural, admin bypass'ı da orada tekrar ediliyor ki bu fonksiyon tek başına da doğru sonuç versin).
 async function verifyClaimedSlug(env, user, slug) {
-  if (user.role !== 'admin') return errorJson('Bu işlem için yetkin yok.', 403);
   const canonicalRow = await env.DB.prepare(
     `SELECT id FROM projects WHERE deleted_at IS NULL AND (slug = ? OR legacy_key = ?) LIMIT 1`
   ).bind(slug, slug).first();
   if (!canonicalRow) return errorJson('Bu proje artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.', 404);
+  if (user.role === 'admin') return null;
+  if (!(await canUserEditProjectBySlug(env, user, slug))) {
+    return errorJson('Bu projeyi düzenlemek için künyesindeki bir mimar ya da firma profilinin sahibi olman gerekiyor.', 403);
+  }
   return null;
 }
 
@@ -258,7 +267,12 @@ async function createSubmission(request, env, user, typeKey) {
   // updateOwnSubmission'a (PATCH) gider. Marka yeni (claimed_profile_key'siz) bir gönderi/proje/ürün
   // hâlâ normal moderasyon kuyruğuna girer — bu yalnızca "zaten kendi olan bir şeyi düzenleme"
   // durumunu kapsar, ilk kez içerik göndermeyi DEĞİL.
-  const isOwnerProfileEdit = !!body.claimed_profile_key;
+  // typeKey==='projects' && body.claimed_slug: yukarıdaki verifyClaimedSlug bunun ya admin ya da
+  // künyedeki bir mimar/firmayı onaylı şekilde sahiplenen bir kullanıcıdan geldiğini ZATEN doğruladı —
+  // claimed_profile_key'li mimar/firma düzenlemesiyle AYNI mantıkla, bu da bir onay kuyruğuna değil
+  // doğrudan yayına girmeli (bkz. kullanıcı isteği: "kullanıcı o firmaya/mimara ait projelerde de
+  // istediği zaman değişiklik yapabilsin").
+  const isOwnerProfileEdit = !!body.claimed_profile_key || (typeKey === 'projects' && !!body.claimed_slug);
   const status = (user.role === 'admin' || isOwnerProfileEdit) ? 'approved' : 'pending';
 
   const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.fields];

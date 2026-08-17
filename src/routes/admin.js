@@ -1,5 +1,6 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser, publicUser } from '../lib/auth.js';
+import { newId } from '../lib/crypto.js';
 import { updateUserProfileFields } from './auth.js';
 import { listSaved } from './saved.js';
 import { myRatings } from './ratings.js';
@@ -92,6 +93,7 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'legacy') return await handleLegacyAdmin(request, env, url, segments, user);
     if (sub === 'submissions') return await handleSubmissionsAdmin(request, env, url, segments, user);
     if (sub === 'claims') return await handleClaimsAdmin(request, env, url, segments);
+    if (sub === 'profile-options') return await handleProfileOptionsAdmin(env, url);
     if (sub === 'corrections') return await handleCorrectionsAdmin(request, env, url, segments);
     if (sub === 'badges') return await handleBadgesAdmin(request, env, url, segments);
     if (sub === 'profile-badge') return await handleProfileBadgeAdmin(request, env, url);
@@ -437,10 +439,11 @@ async function listUserSubmissionsAdmin(env, targetId, url) {
 // (bkz. kullanıcı isteği: admin, Üyeler > kullanıcı detayındaki Mimar/Firma Profili'ni de
 // düzenleyebilsin) — ud-claims-list'te "Paylaştığım İçerikler" ile AYNI Düzenle linkini
 // (*-ekle.html?edit=<submissionId>&stype=) kurabilmek için lazım, profile_claims kendisi bir
-// submission id taşımıyor.
+// submission id taşımıyor. `id` — DELETE /api/admin/claims/:id ile atamayı kaldırmak (bkz. kullanıcı
+// isteği: mimar/firma atama) için client'a geri döner.
 async function listUserClaimsAdmin(env, targetId) {
   const { results } = await env.DB.prepare(
-    'SELECT profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
+    'SELECT id, profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(targetId).all();
   const items = await Promise.all(results.map(async (c) => {
     const table = c.profile_type === 'architect' ? 'architect_submissions' : c.profile_type === 'office' ? 'office_submissions' : null;
@@ -648,9 +651,74 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
   return errorJson('Bulunamadı', 404);
 }
 
+// GET /api/admin/profile-options?type=architect|office&q=... — Üyeler > kullanıcı detayındaki
+// Mimar/Firma Profili atama açılır menüsünü doldurur (bkz. kullanıcı isteği: "admin panelinden tüm
+// mimar ve firmaları görebileceğim şekilde açılır bir menü yap"). profile_claims.profile_key HER
+// ZAMAN architects[]/offices[].name ile eşleştiğinden (bkz. schema.sql yorumu) burada da slug değil
+// name döner — SEO_TYPE_CONFIG'in (yukarıda) aynı tablo eşlemesini kullanır ama farklı bir anahtar
+// (name) döndürdüğü için o endpoint'i tekrar kullanmak yerine küçük, amaca özel bir uç eklendi.
+const PROFILE_OPTION_TABLE = { architect: 'architects', office: 'offices' };
+async function handleProfileOptionsAdmin(env, url) {
+  const table = PROFILE_OPTION_TABLE[url.searchParams.get('type')];
+  if (!table) return errorJson('Geçersiz tip.');
+  const q = (url.searchParams.get('q') || '').trim();
+  const rows = q
+    ? await env.DB.prepare(`SELECT name FROM ${table} WHERE deleted_at IS NULL AND name LIKE ? ORDER BY name LIMIT 50`).bind(`%${q}%`).all()
+    : await env.DB.prepare(`SELECT name FROM ${table} WHERE deleted_at IS NULL ORDER BY name LIMIT 50`).all();
+  return json({ items: rows.results.map(r => r.name) });
+}
+
 // /api/admin/claims?status=pending
-// /api/admin/claims/:id  (PATCH: status günceller — approved/rejected)
+// /api/admin/claims/:id  (PATCH: status günceller — approved/rejected, DELETE: atamayı kaldırır)
+// /api/admin/claims  (POST: admin bir mimar/firma profilini bir kullanıcıya DOĞRUDAN atar — bkz.
+// kullanıcı isteği: "Adminin bir mimar ya da firmayı bir kullanıcı üzerine atama yetkisi olsun",
+// aşağıdaki normal onay akışının (sahiplenme talebi + admin onayı) kısayolu, sonuç AYNI approved
+// profile_claims satırı)
 async function handleClaimsAdmin(request, env, url, segments) {
+  if (segments.length === 3 && request.method === 'POST') {
+    const body = await readJson(request);
+    const userId = (body.userId || '').trim();
+    const profileType = body.profileType;
+    const profileKey = (body.profileKey || '').trim();
+    if (!userId || !['architect', 'office'].includes(profileType) || !profileKey) return errorJson('Geçersiz istek.');
+    const userRow = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(userId).first();
+    if (!userRow) return errorJson('Kullanıcı bulunamadı.', 404);
+    const table = PROFILE_OPTION_TABLE[profileType];
+    const profileRow = await env.DB.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NULL AND name = ?`).bind(profileKey).first();
+    if (!profileRow) return errorJson('Böyle bir profil bulunamadı.', 404);
+    const now = Date.now();
+    const existing = await env.DB.prepare(
+      'SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
+    ).bind(userId, profileType, profileKey).first();
+    if (existing) {
+      await env.DB.prepare('UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?').bind('approved', now, existing.id).run();
+    } else {
+      await env.DB.prepare(
+        'INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(newId(), userId, profileType, profileKey, 'approved', null, now, now).run();
+    }
+    // bkz. aşağıdaki PATCH onay dalındaki AYNI invalidation gerekçesi — /api/public/badges bu tabloya
+    // doğrudan JOIN olduğundan.
+    await invalidatePublicCache(env);
+    const typeLabel = CLAIM_TYPE_LABELS_SERVER[profileType] || profileType;
+    await createNotification(
+      env, userId, 'claim_approved',
+      `${typeLabel} profili hesabına bağlandı`,
+      `"${profileKey}" profilini artık Hesabım sayfandan düzenleyebilirsin.`,
+      'hesabim.html'
+    );
+    return json({ ok: true });
+  }
+
+  if (segments.length === 4 && request.method === 'DELETE') {
+    const id = segments[3];
+    const claim = await env.DB.prepare('SELECT user_id FROM profile_claims WHERE id = ?').bind(id).first();
+    if (!claim) return errorJson('Bulunamadı', 404);
+    await env.DB.prepare('DELETE FROM profile_claims WHERE id = ?').bind(id).run();
+    await invalidatePublicCache(env);
+    return json({ ok: true });
+  }
+
   if (segments.length === 3 && request.method === 'GET') {
     const status = url.searchParams.get('status');
     // u.position — bkz. kullanıcı isteği: admin bir ofis talebinin "firma sahibi" mi yoksa (Kurucu/
