@@ -329,7 +329,7 @@ async function buildOfficePayload(env, key) {
   const relatedMaterials = brandCatalog.filter(p => p.kind === 'material');
 
   const item = {
-    name: o.name, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
+    name: o.name, slug: o.slug, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
     logo: o.logo_url, awards: o.awards, social_links: o.social_links || [], badges: [],
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
