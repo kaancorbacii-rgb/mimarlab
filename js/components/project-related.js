@@ -20,6 +20,51 @@ const ArchitectProjects = (function () {
   // olan YENİ projenin "Diğer Projeleri" bölümünü ezmesin diye.
   let mountSeq = 0;
 
+  // src/routes/project.js#parseProjectDateYear ile AYNI serbest-metin project_date ayrıştırma
+  // mantığının istemci-taraf portu — kullanıcı isteği: "Diğer Projeleri" kartları soldan sağa en
+  // son tasarlanandan en eskiye doğru dizilsin (bkz. src/routes/architect.js/office.js'teki AYNI
+  // sunucu-taraf mantık, mimar/firma popup'ları için). Her /api/projects sayfası kendi başına
+  // sıralanmadığından (sort param'ı yok) ve sonuçlar birden çok mimar/sayfadan birleştirildiğinden,
+  // sıralama merged dizisi üzerinde tek seferde, burada yapılır.
+  function foldTr(s) {
+    return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase()
+      .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+  }
+
+  function parseProjectDateYear(dateStr) {
+    if (!dateStr) return null;
+    const hasCenturyWordAnywhere = /yuzyil|\byy\b/.test(foldTr(dateStr));
+    let best = null;
+    for (const rawSegment of String(dateStr).split('/')) {
+      const folded = foldTr(rawSegment);
+      const isBC = /\bmo\b/.test(folded);
+      const isCenturyFragment = hasCenturyWordAnywhere && /^\s*(ms\s*)?\d{1,2}\.\s*$/.test(folded);
+      const isCentury = isCenturyFragment || /yuzyil|\byy\b/.test(folded);
+      const nums = (rawSegment.match(/\d+/g) || []).map(n => parseInt(n, 10));
+      if (!nums.length) continue;
+      let year;
+      if (isCentury) {
+        const century = isBC ? Math.max(...nums) : Math.min(...nums);
+        year = isBC ? -(century * 100) : (century - 1) * 100 + 1;
+      } else {
+        const magnitude = isBC ? Math.max(...nums) : Math.min(...nums);
+        year = isBC ? -magnitude : magnitude;
+      }
+      if (best === null || year < best) best = year;
+    }
+    return best;
+  }
+
+  function sortByYearDesc(list) {
+    return list.slice().sort((a, b) => {
+      const ya = parseProjectDateYear(a.date), yb = parseProjectDateYear(b.date);
+      if (ya == null && yb == null) return 0;
+      if (ya == null) return 1;
+      if (yb == null) return -1;
+      return yb - ya;
+    });
+  }
+
   function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
@@ -63,10 +108,13 @@ const ArchitectProjects = (function () {
     const lists = await Promise.all(designers.map(d => fetchByDesigner(d.name, d.type, buildStatus)));
     if (mySeq !== mountSeq) return { slugs: new Set() };
     const seen = new Set([item.slug]);
-    const merged = [];
+    let merged = [];
     lists.flat().forEach(p => { if (!seen.has(p.slug)) { seen.add(p.slug); merged.push(p); } });
     if (!merged.length) { section.style.display = 'none'; return { slugs: new Set() }; }
     section.style.display = '';
+    // En yeniden en eskiye sırala (bkz. yukarıdaki parseProjectDateYear/sortByYearDesc yorumu) —
+    // kullanıcı isteği: kartlar soldan sağa en son tasarlanandan en eskiye doğru dizilsin.
+    merged = sortByYearDesc(merged);
     // Sabit bir üst sınır YOK (kullanıcı isteği: "TÜM projelerinin eksiksiz listelenmesi") —
     // .related-grid-scroll zaten yatay kaydırmalı bir satır (bkz. proje.html), liste ne kadar
     // uzarsa uzasın taşma olmadan kaydırılarak gezilebilir.
