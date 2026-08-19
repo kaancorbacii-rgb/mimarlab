@@ -37,6 +37,34 @@ function foldTr(s) {
   return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
+// src/routes/project.js#parseProjectDateYear ile AYNI serbest-metin project_date ayrıştırma
+// mantığı — firma popup'ındaki "Projeler" kartlarını en yeniden en eskiye sıralamak için burada
+// da gerekiyor (bkz. kullanıcı isteği: popup'taki proje kartları soldan sağa en son tasarlanandan
+// en eskiye doğru dizilsin, src/routes/architect.js'teki AYNI mantık).
+function parseProjectDateYear(dateStr) {
+  if (!dateStr) return null;
+  const hasCenturyWordAnywhere = /yuzyil|\byy\b/.test(foldTr(dateStr));
+  let best = null;
+  for (const rawSegment of String(dateStr).split('/')) {
+    const folded = foldTr(rawSegment);
+    const isBC = /\bmo\b/.test(folded);
+    const isCenturyFragment = hasCenturyWordAnywhere && /^\s*(ms\s*)?\d{1,2}\.\s*$/.test(folded);
+    const isCentury = isCenturyFragment || /yuzyil|\byy\b/.test(folded);
+    const nums = (rawSegment.match(/\d+/g) || []).map(n => parseInt(n, 10));
+    if (!nums.length) continue;
+    let year;
+    if (isCentury) {
+      const century = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -(century * 100) : (century - 1) * 100 + 1;
+    } else {
+      const magnitude = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -magnitude : magnitude;
+    }
+    if (best === null || year < best) best = year;
+  }
+  return best;
+}
+
 // GET /api/offices/search?q=... — src/routes/architect.js#handleArchitectSearchRoute'un firma
 // karşılığı; proje-ekle.html'deki Firma/Marka autocomplete kutularının canlı D1 sorgusu. Türkçe
 // harf duyarlılığı için SQL LIKE yerine tüm adaylar çekilip foldTr ile JS tarafında filtrelenir
@@ -317,10 +345,21 @@ async function buildOfficePayload(env, key) {
     knownTeamNames.add(trLower(name));
     team.push({ name, role: null, photo: null });
   }
-  const relatedProjects = relatedRes.results.map(p => {
-    const parsed = parseCanonicalRow('projects', p);
-    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category };
-  });
+  // En yeniden en eskiye sırala (bkz. src/routes/project.js#date_desc AYNI "tarihi çözülemeyen
+  // sona düşer" davranışı) — kullanıcı isteği: popup'taki proje kartları soldan sağa en son
+  // tasarlanandan en eskiye doğru dizilsin.
+  const relatedProjects = relatedRes.results
+    .map(p => {
+      const parsed = parseCanonicalRow('projects', p);
+      return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, _year: parseProjectDateYear(p.project_date) };
+    })
+    .sort((a, b) => {
+      if (a._year == null && b._year == null) return 0;
+      if (a._year == null) return 1;
+      if (b._year == null) return -1;
+      return b._year - a._year;
+    })
+    .map(({ _year, ...rest }) => rest);
   const brandCatalog = brandProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, kind: parsed.kind };

@@ -44,6 +44,33 @@ function foldTr(s) {
   return trLower(s).replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
 }
 
+// src/routes/project.js#parseProjectDateYear ile AYNI serbest-metin project_date ayrıştırma
+// mantığı — mimar popup'ındaki "Projeler" kartlarını en yeniden en eskiye sıralamak için burada
+// da gerekiyor (bkz. kullanıcı isteği: Nevzat Sayın örneği, en son tasarlanan proje soldan başlasın).
+function parseProjectDateYear(dateStr) {
+  if (!dateStr) return null;
+  const hasCenturyWordAnywhere = /yuzyil|\byy\b/.test(foldTr(dateStr));
+  let best = null;
+  for (const rawSegment of String(dateStr).split('/')) {
+    const folded = foldTr(rawSegment);
+    const isBC = /\bmo\b/.test(folded);
+    const isCenturyFragment = hasCenturyWordAnywhere && /^\s*(ms\s*)?\d{1,2}\.\s*$/.test(folded);
+    const isCentury = isCenturyFragment || /yuzyil|\byy\b/.test(folded);
+    const nums = (rawSegment.match(/\d+/g) || []).map(n => parseInt(n, 10));
+    if (!nums.length) continue;
+    let year;
+    if (isCentury) {
+      const century = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -(century * 100) : (century - 1) * 100 + 1;
+    } else {
+      const magnitude = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -magnitude : magnitude;
+    }
+    if (best === null || year < best) best = year;
+  }
+  return best;
+}
+
 // GET /api/architects/search?q=...&office=<tam ofis adı> — proje-ekle.html/urun-ekle.html gibi
 // formlardaki Mimar autocomplete kutularının canlı D1 sorgusu (bkz. kullanıcı isteği: "Admin
 // panelinden yeni eklenen mimarlar Proje Ekle'deki öneri kutusunda görünmüyor" — eski hâli data.js'
@@ -321,10 +348,21 @@ async function buildArchitectPayload(env, key) {
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
   // gelir (overlay merge-time'da zaten uygulandı) — eski request-time overlay hesaplaması gerekmiyor.
   const colleagues = colleaguesRes.results.map(x => ({ name: x.name, role: x.position, photo: x.photo_url, badges: [] }));
-  const relatedProjects = relatedRes.results.map(p => {
-    const parsed = parseCanonicalRow('projects', p);
-    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category };
-  });
+  // En yeniden en eskiye sırala (bkz. src/routes/project.js#date_desc AYNI "tarihi çözülemeyen
+  // sona düşer" davranışı) — kullanıcı isteği: popup'taki proje kartları soldan sağa en son
+  // tasarlanandan en eskiye doğru dizilsin.
+  const relatedProjects = relatedRes.results
+    .map(p => {
+      const parsed = parseCanonicalRow('projects', p);
+      return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, _year: parseProjectDateYear(p.project_date) };
+    })
+    .sort((a, b) => {
+      if (a._year == null && b._year == null) return 0;
+      if (a._year == null) return 1;
+      if (b._year == null) return -1;
+      return b._year - a._year;
+    })
+    .map(({ _year, ...rest }) => rest);
 
   const item = {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
