@@ -160,12 +160,25 @@
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
+<script src="image-cdn.js"></script>
 <script src="auth-nav.js" defer></script>
+<script src="save-widget.js" defer></script>
+<script src="rating-widget.js" defer></script>
+<script src="badge-shared.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
+<script src="js/components/gallery.js" defer></script>
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/share-button.js" defer></script>
+<script src="js/components/project-gallery.js" defer></script>
+<script src="js/components/project-meta.js" defer></script>
+<script src="js/components/project-actions.js" defer></script>
+<script src="js/components/project-comments.js" defer></script>
+<script src="js/components/project-related.js" defer></script>
+<script src="js/components/project-products.js" defer></script>
+<script src="js/components/project-modal.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="en-iyi-100"></div>
   <script src="js/components/site-chrome.js"></script>
@@ -187,7 +200,12 @@
 
   <footer id="site-footer-mount"></footer>
 
+<script src="il-ilce-data.js"></script>
   <script>
+    // js/pages/proje.js#parseLocation ile AYNI takma ad — project-meta.js/project-related.js bu
+    // global adı bekliyor, proje.js burada yüklü olmadığından kendimiz tanımlıyoruz.
+    var parseLocation = parseLocationFull;
+
     var TOP100_ENTRIES = [{"r": 1, "n": "Ayasofya", "s": "ayasofya-camii", "c": 200, "a": 4.95}, {"r": 2, "n": "Selimiye Camii", "s": "selimiye-camii", "c": 185, "a": 4.89}, {"r": 3, "n": "Divriği Ulu Camii", "s": null, "c": 182, "a": 4.88}, {"r": 4, "n": "Süleymaniye Camii", "s": "suleymaniye-camii", "c": 179, "a": 4.87}, {"r": 5, "n": "Aspendos", "s": null, "c": 176, "a": 4.86}, {"r": 6, "n": "Göbeklitepe", "s": "gobeklitepe", "c": 174, "a": 4.85}, {"r": 7, "n": "Atatürk Kültür Merkezi", "s": "ataturk-kultur-merkezi", "c": 172, "a": 4.84}, {"r": 8, "n": "Topkapı Sarayı", "s": "topkapi-sarayi", "c": 170, "a": 4.83}, {"r": 9, "n": "Anıtkabir", "s": "anitkabir", "c": 167, "a": 4.83}, {"r": 10, "n": "Florya Atatürk Köşkü", "s": null, "c": 165, "a": 4.82}, {"r": 11, "n": "ODTÜ Mimarlık Fakültesi", "s": "odtu-mimarlik-fakultesi", "c": 163, "a": 4.81}, {"r": 12, "n": "Sümela Manastırı", "s": "sumela-manastiri", "c": 161, "a": 4.8}, {"r": 13, "n": "Türk Tarih Kurumu", "s": "turk-tarih-kurumu", "c": 159, "a": 4.79}, {"r": 14, "n": "Haydarpaşa", "s": "haydarpasa-gari", "c": 157, "a": 4.79}, {"r": 15, "n": "Celsus Kitaplığı", "s": null, "c": 155, "a": 4.78}, {"r": 16, "n": "Amcazade Yalısı", "s": null, "c": 153, "a": 4.77}, {"r": 17, "n": "İstanbul Manifaturacılar Çarşısı (İMÇ)", "s": null, "c": 152, "a": 4.77}, {"r": 18, "n": "İshak Paşa Sarayı", "s": null, "c": 150, "a": 4.76}, {"r": 19, "n": "TBMM Camii", "s": "tbmm-camii", "c": 148, "a": 4.75}, {"r": 20, "n": "Rüstem Paşa Camii", "s": "rustem-pasa-camii", "c": 146, "a": 4.75}, {"r": 21, "n": "SSK Zeyrek Tesisleri", "s": "sosyal-sigortalar-kompleksi", "c": 144, "a": 4.74}, {"r": 22, "n": "Kapalıçarşı", "s": "kapalicarsi", "c": 142, "a": 4.73}, {"r": 23, "n": "Sokullu Mehmet Paşa Camii", "s": "sokullu-mehmed-pasa-camii-kadirga", "c": 140, "a": 4.73}, {"r": 24, "n": "Yerebatan Sarnıcı", "s": "yerebatan-sarnici-basilica-cistern", "c": 139, "a": 4.72}, {"r": 25, "n": "Botter Apartmanı", "s": "botter-apartmani", "c": 137, "a": 4.71}, {"r": 26, "n": "Çatalhöyük", "s": null, "c": 135, "a": 4.71}, {"r": 27, "n": "Şemsi Paşa Camii", "s": "semsi-pasa-camii", "c": 133, "a": 4.7}, {"r": 28, "n": "Bursa Ulu Camii", "s": null, "c": 132, "a": 4.69}, {"r": 29, "n": "Dolmabahçe Sarayı", "s": "dolmabahce-sarayi", "c": 130, "a": 4.69}, {"r": 30, "n": "Galata Kulesi", "s": "galata-kulesi", "c": 128, "a": 4.68}, {"r": 31, "n": "Ankara Dil, Tarih, Coğrafya Fakültesi", "s": null, "c": 126, "a": 4.67}, {"r": 32, "n": "Büyük Postane", "s": "buyuk-postane", "c": 125, "a": 4.67}, {"r": 33, "n": "Kariye", "s": "kariye-camii", "c": 123, "a": 4.66}, {"r": 34, "n": "Mağlova Su Kemeri", "s": null, "c": 121, "a": 4.65}, {"r": 35, "n": "Milli Reasürans Çarşısı", "s": "milli-reasurans-genel-mudurlugu-binasi", "c": 120, "a": 4.65}, {"r": 36, "n": "ODTÜ Kampüsü", "s": null, "c": 118, "a": 4.64}, {"r": 37, "n": "Edirne II. Beyazıt Külliyesi", "s": null, "c": 116, "a": 4.64}, {"r": 38, "n": "Bodrum Demir Evleri", "s": null, "c": 115, "a": 4.63}, {"r": 39, "n": "Beyşehir Eşrefoğlu Camii", "s": null, "c": 113, "a": 4.62}, {"r": 40, "n": "Karatepe Kazı Alanı Saçakları", "s": "karatepe-aslantas-acik-hava-muzesi", "c": 111, "a": 4.62}, {"r": 41, "n": "Osmanlı Bankası Müzesi (Salt Galata)", "s": null, "c": 110, "a": 4.61}, {"r": 42, "n": "Süleymaniye Külliyesi", "s": "suleymaniye-camii", "c": 108, "a": 4.61}, {"r": 43, "n": "İstanbul Surları", "s": null, "c": 106, "a": 4.6}, {"r": 44, "n": "Didim Apollon Tapınağı", "s": null, "c": 105, "a": 4.59}, {"r": 45, "n": "Mihrimah Sultan Camii", "s": null, "c": 103, "a": 4.59}, {"r": 46, "n": "Taut Evi", "s": null, "c": 101, "a": 4.58}, {"r": 47, "n": "Türk Dil Kurumu Binası", "s": "turk-dil-kurumu", "c": 100, "a": 4.58}, {"r": 48, "n": "Diyarbakır Kalesi, Surları ve Hevsel Bahçeleri", "s": null, "c": 98, "a": 4.57}, {"r": 49, "n": "Sancaklar Camii", "s": "sancaklar-camii", "c": 97, "a": 4.56}, {"r": 50, "n": "Akdamar Kilisesi", "s": null, "c": 95, "a": 4.56}, {"r": 51, "n": "Bursa Yeşil Camii", "s": null, "c": 93, "a": 4.55}, {"r": 52, "n": "Efes Antik Kenti", "s": null, "c": 92, "a": 4.55}, {"r": 53, "n": "Büyükada Anadolu Kulübü", "s": "buyukada-anadolu-kulubu", "c": 90, "a": 4.54}, {"r": 54, "n": "İstanbul Üniversitesi Fen, Edebiyat Fakültesi", "s": null, "c": 89, "a": 4.53}, {"r": 55, "n": "Ani Harabeleri", "s": null, "c": 87, "a": 4.53}, {"r": 56, "n": "Erzurum Çifte Minare", "s": null, "c": 86, "a": 4.52}, {"r": 57, "n": "TBMM", "s": null, "c": 84, "a": 4.52}, {"r": 58, "n": "Ankara Garı ve Gazinosu", "s": null, "c": 82, "a": 4.51}, {"r": 59, "n": "İstanbul Bilgi Üniversitesi Santral Kampüsü", "s": null, "c": 81, "a": 4.51}, {"r": 60, "n": "Büyükada Rum Yetimhanesi", "s": null, "c": 79, "a": 4.5}, {"r": 61, "n": "Sultanhanı Kervansarayı", "s": null, "c": 78, "a": 4.49}, {"r": 62, "n": "Artemis Tapınağı", "s": null, "c": 76, "a": 4.49}, {"r": 63, "n": "Şeyh Zafirin Türbesi ve Kitaplığı", "s": null, "c": 75, "a": 4.48}, {"r": 64, "n": "Afrodisyas Antik Kenti", "s": null, "c": 73, "a": 4.48}, {"r": 65, "n": "Ahlat Selçuklu Mezarlığı", "s": null, "c": 72, "a": 4.47}, {"r": 66, "n": "Bergama Açıkhava Tiyatrosu", "s": null, "c": 70, "a": 4.47}, {"r": 67, "n": "Taşkışla", "s": "taskisla", "c": 69, "a": 4.46}, {"r": 68, "n": "İş Bankası Eski Genel Müdürlük Binası", "s": null, "c": 67, "a": 4.45}, {"r": 69, "n": "Nemrud Dağı Antiochus Anıt Mezarı", "s": null, "c": 66, "a": 4.45}, {"r": 70, "n": "Sergios Bakhos (Küçük Ayasofya)", "s": "kucuk-ayasofya-camii", "c": 64, "a": 4.44}, {"r": 71, "n": "Deyrülzafaran Manastırı", "s": null, "c": 63, "a": 4.44}, {"r": 72, "n": "Sagalassos", "s": null, "c": 61, "a": 4.43}, {"r": 73, "n": "Mimar Vedat Tek Evi", "s": null, "c": 60, "a": 4.43}, {"r": 74, "n": "Rumelihisarı", "s": null, "c": 58, "a": 4.42}, {"r": 75, "n": "Hattuşa", "s": null, "c": 57, "a": 4.42}, {"r": 76, "n": "Hukukçular Sitesi", "s": null, "c": 55, "a": 4.41}, {"r": 77, "n": "Ankara Sergi Evi", "s": null, "c": 54, "a": 4.4}, {"r": 78, "n": "Birgi Çakırağa Konağı", "s": null, "c": 52, "a": 4.4}, {"r": 79, "n": "Priene Apollon Tapınağı", "s": null, "c": 51, "a": 4.39}, {"r": 80, "n": "Ortaköy Camii", "s": "ortakoy-camii", "c": 49, "a": 4.39}, {"r": 81, "n": "Ayvacık B2 Evi", "s": "b2-evi", "c": 48, "a": 4.38}, {"r": 82, "n": "Bergama Antik Kenti", "s": null, "c": 46, "a": 4.38}, {"r": 83, "n": "Harran Kubbeli Evleri", "s": null, "c": 45, "a": 4.37}, {"r": 84, "n": "Fener Rum Patrikhanesi / Lisesi / Balat Rum Okulu", "s": null, "c": 43, "a": 4.37}, {"r": 85, "n": "İstanbul Hilton Oteli", "s": null, "c": 42, "a": 4.36}, {"r": 86, "n": "Amanruya Otel", "s": "amanruya-oteli", "c": 40, "a": 4.35}, {"r": 87, "n": "Bergama Zeus Altarı", "s": null, "c": 39, "a": 4.35}, {"r": 88, "n": "Şehzade Camii", "s": "sehzade-camii", "c": 37, "a": 4.34}, {"r": 89, "n": "Safranbolu Evleri", "s": null, "c": 36, "a": 4.34}, {"r": 90, "n": "Kızkulesi", "s": null, "c": 34, "a": 4.33}, {"r": 91, "n": "Nuruosmaniye", "s": "nuruosmaniye-camii", "c": 33, "a": 4.33}, {"r": 92, "n": "Sultanahmet Camii ve Külliyesi", "s": "sultanahmet-camii", "c": 32, "a": 4.32}, {"r": 93, "n": "Cumhurbaşkanlığı Köşkü", "s": null, "c": 30, "a": 4.32}, {"r": 94, "n": "Aya İrini", "s": "aya-irini-kilisesi", "c": 29, "a": 4.31}, {"r": 95, "n": "Bodrum Ahmet Ertegün Evi", "s": "ertegun-evi-2", "c": 27, "a": 4.31}, {"r": 96, "n": "Priene Antik Kenti", "s": null, "c": 26, "a": 4.3}, {"r": 97, "n": "Çerkezköy ATK Lojmanları", "s": null, "c": 24, "a": 4.3}, {"r": 98, "n": "Kılıç Ali Paşa Camii", "s": "kilic-ali-pasa-camii", "c": 23, "a": 4.29}, {"r": 99, "n": "Rıza Derviş Villası", "s": null, "c": 21, "a": 4.29}, {"r": 100, "n": "Üsküdar Şemsi Paşa Külliyesi", "s": "semsi-pasa-camii", "c": 20, "a": 4.28}];
 
     function escapeHtml(s){ var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
@@ -212,6 +230,30 @@
       list.innerHTML = rows;
     }
     renderTop100();
+
+    // Proje isimlerine tıklandığında tam sayfa geçişi yerine ProjectModal popup'ı açılsın (bkz.
+    // kullanıcı isteği) — js/pages/proje.js'deki AYNI tıklama-yakalama deseni, tek fark basePath'in
+    // '/proje/' değil bu sayfa olması: ProjectModal.close() X/Escape/backdrop'ta currentBasePath'e
+    // (bkz. project-modal.js#close, listPath = currentBasePath.replace(/\/$/, '')) döndüğünden
+    // popup kapatılınca kullanıcı proje listesine değil, doğrudan bu sıralama sayfasına geri döner.
+    var TOP100_BASE_PATH = '/en-iyi-100/';
+    document.getElementById('top100-list').addEventListener('click', function(e){
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target.closest('a.top100-name-link');
+      if (!a) return;
+      var m = (a.getAttribute('href') || '').match(/^\/proje\/([^/?#]+)/);
+      if (!m) return;
+      var slug = decodeURIComponent(m[1]);
+      e.preventDefault();
+      ProjectModal.open(slug, { triggerEl: a, basePath: TOP100_BASE_PATH });
+    });
+
+    // Geri tuşu modalı kapatsın (bkz. project-modal.js#close, X/Escape ile AYNI davranış) —
+    // /en-iyi-100/:slug sunucuda ayrı bir route DEĞİL (bilinçli: bu URL yalnızca modal açıkken
+    // history'de görünen geçici bir istemci-taraflı durum, F5/derin bağlantı desteklemiyor).
+    window.addEventListener('popstate', function(){
+      if (ProjectModal.isOpen()) ProjectModal.handlePopState(null);
+    });
 
     (function(){
       var itemListElements = TOP100_ENTRIES.map(function(item){
