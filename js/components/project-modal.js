@@ -49,7 +49,7 @@ const ProjectModal = (function () {
     </div>
 
     <div class="related-section" id="pm-same-designer-section" aria-live="polite">
-      <h2 class="related-title">Mimarın/Firmanın Diğer Projeleri</h2>
+      <h2 class="related-title">Mimarın/Firmanın Diğer Projeleri<span id="pm-same-designer-count"></span></h2>
       <div class="related-grid-scroll" id="pm-same-designer-grid"></div>
     </div>
 

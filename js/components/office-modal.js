@@ -193,7 +193,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-team-grid"></div>
     </div>
     <div class="related-section" id="om-related-projects-section" style="display:none;">
-      <h2 class="related-title">Projeler</h2>
+      <h2 class="related-title">Projeler<span id="om-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
     <div class="related-section" id="om-related-products-section" style="display:none;">
@@ -489,6 +489,7 @@ const OfficeModal = (function () {
     document.getElementById('om-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
+    document.getElementById('om-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
 
     // Marka kataloğu — bu firmanın adı ürün/malzeme markası olarak eşleşen canonical products
     // satırları (bkz. src/routes/office.js#buildOfficePayload, relatedProducts/relatedMaterials).

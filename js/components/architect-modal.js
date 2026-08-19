@@ -186,7 +186,7 @@ const ArchitectModal = (function () {
       <div class="related-grid-scroll" id="am-colleagues-grid"></div>
     </div>
     <div class="related-section" id="am-related-projects-section" style="display:none;">
-      <h2 class="related-title">Projeler</h2>
+      <h2 class="related-title">Projeler<span id="am-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
     </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
@@ -486,6 +486,7 @@ const ArchitectModal = (function () {
     document.getElementById('am-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
+    document.getElementById('am-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
 
     const PROFILE_TYPE = 'architect';
     const claimBox = createClaimCorrectionBox({

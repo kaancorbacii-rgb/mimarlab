@@ -14,7 +14,7 @@
 //     getirdiğinden bağımsız); son liste her mount()'ta ağırlıklı-rastgele karıştırılır (bkz.
 //     weightedSample) — popup her açıldığında birebir aynı sıralama/liste çıkmaz.
 const ArchitectProjects = (function () {
-  const DEFAULT_IDS = { section: 'pm-same-designer-section', grid: 'pm-same-designer-grid' };
+  const DEFAULT_IDS = { section: 'pm-same-designer-section', grid: 'pm-same-designer-grid', count: 'pm-same-designer-count' };
   // mountSeq: project-comments.js#mountSeq ile AYNI desen/gerekçe — proje popup'ı hızla
   // değiştirildiğinde önceki projenin yavaş kalan sayfalanmış /api/projects isteği, artık ekranda
   // olan YENİ projenin "Diğer Projeleri" bölümünü ezmesin diye.
@@ -119,6 +119,8 @@ const ArchitectProjects = (function () {
     // .related-grid-scroll zaten yatay kaydırmalı bir satır (bkz. proje.html), liste ne kadar
     // uzarsa uzasın taşma olmadan kaydırılarak gezilebilir.
     document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
+    const countEl = document.getElementById(mergedIds.count);
+    if (countEl) countEl.textContent = ` (${merged.length})`;
     return { slugs: new Set(merged.map(p => p.slug)) };
   }
 
