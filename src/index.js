@@ -283,6 +283,7 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
+  { loc: '/en-iyi-100', changefreq: 'weekly', priority: '0.7' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   // gerçek bulgu: bu ikisi indexlenebilir (robots noindex YOK, bkz. INFO_MODAL_META) ama sitemap'te
