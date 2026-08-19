@@ -75,9 +75,13 @@ export function shapeProjectItem(row, opts) {
   };
 }
 
-// proje.html#OFFICE_NAME_OVERRIDES/OFFICE_KEYWORDS ile BİREBİR aynı liste — "Mimar" (kişi) /
-// "Mimarlık Ofisi" (firma) ayrımı iki tarafta da aynı sonucu vermeli, aksi halde sayaçlar
-// (designer/designerOffice) istemcinin gerçekte gösterdiği listeyle uyuşmaz.
+// proje-ekle.html#OFFICE_NAME_OVERRIDES/OFFICE_KEYWORDS ile BİREBİR aynı liste — YALNIZCA künyeye
+// yazılmış ama hiçbir architects/offices satırına bağlanamamış (unregistered) isimler için "tahmin"
+// amaçlı kullanılır (bkz. src/routes/project.js#isLegacy dalı). buildFilterGroups'taki Mimar/Firma
+// filtreleri ARTIK bu sezgiyi kullanmıyor — architect_id/office_id CHECK kısıtı sayesinde her
+// project_designers satırının kökeni kesin bilindiğinden (bkz. p.officeNames, yalnızca ofc.name'den
+// gelir), sezgisel isim eşleştirmesi kaldırıldı (bkz. "+MURAT TABANLIOĞLU" firma adının hiçbir
+// anahtar kelimeye uymadığı için Mimar filtresine sızdığı bulgu, 2026-08-19).
 export const OFFICE_NAME_OVERRIDES = new Set(["Autoban","Escapefromsofa","Per Se","Grimshaw","SOM","REX","ACPV Antonio Citterio & Patricia Viel","Salon Alper Derinboğaz",
   "AOMTD","Gensler","KPF","OMA","FXCollaborative","Chapman Taylor","Powerhouse Company","Carve",
   "GEOMIM","Ofist","Ofisvesaire","FREA","MuuM","Neowe","Nēowe","Superpool","PLUG",
@@ -121,8 +125,8 @@ export async function fetchActiveProjectPool(env, buildStatus) {
   return results.map(row => shapeProjectItem(row, { coverOnly: true }));
 }
 
-// proje.html#FILTER_GROUPS ile BİREBİR aynı alan çıkarımı — yalnızca `field` fonksiyonları burada
-// (parseLocation/isOfficeName/ratingBuckets sunucu tarafı karşılıklarıyla) yeniden ifade edilir.
+// proje.html sunucudan gelen filters.designer/designerOffice listelerini olduğu gibi render eder,
+// kendi tarafında ayrım hesaplamaz — bu yüzden Mimar/Firma ayrımının TEK kaynağı burasıdır.
 export function buildFilterGroups(ratingByProject) {
   return [
     { key: 'discipline', label: 'Tür', nested: false, field: p => p.discipline || [] },
@@ -138,8 +142,8 @@ export function buildFilterGroups(ratingByProject) {
         return (info.district && info.city === 'İstanbul') ? [info.district] : [];
       } },
     { key: 'dateBucket', label: 'Yıl', nested: false, field: p => [p.dateBucket] },
-    { key: 'designer', label: 'Mimar', nested: false, field: p => (p.designer || []).filter(d => !isOfficeName(d)) },
-    { key: 'designerOffice', label: 'Mimarlık Firması', nested: false, field: p => (p.designer || []).filter(d => isOfficeName(d)) },
+    { key: 'designer', label: 'Mimar', nested: false, field: p => (p.designer || []).filter(d => !(p.officeNames || []).includes(d)) },
+    { key: 'designerOffice', label: 'Mimarlık Firması', nested: false, field: p => p.officeNames || [] },
     { key: 'award', label: 'Ödül', nested: false, field: p => p.awards || [] },
     { key: 'rating', label: 'Puan', nested: false, field: p => ratingBuckets((ratingByProject.get(p.slug) || { average: 0 }).average) },
   ];
