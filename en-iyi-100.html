@@ -1057,9 +1057,20 @@
     // gereği KESİNDİR — bkz. gerçek bulgu (dosya başı yorumu, renderTop100#quickActions): bu yüzden
     // widget'lara bağımlı kurulum DOMContentLoaded'ı bekler; sayfa zaten yüklenmişse (ör. sıralama/
     // filtre değişikliğiyle YENİDEN render) hemen çalışır.
+    // gerçek bulgu (canlıda yakalandı): document.readyState "interactive"ye, defer betikleri HALA
+    // sırayla çalışırken geçiyor (spec: parser bitince readyState "interactive" olur, DEFER
+    // BETİKLERİ ONDAN SONRA teker teker yürütülür, en son DOMContentLoaded ateşlenir) — yani
+    // `readyState === 'loading'` kontrolü burada YANLIŞ sinyal veriyordu: fetch().then() çalıştığında
+    // readyState çoktan "interactive" olabiliyor ama share-button.js (defer sırasında save-widget.js/
+    // rating-widget.js'ten SONRA gelir, bkz. <head>'teki sıra) henüz çalışmamış olabiliyordu — sonuç:
+    // ShareWidget hâlâ tanımsızken "else fn()" dalı hemen çalışıp paylaş butonları sessizce hiç
+    // dolmuyordu. Kendi DOMContentLoaded bayrağımızı (bu betik parse edilirken, olay ateşlenmeden
+    // ÖNCE kaydedilir) kullanmak, readyState'in belirsiz ara durumuna güvenmekten daha kesin.
+    var domReady = false;
+    document.addEventListener('DOMContentLoaded', function(){ domReady = true; });
     function whenReady(fn){
-      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
-      else fn();
+      if(domReady) fn();
+      else document.addEventListener('DOMContentLoaded', fn, { once: true });
     }
 
     // Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı).
