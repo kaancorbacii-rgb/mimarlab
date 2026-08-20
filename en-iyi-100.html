@@ -1015,11 +1015,19 @@
         var nameHtml = item.slug
           ? '<a class="top100-name-link" href="/proje/' + encodeURIComponent(item.slug) + '">' + escapeHtml(item.name) + '</a>'
           : escapeHtml(item.name);
+        // gerçek bulgu: ShareWidget.html() burada DOĞRUDAN çağrılıyordu — rating-widget.js/
+        // save-widget.js/share-button.js `defer` ile yüklendiğinden (bkz. sayfa başı <script> etiketleri),
+        // /api/public/top100 isteği edge önbellekten HIZLI dönüp bu fetch().then() defer betiklerinden
+        // ÖNCE çalışırsa ShareWidget tanımsız kalıp "ShareWidget is not defined" fırlatıyordu — bu da
+        // renderTop100'ü BÜTÜNÜYLE çökertip listenin hiç görünmemesine yol açtı (canlıda yakalandı).
+        // Çözüm: burada yalnızca BOŞ bir slot basılır, gerçek paylaş düğmesi wireQuickActions()#
+        // whenReady() içinde (DOMContentLoaded'dan SONRA, defer betikleri garanti çalışmış olduğunda)
+        // doldurulur.
         var quickActions = item.slug
           ? '<span class="top100-quick-actions">' +
               '<span class="rating-widget" data-type="project" data-key="' + escapeAttr(item.slug) + '"></span>' +
               '<button class="card-save-btn top100-action-btn" type="button" data-key="' + escapeAttr(item.slug) + '" data-title="' + escapeAttr(item.name) + '" data-meta="' + escapeAttr(submeta) + '" data-image="' + escapeAttr(item.image || '') + '" data-href="/proje/' + encodeURIComponent(item.slug) + '" aria-label="Kaydet">' + ICON_SAVE + '<span>Kaydet</span></button>' +
-              ShareWidget.html('top100-share-' + item.rank) +
+              '<span class="top100-share-slot" id="top100-share-slot-' + item.rank + '"></span>' +
             '</span>'
           : '';
         return '<li class="top100-row' + rankClass + '" data-slug="' + escapeAttr(item.slug || '') + '" data-rank="' + item.rank + '" data-avg="' + item.avg + '" data-count="' + item.count + '">' +
@@ -1041,21 +1049,29 @@
         '</li>';
       }).join('');
       list.innerHTML = rows;
-      wireQuickActions(items);
+      whenReady(function(){ wireQuickActions(items); });
     }
 
-    // Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı) — paylaşılan üç bileşen
-    // (rating-widget.js/save-widget.js/share-button.js) `defer` ile yüklendiğinden, bu betik (defer'sız,
-    // sayfanın en altında) çalıştığı anda henüz tanımlanmamış OLABİLİRLER — project-modal.js#renderItem
-    // İLE AYNI typeof koruması (bkz. o dosyadaki AYNI gerekçe) burada da kullanılır. Pratikte fetch()'in
-    // ağ gecikmesi defer betiklerinin ayrıştırılıp çalışmasından çok daha uzun sürdüğünden bu neredeyse
-    // hiç tetiklenmez, ama koruma yine de ücretsizdir.
+    // defer'lı betikler (rating-widget.js/save-widget.js/share-button.js) DOMContentLoaded'dan ÖNCE
+    // çalışmayı GARANTİ ETMEZ, ama DOMContentLoaded'dan SONRA çalışmış olmaları tarayıcı sözleşmesi
+    // gereği KESİNDİR — bkz. gerçek bulgu (dosya başı yorumu, renderTop100#quickActions): bu yüzden
+    // widget'lara bağımlı kurulum DOMContentLoaded'ı bekler; sayfa zaten yüklenmişse (ör. sıralama/
+    // filtre değişikliğiyle YENİDEN render) hemen çalışır.
+    function whenReady(fn){
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
+      else fn();
+    }
+
+    // Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı).
     function wireQuickActions(items){
       if(typeof mountAllRatingWidgets === 'function') mountAllRatingWidgets();
       if(typeof wireSaveButtons === 'function') wireSaveButtons('project');
       if(typeof ShareWidget !== 'undefined'){
         items.forEach(function(item){
           if(!item.slug) return;
+          var slot = document.getElementById('top100-share-slot-' + item.rank);
+          if(!slot) return;
+          slot.outerHTML = ShareWidget.html('top100-share-' + item.rank);
           ShareWidget.wire('top100-share-' + item.rank, function(){
             return { title: item.name, url: 'https://mimarlab.com/proje/' + item.slug };
           });
