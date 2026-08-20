@@ -821,6 +821,15 @@
   .top100-search-input-wrap input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:170px; color:var(--ink);}
   .top100-search-clear{display:none; background:none; border:none; padding:2px; color:var(--ink-soft); flex-shrink:0;}
   .top100-search-clear:hover{color:var(--ink);}
+  /* Masaüstünde arama kutusu varsayılan AÇIK (bkz. kullanıcı isteği) — yuvarlak aç/kapa butonuna
+     gerek yok, giriş kutusu zaten görünür durur. Tablet/mobilde (nav'ın hamburger'a döndüğü AYNI
+     960px eşiği, bkz. .nav-search{display:none} yukarıda) buton KAPALI başlar, tıklanınca
+     wireTop100Search()'teki .open sınıfıyla açılır — o JS mantığı bu breakpoint'in altında
+     değişmeden kalır. */
+  @media (min-width:961px){
+    .top100-search-btn{display:none;}
+    .top100-search-input-wrap{display:flex;}
+  }
   /* .top100-filter-panel bu grubun İÇİNE (position:relative burada, butonda DEĞİL) mutlak
      konumlanır — gerçek bulgu: konumlandırılmış üst öğe olmayınca panel en yakın konumlandırılmış
      atanın (ör. sticky .nav) BAŞLANGIÇ İÇEREN BLOĞUNA göre yerleşip sayfanın çok aşağısında,
@@ -957,7 +966,6 @@
 
     <div class="top100-toolbar">
       <div class="top100-toolbar-left">
-        <div class="top100-filters" id="top100-filters"></div>
         <div class="top100-search-wrap">
           <button type="button" class="top100-search-btn" id="top100-search-toggle" aria-label="Proje ara" aria-expanded="false">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -968,6 +976,7 @@
             <button type="button" class="top100-search-clear" id="top100-search-clear" aria-label="Aramayı temizle"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
         </div>
+        <div class="top100-filters" id="top100-filters"></div>
       </div>
       <div class="sort-select">
         <select id="top100-sort">
