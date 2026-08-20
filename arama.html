@@ -154,35 +154,21 @@
   .result-go{flex-shrink:0; color:var(--ink-soft); font-size:20px;}
   .result-more-note{font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center;}
 
-  /* ---------- MİMARLAB AI ---------- */
-  .ai-search-box{max-width:880px; margin:20px auto 0; padding:0 32px;}
-  .ai-search-card{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:18px 20px;}
-  .ai-search-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:6px;}
-  .ai-search-form{display:flex; gap:8px;}
-  .ai-search-form input{flex:1; border:1px solid var(--line); background:var(--paper); border-radius:100px; padding:11px 18px; font-family:inherit; font-size:14px; color:var(--ink); outline:none;}
-  .ai-search-form input:focus-visible{border-color:var(--brass);}
-  .ai-search-form button{background:var(--ink); color:var(--paper-card); border:none; border-radius:100px; padding:11px 22px; font-size:13.5px; font-weight:600; white-space:nowrap;}
-  .ai-search-form button:hover{background:var(--walnut);}
-  .ai-search-form button:disabled{opacity:0.55; cursor:default;}
-  .ai-search-examples{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
-  .ai-example-chip{background:var(--paper); border:1px solid var(--line-soft); border-radius:100px; padding:6px 13px; font-size:12.5px; color:var(--ink-soft); font-weight:500;}
-  .ai-example-chip:hover{border-color:var(--brass); color:var(--ink);}
-  .ai-search-result{max-width:880px; margin:20px auto 0; padding:0 32px;}
-  .ai-summary{background:var(--paper-alt); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.6; color:var(--ink); margin-bottom:20px; white-space:pre-line;}
-  .ai-summary::before{content:'✦ '; color:var(--accent);}
-  .ai-loading, .ai-error{padding:16px 4px; font-size:14px; color:var(--ink-soft);}
-  /* Faz 3 — Araştırma Modu: sorgu/daraltma zinciri (ai-trail) ve gerçek dağılım sayımları
-     (ai-facets, bkz. src/routes/ai.js#computeFacets) için. Sayısal bir "eşleşme skoru" DEĞİL,
-     yalnızca "kaç projede geçiyor" sayımı (bkz. kullanıcı isteği: "anlamsız yüzde skorları
-     üretme") — bu yüzden görsel olarak da normal metinden ayrılmayan, sade bir bilgi satırı. */
-  .ai-trail{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:12px; font-size:12.5px; color:var(--ink-soft);}
-  .ai-trail-chip{background:var(--paper-card); border:1px solid var(--line-soft); border-radius:100px; padding:4px 11px;}
-  .ai-trail-chip:last-child{color:var(--ink); font-weight:600; border-color:var(--brass);}
-  .ai-trail-arrow{opacity:0.5;}
-  .ai-facets{display:flex; flex-direction:column; gap:4px; font-size:12.5px; color:var(--ink-soft); margin:-8px 0 20px; padding:0 2px;}
+  /* ---------- MİMARLAB AI ----------
+     Faz 4 — kullanıcı isteği: ayrı bir "MİMARLAB AI" arama kutusu/butonu OLMASIN, üst nav'daki TEK
+     arama kutusuna yazılan her sorgu hem normal (foldTr fuzzy) hem AI ile aransın; bu blok artık
+     yalnızca AI sonucunu göstermek için var, kendi input/buton'u yok (bkz. aşağıdaki runAiSearch,
+     runSearch() tarafından otomatik tetiklenir). */
+  .ai-search-result{max-width:880px; margin:24px auto 0; padding:0 32px;}
+  .ai-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:6px;}
+  .ai-summary{background:var(--paper-alt); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.6; color:var(--ink); margin-bottom:16px; white-space:pre-line;}
+  .ai-loading, .ai-error{padding:2px 2px 16px; font-size:13.5px; color:var(--ink-soft);}
+  /* ai-facets — gerçek dağılım sayımları (bkz. src/routes/ai.js#computeFacets). Sayısal bir
+     "eşleşme skoru" DEĞİL, yalnızca "kaç projede geçiyor" sayımı (bkz. kullanıcı isteği: "anlamsız
+     yüzde skorları üretme") — bu yüzden görsel olarak da normal metinden ayrılmayan, sade bir bilgi
+     satırı. */
+  .ai-facets{display:flex; flex-direction:column; gap:4px; font-size:12.5px; color:var(--ink-soft); margin-bottom:20px; padding:0 2px;}
   .ai-facet-row strong{color:var(--ink); font-weight:600;}
-  .ai-reset-btn{display:block; margin:4px auto 0; background:none; border:1px solid var(--line); border-radius:100px; padding:9px 20px; font-size:13px; font-weight:600; color:var(--ink-soft);}
-  .ai-reset-btn:hover{border-color:var(--brass); color:var(--ink);}
 
   .search-empty{text-align:center; padding:50px 20px;}
   .search-empty p{color:var(--ink-soft); font-size:15px; margin:0 0 22px; line-height:1.6; max-width:440px; margin-left:auto; margin-right:auto;}
@@ -251,21 +237,6 @@
     <p id="search-subtitle"></p>
   </div>
 
-  <div class="ai-search-box">
-    <div class="ai-search-card">
-      <div class="ai-search-eyebrow">✦ MİMARLAB AI</div>
-      <form id="ai-search-form" class="ai-search-form">
-        <input type="text" id="ai-search-input" placeholder="Örn. İstanbul'da 2015 sonrası konut projelerini göster" maxlength="300" autocomplete="off">
-        <button type="submit" id="ai-search-submit">Sor</button>
-      </form>
-      <div class="ai-search-examples">
-        <button type="button" class="ai-example-chip">İstanbul'da 2015 sonrası konut projeleri</button>
-        <button type="button" class="ai-example-chip">Türkiye'deki brütalist kamu yapıları</button>
-        <button type="button" class="ai-example-chip">Cengiz Bektaş'ın projeleri</button>
-        <button type="button" class="ai-example-chip">Urla'daki çağdaş mimarlık projeleri</button>
-      </div>
-    </div>
-  </div>
   <div class="ai-search-result" id="ai-search-result" hidden></div>
 
   <div class="search-wrap" id="search-wrap"></div>
@@ -414,33 +385,21 @@ async function runSearch(){
 
 
 
-runSearch();
-// Rozetler /api/public/badges'ten asenkron gelir (bkz. badge-shared.js) — ilk arama sonucu bu fetch
-// tamamlanmadan çizilmişse Mimarlar/Firmalar satırları rozetsiz kalmış olabilir, bu yüzden rozetler
-// gelince runSearch() bir kez daha (ve yalnızca bir kez) çalıştırılır.
-window.addEventListener('mimarlab-badges-ready', () => runSearch(), { once: true });
-
-// MİMARLAB AI (Faz 1, bkz. kullanıcı isteği) — doğal dil sorgusunu /api/ai/search'e POST eder,
-// aynı groupHtml/rowHtml render mantığını (yukarısı) paylaşır ki AI sonuçları normal arama
-// sonuçlarıyla BİREBİR aynı görünsün (bkz. kullanıcı isteği: "generic chatbot görünümü oluşturma").
-//
-// Faz 3 — Araştırma Modu (bkz. kullanıcı isteği: "Sadece İstanbul'a odaklan", "1980 öncesini çıkar"
-// gibi takip sorguları önceki sorgunun bağlamını anlayabilsin). Konuşma DURUMU sunucuda TUTULMAZ
-// (bkz. src/routes/ai.js dosya başı yorumu) — bu istemcideki iki değişken (aiPreviousFilters,
-// aiQueryTrail) TEK doğruluk kaynağıdır, sayfa yenilenince/sekme kapanınca sıfırlanır (kalıcı bir
-// "konuşma geçmişi" özelliği İSTENMEDİ, yalnızca tek oturumluk daraltma zinciri).
+// MİMARLAB AI (bkz. kullanıcı isteği, Faz 4: ayrı bir arama kutusu/buton OLMASIN) — üst nav'daki
+// TEK arama kutusuna yazılan sorgu artık HEM normal (foldTr fuzzy, runSearch) HEM AI (/api/ai/search)
+// ile otomatik aranır, aynı groupHtml/rowHtml render mantığını (yukarısı) paylaşır ki AI sonuçları
+// normal arama sonuçlarıyla BİREBİR aynı görünsün (bkz. kullanıcı isteği: "generic chatbot görünümü
+// oluşturma"). Faz 3'teki (Araştırma Modu) sunucu tarafı previousFilters/daraltma desteği
+// (src/routes/ai.js) burada KULLANILMAZ — tek giriş noktası artık her zaman TAM sayfa yenileyen nav
+// arama kutusu olduğundan (bkz. wireNavSearch, site-chrome.js) istemci tarafı bir "konuşma durumu"
+// tutmanın anlamı kalmadı, her /arama?q= YENİ ve bağımsız bir sorgu olarak ele alınır.
 let aiRunToken = 0;
-let aiPreviousFilters = null;
-let aiQueryTrail = [];
-const aiForm = document.getElementById('ai-search-form');
-const aiInput = document.getElementById('ai-search-input');
-const aiSubmitBtn = document.getElementById('ai-search-submit');
 const aiResultEl = document.getElementById('ai-search-result');
 
 const FACET_LABELS = { cities: 'Şehir', categories: 'Tip', discipline: 'Tür' };
-// facetsHtml — Faz 3 "Öne Çıkanlar": computeFacets()'in (bkz. src/routes/ai.js) döndürdüğü GERÇEK
-// sayımları düz metin olarak listeler, hiçbir yüzde/skor göstermez (bkz. kullanıcı isteği: "anlamsız
-// yüzde skorları üretme").
+// facetsHtml — computeFacets()'in (bkz. src/routes/ai.js) döndürdüğü GERÇEK sayımları düz metin
+// olarak listeler, hiçbir yüzde/skor göstermez (bkz. kullanıcı isteği: "anlamsız yüzde skorları
+// üretme").
 function facetsHtml(facets){
   if(!facets) return '';
   const parts = [];
@@ -453,52 +412,38 @@ function facetsHtml(facets){
   return `<div class="ai-facets">${parts.join('')}</div>`;
 }
 
-// trailHtml — uygulanan sorgu/daraltma zincirini gösterir (ör. "İstanbul'da konut projeleri →
-// sadece kamu yapıları"), kullanıcının o ana kadar neyi filtrelediğini takip edebilmesi için.
-function trailHtml(){
-  if(aiQueryTrail.length < 2) return '';
-  return `<div class="ai-trail">${aiQueryTrail.map(q => `<span class="ai-trail-chip">${escapeHtml(q)}</span>`).join('<span class="ai-trail-arrow">→</span>')}</div>`;
-}
-
-async function runAiSearch(q, isFollowUp){
+async function runAiSearch(q){
   q = (q || '').trim();
   if(!q) return;
   const runToken = ++aiRunToken;
-  if(!isFollowUp){ aiPreviousFilters = null; aiQueryTrail = []; }
   aiResultEl.hidden = false;
-  aiResultEl.innerHTML = '<div class="ai-loading">MİMARLAB AI aranıyor…</div>';
-  aiSubmitBtn.disabled = true;
+  aiResultEl.innerHTML = '<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-loading">MİMARLAB AI aranıyor…</div>';
 
   let res, data;
   try{
     res = await fetch('/api/ai/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(aiPreviousFilters ? { query: q, previousFilters: aiPreviousFilters } : { query: q }),
+      body: JSON.stringify({ query: q }),
     });
   } catch(e){
     if(runToken !== aiRunToken) return;
-    aiResultEl.innerHTML = '<div class="ai-error">Bağlantı sorunu oluştu, tekrar dene.</div>';
-    aiSubmitBtn.disabled = false;
+    aiResultEl.innerHTML = '<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-error">Bağlantı sorunu oluştu.</div>';
     return;
   }
   if(runToken !== aiRunToken) return;
 
   if(!res.ok){
-    const err = await res.json().catch(() => ({}));
-    aiResultEl.innerHTML = `<div class="ai-error">${escapeHtml(err.error || 'Bir sorun oluştu, tekrar dene.')}</div>`;
-    aiSubmitBtn.disabled = false;
+    // 429 (hız sınırı) dahil — bkz. kullanıcı isteği: normal arama zaten aynı sonucu gösterdiğinden
+    // AI tarafında bir hata olması TÜM sayfayı bozmamalı, yalnızca bu blok sessizce gizlenir.
+    aiResultEl.hidden = true;
+    aiResultEl.innerHTML = '';
     return;
   }
   data = await res.json();
   if(runToken !== aiRunToken) return;
-  aiSubmitBtn.disabled = false;
-  aiPreviousFilters = data.filters;
-  aiQueryTrail.push(q);
-  aiInput.value = '';
-  aiInput.placeholder = 'Aramayı daralt... örn. "sadece İstanbul\'a odaklan"';
 
-  const html = [trailHtml(), `<div class="ai-summary">${escapeHtml(data.summary)}</div>`, facetsHtml(data.facets)];
+  const html = [`<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-summary">${escapeHtml(data.summary)}</div>`, facetsHtml(data.facets)];
   html.push(groupHtml('Mimarlar', data.architects, a => rowHtml({
     href: `/mimar/${encodeURIComponent(a.slug)}`,
     avatarStyle: `background:${officeColor(a.name)}`,
@@ -521,27 +466,45 @@ async function runAiSearch(q, isFollowUp){
     title: p.title,
     meta: [p.location, p.date].filter(Boolean).join(' · '),
   }), data.totals.projects));
-  if(aiQueryTrail.length > 1) html.push(`<button type="button" class="ai-reset-btn" id="ai-reset-btn">Yeni Arama</button>`);
 
-  aiResultEl.innerHTML = html.join('');
-  const resetBtn = document.getElementById('ai-reset-btn');
-  if(resetBtn) resetBtn.addEventListener('click', () => {
-    aiPreviousFilters = null;
-    aiQueryTrail = [];
-    aiInput.placeholder = "Örn. İstanbul'da 2015 sonrası konut projelerini göster";
+  const total = data.totals.architects + data.totals.offices + data.totals.projects;
+  if(!total && !data.aiAvailable){
+    // AI hiç yanıt veremediyse VE sonuç da yoksa (bkz. src/routes/ai.js fallback metni) bu blok
+    // normal arama sonuçlarının üstünde gereksiz bir "bulunamadı" tekrarı olur — sessizce gizlenir.
     aiResultEl.hidden = true;
     aiResultEl.innerHTML = '';
-    aiInput.focus();
-  });
+    return;
+  }
+  aiResultEl.innerHTML = html.join('');
 }
 
-aiForm.addEventListener('submit', e => {
-  e.preventDefault();
-  runAiSearch(aiInput.value, !!aiPreviousFilters);
-});
-document.querySelectorAll('.ai-example-chip').forEach(btn => {
-  btn.addEventListener('click', () => { runAiSearch(btn.textContent, false); });
-});
+// AI araması runSearch()'ten AYRI tetiklenir (aynı sorguyla, paralel) — runSearch() rozetler
+// hazır olduğunda (bkz. aşağısı) bir kez daha çalıştığından, AI'yı runSearch() İÇİNE koymak her
+// rozet güncellemesinde gereksiz ikinci bir LLM çağrısına (maliyet/rate-limit) yol açardı. Sorgu
+// değişmediği sürece (aynı sekme, aynı /arama?q=) yalnızca BİR kez tetiklenir.
+let lastAiQuery = null;
+function maybeRunAiSearch(){
+  const params = new URLSearchParams(window.location.search);
+  const query = (params.get('q') || '').trim();
+  if(!query){
+    aiResultEl.hidden = true;
+    aiResultEl.innerHTML = '';
+    lastAiQuery = null;
+    return;
+  }
+  if(query === lastAiQuery) return;
+  lastAiQuery = query;
+  runAiSearch(query);
+}
+
+runSearch();
+maybeRunAiSearch();
+// Rozetler /api/public/badges'ten asenkron gelir (bkz. badge-shared.js) — ilk arama sonucu bu fetch
+// tamamlanmadan çizilmişse Mimarlar/Firmalar satırları rozetsiz kalmış olabilir, bu yüzden rozetler
+// gelince runSearch() bir kez daha (ve yalnızca bir kez) çalıştırılır. AI bloğu ZATEN doğru
+// render edildiğinden (rozetler yalnızca normal sonuç satırlarını etkiler) burada tekrar
+// tetiklenmez (bkz. yukarıdaki maybeRunAiSearch yorumu).
+window.addEventListener('mimarlab-badges-ready', () => runSearch(), { once: true });
 </script>
 </body>
 </html>
