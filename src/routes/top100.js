@@ -1,13 +1,15 @@
-import { json } from '../lib/http.js';
+import { json, errorJson, readJson } from '../lib/http.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
-import { TOP100_BASELINE } from '../lib/top100Data.js';
 
-// En İyi 100 sayfası (en-iyi-100.html) — kullanıcı isteği: sıra/puan editöryal (src/lib/
-// top100Data.js#TOP100_BASELINE) kalsın ama (1) isim/görsel/link her istekte CANLI projects
+// En İyi 100 sayfası (en-iyi-100.html) — kullanıcı isteği: sıra/puan editöryal (D1 tablosu
+// top100_entries, bkz. migrations/0054) kalsın ama (1) isim/görsel/link her istekte CANLI projects
 // tablosundan taze çekilsin (proje admin panelinden yeniden adlandırılınca burada da otomatik
 // değişsin) ve (2) gerçek kullanıcı puanları (ratings tablosu) bu editöryal tabanın ÜZERİNE
 // eklenerek sıralamayı zamanla etkilesin. Yukarı/aşağı/sabit oklar için bir önceki hesaplanan
-// sıra top100_rank_snapshot'ta saklanır (bkz. migrations/0053).
+// sıra top100_rank_snapshot'ta saklanır (bkz. migrations/0053). Editöryal taban BAŞTA statik bir
+// JS dosyasıydı (src/lib/top100Data.js) — kullanıcı isteği üzerine ("admine buradaki projeleri
+// değiştirebilme yetkisi ver") D1'e taşındı ki admin panelden (bkz. handleTop100AdminRoute
+// aşağıda, admin.html#loadTop100Admin) kod deploy'u gerekmeden satır ekleyip/çıkarabilsin.
 const SNAPSHOT_REFRESH_MS = 7 * 24 * 60 * 60 * 1000; // 7 gün — bkz. dosya başı yorumu
 
 function snapshotKeyFor(entry, resolvedSlug) {
@@ -16,6 +18,11 @@ function snapshotKeyFor(entry, resolvedSlug) {
 
 export async function handleTop100Route(request, env, url) {
   if (request.method !== 'GET') return json({ error: 'Bulunamadı' }, 404);
+
+  const { results: baselineRows } = await env.DB.prepare(
+    `SELECT rnk, name, slug, base_avg, base_count FROM top100_entries ORDER BY rnk ASC`
+  ).all();
+  const TOP100_BASELINE = baselineRows.map(r => ({ rank: r.rnk, name: r.name, slug: r.slug, baseAvg: r.base_avg, baseCount: r.base_count }));
 
   const slugs = [...new Set(TOP100_BASELINE.map(e => e.slug).filter(Boolean))];
 
@@ -29,8 +36,8 @@ export async function handleTop100Route(request, env, url) {
     // sorgu, her biri yalnızca ~59 parametreyle, aynı sonucu sorunsuz üretir.
     const placeholders = slugs.map(() => '?').join(',');
     const [bySlug, byLegacy] = await Promise.all([
-      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, hidden_at, deleted_at FROM projects WHERE slug IN (${placeholders})`).bind(...slugs).all(),
-      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, hidden_at, deleted_at FROM projects WHERE legacy_key IN (${placeholders})`).bind(...slugs).all(),
+      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, description, hidden_at, deleted_at FROM projects WHERE slug IN (${placeholders})`).bind(...slugs).all(),
+      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, description, hidden_at, deleted_at FROM projects WHERE legacy_key IN (${placeholders})`).bind(...slugs).all(),
     ]);
     for (const row of [...bySlug.results, ...byLegacy.results]) {
       const parsed = parseCanonicalRow('projects', row);
@@ -55,6 +62,7 @@ export async function handleTop100Route(request, env, url) {
     const image = (live && live.images && live.images[0]) || null;
     const location = live ? live.location : null;
     const projectDate = live ? live.project_date : null;
+    const description = live ? live.description : null;
 
     const real = resolvedSlug ? realRatingsBySlug.get(resolvedSlug) : null;
     const blendedCount = entry.baseCount + (real ? real.count : 0);
@@ -68,6 +76,7 @@ export async function handleTop100Route(request, env, url) {
       image,
       location,
       projectDate,
+      description,
       avg: blendedAvg,
       count: blendedCount,
     };
@@ -110,6 +119,7 @@ export async function handleTop100Route(request, env, url) {
       image: entry.image,
       location: entry.location,
       projectDate: entry.projectDate,
+      description: entry.description,
       avg: Math.round(entry.avg * 100) / 100,
       count: entry.count,
       delta,
@@ -119,4 +129,42 @@ export async function handleTop100Route(request, env, url) {
   if (writes.length) await env.DB.batch(writes);
 
   return json({ items, generatedAt: now });
+}
+
+// GET/POST /api/admin/top100, DELETE /api/admin/top100/:id — kullanıcı isteği: "admine buradaki
+// projeleri değiştirebilme yetkisi ver, ör. bir projeyi listeden çıkartıp başka bir proje
+// ekleyebileyim". src/routes/admin.js#handleAdminRoute zaten requireAdmin() ile korunuyor, bu
+// yüzden burada AYRICA bir yetki kontrolü yok (bkz. o dosyadaki dispatch). Sıra numarası
+// çakışmaları (iki kayıt aynı rnk) kasıtlı olarak ENGELLENMEZ — handleTop100Route zaten avg'ye
+// göre yeniden sıralayıp gerçek görüntü sırasını üretiyor, rnk yalnızca eşit puan durumunda
+// döngü kırıcı ve ilk (hiç geçmişi olmayan) sıralama referansı olarak kullanılıyor.
+export async function handleTop100AdminRoute(request, env, url, segments) {
+  // segments: ["api", "admin", "top100", id?]
+  if (segments.length === 3 && request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      `SELECT id, rnk, name, slug, base_avg, base_count FROM top100_entries ORDER BY rnk ASC`
+    ).all();
+    return json({ items: results });
+  }
+  if (segments.length === 3 && request.method === 'POST') {
+    const body = await readJson(request);
+    const rnk = parseInt(body.rnk, 10);
+    const name = (body.name || '').trim();
+    const slug = (body.slug || '').trim() || null;
+    const baseAvg = parseFloat(body.baseAvg);
+    const baseCount = parseInt(body.baseCount, 10);
+    if (!name || !Number.isInteger(rnk) || rnk < 1 || !Number.isFinite(baseAvg) || baseAvg < 0 || baseAvg > 5 || !Number.isInteger(baseCount) || baseCount < 0) {
+      return errorJson('Geçersiz veri: isim, sıra no (≥1), taban puan (0-5) ve taban oy sayısı (≥0) gerekli.');
+    }
+    const now = Date.now();
+    const result = await env.DB.prepare(
+      `INSERT INTO top100_entries (rnk, name, slug, base_avg, base_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(rnk, name, slug, baseAvg, baseCount, now, now).run();
+    return json({ ok: true, id: result.meta.last_row_id });
+  }
+  if (segments.length === 4 && request.method === 'DELETE') {
+    await env.DB.prepare(`DELETE FROM top100_entries WHERE id = ?`).bind(segments[3]).run();
+    return json({ ok: true });
+  }
+  return errorJson('Bulunamadı', 404);
 }

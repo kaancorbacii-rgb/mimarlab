@@ -789,10 +789,21 @@
   /* ---------- CONTENT (Sıralama sayfası) ---------- */
   .content-wrap{max-width:900px; margin:0 auto; padding:56px 32px 90px;}
   .content-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
-  .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
-  .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 14px;}
-  .content-note{font-size:13.5px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px; padding:14px 16px; background:var(--paper-card); border:1px solid var(--line); border-radius:10px;}
-  .content-note strong{color:var(--ink);}
+  .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 22px; letter-spacing:-0.01em;}
+
+  /* ---------- TOOLBAR — filtre + sıralama, tek satır (bkz. kullanıcı isteği) ---------- */
+  .top100-toolbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; flex-wrap:wrap;}
+  .top100-filter-toggle{display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; padding:8px 14px; border:1px solid var(--line); border-radius:100px; background:var(--paper-card);}
+  .top100-filter-toggle:hover{border-color:var(--walnut); color:var(--ink);}
+  .top100-filter-toggle svg{flex-shrink:0;}
+  .top100-filter-toggle input{accent-color:var(--ink); width:14px; height:14px;}
+  .top100-toolbar .sort-select select{
+    appearance:none; -webkit-appearance:none;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:100px; padding:8px 32px 8px 16px;
+    font-size:13px; font-weight:500; color:var(--ink); font-family:inherit;
+  }
+  .top100-toolbar .sort-select select:hover{border-color:var(--walnut);}
 
   /* ---------- TOP 100 LIST — IMDB Top 250 tarzı satır düzeni (bkz. kullanıcı isteği: ekteki
      görsel referans alınarak, isim yanında 4:3 proje görseli + puan/oy + sıralama değişim oku) ---------- */
@@ -812,6 +823,26 @@
   .top100-name{display:block; font-size:15.5px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   a.top100-name-link:hover{color:var(--walnut); text-decoration:underline;}
   .top100-submeta{margin-top:3px; font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* Açıklamadan tek cümle (bkz. kullanıcı isteği) — satır taşarsa "…" ile kesilir, kart 2 satırdan
+     fazla uzamaz. */
+  .top100-desc{margin-top:4px; font-size:12.5px; line-height:1.4; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical;}
+  /* Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı) — .rating-widget/.card-save-btn/
+     .share-widget PAYLAŞıLAN bileşenler (rating-widget.js/save-widget.js/share-button.js), burada
+     yalnızca modal/kart bağlamlarındaki konumlandırmalarını EZİP satır-içi kompakt pil haline getiren
+     seçiciler var — bileşenlerin kendi JS mantığına dokunulmuyor. */
+  .top100-quick-actions{display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .top100-quick-actions .rating-widget{height:28px !important; padding:0 8px !important;}
+  .top100-quick-actions .rating-star-btn svg{width:12px; height:12px;}
+  .top100-quick-actions .rating-summary{font-size:11px !important;}
+  .top100-action-btn{
+    position:static; width:auto; height:28px; box-sizing:border-box;
+    display:inline-flex; align-items:center; gap:5px;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:0 12px; font-size:11.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .top100-action-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .top100-action-btn.saved{background:var(--accent); color:var(--ink); border-color:var(--accent);}
+  .top100-quick-actions .share-btn{height:28px !important; width:28px !important; min-width:28px !important;}
   .top100-rating{flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:78px;}
   .top100-avg{display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:15px; color:var(--ink);}
   .top100-avg svg{color:var(--accent); flex-shrink:0;}
@@ -875,8 +906,21 @@
   <div class="content-wrap">
     <div class="content-eyebrow">Sıralama</div>
     <h1 class="content-title">En İyi 100 Mimari Eser</h1>
-    <p class="content-lead">MİMARLAB kullanıcılarının verdiği puanlara göre oluşturulan, Türkiye'nin en iyi 100 mimari eseri. Sırasıyla en yüksek ortalama puanı alan yapılar listelenir; isme tıklayarak sitedeki proje sayfasına gidebilirsiniz.</p>
-    <p class="content-note"><strong>Nasıl oluşturulur?</strong> Sıralama editöryal bir taban üzerine kuruludur; MİMARLAB kullanıcılarının verdiği yeni puanlar zamanla bu tabanın üzerine eklenerek sırayı etkiler. Bir eserin sıralamadaki yeri geçen sefere göre değiştiyse isminin yanında yukarı (yükseldi), aşağı (düştü) ya da yatay çizgi (sabit) işareti görünür.</p>
+
+    <div class="top100-toolbar">
+      <label class="top100-filter-toggle">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+        <input type="checkbox" id="top100-filter-linked">
+        Yalnızca proje sayfası olanlar
+      </label>
+      <div class="sort-select">
+        <select id="top100-sort">
+          <option value="rank">Sıralamaya Göre</option>
+          <option value="votes">En Çok Oy Alan</option>
+          <option value="alpha">Alfabetik (A-Z)</option>
+        </select>
+      </div>
+    </div>
 
     <ol class="top100-list" id="top100-list"></ol>
   </div>
@@ -912,7 +956,45 @@
       flat: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"/></svg>'
     };
 
+    // Açıklamadan tek cümle (bkz. kullanıcı isteği) — ilk nokta/ünlem/soru işaretine kadar olan
+    // kısmı alır; makul bir üst sınırın (220 karakter) içinde işaret bulunamazsa metni orada kesip
+    // "…" ekler (noktalama işareti hiç kullanılmayan uzun bir açıklama gövdeyi taşırmasın diye).
+    // gerçek bulgu: naif "ilk .!? işaretinde kes" yaklaşımı Türkçe padişah/hükümdar sıra
+    // numaralarında ("İmparator I. Justinianus", "II. Bayezid" vb.) YANLIŞ yerde kesiyordu — "I."
+    // kısaltma noktası cümle sonu değil. Roma rakamı (I/V/X/L/C/D/M, 1-4 harf) hemen öncesindeki
+    // noktalama işareti cümle sonu SAYILMAZ, bir sonraki işarete geçilir.
+    var ROMAN_BEFORE_RE = /(^|\s)[IVXLCDM]{1,4}$/;
+    function firstSentence(text){
+      if(!text) return '';
+      var t = text.trim();
+      var end = -1;
+      for(var i = 0; i < t.length && i < 260; i++){
+        var ch = t[i];
+        if(ch === '.' || ch === '!' || ch === '?'){
+          var before = t.slice(0, i);
+          if(ROMAN_BEFORE_RE.test(before) || /\d$/.test(before)) continue;
+          end = i + 1;
+          break;
+        }
+      }
+      if(end === -1) return t.length > 160 ? t.slice(0, 160).trim() + '…' : t;
+      return t.slice(0, end);
+    }
+
+    var ICON_SAVE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>';
+
     var TOP100_ITEMS = [];
+    var TOP100_SORT = 'rank';
+    var TOP100_ONLY_LINKED = false;
+
+    function sortedFilteredItems(){
+      var items = TOP100_ITEMS.slice();
+      if(TOP100_ONLY_LINKED) items = items.filter(function(it){ return !!it.slug; });
+      if(TOP100_SORT === 'votes') items.sort(function(a, b){ return b.count - a.count; });
+      else if(TOP100_SORT === 'alpha') items.sort(function(a, b){ return a.name.localeCompare(b.name, 'tr'); });
+      else items.sort(function(a, b){ return a.rank - b.rank; });
+      return items;
+    }
 
     function renderTop100(items){
       var list = document.getElementById('top100-list');
@@ -921,23 +1003,36 @@
         var posterInner = item.image
           ? '<img src="' + escapeAttr(cdnImg(item.image, 220)) + '" alt="" loading="lazy" decoding="async">'
           : '<div class="top100-poster-placeholder" style="background:' + placeholderColor(item.name) + '">' + escapeHtml(initials(item.name)) + '</div>';
+        var posterHtml = item.slug
+          ? '<a class="top100-poster-link top100-poster" href="/proje/' + encodeURIComponent(item.slug) + '">' + posterInner + '</a>'
+          : '<span class="top100-poster">' + posterInner + '</span>';
         var loc = item.location ? parseLocation(item.location) : null;
         var submetaParts = [];
         if(loc && loc.city) submetaParts.push(loc.city);
         if(item.projectDate) submetaParts.push(item.projectDate);
         var submeta = submetaParts.join(' · ');
+        var desc = firstSentence(item.description);
         var nameHtml = item.slug
           ? '<a class="top100-name-link" href="/proje/' + encodeURIComponent(item.slug) + '">' + escapeHtml(item.name) + '</a>'
           : escapeHtml(item.name);
+        var quickActions = item.slug
+          ? '<span class="top100-quick-actions">' +
+              '<span class="rating-widget" data-type="project" data-key="' + escapeAttr(item.slug) + '"></span>' +
+              '<button class="card-save-btn top100-action-btn" type="button" data-key="' + escapeAttr(item.slug) + '" data-title="' + escapeAttr(item.name) + '" data-meta="' + escapeAttr(submeta) + '" data-image="' + escapeAttr(item.image || '') + '" data-href="/proje/' + encodeURIComponent(item.slug) + '" aria-label="Kaydet">' + ICON_SAVE + '<span>Kaydet</span></button>' +
+              ShareWidget.html('top100-share-' + item.rank) +
+            '</span>'
+          : '';
         return '<li class="top100-row' + rankClass + '" data-slug="' + escapeAttr(item.slug || '') + '" data-rank="' + item.rank + '" data-avg="' + item.avg + '" data-count="' + item.count + '">' +
           '<span class="top100-rank-wrap">' +
             '<span class="top100-rank">' + item.rank + '</span>' +
             '<span class="top100-delta ' + item.delta + '" title="' + (item.delta === 'up' ? 'Sıralamada yükseldi' : item.delta === 'down' ? 'Sıralamada düştü' : 'Sıralaması sabit') + '">' + DELTA_ICONS[item.delta] + '</span>' +
           '</span>' +
-          '<span class="top100-poster">' + posterInner + '</span>' +
+          posterHtml +
           '<span class="top100-body">' +
             '<span class="top100-name">' + nameHtml + '</span>' +
             (submeta ? '<span class="top100-submeta">' + escapeHtml(submeta) + '</span>' : '') +
+            (desc ? '<span class="top100-desc">' + escapeHtml(desc) + '</span>' : '') +
+            quickActions +
           '</span>' +
           '<span class="top100-rating">' +
             '<span class="top100-avg">&#9733; ' + item.avg.toFixed(2) + '</span>' +
@@ -946,6 +1041,26 @@
         '</li>';
       }).join('');
       list.innerHTML = rows;
+      wireQuickActions(items);
+    }
+
+    // Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı) — paylaşılan üç bileşen
+    // (rating-widget.js/save-widget.js/share-button.js) `defer` ile yüklendiğinden, bu betik (defer'sız,
+    // sayfanın en altında) çalıştığı anda henüz tanımlanmamış OLABİLİRLER — project-modal.js#renderItem
+    // İLE AYNI typeof koruması (bkz. o dosyadaki AYNI gerekçe) burada da kullanılır. Pratikte fetch()'in
+    // ağ gecikmesi defer betiklerinin ayrıştırılıp çalışmasından çok daha uzun sürdüğünden bu neredeyse
+    // hiç tetiklenmez, ama koruma yine de ücretsizdir.
+    function wireQuickActions(items){
+      if(typeof mountAllRatingWidgets === 'function') mountAllRatingWidgets();
+      if(typeof wireSaveButtons === 'function') wireSaveButtons('project');
+      if(typeof ShareWidget !== 'undefined'){
+        items.forEach(function(item){
+          if(!item.slug) return;
+          ShareWidget.wire('top100-share-' + item.rank, function(){
+            return { title: item.name, url: 'https://mimarlab.com/proje/' + item.slug };
+          });
+        });
+      }
     }
 
     // Proje isimlerine tıklandığında tam sayfa geçişi yerine ProjectModal popup'ı açılsın (bkz.
@@ -961,7 +1076,9 @@
     document.getElementById('top100-list').addEventListener('click', function(e){
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       var row = e.target.closest('.top100-row');
-      var a = e.target.closest('a.top100-name-link');
+      // Hem isme hem de görsele tıklayınca popup açılsın (bkz. kullanıcı isteği) — ikisi de AYNI
+      // slug'a giden ayrı <a> etiketleri (bkz. renderTop100#posterHtml/nameHtml).
+      var a = e.target.closest('a.top100-name-link, a.top100-poster-link');
       if (!a || !row) return;
       var slug = row.getAttribute('data-slug');
       if (!slug) return;
@@ -1001,11 +1118,24 @@
       document.head.appendChild(script);
     }
 
+    // Toolbar (bkz. kullanıcı isteği: "üstte tek satır filtreleme ve sıralama") — TAM listeyi
+    // yeniden fetch ETMEDEN, önbellekteki TOP100_ITEMS'ten istemci tarafında yeniden sıralar/filtreler.
+    // Görüntülenen rank NUMARASI her zaman gerçek (editöryal+puan tabanlı) sırayı gösterir, yalnızca
+    // satırların DİZİLİŞ SIRASI değişir — ör. alfabetik görünümde bile "#47" etiketi kalır.
+    document.getElementById('top100-sort').addEventListener('change', function(e){
+      TOP100_SORT = e.target.value;
+      renderTop100(sortedFilteredItems());
+    });
+    document.getElementById('top100-filter-linked').addEventListener('change', function(e){
+      TOP100_ONLY_LINKED = e.target.checked;
+      renderTop100(sortedFilteredItems());
+    });
+
     fetch('/api/public/top100')
       .then(function(res){ return res.ok ? res.json() : { items: [] }; })
       .then(function(data){
         TOP100_ITEMS = data.items || [];
-        renderTop100(TOP100_ITEMS);
+        renderTop100(sortedFilteredItems());
         injectListLd(TOP100_ITEMS);
       })
       .catch(function(){

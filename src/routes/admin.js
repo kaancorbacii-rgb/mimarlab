@@ -13,6 +13,7 @@ import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
 import { handleMigrationConflictsAdmin } from './migrationConflicts.js';
+import { handleTop100AdminRoute } from './top100.js';
 import { syncApprovedSubmissionToCanonical, markCanonicalDeletedForSubmission, hideCanonicalForUnapprovedSubmission, collectR2MediaKeys, deleteR2MediaKeys, cleanupReplacedR2Media, MEDIA_IMAGE_FIELDS_BY_TYPE } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
@@ -104,6 +105,7 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'seo') return await handleSeoAdmin(request, env, url, segments);
     if (sub === 'settings') return await handleSiteSettingsAdmin(request, env);
     if (sub === 'performance') return await handlePerformanceAdmin(request, env, segments);
+    if (sub === 'top100') return await handleTop100AdminRoute(request, env, url, segments);
     if (sub === 'summary' && request.method === 'GET') return await handleAdminSummary(env);
     return errorJson('Bulunamadı', 404);
   } catch (err) {

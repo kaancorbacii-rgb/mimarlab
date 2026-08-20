@@ -155,6 +155,25 @@
   .admin-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
   .admin-field input, .admin-field textarea{width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
   .admin-field textarea{min-height:70px; resize:vertical;}
+
+  /* ---------- En İyi 100 sekmesi (bkz. kullanıcı isteği: "admine buradaki projeleri
+     değiştirebilme yetkisi ver") ---------- */
+  .top100-add-suggestions{
+    display:none; position:absolute; top:100%; left:0; right:0; z-index:20; margin-top:4px;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
+  }
+  .top100-add-suggestions.show{display:block;}
+  .top100-add-suggestion{padding:8px 10px; border-radius:8px; font-size:13px; color:var(--ink); cursor:pointer;}
+  .top100-add-suggestion:hover{background:var(--paper-alt);}
+  .top100-add-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
+  .top100-row{display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line-soft); font-size:13px;}
+  .top100-row:first-child{border-top:1px solid var(--line-soft);}
+  .top100-row-rank{flex-shrink:0; width:34px; font-family:'IBM Plex Mono', monospace; font-weight:700; color:var(--ink-soft);}
+  .top100-row-name{flex:1; min-width:0; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .top100-row-slug{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .top100-row-slug.unlinked{color:var(--bad); font-style:italic;}
+  .top100-row-score{flex-shrink:0; width:110px; font-family:'IBM Plex Mono', monospace; color:var(--ink-soft); font-size:12px;}
   .admin-denied{max-width:520px; margin:80px auto; text-align:center; padding:0 24px;}
   .admin-denied h1{font-family:'Inter', sans-serif; font-size:24px;}
 
@@ -287,6 +306,7 @@
         <button class="admin-tab" data-tab="seo">SEO</button>
         <button class="admin-tab" data-tab="settings">Site Ayarları</button>
         <button class="admin-tab" data-tab="performance">Performans</button>
+        <button class="admin-tab" data-tab="top100">En İyi 100</button>
       </div>
 
       <div class="admin-section active" id="section-pending">
@@ -392,6 +412,26 @@
           <button class="admin-btn danger" id="performance-purge">Önbelleği Temizle</button>
         </div>
         <div id="performance-purge-msg" style="margin-top:10px; font-size:12.5px; color:var(--ink-soft);"></div>
+      </div>
+
+      <div class="admin-section" id="section-top100">
+        <div class="admin-form">
+          <h3>Yeni Proje Ekle</h3>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">Proje ara ve seçtiğinde isim/link otomatik dolar. Bulamazsan isim alanına serbest metin yazabilirsin (linksiz görünür). Sıra numarası çakışması sorun değil.</p>
+          <div class="admin-field" style="position:relative;">
+            <label>Proje Ara</label>
+            <input type="text" id="top100-add-search" placeholder="Proje adı yaz…" autocomplete="off">
+            <div class="top100-add-suggestions" id="top100-add-suggestions"></div>
+          </div>
+          <input type="hidden" id="top100-add-slug">
+          <div class="admin-field"><label>İsim</label><input type="text" id="top100-add-name"></div>
+          <div class="admin-field"><label>Sıra No</label><input type="number" id="top100-add-rank" min="1" step="1" value="100"></div>
+          <div class="admin-field"><label>Taban Puan (0-5)</label><input type="number" id="top100-add-avg" min="0" max="5" step="0.01" value="4.00"></div>
+          <div class="admin-field"><label>Taban Oy Sayısı</label><input type="number" id="top100-add-count" min="0" step="1" value="10"></div>
+          <button class="admin-btn primary" id="top100-add-submit">+ Ekle</button>
+          <span class="ud-save-msg" id="top100-add-msg"></span>
+        </div>
+        <div id="top100-admin-list"></div>
       </div>
     </div>
   </div>
@@ -1058,6 +1098,99 @@ async function loadContactMessages(){
   });
 }
 
+// En İyi 100 sekmesi — bkz. kullanıcı isteği: admin projeleri listeden çıkarıp yerine başka bir
+// proje ekleyebilsin. contact-list ile AYNI liste+sil deseni (bkz. loadContactMessages yukarıda),
+// ayrıca proje aramalı bir ekleme formu (nav-search-suggest.js#renderPanel İLE AYNI debounce/
+// öneri deseni, ama bu sayfaya özgü küçük bir kopyası — admin.html paylaşılan bir arama widget'ı
+// içe aktarmıyor).
+async function loadTop100Admin(){
+  const list = document.getElementById('top100-admin-list');
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const data = await api('/api/admin/top100');
+  const items = data.items || [];
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Liste boş.</div>'; return; }
+  list.innerHTML = items.map(it => `
+    <div class="top100-row" data-id="${it.id}">
+      <span class="top100-row-rank">#${it.rnk}</span>
+      <span class="top100-row-name">${escapeHtml(it.name)}</span>
+      <span class="top100-row-slug${it.slug ? '' : ' unlinked'}">${it.slug ? escapeHtml(it.slug) : 'bağlantısız'}</span>
+      <span class="top100-row-score">★ ${it.base_avg.toFixed(2)} · ${it.base_count} oy</span>
+      <button class="admin-btn danger" data-action="remove">Kaldır</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action="remove"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const row = btn.closest('.top100-row');
+      if(!confirm(`"${row.querySelector('.top100-row-name').textContent}" listeden kaldırılsın mı?`)) return;
+      await api(`/api/admin/top100/${row.dataset.id}`, { method:'DELETE' });
+      loadTop100Admin();
+    });
+  });
+}
+
+(function wireTop100AddForm(){
+  const searchInput = document.getElementById('top100-add-search');
+  const suggestBox = document.getElementById('top100-add-suggestions');
+  const slugInput = document.getElementById('top100-add-slug');
+  const nameInput = document.getElementById('top100-add-name');
+  if(!searchInput) return;
+
+  let debounceTimer = null;
+  searchInput.addEventListener('input', ()=>{
+    const q = searchInput.value.trim();
+    slugInput.value = '';
+    clearTimeout(debounceTimer);
+    if(q.length < 2){ suggestBox.classList.remove('show'); return; }
+    debounceTimer = setTimeout(async ()=>{
+      const res = await fetch(`/api/projects?search=${encodeURIComponent(q)}&limit=8`);
+      const data = res.ok ? await res.json() : { items: [] };
+      const projItems = data.items || [];
+      if(!projItems.length){
+        suggestBox.innerHTML = '<div class="top100-add-suggestion">Sonuç yok — isim alanına serbest metin olarak yazabilirsin.</div>';
+        suggestBox.classList.add('show');
+        return;
+      }
+      suggestBox.innerHTML = projItems.map(p => `
+        <div class="top100-add-suggestion" data-slug="${escapeAttr(p.slug)}" data-title="${escapeAttr(p.title)}">
+          ${escapeHtml(p.title)}
+          <small>${escapeHtml(p.location || '')}</small>
+        </div>`).join('');
+      suggestBox.classList.add('show');
+    }, 220);
+  });
+
+  suggestBox.addEventListener('click', (e)=>{
+    const row = e.target.closest('.top100-add-suggestion');
+    if(!row || !row.dataset.slug) return;
+    slugInput.value = row.dataset.slug;
+    nameInput.value = row.dataset.title;
+    searchInput.value = row.dataset.title;
+    suggestBox.classList.remove('show');
+  });
+
+  document.addEventListener('click', (e)=>{
+    if(!e.target.closest('#top100-add-search') && !e.target.closest('#top100-add-suggestions')) suggestBox.classList.remove('show');
+  });
+
+  document.getElementById('top100-add-submit').addEventListener('click', async ()=>{
+    const msg = document.getElementById('top100-add-msg');
+    msg.textContent = '';
+    const body = {
+      rnk: parseInt(document.getElementById('top100-add-rank').value, 10),
+      name: nameInput.value.trim(),
+      slug: slugInput.value.trim() || null,
+      baseAvg: parseFloat(document.getElementById('top100-add-avg').value),
+      baseCount: parseInt(document.getElementById('top100-add-count').value, 10),
+    };
+    if(!body.name){ msg.textContent = 'İsim gerekli.'; return; }
+    const res = await api('/api/admin/top100', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if(res.error){ msg.textContent = res.error; return; }
+    msg.textContent = 'Eklendi.';
+    searchInput.value = ''; nameInput.value = ''; slugInput.value = '';
+    loadTop100Admin();
+  });
+})();
+
 const COMMENT_TARGET_LABELS = { project: 'Proje', news: 'Haber', architect: 'Mimar', office: 'Firma' };
 const COMMENT_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı' };
 let commentsStatus = 'pending';
@@ -1605,6 +1738,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'seo') loadSeo();
     if(tab.dataset.tab === 'settings') loadSiteSettings();
     if(tab.dataset.tab === 'performance') loadPerformance();
+    if(tab.dataset.tab === 'top100') loadTop100Admin();
   });
 });
 
