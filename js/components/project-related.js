@@ -158,6 +158,24 @@ const RelatedProjects = (function () {
   // mount()'a geçirilen excludeSlugsPromise (ArchitectProjects'in gösterdiği TÜM slug'lar) ile sağlanır.
   const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
   const RESULT_COUNT = 15;
+  // YEAR_CLOSE_THRESHOLD — yearProximity() zaten 0..1 arası sürekli bir puan üretiyor (bkz.
+  // scoreCandidate) ama bu, sıralama/ağırlıklı-örnekleme İÇİN bir sinyal, kullanıcıya gösterilecek
+  // bir sayı DEĞİL (bkz. kullanıcı isteği: "anlamsız yüzde skorları üretme"). "Yakın Yıl" etiketi
+  // yalnızca aday gerçekten kaynağa yakınsa (bkz. yukarıdaki YEAR_FULL_ZERO_WINDOW=10 yıllık pencerenin
+  // yarısından azsa, yani ~5 yıl ve altı) eklenir — ikili (var/yok) bir gerçek, ondalıklı bir skor değil.
+  const YEAR_CLOSE_PROXIMITY = 0.5;
+
+  // reasonFor — bir adayın hangi TİER'den geldiğini (bkz. dosya başı yorum: strictPool/
+  // disciplinePool/fallbackPool) + yıl yakınlığını insan-okunur, TAMAMEN kaynak/adayın gerçek
+  // alanlarından türetilmiş bir Türkçe etikete çevirir (bkz. kullanıcı isteği, Faz 2 knowledge-graph
+  // katmanı: "Bu projeler neden ilişkili?" sorusuna cevap). Model/LLM çağrısı YOK — etiket, adayı
+  // zaten SEÇEN aynı karşılaştırmadan (hasSameDiscipline/hasSameCategory/yearProximity) doğrudan
+  // okunur, bu yüzden asla temellendirilmemiş bir gerekçe üretemez.
+  function reasonFor(tierLabel, source, candidate) {
+    const parts = [tierLabel];
+    if (yearProximity(source.date, candidate.date) >= YEAR_CLOSE_PROXIMITY) parts.push('Yakın Yıl');
+    return parts.join(' · ');
+  }
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
@@ -166,7 +184,7 @@ const RelatedProjects = (function () {
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
-      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span></div>
+      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span>${p._reason ? `<div class="related-card-subtitle">${escapeHtml(p._reason)}</div>` : ''}</div>
     </a>`;
   }
 
@@ -385,7 +403,10 @@ const RelatedProjects = (function () {
     // Kural 3 — önce bu oturumda hiç gösterilmemiş adaylardan seç, havuz yetmezse (ör. dar bir
     // Tip/Tür kombinasyonu) daha önce görülmüş adaylarla tamamla (bkz. yukarısı, loadSeenSlugs).
     const seen = loadSeenSlugs();
-    function sampleTier(pool, n) {
+    // tierLabel: reasonFor()'a geçirilir, seçilen her adaya "neden ilişkili" etiketi olarak
+    // (p._reason) iğnelenir (bkz. yukarıdaki reasonFor/cardHtml) — hangi tier'den geldiği zaten
+    // strictPool/disciplinePool/fallbackPool ayrımıyla BİLİNDİĞİNDEN, ayrı bir hesaplama gerekmez.
+    function sampleTier(pool, n, tierLabel) {
       const scored = Array.from(pool.values())
         .map(p => ({ p, score: scoreCandidate(item, p) }))
         .filter(({ score }) => score > -Infinity);
@@ -393,6 +414,7 @@ const RelatedProjects = (function () {
       const stale = scored.filter(({ p }) => seen.has(p.slug));
       let picked = weightedSample(fresh, n);
       if (picked.length < n) picked = picked.concat(weightedSample(stale, n - picked.length));
+      picked.forEach(p => { p._reason = reasonFor(tierLabel, item, p); });
       return picked;
     }
 
@@ -402,14 +424,81 @@ const RelatedProjects = (function () {
     // böylece bölüm, kaynak proje ne kadar niş olursa olsun neredeyse her zaman en az 15 kartla dolu
     // görünür (kullanıcı isteği: "ilgili proje sayısı her zaman en az 15 olsun"), yalnızca sitede o
     // buildStatus'ta/hariç tutulanlar dışında GERÇEKTEN 15'ten az proje varsa daha az kart gösterir.
-    let merged = sampleTier(strictPool, RESULT_COUNT);
-    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(disciplinePool, RESULT_COUNT - merged.length));
-    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(fallbackPool, RESULT_COUNT - merged.length));
+    let merged = sampleTier(strictPool, RESULT_COUNT, 'Aynı Tür ve Tip');
+    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(disciplinePool, RESULT_COUNT - merged.length, 'Aynı Tür'));
+    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(fallbackPool, RESULT_COUNT - merged.length, 'Benzer Proje'));
 
     if (!merged.length) { section.style.display = 'none'; return; }
     section.style.display = '';
     document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
     rememberSeenSlugs(seen, merged.map(p => p.slug));
+  }
+
+  return { mount };
+})();
+
+// CityProjects ("Bu Şehirdeki Diğer Projeler") — MİMARLAB AI, Faz 2 (bkz. kullanıcı isteği: Knowledge
+// Graph katmanı Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkilerinden Şehir'i AÇIKÇA, kendi
+// isimlendirilmiş bölümü olarak yüzeye çıkarır). RelatedProjects zaten şehri bir ADAY TOPLAMA sorgusu
+// olarak kullanıyordu (bkz. gatherCandidateQueries) ama puanlamaya hiç girmiyordu, dolayısıyla
+// kullanıcıya "aynı şehirdekiler" diye ayrı bir liste hiç sunulmuyordu — ArchitectProjects/
+// RelatedProjects İLE AYNI /api/projects ucunu ('location' filtre param'ı, bkz. src/routes/
+// project.js#buildFilterGroups 'Yer') kullanır, yeni bir backend ucu GEREKMEZ. Sunucu tarafında
+// sort=rating_desc zaten en yüksek puanlıyı önce döndürdüğünden burada ayrıca bir skorlama/rastgele
+// örnekleme yapılmaz (RelatedProjects'in aksine bu bölüm için oturum-içi rotasyon istenmedi).
+const CityProjects = (function () {
+  const DEFAULT_IDS = { section: 'pm-city-section', grid: 'pm-city-grid' };
+  let mountSeq = 0;
+  const RESULT_COUNT = 12;
+
+  // reason sabit tutulur ("Aynı Şehir: <il>") — Türkçe hal eki çekimi (İstanbul'DAKİ, İzmir'DEKİ,
+  // Ankara'DAKİ gibi ünlü uyumuna göre değişen) genel bir kural olmadan güvenle üretilemez, bu yüzden
+  // bölüm başlığı ekli bir cümle KURMAZ (bkz. cardHtml altındaki sabit "Bu Şehirdeki Diğer Projeler"
+  // başlığı proje-modal.js'te), yalnızca kartın altında düz "Aynı Şehir: X" etiketiyle gösterilir.
+  function cardHtml(p, city) {
+    const img = p.images && p.images[0];
+    const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
+    return `<a class="related-card" href="/proje/${encodeURIComponent(p.slug)}">
+      <div class="related-card-photo">
+        ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
+      </div>
+      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span><div class="related-card-subtitle">${escapeHtml(`Aynı Şehir: ${city}`)}</div></div>
+    </a>`;
+  }
+
+  // excludeSlugsPromise: ArchitectProjects'in gösterdiği slug'lar (bkz. js/components/
+  // project-modal.js#armDeferredSections) — RelatedProjects'inkiyle AYNI desen, "aynı mimara ait"
+  // projelerin bu bölümde TEKRAR görünmesini engeller. RelatedProjects'in kendi gösterdiği slug'larla
+  // KESİŞMEME garantisi bilerek aranmadı (iki bölüm farklı bir soruyu — Tür/Tip benzerliği vs. Şehir
+  // ortaklığı — yanıtladığından bir proje her ikisinde de haklı olarak çıkabilir).
+  async function mount(item, excludeSlugsPromise, ids) {
+    const mySeq = ++mountSeq;
+    const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
+    const section = document.getElementById(mergedIds.section);
+    if (typeof parseLocationFull !== 'function') { section.style.display = 'none'; return; }
+    const city = parseLocationFull(item.location || '').city;
+    if (!city) { section.style.display = 'none'; return; }
+
+    const buildStatus = item.buildStatus === 'concept' ? 'concept' : 'built';
+    const params = new URLSearchParams();
+    params.set('location', city);
+    params.set('buildStatus', buildStatus);
+    params.set('sort', 'rating_desc');
+    params.set('limit', '96');
+    let items = [];
+    try {
+      const res = await fetch(`/api/projects?${params.toString()}`);
+      if (res.ok) { const data = await res.json(); items = data.items || []; }
+    } catch { /* boş listeyle devam edilir, bölüm aşağıda gizlenir */ }
+    const excludeSlugs = await excludeSlugsPromise;
+    if (mySeq !== mountSeq) return;
+
+    const exclude = new Set(excludeSlugs || []);
+    exclude.add(item.slug);
+    const candidates = items.filter(p => !exclude.has(p.slug));
+    if (!candidates.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    document.getElementById(mergedIds.grid).innerHTML = candidates.slice(0, RESULT_COUNT).map(p => cardHtml(p, city)).join('');
   }
 
   return { mount };

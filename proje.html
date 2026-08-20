@@ -712,6 +712,14 @@
     line-height:1.3; word-break:break-word;
     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis;
   }
+  /* MİMARLAB AI, Faz 2 (bkz. kullanıcı isteği: "Bu projeler neden ilişkili?" sorusuna cevap
+     verilebilsin) — js/components/office-modal.js#.related-card-subtitle İLE BİREBİR AYNI stil,
+     RelatedProjects/CityProjects kartlarının altında hangi kritere göre önerildiğini (Aynı Mimar,
+     Aynı Şehir, Yakın Yıl vb.) gösteren küçük, deterministik bir etiket için. Sayısal bir "eşleşme
+     yüzdesi" DEĞİL, yalnızca gerçek ortak alanı adlandıran düz metin (bkz. kullanıcı isteği:
+     "anlamsız yüzde skorları üretme").
+  */
+  .related-card-subtitle{font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
   .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
   .related-grid-scroll::-webkit-scrollbar{display:none;}
   .related-grid-scroll .related-card{flex:0 0 200px;}

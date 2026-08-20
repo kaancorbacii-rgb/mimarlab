@@ -59,6 +59,11 @@ const ProjectModal = (function () {
       <div class="related-grid-scroll" id="pm-related-grid"></div>
     </div>
 
+    <div class="related-section" id="pm-city-section" aria-live="polite">
+      <h2 class="related-title">Bu Şehirdeki Diğer Projeler</h2>
+      <div class="related-grid-scroll" id="pm-city-grid"></div>
+    </div>
+
     <div class="related-section" id="pm-products-section" aria-live="polite">
       <h2 class="related-title">Kullanılan Ürünler</h2>
       <div class="catalog-grid-scroll" id="pm-products-grid"></div>
@@ -217,16 +222,21 @@ const ProjectModal = (function () {
     const relatedSection = document.getElementById('pm-related-section');
     document.getElementById('pm-same-designer-grid').innerHTML = skeletonCardsHtml(4);
     document.getElementById('pm-related-grid').innerHTML = skeletonCardsHtml(4);
-    // ArchitectProjects/RelatedProjects artık PARALEL yüklenir (bkz. kullanıcı isteği: ana renderı
-    // bloklamadan Promise.allSettled ile arka planda yükleme) — RelatedProjects kendi /api/projects
-    // sorgularını ArchitectProjects'in (çok projeli mimarlarda yavaş olabilen, sayfalanmış) fetch'i
-    // TAMAMEN bitmeden başlatır, yalnızca dışlama seti için architectSlugsPromise'i bekler (bkz.
-    // js/components/project-related.js#mount dosya başı yorumu).
+    document.getElementById('pm-city-grid').innerHTML = skeletonCardsHtml(4);
+    // ArchitectProjects/RelatedProjects/CityProjects artık PARALEL yüklenir (bkz. kullanıcı isteği: ana
+    // renderı bloklamadan Promise.allSettled ile arka planda yükleme) — RelatedProjects/CityProjects
+    // kendi /api/projects sorgularını ArchitectProjects'in (çok projeli mimarlarda yavaş olabilen,
+    // sayfalanmış) fetch'i TAMAMEN bitmeden başlatır, yalnızca dışlama seti için architectSlugsPromise'i
+    // bekler (bkz. js/components/project-related.js#mount dosya başı yorumu). CityProjects — MİMARLAB
+    // AI Faz 2, Proje↔Şehir ilişkisi (bkz. o dosyadaki dosya başı yorum) — AYNI architectSlugsPromise'i
+    // paylaşır, RelatedProjects'in kendi gösterdiği slug'larla kesişmeme garantisi BİLEREK aranmadı
+    // (iki bölüm farklı bir soruyu yanıtlıyor, örtüşme meşru).
     observeOnce(sameDesignerSection, () => {
       if (mySeq !== requestSeq) return;
       const architectSlugsPromise = ArchitectProjects.mount(item).then(r => (mySeq === requestSeq && r) ? r.slugs : new Set());
       const relatedPromise = RelatedProjects.mount(item, architectSlugsPromise);
-      Promise.allSettled([architectSlugsPromise, relatedPromise]);
+      const cityPromise = CityProjects.mount(item, architectSlugsPromise);
+      Promise.allSettled([architectSlugsPromise, relatedPromise, cityPromise]);
     }, 600);
 
     const productsSection = document.getElementById('pm-products-section');
@@ -335,7 +345,7 @@ const ProjectModal = (function () {
   // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
   const HIDE_ON_NOT_FOUND_IDS = ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section',
     'pm-meta', 'pm-desc', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
-    'pm-related-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
+    'pm-related-section', 'pm-city-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
 
   // Puan/oy sayısı artık AYRICA burada gösterilmiyor (bkz. kullanıcı isteği: "puanları proje
   // popuplarına entegre et") — src/routes/ratings.js#summarize artık 'project' hedefi için

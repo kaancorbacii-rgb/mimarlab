@@ -196,6 +196,10 @@ const OfficeModal = (function () {
       <h2 class="related-title">Projeler<span id="om-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
+    <div class="related-section" id="om-city-section" style="display:none;">
+      <h2 class="related-title">Bu Şehirdeki Diğer Firmalar</h2>
+      <div class="related-grid-scroll" id="om-city-grid"></div>
+    </div>
     <div class="related-section" id="om-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler</h2>
       <div class="related-grid-scroll" id="om-related-products-grid"></div>
@@ -380,7 +384,7 @@ const OfficeModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['om-actions', 'om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-related-products-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['om-actions', 'om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
     'om-related-materials-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
@@ -490,6 +494,17 @@ const OfficeModal = (function () {
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
     document.getElementById('om-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
+
+    // MİMARLAB AI, Faz 2 — Firma↔Şehir ilişkisi (bkz. src/routes/office.js#buildOfficePayload
+    // relatedOffices yorumu). Bölüm başlığı zaten "Bu Şehirdeki Diğer Firmalar" diyerek nedeni
+    // açıkladığından (bkz. kullanıcı isteği: sahte/sayısal bir eşleşme skoru DEĞİL), her kartın
+    // altında o firmanın kendi konumu (arama.html sonuç satırlarındaki AYNI kullanım) alt bilgi
+    // olarak gösterilir.
+    const relatedOfficesData = payload.relatedOffices || [];
+    document.getElementById('om-city-section').style.display = relatedOfficesData.length ? '' : 'none';
+    document.getElementById('om-city-grid').innerHTML = relatedOfficesData.map(o2 =>
+      cardHtml(`/firma/${encodeURIComponent(o2.slug)}`, o2.name, logoUrl(o2), o2.loc)
+    ).join('');
 
     // Marka kataloğu — bu firmanın adı ürün/malzeme markası olarak eşleşen canonical products
     // satırları (bkz. src/routes/office.js#buildOfficePayload, relatedProducts/relatedMaterials).
