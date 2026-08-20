@@ -22,12 +22,17 @@ export async function handleTop100Route(request, env, url) {
   const projectBySlug = new Map();
   const projectByLegacyKey = new Map();
   if (slugs.length) {
+    // İKİ AYRI sorgu (bkz. kullanıcı isteği: canlı projects'ten taze isim/görsel çekme) — TEK
+    // sorguda "slug IN (...) OR legacy_key IN (...)" ile aynı ~59 slug listesi İKİ KEZ bind
+    // edilince (118 parametre) D1 "too many SQL variables" ile 500 veriyordu (gerçek bulgu,
+    // canlıda yakalandı — D1'in parametre sınırı SQLite'ın kendi varsayılanından düşük). İki ayrı
+    // sorgu, her biri yalnızca ~59 parametreyle, aynı sonucu sorunsuz üretir.
     const placeholders = slugs.map(() => '?').join(',');
-    const { results } = await env.DB.prepare(
-      `SELECT slug, legacy_key, title, images, location, project_date, hidden_at, deleted_at FROM projects
-       WHERE (slug IN (${placeholders}) OR legacy_key IN (${placeholders}))`
-    ).bind(...slugs, ...slugs).all();
-    for (const row of results) {
+    const [bySlug, byLegacy] = await Promise.all([
+      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, hidden_at, deleted_at FROM projects WHERE slug IN (${placeholders})`).bind(...slugs).all(),
+      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, hidden_at, deleted_at FROM projects WHERE legacy_key IN (${placeholders})`).bind(...slugs).all(),
+    ]);
+    for (const row of [...bySlug.results, ...byLegacy.results]) {
       const parsed = parseCanonicalRow('projects', row);
       if (parsed.slug) projectBySlug.set(parsed.slug, parsed);
       if (parsed.legacy_key) projectByLegacyKey.set(parsed.legacy_key, parsed);
