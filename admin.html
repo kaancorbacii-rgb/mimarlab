@@ -170,10 +170,22 @@
   .top100-row{display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line-soft); font-size:13px;}
   .top100-row:first-child{border-top:1px solid var(--line-soft);}
   .top100-row-rank{flex-shrink:0; width:34px; font-family:'IBM Plex Mono', monospace; font-weight:700; color:var(--ink-soft);}
+  /* Yukarı/Aşağı taşı (bkz. kullanıcı isteği: "90. ile 99. projenin yerini butonlarla
+     değiştirebileyim") — src/routes/top100.js#handleTop100AdminRoute'un move ucuna POST atar. */
+  .top100-row-move{display:flex; flex-direction:column; gap:2px; flex-shrink:0;}
+  .top100-row-move button{width:22px; height:18px; padding:0; line-height:1; font-size:11px; border-radius:5px; border:1px solid var(--line); background:var(--paper-card); color:var(--ink-soft); cursor:pointer;}
+  .top100-row-move button:hover:not(:disabled){border-color:var(--walnut); color:var(--ink);}
+  .top100-row-move button:disabled{opacity:0.35; cursor:not-allowed;}
   .top100-row-name{flex:1; min-width:0; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .top100-row-slug{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .top100-row-slug.unlinked{color:var(--bad); font-style:italic;}
-  .top100-row-score{flex-shrink:0; width:110px; font-family:'IBM Plex Mono', monospace; color:var(--ink-soft); font-size:12px;}
+  /* Manuel puan ortalaması/oy sayısı düzenleme (bkz. kullanıcı isteği: "sadece admin için
+     projelere manuel olarak yorum sayısı ve puan ortalaması girebilme yetkisi ver"). */
+  .top100-row-edit{flex-shrink:0; display:flex; align-items:center; gap:5px;}
+  .top100-row-edit input{width:56px; padding:5px 7px; border-radius:7px; border:1px solid var(--line); background:var(--paper); font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink);}
+  .top100-row-edit input.count{width:66px;}
+  .top100-row-edit button{font-size:11.5px; padding:5px 10px;}
+  .top100-row-edit-msg{font-size:11px; color:var(--sage); margin-left:2px;}
   .admin-denied{max-width:520px; margin:80px auto; text-align:center; padding:0 24px;}
   .admin-denied h1{font-family:'Inter', sans-serif; font-size:24px;}
 
@@ -1103,18 +1115,30 @@ async function loadContactMessages(){
 // ayrıca proje aramalı bir ekleme formu (nav-search-suggest.js#renderPanel İLE AYNI debounce/
 // öneri deseni, ama bu sayfaya özgü küçük bir kopyası — admin.html paylaşılan bir arama widget'ı
 // içe aktarmıyor).
+// GET /api/admin/top100 artık HAM rnk sırasını değil, canlı sayfadakiyle BİREBİR aynı hesaplanan
+// (puana göre) sırayı döner (bkz. src/routes/top100.js#computeTop100 dosya başı yorumu) — bu
+// yüzden buradaki "#N" admin'in canlı sayfada gördüğü N. kayıtla her zaman eşleşir.
 async function loadTop100Admin(){
   const list = document.getElementById('top100-admin-list');
   list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
   const data = await api('/api/admin/top100');
   const items = data.items || [];
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Liste boş.</div>'; return; }
-  list.innerHTML = items.map(it => `
+  list.innerHTML = items.map((it, i) => `
     <div class="top100-row" data-id="${it.id}">
-      <span class="top100-row-rank">#${it.rnk}</span>
+      <span class="top100-row-rank">#${i + 1}</span>
+      <span class="top100-row-move">
+        <button type="button" data-action="up" ${i === 0 ? 'disabled' : ''} title="Yukarı taşı" aria-label="Yukarı taşı">&#9650;</button>
+        <button type="button" data-action="down" ${i === items.length - 1 ? 'disabled' : ''} title="Aşağı taşı" aria-label="Aşağı taşı">&#9660;</button>
+      </span>
       <span class="top100-row-name">${escapeHtml(it.name)}</span>
       <span class="top100-row-slug${it.slug ? '' : ' unlinked'}">${it.slug ? escapeHtml(it.slug) : 'bağlantısız'}</span>
-      <span class="top100-row-score">★ ${it.base_avg.toFixed(2)} · ${it.base_count} oy</span>
+      <span class="top100-row-edit">
+        <input type="number" class="avg" min="0" max="5" step="0.01" value="${it.baseAvg.toFixed(2)}" title="Taban puan ortalaması">
+        <input type="number" class="count" min="0" step="1" value="${it.baseCount}" title="Taban oy sayısı">
+        <button class="admin-btn" data-action="save">Kaydet</button>
+        <span class="top100-row-edit-msg"></span>
+      </span>
       <button class="admin-btn danger" data-action="remove">Kaldır</button>
     </div>
   `).join('');
@@ -1124,6 +1148,27 @@ async function loadTop100Admin(){
       if(!confirm(`"${row.querySelector('.top100-row-name').textContent}" listeden kaldırılsın mı?`)) return;
       await api(`/api/admin/top100/${row.dataset.id}`, { method:'DELETE' });
       loadTop100Admin();
+    });
+  });
+  list.querySelectorAll('[data-action="up"], [data-action="down"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const row = btn.closest('.top100-row');
+      const direction = btn.dataset.action;
+      btn.disabled = true;
+      await api(`/api/admin/top100/${row.dataset.id}/move`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ direction }) });
+      loadTop100Admin();
+    });
+  });
+  list.querySelectorAll('[data-action="save"]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const row = btn.closest('.top100-row');
+      const msg = row.querySelector('.top100-row-edit-msg');
+      const baseAvg = parseFloat(row.querySelector('.top100-row-edit .avg').value);
+      const baseCount = parseInt(row.querySelector('.top100-row-edit .count').value, 10);
+      const res = await api(`/api/admin/top100/${row.dataset.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ baseAvg, baseCount }) });
+      if(res.error){ msg.textContent = res.error; return; }
+      msg.textContent = 'Kaydedildi.';
+      setTimeout(() => loadTop100Admin(), 500);
     });
   });
 }

@@ -317,13 +317,19 @@ const ProjectModal = (function () {
     'pm-meta', 'pm-desc', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
     'pm-related-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
 
+  // Puan/oy sayısı artık AYRICA burada gösterilmiyor (bkz. kullanıcı isteği: "puanları proje
+  // popuplarına entegre et") — src/routes/ratings.js#summarize artık 'project' hedefi için
+  // top100_entries taban puanını gerçek oylarla harmanladığından, hemen altındaki #pm-rating
+  // (rating-widget) ZATEN bu popup'ta AYNI (En İyi 100 listesindeki) ortalama/oy sayısını
+  // gösteriyor — burada ikinci kez tekrarlamak, hızlı oy sonrası sadece BU rozetin bayat kalıp
+  // widget'la çelişmesine yol açan eski gerçek bulguyu (200 oy sabit kalırken widget 201'e
+  // atlaması) yeniden yaratırdı. Rozet artık yalnızca sıra numarasını taşıyor.
   function renderTopRankBadge(item) {
     const el = document.getElementById('pm-top-rank');
     if (!el) return;
     if (!currentTopRank) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = '';
-    el.innerHTML = `<span class="pm-top-rank-badge">En İyi 100: #${currentTopRank.rank}</span>` +
-      `<span class="pm-top-rank-score">&#9733; ${currentTopRank.avg.toFixed(2)} <span class="pm-top-rank-count">(${currentTopRank.count} oy)</span></span>`;
+    el.innerHTML = `<span class="pm-top-rank-badge">En İyi 100: #${currentTopRank.rank}</span>`;
   }
 
   async function renderItem(item, mySeq) {

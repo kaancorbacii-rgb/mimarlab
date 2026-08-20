@@ -84,7 +84,13 @@ async function mountRatingWidget(el){
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetType, targetId, stars }),
       });
-      if(res.ok) current = await res.json();
+      if(res.ok){
+        current = await res.json();
+        // en-iyi-100.html gibi sayfalar hızlı oydan hemen sonra kendi görünümlerini (sıra/oy
+        // sayısı) yeniden çekmeden güncelleyebilsin diye (bkz. kullanıcı isteği: "hızlı oy hemen
+        // yansımalı") — bubbling ile üst konteynerler tek bir delege dinleyiciyle yakalayabilir.
+        el.dispatchEvent(new CustomEvent('ratingchange', { bubbles: true, detail: { targetType, targetId, average: current.average, count: current.count } }));
+      }
     } finally {
       paint();
     }

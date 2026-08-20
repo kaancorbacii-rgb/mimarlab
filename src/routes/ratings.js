@@ -25,11 +25,33 @@ export async function handleRatingsRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
+// En İyi 100 editöryal taban puanını (top100_entries) gerçek oylarla harmanlar — src/routes/
+// top100.js#computeTop100'daki AYNI harmanlama formülü. kullanıcı isteği: "Proje popuplarına En
+// İyi 100 sayfasındaki puanları ve puan sayılarını entegre et" — bu olmadan bir proje popup'ta
+// (rating-widget) yalnızca gerçek oyları, En İyi 100 listesinde ise taban+gerçek karışımını
+// gösteriyor, aynı proje için İKİ FARKLI sayı görünüyordu (gerçek bulgu: "200 oy" rozeti ile
+// altındaki "5.0 (1)" widget'ı aynı anda görünüyordu). target_id proje puanlarında HER ZAMAN
+// canonical slug'tır (bkz. dosya sonundaki CANONICAL_TYPE_BY_TARGET yorumu).
+async function projectTop100Base(env, slug) {
+  if (!slug) return null;
+  return env.DB.prepare(`SELECT base_avg, base_count FROM top100_entries WHERE slug = ?`).bind(slug).first();
+}
+
 async function summarize(env, targetType, targetId) {
   const row = await env.DB.prepare(
     'SELECT AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type = ? AND target_id = ?'
   ).bind(targetType, targetId).first();
-  return { average: row && row.count ? row.average : 0, count: row ? row.count : 0 };
+  let average = row && row.count ? row.average : 0;
+  let count = row ? row.count : 0;
+  if (targetType === 'project') {
+    const base = await projectTop100Base(env, targetId);
+    if (base) {
+      const blendedCount = count + base.base_count;
+      average = blendedCount > 0 ? (average * count + base.base_avg * base.base_count) / blendedCount : base.base_avg;
+      count = blendedCount;
+    }
+  }
+  return { average, count };
 }
 
 async function getRating(request, env, url) {
@@ -165,5 +187,25 @@ async function bulkRatings(env, url) {
     'SELECT target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type = ? GROUP BY target_id'
   ).bind(targetType).all();
 
-  return json({ items: results });
+  if (targetType !== 'project') return json({ items: results });
+
+  // summarize()'daki AYNI harmanlama, toplu (kart rozetleri) tarafı için — bkz. o fonksiyondaki
+  // yorum. Bir top100 projesi hiç gerçek oy almamışsa yukarıdaki GROUP BY sorgusunda satırı hiç
+  // yok — taban puanını (0 gerçek oyla) burada AYRICA eklemezsek kart rozeti "henüz puan yok"
+  // gösterirdi, En İyi 100 listesindeki taban puanla çelişirdi.
+  const { results: baseRows } = await env.DB.prepare(`SELECT slug, base_avg, base_count FROM top100_entries WHERE slug IS NOT NULL`).all();
+  const baseBySlug = new Map(baseRows.map(r => [r.slug, r]));
+  const seen = new Set();
+  const merged = results.map(r => {
+    seen.add(r.target_id);
+    const base = baseBySlug.get(r.target_id);
+    if (!base) return r;
+    const blendedCount = r.count + base.base_count;
+    return { target_id: r.target_id, average: blendedCount > 0 ? (r.average * r.count + base.base_avg * base.base_count) / blendedCount : base.base_avg, count: blendedCount };
+  });
+  for (const [slug, base] of baseBySlug) {
+    if (!seen.has(slug)) merged.push({ target_id: slug, average: base.base_avg, count: base.base_count });
+  }
+
+  return json({ items: merged });
 }
