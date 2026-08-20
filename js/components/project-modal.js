@@ -6,6 +6,7 @@
 const ProjectModal = (function () {
   const LEFT_TEMPLATE = `
     <h1 class="detail-title" id="pm-title"></h1>
+    <div class="pm-top-rank" id="pm-top-rank" style="display:none;"></div>
     <div class="pm-rating-save-row" id="pm-rating-save-row">
       <div class="rating-widget" id="pm-rating" data-type="project"></div>
       <div id="pm-save-slot"></div>
@@ -82,6 +83,11 @@ const ProjectModal = (function () {
   let currentSlug = null;
   let currentItem = null;
   let currentBasePath = '/proje/';
+  // En İyi 100 sayfasından açılan popup'larda sıra/puan rozeti (bkz. en-iyi-100.html#click handler,
+  // kullanıcı isteği: "puanları proje popuplarına da ekle") — yalnızca open()'a topRank verildiğinde
+  // dolar, başka bir projeye swap() ile geçilince temizlenir (bkz. swap(), o rozet YALNIZCA açılan
+  // projeye özgü, geçilen projede anlamsız).
+  let currentTopRank = null;
   let openedViaPush = false; // bu açılış gerçek bir tıklamadan mı geldi (history.back güvenli mi)
   let pushCountSinceOpen = 0; // open() + o zamandan beri yapılan swap() sayısı — kapatırken TÜMÜNÜ
   // tek seferde geri sarmak için (bkz. close(), history.go(-N)) — modal içinde birden fazla projeye
@@ -309,7 +315,16 @@ const ProjectModal = (function () {
   // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
   const HIDE_ON_NOT_FOUND_IDS = ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section',
     'pm-meta', 'pm-desc', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
-    'pm-related-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap'];
+    'pm-related-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
+
+  function renderTopRankBadge(item) {
+    const el = document.getElementById('pm-top-rank');
+    if (!el) return;
+    if (!currentTopRank) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = '';
+    el.innerHTML = `<span class="pm-top-rank-badge">En İyi 100: #${currentTopRank.rank}</span>` +
+      `<span class="pm-top-rank-score">&#9733; ${currentTopRank.avg.toFixed(2)} <span class="pm-top-rank-count">(${currentTopRank.count} oy)</span></span>`;
+  }
 
   async function renderItem(item, mySeq) {
     currentItem = item;
@@ -318,6 +333,7 @@ const ProjectModal = (function () {
       if (el) el.style.display = '';
     });
     updateHeadMeta(item);
+    renderTopRankBadge(item);
     renderByline(item);
     ProjectMeta.render(item);
     ProjectGallery.render(item);
@@ -343,10 +359,11 @@ const ProjectModal = (function () {
     });
   }
 
-  async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/proje/' } = {}) {
+  async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/proje/', topRank = null } = {}) {
     await ModalShell.waitForPendingNav();
     currentSlug = slug;
     currentBasePath = basePath;
+    currentTopRank = topRank;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
     if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: 1 }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
@@ -368,6 +385,7 @@ const ProjectModal = (function () {
     await ModalShell.waitForPendingNav();
     if (basePath) currentBasePath = basePath;
     currentSlug = slug;
+    currentTopRank = null;
     // pushCountSinceOpen'ı doğrudan artırmak yerine mevcut history.state.depth'ten türetilir — bkz.
     // gerçek bulgu: kullanıcı iki proje gezindikten SONRA tarayıcının geri tuşuyla bir öncekine
     // dönüp ORADAN X/Escape'e basarsa, salt artan bir sayaç (her swap()'ta ++) geri navigasyonu asla

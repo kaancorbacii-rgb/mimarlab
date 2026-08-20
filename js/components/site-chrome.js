@@ -14,7 +14,6 @@
 
   const NAV_ITEMS = [
     { key: 'proje', href: 'proje.html', label: 'Proje' },
-    { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
     { key: 'mimar', href: 'mimar.html', label: 'Mimar' },
     { key: 'firma', href: 'firma.html', label: 'Firma' },
     { key: 'en-iyi-100', href: 'en-iyi-100.html', label: 'En İyi 100' },
@@ -69,7 +68,6 @@
     <div class="nav-links">
       ${desktopLinks}
     </div>
-    <div class="mega-menu" id="urun-mega-menu"></div>
     <div class="nav-right">
       <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
     </div>
@@ -95,7 +93,7 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="en-iyi-100.html">En İyi 100</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="en-iyi-100.html">En İyi 100</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
       <div class="footer-col footer-newsletter">

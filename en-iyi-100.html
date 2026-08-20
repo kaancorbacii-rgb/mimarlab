@@ -371,6 +371,13 @@
      (.rating-widget, .designer-chip, .comment-row vb.) proje-detay.html ile BİREBİR aynı — aynı
      paylaşılan JS (rating-widget.js, js/components/project-*.js) bu isimlere yazıyor. */
   .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+  /* En İyi 100 rozeti (bkz. js/components/project-modal.js#renderTopRankBadge, kullanıcı isteği:
+     "puanları proje popuplarına da ekle") — yalnızca bu sayfadan açılan popup'ta dolar, bu yüzden
+     CSS'i de yalnızca bu sayfada tutulur (diğer proje popup'ları hiç etkilenmez). */
+  .pm-top-rank{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;}
+  .pm-top-rank-badge{display:inline-flex; align-items:center; background:var(--ink); color:var(--paper-card); border-radius:100px; padding:5px 14px; font-size:12.5px; font-weight:700;}
+  .pm-top-rank-score{display:inline-flex; align-items:center; gap:5px; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:13.5px; color:var(--accent);}
+  .pm-top-rank-count{font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--ink-soft);}
   /* "X tarafından" satırı — js/components/product-modal.js/haber-detay.html'deki AYNI .detail-byline
      kuralları (kullanıcı isteği: Puanla/Kaydet/Paylaş satırının hemen altına yeniden eklendi). Yalnızca
      üye gönderisi kökenli projelerde dolu (bkz. src/routes/project.js#fetchOwnerByline), diğerlerinde
@@ -780,30 +787,45 @@
   }
 
   /* ---------- CONTENT (Sıralama sayfası) ---------- */
-  .content-wrap{max-width:820px; margin:0 auto; padding:56px 32px 90px;}
+  .content-wrap{max-width:900px; margin:0 auto; padding:56px 32px 90px;}
   .content-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
   .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
   .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 14px;}
   .content-note{font-size:13.5px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px; padding:14px 16px; background:var(--paper-card); border:1px solid var(--line); border-radius:10px;}
   .content-note strong{color:var(--ink);}
 
-  /* ---------- TOP 100 LIST ---------- */
+  /* ---------- TOP 100 LIST — IMDB Top 250 tarzı satır düzeni (bkz. kullanıcı isteği: ekteki
+     görsel referans alınarak, isim yanında 4:3 proje görseli + puan/oy + sıralama değişim oku) ---------- */
   .top100-list{list-style:none; margin:0; padding:0; border-top:1px solid var(--line);}
-  .top100-row{display:flex; align-items:center; gap:14px; padding:13px 4px; border-bottom:1px solid var(--line-soft);}
-  .top100-rank{flex-shrink:0; width:38px; text-align:right; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:14.5px; color:var(--ink-soft);}
-  .top100-row.top3 .top100-rank{color:var(--accent); font-size:17px;}
-  .top100-name{flex:1; min-width:0; font-size:15px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  a.top100-name-link{color:var(--walnut);}
-  a.top100-name-link:hover{text-decoration:underline;}
-  .top100-unlinked{color:var(--ink);}
-  .top100-meta{flex-shrink:0; display:flex; align-items:center; gap:12px; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft); white-space:nowrap;}
-  .top100-avg{color:var(--accent); font-weight:600;}
-  .top100-votes{opacity:0.85;}
+  .top100-row{display:flex; align-items:center; gap:16px; padding:14px 4px; border-bottom:1px solid var(--line-soft);}
+  .top100-rank-wrap{flex-shrink:0; width:34px; display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .top100-rank{font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:16px; color:var(--ink-soft); line-height:1;}
+  .top100-row.top3 .top100-rank{color:var(--accent); font-size:19px;}
+  .top100-delta{display:flex; align-items:center; justify-content:center;}
+  .top100-delta.up{color:var(--good, #2E9E5B);}
+  .top100-delta.down{color:var(--bad, #C0392B);}
+  .top100-delta.flat{color:var(--ink-soft); opacity:0.55;}
+  .top100-poster{flex-shrink:0; width:104px; aspect-ratio:4/3; border-radius:10px; overflow:hidden; position:relative; background:var(--paper-alt);}
+  .top100-poster img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .top100-poster-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:17px; font-weight:700;}
+  .top100-body{flex:1; min-width:0;}
+  .top100-name{display:block; font-size:15.5px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  a.top100-name-link:hover{color:var(--walnut); text-decoration:underline;}
+  .top100-submeta{margin-top:3px; font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .top100-rating{flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:78px;}
+  .top100-avg{display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:15px; color:var(--ink);}
+  .top100-avg svg{color:var(--accent); flex-shrink:0;}
+  .top100-votes{font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 
   @media (max-width:560px){
-    .top100-meta{gap:8px; font-size:11px;}
-    .top100-rank{width:30px; font-size:13px;}
+    .top100-row{gap:10px;}
+    .top100-poster{width:80px;}
+    .top100-rank-wrap{width:26px;}
+    .top100-rank{font-size:13.5px;}
     .top100-name{font-size:13.5px;}
+    .top100-submeta{font-size:11.5px;}
+    .top100-rating{min-width:60px;}
+    .top100-avg{font-size:13px;}
   }
 
   @media (max-width:720px){
@@ -854,7 +876,7 @@
     <div class="content-eyebrow">Sıralama</div>
     <h1 class="content-title">En İyi 100 Mimari Eser</h1>
     <p class="content-lead">MİMARLAB kullanıcılarının verdiği puanlara göre oluşturulan, Türkiye'nin en iyi 100 mimari eseri. Sırasıyla en yüksek ortalama puanı alan yapılar listelenir; isme tıklayarak sitedeki proje sayfasına gidebilirsiniz.</p>
-    <p class="content-note"><strong>Nasıl oluşturulur?</strong> Listeye girebilmek için bir eserin en az 20 değerlendirme alması gerekir. Sıralama dinamiktir — zamanla bazı eserler listeden çıkabilir, yeni değerlendirme alan eserler yerlerini alabilir.</p>
+    <p class="content-note"><strong>Nasıl oluşturulur?</strong> Sıralama editöryal bir taban üzerine kuruludur; MİMARLAB kullanıcılarının verdiği yeni puanlar zamanla bu tabanın üzerine eklenerek sırayı etkiler. Bir eserin sıralamadaki yeri geçen sefere göre değiştiyse isminin yanında yukarı (yükseldi), aşağı (düştü) ya da yatay çizgi (sabit) işareti görünür.</p>
 
     <ol class="top100-list" id="top100-list"></ol>
   </div>
@@ -867,46 +889,88 @@
     // global adı bekliyor, proje.js burada yüklü olmadığından kendimiz tanımlıyoruz.
     var parseLocation = parseLocationFull;
 
-    var TOP100_ENTRIES = [{"r": 1, "n": "Ayasofya", "s": "ayasofya-camii", "c": 200, "a": 4.95}, {"r": 2, "n": "Selimiye Camii", "s": "selimiye-camii", "c": 185, "a": 4.89}, {"r": 3, "n": "Divriği Ulu Camii", "s": null, "c": 182, "a": 4.88}, {"r": 4, "n": "Süleymaniye Camii", "s": "suleymaniye-camii", "c": 179, "a": 4.87}, {"r": 5, "n": "Aspendos", "s": null, "c": 176, "a": 4.86}, {"r": 6, "n": "Göbeklitepe", "s": "gobeklitepe", "c": 174, "a": 4.85}, {"r": 7, "n": "Atatürk Kültür Merkezi", "s": "ataturk-kultur-merkezi", "c": 172, "a": 4.84}, {"r": 8, "n": "Topkapı Sarayı", "s": "topkapi-sarayi", "c": 170, "a": 4.83}, {"r": 9, "n": "Anıtkabir", "s": "anitkabir", "c": 167, "a": 4.83}, {"r": 10, "n": "Florya Atatürk Köşkü", "s": null, "c": 165, "a": 4.82}, {"r": 11, "n": "ODTÜ Mimarlık Fakültesi", "s": "odtu-mimarlik-fakultesi", "c": 163, "a": 4.81}, {"r": 12, "n": "Sümela Manastırı", "s": "sumela-manastiri", "c": 161, "a": 4.8}, {"r": 13, "n": "Türk Tarih Kurumu", "s": "turk-tarih-kurumu", "c": 159, "a": 4.79}, {"r": 14, "n": "Haydarpaşa", "s": "haydarpasa-gari", "c": 157, "a": 4.79}, {"r": 15, "n": "Celsus Kitaplığı", "s": null, "c": 155, "a": 4.78}, {"r": 16, "n": "Amcazade Yalısı", "s": null, "c": 153, "a": 4.77}, {"r": 17, "n": "İstanbul Manifaturacılar Çarşısı (İMÇ)", "s": null, "c": 152, "a": 4.77}, {"r": 18, "n": "İshak Paşa Sarayı", "s": null, "c": 150, "a": 4.76}, {"r": 19, "n": "TBMM Camii", "s": "tbmm-camii", "c": 148, "a": 4.75}, {"r": 20, "n": "Rüstem Paşa Camii", "s": "rustem-pasa-camii", "c": 146, "a": 4.75}, {"r": 21, "n": "SSK Zeyrek Tesisleri", "s": "sosyal-sigortalar-kompleksi", "c": 144, "a": 4.74}, {"r": 22, "n": "Kapalıçarşı", "s": "kapalicarsi", "c": 142, "a": 4.73}, {"r": 23, "n": "Sokullu Mehmet Paşa Camii", "s": "sokullu-mehmed-pasa-camii-kadirga", "c": 140, "a": 4.73}, {"r": 24, "n": "Yerebatan Sarnıcı", "s": "yerebatan-sarnici-basilica-cistern", "c": 139, "a": 4.72}, {"r": 25, "n": "Botter Apartmanı", "s": "botter-apartmani", "c": 137, "a": 4.71}, {"r": 26, "n": "Çatalhöyük", "s": null, "c": 135, "a": 4.71}, {"r": 27, "n": "Şemsi Paşa Camii", "s": "semsi-pasa-camii", "c": 133, "a": 4.7}, {"r": 28, "n": "Bursa Ulu Camii", "s": null, "c": 132, "a": 4.69}, {"r": 29, "n": "Dolmabahçe Sarayı", "s": "dolmabahce-sarayi", "c": 130, "a": 4.69}, {"r": 30, "n": "Galata Kulesi", "s": "galata-kulesi", "c": 128, "a": 4.68}, {"r": 31, "n": "Ankara Dil, Tarih, Coğrafya Fakültesi", "s": null, "c": 126, "a": 4.67}, {"r": 32, "n": "Büyük Postane", "s": "buyuk-postane", "c": 125, "a": 4.67}, {"r": 33, "n": "Kariye", "s": "kariye-camii", "c": 123, "a": 4.66}, {"r": 34, "n": "Mağlova Su Kemeri", "s": null, "c": 121, "a": 4.65}, {"r": 35, "n": "Milli Reasürans Çarşısı", "s": "milli-reasurans-genel-mudurlugu-binasi", "c": 120, "a": 4.65}, {"r": 36, "n": "ODTÜ Kampüsü", "s": null, "c": 118, "a": 4.64}, {"r": 37, "n": "Edirne II. Beyazıt Külliyesi", "s": null, "c": 116, "a": 4.64}, {"r": 38, "n": "Bodrum Demir Evleri", "s": null, "c": 115, "a": 4.63}, {"r": 39, "n": "Beyşehir Eşrefoğlu Camii", "s": null, "c": 113, "a": 4.62}, {"r": 40, "n": "Karatepe Kazı Alanı Saçakları", "s": "karatepe-aslantas-acik-hava-muzesi", "c": 111, "a": 4.62}, {"r": 41, "n": "Osmanlı Bankası Müzesi (Salt Galata)", "s": null, "c": 110, "a": 4.61}, {"r": 42, "n": "Süleymaniye Külliyesi", "s": "suleymaniye-camii", "c": 108, "a": 4.61}, {"r": 43, "n": "İstanbul Surları", "s": null, "c": 106, "a": 4.6}, {"r": 44, "n": "Didim Apollon Tapınağı", "s": null, "c": 105, "a": 4.59}, {"r": 45, "n": "Mihrimah Sultan Camii", "s": null, "c": 103, "a": 4.59}, {"r": 46, "n": "Taut Evi", "s": null, "c": 101, "a": 4.58}, {"r": 47, "n": "Türk Dil Kurumu Binası", "s": "turk-dil-kurumu", "c": 100, "a": 4.58}, {"r": 48, "n": "Diyarbakır Kalesi, Surları ve Hevsel Bahçeleri", "s": null, "c": 98, "a": 4.57}, {"r": 49, "n": "Sancaklar Camii", "s": "sancaklar-camii", "c": 97, "a": 4.56}, {"r": 50, "n": "Akdamar Kilisesi", "s": null, "c": 95, "a": 4.56}, {"r": 51, "n": "Bursa Yeşil Camii", "s": null, "c": 93, "a": 4.55}, {"r": 52, "n": "Efes Antik Kenti", "s": null, "c": 92, "a": 4.55}, {"r": 53, "n": "Büyükada Anadolu Kulübü", "s": "buyukada-anadolu-kulubu", "c": 90, "a": 4.54}, {"r": 54, "n": "İstanbul Üniversitesi Fen, Edebiyat Fakültesi", "s": null, "c": 89, "a": 4.53}, {"r": 55, "n": "Ani Harabeleri", "s": null, "c": 87, "a": 4.53}, {"r": 56, "n": "Erzurum Çifte Minare", "s": null, "c": 86, "a": 4.52}, {"r": 57, "n": "TBMM", "s": null, "c": 84, "a": 4.52}, {"r": 58, "n": "Ankara Garı ve Gazinosu", "s": null, "c": 82, "a": 4.51}, {"r": 59, "n": "İstanbul Bilgi Üniversitesi Santral Kampüsü", "s": null, "c": 81, "a": 4.51}, {"r": 60, "n": "Büyükada Rum Yetimhanesi", "s": null, "c": 79, "a": 4.5}, {"r": 61, "n": "Sultanhanı Kervansarayı", "s": null, "c": 78, "a": 4.49}, {"r": 62, "n": "Artemis Tapınağı", "s": null, "c": 76, "a": 4.49}, {"r": 63, "n": "Şeyh Zafirin Türbesi ve Kitaplığı", "s": null, "c": 75, "a": 4.48}, {"r": 64, "n": "Afrodisyas Antik Kenti", "s": null, "c": 73, "a": 4.48}, {"r": 65, "n": "Ahlat Selçuklu Mezarlığı", "s": null, "c": 72, "a": 4.47}, {"r": 66, "n": "Bergama Açıkhava Tiyatrosu", "s": null, "c": 70, "a": 4.47}, {"r": 67, "n": "Taşkışla", "s": "taskisla", "c": 69, "a": 4.46}, {"r": 68, "n": "İş Bankası Eski Genel Müdürlük Binası", "s": null, "c": 67, "a": 4.45}, {"r": 69, "n": "Nemrud Dağı Antiochus Anıt Mezarı", "s": null, "c": 66, "a": 4.45}, {"r": 70, "n": "Sergios Bakhos (Küçük Ayasofya)", "s": "kucuk-ayasofya-camii", "c": 64, "a": 4.44}, {"r": 71, "n": "Deyrülzafaran Manastırı", "s": null, "c": 63, "a": 4.44}, {"r": 72, "n": "Sagalassos", "s": null, "c": 61, "a": 4.43}, {"r": 73, "n": "Mimar Vedat Tek Evi", "s": null, "c": 60, "a": 4.43}, {"r": 74, "n": "Rumelihisarı", "s": null, "c": 58, "a": 4.42}, {"r": 75, "n": "Hattuşa", "s": null, "c": 57, "a": 4.42}, {"r": 76, "n": "Hukukçular Sitesi", "s": null, "c": 55, "a": 4.41}, {"r": 77, "n": "Ankara Sergi Evi", "s": null, "c": 54, "a": 4.4}, {"r": 78, "n": "Birgi Çakırağa Konağı", "s": null, "c": 52, "a": 4.4}, {"r": 79, "n": "Priene Apollon Tapınağı", "s": null, "c": 51, "a": 4.39}, {"r": 80, "n": "Ortaköy Camii", "s": "ortakoy-camii", "c": 49, "a": 4.39}, {"r": 81, "n": "Ayvacık B2 Evi", "s": "b2-evi", "c": 48, "a": 4.38}, {"r": 82, "n": "Bergama Antik Kenti", "s": null, "c": 46, "a": 4.38}, {"r": 83, "n": "Harran Kubbeli Evleri", "s": null, "c": 45, "a": 4.37}, {"r": 84, "n": "Fener Rum Patrikhanesi / Lisesi / Balat Rum Okulu", "s": null, "c": 43, "a": 4.37}, {"r": 85, "n": "İstanbul Hilton Oteli", "s": null, "c": 42, "a": 4.36}, {"r": 86, "n": "Amanruya Otel", "s": "amanruya-oteli", "c": 40, "a": 4.35}, {"r": 87, "n": "Bergama Zeus Altarı", "s": null, "c": 39, "a": 4.35}, {"r": 88, "n": "Şehzade Camii", "s": "sehzade-camii", "c": 37, "a": 4.34}, {"r": 89, "n": "Safranbolu Evleri", "s": null, "c": 36, "a": 4.34}, {"r": 90, "n": "Kızkulesi", "s": null, "c": 34, "a": 4.33}, {"r": 91, "n": "Nuruosmaniye", "s": "nuruosmaniye-camii", "c": 33, "a": 4.33}, {"r": 92, "n": "Sultanahmet Camii ve Külliyesi", "s": "sultanahmet-camii", "c": 32, "a": 4.32}, {"r": 93, "n": "Cumhurbaşkanlığı Köşkü", "s": null, "c": 30, "a": 4.32}, {"r": 94, "n": "Aya İrini", "s": "aya-irini-kilisesi", "c": 29, "a": 4.31}, {"r": 95, "n": "Bodrum Ahmet Ertegün Evi", "s": "ertegun-evi-2", "c": 27, "a": 4.31}, {"r": 96, "n": "Priene Antik Kenti", "s": null, "c": 26, "a": 4.3}, {"r": 97, "n": "Çerkezköy ATK Lojmanları", "s": null, "c": 24, "a": 4.3}, {"r": 98, "n": "Kılıç Ali Paşa Camii", "s": "kilic-ali-pasa-camii", "c": 23, "a": 4.29}, {"r": 99, "n": "Rıza Derviş Villası", "s": null, "c": 21, "a": 4.29}, {"r": 100, "n": "Üsküdar Şemsi Paşa Külliyesi", "s": "semsi-pasa-camii", "c": 20, "a": 4.28}];
-
     function escapeHtml(s){ var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
     function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-    function renderTop100(){
+    // Kart görselsiz kaldığında baş harf + sabit renk (bkz. js/pages/proje.js#initials/officeColor
+    // İLE AYNI desen — bu sayfa proje.js'i yüklemediğinden burada küçük bir kopyası tutulur).
+    function initials(name){
+      var parts = (name || '').trim().split(/\s+/).filter(Boolean);
+      if(!parts.length) return '?';
+      return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+    }
+    var PLACEHOLDER_COLORS = ['#2B425F', '#5B7A9B', '#4F6478', '#8A6D4E', '#6B5B95', '#3F6656'];
+    function placeholderColor(name){
+      var s = name || ''; var hash = 0;
+      for(var i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+      return PLACEHOLDER_COLORS[hash % PLACEHOLDER_COLORS.length];
+    }
+
+    var DELTA_ICONS = {
+      up: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l9 14H3z"/></svg>',
+      down: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20 3 6h18z"/></svg>',
+      flat: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"/></svg>'
+    };
+
+    var TOP100_ITEMS = [];
+
+    function renderTop100(items){
       var list = document.getElementById('top100-list');
-      var rows = TOP100_ENTRIES.map(function(item){
-        var rankClass = item.r <= 3 ? ' top3' : '';
-        var nameHtml = item.s
-          ? '<a class="top100-name-link" href="/proje/' + encodeURIComponent(item.s) + '">' + escapeHtml(item.n) + '</a>'
-          : '<span class="top100-unlinked">' + escapeHtml(item.n) + '</span>';
-        return '<li class="top100-row' + rankClass + '">' +
-          '<span class="top100-rank">' + item.r + '</span>' +
-          '<span class="top100-name">' + nameHtml + '</span>' +
-          '<span class="top100-meta">' +
-            '<span class="top100-avg">&#9733; ' + item.a.toFixed(2) + '</span>' +
-            '<span class="top100-votes">' + item.c + ' oy</span>' +
+      var rows = items.map(function(item){
+        var rankClass = item.rank <= 3 ? ' top3' : '';
+        var posterInner = item.image
+          ? '<img src="' + escapeAttr(cdnImg(item.image, 220)) + '" alt="" loading="lazy" decoding="async">'
+          : '<div class="top100-poster-placeholder" style="background:' + placeholderColor(item.name) + '">' + escapeHtml(initials(item.name)) + '</div>';
+        var loc = item.location ? parseLocation(item.location) : null;
+        var submetaParts = [];
+        if(loc && loc.city) submetaParts.push(loc.city);
+        if(item.projectDate) submetaParts.push(item.projectDate);
+        var submeta = submetaParts.join(' · ');
+        var nameHtml = item.slug
+          ? '<a class="top100-name-link" href="/proje/' + encodeURIComponent(item.slug) + '">' + escapeHtml(item.name) + '</a>'
+          : escapeHtml(item.name);
+        return '<li class="top100-row' + rankClass + '" data-slug="' + escapeAttr(item.slug || '') + '" data-rank="' + item.rank + '" data-avg="' + item.avg + '" data-count="' + item.count + '">' +
+          '<span class="top100-rank-wrap">' +
+            '<span class="top100-rank">' + item.rank + '</span>' +
+            '<span class="top100-delta ' + item.delta + '" title="' + (item.delta === 'up' ? 'Sıralamada yükseldi' : item.delta === 'down' ? 'Sıralamada düştü' : 'Sıralaması sabit') + '">' + DELTA_ICONS[item.delta] + '</span>' +
+          '</span>' +
+          '<span class="top100-poster">' + posterInner + '</span>' +
+          '<span class="top100-body">' +
+            '<span class="top100-name">' + nameHtml + '</span>' +
+            (submeta ? '<span class="top100-submeta">' + escapeHtml(submeta) + '</span>' : '') +
+          '</span>' +
+          '<span class="top100-rating">' +
+            '<span class="top100-avg">&#9733; ' + item.avg.toFixed(2) + '</span>' +
+            '<span class="top100-votes">' + item.count + ' oy</span>' +
           '</span>' +
         '</li>';
       }).join('');
       list.innerHTML = rows;
     }
-    renderTop100();
 
     // Proje isimlerine tıklandığında tam sayfa geçişi yerine ProjectModal popup'ı açılsın (bkz.
     // kullanıcı isteği) — js/pages/proje.js'deki AYNI tıklama-yakalama deseni, tek fark basePath'in
     // '/proje/' değil bu sayfa olması: ProjectModal.close() X/Escape/backdrop'ta currentBasePath'e
     // (bkz. project-modal.js#close, listPath = currentBasePath.replace(/\/$/, '')) döndüğünden
     // popup kapatılınca kullanıcı proje listesine değil, doğrudan bu sıralama sayfasına geri döner.
+    // Sıra/puan da (item 4, kullanıcı isteği: "puanları proje popuplarına da ekle") ProjectModal'a
+    // taşınır — bkz. js/components/project-modal.js#topRank, yalnızca bu sayfadan açılan popup'larda
+    // gösterilir (site genelindeki proje popup'larına EKLENMEZ, çünkü bu puan yalnızca En İyi 100
+    // bağlamında anlamlı bir metrik).
     var TOP100_BASE_PATH = '/en-iyi-100/';
     document.getElementById('top100-list').addEventListener('click', function(e){
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var row = e.target.closest('.top100-row');
       var a = e.target.closest('a.top100-name-link');
-      if (!a) return;
-      var m = (a.getAttribute('href') || '').match(/^\/proje\/([^/?#]+)/);
-      if (!m) return;
-      var slug = decodeURIComponent(m[1]);
+      if (!a || !row) return;
+      var slug = row.getAttribute('data-slug');
+      if (!slug) return;
       e.preventDefault();
-      ProjectModal.open(slug, { triggerEl: a, basePath: TOP100_BASE_PATH });
+      ProjectModal.open(slug, {
+        triggerEl: a,
+        basePath: TOP100_BASE_PATH,
+        topRank: { rank: parseInt(row.getAttribute('data-rank'), 10), avg: parseFloat(row.getAttribute('data-avg')), count: parseInt(row.getAttribute('data-count'), 10) }
+      });
     });
 
     // Geri tuşu modalı kapatsın (bkz. project-modal.js#close, X/Escape ile AYNI davranış) —
@@ -916,10 +980,10 @@
       if (ProjectModal.isOpen()) ProjectModal.handlePopState(null);
     });
 
-    (function(){
-      var itemListElements = TOP100_ENTRIES.map(function(item){
-        var el = { '@type': 'ListItem', position: item.r, name: item.n };
-        if (item.s) el.url = 'https://mimarlab.com/proje/' + item.s;
+    function injectListLd(items){
+      var itemListElements = items.map(function(item){
+        var el = { '@type': 'ListItem', position: item.rank, name: item.name };
+        if (item.slug) el.url = 'https://mimarlab.com/proje/' + item.slug;
         return el;
       });
       var ld = {
@@ -928,14 +992,25 @@
         name: 'En İyi 100 Mimari Eser',
         url: 'https://mimarlab.com/en-iyi-100',
         itemListOrder: 'https://schema.org/ItemListOrderDescending',
-        numberOfItems: TOP100_ENTRIES.length,
+        numberOfItems: items.length,
         itemListElement: itemListElements
       };
       var script = document.createElement('script');
       script.type = 'application/ld+json';
       script.textContent = JSON.stringify(ld);
       document.head.appendChild(script);
-    })();
+    }
+
+    fetch('/api/public/top100')
+      .then(function(res){ return res.ok ? res.json() : { items: [] }; })
+      .then(function(data){
+        TOP100_ITEMS = data.items || [];
+        renderTop100(TOP100_ITEMS);
+        injectListLd(TOP100_ITEMS);
+      })
+      .catch(function(){
+        document.getElementById('top100-list').innerHTML = '<li class="empty-state" style="display:block;">Liste şu anda yüklenemedi, lütfen daha sonra tekrar dene.</li>';
+      });
   </script>
 
 </body>

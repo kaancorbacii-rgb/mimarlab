@@ -16,6 +16,7 @@ import { handleSavedRoute } from './routes/saved.js';
 import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
+import { handleTop100Route } from './routes/top100.js';
 import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
 import { handleNewsletterRoute } from './routes/newsletter.js';
@@ -790,6 +791,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/csp-report') return handleCspReportRoute(request, env);
   if (path.startsWith('/api/admin/')) return handleAdminRoute(request, env, url);
   if (path === '/api/public/badges') return handlePublicBadges(request, env, url);
+  if (path === '/api/public/top100') return handleTop100Route(request, env, url);
   if (path.startsWith('/api/public/')) return handlePublicRoute(request, env, url);
   // Faz 1 — mimar-detay.html/ofis-detay.html/proje.html'nin eskiden istemci tarafında yaptığı
   // statik veri + onaylı gönderi overlay birleştirmesinin sunucu tarafı karşılığı (bkz.
