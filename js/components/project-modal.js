@@ -83,11 +83,31 @@ const ProjectModal = (function () {
   let currentSlug = null;
   let currentItem = null;
   let currentBasePath = '/proje/';
-  // En İyi 100 sayfasından açılan popup'larda sıra/puan rozeti (bkz. en-iyi-100.html#click handler,
-  // kullanıcı isteği: "puanları proje popuplarına da ekle") — yalnızca open()'a topRank verildiğinde
-  // dolar, başka bir projeye swap() ile geçilince temizlenir (bkz. swap(), o rozet YALNIZCA açılan
-  // projeye özgü, geçilen projede anlamsız).
+  // En İyi 100 rozeti (bkz. renderTopRankBadge, kullanıcı isteği: "puanları proje popuplarına da
+  // ekle") — en-iyi-100.html'in kendi tıklama işleyicisi open()'a topRank'i doğrudan verir (o anda
+  // ZATEN elindeki satır verisinden, ekstra istek gerekmez). BAŞKA bir sayfadan (ör. proje.html)
+  // açılan popup'larda topRank verilmediğinden rozet hiç görünmüyordu — gerçek bulgu (kullanıcı
+  // isteği: "her iki sayfadan da aynı proje popup'ı açınca tüm bilgilerin bire bir aynı olması
+  // gerekiyor"). Kökten çözüm: topRank verilmediğinde fetchTop100Map() ile TEK seferlik (istemci
+  // ömrü boyunca önbelleğe alınan) /api/public/top100 listesinden slug'a göre arama yapılır — proje
+  // gerçekten Top100'deyse rozet HANGİ sayfadan açılırsa açılsın aynı şekilde dolar.
   let currentTopRank = null;
+  let top100LookupMap = null;
+  let top100LookupPromise = null;
+  function fetchTop100Map() {
+    if (top100LookupMap) return Promise.resolve(top100LookupMap);
+    if (!top100LookupPromise) {
+      top100LookupPromise = fetch('/api/public/top100')
+        .then(res => res.ok ? res.json() : { items: [] })
+        .then(data => {
+          top100LookupMap = new Map();
+          (data.items || []).forEach(it => { if (it.slug) top100LookupMap.set(it.slug, { rank: it.rank, avg: it.avg, count: it.count }); });
+          return top100LookupMap;
+        })
+        .catch(() => { top100LookupMap = new Map(); return top100LookupMap; });
+    }
+    return top100LookupPromise;
+  }
   let openedViaPush = false; // bu açılış gerçek bir tıklamadan mı geldi (history.back güvenli mi)
   let pushCountSinceOpen = 0; // open() + o zamandan beri yapılan swap() sayısı — kapatırken TÜMÜNÜ
   // tek seferde geri sarmak için (bkz. close(), history.go(-N)) — modal içinde birden fazla projeye
@@ -329,7 +349,8 @@ const ProjectModal = (function () {
     if (!el) return;
     if (!currentTopRank) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = '';
-    el.innerHTML = `<span class="pm-top-rank-badge">En İyi 100: #${currentTopRank.rank}</span>`;
+    // kullanıcı isteği: rozete tıklayınca En İyi 100 sayfasına gitsin.
+    el.innerHTML = `<a class="pm-top-rank-badge" href="/en-iyi-100">En İyi 100: #${currentTopRank.rank}</a>`;
   }
 
   async function renderItem(item, mySeq) {
@@ -380,7 +401,10 @@ const ProjectModal = (function () {
     ensureTemplate();
 
     const mySeq = ++requestSeq;
-    const item = await fetchItem(slug);
+    const [item] = await Promise.all([
+      fetchItem(slug),
+      topRank ? Promise.resolve() : fetchTop100Map().then(map => { if (mySeq === requestSeq) currentTopRank = map.get(slug) || null; }),
+    ]);
     if (mySeq !== requestSeq || currentSlug !== slug) return; // bu arada başka bir open/swap tetiklendi
     if (!item) { renderNotFound(); return; }
     await renderItem(item, mySeq);
@@ -402,7 +426,13 @@ const ProjectModal = (function () {
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
-    const item = await fetchItem(slug);
+    // gerçek bulgu (kullanıcı isteği: iki açılış yolunun bire bir aynı görünmesi): burada rozet
+    // ÖNCEDEN koşulsuz null'a sabitleniyordu ("geçilen projede anlamsız" varsayımıyla) — oysa geçilen
+    // proje de Top100'de olabilir, o zaman da rozetin görünmesi gerekir. open() İLE AYNI arama.
+    const [item] = await Promise.all([
+      fetchItem(slug),
+      fetchTop100Map().then(map => { if (mySeq === requestSeq) currentTopRank = map.get(slug) || null; }),
+    ]);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
     if (!item) { renderNotFound(); return; }
     await renderItem(item, mySeq);

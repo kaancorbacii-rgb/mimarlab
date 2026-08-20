@@ -232,6 +232,41 @@ export async function handleTop100AdminRoute(request, env, url, segments) {
     ]);
     return json({ ok: true, moved: true });
   }
+  // POST /api/admin/top100/:id/reorder — kullanıcı isteği: "admine projeleri SÜRÜKLEYEREK yer
+  // değiştirebilme yetkisi ver" (yukarıdaki /move ucu yalnızca TEK komşuyla adım adım takas
+  // ediyordu, sürükle-bırak keyfi bir hedef konuma tek hamlede taşımayı gerektirir). body.toIndex
+  // computeTop100'ün döndürdüğü DİZİ İÇİNDEKİ 0-tabanlı hedef konum (admin listesinin GÖSTERDİĞİ
+  // sıra — #index+1 — ile birebir aynı). Mekanizma /move ile AYNI ilkeye dayanır: satırların
+  // KİMLİĞİ (isim/slug) DEĞİL, taban puan/oy DEĞERLERİ yer değiştirir — etkilenen aralıktaki
+  // (sürüklenen konumla hedef konum arası) değer kümesi (zaten avg'ye göre azalan sırada) SABİT
+  // kalır, yalnızca hangi satırın o değeri taşıdığı bir konum kaydırılır (klasik dizi splice/
+  // yeniden-ekleme ile matematiksel olarak özdeş — bkz. PR açıklaması).
+  if (segments.length === 5 && segments[4] === 'reorder' && request.method === 'POST') {
+    const body = await readJson(request);
+    const toIndex = parseInt(body.toIndex, 10);
+    if (!Number.isInteger(toIndex) || toIndex < 0) return errorJson('Geçersiz hedef sıra.');
+    const { items } = await computeTop100(env);
+    const fromIndex = items.findIndex(it => String(it.id) === String(segments[3]));
+    if (fromIndex === -1) return errorJson('Kayıt bulunamadı.', 404);
+    const targetIndex = Math.min(toIndex, items.length - 1);
+    if (targetIndex === fromIndex) return json({ ok: true, moved: false });
+
+    const lo = Math.min(fromIndex, targetIndex);
+    const hi = Math.max(fromIndex, targetIndex);
+    const rangeValues = items.slice(lo, hi + 1).map(it => ({ baseAvg: it.baseAvg, baseCount: it.baseCount }));
+    const rangeIds = items.slice(lo, hi + 1).map(it => it.id);
+    const newIds = rangeIds.slice();
+    newIds.splice(fromIndex - lo, 1);
+    newIds.splice(targetIndex - lo, 0, items[fromIndex].id);
+
+    const now = Date.now();
+    const writes = newIds.map((id, k) =>
+      env.DB.prepare(`UPDATE top100_entries SET base_avg = ?, base_count = ?, updated_at = ? WHERE id = ?`)
+        .bind(rangeValues[k].baseAvg, rangeValues[k].baseCount, now, id)
+    );
+    await env.DB.batch(writes);
+    return json({ ok: true, moved: true });
+  }
   if (segments.length === 4 && request.method === 'DELETE') {
     await env.DB.prepare(`DELETE FROM top100_entries WHERE id = ?`).bind(segments[3]).run();
     return json({ ok: true });

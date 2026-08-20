@@ -388,6 +388,16 @@
      (.rating-widget, .designer-chip, .comment-row vb.) proje-detay.html ile BİREBİR aynı — aynı
      paylaşılan JS (rating-widget.js, js/components/project-*.js) bu isimlere yazıyor. */
   .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+  /* En İyi 100 rozeti (bkz. js/components/project-modal.js#renderTopRankBadge, kullanıcı isteği:
+     "her iki sayfadan da aynı proje popup'ı açınca tüm bilgilerin ve tasarımın bire bir aynı olması
+     gerekiyor") — gerçek bulgu: bu blok ÖNCEDEN yalnızca en-iyi-100.html'de vardı, bu yüzden
+     proje.html'den açılan bir Top100 projesinin popup'ında rozet HİÇ görünmüyordu (topRank verisi
+     JS'te sonradan otomatik aranır oldu, ama CSS'i olmayınca stilsiz kalırdı) — en-iyi-100.html'deki
+     AYNI blok, sayfa başına kopyalama deseniyle (bkz. o dosyadaki .detail-title yorumu) burada da
+     tutulur. */
+  .pm-top-rank{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;}
+  .pm-top-rank-badge{display:inline-flex; align-items:center; background:var(--ink); color:var(--paper-card); border-radius:100px; padding:5px 14px; font-size:12.5px; font-weight:700; transition:background .15s ease;}
+  .pm-top-rank-badge:hover{background:var(--walnut);}
   /* "X tarafından" satırı — js/components/product-modal.js/haber-detay.html'deki AYNI .detail-byline
      kuralları (kullanıcı isteği: Puanla/Kaydet/Paylaş satırının hemen altına yeniden eklendi). Yalnızca
      üye gönderisi kökenli projelerde dolu (bkz. src/routes/project.js#fetchOwnerByline), diğerlerinde

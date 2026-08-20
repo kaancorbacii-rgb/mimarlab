@@ -167,8 +167,17 @@
   .top100-add-suggestion{padding:8px 10px; border-radius:8px; font-size:13px; color:var(--ink); cursor:pointer;}
   .top100-add-suggestion:hover{background:var(--paper-alt);}
   .top100-add-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
-  .top100-row{display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line-soft); font-size:13px;}
+  .top100-row{display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line-soft); font-size:13px; background:var(--panel-bg, transparent);}
   .top100-row:first-child{border-top:1px solid var(--line-soft);}
+  /* Sürükle-bırak (bkz. kullanıcı isteği: "admine projeleri sürükleyerek yer değiştirebilme yetkisi
+     ver") — tutamaç yalnızca .top100-row-drag üzerinde mousedown olduğunda satırı draggable=true
+     yapar (bkz. wireTop100Drag), aksi halde satırın İÇİNDEKİ input/buton etkileşimleri sürükleme
+     başlatmaz. Sürüklenen satır .dragging sınıfıyla soluklaşır, dragover sırasında DOM'da CANLI
+     yer değiştirir (kullanıcı bırakmadan ÖNCE sonucu görür), drop/dragend'de tek bir /reorder
+     isteğiyle kalıcı hale gelir. */
+  .top100-row.dragging{opacity:0.4;}
+  .top100-row-drag{flex-shrink:0; width:16px; color:var(--ink-soft); cursor:grab; user-select:none; font-size:14px; line-height:1; text-align:center;}
+  .top100-row-drag:active{cursor:grabbing;}
   .top100-row-rank{flex-shrink:0; width:34px; font-family:'IBM Plex Mono', monospace; font-weight:700; color:var(--ink-soft);}
   /* Yukarı/Aşağı taşı (bkz. kullanıcı isteği: "90. ile 99. projenin yerini butonlarla
      değiştirebileyim") — src/routes/top100.js#handleTop100AdminRoute'un move ucuna POST atar. */
@@ -1126,6 +1135,7 @@ async function loadTop100Admin(){
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Liste boş.</div>'; return; }
   list.innerHTML = items.map((it, i) => `
     <div class="top100-row" data-id="${it.id}">
+      <span class="top100-row-drag" title="Sürükleyerek sırasını değiştir" aria-hidden="true">&#8942;&#8942;</span>
       <span class="top100-row-rank">#${i + 1}</span>
       <span class="top100-row-move">
         <button type="button" data-action="up" ${i === 0 ? 'disabled' : ''} title="Yukarı taşı" aria-label="Yukarı taşı">&#9650;</button>
@@ -1142,6 +1152,7 @@ async function loadTop100Admin(){
       <button class="admin-btn danger" data-action="remove">Kaldır</button>
     </div>
   `).join('');
+  wireTop100Drag(list);
   list.querySelectorAll('[data-action="remove"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const row = btn.closest('.top100-row');
@@ -1169,6 +1180,40 @@ async function loadTop100Admin(){
       if(res.error){ msg.textContent = res.error; return; }
       msg.textContent = 'Kaydedildi.';
       setTimeout(() => loadTop100Admin(), 500);
+    });
+  });
+}
+
+// Sürükle-bırak sıra değiştirme (bkz. kullanıcı isteği: "admine En İyi 100 sayfası içi projeleri
+// sürükleyerek yer değiştirebilme yetkisi ver") — Yukarı/Aşağı butonlarındaki AYNI /move ucu
+// yalnızca tek komşuyla adım adım takas ediyordu, sürükleme keyfi bir hedefe tek hamlede taşımayı
+// gerektirdiğinden ayrı bir /reorder ucu kullanılır (bkz. src/routes/top100.js). Satır yalnızca
+// .top100-row-drag tutamacından mousedown ile draggable hale getirilir ki içindeki input/buton
+// etkileşimleri (Kaydet, Yukarı/Aşağı, Kaldır) yanlışlıkla sürükleme başlatmasın.
+function wireTop100Drag(list){
+  let draggingRow = null;
+  list.querySelectorAll('.top100-row').forEach(row => {
+    const handle = row.querySelector('.top100-row-drag');
+    handle.addEventListener('mousedown', () => { row.draggable = true; });
+    row.addEventListener('dragend', () => {
+      row.draggable = false;
+      row.classList.remove('dragging');
+      if(draggingRow !== row) return;
+      draggingRow = null;
+      const newIndex = Array.from(list.children).indexOf(row);
+      api(`/api/admin/top100/${row.dataset.id}/reorder`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ toIndex: newIndex }) })
+        .then(() => loadTop100Admin());
+    });
+    row.addEventListener('dragstart', () => {
+      draggingRow = row;
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if(!draggingRow || draggingRow === row) return;
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      list.insertBefore(draggingRow, before ? row : row.nextSibling);
     });
   });
 }

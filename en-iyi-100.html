@@ -375,7 +375,12 @@
      "puanları proje popuplarına da ekle") — yalnızca bu sayfadan açılan popup'ta dolar, bu yüzden
      CSS'i de yalnızca bu sayfada tutulur (diğer proje popup'ları hiç etkilenmez). */
   .pm-top-rank{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;}
-  .pm-top-rank-badge{display:inline-flex; align-items:center; background:var(--ink); color:var(--paper-card); border-radius:100px; padding:5px 14px; font-size:12.5px; font-weight:700;}
+  /* kullanıcı isteği: rozete tıklayınca En İyi 100 sayfasına gitsin — artık <a>, hover'da hafif
+     vurgu (bkz. js/components/project-modal.js#renderTopRankBadge). Bu blok proje.html'de de
+     BİREBİR aynı bulunur (bkz. o dosyadaki AYNI kural) ki popup hangi sayfadan açılırsa açılsın
+     tasarım birebir eşleşsin (kullanıcı isteği). */
+  .pm-top-rank-badge{display:inline-flex; align-items:center; background:var(--ink); color:var(--paper-card); border-radius:100px; padding:5px 14px; font-size:12.5px; font-weight:700; transition:background .15s ease;}
+  .pm-top-rank-badge:hover{background:var(--walnut);}
   /* "X tarafından" satırı — js/components/product-modal.js/haber-detay.html'deki AYNI .detail-byline
      kuralları (kullanıcı isteği: Puanla/Kaydet/Paylaş satırının hemen altına yeniden eklendi). Yalnızca
      üye gönderisi kökenli projelerde dolu (bkz. src/routes/project.js#fetchOwnerByline), diğerlerinde
@@ -794,7 +799,28 @@
   /* ---------- TOOLBAR — filtre + sıralama, tek satır (bkz. kullanıcı isteği: "proje sayfasındaki
      Tip/Grup/Yer/Yıl filtreleri koy ama tek satırda yan yana olsunlar") ---------- */
   .top100-toolbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; flex-wrap:wrap;}
+  .top100-toolbar-left{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .top100-filters{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  /* Arama butonu (bkz. kullanıcı isteği: "filtreler kısmına arama butonu koy") — Tip/Grup/Yer/Yıl
+     ile AYNI pill görünümlü bir buton, tıklanınca yanında proje adına göre anlık filtreleyen bir
+     giriş kutusu açar. Liste zaten TEK istekte tamamen indiği için (bkz. TOP100_ITEMS) filtreleme
+     sunucuya gitmeden, sortedFilteredItems() içinde TAMAMEN istemci tarafında yapılır. */
+  .top100-search-wrap{display:flex; align-items:center; gap:6px;}
+  .top100-search-btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:34px; height:34px; flex-shrink:0;
+    border:1px solid var(--line); border-radius:100px; background:var(--paper-card); color:var(--ink-soft);
+  }
+  .top100-search-btn:hover, .top100-search-btn.active{border-color:var(--walnut); color:var(--ink);}
+  .top100-search-input-wrap{
+    display:none; align-items:center; gap:7px;
+    padding:8px 12px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+  }
+  .top100-search-input-wrap.open{display:flex;}
+  .top100-search-input-wrap svg{flex-shrink:0; opacity:0.5;}
+  .top100-search-input-wrap input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:170px; color:var(--ink);}
+  .top100-search-clear{display:none; background:none; border:none; padding:2px; color:var(--ink-soft); flex-shrink:0;}
+  .top100-search-clear:hover{color:var(--ink);}
   /* .top100-filter-panel bu grubun İÇİNE (position:relative burada, butonda DEĞİL) mutlak
      konumlanır — gerçek bulgu: konumlandırılmış üst öğe olmayınca panel en yakın konumlandırılmış
      atanın (ör. sticky .nav) BAŞLANGIÇ İÇEREN BLOĞUNA göre yerleşip sayfanın çok aşağısında,
@@ -930,7 +956,19 @@
     <p class="content-subtitle">MİMARLAB'taki kullanıcı puanlarına göre sıralanan Türkiye'nin 'En İyi 100' mimari eseri. Sen de puan vererek beğendiğin eseri ön sıralara taşıyabilirsin.</p>
 
     <div class="top100-toolbar">
-      <div class="top100-filters" id="top100-filters"></div>
+      <div class="top100-toolbar-left">
+        <div class="top100-filters" id="top100-filters"></div>
+        <div class="top100-search-wrap">
+          <button type="button" class="top100-search-btn" id="top100-search-toggle" aria-label="Proje ara" aria-expanded="false">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+          <div class="top100-search-input-wrap" id="top100-search-input-wrap">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="top100-search-input" placeholder="Proje adı ara…" autocomplete="off">
+            <button type="button" class="top100-search-clear" id="top100-search-clear" aria-label="Aramayı temizle"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+        </div>
+      </div>
       <div class="sort-select">
         <select id="top100-sort">
           <option value="rank">Sıralama</option>
@@ -1034,20 +1072,44 @@
       });
     }
 
-    // "En Yeni"/"En Eski" sıralaması için projectDate'ten (ör. "532-537", "1228-1229", "2024")
-    // ilk yıl rakam dizisini çıkarır — gerçek bulgu: \d{4} (tam 4 hane) MS 1000'den önceki 3
-    // haneli yıllarda (ör. Ayasofya "532-537") HİÇ eşleşmiyor, bu da "En Eski" sıralamasında
-    // Ayasofya'nın (532) Aspendos/Göbeklitepe gibi tarihi olmayan (0 kabul edilen) kayıtların bile
-    // GERİSİNDE kalmasına yol açıyordu — \d{1,4} 1-4 haneli her yılı (532 dahil) yakalar. İnşa
-    // tarihi olmayan kayıtlar 0 kabul edilip listenin sonuna düşer.
+    // Proje adına göre arama (bkz. kullanıcı isteği: "filtreler kısmına arama butonu koy") —
+    // js/components/project-related.js#foldTr İLE AYNI TR-duyarlı katlama (İ/I/Ş/Ğ/Ü/Ö/Ç), "İstanbul"
+    // ararken "istanbul" yazmanın da eşleşmesi için (bkz. proje/mimar/firma/ürün aramasındaki AYNI
+    // desen, kullanıcı isteği: Türkçe büyük/küçük harf duyarlılığı sorunu daha önce burada da
+    // çözülmüştü).
+    function foldTr(s){
+      return (s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ').replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç').toLowerCase()
+        .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o');
+    }
+    var TOP100_SEARCH_QUERY = '';
+    function passesTop100Search(it){
+      if(!TOP100_SEARCH_QUERY) return true;
+      return foldTr(it.name).indexOf(TOP100_SEARCH_QUERY) !== -1;
+    }
+
+    // "En Yeni"/"En Eski" sıralaması için projectDate'ten (ör. "532-537", "1228-1229", "2024",
+    // "MÖ 9600") ilk yıl rakam dizisini çıkarır — gerçek bulgu: \d{4} (tam 4 hane) MS 1000'den
+    // önceki 3 haneli yıllarda (ör. Ayasofya "532-537") HİÇ eşleşmiyor, bu da "En Eski"
+    // sıralamasında Ayasofya'nın (532) Aspendos/Göbeklitepe gibi tarihi olmayan (0 kabul edilen)
+    // kayıtların bile GERİSİNDE kalmasına yol açıyordu — \d{1,4} 1-4 haneli her yılı (532 dahil)
+    // yakalar. İnşa tarihi olmayan kayıtlar 0 kabul edilip listenin sonuna düşer.
+    // İKİNCİ gerçek bulgu (kullanıcı isteği): "MÖ" (Milattan Önce) etiketli tarihler ("MÖ 9600",
+    // "MÖ 6800") ham rakam değeriyle (9600, 6800) karşılaştırılınca "En Yeni" sıralamasında en
+    // BÜYÜK sayı olarak İLK sıraya çıkıyordu — oysa MÖ 9600, MS 9600'den ÇOK daha eski. "MÖ"
+    // ibaresi geçen tarihler negatif yıla çevrilir (MÖ 9600 → -9600) ki büyüklük/küçüklük
+    // karşılaştırması gerçek kronolojiyle örtüşsün (MÖ tarihler her zaman MS tarihlerden ve
+    // tarihsiz — 0 kabul edilen — kayıtlardan daha eski sayılır).
     function yearOf(item){
       if(!item.projectDate) return 0;
-      var m = String(item.projectDate).match(/\d{1,4}/);
-      return m ? parseInt(m[0], 10) : 0;
+      var s = String(item.projectDate);
+      var m = s.match(/\d{1,4}/);
+      if(!m) return 0;
+      var year = parseInt(m[0], 10);
+      return s.toUpperCase().indexOf('MÖ') !== -1 ? -year : year;
     }
 
     function sortedFilteredItems(){
-      var items = TOP100_ITEMS.filter(passesTop100Filters);
+      var items = TOP100_ITEMS.filter(function(it){ return passesTop100Filters(it) && passesTop100Search(it); });
       if(TOP100_SORT === 'votes') items.sort(function(a, b){ return b.count - a.count; });
       else if(TOP100_SORT === 'alpha') items.sort(function(a, b){ return a.name.localeCompare(b.name, 'tr'); });
       else if(TOP100_SORT === 'date_desc') items.sort(function(a, b){ return yearOf(b) - yearOf(a); });
@@ -1310,30 +1372,67 @@
       renderTop100(sortedFilteredItems());
     });
 
-    // Hızlı oy verince liste satırındaki puan/oy sayısı ANINDA güncellensin (bkz. kullanıcı isteği:
-    // "hızlı puanla verdiğim oy hemen oy sayısına ve puana yansımalı") — rating-widget.js#submit
-    // artık başarılı bir POST sonrası bu 'ratingchange' olayını dispatch ediyor (bkz. o dosyadaki
-    // yorum), buraya kadar bubble edip TEK bir delege dinleyiciyle yakalanır (satırlar her
-    // renderTop100() çağrısında yeniden oluşturulduğundan tek tek bağlamak yerine konteynerin
-    // kendisine bağlanır). 'votes' sıralamasında oy sayısı sırayı DEĞİŞTİREBİLİR, bu yüzden o modda
-    // tam yeniden render edilir; diğer modlarda yalnızca ilgili satırın rakamları güncellenir.
-    document.getElementById('top100-list').addEventListener('ratingchange', function(e){
-      var item = TOP100_ITEMS.find(function(it){ return it.slug === e.detail.targetId; });
-      if(!item) return;
-      item.avg = e.detail.average;
-      item.count = e.detail.count;
-      if(TOP100_SORT === 'votes'){
+    // Arama butonu (bkz. kullanıcı isteği) — Tip/Grup/Yer/Yıl butonlarındaki AYNI aç/kapa panel
+    // deseni, TAM listeyi yeniden fetch ETMEDEN her tuş vuruşunda yerel olarak filtreler.
+    (function wireTop100Search(){
+      var toggle = document.getElementById('top100-search-toggle');
+      var wrap = document.getElementById('top100-search-input-wrap');
+      var input = document.getElementById('top100-search-input');
+      var clearBtn = document.getElementById('top100-search-clear');
+      toggle.addEventListener('click', function(e){
+        e.stopPropagation();
+        var open = wrap.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.classList.toggle('active', open);
+        if(open) input.focus();
+      });
+      input.addEventListener('click', function(e){ e.stopPropagation(); });
+      input.addEventListener('input', function(){
+        TOP100_SEARCH_QUERY = foldTr(input.value.trim());
+        clearBtn.style.display = input.value ? '' : 'none';
         renderTop100(sortedFilteredItems());
-        return;
-      }
-      var row = document.querySelector('.top100-row[data-slug="' + item.slug.replace(/"/g, '\\"') + '"]');
-      if(!row) return;
-      row.setAttribute('data-avg', item.avg);
-      row.setAttribute('data-count', item.count);
-      var avgEl = row.querySelector('.top100-avg');
-      var votesEl = row.querySelector('.top100-votes');
-      if(avgEl) avgEl.innerHTML = '&#9733; ' + item.avg.toFixed(2);
-      if(votesEl) votesEl.textContent = item.count + ' oy';
+      });
+      clearBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        input.value = '';
+        TOP100_SEARCH_QUERY = '';
+        clearBtn.style.display = 'none';
+        renderTop100(sortedFilteredItems());
+        input.focus();
+      });
+      document.addEventListener('click', function(e){
+        if(wrap.classList.contains('open') && !input.value && !e.target.closest('.top100-search-wrap')){
+          wrap.classList.remove('open');
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.classList.remove('active');
+        }
+      });
+    })();
+
+    // Hızlı oy verince hem puan/oy sayısı HEM DE listedeki SIRA ANINDA güncellensin (bkz. kullanıcı
+    // isteği: "verilen puanlara göre anlık ve eş zamanlı bir şekilde puanların hesaplanıp değişmesi
+    // ve En İyi 100 sayfasında proje yerlerinin değişmesi gerekiyor") — rating-widget.js#submit
+    // başarılı bir POST sonrası bu 'ratingchange' olayını dispatch ediyor, buraya kadar bubble edip
+    // TEK bir delege dinleyiciyle yakalanır.
+    // gerçek bulgu (kökten çözüm): burada ÖNCEDEN yalnızca tıklanan satırın avg/count SAYILARI
+    // yerinde güncelleniyor, item.rank ise sayfa ilk yüklendiğinde sunucudan gelen SABİT değerde
+    // kalıyordu — oysa gerçek sıra tüm projelerin blendedAvg'sine göre hesaplanan GLOBAL bir
+    // karşılaştırma (bkz. src/routes/top100.js#computeTop100#resolved.sort), tek bir satırın
+    // istemci tarafında elle yeniden hesaplanması diğer 99 satırın güncel puanını bilmediğinden
+    // güvenilir değil. Bu yüzden asıl kaynağı (yani /api/public/top100'ü, önbelleksiz — bkz. o
+    // route) YENİDEN çekip TÜM listeyi tazelemek, sıralamanın her zaman doğru/eş zamanlı olmasının
+    // TEK sağlam yolu — aktif filtre/sıralama seçimleri (activeTop100Filters/TOP100_SORT) korunur,
+    // yalnızca veri ve render tazelenir.
+    document.getElementById('top100-list').addEventListener('ratingchange', function(){
+      fetch('/api/public/top100')
+        .then(function(res){ return res.ok ? res.json() : null; })
+        .then(function(data){
+          if(!data) return;
+          TOP100_ITEMS = data.items || [];
+          renderTop100Filters();
+          renderTop100ActiveChips();
+          renderTop100(sortedFilteredItems());
+        });
     });
 
     fetch('/api/public/top100')
