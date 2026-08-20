@@ -272,7 +272,10 @@ function foldTr(s) {
 //     sanılıyordu. 1-2 haneli, tek başına "N." (ops. "MS " önekiyle) şeklindeki bir parça, string'in
 //     GENELİNDE yüzyıl sözcüğü geçiyorsa yine yüzyıl kabul edilir (isCenturyFragment) — 3+ haneli
 //     sayılar (gerçek yıllar) bu sezgiye asla girmez, yanlış eşleşme riski yok.
-function parseProjectDateYear(dateStr) {
+// export: src/routes/ai.js (MİMARLAB AI, Faz 1) yıl aralığı filtrelemesi için AYNI ayrıştırıcıyı
+// kullanır — proje.html'in tarih sıralamasıyla TUTARLI kalması için burada ikinci bir kopya
+// açılmadı (bkz. dosya başı foldTr/trLower yorumu, aynı prensip).
+export function parseProjectDateYear(dateStr) {
   if (!dateStr) return null;
   const hasCenturyWordAnywhere = /yuzyil|\byy\b/.test(foldTr(dateStr));
   let best = null;

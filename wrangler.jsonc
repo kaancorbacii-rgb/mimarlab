@@ -47,6 +47,13 @@
   // her hatada (kota aşımı dahil) SESSİZCE orijinali değiştirmeden bırakır, yükleme akışını
   // ASLA engellemez.
   "images": { "binding": "IMAGES" },
+  // MİMARLAB AI, Faz 1 (bkz. kullanıcı isteği, src/routes/ai.js) — doğal dil arama sorgusundan
+  // yapılandırılmış filtre çıkarımı + gerçek D1 sonuçlarına dayalı kısa özet için Cloudflare
+  // Workers AI. Mevcut Cloudflare altyapısı tercih edildi (yeni bir npm bağımlılığı/harici LLM API
+  // secret'ı eklemek yerine, bkz. audit: bu repo'nun hiç npm bağımlılığı yok). Ücretsiz kota +
+  // sonrası kullanım-bazlı fiyatlandırma (bkz. https://developers.cloudflare.com/workers-ai/platform/pricing/)
+  // — src/routes/ai.js'teki rate limit (8 istek/5dk/IP) maliyeti sınırlı tutar.
+  "ai": { "binding": "AI" },
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler

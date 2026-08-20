@@ -123,4 +123,7 @@ function parseLocationFull(loc){
 // Tarayıcıda `module` global'i tanımsız olduğu için bu blok yalnızca Worker'ın esbuild bundle'ında
 // (nodejs_compat) çalışır — src/routes/project.js (GET /api/projects/filters) buradan CJS interop
 // ile import eder (bkz. data.js dosya sonundaki AYNI desen).
-if (typeof module !== 'undefined') { module.exports = { parseLocationFull }; }
+// IL_LIST — export: src/routes/ai.js (MİMARLAB AI, Faz 1) geçerli il/ülke adlarını doğrulamak için
+// (bkz. o dosyadaki IL_NAMES kullanımı) — parseLocationFull'un zaten kullandığı AYNI listeyi
+// tekrar tanımlamak yerine buradan okur.
+if (typeof module !== 'undefined') { module.exports = { parseLocationFull, IL_LIST }; }

@@ -154,6 +154,24 @@
   .result-go{flex-shrink:0; color:var(--ink-soft); font-size:20px;}
   .result-more-note{font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center;}
 
+  /* ---------- MİMARLAB AI ---------- */
+  .ai-search-box{max-width:880px; margin:20px auto 0; padding:0 32px;}
+  .ai-search-card{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:18px 20px;}
+  .ai-search-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:6px;}
+  .ai-search-form{display:flex; gap:8px;}
+  .ai-search-form input{flex:1; border:1px solid var(--line); background:var(--paper); border-radius:100px; padding:11px 18px; font-family:inherit; font-size:14px; color:var(--ink); outline:none;}
+  .ai-search-form input:focus-visible{border-color:var(--brass);}
+  .ai-search-form button{background:var(--ink); color:var(--paper-card); border:none; border-radius:100px; padding:11px 22px; font-size:13.5px; font-weight:600; white-space:nowrap;}
+  .ai-search-form button:hover{background:var(--walnut);}
+  .ai-search-form button:disabled{opacity:0.55; cursor:default;}
+  .ai-search-examples{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .ai-example-chip{background:var(--paper); border:1px solid var(--line-soft); border-radius:100px; padding:6px 13px; font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+  .ai-example-chip:hover{border-color:var(--brass); color:var(--ink);}
+  .ai-search-result{max-width:880px; margin:20px auto 0; padding:0 32px;}
+  .ai-summary{background:var(--paper-alt); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.6; color:var(--ink); margin-bottom:20px;}
+  .ai-summary::before{content:'✦ '; color:var(--accent);}
+  .ai-loading, .ai-error{padding:16px 4px; font-size:14px; color:var(--ink-soft);}
+
   .search-empty{text-align:center; padding:50px 20px;}
   .search-empty p{color:var(--ink-soft); font-size:15px; margin:0 0 22px; line-height:1.6; max-width:440px; margin-left:auto; margin-right:auto;}
   .search-empty .nav-search{max-width:420px; margin:0 auto;}
@@ -220,6 +238,23 @@
     <h1 id="search-title">Arama Sonuçları</h1>
     <p id="search-subtitle"></p>
   </div>
+
+  <div class="ai-search-box">
+    <div class="ai-search-card">
+      <div class="ai-search-eyebrow">✦ MİMARLAB AI</div>
+      <form id="ai-search-form" class="ai-search-form">
+        <input type="text" id="ai-search-input" placeholder="Örn. İstanbul'da 2015 sonrası konut projelerini göster" maxlength="300" autocomplete="off">
+        <button type="submit" id="ai-search-submit">Sor</button>
+      </form>
+      <div class="ai-search-examples">
+        <button type="button" class="ai-example-chip">İstanbul'da 2015 sonrası konut projeleri</button>
+        <button type="button" class="ai-example-chip">Türkiye'deki brütalist kamu yapıları</button>
+        <button type="button" class="ai-example-chip">Cengiz Bektaş'ın projeleri</button>
+        <button type="button" class="ai-example-chip">Urla'daki çağdaş mimarlık projeleri</button>
+      </div>
+    </div>
+  </div>
+  <div class="ai-search-result" id="ai-search-result" hidden></div>
 
   <div class="search-wrap" id="search-wrap"></div>
 
@@ -372,6 +407,83 @@ runSearch();
 // tamamlanmadan çizilmişse Mimarlar/Firmalar satırları rozetsiz kalmış olabilir, bu yüzden rozetler
 // gelince runSearch() bir kez daha (ve yalnızca bir kez) çalıştırılır.
 window.addEventListener('mimarlab-badges-ready', () => runSearch(), { once: true });
+
+// MİMARLAB AI (Faz 1, bkz. kullanıcı isteği) — doğal dil sorgusunu /api/ai/search'e POST eder,
+// aynı groupHtml/rowHtml render mantığını (yukarısı) paylaşır ki AI sonuçları normal arama
+// sonuçlarıyla BİREBİR aynı görünsün (bkz. kullanıcı isteği: "generic chatbot görünümü oluşturma").
+let aiRunToken = 0;
+const aiForm = document.getElementById('ai-search-form');
+const aiInput = document.getElementById('ai-search-input');
+const aiSubmitBtn = document.getElementById('ai-search-submit');
+const aiResultEl = document.getElementById('ai-search-result');
+
+async function runAiSearch(q){
+  q = (q || '').trim();
+  if(!q) return;
+  const runToken = ++aiRunToken;
+  aiResultEl.hidden = false;
+  aiResultEl.innerHTML = '<div class="ai-loading">MİMARLAB AI aranıyor…</div>';
+  aiSubmitBtn.disabled = true;
+
+  let res, data;
+  try{
+    res = await fetch('/api/ai/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q }),
+    });
+  } catch(e){
+    if(runToken !== aiRunToken) return;
+    aiResultEl.innerHTML = '<div class="ai-error">Bağlantı sorunu oluştu, tekrar dene.</div>';
+    aiSubmitBtn.disabled = false;
+    return;
+  }
+  if(runToken !== aiRunToken) return;
+
+  if(!res.ok){
+    const err = await res.json().catch(() => ({}));
+    aiResultEl.innerHTML = `<div class="ai-error">${escapeHtml(err.error || 'Bir sorun oluştu, tekrar dene.')}</div>`;
+    aiSubmitBtn.disabled = false;
+    return;
+  }
+  data = await res.json();
+  if(runToken !== aiRunToken) return;
+  aiSubmitBtn.disabled = false;
+
+  const html = [`<div class="ai-summary">${escapeHtml(data.summary)}</div>`];
+  html.push(groupHtml('Mimarlar', data.architects, a => rowHtml({
+    href: `/mimar/${encodeURIComponent(a.slug)}`,
+    avatarStyle: `background:${officeColor(a.name)}`,
+    avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 200))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
+    title: a.name,
+    meta: a.office || 'Mimar',
+    badge: verifiedBadgeHtml('architect', a.name, a.badges, 13),
+  }), data.totals.architects));
+  html.push(groupHtml('Firmalar', data.offices, o => rowHtml({
+    href: `/firma/${encodeURIComponent(o.slug)}`,
+    avatarStyle: `background:${officeColor(o.name)}`,
+    avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
+    title: o.name,
+    meta: o.loc || '',
+    badge: verifiedBadgeHtml('office', o.name, o.badges, 13),
+  }), data.totals.offices));
+  html.push(groupHtml('Projeler', data.projects, p => rowHtml({
+    href: `/proje/${encodeURIComponent(p.slug)}`,
+    avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}" alt="" loading="lazy" decoding="async">` : '',
+    title: p.title,
+    meta: [p.location, p.date].filter(Boolean).join(' · '),
+  }), data.totals.projects));
+
+  aiResultEl.innerHTML = html.join('');
+}
+
+aiForm.addEventListener('submit', e => {
+  e.preventDefault();
+  runAiSearch(aiInput.value);
+});
+document.querySelectorAll('.ai-example-chip').forEach(btn => {
+  btn.addEventListener('click', () => { aiInput.value = btn.textContent; runAiSearch(btn.textContent); });
+});
 </script>
 </body>
 </html>
