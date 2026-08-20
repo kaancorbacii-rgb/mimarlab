@@ -1161,7 +1161,13 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
 
   const payload = {
     title: document.getElementById('p-title').value,
-    location: selectedIlce || selectedIl,
+    // gerçek bulgu: yalnızca ilçe adı kaydedilince (ör. "Merkez") il bilgisi kalıcı olarak
+    // kayboluyordu — ilçe adları iller arasında ÇAKIŞABİLDİĞİNDEN (81 ilin ~50'sinde "Merkez" var)
+    // parseLocationFull'daki ILCE_TO_IL ters eşlemesi bunu HER ZAMAN nesnede önce tanımlı ilk ile
+    // (Adıyaman) çözüyordu — düzenlemeye her dönüşte il alanı Adıyaman'a dönüyordu. Artık il+ilçe
+    // "İl (İlçe)" biçiminde birlikte yazılıyor; parseLocationFull bu biçimi zaten (il adı baş ise
+    // parantez içini district kabul ederek) doğrudan destekliyor, ters eşlemeye hiç ihtiyaç kalmıyor.
+    location: selectedIlce ? `${selectedIl} (${selectedIlce})` : selectedIl,
     locationDetail: null,
     date: document.getElementById('p-date').value,
     build_status, conceptCategory, category, type, discipline, designer, office, brands, awards,
