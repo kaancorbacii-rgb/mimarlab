@@ -796,11 +796,23 @@
   /* Başlık altı açıklama (bkz. kullanıcı isteği) — puanlamanın sıralamayı nasıl etkilediğini kısaca anlatır. */
   .content-subtitle{font-size:14.5px; line-height:1.6; color:var(--ink-soft); margin:0 0 22px; max-width:680px;}
 
-  /* ---------- TOOLBAR — filtre + sıralama, tek satır (bkz. kullanıcı isteği: "proje sayfasındaki
-     Tip/Grup/Yer/Yıl filtreleri koy ama tek satırda yan yana olsunlar") ---------- */
-  .top100-toolbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; flex-wrap:wrap;}
-  .top100-toolbar-left{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-  .top100-filters{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  /* ---------- TOOLBAR — filtre + sıralama (bkz. kullanıcı isteği: "proje sayfasındaki Tip/Grup/
+     Yer/Yıl filtreleri koy ama tek satırda yan yana olsunlar"). Üç doğrudan flex çocuğu (arama,
+     filtreler, sıralama) `order` ile düzenlenir — mobilde (bkz. kullanıcı isteği: "arama solda 2.
+     satırda, sıralama sağda 2. satırda olsun") filtreler `flex-basis:100%` ile TEK BAŞINA 1.
+     satırı kaplayıp aşağı iter, kalan arama (order 2, solda) + sıralama (order 3, margin-left:auto
+     ile sağa itilir) aynı 2. satıra düşer. ≥721px'te (bkz. kullanıcı isteği: "masaüstü ve tablette
+     arama en başta, tüm butonlar tek satırda") filtrelerin flex-basis'i kaldırılıp arama en başa
+     alınır, üçü de tek satırda yan yana durur. ---------- */
+  .top100-toolbar{display:flex; align-items:center; gap:8px 16px; margin-bottom:12px; flex-wrap:wrap;}
+  .top100-search-wrap{order:2;}
+  .top100-filters{order:1; flex-basis:100%; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .top100-toolbar .sort-select{order:3; margin-left:auto;}
+  @media (min-width:721px){
+    .top100-search-wrap{order:1;}
+    .top100-filters{order:2; flex-basis:auto;}
+    .top100-toolbar .sort-select{order:3;}
+  }
   /* Arama butonu (bkz. kullanıcı isteği: "filtreler kısmına arama butonu koy") — Tip/Grup/Yer/Yıl
      ile AYNI pill görünümlü bir buton, tıklanınca yanında proje adına göre anlık filtreleyen bir
      giriş kutusu açar. Liste zaten TEK istekte tamamen indiği için (bkz. TOP100_ITEMS) filtreleme
@@ -965,19 +977,17 @@
     <p class="content-subtitle">MİMARLAB'taki kullanıcı puanlarına göre sıralanan Türkiye'nin 'En İyi 100' mimari eseri. Sen de puan vererek beğendiğin eseri ön sıralara taşıyabilirsin.</p>
 
     <div class="top100-toolbar">
-      <div class="top100-toolbar-left">
-        <div class="top100-search-wrap">
-          <button type="button" class="top100-search-btn" id="top100-search-toggle" aria-label="Proje ara" aria-expanded="false">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </button>
-          <div class="top100-search-input-wrap" id="top100-search-input-wrap">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="top100-search-input" placeholder="Proje adı ara…" autocomplete="off">
-            <button type="button" class="top100-search-clear" id="top100-search-clear" aria-label="Aramayı temizle"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-          </div>
+      <div class="top100-search-wrap">
+        <button type="button" class="top100-search-btn" id="top100-search-toggle" aria-label="Proje ara" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <div class="top100-search-input-wrap" id="top100-search-input-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="top100-search-input" placeholder="Proje adı ara…" autocomplete="off">
+          <button type="button" class="top100-search-clear" id="top100-search-clear" aria-label="Aramayı temizle"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
-        <div class="top100-filters" id="top100-filters"></div>
       </div>
+      <div class="top100-filters" id="top100-filters"></div>
       <div class="sort-select">
         <select id="top100-sort">
           <option value="rank">Sıralama</option>
