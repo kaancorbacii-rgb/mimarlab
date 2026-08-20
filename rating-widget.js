@@ -39,6 +39,30 @@ function ratingOf(map, key){
   return (map && map.get(key)) || { average: 0, count: 0 };
 }
 
+// GET /api/ratings/mine — giriş yapmış kullanıcının TÜM puanladığı hedefleri TEK istekte döner
+// (bkz. src/routes/ratings.js#myRatings, hesabim.html'in "Beğendiklerim" kutusunda zaten kullanılan
+// AYNI uç) — mountAllRatingWidgets() burada bunu "kendi puanım" (mine) verisini TOPLU çekmek için de
+// kullanır (bkz. o fonksiyondaki gerçek bulgu/gerekçe). Sayfa ömrü boyunca bir kez çekilip önbelleğe
+// alınır (loadBulkRatings İLE AYNI desen).
+let myRatingsPromise = null;
+async function loadMyRatings(){
+  if(myRatingsPromise) return myRatingsPromise;
+  myRatingsPromise = (async () => {
+    const map = new Map();
+    if(typeof savedWidgetReady !== 'undefined') await savedWidgetReady;
+    if(typeof currentUser === 'undefined' || !currentUser) return map;
+    try{
+      const res = await fetch('/api/ratings/mine');
+      if(res.ok){
+        const data = await res.json();
+        (data.items || []).forEach(it => map.set(it.type + ':' + it.key, it.stars));
+      }
+    }catch{}
+    return map;
+  })();
+  return myRatingsPromise;
+}
+
 // Verilen ortalamaya göre "en az N yıldız" filtre kovalarını döndürür (ör. 4.3 -> ['4+ Yıldız','3+ Yıldız','2+ Yıldız','1+ Yıldız']).
 function ratingBuckets(average){
   if(!average) return [];
@@ -47,18 +71,27 @@ function ratingBuckets(average){
   return buckets;
 }
 
-async function mountRatingWidget(el){
+// prefetched: mountAllRatingWidgets() ÇOK sayıda widget'ı TEK bir toplu istekle boyarken (bkz. o
+// fonksiyondaki gerçek bulgu/gerekçe) her widget için burada AYRICA bir /api/ratings isteği
+// atılmasını önlemek üzere {average,count,mine} önceden hesaplanıp verilir — tek başına bir
+// popup'ta (project-modal.js/product-modal.js#mountRatingWidget(el) — tek argüman) çağrıldığında bu
+// parametre verilmez, davranış AYNEN öncekiyle birebir aynı kalır (kendi GET isteğini kendisi atar).
+async function mountRatingWidget(el, prefetched){
   const targetType = el.dataset.type;
   const targetId = el.dataset.key;
   if(!targetType || !targetId) return;
 
-  if(typeof savedWidgetReady !== 'undefined') await savedWidgetReady;
-
-  let current = { average: 0, count: 0, mine: null };
-  try{
-    const res = await fetch(`/api/ratings?targetType=${encodeURIComponent(targetType)}&targetId=${encodeURIComponent(targetId)}`);
-    if(res.ok) current = await res.json();
-  }catch{}
+  let current;
+  if(prefetched){
+    current = prefetched;
+  } else {
+    if(typeof savedWidgetReady !== 'undefined') await savedWidgetReady;
+    current = { average: 0, count: 0, mine: null };
+    try{
+      const res = await fetch(`/api/ratings?targetType=${encodeURIComponent(targetType)}&targetId=${encodeURIComponent(targetId)}`);
+      if(res.ok) current = await res.json();
+    }catch{}
+  }
 
   function paint(){
     const highlightUpTo = current.mine || 0;
@@ -86,6 +119,15 @@ async function mountRatingWidget(el){
       });
       if(res.ok){
         current = await res.json();
+        // gerçek bulgu: mountAllRatingWidgets()'in TOPLU önbellekleri (ratingBulkCache/
+        // myRatingsPromise) sayfa ömrü boyunca kalıcıdır — bir oy verildikten SONRA en-iyi-100.html
+        // gibi sayfalar TÜM listeyi yeniden render edip widget'ları YENİDEN monte ettiğinde (bkz. o
+        // sayfadaki 'ratingchange' dinleyicisi), önbellek temizlenmezse yeni monte edilen widget'lar
+        // BAYAT sayılar gösterirdi (dıştaki ★ rozeti taze, widget'ın kendi "X.X (N)" metni eski) —
+        // bu yüzden bir oy her değiştiğinde ilgili türün önbelleği hemen atılır, bir sonraki toplu
+        // mount taze veriyi yeniden çeker.
+        delete ratingBulkCache[targetType];
+        myRatingsPromise = null;
         // en-iyi-100.html gibi sayfalar hızlı oydan hemen sonra kendi görünümlerini (sıra/oy
         // sayısı) yeniden çekmeden güncelleyebilsin diye (bkz. kullanıcı isteği: "hızlı oy hemen
         // yansımalı") — bubbling ile üst konteynerler tek bir delege dinleyiciyle yakalayabilir.
@@ -99,6 +141,32 @@ async function mountRatingWidget(el){
   paint();
 }
 
-function mountAllRatingWidgets(){
-  document.querySelectorAll('.rating-widget').forEach(el => mountRatingWidget(el));
+// gerçek bulgu (canlıda doğrulandı, kullanıcı isteği: "kökten çöz"): en-iyi-100.html gibi TEK
+// sayfada onlarca .rating-widget aynı anda monte edilince (bkz. o sayfadaki hızlı puanla listesi)
+// her biri KENDİ /api/ratings isteğini AYRI ayrı atıyordu — ~100 eşzamanlı GET isteği Cloudflare'in
+// rate limiting katmanını tetikleyip bazı isteklere 429 döndürdüğü gözlemlendi. Bu patlama sırasında
+// bir proje popup'ı AÇILIRSA (bkz. project-modal.js#fetchItem, /api/project/:slug) o isteğin
+// KENDİSİ de aynı patlamaya yakalanıp 429 alabiliyor — fetchItem yalnızca res.ok kontrolü yaptığından
+// bunu "proje yok" sanıp popup'ı yanlışlıkla "Proje bulunamadı" gösteriyordu (canlıda tam olarak bu
+// senaryo doğrulandı). Kökten çözüm: TÜM widget'lar (kaç tane olursa olsun) TÜR başına TEK bir toplu
+// istekle (/api/ratings/bulk) + TEK bir /api/ratings/mine isteğiyle boyanır — hiçbir widget kendi
+// başına ayrı bir ağ isteği ATMAZ, sayfa kaç widget monte ederse etsin toplam istek sayısı sabit
+// kalır (tür sayısı + 1).
+async function mountAllRatingWidgets(){
+  const els = Array.from(document.querySelectorAll('.rating-widget'));
+  if(!els.length) return;
+
+  const types = [...new Set(els.map(el => el.dataset.type).filter(Boolean))];
+  const [bulkEntries, mineMap] = await Promise.all([
+    Promise.all(types.map(t => loadBulkRatings(t).then(m => [t, m]))),
+    loadMyRatings(),
+  ]);
+  const bulkByType = new Map(bulkEntries);
+
+  els.forEach(el => {
+    const targetType = el.dataset.type, targetId = el.dataset.key;
+    if(!targetType || !targetId) return;
+    const rating = ratingOf(bulkByType.get(targetType), targetId);
+    mountRatingWidget(el, { average: rating.average, count: rating.count, mine: mineMap.get(targetType + ':' + targetId) || null });
+  });
 }
