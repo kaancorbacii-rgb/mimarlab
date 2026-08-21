@@ -1121,32 +1121,56 @@
     }
 
     // "En Yeni"/"En Eski" sıralaması için projectDate'ten (ör. "532-537", "1228-1229", "2024",
-    // "MÖ 9600") ilk yıl rakam dizisini çıkarır — gerçek bulgu: \d{4} (tam 4 hane) MS 1000'den
-    // önceki 3 haneli yıllarda (ör. Ayasofya "532-537") HİÇ eşleşmiyor, bu da "En Eski"
-    // sıralamasında Ayasofya'nın (532) Aspendos/Göbeklitepe gibi tarihi olmayan (0 kabul edilen)
-    // kayıtların bile GERİSİNDE kalmasına yol açıyordu — \d{1,4} 1-4 haneli her yılı (532 dahil)
-    // yakalar. İnşa tarihi olmayan kayıtlar 0 kabul edilip listenin sonuna düşer.
-    // İKİNCİ gerçek bulgu (kullanıcı isteği): "MÖ" (Milattan Önce) etiketli tarihler ("MÖ 9600",
-    // "MÖ 6800") ham rakam değeriyle (9600, 6800) karşılaştırılınca "En Yeni" sıralamasında en
-    // BÜYÜK sayı olarak İLK sıraya çıkıyordu — oysa MÖ 9600, MS 9600'den ÇOK daha eski. "MÖ"
-    // ibaresi geçen tarihler negatif yıla çevrilir (MÖ 9600 → -9600) ki büyüklük/küçüklük
-    // karşılaştırması gerçek kronolojiyle örtüşsün (MÖ tarihler her zaman MS tarihlerden ve
-    // tarihsiz — 0 kabul edilen — kayıtlardan daha eski sayılır).
-    function yearOf(item){
-      if(!item.projectDate) return 0;
-      var s = String(item.projectDate);
-      var m = s.match(/\d{1,4}/);
-      if(!m) return 0;
-      var year = parseInt(m[0], 10);
-      return s.toUpperCase().indexOf('MÖ') !== -1 ? -year : year;
+    // "MÖ 9600", "MÖ 17. Yüzyıl", "MÖ 410 / 1725", "MÖ 10. Yüzyıl - MS 15. Yüzyıl") gerçek yılı
+    // çıkarır. src/routes/project.js#parseProjectDateYear İLE AYNI mantığın istemci-taraf portu
+    // (js/components/project-related.js#parseProjectDateYear'daki AYNI kopyayla birebir) — proje.html
+    // ve mimar/firma popup'larındaki "Diğer Projeleri" sıralamasıyla TUTARLI kalması için burada
+    // üçüncü bir farklı kopya açılmadı. Kök sebep düzeltmesi (kullanıcı bulgusu): eski yearOf() ilk
+    // \d{1,4} rakamını alıp string'de "MÖ" geçiyorsa negatif yapıyordu — "MÖ 17. Yüzyıl" bu yüzden
+    // -17 sanılıyor, oysa 17. yüzyıl MÖ'nün gerçek başlangıcı -1650; -17 > -410 olduğundan Hattuşa
+    // (aslında -1650, Kız Kulesi'nin -410'undan ÇOK daha eski) "En Eski" sıralamasında Kız Kulesi'nin
+    // GERİSİNE düşüyordu. parseProjectDateYear "yüzyıl"/"yy" ibaresini yakalayıp yüzyıl→yıl çevrimi
+    // yapar (MÖ N. yüzyıl → -(N*100), MS N. yüzyıl → (N-1)*100+1), "/" ile ayrılmış çoklu tarih
+    // segmentlerini (ör. "MÖ 410 / 1725") ayrı ayrı değerlendirip EN ESKİSİNİ seçer, ve MÖ/MS karışık
+    // aralıklarda ("MÖ 10. Yüzyıl - MS 15. Yüzyıl") her segmentin kendi MÖ/MS etiketini ayrı ayrı okur.
+    // İnşa tarihi ayrıştırılamayan kayıtlar null döner ve sıralamanın yönünden bağımsız olarak HER
+    // ZAMAN listenin sonuna düşer (aksi halde 0 kabul edilirlerse MÖ tarihlerin GERİSİNE ya da MS
+    // tarihlerin arasına yanlışlıkla karışırlardı).
+    function parseProjectDateYear(dateStr){
+      if(!dateStr) return null;
+      var hasCenturyWordAnywhere = /yuzyil|\byy\b/.test(foldTr(dateStr));
+      var best = null;
+      String(dateStr).split('/').forEach(function(rawSegment){
+        var folded = foldTr(rawSegment);
+        var isBC = /\bmo\b/.test(folded);
+        var isCenturyFragment = hasCenturyWordAnywhere && /^\s*(ms\s*)?\d{1,2}\.\s*$/.test(folded);
+        var isCentury = isCenturyFragment || /yuzyil|\byy\b/.test(folded);
+        var nums = (rawSegment.match(/\d+/g) || []).map(function(n){ return parseInt(n, 10); });
+        if(!nums.length) return;
+        var year;
+        if(isCentury){
+          var century = isBC ? Math.max.apply(Math, nums) : Math.min.apply(Math, nums);
+          year = isBC ? -(century * 100) : (century - 1) * 100 + 1;
+        } else {
+          var magnitude = isBC ? Math.max.apply(Math, nums) : Math.min.apply(Math, nums);
+          year = isBC ? -magnitude : magnitude;
+        }
+        if(best === null || year < best) best = year;
+      });
+      return best;
     }
 
     function sortedFilteredItems(){
       var items = TOP100_ITEMS.filter(function(it){ return passesTop100Filters(it) && passesTop100Search(it); });
       if(TOP100_SORT === 'votes') items.sort(function(a, b){ return b.count - a.count; });
       else if(TOP100_SORT === 'alpha') items.sort(function(a, b){ return a.name.localeCompare(b.name, 'tr'); });
-      else if(TOP100_SORT === 'date_desc') items.sort(function(a, b){ return yearOf(b) - yearOf(a); });
-      else if(TOP100_SORT === 'date_asc') items.sort(function(a, b){ return yearOf(a) - yearOf(b); });
+      else if(TOP100_SORT === 'date_desc' || TOP100_SORT === 'date_asc') items.sort(function(a, b){
+        var ya = parseProjectDateYear(a.projectDate), yb = parseProjectDateYear(b.projectDate);
+        if(ya === null && yb === null) return 0;
+        if(ya === null) return 1;
+        if(yb === null) return -1;
+        return TOP100_SORT === 'date_desc' ? yb - ya : ya - yb;
+      });
       else items.sort(function(a, b){ return a.rank - b.rank; });
       return items;
     }
