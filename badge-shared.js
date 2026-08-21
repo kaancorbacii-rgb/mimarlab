@@ -98,10 +98,10 @@ function ensureBadgeTooltip(){
   return badgeTooltipEl;
 }
 // tappable: mobil "dokun -> ismi göster" akışında true geçilir; tooltip'i pointer-events:auto
-// yapıp üzerine tekrar dokununca satin-al.html'e yönlendirilebilir hale getirir (bkz. aşağıdaki
-// click delegasyonu). Masaüstü hover akışında (tappable geçilmez) tooltip her zaman
-// pointer-events:none kalır — aksi halde fare tooltip'e değince mouseout'un `icon.contains`
-// kontrolü tooltip'i içermediğinden yanlışlıkla titreşerek kapanırdı.
+// yapıp üzerine tekrar dokununca kapatılabilir hale getirir (bkz. aşağıdaki click delegasyonu —
+// rozetler artık hiçbir yere yönlendirmez). Masaüstü hover akışında (tappable geçilmez) tooltip
+// her zaman pointer-events:none kalır — aksi halde fare tooltip'e değince mouseout'un
+// `icon.contains` kontrolü tooltip'i içermediğinden yanlışlıkla titreşerek kapanırdı.
 function showBadgeTooltip(icon, tappable){
   const tip = ensureBadgeTooltip();
   tip.textContent = icon.dataset.tip || '';
