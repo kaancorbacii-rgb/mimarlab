@@ -197,7 +197,14 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     }
     // Mimar alanı hiç doldurulmamışsa (bkz. yukarıdaki fetchFoundersForOffices yorumu) tanımlı
     // firma(lar)ın kurucu/ortak mimarlarını otomatik "Mimar:" chip'i olarak ekle — Mimar alanı boş kalmasın.
-    if (!designerDetails.some(d => d.type === 'architect')) {
+    // YALNIZCA rawNames.isLegacy=true iken (hiç modern gönderi satırı yok ya da 0030 migration'dan
+    // ÖNCEki birleşik format) — bu durumda Mimar kutusunun gerçekten hiç doldurulmadığından emin
+    // olamayız. isLegacy=false ise (proje-ekle.html'in modern, ayrı Mimar/Firma kutularından geçmiş
+    // bir kayıt) architects[] boşsa bu KASITLI bir seçimdir (kullanıcı Mimar kutusunu elle boşalttı
+    // olabilir, bkz. gerçek bulgu: Edirne II. Beyazıt Külliyesi — Mimar Sinan silinip kaydedildiğinde
+    // bu fallback onu HER görüntülemede sessizce geri ekliyordu) — buraya asla düşülmez, künye
+    // project_designers'ta gerçekten ne varsa onu gösterir.
+    if (!designerDetails.some(d => d.type === 'architect') && rawNames.isLegacy) {
       const officeNames = designerDetails.filter(d => d.type === 'office' && !d.unregistered).map(d => d.name);
       const autoFounders = await fetchFoundersForOffices(env, officeNames);
       for (const founder of autoFounders) {
