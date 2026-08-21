@@ -228,15 +228,18 @@ const ProjectModal = (function () {
     // kendi /api/projects sorgularını ArchitectProjects'in (çok projeli mimarlarda yavaş olabilen,
     // sayfalanmış) fetch'i TAMAMEN bitmeden başlatır, yalnızca dışlama seti için architectSlugsPromise'i
     // bekler (bkz. js/components/project-related.js#mount dosya başı yorumu). CityProjects — MİMARLAB
-    // AI Faz 2, Proje↔Şehir ilişkisi (bkz. o dosyadaki dosya başı yorum) — AYNI architectSlugsPromise'i
-    // paylaşır, RelatedProjects'in kendi gösterdiği slug'larla kesişmeme garantisi BİLEREK aranmadı
-    // (iki bölüm farklı bir soruyu yanıtlıyor, örtüşme meşru).
+    // AI Faz 2, Proje↔Şehir ilişkisi (bkz. o dosyadaki dosya başı yorum) — architectSlugsPromise'e EK
+    // olarak artık RelatedProjects'in de kendi gösterdiği slug'ları bekler (kullanıcı isteği: "ilgili
+    // projelerle proje çakışması hiçbir zaman olmasın" — gerçek bulgu: Ayasofya popup'ında Sokullu
+    // Mehmed Paşa Camii hem İlgili Projeler'de hem Şehirdeki Diğer Projeler'de birden çıkıyordu),
+    // böylece iki bölüm arasında ASLA çakışma olmaz.
     observeOnce(sameDesignerSection, () => {
       if (mySeq !== requestSeq) return;
       const architectSlugsPromise = ArchitectProjects.mount(item).then(r => (mySeq === requestSeq && r) ? r.slugs : new Set());
-      const relatedPromise = RelatedProjects.mount(item, architectSlugsPromise);
-      const cityPromise = CityProjects.mount(item, architectSlugsPromise);
-      Promise.allSettled([architectSlugsPromise, relatedPromise, cityPromise]);
+      const relatedSlugsPromise = RelatedProjects.mount(item, architectSlugsPromise).then(r => (mySeq === requestSeq && r) ? r.slugs : new Set());
+      const cityExcludePromise = Promise.all([architectSlugsPromise, relatedSlugsPromise]).then(([a, r]) => new Set([...a, ...r]));
+      const cityPromise = CityProjects.mount(item, cityExcludePromise);
+      Promise.allSettled([architectSlugsPromise, relatedSlugsPromise, cityPromise]);
     }, 600);
 
     const productsSection = document.getElementById('pm-products-section');

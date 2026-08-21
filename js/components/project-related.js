@@ -170,8 +170,16 @@ const RelatedProjects = (function () {
     </a>`;
   }
 
+  // \d{1,4} (4 DEĞİL): Ayasofya gibi antik projelerin project_date'i "532-537" formatında —
+  // 3 haneli yıllar \d{4} ile HİÇ eşleşmiyordu, sourceYear/candYear hep null kalıyor, yıl yakınlığı
+  // puanı sessizce 0'a düşüyordu (gerçek bulgu: Ayasofya popup'ında "İlgili Projeler" yıl sinyali
+  // hiç işlemiyormuş). "yüzyıl"/"yy" geçen serbest-metin tarihler ("MÖ 4. Yüzyıl" gibi) BİLEREK
+  // dışarıda bırakılır — \d{1,4} bunlardaki "4"ü gerçek bir yıl sanıp yanlış bir sıralama sinyali
+  // üretirdi; bu durumda ArchitectProjects#parseProjectDateYear'daki gibi tam century-ayrıştırma
+  // yapmak yerine eski null/fallback davranışı korunur.
   function extractYear(dateStr) {
-    const m = /(\d{4})/.exec(dateStr || '');
+    if (/y[üu]zy[iı]l|\byy\b/i.test(dateStr || '')) return null;
+    const m = /(\d{1,4})/.exec(dateStr || '');
     return m ? parseInt(m[1], 10) : null;
   }
 
@@ -406,10 +414,11 @@ const RelatedProjects = (function () {
     if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(disciplinePool, RESULT_COUNT - merged.length));
     if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(fallbackPool, RESULT_COUNT - merged.length));
 
-    if (!merged.length) { section.style.display = 'none'; return; }
+    if (!merged.length) { section.style.display = 'none'; return { slugs: new Set() }; }
     section.style.display = '';
     document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
     rememberSeenSlugs(seen, merged.map(p => p.slug));
+    return { slugs: new Set(merged.map(p => p.slug)) };
   }
 
   return { mount };
@@ -446,9 +455,13 @@ const CityProjects = (function () {
   // öneri verilsin... kaynak 2010'larsa öneriler de 2000'ler, 2010'lar, 2020'ler gibi yakın
   // tarihlerden olsun") sunucudan zaten puana göre (rating_desc) gelen listenin ÖNÜNE alınır; yılı
   // ayrıştırılamayan adaylar (ör. "MÖ 4. Yüzyıl" gibi eski metinler) en sona düşer ama YİNE DE
-  // gösterilir — sert bir filtre değil, yalnızca sıralama sinyali.
+  // gösterilir — sert bir filtre değil, yalnızca sıralama sinyali. \d{1,4} (bkz. RelatedProjects#extractYear
+  // AYNI gerçek bulgu): 3 haneli antik yıllar ("532-537" gibi) \d{4} ile eşleşmiyor, sourceYear null
+  // kalıp bu bölümün tüm sıralaması sessizce devre dışı kalıyordu. "yüzyıl"/"yy" guard'ı da AYNI
+  // gerekçeyle buraya taşındı (bkz. RelatedProjects#extractYear yorumu).
   function extractYear(dateStr) {
-    const m = /(\d{4})/.exec(dateStr || '');
+    if (/y[üu]zy[iı]l|\byy\b/i.test(dateStr || '')) return null;
+    const m = /(\d{1,4})/.exec(dateStr || '');
     return m ? parseInt(m[1], 10) : null;
   }
 
@@ -464,11 +477,14 @@ const CityProjects = (function () {
     });
   }
 
-  // excludeSlugsPromise: ArchitectProjects'in gösterdiği slug'lar (bkz. js/components/
-  // project-modal.js#armDeferredSections) — RelatedProjects'inkiyle AYNI desen, "aynı mimara ait"
-  // projelerin bu bölümde TEKRAR görünmesini engeller. RelatedProjects'in kendi gösterdiği slug'larla
-  // KESİŞMEME garantisi bilerek aranmadı (iki bölüm farklı bir soruyu — Tür/Tip benzerliği vs. Şehir
-  // ortaklığı — yanıtladığından bir proje her ikisinde de haklı olarak çıkabilir).
+  // excludeSlugsPromise: ArchitectProjects'İN + RelatedProjects'İN gösterdiği slug'ların BİRLEŞİMİ
+  // (bkz. js/components/project-modal.js#armDeferredSections) — "aynı mimara ait" projeler ve
+  // "İlgili Projeler"de zaten gösterilen projeler bu bölümde TEKRAR görünmesin diye (kullanıcı
+  // isteği: "ilgili projelerle proje çakışması hiçbir zaman olmasın" — ör. Ayasofya popup'ında
+  // Sokullu Mehmed Paşa Camii hem İlgili Projeler'de hem Şehirdeki Diğer Projeler'de birden
+  // çıkıyordu). GERÇEK BULGU: eskiden yalnızca ArchitectProjects'in slug'ları dışlanıyordu; artık
+  // RelatedProjects.mount de kendi gösterdiği slug'ları döndürür (bkz. RelatedProjects.mount return'ü
+  // yukarısı) ve project-modal.js ikisini birleştirip buraya geçirir.
   async function mount(item, excludeSlugsPromise, ids) {
     const mySeq = ++mountSeq;
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
