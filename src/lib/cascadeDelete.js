@@ -100,8 +100,9 @@ export async function cascadeDeleteOffice(env, user, name) {
   }
 }
 
-// Bir proje SİLİNDİĞİNDE — aldığı yorum/puan/kaydetme kayıtları silinir. Başka hiçbir tablo bir
-// projeye slug ile referans vermez (bkz. schema.sql).
+// Bir proje SİLİNDİĞİNDE — aldığı yorum/puan/kaydetme kayıtları silinir. (top100_entries.slug
+// burada temizlenmez — bkz. src/lib/canonicalSync.js#renameProjectSlugEverywhere yorumu;
+// computeTop100 zaten eşleşmeyen slug'ı "bağlantısız" olarak ele alıp eski statik isme düşer.)
 export async function cascadeDeleteProject(env, slug) {
   await deleteEngagement(env, 'project', slug);
 }

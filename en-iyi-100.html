@@ -21,6 +21,11 @@
 <meta name="twitter:title" content="En İyi 100 Mimari Eser — MİMARLAB">
 <meta name="twitter:description" content="Kullanıcı puanlarına göre Türkiye'nin en iyi 100 mimari eseri.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
+<!-- Temiz URL'lerle bu sayfanın proje modalı /en-iyi-100/:slug altına (iç içe bir yola) pushState
+     yapıyor; <base> olmadan modal içindeki "Düzenle" gibi göreli linkler (bkz.
+     js/components/project-actions.js) o iç içe yola göre yanlış çözümlenip 404 verirdi (bkz.
+     proje.html/mimar.html/firma.html/urun.html'deki AYNI gerekçe). -->
+<base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">

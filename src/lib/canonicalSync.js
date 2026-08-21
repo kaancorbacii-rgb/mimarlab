@@ -132,15 +132,20 @@ export async function isDuplicateCanonicalName(env, typeKey, name, { brand } = {
 
 // Bir projenin başlığı (dolayısıyla slug'ı) değiştiğinde — mimar/firma yeniden adlandırmasındaki
 // renameOfficeEverywhere/renameArchitectEverywhere'in proje karşılığı. Projeye slug ile referans
-// veren TEK üç tablo comments/ratings/saved_items (bkz. src/lib/cascadeDelete.js dosya başı yorumu
-// "Başka hiçbir tablo bir projeye slug ile referans vermez") + legacy_content_hidden (bkz.
-// src/routes/legacyContent.js#setLegacyHidden — content_type='projects', content_key=slug).
+// veren tablolar: comments/ratings/saved_items (bkz. src/lib/cascadeDelete.js dosya başı yorumu
+// "Başka hiçbir tablo bir projeye slug ile referans vermez" — top100_entries eklendiğinde bu artık
+// güncel değil) + legacy_content_hidden (bkz. src/routes/legacyContent.js#setLegacyHidden —
+// content_type='projects', content_key=slug) + top100_entries.slug (bkz. src/routes/top100.js#
+// computeTop100 — canlı projects eşleşmesi bu slug ÜZERİNDEN yapılır; güncellenmezse yeniden
+// adlandırılan bir proje En İyi 100 sayfasında eski isimle ve kırık bir linkle kalır, gerçek bulgu
+// 2026-08-21).
 async function renameProjectSlugEverywhere(env, oldSlug, newSlug) {
   await Promise.all([
     env.DB.prepare(`UPDATE comments SET target_id = ? WHERE target_type = 'project' AND target_id = ?`).bind(newSlug, oldSlug).run(),
     env.DB.prepare(`UPDATE OR IGNORE ratings SET target_id = ? WHERE target_type = 'project' AND target_id = ?`).bind(newSlug, oldSlug).run(),
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'project' AND item_key = ?`).bind(newSlug, oldSlug).run(),
     env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'projects' AND content_key = ?`).bind(newSlug, oldSlug).run(),
+    env.DB.prepare(`UPDATE top100_entries SET slug = ? WHERE slug = ?`).bind(newSlug, oldSlug).run(),
   ]);
   // bkz. migrations/0041_slug_redirects.sql — eski /yapi/:slug ve /proje/:slug hâlâ çalışsın (301 ile yeniye).
   await recordSlugRedirect(env, 'projects', oldSlug, newSlug);
