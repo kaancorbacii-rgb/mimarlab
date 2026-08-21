@@ -277,32 +277,42 @@ const RelatedProjects = (function () {
     const withStrictFilters = params => [...params, buildStatusParam, ...disciplineParams, ...categoryParams];
     const withDisciplineFilters = params => [...params, buildStatusParam, ...disciplineParams];
     const withBuildStatusOnly = params => [...params, buildStatusParam];
+    // sort=random: HER aday sorgusuna eklenir (bkz. src/routes/project.js#SORT_REQUIRES_JS_FILTER
+    // 'random' case ve kullanıcı isteği: "hep siteye yeni yüklenen projeler çıkıyor, eskiden
+    // yüklenmiş projeler de önerilsin"). GERÇEK BULGU: sort verilmeyince D1 havuzu ORDER BY p.id DESC
+    // (en son eklenen ilk) döndüğünden, ve rating_desc'te de puanı OLMAYAN adaylar (çoğunluk) id DESC
+    // sırasında kaldığından, aşağıdaki her sorgunun LIMIT'i (12/32/40/80/96) sistematik olarak en
+    // yeni projelere doluyordu — eski projeler havuza HİÇ giremiyordu, sonraki weightedSample/
+    // sortByYearProximity adımları zaten bulunmayan adayları öneremezdi. random, LIMIT'e kimin
+    // gireceğini eski/yeni ayrımı yapmadan belirler; nihai sıralama zaten client-side skorlama ile
+    // yapıldığından (scoreCandidate yalnızca yıl yakınlığına bakar, sunucu sırasını KULLANMAZ) sort
+    // değerinin kendisi kaybolan bir bilgi değildir.
     (item.designerDetails || []).forEach(d => {
       if (d.unregistered) return;
-      queries.push(fetchByParams(withStrictFilters([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name]]), 12));
+      queries.push(fetchByParams(withStrictFilters([[d.type === 'architect' ? 'designer' : 'designerOffice', d.name], ['sort', 'random']]), 12));
     });
-    (item.type || []).forEach(t => queries.push(fetchByParams(withStrictFilters([['type', t]]), 32)));
+    (item.type || []).forEach(t => queries.push(fetchByParams(withStrictFilters([['type', t], ['sort', 'random']]), 32)));
     const topLevelLocation = locationParts(item.location);
     const rawCity = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location).city : null;
-    if (rawCity) queries.push(fetchByParams(withStrictFilters([['location', rawCity]]), 32));
-    // Kural 3 (bkz. yukarısı, mount()'taki loadSeenSlugs) — bu sorgular proje-BAĞIMSIZ (sort=
-    // rating_desc / discipline+category'ye göre id DESC), yani AYNI Tip'teki her proje için neredeyse
-    // birebir aynı sonucu döner. Limitler eskiden 16/24'tü — bu, "seen" havuzunun hızla tükenip her
-    // yeni proje pop-up'ının aynı dar kümeye geri dönmesine yol açıyordu (gerçek bulgu: iki farklı
+    if (rawCity) queries.push(fetchByParams(withStrictFilters([['location', rawCity], ['sort', 'random']]), 32));
+    // Kural 3 (bkz. yukarısı, mount()'taki loadSeenSlugs) — bu sorgular proje-BAĞIMSIZ (sort=random),
+    // yani AYNI Tip'teki her proje için farklı rastgele örnekler döner (eskiden id DESC ile neredeyse
+    // birebir aynı sonucu döndürüyordu). Limitler eskiden 16/24'tü — bu, "seen" havuzunun hızla tükenip
+    // her yeni proje pop-up'ının aynı dar kümeye geri dönmesine yol açıyordu (gerçek bulgu: iki farklı
     // Dini proje arasında %60 çakışma). Limitleri büyütmek (sunucu üst sınırı 96, bkz.
     // src/routes/project.js#handleProjectListRoute) "seen" filtresine rotasyon yapacak gerçek bir
     // havuz sağlar.
-    queries.push(fetchByParams(withStrictFilters([['sort', 'rating_desc']]), 40)); // Tür+Tip'e uyan genel havuz
-    if (disciplineParams.length || categoryParams.length) queries.push(fetchByParams([...disciplineParams, ...categoryParams, buildStatusParam], 80)); // Tür+Tip'e özel geniş havuz
+    queries.push(fetchByParams(withStrictFilters([['sort', 'random']]), 40)); // Tür+Tip'e uyan genel havuz
+    if (disciplineParams.length || categoryParams.length) queries.push(fetchByParams([...disciplineParams, ...categoryParams, buildStatusParam, ['sort', 'random']], 80)); // Tür+Tip'e özel geniş havuz
     // "aynı türden farklı projeler öner" havuzu (kullanıcı isteği) — category BİLEREK dışarıda
     // bırakılır ki sunucu tarafındaki AND birleşimi (yukarıdaki dosya başı not) farklı Tip'teki
     // aynı-Tür adayları elemesin; disciplinePool bunları mount()'ta ikinci öncelik olarak kullanır.
-    if (disciplineParams.length) queries.push(fetchByParams(withDisciplineFilters([['sort', 'rating_desc']]), 80));
+    if (disciplineParams.length) queries.push(fetchByParams(withDisciplineFilters([['sort', 'random']]), 80));
     // Kural 4 (kullanıcı isteği: "ilgili proje sayısı her zaman en az 15 olsun") — ne Tür ne Tip
     // kısıtı taşımayan, yalnızca buildStatus'a bağlı geniş bir genel havuz: strictPool+disciplinePool
     // niş bir kaynak proje için RESULT_COUNT'u dolduramazsa mount()'taki fallbackPool bu sorgudan
     // beslenir, böylece bölüm neredeyse hiçbir zaman 15'in altında kalmaz (bkz. mount()).
-    queries.push(fetchByParams(withBuildStatusOnly([['sort', 'rating_desc']]), 96));
+    queries.push(fetchByParams(withBuildStatusOnly([['sort', 'random']]), 96));
     return { queries, topLevelLocation };
   }
 
@@ -430,9 +440,15 @@ const RelatedProjects = (function () {
 // olarak kullanıyordu (bkz. gatherCandidateQueries) ama puanlamaya hiç girmiyordu, dolayısıyla
 // kullanıcıya "aynı şehirdekiler" diye ayrı bir liste hiç sunulmuyordu — ArchitectProjects/
 // RelatedProjects İLE AYNI /api/projects ucunu ('location' filtre param'ı, bkz. src/routes/
-// project.js#buildFilterGroups 'Yer') kullanır, yeni bir backend ucu GEREKMEZ. Sunucu tarafında
-// sort=rating_desc zaten en yüksek puanlıyı önce döndürdüğünden burada ayrıca bir skorlama/rastgele
-// örnekleme yapılmaz (RelatedProjects'in aksine bu bölüm için oturum-içi rotasyon istenmedi).
+// project.js#buildFilterGroups 'Yer') kullanır, yeni bir backend ucu GEREKMEZ. sort=random kullanılır
+// (bkz. src/routes/project.js#SORT_REQUIRES_JS_FILTER 'random' case, kullanıcı isteği: "hep siteye
+// yeni yüklenen projeler çıkıyor, eskiden yüklenmiş projeler de önerilsin") — GERÇEK BULGU: eskiden
+// burada sort=rating_desc kullanılıyordu, ama puanı OLMAYAN adaylar (çoğunluk) o durumda id DESC
+// (en yeni önce) sırasında kaldığından, LIMIT=96'ya çarpan şehirlerde havuz sistematik olarak en
+// yeni projelere doluyor, eski projeler bu 96'lık kesime hiç giremiyordu — aşağıdaki
+// sortByYearProximity de olmayan bir adayı öneremezdi. random, LIMIT'e kimin gireceğini eski/yeni
+// ayrımı yapmadan belirler; sonrasında yine sortByYearProximity ile kaynağa en yakın yıllar öne
+// alınır (RelatedProjects'in aksine bu bölüm için oturum-içi rotasyon istenmedi).
 const CityProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-city-section', grid: 'pm-city-grid' };
   let mountSeq = 0;
@@ -497,7 +513,7 @@ const CityProjects = (function () {
     const params = new URLSearchParams();
     params.set('location', city);
     params.set('buildStatus', buildStatus);
-    params.set('sort', 'rating_desc');
+    params.set('sort', 'random');
     params.set('limit', '96');
     let items = [];
     try {

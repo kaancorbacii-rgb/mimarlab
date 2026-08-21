@@ -396,10 +396,16 @@ export async function handleProjectFiltersRoute(request, env, url) {
 }
 
 // handleProjectListRoute'daki sort switch'inin BİREBİR eşlemesi (bkz. o dosyadaki case listesi) —
-// yalnızca bu dört değer pool'un D1'den gelen id DESC sırasını GERÇEKTEN değiştirir (Türkçe
-// localeCompare, tarih parseInt'i ya da rating join'i gerektirir); '' dahil BAŞKA HER değer switch'in
-// default dalına düşüp no-op kalır (bkz. "sort boşsa ek sıralama gerekmez" yorumu).
-const SORT_REQUIRES_JS_FILTER = new Set(['name_asc', 'date_desc', 'date_asc', 'rating_desc']);
+// yalnızca bu beş değer pool'un D1'den gelen id DESC sırasını GERÇEKTEN değiştirir (Türkçe
+// localeCompare, tarih parseInt'i, rating join'i ya da (random) bir shuffle gerektirir); '' dahil
+// BAŞKA HER değer switch'in default dalına düşüp no-op kalır (bkz. "sort boşsa ek sıralama gerekmez"
+// yorumu). random: js/components/project-related.js#RelatedProjects/CityProjects'in aday toplama
+// sorguları için (bkz. kullanıcı isteği: "hep siteye yeni yüklenen projeler çıkıyor, eskiden
+// yüklenmiş projeler de önerilsin") — sort verilmeyen (id DESC = en yeni önce) ya da rating_desc
+// (puanı olmayanlar id DESC sırasında kalır) sorgular LIMIT'e çarptığında havuz sistematik olarak
+// en yeni projelere kayıyordu; random ise filtered'ı LIMIT'ten ÖNCE karıştırarak eski/yeni
+// projelere eşit şans tanır.
+const SORT_REQUIRES_JS_FILTER = new Set(['name_asc', 'date_desc', 'date_asc', 'rating_desc', 'random']);
 
 // D1 hızlı-yolun (fetchProjectListPageFromD1) devreye girip giremeyeceğini belirler — buildFilterGroups'un
 // KENDİ anahtar listesinden türetilir (bkz. kullanıcı isteği: ayrı bir sabit listeyle elle
@@ -541,7 +547,17 @@ export async function handleProjectListRoute(request, env, url) {
 
     // proje.html#render()'daki sort switch'in BİREBİR aynısı — sort boşsa fetchActiveProjectPool
     // zaten ORDER BY p.id DESC döndürdüğünden (en son eklenen ilk) ek bir sıralama gerekmez.
-    if (sort) {
+    if (sort === 'random') {
+      // Fisher-Yates — LIMIT/slice'tan (aşağısı) ÖNCE, yani havuz D1'de değil burada, Worker
+      // belleğindeki filtrelenmiş diziyle karıştırılıyor (bkz. yukarısı: D1'de ORDER BY RANDOM()
+      // BİLEREK kullanılmıyor). Amaç sıralama kalitesi değil, hangi öğelerin LIMIT'e gireceğini
+      // eski/yeni ayrımı yapmadan eşit şansla belirlemek (bkz. SORT_REQUIRES_JS_FILTER yorumu).
+      filtered = [...filtered];
+      for (let i = filtered.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+      }
+    } else if (sort) {
       filtered = [...filtered].sort((a, b) => {
         switch (sort) {
           case 'name_asc': return a.title.localeCompare(b.title, 'tr');
