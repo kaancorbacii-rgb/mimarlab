@@ -33,7 +33,14 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 -- kayıt listesine (/api/public/offices) dahil edilmez (bkz. src/routes/submissions.js, public.js).
 CREATE TABLE IF NOT EXISTS office_submissions (
   id TEXT PRIMARY KEY,
-  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  -- owner_user_id: nullable + ON DELETE SET NULL (bkz. migrations/
+  -- 0055_submissions_owner_user_id_nullable.sql) — hesap silinse bile onaylı gönderi KORUNUR,
+  -- yalnızca sahiplik bağı kopar (architects/offices/projects/products.claimed_by_user_id ile
+  -- AYNI ilke). Önceden NOT NULL'du: D1 varsayılan olarak FK enforcement'ı açık tuttuğundan
+  -- (PRAGMA foreign_keys=ON ile eşdeğer), onaylı bir gönderisi olan kullanıcının hesabını silmek
+  -- cascadeDeleteAccount()'un DELETE FROM users adımında FK constraint hatasıyla başarısız olup
+  -- TÜM işlemi rollback ediyordu (gerçek bulgu).
+  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -45,11 +52,15 @@ CREATE TABLE IF NOT EXISTS office_submissions (
   about TEXT,
   logo_url TEXT,
   awards TEXT,
+  claimed_profile_key TEXT,
   founders TEXT,
-  claimed_profile_key TEXT
+  social_platform TEXT, -- bkz. migrations/0035_social_media.sql
+  social_url TEXT, -- bkz. migrations/0035_social_media.sql
+  social_links TEXT, -- bkz. migrations/0036_social_links.sql
+  team TEXT -- Kurucular dışındaki ekip üyeleri (bkz. migrations/0048_office_team.sql)
 );
 CREATE INDEX IF NOT EXISTS idx_office_owner ON office_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_office_status ON office_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_office_status_created ON office_submissions(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_office_claimed_key ON office_submissions(claimed_profile_key);
 
 -- claimed_slug doluysa bu satır yeni bir proje kaydı değil, projeler[]'deki (projeler-data.js,
@@ -60,7 +71,9 @@ CREATE INDEX IF NOT EXISTS idx_office_claimed_key ON office_submissions(claimed_
 -- status='approved' yazılır.
 CREATE TABLE IF NOT EXISTS project_submissions (
   id TEXT PRIMARY KEY,
-  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
+  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
+  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -68,7 +81,6 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   title TEXT NOT NULL,
   category TEXT,
   type TEXT,
-  discipline TEXT, -- "Tür" facet: Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon (bkz. migrations/0017_project_discipline.sql)
   location TEXT,
   locationDetail TEXT,
   date TEXT,
@@ -83,15 +95,21 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   claimed_slug TEXT,
   source_url TEXT, -- AI ile otomatik ekleme akışının çıkarım yaptığı kaynak sayfa (bkz. src/routes/ai.js)
   ai_generated INTEGER NOT NULL DEFAULT 0, -- moderasyonda görünür bir işaret; manuel gönderimlerde 0/NULL
+  discipline TEXT, -- "Tür" facet: Mimari/İç Mekan/Peyzaj ve Kentsel Tasarım/Restorasyon (bkz. migrations/0017_project_discipline.sql)
+  office TEXT, -- bkz. migrations/0030_project_submission_office.sql
+  build_status TEXT NOT NULL DEFAULT 'built', -- bkz. migrations/0037_project_build_status.sql
+  conceptCategory TEXT, -- bkz. migrations/0038_project_concept_category.sql
   awards TEXT -- JSON dizi (serbest metin ödül adları) — architect_submissions/office_submissions.awards ile AYNI desen, bkz. migrations/0049_project_awards.sql
 );
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_project_status ON project_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_project_status_created ON project_submissions(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_project_claimed_slug ON project_submissions(claimed_slug);
 
 CREATE TABLE IF NOT EXISTS product_submissions (
   id TEXT PRIMARY KEY,
-  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
+  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
+  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -109,14 +127,16 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   year TEXT -- serbest metin üretim/tasarım yılı — bkz. migrations/0042_product_designer_year.sql
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_product_status ON product_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_product_status_created ON product_submissions(status, created_at DESC);
 
 -- Yapı malzemeleri (doğal taş, boya, seramik vb.) — mobilya gibi tüketici ürünlerinden ayrı bir
 -- kategori/sayfa (Malzeme) olarak product_submissions ile aynı şemayı kullanır (bkz. urun.html/
 -- malzeme.html, src/lib/submissionTypes.js#materials).
 CREATE TABLE IF NOT EXISTS material_submissions (
   id TEXT PRIMARY KEY,
-  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
+  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
+  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -134,18 +154,19 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   year TEXT -- bkz. product_submissions.year açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_material_status ON material_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_material_status_created ON material_submissions(status, created_at DESC);
 
 -- published_at: ilan onaylanıp (yeniden) yayına alındığı an (bkz. src/routes/admin.js). İlan yayında
 -- kalma süresi 30 gündür; /api/public/jobs, published_at + 30 günü geçmiş satırları listeye dahil
 -- etmeyerek yayından kaldırır (durum DB'de 'approved' kalır, sadece herkese açık listeden düşer).
 CREATE TABLE IF NOT EXISTS job_submissions (
   id TEXT PRIMARY KEY,
-  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
+  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
+  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
-  published_at INTEGER,
   title TEXT NOT NULL,
   office TEXT,
   loc TEXT,
@@ -155,38 +176,60 @@ CREATE TABLE IF NOT EXISTS job_submissions (
   domain TEXT,
   description TEXT,
   apply TEXT,
-  image_url TEXT
+  image_url TEXT,
+  published_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_job_owner ON job_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_job_status ON job_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_job_status_created ON job_submissions(status, created_at DESC);
 
 -- claimed_profile_key: bkz. office_submissions üzerindeki aynı alanın açıklaması (architects[].name
 -- ile eşleşen statik bir profile onaylı profile_claims üzerinden yapılan düzenleme talebi).
 CREATE TABLE IF NOT EXISTS architect_submissions (
   id TEXT PRIMARY KEY,
-  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
+  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
+  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   name TEXT NOT NULL,
   dob TEXT,
   school TEXT,
-  dept TEXT,
   office TEXT,
   position TEXT,
-  profession TEXT,
   awards TEXT,
   photo_url TEXT,
+  dept TEXT,
   claimed_profile_key TEXT,
-  about TEXT -- serbest metin biyografi, office_submissions.about ile aynı desen (bkz. migrations/0019_architect_about.sql)
+  profession TEXT,
+  about TEXT, -- serbest metin biyografi, office_submissions.about ile aynı desen (bkz. migrations/0019_architect_about.sql)
+  -- consultant_request/hourly_rate/session_duration_min/expertise_tags/available_slots/
+  -- consultant_experience_years: danışmanlık modülü başvuru alanları (bkz. migrations/
+  -- 0031_architect_consultant.sql, 0033_consultant_experience.sql, 0034_consultant_submission_
+  -- fields.sql). migrations/0040_remove_consultant_schema.sql bu kolonları kaldırmak için
+  -- yazıldı ama kendi dosya başı yorumunda belirttiği gibi YALNIZCA LOCAL'de uygulandı,
+  -- PRODUCTION'da hâlâ mevcutlar (doğrulandı, bkz. 0055 migration dosya başı notu) — bu tablo
+  -- production'ın gerçek şemasını yansıtıyor, bu yüzden burada duruyorlar.
+  consultant_request INTEGER NOT NULL DEFAULT 0,
+  hourly_rate INTEGER,
+  session_duration_min INTEGER,
+  expertise_tags TEXT,
+  available_slots TEXT,
+  consultant_experience_years INTEGER,
+  social_platform TEXT, -- bkz. migrations/0035_social_media.sql
+  social_url TEXT, -- bkz. migrations/0035_social_media.sql
+  social_links TEXT -- bkz. migrations/0036_social_links.sql
 );
 CREATE INDEX IF NOT EXISTS idx_architect_owner ON architect_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_architect_status ON architect_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_architect_status_created ON architect_submissions(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_architect_claimed_key ON architect_submissions(claimed_profile_key);
+CREATE INDEX IF NOT EXISTS idx_architect_submissions_consultant ON architect_submissions(consultant_request) WHERE consultant_request = 1;
 
 CREATE TABLE IF NOT EXISTS news_submissions (
   id TEXT PRIMARY KEY,
-  owner_user_id TEXT NOT NULL REFERENCES users(id),
+  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
+  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
+  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -197,7 +240,7 @@ CREATE TABLE IF NOT EXISTS news_submissions (
   image_url TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_news_sub_owner ON news_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_news_sub_status ON news_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_news_sub_status_created ON news_submissions(status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS news (
   id TEXT PRIMARY KEY,
