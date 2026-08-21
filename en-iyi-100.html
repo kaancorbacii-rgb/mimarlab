@@ -913,7 +913,7 @@
      yalnızca modal/kart bağlamlarındaki konumlandırmalarını EZİP satır-içi kompakt pil haline getiren
      seçiciler var — bileşenlerin kendi JS mantığına dokunulmuyor. */
   .top100-quick-actions{display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;}
-  .top100-quick-actions .rating-widget{height:28px !important; padding:0 8px !important;}
+  .top100-quick-actions .rating-widget{height:28px !important; min-height:28px !important; padding:0 8px !important;}
   .top100-quick-actions .rating-star-btn svg{width:12px; height:12px;}
   .top100-quick-actions .rating-summary{font-size:11px !important;}
   .top100-action-btn{
@@ -927,7 +927,7 @@
   .top100-quick-actions .share-btn{height:28px !important; width:28px !important; min-width:28px !important;}
   .top100-rating{flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:78px;}
   .top100-avg{display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:15px; color:var(--ink);}
-  .top100-avg svg{color:var(--accent); flex-shrink:0;}
+  .top100-avg-star{color:var(--accent);}
   .top100-votes{font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 
   @media (max-width:560px){
@@ -939,6 +939,10 @@
     .top100-submeta{font-size:11.5px;}
     .top100-rating{min-width:60px;}
     .top100-avg{font-size:13px;}
+    /* kullanıcı isteği: mobilde Kaydet butonu Paylaş gibi yalnızca yuvarlak bir ikon olsun, metin
+       gizlensin — erişilebilirlik için aria-label="Kaydet" korunur. */
+    .top100-save-label{display:none;}
+    .top100-action-btn{width:28px !important; padding:0 !important; justify-content:center;}
   }
 
   @media (max-width:720px){
@@ -1301,7 +1305,7 @@
         var quickActions = item.slug
           ? '<span class="top100-quick-actions">' +
               '<span class="rating-widget" data-type="project" data-key="' + escapeAttr(item.slug) + '"></span>' +
-              '<button class="card-save-btn top100-action-btn" type="button" data-key="' + escapeAttr(item.slug) + '" data-title="' + escapeAttr(item.name) + '" data-meta="' + escapeAttr(submeta) + '" data-image="' + escapeAttr(item.image || '') + '" data-href="/proje/' + encodeURIComponent(item.slug) + '" aria-label="Kaydet">' + ICON_SAVE + '<span>Kaydet</span></button>' +
+              '<button class="card-save-btn top100-action-btn" type="button" data-key="' + escapeAttr(item.slug) + '" data-title="' + escapeAttr(item.name) + '" data-meta="' + escapeAttr(submeta) + '" data-image="' + escapeAttr(item.image || '') + '" data-href="/proje/' + encodeURIComponent(item.slug) + '" aria-label="Kaydet">' + ICON_SAVE + '<span class="top100-save-label">Kaydet</span></button>' +
               '<span class="top100-share-slot" id="top100-share-slot-' + item.rank + '"></span>' +
             '</span>'
           : '';
@@ -1318,7 +1322,7 @@
             quickActions +
           '</span>' +
           '<span class="top100-rating">' +
-            '<span class="top100-avg">&#9733; ' + item.avg.toFixed(2) + '</span>' +
+            '<span class="top100-avg"><span class="top100-avg-star">&#9733;</span> ' + item.avg.toFixed(2) + '</span>' +
             '<span class="top100-votes">' + item.count + ' oy</span>' +
           '</span>' +
         '</li>';
