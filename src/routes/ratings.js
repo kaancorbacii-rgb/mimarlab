@@ -91,19 +91,18 @@ async function upsertRating(request, env) {
   if (!TARGET_TYPES.has(targetType) || !targetId) return errorJson('Geçersiz istek.');
   if (!Number.isInteger(stars) || stars < 1 || stars > 5) return errorJson('Puan 1 ile 5 arasında olmalı.');
 
-  const existing = await env.DB.prepare(
-    'SELECT id FROM ratings WHERE user_id = ? AND target_type = ? AND target_id = ?'
-  ).bind(user.id, targetType, targetId).first();
-
+  // gerçek bulgu (production hardening ölçümü): eskiden burada ayrı bir SELECT + branch(INSERT/
+  // UPDATE) vardı — aynı kullanıcı aynı hedefi art arda hızlı puanladığında (çift tıklama, çift
+  // istek) iki eşzamanlı istek ikisi de "existing" için satır bulamayıp ikisi de INSERT'e girebilir;
+  // UNIQUE(user_id, target_type, target_id) ikinciyi engeller ama bu KOD o hatayı yakalamıyordu, yani
+  // kaybeden istek kullanıcıya "Sunucu hatası" olarak dönerdi. rateLimit.js'teki AYNI atomik
+  // INSERT...ON CONFLICT DO UPDATE deseniyle tek sorguya indirildi — artık iki eşzamanlı istek de
+  // başarıyla döner, kazanan SQLite'ın kendi çakışma çözümüyle (en son yazan kalır) belirlenir.
   const now = Date.now();
-  if (existing) {
-    await env.DB.prepare('UPDATE ratings SET stars = ?, updated_at = ? WHERE id = ?')
-      .bind(stars, now, existing.id).run();
-  } else {
-    await env.DB.prepare(
-      'INSERT INTO ratings (id, target_type, target_id, user_id, stars, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(newId(), targetType, targetId, user.id, stars, now, now).run();
-  }
+  await env.DB.prepare(
+    `INSERT INTO ratings (id, target_type, target_id, user_id, stars, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, target_type, target_id) DO UPDATE SET stars = excluded.stars, updated_at = excluded.updated_at`
+  ).bind(newId(), targetType, targetId, user.id, stars, now, now).run();
 
   const { average, count } = await summarize(env, targetType, targetId);
   // gerçek bulgu (denetim raporu): puanlama yazımı invalidatePublicCache() hiç tetiklemiyordu —
