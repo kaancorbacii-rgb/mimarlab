@@ -338,6 +338,11 @@ async function runSearch(){
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
+    // MİMARLAB AI aynı sorgu için gerçek bir sonuç/özet gösteriyorsa (bkz. aiHasResultsPromise
+    // yorumu yukarısı) klasik "bulunamadı" kutusu AI panosunun hemen altında yanlış/çelişkili bir
+    // izlenim verir — bu durumda kutu hiç render edilmez, yalnızca AI panosu gösterilir.
+    const aiHasResults = await aiHasResultsPromise;
+    if(aiHasResults){ wrap.innerHTML = ''; return; }
     wrap.innerHTML = `<div class="search-empty">
       <p>"${queryHtml}" için bir sonuç bulunamadı. Başka bir anahtar kelimeyle tekrar dene.</p>
       <div class="nav-search">
@@ -395,6 +400,12 @@ async function runSearch(){
 // tutmanın anlamı kalmadı, her /arama?q= YENİ ve bağımsız bir sorgu olarak ele alınır.
 let aiRunToken = 0;
 const aiResultEl = document.getElementById('ai-search-result');
+// runSearch()'ün "sonuç bulunamadı" boş-durumu (aşağıdaki total===0 dalı) bu promise'i bekler —
+// MİMARLAB AI aynı sorgu için gerçek bir sonuç/özet gösteriyorsa (bkz. gerçek bulgu: klasik foldTr
+// araması "bursa'daki camiler" gibi doğal dil sorgularında 0 sonuç dönse bile AI panosu doğru
+// yanıtı buluyordu) klasik boş-durum metni AI panosunun HEMEN ALTINDA gereksiz bir çelişki olarak
+// görünmesin diye (kullanıcı isteği).
+let aiHasResultsPromise = Promise.resolve(false);
 
 const FACET_LABELS = { cities: 'Şehir', categories: 'Tip', discipline: 'Tür' };
 // facetsHtml — computeFacets()'in (bkz. src/routes/ai.js) döndürdüğü GERÇEK sayımları düz metin
@@ -427,21 +438,21 @@ async function runAiSearch(q){
       body: JSON.stringify({ query: q }),
     });
   } catch(e){
-    if(runToken !== aiRunToken) return;
+    if(runToken !== aiRunToken) return false;
     aiResultEl.innerHTML = '<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-error">Bağlantı sorunu oluştu.</div>';
-    return;
+    return false;
   }
-  if(runToken !== aiRunToken) return;
+  if(runToken !== aiRunToken) return false;
 
   if(!res.ok){
     // 429 (hız sınırı) dahil — bkz. kullanıcı isteği: normal arama zaten aynı sonucu gösterdiğinden
     // AI tarafında bir hata olması TÜM sayfayı bozmamalı, yalnızca bu blok sessizce gizlenir.
     aiResultEl.hidden = true;
     aiResultEl.innerHTML = '';
-    return;
+    return false;
   }
   data = await res.json();
-  if(runToken !== aiRunToken) return;
+  if(runToken !== aiRunToken) return false;
 
   const html = [`<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-summary">${escapeHtml(data.summary)}</div>`, facetsHtml(data.facets)];
   html.push(groupHtml('Mimarlar', data.architects, a => rowHtml({
@@ -468,14 +479,17 @@ async function runAiSearch(q){
   }), data.totals.projects));
 
   const total = data.totals.architects + data.totals.offices + data.totals.projects;
-  if(!total && !data.aiAvailable){
-    // AI hiç yanıt veremediyse VE sonuç da yoksa (bkz. src/routes/ai.js fallback metni) bu blok
-    // normal arama sonuçlarının üstünde gereksiz bir "bulunamadı" tekrarı olur — sessizce gizlenir.
+  if(!total){
+    // AI hiç sonuç bulamadıysa (yanıt veremediği İÇİN ya da gerçekten eşleşme yoksa fark etmez) bu
+    // blok, klasik arama kutusunun (bkz. aşağıdaki aiHasResultsPromise/runSearch total===0 dalı,
+    // "Tekrar arayın" girişi dahil) göstereceği tek bir "bulunamadı" mesajının üstünde gereksiz bir
+    // tekrar olur — sessizce gizlenir, mesajlaşmayı klasik kutuya bırakır.
     aiResultEl.hidden = true;
     aiResultEl.innerHTML = '';
-    return;
+    return false;
   }
   aiResultEl.innerHTML = html.join('');
+  return true;
 }
 
 // AI araması runSearch()'ten AYRI tetiklenir (aynı sorguyla, paralel) — runSearch() rozetler
@@ -490,11 +504,12 @@ function maybeRunAiSearch(){
     aiResultEl.hidden = true;
     aiResultEl.innerHTML = '';
     lastAiQuery = null;
+    aiHasResultsPromise = Promise.resolve(false);
     return;
   }
   if(query === lastAiQuery) return;
   lastAiQuery = query;
-  runAiSearch(query);
+  aiHasResultsPromise = runAiSearch(query);
 }
 
 runSearch();

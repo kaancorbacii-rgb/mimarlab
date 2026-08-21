@@ -158,24 +158,6 @@ const RelatedProjects = (function () {
   // mount()'a geçirilen excludeSlugsPromise (ArchitectProjects'in gösterdiği TÜM slug'lar) ile sağlanır.
   const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
   const RESULT_COUNT = 15;
-  // YEAR_CLOSE_THRESHOLD — yearProximity() zaten 0..1 arası sürekli bir puan üretiyor (bkz.
-  // scoreCandidate) ama bu, sıralama/ağırlıklı-örnekleme İÇİN bir sinyal, kullanıcıya gösterilecek
-  // bir sayı DEĞİL (bkz. kullanıcı isteği: "anlamsız yüzde skorları üretme"). "Yakın Yıl" etiketi
-  // yalnızca aday gerçekten kaynağa yakınsa (bkz. yukarıdaki YEAR_FULL_ZERO_WINDOW=10 yıllık pencerenin
-  // yarısından azsa, yani ~5 yıl ve altı) eklenir — ikili (var/yok) bir gerçek, ondalıklı bir skor değil.
-  const YEAR_CLOSE_PROXIMITY = 0.5;
-
-  // reasonFor — bir adayın hangi TİER'den geldiğini (bkz. dosya başı yorum: strictPool/
-  // disciplinePool/fallbackPool) + yıl yakınlığını insan-okunur, TAMAMEN kaynak/adayın gerçek
-  // alanlarından türetilmiş bir Türkçe etikete çevirir (bkz. kullanıcı isteği, Faz 2 knowledge-graph
-  // katmanı: "Bu projeler neden ilişkili?" sorusuna cevap). Model/LLM çağrısı YOK — etiket, adayı
-  // zaten SEÇEN aynı karşılaştırmadan (hasSameDiscipline/hasSameCategory/yearProximity) doğrudan
-  // okunur, bu yüzden asla temellendirilmemiş bir gerekçe üretemez.
-  function reasonFor(tierLabel, source, candidate) {
-    const parts = [tierLabel];
-    if (yearProximity(source.date, candidate.date) >= YEAR_CLOSE_PROXIMITY) parts.push('Yakın Yıl');
-    return parts.join(' · ');
-  }
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
@@ -184,7 +166,7 @@ const RelatedProjects = (function () {
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
-      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span>${p._reason ? `<div class="related-card-subtitle">${escapeHtml(p._reason)}</div>` : ''}</div>
+      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span></div>
     </a>`;
   }
 
@@ -403,10 +385,7 @@ const RelatedProjects = (function () {
     // Kural 3 — önce bu oturumda hiç gösterilmemiş adaylardan seç, havuz yetmezse (ör. dar bir
     // Tip/Tür kombinasyonu) daha önce görülmüş adaylarla tamamla (bkz. yukarısı, loadSeenSlugs).
     const seen = loadSeenSlugs();
-    // tierLabel: reasonFor()'a geçirilir, seçilen her adaya "neden ilişkili" etiketi olarak
-    // (p._reason) iğnelenir (bkz. yukarıdaki reasonFor/cardHtml) — hangi tier'den geldiği zaten
-    // strictPool/disciplinePool/fallbackPool ayrımıyla BİLİNDİĞİNDEN, ayrı bir hesaplama gerekmez.
-    function sampleTier(pool, n, tierLabel) {
+    function sampleTier(pool, n) {
       const scored = Array.from(pool.values())
         .map(p => ({ p, score: scoreCandidate(item, p) }))
         .filter(({ score }) => score > -Infinity);
@@ -414,7 +393,6 @@ const RelatedProjects = (function () {
       const stale = scored.filter(({ p }) => seen.has(p.slug));
       let picked = weightedSample(fresh, n);
       if (picked.length < n) picked = picked.concat(weightedSample(stale, n - picked.length));
-      picked.forEach(p => { p._reason = reasonFor(tierLabel, item, p); });
       return picked;
     }
 
@@ -424,9 +402,9 @@ const RelatedProjects = (function () {
     // böylece bölüm, kaynak proje ne kadar niş olursa olsun neredeyse her zaman en az 15 kartla dolu
     // görünür (kullanıcı isteği: "ilgili proje sayısı her zaman en az 15 olsun"), yalnızca sitede o
     // buildStatus'ta/hariç tutulanlar dışında GERÇEKTEN 15'ten az proje varsa daha az kart gösterir.
-    let merged = sampleTier(strictPool, RESULT_COUNT, 'Aynı Tür ve Tip');
-    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(disciplinePool, RESULT_COUNT - merged.length, 'Aynı Tür'));
-    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(fallbackPool, RESULT_COUNT - merged.length, 'Benzer Proje'));
+    let merged = sampleTier(strictPool, RESULT_COUNT);
+    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(disciplinePool, RESULT_COUNT - merged.length));
+    if (merged.length < RESULT_COUNT) merged = merged.concat(sampleTier(fallbackPool, RESULT_COUNT - merged.length));
 
     if (!merged.length) { section.style.display = 'none'; return; }
     section.style.display = '';
@@ -451,19 +429,39 @@ const CityProjects = (function () {
   let mountSeq = 0;
   const RESULT_COUNT = 12;
 
-  // reason sabit tutulur ("Aynı Şehir: <il>") — Türkçe hal eki çekimi (İstanbul'DAKİ, İzmir'DEKİ,
-  // Ankara'DAKİ gibi ünlü uyumuna göre değişen) genel bir kural olmadan güvenle üretilemez, bu yüzden
-  // bölüm başlığı ekli bir cümle KURMAZ (bkz. cardHtml altındaki sabit "Bu Şehirdeki Diğer Projeler"
-  // başlığı proje-modal.js'te), yalnızca kartın altında düz "Aynı Şehir: X" etiketiyle gösterilir.
-  function cardHtml(p, city) {
+  function cardHtml(p) {
     const img = p.images && p.images[0];
     const srcset = img ? cdnSrcset(img, [300, 450, 600]) : '';
     return `<a class="related-card" href="/proje/${encodeURIComponent(p.slug)}">
       <div class="related-card-photo">
         ${img ? `<img src="${escapeAttr(cdnImg(img, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(p.title)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`}
       </div>
-      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span><div class="related-card-subtitle">${escapeHtml(`Aynı Şehir: ${city}`)}</div></div>
+      <div class="related-card-title"><span class="related-card-title-clamp">${escapeHtml(p.title)}</span></div>
     </a>`;
+  }
+
+  // RelatedProjects#extractYear ile AYNI serbest-metin ayrıştırma (bkz. o dosyadaki AYNI desen) —
+  // bu bölüm kendi kapalı IIFE'sinde olduğundan yerel bir kopya kullanılır. Kaynak projeyle yıl
+  // farkı en az olan adaylar (kullanıcı isteği: "aynı şehirden benzer yıllarda olan projelerden
+  // öneri verilsin... kaynak 2010'larsa öneriler de 2000'ler, 2010'lar, 2020'ler gibi yakın
+  // tarihlerden olsun") sunucudan zaten puana göre (rating_desc) gelen listenin ÖNÜNE alınır; yılı
+  // ayrıştırılamayan adaylar (ör. "MÖ 4. Yüzyıl" gibi eski metinler) en sona düşer ama YİNE DE
+  // gösterilir — sert bir filtre değil, yalnızca sıralama sinyali.
+  function extractYear(dateStr) {
+    const m = /(\d{4})/.exec(dateStr || '');
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  function sortByYearProximity(list, sourceDate) {
+    const sourceYear = extractYear(sourceDate);
+    if (sourceYear == null) return list;
+    return list.slice().sort((a, b) => {
+      const ya = extractYear(a.date), yb = extractYear(b.date);
+      if (ya == null && yb == null) return 0;
+      if (ya == null) return 1;
+      if (yb == null) return -1;
+      return Math.abs(ya - sourceYear) - Math.abs(yb - sourceYear);
+    });
   }
 
   // excludeSlugsPromise: ArchitectProjects'in gösterdiği slug'lar (bkz. js/components/
@@ -495,10 +493,10 @@ const CityProjects = (function () {
 
     const exclude = new Set(excludeSlugs || []);
     exclude.add(item.slug);
-    const candidates = items.filter(p => !exclude.has(p.slug));
+    const candidates = sortByYearProximity(items.filter(p => !exclude.has(p.slug)), item.date);
     if (!candidates.length) { section.style.display = 'none'; return; }
     section.style.display = '';
-    document.getElementById(mergedIds.grid).innerHTML = candidates.slice(0, RESULT_COUNT).map(p => cardHtml(p, city)).join('');
+    document.getElementById(mergedIds.grid).innerHTML = candidates.slice(0, RESULT_COUNT).map(cardHtml).join('');
   }
 
   return { mount };

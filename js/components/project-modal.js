@@ -60,7 +60,7 @@ const ProjectModal = (function () {
     </div>
 
     <div class="related-section" id="pm-city-section" aria-live="polite">
-      <h2 class="related-title">Bu Şehirdeki Diğer Projeler</h2>
+      <h2 class="related-title">Şehirdeki Diğer Projeler</h2>
       <div class="related-grid-scroll" id="pm-city-grid"></div>
     </div>
 
