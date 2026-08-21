@@ -731,15 +731,18 @@
     .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
     /* Mobil/tablet proje modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Diğer
-       Projeler → İlgili Projeler → Yorumlar → Bilgi Kaynağı/Geri Bildirim (bkz. kullanıcı isteği:
-       Yorumlar aşağı taşınıp Geri Bildirim kutusunun hemen üstüne alındı) — modal-shell.js bu
-       kırılma noktasında sol/sağ paneli display:contents yaptığından (bkz. o dosyadaki yorum) tüm
-       bu bölümler artık AYNI dikey flex akışının parçası; sıra burada, sırayla artan order değerleriyle
-       verilir. .detail-info künye VE açıklamayı TEK blok olarak taşır (zaten aralarında ayrı bir sıra
-       gerekmiyor, ikisi de kendi içinde doğru DOM sırasında). #pm-gallery-wrap'ın kendi margin-top'u
-       KALDIRILDI — kapatma butonuna karşı üst boşluk artık modal-shell.js#.modal-shell-body'nin
-       paylaşılan padding-top'undan (bkz. kullanıcı isteği: X butonu/içerik çakışması, TÜM modallerde)
-       geliyor; ikisi birlikte kalsaydı boşluk iki katına çıkardı (gerçek bulgu).
+       Projeler → İlgili Projeler → Şehirdeki Diğer Projeler → Yorumlar → Bilgi Kaynağı/Geri Bildirim
+       (bkz. kullanıcı isteği: Yorumlar aşağı taşınıp Geri Bildirim kutusunun hemen üstüne alındı;
+       ardından Şehirdeki Diğer Projeler İlgili Projeler'den SONRA gelecek şekilde eklendi — daha önce
+       bu bölüm için burada hiç order tanımlı değildi, dolayısıyla varsayılan order:0'a düşüp galeriden
+       bile önce, modalın en üstünde çıkıyordu) — modal-shell.js bu kırılma noktasında sol/sağ paneli
+       display:contents yaptığından (bkz. o dosyadaki yorum) tüm bu bölümler artık AYNI dikey flex
+       akışının parçası; sıra burada, sırayla artan order değerleriyle verilir. .detail-info künye VE
+       açıklamayı TEK blok olarak taşır (zaten aralarında ayrı bir sıra gerekmiyor, ikisi de kendi
+       içinde doğru DOM sırasında). #pm-gallery-wrap'ın kendi margin-top'u KALDIRILDI — kapatma
+       butonuna karşı üst boşluk artık modal-shell.js#.modal-shell-body'nin paylaşılan padding-top'undan
+       (bkz. kullanıcı isteği: X butonu/içerik çakışması, TÜM modallerde) geliyor; ikisi birlikte
+       kalsaydı boşluk iki katına çıkardı (gerçek bulgu).
     */
     /* order KESİNLİKLE tam sayı olmalı (CSS <integer> — bkz. gerçek bulgu: bu blokta önceden
        kullanılan 6.5/6.6 gibi ondalıklı değerler geçersiz sayılıp sessizce order:0'a düşüyordu,
@@ -753,14 +756,15 @@
     .detail-info{order:6;}
     #pm-same-designer-section{order:7;}
     #pm-related-section{order:8;}
-    #pm-prevnext{order:9;}
+    #pm-city-section{order:9;}
+    #pm-prevnext{order:10;}
     /* Yorumlar — Bilgi Kaynağı & Geri Bildirim ile AYNI gerekçeyle (bkz. kullanıcı isteği) mobil/
        tablette aşağı, Geri Bildirim kutusunun hemen üstüne taşındı; masaüstünde DOM sırası (künye/
        açıklamadan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order değerleri etkilenir.
        #pm-info-divider Yorumlar'ın ÜSTÜNDE kalır (bkz. kullanıcı isteği). */
-    #pm-info-divider{order:10;}
-    #pm-comments-section{order:11;}
-    #pm-feedback-card{order:12;}
+    #pm-info-divider{order:11;}
+    #pm-comments-section{order:12;}
+    #pm-feedback-card{order:13;}
 
     /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
        yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural
