@@ -135,36 +135,26 @@ document.addEventListener('mouseout', (e)=>{
 function isTouchBadgeUI(){
   return window.matchMedia && window.matchMedia('(hover: none)').matches;
 }
-// Rozete dokunma/tıklama: masaüstünde (hover var) doğrudan rozet satın alma sayfasına yönlendirir.
-// Mobilde (hover yok) native `title`/hover tooltip'i çalışmadığından ilk dokunuş yalnızca rozetin
-// ismini gösterir (bkz. kullanıcı isteği); ismin kendisine (gösterilen tooltip'e) İKİNCİ kez
-// dokununca satin-al.html'e yönlendirir. Rozet dışında bir yere dokununca açık tooltip kapanır.
-// Rozet <span> olarak kalır (gerçek bir <a> DEĞİL) çünkü çoğunlukla zaten bir kart linkinin
-// (ör. mimar/ofis kartı) İÇİNDE render edilir — iç içe <a> geçersiz HTML olacağından yönlendirme
-// burada JS ile yapılır; stopPropagation ile dıştaki kart linkinin tetiklenmesi engellenir.
-// iz-birakan: satın alınabilir bir kademe DEĞİL (bkz. src/routes/badges.js#BADGE_PRICES'te yok,
-// yalnızca admin_badges'ten gelir) — tıklanınca satin-al.html'e yönlendirmek anlamsız olurdu,
-// bu yüzden burada erken çıkılır: tıklama olayı normal şekilde altındaki kart linkine devam eder.
+// Rozete dokunma/tıklama: rozetler artık hiçbir yere yönlendirmez (bkz. kullanıcı isteği: "rozetin
+// adını göster ama link verme, tıklayınca bir şey olmasın") — masaüstünde zaten mouseover/mouseout
+// ile tooltip gösterilir; mobilde (hover yok) native `title`/hover tooltip'i çalışmadığından
+// dokunuş yalnızca rozetin ismini bir tooltip olarak gösterir. Rozet <span> olarak kalır (gerçek
+// bir <a> DEĞİL) çünkü çoğunlukla zaten bir kart linkinin (ör. mimar/ofis kartı) İÇİNDE render
+// edilir — preventDefault/stopPropagation ile hem kendi (artık yok olan) yönlendirmesi hem de
+// dıştaki kart linkinin tetiklenmesi engellenir, "tıklayınca bir şey olmasın" garanti edilir.
 document.addEventListener('click', (e)=>{
-  // Açık, dokunmayla gösterilmiş tooltip'in ÜZERİNE (ismin kendisine) dokunma -> yönlendir.
+  // Açık, dokunmayla gösterilmiş tooltip'in ÜZERİNE (ismin kendisine) dokunma -> yalnızca kapat.
   if(badgeTooltipEl && badgeTooltipEl.classList.contains('show') && badgeTooltipEl.classList.contains('tappable') && e.target.closest('.verified-badge-tip-floating')){
     e.preventDefault();
     e.stopPropagation();
-    const tier = badgeTooltipEl.dataset.badgeType;
-    window.location.href = tier ? `satin-al.html?tier=${encodeURIComponent(tier)}` : 'satin-al.html';
+    hideBadgeTooltip();
     return;
   }
   const badge = e.target.closest('.verified-badge-icon');
-  if(badge && badge.dataset.badgeType === 'iz-birakan') return;
   if(badge){
     e.preventDefault();
     e.stopPropagation();
-    if(isTouchBadgeUI()){
-      showBadgeTooltip(badge, true);
-      return;
-    }
-    const tier = badge.dataset.badgeType;
-    window.location.href = tier ? `satin-al.html?tier=${encodeURIComponent(tier)}` : 'satin-al.html';
+    if(isTouchBadgeUI()) showBadgeTooltip(badge, true);
     return;
   }
   // Rozet ya da açık tooltip dışında bir yere dokunuldu -> dokunmayla açılmış tooltip'i kapat.

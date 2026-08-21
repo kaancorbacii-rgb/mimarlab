@@ -189,6 +189,10 @@ const ArchitectModal = (function () {
       <h2 class="related-title">Projeler<span id="am-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
     </div>
+    <div class="related-section" id="am-related-architects-section" style="display:none;">
+      <h2 class="related-title">Diğer Mimarlar</h2>
+      <div class="related-grid-scroll" id="am-related-architects-grid"></div>
+    </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler</h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
@@ -373,7 +377,7 @@ const ArchitectModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['am-actions', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
-    'am-related-products-section', 'am-detail-info', 'am-prevnext'];
+    'am-related-architects-section', 'am-related-products-section', 'am-detail-info', 'am-prevnext'];
 
   async function renderItem(payload) {
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
@@ -386,6 +390,7 @@ const ArchitectModal = (function () {
     const displayOffice = office || offices[0] || null;
     const colleagues = payload.colleagues || [];
     const relatedProjectsData = payload.relatedProjects || [];
+    const relatedArchitectsData = payload.relatedArchitects || [];
     currentItem = a;
 
     updateHeadMeta(a, displayOffice);
@@ -488,6 +493,17 @@ const ArchitectModal = (function () {
     ).join('');
     document.getElementById('am-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
 
+    // Diğer Mimarlar — kullanıcı isteği: projelerin ardından benzer yaştaki mimarlar öneri olarak
+    // gösterilsin (bkz. src/routes/architect.js#buildArchitectPayload relatedArchitects, ±5 yıl
+    // aralığında ORDER BY RANDOM() ile seçilir, her açılışta farklı isimler gelir).
+    document.getElementById('am-related-architects-section').style.display = relatedArchitectsData.length ? '' : 'none';
+    function renderRelatedArchitectsGrid() {
+      document.getElementById('am-related-architects-grid').innerHTML = relatedArchitectsData.map(r =>
+        cardHtml(`/mimar/${encodeURIComponent(slugify(r.name))}`, r.name, r.photo, r.dob ? String(r.dob).slice(0, 4) : null, verifiedBadgeHtml('architect', r.name, r.badges, 14))
+      ).join('');
+    }
+    renderRelatedArchitectsGrid();
+
     const PROFILE_TYPE = 'architect';
     const claimBox = createClaimCorrectionBox({
       profileType: PROFILE_TYPE,
@@ -532,6 +548,7 @@ const ArchitectModal = (function () {
       // isim bazlı dynamicBadges önbelleğine bağlı olduğundan başlıktaki rozetle AYNI anda tazelenir.
       renderOfficeGrid();
       renderColleaguesGrid();
+      renderRelatedArchitectsGrid();
     }
     renderVerifiedBadges();
     // gerçek bulgu (denetim, 2026-08-16): window.addEventListener(..., {once:true}) her renderItem()

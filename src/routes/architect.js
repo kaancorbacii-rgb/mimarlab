@@ -332,7 +332,14 @@ async function buildArchitectPayload(env, key) {
     unregisteredOffices.push({ name, unregistered: true });
   }
 
-  const [colleaguesRes, relatedRes] = await Promise.all([
+  // Diğer Mimarlar — kullanıcı isteği: "Diğer Mimarlar" bölümünde benzer yaştaki mimarlar öneri
+  // olarak gösterilsin, her açılışta farklı isimler çıksın. dob (doğum yılı) metin olarak saklanır,
+  // bazı satırlarda tam tarih de olabileceğinden (bkz. auth-modal.js#am-fact-dob'daki AYNI
+  // .slice(0,4) kalıbı) ilk 4 karakter yıl olarak alınır. a.dob boşsa bölüm hiç sorgulanmaz.
+  const dobYear = a.dob ? parseInt(String(a.dob).slice(0, 4), 10) : null;
+  const AGE_RANGE_YEARS = 5;
+
+  const [colleaguesRes, relatedRes, similarAgeRes] = await Promise.all([
     office
       ? env.DB.prepare(
           `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
@@ -343,6 +350,14 @@ async function buildArchitectPayload(env, key) {
       `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND (pd.architect_id = ? OR pd.office_id = ?)`
     ).bind(a.id, office ? office.id : -1).all(),
+    // ORDER BY RANDOM() — bkz. src/routes/office.js#relatedOffices'teki AYNI "her açılışta farklı
+    // öneri" gerekçesi/caching notu; bu uç da caches.default'a yazılmıyor.
+    Number.isFinite(dobYear) ? env.DB.prepare(
+      `SELECT slug, name, dob, photo_url FROM architects
+       WHERE deleted_at IS NULL AND hidden_at IS NULL AND id != ? AND dob IS NOT NULL AND dob != ''
+         AND ABS(CAST(SUBSTR(dob, 1, 4) AS INTEGER) - ?) <= ?
+       ORDER BY RANDOM() LIMIT 12`
+    ).bind(a.id, dobYear, AGE_RANGE_YEARS).all() : Promise.resolve({ results: [] }),
   ]);
 
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
@@ -363,6 +378,7 @@ async function buildArchitectPayload(env, key) {
       return b._year - a._year;
     })
     .map(({ _year, ...rest }) => rest);
+  const relatedArchitects = similarAgeRes.results.map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
 
   const item = {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
@@ -389,6 +405,7 @@ async function buildArchitectPayload(env, key) {
     ],
     colleagues,
     relatedProjects,
+    relatedArchitects,
     prevItem: adjacent.prevItem,
     nextItem: adjacent.nextItem,
     hidden: !!a.hidden_at,

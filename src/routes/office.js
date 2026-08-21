@@ -302,10 +302,14 @@ async function buildOfficePayload(env, key) {
     // relatedOffices — bkz. yukarıdaki officeCity yorumu. loc = 'İl / İlçe' ya da bazen bare 'İl'
     // olarak saklandığından (bkz. cityOf()'un aynı iki durumu ele alması) hem tam eşleşme hem
     // 'İl / %' öneki eşleştirilir. officeCity boşsa (loc hiç girilmemiş) sorgu hiç çalıştırılmaz.
+    // ORDER BY RANDOM() — kullanıcı isteği: aynı şehirdeki firmalar her modal açılışında farklı
+    // sırayla/karışık gösterilsin (önceden alfabetik olduğundan hep aynı ilk 12 firma görünüyordu).
+    // Bu uç caches.default'a yazılmadığından (bkz. src/lib/publicCache.js, yalnızca kısa
+    // max-age=5/s-maxage=15 ipucu başlıkları) her istek gerçekten sunucuda yeniden hesaplanır.
     officeCity ? env.DB.prepare(
       `SELECT slug, name, loc, logo_url, website FROM offices
        WHERE deleted_at IS NULL AND hidden_at IS NULL AND id != ? AND (loc = ? OR loc LIKE ?)
-       ORDER BY name COLLATE NOCASE LIMIT 12`
+       ORDER BY RANDOM() LIMIT 12`
     ).bind(o.id, officeCity, officeCity + ' / %').all() : Promise.resolve({ results: [] }),
     // Ürün/malzeme markası olarak bu firmaya ait katalog — brand_office_id yalnızca onaylanan bir
     // gönderi üzerinden sync edilirken doldurulur (bkz. canonicalSync.js#syncProduct), toplu/legacy

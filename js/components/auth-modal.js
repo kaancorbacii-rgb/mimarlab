@@ -835,13 +835,29 @@ const AuthModal = (function () {
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
   // görünümle her zaman birebir aynı kalır.
   let amPublicBadges = { architect: {}, office: {} };
-  // Ad Soyad satırı artık rozet taşımaz — self rozet, sahiplenilmiş Mimar profili varsa onun
-  // satırındaki adın yanında gösterilir (bkz. kullanıcı isteği: "rozet ... mimar başlığının
-  // yanındaki ad soyadın yanında yer alsın"), yoksa hiçbir yerde gösterilmez.
+  // Ad Soyad satırındaki rozet (bkz. kullanıcı isteği: "Hesabım kısmında Profil Bilgileri
+  // kutusunda ismin yanında da rozet gözüksün ... hem ismin yanında hem de mimar profili varsa
+  // onun yanında rozet gözüksün"). Kaynak önceliği: kullanıcının onaylı bir Mimar profili varsa
+  // o profilde görünen NİHAİ rozet (amPublicBadges — satın alınan + admin_badges override'ını
+  // zaten birleştirir, bkz. renderClaimsList#rowBadgeType ile AYNI kaynak, böylece isim satırı ile
+  // mimar satırındaki rozet HER ZAMAN birebir aynı kalır); onaylı bir Mimar profili yoksa
+  // kullanıcının kendi satın aldığı/kendisine ('self') tanımlı aktif rozete (amBadgeItems) düşülür
+  // — aksi halde profili olmayan bir kullanıcının rozeti hiçbir yerde görünmezdi.
+  function myEffectiveBadgeType() {
+    const architectClaim = amClaimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
+    if (architectClaim) {
+      const list = amPublicBadges.architect && amPublicBadges.architect[architectClaim.profile_key];
+      if (list && list.length) return list[0];
+    }
+    const selfBadge = amBadgeItems.find(b => b.target_type === 'self' && b.status === 'active' && b.badge_type !== 'destekci');
+    return selfBadge ? selfBadge.badge_type : null;
+  }
   function renderAmNameBadge() {
     const nameEl = document.getElementById('am-fact-name');
     if (!nameEl) return;
-    nameEl.textContent = accountUser ? (accountUser.name || '—') : '—';
+    const name = accountUser ? (accountUser.name || '—') : '—';
+    const badgeType = accountUser ? myEffectiveBadgeType() : null;
+    nameEl.innerHTML = `${escapeHtml(name)}${badgeType ? accountBadgeIconHtml(badgeType) : ''}`;
   }
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
@@ -1709,6 +1725,7 @@ const AuthModal = (function () {
         amPublicBadges = { architect: data.architect || {}, office: data.office || {} };
       } catch { /* amPublicBadges varsayılanında kalır */ }
       renderClaimsList();
+      renderAmNameBadge();
     }
 
     async function loadMyClaims() {
@@ -1718,6 +1735,7 @@ const AuthModal = (function () {
       amClaimItems = items;
       refreshArchitectSyncState(items);
       renderClaimsList();
+      renderAmNameBadge();
       syncClaimedArchitectData(items);
     }
 

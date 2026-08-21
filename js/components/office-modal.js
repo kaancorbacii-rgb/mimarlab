@@ -197,7 +197,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
     <div class="related-section" id="om-city-section" style="display:none;">
-      <h2 class="related-title">Bu Şehirdeki Diğer Firmalar</h2>
+      <h2 class="related-title">Şehirdeki Diğer Firmalar</h2>
       <div class="related-grid-scroll" id="om-city-grid"></div>
     </div>
     <div class="related-section" id="om-related-products-section" style="display:none;">
@@ -496,7 +496,7 @@ const OfficeModal = (function () {
     document.getElementById('om-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
 
     // MİMARLAB AI, Faz 2 — Firma↔Şehir ilişkisi (bkz. src/routes/office.js#buildOfficePayload
-    // relatedOffices yorumu). Bölüm başlığı zaten "Bu Şehirdeki Diğer Firmalar" diyerek nedeni
+    // relatedOffices yorumu). Bölüm başlığı zaten "Şehirdeki Diğer Firmalar" diyerek nedeni
     // açıkladığından (bkz. kullanıcı isteği: sahte/sayısal bir eşleşme skoru DEĞİL), her kartın
     // altında o firmanın kendi konumu (arama.html sonuç satırlarındaki AYNI kullanım) alt bilgi
     // olarak gösterilir.
