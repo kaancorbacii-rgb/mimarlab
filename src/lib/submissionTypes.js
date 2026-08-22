@@ -1,4 +1,7 @@
 import { slugify } from './slugify.js';
+import projectTaxonomyJs from '../../project-taxonomy.js';
+
+const { PROJECT_CATEGORY_OPTIONS, PROJECT_GROUP_OPTIONS } = projectTaxonomyJs;
 
 // proje.html "Kategori" filtresi (bkz. migrations/0038_project_concept_category.sql, kullanıcı
 // isteği) — yalnızca build_status='concept' projelerde anlamlı, proje-ekle.html'deki seçeneklerle
@@ -81,6 +84,27 @@ export function findInvalidSocialPlatform(type, body) {
   if (!('social_platform' in body)) return false;
   const value = body.social_platform;
   return !!value && !SOCIAL_PLATFORMS.has(value);
+}
+
+// proje-ekle.html'deki Tip (category) ve Grup (type) kutuları artık ikisi de sabit listeden çoklu
+// seçim (bkz. kullanıcı isteği: Grup'ta serbest metin/autocomplete tamamen kaldırıldı, project-
+// taxonomy.js'teki 40 seçenekten biri/birkaçı). İstemci tarafı zaten bu listelerin DIŞINDA bir
+// checkbox render ETMEZ, ama bu tek başına yeterli değil (bkz. kullanıcı isteği: "backend/API
+// tarafında da doğrulama yap, sadece UI'a güvenme") — doğrudan API'ye (curl/eski önbelleklenmiş
+// istemci) gönderilen bir istek hâlâ whitelist dışı bir değer taşıyabilir.
+const PROJECT_CATEGORY_SET = new Set(PROJECT_CATEGORY_OPTIONS);
+const PROJECT_GROUP_SET = new Set(PROJECT_GROUP_OPTIONS);
+export function findInvalidProjectTaxonomyField(type, body) {
+  if (type !== 'projects') return null;
+  if ('category' in body) {
+    const values = Array.isArray(body.category) ? body.category : (body.category ? [body.category] : []);
+    if (values.some(v => !PROJECT_CATEGORY_SET.has(v))) return 'category';
+  }
+  if ('type' in body) {
+    const values = Array.isArray(body.type) ? body.type : (body.type ? [body.type] : []);
+    if (values.some(v => !PROJECT_GROUP_SET.has(v))) return 'type';
+  }
+  return null;
 }
 
 // Üye ol / mimar-ekle-düzenle / hesabım "Üniversite" kutucuğuna kısaltma girilmesini engeller

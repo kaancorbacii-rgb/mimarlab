@@ -5,7 +5,7 @@ import { updateUserProfileFields } from './auth.js';
 import { listSaved } from './saved.js';
 import { myRatings } from './ratings.js';
 import { myComments } from './comments.js';
-import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField } from '../lib/submissionTypes.js';
 import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
@@ -492,6 +492,8 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       if (!existing) return errorJson('Bulunamadı', 404);
       const invalidUrlField = findInvalidUrlField(typeKey, body);
       if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);
+      const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
+      if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
 
       const updates = [];
       const values = [];

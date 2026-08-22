@@ -37,7 +37,7 @@ import ilIlceJs from '../../il-ilce-data.js';
 const { parseLocationFull, IL_LIST } = ilIlceJs;
 
 const DISCIPLINE_OPTIONS = ['Mimari', 'İç Mekan', 'Peyzaj ve Kentsel Tasarım', 'Restorasyon'];
-const CATEGORY_OPTIONS = ['Konut', 'Ticari', 'Kültürel', 'Dini', 'Eğitim', 'Kamu', 'Altyapı'];
+const CATEGORY_OPTIONS = ['Konaklama', 'Ticari', 'Kültürel', 'Dini', 'Eğitim', 'Kamu', 'Altyapı'];
 const IL_NAMES = IL_LIST || [];
 
 // AI_QUERY_MAX_LEN — brief'teki "uzun query" test senaryosu: makul bir doğal dil cümlesinin
