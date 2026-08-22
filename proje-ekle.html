@@ -1081,6 +1081,32 @@ if(claimSlug) prefillForClaim(); else prefillForEdit();
 // mediaItems, kullanıcının sürükleyip bıraktığı sırayı korur — yeni dosyalar bu sıradaki
 // konumlarında yüklenir, sonuç dizisi hem mevcut hem yeni görselleri son (kullanıcının belirlediği)
 // sırayla döner (bkz. mediaItems tanımındaki yorum).
+// P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen, bkz.
+// mimar-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor). Proje galerisi
+// fotoğrafları mimar profil fotoğrafından daha büyük gösterilebildiğinden (tam genişlik hero/galeri)
+// kenar sınırı burada daha cömert (1920px).
+function resizeImageForUpload(file, maxEdge, quality){
+  return new Promise((resolve) => {
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type)){ resolve(file); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if(width > height && width > maxEdge){ height = Math.round(height * (maxEdge / width)); width = maxEdge; }
+      else if(height > maxEdge){ width = Math.round(width * (maxEdge / height)); height = maxEdge; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => {
+        resolve(blob && blob.size < file.size ? new File([blob], 'upload.jpg', { type: 'image/jpeg' }) : file);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 async function collectImages(){
   const urls = [];
   for(const item of mediaItems){
@@ -1089,7 +1115,7 @@ async function collectImages(){
       continue;
     }
     const fd = new FormData();
-    fd.append('file', item.file);
+    fd.append('file', await resizeImageForUpload(item.file, 1920, 0.85));
     fd.append('context', 'project');
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));

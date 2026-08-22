@@ -989,11 +989,39 @@ async function prefillForClaim(){
 
 if(claimName) prefillForClaim(); else prefillForEdit();
 
+// P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen (bkz.
+// mimar-ekle.html'deki AYNI fonksiyonun yorumu), TEK fark: logo genellikle şeffaf arka planlı PNG
+// olduğundan (bkz. logos/*.png), kaynak PNG ise çıktı da PNG kalır (JPEG'e çevirmek şeffaflığı
+// beyaza/siyaha düzleştirirdi) — yalnızca JPEG/WEBP kaynaklar JPEG'e dönüştürülür.
+function resizeImageForUpload(file, maxEdge, quality){
+  return new Promise((resolve) => {
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type)){ resolve(file); return; }
+    const isPng = file.type === 'image/png';
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if(width > height && width > maxEdge){ height = Math.round(height * (maxEdge / width)); width = maxEdge; }
+      else if(height > maxEdge){ width = Math.round(width * (maxEdge / height)); height = maxEdge; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const outType = isPng ? 'image/png' : 'image/jpeg';
+      canvas.toBlob(blob => {
+        resolve(blob && blob.size < file.size ? new File([blob], isPng ? 'upload.png' : 'upload.jpg', { type: outType }) : file);
+      }, outType, quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 async function uploadFiles(files){
   const urls = [];
   for(const file of files){
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await resizeImageForUpload(file, 1000, 0.9));
     fd.append('context', 'office');
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));

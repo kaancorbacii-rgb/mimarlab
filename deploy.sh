@@ -57,6 +57,15 @@ if [ -n "$current_branch" ]; then
   echo "Git dal senkronizasyon kontrolü geçti (diğer worktree'lerde eksik commit yok)."
 fi
 
+# P2 hardening (denetim raporu, 2026-08-23) — "test → build/check → deploy → health check →
+# smoke test" akışının İLK adımı: tamamen yerel/statik (ağ isteği yok, `wrangler dev` başlatmıyor)
+# sözdizimi + P1 regresyon kontrolleri. Başarısız olursa deploy hiç BAŞLAMAZ (bkz. kullanıcı
+# isteği: "test başarısızsa deploy durmalı").
+echo ""
+echo "Preflight kontrolü çalıştırılıyor (scripts/preflight-check.sh)..."
+./scripts/preflight-check.sh
+echo ""
+
 # Faz 4D — wrangler'ın stdout'unu hem normal şekilde ekrana basıp hem de deployed Version ID'yi
 # ayrıştırmak için ayrıca bir dosyaya yakalıyoruz (bkz. scripts/health-check.sh#worker_version
 # teyidi). `set -o pipefail` (yukarıda) sayesinde `wrangler deploy` başarısız olursa `tee`
@@ -87,3 +96,17 @@ fi
 echo ""
 echo "Faz 4D kapsamlı sağlık kontrolü çalıştırılıyor (scripts/health-check.sh)..."
 ./scripts/health-check.sh "$deployed_version"
+
+# P2 hardening (denetim raporu, 2026-08-23) — health-check.sh'in YERİNE değil, TAMAMLAYICISI
+# olarak (bkz. kullanıcı isteği: "mevcut health-check.sh sistemini gereksiz yere yeniden yazma").
+# Deploy zaten gerçekleşmiş olduğundan (Cloudflare Workers'ta bu repo'nun tek ortamı var, ayrı bir
+# staging/canary aşaması yok — bkz. denetim raporu "Deployment" bulgusu) bu adım deploy'u geriye
+# alamaz; başarısız olursa yüksek sesle bildirir ve rollback için gereken komutu gösterir.
+echo ""
+echo "Kapsamlı production smoke test çalıştırılıyor (scripts/smoke-test.sh)..."
+if ! ./scripts/smoke-test.sh; then
+  echo "" >&2
+  echo "UYARI: smoke test deploy SONRASINDA başarısız oldu (deploy zaten canlıya çıktı, geri alınamadı)." >&2
+  echo "Geri almak istersen: npx wrangler rollback [<önceki-version-id>] (bkz. \`npx wrangler deployments list\`)" >&2
+  exit 1
+fi
