@@ -1,4 +1,10 @@
 -- MİMARLAB üyelik / gönderi sistemi şeması (D1 / SQLite)
+--
+-- Denetim bulgusu (2026-08-22): bu dosya önceden yalnızca aşağıdaki eski üyelik/gönderi alt
+-- sistemini kapsıyordu — sitenin gerçek çekirdek kataloğu (architects/offices/projects/products
+-- ve bunlara bağlı Faz 2/3 tabloları) hiç belgelenmemişti (bkz. dosya sonundaki yeni bölüm).
+-- Bu READ-ONLY bir dokümantasyon/parity düzeltmesidir — production D1 şeması bu düzeltmeyle
+-- HİÇ değiştirilmedi, yalnızca bu dosya production'ın gerçek sqlite_master dökümüyle eşleştirildi.
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -254,15 +260,24 @@ CREATE TABLE IF NOT EXISTS news (
   updated_at INTEGER NOT NULL
 );
 
+-- admin_seen/status (migrations/0027_comment_admin_seen.sql, 0029_comment_moderation.sql) — bu
+-- dosya denetim bulgusu (2026-08-22) sonrası production sqlite_master ile eşleştirildi, önceden
+-- burada eksikti. idx_comments_target da migrations/0052 ile idx_comments_target_created'a
+-- (created_at eklenmiş hâli) genişletildiği için production'da artık yok, aşağıda güncellendi.
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   target_type TEXT NOT NULL,
   target_id TEXT NOT NULL,
   user_id TEXT NOT NULL REFERENCES users(id),
   body TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  admin_seen INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending'
 );
-CREATE INDEX IF NOT EXISTS idx_comments_target ON comments(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_comments_target_created ON comments(target_type, target_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_comments_admin_seen ON comments(admin_seen);
+CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
+CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
 
 CREATE TABLE IF NOT EXISTS saved_items (
   id TEXT PRIMARY KEY,
@@ -436,3 +451,278 @@ CREATE TABLE IF NOT EXISTS r2_usage (
   ops_month TEXT NOT NULL DEFAULT '',
   updated_at INTEGER NOT NULL DEFAULT 0
 );
+
+-- ============================================================
+-- Faz 2/3 — Canonical ID-first varlıklar (architects/offices/projects/products) ve
+-- ilişkili tablolar (bkz. migrations/0022_id_first_entities.sql ve sonrası).
+-- Denetim bulgusu (2026-08-22): bu bölüm önceden schema.sql'de HİÇ yoktu — dosyanın
+-- yalnızca eski üyelik/gönderi alt sistemini kapsadığı, sitenin gerçek çekirdek
+-- katalog tablolarının (architects/offices/projects/products) ise hiç belgelenmediği
+-- anlamına geliyordu. Aşağıdaki tüm CREATE TABLE/INDEX ifadeleri production'ın gerçek
+-- sqlite_master dökümünden birebir alınmıştır (2026-08-22).
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS architects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  dob TEXT,
+  school TEXT,
+  dept TEXT,
+  profession TEXT,
+  position TEXT,
+  awards TEXT,                        -- JSON dizi (serbest metin ödül adları)
+  about TEXT,
+  photo_url TEXT,
+  office_id INTEGER REFERENCES offices(id),
+  role_at_office TEXT,
+  source TEXT NOT NULL DEFAULT 'legacy_static' CHECK (source IN ('legacy_static','submission','admin')),
+  legacy_key TEXT,                    -- eski bare-name key; migration izlenebilirliği + eski URL redirect'leri için
+  claimed_by_user_id TEXT REFERENCES users(id),
+  deleted_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+, hidden_at TEXT, is_consultant INTEGER NOT NULL DEFAULT 0, hourly_rate INTEGER, session_duration_min INTEGER NOT NULL DEFAULT 45, expertise_tags TEXT, available_slots TEXT, consultant_bio TEXT, consultant_total_minutes INTEGER NOT NULL DEFAULT 0, consultant_sessions_completed INTEGER NOT NULL DEFAULT 0, consultant_experience_years INTEGER, social_platform TEXT, social_url TEXT, social_links TEXT);
+CREATE INDEX IF NOT EXISTS idx_architects_claimed_by ON architects(claimed_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_architects_consultant ON architects(is_consultant) WHERE is_consultant = 1;
+CREATE INDEX IF NOT EXISTS idx_architects_hidden_or_deleted ON architects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_architects_legacy_key ON architects(legacy_key);
+CREATE INDEX IF NOT EXISTS idx_architects_name ON architects(name);
+CREATE INDEX IF NOT EXISTS idx_architects_office ON architects(office_id);
+
+CREATE TABLE IF NOT EXISTS offices (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  loc TEXT,
+  cats TEXT,                          -- JSON
+  yil TEXT,
+  website TEXT,
+  about TEXT,
+  logo_url TEXT,
+  awards TEXT,                        -- JSON
+  source TEXT NOT NULL DEFAULT 'legacy_static' CHECK (source IN ('legacy_static','submission','admin')),
+  legacy_key TEXT,
+  claimed_by_user_id TEXT REFERENCES users(id),
+  deleted_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+, hidden_at TEXT, social_platform TEXT, social_url TEXT, social_links TEXT);
+CREATE INDEX IF NOT EXISTS idx_offices_claimed_by ON offices(claimed_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_offices_hidden_or_deleted ON offices(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_offices_legacy_key ON offices(legacy_key);
+CREATE INDEX IF NOT EXISTS idx_offices_name ON offices(name);
+
+CREATE TABLE IF NOT EXISTS projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT,                      -- JSON
+  type TEXT,                          -- JSON
+  discipline TEXT,                    -- JSON
+  location TEXT,
+  location_detail TEXT,
+  project_date TEXT,
+  date_bucket TEXT,
+  period TEXT,                        -- JSON
+  description TEXT,
+  images TEXT,                        -- JSON
+  -- Fotoğrafçı: ayrı bir varlık/FK yok (bkz. dosya başındaki kapsam daraltma notu) — mevcut
+  -- serbest metin + opsiyonel kaynak URL'si fallback olarak aynen korunuyor.
+  photo_credit_text TEXT,
+  photo_credit_url TEXT,
+  source_url TEXT,
+  ai_generated INTEGER DEFAULT 0,
+  source TEXT NOT NULL DEFAULT 'legacy_static' CHECK (source IN ('legacy_static','submission','admin')),
+  legacy_key TEXT,                    -- eski slug (yeniden adlandırma/izlenebilirlik için)
+  claimed_by_user_id TEXT REFERENCES users(id),
+  deleted_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+, hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT);
+CREATE INDEX IF NOT EXISTS idx_projects_build_status ON projects(build_status);
+CREATE INDEX IF NOT EXISTS idx_projects_hidden_or_deleted ON projects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_projects_legacy_key ON projects(legacy_key);
+
+CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT UNIQUE NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('product','material')),
+  title TEXT NOT NULL,
+  brand_office_id INTEGER REFERENCES offices(id),
+  brand_name_raw TEXT,                -- eşleşmeyen marka adları için fallback (bkz. migration_name_conflicts)
+  website TEXT,
+  category TEXT,
+  description TEXT,
+  images TEXT,                        -- JSON
+  specs TEXT,                         -- JSON [{label,value}]
+  source_url TEXT,
+  ai_generated INTEGER DEFAULT 0,
+  source TEXT NOT NULL DEFAULT 'legacy_static' CHECK (source IN ('legacy_static','submission','admin')),
+  legacy_key TEXT,                    -- "marka|||başlık" (bkz. src/routes/legacyContent.js#productLegacyKey)
+  claimed_by_user_id TEXT REFERENCES users(id),
+  deleted_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+, hidden_at TEXT, designer TEXT, year TEXT);
+CREATE INDEX IF NOT EXISTS idx_products_brand_office ON products(brand_office_id);
+CREATE INDEX IF NOT EXISTS idx_products_hidden_or_deleted ON products(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_products_legacy_key ON products(legacy_key);
+
+-- ---------- İlişki / bağlantı tabloları ----------
+
+CREATE TABLE IF NOT EXISTS office_founders (
+  office_id INTEGER NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  architect_id INTEGER NOT NULL REFERENCES architects(id) ON DELETE CASCADE,
+  PRIMARY KEY (office_id, architect_id)
+);
+CREATE INDEX IF NOT EXISTS idx_office_founders_architect ON office_founders(architect_id);
+
+CREATE TABLE IF NOT EXISTS project_designers (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  architect_id INTEGER REFERENCES architects(id) ON DELETE CASCADE,
+  office_id INTEGER REFERENCES offices(id) ON DELETE CASCADE,
+  CHECK ((architect_id IS NOT NULL) != (office_id IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_project_designers_architect ON project_designers(architect_id);
+CREATE INDEX IF NOT EXISTS idx_project_designers_office ON project_designers(office_id);
+CREATE INDEX IF NOT EXISTS idx_project_designers_project ON project_designers(project_id);
+
+CREATE TABLE IF NOT EXISTS project_products (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  PRIMARY KEY (project_id, product_id)
+);
+
+CREATE TABLE IF NOT EXISTS project_awards (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  award_id INTEGER NOT NULL REFERENCES awards(id) ON DELETE CASCADE,
+  category TEXT,
+  PRIMARY KEY (project_id, award_id)
+);
+
+CREATE TABLE IF NOT EXISTS product_architects (
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  architect_id INTEGER NOT NULL REFERENCES architects(id) ON DELETE CASCADE,
+  PRIMARY KEY (product_id, architect_id)
+);
+
+CREATE TABLE IF NOT EXISTS awards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  organizer TEXT,
+  year INTEGER
+);
+
+-- ---------- Slug / rename / SEO / site config ----------
+
+CREATE TABLE IF NOT EXISTS slug_redirects (
+  entity_type TEXT NOT NULL, -- 'projects' | 'architects' | 'offices'
+  old_slug TEXT NOT NULL,
+  new_slug TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (entity_type, old_slug)
+);
+
+CREATE TABLE IF NOT EXISTS seo_overrides (
+  entity_type TEXT NOT NULL,
+  entity_key TEXT NOT NULL,
+  meta_title TEXT,
+  meta_description TEXT,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (entity_type, entity_key)
+);
+
+CREATE TABLE IF NOT EXISTS site_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL
+);
+
+-- ---------- En İyi 100 (editoryal, sabit taban + gerçek puanlarla harmanlanır) ----------
+
+CREATE TABLE IF NOT EXISTS top100_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rnk INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  slug TEXT,
+  base_avg REAL NOT NULL,
+  base_count INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_top100_entries_rnk ON top100_entries(rnk);
+
+CREATE TABLE IF NOT EXISTS top100_rank_snapshot (
+  target_key TEXT PRIMARY KEY,
+  rnk INTEGER NOT NULL,
+  snapshot_at INTEGER NOT NULL
+);
+
+-- ---------- Facet/arama önbelleği, kota takibi, bülten ----------
+
+CREATE TABLE IF NOT EXISTS facet_counts (
+  list_type TEXT NOT NULL,            -- 'architects' | 'offices' | 'projects' | 'products'
+  facet_key TEXT NOT NULL,            -- 'category' | 'position' | 'award' | ...
+  facet_value TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (list_type, facet_key, facet_value)
+);
+
+CREATE TABLE IF NOT EXISTS kv_usage (
+  id TEXT PRIMARY KEY,
+  writes_count INTEGER NOT NULL DEFAULT 0,
+  writes_day TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  unsubscribe_token TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  unsubscribed_at INTEGER
+);
+
+-- ---------- Migrasyon çakışma takibi (bkz. src/routes/migrationConflicts.js) ----------
+-- Denetim bulgusu (2026-08-22): bu tabloyu okuyan/güncelleyen API (GET/PATCH
+-- /api/admin/migration-conflicts) production'da TAM ÇALIŞIR durumda ama hiçbir admin
+-- ekranından tüketilmiyor — production'da 1017 pending kayıt birikmiş durumda.
+
+CREATE TABLE IF NOT EXISTS migration_name_conflicts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_type TEXT NOT NULL,          -- 'architect' | 'office' | 'project_designer' | 'office_founder' | 'product_brand' | 'product_architect'
+  conflict_key TEXT NOT NULL,         -- çakışan/eşleşmeyen isim
+  context TEXT,                       -- ilişkili kaydın anahtarı (ör. proje slug'ı) — join tipi çakışmalarda hangi kayıttan geldiğini gösterir
+  candidates TEXT NOT NULL,           -- JSON dizi: eşleşme adayı olan canonical kayıtların özetleri ([] ise "hiç eşleşme yok" demektir)
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','resolved','ignored')),
+  resolved_target_id INTEGER,         -- admin bir aday seçtiyse o kaydın id'si
+  resolved_by_user_id TEXT REFERENCES users(id),
+  resolved_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_migration_conflicts_status ON migration_name_conflicts(entity_type, status);
+
+-- ---------- Kaldırılmış "danışmanlık" özelliği (bkz. migrations/0040) ----------
+-- 2026-08-10'da üründen kaldırıldı; hiçbir canlı route bu tabloyu okumuyor/yazmıyor.
+-- migrations/0040_remove_consultant_schema.sql bu tabloyu (ve architects/
+-- architect_submissions'daki consultant_* kolonlarını) DROP etmek için yazıldı ama
+-- kendi başlığında belirttiği gibi PRODUCTION'a hiç uygulanmadı — production hâlâ bu
+-- şemayı taşıyor, bu yüzden parity için burada belgeleniyor.
+
+CREATE TABLE IF NOT EXISTS consultation_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  consultant_key TEXT NOT NULL,
+  requested_date TEXT NOT NULL,
+  requested_time TEXT NOT NULL,
+  price_try INTEGER,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','rejected','cancelled')),
+  payment_provider TEXT NOT NULL DEFAULT 'havale',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+, phone TEXT);
+CREATE INDEX IF NOT EXISTS idx_consultation_requests_consultant ON consultation_requests(consultant_key);
+CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id);
+

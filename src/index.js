@@ -655,10 +655,29 @@ function injectMeta(response, meta) {
   // project/product üreticilerinde set edilir (bkz. src/lib/seo.js) — INFO_MODAL_META gibi h1'i
   // olmayan/güncellenmesi gerekmeyen çağrılarda kural sessizce hiçbir şey yapmaz.
   const h1Handler = { element(el) { if (meta.h1) el.setInnerContent(meta.h1); } };
+  // denetim bulgusu (2026-08-22): proje/mimar/firma/ürün detay sayfalarının ham HTML body'si
+  // <head>'deki bu fonksiyonun ürettiği JSON-LD dışında hiçbir gerçek içerik taşımıyordu — JS
+  // çalışmadan (crawler/paylaşım botu/yavaş bağlantı) sayfa yalnızca boş bir liste kabuğu olarak
+  // görünüyordu (bkz. src/lib/seo.js#bodyHtml yorumu). #ssr-entity-body, proje/mimar/firma/urun.html
+  // şablonlarının hepsinde `.page-head` altında BOŞ duran, listeleme sayfasında (meta yokken) hiç
+  // dokunulmayan bir konteyner — client-side modal (bkz. js/components/*-modal.js) bunun üstüne tam
+  // ekran bir overlay açtığından hydration sonrası çakışma olmaz, yalnızca JS'ten önce görünen
+  // gerçek bir SSR fallback'tir.
+  const escapeForAttr = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const bodyHandler = {
+    element(el) {
+      if (!meta.bodyHtml) return;
+      const img = meta.bodyImage
+        ? `<img src="${escapeForAttr(meta.bodyImage)}" alt="${escapeForAttr(meta.bodyImageAlt)}" loading="eager">`
+        : '';
+      el.setInnerContent(`${img}<div class="ssr-entity-text">${meta.bodyHtml}</div>`, { html: true });
+    },
+  };
   return new HTMLRewriter()
     .on('title', { element(el) { el.setInnerContent(meta.title); } })
     .on('h1#entity-h1', h1Handler)
     .on('h1#page-title', h1Handler)
+    .on('#ssr-entity-body', bodyHandler)
     .on('meta#meta-description', { element(el) { el.setAttribute('content', meta.description); } })
     .on('link#canonical-link', { element(el) { el.setAttribute('href', meta.canonicalUrl); } })
     // audit bulgusu: og:type tüm detay sayfalarında şablondaki sabit "website" değerinde kalıyordu —

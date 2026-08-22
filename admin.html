@@ -324,6 +324,7 @@
         <button class="admin-tab" data-tab="comments">Yorumlar<span class="admin-tab-dot" data-dot="comments"></span></button>
         <button class="admin-tab" data-tab="users">Üyeler</button>
         <button class="admin-tab" data-tab="r2orphans">R2 Yetim Dosyalar</button>
+        <button class="admin-tab" data-tab="conflicts">Migrasyon Çakışmaları<span class="admin-tab-dot" data-dot="conflicts"></span></button>
         <button class="admin-tab" data-tab="seo">SEO</button>
         <button class="admin-tab" data-tab="settings">Site Ayarları</button>
         <button class="admin-tab" data-tab="performance">Performans</button>
@@ -377,6 +378,33 @@
           <button class="admin-btn danger" id="r2orphans-delete-selected" disabled>Seçilenleri Sil (0)</button>
         </div>
         <div id="r2orphans-list"></div>
+      </div>
+
+      <!-- denetim bulgusu (2026-08-22): src/routes/migrationConflicts.js GET/PATCH
+           /api/admin/migration-conflicts önceden tam çalışır durumdaydı ama hiçbir admin ekranından
+           tüketilmiyordu — production'da 1017 pending kayıt bu ekran olmadan görünmüyordu. Bu sekme
+           yalnızca RAPORLAR/işaretler (bkz. migrationConflicts.js dosya başı yorumu — gerçek
+           disambiguation admin'in mevcut mimar/ofis düzenleme araçlarıyla elle yapılır), hiçbir
+           kaydı otomatik resolve etmez. -->
+      <div class="admin-section" id="section-conflicts">
+        <div id="conflicts-summary" style="margin-bottom:14px; font-size:13px; color:var(--ink-soft);"></div>
+        <div class="admin-actions" style="margin-bottom:14px; gap:8px;">
+          <select id="conflicts-status-filter">
+            <option value="pending" selected>Beklemede</option>
+            <option value="resolved">Çözüldü</option>
+            <option value="ignored">Yok Sayıldı</option>
+            <option value="">Tümü</option>
+          </select>
+          <select id="conflicts-type-filter">
+            <option value="">Tüm türler</option>
+            <option value="architect">Mimar</option>
+            <option value="office">Firma</option>
+            <option value="office_founder">Ofis Kurucusu</option>
+            <option value="project_designer">Proje Tasarımcısı</option>
+          </select>
+          <button class="admin-btn" id="conflicts-refresh">Yenile</button>
+        </div>
+        <div id="conflicts-list"></div>
       </div>
 
       <div class="admin-section" id="section-seo">
@@ -1573,6 +1601,7 @@ async function refreshAdminSummary(){
       badges: data.pendingBadges > 0,
       contact: data.unreadContact > 0,
       comments: data.unseenComments > 0,
+      conflicts: data.pendingMigrationConflicts > 0,
     };
     Object.entries(dots).forEach(([key, show])=>{
       const dot = document.querySelector(`.admin-tab-dot[data-dot="${key}"]`);
@@ -1810,6 +1839,70 @@ document.getElementById('r2orphans-delete-selected').addEventListener('click', a
   await deleteR2OrphanKeys(keys);
 });
 
+// ---------- Migrasyon Çakışmaları sekmesi (bkz. src/routes/migrationConflicts.js) ----------
+// Yalnızca RAPORLAR/işaretler — hiçbir kaydı otomatik resolve etmez, "adayları" (varsa) salt bilgi
+// amaçlı gösterir. Gerçek disambiguation admin'in mevcut mimar/ofis düzenleme ekranlarında elle
+// yapılır (bkz. modülün kendi dosya başı yorumu).
+const CONFLICT_TYPE_LABELS = {
+  architect: 'Mimar',
+  office: 'Firma',
+  office_founder: 'Ofis Kurucusu',
+  project_designer: 'Proje Tasarımcısı',
+};
+const CONFLICT_STATUS_BADGE = { pending: 'badge-pending', resolved: 'badge-approved', ignored: 'badge-rejected' };
+const CONFLICT_STATUS_LABEL = { pending: 'Beklemede', resolved: 'Çözüldü', ignored: 'Yok Sayıldı' };
+
+async function loadMigrationConflicts(){
+  const summary = document.getElementById('conflicts-summary');
+  const list = document.getElementById('conflicts-list');
+  const status = document.getElementById('conflicts-status-filter').value;
+  const entityType = document.getElementById('conflicts-type-filter').value;
+  list.innerHTML = '<div class="admin-empty">Yükleniyor…</div>';
+  const qs = new URLSearchParams();
+  if(status) qs.set('status', status);
+  if(entityType) qs.set('entityType', entityType);
+  const data = await api(`/api/admin/migration-conflicts?${qs.toString()}`);
+  const items = data.items || [];
+  const counts = data.counts || {};
+  summary.textContent = `${counts.pending || 0} beklemede, ${counts.resolved || 0} çözüldü, ${counts.ignored || 0} yok sayıldı.`;
+  if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu filtreyle eşleşen kayıt yok.</div>'; return; }
+
+  list.innerHTML = items.map(it => `
+    <div class="admin-card" data-id="${escapeAttr(it.id)}">
+      <div class="admin-card-head">
+        <div class="admin-card-body">
+          <div>
+            <div class="admin-card-title">${escapeHtml(it.conflict_key)} <span class="admin-badge badge-neutral">${CONFLICT_TYPE_LABELS[it.entity_type] || escapeHtml(it.entity_type)}</span> <span class="admin-badge ${CONFLICT_STATUS_BADGE[it.status] || 'badge-pending'}">${CONFLICT_STATUS_LABEL[it.status] || it.status}</span></div>
+            <div class="admin-card-meta">${it.context ? escapeHtml(it.context) : 'İlişkili kayıt yok'}${it.candidates && it.candidates.length ? ' · Aday: ' + it.candidates.map(c => escapeHtml(c.name || c)).join(', ') : ' · Eşleşen aday bulunamadı'}</div>
+          </div>
+        </div>
+        <div class="admin-actions">
+          ${it.status !== 'resolved' ? '<button class="admin-btn" data-action="resolve">Çözüldü İşaretle</button>' : ''}
+          ${it.status !== 'ignored' ? '<button class="admin-btn" data-action="ignore">Yok Say</button>' : ''}
+          ${it.status !== 'pending' ? '<button class="admin-btn" data-action="reopen">Beklemeye Al</button>' : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async ()=>{
+      const id = btn.closest('.admin-card').dataset.id;
+      const status = btn.dataset.action === 'resolve' ? 'resolved' : btn.dataset.action === 'ignore' ? 'ignored' : 'pending';
+      await api(`/api/admin/migration-conflicts/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      loadMigrationConflicts();
+      refreshAdminSummary();
+    });
+  });
+}
+document.getElementById('conflicts-refresh').addEventListener('click', loadMigrationConflicts);
+document.getElementById('conflicts-status-filter').addEventListener('change', loadMigrationConflicts);
+document.getElementById('conflicts-type-filter').addEventListener('change', loadMigrationConflicts);
+
 document.querySelectorAll('.admin-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
@@ -1825,6 +1918,7 @@ document.querySelectorAll('.admin-tab').forEach(tab=>{
     if(tab.dataset.tab === 'comments') loadCommentsAdmin();
     if(tab.dataset.tab === 'users') loadUsers();
     if(tab.dataset.tab === 'r2orphans') loadR2Orphans();
+    if(tab.dataset.tab === 'conflicts') loadMigrationConflicts();
     if(tab.dataset.tab === 'seo') loadSeo();
     if(tab.dataset.tab === 'settings') loadSiteSettings();
     if(tab.dataset.tab === 'performance') loadPerformance();

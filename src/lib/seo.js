@@ -35,6 +35,33 @@ function truncate(text, max) {
   return text && text.length > max ? text.slice(0, max - 1) + '…' : text;
 }
 
+// denetim bulgusu (2026-08-22): proje/mimar/firma/ürün detay sayfalarının ham HTML body'si hiçbir
+// gerçek içerik taşımıyordu — yalnızca <head>'deki JSON-LD'de vardı, JS çalışmadan (crawler/paylaşım
+// botu/yavaş bağlantı) sayfa boş bir liste kabuğu olarak görünüyordu. Bu yardımcılar, injectMeta()'nın
+// zaten D1'den okuduğu AYNI veriyle (yeni bir sorgu AÇMADAN) görünür, escape'lenmiş bir HTML parçası
+// üretir — src/index.js#injectMeta bunu #ssr-entity-body konteynerine enjekte eder. Client-side modal
+// (bkz. js/components/*-modal.js) bunun üstüne tam ekran bir overlay açtığından (modal-shell.js#
+// .modal-shell-overlay: position:fixed, inset:0, z-index:150) bu içerik JS yüklendikten sonra
+// görsel olarak kaybolur — çakışma yok, yalnızca JS'ten ÖNCE/JS'siz gösterilen gerçek bir fallback.
+// escapeHtml burada da (bkz. src/lib/newsletterNotify.js/src/routes/contact.js'teki AYNI yerel kopya
+// deseni — proje kuralı gereği merkezi bir yardımcı modüle taşınmıyor) tek, tüm bağlamlar için
+// (metin + öznitelik) yeterli tek-fonksiyonlu escape kalıbını izler.
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// facts: [label, valueHtml][] — valueHtml zaten escape edilmiş/güvenli olmalı (çağıran taraf
+// sorumlu). null/boş value'lu satırlar sessizce atlanır.
+function factsListHtml(facts) {
+  const rows = facts.filter(([, v]) => v);
+  if (!rows.length) return '';
+  return `<dl class="ssr-facts">${rows.map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
+}
+
+function internalLink(path, name) {
+  return `<a href="${escapeHtml(path)}">${escapeHtml(name)}</a>`;
+}
+
 // gerçek bulgu (denetim raporu, 2026-08-16): <title> hiçbir yerde uzunluk sınırına kırpılmıyordu —
 // çok uzun mimar/firma/proje/ürün adlarında (ör. cümle uzunluğunda proje başlıkları) Google'ın SERP'te
 // gösterdiği pratik ~60 karakterlik sınırı aşılıp başlık ortasından kesilebiliyordu. Sabit " — MİMARLAB"
@@ -145,12 +172,18 @@ const DESIGNER_SEP = '';
 function namesFromConcat(concat) {
   return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
 }
+// architect_slugs/office_slugs — SSR body'deki mimar/firma isimlerini gerçek `<a>` linkine
+// çevirebilmek için (bkz. buildProjectMeta#bodyHtml) AYNI sorguya eklenen iki GRUP_CONCAT sütunu
+// daha — yeni bir round-trip AÇMADAN, architect_names/office_names ile birebir aynı sırada döner
+// (her ikisi de aynı LEFT JOIN'den, aynı GROUP BY p.id altında gelir).
 async function findProjectRow(env, slug) {
   if (!env || !env.DB) return null;
   return env.DB.prepare(
     `SELECT p.*,
             GROUP_CONCAT(ar.name, '${DESIGNER_SEP}') AS architect_names,
-            GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS office_names
+            GROUP_CONCAT(ar.slug, '${DESIGNER_SEP}') AS architect_slugs,
+            GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS office_names,
+            GROUP_CONCAT(ofc.slug, '${DESIGNER_SEP}') AS office_slugs
      FROM projects p
      LEFT JOIN project_designers pd ON pd.project_id = p.id
      LEFT JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL
@@ -160,14 +193,21 @@ async function findProjectRow(env, slug) {
   ).bind(slug).first();
 }
 
+// brand_office_name/brand_office_slug — ürünün brand_office_id'si eşleşen bir firma kaydına
+// bağlıysa (bkz. buildProductMeta#bodyHtml) marka adını gerçek /firma/:slug linkine çevirebilmek
+// için AYNI sorguya eklenen tek bir LEFT JOIN; eşleşme yoksa (serbest metin marka adı, bkz.
+// products.brand_name_raw kolon yorumu) ikisi de NULL kalır, yeni bir round-trip AÇILMAZ.
 async function findProductRow(env, key) {
   if (!env || !env.DB) return null;
-  const row = await env.DB.prepare(`SELECT * FROM products WHERE slug = ? AND deleted_at IS NULL AND hidden_at IS NULL`).bind(key).first();
+  const joinSql = `FROM products p LEFT JOIN offices bo ON bo.id = p.brand_office_id AND bo.deleted_at IS NULL`;
+  const row = await env.DB.prepare(
+    `SELECT p.*, bo.name AS brand_office_name, bo.slug AS brand_office_slug ${joinSql} WHERE p.slug = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
+  ).bind(key).first();
   if (row) return row;
   const { results } = await env.DB.prepare(`SELECT id, title, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all();
   const match = results.find(r => slugify(`${r.title}-${r.brand_name_raw || ''}`) === key);
   if (!match) return null;
-  return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(match.id).first();
+  return env.DB.prepare(`SELECT p.*, bo.name AS brand_office_name, bo.slug AS brand_office_slug ${joinSql} WHERE p.id = ?`).bind(match.id).first();
 }
 
 // slug: kaydın GERÇEK canonical a.slug'ı (bkz. findArchitectRow'daki denetim notu) — çağıranın URL'de
@@ -191,14 +231,24 @@ function architectMetaFromRecord(a, officeName, slug, officeSlug) {
   // knowsAbout ile ifade ediyoruz, aksi halde geçersiz @type Google'ın yapılandırılmış veri
   // ayrıştırıcısı tarafından sessizce yok sayılırdı.
   if (a.dept) jsonLd.knowsAbout = [a.dept];
-  return { title, h1: a.name, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl) };
+  const officeLink = officeName ? internalLink(`/firma/${encodeURIComponent(officeSlug || slugify(officeName))}`, officeName) : null;
+  const bodyHtml = [
+    a.about ? `<p>${escapeHtml(a.about)}</p>` : `<p>${escapeHtml(description)}</p>`,
+    factsListHtml([
+      ['Ünvan', a.role ? escapeHtml(a.role) : null],
+      ['Firma', officeLink],
+      ['Okul', a.school ? escapeHtml(a.school) : null],
+      ['Bölüm', a.dept ? escapeHtml(a.dept) : null],
+    ]),
+  ].filter(Boolean).join('');
+  return { title, h1: a.name, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl), bodyHtml, bodyImage: photoUrl, bodyImageAlt: a.name };
 }
 
 async function buildArchitectMeta(slug, env) {
   const row = await findArchitectRow(env, slug);
   if (!row) return null;
   const a = parseCanonicalRow('architects', row);
-  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept }, row.office_name || null, row.slug, row.office_slug || null);
+  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept, about: a.about }, row.office_name || null, row.slug, row.office_slug || null);
 }
 
 // architectMetaFromRecord ile AYNI paylaşım deseni — canonical D1 offices satırı ortak şekle
@@ -223,7 +273,19 @@ async function officeMetaFromRecord(o, slug, env) {
     // city-suffixed slug'larla (bkz. proje memory notu) uyuşmayabiliyordu.
     jsonLd.founder = founders.map(f => ({ '@type': 'Person', name: f.name, url: `${SITE_ORIGIN}/mimar/${encodeURIComponent(f.slug || slugify(f.name))}` }));
   }
-  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl) };
+  const foundersHtml = founders.length
+    ? founders.map(f => internalLink(`/mimar/${encodeURIComponent(f.slug || slugify(f.name))}`, f.name)).join(', ')
+    : null;
+  const bodyHtml = [
+    o.about ? `<p>${escapeHtml(o.about)}</p>` : `<p>${escapeHtml(description)}</p>`,
+    factsListHtml([
+      ['Kurucular', foundersHtml],
+      ['Kuruluş Yılı', o.yil ? escapeHtml(String(o.yil)) : null],
+      ['Konum', o.loc ? escapeHtml(o.loc) : null],
+      ['Website', site ? `<a href="${escapeHtml(site)}" rel="nofollow noopener" target="_blank">${escapeHtml(site.replace(/^https?:\/\//, ''))}</a>` : null],
+    ]),
+  ].filter(Boolean).join('');
+  return { title, h1: o.name, description, canonicalUrl, image: logoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('office', o.name, canonicalUrl), bodyHtml, bodyImage: logoUrl, bodyImageAlt: o.name };
 }
 
 // slug: kaydın GERÇEK canonical o.slug'ı — bkz. findArchitectRow'daki AYNI denetim notu
@@ -273,7 +335,28 @@ async function buildProjectMeta(slug, env) {
   // bu alanı bekleyebilir. article:author kasıtlı olarak EKLENMEDİ: OG'nin bu alanı bir Facebook
   // Profile URL'si bekler, mimar/firma sayfalarımız bu değil — yanlış/anlamsız bir değer uydurmak
   // eksik bırakmaktan daha kötü olurdu (JSON-LD'deki creator zaten doğru yazarlığı taşıyor).
-  return { title, h1: p.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', publishedTime: toIso8601(row.created_at), breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl) };
+  // designerLinksHtml — mimar/firma isimlerini (varsa) GERÇEK a.slug/o.slug'a (bkz. yukarıdaki
+  // findProjectRow#architect_slugs/office_slugs) `<a>` linkine çevirir; bir isim için (teoride
+  // olmaz, aynı LEFT JOIN'den gelir) slug yoksa düz escape'lenmiş metne düşer, kırık link üretmez.
+  const architectNames = namesFromConcat(row.architect_names);
+  const architectSlugs = namesFromConcat(row.architect_slugs);
+  const officeNames = namesFromConcat(row.office_names);
+  const officeSlugs = namesFromConcat(row.office_slugs);
+  const designerLinksHtml = [
+    ...architectNames.map((name, i) => architectSlugs[i] ? internalLink(`/mimar/${encodeURIComponent(architectSlugs[i])}`, name) : escapeHtml(name)),
+    ...officeNames.map((name, i) => officeSlugs[i] ? internalLink(`/firma/${encodeURIComponent(officeSlugs[i])}`, name) : escapeHtml(name)),
+  ].join(', ') || null;
+  const typeLabel = [...(p.category || []), ...(p.type || [])].join(', ') || null;
+  const bodyHtml = [
+    `<p>${escapeHtml(rawDesc)}</p>`,
+    factsListHtml([
+      ['Mimar / Firma', designerLinksHtml],
+      ['Konum', p.location ? escapeHtml(p.location) : null],
+      ['Yıl', p.project_date ? escapeHtml(p.project_date) : null],
+      ['Tür', typeLabel ? escapeHtml(typeLabel) : null],
+    ]),
+  ].filter(Boolean).join('');
+  return { title, h1: p.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'article', publishedTime: toIso8601(row.created_at), breadcrumbJsonLd: breadcrumbJsonLd('project', p.title, canonicalUrl), bodyHtml, bodyImage: images[0] || null, bodyImageAlt: p.title };
 }
 
 // Ürün/malzeme künyesinden ({title, brand, category, description, images}) ortak meta şekli üretir —
@@ -308,7 +391,21 @@ function productMetaFromRecord(record, canonicalUrl) {
   }
   // bkz. buildProjectMeta'daki AYNI og:type gerekçesi — ürün sayfaları için Open Graph'ın kendi
   // "product" tipi zaten var.
-  return { title, h1: record.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'product', breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl) };
+  // brandHtml — record.brandOfficeSlug YALNIZCA canonical `products.brand_office_id` gerçek bir
+  // firma kaydına eşleşiyorsa dolu gelir (bkz. findProductRow#brand_office_name/slug); eski
+  // submission kökenli kayıtlarda (buildProductMeta'nın "m-<id>" dalı) hiç yok — o durumda marka
+  // adı düz metin kalır, kırık/tahmini bir link üretilmez.
+  const brandHtml = record.brand
+    ? (record.brandOfficeSlug ? internalLink(`/firma/${encodeURIComponent(record.brandOfficeSlug)}`, record.brand) : escapeHtml(record.brand))
+    : null;
+  const bodyHtml = [
+    `<p>${escapeHtml(rawDesc)}</p>`,
+    factsListHtml([
+      ['Marka', brandHtml],
+      ['Kategori', record.category ? escapeHtml(record.category) : null],
+    ]),
+  ].filter(Boolean).join('');
+  return { title, h1: record.title, description, canonicalUrl, image: images[0] || DEFAULT_IMAGE, jsonLd, ogType: 'product', breadcrumbJsonLd: breadcrumbJsonLd('product', record.title, canonicalUrl), bodyHtml, bodyImage: images[0] || null, bodyImageAlt: record.title };
 }
 
 // urun.html/rating-widget.js'in target_id olarak kullandığı ANAHTARLA (bkz. src/routes/product.js#
@@ -354,7 +451,7 @@ async function buildProductMeta(key, env) {
       try { images = row.images ? JSON.parse(row.images) : []; } catch { images = []; }
       const rating = await fetchProductAggregateRating(env, isMaterial ? 'material' : 'product', `m-${id}`);
       const canonicalUrl = `${SITE_ORIGIN}/urun/${encodeURIComponent(key)}`;
-      return productMetaFromRecord({ title: row.title, brand: row.brand, description: row.description, images, rating }, canonicalUrl);
+      return productMetaFromRecord({ title: row.title, brand: row.brand, category: row.category, description: row.description, images, rating }, canonicalUrl);
     }
   }
 
@@ -368,7 +465,7 @@ async function buildProductMeta(key, env) {
   const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
   const ratingKey = productRatingKeyFor(p.title, p.brand_name_raw, submissionId);
   const rating = await fetchProductAggregateRating(env, row.kind === 'material' ? 'material' : 'product', ratingKey);
-  return productMetaFromRecord({ title: p.title, brand: p.brand_name_raw, description: p.description, images: p.images, rating }, canonicalUrl);
+  return productMetaFromRecord({ title: p.title, brand: p.brand_name_raw, brandOfficeSlug: row.brand_office_slug || null, category: p.category, description: p.description, images: p.images, rating }, canonicalUrl);
 }
 
 const BUILDERS = { architect: buildArchitectMeta, office: buildOfficeMeta, project: buildProjectMeta, product: buildProductMeta };

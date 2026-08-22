@@ -815,6 +815,13 @@ function fetchPublicJson(url){
     .catch(()=>({items:[], failed:true}));
 }
 
+// İlk otomatik render() DOMContentLoaded'a ertelenir — aşağıdaki .then() içindeki cdnImg()/
+// cdnSrcset() (image-cdn.js, defer ile yüklenir) mimar.html/firma.html/js/pages/proje.js'de
+// zaten belgelenen AYNI ırk koşuluna açıktı: /api/projects|architects|offices isteği bazen
+// deferred script'ten daha hızlı dönebiliyor, bu da "cdnSrcset is not defined" hatasıyla anasayfa
+// carousel'lerini sessizce boş bırakıyordu (denetim raporu, 2026-08-22 — canlıda doğrulandı).
+// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
+document.addEventListener('DOMContentLoaded', () => {
 Promise.all([
   // proje.html'in kullandığı AYNI canonical uç (bkz. yukarıdaki PROJECT_CAROUSEL_FETCH_LIMIT
   // yorumu) — statik miras + onaylı üye gönderileri zaten TEK D1 tablosunda birleşik, admin
@@ -865,6 +872,7 @@ Promise.all([
 
   if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
   else markaSlider.render(officeRes.items || []);
+});
 });
 </script>
 

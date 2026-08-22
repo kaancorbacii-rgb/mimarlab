@@ -183,6 +183,23 @@
   .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
+  /* ---------- SSR ENTITY BODY (bkz. src/index.js#injectMeta, src/lib/seo.js#bodyHtml) ---------- */
+  /* /urun/:slug altında serveDetailPage tarafından doldurulur; listeleme sayfasında (/urun) boş
+     kalır, :empty kuralı sayfaya gereksiz bir boşluk eklenmesini önler. */
+  .ssr-entity:empty{display:none;}
+  .ssr-entity{max-width:1260px; margin:0 auto; padding:0 32px 20px; display:flex; gap:20px; align-items:flex-start;}
+  .ssr-entity img{width:160px; height:160px; object-fit:cover; border-radius:8px; flex-shrink:0;}
+  .ssr-entity-text{flex:1; min-width:0;}
+  .ssr-entity-text p{color:var(--ink-soft); font-size:14px; line-height:1.6; max-width:70ch; margin:0 0 10px;}
+  .ssr-facts{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13.5px; margin:0;}
+  .ssr-facts dt{color:var(--ink-soft); font-weight:600;}
+  .ssr-facts dd{margin:0;}
+  .ssr-facts a{color:inherit;}
+  @media (max-width:720px){
+    .ssr-entity{flex-direction:column; padding:0 16px 16px;}
+    .ssr-entity img{width:100%; max-width:280px; height:auto;}
+  }
+
   /* ---------- GRID LAYOUT (sidebar + içerik) ---------- */
   .grid-layout{
     max-width:1260px; margin:0 auto;
@@ -405,6 +422,8 @@
     <h1 id="page-title">Ürünler</h1>
     <p id="page-desc">Projelerinde kullanabileceğin mobilya, aydınlatma, aksesuar, yapı malzemeleri ve firmaları keşfet.</p>
   </div>
+
+  <div id="ssr-entity-body" class="ssr-entity"></div>
 
   <div class="grid-layout">
     <aside class="grid-sidebar" id="sidebar"></aside>
