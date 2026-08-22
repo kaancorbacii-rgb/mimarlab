@@ -4,7 +4,10 @@
 // `/cdn-cgi/image/width=...` ile test edilip `cf-resized: internal=ok` header'ıyla 200 döndüğü
 // doğrulandı). cdnImg()/cdnSrcset() artık tüm render noktalarında (index.html, proje.html,
 // mimar.html, firma.html, arama.html, js/components/*) gerçek resize URL'i üretiyor.
-const IMAGE_CDN_ENABLED = true;
+// 2026-08-22: kapatıldı — Cloudflare "Images Transformed" faturalandırması ($0,50/1000, aylık 5K
+// ücretsiz kota aşıldı) beklenmedik ~$16/ay maliyete yol açtı, kullanıcı isteğiyle devre dışı
+// bırakıldı. cdnImg/cdnSrcset artık orijinal görsel yolunu değişmeden döndürür.
+const IMAGE_CDN_ENABLED = false;
 
 // path: "mimarlar-thumb/foo.jpg" (köke göreli, eğik çizgisiz) YA DA "/media/u/.../foo.webp" (R2
 // yüklemesi, baştan eğik çizgili) olabilir — ikisi de canlıda gerçekten kullanılıyor (bkz.
