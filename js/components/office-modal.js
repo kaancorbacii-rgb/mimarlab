@@ -196,13 +196,13 @@ const OfficeModal = (function () {
       <h2 class="related-title">Projeler<span id="om-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
-    <div class="related-section" id="om-city-section" style="display:none;">
-      <h2 class="related-title">Şehirdeki Diğer Firmalar</h2>
-      <div class="related-grid-scroll" id="om-city-grid"></div>
-    </div>
     <div class="related-section" id="om-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler</h2>
       <div class="related-grid-scroll" id="om-related-products-grid"></div>
+    </div>
+    <div class="related-section" id="om-city-section" style="display:none;">
+      <h2 class="related-title">Şehirdeki Diğer Firmalar</h2>
+      <div class="related-grid-scroll" id="om-city-grid"></div>
     </div>
     <div class="related-section" id="om-related-materials-section" style="display:none;">
       <h2 class="related-title">Malzemeler</h2>

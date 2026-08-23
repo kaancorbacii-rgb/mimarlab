@@ -17,6 +17,7 @@ function toPublicShape(type, row) {
     title: parsed.title, brand: parsed.brand, architect: parsed.architect, website: parsed.website, category: parsed.category,
     description: parsed.description, images: parsed.images, specs: parsed.specs,
     image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
+    slug: row.slug || null,
     source: 'member', submissionId: parsed.id, ...owner,
   };
 }
@@ -254,13 +255,13 @@ async function handlePublicProfileContent(request, env, url) {
 
     const [productsRes, materialsRes] = await Promise.all([
       env.DB.prepare(
-        `SELECT ps.* FROM product_submissions ps
-         JOIN products pr ON pr.slug = 'm-' || ps.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+        `SELECT ps.*, pr.slug AS slug FROM product_submissions ps
+         JOIN products pr ON pr.legacy_key = 'submission:' || ps.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
          WHERE ps.status = 'approved' AND ps.owner_user_id IN (${placeholders}) ORDER BY ps.created_at DESC`
       ).bind(...userIds).all(),
       env.DB.prepare(
-        `SELECT ms.* FROM material_submissions ms
-         JOIN products pr ON pr.slug = 'm-' || ms.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+        `SELECT ms.*, pr.slug AS slug FROM material_submissions ms
+         JOIN products pr ON pr.legacy_key = 'submission:' || ms.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
          WHERE ms.status = 'approved' AND ms.owner_user_id IN (${placeholders}) ORDER BY ms.created_at DESC`
       ).bind(...userIds).all(),
     ]);

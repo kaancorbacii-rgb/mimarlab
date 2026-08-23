@@ -189,13 +189,13 @@ const ArchitectModal = (function () {
       <h2 class="related-title">Projeler<span id="am-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
     </div>
-    <div class="related-section" id="am-related-architects-section" style="display:none;">
-      <h2 class="related-title">Diğer Mimarlar</h2>
-      <div class="related-grid-scroll" id="am-related-architects-grid"></div>
-    </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler</h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
+    </div>
+    <div class="related-section" id="am-related-architects-section" style="display:none;">
+      <h2 class="related-title">Diğer Mimarlar</h2>
+      <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
     <hr class="prevnext-mobile-divider">`;
@@ -538,7 +538,7 @@ const ArchitectModal = (function () {
         const data = await res.json();
         const products = data.products || [];
         document.getElementById('am-related-products-section').style.display = products.length ? '' : 'none';
-        document.getElementById('am-related-products-grid').innerHTML = products.map(p => cardHtml('urun.html', p.title, p.image, p.category)).join('');
+        document.getElementById('am-related-products-grid').innerHTML = products.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
       } catch {}
     }
 

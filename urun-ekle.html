@@ -166,9 +166,32 @@
   .image-drop span{font-size:12px;}
   .image-spec-hint{font-size:11.5px; color:var(--ink-soft); margin:8px 2px 0; line-height:1.5;}
   .image-preview-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px; margin-top:14px;}
-  .image-preview-item{position:relative; aspect-ratio:1/1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--paper);}
-  .image-preview-item img{width:100%; height:100%; object-fit:cover;}
+  /* touch-action:none + basılı-tut-sürükle sıralama — bkz. proje-ekle.html'deki AYNI desen/gerekçe,
+     buraya birebir taşındı (kullanıcı isteği: ürün ekle/düzenle de aynı medya sıralama/kapak özelliğine
+     sahip olsun). */
+  .image-preview-item{position:relative; aspect-ratio:1/1; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:var(--paper); touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab;}
+  .image-preview-item img{width:100%; height:100%; object-fit:cover; pointer-events:none;}
+  .image-preview-item button{cursor:pointer;}
+  .image-preview-item.dragging{opacity:0.55; cursor:grabbing; z-index:2; box-shadow:0 10px 24px rgba(27,42,61,0.28);}
+  .image-preview-item .cover-badge{
+    position:absolute; left:4px; bottom:4px; background:var(--ink); color:var(--paper-card);
+    font-size:9px; font-weight:600; padding:2px 6px; border-radius:100px; text-transform:uppercase;
+  }
+  .image-preview-item .cover-set-btn{
+    position:absolute; left:4px; bottom:4px; background:rgba(27,42,61,0.75); color:#fff; border:none;
+    font-size:9px; font-weight:600; padding:2px 6px; border-radius:100px; text-transform:uppercase; cursor:pointer;
+  }
+  .image-preview-item .cover-set-btn:hover{background:var(--ink);}
   .image-preview-remove{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:11px;}
+  .image-move-btn{
+    position:absolute; top:4px; width:20px; height:20px; border-radius:50%;
+    background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center;
+    font-size:13px; line-height:1; padding:0;
+  }
+  .image-move-btn:hover{background:var(--ink);}
+  .image-move-btn:disabled{opacity:0.25; cursor:default;}
+  .image-move-left{left:4px;}
+  .image-move-right{left:28px;}
 
   .specs-row{display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:10px; align-items:start;}
   .specs-row input, .specs-row select{width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
@@ -317,7 +340,7 @@
 
       <div class="form-section">
         <h2>Görseller</h2>
-        <p class="section-hint">İlk yüklediğin görsel kapak fotoğrafı olarak kullanılır.</p>
+        <p class="section-hint">İlk görsel kapak fotoğrafı olarak kullanılır. Görselleri basılı tutup sürükleyerek ya da "Kapak Yap" butonuyla yeniden sıralayabilirsin.</p>
         <label class="image-drop" id="image-drop">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
           <strong>Görselleri sürükleyip bırak</strong>
@@ -340,8 +363,11 @@
 const dropZone = document.getElementById('image-drop');
 const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
-let selectedFiles = [];
-let existingImages = [];
+// Mevcut (yüklenmiş) ve yeni seçilen görseller TEK bir sıralı listede tutulur — bkz. proje-ekle.html#
+// mediaItems ile AYNI desen/gerekçe (kullanıcı isteği: ürün ekle/düzenle de aynı medya sıralama/kapak
+// özelliğine sahip olsun).
+let mediaItems = []; // {key, kind:'existing'|'file', url?, file?, objectUrl?}
+let mediaKeySeq = 0;
 const editId = new URLSearchParams(window.location.search).get('edit');
 // Ürün ve Malzeme ekleme tek sayfada birleştirildiği için (bkz. kullanıcı isteği), düzenleme
 // linkleri hangi API'ye (products/materials) ait olduğunu ?stype= ile taşır (bkz. save-widget.js#
@@ -379,20 +405,114 @@ groupSelect.innerHTML = Object.keys(CATALOG_TAXONOMY).map(g => `<option value="$
 populateCategoryOptions(groupSelect.value);
 groupSelect.addEventListener('change', ()=> populateCategoryOptions(groupSelect.value));
 
+function mediaItemSrc(item){
+  return item.kind === 'existing' ? item.url : item.objectUrl;
+}
+
+function setExistingImages(urls){
+  mediaItems.forEach(item => { if(item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
+  mediaItems = (urls || []).map(url => ({ key: 'm' + (mediaKeySeq++), kind:'existing', url }));
+}
+
 function renderPreviews(){
-  const existingHtml = existingImages.map((url, i) => `<div class="image-preview-item"><img src="${escapeAttr(url)}" alt=""><button type="button" class="image-preview-remove" data-existing-index="${i}" aria-label="Kaldır">✕</button></div>`).join('');
-  const newHtml = selectedFiles.map((file, i) => {
-    const url = URL.createObjectURL(file);
-    return `<div class="image-preview-item"><img src="${url}" alt=""><button type="button" class="image-preview-remove" data-index="${i}" aria-label="Kaldır">✕</button></div>`;
+  previewGrid.innerHTML = mediaItems.map((item, i) => {
+    const isCover = i === 0;
+    const isLast = i === mediaItems.length - 1;
+    return `<div class="image-preview-item" data-key="${escapeAttr(item.key)}">
+      <img src="${escapeAttr(mediaItemSrc(item))}" alt="">
+      <button type="button" class="image-move-btn image-move-left" data-move-index="${i}" data-dir="-1" aria-label="Sola taşı"${i === 0 ? ' disabled' : ''}>‹</button>
+      <button type="button" class="image-move-btn image-move-right" data-move-index="${i}" data-dir="1" aria-label="Sağa taşı"${isLast ? ' disabled' : ''}>›</button>
+      ${isCover ? '<span class="cover-badge">Kapak</span>' : `<button type="button" class="cover-set-btn" data-cover-index="${i}">Kapak Yap</button>`}
+      <button type="button" class="image-preview-remove" data-remove-index="${i}" aria-label="Kaldır">✕</button>
+    </div>`;
   }).join('');
-  previewGrid.innerHTML = existingHtml + newHtml;
-  previewGrid.querySelectorAll('[data-existing-index]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ existingImages.splice(parseInt(btn.dataset.existingIndex), 1); renderPreviews(); });
+  previewGrid.querySelectorAll('[data-remove-index]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = parseInt(btn.dataset.removeIndex);
+      const [removed] = mediaItems.splice(i, 1);
+      if(removed.objectUrl) URL.revokeObjectURL(removed.objectUrl);
+      renderPreviews();
+    });
   });
-  previewGrid.querySelectorAll('[data-index]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
+  previewGrid.querySelectorAll('[data-cover-index]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = parseInt(btn.dataset.coverIndex);
+      mediaItems.unshift(mediaItems.splice(i, 1)[0]);
+      renderPreviews();
+    });
+  });
+  previewGrid.querySelectorAll('[data-move-index]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = parseInt(btn.dataset.moveIndex);
+      const j = i + parseInt(btn.dataset.dir);
+      if(j < 0 || j >= mediaItems.length) return;
+      [mediaItems[i], mediaItems[j]] = [mediaItems[j], mediaItems[i]];
+      renderPreviews();
+    });
   });
 }
+
+// Basılı tutup sürükleyerek sıralama — bkz. proje-ekle.html'deki AYNI desen/gerekçe (Pointer Events
+// ile uzun-basma eşikli sürükleme, previewGrid'e event delegation, sürükleme sırasında renderPreviews()
+// ÇAĞRILMAZ, sıra yalnızca pointerup'ta DOM'dan mediaItems'a senkronize edilir).
+const DRAG_LONG_PRESS_MS = 260;
+const DRAG_MOVE_CANCEL_PX = 8;
+let dragPending = null;
+let dragState = null;
+
+function clearDragPending(){
+  if(dragPending && dragPending.timer) clearTimeout(dragPending.timer);
+  dragPending = null;
+}
+
+previewGrid.addEventListener('pointerdown', (e)=>{
+  if(e.target.closest('button')) return;
+  const tile = e.target.closest('.image-preview-item');
+  if(!tile) return;
+  clearDragPending();
+  const pointerId = e.pointerId;
+  dragPending = { tile, pointerId, startX: e.clientX, startY: e.clientY, timer: null };
+  dragPending.timer = setTimeout(()=>{
+    if(!dragPending || dragPending.pointerId !== pointerId) return;
+    dragState = { tile: dragPending.tile, pointerId };
+    dragPending = null;
+    tile.classList.add('dragging');
+    try{ tile.setPointerCapture(pointerId); }catch{}
+  }, DRAG_LONG_PRESS_MS);
+});
+
+previewGrid.addEventListener('pointermove', (e)=>{
+  if(dragState && e.pointerId === dragState.pointerId){
+    e.preventDefault();
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const overTile = el ? el.closest('.image-preview-item') : null;
+    if(!overTile || overTile === dragState.tile || !previewGrid.contains(overTile)) return;
+    const tiles = [...previewGrid.children];
+    const dragIndex = tiles.indexOf(dragState.tile);
+    const overIndex = tiles.indexOf(overTile);
+    if(dragIndex < overIndex) previewGrid.insertBefore(dragState.tile, overTile.nextSibling);
+    else previewGrid.insertBefore(dragState.tile, overTile);
+    return;
+  }
+  if(dragPending && e.pointerId === dragPending.pointerId){
+    if(Math.abs(e.clientX - dragPending.startX) > DRAG_MOVE_CANCEL_PX || Math.abs(e.clientY - dragPending.startY) > DRAG_MOVE_CANCEL_PX) clearDragPending();
+  }
+});
+
+function finishDragReorder(e){
+  if(dragPending && (!e || e.pointerId === dragPending.pointerId)) clearDragPending();
+  if(!dragState || (e && e.pointerId !== dragState.pointerId)) return;
+  const tile = dragState.tile;
+  tile.classList.remove('dragging');
+  try{ tile.releasePointerCapture(dragState.pointerId); }catch{}
+  dragState = null;
+  const order = [...previewGrid.children].map(el => el.dataset.key);
+  const byKey = new Map(mediaItems.map(item => [item.key, item]));
+  mediaItems = order.map(k => byKey.get(k)).filter(Boolean);
+  renderPreviews();
+}
+previewGrid.addEventListener('pointerup', finishDragReorder);
+previewGrid.addEventListener('pointercancel', finishDragReorder);
 // Kullanıcı önce HANGİ özelliği eklemek istediğini seçsin (Boyut, Malzeme, Temizlik ve Bakım,
 // Kurulum, Detay vb.) — serbest metin etiket kutusu yerine bir seçim listesi (bkz. kullanıcı isteği).
 // Listede olmayan bir özellik için "Diğer" seçilince altında serbest metin etiket kutusu açılır.
@@ -438,14 +558,14 @@ const MAX_PRODUCT_IMAGES = 20;
 
 function addFiles(fileList){
   const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-  const remaining = MAX_PRODUCT_IMAGES - existingImages.length - selectedFiles.length;
+  const remaining = MAX_PRODUCT_IMAGES - mediaItems.length;
   if(remaining <= 0){
     const notice = document.getElementById('form-notice');
     notice.textContent = `Bir ürüne en fazla ${MAX_PRODUCT_IMAGES} görsel yükleyebilirsin.`;
     notice.classList.add('show');
     return;
   }
-  selectedFiles = selectedFiles.concat(files.slice(0, remaining));
+  mediaItems.push(...files.slice(0, remaining).map(file => ({ key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) })));
   renderPreviews();
 }
 fileInput.addEventListener('change', (e)=> addFiles(e.target.files));
@@ -509,7 +629,7 @@ function applyPrefillItem(item){
   groupSelect.value = group;
   populateCategoryOptions(group);
   if(cat) categorySelect.value = cat;
-  existingImages = item.images || [];
+  setExistingImages(item.images);
   renderPreviews();
   (item.specs || []).forEach(s => addSpecRow(s.label, s.value));
 }
@@ -620,11 +740,15 @@ function resizeImageForUpload(file, maxEdge, quality){
   });
 }
 
-async function uploadFiles(files){
+async function collectImages(){
   const urls = [];
-  for(const file of files){
+  for(const item of mediaItems){
+    if(item.kind === 'existing'){
+      urls.push(item.url);
+      continue;
+    }
     const fd = new FormData();
-    fd.append('file', await resizeImageForUpload(file, 1600, 0.85));
+    fd.append('file', await resizeImageForUpload(item.file, 1600, 0.85));
     fd.append('context', 'product');
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
@@ -650,9 +774,9 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
 
   submitBtn.disabled = true;
   loading.classList.add('show');
-  let uploadedImages = [];
+  let images;
   try{
-    if(selectedFiles.length) uploadedImages = await uploadFiles(selectedFiles);
+    images = await collectImages();
   }catch(err){
     notice.textContent = err.message || 'Görsel yüklenemedi, tekrar dene.';
     notice.classList.add('show');
@@ -670,7 +794,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     designer: document.getElementById('u-designer').value || null,
     category: categorySelect.value,
     description: document.getElementById('u-desc').value,
-    images: [...existingImages, ...uploadedImages],
+    images,
     specs: collectSpecs(),
   };
 
@@ -744,7 +868,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     form.reset();
-    selectedFiles = [];
+    setExistingImages([]);
     renderPreviews();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
