@@ -109,10 +109,21 @@ for kind in project architect firm product; do
   else
     bad "$path — JSON-LD EKSİK"
   fi
-  if echo "$html" | grep -qE "href=\"https://mimarlab\\.com/$prefix/$slug\"[^>]*id=\"canonical-link\""; then
-    ok "$path — canonical doğru"
+  # P3-4 hardening: önce attribute SIRASINDAN BAĞIMSIZ olarak TÜM <link id="canonical-link" ...> tag'ini
+  # çek (eski regex href'in id'den ÖNCE gelmesini şart koşuyordu — kalıp değişirse sessizce warn'a
+  # düşüyordu). Sonra o tag'in İÇİNDEN href değerini ayrıca parse et. Üç durum da artık KESİN sonuçlanır
+  # (görev metninin istediği gibi): doğru → PASS, yanlış değer → FAIL, hiç yok → FAIL.
+  canonical_tag=$(echo "$html" | grep -oE '<link[^>]*id="canonical-link"[^>]*>' | head -1)
+  if [ -z "$canonical_tag" ]; then
+    bad "$path — canonical-link tag'i hiç yok"
   else
-    warnf "$path — canonical beklenen formatta bulunamadı (kritik değil, kalıp değişmiş olabilir)"
+    canonical_href=$(echo "$canonical_tag" | grep -oE 'href="[^"]*"' | head -1 | sed -E 's/^href="//; s/"$//')
+    expected_href="https://mimarlab.com/$prefix/$slug"
+    if [ "$canonical_href" = "$expected_href" ]; then
+      ok "$path — canonical doğru ($expected_href)"
+    else
+      bad "$path — canonical yanlış: bulunan '$canonical_href', beklenen '$expected_href'"
+    fi
   fi
 done
 
