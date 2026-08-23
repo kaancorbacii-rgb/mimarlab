@@ -956,6 +956,24 @@
     .content-wrap{padding:36px 18px 70px;}
   }
 
+  /* ---------- LİSTE SONU AKSİYONLARI ---------- */
+  /* 100. projenin hemen altına (bkz. kullanıcı isteği) — mevcut pill buton dilini kullanır
+     (.top100-filter-btn ile AYNI çerçeve/dolgu), Proje Ekle en öncelikli aksiyon olduğundan
+     .sidebar-add-btn'deki dolu-koyu vurguyu (primary) taşır. */
+  .top100-end-actions{display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:28px; padding-top:24px; border-top:1px solid var(--line);}
+  .top100-end-btn{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:11px 20px; border:1px solid var(--line); border-radius:100px;
+    background:var(--paper-card); color:var(--ink); font-family:inherit; font-size:13.5px; font-weight:600;
+  }
+  .top100-end-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .top100-end-btn.primary{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .top100-end-btn.primary:hover{background:var(--walnut); border-color:var(--walnut); color:var(--paper-card);}
+  @media (max-width:480px){
+    .top100-end-actions{flex-direction:column; align-items:stretch;}
+    .top100-end-btn{justify-content:center;}
+  }
+
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
@@ -1027,6 +1045,21 @@
     <div class="active-chips" id="top100-active-chips"></div>
 
     <ol class="top100-list" id="top100-list"></ol>
+
+    <div class="top100-end-actions">
+      <a class="top100-end-btn primary" href="proje-ekle.html">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Proje Ekle
+      </a>
+      <a class="top100-end-btn" href="proje.html">
+        Tüm Projeleri Gör
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <button type="button" class="top100-end-btn" id="top100-back-to-top">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        Başa Dön
+      </button>
+    </div>
   </div>
 
   <footer id="site-footer-mount"></footer>
@@ -1501,6 +1534,10 @@
           renderTop100ActiveChips();
           renderTop100(sortedFilteredItems());
         });
+    });
+
+    document.getElementById('top100-back-to-top').addEventListener('click', function(){
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     fetch('/api/public/top100')
