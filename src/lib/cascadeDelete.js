@@ -120,29 +120,38 @@ export async function cascadeDeleteProduct(env, engagementType, key) {
 // projeler/profiller, başka kullanıcıların yorum/puanlarının bağlı olduğu içerik) KASITLI OLARAK
 // silinmez; owner_user_id yetim kalır (bkz. kullanıcı isteği: yalnızca "sessions, saved_items,
 // notifications vb." bağlı kişisel veriler silinsin, canlı site içeriği değil).
+// audit bulgusu (denetim raporu, 2026-08-21): bu adımlar önceden ayrı ayrı sıralı .run() çağrılarıyla
+// yazılıyordu — biri (ör. `DELETE FROM users`) ortada hata verirse önceki adımlar zaten kalıcı olarak
+// commit edilmiş oluyor, hesap YARIM silinmiş durumda kalabiliyordu (kişisel veriler gitmiş ama users
+// satırı hâlâ duruyor, ya da tam tersi). `users` satırının en SONDA silinmesi (notifications/
+// profile_corrections'ın kendi FK'siyle users(id)'ye referans vermesi nedeniyle) ZORUNLU sıra — bu sıra
+// batch içinde de KORUNUR, D1 batch'i tek bir transaction olarak sıralı yürütür. Tüm adımlar artık TEK
+// bir env.DB.batch() çağrısıyla atomik: ya hepsi ya hiçbiri.
 export async function cascadeDeleteAccount(env, userId) {
-  await env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM saved_items WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM notifications WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM comments WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM ratings WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM profile_claims WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM profile_corrections WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM badge_requests WHERE user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM password_resets WHERE user_id = ?`).bind(userId).run();
-  // gerçek bulgu (denetim raporu, 2026-08-16): architects/offices/projects/products.claimed_by_user_id
-  // (bkz. migrations/0022_id_first_entities.sql) hesap silinirken temizlenmiyordu — PRAGMA foreign_keys
-  // hiçbir yerde açık olmadığından D1 da reddetmiyor, profil artık var olmayan bir user_id'ye kalıcı
-  // "sahiplenilmiş" görünüp yeniden claim edilemez hale geliyordu. Yukarıdaki dosya-başı yorumdaki AYNI
-  // ilke burada da geçerli: canlı içeriğin KENDİSİ (profil/proje) silinmez, yalnızca bu kullanıcıyla
-  // kişisel bağı (sahiplik/talep durumu) temizlenir — profil claim edilmemiş duruma döner.
-  await env.DB.prepare(`UPDATE architects SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`UPDATE offices SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`UPDATE projects SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`UPDATE products SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId).run();
-  // migration_name_conflicts.resolved_by_user_id (bkz. migrations/0022_id_first_entities.sql) yalnızca
-  // admin panelinde "kim çözdü" bilgisini gösterir, canlı içerik değildir — dangling referans admin
-  // panelinde boş/kırık kullanıcı bilgisi göstermesin diye NULL'lanır.
-  await env.DB.prepare(`UPDATE migration_name_conflicts SET resolved_by_user_id = NULL WHERE resolved_by_user_id = ?`).bind(userId).run();
-  await env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(userId).run();
+  await env.DB.batch([
+    env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM saved_items WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM notifications WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM comments WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM ratings WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM profile_claims WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM profile_corrections WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM badge_requests WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM password_resets WHERE user_id = ?`).bind(userId),
+    // gerçek bulgu (denetim raporu, 2026-08-16): architects/offices/projects/products.claimed_by_user_id
+    // (bkz. migrations/0022_id_first_entities.sql) hesap silinirken temizlenmiyordu — profil artık var
+    // olmayan bir user_id'ye kalıcı "sahiplenilmiş" görünüp yeniden claim edilemez hale geliyordu.
+    // Yukarıdaki dosya-başı yorumdaki AYNI ilke burada da geçerli: canlı içeriğin KENDİSİ (profil/proje)
+    // silinmez, yalnızca bu kullanıcıyla kişisel bağı (sahiplik/talep durumu) temizlenir — profil claim
+    // edilmemiş duruma döner.
+    env.DB.prepare(`UPDATE architects SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId),
+    env.DB.prepare(`UPDATE offices SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId),
+    env.DB.prepare(`UPDATE projects SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId),
+    env.DB.prepare(`UPDATE products SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ?`).bind(userId),
+    // migration_name_conflicts.resolved_by_user_id (bkz. migrations/0022_id_first_entities.sql) yalnızca
+    // admin panelinde "kim çözdü" bilgisini gösterir, canlı içerik değildir — dangling referans admin
+    // panelinde boş/kırık kullanıcı bilgisi göstermesin diye NULL'lanır.
+    env.DB.prepare(`UPDATE migration_name_conflicts SET resolved_by_user_id = NULL WHERE resolved_by_user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(userId),
+  ]);
 }

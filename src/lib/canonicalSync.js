@@ -277,13 +277,22 @@ export const MEDIA_IMAGE_FIELDS_BY_TYPE = {
 // /api/public/hidden üzerinden gizli kalmasını sağlayan TEK mekanizmadır (bkz.
 // src/routes/legacyContent.js#fetchHiddenMap — artık hem hidden_at/deleted_at'i hem bu tabloyu
 // TÜM tipler için tarar, önceden yalnızca 'news' için kullanılıyordu).
-export async function blacklistLegacyKey(env, userId, type, key) {
-  if (!key) return;
-  await env.DB.prepare(
+// Hazırlanmış (henüz ÇALIŞTIRILMAMIŞ) statement döner — hardDeleteCanonicalRow bunu kendi
+// env.DB.batch() dizisine eklemek için kullanır (bkz. o fonksiyondaki audit notu); blacklistLegacyKey
+// (aşağıda) tek başına çağrıldığında aynı statement'ı hemen çalıştırır. İki yerde AYNI SQL'i
+// tekrarlamamak için tek kaynak burası.
+function blacklistLegacyKeyStatement(env, userId, type, key) {
+  if (!key) return null;
+  return env.DB.prepare(
     `INSERT INTO legacy_content_hidden (id, content_type, content_key, hidden_by_user_id, hidden_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(content_type, content_key) DO NOTHING`
-  ).bind(newId(), type, key, userId, Date.now()).run();
+  ).bind(newId(), type, key, userId, Date.now());
+}
+
+export async function blacklistLegacyKey(env, userId, type, key) {
+  const stmt = blacklistLegacyKeyStatement(env, userId, type, key);
+  if (stmt) await stmt.run();
 }
 
 // Bir taslak satır SİLİNMEDEN, yalnızca DÜZENLENİRKEN (galeriden bir görsel çıkarıldı, ya da
@@ -307,11 +316,19 @@ export async function cleanupReplacedR2Media(env, type, oldRow, newRow) {
 // panelinden sil dediğimde kayıt veritabanından TAMAMEN silinsin, sadece işaretlenmesin".
 // Sırasıyla: (1) satıra bağlı R2 görsellerini temizler, (2) FK ile bu satıra referans veren
 // diğer canonical kolonları (architects.office_id, products.brand_office_id — bunlarda ON DELETE
-// CASCADE/SET NULL yok, bkz. migrations/0022_id_first_entities.sql) NULL'lar, (3) join
+// CASCADE yok, sade REFERENCES, bkz. migrations/0022_id_first_entities.sql) NULL'lar, (3) join
 // tablolarındaki (office_founders/project_designers/product_architects/project_products/
-// project_awards) satırları temizler — D1'in FK enforcement durumuna bağlı kalmadan, (4) asıl
-// satırı siler, (5) statik data.js karşılığının bir daha görünmemesi için legacy_content_hidden'a
-// damgalar.
+// project_awards — bunlarda ON DELETE CASCADE VAR) satırları AYRICA temizler, (4) asıl satırı
+// siler, (5) statik data.js karşılığının bir daha görünmemesi için legacy_content_hidden'a damgalar.
+// audit bulgusu (denetim raporu, 2026-08-21): (2)-(5) adımları önceden ayrı sıralı .run()
+// çağrılarıydı — aralarında bir Worker hatası kısmi temizlik bırakabiliyordu (ör. join satırları
+// silinip asıl satır kalıyor, ya da tam tersi). Artık TEK bir env.DB.batch() ile atomik yazılıyor;
+// D1 batch'i sıralı bir transaction olarak çalıştırdığından SIRA (2) NULL'lama adımlarının (3)/(4)
+// silmelerinden ÖNCE gelmesi KORUNUR — architects.office_id/products.brand_office_id CASCADE'siz
+// olduğundan, offices satırı NULL'lanmadan silinirse (D1'in FK enforcement açık olduğu senaryoda)
+// bu sıra bozulursa DELETE hata verir. R2 temizliği (1) D1 dışı olduğundan batch'in DIŞINDA, öncesinde
+// kalır (mevcut davranış — kısmi hata durumunda en kötü ihtimalle bir R2 orphan'ı, ki
+// r2Reconcile.js bunu zaten ayrıca tarıyor).
 export async function hardDeleteCanonicalRow(env, type, row, userId) {
   if (!row) return;
   const table = CANONICAL_TABLE_BY_TYPE[type];
@@ -319,30 +336,61 @@ export async function hardDeleteCanonicalRow(env, type, row, userId) {
 
   await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
 
+  const statements = [];
   if (type === 'offices') {
-    await env.DB.prepare(`UPDATE architects SET office_id = NULL WHERE office_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`UPDATE products SET brand_office_id = NULL WHERE brand_office_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM office_founders WHERE office_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM project_designers WHERE office_id = ?`).bind(row.id).run();
+    statements.push(
+      env.DB.prepare(`UPDATE architects SET office_id = NULL WHERE office_id = ?`).bind(row.id),
+      env.DB.prepare(`UPDATE products SET brand_office_id = NULL WHERE brand_office_id = ?`).bind(row.id),
+      env.DB.prepare(`DELETE FROM office_founders WHERE office_id = ?`).bind(row.id),
+      env.DB.prepare(`DELETE FROM project_designers WHERE office_id = ?`).bind(row.id),
+    );
   }
   if (type === 'architects') {
-    await env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM project_designers WHERE architect_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM product_architects WHERE architect_id = ?`).bind(row.id).run();
+    statements.push(
+      env.DB.prepare(`DELETE FROM office_founders WHERE architect_id = ?`).bind(row.id),
+      env.DB.prepare(`DELETE FROM project_designers WHERE architect_id = ?`).bind(row.id),
+      env.DB.prepare(`DELETE FROM product_architects WHERE architect_id = ?`).bind(row.id),
+    );
   }
   if (type === 'projects') {
-    await env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM project_products WHERE project_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM project_awards WHERE project_id = ?`).bind(row.id).run();
+    statements.push(
+      env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(row.id),
+      env.DB.prepare(`DELETE FROM project_products WHERE project_id = ?`).bind(row.id),
+      env.DB.prepare(`DELETE FROM project_awards WHERE project_id = ?`).bind(row.id),
+    );
   }
   if (type === 'products' || type === 'materials') {
-    await env.DB.prepare(`DELETE FROM product_architects WHERE product_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM project_products WHERE product_id = ?`).bind(row.id).run();
+    statements.push(
+      env.DB.prepare(`DELETE FROM product_architects WHERE product_id = ?`).bind(row.id),
+      env.DB.prepare(`DELETE FROM project_products WHERE product_id = ?`).bind(row.id),
+    );
   }
 
-  await env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(row.id).run();
-  await blacklistLegacyKey(env, userId, type, canonicalKeyFor(type, row));
+  statements.push(env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(row.id));
+  const blacklistStmt = blacklistLegacyKeyStatement(env, userId, type, canonicalKeyFor(type, row));
+  if (blacklistStmt) statements.push(blacklistStmt);
+
+  await env.DB.batch(statements);
   if (type === 'architects' || type === 'offices') await pruneConflictsReferencingId(env, row.id);
+}
+
+// deleteCanonicalRowFully — bir kaydı SİLERKEN cascadeDelete.js'in (yorum/puan/kaydetme +
+// *_submissions serbest metin/JSON alan temizliği) ve yukarıdaki hardDeleteCanonicalRow'un (join
+// tabloları + canonical satır + blacklist) HER ZAMAN birlikte çalıştığını garanti eden tek giriş
+// noktası. audit bulgusu: bu ikisi önceden src/routes/legacyContent.js içinde 4 ayrı yerde elle
+// eşleştiriliyordu (aynı if/else deseni kopyalanarak) — bugün hepsi doğru eşleşse de, ileride yeni
+// bir silme yolu ikisinden birini çağırıp diğerini unutursa (PRAGMA foreign_keys açık olsa bile,
+// cascadeDelete.js'in temizlediği *_submissions serbest metin/JSON alanları hiçbir FK ile
+// bağlı olmadığından) hiçbir mekanizma bunu yakalamazdı. `runCascadeCleanup`: çağıranın kendi
+// tipine özgü isim/slug/key eşlemesiyle hazırladığı, cascadeDelete.js'teki ilgili fonksiyonu
+// çağıran bir thunk — tip-özel argüman türetme mantığı burada TEKRARLANMAZ, çağıranda kalır.
+// src/routes/admin.js'deki gönderi-silme akışı (markCanonicalDeletedForSubmission) BİLEREK bu
+// wrapper'ı kullanmaz: o akış canonical satırı doğal anahtar yerine submission marker'ıyla
+// (legacy_key = 'submission:<id>') bulur — farklı bir arama stratejisi, burada birleştirilmedi.
+export async function deleteCanonicalRowFully(env, userId, type, canonRow, naturalKey, runCascadeCleanup) {
+  await runCascadeCleanup();
+  if (canonRow) await hardDeleteCanonicalRow(env, type, canonRow, userId);
+  else if (naturalKey) await blacklistLegacyKey(env, userId, type, naturalKey);
 }
 
 // bkz. src/routes/legacyContent.js#LEGACY_TYPES.key — admin panelinin "içerik anahtarı" (mimar/ofis
@@ -788,13 +836,6 @@ async function syncProject(env, row) {
     await env.DB.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, target.id).run();
     projectId = target.id;
     if (newSlug !== target.slug) await renameProjectSlugEverywhere(env, target.slug, newSlug);
-    // Mimar/Firma artık ayrı alanlar (bkz. yukarı) — biri boş diğeri dolu gönderilebileceğinden
-    // (ör. yalnızca Firma girildi) DELETE tetiği İKİSİNDEN BİRİNİN dolu olmasına bakmalı, eskiden
-    // olduğu gibi yalnızca row.designer'a değil (aksi halde salt-firma bir düzenlemede eski
-    // project_designers satırları hiç temizlenmezdi).
-    if ((row.designer && row.designer.length) || (row.office && row.office.length)) {
-      await env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(projectId).run();
-    }
   } else {
     let slug = row.slug;
     const clash = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
@@ -814,23 +855,33 @@ async function syncProject(env, row) {
     if (claimedSlug) await blacklistLegacyKey(env, row.owner_user_id, 'projects', claimedSlug);
   }
 
-  if (row.designer && row.designer.length) {
-    for (const name of row.designer) {
+  // Mimar/Firma artık ayrı alanlar (bkz. yukarı) — biri boş diğeri dolu gönderilebileceğinden (ör.
+  // yalnızca Firma girildi) eski satırları temizleme tetiği İKİSİNDEN BİRİNİN dolu olmasına bakar,
+  // yalnızca row.designer'a değil (aksi halde salt-firma bir düzenlemede eski project_designers
+  // satırları hiç temizlenmezdi). audit bulgusu (denetim raporu, 2026-08-21): DELETE ile yeniden-
+  // INSERT'ler önceden ayrı sıralı .run() çağrılarıydı — aralarındaki kısa pencerede eşzamanlı bir
+  // okuma (proje/mimar/ofis/seo/comments detay sayfaları, hepsi project_designers'ı okur) projeyi
+  // geçici olarak "tasarımcısız" görebiliyordu. İsim→id çözümleme (resolveArchitectLink/
+  // resolveOfficeLink, olası migration_name_conflicts kaydı dahil) salt-okunur/bağımsız olduğundan
+  // batch DIŞINDA önce yapılır; DELETE + gerçek INSERT'ler ise TEK bir env.DB.batch() ile atomik
+  // yazılır — `target` yalnızca UPDATE dalında (yukarı) doluysa DELETE'e gerek vardır, yeni bir
+  // projede (INSERT dalı) silinecek eski satır yoktur.
+  if ((row.designer && row.designer.length) || (row.office && row.office.length)) {
+    const links = [];
+    for (const name of (row.designer || [])) {
       const resolved = await resolveArchitectLink(env, name, `project_submission:${row.id}`);
-      if (resolved) {
-        await env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`)
-          .bind(projectId, resolved.architect_id, resolved.office_id).run();
-      }
+      if (resolved) links.push(resolved);
     }
-  }
-  if (row.office && row.office.length) {
-    for (const name of row.office) {
+    for (const name of (row.office || [])) {
       const resolved = await resolveOfficeLink(env, name, `project_submission:${row.id}`);
-      if (resolved) {
-        await env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`)
-          .bind(projectId, resolved.architect_id, resolved.office_id).run();
-      }
+      if (resolved) links.push(resolved);
     }
+    const statements = [];
+    if (target) statements.push(env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(projectId));
+    for (const link of links) {
+      statements.push(env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`).bind(projectId, link.architect_id, link.office_id));
+    }
+    if (statements.length) await env.DB.batch(statements);
   }
 
   if (row.brands && row.brands.length) {

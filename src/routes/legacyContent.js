@@ -8,7 +8,7 @@ import { slugify } from '../lib/slugify.js';
 import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, cascadeDeleteProduct } from '../lib/cascadeDelete.js';
 import {
   findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical, CANONICAL_TABLE_BY_TYPE, canonicalKeyFor,
-  hardDeleteCanonicalRow, blacklistLegacyKey, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
+  deleteCanonicalRowFully, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
   findOneByName, findOrHealSubmissionDraft,
 } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
@@ -391,13 +391,13 @@ export async function runProjectAction(env, user, { action, id, slug } = {}) {
     if (action === 'delete') {
       await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
       await env.DB.prepare(`DELETE FROM project_submissions WHERE id = ?`).bind(id).run();
-      await cascadeDeleteProject(env, targetSlug);
       // Bu içeriği CANLIDAN kaldırmak — hem bağımsız üye projesi hem (arşivlenmiş) claimed_slug'lı
       // bir taslak için de canonical satırı KALICI olarak (hard delete) siler + statik data.js
-      // karşılığının bir daha görünmemesi için blacklist'e damgalar.
+      // karşılığının bir daha görünmemesi için blacklist'e damgalar. deleteCanonicalRowFully bunu
+      // (hard-delete/blacklist) ve engagement cascade'i (cascadeDeleteProject) HER ZAMAN birlikte
+      // çalıştırır (bkz. src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
       const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', targetSlug);
-      if (canonRow) await hardDeleteCanonicalRow(env, 'projects', canonRow, user.id);
-      else await blacklistLegacyKey(env, user.id, 'projects', targetSlug);
+      await deleteCanonicalRowFully(env, user.id, 'projects', canonRow, targetSlug, () => cascadeDeleteProject(env, targetSlug));
       await bumpFacetCounts(env, 'projects');
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE project_submissions SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
@@ -418,15 +418,15 @@ export async function runProjectAction(env, user, { action, id, slug } = {}) {
   if (action === 'publish') return errorJson('Geçersiz istek.');
 
   if (action === 'delete') {
-    const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', slug);
-    if (canonRow) await hardDeleteCanonicalRow(env, 'projects', canonRow, user.id);
     // canonical satır hiç yoksa (ör. statik migration hiç çalıştırılmadıysa) bile blacklist'e
     // damgalamak GEREKİR — aksi halde data.js'teki karşılığı asla gizlenmeyecek bir "hayalet" olur.
-    else await blacklistLegacyKey(env, user.id, 'projects', slug);
+    // deleteCanonicalRowFully bunu (hard-delete/blacklist) ve engagement cascade'i HER ZAMAN
+    // birlikte çalıştırır (bkz. src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
+    const canonRow = await findCanonicalRowByNaturalKey(env, 'projects', slug);
+    await deleteCanonicalRowFully(env, user.id, 'projects', canonRow, slug, () => cascadeDeleteProject(env, slug));
     const { results: draftRows } = await env.DB.prepare(`SELECT * FROM project_submissions WHERE claimed_slug = ?`).bind(slug).all();
     for (const draft of draftRows) await deleteR2MediaKeys(env, collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE.projects));
     await env.DB.prepare(`DELETE FROM project_submissions WHERE claimed_slug = ?`).bind(slug).run();
-    await cascadeDeleteProject(env, slug);
     await bumpFacetCounts(env, 'projects');
     await invalidatePublicCache(env);
     await purgeSsrDetailCache('project', slug);
@@ -612,10 +612,11 @@ export async function runContentAction(env, user, { type, action, id, key }) {
     if (action === 'delete') {
       await deleteR2MediaKeys(env, collectR2MediaKeys(row, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE id = ?`).bind(id).run();
-      await runContentCascadeDelete(env, user, type, { id, row });
+      // deleteCanonicalRowFully, runContentCascadeDelete (yorum/puan/kaydetme + *_submissions
+      // temizliği) ile hard-delete/blacklist'i HER ZAMAN birlikte çalıştırır (bkz.
+      // src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
       const canonRow = targetKey ? await findCanonicalRowByNaturalKey(env, type, targetKey) : null;
-      if (canonRow) await hardDeleteCanonicalRow(env, type, canonRow, user.id);
-      else if (targetKey) await blacklistLegacyKey(env, user.id, type, targetKey);
+      await deleteCanonicalRowFully(env, user.id, type, canonRow, targetKey, () => runContentCascadeDelete(env, user, type, { id, row }));
       if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     } else if (action === 'archive') {
       await env.DB.prepare(`UPDATE ${config.table} SET status = 'archived', updated_at = ? WHERE id = ?`).bind(now, id).run();
@@ -637,15 +638,15 @@ export async function runContentAction(env, user, { type, action, id, key }) {
   if (action === 'publish') return errorJson('Geçersiz istek.');
 
   if (action === 'delete') {
+    // deleteCanonicalRowFully, runContentCascadeDelete ile hard-delete/blacklist'i HER ZAMAN
+    // birlikte çalıştırır (bkz. src/lib/canonicalSync.js#deleteCanonicalRowFully'deki audit notu).
     const canonRow = await findCanonicalRowByNaturalKey(env, type, key);
-    if (canonRow) await hardDeleteCanonicalRow(env, type, canonRow, user.id);
-    else await blacklistLegacyKey(env, user.id, type, key);
+    await deleteCanonicalRowFully(env, user.id, type, canonRow, key, () => runContentCascadeDelete(env, user, type, { key }));
     if (config.claimedColumn) {
       const { results: draftRows } = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).all();
       for (const draft of draftRows) await deleteR2MediaKeys(env, collectR2MediaKeys(draft, MEDIA_IMAGE_FIELDS_BY_TYPE[type] || {}));
       await env.DB.prepare(`DELETE FROM ${config.table} WHERE ${config.claimedColumn} = ?`).bind(key).run();
     }
-    await runContentCascadeDelete(env, user, type, { key });
     if (FACET_TYPES.has(type)) await bumpFacetCounts(env, type);
     await invalidatePublicCache(env);
     const target = ssrPurgeTargetFor(type, { name: key });

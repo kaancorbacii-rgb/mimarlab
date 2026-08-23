@@ -24,7 +24,11 @@ export async function handleMigrationConflictsAdmin(request, env, url, segments,
     const { results } = await env.DB.prepare(
       `SELECT * FROM migration_name_conflicts ${where} ORDER BY status ASC, entity_type ASC, conflict_key ASC`
     ).bind(...params).all();
-    const items = results.map(row => ({ ...row, candidates: JSON.parse(row.candidates || '[]') }));
+    const items = results.map(row => {
+      let candidates = [];
+      try { candidates = JSON.parse(row.candidates || '[]') || []; } catch { candidates = []; }
+      return { ...row, candidates };
+    });
     const counts = { pending: 0, resolved: 0, ignored: 0 };
     for (const row of results) counts[row.status] = (counts[row.status] || 0) + 1;
     return json({ items, counts });
