@@ -474,7 +474,7 @@
           </div>
           <input type="hidden" id="top100-add-slug">
           <div class="admin-field"><label>İsim</label><input type="text" id="top100-add-name"></div>
-          <div class="admin-field"><label>Sıra No</label><input type="number" id="top100-add-rank" min="1" step="1" value="100"></div>
+          <div class="admin-field"><label>Sıra No</label><input type="number" id="top100-add-rank" min="1" step="1" value="1"></div>
           <div class="admin-field"><label>Taban Puan (0-5)</label><input type="number" id="top100-add-avg" min="0" max="5" step="0.01" value="4.00"></div>
           <div class="admin-field"><label>Taban Oy Sayısı</label><input type="number" id="top100-add-count" min="0" step="1" value="10"></div>
           <button class="admin-btn primary" id="top100-add-submit">+ Ekle</button>
@@ -1180,6 +1180,11 @@ async function loadTop100Admin(){
       <button class="admin-btn danger" data-action="remove">Kaldır</button>
     </div>
   `).join('');
+  // P3-2 kök neden düzeltmesi: "Sıra No" alanı artık statik 100 yerine listenin GERÇEK son
+  // pozisyonundan bir sonrakini önerir — admin değiştirmeyi unutursa bile art arda eklemeler
+  // aynı sıraya (eskiden hep 100) çakışıp duplicate rnk üretmez (bkz. top100.js POST guard'ı).
+  const addRankInput = document.getElementById('top100-add-rank');
+  if (addRankInput) addRankInput.value = items.length + 1;
   wireTop100Drag(list);
   list.querySelectorAll('[data-action="remove"]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
