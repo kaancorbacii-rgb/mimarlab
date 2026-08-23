@@ -139,7 +139,7 @@ export function positionOf(position) {
 // position sayaçlarını `filters` alanında birlikte döner — tablo küçük (~800 satır) olduğundan tam
 // tarama ucuz (bkz. handleArchitectSearchRoute'daki AYNI gerekçe).
 export async function handleArchitectListRoute(request, env, url) {
-  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
