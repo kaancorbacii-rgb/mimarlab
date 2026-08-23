@@ -151,6 +151,13 @@
 
   // auth-modal.js login/signup başarılı olduğunda artık sayfayı yeniden YÜKLEMEDEN (bkz. kullanıcı
   // isteği: modal içinde kalınsın) header'ı güncelleyebilsin diye dışa açılır. fresh:true — bkz.
-  // initAuthNav yukarısındaki yorum.
-  window.refreshAuthNav = () => initAuthNav({ fresh: true });
+  // initAuthNav yukarısındaki yorum. Header güncellendikten sonra 'mimarlab:authchange' de
+  // yayınlanır — sayfa scriptlerinin (bkz. en-iyi-100.html#hızlı puanlama popup'ı) "oturum az önce
+  // açıldı" sinyalini dinleyip, modal açık olarak beklettiği bir işlemi (ör. giriş öncesi seçilen
+  // puanı) otomatik tamamlayabilmesi için — auth-modal.js'in kendisi login/signup dışındaki
+  // sayfalara/işlere hiçbir şekilde bağımlı olmasın diye bu genel amaçlı olay burada, TEK
+  // dokunulmayan hook'ta yayınlanır.
+  window.refreshAuthNav = () => initAuthNav({ fresh: true }).then(() => {
+    window.dispatchEvent(new CustomEvent('mimarlab:authchange'));
+  });
 })();

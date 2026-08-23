@@ -915,14 +915,14 @@
   /* Açıklamadan tek cümle (bkz. kullanıcı isteği) — satır taşarsa "…" ile kesilir, kart 2 satırdan
      fazla uzamaz. */
   .top100-desc{margin-top:4px; font-size:12.5px; line-height:1.4; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical;}
-  /* Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı) — .rating-widget/.card-save-btn/
-     .share-widget PAYLAŞıLAN bileşenler (rating-widget.js/save-widget.js/share-button.js), burada
+  /* Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı) — Kaydet/Paylaş hâlâ
+     .card-save-btn/.share-widget PAYLAŞıLAN bileşenler (save-widget.js/share-button.js), burada
      yalnızca modal/kart bağlamlarındaki konumlandırmalarını EZİP satır-içi kompakt pil haline getiren
-     seçiciler var — bileşenlerin kendi JS mantığına dokunulmuyor. */
+     seçiciler var. Puanla ise ARTIK paylaşılan .rating-widget DEĞİL — sabit "Puanla" metinli bir
+     .top100-rate-btn (aşağıda .top100-action-btn'i miras alır) + ayrı bir yıldız-seçici popup
+     (bkz. dosya sonundaki .rate-popup-* kuralları/JS) — bu değişiklik yalnızca BU sayfaya özgü,
+     proje/ürün popup'larındaki .rating-widget'a dokunulmadı. */
   .top100-quick-actions{display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;}
-  .top100-quick-actions .rating-widget{height:28px !important; min-height:28px !important; padding:0 8px !important;}
-  .top100-quick-actions .rating-star-btn svg{width:12px; height:12px;}
-  .top100-quick-actions .rating-summary{font-size:11px !important;}
   .top100-action-btn{
     position:static; width:auto; height:28px; box-sizing:border-box;
     display:inline-flex; align-items:center; gap:5px;
@@ -932,6 +932,41 @@
   .top100-action-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .top100-action-btn.saved{background:var(--accent); color:var(--ink); border-color:var(--accent);}
   .top100-quick-actions .share-btn{height:28px !important; width:28px !important; min-width:28px !important;}
+
+  /* Hızlı Puanla popup'ı (bkz. kullanıcı isteği, IMDB referansı: "Rate this" kartı) — satırdaki
+     .top100-rate-btn her zaman sabit "Puanla" metni gösterir (yıldız İÇERMEZ), tıklanınca burada
+     5 yıldızlı bir seçici açılır. */
+  .rate-popup-overlay{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(20,24,30,0.62); backdrop-filter:blur(2px);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .rate-popup-overlay.open{display:flex;}
+  .rate-popup{
+    width:100%; max-width:320px; background:var(--paper-card); border-radius:16px;
+    padding:28px 24px 24px; position:relative; text-align:center;
+    box-shadow:0 24px 60px rgba(0,0,0,0.35);
+  }
+  .rate-popup-close{
+    position:absolute; top:10px; right:10px; background:none; border:none; color:var(--ink-soft);
+    padding:8px; cursor:pointer; display:flex; border-radius:50%;
+  }
+  .rate-popup-close:hover{color:var(--ink); background:var(--paper-alt);}
+  .rate-popup-eyebrow{font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent);}
+  .rate-popup-title{margin-top:4px; font-size:17px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .rate-popup-stars{display:flex; align-items:center; justify-content:center; gap:6px; margin:20px 0 22px;}
+  .rate-popup-star{background:none; border:none; padding:2px; color:var(--line); cursor:pointer; display:flex; transition:transform .1s ease;}
+  .rate-popup-star:hover{transform:scale(1.15);}
+  .rate-popup-star svg{color:inherit;}
+  .rate-popup-star.filled{color:var(--accent);}
+  .rate-popup-submit{
+    width:100%; height:44px; border-radius:100px; border:none; background:var(--ink); color:var(--paper-card);
+    font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s ease;
+  }
+  .rate-popup-submit:disabled{opacity:0.4; cursor:not-allowed;}
+  .rate-popup-submit:not(:disabled):hover{opacity:0.88;}
+  .rate-popup-notice{margin-top:12px; font-size:12.5px; color:var(--bad, #C0392B); display:none;}
+  .rate-popup-notice.show{display:block;}
   .top100-rating{flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:78px;}
   .top100-avg{display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:15px; color:var(--ink);}
   .top100-avg-star{color:var(--accent);}
@@ -946,9 +981,9 @@
     .top100-submeta{font-size:11.5px;}
     .top100-rating{min-width:60px;}
     .top100-avg{font-size:13px;}
-    /* kullanıcı isteği: mobilde Kaydet butonu Paylaş gibi yalnızca yuvarlak bir ikon olsun, metin
-       gizlensin — erişilebilirlik için aria-label="Kaydet" korunur. */
-    .top100-save-label{display:none;}
+    /* kullanıcı isteği: mobilde Kaydet/Puanla butonları Paylaş gibi yalnızca yuvarlak birer ikon
+       olsun, metin gizlensin — erişilebilirlik için aria-label="Kaydet"/"Puanla" korunur. */
+    .top100-save-label, .top100-rate-btn span{display:none;}
     .top100-action-btn{width:28px !important; padding:0 !important; justify-content:center;}
   }
 
@@ -1062,6 +1097,21 @@
     </div>
   </div>
 
+  <!-- Hızlı Puanla popup'ı (bkz. kullanıcı isteği, IMDB referansı) — TEK örnek, her tıklamada
+       içeriği (isim + seçili yıldız) yeniden doldurulur (bkz. openRatePopup). -->
+  <div class="rate-popup-overlay" id="rate-popup-overlay">
+    <div class="rate-popup" role="dialog" aria-modal="true" aria-labelledby="rate-popup-title">
+      <button type="button" class="rate-popup-close" id="rate-popup-close" aria-label="Kapat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="rate-popup-eyebrow">Puanla</div>
+      <div class="rate-popup-title" id="rate-popup-title"></div>
+      <div class="rate-popup-stars" id="rate-popup-stars"></div>
+      <button type="button" class="rate-popup-submit" id="rate-popup-submit" disabled>Gönder</button>
+      <div class="rate-popup-notice" id="rate-popup-notice"></div>
+    </div>
+  </div>
+
   <footer id="site-footer-mount"></footer>
 
 <script src="il-ilce-data.js"></script>
@@ -1119,6 +1169,7 @@
     }
 
     var ICON_SAVE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>';
+    var ICON_STAR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5l3.09 6.26 6.91 1-5 4.87 1.18 6.87L12 17.98l-6.18 3.52L7 14.63l-5-4.87 6.91-1L12 2.5Z"/></svg>';
 
     var TOP100_ITEMS = [];
     var TOP100_SORT = 'rank';
@@ -1344,7 +1395,7 @@
         // doldurulur.
         var quickActions = item.slug
           ? '<span class="top100-quick-actions">' +
-              '<span class="rating-widget" data-type="project" data-key="' + escapeAttr(item.slug) + '"></span>' +
+              '<button class="top100-action-btn top100-rate-btn" type="button" data-slug="' + escapeAttr(item.slug) + '" data-name="' + escapeAttr(item.name) + '" aria-label="Puanla">' + ICON_STAR + '<span>Puanla</span></button>' +
               '<button class="card-save-btn top100-action-btn" type="button" data-key="' + escapeAttr(item.slug) + '" data-title="' + escapeAttr(item.name) + '" data-meta="' + escapeAttr(submeta) + '" data-image="' + escapeAttr(item.image || '') + '" data-href="/proje/' + encodeURIComponent(item.slug) + '" aria-label="Kaydet">' + ICON_SAVE + '<span class="top100-save-label">Kaydet</span></button>' +
               '<span class="top100-share-slot" id="top100-share-slot-' + item.rank + '"></span>' +
             '</span>'
@@ -1392,9 +1443,10 @@
       else document.addEventListener('DOMContentLoaded', fn, { once: true });
     }
 
-    // Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı).
+    // Hızlı Puanla/Kaydet/Paylaş (bkz. kullanıcı isteği, IMDB referansı). Puanla artık inline
+    // .rating-widget YERİNE bir buton + popup (bkz. aşağıdaki openRatePopup) — mountAllRatingWidgets()
+    // burada ARTIK çağrılmıyor, çünkü satırlarda .rating-widget hiç yok (yalnızca .top100-rate-btn).
     function wireQuickActions(items){
-      if(typeof mountAllRatingWidgets === 'function') mountAllRatingWidgets();
       if(typeof wireSaveButtons === 'function') wireSaveButtons('project');
       if(typeof ShareWidget !== 'undefined'){
         items.forEach(function(item){
@@ -1421,6 +1473,14 @@
     var TOP100_BASE_PATH = '/en-iyi-100/';
     document.getElementById('top100-list').addEventListener('click', function(e){
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // Hızlı Puanla düğmesi (bkz. openRatePopup) — aynı delege dinleyicide, aşağıdaki
+      // isim/görsel tıklama bloğundan ÖNCE ele alınır.
+      var rateBtn = e.target.closest('.top100-rate-btn');
+      if (rateBtn){
+        e.preventDefault();
+        openRatePopup(rateBtn.dataset.slug, rateBtn.dataset.name);
+        return;
+      }
       var row = e.target.closest('.top100-row');
       // Hem isme hem de görsele tıklayınca popup açılsın (bkz. kullanıcı isteği) — ikisi de AYNI
       // slug'a giden ayrı <a> etiketleri (bkz. renderTop100#posterHtml/nameHtml).
@@ -1538,6 +1598,173 @@
 
     document.getElementById('top100-back-to-top').addEventListener('click', function(){
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ---------------------------------------------------------------------------------------------
+    // Hızlı Puanla popup'ı (bkz. kullanıcı isteği, IMDB referansı: "Puanla" düğmesi yıldız TAŞIMAZ,
+    // tıklanınca 5 yıldızlık bir seçici popup açılır; seçim yapılınca Gönder aktifleşir). Sunucu
+    // tarafı yıldız icon'u ve /api/ratings/mine önbelleğini rating-widget.js'in ZATEN dışa açtığı
+    // starSvg()/loadMyRatings() global fonksiyonlarından (bkz. o dosyanın en üstü) ödünç alır —
+    // yalnızca satırdaki widget'ın işaretlemesi/mount akışı burada YENİDEN yazılıyor, alttaki /api/
+    // ratings sözleşmesi (targetType/targetId/stars, 401=giriş gerekli) DEĞİŞMEDİ.
+    //
+    // Oturum açık DEĞİLKEN Gönder'e basılırsa (kullanıcı isteği: "puan seçip gönder butonuna
+    // tıklayabilsin ama puan gönderilmeden giriş yap ekranına yönlendirilsin") seçilen puan
+    // sessionStorage'a kuyruklanır ve site genelindeki tek popup olan AuthModal'ın giriş görünümü
+    // açılır (bkz. js/components/lazy-modals.js#MODULES.auth — AYNI lazy-load deseni burada
+    // tekrarlanır, çünkü lazy-modals.js'in kendi loadModule()'ü IIFE kapanışında dışa açık değil).
+    // auth-nav.js#window.refreshAuthNav artık login/signup başarılı olduğunda 'mimarlab:authchange'
+    // yayınlıyor (bkz. o dosyadaki AYNI hook) — bu sayfa dinleyip kuyruktaki puanı OTOMATİK gönderir,
+    // kullanıcı modal içinde kalırken (sayfa yeniden yüklenmeden) sonucu görür.
+    var PENDING_RATING_KEY = 'mimarlab-pending-top100-rating';
+    var ratePopupOverlay = document.getElementById('rate-popup-overlay');
+    var ratePopupTitle = document.getElementById('rate-popup-title');
+    var ratePopupStars = document.getElementById('rate-popup-stars');
+    var ratePopupSubmit = document.getElementById('rate-popup-submit');
+    var ratePopupNotice = document.getElementById('rate-popup-notice');
+    var ratePopupSlug = null;
+    var ratePopupSelected = 0;
+    var ratePopupHover = 0;
+
+    function renderRatePopupStars(){
+      var eff = ratePopupHover || ratePopupSelected;
+      var html = '';
+      for(var i = 1; i <= 5; i++){
+        html += '<button type="button" class="rate-popup-star' + (i <= eff ? ' filled' : '') + '" data-value="' + i + '" aria-label="' + i + ' yıldız">' + starSvg(i <= eff, 30) + '</button>';
+      }
+      ratePopupStars.innerHTML = html;
+    }
+    ratePopupStars.addEventListener('mouseover', function(e){
+      var btn = e.target.closest('.rate-popup-star');
+      if(!btn) return;
+      ratePopupHover = parseInt(btn.dataset.value, 10);
+      renderRatePopupStars();
+    });
+    ratePopupStars.addEventListener('mouseleave', function(){
+      ratePopupHover = 0;
+      renderRatePopupStars();
+    });
+    ratePopupStars.addEventListener('click', function(e){
+      var btn = e.target.closest('.rate-popup-star');
+      if(!btn) return;
+      ratePopupSelected = parseInt(btn.dataset.value, 10);
+      ratePopupSubmit.disabled = false;
+      renderRatePopupStars();
+    });
+
+    function closeRatePopup(){
+      ratePopupOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    document.getElementById('rate-popup-close').addEventListener('click', closeRatePopup);
+    ratePopupOverlay.addEventListener('click', function(e){ if(e.target === ratePopupOverlay) closeRatePopup(); });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && ratePopupOverlay.classList.contains('open')) closeRatePopup();
+    });
+
+    async function openRatePopup(slug, name){
+      ratePopupSlug = slug;
+      ratePopupSelected = 0;
+      ratePopupHover = 0;
+      ratePopupTitle.textContent = name;
+      ratePopupNotice.textContent = '';
+      ratePopupNotice.classList.remove('show');
+      ratePopupSubmit.disabled = true;
+      ratePopupSubmit.textContent = 'Gönder';
+      renderRatePopupStars();
+      ratePopupOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      // Daha önce puanladıysa popup açılışında kendi puanını görsün (IMDB'deki AYNI davranış) —
+      // sessiz geçer, oturum kapalıyken loadMyRatings() zaten boş Map döner (bkz. rating-widget.js).
+      try{
+        var mine = await loadMyRatings();
+        if(ratePopupSlug !== slug) return; // bu arada başka bir satır açılmışsa bayat sonucu ATLA
+        var val = mine.get('project:' + slug);
+        if(val){ ratePopupSelected = val; ratePopupSubmit.disabled = false; renderRatePopupStars(); }
+      }catch(e){}
+    }
+
+    async function submitTop100Rating(slug, stars){
+      return fetch('/api/ratings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetType: 'project', targetId: slug, stars: stars }),
+      });
+    }
+
+    function refreshTop100AfterRating(){
+      document.getElementById('top100-list').dispatchEvent(new CustomEvent('ratingchange', { bubbles: true }));
+    }
+
+    // bkz. dosya başı yorumu — AuthModal büyük (118KB) olduğundan her sayfada değil, gerekince
+    // indirilir (lazy-modals.js İLE AYNI desen, bkz. o dosyadaki loadModule()).
+    function ensureAuthModal(cb){
+      if(window.AuthModal){ cb(window.AuthModal); return; }
+      var s = document.createElement('script');
+      s.src = 'js/components/auth-modal.js';
+      s.onload = function(){ cb(window.AuthModal); };
+      document.head.appendChild(s);
+    }
+
+    ratePopupSubmit.addEventListener('click', async function(){
+      if(!ratePopupSelected || !ratePopupSlug) return;
+      var slug = ratePopupSlug, stars = ratePopupSelected;
+      ratePopupSubmit.disabled = true;
+      ratePopupSubmit.textContent = 'Gönderiliyor…';
+      var res;
+      try{
+        res = await submitTop100Rating(slug, stars);
+      }catch(e){
+        ratePopupNotice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+        ratePopupNotice.classList.add('show');
+        ratePopupSubmit.disabled = false;
+        ratePopupSubmit.textContent = 'Gönder';
+        return;
+      }
+      if(res.status === 401){
+        // Kişi hesabına GİRMEDEN Gönder'e bastı — puanı kuyruğa al, giriş popup'ını aç (kullanıcı
+        // isteği). Giriş/Üye Ol başarılı olduğunda aşağıdaki 'mimarlab:authchange' dinleyicisi bu
+        // puanı otomatik gönderip listeyi tazeler.
+        try{ sessionStorage.setItem(PENDING_RATING_KEY, JSON.stringify({ slug: slug, stars: stars })); }catch(e){}
+        closeRatePopup();
+        ensureAuthModal(function(Modal){ if(Modal) Modal.open('login'); });
+        return;
+      }
+      if(res.ok){
+        try{ sessionStorage.removeItem(PENDING_RATING_KEY); }catch(e){}
+        closeRatePopup();
+        refreshTop100AfterRating();
+      } else {
+        ratePopupNotice.textContent = 'Puan gönderilemedi, lütfen tekrar dene.';
+        ratePopupNotice.classList.add('show');
+        ratePopupSubmit.disabled = false;
+        ratePopupSubmit.textContent = 'Gönder';
+      }
+    });
+
+    // Giriş/Üye Ol az önce başarıyla tamamlandıysa (bkz. auth-nav.js#window.refreshAuthNav) ve
+    // bekleyen bir puan varsa, kullanıcı hiçbir ek adım atmadan otomatik gönderilir + liste tazelenir
+    // (kullanıcı isteği: "puanı otomatik olarak verilsin ve sayfaya yansısın").
+    function trySubmitPendingRating(){
+      var raw;
+      try{ raw = sessionStorage.getItem(PENDING_RATING_KEY); }catch(e){ raw = null; }
+      if(!raw) return;
+      var pending;
+      try{ pending = JSON.parse(raw); }catch(e){ pending = null; }
+      if(!pending || !pending.slug || !pending.stars) return;
+      try{ sessionStorage.removeItem(PENDING_RATING_KEY); }catch(e){}
+      submitTop100Rating(pending.slug, pending.stars).then(function(res){
+        if(res.ok) refreshTop100AfterRating();
+      }).catch(function(){});
+    }
+    window.addEventListener('mimarlab:authchange', trySubmitPendingRating);
+    // Sayfa AÇILIŞINDA da kontrol edilir — Google/LinkedIn ile giriş sayfayı YENİDEN yüklediğinden
+    // (next=%2Fhesabim üzerinden), o akışta 'mimarlab:authchange' bu sayfada YAKALANAMAZ; kullanıcı
+    // giriş yaptıktan sonra bu sayfaya geri dönerse sessionStorage'daki kuyruk burada devreye girer.
+    whenReady(function(){
+      if(typeof savedWidgetReady !== 'undefined'){
+        savedWidgetReady.then(function(){ if(currentUser) trySubmitPendingRating(); });
+      }
     });
 
     fetch('/api/public/top100')
