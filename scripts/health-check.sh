@@ -32,7 +32,7 @@ check_status "/sitemap.xml" 200
 
 echo "2) Güvenlik/cache header kontrolleri (anasayfa)"
 home_headers=$(curl -s -D - -o /dev/null "$BASE_URL/")
-for h in "Cache-Control" "Content-Security-Policy" "X-Content-Type-Options" "Strict-Transport-Security"; do
+for h in "Content-Security-Policy" "X-Content-Type-Options" "Strict-Transport-Security"; do
   if echo "$home_headers" | grep -qi "^$h:"; then
     echo "  OK: $h header mevcut"
   else
@@ -40,6 +40,17 @@ for h in "Cache-Control" "Content-Security-Policy" "X-Content-Type-Options" "Str
     fail=1
   fi
 done
+# P3-3 hardening: yalnızca VARLIĞI değil, TAM DEĞERİ doğrulanır — SSR_PAGE_CACHE_HEADERS (src/index.js)
+# ile aynı olmalı. "private, no-store" (yanlışlıkla admin/no-cache header'ı sızması) ya da farklı bir
+# max-age (ör. "max-age=14400") gibi regresyonları yakalamak için (görev metninin istediği gibi).
+EXPECTED_CACHE_CONTROL="public, max-age=60, s-maxage=300"
+home_cache_control=$(echo "$home_headers" | grep -i "^Cache-Control:" | head -1 | sed -E 's/^[Cc]ache-[Cc]ontrol:[[:space:]]*//' | tr -d '\r')
+if [ "$home_cache_control" = "$EXPECTED_CACHE_CONTROL" ]; then
+  echo "  OK: Cache-Control tam değeri doğru ($EXPECTED_CACHE_CONTROL)"
+else
+  echo "  BAŞARISIZ: Cache-Control beklenmedik — bulunan: '$home_cache_control', beklenen: '$EXPECTED_CACHE_CONTROL'" >&2
+  fail=1
+fi
 
 echo "3) API JSON şema + ETag + Cache-Control kontrolü (/api/projects?limit=1)"
 tmp_body="$(mktemp)"
@@ -52,14 +63,21 @@ else
   echo "  BAŞARISIZ: /api/projects yanıtı beklenen şekilde değil: $projects_json" >&2
   fail=1
 fi
-for h in "ETag" "Cache-Control"; do
-  if echo "$api_headers" | grep -qi "^$h:"; then
-    echo "  OK: $h header mevcut (/api/projects)"
-  else
-    echo "  BAŞARISIZ: $h header eksik (/api/projects)" >&2
-    fail=1
-  fi
-done
+if echo "$api_headers" | grep -qi "^ETag:"; then
+  echo "  OK: ETag header mevcut (/api/projects)"
+else
+  echo "  BAŞARISIZ: ETag header eksik (/api/projects)" >&2
+  fail=1
+fi
+# P3-3 hardening: liste uçları PUBLIC_LIST_CACHE_HEADERS kullanır (src/lib/publicCache.js) — anasayfa
+# SSR ile AYNI değer, tam eşitlik doğrulanır (bkz. yukarıdaki anasayfa kontrolü ile aynı gerekçe).
+api_cache_control=$(echo "$api_headers" | grep -i "^Cache-Control:" | head -1 | sed -E 's/^[Cc]ache-[Cc]ontrol:[[:space:]]*//' | tr -d '\r')
+if [ "$api_cache_control" = "$EXPECTED_CACHE_CONTROL" ]; then
+  echo "  OK: Cache-Control tam değeri doğru (/api/projects, $EXPECTED_CACHE_CONTROL)"
+else
+  echo "  BAŞARISIZ: Cache-Control beklenmedik (/api/projects) — bulunan: '$api_cache_control', beklenen: '$EXPECTED_CACHE_CONTROL'" >&2
+  fail=1
+fi
 
 echo "4) Deploy edilen worker_version teyidi (/api/_health)"
 # Deploy hemen sonrası tüm Cloudflare PoP'ları aynı anda güncellenmeyebilir (edge propagation

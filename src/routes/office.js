@@ -111,7 +111,7 @@ function expBucketOf(yil) {
 // GET /api/offices — firma.html#render()'ın sayfalanmış sunucu karşılığı (bkz. src/routes/
 // architect.js#handleArchitectListRoute'daki AYNI desen).
 export async function handleOfficeListRoute(request, env, url) {
-  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);

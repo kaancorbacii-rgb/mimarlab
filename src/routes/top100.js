@@ -188,6 +188,11 @@ export async function handleTop100AdminRoute(request, env, url, segments) {
     if (!name || !Number.isInteger(rnk) || rnk < 1 || !Number.isFinite(baseAvg) || baseAvg < 0 || baseAvg > 5 || !Number.isInteger(baseCount) || baseCount < 0) {
       return errorJson('Geçersiz veri: isim, sıra no (≥1), taban puan (0-5) ve taban oy sayısı (≥0) gerekli.');
     }
+    // P3-2 kök neden düzeltmesi — savunma katmanı: admin.html'in dinamik varsayılanı atlanıp elle
+    // çakışan bir sıra no girilirse bile sessizce ikinci bir duplicate rnk oluşmasın (bkz. prod'da
+    // daha önce rnk=100'de birikmiş 7 kayıt).
+    const existing = await env.DB.prepare(`SELECT 1 FROM top100_entries WHERE rnk = ?`).bind(rnk).first();
+    if (existing) return errorJson(`Sıra no ${rnk} zaten kullanımda, farklı bir numara seçin.`, 409);
     const now = Date.now();
     const result = await env.DB.prepare(
       `INSERT INTO top100_entries (rnk, name, slug, base_avg, base_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`

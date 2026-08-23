@@ -825,10 +825,12 @@ async function routeApi(request, env, url) {
   // POST (yeni gönderi oluşturma) her zaman aşağıdaki handleSubmissionRoute'a gider (bkz. o dosyadaki
   // segments.length===2 dalı, yalnızca POST'u işliyor — GET için hiçbir dal eşleşmediğinden bu
   // path'ler GET için önceden zaten boştu, çakışma yok).
-  if (path === '/api/projects' && request.method === 'GET') return handleProjectListRoute(request, env, url);
-  if (path === '/api/architects' && request.method === 'GET') return handleArchitectListRoute(request, env, url);
-  if (path === '/api/offices' && request.method === 'GET') return handleOfficeListRoute(request, env, url);
-  if (path === '/api/products' && request.method === 'GET') return handleProductListRoute(request, env, url);
+  // P3-1 hardening: HEAD, GET ile AYNI route'a düşer (monitoring/uptime araçları için standart HTTP
+  // semantiği) — handler'ların kendisi HEAD'de body'siz aynı header'ları döner, GET davranışı değişmez.
+  if (path === '/api/projects' && (request.method === 'GET' || request.method === 'HEAD')) return handleProjectListRoute(request, env, url);
+  if (path === '/api/architects' && (request.method === 'GET' || request.method === 'HEAD')) return handleArchitectListRoute(request, env, url);
+  if (path === '/api/offices' && (request.method === 'GET' || request.method === 'HEAD')) return handleOfficeListRoute(request, env, url);
+  if (path === '/api/products' && (request.method === 'GET' || request.method === 'HEAD')) return handleProductListRoute(request, env, url);
   // /api/architects, /api/offices ÇOĞUL prefix'i aşağıda handleSubmissionRoute'a (üye gönderi
   // CRUD'u) düşüyor — bu iki arama ucu o genel eşleşmeden ÖNCE özel olarak yakalanmalı, aksi
   // halde 'search' bir submission id'si gibi yorumlanıp 404/401 dönerdi (bkz. yukarıdaki

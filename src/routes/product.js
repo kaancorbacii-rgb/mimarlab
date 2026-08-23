@@ -219,7 +219,7 @@ function ratingKeyFor(title, brand, submissionId) {
 // client'ta yaptığı `products.push(...materials)` birleştirmesi gerekmiyor — tek sorgu ikisini de
 // döner (kullanıcı isteği: "Artık sadece ürün sayfası yayında olsun", tek liste).
 export async function handleProductListRoute(request, env, url) {
-  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);

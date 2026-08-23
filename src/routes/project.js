@@ -493,7 +493,7 @@ async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
 // handler farklı closure'lar taşıdığından paylaşılan bir fonksiyona çıkarmak bu dosyanın mevcut
 // desenini bozardı, bkz. trLower'ın da her route dosyasında yerel tanımlı olması).
 export async function handleProjectListRoute(request, env, url) {
-  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
