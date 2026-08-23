@@ -807,7 +807,7 @@ let megaMenuBuilt = false;
 function buildMegaMenu(){
   if(megaMenuBuilt) return;
   const panel = document.getElementById('urun-mega-menu');
-  if(typeof CATALOG_MENU_COLUMNS === 'undefined' || typeof CATALOG_TAXONOMY === 'undefined') return;
+  if(!panel || typeof CATALOG_MENU_COLUMNS === 'undefined' || typeof CATALOG_TAXONOMY === 'undefined') return;
   megaMenuBuilt = true;
   const html = CATALOG_MENU_COLUMNS.map(colGroups => `
     <div class="mega-col">
@@ -858,8 +858,10 @@ function buildMobileProductMenu(){
   });
 }
 function closeMegaMenu(){
-  document.getElementById('urun-mega-menu').classList.remove('open');
-  document.getElementById('urun-menu-trigger').setAttribute('aria-expanded', 'false');
+  const panel = document.getElementById('urun-mega-menu');
+  const trigger = document.getElementById('urun-menu-trigger');
+  if(panel) panel.classList.remove('open');
+  if(trigger) trigger.setAttribute('aria-expanded', 'false');
   const mobileMenu = document.getElementById('nav-mobile-menu');
   const mobilePanel = document.getElementById('urun-mobile-panel');
   const mobileTrigger = document.getElementById('urun-mobile-trigger');
@@ -870,11 +872,16 @@ function closeMegaMenu(){
 function toggleMegaMenu(){
   buildMegaMenu();
   const panel = document.getElementById('urun-mega-menu');
+  if(!panel) return;
   const willOpen = !panel.classList.contains('open');
   panel.classList.toggle('open', willOpen);
-  document.getElementById('urun-menu-trigger').setAttribute('aria-expanded', String(willOpen));
+  const trigger = document.getElementById('urun-menu-trigger');
+  if(trigger) trigger.setAttribute('aria-expanded', String(willOpen));
 }
-document.getElementById('urun-menu-trigger').addEventListener('click', (e)=>{ e.stopPropagation(); toggleMegaMenu(); });
+{
+  const urunMenuTrigger = document.getElementById('urun-menu-trigger');
+  if(urunMenuTrigger) urunMenuTrigger.addEventListener('click', (e)=>{ e.stopPropagation(); toggleMegaMenu(); });
+}
 document.addEventListener('click', (e)=>{
   const wrap = document.getElementById('urun-menu-wrap');
   const panel = document.getElementById('urun-mega-menu');
