@@ -1,0 +1,24 @@
+name: Production smoke test
+
+# P2/P3-6 hardening: production'a karşı otomatik regresyon görünürlüğü. Bilerek MİNİMAL tutuldu —
+# yeni npm bağımlılığı YOK (repo hiç npm bağımlılığı taşımıyor, bkz. scripts/smoke-test.sh dosya
+# sonu notu: "gereksiz ağır bağımlılık BİLEREK eklenmedi"). Mevcut curl tabanlı
+# scripts/smoke-test.sh'i olduğu gibi çalıştırır — deploy sürecine (deploy.sh) müdahale etmez,
+# yalnızca main'e her push'ta ve elle tetiklemede production'ı salt-okunur kontrol eder.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  schedule:
+    - cron: '17 6 * * *'
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: scripts/smoke-test.sh (production)
+        run: |
+          chmod +x scripts/smoke-test.sh
+          ./scripts/smoke-test.sh
