@@ -71,6 +71,20 @@ const ProductModal = (function () {
       .pr-rating-save-row .save-btn-label-saved{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
       .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
+      /* Web Sitesi künye butonu (#pr-website-slot) — office-modal.js'in .save-btn tabanıyla BİREBİR
+         aynı (o dosyada proje.html/mimar.html'den miras alınan bir kural, product-modal.js'te hiç
+         yoktu). .pr-rating-save-row .card-save-btn'den daha yüksek özgüllüğü olduğundan Kaydet
+         butonunu etkilemez, yalnızca bu bare-class kullanan yeni buton için taban stil sağlar. */
+      .save-btn{
+        display:inline-flex; align-items:center; gap:5px;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
+        font-family:inherit; line-height:1; text-decoration:none;
+      }
+      .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
+      .save-btn svg{flex-shrink:0;}
       .save-btn-count{font-weight:600;}
       /* Düzenle (Gönderiyi Düzenle)/Arşivle/Sil artık burada DEĞİL — modal-shell.js'in paylaşılan
          header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons).
@@ -307,10 +321,11 @@ const ProductModal = (function () {
     </div>
     <div class="detail-info">
       <div class="designer-section" id="pr-brand-section" style="display:none;">
-        <div class="designer-label">Marka</div>
+        <div class="designer-label">Firma:</div>
         <div class="designer-chips" id="pr-brand-chips"></div>
       </div>
       <div class="detail-meta" id="pr-meta"></div>
+      <div id="pr-website-slot" style="margin-top:14px;"></div>
       <div id="pr-specs-wrap" style="display:none;">
         <div class="specs-title">Teknik Özellikler</div>
         <table class="specs-table" id="pr-specs-table"></table>
@@ -535,17 +550,20 @@ const ProductModal = (function () {
     document.getElementById('pr-brand-section').style.display = 'none';
     renderBrandSection(p);
 
-    // Künye sırası urun-ekle.html'deki form sırasıyla AYNI (bkz. kullanıcı isteği): Marka (üstteki
-    // designer-section), Web Sitesi, Kategori, Yıl, Tasarımcı, ardından Teknik Özellikler/Açıklama.
+    // Künye sırası (bkz. kullanıcı isteği): Firma (üstteki designer-section), Tasarımcı, Kategori,
+    // Yıl, ardından Web Sitesi — bu artık düz metin satırı değil, firma sayfalarındaki (office-modal.js
+    // #save-btn) ile AYNI buton stili, Teknik Özellikler/Açıklamadan önceki son künye satırı.
     let metaHtml = '';
-    if (p.website) {
-      const site = safeUrl(p.website);
-      if (site) metaHtml += `<div><strong>Web Sitesi:</strong> <a href="${escapeAttr(site)}" target="_blank" rel="noopener">${escapeHtml(p.website)}</a></div>`;
-    }
+    if (p.designer) metaHtml += `<div><strong>Tasarımcı:</strong> ${escapeHtml(p.designer)}</div>`;
     if (p.category) metaHtml += `<div><strong>Kategori:</strong> ${escapeHtml(p.category)}</div>`;
     if (p.year) metaHtml += `<div><strong>Yıl:</strong> ${escapeHtml(p.year)}</div>`;
-    if (p.designer) metaHtml += `<div><strong>Tasarımcı:</strong> ${escapeHtml(p.designer)}</div>`;
     document.getElementById('pr-meta').innerHTML = metaHtml;
+
+    const websiteSlot = document.getElementById('pr-website-slot');
+    const site = p.website ? safeUrl(p.website) : '';
+    websiteSlot.innerHTML = site
+      ? `<a class="save-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`
+      : '';
     renderTruncatedDesc('pr-desc', p.description || '');
 
     const specsWrap = document.getElementById('pr-specs-wrap');
