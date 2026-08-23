@@ -55,7 +55,7 @@ const ProjectModal = (function () {
     </div>
 
     <div class="related-section" id="pm-related-section" aria-live="polite">
-      <h2 class="related-title">İlgili Projeler</h2>
+      <h2 class="related-title">Benzer Projeler</h2>
       <div class="related-grid-scroll" id="pm-related-grid"></div>
     </div>
 

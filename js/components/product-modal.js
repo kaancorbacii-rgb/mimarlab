@@ -780,7 +780,7 @@ const ProductModal = (function () {
       }
       related = related.slice(0, 8);
       if (!related.length) return;
-      document.getElementById('pr-related-title').textContent = p.brand ? `${p.brand} Markasından Diğer Ürünler` : 'Benzer Ürünler';
+      document.getElementById('pr-related-title').textContent = 'Benzer Ürünler';
       // bkz. kullanıcı isteği (2026-08-17): burada r.ratingKey kullanılıyordu — puanlama/kaydetme
       // hedef anahtarı (src/routes/product.js#ratingKeyFor), submission kökenli satırlarda hâlâ
       // "m-<id>" biçiminde ve BİLEREK slug'dan bağımsız (bkz. src/lib/canonicalSync.js#syncProduct

@@ -25,7 +25,7 @@
       .mega-group-title:hover{color:var(--walnut);}
       .mega-cat-link{display:block; font-size:13.5px; color:var(--ink-soft); padding:4px 0;}
       .mega-cat-link:hover{color:var(--ink); text-decoration:underline;}
-      .mega-menu-footer{margin-top:22px; padding-top:18px; border-top:1px solid var(--line);}
+      .mega-menu-footer{margin-top:22px; padding-top:18px; border-top:1px solid var(--line); text-align:right;}
       .mega-viewall{display:inline-flex; align-items:center; gap:7px; font-family:'Fraunces', serif; font-size:21px; font-weight:600; color:var(--ink);}
       .mega-viewall:hover{color:var(--walnut);}
       @media (max-width:960px){ .mega-menu{display:none !important;} }
