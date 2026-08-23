@@ -170,12 +170,18 @@ export async function handleArchitectListRoute(request, env, url) {
     // sort/filtre kombinasyonları (farklı TAM URL, farklı caches.default anahtarı) AYNI pool'u
     // paylaşır. Filtre/sıralama mantığı (aşağısı) DEĞİŞMEDİ, hâlâ her istekte JS'te çalışır.
     const pool = await getCachedPool(env, 'architects', async () => {
+      // "Bilinmiyor" (id 835) — proje künyelerinde mimarı bilinmeyen kayıtlar için placeholder,
+      // gerçek bir mimar profili değil (bkz. kullanıcı isteği: mimar.html listesinden ve anasayfa
+      // carousel'inden kaldırılsın ama satır SİLİNMESİN — hiçbir project_designers/office_founders
+      // satırı ona bağlı değil, yalnızca bu liste havuzundan dışlanıyor). Bu iki yer de (mimar.html
+      // + index.html mini-carousel) AYNI bu pool'u tüketiyor, başka hiçbir uç (mimar-detay, arama
+      // autocomplete) etkilenmiyor.
       const { results } = await env.DB.prepare(
         `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards,
            (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
             WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
          FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-         WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.id DESC`
+         WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
       ).all();
 
       return results.map(row => {
