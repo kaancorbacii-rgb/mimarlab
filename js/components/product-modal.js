@@ -249,14 +249,14 @@ const ProductModal = (function () {
         .related-grid-scroll{gap:10px;}
         .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
-        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama → Benzer
-           Ürünler → Bilgi Kaynağı (bkz. proje.html'deki AYNI #pm-* order deseni, kullanıcı isteği:
-           Ürün pop-up'ı Proje pop-up'ıyla birebir aynı grid yapısına getirilsin; Bilgi Kaynağı & Geri
-           Bildirim kutusu bu breakpoint'te sayfanın en altına taşındı) — modal-shell.js bu kırılma
-           noktasında sol/sağ paneli display:contents yaptığından tüm bölümler AYNI dikey flex
-           akışının parçası. .detail-info künye/açıklama/teknik özellikleri TEK blok olarak taşır.
-           Proje modalının aksine burada yorum/aynı-tasarımcı/malzeme bölümleri yok, tek related
-           section (Benzer Ürünler) var. */
+        /* Mobil/tablet ürün modalı sıra: Galeri → Başlık → Puan+Aksiyon → Künye → Açıklama →
+           Firmanın Diğer Ürünleri → Benzer Ürünler → Bilgi Kaynağı (bkz. proje.html'deki AYNI #pm-*
+           order deseni, kullanıcı isteği: Ürün pop-up'ı Proje pop-up'ıyla birebir aynı grid yapısına
+           getirilsin; Bilgi Kaynağı & Geri Bildirim kutusu bu breakpoint'te sayfanın en altına
+           taşındı) — modal-shell.js bu kırılma noktasında sol/sağ paneli display:contents yaptığından
+           tüm bölümler AYNI dikey flex akışının parçası. .detail-info künye/açıklama/teknik
+           özellikleri TEK blok olarak taşır. Proje modalının aksine burada yorum/aynı-tasarımcı/
+           malzeme bölümleri yok, iki related section (Firmanın Diğer Ürünleri, Benzer Ürünler) var. */
         /* order KESİNLİKLE tam sayı olmalı (CSS <integer> — bkz. proje.html'deki AYNI gerçek bulgu:
            ondalıklı order değerleri geçersiz sayılıp sessizce order:0'a düşüyor, ilgili öğeyi
            modalın EN ÜSTÜNE zıplatıyordu). */
@@ -265,10 +265,11 @@ const ProductModal = (function () {
         #pr-rating-save-row{order:3;}
         #pr-byline{order:4;}
         .detail-info{order:6;}
-        #pr-related-section{order:7;}
-        #pr-prevnext{order:8;}
-        #pr-info-divider{order:9;}
-        #pr-feedback-card{order:10;}
+        #pr-company-section{order:7;}
+        #pr-related-section{order:8;}
+        #pr-prevnext{order:9;}
+        #pr-info-divider{order:10;}
+        #pr-feedback-card{order:11;}
 
         /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki AYNI kural,
            kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü
@@ -331,6 +332,10 @@ const ProductModal = (function () {
         <button class="gallery-nav gallery-next" id="pr-gallery-next" type="button" aria-label="Sonraki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
       <div class="gallery-counter" id="pr-gallery-counter"></div>
+    </div>
+    <div class="related-section" id="pr-company-section" style="display:none;">
+      <h2 class="related-title" id="pr-company-title">Firmanın Diğer Ürünleri</h2>
+      <div class="related-grid-scroll" id="pr-company-grid"></div>
     </div>
     <div class="related-section" id="pr-related-section" style="display:none;">
       <h2 class="related-title" id="pr-related-title">Benzer Ürünler</h2>
@@ -515,7 +520,7 @@ const ProductModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section',
-    'pr-info-divider', 'pr-feedback-card', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
+    'pr-info-divider', 'pr-feedback-card', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   async function renderItem(p, key) {
     currentItem = p;
@@ -608,6 +613,7 @@ const ProductModal = (function () {
     if (headerActions) headerActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
     mountEditAndAdminButtons(p, key);
 
+    loadCompanyProducts(p, key);
     loadRelated(p, key);
     savedWidgetReady.then(() => { if (currentItem === p) wireFeedbackBox(p, key); });
 
@@ -753,32 +759,49 @@ const ProductModal = (function () {
     }
   }
 
-  // Benzer Ürünler: aynı markadan, yetmezse aynı kategoriden — mevcut ürün/malzeme listesinin
-  // sayfalanmış /api/products ucundan (limit yüksek tutularak) çekilir.
+  // Firmanın Diğer Ürünleri: AYNI markadan (firma), kendisi hariç — mevcut ürün/malzeme listesinin
+  // sayfalanmış /api/products ucundan (limit yüksek tutularak) çekilir. Markası olmayan (ör. bazı
+  // malzeme) kayıtlarda bölüm hiç gösterilmez.
+  async function loadCompanyProducts(p, key) {
+    const section = document.getElementById('pr-company-section');
+    section.style.display = 'none';
+    if (!p.brand) return;
+    // bkz. loadRelated'deki AYNI 2026-08-17 gerekçesi — kendi kendini hariç tutmak için `key` (URL
+    // slug) değil /api/products'ın döndürdüğü ratingKey ile karşılaştırılmalı.
+    const selfKey = p.ratingKey || key;
+    try {
+      const params = new URLSearchParams({ limit: '96', brand: p.brand });
+      const res = await fetch(`/api/products?${params.toString()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const items = (data.items || []).filter(x => x.ratingKey !== selfKey).slice(0, 8);
+      if (!items.length) return;
+      document.getElementById('pr-company-grid').innerHTML = items.map(r =>
+        cardHtml(`/urun/${encodeURIComponent(r.slug)}`, r.title, r.image, r.category)
+      ).join('');
+      section.style.display = '';
+    } catch {}
+  }
+
+  // Benzer Ürünler: AYNI kategoriden, FARKLI firmaların ürünleri (bkz. kullanıcı isteği) — kendi
+  // markası burada hariç tutulur çünkü o artık ayrı "Firmanın Diğer Ürünleri" bölümünde (yukarıda)
+  // gösteriliyor.
   async function loadRelated(p, key) {
     const section = document.getElementById('pr-related-section');
     section.style.display = 'none';
+    if (!p.category) return;
     // kendi kendini hariç tutmak için /api/products'ın döndürdüğü ratingKey ile karşılaştırılmalı
     // (bkz. yukarıdaki renderItem'daki AYNI 2026-08-17 gerekçesi) — `key` (URL slug) ile karşılaştırmak
     // artık ürünü kendi "Diğer Ürünler" listesinde tekrar gösterirdi.
     const selfKey = p.ratingKey || key;
     try {
-      const params = new URLSearchParams({ limit: '96' });
-      if (p.brand) params.set('brand', p.brand);
+      const params = new URLSearchParams({ limit: '96', category: p.category });
       const res = await fetch(`/api/products?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
-      let related = (data.items || []).filter(x => x.ratingKey !== selfKey);
-      if (related.length < 6 && p.category) {
-        const catParams = new URLSearchParams({ limit: '96', category: p.category });
-        const catRes = await fetch(`/api/products?${catParams.toString()}`);
-        if (catRes.ok) {
-          const catData = await catRes.json();
-          const seen = new Set(related.map(x => x.ratingKey).concat([selfKey]));
-          (catData.items || []).forEach(x => { if (!seen.has(x.ratingKey)) { seen.add(x.ratingKey); related.push(x); } });
-        }
-      }
-      related = related.slice(0, 8);
+      const related = (data.items || [])
+        .filter(x => x.ratingKey !== selfKey && (!p.brand || x.brand !== p.brand))
+        .slice(0, 8);
       if (!related.length) return;
       document.getElementById('pr-related-title').textContent = 'Benzer Ürünler';
       // bkz. kullanıcı isteği (2026-08-17): burada r.ratingKey kullanılıyordu — puanlama/kaydetme
