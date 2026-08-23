@@ -961,7 +961,10 @@
   .rate-popup-stars{display:flex; align-items:center; justify-content:center; gap:6px; margin:20px 0 22px;}
   .rate-popup-star{background:none; border:none; padding:2px; color:var(--line); cursor:pointer; display:flex; transition:transform .1s ease;}
   .rate-popup-star:hover{transform:scale(1.15);}
-  .rate-popup-star svg{color:inherit;}
+  /* pointer-events:none — savunma amaçlı ek önlem: mousedown/mouseup/click HER ZAMAN <button>'a
+     gitsin, iç <svg>/<path>'a asla düşmesin (bkz. JS'teki buildRatePopupStars/paintRatePopupStars
+     yorumu — asıl tıklama hatası buradaki iç düğüm DEĞİŞİMİNDEN kaynaklanıyordu). */
+  .rate-popup-star svg{color:inherit; pointer-events:none;}
   .rate-popup-star.filled{color:var(--accent);}
   .rate-popup-submit{
     width:100%; height:44px; border-radius:100px; border:none; background:var(--ink); color:var(--paper-card);
@@ -1634,32 +1637,40 @@
     var ratePopupSelected = 0;
     var ratePopupHover = 0;
 
-    // gerçek bulgu (kullanıcı bulgusu, canlıda doğrulandı): 5 yıldız düğmesi önceden her hover/click'te
-    // ratePopupStars.innerHTML = ... ile BAŞTAN yeniden yaratılıyordu — fare bir yıldızın üzerine
-    // gelince (mouseover) düğmeler DOM'dan silinip aynı konumda YENİ düğmelerle değiştiriliyordu.
-    // Gerçek bir fare tıklaması mousedown→mouseover(lar)→mouseup→click sırasıyla ilerlediğinden,
-    // mousedown'ı alan düğme mouseup'tan ÖNCE bu innerHTML sıfırlamasıyla DOM'dan kopuyor ve
-    // tarayıcı click olayını hiç sentezleyemiyordu (hover'daki turuncu ÖNİZLEME göründüğü hâlde tıklama
-    // hiç ETKİ ETMİYORDU — ekran görüntüsündeki BOZUK davranışın birebir açıklaması). Kökten çözüm:
-    // 5 düğme popup ÖMRÜ boyunca TEK SEFER yaratılır (buildRatePopupStars, aşağıda çağrılır), hover/
-    // seçim güncellemeleri (paintRatePopupStars) yalnızca MEVCUT düğmelerin class'ını/iç SVG'sini
-    // değiştirir — düğme nesnelerinin kendisi asla yok edilip yeniden yaratılmaz, delege
-    // dinleyicilerin hedefi HER ZAMAN aynı kalır.
+    // gerçek bulgu (kullanıcı bulgusu, canlıda doğrulandı — İKİ AYRI turda): 5 yıldız düğmesi
+    // önce her hover/click'te ratePopupStars.innerHTML = ... ile BAŞTAN yeniden yaratılıyordu; bu
+    // düğmelerin KENDİSİNİ tekilleştirerek (bkz. eski buildRatePopupStars) düzeltildi SANILDI, ama
+    // paintRatePopupStars İÇİNDEKİ btn.innerHTML = starSvg(...) satırı düğmenin İÇİNDEKİ <svg>/<path>
+    // çocuğunu HÂLÂ her hover'da yok edip yeniden yaratıyordu — ve gerçek bir fare tıklamasının
+    // mousedown HEDEFİ genelde düğmenin kendisi değil, görsel olarak üstte duran o <svg>/<path>
+    // çocuğudur. Komşu bir yıldıza değen en ufak bir fare titreşimi bile mousedown ile mouseup
+    // arasında bu çocuğu değiştirip tarayıcının click'i hiç sentezlememesine yol açabiliyordu (hover
+    // önizlemesi turuncu görünüyor ama seçim/Gönder'e HİÇ etki etmiyordu — kullanıcının ikinci
+    // ekran görüntüsündeki AYNI bozuk davranış). Kökten çözüm: her düğmenin İÇİNDEKİ <svg> de popup
+    // ömrü boyunca TEK SEFER yaratılır (her zaman DOLU/solid yıldız çizilir, bkz. starSvg(true, ..)),
+    // hover/seçim güncellemesi (paintRatePopupStars) SADECE düğmenin .filled class'ını toggle eder —
+    // renk (gri↔turuncu) tamamen CSS'in .rate-popup-star.filled{color:var(--accent)} kuralından gelir
+    // (svg fill="currentColor" miras alır). Etkileşim sırasında ARTIK hiçbir DOM düğümü (ne düğme ne
+    // svg) yok edilip yeniden yaratılmıyor — yalnızca classList.toggle, bu yüzden mousedown hedefi
+    // mouseup'a kadar HER ZAMAN aynı nesne kalır.
     function buildRatePopupStars(){
       var html = '';
       for(var i = 1; i <= 5; i++){
-        html += '<button type="button" class="rate-popup-star" data-value="' + i + '" aria-label="' + i + ' yıldız"></button>';
+        html += '<button type="button" class="rate-popup-star" data-value="' + i + '" aria-label="' + i + ' yıldız">' + starSvg(true, 30) + '</button>';
       }
       ratePopupStars.innerHTML = html;
     }
-    buildRatePopupStars();
+    // whenReady — bkz. dosya başındaki AYNI domReady deseni: starSvg (rating-widget.js'ten, defer
+    // ile yüklü) bu satır ilk parse edildiğinde HENÜZ TANIMLI OLMAYABİLİR (gerçek bulgu, yerel
+    // testte yakalandı: "Uncaught ReferenceError: starSvg is not defined" — eager çağrı defer
+    // script'ten ÖNCE çalışabiliyordu). DOMContentLoaded'a kadar ertelenir, tıpkı wireQuickActions
+    // gibi.
+    whenReady(buildRatePopupStars);
     function paintRatePopupStars(){
       var eff = ratePopupHover || ratePopupSelected;
       ratePopupStars.querySelectorAll('.rate-popup-star').forEach(function(btn){
         var v = parseInt(btn.dataset.value, 10);
-        var isFilled = v <= eff;
-        btn.classList.toggle('filled', isFilled);
-        btn.innerHTML = starSvg(isFilled, 30);
+        btn.classList.toggle('filled', v <= eff);
       });
     }
     ratePopupStars.addEventListener('mouseover', function(e){
