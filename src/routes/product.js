@@ -9,7 +9,19 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 // canonical veri DEĞİL, salt statik bir taksonomi referans tablosu.
 import catalogTaxonomyJs from '../../catalog-taxonomy.js';
 
-const { CATALOG_TAXONOMY, taxonomyGroupOf } = catalogTaxonomyJs;
+const { CATALOG_TAXONOMY, CATALOG_MENU_COLUMNS, taxonomyGroupOf } = catalogTaxonomyJs;
+
+// urun.html#buildSidebar'daki Grup/Kategori filtre sırası, ürün SAYISINA göre değil (bkz. aşağıdaki
+// countsFor'un varsayılan sıralaması) mega menünün (js/components/nav-product-menu.js) okuma
+// sırasına göre olsun istendi (bkz. kullanıcı isteği: "Ürün sayfasındaki filtreleri de mega menüdeki
+// gibi güncelle") — CATALOG_MENU_COLUMNS zaten mega menünün kolon/sıra düzenini taşıyor, burada
+// düzleştirilip her Grup'a ve (Grup içindeki CATALOG_TAXONOMY sırasına göre) her kategoriye bir
+// sıra numarası atanır. Menüde yer almayan bir değer (olması beklenmez, CATALOG_MENU_COLUMNS her
+// zaman CATALOG_TAXONOMY'nin tüm anahtarlarını kapsamalı) listenin sonuna düşer.
+const CATALOG_GROUP_ORDER = new Map(CATALOG_MENU_COLUMNS.flat().map((g, i) => [g, i]));
+const CATALOG_CATEGORY_ORDER = new Map(
+  CATALOG_MENU_COLUMNS.flat().flatMap(g => CATALOG_TAXONOMY[g] || []).map((c, i) => [c, i])
+);
 
 // Faz 3 — statik urunler-data.js/malzemeler-data.js + product_submissions/material_submissions
 // yerine doğrudan canonical `products` tablosundan okur (kind='product'/'material' ile ayrılır,
@@ -303,11 +315,23 @@ export async function handleProductListRoute(request, env, url) {
 
     // urun.html#buildSidebar — her grubun sayacı, O GRUP HARİÇ diğer aktif filtrelerle eşleşen
     // ürünler üzerinden hesaplanır (proje.html#handleProjectFiltersRoute'daki AYNI faceted desen).
-    function countsFor(key, fieldFn) {
+    // orderIndex (opsiyonel) verilirse sayaç yerine o sıraya göre sıralanır — bkz. yukarıdaki
+    // CATALOG_GROUP_ORDER/CATALOG_CATEGORY_ORDER yorumu (Grup/Kategori mega menü sırasını izler).
+    function countsFor(key, fieldFn, orderIndex) {
       const passing = pool.filter(p => passes(p, key));
       const counts = {};
       passing.forEach(p => { (fieldFn(p) || []).forEach(v => { if (v) counts[v] = (counts[v] || 0) + 1; }); });
-      return Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b, 'tr')).map(v => ({ value: v, count: counts[v] }));
+      const keys = Object.keys(counts);
+      if (orderIndex) {
+        keys.sort((a, b) => {
+          const ia = orderIndex.has(a) ? orderIndex.get(a) : Infinity;
+          const ib = orderIndex.has(b) ? orderIndex.get(b) : Infinity;
+          return ia !== ib ? ia - ib : a.localeCompare(b, 'tr');
+        });
+      } else {
+        keys.sort((a, b) => counts[b] - counts[a] || a.localeCompare(b, 'tr'));
+      }
+      return keys.map(v => ({ value: v, count: counts[v] }));
     }
 
     const total = filtered.length;
@@ -318,8 +342,8 @@ export async function handleProductListRoute(request, env, url) {
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
       filters: {
-        group: countsFor('group', p => [p.group]),
-        category: countsFor('category', p => [p.category]),
+        group: countsFor('group', p => [p.group], CATALOG_GROUP_ORDER),
+        category: countsFor('category', p => [p.category], CATALOG_CATEGORY_ORDER),
         brand: countsFor('brand', p => [p.brand]),
         rating: countsFor('rating', p => ratingBuckets(p.rating.average)),
       },

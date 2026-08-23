@@ -147,4 +147,4 @@ function catalogCardMediaHtml(item, escapeHtmlFn, escapeAttrFn) {
 // (nodejs_compat) çalışır — src/routes/product.js buradan CJS interop ile import eder (bkz.
 // src/routes/project.js'in il-ilce-data.js için kullandığı AYNI desen — bu dosya da canonical veri
 // DEĞİL, salt statik bir taksonomi referans tablosu).
-if (typeof module !== 'undefined') { module.exports = { CATALOG_TAXONOMY, taxonomyGroupOf }; }
+if (typeof module !== 'undefined') { module.exports = { CATALOG_TAXONOMY, CATALOG_MENU_COLUMNS, taxonomyGroupOf }; }
