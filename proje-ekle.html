@@ -173,6 +173,18 @@
     white-space:nowrap;
   }
   .date-range-row-btn:hover{background:var(--paper-alt);}
+  .date-range-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .date-range-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    border:1px solid var(--line); border-radius:100px; padding:5px 6px 5px 12px;
+    font-size:12.5px; color:var(--ink); background:var(--paper-alt);
+  }
+  .date-range-remove-btn{
+    flex-shrink:0; width:18px; height:18px; line-height:1; border-radius:50%; border:none;
+    background:transparent; color:var(--ink-soft); font-size:15px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .date-range-remove-btn:hover{background:var(--paper); color:var(--ink);}
   .check-grid{display:flex; flex-wrap:wrap; gap:8px;}
   .check-pill{
     display:inline-flex; align-items:center; gap:6px;
@@ -535,13 +547,24 @@ function trLower(s){
 
 // Depolama/backend formatı zaten " / " ile ayrılan çoklu aralıkları destekliyor (bkz.
 // src/routes/project.js#parseProjectDateYear, dateBucketFor) — bu UI o kuralı biçimlendiriyor.
-let dateRows = [{ start: '', end: '' }];
+// "+ Ekle" artık yeni bir kutucuk çifti AÇMIYOR: girilen tarih metin olarak listeye eklenip
+// kutucuklar sıfırlanıyor, aynı kutucuklar bir sonraki tarih için yeniden kullanılıyor.
+// Kutucuğa yazılıp Ekle'ye hiç basılmadan bırakılan değer de (committedDates listesine
+// eklenmemiş olsa da) buildDateString() tarafından künyeye dahil edilir.
+let committedDates = []; // eklenmiş, biçimlendirilmiş tarih metinleri (ör. "1001-1002")
+let pendingDate = { start: '', end: '' }; // kutucuklarda o an yazılı, henüz "Ekle"lenmemiş değer
+
+function formatDateRow(row){
+  const start = (row.start || '').trim();
+  const end = (row.end || '').trim();
+  if(start && end) return `${start}-${end}`;
+  return start || end;
+}
 
 function parseDateStringToRows(dateStr){
   const raw = (dateStr || '').trim();
-  if(!raw) return [{ start: '', end: '' }];
+  if(!raw) return [];
   const parts = raw.split('/').map(s => s.trim()).filter(Boolean);
-  if(!parts.length) return [{ start: '', end: '' }];
   return parts.map(part => {
     const m = part.match(/^(\d{1,4})\s*-\s*(\d{1,4})$/);
     if(m) return { start: m[1], end: m[2] };
@@ -549,36 +572,51 @@ function parseDateStringToRows(dateStr){
   });
 }
 
-function buildDateString(rows){
-  return rows.map(r => {
-    const start = (r.start || '').trim();
-    const end = (r.end || '').trim();
-    if(start && end) return `${start}-${end}`;
-    return start || end;
-  }).filter(Boolean).join(' / ');
+function loadDateRowsFromString(dateStr){
+  committedDates = parseDateStringToRows(dateStr).map(formatDateRow).filter(Boolean);
+  pendingDate = { start: '', end: '' };
+  renderDateRows();
+}
+
+function buildDateString(){
+  const rows = committedDates.slice();
+  const pending = formatDateRow(pendingDate);
+  if(pending) rows.push(pending);
+  return rows.filter(Boolean).join(' / ');
 }
 
 function renderDateRows(){
   const container = document.getElementById('p-date-rows');
-  container.innerHTML = dateRows.map((row, i) => `
-    <div class="date-range-row">
-      <input type="text" class="p-date-start" data-index="${i}" placeholder="Başlangıç" value="${escapeAttr(row.start)}">
-      <input type="text" class="p-date-end" data-index="${i}" placeholder="Bitiş" value="${escapeAttr(row.end)}">
-      <button type="button" class="date-range-row-btn" data-index="${i}" data-action="${i === 0 ? 'add' : 'remove'}">${i === 0 ? '+ Ekle' : 'Sil'}</button>
+  const listHtml = committedDates.length ? `
+    <div class="date-range-list">
+      ${committedDates.map((d, i) => `
+        <div class="date-range-chip">
+          <span>${escapeAttr(d)}</span>
+          <button type="button" class="date-range-remove-btn" data-index="${i}" aria-label="Sil">&times;</button>
+        </div>
+      `).join('')}
     </div>
-  `).join('');
-  container.querySelectorAll('.p-date-start, .p-date-end').forEach(input => {
-    input.addEventListener('input', (e) => {
-      const idx = parseInt(e.target.dataset.index, 10);
-      const field = e.target.classList.contains('p-date-start') ? 'start' : 'end';
-      dateRows[idx][field] = e.target.value;
-    });
+  ` : '';
+  container.innerHTML = `
+    <div class="date-range-row">
+      <input type="text" class="p-date-start" placeholder="Başlangıç" value="${escapeAttr(pendingDate.start)}">
+      <input type="text" class="p-date-end" placeholder="Bitiş" value="${escapeAttr(pendingDate.end)}">
+      <button type="button" class="date-range-row-btn" id="p-date-add-btn">+ Ekle</button>
+    </div>
+    ${listHtml}
+  `;
+  container.querySelector('.p-date-start').addEventListener('input', (e) => { pendingDate.start = e.target.value; });
+  container.querySelector('.p-date-end').addEventListener('input', (e) => { pendingDate.end = e.target.value; });
+  container.querySelector('#p-date-add-btn').addEventListener('click', () => {
+    const formatted = formatDateRow(pendingDate);
+    if(formatted) committedDates.push(formatted);
+    pendingDate = { start: '', end: '' };
+    renderDateRows();
   });
-  container.querySelectorAll('.date-range-row-btn').forEach(btn => {
+  container.querySelectorAll('.date-range-remove-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.target.dataset.index, 10);
-      if(e.target.dataset.action === 'add') dateRows.push({ start: '', end: '' });
-      else dateRows.splice(idx, 1);
+      const idx = parseInt(e.currentTarget.dataset.index, 10);
+      committedDates.splice(idx, 1);
       renderDateRows();
     });
   });
@@ -1019,8 +1057,7 @@ async function prefillForEdit(){
         }
       }
     }
-    dateRows = parseDateStringToRows(item.date);
-    renderDateRows();
+    loadDateRowsFromString(item.date);
     document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (item.type || []).includes(cb.value));
     updateGrupLabel();
     // item.office === null: bu taslak migrations/0030'dan ÖNCE kaydedilmiş, designer alanı Mimar+Firma
@@ -1117,8 +1154,7 @@ async function prefillForClaim(){
       }
     }
   }
-  dateRows = parseDateStringToRows(merged.date);
-  renderDateRows();
+  loadDateRowsFromString(merged.date);
   document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (merged.type || []).includes(cb.value));
   updateGrupLabel();
   {
@@ -1224,7 +1260,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(!buildDateString(dateRows)){
+  if(!buildDateString()){
     notice.textContent = 'Bir tarih gir.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
@@ -1260,7 +1296,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     // parantez içini district kabul ederek) doğrudan destekliyor, ters eşlemeye hiç ihtiyaç kalmıyor.
     location: selectedIlce ? `${selectedIl} (${selectedIlce})` : selectedIl,
     locationDetail: null,
-    date: buildDateString(dateRows),
+    date: buildDateString(),
     build_status, conceptCategory, category, type, discipline, designer, office, brands, awards,
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
