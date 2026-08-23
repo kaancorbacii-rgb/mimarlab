@@ -25,6 +25,7 @@ const ModalShell = (function () {
   let pendingGoBack = null; // bkz. goBackAndWait/waitForPendingNav
   let pendingGoBackSuperseded = false; // bkz. waitForPendingNav/wasCurrentPopSuperseded
   let contentOwner = null; // bkz. claimContent — panelleri en son hangi modal (auth/office/architect/project/product) doldurdu
+  let ssrDefaults = null; // bkz. setSsrDefaults/resetSsrEntity — sayfa kendi jenerik liste meta'sını burada bir kez kaydeder
   // gerçek bulgu (denetim, 2026-08-16): setupOneGridScrollArrows() her .related-grid-scroll/
   // .catalog-grid-scroll elemanına bir ResizeObserver + bir MutationObserver bağlıyordu ama hiçbiri
   // asla disconnect() edilmiyordu. claimContent() sahip DEĞİŞTİĞİNDE (ör. proje popup'ından firma
@@ -367,6 +368,42 @@ const ModalShell = (function () {
     return { leftPanelEl: overlayEl.querySelector('.modal-shell-left'), rightPanelEl: overlayEl.querySelector('.modal-shell-right'), bodyEl, panelEl };
   }
 
+  // gerçek bulgu (kullanıcı isteği: "popup kapatınca bazen bilgiler ekranda kalıyor"): proje/mimar/
+  // firma/urun.html sayfaları /proje/:slug gibi bir kayıt yoluyla DOĞRUDAN açıldığında (paylaşılan
+  // link, arama sonucu, F5) sunucu <title>/#entity-h1/#ssr-entity-body'yi o kaydın GERÇEK içeriğiyle
+  // HTML'e gömer (bkz. src/index.js#injectMeta) — modal bunun ÜSTÜNE bir overlay açar. pushHistory
+  // false olan bu "hydration" açılışında close() yalnızca history.pushState ile URL'i /proje'ye
+  // geri yazıyordu; sunucunun HTML'e gömdüğü bu üç öğeye hiç dokunmuyordu, çünkü onlar modalın değil
+  // sayfanın kendi DOM'unun bir parçası. Sonuç: overlay kapanınca listenin ÜSTÜNDE artık :empty
+  // olmayan #ssr-entity-body (CSS'teki .ssr-entity:empty{display:none} artık uygulanmıyor) ve eski
+  // kaydın adını taşıyan h1/sekme başlığı kalıcı olarak görünür kalıyordu. setSsrDefaults() ile her
+  // sayfa kendi jenerik liste meta'sını BİR KEZ kaydeder; close() burada (dört modal tipinin de TEK
+  // ortak kapanış noktası) her kapanışta bu jenerik değerlere sıfırlar — swap()/goBackAndWait ile
+  // AYNI tür içinde gezinirken close() hiç çağrılmadığından yanlışlıkla araya girmez.
+  function resetSsrEntity() {
+    if (!ssrDefaults) return;
+    document.title = ssrDefaults.title;
+    const h1 = document.querySelector('.page-head h1');
+    if (h1) h1.textContent = ssrDefaults.h1;
+    const bodyEl2 = document.getElementById('ssr-entity-body');
+    if (bodyEl2) bodyEl2.innerHTML = '';
+    const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
+    setIf('meta-description', 'content', ssrDefaults.description);
+    setIf('canonical-link', 'href', ssrDefaults.canonicalUrl);
+    setIf('og-type', 'content', ssrDefaults.ogType || 'website');
+    setIf('og-title', 'content', ssrDefaults.title);
+    setIf('og-description', 'content', ssrDefaults.description);
+    setIf('og-url', 'content', ssrDefaults.canonicalUrl);
+    setIf('og-image', 'content', ssrDefaults.image);
+    const publishedTimeEl = document.getElementById('og-article-published-time');
+    if (publishedTimeEl) publishedTimeEl.setAttribute('content', '');
+    setIf('twitter-title', 'content', ssrDefaults.title);
+    setIf('twitter-description', 'content', ssrDefaults.description);
+    setIf('twitter-image', 'content', ssrDefaults.image);
+  }
+
+  function setSsrDefaults(defaults) { ssrDefaults = defaults; }
+
   function close() {
     if (!opened) return;
     opened = false;
@@ -376,6 +413,7 @@ const ModalShell = (function () {
     if (triggerEl && document.contains(triggerEl)) triggerEl.focus();
     triggerEl = null;
     onRequestClose = null;
+    resetSsrEntity();
   }
 
   function isOpen() { return opened; }
@@ -475,5 +513,5 @@ const ModalShell = (function () {
 
   function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
 
-  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded };
+  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults };
 })();

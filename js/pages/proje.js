@@ -15,6 +15,19 @@
 const PAGE_SIZE = 24;
 let currentPage = 1;
 
+// kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
+// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /proje/:slug
+// ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK proje içeriğinin üzerine ProjectModal
+// kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
+ModalShell.setSsrDefaults({
+  title: 'Projeler — MİMARLAB',
+  h1: 'Projeler',
+  description: "Türkiye'den öne çıkan mimarlık, iç mimarlık ve peyzaj mimarlığı projeleri.",
+  canonicalUrl: 'https://mimarlab.com/proje',
+  ogType: 'website',
+  image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
+});
+
 // il-ilce-data.js#parseLocationFull artık 81 ilin tamamında ilçe -> il çözümlemesi yapıyor
 // (eskiden yalnızca İstanbul ilçeleri tanınırdı) — bu dosyadaki tüm çağrılar (filtre, künye linki
 // çözümü) parseLocation adıyla değişmeden çalışsın diye burada aynı isimle yeniden dışa verilir.

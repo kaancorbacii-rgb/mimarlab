@@ -464,6 +464,19 @@ const PAGE_SIZE = 24;
 let currentPage = 1;
 let searchQuery = '';
 
+// kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
+// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /firma/:slug
+// ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK firma içeriğinin üzerine OfficeModal
+// kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
+ModalShell.setSsrDefaults({
+  title: 'Firmalar — MİMARLAB',
+  h1: 'Firmalar',
+  description: "Türkiye'nin mimarlık, iç mimarlık ve peyzaj mimarlığı firmalarını keşfet.",
+  canonicalUrl: 'https://mimarlab.com/firma',
+  ogType: 'website',
+  image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
+});
+
 // Sunucudan (data.filters) gelen loc/cat seçeneklerini <select>'lere yeniden çizer — eski
 // client-side hesaplı populateFilters()'ın AYNI görsel sonucu, yalnızca veri kaynağı sunucu.
 function populateFilterOptions(filtersData){

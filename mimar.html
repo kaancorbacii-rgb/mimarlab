@@ -441,6 +441,19 @@ const PAGE_SIZE = 24;
 let currentPage = 1;
 let searchQuery = '';
 
+// kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
+// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /mimar/:slug
+// ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK mimar içeriğinin üzerine ArchitectModal
+// kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
+ModalShell.setSsrDefaults({
+  title: 'Mimarlar — MİMARLAB',
+  h1: 'Mimarlar',
+  description: "Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.",
+  canonicalUrl: 'https://mimarlab.com/mimar',
+  ogType: 'website',
+  image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
+});
+
 // Bilinen pozisyon kovaları için tercih edilen görüntüleme sırası — listede olmayan (gelecekte
 // mimar-ekle.html#POZISYON_OPTIONS'a eklenebilecek) bir değer sona, alfabetik eklenir (bkz. aşağıdaki
 // positionSel bloğu — artık HTML'de sabit <option> yok, TÜMÜ sunucudan gelen sayaçlardan üretilir).

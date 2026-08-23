@@ -1053,6 +1053,20 @@ window.addEventListener('popstate', ()=>{
 // çağrıları (filtre/sıralama/mega menü tıklaması) kullanıcı etkileşimiyle tetiklendiğinden zaten
 // DOMContentLoaded sonrası gerçekleşiyor, bu yüzden yalnızca İLK otomatik çağrı sarmalanır.
 document.addEventListener('DOMContentLoaded', ()=>{
+  // kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
+  // resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#page-title/meta değerleri, /urun/:slug
+  // ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK ürün içeriğinin üzerine ProductModal
+  // kapanınca geri yazılabilsin diye burada bir kez kaydedilir (DOMContentLoaded'a sarmalı — bu
+  // inline script defer OLMADAN çalıştığından ModalShell henüz tanımsız olabilir, bkz. yukarıdaki
+  // AYNI gerçek bulgu yorumu).
+  ModalShell.setSsrDefaults({
+    title: 'Ürünler — MİMARLAB',
+    h1: 'Ürünler',
+    description: 'Mimarların ve tasarımcıların projelerinde kullandığı mobilya, dekorasyon ürünü ve yapı malzemesini keşfet.',
+    canonicalUrl: 'https://mimarlab.com/urun',
+    ogType: 'website',
+    image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
+  });
   applyStateFromUrl();
   if(currentViewMode() === 'landing'){
     updateHeader('landing');
