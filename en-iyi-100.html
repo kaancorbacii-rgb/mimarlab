@@ -931,6 +931,10 @@
   }
   .top100-action-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .top100-action-btn.saved{background:var(--accent); color:var(--ink); border-color:var(--accent);}
+  /* kullanıcı isteği: daha önce puanladığın satırda Puanla düğmesindeki yıldız TAMAMEN turuncu
+     görünsün (bkz. paintRatedStars) — yalnızca yıldız ikonu boyanır, düğmenin geri kalanı (metin/
+     çerçeve) .top100-action-btn'in normal görünümünde kalır. */
+  .top100-rate-icon-filled{color:var(--accent);}
   .top100-quick-actions .share-btn{height:28px !important; width:28px !important; min-width:28px !important;}
 
   /* Hızlı Puanla popup'ı (bkz. kullanıcı isteği, IMDB referansı: "Rate this" kartı) — satırdaki
@@ -1170,6 +1174,9 @@
 
     var ICON_SAVE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>';
     var ICON_STAR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5l3.09 6.26 6.91 1-5 4.87 1.18 6.87L12 17.98l-6.18 3.52L7 14.63l-5-4.87 6.91-1L12 2.5Z"/></svg>';
+    // kullanıcı isteği: daha önce puanladığın projede Puanla düğmesindeki yıldız TAMAMEN turuncu
+    // (dolu) görünsün — bkz. aşağıdaki paintRatedStars, ICON_STAR yerine bunu takar.
+    var ICON_STAR_FILLED = '<svg class="top100-rate-icon-filled" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l3.09 6.26 6.91 1-5 4.87 1.18 6.87L12 17.98l-6.18 3.52L7 14.63l-5-4.87 6.91-1L12 2.5Z"/></svg>';
 
     var TOP100_ITEMS = [];
     var TOP100_SORT = 'rank';
@@ -1448,6 +1455,7 @@
     // burada ARTIK çağrılmıyor, çünkü satırlarda .rating-widget hiç yok (yalnızca .top100-rate-btn).
     function wireQuickActions(items){
       if(typeof wireSaveButtons === 'function') wireSaveButtons('project');
+      paintRatedStars();
       if(typeof ShareWidget !== 'undefined'){
         items.forEach(function(item){
           if(!item.slug) return;
@@ -1626,30 +1634,50 @@
     var ratePopupSelected = 0;
     var ratePopupHover = 0;
 
-    function renderRatePopupStars(){
-      var eff = ratePopupHover || ratePopupSelected;
+    // gerçek bulgu (kullanıcı bulgusu, canlıda doğrulandı): 5 yıldız düğmesi önceden her hover/click'te
+    // ratePopupStars.innerHTML = ... ile BAŞTAN yeniden yaratılıyordu — fare bir yıldızın üzerine
+    // gelince (mouseover) düğmeler DOM'dan silinip aynı konumda YENİ düğmelerle değiştiriliyordu.
+    // Gerçek bir fare tıklaması mousedown→mouseover(lar)→mouseup→click sırasıyla ilerlediğinden,
+    // mousedown'ı alan düğme mouseup'tan ÖNCE bu innerHTML sıfırlamasıyla DOM'dan kopuyor ve
+    // tarayıcı click olayını hiç sentezleyemiyordu (hover'daki turuncu ÖNİZLEME göründüğü hâlde tıklama
+    // hiç ETKİ ETMİYORDU — ekran görüntüsündeki BOZUK davranışın birebir açıklaması). Kökten çözüm:
+    // 5 düğme popup ÖMRÜ boyunca TEK SEFER yaratılır (buildRatePopupStars, aşağıda çağrılır), hover/
+    // seçim güncellemeleri (paintRatePopupStars) yalnızca MEVCUT düğmelerin class'ını/iç SVG'sini
+    // değiştirir — düğme nesnelerinin kendisi asla yok edilip yeniden yaratılmaz, delege
+    // dinleyicilerin hedefi HER ZAMAN aynı kalır.
+    function buildRatePopupStars(){
       var html = '';
       for(var i = 1; i <= 5; i++){
-        html += '<button type="button" class="rate-popup-star' + (i <= eff ? ' filled' : '') + '" data-value="' + i + '" aria-label="' + i + ' yıldız">' + starSvg(i <= eff, 30) + '</button>';
+        html += '<button type="button" class="rate-popup-star" data-value="' + i + '" aria-label="' + i + ' yıldız"></button>';
       }
       ratePopupStars.innerHTML = html;
+    }
+    buildRatePopupStars();
+    function paintRatePopupStars(){
+      var eff = ratePopupHover || ratePopupSelected;
+      ratePopupStars.querySelectorAll('.rate-popup-star').forEach(function(btn){
+        var v = parseInt(btn.dataset.value, 10);
+        var isFilled = v <= eff;
+        btn.classList.toggle('filled', isFilled);
+        btn.innerHTML = starSvg(isFilled, 30);
+      });
     }
     ratePopupStars.addEventListener('mouseover', function(e){
       var btn = e.target.closest('.rate-popup-star');
       if(!btn) return;
       ratePopupHover = parseInt(btn.dataset.value, 10);
-      renderRatePopupStars();
+      paintRatePopupStars();
     });
     ratePopupStars.addEventListener('mouseleave', function(){
       ratePopupHover = 0;
-      renderRatePopupStars();
+      paintRatePopupStars();
     });
     ratePopupStars.addEventListener('click', function(e){
       var btn = e.target.closest('.rate-popup-star');
       if(!btn) return;
       ratePopupSelected = parseInt(btn.dataset.value, 10);
       ratePopupSubmit.disabled = false;
-      renderRatePopupStars();
+      paintRatePopupStars();
     });
 
     function closeRatePopup(){
@@ -1671,7 +1699,7 @@
       ratePopupNotice.classList.remove('show');
       ratePopupSubmit.disabled = true;
       ratePopupSubmit.textContent = 'Gönder';
-      renderRatePopupStars();
+      paintRatePopupStars();
       ratePopupOverlay.classList.add('open');
       document.body.style.overflow = 'hidden';
       // Daha önce puanladıysa popup açılışında kendi puanını görsün (IMDB'deki AYNI davranış) —
@@ -1680,7 +1708,7 @@
         var mine = await loadMyRatings();
         if(ratePopupSlug !== slug) return; // bu arada başka bir satır açılmışsa bayat sonucu ATLA
         var val = mine.get('project:' + slug);
-        if(val){ ratePopupSelected = val; ratePopupSubmit.disabled = false; renderRatePopupStars(); }
+        if(val){ ratePopupSelected = val; ratePopupSubmit.disabled = false; paintRatePopupStars(); }
       }catch(e){}
     }
 
@@ -1693,7 +1721,36 @@
     }
 
     function refreshTop100AfterRating(){
+      // myRatingsPromise — rating-widget.js'in ÜST SEVİYE 'let' değişkeni, bkz. o dosyanın en üstü:
+      // klasik (module OLMAYAN) <script>'lerin top-level let/const/function bildirimleri AYNI Realm'in
+      // global sözcük ortamını paylaşır, bu yüzden bu sayfanın kendi script'inden de isimle erişilip
+      // sıfırlanabilir. Puan az önce değiştiğinden loadMyRatings()'in ÖNBELLEKLENMİŞ (bayat) Promise'i
+      // burada geçersiz kılınmazsa, paintRatedStars() bir sonraki render'da hâlâ ESKİ "mine" haritasını
+      // görür ve yeni puanlanan satırın Puanla yıldızı turuncuya DÖNMEZ.
+      myRatingsPromise = null;
       document.getElementById('top100-list').dispatchEvent(new CustomEvent('ratingchange', { bubbles: true }));
+    }
+
+    // kullanıcı isteği: hesap açıkken daha önce puanlanmış bir projede Puanla düğmesindeki yıldız
+    // TAMAMEN turuncu (dolu) görünsün — IMDB'nin zaten puanladığın öğeleri dolu yıldızla işaretlemesiyle
+    // AYNI davranış. loadMyRatings() (rating-widget.js) oturum kapalıyken sessizce boş bir Map döner,
+    // bu yüzden burada AYRICA bir currentUser kontrolüne gerek yok.
+    function paintRatedStars(){
+      if(typeof loadMyRatings !== 'function') return;
+      loadMyRatings().then(function(mine){
+        document.querySelectorAll('.top100-rate-btn').forEach(function(btn){
+          var slug = btn.dataset.slug;
+          if(!slug) return;
+          var rated = mine.get('project:' + slug);
+          var icon = btn.querySelector('svg');
+          if(!icon) return;
+          if(rated && !icon.classList.contains('top100-rate-icon-filled')){
+            icon.outerHTML = ICON_STAR_FILLED;
+          } else if(!rated && icon.classList.contains('top100-rate-icon-filled')){
+            icon.outerHTML = ICON_STAR;
+          }
+        });
+      }).catch(function(){});
     }
 
     // bkz. dosya başı yorumu — AuthModal büyük (118KB) olduğundan her sayfada değil, gerekince
