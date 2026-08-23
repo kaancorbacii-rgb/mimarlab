@@ -55,7 +55,7 @@ echo "1) Homepage"
 check_status "/" 200
 home_html=$(curl -s "$BASE_URL/")
 for js in "image-cdn.js" "overlay-manager.js" "auth-nav.js" "js/components/site-chrome.js"; do
-  if echo "$home_html" | grep -q "$js"; then ok "kritik script mevcut: $js"; else bad "kritik script EKSİK: $js"; fi
+  if [[ "$home_html" == *"$js"* ]]; then ok "kritik script mevcut: $js"; else bad "kritik script EKSİK: $js"; fi
 done
 # denetim regresyon koruması (2026-08-22 P1 düzeltmesi): index.html'in ilk render zincirinin
 # DOMContentLoaded'a alınmadan geriye alınmadığını doğrular — "cdnSrcset is not defined" hatasının
@@ -97,14 +97,14 @@ for kind in project architect firm product; do
   # tam olarak BOŞ konteyner deseni ("...ssr-entity"></div>", araya hiçbir şey enjekte edilmemiş) —
   # yalnızca "id=...">...<" gibi gevşek bir desen kullanmak img/div gibi HERHANGİ bir sonraki
   # etiketle de eşleşirdi (gerçek bulgu: ilk sürümde bu yüzden yanlış pozitif üretti).
-  if echo "$html" | grep -qF '<div id="ssr-entity-body" class="ssr-entity"></div>'; then
+  if [[ "$html" == *'<div id="ssr-entity-body" class="ssr-entity"></div>'* ]]; then
     bad "$path — #ssr-entity-body BOŞ (SSR body içeriği enjekte edilmemiş — P1 regresyonu!)"
-  elif echo "$html" | grep -q 'id="ssr-entity-body"'; then
+  elif [[ "$html" == *'id="ssr-entity-body"'* ]]; then
     ok "$path — #ssr-entity-body dolu (SSR body içeriği mevcut)"
   else
     bad "$path — #ssr-entity-body konteyneri hiç yok (şablon değişmiş olabilir)"
   fi
-  if echo "$html" | grep -q 'application/ld+json'; then
+  if [[ "$html" == *'application/ld+json'* ]]; then
     ok "$path — JSON-LD mevcut"
   else
     bad "$path — JSON-LD EKSİK"
@@ -136,7 +136,7 @@ echo ""
 echo "4) Güvenlik başlıkları (anasayfa)"
 home_headers=$(curl -s -D - -o /dev/null "$BASE_URL/")
 for h in "Content-Security-Policy" "X-Content-Type-Options" "X-Frame-Options" "Strict-Transport-Security"; do
-  if echo "$home_headers" | grep -qi "^$h:"; then
+  if grep -qi "^$h:" <<< "$home_headers"; then
     ok "$h mevcut"
   else
     bad "$h EKSİK"
