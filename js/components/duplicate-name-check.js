@@ -41,7 +41,7 @@ const DuplicateNameCheck = (function () {
   // - input: proje/mimar/firma/ürün adı <input>
   // - type: 'projects'|'architects'|'offices'|'products'|'materials', YA DA bunu döndüren bir
   //   fonksiyon — urun-ekle.html'de Ürün/Malzeme tek formda birleştiğinden (bkz. kullanıcı isteği)
-  //   tür, gönderim anında seçili Grup'tan (CATALOG_GROUP_KIND) hesaplanır, sabit değildir.
+  //   tür, gönderim anında seçili kategoriden (CATALOG_CATEGORY_KIND) hesaplanır, sabit değildir.
   // - brandInput: yalnızca products/materials — Firma <input> (doğal anahtar marka+başlık ikilisi)
   // - getExclude()/getExcludeBrand(): düzenleme modunda kaydın YÜKLENDİĞİ ANDAKİ orijinal ad/marka
   //   değerini döner — kendi kaydını çakışma saymamak için (bkz. handlePublicCheckName#exclude).

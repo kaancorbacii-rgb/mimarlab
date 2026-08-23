@@ -8,49 +8,73 @@
 // Her ürün/malzeme kaydı tek bir "category" (alt kategori/leaf) değeri taşır — Grup (üst kategori)
 // bu dosyadaki haritadan türetilir, ayrı bir DB alanı gerektirmez (bkz. src/lib/submissionTypes.js
 // — category zaten serbest metin bir alan, whitelist yok).
+// 2026-08-23 revizyonu (bkz. kullanıcı isteği: "fotoğrafta görünmeyen kaba inşaat kalemleri
+// menüden çıkarılsın") — taksonomi 13 ana kategoriden 7 mimari sütuna sadeleştirildi:
+//   - Tamamen kaldırıldı (fotoğrafta hiç görünmez): Alçı Sıva, Isı/Su/Ses Yalıtımı, İç/Dış Cephe
+//     Boyası, Kumaş & Döşemelik (koltuk/sandalyenin bir varyantı, bağımsız ürün değil).
+//   - "Sıva & Alçı" ve "Yalıtım" ana kategorileri bu yüzden tamamen kalktı (Dekoratif Sıva hariç,
+//     o doku olarak görünür kaldığından Zemin & Yüzey Kaplama altına taşındı).
+//   - Mermer + Traverten -> tek "Doğal Taş (Mermer & Traverten)" başlığında birleşti.
+//   - PVC/Alüminyum Doğrama + İç Kapı, ayrı bir "Kapı & Pencere" ana kategorisi yerine Cephe grubuna
+//     taşındı (Cephe & Açıklıklar).
+//   - Mutfak & Beyaz Eşya + Banyo, Doğal Taş & Zemin + Boya & Kaplama, Dekorasyon & Aksesuar +
+//     Tekstil & Halı (Kumaş & Döşemelik'siz) birer ana kategoride birleştirildi.
+// Bu birleşmelerden biri (Mutfak & Banyo), kategori (leaf) kind'i artık GRUP seviyesinde değil
+// (bkz. aşağıdaki CATALOG_CATEGORY_KIND) — Mutfak & Banyo altında hem taşınabilir mobilya/ankastre
+// (kind: products) hem yapıya monte sabit ürünler (vitrifiye/armatür/duş, kind: materials) bir arada
+// görünür olması gerektiğinden, eskiden olduğu gibi TEK bir grup->kind eşlemesi artık yeterli değil.
 const PRODUCT_TAXONOMY = {
   "Mobilya": ["Koltuk & Kanepe", "Sandalye & Tabure", "Masa", "Yatak & Baza", "Dolap & Depolama", "Ofis Mobilyası"],
   "Aydınlatma": ["İç Mekan Aydınlatma", "Dış Mekan Aydınlatma", "Sarkıt & Avize"],
-  "Mutfak & Beyaz Eşya": ["Ankastre Ürünler", "Mutfak Mobilyası", "Tezgah"],
-  "Tekstil & Halı": ["Halı", "Perde", "Kumaş & Döşemelik"],
-  "Dekorasyon & Aksesuar": ["Aynalar", "Duvar Objeleri", "Vazo & Obje"],
-  "Dış Mekan": ["Bahçe Mobilyası", "Pergole & Gölgelendirme"],
+  "Mutfak & Banyo": ["Mutfak Mobilyası", "Ankastre Ürünler", "Tezgah"],
+  "Dekorasyon & Tamamlayıcılar": ["Aynalar", "Duvar Objeleri", "Vazo & Obje", "Halı", "Perde"],
+  "Dış Mekan & Peyzaj": ["Bahçe Mobilyası", "Pergole & Gölgelendirme"],
 };
 
-// Not: Sabit/yapıya monte banyo ürünleri (vitrifiye, armatür vb.) kasıtlı olarak burada değil,
-// Malzeme tarafındaki "Banyo" grubunda — inşaat/tadilat aşamasında seçilen bir "yapı malzemesi"
-// olarak ele alınıyor, taşınabilir mobilya/ürünlerden ayrı (bkz. MATERIAL_TAXONOMY).
+// Not: Sabit/yapıya monte banyo ürünleri (vitrifiye, armatür vb.) kasıtlı olarak PRODUCT_TAXONOMY'de
+// değil — inşaat/tadilat aşamasında seçilen bir "yapı malzemesi" olarak ele alınıyor, taşınabilir
+// mobilya/ürünlerden ayrı (kind: materials). "Mutfak & Banyo" grubu görsel/filtre olarak TEK başlık
+// olsa da, bu satırdaki dört kategori PRODUCT_TAXONOMY'deki üç kategoriden farklı bir kind taşır —
+// bkz. CATALOG_CATEGORY_KIND (grup değil kategori seviyesinde ayrım).
 const MATERIAL_TAXONOMY = {
-  "Doğal Taş & Zemin": ["Mermer", "Traverten", "Seramik & Porselen Karo", "Laminat & Parke"],
-  "Boya & Kaplama": ["İç Cephe Boyası", "Dış Cephe Boyası", "Ahşap Kaplama", "Beton Görünümlü Kaplama"],
-  "Cephe & Cam Sistemleri": ["Cephe Sistemleri", "Cam", "Panel & Kompozit"],
-  "Sıva & Alçı": ["Alçı Sıva", "Dekoratif Sıva"],
-  "Yalıtım": ["Isı Yalıtımı", "Su Yalıtımı", "Ses Yalıtımı"],
-  "Kapı & Pencere": ["PVC/Alüminyum Doğrama", "İç Kapı"],
-  "Banyo": ["Vitrifiye", "Armatür", "Duş Sistemleri", "Banyo Mobilyası"],
+  "Mutfak & Banyo": ["Vitrifiye", "Armatür", "Duş Sistemleri", "Banyo Mobilyası"],
+  "Zemin & Yüzey Kaplama": ["Doğal Taş (Mermer & Traverten)", "Seramik & Porselen Karo", "Laminat & Parke", "Ahşap Kaplama", "Beton Görünümlü Kaplama", "Dekoratif Sıva"],
+  "Cephe & Açıklıklar": ["Cephe Sistemleri", "Cam", "Panel & Kompozit", "PVC/Alüminyum Doğrama", "İç Kapı"],
 };
 
 // Birleşik Grup/Kategori filtresi (urun.html) ve birleşik Grup seçici (urun-ekle.html) için.
-// Grup adları iki taksonomi arasında çakışmaz, kategori (leaf) adları da çakışmaz — bu yüzden basit
-// bir merge güvenli.
-const CATALOG_TAXONOMY = { ...PRODUCT_TAXONOMY, ...MATERIAL_TAXONOMY };
+// "Mutfak & Banyo" HER İKİ taksonomide de bir grup taşıdığından (bkz. yukarıdaki not) artık basit
+// bir `{...PRODUCT_TAXONOMY, ...MATERIAL_TAXONOMY}` spread'i GÜVENLİ DEĞİL — MATERIAL_TAXONOMY'de
+// aynı adla bir grup olsaydı PRODUCT_TAXONOMY'dekini sessizce ezerdi. Bunun yerine her iki
+// taksonomideki aynı adlı grupların kategori dizileri birleştirilir (concat), farklı adlı gruplar
+// olduğu gibi kopyalanır.
+const CATALOG_TAXONOMY = {};
+for (const [group, cats] of Object.entries(PRODUCT_TAXONOMY)) {
+  CATALOG_TAXONOMY[group] = [...cats];
+}
+for (const [group, cats] of Object.entries(MATERIAL_TAXONOMY)) {
+  CATALOG_TAXONOMY[group] = CATALOG_TAXONOMY[group] ? [...CATALOG_TAXONOMY[group], ...cats] : [...cats];
+}
 
-// Grup adı -> hangi gönderi tipine ait olduğu ('products' | 'materials'). urun-ekle.html'de seçilen
-// Grup'a göre yeni bir gönderinin /api/products'a mı /api/materials'a mı POST edileceğini belirler.
-const CATALOG_GROUP_KIND = {};
-Object.keys(PRODUCT_TAXONOMY).forEach(g => { CATALOG_GROUP_KIND[g] = 'products'; });
-Object.keys(MATERIAL_TAXONOMY).forEach(g => { CATALOG_GROUP_KIND[g] = 'materials'; });
+// Kategori (leaf) adı -> hangi gönderi tipine ait olduğu ('products' | 'materials'). urun-ekle.html'de
+// seçilen KATEGORİYE göre (artık Grup'a göre DEĞİL, bkz. yukarıdaki not) yeni bir gönderinin
+// /api/products'a mı /api/materials'a mı POST edileceğini belirler — bir Grup (ör. Mutfak & Banyo)
+// hem products hem materials kategorileri barındırabildiğinden bu ayrım grup değil kategori seviyesinde
+// yapılmak ZORUNDA.
+const CATALOG_CATEGORY_KIND = {};
+Object.values(PRODUCT_TAXONOMY).forEach(cats => cats.forEach(c => { CATALOG_CATEGORY_KIND[c] = 'products'; }));
+Object.values(MATERIAL_TAXONOMY).forEach(cats => cats.forEach(c => { CATALOG_CATEGORY_KIND[c] = 'materials'; }));
 
 // urun.html'deki mega menü (bkz. kullanıcı isteği: Architonic tarzı açılır menü) — sadece görsel
 // kolon dizilimi, veri CATALOG_TAXONOMY'den gelir (buradaki grup adları o objedeki anahtarlarla
 // birebir eşleşmeli, yoksa mega menüde görünmez). Yeni bir Grup eklendiğinde burada da bir kolona
 // eklenmezse menüde çıkmaz ama urun.html filtrelerinde çıkmaya devam eder (bu dosya salt görüntü).
 const CATALOG_MENU_COLUMNS = [
-  ['Mobilya', 'Dekorasyon & Aksesuar'],
-  ['Aydınlatma', 'Tekstil & Halı'],
-  ['Mutfak & Beyaz Eşya', 'Dış Mekan', 'Banyo'],
-  ['Doğal Taş & Zemin', 'Boya & Kaplama', 'Cephe & Cam Sistemleri'],
-  ['Sıva & Alçı', 'Yalıtım', 'Kapı & Pencere'],
+  ['Mobilya'],
+  ['Aydınlatma', 'Dekorasyon & Tamamlayıcılar'],
+  ['Mutfak & Banyo'],
+  ['Zemin & Yüzey Kaplama'],
+  ['Cephe & Açıklıklar', 'Dış Mekan & Peyzaj'],
 ];
 
 function taxonomyGroupOf(taxonomy, category) {

@@ -345,19 +345,20 @@ let existingImages = [];
 const editId = new URLSearchParams(window.location.search).get('edit');
 // Ürün ve Malzeme ekleme tek sayfada birleştirildiği için (bkz. kullanıcı isteği), düzenleme
 // linkleri hangi API'ye (products/materials) ait olduğunu ?stype= ile taşır (bkz. save-widget.js#
-// editSubmissionBtnHtml/applyEditButtons). Yeni gönderilerde bu değer, seçilen Grup'a göre
-// CATALOG_GROUP_KIND'dan yeniden hesaplanır (bkz. submit handler).
+// editSubmissionBtnHtml/applyEditButtons). Yeni gönderilerde bu değer, seçilen KATEGORİYE göre
+// CATALOG_CATEGORY_KIND'dan yeniden hesaplanır (bkz. submit handler) — bir Grup (ör. Mutfak & Banyo)
+// hem products hem materials kategorisi barındırabildiğinden artık Grup'a göre değil.
 const editTypeParam = new URLSearchParams(window.location.search).get('stype');
 // applyPrefillItem'in doldurduğu ORİJİNAL başlık/marka — kendi ürününü değiştirmeden kaydederken
 // "zaten yayınlandı" yanlış pozitifine düşmemek için (bkz. js/components/duplicate-name-check.js#
-// attach getExclude). Tür (products/materials) sabit değil, gönderim anında seçili Grup'tan
+// attach getExclude). Tür (products/materials) sabit değil, gönderim anında seçili kategoriden
 // hesaplanır (bkz. aşağıdaki submit handler#kind) — attach'a bunu döndüren bir fonksiyon verilir.
 let originalTitle = '';
 let originalBrand = '';
 const dupNameCheck = DuplicateNameCheck.attach({
   input: document.getElementById('u-title'),
   brandInput: document.getElementById('u-brand'),
-  type: () => (editTypeParam === 'materials' ? 'materials' : (CATALOG_GROUP_KIND[groupSelect.value] || 'products')),
+  type: () => (editTypeParam === 'materials' ? 'materials' : (CATALOG_CATEGORY_KIND[categorySelect.value] || 'products')),
   message: 'Bu ürün zaten yayınlandı.',
   getExclude: () => originalTitle,
   getExcludeBrand: () => originalBrand,
@@ -673,9 +674,11 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     specs: collectSpecs(),
   };
 
-  // Seçilen Grup'un ait olduğu tür (bkz. catalog-taxonomy.js#CATALOG_GROUP_KIND) hangi API'ye
-  // gönderileceğini belirler — Ürün ve Malzeme tek formda birleştiği için (bkz. kullanıcı isteği).
-  const kind = CATALOG_GROUP_KIND[groupSelect.value] || 'products';
+  // Seçilen kategorinin ait olduğu tür (bkz. catalog-taxonomy.js#CATALOG_CATEGORY_KIND) hangi
+  // API'ye gönderileceğini belirler — Ürün ve Malzeme tek formda birleştiği için (bkz. kullanıcı
+  // isteği). Grup değil kategori seviyesinde: bir Grup (ör. Mutfak & Banyo) hem products hem
+  // materials kategorisi barındırabilir.
+  const kind = CATALOG_CATEGORY_KIND[categorySelect.value] || 'products';
   let requestUrl, requestMethod;
   if(adminEditId){
     requestUrl = `/api/admin/legacy/product/${encodeURIComponent(adminEditId)}`;
