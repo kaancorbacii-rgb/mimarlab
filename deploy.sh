@@ -57,6 +57,21 @@ if [ -n "$current_branch" ]; then
   echo "Git dal senkronizasyon kontrolü geçti (diğer worktree'lerde eksik commit yok)."
 fi
 
+# Deploy drift kapanışı (remediation, 2026-08-23) — yukarıdaki guard yalnızca COMMIT edilmiş
+# dallar arasındaki farkı görüyor; bu worktree'nin KENDİ working tree'sindeki commit edilmemiş
+# değişiklikleri görmüyor. `wrangler deploy` her zaman working tree'yi (son commit'i değil) deploy
+# eder - bu yüzden commit edilmemiş yerel bir değişiklik, hiçbir git commit'ine karşılık gelmeyen,
+# izlenemeyen bir production deploy'una yol açabilir (kök neden - bkz. 2026-08-23 remediation
+# raporu, acb26e27'den sonraki commit'siz deeb1be9/dd4a68d2 deploy'ları).
+dirty="$(git status --short)"
+if [ -n "$dirty" ]; then
+  echo "DEPLOY DURDURULDU: working tree temiz değil, commit edilmemiş değişiklikler var:" >&2
+  echo "$dirty" >&2
+  echo "wrangler deploy WORKING TREE'yi deploy eder (son commit'i değil) - bu commit'siz/izlenemeyen bir production versiyonuna yol açar. Önce commit edin ya da değişiklikleri geri alın." >&2
+  exit 1
+fi
+echo "Working tree temizliği kontrolü geçti (commit edilmemiş değişiklik yok)."
+
 # P2 hardening (denetim raporu, 2026-08-23) — "test → build/check → deploy → health check →
 # smoke test" akışının İLK adımı: tamamen yerel/statik (ağ isteği yok, `wrangler dev` başlatmıyor)
 # sözdizimi + P1 regresyon kontrolleri. Başarısız olursa deploy hiç BAŞLAMAZ (bkz. kullanıcı
