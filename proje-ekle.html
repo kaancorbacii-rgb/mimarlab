@@ -164,6 +164,15 @@
   .form-field textarea{resize:vertical; min-height:110px; line-height:1.5;}
   .form-field input:focus-visible, .form-field textarea:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
+  .date-range-row{display:flex; gap:10px; align-items:center; margin-bottom:10px;}
+  .date-range-row:last-child{margin-bottom:0;}
+  .date-range-row input[type=text]{flex:1; min-width:0;}
+  .date-range-row-btn{
+    flex-shrink:0; padding:11px 16px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper); font-family:inherit; font-size:13px; font-weight:600; color:var(--ink);
+    white-space:nowrap;
+  }
+  .date-range-row-btn:hover{background:var(--paper-alt);}
   .check-grid{display:flex; flex-wrap:wrap; gap:8px;}
   .check-pill{
     display:inline-flex; align-items:center; gap:6px;
@@ -299,6 +308,9 @@
     .page-head{padding:28px 18px 0;}
     .form-wrap{padding:20px 18px 70px;}
     .form-row{grid-template-columns:1fr; gap:0;}
+    .date-range-row{flex-wrap:wrap;}
+    .date-range-row input[type=text]{flex-basis:calc(50% - 5px);}
+    .date-range-row-btn{flex-basis:100%;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -345,15 +357,13 @@
 
       <div class="form-section">
         <h2>Temel Bilgiler</h2>
-        <div class="form-row">
-          <div class="form-field">
-            <label for="p-title" id="p-title-label">Proje Adı</label>
-            <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
-          </div>
-          <div class="form-field">
-            <label for="p-date">Tarih</label>
-            <input type="text" id="p-date" name="date" placeholder="ör. 2025 ya da 2007-2012" required>
-          </div>
+        <div class="form-field">
+          <label for="p-title" id="p-title-label">Proje Adı</label>
+          <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
+        </div>
+        <div class="form-field">
+          <label>Tarih</label>
+          <div id="p-date-rows"></div>
         </div>
         <fieldset class="form-field">
           <legend>Konum</legend>
@@ -520,6 +530,58 @@ function escapeAttr(s){
 function trLower(s){
   return (s||'').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
 }
+
+// Depolama/backend formatı zaten " / " ile ayrılan çoklu aralıkları destekliyor (bkz.
+// src/routes/project.js#parseProjectDateYear, dateBucketFor) — bu UI o kuralı biçimlendiriyor.
+let dateRows = [{ start: '', end: '' }];
+
+function parseDateStringToRows(dateStr){
+  const raw = (dateStr || '').trim();
+  if(!raw) return [{ start: '', end: '' }];
+  const parts = raw.split('/').map(s => s.trim()).filter(Boolean);
+  if(!parts.length) return [{ start: '', end: '' }];
+  return parts.map(part => {
+    const m = part.match(/^(\d{1,4})\s*-\s*(\d{1,4})$/);
+    if(m) return { start: m[1], end: m[2] };
+    return { start: part, end: '' };
+  });
+}
+
+function buildDateString(rows){
+  return rows.map(r => {
+    const start = (r.start || '').trim();
+    const end = (r.end || '').trim();
+    if(start && end) return `${start}-${end}`;
+    return start || end;
+  }).filter(Boolean).join(' / ');
+}
+
+function renderDateRows(){
+  const container = document.getElementById('p-date-rows');
+  container.innerHTML = dateRows.map((row, i) => `
+    <div class="date-range-row">
+      <input type="text" class="p-date-start" data-index="${i}" placeholder="Başlangıç" value="${escapeAttr(row.start)}">
+      <input type="text" class="p-date-end" data-index="${i}" placeholder="Bitiş" value="${escapeAttr(row.end)}">
+      <button type="button" class="date-range-row-btn" data-index="${i}" data-action="${i === 0 ? 'add' : 'remove'}">${i === 0 ? '+ Ekle' : 'Sil'}</button>
+    </div>
+  `).join('');
+  container.querySelectorAll('.p-date-start, .p-date-end').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      const field = e.target.classList.contains('p-date-start') ? 'start' : 'end';
+      dateRows[idx][field] = e.target.value;
+    });
+  });
+  container.querySelectorAll('.date-range-row-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.target.dataset.index, 10);
+      if(e.target.dataset.action === 'add') dateRows.push({ start: '', end: '' });
+      else dateRows.splice(idx, 1);
+      renderDateRows();
+    });
+  });
+}
+renderDateRows();
 
 function closeAllDropdowns(){
   document.querySelectorAll('.dd-field.open').forEach(f => f.classList.remove('open'));
@@ -955,7 +1017,8 @@ async function prefillForEdit(){
         }
       }
     }
-    document.getElementById('p-date').value = item.date || '';
+    dateRows = parseDateStringToRows(item.date);
+    renderDateRows();
     document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (item.type || []).includes(cb.value));
     updateGrupLabel();
     // item.office === null: bu taslak migrations/0030'dan ÖNCE kaydedilmiş, designer alanı Mimar+Firma
@@ -1052,7 +1115,8 @@ async function prefillForClaim(){
       }
     }
   }
-  document.getElementById('p-date').value = merged.date || '';
+  dateRows = parseDateStringToRows(merged.date);
+  renderDateRows();
   document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (merged.type || []).includes(cb.value));
   updateGrupLabel();
   {
@@ -1158,6 +1222,12 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
+  if(!buildDateString(dateRows)){
+    notice.textContent = 'Bir tarih gir.';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
   if(!designer.length && !office.length){
     notice.textContent = 'En az bir mimar ya da firma adı gir.';
     notice.classList.add('show');
@@ -1188,7 +1258,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     // parantez içini district kabul ederek) doğrudan destekliyor, ters eşlemeye hiç ihtiyaç kalmıyor.
     location: selectedIlce ? `${selectedIl} (${selectedIlce})` : selectedIl,
     locationDetail: null,
-    date: document.getElementById('p-date').value,
+    date: buildDateString(dateRows),
     build_status, conceptCategory, category, type, discipline, designer, office, brands, awards,
     description: document.getElementById('p-desc').value,
     photoCreditText: document.getElementById('p-credit-text').value || null,
