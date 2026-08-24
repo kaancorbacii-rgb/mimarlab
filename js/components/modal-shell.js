@@ -170,9 +170,12 @@ const ModalShell = (function () {
         /* header satırı (X + Düzenle/Arşivle/Sil) masaüstünde sol üstte (bkz. yukarısı left:32px) ama
            mobil/tablette sağ üste taşınır (bkz. kullanıcı isteği: X her zaman sağ üstte olmalı, tek
            elle erişim/alışılmış konum) — left:auto ile masaüstü değerini iptal edip right ile
-           konumlandırıyoruz; satırın kendisi (X → Düzenle → Arşivle → Sil sırası) hiçbir kırılma
-           noktasında bozulmaz (bkz. kullanıcı isteği: tek satır, tüm görünümlerde AYNI sıra). */
-        .modal-shell-header{left:auto; right:16px; gap:6px;}
+           konumlandırıyoruz. Mobil/tablette ayrıca sıra TERSİNE çevrilir (bkz. kullanıcı isteği: X en
+           sağda, onun hemen solunda Düzenle → Arşivle → Sil sırayla tek satırda) — row-reverse sadece
+           bu satırın iki DOM çocuğunu (X, actions-slot) yer değiştirir, actions-slot'un KENDİ içindeki
+           Düzenle/Arşivle/Sil sırası (ayrı bir flex context, row) bozulmaz. Masaüstünde sıra DEĞİŞMEZ
+           (X → Düzenle → Arşivle → Sil, solda). */
+        .modal-shell-header{left:auto; right:16px; gap:6px; flex-direction:row-reverse;}
         .modal-shell-header-actions{gap:4px;}
         .modal-shell-header-actions a, .modal-shell-header-actions button{padding:0 10px; font-size:11.5px;}
         /* padding-top: kapatma (X) butonu panele position:absolute (top:16px, height:36px) — içerik
