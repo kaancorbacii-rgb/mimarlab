@@ -157,7 +157,7 @@ const RelatedProjects = (function () {
   // girmez (bkz. kullanıcı isteği: "aynı mimara ait başka proje bu kısımda olmamalı") — bu,
   // mount()'a geçirilen excludeSlugsPromise (ArchitectProjects'in gösterdiği TÜM slug'lar) ile sağlanır.
   const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
-  const RESULT_COUNT = 15;
+  const RESULT_COUNT = 12;
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
