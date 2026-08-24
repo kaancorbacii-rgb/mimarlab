@@ -638,7 +638,7 @@ function renderDateRows(){
   ` : '';
   container.innerHTML = `
     <div class="date-range-row">
-      <input type="text" class="p-date-start" placeholder="Başlangıç" value="${escapeAttr(pendingDate.start)}">
+      <input type="text" class="p-date-start" placeholder="Başlangıç (opsiyonel)" value="${escapeAttr(pendingDate.start)}">
       <input type="text" class="p-date-end" placeholder="Bitiş" value="${escapeAttr(pendingDate.end)}">
       <button type="button" class="date-range-row-btn" id="p-date-add-btn">+ Ekle</button>
     </div>

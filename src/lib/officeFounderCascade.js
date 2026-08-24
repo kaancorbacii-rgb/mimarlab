@@ -156,6 +156,12 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
     env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'offices' AND content_key = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE architect_submissions SET office = ? WHERE office = ?`).bind(newName, oldName).run(),
     env.DB.prepare(`UPDATE OR IGNORE admin_badges SET profile_key = ? WHERE profile_type = 'office' AND profile_key = ?`).bind(newName, oldName).run(),
+    // ürün/malzeme "Firma" kutusu (bkz. urun-ekle.html) canonical'a onaylanmadan önce burada
+    // düz metin olarak durur — bir firma yeniden adlandırıldığında bekleyen/onaylı bu taslaklar
+    // da eski adı sonsuza dek göstermeye devam etmesin diye (bkz. kullanıcı isteği: "Bir mimar,
+    // firma, ürün veya proje isimleri değiştiğinde her yerden otomatik olarak güncellensin").
+    env.DB.prepare(`UPDATE product_submissions SET brand = ? WHERE brand = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE material_submissions SET brand = ? WHERE brand = ?`).bind(newName, oldName).run(),
   ]);
 
   let finalSlug = null;
@@ -173,27 +179,36 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
     } else {
       await env.DB.prepare(`UPDATE offices SET name = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, canonRow.id).run();
     }
+    // products.brand_name_raw — canonical ürün satırlarının marka görünen adı brand_office_id'den
+    // CANLI join edilmez (bkz. src/routes/product.js#shapeProductItem, doğrudan brand_name_raw
+    // okunur), o yüzden FK ile bağlı bu firmanın adı değiştiğinde ayrıca burada senkronlanmalı.
+    await env.DB.prepare(`UPDATE products SET brand_name_raw = ?, updated_at = datetime('now') WHERE brand_office_id = ?`).bind(newName, canonRow.id).run();
   }
 
-  // project_submissions.designer bir JSON dizisi (metin olarak saklanır) — SQL ile tek satırda
-  // güvenle değiştirilemeyeceğinden satır satır okunup yazılır. gerçek bulgu (denetim raporu):
-  // önceki sürüm eşleşen HER satır için AYRI, SIRALI bir UPDATE .run() çağırıyordu — tanınmış bir
-  // ofis onlarca projede geçiyorsa, tek bir yeniden adlandırma işlemi sınırsız sayıda sıralı D1
-  // subrequest'i tetikliyordu (free tier'da 50/istek limitine yaklaşabilir). Artık eşleşen satırlar
-  // toplanıp TEK bir env.DB.batch() çağrısıyla yazılıyor (facetCounts.js'teki AYNI desen).
+  // project_submissions.office bir JSON dizisi (metin olarak saklanır, bkz. migrations/
+  // 0030_project_submission_office.sql) — SQL ile tek satırda güvenle değiştirilemeyeceğinden
+  // satır satır okunup yazılır. gerçek bulgu (kullanıcı raporu): bu fonksiyon önceden yanlışlıkla
+  // project_submissions.designer (Mimar alanı) sütununu güncelliyordu — designer ve office
+  // migrations/0030'dan beri ayrı sütunlar (bkz. submissionTypes.js) ve bir firma yeniden
+  // adlandırıldığında asıl ham veri office sütunundaydı, hiç dokunulmuyordu. Bu yüzden proje
+  // popup'ındaki ham-isim fallback'i (bkz. src/routes/project.js#fetchRawDesignerNames) eski
+  // firma adını sonsuza dek göstermeye devam ediyor, canonical (yeni ad) join'i de AYRI bir
+  // "kayıtsız" kutu olarak eklendiğinden iki isim birden görünüyordu. Eşleşen satırlar toplanıp
+  // TEK bir env.DB.batch() çağrısıyla yazılıyor (facetCounts.js'teki AYNI desen, D1 subrequest
+  // limitini aşmamak için).
   const { results } = await env.DB.prepare(
-    `SELECT id, designer FROM project_submissions WHERE designer LIKE ?`
+    `SELECT id, office FROM project_submissions WHERE office LIKE ?`
   ).bind(`%${oldName}%`).all();
-  const designerUpdates = [];
+  const officeUpdates = [];
   for (const row of results) {
     try {
-      const list = JSON.parse(row.designer || '[]');
+      const list = JSON.parse(row.office || '[]');
       if (!Array.isArray(list) || !list.includes(oldName)) continue;
-      const updated = list.map(d => d === oldName ? newName : d);
-      designerUpdates.push(env.DB.prepare(`UPDATE project_submissions SET designer = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id));
+      const updated = list.map(o => o === oldName ? newName : o);
+      officeUpdates.push(env.DB.prepare(`UPDATE project_submissions SET office = ? WHERE id = ?`).bind(JSON.stringify(updated), row.id));
     } catch { /* bozuk JSON — dokunma */ }
   }
-  if (designerUpdates.length) await env.DB.batch(designerUpdates);
+  if (officeUpdates.length) await env.DB.batch(officeUpdates);
   // src/routes/submissions.js/admin.js, düzenlemeden sonra istemciyi (olası yeni) profil sayfasına
   // yönlendirebilmek için nihai slug'a ihtiyaç duyar (bkz. kullanıcı isteği).
   return finalSlug;

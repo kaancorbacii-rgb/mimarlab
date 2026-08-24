@@ -321,9 +321,10 @@
             <label for="u-year">Yıl <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="u-year" name="year" placeholder="ör. 2022" inputmode="numeric">
           </div>
-          <div class="form-field">
+          <div class="form-field ac-field" id="ac-designer-field">
             <label for="u-designer">Tasarımcı <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-designer" name="designer" placeholder="ör. Ahmet Çınar">
+            <input type="text" id="u-designer" name="designer" placeholder="ör. Ahmet Çınar" autocomplete="off">
+            <div class="ac-suggestions" id="ac-designer-suggestions"></div>
           </div>
         </div>
 
@@ -715,6 +716,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
 }
 
 wireAutocompleteLive('u-brand', 'ac-brand-suggestions', '/api/offices/search');
+wireAutocompleteLive('u-designer', 'ac-designer-suggestions', '/api/architects/search');
 
 // P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen, bkz.
 // mimar-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor).
