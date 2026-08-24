@@ -27,7 +27,7 @@ const PRODUCT_TAXONOMY = {
   "Mobilya": ["Koltuk & Kanepe", "Sandalye & Tabure", "Masa", "Yatak & Baza", "Dolap & Depolama", "Ofis Mobilyası"],
   "Aydınlatma": ["İç Mekan Aydınlatma", "Dış Mekan Aydınlatma", "Sarkıt & Avize"],
   "Mutfak & Banyo": ["Mutfak Mobilyası", "Ankastre Ürünler", "Tezgah"],
-  "Dekorasyon & Tamamlayıcılar": ["Aynalar", "Duvar Objeleri", "Vazo & Obje", "Halı", "Perde"],
+  "Dekorasyon & Tamamlayıcılar": ["Aynalar", "Duvar Objeleri", "Akustik Panel", "Vazo & Obje", "Halı", "Perde"],
   "Dış Mekan & Peyzaj": ["Bahçe Mobilyası", "Pergole & Gölgelendirme"],
 };
 
@@ -109,6 +109,13 @@ const CATALOG_BRAND_DOMAINS = {
   "Belenco": "belenco.com", "Weinor": "weinor.de", "Nef Mutfak": "nef.com.tr",
   "NG Kütahya Seramik": "ngkutahyaseramik.com.tr", "Tuna Office": "tunaofis.com",
   "Kaleseramik": "kale.com.tr", "Normod": "normod.com", "Lazzoni": "lazzoni.com",
+  "Kale": "kale.com.tr", "Çanakkale Seramik": "kale.com.tr", "Bocchi": "bocchi.com.tr",
+  "Creavit": "creavit.com.tr", "Feltouch": "feltouch.tr", "Mikodam": "mikodam.com",
+  "Heper": "heperlighting.com", "Lamp83": "lamp83.com.tr", "Avolux": "avolux.com",
+  "Fiberli": "fiberli.com.tr", "B&T Design": "bt.design", "Ersa Mobilya": "ersamobilya.com",
+  "Bürotime": "burotime.com", "Hamm Design": "hamm.com.tr", "Autoban": "autoban.com",
+  "Parla Design": "parladesign.com", "Sandalyeci": "sandalyeci.com", "Tuna Ofis": "tunaofis.com",
+  "Uniqka": "uniqka.com",
 };
 
 const CATALOG_PALETTE = ['#2B425F', '#3E5A78', '#5B7A9B', '#4F6478', '#7C4B4B'];
