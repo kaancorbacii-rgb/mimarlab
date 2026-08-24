@@ -2,6 +2,7 @@
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
+<script>(function(){try{if(/^\/firma\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
@@ -207,6 +208,18 @@
     .ssr-entity{flex-direction:column; padding:0 16px 16px;}
     .ssr-entity img{width:100%; max-width:280px; height:auto;}
   }
+
+  /* bkz. proje.html'deki AYNI gerçek bulgu (kullanıcı isteği, 2026-08-24) — /firma/:slug'a doğrudan
+     girildiğinde çıplak SSR içeriği (.page-head/.ssr-entity) defer script'ler yüklenip OfficeModal
+     devreye girene kadar hiçbir overlay olmadan görünür kalıyordu. <head>'deki senkron script ilk
+     boyamadan önce <html>'e pm-boot-loading ekler; js/pages/firma.js'teki DOMContentLoaded handler
+     OfficeModal.open()'ın Promise'i çözülünce kaldırır. */
+  html.pm-boot-loading .page-head, html.pm-boot-loading #ssr-entity-body{visibility:hidden;}
+  html.pm-boot-loading::before{
+    content:''; position:fixed; inset:0; z-index:160;
+    background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  [data-theme="dark"].pm-boot-loading::before{background:rgba(255,255,255,0.16);}
 
   /* ---------- FILTER SELECT (shared) ---------- */
   .filter-select{position:relative;}
@@ -726,7 +739,23 @@ document.addEventListener('DOMContentLoaded', () => {
 // zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
   const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
-  if(m) OfficeModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+  if (!m) return;
+  // bkz. <head>'deki pm-boot-loading senkron script'i (AYNI gerçek bulgu, proje.html'e bkz.) — çıplak
+  // SSR içeriğini bir "boot veil" ile örttü; OfficeModal.open()'ın Promise'i renderItem()/
+  // renderNotFound() tamamlanana kadar çözülmediğinden, GERÇEK modal tam opak açılana kadar veil
+  // kaldırılmaz. try/catch + zaman aşımı: defer script hiç yüklenmezse (ağ hatası) veil'in sonsuza
+  // dek takılı kalmaması için (bkz. proje.js'teki AYNI gerçek bulgu).
+  const clearBootVeil = () => document.documentElement.classList.remove('pm-boot-loading');
+  const bootVeilSafety = setTimeout(clearBootVeil, 8000);
+  try {
+    OfficeModal.open(decodeURIComponent(m[1]), { pushHistory:false }).finally(() => {
+      clearTimeout(bootVeilSafety);
+      clearBootVeil();
+    });
+  } catch (e) {
+    clearTimeout(bootVeilSafety);
+    clearBootVeil();
+  }
 });
 window.addEventListener('mimarlab-badges-ready', render);
 </script>

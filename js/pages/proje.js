@@ -494,7 +494,28 @@ document.addEventListener('DOMContentLoaded', () => {
 // zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
   const m = location.pathname.match(/^\/proje\/([^/]+)\/?$/);
-  if(m) ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false });
+  if (!m) return;
+  // bkz. proje.html <head>'deki pm-boot-loading senkron script'i AYNI gerçek bulgu — o script ilk
+  // boyamadan önce çıplak SSR içeriğini bir "boot veil" (blur/karartma) ile örttü; ProjectModal.open()
+  // artık renderItem()/renderNotFound() tamamlanana kadar çözülmeyen bir Promise döndürüyor (bkz. o
+  // dosyadaki değişiklik), bu yüzden GERÇEK modal tam opak açılana kadar veil kaldırılmaz — aradaki
+  // hiçbir noktada çıplak içerik bir an bile görünmez.
+  // gerçek bulgu (kullanıcı isteği: veil'in ASLA sonsuza kadar takılı kalmaması gerekiyor): defer
+  // script bir ağ hatasıyla (reklam engelleyici, CDN sorunu) hiç yüklenmezse ProjectModal tanımsız
+  // kalır ve .open(...) çağrısı SENKRON olarak fırlar — .finally() zincirine hiç ulaşılmadan veil
+  // sonsuza dek sayfayı kaplı bırakırdı (orijinal bozuk-flash'tan DAHA KÖTÜ bir regresyon). try/catch
+  // + 8sn'lik savunma amaçlı zaman aşımı, bu köşe durumunda bile veil'in kalkmasını garanti eder.
+  const clearBootVeil = () => document.documentElement.classList.remove('pm-boot-loading');
+  const bootVeilSafety = setTimeout(clearBootVeil, 8000);
+  try {
+    ProjectModal.open(decodeURIComponent(m[1]), { pushHistory:false }).finally(() => {
+      clearTimeout(bootVeilSafety);
+      clearBootVeil();
+    });
+  } catch (e) {
+    clearTimeout(bootVeilSafety);
+    clearBootVeil();
+  }
 });
 
 // wireNavSearch() ve hamburger menü artık js/components/site-chrome.js tarafından merkezi olarak

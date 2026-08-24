@@ -2,6 +2,7 @@
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
+<script>(function(){try{if(/^\/proje\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
@@ -216,6 +217,26 @@
     .ssr-entity{flex-direction:column; padding:0 16px 16px;}
     .ssr-entity img{width:100%; max-width:280px; height:auto;}
   }
+
+  /* gerçek bulgu (kullanıcı isteği, 2026-08-24): /proje/:slug'a DOĞRUDAN girildiğinde (paylaşılan
+     link, F5, Google) sunucunun SEO/no-JS için gömdüğü yukarıdaki .page-head/.ssr-entity, popup'ın
+     KENDİSİ DEĞİL — sade/minimal bir metin görünümü. Bu sayfadaki ~20 defer script yüklenip
+     ProjectModal devreye girene kadar (yavaş bağlantıda gözle görülür sürede) hiçbir overlay/blur
+     olmadan TEK BAŞINA görünür kalıyordu — kullanıcının "popup açılırken kısa süreliğine bozuk hali
+     gözüküyor" dediği tam olarak buydu (ekran kaydında görülen çıplak makale görünümü, önceki
+     düzeltme yalnızca ProjectModal İÇİ geçişleri kapsadığından bunu YAKALAMAMIŞTI). <head>'deki
+     senkron script (JS yüklenmesini/DOMContentLoaded'ı beklemeden, İLK BOYAMADAN ÖNCE) bu URL
+     deseninde <html>'e pm-boot-loading sınıfını ekler; aşağıdaki kural gerçek popup'la (bkz.
+     modal-shell.js#.modal-shell-overlay) AYNI blur/karartma efektini gösterip çıplak içeriği tamamen
+     örter. js/pages/proje.js'teki DOMContentLoaded handler'ı, ProjectModal.open()'ın Promise'i
+     (renderItem/renderNotFound tamamlanınca) çözülünce sınıfı kaldırır — o noktada GERÇEK modal
+     zaten tam opak açılmış olduğundan hiçbir geçiş/flash görünmez. */
+  html.pm-boot-loading .page-head, html.pm-boot-loading #ssr-entity-body{visibility:hidden;}
+  html.pm-boot-loading::before{
+    content:''; position:fixed; inset:0; z-index:160;
+    background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  [data-theme="dark"].pm-boot-loading::before{background:rgba(255,255,255,0.16);}
 
   /* ---------- GRID LAYOUT ---------- */
   .grid-layout{
