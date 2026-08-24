@@ -841,7 +841,10 @@ Promise.all([
   // Admin panelin Site Ayarları sekmesinden seçilen öne çıkan projeler (bkz. src/lib/siteSettings.js#
   // featured_project_slugs) — ayrı, düşük riskli bir istek: başarısız olursa (ya da hiç ayar
   // yoksa) featuredProjectSlugs boş kabul edilir, carousel her zamanki (id DESC) sırasında kalır.
-  fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null),
+  // window.__siteSettingsPromise: auth-nav.js (her sayfada defer ile yüklü) duyuru banner'ı için
+  // AYNI endpoint'i ayrıca çekiyordu — bu script daha erken (defer'sız) çalıştığından promise'i burada
+  // oluşturup paylaşmak, auth-nav.js'in aynı isteği ikinci kez atmasını önler (denetim bulgusu, 2026-08-24).
+  (window.__siteSettingsPromise || (window.__siteSettingsPromise = fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null))),
 ]).then(([yapiRes, architectRes, officeRes, siteSettings])=>{
   if(yapiRes.failed){
     renderSliderError('Projeler şu an yüklenemedi.');

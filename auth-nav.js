@@ -121,8 +121,11 @@
   async function initAnnouncementBanner() {
     let settings;
     try {
-      const res = await fetch('/api/public/site-settings');
-      settings = res.ok ? await res.json() : null;
+      // window.__siteSettingsPromise: index.html'in featured-project inline script'i (defer'sız,
+      // bu deferred script'ten ÖNCE çalışır) aynı endpoint'i zaten çekmiş/çekiyor olabilir — varsa
+      // onu paylaşıp aynı isteği ikinci kez atmayı önlüyoruz (denetim bulgusu, 2026-08-24). Diğer
+      // tüm sayfalarda window.__siteSettingsPromise henüz yok, davranış eskisiyle birebir aynı kalır.
+      settings = await (window.__siteSettingsPromise || (window.__siteSettingsPromise = fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null)));
     } catch { settings = null; }
     if (!settings || !settings.announcementEnabled || !settings.announcementText) return;
     const dismissKey = announcementDismissKey(settings.announcementText);

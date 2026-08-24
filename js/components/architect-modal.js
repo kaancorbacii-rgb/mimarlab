@@ -283,6 +283,19 @@ const ArchitectModal = (function () {
     </a>`;
   }
 
+  // "Ürünler" bölümü (loadProfileContent) modal açılışında HEMEN çekiliyordu — office/colleagues/
+  // related-architects grid'leri (senkron, zaten elde olan `a` verisinden hesaplanır) gibi değil, bu
+  // AYRI bir /api/public/profile-content isteği ve sayfanın alt kısmındaki (5 dikili bölümden 4.)
+  // salt görsel bir bölüm için ilk render/boyama ile yarışıyordu (denetim bulgusu, 2026-08-24).
+  // requestIdleCallback (Safari'de yok, o yüzden setTimeout yedeği) tarayıcı ilk boyamayı bitirdikten
+  // sonra çalışır — js/components/project-modal.js#observeOnce'daki IntersectionObserver deseninden
+  // farklı olarak burada bir viewport çapasına gerek yok (bu bölüm her profilde nihayetinde
+  // gösterilecek, "belki hiç gerekmez" değil — yalnızca İLK boyamayı bloklamaması gerekiyor).
+  function deferToIdle(fn, timeoutMs) {
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: timeoutMs });
+    else setTimeout(fn, timeoutMs);
+  }
+
   // Mimar profiline yazılmış ama offices tablosunda karşılığı olmayan (bkz. src/routes/
   // architect.js#fetchRawOfficeNames, `unregistered: true`) firma adı — js/components/
   // office-modal.js#unregisteredBadgeHtml ile BİREBİR aynı, yuvarlak baş harfli pasif rozet.
@@ -560,7 +573,9 @@ const ArchitectModal = (function () {
     // kuyruğunda bir kez çalışıp kendini temizler.
     if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
 
-    loadProfileContent();
+    // currentItem === a koruması: kullanıcı bu geciken callback ateşlenmeden ÖNCE bir sonraki mimara
+    // geçerse (prev/next), eski profilin verisiyle yeni profilin am-related-products-* DOM'unu ezmesin.
+    deferToIdle(() => { if (currentItem === a) loadProfileContent(); }, 800);
     await savedWidgetReady;
     await claimBox.init();
 

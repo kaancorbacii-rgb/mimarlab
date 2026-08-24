@@ -255,6 +255,14 @@ const OfficeModal = (function () {
     </a>`;
   }
 
+  // js/components/architect-modal.js#deferToIdle ile BİREBİR aynı (bkz. o dosyadaki dosya başı
+  // yorum) — loadRelatedProducts() modal açılışında hemen çekiliyordu, ilk boyamayla yarışan
+  // gereksiz bir istekti (denetim bulgusu, 2026-08-24).
+  function deferToIdle(fn, timeoutMs) {
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: timeoutMs });
+    else setTimeout(fn, timeoutMs);
+  }
+
   // Kurucular kutusuna yazılmış ama architects tablosunda karşılığı olmayan (bkz.
   // src/routes/office.js#fetchRawFounderNames, `unregistered: true`) isimler — tıklanabilir bir
   // profil kartı DEĞİL, yuvarlak baş harfli pasif bir rozet (bkz. kullanıcı isteği).
@@ -572,7 +580,10 @@ const OfficeModal = (function () {
     // AYNI listener-birikimi sorunu — badgesReadyPromise'e geçiş, kalıcı window listener'ı kaldırır.
     if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
 
-    loadRelatedProducts();
+    // currentItem === o koruması: js/components/architect-modal.js#renderItem'daki AYNI gerekçe —
+    // kullanıcı bu geciken callback ateşlenmeden önce bir sonraki firmaya geçerse, eski firmanın
+    // verisiyle yeni firmanın om-related-products-* DOM'unu ezmesin.
+    deferToIdle(() => { if (currentItem === o) loadRelatedProducts(); }, 800);
     await savedWidgetReady;
     await claimBox.init();
 

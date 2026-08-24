@@ -1378,10 +1378,16 @@
 
     function renderTop100(items){
       var list = document.getElementById('top100-list');
-      var rows = items.map(function(item){
+      // .top100-list tek sütun (bkz. .top100-row{display:flex}) — proje.js/mimar.html/firma.html'deki
+      // gibi bir sütun-sayısı hesabına gerek yok, ilk birkaç satır her ekran genişliğinde katlanma
+      // çizgisinin üstünde. Sabit 4: aynı sayfadaki person-card grid'inin mobil (2 sütun) eager
+      // davranışıyla aynı ölçekte, gereğinden fazla eager istek göndermeden ilk görünür satırları kapsar.
+      var TOP100_EAGER_ROW_COUNT = 4;
+      var rows = items.map(function(item, i){
         var rankClass = item.rank <= 3 ? ' top3' : '';
+        var posterImgAttrs = i < TOP100_EAGER_ROW_COUNT ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" fetchpriority="low" decoding="async"';
         var posterInner = item.image
-          ? '<img src="' + escapeAttr(cdnImg(item.image, 220)) + '" alt="" loading="lazy" decoding="async">'
+          ? '<img src="' + escapeAttr(cdnImg(item.image, 220)) + '" alt="" ' + posterImgAttrs + '>'
           : '<div class="top100-poster-placeholder" style="background:' + placeholderColor(item.name) + '">' + escapeHtml(initials(item.name)) + '</div>';
         var posterHtml = item.slug
           ? '<a class="top100-poster-link top100-poster" href="/proje/' + encodeURIComponent(item.slug) + '">' + posterInner + '</a>'

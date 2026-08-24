@@ -537,6 +537,30 @@ const ProductModal = (function () {
   const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section',
     'pr-info-divider', 'pr-feedback-card', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
+  // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
+  // "Firmanın Diğer Ürünleri"/"Benzer Ürünler" bölümleri önceden renderItem() içinde HER AÇILIŞTA
+  // anında (aşağı kaydırmadan önce bile) çekiliyordu; bu iki /api/products?limit=96 isteği katlanma
+  // çizgisinin altındaki içerik için gereksiz yere ilk yükleme ağıyla yarışıyordu (denetim bulgusu,
+  // 2026-08-24). timeoutMs yedeği, bölüm hiç görünür alana girmese bile (kısa modal içeriği) sonsuza
+  // dek yüklenmeden kalmamasını garanti eder.
+  function observeOnce(el, loadFn, timeoutMs) {
+    if (!el) { loadFn(); return; }
+    let done = false;
+    let timer = null;
+    const trigger = () => {
+      if (done) return;
+      done = true;
+      obs.disconnect();
+      if (timer) clearTimeout(timer);
+      loadFn();
+    };
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => { if (entry.isIntersecting) trigger(); });
+    }, { rootMargin: '200px' });
+    obs.observe(el);
+    if (timeoutMs) timer = setTimeout(trigger, timeoutMs);
+  }
+
   async function renderItem(p, key) {
     currentItem = p;
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
@@ -631,8 +655,11 @@ const ProductModal = (function () {
     if (headerActions) headerActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
     mountEditAndAdminButtons(p, key);
 
-    loadCompanyProducts(p, key);
-    loadRelated(p, key);
+    observeOnce(document.getElementById('pr-gallery-wrap'), () => {
+      if (currentItem !== p) return;
+      loadCompanyProducts(p, key);
+      loadRelated(p, key);
+    }, 1200);
     savedWidgetReady.then(() => { if (currentItem === p) wireFeedbackBox(p, key); });
 
     wireInternalNav();
