@@ -28,6 +28,15 @@ function wireSaveButtons(type){
   document.querySelectorAll('.card-save-btn').forEach(btn=>{
     if(!btn.dataset.type) btn.dataset.type = type;
     paintSaveBtn(btn);
+    // gerçek bulgu (denetim, 2026-08-24): wireSaveButtons() hem sayfa yüklenişinde (ızgara için) hem
+    // proje/mimar/firma/ürün modalı her açıldığında (bkz. project-actions.js/architect-modal.js/
+    // office-modal.js/product-modal.js) tekrar çağrılıyordu — arkadaki ızgara DOM'dan hiç kaldırılmadığı
+    // için her çağrı AYNI kalıcı butonlara BİR listener DAHA ekliyordu. N modal açılışından sonra
+    // arkadaki ızgaradaki bir "Kaydet" tıklaması N+1 kez tetiklenip aynı /api/saved isteğini o kadar
+    // kez atıyordu. Diğer paylaşılan script'lerdeki AYNI "wired" bayrağı deseni (bkz. site-chrome.js
+    // #dataset.navSuggestWired) burada da uygulanır.
+    if(btn.dataset.saveWired) return;
+    btn.dataset.saveWired = '1';
     btn.addEventListener('click', async (e)=>{
       e.preventDefault();
       e.stopPropagation();
@@ -85,6 +94,21 @@ async function initSavedWidget(){
 }
 // Sayfa scriptleri, currentUser'ı okumadan önce bunu await edebilir.
 const savedWidgetReady = initSavedWidget();
+
+// gerçek bulgu (denetim, 2026-08-24): auth-modal.js üzerinden (sayfa yeniden yüklenmeden) giriş/
+// üye ol tamamlandığında auth-nav.js#window.refreshAuthNav header'ı günceleyip 'mimarlab:authchange'
+// yayınlıyordu, ama bu dosyadaki modül-seviyesi `currentUser` YALNIZCA sayfa ilk yüklendiğinde bir
+// kez set ediliyordu — sonuç: kullanıcı popup içinden giriş yaptıktan HEMEN sonra (sayfayı hiç
+// yenilemeden) bir proje/ürün kartındaki "Kaydet" butonuna tıklarsa currentUser hâlâ null olduğundan
+// giris-yap.html'e YÖNLENDİRİLİYORDU — nav'daki avatar doğru görünse bile. rating-widget.js#submit()
+// ve claim-correction-box.js/project-actions.js gibi bu dosyanın `currentUser`'ını PAYLAŞAN tüm
+// bileşenler aynı sorunu yaşıyordu. initSavedWidget() burada yeniden çağrılır — window.__authMeFetch
+// refreshAuthNav() tarafından zaten TAZE bir promise'e güncellenmiş olduğundan (bkz. auth-nav.js
+// fresh:true dalı) taze currentUser/savedKeys okunur ve mevcut kartlar yeniden boyanır.
+window.addEventListener('mimarlab:authchange', () => {
+  savedKeys.clear();
+  initSavedWidget();
+});
 
 // "Gönderiyi Düzenle" butonu: proje/ürün/malzeme/haber/iş ilanı kartlarında/detay sayfalarında,
 // gösterilen öğe (source==='member', yani submissionId/id'si olan) mevcut kullanıcının kendi

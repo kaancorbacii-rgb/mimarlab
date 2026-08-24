@@ -6,6 +6,9 @@
 // geçirilir — bu modül escapeAttr/escapeHtml'in çağıran sayfada zaten global olarak tanımlı
 // olduğunu varsayar (bkz. save-widget.js gibi diğer paylaşılan script'lerle aynı desen, her sayfada
 // <script src="js/components/gallery.js"> ile dahil edilir).
+// initDetailGallery çağrılar arasında (bkz. altındaki gerçek bulgu) en son bağlanan document
+// keydown dinleyicisini tutar — modal sahibi değiştiğinde öncekini kaldırıp yerine yenisini koymak için.
+let _detailGalleryKeydownHandler = null;
 function initDetailGallery(opts){
   const images = (opts && opts.images) || [];
   const title = (opts && opts.title) || '';
@@ -144,7 +147,14 @@ function initDetailGallery(opts){
   // Şerit öğelerine tıklama HER çağrıda yeniden bağlanır — galleryEl.innerHTML yukarıda zaten
   // sıfırlandığından bu DOM elemanları her seferinde YENİ, eski listener'lar onlarla birlikte
   // zaten yok oldu (leak riski yok, klasik/beklenen davranış).
-  galleryEl.querySelectorAll('.gallery-item').forEach(a=>{
+  // gerçek bulgu (denetim, 2026-08-24): seçici düz `.gallery-item` idi — görselsiz bir proje/ürün
+  // için gösterilen baş harfli/logo `placeholderHtml` (bkz. ProjectGallery.render/product-modal.js)
+  // de AYNI `.gallery-item` sınıfını taşıyan sade bir <div> (data-index YOK, <a> değil). Bu yüzden
+  // placeholder'a tıklamak da lightbox'ı AÇIYORDU — showLightboxImage NaN indeksle çağrılıp
+  // `!st.images.length` koşulunda hemen dönüyor (görsel hiç set edilmiyor), ama lightbox.open sınıfı
+  // yine de ekleniyor: kullanıcı boş/karanlık, ok/sayaç'sız bir ekranla karşılaşıyordu. Seçici artık
+  // yalnızca gerçek <a class="gallery-item"> küçük resimlerini hedefler.
+  galleryEl.querySelectorAll('a.gallery-item').forEach(a=>{
     a.addEventListener('click', (e)=>{
       e.preventDefault();
       showLightboxImage(parseInt(a.dataset.index, 10));
@@ -193,7 +203,14 @@ function initDetailGallery(opts){
     showLightboxImage(parseInt(a.dataset.index, 10));
     setGridMode(false);
   });
-  lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) lightbox.classList.remove('open'); });
+  // gerçek bulgu: yalnızca `e.target === lightbox` kontrol ediliyordu — "Tümünü Gör" ızgara modunda
+  // lightboxGrid, lightbox'ı `position:absolute; inset:0` ile TAMAMEN kapladığından (bkz. dosya başı
+  // #lightboxGrid oluşturma) tıklama her zaman lightboxGrid'e (ya da bir alt öğesine) düşer, `e.target
+  // === lightbox` bu modda ASLA doğru olmaz — arka plana (karartılmış boşluğa) tıklayarak kapatma
+  // ızgara modunda tamamen ölüydü (X/Escape ile hâlâ kapanabiliyordu, ama tutarsız bir davranış
+  // boşluğuydu). lightboxGrid'in kendisine (bir .lightbox-grid-item'a değil) düşen tıklamalar da
+  // artık aynı şekilde kapatır.
+  lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox || e.target === lightboxGrid) lightbox.classList.remove('open'); });
   // gerçek bulgu: e.stopPropagation() TEK BAŞINA burada işe yaramıyordu — proje modalı (bkz.
   // js/components/modal-shell.js#onKeydown) KENDİ Escape dinleyicisini document'e bu koddan ÖNCE
   // (ModalShell.open() her zaman ensureTemplate()'ten, dolayısıyla bu initDetailGallery çağrısından
@@ -204,7 +221,18 @@ function initDetailGallery(opts){
   // HER ZAMAN bubble fazından önce çalışır (bağlanma sırasından bağımsız olarak), lightbox açıkken
   // burada çağrılan stopPropagation olayın capture'da document'ten hedefe inmesini (dolayısıyla
   // sonraki bubble fazını, yani modal-shell'in dinleyicisini) tamamen durdurur.
-  document.addEventListener('keydown', (e)=>{
+  // gerçek bulgu (denetim, 2026-08-24): bu dinleyici hiç kaldırılmıyordu. Modal "sahibi" değiştiğinde
+  // (bkz. modal-shell.js#claimContent — ör. bir projeden bir firma/mimar popup'ına geçilip sonra
+  // tekrar bir projeye dönüldüğünde) RIGHT_TEMPLATE'in tüm HTML'i (dolayısıyla bu galleryEl/lightbox)
+  // baştan kurulur ve initDetailGallery YENİDEN çağrılır — `galleryEl.dataset.pmWired` yeni elemanda
+  // henüz yokken bu blok tekrar çalışıp document'e BİR dinleyici DAHA ekliyordu; öncekiler artık kopuk
+  // (DOM'dan koparılmış) eski galleryEl/lightbox'a kapalı kalıp asla temizlenmiyordu — modal-shell.js'in
+  // ResizeObserver/MutationObserver'lar için zaten çözdüğü AYNI sınırsız birikim sınıfı (bkz. o
+  // dosyadaki gridObservers/disconnectGridObservers). Pratikte görünür bir bozulmaya yol açmıyordu
+  // (her kopan dinleyici `.classList.contains('open')` kontrolünde hep false alıp no-op kalıyordu),
+  // ama modül-seviyesi TEK bir referansla öncekini kaldırıp yenisini eklemek sızıntıyı kökten kapatır.
+  if(_detailGalleryKeydownHandler) document.removeEventListener('keydown', _detailGalleryKeydownHandler, true);
+  _detailGalleryKeydownHandler = (e)=>{
     if(!lightbox.classList.contains('open')) return;
     if(e.key === 'Escape'){ e.stopPropagation(); lightbox.classList.remove('open'); return; }
     // Izgara modundayken sol/sağ ok tuşları slayt gezinmesini TETİKLEMEMELİ — tekli görsel zaten
@@ -212,7 +240,8 @@ function initDetailGallery(opts){
     if(lightbox.classList.contains('grid-mode')) return;
     if(e.key === 'ArrowLeft') showLightboxImage(galleryEl._pmGalleryState.lightboxIndex - 1);
     else if(e.key === 'ArrowRight') showLightboxImage(galleryEl._pmGalleryState.lightboxIndex + 1);
-  }, true);
+  };
+  document.addEventListener('keydown', _detailGalleryKeydownHandler, true);
 
   // Dokunmatik kaydırma (bkz. kullanıcı isteği: mobil/tablette parmakla görseller arası geçiş) —
   // yatay hareket dikeyden belirgin şekilde baskınsa (aksi halde sayfayı dikey kaydırmaya çalışan bir
@@ -231,12 +260,20 @@ function initDetailGallery(opts){
     touchActive = true;
     touchIntentHorizontal = false;
   }, { passive: true });
+  // gerçek bulgu (denetim, 2026-08-24): preventDefault yalnızca yatay niyet netleştiğinde
+  // çağrılıyordu — dikey (ya da henüz netleşmemiş) bir dokunuş sürüklemesi hiç engellenmediğinden
+  // tarayıcının varsayılan scroll-chaining'i devreye girip lightbox'ın (position:fixed, kendi
+  // scroll edilecek içeriği YOK) ALTINDAKİ .modal-shell-body'yi kaydırıyordu — kullanıcı tam ekran
+  // fotoğrafa bakarken dikey parmak hareketi görünmez şekilde arkadaki proje/ürün sayfasını
+  // kaydırıyor, lightbox kapatıldığında "sayfa sıçramış" gibi hissettiriyordu. Izgara modu dışında
+  // lightbox'ın zaten kaydıracak bir içeriği olmadığından tek-parmak sürüklemesi yöne bakılmaksızın
+  // engellenir; yatay/dikey ayrımı yalnızca navigasyon KARARI (touchend) için korunur.
   lightbox.addEventListener('touchmove', (e)=>{
     if(!touchActive || e.touches.length !== 1) return;
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
     if(!touchIntentHorizontal && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) touchIntentHorizontal = true;
-    if(touchIntentHorizontal) e.preventDefault();
+    e.preventDefault();
   }, { passive: false });
   lightbox.addEventListener('touchend', (e)=>{
     if(!touchActive) return;
@@ -256,8 +293,13 @@ function initDetailGallery(opts){
     // Izgara modunda tekerlek/trackpad, ızgaranın kendi dikey kaydırmasına bırakılır (bkz. touchstart'taki
     // AYNI koruma) — burada erken çıkılmazsa yatay bileşenli bir kaydırma yanlışlıkla slayt değiştirirdi.
     if(lightbox.classList.contains('grid-mode')) return;
-    if(Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    // gerçek bulgu (denetim, 2026-08-24): preventDefault yalnızca yatay-baskın bir kaydırmada
+    // çağrılıyordu — dikey tekerlek/trackpad hareketi (touchmove'daki AYNI kök neden) hiç
+    // engellenmediğinden tam ekran fotoğrafın ALTINDAKİ .modal-shell-body sessizce kaydırılıyordu.
+    // Lightbox'ın (ızgara modu dışında) kendi kaydıracak içeriği olmadığından yön ne olursa olsun
+    // önce engellenir; yalnızca navigasyon KARARI hâlâ yatay-baskın kaydırmayla sınırlı.
     e.preventDefault();
+    if(Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
     if(wheelLock) return;
     wheelLock = true;
     setTimeout(()=>{ wheelLock = false; }, 350);

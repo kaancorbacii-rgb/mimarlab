@@ -318,11 +318,21 @@ const ProjectModal = (function () {
     });
   }
 
+  // gerçek bulgu (denetim, 2026-08-24): fetch() burada try/catch İÇİNDE DEĞİLDİ — çevrimdışı/DNS/
+  // zaman aşımı gibi bir ağ hatasında fetch() reddi hiç yakalanmadan open()/swap()'ın Promise.all(...)
+  // satırından yukarı fırlıyor, hem onlar hem de bunları ateşleyen click handler'lar (async, kimse
+  // await/catch etmiyor) yakalayan olmadan bir unhandled rejection'a dönüşüyordu — renderNotFound()
+  // ASLA çağrılmıyor, modal ModalShell.open()'ın açtığı iskelet (skeleton) durumunda SONSUZA KADAR
+  // kalıyordu (X ile kapatılabilir ama başka hiçbir şey çalışmıyordu). 404/gizli kayıt yolu (res.ok
+  // false) zaten null döndürüp renderNotFound()'ı doğru tetikliyordu — ağ hatasını da AYNI null yola
+  // yönlendirmek, kod değişikliği gerektirmeden open()/swap()'ın var olan "öğe yok" davranışını devreye sokar.
   async function fetchItem(slug) {
-    const res = await fetch(`/api/project/${encodeURIComponent(slug)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.item || null;
+    try {
+      const res = await fetch(`/api/project/${encodeURIComponent(slug)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.item || null;
+    } catch { return null; }
   }
 
   // "X tarafından" satırı — yalnızca üye gönderisi kökenli projelerde dolu (bkz. src/routes/

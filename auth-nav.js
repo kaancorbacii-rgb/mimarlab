@@ -90,6 +90,11 @@
     document.addEventListener('click', (e) => {
       if (!navRight.contains(e.target)) menu.classList.remove('open');
     });
+    // gerçek bulgu (denetim, 2026-08-24): site-chrome.js#wireHamburger ile AYNI boşluk — Hesabım
+    // avatar menüsü yalnızca dışarı tıklama ile kapanıyordu, Escape'e hiç yanıt vermiyordu.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && menu.classList.contains('open')) menu.classList.remove('open');
+    });
     document.getElementById('nav-logout-btn').addEventListener('click', async () => {
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = 'index.html';

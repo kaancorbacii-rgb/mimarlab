@@ -348,6 +348,13 @@
       if(!navMobileMenu.classList.contains('open')) return;
       if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
     });
+    // gerçek bulgu (denetim, 2026-08-24): mega-menü (nav-product-menu.js), arama önerileri paneli
+    // (wireNavSearch aşağıda) ve her modal Escape ile kapanırken, sitedeki hemen her sayfada yer alan
+    // bu mobil hamburger menüsü yalnızca dışarı tıklama/tekrar tıklama ile kapanıyordu — klavye
+    // kullanıcıları (ve Escape'in her yerde çalışmasına alışmış herkes) için tutarsız bir boşluktu.
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape' && navMobileMenu.classList.contains('open')) navMobileMenu.classList.remove('open');
+    });
   }
 
   const headerMount = document.getElementById('site-header-mount');

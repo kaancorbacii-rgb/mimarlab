@@ -535,9 +535,14 @@ const OfficeModal = (function () {
     renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, []);
 
     const PROFILE_TYPE = 'office';
+    // gerçek bulgu (denetim, 2026-08-24, bkz. architect-modal.js'teki AYNI 2026-08-24 güncellemesi/
+    // claim-correction-box.js#config.isStale yorumu) — kurucular/ekip ızgarasından hızlıca başka bir
+    // firmaya geçildiğinde eski claimBox'ın Sil/Arşivle butonlarının YENİ görünen firmanın header'ına
+    // yazılmasını önler.
     const claimBox = createClaimCorrectionBox({
       profileType: PROFILE_TYPE,
       ready: savedWidgetReady,
+      isStale: () => currentItem !== o,
       getProfileKey: () => o.name,
       // bkz. js/components/architect-modal.js'teki AYNI 2026-08-17 güncellemesi/gerekçe — çirkin
       // %-encode'lu "?claim=" URL'leri yerine temiz slug'a öncelik verilir (firma-ekle.html#
@@ -615,12 +620,17 @@ const OfficeModal = (function () {
     });
   }
 
+  // gerçek bulgu (denetim, 2026-08-24, bkz. project-modal.js#fetchItem'daki AYNI kök neden): ağ hatası
+  // burada da yakalanmıyordu — open()/swap() renderNotFound()'ı hiç tetikleyemeden modal iskelet
+  // durumunda kalıyordu. Ağ hatası artık 404/gizli kayıtla AYNI null yola yönlendirilir.
   async function fetchItem(slug) {
-    const res = await fetch(`/api/office/${encodeURIComponent(slug)}`);
-    if (!res.ok) return null;
-    const payload = await res.json();
-    if (!payload || !payload.item || payload.hidden) return null;
-    return payload;
+    try {
+      const res = await fetch(`/api/office/${encodeURIComponent(slug)}`);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      if (!payload || !payload.item || payload.hidden) return null;
+      return payload;
+    } catch { return null; }
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null } = {}) {

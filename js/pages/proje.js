@@ -51,6 +51,12 @@ const FILTER_GROUPS = [
 const activeFilters = {};
 FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
 let localSearchQuery = '';
+// gerçek bulgu (denetim, 2026-08-24): grup içi "Ara..." kutusuna (bkz. buildSidebar#filter-search-input)
+// yazılan metin hiçbir state'te tutulmuyordu, yalnızca DOM'da yaşıyordu — buildSidebar() sidebar.innerHTML'i
+// checkbox tıklanan grup FARKLI olsa bile HER checkbox değişiminde TAMAMEN yeniden kurduğundan, bir
+// grubu daraltıp bir sonucu işaretlemek o kutudaki yazıyı sessizce siliyor, liste tam listeye geri
+// dönüyordu. Grup anahtarına göre son yazılan metni burada saklayıp buildSidebar() sonunda geri uygularız.
+const groupSearchQueries = {};
 
 // proje-detay.html künyesindeki Tür/Tip/Yer/Yıl değerleri buraya bu filtreyi önceden uygulanmış
 // şekilde bağlanır (bkz. o dosyadaki filterLinkHtml) — ve artık ?page=N ile doğrudan girilen bir
@@ -122,13 +128,22 @@ function optRow(g, opt, count, nested){
 // Sidebar artık kendi kendine (client-side computeOptions ile) hesap yapmıyor — /api/projects/filters
 // (bkz. src/routes/project.js#handleProjectFiltersRoute) TEK doğruluk kaynağı: hem hangi seçeneklerin
 // var olduğunu hem de faceted (diğer aktif filtrelerle bağımlı) sayaçları döner.
+// gerçek bulgu (denetim, 2026-08-24): render() kendi renderRequestId'siyle bayat yanıtlara karşı
+// korunuyordu (bkz. o fonksiyon), ama buildSidebar()'ın hiç eşdeğeri yoktu. İki filtre kutusu art
+// arda hızlıca işaretlendiğinde iki örtüşen /api/projects/filters isteği atılır; ilki (eski filtre
+// kombinasyonuna göre) SONRA dönerse sidebar.innerHTML'i EN SON yazan o olur — checkbox'ların işaretli
+// durumu her zaman canlı activeFilters'tan okunduğu için yanlış görünmez, ama yanındaki sayaçlar
+// (facet counts) sessizce bayat/eksik bir filtre kombinasyonunu yansıtmaya devam eder.
+let sidebarRequestId = 0;
 async function buildSidebar(){
+  const mySidebarRequest = ++sidebarRequestId;
   const sidebar = document.getElementById('sidebar');
   let filtersData = {};
   try{
     const res = await fetch(`/api/projects/filters?${currentQueryParams().toString()}`);
     if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
   }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
+  if(mySidebarRequest !== sidebarRequestId) return; // bu arada başka bir buildSidebar() tetiklendi, bu yanıt bayat
 
   let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
     <div class="sidebar-search">
@@ -175,10 +190,23 @@ async function buildSidebar(){
     });
   });
   const resetBtn = document.getElementById('g-reset');
+  // gerçek bulgu (denetim, 2026-08-24): mimar.html/firma.html'deki AYNI "Filtreleri temizle" butonu
+  // sıralamayı (g-sort) ve üst/mobil nav arama kutularını (f-search-topnav/f-search-nav) da açıkça
+  // sıfırlıyor — buradaki (checkbox tabanlı sidebar'a özgü) sürüm yalnızca activeFilters/
+  // localSearchQuery'i temizleyip bunları hiç dokunmuyordu. Sonuç: proje.html'de "Filtreleri temizle"ye
+  // basmak filtreleri/aramayı sıfırlamış GÖRÜNÜYOR ama aktif bir sıralama varsa listede sessizce
+  // uygulanmaya devam ediyor, üstteki arama kutusunda da eski metin kalıyordu.
   if(resetBtn) resetBtn.addEventListener('click', ()=>{
     FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
     localSearchQuery = '';
+    Object.keys(groupSearchQueries).forEach(k => delete groupSearchQueries[k]);
     currentPage = 1;
+    const sortEl = document.getElementById('g-sort');
+    if(sortEl) sortEl.value = '';
+    const topNavSearch = document.getElementById('f-search-topnav');
+    if(topNavSearch) topNavSearch.value = '';
+    const mobileNavSearch = document.getElementById('f-search-nav');
+    if(mobileNavSearch) mobileNavSearch.value = '';
     syncBrowserUrl(true);
     buildSidebar();
     render();
@@ -208,15 +236,27 @@ async function buildSidebar(){
   });
   // Her grubun kendi arama kutusu YALNIZCA o grubun altındaki .filter-opt satırlarını gösterip
   // gizler — activeFilters/genel arama kutusundan bağımsız, seçim/sayaç mantığını etkilemez.
+  function applyGroupSearchFilter(input) {
+    const body = input.closest('.filter-group-body');
+    const q = trLower(input.value.trim());
+    body.querySelectorAll('.filter-opt').forEach(opt => {
+      const label = trLower(opt.querySelector('span').textContent);
+      opt.style.display = !q || label.includes(q) ? '' : 'none';
+    });
+  }
   sidebar.querySelectorAll('.filter-search-input').forEach(input => {
+    const groupKey = input.closest('.filter-group').dataset.key;
+    // bkz. dosya başı #groupSearchQueries — bu grup için önceden yazılmış bir sorgu varsa (bir başka
+    // grubun checkbox'ı değiştiği için buildSidebar() bu DOM'u az önce sıfırdan kurmuş olabilir) geri
+    // uygulanır, aksi halde eskisiyle birebir aynı boş/temiz kutu davranışı korunur.
+    if(groupSearchQueries[groupKey]){
+      input.value = groupSearchQueries[groupKey];
+      applyGroupSearchFilter(input);
+    }
     input.addEventListener('click', e => e.stopPropagation());
     input.addEventListener('input', () => {
-      const body = input.closest('.filter-group-body');
-      const q = trLower(input.value.trim());
-      body.querySelectorAll('.filter-opt').forEach(opt => {
-        const label = trLower(opt.querySelector('span').textContent);
-        opt.style.display = !q || label.includes(q) ? '' : 'none';
-      });
+      groupSearchQueries[groupKey] = input.value;
+      applyGroupSearchFilter(input);
     });
   });
 }

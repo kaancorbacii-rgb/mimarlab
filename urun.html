@@ -479,6 +479,10 @@ const FILTER_GROUPS = [
 ];
 const activeFilters = {};
 FILTER_GROUPS.forEach(g => activeFilters[g.key] = new Set());
+// gerçek bulgu (denetim, 2026-08-24, bkz. proje.js#groupSearchQueries'deki AYNI kök neden): grup içi
+// "Ara..." kutusuna yazılan metin state'te tutulmuyordu, buildSidebar() her checkbox değişiminde
+// sidebar.innerHTML'i tamamen yeniden kurduğundan yazı sessizce siliniyordu.
+const groupSearchQueries = {};
 
 function getPageWindowSize(){
   const w = window.innerWidth;
@@ -537,7 +541,13 @@ function currentQueryParams(){
 // Sidebar artık /api/products'ın döndürdüğü `filters` alanından çizilir (proje.html#buildSidebar
 // ile AYNI desen) — kendi küçük isteğini atar (limit=1, yalnızca facet sayaçları için, kart
 // listesini render()'ın kendi isteğiyle tekrar çekmemek amacıyla page verisi burada önemsiz).
+// gerçek bulgu (denetim, 2026-08-24): proje.html#buildSidebar ile AYNI eksiklik — render()'ın
+// renderRequestId'sine karşılık burada bayat yanıt koruması yoktu, art arda hızlı işaretlenen iki
+// filtre örtüşen isteklerden eskisi SONRA dönerse sidebar'daki facet sayaçlarını sessizce bayat
+// bırakabiliyordu.
+let sidebarRequestId = 0;
 async function buildSidebar(){
+  const mySidebarRequest = ++sidebarRequestId;
   const sidebar = document.getElementById('sidebar');
   let filtersData = {};
   try{
@@ -547,6 +557,7 @@ async function buildSidebar(){
     const res = await fetch(`/api/products?${params.toString()}`);
     if(res.ok){ const data = await res.json(); filtersData = data.filters || {}; }
   }catch(err){ console.error('Filtre seçenekleri alınamadı:', err); }
+  if(mySidebarRequest !== sidebarRequestId) return; // bu arada başka bir buildSidebar() tetiklendi, bu yanıt bayat
 
   let html = `<div class="sidebar-head"><span class="sidebar-head-title">Filtreler</span><button class="sidebar-close-btn" id="g-reset" title="Filtreleri temizle" aria-label="Filtreleri temizle">✕</button></div>
     <div class="sidebar-search">
@@ -582,10 +593,19 @@ async function buildSidebar(){
     btn.addEventListener('click', ()=> btn.parentElement.classList.toggle('open'));
   });
   const resetBtn = document.getElementById('g-reset');
+  // gerçek bulgu (denetim, 2026-08-24): proje.js#g-reset ile AYNI eksiklik — sıralama (g-sort) ve
+  // üst/mobil nav arama kutuları (f-search-topnav/f-search-nav) sıfırlanmıyordu.
   if(resetBtn) resetBtn.addEventListener('click', ()=>{
     FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
     localSearchQuery = '';
+    Object.keys(groupSearchQueries).forEach(k => delete groupSearchQueries[k]);
     currentPage = 1;
+    const sortEl = document.getElementById('g-sort');
+    if(sortEl) sortEl.value = '';
+    const topNavSearch = document.getElementById('f-search-topnav');
+    if(topNavSearch) topNavSearch.value = '';
+    const mobileNavSearch = document.getElementById('f-search-nav');
+    if(mobileNavSearch) mobileNavSearch.value = '';
     syncBrowserUrl(true);
     updateHeader('listing');
     buildSidebar(); render();
@@ -610,15 +630,24 @@ async function buildSidebar(){
     clearTimeout(searchDebounce);
     searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
   });
+  function applyGroupSearchFilter(input) {
+    const body = input.closest('.filter-group-body');
+    const q = input.value.trim().toLowerCase();
+    body.querySelectorAll('.filter-opt').forEach(opt => {
+      const label = opt.querySelector('span').textContent.toLowerCase();
+      opt.style.display = !q || label.includes(q) ? '' : 'none';
+    });
+  }
   sidebar.querySelectorAll('.filter-search-input').forEach(input => {
+    const groupKey = input.closest('.filter-group').dataset.key;
+    if(groupSearchQueries[groupKey]){
+      input.value = groupSearchQueries[groupKey];
+      applyGroupSearchFilter(input);
+    }
     input.addEventListener('click', e => e.stopPropagation());
     input.addEventListener('input', () => {
-      const body = input.closest('.filter-group-body');
-      const q = input.value.trim().toLowerCase();
-      body.querySelectorAll('.filter-opt').forEach(opt => {
-        const label = opt.querySelector('span').textContent.toLowerCase();
-        opt.style.display = !q || label.includes(q) ? '' : 'none';
-      });
+      groupSearchQueries[groupKey] = input.value;
+      applyGroupSearchFilter(input);
     });
   });
 }

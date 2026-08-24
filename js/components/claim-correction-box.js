@@ -32,6 +32,12 @@
 //   onEditClick        (opsiyonel) verilirse "Düzenle" bir <a href> yerine <button> olur ve
 //                      tıklanınca bu callback çağrılır (sayfa değiştirmeden inline düzenleme
 //                      açmak için, bkz. kullanıcı isteği) — verilmezse mevcut link davranışı korunur.
+//   isStale()          (opsiyonel) çağrılan sayfa (architect-modal.js/office-modal.js) her
+//                      renderItem() başında GÜNCELLENEN kendi currentItem'ıyla karşılaştırıp bu
+//                      claimBox örneğinin hâlâ EKRANDA GÖRÜNEN profile mi ait olduğunu söyler — bkz.
+//                      loadClaimCard/renderProfileEditButton içindeki gerçek bulgu. Verilmezse hiç
+//                      kontrol edilmez (eski davranış, yalnızca product/project profillerinde
+//                      claim-correction-box kullanılmadığından bu callback'e zaten ihtiyaç yok).
 function createClaimCorrectionBox(config){
   let isProfileOwner = false;
   const getClaimLinkKey = config.getClaimLinkKey || config.getProfileKey;
@@ -105,6 +111,15 @@ function createClaimCorrectionBox(config){
     }
     card.style.display = '';
     if(config.ready) await config.ready;
+    // gerçek bulgu (denetim, 2026-08-24): bu fonksiyonun aşağıdaki 2-3 sıralı await'i sürerken
+    // kullanıcı hızlıca BAŞKA bir mimara/firmaya geçerse (ör. "Diğer Firma Ortakları"/"Kurucular"
+    // ızgarasından), architect-modal.js/office-modal.js her renderItem() başında YENİ bir claimBox
+    // örneği oluşturup #claim-info-card/#claim-card-body/#profile-edit-slot'u (owner DEĞİŞMEDİĞİ
+    // sürece claimContent() tarafından TEMİZLENMEYEN, kalıcı/paylaşılan elemanlar) yeniden doldurmayı
+    // dener — ama bu ESKİ çağrı da hâlâ sürüyorsa, geç dönen yanıtı en SON yazan o olup admin/sahip
+    // butonlarını (runProfileModeration'a ESKİ profilin key'iyle kapatılmış) YENİ görünen profilin
+    // header'ına yazabiliyordu (bkz. isStale kontrolü ve dosya başı config.isStale yorumu).
+    if(config.isStale && config.isStale()) return;
     const profileKey = config.getProfileKey();
 
     // Bu profil BAŞKA bir hesap tarafından da olsa zaten onaylı şekilde sahiplenildiyse (bkz.
@@ -116,6 +131,7 @@ function createClaimCorrectionBox(config){
       if(claimStatusRes.ok) alreadyClaimed = !!(await claimStatusRes.json()).claimed;
     }catch{}
     const badged = await hasActiveBadge(profileKey);
+    if(config.isStale && config.isStale()) return;
 
     if(!currentUser){
       // Anonim ziyaretçi asla profil sahibi olamayacağından (isProfileOwner burada hep false kalır),
@@ -127,6 +143,7 @@ function createClaimCorrectionBox(config){
     try{
       const res = await fetch(`/api/claims/status?profileType=${config.profileType}&profileKey=${encodeURIComponent(profileKey)}`);
       const data = res.ok ? await res.json() : { status: 'none' };
+      if(config.isStale && config.isStale()) return;
       if(data.status === 'approved'){
         isProfileOwner = true;
         card.style.display = 'none';
@@ -141,13 +158,23 @@ function createClaimCorrectionBox(config){
             <button type="button" id="claim-btn">${config.labels.claimButtonText}</button>
           </div>`;
         document.getElementById('claim-btn').addEventListener('click', async (e)=>{
-          e.target.disabled = true; e.target.textContent = 'Gönderiliyor…';
+          const btn = e.target;
+          btn.disabled = true; btn.textContent = 'Gönderiliyor…';
           const note = document.getElementById('claim-note').value;
-          await fetch('/api/claims', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ profileType: config.profileType, profileKey: config.getProfileKey(), note }),
-          });
-          loadClaimCard();
+          // gerçek bulgu (denetim, 2026-08-24): burada try/catch YOKTU — aşağıdaki correction-btn
+          // handler'ının aksine. Ağ hatasında (offline/timeout) fetch reddi hiç yakalanmadığından
+          // loadClaimCard() (butonu yeniden normal duruma döndüren TEK yer) hiç çalışmıyor, buton
+          // sayfa yenilenene kadar kalıcı olarak "Gönderiliyor…" yazıp devre dışı kalıyordu.
+          try{
+            const res = await fetch('/api/claims', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ profileType: config.profileType, profileKey: config.getProfileKey(), note }),
+            });
+            if(!res.ok){ btn.disabled = false; btn.textContent = config.labels.claimButtonText; return; }
+            loadClaimCard();
+          }catch{
+            btn.disabled = false; btn.textContent = config.labels.claimButtonText;
+          }
         });
       }
     }catch{}
@@ -271,6 +298,13 @@ function createClaimCorrectionBox(config){
   async function init(){
     injectStyles();
     await loadClaimCard();
+    // gerçek bulgu (bkz. loadClaimCard içindeki AYNI isStale yorumu): loadClaimCard() kendi İÇİNDEKİ
+    // yazımları zaten korur, ama kendisi normal döndüğünde (erken return olmadan) init() burada yine
+    // de devam edip renderProfileEditButton()/loadCorrectionCard()'ı çağırırdı — bu ikisi
+    // #profile-edit-slot/#correction-card-extra'ya (claimContent() sahip DEĞİŞMEDİĞİ sürece TEMİZLENMEYEN,
+    // paylaşılan elemanlar) YAZAR; await loadClaimCard() dönene kadar geçen sürede kullanıcı zaten
+    // BAŞKA bir profile geçmiş olabilir. Tek bir kontrol burada her iki yazımı da kapsar.
+    if(config.isStale && config.isStale()) return;
     renderProfileEditButton();
     loadCorrectionCard();
   }

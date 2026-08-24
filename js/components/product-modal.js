@@ -717,10 +717,20 @@ const ProductModal = (function () {
   // mountOwnerActions, sahibe yalnızca Sil verir) burada sahibe Arşivle de açıktır, kullanıcı bunu
   // AÇIKÇA istedi. Sahiplik ProjectActions'daki AYNI desenle (/api/<tip>/mine sorgusu + id eşleşmesi)
   // belirlenir — admin bu sorguyu atlar, kendi Arşivle/Sil butonları admin'e özel uca gider.
+  // gerçek bulgu (denetim, 2026-08-24): loadCompanyProducts/loadRelated/wireFeedbackBox (bkz.
+  // renderItem yukarısı) hepsi kendi async devamlarında `currentItem !== p` bayatlık kontrolü yapıyor
+  // — bu fonksiyon (renderItem'dan await EDİLMEDEN çağrılır) hiç yapmıyordu. Kullanıcı bu fonksiyonun
+  // await'leri (editSubmissionBtnHtml, /api/<tip>/mine) hâlâ sürerken başka bir ürüne/malzemeye
+  // geçerse, ESKİ ürünün Sil/Arşivle butonları (runContentModeration/runOwnerModeration'a p/key
+  // closure'ıyla kapatılmış) artık ekranda görünen YENİ ürünün header'ına yazılıyor ve tıklandığında
+  // YANLIŞ kaydı silip/arşivliyordu. `currentItem` her renderItem() başında güncellenen paylaşılan
+  // modül state'i (bkz. o fonksiyon) — diğer async devamlarla AYNI deseni burada da uygularız.
   async function mountEditAndAdminButtons(p, key) {
     await savedWidgetReady;
+    if (currentItem !== p) return;
     if (p.submissionId) {
       const html = await editSubmissionBtnHtml(kindPlural(p), p.submissionId);
+      if (currentItem !== p) return;
       const editSlot = document.getElementById('pr-edit-slot');
       if (html && editSlot) editSlot.innerHTML = html;
     } else if (currentUser && currentUser.role === 'admin' && p.id) {
@@ -748,6 +758,7 @@ const ProductModal = (function () {
       const data = res.ok ? await res.json() : { items: [] };
       mine = (data.items || []).some(it => it.id === p.submissionId);
     } catch { mine = false; }
+    if (currentItem !== p) return;
     if (!mine) return;
     slot.innerHTML = `<button type="button" class="card-edit-btn" id="pr-archive-btn">Arşivle</button><button type="button" class="card-delete-btn" id="pr-delete-btn">Sil</button>`;
     document.getElementById('pr-archive-btn').addEventListener('click', () => runOwnerModeration(p, 'archive'));
@@ -885,12 +896,17 @@ const ProductModal = (function () {
     });
   }
 
+  // gerçek bulgu (denetim, 2026-08-24, bkz. project-modal.js#fetchItem'daki AYNI kök neden): ağ hatası
+  // burada da yakalanmıyordu — open()/swap() renderNotFound()'ı hiç tetikleyemeden modal iskelet
+  // durumunda kalıyordu. Ağ hatası artık 404/gizli kayıtla AYNI null yola yönlendirilir.
   async function fetchItem(key) {
-    const res = await fetch(`/api/product/${encodeURIComponent(key)}`);
-    if (!res.ok) return null;
-    const payload = await res.json();
-    if (!payload || !payload.item || payload.hidden) return null;
-    return payload.item;
+    try {
+      const res = await fetch(`/api/product/${encodeURIComponent(key)}`);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      if (!payload || !payload.item || payload.hidden) return null;
+      return payload.item;
+    } catch { return null; }
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null } = {}) {

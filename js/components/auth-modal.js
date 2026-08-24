@@ -336,7 +336,15 @@ const AuthModal = (function () {
           return;
         }
         if (typeof refreshAuthNav === 'function') refreshAuthNav();
-        swap('account');
+        // gerçek bulgu (denetim, 2026-08-24): swap('account') KOŞULSUZ çağrılıyordu — istek yavaşken
+        // kullanıcı X/Escape ile popup'ı kapatırsa swap()'ın kendi `if (!ModalShell.isOpen()) return
+        // open(...)` yolu geç gelen bu başarı yanıtını popup'ı YENİDEN AÇIP Hesabım'a zorlamak için
+        // kullanıyordu (beklenmedik bir "kendi kendine açılan" popup); kullanıcı bu arada Üye Ol'a
+        // geçtiyse az önce yazmaya başladığı formu da sessizce eziyordu. currentView hâlâ 'login'
+        // DEĞİLSE (modal kapatıldı ya da başka bir görünüme geçildi) geç gelen bu başarıyı artık
+        // uygulamak YANLIŞ olur — refreshAuthNav() zaten çalıştı (nav avatarı doğru), yalnızca view
+        // geçişi atlanır.
+        if (currentView === 'login') swap('account');
       } catch {
         notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
         notice.classList.add('show');
@@ -507,7 +515,10 @@ const AuthModal = (function () {
           return;
         }
         if (typeof refreshAuthNav === 'function') refreshAuthNav();
-        swap('account');
+        // gerçek bulgu (denetim, 2026-08-24, bkz. wireLogin'deki AYNI kök neden): geç gelen bir
+        // başarı yanıtı, kullanıcı bu arada popup'ı kapattıysa/başka bir view'a geçtiyse zorla
+        // Hesabım'a geçmesin diye currentView kontrolü.
+        if (currentView === 'signup') swap('account');
       } catch {
         notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
         notice.classList.add('show');
@@ -951,6 +962,12 @@ const AuthModal = (function () {
   // tooltip tıklama dinleyicisi de bu bayrakla korunmazsa her ziyarette bir kopya daha eklenip
   // yığılır — çift (ya da tek sayıda olmayan) toggle çağrısı tooltip'i açıp kapatmayı bozar.
   let amBadgeTooltipClickWired = false;
+  // gerçek bulgu (denetim, 2026-08-24): dropdown-kapatma dinleyicisi (aşağıda) tam olarak AYNI
+  // "mountAccount() her navigasyonda yeniden çalışır" sorununu yaşıyordu ama yukarıdaki iki
+  // komşusunun (amProfileEditEscapeWired/amBadgeTooltipClickWired) aksine hiç bayrakla korunmamıştı
+  // — her Hesabım ziyaretinde document'e bir kalıcı click dinleyicisi daha ekleniyor, hiçbiri asla
+  // kaldırılmıyordu (sınırsız birikim, sayfa ömrü boyunca büyüyen bir bellek/performans sızıntısı).
+  let amDropdownCloseWired = false;
 
   function mountAccount() {
     const wired = new Set();
@@ -1109,9 +1126,25 @@ const AuthModal = (function () {
         setChecked(vals) { field.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = (vals || []).includes(cb.value)); updateLabel(); },
       };
     }
-    document.addEventListener('click', (e) => {
-      document.querySelectorAll('#am-panel .dd-field.open').forEach(f => { if (!f.contains(e.target)) f.classList.remove('open'); });
-    });
+    if (!amDropdownCloseWired) {
+      amDropdownCloseWired = true;
+      document.addEventListener('click', (e) => {
+        document.querySelectorAll('#am-panel .dd-field.open').forEach(f => { if (!f.contains(e.target)) f.classList.remove('open'); });
+      });
+      // gerçek bulgu: bu dropdown'un (ör. Ödüller çoklu-seçim) kendi Escape kapanışı yoktu —
+      // ModalShell'in paylaşılan document keydown dinleyicisi (bkz. modal-shell.js#onKeydown, bubble
+      // fazında bağlı) Escape'i ele geçirip TÜM Hesabım modalını kapatıyordu. Capture fazında (üçüncü
+      // argüman=true) bağlanan bu dinleyici — gallery.js'in lightbox'ı için kullanılan AYNI desen —
+      // yalnızca açık bir dropdown varken devreye girer ve stopPropagation ile modal-shell'in
+      // bubble'daki dinleyicisine hiç ulaşılmasını engeller.
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        const open = document.querySelector('#am-panel .dd-field.open');
+        if (!open) return;
+        e.stopPropagation();
+        closeAllAmDropdowns();
+      }, true);
+    }
 
     // Rozet ikonları :hover ile masaüstünde tooltip'i zaten CSS'ten gösterir; dokunmatik cihazlarda
     // hover olmadığından tıklama/dokunma ile açıp kapatmak için delegasyon (bkz. kullanıcı isteği:
@@ -1236,6 +1269,28 @@ const AuthModal = (function () {
         e.stopPropagation();
         closeAmProfileEditPopup();
       }, true);
+      // gerçek bulgu (denetim, 2026-08-24): bu iç pop-up'ın kendi focus trap'i YOKTU —
+      // ModalShell'in paylaşılan trap'i (bkz. modal-shell.js#getFocusable/onKeydown) TÜM panelEl'i
+      // tarar ve `offsetParent !== null` dışında hiçbir filtre uygulamaz; arkadaki Hesabım
+      // dashboard'u bu pop-up açıkken hâlâ normal DOM akışında (yalnızca görsel olarak bulanık
+      // arkaplanın ALTINDA) durduğundan, klavye kullanıcısı bu formun son alanından Tab'e devam
+      // ederse görünmeyen ama "focusable" arkaplan kontrollerine geçip fareyle asla erişemeyeceği bir
+      // alana sürüklenebiliyordu. Escape ile AYNI capture deseni: bu pop-up açıkken Tab, ModalShell'in
+      // trap'ine hiç ulaşmadan burada durdurulup yalnızca #am-profile-edit-overlay içinde döngüye sokulur.
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab') return;
+        const overlay = document.getElementById('am-profile-edit-overlay');
+        if (!overlay || !overlay.classList.contains('open')) return;
+        const focusable = Array.from(overlay.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); e.stopPropagation(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); e.stopPropagation(); first.focus(); }
+        else if (!overlay.contains(document.activeElement)) { e.preventDefault(); e.stopPropagation(); first.focus(); }
+      }, true);
     }
 
     // nav-avatar-menu'deki "Çıkış Yap" (bkz. auth-nav.js#nav-logout-btn) ile AYNI davranış — logout
@@ -1296,7 +1351,15 @@ const AuthModal = (function () {
       } catch {}
     }
 
-    on('am-dash-save-btn', 'click', async () => {
+    // gerçek bulgu (denetim, 2026-08-24): bu handler ne çift-tıklamaya karşı devre dışı bırakma
+    // (bkz. dosyadaki diğer neredeyse tüm aksiyon butonları — am-delete-account-btn, submission
+    // formları vb.) ne de bir try/catch içeriyordu. Hızlı çift tıklama, architectSyncState.editId
+    // henüz İLK isteğin yanıtından doldurulmadan submitArchitectSyncIfNeeded()'ın İKİ paralel
+    // çağrısının da editId'yi null görüp İKİSİNİN de POST /api/architects atmasına (aynı kullanıcı
+    // için iki ayrı architect_submissions satırı) yol açabiliyordu; ağ hatasında da fetch reddi hiç
+    // yakalanmadığından kullanıcı sessizce hiçbir geri bildirim almıyordu.
+    on('am-dash-save-btn', 'click', async (e) => {
+      const btn = e.target;
       const msg = document.getElementById('am-dash-save-msg');
       const name = document.getElementById('am-edit-name').value;
       const dob = document.getElementById('am-edit-dob').value;
@@ -1307,20 +1370,27 @@ const AuthModal = (function () {
       const about = document.getElementById('am-edit-about').value;
       const socialLinks = collectAmSocialLinks();
       if (isInvalidSchoolValue(school)) { msg.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; return; }
-      const res = await fetch('/api/profile', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, dob, school, profession, position, awards, about, social_links: socialLinks }),
-      });
-      if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
-      const claimSubmitted = await submitFirmaClaimIfChanged();
-      await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/profile', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, dob, school, profession, position, awards, about, social_links: socialLinks }),
+        });
+        if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
+        const claimSubmitted = await submitFirmaClaimIfChanged();
+        await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
 
-      msg.textContent = claimSubmitted ? 'Kaydedildi. Firma talebi admin onayına gönderildi.' : 'Kaydedildi.';
-      await loadUser();
-      await loadMyClaims();
-      // Kaydetme başarılıysa kısa bir onay anından sonra pop-up kapanıp Hesabım'a dönülür (bkz.
-      // kullanıcı isteği) — hesabim.html#dash-save-btn ile AYNI davranış.
-      setTimeout(() => { msg.textContent = ''; closeAmProfileEditPopup(); }, claimSubmitted ? 2500 : 700);
+        msg.textContent = claimSubmitted ? 'Kaydedildi. Firma talebi admin onayına gönderildi.' : 'Kaydedildi.';
+        await loadUser();
+        await loadMyClaims();
+        // Kaydetme başarılıysa kısa bir onay anından sonra pop-up kapanıp Hesabım'a dönülür (bkz.
+        // kullanıcı isteği) — hesabim.html#dash-save-btn ile AYNI davranış.
+        setTimeout(() => { msg.textContent = ''; closeAmProfileEditPopup(); }, claimSubmitted ? 2500 : 700);
+      } catch {
+        msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     on('am-avatar-upload-btn', 'click', () => document.getElementById('am-avatar-file-input').click());
@@ -1444,11 +1514,16 @@ const AuthModal = (function () {
           <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
         </div>`).join('');
       container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        // gerçek bulgu (denetim, 2026-08-24): try/catch yoktu — project-comments.js'teki eşdeğer
+        // yorum-silme butonunun aksine. Ağ hatasında loadSaved() (butonu normale döndüren TEK yer)
+        // hiç çalışmadığından "✕" kalıcı olarak devre dışı kalıyordu.
         btn.addEventListener('click', async () => {
           const row = btn.closest('.saved-row');
           btn.disabled = true;
-          await fetch(`/api/saved/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
-          loadSaved();
+          try {
+            await fetch(`/api/saved/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
+            loadSaved();
+          } catch { btn.disabled = false; }
         });
       });
       renderDashPagination('am-saved-pagination', savedPage, totalPages, (p) => { savedPage = p; renderSaved(); });
@@ -1531,11 +1606,15 @@ const AuthModal = (function () {
           <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
         </div>`).join('');
       container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        // gerçek bulgu (denetim, 2026-08-24, bkz. yukarıdaki renderSaved()'daki AYNI kök neden):
+        // try/catch yoktu, ağ hatasında buton kalıcı olarak devre dışı kalıyordu.
         btn.addEventListener('click', async () => {
           const row = btn.closest('.saved-row');
           btn.disabled = true;
-          await fetch(`/api/comments/${encodeURIComponent(row.dataset.id)}`, { method: 'DELETE' });
-          loadComments();
+          try {
+            await fetch(`/api/comments/${encodeURIComponent(row.dataset.id)}`, { method: 'DELETE' });
+            loadComments();
+          } catch { btn.disabled = false; }
         });
       });
       renderDashPagination('am-comments-pagination', commentsPage, totalPages, (p) => { commentsPage = p; renderComments(); });
@@ -1608,24 +1687,36 @@ const AuthModal = (function () {
         </div>`).join('');
     }
 
-    on('am-pw-save-btn', 'click', async () => {
+    // gerçek bulgu (denetim, 2026-08-24, bkz. am-dash-save-btn'deki AYNI eksiklik): çift-tıklamaya
+    // karşı devre dışı bırakma yoktu — bir hızlı çift tıklama iki eşzamanlı change-password isteği
+    // atabiliyor, ikincisi ilkinin (artık geçersiz olmuş) mevcut şifresini kullanmaya çalışıp
+    // kafa karıştırıcı bir hata gösterebiliyordu.
+    on('am-pw-save-btn', 'click', async (e) => {
+      const btn = e.target;
       const msg = document.getElementById('am-pw-save-msg');
       const currentPassword = document.getElementById('am-pw-current').value;
       const newPassword = document.getElementById('am-pw-new').value;
       const newPasswordConfirm = document.getElementById('am-pw-new-confirm').value;
       if (newPassword.length < 8) { msg.textContent = 'Yeni şifre en az 8 karakter olmalı.'; return; }
       if (newPassword !== newPasswordConfirm) { msg.textContent = 'Yeni şifreler eşleşmiyor.'; return; }
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { msg.textContent = data.error || 'Şifre güncellenemedi.'; return; }
-      msg.textContent = 'Şifre güncellendi.';
-      document.getElementById('am-pw-current').value = '';
-      document.getElementById('am-pw-new').value = '';
-      document.getElementById('am-pw-new-confirm').value = '';
-      setTimeout(() => msg.textContent = '', 3000);
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/change-password', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newPassword }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { msg.textContent = data.error || 'Şifre güncellenemedi.'; return; }
+        msg.textContent = 'Şifre güncellendi.';
+        document.getElementById('am-pw-current').value = '';
+        document.getElementById('am-pw-new').value = '';
+        document.getElementById('am-pw-new-confirm').value = '';
+        setTimeout(() => msg.textContent = '', 3000);
+      } catch {
+        msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     on('am-delete-account-btn', 'click', async () => {
