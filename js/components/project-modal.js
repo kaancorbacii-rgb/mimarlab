@@ -6,6 +6,13 @@
 const ProjectModal = (function () {
   const LEFT_TEMPLATE = `
     <h1 class="detail-title" id="pm-title"></h1>
+    <div class="pm-loading-skeleton" id="pm-loading-left">
+      <div class="skeleton-line" style="height:28px; width:72%; border-radius:8px; margin-bottom:14px;"></div>
+      <div class="skeleton-line" style="height:13px; width:42%; border-radius:6px; margin-bottom:24px;"></div>
+      <div class="skeleton-line" style="height:12px; width:94%; border-radius:6px; margin-bottom:8px;"></div>
+      <div class="skeleton-line" style="height:12px; width:87%; border-radius:6px; margin-bottom:8px;"></div>
+      <div class="skeleton-line" style="height:12px; width:58%; border-radius:6px;"></div>
+    </div>
     <div class="pm-top-rank" id="pm-top-rank" style="display:none;"></div>
     <div class="pm-rating-save-row" id="pm-rating-save-row">
       <div class="rating-widget" id="pm-rating" data-type="project"></div>
@@ -40,6 +47,7 @@ const ProjectModal = (function () {
     </details>`;
 
   const RIGHT_TEMPLATE = `
+    <div class="skeleton-card pm-loading-skeleton" id="pm-loading-right" style="width:min(88%, 760px); aspect-ratio:2/1; border-radius:14px;"></div>
     <div class="gallery-wrap" id="pm-gallery-wrap">
       <div class="gallery-media">
         <div class="detail-gallery" id="pm-gallery"></div>
@@ -367,7 +375,7 @@ const ProjectModal = (function () {
   // gösteriyor — burada ikinci kez tekrarlamak, hızlı oy sonrası sadece BU rozetin bayat kalıp
   // widget'la çelişmesine yol açan eski gerçek bulguyu (200 oy sabit kalırken widget 201'e
   // atlaması) yeniden yaratırdı. Rozet artık yalnızca sıra numarasını taşıyor.
-  function renderTopRankBadge(item) {
+  function renderTopRankBadge() {
     const el = document.getElementById('pm-top-rank');
     if (!el) return;
     if (!currentTopRank) { el.style.display = 'none'; el.innerHTML = ''; return; }
@@ -376,14 +384,52 @@ const ProjectModal = (function () {
     el.innerHTML = `<a class="pm-top-rank-badge" href="/en-iyi-100">En İyi 100: #${currentTopRank.rank}</a>`;
   }
 
-  async function renderItem(item, mySeq) {
-    currentItem = item;
+  // gerçek bulgu (kullanıcı isteği, 2026-08-24): open()/swap() ModalShell.open()+ensureTemplate()'ı
+  // fetchItem() TAMAMLANMADAN ÖNCE senkron çalıştırıyordu — bu ikisi arasındaki (yavaş bağlantıda
+  // gözle görülür) pencerede panel ya tamamen BOŞ bir iskelet (ilk açılış: boş h1, resimsiz galeri
+  // üzerinde havada duran ok butonları, altı boş bölüm başlıkları) ya da ÖNCEKİ projenin bayat
+  // içeriğini (swap/handlePopState: URL zaten yeni projeye geçmiş ama başlık/galeri/açıklama hâlâ
+  // eskisi) gösteriyordu — kullanıcının "popup açılırken kısa süreliğine bozuk hali gözüküyor" dediği
+  // tam olarak bu. renderLoading() renderNotFound() İLE AYNI HIDE_ON_NOT_FOUND_IDS setini gizleyip
+  // (bayat/yarım içerik hiç görünmez) yerine LEFT/RIGHT_TEMPLATE'e gömülü skeleton-line/skeleton-card
+  // yer tutucularını gösterir — fetch'in kendisi HİÇBİR şekilde geciktirilmez (senkron DOM mount'tan
+  // hemen sonra çağrılır), yalnızca ARADAKİ görünüm artık "boş/bozuk" değil, kasıtlı bir yükleniyor
+  // durumu olur.
+  function renderLoading() {
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = '';
+    // pm-title HIDE_ON_NOT_FOUND_IDS'te DEĞİL (renderNotFound() onu gizlemek yerine "Proje bulunamadı"
+    // metniyle DOLDURUR) — burada da aynı şekilde ELLE boşaltılmazsa bir önceki projenin başlığı,
+    // altındaki skeleton çubuğunun ÜSTÜNDE bayat metin olarak asılı kalırdı (gerçek bulgu, bu düzeltme
+    // ilk halinde test edilirken yakalandı).
+    const title = document.getElementById('pm-title');
+    if (title) title.textContent = '';
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.style.display = '';
+      if (el) el.classList.add('pm-force-hidden');
+    });
+    const loadLeft = document.getElementById('pm-loading-left');
+    const loadRight = document.getElementById('pm-loading-right');
+    if (loadLeft) loadLeft.style.display = '';
+    if (loadRight) loadRight.style.display = '';
+  }
+
+  function hideLoadingSkeleton() {
+    const loadLeft = document.getElementById('pm-loading-left');
+    const loadRight = document.getElementById('pm-loading-right');
+    if (loadLeft) loadLeft.style.display = 'none';
+    if (loadRight) loadRight.style.display = 'none';
+  }
+
+  async function renderItem(item, mySeq) {
+    currentItem = item;
+    hideLoadingSkeleton();
+    HIDE_ON_NOT_FOUND_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('pm-force-hidden');
     });
     updateHeadMeta(item);
-    renderTopRankBadge(item);
+    renderTopRankBadge();
     renderByline(item);
     ProjectMeta.render(item);
     ProjectGallery.render(item);
@@ -400,12 +446,13 @@ const ProjectModal = (function () {
   }
 
   function renderNotFound() {
+    hideLoadingSkeleton();
     document.getElementById('pm-title').textContent = 'Proje bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+      if (el) el.classList.add('pm-force-hidden');
     });
   }
 
@@ -422,15 +469,24 @@ const ProjectModal = (function () {
     // referans hatası verirdi.
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
+    renderLoading();
 
     const mySeq = ++requestSeq;
-    const [item] = await Promise.all([
-      fetchItem(slug),
-      topRank ? Promise.resolve() : fetchTop100Map().then(map => { if (mySeq === requestSeq) currentTopRank = map.get(slug) || null; }),
-    ]);
+    // gerçek bulgu (kullanıcı isteği: "popup'ın yavaş açılmasını önle"): top100 rozeti için
+    // /api/public/top100'ün TAMAMI önceden burada fetchItem() İLE BİRLİKTE (Promise.all) beklenip
+    // renderItem()'ı bloke ediyordu — rozet salt dekoratif küçük bir öğe olduğu halde, ana içerik
+    // yalnızca İKİSİ de bitince göründüğünden top100 isteği yavaşsa/büyükse asıl proje verisi hazır
+    // olsa bile ekranda tutuluyordu. Artık asıl render yalnızca fetchItem()'a bağlı; top100 araması
+    // renderItem() SONRASINDA arka planda çalışır, sonucu geldiğinde rozeti ayrıca günceller.
+    const item = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return; // bu arada başka bir open/swap tetiklendi
     if (!item) { renderNotFound(); return; }
     await renderItem(item, mySeq);
+    if (!topRank) {
+      fetchTop100Map().then(map => {
+        if (mySeq === requestSeq && currentSlug === slug) { currentTopRank = map.get(slug) || null; renderTopRankBadge(); }
+      });
+    }
   }
 
   async function swap(slug, basePath) {
@@ -448,17 +504,23 @@ const ProjectModal = (function () {
     const currentDepth = (history.state && history.state.mimarlabModal === 'project') ? history.state.depth : pushCountSinceOpen;
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
+    // bkz. open()'daki AYNI gerçek bulgu yorumu — swap() URL/pushState'i HEMEN güncelliyordu ama
+    // panel bir önceki projenin içeriğini fetchItem() bitene kadar göstermeye devam ediyordu (URL
+    // yeni projeyi gösterirken başlık/galeri/açıklama hâlâ eskisi — kullanıcının fark ettiği "bozuk"
+    // görünümün asıl kaynaklarından biri). renderLoading() bunu da aynı yükleniyor iskeletine çevirir.
+    renderLoading();
     const mySeq = ++requestSeq;
-    // gerçek bulgu (kullanıcı isteği: iki açılış yolunun bire bir aynı görünmesi): burada rozet
-    // ÖNCEDEN koşulsuz null'a sabitleniyordu ("geçilen projede anlamsız" varsayımıyla) — oysa geçilen
-    // proje de Top100'de olabilir, o zaman da rozetin görünmesi gerekir. open() İLE AYNI arama.
-    const [item] = await Promise.all([
-      fetchItem(slug),
-      fetchTop100Map().then(map => { if (mySeq === requestSeq) currentTopRank = map.get(slug) || null; }),
-    ]);
+    const item = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
     if (!item) { renderNotFound(); return; }
     await renderItem(item, mySeq);
+    // gerçek bulgu (kullanıcı isteği: iki açılış yolunun bire bir aynı görünmesi): rozet ÖNCEDEN
+    // koşulsuz null'a sabitleniyordu ("geçilen projede anlamsız" varsayımıyla) — oysa geçilen proje de
+    // Top100'de olabilir, o zaman da rozetin görünmesi gerekir. open() İLE AYNI arama, AMA artık
+    // renderItem()'ı bloke etmeden arka planda (bkz. open()'daki "yavaş açılmasını önle" yorumu).
+    fetchTop100Map().then(map => {
+      if (mySeq === requestSeq && currentSlug === slug) { currentTopRank = map.get(slug) || null; renderTopRankBadge(); }
+    });
   }
 
   // X/backdrop/Escape tetiklediğinde çağrılır (bkz. modal-shell.js#onRequestClose) — geçerli bir
@@ -501,6 +563,7 @@ const ProjectModal = (function () {
     }
     if (slug === currentSlug) return;
     currentSlug = slug;
+    renderLoading(); // bkz. open()/swap()'taki AYNI gerçek bulgu — geri/ileri ile geçişte de eski proje içeriği bir an bayat kalmasın
     (async () => {
       const mySeq = ++requestSeq;
       const item = await fetchItem(slug);

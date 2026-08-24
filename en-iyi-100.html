@@ -415,6 +415,10 @@
     align-items:center !important; justify-content:flex-start !important; width:100% !important;
     gap:6px !important; margin:0 0 14px;
   }
+  /* bkz. proje.html'deki AYNI gerçek bulgu — project-modal.js#renderNotFound/renderLoading bu satırı
+     style.display='none' ile gizlemeye çalışıyordu ama yukarıdaki !important her zaman kazanıyordu. */
+  .pm-force-hidden{display:none;}
+  .pm-rating-save-row.pm-force-hidden{display:none !important;}
   /* gerçek bulgu: #pm-save-slot (Kaydet+Paylaş'ı BİRLİKTE tutan div, proje-actions.js#mount)
      kendisi flex konteyner DEĞİLDİ — içindeki .save-btn/.share-widget salt inline-flex kutular
      olduğundan sıradan satır-içi akışla dizilip konteynerin genişliğini aştıklarında (bkz. büyütülmüş
