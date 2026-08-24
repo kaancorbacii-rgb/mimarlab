@@ -506,9 +506,10 @@
           <textarea id="p-desc" name="description" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
         </div>
         <div class="form-row">
-          <div class="form-field">
+          <div class="form-field ac-field" id="ac-credit-field">
             <label for="p-credit-text" id="p-credit-text-label">Kaynak / Fotoğrafçı</label>
-            <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden">
+            <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden" autocomplete="off">
+            <div class="ac-suggestions" id="ac-credit-suggestions"></div>
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
           </div>
           <div class="form-field">
@@ -827,6 +828,7 @@ document.getElementById('dd-grup-btn').addEventListener('click', () => {
   setTimeout(() => search.focus(), 0);
 });
 wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
+wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search');
 // Firma kutusundan bir öneri seçildiğinde Mimar kutusu o firmanın ortakları/kurucuları VE ekip
 // üyeleriyle otomatik doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in
 // Ekip/Kurucular bölümünü besleyen AYNI birleşik listeyi döner (bkz. src/routes/office.js#

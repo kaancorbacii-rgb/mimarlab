@@ -139,6 +139,28 @@ async function fetchFoundersForOffices(env, officeNames) {
 // sahiplenen kullanıcılar da admin gibi düzenleyebilir (bkz. src/lib/projectClaimAccess.js dosya
 // başı yorumu, kullanıcı isteği). Oturum yoksa sessizce false döner, 401 fırlatmaz — çağıranlar bunu
 // "Düzenle" butonunu göstermeyip göstermeme kararı için kullanıyor.
+// GET /api/photographers/search?q=... — proje-ekle.html'deki Kaynak/Fotoğrafçı kutusunun
+// autocomplete'i, src/routes/office.js#handleOfficeSearchRoute ile AYNI desen (tüm adaylar çekilip
+// foldTr ile JS tarafında filtrelenir). Ayrı bir photographers tablosu YOK (bkz. migrations/
+// 0022_id_first_entities.sql'deki kapsam daraltma notu) — projects.photo_credit_text serbest metin
+// alanı zaten en çok kullanılan isim/firmaları taşıyor, en sık kullanılandan aza doğru sıralanır.
+export async function handlePhotographerSearchRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const q = foldTr((url.searchParams.get('q') || '').trim());
+    const { results } = await env.DB.prepare(
+      `SELECT photo_credit_text AS name, COUNT(*) AS c FROM projects
+       WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text != ''
+       GROUP BY photo_credit_text ORDER BY c DESC`
+    ).all();
+    const items = results
+      .filter(r => !q || foldTr(r.name).includes(q))
+      .slice(0, 8)
+      .map(r => ({ label: r.name }));
+    return { items };
+  });
+}
+
 export async function handleProjectCanEditRoute(request, env, rawSlug) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   const user = await getSessionUser(request, env);

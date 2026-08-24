@@ -6,7 +6,7 @@ import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
-import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute } from './routes/project.js';
+import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
 import { handleAdminRoute } from './routes/admin.js';
@@ -856,6 +856,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/architects/schools') return handleArchitectSchoolsRoute(request, env, url);
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path === '/api/products/search') return handleProductSearchRoute(request, env, url);
+  if (path === '/api/photographers/search') return handlePhotographerSearchRoute(request, env, url);
   if (path === '/api/ai/search') return handleAiSearchRoute(request, env, url);
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
