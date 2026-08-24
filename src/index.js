@@ -299,6 +299,16 @@ const IMAGE_EXT_RE = /\.(jpe?g|png|webp|avif|gif|svg)$/i;
 // yazılabildiği için tam `immutable` değil — 7 gün tarayıcı + 30 gün stale-while-revalidate.
 // /media/* (R2 upload) zaten UUID key'li, gerçekten immutable ve handleMediaRoute'ta ayrıca ayarlı.
 const STATIC_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=2592000' };
+// denetim bulgusu (2026-08-24, ücretsiz-katman performans turu): kök seviyesi paylaşılan .js
+// dosyaları (auth-nav.js, js/components/*.js vb. — neredeyse her sayfada 16-23 tanesi <script defer>
+// ile yükleniyor) Cloudflare Assets'in markasız varsayılanı olan `max-age=0, must-revalidate` ile
+// serviliyordu; ETag DOĞRU olsa da (deploy'da içerik değişince otomatik değişir) bu her navigasyonda
+// HER script dosyası için TAM bir koşullu-GET round-trip'e (304 bile olsa) mal oluyordu — ör. proje.html
+// üzerinde art arda birkaç proje popup'ı açan bir ziyaretçi aynı 20+ değişmemiş dosya için tekrar
+// tekrar ağa gidiyordu. LIST_PAGE_CACHE_HEADERS'taki (aşağısı) AYNI 60sn/300sn değerleri kullanılır —
+// bu repo'da zaten kanıtlanmış, tazelik/round-trip dengesi — yeni bir politika icat ETMEK yerine.
+const SCRIPT_EXT_RE = /\.js$/i;
+const STATIC_SCRIPT_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300' };
 // SSR enjeksiyonu yapılmış detay sayfaları için: kısa tarayıcı cache'i + edge'de daha uzun ömür.
 // Ayrıca Cache API (caches.default) ile edge'e de yazılıyor (bkz. serveDetailPage) — yüksek
 // trafikte her istek ASSETS.fetch + HTMLRewriter çalıştırmak zorunda kalmaz. s-maxage önceden 3600
@@ -440,7 +450,7 @@ async function routeAsset(request, env, url, ctx) {
     const assetUrl = new URL(url);
     assetUrl.pathname = '/';
     const response = await env.ASSETS.fetch(new Request(assetUrl, request));
-    return withStaticImageCacheHeaders(url, response);
+    return withStaticAssetCacheHeaders(url, response);
   }
 
   const infoMeta = INFO_MODAL_META[url.pathname];
@@ -460,7 +470,7 @@ async function routeAsset(request, env, url, ctx) {
   if (response.status === 404 && request.method === 'GET' && (request.headers.get('Accept') || '').includes('text/html')) {
     return notFoundPageResponse();
   }
-  return withStaticImageCacheHeaders(url, response);
+  return withStaticAssetCacheHeaders(url, response);
 }
 
 // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer — AUTH_MODAL_ROUTES
@@ -531,10 +541,17 @@ function notFoundDetailPageResponse(assetResponse, status = 404) {
   return new Response(rewritten.body, { status, statusText, headers: rewritten.headers });
 }
 
-function withStaticImageCacheHeaders(url, response) {
-  if (response.status !== 200 || !IMAGE_EXT_RE.test(url.pathname)) return response;
+// eskiden yalnızca görselleri kapsıyordu (withStaticImageCacheHeaders) — artık .js dosyalarını da
+// (bkz. STATIC_SCRIPT_CACHE_HEADERS yukarısı) kapsadığından adı genelleştirildi; iki çağıran taraf da
+// (aşağısı) güncellendi.
+function withStaticAssetCacheHeaders(url, response) {
+  if (response.status !== 200) return response;
+  const extHeaders = IMAGE_EXT_RE.test(url.pathname) ? STATIC_IMAGE_CACHE_HEADERS
+    : SCRIPT_EXT_RE.test(url.pathname) ? STATIC_SCRIPT_CACHE_HEADERS
+    : null;
+  if (!extHeaders) return response;
   const headers = new Headers(response.headers);
-  for (const [k, v] of Object.entries(STATIC_IMAGE_CACHE_HEADERS)) headers.set(k, v);
+  for (const [k, v] of Object.entries(extHeaders)) headers.set(k, v);
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 

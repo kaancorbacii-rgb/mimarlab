@@ -34,7 +34,14 @@
 <base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- logoUrl() (bkz. badge-shared.js) resmi olmayan firmalarda icons.duckduckgo.com'a düşer — bu
+     sayfadaki ilk eager kartlar (bkz. renderGrid#eagerCardCount) arasında bu düşüş gerçekleşirse
+     DNS/TLS turu görselin İLK baytından önce eklenir; preconnect bunu erkenden başlatır (denetim
+     bulgusu, 2026-08-24 — yalnızca burada eklendi, çünkü firma.html'in eager kartları AYNI render
+     turunda logoUrl()'ün kendisini kullanıyor; en-iyi-100.html/arama.html'deki logoUrl() kullanımları
+     zaten loading="lazy"). -->
+<link rel="preconnect" href="https://icons.duckduckgo.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme: light;
