@@ -197,7 +197,7 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
     </div>
     <div class="related-section" id="om-related-products-section" style="display:none;">
-      <h2 class="related-title">Ürünler</h2>
+      <h2 class="related-title">Ürünler<span id="om-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-products-grid"></div>
     </div>
     <div class="related-section" id="om-city-section" style="display:none;">
@@ -525,13 +525,14 @@ const OfficeModal = (function () {
     function productCardHtml(p) {
       return cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category);
     }
-    function renderProductGrid(sectionId, gridId, brandItems, submissionItems) {
+    function renderProductGrid(sectionId, gridId, brandItems, submissionItems, countId) {
       const seenTitles = new Set(brandItems.map(p => (p.title || '').trim().toLowerCase()));
       const merged = [...brandItems, ...submissionItems.filter(p => !seenTitles.has((p.title || '').trim().toLowerCase()))];
       document.getElementById(sectionId).style.display = merged.length ? '' : 'none';
       document.getElementById(gridId).innerHTML = merged.map(productCardHtml).join('');
+      if (countId) document.getElementById(countId).textContent = merged.length ? ` (${merged.length})` : '';
     }
-    renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, []);
+    renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, [], 'om-related-products-count');
     renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, []);
 
     const PROFILE_TYPE = 'office';
@@ -569,7 +570,7 @@ const OfficeModal = (function () {
         const res = await fetch(`/api/public/profile-content?profileType=office&profileKey=${encodeURIComponent(o.name)}`);
         if (!res.ok) return;
         const data = await res.json();
-        renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, data.products || []);
+        renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, data.products || [], 'om-related-products-count');
         renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, data.materials || []);
       } catch {}
     }
