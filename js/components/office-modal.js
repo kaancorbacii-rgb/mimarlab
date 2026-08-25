@@ -200,13 +200,13 @@ const OfficeModal = (function () {
       <h2 class="related-title">Ürünler<span id="om-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-products-grid"></div>
     </div>
+    <div class="related-section" id="om-related-materials-section" style="display:none;">
+      <h2 class="related-title">Ürünler<span id="om-related-materials-count"></span></h2>
+      <div class="related-grid-scroll" id="om-related-materials-grid"></div>
+    </div>
     <div class="related-section" id="om-city-section" style="display:none;">
       <h2 class="related-title">Şehirdeki Diğer Firmalar</h2>
       <div class="related-grid-scroll" id="om-city-grid"></div>
-    </div>
-    <div class="related-section" id="om-related-materials-section" style="display:none;">
-      <h2 class="related-title">Malzemeler</h2>
-      <div class="related-grid-scroll" id="om-related-materials-grid"></div>
     </div>
     <div class="prevnext" id="om-prevnext"></div>
     <hr class="prevnext-mobile-divider">`;
@@ -533,7 +533,7 @@ const OfficeModal = (function () {
       if (countId) document.getElementById(countId).textContent = merged.length ? ` (${merged.length})` : '';
     }
     renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, [], 'om-related-products-count');
-    renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, []);
+    renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, [], 'om-related-materials-count');
 
     const PROFILE_TYPE = 'office';
     // gerçek bulgu (denetim, 2026-08-24, bkz. architect-modal.js'teki AYNI 2026-08-24 güncellemesi/
@@ -571,7 +571,7 @@ const OfficeModal = (function () {
         if (!res.ok) return;
         const data = await res.json();
         renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, data.products || [], 'om-related-products-count');
-        renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, data.materials || []);
+        renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, data.materials || [], 'om-related-materials-count');
       } catch {}
     }
 
