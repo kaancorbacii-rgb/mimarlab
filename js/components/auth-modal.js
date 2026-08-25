@@ -732,6 +732,41 @@ const AuthModal = (function () {
 
       <div class="dash-row">
         <div class="dash-section">
+          <h2>Kaydettiklerim</h2>
+          <div class="saved-filter" id="am-saved-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+          </div>
+          <div id="am-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-saved-pagination"></div>
+        </div>
+
+        <div class="dash-section">
+          <h2>Beğendiklerim</h2>
+          <div class="saved-filter" id="am-rated-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+          </div>
+          <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-rated-pagination"></div>
+        </div>
+      </div>
+
+      <div class="dash-row">
+        <div class="dash-section">
+          <h2>Yorumlarım</h2>
+          <div class="saved-filter" id="am-comments-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+          </div>
+          <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-comments-pagination"></div>
+        </div>
+
+        <div class="dash-section">
           <h2>Paylaştığım İçerikler</h2>
           <div class="submissions-toolbar-row">
             <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
@@ -748,41 +783,6 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
-        </div>
-
-        <div class="dash-section">
-          <h2>Kaydettiklerim</h2>
-          <div class="saved-filter" id="am-saved-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
-            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
-          </div>
-          <div id="am-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-saved-pagination"></div>
-        </div>
-      </div>
-
-      <div class="dash-row">
-        <div class="dash-section">
-          <h2>Beğendiklerim</h2>
-          <div class="saved-filter" id="am-rated-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-          </div>
-          <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-rated-pagination"></div>
-        </div>
-
-        <div class="dash-section">
-          <h2>Yorumlarım</h2>
-          <div class="saved-filter" id="am-comments-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-          </div>
-          <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-comments-pagination"></div>
         </div>
       </div>
     </div>`;
