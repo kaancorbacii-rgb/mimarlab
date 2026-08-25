@@ -1,6 +1,6 @@
 import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { resolveSlugRedirect } from '../lib/slugRedirects.js';
@@ -73,7 +73,8 @@ export async function handleOfficeSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
-    if (!q) return { items: [] };
+    // D1 audit (2026-08-25) P1-6 — bkz. product.js#handleProductSearchRoute'taki AYNI gerekçe.
+    if (!q || q.length < 2) return { items: [] };
     const { results } = await env.DB.prepare(
       `SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY name`
     ).all();
@@ -209,10 +210,11 @@ export async function handleOfficeListRoute(request, env, url) {
 
 // Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
 // desen.
+// D1 audit (2026-08-25) P0-3 — bkz. project.js#projectListFingerprint'teki AYNI gerekçe.
 function officeListFingerprint(env) {
-  return env.DB.prepare(
+  return getCachedFingerprint(env, 'offices', () => env.DB.prepare(
     `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
 }
 
 // GET /api/office/:key — ofis-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
@@ -302,14 +304,20 @@ async function buildOfficePayload(env, key) {
     // relatedOffices — bkz. yukarıdaki officeCity yorumu. loc = 'İl / İlçe' ya da bazen bare 'İl'
     // olarak saklandığından (bkz. cityOf()'un aynı iki durumu ele alması) hem tam eşleşme hem
     // 'İl / %' öneki eşleştirilir. officeCity boşsa (loc hiç girilmemiş) sorgu hiç çalıştırılmaz.
-    // ORDER BY RANDOM() — kullanıcı isteği: aynı şehirdeki firmalar her modal açılışında farklı
-    // sırayla/karışık gösterilsin (önceden alfabetik olduğundan hep aynı ilk 12 firma görünüyordu).
-    // Bu uç caches.default'a yazılmadığından (bkz. src/lib/publicCache.js, yalnızca kısa
-    // max-age=5/s-maxage=15 ipucu başlıkları) her istek gerçekten sunucuda yeniden hesaplanır.
+    // D1 audit (2026-08-25) P1-4 — `ORDER BY RANDOM()` (loc index'siz olduğundan zaten `SCAN
+    // offices` gerektiren bu sorguda) canlıda doğrulandı: SQLite'ın RANDOM() için kurduğu geçici
+    // b-tree sıralaması, ölçülen rows_read'i taban tablo satır sayısının (752) BİLE üzerine
+    // çıkarıyordu (1209 rows_read/çağrı) — bkz. audit raporu D#1. Sıralama artık D1'de DEĞİL,
+    // proje.js#handleProjectListRoute'taki `sort=random` dalıyla AYNI Fisher-Yates deseniyle
+    // (kullanıcı isteği: mevcut yerleşik desen tekrar kullanılsın) Worker belleğinde yapılıyor —
+    // WHERE koşulu/eşleşen kayıt kümesi DEĞİŞMEDİ, yalnızca "rastgele 12 tanesi" artık D1'e
+    // sıralatılmıyor. LIMIT 50 — aynı şehirdeki firma sayısı make-sense bir üst sınırla
+    // kısıtlanır (İstanbul gibi en kalabalık şehirde bile onlarca değil yüzlerce firma olması
+    // beklenmez); şehir gerçekten 12'den azsa davranış AYNI (tüm eşleşenler döner).
     officeCity ? env.DB.prepare(
       `SELECT slug, name, loc, logo_url, website FROM offices
        WHERE deleted_at IS NULL AND hidden_at IS NULL AND id != ? AND (loc = ? OR loc LIKE ?)
-       ORDER BY RANDOM() LIMIT 12`
+       LIMIT 50`
     ).bind(o.id, officeCity, officeCity + ' / %').all() : Promise.resolve({ results: [] }),
     // Ürün/malzeme markası olarak bu firmaya ait katalog — brand_office_id yalnızca onaylanan bir
     // gönderi üzerinden sync edilirken doldurulur (bkz. canonicalSync.js#syncProduct), toplu/legacy
@@ -377,7 +385,15 @@ async function buildOfficePayload(env, key) {
       return b._year - a._year;
     })
     .map(({ _year, ...rest }) => rest);
-  const relatedOffices = relatedOfficesRes.results.map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
+  // D1 audit (2026-08-25) P1-4 — yukarıdaki sorgu artık ORDER BY RANDOM() içermiyor, bkz. o
+  // yorum: eşleşen kayıtlar (en fazla 50) burada Fisher-Yates ile karıştırılıp ilk 12'si alınır —
+  // "her açılışta farklı 12 firma" davranışı DEĞİŞMEDİ, yalnızca karıştırma D1'den JS'e taşındı.
+  const shuffledOffices = [...relatedOfficesRes.results];
+  for (let i = shuffledOffices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledOffices[i], shuffledOffices[j]] = [shuffledOffices[j], shuffledOffices[i]];
+  }
+  const relatedOffices = shuffledOffices.slice(0, 12).map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
   const brandCatalog = brandProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, kind: parsed.kind };

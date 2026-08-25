@@ -1,6 +1,6 @@
 import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
@@ -50,7 +50,11 @@ export async function handleProductSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
-    if (!q) return { items: [] };
+    // D1 audit (2026-08-25) P1-6 — 2 karakter altı sorgular hiç D1'e gitmez: istemci tarafında
+    // (wireAutocompleteLive) bir minimum uzunluk kontrolü yoktu, her tuş vuruşu (1 karakter dahil)
+    // tam tablo taramasını tetikliyordu (bkz. audit raporu D#5). 1 karakterlik bir aramanın önerisi
+    // zaten pratikte kullanışsız kalabalık bir liste olurdu — bu eşik UX'i bozmaz, gürültüyü azaltır.
+    if (!q || q.length < 2) return { items: [] };
     const { results } = await env.DB.prepare(
       `SELECT slug, title, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY title`
     ).all();
@@ -354,7 +358,7 @@ export async function handleProductListRoute(request, env, url) {
 // Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
 // desen.
 function productListFingerprint(env) {
-  return env.DB.prepare(
+  return getCachedFingerprint(env, 'products', () => env.DB.prepare(
     `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
 }

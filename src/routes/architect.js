@@ -1,7 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
@@ -88,6 +88,10 @@ export async function handleArchitectSearchRoute(request, env, url) {
     const officeParam = (url.searchParams.get('office') || '').trim();
     const q = foldTr((url.searchParams.get('q') || '').trim());
     if (!q && !officeParam) return { items: [] };
+    // D1 audit (2026-08-25) P1-6 — bkz. product.js#handleProductSearchRoute'taki AYNI gerekçe.
+    // officeParam (tam isim eşleşmesi, tuş vuruşuyla değil seçimle set edilir) bu eşikten muaf —
+    // yalnızca serbest metin `q` araması 2 karakter altında D1'e hiç gitmez.
+    if (!officeParam && q.length < 2) return { items: [] };
     const { results } = await env.DB.prepare(
       `SELECT a.name AS name, o.name AS office_name FROM architects a
        LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
@@ -248,10 +252,11 @@ export async function handleArchitectListRoute(request, env, url) {
 // Faz 4B — Conditional Requests: yukarıdaki tam liste sorgusundan (JOIN + JS filtre/sırala/sayfala)
 // çok daha ucuz bir "içerik değişti mi" özeti — bkz. src/lib/publicCache.js#cachedPublicJson
 // listFingerprint parametresi.
+// D1 audit (2026-08-25) P0-3 — bkz. project.js#projectListFingerprint'teki AYNI gerekçe.
 function architectListFingerprint(env) {
-  return env.DB.prepare(
+  return getCachedFingerprint(env, 'architects', () => env.DB.prepare(
     `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
 }
 
 // GET /api/architect/:key — mimar-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
@@ -356,13 +361,15 @@ async function buildArchitectPayload(env, key) {
       `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND (pd.architect_id = ? OR pd.office_id = ?)`
     ).bind(a.id, office ? office.id : -1).all(),
-    // ORDER BY RANDOM() — bkz. src/routes/office.js#relatedOffices'teki AYNI "her açılışta farklı
-    // öneri" gerekçesi/caching notu; bu uç da caches.default'a yazılmıyor.
+    // D1 audit (2026-08-25) P1-4 — bkz. src/routes/office.js#relatedOffices'teki AYNI gerekçe:
+    // ORDER BY RANDOM() D1'de canlıda doğrulanmış bir "SCAN + TEMP B-TREE" maliyeti üretiyordu
+    // (bu sorgunun WHERE koşulu da — ABS(...) ifadesi — indexlenemez). Sıralama artık D1'de değil,
+    // aşağıdaki Fisher-Yates ile Worker belleğinde yapılıyor; LIMIT 50 makul bir üst sınır.
     Number.isFinite(dobYear) ? env.DB.prepare(
       `SELECT slug, name, dob, photo_url FROM architects
        WHERE deleted_at IS NULL AND hidden_at IS NULL AND id != ? AND dob IS NOT NULL AND dob != ''
          AND ABS(CAST(SUBSTR(dob, 1, 4) AS INTEGER) - ?) <= ?
-       ORDER BY RANDOM() LIMIT 12`
+       LIMIT 50`
     ).bind(a.id, dobYear, AGE_RANGE_YEARS).all() : Promise.resolve({ results: [] }),
   ]);
 
@@ -384,7 +391,14 @@ async function buildArchitectPayload(env, key) {
       return b._year - a._year;
     })
     .map(({ _year, ...rest }) => rest);
-  const relatedArchitects = similarAgeRes.results.map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+  // D1 audit (2026-08-25) P1-4 — bkz. yukarıdaki similarAgeRes sorgusundaki AYNI gerekçe: en fazla
+  // 50 aday burada karıştırılıp ilk 12'si alınır (D1'de ORDER BY RANDOM() KALDIRILDI).
+  const shuffledArchitects = [...similarAgeRes.results];
+  for (let i = shuffledArchitects.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledArchitects[i], shuffledArchitects[j]] = [shuffledArchitects[j], shuffledArchitects[i]];
+  }
+  const relatedArchitects = shuffledArchitects.slice(0, 12).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
 
   const item = {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,

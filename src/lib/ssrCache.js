@@ -1,4 +1,5 @@
 import { slugify } from './slugify.js';
+import { cacheKeyFor } from './publicCache.js';
 
 // src/index.js#serveDetailPage bu sürümü SSR HTML önbelleğinin (caches.default) anahtarına ekler
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
@@ -11,6 +12,19 @@ const PREFIX_BY_TYPE = {
   architect: '/mimar/',
   office: '/firma/',
   product: '/urun/',
+};
+
+// D1 audit (2026-08-25) P0-1 — publicCache.js#CACHEABLE_DETAIL_PREFIXES ile BİREBİR aynı 4 yol.
+// purgeSsrDetailCache zaten her içerik-mutasyon noktasında (type, key) ile çağrılıyor (bkz. aşağıdaki
+// export'un tüm çağıranları — admin.js, submissions.js, legacyContent.js, officeFounderCascade.js,
+// canonicalSync.js, architect.js/product.js kendi profil güncellemeleri) — SSR HTML sayfa cache'i
+// (caches.default) İLE AYNI anda, aynı (type, key) çiftiyle yeni JSON detay cache girdisini de
+// temizlemek için bu haritayı ayrı bir çağıran zinciri kurmadan burada kullanmak yeterli.
+const API_DETAIL_PREFIX_BY_TYPE = {
+  project: '/api/project/',
+  architect: '/api/architect/',
+  office: '/api/office/',
+  product: '/api/product/',
 };
 
 // architect/office temiz URL'leri isimden slugify edilir (bkz. src/index.js#CLEAN_URL_REDIRECTS
@@ -39,6 +53,19 @@ export async function purgeSsrDetailCache(type, rawKey) {
       const keyUrl = new URL(`https://mimarlab.com${prefix}${encodeURIComponent(slug)}`);
       keyUrl.searchParams.set('__cv', SSR_CACHE_VERSION);
       await caches.default.delete(new Request(keyUrl));
+    } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev) kullanılamayabilir */ }
+  }
+  // D1 audit (2026-08-25) P0-1 — /api/project|architect|office|product/:key JSON detay cache'i
+  // (bkz. publicCache.js#cachedPublicJson'daki yeni isDetailPath dalı) yukarıdaki SSR HTML
+  // girdisiyle AYNI anahtar biçimini (slugify edilmiş architect/office adı, ham project/product
+  // slug'ı) paylaşır — cacheKeyFor() publicCache.js'ten içe aktarılır ki iki dosyanın anahtar
+  // üretimi zamanla birbirinden SAPMASIN. __cv sürüm parametresi YOK — JSON detay cache'i
+  // SSR_CACHE_VERSION'dan bağımsız (yalnızca SSR şablonu değiştiğinde artan bir sürüm, JSON yanıt
+  // şeklini etkilemez).
+  const apiPrefix = API_DETAIL_PREFIX_BY_TYPE[type];
+  if (apiPrefix) {
+    try {
+      await caches.default.delete(cacheKeyFor(`${apiPrefix}${encodeURIComponent(slug)}`));
     } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev) kullanılamayabilir */ }
   }
 }

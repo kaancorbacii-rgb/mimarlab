@@ -61,6 +61,13 @@ const PUBLIC_LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxa
 const CACHEABLE_PATHS = [
   '/api/public/hidden', '/api/public/project-edits', '/api/public/profile-edits',
   '/api/public/news',
+  // D1 audit (2026-08-25) P0-2 — En İyi 100 (computeTop100) sitedeki TEK sıfır-cache public liste
+  // ucuydu (bkz. audit raporu B3): top100_entries + 2x projects IN + ratings tam taraması + snapshot,
+  // her istekte, hiçbir cachedPublicJson sarmalayıcısı olmadan. Sorgu dizesi taşımadığından
+  // (`handleTop100Route` her zaman TÜM listeyi döner) diğer sabit CACHEABLE_PATHS ile aynı basit
+  // desene uyuyor. Admin mutasyonları (handleTop100AdminRoute — POST/PATCH/move/reorder/DELETE)
+  // artık burayı da invalidatePublicCache() ile temizliyor (bkz. top100.js).
+  '/api/public/top100',
 ];
 
 // kökten bulgu (2026-08-16): '/api/public/badges' bir ara CACHEABLE_PATHS'teydi (bkz. bir üstteki
@@ -88,6 +95,43 @@ const BADGE_NO_CACHE_HEADERS = { 'Cache-Control': 'private, no-store, must-reval
 // her kombinasyon kendi caches.default girdisi olarak güvenle tutulabilir. NOT: `/api/news` prefix'i
 // `/api/public/news` ile ÇAKIŞMAZ — farklı path segmentleri (bkz. isListPath'teki tam-önek eşleşmesi).
 const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products', '/api/news'];
+
+// D1 audit (2026-08-25) P0-1 — tekil kayıt (detay) uçları: /api/project/:slug, /api/architect/:key,
+// /api/office/:key, /api/product/:key. Önceden bu 4 uç `isListPath`'in yalnızca ÇOĞUL path'leri
+// (`/api/projects` vb.) tanıdığı `CACHEABLE_LIST_PREFIXES`'e hiç girmediğinden `!cacheable` dalına
+// düşüp gerçek bir cache'e (caches.default) hiç yazılmıyordu — her sayfa görüntülemesinde
+// (bot değil, gerçek ziyaretçi) 7-13 D1 sorgusu tetikliyordu (bkz. audit raporu B1). `isDetailPath`
+// kasıtlı olarak DAR: yalnızca tam olarak "<prefix><tek segment>" biçimindeki path'leri kabul eder
+// (segment içinde `/` yoksa) — böylece `/api/project/:slug/can-edit`, `/api/project/:slug/moderate`
+// gibi mutasyon/kişiselleştirilmiş alt-yollar (zaten bu 4 fonksiyonun DIŞINDA, farklı handler'lar
+// tarafından karşılanıyor, hiçbiri cachedPublicJson'ı bu path'lerle ÇAĞIRMIYOR) YANLIŞLIKLA cache'e
+// girmez — `isListPath`'i gevşetmek yerine ayrı, dar bir kontrol tercih edildi (kullanıcı isteği:
+// "sadece isListPath() kontrolünü gevşetip yanlışlıkla tüm dinamik API'leri cache'leme").
+const CACHEABLE_DETAIL_PREFIXES = ['/api/project/', '/api/architect/', '/api/office/', '/api/product/'];
+function isDetailPath(pathname) {
+  const prefix = CACHEABLE_DETAIL_PREFIXES.find(p => pathname.startsWith(p));
+  if (!prefix) return false;
+  const rest = pathname.slice(prefix.length);
+  return rest.length > 0 && !rest.includes('/');
+}
+
+// D1 audit (2026-08-25) P1-6 — autocomplete/arama uçları (mimar-ekle/firma-ekle/proje-ekle/
+// urun-ekle formlarındaki canlı isim önerileri + tekrar-isim uyarısı). Hiçbiri CACHEABLE_LIST_
+// PREFIXES/DETAIL_PREFIXES'e girmediğinden (farklı segment adları: "search"/"check-name")
+// `!cacheable` dalına düşüyor, her tuş vuruşunda tam tablo taraması üretiyordu (bkz. audit raporu
+// B4/D#5-8). isListPath'teki AYNI "pathname === p || pathname.startsWith(p + '?')" deseni — bu
+// çağıranların hepsi zaten `url.pathname + url.search`'ü cachedPublicJson'a geçiriyor (bkz. o
+// dosyalardaki çağrı noktaları), bu yüzden anahtar doğal olarak sorgu metnine göre ayrışır (her
+// farklı `q`/`name` kendi cache girdisini alır). Kısa ANON_CACHE_HEADERS TTL'i (max-age=5/
+// s-maxage=15) BİLİNÇLİ tercih — otomatik tamamlama sonuçları liste sayfalarından daha sık
+// değişebilir (yeni onaylanan bir kayıt hemen aranabilir olmalı).
+const CACHEABLE_SEARCH_PATHS = [
+  '/api/architects/search', '/api/offices/search', '/api/products/search',
+  '/api/photographers/search', '/api/public/check-name',
+];
+function isSearchPath(pathname) {
+  return CACHEABLE_SEARCH_PATHS.some(p => pathname === p || pathname.startsWith(p + '?'));
+}
 // Ana sayfanın (index.html) mini-carousel'leri BARE (sorgu dizesiz) varyantı DEĞİL, kendi
 // ?limit=N varyantını çeker (bkz. index.html#PROJECT_CAROUSEL_FETCH_LIMIT/Promise.all) — bu da
 // caches.default'ta AYRI bir anahtar altında saklanır (bkz. cacheKeyFor). Yalnızca BARE_LIST_PATHS
@@ -120,7 +164,10 @@ function isListPath(pathname) {
   return CACHEABLE_LIST_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '?'));
 }
 
-function cacheKeyFor(pathname) {
+// export edilir — src/lib/ssrCache.js#purgeSsrDetailCache aynı anahtar üretimini (P0-1 detay JSON
+// cache purge'ü için) tekrar yazmak yerine buradan içe aktarır, iki dosyanın anahtar biçimi
+// zamanla birbirinden sapmasın diye (bkz. o dosyadaki içe aktarma).
+export function cacheKeyFor(pathname) {
   // caches.default sabit bir Request nesnesi ister; sabit CACHEABLE_PATHS'te sorgu dizesi
   // olmadığından pathname'in kendisi zaten benzersiz bir anahtardır; liste uçlarında pathname
   // çağıran tarafından ZATEN `url.pathname + url.search` olarak geçirilir (bkz. src/routes/
@@ -203,13 +250,22 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   if (admin) { const data = await computeData(); return json(data, statusFor(data), ADMIN_CACHE_HEADERS); }
 
   const listPath = isListPath(pathname);
-  const cacheable = CACHEABLE_PATHS.includes(pathname) || listPath;
+  const detailPath = !listPath && isDetailPath(pathname);
+  const searchPath = !listPath && !detailPath && isSearchPath(pathname);
+  const cacheable = CACHEABLE_PATHS.includes(pathname) || listPath || detailPath || searchPath;
   // bkz. yukarıdaki BADGE_NO_CACHE_HEADERS yorumu — bu uç kasıtlı olarak CACHEABLE_PATHS'te
   // DEĞİL (cacheable burada zaten false döner), ama ANON_CACHE_HEADERS'ın public/max-age=5'i de
   // istenmiyor (tarayıcı bile kısa süreliğine eski rozeti tutmasın diye) — bu yüzden pathname'e
   // göre ayrıca no-store'a zorlanıyor.
+  // detailPath da PUBLIC_LIST_CACHE_HEADERS'ı paylaşır (aynı TTL/safety-net felsefesi, bkz. SSR
+  // sayfa cache'i ve pool cache'in de aynı 5dk s-maxage'ı kullanması) — asıl tazelik, yazma
+  // noktalarındaki purgeSsrDetailCache() genişletmesiyle (bkz. ssrCache.js) aktif sağlanır.
+  // '/api/public/top100' de AYNI 5dk s-maxage'ı alır (diğer 4 sabit CACHEABLE_PATHS girdisinin
+  // aksine top100 pahalı bir sorgu — ratings tam taraması dahil, bkz. audit raporu B3 — bu yüzden
+  // varsayılan kısa ANON_CACHE_HEADERS'tan bilerek ayrılır); tazelik yine handleTop100AdminRoute'un
+  // (top100.js) her mutasyonda çağırdığı invalidatePublicCache() ile aktif sağlanır.
   const headers = pathname === '/api/public/badges' ? BADGE_NO_CACHE_HEADERS
-    : listPath ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
+    : (listPath || detailPath || pathname === '/api/public/top100') ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
 
   if (!cacheable) { const data = await withSingleFlight(`json:${pathname}`, computeData); return json(data, statusFor(data), headers); }
 
@@ -321,6 +377,48 @@ export async function getCachedPool(env, kind, fetchPool) {
   return pool;
 }
 
+// D1 audit (2026-08-25) P0-3 — cachedPublicJson'daki listFingerprint kontrolü caches.default HIT
+// durumunda BİLE çalışır (tazelik doğrulaması budur, bkz. cachedPublicJson içindeki computeFreshEtag
+// yorumu) — ama 4 liste ucunun (projects/architects/offices/products) her biri kendi
+// `*ListFingerprint()` fonksiyonunda ÇIPLAK bir `SELECT COUNT(*), MAX(updated_at) ... WHERE
+// deleted_at IS NULL AND hidden_at IS NULL` çalıştırıyordu — mevcut partial index'ler (ör.
+// idx_projects_hidden_or_deleted) TERS koşulu (yalnızca gizli/silinmiş satırlar) kapsadığından bu
+// sorgu index'i kullanamıyor, canlıda doğrulandı: SCAN + tam tablo rows_read (projects 1411,
+// architects 928, offices 752, products 155) — HER istekte, cache HIT olsa bile (bkz. audit
+// raporu B2). getCachedPool'daki AYNI KV deseni burada da kullanılır: fingerprint sonucu (düz bir
+// "count:latest" metni) kısa TTL'li FACET_CACHE'de tutulur, mutasyon noktalarında poolCacheKey
+// ile BİRLİKTE temizlenir (bkz. invalidatePublicCache aşağısı) — asıl tazelik yine aktif
+// invalidation'dan gelir, TTL yalnızca güvenlik ağıdır (POOL_CACHE_TTL_SECONDS'taki AYNI
+// gerekçe). TTL 60sn — KV'nin minimum expirationTtl değeri budur (60sn altı `KV.put()` 400 döner,
+// bkz. proje belleği); fingerprint'in kendisi zaten UCUZ bir güvenlik ağı olduğundan (asıl
+// pahalı sorgu değil, "değişti mi" kontrolü) bu kısa TTL yeterli bir denge sağlar.
+const FINGERPRINT_KV_TTL_SECONDS = 60;
+const FINGERPRINT_CACHE_KINDS = ['projects', 'architects', 'offices', 'products'];
+function fingerprintCacheKey(kind) { return `fingerprint:${kind}`; }
+
+// computeFingerprint() yalnızca KV boşsa (ya da FACET_CACHE binding'i yoksa — ör. bazı yerel/test
+// ortamları) çağrılır; env.FACET_CACHE.get()/put() try/catch ile korunur — KV geçici olarak
+// başarısız olursa (binding yok, ağ hatası vb.) sessizce her istekte D1'den taze hesaplamaya
+// DÜŞER (mevcut ESKİ davranışla birebir aynı, davranış BOZULMAZ) — kullanıcı isteği: "cache
+// invalidation başarısız olduğunda sistemin güvenli şekilde çalışmaya devam edeceği bir fallback".
+export async function getCachedFingerprint(env, kind, computeFingerprint) {
+  if (env.FACET_CACHE) {
+    try {
+      const cached = await env.FACET_CACHE.get(fingerprintCacheKey(kind));
+      if (cached !== null) return cached;
+    } catch { /* KV kullanılamıyorsa aşağıdaki taze hesaplamaya düş */ }
+  }
+  // withSingleFlight — bkz. dosya başı yorumu: KV MISS anında AYNI isolate'e düşen eşzamanlı
+  // istekler pahalı olmayan ama yine de gereksiz tekrarlı D1 çağrısını tek seferde paylaşır.
+  const fp = await withSingleFlight(`fingerprint:${kind}`, computeFingerprint);
+  if (env.FACET_CACHE && await reserveKvWrite(env)) {
+    try {
+      await env.FACET_CACHE.put(fingerprintCacheKey(kind), fp, { expirationTtl: FINGERPRINT_KV_TTL_SECONDS });
+    } catch { /* yazma başarısız olursa bir sonraki istek yine D1'den taze hesaplar, kullanıcı işlemi etkilenmez */ }
+  }
+  return fp;
+}
+
 // Admin panelinden bir POST/PATCH/DELETE ile içerik değiştiğinde çağrılır (bkz. src/routes/
 // admin.js#handleSubmissionsAdmin, src/routes/submissions.js, src/routes/legacyContent.js,
 // src/routes/payments.js). Hangi public uç(lar)ın etkilendiğini tek tek izlemek yerine (7 gönderi
@@ -338,6 +436,15 @@ export async function invalidatePublicCache(env) {
     }),
     ...(env && env.FACET_CACHE ? POOL_CACHE_KINDS.map(async kind => {
       try { await env.FACET_CACHE.delete(poolCacheKey(kind)); } catch {}
+    }) : []),
+    // D1 audit (2026-08-25) P0-3 — fingerprint KV önbelleği de aynı anda temizlenir, aksi halde
+    // (kısa 60sn TTL'e rağmen) invalidatePublicCache()'i çağıran bir yazımdan hemen sonra gelen bir
+    // istek en kötü ihtimalle 60sn'ye kadar eski bir fingerprint görüp ETag'i yanlışlıkla "taze"
+    // sanabilirdi. invalidatePublicCache zaten TÜM içerik mutasyon noktalarında (admin/submissions/
+    // legacyContent/payments/ratings) çağrıldığından, bu tek satır 4 fingerprint türünü de aynı
+    // yazma-anı tazeliğine kavuşturur — ayrı bir çağrı noktası eklemeye gerek kalmaz.
+    ...(env && env.FACET_CACHE ? FINGERPRINT_CACHE_KINDS.map(async kind => {
+      try { await env.FACET_CACHE.delete(fingerprintCacheKey(kind)); } catch {}
     }) : []),
   ]);
 }

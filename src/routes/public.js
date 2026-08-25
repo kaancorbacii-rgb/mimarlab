@@ -123,11 +123,20 @@ async function handlePublicCheckName(request, env, url) {
   const type = url.searchParams.get('type');
   const rawName = (url.searchParams.get('name') || '').trim();
   if (!CHECK_NAME_TYPES.has(type) || !rawName) return json({ exists: false, href: null });
+  // D1 audit (2026-08-25) P1-6 — TAM eşleşme arandığından (bkz. dosya başı yorumu) 2 karakterin
+  // altında hiçbir gerçek proje/mimar/firma/ürün adına zaten eşleşemez — D1'e hiç gidilmez.
+  if (rawName.length < 2) return json({ exists: false, href: null });
   const folded = foldTr(rawName);
   const excludeFolded = foldTr((url.searchParams.get('exclude') || '').trim());
   const hrefFor = (slug) => `${CHECK_NAME_HREF_BASE[type]}${encodeURIComponent(slug)}`;
 
-  return cachedPublicJson(request, env, url.pathname, async () => {
+  // D1 audit (2026-08-25) P1-6 — kök neden düzeltmesi: bu uç önceden yalnızca `url.pathname`'i
+  // (sorgu dizesi OLMADAN) cache/single-flight anahtarı olarak geçiyordu — cacheable hale
+  // getirmeden ÖNCE bile bu, aynı isolate'e düşen EŞZAMANLI farklı type/name/brand istekleri
+  // withSingleFlight altında birbirinin sonucunu paylaşabileceğinden yanlış bir gizli hataydı
+  // (gerçek bulgu, kod incelemesiyle yakalandı). Artık diğer arama uçlarıyla (bkz.
+  // publicCache.js#CACHEABLE_SEARCH_PATHS) AYNI desen: `url.pathname + url.search`.
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     if (type === 'architects' || type === 'offices') {
       const table = type;
       const { results } = await env.DB.prepare(`SELECT name, slug, hidden_at FROM ${table} WHERE deleted_at IS NULL`).all();

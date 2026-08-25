@@ -292,6 +292,8 @@ CREATE TABLE IF NOT EXISTS saved_items (
   UNIQUE(user_id, item_type, item_key)
 );
 CREATE INDEX IF NOT EXISTS idx_saved_user ON saved_items(user_id);
+-- bkz. migrations/0059_saved_items_type_key_index.sql
+CREATE INDEX IF NOT EXISTS idx_saved_items_type_key ON saved_items(item_type, item_key);
 
 CREATE TABLE IF NOT EXISTS password_resets (
   token_hash TEXT PRIMARY KEY,

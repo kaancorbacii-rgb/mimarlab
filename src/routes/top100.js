@@ -1,5 +1,6 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
+import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 
 // En İyi 100 sayfası (en-iyi-100.html) — kullanıcı isteği: sıra/puan editöryal (D1 tablosu
 // top100_entries, bkz. migrations/0054) kalsın ama (1) isim/görsel/link her istekte CANLI projects
@@ -156,10 +157,16 @@ async function computeTop100(env) {
   return { items, generatedAt: now };
 }
 
+// D1 audit (2026-08-25) P0-2 — computeTop100() önceden HER istekte (ratings tam taraması dahil)
+// çıplak çalışıyordu, hiçbir cachedPublicJson sarmalayıcısı yoktu (kardeş 5 public route'un aksine,
+// bkz. audit raporu B3). listFingerprint verilmedi (kasıtlı) — top100'ün kendi mutasyon yüzeyi
+// (top100_entries admin CRUD'u + projects/ratings mutasyonları) zaten invalidatePublicCache()
+// tarafından kapsanıyor (bkz. aşağıdaki handleTop100AdminRoute değişiklikleri ve ratings.js'in
+// mevcut invalidatePublicCache() çağrısı) — ayrı bir fingerprint sorgusu eklemek yalnızca yeni bir
+// D1 çağrısı ekler, kazanç sağlamaz. Cache HIT'te computeTop100() HİÇ ÇALIŞMAZ (D1'e gidilmez).
 export async function handleTop100Route(request, env, url) {
   if (request.method !== 'GET') return json({ error: 'Bulunamadı' }, 404);
-  const { items, generatedAt } = await computeTop100(env);
-  return json({ items, generatedAt });
+  return cachedPublicJson(request, env, url.pathname, () => computeTop100(env));
 }
 
 // GET/POST /api/admin/top100, PATCH /api/admin/top100/:id, POST /api/admin/top100/:id/move,
@@ -197,6 +204,11 @@ export async function handleTop100AdminRoute(request, env, url, segments) {
     const result = await env.DB.prepare(
       `INSERT INTO top100_entries (rnk, name, slug, base_avg, base_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
     ).bind(rnk, name, slug, baseAvg, baseCount, now, now).run();
+    // D1 audit (2026-08-25) P0-2 — /api/public/top100 artık cachedPublicJson üzerinden geçtiğinden
+    // (bkz. handleTop100Route) admin buradan bir kayıt ekleyip/düzenleyip/taşıyıp/silince bu
+    // önbelleği de temizlemek gerekir, aksi halde ziyaretçi tarafı s-maxage (5dk) dolana kadar eski
+    // listeyi görmeye devam eder — diğer 13 admin mutasyon noktasıyla AYNI desen.
+    await invalidatePublicCache(env);
     return json({ ok: true, id: result.meta.last_row_id });
   }
   // PATCH /api/admin/top100/:id — kullanıcı isteği: mevcut bir kayda elle puan ortalaması/oy sayısı
@@ -210,6 +222,7 @@ export async function handleTop100AdminRoute(request, env, url, segments) {
     }
     await env.DB.prepare(`UPDATE top100_entries SET base_avg = ?, base_count = ?, updated_at = ? WHERE id = ?`)
       .bind(baseAvg, baseCount, Date.now(), segments[3]).run();
+    await invalidatePublicCache(env); // bkz. yukarıdaki POST dalındaki AYNI gerekçe
     return json({ ok: true });
   }
   // POST /api/admin/top100/:id/move — bkz. dosya başı yorumu: sıradaki fiili konumu (avg'ye göre
@@ -235,6 +248,7 @@ export async function handleTop100AdminRoute(request, env, url, segments) {
       env.DB.prepare(`UPDATE top100_entries SET base_avg = ?, base_count = ?, updated_at = ? WHERE id = ?`).bind(b.baseAvg, b.baseCount, now, a.id),
       env.DB.prepare(`UPDATE top100_entries SET base_avg = ?, base_count = ?, updated_at = ? WHERE id = ?`).bind(a.baseAvg, a.baseCount, now, b.id),
     ]);
+    await invalidatePublicCache(env); // bkz. yukarıdaki POST dalındaki AYNI gerekçe
     return json({ ok: true, moved: true });
   }
   // POST /api/admin/top100/:id/reorder — kullanıcı isteği: "admine projeleri SÜRÜKLEYEREK yer
@@ -270,10 +284,12 @@ export async function handleTop100AdminRoute(request, env, url, segments) {
         .bind(rangeValues[k].baseAvg, rangeValues[k].baseCount, now, id)
     );
     await env.DB.batch(writes);
+    await invalidatePublicCache(env); // bkz. yukarıdaki POST dalındaki AYNI gerekçe
     return json({ ok: true, moved: true });
   }
   if (segments.length === 4 && request.method === 'DELETE') {
     await env.DB.prepare(`DELETE FROM top100_entries WHERE id = ?`).bind(segments[3]).run();
+    await invalidatePublicCache(env); // bkz. yukarıdaki POST dalındaki AYNI gerekçe
     return json({ ok: true });
   }
   return errorJson('Bulunamadı', 404);

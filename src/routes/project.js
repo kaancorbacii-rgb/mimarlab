@@ -1,6 +1,6 @@
 import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
-import { cachedPublicJson, getCachedPool } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
@@ -148,6 +148,10 @@ export async function handlePhotographerSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
+    // D1 audit (2026-08-25) P1-6 — bkz. product.js#handleProductSearchRoute'taki AYNI gerekçe.
+    // Boş q (odaklanınca en çok kullanılanları göster — bkz. yukarıdaki dosya başı yorumu) BİLEREK
+    // muaf: yalnızca 1 karakterlik gürültülü kısmi aramalar D1'e hiç gitmez.
+    if (q && q.length < 2) return { items: [] };
     const { results } = await env.DB.prepare(
       `SELECT photo_credit_text AS name, COUNT(*) AS c FROM projects
        WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text != ''
@@ -635,8 +639,12 @@ export async function handleProjectListRoute(request, env, url) {
 // profili güncellendiğinde proje kartındaki "Mimar" adı ya da bir projeye yeni puan verildiğinde
 // değişebilecek `rating`/`ratingCount` bu parmak izine YANSIMAZ (bkz. src/lib/publicCache.js#
 // cachedPublicJson üzerindeki AYNI not) — s-maxage (5dk) bu durumlar için güvenlik ağıdır.
+// D1 audit (2026-08-25) P0-3 — bu sorgu önceden ÇIPLAK çalışıyordu (her /api/projects isteğinde,
+// cache HIT'te bile — bkz. cachedPublicJson#computeFreshEtag). getCachedFingerprint kısa TTL'li
+// (60sn) bir KV önbelleği araya koyar, mutasyonlarda invalidatePublicCache() tarafından temizlenir
+// (bkz. publicCache.js) — sorgunun kendisi/doğruluğu DEĞİŞMEDİ, yalnızca ne sıklıkla çalıştığı.
 function projectListFingerprint(env) {
-  return env.DB.prepare(
+  return getCachedFingerprint(env, 'projects', () => env.DB.prepare(
     `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`);
+  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
 }
