@@ -14,9 +14,9 @@
       globalName: 'AuthModal',
       hrefRe: {
         login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/,
-        account: /(^|\/)hesabim\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/,
+        account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/,
       },
-      pathRe: /^\/(giris|uye-ol|hesabim|sifremi-unuttum)\/?$/,
+      pathRe: /^\/(giris|uye-ol|hesabim|aktivitelerim|sifremi-unuttum)\/?$/,
     },
     info: {
       src: 'js/components/info-modal.js',

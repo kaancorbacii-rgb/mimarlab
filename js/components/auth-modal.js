@@ -10,8 +10,8 @@
 // linkleri) HİÇ değiştirilmedi — bunun yerine burada TEK bir delege edilmiş click dinleyicisiyle
 // yakalanıp preventDefault edilir (bkz. aşağısı).
 const AuthModal = (function () {
-  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', forgot: '/sifremi-unuttum' };
-  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
+  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', activities: '/aktivitelerim', forgot: '/sifremi-unuttum' };
+  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -702,6 +702,34 @@ const AuthModal = (function () {
         </div>
       </div>
 
+      <div class="dash-section">
+        <h2>Rozet Ayrıcalıklarından Faydalan</h2>
+        <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
+        <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
+        <div class="badge-grid" id="am-badge-grid"></div>
+      </div>
+    </div>`;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // AKTİVİTELERİM — Hesabım'dan ayrılmış, yalnızca Kaydettiklerim/Beğendiklerim/Yorumlarım/
+  // Paylaştığım İçerikler kutularını taşıyan ikinci bir dashboard görünümü (bkz. kullanıcı isteği:
+  // "Hesabım seçeneğinin altına Aktivitelerim seçeneği ekle"). Yükleme/render mantığı (loadSubmissions/
+  // loadSaved/loadRated/loadComments) accountTemplate()'in eskiden TEK parçası olan mountAccount()'tan
+  // BİREBİR taşındı — accountUser gibi Hesabım'a özgü hiçbir state'e bağımlı değildi.
+  // ---------------------------------------------------------------------------------------------
+  function activitiesTemplate() {
+    return `
+    <div class="dash-wrap" id="am-activities-wrap">
+      <div class="dash-head">
+        <div class="dash-head-info">
+          <div>
+            <h1>Aktivitelerim</h1>
+            <p>Kaydettiklerin, beğendiklerin, yorumların ve paylaştığın içerikler.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="dash-row">
         <div class="dash-section">
           <h2>Paylaştığım İçerikler</h2>
@@ -756,13 +784,6 @@ const AuthModal = (function () {
           <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-comments-pagination"></div>
         </div>
-      </div>
-
-      <div class="dash-section">
-        <h2>Rozet Ayrıcalıklarından Faydalan</h2>
-        <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
-        <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
-        <div class="badge-grid" id="am-badge-grid"></div>
       </div>
     </div>`;
   }
@@ -1419,240 +1440,6 @@ const AuthModal = (function () {
       e.target.value = '';
     });
 
-    let allSubmissions = [];
-    let submissionsFilter = '';
-    let submissionsPage = 1;
-    async function loadSubmissions() {
-      const types = Object.keys(TYPE_LABELS);
-      const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : { items: [] })));
-      allSubmissions = [];
-      types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({ type: t, item })));
-      allSubmissions.sort((a, b) => b.item.created_at - a.item.created_at);
-      renderSubmissions();
-    }
-    function renderSubmissions() {
-      const container = document.getElementById('am-dash-submissions');
-      if (!allSubmissions.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
-        document.getElementById('am-submissions-pagination').innerHTML = '';
-        return;
-      }
-      const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
-      if (!all.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
-        document.getElementById('am-submissions-pagination').innerHTML = '';
-        return;
-      }
-      const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE_DASH));
-      if (submissionsPage > totalPages) submissionsPage = totalPages;
-      const startIdx = (submissionsPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = all.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(({ type, item }) => {
-        const detailUrl = itemDetailUrl(type, item);
-        const titleHtml = detailUrl
-          ? `<a href="${escapeAttr(detailUrl)}" style="font-weight:600; font-size:13.5px; color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(itemTitle(type, item))}</a>`
-          : `<div style="font-weight:600; font-size:13.5px;">${escapeHtml(itemTitle(type, item))}</div>`;
-        return `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft);">
-          <div>
-            ${titleHtml}
-            <div style="font-size:11.5px; color:var(--ink-soft);">${TYPE_LABELS[type]} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
-          </div>
-          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-            ${(type === 'products' || type === 'materials') ? '' : `<a class="submission-edit-link" href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`}
-            <span style="font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:100px; color:${STATUS_COLORS[item.status]}; background:${STATUS_COLORS[item.status]}22;">${STATUS_LABELS[item.status]}</span>
-          </div>
-        </div>
-      `;
-      }).join('');
-      renderDashPagination('am-submissions-pagination', submissionsPage, totalPages, (p) => { submissionsPage = p; renderSubmissions(); });
-    }
-
-    let savedItems = [];
-    let savedFilter = '';
-    let savedPage = 1;
-    async function loadSaved() {
-      const res = await fetch('/api/saved');
-      const data = res.ok ? await res.json() : { items: [] };
-      savedItems = data.items || [];
-      renderSaved();
-    }
-    // "Ürün" filtresi hem product hem material tipini kapsar — urun.html'de bu ikisi zaten TEK
-    // katalog olarak birleşti, Kaydettiklerim/Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından
-    // ikisi de tek "Ürün" butonunun altında toplanır.
-    function matchesCatalogFilter(itemType, filter) {
-      if (!filter) return true;
-      if (filter === 'product') return itemType === 'product' || itemType === 'material';
-      return itemType === filter;
-    }
-    function renderSaved() {
-      const container = document.getElementById('am-dash-saved');
-      const items = savedFilter ? savedItems.filter(it => matchesCatalogFilter(it.item_type, savedFilter)) : savedItems;
-      if (!savedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
-        document.getElementById('am-saved-pagination').innerHTML = '';
-        return;
-      }
-      if (!items.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde kaydettiğin bir içerik yok.</div>';
-        document.getElementById('am-saved-pagination').innerHTML = '';
-        return;
-      }
-      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
-      if (savedPage > totalPages) savedPage = totalPages;
-      const startIdx = (savedPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(it => `
-        <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
-          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
-            ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
-            <div style="min-width:0;">
-              <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
-              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.item_type] || ''}${it.item_meta ? ' · ' + escapeHtml(it.item_meta) : ''}</div>
-            </div>
-          </a>
-          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
-        </div>`).join('');
-      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
-        // gerçek bulgu (denetim, 2026-08-24): try/catch yoktu — project-comments.js'teki eşdeğer
-        // yorum-silme butonunun aksine. Ağ hatasında loadSaved() (butonu normale döndüren TEK yer)
-        // hiç çalışmadığından "✕" kalıcı olarak devre dışı kalıyordu.
-        btn.addEventListener('click', async () => {
-          const row = btn.closest('.saved-row');
-          btn.disabled = true;
-          try {
-            await fetch(`/api/saved/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
-            loadSaved();
-          } catch { btn.disabled = false; }
-        });
-      });
-      renderDashPagination('am-saved-pagination', savedPage, totalPages, (p) => { savedPage = p; renderSaved(); });
-    }
-
-    let ratedItems = [];
-    let ratedFilter = '';
-    let ratedPage = 1;
-    async function loadRated() {
-      const res = await fetch('/api/ratings/mine');
-      const data = res.ok ? await res.json() : { items: [] };
-      ratedItems = data.items || [];
-      renderRated();
-    }
-    function renderRated() {
-      const container = document.getElementById('am-dash-rated');
-      const items = ratedFilter ? ratedItems.filter(it => matchesCatalogFilter(it.type, ratedFilter)) : ratedItems;
-      if (!ratedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
-        document.getElementById('am-rated-pagination').innerHTML = '';
-        return;
-      }
-      if (!items.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde puanladığın bir içerik yok.</div>';
-        document.getElementById('am-rated-pagination').innerHTML = '';
-        return;
-      }
-      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
-      if (ratedPage > totalPages) ratedPage = totalPages;
-      const startIdx = (ratedPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(it => `
-        <div class="saved-row">
-          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
-            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
-            <div style="min-width:0;">
-              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
-              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''}${it.meta ? ' · ' + escapeHtml(it.meta) : ''} · ${'★'.repeat(it.stars)}${'☆'.repeat(5 - it.stars)}</div>
-            </div>
-          </a>
-        </div>`).join('');
-      renderDashPagination('am-rated-pagination', ratedPage, totalPages, (p) => { ratedPage = p; renderRated(); });
-    }
-
-    let commentItems = [];
-    let commentsFilter = '';
-    let commentsPage = 1;
-    async function loadComments() {
-      const res = await fetch('/api/comments/mine');
-      const data = res.ok ? await res.json() : { items: [] };
-      commentItems = data.items || [];
-      renderComments();
-    }
-    function renderComments() {
-      const container = document.getElementById('am-dash-comments');
-      const items = commentsFilter ? commentItems.filter(it => it.type === commentsFilter) : commentItems;
-      if (!commentItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
-        document.getElementById('am-comments-pagination').innerHTML = '';
-        return;
-      }
-      if (!items.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde bir yorumun yok.</div>';
-        document.getElementById('am-comments-pagination').innerHTML = '';
-        return;
-      }
-      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
-      if (commentsPage > totalPages) commentsPage = totalPages;
-      const startIdx = (commentsPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(it => `
-        <div class="saved-row" data-id="${escapeAttr(it.id)}">
-          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
-            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
-            <div style="min-width:0;">
-              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
-              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''} · ${escapeHtml(it.body.length > 80 ? it.body.slice(0, 77) + '…' : it.body)}</div>
-            </div>
-          </a>
-          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
-        </div>`).join('');
-      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
-        // gerçek bulgu (denetim, 2026-08-24, bkz. yukarıdaki renderSaved()'daki AYNI kök neden):
-        // try/catch yoktu, ağ hatasında buton kalıcı olarak devre dışı kalıyordu.
-        btn.addEventListener('click', async () => {
-          const row = btn.closest('.saved-row');
-          btn.disabled = true;
-          try {
-            await fetch(`/api/comments/${encodeURIComponent(row.dataset.id)}`, { method: 'DELETE' });
-            loadComments();
-          } catch { btn.disabled = false; }
-        });
-      });
-      renderDashPagination('am-comments-pagination', commentsPage, totalPages, (p) => { commentsPage = p; renderComments(); });
-    }
-    on('am-comments-filter', 'click', (e) => {
-      const btn = e.target.closest('.saved-filter-btn');
-      if (!btn) return;
-      commentsFilter = btn.dataset.filter;
-      commentsPage = 1;
-      document.querySelectorAll('#am-comments-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderComments();
-    });
-
-    on('am-rated-filter', 'click', (e) => {
-      const btn = e.target.closest('.saved-filter-btn');
-      if (!btn) return;
-      ratedFilter = btn.dataset.filter;
-      ratedPage = 1;
-      document.querySelectorAll('#am-rated-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderRated();
-    });
-    on('am-submissions-filter', 'click', (e) => {
-      const btn = e.target.closest('.submissions-filter-btn');
-      if (!btn) return;
-      submissionsFilter = btn.dataset.filter;
-      submissionsPage = 1;
-      document.querySelectorAll('#am-submissions-filter .submissions-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderSubmissions();
-    });
-    on('am-saved-filter', 'click', (e) => {
-      const btn = e.target.closest('.saved-filter-btn');
-      if (!btn) return;
-      savedFilter = btn.dataset.filter;
-      savedPage = 1;
-      document.querySelectorAll('#am-saved-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderSaved();
-    });
-
     async function loadBadges() {
       const res = await fetch('/api/badges/mine');
       const data = res.ok ? await res.json() : { items: [] };
@@ -1920,13 +1707,264 @@ const AuthModal = (function () {
 
     loadUser().then(() => {
       if (accountUser) {
-        [loadSubmissions(), loadSaved(), loadRated(), loadComments(), loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications()]
+        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications()]
           .forEach(p => p.catch(() => {}));
         if (new URLSearchParams(window.location.search).get('payment') === 'success') {
           document.getElementById('am-payment-success-banner').style.display = 'block';
         }
       }
     });
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // AKTİVİTELERİM — Paylaştığım İçerikler/Kaydettiklerim/Beğendiklerim/Yorumlarım. mountAccount()'un
+  // eski TEK parçasıydı (bkz. activitiesTemplate() üstündeki yorum); accountUser gibi Hesabım'a
+  // özgü hiçbir state'e bağımlı olmadığından burada kendi başına, /api/auth/me ile ayrı bir oturum
+  // kontrolüyle çalışır.
+  // ---------------------------------------------------------------------------------------------
+  function mountActivities() {
+    const wired = new Set();
+    function on(id, evt, fn) {
+      const key = id + ':' + evt;
+      if (wired.has(key)) return;
+      wired.add(key);
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(evt, fn);
+    }
+
+    let allSubmissions = [];
+    let submissionsFilter = '';
+    let submissionsPage = 1;
+    async function loadSubmissions() {
+      const types = Object.keys(TYPE_LABELS);
+      const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : { items: [] })));
+      allSubmissions = [];
+      types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({ type: t, item })));
+      allSubmissions.sort((a, b) => b.item.created_at - a.item.created_at);
+      renderSubmissions();
+    }
+    function renderSubmissions() {
+      const container = document.getElementById('am-dash-submissions');
+      if (!allSubmissions.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
+        document.getElementById('am-submissions-pagination').innerHTML = '';
+        return;
+      }
+      const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
+      if (!all.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
+        document.getElementById('am-submissions-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE_DASH));
+      if (submissionsPage > totalPages) submissionsPage = totalPages;
+      const startIdx = (submissionsPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = all.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(({ type, item }) => {
+        const detailUrl = itemDetailUrl(type, item);
+        const titleHtml = detailUrl
+          ? `<a href="${escapeAttr(detailUrl)}" style="font-weight:600; font-size:13.5px; color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(itemTitle(type, item))}</a>`
+          : `<div style="font-weight:600; font-size:13.5px;">${escapeHtml(itemTitle(type, item))}</div>`;
+        return `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft);">
+          <div>
+            ${titleHtml}
+            <div style="font-size:11.5px; color:var(--ink-soft);">${TYPE_LABELS[type]} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            ${(type === 'products' || type === 'materials') ? '' : `<a class="submission-edit-link" href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`}
+            <span style="font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:100px; color:${STATUS_COLORS[item.status]}; background:${STATUS_COLORS[item.status]}22;">${STATUS_LABELS[item.status]}</span>
+          </div>
+        </div>
+      `;
+      }).join('');
+      renderDashPagination('am-submissions-pagination', submissionsPage, totalPages, (p) => { submissionsPage = p; renderSubmissions(); });
+    }
+
+    let savedItems = [];
+    let savedFilter = '';
+    let savedPage = 1;
+    async function loadSaved() {
+      const res = await fetch('/api/saved');
+      const data = res.ok ? await res.json() : { items: [] };
+      savedItems = data.items || [];
+      renderSaved();
+    }
+    // "Ürün" filtresi hem product hem material tipini kapsar — urun.html'de bu ikisi zaten TEK
+    // katalog olarak birleşti, Kaydettiklerim/Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından
+    // ikisi de tek "Ürün" butonunun altında toplanır.
+    function matchesCatalogFilter(itemType, filter) {
+      if (!filter) return true;
+      if (filter === 'product') return itemType === 'product' || itemType === 'material';
+      return itemType === filter;
+    }
+    function renderSaved() {
+      const container = document.getElementById('am-dash-saved');
+      const items = savedFilter ? savedItems.filter(it => matchesCatalogFilter(it.item_type, savedFilter)) : savedItems;
+      if (!savedItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+        document.getElementById('am-saved-pagination').innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde kaydettiğin bir içerik yok.</div>';
+        document.getElementById('am-saved-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (savedPage > totalPages) savedPage = totalPages;
+      const startIdx = (savedPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(it => `
+        <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
+            ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
+              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.item_type] || ''}${it.item_meta ? ' · ' + escapeHtml(it.item_meta) : ''}</div>
+            </div>
+          </a>
+          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
+        </div>`).join('');
+      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.saved-row');
+          btn.disabled = true;
+          try {
+            await fetch(`/api/saved/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
+            loadSaved();
+          } catch { btn.disabled = false; }
+        });
+      });
+      renderDashPagination('am-saved-pagination', savedPage, totalPages, (p) => { savedPage = p; renderSaved(); });
+    }
+
+    let ratedItems = [];
+    let ratedFilter = '';
+    let ratedPage = 1;
+    async function loadRated() {
+      const res = await fetch('/api/ratings/mine');
+      const data = res.ok ? await res.json() : { items: [] };
+      ratedItems = data.items || [];
+      renderRated();
+    }
+    function renderRated() {
+      const container = document.getElementById('am-dash-rated');
+      const items = ratedFilter ? ratedItems.filter(it => matchesCatalogFilter(it.type, ratedFilter)) : ratedItems;
+      if (!ratedItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+        document.getElementById('am-rated-pagination').innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde puanladığın bir içerik yok.</div>';
+        document.getElementById('am-rated-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (ratedPage > totalPages) ratedPage = totalPages;
+      const startIdx = (ratedPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(it => `
+        <div class="saved-row">
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
+            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
+              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''}${it.meta ? ' · ' + escapeHtml(it.meta) : ''} · ${'★'.repeat(it.stars)}${'☆'.repeat(5 - it.stars)}</div>
+            </div>
+          </a>
+        </div>`).join('');
+      renderDashPagination('am-rated-pagination', ratedPage, totalPages, (p) => { ratedPage = p; renderRated(); });
+    }
+
+    let commentItems = [];
+    let commentsFilter = '';
+    let commentsPage = 1;
+    async function loadComments() {
+      const res = await fetch('/api/comments/mine');
+      const data = res.ok ? await res.json() : { items: [] };
+      commentItems = data.items || [];
+      renderComments();
+    }
+    function renderComments() {
+      const container = document.getElementById('am-dash-comments');
+      const items = commentsFilter ? commentItems.filter(it => it.type === commentsFilter) : commentItems;
+      if (!commentItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
+        document.getElementById('am-comments-pagination').innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde bir yorumun yok.</div>';
+        document.getElementById('am-comments-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (commentsPage > totalPages) commentsPage = totalPages;
+      const startIdx = (commentsPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(it => `
+        <div class="saved-row" data-id="${escapeAttr(it.id)}">
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
+            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
+              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''} · ${escapeHtml(it.body.length > 80 ? it.body.slice(0, 77) + '…' : it.body)}</div>
+            </div>
+          </a>
+          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
+        </div>`).join('');
+      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.saved-row');
+          btn.disabled = true;
+          try {
+            await fetch(`/api/comments/${encodeURIComponent(row.dataset.id)}`, { method: 'DELETE' });
+            loadComments();
+          } catch { btn.disabled = false; }
+        });
+      });
+      renderDashPagination('am-comments-pagination', commentsPage, totalPages, (p) => { commentsPage = p; renderComments(); });
+    }
+    on('am-comments-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      commentsFilter = btn.dataset.filter;
+      commentsPage = 1;
+      document.querySelectorAll('#am-comments-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderComments();
+    });
+
+    on('am-rated-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      ratedFilter = btn.dataset.filter;
+      ratedPage = 1;
+      document.querySelectorAll('#am-rated-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderRated();
+    });
+    on('am-submissions-filter', 'click', (e) => {
+      const btn = e.target.closest('.submissions-filter-btn');
+      if (!btn) return;
+      submissionsFilter = btn.dataset.filter;
+      submissionsPage = 1;
+      document.querySelectorAll('#am-submissions-filter .submissions-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderSubmissions();
+    });
+    on('am-saved-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      savedFilter = btn.dataset.filter;
+      savedPage = 1;
+      document.querySelectorAll('#am-saved-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderSaved();
+    });
+
+    fetch('/api/auth/me').then(r => {
+      if (!r.ok) { swap('login'); return; }
+      [loadSubmissions(), loadSaved(), loadRated(), loadComments()].forEach(p => p.catch(() => {}));
+    }).catch(() => {});
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -1953,11 +1991,12 @@ const AuthModal = (function () {
     if (view === 'login') { wrap.innerHTML = loginTemplate(); wireLogin(); }
     else if (view === 'signup') { wrap.innerHTML = signupTemplate(); wireSignup(); }
     else if (view === 'forgot') { wrap.innerHTML = forgotTemplate(); wireForgot(); }
+    else if (view === 'activities') { wrap.innerHTML = activitiesTemplate(); mountActivities(); }
     else { wrap.innerHTML = accountTemplate(); mountAccount(); }
     // denetim bulgusu (AUDIT-009): bu modal document.title'ı hiç değiştirmiyor (sayfanın kendi
     // başlığı korunur), o yüzden diğer modallardaki gibi document.title'ı yeniden kullanamayız —
     // aria-label için ayrı, sabit bir Türkçe etiket haritası.
-    const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum' };
+    const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum', activities: 'Aktivitelerim' };
     ModalShell.setLabel(AUTH_VIEW_LABELS[view] || 'Hesabım');
     ModalShell.scrollToTop();
   }
@@ -2015,6 +2054,7 @@ const AuthModal = (function () {
     if (path === '/giris') return 'login';
     if (path === '/uye-ol') return 'signup';
     if (path === '/hesabim') return 'account';
+    if (path === '/aktivitelerim') return 'activities';
     if (path === '/sifremi-unuttum') return 'forgot';
     return null;
   }
@@ -2029,6 +2069,7 @@ const AuthModal = (function () {
     if (HREF_VIEW_RE.login.test(href)) view = 'login';
     else if (HREF_VIEW_RE.signup.test(href)) view = 'signup';
     else if (HREF_VIEW_RE.account.test(href)) view = 'account';
+    else if (HREF_VIEW_RE.activities.test(href)) view = 'activities';
     else if (HREF_VIEW_RE.forgot.test(href)) view = 'forgot';
     if (!view) return;
     e.preventDefault();

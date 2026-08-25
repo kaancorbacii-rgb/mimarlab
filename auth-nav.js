@@ -76,6 +76,7 @@
         </button>
         <div class="nav-avatar-menu" id="nav-avatar-menu">
           <a href="hesabim.html">Hesabım</a>
+          <a href="aktivitelerim.html">Aktivitelerim</a>
           ${adminLink}
           <button type="button" id="nav-logout-btn">Çıkış Yap</button>
         </div>
