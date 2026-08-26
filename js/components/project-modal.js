@@ -354,7 +354,10 @@ const ProjectModal = (function () {
     // cdnImg (bkz. image-cdn.js, bu sayfada — proje.html — her zaman yüklü) — denetim bulgusu
     // (2026-08-14): bu küçük (~24-64px) avatar önceden yükleme çözünürlüğünde isteniyordu.
     avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(cdnImg(item.ownerPhoto, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
-    document.getElementById('pm-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
+    const ownerNameHtml = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)}`;
+    document.getElementById('pm-byline-text').innerHTML = item.ownerArchitectSlug
+      ? `<a href="/mimar/${encodeURIComponent(item.ownerArchitectSlug)}">${ownerNameHtml}</a> tarafından`
+      : `${ownerNameHtml} tarafından`;
   }
 
   // renderNotFound() bu ID'leri gizler (bkz. aşağısı); ModalShell'in şablonu sayfa ömrü boyunca

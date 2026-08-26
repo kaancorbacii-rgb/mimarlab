@@ -8,12 +8,19 @@
 export async function fetchOwnerByline(env, userId) {
   if (!userId) return null;
   const row = await env.DB.prepare(
-    `SELECT u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge
+    `SELECT u.name AS owner_name, u.photo_url AS owner_photo, b.badge_type AS owner_badge, a.slug AS owner_architect_slug
      FROM users u
      LEFT JOIN badge_requests b ON b.user_id = u.id AND b.target_type = 'self' AND b.status = 'active'
        AND b.badge_type != 'destekci' AND (b.expires_at IS NULL OR b.expires_at > ?)
+     LEFT JOIN profile_claims c ON c.user_id = u.id AND c.profile_type = 'architect' AND c.status = 'approved'
+     LEFT JOIN architects a ON a.name = c.profile_key
      WHERE u.id = ?`
   ).bind(Date.now(), userId).first();
   if (!row || !row.owner_name) return null;
-  return { ownerName: row.owner_name, ownerPhoto: row.owner_photo || null, ownerBadge: row.owner_badge || null };
+  return {
+    ownerName: row.owner_name,
+    ownerPhoto: row.owner_photo || null,
+    ownerBadge: row.owner_badge || null,
+    ownerArchitectSlug: row.owner_architect_slug || null,
+  };
 }

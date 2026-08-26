@@ -27,6 +27,8 @@ const ProductModal = (function () {
          dikey ritme oturur. */
       .detail-byline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin:0 0 18px;}
       .detail-byline strong{color:var(--ink); font-weight:600;}
+      .detail-byline a{color:inherit; text-decoration:none;}
+      .detail-byline a:hover strong{text-decoration:underline;}
       .detail-byline-avatar{
         width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
         display:flex; align-items:center; justify-content:center; color:#fff;
@@ -528,7 +530,10 @@ const ProductModal = (function () {
     // cdnImg (bkz. image-cdn.js, bu sayfada — urun.html/proje.html — her zaman yüklü) — denetim
     // bulgusu (2026-08-14): bu küçük (~24-64px) avatar önceden yükleme çözünürlüğünde isteniyordu.
     avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(cdnImg(item.ownerPhoto, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
-    document.getElementById('pr-byline-text').innerHTML = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)} tarafından`;
+    const ownerNameHtml = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)}`;
+    document.getElementById('pr-byline-text').innerHTML = item.ownerArchitectSlug
+      ? `<a href="/mimar/${encodeURIComponent(item.ownerArchitectSlug)}">${ownerNameHtml}</a> tarafından`
+      : `${ownerNameHtml} tarafından`;
   }
 
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
