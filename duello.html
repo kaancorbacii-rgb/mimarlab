@@ -1023,8 +1023,9 @@
 
   /* ---------- DÜELLO ---------- */
   .duel-hero{max-width:720px; margin:0 auto; padding:28px 32px 8px; text-align:center;}
-  .duel-hero h1{font-family:'Fraunces', serif; font-size:30px; font-weight:700; margin:0 0 8px;}
+  .duel-hero h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 8px;}
   .duel-hero p{color:var(--ink-soft); font-size:14.5px; margin:0; line-height:1.6;}
+  .duel-hero .duel-refresh-btn{margin-top:18px;}
 
   .duel-arena{
     display:grid; grid-template-columns:1fr auto 1fr; gap:20px; align-items:stretch;
@@ -1032,7 +1033,7 @@
   }
   .duel-vs{
     display:flex; align-items:center; justify-content:center;
-    font-family:'Fraunces', serif; font-weight:700; font-size:20px; color:var(--brass);
+    font-family:'Inter', sans-serif; font-weight:700; font-size:20px; color:var(--brass);
     width:52px;
   }
   .duel-card{
@@ -1052,7 +1053,7 @@
     display:flex; align-items:center; gap:5px; box-shadow:0 4px 12px rgba(0,0,0,0.2);
   }
   .duel-card-body{padding:18px 18px 20px; display:flex; flex-direction:column; gap:5px; flex:1;}
-  .duel-card-title{font-family:'Fraunces', serif; font-weight:700; font-size:19px; line-height:1.28; color:var(--ink);}
+  .duel-card-title{font-family:'Inter', sans-serif; font-weight:700; font-size:19px; line-height:1.28; color:var(--ink);}
   .duel-card-by{font-size:12.5px; color:var(--ink-soft);}
   .duel-card-meta{font-size:12px; color:var(--ink-soft); margin-bottom:6px;}
   .duel-card-actions{margin-top:auto; display:flex; flex-direction:column; gap:8px; padding-top:12px;}
@@ -1084,14 +1085,13 @@
   .duel-retry-btn:hover{background:var(--walnut);}
 
   .duel-leaderboard{max-width:680px; margin:56px auto 70px; padding:0 32px;}
-  .duel-leaderboard-head{display:flex; justify-content:flex-end; margin-bottom:10px;}
   .duel-refresh-btn{
     background:transparent; border:1px solid var(--line); color:var(--ink-soft); border-radius:100px;
     padding:9px 18px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;
   }
   .duel-refresh-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .duel-refresh-btn:disabled{opacity:0.55; cursor:not-allowed;}
-  .duel-leaderboard h2{font-family:'Fraunces', serif; font-size:20px; font-weight:700; margin:0 0 4px; text-align:center;}
+  .duel-leaderboard h2{font-family:'Inter', sans-serif; font-size:20px; font-weight:700; margin:0 0 4px; text-align:center;}
   .duel-leaderboard-sub{text-align:center; color:var(--ink-soft); font-size:13px; margin:0 0 20px;}
   .duel-leaderboard-list{background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px; overflow:hidden;}
   .duel-leaderboard-row{display:flex; align-items:center; gap:14px; padding:11px 16px; border-bottom:1px solid var(--line-soft);}
@@ -1147,16 +1147,14 @@
 
   <div class="duel-hero">
     <h1>Düello</h1>
-    <p>Hangisini seçersin? İki eser karşı karşıya, birini seç ve kazanan kalsın, yeni bir rakiple devam etsin.</p>
+    <p>Hangisini seçeceksin? İki eser karşı karşıya, birini seç ve kazanan kalsın, yeni bir rakiple düello devam etsin.</p>
+    <button type="button" class="duel-refresh-btn" id="duel-refresh-btn" aria-label="Yeni bir düello eşleşmesi getir">Yenile</button>
   </div>
 
   <div class="duel-arena" id="duel-arena" aria-live="polite"></div>
   <div class="duel-state" id="duel-state" aria-live="polite"></div>
 
   <div class="duel-leaderboard">
-    <div class="duel-leaderboard-head">
-      <button type="button" class="duel-refresh-btn" id="duel-refresh-btn" aria-label="Yeni bir düello eşleşmesi getir">Yenile</button>
-    </div>
     <h2>En Çok Tercih Edilen Projeler</h2>
     <p class="duel-leaderboard-sub">Buradaki Projeler yalnızca Düello puanlarına göre sıralanırlar.</p>
     <div class="duel-leaderboard-list" id="duel-leaderboard-list"></div>
@@ -1225,7 +1223,7 @@
             (by ? '<div class="duel-card-by">' + escapeHtml(by) + '</div>' : '') +
             (metaParts.length ? '<div class="duel-card-meta">' + escapeHtml(metaParts.join(' · ')) + '</div>' : '') +
             '<div class="duel-card-actions">' +
-              '<button type="button" class="duel-pick-btn" data-side="' + side + '"' + (voting ? ' disabled' : '') + '>' + (side === 'a' ? 'A’yı Seç' : 'B’yi Seç') + '</button>' +
+              '<button type="button" class="duel-pick-btn" data-side="' + side + '">' + (side === 'a' ? 'A’yı Seç' : 'B’yi Seç') + '</button>' +
               '<button type="button" class="duel-inspect-btn" data-slug="' + escapeAttr(item.slug) + '">Projeyi İncele</button>' +
             '</div>' +
           '</div>' +
