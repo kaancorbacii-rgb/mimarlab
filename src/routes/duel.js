@@ -13,7 +13,7 @@ import { getCachedPool, poolCacheKey } from '../lib/publicCache.js';
 
 export async function handleDuelRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "duel", "match"|"vote"|"leaderboard"]
-  if (segments.length === 3 && segments[2] === 'match' && request.method === 'GET') return getMatch(request, env);
+  if (segments.length === 3 && segments[2] === 'match' && request.method === 'GET') return getMatch(request, env, url);
   if (segments.length === 3 && segments[2] === 'vote' && request.method === 'POST') return castVote(request, env);
   if (segments.length === 3 && segments[2] === 'leaderboard' && request.method === 'GET') return getLeaderboard(request, env);
   return errorJson('Bulunamadı', 404);
@@ -133,13 +133,23 @@ function pickFreshPair(pool, excludeIds, seenPairKeys) {
   return [a, rest[Math.floor(Math.random() * rest.length)]];
 }
 
-// GET /api/duel/match — bekleyen (oy kullanılmamış) bir eşleşme varsa AYNEN döner (reload'da/aynı
-// sekmede tekrar istekte yeni rastgele çift ÜRETİLMEZ, kullanıcı isteği: state korunsun, full page
-// reload olmasın). Yoksa duel_sessions'taki son duruma (aktif proje + streak) göre yeni bir eşleşme
-// üretir; hiç oynanmamışsa sıfırdan rastgele bir çift verir.
-async function getMatch(request, env) {
+// GET /api/duel/match[?fresh=1] — iki farklı çağıran senaryosu var (bkz. kullanıcı isteği, UX
+// güncellemesi):
+//  1) Normal devam (oy sonrası client'ın kendi loadMatch() çağrısı, `fresh` YOK): bekleyen (oy
+//     kullanılmamış) bir eşleşme varsa AYNEN döner, yoksa duel_sessions'taki aktif proje + streak'e
+//     göre winner-stays devam eder. Bu dal DEĞİŞMEDİ.
+//  2) Zorunlu yeni oyun (`fresh=1` — sayfa yüklemesi/DOMContentLoaded VE "Yenile" butonu İKİSİ DE
+//     bunu kullanır, bkz. duello.html): bekleyen eşleşme ve aktif proje/streak TAMAMEN yok sayılır,
+//     doğrudan sıfırdan rastgele bir çift üretilir. Eski pending match silinmez/dokunulmaz (yalnızca
+//     oynanmadan "yetim" kalır — fetchSeenPairKeys onu yine de anti-duplicate kümesine dahil eder),
+//     duel_sessions/duel_score'a HİÇBİR yazma yapılmaz (yalnızca bir sonraki gerçek oyda,
+//     castVote'un KENDİ streak hesaplaması devreye girer). Eski aktif proje bu yeni çiftin adayı
+//     OLAMAZ (aşağıdaki ownIds/exclude kümesine eklenir) — aksi halde nadir bir rastgele çakışmada
+//     (aynı proje yeni çiftte de çıkarsa) eski streak'in yanlışlıkla devam etmesi riski olurdu.
+async function getMatch(request, env, url) {
   const { actorKey, user, setCookie } = await resolveActor(request, env);
   const headers = setCookie ? { 'Set-Cookie': setCookie } : {};
+  const forceFresh = url.searchParams.get('fresh') === '1';
 
   if (!(await checkRateLimit(env, 'duel_match', actorKey, 120, 60 * 1000))) {
     return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60', ...headers });
@@ -149,21 +159,31 @@ async function getMatch(request, env) {
   if (pool.length < 2) return errorJson('Şu anda düello için yeterli proje yok.', 503, headers);
   const byId = new Map(pool.map(p => [p.id, p]));
 
-  const pending = await env.DB.prepare(
-    `SELECT id, project_a_id, project_b_id FROM duel_matches WHERE actor_key = ? AND voted_at IS NULL ORDER BY created_at DESC LIMIT 1`
-  ).bind(actorKey).first();
+  if (!forceFresh) {
+    // gerçek bulgu (yerel test): `WHERE voted_at IS NULL` filtresiyle "en son" satırı almak YANLIŞ —
+    // bir `fresh=1` çağrısı eskisini oylanmamış bırakıp yenisini oluşturduğunda, o yeni satır oylanır
+    // oylanmaz (voted_at dolar) bu sorgu artık ESKİ, TERK EDİLMİŞ satırı "en son bekleyen" sanıp geri
+    // getiriyordu. Doğrusu: bu actor için GERÇEKTEN en son oluşturulan satırı (voted_at'ten bağımsız)
+    // al, YALNIZCA O satır hâlâ oylanmamışsa "bekleyen eşleşme" say — daha eski, terk edilmiş
+    // oylanmamış satırlar bir daha asla geri dönmez (bkz. kullanıcı isteği: "eski pending match'i
+    // tekrar göstermemeli").
+    const latest = await env.DB.prepare(
+      `SELECT id, project_a_id, project_b_id, voted_at FROM duel_matches WHERE actor_key = ? ORDER BY created_at DESC LIMIT 1`
+    ).bind(actorKey).first();
+    const pending = (latest && !latest.voted_at) ? latest : null;
 
-  if (pending && byId.has(pending.project_a_id) && byId.has(pending.project_b_id)) {
-    const session = await env.DB.prepare(`SELECT active_project_id, streak FROM duel_sessions WHERE actor_key = ?`).bind(actorKey).first();
-    const activeSide = session && session.active_project_id === pending.project_a_id ? 'a'
-      : session && session.active_project_id === pending.project_b_id ? 'b' : null;
-    return json({
-      matchId: pending.id,
-      streak: session ? session.streak : 0,
-      activeSide,
-      a: shapeCard(byId.get(pending.project_a_id)),
-      b: shapeCard(byId.get(pending.project_b_id)),
-    }, 200, headers);
+    if (pending && byId.has(pending.project_a_id) && byId.has(pending.project_b_id)) {
+      const session = await env.DB.prepare(`SELECT active_project_id, streak FROM duel_sessions WHERE actor_key = ?`).bind(actorKey).first();
+      const activeSide = session && session.active_project_id === pending.project_a_id ? 'a'
+        : session && session.active_project_id === pending.project_b_id ? 'b' : null;
+      return json({
+        matchId: pending.id,
+        streak: session ? session.streak : 0,
+        activeSide,
+        a: shapeCard(byId.get(pending.project_a_id)),
+        b: shapeCard(byId.get(pending.project_b_id)),
+      }, 200, headers);
+    }
   }
 
   const ownIds = await getOwnProjectIds(env, user);
@@ -171,13 +191,20 @@ async function getMatch(request, env) {
   const seenPairKeys = await fetchSeenPairKeys(env, actorKey);
 
   let a = null, b = null, streak = 0, activeSide = null;
-  const activeItem = session && session.active_project_id ? byId.get(session.active_project_id) : null;
-  if (activeItem && !ownIds.has(activeItem.id)) {
-    const opponent = pickOpponent(pool, activeItem.id, activeItem.category, activeItem.type, ownIds, seenPairKeys);
-    if (opponent) { a = activeItem; b = opponent; streak = session.streak || 0; activeSide = 'a'; }
+  if (!forceFresh) {
+    const activeItem = session && session.active_project_id ? byId.get(session.active_project_id) : null;
+    if (activeItem && !ownIds.has(activeItem.id)) {
+      const opponent = pickOpponent(pool, activeItem.id, activeItem.category, activeItem.type, ownIds, seenPairKeys);
+      if (opponent) { a = activeItem; b = opponent; streak = session.streak || 0; activeSide = 'a'; }
+    }
   }
   if (!a) {
-    const pair = pickFreshPair(pool, ownIds, seenPairKeys);
+    // forceFresh: eski aktif proje bu yeni, ilişkisiz çiftin adayı olmasın (bkz. yukarıdaki dosya
+    // başı yorumu) — normal "hiç oynanmamış" dalında zaten session yok, bu ekleme no-op'tur.
+    const excludeIds = forceFresh && session && session.active_project_id
+      ? new Set([...ownIds, session.active_project_id])
+      : ownIds;
+    const pair = pickFreshPair(pool, excludeIds, seenPairKeys);
     if (!pair) return errorJson('Şu anda uygun bir rakip bulunamadı.', 503, headers);
     [a, b] = pair;
     streak = 0;

@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
 <title>Düello — MİMARLAB</title>
-<meta name="description" content="Düello: iki mimari eser karşı karşıya, hangisini seçersin? Kazanan kalır, rakip değişir — MİMARLAB'ın bağımsız 'winner stays' karşılaştırma oyunu.">
+<meta name="description" content="Düello: iki mimari eser karşı karşıya, hangisini seçersin? Kazanan kalır, yeni bir rakiple devam eder — MİMARLAB'ın bağımsız proje karşılaştırma oyunu.">
 <link rel="canonical" href="https://mimarlab.com/duello">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
@@ -1084,6 +1084,13 @@
   .duel-retry-btn:hover{background:var(--walnut);}
 
   .duel-leaderboard{max-width:680px; margin:56px auto 70px; padding:0 32px;}
+  .duel-leaderboard-head{display:flex; justify-content:flex-end; margin-bottom:10px;}
+  .duel-refresh-btn{
+    background:transparent; border:1px solid var(--line); color:var(--ink-soft); border-radius:100px;
+    padding:9px 18px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .duel-refresh-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .duel-refresh-btn:disabled{opacity:0.55; cursor:not-allowed;}
   .duel-leaderboard h2{font-family:'Fraunces', serif; font-size:20px; font-weight:700; margin:0 0 4px; text-align:center;}
   .duel-leaderboard-sub{text-align:center; color:var(--ink-soft); font-size:13px; margin:0 0 20px;}
   .duel-leaderboard-list{background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px; overflow:hidden;}
@@ -1139,16 +1146,19 @@
   </div>
 
   <div class="duel-hero">
-    <h1>⚔️ Düello</h1>
-    <p>Hangisini seçersin? İki eser karşı karşıya — birini seç, kazanan kalsın, yeni bir rakiple devam etsin. Bu, MİMARLAB'ın mevcut puanlama ve En İyi 100 sisteminden tamamen bağımsız, kendi puanı olan ayrı bir oyun.</p>
+    <h1>Düello</h1>
+    <p>Hangisini seçersin? İki eser karşı karşıya, birini seç ve kazanan kalsın, yeni bir rakiple devam etsin.</p>
   </div>
 
   <div class="duel-arena" id="duel-arena" aria-live="polite"></div>
   <div class="duel-state" id="duel-state" aria-live="polite"></div>
 
   <div class="duel-leaderboard">
+    <div class="duel-leaderboard-head">
+      <button type="button" class="duel-refresh-btn" id="duel-refresh-btn" aria-label="Yeni bir düello eşleşmesi getir">Yenile</button>
+    </div>
     <h2>En Çok Tercih Edilen Projeler</h2>
-    <p class="duel-leaderboard-sub">Yalnızca Düello puanına göre sıralanır — En İyi 100'den bağımsızdır.</p>
+    <p class="duel-leaderboard-sub">Buradaki Projeler yalnızca Düello puanlarına göre sıralanırlar.</p>
     <div class="duel-leaderboard-list" id="duel-leaderboard-list"></div>
   </div>
 
@@ -1180,8 +1190,10 @@
     var arenaEl = document.getElementById('duel-arena');
     var stateEl = document.getElementById('duel-state');
     var leaderboardEl = document.getElementById('duel-leaderboard-list');
+    var refreshBtn = document.getElementById('duel-refresh-btn');
     var currentMatch = null;
     var voting = false;
+    var refreshing = false;
 
     function byline(item){
       var names = (item.officeNames && item.officeNames.length) ? item.officeNames : (item.designer || []);
@@ -1239,7 +1251,7 @@
       stateEl.classList.toggle('duel-state-error', !!isError);
       stateEl.innerHTML = '<p>' + escapeHtml(message) + '</p><button type="button" class="duel-retry-btn" id="duel-retry">Tekrar Dene</button>';
       var retryBtn = document.getElementById('duel-retry');
-      if (retryBtn) retryBtn.addEventListener('click', loadMatch);
+      if (retryBtn) retryBtn.addEventListener('click', function(){ loadMatch(true); });
     }
 
     function parseErrorResponse(r){
@@ -1249,10 +1261,16 @@
       });
     }
 
-    function loadMatch(){
+    // forceFresh — true olduğunda (sayfa ilk yüklendiğinde ve "Yenile" butonunda, bkz. whenReady/
+    // Yenile dinleyicisi aşağıda) sunucu bekleyen eşleşmeyi/aktif projeyi YOK SAYIP tamamen yeni,
+    // ilişkisiz bir çift üretir (kullanıcı isteği: "browser refresh'te yeni proje çifti gelmeli").
+    // false/boş olduğunda (bir oy sonrası vote()'un kendi devam çağrısı) mevcut winner-stays akışı
+    // DEĞİŞMEDEN çalışır — bkz. src/routes/duel.js#getMatch.
+    function loadMatch(forceFresh){
       stateEl.style.display = 'none';
       arenaEl.style.display = 'none';
-      return fetch('/api/duel/match')
+      var url = forceFresh ? '/api/duel/match?fresh=1' : '/api/duel/match';
+      return fetch(url)
         .then(function(r){ return r.ok ? r.json() : parseErrorResponse(r); })
         .then(renderMatch)
         .catch(function(err){ renderState(err.message || 'Düello şu anda başlatılamıyor.', true); });
@@ -1346,12 +1364,29 @@
       ProjectModal.open(slug, { triggerEl: row, basePath: '/duello/' });
     });
 
+    // "Yenile" — leaderboard'u DEĞİL, düello eşleşmesini yeniler (kullanıcı isteği: buton leaderboard
+    // bölümünün üstünde duruyor ama anlamı "yeni bir düello başlat"). Bu yüzden yalnızca
+    // loadMatch(true) çağrılır, refreshLeaderboard() KASITLI OLARAK çağrılmaz (madde 10: her
+    // tıklamada leaderboard'u gereksiz yere yeniden çekme). `refreshing` bayrağı + buton disabled
+    // durumu hızlı art arda tıklamada tek bir yeni oyun oluşmasını garanti eder (madde 8/14).
+    if (refreshBtn){
+      refreshBtn.addEventListener('click', function(){
+        if (refreshing) return;
+        refreshing = true;
+        refreshBtn.disabled = true;
+        loadMatch(true).finally(function(){
+          refreshing = false;
+          refreshBtn.disabled = false;
+        });
+      });
+    }
+
     function whenReady(fn){
       if (document.readyState !== 'loading') fn();
       else document.addEventListener('DOMContentLoaded', fn, { once: true });
     }
     whenReady(function(){
-      loadMatch();
+      loadMatch(true);
       refreshLeaderboard();
     });
 
