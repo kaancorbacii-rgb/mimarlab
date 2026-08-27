@@ -390,6 +390,32 @@ const ProjectModal = (function () {
     return { query: 'Türkiye', zoom: 5 };
   }
 
+  function buildMapSrc(item, zoomOverride) {
+    const { query, zoom } = buildMapQuery(item);
+    return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=k&z=${zoomOverride || zoom}&ie=UTF8&output=embed`;
+  }
+
+  const MAP_EXPAND_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>';
+
+  // Haritayı büyütülmüş bir popup'ta (bkz. kullanıcı isteği: "haritanın sağ üst tarafına büyütme
+  // iconu... tıklayınca harita popup şeklinde büyüsün") gösterir — mevcut galeri lightbox'ı
+  // (#pm-lightbox, bkz. yukarısı) İLE AYNI overlay/backdrop/close deseni, ama ayrı bir eleman
+  // (#pm-map-lightbox): ikisi farklı içerik türü taşıdığından (görsel <img> vs harita <iframe>)
+  // paylaşılan galeri state'ine (mevcut index/sayaç vb.) karışmaması için bilerek ayrıldı.
+  function openMapLightbox() {
+    if (!currentItem) return;
+    const overlay = ensureMapLightbox();
+    const frame = overlay.querySelector('#pm-map-lightbox-frame');
+    if (!frame) return;
+    frame.innerHTML = `<iframe src="${escapeAttr(buildMapSrc(currentItem))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Harita"></iframe>`;
+    overlay.classList.add('open');
+  }
+
+  function closeMapLightbox() {
+    const overlay = document.getElementById('pm-map-lightbox');
+    if (overlay) overlay.classList.remove('open');
+  }
+
   // Harita yalnızca kutucuk gerçekten AÇILDIĞINDA yüklenir (bkz. kullanıcı isteği: açılır-kapanır
   // akordeon) — Yorumlar/Geri Bildirim de aynı şekilde varsayılan kapalı, ama bunlar zaten hafif; bir
   // iframe haritayı her proje açılışında (kutunun kapalı kalacağı çoğu durumda) önceden yüklemek
@@ -400,9 +426,12 @@ const ProjectModal = (function () {
     if (!wrap || !currentItem) return;
     if (mapLoadedSlug === currentItem.slug) return;
     mapLoadedSlug = currentItem.slug;
-    const { query, zoom } = buildMapQuery(currentItem);
-    const src = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=k&z=${zoom}&ie=UTF8&output=embed`;
-    wrap.innerHTML = `<iframe src="${escapeAttr(src)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Harita"></iframe>`;
+    wrap.innerHTML = `<button type="button" class="pm-map-expand-btn" aria-label="Haritayı büyüt">${MAP_EXPAND_ICON}</button><iframe src="${escapeAttr(buildMapSrc(currentItem))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Harita"></iframe>`;
+    // wrap.innerHTML her yeni projede/açılışta baştan yazıldığından (bkz. yukarısı) düğme de her
+    // seferinde yeniden oluşuyor — dataset bayraklı tek seferlik bağlama deseni burada GEREKMEZ,
+    // doğrudan bağlamak yeterli ve daha basit.
+    const expandBtn = wrap.querySelector('.pm-map-expand-btn');
+    if (expandBtn) expandBtn.addEventListener('click', openMapLightbox);
   }
 
   // dataset bayrağı (bkz. wireInternalNav#pmNavWired İLE AYNI desen) — ensureTemplate() sahip
@@ -415,6 +444,40 @@ const ProjectModal = (function () {
     section.dataset.pmMapWired = '1';
     section.addEventListener('toggle', () => { if (section.open) loadMapForCurrentItem(); });
   }
+
+  // bkz. js/components/gallery.js#initDetailGallery — AYNI Escape/backdrop-click kapama deseni.
+  // keydown capture'ı (üçüncü argüman `true`) ModalShell'in KENDİ Escape dinleyicisinden ÖNCE
+  // çalışır (bkz. o dosyadaki AYNI gerekçe yorumu) — overlay açıkken Escape'in modalı da kapatıp
+  // haritayı üstünde bırakmaması için e.stopPropagation() ile olay modala hiç ulaşmaz. Yalnızca BİR
+  // kez bağlanır (dataset bayrağı) — galeri'nin aksine bu overlay item değiştiğinde yeniden
+  // oluşturulmadığından tekrar bağlamaya gerek yok.
+  // gerçek bulgu: overlay ÖNCEDEN LEFT_TEMPLATE'e (dolayısıyla .modal-shell-left'e) gömülüydü —
+  // modal-shell.js#.modal-shell-panel'in kendi (açılış animasyonu için) SÜREKLİ uygulanan
+  // transform:scale(...) kuralı, İÇİNDEKİ position:fixed elemanların containing block'unu (CSS
+  // spec gereği) viewport yerine O panele çeviriyor; panelin üstündeki scrollable/overflow'lu
+  // ata(lar) da bu artık-absolute-gibi-davranan overlay'i görünmez şekilde kırpıyordu (backdrop
+  // hiç boyanmıyordu, computed style'lar doğru görünse bile). Kalıcı çözüm: overlay'i şablonun
+  // İÇİNE koymak yerine document.body'nin DOĞRUDAN çocuğu olarak TEK SEFER oluşturup eklemek —
+  // böylece gerçek position:fixed/viewport davranışına kavuşur, .modal-shell-overlay'in kendi
+  // z-index'inden (150) yüksek 210 ile HER ZAMAN üstte kalır.
+  function ensureMapLightbox() {
+    let overlay = document.getElementById('pm-map-lightbox');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.className = 'pm-map-lightbox';
+    overlay.id = 'pm-map-lightbox';
+    overlay.innerHTML = `
+      <button type="button" class="pm-map-lightbox-close" id="pm-map-lightbox-close" aria-label="Kapat"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div class="pm-map-lightbox-frame" id="pm-map-lightbox-frame"></div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#pm-map-lightbox-close').addEventListener('click', closeMapLightbox);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeMapLightbox(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('open')) { e.stopPropagation(); closeMapLightbox(); }
+    }, true);
+    return overlay;
+  }
+  function wireMapLightbox() { ensureMapLightbox(); }
 
   // Puan/oy sayısı artık AYRICA burada gösterilmiyor (bkz. kullanıcı isteği: "puanları proje
   // popuplarına entegre et") — src/routes/ratings.js#summarize artık 'project' hedefi için
@@ -494,6 +557,8 @@ const ProjectModal = (function () {
     armDeferredSections(item, mySeq);
     wireInternalNav();
     wireMapSection();
+    wireMapLightbox();
+    closeMapLightbox(); // önceki projenin büyütülmüş haritası açık kalmış olabilir (bkz. kullanıcı isteği)
     // Proje değiştiyse (open() ya da swap()) önceki projenin gömülü haritası bayat kalır — bir
     // sonraki açılışta (ya da kutucuk zaten açık durumda kaldıysa hemen şimdi) yeni projenin
     // konumuyla yeniden yüklensin diye önbellek anahtarı sıfırlanır.
@@ -514,6 +579,7 @@ const ProjectModal = (function () {
       const el = document.getElementById(id);
       if (el) el.classList.add('pm-force-hidden');
     });
+    closeMapLightbox();
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/proje/', topRank = null } = {}) {
@@ -590,6 +656,7 @@ const ProjectModal = (function () {
     const listPath = currentBasePath.replace(/\/$/, '') || '/proje';
     currentSlug = null;
     currentItem = null;
+    closeMapLightbox(); // modal şablonu (bkz. ensureTemplate#mountedOnce) yeniden kullanıldığından 'open' sınıfı sıfırlanmazsa bir sonraki açılışta anlık görünürdü
     // openedViaPush yalnızca İLK open() gerçek bir tıklamadan geldiyse true (bkz. yukarıdaki alan
     // yorumu) — bu durumda pushCountSinceOpen (o zamandan beri yapılan TÜM swap()'lar dahil) kadar
     // tek seferde geri sarılır, böylece birden fazla proje gezildikten sonra bile X/Escape doğrudan

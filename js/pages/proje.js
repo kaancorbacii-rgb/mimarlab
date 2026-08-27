@@ -459,6 +459,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 // gecikmeli-yükleme deseni) — Liste/Harita arasında ileri geri geçişte iframe'i tekrar tekrar
 // yeniden istemez.
 (function wireViewToggle() {
+  const toggleWrap = document.getElementById('view-toggle');
   const listBtn = document.getElementById('view-toggle-list');
   const mapBtn = document.getElementById('view-toggle-map');
   const sortWrap = document.getElementById('sort-select-wrap');
@@ -476,6 +477,10 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
     const isMap = view === 'map';
     listBtn.classList.toggle('active', !isMap);
     mapBtn.classList.toggle('active', isMap);
+    // Varsayılan DOM/görsel sırası Harita, Liste (bkz. kullanıcı isteği) — Harita görünümünde
+    // Sıralama kaybolunca bu sınıf CSS order ile ikisinin YERİNİ değiştirir (bkz. proje.html#
+    // .view-toggle.is-map-view), Harita en sağa, Liste hemen soluna geçer.
+    if (toggleWrap) toggleWrap.classList.toggle('is-map-view', isMap);
     sortWrap.style.display = isMap ? 'none' : '';
     mapWrap.style.display = isMap ? '' : 'none';
     // render()'ın kendi mantığı (bkz. yukarısı: empty.style.display='block'/'none') her filtre/sayfa
