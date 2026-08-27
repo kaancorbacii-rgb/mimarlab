@@ -736,3 +736,31 @@ CREATE TABLE IF NOT EXISTS consultation_requests (
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_consultant ON consultation_requests(consultant_key);
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id);
 
+-- ---------- Düello (bkz. migrations/0062_duel_system.sql) ----------
+
+CREATE TABLE IF NOT EXISTS project_duel_stats (
+  project_id INTEGER PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  duel_score INTEGER NOT NULL DEFAULT 0,
+  total_comparisons INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_duel_stats_score ON project_duel_stats(duel_score DESC);
+
+CREATE TABLE IF NOT EXISTS duel_matches (
+  id TEXT PRIMARY KEY,
+  actor_key TEXT NOT NULL,
+  project_a_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  project_b_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  winner_project_id INTEGER REFERENCES projects(id),
+  voted_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_duel_matches_actor ON duel_matches(actor_key, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS duel_sessions (
+  actor_key TEXT PRIMARY KEY,
+  active_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  streak INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+

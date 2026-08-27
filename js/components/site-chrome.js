@@ -18,6 +18,7 @@
     { key: 'mimar', href: 'mimar.html', label: 'Mimar' },
     { key: 'firma', href: 'firma.html', label: 'Firma' },
     { key: 'en-iyi-100', href: 'en-iyi-100.html', label: 'En İyi 100' },
+    { key: 'duello', href: 'duello.html', label: 'Düello' },
   ];
 
   // Işık modunda logo koyu (lacivert/siyah) harflerle, R'daki daire+üçgen ise her zaman mavi (bkz.

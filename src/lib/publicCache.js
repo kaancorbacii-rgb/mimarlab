@@ -352,8 +352,16 @@ const POOL_CACHE_TTL_SECONDS = 1800;
 // (audit bulgusu: proje havuzu daha önce hiç KV'de önbelleklenmiyordu, her filtreli/aramalı istekte
 // TAM tablo taranıyordu). facetCounts.js#recomputeProjectFacets bu önbelleği ATLAYIP ham
 // fetchActiveProjectPool'u çağırmaya devam eder (bir yazma sonrası her zaman TAZE veri gerekir).
-const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept'];
-function poolCacheKey(kind) { return `pool:${kind}`; }
+// 'duel:pool' — Düello aday havuzu (bkz. src/lib/duelPool.js) AYNI getCachedPool/invalidatePublicCache
+// altyapısını paylaşır, böylece yeni onaylanan/gizlenen/silinen bir proje diğer 5 havuzla AYNI anda
+// (bir sonraki proje mutasyonunda) aday havuzuna girer/çıkar — ayrı bir invalidation mekanizması
+// icat edilmedi.
+const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept', 'duel:pool'];
+// export edilir — src/routes/duel.js bir oy sonrası YALNIZCA 'duel:leaderboard' anahtarını
+// (site genelindeki invalidatePublicCache() sweep'ini TETİKLEMEDEN, bkz. o dosyadaki yorum: her oyda
+// tüm public cache'i temizlemek performans önceliğine aykırı olurdu) hedefli şekilde temizlemek için
+// AYNI anahtar biçimini kullanır.
+export function poolCacheKey(kind) { return `pool:${kind}`; }
 
 // fetchPool() yalnızca KV boşsa çağrılır (pahalı JOIN+subquery sorgusu) — dönen değer, çağıranın
 // zaten filtre/sırala/sayfala için kullandığı ŞEKİLLENDİRİLMİŞ (map edilmiş) pool dizisidir, ham D1
