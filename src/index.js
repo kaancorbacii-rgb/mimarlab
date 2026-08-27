@@ -45,8 +45,14 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // (bu depoda henüz nonce/hash altyapısı yok, script-src/style-src bu yüzden 'unsafe-inline'
 // içeriyor). Google/LinkedIn OAuth ve iyzico ödeme sayfası ikisi de düz <a href>/window.location
 // İLE üst seviye yönlendirme (top-level navigation) — CSP bunu kısıtlamaz, bu yüzden connect-src/
-// form-action'a ayrıca eklenmedi. Sitede hiçbir <iframe> yok (bkz. X-Frame-Options: DENY yorumu),
-// frame-src/object-src bu yüzden 'none'.
+// form-action'a ayrıca eklenmedi. object-src hâlâ 'none' — sitede hiçbir <object>/<embed> yok.
+// frame-src ARTIK 'none' DEĞİL (bkz. kullanıcı isteği: proje popup'ında + Projeler sayfasında
+// Google Maps Uydu görünümü iframe'i, js/components/project-modal.js#loadMapForCurrentItem ve
+// js/pages/proje.js#wireViewToggle) — gerçek bulgu: anahtarsız "q=...&output=embed" gömme biçimi
+// ÖNCE https://maps.google.com'a istek atıp oradan https://www.google.com/maps/embed'e
+// yönlendiriyor, bu yüzden ikisi de izin listesinde (X-Frame-Options: DENY yorumu değişmedi — o
+// SADECE bu SİTENİN başkası tarafından çerçevelenmesini engeller, bizim başka bir siteyi
+// çerçevelememizi değil).
 // report-to — ihlaller artık yalnızca o anki sekmenin DevTools konsoluna değil, aşağıdaki
 // Reporting-Endpoints header'ının gösterdiği POST /api/csp-report'a da gönderilir (bkz.
 // src/routes/cspReport.js) — enforce modunda da AÇIK bırakıldı, böylece ileride ortaya çıkabilecek
@@ -67,7 +73,7 @@ const CONTENT_SECURITY_POLICY = [
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob:",
   "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://static.cloudflareinsights.com",
-  "frame-src 'none'",
+  "frame-src https://www.google.com https://maps.google.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

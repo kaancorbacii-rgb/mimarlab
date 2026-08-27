@@ -36,6 +36,10 @@ const ProjectModal = (function () {
       <div class="detail-desc" id="pm-desc"></div>
     </div>
     <hr class="pm-info-divider" id="pm-info-divider">
+    <details class="comments-section" id="pm-map-section" aria-live="polite">
+      <summary class="comments-title">Harita<span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <div class="pm-map-wrap" id="pm-map-wrap"></div>
+    </details>
     <details class="comments-section" id="pm-comments-section" aria-live="polite">
       <summary class="comments-title">Yorumlar<span id="pm-comments-count" style="display:none;">0</span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div class="comment-form-wrap" id="pm-comment-form-wrap"></div>
@@ -369,8 +373,48 @@ const ProjectModal = (function () {
   // başta hepsini görünür durumuna sıfırlar; ilgili alt render fonksiyonları (renderByline,
   // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
   const HIDE_ON_NOT_FOUND_IDS = ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section',
-    'pm-meta', 'pm-desc', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
+    'pm-meta', 'pm-desc', 'pm-map-section', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
     'pm-related-section', 'pm-city-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
+
+  // ---------- Harita akordeonu ----------
+  // Konum hiyerarşisi (bkz. kullanıcı isteği): projede ayrı bir açık adres/koordinat alanı yok
+  // (bkz. src/routes/project.js — yalnızca tek serbest metin item.location), bu yüzden il-ilce-data.js#
+  // parseLocationFull ile çözümlenen {district, city} çiftinden en spesifikten en genele iner: önce
+  // ilçe+il, yoksa yalnızca il, o da yoksa (konum hiç bilinmiyorsa) Türkiye geneli gösterilir. Google
+  // Maps'in API anahtarı gerektirmeyen klasik "q=...&output=embed" gömme biçimi kullanılır (bkz.
+  // kullanıcı isteği: "iframe ... göm"), t=k parametresi Uydu (satellite/hybrid) görünümünü zorlar.
+  function buildMapQuery(item) {
+    const loc = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location || '') : { city: null, district: null };
+    if (loc.district && loc.city) return { query: `${loc.district}, ${loc.city}, Türkiye`, zoom: 12 };
+    if (loc.city) return { query: `${loc.city}, Türkiye`, zoom: 9 };
+    return { query: 'Türkiye', zoom: 5 };
+  }
+
+  // Harita yalnızca kutucuk gerçekten AÇILDIĞINDA yüklenir (bkz. kullanıcı isteği: açılır-kapanır
+  // akordeon) — Yorumlar/Geri Bildirim de aynı şekilde varsayılan kapalı, ama bunlar zaten hafif; bir
+  // iframe haritayı her proje açılışında (kutunun kapalı kalacağı çoğu durumda) önceden yüklemek
+  // gereksiz ağ/CPU maliyeti olurdu.
+  let mapLoadedSlug = null;
+  function loadMapForCurrentItem() {
+    const wrap = document.getElementById('pm-map-wrap');
+    if (!wrap || !currentItem) return;
+    if (mapLoadedSlug === currentItem.slug) return;
+    mapLoadedSlug = currentItem.slug;
+    const { query, zoom } = buildMapQuery(currentItem);
+    const src = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=k&z=${zoom}&ie=UTF8&output=embed`;
+    wrap.innerHTML = `<iframe src="${escapeAttr(src)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Harita"></iframe>`;
+  }
+
+  // dataset bayrağı (bkz. wireInternalNav#pmNavWired İLE AYNI desen) — ensureTemplate() sahip
+  // değiştiğinde (bkz. o fonksiyondaki isNewOwner yorumu) şablonu koşulsuz yeniden kurduğundan, DOM
+  // düğümü YENİLENDİĞİNDE dinleyici de yeniden bağlanmalı; modül seviyesinde bir bayrak (ör.
+  // `let wired`) bu durumda ESKİ düğüme bağlı kalıp YENİ düğümü hiç dinlemezdi.
+  function wireMapSection() {
+    const section = document.getElementById('pm-map-section');
+    if (!section || section.dataset.pmMapWired) return;
+    section.dataset.pmMapWired = '1';
+    section.addEventListener('toggle', () => { if (section.open) loadMapForCurrentItem(); });
+  }
 
   // Puan/oy sayısı artık AYRICA burada gösterilmiyor (bkz. kullanıcı isteği: "puanları proje
   // popuplarına entegre et") — src/routes/ratings.js#summarize artık 'project' hedefi için
@@ -449,6 +493,15 @@ const ProjectModal = (function () {
     renderPrevNext(item);
     armDeferredSections(item, mySeq);
     wireInternalNav();
+    wireMapSection();
+    // Proje değiştiyse (open() ya da swap()) önceki projenin gömülü haritası bayat kalır — bir
+    // sonraki açılışta (ya da kutucuk zaten açık durumda kaldıysa hemen şimdi) yeni projenin
+    // konumuyla yeniden yüklensin diye önbellek anahtarı sıfırlanır.
+    const mapWrap = document.getElementById('pm-map-wrap');
+    if (mapWrap) mapWrap.innerHTML = '';
+    mapLoadedSlug = null;
+    const mapSection = document.getElementById('pm-map-section');
+    if (mapSection && mapSection.open) loadMapForCurrentItem();
     ModalShell.scrollToTop();
   }
 

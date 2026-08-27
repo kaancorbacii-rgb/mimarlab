@@ -451,6 +451,56 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   ProjectModal.open(slug, { triggerEl: a });
 });
 
+// ---------- LİSTE / HARİTA GÖRÜNÜM TOGGLE'I ----------
+// bkz. kullanıcı isteği: Harita seçilince Sıralama dropdown'ı, aktif filtre chip'leri, kart ızgarası
+// ve sayfalama gizlenip yerine tüm alanı kaplayan boş bir Türkiye uydu haritası gelir; sol Filtreler
+// kenar çubuğu (bkz. .grid-sidebar, bu blok İÇİNDE değil) hiç dokunulmadan yerinde kalır. Harita
+// yalnızca ilk kez açıldığında yüklenir (bkz. project-modal.js#loadMapForCurrentItem İLE AYNI
+// gecikmeli-yükleme deseni) — Liste/Harita arasında ileri geri geçişte iframe'i tekrar tekrar
+// yeniden istemez.
+(function wireViewToggle() {
+  const listBtn = document.getElementById('view-toggle-list');
+  const mapBtn = document.getElementById('view-toggle-map');
+  const sortWrap = document.getElementById('sort-select-wrap');
+  const mapWrap = document.getElementById('map-view-wrap');
+  const toggledEls = [
+    document.getElementById('active-chips'),
+    document.getElementById('card-grid'),
+    document.getElementById('empty-state'),
+    document.getElementById('pagination'),
+  ].filter(Boolean);
+  if (!listBtn || !mapBtn || !sortWrap || !mapWrap) return;
+
+  let mapLoaded = false;
+  function setView(view) {
+    const isMap = view === 'map';
+    listBtn.classList.toggle('active', !isMap);
+    mapBtn.classList.toggle('active', isMap);
+    sortWrap.style.display = isMap ? 'none' : '';
+    mapWrap.style.display = isMap ? '' : 'none';
+    // render()'ın kendi mantığı (bkz. yukarısı: empty.style.display='block'/'none') her filtre/sayfa
+    // değişiminde bu elemanların display'ini BAĞIMSIZ olarak yönetiyor — Harita'ya geçerken önceki
+    // inline değeri kaydedip Liste'ye dönüldüğünde AYNEN geri koymak, render()'ı burada taklit etmeye
+    // ya da yeniden tetiklemeye gerek bırakmaz (gerçek bulgu: koşulsuz 'block' geri yazmak, sonucu
+    // gerçekten boş olan bir filtrede boş-durum kutusunu Liste'ye dönünce YANLIŞLIKLA açardı).
+    toggledEls.forEach(el => {
+      if (isMap) {
+        if (el.style.display !== 'none') el.dataset.pmPrevDisplay = el.style.display;
+        el.style.display = 'none';
+      } else {
+        el.style.display = el.dataset.pmPrevDisplay || '';
+      }
+    });
+    if (isMap && !mapLoaded) {
+      mapLoaded = true;
+      const src = 'https://maps.google.com/maps?q=T%C3%BCrkiye&t=k&z=6&ie=UTF8&output=embed';
+      mapWrap.innerHTML = `<iframe src="${src}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Türkiye Haritası"></iframe>`;
+    }
+  }
+  listBtn.addEventListener('click', () => setView('list'));
+  mapBtn.addEventListener('click', () => setView('map'));
+})();
+
 // Tarayıcı geri/ileri tuşu: /proje/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
 // güncelle (bkz. ProjectModal.handlePopState) — listeyi burada YENİDEN ÇİZME, modal kapanana kadar
 // arka plandaki liste durumu zaten sabit kalmalı (bkz. kullanıcı isteği). Diğer TÜM durumlarda

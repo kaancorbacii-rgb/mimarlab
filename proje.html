@@ -322,6 +322,30 @@
   .sort-select select:hover{border-color:var(--walnut);}
   .sort-arrow{position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
 
+  /* ---------- LİSTE / HARİTA GÖRÜNÜM TOGGLE'I ---------- */
+  /* Sade metin sekmeleri (bkz. kullanıcı isteği: buton/pil değil, düz metin) — Sıralama dropdown'ının
+     HEMEN SOLUNDA yer alır (DOM sırası: Liste, Harita, Sıralama) ki Harita seçilip Sıralama
+     kaldırıldığında Harita otomatik olarak en sağa düşsün, Liste onun hemen solunda kalsın (bkz.
+     kullanıcı isteği: "Harita yazısı en sağa, Liste hemen solunda") — ayrı bir yeniden sıralama
+     mantığı gerekmez, salt kaynak sırası yeterli. */
+  .view-toggle{display:flex; align-items:center; gap:16px;}
+  .view-toggle-btn{
+    background:none; border:none; padding:4px 0; margin:0;
+    font-family:inherit; font-size:13px; font-weight:600; color:var(--ink-soft);
+    text-decoration:none;
+  }
+  .view-toggle-btn:hover{color:var(--ink);}
+  .view-toggle-btn.active{color:var(--ink); text-decoration:underline; text-underline-offset:4px;}
+
+  /* Harita görünümü — sol Filtreler kenar çubuğu yerinde kalır (bkz. kullanıcı isteği), yalnızca
+     sağdaki proje ızgarasının/sayfalamanın yerini tam genişlikte bir uydu haritası alır. Şimdilik
+     proje pinleri YOK (bkz. kullanıcı isteği: "sadece boş uydu haritası alanı"). */
+  .map-view-wrap{border-radius:14px; overflow:hidden; min-height:560px; background:var(--paper-alt);}
+  .map-view-wrap iframe{width:100%; height:100%; min-height:560px; border:0; display:block;}
+  @media (max-width:720px){
+    .map-view-wrap, .map-view-wrap iframe{min-height:380px;}
+  }
+
   .active-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
   .active-chip{
     display:inline-flex; align-items:center; gap:6px;
@@ -605,6 +629,12 @@
      artık Yorumlar'ın ÜSTÜNDE, açıklamayla arasında (bkz. kullanıcı isteği: "geri bildirim ile
      yorumlar arasındaki line'ı sil, yorumların üstüne line koy"). */
   .comments-section{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
+  /* ---------- PROJE MODALI — harita ---------- */
+  /* Harita kutucuğu Yorumlar (.comments-section) İLE BİREBİR AYNI kart/açılır-kapanır çerçeveyi
+     paylaşır (bkz. kullanıcı isteği), yalnızca sınıfını değil id'sini de #pm-map-section olarak
+     taşır — içerik alanı (bkz. #pm-map-wrap) uydu görünümlü iframe'i barındırır. */
+  .pm-map-wrap{border-radius:10px; overflow:hidden; aspect-ratio:16/9; background:var(--paper-alt);}
+  .pm-map-wrap iframe{width:100%; height:100%; border:0; display:block;}
   /* Yorumlar da ilk açılışta kapalı (bkz. kullanıcı isteği, .pm-feedback-card İLE AYNI <details>/
      <summary> deseni) — comments-title artık <h2> değil doğrudan clickable <summary>. */
   .comments-title{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); margin:0;}
@@ -616,7 +646,10 @@
      butonun altına/arkasına denk gelmemesi için textarea'nın sağ ve alt iç boşluğu büyütülür, buton
      o boşluğun içinde mutlak konumlanır. */
   .comment-input-wrap{position:relative;}
-  .comment-form textarea{width:100%; min-height:80px; padding:12px 108px 50px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
+  /* Arka plan Geri Bildirim kutucuğunun textarea'sıyla (bkz. .pm-feedback-card textarea) BİREBİR
+     aynı (bkz. kullanıcı isteği) — önceden .comments-section'ın kendi arkaplanıyla (var(--paper))
+     aynıydı, textarea kutunun içine görünmez şekilde karışıyordu. */
+  .comment-form textarea{width:100%; min-height:80px; padding:12px 108px 50px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-family:inherit; font-size:14px; color:var(--ink); resize:vertical;}
   .comment-input-wrap .comment-submit-btn{position:absolute; right:8px; bottom:8px;}
   /* Gönder ve Bildir (bkz. .feedback-input-wrap altında) AYNI boyut/tipografi Design Token'larını
      kullanır (bkz. kullanıcı isteği) — sarmalayıcılar (bkz. yukarısı/aşağısı) yalnızca konum farkını
@@ -922,7 +955,11 @@
     <main>
       <div class="result-bar">
         <div class="result-count" id="result-count"></div>
-        <div class="sort-select">
+        <div class="view-toggle" id="view-toggle">
+          <button type="button" class="view-toggle-btn active" id="view-toggle-list" data-view="list">Liste</button>
+          <button type="button" class="view-toggle-btn" id="view-toggle-map" data-view="map">Harita</button>
+        </div>
+        <div class="sort-select" id="sort-select-wrap">
           <select id="g-sort">
             <option value="" selected>Sıralama</option>
             <option value="name_asc">A-Z</option>
@@ -937,6 +974,7 @@
       <div class="content-grid" id="card-grid"></div>
       <div class="empty-state" id="empty-state">Bu kritere uyan proje bulunamadı.</div>
       <div class="pagination" id="pagination"></div>
+      <div class="map-view-wrap" id="map-view-wrap" style="display:none;"></div>
     </main>
   </div>
 
