@@ -106,7 +106,8 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   build_status TEXT NOT NULL DEFAULT 'built', -- bkz. migrations/0037_project_build_status.sql
   conceptCategory TEXT, -- bkz. migrations/0038_project_concept_category.sql
   awards TEXT, -- JSON dizi (serbest metin ödül adları) — architect_submissions/office_submissions.awards ile AYNI desen, bkz. migrations/0049_project_awards.sql
-  publishDate TEXT -- yalnızca admin tarafından ayarlanır, bkz. migrations/0061_project_publish_date.sql
+  publishDate TEXT, -- yalnızca admin tarafından ayarlanır, bkz. migrations/0061_project_publish_date.sql
+  lat REAL, lng REAL -- proje-ekle.html haritadan opsiyonel konum işaretleme, bkz. migrations/0066_project_lat_lng.sql
 );
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_project_status_created ON project_submissions(status, created_at DESC);
@@ -549,7 +550,7 @@ CREATE TABLE IF NOT EXISTS projects (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT, publish_date TEXT);
+, hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT, publish_date TEXT, lat REAL, lng REAL);
 CREATE INDEX IF NOT EXISTS idx_projects_build_status ON projects(build_status);
 CREATE INDEX IF NOT EXISTS idx_projects_hidden_or_deleted ON projects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_legacy_key ON projects(legacy_key);

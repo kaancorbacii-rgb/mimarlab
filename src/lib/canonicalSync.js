@@ -821,12 +821,13 @@ async function syncProject(env, row) {
     const sets = [
       'title = ?', 'category = ?', 'type = ?', 'discipline = ?', 'location = ?', 'location_detail = ?',
       'project_date = ?', 'date_bucket = ?', 'period = ?', 'photo_credit_text = ?', 'photo_credit_url = ?',
-      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'hidden_at = NULL', `updated_at = datetime('now')`,
+      'description = ?', 'build_status = ?', 'concept_category = ?', 'awards = ?', 'publish_date = ?', 'lat = ?', 'lng = ?', 'hidden_at = NULL', `updated_at = datetime('now')`,
     ];
     const vals = [
       row.title, category, type, discipline, row.location || null, row.locationDetail || null,
       row.date || null, dateBucketFor(row.date) || null, period, row.photoCreditText || '', row.photoCreditUrl || '',
       row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
+      row.lat ?? null, row.lng ?? null,
     ];
     if (row.images && row.images.length) { sets.splice(-1, 0, 'images = ?'); vals.push(images); }
     // Başlık değiştiyse slug da değişir (bkz. kullanıcı isteği: "ismi değişirse URL'si de değişmeli"
@@ -849,13 +850,14 @@ async function syncProject(env, row) {
     const clash = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, lat, lng, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(
       finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
       row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images,
       row.photoCreditText || null, row.photoCreditUrl || null, row.source_url || null, row.ai_generated ? 1 : 0,
       row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
+      row.lat ?? null, row.lng ?? null,
       marker, row.owner_user_id
     ));
     projectId = insert.meta.last_row_id;

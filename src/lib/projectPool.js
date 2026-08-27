@@ -64,7 +64,8 @@ export function shapeProjectItem(row, opts) {
   const coverOnly = opts && opts.coverOnly;
   return {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
-    location: p.location, locationDetail: p.location_detail, date: p.project_date, dateBucket: p.date_bucket,
+    location: p.location, locationDetail: p.location_detail, lat: p.lat ?? null, lng: p.lng ?? null,
+    date: p.project_date, dateBucket: p.date_bucket,
     period: p.period, designer: designerNamesFrom(row.designer_names),
     officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },

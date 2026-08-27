@@ -25,6 +25,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Konum: haritadan opsiyonel konum işaretleme (bkz. kullanıcı isteği) — Leaflet + OpenStreetMap,
+     Google Maps JS API'nin aksine key/billing gerektirmez (bkz. src/index.js CSP yorumu). -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root{
     color-scheme: light;
@@ -220,6 +223,28 @@
   .dd-option.selected{background:var(--paper-alt); font-weight:600;}
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+  /* ---------- HARİTA (Konum) — opsiyonel il/ilçe altı konum işaretleme, bkz. kullanıcı isteği ---------- */
+  .map-search-row{position:relative; display:flex; gap:8px; margin-top:12px;}
+  .map-search-row input[type=text]{flex:1; min-width:0;}
+  .map-search-btn{
+    flex-shrink:0; background:var(--ink); color:var(--paper-card); border:none; border-radius:10px;
+    padding:0 18px; font-weight:600; font-size:13px; white-space:nowrap; cursor:pointer;
+  }
+  .map-search-btn:hover{background:var(--walnut);}
+  .map-search-btn:disabled{opacity:0.6; cursor:default;}
+  .map-search-results{
+    display:none; position:absolute; top:calc(100% + 4px); left:0; right:74px; z-index:25;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;
+  }
+  .map-search-results.show{display:block;}
+  .map-search-result{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer; line-height:1.4;}
+  .map-search-result:hover{background:var(--paper-alt);}
+  .map-field{height:280px; border-radius:12px; overflow:hidden; border:1px solid var(--line); margin-top:10px;}
+  .map-field .leaflet-tile-pane{filter:saturate(0.9);}
+  .map-clear-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px;}
+  .map-clear-btn{background:none; border:none; padding:0; font-size:11.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;}
+  .map-clear-btn:hover{color:var(--ink);}
   /* ---------- AUTOCOMPLETE (Mimar, Ofis) ---------- */
   .ac-field{position:relative;}
   .ac-suggestions{
@@ -363,6 +388,7 @@
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="il-ilce-data.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="project-taxonomy.js"></script>
 <script src="js/components/duplicate-name-check.js"></script>
 
@@ -428,6 +454,16 @@
                 <div class="dd-options" id="dd-ilce-options"></div>
               </div>
             </div>
+          </div>
+          <div class="map-search-row">
+            <input type="text" id="p-map-search" placeholder="Haritada konum ara...">
+            <button type="button" class="map-search-btn" id="p-map-search-btn">Ara</button>
+            <div class="map-search-results" id="p-map-search-results"></div>
+          </div>
+          <div class="map-field" id="p-map"></div>
+          <div class="map-clear-row">
+            <div class="form-hint">Haritaya tıklayarak ya da arama sonucundan seçerek projenin konumunu işaretleyebilirsin — opsiyoneldir.</div>
+            <button type="button" class="map-clear-btn" id="p-map-clear-btn" style="display:none;">Konumu kaldır</button>
           </div>
         </fieldset>
         <div class="form-row">
@@ -730,6 +766,95 @@ document.getElementById('dd-ilce-btn').addEventListener('click', ()=>{
 document.getElementById('dd-ilce-search').addEventListener('input', (e)=> renderIlceOptions(e.target.value));
 document.getElementById('dd-ilce-search').addEventListener('click', (e)=> e.stopPropagation());
 renderIlOptions('');
+
+// ---------- HARİTA: il/ilçe altında opsiyonel konum işaretleme (bkz. kullanıcı isteği) — Leaflet +
+// OpenStreetMap, gerçek Google Maps JS API'nin aksine key/billing gerektirmez (bkz. src/index.js
+// CSP yorumu). Arama Nominatim'in ücretsiz geocoding uç noktasından (bkz. runMapSearch) besleniyor;
+// haritaya tıklamak ya da bir arama sonucu seçmek marker'ı taşır, submit payload'ına giden
+// selectedLat/selectedLng SADECE bir marker varken dolar — ikisi de opsiyonel (bkz. p-map-clear-btn).
+let selectedLat = null;
+let selectedLng = null;
+let mapMarker = null;
+const TURKEY_MAP_CENTER = [39.0, 35.0];
+// unpkg CDN'den script etiketiyle yüklenen Leaflet, varsayılan marker ikonlarının yolunu kendi
+// build ortamına göre tahmin eder (genelde bundler'sız CDN kullanımında bozulur) — bu yüzden
+// GERÇEK BULGU: Icon.Default._getIconUrl her zaman `imagePath + iconUrl` şeklinde BİRLEŞTİRİR,
+// iconUrl'in zaten mutlak bir URL olup olmadığına bakmaz — iconUrl'e doğrudan tam bir CDN URL'i
+// vermek "https://unpkg.com/.../images/https://unpkg.com/.../marker-icon.png" gibi kırık, iki kez
+// birleşmiş bir adrese yol açıyordu (marker görünmüyordu). Doğru yol yalnızca imagePath'i (AYNI CDN
+// sürümüne, leaflet.css'teki İLE birebir aynı @1.9.4) sabitlemek — iconUrl/iconRetinaUrl/shadowUrl
+// varsayılan (göreli) değerleriyle kalır, Leaflet bunları kendisi imagePath'e ekler.
+L.Icon.Default.imagePath = 'https://unpkg.com/leaflet@1.9.4/dist/images/';
+const projectMap = L.map('p-map').setView(TURKEY_MAP_CENTER, 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> katkıda bulunanlar',
+  maxZoom: 19,
+}).addTo(projectMap);
+
+function setMapMarker(lat, lng, opts){
+  selectedLat = lat;
+  selectedLng = lng;
+  if(mapMarker) mapMarker.setLatLng([lat, lng]);
+  else{
+    mapMarker = L.marker([lat, lng], { draggable: true }).addTo(projectMap);
+    mapMarker.on('dragend', ()=>{
+      const pos = mapMarker.getLatLng();
+      selectedLat = pos.lat;
+      selectedLng = pos.lng;
+    });
+  }
+  document.getElementById('p-map-clear-btn').style.display = '';
+  if(!(opts && opts.skipRecenter)) projectMap.setView([lat, lng], Math.max(projectMap.getZoom(), 13));
+}
+function clearMapMarker(){
+  selectedLat = null;
+  selectedLng = null;
+  if(mapMarker){ projectMap.removeLayer(mapMarker); mapMarker = null; }
+  document.getElementById('p-map-clear-btn').style.display = 'none';
+}
+projectMap.on('click', (e)=> setMapMarker(e.latlng.lat, e.latlng.lng, { skipRecenter: true }));
+document.getElementById('p-map-clear-btn').addEventListener('click', clearMapMarker);
+
+// Nominatim'in tekrarlı sorgu kısıtlaması nedenle (bkz. kullanım politikası) arama YALNIZCA Ara
+// butonuna/Enter'a basınca tetiklenir — dd-il-search/ac-suggestions'daki gibi yazarken canlı sorgu
+// atılmaz.
+let mapSearchToken = 0;
+async function runMapSearch(){
+  const input = document.getElementById('p-map-search');
+  const resultsBox = document.getElementById('p-map-search-results');
+  const q = input.value.trim();
+  if(!q){ resultsBox.classList.remove('show'); return; }
+  const token = ++mapSearchToken;
+  const btn = document.getElementById('p-map-search-btn');
+  btn.disabled = true;
+  try{
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=tr&q=${encodeURIComponent(q)}`);
+    if(token !== mapSearchToken) return; // yarış durumu: bu arada yeni bir arama başlatılmış
+    const results = res.ok ? await res.json() : [];
+    resultsBox.innerHTML = results.length
+      ? results.map((r,i) => `<div class="map-search-result" data-index="${i}">${escapeAttr(r.display_name)}</div>`).join('')
+      : '<div class="map-search-result" style="cursor:default; color:var(--ink-soft);">Sonuç bulunamadı</div>';
+    resultsBox.classList.add('show');
+    resultsBox.querySelectorAll('[data-index]').forEach(el=>{
+      el.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        const r = results[Number(el.dataset.index)];
+        setMapMarker(parseFloat(r.lat), parseFloat(r.lon));
+        resultsBox.classList.remove('show');
+        input.value = r.display_name;
+      });
+    });
+  }catch{
+    resultsBox.classList.remove('show');
+  }finally{
+    if(token === mapSearchToken) btn.disabled = false;
+  }
+}
+document.getElementById('p-map-search-btn').addEventListener('click', runMapSearch);
+document.getElementById('p-map-search').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); runMapSearch(); }
+});
+document.getElementById('p-map-search').addEventListener('blur', ()=> setTimeout(()=> document.getElementById('p-map-search-results').classList.remove('show'), 150));
 
 // ---------- KATEGORİ: çoklu seçim açılır pencere (mevcut name="category"
 // checkbox'ları aynen korunur, yalnızca her zaman açık pillerden bir panele taşınır) ----------
@@ -1180,6 +1305,7 @@ async function prefillForEdit(){
         }
       }
     }
+    if(item.lat != null && item.lng != null) setMapMarker(item.lat, item.lng);
     loadDateRowsFromString(item.date);
     document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (item.type || []).includes(cb.value));
     updateGrupLabel();
@@ -1280,6 +1406,7 @@ async function prefillForClaim(){
       }
     }
   }
+  if(merged.lat != null && merged.lng != null) setMapMarker(merged.lat, merged.lng);
   loadDateRowsFromString(merged.date);
   document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (merged.type || []).includes(cb.value));
   updateGrupLabel();
@@ -1427,6 +1554,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     // parantez içini district kabul ederek) doğrudan destekliyor, ters eşlemeye hiç ihtiyaç kalmıyor.
     location: selectedIlce ? `${selectedIl} (${selectedIlce})` : selectedIl,
     locationDetail: null,
+    lat: selectedLat, lng: selectedLng,
     date: buildDateString(),
     build_status, conceptCategory, category, type, discipline, designer, office, brands, awards,
     description: document.getElementById('p-desc').value,
@@ -1518,6 +1646,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     document.getElementById('dd-il-btn-label').textContent = 'İl seç';
     document.getElementById('dd-ilce-btn-label').textContent = 'Önce il seç';
     document.getElementById('dd-ilce-btn').disabled = true;
+    clearMapMarker();
     brandChips = [];
     renderBrandChips();
     updateKategoriLabel();
