@@ -504,7 +504,15 @@ export async function buildMeta(type, slugOrId, env) {
   try {
     const meta = await builder(slugOrId, env);
     return await applySeoOverride(type, meta, env);
-  } catch { return null; }
+  } catch (err) {
+    // Teknik SEO auditi (2026-08-27) bulgusu: bu catch önceden hatayı yutuyordu — bir D1 hatası
+    // (timeout/rate limit/şema uyuşmazlığı) GERÇEK, yayında bir kaydı sessizce 404/410'a
+    // düşürüyordu (bkz. çağıran taraf src/index.js#serveDetailPage: meta null ise sayfa 404 döner)
+    // ve bunu ayırt etmenin hiçbir yolu yoktu. console.error ile loglanır (Workers Logs zaten
+    // açık, bkz. wrangler.jsonc#observability) — davranış DEĞİŞMEZ, yalnızca görünür hale gelir.
+    console.error('buildMeta failed', { type, slugOrId, error: err?.message || String(err) });
+    return null;
+  }
 }
 
 // /sitemap.xml için — mimar/ofis/proje URL'leri artık yalnızca D1'de yaşadığından (bkz. yukarıdaki
