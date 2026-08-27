@@ -393,7 +393,7 @@ async function buildOfficePayload(env, key) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffledOffices[i], shuffledOffices[j]] = [shuffledOffices[j], shuffledOffices[i]];
   }
-  const relatedOffices = shuffledOffices.slice(0, 12).map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
+  const relatedOffices = shuffledOffices.slice(0, 10).map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
   const brandCatalog = brandProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, kind: parsed.kind };

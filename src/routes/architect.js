@@ -398,7 +398,7 @@ async function buildArchitectPayload(env, key) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffledArchitects[i], shuffledArchitects[j]] = [shuffledArchitects[j], shuffledArchitects[i]];
   }
-  const relatedArchitects = shuffledArchitects.slice(0, 12).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+  const relatedArchitects = shuffledArchitects.slice(0, 10).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
 
   const item = {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,

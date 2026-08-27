@@ -862,7 +862,7 @@ const ProductModal = (function () {
       const data = await res.json();
       const related = (data.items || [])
         .filter(x => x.ratingKey !== selfKey && (!p.brand || x.brand !== p.brand))
-        .slice(0, 8);
+        .slice(0, 10);
       if (!related.length) return;
       document.getElementById('pr-related-title').textContent = 'Benzer Ürünler';
       // bkz. kullanıcı isteği (2026-08-17): burada r.ratingKey kullanılıyordu — puanlama/kaydetme

@@ -148,7 +148,7 @@
       .footer-theme-toggle{
         position:relative; display:inline-flex; align-items:center; flex-shrink:0;
         width:52px; height:28px; padding:0; border-radius:100px; border:none;
-        background:var(--accent); color:#fff; cursor:pointer; overflow:hidden;
+        background:var(--brass); color:#fff; cursor:pointer; overflow:hidden;
         transition: background 0.2s ease;
       }
       [data-theme="dark"] .footer-theme-toggle{background:#333B46;}

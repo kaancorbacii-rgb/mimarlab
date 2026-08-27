@@ -309,9 +309,14 @@ async function castVote(request, env) {
 }
 
 // GET /api/duel/leaderboard — YALNIZCA duel_score'a göre (Top100 DEĞİL, kullanıcı isteği madde 15).
-// idx_project_duel_stats_score(duel_score DESC) sayesinde LIMIT 20 sonrası tam tablo taraması
+// idx_project_duel_stats_score(duel_score DESC) sayesinde LIMIT 300 sonrası tam tablo taraması
 // gerekmez; sonuç ayrıca getCachedPool (duelPool.js İLE AYNI FACET_CACHE/TTL altyapısı) ile
 // önbelleklenir — her oyda TÜM projects tablosunun sorgulanmaması (kullanıcı isteği madde 15/16).
+// LIMIT 300 (eski 20) — kullanıcı isteği: sayfa başına 30 proje + proje.html'dekiyle aynı mantıkta
+// sayfa butonları; sayfalama sunucuya ayrı bir istek/kendi KV anahtarı GEREKTİRMEDEN, duello.html
+// bu TEK önbellekli havuzu bir kez çekip 30'luk dilimler halinde istemci tarafında sayfalar (bkz.
+// duello.html#leaderboardItems/renderLeaderboardPage) — mevcut "oy sonrası tek KV anahtarını sil"
+// invalidation deseni (bkz. castVote) değişmeden çalışmaya devam eder.
 async function computeDuelLeaderboard(env) {
   const { results } = await env.DB.prepare(
     `SELECT p.slug, p.title, p.images, p.location, pds.duel_score AS duelScore
@@ -319,7 +324,7 @@ async function computeDuelLeaderboard(env) {
      JOIN projects p ON p.id = pds.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
      WHERE pds.duel_score > 0
      ORDER BY pds.duel_score DESC
-     LIMIT 20`
+     LIMIT 300`
   ).all();
   return {
     items: results.map(row => {
