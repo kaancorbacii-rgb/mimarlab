@@ -451,8 +451,8 @@ function hasActiveProjectListFilters(url) {
   return !!(url.searchParams.get('search') || '').trim();
 }
 
-// fetchActiveProjectPool'daki (yukarıda) AYNI açık sütun listesi + JOIN/GROUP BY — tek fark LIMIT/
-// OFFSET eklenmesi. p.id ile ORDER BY zaten fetchActiveProjectPool'la BİREBİR aynı sırayı üretir.
+// fetchActiveProjectPool'daki (yukarıda) AYNI açık sütun listesi + JOIN/GROUP BY + ORDER BY
+// (bkz. o dosyadaki publish_date/created_at yorumu) — tek fark LIMIT/OFFSET eklenmesi.
 async function fetchProjectPageRows(env, buildStatus, limit, offset) {
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
@@ -461,7 +461,7 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?
-     GROUP BY p.id ORDER BY p.id DESC LIMIT ? OFFSET ?`
+     GROUP BY p.id ORDER BY COALESCE(p.publish_date, p.created_at) DESC, p.id DESC LIMIT ? OFFSET ?`
   ).bind(buildStatus, limit, offset).all();
   return results;
 }
@@ -579,7 +579,7 @@ export async function handleProjectListRoute(request, env, url) {
     let filtered = pool.filter(p => passesFilters(p));
 
     // proje.html#render()'daki sort switch'in BİREBİR aynısı — sort boşsa fetchActiveProjectPool
-    // zaten ORDER BY p.id DESC döndürdüğünden (en son eklenen ilk) ek bir sıralama gerekmez.
+    // zaten ORDER BY COALESCE(publish_date, created_at) DESC döndürdüğünden ek bir sıralama gerekmez.
     if (sort === 'random') {
       // Fisher-Yates — LIMIT/slice'tan (aşağısı) ÖNCE, yani havuz D1'de değil burada, Worker
       // belleğindeki filtrelenmiş diziyle karıştırılıyor (bkz. yukarısı: D1'de ORDER BY RANDOM()

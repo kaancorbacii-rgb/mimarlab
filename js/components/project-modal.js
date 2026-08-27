@@ -15,7 +15,8 @@ const ProjectModal = (function () {
     </div>
     <div class="pm-top-rank" id="pm-top-rank" style="display:none;"></div>
     <div class="pm-rating-save-row" id="pm-rating-save-row">
-      <div class="rating-widget" id="pm-rating" data-type="project"></div>
+      <button type="button" class="rating-widget" id="pm-rating" data-type="project" aria-label="Puanla"></button>
+      <span class="pm-rating-avg" id="pm-rating-avg" style="display:none;"></span>
       <div id="pm-save-slot"></div>
     </div>
     <div class="detail-byline" id="pm-byline" style="display:none;">
@@ -437,10 +438,13 @@ const ProjectModal = (function () {
     ProjectMeta.render(item);
     ProjectGallery.render(item);
     ProjectActions.render(item);
-    if (typeof mountRatingWidget === 'function') {
+    if (typeof mountRateButton === 'function') {
       const ratingEl = document.getElementById('pm-rating');
       ratingEl.dataset.key = item.slug;
-      mountRatingWidget(ratingEl);
+      mountRateButton(ratingEl, {
+        targetType: 'project', targetId: item.slug, label: item.title,
+        avgEl: document.getElementById('pm-rating-avg'),
+      });
     }
     renderPrevNext(item);
     armDeferredSections(item, mySeq);

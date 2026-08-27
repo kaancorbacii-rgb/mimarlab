@@ -542,20 +542,24 @@
      padding'i zaten var, bu yüzden kapsayıcının solundan hafif negatif margin ile hizalanır ki
      pill kenarına gereğinden fazla boşluk binmesin. */
   .rating-widget{
-    display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
+    display:flex; align-items:center; gap:5px; flex-wrap:nowrap;
     flex-shrink:1 !important; min-width:0 !important;
     height:32px !important; box-sizing:border-box;
     background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
     padding:0 8px !important; margin:0;
+    font-family:inherit; font-size:12px !important; font-weight:600; color:var(--ink-soft);
     transition:border-color .15s ease;
   }
   .rating-widget:hover{border-color:var(--walnut);}
-  .rating-star-row{display:flex; gap:2px; flex-shrink:0;}
-  .rating-star-btn{background:none; border:none; padding:0; color:var(--line); display:flex; transition:transform .1s ease;}
-  .rating-star-btn.filled{color:var(--accent);}
-  .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
-  .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-  .rating-summary{font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap !important;}
+  /* Puanla düğmesinin iç ikon/metin düzeni + oy popup'ı (.rate-popup-*) rating-widget.js'in
+     injectRatePopupStyle()'ından gelir (bkz. kullanıcı isteği: proje popup'ındaki puanlama artık
+     En İyi 100'deki gibi tek yıldız + "Puanla" metinli bir düğme, tıklanınca popup açılıyor) —
+     burada yalnızca dış "pill" çerçevesi (.rating-widget) ve ortalama rozeti kalır. */
+  .rating-widget svg{flex-shrink:0;}
+  .pm-rating-avg{
+    display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
+    font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
+  }
 
   .detail-info{margin-top:8px;}
   .designer-section{margin-top:0;}
@@ -855,14 +859,7 @@
     .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn{
       height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
     }
-    /* .rating-summary'nin ("Puanla" metni) KENDİ font-size:12px !important kuralı var (bkz. yukarıdaki
-       taban kural) — bu, yalnızca kapsayıcıya (.rating-widget) uygulanan font-size değişikliğini miras
-       almasını ENGELLİYORDU, "Puanla" metni bu kırılma noktasının altında Kaydet'ten (13.5px) daha
-       küçük (12px) kalıyordu (gerçek bulgu). İki pilin punto/hiyerarşisi birebir eşit olsun diye
-       burada da açıkça 13.5px'e yükseltilir. */
-    .rating-summary{font-size:13.5px !important;}
-    .rating-star-row{gap:4px;}
-    .rating-star-btn svg{width:15px; height:15px;}
+    .pm-rating-avg{display:none !important;}
   }
 
   /* Mobil galeri oranı — kullanıcı isteği: masaüstünde 2:1 korunur, yalnızca ≤768px'te dikey alanı

@@ -105,7 +105,8 @@ CREATE TABLE IF NOT EXISTS project_submissions (
   office TEXT, -- bkz. migrations/0030_project_submission_office.sql
   build_status TEXT NOT NULL DEFAULT 'built', -- bkz. migrations/0037_project_build_status.sql
   conceptCategory TEXT, -- bkz. migrations/0038_project_concept_category.sql
-  awards TEXT -- JSON dizi (serbest metin ödül adları) — architect_submissions/office_submissions.awards ile AYNI desen, bkz. migrations/0049_project_awards.sql
+  awards TEXT, -- JSON dizi (serbest metin ödül adları) — architect_submissions/office_submissions.awards ile AYNI desen, bkz. migrations/0049_project_awards.sql
+  publishDate TEXT -- yalnızca admin tarafından ayarlanır, bkz. migrations/0061_project_publish_date.sql
 );
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_project_status_created ON project_submissions(status, created_at DESC);
@@ -412,6 +413,13 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 CREATE INDEX IF NOT EXISTS idx_rate_limits_expires ON rate_limits(expires_at);
 
+-- bkz. migrations/0060_newsletter_notify_counter.sql, src/lib/newsletterNotify.js — "5 gönderiden
+-- 1'i" bülten kısıtlaması için atomik sayaç, rate_limits İLE AYNI desen ama pencere/expires_at yok.
+CREATE TABLE IF NOT EXISTS newsletter_notify_counter (
+  key TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -541,7 +549,7 @@ CREATE TABLE IF NOT EXISTS projects (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT);
+, hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT, publish_date TEXT);
 CREATE INDEX IF NOT EXISTS idx_projects_build_status ON projects(build_status);
 CREATE INDEX IF NOT EXISTS idx_projects_hidden_or_deleted ON projects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_legacy_key ON projects(legacy_key);

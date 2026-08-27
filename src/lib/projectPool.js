@@ -103,13 +103,19 @@ export function isOfficeName(name) {
 // uyumluluk için 'built' varsayılır — canlıda halihazırda var olan TÜM projeler bu kategoridedir.
 export async function fetchActiveProjectPool(env, buildStatus) {
   const status = buildStatus === 'concept' ? 'concept' : 'built';
-  // ORDER BY p.id DESC — proje.html#render()'daki varsayılan sıralamayla (sort seçilmemişse "son
-  // eklenen ilk sırada") birebir aynı; facet sayaçları (bu havuzun diğer tüketicisi,
+  // ORDER BY COALESCE(p.publish_date, p.created_at) DESC — proje.html#render()'daki varsayılan
+  // sıralamayla (sort seçilmemişse) birebir aynı; facet sayaçları (bu havuzun diğer tüketicisi,
   // handleProjectFiltersRoute/recomputeProjectFacets) sıradan bağımsız olduğundan etkilenmez.
+  // publish_date yalnızca admin'in proje ekle/düzenle sayfasından ayarlayabildiği bir "yayınlanma
+  // tarihi" (bkz. kullanıcı isteği, migrations/0061_project_publish_date.sql) — NULL'sa (admin hiç
+  // dokunmadıysa) created_at'e (satırın eklenme anı) göre "son eklenen ilk" davranışı DEĞİŞMEDEN
+  // korunur, dolu ise projenin listelerdeki yerini bu tarih belirler. p.id DESC ikinci sıralama
+  // ölçütü olarak kalır (created_at aynı saniyede eşitse deterministik sıra için).
   // `p.*` yerine açık sütun listesi — bu havuzun TEK tüketicileri handleProjectListRoute (kart
   // listesi) ve recomputeProjectFacets (facet sayaçları) olduğundan, ikisinin de hiç okumadığı
-  // source_url/ai_generated/source/legacy_key/claimed_by_user_id/created_at/updated_at D1'den hiç
-  // çekilmiyor (deleted_at/hidden_at yalnızca WHERE'de kullanılıyor, SELECT'e gerek yok). `images`
+  // source_url/ai_generated/source/legacy_key/claimed_by_user_id D1'den hiç çekilmiyor (created_at/
+  // publish_date yalnızca ORDER BY'da kullanılıyor, SQLite bunun için SELECT listesinde olmalarını
+  // gerektirmez; deleted_at/hidden_at yalnızca WHERE'de kullanılıyor, SELECT'e gerek yok). `images`
   // sütunu yine TAM metin olarak çekiliyor (SQL'de json_extract KULLANILMADI — bir satırın images
   // JSON'ı bozuksa bu tüm sorguyu 500'letebilirdi; mevcut JS tarafı parseCanonicalRow/try-catch
   // güvenliği korunuyor), yalnızca shapeProjectItem'a coverOnly:true geçirilerek İLK görsele
@@ -120,7 +126,8 @@ export async function fetchActiveProjectPool(env, buildStatus) {
             p.photo_credit_url, p.build_status, p.concept_category, p.awards,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
-     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ? GROUP BY p.id ORDER BY p.id DESC`
+     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?
+     GROUP BY p.id ORDER BY COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(status).all();
   return results.map(row => shapeProjectItem(row, { coverOnly: true }));
 }

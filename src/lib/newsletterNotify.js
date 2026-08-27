@@ -75,12 +75,35 @@ function buildSummary(typeKey, row) {
 // abone listesi 100'lük gruplara bölünür.
 const BATCH_SIZE = 100;
 
+// Bültenin abonelere HER paylaşımda değil, ~5 paylaşımdan 1'inde gitmesi için (bkz. kullanıcı
+// isteği: "5 proje, mimar, firma ve ürün paylaşımından 1'ini gönder") — proje/mimar/firma/ürün
+// TÜRLERİ birlikte, tek paylaşılan sayaçla sayılır (ayrı ayrı tür başına değil, kullanıcının
+// örneğindeki gibi). rate_limits#checkRateLimit İLE AYNI atomik INSERT...ON CONFLICT DO
+// UPDATE...RETURNING deseni (bkz. migrations/0060_newsletter_notify_counter.sql) — sayaç hiç
+// sıfırlanmaz, yalnızca 5'in katına ulaştığında (o anki içerik için) gerçek bir mail gönderilir,
+// aradaki 4 paylaşım sessizce atlanır.
+const NOTIFY_EVERY_N = 5;
+async function shouldSendThisTime(env) {
+  try {
+    const row = await env.DB.prepare(
+      `INSERT INTO newsletter_notify_counter (key, count) VALUES ('global', 1)
+       ON CONFLICT(key) DO UPDATE SET count = count + 1
+       RETURNING count`
+    ).first();
+    return !!row && row.count % NOTIFY_EVERY_N === 0;
+  } catch (err) {
+    console.error('newsletter notify counter failed', err);
+    return false;
+  }
+}
+
 export async function notifyNewsletterOfNewContent(env, typeKey, row) {
   if (!env.RESEND_API_KEY || !row) return;
   const label = TYPE_LABEL[typeKey];
   const link = buildLink(typeKey, row);
   const title = buildTitle(typeKey, row);
   if (!label || !link || !title) return;
+  if (!(await shouldSendThisTime(env))) return;
 
   try {
     const { results } = await env.DB.prepare(

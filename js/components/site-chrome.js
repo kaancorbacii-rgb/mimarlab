@@ -116,8 +116,8 @@
       </div>
       <span class="footer-copyright">© Tüm hakları saklıdır. MİMARLAB, 2026<br>Sitede yer alan tüm görseller ilgili kişi veya firmaya aittir.</span>
       <button type="button" class="footer-theme-toggle" id="footer-theme-toggle" aria-pressed="false" aria-label="Gece modunu değiştir">
-        <span class="theme-toggle-label theme-label-moon">Gece</span>
-        <span class="theme-toggle-label theme-label-sun">Gündüz</span>
+        <span class="theme-toggle-icon theme-icon-sun" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
+        <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5a8.5 8.5 0 1 1-9-11 7 7 0 0 0 9 11z"/></svg></span>
         <span class="theme-toggle-knob" aria-hidden="true"></span>
       </button>
     </div>
@@ -146,24 +146,24 @@
       .footer-social svg{display:block;}
       .footer-theme-toggle{
         position:relative; display:inline-flex; align-items:center; flex-shrink:0;
-        width:92px; height:28px; padding:0; border-radius:100px; border:none;
-        background:var(--brass); color:#fff; cursor:pointer; overflow:hidden;
+        width:52px; height:28px; padding:0; border-radius:100px; border:none;
+        background:var(--accent); color:#fff; cursor:pointer; overflow:hidden;
+        transition: background 0.2s ease;
       }
+      [data-theme="dark"] .footer-theme-toggle{background:#333B46;}
       .footer-theme-toggle:hover{opacity:0.92;}
-      .footer-theme-toggle .theme-toggle-label{
+      .footer-theme-toggle .theme-toggle-icon{
         position:absolute; top:50%; transform:translateY(-50%);
-        font-size:11px; font-weight:700; letter-spacing:0.01em; white-space:nowrap;
+        width:14px; height:14px; display:flex; align-items:center; justify-content:center; color:#fff;
       }
-      .footer-theme-toggle .theme-label-moon{left:12px;}
-      .footer-theme-toggle .theme-label-sun{right:12px; display:none;}
-      [data-theme="dark"] .footer-theme-toggle .theme-label-moon{display:none;}
-      [data-theme="dark"] .footer-theme-toggle .theme-label-sun{display:block;}
+      .footer-theme-toggle .theme-icon-sun{left:7px;}
+      .footer-theme-toggle .theme-icon-moon{right:7px;}
       .footer-theme-toggle .theme-toggle-knob{
-        position:absolute; top:3px; left:61px;
+        position:absolute; top:3px; left:3px;
         width:22px; height:22px; border-radius:50%; background:#fff;
         transition: left 0.2s ease;
       }
-      [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:3px;}
+      [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:27px;}
       .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 12px; max-width:260px;}
       .footer-newsletter-form{position:relative;}
       .footer-newsletter-input{width:100%; box-sizing:border-box; height:36px; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 92px 0 14px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}

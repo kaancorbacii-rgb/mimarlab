@@ -222,6 +222,11 @@ async function createSubmission(request, env, user, typeKey) {
   const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
   if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
   if (typeKey === 'architects' && isInvalidSchoolValue(body.school)) return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
+  // publishDate (Yayın Tarihi) yalnızca admin'in proje ekle/düzenle sayfasında görünen/düzenlenebilen
+  // bir alan (bkz. kullanıcı isteği) — sıradan bir kullanıcı bu ucu (kendi gönderisini oluşturma/
+  // düzenleme) doğrudan çağırırsa (ör. tarayıcı devtools'tan) alan sessizce yok sayılır, admin
+  // olmayan HİÇBİR yoldan bu değer yazılamaz. updateOwnSubmission'da da AYNI kontrol tekrarlanır.
+  if (typeKey === 'projects' && user.role !== 'admin') delete body.publishDate;
 
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);
@@ -376,6 +381,9 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
   if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
   if (typeKey === 'architects' && isInvalidSchoolValue(body.school)) return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
+  // bkz. createSubmission'daki AYNI kontrol/gerekçe — publishDate yalnızca admin yazabilir, bu uç
+  // admin başka birinin gönderisini düzenlerken de (line 373) kullanıldığından burada da tekrarlanır.
+  if (typeKey === 'projects' && user.role !== 'admin') delete body.publishDate;
 
   if (body.claimed_profile_key) {
     const err = await verifyClaimedProfileKey(env, user, typeKey, body.claimed_profile_key);

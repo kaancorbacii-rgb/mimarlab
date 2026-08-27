@@ -33,7 +33,7 @@ export const SUBMISSION_TYPES = {
     fields: [
       'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
-      'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory', 'awards',
+      'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory', 'awards', 'publishDate',
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,

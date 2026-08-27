@@ -398,6 +398,13 @@
             <div id="p-date-rows"></div>
           </div>
         </div>
+        <div class="form-row" id="p-publish-date-row" style="display:none;">
+          <div class="form-field">
+            <label for="p-publish-date">Yayın Tarihi <span class="opt">(yalnızca admin)</span></label>
+            <input type="date" id="p-publish-date" name="publishDate">
+            <div class="form-hint">Projenin listelerdeki/gönderilerdeki yerini bu tarih belirler. Boş bırakılırsa eklenme tarihine göre sıralanır.</div>
+          </div>
+        </div>
         <fieldset class="form-field">
           <legend>Konum</legend>
           <div class="form-row">
@@ -828,7 +835,37 @@ document.getElementById('dd-grup-btn').addEventListener('click', () => {
   setTimeout(() => search.focus(), 0);
 });
 wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
-wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search');
+// Kaynak/Fotoğrafçı kutusuna bir mimarlık firmasının adı yazılırsa (öneriden seçilerek ya da
+// serbestçe yazılıp kutudan çıkılarak) Bağlantı kutusu o firmanın web sitesiyle otomatik
+// doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in de kullandığı AYNI
+// arama (name/slug/legacy_key eşleşmesi, yoksa slugify taraması, bkz. src/routes/office.js#
+// findOffice). Kullanıcı Bağlantı kutusuna kendi eliyle bir şey yazarsa (data-autofilled bayrağı
+// temizlenir) bir daha OTOMATİK doldurma bunun üzerine yazmaz — yalnızca kendi elleriyle
+// silene/boşaltana kadar manuel değer korunur.
+async function tryFillCreditUrlFromFirm(name){
+  name = (name || '').trim();
+  if(!name) return;
+  const urlInput = document.getElementById('p-credit-url');
+  if(urlInput.value.trim() && urlInput.dataset.autofilled !== '1') return;
+  try{
+    const res = await fetch(`/api/office/${encodeURIComponent(name)}`);
+    if(!res.ok) return;
+    const data = await res.json();
+    const website = data && data.item && data.item.website;
+    if(!website) return;
+    urlInput.value = website;
+    urlInput.dataset.autofilled = '1';
+  }catch{}
+}
+document.getElementById('p-credit-url').addEventListener('input', () => {
+  document.getElementById('p-credit-url').dataset.autofilled = '';
+});
+wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search', {
+  onPick: (item) => tryFillCreditUrlFromFirm(lastCommaSegment(item.label)),
+});
+document.getElementById('p-credit-text').addEventListener('blur', () => {
+  setTimeout(() => tryFillCreditUrlFromFirm(lastCommaSegment(document.getElementById('p-credit-text').value)), 150);
+});
 // Firma kutusundan bir öneri seçildiğinde Mimar kutusu o firmanın ortakları/kurucuları VE ekip
 // üyeleriyle otomatik doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in
 // Ekip/Kurucular bölümünü besleyen AYNI birleşik listeyi döner (bkz. src/routes/office.js#
@@ -1055,6 +1092,11 @@ const dupNameCheck = DuplicateNameCheck.attach({
 const meReady = fetch('/api/auth/me').then(async res=>{
   if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
   currentUserRole = (await res.json()).user.role;
+  // Yayın Tarihi yalnızca admin'e görünür/düzenlenebilir (bkz. kullanıcı isteği) — sunucu tarafı
+  // da AYNI kontrolü zorunlu kılar (bkz. src/routes/submissions.js#createSubmission/
+  // updateOwnSubmission, admin olmayan gönderen için body.publishDate sessizce silinir), bu yalnızca
+  // görünürlük için, tek başına bir güvenlik sınırı değil.
+  if(currentUserRole === 'admin') document.getElementById('p-publish-date-row').style.display = '';
 });
 
 // proje.html#OFFICE_NAME_OVERRIDES/OFFICE_KEYWORDS, src/routes/project.js#isOfficeName ile BİREBİR
@@ -1154,6 +1196,7 @@ async function prefillForEdit(){
     document.getElementById('p-desc').value = item.description || '';
     document.getElementById('p-credit-text').value = item.photoCreditText || '';
     document.getElementById('p-credit-url').value = item.photoCreditUrl || '';
+    document.getElementById('p-publish-date').value = item.publishDate || '';
     document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (item.category || []).includes(cb.value));
     updateKategoriLabel();
     document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (item.discipline || []).includes(cb.value));
@@ -1251,6 +1294,7 @@ async function prefillForClaim(){
   document.getElementById('p-desc').value = merged.description || '';
   document.getElementById('p-credit-text').value = (merged.photoCredit && merged.photoCredit.text) || '';
   document.getElementById('p-credit-url').value = (merged.photoCredit && merged.photoCredit.url) || '';
+  document.getElementById('p-publish-date').value = merged.publishDate || '';
   document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (merged.category || []).includes(cb.value));
   updateKategoriLabel();
   document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (merged.discipline || []).includes(cb.value));
@@ -1390,6 +1434,12 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     photoCreditUrl: document.getElementById('p-credit-url').value || null,
     images,
   };
+  // Yalnızca admin'e görünen alan (bkz. yukarıdaki meReady#p-publish-date-row) — sunucu tarafı da
+  // admin olmayan gönderen için bunu ayrıca siler (bkz. src/routes/submissions.js), currentUserRole
+  // kontrolü burada YALNIZCA gereksiz/anlamsız bir alanı payload'a hiç eklememek için.
+  if(currentUserRole === 'admin'){
+    payload.publishDate = document.getElementById('p-publish-date').value || null;
+  }
   if(claimSlug) payload.claimed_slug = claimSlug;
 
   const patchUrl = isAdminEditingOther
