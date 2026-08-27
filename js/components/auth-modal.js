@@ -785,6 +785,14 @@ const AuthModal = (function () {
           <div class="dash-pagination" id="am-submissions-pagination"></div>
         </div>
       </div>
+
+      <div class="dash-row">
+        <div class="dash-section" style="grid-column:1 / -1;">
+          <h2>Düello Analizlerim</h2>
+          <div id="am-dash-duel-analysis"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-duel-analysis-pagination"></div>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -1878,6 +1886,72 @@ const AuthModal = (function () {
       renderDashPagination('am-rated-pagination', ratedPage, totalPages, (p) => { ratedPage = p; renderRated(); });
     }
 
+    // Düello Analizlerim — loadRated/renderRated İLE AYNI desen (en yakın örnek: tip filtresi yok,
+    // tek liste + sayfalama, bkz. kullanıcı isteği: "Aktivitelerim'e yeni bir kutu ekle"). Satıra
+    // tıklanınca duel-analysis-modal.js diğer sayfalarda henüz yüklenmemiş olabilir (bkz. lazy-modals.js
+    // İLE AYNI gerekçe: bu popup yalnızca burada VEYA duello.html'de kullanılır, her sayfaya script
+    // tag'i eklemek yerine ilk gerçek kullanımda indirilir).
+    // audit bulgusu (2026-08-27): `window.DuelAnalysisModal` kontrolü TEK BAŞINA yeterli değildi —
+    // kullanıcı iki farklı "Analizi Gör" satırına HIZLI art arda tıklarsa (ilk script henüz
+    // yüklenip window.DuelAnalysisModal'ı SET ETMEDEN), her iki çağrı da onu tanımsız görüp
+    // KENDİ <script> etiketini enjekte ediyor — ikinci betiğin üst düzey `const DuelAnalysisModal`
+    // bildirimi "Identifier has already been declared" SyntaxError'ı ile patlıyor (doğrulandı: iki
+    // <script> art arda enjekte edilince gerçekten fırlıyor). lazy-modals.js#loadModule İLE AYNI
+    // "bekleyen Promise'i önbelleğe al" deseni bu yarışı ortadan kaldırır — ikinci çağrı YENİ bir
+    // script enjekte etmez, birincinin Promise'ine katılır.
+    let pendingDuelAnalysisModal = null;
+    function loadDuelAnalysisModal() {
+      if (window.DuelAnalysisModal) return Promise.resolve(window.DuelAnalysisModal);
+      if (pendingDuelAnalysisModal) return pendingDuelAnalysisModal;
+      pendingDuelAnalysisModal = new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'js/components/duel-analysis-modal.js';
+        script.onload = () => resolve(window.DuelAnalysisModal);
+        document.head.appendChild(script);
+      });
+      return pendingDuelAnalysisModal;
+    }
+
+    let duelAnalysisItems = [];
+    let duelAnalysisPage = 1;
+    async function loadDuelAnalyses() {
+      const res = await fetch('/api/duel/analysis/mine');
+      const data = res.ok ? await res.json() : { items: [] };
+      duelAnalysisItems = data.items || [];
+      renderDuelAnalyses();
+    }
+    function renderDuelAnalyses() {
+      const container = document.getElementById('am-dash-duel-analysis');
+      if (!container) return;
+      if (!duelAnalysisItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz kaydedilmiş bir Düello analizin yok.<br><a href="duello.html">Düello oyna</a></div>';
+        document.getElementById('am-duel-analysis-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(duelAnalysisItems.length / PAGE_SIZE_DASH));
+      if (duelAnalysisPage > totalPages) duelAnalysisPage = totalPages;
+      const startIdx = (duelAnalysisPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = duelAnalysisItems.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(it => `
+        <div class="saved-row">
+          <a class="saved-row-link" href="#" data-duel-analysis-id="${escapeAttr(it.id)}">
+            <div class="saved-row-noimg"></div>
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(new Date(it.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }))}</div>
+              <div class="saved-row-meta">${it.choiceCount} seçim${it.headline ? ' · ' + escapeHtml(it.headline) : ''}</div>
+            </div>
+          </a>
+        </div>`).join('');
+      renderDashPagination('am-duel-analysis-pagination', duelAnalysisPage, totalPages, (p) => { duelAnalysisPage = p; renderDuelAnalyses(); });
+    }
+    on('am-dash-duel-analysis', 'click', (e) => {
+      const row = e.target.closest('[data-duel-analysis-id]');
+      if (!row) return;
+      e.preventDefault();
+      const id = row.getAttribute('data-duel-analysis-id');
+      loadDuelAnalysisModal().then((Modal) => { if (Modal) Modal.open({ mode: 'saved', id }, { triggerEl: row }); });
+    });
+
     let commentItems = [];
     let commentsFilter = '';
     let commentsPage = 1;
@@ -1963,7 +2037,7 @@ const AuthModal = (function () {
 
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      [loadSubmissions(), loadSaved(), loadRated(), loadComments()].forEach(p => p.catch(() => {}));
+      [loadSubmissions(), loadSaved(), loadRated(), loadComments(), loadDuelAnalyses()].forEach(p => p.catch(() => {}));
     }).catch(() => {});
   }
 

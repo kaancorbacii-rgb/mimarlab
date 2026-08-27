@@ -1025,7 +1025,13 @@
   .duel-hero{max-width:720px; margin:0 auto; padding:28px 32px 8px; text-align:center;}
   .duel-hero h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 8px;}
   .duel-hero p{color:var(--ink-soft); font-size:14.5px; margin:0; line-height:1.6;}
-  .duel-hero .duel-refresh-btn{margin-top:18px;}
+  .duel-hero-actions{display:flex; align-items:center; justify-content:center; gap:10px; margin-top:18px; flex-wrap:wrap;}
+  .duel-complete-btn{
+    background:var(--ink); color:var(--paper-card); border:none; border-radius:100px;
+    padding:9px 18px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .duel-complete-btn:hover{background:var(--walnut);}
+  .duel-complete-btn:disabled{opacity:0.4; cursor:not-allowed;}
 
   .duel-arena{
     display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:stretch;
@@ -1151,8 +1157,9 @@
 <script src="js/components/project-related.js" defer></script>
 <script src="js/components/project-products.js" defer></script>
 <script src="js/components/project-modal.js" defer></script>
+<script src="js/components/duel-analysis-modal.js" defer></script>
 
-  <div id="site-header-mount" data-nav-active="duello"></div>
+  <div id="site-header-mount" data-nav-active="oyun"></div>
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
@@ -1164,7 +1171,10 @@
   <div class="duel-hero">
     <h1>Düello</h1>
     <p>Hangisini seçeceksin? İki eser karşı karşıya, birini seç ve kazanan kalsın, yeni bir rakiple düello devam etsin.</p>
-    <button type="button" class="duel-refresh-btn" id="duel-refresh-btn" aria-label="Yeni bir düello eşleşmesi getir">Yenile</button>
+    <div class="duel-hero-actions">
+      <button type="button" class="duel-refresh-btn" id="duel-refresh-btn" aria-label="Yeni bir düello eşleşmesi getir">Yenile</button>
+      <button type="button" class="duel-complete-btn" id="duel-complete-btn" aria-label="Düello seçimlerini analiz et" disabled>Tamamla</button>
+    </div>
   </div>
 
   <div class="duel-arena" id="duel-arena" aria-live="polite"></div>
@@ -1207,9 +1217,19 @@
     var leaderboardEl = document.getElementById('duel-leaderboard-list');
     var leaderboardPaginationEl = document.getElementById('duel-leaderboard-pagination');
     var refreshBtn = document.getElementById('duel-refresh-btn');
+    var completeBtn = document.getElementById('duel-complete-btn');
     var currentMatch = null;
     var voting = false;
     var refreshing = false;
+    // Düello Analizi — kullanıcı isteği: "Tamamla" oturumun BAŞINDAN İTİBAREN yapılan TÜM seçimleri
+    // analiz etmeli, sadece son eşleşmeyi değil. Sunucuda bunun için ayrı bir "oturum" kaydı YOK
+    // (bkz. src/routes/duel.js#computeDuelAnalysis yorumu) — zincir tamamen bu sayfa-yüklemesi
+    // ömrü boyunca istemci tarafında toplanır (her başarılı oydan hemen sonra kazananın slug'ı
+    // eklenir, bkz. vote() aşağıda); sayfa yenilenirse zincir de (deneyimin geri kalanı gibi)
+    // sıfırdan başlar — bu, ekstra bir D1 sorgusu/sunucu state'i olmadan "seçimlerin tamamı zaten
+    // erişilebilir durumdaysa tekrar sorgulama" performans ilkesini (kullanıcı isteği madde 14)
+    // karşılar.
+    var duelChain = [];
     // Sayfalama — kullanıcı isteği: bir sayfada en fazla 30 proje, sonrası proje.html'deki
     // (js/pages/proje.js#renderPagination/getPageList) İLE AYNI mantıkta sayfa butonları. Sunucu
     // zaten TÜM listeyi (LIMIT 300, bkz. src/routes/duel.js#computeDuelLeaderboard) TEK bir
@@ -1304,6 +1324,7 @@
       if (voting || !currentMatch) return;
       voting = true;
       var matchId = currentMatch.matchId;
+      var winnerItem = side === 'a' ? currentMatch.a : currentMatch.b;
       var btns = arenaEl.querySelectorAll('.duel-pick-btn');
       btns.forEach(function(b){ b.disabled = true; });
       fetch('/api/duel/vote', {
@@ -1312,7 +1333,13 @@
         body: JSON.stringify({ matchId: matchId, choice: side }),
       })
         .then(function(r){ return r.ok ? r.json() : parseErrorResponse(r); })
-        .then(function(){ return loadMatch(); })
+        .then(function(){
+          if (winnerItem && winnerItem.slug) {
+            duelChain.push(winnerItem.slug);
+            if (completeBtn) completeBtn.disabled = false;
+          }
+          return loadMatch();
+        })
         .then(function(){ refreshLeaderboard(); })
         .catch(function(err){ renderState(err.message || 'Oy kaydedilemedi.', true); })
         .finally(function(){ voting = false; });
@@ -1455,6 +1482,16 @@
           refreshing = false;
           refreshBtn.disabled = false;
         });
+      });
+    }
+
+    // "Tamamla" — kullanıcı isteği: seçim zincirinin TAMAMININ analiz edildiği popup'ı açar
+    // (bkz. js/components/duel-analysis-modal.js). Zincir boşsa buton zaten disabled (bkz. yukarısı
+    // completeBtn.disabled=false, ilk oydan SONRA açılır).
+    if (completeBtn){
+      completeBtn.addEventListener('click', function(){
+        if (!duelChain.length) return;
+        DuelAnalysisModal.open({ mode: 'live', chain: duelChain.slice() }, { triggerEl: completeBtn });
       });
     }
 

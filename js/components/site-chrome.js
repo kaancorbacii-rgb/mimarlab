@@ -18,7 +18,10 @@
     { key: 'mimar', href: 'mimar.html', label: 'Mimar' },
     { key: 'firma', href: 'firma.html', label: 'Firma' },
     { key: 'en-iyi-100', href: 'en-iyi-100.html', label: 'En İyi 100' },
-    { key: 'duello', href: 'duello.html', label: 'Düello' },
+    { key: 'oyun', label: 'Oyun', dropdown: [
+      { href: 'duello.html', label: 'Düello' },
+      { href: 'quiz.html', label: 'Quiz' },
+    ] },
   ];
 
   // Işık modunda logo koyu (lacivert/siyah) harflerle, R'daki daire+üçgen ise her zaman mavi (bkz.
@@ -42,6 +45,16 @@
         </button>
       </div>`;
       }
+      if(item.dropdown){
+        const links = item.dropdown.map(sub => `<a class="game-menu-link" href="${escapeAttr(sub.href)}">${escapeHtml(sub.label)}</a>`).join('');
+        return `<div class="nav-link-wrap" id="${item.key}-menu-wrap">
+        <button class="nav-link nav-link-trigger${activeClass}" id="${item.key}-menu-trigger" type="button" aria-expanded="false" aria-controls="${item.key}-mega-menu">
+          ${escapeHtml(item.label)}
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </button>
+        <div class="game-menu" id="${item.key}-mega-menu">${links}</div>
+      </div>`;
+      }
       return `<a class="nav-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
     }).join('\n      ');
 
@@ -54,6 +67,16 @@
           <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
         </button>
         <div class="nav-mobile-accordion-panel" id="urun-mobile-panel"></div>
+      </div>`;
+      }
+      if(item.dropdown){
+        const links = item.dropdown.map(sub => `<a class="nav-mobile-link" href="${escapeAttr(sub.href)}">${escapeHtml(sub.label)}</a>`).join('');
+        return `<div class="nav-mobile-accordion">
+        <button type="button" class="nav-mobile-link nav-mobile-accordion-trigger${activeClass}" id="${item.key}-mobile-trigger" aria-expanded="false" aria-controls="${item.key}-mobile-panel">
+          ${escapeHtml(item.label)}
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </button>
+        <div class="nav-mobile-accordion-panel" id="${item.key}-mobile-panel">${links}</div>
       </div>`;
       }
       return `<a class="nav-mobile-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
@@ -340,6 +363,57 @@
   }
   window.wireNavSearch = wireNavSearch;
 
+  // OYUN dropdown'ının stili (bkz. kullanıcı isteği: DÜELLO -> OYUN, içinde Düello/Quiz) — Ürün'ün
+  // mega-menu'sünden farklı olarak sadece 2 linklik sade bir liste, bu yüzden ayrı ve dar bir panel
+  // (Ürün'ün geniş 5 sütunlu grid'i yerine). site-chrome.js senkron (defer'sız) çalıştığından bu stil
+  // header markup'ıyla AYNI script çalıştırmasında enjekte edilir — ilk paint'ten önce DOM'da olur,
+  // bu yüzden Ürün'ün ihtiyaç duyduğu sayfa-başı FOUC-reset kopyalarına burada gerek yok.
+  function injectGameMenuStyle(){
+    if(document.getElementById('game-menu-style')) return;
+    const style = document.createElement('style');
+    style.id = 'game-menu-style';
+    style.textContent = `
+      .game-menu{display:none; position:absolute; top:calc(100% + 12px); left:50%; transform:translateX(-50%); z-index:90; min-width:168px; background:var(--paper-card); border:1px solid var(--line); border-radius:14px; box-shadow:0 18px 40px rgba(27,42,61,0.18); padding:8px;}
+      .game-menu.open{display:block;}
+      .game-menu-link{display:block; padding:10px 14px; border-radius:9px; font-family:'Inter', sans-serif; font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap;}
+      .game-menu-link:hover{background:var(--paper-alt); color:var(--walnut);}
+      @media (max-width:960px){ .game-menu{display:none !important;} }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function wireGameMenu(){
+    const trigger = document.getElementById('oyun-menu-trigger');
+    const wrap = document.getElementById('oyun-menu-wrap');
+    const panel = document.getElementById('oyun-mega-menu');
+    if(trigger && wrap && panel){
+      const closeMenu = () => {
+        panel.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+      };
+      trigger.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const willOpen = !panel.classList.contains('open');
+        panel.classList.toggle('open', willOpen);
+        trigger.setAttribute('aria-expanded', String(willOpen));
+      });
+      document.addEventListener('click', (e)=>{
+        if(!wrap.contains(e.target)) closeMenu();
+      });
+      document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeMenu(); });
+    }
+
+    const mobileTrigger = document.getElementById('oyun-mobile-trigger');
+    const mobilePanel = document.getElementById('oyun-mobile-panel');
+    if(mobileTrigger && mobilePanel){
+      mobileTrigger.addEventListener('click', ()=>{
+        const willOpen = !mobilePanel.classList.contains('open');
+        mobilePanel.classList.toggle('open', willOpen);
+        mobileTrigger.setAttribute('aria-expanded', String(willOpen));
+      });
+    }
+  }
+
   function wireHamburger(){
     const navHamburger = document.getElementById('nav-hamburger');
     const navMobileMenu = document.getElementById('nav-mobile-menu');
@@ -363,7 +437,9 @@
     const active = headerMount.getAttribute('data-nav-active') || '';
     headerMount.outerHTML = headerHtml(active);
   }
+  injectGameMenuStyle();
   wireHamburger();
+  wireGameMenu();
   wireNavSearch();
 
   function mountFooter(){

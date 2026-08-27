@@ -356,7 +356,7 @@ const POOL_CACHE_TTL_SECONDS = 1800;
 // altyapısını paylaşır, böylece yeni onaylanan/gizlenen/silinen bir proje diğer 5 havuzla AYNI anda
 // (bir sonraki proje mutasyonunda) aday havuzuna girer/çıkar — ayrı bir invalidation mekanizması
 // icat edilmedi.
-const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept', 'duel:pool'];
+const POOL_CACHE_KINDS = ['architects', 'offices', 'products', 'projects:built', 'projects:concept', 'duel:pool', 'quiz:pool'];
 // export edilir — src/routes/duel.js bir oy sonrası YALNIZCA 'duel:leaderboard' anahtarını
 // (site genelindeki invalidatePublicCache() sweep'ini TETİKLEMEDEN, bkz. o dosyadaki yorum: her oyda
 // tüm public cache'i temizlemek performans önceliğine aykırı olurdu) hedefli şekilde temizlemek için

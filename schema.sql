@@ -764,3 +764,25 @@ CREATE TABLE IF NOT EXISTS duel_sessions (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+  id TEXT PRIMARY KEY,
+  actor_key TEXT NOT NULL,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  day TEXT NOT NULL,
+  question_type TEXT NOT NULL,
+  project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  correct INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_actor_day ON quiz_attempts(actor_key, day);
+
+CREATE TABLE IF NOT EXISTS duel_analyses (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  choice_count INTEGER NOT NULL,
+  project_slugs_json TEXT NOT NULL,
+  summary_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_duel_analyses_user ON duel_analyses(user_id, created_at DESC);
+

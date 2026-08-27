@@ -5,17 +5,29 @@
 import { json, errorJson, readJson, parseCookies, isHttps } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId, randomToken } from '../lib/crypto.js';
-import { checkRateLimit } from '../lib/rateLimit.js';
+import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { OFFICE_EDIT_POSITIONS } from '../lib/projectClaimAccess.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { fetchDuelPool } from '../lib/duelPool.js';
 import { getCachedPool, poolCacheKey } from '../lib/publicCache.js';
+import { DESIGNER_JOIN_SQL, OFFICE_NAMES_SQL, designerNamesFrom, officeNamesFrom, DESIGNER_SEP } from '../lib/projectPool.js';
+import ilIlceJs from '../../il-ilce-data.js';
+
+const { parseLocationFull } = ilIlceJs;
 
 export async function handleDuelRoute(request, env, url) {
-  const segments = url.pathname.split('/').filter(Boolean); // ["api", "duel", "match"|"vote"|"leaderboard"]
+  const segments = url.pathname.split('/').filter(Boolean); // ["api", "duel", "match"|"vote"|"leaderboard"|"analyze"|"analysis"]
   if (segments.length === 3 && segments[2] === 'match' && request.method === 'GET') return getMatch(request, env, url);
   if (segments.length === 3 && segments[2] === 'vote' && request.method === 'POST') return castVote(request, env);
   if (segments.length === 3 && segments[2] === 'leaderboard' && request.method === 'GET') return getLeaderboard(request, env);
+  // Düello Analizi — kullanıcı isteği: "Tamamla" ile seçim zincirinin TAMAMININ (yalnızca son
+  // eşleşme değil) deterministik analizi + Aktivitelerim'e kaydı. Bilinçli olarak yukarıdaki
+  // match/vote/leaderboard'un duel_matches/duel_sessions şemasına/yazma yoluna HİÇ dokunmaz (bkz.
+  // migrations/0064_duel_analyses.sql'deki yorum) — sıfır regresyon riski.
+  if (segments.length === 3 && segments[2] === 'analyze' && request.method === 'POST') return analyzeDuel(request, env);
+  if (segments.length === 3 && segments[2] === 'analysis' && request.method === 'POST') return saveDuelAnalysis(request, env);
+  if (segments.length === 4 && segments[2] === 'analysis' && segments[3] === 'mine' && request.method === 'GET') return getMyDuelAnalyses(request, env);
+  if (segments.length === 4 && segments[2] === 'analysis' && request.method === 'GET') return getDuelAnalysisById(request, env, segments[3]);
   return errorJson('Bulunamadı', 404);
 }
 
@@ -339,4 +351,190 @@ const LEADERBOARD_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxa
 async function getLeaderboard(request, env) {
   const data = await getCachedPool(env, 'duel:leaderboard', () => computeDuelLeaderboard(env));
   return json(data, 200, LEADERBOARD_CACHE_HEADERS);
+}
+
+// ---------- Düello Analizi ----------
+// Seçim zinciri istemcide toplanır (bkz. duello.html#duelChain — her başarılı oydan sonra o turun
+// kazananının slug'ı eklenir, ekstra bir D1 sorgusu GEREKTİRMEZ, kullanıcı isteği madde 14). Bu
+// fonksiyon TEK, ucuz bir `slug IN (...)` sorgusuyla (zincir uzunluğuyla sınırlı, tam tablo taraması
+// YOK) gerçek proje verisinden (category/discipline/period/location/designer) deterministik bir
+// agregasyon üretir — AI çağrısı yok (kullanıcı isteği: hallüsinasyon riski taşımayan, doğrulanabilir
+// veri). "Mimari yaklaşım" gibi şemada karşılığı olmayan bir nitelik ASLA uydurulmaz.
+const MAX_ANALYZE_SLUGS = 200; // bir Düello oturumu gerçekte bu kadar uzayamaz — güvenlik üst sınırı
+
+function topN(counts, n) {
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([value, count]) => ({ value, count }));
+}
+
+async function computeDuelAnalysis(env, rawSlugs) {
+  // audit bulgusu (2026-08-27): `rawSlugs || []` yalnızca falsy değerlerde (undefined/null/'') []'e
+  // düşüyordu — bir string/number/object gibi TRUTHY ama Array OLMAYAN bir `slugs` gönderilirse
+  // (ör. {"slugs":"x"}) sonraki `.filter()` çağrısı Array.prototype metodunu bulamayıp
+  // TypeError fırlatıyor, bu da yakalanmadan 500'e düşüyordu (curl ile doğrulandı). Array.isArray
+  // kontrolü bu tip karışıklığını temiz bir 400'e (boş sonuç → "yeterli seçim yok") indirger.
+  const clean = (Array.isArray(rawSlugs) ? rawSlugs : []).filter(s => typeof s === 'string' && s).slice(0, MAX_ANALYZE_SLUGS);
+  if (!clean.length) return null;
+  const uniqueSlugs = [...new Set(clean)];
+  const placeholders = uniqueSlugs.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT p.slug, p.category, p.discipline, p.period, p.location,
+            GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
+     FROM projects p ${DESIGNER_JOIN_SQL}
+     WHERE p.slug IN (${placeholders}) AND p.deleted_at IS NULL
+     GROUP BY p.id`
+  ).bind(...uniqueSlugs).all();
+
+  const bySlug = new Map();
+  for (const row of results) {
+    const p = parseCanonicalRow('projects', row);
+    const officeNames = officeNamesFrom(row.office_names);
+    const designer = designerNamesFrom(row.designer_names).filter(d => !officeNames.includes(d));
+    const loc = p.location ? parseLocationFull(p.location) : null;
+    bySlug.set(row.slug, {
+      category: p.category || [], discipline: p.discipline || [], period: p.period || [],
+      city: (loc && loc.city) || null, designer, officeNames,
+    });
+  }
+
+  const categoryCounts = new Map(), disciplineCounts = new Map(), periodCounts = new Map(),
+    cityCounts = new Map(), designerCounts = new Map();
+  const bump = (map, key) => { if (!key) return; map.set(key, (map.get(key) || 0) + 1); };
+
+  let matched = 0;
+  for (const slug of clean) {
+    const p = bySlug.get(slug);
+    if (!p) continue;
+    matched++;
+    p.category.forEach(v => bump(categoryCounts, v));
+    p.discipline.forEach(v => bump(disciplineCounts, v));
+    p.period.forEach(v => bump(periodCounts, v));
+    bump(cityCounts, p.city);
+    p.designer.forEach(v => bump(designerCounts, v));
+    p.officeNames.forEach(v => bump(designerCounts, v));
+  }
+  if (!matched) return null;
+
+  const topCategory = topN(categoryCounts, 3);
+  const topDiscipline = topN(disciplineCounts, 3);
+  const topPeriod = topN(periodCounts, 2);
+  const topCity = topN(cityCounts, 3);
+  const topDesigner = topN(designerCounts, 3);
+
+  // Ölçülü dil (kullanıcı isteği madde 8): kesinlik iddiası yok ("kesinlikle X'sin" DEĞİL),
+  // yalnızca "öne çıkıyor"/"daha fazla görülüyor" gibi gözlemsel ifadeler.
+  const sentences = [];
+  if (topCategory.length) sentences.push(`Seçimlerinde en çok ${topCategory.map(x => x.value).join(', ')} öne çıkıyor.`);
+  if (topPeriod.length) sentences.push(`En sık tercih ettiğin dönem ${topPeriod[0].value}.`);
+  if (topDiscipline.length) sentences.push(`Seçimlerin içinde ${topDiscipline.map(x => x.value).join(', ')} disiplini daha fazla görülüyor.`);
+  if (topCity.length) sentences.push(`En çok seçtiğin şehirler: ${topCity.map(x => x.value).join(', ')}.`);
+  if (topDesigner.length) sentences.push(`Tercih zincirinde öne çıkan isimler: ${topDesigner.map(x => x.value).join(', ')}.`);
+
+  return { choiceCount: clean.length, topCategory, topDiscipline, topPeriod, topCity, topDesigner, sentences };
+}
+
+// POST /api/duel/analyze {slugs:[...]} — transient, giriş gerektirmez (henüz kaydedilmez, yalnızca
+// popup'ta gösterilir). audit bulgusı (2026-08-27): match/vote/getQuestion/postAnswer'ın HEPSİNDE
+// olan checkRateLimit burada YOKTU — 40 art arda istekle sınırsız kabul edildiği doğrulandı. Giriş
+// gerektirmediğinden actorKey/user yok, diğer uçlardaki AYNI IP-bazlı desen (bkz. src/routes/ai.js)
+// kullanılır.
+async function analyzeDuel(request, env) {
+  const ip = clientIp(request);
+  if (!(await checkRateLimit(env, 'duel_analyze', ip, 30, 60 * 1000))) {
+    return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60' });
+  }
+  const body = await readJson(request);
+  const summary = await computeDuelAnalysis(env, body.slugs);
+  if (!summary) return errorJson('Analiz için yeterli seçim yok.', 400);
+  return json({ summary });
+}
+
+// POST /api/duel/analysis {slugs:[...]} — giriş zorunlu (kullanıcı isteği: "Kaydet" hesaba kalıcı
+// kaydeder). Sunucu kendi hesapladığı özeti saklar, client'tan gelen hiçbir hesaplanmış veri
+// GÜVENİLMEZ — yalnızca ham slug listesi referans alınır (analyzeDuel İLE AYNI computeDuelAnalysis).
+async function saveDuelAnalysis(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+  // audit bulgusı (2026-08-27) — analyzeDuel'deki AYNI eksik, burada daha ciddi: her istek bir
+  // duel_analyses satırı YAZAR (40 art arda istekle 40 satır oluştuğu doğrulandı, sınırsız D1 yazma
+  // büyümesi). user.id zaten çözülmüş olduğundan IP yerine kullanıcı bazlı sınırlanır.
+  if (!(await checkRateLimit(env, 'duel_analysis_save', user.id, 10, 60 * 1000))) {
+    return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60' });
+  }
+  const body = await readJson(request);
+  // computeDuelAnalysis'teki AYNI Array.isArray düzeltmesi (bkz. o fonksiyondaki audit yorumu) —
+  // bu satır kendi ayrı filter/slice'ını yaptığından oradaki düzeltme bunu KAPSAMAZ.
+  const slugs = (Array.isArray(body.slugs) ? body.slugs : []).filter(s => typeof s === 'string' && s).slice(0, MAX_ANALYZE_SLUGS);
+  const summary = await computeDuelAnalysis(env, slugs);
+  if (!summary) return errorJson('Analiz için yeterli seçim yok.', 400);
+
+  const slugsJson = JSON.stringify(slugs);
+  // Çift kayıt engeli (kullanıcı isteği: "gereksiz şekilde birden fazla kez oluşturulmamalı") —
+  // yalnızca kullanıcının EN SON kaydıyla seçim zinciri birebir aynıysa (ör. çift tıklama/ağ tekrar
+  // denemesi) yeni satır açmak yerine mevcut kaydı döner; farklı bir Düello oturumunun (farklı
+  // zincir) kaydı bundan hiç etkilenmez.
+  const last = await env.DB.prepare(
+    `SELECT id, project_slugs_json FROM duel_analyses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`
+  ).bind(user.id).first();
+  if (last && last.project_slugs_json === slugsJson) {
+    return json({ ok: true, id: last.id, alreadySaved: true });
+  }
+
+  const id = newId();
+  const now = Date.now();
+  await env.DB.prepare(
+    `INSERT INTO duel_analyses (id, user_id, choice_count, project_slugs_json, summary_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).bind(id, user.id, summary.choiceCount, slugsJson, JSON.stringify(summary), now).run();
+
+  return json({ ok: true, id });
+}
+
+const MY_ANALYSES_LIMIT = 100;
+
+function analysisHeadline(summary) {
+  const parts = [];
+  if (summary.topCategory && summary.topCategory[0]) parts.push(summary.topCategory[0].value);
+  if (summary.topCity && summary.topCity[0]) parts.push(summary.topCity[0].value);
+  return parts.join(' · ');
+}
+
+// GET /api/duel/analysis/mine — Aktivitelerim > Düello Analizlerim (bkz. js/components/auth-modal.js)
+// — diğer "mine" uçları (comments.js#/mine, ratings.js#/mine) İLE AYNI desen: TÜM liste tek istekte,
+// istemci tarafında sayfalanır (bkz. auth-modal.js#renderDashPagination), ayrı bir sunucu sayfalaması
+// gerektirmez.
+async function getMyDuelAnalyses(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+  if (!(await checkRateLimit(env, 'duel_analysis_mine', user.id, 60, 60 * 1000))) {
+    return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60' });
+  }
+  const { results } = await env.DB.prepare(
+    `SELECT id, choice_count, summary_json, created_at FROM duel_analyses WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`
+  ).bind(user.id, MY_ANALYSES_LIMIT).all();
+  const items = results.map(row => {
+    let summary = {};
+    try { summary = JSON.parse(row.summary_json); } catch {}
+    return { id: row.id, choiceCount: row.choice_count, createdAt: row.created_at, headline: analysisHeadline(summary) };
+  });
+  return json({ items });
+}
+
+// GET /api/duel/analysis/:id — kaydedilmiş bir analizin o günkü haliyle (donmuş summary_json'dan)
+// tekrar görüntülenmesi (kullanıcı isteği madde 12) — yeni Düello sonuçları bunu ASLA değiştirmez.
+async function getDuelAnalysisById(request, env, id) {
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+  if (!(await checkRateLimit(env, 'duel_analysis_by_id', user.id, 60, 60 * 1000))) {
+    return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60' });
+  }
+  const row = await env.DB.prepare(
+    `SELECT id, choice_count, summary_json, created_at FROM duel_analyses WHERE id = ? AND user_id = ?`
+  ).bind(id, user.id).first();
+  if (!row) return errorJson('Analiz bulunamadı.', 404);
+  let summary = {};
+  try { summary = JSON.parse(row.summary_json); } catch {}
+  return json({ id: row.id, choiceCount: row.choice_count, createdAt: row.created_at, summary });
 }
