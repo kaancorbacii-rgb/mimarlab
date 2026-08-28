@@ -246,7 +246,8 @@
     <div class="footer-subscribe">
       <div class="footer-subscribe-inner">
         <div class="footer-subscribe-join">
-          <p class="footer-subscribe-join-text">MİMARLAB'da yok musun? Kişi veya firma bilgilerini hemen doldur.</p>
+          <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
+          <p class="footer-subscribe-join-desc">Kişi veya firma bilgilerini hemen doldur.</p>
           <a class="footer-subscribe-join-btn" href="uye-ol.html">Üye Ol</a>
         </div>
         <div class="footer-subscribe-news">
@@ -299,7 +300,8 @@
       .footer-subscribe{background:#4E6478; border-bottom:1px solid rgba(237,240,243,0.12);}
       .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:1fr 1fr; column-gap:48px; align-items:center;}
       .footer-subscribe-join{padding-right:48px; border-right:1px solid rgba(237,240,243,0.14);}
-      .footer-subscribe-join-text{font-size:15px; line-height:1.55; color:var(--paper); margin:0 0 16px; max-width:340px;}
+      .footer-subscribe-join-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
+      .footer-subscribe-join-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 16px; max-width:340px;}
       .footer-subscribe-join-btn{display:inline-block; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; padding:10px 26px; border-radius:100px;}
       .footer-subscribe-join-btn:hover{opacity:0.9;}
       .footer-subscribe-news{padding-left:48px;}
@@ -353,14 +355,14 @@
         .footer-subscribe-inner{column-gap:24px; padding:26px 20px;}
         .footer-subscribe-join{padding-right:20px;}
         .footer-subscribe-news{padding-left:20px;}
-        .footer-subscribe-join-text{font-size:13.5px;}
+        .footer-subscribe-join-title{font-size:14.5px;}
         .footer-subscribe-news-title{font-size:14.5px;}
       }
       @media (max-width: 560px){
         .footer-subscribe-inner{column-gap:14px; padding:22px 14px;}
         .footer-subscribe-join{padding-right:14px;}
         .footer-subscribe-news{padding-left:14px;}
-        .footer-subscribe-join-text{font-size:12px; margin-bottom:10px;}
+        .footer-subscribe-join-title{font-size:13px;}
         .footer-subscribe-join-btn{padding:8px 16px; font-size:12px;}
         .footer-subscribe-news-title{font-size:13px;}
         .footer-subscribe-news .footer-newsletter-desc{display:none;}
