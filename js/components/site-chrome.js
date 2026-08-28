@@ -368,6 +368,11 @@
            bunun yerine sütun oranı sağa kaydırılır (kısa başlık/buton içeren sol sütun daha az
            yere ihtiyaç duyar), input+buton yan yana kalır ve satır hizası korunur. */
         .footer-subscribe-inner{grid-template-columns: minmax(0,0.62fr) minmax(0,1.38fr);}
+        /* gerçek bulgu: ayırıcı çizgi hâlâ left:50%'deydi ama sütun oranı 0.62/1.38 olduğundan
+           gerçek sütun sınırı artık %50'de değil — bu yüzden sağ sütun içeriği çizginin SOLUNA
+           taşıyor gibi görünüyordu (bkz. kullanıcı ekran görüntüsü, "2. sütun kaymış"). Çizgi
+           gerçek sınıra göre yeniden hesaplandı (bkz. yukarıdaki padding/gap/oran matematiği). */
+        .footer-subscribe-inner::before{left: calc(31% + 1px);}
         .footer-subscribe-join-title, .footer-subscribe-join-desc, .footer-subscribe-join-action{padding-right:14px;}
         .footer-subscribe-news-title, .footer-newsletter-desc, .footer-subscribe-news-action{padding-left:14px;}
         .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:13px;}
