@@ -350,7 +350,7 @@ async function buildArchitectPayload(env, key) {
   const dobYear = a.dob ? parseInt(String(a.dob).slice(0, 4), 10) : null;
   const AGE_RANGE_YEARS = 5;
 
-  const [colleaguesRes, relatedRes, similarAgeRes] = await Promise.all([
+  const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes] = await Promise.all([
     office
       ? env.DB.prepare(
           `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
@@ -371,6 +371,16 @@ async function buildArchitectPayload(env, key) {
          AND ABS(CAST(SUBSTR(dob, 1, 4) AS INTEGER) - ?) <= ?
        LIMIT 50`
     ).bind(a.id, dobYear, AGE_RANGE_YEARS).all() : Promise.resolve({ results: [] }),
+    // Tasarımcı künyesi bu mimarla eşleşen ürünler (bkz. kullanıcı isteği: "ürünler mimar
+    // profillerinde de projeler gibi Ürünler (N) başlığı altında gözüksün") — src/routes/office.js
+    // #brandProductsRes'teki AYNI COLLATE NOCASE tam isim eşleşmesi deseni (products.designer serbest
+    // metin, structured bir junction tablosu yok — js/components/product-modal.js#renderDesignerSection'daki
+    // AYNI "tüm metni tek isim olarak dene" istemci mantığıyla simetrik, çoklu tasarımcı içeren
+    // metinler (ör. "A & B") burada da eşleşmez).
+    env.DB.prepare(
+      `SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND designer = ? COLLATE NOCASE
+       ORDER BY title COLLATE NOCASE`
+    ).bind(a.name).all(),
   ]);
 
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
@@ -399,6 +409,10 @@ async function buildArchitectPayload(env, key) {
     [shuffledArchitects[i], shuffledArchitects[j]] = [shuffledArchitects[j], shuffledArchitects[i]];
   }
   const relatedArchitects = shuffledArchitects.slice(0, 10).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+  const relatedProducts = designerProductsRes.results
+    .map(p => parseCanonicalRow('products', p))
+    .filter(p => p.kind !== 'material')
+    .map(p => ({ slug: p.slug, title: p.title, images: p.images, category: p.category }));
 
   const item = {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
@@ -426,6 +440,7 @@ async function buildArchitectPayload(env, key) {
     colleagues,
     relatedProjects,
     relatedArchitects,
+    relatedProducts,
     prevItem: adjacent.prevItem,
     nextItem: adjacent.nextItem,
     hidden: !!a.hidden_at,

@@ -49,14 +49,14 @@ const ProductModal = (function () {
         height:32px !important; box-sizing:border-box;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
         padding:0 8px !important; margin:0; transition:border-color .15s ease;
+        font-family:inherit; font-size:12px !important; font-weight:600; color:var(--ink-soft);
       }
       .pr-rating-save-row .rating-widget:hover{border-color:var(--walnut);}
-      .pr-rating-save-row .rating-star-row{display:flex; gap:2px; flex-shrink:0;}
-      .pr-rating-save-row .rating-star-btn{background:none; border:none; padding:0; color:var(--line); display:flex; transition:transform .1s ease;}
-      .pr-rating-save-row .rating-star-btn.filled{color:var(--accent);}
-      .pr-rating-save-row .rating-star-btn:hover:not(:disabled){color:var(--accent); transform:scale(1.15);}
-      .pr-rating-save-row .rating-star-btn:disabled{opacity:0.6; cursor:not-allowed;}
-      .pr-rating-save-row .rating-summary{font-size:12px !important; font-weight:600; line-height:1; color:var(--ink-soft); white-space:nowrap !important;}
+      .pr-rating-save-row .rating-widget svg{flex-shrink:0;}
+      .pr-rating-save-row .pr-rating-avg{
+        display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
+        font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
+      }
       .pr-rating-save-row .card-save-btn{
         position:static; width:auto; height:32px !important; z-index:auto;
         background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
@@ -112,6 +112,7 @@ const ProductModal = (function () {
       .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
       .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
+      .designer-chip-no-avatar{padding:6px 16px; min-height:46px;}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -292,14 +293,11 @@ const ProductModal = (function () {
            boyutları değişmez. Paylaş artık ikon-only olduğundan (bkz. share-button.js) buradaki
            listeden çıkarıldı, kendi boyutunu paylaşılan .share-btn 860px kuralından alır. */
         .pr-rating-save-row{gap:8px !important;}
+        #pr-save-slot{gap:8px !important;}
         .pr-rating-save-row .rating-widget, .pr-rating-save-row .card-save-btn{
           height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
         }
-        /* bkz. proje.html'deki AYNI gerçek bulgu — .rating-summary'nin kendi font-size:12px !important
-           kuralı (yukarıda) kapsayıcıdan miras almadığından burada da açıkça eşitlenir. */
-        .pr-rating-save-row .rating-summary{font-size:13.5px !important;}
-        .pr-rating-save-row .rating-star-row{gap:4px;}
-        .pr-rating-save-row .rating-star-btn svg{width:15px; height:15px;}
+        .pr-rating-save-row .pr-rating-avg{display:none !important;}
       }
       /* Mobil galeri oranı — proje.html'deki AYNI kural (kullanıcı isteği): masaüstünde 2:1 korunur,
          yalnızca ≤768px'te 4:3'e geçilir. 860px bloğundan SONRA tanımlanır ki aynı özgüllükteki
@@ -314,7 +312,8 @@ const ProductModal = (function () {
   const LEFT_TEMPLATE = `
     <h1 class="detail-title" id="pr-title"></h1>
     <div class="pr-rating-save-row" id="pr-rating-save-row">
-      <div class="rating-widget" id="pr-rating"></div>
+      <button type="button" class="rating-widget" id="pr-rating" aria-label="Puanla"></button>
+      <span class="pr-rating-avg" id="pr-rating-avg" style="display:none;"></span>
       <div id="pr-save-slot"></div>
     </div>
     <div class="detail-byline" id="pr-byline" style="display:none;">
@@ -323,8 +322,12 @@ const ProductModal = (function () {
     </div>
     <div class="detail-info">
       <div class="designer-section" id="pr-brand-section" style="display:none;">
-        <div class="designer-label">Firma:</div>
+        <div class="designer-label">Ürün Firması:</div>
         <div class="designer-chips" id="pr-brand-chips"></div>
+      </div>
+      <div class="designer-section" id="pr-designer-section" style="display:none;">
+        <div class="designer-label">Tasarımcı:</div>
+        <div class="designer-chips" id="pr-designer-chips"></div>
       </div>
       <div class="detail-meta" id="pr-meta"></div>
       <div id="pr-website-slot" style="margin-top:14px;"></div>
@@ -519,6 +522,34 @@ const ProductModal = (function () {
     </a>`;
   }
 
+  // Tasarımcı chip'i — tryOfficeChip ile BİREBİR aynı desen, /api/architect/:key üzerinden dener.
+  // products.designer serbest metin olduğundan (bkz. src/routes/architect.js#relatedProducts'taki
+  // AYNI gerekçe) yalnızca TÜM alan tek bir mimar adına birebir eşleşirse tıklanabilir chip olur;
+  // "A & B" gibi birden çok isim içeren metinler eşleşmez, düz metin rozeti olarak kalır.
+  async function tryArchitectChip(name) {
+    try {
+      const res = await fetch(`/api/architect/${encodeURIComponent(slugify(name))}`);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      return (payload && payload.item && !payload.hidden) ? payload.item : null;
+    } catch { return null; }
+  }
+
+  async function renderDesignerSection(p) {
+    if (!p.designer) return;
+    document.getElementById('pr-designer-section').style.display = '';
+    document.getElementById('pr-designer-chips').innerHTML = `<span class="designer-chip designer-chip-no-avatar">
+      <span class="designer-chip-name">${escapeHtml(p.designer)}</span>
+    </span>`;
+    const arch = await tryArchitectChip(p.designer);
+    if (!arch) return;
+    const badge = verifiedBadgeHtml('architect', arch.name, arch.badges, 13);
+    document.getElementById('pr-designer-chips').innerHTML = `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
+      <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(cdnImg(arch.photo, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
+      <span class="designer-chip-name">${escapeHtml(arch.name)}${badge}</span>
+    </a>`;
+  }
+
   // "X tarafından" satırı — proje-modal.js#renderByline ile BİREBİR aynı (yalnızca üye gönderisi
   // kökenli ürünlerde dolu, bkz. src/routes/product.js#fetchOwnerByline item.ownerName alanı).
   function renderByline(item) {
@@ -539,7 +570,7 @@ const ProductModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section', 'pr-designer-section',
     'pr-info-divider', 'pr-feedback-card', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
@@ -578,12 +609,13 @@ const ProductModal = (function () {
 
     document.getElementById('pr-brand-section').style.display = 'none';
     renderBrandSection(p);
+    document.getElementById('pr-designer-section').style.display = 'none';
+    renderDesignerSection(p);
 
-    // Künye sırası (bkz. kullanıcı isteği): Firma (üstteki designer-section), Tasarımcı, Kategori,
-    // Yıl, ardından Web Sitesi — bu artık düz metin satırı değil, firma sayfalarındaki (office-modal.js
-    // #save-btn) ile AYNI buton stili, Teknik Özellikler/Açıklamadan önceki son künye satırı.
+    // Künye sırası (bkz. kullanıcı isteği): Firma + Tasarımcı (üstteki designer-section'lar),
+    // Kategori, Yıl, ardından Web Sitesi — bu artık düz metin satırı değil, firma sayfalarındaki
+    // (office-modal.js #save-btn) ile AYNI buton stili, Teknik Özellikler/Açıklamadan önceki son künye satırı.
     let metaHtml = '';
-    if (p.designer) metaHtml += `<div><strong>Tasarımcı:</strong> ${escapeHtml(p.designer)}</div>`;
     if (p.category) metaHtml += `<div><strong>Kategori:</strong> ${escapeHtml(p.category)}</div>`;
     if (p.year) metaHtml += `<div><strong>Yıl:</strong> ${escapeHtml(p.year)}</div>`;
     document.getElementById('pr-meta').innerHTML = metaHtml;
@@ -652,9 +684,12 @@ const ProductModal = (function () {
     }
 
     const ratingWidget = document.getElementById('pr-rating');
-    ratingWidget.dataset.type = ratingKindFor(p);
-    ratingWidget.dataset.key = ratingKey;
-    mountRatingWidget(ratingWidget);
+    if (typeof mountRateButton === 'function') {
+      mountRateButton(ratingWidget, {
+        targetType: ratingKindFor(p), targetId: ratingKey, label: p.title,
+        avgEl: document.getElementById('pr-rating-avg'),
+      });
+    }
 
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';

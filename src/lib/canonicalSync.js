@@ -22,6 +22,7 @@ import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
 import { releaseR2StorageBytes } from './r2Quota.js';
 import { SUBMISSION_TYPES, dateBucketFor } from './submissionTypes.js';
+import { slugify } from './slugify.js';
 
 function submissionMarker(id) { return `submission:${id}`; }
 
@@ -399,8 +400,21 @@ export async function deleteCanonicalRowFully(env, userId, type, canonRow, natur
 // canonical satırın kendisini (name/slug/legacy_key üzerinden) hedefler.
 export async function findCanonicalRowByNaturalKey(env, typeKey, key) {
   if (typeKey === 'architects' || typeKey === 'offices') {
+    // gerçek bulgu (2026-08-28): save-widget.js/architect-modal.js/office-modal.js "Kaydet"
+    // butonu item_key olarak slugify(name) yazıyor (ör. "kaan-corbaci"), ama bu sorgu yalnızca
+    // ham `name` (ör. "Kaan Çorbacı") veya `legacy_key` ile eşleştiriyordu — slug hemen hemen
+    // HİÇBİR ZAMAN bunlardan biriyle birebir eşleşmediğinden shapeSavedTargetInfo#live hep false
+    // dönüyor, GET /api/saved bu satırları sessizce filtreliyordu (kaydedilen mimar/firma profilleri
+    // Aktivitelerim > Kaydettiklerim'de hiç görünmüyordu). src/routes/architect.js#findArchitect /
+    // src/routes/office.js#findOffice'teki AYNI slug-kolonu + slugify-tarama fallback'i burada da
+    // uygulanır ki gerçek profil sayfasının bulduğu her kayıt burada da bulunsun.
     const table = typeKey;
-    return env.DB.prepare(`SELECT * FROM ${table} WHERE name = ? OR legacy_key = ? LIMIT 1`).bind(key, key).first();
+    const row = await env.DB.prepare(`SELECT * FROM ${table} WHERE name = ? OR slug = ? OR legacy_key = ? LIMIT 1`).bind(key, key, key).first();
+    if (row) return row;
+    const { results } = await env.DB.prepare(`SELECT id, name FROM ${table}`).all();
+    const match = results.find(r => slugify(r.name) === key);
+    if (!match) return null;
+    return env.DB.prepare(`SELECT * FROM ${table} WHERE id = ?`).bind(match.id).first();
   }
   if (typeKey === 'projects') {
     return env.DB.prepare(`SELECT * FROM projects WHERE slug = ? OR legacy_key = ? LIMIT 1`).bind(key, key).first();

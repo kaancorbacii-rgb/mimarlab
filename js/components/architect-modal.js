@@ -206,7 +206,7 @@ const ArchitectModal = (function () {
       <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
     </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
-      <h2 class="related-title">Ürünler</h2>
+      <h2 class="related-title">Ürünler<span id="am-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
     </div>
     <div class="related-section" id="am-related-architects-section" style="display:none;">
@@ -496,6 +496,7 @@ const ArchitectModal = (function () {
     const colleagues = payload.colleagues || [];
     const relatedProjectsData = payload.relatedProjects || [];
     const relatedArchitectsData = payload.relatedArchitects || [];
+    const designerProductsData = payload.relatedProducts || [];
     currentItem = a;
 
     updateHeadMeta(a, displayOffice);
@@ -642,14 +643,27 @@ const ArchitectModal = (function () {
       },
     });
 
+    // Ürünler ızgarası iki kaynağı birleştirir (bkz. src/routes/office.js#renderProductGrid'teki
+    // AYNI desen, office-modal.js'e taşınmış hâli): designerProductsData (künyedeki Tasarımcı adı bu
+    // mimarla eşleşen canonical ürünler, bkz. src/routes/architect.js#relatedProducts) + aşağıdaki
+    // profile-content'in döndürdüğü claim-based ürünler (bu mimarın kendi hesabından gönderdiği).
+    // Aynı ürün ikisinde de varsa designer eşleşmesi kazanır (slug'ı garantili doğru /urun/ linkine
+    // gider).
+    function renderDesignerProductsGrid(submissionItems) {
+      const seenTitles = new Set(designerProductsData.map(p => (p.title || '').trim().toLowerCase()));
+      const merged = [...designerProductsData, ...submissionItems.filter(p => !seenTitles.has((p.title || '').trim().toLowerCase()))];
+      document.getElementById('am-related-products-section').style.display = merged.length ? '' : 'none';
+      document.getElementById('am-related-products-grid').innerHTML = merged.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
+      document.getElementById('am-related-products-count').textContent = merged.length ? ` (${merged.length})` : '';
+    }
+    renderDesignerProductsGrid([]);
+
     async function loadProfileContent() {
       try {
         const res = await fetch(`/api/public/profile-content?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(a.name)}`);
         if (!res.ok) return;
         const data = await res.json();
-        const products = data.products || [];
-        document.getElementById('am-related-products-section').style.display = products.length ? '' : 'none';
-        document.getElementById('am-related-products-grid').innerHTML = products.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
+        renderDesignerProductsGrid(data.products || []);
       } catch {}
     }
 

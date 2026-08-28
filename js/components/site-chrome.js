@@ -180,20 +180,16 @@
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px;}
         .footer-brand{grid-column:1 / -1;}
       }
-      /* kullanıcı isteği (2026-08-28): mobilde en alt satır (sosyal ikonlar + telif + gece/gündüz
-         düğmesi) masaüstündeki gibi TEK satırda kalsın (önceden 860px altında 3 ayrı satıra
-         yığılıyordu) — dar ekranda sığması için yazı/ikon/boşluk küçültülür, hizalama aynı kalır. */
+      /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
+         gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:
+         social, copyright, theme-toggle — masaüstü grid sırası korunur, burada yalnızca CSS order
+         özelliğiyle görsel sıra değiştirilir). Aynı gün içindeki önceki "tek satırda kalsın" kararının
+         (bkz. git geçmişi) yerini alır. */
       @media (max-width: 560px){
-        .footer-bottom{gap:8px;}
-        .footer-copyright{font-size:10.5px; line-height:1.4;}
-        .footer-social{gap:8px; height:20px;}
-        .footer-social svg{width:14px; height:14px;}
-        .footer-theme-toggle{width:40px; height:22px;}
-        .footer-theme-toggle .theme-toggle-knob{width:16px; height:16px;}
-        [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:21px;}
-        .footer-theme-toggle .theme-icon-sun{left:5px;}
-        .footer-theme-toggle .theme-icon-moon{right:5px;}
-        .footer-theme-toggle .theme-toggle-icon svg{width:11px; height:11px;}
+        .footer-bottom{display:flex; flex-direction:column; align-items:center; gap:14px;}
+        .footer-theme-toggle{order:1;}
+        .footer-social{order:2;}
+        .footer-copyright{order:3; text-align:center;}
       }
     `;
     document.head.appendChild(style);
