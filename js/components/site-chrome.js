@@ -77,9 +77,30 @@
       .nav-mobile-menu-links{padding:10px; flex:1;}
       .nav-mobile-menu-foot{padding:14px 16px 22px; border-top:1px solid var(--line); flex-shrink:0;}
       .nav-mobile-menu-foot .nav-mobile-cta{margin-top:0; display:flex; align-items:center; justify-content:center;}
+      /* kullanıcı isteği (2026-08-28, Architonic ekran görüntüsü referans alınarak): drawer'daki her
+         satırda TEK bir sayfa ismi bulunmalı — .nav-mobile-link bir <a> olduğundan display kuralı
+         hiçbir sayfanın kendi <style>'ında tanımlı değildi (bkz. proje.html#.nav-mobile-link), bu
+         yüzden varsayılan inline akışta ardışık linkler (Proje/Ürün/Mimar/Firma) aynı satıra
+         sığdıkları kadar yan yana diziliyordu. display:flex + width:100% her linki kendi satırına
+         zorlar; font-size de aynı istekle (14.5px → 16px) büyütüldü. */
+      .nav-mobile-link{display:flex; align-items:center; gap:10px; width:100%; box-sizing:border-box; font-size:16px;}
+      /* .nav-mobile-cta yalnızca index.html'in KENDİ <style>'ında tam tanımlıydı (diğer 24 sayfada
+         hiç yoktu) — burada TEK kaynaktan enjekte edilerek her sayfada aynı görünüm garanti edilir. */
+      .nav-mobile-cta{
+        width:100%; margin-top:6px;
+        background:var(--ink); color:var(--paper-card);
+        border:none; padding:12px 14px; border-radius:8px;
+        font-size:15px; font-weight:600; box-sizing:border-box;
+      }
+      .nav-mobile-cta:hover{background:var(--walnut);}
       @media (max-width:960px){
         .nav-search{display:flex;}
         .nav-right{display:none;}
+        /* kullanıcı isteği: tablette hamburger düğmesi arama kutusuna yapışmasın, en sağda dursun —
+           .nav-right gizlenince onun eski margin-left:auto'suyla sağa itilen tek eleman kalmıyordu
+           (bkz. proje.html vb. sayfalardaki @media (max-width:960px) .nav-right{margin-left:auto}
+           kuralı, artık gizli bir elemanın margin'i akışa hiç katkı yapmıyor). */
+        .nav-hamburger{margin-left:auto;}
       }
     `;
     document.head.appendChild(style);
@@ -145,7 +166,7 @@
       <div class="nav-mobile-menu-links">
         ${mobileLinks}
       </div>
-      <div class="nav-mobile-menu-foot">
+      <div class="nav-mobile-menu-foot" id="nav-mobile-menu-foot">
         <a class="nav-mobile-cta" href="giris-yap.html">Giriş Yap</a>
       </div>
     </div>

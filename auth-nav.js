@@ -24,6 +24,14 @@
     } catch {}
     return '';
   }
+  // kullanıcı isteği (2026-08-28, Architonic profil sayfası referans alınarak): avatar menüsündeki
+  // renkli emojiler (👤🗂️🛠️🚪✦) yerine soyut, tek renkli (currentColor) çizgi ikonlar — hem
+  // masaüstü avatar açılır menüsünde hem de mobil çekmecenin hesap bölümünde AYNI ikonlar kullanılır.
+  const ICON_ACCOUNT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-4.1 4.2-6.2 7.5-6.2s6.1 2.1 7.5 6.2"/></svg>';
+  const ICON_ACTIVITY = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.4 5.7 6.1.7-4.6 4.2 1.3 6-5.2-3.2-5.2 3.2 1.3-6-4.6-4.2 6.1-.7z"/></svg>';
+  const ICON_CONTENT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.2A2 2 0 0 1 5 5.2h3.4l1.8 2.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.2z"/></svg>';
+  const ICON_ADMIN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6.5" x2="20" y2="6.5"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17.5" x2="20" y2="17.5"/><circle cx="9" cy="6.5" r="1.7" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="10.5" cy="17.5" r="1.7" fill="currentColor" stroke="none"/></svg>';
+  const ICON_LOGOUT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 21H5.8a1.8 1.8 0 0 1-1.8-1.8V4.8A1.8 1.8 0 0 1 5.8 3H9.5"/><polyline points="15.5 16.5 20.5 12 15.5 7.5"/><line x1="20.2" y1="12" x2="9" y2="12"/></svg>';
   function injectStyleOnce() {
     if (document.getElementById('auth-nav-style')) return;
     const style = document.createElement('style');
@@ -42,6 +50,18 @@
       .nav-avatar-menu-name{font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-avatar-menu-email{font-size:11.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-avatar-menu-sep{height:1px; background:var(--line); margin:4px 6px;}
+      .nav-avatar-menu a span, .nav-avatar-menu button span{display:flex; flex-shrink:0; color:var(--ink-soft);}
+      /* mobil çekmecenin hesap bölümü — masaüstü .nav-avatar-menu-header ile aynı fikir, dokunma
+         hedefleri için büyütülmüş (bkz. kullanıcı isteği: hamburger menüde giriş yapılmışsa "Giriş
+         Yap" yerine hesap menüsü görünsün). */
+      .nav-mobile-account-header{display:flex; align-items:center; gap:12px; padding:6px 4px 14px;}
+      .nav-mobile-account-avatar{width:40px; height:40px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:600; flex-shrink:0;}
+      .nav-mobile-account-id{min-width:0;}
+      .nav-mobile-account-name{font-size:14.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-mobile-account-email{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-mobile-account-sep{height:1px; background:var(--line); margin:0 4px 8px;}
+      .nav-mobile-account-links{display:flex; flex-direction:column; gap:2px;}
+      .nav-mobile-account-links .nav-mobile-link span{display:flex; flex-shrink:0; color:var(--ink-soft);}
     `;
     document.head.appendChild(style);
   }
@@ -71,7 +91,7 @@
     if (!user) return;
 
     injectStyleOnce();
-    const adminLink = user.role === 'admin' ? '<a href="admin.html"><span>🛠️</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>' : '';
+    const adminLink = user.role === 'admin' ? `<a href="admin.html"><span>${ICON_ADMIN}</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>` : '';
     const avatarInner = user.photoUrl
       ? `<img src="${escapeAttr(user.photoUrl)}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
       : initials(user.name);
@@ -89,16 +109,49 @@
             </div>
           </div>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="hesabim.html"><span>👤</span> Hesabım</a>
+          <a href="hesabim.html"><span>${ICON_ACCOUNT}</span> Hesabım</a>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="aktivitelerim.html"><span>✦</span> Aktivitelerim</a>
+          <a href="aktivitelerim.html"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="iceriklerim.html"><span>🗂️</span> İçeriklerim</a>
+          <a href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
           <div class="nav-avatar-menu-sep"></div>
           ${adminLink}
-          <button type="button" id="nav-logout-btn"><span>🚪</span> Çıkış Yap</button>
+          <button type="button" id="nav-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
         </div>
       </div>`;
+
+    // gerçek bulgu (kullanıcı isteği, 2026-08-28): bu fonksiyon şimdiye dek yalnızca masaüstü
+    // .nav-right'ı güncelliyordu — mobil çekmecenin alt kısmındaki "Giriş Yap" düğmesi
+    // (site-chrome.js#headerHtml, id="nav-mobile-menu-foot") oturum açılsa da hep statik kalıyordu.
+    // Aynı hesap linklerini (Hesabım/Aktivitelerim/İçeriklerim/Admin/Çıkış Yap) burada da, .nav-mobile-link
+    // satırlarıyla (tek satır = tek sayfa ismi, bkz. site-chrome.js düzeltmesi) render ediyoruz.
+    const mobileFoot = document.getElementById('nav-mobile-menu-foot');
+    if (mobileFoot) {
+      const mobileAdminLink = user.role === 'admin' ? `<a class="nav-mobile-link" href="admin.html"><span>${ICON_ADMIN}</span> Admin Paneli</a>` : '';
+      mobileFoot.innerHTML = `
+        <div class="nav-mobile-account-header">
+          <span class="nav-mobile-account-avatar">${avatarInner}</span>
+          <div class="nav-mobile-account-id">
+            <div class="nav-mobile-account-name">${escapeHtml(user.name || '')}</div>
+            <div class="nav-mobile-account-email">${escapeHtml(user.email || '')}</div>
+          </div>
+        </div>
+        <div class="nav-mobile-account-sep"></div>
+        <div class="nav-mobile-account-links">
+          <a class="nav-mobile-link" href="hesabim.html"><span>${ICON_ACCOUNT}</span> Hesabım</a>
+          <a class="nav-mobile-link" href="aktivitelerim.html"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
+          <a class="nav-mobile-link" href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
+          ${mobileAdminLink}
+          <button type="button" class="nav-mobile-link" id="nav-mobile-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
+        </div>`;
+      const mobileLogoutBtn = document.getElementById('nav-mobile-logout-btn');
+      if (mobileLogoutBtn) {
+        mobileLogoutBtn.addEventListener('click', async () => {
+          await fetch('/api/auth/logout', { method: 'POST' });
+          window.location.href = 'index.html';
+        });
+      }
+    }
 
     const btn = document.getElementById('nav-avatar-btn');
     const menu = document.getElementById('nav-avatar-menu');
