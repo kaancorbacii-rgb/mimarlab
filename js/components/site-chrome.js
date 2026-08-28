@@ -296,7 +296,7 @@
     const style = document.createElement('style');
     style.id = 'footer-extra-style';
     style.textContent = `
-      .footer-subscribe{border-bottom:1px solid rgba(237,240,243,0.12);}
+      .footer-subscribe{background:#4E6478; border-bottom:1px solid rgba(237,240,243,0.12);}
       .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:1fr 1fr; column-gap:48px; align-items:center;}
       .footer-subscribe-join{padding-right:48px; border-right:1px solid rgba(237,240,243,0.14);}
       .footer-subscribe-join-text{font-size:15px; line-height:1.55; color:var(--paper); margin:0 0 16px; max-width:340px;}
