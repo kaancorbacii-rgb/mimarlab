@@ -156,6 +156,22 @@ const OfficeModal = (function () {
         .detail-title-actions{gap:8px !important;}
       }
       .prevnext-mobile-divider{display:none;}
+      /* Projeler haritası — bkz. js/components/architect-modal.js#injectStyles İLE BİREBİR AYNI
+         (kullanıcı isteği: "Projeler"in altına, firmanın koordinatlı TÜM projelerini pinleyen açık
+         bir harita) — js/pages/proje.js#loadLeaflet İLE AYNI Leaflet + Esri World Imagery yığını/
+         marker popup kartı, bu modül firma.html'de Leaflet YÜKLEMEYEN diğer sayfalardan bağımsız
+         kendi yükleyicisini taşır (bkz. aşağıdaki loadOmMapLeaflet). */
+      .om-projects-map-wrap{margin-top:16px; border-radius:12px; overflow:hidden; border:1px solid var(--line-soft); height:280px; background:var(--paper-alt);}
+      .om-projects-map-wrap .leaflet-container{width:100%; height:100%; background:var(--paper-alt); font-family:inherit;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content-wrapper{padding:0; border-radius:10px; overflow:hidden;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content{margin:0; width:auto !important;}
+      .pm-map-marker-card{display:block; text-decoration:none; color:inherit; cursor:pointer;}
+      .pm-map-marker-card-photo{width:100%; height:110px; object-fit:cover; display:block; background:var(--paper-alt);}
+      .pm-map-marker-card-placeholder{display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; color:#fff; width:160px; height:110px;}
+      .pm-map-marker-card-title{padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); line-height:1.3;}
+      @media (max-width:860px){
+        .om-projects-map-wrap{height:220px;}
+      }
     `;
     document.head.appendChild(style);
   }
@@ -195,6 +211,7 @@ const OfficeModal = (function () {
     <div class="related-section" id="om-related-projects-section" style="display:none;">
       <h2 class="related-title">Projeler<span id="om-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
+      <div class="om-projects-map-wrap" id="om-projects-map-wrap" style="display:none;"></div>
     </div>
     <div class="related-section" id="om-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler<span id="om-related-products-count"></span></h2>
@@ -218,6 +235,74 @@ const OfficeModal = (function () {
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
 
+  // ---------- Projeler haritası — bkz. js/components/architect-modal.js#renderProjectsMap İLE
+  // BİREBİR AYNI desen (kullanıcı isteği: "Projeler" bölümünün altına, firmanın koordinatı olan TÜM
+  // projelerini pinleyen dinamik bir harita). Veri her renderItem() çağrısında /api/office/:slug'tan
+  // (bkz. fetchItem) taze geldiğinden — bir proje bu firmaya eklenip/çıkarıldığında
+  // payload.relatedProjects da değişir — harita da otomatik güncellenir.
+  let omMapLeafletPromise = null;
+  function loadOmMapLeaflet() {
+    if (omMapLeafletPromise) return omMapLeafletPromise;
+    omMapLeafletPromise = new Promise((resolve, reject) => {
+      if (window.L) { resolve(window.L); return; }
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => resolve(window.L);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return omMapLeafletPromise;
+  }
+  let omProjectsMap = null;
+  let omMapRequestSeq = 0;
+  // Marker'a tıklamak burada da (architect-modal.js#renderProjectsMap İLE AYNI gerekçe) doğrudan bir
+  // <a href="/proje/..."> linkine gider — ProjectModal firma.html'de hiç yüklenmiyor, o adreste
+  // ProjectModal kendi DOMContentLoaded'ında otomatik açılır.
+  function renderProjectsMap(projects) {
+    const wrap = document.getElementById('om-projects-map-wrap');
+    if (!wrap) return;
+    const pinned = (projects || []).filter(p => p.lat != null && p.lng != null);
+    if (!pinned.length) {
+      wrap.style.display = 'none';
+      if (omProjectsMap) { try { omProjectsMap.remove(); } catch { /* zaten kopmuş olabilir */ } omProjectsMap = null; }
+      return;
+    }
+    wrap.style.display = '';
+    const mySeq = ++omMapRequestSeq;
+    loadOmMapLeaflet().then((L) => {
+      if (mySeq !== omMapRequestSeq) return; // bu arada başka bir profil açıldı, bu yanıt bayat
+      if (omProjectsMap) { try { omProjectsMap.remove(); } catch { /* zaten kopmuş olabilir */ } omProjectsMap = null; }
+      wrap.innerHTML = '';
+      const inner = document.createElement('div');
+      inner.style.width = '100%';
+      inner.style.height = '100%';
+      wrap.appendChild(inner);
+      const map = L.map(inner, { attributionControl: false }).setView([39.0, 35.0], 6);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(map);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(map);
+      const markers = pinned.map(p => {
+        const marker = L.marker([p.lat, p.lng], { title: p.title }).addTo(map);
+        const cardImg = p.images && p.images[0];
+        const photoHtml = cardImg
+          ? `<img class="pm-map-marker-card-photo" src="${escapeAttr(cdnImg(cardImg, 300))}" alt="${escapeAttr(p.title)}">`
+          : `<div class="pm-map-marker-card-photo pm-map-marker-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`;
+        marker.bindPopup(`<a class="pm-map-marker-card" href="/proje/${encodeURIComponent(p.slug)}">${photoHtml}<div class="pm-map-marker-card-title">${escapeHtml(p.title)}</div></a>`, { minWidth: 160, maxWidth: 200, className: 'pm-project-popup' });
+        return marker;
+      });
+      omProjectsMap = map;
+      // bkz. architect-modal.js#renderProjectsMap İLE AYNI gerekçe: bu ekranda daima o firmanın TÜM
+      // projeleri (sayfalanmadan) birlikte gösterilir, bu yüzden harita pinlerin kapsadığı alana
+      // fitBounds ile odaklanır.
+      if (markers.length === 1) map.setView(markers[0].getLatLng(), 14);
+      else map.fitBounds(L.featureGroup(markers).getBounds(), { padding: [24, 24], maxZoom: 14 });
+      setTimeout(() => map.invalidateSize(), 0);
+    });
+  }
+
   // bkz. js/components/modal-shell.js#claimContent — paneller EN SON bu modal (office) tarafından
   // doldurulmadıysa (ör. araya Hesabım/başka bir detay modalı girdiyse) isNewOwner:true döner ve
   // panelleri zaten boşaltmış olur; bu durumda mountedOnce true olsa bile şablon KOŞULSUZ yeniden
@@ -226,6 +311,10 @@ const OfficeModal = (function () {
   function ensureTemplate() {
     const panels = ModalShell.claimContent('office');
     if (mountedOnce && !panels.isNewOwner) return;
+    // bkz. architect-modal.js#ensureTemplate İLE AYNI gerekçe — şablon sıfırdan kuruluyorsa
+    // #om-projects-map-wrap düğümü de bu innerHTML atamasıyla birlikte kopacak, eski Leaflet map
+    // instance'ı burada bırakmadan temizlenir.
+    if (omProjectsMap) { try { omProjectsMap.remove(); } catch { /* zaten kopmuş olabilir */ } omProjectsMap = null; }
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);
@@ -502,6 +591,7 @@ const OfficeModal = (function () {
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
     document.getElementById('om-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
+    renderProjectsMap(relatedProjectsData);
 
     // MİMARLAB AI, Faz 2 — Firma↔Şehir ilişkisi (bkz. src/routes/office.js#buildOfficePayload
     // relatedOffices yorumu). Bölüm başlığı zaten "Şehirdeki Diğer Firmalar" diyerek nedeni

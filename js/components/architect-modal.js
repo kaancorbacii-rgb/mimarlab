@@ -148,6 +148,21 @@ const ArchitectModal = (function () {
         .detail-title-actions{gap:8px !important;}
       }
       .prevnext-mobile-divider{display:none;}
+      /* Projeler haritası — bkz. kullanıcı isteği: "Projeler"in altına, mimarın/firmanın koordinatlı
+         TÜM projelerini pinleyen açık bir harita; js/pages/proje.js#loadLeaflet İLE AYNI Leaflet +
+         Esri World Imagery yığını/marker popup kartı (bu modül mimar.html'de Leaflet YÜKLEMEYEN diğer
+         sayfalardan bağımsız kendi yükleyicisini taşır, bkz. aşağıdaki loadAmMapLeaflet). */
+      .am-projects-map-wrap{margin-top:16px; border-radius:12px; overflow:hidden; border:1px solid var(--line-soft); height:280px; background:var(--paper-alt);}
+      .am-projects-map-wrap .leaflet-container{width:100%; height:100%; background:var(--paper-alt); font-family:inherit;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content-wrapper{padding:0; border-radius:10px; overflow:hidden;}
+      .leaflet-popup.pm-project-popup .leaflet-popup-content{margin:0; width:auto !important;}
+      .pm-map-marker-card{display:block; text-decoration:none; color:inherit; cursor:pointer;}
+      .pm-map-marker-card-photo{width:100%; height:110px; object-fit:cover; display:block; background:var(--paper-alt);}
+      .pm-map-marker-card-placeholder{display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; color:#fff; width:160px; height:110px;}
+      .pm-map-marker-card-title{padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); line-height:1.3;}
+      @media (max-width:860px){
+        .am-projects-map-wrap{height:220px;}
+      }
     `;
     document.head.appendChild(style);
   }
@@ -188,6 +203,7 @@ const ArchitectModal = (function () {
     <div class="related-section" id="am-related-projects-section" style="display:none;">
       <h2 class="related-title">Projeler<span id="am-related-projects-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
+      <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
     </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler</h2>
@@ -207,12 +223,88 @@ const ArchitectModal = (function () {
   let pushCountSinceOpen = 0;
   let requestSeq = 0;
 
+  // ---------- Projeler haritası — bkz. kullanıcı isteği: "Projeler" bölümünün altına, mimarın
+  // koordinatı olan TÜM projelerini pinleyen dinamik bir harita. Veri her renderItem() çağrısında
+  // /api/architect/:slug'tan (bkz. fetchItem) taze geldiğinden — bir proje bu mimara eklenip/
+  // çıkarıldığında payload.relatedProjects da değişir — harita da otomatik güncellenir, ayrıca bir
+  // "canlı senkron" mekanizmasına gerek yok. js/pages/proje.js#loadLeaflet İLE AYNI Leaflet + Esri
+  // World Imagery yığını (anahtarsız/ücretsiz) — bu modül mimar.html'de Leaflet YÜKLEMEYEN diğer
+  // sayfalardan bağımsız kendi yükleyicisini taşır (proje.js'in sayfa-özel global'ine bağımlı kalınamaz).
+  let amMapLeafletPromise = null;
+  function loadAmMapLeaflet() {
+    if (amMapLeafletPromise) return amMapLeafletPromise;
+    amMapLeafletPromise = new Promise((resolve, reject) => {
+      if (window.L) { resolve(window.L); return; }
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => resolve(window.L);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return amMapLeafletPromise;
+  }
+  let amProjectsMap = null;
+  let amMapRequestSeq = 0;
+  // Marker'a tıklamak burada (proje.js#syncMapMarkers'ın AKSİNE) doğrudan bir <a href="/proje/...">
+  // linkine gider — ProjectModal bu sayfada (mimar.html) hiç yüklenmiyor (bkz. kart tıklamalarının
+  // AYNI davranışı, cardHtml), bu yüzden marker popup'ındaki karta tıklamak zaten normal bir
+  // sayfa geçişi (o adreste ProjectModal kendi DOMContentLoaded'ında otomatik açılır).
+  function renderProjectsMap(projects) {
+    const wrap = document.getElementById('am-projects-map-wrap');
+    if (!wrap) return;
+    const pinned = (projects || []).filter(p => p.lat != null && p.lng != null);
+    if (!pinned.length) {
+      wrap.style.display = 'none';
+      if (amProjectsMap) { try { amProjectsMap.remove(); } catch { /* zaten kopmuş olabilir */ } amProjectsMap = null; }
+      return;
+    }
+    wrap.style.display = '';
+    const mySeq = ++amMapRequestSeq;
+    loadAmMapLeaflet().then((L) => {
+      if (mySeq !== amMapRequestSeq) return; // bu arada başka bir profil açıldı, bu yanıt bayat
+      if (amProjectsMap) { try { amProjectsMap.remove(); } catch { /* zaten kopmuş olabilir */ } amProjectsMap = null; }
+      wrap.innerHTML = '';
+      const inner = document.createElement('div');
+      inner.style.width = '100%';
+      inner.style.height = '100%';
+      wrap.appendChild(inner);
+      const map = L.map(inner, { attributionControl: false }).setView([39.0, 35.0], 6);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(map);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(map);
+      const markers = pinned.map(p => {
+        const marker = L.marker([p.lat, p.lng], { title: p.title }).addTo(map);
+        const cardImg = p.images && p.images[0];
+        const photoHtml = cardImg
+          ? `<img class="pm-map-marker-card-photo" src="${escapeAttr(cdnImg(cardImg, 300))}" alt="${escapeAttr(p.title)}">`
+          : `<div class="pm-map-marker-card-photo pm-map-marker-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`;
+        marker.bindPopup(`<a class="pm-map-marker-card" href="/proje/${encodeURIComponent(p.slug)}">${photoHtml}<div class="pm-map-marker-card-title">${escapeHtml(p.title)}</div></a>`, { minWidth: 160, maxWidth: 200, className: 'pm-project-popup' });
+        return marker;
+      });
+      amProjectsMap = map;
+      // Bu ekranda daima o mimarın/firmanın TÜM projeleri (sayfalanmadan) birlikte gösterildiğinden
+      // — proje.js#syncMapMarkers'ın "hiçbir zaman fitBounds etme" kararının AKSİNE — burada haritayı
+      // pinlerin kapsadığı alana ODAKLAMAK (fitBounds) doğru davranış: kullanıcı o profildeki
+      // projelerin coğrafi dağılımını tek bakışta görür.
+      if (markers.length === 1) map.setView(markers[0].getLatLng(), 14);
+      else map.fitBounds(L.featureGroup(markers).getBounds(), { padding: [24, 24], maxZoom: 14 });
+      setTimeout(() => map.invalidateSize(), 0);
+    });
+  }
+
   // bkz. js/components/modal-shell.js#claimContent — sahip DEĞİŞTİYSE (Hesabım/başka bir detay
   // modalından geçildiyse) panelleri boşaltıp isNewOwner:true döner, bu durumda mountedOnce true
   // olsa da şablon KOŞULSUZ yeniden kurulur (bkz. office-modal.js#ensureTemplate AYNI gerçek bulgu).
   function ensureTemplate() {
     const panels = ModalShell.claimContent('architect');
     if (mountedOnce && !panels.isNewOwner) return;
+    // Şablon (ör. mimar<->firma geçişi) sıfırdan kuruluyorsa altındaki #am-projects-map-wrap düğümü
+    // de bu innerHTML atamasıyla birlikte kopacak — o düğüme bağlı eski Leaflet map instance'ını
+    // burada bırakmadan temizleriz (bkz. aşağıdaki renderProjectsMap).
+    if (amProjectsMap) { try { amProjectsMap.remove(); } catch { /* zaten kopmuş olabilir */ } amProjectsMap = null; }
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);
@@ -505,6 +597,7 @@ const ArchitectModal = (function () {
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
     ).join('');
     document.getElementById('am-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
+    renderProjectsMap(relatedProjectsData);
 
     // Diğer Mimarlar — kullanıcı isteği: projelerin ardından benzer yaştaki mimarlar öneri olarak
     // gösterilsin (bkz. src/routes/architect.js#buildArchitectPayload relatedArchitects, ±5 yıl

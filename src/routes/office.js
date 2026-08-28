@@ -376,7 +376,7 @@ async function buildOfficePayload(env, key) {
   const relatedProjects = relatedRes.results
     .map(p => {
       const parsed = parseCanonicalRow('projects', p);
-      return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, _year: parseProjectDateYear(p.project_date) };
+      return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
     })
     .sort((a, b) => {
       if (a._year == null && b._year == null) return 0;
