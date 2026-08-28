@@ -255,7 +255,10 @@
         <div class="footer-subscribe-news-action">
           <form class="footer-newsletter-form" id="footer-newsletter-form">
             <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
-            <button type="submit" class="footer-subscribe-btn footer-newsletter-btn">Abone Ol</button>
+            <button type="submit" class="footer-subscribe-btn footer-newsletter-btn" aria-label="Abone Ol">
+              <span class="footer-newsletter-btn-text">Abone Ol</span>
+              <svg class="footer-newsletter-btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="20" y2="12"/><polyline points="13 5 20 12 13 19"/></svg>
+            </button>
           </form>
           <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
         </div>
@@ -347,7 +350,8 @@
       .footer-newsletter-input{flex:1; min-width:0; box-sizing:border-box; height:40px; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 16px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
       .footer-newsletter-input::placeholder{color:rgba(237,240,243,0.45);}
       .footer-newsletter-input:focus-visible{box-shadow:0 0 0 2px var(--brass-soft) inset;}
-      .footer-newsletter-btn{flex-shrink:0;}
+      .footer-newsletter-btn{flex-shrink:0; gap:6px;}
+      .footer-newsletter-btn-icon{display:none;}
       .footer-newsletter-msg{font-size:12px; margin-top:8px; min-height:16px;}
       .footer-newsletter-msg.ok{color:#8FD6A8;}
       .footer-newsletter-msg.err{color:#E39B9B;}
@@ -364,7 +368,14 @@
       @media (max-width: 560px){
         .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:13px;}
         .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
-        .footer-newsletter-input{height:34px; padding:0 12px;}
+        /* kullanıcı isteği: mobilde ayrı "Abone Ol" metin butonu yerine, input'un sağ ucuna
+           gömülü, temayla uyumlu (brass-soft/ink) dairesel bir gönder ikonu — input bu sayede
+           butonun eskiden kapladığı alanı da kullanarak sağa doğru genişler. */
+        .footer-newsletter-form{position:relative; display:block;}
+        .footer-newsletter-input{height:34px; padding:0 40px 0 12px; width:100%;}
+        .footer-newsletter-btn-text{display:none;}
+        .footer-newsletter-btn-icon{display:block;}
+        .footer-newsletter-btn{position:absolute; top:50%; right:3px; transform:translateY(-50%); width:28px; height:28px; padding:0; border-radius:50%;}
       }
       /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
          gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:
