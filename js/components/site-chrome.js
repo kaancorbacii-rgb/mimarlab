@@ -245,17 +245,17 @@
     return `<footer class="site-footer">
     <div class="footer-subscribe">
       <div class="footer-subscribe-inner">
-        <div class="footer-subscribe-join">
-          <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
-          <p class="footer-subscribe-join-desc">Kişi veya firma bilgilerini hemen doldur.</p>
-          <a class="footer-subscribe-join-btn" href="uye-ol.html">Üye Ol</a>
+        <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
+        <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
+        <p class="footer-subscribe-join-desc">Kişi veya firma bilgilerini hemen doldur.</p>
+        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
+        <div class="footer-subscribe-join-action">
+          <a class="footer-subscribe-btn" href="uye-ol.html">Üye Ol</a>
         </div>
-        <div class="footer-subscribe-news">
-          <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
-          <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
+        <div class="footer-subscribe-news-action">
           <form class="footer-newsletter-form" id="footer-newsletter-form">
             <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
-            <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
+            <button type="submit" class="footer-subscribe-btn footer-newsletter-btn">Abone Ol</button>
           </form>
           <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
         </div>
@@ -298,15 +298,21 @@
     style.id = 'footer-extra-style';
     style.textContent = `
       .footer-subscribe{background:#4E6478; border-bottom:1px solid rgba(237,240,243,0.12);}
-      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:1fr 1fr; column-gap:48px; align-items:center;}
-      .footer-subscribe-join{padding-right:48px; border-right:1px solid rgba(237,240,243,0.14);}
-      .footer-subscribe-join-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
-      .footer-subscribe-join-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 16px; max-width:340px;}
-      .footer-subscribe-join-btn{display:inline-block; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; padding:10px 26px; border-radius:100px;}
-      .footer-subscribe-join-btn:hover{opacity:0.9;}
-      .footer-subscribe-news{padding-left:48px;}
-      .footer-subscribe-news-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
-      .footer-subscribe-news .footer-newsletter-desc{max-width:340px;}
+      /* kullanıcı isteği: iki sütundaki başlık/açıklama/buton satırları TÜM görünümlerde aynı hizada
+         ve aynı büyüklükte olmalı — bu yüzden iki .footer-subscribe-join/.footer-subscribe-news
+         SARMALAYICISI yerine 6 öğe DOĞRUDAN grid'in çocuğu (satır-öncelikli otomatik yerleşim: h4/h4
+         → satır1, p/p → satır2, action/action → satır3), her satırın yüksekliği iki sütundaki en uzun
+         içeriğe göre PAYLAŞILA belirlenir (bağımsız iki flex sütunda metin uzunluğu farkı satırları
+         kaydırırdı). Ayırıcı çizgi de bu yüzden tekil bir ::before ile (satır sınırlarından bağımsız,
+         kesintisiz) çizilir. */
+      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:48px; align-items:start; position:relative;}
+      .footer-subscribe-inner::before{content:''; position:absolute; top:0; bottom:0; left:50%; width:1px; background:rgba(237,240,243,0.14);}
+      .footer-subscribe-join-title, .footer-subscribe-join-desc, .footer-subscribe-join-action{padding-right:48px;}
+      .footer-subscribe-news-title, .footer-newsletter-desc, .footer-subscribe-news-action{padding-left:48px;}
+      .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
+      .footer-subscribe-btn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 26px; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; border-radius:100px; border:none; cursor:pointer; white-space:nowrap;}
+      .footer-subscribe-btn:hover{opacity:0.9;}
+      .footer-subscribe-btn:disabled{opacity:0.6; cursor:default;}
       .footer-top{grid-template-columns: 1.3fr 0.9fr 1fr 1.15fr;}
       /* Alt satır: sosyal ikonlar sol kenara, telif hakkı ortaya, gece/gündüz düğmesi sağ kenara
          (bkz. kullanıcı isteği: "sol ve sağ hizayla eşitle") — grid'in dış iki sütunu 1fr olduğundan
@@ -338,14 +344,12 @@
         transition: left 0.2s ease;
       }
       [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:27px;}
-      .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 12px; max-width:260px;}
-      .footer-newsletter-form{position:relative;}
-      .footer-newsletter-input{width:100%; box-sizing:border-box; height:36px; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 92px 0 14px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
+      .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 16px; max-width:340px;}
+      .footer-newsletter-form{display:flex; align-items:center; gap:10px;}
+      .footer-newsletter-input{flex:1; min-width:0; box-sizing:border-box; height:40px; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 16px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
       .footer-newsletter-input::placeholder{color:rgba(237,240,243,0.45);}
       .footer-newsletter-input:focus-visible{box-shadow:0 0 0 2px var(--brass-soft) inset;}
-      .footer-newsletter-btn{position:absolute; top:4px; right:4px; bottom:4px; background:var(--brass-soft); color:var(--ink); border:none; border-radius:100px; padding:0 16px; font-weight:600; font-size:12px; white-space:nowrap; cursor:pointer;}
-      .footer-newsletter-btn:hover{opacity:0.9;}
-      .footer-newsletter-btn:disabled{opacity:0.6; cursor:default;}
+      .footer-newsletter-btn{flex-shrink:0;}
       .footer-newsletter-msg{font-size:12px; margin-top:8px; min-height:16px;}
       .footer-newsletter-msg.ok{color:#8FD6A8;}
       .footer-newsletter-msg.err{color:#E39B9B;}
@@ -353,22 +357,22 @@
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
         .footer-brand{grid-column:auto;}
         .footer-subscribe-inner{column-gap:24px; padding:26px 20px;}
-        .footer-subscribe-join{padding-right:20px;}
-        .footer-subscribe-news{padding-left:20px;}
-        .footer-subscribe-join-title{font-size:14.5px;}
-        .footer-subscribe-news-title{font-size:14.5px;}
+        .footer-subscribe-join-title, .footer-subscribe-join-desc, .footer-subscribe-join-action{padding-right:20px;}
+        .footer-subscribe-news-title, .footer-newsletter-desc, .footer-subscribe-news-action{padding-left:20px;}
+        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:14.5px;}
       }
       @media (max-width: 560px){
         .footer-subscribe-inner{column-gap:14px; padding:22px 14px;}
-        .footer-subscribe-join{padding-right:14px;}
-        .footer-subscribe-news{padding-left:14px;}
-        .footer-subscribe-join-title{font-size:13px;}
-        .footer-subscribe-join-btn{padding:8px 16px; font-size:12px;}
-        .footer-subscribe-news-title{font-size:13px;}
-        .footer-subscribe-news .footer-newsletter-desc{display:none;}
-        .footer-newsletter-form{display:flex; flex-direction:column; gap:8px;}
-        .footer-newsletter-input{padding:0 14px; height:34px;}
-        .footer-newsletter-btn{position:static; width:100%; height:32px;}
+        /* Sütunları dikeyde yığmak (buton input'un altına düşer) satır3'ün iki tarafta AYNI
+           üstten başlamasını bozardı (bkz. kullanıcı isteği: "tüm görünümlerde aynı hizada") —
+           bunun yerine sütun oranı sağa kaydırılır (kısa başlık/buton içeren sol sütun daha az
+           yere ihtiyaç duyar), input+buton yan yana kalır ve satır hizası korunur. */
+        .footer-subscribe-inner{grid-template-columns: minmax(0,0.62fr) minmax(0,1.38fr);}
+        .footer-subscribe-join-title, .footer-subscribe-join-desc, .footer-subscribe-join-action{padding-right:14px;}
+        .footer-subscribe-news-title, .footer-newsletter-desc, .footer-subscribe-news-action{padding-left:14px;}
+        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:13px;}
+        .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
+        .footer-newsletter-input{height:34px; padding:0 12px;}
       }
       /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
          gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:
