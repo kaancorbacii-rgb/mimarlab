@@ -157,8 +157,8 @@ const ArchitectModal = (function () {
       .leaflet-popup.pm-project-popup .leaflet-popup-content-wrapper{padding:0; border-radius:10px; overflow:hidden;}
       .leaflet-popup.pm-project-popup .leaflet-popup-content{margin:0; width:auto !important;}
       .pm-map-marker-card{display:block; text-decoration:none; color:inherit; cursor:pointer;}
-      .pm-map-marker-card-photo{width:100%; height:110px; object-fit:cover; display:block; background:var(--paper-alt);}
-      .pm-map-marker-card-placeholder{display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; color:#fff; width:160px; height:110px;}
+      .pm-map-marker-card-photo{width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:var(--paper-alt);}
+      .pm-map-marker-card-placeholder{display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; color:#fff; width:100%; aspect-ratio:1/1;}
       .pm-map-marker-card-title{padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); line-height:1.3;}
       @media (max-width:860px){
         .am-projects-map-wrap{height:220px;}

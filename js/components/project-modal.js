@@ -36,7 +36,7 @@ const ProjectModal = (function () {
       <div class="detail-desc" id="pm-desc"></div>
     </div>
     <hr class="pm-info-divider" id="pm-info-divider">
-    <details class="comments-section" id="pm-map-section" aria-live="polite">
+    <details class="comments-section" id="pm-map-section" aria-live="polite" open>
       <summary class="comments-title">Harita<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div class="pm-map-wrap" id="pm-map-wrap"></div>
     </details>

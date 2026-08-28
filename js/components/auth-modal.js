@@ -188,7 +188,7 @@ const AuthModal = (function () {
     #am-panel .avatar-upload-btn{background:none; border:1.5px solid var(--ink); color:var(--ink); padding:8px 16px; border-radius:100px; font-weight:600; font-size:12.5px;}
     #am-panel .avatar-upload-btn:hover{background:var(--ink); color:var(--paper-card);}
     #am-panel .avatar-upload-hint{font-size:11.5px; color:var(--ink-soft); margin-top:6px;}
-    #am-panel .badge-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+    #am-panel .badge-grid{display:grid; grid-template-columns:1fr; gap:10px;}
     #am-panel .badge-card{border:1px solid var(--line-soft); border-radius:12px; padding:14px;}
     #am-panel .badge-card-name{font-weight:600; font-size:13.5px; margin-bottom:2px;}
     #am-panel .badge-card-price{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--sage); margin-bottom:10px;}
