@@ -25,6 +25,7 @@ import { handleContactRoute } from './routes/contact.js';
 import { handleNewsletterRoute } from './routes/newsletter.js';
 import { handleCspReportRoute } from './routes/cspReport.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
+import { handleAiRoute } from './routes/ai.js';
 import { slugify } from './lib/slugify.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
@@ -917,6 +918,7 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/badges')) return handleBadgesRoute(request, env, url);
   if (path.startsWith('/api/payments/')) return handlePaymentsRoute(request, env, url);
   if (path.startsWith('/api/notifications')) return handleNotificationsRoute(request, env, url);
+  if (path.startsWith('/api/ai/')) return handleAiRoute(request, env, url);
   if (
     path.startsWith('/api/offices') || path.startsWith('/api/projects') ||
     path.startsWith('/api/products') || path.startsWith('/api/materials') ||

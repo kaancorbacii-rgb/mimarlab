@@ -43,12 +43,14 @@
   // undefined olacağından src/lib/imageOptimize.js kendi tasarlanmış fallback'ine düşer (satır 33:
   // `if (!env.IMAGES ...) return null`) — upload akışı bozulmaz, sadece görseller artık yeniden
   // boyutlandırılmadan orijinal haliyle R2'ye yazılır.
-  // MİMARLAB AI, Faz 1 (bkz. kullanıcı isteği, src/routes/ai.js) — doğal dil arama sorgusundan
-  // yapılandırılmış filtre çıkarımı + gerçek D1 sonuçlarına dayalı kısa özet için Cloudflare
-  // Workers AI. Mevcut Cloudflare altyapısı tercih edildi (yeni bir npm bağımlılığı/harici LLM API
-  // secret'ı eklemek yerine, bkz. audit: bu repo'nun hiç npm bağımlılığı yok). Ücretsiz kota +
-  // sonrası kullanım-bazlı fiyatlandırma (bkz. https://developers.cloudflare.com/workers-ai/platform/pricing/)
-  // — src/routes/ai.js'teki rate limit (8 istek/5dk/IP) maliyeti sınırlı tutar.
+  // MİMARLAB AI — doğal dil arama sorgusundan yapılandırılmış filtre çıkarımı/özet (bkz.
+  // src/routes/ai.js#handleAiSearchRoute) VE proje/ürün AI destekli otomatik ekleme akışı (bkz.
+  // src/routes/ai.js#handleAiExtractRoute, src/lib/aiProvider.js) — ikisi de aynı Cloudflare
+  // Workers AI binding'ini paylaşır. Mevcut Cloudflare altyapısı tercih edildi (yeni bir npm
+  // bağımlılığı/harici LLM API secret'ı eklemek yerine, bkz. audit: bu repo'nun hiç npm
+  // bağımlılığı yok). Ücretsiz kota + sonrası kullanım-bazlı fiyatlandırma (bkz.
+  // https://developers.cloudflare.com/workers-ai/platform/pricing/) — her iki uç noktadaki rate
+  // limit'ler maliyeti sınırlı tutar.
   "ai": { "binding": "AI" },
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
