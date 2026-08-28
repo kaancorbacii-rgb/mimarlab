@@ -701,7 +701,8 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   searchQuery = '';
   document.getElementById('g-local-search').value = '';
   document.getElementById('f-search-topnav').value = '';
-  document.getElementById('f-search-nav').value = '';
+  const mobileNavSearch = document.getElementById('f-search-nav');
+  if(mobileNavSearch) mobileNavSearch.value = '';
   currentPage = 1;
   syncBrowserUrl(true);
   render();

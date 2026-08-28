@@ -32,6 +32,59 @@
   const LOGO_DARK = 'logos/site/mimarlab-logo-dark.png';
   function currentLogoSrc(){ return currentTheme() === 'dark' ? LOGO_DARK : LOGO_LIGHT; }
 
+  // Nav/hamburger CSS'i her sayfanın KENDİ <style>'ında (25 sayfada kopyalanmış hâlde) yaşıyor —
+  // bkz. site-chrome.js'in üstündeki dosya yorumu: yalnızca markup TEK kaynaktan üretiliyor, görsel
+  // kurallar hâlâ dağınık. 25 dosyayı tek tek düzenlemek yerine (bkz. kullanıcı isteği: "üst ve alt
+  // menüde yapılan değişikliklerin sitedeki tüm sayfalarda eş zamanlı güncellenmesi gerekiyor"), bu
+  // stil BURADA enjekte edilir — script <head>'e senkron olarak eklendiğinden, sayfanın kendi
+  // <style>'ından SONRA DOM'a girer ve eşit özgüllükteki (specificity) aynı seçicileri kaynak sırası
+  // gereği ezer (2026-08-28 kullanıcı isteği: arama kutusu mobil/tabletde de görünür kalsın, Giriş
+  // Yap düğmesi hamburger çekmecesine taşınsın, hamburger artık sağdan kayan bir çekmece olsun).
+  function injectHeaderStyle(){
+    if(document.getElementById('nav-header-extra-style')) return;
+    const style = document.createElement('style');
+    style.id = 'nav-header-extra-style';
+    style.textContent = `
+      .nav-search{padding-right:6px;}
+      .nav-search-visual-btn{
+        flex-shrink:0; display:flex; align-items:center; justify-content:center;
+        width:26px; height:26px; border-radius:8px; border:none;
+        background:var(--paper-alt); color:var(--ink-soft); padding:0;
+      }
+      .nav-search-visual-btn:hover{background:var(--brass-soft); color:var(--ink);}
+      .nav-mobile-overlay{display:none; position:fixed; inset:0; z-index:120; background:rgba(15,19,26,0.55);}
+      .nav-mobile-overlay.open{display:block;}
+      .nav-mobile-menu{
+        display:flex; flex-direction:column;
+        position:fixed; top:0; right:0; bottom:0; left:auto;
+        width:min(320px, 86vw); max-height:none; height:100%;
+        background:var(--paper-card); border:none; border-radius:0; padding:0; margin:0; min-width:0;
+        box-shadow:-10px 0 32px rgba(15,19,26,0.22);
+        transform:translateX(100%); transition:transform 0.3s ease;
+        z-index:130; overflow-y:auto; -webkit-overflow-scrolling:touch;
+      }
+      .nav-mobile-menu.open{transform:translateX(0);}
+      .nav-mobile-menu-head{
+        display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+        padding:18px 16px 14px; border-bottom:1px solid var(--line);
+      }
+      .nav-mobile-menu-logo{height:22px; width:auto; display:block;}
+      .nav-mobile-menu-close{
+        background:none; border:1px solid var(--line); border-radius:8px; padding:7px;
+        color:var(--ink); display:flex; align-items:center; justify-content:center;
+      }
+      .nav-mobile-menu-close:hover{background:var(--paper-alt);}
+      .nav-mobile-menu-links{padding:10px; flex:1;}
+      .nav-mobile-menu-foot{padding:14px 16px 22px; border-top:1px solid var(--line); flex-shrink:0;}
+      .nav-mobile-menu-foot .nav-mobile-cta{margin-top:0; display:flex; align-items:center; justify-content:center;}
+      @media (max-width:960px){
+        .nav-search{display:flex;}
+        .nav-right{display:none;}
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function headerHtml(active){
     const desktopLinks = NAV_ITEMS.map(item => {
       const activeClass = item.key === active ? ' active' : '';
@@ -67,6 +120,9 @@
     <div class="nav-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
+      <button type="button" class="nav-search-visual-btn" id="nav-search-visual-btn" aria-label="Görsel ile ara">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2"/></svg>
+      </button>
     </div>
     <div class="nav-links">
       ${desktopLinks}
@@ -78,12 +134,20 @@
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
     </button>
+    <div class="nav-mobile-overlay" id="nav-mobile-overlay"></div>
     <div class="nav-mobile-menu" id="nav-mobile-menu">
-      <div class="nav-mobile-search">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="f-search-nav" placeholder="Ara..." aria-label="Ara">
+      <div class="nav-mobile-menu-head">
+        <img class="nav-mobile-menu-logo" src="${currentLogoSrc()}" alt="MimarLab">
+        <button type="button" class="nav-mobile-menu-close" id="nav-mobile-menu-close" aria-label="Kapat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-      ${mobileLinks}
+      <div class="nav-mobile-menu-links">
+        ${mobileLinks}
+      </div>
+      <div class="nav-mobile-menu-foot">
+        <a class="nav-mobile-cta" href="giris-yap.html">Giriş Yap</a>
+      </div>
     </div>
   </nav>`;
   }
@@ -99,7 +163,7 @@
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="duello.html">Düello</a><a href="en-iyi-100.html">En İyi 100</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a><a href="duello.html">Düello</a></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a><a href="cerez-politikasi.html">Çerez Politikası</a></div>
       <div class="footer-col footer-newsletter">
         <h4>Bülten</h4>
         <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
@@ -309,6 +373,7 @@
           font-size:15px; color:var(--ink);
         }
         .nav-search-modal-input-row input::placeholder{color:var(--ink-soft);}
+        .nav-search-modal-input-row input:focus-visible{box-shadow:none;}
         .nav-search-modal-section{margin-top:26px;}
         .nav-search-modal-section-title{font-size:14px; font-weight:700; color:var(--ink); margin:0 0 14px;}
         .nav-search-modal-chips{display:flex; flex-wrap:wrap; gap:10px;}
@@ -329,8 +394,20 @@
           display:flex; align-items:center; gap:18px; border:1.5px dashed var(--line); border-radius:14px;
           padding:20px;
         }
-        .nav-search-modal-image-drop{flex:1; min-width:0; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.6;}
+        .nav-search-modal-image-drop{
+          flex:1; min-width:0; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.6;
+          cursor:pointer; border-radius:10px; padding:6px; transition:background .15s ease, box-shadow .15s ease;
+          display:flex; align-items:center; justify-content:center;
+        }
+        .nav-search-modal-image-drop.dragover{background:var(--paper-alt); box-shadow:0 0 0 1.5px var(--walnut) inset;}
         .nav-search-modal-image-drop strong{color:var(--walnut); font-weight:600;}
+        .nav-search-modal-image-preview{display:flex; align-items:center; gap:10px; text-align:left; width:100%;}
+        .nav-search-modal-image-preview[hidden]{display:none;}
+        .nav-search-modal-image-preview img{width:44px; height:44px; object-fit:cover; border-radius:8px; flex-shrink:0; background:var(--paper-alt);}
+        .nav-search-modal-image-preview-name{flex:1; min-width:0; font-size:12.5px; color:var(--ink); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+        .nav-search-modal-image-remove{flex-shrink:0; background:none; border:none; color:var(--ink-soft); padding:5px; border-radius:50%; display:flex;}
+        .nav-search-modal-image-remove:hover{background:var(--paper-alt); color:var(--ink);}
+        .nav-search-modal-image-error{margin-top:10px; font-size:12px; color:var(--rust); text-align:center;}
         .nav-search-modal-image-or{flex-shrink:0; font-size:11px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em;}
         .nav-search-modal-image-paste{
           flex:1; min-width:0; display:flex; align-items:center; gap:8px; border:1px solid var(--line);
@@ -339,6 +416,7 @@
         .nav-search-modal-image-paste svg{flex-shrink:0; color:var(--ink-soft);}
         .nav-search-modal-image-paste input{flex:1; min-width:0; border:none; outline:none; background:none; font-family:inherit; font-size:12.5px; color:var(--ink);}
         .nav-search-modal-image-paste input::placeholder{color:var(--ink-soft);}
+        .nav-search-modal-image-paste input:focus-visible{box-shadow:none;}
         @media (max-width:640px){
           .nav-search-modal-overlay{padding:60px 12px 12px;}
           .nav-search-modal{padding:22px;}
@@ -361,15 +439,24 @@
         <div class="nav-search-modal-section">
           <div class="nav-search-modal-section-title">Görsel ile Ürün Arama</div>
           <div class="nav-search-modal-image-box">
-            <div class="nav-search-modal-image-drop">
-              Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG veya JPEG (Maks. 10mb)
-            </div>
+            <label class="nav-search-modal-image-drop" id="nav-search-modal-image-drop">
+              <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG veya JPEG (Maks. 10mb)</span>
+              <div class="nav-search-modal-image-preview" id="nav-search-modal-image-preview" hidden>
+                <img id="nav-search-modal-image-preview-img" alt="">
+                <span class="nav-search-modal-image-preview-name" id="nav-search-modal-image-preview-name"></span>
+                <button type="button" class="nav-search-modal-image-remove" id="nav-search-modal-image-remove" aria-label="Görseli kaldır">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <input type="file" accept="image/png,image/jpeg" id="nav-search-modal-image-input" hidden>
+            </label>
             <div class="nav-search-modal-image-or">veya</div>
             <label class="nav-search-modal-image-paste">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <input type="text" placeholder="Görsel URL'si yapıştır" aria-label="Görsel URL'si yapıştır" disabled>
+              <input type="text" id="nav-search-modal-image-url" placeholder="Görsel URL'si yapıştır" aria-label="Görsel URL'si yapıştır">
             </label>
           </div>
+          <div class="nav-search-modal-image-error" id="nav-search-modal-image-error" hidden></div>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -378,6 +465,60 @@
     const body = overlay.querySelector('#nav-search-modal-body');
     let debounceTimer = null;
     let currentQuery = '';
+
+    // kullanıcı isteği (2026-08-28): "Görsel ile Ürün Arama" artık görsel yükleme/sürükle-bırakla
+    // ÇALIŞIYOR (dosya seçilip önizlenebiliyor) — ama arama tarafı henüz bağlı değil, bu yüzden
+    // seçilen görsel hiçbir yere gönderilmez, yalnızca istemci tarafında önizlenir.
+    const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+    const imageDrop = overlay.querySelector('#nav-search-modal-image-drop');
+    const imageInput = overlay.querySelector('#nav-search-modal-image-input');
+    const imageDropText = overlay.querySelector('#nav-search-modal-image-drop-text');
+    const imagePreview = overlay.querySelector('#nav-search-modal-image-preview');
+    const imagePreviewImg = overlay.querySelector('#nav-search-modal-image-preview-img');
+    const imagePreviewName = overlay.querySelector('#nav-search-modal-image-preview-name');
+    const imageRemoveBtn = overlay.querySelector('#nav-search-modal-image-remove');
+    const imageError = overlay.querySelector('#nav-search-modal-image-error');
+    let imagePreviewUrl = null;
+
+    function showImageError(message){
+      imageError.textContent = message;
+      imageError.hidden = false;
+    }
+    function clearImage(){
+      imageInput.value = '';
+      if(imagePreviewUrl){ URL.revokeObjectURL(imagePreviewUrl); imagePreviewUrl = null; }
+      imagePreview.hidden = true;
+      imageDropText.hidden = false;
+      imageError.hidden = true;
+    }
+    function acceptImageFile(file){
+      if(!file) return;
+      imageError.hidden = true;
+      if(!/^image\/(png|jpe?g)$/.test(file.type)){
+        showImageError('Yalnızca PNG, JPG veya JPEG dosyaları desteklenir.');
+        return;
+      }
+      if(file.size > IMAGE_MAX_BYTES){
+        showImageError('Görsel 10mb\'tan küçük olmalı.');
+        return;
+      }
+      if(imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+      imagePreviewUrl = URL.createObjectURL(file);
+      imagePreviewImg.src = imagePreviewUrl;
+      imagePreviewName.textContent = file.name;
+      imageDropText.hidden = true;
+      imagePreview.hidden = false;
+    }
+    imageInput.addEventListener('change', () => acceptImageFile(imageInput.files && imageInput.files[0]));
+    imageRemoveBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearImage(); });
+    imageDrop.addEventListener('dragover', (e) => { e.preventDefault(); imageDrop.classList.add('dragover'); });
+    imageDrop.addEventListener('dragleave', () => imageDrop.classList.remove('dragover'));
+    imageDrop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      imageDrop.classList.remove('dragover');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      acceptImageFile(file);
+    });
 
     function renderRecommended(){
       body.innerHTML = `
@@ -464,21 +605,37 @@
   }
   window.wireNavSearch = wireNavSearch;
 
+  // kullanıcı isteği (2026-08-28, ekli Architonic ekran görüntüleri referans alınarak): mobil/
+  // tablette hamburger artık üst menüde açılan küçük bir dropdown DEĞİL, sağdan kayarak giren tam
+  // yükseklikte bir çekmece (drawer) — koyu bir overlay arkasını kaplar, kapatma X düğmesi ve alt
+  // kısımda Giriş Yap düğmesi içerir (bkz. yukarıdaki headerHtml() içindeki YENİ drawer markup'ı).
   function wireHamburger(){
     const navHamburger = document.getElementById('nav-hamburger');
     const navMobileMenu = document.getElementById('nav-mobile-menu');
+    const navMobileOverlay = document.getElementById('nav-mobile-overlay');
+    const navMobileClose = document.getElementById('nav-mobile-menu-close');
     if(!navHamburger || !navMobileMenu) return;
-    navHamburger.addEventListener('click', ()=>{ navMobileMenu.classList.toggle('open'); });
-    document.addEventListener('click', (e)=>{
-      if(!navMobileMenu.classList.contains('open')) return;
-      if(!navHamburger.contains(e.target) && !navMobileMenu.contains(e.target)) navMobileMenu.classList.remove('open');
+    function openDrawer(){
+      navMobileMenu.classList.add('open');
+      if(navMobileOverlay) navMobileOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer(){
+      navMobileMenu.classList.remove('open');
+      if(navMobileOverlay) navMobileOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    navHamburger.addEventListener('click', ()=>{
+      if(navMobileMenu.classList.contains('open')) closeDrawer(); else openDrawer();
     });
+    if(navMobileClose) navMobileClose.addEventListener('click', closeDrawer);
+    if(navMobileOverlay) navMobileOverlay.addEventListener('click', closeDrawer);
     // gerçek bulgu (denetim, 2026-08-24): mega-menü (nav-product-menu.js), arama önerileri paneli
     // (wireNavSearch aşağıda) ve her modal Escape ile kapanırken, sitedeki hemen her sayfada yer alan
     // bu mobil hamburger menüsü yalnızca dışarı tıklama/tekrar tıklama ile kapanıyordu — klavye
     // kullanıcıları (ve Escape'in her yerde çalışmasına alışmış herkes) için tutarsız bir boşluktu.
     document.addEventListener('keydown', (e)=>{
-      if(e.key === 'Escape' && navMobileMenu.classList.contains('open')) navMobileMenu.classList.remove('open');
+      if(e.key === 'Escape' && navMobileMenu.classList.contains('open')) closeDrawer();
     });
   }
 
@@ -487,8 +644,27 @@
     const active = headerMount.getAttribute('data-nav-active') || '';
     headerMount.outerHTML = headerHtml(active);
   }
+  // gerçek bulgu (2026-08-28): .nav'da backdrop-filter var — CSS'e göre backdrop-filter/filter
+  // taşıyan bir atanın İÇİNDEKİ position:fixed torunları artık viewport'a göre değil O ATA'ya göre
+  // konumlanır (yeni bir containing block oluşturuyor). Çekmece/overlay <nav> İÇİNDE doğduğundan
+  // (bkz. headerHtml()) "fixed" tam ekran yerine yalnızca nav çubuğunun 66px'lik kutusuna
+  // hapsoluyordu. Arama modal'ının zaten document.body'ye eklenmesiyle AYNI çözüm: ikisini de
+  // mount'tan hemen sonra body'nin doğrudan çocuğu yapıyoruz.
+  const navMobileMenuEl = document.getElementById('nav-mobile-menu');
+  const navMobileOverlayEl = document.getElementById('nav-mobile-overlay');
+  if(navMobileMenuEl) document.body.appendChild(navMobileMenuEl);
+  if(navMobileOverlayEl) document.body.appendChild(navMobileOverlayEl);
+  injectHeaderStyle();
   wireHamburger();
   wireNavSearch();
+
+  const navSearchVisualBtn = document.getElementById('nav-search-visual-btn');
+  if(navSearchVisualBtn){
+    navSearchVisualBtn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      ensureNavSearchModal().open('');
+    });
+  }
 
   function mountFooter(){
     const footerMount = document.getElementById('site-footer-mount');

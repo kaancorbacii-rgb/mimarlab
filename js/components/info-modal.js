@@ -13,11 +13,13 @@ const InfoModal = (function () {
   const VIEW_PATH = {
     'rozet-al': '/rozet-al', 'iade-et': '/iade-et', 'iletisim': '/iletisim', 'hakkinda': '/hakkinda',
     'gizlilik-politikasi': '/gizlilik-politikasi', 'hizmet-sartlari': '/hizmet-sartlari', 'kariyer': '/kariyer',
+    'cerez-politikasi': '/cerez-politikasi',
   };
   const HREF_VIEW_RE = {
     'rozet-al': /(^|\/)satin-al\.html$/, 'iade-et': /(^|\/)iade-et\.html$/, 'iletisim': /(^|\/)iletisim\.html$/,
     'hakkinda': /(^|\/)hakkinda\.html$/, 'gizlilik-politikasi': /(^|\/)gizlilik-politikasi\.html$/,
     'hizmet-sartlari': /(^|\/)hizmet-sartlari\.html$/, 'kariyer': /(^|\/)kariyer\.html$/,
+    'cerez-politikasi': /(^|\/)cerez-politikasi\.html$/,
   };
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
@@ -44,6 +46,13 @@ const InfoModal = (function () {
     #im-panel .content-section a{color:var(--walnut); font-weight:600; cursor:pointer;}
     #im-panel .content-section a:hover{text-decoration:underline;}
     #im-panel .content-section ul{margin:0; padding-left:20px; font-size:14.5px; line-height:1.8; color:var(--ink-soft);}
+    #im-panel .cookie-table-wrap{overflow-x:auto; margin:0 0 16px; border:1px solid var(--line); border-radius:12px;}
+    #im-panel .cookie-table{width:100%; border-collapse:collapse; font-size:13px;}
+    #im-panel .cookie-table th, #im-panel .cookie-table td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); vertical-align:top;}
+    #im-panel .cookie-table th{background:var(--paper-card); color:var(--ink); font-weight:700; white-space:nowrap;}
+    #im-panel .cookie-table td{color:var(--ink-soft);}
+    #im-panel .cookie-table tr:last-child td{border-bottom:none;}
+    #im-panel .cookie-badge{display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em; background:var(--paper-alt); color:var(--ink); border-radius:100px; padding:3px 9px; white-space:nowrap;}
 
     #im-panel .contact-card{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:32px; display:flex; align-items:center; gap:16px;}
     #im-panel .contact-card svg{flex-shrink:0; color:var(--walnut);}
@@ -311,8 +320,8 @@ const InfoModal = (function () {
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">Gizlilik Politikası</h1>
-      <p class="content-updated">Son güncelleme: 6 Ağustos 2026</p>
-      <p class="content-lead">Bu Gizlilik Politikası, MİMARLAB'ı (mimarlab.com) kullanırken hangi kişisel verilerinizi topladığımızı, bunları neden ve nasıl işlediğimizi, kimlerle paylaştığımızı ve 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ile Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) kapsamındaki haklarınızı açıklar.</p>
+      <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
+      <p class="content-lead">Bu Gizlilik Politikası, MİMARLAB'ı (mimarlab.com) kullanırken hangi kişisel verilerinizi topladığımızı, bunları neden ve nasıl işlediğimizi, kimlerle paylaştığımızı ve 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ile Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) kapsamındaki haklarınızı açıklar. Veri sorumlusu MİMARLAB'dır; bize <a href="#im-iletisim-gz">iletişim</a> bölümündeki adresten ulaşabilirsiniz.</p>
 
       <div class="content-toc">
         <h2>Bu sayfada</h2>
@@ -326,6 +335,7 @@ const InfoModal = (function () {
           <li><a href="#im-cerezler">Çerezler ve analytics</a></li>
           <li><a href="#im-altyapi">Altyapı ve veri saklama</a></li>
           <li><a href="#im-paylasim">Üçüncü taraflarla paylaşım</a></li>
+          <li><a href="#im-yurtdisi">Yurt dışına veri aktarımı</a></li>
           <li><a href="#im-guvenlik">Veri güvenliği ve saklama süresi</a></li>
           <li><a href="#im-haklar">KVKK / GDPR kapsamındaki haklarınız</a></li>
           <li><a href="#im-cocuklar">Çocukların gizliliği</a></li>
@@ -384,8 +394,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-cerezler">
         <h2>7. Çerezler ve analytics</h2>
-        <p>MİMARLAB, sitenin çalışması için gerekli <strong>oturum çerezleri</strong> (giriş durumunuzu hatırlamak için) kullanır; bunlar devre dışı bırakılamaz çünkü hesabınızla ilgili özellikler bunlara bağlıdır.</p>
-        <p>Ayrıca site trafiğini ve kullanım eğilimlerini anlamak için <strong>Google Analytics</strong> (gtag.js) kullanıyoruz; bu araç, tarayıcınıza analiz amaçlı üçüncü taraf çerezleri yerleştirebilir ve anonimleştirilmiş kullanım verilerini Google'ın sunucularına iletebilir. Tarayıcı ayarlarınızdan çerezleri reddedebilir veya Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilirsiniz; bu durumda temel site işlevleri (oturum açma dışında) etkilenmez.</p>
+        <p>MİMARLAB, sitenin çalışması için gerekli <strong>oturum çerezleri</strong> (giriş durumunuzu hatırlamak için) kullanır; bunlar devre dışı bırakılamaz çünkü hesabınızla ilgili özellikler bunlara bağlıdır. Ayrıca site trafiğini anlamak için <strong>Google Analytics</strong> kullanıyoruz. Kullandığımız çerezlerin tam listesi, süreleri ve devre dışı bırakma yöntemleri için ayrı <a href="cerez-politikasi.html">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
       </div>
 
       <div class="content-section" id="im-altyapi">
@@ -411,13 +420,18 @@ const InfoModal = (function () {
         </ul>
       </div>
 
+      <div class="content-section" id="im-yurtdisi">
+        <h2>10. Yurt dışına veri aktarımı</h2>
+        <p>MİMARLAB'ın kullandığı Cloudflare ve Google Analytics altyapıları küresel ölçekte çalışır; bu nedenle verileriniz, işlemin gerçekleştiği veri merkezine bağlı olarak Türkiye dışına (ör. Avrupa Birliği veya ABD'deki sunuculara) aktarılabilir. Bu aktarımlar, ilgili sağlayıcıların (Cloudflare, Google) standart sözleşme hükümleri ve kendi veri koruma taahhütleri çerçevesinde, yalnızca hizmetin sunulabilmesi için gerekli ölçüde gerçekleşir; verileriniz bu altyapı sağlayıcıları dışında üçüncü bir ülkeye ayrıca aktarılmaz.</p>
+      </div>
+
       <div class="content-section" id="im-guvenlik">
-        <h2>10. Veri güvenliği ve saklama süresi</h2>
+        <h2>11. Veri güvenliği ve saklama süresi</h2>
         <p>Şifreleriniz hash'lenerek saklanır, veri trafiği HTTPS ile şifrelenir ve erişim yalnızca yetkili ekip üyeleriyle sınırlıdır. Verilerinizi, hesabınız aktif olduğu sürece ve yasal saklama yükümlülüklerimizin gerektirdiği süre boyunca saklarız; hesap silme talebinizin ardından yasal zorunluluk bulunmayan veriler makul bir süre içinde silinir.</p>
       </div>
 
       <div class="content-section" id="im-haklar">
-        <h2>11. KVKK / GDPR kapsamındaki haklarınız</h2>
+        <h2>12. KVKK / GDPR kapsamındaki haklarınız</h2>
         <p>KVKK'nın 11. maddesi ve (Avrupa Ekonomik Alanı'ndaki kullanıcılar için) GDPR kapsamında aşağıdaki haklara sahipsiniz:</p>
         <ul>
           <li>Verilerinizin işlenip işlenmediğini öğrenme,</li>
@@ -432,18 +446,18 @@ const InfoModal = (function () {
       </div>
 
       <div class="content-section" id="im-cocuklar">
-        <h2>12. Çocukların gizliliği</h2>
+        <h2>13. Çocukların gizliliği</h2>
         <p>MİMARLAB, 18 yaşından küçük kullanıcılara yönelik değildir; bilerek 18 yaş altı kullanıcılardan veri toplamayız. Bir çocuğa ait veri topladığımızı fark edersek bu veriyi derhal sileriz.</p>
       </div>
 
       <div class="content-section" id="im-degisiklikler">
-        <h2>13. Politikadaki değişiklikler</h2>
+        <h2>14. Politikadaki değişiklikler</h2>
         <p>Bu politikayı zaman zaman güncelleyebiliriz; önemli değişikliklerde sayfanın üst kısmındaki "son güncelleme" tarihini değiştirir, gerektiğinde sitede veya e-posta yoluyla bilgilendirme yaparız. Politikayı düzenli aralıklarla gözden geçirmenizi öneririz.</p>
       </div>
 
       <div class="content-section" id="im-iletisim-gz">
-        <h2>14. İletişim</h2>
-        <p>Gizlilik politikamız veya kişisel verilerinizle ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Platform kullanım kurallarımız için <a href="hizmet-sartlari.html">Hizmet Şartları</a> sayfasına göz atabilirsiniz.</p>
+        <h2>15. İletişim</h2>
+        <p>Gizlilik politikamız veya kişisel verilerinizle ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Platform kullanım kurallarımız için <a href="hizmet-sartlari.html">Hizmet Şartları</a>, çerez kullanımımız için <a href="cerez-politikasi.html">Çerez Politikası</a> sayfasına göz atabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -457,7 +471,7 @@ const InfoModal = (function () {
     <div class="content-wrap">
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">Hizmet Şartları</h1>
-      <p class="content-updated">Son güncelleme: 6 Ağustos 2026</p>
+      <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
       <p class="content-lead">Bu Hizmet Şartları, MİMARLAB'ı (mimarlab.com) kullanımınızı düzenleyen kuralları içerir. Siteyi ziyaret ederek, üye olarak veya içerik göndererek bu şartları kabul etmiş sayılırsınız. Kişisel verilerinizin nasıl işlendiğini öğrenmek için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
 
       <div class="content-toc">
@@ -549,7 +563,99 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-iletisim-hs">
         <h2>13. İletişim</h2>
-        <p>Hizmet şartlarımızla ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin işlenmesi hakkında bilgi için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
+        <p>Hizmet şartlarımızla ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin işlenmesi hakkında bilgi için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a>, çerez kullanımımız için <a href="cerez-politikasi.html">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
+      </div>
+    </div>`;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // ÇEREZ POLİTİKASI — cerez-politikasi.html#content-wrap ile BİREBİR aynı içerik (bkz. o dosya,
+  // 2026-08-28'de Architonic'in çerez politikası sayfası yapı referansı alınarak eklendi). Aynı
+  // gerekçeyle TOC anchor id'leri im- önekiyle benzersizleştirildi (bkz. gizlilikTemplate).
+  // ---------------------------------------------------------------------------------------------
+  function cerezTemplate() {
+    return `
+    <div class="content-wrap">
+      <div class="content-eyebrow">Kurumsal</div>
+      <h1 class="content-title">Çerez Politikası</h1>
+      <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
+      <p class="content-lead">Bu Çerez Politikası, MİMARLAB'ı (mimarlab.com) ziyaret ettiğinizde tarayıcınızda hangi çerezlerin ve benzer teknolojilerin kullanıldığını, bunları hangi amaçla kullandığımızı ve nasıl kontrol edebileceğinizi açıklar. Kişisel verilerinizin genel olarak nasıl işlendiği için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
+
+      <div class="content-toc">
+        <h2>Bu sayfada</h2>
+        <ol>
+          <li><a href="#im-cz-nedir">Çerez nedir?</a></li>
+          <li><a href="#im-cz-kullandiklarimiz">Kullandığımız çerezler</a></li>
+          <li><a href="#im-cz-ucuncu-taraf">Üçüncü taraf çerezleri</a></li>
+          <li><a href="#im-cz-reddetmeyecegimiz">Kullanmadığımız çerez türleri</a></li>
+          <li><a href="#im-cz-kontrol">Çerezleri nasıl kontrol edebilirsiniz?</a></li>
+          <li><a href="#im-cz-degisiklikler">Politikadaki değişiklikler</a></li>
+          <li><a href="#im-cz-iletisim">İletişim</a></li>
+        </ol>
+      </div>
+
+      <div class="content-section" id="im-cz-nedir">
+        <h2>1. Çerez nedir?</h2>
+        <p>Çerezler, bir web sitesini ziyaret ettiğinizde tarayıcınıza kaydedilen küçük metin dosyalarıdır. Oturum çerezleri tarayıcınızı kapattığınızda silinir; kalıcı çerezler ise belirli bir süre (genellikle birkaç gün ile birkaç yıl arasında) cihazınızda saklanır ve sizi tekrar ziyaretinizde tanımaya yarar. Çerezlere ek olarak, tarayıcınızın <code>localStorage</code> gibi benzer depolama teknolojilerini de (ör. tema tercihinizi hatırlamak için) sınırlı ölçüde kullanırız.</p>
+      </div>
+
+      <div class="content-section" id="im-cz-kullandiklarimiz">
+        <h2>2. Kullandığımız çerezler</h2>
+        <p>MİMARLAB'da çerezleri üç kategoride topluyoruz: sitenin çalışması için zorunlu olanlar, tercihinizi hatırlayan işlevsel bir yerel depolama kaydı ve site trafiğini anlamamızı sağlayan performans/analitik çerezleri.</p>
+        <div class="cookie-table-wrap">
+          <table class="cookie-table">
+            <thead>
+              <tr><th>Ad</th><th>Tür</th><th>Amaç</th><th>Süre</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>mimarlab_session</code></td>
+                <td><span class="cookie-badge">Zorunlu</span></td>
+                <td>Giriş yaptığınızda oturumunuzu (kimliğinizi) sunucu tarafında hatırlar; hesap gerektiren tüm özellikler (favoriler, profil, gönderiler) buna bağlıdır. HttpOnly'dir, JavaScript ile okunamaz.</td>
+                <td>30 gün</td>
+              </tr>
+              <tr>
+                <td><code>mimarlab-theme</code></td>
+                <td><span class="cookie-badge">İşlevsel</span></td>
+                <td>Açık/koyu tema tercihinizi tarayıcınızda (yerel depolama olarak, çerez değil) hatırlar.</td>
+                <td>Siz silene kadar</td>
+              </tr>
+              <tr>
+                <td><code>_ga</code>, <code>_ga_*</code></td>
+                <td><span class="cookie-badge">Performans</span></td>
+                <td>Google Analytics tarafından, ziyaretçileri ayırt etmek ve site trafiğini/kullanım eğilimlerini anonimleştirilmiş biçimde ölçmek için ayarlanır.</td>
+                <td>Google'ın varsayılanı, en fazla 2 yıl</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Düello özelliğini kullandığınızda, oturum açmasanız bile tekrar oy kullanmanızı önlemek için ayrıca <code>mimarlab_duel_sid</code> adında, kimliğinizle ilişkilendirilmemiş, tek amaçlı bir çerez ayarlanır (180 gün).</p>
+      </div>
+
+      <div class="content-section" id="im-cz-ucuncu-taraf">
+        <h2>3. Üçüncü taraf çerezleri</h2>
+        <p>Yukarıdaki tabloda listelenen <strong>Google Analytics</strong> çerezleri, Google LLC tarafından işletilir ve verileriniz Google'ın kendi gizlilik politikasına tabi olarak işlenir. Bu çerezler tarayıcınıza yalnızca sitemizi ziyaret ettiğinizde, bizim adımıza istatistiksel ölçüm amacıyla yerleştirilir; MİMARLAB bu verileri reklam veya kişiselleştirme amacıyla kullanmaz veya satmaz.</p>
+      </div>
+
+      <div class="content-section" id="im-cz-reddetmeyecegimiz">
+        <h2>4. Kullanmadığımız çerez türleri</h2>
+        <p>MİMARLAB şu anda <strong>reklam/pazarlama çerezleri</strong> veya sosyal medya izleme piksel'leri kullanmamaktadır — sitede üçüncü taraf reklam ağı bulunmaz. Bu durum değişirse, bu sayfa güncellenir ve gerekiyorsa siteye açık rıza alan bir çerez bildirimi eklenir.</p>
+      </div>
+
+      <div class="content-section" id="im-cz-kontrol">
+        <h2>5. Çerezleri nasıl kontrol edebilirsiniz?</h2>
+        <p>Tarayıcınızın ayarlarından çerezleri görüntüleyebilir, engelleyebilir veya silebilirsiniz — bu ayarlar genellikle tarayıcının "Gizlilik" veya "Güvenlik" bölümünde yer alır. <code>mimarlab_session</code> gibi zorunlu çerezleri engellemeniz durumunda, giriş yapmayı ve hesabınızla ilgili özellikleri kullanmayı gerektiren sayfalar düzgün çalışmayabilir.</p>
+        <p>Google Analytics çerezlerini devre dışı bırakmak isterseniz, Google'ın <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Analytics devre dışı bırakma eklentisini</a> kullanabilirsiniz; bu durumda temel site işlevleri etkilenmez, yalnızca kullanım verileriniz Analytics'e iletilmez.</p>
+      </div>
+
+      <div class="content-section" id="im-cz-degisiklikler">
+        <h2>6. Politikadaki değişiklikler</h2>
+        <p>Kullandığımız çerezler zaman içinde değişebilir; önemli değişikliklerde bu sayfanın üst kısmındaki "son güncelleme" tarihini güncelleriz. Politikayı düzenli aralıklarla gözden geçirmenizi öneririz.</p>
+      </div>
+
+      <div class="content-section" id="im-cz-iletisim">
+        <h2>7. İletişim</h2>
+        <p>Çerez politikamızla ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin genel olarak işlenmesi hakkında <a href="gizlilik-politikasi.html">Gizlilik Politikası</a>, platform kullanım kurallarımız için <a href="hizmet-sartlari.html">Hizmet Şartları</a> sayfalarına bakabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -1006,6 +1112,7 @@ const InfoModal = (function () {
     else if (view === 'hakkinda') { wrap.innerHTML = hakkindaTemplate(); }
     else if (view === 'gizlilik-politikasi') { wrap.innerHTML = gizlilikTemplate(); wireInPanelAnchors(wrap); }
     else if (view === 'hizmet-sartlari') { wrap.innerHTML = hizmetTemplate(); wireInPanelAnchors(wrap); }
+    else if (view === 'cerez-politikasi') { wrap.innerHTML = cerezTemplate(); wireInPanelAnchors(wrap); }
     else { wrap.innerHTML = kariyerTemplate(); }
     // denetim bulgusu (AUDIT-009): bkz. auth-modal.js#renderView'daki AYNI gerekçe — bu modal da
     // document.title'ı değiştirmiyor, src/index.js#INFO_MODAL_META'daki başlıklarla (- MİMARLAB
@@ -1013,6 +1120,7 @@ const InfoModal = (function () {
     const INFO_VIEW_LABELS = {
       'rozet-al': 'Rozet Satın Al', 'iade-et': 'Rozet İadesi Talep Et', 'iletisim': 'İletişim',
       'hakkinda': 'Hakkında', 'gizlilik-politikasi': 'Gizlilik Politikası', 'hizmet-sartlari': 'Hizmet Şartları',
+      'cerez-politikasi': 'Çerez Politikası',
     };
     ModalShell.setLabel(INFO_VIEW_LABELS[view] || 'Kariyer');
     ModalShell.scrollToTop();

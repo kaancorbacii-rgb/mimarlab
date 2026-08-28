@@ -249,6 +249,7 @@ const PATH_RENAME_REDIRECTS = {
   '/hakkinda.html': '/hakkinda',
   '/gizlilik-politikasi.html': '/gizlilik-politikasi',
   '/hizmet-sartlari.html': '/hizmet-sartlari',
+  '/cerez-politikasi.html': '/cerez-politikasi',
 };
 
 // Giriş/Üye Ol/Hesabım modallarının doğrudan URL ile açılması (F5/deep-link) — CLEAN_URL_ASSETS'in
@@ -278,6 +279,7 @@ const INFO_MODAL_META = {
   '/hakkinda': { title: 'Hakkında — MİMARLAB', description: 'MİMARLAB hakkında — Türkiye\'nin mimarlık, iç mimarlık ve peyzaj mimarlığı platformu.', noindex: false },
   '/gizlilik-politikasi': { title: 'Gizlilik Politikası — MİMARLAB', description: 'MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.', noindex: false },
   '/hizmet-sartlari': { title: 'Hizmet Şartları — MİMARLAB', description: 'MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.', noindex: false },
+  '/cerez-politikasi': { title: 'Çerez Politikası — MİMARLAB', description: 'MİMARLAB çerez politikası — çerez nedir, hangi çerezleri (oturum, tercih, Google Analytics) kullandığımız, üçüncü taraf çerezleri ve çerezleri nasıl devre dışı bırakabileceğiniz.', noindex: false },
   // Kariyer artık yayında değil (bkz. kullanıcı isteği, DISABLED_PAGE_PATHS) — /kariyer isteği
   // routeAsset()'in en başındaki isDisabledPagePath() kontrolünde 404'e düştüğünden buraya hiç
   // ulaşmaz.
@@ -313,6 +315,7 @@ const SITEMAP_STATIC_PAGES = [
   // hiç yer almıyordu — Rozet Al/İade Et bilerek dışında bırakıldı, onlar noindex.
   { loc: '/gizlilik-politikasi', changefreq: 'yearly', priority: '0.2' },
   { loc: '/hizmet-sartlari', changefreq: 'yearly', priority: '0.2' },
+  { loc: '/cerez-politikasi', changefreq: 'yearly', priority: '0.2' },
 ];
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|webp|avif|gif|svg)$/i;

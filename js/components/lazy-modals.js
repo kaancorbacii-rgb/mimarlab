@@ -26,8 +26,9 @@
         'iletisim': /(^|\/)iletisim\.html$/, 'hakkinda': /(^|\/)hakkinda\.html$/,
         'gizlilik-politikasi': /(^|\/)gizlilik-politikasi\.html$/,
         'hizmet-sartlari': /(^|\/)hizmet-sartlari\.html$/, 'kariyer': /(^|\/)kariyer\.html$/,
+        'cerez-politikasi': /(^|\/)cerez-politikasi\.html$/,
       },
-      pathRe: /^\/(rozet-al|iade-et|iletisim|hakkinda|gizlilik-politikasi|hizmet-sartlari|kariyer)\/?$/,
+      pathRe: /^\/(rozet-al|iade-et|iletisim|hakkinda|gizlilik-politikasi|hizmet-sartlari|kariyer|cerez-politikasi)\/?$/,
     },
   };
 

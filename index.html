@@ -329,20 +329,24 @@
   .slider-arrow.prev{left:14px;}
   .slider-arrow.next{right:14px;}
 
-  /* small carousels (right, "mimar üstte, firma hemen altında" altlı üstlü — bkz. kullanıcı
-     isteği: proje-slider'la aynı görsel dilde, siteye son eklenen 5 mimar/firma'yı döngüyle ve
-     oklarla gösteren mini carousel'ler. PROJE artık ayrı bir küçük kart değil — zaten solda
-     kendi büyük carousel'ine sahip. Ürün carousel'i kaldırıldı, bkz. kullanıcı isteği).
-     Masaüstünde (bkz. kullanıcı isteği) iki kutu birlikte TAM OLARAK proje-slider'ın yüksekliği
-     kadar yer kaplar — grid-template-rows:1fr 1fr, .bento-grid'in varsayılan (stretch)
-     align-items'ıyla hero-side'ın kendisi proje-slider'la AYNI satır yüksekliğine gerilir, iki
-     satır o yüksekliği eşit paylaşır (kare zorunluluğu YOK, bkz. aşağıdaki ≤860px kuralı). */
+  /* small carousels (right, "mimar + firma" üstte yan yana, "ürün" altta tam genişlik — bkz.
+     kullanıcı isteği: proje-slider'la aynı görsel dilde, siteye son eklenen mimar/firma/ürünü
+     döngüyle ve oklarla gösteren mini carousel'ler. PROJE artık ayrı bir küçük kart değil —
+     zaten solda kendi büyük carousel'ine sahip. Ürün carousel'i 2026-08-28'de kullanıcı isteğiyle
+     ESKİ kutu boyutlarıyla geri eklendi, bkz. git geçmişi commit 66b5af2e — kaldırılmadan ÖNCEKİ
+     grid-template-areas ve aspect-ratio kuralları BİREBİR aynı). */
   .hero-side{
     display:grid;
-    grid-template-columns:1fr;
-    grid-template-rows:1fr 1fr;
+    grid-template-columns:repeat(2, 1fr);
+    grid-template-rows:repeat(2, 1fr);
+    grid-template-areas:
+      "mimar marka"
+      "urun urun";
     gap:12px;
   }
+  .card-mimar{grid-area:mimar;}
+  .card-marka{grid-area:marka;}
+  .card-urun{grid-area:urun;}
 
   .side-slider{
     position:relative; width:100%; height:100%; border-radius:16px; overflow:hidden;
@@ -414,10 +418,11 @@
   @media (max-width: 860px){
     .bento-grid{grid-template-columns:1fr;}
     .proje-slider{aspect-ratio:16/11;}
-    /* Tablet/mobilde (bkz. kullanıcı isteği) mimar/firma artık altlı üstlü değil, yan yana TEK
-       satır — ikisi birlikte proje-slider'ın genişliği kadar yer kaplar (bento-grid burada zaten
-       tek sütuna düştüğünden hero-side de proje-slider ile AYNI tam genişliği alır, bkz. yukarısı). */
-    .hero-side{grid-template-columns:1fr 1fr; grid-template-rows:1fr;}
+    /* Tablet/mobilde (bkz. kullanıcı isteği) "1fr" satırların artık dayanacağı bir yükseklik
+       kalmaz — her kart kendi aspect-ratio'suyla yüksekliğini kendi belirler. Mimar/Firma
+       kartları kare (1:1), Ürün 1.7:1 oranını korur (eski kutu boyutları, bkz. yukarıdaki yorum). */
+    .hero-side{grid-template-rows:none;}
+    .side-card{aspect-ratio:1.7/1;}
     .card-mimar, .card-marka{aspect-ratio:1/1;}
   }
 
@@ -485,7 +490,7 @@
 
   <section class="hero">
     <h1>Türkiye'nin <em>En Güncel</em> ve <em>En Yenilikçi</em> Mimar Platformu</h1>
-    <p>Mimarlar, iç mimarlar, peyzaj mimarları, öğrenciler ve firmalar MİMARLAB platformunda buluşuyor.</p>
+    <p>Mimarlar, tasarımcılar, öğrenciler ve firmalar için üst düzey araştırma ve işbirliği platformu.</p>
   </section>
 
   <section class="bento-grid">
@@ -518,6 +523,17 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <button class="slider-arrow next" id="marka-next" type="button" aria-label="Sonraki firma">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="side-card card-urun">
+        <div class="side-slider">
+          <div class="slider-track" id="urun-slider-track"></div>
+          <button class="slider-arrow prev" id="urun-prev" type="button" aria-label="Önceki ürün">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="slider-arrow next" id="urun-next" type="button" aria-label="Sonraki ürün">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
@@ -741,7 +757,22 @@ function officeSlideHtml(o, i){
   </a>`;
 }
 
-// Proje slider'ıyla aynı crossfade + otomatik oynatma + ok/hover davranışını mimar ve firma
+function urunSlideHtml(p, i){
+  const imgSrcset = p.image ? cdnSrcset(p.image, [600, 900, 1200]) : '';
+  const media = p.image
+    ? `<img class="slide-logo-img" src="${escapeAttr(cdnImg(p.image, 900))}"${imgSrcset ? ` srcset="${escapeAttr(imgSrcset)}" sizes="(max-width: 720px) 100vw, 700px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
+    : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(p.title)}">${escapeHtml(slideInitials(p.title))}</div>`;
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/urun/${encodeURIComponent(p.slug)}" data-index="${i}">
+    ${media}
+    <span class="slide-tag">Ürün</span>
+    <div class="slide-caption">
+      <h2 class="slide-title">${escapeHtml(p.title)}</h2>
+      ${p.brand ? `<div class="slide-designer">${escapeHtml(p.brand)}</div>` : ''}
+    </div>
+  </a>`;
+}
+
+// Proje slider'ıyla aynı crossfade + otomatik oynatma + ok/hover davranışını mimar, firma ve ürün
 // mini-carousel'lerinde tekrar kullanmak için genelleştirilmiş fabrika (bkz. kullanıcı isteği:
 // "carosel tasarımını temaya uygun yeniden tasarla ... oklarla hareket ettirilebilir olsun").
 function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
@@ -794,6 +825,7 @@ function createMiniSlider(trackId, prevId, nextId, slideHtmlFn, keyFn){
 
 const mimarSlider = createMiniSlider('mimar-slider-track', 'mimar-prev', 'mimar-next', architectSlideHtml, a => a.name);
 const markaSlider = createMiniSlider('marka-slider-track', 'marka-prev', 'marka-next', officeSlideHtml, o => o.name);
+const urunSlider = createMiniSlider('urun-slider-track', 'urun-prev', 'urun-next', urunSlideHtml, p => `${p.slug}|||${p.title}`);
 
 // Ağ hatası/5xx durumunda {items:[]} ile "gerçekten boş" arasında ayrım yapabilmek için (bkz.
 // aşağıdaki kullanım — kullanıcı isteği: "API isteği başarısız olursa ... boş ekran gösterme,
@@ -834,6 +866,10 @@ Promise.all([
   // eklenen 6" isteniyordu, bu davranış kullanıcı isteğiyle "en popüler N"ye çevrildi.
   fetchPublicJson('/api/architects?limit=' + PROJECT_CAROUSEL_SLOTS),
   fetchPublicJson('/api/offices?limit=' + PROJECT_CAROUSEL_SLOTS),
+  // Ürün mini-carousel'i (bkz. yukarıdaki hero-side/urunSlideHtml yorumu) — /api/products?limit=N
+  // varsayılan sıralaması id DESC'tir (bkz. src/routes/product.js#handleProductListRoute), bu
+  // yüzden burada da AYRICA bir sort parametresi gönderilmez, son eklenen N ürün gelir.
+  fetchPublicJson('/api/products?limit=' + PROJECT_CAROUSEL_SLOTS),
   // Admin panelin Site Ayarları sekmesinden seçilen öne çıkan projeler (bkz. src/lib/siteSettings.js#
   // featured_project_slugs) — ayrı, düşük riskli bir istek: başarısız olursa (ya da hiç ayar
   // yoksa) featuredProjectSlugs boş kabul edilir, carousel her zamanki (id DESC) sırasında kalır.
@@ -841,7 +877,7 @@ Promise.all([
   // AYNI endpoint'i ayrıca çekiyordu — bu script daha erken (defer'sız) çalıştığından promise'i burada
   // oluşturup paylaşmak, auth-nav.js'in aynı isteği ikinci kez atmasını önler (denetim bulgusu, 2026-08-24).
   (window.__siteSettingsPromise || (window.__siteSettingsPromise = fetch('/api/public/site-settings', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(()=>null))),
-]).then(([yapiRes, architectRes, officeRes, siteSettings])=>{
+]).then(([yapiRes, architectRes, officeRes, productRes, siteSettings])=>{
   if(yapiRes.failed){
     renderSliderError('Projeler şu an yüklenemedi.');
   } else {
@@ -871,6 +907,9 @@ Promise.all([
 
   if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');
   else markaSlider.render(officeRes.items || []);
+
+  if(productRes.failed) urunSlider.renderError('Ürünler şu an yüklenemedi.');
+  else urunSlider.render(productRes.items || []);
 });
 });
 </script>
