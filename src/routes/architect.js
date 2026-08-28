@@ -372,15 +372,17 @@ async function buildArchitectPayload(env, key) {
        LIMIT 50`
     ).bind(a.id, dobYear, AGE_RANGE_YEARS).all() : Promise.resolve({ results: [] }),
     // Tasarımcı künyesi bu mimarla eşleşen ürünler (bkz. kullanıcı isteği: "ürünler mimar
-    // profillerinde de projeler gibi Ürünler (N) başlığı altında gözüksün") — src/routes/office.js
-    // #brandProductsRes'teki AYNI COLLATE NOCASE tam isim eşleşmesi deseni (products.designer serbest
-    // metin, structured bir junction tablosu yok — js/components/product-modal.js#renderDesignerSection'daki
-    // AYNI "tüm metni tek isim olarak dene" istemci mantığıyla simetrik, çoklu tasarımcı içeren
-    // metinler (ör. "A & B") burada da eşleşmez).
+    // profillerinde de projeler gibi Ürünler (N) başlığı altında gözüksün", ardından: "birden fazla
+    // tasarımcı virgülle ayrılabilsin") — products.designer serbest metin, structured bir junction
+    // tablosu yok (bkz. src/lib/cascadeDelete.js#split(',') ile AYNI "virgülle ayrılmış serbest metin"
+    // deseni). LIKE burada yalnızca ucuz bir ön-filtre (indekslenemeyen designer sütununda tam tablo
+    // taramasını, isme sahip OLMAYAN satırları erkenden eleyerek daraltır) — asıl eşleşme aşağıda JS
+    // tarafında virgülle bölünüp TAM (case-insensitive) karşılaştırılır, "Emre Aro" gibi bir alt-dize
+    // yanlışlıkla "Emre Arolat" ile eşleşmesin diye.
     env.DB.prepare(
-      `SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND designer = ? COLLATE NOCASE
+      `SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND designer LIKE ? COLLATE NOCASE
        ORDER BY title COLLATE NOCASE`
-    ).bind(a.name).all(),
+    ).bind(`%${a.name}%`).all(),
   ]);
 
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
@@ -409,7 +411,9 @@ async function buildArchitectPayload(env, key) {
     [shuffledArchitects[i], shuffledArchitects[j]] = [shuffledArchitects[j], shuffledArchitects[i]];
   }
   const relatedArchitects = shuffledArchitects.slice(0, 10).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+  const architectNameLower = a.name.trim().toLowerCase();
   const relatedProducts = designerProductsRes.results
+    .filter(p => (p.designer || '').split(',').some(seg => seg.trim().toLowerCase() === architectNameLower))
     .map(p => parseCanonicalRow('products', p))
     .filter(p => p.kind !== 'material')
     .map(p => ({ slug: p.slug, title: p.title, images: p.images, category: p.category }));

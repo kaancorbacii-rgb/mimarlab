@@ -323,8 +323,9 @@
           </div>
           <div class="form-field ac-field" id="ac-designer-field">
             <label for="u-designer">Tasarımcı <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-designer" name="designer" placeholder="ör. Ahmet Çınar" autocomplete="off">
+            <input type="text" id="u-designer" name="designer" placeholder="ör. Ahmet Çınar, Zeynep Kaya" autocomplete="off">
             <div class="ac-suggestions" id="ac-designer-suggestions"></div>
+            <div class="form-hint">Birden fazla tasarımcı gireceksen virgülle ayır.</div>
           </div>
         </div>
 
@@ -676,6 +677,18 @@ prefillForAdminEdit();
 // (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — mimar-ekle.html/firma-ekle.html/
 // proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe, statik dizi yalnızca
 // deploy anındaki anlık görüntüyü içerdiğinden D1'e az önce eklenmiş bir firma burada hiç görünmüyordu).
+// bkz. proje-ekle.html#wireAutocompleteLive'daki AYNI lastCommaSegment/replaceLastCommaSegment
+// deseni (kullanıcı isteği: Tasarımcı kutusunda da birden fazla isim virgülle ayrılabilsin, her
+// virgülden sonra bir sonraki isim için de öneri çıksın). opts.multi === false (Firma kutusu gibi
+// tek değerli alanlar) eski davranışı (tüm kutuyu sorgula/değiştir) korur.
+function lastCommaSegment(value){
+  const parts = value.split(',');
+  return parts[parts.length - 1].trim();
+}
+function replaceLastCommaSegment(value, replacement){
+  const idx = value.lastIndexOf(',');
+  return idx === -1 ? replacement : value.slice(0, idx + 1) + ' ' + replacement;
+}
 function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   opts = opts || {};
   const input = document.getElementById(inputId);
@@ -691,7 +704,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
       el.addEventListener('mousedown', (e)=>{
         e.preventDefault();
         const item = items[i];
-        input.value = item.label;
+        input.value = opts.multi === false ? item.label : replaceLastCommaSegment(input.value, item.label);
         close();
         if(opts.onPick) opts.onPick(item);
       });
@@ -705,7 +718,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
       .catch(()=>{});
   }
   function onInput(){
-    const q = input.value.trim();
+    const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
     if(!q){ close(); currentQuery = ''; return; }
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
@@ -715,7 +728,7 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   input.addEventListener('blur', ()=> setTimeout(close, 150));
 }
 
-wireAutocompleteLive('u-brand', 'ac-brand-suggestions', '/api/offices/search');
+wireAutocompleteLive('u-brand', 'ac-brand-suggestions', '/api/offices/search', { multi: false });
 wireAutocompleteLive('u-designer', 'ac-designer-suggestions', '/api/architects/search');
 
 // P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen, bkz.

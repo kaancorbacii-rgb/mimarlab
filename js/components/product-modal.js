@@ -535,19 +535,32 @@ const ProductModal = (function () {
     } catch { return null; }
   }
 
+  // bkz. urun-ekle.html#u-designer — kullanıcı isteği: birden fazla tasarımcı virgülle ayrılabilsin.
+  // Her isim BAĞIMSIZ olarak kendi /api/architect/:key eşleşmesini dener (tryArchitectChip ile AYNI
+  // "tüm segmenti tek isim olarak dene" mantığı, artık virgülle bölünmüş her segment için ayrı ayrı) —
+  // eşleşmeyen bir isim yalnızca kendi chip'i düz metin kalır, diğer (eşleşen) isimleri etkilemez.
+  function designerNamesOf(p) {
+    return (p.designer || '').split(',').map(s => s.trim()).filter(Boolean);
+  }
+
   async function renderDesignerSection(p) {
-    if (!p.designer) return;
+    const names = designerNamesOf(p);
+    if (!names.length) return;
     document.getElementById('pr-designer-section').style.display = '';
-    document.getElementById('pr-designer-chips').innerHTML = `<span class="designer-chip designer-chip-no-avatar">
-      <span class="designer-chip-name">${escapeHtml(p.designer)}</span>
-    </span>`;
-    const arch = await tryArchitectChip(p.designer);
-    if (!arch) return;
-    const badge = verifiedBadgeHtml('architect', arch.name, arch.badges, 13);
-    document.getElementById('pr-designer-chips').innerHTML = `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
-      <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(cdnImg(arch.photo, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
-      <span class="designer-chip-name">${escapeHtml(arch.name)}${badge}</span>
-    </a>`;
+    const chipsEl = document.getElementById('pr-designer-chips');
+    chipsEl.innerHTML = names.map(name => `<span class="designer-chip designer-chip-no-avatar">
+      <span class="designer-chip-name">${escapeHtml(name)}</span>
+    </span>`).join('');
+    const chipEls = chipsEl.children;
+    await Promise.all(names.map(async (name, i) => {
+      const arch = await tryArchitectChip(name);
+      if (!arch || currentItem !== p) return;
+      const badge = verifiedBadgeHtml('architect', arch.name, arch.badges, 13);
+      chipEls[i].outerHTML = `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
+        <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(cdnImg(arch.photo, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
+        <span class="designer-chip-name">${escapeHtml(arch.name)}${badge}</span>
+      </a>`;
+    }));
   }
 
   // "X tarafından" satırı — proje-modal.js#renderByline ile BİREBİR aynı (yalnızca üye gönderisi
