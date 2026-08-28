@@ -142,6 +142,12 @@ const ProjectModal = (function () {
     panels.rightPanelEl.innerHTML = RIGHT_TEMPLATE;
     ModalShell.wireGridScrollArrows(panels.rightPanelEl);
     mountedOnce = true;
+    // GERÇEK BULGU: leftPanelEl.innerHTML üzerine yazmak #pm-map-wrap düğümünü DOM'dan tamamen
+    // kopartır — o düğüme bağlı accordionMap varsa artık hiçbir yere render edemeyeceği (detached)
+    // bir Leaflet nesnesine dönüşür; sıfırlanmazsa bir sonraki loadMapForCurrentItem() çağrısı
+    // mapLoadedSlug ZATEN AYNI sanıp haritayı hiç yeniden kurmaz (bkz. o fonksiyondaki erken dönüş).
+    if (accordionMap) { try { accordionMap.remove(); } catch { /* zaten kopmuş olabilir */ } accordionMap = null; }
+    mapLoadedSlug = null;
   }
 
   function skeletonCardsHtml(n, className) {
@@ -376,43 +382,121 @@ const ProjectModal = (function () {
     'pm-meta', 'pm-desc', 'pm-map-section', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
     'pm-related-section', 'pm-city-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
 
-  // ---------- Harita akordeonu ----------
-  // Konum hiyerarşisi (bkz. kullanıcı isteği): projede ayrı bir açık adres/koordinat alanı yok
-  // (bkz. src/routes/project.js — yalnızca tek serbest metin item.location), bu yüzden il-ilce-data.js#
-  // parseLocationFull ile çözümlenen {district, city} çiftinden en spesifikten en genele iner: önce
-  // ilçe+il, yoksa yalnızca il, o da yoksa (konum hiç bilinmiyorsa) Türkiye geneli gösterilir. Google
-  // Maps'in API anahtarı gerektirmeyen klasik "q=...&output=embed" gömme biçimi kullanılır (bkz.
-  // kullanıcı isteği: "iframe ... göm"), t=k parametresi Uydu (satellite/hybrid) görünümünü zorlar.
-  function buildMapQuery(item) {
-    // proje-ekle.html haritasından kaydedilmiş kesin koordinat varsa (bkz. kullanıcı isteği) metin
-    // aramasına hiç düşmeden doğrudan lat,lng kullanılır — il/ilçe metin araması yalnızca koordinatı
-    // olmayan (eski/legacy) projeler için fallback kalır.
-    if (item.lat != null && item.lng != null) return { query: `${item.lat},${item.lng}`, zoom: 15 };
+  // ---------- Harita akordeonu — Leaflet + Esri World Imagery (uydu), anahtarsız/ücretsiz (bkz.
+  // kullanıcı isteği: Google Maps iframe'i tamamen kaldır) — proje geneliyle AYNI yığın (bkz.
+  // proje-ekle.html, js/pages/proje.js#loadLeaflet). Konum hiyerarşisi: projenin kayıtlı koordinatı
+  // (lat,lng) varsa doğrudan o noktaya pin konur; yoksa il-ilce-data.js#parseLocationFull ile
+  // çözümlenen il adı TR_PROVINCE_CENTER'daki merkez koordinatına düşer (Leaflet'in Google embed'in
+  // aksine metin adresini kendiliğinden çözemediği için — bkz. aşağıdaki gerçek bulgu); o da yoksa
+  // Türkiye geneli gösterilir.
+  //
+  // GERÇEK BULGU: eski keyless Google embed (`maps.google.com/maps?q=<metin>&output=embed`) adres
+  // METNİNİ (ör. "Kadıköy, İstanbul, Türkiye") kendi tarafında geocode ediyordu — Leaflet salt bir
+  // karo çizici, hiçbir geocoding yapmaz. Proje sayfası genelinde HER popup açılışında canlı bir
+  // Nominatim isteği atmak (yüksek trafikli genel popup, proje-ekle.html'in düşük frekanslı form
+  // kullanımından FARKLI) kullanım politikasını ihlal eder — bu yüzden il merkezleri için küçük,
+  // statik bir koordinat tablosu (81 il) kullanılır, ekstra ağ isteği gerekmez.
+  const TR_PROVINCE_CENTER = {
+    "Adana":[37.0000,35.3213],"Adıyaman":[37.7648,38.2786],"Afyonkarahisar":[38.7507,30.5567],"Ağrı":[39.7191,43.0503],
+    "Aksaray":[38.3687,34.0360],"Amasya":[40.6499,35.8353],"Ankara":[39.9334,32.8597],"Antalya":[36.8969,30.7133],
+    "Ardahan":[41.1105,42.7022],"Artvin":[41.1828,41.8183],"Aydın":[37.8560,27.8416],"Balıkesir":[39.6484,27.8826],
+    "Bartın":[41.6344,32.3375],"Batman":[37.8812,41.1351],"Bayburt":[40.2552,40.2249],"Bilecik":[40.1451,29.9792],
+    "Bingöl":[38.8855,40.4966],"Bitlis":[38.4006,42.1095],"Bolu":[40.5760,31.5788],"Burdur":[37.7203,30.2908],
+    "Bursa":[40.1826,29.0665],"Çanakkale":[40.1553,26.4142],"Çankırı":[40.6013,33.6134],"Çorum":[40.5506,34.9556],
+    "Denizli":[37.7765,29.0864],"Diyarbakır":[37.9144,40.2306],"Düzce":[40.8438,31.1565],"Edirne":[41.6771,26.5557],
+    "Elazığ":[38.6810,39.2264],"Erzincan":[39.7500,39.5000],"Erzurum":[39.9000,41.2700],"Eskişehir":[39.7767,30.5206],
+    "Gaziantep":[37.0662,37.3833],"Giresun":[40.9128,38.3895],"Gümüşhane":[40.4386,39.5086],"Hakkari":[37.5744,43.7408],
+    "Hatay":[36.2023,36.1600],"Iğdır":[39.9167,44.0333],"Isparta":[37.7648,30.5566],"İstanbul":[41.0082,28.9784],
+    "İzmir":[38.4237,27.1428],"Kahramanmaraş":[37.5858,36.9371],"Karabük":[41.2061,32.6204],"Karaman":[37.1759,33.2287],
+    "Kars":[40.6013,43.0975],"Kastamonu":[41.3887,33.7827],"Kayseri":[38.7312,35.4787],"Kırıkkale":[39.8468,33.5153],
+    "Kırklareli":[41.7333,27.2167],"Kırşehir":[39.1425,34.1709],"Kilis":[36.7184,37.1212],"Kocaeli":[40.8533,29.8815],
+    "Konya":[37.8746,32.4932],"Kütahya":[39.4242,29.9833],"Malatya":[38.3552,38.3095],"Manisa":[38.6191,27.4289],
+    "Mardin":[37.3212,40.7245],"Mersin":[36.8121,34.6415],"Muğla":[37.2153,28.3636],"Muş":[38.9462,41.7539],
+    "Nevşehir":[38.6939,34.6857],"Niğde":[37.9667,34.6833],"Ordu":[40.9862,37.8797],"Osmaniye":[37.0742,36.2478],
+    "Rize":[41.0201,40.5234],"Sakarya":[40.6940,30.4358],"Samsun":[41.2867,36.3300],"Siirt":[37.9333,41.9500],
+    "Sinop":[42.0231,35.1531],"Sivas":[39.7477,37.0179],"Şanlıurfa":[37.1591,38.7969],"Şırnak":[37.4187,42.4918],
+    "Tekirdağ":[40.9833,27.5167],"Tokat":[40.3167,36.5500],"Trabzon":[41.0027,39.7168],"Tunceli":[39.1079,39.5401],
+    "Uşak":[38.6823,29.4082],"Van":[38.4891,43.4089],"Yalova":[40.6500,29.2667],"Yozgat":[39.8181,34.8147],
+    "Zonguldak":[41.4564,31.7987],
+  };
+  const ESRI_WORLD_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+
+  function mapViewForItem(item) {
+    if (item.lat != null && item.lng != null) return { center: [item.lat, item.lng], zoom: 15 };
     const loc = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location || '') : { city: null, district: null };
-    if (loc.district && loc.city) return { query: `${loc.district}, ${loc.city}, Türkiye`, zoom: 12 };
-    if (loc.city) return { query: `${loc.city}, Türkiye`, zoom: 9 };
-    return { query: 'Türkiye', zoom: 5 };
+    const provinceCenter = loc.city && TR_PROVINCE_CENTER[loc.city];
+    if (provinceCenter) return { center: provinceCenter, zoom: loc.district ? 11 : 8 };
+    return { center: [39.0, 35.0], zoom: 5 };
   }
 
-  function buildMapSrc(item, zoomOverride) {
-    const { query, zoom } = buildMapQuery(item);
-    return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=k&z=${zoomOverride || zoom}&ie=UTF8&output=embed`;
+  // unpkg CDN'den (proje-ekle.html/js/pages/proje.js İLE AYNI sürüm/kaynak) yalnızca akordeon İLK
+  // kez açıldığında dinamik eklenir — bu bileşen index/proje/mimar/firma/urun gibi Leaflet YÜKLEMEYEN
+  // birçok sayfadan açılabildiğinden, kendi kendine yeten bir yükleyicisi olması gerekir (proje.js'in
+  // sayfa-özel loadLeaflet'ine bağımlı kalınamaz).
+  let leafletPromise = null;
+  function loadLeaflet() {
+    if (leafletPromise) return leafletPromise;
+    leafletPromise = new Promise((resolve, reject) => {
+      if (window.L) { resolve(window.L); return; }
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => resolve(window.L);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return leafletPromise;
   }
 
-  const MAP_EXPAND_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>';
+  function buildLeafletMap(container, item) {
+    const { center, zoom } = mapViewForItem(item);
+    const map = L.map(container, { attributionControl: false }).setView(center, zoom);
+    L.tileLayer(ESRI_WORLD_IMAGERY_URL, { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(map);
+    const marker = L.marker(center).addTo(map);
+    return { map, marker };
+  }
 
   // Haritayı büyütülmüş bir popup'ta (bkz. kullanıcı isteği: "haritanın sağ üst tarafına büyütme
   // iconu... tıklayınca harita popup şeklinde büyüsün") gösterir — mevcut galeri lightbox'ı
   // (#pm-lightbox, bkz. yukarısı) İLE AYNI overlay/backdrop/close deseni, ama ayrı bir eleman
-  // (#pm-map-lightbox): ikisi farklı içerik türü taşıdığından (görsel <img> vs harita <iframe>)
-  // paylaşılan galeri state'ine (mevcut index/sayaç vb.) karışmaması için bilerek ayrıldı.
+  // (#pm-map-lightbox): ikisi farklı state taşıdığından (görsel index/sayaç vs kendi Leaflet
+  // örneği) paylaşılan galeri state'ine karışmaması için bilerek ayrıldı. ensureMapLightbox()'un
+  // oluşturduğu overlay TÜM sayfa ömrü boyunca DOM'da kalır (bkz. o fonksiyondaki AYNI not) — bu
+  // yüzden lightboxMap/lightboxMarker yalnızca İLK açılışta kurulur, sonraki her açılışta setView/
+  // setLatLng ile güncellenir (map.remove()+yeniden L.map() çağırmaya gerek yok).
+  let lightboxMap = null;
+  let lightboxMarker = null;
   function openMapLightbox() {
     if (!currentItem) return;
+    const item = currentItem;
     const overlay = ensureMapLightbox();
     const frame = overlay.querySelector('#pm-map-lightbox-frame');
     if (!frame) return;
-    frame.innerHTML = `<iframe src="${escapeAttr(buildMapSrc(currentItem))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Harita"></iframe>`;
     overlay.classList.add('open');
+    loadLeaflet().then(() => {
+      if (currentItem !== item) return; // bu arada başka bir proje açıldı, bu yanıt bayat
+      const { center, zoom } = mapViewForItem(item);
+      if (!lightboxMap) {
+        const inner = document.createElement('div');
+        inner.style.width = '100%';
+        inner.style.height = '100%';
+        frame.innerHTML = '';
+        frame.appendChild(inner);
+        const built = buildLeafletMap(inner, item);
+        lightboxMap = built.map;
+        lightboxMarker = built.marker;
+      } else {
+        lightboxMap.setView(center, zoom);
+        lightboxMarker.setLatLng(center);
+      }
+      // bkz. loadMapForCurrentItem'daki AYNI gerçek bulgu — overlay display:none'dan flex'e
+      // GEÇTİKTEN hemen sonra çağrılırsa Leaflet konteyner boyutunu hâlâ 0 görebilir, bu yüzden bir
+      // sonraki task'a (setTimeout 0) ertelenir.
+      setTimeout(() => lightboxMap && lightboxMap.invalidateSize(), 0);
+    });
   }
 
   function closeMapLightbox() {
@@ -420,22 +504,41 @@ const ProjectModal = (function () {
     if (overlay) overlay.classList.remove('open');
   }
 
+  const MAP_EXPAND_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>';
+
   // Harita yalnızca kutucuk gerçekten AÇILDIĞINDA yüklenir (bkz. kullanıcı isteği: açılır-kapanır
   // akordeon) — Yorumlar/Geri Bildirim de aynı şekilde varsayılan kapalı, ama bunlar zaten hafif; bir
-  // iframe haritayı her proje açılışında (kutunun kapalı kalacağı çoğu durumda) önceden yüklemek
-  // gereksiz ağ/CPU maliyeti olurdu.
+  // Leaflet haritasını her proje açılışında (kutunun kapalı kalacağı çoğu durumda) önceden kurmak
+  // gereksiz ağ/CPU maliyeti olurdu. AYNI proje için akordeon kapat/aç: harita YENİDEN KURULMAZ
+  // (mapLoadedSlug eşleşir), yalnızca invalidateSize() ile boyutu düzeltilir (bkz. kullanıcı isteği)
+  // — <details> kapalıyken içeriği görünmez olduğundan Leaflet'in karo boyutu hesaplaması bayatlar,
+  // tekrar açılınca gri/kırık karolar görünür; invalidateSize bunu GERÇEK boyuta göre yeniden çizer.
   let mapLoadedSlug = null;
+  let accordionMap = null;
   function loadMapForCurrentItem() {
     const wrap = document.getElementById('pm-map-wrap');
     if (!wrap || !currentItem) return;
-    if (mapLoadedSlug === currentItem.slug) return;
+    if (mapLoadedSlug === currentItem.slug) {
+      if (accordionMap) setTimeout(() => accordionMap.invalidateSize(), 0);
+      return;
+    }
     mapLoadedSlug = currentItem.slug;
-    wrap.innerHTML = `<button type="button" class="pm-map-expand-btn" aria-label="Haritayı büyüt">${MAP_EXPAND_ICON}</button><iframe src="${escapeAttr(buildMapSrc(currentItem))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Harita"></iframe>`;
+    if (accordionMap) { try { accordionMap.remove(); } catch { /* zaten kopmuş olabilir */ } accordionMap = null; }
+    wrap.innerHTML = `<button type="button" class="pm-map-expand-btn" aria-label="Haritayı büyüt">${MAP_EXPAND_ICON}</button><div class="pm-map-inner" id="pm-map-inner" style="width:100%; height:100%;"></div>`;
     // wrap.innerHTML her yeni projede/açılışta baştan yazıldığından (bkz. yukarısı) düğme de her
     // seferinde yeniden oluşuyor — dataset bayraklı tek seferlik bağlama deseni burada GEREKMEZ,
     // doğrudan bağlamak yeterli ve daha basit.
     const expandBtn = wrap.querySelector('.pm-map-expand-btn');
     if (expandBtn) expandBtn.addEventListener('click', openMapLightbox);
+    const item = currentItem;
+    loadLeaflet().then(() => {
+      if (mapLoadedSlug !== item.slug) return; // bu arada başka bir proje açıldı, bu yanıt bayat
+      const inner = document.getElementById('pm-map-inner');
+      if (!inner) return;
+      const built = buildLeafletMap(inner, item);
+      accordionMap = built.map;
+      setTimeout(() => accordionMap && accordionMap.invalidateSize(), 0);
+    });
   }
 
   // dataset bayrağı (bkz. wireInternalNav#pmNavWired İLE AYNI desen) — ensureTemplate() sahip

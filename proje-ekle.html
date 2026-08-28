@@ -724,6 +724,11 @@ function renderIlOptions(filter){
   container.innerHTML = list.length ? list.map(il => `<div class="dd-option${il === selectedIl ? ' selected' : ''}" data-il="${escapeAttr(il)}">${escapeAttr(il)}</div>`).join('') : '<div class="dd-empty">Sonuç yok</div>';
   container.querySelectorAll('[data-il]').forEach(opt=>{
     opt.addEventListener('click', ()=>{
+      // GERÇEK BULGU: haritaya tıklayınca tetiklenen ters jeokodlama (bkz. reverseGeocodeAndFillLocation)
+      // gecikmeli döndüğünde, bu arada kullanıcının burada yaptığı MANUEL seçimin üzerine sessizce
+      // yazıyordu ("dropdown kilitleniyor" hissi) — geocodeToken'ı artırmak o an uçuşta olan ESKİ
+      // isteği bayatlatır, sonucu döndüğünde artık hiçbir şeyi değiştirmez.
+      geocodeToken++;
       selectedIl = opt.dataset.il;
       selectedIlce = null;
       document.getElementById('dd-il-btn-label').textContent = selectedIl;
@@ -742,6 +747,7 @@ function renderIlceOptions(filter){
   container.innerHTML = list.length ? list.map(ilce => `<div class="dd-option${ilce === selectedIlce ? ' selected' : ''}" data-ilce="${escapeAttr(ilce)}">${escapeAttr(ilce)}</div>`).join('') : '<div class="dd-empty">Sonuç yok</div>';
   container.querySelectorAll('[data-ilce]').forEach(opt=>{
     opt.addEventListener('click', ()=>{
+      geocodeToken++; // bkz. renderIlOptions'daki AYNI gerekçe — uçuştaki eski ters jeokodlamayı bayatlatır
       selectedIlce = opt.dataset.ilce;
       document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
       document.getElementById('dd-ilce').classList.remove('open');
@@ -777,6 +783,13 @@ renderIlOptions('');
 let selectedLat = null;
 let selectedLng = null;
 let mapMarker = null;
+// GERÇEK BULGU: ters jeokodlama (bkz. reverseGeocodeAndFillLocation) gecikmeli döndüğünde, bu arada
+// kullanıcının İl/İlçe'yi manuel değiştirmesi ya da haritada YENİ bir noktaya tıklaması durumunda
+// eski istek geri dönüp az önce yapılan değişikliğin üzerine sessizce yazıyordu ("dropdown
+// kilitleniyor" hissi veren asıl kök neden — CSS/z-index değil, bir yarış durumuydu). Her yeni
+// jeokodlama isteği ve her manuel dropdown seçimi bu sayacı artırır; bir istek döndüğünde kendi
+// aldığı token güncel sayaçla eşleşmiyorsa sonucu sessizce atar.
+let geocodeToken = 0;
 const TURKEY_MAP_CENTER = [39.0, 35.0];
 // unpkg CDN'den script etiketiyle yüklenen Leaflet, varsayılan marker ikonlarının yolunu kendi build
 // ortamına göre tahmin eder (genelde bundler'sız CDN kullanımında bozulur) — bu yüzden GERÇEK BULGU:
@@ -818,10 +831,13 @@ function selectIlIlceFromNames(ilName, ilceName){
 // dener. Nominatim kullanım politikası gereği (bkz. runMapSearch'teki AYNI not) yalnızca marker
 // taşındığında/sürüklendiğinde TEK bir istek atılır, yazarken canlı sorgu YOK.
 async function reverseGeocodeAndFillLocation(lat, lng){
+  const token = ++geocodeToken;
   try{
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=tr&zoom=14`);
+    if(token !== geocodeToken) return; // bayatladı — bu arada yeni bir konum/manuel seçim oldu
     if(!res.ok) return;
     const data = await res.json();
+    if(token !== geocodeToken) return;
     const addr = data && data.address;
     if(!addr) return;
     const ilName = addr.state || addr.province || null;
@@ -852,6 +868,7 @@ function setMapMarker(lat, lng, opts){
   if(!(opts && opts.skipGeocode)) reverseGeocodeAndFillLocation(lat, lng);
 }
 function clearMapMarker(){
+  geocodeToken++; // bkz. renderIlOptions'daki AYNI gerekçe — uçuştaki eski ters jeokodlamayı bayatlatır
   selectedLat = null;
   selectedLng = null;
   if(mapMarker){ projectMap.removeLayer(mapMarker); mapMarker = null; }
