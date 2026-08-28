@@ -554,6 +554,7 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE INDEX IF NOT EXISTS idx_projects_build_status ON projects(build_status);
 CREATE INDEX IF NOT EXISTS idx_projects_hidden_or_deleted ON projects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_legacy_key ON projects(legacy_key);
+CREATE INDEX IF NOT EXISTS idx_projects_build_status_order ON projects(build_status, COALESCE(publish_date, created_at) DESC, id DESC) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

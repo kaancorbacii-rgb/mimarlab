@@ -160,12 +160,21 @@ export async function myRatings(env, user) {
     .map(r => r.target_id);
   const productRows = await findProductsByKeys(env, productKeys);
 
+  // gerçek bulgu: product/material dışındaki (project/architect/office) satırlar burada eskiden
+  // AYNI for döngüsü içinde tek tek `await findCanonicalRowByNaturalKey` ile sırayla çözülüyordu —
+  // architect/office dalı bulunamayınca tam tablo taramasına düşebildiğinden (bkz. o fonksiyondaki
+  // yorum), çok sayıda puanlaması olan bir kullanıcı için N ayrı, sıralı D1 round-trip'i anlamına
+  // geliyordu. productRows'un hemen yukarısındaki toplu çözümle AYNI gerekçeyle Promise.all'a alındı.
+  const canonicalRows = await Promise.all(results.map(r =>
+    (r.target_type === 'product' || r.target_type === 'material')
+      ? Promise.resolve(productRows.get(r.target_id) || null)
+      : (CANONICAL_TYPE_BY_TARGET[r.target_type] ? findCanonicalRowByNaturalKey(env, CANONICAL_TYPE_BY_TARGET[r.target_type], r.target_id) : Promise.resolve(null))
+  ));
+
   const items = [];
-  for (const r of results) {
-    const row = (r.target_type === 'product' || r.target_type === 'material')
-      ? (productRows.get(r.target_id) || null)
-      : (CANONICAL_TYPE_BY_TARGET[r.target_type] ? await findCanonicalRowByNaturalKey(env, CANONICAL_TYPE_BY_TARGET[r.target_type], r.target_id) : null);
-    if (!row || row.deleted_at || row.hidden_at) continue;
+  results.forEach((r, i) => {
+    const row = canonicalRows[i];
+    if (!row || row.deleted_at || row.hidden_at) return;
     const shaped = ratingCardShape(r.target_type, row);
     const hrefBase = HREF_BASE_BY_TARGET[r.target_type];
     items.push({
@@ -174,7 +183,7 @@ export async function myRatings(env, user) {
       buildStatus: r.target_type === 'project' ? row.build_status : null,
       ...shaped,
     });
-  }
+  });
   return json({ items });
 }
 
