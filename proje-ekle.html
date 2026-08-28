@@ -426,37 +426,15 @@
           </div>
         </div>
         <fieldset class="form-field">
-          <legend>Konum</legend>
-          <div class="form-row">
-            <div class="dd-field" id="dd-il">
-              <button type="button" class="dd-btn" id="dd-il-btn">
-                <span id="dd-il-btn-label">İl seç</span>
-                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dd-panel">
-                <input type="text" class="dd-search" id="dd-il-search" placeholder="İl ara...">
-                <div class="dd-options" id="dd-il-options"></div>
-              </div>
-            </div>
-            <div class="dd-field" id="dd-ilce">
-              <button type="button" class="dd-btn" id="dd-ilce-btn" disabled>
-                <span id="dd-ilce-btn-label">Önce il seç</span>
-                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dd-panel">
-                <input type="text" class="dd-search" id="dd-ilce-search" placeholder="İlçe ara...">
-                <div class="dd-options" id="dd-ilce-options"></div>
-              </div>
-            </div>
-          </div>
+          <legend>Yer</legend>
           <div class="map-search-row">
-            <input type="text" id="p-map-search" placeholder="Haritada konum ara...">
+            <input type="text" id="p-map-search" placeholder="Konum ya da ilçe/il ara...">
             <button type="button" class="map-search-btn" id="p-map-search-btn">Ara</button>
             <div class="map-search-results" id="p-map-search-results"></div>
           </div>
           <div class="map-field" id="p-map"></div>
           <div class="map-clear-row">
-            <div class="form-hint">Haritaya tıklayarak ya da arama sonucundan seçerek projenin konumunu işaretleyebilirsin — opsiyoneldir.</div>
+            <div class="form-hint">Haritaya tıklayarak ya da arama sonucundan seçerek projenin konumunu işaretleyebilirsin.</div>
             <button type="button" class="map-clear-btn" id="p-map-clear-btn" style="display:none;">Konumu kaldır</button>
           </div>
         </fieldset>
@@ -715,67 +693,15 @@ document.addEventListener('click', (e)=>{
   document.querySelectorAll('.dd-field.open').forEach(f=>{ if(!f.contains(e.target)) f.classList.remove('open'); });
 });
 
-// ---------- KONUM: İl -> İlçe basamaklı açılır pencere (bkz. il-ilce-data.js) ----------
+// ---------- YER: il/ilçe artık ayrı bir açılır pencereden DEĞİL, yalnızca haritadan (tıklama/arama)
+// ters jeokodlama ile belirlenir (bkz. kullanıcı isteği: İl/İlçe kutucukları kaldırıldı, Yer artık
+// zorunlu) — selectedIl/selectedIlce hâlâ submit payload'ındaki `location` alanını oluşturmak için
+// içeride tutuluyor (bkz. aşağıdaki selectIlIlceFromNames), yalnızca kullanıcıya gösteren dropdown
+// UI'ı kaldırıldı.
 let selectedIl = null;
 let selectedIlce = null;
 
-function renderIlOptions(filter){
-  const q = trLower(filter || '');
-  const container = document.getElementById('dd-il-options');
-  const list = IL_LIST.filter(il => !q || trLower(il).includes(q));
-  container.innerHTML = list.length ? list.map(il => `<div class="dd-option${il === selectedIl ? ' selected' : ''}" data-il="${escapeAttr(il)}">${escapeAttr(il)}</div>`).join('') : '<div class="dd-empty">Sonuç yok</div>';
-  container.querySelectorAll('[data-il]').forEach(opt=>{
-    opt.addEventListener('click', ()=>{
-      // GERÇEK BULGU: haritaya tıklayınca tetiklenen ters jeokodlama (bkz. reverseGeocodeAndFillLocation)
-      // gecikmeli döndüğünde, bu arada kullanıcının burada yaptığı MANUEL seçimin üzerine sessizce
-      // yazıyordu ("dropdown kilitleniyor" hissi) — geocodeToken'ı artırmak o an uçuşta olan ESKİ
-      // isteği bayatlatır, sonucu döndüğünde artık hiçbir şeyi değiştirmez.
-      geocodeToken++;
-      selectedIl = opt.dataset.il;
-      selectedIlce = null;
-      document.getElementById('dd-il-btn-label').textContent = selectedIl;
-      document.getElementById('dd-il').classList.remove('open');
-      document.getElementById('dd-ilce-btn').disabled = false;
-      document.getElementById('dd-ilce-btn-label').textContent = 'İlçe seç (opsiyonel)';
-      renderIlceOptions('');
-    });
-  });
-}
-function renderIlceOptions(filter){
-  const q = trLower(filter || '');
-  const container = document.getElementById('dd-ilce-options');
-  if(!selectedIl){ container.innerHTML = '<div class="dd-empty">Önce il seç</div>'; return; }
-  const list = (IL_ILCE[selectedIl] || []).filter(ilce => !q || trLower(ilce).includes(q));
-  container.innerHTML = list.length ? list.map(ilce => `<div class="dd-option${ilce === selectedIlce ? ' selected' : ''}" data-ilce="${escapeAttr(ilce)}">${escapeAttr(ilce)}</div>`).join('') : '<div class="dd-empty">Sonuç yok</div>';
-  container.querySelectorAll('[data-ilce]').forEach(opt=>{
-    opt.addEventListener('click', ()=>{
-      geocodeToken++; // bkz. renderIlOptions'daki AYNI gerekçe — uçuştaki eski ters jeokodlamayı bayatlatır
-      selectedIlce = opt.dataset.ilce;
-      document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
-      document.getElementById('dd-ilce').classList.remove('open');
-    });
-  });
-}
-document.getElementById('dd-il-btn').addEventListener('click', ()=>{
-  const field = document.getElementById('dd-il');
-  const willOpen = !field.classList.contains('open');
-  closeAllDropdowns();
-  if(willOpen){ field.classList.add('open'); document.getElementById('dd-il-search').value = ''; renderIlOptions(''); document.getElementById('dd-il-search').focus(); }
-});
-document.getElementById('dd-il-search').addEventListener('input', (e)=> renderIlOptions(e.target.value));
-document.getElementById('dd-il-search').addEventListener('click', (e)=> e.stopPropagation());
-document.getElementById('dd-ilce-btn').addEventListener('click', ()=>{
-  if(document.getElementById('dd-ilce-btn').disabled) return;
-  const field = document.getElementById('dd-ilce');
-  const willOpen = !field.classList.contains('open');
-  closeAllDropdowns();
-  if(willOpen){ field.classList.add('open'); document.getElementById('dd-ilce-search').value = ''; renderIlceOptions(''); document.getElementById('dd-ilce-search').focus(); }
-});
-document.getElementById('dd-ilce-search').addEventListener('input', (e)=> renderIlceOptions(e.target.value));
-document.getElementById('dd-ilce-search').addEventListener('click', (e)=> e.stopPropagation());
-renderIlOptions('');
-
-// ---------- HARİTA: il/ilçe altında opsiyonel konum işaretleme (bkz. kullanıcı isteği) — Leaflet +
+// ---------- HARİTA: Yer artık ZORUNLU, yalnızca haritadan işaretlenir (bkz. kullanıcı isteği) — Leaflet +
 // Esri World Imagery (uydu karoları) + Nominatim (arama/ters jeokodlama), tamamı anahtarsız/ücretsiz
 // (bkz. src/index.js CSP yorumu — Google Maps JS API key kısıtlamaları yüzünden bu yığına geçildi).
 // Haritaya tıklamak, marker'ı sürüklemek ya da arama kutusundan bir Nominatim sonucu seçmek marker'ı
@@ -814,24 +740,20 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/Worl
 }).addTo(projectMap);
 
 // il-ilce-data.js#IL_LIST/IL_ILCE karşısında Nominatim'in döndürdüğü il/ilçe adlarını eşler —
-// trLower (dd-il-search/dd-ilce-search filtrelerinde zaten kullanılan AYNI Türkçe-duyarlı küçük harfe
-// çevirme) ile büyük/küçük harf ve Türkçe karakter farkları yutulur. Eşleşme bulunamazsa sessizce
-// hiçbir şey değiştirilmez, kullanıcı dropdown'ları elle seçmeye devam edebilir.
+// trLower (aşağıdaki reverseGeocodeAndFillLocation'daki arama kutusu filtrelerinde de kullanılan
+// AYNI Türkçe-duyarlı küçük harfe çevirme) ile büyük/küçük harf ve Türkçe karakter farkları
+// yutulur. Eşleşme bulunamazsa selectedIl/selectedIlce sessizce dokunulmamış kalır (kullanıcı
+// haritada başka bir noktayı işaretleyerek tekrar deneyebilir — artık elle seçilecek bir dropdown
+// yok, bkz. kullanıcı isteği).
 function selectIlIlceFromNames(ilName, ilceName){
   if(!ilName) return;
   const matchedIl = IL_LIST.find(il => trLower(il) === trLower(ilName));
   if(!matchedIl) return;
   selectedIl = matchedIl;
-  document.getElementById('dd-il-btn-label').textContent = selectedIl;
-  document.getElementById('dd-ilce-btn').disabled = false;
   selectedIlce = null;
-  document.getElementById('dd-ilce-btn-label').textContent = 'İlçe seç (opsiyonel)';
   if(ilceName){
     const matchedIlce = (IL_ILCE[matchedIl] || []).find(ilce => trLower(ilce) === trLower(ilceName));
-    if(matchedIlce){
-      selectedIlce = matchedIlce;
-      document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
-    }
+    if(matchedIlce) selectedIlce = matchedIlce;
   }
 }
 
@@ -891,9 +813,9 @@ projectMap.on('click', (e)=> setMapMarker(e.latlng.lat, e.latlng.lng, { skipRece
 document.getElementById('p-map-clear-btn').addEventListener('click', clearMapMarker);
 
 // Nominatim'in tekrarlı sorgu kısıtlaması nedeniyle (bkz. kullanım politikası) arama YALNIZCA Ara
-// butonuna/Enter'a basınca tetiklenir — dd-il-search/ac-suggestions'daki gibi yazarken canlı sorgu
-// atılmaz. Nominatim'e artık doğrudan DEĞİL, src/routes/geocode.js üzerinden (aynı origin) gidilir
-// — bkz. reverseGeocodeAndFillLocation'daki AYNI gerçek bulgu notu.
+// butonuna/Enter'a basınca tetiklenir — ac-suggestions'daki gibi yazarken canlı sorgu atılmaz.
+// Nominatim'e artık doğrudan DEĞİL, src/routes/geocode.js üzerinden (aynı origin) gidilir — bkz.
+// reverseGeocodeAndFillLocation'daki AYNI gerçek bulgu notu.
 let mapSearchToken = 0;
 async function runMapSearch(){
   const input = document.getElementById('p-map-search');
@@ -1384,12 +1306,7 @@ async function prefillForEdit(){
       const loc = parseLocationFull(item.location || '');
       if(loc.city){
         selectedIl = loc.city;
-        document.getElementById('dd-il-btn-label').textContent = selectedIl;
-        document.getElementById('dd-ilce-btn').disabled = false;
-        if(loc.district){
-          selectedIlce = loc.district;
-          document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
-        }
+        if(loc.district) selectedIlce = loc.district;
       }
     }
     if(item.lat != null && item.lng != null) setMapMarker(item.lat, item.lng, { skipGeocode: true });
@@ -1485,12 +1402,7 @@ async function prefillForClaim(){
     const loc = parseLocationFull(merged.location || '');
     if(loc.city){
       selectedIl = loc.city;
-      document.getElementById('dd-il-btn-label').textContent = selectedIl;
-      document.getElementById('dd-ilce-btn').disabled = false;
-      if(loc.district){
-        selectedIlce = loc.district;
-        document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
-      }
+      if(loc.district) selectedIlce = loc.district;
     }
   }
   if(merged.lat != null && merged.lng != null) setMapMarker(merged.lat, merged.lng, { skipGeocode: true });
@@ -1600,7 +1512,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     return;
   }
   if(!selectedIl){
-    notice.textContent = 'Bir il seç.';
+    notice.textContent = 'Haritada bir yer işaretle.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
@@ -1730,9 +1642,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     setExistingImages([]);
     renderPreviews();
     selectedIl = null; selectedIlce = null;
-    document.getElementById('dd-il-btn-label').textContent = 'İl seç';
-    document.getElementById('dd-ilce-btn-label').textContent = 'Önce il seç';
-    document.getElementById('dd-ilce-btn').disabled = true;
     clearMapMarker();
     brandChips = [];
     renderBrandChips();

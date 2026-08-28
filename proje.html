@@ -353,6 +353,17 @@
     .map-view-wrap{min-height:380px;}
   }
 
+  /* Marker'a tıklayınca açılan küçük Leaflet popup kartı (bkz. kullanıcı isteği: harita üzerinde
+     projenin kapak görseli + başlığı) — js/pages/proje.js#syncMapMarkers bindPopup ile bu HTML'i
+     üretir. Leaflet'in varsayılan popup iç dolgusunu/köşe yuvarlaklığını sıfırlayıp kartın kendi
+     görseli kenara kadar (edge-to-edge) otursun diye .pm-project-popup ile hedefleniyor. */
+  .leaflet-popup.pm-project-popup .leaflet-popup-content-wrapper{padding:0; border-radius:10px; overflow:hidden;}
+  .leaflet-popup.pm-project-popup .leaflet-popup-content{margin:0; width:auto !important;}
+  .pm-map-marker-card{display:block; text-decoration:none; color:inherit; cursor:pointer;}
+  .pm-map-marker-card-photo{width:100%; height:110px; object-fit:cover; display:block; background:var(--paper-alt);}
+  .pm-map-marker-card-placeholder{display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; color:#fff;}
+  .pm-map-marker-card-title{padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); line-height:1.3;}
+
   .active-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
   .active-chip{
     display:inline-flex; align-items:center; gap:6px;

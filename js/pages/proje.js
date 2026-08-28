@@ -48,19 +48,37 @@ function loadLeaflet(){
 // mapWrap henüz kurulmamışsa (Harita sekmesi hiç açılmadıysa) no-op — wireViewToggle map'i ilk
 // kurduğunda zaten currentItems'ın en güncel halini kendisi geçiriyor, burada TEKRAR çağırmaya
 // gerek yok; bu fonksiyon yalnızca map ZATEN AÇIKKEN filtre/sayfa değişince senkron kalmayı sağlar.
+// GERÇEK BULGU (kullanıcı isteği): burada eskiden marker'ların bounding box'ına `fitBounds` yapılıyordu
+// — o anki (sayfalanmış/filtrelenmiş) birkaç proje tesadüfen tek bir şehirde kümelenince harita
+// YANLIŞLIKLA sokak seviyesine yakınlaşıyordu. Artık HİÇBİR zaman fitBounds edilmiyor; görünüm her
+// zaman wireViewToggle'ın kurduğu sabit "tüm Türkiye" varsayılanında kalır, marker sayısı/konumu
+// zoom/merkezi ETKİLEMEZ.
 function syncMapMarkers(items){
   if (!leafletMap) return;
   mapMarkers.forEach(m => leafletMap.removeLayer(m));
   mapMarkers = [];
-  const points = [];
   (items || []).forEach(p => {
     if (p.lat == null || p.lng == null) return;
     const marker = L.marker([p.lat, p.lng], { title: p.title }).addTo(leafletMap);
-    marker.on('click', () => ProjectModal.open(p.slug));
+    // Marker'a tıklamak artık DOĞRUDAN proje popup'ını açmaz (bkz. kullanıcı isteği) — önce
+    // haritanın üzerinde projenin kapak görseli + başlığını taşıyan küçük bir Leaflet popup'ı
+    // açılır (bindPopup'ın varsayılan marker-tıklama davranışı), ProjectModal YALNIZCA bu küçük
+    // kartın içindeki görsele/başlığa (tek bağlantı, .pm-map-marker-card) tıklanınca açılır.
+    const cardImg = p.images && p.images[0];
+    const photoHtml = cardImg
+      ? `<img class="pm-map-marker-card-photo" src="${escapeAttr(cdnImg(cardImg, 300))}" alt="${escapeAttr(p.title)}">`
+      : `<div class="pm-map-marker-card-photo pm-map-marker-card-placeholder" style="background:${officeColor(p.title)}">${escapeHtml(initials(p.title))}</div>`;
+    const popupHtml = `<a class="pm-map-marker-card" href="/proje/${encodeURIComponent(p.slug)}">${photoHtml}<div class="pm-map-marker-card-title">${escapeHtml(p.title)}</div></a>`;
+    marker.bindPopup(popupHtml, { minWidth: 160, maxWidth: 200, className: 'pm-project-popup' });
+    // Leaflet popup içeriği HER popupopen'da (bkz. Leaflet Popup#_updateContent) yeniden DOM'a
+    // basıldığından (eski düğümler kapanışta kaldırılır) burada tekrar tekrar dinleyici eklemek
+    // birikmeli/çift tetiklemeye yol AÇMAZ — her açılış kendi taze <a> düğümünü alır.
+    marker.on('popupopen', (e) => {
+      const el = e.popup.getElement()?.querySelector('.pm-map-marker-card');
+      if (el) el.addEventListener('click', (ev) => { ev.preventDefault(); ProjectModal.open(p.slug, { triggerEl: el }); });
+    });
     mapMarkers.push(marker);
-    points.push([p.lat, p.lng]);
   });
-  if (points.length) leafletMap.fitBounds(points, { padding: [60, 60] });
 }
 
 // kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
