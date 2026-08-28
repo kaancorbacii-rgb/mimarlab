@@ -58,10 +58,20 @@
         display:flex; flex-direction:column;
         position:fixed; top:0; right:0; bottom:0; left:auto;
         width:min(320px, 86vw); max-height:none; height:100%;
-        background:var(--paper-card); border:none; border-radius:0; padding:0; margin:0; min-width:0;
+        background:var(--paper-card); border:none;
+        /* kullanıcı isteği (2026-08-28, Architonic ekran görüntüsü referans alınarak): çekmece sağ
+           kenara yapışık kaldığından sağ köşeler zaten görünmüyor — yalnızca sol (menünün açık
+           kenarındaki) köşeler Architonic'teki gibi oval/büyük radius'lu olsun. */
+        border-radius:28px 0 0 28px; padding:0; margin:0; min-width:0;
         box-shadow:-10px 0 32px rgba(15,19,26,0.22);
         transform:translateX(100%); transition:transform 0.3s ease;
         z-index:130; overflow-y:auto; -webkit-overflow-scrolling:touch;
+      }
+      /* kullanıcı isteği (2026-08-28): tablet genişliklerinde çekmece en az sayfanın %75'ini kaplasın
+         — 320px'lik sabit üst sınır (yukarıdaki temel kural) telefonlarda yeterliyken tabletlerde
+         (ör. 768-960px) çekmeceyi orana göre çok dar bırakıyordu. */
+      @media (min-width:641px) and (max-width:960px){
+        .nav-mobile-menu{width:78vw;}
       }
       .nav-mobile-menu.open{transform:translateX(0);}
       .nav-mobile-menu-head{
@@ -77,13 +87,21 @@
       .nav-mobile-menu-links{padding:10px; flex:1;}
       .nav-mobile-menu-foot{padding:14px 16px 22px; border-top:1px solid var(--line); flex-shrink:0;}
       .nav-mobile-menu-foot .nav-mobile-cta{margin-top:0; display:flex; align-items:center; justify-content:center;}
+      /* kullanıcı isteği (2026-08-28): iki CTA (Giriş Yap + Üye Ol) alt alta dizildiğinde aralarında
+         boşluk olsun — ilk kural yukarıda TÜM .nav-mobile-cta'ların margin-top'unu sıfırladığından
+         (tek CTA'lık eski tasarım için), ikinciye özel bir boşluk komşu-kardeş seçiciyle eklenir. */
+      .nav-mobile-menu-foot .nav-mobile-cta + .nav-mobile-cta{margin-top:10px;}
       /* kullanıcı isteği (2026-08-28, Architonic ekran görüntüsü referans alınarak): drawer'daki her
          satırda TEK bir sayfa ismi bulunmalı — .nav-mobile-link bir <a> olduğundan display kuralı
          hiçbir sayfanın kendi <style>'ında tanımlı değildi (bkz. proje.html#.nav-mobile-link), bu
          yüzden varsayılan inline akışta ardışık linkler (Proje/Ürün/Mimar/Firma) aynı satıra
          sığdıkları kadar yan yana diziliyordu. display:flex + width:100% her linki kendi satırına
-         zorlar; font-size de aynı istekle (14.5px → 16px) büyütüldü. */
-      .nav-mobile-link{display:flex; align-items:center; gap:10px; width:100%; box-sizing:border-box; font-size:16px;}
+         zorlar; font-size de aynı istekle (14.5px → 16px, sonra kullanıcı isteğiyle 17px'e) büyütüldü.
+         background/border/text-align/cursor reset'i BURADA eklendi çünkü .nav-mobile-link bazen bir
+         <button> olarak kullanılıyor (ör. auth-nav.js#nav-mobile-logout-btn) — reset olmadan o satır
+         tarayıcının varsayılan gri buton çerçeve/arkaplanıyla diğer satırlardan (<a>) farklı
+         görünüyordu (kullanıcı isteği: "Çıkış yap butonuna özel bir arka plan... yapma"). */
+      .nav-mobile-link{display:flex; align-items:center; gap:10px; width:100%; box-sizing:border-box; font-size:17px; background:none; border:none; text-align:left; cursor:pointer;}
       /* .nav-mobile-cta yalnızca index.html'in KENDİ <style>'ında tam tanımlıydı (diğer 24 sayfada
          hiç yoktu) — burada TEK kaynaktan enjekte edilerek her sayfada aynı görünüm garanti edilir. */
       .nav-mobile-cta{
@@ -93,6 +111,13 @@
         font-size:15px; font-weight:600; box-sizing:border-box;
       }
       .nav-mobile-cta:hover{background:var(--walnut);}
+      /* kullanıcı isteği (2026-08-28): Üye Ol, Giriş Yap'ın dolu (koyu) tasarımıyla KONTRAST oluşturan
+         çerçeveli/boş bir ikincil buton — masaüstündeki .nav-rate ile aynı fikir. Bu kural yukarıdaki
+         tam .nav-mobile-cta tanımından SONRA gelmeli — ikisi de eşit özgüllükte (tek sınıf) olduğundan
+         kaynak sırasında SONRAKİ kazanır; önce gelseydi .nav-mobile-cta'nın background:var(--ink)
+         kuralı bunu ezerdi (gerçek bulgu, ilk sürümde tam bunun olduğu görüldü). */
+      .nav-mobile-cta-secondary{background:none; color:var(--ink); border:1.5px solid var(--ink);}
+      .nav-mobile-cta-secondary:hover{background:var(--paper-alt);}
       @media (max-width:960px){
         .nav-search{display:flex;}
         .nav-right{display:none;}
@@ -168,6 +193,7 @@
       </div>
       <div class="nav-mobile-menu-foot" id="nav-mobile-menu-foot">
         <a class="nav-mobile-cta" href="giris-yap.html">Giriş Yap</a>
+        <a class="nav-mobile-cta nav-mobile-cta-secondary" href="uye-ol.html">Üye Ol</a>
       </div>
     </div>
   </nav>`;

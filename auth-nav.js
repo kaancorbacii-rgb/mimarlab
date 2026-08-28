@@ -62,6 +62,11 @@
       .nav-mobile-account-sep{height:1px; background:var(--line); margin:0 4px 8px;}
       .nav-mobile-account-links{display:flex; flex-direction:column; gap:2px;}
       .nav-mobile-account-links .nav-mobile-link span{display:flex; flex-shrink:0; color:var(--ink-soft);}
+      /* kullanıcı isteği (2026-08-28): Hesabım/Aktivitelerim/İçeriklerim/Admin/Çıkış Yap punto
+         olarak PROJE/ÜRÜN/MİMAR/FİRMA'dan (site-chrome.js#.nav-mobile-link, 17px) birazcık daha küçük
+         olsun — ikisi de aynı .nav-mobile-link sınıfını paylaştığından burada, hesap bölümüne özel
+         daha spesifik bir seçiciyle geçersiz kılınır. */
+      .nav-mobile-account-links .nav-mobile-link{font-size:14px;}
     `;
     document.head.appendChild(style);
   }
