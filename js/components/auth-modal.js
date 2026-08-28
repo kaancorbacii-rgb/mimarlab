@@ -202,14 +202,12 @@ const AuthModal = (function () {
     #am-panel .am-badge-icon:hover .am-badge-tooltip,
     #am-panel .am-badge-icon.am-badge-tooltip-show .am-badge-tooltip{opacity:1; visibility:visible;}
     @media (max-width:480px){ #am-panel .badge-grid{grid-template-columns:1fr;} }
-    /* gerçek bulgu (kullanıcı isteği: "mobil görünümde ... butonlarını sol tarafa hizala") — üstteki
-       stack kuralı, satırı kırıp .dash-head-actions'ı kendi içeriği kadar dar bırakarak (üstteki
-       align-items:flex-start'a güvenerek) dolaylı biçimde sola yaslıyordu; burada width:100% +
-       justify-content:flex-start ile KOŞULSUZ/açık olarak sabitlenir, herhangi bir üst/flex
-       davranış değişikliğinden bağımsız hale gelir. */
+    /* kullanıcı isteği (2026-08-28): mobilde Profili Düzenle/Aktivitelerim butonları artık sayfaya
+       yatayda ortalanıyor (önceki "sol tarafa hizala" isteğinin yerini aldı) — width:100% +
+       justify-content:center ile KOŞULSUZ/açık olarak sabitlenir. */
     @media (max-width:720px){
-      #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px;}
-      #am-panel .dash-head-actions{width:100%; justify-content:flex-start;}
+      #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px; flex-basis:100%; width:100%;}
+      #am-panel .dash-head-actions{width:100%; justify-content:center;}
     }
     @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
 
@@ -547,7 +545,7 @@ const AuthModal = (function () {
           </div>
           <div class="dash-head-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
             <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
-            <button type="button" class="dash-edit-btn" id="am-logout-btn">Çıkış Yap</button>
+            <button type="button" class="dash-edit-btn" id="am-dash-activities-btn">Aktivitelerim</button>
           </div>
         </div>
       </div>
@@ -787,7 +785,7 @@ const AuthModal = (function () {
       </div>
 
       <div class="dash-row">
-        <div class="dash-section" style="grid-column:1 / -1;">
+        <div class="dash-section">
           <h2>Düello Analizlerim</h2>
           <div id="am-dash-duel-analysis"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-duel-analysis-pagination"></div>
@@ -1322,13 +1320,7 @@ const AuthModal = (function () {
       }, true);
     }
 
-    // nav-avatar-menu'deki "Çıkış Yap" (bkz. auth-nav.js#nav-logout-btn) ile AYNI davranış — logout
-    // sonrası header'ın (nav-avatar -> "Giriş Yap") tekrar tazelenmesi için zaten tam sayfa yönlendirme
-    // yapılıyor, ayrıca refreshAuthNav çağırmaya gerek yok.
-    on('am-logout-btn', 'click', async () => {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = 'index.html';
-    });
+    on('am-dash-activities-btn', 'click', () => swap('activities'));
 
     // Firma seçimi ("Bu firma sana mı ait?" ile AYNI profile_claims('office') talebi) yalnızca
     // seçim GERÇEKTEN kullanıcının mevcut onaylı/beklemedeki talebinden farklıysa gönderilir —

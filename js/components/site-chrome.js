@@ -177,9 +177,23 @@
       .footer-newsletter-msg.ok{color:#8FD6A8;}
       .footer-newsletter-msg.err{color:#E39B9B;}
       @media (max-width: 860px){
-        .footer-top{grid-template-columns: 1fr;}
-        .footer-bottom{grid-template-columns:1fr; justify-items:center; text-align:center;}
-        .footer-bottom .footer-social, .footer-bottom .footer-theme-toggle{justify-self:center;}
+        .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px;}
+        .footer-brand{grid-column:1 / -1;}
+      }
+      /* kullanıcı isteği (2026-08-28): mobilde en alt satır (sosyal ikonlar + telif + gece/gündüz
+         düğmesi) masaüstündeki gibi TEK satırda kalsın (önceden 860px altında 3 ayrı satıra
+         yığılıyordu) — dar ekranda sığması için yazı/ikon/boşluk küçültülür, hizalama aynı kalır. */
+      @media (max-width: 560px){
+        .footer-bottom{gap:8px;}
+        .footer-copyright{font-size:10.5px; line-height:1.4;}
+        .footer-social{gap:8px; height:20px;}
+        .footer-social svg{width:14px; height:14px;}
+        .footer-theme-toggle{width:40px; height:22px;}
+        .footer-theme-toggle .theme-toggle-knob{width:16px; height:16px;}
+        [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:21px;}
+        .footer-theme-toggle .theme-icon-sun{left:5px;}
+        .footer-theme-toggle .theme-icon-moon{right:5px;}
+        .footer-theme-toggle .theme-toggle-icon svg{width:11px; height:11px;}
       }
     `;
     document.head.appendChild(style);
