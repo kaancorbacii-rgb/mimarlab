@@ -526,6 +526,13 @@ export async function handleProjectListRoute(request, env, url) {
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
     const buildStatus = url.searchParams.get('buildStatus') === 'concept' ? 'concept' : 'built';
+    // proje.html Harita görünümü (bkz. kullanıcı isteği: "Projeler sayfasındaki haritada tüm
+    // projelerin gözükmesi gerekiyor... filtreler haritaya da işlemeli") — sayfalanmış kart listesiyle
+    // AYNI filtre/arama mantığından geçer ama page/limit'i YOK SAYAR, aktif filtrelerle eşleşen TÜM
+    // projeleri (koordinatlı olsun olmasın, marker'sız olanları syncMapMarkers zaten atlıyor) ince bir
+    // (slug/title/lat/lng/kapak görseli) şekilde döner — kart listesinin taşıdığı description/designer/
+    // awards vb. haritanın hiç ihtiyaç duymadığı alanları göndermez.
+    const wantAll = url.searchParams.get('all') === '1';
 
     // Faz 5 — D1 seviyesinde sayfalama (bkz. kullanıcı isteği: "Database-Level Filtering &
     // Pagination"). Hiçbir filtre/arama parametresi aktif değilken VE sort, pool'un zaten geldiği
@@ -539,7 +546,7 @@ export async function handleProjectListRoute(request, env, url) {
     // il/ilçe çözümleme, isOfficeName sezgisi) hiçbiri SQL'de güvenle yeniden üretilemez (bkz.
     // kullanıcı isteği: "riskli biçimde yeniden yazma" YASAĞI) — o durumda aşağıdaki eski tam-havuz
     // yolu AYNEN korunur.
-    if (!hasActiveProjectListFilters(url) && !SORT_REQUIRES_JS_FILTER.has(sort)) {
+    if (!wantAll && !hasActiveProjectListFilters(url) && !SORT_REQUIRES_JS_FILTER.has(sort)) {
       return fetchProjectListPageFromD1(env, buildStatus, page, limit);
     }
 
@@ -618,6 +625,14 @@ export async function handleProjectListRoute(request, env, url) {
           default: return 0;
         }
       });
+    }
+
+    if (wantAll) {
+      const mapItems = filtered.map(p => ({
+        slug: p.slug, title: p.title, lat: p.lat, lng: p.lng,
+        images: p.images ? p.images.slice(0, 1) : [],
+      }));
+      return { items: serializePublicEntity(mapItems), total: mapItems.length, page: 1, totalPages: 1 };
     }
 
     const total = filtered.length;

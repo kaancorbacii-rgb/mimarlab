@@ -15,16 +15,24 @@
 const PAGE_SIZE = 24;
 let currentPage = 1;
 
-// ---------- HARİTA GÖRÜNÜMÜ (bkz. kullanıcı isteği: Liste/Harita senkron koordinat aktarımı) ----------
-// currentItems: render()'ın en son çektiği (filtrelenmiş/sayfalanmış) proje listesi — Harita görünümü
-// AYRI bir "tüm projeler" uç noktası çağırmaz, Liste ile TAM OLARAK AYNI veriyi paylaşır (bkz.
-// wireViewToggle). leafletMap/mapMarkers yalnızca kullanıcı Harita sekmesine İLK kez geçtiğinde
-// (bkz. loadLeaflet) kurulur. Leaflet + Esri World Imagery (uydu karoları) — anahtarsız/ücretsiz,
-// bkz. proje-ekle.html'deki AYNI yığın/gerekçe (src/index.js CSP yorumu).
+// ---------- HARİTA GÖRÜNÜMÜ (bkz. kullanıcı isteği: "Projeler sayfasındaki haritada tüm projelerin
+// gözükmesi gerekiyor... filtreler haritaya da işlemeli") ----------
+// currentItems: render()'ın en son çektiği (filtrelenmiş/SAYFALANMIŞ, 24'lük) kart listesi — Harita
+// görünümü artık BUNU paylaşmaz, kendi `all=1` isteğini atar (bkz. refreshMap) ki aktif filtre/arama
+// ile eşleşen projelerin TAMAMI (24'lük sayfa sınırı olmadan) pinlenebilsin. leafletMap/mapMarkers
+// yalnızca kullanıcı Harita sekmesine İLK kez geçtiğinde (bkz. loadLeaflet) kurulur. Leaflet + Esri
+// World Imagery (uydu karoları) — anahtarsız/ücretsiz, bkz. proje-ekle.html'deki AYNI yığın/gerekçe
+// (src/index.js CSP yorumu).
 let currentItems = [];
 let leafletMap = null;
 let mapMarkers = [];
 let leafletPromise = null;
+// mapViewActive: kullanıcı şu an Harita sekmesinde mi (bkz. wireViewToggle#setView) — render()
+// bunu okuyarak Harita GÖRÜNMÜYORKEN gereksiz "tüm filtrelenmiş projeler" isteği atmaz; Liste'den
+// Harita'ya her dönüşte (mapLoaded olsa bile, çünkü aradan filtre değişmiş olabilir) refreshMap()
+// yeniden çağrılır.
+let mapViewActive = false;
+let mapRequestId = 0;
 
 // proje.html Leaflet CSS/JS'i sayfa yüklenişinde HİÇ içermiyor (proje-ekle.html'in aksine) — script
 // tag'ı yalnızca kullanıcı Harita'ya İLK kez geçtiğinde dinamik eklenir, her /proje ziyaretinde değil.
@@ -79,6 +87,27 @@ function syncMapMarkers(items){
     });
     mapMarkers.push(marker);
   });
+}
+
+// Harita artık o anki sayfanın (24'lük dilim) DEĞİL, aktif filtre/arama ile eşleşen TÜM projelerin
+// (bkz. kullanıcı isteği: "1429 projenin tamamı haritaya işlensin... filtreler haritaya da işlemeli")
+// pinlerini gösterir — bu yüzden kart listesinin sayfalanmış /api/projects isteğinden AYRI, kendi
+// `all=1` isteğini atar (bkz. src/routes/project.js#handleProjectListRoute üstündeki wantAll dalı).
+// Yalnızca Harita GÖRÜNÜRKEN (mapViewActive) çağrılır — Liste'deyken her filtre değişiminde gereksiz
+// ek bir istek atılmaz, kullanıcı Harita'ya dönünce (bkz. wireViewToggle#setView) taze veriyle çağrılır.
+async function refreshMap(){
+  if (!leafletMap || !mapViewActive) return;
+  const myRequest = ++mapRequestId;
+  const params = currentQueryParams();
+  params.set('all', '1');
+  let data = null;
+  try{
+    const res = await fetch(`/api/projects?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){ console.error('Harita için proje listesi alınamadı:', err); }
+  if(myRequest !== mapRequestId) return; // bu arada başka bir refreshMap() tetiklendi, bu yanıt bayat
+  if(!leafletMap) return; // bu arada Harita'dan çıkılmış olabilir (map instance ayakta kalır ama gereksiz)
+  syncMapMarkers(data ? data.items : []);
 }
 
 // kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
@@ -442,7 +471,7 @@ async function render(){
   renderPagination(data.totalPages);
 
   currentItems = data.items;
-  syncMapMarkers(currentItems);
+  refreshMap();
 
   if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
   empty.style.display = 'none';
@@ -546,6 +575,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   let mapLoaded = false;
   function setView(view) {
     const isMap = view === 'map';
+    mapViewActive = isMap;
     listBtn.classList.toggle('active', !isMap);
     mapBtn.classList.toggle('active', isMap);
     // Varsayılan DOM/görsel sırası Harita, Liste (bkz. kullanıcı isteği) — Harita görünümünde
@@ -580,8 +610,13 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
           maxZoom: 19,
         }).addTo(leafletMap);
-        syncMapMarkers(currentItems);
+        refreshMap();
       });
+    } else if (isMap) {
+      // Harita zaten kuruluydu (bkz. yukarıdaki mapLoaded) — Liste'deyken filtre değişmiş olabileceği
+      // için (render() harita GÖRÜNMÜYORKEN refreshMap() içinde no-op'a düşer, bkz. mapViewActive
+      // koruması) her Harita'ya dönüşte taze veriyle yeniden çekilir.
+      refreshMap();
     }
   }
   listBtn.addEventListener('click', () => setView('list'));
