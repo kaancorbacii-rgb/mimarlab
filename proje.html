@@ -348,7 +348,12 @@
      alır (bkz. js/pages/proje.js#syncMapMarkers). Harita js/pages/proje.js tarafından bu div'in
      İÇİNE doğrudan L.map olarak kuruluyor (iframe değil), min-height container'ın kendi yüksekliğini
      vermeye yeter. */
-  .map-view-wrap{border-radius:14px; overflow:hidden; min-height:560px; background:var(--paper-alt);}
+  /* GERÇEK BULGU (kullanıcı isteği: haritadan açılan proje popup'ı haritanın ARKASINDA çıkıyordu):
+     ProjectModal'ın kendi kaplayıcısı z-index:150 (bkz. modal-shell.js) — ama Leaflet'in iç pane'leri
+     (marker/popup/kontrol) varsayılan olarak z-index 600-1000 kullanır ve .map-view-wrap kendi
+     stacking context'ini KURMADIĞI sürece bu değerler dışarı sızıp modal'ın (150) ÜSTÜNE çıkabiliyordu.
+     isolation:isolate, Leaflet'in tüm iç z-index'lerini bu kutunun İÇİNE hapseder. */
+  .map-view-wrap{isolation:isolate; border-radius:14px; overflow:hidden; min-height:560px; background:var(--paper-alt);}
   @media (max-width:720px){
     .map-view-wrap{min-height:380px;}
   }
@@ -651,12 +656,17 @@
   /* Harita kutucuğu Yorumlar (.comments-section) İLE BİREBİR AYNI kart/açılır-kapanır çerçeveyi
      paylaşır (bkz. kullanıcı isteği), yalnızca sınıfını değil id'sini de #pm-map-section olarak
      taşır — içerik alanı (bkz. #pm-map-wrap) uydu görünümlü iframe'i barındırır. */
-  .pm-map-wrap{position:relative; border-radius:10px; overflow:hidden; aspect-ratio:16/9; background:var(--paper-alt);}
+  /* GERÇEK BULGU (kullanıcı isteği: büyütme ikonu görünmüyordu): Leaflet'in kendi iç pane'leri
+     (tile/marker/popup/kontrol) z-index 200-1000 arası değerler kullanır; .pm-map-wrap kendi
+     stacking context'ini KURMADIĞI sürece bu değerler dışarı sızıp aşağıdaki .pm-map-expand-btn'in
+     (z-index:1001) altında değil ÜSTÜNDE render olabiliyordu. isolation:isolate, Leaflet'in tüm iç
+     z-index'lerini bu kutunun İÇİNE hapseder — böylece expand butonu artık güvenle üstte kalır. */
+  .pm-map-wrap{position:relative; isolation:isolate; border-radius:10px; overflow:hidden; aspect-ratio:16/9; background:var(--paper-alt);}
   .pm-map-wrap iframe{width:100%; height:100%; border:0; display:block;}
   /* Büyütme (fullscreen) düğmesi — kullanıcı isteği: haritanın sağ üst köşesine, .card-save-btn
      (kart üzerindeki dairesel ikon düğmesi) İLE AYNI çerçeve/boyut dilinde. */
   .pm-map-expand-btn{
-    position:absolute; top:10px; right:10px; z-index:2;
+    position:absolute; top:10px; right:10px; z-index:1001;
     width:30px; height:30px; border-radius:50%; border:none;
     background:rgba(27,42,61,0.55); color:#fff;
     display:flex; align-items:center; justify-content:center;

@@ -541,11 +541,16 @@
      yorumlar arasındaki line'ı sil, yorumların üstüne line koy"). */
   .comments-section{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
   /* bkz. proje.html'deki AYNI blok — Harita kutucuğu, Yorumlar İLE BİREBİR AYNI çerçeve. */
-  .pm-map-wrap{position:relative; border-radius:10px; overflow:hidden; aspect-ratio:16/9; background:var(--paper-alt);}
+  /* GERÇEK BULGU (kullanıcı isteği: büyütme ikonu görünmüyordu): Leaflet'in kendi iç pane'leri
+     (tile/marker/popup/kontrol) z-index 200-1000 arası değerler kullanır; .pm-map-wrap kendi
+     stacking context'ini KURMADIĞI sürece bu değerler dışarı sızıp aşağıdaki .pm-map-expand-btn'in
+     (z-index:1001) altında değil ÜSTÜNDE render olabiliyordu. isolation:isolate, Leaflet'in tüm iç
+     z-index'lerini bu kutunun İÇİNE hapseder — böylece expand butonu artık güvenle üstte kalır. */
+  .pm-map-wrap{position:relative; isolation:isolate; border-radius:10px; overflow:hidden; aspect-ratio:16/9; background:var(--paper-alt);}
   .pm-map-wrap iframe{width:100%; height:100%; border:0; display:block;}
   /* bkz. proje.html'deki AYNI blok — haritayı büyütme düğmesi + fullscreen lightbox. */
   .pm-map-expand-btn{
-    position:absolute; top:10px; right:10px; z-index:2;
+    position:absolute; top:10px; right:10px; z-index:1001;
     width:30px; height:30px; border-radius:50%; border:none;
     background:rgba(27,42,61,0.55); color:#fff;
     display:flex; align-items:center; justify-content:center;

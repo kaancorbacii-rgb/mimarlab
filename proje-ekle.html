@@ -225,7 +225,11 @@
   .dd-option input{accent-color:var(--ink); width:14px; height:14px; flex-shrink:0;}
   .dd-empty{padding:12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
   /* ---------- HARİTA (Konum) — opsiyonel il/ilçe altı konum işaretleme, bkz. kullanıcı isteği ---------- */
-  .map-search-row{position:relative; display:flex; gap:8px; margin-top:12px;}
+  /* GERÇEK BULGU: margin-top eskiden legend'in ALTINDA duran İl/İlçe dropdown satırından bu arama
+     kutusuna nefes payı vermek içindi (bkz. kullanıcı isteği: o satır kaldırıldı) — artık bu,
+     fieldset'in İLK çocuğu (legend'den hemen sonra) olduğundan margin-top diğer form alanlarının
+     (label margin-bottom:6px + input margin-top:0) aksine fazladan boşluk yaratıyordu. */
+  .map-search-row{position:relative; display:flex; gap:8px;}
   .map-search-row input[type=text]{flex:1; min-width:0;}
   .map-search-btn{
     flex-shrink:0; background:var(--ink); color:var(--paper-card); border:none; border-radius:10px;
@@ -817,7 +821,13 @@ document.getElementById('p-map-clear-btn').addEventListener('click', clearMapMar
 // Nominatim'e artık doğrudan DEĞİL, src/routes/geocode.js üzerinden (aynı origin) gidilir — bkz.
 // reverseGeocodeAndFillLocation'daki AYNI gerçek bulgu notu.
 let mapSearchToken = 0;
-async function runMapSearch(){
+// autoApply=true (Ara butonu/Enter): en iyi (ilk) sonuç doğrudan uygulanır (bkz. aşağıdaki AYNI
+// gerekçe). autoApply=false (canlı yazarken öneri, bkz. aşağıdaki input dinleyicisi — kullanıcı
+// isteği: "Bos yazınca hemen altında Bostancı, İstanbul görünsün"): yalnızca dropdown gösterilir,
+// marker YALNIZCA kullanıcı bir öneriye tıklayınca taşınır — otomatik uygulamak yazarken haritanın
+// sürekli zıplamasına yol açardı.
+async function runMapSearch(opts){
+  const autoApply = !(opts && opts.autoApply === false);
   const input = document.getElementById('p-map-search');
   const resultsBox = document.getElementById('p-map-search-results');
   const q = input.value.trim();
@@ -830,7 +840,7 @@ async function runMapSearch(){
     if(token !== mapSearchToken) return; // yarış durumu: bu arada yeni bir arama başlatılmış
     const results = res.ok ? await res.json() : [];
     resultsBox.innerHTML = results.length
-      ? results.map((r,i) => `<div class="map-search-result${i===0 ? ' selected' : ''}" data-index="${i}">${escapeAttr(r.display_name)}</div>`).join('')
+      ? results.map((r,i) => `<div class="map-search-result${(autoApply && i===0) ? ' selected' : ''}" data-index="${i}">${escapeAttr(r.display_name)}</div>`).join('')
       : '<div class="map-search-result" style="cursor:default; color:var(--ink-soft);">Sonuç bulunamadı</div>';
     resultsBox.classList.add('show');
     resultsBox.querySelectorAll('[data-index]').forEach(el=>{
@@ -848,7 +858,7 @@ async function runMapSearch(){
     // taşımak için AYRICA aşağıdaki listeden bir sonuca tıklamak gerekiyordu). Liste yine de
     // görünür kalır (ilk satır "selected" işaretli) — en iyi eşleşme yanlışsa kullanıcı listeden
     // farklı bir sonuca tıklayarak bu seçimi geçersiz kılabilir.
-    if(results.length){
+    if(autoApply && results.length){
       const top = results[0];
       setMapMarker(parseFloat(top.lat), parseFloat(top.lon));
       input.value = top.display_name;
@@ -859,11 +869,23 @@ async function runMapSearch(){
     if(token === mapSearchToken) btn.disabled = false;
   }
 }
-document.getElementById('p-map-search-btn').addEventListener('click', runMapSearch);
+document.getElementById('p-map-search-btn').addEventListener('click', () => runMapSearch());
 document.getElementById('p-map-search').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); runMapSearch(); }
 });
 document.getElementById('p-map-search').addEventListener('blur', ()=> setTimeout(()=> document.getElementById('p-map-search-results').classList.remove('show'), 150));
+
+// Canlı öneri (bkz. kullanıcı isteği: "Bos" yazınca hemen altında "Bostancı, İstanbul" gibi öneri
+// konumlar görünsün, kullanıcı direkt tıklayabilsin) — 350ms debounce + minimum 2 karakter ile her
+// tuş vuruşunda ayrı bir sunucu isteği atmaktan kaçınılır (proxy zaten kendi rate limitini de
+// uyguluyor, bkz. src/routes/geocode.js). autoApply:false ile çağrılır — bkz. yukarıdaki AYNI not.
+let liveSearchDebounce = null;
+document.getElementById('p-map-search').addEventListener('input', (e)=>{
+  clearTimeout(liveSearchDebounce);
+  const q = e.target.value.trim();
+  if(q.length < 2){ document.getElementById('p-map-search-results').classList.remove('show'); return; }
+  liveSearchDebounce = setTimeout(()=> runMapSearch({ autoApply: false }), 350);
+});
 
 // ---------- KATEGORİ: çoklu seçim açılır pencere (mevcut name="category"
 // checkbox'ları aynen korunur, yalnızca her zaman açık pillerden bir panele taşınır) ----------
