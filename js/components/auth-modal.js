@@ -2076,50 +2076,95 @@ const AuthModal = (function () {
   let openedViaPush = false;
   let pushCountSinceOpen = 0;
 
+  // kullanıcı isteği (2026-08-28): tablet/mobilde (≤960px, bkz. site-chrome.js'teki AYNI kırılma
+  // noktası — .nav-hamburger tam olarak bu genişlikte görünür olur) Giriş Yap/Üye Ol/Hesabım/
+  // Aktivitelerim/İçeriklerim artık AYRI bir ModalShell popup'ı DEĞİL, js/components/site-chrome.js#
+  // NavDrawer'ın yönettiği hamburger çekmecesinin İÇİNDE kayan bir alt sayfa olarak açılır — masaüstü
+  // davranışı (ModalShell popup) HİÇ değişmeden korunur. window.NavDrawer her sayfada bu dosyadan
+  // (lazy-modals.js ile SONRADAN yüklenir) ÖNCE, senkron yüklendiğinden (bkz. site-chrome.js dosya
+  // başı yorumu) burada koşulsuz var olduğu varsayılabilir; yine de savunmacı bir `&&` kontrolü var.
+  function isMobileDrawer() {
+    return !!(window.NavDrawer && window.matchMedia('(max-width:960px)').matches);
+  }
+  // Şu an İÇERİĞİN barındırıldığı GERÇEK host — isMobileDrawer() yalnızca ANLIK viewport'u sorar,
+  // bu ise (resize sırasında iki host arasında geçiş anlarında bile) her zaman doğru kalır çünkü tüm
+  // host değişimleri (open/swap/handlePopState/resize dinleyicisi, bkz. aşağısı) NavDrawer.showSubpage/
+  // hideSubpage/closeDrawer çağrılarıyla senkron yürütülür.
+  function currentHostIsMobile() {
+    return !!(window.NavDrawer && window.NavDrawer.isSubpageActive());
+  }
+  function activateHost(mobile) {
+    if (mobile) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
+    else ModalShell.open({ triggerEl: null, onRequestClose: close });
+  }
+  function deactivateHost(mobile) {
+    if (mobile) window.NavDrawer.closeDrawer();
+    else { ModalShell.close(); unmountSingleColumn(); }
+  }
+
   function renderView(view) {
     ensureStyles();
-    // bkz. js/components/modal-shell.js#claimContent — sahip değiştiyse (proje/mimar/firma/ürün
-    // modalından geçildiyse) paneller zaten boşaltılmış/bodyEl temel sınıfa sıfırlanmış olur; aynı
-    // kalırsa (login↔signup↔account arası geçiş) hiçbir şey silinmez, aşağıdaki manuel temizlik
-    // (view'i yeniden kurmak için) değişmeden çalışmaya devam eder.
-    const panels = ModalShell.claimContent('auth');
-    panels.bodyEl.classList.add('am-single');
-    panels.rightPanelEl.innerHTML = '';
+    const mobile = isMobileDrawer();
+    let hostEl;
+    if (mobile) {
+      hostEl = window.NavDrawer.getSubpageBodyEl();
+      hostEl.innerHTML = '';
+    } else {
+      // bkz. js/components/modal-shell.js#claimContent — sahip değiştiyse (proje/mimar/firma/ürün
+      // modalından geçildiyse) paneller zaten boşaltılmış/bodyEl temel sınıfa sıfırlanmış olur; aynı
+      // kalırsa (login↔signup↔account arası geçiş) hiçbir şey silinmez, aşağıdaki manuel temizlik
+      // (view'i yeniden kurmak için) değişmeden çalışmaya devam eder.
+      const panels = ModalShell.claimContent('auth');
+      panels.bodyEl.classList.add('am-single');
+      panels.rightPanelEl.innerHTML = '';
+      panels.leftPanelEl.innerHTML = '';
+      hostEl = panels.leftPanelEl;
+    }
     const wrap = document.createElement('div');
     wrap.id = 'am-panel';
-    panels.leftPanelEl.innerHTML = '';
-    panels.leftPanelEl.appendChild(wrap);
+    hostEl.appendChild(wrap);
     if (view === 'login') { wrap.innerHTML = loginTemplate(); wireLogin(); }
     else if (view === 'signup') { wrap.innerHTML = signupTemplate(); wireSignup(); }
     else if (view === 'forgot') { wrap.innerHTML = forgotTemplate(); wireForgot(); }
     else if (view === 'activities') { wrap.innerHTML = activitiesTemplate(); mountActivities(); }
     else if (view === 'contents') { wrap.innerHTML = contentsTemplate(); mountContents(); }
     else { wrap.innerHTML = accountTemplate(); mountAccount(); }
-    // denetim bulgusu (AUDIT-009): bu modal document.title'ı hiç değiştirmiyor (sayfanın kendi
-    // başlığı korunur), o yüzden diğer modallardaki gibi document.title'ı yeniden kullanamayız —
-    // aria-label için ayrı, sabit bir Türkçe etiket haritası.
-    const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum', activities: 'Aktivitelerim', contents: 'İçeriklerim' };
-    ModalShell.setLabel(AUTH_VIEW_LABELS[view] || 'Hesabım');
-    ModalShell.scrollToTop();
+    if (mobile) {
+      hostEl.scrollTop = 0;
+    } else {
+      // denetim bulgusu (AUDIT-009): bu modal document.title'ı hiç değiştirmiyor (sayfanın kendi
+      // başlığı korunur), o yüzden diğer modallardaki gibi document.title'ı yeniden kullanamayız —
+      // aria-label için ayrı, sabit bir Türkçe etiket haritası.
+      const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum', activities: 'Aktivitelerim', contents: 'İçeriklerim' };
+      ModalShell.setLabel(AUTH_VIEW_LABELS[view] || 'Hesabım');
+      ModalShell.scrollToTop();
+    }
   }
 
-  function isOpen() { return ModalShell.isOpen() && currentView !== null; }
+  function isOpen() { return currentView !== null; }
 
   function open(view, { pushHistory = true, triggerEl = null } = {}) {
     currentView = view;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
     if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: 1 }, '', VIEW_PATH[view]);
-    ModalShell.open({ triggerEl, onRequestClose: close });
+    if (isMobileDrawer()) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
+    else ModalShell.open({ triggerEl, onRequestClose: close });
     renderView(view);
   }
 
   function swap(view) {
-    if (!ModalShell.isOpen()) return open(view, { pushHistory: true });
+    if (!isOpen()) return open(view, { pushHistory: true });
+    const wasMobile = currentHostIsMobile();
     currentView = view;
     const currentDepth = (history.state && history.state.mimarlabModal === 'auth') ? history.state.depth : pushCountSinceOpen;
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
+    // Tüm AuthModal görünümleri her iki host'ta da (mobil/masaüstü) açılabildiğinden host normalde
+    // swap sırasında DEĞİŞMEZ — yalnızca resize sırasında (bkz. aşağıdaki resize dinleyicisi) farklı
+    // olabilir; bu satır o nadir yarış durumuna karşı bir güvenlik ağı.
+    const willBeMobile = isMobileDrawer();
+    if (wasMobile !== willBeMobile) { deactivateHost(wasMobile); activateHost(willBeMobile); }
     renderView(view);
   }
 
@@ -2131,25 +2176,55 @@ const AuthModal = (function () {
     if (panels) panels.bodyEl.classList.remove('am-single');
   }
 
-  function close() {
+  // Yalnızca mobil çekmecenin breadcrumb'ından ("‹ Menü") çağrılır (bkz. NavDrawer.showSubpage'e
+  // burada geçilen onBack) — masaüstünde hiçbir zaman tetiklenmez. close()'un AKSİNE çekmeceyi
+  // TAMAMEN kapatmaz, yalnızca alt sayfayı gizleyip ana menüye döner (bkz. kullanıcı isteği: "üstte
+  // Menü breadcrumb/back ile hamburger ana menüsüne dönülsün") — URL/history geri sarma close() ile
+  // BİREBİR aynı (aksi halde geri tuşu bu ekranı yeniden açardı).
+  function backToMenu() {
     currentView = null;
     if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
     else history.pushState({}, '', '/');
-    ModalShell.close();
-    unmountSingleColumn();
+    if (window.NavDrawer) window.NavDrawer.hideSubpage();
+    pushCountSinceOpen = 0;
+  }
+
+  function close() {
+    const mobile = currentHostIsMobile();
+    currentView = null;
+    if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
+    else history.pushState({}, '', '/');
+    deactivateHost(mobile);
     pushCountSinceOpen = 0;
   }
 
   function handlePopState(view) {
-    if (!view) { if (ModalShell.isOpen() && currentView !== null) { currentView = null; ModalShell.close(); unmountSingleColumn(); } return; }
+    if (!view) { if (isOpen()) { currentView = null; deactivateHost(currentHostIsMobile()); } return; }
     if (!isOpen()) { openedViaPush = false; open(view, { pushHistory: false }); return; }
     if (history.state && history.state.mimarlabModal === 'auth' && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
     if (view === currentView) return;
+    const wasMobile = currentHostIsMobile();
     currentView = view;
+    const willBeMobile = isMobileDrawer();
+    if (wasMobile !== willBeMobile) { deactivateHost(wasMobile); activateHost(willBeMobile); }
     renderView(view);
   }
+
+  // Bir görünüm açıkken viewport 960px kırılma noktasını geçerse (ör. tablet döndürme, tarayıcı
+  // penceresi yeniden boyutlandırma) içerik URL/history'e DOKUNULMADAN doğru host'a (ModalShell <->
+  // NavDrawer alt sayfası) yeniden mount edilir — bkz. kullanıcı isteği: "responsive geçiş düzgün
+  // çalışmalı".
+  window.addEventListener('resize', () => {
+    if (!isOpen() || !window.NavDrawer) return;
+    const wasMobile = currentHostIsMobile();
+    const willBeMobile = isMobileDrawer();
+    if (wasMobile === willBeMobile) return;
+    deactivateHost(wasMobile);
+    activateHost(willBeMobile);
+    renderView(currentView);
+  });
 
   function pathToView(pathname) {
     const path = pathname.replace(/\/$/, '') || '/';

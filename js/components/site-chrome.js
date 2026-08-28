@@ -57,7 +57,9 @@
       .nav-mobile-menu{
         display:flex; flex-direction:column;
         position:fixed; top:0; right:0; bottom:0; left:auto;
-        width:min(320px, 86vw); max-height:none; height:100%;
+        /* kullanıcı isteği (2026-08-28): tablet + mobilde çekmece ekranın %90'ını kaplasın — eski
+           320px/78vw üst sınırları tamamen kaldırıldı, tek bir oran her iki kırılma noktasında geçerli. */
+        width:90vw; max-height:none; height:100%;
         background:var(--paper-card); border:none;
         /* kullanıcı isteği (2026-08-28, Architonic ekran görüntüsü referans alınarak): çekmece sağ
            kenara yapışık kaldığından sağ köşeler zaten görünmüyor — yalnızca sol (menünün açık
@@ -65,25 +67,52 @@
         border-radius:28px 0 0 28px; padding:0; margin:0; min-width:0;
         box-shadow:-10px 0 32px rgba(15,19,26,0.22);
         transform:translateX(100%); transition:transform 0.3s ease;
-        z-index:130; overflow-y:auto; -webkit-overflow-scrolling:touch;
-      }
-      /* kullanıcı isteği (2026-08-28): tablet genişliklerinde çekmece en az sayfanın %75'ini kaplasın
-         — 320px'lik sabit üst sınır (yukarıdaki temel kural) telefonlarda yeterliyken tabletlerde
-         (ör. 768-960px) çekmeceyi orana göre çok dar bırakıyordu. */
-      @media (min-width:641px) and (max-width:960px){
-        .nav-mobile-menu{width:78vw;}
+        z-index:130;
+        /* kullanıcı isteği (2026-08-28): Hesabım/Aktivitelerim/İçeriklerim/Giriş Yap/Üye Ol/Rozet Al/
+           İade Et artık AYRI bir popup DEĞİL, bu ÇEKMECENİN İÇİNDE kayan bir "alt sayfa" (bkz. aşağıdaki
+           .nav-mobile-menu-panels/.nav-mobile-menu-main/.nav-mobile-menu-subpage) — kaydırma artık bu
+           İKİ İÇ panelin kendisinde olur, dıştaki çekmecenin KENDİSİ overflow:hidden olmalı, aksi halde
+           ekran dışındaki (henüz kaymamış) alt sayfa paneli çekmecede yatay bir kaydırma çubuğu yaratır. */
+        overflow:hidden;
       }
       .nav-mobile-menu.open{transform:translateX(0);}
       .nav-mobile-menu-head{
-        display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+        display:flex; align-items:center; justify-content:space-between; gap:10px; flex-shrink:0;
         padding:18px 16px 14px; border-bottom:1px solid var(--line);
       }
+      .nav-mobile-menu-head-left{display:flex; align-items:center; gap:10px; min-width:0;}
       .nav-mobile-menu-logo{height:22px; width:auto; display:block;}
+      /* Menü ana listesinden Hesabım/Giriş Yap vb. bir alt sayfaya geçilince (bkz. NavDrawer.showSubpage
+         aşağıda) logo yerine bu "‹ Menü" breadcrumb'u görünür olur — tıklanınca ana listeye döner,
+         çekmece KAPANMAZ (kullanıcı isteği: "üstte Menü breadcrumb/back ile hamburger ana menüsüne
+         dönülsün"). Çekmecenin sağındaki X ise her durumda çekmeceyi TAMAMEN kapatır (bkz. wireNavDrawer). */
+      .nav-mobile-breadcrumb{
+        display:none; align-items:center; gap:6px; background:none; border:none; padding:6px 4px;
+        margin:0; font-family:inherit; font-size:14.5px; font-weight:700; color:var(--ink); cursor:pointer;
+      }
+      .nav-mobile-breadcrumb:hover{color:var(--walnut);}
+      .nav-mobile-menu.subpage-active .nav-mobile-menu-logo{display:none;}
+      .nav-mobile-menu.subpage-active .nav-mobile-breadcrumb{display:flex;}
       .nav-mobile-menu-close{
         background:none; border:1px solid var(--line); border-radius:8px; padding:7px;
-        color:var(--ink); display:flex; align-items:center; justify-content:center;
+        color:var(--ink); display:flex; align-items:center; justify-content:center; flex-shrink:0;
       }
       .nav-mobile-menu-close:hover{background:var(--paper-alt);}
+      /* Ana menü listesi ve alt sayfa (Hesabım/Giriş Yap/Rozet Al vb.) AYNI çekmece içinde yan yana iki
+         panel olarak durur, .subpage-active sınıfı ikisini de yatayda kaydırır (bkz. kullanıcı isteği:
+         yeni popup yerine aynı drawer içinde alt sayfa) — panels sarmalayıcı overflow:hidden ile
+         kaymayan paneli tamamen gizler, her iki panel kendi İÇİNDE bağımsız kaydırılabilir. */
+      .nav-mobile-menu-panels{position:relative; flex:1; min-height:0; overflow:hidden;}
+      .nav-mobile-menu-main, .nav-mobile-menu-subpage{
+        position:absolute; inset:0; display:flex; flex-direction:column;
+        overflow-y:auto; -webkit-overflow-scrolling:touch;
+        transition:transform 0.3s ease;
+      }
+      .nav-mobile-menu-main{transform:translateX(0);}
+      .nav-mobile-menu-subpage{transform:translateX(100%);}
+      .nav-mobile-menu.subpage-active .nav-mobile-menu-main{transform:translateX(-100%);}
+      .nav-mobile-menu.subpage-active .nav-mobile-menu-subpage{transform:translateX(0);}
+      .nav-mobile-subpage-body{flex:1; min-height:0; padding:18px 16px 28px; box-sizing:border-box;}
       .nav-mobile-menu-links{padding:10px; flex:1;}
       .nav-mobile-menu-foot{padding:14px 16px 22px; border-top:1px solid var(--line); flex-shrink:0;}
       .nav-mobile-menu-foot .nav-mobile-cta{margin-top:0; display:flex; align-items:center; justify-content:center;}
@@ -183,17 +212,30 @@
     <div class="nav-mobile-overlay" id="nav-mobile-overlay"></div>
     <div class="nav-mobile-menu" id="nav-mobile-menu">
       <div class="nav-mobile-menu-head">
-        <img class="nav-mobile-menu-logo" src="${currentLogoSrc()}" alt="MimarLab">
+        <div class="nav-mobile-menu-head-left" id="nav-mobile-menu-head-left">
+          <img class="nav-mobile-menu-logo" id="nav-mobile-menu-logo" src="${currentLogoSrc()}" alt="MimarLab">
+          <button type="button" class="nav-mobile-breadcrumb" id="nav-mobile-breadcrumb" aria-label="Menüye dön">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Menü</span>
+          </button>
+        </div>
         <button type="button" class="nav-mobile-menu-close" id="nav-mobile-menu-close" aria-label="Kapat">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div class="nav-mobile-menu-links">
-        ${mobileLinks}
-      </div>
-      <div class="nav-mobile-menu-foot" id="nav-mobile-menu-foot">
-        <a class="nav-mobile-cta" href="giris-yap.html">Giriş Yap</a>
-        <a class="nav-mobile-cta nav-mobile-cta-secondary" href="uye-ol.html">Üye Ol</a>
+      <div class="nav-mobile-menu-panels" id="nav-mobile-menu-panels">
+        <div class="nav-mobile-menu-main" id="nav-mobile-menu-main">
+          <div class="nav-mobile-menu-links">
+            ${mobileLinks}
+          </div>
+          <div class="nav-mobile-menu-foot" id="nav-mobile-menu-foot">
+            <a class="nav-mobile-cta" href="giris-yap.html">Giriş Yap</a>
+            <a class="nav-mobile-cta nav-mobile-cta-secondary" href="uye-ol.html">Üye Ol</a>
+          </div>
+        </div>
+        <div class="nav-mobile-menu-subpage" id="nav-mobile-menu-subpage">
+          <div class="nav-mobile-subpage-body" id="nav-mobile-subpage-body"></div>
+        </div>
       </div>
     </div>
   </nav>`;
@@ -656,34 +698,112 @@
   // tablette hamburger artık üst menüde açılan küçük bir dropdown DEĞİL, sağdan kayarak giren tam
   // yükseklikte bir çekmece (drawer) — koyu bir overlay arkasını kaplar, kapatma X düğmesi ve alt
   // kısımda Giriş Yap düğmesi içerir (bkz. yukarıdaki headerHtml() içindeki YENİ drawer markup'ı).
-  function wireHamburger(){
+  //
+  // NavDrawer (2026-08-28 kullanıcı isteği): Hesabım/Aktivitelerim/İçeriklerim/Giriş Yap/Üye Ol/
+  // Rozet Al/İade Et artık tıklanınca AYRI bir ModalShell popup'ı DEĞİL, AYNI bu çekmecenin içinde
+  // kayan bir "alt sayfa" açar — js/components/auth-modal.js ve js/components/info-modal.js (Rozet
+  // Al/İade Et için, diğer InfoModal görünümleri hariç) mobil genişlikte kendi ModalShell.open()
+  // çağrısı yerine bu API'yi kullanır. Çekmecenin KENDİSİ (DOM/animasyon/Escape/overlay/X) burada,
+  // TEK sahipte kalır; auth/info modal dosyaları yalnızca içerik mount edip geri/kapama isteklerini
+  // (onBack/onRequestFullClose) buraya devreder — üçü de aynı history push/pop mantığını (bkz. o
+  // dosyalardaki open/swap/close) korur, yalnızca GÖRSEL barındırıcı (ModalShell vs. bu çekmece)
+  // değişir. window.NavDrawer olarak dışa açılır çünkü auth-modal.js/info-modal.js lazy-modals.js
+  // tarafından SONRADAN <script> enjeksiyonuyla yüklenir (bkz. o dosya) — bu modül ise site-chrome.js
+  // ile HER sayfada senkron/en erken yüklendiğinden global'e güvenle erişilebilir.
+  //
+  // gerçek bulgu: bu fonksiyon henüz ÇAĞRILMADAN (aşağıda headerMount.outerHTML ile markup DOM'a
+  // yazılıp nav-mobile-menu document.body'ye taşınmadan) çalıştırılırsa document.getElementById
+  // aramalarının HEPSİ null döner — bu yüzden eskiden burada yaşayan wireHamburger() gibi bu da
+  // yalnızca bir FONKSİYON TANIMI, gerçek çağrı dosya sonunda (mount'tan SONRA) yapılır.
+  function initNavDrawer(){
     const navHamburger = document.getElementById('nav-hamburger');
     const navMobileMenu = document.getElementById('nav-mobile-menu');
     const navMobileOverlay = document.getElementById('nav-mobile-overlay');
     const navMobileClose = document.getElementById('nav-mobile-menu-close');
-    if(!navHamburger || !navMobileMenu) return;
+    const navMobileBreadcrumb = document.getElementById('nav-mobile-breadcrumb');
+    const navMobileSubpageBody = document.getElementById('nav-mobile-subpage-body');
+    let subpageActive = false;
+    let subpageCloseHandler = null; // X/overlay/Escape ile "tam kapat" isteğinde çağrılır (bkz. showSubpage)
+    let subpageBackHandler = null; // breadcrumb "Menü" tıklamasında çağrılır (bkz. showSubpage)
+
     function openDrawer(){
+      if(!navMobileMenu) return;
       navMobileMenu.classList.add('open');
       if(navMobileOverlay) navMobileOverlay.classList.add('open');
       document.body.style.overflow = 'hidden';
     }
+    // Çekmeceyi HER durumda (ana menü ya da alt sayfa göstersin) tamamen kapatır — auth-modal.js/
+    // info-modal.js kendi close()'ları İÇİNDE (history geri sarma sonrası) bunu çağırır; doğrudan X/
+    // overlay/Escape'ten değil (bkz. requestClose aşağıda — önce alt sayfa sahibine haber verir).
     function closeDrawer(){
-      navMobileMenu.classList.remove('open');
+      if(!navMobileMenu) return;
+      navMobileMenu.classList.remove('open', 'subpage-active');
       if(navMobileOverlay) navMobileOverlay.classList.remove('open');
       document.body.style.overflow = '';
+      subpageActive = false;
+      subpageCloseHandler = null;
+      subpageBackHandler = null;
+      // gerçek bulgu: alt sayfa içeriği (ör. #am-panel/#im-panel) burada TEMİZLENMEZSE, aynı görünüm
+      // hemen ardından masaüstü genişliğinde ModalShell İÇİNDE AYNI id ile yeniden render edildiğinde
+      // (ör. resize ya da ardışık farklı bir bağlantı tıklaması) belgede İKİ tane aynı id'li eleman
+      // kalır — querySelector/getElementById bu ÇEKMECEDEKİ ESKİ (görünmez ama hâlâ DOM'da duran)
+      // kopyayı bulup yeni ModalShell popup'ının GÖRÜNMEYEN bir hayalet içerikle karışmasına yol açar.
+      if(navMobileSubpageBody) navMobileSubpageBody.innerHTML = '';
     }
-    navHamburger.addEventListener('click', ()=>{
-      if(navMobileMenu.classList.contains('open')) closeDrawer(); else openDrawer();
-    });
-    if(navMobileClose) navMobileClose.addEventListener('click', closeDrawer);
-    if(navMobileOverlay) navMobileOverlay.addEventListener('click', closeDrawer);
+    // Yalnızca alt sayfayı gizleyip ana menüye döner — çekmece AÇIK kalır (bkz. kullanıcı isteği:
+    // "breadcrumb/back ile hamburger ana menüsüne dönülsün", çekmecenin kendisi kapanmaz).
+    function hideSubpage(){
+      if(!navMobileMenu) return;
+      navMobileMenu.classList.remove('subpage-active');
+      subpageActive = false;
+      subpageCloseHandler = null;
+      subpageBackHandler = null;
+      // bkz. closeDrawer()'daki AYNI gerçek bulgu/gerekçe — ana menüye dönüldüğünde de eski alt sayfa
+      // içeriği (id çakışması ihtimaline karşı) hemen temizlenir.
+      if(navMobileSubpageBody) navMobileSubpageBody.innerHTML = '';
+    }
+    // opts.onBack: breadcrumb "Menü" tıklanınca. opts.onRequestFullClose: X/overlay/Escape ile
+    // TAMAMEN kapatma isteğinde. İkisi de auth-modal.js/info-modal.js'in KENDİ close()/backToMenu()
+    // fonksiyonlarıdır — bu modül URL/history hiçbir şey bilmez, yalnızca görsel host'tur.
+    function showSubpage(opts){
+      if(!navMobileMenu) return;
+      opts = opts || {};
+      openDrawer();
+      subpageActive = true;
+      subpageCloseHandler = opts.onRequestFullClose || null;
+      subpageBackHandler = opts.onBack || null;
+      navMobileMenu.classList.add('subpage-active');
+      if(navMobileBreadcrumb) navMobileBreadcrumb.focus();
+    }
+    function getSubpageBodyEl(){ return navMobileSubpageBody; }
+    function isSubpageActive(){ return subpageActive; }
+    function isDrawerOpen(){ return !!(navMobileMenu && navMobileMenu.classList.contains('open')); }
+
+    // X / dış tıklama / Escape — alt sayfa açıksa GERÇEK kapatma işini (history geri sarma dahil)
+    // onu mount eden modüle devreder (o da işini bitirince closeDrawer()'ı KENDİSİ çağırır); alt
+    // sayfa yoksa (yalnızca ana menü açık) doğrudan kapatılır.
+    function requestClose(){
+      if(subpageActive && subpageCloseHandler){ subpageCloseHandler(); return; }
+      closeDrawer();
+    }
+
+    if(navMobileBreadcrumb) navMobileBreadcrumb.addEventListener('click', ()=>{ if(subpageBackHandler) subpageBackHandler(); });
+    if(navHamburger && navMobileMenu){
+      navHamburger.addEventListener('click', ()=>{
+        if(navMobileMenu.classList.contains('open')) requestClose(); else openDrawer();
+      });
+    }
+    if(navMobileClose) navMobileClose.addEventListener('click', requestClose);
+    if(navMobileOverlay) navMobileOverlay.addEventListener('click', requestClose);
     // gerçek bulgu (denetim, 2026-08-24): mega-menü (nav-product-menu.js), arama önerileri paneli
     // (wireNavSearch aşağıda) ve her modal Escape ile kapanırken, sitedeki hemen her sayfada yer alan
     // bu mobil hamburger menüsü yalnızca dışarı tıklama/tekrar tıklama ile kapanıyordu — klavye
     // kullanıcıları (ve Escape'in her yerde çalışmasına alışmış herkes) için tutarsız bir boşluktu.
     document.addEventListener('keydown', (e)=>{
-      if(e.key === 'Escape' && navMobileMenu.classList.contains('open')) closeDrawer();
+      if(e.key === 'Escape' && navMobileMenu && navMobileMenu.classList.contains('open')) requestClose();
     });
+
+    return { openDrawer, closeDrawer, hideSubpage, showSubpage, getSubpageBodyEl, isSubpageActive, isDrawerOpen };
   }
 
   const headerMount = document.getElementById('site-header-mount');
@@ -702,7 +822,7 @@
   if(navMobileMenuEl) document.body.appendChild(navMobileMenuEl);
   if(navMobileOverlayEl) document.body.appendChild(navMobileOverlayEl);
   injectHeaderStyle();
-  wireHamburger();
+  window.NavDrawer = initNavDrawer();
   wireNavSearch();
 
   const navSearchVisualBtn = document.getElementById('nav-search-visual-btn');

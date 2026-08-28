@@ -1095,17 +1095,47 @@ const InfoModal = (function () {
   let openedViaPush = false;
   let pushCountSinceOpen = 0;
 
+  // kullanıcı isteği (2026-08-28): yalnızca Rozet Al/İade Et — İletişim/Hakkında/Gizlilik Politikası/
+  // Hizmet Şartları/Çerez Politikası/Kariyer'in HİÇBİRİ değil — tablet/mobilde (≤960px, bkz.
+  // site-chrome.js#NavDrawer AYNI kırılma noktası) artık ayrı bir ModalShell popup'ı yerine hamburger
+  // çekmecesinin İÇİNDE kayan bir alt sayfa olarak açılır (bkz. js/components/auth-modal.js#
+  // isMobileDrawer'daki AYNI mekanizma/gerekçe). Diğer beş görünüm HER genişlikte eskisi gibi
+  // ModalShell popup'ında kalmaya devam eder.
+  const MOBILE_DRAWER_VIEWS = new Set(['rozet-al', 'iade-et']);
+  function isMobileDrawer(view) {
+    return MOBILE_DRAWER_VIEWS.has(view) && !!(window.NavDrawer && window.matchMedia('(max-width:960px)').matches);
+  }
+  function currentHostIsMobile() {
+    return !!(window.NavDrawer && window.NavDrawer.isSubpageActive());
+  }
+  function activateHost(mobile) {
+    if (mobile) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
+    else ModalShell.open({ triggerEl: null, onRequestClose: close });
+  }
+  function deactivateHost(mobile) {
+    if (mobile) window.NavDrawer.closeDrawer();
+    else { ModalShell.close(); unmountSingleColumn(); }
+  }
+
   function renderView(view) {
     ensureStyles();
-    // bkz. js/components/modal-shell.js#claimContent — auth-modal.js#renderView'daki AYNI gerçek
-    // bulgu: sahip değiştiyse paneller zaten boşaltılmış/bodyEl temel sınıfa sıfırlanmış olur.
-    const panels = ModalShell.claimContent('info');
-    panels.bodyEl.classList.add('info-single');
-    panels.rightPanelEl.innerHTML = '';
+    const mobile = isMobileDrawer(view);
+    let hostEl;
+    if (mobile) {
+      hostEl = window.NavDrawer.getSubpageBodyEl();
+      hostEl.innerHTML = '';
+    } else {
+      // bkz. js/components/modal-shell.js#claimContent — auth-modal.js#renderView'daki AYNI gerçek
+      // bulgu: sahip değiştiyse paneller zaten boşaltılmış/bodyEl temel sınıfa sıfırlanmış olur.
+      const panels = ModalShell.claimContent('info');
+      panels.bodyEl.classList.add('info-single');
+      panels.rightPanelEl.innerHTML = '';
+      panels.leftPanelEl.innerHTML = '';
+      hostEl = panels.leftPanelEl;
+    }
     const wrap = document.createElement('div');
     wrap.id = 'im-panel';
-    panels.leftPanelEl.innerHTML = '';
-    panels.leftPanelEl.appendChild(wrap);
+    hostEl.appendChild(wrap);
     if (view === 'rozet-al') { wrap.innerHTML = rozetAlTemplate(); mountRozetAl(); }
     else if (view === 'iade-et') { wrap.innerHTML = iadeEtTemplate(); mountIadeEt(); }
     else if (view === 'iletisim') { wrap.innerHTML = iletisimTemplate(); wireIletisim(); }
@@ -1114,35 +1144,43 @@ const InfoModal = (function () {
     else if (view === 'hizmet-sartlari') { wrap.innerHTML = hizmetTemplate(); wireInPanelAnchors(wrap); }
     else if (view === 'cerez-politikasi') { wrap.innerHTML = cerezTemplate(); wireInPanelAnchors(wrap); }
     else { wrap.innerHTML = kariyerTemplate(); }
-    // denetim bulgusu (AUDIT-009): bkz. auth-modal.js#renderView'daki AYNI gerekçe — bu modal da
-    // document.title'ı değiştirmiyor, src/index.js#INFO_MODAL_META'daki başlıklarla (- MİMARLAB
-    // soneki hariç) tutarlı sabit bir Türkçe etiket haritası.
-    const INFO_VIEW_LABELS = {
-      'rozet-al': 'Rozet Satın Al', 'iade-et': 'Rozet İadesi Talep Et', 'iletisim': 'İletişim',
-      'hakkinda': 'Hakkında', 'gizlilik-politikasi': 'Gizlilik Politikası', 'hizmet-sartlari': 'Hizmet Şartları',
-      'cerez-politikasi': 'Çerez Politikası',
-    };
-    ModalShell.setLabel(INFO_VIEW_LABELS[view] || 'Kariyer');
-    ModalShell.scrollToTop();
+    if (mobile) {
+      hostEl.scrollTop = 0;
+    } else {
+      // denetim bulgusu (AUDIT-009): bkz. auth-modal.js#renderView'daki AYNI gerekçe — bu modal da
+      // document.title'ı değiştirmiyor, src/index.js#INFO_MODAL_META'daki başlıklarla (- MİMARLAB
+      // soneki hariç) tutarlı sabit bir Türkçe etiket haritası.
+      const INFO_VIEW_LABELS = {
+        'rozet-al': 'Rozet Satın Al', 'iade-et': 'Rozet İadesi Talep Et', 'iletisim': 'İletişim',
+        'hakkinda': 'Hakkında', 'gizlilik-politikasi': 'Gizlilik Politikası', 'hizmet-sartlari': 'Hizmet Şartları',
+        'cerez-politikasi': 'Çerez Politikası',
+      };
+      ModalShell.setLabel(INFO_VIEW_LABELS[view] || 'Kariyer');
+      ModalShell.scrollToTop();
+    }
   }
 
-  function isOpen() { return ModalShell.isOpen() && currentView !== null; }
+  function isOpen() { return currentView !== null; }
 
   function open(view, { pushHistory = true, triggerEl = null } = {}) {
     currentView = view;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
     if (pushHistory) history.pushState({ mimarlabModal: 'info', view, depth: 1 }, '', VIEW_PATH[view]);
-    ModalShell.open({ triggerEl, onRequestClose: close });
+    if (isMobileDrawer(view)) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
+    else ModalShell.open({ triggerEl, onRequestClose: close });
     renderView(view);
   }
 
   function swap(view) {
-    if (!ModalShell.isOpen()) return open(view, { pushHistory: true });
+    if (!isOpen()) return open(view, { pushHistory: true });
+    const wasMobile = currentHostIsMobile();
     currentView = view;
     const currentDepth = (history.state && history.state.mimarlabModal === 'info') ? history.state.depth : pushCountSinceOpen;
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'info', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
+    const willBeMobile = isMobileDrawer(view);
+    if (wasMobile !== willBeMobile) { deactivateHost(wasMobile); activateHost(willBeMobile); }
     renderView(view);
   }
 
@@ -1155,25 +1193,50 @@ const InfoModal = (function () {
     if (panels) panels.bodyEl.classList.remove('info-single');
   }
 
-  function close() {
+  // bkz. js/components/auth-modal.js#backToMenu — BİREBİR aynı gerekçe, yalnızca Rozet Al/İade Et'in
+  // mobil çekmece breadcrumb'ından ("‹ Menü") çağrılır.
+  function backToMenu() {
     currentView = null;
     if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
     else history.pushState({}, '', '/');
-    ModalShell.close();
-    unmountSingleColumn();
+    if (window.NavDrawer) window.NavDrawer.hideSubpage();
+    pushCountSinceOpen = 0;
+  }
+
+  function close() {
+    const mobile = currentHostIsMobile();
+    currentView = null;
+    if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
+    else history.pushState({}, '', '/');
+    deactivateHost(mobile);
     pushCountSinceOpen = 0;
   }
 
   function handlePopState(view) {
-    if (!view) { if (ModalShell.isOpen() && currentView !== null) { currentView = null; ModalShell.close(); unmountSingleColumn(); } return; }
+    if (!view) { if (isOpen()) { currentView = null; deactivateHost(currentHostIsMobile()); } return; }
     if (!isOpen()) { openedViaPush = false; open(view, { pushHistory: false }); return; }
     if (history.state && history.state.mimarlabModal === 'info' && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
     if (view === currentView) return;
+    const wasMobile = currentHostIsMobile();
     currentView = view;
+    const willBeMobile = isMobileDrawer(view);
+    if (wasMobile !== willBeMobile) { deactivateHost(wasMobile); activateHost(willBeMobile); }
     renderView(view);
   }
+
+  // bkz. js/components/auth-modal.js'in dosya sonundaki AYNI resize dinleyicisi/gerekçe — yalnızca
+  // Rozet Al/İade Et için (isMobileDrawer(currentView) diğer beş görünümde her zaman false döner).
+  window.addEventListener('resize', () => {
+    if (!isOpen() || !window.NavDrawer) return;
+    const wasMobile = currentHostIsMobile();
+    const willBeMobile = isMobileDrawer(currentView);
+    if (wasMobile === willBeMobile) return;
+    deactivateHost(wasMobile);
+    activateHost(willBeMobile);
+    renderView(currentView);
+  });
 
   function pathToView(pathname) {
     const path = pathname.replace(/\/$/, '') || '/';
