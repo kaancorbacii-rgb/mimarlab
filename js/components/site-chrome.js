@@ -303,12 +303,10 @@
          SARMALAYICISI yerine 6 öğe DOĞRUDAN grid'in çocuğu (satır-öncelikli otomatik yerleşim: h4/h4
          → satır1, p/p → satır2, action/action → satır3), her satırın yüksekliği iki sütundaki en uzun
          içeriğe göre PAYLAŞILA belirlenir (bağımsız iki flex sütunda metin uzunluğu farkı satırları
-         kaydırırdı). Ayırıcı çizgi de bu yüzden tekil bir ::before ile (satır sınırlarından bağımsız,
-         kesintisiz) çizilir. */
-      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:48px; align-items:start; position:relative;}
-      .footer-subscribe-inner::before{content:''; position:absolute; top:0; bottom:0; left:50%; width:1px; background:rgba(237,240,243,0.14);}
-      .footer-subscribe-join-title, .footer-subscribe-join-desc, .footer-subscribe-join-action{padding-right:48px;}
-      .footer-subscribe-news-title, .footer-newsletter-desc, .footer-subscribe-news-action{padding-left:48px;}
+         kaydırırdı). kullanıcı isteği (sonraki tur): ortadaki dikey ayırıcı çizgi kaldırıldı — sütunlar
+         artık yalnızca column-gap ile ayrılıyor, footer-top'un (Ana Menü/Topluluk/Kurumsal) AYNI
+         deseni kullandığı gibi. */
+      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:48px; align-items:start;}
       .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
       .footer-subscribe-btn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 26px; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; border-radius:100px; border:none; cursor:pointer; white-space:nowrap;}
       .footer-subscribe-btn:hover{opacity:0.9;}
@@ -356,18 +354,14 @@
       @media (max-width: 860px){
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
         .footer-brand{grid-column:auto;}
-        .footer-subscribe-inner{column-gap:24px; padding:26px 20px;}
-        .footer-subscribe-join-title, .footer-subscribe-join-desc, .footer-subscribe-join-action{padding-right:20px;}
-        .footer-subscribe-news-title, .footer-newsletter-desc, .footer-subscribe-news-action{padding-left:20px;}
+        /* kullanıcı isteği: tablet/mobilde sütun başları footer-top'un (Ana Menü/Topluluk/Kurumsal)
+           sütun başlarıyla AYNI hizadan başlasın — footer-top HER ZAMAN 32px yatay padding + 20px
+           column-gap kullanır (bkz. .footer-top{padding:48px 32px 32px;} temel kuralı, bu satırlarda
+           değişmez), o yüzden burada da BİREBİR aynı değerler kullanılıyor. */
+        .footer-subscribe-inner{column-gap:20px; padding:26px 32px;}
         .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:14.5px;}
       }
       @media (max-width: 560px){
-        /* kullanıcı isteği: sütunlar mobilde de KESİN %50-%50 kalsın (önceki 0.62/1.38 oranı
-           reddedildi) — divider hâlâ left:50%'de (temel kuraldan miras), input dar sütuna
-           sığması için ayrı bir min-width düşürme dışında ek bir sütun-oranı müdahalesi yok. */
-        .footer-subscribe-inner{column-gap:14px; padding:22px 14px;}
-        .footer-subscribe-join-title, .footer-subscribe-join-desc, .footer-subscribe-join-action{padding-right:14px;}
-        .footer-subscribe-news-title, .footer-newsletter-desc, .footer-subscribe-news-action{padding-left:14px;}
         .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:13px;}
         .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
         .footer-newsletter-input{height:34px; padding:0 12px;}
