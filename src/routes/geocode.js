@@ -26,13 +26,6 @@ function withTimeout(promise, ms) {
 export async function handleGeocodeRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
 
-  // Maliyet/kötüye kullanım koruması + Nominatim'in kullanım politikasına (makul istek hacmi)
-  // saygı: bu uç anahtarsız/ücretsiz üçüncü taraf servisi proxy'lediğinden mevcut hiçbir arama
-  // ucunda olmayan bir rate limit burada gerekli — bkz. src/routes/ai.js'teki AYNI desen.
-  if (!(await checkRateLimit(env, 'geocode', clientIp(request), 30, 5 * 60 * 1000))) {
-    return errorJson('Çok fazla konum araması yapıldı. Lütfen birkaç dakika sonra tekrar dene.', 429, { 'Retry-After': '300' });
-  }
-
   let target;
   if (url.pathname === '/api/geocode/search') {
     const q = (url.searchParams.get('q') || '').trim().slice(0, 200);
@@ -47,8 +40,25 @@ export async function handleGeocodeRoute(request, env, url) {
     return errorJson('Bulunamadı', 404);
   }
 
+  // Maliyet/kötüye kullanım koruması + Nominatim'in kullanım politikasına (makul istek hacmi)
+  // saygı: bu uç anahtarsız/ücretsiz üçüncü taraf servisi proxy'lediğinden mevcut hiçbir arama
+  // ucunda olmayan bir rate limit burada gerekli — bkz. src/routes/ai.js'teki AYNI desen. D1'e
+  // yazan bu kontrol ile Nominatim'e giden dış istek BİLEREK PARALEL başlatılır — art arda (önce
+  // D1 sonra ağ) çalıştırılsaydı toplam gecikme ikisinin TOPLAMI olurdu; gerçek bulgu (kullanıcı
+  // geri bildirimi): önceki sıralı sürüm "arama çok geç çalışıyor" hissi veriyordu. Limit
+  // gerçekten aşılırsa zaten başlatılmış Nominatim isteğinin sonucu kullanılmadan atılır (nadir
+  // bir durumda israf edilen tek bir dış istek, kabul edilebilir bir bedel) — asıl kazanç normal/
+  // limit-içi isteklerde gecikmeyi ikisinin TOPLAMI değil MAKSİMUMU yapmak.
+  const rateLimitPromise = checkRateLimit(env, 'geocode', clientIp(request), 30, 5 * 60 * 1000);
+  const fetchPromise = withTimeout(fetch(target, { headers: { 'User-Agent': NOMINATIM_USER_AGENT } }), GEOCODE_TIMEOUT_MS);
+
+  if (!(await rateLimitPromise)) {
+    fetchPromise.catch(() => {}); // sonucu kullanılmayacak isteğin unhandled rejection üretmesini önle
+    return errorJson('Çok fazla konum araması yapıldı. Lütfen birkaç dakika sonra tekrar dene.', 429, { 'Retry-After': '300' });
+  }
+
   try {
-    const res = await withTimeout(fetch(target, { headers: { 'User-Agent': NOMINATIM_USER_AGENT } }), GEOCODE_TIMEOUT_MS);
+    const res = await fetchPromise;
     if (!res.ok) return errorJson('Konum servisi şu anda yanıt vermiyor.', 502);
     const data = await res.json();
     // Aynı sorgu kısa süre içinde (farklı kullanıcılardan ya da aynı kullanıcının tekrar

@@ -241,6 +241,7 @@
   .map-search-results.show{display:block;}
   .map-search-result{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer; line-height:1.4;}
   .map-search-result:hover{background:var(--paper-alt);}
+  .map-search-result.selected{background:var(--paper-alt); font-weight:600;}
   .map-field{height:280px; border-radius:12px; overflow:hidden; border:1px solid var(--line); margin-top:10px;}
   .map-clear-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px;}
   .map-clear-btn{background:none; border:none; padding:0; font-size:11.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;}
@@ -424,13 +425,6 @@
             <div id="p-date-rows"></div>
           </div>
         </div>
-        <div class="form-row" id="p-publish-date-row" style="display:none;">
-          <div class="form-field">
-            <label for="p-publish-date">Yayın Tarihi <span class="opt">(yalnızca admin)</span></label>
-            <input type="date" id="p-publish-date" name="publishDate">
-            <div class="form-hint">Projenin listelerdeki/gönderilerdeki yerini bu tarih belirler. Boş bırakılırsa eklenme tarihine göre sıralanır.</div>
-          </div>
-        </div>
         <fieldset class="form-field">
           <legend>Konum</legend>
           <div class="form-row">
@@ -593,6 +587,14 @@
         </label>
         <p class="image-spec-hint">Görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir projeye en fazla 50 görsel yükleyebilirsin.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
+      </div>
+
+      <div class="form-row" id="p-publish-date-row" style="display:none;">
+        <div class="form-field">
+          <label for="p-publish-date">Yayın Tarihi <span class="opt">(yalnızca admin)</span></label>
+          <input type="date" id="p-publish-date" name="publishDate">
+          <div class="form-hint">Projenin listelerdeki/gönderilerdeki yerini bu tarih belirler. Boş bırakılırsa eklenme tarihine göre sıralanır.</div>
+        </div>
       </div>
 
       <button class="form-submit" type="submit">Projeyi Gönder</button>
@@ -906,7 +908,7 @@ async function runMapSearch(){
     if(token !== mapSearchToken) return; // yarış durumu: bu arada yeni bir arama başlatılmış
     const results = res.ok ? await res.json() : [];
     resultsBox.innerHTML = results.length
-      ? results.map((r,i) => `<div class="map-search-result" data-index="${i}">${escapeAttr(r.display_name)}</div>`).join('')
+      ? results.map((r,i) => `<div class="map-search-result${i===0 ? ' selected' : ''}" data-index="${i}">${escapeAttr(r.display_name)}</div>`).join('')
       : '<div class="map-search-result" style="cursor:default; color:var(--ink-soft);">Sonuç bulunamadı</div>';
     resultsBox.classList.add('show');
     resultsBox.querySelectorAll('[data-index]').forEach(el=>{
@@ -916,8 +918,19 @@ async function runMapSearch(){
         setMapMarker(parseFloat(r.lat), parseFloat(r.lon));
         resultsBox.classList.remove('show');
         input.value = r.display_name;
+        resultsBox.querySelectorAll('[data-index]').forEach(o => o.classList.toggle('selected', o === el));
       });
     });
+    // Ara/Enter'a basar basmaz EN İYİ eşleşmeyi (Nominatim'in ilk sonucu) doğrudan uygular (bkz.
+    // kullanıcı isteği: "Ara butonuna tıklayınca konumu hemen bulması lazım" — önceden marker'ı
+    // taşımak için AYRICA aşağıdaki listeden bir sonuca tıklamak gerekiyordu). Liste yine de
+    // görünür kalır (ilk satır "selected" işaretli) — en iyi eşleşme yanlışsa kullanıcı listeden
+    // farklı bir sonuca tıklayarak bu seçimi geçersiz kılabilir.
+    if(results.length){
+      const top = results[0];
+      setMapMarker(parseFloat(top.lat), parseFloat(top.lon));
+      input.value = top.display_name;
+    }
   }catch{
     resultsBox.classList.remove('show');
   }finally{
