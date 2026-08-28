@@ -243,6 +243,23 @@
 
   function footerHtml(){
     return `<footer class="site-footer">
+    <div class="footer-subscribe">
+      <div class="footer-subscribe-inner">
+        <div class="footer-subscribe-join">
+          <p class="footer-subscribe-join-text">MİMARLAB'da yok musun? Kişi veya firma bilgilerini hemen doldur.</p>
+          <a class="footer-subscribe-join-btn" href="uye-ol.html">Üye Ol</a>
+        </div>
+        <div class="footer-subscribe-news">
+          <h4 class="footer-subscribe-news-title">Bültenimize Abone Ol</h4>
+          <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
+          <form class="footer-newsletter-form" id="footer-newsletter-form">
+            <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
+            <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
+          </form>
+          <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="index.html">
@@ -253,15 +270,6 @@
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a><a href="duello.html">Düello</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a><a href="cerez-politikasi.html">Çerez Politikası</a></div>
-      <div class="footer-col footer-newsletter">
-        <h4>Bülten</h4>
-        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
-        <form class="footer-newsletter-form" id="footer-newsletter-form">
-          <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
-          <button type="submit" class="footer-newsletter-btn">Abone Ol</button>
-        </form>
-        <div class="footer-newsletter-msg" id="footer-newsletter-msg" role="status" aria-live="polite"></div>
-      </div>
     </div>
     <div class="footer-bottom">
       <div class="footer-social">
@@ -288,7 +296,16 @@
     const style = document.createElement('style');
     style.id = 'footer-extra-style';
     style.textContent = `
-      .footer-top{grid-template-columns: 1.15fr 0.75fr 0.85fr 0.95fr 1.15fr;}
+      .footer-subscribe{border-bottom:1px solid rgba(237,240,243,0.12);}
+      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:1fr 1fr; column-gap:48px; align-items:center;}
+      .footer-subscribe-join{padding-right:48px; border-right:1px solid rgba(237,240,243,0.14);}
+      .footer-subscribe-join-text{font-size:15px; line-height:1.55; color:var(--paper); margin:0 0 16px; max-width:340px;}
+      .footer-subscribe-join-btn{display:inline-block; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; padding:10px 26px; border-radius:100px;}
+      .footer-subscribe-join-btn:hover{opacity:0.9;}
+      .footer-subscribe-news{padding-left:48px;}
+      .footer-subscribe-news-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
+      .footer-subscribe-news .footer-newsletter-desc{max-width:340px;}
+      .footer-top{grid-template-columns: 1.3fr 0.9fr 1fr 1.15fr;}
       /* Alt satır: sosyal ikonlar sol kenara, telif hakkı ortaya, gece/gündüz düğmesi sağ kenara
          (bkz. kullanıcı isteği: "sol ve sağ hizayla eşitle") — grid'in dış iki sütunu 1fr olduğundan
          orta sütun (telif metni) sosyal/toggle genişliklerinden bağımsız her zaman TAM ortada kalır. */
@@ -333,6 +350,9 @@
       @media (max-width: 860px){
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px;}
         .footer-brand{grid-column:1 / -1;}
+        .footer-subscribe-inner{grid-template-columns:1fr; row-gap:28px; padding:28px 24px;}
+        .footer-subscribe-join{padding-right:0; padding-bottom:28px; border-right:none; border-bottom:1px solid rgba(237,240,243,0.14);}
+        .footer-subscribe-news{padding-left:0;}
       }
       /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
          gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:
