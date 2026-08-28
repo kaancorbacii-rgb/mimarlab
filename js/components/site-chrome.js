@@ -194,7 +194,7 @@
     </a>
     <div class="nav-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="f-search-topnav" placeholder="Ara..." aria-label="Ara">
+      <input type="text" id="f-search-topnav" placeholder="İhtiyacını yaz, bulmana yardımcı olalım..." aria-label="Ara">
       <button type="button" class="nav-search-visual-btn" id="nav-search-visual-btn" aria-label="Görsel ile ara">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2"/></svg>
       </button>
@@ -250,7 +250,7 @@
           <a class="footer-subscribe-join-btn" href="uye-ol.html">Üye Ol</a>
         </div>
         <div class="footer-subscribe-news">
-          <h4 class="footer-subscribe-news-title">Bültenimize Abone Ol</h4>
+          <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
           <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
           <form class="footer-newsletter-form" id="footer-newsletter-form">
             <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
@@ -348,11 +348,25 @@
       .footer-newsletter-msg.ok{color:#8FD6A8;}
       .footer-newsletter-msg.err{color:#E39B9B;}
       @media (max-width: 860px){
-        .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px;}
-        .footer-brand{grid-column:1 / -1;}
-        .footer-subscribe-inner{grid-template-columns:1fr; row-gap:28px; padding:28px 24px;}
-        .footer-subscribe-join{padding-right:0; padding-bottom:28px; border-right:none; border-bottom:1px solid rgba(237,240,243,0.14);}
-        .footer-subscribe-news{padding-left:0;}
+        .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
+        .footer-brand{grid-column:auto;}
+        .footer-subscribe-inner{column-gap:24px; padding:26px 20px;}
+        .footer-subscribe-join{padding-right:20px;}
+        .footer-subscribe-news{padding-left:20px;}
+        .footer-subscribe-join-text{font-size:13.5px;}
+        .footer-subscribe-news-title{font-size:14.5px;}
+      }
+      @media (max-width: 560px){
+        .footer-subscribe-inner{column-gap:14px; padding:22px 14px;}
+        .footer-subscribe-join{padding-right:14px;}
+        .footer-subscribe-news{padding-left:14px;}
+        .footer-subscribe-join-text{font-size:12px; margin-bottom:10px;}
+        .footer-subscribe-join-btn{padding:8px 16px; font-size:12px;}
+        .footer-subscribe-news-title{font-size:13px;}
+        .footer-subscribe-news .footer-newsletter-desc{display:none;}
+        .footer-newsletter-form{display:flex; flex-direction:column; gap:8px;}
+        .footer-newsletter-input{padding:0 14px; height:34px;}
+        .footer-newsletter-btn{position:static; width:100%; height:32px;}
       }
       /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
          gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:
@@ -542,7 +556,7 @@
         <button type="button" class="nav-search-modal-close" aria-label="Kapat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         <div class="nav-search-modal-input-row">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="nav-search-modal-input" placeholder="Neye ihtiyacınız olduğunu yazın – bulmanıza yardımcı olalım" aria-label="Ara">
+          <input type="text" id="nav-search-modal-input" placeholder="İhtiyacını yaz, bulmana yardımcı olalım..." aria-label="Ara">
         </div>
         <div class="nav-search-modal-section" id="nav-search-modal-body"></div>
         <div class="nav-search-modal-section">
