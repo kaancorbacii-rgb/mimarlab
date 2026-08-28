@@ -420,6 +420,9 @@ const ProjectModal = (function () {
     "Zonguldak":[41.4564,31.7987],
   };
   const ESRI_WORLD_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  // Uydu görüntüsünün üstüne il/ilçe/yerleşim adlarını çizen hibrit etiket katmanı (bkz. kullanıcı
+  // isteği: hibrit uydu haritası varsayılan) — proje-ekle.html/js/pages/proje.js İLE AYNI ikinci katman.
+  const ESRI_LABELS_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
 
   function mapViewForItem(item) {
     if (item.lat != null && item.lng != null) return { center: [item.lat, item.lng], zoom: 15 };
@@ -455,6 +458,7 @@ const ProjectModal = (function () {
     const { center, zoom } = mapViewForItem(item);
     const map = L.map(container, { attributionControl: false }).setView(center, zoom);
     L.tileLayer(ESRI_WORLD_IMAGERY_URL, { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(map);
+    L.tileLayer(ESRI_LABELS_URL, { maxZoom: 19 }).addTo(map);
     const marker = L.marker(center).addTo(map);
     return { map, marker };
   }

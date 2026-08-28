@@ -803,6 +803,13 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/
   attribution: 'Tiles &copy; Esri',
   maxZoom: 19,
 }).addTo(projectMap);
+// Uydu görüntüsünün üstüne il/ilçe/yerleşim adlarını çizen hibrit etiket katmanı (bkz. kullanıcı
+// isteği: hibrit uydu haritası varsayılan) — proje geneliyle AYNI ikinci katman (bkz. js/pages/proje.js,
+// js/components/project-modal.js). Marker'lar zaten ayrı bir Leaflet pane'de (markerPane) çizildiğinden
+// bu katmanın ÜSTÜNDE kalır, ekleme sırası yalnızca iki tile katmanı arasındaki sırayı etkiler.
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+}).addTo(projectMap);
 
 // il-ilce-data.js#IL_LIST/IL_ILCE karşısında Nominatim'in döndürdüğü il/ilçe adlarını eşler —
 // trLower (dd-il-search/dd-ilce-search filtrelerinde zaten kullanılan AYNI Türkçe-duyarlı küçük harfe

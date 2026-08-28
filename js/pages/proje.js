@@ -557,6 +557,11 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
           attribution: 'Tiles &copy; Esri',
           maxZoom: 19,
         }).addTo(leafletMap);
+        // Uydu görüntüsünün üstüne il/ilçe/yerleşim adlarını çizen hibrit etiket katmanı (bkz.
+        // kullanıcı isteği: hibrit uydu haritası varsayılan) — proje-ekle.html/project-modal.js İLE AYNI.
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+        }).addTo(leafletMap);
         syncMapMarkers(currentItems);
       });
     }
