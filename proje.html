@@ -343,12 +343,14 @@
   .view-toggle.is-map-view #view-toggle-map{order:2;}
 
   /* Harita görünümü — sol Filtreler kenar çubuğu yerinde kalır (bkz. kullanıcı isteği), yalnızca
-     sağdaki proje ızgarasının/sayfalamanın yerini tam genişlikte bir uydu haritası alır. Şimdilik
-     proje pinleri YOK (bkz. kullanıcı isteği: "sadece boş uydu haritası alanı"). */
+     sağdaki proje ızgarasının/sayfalamanın yerini tam genişlikte, o anki filtrelenmiş listedeki
+     koordinatlı projeler için pin'ler taşıyan gerçek bir Leaflet + Esri World Imagery uydu haritası
+     alır (bkz. js/pages/proje.js#syncMapMarkers). Harita js/pages/proje.js tarafından bu div'in
+     İÇİNE doğrudan L.map olarak kuruluyor (iframe değil), min-height container'ın kendi yüksekliğini
+     vermeye yeter. */
   .map-view-wrap{border-radius:14px; overflow:hidden; min-height:560px; background:var(--paper-alt);}
-  .map-view-wrap iframe{width:100%; height:100%; min-height:560px; border:0; display:block;}
   @media (max-width:720px){
-    .map-view-wrap, .map-view-wrap iframe{min-height:380px;}
+    .map-view-wrap{min-height:380px;}
   }
 
   .active-chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}

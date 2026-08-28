@@ -457,7 +457,7 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
-            p.photo_credit_url, p.build_status, p.concept_category, p.awards,
+            p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?

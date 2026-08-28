@@ -384,6 +384,10 @@ const ProjectModal = (function () {
   // Maps'in API anahtarı gerektirmeyen klasik "q=...&output=embed" gömme biçimi kullanılır (bkz.
   // kullanıcı isteği: "iframe ... göm"), t=k parametresi Uydu (satellite/hybrid) görünümünü zorlar.
   function buildMapQuery(item) {
+    // proje-ekle.html haritasından kaydedilmiş kesin koordinat varsa (bkz. kullanıcı isteği) metin
+    // aramasına hiç düşmeden doğrudan lat,lng kullanılır — il/ilçe metin araması yalnızca koordinatı
+    // olmayan (eski/legacy) projeler için fallback kalır.
+    if (item.lat != null && item.lng != null) return { query: `${item.lat},${item.lng}`, zoom: 15 };
     const loc = (typeof parseLocationFull === 'function') ? parseLocationFull(item.location || '') : { city: null, district: null };
     if (loc.district && loc.city) return { query: `${loc.district}, ${loc.city}, Türkiye`, zoom: 12 };
     if (loc.city) return { query: `${loc.city}, Türkiye`, zoom: 9 };

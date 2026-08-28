@@ -66,18 +66,21 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // origin'e gittiğinden connect-src'ye de eklendi. Düzeltme SONRASI canlıda ikinci bir örnekleme
 // (proje/ofis/mimar sayfaları, karışık gerçek+test trafiği, ~40sn) SIFIR ihlal buldu — bu temiz
 // örneklem üzerine Report-Only'den Enforce'a geçildi (bkz. kullanıcı isteği: Faz 4C kapanışı).
-// proje-ekle.html'deki opsiyonel harita konumu işaretleme (bkz. kullanıcı isteği) — gerçek Google
-// Maps JS API bir key + Google Cloud billing gerektirdiğinden (bu worker'ın secret listesinde
-// hiç Maps key'i yok, bkz. yukarıdaki ücretsiz maps.google.com iframe embed notu) yerine
-// Leaflet + OpenStreetMap kullanılıyor: unpkg.com Leaflet'in CSS/JS/marker ikon dosyalarını
-// sunar, *.tile.openstreetmap.org harita karolarını, nominatim.openstreetmap.org da arama
-// (geocoding) uç noktasını sağlar — üçü de anahtarsız/ücretsizdir.
+// proje-ekle.html'deki opsiyonel harita konumu işaretleme (bkz. kullanıcı isteği) — bir Google Maps
+// API key denendi ama key'in Cloud Console taraflı kısıtlamaları (Places/Geocoding API'lerin key
+// seviyesinde engellenmiş olması) yüzünden kullanıcı isteğiyle TAMAMEN anahtarsız/ücretsiz bir
+// yığına geçildi: Leaflet + Esri World Imagery (uydu karoları) + Nominatim (arama/ters jeokodlama).
+// unpkg.com Leaflet'in CSS/JS/marker ikon dosyalarını, server.arcgisonline.com Esri'nin uydu
+// karolarını, nominatim.openstreetmap.org da arama/geocoding uç noktasını sağlar — üçü de
+// anahtarsız/ücretsizdir. proje.html Harita görünümü de AYNI Leaflet+Esri yığınını kullanır (bkz.
+// js/pages/proje.js#loadLeaflet). project-modal.js'in Harita akordeonu hâlâ anahtarsız
+// "q=...&output=embed" gömme biçimini kullanıyor (bkz. frame-src, değişmedi).
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com https://unpkg.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https://unpkg.com https://*.tile.openstreetmap.org",
+  "img-src 'self' data: blob: https://unpkg.com https://server.arcgisonline.com https://services.arcgisonline.com",
   "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://static.cloudflareinsights.com https://nominatim.openstreetmap.org",
   "frame-src https://www.google.com https://maps.google.com",
   "object-src 'none'",

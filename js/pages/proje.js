@@ -15,6 +15,54 @@
 const PAGE_SIZE = 24;
 let currentPage = 1;
 
+// ---------- HARİTA GÖRÜNÜMÜ (bkz. kullanıcı isteği: Liste/Harita senkron koordinat aktarımı) ----------
+// currentItems: render()'ın en son çektiği (filtrelenmiş/sayfalanmış) proje listesi — Harita görünümü
+// AYRI bir "tüm projeler" uç noktası çağırmaz, Liste ile TAM OLARAK AYNI veriyi paylaşır (bkz.
+// wireViewToggle). leafletMap/mapMarkers yalnızca kullanıcı Harita sekmesine İLK kez geçtiğinde
+// (bkz. loadLeaflet) kurulur. Leaflet + Esri World Imagery (uydu karoları) — anahtarsız/ücretsiz,
+// bkz. proje-ekle.html'deki AYNI yığın/gerekçe (src/index.js CSP yorumu).
+let currentItems = [];
+let leafletMap = null;
+let mapMarkers = [];
+let leafletPromise = null;
+
+// proje.html Leaflet CSS/JS'i sayfa yüklenişinde HİÇ içermiyor (proje-ekle.html'in aksine) — script
+// tag'ı yalnızca kullanıcı Harita'ya İLK kez geçtiğinde dinamik eklenir, her /proje ziyaretinde değil.
+function loadLeaflet(){
+  if (leafletPromise) return leafletPromise;
+  leafletPromise = new Promise((resolve, reject) => {
+    if (window.L) { resolve(window.L); return; }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = () => resolve(window.L);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return leafletPromise;
+}
+
+// mapWrap henüz kurulmamışsa (Harita sekmesi hiç açılmadıysa) no-op — wireViewToggle map'i ilk
+// kurduğunda zaten currentItems'ın en güncel halini kendisi geçiriyor, burada TEKRAR çağırmaya
+// gerek yok; bu fonksiyon yalnızca map ZATEN AÇIKKEN filtre/sayfa değişince senkron kalmayı sağlar.
+function syncMapMarkers(items){
+  if (!leafletMap) return;
+  mapMarkers.forEach(m => leafletMap.removeLayer(m));
+  mapMarkers = [];
+  const points = [];
+  (items || []).forEach(p => {
+    if (p.lat == null || p.lng == null) return;
+    const marker = L.marker([p.lat, p.lng], { title: p.title }).addTo(leafletMap);
+    marker.on('click', () => ProjectModal.open(p.slug));
+    mapMarkers.push(marker);
+    points.push([p.lat, p.lng]);
+  });
+  if (points.length) leafletMap.fitBounds(points, { padding: [60, 60] });
+}
+
 // kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
 // resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /proje/:slug
 // ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK proje içeriğinin üzerine ProjectModal
@@ -375,6 +423,9 @@ async function render(){
   renderActiveChips();
   renderPagination(data.totalPages);
 
+  currentItems = data.items;
+  syncMapMarkers(currentItems);
+
   if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
   empty.style.display = 'none';
 
@@ -453,11 +504,13 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 
 // ---------- LİSTE / HARİTA GÖRÜNÜM TOGGLE'I ----------
 // bkz. kullanıcı isteği: Harita seçilince Sıralama dropdown'ı, aktif filtre chip'leri, kart ızgarası
-// ve sayfalama gizlenip yerine tüm alanı kaplayan boş bir Türkiye uydu haritası gelir; sol Filtreler
-// kenar çubuğu (bkz. .grid-sidebar, bu blok İÇİNDE değil) hiç dokunulmadan yerinde kalır. Harita
-// yalnızca ilk kez açıldığında yüklenir (bkz. project-modal.js#loadMapForCurrentItem İLE AYNI
-// gecikmeli-yükleme deseni) — Liste/Harita arasında ileri geri geçişte iframe'i tekrar tekrar
-// yeniden istemez.
+// ve sayfalama gizlenip yerine tüm alanı kaplayan, o anki filtrelenmiş listedeki koordinatlı
+// projeler için pin'ler taşıyan gerçek bir Leaflet + Esri World Imagery uydu haritası gelir (bkz.
+// syncMapMarkers); sol Filtreler kenar çubuğu (bkz. .grid-sidebar, bu blok İÇİNDE değil) hiç
+// dokunulmadan yerinde kalır. Leaflet CSS/JS'i yalnızca Harita İLK kez açıldığında dinamik eklenir
+// (bkz. project-modal.js#loadMapForCurrentItem İLE AYNI gecikmeli-yükleme deseni) — Liste/Harita
+// arasında ileri geri geçişte tekrar tekrar yeniden istenmez; sonraki her render() (filtre/sayfa
+// değişimi) ise syncMapMarkers ile marker'ları senkron tutar.
 (function wireViewToggle() {
   const toggleWrap = document.getElementById('view-toggle');
   const listBtn = document.getElementById('view-toggle-list');
@@ -498,8 +551,14 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
     });
     if (isMap && !mapLoaded) {
       mapLoaded = true;
-      const src = 'https://maps.google.com/maps?q=T%C3%BCrkiye&t=k&z=6&ie=UTF8&output=embed';
-      mapWrap.innerHTML = `<iframe src="${src}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Türkiye Haritası"></iframe>`;
+      loadLeaflet().then((L) => {
+        leafletMap = L.map(mapWrap).setView([39.0, 35.0], 6);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri',
+          maxZoom: 19,
+        }).addTo(leafletMap);
+        syncMapMarkers(currentItems);
+      });
     }
   }
   listBtn.addEventListener('click', () => setView('list'));
