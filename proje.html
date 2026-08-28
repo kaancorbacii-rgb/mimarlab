@@ -420,6 +420,91 @@
   .card-save-btn:hover{background:rgba(27,42,61,0.75);}
   .card-save-btn.saved{background:var(--accent); color:var(--ink);}
 
+  /* ---------- EN İYİ 100 SEKMESİ — sıralama satırları, en-iyi-100.html#.top100-list İLE BİREBİR
+     AYNI (bkz. kullanıcı isteği: "En İyi 100 sekmesi ekteki görseldekiyle bire bir aynı tasarımda
+     olsun") — Tip/Grup/Yer/Yıl filtreleri/arama/sıralama bu sayfanın ZATEN var olan sol filtre
+     çubuğu/#g-sort'undan geldiğinden (bkz. js/pages/proje.js#loadTop100/passesTop100ActiveFilters)
+     yalnızca satır tasarımı + Hızlı Puanla popup'ı buraya taşındı, en-iyi-100.html'in kendi
+     toolbar'ı (.top100-toolbar/.top100-filters/.top100-search-*) burada YOK. */
+  .top100-list{list-style:none; margin:0; padding:0; border-top:1px solid var(--line);}
+  .top100-row{display:flex; align-items:center; gap:16px; padding:14px 4px; border-bottom:1px solid var(--line-soft);}
+  .top100-rank-wrap{flex-shrink:0; width:34px; display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .top100-rank{font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:16px; color:var(--ink-soft); line-height:1;}
+  .top100-row.top3 .top100-rank{color:var(--accent); font-size:19px;}
+  .top100-delta{display:flex; align-items:center; justify-content:center;}
+  .top100-delta.up{color:var(--good, #2E9E5B);}
+  .top100-delta.down{color:var(--bad, #C0392B);}
+  .top100-delta.flat{color:var(--ink-soft); opacity:0.55;}
+  .top100-poster{flex-shrink:0; width:104px; aspect-ratio:4/3; border-radius:10px; overflow:hidden; position:relative; background:var(--paper-alt);}
+  .top100-poster img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .top100-poster-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:17px; font-weight:700;}
+  .top100-body{flex:1; min-width:0;}
+  .top100-name{display:block; font-size:15.5px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  a.top100-name-link:hover{color:var(--walnut); text-decoration:underline;}
+  .top100-submeta{margin-top:3px; font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .top100-desc{margin-top:4px; font-size:12.5px; line-height:1.4; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical;}
+  .top100-quick-actions{display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;}
+  .top100-action-btn{
+    position:static; width:auto; height:28px; box-sizing:border-box;
+    display:inline-flex; align-items:center; gap:5px;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+    padding:0 12px; font-size:11.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .top100-action-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .top100-action-btn.saved{background:var(--accent); color:var(--ink); border-color:var(--accent);}
+  .top100-rate-icon-filled{color:var(--accent);}
+  .top100-quick-actions .share-btn{height:28px !important; width:28px !important; min-width:28px !important;}
+  .top100-rating{flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:78px;}
+  .top100-avg{display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:15px; color:var(--ink);}
+  .top100-avg-star{color:var(--accent);}
+  .top100-votes{font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+
+  @media (max-width:560px){
+    .top100-row{gap:10px;}
+    .top100-poster{width:80px;}
+    .top100-rank-wrap{width:26px;}
+    .top100-rank{font-size:13.5px;}
+    .top100-name{font-size:13.5px;}
+    .top100-submeta{font-size:11.5px;}
+    .top100-rating{min-width:60px;}
+    .top100-avg{font-size:13px;}
+    .top100-save-label, .top100-rate-btn span{display:none;}
+    .top100-action-btn{width:28px !important; padding:0 !important; justify-content:center;}
+  }
+
+  /* Hızlı Puanla popup'ı — en-iyi-100.html#.rate-popup-* İLE BİREBİR AYNI. */
+  .rate-popup-overlay{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(20,24,30,0.62); backdrop-filter:blur(2px);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .rate-popup-overlay.open{display:flex;}
+  .rate-popup{
+    width:100%; max-width:320px; background:var(--paper-card); border-radius:16px;
+    padding:28px 24px 24px; position:relative; text-align:center;
+    box-shadow:0 24px 60px rgba(0,0,0,0.35);
+  }
+  .rate-popup-close{
+    position:absolute; top:10px; right:10px; background:none; border:none; color:var(--ink-soft);
+    padding:8px; cursor:pointer; display:flex; border-radius:50%;
+  }
+  .rate-popup-close:hover{color:var(--ink); background:var(--paper-alt);}
+  .rate-popup-eyebrow{font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent);}
+  .rate-popup-title{margin-top:4px; font-size:17px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .rate-popup-stars{display:flex; align-items:center; justify-content:center; gap:6px; margin:20px 0 22px;}
+  .rate-popup-star{background:none; border:none; padding:2px; color:var(--line); cursor:pointer; display:flex; transition:transform .1s ease;}
+  .rate-popup-star:hover{transform:scale(1.15);}
+  .rate-popup-star svg{color:inherit; pointer-events:none;}
+  .rate-popup-star.filled{color:var(--accent);}
+  .rate-popup-submit{
+    width:100%; height:44px; border-radius:100px; border:none; background:var(--ink); color:var(--paper-card);
+    font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s ease;
+  }
+  .rate-popup-submit:disabled{opacity:0.4; cursor:not-allowed;}
+  .rate-popup-submit:not(:disabled):hover{opacity:0.88;}
+  .rate-popup-notice{margin-top:12px; font-size:12.5px; color:var(--bad, #C0392B); display:none;}
+  .rate-popup-notice.show{display:block;}
+
   .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); font-size:14px; display:none;}
 
   .pagination{
@@ -1031,10 +1116,25 @@
       </div>
       <div class="active-chips" id="active-chips"></div>
       <div class="content-grid" id="card-grid"></div>
+      <ol class="top100-list" id="top100-list" style="display:none;"></ol>
       <div class="empty-state" id="empty-state">Bu kritere uyan proje bulunamadı.</div>
       <div class="pagination" id="pagination"></div>
       <div class="map-view-wrap" id="map-view-wrap" style="display:none;"></div>
     </main>
+  </div>
+
+  <!-- Hızlı Puanla popup'ı (En İyi 100 sekmesi) — en-iyi-100.html#rate-popup-overlay İLE BİREBİR AYNI. -->
+  <div class="rate-popup-overlay" id="rate-popup-overlay">
+    <div class="rate-popup" role="dialog" aria-modal="true" aria-labelledby="rate-popup-title">
+      <button type="button" class="rate-popup-close" id="rate-popup-close" aria-label="Kapat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="rate-popup-eyebrow">Puanla</div>
+      <div class="rate-popup-title" id="rate-popup-title"></div>
+      <div class="rate-popup-stars" id="rate-popup-stars"></div>
+      <button type="button" class="rate-popup-submit" id="rate-popup-submit" disabled>Gönder</button>
+      <div class="rate-popup-notice" id="rate-popup-notice"></div>
+    </div>
   </div>
 
   <footer id="site-footer-mount"></footer>

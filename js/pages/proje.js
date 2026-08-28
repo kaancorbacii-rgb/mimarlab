@@ -572,6 +572,299 @@ function renderCards(items){
   wireSaveButtons('project');
 }
 
+// ---------- EN İYİ 100 SATIR TASARIMI — en-iyi-100.html#renderTop100() İLE BİREBİR AYNI (bkz.
+// kullanıcı isteği: "proje sayfasındaki En İyi 100 sekmesi ekteki görseldekiyle bire bir aynı
+// tasarımda olsun") — yalnızca satır şablonu buraya taşındı, Tip/Grup/Yer/Yıl filtreleri/arama/
+// sıralama bu sayfanın ZATEN var olan sol filtre çubuğu/#g-sort'undan gelir (bkz. loadTop100/
+// passesTop100ActiveFilters/sortTop100Items yukarısı), en-iyi-100.html'in kendi toolbar'ı burada yok.
+const DELTA_ICONS = {
+  up: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l9 14H3z"/></svg>',
+  down: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20 3 6h18z"/></svg>',
+  flat: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"/></svg>',
+};
+const ICON_SAVE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>';
+const ICON_STAR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5l3.09 6.26 6.91 1-5 4.87 1.18 6.87L12 17.98l-6.18 3.52L7 14.63l-5-4.87 6.91-1L12 2.5Z"/></svg>';
+const ICON_STAR_FILLED = '<svg class="top100-rate-icon-filled" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l3.09 6.26 6.91 1-5 4.87 1.18 6.87L12 17.98l-6.18 3.52L7 14.63l-5-4.87 6.91-1L12 2.5Z"/></svg>';
+
+// en-iyi-100.html#ROMAN_BEFORE_RE/firstSentence İLE BİREBİR AYNI — Roma rakamlı padişah/hükümdar
+// sıra numaralarındaki ("I. Justinianus" vb.) kısaltma noktasını cümle sonu SAYMAZ.
+const ROMAN_BEFORE_RE = /(^|\s)[IVXLCDM]{1,4}$/;
+function firstSentence(text){
+  if(!text) return '';
+  const t = text.trim();
+  let end = -1;
+  for(let i = 0; i < t.length && i < 260; i++){
+    const ch = t[i];
+    if(ch === '.' || ch === '!' || ch === '?'){
+      const before = t.slice(0, i);
+      if(ROMAN_BEFORE_RE.test(before) || /\d$/.test(before)) continue;
+      end = i + 1;
+      break;
+    }
+  }
+  if(end === -1) return t.length > 160 ? t.slice(0, 160).trim() + '…' : t;
+  return t.slice(0, end);
+}
+
+const TOP100_EAGER_ROW_COUNT = 4;
+function renderTop100Rows(items){
+  const list = document.getElementById('top100-list');
+  const rows = items.map((item, i) => {
+    const rankClass = item.rank <= 3 ? ' top3' : '';
+    const posterImgAttrs = i < TOP100_EAGER_ROW_COUNT ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" fetchpriority="low" decoding="async"';
+    const posterInner = item.image
+      ? `<img src="${escapeAttr(cdnImg(item.image, 220))}" alt="" ${posterImgAttrs}>`
+      : `<div class="top100-poster-placeholder" style="background:${officeColor(item.name)}">${escapeHtml(initials(item.name))}</div>`;
+    const posterHtml = item.slug
+      ? `<a class="top100-poster-link top100-poster" href="/proje/${encodeURIComponent(item.slug)}">${posterInner}</a>`
+      : `<span class="top100-poster">${posterInner}</span>`;
+    const loc = item.location ? parseLocation(item.location) : null;
+    const submetaParts = [];
+    if(loc && loc.city) submetaParts.push(loc.city);
+    if(item.projectDate) submetaParts.push(item.projectDate);
+    const submeta = submetaParts.join(' · ');
+    const desc = firstSentence(item.description);
+    const nameHtml = item.slug
+      ? `<a class="top100-name-link" href="/proje/${encodeURIComponent(item.slug)}">${escapeHtml(item.name)}</a>`
+      : escapeHtml(item.name);
+    const quickActions = item.slug
+      ? `<span class="top100-quick-actions">` +
+          `<button class="top100-action-btn top100-rate-btn" type="button" data-slug="${escapeAttr(item.slug)}" data-name="${escapeAttr(item.name)}" aria-label="Puanla">${ICON_STAR}<span>Puanla</span></button>` +
+          `<button class="card-save-btn top100-action-btn" type="button" data-key="${escapeAttr(item.slug)}" data-title="${escapeAttr(item.name)}" data-meta="${escapeAttr(submeta)}" data-image="${escapeAttr(item.image || '')}" data-href="/proje/${encodeURIComponent(item.slug)}" aria-label="Kaydet">${ICON_SAVE}<span class="top100-save-label">Kaydet</span></button>` +
+          `<span class="top100-share-slot" id="top100-share-slot-${item.rank}"></span>` +
+        `</span>`
+      : '';
+    return `<li class="top100-row${rankClass}" data-slug="${escapeAttr(item.slug || '')}" data-rank="${item.rank}" data-avg="${item.avg}" data-count="${item.count}">` +
+      `<span class="top100-rank-wrap">` +
+        `<span class="top100-rank">${item.rank}</span>` +
+        `<span class="top100-delta ${item.delta}" title="${item.delta === 'up' ? 'Sıralamada yükseldi' : item.delta === 'down' ? 'Sıralamada düştü' : 'Sıralaması sabit'}">${DELTA_ICONS[item.delta]}</span>` +
+      `</span>` +
+      posterHtml +
+      `<span class="top100-body">` +
+        `<span class="top100-name">${nameHtml}</span>` +
+        (submeta ? `<span class="top100-submeta">${escapeHtml(submeta)}</span>` : '') +
+        (desc ? `<span class="top100-desc">${escapeHtml(desc)}</span>` : '') +
+        quickActions +
+      `</span>` +
+      `<span class="top100-rating">` +
+        `<span class="top100-avg"><span class="top100-avg-star">★</span> ${item.avg.toFixed(2)}</span>` +
+        `<span class="top100-votes">${item.count} oy</span>` +
+      `</span>` +
+    `</li>`;
+  }).join('');
+  list.innerHTML = rows;
+  wireTop100QuickActions(items);
+}
+
+// save-widget.js/rating-widget.js/share-button.js İLE AYNI kayıt/puan/paylaş bileşenlerini satırlara
+// bağlar — proje.js bu üçünden SONRA defer ile yüklendiğinden (bkz. proje.html script sırası)
+// en-iyi-100.html'deki whenReady()/domReady koruması burada gerekmiyor, globaller garanti tanımlı.
+function wireTop100QuickActions(items){
+  if(typeof wireSaveButtons === 'function') wireSaveButtons('project');
+  paintRatedTop100Stars();
+  if(typeof ShareWidget !== 'undefined'){
+    items.forEach(item => {
+      if(!item.slug) return;
+      const slot = document.getElementById('top100-share-slot-' + item.rank);
+      if(!slot) return;
+      slot.outerHTML = ShareWidget.html('top100-share-' + item.rank);
+      ShareWidget.wire('top100-share-' + item.rank, () => ({ title: item.name, url: 'https://mimarlab.com/proje/' + item.slug }));
+    });
+  }
+}
+
+// İsim/görsele tıklayınca proje modalı açılsın (bkz. #card-grid'in AYNI deseni yukarısı), Puanla
+// düğmesi hızlı puanlama popup'ını açsın (bkz. aşağıdaki openRatePopup) — TEK delege dinleyici,
+// #top100-list konteynerinin kendisi hiç değişmediğinden bir kez bağlanması yeterli.
+document.getElementById('top100-list').addEventListener('click', (e) => {
+  if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const rateBtn = e.target.closest('.top100-rate-btn');
+  if(rateBtn){
+    e.preventDefault();
+    openRatePopup(rateBtn.dataset.slug, rateBtn.dataset.name);
+    return;
+  }
+  if(e.target.closest('.card-save-btn') || e.target.closest('.share-btn')) return;
+  const a = e.target.closest('a.top100-name-link, a.top100-poster-link');
+  if(!a) return;
+  const m = (a.getAttribute('href') || '').match(/^\/proje\/([^/?#]+)/);
+  if(!m) return;
+  e.preventDefault();
+  ProjectModal.open(decodeURIComponent(m[1]), { triggerEl: a });
+});
+
+// ---------- HIZLI PUANLA POPUP'I — en-iyi-100.html#Hızlı Puanla popup'ı İLE BİREBİR AYNI davranış
+// (bkz. kullanıcı isteği). Sunucu tarafı yıldız ikonu/oturum önbelleği rating-widget.js'in dışa açtığı
+// starSvg()/loadMyRatings()/myRatingsPromise globallerinden ödünç alınır.
+const PENDING_TOP100_RATING_KEY = 'mimarlab-pending-top100-rating';
+const ratePopupOverlay = document.getElementById('rate-popup-overlay');
+const ratePopupTitle = document.getElementById('rate-popup-title');
+const ratePopupStars = document.getElementById('rate-popup-stars');
+const ratePopupSubmit = document.getElementById('rate-popup-submit');
+const ratePopupNotice = document.getElementById('rate-popup-notice');
+let ratePopupSlug = null;
+let ratePopupSelected = 0;
+let ratePopupHover = 0;
+
+function buildRatePopupStars(){
+  let html = '';
+  for(let i = 1; i <= 5; i++){
+    html += `<button type="button" class="rate-popup-star" data-value="${i}" aria-label="${i} yıldız">${starSvg(true, 30)}</button>`;
+  }
+  ratePopupStars.innerHTML = html;
+}
+buildRatePopupStars();
+function paintRatePopupStars(){
+  const eff = ratePopupHover || ratePopupSelected;
+  ratePopupStars.querySelectorAll('.rate-popup-star').forEach(btn => {
+    const v = parseInt(btn.dataset.value, 10);
+    btn.classList.toggle('filled', v <= eff);
+  });
+}
+ratePopupStars.addEventListener('mouseover', (e) => {
+  const btn = e.target.closest('.rate-popup-star');
+  if(!btn) return;
+  ratePopupHover = parseInt(btn.dataset.value, 10);
+  paintRatePopupStars();
+});
+ratePopupStars.addEventListener('mouseleave', () => { ratePopupHover = 0; paintRatePopupStars(); });
+ratePopupStars.addEventListener('click', (e) => {
+  const btn = e.target.closest('.rate-popup-star');
+  if(!btn) return;
+  ratePopupSelected = parseInt(btn.dataset.value, 10);
+  ratePopupSubmit.disabled = false;
+  paintRatePopupStars();
+});
+
+function closeRatePopup(){
+  ratePopupOverlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('rate-popup-close').addEventListener('click', closeRatePopup);
+ratePopupOverlay.addEventListener('click', (e) => { if(e.target === ratePopupOverlay) closeRatePopup(); });
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && ratePopupOverlay.classList.contains('open')) closeRatePopup();
+});
+
+async function openRatePopup(slug, name){
+  ratePopupSlug = slug;
+  ratePopupSelected = 0;
+  ratePopupHover = 0;
+  ratePopupTitle.textContent = name;
+  ratePopupNotice.textContent = '';
+  ratePopupNotice.classList.remove('show');
+  ratePopupSubmit.disabled = true;
+  ratePopupSubmit.textContent = 'Gönder';
+  paintRatePopupStars();
+  ratePopupOverlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Daha önce puanladıysa popup açılışında kendi puanını görsün — oturum kapalıyken loadMyRatings()
+  // sessizce boş bir Map döner (bkz. rating-widget.js).
+  try{
+    const mine = await loadMyRatings();
+    if(ratePopupSlug !== slug) return; // bu arada başka bir satır açılmışsa bayat sonucu ATLA
+    const val = mine.get('project:' + slug);
+    if(val){ ratePopupSelected = val; ratePopupSubmit.disabled = false; paintRatePopupStars(); }
+  }catch(e){}
+}
+
+async function submitTop100Rating(slug, stars){
+  return fetch('/api/ratings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetType: 'project', targetId: slug, stars }),
+  });
+}
+
+// Hızlı oy verince puan/oy sayısı VE listedeki sıra anında güncellensin diye /api/public/top100
+// (önbelleksiz) yeniden çekilip TÜM liste tazelenir — aktif filtre/sıralama seçimleri korunur (bkz.
+// en-iyi-100.html#refreshTop100AfterRating İLE AYNI gerekçe: tek bir satırın istemci tarafında elle
+// yeniden hesaplanması diğer 99 satırın güncel puanını bilmediğinden güvenilir değil).
+function refreshTop100AfterRating(){
+  myRatingsPromise = null;
+  top100LoadPromise = null;
+  loadTop100().then(() => { if(top100ViewActive) render(); });
+}
+
+function paintRatedTop100Stars(){
+  if(typeof loadMyRatings !== 'function') return;
+  loadMyRatings().then(mine => {
+    document.querySelectorAll('.top100-rate-btn').forEach(btn => {
+      const slug = btn.dataset.slug;
+      if(!slug) return;
+      const rated = mine.get('project:' + slug);
+      const icon = btn.querySelector('svg');
+      if(!icon) return;
+      if(rated && !icon.classList.contains('top100-rate-icon-filled')) icon.outerHTML = ICON_STAR_FILLED;
+      else if(!rated && icon.classList.contains('top100-rate-icon-filled')) icon.outerHTML = ICON_STAR;
+    });
+  }).catch(() => {});
+}
+
+// bkz. en-iyi-100.html#ensureAuthModal İLE AYNI gerekçe — AuthModal büyük (118KB) olduğundan proje.html
+// da js/components/lazy-modals.js ile TEMBEL yükler (bkz. o dosya), doğrudan <script> etiketi yok.
+function ensureAuthModal(cb){
+  if(window.AuthModal){ cb(window.AuthModal); return; }
+  const s = document.createElement('script');
+  s.src = 'js/components/auth-modal.js';
+  s.onload = () => cb(window.AuthModal);
+  document.head.appendChild(s);
+}
+
+ratePopupSubmit.addEventListener('click', async () => {
+  if(!ratePopupSelected || !ratePopupSlug) return;
+  const slug = ratePopupSlug, stars = ratePopupSelected;
+  ratePopupSubmit.disabled = true;
+  ratePopupSubmit.textContent = 'Gönderiliyor…';
+  let res;
+  try{
+    res = await submitTop100Rating(slug, stars);
+  }catch(e){
+    ratePopupNotice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+    ratePopupNotice.classList.add('show');
+    ratePopupSubmit.disabled = false;
+    ratePopupSubmit.textContent = 'Gönder';
+    return;
+  }
+  if(res.status === 401){
+    // Kişi hesabına girmeden Gönder'e bastı — puanı kuyruğa al, giriş popup'ını aç (bkz. kullanıcı
+    // isteği, en-iyi-100.html'deki AYNI davranış). Giriş/Üye Ol başarılı olduğunda auth-nav.js'in
+    // yaydığı 'mimarlab:authchange' bu puanı otomatik gönderip listeyi tazeler.
+    try{ sessionStorage.setItem(PENDING_TOP100_RATING_KEY, JSON.stringify({ slug, stars })); }catch(e){}
+    closeRatePopup();
+    ensureAuthModal(Modal => { if(Modal) Modal.open('login'); });
+    return;
+  }
+  if(res.ok){
+    try{ sessionStorage.removeItem(PENDING_TOP100_RATING_KEY); }catch(e){}
+    closeRatePopup();
+    refreshTop100AfterRating();
+  } else {
+    ratePopupNotice.textContent = 'Puan gönderilemedi, lütfen tekrar dene.';
+    ratePopupNotice.classList.add('show');
+    ratePopupSubmit.disabled = false;
+    ratePopupSubmit.textContent = 'Gönder';
+  }
+});
+
+function trySubmitPendingTop100Rating(){
+  let raw;
+  try{ raw = sessionStorage.getItem(PENDING_TOP100_RATING_KEY); }catch(e){ raw = null; }
+  if(!raw) return;
+  let pending;
+  try{ pending = JSON.parse(raw); }catch(e){ pending = null; }
+  if(!pending || !pending.slug || !pending.stars) return;
+  try{ sessionStorage.removeItem(PENDING_TOP100_RATING_KEY); }catch(e){}
+  submitTop100Rating(pending.slug, pending.stars).then(res => { if(res.ok) refreshTop100AfterRating(); }).catch(() => {});
+}
+window.addEventListener('mimarlab:authchange', trySubmitPendingTop100Rating);
+// Sayfa AÇILIŞINDA da kontrol edilir — Google/LinkedIn ile giriş next=%2F... üzerinden sayfayı
+// YENİDEN yüklediğinden, o akışta 'mimarlab:authchange' bu sayfada YAKALANAMAZ (bkz. en-iyi-100.html
+// İLE AYNI gerekçe).
+if(typeof savedWidgetReady !== 'undefined'){
+  savedWidgetReady.then(() => { if(currentUser) trySubmitPendingTop100Rating(); });
+}
+
 // render() — normal (Liste) görünümde /api/projects'ten yalnızca mevcut sayfanın kartlarını çeker
 // (bkz. kullanıcı isteği: "Her sayfa geçişinde sadece o sayfadaki proje verisini çek ve render et"),
 // En İyi 100 sekmesi aktifken (top100ViewActive) İSE TOP100_ITEMS'ı (bkz. loadTop100, tek seferlik,
@@ -582,13 +875,15 @@ let renderRequestId = 0;
 async function render(){
   const myRequest = ++renderRequestId;
   const grid = document.getElementById('card-grid');
+  const top100List = document.getElementById('top100-list');
   const empty = document.getElementById('empty-state');
   grid.style.opacity = '0.5';
+  top100List.style.opacity = '0.5';
 
   if(top100ViewActive){
     await loadTop100();
     if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
-    grid.style.opacity = '1';
+    top100List.style.opacity = '1';
     const filtered = (TOP100_ITEMS || []).filter(it => passesTop100ActiveFilters(it) && passesTop100Search(it));
     const sorted = sortTop100Items(filtered);
     const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -598,9 +893,9 @@ async function render(){
     renderActiveChips();
     renderPagination(totalPages);
     currentItems = pageItems;
-    if(pageItems.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
+    if(pageItems.length === 0){ top100List.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
     empty.style.display = 'none';
-    renderCards(pageItems);
+    renderTop100Rows(pageItems);
     return;
   }
 
@@ -691,10 +986,11 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   const mapWrap = document.getElementById('map-view-wrap');
   const toggledEls = [
     document.getElementById('active-chips'),
-    document.getElementById('card-grid'),
     document.getElementById('empty-state'),
     document.getElementById('pagination'),
   ].filter(Boolean);
+  const cardGridEl = document.getElementById('card-grid');
+  const top100ListEl = document.getElementById('top100-list');
   if (!listBtn || !mapBtn || !top100Btn || !sortWrap || !mapWrap) return;
 
   let mapLoaded = false;
@@ -724,6 +1020,14 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
     }
     sortWrap.style.display = isMap ? 'none' : '';
     mapWrap.style.display = isMap ? '' : 'none';
+    // #card-grid (Liste) ve #top100-list (En İyi 100) ARTIK ayrı elemanlar (bkz. kullanıcı isteği:
+    // top100 satırları en-iyi-100.html'in .top100-list tasarımıyla bire bir aynı olsun) — hangisinin
+    // görünür olacağı burada AÇIKÇA hesaplanır, aşağıdaki toggledEls'in dataset-cache'li restore
+    // deseninden BİLEREK dışarıda tutulur (o desen yalnızca "map açıkken sakla, kapanınca geri getir"
+    // için doğru; iki farklı görünüm arasında geçişte pmPrevDisplay bayat bir değeri yanlışlıkla geri
+    // yazabilirdi, bkz. gerçek bulgu).
+    if (cardGridEl) cardGridEl.style.display = (!isMap && !isTop100) ? '' : 'none';
+    if (top100ListEl) top100ListEl.style.display = (!isMap && isTop100) ? '' : 'none';
     // render()'ın kendi mantığı (bkz. yukarısı: empty.style.display='block'/'none') her filtre/sayfa
     // değişiminde bu elemanların display'ini BAĞIMSIZ olarak yönetiyor — Harita'ya geçerken önceki
     // inline değeri kaydedip Liste'ye dönüldüğünde AYNEN geri koymak, render()'ı burada taklit etmeye

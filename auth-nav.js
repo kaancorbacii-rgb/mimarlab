@@ -32,10 +32,16 @@
       .nav-avatar-wrap{position:relative;}
       .nav-avatar{display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:100px; padding:5px 14px 5px 5px; background:var(--paper-card); font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
       .nav-avatar-circle{width:28px; height:28px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
-      .nav-avatar-menu{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; min-width:190px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column;}
+      .nav-avatar-menu{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; min-width:240px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column;}
       .nav-avatar-menu.open{display:flex;}
-      .nav-avatar-menu a, .nav-avatar-menu button{display:block; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:500; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer;}
+      .nav-avatar-menu a, .nav-avatar-menu button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:500; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer;}
       .nav-avatar-menu a:hover, .nav-avatar-menu button:hover{background:var(--paper-alt);}
+      .nav-avatar-menu-header{display:flex; align-items:center; gap:11px; padding:8px 12px 12px;}
+      .nav-avatar-menu-avatar{width:38px; height:38px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; flex-shrink:0;}
+      .nav-avatar-menu-id{min-width:0;}
+      .nav-avatar-menu-name{font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-avatar-menu-email{font-size:11.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+      .nav-avatar-menu-sep{height:1px; background:var(--line); margin:4px 6px;}
     `;
     document.head.appendChild(style);
   }
@@ -65,7 +71,7 @@
     if (!user) return;
 
     injectStyleOnce();
-    const adminLink = user.role === 'admin' ? '<a href="admin.html">Admin Paneli</a>' : '';
+    const adminLink = user.role === 'admin' ? '<a href="admin.html"><span>🛠️</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>' : '';
     const avatarInner = user.photoUrl
       ? `<img src="${escapeAttr(user.photoUrl)}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
       : initials(user.name);
@@ -75,10 +81,22 @@
           <span class="nav-avatar-circle">${avatarInner}</span> ${escapeHtml(firstName(user.name))}
         </button>
         <div class="nav-avatar-menu" id="nav-avatar-menu">
-          <a href="hesabim.html">Hesabım</a>
-          <a href="aktivitelerim.html">Aktivitelerim</a>
+          <div class="nav-avatar-menu-header">
+            <span class="nav-avatar-menu-avatar">${avatarInner}</span>
+            <div class="nav-avatar-menu-id">
+              <div class="nav-avatar-menu-name">${escapeHtml(user.name || '')}</div>
+              <div class="nav-avatar-menu-email">${escapeHtml(user.email || '')}</div>
+            </div>
+          </div>
+          <div class="nav-avatar-menu-sep"></div>
+          <a href="hesabim.html"><span>👤</span> Hesabım</a>
+          <div class="nav-avatar-menu-sep"></div>
+          <a href="aktivitelerim.html"><span>✦</span> Aktivitelerim</a>
+          <div class="nav-avatar-menu-sep"></div>
+          <a href="iceriklerim.html"><span>🗂️</span> İçeriklerim</a>
+          <div class="nav-avatar-menu-sep"></div>
           ${adminLink}
-          <button type="button" id="nav-logout-btn">Çıkış Yap</button>
+          <button type="button" id="nav-logout-btn"><span>🚪</span> Çıkış Yap</button>
         </div>
       </div>`;
 

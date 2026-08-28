@@ -10,8 +10,8 @@
 // linkleri) HİÇ değiştirilmedi — bunun yerine burada TEK bir delege edilmiş click dinleyicisiyle
 // yakalanıp preventDefault edilir (bkz. aşağısı).
 const AuthModal = (function () {
-  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', activities: '/aktivitelerim', forgot: '/sifremi-unuttum' };
-  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
+  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', activities: '/aktivitelerim', contents: '/iceriklerim', forgot: '/sifremi-unuttum' };
+  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, contents: /(^|\/)iceriklerim\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -765,7 +765,31 @@ const AuthModal = (function () {
         </div>
 
         <div class="dash-section">
-          <h2>Paylaştığım İçerikler</h2>
+          <h2>Düello Analizlerim</h2>
+          <div id="am-dash-duel-analysis"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-duel-analysis-pagination"></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // İçeriklerim — kullanıcının kendi gönderdiği içerikler (bkz. kullanıcı isteği: eskiden
+  // Aktivitelerim'in "Paylaştığım İçerikler" kutusuydu, artık avatar menüsünden ayrı bir popup
+  // olarak açılıyor) — activitiesTemplate() İLE AYNI .dash-wrap/.dash-section iskeleti, tek bölüm.
+  function contentsTemplate() {
+    return `
+    <div class="dash-wrap" id="am-contents-wrap">
+      <div class="dash-head">
+        <div class="dash-head-info">
+          <div>
+            <h1>İçeriklerim</h1>
+            <p>Platforma gönderdiğin proje, ürün, mimar ve firma içerikleri.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-row">
+        <div class="dash-section">
           <div class="submissions-toolbar-row">
             <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
             <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
@@ -781,14 +805,6 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
-        </div>
-      </div>
-
-      <div class="dash-row">
-        <div class="dash-section">
-          <h2>Düello Analizlerim</h2>
-          <div id="am-dash-duel-analysis"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-duel-analysis-pagination"></div>
         </div>
       </div>
     </div>`;
@@ -1732,55 +1748,6 @@ const AuthModal = (function () {
       if (el) el.addEventListener(evt, fn);
     }
 
-    let allSubmissions = [];
-    let submissionsFilter = '';
-    let submissionsPage = 1;
-    async function loadSubmissions() {
-      const types = Object.keys(TYPE_LABELS);
-      const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : { items: [] })));
-      allSubmissions = [];
-      types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({ type: t, item })));
-      allSubmissions.sort((a, b) => b.item.created_at - a.item.created_at);
-      renderSubmissions();
-    }
-    function renderSubmissions() {
-      const container = document.getElementById('am-dash-submissions');
-      if (!allSubmissions.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
-        document.getElementById('am-submissions-pagination').innerHTML = '';
-        return;
-      }
-      const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
-      if (!all.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
-        document.getElementById('am-submissions-pagination').innerHTML = '';
-        return;
-      }
-      const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE_DASH));
-      if (submissionsPage > totalPages) submissionsPage = totalPages;
-      const startIdx = (submissionsPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = all.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(({ type, item }) => {
-        const detailUrl = itemDetailUrl(type, item);
-        const titleHtml = detailUrl
-          ? `<a href="${escapeAttr(detailUrl)}" style="font-weight:600; font-size:13.5px; color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(itemTitle(type, item))}</a>`
-          : `<div style="font-weight:600; font-size:13.5px;">${escapeHtml(itemTitle(type, item))}</div>`;
-        return `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft);">
-          <div>
-            ${titleHtml}
-            <div style="font-size:11.5px; color:var(--ink-soft);">${TYPE_LABELS[type]} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
-          </div>
-          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-            ${(type === 'products' || type === 'materials') ? '' : `<a class="submission-edit-link" href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`}
-            <span style="font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:100px; color:${STATUS_COLORS[item.status]}; background:${STATUS_COLORS[item.status]}22;">${STATUS_LABELS[item.status]}</span>
-          </div>
-        </div>
-      `;
-      }).join('');
-      renderDashPagination('am-submissions-pagination', submissionsPage, totalPages, (p) => { submissionsPage = p; renderSubmissions(); });
-    }
-
     let savedItems = [];
     let savedFilter = '';
     let savedPage = 1;
@@ -2010,14 +1977,6 @@ const AuthModal = (function () {
       document.querySelectorAll('#am-rated-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
       renderRated();
     });
-    on('am-submissions-filter', 'click', (e) => {
-      const btn = e.target.closest('.submissions-filter-btn');
-      if (!btn) return;
-      submissionsFilter = btn.dataset.filter;
-      submissionsPage = 1;
-      document.querySelectorAll('#am-submissions-filter .submissions-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderSubmissions();
-    });
     on('am-saved-filter', 'click', (e) => {
       const btn = e.target.closest('.saved-filter-btn');
       if (!btn) return;
@@ -2029,7 +1988,83 @@ const AuthModal = (function () {
 
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      [loadSubmissions(), loadSaved(), loadRated(), loadComments(), loadDuelAnalyses()].forEach(p => p.catch(() => {}));
+      [loadSaved(), loadRated(), loadComments(), loadDuelAnalyses()].forEach(p => p.catch(() => {}));
+    }).catch(() => {});
+  }
+
+  // İçeriklerim popup'ının mount fonksiyonu — mountActivities() İÇİNDE "Paylaştığım İçerikler"in
+  // eskiden kullandığı loadSubmissions/renderSubmissions AYNEN buraya taşındı (bkz. contentsTemplate).
+  function mountContents() {
+    const wired = new Set();
+    function on(id, evt, fn) {
+      const key = id + ':' + evt;
+      if (wired.has(key)) return;
+      wired.add(key);
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(evt, fn);
+    }
+
+    let allSubmissions = [];
+    let submissionsFilter = '';
+    let submissionsPage = 1;
+    async function loadSubmissions() {
+      const types = Object.keys(TYPE_LABELS);
+      const results = await Promise.all(types.map(t => fetch(`/api/${t}/mine`).then(r => r.ok ? r.json() : { items: [] })));
+      allSubmissions = [];
+      types.forEach((t, i) => (results[i].items || []).forEach(item => allSubmissions.push({ type: t, item })));
+      allSubmissions.sort((a, b) => b.item.created_at - a.item.created_at);
+      renderSubmissions();
+    }
+    function renderSubmissions() {
+      const container = document.getElementById('am-dash-submissions');
+      if (!allSubmissions.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
+        document.getElementById('am-submissions-pagination').innerHTML = '';
+        return;
+      }
+      const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
+      if (!all.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
+        document.getElementById('am-submissions-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE_DASH));
+      if (submissionsPage > totalPages) submissionsPage = totalPages;
+      const startIdx = (submissionsPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = all.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(({ type, item }) => {
+        const detailUrl = itemDetailUrl(type, item);
+        const titleHtml = detailUrl
+          ? `<a href="${escapeAttr(detailUrl)}" style="font-weight:600; font-size:13.5px; color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(itemTitle(type, item))}</a>`
+          : `<div style="font-weight:600; font-size:13.5px;">${escapeHtml(itemTitle(type, item))}</div>`;
+        return `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft);">
+          <div>
+            ${titleHtml}
+            <div style="font-size:11.5px; color:var(--ink-soft);">${TYPE_LABELS[type]} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            ${(type === 'products' || type === 'materials') ? '' : `<a class="submission-edit-link" href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`}
+            <span style="font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:100px; color:${STATUS_COLORS[item.status]}; background:${STATUS_COLORS[item.status]}22;">${STATUS_LABELS[item.status]}</span>
+          </div>
+        </div>
+      `;
+      }).join('');
+      renderDashPagination('am-submissions-pagination', submissionsPage, totalPages, (p) => { submissionsPage = p; renderSubmissions(); });
+    }
+
+    on('am-submissions-filter', 'click', (e) => {
+      const btn = e.target.closest('.submissions-filter-btn');
+      if (!btn) return;
+      submissionsFilter = btn.dataset.filter;
+      submissionsPage = 1;
+      document.querySelectorAll('#am-submissions-filter .submissions-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderSubmissions();
+    });
+
+    fetch('/api/auth/me').then(r => {
+      if (!r.ok) { swap('login'); return; }
+      loadSubmissions().catch(() => {});
     }).catch(() => {});
   }
 
@@ -2058,11 +2093,12 @@ const AuthModal = (function () {
     else if (view === 'signup') { wrap.innerHTML = signupTemplate(); wireSignup(); }
     else if (view === 'forgot') { wrap.innerHTML = forgotTemplate(); wireForgot(); }
     else if (view === 'activities') { wrap.innerHTML = activitiesTemplate(); mountActivities(); }
+    else if (view === 'contents') { wrap.innerHTML = contentsTemplate(); mountContents(); }
     else { wrap.innerHTML = accountTemplate(); mountAccount(); }
     // denetim bulgusu (AUDIT-009): bu modal document.title'ı hiç değiştirmiyor (sayfanın kendi
     // başlığı korunur), o yüzden diğer modallardaki gibi document.title'ı yeniden kullanamayız —
     // aria-label için ayrı, sabit bir Türkçe etiket haritası.
-    const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum', activities: 'Aktivitelerim' };
+    const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum', activities: 'Aktivitelerim', contents: 'İçeriklerim' };
     ModalShell.setLabel(AUTH_VIEW_LABELS[view] || 'Hesabım');
     ModalShell.scrollToTop();
   }
@@ -2121,6 +2157,7 @@ const AuthModal = (function () {
     if (path === '/uye-ol') return 'signup';
     if (path === '/hesabim') return 'account';
     if (path === '/aktivitelerim') return 'activities';
+    if (path === '/iceriklerim') return 'contents';
     if (path === '/sifremi-unuttum') return 'forgot';
     return null;
   }
@@ -2136,6 +2173,7 @@ const AuthModal = (function () {
     else if (HREF_VIEW_RE.signup.test(href)) view = 'signup';
     else if (HREF_VIEW_RE.account.test(href)) view = 'account';
     else if (HREF_VIEW_RE.activities.test(href)) view = 'activities';
+    else if (HREF_VIEW_RE.contents.test(href)) view = 'contents';
     else if (HREF_VIEW_RE.forgot.test(href)) view = 'forgot';
     if (!view) return;
     e.preventDefault();
