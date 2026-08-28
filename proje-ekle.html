@@ -836,11 +836,15 @@ function selectIlIlceFromNames(ilName, ilceName){
 // Nominatim'in Türkiye adres hiyerarşisi tutarlı değil: il genelde address.state, ilçe ise
 // address.county/town/city_district/suburb alanlarından birinde geliyor — bulunana kadar sırayla
 // dener. Nominatim kullanım politikası gereği (bkz. runMapSearch'teki AYNI not) yalnızca marker
-// taşındığında/sürüklendiğinde TEK bir istek atılır, yazarken canlı sorgu YOK.
+// taşındığında/sürüklendiğinde TEK bir istek atılır, yazarken canlı sorgu YOK. Nominatim'e artık
+// doğrudan DEĞİL, src/routes/geocode.js üzerinden (aynı origin) gidilir — gerçek bulgu: Nominatim'in
+// paylaşılan CDN önbelleği bazı sorgularda Access-Control-Allow-Origin başlığını tutarsız
+// dönüyordu, bu da tarayıcıdan doğrudan çağrıldığında sessizce (fetch() TypeError) CORS hatasına
+// yol açıp arama/konum tespitini rastgele biçimde çalışmaz hale getiriyordu.
 async function reverseGeocodeAndFillLocation(lat, lng){
   const token = ++geocodeToken;
   try{
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=tr&zoom=14`);
+    const res = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lng}`);
     if(token !== geocodeToken) return; // bayatladı — bu arada yeni bir konum/manuel seçim oldu
     if(!res.ok) return;
     const data = await res.json();
@@ -886,7 +890,8 @@ document.getElementById('p-map-clear-btn').addEventListener('click', clearMapMar
 
 // Nominatim'in tekrarlı sorgu kısıtlaması nedeniyle (bkz. kullanım politikası) arama YALNIZCA Ara
 // butonuna/Enter'a basınca tetiklenir — dd-il-search/ac-suggestions'daki gibi yazarken canlı sorgu
-// atılmaz.
+// atılmaz. Nominatim'e artık doğrudan DEĞİL, src/routes/geocode.js üzerinden (aynı origin) gidilir
+// — bkz. reverseGeocodeAndFillLocation'daki AYNI gerçek bulgu notu.
 let mapSearchToken = 0;
 async function runMapSearch(){
   const input = document.getElementById('p-map-search');
@@ -897,7 +902,7 @@ async function runMapSearch(){
   const btn = document.getElementById('p-map-search-btn');
   btn.disabled = true;
   try{
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=tr&countrycodes=tr&q=${encodeURIComponent(q)}`);
+    const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(q)}`);
     if(token !== mapSearchToken) return; // yarış durumu: bu arada yeni bir arama başlatılmış
     const results = res.ok ? await res.json() : [];
     resultsBox.innerHTML = results.length

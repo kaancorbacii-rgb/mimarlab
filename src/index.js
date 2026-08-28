@@ -9,6 +9,7 @@ import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } fro
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
+import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
@@ -70,17 +71,21 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // ücretsiz bir yığına geçildi: Leaflet + Esri World Imagery (uydu karoları) + Nominatim (arama/ters
 // jeokodlama). unpkg.com Leaflet'in CSS/JS/marker ikon dosyalarını, server.arcgisonline.com/
 // services.arcgisonline.com Esri'nin uydu karolarını, *.tile.openstreetmap.org (yedek/olası ileride
-// kullanım için, bkz. kullanıcı isteği) standart OSM karolarını, nominatim.openstreetmap.org da
-// arama/geocoding uç noktasını sağlar — dördü de anahtarsız/ücretsizdir. Üç kullanım noktası da
+// kullanım için, bkz. kullanıcı isteği) standart OSM karolarını sağlar. Üç kullanım noktası da
 // (proje-ekle.html, js/pages/proje.js#loadLeaflet, js/components/project-modal.js#loadLeaflet) AYNI
-// yığını, birbirinden bağımsız kendi script yükleyicileriyle kullanır.
+// yığını, birbirinden bağımsız kendi script yükleyicileriyle kullanır. nominatim.openstreetmap.org
+// artık connect-src'de DEĞİL — gerçek bulgu: Nominatim'in paylaşılan CDN önbelleği bazı sorgularda
+// Access-Control-Allow-Origin başlığını tutarsız dönüyordu (tarayıcıdan doğrudan çağrıldığında
+// sessizce CORS hatasına yol açıyordu), bu yüzden arama/ters-jeokodlama artık tarayıcıdan değil
+// src/routes/geocode.js üzerinden sunucu-sunucu proxy'leniyor (bkz. o dosyanın başındaki not) — bu
+// origin'e artık hiçbir sayfadan doğrudan tarayıcı isteği atılmıyor.
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com https://unpkg.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://unpkg.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.tile.openstreetmap.org",
-  "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://static.cloudflareinsights.com https://nominatim.openstreetmap.org",
+  "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://static.cloudflareinsights.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -874,6 +879,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/products/search') return handleProductSearchRoute(request, env, url);
   if (path === '/api/photographers/search') return handlePhotographerSearchRoute(request, env, url);
   if (path === '/api/ai/search') return handleAiSearchRoute(request, env, url);
+  if (path.startsWith('/api/geocode/')) return handleGeocodeRoute(request, env, url);
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) {
