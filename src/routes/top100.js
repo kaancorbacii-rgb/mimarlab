@@ -47,8 +47,8 @@ async function computeTop100(env) {
     // sorgu, her biri yalnızca ~59 parametreyle, aynı sonucu sorunsuz üretir.
     const placeholders = slugs.map(() => '?').join(',');
     const [bySlug, byLegacy] = await Promise.all([
-      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, date_bucket, category, type, description, hidden_at, deleted_at FROM projects WHERE slug IN (${placeholders})`).bind(...slugs).all(),
-      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, date_bucket, category, type, description, hidden_at, deleted_at FROM projects WHERE legacy_key IN (${placeholders})`).bind(...slugs).all(),
+      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, date_bucket, category, type, discipline, awards, description, hidden_at, deleted_at FROM projects WHERE slug IN (${placeholders})`).bind(...slugs).all(),
+      env.DB.prepare(`SELECT slug, legacy_key, title, images, location, project_date, date_bucket, category, type, discipline, awards, description, hidden_at, deleted_at FROM projects WHERE legacy_key IN (${placeholders})`).bind(...slugs).all(),
     ]);
     for (const row of [...bySlug.results, ...byLegacy.results]) {
       const parsed = parseCanonicalRow('projects', row);
@@ -76,6 +76,11 @@ async function computeTop100(env) {
     const dateBucket = live ? live.date_bucket : null;
     const category = live ? live.category : [];
     const type = live ? live.type : [];
+    // discipline/awards — bkz. kullanıcı isteği: proje.html'in sol filtre çubuğu (Tür/Ödül dahil)
+    // En İyi 100 sekmesinde de aktif çalışsın; src/lib/projectPool.js#FACET_GROUPS'taki AYNI iki
+    // alan (category/type/dateBucket/location zaten yukarıda vardı).
+    const discipline = live ? live.discipline : [];
+    const awards = live ? live.awards : [];
     const description = live ? live.description : null;
 
     const real = resolvedSlug ? realRatingsBySlug.get(resolvedSlug) : null;
@@ -96,6 +101,8 @@ async function computeTop100(env) {
       dateBucket,
       category,
       type,
+      discipline,
+      awards,
       description,
       avg: blendedAvg,
       count: blendedCount,
@@ -143,6 +150,8 @@ async function computeTop100(env) {
       dateBucket: entry.dateBucket,
       category: entry.category,
       type: entry.type,
+      discipline: entry.discipline,
+      awards: entry.awards,
       description: entry.description,
       avg: Math.round(entry.avg * 100) / 100,
       count: entry.count,

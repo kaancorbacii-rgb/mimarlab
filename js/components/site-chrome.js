@@ -12,13 +12,14 @@
   function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+  // kullanıcı isteği (2026-08-28): Düello ve En İyi 100 üst menüden kaldırıldı — En İyi 100 artık
+  // proje.html içinde Liste/Harita'nın yanında üçüncü bir sekme (bkz. proje.html#view-toggle-top100),
+  // Düello ise footerHtml()'in Topluluk sütununda yaşıyor.
   const NAV_ITEMS = [
     { key: 'proje', href: 'proje.html', label: 'Proje' },
     { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
     { key: 'mimar', href: 'mimar.html', label: 'Mimar' },
     { key: 'firma', href: 'firma.html', label: 'Firma' },
-    { key: 'duello', href: 'duello.html', label: 'Düello' },
-    { key: 'en-iyi-100', href: 'en-iyi-100.html', label: 'En İyi 100' },
   ];
 
   // Işık modunda logo koyu (lacivert/siyah) harflerle, R'daki daire+üçgen ise her zaman mavi (bkz.
@@ -97,7 +98,7 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="duello.html">Düello</a><a href="en-iyi-100.html">En İyi 100</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a><a href="duello.html">Düello</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a></div>
       <div class="footer-col footer-newsletter">
         <h4>Bülten</h4>
@@ -264,87 +265,200 @@
     });
   }
 
-  function wireNavSearch(){
-    function navSuggestEsc(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-    function navSuggestEscAttr(s){ return navSuggestEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  // kullanıcı isteği (2026-08-28, ekli Architonic ekran görüntüleri referans alınarak): üst
+  // menüdeki arama kutusuna tıklayınca artık küçük bir öneri açılır penceresi DEĞİL, tüm ekranı
+  // kaplayan bir popup büyüyor — üstte büyük arama kutusu, boşken "Önerilen Aramalar" çipleri +
+  // "Görsel ile Ürün Arama" bölümü (bkz. aşağıdaki NAV_SEARCH_RECOMMENDED), yazmaya başlanınca
+  // öneriler AYNI /api/public/search-suggest ucundan (eski panelin kullandığı UÇLA BİREBİR AYNI)
+  // canlı sonuçlarla değişiyor. Görsel arama bölümü YALNIZCA görsel — hiçbir dosya seçici/URL
+  // gönderimi bağlı değil (kullanıcı isteği: "ürün arama kısmı şimdilik aktif olmasın").
+  const NAV_SEARCH_RECOMMENDED = ['Villa', 'Ofis Projesi', 'Restorasyon', 'Peyzaj Tasarımı'];
+  let navSearchModalApi = null;
 
-    if(!document.getElementById('nav-search-suggest-style')){
+  function ensureNavSearchModal(){
+    if(navSearchModalApi) return navSearchModalApi;
+
+    if(!document.getElementById('nav-search-modal-style')){
       const style = document.createElement('style');
-      style.id = 'nav-search-suggest-style';
+      style.id = 'nav-search-modal-style';
       style.textContent = `
         .nav-search, .nav-mobile-search{position:relative;}
-        .nav-search-suggest{display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:120; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); overflow:hidden;}
-        .nav-search-suggest.open{display:block;}
-        .nav-search-suggest-row{display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line-soft);}
-        .nav-search-suggest-row:hover{background:var(--paper-alt);}
-        .nav-search-suggest-row:last-child{border-bottom:none;}
-        .nav-search-suggest-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
-        .nav-search-suggest-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-        .nav-search-suggest-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-        .nav-search-suggest-more{display:block; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
-        .nav-search-suggest-empty{padding:14px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+        .nav-search-modal-overlay{
+          display:none; position:fixed; inset:0; z-index:500;
+          background:rgba(20,24,30,0.62); backdrop-filter:blur(2px);
+          align-items:flex-start; justify-content:center; padding:80px 20px 20px;
+          overflow-y:auto;
+        }
+        .nav-search-modal-overlay.open{display:flex;}
+        .nav-search-modal{
+          width:100%; max-width:720px; background:var(--paper-card); border-radius:20px;
+          padding:28px; position:relative; box-shadow:0 30px 70px rgba(0,0,0,0.35);
+        }
+        .nav-search-modal-close{
+          position:absolute; top:16px; right:16px; background:none; border:none; color:var(--ink-soft);
+          padding:8px; cursor:pointer; display:flex; border-radius:50%;
+        }
+        .nav-search-modal-close:hover{color:var(--ink); background:var(--paper-alt);}
+        .nav-search-modal-input-row{
+          display:flex; align-items:center; gap:12px; border:1.5px solid var(--line); border-radius:100px;
+          padding:14px 20px; margin-right:36px;
+        }
+        .nav-search-modal-input-row svg{flex-shrink:0; color:var(--ink-soft);}
+        .nav-search-modal-input-row input{
+          flex:1; min-width:0; border:none; outline:none; background:none; font-family:inherit;
+          font-size:15px; color:var(--ink);
+        }
+        .nav-search-modal-input-row input::placeholder{color:var(--ink-soft);}
+        .nav-search-modal-section{margin-top:26px;}
+        .nav-search-modal-section-title{font-size:14px; font-weight:700; color:var(--ink); margin:0 0 14px;}
+        .nav-search-modal-chips{display:flex; flex-wrap:wrap; gap:10px;}
+        .nav-search-modal-chip{
+          background:var(--paper); border:1px solid var(--line); border-radius:100px; padding:9px 18px;
+          font-family:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer;
+        }
+        .nav-search-modal-chip:hover{border-color:var(--walnut); background:var(--paper-alt);}
+        .nav-search-modal-results{display:flex; flex-direction:column; gap:2px;}
+        .nav-search-modal-row{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; font-size:13.5px; color:var(--ink);}
+        .nav-search-modal-row:hover{background:var(--paper-alt);}
+        .nav-search-modal-row-tag{flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
+        .nav-search-modal-row-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+        .nav-search-modal-row-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+        .nav-search-modal-more{display:block; margin-top:6px; padding:10px 12px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
+        .nav-search-modal-empty{padding:14px 12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
+        .nav-search-modal-image-box{
+          display:flex; align-items:center; gap:18px; border:1.5px dashed var(--line); border-radius:14px;
+          padding:20px;
+        }
+        .nav-search-modal-image-drop{flex:1; min-width:0; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.6;}
+        .nav-search-modal-image-drop strong{color:var(--walnut); font-weight:600;}
+        .nav-search-modal-image-or{flex-shrink:0; font-size:11px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em;}
+        .nav-search-modal-image-paste{
+          flex:1; min-width:0; display:flex; align-items:center; gap:8px; border:1px solid var(--line);
+          border-radius:10px; padding:10px 14px; background:var(--paper);
+        }
+        .nav-search-modal-image-paste svg{flex-shrink:0; color:var(--ink-soft);}
+        .nav-search-modal-image-paste input{flex:1; min-width:0; border:none; outline:none; background:none; font-family:inherit; font-size:12.5px; color:var(--ink);}
+        .nav-search-modal-image-paste input::placeholder{color:var(--ink-soft);}
+        @media (max-width:640px){
+          .nav-search-modal-overlay{padding:60px 12px 12px;}
+          .nav-search-modal{padding:22px;}
+          .nav-search-modal-image-box{flex-direction:column;}
+        }
       `;
       document.head.appendChild(style);
     }
 
+    const overlay = document.createElement('div');
+    overlay.className = 'nav-search-modal-overlay';
+    overlay.innerHTML = `
+      <div class="nav-search-modal" role="dialog" aria-modal="true" aria-label="Ara">
+        <button type="button" class="nav-search-modal-close" aria-label="Kapat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <div class="nav-search-modal-input-row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="nav-search-modal-input" placeholder="Neye ihtiyacınız olduğunu yazın – bulmanıza yardımcı olalım" aria-label="Ara">
+        </div>
+        <div class="nav-search-modal-section" id="nav-search-modal-body"></div>
+        <div class="nav-search-modal-section">
+          <div class="nav-search-modal-section-title">Görsel ile Ürün Arama</div>
+          <div class="nav-search-modal-image-box">
+            <div class="nav-search-modal-image-drop">
+              Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG veya JPEG (Maks. 10mb)
+            </div>
+            <div class="nav-search-modal-image-or">veya</div>
+            <label class="nav-search-modal-image-paste">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <input type="text" placeholder="Görsel URL'si yapıştır" aria-label="Görsel URL'si yapıştır" disabled>
+            </label>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const modalInput = overlay.querySelector('#nav-search-modal-input');
+    const body = overlay.querySelector('#nav-search-modal-body');
+    let debounceTimer = null;
+    let currentQuery = '';
+
+    function renderRecommended(){
+      body.innerHTML = `
+        <div class="nav-search-modal-section-title">Önerilen Aramalar</div>
+        <div class="nav-search-modal-chips">${NAV_SEARCH_RECOMMENDED.map(term =>
+          `<button type="button" class="nav-search-modal-chip" data-term="${escapeAttr(term)}">${escapeHtml(term)}</button>`
+        ).join('')}</div>`;
+      body.querySelectorAll('.nav-search-modal-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          window.location.href = 'arama.html?q=' + encodeURIComponent(btn.dataset.term);
+        });
+      });
+    }
+
+    function renderResults(query, data){
+      const items = (data && data.items) || [];
+      if(!items.length){
+        body.innerHTML = `<div class="nav-search-modal-empty">"${escapeHtml(query)}" için öneri bulunamadı.</div>`;
+        return;
+      }
+      const rows = items.map(it => `<a class="nav-search-modal-row" href="${escapeAttr(it.href)}">
+          <span class="nav-search-modal-row-tag">${escapeHtml(it.label)}</span>
+          <span class="nav-search-modal-row-title">${escapeHtml(it.title)}</span>
+          <span class="nav-search-modal-row-meta">${escapeHtml(it.meta || '')}</span>
+        </a>`).join('');
+      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      body.innerHTML = `<div class="nav-search-modal-results">${rows}</div>
+        <a class="nav-search-modal-more" href="${escapeAttr(moreHref)}">"${escapeHtml(query)}" için tüm sonuçları gör (${data.total})</a>`;
+    }
+
+    modalInput.addEventListener('input', () => {
+      const query = modalInput.value.trim();
+      clearTimeout(debounceTimer);
+      if(query.length < 2){ renderRecommended(); return; }
+      debounceTimer = setTimeout(() => {
+        currentQuery = query;
+        fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
+          .then(res => res.ok ? res.json() : { items: [], total: 0 })
+          .then(data => { if(modalInput.value.trim() === currentQuery) renderResults(currentQuery, data); })
+          .catch(() => {});
+      }, 200);
+    });
+    modalInput.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && modalInput.value.trim()){
+        window.location.href = 'arama.html?q=' + encodeURIComponent(modalInput.value.trim());
+      } else if(e.key === 'Escape'){
+        close();
+      }
+    });
+
+    function close(){
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    overlay.querySelector('.nav-search-modal-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) close(); });
+
+    navSearchModalApi = {
+      open(prefill){
+        modalInput.value = prefill || '';
+        if(modalInput.value.trim().length >= 2) modalInput.dispatchEvent(new Event('input'));
+        else renderRecommended();
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => modalInput.focus(), 0);
+      },
+    };
+    return navSearchModalApi;
+  }
+
+  function wireNavSearch(){
     document.querySelectorAll('.nav-search, .nav-mobile-search').forEach(wrap=>{
       const inp = wrap.querySelector('input');
       if(!inp || inp.dataset.navSuggestWired) return;
       inp.dataset.navSuggestWired = '1';
-
-      const panel = document.createElement('div');
-      panel.className = 'nav-search-suggest';
-      wrap.appendChild(panel);
-
-      let debounceTimer = null;
-      let currentQuery = '';
-
-      function closePanel(){ panel.classList.remove('open'); }
-
-      function renderPanel(query, data){
-        const items = (data && data.items) || [];
-        if(!items.length){
-          panel.innerHTML = `<div class="nav-search-suggest-empty">"${navSuggestEsc(query)}" için öneri bulunamadı.</div>`;
-          panel.classList.add('open');
-          return;
-        }
-        const rows = items.map(it => `<a class="nav-search-suggest-row" href="${navSuggestEscAttr(it.href)}">
-            <span class="nav-search-suggest-tag">${navSuggestEsc(it.label)}</span>
-            <span class="nav-search-suggest-title">${navSuggestEsc(it.title)}</span>
-            <span class="nav-search-suggest-meta">${navSuggestEsc(it.meta || '')}</span>
-          </a>`).join('');
-        const moreHref = 'arama.html?q=' + encodeURIComponent(query);
-        panel.innerHTML = rows + `<a class="nav-search-suggest-more" href="${navSuggestEscAttr(moreHref)}">"${navSuggestEsc(query)}" için tüm sonuçları gör (${data.total})</a>`;
-        panel.classList.add('open');
-      }
-
-      inp.addEventListener('input', ()=>{
-        const query = inp.value.trim();
-        clearTimeout(debounceTimer);
-        if(query.length < 2){ closePanel(); return; }
-        debounceTimer = setTimeout(()=>{
-          currentQuery = query;
-          fetch('/api/public/search-suggest?q=' + encodeURIComponent(query))
-            .then(res => res.ok ? res.json() : {items:[], total:0})
-            .then(data => { if(inp.value.trim() === currentQuery) renderPanel(currentQuery, data); })
-            .catch(()=>{});
-        }, 200);
-      });
-
-      inp.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter' && e.target.value.trim()){
-          window.location.href = 'arama.html?q=' + encodeURIComponent(e.target.value.trim());
-        } else if(e.key === 'Escape'){
-          closePanel();
-        }
-      });
-
-      inp.addEventListener('focus', ()=>{
-        if(inp.value.trim().length >= 2 && panel.innerHTML) panel.classList.add('open');
-      });
-
-      document.addEventListener('click', (e)=>{
-        if(!wrap.contains(e.target)) closePanel();
+      // Kutunun kendisi artık yalnızca bir TETİKLEYİCİ — gerçek yazma popup'ın kendi büyük
+      // kutusunda olur (bkz. ensureNavSearchModal), bu yüzden odaklanır odaklanmaz hemen bulanır
+      // (klavye/mobil ekran klavyesi kısa bir an bile bu küçük kutuda açılmaz).
+      inp.addEventListener('focus', () => {
+        inp.blur();
+        ensureNavSearchModal().open(inp.value.trim());
       });
     });
   }

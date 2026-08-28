@@ -153,6 +153,100 @@ let localSearchQuery = '';
 // dönüyordu. Grup anahtarına göre son yazılan metni burada saklayıp buildSidebar() sonunda geri uygularız.
 const groupSearchQueries = {};
 
+// ---------- EN İYİ 100 SEKMESİ (bkz. kullanıcı isteği: "Liste ve Harita başlıklarının soluna
+// En İyi 100 başlığını ekle... Filtreler ve sıralama butonu En İyi 100 listesinde de etkin
+// çalışsın") — Harita gibi üçüncü bir view-toggle sekmesi, ama kendi /api/public/top100
+// verisini (en-iyi-100.html'in kullandığı AYNI uç, bkz. src/routes/top100.js#computeTop100)
+// TEK seferde çekip mevcut sol filtre çubuğu/Sıralama/arama ile İSTEMCİ tarafında filtreler.
+// top100 item'ları (bkz. computeTop100) discipline/category/type/location/dateBucket/awards
+// alanlarını taşır — bu yüzden FILTER_GROUPS'un 9 grubundan 6'sı (discipline/category/type/
+// location/district/award) burada da aynen çalışır. designer/designerOffice ÇALIŞMAZ (top100
+// sorgusu project_designers'a hiç JOIN etmiyor, bkz. o dosya) — bu iki grup işaretliyken bu
+// sekmeye geçilirse sessizce yok sayılır, sonuç boşalmaz ama bu iki grup açısından daraltılmaz.
+let TOP100_ITEMS = null;
+let top100LoadPromise = null;
+let top100ViewActive = false;
+function loadTop100(){
+  if(top100LoadPromise) return top100LoadPromise;
+  top100LoadPromise = fetch('/api/public/top100')
+    .then(res => res.ok ? res.json() : { items: [] })
+    // date: projectDate — render()'ın kart şablonu /api/projects'in `date` alanını okur (bkz.
+    // src/lib/projectPool.js#date:p.project_date), top100 payload'ı AYNI ham değeri `projectDate`
+    // adıyla taşıyor (bkz. src/routes/top100.js#items).
+    // title: it.name — render()'ın paylaşılan kart şablonu (bkz. renderCards) `title` okur,
+    // top100 payload'ı AYNI değeri `name` adıyla taşır (bkz. src/routes/top100.js#items). Slug'ı
+    // hiç çözülemeyen (canonical projects'te artık bulunamayan) girdiler atlanır — en-iyi-100.html'in
+    // kendi renderTop100()'ünün AKSİNE burada linksiz bir kart göstermek yerine (bu sayfanın kart
+    // şablonu koşulsuz <a href> ile sarmalı, bkz. renderCards) baştan filtrelemek daha basit/güvenli.
+    .then(data => { TOP100_ITEMS = (data.items || []).filter(it => it.slug).map(it => ({ ...it, title: it.name, date: it.projectDate })); })
+    .catch(() => { TOP100_ITEMS = []; });
+  return top100LoadPromise;
+}
+const TOP100_FILTER_GETTERS = {
+  discipline: it => it.discipline || [],
+  category: it => it.category || [],
+  type: it => it.type || [],
+  location: it => { const loc = parseLocation(it.location || ''); return loc.city ? [loc.city] : []; },
+  district: it => { const loc = parseLocation(it.location || ''); return loc.district ? [loc.district] : []; },
+  dateBucket: it => it.dateBucket ? [it.dateBucket] : [],
+  award: it => it.awards || [],
+};
+function passesTop100ActiveFilters(it){
+  return Object.keys(TOP100_FILTER_GETTERS).every(key => {
+    const active = activeFilters[key];
+    if(!active || active.size === 0) return true;
+    return TOP100_FILTER_GETTERS[key](it).some(v => active.has(v));
+  });
+}
+function passesTop100Search(it){
+  const q = localSearchQuery.trim();
+  return !q || trLower(it.name || '').includes(trLower(q));
+}
+// src/routes/project.js#parseProjectDateYear/en-iyi-100.html'deki AYNI serbest-metin proje tarihi
+// ayrıştırma mantığı — Sıralama'nın En Yeni/En Eski seçenekleri top100 sekmesinde de çalışsın diye.
+function foldTr(s){
+  return (s || '').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase()
+    .replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o');
+}
+function parseProjectDateYear(dateStr){
+  if(!dateStr) return null;
+  const hasCenturyWordAnywhere = /yuzyil|\byy\b/.test(foldTr(dateStr));
+  let best = null;
+  String(dateStr).split('/').forEach(rawSegment => {
+    const folded = foldTr(rawSegment);
+    const isBC = /\bmo\b/.test(folded);
+    const isCenturyFragment = hasCenturyWordAnywhere && /^\s*(ms\s*)?\d{1,2}\.\s*$/.test(folded);
+    const isCentury = isCenturyFragment || /yuzyil|\byy\b/.test(folded);
+    const nums = (rawSegment.match(/\d+/g) || []).map(n => parseInt(n, 10));
+    if(!nums.length) return;
+    let year;
+    if(isCentury){
+      const century = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -(century * 100) : (century - 1) * 100 + 1;
+    } else {
+      const magnitude = isBC ? Math.max(...nums) : Math.min(...nums);
+      year = isBC ? -magnitude : magnitude;
+    }
+    if(best === null || year < best) best = year;
+  });
+  return best;
+}
+function sortTop100Items(items){
+  const sort = document.getElementById('g-sort').value;
+  const sorted = items.slice();
+  if(sort === 'name_asc') sorted.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'tr'));
+  else if(sort === 'date_desc' || sort === 'date_asc') sorted.sort((a, b) => {
+    const ya = parseProjectDateYear(a.date), yb = parseProjectDateYear(b.date);
+    if(ya === null && yb === null) return 0;
+    if(ya === null) return 1;
+    if(yb === null) return -1;
+    return sort === 'date_desc' ? yb - ya : ya - yb;
+  });
+  else if(sort === 'rating_desc') sorted.sort((a, b) => b.avg - a.avg);
+  else sorted.sort((a, b) => a.rank - b.rank);
+  return sorted;
+}
+
 // proje-detay.html künyesindeki Tür/Tip/Yer/Yıl değerleri buraya bu filtreyi önceden uygulanmış
 // şekilde bağlanır (bkz. o dosyadaki filterLinkHtml) — ve artık ?page=N ile doğrudan girilen bir
 // link de o sayfa numarasıyla açılır (bkz. kullanıcı isteği). "location" parametresi künyedeki ham
@@ -432,54 +526,16 @@ function renderPagination(totalPages){
   if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
 }
 
-// render() artık yalnızca mevcut sayfanın kartlarını /api/projects'ten çeker (bkz. kullanıcı
-// isteği: "Her sayfa geçişinde sadece o sayfadaki proje verisini çek ve render et") — tüm veri
-// seti hiçbir zaman tarayıcıya inmiyor.
-let renderRequestId = 0;
-async function render(){
-  const myRequest = ++renderRequestId;
+// renderCards() — render()'ın kart-ızgarası şablonu, hem normal /api/projects sonuçları hem de
+// En İyi 100 sekmesinin istemci-taraflı filtrelenmiş top100 alt kümesi (bkz. TOP100_ITEMS/render()
+// aşağıdaki top100ViewActive dalı) için ORTAK — ikisi de AYNI {slug,title,location,images,date}
+// alan adlarını taşıdığından (bkz. loadTop100'deki title/date normalize eşlemesi) tek şablon yeter.
+function renderCards(items){
   const grid = document.getElementById('card-grid');
-  const empty = document.getElementById('empty-state');
-  grid.style.opacity = '0.5';
-
-  const params = currentQueryParams();
-  params.set('page', String(currentPage));
-  params.set('limit', String(PAGE_SIZE));
-
-  let data = null;
-  try{
-    const res = await fetch(`/api/projects?${params.toString()}`);
-    if(res.ok) data = await res.json();
-  }catch(err){
-    console.error('Proje listesi alınamadı:', err);
-  }
-  if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
-  grid.style.opacity = '1';
-
-  if(!data){
-    grid.innerHTML = '';
-    empty.textContent = 'Projeler yüklenemedi, lütfen sayfayı yenile.';
-    empty.style.display = 'block';
-    document.getElementById('pagination').innerHTML = '';
-    document.getElementById('result-count').textContent = '';
-    return;
-  }
-
-  currentPage = data.page;
-  document.getElementById('result-count').textContent = `${data.total} proje listeleniyor`;
-  renderActiveChips();
-  renderPagination(data.totalPages);
-
-  currentItems = data.items;
-  refreshMap();
-
-  if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
-  empty.style.display = 'none';
-
   // .content-grid ≤720px'de 2 sütuna düşüyor (bkz. proje.html'deki @media 720px), aksi halde 3 —
   // sabit bir eşik yerine gerçek sütun sayısına göre hesaplanır (denetim bulgusu, 2026-08-14).
   const eagerCardCount = window.innerWidth <= 720 ? 2 : 3;
-  grid.innerHTML = data.items.map((p, i) => {
+  grid.innerHTML = items.map((p, i) => {
     const loc = parseLocation(p.location);
     // Kart altyazısında yalnızca İL gösterilir, ilçe ATLANIR (bkz. kullanıcı isteği: "İl · Yıl",
     // ör. "İstanbul · 2024") — ilçe bilgisi hâlâ modalin "Yer:" satırında (bkz. project-meta.js)
@@ -514,6 +570,74 @@ async function render(){
     </a>`;
   }).join('');
   wireSaveButtons('project');
+}
+
+// render() — normal (Liste) görünümde /api/projects'ten yalnızca mevcut sayfanın kartlarını çeker
+// (bkz. kullanıcı isteği: "Her sayfa geçişinde sadece o sayfadaki proje verisini çek ve render et"),
+// En İyi 100 sekmesi aktifken (top100ViewActive) İSE TOP100_ITEMS'ı (bkz. loadTop100, tek seferlik,
+// tüm liste hafızada) sol filtre çubuğu/arama/sıralama ile istemci tarafında filtreleyip AYNI
+// PAGE_SIZE'lık sayfalara böler — iki dal da AYNI renderCards()/renderPagination()/renderActiveChips()
+// paylaşılan yardımcılarını kullanır, yalnızca veri kaynağı değişir.
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
+  const grid = document.getElementById('card-grid');
+  const empty = document.getElementById('empty-state');
+  grid.style.opacity = '0.5';
+
+  if(top100ViewActive){
+    await loadTop100();
+    if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
+    grid.style.opacity = '1';
+    const filtered = (TOP100_ITEMS || []).filter(it => passesTop100ActiveFilters(it) && passesTop100Search(it));
+    const sorted = sortTop100Items(filtered);
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    if(currentPage > totalPages) currentPage = totalPages;
+    const pageItems = sorted.slice((currentPage - 1) * PAGE_SIZE, (currentPage - 1) * PAGE_SIZE + PAGE_SIZE);
+    document.getElementById('result-count').textContent = `${sorted.length} proje listeleniyor`;
+    renderActiveChips();
+    renderPagination(totalPages);
+    currentItems = pageItems;
+    if(pageItems.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
+    empty.style.display = 'none';
+    renderCards(pageItems);
+    return;
+  }
+
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/projects?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){
+    console.error('Proje listesi alınamadı:', err);
+  }
+  if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Projeler yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} proje listeleniyor`;
+  renderActiveChips();
+  renderPagination(data.totalPages);
+
+  currentItems = data.items;
+  refreshMap();
+
+  if(data.items.length === 0){ grid.innerHTML=''; empty.textContent = 'Bu kritere uyan proje bulunamadı.'; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  renderCards(data.items);
 }
 
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
@@ -562,6 +686,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   const toggleWrap = document.getElementById('view-toggle');
   const listBtn = document.getElementById('view-toggle-list');
   const mapBtn = document.getElementById('view-toggle-map');
+  const top100Btn = document.getElementById('view-toggle-top100');
   const sortWrap = document.getElementById('sort-select-wrap');
   const mapWrap = document.getElementById('map-view-wrap');
   const toggledEls = [
@@ -570,18 +695,33 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
     document.getElementById('empty-state'),
     document.getElementById('pagination'),
   ].filter(Boolean);
-  if (!listBtn || !mapBtn || !sortWrap || !mapWrap) return;
+  if (!listBtn || !mapBtn || !top100Btn || !sortWrap || !mapWrap) return;
 
   let mapLoaded = false;
+  // contentSource: Harita SIRASINDA DEĞİŞMEZ — Harita, altındaki Liste/Top100 verisinin üstüne
+  // bindirilen bağımsız bir görünüm (bkz. aşağıdaki mapWrap/toggledEls). gerçek bulgu: bu ayrım
+  // olmadan top100ViewActive'i doğrudan (view==='top100') olarak hesaplamak, Harita'ya her
+  // geçişte top100ViewActive'i SESSİZCE false'a düşürüyordu — En İyi 100'deyken Harita'ya
+  // gidip bir filtre değiştirip Liste/En İyi 100'e dönmek grid'i yanlış veri kaynağıyla
+  // (top100 yerine sunucu Liste sonucuyla) doldurmuş oluyordu.
+  let contentSource = 'list';
   function setView(view) {
     const isMap = view === 'map';
+    if (!isMap) contentSource = view;
+    const isTop100 = contentSource === 'top100';
     mapViewActive = isMap;
-    listBtn.classList.toggle('active', !isMap);
+    top100ViewActive = isTop100;
+    listBtn.classList.toggle('active', !isMap && contentSource === 'list');
     mapBtn.classList.toggle('active', isMap);
-    // Varsayılan DOM/görsel sırası Harita, Liste (bkz. kullanıcı isteği) — Harita görünümünde
-    // Sıralama kaybolunca bu sınıf CSS order ile ikisinin YERİNİ değiştirir (bkz. proje.html#
-    // .view-toggle.is-map-view), Harita en sağa, Liste hemen soluna geçer.
-    if (toggleWrap) toggleWrap.classList.toggle('is-map-view', isMap);
+    top100Btn.classList.toggle('active', !isMap && isTop100);
+    // Varsayılan DOM/görsel sırası En İyi 100, Harita, Liste (bkz. kullanıcı isteği: "Liste ve
+    // Harita başlıklarının soluna En İyi 100 başlığını ekle") — hangi sekme aktifse o sekme, mevcut
+    // Harita/Liste ikilisindeki AYNI kalıpla (bkz. proje.html#.view-toggle.is-map-view/.is-top100-view),
+    // Sıralama'nın hemen soluna (en sağa) kayar.
+    if (toggleWrap) {
+      toggleWrap.classList.toggle('is-map-view', isMap);
+      toggleWrap.classList.toggle('is-top100-view', isTop100 && !isMap);
+    }
     sortWrap.style.display = isMap ? 'none' : '';
     mapWrap.style.display = isMap ? '' : 'none';
     // render()'ın kendi mantığı (bkz. yukarısı: empty.style.display='block'/'none') her filtre/sayfa
@@ -617,10 +757,21 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
       // için (render() harita GÖRÜNMÜYORKEN refreshMap() içinde no-op'a düşer, bkz. mapViewActive
       // koruması) her Harita'ya dönüşte taze veriyle yeniden çekilir.
       refreshMap();
+    } else {
+      // Liste/En İyi 100'e her geçişte (Harita'dan dönüş dahil) yeniden çizilir. Harita<->Liste'nin
+      // ESKİ "grid'i olduğu gibi bırak" kısayolu artık güvenli DEĞİL: iki ayrı veri kaynağı var
+      // (sunucudan sayfalanmış /api/projects <-> istemcide filtrelenmiş TOP100_ITEMS alt kümesi,
+      // bkz. render()) ve Harita GÖRÜNÜRKEN de filtre değişebiliyor (render() her filtre/sıralama
+      // değişiminde view'dan bağımsız tetiklenir, bkz. checkbox/g-sort dinleyicileri) — grid'in o an
+      // hangi kaynaktan dolu olduğu görünmeyen Harita sekmesindeyken bile top100ViewActive'in GÜNCEL
+      // değerine göre değişir, bu yüzden her Liste/Top100 gösteriminde taze bir render() ile
+      // garanti altına alınır (küçük bir ek istek/hesap maliyeti karşılığında doğruluk).
+      render();
     }
   }
   listBtn.addEventListener('click', () => setView('list'));
   mapBtn.addEventListener('click', () => setView('map'));
+  top100Btn.addEventListener('click', () => setView('top100'));
 })();
 
 // Tarayıcı geri/ileri tuşu: /proje/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca proje modalını
