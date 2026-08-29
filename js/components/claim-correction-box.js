@@ -53,13 +53,13 @@ function createClaimCorrectionBox(config){
     style.textContent = `
       .feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
       .feedback-card[open]{padding-bottom:18px;}
-      .feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
+      .feedback-card h5{margin:0 0 6px; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700;}
       .feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
       .feedback-card .info-card-link{font-weight:700; text-decoration:underline;}
       /* Kartlar ilk açılışta kapalı (bkz. kullanıcı isteği: "Geri Bildirim +" ön başlığı, tıklanınca
          açılsın) — native <details>/<summary> kullanılır, JS state yönetimi gerekmez. summary'nin
          varsayılan üçgen imleci kaldırılıp yerine dönen bir "+" konur. */
-      .feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+      .feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
       .feedback-card > summary::-webkit-details-marker{display:none;}
       .feedback-card[open] > summary{margin-bottom:6px;}
       .feedback-card-plus{flex-shrink:0; width:18px; height:18px; position:relative; margin-left:10px;}

@@ -31,7 +31,7 @@ const ProductModal = (function () {
     const style = document.createElement('style');
     style.id = 'product-modal-styles';
     style.textContent = `
-      .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+      .detail-title{font-family:'Instrument Sans', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
       /* margin-bottom 18px (14px değil) — Düzenle/Arşivle/Sil satırı (eski .pr-actions) buradan
          kaldırılıp X'in yanına taşındığından (bkz. kullanıcı isteği) bu artık künye bloğuna en yakın
          komşu; sayfadaki diğer blok aralarıyla (.detail-meta/.detail-desc margin-top:18px) AYNI
@@ -43,7 +43,7 @@ const ProductModal = (function () {
       .detail-byline-avatar{
         width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
         display:flex; align-items:center; justify-content:center; color:#fff;
-        font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
+        font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:9.5px;
       }
       .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .pr-rating-save-row{
@@ -66,7 +66,7 @@ const ProductModal = (function () {
       .pr-rating-save-row .rating-widget svg{flex-shrink:0;}
       .pr-rating-save-row .pr-rating-avg{
         display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
-        font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
+        font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'Instrument Sans', sans-serif;
       }
       /* Kaydet artık yalnızca ikon taşıyor (bkz. kullanıcı isteği: "Kaydet" metni kaldırılsın) —
          share-button.js#.share-btn İLE BİREBİR AYNI kare ölçüler/kırılma noktası. */
@@ -118,7 +118,7 @@ const ProductModal = (function () {
         width:32px; height:32px; border-radius:50%; flex-shrink:0;
         border:1px solid var(--line); overflow:hidden; position:relative;
         display:flex; align-items:center; justify-content:center;
-        color:var(--paper-card); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+        color:var(--paper-card); font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:11.5px;
       }
       .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
@@ -132,7 +132,7 @@ const ProductModal = (function () {
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px; white-space:pre-line;}
       .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer; white-space:normal;}
       .detail-desc-more:hover{color:var(--ink);}
-      .specs-title{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin:28px 0 4px;}
+      .specs-title{font-family:'Instrument Sans', sans-serif; font-size:16px; font-weight:700; margin:28px 0 4px;}
       .specs-table{width:100%; border-collapse:collapse; margin-top:12px; font-size:14px;}
       .specs-table tr{border-bottom:1px solid var(--line-soft);}
       .specs-table tr:last-child{border-bottom:none;}
@@ -158,7 +158,7 @@ const ProductModal = (function () {
       .gallery-placeholder{
         flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px;
         display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
-        color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;
+        color:rgba(255,255,255,0.92); font-family:'Instrument Sans', sans-serif; font-size:40px; font-weight:700;
       }
       .gallery-placeholder img{height:36px; width:36px; border-radius:9px; background:#fff; padding:6px; object-fit:contain;}
       .gallery-nav{
@@ -170,7 +170,7 @@ const ProductModal = (function () {
       .gallery-nav:hover{background:rgba(27,42,61,0.72);}
       .gallery-prev{left:14px;}
       .gallery-next{right:14px;}
-      .gallery-counter{text-align:center; margin-top:8px; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);}
+      .gallery-counter{text-align:center; margin-top:8px; font-family:'Instrument Sans', sans-serif; font-size:12.5px; color:var(--ink-soft);}
       .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
       .lightbox.open{display:flex;}
       .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
@@ -182,7 +182,7 @@ const ProductModal = (function () {
       .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
       .lightbox-counter{
         position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
-        color:#fff; font-size:13px; font-weight:600; font-family:'IBM Plex Mono', monospace;
+        color:#fff; font-size:13px; font-weight:600; font-family:'Instrument Sans', sans-serif;
         background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
       }
       /* "Tümünü Gör" ızgara görünümü — bkz. proje.html'deki AYNI blok, paylaşılan stylesheet
@@ -211,7 +211,7 @@ const ProductModal = (function () {
         .lightbox-grid-list{grid-template-columns:repeat(2, 1fr); gap:10px;}
       }
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
-      .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+      .related-title{font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
       /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/
          görünümlerde gönderi başlıkları görselin altında olsun). */
       .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
@@ -219,8 +219,8 @@ const ProductModal = (function () {
          kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
       .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
       .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
-      .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;}
+      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Instrument Sans', sans-serif; font-size:22px; font-weight:700;}
+      .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Instrument Sans', sans-serif; font-size:13.5px; font-weight:700;}
       /* Pop-up içindeki ilgili ürün kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği,
          js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
          satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
@@ -235,7 +235,7 @@ const ProductModal = (function () {
       .prevnext a:hover{border-color:var(--walnut);}
       .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
       .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
-      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
+      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Instrument Sans', sans-serif; font-weight:700; font-size:14px;}
       .prevnext-text{min-width:0; flex:1;}
       .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
       /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
@@ -244,17 +244,17 @@ const ProductModal = (function () {
       /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
          butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
          sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
-      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
+      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
       /* ---------- ÜRÜN MODALI — Bilgi Kaynağı & Geri Bildirim (bkz. proje.html'deki AYNI #pm-info-divider/
          #pm-feedback-card kuralları — burada yorum bölümü olmadığından .detail-info'nun hemen altına,
          kendi enjekte edilen <style>'ında tutulur, proje.html'e dokunmaya gerek kalmaz). */
       .pr-info-divider{margin:28px 0 0; border:none; border-top:1px solid var(--line);}
       .pr-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
-      .pr-feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
+      .pr-feedback-card h5{margin:0 0 6px; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700;}
       .pr-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
       /* Kart ilk açılışta kapalı (bkz. kullanıcı isteği: "Geri Bildirim +" ön başlığı) — native
          <details>/<summary>, proje.html#.pm-feedback-card İLE AYNI desen. */
-      .pr-feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+      .pr-feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
       .pr-feedback-card > summary::-webkit-details-marker{display:none;}
       .pr-feedback-card[open] > summary{margin-bottom:6px;}
       .feedback-card-plus{flex-shrink:0; width:18px; height:18px; position:relative; margin-left:10px;}

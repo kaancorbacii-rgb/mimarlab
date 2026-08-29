@@ -30,10 +30,10 @@ const InfoModal = (function () {
   // scope'landı (bkz. js/components/auth-modal.js#STYLES'teki AYNI teknik/gerekçe). Nav/breadcrumb/
   // footer stilleri host sayfada zaten yüklü olduğundan buraya kopyalanmadı.
   const STYLES = `
-    #im-panel{ font-family:'Inter', sans-serif; color:var(--ink); }
+    #im-panel{ font-family:'Instrument Sans', sans-serif; color:var(--ink); }
     #im-panel .content-wrap{max-width:760px; margin:0 auto; padding:8px 4px 24px;}
-    #im-panel .content-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
-    #im-panel .content-title{font-family:'Inter', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
+    #im-panel .content-eyebrow{font-family:'Instrument Sans', sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
+    #im-panel .content-title{font-family:'Instrument Sans', sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
     #im-panel .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px;}
     #im-panel .content-updated{font-size:12.5px; color:var(--ink-soft); margin:0 0 24px;}
     #im-panel .content-toc{background:var(--paper-card); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:0 0 36px;}
@@ -41,7 +41,7 @@ const InfoModal = (function () {
     #im-panel .content-toc ol{margin:0; padding-left:20px; font-size:13.5px; line-height:1.9; color:var(--ink-soft); columns:2; column-gap:24px;}
     #im-panel .content-toc a{color:var(--ink-soft); font-weight:500; cursor:pointer;}
     #im-panel .content-section{margin-bottom:32px;}
-    #im-panel .content-section h2{font-family:'Inter', sans-serif; font-size:19px; font-weight:700; margin:0 0 10px;}
+    #im-panel .content-section h2{font-family:'Instrument Sans', sans-serif; font-size:19px; font-weight:700; margin:0 0 10px;}
     #im-panel .content-section p{font-size:14.5px; line-height:1.75; color:var(--ink-soft); margin:0 0 12px;}
     #im-panel .content-section a{color:var(--walnut); font-weight:600; cursor:pointer;}
     #im-panel .content-section a:hover{text-decoration:underline;}
@@ -52,11 +52,11 @@ const InfoModal = (function () {
     #im-panel .cookie-table th{background:var(--paper-card); color:var(--ink); font-weight:700; white-space:nowrap;}
     #im-panel .cookie-table td{color:var(--ink-soft);}
     #im-panel .cookie-table tr:last-child td{border-bottom:none;}
-    #im-panel .cookie-badge{display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em; background:var(--paper-alt); color:var(--ink); border-radius:100px; padding:3px 9px; white-space:nowrap;}
+    #im-panel .cookie-badge{display:inline-block; font-family:'Instrument Sans', sans-serif; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em; background:var(--paper-alt); color:var(--ink); border-radius:100px; padding:3px 9px; white-space:nowrap;}
 
     #im-panel .contact-card{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:32px; display:flex; align-items:center; gap:16px;}
     #im-panel .contact-card svg{flex-shrink:0; color:var(--walnut);}
-    #im-panel .contact-card-email{font-family:'Inter', sans-serif; font-size:19px; font-weight:700;}
+    #im-panel .contact-card-email{font-family:'Instrument Sans', sans-serif; font-size:19px; font-weight:700;}
     #im-panel .contact-card-email:hover{text-decoration:underline;}
     #im-panel .contact-card p{margin:2px 0 0; font-size:12.5px; color:var(--ink-soft);}
     #im-panel .contact-form-field{margin-bottom:14px;}
@@ -72,7 +72,7 @@ const InfoModal = (function () {
     #im-panel .contact-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
 
     #im-panel .jobs-card{background:var(--paper-card); border:1px dashed var(--brass); border-radius:14px; padding:22px; margin-bottom:32px;}
-    #im-panel .jobs-card strong{display:block; font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin-bottom:6px;}
+    #im-panel .jobs-card strong{display:block; font-family:'Instrument Sans', sans-serif; font-size:16px; font-weight:700; margin-bottom:6px;}
     #im-panel .jobs-card p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
     #im-panel .jobs-card a{color:var(--walnut); font-weight:600;}
     #im-panel .cta-card{background:var(--ink); color:var(--paper-card); border-radius:16px; padding:28px; text-align:center;}
@@ -81,12 +81,12 @@ const InfoModal = (function () {
     #im-panel .cta-btn:hover{background:var(--brass-soft);}
 
     #im-panel .page-head{max-width:820px; margin:0 auto; padding:0 4px 0; text-align:center;}
-    #im-panel .page-head .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:10px;}
-    #im-panel .page-head h1{font-family:'Inter', sans-serif; font-size:30px; font-weight:700; margin:0 0 8px;}
+    #im-panel .page-head .eyebrow{font-family:'Instrument Sans', sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:10px;}
+    #im-panel .page-head h1{font-family:'Instrument Sans', sans-serif; font-size:30px; font-weight:700; margin:0 0 8px;}
     #im-panel .page-head p{color:var(--ink-soft); font-size:14.5px; margin:0;}
     #im-panel .checkout-wrap{max-width:820px; margin:0 auto; padding:24px 4px 24px;}
     #im-panel .form-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:26px; margin-bottom:20px;}
-    #im-panel .form-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
+    #im-panel .form-section h2{font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
     #im-panel .form-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px; line-height:1.6;}
     #im-panel .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
     #im-panel .form-submit:hover{background:var(--walnut);}
@@ -104,8 +104,8 @@ const InfoModal = (function () {
     #im-panel .tier-card.selected{border-color:var(--ink); box-shadow:0 4px 16px rgba(27,42,61,0.08);}
     #im-panel .tier-card-check{position:absolute; top:14px; right:14px; width:20px; height:20px; border-radius:50%; border:1.5px solid var(--line); background:var(--paper); display:flex; align-items:center; justify-content:center;}
     #im-panel .tier-card.selected .tier-card-check{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
-    #im-panel .tier-card-name{font-family:'Inter', sans-serif; font-size:16px; font-weight:700; margin-bottom:4px; padding-right:26px;}
-    #im-panel .tier-card-price{font-family:'IBM Plex Mono', monospace; font-size:13.5px; color:var(--sage); margin-bottom:6px;}
+    #im-panel .tier-card-name{font-family:'Instrument Sans', sans-serif; font-size:16px; font-weight:700; margin-bottom:4px; padding-right:26px;}
+    #im-panel .tier-card-price{font-family:'Instrument Sans', sans-serif; font-size:13.5px; color:var(--sage); margin-bottom:6px;}
     #im-panel .tier-card-perks{font-size:12px; color:var(--ink-soft); line-height:1.5; margin:0; padding-left:15px;}
     #im-panel .tier-card-perks li{margin-bottom:3px;}
     #im-panel .tier-card-perks li:last-child{margin-bottom:0;}
@@ -116,7 +116,7 @@ const InfoModal = (function () {
     #im-panel .havale-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px;}
     #im-panel .havale-row:last-of-type{border-bottom:none;}
     #im-panel .havale-row-label{color:var(--ink-soft); flex-shrink:0;}
-    #im-panel .havale-row-value{font-family:'IBM Plex Mono', monospace; font-weight:600; text-align:right; word-break:break-word;}
+    #im-panel .havale-row-value{font-family:'Instrument Sans', sans-serif; font-weight:600; text-align:right; word-break:break-word;}
     #im-panel .havale-copy-btn{flex-shrink:0; background:none; border:1px solid var(--line); border-radius:100px; padding:5px 12px; font-size:11.5px; font-weight:600; color:var(--ink);}
     #im-panel .havale-copy-btn:hover{background:var(--paper-alt);}
     #im-panel .havale-hint{font-size:12.5px; color:var(--ink-soft); line-height:1.6; margin:12px 0 0;}
@@ -124,9 +124,9 @@ const InfoModal = (function () {
     #im-panel .summary-row:last-child{border-bottom:none;}
     #im-panel .summary-row-label{color:var(--ink-soft);}
     #im-panel .summary-row-value{font-weight:600;}
-    #im-panel .summary-total{font-family:'IBM Plex Mono', monospace; font-size:20px; font-weight:600;}
+    #im-panel .summary-total{font-family:'Instrument Sans', sans-serif; font-size:20px; font-weight:600;}
     #im-panel .already-has{text-align:center; padding:10px 4px;}
-    #im-panel .already-has strong{display:block; font-family:'Inter', sans-serif; font-size:17px; margin-bottom:6px;}
+    #im-panel .already-has strong{display:block; font-family:'Instrument Sans', sans-serif; font-size:17px; margin-bottom:6px;}
     #im-panel .already-has p{color:var(--ink-soft); font-size:13.5px; margin:0 0 16px; line-height:1.6;}
 
     #im-panel .field{margin-bottom:14px;}
@@ -302,7 +302,7 @@ const InfoModal = (function () {
       </div>
 
       <div class="cta-card">
-        <div style="font-family:'Inter', sans-serif; font-size:19px; font-weight:700;">Bize katkıda bulunmak ister misiniz?</div>
+        <div style="font-family:'Instrument Sans', sans-serif; font-size:19px; font-weight:700;">Bize katkıda bulunmak ister misiniz?</div>
         <p>İçerik, ortaklık ya da teknik konularda ilginizi bizimle paylaşın.</p>
         <a class="cta-btn" href="mailto:info@mimarlab.com">info@mimarlab.com</a>
       </div>

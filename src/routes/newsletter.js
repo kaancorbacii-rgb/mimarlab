@@ -7,7 +7,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function unsubscribePage(message) {
   return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MİMARLAB — Bülten</title>
-<style>body{margin:0;background:#EDF0F3;color:#1B2A3D;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px;box-sizing:border-box;}
+<style>body{margin:0;background:#EDF0F3;color:#1B2A3D;font-family:'Instrument Sans', sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px;box-sizing:border-box;}
 .box{max-width:420px;}h1{font-size:20px;margin:0 0 12px;}p{font-size:14.5px;color:#4E6478;line-height:1.6;}
 a{color:#5B7A9B;font-weight:600;text-decoration:none;}</style></head>
 <body><div class="box"><h1>MİMARLAB Bülten</h1><p>${message}</p><p><a href="/">Ana sayfaya dön →</a></p></div></body></html>`;

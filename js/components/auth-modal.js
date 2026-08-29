@@ -49,10 +49,10 @@ const AuthModal = (function () {
   // footer stilleri zaten host sayfada yüklü olduğundan buraya kopyalanmadı, yalnızca bu üç sayfaya
   // ÖZGÜ kurallar taşındı).
   const STYLES = `
-    #am-panel{ font-family:'Inter', sans-serif; color:var(--ink); }
+    #am-panel{ font-family:'Instrument Sans', sans-serif; color:var(--ink); }
     #am-panel .auth-wrap{max-width:420px; margin:0 auto; padding:8px 4px 24px;}
-    #am-panel .auth-eyebrow{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px; text-align:center;}
-    #am-panel .auth-title{font-family:'Inter', sans-serif; font-size:30px; font-weight:700; margin:0 0 8px; text-align:center;}
+    #am-panel .auth-eyebrow{font-family:'Instrument Sans', sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px; text-align:center;}
+    #am-panel .auth-title{font-family:'Instrument Sans', sans-serif; font-size:30px; font-weight:700; margin:0 0 8px; text-align:center;}
     #am-panel .auth-sub{color:var(--ink-soft); font-size:14px; margin:0 0 32px; text-align:center;}
     #am-panel .auth-card{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:28px;}
     #am-panel .auth-field{margin-bottom:16px;}
@@ -90,10 +90,10 @@ const AuthModal = (function () {
 
     #am-panel .dash-wrap{max-width:1080px; margin:0 auto; padding:8px 4px 24px;}
     #am-panel .dash-head{display:flex; align-items:center; gap:18px; margin-bottom:32px; flex-wrap:wrap;}
-    #am-panel .dash-avatar{width:64px; height:64px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:20px;}
+    #am-panel .dash-avatar{width:64px; height:64px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:20px;}
     #am-panel .dash-avatar img{width:100%; height:100%; object-fit:cover;}
     #am-panel .dash-head-info{display:flex; align-items:center; justify-content:space-between; gap:18px; flex:1; min-width:0;}
-    #am-panel .dash-head h1{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 4px;}
+    #am-panel .dash-head h1{font-family:'Instrument Sans', sans-serif; font-size:26px; font-weight:700; margin:0 0 4px;}
     #am-panel .dash-head p{color:var(--ink-soft); font-size:13.5px; margin:0;}
     #am-panel .dash-edit-btn{flex-shrink:0; background:none; border:1.5px solid var(--ink); color:var(--ink); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
     #am-panel .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
@@ -122,7 +122,7 @@ const AuthModal = (function () {
     #am-panel .dash-section{background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px;}
     #am-panel .dash-row{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; align-items:start;}
     #am-panel .dash-row .dash-section{margin-bottom:0; min-width:0;}
-    #am-panel .dash-section h2{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
+    #am-panel .dash-section h2{font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
     #am-panel .dash-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
     #am-panel .dash-empty{border:1px dashed var(--line); border-radius:12px; padding:24px; text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.6;}
     #am-panel .dash-empty a{color:var(--walnut); font-weight:600;}
@@ -183,7 +183,7 @@ const AuthModal = (function () {
     #am-panel .submissions-add-link{flex:0 0 auto; padding:6px 2px; border:none; background:none; font-size:12px; font-weight:600; color:var(--walnut); white-space:nowrap; text-decoration:underline; text-underline-offset:3px;}
     #am-panel .submissions-add-link:hover{color:var(--ink);}
     #am-panel .avatar-upload-row{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
-    #am-panel .avatar-upload-preview{width:56px; height:56px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:18px;}
+    #am-panel .avatar-upload-preview{width:56px; height:56px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:18px;}
     #am-panel .avatar-upload-preview img{width:100%; height:100%; object-fit:cover;}
     #am-panel .avatar-upload-btn{background:none; border:1.5px solid var(--ink); color:var(--ink); padding:8px 16px; border-radius:100px; font-weight:600; font-size:12.5px;}
     #am-panel .avatar-upload-btn:hover{background:var(--ink); color:var(--paper-card);}
@@ -191,7 +191,7 @@ const AuthModal = (function () {
     #am-panel .badge-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
     #am-panel .badge-card{border:1px solid var(--line-soft); border-radius:12px; padding:14px;}
     #am-panel .badge-card-name{font-weight:600; font-size:13.5px; margin-bottom:2px;}
-    #am-panel .badge-card-price{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--sage); margin-bottom:10px;}
+    #am-panel .badge-card-price{font-family:'Instrument Sans', sans-serif; font-size:12px; color:var(--sage); margin-bottom:10px;}
     #am-panel .badge-buy-btn{display:block; width:100%; text-align:center; background:var(--ink); color:var(--paper-card); border:none; padding:8px; border-radius:100px; font-weight:600; font-size:12px;}
     #am-panel .badge-buy-btn:hover{background:var(--walnut);}
     #am-panel .badge-status-pill{display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:100px; flex-shrink:0;}
@@ -555,7 +555,7 @@ const AuthModal = (function () {
         <button type="button" class="profile-edit-close" id="am-profile-edit-close" aria-label="Kapat">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Profili Düzenle</h2>
+        <h2 style="font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Profili Düzenle</h2>
         <div class="avatar-upload-row">
           <div class="avatar-upload-preview" id="am-avatar-preview">–</div>
           <div>
@@ -648,7 +648,7 @@ const AuthModal = (function () {
         <span id="am-dash-save-msg" style="font-size:12.5px; color:var(--ink-soft); margin-left:10px;"></span>
 
         <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
-        <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Şifre Değiştir</h2>
+        <h2 style="font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;">Şifre Değiştir</h2>
         <div class="dash-field">
           <label for="am-pw-current">Mevcut Şifre</label>
           <input type="password" id="am-pw-current" autocomplete="current-password">
@@ -666,7 +666,7 @@ const AuthModal = (function () {
         <p style="margin:14px 0 0; font-size:12.5px;"><a href="#" id="am-pw-forgot-link" style="color:var(--walnut); font-weight:600;">Şifremi unuttum</a></p>
 
         <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
-        <h2 style="font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 8px; color:#B3261E;">Hesabımı Sil</h2>
+        <h2 style="font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 8px; color:#B3261E;">Hesabımı Sil</h2>
         <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
         <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
         <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E; margin-left:10px;"></span>

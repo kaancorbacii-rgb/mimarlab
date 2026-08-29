@@ -75,7 +75,7 @@ if(!document.getElementById('verified-badge-style')){
     .verified-badge-icon{position:relative; cursor:pointer; display:inline-flex; align-items:center; vertical-align:middle; margin-left:var(--space-1, 4px); flex-shrink:0;}
     .verified-badge-tip-floating{
       position:absolute; top:-9999px; left:-9999px;
-      background:#1B2A3D; color:#fff; font-family:'Inter', sans-serif; font-size:11px; font-weight:600;
+      background:#1B2A3D; color:#fff; font-family:'Instrument Sans', sans-serif; font-size:11px; font-weight:600;
       line-height:1.3; white-space:nowrap; padding:5px 9px; border-radius:6px;
       opacity:0; pointer-events:none; transition:opacity .12s ease; z-index:99999;
     }

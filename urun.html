@@ -35,7 +35,7 @@
 <base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme: light;
@@ -80,7 +80,7 @@
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
-  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Instrument Sans', sans-serif; -webkit-font-smoothing:antialiased;}
   a{color:inherit;text-decoration:none;}
   button{font-family:inherit;cursor:pointer;}
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
@@ -122,12 +122,12 @@
   .mega-menu.open{display:block;}
   .mega-menu-cols{display:grid; grid-template-columns:repeat(5, 1fr); gap:24px;}
   .mega-col{display:flex; flex-direction:column; gap:20px; min-width:0;}
-  .mega-group-title{display:block; font-family:'Inter', sans-serif; font-size:14.5px; font-weight:700; color:var(--ink); margin-bottom:8px;}
+  .mega-group-title{display:block; font-family:'Instrument Sans', sans-serif; font-size:14.5px; font-weight:700; color:var(--ink); margin-bottom:8px;}
   .mega-group-title:hover{color:var(--walnut);}
   .mega-cat-link{display:block; font-size:13.5px; color:var(--ink-soft); padding:4px 0;}
   .mega-cat-link:hover{color:var(--ink); text-decoration:underline;}
   .mega-menu-footer{margin-top:22px; padding-top:18px; border-top:1px solid var(--line); text-align:right;}
-  .mega-viewall{display:inline-flex; align-items:center; gap:7px; font-family:'Fraunces', serif; font-size:21px; font-weight:600; color:var(--ink);}
+  .mega-viewall{display:inline-flex; align-items:center; gap:7px; font-family:'Instrument Sans', sans-serif; font-size:21px; font-weight:600; color:var(--ink);}
   .mega-viewall:hover{color:var(--walnut);}
   @media (max-width:960px){ .mega-menu{display:none !important;} }
   .nav-hamburger{display:none; background:none; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); align-items:center; justify-content:center;}
@@ -181,7 +181,7 @@
 
   /* ---------- PAGE HEAD ---------- */
   .page-head{max-width:1260px; margin:0 auto; padding:28px 32px 0;}
-  .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
+  .page-head h1{font-family:'Instrument Sans', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
   /* ---------- SSR ENTITY BODY (bkz. src/index.js#injectMeta, src/lib/seo.js#bodyHtml) ---------- */
@@ -227,7 +227,7 @@
     overflow:hidden;
   }
   .sidebar-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line-soft);}
-  .sidebar-head-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
+  .sidebar-head-title{font-family:'Instrument Sans', sans-serif; font-size:15px; font-weight:700;}
   .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
   .sidebar-search svg{flex-shrink:0; opacity:0.5;}
   .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
@@ -260,7 +260,7 @@
   .filter-opt{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;}
   .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
   .filter-opt:hover{color:var(--ink);}
-  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'Instrument Sans', sans-serif;}
   .sidebar-add{padding:16px; border-top:1px solid var(--line-soft);}
   .sidebar-add-btn{
     display:flex; align-items:center; justify-content:center; gap:8px;
@@ -306,11 +306,11 @@
   .content-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .catalog-placeholder{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:rgba(255,255,255,0.92);}
   .content-card .catalog-placeholder-favicon{position:static; width:28px; height:28px; border-radius:6px; background:#fff; padding:4px; object-fit:contain;}
-  .catalog-placeholder-initials{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; letter-spacing:0.02em;}
+  .catalog-placeholder-initials{font-family:'Instrument Sans', sans-serif; font-size:28px; font-weight:700; letter-spacing:0.02em;}
   .content-card-info{padding:12px 14px; color:var(--ink);}
   /* Kart altı başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
      isteği) — punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun isimler daha az kesilsin. */
-  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .content-card-title{font-family:'Instrument Sans', sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .content-card-by{font-size:11.5px; color:var(--ink-soft);}
 
   .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
@@ -355,7 +355,7 @@
   .subcat-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
   .subcat-card-icon{
     width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:17px;
+    color:#fff; font-family:'Instrument Sans', sans-serif; font-weight:700; font-size:17px;
   }
   .subcat-card-label{font-size:13.5px; font-weight:600; color:var(--ink); line-height:1.3;}
   .landing-viewall{
@@ -364,7 +364,7 @@
     padding:9px 18px;
   }
   .landing-viewall:hover{background:var(--ink); color:var(--paper-card);}
-  .landing-top h2{font-family:'Inter', sans-serif; font-size:19px; font-weight:700; margin:0 0 16px;}
+  .landing-top h2{font-family:'Instrument Sans', sans-serif; font-size:19px; font-weight:700; margin:0 0 16px;}
 
   /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}

@@ -29,14 +29,14 @@ const ArchitectModal = (function () {
     const style = document.createElement('style');
     style.id = 'architect-modal-styles';
     style.textContent = `
-      .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0; line-height:1.25;}
+      .detail-title{font-family:'Instrument Sans', sans-serif; font-size:26px; font-weight:700; margin:0; line-height:1.25;}
       .am-identity{display:flex; align-items:center; gap:16px; margin-bottom:18px;}
       .profile-logo{
         width:64px; height:64px; border-radius:50%; flex-shrink:0;
         border:1px solid var(--line); overflow:hidden; position:relative;
         display:flex; align-items:center; justify-content:center;
         background:var(--walnut); color:var(--paper-card);
-        font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:20px;
+        font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:20px;
       }
       .profile-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .detail-title-actions{
@@ -83,7 +83,7 @@ const ArchitectModal = (function () {
       .detail-info-divider{border:none; border-top:1px solid var(--line-soft); margin:24px 0;}
       .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
       .related-section:first-child{margin-top:0; padding-top:0; border-top:none;}
-      .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+      .related-title{font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
       /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/
          görünümlerde gönderi başlıkları görselin altında olsun). */
       .related-card{display:block; border-radius:12px; overflow:hidden; background:var(--paper-card); border:1px solid var(--line-soft);}
@@ -91,8 +91,8 @@ const ArchitectModal = (function () {
          kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
       .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
       .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
-      .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;}
+      .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Instrument Sans', sans-serif; font-size:22px; font-weight:700;}
+      .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Instrument Sans', sans-serif; font-size:13.5px; font-weight:700;}
       /* Pop-up içindeki proje/danışman kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği):
          uzun başlıklar tek satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle
          geçmez, satır sonuna ellipsis eklenir. */
@@ -115,7 +115,7 @@ const ArchitectModal = (function () {
       .unregistered-badge-avatar{
         width:32px; height:32px; border-radius:50%; flex-shrink:0;
         display:flex; align-items:center; justify-content:center;
-        color:#fff; font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+        color:#fff; font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:11.5px;
       }
       .unregistered-badge-name{font-size:13px; font-weight:600; color:var(--ink);}
       .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
@@ -123,7 +123,7 @@ const ArchitectModal = (function () {
       .prevnext a:hover{border-color:var(--walnut);}
       .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
       .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
-      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
+      .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Instrument Sans', sans-serif; font-weight:700; font-size:14px;}
       .prevnext-text{min-width:0; flex:1;}
       .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
       /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
@@ -132,7 +132,7 @@ const ArchitectModal = (function () {
       /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
          butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
          sonlandır") — proje.html#.prevnext-title İLE AYNI desen. */
-      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
+      .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}

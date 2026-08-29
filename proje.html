@@ -41,7 +41,7 @@
 <base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme: light;
@@ -125,7 +125,7 @@
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
-  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Instrument Sans', sans-serif; -webkit-font-smoothing:antialiased;}
   a{color:inherit;text-decoration:none;}
   button{font-family:inherit;cursor:pointer;}
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
@@ -198,7 +198,7 @@
 
   /* ---------- PAGE HEAD ---------- */
   .page-head{max-width:1260px; margin:0 auto; padding:28px 32px 0;}
-  .page-head h1{font-family:'Inter', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
+  .page-head h1{font-family:'Instrument Sans', sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
   /* ---------- SSR ENTITY BODY (bkz. src/index.js#injectMeta, src/lib/seo.js#bodyHtml) ---------- */
@@ -256,7 +256,7 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 16px; border-bottom:1px solid var(--line-soft);
   }
-  .sidebar-head-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700;}
+  .sidebar-head-title{font-family:'Instrument Sans', sans-serif; font-size:15px; font-weight:700;}
   .sidebar-search{display:flex; align-items:center; gap:8px; margin:12px 16px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
   .sidebar-search svg{flex-shrink:0; opacity:0.5;}
   .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
@@ -297,7 +297,7 @@
   }
   .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
   .filter-opt:hover{color:var(--ink);}
-  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'Instrument Sans', sans-serif;}
   .filter-opt-nested{padding-left:20px;}
   .filter-opt-nested input{width:12px; height:12px;}
   .filter-search-row{
@@ -400,7 +400,7 @@
   .content-card:hover{transform:translateY(-3px); box-shadow:0 12px 28px rgba(27,42,61,0.14);}
   .content-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden;}
   .content-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .content-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:28px; font-weight:700; letter-spacing:0.02em;}
+  .content-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Instrument Sans', sans-serif; font-size:28px; font-weight:700; letter-spacing:0.02em;}
   .content-card-info{padding:12px 14px; color:var(--ink);}
   /* Kart altı başlık EN FAZLA 2 satır (bkz. kullanıcı isteği) — -webkit-line-clamp ile 2. satırın
      sonunda "…" ile kesilir, çok uzun proje isimleri (ör. "Batı Akdeniz Teknokenti Teknoloji
@@ -409,7 +409,7 @@
      -webkit-line-clamp'in kendi satır sayımına rağmen 3. satıra taşarak göründüğü durumlar
      bildirildi) — line-height em cinsinden SABİTLENİP max-height tam olarak 2 satır (2 × 1.25em)
      ile sınırlanarak, satır sayımı motoru tam kesmese bile üçüncü satır kesin olarak gizlenir. */
-  .content-card-title{font-family:'Inter', sans-serif; font-size:15px; font-weight:700; margin-bottom:3px; color:var(--ink); display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
+  .content-card-title{font-family:'Instrument Sans', sans-serif; font-size:15px; font-weight:700; margin-bottom:3px; color:var(--ink); display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important; overflow:hidden !important; text-overflow:ellipsis !important; word-break:break-word !important; line-height:1.25em !important; max-height:2.5em !important;}
   .content-card-by{font-size:11.5px; color:var(--ink-soft);}
   .card-save-btn{
     position:absolute; top:10px; right:10px; z-index:2;
@@ -429,7 +429,7 @@
   .top100-list{list-style:none; margin:0; padding:0; border-top:1px solid var(--line);}
   .top100-row{display:flex; align-items:center; gap:16px; padding:14px 4px; border-bottom:1px solid var(--line-soft);}
   .top100-rank-wrap{flex-shrink:0; width:34px; display:flex; flex-direction:column; align-items:center; gap:2px;}
-  .top100-rank{font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:16px; color:var(--ink-soft); line-height:1;}
+  .top100-rank{font-family:'Instrument Sans', sans-serif; font-weight:700; font-size:16px; color:var(--ink-soft); line-height:1;}
   .top100-row.top3 .top100-rank{color:var(--accent); font-size:19px;}
   .top100-delta{display:flex; align-items:center; justify-content:center;}
   .top100-delta.up{color:var(--good, #2E9E5B);}
@@ -437,7 +437,7 @@
   .top100-delta.flat{color:var(--ink-soft); opacity:0.55;}
   .top100-poster{flex-shrink:0; width:104px; aspect-ratio:4/3; border-radius:10px; overflow:hidden; position:relative; background:var(--paper-alt);}
   .top100-poster img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .top100-poster-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:17px; font-weight:700;}
+  .top100-poster-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700;}
   .top100-body{flex:1; min-width:0;}
   .top100-name{display:block; font-size:15.5px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   a.top100-name-link:hover{color:var(--walnut); text-decoration:underline;}
@@ -455,9 +455,9 @@
   .top100-rate-icon-filled{color:var(--accent);}
   .top100-quick-actions .share-btn{height:28px !important; width:28px !important; min-width:28px !important;}
   .top100-rating{flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:78px;}
-  .top100-avg{display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:15px; color:var(--ink);}
+  .top100-avg{display:flex; align-items:center; gap:5px; font-family:'Instrument Sans', sans-serif; font-weight:700; font-size:15px; color:var(--ink);}
   .top100-avg-star{color:var(--accent);}
-  .top100-votes{font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
+  .top100-votes{font-size:11px; color:var(--ink-soft); font-family:'Instrument Sans', sans-serif;}
 
   @media (max-width:560px){
     .top100-row{gap:10px;}
@@ -571,7 +571,7 @@
      Yorumlar, bkz. kullanıcı isteği), grid-template-areas'a gerek yok. Kalan sınıf adları
      (.rating-widget, .designer-chip, .comment-row vb.) proje-detay.html ile BİREBİR aynı — aynı
      paylaşılan JS (rating-widget.js, js/components/project-*.js) bu isimlere yazıyor. */
-  .detail-title{font-family:'Inter', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
+  .detail-title{font-family:'Instrument Sans', sans-serif; font-size:26px; font-weight:700; margin:0 0 12px; line-height:1.25;}
   /* En İyi 100 rozeti (bkz. js/components/project-modal.js#renderTopRankBadge, kullanıcı isteği:
      "her iki sayfadan da aynı proje popup'ı açınca tüm bilgilerin ve tasarımın bire bir aynı olması
      gerekiyor") — gerçek bulgu: bu blok ÖNCEDEN yalnızca en-iyi-100.html'de vardı, bu yüzden
@@ -596,7 +596,7 @@
   .detail-byline-avatar{
     width:24px; height:24px; border-radius:50%; flex-shrink:0; overflow:hidden; position:relative;
     display:flex; align-items:center; justify-content:center; color:#fff;
-    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:9.5px;
+    font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:9.5px;
   }
   .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   /* Puanlama + Kaydet: kullanıcı isteği üzerine aynı satırda, ikisi de "pill" görünümlü (bkz.
@@ -699,7 +699,7 @@
   .rating-widget svg{flex-shrink:0;}
   .pm-rating-avg{
     display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
-    font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
+    font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'Instrument Sans', sans-serif;
   }
 
   .detail-info{margin-top:8px;}
@@ -726,7 +726,7 @@
     width:32px; height:32px; border-radius:50%; flex-shrink:0;
     border:1px solid var(--line); overflow:hidden; position:relative;
     display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:11.5px;
+    color:var(--paper-card); font-family:'Instrument Sans', sans-serif; font-weight:600; font-size:11.5px;
   }
   .designer-chip-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
@@ -784,7 +784,7 @@
   .pm-map-lightbox-close:hover{opacity:1;}
   /* Yorumlar da ilk açılışta kapalı (bkz. kullanıcı isteği, .pm-feedback-card İLE AYNI <details>/
      <summary> deseni) — comments-title artık <h2> değil doğrudan clickable <summary>. */
-  .comments-title{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); margin:0;}
+  .comments-title{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700; color:var(--ink); margin:0;}
   .comments-title::-webkit-details-marker{display:none;}
   .comments-section[open] .comments-title{margin-bottom:6px;}
   .comments-section[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
@@ -809,7 +809,7 @@
   .comment-submit-notice{margin:10px 0 0; font-size:12.5px; color:var(--sage);}
   .comment-row{display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line-soft);}
   .comment-row:last-child{border-bottom:none;}
-  .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; flex-shrink:0; position:relative; overflow:hidden;}
+  .comment-avatar{width:34px; height:34px; border-radius:50%; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Instrument Sans', sans-serif; font-size:11.5px; font-weight:600; flex-shrink:0; position:relative; overflow:hidden;}
   /* Hem sıradan üyenin kendi profil fotoğrafı (<div>, bkz. js/components/project-comments.js#user_photo)
      hem de bir mimar/firma profiline bağlı yorumcunun profil fotoğrafı (<a>, #commenterProfile) aynı
      mutlak konumlanan <img> desenini kullanır (bkz. .designer-chip-avatar img ile AYNI desen) — bu
@@ -828,12 +828,12 @@
   /* ---------- PROJE MODALI — Bilgi Kaynağı & Geri Bildirim ---------- */
   .pm-info-divider{margin:28px 0 0; border:none; border-top:1px solid var(--line);}
   .pm-feedback-card{margin-top:20px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper);}
-  .pm-feedback-card h5{margin:0 0 6px; font-family:'Inter', sans-serif; font-size:14px; font-weight:700;}
+  .pm-feedback-card h5{margin:0 0 6px; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700;}
   .pm-feedback-card p{margin:0 0 10px; font-size:13px; color:var(--ink-soft); line-height:1.5;}
   /* Kart ilk açılışta kapalı (bkz. kullanıcı isteği: "Geri Bildirim +" ön başlığı) — native
      <details>/<summary>, JS state yönetimi gerekmez (bkz. js/components/claim-correction-box.js#
      injectStyles'daki AYNI desen, mimar/firma modallarındaki .feedback-card için). */
-  .pm-feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
+  .pm-feedback-card > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700; color:var(--ink);}
   .pm-feedback-card > summary::-webkit-details-marker{display:none;}
   .pm-feedback-card[open] > summary{margin-bottom:6px;}
   .feedback-card-plus{flex-shrink:0; width:18px; height:18px; position:relative; margin-left:10px;}
@@ -865,7 +865,7 @@
   .gallery-placeholder{
     flex:0 0 min(88%, 760px); aspect-ratio:2/1; border-radius:14px;
     display:flex; align-items:center; justify-content:center;
-    color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:40px; font-weight:700;
+    color:rgba(255,255,255,0.92); font-family:'Instrument Sans', sans-serif; font-size:40px; font-weight:700;
   }
   .gallery-nav{
     position:absolute; top:50%; transform:translateY(-50%); z-index:3;
@@ -876,7 +876,7 @@
   .gallery-nav:hover{background:rgba(27,42,61,0.72);}
   .gallery-prev{left:14px;}
   .gallery-next{right:14px;}
-  .gallery-counter{text-align:center; margin-top:8px; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);}
+  .gallery-counter{text-align:center; margin-top:8px; font-family:'Instrument Sans', sans-serif; font-size:12.5px; color:var(--ink-soft);}
 
   .lightbox{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:200; align-items:center; justify-content:center; padding:32px;}
   .lightbox.open{display:flex;}
@@ -889,7 +889,7 @@
   .lightbox-next{right:0; justify-content:flex-end; padding-right:18px;}
   .lightbox-counter{
     position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
-    color:#fff; font-size:13px; font-weight:600; font-family:'IBM Plex Mono', monospace;
+    color:#fff; font-size:13px; font-weight:600; font-family:'Instrument Sans', sans-serif;
     background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
   }
   /* "Tümünü Gör" ızgara görünümü — bkz. js/components/gallery.js#initDetailGallery, buton/ızgara
@@ -923,7 +923,7 @@
   }
 
   .related-section{margin-top:32px; padding-top:28px; border-top:1px solid var(--line);}
-  .related-title{font-family:'Inter', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
+  .related-title{font-family:'Instrument Sans', sans-serif; font-size:17px; font-weight:700; margin:0 0 16px;}
   /* Kart başlığı artık görselin ÜZERİNDE değil ALTINDA (bkz. kullanıcı isteği: tüm sayfa/görünümlerde
      gönderi başlıkları görselin altında olsun) — .related-card-photo görseli aspect-ratio'lu bir
      kutuya alır, .related-card-title normal akışta onun altına düz arkaplanla oturur. */
@@ -932,10 +932,10 @@
      kalmasın diye nötr gri (bkz. kullanıcı isteği: pop-up görsellerinin bazen beyaz kalması sorunu). */
   .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
   .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', sans-serif; font-size:22px; font-weight:700;}
+  .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Instrument Sans', sans-serif; font-size:22px; font-weight:700;}
   .related-card-title{
     padding:10px 14px 12px;
-    color:var(--ink); font-family:'Inter', sans-serif; font-size:13.5px; font-weight:700;
+    color:var(--ink); font-family:'Instrument Sans', sans-serif; font-size:13.5px; font-weight:700;
   }
   /* -webkit-line-clamp KESİNLİKLE padding taşıyan elemanın ÜZERİNDE değil, padding'siz bir İÇ
      elemanda uygulanmalı (bkz. kullanıcı isteği: "üç noktadan sonra kelime gelmemeli") — WebKit'in
@@ -966,7 +966,7 @@
   .prevnext a:hover{border-color:var(--walnut);}
   .prevnext a.next{text-align:right; margin-left:auto; flex-direction:row-reverse;}
   .prevnext-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--paper-alt);}
-  .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Inter', sans-serif; font-weight:700; font-size:14px;}
+  .prevnext-thumb-placeholder{display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Instrument Sans', sans-serif; font-weight:700; font-size:14px;}
   .prevnext-text{min-width:0; flex:1;}
   .prevnext-label{display:block; font-size:11px; letter-spacing:0.06em; color:var(--sage); margin-bottom:4px;}
   /* display:block ZORUNLU — bkz. proje.html#.prevnext-title'daki AYNI gerekçe: span varsayılan
@@ -975,7 +975,7 @@
   /* Tek satır+nowrap yerine 3 satıra kadar sarılan clamp (bkz. kullanıcı isteği: "Önceki/Sonraki
      butonlarından başlık aşağı doğru 3 satır devam edebilsin, 3 satırı geçiyorsa üç nokta ile
      sonlandır") — .related-card-title-clamp İLE AYNI desen, bkz. o dosyadaki AYNI gerekçe. */
-  .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Inter', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
+  .prevnext-title{display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; word-break:break-word; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:700; color:var(--ink); line-height:1.3;}
 
   /* Skeleton — ertelenmiş bölümler (yorumlar/diğer projeler/ilgili projeler/ürünler) veri gelene
      kadar (bkz. kullanıcı isteği: lazy/deferred). display:none DEĞİL, gerçek bir layout kutusu

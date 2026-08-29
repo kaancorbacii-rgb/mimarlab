@@ -39,13 +39,13 @@
     style.textContent = `
       .nav-avatar-wrap{position:relative;}
       .nav-avatar{display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:100px; padding:5px 14px 5px 5px; background:var(--paper-card); font-size:13.5px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
-      .nav-avatar-circle{width:28px; height:28px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600; flex-shrink:0;}
+      .nav-avatar-circle{width:28px; height:28px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Instrument Sans', sans-serif; font-size:12px; font-weight:600; flex-shrink:0;}
       .nav-avatar-menu{display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:95; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:8px; min-width:240px; box-shadow:0 12px 28px rgba(27,42,61,0.15); flex-direction:column;}
       .nav-avatar-menu.open{display:flex;}
       .nav-avatar-menu a, .nav-avatar-menu button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13.5px; font-weight:500; color:var(--ink); background:none; border:none; font-family:inherit; cursor:pointer;}
       .nav-avatar-menu a:hover, .nav-avatar-menu button:hover{background:var(--paper-alt);}
       .nav-avatar-menu-header{display:flex; align-items:center; gap:11px; padding:8px 12px 12px;}
-      .nav-avatar-menu-avatar{width:38px; height:38px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; flex-shrink:0;}
+      .nav-avatar-menu-avatar{width:38px; height:38px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Instrument Sans', sans-serif; font-size:13px; font-weight:600; flex-shrink:0;}
       .nav-avatar-menu-id{min-width:0;}
       .nav-avatar-menu-name{font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-avatar-menu-email{font-size:11.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -55,7 +55,7 @@
          hedefleri için büyütülmüş (bkz. kullanıcı isteği: hamburger menüde giriş yapılmışsa "Giriş
          Yap" yerine hesap menüsü görünsün). */
       .nav-mobile-account-header{display:flex; align-items:center; gap:12px; padding:6px 4px 14px;}
-      .nav-mobile-account-avatar{width:40px; height:40px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:600; flex-shrink:0;}
+      .nav-mobile-account-avatar{width:40px; height:40px; border-radius:50%; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Instrument Sans', sans-serif; font-size:14px; font-weight:600; flex-shrink:0;}
       .nav-mobile-account-id{min-width:0;}
       .nav-mobile-account-name{font-size:14.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
       .nav-mobile-account-email{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
