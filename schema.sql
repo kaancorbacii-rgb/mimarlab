@@ -329,6 +329,11 @@ CREATE TABLE IF NOT EXISTS profile_claims (
   note TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
+  -- P1 güvenlik düzeltmesi (migrations/0068): profile_type='office' için, admin bu claim'i
+  -- onayladığı ANDAKİ users.position değerinin dondurulmuş kopyası — firma düzenleme yetkisi
+  -- (bkz. src/lib/projectClaimAccess.js#OFFICE_EDIT_POSITIONS) artık kullanıcının sonradan
+  -- kendi PATCH /api/profile ile değiştirebildiği CANLI position'a değil, buna bakar.
+  office_position TEXT,
   UNIQUE(user_id, profile_type, profile_key)
 );
 CREATE INDEX IF NOT EXISTS idx_claims_status ON profile_claims(status);

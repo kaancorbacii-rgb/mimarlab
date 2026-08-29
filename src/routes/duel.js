@@ -69,7 +69,7 @@ async function getOwnProjectIds(env, user) {
   claimedDirect.results.forEach(r => ids.add(r.id));
 
   const { results: claims } = await env.DB.prepare(
-    `SELECT profile_type, profile_key FROM profile_claims WHERE user_id = ? AND status = 'approved'`
+    `SELECT profile_type, profile_key, office_position FROM profile_claims WHERE user_id = ? AND status = 'approved'`
   ).bind(user.id).all();
   for (const c of claims) {
     if (c.profile_type === 'architect') {
@@ -79,7 +79,9 @@ async function getOwnProjectIds(env, user) {
          WHERE ar.name = ?`
       ).bind(c.profile_key).all();
       results.forEach(r => ids.add(r.id));
-    } else if (c.profile_type === 'office' && OFFICE_EDIT_POSITIONS.has(user.position)) {
+    // P1 güvenlik düzeltmesi (bkz. migrations/0068, projectClaimAccess.js'teki AYNI gerekçe):
+    // canlı user.position yerine bu claim'in admin onayı anında dondurulmuş office_position'ı.
+    } else if (c.profile_type === 'office' && OFFICE_EDIT_POSITIONS.has(c.office_position)) {
       const { results } = await env.DB.prepare(
         `SELECT pd.project_id AS id FROM project_designers pd
          JOIN offices ofc ON ofc.id = pd.office_id AND ofc.deleted_at IS NULL

@@ -29,9 +29,7 @@ export async function canUserEditProjectBySlug(env, user, slug) {
   ).bind(project.id).all();
 
   const architectNames = [...new Set(results.map(r => r.ar_name).filter(Boolean))];
-  const officeNames = OFFICE_EDIT_POSITIONS.has(user.position)
-    ? [...new Set(results.map(r => r.ofc_name).filter(Boolean))]
-    : [];
+  const officeNames = [...new Set(results.map(r => r.ofc_name).filter(Boolean))];
   if (!architectNames.length && !officeNames.length) return false;
 
   for (const name of architectNames) {
@@ -40,11 +38,16 @@ export async function canUserEditProjectBySlug(env, user, slug) {
     ).bind(user.id, name).first();
     if (claim) return true;
   }
+  // P1 güvenlik düzeltmesi (bkz. migrations/0068, submissions.js#verifyClaimedProfileKey'deki AYNI
+  // gerekçe): önceden burada TÜM officeNames, kullanıcının CANLI user.position'ına göre baştan
+  // filtreleniyordu — bu, kullanıcının kendi profilinden position'ını "Kurucu" yaparak (ilgisiz bir
+  // firmanın bile) projelerini düzenleme yetkisi kazanmasına izin veriyordu. Artık her firma adı
+  // için o SPESİFİK claim'in admin onayı anında dondurulmuş office_position'ına bakılır.
   for (const name of officeNames) {
     const claim = await env.DB.prepare(
-      `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND profile_key = ? AND status = 'approved'`
+      `SELECT id, office_position FROM profile_claims WHERE user_id = ? AND profile_type = 'office' AND profile_key = ? AND status = 'approved'`
     ).bind(user.id, name).first();
-    if (claim) return true;
+    if (claim && OFFICE_EDIT_POSITIONS.has(claim.office_position)) return true;
   }
   return false;
 }

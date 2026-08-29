@@ -116,10 +116,13 @@ async function verifyClaimedProfileKey(env, user, typeKey, profileKey) {
   if (!profileType) return errorJson('Bu tip için profil düzenleme desteklenmiyor.');
   const currentName = RENAMABLE_TABLE_BY_TYPE[typeKey] ? await resolveCurrentProfileName(env, typeKey, profileKey) : profileKey;
   const claim = await env.DB.prepare(
-    `SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
+    `SELECT id, office_position FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ? AND status = 'approved'`
   ).bind(user.id, profileType, currentName).first();
   if (!claim) return errorJson('Bu profili düzenlemek için önce profili sahiplenip onayının geçmesi gerekiyor.', 403);
-  if (typeKey === 'offices' && !OFFICE_EDIT_POSITIONS.has(user.position)) {
+  // P1 güvenlik düzeltmesi (bkz. migrations/0068): canlı user.position YERİNE, admin bu claim'i
+  // onayladığı andaki dondurulmuş office_position kullanılır — aksi halde kullanıcı kendi
+  // profilinden position'ını "Kurucu" yapıp bu kontrolü atlatabilirdi.
+  if (typeKey === 'offices' && !OFFICE_EDIT_POSITIONS.has(claim.office_position)) {
     return errorJson('Bu firmayı düzenlemek için Kurucu, Kurucu Ortak, Ortak ya da Ekip Lideri pozisyonunda olman gerekiyor.', 403);
   }
   return null;

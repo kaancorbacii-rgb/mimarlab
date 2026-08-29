@@ -685,21 +685,25 @@ async function handleClaimsAdmin(request, env, url, segments) {
     const profileType = body.profileType;
     const profileKey = (body.profileKey || '').trim();
     if (!userId || !['architect', 'office'].includes(profileType) || !profileKey) return errorJson('Geçersiz istek.');
-    const userRow = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(userId).first();
+    const userRow = await env.DB.prepare('SELECT id, position FROM users WHERE id = ?').bind(userId).first();
     if (!userRow) return errorJson('Kullanıcı bulunamadı.', 404);
     const table = PROFILE_OPTION_TABLE[profileType];
     const profileRow = await env.DB.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NULL AND name = ?`).bind(profileKey).first();
     if (!profileRow) return errorJson('Böyle bir profil bulunamadı.', 404);
     const now = Date.now();
+    // bkz. migrations/0068 — office_position, admin BU ANDA gördüğü/onayladığı position'ın
+    // dondurulmuş kopyası; kullanıcının sonradan kendi profilinden değiştirdiği position bu
+    // atamanın yetkisini artık ETKİLEMEZ (P1 güvenlik düzeltmesi).
+    const officePosition = profileType === 'office' ? (userRow.position || null) : null;
     const existing = await env.DB.prepare(
       'SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
     ).bind(userId, profileType, profileKey).first();
     if (existing) {
-      await env.DB.prepare('UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?').bind('approved', now, existing.id).run();
+      await env.DB.prepare('UPDATE profile_claims SET status = ?, office_position = ?, updated_at = ? WHERE id = ?').bind('approved', officePosition, now, existing.id).run();
     } else {
       await env.DB.prepare(
-        'INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(newId(), userId, profileType, profileKey, 'approved', null, now, now).run();
+        'INSERT INTO profile_claims (id, user_id, profile_type, profile_key, status, note, created_at, updated_at, office_position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(newId(), userId, profileType, profileKey, 'approved', null, now, now, officePosition).run();
     }
     // bkz. aşağıdaki PATCH onay dalındaki AYNI invalidation gerekçesi — /api/public/badges bu tabloya
     // doğrudan JOIN olduğundan.
@@ -749,9 +753,22 @@ async function handleClaimsAdmin(request, env, url, segments) {
       'SELECT user_id, profile_type, profile_key FROM profile_claims WHERE id = ?'
     ).bind(id).first();
     if (!claim) return errorJson('Bulunamadı', 404);
+    // bkz. migrations/0068 + yukarıdaki POST dalındaki AYNI gerekçe: onaylanan bir office claim'i,
+    // admin'in BU ANDA (GET /api/admin/claims yanıtındaki u.position AS user_position ile) gördüğü
+    // position değerini dondurur — kullanıcının sonradan kendi profilinden değiştirdiği position bu
+    // onayın yetkisini artık ETKİLEMEZ (P1 güvenlik düzeltmesi). Admin bir claim'i tekrar
+    // onaylarsa (bu uç yeniden çağrılırsa) snapshot o andaki güncel position ile YENİLENİR.
+    let officePositionUpdate = '';
+    const bindArgs = [body.status, Date.now()];
+    if (body.status === 'approved' && claim.profile_type === 'office') {
+      const claimUser = await env.DB.prepare('SELECT position FROM users WHERE id = ?').bind(claim.user_id).first();
+      officePositionUpdate = ', office_position = ?';
+      bindArgs.push(claimUser ? (claimUser.position || null) : null);
+    }
+    bindArgs.push(id);
     await env.DB.prepare(
-      'UPDATE profile_claims SET status = ?, updated_at = ? WHERE id = ?'
-    ).bind(body.status, Date.now(), id).run();
+      `UPDATE profile_claims SET status = ?, updated_at = ?${officePositionUpdate} WHERE id = ?`
+    ).bind(...bindArgs).run();
     // audit bulgusu: diğer 13 admin mutasyon noktasının aksine bu uç invalidatePublicCache()
     // çağırmıyordu — /api/public/badges (bkz. src/routes/badges.js#computeBadgesPayload) doğrudan
     // `profile_claims.status = 'approved'` filtresine JOIN olduğundan, bir talep onaylandığında/
