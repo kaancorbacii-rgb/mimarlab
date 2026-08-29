@@ -1,0 +1,180 @@
+import { json, errorJson, readJson } from '../lib/http.js';
+import { getSessionUser } from '../lib/auth.js';
+import { newId } from '../lib/crypto.js';
+import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
+
+// src/routes/saved.js İLE AYNI yapı — bkz. kullanıcı isteği: Archello (archello.com/brand/ofist)
+// benzeri "Takip Et" özelliği. Yalnızca mimar/firma takip edilebilir (bkz. schema.sql#follows).
+export const FOLLOW_TYPES = new Set(['architect', 'office']);
+const CANONICAL_TYPE_BY_FOLLOW = { architect: 'architects', office: 'offices' };
+
+export async function handleFollowRoute(request, env, url) {
+  const segments = url.pathname.split('/').filter(Boolean); // ["api", "follows", ...]
+
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  if (segments.length === 2 && request.method === 'GET') return listFollows(env, user);
+  if (segments.length === 2 && request.method === 'POST') return createFollow(request, env, user);
+  if (segments.length === 3 && segments[2] === 'feed' && request.method === 'GET') return followFeed(env, user);
+  if (segments.length === 4 && request.method === 'DELETE') return deleteFollow(env, user, segments[2], segments[3]);
+  return errorJson('Bulunamadı', 404);
+}
+
+async function listFollows(env, user) {
+  const { results } = await env.DB.prepare(
+    'SELECT followed_type, followed_key, followed_title FROM follows WHERE user_id = ? ORDER BY created_at DESC'
+  ).bind(user.id).all();
+  return json({ items: results });
+}
+
+async function createFollow(request, env, user) {
+  // saved.js#createSaved İLE AYNI cömert üst sınır gerekçesi (ucuz/sık kullanılan bir eylem).
+  if (!(await checkRateLimit(env, 'follow', user.id, 100, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla takip işlemi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+
+  const body = await readJson(request);
+  const followedType = body.type;
+  const followedKey = (body.key || '').trim();
+  if (!FOLLOW_TYPES.has(followedType) || !followedKey) return errorJson('Geçersiz istek.');
+
+  const existing = await env.DB.prepare(
+    'SELECT id FROM follows WHERE user_id = ? AND followed_type = ? AND followed_key = ?'
+  ).bind(user.id, followedType, followedKey).first();
+  if (existing) return json({ ok: true, alreadyFollowing: true });
+
+  // followed_ref_id — follow anında bir kez çözülür (bkz. schema.sql#follows yorumu), feed sorgusu
+  // her istekte isim taramasına gerek kalmadan doğrudan bununla JOIN/IN yapabilsin diye.
+  const canonicalType = CANONICAL_TYPE_BY_FOLLOW[followedType];
+  const canonRow = await findCanonicalRowByNaturalKey(env, canonicalType, followedKey);
+
+  const id = newId();
+  await env.DB.prepare(
+    `INSERT INTO follows (id, user_id, followed_type, followed_key, followed_title, followed_ref_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    id, user.id, followedType, followedKey,
+    (body.title || '').slice(0, 300) || null,
+    canonRow ? canonRow.id : null,
+    Date.now()
+  ).run();
+
+  return json({ ok: true }, 201);
+}
+
+async function deleteFollow(env, user, followedType, followedKey) {
+  if (!FOLLOW_TYPES.has(followedType)) return errorJson('Geçersiz istek.');
+  await env.DB.prepare(
+    'DELETE FROM follows WHERE user_id = ? AND followed_type = ? AND followed_key = ?'
+  ).bind(user.id, followedType, decodeURIComponent(followedKey)).run();
+  return json({ ok: true });
+}
+
+// ms epoch -> SQLite datetime('now') ile AYNI "YYYY-MM-DD HH:MM:SS" biçimi — projects/products.
+// created_at bu biçimde TEXT olarak tutulur (bkz. schema.sql), lexicographic karşılaştırma
+// kronolojik sıralamayla birebir örtüşür.
+function toSqliteDatetime(ms) {
+  return new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// Aktivitelerim > "Takip Ettiklerim" — takip edilen HER mimar/firma için, o profili takip etmeye
+// başladığı ANDAN SONRA yayınlanmış proje/ürünleri döner (bkz. kullanıcı isteği: "takip etmeden
+// önceki gönderilerin bu alana gelmesine gerek yok"). saved.js#listSaved İLE AYNI desen: backend
+// filtre/sayfalama YAPMAZ, ham liste döner — istemci Kaydettiklerim/Beğendiklerim ile AYNI şekilde
+// sekme+PAGE_SIZE_DASH sayfalamasını kendi tarafında uygular (bkz. js/components/auth-modal.js).
+async function followFeed(env, user) {
+  const { results: follows } = await env.DB.prepare(
+    'SELECT followed_type, followed_key, followed_title, followed_ref_id, created_at FROM follows WHERE user_id = ? AND followed_ref_id IS NOT NULL'
+  ).bind(user.id).all();
+  if (!follows.length) return json({ items: [] });
+
+  const architectFollows = follows.filter(f => f.followed_type === 'architect');
+  const officeFollows = follows.filter(f => f.followed_type === 'office');
+
+  const items = [];
+
+  if (architectFollows.length || officeFollows.length) {
+    const clauses = [];
+    const binds = [];
+    for (const f of architectFollows) {
+      clauses.push('(pd.architect_id = ? AND p.created_at > ?)');
+      binds.push(f.followed_ref_id, toSqliteDatetime(f.created_at));
+    }
+    for (const f of officeFollows) {
+      clauses.push('(pd.office_id = ? AND p.created_at > ?)');
+      binds.push(f.followed_ref_id, toSqliteDatetime(f.created_at));
+    }
+    // DISTINCT — bir proje birden fazla tasarımcı satırına (project_designers) sahip olabilir;
+    // kullanıcı bunlardan birden fazlasını takip ediyorsa (ör. hem mimarı hem ofisi) JOIN aynı
+    // projeyi birden çok kez döndürebilir, yalnızca p.* seçildiği için DISTINCT bunları eler.
+    const { results: projectRows } = await env.DB.prepare(
+      `SELECT DISTINCT p.id, p.slug, p.title, p.images, p.created_at
+       FROM projects p JOIN project_designers pd ON pd.project_id = p.id
+       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND (${clauses.join(' OR ')})
+       ORDER BY p.created_at DESC LIMIT 200`
+    ).bind(...binds).all();
+    for (const row of projectRows) {
+      let images = [];
+      try { images = JSON.parse(row.images || '[]'); } catch { /* bozuk JSON — atla */ }
+      items.push({
+        type: 'project',
+        title: row.title,
+        image: images[0] || null,
+        href: `/proje/${encodeURIComponent(row.slug)}`,
+        created_at: row.created_at,
+      });
+    }
+  }
+
+  if (officeFollows.length || architectFollows.length) {
+    // gerçek bulgu (kendi denetim): SQL cümlesinde her takip için "designer LIKE '%ad%' AND
+    // created_at > <O takibin tarihi>" şeklinde tarihi LIKE'a bağlamak yanlış olurdu — LIKE yalnızca
+    // bir ÖN-filtre olduğundan (architect.js:383 İLE AYNI gerekçe), bir satır BAŞKA bir takibin
+    // (ör. adı yanlışlıkla alt-dize eşleşen farklı bir mimar) tarih eşiğinden SQL'i geçip, asıl eşleşen
+    // (TAM ad karşılaştırmasıyla bulunan) takibin KENDİ tarihi hiç kontrol edilmeden içeri sızabilirdi.
+    // Bu yüzden SQL yalnızca ucuz/geniş bir ön-filtre uygular (tarihsiz), "takipten SONRA mı"
+    // kontrolü ise TAM eşleşme bulunduktan SONRA, ilgili takibin KENDİ created_at'ine karşı JS'te yapılır.
+    const clauses = [];
+    const binds = [];
+    if (officeFollows.length) {
+      clauses.push(`brand_office_id IN (${officeFollows.map(() => '?').join(',')})`);
+      binds.push(...officeFollows.map(f => f.followed_ref_id));
+    }
+    for (const f of architectFollows) {
+      clauses.push('designer LIKE ? COLLATE NOCASE');
+      binds.push(`%${f.followed_title || ''}%`);
+    }
+    const { results: productRows } = await env.DB.prepare(
+      `SELECT id, slug, title, images, designer, brand_office_id, created_at FROM products
+       WHERE deleted_at IS NULL AND hidden_at IS NULL AND (${clauses.join(' OR ')})
+       ORDER BY created_at DESC LIMIT 200`
+    ).bind(...binds).all();
+    const architectFollowedAtByName = new Map(architectFollows.map(f => [(f.followed_title || '').toLowerCase(), f.created_at]));
+    const officeFollowedAtByRefId = new Map(officeFollows.map(f => [f.followed_ref_id, f.created_at]));
+    for (const row of productRows) {
+      const rowCreatedAtMs = Date.parse(row.created_at.replace(' ', 'T') + 'Z');
+      const designerNames = (row.designer || '').split(',').map(s => s.trim().toLowerCase());
+      const matchesArchitect = designerNames.some(n => {
+        const followedAt = architectFollowedAtByName.get(n);
+        return followedAt !== undefined && rowCreatedAtMs > followedAt;
+      });
+      const officeFollowedAt = officeFollowedAtByRefId.get(row.brand_office_id);
+      const matchesOffice = officeFollowedAt !== undefined && rowCreatedAtMs > officeFollowedAt;
+      if (!matchesArchitect && !matchesOffice) continue;
+      let images = [];
+      try { images = JSON.parse(row.images || '[]'); } catch { /* bozuk JSON — atla */ }
+      items.push({
+        type: 'product',
+        title: row.title,
+        image: images[0] || null,
+        href: `/urun/${encodeURIComponent(row.slug)}`,
+        created_at: row.created_at,
+      });
+    }
+  }
+
+  items.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+  return json({ items });
+}

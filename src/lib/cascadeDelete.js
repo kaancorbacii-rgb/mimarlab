@@ -9,6 +9,10 @@ async function deleteEngagement(env, type, key) {
   await env.DB.prepare(`DELETE FROM comments WHERE target_type = ? AND target_id = ?`).bind(type, key).run();
   await env.DB.prepare(`DELETE FROM ratings WHERE target_type = ? AND target_id = ?`).bind(type, key).run();
   await env.DB.prepare(`DELETE FROM saved_items WHERE item_type = ? AND item_key = ?`).bind(type, key).run();
+  // follows yalnızca 'architect'/'office' için satır barındırır (bkz. schema.sql) — bu fonksiyon
+  // proje/ürün silmede de çağrıldığından (type='project'/'product') o çağrılarda zaten eşleşen
+  // satır olmayacağı için no-op, saved_items İLE AYNI paylaşılan-fonksiyon deseni.
+  await env.DB.prepare(`DELETE FROM follows WHERE followed_type = ? AND followed_key = ?`).bind(type, key).run();
 }
 
 // Bir <tip>_submissions JSON dizi kolonundan (designer/brands/founders) belirli bir ismi çıkarıp
@@ -142,6 +146,7 @@ export async function cascadeDeleteAccount(env, userId) {
   await env.DB.batch([
     env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM saved_items WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM follows WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM notifications WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM comments WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM ratings WHERE user_id = ?`).bind(userId),

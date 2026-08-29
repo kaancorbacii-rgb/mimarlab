@@ -15,8 +15,8 @@ import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/leg
 import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
+import { handleFollowRoute } from './routes/follows.js';
 import { handleRatingsRoute } from './routes/ratings.js';
-import { handleDuelRoute } from './routes/duel.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
 import { handleTop100Route } from './routes/top100.js';
@@ -309,7 +309,6 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
   { loc: '/en-iyi-100', changefreq: 'weekly', priority: '0.7' },
-  { loc: '/duello', changefreq: 'weekly', priority: '0.6' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   // gerçek bulgu: bu ikisi indexlenebilir (robots noindex YOK, bkz. INFO_MODAL_META) ama sitemap'te
@@ -359,7 +358,7 @@ const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=
 // istemci tarafı fetch'lerle (kendi kısa TTL'li önbellekleriyle) yansıdığından kabuğun birkaç dakika
 // bayat kalması sorun yaratmaz.
 const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun', '/duello']);
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
@@ -911,8 +910,8 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
+  if (path.startsWith('/api/follows')) return handleFollowRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
-  if (path.startsWith('/api/duel/')) return handleDuelRoute(request, env, url);
   if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);
   if (path.startsWith('/api/corrections')) return handleCorrectionsRoute(request, env, url);
   if (path.startsWith('/api/badges')) return handleBadgesRoute(request, env, url);

@@ -37,6 +37,9 @@ const OfficeModal = (function () {
          header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği). Bu yüzden
          .card-edit-btn/.card-delete-btn/.profile-edit-btn ve #profile-edit-slot'un display:contents
          kuralı buradan kaldırıldı; TEK stil kaynağı artık modal-shell.js#injectStyles. */
+      /* Yalnızca "Websitesi" tarafından kullanılır (bkz. aşağıdaki gerçek bulgu yorumu) — Kaydet
+         artık ayrı, ikon-only .save-btn-icon sınıfını kullanıyor (bkz. kullanıcı isteği: "Kaydet"
+         metni kaldırılsın). */
       .save-btn{
         display:inline-flex; align-items:center; gap:5px;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -46,12 +49,31 @@ const OfficeModal = (function () {
         font-family:inherit; line-height:1; text-decoration:none;
       }
       .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
-      .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
       .save-btn svg{flex-shrink:0;}
-      .save-btn-label-saved{display:none;}
-      .save-btn.saved .save-btn-label-default{display:none;}
-      .save-btn.saved .save-btn-label-saved{display:inline;}
-      .save-btn-count{font-weight:600;}
+      /* Kaydet — share-button.js#.share-btn İLE BİREBİR AYNI kare ölçüler/kırılma noktası. */
+      .save-btn-icon{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:0 !important;
+        height:32px !important; width:32px !important; min-width:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 !important; color:var(--ink-soft);
+        font-family:inherit; line-height:1;
+      }
+      .save-btn-icon:hover{border-color:var(--walnut); color:var(--ink);}
+      .save-btn-icon.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+      .save-btn-icon svg{flex-shrink:0;}
+      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Kaydet/Paylaş ile AYNI
+         yükseklikte, paylaş ikonunun yanında bir Takip Et pili. */
+      .follow-btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 12px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
+        font-family:inherit; line-height:1;
+      }
+      .follow-btn:hover{border-color:var(--walnut); color:var(--ink);}
+      .follow-btn.following{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
       .detail-info{margin-top:8px;}
       /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (firma-ekle.html#social-row) */
       .social-icons{display:flex; gap:12px; margin-top:4px;}
@@ -145,14 +167,14 @@ const OfficeModal = (function () {
            (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
            çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
         .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
-        /* Websitesi/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
-           yüksekliği en az 48px, tıklanabilir alan en az 44x44px — "Websitesi" .save-btn sınıfını
-           Kaydet ile PAYLAŞTIĞINDAN (bkz. yukarısı, visitBtn.className) tek kural ikisini birden
-           kapsar. "Paylaş" burada scoped bir override taşımadığı için share-button.js#injectStyles'daki
-           AYNI kırılma noktasındaki generic .share-btn kuralı uygulanır. Satırın tek satırda kalma
-           zorunluluğu (üstteki .detail-title-actions flex-wrap:nowrap + flex-shrink:1/min-width:0/
-           overflow:hidden/ellipsis) korunur. */
+        /* Websitesi — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil yüksekliği
+           en az 48px, tıklanabilir alan en az 44x44px. "Paylaş" burada scoped bir override taşımadığı
+           için share-button.js#injectStyles'daki AYNI kırılma noktasındaki generic .share-btn kuralı
+           uygulanır. Satırın tek satırda kalma zorunluluğu (üstteki .detail-title-actions
+           flex-wrap:nowrap + flex-shrink:1/min-width:0/overflow:hidden/ellipsis) korunur. */
         .save-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
+        .save-btn-icon{height:48px !important; width:48px !important; min-width:48px !important;}
+        .follow-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
         .detail-title-actions{gap:8px !important;}
       }
       .prevnext-mobile-divider{display:none;}
@@ -525,10 +547,10 @@ const OfficeModal = (function () {
 
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
-    saveBtn.className = 'save-btn card-save-btn';
+    saveBtn.className = 'save-btn-icon card-save-btn';
     saveBtn.id = 'om-save-btn';
     saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="om-save-count"></span>`;
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>`;
     const actionsEl = document.getElementById('om-actions');
     actionsEl.innerHTML = '';
     actionsEl.prepend(saveBtn);
@@ -543,18 +565,25 @@ const OfficeModal = (function () {
     saveBtn.dataset.image = officeLogoUrl || '';
     saveBtn.dataset.href = `/firma/${encodeURIComponent(slugify(o.name))}`;
     wireSaveButtons('office');
-    fetch(`/api/public/save-count?type=office&key=${encodeURIComponent(saveBtn.dataset.key)}`)
-      .then(r => r.json())
-      .then(data => { const el = document.getElementById('om-save-count'); if (el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
-      .catch(() => {});
+    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, paylaş ikonunun yanında.
+    const followBtn = document.createElement('button');
+    followBtn.type = 'button';
+    followBtn.className = 'follow-btn card-follow-btn';
+    followBtn.id = 'om-follow-btn';
+    followBtn.dataset.type = 'office';
+    followBtn.dataset.key = saveBtn.dataset.key;
+    followBtn.dataset.title = o.name;
+    followBtn.innerHTML = `<span class="follow-btn-label">Takip Et</span>`;
+    saveBtn.insertAdjacentElement('afterend', followBtn);
+    wireFollowButtons();
     if (typeof ShareWidget !== 'undefined') {
-      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('om-share-btn'));
+      followBtn.insertAdjacentHTML('afterend', ShareWidget.html('om-share-btn'));
       ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
     }
 
-    // "Websitesi" — Kaydet ile AYNI satırda, hemen soluna (bkz. kullanıcı isteği) —
-    // .save-btn sınıfını (kart bağlamındaki değil, bu enjekte edilen stil) birebir paylaşarak
-    // font/boyut/yükseklik/padding/radius otomatik olarak Kaydet'le eş değer kalır.
+    // "Websitesi" — Kaydet ile AYNI satırda, hemen soluna (bkz. kullanıcı isteği) — Kaydet artık
+    // ikon-only .save-btn-icon kullandığından (bkz. yukarısı), metinli bir pil için kendi .save-btn
+    // sınıfını (kart bağlamındaki değil, bu enjekte edilen stil) kullanır.
     const visitUrl = o.website ? safeUrl(o.website) : '';
     if (visitUrl) {
       const visitBtn = document.createElement('a');

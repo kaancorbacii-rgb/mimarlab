@@ -38,21 +38,32 @@ const ArchitectModal = (function () {
          header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği). Bu yüzden
          .card-edit-btn/.card-delete-btn/.profile-edit-btn ve #profile-edit-slot'un display:contents
          kuralı buradan kaldırıldı; TEK stil kaynağı artık modal-shell.js#injectStyles. */
+      /* Kaydet artık yalnızca ikon taşıyor (bkz. kullanıcı isteği: "Kaydet" metni kaldırılsın) —
+         share-button.js#.share-btn İLE BİREBİR AYNI kare ölçüler/kırılma noktası, ikisi de aynı
+         yükseklikte kalsın diye. */
       .save-btn{
-        display:inline-flex; align-items:center; gap:5px;
-        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
-        height:32px !important; box-sizing:border-box;
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:0 !important;
+        height:32px !important; width:32px !important; min-width:32px !important; box-sizing:border-box;
         background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
+        padding:0 !important; color:var(--ink-soft);
         font-family:inherit; line-height:1;
       }
       .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
       .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
       .save-btn svg{flex-shrink:0;}
-      .save-btn-label-saved{display:none;}
-      .save-btn.saved .save-btn-label-default{display:none;}
-      .save-btn.saved .save-btn-label-saved{display:inline;}
-      .save-btn-count{font-weight:600;}
+      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Kaydet/Paylaş ile AYNI
+         yükseklikte, paylaş ikonunun yanında bir Takip Et pili. */
+      .follow-btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 12px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
+        font-family:inherit; line-height:1;
+      }
+      .follow-btn:hover{border-color:var(--walnut); color:var(--ink);}
+      .follow-btn.following{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -144,7 +155,8 @@ const ArchitectModal = (function () {
            uygulanır (bkz. o dosya). Satırın tek satırda kalma zorunluluğu (üstteki
            .detail-title-actions flex-wrap:nowrap + flex-shrink:1/min-width:0/overflow:hidden/
            ellipsis) korunur. */
-        .save-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
+        .save-btn{height:48px !important; width:48px !important; min-width:48px !important;}
+        .follow-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
         .detail-title-actions{gap:8px !important;}
       }
       .prevnext-mobile-divider{display:none;}
@@ -543,7 +555,7 @@ const ArchitectModal = (function () {
     saveBtn.className = 'save-btn card-save-btn';
     saveBtn.id = 'am-save-btn';
     saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="am-save-count"></span>`;
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>`;
     const actionsEl = document.getElementById('am-actions');
     actionsEl.innerHTML = '';
     actionsEl.prepend(saveBtn);
@@ -558,12 +570,19 @@ const ArchitectModal = (function () {
     saveBtn.dataset.image = a.photo || '';
     saveBtn.dataset.href = `/mimar/${encodeURIComponent(slugify(a.name))}`;
     wireSaveButtons('architect');
-    fetch(`/api/public/save-count?type=architect&key=${encodeURIComponent(saveBtn.dataset.key)}`)
-      .then(r => r.json())
-      .then(data => { const el = document.getElementById('am-save-count'); if (el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
-      .catch(() => {});
+    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, paylaş ikonunun yanında.
+    const followBtn = document.createElement('button');
+    followBtn.type = 'button';
+    followBtn.className = 'follow-btn card-follow-btn';
+    followBtn.id = 'am-follow-btn';
+    followBtn.dataset.type = 'architect';
+    followBtn.dataset.key = saveBtn.dataset.key;
+    followBtn.dataset.title = a.name;
+    followBtn.innerHTML = `<span class="follow-btn-label">Takip Et</span>`;
+    saveBtn.insertAdjacentElement('afterend', followBtn);
+    wireFollowButtons();
     if (typeof ShareWidget !== 'undefined') {
-      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('am-share-btn'));
+      followBtn.insertAdjacentHTML('afterend', ShareWidget.html('am-share-btn'));
       ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
     }
     const socialLinksEl = document.getElementById('am-social-links');

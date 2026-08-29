@@ -765,9 +765,14 @@ const AuthModal = (function () {
         </div>
 
         <div class="dash-section">
-          <h2>Düello Analizlerim</h2>
-          <div id="am-dash-duel-analysis"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-duel-analysis-pagination"></div>
+          <h2>Takip Ettiklerim</h2>
+          <div class="saved-filter" id="am-follow-feed-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+          </div>
+          <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-follow-feed-pagination"></div>
         </div>
       </div>
     </div>`;
@@ -1841,70 +1846,56 @@ const AuthModal = (function () {
       renderDashPagination('am-rated-pagination', ratedPage, totalPages, (p) => { ratedPage = p; renderRated(); });
     }
 
-    // Düello Analizlerim — loadRated/renderRated İLE AYNI desen (en yakın örnek: tip filtresi yok,
-    // tek liste + sayfalama, bkz. kullanıcı isteği: "Aktivitelerim'e yeni bir kutu ekle"). Satıra
-    // tıklanınca duel-analysis-modal.js diğer sayfalarda henüz yüklenmemiş olabilir (bkz. lazy-modals.js
-    // İLE AYNI gerekçe: bu popup yalnızca burada VEYA duello.html'de kullanılır, her sayfaya script
-    // tag'i eklemek yerine ilk gerçek kullanımda indirilir).
-    // audit bulgusu (2026-08-27): `window.DuelAnalysisModal` kontrolü TEK BAŞINA yeterli değildi —
-    // kullanıcı iki farklı "Analizi Gör" satırına HIZLI art arda tıklarsa (ilk script henüz
-    // yüklenip window.DuelAnalysisModal'ı SET ETMEDEN), her iki çağrı da onu tanımsız görüp
-    // KENDİ <script> etiketini enjekte ediyor — ikinci betiğin üst düzey `const DuelAnalysisModal`
-    // bildirimi "Identifier has already been declared" SyntaxError'ı ile patlıyor (doğrulandı: iki
-    // <script> art arda enjekte edilince gerçekten fırlıyor). lazy-modals.js#loadModule İLE AYNI
-    // "bekleyen Promise'i önbelleğe al" deseni bu yarışı ortadan kaldırır — ikinci çağrı YENİ bir
-    // script enjekte etmez, birincinin Promise'ine katılır.
-    let pendingDuelAnalysisModal = null;
-    function loadDuelAnalysisModal() {
-      if (window.DuelAnalysisModal) return Promise.resolve(window.DuelAnalysisModal);
-      if (pendingDuelAnalysisModal) return pendingDuelAnalysisModal;
-      pendingDuelAnalysisModal = new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = 'js/components/duel-analysis-modal.js';
-        script.onload = () => resolve(window.DuelAnalysisModal);
-        document.head.appendChild(script);
-      });
-      return pendingDuelAnalysisModal;
-    }
-
-    let duelAnalysisItems = [];
-    let duelAnalysisPage = 1;
-    async function loadDuelAnalyses() {
-      const res = await fetch('/api/duel/analysis/mine');
+    // Takip Ettiklerim — loadRated/renderRated İLE AYNI desen (tip filtresi + tek liste + sayfalama),
+    // bkz. kullanıcı isteği: takip edilen bir mimar/firmaya ait yeni proje/ürün burada görünsün.
+    // Backend (/api/follows/feed) filtre/sayfalama YAPMAZ — Kaydettiklerim/Beğendiklerim İLE AYNI
+    // desen, ham liste döner, sekme+PAGE_SIZE_DASH sayfalaması burada uygulanır.
+    let followFeedItems = [];
+    let followFeedFilter = '';
+    let followFeedPage = 1;
+    async function loadFollowFeed() {
+      const res = await fetch('/api/follows/feed');
       const data = res.ok ? await res.json() : { items: [] };
-      duelAnalysisItems = data.items || [];
-      renderDuelAnalyses();
+      followFeedItems = data.items || [];
+      renderFollowFeed();
     }
-    function renderDuelAnalyses() {
-      const container = document.getElementById('am-dash-duel-analysis');
+    function renderFollowFeed() {
+      const container = document.getElementById('am-dash-follow-feed');
       if (!container) return;
-      if (!duelAnalysisItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz kaydedilmiş bir Düello analizin yok.<br><a href="duello.html">Düello oyna</a></div>';
-        document.getElementById('am-duel-analysis-pagination').innerHTML = '';
+      const items = followFeedFilter ? followFeedItems.filter(it => it.type === followFeedFilter) : followFeedItems;
+      if (!followFeedItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz takip ettiğin bir mimar/firma yok ya da takip ettiklerinden henüz yeni bir paylaşım yok.<br><a href="mimar.html">Mimarlara göz at</a></div>';
+        document.getElementById('am-follow-feed-pagination').innerHTML = '';
         return;
       }
-      const totalPages = Math.max(1, Math.ceil(duelAnalysisItems.length / PAGE_SIZE_DASH));
-      if (duelAnalysisPage > totalPages) duelAnalysisPage = totalPages;
-      const startIdx = (duelAnalysisPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = duelAnalysisItems.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde yeni bir paylaşım yok.</div>';
+        document.getElementById('am-follow-feed-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (followFeedPage > totalPages) followFeedPage = totalPages;
+      const startIdx = (followFeedPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
       container.innerHTML = pageItems.map(it => `
         <div class="saved-row">
-          <a class="saved-row-link" href="#" data-duel-analysis-id="${escapeAttr(it.id)}">
-            <div class="saved-row-noimg"></div>
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
+            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
             <div style="min-width:0;">
-              <div class="saved-row-title">${escapeHtml(new Date(it.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }))}</div>
-              <div class="saved-row-meta">${it.choiceCount} seçim${it.headline ? ' · ' + escapeHtml(it.headline) : ''}</div>
+              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
+              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''}</div>
             </div>
           </a>
         </div>`).join('');
-      renderDashPagination('am-duel-analysis-pagination', duelAnalysisPage, totalPages, (p) => { duelAnalysisPage = p; renderDuelAnalyses(); });
+      renderDashPagination('am-follow-feed-pagination', followFeedPage, totalPages, (p) => { followFeedPage = p; renderFollowFeed(); });
     }
-    on('am-dash-duel-analysis', 'click', (e) => {
-      const row = e.target.closest('[data-duel-analysis-id]');
-      if (!row) return;
-      e.preventDefault();
-      const id = row.getAttribute('data-duel-analysis-id');
-      loadDuelAnalysisModal().then((Modal) => { if (Modal) Modal.open({ mode: 'saved', id }, { triggerEl: row }); });
+    on('am-follow-feed-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      followFeedFilter = btn.dataset.filter;
+      followFeedPage = 1;
+      document.querySelectorAll('#am-follow-feed-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderFollowFeed();
     });
 
     let commentItems = [];
@@ -1984,7 +1975,7 @@ const AuthModal = (function () {
 
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      [loadSaved(), loadRated(), loadComments(), loadDuelAnalyses()].forEach(p => p.catch(() => {}));
+      [loadSaved(), loadRated(), loadComments(), loadFollowFeed()].forEach(p => p.catch(() => {}));
     }).catch(() => {});
   }
 

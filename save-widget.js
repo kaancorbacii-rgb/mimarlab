@@ -3,6 +3,11 @@
 // <script src="save-widget.js"> ile dahil edilir.
 let currentUser = null;
 const savedKeys = new Set();
+// Takip Et (bkz. kullanıcı isteği: archello.com/brand/ofist benzeri) — savedKeys/wireSaveButtons İLE
+// BİREBİR AYNI iskelet, /api/saved yerine /api/follows. Yalnızca architect-modal.js/office-modal.js
+// içindeki tek bir buton için kullanılır (bkz. o dosyalardaki #am-actions/#om-actions), bu yüzden
+// wireSaveButtons(type)'ın aksine varsayılan tip almaz — buton zaten kendi dataset.type'ını taşır.
+const followedKeys = new Set();
 
 // Başlık gibi serbest metinlerden kararlı, ASCII bir anahtar üretir (save/rating anahtarları için).
 // Türkçe harfleri (ğ,ş,ç,ö,ü,ı) [^a-z0-9] tarafından süzülüp kaybolmasınlar diye önce çevirir.
@@ -95,6 +100,63 @@ async function initSavedWidget(){
 // Sayfa scriptleri, currentUser'ı okumadan önce bunu await edebilir.
 const savedWidgetReady = initSavedWidget();
 
+function paintFollowBtn(btn){
+  const type = btn.dataset.type;
+  const key = btn.dataset.key;
+  const following = followedKeys.has(type + ':' + key);
+  btn.classList.toggle('following', following);
+  const label = btn.querySelector('.follow-btn-label');
+  if(label) label.textContent = following ? 'Takip Ediliyor' : 'Takip Et';
+}
+
+function wireFollowButtons(){
+  document.querySelectorAll('.card-follow-btn').forEach(btn=>{
+    paintFollowBtn(btn);
+    if(btn.dataset.followWired) return;
+    btn.dataset.followWired = '1';
+    btn.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(!currentUser){ window.location.href = 'giris-yap.html'; return; }
+      const btnType = btn.dataset.type;
+      const key = btn.dataset.key;
+      const mapKey = btnType + ':' + key;
+      btn.disabled = true;
+      try{
+        if(followedKeys.has(mapKey)){
+          await fetch(`/api/follows/${btnType}/${encodeURIComponent(key)}`, { method: 'DELETE' });
+          followedKeys.delete(mapKey);
+        } else {
+          await fetch('/api/follows', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: btnType, key, title: btn.dataset.title || '' }),
+          });
+          followedKeys.add(mapKey);
+        }
+        paintFollowBtn(btn);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+async function initFollowedWidget(){
+  await savedWidgetReady;
+  if(currentUser){
+    try{
+      const res = await fetch('/api/follows');
+      if(res.ok){
+        const data = await res.json();
+        (data.items || []).forEach(it => followedKeys.add(it.followed_type + ':' + it.followed_key));
+      }
+    }catch{}
+  }
+  document.querySelectorAll('.card-follow-btn').forEach(paintFollowBtn);
+}
+const followedWidgetReady = initFollowedWidget();
+
 // gerçek bulgu (denetim, 2026-08-24): auth-modal.js üzerinden (sayfa yeniden yüklenmeden) giriş/
 // üye ol tamamlandığında auth-nav.js#window.refreshAuthNav header'ı günceleyip 'mimarlab:authchange'
 // yayınlıyordu, ama bu dosyadaki modül-seviyesi `currentUser` YALNIZCA sayfa ilk yüklendiğinde bir
@@ -107,12 +169,14 @@ const savedWidgetReady = initSavedWidget();
 // fresh:true dalı) taze currentUser/savedKeys okunur ve mevcut kartlar yeniden boyanır.
 window.addEventListener('mimarlab:authchange', () => {
   savedKeys.clear();
+  followedKeys.clear();
   // gerçek bulgu: myEditableIdsCache (bkz. aşağısı) burada temizlenmiyordu — modal içinden çıkış
   // yapmadan (sayfa yenilenmeden) farklı bir hesapla giriş yapılırsa (bkz. initAuthNav#fresh:true,
   // auth-nav.js) "Gönderiyi Düzenle" butonları önceki kullanıcının /api/<type>/mine sonucuna göre
   // yanlış kartlarda görünüp/gizlenmeye devam ederdi.
   Object.keys(myEditableIdsCache).forEach(k => delete myEditableIdsCache[k]);
   initSavedWidget();
+  initFollowedWidget();
 });
 
 // "Gönderiyi Düzenle" butonu: proje/ürün/malzeme/haber/iş ilanı kartlarında/detay sayfalarında,

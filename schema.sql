@@ -297,6 +297,25 @@ CREATE INDEX IF NOT EXISTS idx_saved_user ON saved_items(user_id);
 -- bkz. migrations/0059_saved_items_type_key_index.sql
 CREATE INDEX IF NOT EXISTS idx_saved_items_type_key ON saved_items(item_type, item_key);
 
+-- bkz. migrations/0069_follows.sql — kullanıcı isteği: Archello benzeri "Takip Et" özelliği.
+-- saved_items ile AYNI şekil/gerekçe: followed_key = slugify(name) (rename cascade'i
+-- officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere'de saved_items ile
+-- birlikte güncellenir). followed_ref_id, follow anında bir kez çözülüp saklanan architects.id/
+-- offices.id — Aktivitelerim'deki "Takip Ettiklerim" feed sorgusu her istekte isim taraması
+-- yapmak yerine doğrudan bununla JOIN/IN yapabilsin diye.
+CREATE TABLE IF NOT EXISTS follows (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  followed_type TEXT NOT NULL,
+  followed_key TEXT NOT NULL,
+  followed_title TEXT,
+  followed_ref_id INTEGER,
+  created_at INTEGER NOT NULL,
+  UNIQUE(user_id, followed_type, followed_key)
+);
+CREATE INDEX IF NOT EXISTS idx_follows_user ON follows(user_id);
+CREATE INDEX IF NOT EXISTS idx_follows_type_key ON follows(followed_type, followed_key);
+
 CREATE TABLE IF NOT EXISTS password_resets (
   token_hash TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
