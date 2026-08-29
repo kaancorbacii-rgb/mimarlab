@@ -272,6 +272,18 @@ const ProductModal = (function () {
       #pr-feedback-btn:hover{background:var(--walnut);}
       #pr-feedback-btn:disabled{opacity:0.5; cursor:not-allowed;}
       #pr-feedback-result{margin:8px 0 0; font-size:12px; color:var(--sage);}
+      /* BIM/CAD/Katalog dosyaları — Geri Bildirim kartıyla AYNI .pr-feedback-card kabuğunu paylaşır
+         (bkz. kullanıcı isteği: Geri Bildirim'in üzerine, aynı açılır-kapanır görünümde) — yalnızca
+         kare kutucuk ızgarası kendine özgüdür. Ürün ekle/düzenle sayfasına yükleme kutusu HENÜZ yok
+         (bkz. kullanıcı isteği: "daha sonra ekleyeceğiz"), bu yüzden p.files şimdilik her zaman boş —
+         ızgara "Yüklenen dosya yok." gösterir.
+         */
+      .pr-files-grid{display:flex; flex-wrap:wrap; gap:10px;}
+      .pr-files-empty{margin:0; font-size:13px; color:var(--ink-soft);}
+      .pr-file-tile{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; width:84px; height:84px; padding:8px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); text-decoration:none; color:inherit; text-align:center; flex-shrink:0; box-sizing:border-box;}
+      .pr-file-tile:hover{border-color:var(--walnut);}
+      .pr-file-icon{min-width:34px; height:22px; padding:0 6px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:9.5px; font-weight:800; letter-spacing:0.02em; color:#fff; flex-shrink:0;}
+      .pr-file-name{font-size:10px; color:var(--ink-soft); line-height:1.25; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; width:100%;}
       @media (max-width:860px){
         .related-grid-scroll .related-card{flex:0 0 140px;}
         .related-grid-scroll{gap:10px;}
@@ -297,7 +309,8 @@ const ProductModal = (function () {
         #pr-related-section{order:8;}
         #pr-prevnext{order:9;}
         #pr-info-divider{order:10;}
-        #pr-feedback-card{order:11;}
+        #pr-files-card{order:11;}
+        #pr-feedback-card{order:12;}
 
         /* Puanla/Kaydet/Websitesi — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki
            AYNI kural, kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px.
@@ -355,6 +368,10 @@ const ProductModal = (function () {
       <div class="detail-desc" id="pr-desc"></div>
     </div>
     <hr class="pr-info-divider" id="pr-info-divider">
+    <details class="pr-feedback-card" id="pr-files-card">
+      <summary>BIM, CAD, Katalog Dosyaları<span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <div class="pr-files-grid" id="pr-files-grid"></div>
+    </details>
     <details class="pr-feedback-card" id="pr-feedback-card">
       <summary>Geri Bildirim<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <p>Hatalı ya da eksik bir bilgi görüyorsan bize bildir.</p>
@@ -601,7 +618,7 @@ const ProductModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section', 'pr-designer-section',
-    'pr-info-divider', 'pr-feedback-card', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
+    'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
   // "Firmanın Diğer Ürünleri"/"Benzer Ürünler" bölümleri önceden renderItem() içinde HER AÇILIŞTA
@@ -625,6 +642,54 @@ const ProductModal = (function () {
     }, { rootMargin: '200px' });
     obs.observe(el);
     if (timeoutMs) timer = setTimeout(trigger, timeoutMs);
+  }
+
+  // Dosya uzantısına göre kare kutucuk rozeti (bkz. kullanıcı isteği: BIM/CAD/Katalog kutucukları) —
+  // kabul edilen format listesi kullanıcının gönderdiği Archello örnekleriyle uyumlu (Sketchup/
+  // Wavefront/PDF), ürün ekle/düzenle'ye yükleme kutusu eklendiğinde `accept` de AYNI listeyle
+  // sınırlanmalı (bkz. kullanıcı isteği: "Sadece uygun formattaki dosyalar kabul edilecek" — o kutu
+  // HENÜZ yok, bu yalnızca gösterim tarafının rozet/renk eşlemesi).
+  const FILE_TYPE_META = {
+    skp: { label: 'SKP', color: '#e0483e' },
+    obj: { label: 'OBJ', color: '#2f6fd6' },
+    fbx: { label: 'FBX', color: '#2f6fd6' },
+    '3ds': { label: '3DS', color: '#2f6fd6' },
+    max: { label: 'MAX', color: '#2f6fd6' },
+    dwg: { label: 'DWG', color: '#4a5568' },
+    dxf: { label: 'DXF', color: '#4a5568' },
+    rvt: { label: 'RVT', color: '#6b4fbb' },
+    ifc: { label: 'IFC', color: '#6b4fbb' },
+    stp: { label: 'STP', color: '#6b4fbb' },
+    step: { label: 'STP', color: '#6b4fbb' },
+    igs: { label: 'IGS', color: '#6b4fbb' },
+    iges: { label: 'IGS', color: '#6b4fbb' },
+    pdf: { label: 'PDF', color: '#d93636' },
+  };
+  function fileTypeMeta(format) {
+    const ext = String(format || '').toLowerCase().replace(/^\./, '');
+    return FILE_TYPE_META[ext] || { label: ext ? ext.toUpperCase().slice(0, 4) : 'DOSYA', color: '#8a8a8a' };
+  }
+
+  // p.files HENÜZ hiçbir API/veri kaynağından gelmiyor (ürün ekle/düzenle'ye yükleme kutusu bkz.
+  // kullanıcı isteği: "daha sonra ekleceğiz") — bu yüzden ızgara şimdilik her zaman boş durumu
+  // gösterir; alan ileride doldurulduğunda kod değişikliği gerekmeden kutucuklar görünür.
+  function renderFilesSection(p) {
+    const grid = document.getElementById('pr-files-grid');
+    if (!grid) return;
+    const files = Array.isArray(p.files) ? p.files.filter(f => f && f.url) : [];
+    if (!files.length) {
+      grid.innerHTML = '<p class="pr-files-empty">Yüklenen dosya yok.</p>';
+      return;
+    }
+    grid.innerHTML = files.map(f => {
+      const ext = f.format || (f.filename || f.name || '').split('.').pop();
+      const meta = fileTypeMeta(ext);
+      const name = f.filename || f.name || meta.label;
+      return `<a class="pr-file-tile" href="${escapeAttr(safeUrl(f.url))}" target="_blank" rel="noopener" download title="${escapeAttr(name)}">
+        <span class="pr-file-icon" style="background:${meta.color}">${escapeHtml(meta.label)}</span>
+        <span class="pr-file-name">${escapeHtml(name)}</span>
+      </a>`;
+    }).join('');
   }
 
   async function renderItem(p, key) {
@@ -659,6 +724,8 @@ const ProductModal = (function () {
         .filter(s => s && (s.label || s.value))
         .map(s => `<tr><td>${escapeHtml(s.label || '')}</td><td>${escapeHtml(s.value || '')}</td></tr>`).join('');
     } else specsWrap.style.display = 'none';
+
+    renderFilesSection(p);
 
     renderStructuredData(p);
     renderPrevNext(p);
