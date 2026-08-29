@@ -45,14 +45,21 @@ import { extractPageContent } from '../lib/htmlExtract.js';
 import { stripInjectionAttempts } from '../lib/injectionFilter.js';
 import { callOnce, isAiProviderConfigured, AiProviderError } from '../lib/aiProvider.js';
 import { reserveR2Usage, finalizeR2Reservation, releaseR2Reservation } from '../lib/r2Quota.js';
+import { dedupeImageUrls } from '../lib/imageDedup.js';
+import { findOneByName } from '../lib/canonicalSync.js';
 import catalogJs from '../../catalog-taxonomy.js';
+import projectTaxonomyJs from '../../project-taxonomy.js';
+import awardsSharedJs from '../../awards-shared.js';
 import {
   AI_MODEL, AI_MAX_TOKENS, AI_MAX_ATTEMPTS, AI_MAX_PAGE_BYTES,
   AI_EXTRACT_PER_USER_HOURLY_LIMIT, AI_EXTRACT_GLOBAL_DAILY_LIMIT,
   AI_COPY_IMAGES_PER_USER_HOURLY_LIMIT, AI_COPY_IMAGES_MAX_PER_REQUEST,
+  AI_MAX_SUBPAGES, AI_SUBPAGE_MAX_CHARS,
 } from '../lib/aiConfig.js';
 
 const { parseLocationFull, IL_LIST } = ilIlceJs;
+const { PROJECT_CATEGORY_OPTIONS, PROJECT_GROUP_OPTIONS } = projectTaxonomyJs;
+const { ODUL_OPTIONS } = awardsSharedJs;
 
 const DISCIPLINE_OPTIONS = ['Mimari', 'İç Mekan', 'Peyzaj ve Kentsel Tasarım', 'Restorasyon'];
 const CATEGORY_OPTIONS = ['Konaklama', 'Ticari', 'Kültürel', 'Dini', 'Eğitim', 'Kamu', 'Altyapı'];
@@ -404,7 +411,12 @@ function nullable(schema) {
   return { anyOf: [schema, { type: 'null' }] };
 }
 
-const PROJECT_CATEGORIES = ['Konut', 'Ticari', 'Kültürel', 'Dini', 'Eğitim', 'Kamu', 'Altyapı'];
+// bkz. kullanıcı isteği/gerçek bulgu: burada eskiden AYRI, elle senkronize edilen bir kopya
+// ('Konut' değeriyle) vardı — proje-ekle.html'in checkbox'ları ve backend whitelist'i (bkz.
+// src/lib/submissionTypes.js) project-taxonomy.js'teki 'Konaklama' değerini kullandığından, AI
+// modeli 'Konut' döndürdüğünde bu ne checkbox'ta işaretlenebiliyor ne de sunucu tarafı doğrulamayı
+// geçebiliyordu. Artık TEK kaynak (bkz. yukarıdaki import).
+const PROJECT_CATEGORIES = PROJECT_CATEGORY_OPTIONS;
 
 const PROJECT_SCHEMA = {
   type: 'object',
@@ -414,18 +426,20 @@ const PROJECT_SCHEMA = {
     title: nullable({ type: 'string', description: 'Projenin adı.' }),
     location_text: nullable({ type: 'string', description: "Projenin bulunduğu şehir/ilçe, sayfada yazdığı gibi (ör. 'Kadıköy, İstanbul')." }),
     date_text: nullable({ type: 'string', description: "Tamamlanma yılı ya da yıl aralığı, ör. '2021' ya da '2018-2021'." }),
-    category: { type: 'array', items: { type: 'string', enum: PROJECT_CATEGORIES }, maxItems: 2, description: 'Projeye en uygun EN FAZLA 1-2 kategori; listenin tamamını asla döndürme, emin değilsen boş dizi bırak.' },
-    type_text: nullable({ type: 'string', description: "Proje tipolojisi, virgülle ayrılmış serbest metin, ör. 'Ofis, Kültür Merkezi'." }),
+    category: { type: 'array', items: { type: 'string', enum: PROJECT_CATEGORIES }, maxItems: 2, description: 'Projeye en uygun EN FAZLA 1-2 kategori (Tip); listenin tamamını asla döndürme, emin değilsen boş dizi bırak.' },
+    discipline: { type: 'array', items: { type: 'string', enum: DISCIPLINE_OPTIONS }, maxItems: 2, description: 'Projenin tasarım disiplini (Tür); sayfada açıkça belirtilmiyorsa boş dizi bırak.' },
+    type: { type: 'array', items: { type: 'string', enum: PROJECT_GROUP_OPTIONS }, maxItems: 3, description: 'Proje tipolojisi/grubu (Grup), verilen listeden en uygun 1-3 tanesi; hiçbiri net uymuyorsa boş dizi bırak.' },
     designer_names: { type: 'array', items: { type: 'string' }, description: 'İsmiyle anılan mimar(lar) (kişi adı).' },
     office_names: { type: 'array', items: { type: 'string' }, description: 'İsmiyle anılan mimarlık ofisi/firma(lar).' },
+    awards: { type: 'array', items: { type: 'string', enum: ODUL_OPTIONS }, maxItems: 5, description: 'Projeye açıkça verildiği belirtilen, verilen listedeki ödül(ler); sayfada belirtilmiyorsa ya da emin değilsen boş dizi bırak, ASLA tahmin etme.' },
     description: nullable({ type: 'string', description: 'Proje hakkında, sayfadaki bilgilere dayanan kısa bir açıklama.' }),
     photo_credit_text: nullable({ type: 'string', description: 'Fotoğrafçının adı, belirtilmişse.' }),
     photo_credit_url: nullable({ type: 'string', description: 'Fotoğrafçının web sitesi, belirtilmişse.' }),
     image_indices: { type: 'array', items: { type: 'integer' }, description: 'Projeyle doğrudan ilgili görsellerin, GÖRSEL ADAYLARI listesindeki index numaraları.' },
   },
   required: [
-    'found', 'reason', 'title', 'location_text', 'date_text', 'category', 'type_text',
-    'designer_names', 'office_names', 'description', 'photo_credit_text', 'photo_credit_url', 'image_indices',
+    'found', 'reason', 'title', 'location_text', 'date_text', 'category', 'discipline', 'type',
+    'designer_names', 'office_names', 'awards', 'description', 'photo_credit_text', 'photo_credit_url', 'image_indices',
   ],
   additionalProperties: false,
 };
@@ -441,10 +455,22 @@ const URUN_SCHEMA = {
     brand: nullable({ type: 'string', description: 'Marka/üretici adı.' }),
     website: nullable({ type: 'string', description: 'Ürünün/markanın resmi web sitesi, belirtilmişse.' }),
     category: nullable({ type: 'string', enum: URUN_CATEGORIES, description: 'Verilen listeden en uygun kategori; hiçbiri net uymuyorsa null.' }),
+    year: nullable({ type: 'string', description: 'Üretim/koleksiyon yılı, sayfada açıkça yazıyorsa.' }),
+    designer_names: { type: 'array', items: { type: 'string' }, description: 'Ürünün tasarımcı(lar)ı, isimle anılmışsa.' },
+    specs: {
+      type: 'array', maxItems: 12,
+      items: {
+        type: 'object',
+        properties: { label: { type: 'string' }, value: { type: 'string' } },
+        required: ['label', 'value'],
+        additionalProperties: false,
+      },
+      description: "Malzeme/renk/ölçü/ağırlık gibi teknik özellikler, sayfada AÇIKÇA yazan {etiket, değer} çiftleri olarak (ör. {label:'Malzeme', value:'Meşe, kadife döşeme'}); mümkünse etiket şu listeden biri olsun: Boyut, Malzeme, Renk, Ağırlık, Temizlik ve Bakım, Kurulum, Garanti, Menşei, Detay — uymuyorsa kısa özgün bir etiket kullan. Sayfada yoksa boş dizi bırak, ASLA tahmin etme.",
+    },
     description: nullable({ type: 'string', description: 'Ürün hakkında, sayfadaki bilgilere dayanan kısa bir açıklama.' }),
     image_indices: { type: 'array', items: { type: 'integer' }, description: 'Ürünle doğrudan ilgili görsellerin, GÖRSEL ADAYLARI listesindeki index numaraları.' },
   },
-  required: ['found', 'reason', 'title', 'brand', 'website', 'category', 'description', 'image_indices'],
+  required: ['found', 'reason', 'title', 'brand', 'website', 'category', 'year', 'designer_names', 'specs', 'description', 'image_indices'],
   additionalProperties: false,
 };
 
@@ -459,6 +485,7 @@ KURALLAR:
 - Emin olmadığın ya da sayfada bulunmayan her alanı null/boş bırak — asla uydurma.
 - Sana ayrıca "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir; başlık/açıklama için bunlarla SAYFA İÇERİĞİ çelişirse yapısal veriyi tercih et.
 - date_text İÇİN DİKKATLİ OL: sayfanın/makalenin YAYIN tarihi (ör. "Yayın: Mart 2021" gibi bir bülten/haber tarihi) ile PROJENİN tamamlanma/inşa tarihi FARKLI şeylerdir — yalnızca projenin kendisiyle ilgili açıkça belirtilen tarihi kullan, makalenin ne zaman yazıldığını asla date_text'e koyma.
+- discipline/type/awards alanlarının HER BİRİ için: yalnızca verilen sabit listedeki bir değer sayfada AÇIKÇA karşılığı varsa seç; listede uygun bir değer yoksa ya da emin değilsen o alanı boş dizi bırak — listeden "en yakın" bir değeri zorla seçme.
 - Görsel seçerken YALNIZCA sana verilen "GÖRSEL ADAYLARI" listesindeki index numaralarını kullan; asla yeni bir görsel URL'i üretme. Logo, ikon, reklam banner'ı, yazar/muhabir fotoğrafı gibi projeyle ilgisiz görselleri seçme.
 - ${INJECTION_GUARD}
 - Sayfa açıkça bir mimari/tasarım projesini anlatmıyorsa (haber sitesi ana sayfası, ürün reklamı, alakasız içerik vb.) found:false yap ve reason alanına Türkçe kısa bir açıklama yaz; bu durumda diğer tüm alanları null/boş bırak.`;
@@ -469,6 +496,7 @@ KURALLAR:
 - SADECE sana "SAYFA İÇERİĞİ" olarak verilen metinde açıkça yazan bilgiyi kullan. Hiçbir alanı tahminle, genel dünya bilginle ya da "muhtemelen böyledir" diyerek doldurma.
 - Emin olmadığın ya da sayfada bulunmayan her alanı null/boş bırak — asla uydurma.
 - Sana ayrıca "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir; başlık/açıklama için bunlarla SAYFA İÇERİĞİ çelişirse yapısal veriyi tercih et.
+- specs alanına yalnızca sayfada AÇIKÇA yazan teknik özellikleri (ölçü/malzeme/renk/ağırlık vb.) koy — bir mobilyanın "muhtemelen ahşap" olduğu gibi bir çıkarım/tahmin yapma, sayfa net belirtmiyorsa o özelliği hiç ekleme.
 - Görsel seçerken YALNIZCA sana verilen "GÖRSEL ADAYLARI" listesindeki index numaralarını kullan; asla yeni bir görsel URL'i üretme. Logo, ikon, reklam banner'ı gibi ürünle ilgisiz görselleri seçme.
 - ${INJECTION_GUARD}
 - Sayfa açıkça belirli bir ürünü/yapı malzemesini anlatmıyorsa (kategori/liste sayfası, haber, alakasız içerik vb.) found:false yap ve reason alanına Türkçe kısa bir açıklama yaz; bu durumda diğer tüm alanları null/boş bırak.`;
@@ -541,28 +569,53 @@ async function handleExtract(request, env, user) {
     return errorJson('Bu sayfa işlenemeyecek kadar büyük.', 413);
   }
 
+  // Alt sayfa keşfi (bkz. kullanıcı isteği: "ana sayfada bilgi eksikse ... about/team/press
+  // sayfaları incelenebilir") — ana sayfa çoğu zaman mimar/firma adını ya da fotoğrafçı bilgisini
+  // hiç tekrarlamaz, bu bilgiler genelde ayrı bir "Hakkında"/"Ekip" sayfasındadır. Yalnızca
+  // htmlExtract.js'in bulduğu, AYNI domain'deki ve anahtar-kelime eşleşen linkler (bkz.
+  // LINK_KEYWORD_PATTERN), sabit bir üst sınıra kadar (AI_MAX_SUBPAGES) EK OLARAK çekilir — sınırsız
+  // bir crawler değil, tek seviye + sabit bütçeli bir keşif. Tek bir alt sayfanın erişilemez/hatalı
+  // olması tüm çıkarımı DÜŞÜRMEZ (bkz. kullanıcı isteği: partial success) — sessizce atlanır.
+  let mergedText = pageContent.text;
+  let mergedImages = pageContent.images.slice();
+  for (const link of (pageContent.links || []).slice(0, AI_MAX_SUBPAGES)) {
+    try {
+      const sub = await safeFetch(link, {});
+      if (!sub.response.ok) continue;
+      const subContentType = (sub.response.headers.get('content-type') || '').toLowerCase();
+      if (subContentType && !subContentType.includes('html')) continue;
+      const subContent = await extractPageContent(limitResponseSize(sub.response, AI_MAX_PAGE_BYTES), sub.finalUrl, { maxChars: AI_SUBPAGE_MAX_CHARS });
+      mergedText += `\n\n--- Alt sayfa (${sub.finalUrl}) ---\n${subContent.text}`;
+      mergedImages = dedupeImageUrls([...mergedImages, ...subContent.images]);
+    } catch { /* alt sayfa opsiyonel — erişilemezse sessizce atla, ana sayfa verisiyle devam et */ }
+  }
+  // Aynı görselin farklı boyut/thumbnail varyantlarını (bkz. src/lib/imageDedup.js) TEK adaya
+  // indirger — alt sayfa hiç olmasa bile ana sayfanın kendi galerisinde bu varyantlar sık görülür.
+  mergedImages = dedupeImageUrls(mergedImages);
+  const effectivePageContent = { ...pageContent, text: mergedText, images: mergedImages };
+
   const schema = kind === 'project' ? PROJECT_SCHEMA : URUN_SCHEMA;
   const system = kind === 'project' ? PROJECT_SYSTEM_PROMPT : URUN_SYSTEM_PROMPT;
 
   // Ek savunma katmanı (bkz. src/lib/injectionFilter.js): modele SADECE bu filtrelenmiş kopya
-  // gider — `pageContent` (baseline/görsel adayları için kullanılan) kasıtlı olarak değiştirilmez,
-  // aksi halde bir yanlış-pozitif eşleşme kullanıcının katman-1 önizlemesini bozardı.
-  const filteredText = stripInjectionAttempts(pageContent.text);
-  const filteredTitle = stripInjectionAttempts(pageContent.title);
-  const filteredDescription = stripInjectionAttempts(pageContent.metaDescription);
+  // gider — `effectivePageContent` (baseline/görsel adayları için kullanılan) kasıtlı olarak
+  // değiştirilmez, aksi halde bir yanlış-pozitif eşleşme kullanıcının katman-1 önizlemesini bozardı.
+  const filteredText = stripInjectionAttempts(effectivePageContent.text);
+  const filteredTitle = stripInjectionAttempts(effectivePageContent.title);
+  const filteredDescription = stripInjectionAttempts(effectivePageContent.metaDescription);
   // og:title/JSON-LD alanları da sitenin kendi (dolayısıyla kullanıcı-kontrollü olmayan bir kaynak
   // gibi görünse de aslında sayfa sahibinin yazdığı, dolayısıyla aynı derecede güvenilmez) işaretlemesi
   // olduğundan yukarıdakiyle AYNI filtreden geçirilmeden modele verilmez — aksi halde saldırgan
   // düz metin yerine JSON-LD'ye talimat gizleyerek bu ek savunma katmanını atlayabilirdi.
-  const filteredOgTitle = stripInjectionAttempts(pageContent.ogTitle);
-  const filteredStructuredName = stripInjectionAttempts(pageContent.structuredName);
-  const filteredStructuredDescription = stripInjectionAttempts(pageContent.structuredDescription);
+  const filteredOgTitle = stripInjectionAttempts(effectivePageContent.ogTitle);
+  const filteredStructuredName = stripInjectionAttempts(effectivePageContent.structuredName);
+  const filteredStructuredDescription = stripInjectionAttempts(effectivePageContent.structuredDescription);
   if (filteredText.hits || filteredTitle.hits || filteredDescription.hits ||
       filteredOgTitle.hits || filteredStructuredName.hits || filteredStructuredDescription.hits) {
     console.warn('ai-extract: talimat benzeri içerik tespit edilip kaldırıldı:', finalUrl);
   }
   const userText = buildUserText(finalUrl, {
-    ...pageContent,
+    ...effectivePageContent,
     text: filteredText.text,
     title: filteredTitle.text,
     metaDescription: filteredDescription.text,
@@ -582,7 +635,7 @@ async function handleExtract(request, env, user) {
     for (let attempt = 0; attempt < AI_MAX_ATTEMPTS && aiResult === null; attempt++) {
       try {
         const raw = await callOnce(env, { system, userText, schema, model: AI_MODEL, maxTokens: AI_MAX_TOKENS });
-        aiResult = sanitizeExtraction(kind, raw, pageContent.images.length);
+        aiResult = sanitizeExtraction(kind, raw, effectivePageContent.images.length);
         if (aiResult === null) console.error('ai-extract: şema doğrulaması başarısız, deneme', attempt + 1);
       } catch (err) {
         if (err instanceof AiProviderError && err.quotaExceeded) { quotaExceeded = true; break; }
@@ -598,8 +651,8 @@ async function handleExtract(request, env, user) {
     return json({
       ok: true, found: true, aiFailed: true,
       sourceUrl: finalUrl,
-      data: baselineData(kind, pageContent),
-      images: pageContent.images.slice(0, AI_COPY_IMAGES_MAX_PER_REQUEST).map(u => ({ url: u })),
+      data: baselineData(kind, effectivePageContent),
+      images: effectivePageContent.images.slice(0, AI_COPY_IMAGES_MAX_PER_REQUEST).map(u => ({ url: u })),
       message: 'Bugünlük yapay zeka kotamız doldu, yarın tekrar dene ya da manuel ekle.',
     });
   }
@@ -610,8 +663,8 @@ async function handleExtract(request, env, user) {
     return json({
       ok: true, found: true, aiFailed: true,
       sourceUrl: finalUrl,
-      data: baselineData(kind, pageContent),
-      images: pageContent.images.slice(0, AI_COPY_IMAGES_MAX_PER_REQUEST).map(u => ({ url: u })),
+      data: baselineData(kind, effectivePageContent),
+      images: effectivePageContent.images.slice(0, AI_COPY_IMAGES_MAX_PER_REQUEST).map(u => ({ url: u })),
       message: 'Yapay zeka şu anda içeriği analiz edemedi; bulabildiğimiz temel bilgilerle formu doldurduk, geri kalanını sen tamamlayabilirsin.',
     });
   }
@@ -620,8 +673,16 @@ async function handleExtract(request, env, user) {
     return json({ ok: true, found: false, reason: aiResult.reason || 'Bu sayfada bir proje/ürün bulamadım.' });
   }
 
+  // Entity matching (bkz. kullanıcı isteği: "mevcut MİMARLAB firmalarıyla/kişileriyle eşleştir") —
+  // modelin serbest metinden çıkardığı isim, canonical kayıtla yalnızca harf büyüklüğü/TR karakter/
+  // baştaki-sondaki boşluk farkı yüzünden BİREBİR eşleşmeyebilir (bkz. src/lib/canonicalSync.js#
+  // findOneByName'in AYNI gerekçesi). Tek/BELİRSİZ OLMAYAN bir eşleşme varsa isim canonical yazımla
+  // DEĞİŞTİRİLİR (yeni bir near-duplicate kaydın oluşmasını önler); eşleşme yoksa/belirsizse model
+  // çıktısı OLDUĞU GİBİ bırakılır — asla uydurma bir eşleştirme yapılmaz.
+  await normalizeEntityNames(env, kind, aiResult);
+
   const selectedImages = (aiResult.image_indices || [])
-    .map(i => pageContent.images[i])
+    .map(i => effectivePageContent.images[i])
     .filter(Boolean);
 
   return json({
@@ -656,11 +717,13 @@ function sanitizeExtraction(kind, raw, imageCandidateCount) {
       location_text: str(raw.location_text),
       date_text: str(raw.date_text),
       // Bazı açık modeller (bkz. aiProvider.js'teki şema-uyum notu) enum listesinin tamamını
-      // tekrarlayarak dönebiliyor — geçerli değerlere indirger, tekilleştirir VE en fazla 2 ile sınırlar.
+      // tekrarlayarak dönebiliyor — geçerli değerlere indirger, tekilleştirir VE en fazla N ile sınırlar.
       category: Array.isArray(raw.category) ? [...new Set(raw.category.filter(c => PROJECT_CATEGORIES.includes(c)))].slice(0, 2) : [],
-      type_text: str(raw.type_text),
+      discipline: Array.isArray(raw.discipline) ? [...new Set(raw.discipline.filter(d => DISCIPLINE_OPTIONS.includes(d)))].slice(0, 2) : [],
+      type: Array.isArray(raw.type) ? [...new Set(raw.type.filter(t => PROJECT_GROUP_OPTIONS.includes(t)))].slice(0, 3) : [],
       designer_names: strArray(raw.designer_names),
       office_names: strArray(raw.office_names),
+      awards: Array.isArray(raw.awards) ? [...new Set(raw.awards.filter(a => ODUL_OPTIONS.includes(a)))].slice(0, 5) : [],
       description: str(raw.description),
       photo_credit_text: str(raw.photo_credit_text),
       photo_credit_url: str(raw.photo_credit_url),
@@ -673,9 +736,50 @@ function sanitizeExtraction(kind, raw, imageCandidateCount) {
     brand: str(raw.brand),
     website: str(raw.website),
     category: (typeof raw.category === 'string' && URUN_CATEGORIES.includes(raw.category)) ? raw.category : null,
+    year: str(raw.year),
+    designer_names: strArray(raw.designer_names),
+    specs: Array.isArray(raw.specs)
+      ? raw.specs
+        .filter(s => s && typeof s === 'object' && typeof s.label === 'string' && typeof s.value === 'string' && s.label.trim() && s.value.trim())
+        .map(s => ({ label: s.label.trim().slice(0, 60), value: s.value.trim().slice(0, 300) }))
+        .slice(0, 12)
+      : [],
     description: str(raw.description),
     image_indices: indices(raw.image_indices),
   };
+}
+
+// Entity matching (bkz. src/routes/ai.js#handleExtract çağrı noktası) — findOneByName YALNIZCA tek
+// ve belirsiz olmayan bir eşleşme bulduğunda ismi canonical yazımla değiştirir; ambiguous/hiç eşleşme
+// yoksa aiResult'a HİÇ dokunmaz (bkz. src/lib/canonicalSync.js#findOneByName). Ağ/D1 hatası tek bir
+// ismin eşleştirilmesini engellese bile diğer isimler ve genel çıkarım etkilenmesin diye her isim
+// kendi try/catch'i içinde çözülür.
+async function normalizeCanonicalName(env, table, name) {
+  try {
+    const { row, ambiguous } = await findOneByName(env, table, name);
+    if (row && !ambiguous && row.name) return row.name;
+  } catch (err) {
+    console.error('ai-extract: entity matching başarısız', table, err);
+  }
+  return name;
+}
+
+async function normalizeEntityNames(env, kind, aiResult) {
+  if (kind === 'project') {
+    const [designers, offices] = await Promise.all([
+      Promise.all((aiResult.designer_names || []).map(n => normalizeCanonicalName(env, 'architects', n))),
+      Promise.all((aiResult.office_names || []).map(n => normalizeCanonicalName(env, 'offices', n))),
+    ]);
+    aiResult.designer_names = designers;
+    aiResult.office_names = offices;
+    return;
+  }
+  const [brand, designers] = await Promise.all([
+    aiResult.brand ? normalizeCanonicalName(env, 'offices', aiResult.brand) : aiResult.brand,
+    Promise.all((aiResult.designer_names || []).map(n => normalizeCanonicalName(env, 'architects', n))),
+  ]);
+  aiResult.brand = brand;
+  aiResult.designer_names = designers;
 }
 
 // AI sağlayıcısı hiç yanıt veremediğinde (kota/hata) kullanılan "katman-1" (AI'sız) doldurma —
@@ -687,12 +791,13 @@ function baselineData(kind, pageContent) {
   if (kind === 'project') {
     return {
       title: bestTitle, location_text: null, date_text: null, category: [],
-      type_text: null, designer_names: [], office_names: [],
+      discipline: [], type: [], designer_names: [], office_names: [], awards: [],
       description: bestDescription, photo_credit_text: null, photo_credit_url: null,
     };
   }
   return {
     title: bestTitle, brand: null, website: null, category: null,
+    year: null, designer_names: [], specs: [],
     description: bestDescription,
   };
 }
@@ -721,6 +826,12 @@ async function handleCopyImages(request, env, user) {
     return errorJson('Bu özelliği çok sık kullandın, birazdan tekrar dene.', 429);
   }
 
+  // Görsel duplicate tespiti (bkz. kullanıcı isteği: "aynı görsel farklı URL'lerde mevcutsa hash
+  // kullanarak tespit et") — src/lib/imageDedup.js'in URL-varyant sezgisi indirmeden ÖNCE çalışır
+  // (bkz. src/routes/ai.js#handleExtract), bu ise gerçek bayt-içeriğine bakan kesin bir ikinci
+  // katman: aynı istekte daha önce kopyalanmış bir görselle bayt-bayt AYNIYSA (farklı URL'de barınan
+  // gerçek bir kopya, ör. bir CDN yansıması) R2'ye ikinci kez yazılmaz.
+  const seenHashes = new Set();
   const items = [];
   for (const rawUrl of images) {
     try {
@@ -742,6 +853,14 @@ async function handleCopyImages(request, env, user) {
       if (!quota.ok) { items.push({ url: rawUrl, error: 'r2_quota_reached' }); continue; }
 
       const buf = await limitResponseSize(response, IMG_MAX_BYTES).arrayBuffer();
+      const hashBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+      const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (seenHashes.has(hashHex)) {
+        await releaseR2Reservation(env, reserveEstimate);
+        items.push({ url: rawUrl, error: 'duplicate' });
+        continue;
+      }
+      seenHashes.add(hashHex);
       const key = `u/${user.id}/${crypto.randomUUID()}.${ext}`;
       try {
         await env.UPLOADS.put(key, buf, { httpMetadata: { contentType } });

@@ -12,6 +12,15 @@ const CONTENT_SELECTORS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'block
 // basit bir dosya adı/yol sezgisi — kesin değil ama modele gidecek gürültüyü baştan azaltıyor.
 const ICON_PATTERN = /favicon|sprite|spacer|blank\.(gif|png)|[-_.]logo[-_.]|\/logo\.[a-z]+(\?|$)|[-_.]icon[-_.]|\.svg(\?|$)/i;
 
+// Alt sayfa keşfi (bkz. src/routes/ai.js#handleExtract, kullanıcı isteği: "ana sayfada bilgi
+// eksikse ... architect/studio/team page, about page ... incelenebilir") — ana sayfa mimar/firma/
+// ekip/kaynak bilgisini eksik bırakabilir (özellikle bir proje sayfası kendi ofisinin adını hiç
+// tekrar etmeyip yalnızca üst menüden linklediği durumlarda). Yalnızca AYNI domain'deki, adı bu
+// anahtar kelimelerden birini taşıyan linkler adaydır — kontrolsüz bir crawler DEĞİL, sabit bir
+// bütçeyle (bkz. AI_MAX_SUBPAGES) sınırlı, tek seviye keşif.
+const LINK_KEYWORD_PATTERN = /(about|hakk[ıi]nda|hakkimizda|team|ekip|studio|st[üu]dyo|ofis|office|firma|press|bas[ıi]n|contact|iletisim|kunye|künye)/i;
+const MAX_LINK_CANDIDATES = 8;
+
 function absolutize(raw, baseUrl) {
   if (!raw) return null;
   const trimmed = String(raw).trim();
@@ -53,6 +62,10 @@ export async function extractPageContent(response, baseUrl, { maxChars = AI_MAX_
   const images = [];
   const seenImages = new Set();
   const jsonLdBlocks = [];
+  const links = [];
+  const seenLinks = new Set();
+  let baseOrigin = null;
+  try { baseOrigin = new URL(baseUrl).origin; } catch { /* baseUrl geçersizse link keşfi sessizce atlanır */ }
   let metaDescription = null;
   let heroImage = null;
   let ogTitle = null;
@@ -111,6 +124,20 @@ export async function extractPageContent(response, baseUrl, { maxChars = AI_MAX_
     // metninden çıkarılan serbest metinden daha güvenilir bir başlık/açıklama/görsel kaynağıdır.
     .on('script[type="application/ld+json"]', {
       text(t) { jsonLdBlocks.push(t.text); },
+    })
+    // bkz. yukarıdaki LINK_KEYWORD_PATTERN — yalnızca aynı domain + anahtar kelime eşleşen linkler,
+    // sabit bir üst sınıra kadar toplanır.
+    .on('a[href]', {
+      element(el) {
+        if (!baseOrigin || links.length >= MAX_LINK_CANDIDATES) return;
+        const abs = absolutize(el.getAttribute('href'), baseUrl);
+        if (!abs || abs === baseUrl || seenLinks.has(abs)) return;
+        let origin;
+        try { origin = new URL(abs).origin; } catch { return; }
+        if (origin !== baseOrigin || !LINK_KEYWORD_PATTERN.test(abs)) return;
+        seenLinks.add(abs);
+        links.push(abs);
+      },
     });
   for (const selector of CONTENT_SELECTORS) {
     rewriter = rewriter.on(selector, {
@@ -142,6 +169,7 @@ export async function extractPageContent(response, baseUrl, { maxChars = AI_MAX_
     structuredDescription: structured.description,
     text,
     images,
+    links,
   };
 }
 

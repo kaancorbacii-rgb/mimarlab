@@ -790,6 +790,8 @@ function applyAiResult(data){
   document.getElementById('u-title').value = data.title || '';
   document.getElementById('u-brand').value = data.brand || '';
   document.getElementById('u-website').value = data.website || '';
+  document.getElementById('u-year').value = data.year || '';
+  document.getElementById('u-designer').value = (data.designer_names || []).join(', ');
   document.getElementById('u-desc').value = data.description || '';
   if(data.category){
     const group = taxonomyGroupOf(CATALOG_TAXONOMY, data.category);
@@ -799,6 +801,10 @@ function applyAiResult(data){
       categorySelect.value = data.category;
     }
   }
+  // Teknik Özellikler (bkz. src/routes/ai.js#URUN_SCHEMA.specs) — malzeme/renk/ölçü/ağırlık vb.
+  // sayfada AÇIKÇA yazan {etiket, değer} çiftleri, manuel eklenen satırlarla AYNI addSpecRow ile.
+  specsRows.innerHTML = '';
+  (data.specs || []).forEach(s => addSpecRow(s.label, s.value));
 }
 
 function wireAiPanel(){
@@ -814,6 +820,19 @@ function wireAiPanel(){
     document.getElementById('u-title').focus();
   });
 
+  // bkz. proje-ekle.html#wireAiPanel'deki AYNI gerekçe — /api/ai/extract tek bir senkron istektir,
+  // gerçek adım-adım ilerleme yok, ama bu mesajlar kullanıcı beklerken sırayla dönerek "donmuş"
+  // hissini önler (bkz. kullanıcı isteği).
+  const AI_PROGRESS_MESSAGES = [
+    'Kaynak sayfa analiz ediliyor...',
+    'Ürün bilgileri araştırılıyor...',
+    'Marka ve tasarımcı bilgileri kontrol ediliyor...',
+    'Teknik özellikler taranıyor...',
+    'Görseller taranıyor, duplicate olanlar temizleniyor...',
+    'MİMARLAB kayıtlarıyla eşleştiriliyor...',
+    'Form hazırlanıyor...',
+  ];
+
   async function analyze(){
     const url = urlInput.value.trim();
     if(!url){ urlInput.focus(); return; }
@@ -821,8 +840,13 @@ function wireAiPanel(){
     urlInput.disabled = true;
     notice.classList.remove('show');
     manualBtn.style.display = 'none';
-    statusEl.textContent = 'Sayfa alınıyor ve analiz ediliyor… (biraz sürebilir)';
+    let progressIdx = 0;
+    statusEl.textContent = AI_PROGRESS_MESSAGES[0];
     statusEl.style.display = 'block';
+    const progressTimer = setInterval(() => {
+      progressIdx = Math.min(progressIdx + 1, AI_PROGRESS_MESSAGES.length - 1);
+      statusEl.textContent = AI_PROGRESS_MESSAGES[progressIdx];
+    }, 2200);
     try{
       const res = await fetch('/api/ai/extract', {
         method: 'POST',
@@ -859,6 +883,7 @@ function wireAiPanel(){
       notice.classList.add('show');
       manualBtn.style.display = 'inline-block';
     }finally{
+      clearInterval(progressTimer);
       statusEl.style.display = 'none';
       analyzeBtn.disabled = false;
       urlInput.disabled = false;

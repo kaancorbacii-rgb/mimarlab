@@ -1492,22 +1492,36 @@ if(claimSlug) prefillForClaim(); else prefillForEdit();
 // AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit/prefillForClaim) ile AYNI alanları AYNI
 // fonksiyonlarla (parseLocationFull, updateKategoriLabel, setExistingImages/renderPreviews) doldurur
 // — tek fark veri kaynağının bir gönderi kaydı değil, /api/ai/extract'in dönüşü olması.
-function applyAiResult(data){
+// GERÇEK BULGU (bkz. kullanıcı isteği: AI import sistemi denetimi): bu fonksiyon eskiden Yer/Tarih/
+// Grup alanları için artık var olmayan DOM kimliklerine (dd-il-btn-label, dd-ilce-btn, p-date,
+// p-type) yazmaya çalışıyordu — form Leaflet haritası + çoklu tarih aralığı çipleri + sabit 40'lı
+// Grup çoklu seçimine geçileli beri bu kimlikler hiç yoktu, yani AI konum/tarih/grup bilgisini asla
+// forma yansıtamıyordu (yalnızca başlık/açıklama/kaynak/kategori/mimar/firma dolduruluyordu).
+// Aşağıdaki sürüm mevcut UI'ın KENDİ fonksiyonlarını (selectIlIlceFromNames, setMapMarker,
+// loadDateRowsFromString, wireMultiDropdown'ın updateXLabel'ları) kullanır — manuel doldurmayla
+// birebir aynı yol.
+async function applyAiResult(data){
   document.getElementById('p-title').value = data.title || '';
   if(data.location_text){
+    // Çevrimdışı/hızlı yol: il-ilce-data.js'in kendi metin ayrıştırıcısı (bkz. yukarıdaki AYNI
+    // fonksiyon, reverseGeocodeAndFillLocation'ın da kullandığı) — ağ isteği beklemeden selectedIl/
+    // selectedIlce'yi doldurur, "Haritada bir yer işaretle" zorunluluğunu (yalnızca selectedIl
+    // kontrol edilir, bkz. submit handler) haritaya hiç dokunmadan bile karşılar.
     const loc = parseLocationFull(data.location_text);
-    if(loc.city){
-      selectedIl = loc.city;
-      document.getElementById('dd-il-btn-label').textContent = selectedIl;
-      document.getElementById('dd-ilce-btn').disabled = false;
-      if(loc.district){
-        selectedIlce = loc.district;
-        document.getElementById('dd-ilce-btn-label').textContent = selectedIlce;
+    if(loc.city) selectIlIlceFromNames(loc.city, loc.district);
+    // Ek olarak (best-effort, opsiyonel): haritada gerçek bir işaretçi görünsün diye AYNI sunucu
+    // proxy'sinden (bkz. src/routes/geocode.js — Nominatim CORS sorunu yüzünden doğrudan çağrılmaz)
+    // ileri jeokodlama denenir; sonuç bulunursa setMapMarker zaten reverseGeocodeAndFillLocation'ı
+    // tetikleyip selectedIl/selectedIlce'yi (varsa) daha kesin bir değerle günceller.
+    try{
+      const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(data.location_text)}`);
+      if(res.ok){
+        const results = await res.json();
+        if(Array.isArray(results) && results.length) setMapMarker(parseFloat(results[0].lat), parseFloat(results[0].lon));
       }
-    }
+    }catch{ /* haritada işaretçi göstermek opsiyonel — il/ilçe zaten yukarıda çözülmüş olabilir */ }
   }
-  document.getElementById('p-date').value = data.date_text || '';
-  document.getElementById('p-type').value = data.type_text || '';
+  if(data.date_text) loadDateRowsFromString(data.date_text);
   document.getElementById('p-designer').value = (data.designer_names || []).join(', ');
   document.getElementById('p-office').value = (data.office_names || []).join(', ');
   document.getElementById('p-desc').value = data.description || '';
@@ -1515,6 +1529,12 @@ function applyAiResult(data){
   document.getElementById('p-credit-url').value = data.photo_credit_url || '';
   document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = (data.category || []).includes(cb.value));
   updateKategoriLabel();
+  document.querySelectorAll('input[name="discipline"]').forEach(cb => cb.checked = (data.discipline || []).includes(cb.value));
+  updateTurLabel();
+  document.querySelectorAll('input[name="type"]').forEach(cb => cb.checked = (data.type || []).includes(cb.value));
+  updateGrupLabel();
+  document.querySelectorAll('input[name="award"]').forEach(cb => cb.checked = (data.awards || []).includes(cb.value));
+  updateOdulLabel();
 }
 
 function wireAiPanel(){
@@ -1530,6 +1550,21 @@ function wireAiPanel(){
     document.getElementById('p-title').focus();
   });
 
+  // /api/ai/extract TEK bir senkron istektir (bkz. src/routes/ai.js#handleExtract — sayfa çekme +
+  // alt sayfa keşfi + AI çıkarımı hepsi bu tek çağrı içinde olur, ayrı bir job/poll mekanizması yok),
+  // bu yüzden gerçek adım-adım ilerleme bilgisi YOK — ama kullanıcı "donmuş" hissetmesin diye (bkz.
+  // kullanıcı isteği: "Frontend işlem sırasında donmuş görünmemeli") istek sürerken bu mesajlar
+  // sırayla döner. Son mesajda kalır (isteğin geri kalanı genelde görsel indirme/analiz aşamasıdır).
+  const AI_PROGRESS_MESSAGES = [
+    'Kaynak sayfa analiz ediliyor...',
+    'Proje bilgileri araştırılıyor...',
+    'Mimar ve firma bilgileri kontrol ediliyor...',
+    'İlgili alt sayfalar araştırılıyor...',
+    'Görseller taranıyor, duplicate olanlar temizleniyor...',
+    'MİMARLAB kayıtlarıyla eşleştiriliyor...',
+    'Form hazırlanıyor...',
+  ];
+
   async function analyze(){
     const url = urlInput.value.trim();
     if(!url){ urlInput.focus(); return; }
@@ -1537,8 +1572,13 @@ function wireAiPanel(){
     urlInput.disabled = true;
     notice.classList.remove('show');
     manualBtn.style.display = 'none';
-    statusEl.textContent = 'Sayfa alınıyor ve analiz ediliyor… (biraz sürebilir)';
+    let progressIdx = 0;
+    statusEl.textContent = AI_PROGRESS_MESSAGES[0];
     statusEl.style.display = 'block';
+    const progressTimer = setInterval(() => {
+      progressIdx = Math.min(progressIdx + 1, AI_PROGRESS_MESSAGES.length - 1);
+      statusEl.textContent = AI_PROGRESS_MESSAGES[progressIdx];
+    }, 2200);
     try{
       const res = await fetch('/api/ai/extract', {
         method: 'POST',
@@ -1559,7 +1599,7 @@ function wireAiPanel(){
         manualBtn.style.display = 'inline-block';
         return;
       }
-      applyAiResult(data.data);
+      await applyAiResult(data.data);
       setExistingImages((data.images || []).map(im => im.url));
       renderPreviews();
       aiSourceUrl = data.sourceUrl;
@@ -1575,6 +1615,7 @@ function wireAiPanel(){
       notice.classList.add('show');
       manualBtn.style.display = 'inline-block';
     }finally{
+      clearInterval(progressTimer);
       statusEl.style.display = 'none';
       analyzeBtn.disabled = false;
       urlInput.disabled = false;

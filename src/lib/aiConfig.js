@@ -43,3 +43,11 @@ export const AI_COPY_IMAGES_MAX_PER_REQUEST = 60;
 export const AI_FETCH_TIMEOUT_MS = 10000;
 export const AI_MAX_REDIRECTS = 3;
 export const AI_MAX_PAGE_BYTES = 5 * 1024 * 1024; // 5 MB üstü sayfalar "çok büyük" sayılır
+
+// Alt sayfa keşfi (bkz. src/lib/htmlExtract.js#LINK_KEYWORD_PATTERN, src/routes/ai.js#handleExtract)
+// — ana sayfada mimar/firma/ekip bilgisi eksikse aynı domain'deki about/team/press sayfalarından
+// en fazla bu kadarı ek olarak çekilir; her biri ana sayfadan daha küçük bir karakter bütçesiyle
+// (AI_SUBPAGE_MAX_CHARS) modele eklenir — sınırsız bir crawler değil, sabit bir bütçe (bkz.
+// kullanıcı isteği: "kontrollü crawl budget kullan").
+export const AI_MAX_SUBPAGES = 2;
+export const AI_SUBPAGE_MAX_CHARS = 4000;
