@@ -2,7 +2,6 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, findOversizedField } from '../lib/submissionTypes.js';
-import { getActiveBadge, periodStart, PRODUCT_MONTHLY_LIMITS, MATERIAL_MONTHLY_LIMITS } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -155,35 +154,6 @@ async function verifyClaimedSlug(env, user, slug) {
   return null;
 }
 
-// Ürün gönderimi rozet sahipliğine bağlıdır (yalnızca yeni gönderiler için — mevcut bir gönderiyi
-// düzenlemek aylık hakkı harcamaz, bkz. updateOwnSubmission). Her iki rozet kademesi de farklı
-// aylık limitle yükleyebilir.
-async function checkSubmissionQuota(env, user, typeKey) {
-  if (typeKey === 'products') {
-    const badge = await getActiveBadge(env, user.id);
-    const limit = badge ? PRODUCT_MONTHLY_LIMITS[badge.badge_type] : undefined;
-    if (!limit) return errorJson('Ürün eklemek için Doğrulanmış Üye ya da Altın Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
-    const since = periodStart(badge);
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS count FROM product_submissions WHERE owner_user_id = ? AND created_at >= ?`
-    ).bind(user.id, since).first();
-    if (row.count >= limit) return errorJson(`Bu ayki ürün yükleme hakkını kullandın (${limit}/${limit}). Yeni hak için bir sonraki döneme kadar bekleyebilir ya da daha üst bir rozete geçebilirsin.`, 403);
-    return null;
-  }
-  if (typeKey === 'materials') {
-    const badge = await getActiveBadge(env, user.id);
-    const limit = badge ? MATERIAL_MONTHLY_LIMITS[badge.badge_type] : undefined;
-    if (!limit) return errorJson('Malzeme eklemek için Doğrulanmış Üye ya da Altın Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
-    const since = periodStart(badge);
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS count FROM material_submissions WHERE owner_user_id = ? AND created_at >= ?`
-    ).bind(user.id, since).first();
-    if (row.count >= limit) return errorJson(`Bu ayki malzeme yükleme hakkını kullandın (${limit}/${limit}). Yeni hak için bir sonraki döneme kadar bekleyebilir ya da daha üst bir rozete geçebilirsin.`, 403);
-    return null;
-  }
-  return null;
-}
-
 export async function handleSubmissionRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "offices", ...]
   const typeKey = TYPE_BY_PATH[segments[1]];
@@ -206,12 +176,9 @@ export async function handleSubmissionRoute(request, env, url) {
 }
 
 async function createSubmission(request, env, user, typeKey) {
-  // gerçek bulgu: checkSubmissionQuota yalnızca products/materials için (rozet kademesine bağlı
-  // aylık bir üst sınırla) koruma sağlıyor — projects/architects/offices'te HİÇBİR sınır yoktu,
-  // oturum açmış tek bir hesap sınırsız gönderi oluşturup admin moderasyon kuyruğunu doldurabilirdi.
-  // Bu, tüm gönderi tiplerini kapsayan genel bir üst sınır; products/materials için zaten var olan
-  // daha katı aylık kotayı DEĞİŞTİRMEZ, yalnızca kısa vadeli patlama (burst) senaryosuna karşı ek
-  // bir savunma katmanı ekler.
+  // Hiçbir gönderi tipinde (products/materials dahil, bkz. kullanıcı isteği: rozet şartı kaldırıldı)
+  // aylık bir üst sınır yok — oturum açmış tek bir hesabın kısa vadede admin moderasyon kuyruğunu
+  // doldurmasına karşı tek koruma bu genel saatlik patlama (burst) limiti.
   if (!(await checkRateLimit(env, 'submission', user.id, 20, 60 * 60 * 1000))) {
     return errorJson('Çok fazla gönderi oluşturdun. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '3600' });
   }
@@ -258,9 +225,6 @@ async function createSubmission(request, env, user, typeKey) {
       return errorJson(DUPLICATE_NAME_ERROR[typeKey]);
     }
   }
-
-  const quotaErr = await checkSubmissionQuota(env, user, typeKey);
-  if (quotaErr) return quotaErr;
 
   const config = SUBMISSION_TYPES[typeKey];
   const row = normalizeSubmission(typeKey, body);

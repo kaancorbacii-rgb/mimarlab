@@ -185,7 +185,7 @@ const InfoModal = (function () {
       <div class="content-section">
         <h2>Üyelik, katkı ve rozetler</h2>
         <p>Üye olarak proje, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
-        <p>Profilinizi öne çıkarmak isteyenler için aylık kiralanan iki rozet kademesi sunuyoruz — Doğrulanmış Üye ve Altın Üye. Kademeye göre profilinizde doğrulanmış rozet, aylık ürün yükleme hakkı ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
+        <p>Profilinizi öne çıkarmak isteyenler için aylık kiralanan iki rozet kademesi sunuyoruz — Doğrulanmış Üye ve Altın Üye. Kademeye göre profilinizde doğrulanmış rozet ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
       </div>
 
       <div class="content-section">
@@ -527,7 +527,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-rozet">
         <h2>7. Rozet/üyelik paketleri ve ödemeler</h2>
-        <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, aylık ürün yükleme hakkı, yorum yönetimi vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz; güncel kademeler ve fiyatlar <a href="satin-al.html">Rozet Al</a> sayfasında yer alır. Ödemeleriniz iyzico'nun güvenli altyapısı üzerinden işlenir; kart bilgileriniz MİMARLAB sunucularında saklanmaz. Rozet abonelikleri aylık yenilenir; iptal ve iade koşulları için <a href="iade-et.html">İade Et</a> sayfasına bakabilirsiniz.</p>
+        <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, yorum yönetimi vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz; güncel kademeler ve fiyatlar <a href="satin-al.html">Rozet Al</a> sayfasında yer alır. Ödemeleriniz iyzico'nun güvenli altyapısı üzerinden işlenir; kart bilgileriniz MİMARLAB sunucularında saklanmaz. Rozet abonelikleri aylık yenilenir; iptal ve iade koşulları için <a href="iade-et.html">İade Et</a> sayfasına bakabilirsiniz.</p>
       </div>
 
       <div class="content-section" id="im-yasaklar">

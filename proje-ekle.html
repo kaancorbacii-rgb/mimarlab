@@ -250,7 +250,10 @@
   .map-search-result{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer; line-height:1.4;}
   .map-search-result:hover{background:var(--paper-alt);}
   .map-search-result.selected{background:var(--paper-alt); font-weight:600;}
-  .map-field{height:280px; border-radius:12px; overflow:hidden; border:1px solid var(--line); margin-top:10px;}
+  /* position+z-index burada ZORUNLU: Leaflet kendi pane/kontrollerini (z-index 200-1000) mutlak
+     konumlandırıyor; .map-field kendi stacking context'ini kurmazsa bu değerler doğrudan sayfanın
+     üst context'ine sızıp sticky .nav'ın (z-index:40) üzerine biniyor (bkz. kullanıcı isteği). */
+  .map-field{position:relative; z-index:0; height:280px; border-radius:12px; overflow:hidden; border:1px solid var(--line); margin-top:10px;}
   .map-clear-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px;}
   .map-clear-btn{background:none; border:none; padding:0; font-size:11.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;}
   .map-clear-btn:hover{color:var(--ink);}

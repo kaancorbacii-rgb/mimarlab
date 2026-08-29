@@ -32,9 +32,3 @@ export function periodStart(badge) {
   if (badge.expires_at) return badge.expires_at - THIRTY_DAYS_MS;
   return badge.created_at;
 }
-
-// Aylık ürün yükleme limitleri (bkz. src/routes/submissions.js).
-export const PRODUCT_MONTHLY_LIMITS = { verified: 3, gold: 10 };
-
-// Aylık yapı malzemesi yükleme limitleri — ürünlerden ayrı bir kota havuzu (bkz. src/routes/submissions.js).
-export const MATERIAL_MONTHLY_LIMITS = { verified: 3, gold: 10 };
