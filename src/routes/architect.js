@@ -1,7 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { slugify } from '../lib/slugify.js';
-import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
+import { cachedPublicJson, getCachedPool, getCachedFingerprint, invalidatePublicCache } from '../lib/publicCache.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
@@ -490,5 +490,10 @@ export async function handleArchitectPrimaryOfficeRoute(request, env, url) {
 
   await purgeSsrDetailCache('architect', architect.slug);
   if (architect.legacy_key && architect.legacy_key !== architect.slug) await purgeSsrDetailCache('architect', architect.legacy_key);
+  // denetim bulgusu: bu route architects.office_id'yi değiştirip SSR detay önbelleğini temizliyordu
+  // ama /api/architects liste havuzunun KV önbelleğini (bkz. publicCache.js#POOL_CACHE_KINDS)
+  // temizlemiyordu — mimar listesindeki kart en fazla o havuzun TTL'i (30dk) kadar eski firma adını
+  // göstermeye devam edebilirdi.
+  await invalidatePublicCache(env);
   return json({ ok: true });
 }

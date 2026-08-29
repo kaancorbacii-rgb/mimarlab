@@ -70,7 +70,7 @@ const ProjectComments = (function () {
     });
   }
 
-  function renderCommentForm(targetId, ids, targetType) {
+  function renderCommentForm(targetId, ids, targetType, mySeq) {
     const wrap = document.getElementById(ids.formWrap);
     if (!currentUser) {
       wrap.innerHTML = `<div class="comment-login-note">Yorum yapmak için <a href="giris-yap.html">giriş yap</a>.</div>`;
@@ -96,6 +96,12 @@ const ProjectComments = (function () {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ targetType, targetId, body }),
         });
+        // gerçek bulgu: mySeq kontrolü olmadan bu blok, kullanıcı gönderim beklerken hızlıca başka bir
+        // projeye geçtiyse (renderCommentForm() aynı id'lerle yeni projenin formunu yeniden kurar)
+        // input/notice'ı getElementById ile YENİ projenin DOM'undan buluyor — eski projenin "alındı"
+        // bildirimini yeni projenin formuna yazıp, kullanıcı yeni formda yazmaya başlamışsa taslağını
+        // sessizce siliyordu.
+        if (mySeq !== mountSeq) return;
         // Yorum admin onayına düşer, hemen listede görünmez (bkz. src/routes/comments.js#listComments
         // status='approved' filtresi, kullanıcı isteği: yorum moderasyonu) — bu yüzden loadComments()
         // ÇAĞRILMAZ, kullanıcıya yalnızca bir bilgilendirme mesajı gösterilir.
@@ -104,7 +110,7 @@ const ProjectComments = (function () {
           notice.textContent = 'Yorumunuz alındı. Admin onayından sonra yayınlanacaktır.';
           notice.style.display = '';
         }
-      } finally { submitBtn.disabled = false; }
+      } finally { if (mySeq === mountSeq) submitBtn.disabled = false; }
     });
   }
 
@@ -134,7 +140,7 @@ const ProjectComments = (function () {
       } catch { /* yetki kontrolü başarısız — güvenli varsayılan: canModerate=false */ }
     }
     if (mySeq !== mountSeq) return;
-    renderCommentForm(slug, mergedIds, targetType);
+    renderCommentForm(slug, mergedIds, targetType, mySeq);
     await loadComments(slug, mergedIds, targetType, canModerate, mySeq);
   }
 

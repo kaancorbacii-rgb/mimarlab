@@ -13,6 +13,8 @@
 // DEĞİL, çağıran tarafta (src/routes/ai.js#sanitizeExtraction) ayrıca doğrulanıp temizlenir; bu modül
 // yalnızca "modelden bir JSON nesnesi almayı" garanti eder, içeriğinin şemaya tam uyduğunu değil.
 
+import { AI_EXTRACT_CALL_TIMEOUT_MS } from './aiConfig.js';
+
 export function isAiProviderConfigured(env) {
   return !!(env.AI && typeof env.AI.run === 'function');
 }
@@ -39,23 +41,37 @@ function isQuotaError(err) {
 // Tek bir deneme: model çağrısı + JSON çıkarımı. Şema doğrulaması burada YAPILMAZ (bkz. yukarıdaki
 // yorum) — çağıran taraf (src/routes/ai.js) hem bu fonksiyonun hatalarını hem de dönen JSON'un
 // şemaya uyup uymadığını ayrı ayrı değerlendirip kendi retry döngüsünü işletir.
+//
+// gerçek bulgu (denetim): src/routes/ai.js#handleAiSearchRoute'daki AYNI env.AI.run() çağrıları
+// (extractFilters/generateSummary) withTimeout() ile korunurken bu fonksiyon HİÇ bir zaman aşımı
+// sarmalayıcısına sahip değildi — env.AI.run() beklenmedik biçimde asılırsa (sağlayıcı tarafı bir
+// sorun, ör. ağ/altyapı) çağıran tarafın AI_MAX_ATTEMPTS (3) kez tekrar deneyen döngüsü kümülatif
+// olarak çok uzun süre askıda kalabilir, isteği gereksiz yere Worker'ın kendi üst zaman sınırına
+// kadar tıkardı. AI_EXTRACT_CALL_TIMEOUT_MS aşılırsa AiProviderError('timeout') fırlatılır — çağıran
+// zaten TÜM AiProviderError'ları (quota hariç) bir sonraki deneme hakkı olarak sayıyor, bu yüzden
+// davranış mevcut retry/aiFailed fallback akışına sorunsuz oturur.
 export async function callOnce(env, { system, userText, schema, model, maxTokens }) {
   let result;
   try {
-    result = await env.AI.run(model, {
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userText },
-      ],
-      response_format: { type: 'json_schema', json_schema: schema },
-      max_tokens: maxTokens,
-      // Bu bir yaratıcı yazım değil, yapılandırılmış veri çıkarımı görevi — düşük sıcaklık, modelin
-      // sayfada açıkça yazmayan alanları "yaratıcı" biçimde doldurma (uydurma) eğilimini azaltır ve
-      // aynı sayfa için tekrarlanabilir/tutarlı sonuçlar verir (bkz. kullanıcı isteği: "daha doğru
-      // bilgi tespiti yapsın").
-      temperature: 0.2,
-    });
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('ai_timeout')), AI_EXTRACT_CALL_TIMEOUT_MS));
+    result = await Promise.race([
+      env.AI.run(model, {
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userText },
+        ],
+        response_format: { type: 'json_schema', json_schema: schema },
+        max_tokens: maxTokens,
+        // Bu bir yaratıcı yazım değil, yapılandırılmış veri çıkarımı görevi — düşük sıcaklık, modelin
+        // sayfada açıkça yazmayan alanları "yaratıcı" biçimde doldurma (uydurma) eğilimini azaltır ve
+        // aynı sayfa için tekrarlanabilir/tutarlı sonuçlar verir (bkz. kullanıcı isteği: "daha doğru
+        // bilgi tespiti yapsın").
+        temperature: 0.2,
+      }),
+      timeout,
+    ]);
   } catch (err) {
+    if (err && err.message === 'ai_timeout') throw new AiProviderError('timeout');
     if (isQuotaError(err)) throw new AiProviderError('quota_exceeded', { quotaExceeded: true });
     throw new AiProviderError('provider_error');
   }

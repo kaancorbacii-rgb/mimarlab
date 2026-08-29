@@ -1503,6 +1503,12 @@
         if (refreshing) return;
         refreshing = true;
         refreshBtn.disabled = true;
+        // denetim bulgusu: "Yenile" tamamen ilgisiz yeni bir çift getiriyor (fresh=1) ama duelChain
+        // sıfırlanmıyordu — bir tur oy verip "Yenile"ye basıp yeni turda tekrar oy verip "Tamamla"ya
+        // basıldığında DuelAnalysisModal iki kopuk düello oturumunun kazananlarını tek bir zincirmiş
+        // gibi analiz ediyordu.
+        duelChain = [];
+        if (completeBtn) completeBtn.disabled = true;
         loadMatch(true).finally(function(){
           refreshing = false;
           refreshBtn.disabled = false;

@@ -39,10 +39,16 @@
     if (pending[key]) return pending[key];
     const mod = MODULES[key];
     if (window[mod.globalName]) { pending[key] = Promise.resolve(window[mod.globalName]); return pending[key]; }
-    pending[key] = new Promise((resolve) => {
+    pending[key] = new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = mod.src;
       script.onload = () => resolve(window[mod.globalName]);
+      // gerçek bulgu: onerror hiç ele alınmıyordu — ağ hatasında (offline/timeout) bu Promise SONSUZA
+      // KADAR askıda kalıyordu; e.preventDefault() zaten çağrıldığından tıklama hiçbir şey yapmadan
+      // sessizce ölüyordu (kullanıcı linke tekrar tekrar tıklayıp hiçbir tepki görmüyordu). script
+      // DOM'dan da kaldırılır ki bir sonraki deneme (pending[key] silindiğinden) temiz bir <script>
+      // ile tekrar dener.
+      script.onerror = () => { script.remove(); delete pending[key]; reject(new Error('lazy-modals: ' + mod.src + ' yüklenemedi')); };
       document.head.appendChild(script);
     });
     return pending[key];
@@ -52,7 +58,7 @@
   // info-modal.js dosya sonu) location.pathname'i okuyup popup'ı kendi açar, burada sadece indirmek
   // yeterli.
   for (const key in MODULES) {
-    if (MODULES[key].pathRe.test(location.pathname)) loadModule(key);
+    if (MODULES[key].pathRe.test(location.pathname)) loadModule(key).catch(() => {});
   }
 
   document.addEventListener('click', (e) => {
@@ -70,7 +76,9 @@
       for (const v in mod.hrefRe) { if (mod.hrefRe[v].test(href)) { view = v; break; } }
       if (!view) continue;
       e.preventDefault();
-      loadModule(key).then((Modal) => { if (Modal) Modal.open(view, { triggerEl: a }); });
+      // Yükleme başarısız olursa (bkz. loadModule#onerror) preventDefault sonrası kullanıcıyı elleri
+      // boş bırakmamak için normal (tam sayfa) navigasyona düşülür.
+      loadModule(key).then((Modal) => { if (Modal) Modal.open(view, { triggerEl: a }); }).catch(() => { window.location.href = href; });
       return;
     }
   });
@@ -80,7 +88,7 @@
   // mantığı zaten devreye girer (popstate'in kendisini ayrıca dinlemeye gerek yok).
   window.addEventListener('popstate', () => {
     for (const key in MODULES) {
-      if (MODULES[key].pathRe.test(location.pathname)) loadModule(key);
+      if (MODULES[key].pathRe.test(location.pathname)) loadModule(key).catch(() => {});
     }
   });
 })();

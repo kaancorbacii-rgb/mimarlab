@@ -48,6 +48,7 @@ export async function handleContactRoute(request, env, url) {
   const message = (body.message || '').trim();
 
   if (!name) return errorJson('Ad soyad gerekli.');
+  if (name.length > 200) return errorJson('Ad soyad çok uzun.');
   if (!EMAIL_RE.test(email)) return errorJson('Geçerli bir e-posta adresi gir.');
   if (!message) return errorJson('Mesaj gerekli.');
   if (message.length > 4000) return errorJson('Mesaj çok uzun.');

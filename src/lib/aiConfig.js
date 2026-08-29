@@ -15,6 +15,17 @@ export const AI_MAX_ATTEMPTS = 3;
 // Sayfa içeriği bu karakter sayısına kırpılıp modele öyle gönderilir (bkz. htmlExtract.js).
 export const AI_MAX_CONTENT_CHARS = 15000;
 
+// Tek bir env.AI.run() çağrısının azami süresi (bkz. src/lib/aiProvider.js#callOnce) — denetim
+// bulgusu: src/routes/ai.js#handleAiSearchRoute'daki extractFilters/generateSummary çağrıları zaten
+// withTimeout(..., AI_TIMEOUT_MS=9000) ile korunuyordu, ama bu daha büyük/yavaş modeli (AI_MODEL,
+// 70B) kullanan çıkarım akışı (handleExtract → callOnce, AI_MAX_ATTEMPTS=3 kez tekrar denenebilir)
+// HİÇ bir zaman aşımı sarmalayıcısına sahip değildi — env.AI.run() beklenmedik şekilde asılırsa
+// (ör. sağlayıcı tarafı bir sorun) istek, Worker'ın kendi üst sınırına kadar (üstelik 3 deneme
+// boyunca kümülatif olarak) askıda kalabilirdi. Arama akışındakinden daha büyük bir değer: bu model
+// daha büyük (70B) ve daha fazla token (AI_MAX_TOKENS=2000) üretiyor, gerçek başarılı çağrılar 9sn'yi
+// rahatça aşabilir.
+export const AI_EXTRACT_CALL_TIMEOUT_MS = 25000;
+
 // Kullanıcı başına saatlik ve tüm kullanıcılar için günlük toplam çıkarım isteği limiti
 // (bkz. src/lib/rateLimit.js#checkRateLimit). Kötüye kullanım/maliyet kilidi.
 export const AI_EXTRACT_PER_USER_HOURLY_LIMIT = 5;

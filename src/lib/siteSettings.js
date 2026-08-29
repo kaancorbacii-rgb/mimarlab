@@ -21,15 +21,26 @@ export const DEFAULT_SETTINGS = {
 };
 
 export async function getSiteSettings(env) {
+  // bkz. src/index.js#maybeServeMaintenancePage — bu fonksiyon HEMEN HEMEN HER sayfa isteğinde
+  // (bakım modu kontrolü) çalışır, bu yüzden env.FACET_CACHE.get()/put() src/lib/publicCache.js#
+  // getCachedFingerprint'teki AYNI try/catch korumasına sahip olmalı: KV geçici olarak başarısız
+  // olursa (ör. ağ hatası) sessizce D1'den taze okumaya düşer. Önceden bu koruma YOKTU — bir KV
+  // hatası src/index.js'teki genel try/catch'e kadar yükselip TÜM site genelinde her sayfayı
+  // "Sunucu hatası oluştu" 500'üne düşürebilirdi (gerçek bulgu, denetim: bu fonksiyon site genelinde
+  // tek noktadan çağrılan en sık D1/KV erişimlerinden biri).
   if (env.FACET_CACHE) {
-    const cached = await env.FACET_CACHE.get(KV_KEY, 'json');
-    if (cached) return { ...DEFAULT_SETTINGS, ...cached };
+    try {
+      const cached = await env.FACET_CACHE.get(KV_KEY, 'json');
+      if (cached) return { ...DEFAULT_SETTINGS, ...cached };
+    } catch { /* KV kullanılamıyorsa aşağıdaki taze D1 okumasına düş */ }
   }
   const { results } = await env.DB.prepare(`SELECT key, value FROM site_settings`).all();
   const out = {};
   for (const row of results) out[row.key] = row.value;
   if (env.FACET_CACHE && await reserveKvWrite(env)) {
-    await env.FACET_CACHE.put(KV_KEY, JSON.stringify(out), { expirationTtl: KV_TTL_SECONDS });
+    try {
+      await env.FACET_CACHE.put(KV_KEY, JSON.stringify(out), { expirationTtl: KV_TTL_SECONDS });
+    } catch { /* yazma başarısız olursa bir sonraki istek yine D1'den taze okur */ }
   }
   return { ...DEFAULT_SETTINGS, ...out };
 }

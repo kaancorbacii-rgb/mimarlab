@@ -261,6 +261,12 @@ function ensureRatePopup(){
     const s = document.createElement('script');
     s.src = 'js/components/auth-modal.js';
     s.onload = ()=> cb(window.AuthModal);
+    // gerçek bulgu: onerror hiç ele alınmıyordu — ağ hatasında cb() hiç çağrılmadığından oturumsuz
+    // gönder sonrası (401, bkz. yukarısı) puan sessionStorage'a kuyruklanıp popup kapanıyor ama giriş
+    // popup'ı hiç açılmıyordu; kullanıcı neden hiçbir şey olmadığını anlamadan kalıyordu. Script
+    // yüklenemezse en azından tam sayfa giriş sayfasına yönlendirilir, kuyruklanan puan
+    // 'mimarlab:authchange' yerine giriş sonrası sayfa script'lerinin kendi akışıyla ele alınabilir.
+    s.onerror = ()=> { window.location.href = 'giris-yap.html'; };
     document.head.appendChild(s);
   }
 

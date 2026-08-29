@@ -108,6 +108,30 @@ export function findInvalidProjectTaxonomyField(type, body) {
   return null;
 }
 
+// denetim bulgusu: hiçbir gönderi alanında (ne istemci tarafı maxlength, ne sunucu tarafı bir
+// kontrol) uzunluk üst sınırı yoktu — title/name/about/description gibi serbest metin alanlarına
+// megabaytlarca metin gönderilip D1 satırını/publicCache.js#getCachedPool'un KV'de tuttuğu TÜM
+// liste havuzunu şişirebilirdi (bkz. o dosyadaki "tüm havuz KV'de önbelleklenir" deseni — tek bir
+// aşırı büyük satır tüm ürün/proje listesi sorgularını yavaşlatabilirdi). Yalnızca en sık kötüye
+// kullanılabilecek alanlar için, gerçek/meşru içerikleri asla kesmeyecek kadar cömert sınırlar.
+const FIELD_MAX_LENGTHS = {
+  offices: { name: 200, about: 20000, loc: 300 },
+  projects: { title: 300, description: 20000, location: 200, locationDetail: 300, photoCreditText: 300 },
+  products: { title: 200, brand: 200, description: 20000 },
+  materials: { title: 200, brand: 200, description: 20000 },
+  architects: { name: 200, about: 20000, school: 200, dept: 200 },
+};
+
+export function findOversizedField(type, body) {
+  const limits = FIELD_MAX_LENGTHS[type];
+  if (!limits) return null;
+  for (const field of Object.keys(limits)) {
+    const value = body[field];
+    if (typeof value === 'string' && value.length > limits[field]) return field;
+  }
+  return null;
+}
+
 // Üye ol / mimar-ekle-düzenle / hesabım "Üniversite" kutucuğuna kısaltma girilmesini engeller
 // (bkz. kullanıcı isteği: "YTÜ, İTÜ, ODTÜ, MSGSÜ gibi kısaltmalara izin verme"). Türkçe üniversite
 // kısaltmalarının neredeyse tamamı yalnızca büyük harflerle yazılır — bu yüzden değerde HİÇ küçük
@@ -241,6 +265,13 @@ export function normalizeSubmission(type, body) {
       if (!Array.isArray(value)) value = value ? [value] : [];
       value = JSON.stringify(value.filter(Boolean));
     } else {
+      // denetim bulgusu: string alanlarda hiç trim() yapılmıyordu — architects/offices/products
+      // BARE isim/başlıkla anahtarlandığından (bkz. "Duplicate name key limitation" belleği), baştaki/
+      // sondaki boşluklu bir name/title/brand DB'ye olduğu gibi yazılıyor, isDuplicateCanonicalName/
+      // findOneByName gibi karşılaştırmalar kendi .trim()'ini yapsa da (bkz. o fonksiyonlar) sonraki
+      // strict `name = ?`/`profile_key = ?` eşleştirmeleri (ör. verifyClaimedProfileKey,
+      // projectClaimAccess.js) boşluk farkı yüzünden sessizce kaçırabilirdi.
+      if (typeof value === 'string') value = value.trim();
       value = value === undefined || value === '' ? null : value;
     }
     row[field] = value;

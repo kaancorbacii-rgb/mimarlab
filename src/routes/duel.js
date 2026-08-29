@@ -166,6 +166,15 @@ async function getMatch(request, env, url) {
   if (!(await checkRateLimit(env, 'duel_match', actorKey, 120, 60 * 1000))) {
     return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60', ...headers });
   }
+  // audit bulgusu: actorKey bazlı limit, giriş yapmamış bir ziyaretçi için sunucunun ürettiği
+  // mimarlab_duel_sid çerezine dayanır (bkz. resolveActor) — bir istemci bu Set-Cookie'yi hiç
+  // saklamazsa/göndermezse her istekte YENİ bir actorKey (dolayısıyla YENİ bir rate-limit
+  // penceresi) üretilir, actorKey bazlı limit fiilen atlanmış olur (her istek duel_matches'a bir
+  // INSERT yazar — sınırsız D1 yazma büyümesi). badges.js#createBadgeRequest/claims.js#createClaim
+  // İLE AYNI ikili (actor + IP) desen burada da bir güvenlik ağı olarak eklenir.
+  if (!(await checkRateLimit(env, 'duel_match-ip', clientIp(request), 300, 60 * 1000))) {
+    return errorJson('Çok fazla istek. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60', ...headers });
+  }
 
   const pool = await fetchDuelPool(env);
   if (pool.length < 2) return errorJson('Şu anda düello için yeterli proje yok.', 503, headers);
@@ -242,6 +251,11 @@ async function castVote(request, env) {
   const headers = setCookie ? { 'Set-Cookie': setCookie } : {};
 
   if (!(await checkRateLimit(env, 'duel_vote', actorKey, 60, 60 * 1000))) {
+    return errorJson('Çok fazla oylama işlemi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60', ...headers });
+  }
+  // audit bulgusu: getMatch'teki AYNI actorKey-rotasyonu açığına karşı ikili (actor + IP) desen —
+  // bkz. yukarıdaki duel_match-ip yorumu.
+  if (!(await checkRateLimit(env, 'duel_vote-ip', clientIp(request), 150, 60 * 1000))) {
     return errorJson('Çok fazla oylama işlemi yaptın. Lütfen biraz sonra tekrar dene.', 429, { 'Retry-After': '60', ...headers });
   }
 

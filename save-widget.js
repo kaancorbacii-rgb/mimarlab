@@ -107,6 +107,11 @@ const savedWidgetReady = initSavedWidget();
 // fresh:true dalı) taze currentUser/savedKeys okunur ve mevcut kartlar yeniden boyanır.
 window.addEventListener('mimarlab:authchange', () => {
   savedKeys.clear();
+  // gerçek bulgu: myEditableIdsCache (bkz. aşağısı) burada temizlenmiyordu — modal içinden çıkış
+  // yapmadan (sayfa yenilenmeden) farklı bir hesapla giriş yapılırsa (bkz. initAuthNav#fresh:true,
+  // auth-nav.js) "Gönderiyi Düzenle" butonları önceki kullanıcının /api/<type>/mine sonucuna göre
+  // yanlış kartlarda görünüp/gizlenmeye devam ederdi.
+  Object.keys(myEditableIdsCache).forEach(k => delete myEditableIdsCache[k]);
   initSavedWidget();
 });
 
