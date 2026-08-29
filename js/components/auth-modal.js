@@ -149,6 +149,49 @@ const AuthModal = (function () {
     #am-panel .notif-title{font-size:13.5px; font-weight:600;}
     #am-panel .notif-body{font-size:12.5px; color:var(--ink-soft); margin-top:2px; line-height:1.5;}
     #am-panel .notif-meta{font-size:11px; color:var(--ink-soft); margin-top:4px;}
+    #am-panel .notif-del{align-self:center;}
+    /* Mesaj konuşması popup'ı — bkz. kullanıcı isteği: Bildirimler ve Mesajlar'daki bir mesaja
+       tıklayınca açılan, tam geçmiş + cevap kutusu içeren overlay. Hesabım'ın kendi #am-panel'i
+       zaten z-index:200'de durduğundan (bkz. yukarıdaki .profile-edit-overlay kuralı) bunun üstüne
+       binmesi için daha yüksek bir z-index gerekir — js/components/message-button.js#
+       .msg-compose-overlay İLE AYNI değer (220). */
+    .am-thread-overlay{
+      display:flex; position:fixed; inset:0; z-index:220; align-items:flex-start; justify-content:center;
+      background:rgba(27,42,61,0.55); padding:40px 16px; overflow-y:auto;
+    }
+    .am-thread-panel{
+      width:100%; max-width:480px; background:var(--paper-card); border-radius:16px;
+      padding:26px; box-shadow:0 24px 60px rgba(27,42,61,0.3); position:relative;
+    }
+    .am-thread-close{
+      position:absolute; top:16px; right:16px; width:32px; height:32px; border-radius:50%;
+      border:none; background:var(--paper-alt); color:var(--ink-soft); font-size:18px;
+      display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1;
+    }
+    .am-thread-close:hover{color:var(--ink);}
+    .am-thread-title{font-size:18px; font-weight:700; margin:0 0 14px; color:var(--ink); padding-right:30px;}
+    .am-thread-sender{border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; font-size:12.5px;}
+    .am-thread-sender-row{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; color:var(--ink);}
+    .am-thread-sender-row strong{font-size:13.5px;}
+    .am-thread-sender-row span{color:var(--ink-soft);}
+    .am-thread-sender-extra{margin-top:3px; color:var(--ink-soft);}
+    .am-thread-messages{display:flex; flex-direction:column; gap:12px; max-height:340px; overflow-y:auto; margin-bottom:14px;}
+    .am-thread-msg{border-radius:12px; padding:10px 12px; background:var(--paper-alt);}
+    .am-thread-msg.me{background:rgba(224,138,62,0.1);}
+    .am-thread-msg-meta{font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
+    .am-thread-msg-body{font-size:13.5px; color:var(--ink); line-height:1.55; white-space:pre-wrap;}
+    .am-thread-reply-form textarea{
+      width:100%; box-sizing:border-box; border:1px solid var(--line); border-radius:10px;
+      padding:10px 12px; font-size:13.5px; font-family:inherit; color:var(--ink); background:var(--paper-card);
+      min-height:80px; resize:vertical;
+    }
+    .am-thread-reply-form textarea:focus{outline:none; border-color:var(--walnut);}
+    .am-thread-reply-actions{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px;}
+    .am-thread-end-btn{background:none; border:none; color:#B84C4C; font-weight:600; font-size:12.5px; padding:0; cursor:pointer;}
+    .am-thread-send-btn{border:none; border-radius:100px; background:var(--walnut); color:#fff; font-size:13.5px; font-weight:700; padding:10px 20px; cursor:pointer; font-family:inherit;}
+    .am-thread-send-btn:disabled{opacity:0.6; cursor:default;}
+    .am-thread-closed-note{font-size:12.5px; color:var(--ink-soft); text-align:center; margin:6px 0 0;}
+    .am-thread-error{font-size:12.5px; color:#B3261E; margin-top:8px; text-align:center;}
     #am-panel .dash-field{margin-bottom:12px;}
     #am-panel .dash-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
     #am-panel .dash-field input{width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
@@ -689,11 +732,7 @@ const AuthModal = (function () {
 
         <div class="dash-section">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
-            <h2 style="margin:0;">Bildirimler</h2>
-            <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
-              <button type="button" id="am-notif-read-all-btn" style="background:none; border:none; color:var(--walnut); font-weight:600; font-size:12px; padding:0;">Tümü okundu</button>
-              <button type="button" id="am-notif-delete-all-btn" style="background:none; border:none; color:#B84C4C; font-weight:600; font-size:12px; padding:0;">Bildirimleri sil</button>
-            </div>
+            <h2 style="margin:0;">Bildirimler ve Mesajlar</h2>
           </div>
           <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-notif-pagination"></div>
@@ -1714,6 +1753,14 @@ const AuthModal = (function () {
       notifItems = data.items || [];
       renderNotifications();
     }
+    // bkz. kullanıcı isteği: Başlığın yanındaki "Tümü okundu"/"Bildirimleri sil" metinleri kaldırıldı
+    // — silme artık her satırın kendi X işaretinden, satır-bazlı yapılır (bkz. aşağıdaki .notif-del).
+    // type==='message' olan satırlar tıklanınca src/routes/messages.js#getThread'i açan bir popup
+    // gösterir (bkz. openMessageThread) — link alanı "msg:<threadId>" biçimindedir (bkz. src/routes/
+    // messages.js#createThread/replyThread).
+    function threadIdFromLink(link) {
+      return link && link.startsWith('msg:') ? link.slice(4) : null;
+    }
     function renderNotifications() {
       const container = document.getElementById('am-dash-notifications');
       if (!notifItems.length) {
@@ -1733,29 +1780,135 @@ const AuthModal = (function () {
             ${n.body ? `<div class="notif-body">${escapeHtml(n.body)}</div>` : ''}
             <div class="notif-meta">${new Date(n.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           </div>
+          <button type="button" class="notif-del saved-remove-btn" data-id="${n.id}" aria-label="Bildirimi sil">✕</button>
         </div>`).join('');
-      container.querySelectorAll('.notif-row.unread').forEach(row => {
+      container.querySelectorAll('.notif-row').forEach(row => {
         row.addEventListener('click', async () => {
-          row.classList.remove('unread');
-          const dot = row.querySelector('.notif-dot');
-          if (dot) dot.remove();
           const item = notifItems.find(n => String(n.id) === row.dataset.id);
-          if (item) item.is_read = true;
-          try {
-            await fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) });
-          } catch {}
-        }, { once: true });
+          if (!item) return;
+          if (!item.is_read) {
+            row.classList.remove('unread');
+            const dot = row.querySelector('.notif-dot');
+            if (dot) dot.remove();
+            item.is_read = true;
+            try {
+              await fetch(`/api/notifications/${encodeURIComponent(row.dataset.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_read: true }) });
+            } catch {}
+          }
+          const threadId = threadIdFromLink(item.link);
+          if (threadId) openMessageThread(threadId);
+        });
+      });
+      container.querySelectorAll('.notif-del').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          notifItems = notifItems.filter(n => String(n.id) !== String(id));
+          renderNotifications();
+          try { await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' }); } catch {}
+        });
       });
       renderDashPagination('am-notif-pagination', notifPage, totalPages, (p) => { notifPage = p; renderNotifications(); });
     }
-    on('am-notif-read-all-btn', 'click', async () => {
-      try { await fetch('/api/notifications/read-all', { method: 'POST' }); } finally { loadNotifications(); }
-    });
-    on('am-notif-delete-all-btn', 'click', async () => {
-      if (!confirm('Tüm bildirimlerini silmek istediğine emin misin? Bu işlem geri alınamaz.')) return;
-      notifPage = 1;
-      try { await fetch('/api/notifications/delete-all', { method: 'POST' }); } finally { loadNotifications(); }
-    });
+
+    // Mesaj konuşması popup'ı — bkz. kullanıcı isteği: "Kullanıcı bu mesaja tıklayıp açılan popupta
+    // mesajın tamamını okuyabilsin ve gönderenin bilgilerini görebilsin... cevap da yazabilsin...
+    // Konuşma geçmişinde önceki cevaplar görüntülenebilsin... Kullanıcılar isterse görüşmeyi
+    // sonlandırabilsin." ModalShell'den BAĞIMSIZ, kendi kendine yeten hafif bir overlay (js/components/
+    // message-button.js#openCompose İLE AYNI z-index/overlay deseni — Hesabım'ın kendi z-index'i 200,
+    // bu üstüne binmeli).
+    function closeMessageThread() {
+      const overlay = document.getElementById('am-thread-overlay');
+      if (overlay) overlay.remove();
+    }
+    async function openMessageThread(threadId) {
+      closeMessageThread();
+      const overlay = document.createElement('div');
+      overlay.className = 'am-thread-overlay';
+      overlay.id = 'am-thread-overlay';
+      overlay.innerHTML = `
+        <div class="am-thread-panel">
+          <button type="button" class="am-thread-close" aria-label="Kapat">&times;</button>
+          <div class="am-thread-body">Yükleniyor…</div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const close = () => closeMessageThread();
+      overlay.querySelector('.am-thread-close').addEventListener('click', close);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+      let data;
+      try {
+        const res = await fetch(`/api/messages/threads/${encodeURIComponent(threadId)}`);
+        if (!res.ok) throw new Error();
+        data = await res.json();
+      } catch {
+        overlay.querySelector('.am-thread-body').innerHTML = '<div class="dash-empty">Bu konuşma yüklenemedi.</div>';
+        return;
+      }
+      renderThreadBody(overlay, data);
+    }
+    function renderThreadBody(overlay, data) {
+      const bodyEl = overlay.querySelector('.am-thread-body');
+      const s = data.sender;
+      bodyEl.innerHTML = `
+        <h2 class="am-thread-title">${data.isSender ? 'Gönderdiğin Mesaj' : 'Gelen Mesaj'}</h2>
+        <div class="am-thread-sender">
+          <div class="am-thread-sender-row"><strong>${escapeHtml(s.name)}</strong><span>${escapeHtml(s.email)}</span></div>
+          ${(s.city || s.company || s.phone) ? `<div class="am-thread-sender-row am-thread-sender-extra">${[s.city, s.company, s.phone].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
+        </div>
+        <div class="am-thread-messages">${data.messages.map(m => `
+          <div class="am-thread-msg${m.isMe ? ' me' : ''}">
+            <div class="am-thread-msg-meta">${escapeHtml(m.senderName)} · ${new Date(m.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            <div class="am-thread-msg-body">${escapeHtml(m.body)}</div>
+          </div>`).join('')}
+        </div>
+        ${data.status === 'closed'
+          ? '<p class="am-thread-closed-note">Bu görüşme sonlandırıldı.</p>'
+          : `<form class="am-thread-reply-form" id="am-thread-reply-form">
+              <textarea id="am-thread-reply-text" placeholder="Cevabını yaz..." required maxlength="4000"></textarea>
+              <div class="am-thread-reply-actions">
+                <button type="button" class="am-thread-end-btn" id="am-thread-end-btn">Görüşmeyi Sonlandır</button>
+                <button type="submit" class="am-thread-send-btn">Gönder</button>
+              </div>
+            </form>`}
+        <div class="am-thread-error" id="am-thread-error" style="display:none;"></div>`;
+
+      const replyForm = bodyEl.querySelector('#am-thread-reply-form');
+      if (replyForm) {
+        replyForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const textarea = document.getElementById('am-thread-reply-text');
+          const text = textarea.value.trim();
+          if (!text) return;
+          const sendBtn = replyForm.querySelector('.am-thread-send-btn');
+          sendBtn.disabled = true;
+          try {
+            const res = await fetch(`/api/messages/threads/${encodeURIComponent(data.id)}/reply`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: text }),
+            });
+            if (!res.ok) throw new Error();
+            const res2 = await fetch(`/api/messages/threads/${encodeURIComponent(data.id)}`);
+            const data2 = await res2.json();
+            renderThreadBody(overlay, data2);
+          } catch {
+            const errEl = document.getElementById('am-thread-error');
+            errEl.textContent = 'Mesaj gönderilemedi, lütfen tekrar dene.';
+            errEl.style.display = 'block';
+            sendBtn.disabled = false;
+          }
+        });
+        const endBtn = bodyEl.querySelector('#am-thread-end-btn');
+        endBtn.addEventListener('click', async () => {
+          if (!confirm('Bu görüşmeyi sonlandırmak istediğine emin misin?')) return;
+          try {
+            await fetch(`/api/messages/threads/${encodeURIComponent(data.id)}/close`, { method: 'POST' });
+            const res2 = await fetch(`/api/messages/threads/${encodeURIComponent(data.id)}`);
+            const data2 = await res2.json();
+            renderThreadBody(overlay, data2);
+          } catch {}
+        });
+      }
+    }
 
     loadUser().then(() => {
       if (accountUser) {

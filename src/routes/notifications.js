@@ -3,6 +3,8 @@ import { getSessionUser } from '../lib/auth.js';
 
 // GET /api/notifications/mine — en yeni 50 bildirim.
 // PATCH /api/notifications/:id — { is_read: true } ile okundu işaretler.
+// DELETE /api/notifications/:id — tek bir bildirimi kalıcı olarak siler (bkz. kullanıcı isteği:
+// "Bildirimler ve mesajların yanında X yani silme işareti olsun" — satır-bazlı silme).
 // POST /api/notifications/read-all — kullanıcının tüm bildirimlerini okundu yapar.
 // POST /api/notifications/delete-all — kullanıcının tüm bildirimlerini kalıcı olarak siler.
 export async function handleNotificationsRoute(request, env, url) {
@@ -23,6 +25,9 @@ export async function handleNotificationsRoute(request, env, url) {
   if (segments.length === 3 && segments[2] !== 'mine' && segments[2] !== 'read-all' && segments[2] !== 'delete-all' && request.method === 'PATCH') {
     return markRead(request, env, user, segments[2]);
   }
+  if (segments.length === 3 && segments[2] !== 'mine' && segments[2] !== 'read-all' && segments[2] !== 'delete-all' && request.method === 'DELETE') {
+    return deleteOne(env, user, segments[2]);
+  }
   return errorJson('Bulunamadı', 404);
 }
 
@@ -38,6 +43,13 @@ async function markRead(request, env, user, id) {
   const row = await env.DB.prepare('SELECT id FROM notifications WHERE id = ? AND user_id = ?').bind(id, user.id).first();
   if (!row) return errorJson('Bulunamadı', 404);
   await env.DB.prepare('UPDATE notifications SET is_read = ? WHERE id = ?').bind(body.is_read === false ? 0 : 1, id).run();
+  return json({ ok: true });
+}
+
+async function deleteOne(env, user, id) {
+  const row = await env.DB.prepare('SELECT id FROM notifications WHERE id = ? AND user_id = ?').bind(id, user.id).first();
+  if (!row) return errorJson('Bulunamadı', 404);
+  await env.DB.prepare('DELETE FROM notifications WHERE id = ?').bind(id).run();
   return json({ ok: true });
 }
 

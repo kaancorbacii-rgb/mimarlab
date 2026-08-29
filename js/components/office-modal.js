@@ -578,6 +578,13 @@ const OfficeModal = (function () {
       followBtn.insertAdjacentHTML('afterend', ShareWidget.html('om-share-btn'));
       ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
     }
+    // Mesaj Gönder — bkz. js/components/architect-modal.js#renderMessageIcon İLE AYNI gerekçe/desen:
+    // yalnızca doğrulanmış (rozetli) profillerde gösterilir, gerçek ikon renderVerifiedBadges()
+    // içinde (rozetler hazır olduğunda) yerleştirilir/kaldırılır.
+    if (typeof MessageWidget !== 'undefined') {
+      const shareWidgetEl = document.getElementById('om-share-btn');
+      (shareWidgetEl ? shareWidgetEl.closest('.share-widget') : followBtn).insertAdjacentHTML('afterend', '<span id="om-message-slot"></span>');
+    }
 
     // "Websitesi" — Takip Et ile AYNI satırda, en başta (bkz. kullanıcı isteği).
     const visitUrl = o.website ? safeUrl(o.website) : '';
@@ -690,11 +697,33 @@ const OfficeModal = (function () {
       } catch {}
     }
 
+    // js/components/architect-modal.js#renderMessageIcon İLE BİREBİR AYNI mantık — yalnızca burada
+    // dynamicBadges.office ve message-thread alıcı çözümü OFFICE_MESSAGE_POSITIONS'a (bkz. src/routes/
+    // messages.js) bakar, ikon görünürlüğü yalnızca rozet varlığına bakar (alıcısız bir gönderim
+    // olsa bile sunucu 400 döner, ikon burada sadece "doğrulanmış" sinyaline göre gösterilir/gizlenir).
+    function renderMessageIcon() {
+      const slot = document.getElementById('om-message-slot');
+      if (!slot || typeof MessageWidget === 'undefined') return;
+      const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges.office && dynamicBadges.office[o.name]) || [];
+      const badges = dynamic.length ? dynamic : (o.badges || []);
+      if (!badges.length) { slot.innerHTML = ''; return; }
+      if (slot.querySelector('.msg-btn')) return;
+      slot.innerHTML = MessageWidget.html('om-message-btn');
+      MessageWidget.wire('om-message-btn', () => ({
+        profileType: 'office',
+        profileKey: o.name,
+        title: o.name,
+        subtitle: o.loc || '',
+        image: logoUrl(o),
+      }));
+    }
+
     function renderVerifiedBadges() {
       document.getElementById('om-verified-badge-wrap').innerHTML = verifiedBadgeHtml(PROFILE_TYPE, o.name, o.badges, 20);
       // bkz. kullanıcı isteği: mavi rozet kurucu/ortak kartlarında da görünmeli — isim bazlı
       // dynamicBadges önbelleğine bağlı olduğundan başlıktaki rozetle AYNI anda tazelenir.
       renderFoundersGrid();
+      renderMessageIcon();
     }
     renderVerifiedBadges();
     // gerçek bulgu (denetim, 2026-08-16): js/components/architect-modal.js#renderVerifiedBadges ile

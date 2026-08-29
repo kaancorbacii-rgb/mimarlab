@@ -586,6 +586,13 @@ const ArchitectModal = (function () {
       followBtn.insertAdjacentHTML('afterend', ShareWidget.html('am-share-btn'));
       ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
     }
+    // Mesaj Gönder — bkz. kullanıcı isteği: yalnızca doğrulanmış (rozetli) profillere gönderilebilir,
+    // bu yüzden buradaki slot boş bırakılır, gerçek ikon renderVerifiedBadges() içinde (rozetler
+    // hazır olduğunda) yerleştirilir/kaldırılır — Paylaş'ın hemen sağında durur.
+    if (typeof MessageWidget !== 'undefined') {
+      const shareWidgetEl = document.getElementById('am-share-btn');
+      (shareWidgetEl ? shareWidgetEl.closest('.share-widget') : followBtn).insertAdjacentHTML('afterend', '<span id="am-message-slot"></span>');
+    }
     const socialLinksEl = document.getElementById('am-social-links');
     if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(a.socialPlatform, a.socialUrl) : '';
 
@@ -687,6 +694,27 @@ const ArchitectModal = (function () {
       } catch {}
     }
 
+    // Mesaj Gönder ikonu — bkz. kullanıcı isteği: "Doğrulanmış mimar/firma profillerine, bir
+    // kullanıcı mesaj gönderebilsin" — doğrulanmış = en az bir aktif rozeti olan profil (badge-shared.js#
+    // verifiedBadgeHtml İLE AYNI dynamic-önce/static-yedek mantığı, orada sadece HTML basılır burada
+    // varlık/yokluk kontrol edilir).
+    function renderMessageIcon() {
+      const slot = document.getElementById('am-message-slot');
+      if (!slot || typeof MessageWidget === 'undefined') return;
+      const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges.architect && dynamicBadges.architect[a.name]) || [];
+      const badges = dynamic.length ? dynamic : (a.badges || []);
+      if (!badges.length) { slot.innerHTML = ''; return; }
+      if (slot.querySelector('.msg-btn')) return;
+      slot.innerHTML = MessageWidget.html('am-message-btn');
+      MessageWidget.wire('am-message-btn', () => ({
+        profileType: 'architect',
+        profileKey: a.name,
+        title: a.name,
+        subtitle: [a.role, displayOffice ? displayOffice.name : null].filter(Boolean).join(' · '),
+        image: a.photo,
+      }));
+    }
+
     function renderVerifiedBadges() {
       document.getElementById('am-verified-badge-wrap').innerHTML = verifiedBadgeHtml(PROFILE_TYPE, a.name, a.badges, 20);
       // bkz. kullanıcı isteği: mavi rozet firma/meslektaş kartlarında da görünmeli — bu ikisi de
@@ -694,6 +722,7 @@ const ArchitectModal = (function () {
       renderOfficeGrid();
       renderColleaguesGrid();
       renderRelatedArchitectsGrid();
+      renderMessageIcon();
     }
     renderVerifiedBadges();
     // gerçek bulgu (denetim, 2026-08-16): window.addEventListener(..., {once:true}) her renderItem()
