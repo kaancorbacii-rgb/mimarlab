@@ -369,7 +369,7 @@ const ProductModal = (function () {
     </div>
     <hr class="pr-info-divider" id="pr-info-divider">
     <details class="pr-feedback-card" id="pr-files-card">
-      <summary>BIM, CAD, Katalog Dosyaları<span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <summary>Dosyalar (BIM, CAD, 3D, Katalog)<span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div class="pr-files-grid" id="pr-files-grid"></div>
     </details>
     <details class="pr-feedback-card" id="pr-feedback-card">
