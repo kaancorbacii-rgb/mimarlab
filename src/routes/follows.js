@@ -24,9 +24,34 @@ export async function handleFollowRoute(request, env, url) {
 
 async function listFollows(env, user) {
   const { results } = await env.DB.prepare(
-    'SELECT followed_type, followed_key, followed_title FROM follows WHERE user_id = ? ORDER BY created_at DESC'
+    'SELECT followed_type, followed_key, followed_title, followed_ref_id FROM follows WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
-  return json({ items: results });
+
+  // follows tablosunda görsel alanı YOK (bkz. schema.sql#follows) — Takip Ettiklerim satırlarının
+  // önizlemesi için followed_ref_id üzerinden architects.photo_url / offices.logo_url'e JOIN edilir.
+  const architectIds = [...new Set(results.filter(f => f.followed_type === 'architect' && f.followed_ref_id).map(f => f.followed_ref_id))];
+  const officeIds = [...new Set(results.filter(f => f.followed_type === 'office' && f.followed_ref_id).map(f => f.followed_ref_id))];
+  const imageByRef = new Map();
+  if (architectIds.length) {
+    const { results: rows } = await env.DB.prepare(
+      `SELECT id, photo_url FROM architects WHERE id IN (${architectIds.map(() => '?').join(',')})`
+    ).bind(...architectIds).all();
+    for (const r of rows) imageByRef.set(`architect:${r.id}`, r.photo_url);
+  }
+  if (officeIds.length) {
+    const { results: rows } = await env.DB.prepare(
+      `SELECT id, logo_url FROM offices WHERE id IN (${officeIds.map(() => '?').join(',')})`
+    ).bind(...officeIds).all();
+    for (const r of rows) imageByRef.set(`office:${r.id}`, r.logo_url);
+  }
+
+  const items = results.map(f => ({
+    followed_type: f.followed_type,
+    followed_key: f.followed_key,
+    followed_title: f.followed_title,
+    followed_image: f.followed_ref_id ? (imageByRef.get(`${f.followed_type}:${f.followed_ref_id}`) || null) : null,
+  }));
+  return json({ items });
 }
 
 async function createFollow(request, env, user) {

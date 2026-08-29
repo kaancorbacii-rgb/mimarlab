@@ -1864,8 +1864,9 @@ const AuthModal = (function () {
       const followsData = followsRes.ok ? await followsRes.json() : { items: [] };
       const profileItems = (followsData.items || []).map(f => ({
         type: f.followed_type,
+        key: f.followed_key,
         title: f.followed_title || f.followed_key,
-        image: null,
+        image: f.followed_image || null,
         href: `/${f.followed_type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(f.followed_key)}`,
       }));
       followFeedItems = [...profileItems, ...(feedData.items || [])];
@@ -1890,15 +1891,26 @@ const AuthModal = (function () {
       const startIdx = (followFeedPage - 1) * PAGE_SIZE_DASH;
       const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
       container.innerHTML = pageItems.map(it => `
-        <div class="saved-row">
+        <div class="saved-row"${it.key ? ` data-type="${escapeAttr(it.type)}" data-key="${escapeAttr(it.key)}"` : ''}>
           <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
-            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(safeUrl(it.image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(avatarImg(it.image, 160, safeUrl(it.image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
             <div style="min-width:0;">
               <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
               <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''}</div>
             </div>
           </a>
+          ${it.key ? `<button class="saved-remove-btn" type="button" aria-label="Takibi bırak">✕</button>` : ''}
         </div>`).join('');
+      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.saved-row');
+          btn.disabled = true;
+          try {
+            await fetch(`/api/follows/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
+            loadFollowFeed();
+          } catch { btn.disabled = false; }
+        });
+      });
       renderDashPagination('am-follow-feed-pagination', followFeedPage, totalPages, (p) => { followFeedPage = p; renderFollowFeed(); });
     }
     on('am-follow-feed-filter', 'click', (e) => {
