@@ -8,10 +8,14 @@ import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 // Fiyatlar TL/ay cinsinden (aylık abonelik); ödeme yöntemi havale/EFT (bkz. satin-al.html) —
 // kredi/banka kartı (iyzico, bkz. src/routes/payments.js) henüz UI'da aktif değil. Havale
 // talepleri burada 'pending' oluşturulur, admin havaleyi banka ekstresinden doğrulayıp panelden
-// elle onaylar (bkz. src/routes/admin.js#handleBadgesAdmin). Dört kademe: destekci (Destekçi — herhangi bir hak/rozet vermez,
-// yalnızca destek amaçlı), verified (Doğrulanmış Üye), gold (Altın Üye), platinum (Elmas Üye)
-// — bkz. data.js#BADGE_LABELS ile aynı anahtarlar (destekci kasıtlı olarak orada yok, bkz.
-// handlePublicBadges).
+// elle onaylar (bkz. src/routes/admin.js#handleBadgesAdmin). İki kademe satın alınabilir: verified
+// (Doğrulanmış Üye), gold (Altın Üye) — bkz. badge-shared.js#BADGE_LABELS ile aynı anahtarlar.
+// 'destekci' (Destekçi) ve 'platinum' (Elmas Üye) kullanıcı isteğiyle 2026-08-29'da satın alınabilir
+// olmaktan çıkarıldı (bkz. BADGE_PRICES'ta artık yer almamaları — getBadgePrice bu tipler için
+// undefined döner, createBadgeRequest bunu 'Geçersiz rozet türü.' olarak reddeder); eski durumdaki
+// aktif kayıtlar aynı tarihte elle 'rejected' yapıldı (bkz. iade-et.html/admin.html — hâlâ o eski
+// siparişleri ETİKETLEMEK için destekci/platinum'u BİLEREK içeriyorlar, ama artık hiçbiri satın
+// alınamaz).
 //
 // BADGE_PRICES aşağıdaki "Bir firmam için" (targetType='office') tabanı — "Kendim için"
 // (targetType='self') seçildiğinde her kademe SELF_DISCOUNT_TRY kadar ucuz (bkz. kullanıcı
@@ -19,10 +23,8 @@ import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 // (src/routes/payments.js#startCheckout) targetType'ı buradaki getBadgePrice() ile aynı tek
 // noktadan hesaplar.
 export const BADGE_PRICES = {
-  destekci: 79.90,
   verified: 99.90,
   gold: 139.90,
-  platinum: 199.90,
 };
 const SELF_DISCOUNT_TRY = 60;
 

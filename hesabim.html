@@ -619,17 +619,16 @@ let currentUser = null;
 // (bkz. o dosyanın başındaki not, ~12 sayfa hâlâ data.js kullanıyor) ve kendi initials()/palette
 // gibi global adlarla çakışabilirdi; burada yalnızca ihtiyaç duyulan tek fonksiyon küçük, kendi
 // kendine yeten bir kopya olarak tutulur (bkz. kullanıcı isteği: Ad Soyad/Firma yanında rozet ikonu).
-// 'destekci' KASITLI OLARAK gösterilmez — bkz. src/lib/badgeAccess.js: hiçbir hak/görünür rozet
-// vermeyen tek kademe.
-const ACCOUNT_BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye', 'iz-birakan':'İz Bırakan' };
-const ACCOUNT_BADGE_COLORS = { verified:'#0095F6', gold:'#D4A72C', platinum:'#4FB3D9', 'iz-birakan':'#1B1F24' };
+// 'destekci' KASITLI OLARAK gösterilmez — hiçbir hak/görünür rozet vermeyen tek kademe. 'platinum'
+// (Elmas Üye) kullanıcı isteğiyle 2026-08-29'da satın alınabilir olmaktan çıkarıldı — bu yüzden de
+// artık burada yok (bkz. src/routes/badges.js#BADGE_PRICES'taki aynı not).
+const ACCOUNT_BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', 'iz-birakan':'İz Bırakan' };
+const ACCOUNT_BADGE_COLORS = { verified:'#0095F6', gold:'#D4A72C', 'iz-birakan':'#1B1F24' };
 const ACCOUNT_SEAL_BADGE_SVG = '<path d="M12 2 14.5 5.5 19 5l-.5 4.5L22 12l-3.5 2.5.5 4.5-4.5-.5L12 22l-2.5-3.5-4.5.5.5-4.5L2 12l3.5-2.5L5 5l4.5.5Z"/><path d="M9 12.5l2 2 4-4.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
-const ACCOUNT_GEM_BADGE_SVG = '<path d="M4.5 9 8 3.5h8L19.5 9 12 21.5 4.5 9Z"/><path d="M4.5 9h15M8 3.5 12 9m4-5.5L12 9M12 9v12.5" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>';
 function accountBadgeIconHtml(badgeType){
-  if(!badgeType || badgeType === 'destekci') return '';
-  const isGem = badgeType === 'platinum';
-  const size = 14, width = isGem ? Math.round(size * 1.3) : size;
-  return `<span title="${escapeAttr(ACCOUNT_BADGE_LABELS[badgeType] || badgeType)}" style="display:inline-flex; vertical-align:middle; margin-left:6px; flex-shrink:0; color:${ACCOUNT_BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? ACCOUNT_GEM_BADGE_SVG : ACCOUNT_SEAL_BADGE_SVG}</svg></span>`;
+  if(!badgeType || badgeType === 'destekci' || badgeType === 'platinum') return '';
+  const size = 14;
+  return `<span title="${escapeAttr(ACCOUNT_BADGE_LABELS[badgeType] || badgeType)}" style="display:inline-flex; vertical-align:middle; margin-left:6px; flex-shrink:0; color:${ACCOUNT_BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor">${ACCOUNT_SEAL_BADGE_SVG}</svg></span>`;
 }
 // myBadgeItems (loadBadges) ve myOfficeClaim (loadMyClaims) birbirinden bağımsız/paralel yüklenir
 // (bkz. aşağıdaki loadUser().then(...) toplu tetikleme) — bu yüzden Ad Soyad/Firma satırlarındaki
@@ -1093,10 +1092,8 @@ document.getElementById('saved-filter').addEventListener('click', (e)=>{
 // SELF_DISCOUNT_TRY (60 TL) kadar üzerinde (bkz. satin-al.html#priceForTier,
 // src/routes/badges.js#getBadgePrice — buradaki gösterim yalnızca bilgilendirme amaçlı).
 const BADGE_TIERS = [
-  { type:'destekci', label:'Destekçi', price:'19,90 TL' },
   { type:'verified', label:'Doğrulanmış Üye', price:'39,90 TL' },
   { type:'gold', label:'Altın Üye', price:'79,90 TL' },
-  { type:'platinum', label:'Elmas Üye', price:'139,90 TL' },
 ];
 const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
 const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };

@@ -156,13 +156,13 @@ async function verifyClaimedSlug(env, user, slug) {
 }
 
 // Ürün gönderimi rozet sahipliğine bağlıdır (yalnızca yeni gönderiler için — mevcut bir gönderiyi
-// düzenlemek aylık hakkı harcamaz, bkz. updateOwnSubmission). Her üç rozet kademesi de farklı
+// düzenlemek aylık hakkı harcamaz, bkz. updateOwnSubmission). Her iki rozet kademesi de farklı
 // aylık limitle yükleyebilir.
 async function checkSubmissionQuota(env, user, typeKey) {
   if (typeKey === 'products') {
     const badge = await getActiveBadge(env, user.id);
     const limit = badge ? PRODUCT_MONTHLY_LIMITS[badge.badge_type] : undefined;
-    if (!limit) return errorJson('Ürün eklemek için Doğrulanmış Üye, Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+    if (!limit) return errorJson('Ürün eklemek için Doğrulanmış Üye ya da Altın Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
     const since = periodStart(badge);
     const row = await env.DB.prepare(
       `SELECT COUNT(*) AS count FROM product_submissions WHERE owner_user_id = ? AND created_at >= ?`
@@ -173,7 +173,7 @@ async function checkSubmissionQuota(env, user, typeKey) {
   if (typeKey === 'materials') {
     const badge = await getActiveBadge(env, user.id);
     const limit = badge ? MATERIAL_MONTHLY_LIMITS[badge.badge_type] : undefined;
-    if (!limit) return errorJson('Malzeme eklemek için Doğrulanmış Üye, Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+    if (!limit) return errorJson('Malzeme eklemek için Doğrulanmış Üye ya da Altın Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
     const since = periodStart(badge);
     const row = await env.DB.prepare(
       `SELECT COUNT(*) AS count FROM material_submissions WHERE owner_user_id = ? AND created_at >= ?`

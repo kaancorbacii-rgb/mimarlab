@@ -505,7 +505,7 @@ async function handleExtract(request, env, user) {
   if (kind === 'urun') {
     const badge = await getActiveBadge(env, user.id);
     if (!badge) {
-      return errorJson('Ürün/malzeme eklemek için Doğrulanmış Üye, Altın Üye ya da Elmas Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
+      return errorJson('Ürün/malzeme eklemek için Doğrulanmış Üye ya da Altın Üye rozetine sahip olmalısın. Hesabım sayfandan rozet satın alabilirsin.', 403);
     }
   }
   let fetchResult;

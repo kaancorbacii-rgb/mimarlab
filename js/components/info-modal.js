@@ -185,7 +185,7 @@ const InfoModal = (function () {
       <div class="content-section">
         <h2>Üyelik, katkı ve rozetler</h2>
         <p>Üye olarak proje, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
-        <p>Platformu desteklemek ya da profilinizi öne çıkarmak isteyenler için aylık kiralanan rozet kademeleri sunuyoruz — Destekçi, Doğrulanmış Üye, Altın Üye ve Elmas Üye. Kademeye göre profilinizde doğrulanmış rozet, aylık ürün yükleme hakkı ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
+        <p>Profilinizi öne çıkarmak isteyenler için aylık kiralanan iki rozet kademesi sunuyoruz — Doğrulanmış Üye ve Altın Üye. Kademeye göre profilinizde doğrulanmış rozet, aylık ürün yükleme hakkı ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
       </div>
 
       <div class="content-section">
@@ -755,14 +755,12 @@ const InfoModal = (function () {
     fetch('/api/auth/me').then(res => { if (!res.ok) window.location.href = '/giris'; }).catch(() => {});
 
     const BADGE_TIERS = [
-      { type: 'destekci', label: 'Destekçi', officePrice: 79.90, perks: ['Bir rozet vermez, destek olmak isteyenler içindir.'] },
       { type: 'verified', label: 'Doğrulanmış Üye', officePrice: 99.90, perks: ['Doğrulanmış Üye rozeti verir.'] },
       { type: 'gold', label: 'Altın Üye', officePrice: 139.90, perks: ['Altın Üye rozeti verir.'] },
-      { type: 'platinum', label: 'Elmas Üye', officePrice: 199.90, perks: ['Elmas Üye rozeti verir.'] },
     ];
     const SELF_DISCOUNT_TRY = 60;
     const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };
-    const BADGE_RANK = { platinum: 3, gold: 2, verified: 1, destekci: 0 };
+    const BADGE_RANK = { gold: 2, verified: 1 };
 
     const params = new URLSearchParams(window.location.search);
     let selectedTier = BADGE_TIERS.find(t => t.type === params.get('tier')) ? params.get('tier') : BADGE_TIERS[0].type;

@@ -8,19 +8,19 @@
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
 <title>Rozet Satın Al — MİMARLAB</title>
-<meta name="description" content="MİMARLAB rozet satın al — profilini doğrulanmış üye, altın üye ya da elmas üye rozetiyle öne çıkar.">
+<meta name="description" content="MİMARLAB rozet satın al — profilini doğrulanmış üye ya da altın üye rozetiyle öne çıkar.">
 <link rel="canonical" href="https://mimarlab.com/satin-al">
 <meta name="robots" content="noindex, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Rozet Satın Al — MİMARLAB">
-<meta property="og:description" content="MİMARLAB rozet satın al — profilini doğrulanmış üye, altın üye ya da elmas üye rozetiyle öne çıkar.">
+<meta property="og:description" content="MİMARLAB rozet satın al — profilini doğrulanmış üye ya da altın üye rozetiyle öne çıkar.">
 <meta property="og:url" content="https://mimarlab.com/satin-al">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Rozet Satın Al — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB rozet satın al — profilini doğrulanmış üye, altın üye ya da elmas üye rozetiyle öne çıkar.">
+<meta name="twitter:description" content="MİMARLAB rozet satın al — profilini doğrulanmış üye ya da altın üye rozetiyle öne çıkar.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -292,22 +292,16 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // tarafı src/routes/badges.js#getBadgePrice ile BİREBİR aynı tutarı hesaplar — buradaki gösterim
 // yalnızca bilgilendirme amaçlı, gerçek tutar her zaman sunucuda targetType'a göre doğrulanır).
 const BADGE_TIERS = [
-  { type:'destekci', label:'Destekçi', officePrice:79.90, perks:[
-    'Bir rozet vermez, destek olmak isteyenler içindir.',
-  ] },
   { type:'verified', label:'Doğrulanmış Üye', officePrice:99.90, perks:[
     'Doğrulanmış Üye rozeti verir.',
   ] },
   { type:'gold', label:'Altın Üye', officePrice:139.90, perks:[
     'Altın Üye rozeti verir.',
   ] },
-  { type:'platinum', label:'Elmas Üye', officePrice:199.90, perks:[
-    'Elmas Üye rozeti verir.',
-  ] },
 ];
 const SELF_DISCOUNT_TRY = 60;
 const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };
-const BADGE_RANK = { platinum: 3, gold: 2, verified: 1, destekci: 0 };
+const BADGE_RANK = { gold: 2, verified: 1 };
 
 const params = new URLSearchParams(window.location.search);
 let selectedTier = BADGE_TIERS.find(t => t.type === params.get('tier')) ? params.get('tier') : BADGE_TIERS[0].type;

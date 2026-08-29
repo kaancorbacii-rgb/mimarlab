@@ -849,10 +849,8 @@ const AuthModal = (function () {
   // indirimli fiyatları ayrı string olarak tutuyordu, backend fiyatı değişirse burası sessizce
   // yanlış kalıyordu.
   const BADGE_TIERS = [
-    { type: 'destekci', label: 'Destekçi', officePrice: 79.90 },
     { type: 'verified', label: 'Doğrulanmış Üye', officePrice: 99.90 },
     { type: 'gold', label: 'Altın Üye', officePrice: 139.90 },
-    { type: 'platinum', label: 'Elmas Üye', officePrice: 199.90 },
   ];
   const BADGE_SELF_DISCOUNT_TRY = 60;
   function badgeSelfPrice(tier) { return Math.round((tier.officePrice - BADGE_SELF_DISCOUNT_TRY) * 100) / 100; }
@@ -864,19 +862,17 @@ const AuthModal = (function () {
   // gerekçe — badge-shared.js bu sayfaya YÜKLENMİYOR, kendi initials()/palette gibi globalleriyle
   // çakışabilir) — Ad Soyad/Firma satırlarının yanına aktif rozet ikonu basmak için kullanılır (bkz.
   // kullanıcı isteği). 'destekci' KASITLI OLARAK gösterilmez — bkz. src/lib/badgeAccess.js.
-  const ACCOUNT_BADGE_LABELS = { verified: 'Doğrulanmış Üye', gold: 'Altın Üye', platinum: 'Elmas Üye', 'iz-birakan': 'İz Bırakan' };
-  const ACCOUNT_BADGE_COLORS = { verified: '#0095F6', gold: '#D4A72C', platinum: '#4FB3D9', 'iz-birakan': '#1B1F24' };
+  const ACCOUNT_BADGE_LABELS = { verified: 'Doğrulanmış Üye', gold: 'Altın Üye', 'iz-birakan': 'İz Bırakan' };
+  const ACCOUNT_BADGE_COLORS = { verified: '#0095F6', gold: '#D4A72C', 'iz-birakan': '#1B1F24' };
   const ACCOUNT_SEAL_BADGE_SVG = '<path d="M12 2 14.5 5.5 19 5l-.5 4.5L22 12l-3.5 2.5.5 4.5-4.5-.5L12 22l-2.5-3.5-4.5.5.5-4.5L2 12l3.5-2.5L5 5l4.5.5Z"/><path d="M9 12.5l2 2 4-4.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
-  const ACCOUNT_GEM_BADGE_SVG = '<path d="M4.5 9 8 3.5h8L19.5 9 12 21.5 4.5 9Z"/><path d="M4.5 9h15M8 3.5 12 9m4-5.5L12 9M12 9v12.5" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>';
   function accountBadgeIconHtml(badgeType) {
-    if (!badgeType || badgeType === 'destekci') return '';
-    const isGem = badgeType === 'platinum';
-    const size = 14, width = isGem ? Math.round(size * 1.3) : size;
+    if (!badgeType || badgeType === 'destekci' || badgeType === 'platinum') return '';
+    const size = 14;
     const label = ACCOUNT_BADGE_LABELS[badgeType] || badgeType;
     // title yerine tıklama/dokunma ile de açılabilen özel tooltip (bkz. kullanıcı isteği: "tablet
     // ve mobilde dokununca rozetin ismi yazsın") — native title mobilde çalışmadığından am-badge-icon
     // click delegasyonu (bkz. aşağıdaki document click listener) bunu tetikler.
-    return `<span class="am-badge-icon" aria-label="${escapeAttr(label)}" style="display:inline-flex; vertical-align:middle; margin-left:6px; flex-shrink:0; color:${ACCOUNT_BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? ACCOUNT_GEM_BADGE_SVG : ACCOUNT_SEAL_BADGE_SVG}</svg><span class="am-badge-tooltip">${escapeHtml(label)}</span></span>`;
+    return `<span class="am-badge-icon" aria-label="${escapeAttr(label)}" style="display:inline-flex; vertical-align:middle; margin-left:6px; flex-shrink:0; color:${ACCOUNT_BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor">${ACCOUNT_SEAL_BADGE_SVG}</svg><span class="am-badge-tooltip">${escapeHtml(label)}</span></span>`;
   }
   // amBadgeItems (loadBadges) ve amClaimItems (loadMyClaims) birbirinden bağımsız/paralel yüklenir
   // (bkz. aşağıdaki loadUser().then(...) toplu tetikleme) — Mimar/Firma satırlarındaki rozet ikonu

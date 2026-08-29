@@ -49,18 +49,19 @@ fetch('/api/public/badges').then(r => r.ok ? r.json() : null).then(d => {
   window.dispatchEvent(new Event('mimarlab-badges-ready'));
 }).catch(()=>{}).finally(()=>{ resolveBadgesReady(); });
 
-// Üç rozet kademesi: Doğrulanmış Üye kimlik doğrulamasını temsil eder (Instagram'ın mavi
-// doğrulanmış profil rozeti gibi); Altın Üye ve Elmas Üye ise daha üst kademe, aylık abonelik
-// olarak ödenen üyeliklerdir ve kendi rengiyle ayrı bir rozet olarak gösterilir (bkz.
-// hesabim.html#BADGE_TIERS ve src/routes/badges.js#BADGE_PRICES ile aynı isimler/anahtarlar).
-// 'destekci' (Destekçi) kasıtlı olarak burada yok: yalnızca destek amaçlıdır, hiçbir görünür
-// rozet ya da hak vermez (bkz. src/routes/badges.js#handlePublicBadges, orada da hariç tutulur).
+// İki satın alınabilir rozet kademesi: Doğrulanmış Üye kimlik doğrulamasını temsil eder
+// (Instagram'ın mavi doğrulanmış profil rozeti gibi); Altın Üye daha üst kademe, aylık abonelik
+// olarak ödenen bir üyeliktir ve kendi rengiyle ayrı bir rozet olarak gösterilir (bkz.
+// auth-modal.js#BADGE_TIERS ve src/routes/badges.js#BADGE_PRICES ile aynı isimler/anahtarlar).
+// 'destekci' (Destekçi) ve 'platinum' (Elmas Üye) kullanıcı isteğiyle 2026-08-29'da satın
+// alınabilir olmaktan çıkarıldı, bu yüzden burada da yer almıyorlar (bkz. src/routes/
+// badges.js#BADGE_PRICES'taki aynı not) — 'destekci' zaten hiçbir görünür rozet vermiyordu.
 // 'iz-birakan' (İz Bırakan, bkz. kullanıcı isteği): vefat etmiş mimarlar için — mavi mühür ile
 // AYNI ikon, yalnızca rengi siyah/antrasit. admin_badges'ten geldiği ve satın alınabilir bir
 // kademe OLMADIĞI için src/routes/badges.js#BADGE_PRICES/ADMIN_GRANTABLE_BADGES'te ayrı ele
 // alınır — o profilin diğer TÜM rozetlerinin yerini alır (bkz. handlePublicBadges).
-const BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye', 'iz-birakan':'İz Bırakan' };
-const BADGE_COLORS = { verified:'#0095F6', gold:'#D4A72C', platinum:'#4FB3D9', 'iz-birakan':'#1B1F24' };
+const BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', 'iz-birakan':'İz Bırakan' };
+const BADGE_COLORS = { verified:'#0095F6', gold:'#D4A72C', 'iz-birakan':'#1B1F24' };
 
 // Native `title` tooltip'i masaüstünde gecikmeli/tutarsız, mobilde ise dokunmayla hiç çalışmıyor;
 // bu yüzden kendi tooltip'imizi kuruyoruz. document.body'ye eklenmiş TEK PAYLAŞILAN bir tooltip
@@ -130,18 +131,21 @@ document.addEventListener('mouseout', (e)=>{
   const icon = e.target.closest('.verified-badge-icon');
   if(icon && !icon.contains(e.relatedTarget)) hideBadgeTooltip();
 });
-// hover imkanı olmayan (dokunmatik) cihaz tespiti — ekran genişliği yerine bu kullanılır çünkü
-// asıl ayrım "mobil" değil "hover çalışmıyor mu" (ör. büyük bir tablet de bu akışa girmeli).
-function isTouchBadgeUI(){
-  return window.matchMedia && window.matchMedia('(hover: none)').matches;
-}
 // Rozete dokunma/tıklama: rozetler artık hiçbir yere yönlendirmez (bkz. kullanıcı isteği: "rozetin
 // adını göster ama link verme, tıklayınca bir şey olmasın") — masaüstünde zaten mouseover/mouseout
-// ile tooltip gösterilir; mobilde (hover yok) native `title`/hover tooltip'i çalışmadığından
-// dokunuş yalnızca rozetin ismini bir tooltip olarak gösterir. Rozet <span> olarak kalır (gerçek
-// bir <a> DEĞİL) çünkü çoğunlukla zaten bir kart linkinin (ör. mimar/ofis kartı) İÇİNDE render
-// edilir — preventDefault/stopPropagation ile hem kendi (artık yok olan) yönlendirmesi hem de
-// dıştaki kart linkinin tetiklenmesi engellenir, "tıklayınca bir şey olmasın" garanti edilir.
+// ile tooltip gösterilir; TIKLAMA HER ZAMAN aynı tooltip'i açar (bkz. kullanıcı isteği: "tablet ve
+// mobilde ... artık ... sitenin her neresinde olursa olsun tıklayınca rozetin ismi gözüksün").
+// gerçek bulgu (2026-08-29 audit): önceden burada `window.matchMedia('(hover: none)')` ile "bu bir
+// dokunmatik cihaz mı" tespiti yapılıp yalnızca öyleyse tıklamada tooltip gösteriliyordu — ama bazı
+// tabletler/hibrit cihazlar (bağlı fare/kalem, bazı Android tarayıcıları) bu sorguyu tutarsız
+// yanıtlıyor, bu da "bazen tıklayınca rozetin ismi hiç çıkmıyor" şikayetinin asıl nedeniydi (o
+// cihazlarda ne mouseover/mouseout tetikleniyordu ne de tıklama isTouchBadgeUI() true dönüyordu).
+// Artık cihaz tespitine hiç güvenilmiyor: tıklama koşulsuz gösterir, masaüstünde salt fare
+// kullanan biri için de zararsız bir bonus.
+// Rozet <span> olarak kalır (gerçek bir <a> DEĞİL) çünkü çoğunlukla zaten bir kart linkinin (ör.
+// mimar/ofis kartı) İÇİNDE render edilir — preventDefault/stopPropagation ile hem kendi (artık yok
+// olan) yönlendirmesi hem de dıştaki kart linkinin tetiklenmesi engellenir, "tıklayınca bir şey
+// olmasın" (yönlendirme anlamında) garanti edilir.
 document.addEventListener('click', (e)=>{
   // Açık, dokunmayla gösterilmiş tooltip'in ÜZERİNE (ismin kendisine) dokunma -> yalnızca kapat.
   if(badgeTooltipEl && badgeTooltipEl.classList.contains('show') && badgeTooltipEl.classList.contains('tappable') && e.target.closest('.verified-badge-tip-floating')){
@@ -154,7 +158,7 @@ document.addEventListener('click', (e)=>{
   if(badge){
     e.preventDefault();
     e.stopPropagation();
-    if(isTouchBadgeUI()) showBadgeTooltip(badge, true);
+    showBadgeTooltip(badge, true);
     return;
   }
   // Rozet ya da açık tooltip dışında bir yere dokunuldu -> dokunmayla açılmış tooltip'i kapat.
@@ -173,18 +177,17 @@ window.addEventListener('scroll', ()=>{
 // önceliklidir.
 // Bir profilin birden fazla rozeti varsa (ör. Doğrulanmış Mimar + Gold Üye) her biri kendi
 // rengi ve üzerine gelince/dokununca kendi adını gösteren ayrı bir ikon olarak yan yana render edilir.
-// Doğrulanmış Üye/Altın Üye: sekiz köşeli mühür + onay işareti. Elmas Üye kendi başına, bu
-// ikonla karıştırılmasın diye ayrı bir yakut/elmas (gem) ikonu kullanır.
+// Doğrulanmış Üye/Altın Üye/İz Bırakan: sekiz köşeli mühür + onay işareti.
 const SEAL_BADGE_SVG = '<path d="M12 2 14.5 5.5 19 5l-.5 4.5L22 12l-3.5 2.5.5 4.5-4.5-.5L12 22l-2.5-3.5-4.5.5.5-4.5L2 12l3.5-2.5L5 5l4.5.5Z"/><path d="M9 12.5l2 2 4-4.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
-const GEM_BADGE_SVG = '<path d="M4.5 9 8 3.5h8L19.5 9 12 21.5 4.5 9Z"/><path d="M4.5 9h15M8 3.5 12 9m4-5.5L12 9M12 9v12.5" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>';
 // Tek bir rozet türünü ikon olarak render eder — verifiedBadgeHtml (mimar/marka profili, birden
 // fazla rozet) ile yorum/gönderi satırlarındaki KİŞİSEL rozet (tek rozet) arasında paylaşılır.
+// 'destekci'/'platinum' artık satın alınamıyor (bkz. yukarıdaki BADGE_LABELS notu) — eski bir
+// kayıttan bu tipler yine de gelirse (BADGE_LABELS'te karşılığı olmadığından) hiçbir şey render
+// etmeden sessizce atlanır, ham tip adını göstermez.
 function badgeIconHtml(badgeType, size){
-  if(!badgeType) return '';
+  if(!badgeType || !BADGE_LABELS[badgeType]) return '';
   size = size || 13;
-  const isGem = badgeType === 'platinum';
-  const width = isGem ? Math.round(size * 1.3) : size;
-  return `<span class="verified-badge-icon" data-tip="${escapeAttrGlobal(BADGE_LABELS[badgeType] || badgeType)}" data-badge-type="${escapeAttrGlobal(badgeType)}" style="color:${BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${width}" height="${size}" viewBox="0 0 24 24"${isGem ? ' preserveAspectRatio="none"' : ''} fill="currentColor">${isGem ? GEM_BADGE_SVG : SEAL_BADGE_SVG}</svg></span>`;
+  return `<span class="verified-badge-icon" data-tip="${escapeAttrGlobal(BADGE_LABELS[badgeType])}" data-badge-type="${escapeAttrGlobal(badgeType)}" style="color:${BADGE_COLORS[badgeType] || 'var(--accent)'}"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor">${SEAL_BADGE_SVG}</svg></span>`;
 }
 function verifiedBadgeHtml(profileType, profileKey, staticBadges, size){
   const dynamic = (dynamicBadges[profileType] && dynamicBadges[profileType][profileKey]) || [];
