@@ -754,10 +754,9 @@ const InfoModal = (function () {
     fetch('/api/auth/me').then(res => { if (!res.ok) window.location.href = '/giris'; }).catch(() => {});
 
     const BADGE_TIERS = [
-      { type: 'verified', label: 'Doğrulanmış Üye', officePrice: 99.90, perks: ['Doğrulanmış Üye rozeti verir.'] },
-      { type: 'gold', label: 'Altın Üye', officePrice: 139.90, perks: ['Altın Üye rozeti verir.'] },
+      { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.'] },
+      { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.'] },
     ];
-    const SELF_DISCOUNT_TRY = 60;
     const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };
     const BADGE_RANK = { gold: 2, verified: 1 };
 
@@ -767,8 +766,7 @@ const InfoModal = (function () {
     let selectedTargetKey = null;
 
     function priceForTier(tier) {
-      if (selectedTargetType !== 'self') return tier.officePrice;
-      return Math.round((tier.officePrice - SELF_DISCOUNT_TRY) * 100) / 100;
+      return selectedTargetType === 'self' ? tier.selfPrice : tier.officePrice;
     }
     function formatTRY(n) { return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'; }
 
@@ -803,10 +801,15 @@ const InfoModal = (function () {
     renderSummary();
 
     let myBadges = [];
+    let myAdminBadges = { self: null, offices: {} };
     async function loadMyBadges() {
       try {
         const res = await fetch('/api/badges/mine');
-        if (res.ok) myBadges = (await res.json()).items || [];
+        if (res.ok) {
+          const data = await res.json();
+          myBadges = data.items || [];
+          myAdminBadges = data.adminBadges || { self: null, offices: {} };
+        }
       } catch {}
       updateExistingBadgePanel();
     }
@@ -816,8 +819,19 @@ const InfoModal = (function () {
       const matches = (b) => b.target_type === selectedTargetType && (b.target_key || null) === selectedTargetKey;
       const activeBadge = myBadges.find(b => matches(b) && b.status === 'active' && (!b.expires_at || b.expires_at > now));
       const pendingBadge = myBadges.find(b => matches(b) && b.status === 'pending');
-      const isDowngradeOrSame = activeBadge && (BADGE_RANK[selectedTier] || 0) <= (BADGE_RANK[activeBadge.badge_type] || 0);
-      const blocking = pendingBadge || (isDowngradeOrSame ? activeBadge : null);
+      // admin'in doğrudan verdiği rozet (bkz. satin-al.html'deki AYNI mantık, src/routes/badges.js#
+      // getAdminBadgeForTarget sunucu tarafında da uygular).
+      const adminBadgeType = selectedTargetType === 'office'
+        ? (selectedTargetKey ? myAdminBadges.offices[selectedTargetKey] : null)
+        : myAdminBadges.self;
+      const activeRank = activeBadge ? (BADGE_RANK[activeBadge.badge_type] || 0) : 0;
+      const adminRank = adminBadgeType ? (BADGE_RANK[adminBadgeType] ?? Infinity) : 0;
+      const blockingRank = Math.max(activeRank, adminRank);
+      const isDowngradeOrSame = blockingRank > 0 && (BADGE_RANK[selectedTier] || 0) <= blockingRank;
+      let blocking = pendingBadge || null;
+      if (!blocking && isDowngradeOrSame) {
+        blocking = adminRank >= activeRank ? { badge_type: adminBadgeType, status: 'active', admin: true } : activeBadge;
+      }
 
       const paymentSection = document.getElementById('im-payment-section');
       const summarySection = document.getElementById('im-summary-section');
@@ -834,7 +848,7 @@ const InfoModal = (function () {
       alreadyHasSection.style.display = 'block';
       const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
       document.getElementById('im-already-has-title').textContent =
-        `${tier ? tier.label : blocking.badge_type} Rozetin${targetLabel} ${BADGE_STATUS_LABELS[blocking.status] || blocking.status.toLowerCase()}`;
+        `${tier ? tier.label : blocking.badge_type} Rozetin${targetLabel} ${blocking.admin ? 'aktif' : (BADGE_STATUS_LABELS[blocking.status] || blocking.status.toLowerCase())}`;
       document.getElementById('im-already-has-text').textContent = blocking === pendingBadge
         ? 'Ödeme onayı bekleniyor. Sonucu Hesabım sayfandan takip edebilirsin.'
         : 'Aynı ya da daha düşük bir kademeye geçemezsin. Bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye yükseltebilirsin.';

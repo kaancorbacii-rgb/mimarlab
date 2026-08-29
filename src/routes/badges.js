@@ -17,23 +17,20 @@ import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 // siparişleri ETİKETLEMEK için destekci/platinum'u BİLEREK içeriyorlar, ama artık hiçbiri satın
 // alınamaz).
 //
-// BADGE_PRICES aşağıdaki "Bir firmam için" (targetType='office') tabanı — "Kendim için"
-// (targetType='self') seçildiğinde her kademe SELF_DISCOUNT_TRY kadar ucuz (bkz. kullanıcı
-// isteği). Fiyat İSTEMCİDEN asla alınmaz/güvenilmez: hem havale (createBadgeRequest) hem iyzico
-// (src/routes/payments.js#startCheckout) targetType'ı buradaki getBadgePrice() ile aynı tek
-// noktadan hesaplar.
+// BADGE_PRICES her kademe için "Kendim için" (self) ve "Bir firmam için" (office) fiyatlarını ayrı
+// ayrı tutar (2026-08-29: kullanıcı isteğiyle sabit bir SELF_DISCOUNT_TRY yerine kademe başına
+// bağımsız fiyatlara geçildi). Fiyat İSTEMCİDEN asla alınmaz/güvenilmez: hem havale
+// (createBadgeRequest) hem iyzico (src/routes/payments.js#startCheckout) targetType'ı buradaki
+// getBadgePrice() ile aynı tek noktadan hesaplar.
 export const BADGE_PRICES = {
-  verified: 99.90,
-  gold: 139.90,
+  verified: { self: 49, office: 129 },
+  gold: { self: 99, office: 199 },
 };
-const SELF_DISCOUNT_TRY = 60;
 
 export function getBadgePrice(badgeType, targetType) {
-  const officePrice = BADGE_PRICES[badgeType];
-  if (officePrice === undefined) return undefined;
-  if (targetType !== 'self') return officePrice;
-  // bkz. yukarıdaki yorum — kayan nokta artığını (ör. 79.90 - 60 = 19.900000000000006) önler.
-  return Math.round((officePrice - SELF_DISCOUNT_TRY) * 100) / 100;
+  const tier = BADGE_PRICES[badgeType];
+  if (!tier) return undefined;
+  return targetType === 'self' ? tier.self : tier.office;
 }
 
 const BADGE_RENTAL_MS = 30 * 24 * 60 * 60 * 1000; // rozetler aylık kiralanır
@@ -46,6 +43,7 @@ export async function handleBadgesRoute(request, env, url) {
 
   if (segments.length === 2 && request.method === 'POST') return createBadgeRequest(request, env, user);
   if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') return listMyBadges(env, user);
+  if (segments.length === 3 && request.method === 'DELETE') return deleteRejectedBadgeRequest(env, user, segments[2]);
   return errorJson('Bulunamadı', 404);
 }
 
@@ -72,6 +70,47 @@ export async function verifyOfficeTargetOwnership(env, userId, target) {
   return !!row;
 }
 
+// Bir hedefin (kendisi ya da belirli bir firma) üzerinde admin'in doğrudan verdiği rozeti çözer
+// (bkz. schema.sql#admin_badges, computeBadgesPayload'daki AYNI profil eşleme kuralı): 'self'
+// hedefte kullanıcının onaylı ARCHITECT profiline, 'office' hedefte target_key'in birebir
+// eşleştiği OFFICE profiline bakılır. Satın alma uçları (createBadgeRequest, payments.js#
+// startCheckout) bunu var olan 'active' badge_requests kontrolüyle birleştirir — aksi halde
+// admin'in verdiği bir rozet (admin_badges'te user_id yok, yalnızca profile_key) bu sorgulara hiç
+// görünmez ve aynı kişi aynı/daha düşük kademeyi tekrar satın alabilirdi (gerçek bulgu: admin'in
+// kendine altın rozet verdiği bir kullanıcı hâlâ "Satın Al" görüyordu).
+export async function getAdminBadgeForTarget(env, userId, target) {
+  if (target.targetType === 'office') {
+    const row = await env.DB.prepare(
+      `SELECT badge_type FROM admin_badges WHERE profile_type = 'office' AND profile_key = ?`
+    ).bind(target.targetKey).first();
+    return row ? row.badge_type : null;
+  }
+  const claim = await env.DB.prepare(
+    `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND status = 'approved'`
+  ).bind(userId).first();
+  if (!claim) return null;
+  const row = await env.DB.prepare(
+    `SELECT badge_type FROM admin_badges WHERE profile_type = 'architect' AND profile_key = ?`
+  ).bind(claim.profile_key).first();
+  return row ? row.badge_type : null;
+}
+
+// Aktif badge_requests kaydı + admin_badges'ten gelen olası override'ı TEK bir kademeye indirger —
+// createBadgeRequest ve payments.js#startCheckout aynı satırı çağırıp sonucu BADGE_RANK ile
+// karşılaştırır. admin_badges'teki bilinmeyen/eski bir tip (ör. 'platinum', 'destekci',
+// 'iz-birakan' — artık BADGE_RANK'te yok) kasıtlı olarak Infinity'e düşer: admin özel bir rozet
+// atadıysa self-servis satın alma bunun üzerine hiçbir kademeyle geçemez.
+export async function getBlockingRank(env, userId, target) {
+  const now = Date.now();
+  const active = await env.DB.prepare(
+    `SELECT badge_type FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
+  ).bind(userId, target.targetType, target.targetKey, now).first();
+  const adminBadgeType = await getAdminBadgeForTarget(env, userId, target);
+  const activeRank = active ? (BADGE_RANK[active.badge_type] || 0) : 0;
+  const adminRank = adminBadgeType ? (BADGE_RANK[adminBadgeType] ?? Infinity) : 0;
+  return Math.max(activeRank, adminRank);
+}
+
 async function createBadgeRequest(request, env, user) {
   // gerçek bulgu: bu havale/EFT yolunda hiç hız sınırı yoktu — aynı özelliğin kart ödemesi
   // karşılığı (payments.js#startCheckout) hem kullanıcı hem IP bazlı limit uyguluyor, buradaki
@@ -94,11 +133,10 @@ async function createBadgeRequest(request, env, user) {
   }
 
   const now = Date.now();
-  const active = await env.DB.prepare(
-    `SELECT id, badge_type FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
-  ).bind(user.id, target.targetType, target.targetKey, now).first();
-  // bkz. src/routes/payments.js#startCheckout — aynı yükseltme/düşürme kuralı.
-  if (active && (BADGE_RANK[badgeType] || 0) <= (BADGE_RANK[active.badge_type] || 0)) {
+  // bkz. src/routes/payments.js#startCheckout — aynı yükseltme/düşürme kuralı, artık admin_badges'i
+  // de kapsıyor (bkz. getBlockingRank).
+  const blockingRank = await getBlockingRank(env, user.id, target);
+  if (blockingRank > 0 && (BADGE_RANK[badgeType] || 0) <= blockingRank) {
     return errorJson('Bu hedef için zaten aktif bir rozetin var. Aynı ya da daha düşük bir kademeye geçemezsin — bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye hemen yükseltebilirsin.');
   }
 
@@ -118,7 +156,49 @@ async function listMyBadges(env, user) {
   const { results } = await env.DB.prepare(
     'SELECT id, badge_type, target_type, target_key, status, price_try, expires_at, created_at FROM badge_requests WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
-  return json({ items: results });
+  const adminBadges = await getAdminBadgesForUser(env, user.id);
+  return json({ items: results, adminBadges });
+}
+
+// Reddedilen bir talebi kalıcı olarak siler (kullanıcı isteği: "Rozet Ayrıcalıklarından
+// Faydalan" kutusundaki REDDEDİLDİ satırların yanına silme X'i eklensin) — yalnızca kendi
+// 'rejected' kayıtlarını silebilir, 'pending'/'active' kayıtlar bu uçtan asla silinemez.
+async function deleteRejectedBadgeRequest(env, user, id) {
+  const row = await env.DB.prepare(
+    `SELECT id FROM badge_requests WHERE id = ? AND user_id = ? AND status = 'rejected'`
+  ).bind(id, user.id).first();
+  if (!row) return errorJson('Bulunamadı', 404);
+  await env.DB.prepare(`DELETE FROM badge_requests WHERE id = ?`).bind(id).run();
+  return json({ ok: true });
+}
+
+// Kullanıcının onaylı sahiplendiği TÜM profiller (kendisi + firmaları) üzerinden admin'in
+// doğrudan verdiği rozetleri döner — /api/badges/mine bunu satın alma ekranlarının (satin-al.html,
+// info-modal.js#mountRozetAl, auth-modal.js'deki Rozet kutusu) "zaten bu rozetin var" kontrolüne
+// admin_badges'i de katabilmesi için taşır (bkz. getAdminBadgeForTarget, aynı mantığın tek hedefli
+// hali — sunucu tarafı satın alma kontrolünde kullanılıyor).
+async function getAdminBadgesForUser(env, userId) {
+  const { results: claims } = await env.DB.prepare(
+    `SELECT profile_type, profile_key FROM profile_claims WHERE user_id = ? AND status = 'approved' AND profile_type IN ('architect', 'office')`
+  ).bind(userId).all();
+  const out = { self: null, offices: {} };
+  const architectKeys = claims.filter(c => c.profile_type === 'architect').map(c => c.profile_key);
+  const officeKeys = claims.filter(c => c.profile_type === 'office').map(c => c.profile_key);
+  if (architectKeys.length) {
+    const placeholders = architectKeys.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(
+      `SELECT badge_type FROM admin_badges WHERE profile_type = 'architect' AND profile_key IN (${placeholders})`
+    ).bind(...architectKeys).all();
+    if (results.length) out.self = results[0].badge_type;
+  }
+  if (officeKeys.length) {
+    const placeholders = officeKeys.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(
+      `SELECT profile_key, badge_type FROM admin_badges WHERE profile_type = 'office' AND profile_key IN (${placeholders})`
+    ).bind(...officeKeys).all();
+    for (const row of results) out.offices[row.profile_key] = row.badge_type;
+  }
+  return out;
 }
 
 // GET /api/public/badges — auth gerektirmez. 'self' hedefli rozetler yalnızca o kişinin onaylı

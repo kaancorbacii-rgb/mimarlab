@@ -4,7 +4,7 @@ import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
 import { initializeCheckoutForm, retrieveCheckoutForm, isIyzicoConfigured } from '../lib/iyzico.js';
-import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership } from './badges.js';
+import { getBadgePrice, normalizeTarget, verifyOfficeTargetOwnership, getBlockingRank } from './badges.js';
 import { BADGE_RANK } from '../lib/badgeAccess.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 
@@ -84,13 +84,12 @@ async function startCheckout(request, env, url) {
   if (!city) return errorJson('Şehir gerekli.');
 
   const now = Date.now();
-  const active = await env.DB.prepare(
-    `SELECT id, badge_type FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
-  ).bind(user.id, target.targetType, target.targetKey, now).first();
   // Daha yüksek bir kademeye hemen yükseltme yapılabilir; aynı ya da daha düşük bir kademe
   // seçilemez — bunun için mevcut rozetin süresinin dolması gerekir (bkz. satin-al.html "Zaten
-  // aktif bir rozetin var" paneli, aynı kuralı istemci tarafında da uygular).
-  if (active && (BADGE_RANK[badgeType] || 0) <= (BADGE_RANK[active.badge_type] || 0)) {
+  // aktif bir rozetin var" paneli, aynı kuralı istemci tarafında da uygular). getBlockingRank
+  // admin_badges'i de kapsar — bkz. src/routes/badges.js#createBadgeRequest aynı kontrolü kullanır.
+  const blockingRank = await getBlockingRank(env, user.id, target);
+  if (blockingRank > 0 && (BADGE_RANK[badgeType] || 0) <= blockingRank) {
     return errorJson('Bu hedef için zaten aktif bir rozetin var. Aynı ya da daha düşük bir kademeye geçemezsin — bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye hemen yükseltebilirsin.');
   }
 

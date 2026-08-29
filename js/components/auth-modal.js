@@ -847,18 +847,17 @@ const AuthModal = (function () {
   // GÖRMESE de buradan firma-ekle.html?claim=...'a ulaşabiliyordu — sunucu yine de reddeder ama
   // kullanıcıya önce boş yere doldurabileceği bir form gösterip sonra 403 ile karşılaştırıyordu.
   const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
-  // officePrice + SELF_DISCOUNT_TRY, src/routes/badges.js#BADGE_PRICES/getBadgePrice ile AYNI
-  // kaynaktan kopyalanmıştır (bkz. info-modal.js#mountRozetAl'daki BİREBİR aynı desen) — bu grid
-  // yalnızca "Kendim için" fiyatını gösterir, gerçek tutar her zaman satın alma anında sunucuda
-  // yeniden hesaplanır. gerçek bulgu (2026-08-14 audit): önceden bu dizi kendi içinde önceden
-  // indirimli fiyatları ayrı string olarak tutuyordu, backend fiyatı değişirse burası sessizce
-  // yanlış kalıyordu.
+  // selfPrice/officePrice, src/routes/badges.js#BADGE_PRICES ile AYNI kaynaktan kopyalanmıştır
+  // (bkz. info-modal.js#mountRozetAl/satin-al.html'deki BİREBİR aynı desen) — bu grid yalnızca
+  // "Kendim için" fiyatını gösterir, gerçek tutar her zaman satın alma anında sunucuda yeniden
+  // hesaplanır. gerçek bulgu (2026-08-14 audit): önceden bu dizi kendi içinde önceden indirimli
+  // fiyatları ayrı string olarak tutuyordu, backend fiyatı değişirse burası sessizce yanlış
+  // kalıyordu.
   const BADGE_TIERS = [
-    { type: 'verified', label: 'Doğrulanmış Üye', officePrice: 99.90 },
-    { type: 'gold', label: 'Altın Üye', officePrice: 139.90 },
+    { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129 },
+    { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199 },
   ];
-  const BADGE_SELF_DISCOUNT_TRY = 60;
-  function badgeSelfPrice(tier) { return Math.round((tier.officePrice - BADGE_SELF_DISCOUNT_TRY) * 100) / 100; }
+  const BADGE_RANK = { gold: 2, verified: 1 };
   function formatTRY(n) { return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'; }
   const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif', rejected: 'Reddedildi' };
   const BADGE_STATUS_COLORS = { pending: 'var(--accent)', active: '#3E7A55', rejected: '#B84C4C' };
@@ -1459,8 +1458,9 @@ const AuthModal = (function () {
 
     async function loadBadges() {
       const res = await fetch('/api/badges/mine');
-      const data = res.ok ? await res.json() : { items: [] };
+      const data = res.ok ? await res.json() : { items: [], adminBadges: { self: null, offices: {} } };
       const items = data.items || [];
+      const adminBadges = data.adminBadges || { self: null, offices: {} };
       amBadgeItems = items;
       renderAmNameBadge();
       renderClaimsList();
@@ -1475,20 +1475,55 @@ const AuthModal = (function () {
           const until = b.status === 'active' && b.expires_at
             ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${new Date(b.expires_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })} tarihine kadar aktif</div>`
             : '';
+          // Yalnızca REDDEDİLDİ satırların yanına silme X'i eklenir (bkz. kullanıcı isteği) —
+          // sunucu (deleteRejectedBadgeRequest) da yalnızca status='rejected' kayıtları siler.
+          const deleteBtn = b.status === 'rejected'
+            ? `<button type="button" class="my-badge-delete-btn" data-id="${escapeAttr(b.id)}" title="Talebi sil" style="background:none; border:none; color:var(--ink-soft); font-size:16px; line-height:1; cursor:pointer; padding:4px;">×</button>`
+            : '';
           return `
             <div class="my-badge-row">
               <div><strong>${escapeHtml(tier ? tier.label : b.badge_type)}</strong> — ${targetLabel}${until}</div>
-              <span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS[b.status] || 'var(--ink-soft)'}; background:${BADGE_STATUS_COLORS[b.status] || 'var(--ink-soft)'}22;">${BADGE_STATUS_LABELS[b.status] || b.status}</span>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS[b.status] || 'var(--ink-soft)'}; background:${BADGE_STATUS_COLORS[b.status] || 'var(--ink-soft)'}22;">${BADGE_STATUS_LABELS[b.status] || b.status}</span>
+                ${deleteBtn}
+              </div>
             </div>`;
         }).join('');
+        listEl.querySelectorAll('.my-badge-delete-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Bu reddedilen talebi silmek istediğine emin misin?')) return;
+            btn.disabled = true;
+            try {
+              const delRes = await fetch(`/api/badges/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' });
+              if (delRes.ok) { loadBadges(); return; }
+            } catch {}
+            btn.disabled = false;
+          });
+        });
       }
+      // Kendisi için hâlihazırda (satın alınmış AKTİF ya da admin tarafından doğrudan verilmiş)
+      // eşit ya da daha yüksek kademeli bir rozeti varsa "Satın Al" yerine devre dışı bir durum
+      // gösterilir — gerçek bulgu: admin_badges (bkz. src/routes/badges.js#getAdminBadgeForTarget)
+      // hiç kontrol edilmiyordu, admin'in doğrudan altın rozet verdiği bir kullanıcı hâlâ her iki
+      // kademe için de "Satın Al" görüyordu (kullanıcı isteği: bu kutu artık algılasın).
+      const now = Date.now();
+      const activeSelf = items.find(b => b.target_type === 'self' && b.status === 'active' && (!b.expires_at || b.expires_at > now));
+      const selfRank = Math.max(
+        activeSelf ? (BADGE_RANK[activeSelf.badge_type] || 0) : 0,
+        adminBadges.self ? (BADGE_RANK[adminBadges.self] ?? Infinity) : 0
+      );
       const grid = document.getElementById('am-badge-grid');
-      grid.innerHTML = BADGE_TIERS.map(tier => `
+      grid.innerHTML = BADGE_TIERS.map(tier => {
+        const already = selfRank > 0 && (BADGE_RANK[tier.type] || 0) <= selfRank;
+        return `
         <div class="badge-card">
           <div class="badge-card-name">${tier.label}</div>
-          <div class="badge-card-price">${formatTRY(badgeSelfPrice(tier))} / ay</div>
-          <a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>
-        </div>`).join('');
+          <div class="badge-card-price">${formatTRY(tier.selfPrice)} / ay</div>
+          ${already
+            ? `<span class="badge-buy-btn" style="opacity:.5; pointer-events:none;">Zaten Sahipsin</span>`
+            : `<a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>`}
+        </div>`;
+      }).join('');
     }
 
     // gerçek bulgu (denetim, 2026-08-24, bkz. am-dash-save-btn'deki AYNI eksiklik): çift-tıklamaya
