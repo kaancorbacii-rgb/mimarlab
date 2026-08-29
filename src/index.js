@@ -538,7 +538,7 @@ function notFoundPageResponse() {
 <meta name="robots" content="noindex, follow">
 <title>Sayfa Bulunamadı — MİMARLAB</title>
 <style>
-body{font-family:'Instrument Sans', sans-serif; background:#F5F3EF; color:#1B2A3D; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; text-align:center; padding:24px;}
+body{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#F5F3EF; color:#1B2A3D; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; text-align:center; padding:24px;}
 .box{max-width:420px;}
 h1{font-size:22px; margin:0 0 12px;}
 p{font-size:14.5px; color:rgba(27,42,61,0.7); margin:0 0 24px;}

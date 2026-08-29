@@ -21,12 +21,12 @@
       .mega-menu.open{display:block;}
       .mega-menu-cols{display:grid; grid-template-columns:repeat(5, 1fr); gap:24px;}
       .mega-col{display:flex; flex-direction:column; gap:20px; min-width:0;}
-      .mega-group-title{display:block; font-family:'Instrument Sans', sans-serif; font-size:14.5px; font-weight:700; color:var(--ink); margin-bottom:8px;}
+      .mega-group-title{display:block; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14.5px; font-weight:700; color:var(--ink); margin-bottom:8px;}
       .mega-group-title:hover{color:var(--walnut);}
       .mega-cat-link{display:block; font-size:13.5px; color:var(--ink-soft); padding:4px 0;}
       .mega-cat-link:hover{color:var(--ink); text-decoration:underline;}
       .mega-menu-footer{margin-top:22px; padding-top:18px; border-top:1px solid var(--line); text-align:right;}
-      .mega-viewall{display:inline-flex; align-items:center; gap:7px; font-family:'Instrument Sans', sans-serif; font-size:21px; font-weight:600; color:var(--ink);}
+      .mega-viewall{display:inline-flex; align-items:center; gap:7px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:21px; font-weight:600; color:var(--ink);}
       .mega-viewall:hover{color:var(--walnut);}
       @media (max-width:960px){ .mega-menu{display:none !important;} }
       .nav-mobile-accordion{display:flex; flex-direction:column;}

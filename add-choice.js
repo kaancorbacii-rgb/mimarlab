@@ -19,7 +19,7 @@
 .add-choice-modal{background:var(--paper-card);border-radius:16px;max-width:420px;width:100%;padding:28px;position:relative;}
 .add-choice-close{position:absolute;top:14px;right:14px;background:none;border:none;font-size:26px;line-height:1;color:var(--ink-soft);cursor:pointer;width:34px;height:34px;border-radius:50%;}
 .add-choice-close:hover{background:var(--paper-alt);}
-.add-choice-title{font-family:'Instrument Sans', sans-serif;font-size:19px;font-weight:700;margin:0 0 18px;padding-right:24px;color:var(--ink);}
+.add-choice-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;font-size:19px;font-weight:700;margin:0 0 18px;padding-right:24px;color:var(--ink);}
 .add-choice-option{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px;background:none;cursor:pointer;font-family:inherit;}
 .add-choice-option:last-child{margin-bottom:0;}
 .add-choice-option:hover{border-color:var(--sage);background:var(--paper-alt);}
