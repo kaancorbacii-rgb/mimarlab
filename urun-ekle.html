@@ -808,6 +808,7 @@ function applyAiResult(data){
 }
 
 function wireAiPanel(){
+  return; // AI ile ekle özelliği şimdilik kaldırıldı (bkz. add-choice.js)
   if(!aiMode || editId) return; // düzenleme akışıyla asla aynı anda değil
   document.getElementById('ai-panel').style.display = 'block';
   const urlInput = document.getElementById('ai-url-input');
