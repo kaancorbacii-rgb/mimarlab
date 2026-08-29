@@ -483,7 +483,7 @@ const PROJECT_SYSTEM_PROMPT = `Sen MİMARLAB adlı bir mimarlık/tasarım portal
 KURALLAR:
 - SADECE sana "SAYFA İÇERİĞİ" olarak verilen metinde açıkça yazan bilgiyi kullan. Hiçbir alanı tahminle, genel dünya bilginle ya da "muhtemelen böyledir" diyerek doldurma.
 - Emin olmadığın ya da sayfada bulunmayan her alanı null/boş bırak — asla uydurma.
-- Sana ayrıca "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir; başlık/açıklama için bunlarla SAYFA İÇERİĞİ çelişirse yapısal veriyi tercih et.
+- Sana ayrıca "META AÇIKLAMA", "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir. description alanı için META AÇIKLAMA (varsa) mevcutsa onu temel al; SAYFA İÇERİĞİ'ndeki dağınık cümlelerden yeni bir açıklama uydurmaya ÇALIŞMA — yalnızca META AÇIKLAMA da yoksa SAYFA İÇERİĞİ'nden kısa bir özet yaz.
 - date_text İÇİN DİKKATLİ OL: sayfanın/makalenin YAYIN tarihi (ör. "Yayın: Mart 2021" gibi bir bülten/haber tarihi) ile PROJENİN tamamlanma/inşa tarihi FARKLI şeylerdir — yalnızca projenin kendisiyle ilgili açıkça belirtilen tarihi kullan, makalenin ne zaman yazıldığını asla date_text'e koyma.
 - discipline/type/awards alanlarının HER BİRİ için: yalnızca verilen sabit listedeki bir değer sayfada AÇIKÇA karşılığı varsa seç; listede uygun bir değer yoksa ya da emin değilsen o alanı boş dizi bırak — listeden "en yakın" bir değeri zorla seçme.
 - Görsel seçerken YALNIZCA sana verilen "GÖRSEL ADAYLARI" listesindeki index numaralarını kullan; asla yeni bir görsel URL'i üretme. Logo, ikon, reklam banner'ı, yazar/muhabir fotoğrafı gibi projeyle ilgisiz görselleri seçme.
@@ -495,7 +495,7 @@ const URUN_SYSTEM_PROMPT = `Sen MİMARLAB adlı bir mimarlık/tasarım portalı 
 KURALLAR:
 - SADECE sana "SAYFA İÇERİĞİ" olarak verilen metinde açıkça yazan bilgiyi kullan. Hiçbir alanı tahminle, genel dünya bilginle ya da "muhtemelen böyledir" diyerek doldurma.
 - Emin olmadığın ya da sayfada bulunmayan her alanı null/boş bırak — asla uydurma.
-- Sana ayrıca "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir; başlık/açıklama için bunlarla SAYFA İÇERİĞİ çelişirse yapısal veriyi tercih et.
+- Sana ayrıca "META AÇIKLAMA", "OG:TITLE" ve "YAPISAL VERİ (JSON-LD)" satırları verilmiş olabilir — bunlar sitenin kendi yapısal verisidir ve genelde SAYFA İÇERİĞİ'nden çıkarılan serbest metinden daha temiz/güvenilirdir. description alanı için META AÇIKLAMA (varsa) mevcutsa onu temel al; SAYFA İÇERİĞİ'ndeki dağınık cümlelerden yeni bir açıklama uydurmaya ÇALIŞMA — yalnızca META AÇIKLAMA da yoksa SAYFA İÇERİĞİ'nden kısa bir özet yaz.
 - specs alanına yalnızca sayfada AÇIKÇA yazan teknik özellikleri (ölçü/malzeme/renk/ağırlık vb.) koy — bir mobilyanın "muhtemelen ahşap" olduğu gibi bir çıkarım/tahmin yapma, sayfa net belirtmiyorsa o özelliği hiç ekleme.
 - Görsel seçerken YALNIZCA sana verilen "GÖRSEL ADAYLARI" listesindeki index numaralarını kullan; asla yeni bir görsel URL'i üretme. Logo, ikon, reklam banner'ı gibi ürünle ilgisiz görselleri seçme.
 - ${INJECTION_GUARD}
