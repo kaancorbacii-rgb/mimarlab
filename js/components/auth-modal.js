@@ -730,18 +730,31 @@ const AuthModal = (function () {
 
       <div class="dash-row">
         <div class="dash-section">
-          <h2>Kaydettiklerim</h2>
-          <div class="saved-filter" id="am-saved-filter">
+          <h2>Takip Ettiklerim</h2>
+          <div class="saved-filter" id="am-follow-feed-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
             <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
             <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
           </div>
+          <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-follow-feed-pagination"></div>
+        </div>
+
+        <div class="dash-section">
+          <h2>Kaydettiklerim</h2>
+          <div class="saved-filter" id="am-saved-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+          </div>
           <div id="am-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-saved-pagination"></div>
         </div>
+      </div>
 
+      <div class="dash-row">
         <div class="dash-section">
           <h2>Beğendiklerim</h2>
           <div class="saved-filter" id="am-rated-filter">
@@ -752,9 +765,7 @@ const AuthModal = (function () {
           <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-rated-pagination"></div>
         </div>
-      </div>
 
-      <div class="dash-row">
         <div class="dash-section">
           <h2>Yorumlarım</h2>
           <div class="saved-filter" id="am-comments-filter">
@@ -762,17 +773,6 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-comments-pagination"></div>
-        </div>
-
-        <div class="dash-section">
-          <h2>Takip Ettiklerim</h2>
-          <div class="saved-filter" id="am-follow-feed-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-          </div>
-          <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-follow-feed-pagination"></div>
         </div>
       </div>
     </div>`;
@@ -1853,10 +1853,22 @@ const AuthModal = (function () {
     let followFeedItems = [];
     let followFeedFilter = '';
     let followFeedPage = 1;
+    // "Mimar"/"Firma" filtreleri (bkz. kullanıcı isteği: "Takip ettiklerim kutusu altındaki
+    // başlıklara firma ve mimar başlıklarını da koy") — /api/follows/feed'in aksine (yalnızca takip
+    // BAŞLADIKTAN SONRA yayınlanan proje/ürün) burada takip edilen mimar/firma PROFİLLERİNİN kendisi
+    // listelenir, bu yüzden ayrıca ham /api/follows listesi çekilip 'architect'/'office' tipinde
+    // sahte "içerik" satırlarına dönüştürülür.
     async function loadFollowFeed() {
-      const res = await fetch('/api/follows/feed');
-      const data = res.ok ? await res.json() : { items: [] };
-      followFeedItems = data.items || [];
+      const [feedRes, followsRes] = await Promise.all([fetch('/api/follows/feed'), fetch('/api/follows')]);
+      const feedData = feedRes.ok ? await feedRes.json() : { items: [] };
+      const followsData = followsRes.ok ? await followsRes.json() : { items: [] };
+      const profileItems = (followsData.items || []).map(f => ({
+        type: f.followed_type,
+        title: f.followed_title || f.followed_key,
+        image: null,
+        href: `/${f.followed_type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(f.followed_key)}`,
+      }));
+      followFeedItems = [...profileItems, ...(feedData.items || [])];
       renderFollowFeed();
     }
     function renderFollowFeed() {

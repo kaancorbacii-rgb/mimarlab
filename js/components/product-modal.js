@@ -8,6 +8,17 @@
 // join'iyle beslediği item.ownerName alanına yeniden bağlandı (kullanıcı isteği) — yalnızca üye
 // gönderisi kökenli ürünlerde dolu, legacy_static/admin kayıtlarında gizli kalır.
 const ProductModal = (function () {
+  // Künye satırı ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili (24x24 viewBox,
+  // stroke-width 1.6, dolgu yok, bkz. kullanıcı isteği) — urun.html o script'i yüklemediğinden kendi
+  // kopyasını taşır (architect-modal.js#META_ICONS İLE AYNI gerekçe).
+  const META_ICONS = {
+    office: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21V9h6v12"/><path d="M7.5 7h1M7.5 10.5h1M7.5 14h1M11 7h1M11 10.5h1M11 14h1"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.5 18.5l-4 1 1-4Z"/></svg>',
+    tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.5H4.6a1.6 1.6 0 0 0-1.6 1.6v8a1.6 1.6 0 0 0 .47 1.13l9.3 9.3a1.6 1.6 0 0 0 2.26 0l6.57-6.57a1.6 1.6 0 0 0 0-2.26l-9.3-9.3a1.6 1.6 0 0 0-1.13-.47Z"/><circle cx="7.7" cy="7.7" r="1.1"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
+  };
+  function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
+  function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
   // .detail-title/.designer-*/.gallery-*/.lightbox*/.related-*/.specs-* urun-detay.html'den taşınan
   // AYNI değerler — urun.html farklı bir sayfa olduğundan bunları miras alamaz. .rating-widget/
   // .card-save-btn/.card-edit-btn/.card-delete-btn İSE urun.html'in KENDİ kart bağlamı için ZATEN
@@ -57,26 +68,21 @@ const ProductModal = (function () {
         display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
         font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;
       }
+      /* Kaydet artık yalnızca ikon taşıyor (bkz. kullanıcı isteği: "Kaydet" metni kaldırılsın) —
+         share-button.js#.share-btn İLE BİREBİR AYNI kare ölçüler/kırılma noktası. */
       .pr-rating-save-row .card-save-btn{
-        position:static; width:auto; height:32px !important; z-index:auto;
-        background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
-        display:inline-flex; align-items:center; gap:5px;
-        padding:0 8px !important; border:1px solid var(--line);
-        font-size:12px !important; font-weight:600;
-        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        position:static; z-index:auto;
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:0 !important;
+        height:32px !important; width:32px !important; min-width:32px !important; box-sizing:border-box;
+        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+        padding:0 !important; color:var(--ink-soft);
+        font-family:inherit; line-height:1;
       }
       .pr-rating-save-row .card-save-btn:hover{background:var(--paper-card); border-color:var(--walnut); color:var(--ink);}
       .pr-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-      /* Paylaş artık ikon-only (bkz. js/components/share-button.js, proje.html'deki AYNI kaldırma) —
-         boyutu tamamen o dosyadaki paylaşılan .share-btn kuralından gelir, burada ayrı bir override
-         gerekmiyor. */
-      .pr-rating-save-row .save-btn-label-saved{display:none;}
-      .pr-rating-save-row .card-save-btn.saved .save-btn-label-default{display:none;}
-      .pr-rating-save-row .card-save-btn.saved .save-btn-label-saved{display:inline;}
-      /* Web Sitesi künye butonu (#pr-website-slot) — office-modal.js'in .save-btn tabanıyla BİREBİR
-         aynı (o dosyada proje.html/mimar.html'den miras alınan bir kural, product-modal.js'te hiç
-         yoktu). .pr-rating-save-row .card-save-btn'den daha yüksek özgüllüğü olduğundan Kaydet
-         butonunu etkilemez, yalnızca bu bare-class kullanan yeni buton için taban stil sağlar. */
+      /* Web Sitesi künye butonu (#pr-website-slot) — artık Kaydet/Paylaş ile AYNI satırda, ikisinin
+         arasında (bkz. kullanıcı isteği), office-modal.js'in .save-btn tabanıyla BİREBİR aynı. */
       .save-btn{
         display:inline-flex; align-items:center; gap:5px;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -87,14 +93,19 @@ const ProductModal = (function () {
       }
       .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
       .save-btn svg{flex-shrink:0;}
-      .save-btn-count{font-weight:600;}
       /* Düzenle (Gönderiyi Düzenle)/Arşivle/Sil artık burada DEĞİL — modal-shell.js'in paylaşılan
          header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons).
          Eski .pr-actions/.card-edit-btn/.card-delete-btn kuralları kaldırıldı; TEK stil kaynağı artık
          modal-shell.js#injectStyles. */
       .designer-section{margin-top:0;}
       .designer-section + .designer-section{margin-top:16px;}
-      .designer-label{font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+      .designer-label{display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+      /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
+         isteği), hepsi AYNI büyüklükte. */
+      .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+      .meta-icon svg{display:block; width:100%; height:100%;}
+      .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
+      .detail-meta .meta-row .meta-icon{margin-top:3px;}
       .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
       .designer-chip{
         display:flex; align-items:center; gap:9px;
@@ -288,13 +299,20 @@ const ProductModal = (function () {
         #pr-info-divider{order:10;}
         #pr-feedback-card{order:11;}
 
-        /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki AYNI kural,
-           kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü
-           boyutları değişmez. Paylaş artık ikon-only olduğundan (bkz. share-button.js) buradaki
-           listeden çıkarıldı, kendi boyutunu paylaşılan .share-btn 860px kuralından alır. */
+        /* Puanla/Kaydet/Websitesi — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki
+           AYNI kural, kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px.
+           Masaüstü boyutları değişmez. Kaydet/Paylaş artık ikon-only olduğundan (bkz. share-button.js)
+           kare olarak büyütülür, kendi boyutunu paylaşılan .share-btn 860px kuralından alan Paylaş
+           buradaki listeden çıkarıldı. */
         .pr-rating-save-row{gap:8px !important;}
         #pr-save-slot{gap:8px !important;}
-        .pr-rating-save-row .rating-widget, .pr-rating-save-row .card-save-btn{
+        .pr-rating-save-row .rating-widget{
+          height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
+        }
+        .pr-rating-save-row .card-save-btn{
+          height:48px !important; width:48px !important; min-width:48px !important;
+        }
+        .pr-rating-save-row a.save-btn{
           height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
         }
         .pr-rating-save-row .pr-rating-avg{display:none !important;}
@@ -322,15 +340,14 @@ const ProductModal = (function () {
     </div>
     <div class="detail-info">
       <div class="designer-section" id="pr-brand-section" style="display:none;">
-        <div class="designer-label">Ürün Firması:</div>
+        <div class="designer-label">${metaIconHtml('office')}Ürün Firması:</div>
         <div class="designer-chips" id="pr-brand-chips"></div>
       </div>
       <div class="designer-section" id="pr-designer-section" style="display:none;">
-        <div class="designer-label">Tasarımcı:</div>
+        <div class="designer-label">${metaIconHtml('pencil')}Tasarımcı:</div>
         <div class="designer-chips" id="pr-designer-chips"></div>
       </div>
       <div class="detail-meta" id="pr-meta"></div>
-      <div id="pr-website-slot" style="margin-top:14px;"></div>
       <div id="pr-specs-wrap" style="display:none;">
         <div class="specs-title">Teknik Özellikler</div>
         <table class="specs-table" id="pr-specs-table"></table>
@@ -626,18 +643,13 @@ const ProductModal = (function () {
     renderDesignerSection(p);
 
     // Künye sırası (bkz. kullanıcı isteği): Firma + Tasarımcı (üstteki designer-section'lar),
-    // Kategori, Yıl, ardından Web Sitesi — bu artık düz metin satırı değil, firma sayfalarındaki
-    // (office-modal.js #save-btn) ile AYNI buton stili, Teknik Özellikler/Açıklamadan önceki son künye satırı.
+    // Kategori, Yıl — Web Sitesi artık burada DEĞİL, Kaydet/Paylaş ile AYNI satırda (bkz. aşağıdaki
+    // saveSlot render'ı).
     let metaHtml = '';
-    if (p.category) metaHtml += `<div><strong>Kategori:</strong> ${escapeHtml(p.category)}</div>`;
-    if (p.year) metaHtml += `<div><strong>Yıl:</strong> ${escapeHtml(p.year)}</div>`;
+    if (p.category) metaHtml += metaRow('tag', `<strong>Kategori:</strong> ${escapeHtml(p.category)}`);
+    if (p.year) metaHtml += metaRow('calendar', `<strong>Yıl:</strong> ${escapeHtml(p.year)}`);
     document.getElementById('pr-meta').innerHTML = metaHtml;
 
-    const websiteSlot = document.getElementById('pr-website-slot');
-    const site = p.website ? safeUrl(p.website) : '';
-    websiteSlot.innerHTML = site
-      ? `<a class="save-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`
-      : '';
     renderTruncatedDesc('pr-desc', p.description || '');
 
     const specsWrap = document.getElementById('pr-specs-wrap');
@@ -671,12 +683,13 @@ const ProductModal = (function () {
     // ayrıca (p.ratingKey) döndürüyor, save/rating işlemleri onu kullanmalı; `key` yalnızca URL/paylaşım
     // amaçlı kalır.
     const ratingKey = p.ratingKey || key;
+    // Kaydet — artık yalnızca ikon taşır (bkz. kullanıcı isteği: "Kaydet" yazısı silinsin).
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'save-btn card-save-btn';
     saveBtn.id = 'pr-save-btn';
     saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg><span class="save-btn-label-default">Kaydet</span><span class="save-btn-label-saved">Kaydedildi</span><span class="save-btn-count" id="pr-save-count"></span>`;
+    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>`;
     saveBtn.dataset.type = ratingKindFor(p);
     saveBtn.dataset.key = ratingKey;
     saveBtn.dataset.title = p.title;
@@ -687,12 +700,16 @@ const ProductModal = (function () {
     saveSlot.innerHTML = '';
     saveSlot.prepend(saveBtn);
     wireSaveButtons(ratingKindFor(p));
-    fetch(`/api/public/save-count?type=${ratingKindFor(p)}&key=${encodeURIComponent(ratingKey)}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { const el = document.getElementById('pr-save-count'); if (data && el) el.textContent = data.count > 0 ? ` (${data.count})` : ''; })
-      .catch(() => {});
+
+    // Websitesi — Kaydet ile Paylaş'ın ARASINDA (bkz. kullanıcı isteği), diğerleriyle AYNI yükseklikte.
+    const site = p.website ? safeUrl(p.website) : '';
+    let afterSaveEl = saveBtn;
+    if (site) {
+      saveBtn.insertAdjacentHTML('afterend', `<a class="save-btn" id="pr-website-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`);
+      afterSaveEl = document.getElementById('pr-website-btn');
+    }
     if (typeof ShareWidget !== 'undefined') {
-      saveBtn.insertAdjacentHTML('afterend', ShareWidget.html('pr-share-btn'));
+      afterSaveEl.insertAdjacentHTML('afterend', ShareWidget.html('pr-share-btn'));
       ShareWidget.wire('pr-share-btn', () => ({ title: p.title, url: `${window.location.origin}/urun/${encodeURIComponent(key)}` }));
     }
 

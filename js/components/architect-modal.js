@@ -6,6 +6,17 @@
 // açan bir modale taşır. Yorum/puanlama YOK — mimar-detay.html'de de hiç yoktu, kapsam dışı kalmaya
 // devam ediyor (bkz. proje hafızası: "comments/ratings stay project/product-only").
 const ArchitectModal = (function () {
+  // Künye satırı ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili (24x24 viewBox,
+  // stroke-width 1.6, dolgu yok, bkz. kullanıcı isteği) ama bu dosya proje modalının script'inden
+  // BAĞIMSIZ yüklenebildiğinden (mimar.html) kendi kopyasını taşır.
+  const META_ICONS = {
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
+    cap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9 12 4.3 22 9l-10 4.7L2 9Z"/><path d="M6.3 11.2v4.3c0 1.5 2.6 2.7 5.7 2.7s5.7-1.2 5.7-2.7v-4.3"/><path d="M21 9v6"/></svg>',
+    briefcase: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="2"/><path d="M8.5 7.5V5.8a1.8 1.8 0 0 1 1.8-1.8h3.4a1.8 1.8 0 0 1 1.8 1.8V7.5"/><path d="M3 12.5h18"/></svg>',
+    award: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.7 12.6 7 21l5-2.8 5 2.8-1.7-8.4"/></svg>',
+  };
+  function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
+  function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
   // .detail-title/.related-*/.save-btn proje.html'in modal içeriğinde tanımladığı AYNI sınıflar/
   // değerler — mimar.html farklı bir sayfa olduğundan proje.html'in <style>'ını miras alamaz, bu
   // yüzden modal-shell.js'in injectStyles() deseniyle burada KENDİ <style>'ını bir kez enjekte eder
@@ -38,22 +49,11 @@ const ArchitectModal = (function () {
          header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği). Bu yüzden
          .card-edit-btn/.card-delete-btn/.profile-edit-btn ve #profile-edit-slot'un display:contents
          kuralı buradan kaldırıldı; TEK stil kaynağı artık modal-shell.js#injectStyles. */
-      /* Kaydet artık yalnızca ikon taşıyor (bkz. kullanıcı isteği: "Kaydet" metni kaldırılsın) —
-         share-button.js#.share-btn İLE BİREBİR AYNI kare ölçüler/kırılma noktası, ikisi de aynı
-         yükseklikte kalsın diye. */
-      .save-btn{
-        display:inline-flex; align-items:center; justify-content:center;
-        flex-shrink:0 !important;
-        height:32px !important; width:32px !important; min-width:32px !important; box-sizing:border-box;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 !important; color:var(--ink-soft);
-        font-family:inherit; line-height:1;
-      }
-      .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
-      .save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-      .save-btn svg{flex-shrink:0;}
-      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Kaydet/Paylaş ile AYNI
-         yükseklikte, paylaş ikonunun yanında bir Takip Et pili. */
+      /* Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok)
+         — bu profillerde tek eylem artık Takip Et. */
+      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Paylaş ile AYNI
+         yükseklikte bir pil. Yanındaki takipçi sayısı (bkz. kullanıcı isteği) save-widget.js#
+         paintFollowBtn tarafından basılır. */
       .follow-btn{
         display:inline-flex; align-items:center; justify-content:center;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -67,6 +67,12 @@ const ArchitectModal = (function () {
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
+      /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
+         isteği), hepsi AYNI büyüklükte. */
+      .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+      .meta-icon svg{display:block; width:100%; height:100%;}
+      .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
+      .detail-meta .meta-row .meta-icon{margin-top:3px;}
       /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (mimar-ekle.html#social-row) */
       .social-icons{display:flex; gap:12px; margin-top:12px;}
       .social-icons a{color:var(--ink-soft); display:flex;}
@@ -155,7 +161,6 @@ const ArchitectModal = (function () {
            uygulanır (bkz. o dosya). Satırın tek satırda kalma zorunluluğu (üstteki
            .detail-title-actions flex-wrap:nowrap + flex-shrink:1/min-width:0/overflow:hidden/
            ellipsis) korunur. */
-        .save-btn{height:48px !important; width:48px !important; min-width:48px !important;}
         .follow-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
         .detail-title-actions{gap:8px !important;}
       }
@@ -522,16 +527,16 @@ const ArchitectModal = (function () {
 
     const infoFactsEl = document.getElementById('am-info-facts');
     const infoFacts = [];
-    if (a.dob) infoFacts.push(`<div><strong>Doğum Tarihi:</strong> ${escapeHtml(String(a.dob))}</div>`);
+    if (a.dob) infoFacts.push(metaRow('calendar', `<strong>Doğum Tarihi:</strong> ${escapeHtml(String(a.dob))}`));
     // Künyede yalnızca okul/meslek adı gösterilir — a.dept (bölüm) ve a.role (pozisyon/unvan, ör.
     // "Kurucu Ortak") burada BİLEREK dışlanır (bkz. kullanıcı isteği: "Meslek: Kurucu / Mimar" yerine
     // sadece "Meslek: Mimar"). Bu iki alan başka yerlerde (meslektaş kartları, DEPT_TO_PROFESSION
     // fallback'i, üstteki başlık satırı) hâlâ kullanıldığından DB'de DEĞİŞTİRİLMEZ, sadece bu
     // künye satırlarının derlenişinden çıkarılır.
-    if (a.school) infoFacts.push(`<div><strong>Üniversite:</strong> ${escapeHtml(a.school)}</div>`);
+    if (a.school) infoFacts.push(metaRow('cap', `<strong>Üniversite:</strong> ${escapeHtml(a.school)}`));
     const profession = a.profession || DEPT_TO_PROFESSION[a.dept] || null;
-    if (profession) infoFacts.push(`<div><strong>Meslek:</strong> ${escapeHtml(profession)}</div>`);
-    if (a.awards && a.awards.length) infoFacts.push(`<div><strong>Ödüller:</strong> ${a.awards.map(escapeHtml).join(', ')}</div>`);
+    if (profession) infoFacts.push(metaRow('briefcase', `<strong>Meslek:</strong> ${escapeHtml(profession)}`));
+    if (a.awards && a.awards.length) infoFacts.push(metaRow('award', `<strong>Ödüller:</strong> ${a.awards.map(escapeHtml).join(', ')}`));
     infoFactsEl.innerHTML = infoFacts.join('');
     infoFactsEl.style.display = infoFacts.length ? '' : 'none';
 
@@ -550,37 +555,33 @@ const ArchitectModal = (function () {
       logoEl.appendChild(img);
     }
 
-    const saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'save-btn card-save-btn';
-    saveBtn.id = 'am-save-btn';
-    saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>`;
+    // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
+    // bu profillerde tek eylem artık Takip Et. Düzenle/Arşivle/Sil artık bu satırda DEĞİL —
+    // modal-shell.js'in paylaşılan header'ında, X butonunun yanında render edilir (bkz. kullanıcı
+    // isteği) — claim-correction-box.js#renderProfileEditButton hâlâ #profile-edit-slot id'sini
+    // arıyor, yalnızca DOM konumu değişti.
     const actionsEl = document.getElementById('am-actions');
     actionsEl.innerHTML = '';
-    actionsEl.prepend(saveBtn);
-    // Düzenle/Arşivle/Sil artık bu satırda DEĞİL — modal-shell.js'in paylaşılan header'ında, X
-    // butonunun yanında render edilir (bkz. kullanıcı isteği) — claim-correction-box.js#
-    // renderProfileEditButton hâlâ #profile-edit-slot id'sini arıyor, yalnızca DOM konumu değişti.
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '<span id="profile-edit-slot"></span>';
-    saveBtn.dataset.key = slugify(a.name);
-    saveBtn.dataset.title = a.name;
-    saveBtn.dataset.meta = displayOffice ? displayOffice.name : (a.role || '');
-    saveBtn.dataset.image = a.photo || '';
-    saveBtn.dataset.href = `/mimar/${encodeURIComponent(slugify(a.name))}`;
-    wireSaveButtons('architect');
-    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, paylaş ikonunun yanında.
+    const architectKey = slugify(a.name);
+    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi. Yanındaki sayı (bkz.
+    // kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir, save-widget.js#
+    // paintFollowBtn dataset.followerCount'u okuyup 0'sa parantezi hiç basmaz.
     const followBtn = document.createElement('button');
     followBtn.type = 'button';
     followBtn.className = 'follow-btn card-follow-btn';
     followBtn.id = 'am-follow-btn';
     followBtn.dataset.type = 'architect';
-    followBtn.dataset.key = saveBtn.dataset.key;
+    followBtn.dataset.key = architectKey;
     followBtn.dataset.title = a.name;
     followBtn.innerHTML = `<span class="follow-btn-label">Takip Et</span>`;
-    saveBtn.insertAdjacentElement('afterend', followBtn);
+    actionsEl.appendChild(followBtn);
     wireFollowButtons();
+    fetch(`/api/public/follow-count?type=architect&key=${encodeURIComponent(architectKey)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) { followBtn.dataset.followerCount = String(data.count || 0); paintFollowBtn(followBtn); } })
+      .catch(() => {});
     if (typeof ShareWidget !== 'undefined') {
       followBtn.insertAdjacentHTML('afterend', ShareWidget.html('am-share-btn'));
       ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));

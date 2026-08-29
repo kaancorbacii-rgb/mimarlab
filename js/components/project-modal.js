@@ -25,11 +25,11 @@ const ProjectModal = (function () {
     </div>
     <div class="detail-info">
       <div class="designer-section" id="pm-architect-section" style="display:none;">
-        <div class="designer-label">Mimar:</div>
+        <div class="designer-label">${ProjectMeta.metaIconHtml('architect')}Mimar:</div>
         <div class="designer-chips" id="pm-architect-chips"></div>
       </div>
       <div class="designer-section" id="pm-office-section" style="display:none;">
-        <div class="designer-label">Mimarlık Firması:</div>
+        <div class="designer-label">${ProjectMeta.metaIconHtml('office')}Mimarlık Firması:</div>
         <div class="designer-chips" id="pm-office-chips"></div>
       </div>
       <div class="detail-meta" id="pm-meta"></div>

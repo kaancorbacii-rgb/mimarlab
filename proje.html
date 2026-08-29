@@ -705,7 +705,14 @@
   .detail-info{margin-top:8px;}
   .designer-section{margin-top:0;}
   .designer-section + .designer-section{margin-top:16px;}
-  .designer-label{font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+  .designer-label{display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
+  /* Künye ikonları (bkz. kullanıcı isteği): mimar/firma/tür/tip/grup/yer/yıl/fotoğraf gibi künye
+     satırlarının solundaki soyut çizgi ikonları — hepsi AYNI hizada/büyüklükte, js/components/
+     project-meta.js#ICONS'tan gelir. */
+  .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+  .meta-icon svg{display:block; width:100%; height:100%;}
+  .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
+  .detail-meta .meta-row .meta-icon{margin-top:3px;}
   .designer-chips{display:flex; flex-wrap:wrap; gap:10px;}
   .designer-chip{
     display:flex; align-items:center; gap:9px;

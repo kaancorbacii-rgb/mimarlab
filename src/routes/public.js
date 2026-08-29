@@ -1,6 +1,7 @@
 import { json, errorJson } from '../lib/http.js';
 import { parseSubmissionRow } from '../lib/submissionTypes.js';
 import { ITEM_TYPES } from './saved.js';
+import { FOLLOW_TYPES } from './follows.js';
 import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { getSiteSettings } from '../lib/siteSettings.js';
@@ -33,6 +34,7 @@ export async function handlePublicRoute(request, env, url) {
   if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);
   if (segments[2] === 'claim-status') return handlePublicClaimStatus(request, env, url);
   if (segments[2] === 'save-count') return handlePublicSaveCount(request, env, url);
+  if (segments[2] === 'follow-count') return handlePublicFollowCount(request, env, url);
   if (segments[2] === 'site-settings') return handlePublicSiteSettings(request, env, url);
   return errorJson('Bulunamadı', 404);
 }
@@ -85,6 +87,21 @@ async function handlePublicSaveCount(request, env, url) {
     const row = await env.DB.prepare(
       'SELECT COUNT(*) AS count FROM saved_items WHERE item_type = ? AND item_key = ?'
     ).bind(itemType, itemKey).first();
+    return { count: row?.count || 0 };
+  });
+}
+
+// GET /api/public/follow-count?type=architect|office&key=<isim-anahtarı> — auth gerektirmez.
+// save-count İLE AYNI desen (yukarısı) — mimar/firma profilindeki Takip Et butonunun yanında toplam
+// takipçi sayısını göstermek için (bkz. kullanıcı isteği: "Takip Et (12)").
+async function handlePublicFollowCount(request, env, url) {
+  const followedType = url.searchParams.get('type');
+  const followedKey = (url.searchParams.get('key') || '').trim();
+  if (!FOLLOW_TYPES.has(followedType) || !followedKey) return errorJson('Geçersiz istek.');
+  return cachedPublicJson(request, env, url.pathname, async () => {
+    const row = await env.DB.prepare(
+      'SELECT COUNT(*) AS count FROM follows WHERE followed_type = ? AND followed_key = ?'
+    ).bind(followedType, followedKey).first();
     return { count: row?.count || 0 };
   });
 }

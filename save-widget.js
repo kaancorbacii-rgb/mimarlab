@@ -100,13 +100,19 @@ async function initSavedWidget(){
 // Sayfa scriptleri, currentUser'ı okumadan önce bunu await edebilir.
 const savedWidgetReady = initSavedWidget();
 
+// dataset.followerCount — btn's kendisi taşır (bkz. architect-modal.js/office-modal.js, /api/public/
+// follow-count'tan bir kez doldurulur), tıklamada iyimser şekilde ±1 güncellenir (bkz.
+// wireFollowButtons) ki sunucuya tekrar sormadan buton anında doğru sayıyı göstersin. 0'sa (bkz.
+// kullanıcı isteği: "sayı 0'sa 0'ı gösterme") parantez hiç eklenmez.
 function paintFollowBtn(btn){
   const type = btn.dataset.type;
   const key = btn.dataset.key;
   const following = followedKeys.has(type + ':' + key);
   btn.classList.toggle('following', following);
   const label = btn.querySelector('.follow-btn-label');
-  if(label) label.textContent = following ? 'Takip Ediliyor' : 'Takip Et';
+  const count = parseInt(btn.dataset.followerCount, 10) || 0;
+  const countText = count > 0 ? ` (${count})` : '';
+  if(label) label.textContent = (following ? 'Takip Ediliyor' : 'Takip Et') + countText;
 }
 
 function wireFollowButtons(){
@@ -123,9 +129,11 @@ function wireFollowButtons(){
       const mapKey = btnType + ':' + key;
       btn.disabled = true;
       try{
+        const prevCount = parseInt(btn.dataset.followerCount, 10) || 0;
         if(followedKeys.has(mapKey)){
           await fetch(`/api/follows/${btnType}/${encodeURIComponent(key)}`, { method: 'DELETE' });
           followedKeys.delete(mapKey);
+          btn.dataset.followerCount = String(Math.max(0, prevCount - 1));
         } else {
           await fetch('/api/follows', {
             method: 'POST',
@@ -133,6 +141,7 @@ function wireFollowButtons(){
             body: JSON.stringify({ type: btnType, key, title: btn.dataset.title || '' }),
           });
           followedKeys.add(mapKey);
+          btn.dataset.followerCount = String(prevCount + 1);
         }
         paintFollowBtn(btn);
       } finally {

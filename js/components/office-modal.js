@@ -5,6 +5,16 @@
 // projeler/ürünler/malzemeler, claim/correction kutusu) firma.html'in kartına tıklandığında sayfa
 // yenilenmeden açan bir modale taşır. Yorum/puanlama YOK — ofis-detay.html'de de hiç yoktu.
 const OfficeModal = (function () {
+  // Künye satırı ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili (24x24 viewBox,
+  // stroke-width 1.6, dolgu yok, bkz. kullanıcı isteği) — firma.html o script'i yüklemediğinden
+  // kendi kopyasını taşır (architect-modal.js#META_ICONS İLE AYNI gerekçe).
+  const META_ICONS = {
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-7.2 7-12.3a7 7 0 1 0-14 0c0 5.1 7 12.3 7 12.3Z"/><circle cx="12" cy="9.2" r="2.4"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.4 2.6 3.8 6 3.8 9s-1.4 6.4-3.8 9c-2.4-2.6-3.8-6-3.8-9s1.4-6.4 3.8-9Z"/></svg>',
+  };
+  function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
+  function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
   // architect-modal.js#injectStyles ile BİREBİR aynı ortak sınıflar (.detail-title/.related-*/
   // .save-btn) — firma.html farklı bir sayfa olduğundan proje.html/mimar.html'in <style>'ını miras
   // alamaz, kendi <style>'ını bir kez enjekte eder (görsel bütünlük için AYNI değerler).
@@ -37,9 +47,7 @@ const OfficeModal = (function () {
          header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği). Bu yüzden
          .card-edit-btn/.card-delete-btn/.profile-edit-btn ve #profile-edit-slot'un display:contents
          kuralı buradan kaldırıldı; TEK stil kaynağı artık modal-shell.js#injectStyles. */
-      /* Yalnızca "Websitesi" tarafından kullanılır (bkz. aşağıdaki gerçek bulgu yorumu) — Kaydet
-         artık ayrı, ikon-only .save-btn-icon sınıfını kullanıyor (bkz. kullanıcı isteği: "Kaydet"
-         metni kaldırılsın). */
+      /* Yalnızca "Websitesi" tarafından kullanılır — Kaydet KALDIRILDI (bkz. kullanıcı isteği). */
       .save-btn{
         display:inline-flex; align-items:center; gap:5px;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -50,20 +58,9 @@ const OfficeModal = (function () {
       }
       .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
       .save-btn svg{flex-shrink:0;}
-      /* Kaydet — share-button.js#.share-btn İLE BİREBİR AYNI kare ölçüler/kırılma noktası. */
-      .save-btn-icon{
-        display:inline-flex; align-items:center; justify-content:center;
-        flex-shrink:0 !important;
-        height:32px !important; width:32px !important; min-width:32px !important; box-sizing:border-box;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 !important; color:var(--ink-soft);
-        font-family:inherit; line-height:1;
-      }
-      .save-btn-icon:hover{border-color:var(--walnut); color:var(--ink);}
-      .save-btn-icon.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-      .save-btn-icon svg{flex-shrink:0;}
-      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Kaydet/Paylaş ile AYNI
-         yükseklikte, paylaş ikonunun yanında bir Takip Et pili. */
+      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Websitesi/Paylaş ile
+         AYNI yükseklikte bir pil. Yanındaki takipçi sayısı (bkz. kullanıcı isteği) save-widget.js#
+         paintFollowBtn tarafından basılır. */
       .follow-btn{
         display:inline-flex; align-items:center; justify-content:center;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -81,6 +78,12 @@ const OfficeModal = (function () {
       .social-icons a:hover{color:var(--walnut);}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
+      /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
+         isteği), hepsi AYNI büyüklükte. */
+      .meta-icon{width:16px; height:16px; flex-shrink:0; color:var(--ink-soft);}
+      .meta-icon svg{display:block; width:100%; height:100%;}
+      .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
+      .detail-meta .meta-row .meta-icon{margin-top:3px;}
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px;}
       .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer;}
       .detail-desc-more:hover{color:var(--ink);}
@@ -173,7 +176,6 @@ const OfficeModal = (function () {
            uygulanır. Satırın tek satırda kalma zorunluluğu (üstteki .detail-title-actions
            flex-wrap:nowrap + flex-shrink:1/min-width:0/overflow:hidden/ellipsis) korunur. */
         .save-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
-        .save-btn-icon{height:48px !important; width:48px !important; min-width:48px !important;}
         .follow-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
         .detail-title-actions{gap:8px !important;}
       }
@@ -523,9 +525,9 @@ const OfficeModal = (function () {
     renderTruncatedDesc('om-about', o.about || '');
 
     const infoFacts = [];
-    if (o.yil) infoFacts.push(`<div><strong>Kuruluş Yılı:</strong> ${escapeHtml(String(o.yil))}</div>`);
-    if (o.loc) infoFacts.push(`<div><strong>Konum:</strong> ${escapeHtml(formatLocationDistrictFirst(o.loc))}</div>`);
-    if (o.cats) infoFacts.push(`<div><strong>Hizmet Alanı:</strong> ${escapeHtml(o.cats)}</div>`);
+    if (o.yil) infoFacts.push(metaRow('calendar', `<strong>Kuruluş Yılı:</strong> ${escapeHtml(String(o.yil))}`));
+    if (o.loc) infoFacts.push(metaRow('pin', `<strong>Konum:</strong> ${escapeHtml(formatLocationDistrictFirst(o.loc))}`));
+    if (o.cats) infoFacts.push(metaRow('globe', `<strong>Hizmet Alanı:</strong> ${escapeHtml(o.cats)}`));
     const infoFactsEl = document.getElementById('om-info-facts');
     infoFactsEl.innerHTML = infoFacts.join('');
     infoFactsEl.style.display = infoFacts.length ? '' : 'none';
@@ -545,45 +547,39 @@ const OfficeModal = (function () {
       logoEl.appendChild(img);
     }
 
-    const saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'save-btn-icon card-save-btn';
-    saveBtn.id = 'om-save-btn';
-    saveBtn.setAttribute('aria-label', 'Kaydet');
-    saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>`;
+    // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
+    // bu profillerde tek eylem artık Takip Et. Düzenle/Arşivle/Sil artık bu satırda DEĞİL —
+    // modal-shell.js'in paylaşılan header'ında, X butonunun yanında render edilir (bkz. kullanıcı
+    // isteği) — claim-correction-box.js#renderProfileEditButton hâlâ #profile-edit-slot id'sini
+    // arıyor, yalnızca DOM konumu değişti.
     const actionsEl = document.getElementById('om-actions');
     actionsEl.innerHTML = '';
-    actionsEl.prepend(saveBtn);
-    // Düzenle/Arşivle/Sil artık bu satırda DEĞİL — modal-shell.js'in paylaşılan header'ında, X
-    // butonunun yanında render edilir (bkz. kullanıcı isteği) — claim-correction-box.js#
-    // renderProfileEditButton hâlâ #profile-edit-slot id'sini arıyor, yalnızca DOM konumu değişti.
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '<span id="profile-edit-slot"></span>';
-    saveBtn.dataset.key = slugify(o.name);
-    saveBtn.dataset.title = o.name;
-    saveBtn.dataset.meta = o.loc || '';
-    saveBtn.dataset.image = officeLogoUrl || '';
-    saveBtn.dataset.href = `/firma/${encodeURIComponent(slugify(o.name))}`;
-    wireSaveButtons('office');
-    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, paylaş ikonunun yanında.
+    const officeKey = slugify(o.name);
+    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Websitesi'nin yanında.
+    // Yanındaki sayı (bkz. kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir,
+    // save-widget.js#paintFollowBtn dataset.followerCount'u okuyup 0'sa parantezi hiç basmaz.
     const followBtn = document.createElement('button');
     followBtn.type = 'button';
     followBtn.className = 'follow-btn card-follow-btn';
     followBtn.id = 'om-follow-btn';
     followBtn.dataset.type = 'office';
-    followBtn.dataset.key = saveBtn.dataset.key;
+    followBtn.dataset.key = officeKey;
     followBtn.dataset.title = o.name;
     followBtn.innerHTML = `<span class="follow-btn-label">Takip Et</span>`;
-    saveBtn.insertAdjacentElement('afterend', followBtn);
+    actionsEl.appendChild(followBtn);
     wireFollowButtons();
+    fetch(`/api/public/follow-count?type=office&key=${encodeURIComponent(officeKey)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) { followBtn.dataset.followerCount = String(data.count || 0); paintFollowBtn(followBtn); } })
+      .catch(() => {});
     if (typeof ShareWidget !== 'undefined') {
       followBtn.insertAdjacentHTML('afterend', ShareWidget.html('om-share-btn'));
       ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
     }
 
-    // "Websitesi" — Kaydet ile AYNI satırda, hemen soluna (bkz. kullanıcı isteği) — Kaydet artık
-    // ikon-only .save-btn-icon kullandığından (bkz. yukarısı), metinli bir pil için kendi .save-btn
-    // sınıfını (kart bağlamındaki değil, bu enjekte edilen stil) kullanır.
+    // "Websitesi" — Takip Et ile AYNI satırda, en başta (bkz. kullanıcı isteği).
     const visitUrl = o.website ? safeUrl(o.website) : '';
     if (visitUrl) {
       const visitBtn = document.createElement('a');
