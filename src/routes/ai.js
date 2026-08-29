@@ -707,10 +707,22 @@ function sanitizeExtraction(kind, raw, imageCandidateCount) {
   const indices = v => (Array.isArray(v)
     ? [...new Set(v.filter(i => Number.isInteger(i) && i >= 0 && i < imageCandidateCount))]
     : []);
+  // GERÇEK BULGU (bkz. kullanıcı isteği: notmimarlik.com/normod.com gerçek uçtan uca test):
+  // model, sayfada firma adı (ör. "Not Mimarlık") çok baskın/tekrarlı geçtiğinde — sayfanın kendi
+  // ekip alt sayfasında gerçek isimli mimarlar (ör. "Merih Feza Yıldırım") bağlamda mevcut olsa
+  // BİLE — aynı firma adını designer_names'e de (kişi adıymış gibi) tekrar koyabiliyor; iki alanın
+  // şema açıklaması ("kişi adı" vs "ofis/firma") birbirini dışlar, bu yüzden bir değer HER İKİSİNDE
+  // de görünüyorsa bu kesin bir sınıflandırma hatasıdır, belirsiz bir durum değil — designer_names'ten
+  // çıkarmak veri kaybı değil, düzeltmedir.
+  const excludeFoldMatches = (names, excludeList) => {
+    const excludeFolded = new Set(excludeList.map(foldTr));
+    return names.filter(n => !excludeFolded.has(foldTr(n)));
+  };
 
   if (!raw.found) return { found: false, reason: str(raw.reason) };
 
   if (kind === 'project') {
+    const officeNames = strArray(raw.office_names);
     return {
       found: true,
       title: str(raw.title),
@@ -721,8 +733,8 @@ function sanitizeExtraction(kind, raw, imageCandidateCount) {
       category: Array.isArray(raw.category) ? [...new Set(raw.category.filter(c => PROJECT_CATEGORIES.includes(c)))].slice(0, 2) : [],
       discipline: Array.isArray(raw.discipline) ? [...new Set(raw.discipline.filter(d => DISCIPLINE_OPTIONS.includes(d)))].slice(0, 2) : [],
       type: Array.isArray(raw.type) ? [...new Set(raw.type.filter(t => PROJECT_GROUP_OPTIONS.includes(t)))].slice(0, 3) : [],
-      designer_names: strArray(raw.designer_names),
-      office_names: strArray(raw.office_names),
+      designer_names: excludeFoldMatches(strArray(raw.designer_names), officeNames),
+      office_names: officeNames,
       awards: Array.isArray(raw.awards) ? [...new Set(raw.awards.filter(a => ODUL_OPTIONS.includes(a)))].slice(0, 5) : [],
       description: str(raw.description),
       photo_credit_text: str(raw.photo_credit_text),
@@ -730,14 +742,15 @@ function sanitizeExtraction(kind, raw, imageCandidateCount) {
       image_indices: indices(raw.image_indices),
     };
   }
+  const brand = str(raw.brand);
   return {
     found: true,
     title: str(raw.title),
-    brand: str(raw.brand),
+    brand,
     website: str(raw.website),
     category: (typeof raw.category === 'string' && URUN_CATEGORIES.includes(raw.category)) ? raw.category : null,
     year: str(raw.year),
-    designer_names: strArray(raw.designer_names),
+    designer_names: excludeFoldMatches(strArray(raw.designer_names), brand ? [brand] : []),
     specs: Array.isArray(raw.specs)
       ? raw.specs
         .filter(s => s && typeof s === 'object' && typeof s.label === 'string' && typeof s.value === 'string' && s.label.trim() && s.value.trim())
