@@ -894,6 +894,43 @@ function wireAiPanel(){
 }
 wireAiPanel();
 
+// MİMARLAB görsel standardı (WebP, en fazla 2000px, 2MB) — bkz. proje-ekle.html#
+// convertCopiedImageToWebp'in AYNI fonksiyonu/gerekçesi (Cloudflare Images yeniden eklenmeden, yeni
+// bir npm/WASM kodek bağımlılığı olmadan — workerd'de Canvas yok, bu yüzden dönüştürme SUNUCUDA değil
+// AI'ın zaten kopyaladığı /media/ (CORS'suz, aynı origin) URL'i tarayıcıda <canvas>'a çizerek yapılır).
+async function convertCopiedImageToWebp(mediaUrl, context, maxEdge){
+  try{
+    const res = await fetch(mediaUrl);
+    if(!res.ok) return mediaUrl;
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const img = await new Promise((resolve) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => resolve(null);
+      el.src = objectUrl;
+    });
+    if(!img){ URL.revokeObjectURL(objectUrl); return mediaUrl; }
+    let { width, height } = img;
+    if(width > height && width > maxEdge){ height = Math.round(height * (maxEdge / width)); width = maxEdge; }
+    else if(height > maxEdge){ width = Math.round(width * (maxEdge / height)); height = maxEdge; }
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    URL.revokeObjectURL(objectUrl);
+    const webpBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+    if(!webpBlob || webpBlob.type !== 'image/webp') return mediaUrl;
+    const fd = new FormData();
+    fd.append('file', new File([webpBlob], 'ai-import.webp', { type: 'image/webp' }));
+    fd.append('context', context);
+    const uploadRes = await fetch('/api/uploads', { method:'POST', body: fd });
+    const data = await uploadRes.json().catch(()=>({}));
+    return (uploadRes.ok && data.url) ? data.url : mediaUrl;
+  }catch{
+    return mediaUrl;
+  }
+}
+
 async function collectImages(){
   const urls = [];
   const externalIndexes = [];
@@ -930,6 +967,10 @@ async function collectImages(){
       const result = byUrl.get(urls[i]);
       urls[i] = result && result.mediaUrl ? result.mediaUrl : null;
     });
+    // MİMARLAB standardı (WebP, ≤2000px) — bkz. yukarıdaki convertCopiedImageToWebp.
+    await Promise.all(externalIndexes.map(async i => {
+      if(urls[i]) urls[i] = await convertCopiedImageToWebp(urls[i], 'product', 2000);
+    }));
   }
   return urls.filter(Boolean);
 }

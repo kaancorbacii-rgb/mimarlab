@@ -1,12 +1,26 @@
 // Dış bir sayfadan (AI otomatik ekleme akışı) modele gönderilecek temiz metni ve görsel adaylarını
-// çıkarır. `<script>`/`<style>` içeriğini toplamamak için "bütün body metnini topla" yerine bilinen
-// görünür-içerik etiketlerine (başlık, paragraf, liste vb.) taranır — script/style zaten bu
-// seçicilere hiç eşleşmediği için ayrıca filtrelemeye gerek kalmaz. HTMLRewriter Cloudflare
-// Workers'a gömülü; npm bağımlılığı gerekmiyor (bkz. src/index.js#injectMeta'daki aynı API).
-
+// çıkarır. HTMLRewriter Cloudflare Workers'a gömülü; npm bağımlılığı gerekmiyor (bkz. src/index.js#
+// injectMeta'daki aynı API).
+//
+// 'div' seçicisi hakkında GERÇEK BULGU (bkz. kullanıcı isteği: notmimarlik.com/normod.com gerçek
+// uçtan uca test): birçok site (ör. notmimarlik.com'un "Yer/Yıl/İşveren" proje künyesi) böyle bir
+// bilgi kartını yalnızca çıplak `<div>` çiftleriyle (etiket div'i + değer div'i, ör. Bootstrap
+// `col-4`/`col-8`) render eder — eski CONTENT_SELECTORS listesi (yalnızca h1-h6/p/li/blockquote/
+// figcaption/td/dt/dd) bunu hiç görmüyordu. 'div'i körlemesine eklemek iki AYRI soruna yol açtı:
+//   1) HTMLRewriter'da bir ata seçicisine ('div') kayıtlı text() handler'ı, İÇİNDE nested bir
+//      <script>/<style> (RAWTEXT) elemanı olsa bile onun metnini de görüyor — script/style'ı
+//      seçmemek (eski varsayım) onları güvenli kılmıyor; `el.remove()` de bunu ENGELLEMİYOR (gerçek
+//      testle doğrulandı: normod.com gibi Shopify sitelerinde section-içi <style> blokları ham CSS
+//      olarak sızmaya devam etti). Çözüm: script/style'a girip çıkışı KENDİMİZ bir sayaçla
+//      (rawTextDepth) izleyip, içindeyken TÜM içerik handler'larını (div dahil) susturuyoruz —
+//      bu, başka hiçbir seçicinin davranışına/sırasına güvenmeyen, kendi kendine yeten bir kontrol.
+//   2) Bir <div>, zaten seçili bir alt etiketi (ör. <h5>, <p>) sarmaladığında AYNI metin hem 'div'
+//      hem o alt seçici için ayrı ayrı tetiklenip textParts'a İKİ KEZ (art arda) ekleniyordu (ör.
+//      "Gültepe Gültepe", tam bir paragrafın peş peşe tekrarı). Çözüm: bir sonraki chunk, hemen
+//      ÖNCEKİ ile (trim edilmiş) birebir aynıysa eklenmez — genel, siteye özel olmayan bir kural.
 import { AI_MAX_CONTENT_CHARS } from './aiConfig.js';
 
-const CONTENT_SELECTORS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'blockquote', 'figcaption', 'td', 'dt', 'dd'];
+const CONTENT_SELECTORS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'blockquote', 'figcaption', 'td', 'dt', 'dd', 'div'];
 
 // Favicon/logo/ikon gibi projeyle/ürünle ilgisi olmayan görselleri aday listesine hiç almamak için
 // basit bir dosya adı/yol sezgisi — kesin değil ama modele gidecek gürültüyü baştan azaltıyor.
@@ -69,6 +83,12 @@ export async function extractPageContent(response, baseUrl, { maxChars = AI_MAX_
   let metaDescription = null;
   let heroImage = null;
   let ogTitle = null;
+  // bkz. dosya başı yorumu (madde 1) — script/style içindeyken TÜM içerik seçicileri susturulur.
+  let rawTextDepth = 0;
+  function enterRawText() { rawTextDepth++; }
+  function exitRawText() { rawTextDepth = Math.max(0, rawTextDepth - 1); }
+  // bkz. dosya başı yorumu (madde 2) — art arda AYNI (trim edilmiş) metni iki kez eklemez.
+  let lastPushedText = null;
 
   function addImage(raw, { front = false } = {}) {
     const abs = absolutize(raw, baseUrl);
@@ -122,9 +142,15 @@ export async function extractPageContent(response, baseUrl, { maxChars = AI_MAX_
     })
     // schema.org JSON-LD (bkz. aşağıdaki parseJsonLd) — sitenin kendi yapısal verisi, gövde
     // metninden çıkarılan serbest metinden daha güvenilir bir başlık/açıklama/görsel kaynağıdır.
+    // (rawTextDepth'e TABİ DEĞİL — bu, script içeriğini BİLEREK okuyan ayrı/özel bir toplayıcı.)
     .on('script[type="application/ld+json"]', {
       text(t) { jsonLdBlocks.push(t.text); },
     })
+    // bkz. dosya başı yorumu (madde 1) — 'div' artık CONTENT_SELECTORS'da olduğundan içine gömülü
+    // <script>/<style> (RAWTEXT) elemanlarının metninin genel içerik havuzuna karışmaması İÇİN
+    // giriş/çıkışını kendimiz izleriz; onEndTag kapanış etiketinde derinliği geri düşürür.
+    .on('script', { element(el) { enterRawText(); el.onEndTag(() => { exitRawText(); }); } })
+    .on('style', { element(el) { enterRawText(); el.onEndTag(() => { exitRawText(); }); } })
     // bkz. yukarıdaki LINK_KEYWORD_PATTERN — yalnızca aynı domain + anahtar kelime eşleşen linkler,
     // sabit bir üst sınıra kadar toplanır.
     .on('a[href]', {
@@ -142,7 +168,17 @@ export async function extractPageContent(response, baseUrl, { maxChars = AI_MAX_
   for (const selector of CONTENT_SELECTORS) {
     rewriter = rewriter.on(selector, {
       text(t) {
-        if (t.text && t.text.trim()) textParts.push(t.text);
+        if (rawTextDepth > 0) return; // bkz. dosya başı yorumu (madde 1)
+        const trimmed = t.text && t.text.trim();
+        if (trimmed) {
+          // bkz. dosya başı yorumu (madde 2) — 'div' bir alt seçiciyi (h1-h6/p/li/...) sarmaladığında
+          // AYNI metin art arda iki kez tetiklenebiliyor; yalnızca gerçekten BİR ÖNCEKİYLE aynıysa
+          // atlanır (farklı yerlerde tekrar eden meşru bir cümle/başlık başka bir yerde YİNE eklenir).
+          if (trimmed !== lastPushedText) {
+            textParts.push(t.text);
+            lastPushedText = trimmed;
+          }
+        }
         if (t.lastInTextNode) textParts.push('\n');
       },
     });
