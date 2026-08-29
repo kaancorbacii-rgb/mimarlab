@@ -38,7 +38,7 @@ function shapeProductItem(row) {
   return {
     id: p.id, title: p.title, brand: p.brand_name_raw, website: p.website, category: p.category,
     designer: p.designer || null, year: p.year || null,
-    description: p.description, images: p.images, specs: p.specs, kind: p.kind,
+    description: p.description, images: p.images, specs: p.specs, files: p.files, kind: p.kind,
     submissionId: isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null,
   };
 }

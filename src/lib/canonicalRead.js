@@ -9,7 +9,7 @@ const JSON_FIELDS = {
   architects: ['awards', 'social_links'],
   offices: ['cats', 'awards', 'social_links'],
   projects: ['category', 'type', 'discipline', 'period', 'images', 'awards'],
-  products: ['images', 'specs'],
+  products: ['images', 'specs', 'files'],
 };
 
 // Adla/slug'la/legacy_key ile bir canonical satırın VAR OLUP OLMADIĞINI arar — src/routes/

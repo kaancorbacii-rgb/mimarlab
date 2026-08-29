@@ -644,25 +644,32 @@ const ProductModal = (function () {
     if (timeoutMs) timer = setTimeout(trigger, timeoutMs);
   }
 
-  // Dosya uzantısına göre kare kutucuk rozeti (bkz. kullanıcı isteği: BIM/CAD/Katalog kutucukları) —
-  // kabul edilen format listesi kullanıcının gönderdiği Archello örnekleriyle uyumlu (Sketchup/
-  // Wavefront/PDF), ürün ekle/düzenle'ye yükleme kutusu eklendiğinde `accept` de AYNI listeyle
-  // sınırlanmalı (bkz. kullanıcı isteği: "Sadece uygun formattaki dosyalar kabul edilecek" — o kutu
-  // HENÜZ yok, bu yalnızca gösterim tarafının rozet/renk eşlemesi).
+  // Dosya uzantısına göre kare kutucuk rozeti (bkz. kullanıcı isteği: BIM/CAD/3D/Katalog kutucukları)
+  // — izin verilen 17 formatlık liste src/routes/upload.js#FILE_UPLOAD_EXTENSIONS ve src/lib/
+  // submissionTypes.js#PRODUCT_FILE_EXTENSIONS İLE AYNI (üçü de bağımsız kopya — bu kod tabanının
+  // kuralı, bkz. o dosyalardaki AYNI yorum, biri değişirse diğer ikisi de güncellenmeli). Renk kodu
+  // dört kategoriye göre gruplanır: BIM mor, CAD gri, 3D mavi, Katalog kırmızı.
   const FILE_TYPE_META = {
-    skp: { label: 'SKP', color: '#e0483e' },
+    // BIM (mor)
+    rfa: { label: 'RFA', color: '#6b4fbb' },
+    rvt: { label: 'RVT', color: '#6b4fbb' },
+    ifc: { label: 'IFC', color: '#6b4fbb' },
+    ifczip: { label: 'IFC', color: '#6b4fbb' },
+    // CAD (gri)
+    dwg: { label: 'DWG', color: '#4a5568' },
+    dxf: { label: 'DXF', color: '#4a5568' },
+    // 3D (mavi)
+    skp: { label: 'SKP', color: '#2f6fd6' },
+    '3dm': { label: '3DM', color: '#2f6fd6' },
     obj: { label: 'OBJ', color: '#2f6fd6' },
     fbx: { label: 'FBX', color: '#2f6fd6' },
     '3ds': { label: '3DS', color: '#2f6fd6' },
-    max: { label: 'MAX', color: '#2f6fd6' },
-    dwg: { label: 'DWG', color: '#4a5568' },
-    dxf: { label: 'DXF', color: '#4a5568' },
-    rvt: { label: 'RVT', color: '#6b4fbb' },
-    ifc: { label: 'IFC', color: '#6b4fbb' },
-    stp: { label: 'STP', color: '#6b4fbb' },
-    step: { label: 'STP', color: '#6b4fbb' },
-    igs: { label: 'IGS', color: '#6b4fbb' },
-    iges: { label: 'IGS', color: '#6b4fbb' },
+    stl: { label: 'STL', color: '#2f6fd6' },
+    step: { label: 'STEP', color: '#2f6fd6' },
+    stp: { label: 'STP', color: '#2f6fd6' },
+    iges: { label: 'IGES', color: '#2f6fd6' },
+    igs: { label: 'IGS', color: '#2f6fd6' },
+    // Katalog (kırmızı)
     pdf: { label: 'PDF', color: '#d93636' },
   };
   function fileTypeMeta(format) {
@@ -670,9 +677,6 @@ const ProductModal = (function () {
     return FILE_TYPE_META[ext] || { label: ext ? ext.toUpperCase().slice(0, 4) : 'DOSYA', color: '#8a8a8a' };
   }
 
-  // p.files HENÜZ hiçbir API/veri kaynağından gelmiyor (ürün ekle/düzenle'ye yükleme kutusu bkz.
-  // kullanıcı isteği: "daha sonra ekleceğiz") — bu yüzden ızgara şimdilik her zaman boş durumu
-  // gösterir; alan ileride doldurulduğunda kod değişikliği gerekmeden kutucuklar görünür.
   function renderFilesSection(p) {
     const grid = document.getElementById('pr-files-grid');
     if (!grid) return;

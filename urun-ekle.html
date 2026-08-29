@@ -127,6 +127,7 @@
      daha düşük görsel ağırlıkta, öncesindeki alandan bir üst çizgiyle ayrılan alt başlık. */
   .form-subheading{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:14.5px; font-weight:700; margin:22px 0 4px; padding-top:20px; border-top:1px solid var(--line-soft);}
   .form-subheading .opt{font-weight:400; color:var(--ink-soft); font-size:12.5px;}
+  .form-section h2 .opt{font-weight:400; color:var(--ink-soft); font-size:12.5px;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .form-field{margin-bottom:16px;}
   .ac-field{position:relative;}
@@ -193,6 +194,22 @@
   .image-move-btn:disabled{opacity:0.25; cursor:default;}
   .image-move-left{left:4px;}
   .image-move-right{left:28px;}
+
+  /* Dosya Yükle (BIM, CAD, 3D, Katalog) — .image-drop İLE AYNI kabuk (bkz. kullanıcı isteği:
+     "Görseller kutusunun hemen altına ... opsiyonel bir alan"), önizleme kare kutucukları ise
+     yeniden sıralama/kapak GEREKTİRMEDİĞİNDEN (bkz. kullanıcı isteği, sadece ekleme/kaldırma)
+     .image-preview-item'ın basitleştirilmiş bir karşılığı — js/components/product-modal.js#
+     .pr-file-tile İLE AYNI görsel dil (renkli format rozeti + dosya adı). */
+  .file-drop{display:block; border:2px dashed var(--line); border-radius:14px; padding:30px; text-align:center; color:var(--ink-soft); cursor:pointer; transition:border-color .15s ease, background .15s ease;}
+  .file-drop:hover, .file-drop.dragover{border-color:var(--brass); background:var(--paper-alt);}
+  .file-drop svg{margin-bottom:8px; color:var(--brass);}
+  .file-drop strong{color:var(--ink); display:block; margin-bottom:2px;}
+  .file-drop span{font-size:12px;}
+  .file-preview-grid{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;}
+  .file-preview-item{position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; width:92px; height:92px; padding:8px; border-radius:12px; border:1px solid var(--line); background:var(--paper); text-align:center; box-sizing:border-box;}
+  .file-preview-icon{min-width:36px; height:22px; padding:0 6px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:10px; font-weight:800; letter-spacing:0.02em; color:#fff;}
+  .file-preview-name{font-size:10.5px; color:var(--ink-soft); line-height:1.25; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; width:100%;}
+  .file-preview-remove{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:11px;}
 
   .specs-row{display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:10px; align-items:start;}
   .specs-row input, .specs-row select{width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
@@ -354,6 +371,19 @@
         </label>
         <p class="image-spec-hint">Galeriye eklenecek görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir ürüne en fazla 20 görsel yükleyebilirsin.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
+      </div>
+
+      <div class="form-section">
+        <h2>Dosya Yükle (BIM, CAD, 3D, Katalog) <span class="opt">(opsiyonel)</span></h2>
+        <p class="section-hint">Ürünün BIM/CAD/3D modellerini ya da ürün kataloğunu ekleyebilirsin.</p>
+        <label class="file-drop" id="file-drop">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+          <strong>Dosyaları sürükleyip bırak</strong>
+          <span>ya da bilgisayarından seçmek için tıkla</span>
+          <input type="file" id="file-input" accept=".rfa,.rvt,.ifc,.ifczip,.dwg,.dxf,.skp,.3dm,.obj,.fbx,.3ds,.stl,.step,.stp,.iges,.igs,.pdf" multiple style="display:none;">
+        </label>
+        <p class="image-spec-hint">İzin verilen formatlar: RFA, RVT, IFC, IFCZIP (BIM) · DWG, DXF (CAD) · SKP, 3DM, OBJ, FBX, 3DS, STL, STEP, STP, IGES, IGS (3D) · PDF (Katalog). Dosya başına en fazla 10 MB, ürün başına en fazla 5 dosya ve toplam 30 MB.</p>
+        <div class="file-preview-grid" id="file-preview-grid"></div>
       </div>
 
       <div class="form-field" id="ai-consent-field" style="display:none;">
@@ -590,6 +620,107 @@ dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classL
 dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
 
+// "Dosyalar (BIM, CAD, 3D, Katalog)" eki — mediaItems İLE BENZER ama basitleştirilmiş bir desen
+// (bkz. kullanıcı isteği: yeniden sıralama/kapak GEREKMİYOR, yalnızca ekle/kaldır). Uzantı/boyut/
+// adet sınırları burada İSTEMCİ tarafında (kullanıcıya anında geri bildirim için) uygulanır —
+// src/lib/submissionTypes.js#findInvalidFilesField AYNI sınırları backend'de de ZORUNLU uygular
+// (bkz. o dosyadaki AYNI liste/sabitler, kullanıcı isteği: "Frontend kontrolüne ek olarak backend/
+// API tarafında da ... zorunlu uygula").
+const fileDropZone = document.getElementById('file-drop');
+const fileInputEl = document.getElementById('file-input');
+const filePreviewGrid = document.getElementById('file-preview-grid');
+let fileItems = []; // {key, kind:'existing'|'file', url?, filename, format, size, file?}
+let fileKeySeq = 0;
+const PRODUCT_FILE_EXTENSIONS = new Set(['rfa','rvt','ifc','ifczip','dwg','dxf','skp','3dm','obj','fbx','3ds','stl','step','stp','iges','igs','pdf']);
+const MAX_PRODUCT_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_PRODUCT_FILES_COUNT = 5;
+const MAX_PRODUCT_FILES_TOTAL_BYTES = 30 * 1024 * 1024;
+const FILE_TYPE_META = {
+  rfa:{label:'RFA',color:'#6b4fbb'}, rvt:{label:'RVT',color:'#6b4fbb'}, ifc:{label:'IFC',color:'#6b4fbb'}, ifczip:{label:'IFC',color:'#6b4fbb'},
+  dwg:{label:'DWG',color:'#4a5568'}, dxf:{label:'DXF',color:'#4a5568'},
+  skp:{label:'SKP',color:'#2f6fd6'}, '3dm':{label:'3DM',color:'#2f6fd6'}, obj:{label:'OBJ',color:'#2f6fd6'}, fbx:{label:'FBX',color:'#2f6fd6'}, '3ds':{label:'3DS',color:'#2f6fd6'}, stl:{label:'STL',color:'#2f6fd6'}, step:{label:'STEP',color:'#2f6fd6'}, stp:{label:'STP',color:'#2f6fd6'}, iges:{label:'IGES',color:'#2f6fd6'}, igs:{label:'IGS',color:'#2f6fd6'},
+  pdf:{label:'PDF',color:'#d93636'},
+};
+function fileTypeMeta(ext){
+  return FILE_TYPE_META[ext] || { label: ext ? ext.toUpperCase().slice(0,4) : 'DOSYA', color:'#8a8a8a' };
+}
+function fileExtOf(name){
+  const m = /\.([a-zA-Z0-9]+)$/.exec(name || '');
+  return m ? m[1].toLowerCase() : '';
+}
+function showFormNotice(msg){
+  const notice = document.getElementById('form-notice');
+  notice.textContent = msg;
+  notice.classList.add('show');
+}
+function setExistingFiles(files){
+  fileItems = (files || []).filter(f => f && f.url).map(f => ({
+    key: 'f' + (fileKeySeq++), kind:'existing', url: f.url,
+    filename: f.filename || f.name || '', format: f.format || fileExtOf(f.filename || f.name || ''), size: f.size || 0,
+  }));
+}
+function renderFilePreviews(){
+  filePreviewGrid.innerHTML = fileItems.map(item => {
+    const meta = fileTypeMeta(item.format);
+    const name = item.filename || meta.label;
+    return `<div class="file-preview-item" data-key="${escapeAttr(item.key)}" title="${escapeAttr(name)}">
+      <span class="file-preview-icon" style="background:${meta.color}">${escapeAttr(meta.label)}</span>
+      <span class="file-preview-name">${escapeAttr(name)}</span>
+      <button type="button" class="file-preview-remove" data-file-remove="${escapeAttr(item.key)}" aria-label="Kaldır">✕</button>
+    </div>`;
+  }).join('');
+  filePreviewGrid.querySelectorAll('[data-file-remove]').forEach(btn => {
+    btn.addEventListener('click', ()=>{
+      fileItems = fileItems.filter(item => item.key !== btn.dataset.fileRemove);
+      renderFilePreviews();
+    });
+  });
+}
+function addProductFiles(fileList){
+  for(const file of Array.from(fileList)){
+    const ext = fileExtOf(file.name);
+    if(!PRODUCT_FILE_EXTENSIONS.has(ext)){
+      showFormNotice(`"${file.name}" desteklenmeyen bir format. İzin verilen formatlar: rfa, rvt, ifc, ifczip, dwg, dxf, skp, 3dm, obj, fbx, 3ds, stl, step, stp, iges, igs, pdf.`);
+      continue;
+    }
+    if(file.size > MAX_PRODUCT_FILE_BYTES){
+      showFormNotice(`"${file.name}" en fazla 10 MB olabilir.`);
+      continue;
+    }
+    if(fileItems.length >= MAX_PRODUCT_FILES_COUNT){
+      showFormNotice(`Bir ürüne en fazla ${MAX_PRODUCT_FILES_COUNT} dosya yükleyebilirsin.`);
+      break;
+    }
+    const currentTotal = fileItems.reduce((sum, item) => sum + (item.size || 0), 0);
+    if(currentTotal + file.size > MAX_PRODUCT_FILES_TOTAL_BYTES){
+      showFormNotice('Toplam dosya boyutu 30 MB sınırını aşıyor.');
+      continue;
+    }
+    fileItems.push({ key: 'f' + (fileKeySeq++), kind:'file', file, filename: file.name, format: ext, size: file.size });
+  }
+  renderFilePreviews();
+}
+fileInputEl.addEventListener('change', (e)=> { addProductFiles(e.target.files); fileInputEl.value = ''; });
+fileDropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); fileDropZone.classList.add('dragover'); });
+fileDropZone.addEventListener('dragleave', ()=> fileDropZone.classList.remove('dragover'));
+fileDropZone.addEventListener('drop', (e)=>{ e.preventDefault(); fileDropZone.classList.remove('dragover'); addProductFiles(e.dataTransfer.files); });
+async function collectProductFiles(){
+  const result = [];
+  for(const item of fileItems){
+    if(item.kind === 'existing'){
+      result.push({ url: item.url, filename: item.filename, format: item.format, size: item.size });
+      continue;
+    }
+    const fd = new FormData();
+    fd.append('file', item.file);
+    const res = await fetch('/api/uploads/file', { method:'POST', body: fd });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || `"${item.filename}" yüklenemedi.`);
+    result.push({ url: data.url, filename: data.filename || item.filename, format: data.format || item.format, size: data.size || item.size });
+  }
+  return result;
+}
+
 let isAdminEditingOther = false;
 let currentUserRole = null;
 // ?adminedit=<id>: yalnızca admin için — hiçbir gönderiden gelmeyen (legacy_static kökenli) bir
@@ -629,6 +760,8 @@ function applyPrefillItem(item){
   if(cat) categorySelect.value = cat;
   setExistingImages(item.images);
   renderPreviews();
+  setExistingFiles(item.files);
+  renderFilePreviews();
   (item.specs || []).forEach(s => addSpecRow(s.label, s.value));
 }
 
@@ -967,11 +1100,12 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
 
   submitBtn.disabled = true;
   loading.classList.add('show');
-  let images;
+  let images, files;
   try{
     images = await collectImages();
+    files = await collectProductFiles();
   }catch(err){
-    notice.textContent = err.message || 'Görsel yüklenemedi, tekrar dene.';
+    notice.textContent = err.message || 'Görsel/dosya yüklenemedi, tekrar dene.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     submitBtn.disabled = false;
@@ -988,6 +1122,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     category: categorySelect.value,
     description: document.getElementById('u-desc').value,
     images,
+    files,
     specs: collectSpecs(),
   };
   if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
@@ -1064,6 +1199,8 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     form.reset();
     setExistingImages([]);
     renderPreviews();
+    setExistingFiles([]);
+    renderFilePreviews();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

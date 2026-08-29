@@ -12,7 +12,7 @@ import { handleAiSearchRoute } from './routes/ai.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
-import { handleUploadRoute, handleMediaRoute } from './routes/upload.js';
+import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
 import { handleFollowRoute } from './routes/follows.js';
@@ -848,6 +848,7 @@ async function routeApi(request, env, url) {
   if (path === '/api/profile/office') return handleArchitectPrimaryOfficeRoute(request, env, url);
   if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);
   if (path === '/api/uploads') return handleUploadRoute(request, env);
+  if (path === '/api/uploads/file') return handleFileUploadRoute(request, env);
   if (path === '/api/contact') return handleContactRoute(request, env, url);
   if (path.startsWith('/api/newsletter/')) return handleNewsletterRoute(request, env, url);
   if (path === '/api/csp-report') return handleCspReportRoute(request, env);

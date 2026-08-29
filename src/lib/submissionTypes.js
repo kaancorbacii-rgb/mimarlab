@@ -50,16 +50,21 @@ export const SUBMISSION_TYPES = {
     // architect KASITLI OLARAK burada yok — urun-ekle.html'deki Mimar kutusu kaldırıldı (bkz.
     // kullanıcı isteği), yerine designer/year (Tasarımcı/Yıl) geldi. Sütun schema.sql'de eski
     // kayıtlar için hâlâ duruyor, sadece artık bu listeden okunup yazılmıyor.
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs'],
+    // files: "Dosyalar (BIM, CAD, 3D, Katalog)" eki (bkz. migrations/0071_product_files.sql,
+    // js/components/product-modal.js#renderFilesSection) — images İLE AYNI JSON dizi deseni, ama
+    // öğeler düz URL string DEĞİL {url,filename,format,size} nesnesi olduğundan urlArrayFields'a
+    // EKLENMEZ (isSafeUrlValue düz string bekler) — kendi doğrulaması findInvalidFilesField'de
+    // (aşağıda) ayrıca yapılır.
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'source_url', 'ai_generated'],
+    arrayFields: ['images', 'specs', 'files'],
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
   },
   materials: {
     table: 'material_submissions',
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs'],
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'source_url', 'ai_generated'],
+    arrayFields: ['images', 'specs', 'files'],
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
@@ -182,6 +187,51 @@ export function findInvalidUrlField(type, body) {
     const values = Array.isArray(body[field]) ? body[field] : (body[field] ? [body[field]] : []);
     if (values.some(v => !isSafeUrlValue(v))) return field;
   }
+  return null;
+}
+
+// "Dosyalar (BIM, CAD, 3D, Katalog)" eki — bkz. kullanıcı isteği: izin verilen format listesi +
+// dosya başına/ürün başına/toplam boyut sınırları FRONTEND'e (urun-ekle.html) ek olarak BURADA
+// (backend/API) da zorunlu uygulansın. src/routes/upload.js#FILE_UPLOAD_EXTENSIONS ve
+// js/components/product-modal.js#FILE_TYPE_META İLE AYNI liste — bu kod tabanının kuralı gereği
+// (bkz. dosya başı yorumları) üçü de bağımsız kopya, biri değişirse diğer ikisi de güncellenmeli.
+export const PRODUCT_FILE_EXTENSIONS = new Set([
+  'rfa', 'rvt', 'ifc', 'ifczip', // BIM
+  'dwg', 'dxf', // CAD
+  'skp', '3dm', 'obj', 'fbx', '3ds', 'stl', 'step', 'stp', 'iges', 'igs', // 3D
+  'pdf', // Katalog
+]);
+export const MAX_PRODUCT_FILE_BYTES = 10 * 1024 * 1024; // dosya başına en fazla 10 MB
+export const MAX_PRODUCT_FILES_COUNT = 5; // ürün başına en fazla 5 dosya
+export const MAX_PRODUCT_FILES_TOTAL_BYTES = 30 * 1024 * 1024; // ürün başına toplam en fazla 30 MB
+
+function fileExtensionOf(file) {
+  const name = (file && (file.filename || file.name)) || '';
+  const m = /\.([a-zA-Z0-9]+)$/.exec(String(name));
+  if (m) return m[1].toLowerCase();
+  return file && file.format ? String(file.format).toLowerCase().replace(/^\./, '') : '';
+}
+
+// body.files (varsa) yapısal olarak geçerli mi: her öğe {url, filename, format, size} biçiminde,
+// url güvenli VE bizim /api/uploads/file ucumuzun döndürdüğü bir /media/ nesnesi, uzantı
+// whitelist'te, dosya başına/toplam boyut ve adet sınırları aşılmamış. Geçersizse kullanıcıya
+// gösterilecek Türkçe bir hata mesajı döner, geçerli/yoksa null.
+export function findInvalidFilesField(type, body) {
+  if (type !== 'products' && type !== 'materials') return null;
+  if (!('files' in body) || body.files == null) return null;
+  const files = body.files;
+  if (!Array.isArray(files)) return 'Dosyalar alanı geçersiz.';
+  if (files.length > MAX_PRODUCT_FILES_COUNT) return `En fazla ${MAX_PRODUCT_FILES_COUNT} dosya yükleyebilirsin.`;
+  let total = 0;
+  for (const f of files) {
+    if (!f || typeof f !== 'object' || Array.isArray(f)) return 'Dosyalar alanı geçersiz.';
+    if (!f.url || !isSafeUrlValue(f.url) || !String(f.url).startsWith('/media/')) return 'Geçersiz dosya bağlantısı.';
+    if (!PRODUCT_FILE_EXTENSIONS.has(fileExtensionOf(f))) return 'İzin verilmeyen dosya formatı.';
+    const size = Number(f.size);
+    if (!Number.isFinite(size) || size <= 0 || size > MAX_PRODUCT_FILE_BYTES) return 'Dosya boyutu sınırı aşıldı (dosya başına en fazla 10 MB).';
+    total += size;
+  }
+  if (total > MAX_PRODUCT_FILES_TOTAL_BYTES) return 'Toplam dosya boyutu sınırı aşıldı (en fazla 30 MB).';
   return null;
 }
 

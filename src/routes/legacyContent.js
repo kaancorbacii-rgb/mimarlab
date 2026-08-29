@@ -1,7 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
-import { SUBMISSION_TYPES, parseSubmissionRow } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidFilesField } from '../lib/submissionTypes.js';
 import { cachedPublicJson, invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { slugify } from '../lib/slugify.js';
@@ -9,7 +9,7 @@ import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, casc
 import {
   findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical, CANONICAL_TABLE_BY_TYPE, canonicalKeyFor,
   deleteCanonicalRowFully, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
-  findOneByName, findOrHealSubmissionDraft,
+  findOneByName, findOrHealSubmissionDraft, cleanupReplacedR2Media,
 } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -109,7 +109,7 @@ async function handleAdminProductDetail(env, id) {
   return json({
     item: {
       id: p.id, slug: p.slug, kind: p.kind, title: p.title, brand: p.brand_name_raw, website: p.website,
-      category: p.category, description: p.description, images: p.images, specs: p.specs,
+      category: p.category, description: p.description, images: p.images, specs: p.specs, files: p.files,
       designer: p.designer, year: p.year,
     },
   });
@@ -121,6 +121,8 @@ async function handleAdminProductEdit(request, env, id) {
   const body = await readJson(request);
   const title = (body.title || '').trim();
   if (!title) return errorJson('Başlık zorunlu.');
+  const invalidFilesError = findInvalidFilesField('products', body);
+  if (invalidFilesError) return errorJson(invalidFilesError);
 
   let brandOfficeId = null;
   if (body.brand) {
@@ -131,9 +133,16 @@ async function handleAdminProductEdit(request, env, id) {
 
   const images = JSON.stringify(body.images || []);
   const specs = JSON.stringify(body.specs || []);
+  const files = JSON.stringify(body.files || []); // bkz. migrations/0071_product_files.sql
   await env.DB.prepare(
-    `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, designer = ?, year = ?, updated_at = datetime('now') WHERE id = ?`
-  ).bind(title, brandOfficeId, body.brand || null, body.website || null, body.category || null, body.description || null, images, specs, body.designer || null, body.year || null, id).run();
+    `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?, updated_at = datetime('now') WHERE id = ?`
+  ).bind(title, brandOfficeId, body.brand || null, body.website || null, body.category || null, body.description || null, images, specs, files, body.designer || null, body.year || null, id).run();
+
+  // legacy_static kökenli ürünlerin bir product_submissions taslağı hiç olmadığından updateOwnSubmission'daki
+  // cleanupReplacedR2Media çağrısından geçmezler — galeriden çıkarılan/dosyalar listesinden kaldırılan
+  // eski R2 nesneleri bu yol için AYRICA temizlenmezse sonsuza kadar erişilemez ama silinmemiş kalırdı
+  // (bkz. o fonksiyonun dosya başı yorumu — AYNI gerçek bulgu, admin'in doğrudan düzenleme yolu için tekrarı).
+  await cleanupReplacedR2Media(env, 'products', row, { images, files });
 
   await invalidatePublicCache(env);
   await purgeSsrDetailCache('product', row.slug);

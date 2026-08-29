@@ -59,12 +59,12 @@ export async function findOrHealSubmissionDraft(env, type, id) {
   const now = Date.now();
   await env.DB.prepare(
     `INSERT INTO ${config.table}
-       (id, owner_user_id, status, created_at, updated_at, title, brand, designer, year, website, category, description, images, specs, source_url, ai_generated)
-     VALUES (?, ?, 'approved', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (id, owner_user_id, status, created_at, updated_at, title, brand, designer, year, website, category, description, images, specs, files, source_url, ai_generated)
+     VALUES (?, ?, 'approved', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, canonical.claimed_by_user_id, now, now,
     canonical.title, canonical.brand_name_raw, canonical.designer, canonical.year,
-    canonical.website, canonical.category, canonical.description, canonical.images, canonical.specs,
+    canonical.website, canonical.category, canonical.description, canonical.images, canonical.specs, canonical.files,
     canonical.source_url, canonical.ai_generated ? 1 : 0,
   ).run();
 
@@ -196,6 +196,11 @@ export function canonicalKeyFor(type, row) {
 const MEDIA_URL_MARKER = '/media/';
 
 function collectMediaKeysFromValue(val, into) {
+  // files alanı (bkz. MEDIA_IMAGE_FIELDS_BY_TYPE.products/materials.arrayFields) images'ten farklı
+  // olarak düz URL string DEĞİL {url,filename,format,size} nesnesi taşır (bkz. migrations/
+  // 0071_product_files.sql) — bu fonksiyon önceden yalnızca string bekliyordu, obje geldiğinde
+  // sessizce atlıyor, silinen bir dosyanın R2 nesnesi asla temizlenmiyordu (gerçek bulgu).
+  if (val && typeof val === 'object' && typeof val.url === 'string') { collectMediaKeysFromValue(val.url, into); return; }
   if (typeof val !== 'string') return;
   const idx = val.indexOf(MEDIA_URL_MARKER);
   if (idx === -1) return; // statik/legacy dosya yolu (ör. "miras/..webp") — R2'de değil, dokunma
@@ -266,8 +271,8 @@ export async function deleteR2MediaKeys(env, keys) {
 // admin.js'teki taslak-satır hard-delete noktaları).
 export const MEDIA_IMAGE_FIELDS_BY_TYPE = {
   projects: { arrayFields: ['images'] },
-  products: { arrayFields: ['images'] },
-  materials: { arrayFields: ['images'] },
+  products: { arrayFields: ['images', 'files'] },
+  materials: { arrayFields: ['images', 'files'] },
   architects: { stringFields: ['photo_url'] },
   offices: { stringFields: ['logo_url'] },
 };
@@ -930,6 +935,7 @@ async function syncProduct(env, row, kind) {
   const existing = await env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ?`).bind(legacyKey).first();
   const images = JSON.stringify(row.images || []);
   const specs = JSON.stringify(row.specs || []);
+  const files = JSON.stringify(row.files || []); // bkz. migrations/0071_product_files.sql
 
   let brandOfficeId = null;
   if (row.brand) {
@@ -950,8 +956,8 @@ async function syncProduct(env, row, kind) {
     // dokunulmaz — bkz. src/routes/legacyContent.js#handleAdminProductEdit'teki AYNI gerekçe
     // (products/materials hiçbir rename cascade'i desteklemiyor, başlık değişse bile URL sabit kalır).
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, designer = ?, year = ?, legacy_key = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
-    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.designer || null, row.year || null, legacyKey, existing.id).run();
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?, legacy_key = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
+    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, legacyKey, existing.id).run();
     productId = existing.id;
   } else {
     // architects/offices/projects'teki AYNI desen (bkz. syncArchitect/syncOffice) — yeni bir
@@ -963,9 +969,9 @@ async function syncProduct(env, row, kind) {
     const clash = await env.DB.prepare(`SELECT id FROM products WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, designer, year, source_url, ai_generated, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, legacyKey, row.owner_user_id));
+      `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, files, designer, year, source_url, ai_generated, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+    ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, legacyKey, row.owner_user_id));
     productId = insert.meta.last_row_id;
   }
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(productId).first();

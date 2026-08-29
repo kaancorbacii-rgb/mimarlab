@@ -132,7 +132,8 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   ai_generated INTEGER NOT NULL DEFAULT 0,
   architect TEXT, -- artık urun-ekle.html'de kutusu yok, hiçbir yazma yolu yok (bkz. migrations/0020_product_architect.sql) — yalnızca eski satırlar için korunuyor
   designer TEXT, -- serbest metin ürün tasarımcısı adı — bkz. migrations/0042_product_designer_year.sql
-  year TEXT -- serbest metin üretim/tasarım yılı — bkz. migrations/0042_product_designer_year.sql
+  year TEXT, -- serbest metin üretim/tasarım yılı — bkz. migrations/0042_product_designer_year.sql
+  files TEXT -- JSON dizi [{url,filename,format,size}] — "Dosyalar (BIM, CAD, 3D, Katalog)" ekleri, images İLE AYNI desen (bkz. migrations/0071_product_files.sql)
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status_created ON product_submissions(status, created_at DESC);
@@ -159,7 +160,8 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   ai_generated INTEGER NOT NULL DEFAULT 0,
   architect TEXT, -- bkz. product_submissions.architect açıklaması
   designer TEXT, -- bkz. product_submissions.designer açıklaması
-  year TEXT -- bkz. product_submissions.year açıklaması
+  year TEXT, -- bkz. product_submissions.year açıklaması
+  files TEXT -- bkz. product_submissions.files açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_material_status_created ON material_submissions(status, created_at DESC);
@@ -636,7 +638,7 @@ CREATE TABLE IF NOT EXISTS products (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, designer TEXT, year TEXT);
+, hidden_at TEXT, designer TEXT, year TEXT, files TEXT);
 CREATE INDEX IF NOT EXISTS idx_products_brand_office ON products(brand_office_id);
 CREATE INDEX IF NOT EXISTS idx_products_hidden_or_deleted ON products(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_products_legacy_key ON products(legacy_key);
