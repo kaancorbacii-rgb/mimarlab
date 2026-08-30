@@ -150,6 +150,19 @@ const AuthModal = (function () {
     #am-panel .notif-body{font-size:12.5px; color:var(--ink-soft); margin-top:2px; line-height:1.5;}
     #am-panel .notif-meta{font-size:11px; color:var(--ink-soft); margin-top:4px;}
     #am-panel .notif-del{align-self:center;}
+    /* Mesajlar kutusu — Instagram/Messenger'daki gibi kişi/konuşma başına tek satır (avatar + isim +
+       son mesaj önizlemesi + zaman), bkz. kullanıcı isteği (2026-08-30) ve yukarıdaki renderMessages(). */
+    #am-panel .msg-conv-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft); cursor:pointer;}
+    #am-panel .msg-conv-row:last-child{border-bottom:none;}
+    #am-panel .msg-conv-row.unread{background:rgba(224,138,62,0.07); margin:0 -10px; padding:12px 10px; border-radius:10px;}
+    #am-panel .msg-conv-avatar{width:44px; height:44px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--walnut); color:var(--paper-card); display:flex; align-items:center; justify-content:center; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:15px;}
+    #am-panel .msg-conv-avatar img{width:100%; height:100%; object-fit:cover;}
+    #am-panel .msg-conv-body{flex:1; min-width:0;}
+    #am-panel .msg-conv-name{font-size:13.5px; font-weight:600;}
+    #am-panel .msg-conv-preview{font-size:12.5px; color:var(--ink-soft); margin-top:2px; line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    #am-panel .msg-conv-row.unread .msg-conv-name{font-weight:700;}
+    #am-panel .msg-conv-row.unread .msg-conv-preview{color:var(--ink); font-weight:500;}
+    #am-panel .msg-conv-dot{display:block; width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0;}
     /* Mesaj konuşması popup'ı — bkz. kullanıcı isteği: Bildirimler ve Mesajlar'daki bir mesaja
        tıklayınca açılan, tam geçmiş + cevap kutusu içeren overlay. Hesabım'ın kendi #am-panel'i
        zaten z-index:200'de durduğundan (bkz. yukarıdaki .profile-edit-overlay kuralı) bunun üstüne
@@ -1784,19 +1797,34 @@ const AuthModal = (function () {
     let notifPage = 1;
     let msgItems = [];
     let msgPage = 1;
-    // kullanıcı isteği (2026-08-30): Bildirimler ve Mesajlar artık AYRI iki kutu — tek /api/
-    // notifications/mine yanıtı type==='message' olanlara göre ikiye ayrılır (bkz. src/routes/
-    // messages.js#createThread/replyThread'deki AYNI 'message' type'ı), her biri kendi sayfalama
-    // state'ine (notifPage/msgPage) ve DOM konteynerine (am-dash-notifications/am-dash-messages)
-    // sahip — render mantığı ortak renderNotifList()'te paylaşılır.
+    // Bildirimler kutusu — /api/notifications/mine, type==='message' olanlar hariç (bkz. aşağıdaki
+    // loadMessages — mesajlar artık kendi ucundan, KONUŞMA başına gruplanmış olarak gelir).
     async function loadNotifications() {
       const res = await fetch('/api/notifications/mine');
       const data = res.ok ? await res.json() : { items: [] };
-      const items = data.items || [];
-      notifItems = items.filter(n => n.type !== 'message');
-      msgItems = items.filter(n => n.type === 'message');
+      notifItems = (data.items || []).filter(n => n.type !== 'message');
       renderNotifications();
+    }
+    // Mesajlar kutusu — kullanıcı isteği (2026-08-30): her yanıt yeni bir bildirim satırı ("1 Yeni
+    // Mesaj") ürettiğinden eskiden aynı konuşma birden çok kez listeleniyordu; artık src/routes/
+    // messages.js#listMyThreads KONUŞMA başına TEK satır döner (diğer tarafın adı/fotoğrafı, son
+    // mesaj önizlemesi, okunmadı durumu) — Instagram/Messenger'daki mesaj listesiyle aynı model.
+    async function loadMessages() {
+      const res = await fetch('/api/messages/mine');
+      const data = res.ok ? await res.json() : { items: [] };
+      msgItems = data.items || [];
       renderMessages();
+    }
+    // src/routes/messages.js#listMyThreads ile AYNI kısa birim sırası (y/ay/hf/g/sa/dk) — Hesabım
+    // dashboard'undaki AYNI satırda kompakt görünmesi için ("6hf" gibi, tam tarih değil).
+    function formatRelativeShort(ts) {
+      const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+      const units = [['y', 365 * 24 * 3600], ['ay', 30 * 24 * 3600], ['hf', 7 * 24 * 3600], ['g', 24 * 3600], ['sa', 3600], ['dk', 60]];
+      for (const [label, secs] of units) {
+        const v = Math.floor(diffSec / secs);
+        if (v >= 1) return `${v}${label}`;
+      }
+      return 'az önce';
     }
     // bkz. kullanıcı isteği: Başlığın yanındaki "Tümü okundu"/"Bildirimleri sil" metinleri kaldırıldı
     // — silme artık her satırın kendi X işaretinden, satır-bazlı yapılır (bkz. aşağıdaki .notif-del).
@@ -1860,7 +1888,48 @@ const AuthModal = (function () {
       renderNotifList(notifItems, notifPage, (p) => { notifPage = p; renderNotifications(); }, 'am-dash-notifications', 'am-notif-pagination', 'Henüz bir bildirimin yok.');
     }
     function renderMessages() {
-      renderNotifList(msgItems, msgPage, (p) => { msgPage = p; renderMessages(); }, 'am-dash-messages', 'am-msg-pagination', 'Henüz bir mesajın yok.');
+      const container = document.getElementById('am-dash-messages');
+      if (!msgItems.length) {
+        container.innerHTML = `<div class="dash-empty">Henüz bir mesajın yok.</div>`;
+        document.getElementById('am-msg-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(msgItems.length / PAGE_SIZE_DASH));
+      if (msgPage > totalPages) msgPage = totalPages;
+      const startIdx = (msgPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = msgItems.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(c => {
+        const last = c.lastMessage;
+        const rawPreview = last ? `${last.isMe ? 'Sen: ' : ''}${last.body}` : '';
+        const preview = rawPreview.length > 90 ? rawPreview.slice(0, 90) + '…' : rawPreview;
+        const timeText = last ? formatRelativeShort(last.createdAt) : '';
+        const photoUrl = c.otherPhotoUrl ? safeUrl(c.otherPhotoUrl) : '';
+        const avatarHtml = photoUrl
+          ? `<img src="${escapeAttr(avatarImg(c.otherPhotoUrl, 96, photoUrl))}" alt="">`
+          : dashInitials(c.otherName);
+        return `
+        <div class="msg-conv-row${c.unread ? ' unread' : ''}" data-id="${escapeAttr(c.id)}">
+          <div class="msg-conv-avatar">${avatarHtml}</div>
+          <div class="msg-conv-body">
+            <div class="msg-conv-name">${escapeHtml(c.otherName)}</div>
+            <div class="msg-conv-preview">${escapeHtml(preview)}${timeText ? ` · ${timeText}` : ''}</div>
+          </div>
+          ${c.unread ? '<span class="msg-conv-dot" aria-hidden="true"></span>' : ''}
+        </div>`;
+      }).join('');
+      container.querySelectorAll('.msg-conv-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const item = msgItems.find(c => c.id === row.dataset.id);
+          if (item && item.unread) {
+            item.unread = false;
+            row.classList.remove('unread');
+            const dot = row.querySelector('.msg-conv-dot');
+            if (dot) dot.remove();
+          }
+          openMessageThread(row.dataset.id);
+        });
+      });
+      renderDashPagination('am-msg-pagination', msgPage, totalPages, (p) => { msgPage = p; renderMessages(); });
     }
 
     // Mesaj konuşması popup'ı — bkz. kullanıcı isteği: "Kullanıcı bu mesaja tıklayıp açılan popupta
@@ -1964,7 +2033,7 @@ const AuthModal = (function () {
 
     loadUser().then(() => {
       if (accountUser) {
-        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications()]
+        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages()]
           .forEach(p => p.catch(() => {}));
         if (new URLSearchParams(window.location.search).get('payment') === 'success') {
           document.getElementById('am-payment-success-banner').style.display = 'block';

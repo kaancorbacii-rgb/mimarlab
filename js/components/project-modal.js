@@ -63,7 +63,7 @@ const ProjectModal = (function () {
     </div>
 
     <div class="related-section" id="pm-same-designer-section" aria-live="polite">
-      <h2 class="related-title">Mimarın/Firmanın Diğer Projeleri<span id="pm-same-designer-count"></span></h2>
+      <h2 class="related-title"><span id="pm-same-designer-title">Mimarın Diğer Projeleri</span><span id="pm-same-designer-count"></span></h2>
       <div class="related-grid-scroll" id="pm-same-designer-grid"></div>
     </div>
 
@@ -654,6 +654,15 @@ const ProjectModal = (function () {
     renderTopRankBadge();
     renderByline(item);
     ProjectMeta.render(item);
+    // "Mimarın/Firmanın Diğer Projeleri" başlığı duruma göre değişir (bkz. kullanıcı isteği): projede
+    // bir mimarlık firması varsa (item.designerDetails'te type==='office' — ProjectMeta.render'ın
+    // AYNI kaynağı, bkz. js/components/project-meta.js#renderDesigners) "Firmanın Diğer Projeleri",
+    // yoksa "Mimarın Diğer Projeleri".
+    const sameDesignerTitleEl = document.getElementById('pm-same-designer-title');
+    if (sameDesignerTitleEl) {
+      const hasOffice = (item.designerDetails || []).some(d => d.type === 'office');
+      sameDesignerTitleEl.textContent = hasOffice ? 'Firmanın Diğer Projeleri' : 'Mimarın Diğer Projeleri';
+    }
     ProjectGallery.render(item);
     ProjectActions.render(item);
     if (typeof mountRateButton === 'function') {

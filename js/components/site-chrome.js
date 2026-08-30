@@ -156,6 +156,12 @@
            (bkz. proje.html vb. sayfalardaki @media (max-width:960px) .nav-right{margin-left:auto}
            kuralı, artık gizli bir elemanın margin'i akışa hiç katkı yapmıyor). */
         .nav-hamburger{margin-left:auto;}
+        /* kullanıcı isteği (2026-08-30): mobil görünümde ana menüdeki logo biraz küçültülsün —
+           .brand-logo her sayfanın KENDİ <style>'ında height:24px olarak tanımlı (bkz. dosya başı
+           yorumu, ".nav-mobile-cta" İLE AYNI "TEK kaynaktan enjekte et" deseni); bu <style> DOM'a
+           her sayfanın kendi inline <style>'ından SONRA eklendiğinden, eşit özgüllükte kaynak sırası
+           bu kuralı kazandırır. */
+        .brand-logo{height:19px;}
       }
     `;
     document.head.appendChild(style);

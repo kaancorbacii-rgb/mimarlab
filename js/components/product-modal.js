@@ -132,6 +132,14 @@ const ProductModal = (function () {
       .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px; white-space:pre-line;}
       .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer; white-space:normal;}
       .detail-desc-more:hover{color:var(--ink);}
+      /* Teknik Özellikler — açılır/kapanır (bkz. kullanıcı isteği: buton görünümü DEĞİL, mevcut
+         başlık aynen kalıp yanına + eklensin) — native <details>/<summary>, .pr-feedback-card'ın
+         (Dosyalar/Geri Bildirim) AYNI .feedback-card-plus ikonunu paylaşır, ama kutu çerçevesi/
+         arkaplanı OLMADAN — bu yüzden .pr-feedback-card yerine kendi (kutusuz) .specs-details sarmalayıcısı var. */
+      .specs-details{margin:0;}
+      .specs-details > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between;}
+      .specs-details > summary::-webkit-details-marker{display:none;}
+      .specs-details[open] .feedback-card-plus::after{transform:translate(-50%,-50%) rotate(90deg); opacity:0;}
       .specs-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:16px; font-weight:700; margin:28px 0 4px;}
       .specs-table{width:100%; border-collapse:collapse; margin-top:12px; font-size:14px;}
       .specs-table tr{border-bottom:1px solid var(--line-soft);}
@@ -362,8 +370,10 @@ const ProductModal = (function () {
       </div>
       <div class="detail-meta" id="pr-meta"></div>
       <div id="pr-specs-wrap" style="display:none;">
-        <div class="specs-title">Teknik Özellikler</div>
-        <table class="specs-table" id="pr-specs-table"></table>
+        <details class="specs-details" id="pr-specs-details">
+          <summary class="specs-title">Teknik Özellikler<span class="feedback-card-plus" aria-hidden="true"></span></summary>
+          <table class="specs-table" id="pr-specs-table"></table>
+        </details>
       </div>
       <div class="detail-desc" id="pr-desc"></div>
     </div>
@@ -769,16 +779,17 @@ const ProductModal = (function () {
     saveBtn.dataset.href = `/urun/${encodeURIComponent(key)}`;
     const saveSlot = document.getElementById('pr-save-slot');
     saveSlot.innerHTML = '';
-    saveSlot.prepend(saveBtn);
+
+    // Websitesi — artık listenin EN BAŞında (bkz. kullanıcı isteği: "websitesi butonunu en sola al"),
+    // Kaydet/Paylaş'tan ÖNCE.
+    const site = p.website ? safeUrl(p.website) : '';
+    if (site) {
+      saveSlot.insertAdjacentHTML('beforeend', `<a class="save-btn" id="pr-website-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`);
+    }
+    saveSlot.appendChild(saveBtn);
     wireSaveButtons(ratingKindFor(p));
 
-    // Websitesi — Kaydet ile Paylaş'ın ARASINDA (bkz. kullanıcı isteği), diğerleriyle AYNI yükseklikte.
-    const site = p.website ? safeUrl(p.website) : '';
     let afterSaveEl = saveBtn;
-    if (site) {
-      saveBtn.insertAdjacentHTML('afterend', `<a class="save-btn" id="pr-website-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`);
-      afterSaveEl = document.getElementById('pr-website-btn');
-    }
     if (typeof ShareWidget !== 'undefined') {
       afterSaveEl.insertAdjacentHTML('afterend', ShareWidget.html('pr-share-btn'));
       ShareWidget.wire('pr-share-btn', () => ({ title: p.title, url: `${window.location.origin}/urun/${encodeURIComponent(key)}` }));

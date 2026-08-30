@@ -22,6 +22,9 @@ export async function handleMessagesRoute(request, env, url) {
   if (segments.length === 3 && segments[2] === 'threads' && request.method === 'POST') {
     return createThread(request, env, user);
   }
+  if (segments.length === 3 && segments[2] === 'mine' && request.method === 'GET') {
+    return listMyThreads(env, user);
+  }
   if (segments.length === 4 && segments[2] === 'threads' && request.method === 'GET') {
     return getThread(env, user, segments[3]);
   }
@@ -118,6 +121,13 @@ async function getThread(env, user, threadId) {
   if (!thread) return errorJson('Bulunamadı', 404);
   if (!isParticipant) return errorJson('Bu konuşmaya erişimin yok.', 403);
 
+  // Konuşma açıldığında bu thread'e ait tüm okunmamış bildirimler okundu sayılır (bkz. listMyThreads —
+  // Mesajlar artık bildirim-satırı başına değil, konuşma başına TEK bir satır olarak listelendiğinden
+  // okunma durumu da satır bazında değil thread bazında hesaplanır).
+  await env.DB.prepare(
+    `UPDATE notifications SET is_read = 1 WHERE user_id = ? AND type = 'message' AND link = ? AND is_read = 0`
+  ).bind(user.id, `msg:${threadId}`).run();
+
   const { results: messageRows } = await env.DB.prepare(
     `SELECT m.id, m.sender_user_id, m.body, m.created_at, u.name AS sender_display_name
      FROM messages m JOIN users u ON u.id = m.sender_user_id
@@ -179,6 +189,69 @@ async function replyThread(request, env, user, threadId) {
   }
 
   return json({ ok: true }, 201);
+}
+
+// Hesabım > Mesajlar kutusu — kullanıcı isteği (2026-08-30): her bildirim satırı yerine ("1 yeni
+// mesaj" tekrar tekrar), Instagram/Messenger'daki gibi KİŞİ BAŞINA/KONUŞMA BAŞINA tek bir satır
+// (avatar + isim + son mesaj önizlemesi + zaman). Bir thread'in "diğer taraf"ı yöne göre değişir:
+// kullanıcı gönderense (isSender) diğer taraf mesajlaştığı mimar/firma PROFİLİdir (gerçek bir
+// users satırına bağlı değil, avatar yok); kullanıcı alıcıysa diğer taraf thread'i açan gerçek
+// kullanıcıdır (sender_user_id → users.photo_url ile avatar bulunabilir).
+async function listMyThreads(env, user) {
+  const { results: threads } = await env.DB.prepare(
+    `SELECT t.id, t.profile_type, t.profile_key, t.sender_user_id, t.sender_name, t.status, t.updated_at
+     FROM message_threads t
+     WHERE t.sender_user_id = ?
+     UNION
+     SELECT t.id, t.profile_type, t.profile_key, t.sender_user_id, t.sender_name, t.status, t.updated_at
+     FROM message_threads t
+     JOIN message_thread_recipients r ON r.thread_id = t.id
+     WHERE r.user_id = ?`
+  ).bind(user.id, user.id).all();
+
+  if (!threads.length) return json({ items: [] });
+
+  const ids = threads.map(t => t.id);
+  const idPlaceholders = ids.map(() => '?').join(',');
+  const { results: lastMsgs } = await env.DB.prepare(
+    `SELECT m.thread_id, m.body, m.sender_user_id, m.created_at
+     FROM messages m
+     JOIN (SELECT thread_id, MAX(created_at) AS max_created_at FROM messages WHERE thread_id IN (${idPlaceholders}) GROUP BY thread_id) latest
+       ON latest.thread_id = m.thread_id AND latest.max_created_at = m.created_at`
+  ).bind(...ids).all();
+  const lastMsgByThread = new Map(lastMsgs.map(m => [m.thread_id, m]));
+
+  const senderIds = [...new Set(threads.filter(t => t.sender_user_id !== user.id).map(t => t.sender_user_id))];
+  const photoByUserId = new Map();
+  if (senderIds.length) {
+    const userPlaceholders = senderIds.map(() => '?').join(',');
+    const { results: senderUsers } = await env.DB.prepare(
+      `SELECT id, photo_url FROM users WHERE id IN (${userPlaceholders})`
+    ).bind(...senderIds).all();
+    senderUsers.forEach(u => photoByUserId.set(u.id, u.photo_url));
+  }
+
+  const { results: unreadRows } = await env.DB.prepare(
+    `SELECT link FROM notifications WHERE user_id = ? AND type = 'message' AND is_read = 0`
+  ).bind(user.id).all();
+  const unreadThreadIds = new Set(unreadRows.map(r => (r.link || '').startsWith('msg:') ? r.link.slice(4) : null).filter(Boolean));
+
+  const items = threads.map(t => {
+    const isSender = t.sender_user_id === user.id;
+    const last = lastMsgByThread.get(t.id);
+    return {
+      id: t.id,
+      status: t.status,
+      isSender,
+      otherName: isSender ? t.profile_key : t.sender_name,
+      otherPhotoUrl: isSender ? null : (photoByUserId.get(t.sender_user_id) || null),
+      lastMessage: last ? { body: last.body, isMe: last.sender_user_id === user.id, createdAt: last.created_at } : null,
+      unread: unreadThreadIds.has(t.id),
+      updatedAt: t.updated_at,
+    };
+  }).sort((a, b) => b.updatedAt - a.updatedAt);
+
+  return json({ items });
 }
 
 async function closeThread(env, user, threadId) {
