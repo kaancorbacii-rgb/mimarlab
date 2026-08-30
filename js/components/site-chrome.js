@@ -46,7 +46,15 @@
     const style = document.createElement('style');
     style.id = 'nav-header-extra-style';
     style.textContent = `
-      .nav-search{padding-right:6px;}
+      /* kullanıcı isteği (2026-08-30): arama çubuğu masaüstünde Giriş Yap butonuyla (.nav-rate,
+         36px), tablet/mobilde hamburger düğmesiyle (.nav-hamburger, 38px) AYNI yükseklikte olsun —
+         .nav-search'ün yüksekliğini asıl belirleyen, içindeki 26px'lik .nav-search-visual-btn (bkz.
+         aşağısı); dikey padding buna göre daraltılır (9px → 4px/5px), yatay padding/border-radius
+         her sayfanın KENDİ <style>'ındaki değerlerle DEĞİŞMEDEN kalır. */
+      .nav-search{padding-right:6px; padding-top:4px; padding-bottom:4px;}
+      @media (max-width:960px){
+        .nav-search{padding-top:5px; padding-bottom:5px;}
+      }
       .nav-search-visual-btn{
         flex-shrink:0; display:flex; align-items:center; justify-content:center;
         width:26px; height:26px; border-radius:8px; border:none;
