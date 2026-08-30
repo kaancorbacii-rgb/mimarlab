@@ -1,7 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
-import { getActiveBadge } from '../lib/badgeAccess.js';
+import { getActiveBadge, getPersonalAdminBadgesForUsers, higherRankBadge } from '../lib/badgeAccess.js';
 import { createNotification } from '../lib/notify.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
@@ -67,8 +67,13 @@ async function listComments(env, url) {
      ORDER BY c.created_at ASC`
   ).bind(Date.now(), targetType, targetId).all();
 
+  // bkz. badgeAccess.js#getPersonalAdminBadgesForUsers yorumu — yukarıdaki sorgu yalnızca satın
+  // alınan (badge_requests) rozeti taşır, admin'in verdiği rozetleri (ör. bir firmanın Kurucusu
+  // olarak sahiplenilen admin rozeti) kapsamaz; burada ikisinin arasından yüksek kademeli olan seçilir.
+  const adminBadgeByUser = await getPersonalAdminBadgesForUsers(env, results.map(r => r.user_id));
   const items = results.map(r => {
-    const item = { id: r.id, body: r.body, created_at: r.created_at, user_name: r.user_name, user_id: r.user_id, user_photo: r.user_photo || null, user_badge: r.user_badge };
+    const badge = higherRankBadge(r.user_badge, adminBadgeByUser.get(r.user_id));
+    const item = { id: r.id, body: r.body, created_at: r.created_at, user_name: r.user_name, user_id: r.user_id, user_photo: r.user_photo || null, user_badge: badge };
     if (r.profile_ar_name) item.commenterProfile = { type: 'architect', name: r.profile_ar_name, photo: r.profile_ar_photo || null };
     else if (r.profile_ofc_name) item.commenterProfile = { type: 'office', name: r.profile_ofc_name, photo: r.profile_ofc_logo || null };
     return item;

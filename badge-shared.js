@@ -49,6 +49,22 @@ fetch('/api/public/badges').then(r => r.ok ? r.json() : null).then(d => {
   window.dispatchEvent(new Event('mimarlab-badges-ready'));
 }).catch(()=>{}).finally(()=>{ resolveBadgesReady(); });
 
+// Giriş yapmış kullanıcının KENDİ etkin kişisel rozeti (Doğrulanmış/Altın Üye) — src/routes/
+// badges.js#listMyBadges'teki effectivePersonalBadge alanından gelir (kendi rozeti + Kurucu/Ortak
+// olunan bir firmanın admin rozetini birleştirir, bkz. src/lib/badgeAccess.js#getPersonalAdminBadge).
+// architect-modal.js/office-modal.js#renderMessageIcon bunu kullanır (kullanıcı isteği 2026-08-30:
+// "doğrulanmış veya altın üyeler tüm kullanıcılara mesaj gönderebilsin" — GÖNDEREN bu rozete sahipse
+// Mesaj Gönder butonu, alıcı profilin kendi rozeti olmasa bile gösterilir). `currentUser` global'ine
+// KASITLI OLARAK bakılmaz — bu script save-widget.js'in `let currentUser` deferred script'inden ÖNCE
+// çalışır (bkz. [[save_widget_currentuser_collision]]), bu yüzden giriş durumu doğrudan
+// /api/badges/mine'ın 401/200 yanıtından çözülür.
+let myEffectiveBadge = null;
+let resolveMyBadgeReady;
+const myEffectiveBadgePromise = new Promise(resolve => { resolveMyBadgeReady = resolve; });
+fetch('/api/badges/mine').then(r => r.ok ? r.json() : null).then(d => {
+  myEffectiveBadge = (d && d.effectivePersonalBadge) || null;
+}).catch(()=>{}).finally(()=>{ resolveMyBadgeReady(myEffectiveBadge); });
+
 // İki satın alınabilir rozet kademesi: Doğrulanmış Üye kimlik doğrulamasını temsil eder
 // (Instagram'ın mavi doğrulanmış profil rozeti gibi); Altın Üye daha üst kademe, aylık abonelik
 // olarak ödenen bir üyeliktir ve kendi rengiyle ayrı bir rozet olarak gösterilir (bkz.

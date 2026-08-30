@@ -539,6 +539,16 @@ const ModalShell = (function () {
       bodyEl.className = 'modal-shell-body';
       overlayEl.querySelector('.modal-shell-left').innerHTML = '';
       overlayEl.querySelector('.modal-shell-right').innerHTML = '';
+      // GERÇEK BULGU (kullanıcı isteği 2026-08-30, İçeriklerim > Mimar/Firma Profilim popup
+      // entegrasyonu): sahip değiştiğinde yalnızca sol/sağ panel temizleniyordu — #modal-shell-
+      // header-actions/#modal-shell-admin-actions (Paylaş/Takip Et/Düzenle gibi bir ÖNCEKİ sahibin
+      // yazdığı butonlar) burada TEMİZLENMEDİĞİNDEN yeni sahip bunları hiç doldurmazsa (ör. Hesabım/
+      // İçeriklerim, ArchitectModal/OfficeModal'ın bıraktığı Paylaş/Takip Et butonlarının ÜSTÜNE)
+      // eski sahibin butonları X'in yanında GÖRÜNMEYE devam ediyordu.
+      const headerActions = overlayEl.querySelector('#modal-shell-header-actions');
+      if (headerActions) headerActions.innerHTML = '';
+      const adminActions = overlayEl.querySelector('#modal-shell-admin-actions');
+      if (adminActions) adminActions.innerHTML = '';
     }
     return {
       leftPanelEl: overlayEl.querySelector('.modal-shell-left'),

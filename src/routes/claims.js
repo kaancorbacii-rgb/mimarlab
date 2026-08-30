@@ -77,11 +77,14 @@ async function myClaims(env, user) {
   // temiz bir slug'la kurabilmesi için — yalnızca onaylı taleplerde anlamlı (canonical satır ancak
   // o zaman kesin var), bulunamazsa (ör. henüz senkronlanmamış) sessizce null kalır ve çağıran taraf
   // profile_key'e düşer.
+  // image: İçeriklerim > "Mimar/Firma Profilim" kutusunda profil görseli göstermek için (bkz.
+  // kullanıcı isteği) — slug ile AYNI şekilde yalnızca onaylı taleplerde anlamlı.
   const items = await Promise.all(results.map(async r => {
     if (r.status !== 'approved' || (r.profile_type !== 'architect' && r.profile_type !== 'office')) return r;
     const table = r.profile_type === 'architect' ? 'architects' : 'offices';
-    const row = await env.DB.prepare(`SELECT slug FROM ${table} WHERE name = ? AND deleted_at IS NULL`).bind(r.profile_key).first();
-    return { ...r, slug: row ? row.slug : null };
+    const imageCol = r.profile_type === 'architect' ? 'photo_url' : 'logo_url';
+    const row = await env.DB.prepare(`SELECT slug, ${imageCol} AS image FROM ${table} WHERE name = ? AND deleted_at IS NULL`).bind(r.profile_key).first();
+    return { ...r, slug: row ? row.slug : null, image: row ? row.image : null };
   }));
   return json({ items });
 }

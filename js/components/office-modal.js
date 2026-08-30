@@ -684,7 +684,10 @@ const OfficeModal = (function () {
       if (!slot || typeof MessageWidget === 'undefined') return;
       const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges.office && dynamicBadges.office[o.name]) || [];
       const badges = dynamic.length ? dynamic : (o.badges || []);
-      if (!badges.length) { slot.innerHTML = ''; return; }
+      // kullanıcı isteği (2026-08-30): architect-modal.js#renderMessageIcon İLE AYNI gerekçe — GÖNDEREN
+      // doğrulanmış/altın üyeyse buton, firmanın kendi rozeti olmasa bile gösterilir.
+      const senderQualifies = typeof myEffectiveBadge !== 'undefined' && !!myEffectiveBadge;
+      if (!badges.length && !senderQualifies) { slot.innerHTML = ''; return; }
       if (slot.querySelector('.msg-btn')) return;
       slot.innerHTML = MessageWidget.html('om-message-btn');
       MessageWidget.wire('om-message-btn', () => ({
@@ -707,6 +710,7 @@ const OfficeModal = (function () {
     // gerçek bulgu (denetim, 2026-08-16): js/components/architect-modal.js#renderVerifiedBadges ile
     // AYNI listener-birikimi sorunu — badgesReadyPromise'e geçiş, kalıcı window listener'ı kaldırır.
     if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
+    if (typeof myEffectiveBadgePromise !== 'undefined') myEffectiveBadgePromise.then(renderMessageIcon);
 
     // currentItem === o koruması: js/components/architect-modal.js#renderItem'daki AYNI gerekçe —
     // kullanıcı bu geciken callback ateşlenmeden önce bir sonraki firmaya geçerse, eski firmanın

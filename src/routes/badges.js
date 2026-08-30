@@ -1,7 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
-import { BADGE_RANK } from '../lib/badgeAccess.js';
+import { BADGE_RANK, getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge } from '../lib/badgeAccess.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 
@@ -157,7 +157,12 @@ async function listMyBadges(env, user) {
     'SELECT id, badge_type, target_type, target_key, status, price_try, expires_at, created_at FROM badge_requests WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
   const adminBadges = await getAdminBadgesForUser(env, user.id);
-  return json({ items: results, adminBadges });
+  // effectivePersonalBadge: bu kullanıcının, KENDİSİ olarak (bir yorumda/gönderi bylinesinde ya da
+  // "Mesaj Gönder" yetkisinde — bkz. badge-shared.js#myEffectiveBadge) taşıdığı en yüksek kademeli
+  // rozet. src/routes/comments.js/ownerByline.js'teki AYNI birleştirme kuralı: kendi satın aldığı
+  // (self) rozet + Kurucu/Ortak vb. olduğu bir firmanın admin rozeti arasından en yükseği.
+  const effectivePersonalBadge = higherRankBadge(await getActiveSelfBadge(env, user.id), await getPersonalAdminBadge(env, user.id));
+  return json({ items: results, adminBadges, effectivePersonalBadge });
 }
 
 // Reddedilen bir talebi kalıcı olarak siler (kullanıcı isteği: "Rozet Ayrıcalıklarından

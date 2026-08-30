@@ -148,6 +148,8 @@ const AuthModal = (function () {
     #am-panel .profile-fact:last-child{border-bottom:none;}
     #am-panel .profile-fact-label{color:var(--ink-soft); flex:0 0 110px;}
     #am-panel .profile-fact-value{font-weight:600;}
+    #am-panel .profile-fact-avatar{width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0; display:block;}
+    #am-panel .profile-fact-avatar-fallback{display:flex; align-items:center; justify-content:center; background:var(--walnut); color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:11px;}
     #am-panel .saved-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft);}
     #am-panel .saved-row:last-child{border-bottom:none;}
     #am-panel .saved-row-link{display:flex; align-items:center; gap:12px; flex:1; min-width:0;}
@@ -221,6 +223,8 @@ const AuthModal = (function () {
     .am-thread-send-btn{border:none; border-radius:100px; background:var(--walnut); color:#fff; font-size:13.5px; font-weight:700; padding:10px 20px; cursor:pointer; font-family:inherit;}
     .am-thread-send-btn:disabled{opacity:0.6; cursor:default;}
     .am-thread-closed-note{font-size:12.5px; color:var(--ink-soft); text-align:center; margin:6px 0 0;}
+    .am-thread-reopen-btn{display:block; margin:10px auto 0; border:none; border-radius:100px; background:var(--walnut); color:#fff; font-size:13px; font-weight:700; padding:9px 18px; cursor:pointer; font-family:inherit;}
+    .am-thread-reopen-btn:disabled{opacity:0.6; cursor:default;}
     .am-thread-error{font-size:12.5px; color:#B3261E; margin-top:8px; text-align:center;}
     #am-panel .dash-field{margin-bottom:12px;}
     #am-panel .dash-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
@@ -819,6 +823,10 @@ const AuthModal = (function () {
             <h1>Aktivitelerim</h1>
             <p>Kaydettiklerin, beğendiklerin, yorumların ve paylaştığın içerikler.</p>
           </div>
+          <div class="dash-head-actions">
+            <button type="button" class="dash-edit-btn" id="am-activities-account-btn">Hesabım</button>
+            <button type="button" class="dash-edit-btn" id="am-activities-contents-btn">İçeriklerim</button>
+          </div>
         </div>
       </div>
 
@@ -883,6 +891,10 @@ const AuthModal = (function () {
           <div>
             <h1>İçeriklerim</h1>
             <p>Platforma gönderdiğin proje, ürün, mimar ve firma içerikleri.</p>
+          </div>
+          <div class="dash-head-actions">
+            <button type="button" class="dash-edit-btn" id="am-contents-account-btn">Hesabım</button>
+            <button type="button" class="dash-edit-btn" id="am-contents-activities-btn">Aktivitelerim</button>
           </div>
         </div>
       </div>
@@ -1014,6 +1026,45 @@ const AuthModal = (function () {
   }
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
+
+  // İçeriklerim > "Mimar/Firma Profilim" kutusundaki bir satıra tıklanınca mimar.html/firma.html'in
+  // kullandığı GERÇEK profil popup'ını (ArchitectModal/OfficeModal) açar (bkz. kullanıcı isteği:
+  // "profil görseline veya isme tıklayınca o popup açılsın"). Bu iki script + bağımlılıkları
+  // (badge-shared.js, save-widget.js, claim-correction-box.js, share-button.js, message-button.js,
+  // social-links.js) index.html'de HİÇ yüklenmez (bkz. js/components/lazy-modals.js dosya başı
+  // yorumu — AYNI "yalnızca gerçekten gerekince yükle" gerekçesi, burada da devam ettirilir); ilk
+  // tıklamada dinamik <script> enjeksiyonuyla bir kez indirilip önbelleğe alınır (promise module
+  // düzeyinde saklanır, aksi halde ikinci tıklamada `const ArchitectModal = ...` YENİDEN çalışıp
+  // "already declared" SyntaxError'ıyla sayfayı kırardı).
+  // GERÇEK BULGU: köksüz (başında / OLMAYAN) src'ler İçeriklerim'in KENDİSİ /iceriklerim gibi tek
+  // parçalı bir yoldayken çalışıyordu ama Modal.open() history.pushState ile URL'i /mimar/<slug>'a
+  // (iki parçalı) değiştirir değiştirmez, HENÜZ tamamlanmamış <script> etiketleri o YENİ taban'a göre
+  // yeniden çözülüp (ör. save-widget.js -> /mimar/save-widget.js) 404 oluyordu — kökten kaçınmak için
+  // hepsi / ile başlar, geçerli URL'den TAMAMEN bağımsız.
+  const PROFILE_MODAL_SCRIPTS = [
+    '/save-widget.js', '/badge-shared.js', '/js/components/claim-correction-box.js',
+    '/js/components/share-button.js', '/js/components/message-button.js', '/js/components/social-links.js',
+    '/js/components/architect-modal.js', '/js/components/office-modal.js',
+  ];
+  let profileModalsReadyPromise = null;
+  function loadProfileModals() {
+    if (profileModalsReadyPromise) return profileModalsReadyPromise;
+    profileModalsReadyPromise = Promise.all(PROFILE_MODAL_SCRIPTS.map(src => new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => resolve();
+      script.onerror = () => { script.remove(); reject(new Error('profil popup betiği yüklenemedi: ' + src)); };
+      document.head.appendChild(script);
+    }))).catch(err => { profileModalsReadyPromise = null; throw err; });
+    return profileModalsReadyPromise;
+  }
+  function openProfilePopup(profileType, slug, triggerEl) {
+    loadProfileModals().then(() => {
+      const Modal = profileType === 'office' ? OfficeModal : ArchitectModal;
+      Modal.open(slug, { triggerEl });
+    }).catch(() => { window.location.href = `/${profileType === 'office' ? 'firma' : 'mimar'}/${encodeURIComponent(slug)}`; });
+  }
   // Kutular masaüstünde 2 sütunlu (bkz. .dash-row) olduğundan asıl genişlik window.innerWidth değil
   // KUTUNUN kendisi — bu yüzden sabit bir eşik yerine gerçek konteyner genişliğine göre, taşıyorsa
   // pencere daraltılarak tek satıra sığdırılır (bkz. renderDashPagination).
@@ -1722,23 +1773,17 @@ const AuthModal = (function () {
       // artık geçerli olmayan bir talebi/bağlantıyı kalıcı şekilde görmesinin bir faydası yok, yalnızca kafa
       // karıştırıyor. Talep tekrar gönderilirse (bkz. src/routes/claims.js#createClaim'in rejected→pending reset'i)
       // zaten yeniden 'pending' olarak burada görünür.
-      const visibleItems = amClaimItems.filter(c => c.status !== 'rejected');
+      // kullanıcı isteği (2026-08-30): Profil Bilgileri kutusu artık salt bilgi amaçlı — Mimar satırı
+      // tamamen kaldırıldı, Firma satırı da Düzenle linki OLMADAN gösterilir (profil düzenleme artık
+      // yalnızca İçeriklerim > Mimar/Firma Profilim'den yapılır, bkz. renderContentsClaims).
+      const visibleItems = amClaimItems.filter(c => c.status !== 'rejected' && c.profile_type !== 'architect');
       // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
       // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
       // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
       // kullanıcı isteği: "üyelik ve firma başlıkları arasında ... diğer satırlarla aynı şekilde line").
       if (!visibleItems.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
       list.style.borderTop = '1px solid var(--line-soft)';
-      // Firma satırı Mimar satırının ÜSTÜNDE gösterilir (bkz. kullanıcı isteği) — Array.sort
-      // kararlı (stable) olduğundan aynı tip içindeki göreli sıra (API'nin updated_at DESC'i)
-      // korunur, yalnızca office/architect grupları arasında sıra sabitlenir.
-      const sortedItems = visibleItems.slice().sort((a, b) => (a.profile_type === 'office' ? 0 : 1) - (b.profile_type === 'office' ? 0 : 1));
-      list.innerHTML = sortedItems.map(c => {
-        // office için: pozisyon Kurucu/Kurucu Ortak/Ortak/Ekip Lideri DEĞİLSE Düzenle linki hiç
-        // gösterilmez (bkz. yukarıdaki OFFICE_EDIT_POSITIONS yorumu) — mimar profili kendi pozisyonundan
-        // bağımsız düzenlenebildiğinden (bkz. src/routes/submissions.js#verifyClaimedProfileKey) bu
-        // kısıtlama yalnızca office tipinde uygulanır.
-        const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(accountUser && accountUser.position));
+      list.innerHTML = visibleItems.map(c => {
         // gerçek bulgu: bu satır kendi satın alınan rozetinden (amBadgeItems) seçim yapıyordu, ama
         // /api/public/badges (mimar/firma kartlarında, profil modallarında gösterilen TEK doğru
         // kaynak — bkz. src/routes/badges.js#computeBadgesPayload) admin_badges'i satın alınanın
@@ -1755,11 +1800,9 @@ const AuthModal = (function () {
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
             <span>${escapeHtml(c.profile_key)}${rowBadgeType ? accountBadgeIconHtml(rowBadgeType) : ''}</span>
-            ${canEdit
-              ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.slug || c.profile_key)}">Düzenle</a>`
-              : c.status === 'approved'
-                ? ''
-                : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
+            ${c.status === 'approved'
+              ? ''
+              : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
           </span>
         </div>
       `;
@@ -2015,7 +2058,7 @@ const AuthModal = (function () {
           </div>`).join('')}
         </div>
         ${data.status === 'closed'
-          ? '<p class="am-thread-closed-note">Bu görüşme sonlandırıldı.</p>'
+          ? '<p class="am-thread-closed-note">Bu görüşme sonlandırıldı.</p><button type="button" class="am-thread-reopen-btn" id="am-thread-reopen-btn">Görüşmeyi Yeniden Başlat</button>'
           : `<form class="am-thread-reply-form" id="am-thread-reply-form">
               <textarea id="am-thread-reply-text" placeholder="Cevabını yaz..." required maxlength="4000"></textarea>
               <div class="am-thread-reply-actions">
@@ -2060,6 +2103,21 @@ const AuthModal = (function () {
           } catch {}
         });
       }
+      const reopenBtn = bodyEl.querySelector('#am-thread-reopen-btn');
+      if (reopenBtn) {
+        reopenBtn.addEventListener('click', async () => {
+          reopenBtn.disabled = true;
+          try {
+            const res = await fetch(`/api/messages/threads/${encodeURIComponent(data.id)}/reopen`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+            const res2 = await fetch(`/api/messages/threads/${encodeURIComponent(data.id)}`);
+            const data2 = await res2.json();
+            renderThreadBody(overlay, data2);
+          } catch {
+            reopenBtn.disabled = false;
+          }
+        });
+      }
     }
 
     loadUser().then(() => {
@@ -2088,6 +2146,8 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
+    on('am-activities-account-btn', 'click', () => swap('account'));
+    on('am-activities-contents-btn', 'click', () => swap('contents'));
 
     let savedItems = [];
     let savedFilter = '';
@@ -2354,6 +2414,8 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
+    on('am-contents-account-btn', 'click', () => swap('account'));
+    on('am-contents-activities-btn', 'click', () => swap('activities'));
 
     let allSubmissions = [];
     let submissionsFilter = '';
@@ -2426,14 +2488,22 @@ const AuthModal = (function () {
       list.innerHTML = sortedItems.map(c => {
         const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(contentsUser && contentsUser.position));
         const profileUrl = c.status === 'approved' ? `/${c.profile_type === 'office' ? 'firma' : 'mimar'}/${encodeURIComponent(c.slug || c.profile_key)}` : null;
-        const nameHtml = profileUrl
-          ? `<a href="${escapeAttr(profileUrl)}" style="color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(c.profile_key)}</a>`
-          : escapeHtml(c.profile_key);
+        // kullanıcı isteği (2026-08-30): profil görseli de gösterilsin, görsele/isme tıklayınca
+        // gerçek profil popup'ı (ArchitectModal/OfficeModal, bkz. openProfilePopup) açılsın — normal
+        // bir <a href> olarak kalır (yeni sekmede aç/orta tık gibi tarayıcı davranışları bozulmaz),
+        // yalnızca düz sol tık aşağıdaki delegasyonla yakalanıp popup'a yönlendirilir.
+        const avatarHtml = c.image
+          ? `<img class="profile-fact-avatar" src="${escapeAttr(avatarImg(c.image, 80, c.image))}" alt="" loading="lazy" decoding="async">`
+          : `<span class="profile-fact-avatar profile-fact-avatar-fallback">${escapeHtml(dashInitials(c.profile_key))}</span>`;
+        const linkAttrs = `href="${escapeAttr(profileUrl || '#')}" class="profile-fact-open-link" data-profile-type="${escapeAttr(c.profile_type)}" data-slug="${escapeAttr(c.slug || c.profile_key)}"`;
+        const identityHtml = profileUrl
+          ? `<a ${linkAttrs}>${avatarHtml}</a><a ${linkAttrs} style="color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(c.profile_key)}</a>`
+          : `${avatarHtml}<span>${escapeHtml(c.profile_key)}</span>`;
         return `
         <div class="profile-fact">
           <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
           <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
-            <span>${nameHtml}</span>
+            <span style="display:flex; align-items:center; gap:10px; min-width:0;">${identityHtml}</span>
             ${canEdit
               ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.slug || c.profile_key)}">Düzenle</a>`
               : c.status === 'approved'
@@ -2444,6 +2514,12 @@ const AuthModal = (function () {
       `;
       }).join('');
     }
+    on('am-contents-claims-list', 'click', (e) => {
+      const link = e.target.closest('.profile-fact-open-link');
+      if (!link || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      openProfilePopup(link.dataset.profileType, link.dataset.slug, link);
+    });
     async function loadContentsClaims() {
       try {
         const res = await fetch('/api/claims/mine');
@@ -2533,7 +2609,22 @@ const AuthModal = (function () {
     }
   }
 
-  function isOpen() { return currentView !== null; }
+  // GERÇEK BULGU (kullanıcı isteği 2026-08-30, İçeriklerim > Mimar/Firma Profilim popup entegrasyonu):
+  // ArchitectModal/OfficeModal AYNI paylaşılan ModalShell singleton'ını (bkz. modal-shell.js#
+  // claimContent) İçeriklerim/Hesabım İÇİNDEN açılıp kapatıldığında kendi close()'u ModalShell'i
+  // (masaüstünde) ya da hamburger çekmecesini (mobilde, bkz. overlay-manager.js#AUTO_SELECTOR —
+  // ModalShell açılışı .nav-mobile-menu'yü closeDrawer() ÇAĞIRMADAN, doğrudan .open sınıfını
+  // kaldırarak kapatır) TAMAMEN kapatır — ama AuthModal'in kendi currentView'i hiç değişmediğinden
+  // (o modallar AuthModal'in state'ine dokunmaz) isOpen() eskiden yalnızca currentView'e bakıp hâlâ
+  // "açık" derdi, bu da nav linkine/geri tuşuna tıklandığında popup'ın GÖRÜNMEZ overlay'e sessizce
+  // render edilmesine (ya da hiç yeniden açılmamasına) yol açardı. Artık paylaşılan konteynerin
+  // GERÇEKTEN görünür olup olmadığı da kontrol edilir — NavDrawer.isSubpageActive() BİLEREK
+  // kullanılmaz, o da AYNI şekilde stale kalabilir (closeDrawer() çağrılmadan .open kaldırılınca
+  // subpageActive true'da takılı kalır); isDrawerOpen() ise doğrudan DOM sınıfını okur.
+  function isOpen() {
+    if (currentView === null) return false;
+    return isMobileDrawer() ? !!(window.NavDrawer && window.NavDrawer.isDrawerOpen()) : ModalShell.isOpen();
+  }
 
   function open(view, { pushHistory = true, triggerEl = null } = {}) {
     currentView = view;

@@ -1,3 +1,5 @@
+import { getPersonalAdminBadge, higherRankBadge } from './badgeAccess.js';
+
 // "X tarafından" byline verisi — proje/ürün detay uçlarının (src/routes/project.js,
 // src/routes/product.js) paylaştığı ortak sorgu. src/routes/public.js#listPublicNews'teki AYNI
 // users+badge_requests join deseni (haber-detay.html'de canlı çalışan tek örnek). projects/products
@@ -17,10 +19,14 @@ export async function fetchOwnerByline(env, userId) {
      WHERE u.id = ?`
   ).bind(Date.now(), userId).first();
   if (!row || !row.owner_name) return null;
+  // bkz. badgeAccess.js#getPersonalAdminBadge yorumu — yukarıdaki sorgu yalnızca satın alınan
+  // (badge_requests) rozeti taşır, admin'in verdiği rozetleri (ör. Kurucusu olunan bir firmanın
+  // admin rozeti) kapsamaz; ikisinin arasından yüksek kademeli olan seçilir.
+  const adminBadge = await getPersonalAdminBadge(env, userId);
   return {
     ownerName: row.owner_name,
     ownerPhoto: row.owner_photo || null,
-    ownerBadge: row.owner_badge || null,
+    ownerBadge: higherRankBadge(row.owner_badge, adminBadge),
     ownerArchitectSlug: row.owner_architect_slug || null,
   };
 }

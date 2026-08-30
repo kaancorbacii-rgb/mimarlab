@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { createNotification } from '../lib/notify.js';
+import { getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge, BADGE_RANK } from '../lib/badgeAccess.js';
 
 // Kullanıcı isteği: doğrulanmış mimar/firma profillerine kullanıcıların mesaj gönderebilmesi —
 // mimar için tek alıcı (o profili claim eden onaylı kullanıcı), firma için BİRDEN FAZLA alıcı
@@ -34,6 +35,9 @@ export async function handleMessagesRoute(request, env, url) {
   if (segments.length === 5 && segments[2] === 'threads' && segments[4] === 'close' && request.method === 'POST') {
     return closeThread(env, user, segments[3]);
   }
+  if (segments.length === 5 && segments[2] === 'threads' && segments[4] === 'reopen' && request.method === 'POST') {
+    return reopenThread(env, user, segments[3]);
+  }
   return errorJson('Bulunamadı', 404);
 }
 
@@ -50,7 +54,18 @@ async function resolveRecipients(env, profileType, profileKey, excludeUserId) {
   const { results } = await env.DB.prepare(
     `SELECT DISTINCT user_id, office_position FROM profile_claims WHERE profile_type = 'office' AND profile_key = ? AND status = 'approved'`
   ).bind(profileKey).all();
-  return results.filter(r => OFFICE_MESSAGE_POSITIONS.has(r.office_position)).map(r => r.user_id).filter(id => id !== excludeUserId);
+  const recipients = [];
+  for (const r of results) {
+    if (r.user_id === excludeUserId) continue;
+    if (OFFICE_MESSAGE_POSITIONS.has(r.office_position)) { recipients.push(r.user_id); continue; }
+    // kullanıcı isteği (2026-08-30): doğrulanmış/altın üyeler firma pozisyon kısıtlaması olmadan da
+    // mesaj alabilsin — Kurucu/Ortak vb. olmayan (ör. Ekip Üyesi) bir claim sahibi, KENDİ kişisel
+    // rozeti (satın aldığı ya da Kurucusu olduğu başka bir firmadan devraldığı admin rozeti, bkz.
+    // badgeAccess.js#getPersonalAdminBadge) doğrulanmış/altın kademedeyse yine alıcı listesine girer.
+    const personalBadge = higherRankBadge(await getActiveSelfBadge(env, r.user_id), await getPersonalAdminBadge(env, r.user_id));
+    if ((BADGE_RANK[personalBadge] || 0) > 0) recipients.push(r.user_id);
+  }
+  return recipients;
 }
 
 // Aynı gönderenin, YENİ mesajın alıcılarından en az biriyle ORTAK bir açık (status='open') konuşması
@@ -315,5 +330,19 @@ async function closeThread(env, user, threadId) {
   if (!thread) return errorJson('Bulunamadı', 404);
   if (!isParticipant) return errorJson('Bu konuşmaya erişimin yok.', 403);
   await env.DB.prepare(`UPDATE message_threads SET status = 'closed', updated_at = ? WHERE id = ?`).bind(Date.now(), threadId).run();
+  return json({ ok: true });
+}
+
+// kullanıcı isteği (2026-08-30): Hesabım > Mesajlar'da sonlandırılmış bir görüşme tekrar
+// başlatılabilsin — thread'i 'open'a döndürür, ikisi de eski mesaj geçmişini görmeye devam eder
+// (yeni bir thread AÇILMAZ, mevcut olan yeniden kullanılır — bkz. createThread'teki
+// findReusableOpenThread, bu thread artık tekrar 'open' olduğundan bir sonraki mesaj otomatik
+// olarak buna eklenir).
+async function reopenThread(env, user, threadId) {
+  const { thread, isParticipant } = await assertParticipant(env, threadId, user.id);
+  if (!thread) return errorJson('Bulunamadı', 404);
+  if (!isParticipant) return errorJson('Bu konuşmaya erişimin yok.', 403);
+  if (thread.status !== 'closed') return errorJson('Bu görüşme zaten açık.', 400);
+  await env.DB.prepare(`UPDATE message_threads SET status = 'open', updated_at = ? WHERE id = ?`).bind(Date.now(), threadId).run();
   return json({ ok: true });
 }

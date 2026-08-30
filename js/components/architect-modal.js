@@ -689,7 +689,11 @@ const ArchitectModal = (function () {
       if (!slot || typeof MessageWidget === 'undefined') return;
       const dynamic = (typeof dynamicBadges !== 'undefined' && dynamicBadges.architect && dynamicBadges.architect[a.name]) || [];
       const badges = dynamic.length ? dynamic : (a.badges || []);
-      if (!badges.length) { slot.innerHTML = ''; return; }
+      // kullanıcı isteği (2026-08-30): doğrulanmış/altın üyeler TÜM profillere mesaj gönderebilsin —
+      // alıcı profilin rozeti olmasa bile, GÖNDEREN (giriş yapmış kullanıcı) doğrulanmış/altın üyeyse
+      // buton yine gösterilir (bkz. badge-shared.js#myEffectiveBadge).
+      const senderQualifies = typeof myEffectiveBadge !== 'undefined' && !!myEffectiveBadge;
+      if (!badges.length && !senderQualifies) { slot.innerHTML = ''; return; }
       if (slot.querySelector('.msg-btn')) return;
       slot.innerHTML = MessageWidget.html('am-message-btn');
       MessageWidget.wire('am-message-btn', () => ({
@@ -719,6 +723,7 @@ const ArchitectModal = (function () {
     // bir promise — .then() ÇOKTAN resolve olmuşsa bile kalıcı bir kayıt bırakmadan mikro-görev
     // kuyruğunda bir kez çalışıp kendini temizler.
     if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
+    if (typeof myEffectiveBadgePromise !== 'undefined') myEffectiveBadgePromise.then(renderMessageIcon);
 
     // currentItem === a koruması: kullanıcı bu geciken callback ateşlenmeden ÖNCE bir sonraki mimara
     // geçerse (prev/next), eski profilin verisiyle yeni profilin am-related-products-* DOM'unu ezmesin.
