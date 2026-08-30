@@ -1521,22 +1521,18 @@ const AuthModal = (function () {
       renderAmNameBadge();
       renderClaimsList();
       const listEl = document.getElementById('am-my-badges-list');
-      if (!items.length) {
-        listEl.style.display = 'none';
-      } else {
-        listEl.style.display = '';
-        listEl.innerHTML = items.map(b => {
-          const tier = BADGE_TIERS.find(t => t.type === b.badge_type);
-          const targetLabel = b.target_type === 'office' ? `Firma: ${escapeHtml(b.target_key || '')}` : 'Kendim için';
-          const until = b.status === 'active' && b.expires_at
-            ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${new Date(b.expires_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })} tarihine kadar aktif</div>`
-            : '';
-          // Yalnızca REDDEDİLDİ satırların yanına silme X'i eklenir (bkz. kullanıcı isteği) —
-          // sunucu (deleteRejectedBadgeRequest) da yalnızca status='rejected' kayıtları siler.
-          const deleteBtn = b.status === 'rejected'
-            ? `<button type="button" class="my-badge-delete-btn" data-id="${escapeAttr(b.id)}" title="Talebi sil" style="background:none; border:none; color:var(--ink-soft); font-size:16px; line-height:1; cursor:pointer; padding:4px;">×</button>`
-            : '';
-          return `
+      const rows = items.map(b => {
+        const tier = BADGE_TIERS.find(t => t.type === b.badge_type);
+        const targetLabel = b.target_type === 'office' ? `Firma: ${escapeHtml(b.target_key || '')}` : 'Kendim için';
+        const until = b.status === 'active' && b.expires_at
+          ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${new Date(b.expires_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })} tarihine kadar aktif</div>`
+          : '';
+        // Yalnızca REDDEDİLDİ satırların yanına silme X'i eklenir (bkz. kullanıcı isteği) —
+        // sunucu (deleteRejectedBadgeRequest) da yalnızca status='rejected' kayıtları siler.
+        const deleteBtn = b.status === 'rejected'
+          ? `<button type="button" class="my-badge-delete-btn" data-id="${escapeAttr(b.id)}" title="Talebi sil" style="background:none; border:none; color:var(--ink-soft); font-size:16px; line-height:1; cursor:pointer; padding:4px;">×</button>`
+          : '';
+        return `
             <div class="my-badge-row">
               <div><strong>${escapeHtml(tier ? tier.label : b.badge_type)}</strong> — ${targetLabel}${until}</div>
               <div style="display:flex; align-items:center; gap:6px;">
@@ -1544,7 +1540,29 @@ const AuthModal = (function () {
                 ${deleteBtn}
               </div>
             </div>`;
-        }).join('');
+      });
+      // gerçek bulgu (2026-08-30): admin_badges üzerinden doğrudan verilen bir "kendim için" rozet
+      // (bkz. src/routes/badges.js#getAdminBadgesForUser — kullanıcının onaylı mimar profiline admin
+      // tarafından atanmış) hiçbir zaman badge_requests'e (items) düşmez, bu yüzden kutu satın alınmış
+      // bir rozet YOKSA tamamen boş görünüyordu — am-badge-grid'deki "Zaten Sahipsin" durumu dışında
+      // kullanıcı sahip olduğu rozeti hiçbir yerde Hesabım'da görmüyordu. Aynı badge_type zaten aktif
+      // bir satın alma satırında varsa (nadir ama olası) tekrar eklenmez.
+      const hasActiveSelfOfType = (type) => items.some(b => b.target_type === 'self' && b.status === 'active' && b.badge_type === type);
+      if (adminBadges.self && !hasActiveSelfOfType(adminBadges.self)) {
+        const tier = BADGE_TIERS.find(t => t.type === adminBadges.self);
+        rows.unshift(`
+            <div class="my-badge-row">
+              <div><strong>${escapeHtml(tier ? tier.label : adminBadges.self)}</strong> — Kendim için</div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS.active}; background:${BADGE_STATUS_COLORS.active}22;">Aktif (Yönetici tanımlı)</span>
+              </div>
+            </div>`);
+      }
+      if (!rows.length) {
+        listEl.style.display = 'none';
+      } else {
+        listEl.style.display = '';
+        listEl.innerHTML = rows.join('');
         listEl.querySelectorAll('.my-badge-delete-btn').forEach(btn => {
           btn.addEventListener('click', async () => {
             if (!confirm('Bu reddedilen talebi silmek istediğine emin misin?')) return;

@@ -468,21 +468,24 @@
   // öneriler AYNI /api/public/search-suggest ucundan (eski panelin kullandığı UÇLA BİREBİR AYNI)
   // canlı sonuçlarla değişiyor. Görsel arama bölümü YALNIZCA görsel — hiçbir dosya seçici/URL
   // gönderimi bağlı değil (kullanıcı isteği: "ürün arama kısmı şimdilik aktif olmasın").
-  // kullanıcı isteği (2026-08-30): sabit örnek terimler yerine, ürün havuzundaki en kalabalık 5
-  // Grup değeri gösterilsin — /api/products'ın zaten döndürdüğü filters.group sayaçları (bkz.
-  // src/routes/product.js#handleProductListRoute) sayıya göre DEĞİL mega menü sırasına göre
-  // sıralı geldiğinden burada ayrıca count'a göre yeniden sıralanır.
+  // kullanıcı isteği (2026-08-30, düzeltme): sabit örnek terimler yerine, PROJE gönderilerindeki
+  // en kalabalık 5 "Grup" değeri gösterilsin — proje.js#FILTER_GROUPS'ta "Grup" etiketi `type`
+  // anahtarına karşılık gelir (bkz. js/pages/proje.js#FILTER_GROUPS, "Tür"/discipline ile
+  // KARIŞTIRILMAMALI). /api/projects/filters zaten options'ı count'a göre azalan sırada döndürür
+  // (bkz. src/routes/project.js#handleProjectFiltersRoute), burada ekstra sıralama gerekmez.
+  // (İlk sürümde yanlışlıkla ürün havuzunun Grup taksonomisi kullanılmıştı, kullanıcı isteğiyle
+  // proje gönderilerine düzeltildi.)
   let NAV_SEARCH_RECOMMENDED = ['Villa', 'Ofis Projesi', 'Restorasyon', 'Peyzaj Tasarımı'];
   let recommendedTermsLoaded = false;
   function loadRecommendedTerms(onLoaded){
     if(recommendedTermsLoaded) return;
-    fetch('/api/products?limit=1')
+    fetch('/api/projects/filters')
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        const groups = (data && data.filters && data.filters.group) || [];
-        if(!groups.length) return;
+        const options = (data && data.filters && data.filters.type && data.filters.type.options) || [];
+        if(!options.length) return;
         recommendedTermsLoaded = true;
-        NAV_SEARCH_RECOMMENDED = groups.slice().sort((a, b) => b.count - a.count).slice(0, 5).map(g => g.value);
+        NAV_SEARCH_RECOMMENDED = options.slice(0, 5);
         if(onLoaded) onLoaded();
       })
       .catch(() => {});

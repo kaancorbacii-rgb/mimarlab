@@ -294,9 +294,11 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 const BADGE_TIERS = [
   { type:'verified', label:'Doğrulanmış Üye', selfPrice:49, officePrice:129, perks:[
     'Doğrulanmış Üye rozeti verir.',
+    'Mesaj alma özelliğini açar.',
   ] },
   { type:'gold', label:'Altın Üye', selfPrice:99, officePrice:199, perks:[
     'Altın Üye rozeti verir.',
+    'Mesaj alma özelliğini açar.',
   ] },
 ];
 const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };

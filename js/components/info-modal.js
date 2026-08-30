@@ -753,9 +753,13 @@ const InfoModal = (function () {
   function mountRozetAl() {
     fetch('/api/auth/me').then(res => { if (!res.ok) window.location.href = '/giris'; }).catch(() => {});
 
+    // "Mesaj Alma" perk'i her iki kademede de listelenir — bkz. architect-modal.js#renderMessageWidget
+    // /office-modal.js#renderMessageWidget'daki AYNI kural: profilde mesaj gönder butonu, kademe
+    // fark etmeksizin en az bir AKTİF rozeti olan her profilde açılır (bkz. o dosyalardaki "doğrulanmış
+    // = en az bir aktif rozeti olan profil" yorumu).
     const BADGE_TIERS = [
-      { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.'] },
-      { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.'] },
+      { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.', 'Mesaj alma özelliğini açar.'] },
+      { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.', 'Mesaj alma özelliğini açar.'] },
     ];
     const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };
     const BADGE_RANK = { gold: 2, verified: 1 };
