@@ -199,6 +199,15 @@ const ModalShell = (function () {
       .modal-shell-header-actions .share-btn{
         width:36px !important; min-width:36px !important; padding:0 !important; justify-content:center;
       }
+      /* gerçek bulgu (kullanıcı isteği: mobil/tablette de butonlar arası mesafe eşit olsun) —
+         share-button.js'in mobil @media(max-width:860px) kuralı .share-widget SARMALAYICI span'e
+         min-width:44px !important veriyor (dokunma hedefi standardı için, bkz. o dosyadaki gerekçe),
+         ama üstteki kural .share-btn'i her zaman 36px'e sabitliyor — sarmalayıcı butondan geniş
+         kalınca (44px kutu içinde 36px buton, justify-content:normal ile sola yaslı) Paylaş'tan SONRA
+         görünmeyen ~8px boşluk kalıyordu; Kaydet→Paylaş 6px iken Paylaş→Puanla 14px ölçüldü (DevTools
+         getBoundingClientRect ile doğrulandı). Header bağlamında dokunma hedefi zaten .share-btn'in
+         KENDİSİ 36px olduğundan sarmalayıcıyı da içeriğe eşitleyip fazlalığı kaldırıyoruz. */
+      .modal-shell-header-actions .share-widget{min-width:0 !important;}
       /* .card-save-btn'in KART bağlamındaki (proje.html/urun.html'deki bare kural) position:absolute;
          top/right; z-index tanımı, buradaki .save-btn ile PAYLAŞILMAYAN tek özellikler olduğundan
          (bkz. kullanıcı isteği) kaynak sırasından bağımsız olarak hep kazanıyordu — Kaydet artık kart
