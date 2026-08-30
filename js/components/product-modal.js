@@ -447,7 +447,6 @@ const ProductModal = (function () {
 
   function kindPlural(p) { return p.kind === 'material' ? 'materials' : 'products'; }
   function ratingKindFor(p) { return p.kind === 'material' ? 'material' : 'product'; }
-  function legacyKeyFor(p) { return `${p.brand || ''}|||${p.title}`; }
 
   // gerçek bulgu (denetim raporu, 2026-08-16): js/components/architect-modal.js#pageTitle ile AYNI
   // sızıntı/gerekçe.
@@ -816,92 +815,32 @@ const ProductModal = (function () {
     });
   }
 
-  // Admin HER ürünü/malzemeyi (legacy_static dahil) silebilir; ürünü yükleyen üye ise YALNIZCA
-  // kendi gönderisi (p.submissionId dolu) üzerinde aynı yetkiye sahiptir — Düzenle/Arşivle kaldırıldı
-  // (bkz. kullanıcı isteği, 2026-08-30), yalnızca Sil kaldı; pr-edit-slot artık hiç doldurulmuyor
-  // (boş span, display:contents ile layout'a hiç katkı yapmıyor). runContentModeration/
-  // runOwnerModeration'ın 'archive' dalı admin panelindeki genel arşivleme akışı için hâlâ
-  // kullanılabilir durumda bırakıldı, yalnızca buradaki UI kaldırıldı. Sahiplik ProjectActions'daki
-  // AYNI desenle (/api/<tip>/mine sorgusu + id eşleşmesi) belirlenir — admin bu sorguyu atlar.
+  // Admin HER ürünü/malzemeyi (legacy_static dahil) düzenleyebilir; ürünü yükleyen üye ise YALNIZCA
+  // kendi gönderisi (p.submissionId dolu) üzerinde aynı yetkiye sahiptir — Arşivle/Sil kaldırıldı
+  // (bkz. kullanıcı isteği, 2026-08-30), pr-admin-slot artık hiç doldurulmuyor.
   // gerçek bulgu (denetim, 2026-08-24): loadCompanyProducts/loadRelated/wireFeedbackBox (bkz.
   // renderItem yukarısı) hepsi kendi async devamlarında `currentItem !== p` bayatlık kontrolü yapıyor
   // — bu fonksiyon (renderItem'dan await EDİLMEDEN çağrılır) hiç yapmıyordu. Kullanıcı bu fonksiyonun
-  // await'leri (/api/<tip>/mine) hâlâ sürerken başka bir ürüne/malzemeye geçerse, ESKİ ürünün Sil
-  // butonu (runContentModeration/runOwnerModeration'a p/key closure'ıyla kapatılmış) artık ekranda
-  // görünen YENİ ürünün header'ına yazılıyor ve tıklandığında YANLIŞ kaydı silebilirdi. `currentItem`
-  // her renderItem() başında güncellenen paylaşılan modül state'i (bkz. o fonksiyon) — diğer async
+  // await'leri (editSubmissionBtnHtml) hâlâ sürerken başka bir ürüne/malzemeye geçerse, ESKİ ürünün
+  // Düzenle butonu artık ekranda görünen YENİ ürünün header'ına yazılıyordu. `currentItem` her
+  // renderItem() başında güncellenen paylaşılan modül state'i (bkz. o fonksiyon) — diğer async
   // devamlarla AYNI deseni burada da uygularız.
   async function mountEditAndAdminButtons(p, key) {
     await savedWidgetReady;
     if (currentItem !== p) return;
-    if (!currentUser) return;
-    const slot = document.getElementById('pr-admin-slot');
-    if (!slot) return;
-    if (currentUser.role === 'admin') {
-      slot.innerHTML = `<button type="button" class="card-delete-btn" id="pr-delete-btn">Sil</button>`;
-      document.getElementById('pr-delete-btn').addEventListener('click', () => runContentModeration(p, key, 'delete'));
-      return;
-    }
-    if (!p.submissionId) return;
-    let mine = false;
-    try {
-      const res = await fetch(`/api/${kindPlural(p)}/mine`);
-      const data = res.ok ? await res.json() : { items: [] };
-      mine = (data.items || []).some(it => it.id === p.submissionId);
-    } catch { mine = false; }
-    if (currentItem !== p) return;
-    if (!mine) return;
-    slot.innerHTML = `<button type="button" class="card-delete-btn" id="pr-delete-btn">Sil</button>`;
-    document.getElementById('pr-delete-btn').addEventListener('click', () => runOwnerModeration(p, 'delete'));
-  }
-
-  async function runContentModeration(p, key, action) {
-    const confirmText = action === 'delete'
-      ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
-      : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
-    if (!confirm(confirmText)) return;
-    const btn = document.getElementById(action === 'delete' ? 'pr-delete-btn' : 'pr-archive-btn');
-    const otherBtn = document.getElementById(action === 'delete' ? 'pr-archive-btn' : 'pr-delete-btn');
-    if (btn) btn.disabled = true;
-    if (otherBtn) otherBtn.disabled = true;
-    try {
-      const res = await fetch('/api/admin/legacy/content-action', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(p.submissionId ? { type: kindPlural(p), action, id: p.submissionId } : { type: kindPlural(p), action, key: legacyKeyFor(p) }),
-      });
-      if (!res.ok) throw new Error('request failed');
-      window.location.href = '/urun';
-    } catch {
-      alert('Bir şeyler ters gitti, tekrar dene.');
-      if (btn) btn.disabled = false;
-      if (otherBtn) otherBtn.disabled = false;
-    }
-  }
-
-  // Sahibin kendi gönderisi üzerinde Arşivle/Sil'i — admin'in genel /api/admin/legacy/content-action
-  // ucu (yukarısı) role='admin' zorunlu tuttuğundan sahip için KULLANILAMAZ; bunun yerine sahiplik
-  // kontrolünü kendisi yapan /api/<tip>/:id/moderate ucuna gider (bkz. src/routes/submissions.js#
-  // moderateOwnSubmission).
-  async function runOwnerModeration(p, action) {
-    const confirmText = action === 'delete'
-      ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
-      : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılır, Gönderiyi Düzenle üzerinden tekrar yayınlayabilirsin.';
-    if (!confirm(confirmText)) return;
-    const btn = document.getElementById(action === 'delete' ? 'pr-delete-btn' : 'pr-archive-btn');
-    const otherBtn = document.getElementById(action === 'delete' ? 'pr-archive-btn' : 'pr-delete-btn');
-    if (btn) btn.disabled = true;
-    if (otherBtn) otherBtn.disabled = true;
-    try {
-      const res = await fetch(`/api/${kindPlural(p)}/${encodeURIComponent(p.submissionId)}/moderate`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      if (!res.ok) throw new Error('request failed');
-      window.location.href = '/urun';
-    } catch {
-      alert('Bir şeyler ters gitti, tekrar dene.');
-      if (btn) btn.disabled = false;
-      if (otherBtn) otherBtn.disabled = false;
+    if (p.submissionId) {
+      const html = await editSubmissionBtnHtml(kindPlural(p), p.submissionId);
+      if (currentItem !== p) return;
+      const editSlot = document.getElementById('pr-edit-slot');
+      if (html && editSlot) editSlot.innerHTML = html;
+    } else if (currentUser && currentUser.role === 'admin' && p.id) {
+      // legacy_static kökenli (hiçbir gönderiden gelmeyen) ürünler için admin'e AYRI bir doğrudan
+      // düzenleme yolu — yukarıdaki editSubmissionBtnHtml submission tablosuna dayanır, bu satırların
+      // hiç submission'ı olmadığından o buton bu satırlarda hiçbir zaman görünmüyordu (bkz. kullanıcı
+      // isteği: "Admine tüm ürünleri düzenleyebilme yetkisi ver"; bkz. src/routes/legacyContent.js#
+      // handleAdminProductEdit, canonical `products` satırını doğrudan id'siyle günceller).
+      const editSlot = document.getElementById('pr-edit-slot');
+      if (editSlot) editSlot.innerHTML = `<a class="card-edit-btn" href="urun-ekle.html?adminedit=${encodeURIComponent(p.id)}">Düzenle</a>`;
     }
   }
 

@@ -531,8 +531,8 @@ const ArchitectModal = (function () {
 
     // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
     // bu profillerde içerik aksiyonları Paylaş + Takip Et'tir, X'in yanında render edilir (bkz.
-    // kullanıcı isteği: sırayla önce Paylaş sonra Takip Et). Sil ise X'in KARŞI kenarında
-    // (ModalShell.getAdminActionsSlot()) — Düzenle/Arşivle kaldırıldı (bkz. kullanıcı isteği,
+    // kullanıcı isteği: sırayla önce Paylaş sonra Takip Et). Düzenle ise X'in KARŞI kenarında
+    // (ModalShell.getAdminActionsSlot()) — Arşivle/Sil kaldırıldı (bkz. kullanıcı isteği,
     // 2026-08-30), claim-correction-box.js#renderProfileEditButton hâlâ #profile-edit-slot id'sini
     // arıyor, yalnızca DOM konumu değişti.
     const headerActions = ModalShell.getHeaderActionsSlot();
