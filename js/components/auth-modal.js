@@ -589,6 +589,7 @@ const AuthModal = (function () {
           <div class="dash-head-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
             <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
             <button type="button" class="dash-edit-btn" id="am-dash-activities-btn">Aktivitelerim</button>
+            <button type="button" class="dash-edit-btn" id="am-dash-contents-btn">İçeriklerim</button>
           </div>
         </div>
       </div>
@@ -732,18 +733,28 @@ const AuthModal = (function () {
 
         <div class="dash-section">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
-            <h2 style="margin:0;">Bildirimler ve Mesajlar</h2>
+            <h2 style="margin:0;">Bildirimler</h2>
           </div>
           <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-notif-pagination"></div>
         </div>
       </div>
 
-      <div class="dash-section">
-        <h2>Rozet Ayrıcalıklarından Faydalan</h2>
-        <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
-        <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
-        <div class="badge-grid" id="am-badge-grid"></div>
+      <div class="dash-row">
+        <div class="dash-section">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
+            <h2 style="margin:0;">Mesajlar</h2>
+          </div>
+          <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-msg-pagination"></div>
+        </div>
+
+        <div class="dash-section">
+          <h2>Rozetlerim</h2>
+          <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
+          <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
+          <div class="badge-grid" id="am-badge-grid"></div>
+        </div>
       </div>
     </div>`;
   }
@@ -849,6 +860,11 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
+        </div>
+
+        <div class="dash-section">
+          <h2>Mimar/Firma Profilim</h2>
+          <div id="am-contents-claims-list"><div class="dash-empty">Yükleniyor…</div></div>
         </div>
       </div>
     </div>`;
@@ -1376,6 +1392,7 @@ const AuthModal = (function () {
     }
 
     on('am-dash-activities-btn', 'click', () => swap('activities'));
+    on('am-dash-contents-btn', 'click', () => swap('contents'));
 
     // Firma seçimi ("Bu firma sana mı ait?" ile AYNI profile_claims('office') talebi) yalnızca
     // seçim GERÇEKTEN kullanıcının mevcut onaylı/beklemedeki talebinden farklıysa gönderilir —
@@ -1747,31 +1764,41 @@ const AuthModal = (function () {
 
     let notifItems = [];
     let notifPage = 1;
+    let msgItems = [];
+    let msgPage = 1;
+    // kullanıcı isteği (2026-08-30): Bildirimler ve Mesajlar artık AYRI iki kutu — tek /api/
+    // notifications/mine yanıtı type==='message' olanlara göre ikiye ayrılır (bkz. src/routes/
+    // messages.js#createThread/replyThread'deki AYNI 'message' type'ı), her biri kendi sayfalama
+    // state'ine (notifPage/msgPage) ve DOM konteynerine (am-dash-notifications/am-dash-messages)
+    // sahip — render mantığı ortak renderNotifList()'te paylaşılır.
     async function loadNotifications() {
       const res = await fetch('/api/notifications/mine');
       const data = res.ok ? await res.json() : { items: [] };
-      notifItems = data.items || [];
+      const items = data.items || [];
+      notifItems = items.filter(n => n.type !== 'message');
+      msgItems = items.filter(n => n.type === 'message');
       renderNotifications();
+      renderMessages();
     }
     // bkz. kullanıcı isteği: Başlığın yanındaki "Tümü okundu"/"Bildirimleri sil" metinleri kaldırıldı
     // — silme artık her satırın kendi X işaretinden, satır-bazlı yapılır (bkz. aşağıdaki .notif-del).
-    // type==='message' olan satırlar tıklanınca src/routes/messages.js#getThread'i açan bir popup
-    // gösterir (bkz. openMessageThread) — link alanı "msg:<threadId>" biçimindedir (bkz. src/routes/
-    // messages.js#createThread/replyThread).
+    // Mesaj satırları tıklanınca src/routes/messages.js#getThread'i açan bir popup gösterir (bkz.
+    // openMessageThread) — link alanı "msg:<threadId>" biçimindedir (bkz. src/routes/messages.js#
+    // createThread/replyThread).
     function threadIdFromLink(link) {
       return link && link.startsWith('msg:') ? link.slice(4) : null;
     }
-    function renderNotifications() {
-      const container = document.getElementById('am-dash-notifications');
-      if (!notifItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir bildirimin yok.</div>';
-        document.getElementById('am-notif-pagination').innerHTML = '';
+    function renderNotifList(items, page, setPage, containerId, paginationId, emptyText) {
+      const container = document.getElementById(containerId);
+      if (!items.length) {
+        container.innerHTML = `<div class="dash-empty">${emptyText}</div>`;
+        document.getElementById(paginationId).innerHTML = '';
         return;
       }
-      const totalPages = Math.max(1, Math.ceil(notifItems.length / PAGE_SIZE_DASH));
-      if (notifPage > totalPages) notifPage = totalPages;
-      const startIdx = (notifPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = notifItems.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
       container.innerHTML = pageItems.map(n => `
         <div class="notif-row${n.is_read ? '' : ' unread'}" data-id="${n.id}">
           <div class="notif-dot-col">${n.is_read ? '' : '<span class="notif-dot"></span>'}</div>
@@ -1784,7 +1811,7 @@ const AuthModal = (function () {
         </div>`).join('');
       container.querySelectorAll('.notif-row').forEach(row => {
         row.addEventListener('click', async () => {
-          const item = notifItems.find(n => String(n.id) === row.dataset.id);
+          const item = items.find(n => String(n.id) === row.dataset.id);
           if (!item) return;
           if (!item.is_read) {
             row.classList.remove('unread');
@@ -1803,12 +1830,19 @@ const AuthModal = (function () {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const id = btn.dataset.id;
-          notifItems = notifItems.filter(n => String(n.id) !== String(id));
-          renderNotifications();
+          const idx = items.findIndex(n => String(n.id) === String(id));
+          if (idx !== -1) items.splice(idx, 1);
+          setPage(page);
           try { await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' }); } catch {}
         });
       });
-      renderDashPagination('am-notif-pagination', notifPage, totalPages, (p) => { notifPage = p; renderNotifications(); });
+      renderDashPagination(paginationId, page, totalPages, (p) => setPage(p));
+    }
+    function renderNotifications() {
+      renderNotifList(notifItems, notifPage, (p) => { notifPage = p; renderNotifications(); }, 'am-dash-notifications', 'am-notif-pagination', 'Henüz bir bildirimin yok.');
+    }
+    function renderMessages() {
+      renderNotifList(msgItems, msgPage, (p) => { msgPage = p; renderMessages(); }, 'am-dash-messages', 'am-msg-pagination', 'Henüz bir mesajın yok.');
     }
 
     // Mesaj konuşması popup'ı — bkz. kullanıcı isteği: "Kullanıcı bu mesaja tıklayıp açılan popupta
@@ -2261,9 +2295,50 @@ const AuthModal = (function () {
       renderSubmissions();
     });
 
-    fetch('/api/auth/me').then(r => {
+    // "Mimar/Firma Profilim" kutusu — accountTemplate()#renderClaimsList İLE AYNI /api/claims/mine
+    // kaynağı, ama mountAccount()'un ÖZEL kapsamındaki amClaimItems/accountUser'dan bağımsız kendi
+    // fetch'ini yapar (kullanıcı isteği: İçeriklerim'e doğrudan gidildiğinde, Hesabım hiç mount
+    // edilmemiş olsa bile hesaba bağlı onaylı/bekleyen mimar-firma profili burada görünsün).
+    let contentsUser = null;
+    function renderContentsClaims(items) {
+      const list = document.getElementById('am-contents-claims-list');
+      const visibleItems = items.filter(c => c.status !== 'rejected');
+      if (!visibleItems.length) { list.innerHTML = '<div class="dash-empty">Hesabına bağlı bir mimar ya da firma profili yok.</div>'; return; }
+      const sortedItems = visibleItems.slice().sort((a, b) => (a.profile_type === 'office' ? 0 : 1) - (b.profile_type === 'office' ? 0 : 1));
+      list.innerHTML = sortedItems.map(c => {
+        const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(contentsUser && contentsUser.position));
+        const profileUrl = c.status === 'approved' ? `/${c.profile_type === 'office' ? 'firma' : 'mimar'}/${encodeURIComponent(c.slug || c.profile_key)}` : null;
+        const nameHtml = profileUrl
+          ? `<a href="${escapeAttr(profileUrl)}" style="color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(c.profile_key)}</a>`
+          : escapeHtml(c.profile_key);
+        return `
+        <div class="profile-fact">
+          <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
+          <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
+            <span>${nameHtml}</span>
+            ${canEdit
+              ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.slug || c.profile_key)}">Düzenle</a>`
+              : c.status === 'approved'
+                ? ''
+                : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
+          </span>
+        </div>
+      `;
+      }).join('');
+    }
+    async function loadContentsClaims() {
+      try {
+        const res = await fetch('/api/claims/mine');
+        const data = res.ok ? await res.json() : { items: [] };
+        renderContentsClaims(data.items || []);
+      } catch { renderContentsClaims([]); }
+    }
+
+    fetch('/api/auth/me').then(async r => {
       if (!r.ok) { swap('login'); return; }
+      contentsUser = (await r.json()).user;
       loadSubmissions().catch(() => {});
+      loadContentsClaims().catch(() => {});
     }).catch(() => {});
   }
 

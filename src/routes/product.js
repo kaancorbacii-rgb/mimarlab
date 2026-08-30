@@ -245,6 +245,8 @@ export async function handleProductListRoute(request, env, url) {
     const categoryParam = url.searchParams.get('category') || '';
     const brandParam = url.searchParams.get('brand') || '';
     const ratingParam = url.searchParams.get('rating') || '';
+    const yearParam = url.searchParams.get('year') || '';
+    const designerParam = url.searchParams.get('designer') || '';
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     // ORDER BY id DESC — src/routes/project.js#handleProjectsRoute'daki AYNI varsayılan sıralama
@@ -265,7 +267,7 @@ export async function handleProductListRoute(request, env, url) {
     // kalabilir — facet_counts.js'in kendi KV_TTL_SECONDS'ı ile AYNI kabul edilebilir pencere.
     const pool = await getCachedPool(env, 'products', async () => {
       const [productsRes, ratingRows] = await Promise.all([
-        env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
+        env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
         env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
       ]);
       const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
@@ -278,9 +280,11 @@ export async function handleProductListRoute(request, env, url) {
         const group = taxonomyGroupOf(CATALOG_TAXONOMY, p.category);
         const ratingKind = p.kind === 'material' ? 'material' : 'product';
         const rating = ratingByKey.get(`${ratingKind}:${ratingKey}`) || { average: 0, count: 0 };
+        const designers = (p.designer || '').split(',').map(s => s.trim()).filter(Boolean);
         return {
           slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
           image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
+          year: p.year || null, designers,
         };
       });
     });
@@ -292,6 +296,8 @@ export async function handleProductListRoute(request, env, url) {
       if (categoryParam && exceptKey !== 'category' && p.category !== categoryParam) return false;
       if (brandParam && exceptKey !== 'brand' && p.brand !== brandParam) return false;
       if (ratingParam && exceptKey !== 'rating' && !ratingBuckets(p.rating.average).includes(ratingParam)) return false;
+      if (yearParam && exceptKey !== 'year' && p.year !== yearParam) return false;
+      if (designerParam && exceptKey !== 'designer' && !p.designers.includes(designerParam)) return false;
       if (searchQuery) {
         const fields = [p.title, p.category, p.brand];
         if (!fields.some(v => v && foldTr(String(v)).includes(searchQuery))) return false;
@@ -326,7 +332,9 @@ export async function handleProductListRoute(request, env, url) {
       const counts = {};
       passing.forEach(p => { (fieldFn(p) || []).forEach(v => { if (v) counts[v] = (counts[v] || 0) + 1; }); });
       const keys = Object.keys(counts);
-      if (orderIndex) {
+      if (key === 'year') {
+        keys.sort((a, b) => (parseInt(b, 10) || 0) - (parseInt(a, 10) || 0));
+      } else if (orderIndex) {
         keys.sort((a, b) => {
           const ia = orderIndex.has(a) ? orderIndex.get(a) : Infinity;
           const ib = orderIndex.has(b) ? orderIndex.get(b) : Infinity;
@@ -341,7 +349,7 @@ export async function handleProductListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ group, rating, ...rest }) => rest);
+    const items = filtered.slice(start, start + limit).map(({ group, rating, designers, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
@@ -350,6 +358,8 @@ export async function handleProductListRoute(request, env, url) {
         category: countsFor('category', p => [p.category], CATALOG_CATEGORY_ORDER),
         brand: countsFor('brand', p => [p.brand]),
         rating: countsFor('rating', p => ratingBuckets(p.rating.average)),
+        year: countsFor('year', p => [p.year]),
+        designer: countsFor('designer', p => p.designers),
       },
     };
   }, () => productListFingerprint(env));

@@ -321,9 +321,11 @@
             <input type="text" id="u-brand" name="brand" placeholder="ör. VitrA" autocomplete="off" required>
             <div class="ac-suggestions" id="ac-brand-suggestions"></div>
           </div>
-          <div class="form-field">
-            <label for="u-website">Ürün / Firma Web Sitesi <span class="opt">(opsiyonel)</span></label>
-            <input type="url" id="u-website" name="website" placeholder="https://...">
+          <div class="form-field ac-field" id="ac-designer-field">
+            <label for="u-designer">Tasarımcı <span class="opt">(opsiyonel)</span></label>
+            <input type="text" id="u-designer" name="designer" placeholder="ör. Ahmet Çınar, Zeynep Kaya" autocomplete="off">
+            <div class="ac-suggestions" id="ac-designer-suggestions"></div>
+            <div class="form-hint">Birden fazla tasarımcı gireceksen virgülle ayır.</div>
           </div>
         </div>
         <div class="form-row">
@@ -341,11 +343,9 @@
             <label for="u-year">Yıl <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="u-year" name="year" placeholder="ör. 2022" inputmode="numeric">
           </div>
-          <div class="form-field ac-field" id="ac-designer-field">
-            <label for="u-designer">Tasarımcı <span class="opt">(opsiyonel)</span></label>
-            <input type="text" id="u-designer" name="designer" placeholder="ör. Ahmet Çınar, Zeynep Kaya" autocomplete="off">
-            <div class="ac-suggestions" id="ac-designer-suggestions"></div>
-            <div class="form-hint">Birden fazla tasarımcı gireceksen virgülle ayır.</div>
+          <div class="form-field">
+            <label for="u-website">Ürün / Firma Websitesi <span class="opt">(opsiyonel)</span></label>
+            <input type="url" id="u-website" name="website" placeholder="https://...">
           </div>
         </div>
 

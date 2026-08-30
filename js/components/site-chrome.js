@@ -347,12 +347,17 @@
       }
       [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:27px;}
       .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 16px; max-width:340px;}
-      .footer-newsletter-form{display:flex; align-items:center; gap:10px;}
-      .footer-newsletter-input{flex:1; min-width:0; box-sizing:border-box; height:40px; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 16px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
+      /* kullanıcı isteği (2026-08-30): abone ol gönder butonu artık TÜM görünümlerde (masaüstü/
+         tablet/mobil) input'un sağ ucuna gömülü dairesel bir ikon — eskiden yalnızca mobilde
+         (≤560px) böyleydi, masaüstünde ayrı metin butonu vardı; artık üç görünüm de aynı deseni
+         kullanıyor. */
+      .footer-newsletter-form{position:relative; display:block;}
+      .footer-newsletter-input{box-sizing:border-box; height:40px; width:100%; background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2); border-radius:100px; padding:0 48px 0 16px; font-family:inherit; font-size:13px; color:var(--paper); outline:none;}
       .footer-newsletter-input::placeholder{color:rgba(237,240,243,0.45);}
       .footer-newsletter-input:focus-visible{box-shadow:0 0 0 2px var(--brass-soft) inset;}
-      .footer-newsletter-btn{flex-shrink:0; gap:6px;}
-      .footer-newsletter-btn-icon{display:none;}
+      .footer-newsletter-btn-text{display:none;}
+      .footer-newsletter-btn-icon{display:block;}
+      .footer-newsletter-btn{position:absolute; top:50%; right:3px; transform:translateY(-50%); width:34px; height:34px; padding:0; border-radius:50%;}
       .footer-newsletter-msg{font-size:12px; margin-top:8px; min-height:16px;}
       .footer-newsletter-msg.ok{color:#8FD6A8;}
       .footer-newsletter-msg.err{color:#E39B9B;}
@@ -369,14 +374,8 @@
       @media (max-width: 560px){
         .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:13px;}
         .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
-        /* kullanıcı isteği: mobilde ayrı "Abone Ol" metin butonu yerine, input'un sağ ucuna
-           gömülü, temayla uyumlu (brass-soft/ink) dairesel bir gönder ikonu — input bu sayede
-           butonun eskiden kapladığı alanı da kullanarak sağa doğru genişler. */
-        .footer-newsletter-form{position:relative; display:block;}
-        .footer-newsletter-input{height:34px; padding:0 40px 0 12px; width:100%;}
-        .footer-newsletter-btn-text{display:none;}
-        .footer-newsletter-btn-icon{display:block;}
-        .footer-newsletter-btn{position:absolute; top:50%; right:3px; transform:translateY(-50%); width:28px; height:28px; padding:0; border-radius:50%;}
+        .footer-newsletter-input{height:34px; padding:0 40px 0 12px;}
+        .footer-newsletter-btn{width:28px; height:28px;}
       }
       /* kullanıcı isteği (2026-08-28): mobilde en alt satır artık 3 ayrı satıra yığılır — sırasıyla
          gece/gündüz düğmesi, sosyal ikonlar, © telif metni (bkz. footerHtml() içindeki DOM sırası:
@@ -469,7 +468,25 @@
   // öneriler AYNI /api/public/search-suggest ucundan (eski panelin kullandığı UÇLA BİREBİR AYNI)
   // canlı sonuçlarla değişiyor. Görsel arama bölümü YALNIZCA görsel — hiçbir dosya seçici/URL
   // gönderimi bağlı değil (kullanıcı isteği: "ürün arama kısmı şimdilik aktif olmasın").
-  const NAV_SEARCH_RECOMMENDED = ['Villa', 'Ofis Projesi', 'Restorasyon', 'Peyzaj Tasarımı'];
+  // kullanıcı isteği (2026-08-30): sabit örnek terimler yerine, ürün havuzundaki en kalabalık 5
+  // Grup değeri gösterilsin — /api/products'ın zaten döndürdüğü filters.group sayaçları (bkz.
+  // src/routes/product.js#handleProductListRoute) sayıya göre DEĞİL mega menü sırasına göre
+  // sıralı geldiğinden burada ayrıca count'a göre yeniden sıralanır.
+  let NAV_SEARCH_RECOMMENDED = ['Villa', 'Ofis Projesi', 'Restorasyon', 'Peyzaj Tasarımı'];
+  let recommendedTermsLoaded = false;
+  function loadRecommendedTerms(onLoaded){
+    if(recommendedTermsLoaded) return;
+    fetch('/api/products?limit=1')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        const groups = (data && data.filters && data.filters.group) || [];
+        if(!groups.length) return;
+        recommendedTermsLoaded = true;
+        NAV_SEARCH_RECOMMENDED = groups.slice().sort((a, b) => b.count - a.count).slice(0, 5).map(g => g.value);
+        if(onLoaded) onLoaded();
+      })
+      .catch(() => {});
+  }
   let navSearchModalApi = null;
 
   function ensureNavSearchModal(){
@@ -554,6 +571,9 @@
           .nav-search-modal-overlay{padding:60px 12px 12px;}
           .nav-search-modal{padding:22px;}
           .nav-search-modal-image-box{flex-direction:column;}
+          /* kullanıcı isteği (2026-08-30): "İhtiyacını yaz, bulmana yardımcı olalım..." placeholder'ı
+             mobilde kutunun genişliğine sığmadığından kırpılıyordu — yalnızca mobilde punto küçültüldü. */
+          .nav-search-modal-input-row input{font-size:13px;}
         }
       `;
       document.head.appendChild(style);
@@ -714,6 +734,7 @@
         modalInput.value = prefill || '';
         if(modalInput.value.trim().length >= 2) modalInput.dispatchEvent(new Event('input'));
         else renderRecommended();
+        loadRecommendedTerms(() => { if(!modalInput.value.trim()) renderRecommended(); });
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
         setTimeout(() => modalInput.focus(), 0);

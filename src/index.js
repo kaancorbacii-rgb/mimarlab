@@ -238,6 +238,11 @@ const PATH_RENAME_REDIRECTS = {
   '/uye-ol.html': '/uye-ol',
   '/hesabim.html': '/hesabim',
   '/aktivitelerim.html': '/aktivitelerim',
+  // gerçek bulgu (2026-08-30): İçeriklerim (bkz. js/components/auth-modal.js#VIEW_PATH'teki
+  // contents: '/iceriklerim') Aktivitelerim'in AYNI gün ayrı bir popup'a çıkarılmasıyla eklendi
+  // ama AUTH_MODAL_ROUTES'a hiç eklenmemişti — doğrudan /iceriklerim'e gidildiğinde (yer imi, F5,
+  // yeni sekme) 404 dönüyordu, yalnızca SPA içi pushState navigasyonu çalışıyordu.
+  '/iceriklerim.html': '/iceriklerim',
   '/sifremi-unuttum.html': '/sifremi-unuttum',
   // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer de artık popup
   // modallar (bkz. kullanıcı isteği, js/components/info-modal.js) — AYNI gerekçe. "Rozet Al" ile
@@ -260,7 +265,7 @@ const PATH_RENAME_REDIRECTS = {
 // edilir, o da location.pathname'e bakıp ilgili modalı kendisi açar (bkz. auth-modal.js). Bu 3 sayfa
 // zaten noindex olduğundan (bkz. giris-yap.html/uye-ol.html/hesabim.html <meta name="robots">)
 // serveDetailPage'deki HTMLRewriter/meta enjeksiyonuna burada ihtiyaç yok.
-const AUTH_MODAL_ROUTES = new Set(['/giris', '/uye-ol', '/hesabim', '/aktivitelerim', '/sifremi-unuttum']);
+const AUTH_MODAL_ROUTES = new Set(['/giris', '/uye-ol', '/hesabim', '/aktivitelerim', '/iceriklerim', '/sifremi-unuttum']);
 
 // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer — AYNI "ana sayfayı
 // servis et, istemci JS'i (bkz. js/components/info-modal.js) location.pathname'e göre ilgili modalı
