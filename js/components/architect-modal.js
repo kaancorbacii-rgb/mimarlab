@@ -379,19 +379,6 @@ const ArchitectModal = (function () {
     </a>`;
   }
 
-  // "Ürünler" bölümü (loadProfileContent) modal açılışında HEMEN çekiliyordu — office/colleagues/
-  // related-architects grid'leri (senkron, zaten elde olan `a` verisinden hesaplanır) gibi değil, bu
-  // AYRI bir /api/public/profile-content isteği ve sayfanın alt kısmındaki (5 dikili bölümden 4.)
-  // salt görsel bir bölüm için ilk render/boyama ile yarışıyordu (denetim bulgusu, 2026-08-24).
-  // requestIdleCallback (Safari'de yok, o yüzden setTimeout yedeği) tarayıcı ilk boyamayı bitirdikten
-  // sonra çalışır — js/components/project-modal.js#observeOnce'daki IntersectionObserver deseninden
-  // farklı olarak burada bir viewport çapasına gerek yok (bu bölüm her profilde nihayetinde
-  // gösterilecek, "belki hiç gerekmez" değil — yalnızca İLK boyamayı bloklamaması gerekiyor).
-  function deferToIdle(fn, timeoutMs) {
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: timeoutMs });
-    else setTimeout(fn, timeoutMs);
-  }
-
   // Mimar profiline yazılmış ama offices tablosunda karşılığı olmayan (bkz. src/routes/
   // architect.js#fetchRawOfficeNames, `unregistered: true`) firma adı — js/components/
   // office-modal.js#unregisteredBadgeHtml ile BİREBİR aynı, yuvarlak baş harfli pasif rozet.
@@ -656,29 +643,21 @@ const ArchitectModal = (function () {
       },
     });
 
-    // Ürünler ızgarası iki kaynağı birleştirir (bkz. src/routes/office.js#renderProductGrid'teki
-    // AYNI desen, office-modal.js'e taşınmış hâli): designerProductsData (künyedeki Tasarımcı adı bu
-    // mimarla eşleşen canonical ürünler, bkz. src/routes/architect.js#relatedProducts) + aşağıdaki
-    // profile-content'in döndürdüğü claim-based ürünler (bu mimarın kendi hesabından gönderdiği).
-    // Aynı ürün ikisinde de varsa designer eşleşmesi kazanır (slug'ı garantili doğru /urun/ linkine
-    // gider).
-    function renderDesignerProductsGrid(submissionItems) {
-      const seenTitles = new Set(designerProductsData.map(p => (p.title || '').trim().toLowerCase()));
-      const merged = [...designerProductsData, ...submissionItems.filter(p => !seenTitles.has((p.title || '').trim().toLowerCase()))];
-      document.getElementById('am-related-products-section').style.display = merged.length ? '' : 'none';
-      document.getElementById('am-related-products-grid').innerHTML = merged.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
-      document.getElementById('am-related-products-count').textContent = merged.length ? ` (${merged.length})` : '';
+    // Ürünler ızgarası SADECE künyedeki Tasarımcı adı bu mimarla eşleşen canonical ürünleri gösterir
+    // (designerProductsData, bkz. src/routes/architect.js#relatedProducts). Daha önce burada ayrıca
+    // /api/public/profile-content'in owner_user_id eşleşmesiyle döndürdüğü "bu mimarın kendi
+    // hesabından gönderdiği" ürünler de birleştiriliyordu — ama bir mimar başkasının tasarladığı bir
+    // ürünü onun adına/firma adına gönderebilir, bu da tasarımcısı olmadığı ürünlerin profilinde
+    // görünmesine yol açıyordu (gerçek bulgu, kullanıcı: "Kaan Çorbacı sadece yayınladı tasarımcısı
+    // değil ki", 2026-08-30). office-modal.js'teki AYNI birleştirme kasıtlı olarak DOKUNULMADAN
+    // bırakıldı — bir firmanın kendi markası altında gönderdiği ürün, sahiplik için çok daha güçlü bir
+    // tasarımcı vekili.
+    function renderDesignerProductsGrid() {
+      document.getElementById('am-related-products-section').style.display = designerProductsData.length ? '' : 'none';
+      document.getElementById('am-related-products-grid').innerHTML = designerProductsData.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
+      document.getElementById('am-related-products-count').textContent = designerProductsData.length ? ` (${designerProductsData.length})` : '';
     }
-    renderDesignerProductsGrid([]);
-
-    async function loadProfileContent() {
-      try {
-        const res = await fetch(`/api/public/profile-content?profileType=${PROFILE_TYPE}&profileKey=${encodeURIComponent(a.name)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        renderDesignerProductsGrid(data.products || []);
-      } catch {}
-    }
+    renderDesignerProductsGrid();
 
     // Mesaj Gönder ikonu — bkz. kullanıcı isteği: "Doğrulanmış mimar/firma profillerine, bir
     // kullanıcı mesaj gönderebilsin" — doğrulanmış = en az bir aktif rozeti olan profil (badge-shared.js#
@@ -725,9 +704,6 @@ const ArchitectModal = (function () {
     if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
     if (typeof myEffectiveBadgePromise !== 'undefined') myEffectiveBadgePromise.then(renderMessageIcon);
 
-    // currentItem === a koruması: kullanıcı bu geciken callback ateşlenmeden ÖNCE bir sonraki mimara
-    // geçerse (prev/next), eski profilin verisiyle yeni profilin am-related-products-* DOM'unu ezmesin.
-    deferToIdle(() => { if (currentItem === a) loadProfileContent(); }, 800);
     await savedWidgetReady;
     await claimBox.init();
 
