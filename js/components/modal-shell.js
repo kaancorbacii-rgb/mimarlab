@@ -192,11 +192,13 @@ const ModalShell = (function () {
          AYNI kare/pill ikon-only görünüme döner. */
       .modal-shell-header-actions .save-btn,
       .modal-shell-header-actions .share-btn,
+      .modal-shell-header-actions .msg-btn,
       .modal-shell-header-actions .follow-btn{
         height:36px !important;
       }
       .modal-shell-header-actions .save-btn.card-save-btn,
-      .modal-shell-header-actions .share-btn{
+      .modal-shell-header-actions .share-btn,
+      .modal-shell-header-actions .msg-btn{
         width:36px !important; min-width:36px !important; padding:0 !important; justify-content:center;
       }
       /* gerçek bulgu (kullanıcı isteği: mobil/tablette de butonlar arası mesafe eşit olsun) —
@@ -207,7 +209,8 @@ const ModalShell = (function () {
          görünmeyen ~8px boşluk kalıyordu; Kaydet→Paylaş 6px iken Paylaş→Puanla 14px ölçüldü (DevTools
          getBoundingClientRect ile doğrulandı). Header bağlamında dokunma hedefi zaten .share-btn'in
          KENDİSİ 36px olduğundan sarmalayıcıyı da içeriğe eşitleyip fazlalığı kaldırıyoruz. */
-      .modal-shell-header-actions .share-widget{min-width:0 !important;}
+      .modal-shell-header-actions .share-widget,
+      .modal-shell-header-actions .msg-widget{min-width:0 !important;}
       /* .card-save-btn'in KART bağlamındaki (proje.html/urun.html'deki bare kural) position:absolute;
          top/right; z-index tanımı, buradaki .save-btn ile PAYLAŞILMAYAN tek özellikler olduğundan
          (bkz. kullanıcı isteği) kaynak sırasından bağımsız olarak hep kazanıyordu — Kaydet artık kart
