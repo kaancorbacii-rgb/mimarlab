@@ -46,12 +46,13 @@ const ProductModal = (function () {
         font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:9.5px;
       }
       .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .pr-rating-save-row{
-        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
-        align-items:center !important; justify-content:flex-start !important; width:100% !important;
-        gap:4px !important; margin:0 0 14px;
-      }
-      .pr-rating-save-row .rating-widget{
+      /* Puanla/Kaydet/Paylaş/Websitesi/Düzenle/Arşivle/Sil artık bu satırda DEĞİL — Puanla/Kaydet/
+         Paylaş X'in yanında (X→Kaydet→Paylaş→Puanla sırasıyla, bkz. kullanıcı isteği), Düzenle X'in
+         KARŞI kenarında render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons); Websitesi
+         tamamen kaldırıldı. Kaydet/Puanla header'da da .save-btn/.card-save-btn/.rating-widget/
+         .pr-rating-avg sınıflarını taşıdığından TEK stil kaynağı hâlâ burasıdır (modal-shell.js
+         yalnızca header bağlamındaki yükseklik/genişlik/konum override'larını ekler). */
+      .rating-widget{
         display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
         flex-shrink:1 !important; min-width:0 !important;
         height:32px !important; box-sizing:border-box;
@@ -59,18 +60,12 @@ const ProductModal = (function () {
         padding:0 8px !important; margin:0; transition:border-color .15s ease;
         font-family:inherit; font-size:12px !important; font-weight:600; color:var(--ink-soft);
       }
-      .pr-rating-save-row .rating-widget:hover{border-color:var(--walnut);}
-      .pr-rating-save-row .rating-widget svg{flex-shrink:0;}
-      .pr-rating-save-row .pr-rating-avg{
+      .rating-widget:hover{border-color:var(--walnut);}
+      .rating-widget svg{flex-shrink:0;}
+      .pr-rating-avg{
         display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
         font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
-      /* Kaydet/Paylaş/Websitesi/Düzenle/Arşivle/Sil artık bu satırda DEĞİL — Kaydet (yalnızca ikon,
-         bkz. kullanıcı isteği) ve Paylaş X'in yanında, Düzenle/Arşivle/Sil X'in KARŞI kenarında
-         render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons); Websitesi tamamen kaldırıldı.
-         Bu satırda yalnızca Puanla kalır. Kaydet header'da da .save-btn/.card-save-btn sınıflarını
-         taşıdığından TEK stil kaynağı hâlâ burasıdır (modal-shell.js yalnızca header bağlamındaki
-         yükseklik/genişlik/konum override'larını ekler). */
       .save-btn{
         display:inline-flex; align-items:center; gap:5px;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -294,7 +289,6 @@ const ProductModal = (function () {
            modalın EN ÜSTÜNE zıplatıyordu). */
         #pr-gallery-wrap{order:1;}
         #pr-title{order:2; margin-top:20px;}
-        #pr-rating-save-row{order:3;}
         #pr-byline{order:4;}
         .detail-info{order:6;}
         #pr-company-section{order:7;}
@@ -304,15 +298,8 @@ const ProductModal = (function () {
         #pr-files-card{order:11;}
         #pr-feedback-card{order:12;}
 
-        /* Puanla — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki AYNI kural,
-           kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü
-           boyutları değişmez. Kaydet/Paylaş/Websitesi artık bu satırda değil (bkz. yukarısı) —
-           buradaki listeden çıkarıldı. */
-        .pr-rating-save-row{gap:8px !important;}
-        .pr-rating-save-row .rating-widget{
-          height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
-        }
-        .pr-rating-save-row .pr-rating-avg{display:none !important;}
+        /* Puanla/Kaydet/Paylaş/Websitesi artık bu satırda değil, X'in yanında sabit 36px'te (bkz.
+           modal-shell.js#injectStyles) — buradaki eski dokunma-hedefi/gizleme kuralları kaldırıldı. */
       }
       /* Mobil galeri oranı — proje.html'deki AYNI kural (kullanıcı isteği): masaüstünde 2:1 korunur,
          yalnızca ≤768px'te 4:3'e geçilir. 860px bloğundan SONRA tanımlanır ki aynı özgüllükteki
@@ -326,10 +313,6 @@ const ProductModal = (function () {
 
   const LEFT_TEMPLATE = `
     <h1 class="detail-title" id="pr-title"></h1>
-    <div class="pr-rating-save-row" id="pr-rating-save-row">
-      <button type="button" class="rating-widget" id="pr-rating" aria-label="Puanla"></button>
-      <span class="pr-rating-avg" id="pr-rating-avg" style="display:none;"></span>
-    </div>
     <div class="detail-byline" id="pr-byline" style="display:none;">
       <span class="detail-byline-avatar" id="pr-byline-avatar"></span>
       <span id="pr-byline-text"></span>
@@ -602,7 +585,7 @@ const ProductModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-rating-save-row', 'pr-brand-section', 'pr-designer-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-brand-section', 'pr-designer-section',
     'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
@@ -763,9 +746,12 @@ const ProductModal = (function () {
       ShareWidget.wire('pr-share-btn', () => ({ title: p.title, url: `${window.location.origin}/urun/${encodeURIComponent(key)}` }));
     }
 
-    const ratingWidget = document.getElementById('pr-rating');
-    if (typeof mountRateButton === 'function') {
-      mountRateButton(ratingWidget, {
+    // Puanla — X/Kaydet/Paylaş'ın EN DIŞINDA (bkz. kullanıcı isteği: "Puanla'yı da üste al, X,
+    // Kaydet, Paylaş'ın en dış tarafına, yan yana") — DOM'da EN SONA eklenir ki görsel sıra
+    // X→Kaydet→Paylaş→Puanla olsun.
+    if (typeof mountRateButton === 'function' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', `<button type="button" class="rating-widget" id="pr-rating" aria-label="Puanla"></button><span class="pr-rating-avg" id="pr-rating-avg" style="display:none;"></span>`);
+      mountRateButton(document.getElementById('pr-rating'), {
         targetType: ratingKindFor(p), targetId: ratingKey, label: p.title,
         avgEl: document.getElementById('pr-rating-avg'),
       });

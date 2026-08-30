@@ -14,10 +14,6 @@ const ProjectModal = (function () {
       <div class="skeleton-line" style="height:12px; width:58%; border-radius:6px;"></div>
     </div>
     <div class="pm-top-rank" id="pm-top-rank" style="display:none;"></div>
-    <div class="pm-rating-save-row" id="pm-rating-save-row">
-      <button type="button" class="rating-widget" id="pm-rating" data-type="project" aria-label="Puanla"></button>
-      <span class="pm-rating-avg" id="pm-rating-avg" style="display:none;"></span>
-    </div>
     <div class="detail-byline" id="pm-byline" style="display:none;">
       <span class="detail-byline-avatar" id="pm-byline-avatar"></span>
       <span id="pm-byline-text"></span>
@@ -377,7 +373,7 @@ const ProjectModal = (function () {
   // bkz. kullanıcı isteği: "bazı sayfalar boş geliyor"). Bu yüzden her başarılı renderItem() en
   // başta hepsini görünür durumuna sıfırlar; ilgili alt render fonksiyonları (renderByline,
   // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
-  const HIDE_ON_NOT_FOUND_IDS = ['pm-rating-save-row', 'pm-byline', 'pm-architect-section', 'pm-office-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['pm-byline', 'pm-architect-section', 'pm-office-section',
     'pm-meta', 'pm-desc', 'pm-map-section', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
     'pm-related-section', 'pm-city-section', 'pm-products-section', 'pm-materials-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
 
@@ -666,7 +662,15 @@ const ProjectModal = (function () {
     }
     ProjectGallery.render(item);
     ProjectActions.render(item);
+    // Puanla — X/Kaydet/Paylaş'ın EN DIŞINDA (bkz. kullanıcı isteği: "Puanla'yı da üste al, X,
+    // Kaydet, Paylaş'ın en dış tarafına, yan yana") — ProjectActions.render() headerActions'ı
+    // Kaydet+Paylaş ile YENİDEN yazdığından (her renderItem'da, proje değişse bile), Puanla ARDINDAN
+    // eklenmelidir ki DOM sırası (dolayısıyla görsel sıra) hep X→Kaydet→Paylaş→Puanla kalsın.
     if (typeof mountRateButton === 'function') {
+      const headerActions = ModalShell.getHeaderActionsSlot();
+      if (headerActions) {
+        headerActions.insertAdjacentHTML('beforeend', `<button type="button" class="rating-widget" id="pm-rating" data-type="project" aria-label="Puanla"></button><span class="pm-rating-avg" id="pm-rating-avg" style="display:none;"></span>`);
+      }
       const ratingEl = document.getElementById('pm-rating');
       ratingEl.dataset.key = item.slug;
       mountRateButton(ratingEl, {

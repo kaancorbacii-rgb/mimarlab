@@ -894,12 +894,13 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
   if (path.startsWith('/api/project/')) {
     const projectSlug = path.slice('/api/project/'.length);
-    // DELETE: proje sahibinin (ya da admin'in) pop-up içinden kendi projesini silmesi (bkz.
-    // js/components/project-actions.js#runOwnerDelete, kullanıcı isteği) — GET (yukarıdaki
-    // handleProjectDetailRoute, herkese açık detay) ile AYNI path'i paylaşır, method'a göre ayrılır.
+    // DELETE: proje sahibinin (ya da admin'in) proje-ekle.html?claim=/?edit= sayfasından (bkz.
+    // mountProjectAdminActions, kullanıcı isteği: Arşivle/Sil artık pop-up'ta değil, orada) kendi
+    // projesini silmesi — GET (yukarıdaki handleProjectDetailRoute, herkese açık detay) ile AYNI
+    // path'i paylaşır, method'a göre ayrılır.
     if (request.method === 'DELETE') return handleSelfProjectDelete(request, env, decodeURIComponent(projectSlug));
-    // POST .../moderate {action:'archive'}: sahibin/admin'in pop-up'tan "Arşivle"ye basması (bkz.
-    // js/components/project-actions.js#runOwnerModerate) — GET'ten ÖNCE özel olarak yakalanmalı,
+    // POST .../moderate {action:'archive'}: sahibin/admin'in proje-ekle.html'den (bkz. yukarısı
+    // mountProjectAdminActions) "Arşivle"ye basması — GET'ten ÖNCE özel olarak yakalanmalı,
     // aksi halde handleProjectDetailRoute slug'ı "some-slug/moderate" olarak arardı.
     if (projectSlug.endsWith('/moderate') && request.method === 'POST') {
       return handleSelfProjectModerate(request, env, decodeURIComponent(projectSlug.slice(0, -'/moderate'.length)));

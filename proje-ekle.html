@@ -335,6 +335,18 @@
     font-weight:600; font-size:15px;
   }
   .form-submit:hover{background:var(--walnut);}
+  /* Arşivle/Sil — Değişiklikleri Kaydet'in hemen altında, tek satırda yan yana (bkz. kullanıcı
+     isteği) — .form-submit ile AYNI pill dili (radius:100px), ama ikincil/tehlike vurgusu için
+     dolu değil ÇERÇEVELİ (modal-shell.js#.card-edit-btn/.card-delete-btn İLE AYNI renk mantığı). */
+  .form-danger-row{display:flex; gap:10px; margin-top:12px;}
+  .form-danger-btn{
+    flex:1; padding:12px; border-radius:100px; font-weight:600; font-size:13.5px;
+    background:var(--paper-card); border:1px solid var(--line); color:var(--walnut); cursor:pointer;
+  }
+  .form-danger-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+  .form-danger-btn.form-danger-btn-delete{border-color:rgba(184,76,76,0.4); color:#B84C4C;}
+  .form-danger-btn.form-danger-btn-delete:hover{background:rgba(184,76,76,0.08);}
+  .form-danger-btn:disabled{opacity:0.5; cursor:not-allowed;}
   .form-notice{
     display:none; margin-top:16px; padding:13px 16px; border-radius:10px;
     background:rgba(224,138,62,0.12); border:1px solid var(--accent);
@@ -606,6 +618,15 @@
       </div>
 
       <button class="form-submit" type="submit">Projeyi Gönder</button>
+      <!-- Arşivle/Sil — artık proje popup'ında DEĞİL, buradalar (bkz. kullanıcı isteği: "Arşivle ve
+           Sil butonlarını popup'tan kaldır, Projeyi Düzenle sayfasında Değişiklikleri Kaydet'in
+           altına tek satırda yan yana koy") — yalnızca düzenleme modunda (mountProjectAdminActions,
+           ?claim=/?edit= başarıyla yüklenip yetki onaylandığında) görünür olur, yeni proje eklerken
+           gizli kalır. -->
+      <div class="form-danger-row" id="p-danger-row" style="display:none;">
+        <button type="button" class="form-danger-btn" id="p-archive-btn">Arşivle</button>
+        <button type="button" class="form-danger-btn form-danger-btn-delete" id="p-delete-btn">Sil</button>
+      </div>
       <div class="form-loading" id="form-loading">Yükleniyor...</div>
       <div class="form-notice" id="form-notice"></div>
     </form>
@@ -1391,6 +1412,7 @@ async function prefillForEdit(){
     renderBrandChips();
     setExistingImages(item.images || []);
     renderPreviews();
+    mountProjectAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
@@ -1487,6 +1509,56 @@ async function prefillForClaim(){
   renderBrandChips();
   setExistingImages(merged.images || []);
   renderPreviews();
+  mountProjectAdminActions();
+}
+
+// Arşivle/Sil — artık proje popup'ında DEĞİL (bkz. kullanıcı isteği), bu sayfada Değişiklikleri
+// Kaydet'in altında gösterilir (eskiden js/components/project-actions.js'in pop-up header'ına
+// yazdığı AYNI mantık — owner → /api/project/:slug/moderate + DELETE, admin → /api/admin/legacy/
+// project-action — buraya taşındı, o dosyada artık yok). prefillForEdit/prefillForClaim BURAYA
+// yalnızca yetki zaten onaylandıktan SONRA (prefillForClaim'in canEdit erken-dönüşü GEÇİLDİYSE,
+// prefillForEdit'in item başarıyla YÜKLENDİYSE) ulaşır — o yüzden burada AYRICA bir yetki kontrolü
+// yapılmaz.
+function mountProjectAdminActions(){
+  const slug = claimSlug || existingSlug;
+  if(!slug) return;
+  const row = document.getElementById('p-danger-row');
+  const archiveBtn = document.getElementById('p-archive-btn');
+  const deleteBtn = document.getElementById('p-delete-btn');
+  row.style.display = '';
+  async function run(action){
+    const confirmText = action === 'delete'
+      ? 'Bu projeyi silmek istediğine emin misin? Proje anında canlı siteden kaldırılır.'
+      : (currentUserRole === 'admin'
+        ? 'Bu projeyi arşivlemek istediğine emin misin? Proje canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.'
+        : 'Bu projeyi arşivlemek istediğine emin misin? Proje canlıdan kaldırılıp hesabından tekrar düzenleyebilirsin.');
+    if(!confirm(confirmText)) return;
+    archiveBtn.disabled = true;
+    deleteBtn.disabled = true;
+    try{
+      let res;
+      if(currentUserRole === 'admin'){
+        res = await fetch('/api/admin/legacy/project-action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editId ? { action, id: editId } : { action, slug }),
+        });
+      } else if(action === 'delete'){
+        res = await fetch(`/api/project/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+      } else {
+        res = await fetch(`/api/project/${encodeURIComponent(slug)}/moderate`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+        });
+      }
+      if(!res.ok) throw new Error('request failed');
+      window.location.href = '/proje';
+    }catch{
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      archiveBtn.disabled = false;
+      deleteBtn.disabled = false;
+    }
+  }
+  archiveBtn.addEventListener('click', () => run('archive'));
+  deleteBtn.addEventListener('click', () => run('delete'));
 }
 
 if(claimSlug) prefillForClaim(); else prefillForEdit();

@@ -219,6 +219,14 @@ const ModalShell = (function () {
         background:var(--ink); color:var(--paper-card); border-color:var(--ink);
       }
       .modal-shell-header-actions .save-btn.card-save-btn.saved:hover{background:var(--ink);}
+      /* Puanla — X/Kaydet/Paylaş'ın EN DIŞINDA (bkz. kullanıcı isteği: "Puanla'yı da üste al, en dış
+         tarafa, yan yana") — project-modal.js/product-modal.js her ikisi de kendi .rating-widget
+         butonunu ProjectActions.render()/Kaydet+Paylaş'tan SONRA headerActions'a ekler, DOM sırası
+         zaten X→Kaydet→Paylaş→Puanla. Kaydet'in aksine Puanla METNİNİ KORUR ("Puanla" yazısı
+         gizlenmez, bkz. kullanıcı isteği — yalnızca Kaydet ikon-only olacaktı), bu yüzden yalnızca
+         yükseklik zorlanır, genişlik/padding proje.html/product-modal.js'in kendi pill tanımından
+         (Takip Et ile AYNI mantık) gelir. */
+      .modal-shell-header-actions .rating-widget{height:36px !important;}
       .modal-shell-body{
         flex:1; min-height:0; overflow-y:auto;
         display:grid; grid-template-columns:32% 68%;
