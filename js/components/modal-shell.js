@@ -133,8 +133,14 @@ const ModalShell = (function () {
         display:flex; align-items:center; justify-content:center;
       }
       .modal-shell-close:hover{background:var(--paper-alt);}
+      /* gerçek bulgu (kullanıcı isteği, 2026-08-30): X ile ilk aksiyon butonu arasındaki boşluk
+         .modal-shell-header'ın KENDİ gap'inden (8px), aksiyon butonlarının BİRBİRİYLE arasındaki
+         boşluk ise BURADAKİ ayrı gap'ten (eskiden 6px) geliyordu — iki farklı flex bağlamı farklı
+         gap değeri taşıdığından X↔Kaydet ile Kaydet↔Paylaş↔Puanla arası mesafeler eşit değildi.
+         Tüm butonlar arası boşluk EŞİT olsun diye burası da .modal-shell-header'ın 8px'iyle
+         AYNI değere getirildi (mobil karşılığı da aşağıda @media içinde 6px'e eşitlenir). */
       .modal-shell-header-actions{
-        display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;
+        display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; gap:8px; min-width:0;
       }
       .modal-shell-header-actions:empty{display:none;}
       .modal-shell-admin-actions{
@@ -251,7 +257,7 @@ const ModalShell = (function () {
            çocuğunu (X, actions-slot) yer değiştirir, actions-slot'un KENDİ içindeki sıra (ayrı bir
            flex context, row) bozulmaz. Masaüstünde sıra DEĞİŞMEZ (X → Kaydet → Paylaş, solda). */
         .modal-shell-header{left:auto; right:16px; gap:6px; flex-direction:row-reverse;}
-        .modal-shell-header-actions{gap:4px;}
+        .modal-shell-header-actions{gap:6px;}
         .modal-shell-header-actions a, .modal-shell-header-actions button{padding:0 10px; font-size:11.5px;}
         /* Admin/sahip aksiyonları — X'in KARŞI kenarı mobilde de değişmez: X sağda olduğundan burası
            SOLA taşınır (bkz. kullanıcı isteği). flex-direction row (reverse DEĞİL): ilk DOM çocuğu

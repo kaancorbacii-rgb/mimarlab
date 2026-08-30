@@ -245,6 +245,16 @@
     display:grid; grid-template-columns:250px 1fr;
     gap:28px; align-items:start;
   }
+  /* gerçek bulgu (2026-08-30, kullanıcı isteği: "En İyi 100'e tıklayınca mobilde ekran taşıyor"):
+     grid item'ların varsayılan min-width:auto'su İÇERİĞİN min-content genişliğini (küçülemeyen en
+     geniş çocuk) esas alır — Liste/Harita'da bu her zaman 1fr'lik track'in İÇİNE sığıyordu, ama
+     En İyi 100 sekmesi (3 sekmeli .view-toggle + .top100-row satırları) mobilde bu min-content'i
+     track genişliğinin ÜZERİNE çıkarıyor, main (ve dolayısıyla .grid-layout/body) fiziksel viewport'tan
+     GENİŞ render ediliyor, mobil tarayıcı da sayfayı buna göre "zoom out" ediyor (bkz. kullanıcı
+     ekran görüntüsü: tüm sayfa kenarlardan kırpılmış görünüyor). min-width:0 grid item'ı track
+     genişliğine sıkıştırmaya zorlar, iç öğeler (.result-bar/.top100-row zaten flex-wrap:wrap/
+     min-width:0 taşıyor) kendi içinde normal şekilde sarar/küçülür. */
+  .grid-layout main{min-width:0;}
   .grid-sidebar{
     position:sticky; top:90px;
     display:flex; flex-direction:column;

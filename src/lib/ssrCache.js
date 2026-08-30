@@ -5,7 +5,7 @@ import { cacheKeyFor } from './publicCache.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v98';
+export const SSR_CACHE_VERSION = 'v99';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

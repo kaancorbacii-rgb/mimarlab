@@ -97,6 +97,23 @@ const AuthModal = (function () {
     #am-panel .dash-head p{color:var(--ink-soft); font-size:13.5px; margin:0;}
     #am-panel .dash-edit-btn{flex-shrink:0; background:none; border:1.5px solid var(--ink); color:var(--ink); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
     #am-panel .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
+    /* Hesabım başlık satırı — accountTemplate() özelinde .dash-head-info YERİNE bu (bkz. kullanıcı
+       isteği: mobilde "Profili Düzenle" avatarın yanında üst satırda, "Aktivitelerim"/"İçeriklerim"
+       başlığın ALTINDA ayrı bir satırda kalsın). activitiesTemplate()/contentsTemplate() hâlâ eski
+       .dash-head-info'yu kullanıyor, bu yeni sınıf sadece Hesabım'ın kendi başlığını etkiler — aynı
+       özgüllükte (1,1,0) olduğundan ve BURADA (.dash-head kuralından SONRA) tanımlandığından, çakışan
+       display/gap/align-items kaynak sırasıyla kazanır, margin-bottom/flex-wrap gibi tekrar
+       yazılmayanlar .dash-head'den miras kalır. */
+    #am-panel .dash-head-account{display:flex; align-items:center; gap:18px;}
+    #am-panel .dash-head-titles{flex:1; min-width:0;}
+    /* .dash-head-btn-group: masaüstünde Profili Düzenle + Aktivitelerim/İçeriklerim'i TEK bir 10px
+       boşluklu küme olarak tutar (eski .dash-head-actions'ın 10px'i ile birebir aynı görünüm) — üstteki
+       18px'lik ana gap sadece avatar/başlık/buton-kümesi arasında kalır. Mobilde display:contents ile
+       kutu modelinden çıkar, iki çocuğu (Profili Düzenle butonu + Aktivitelerim/İçeriklerim sarmalayıcısı)
+       doğrudan .dash-head-account'un grid bağlamına katılır, ayrı grid-area'lara yerleşebilirler (bkz.
+       aşağısı @media). */
+    #am-panel .dash-head-btn-group{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+    #am-panel .dash-head-btn-group .dash-head-actions{display:flex; align-items:center; gap:10px;}
     /* Profili Düzenle pop-up — hesabim.html#profile-edit-overlay ile BİREBİR aynı desen (bkz. o
        dosya). ModalShell'in KENDİSİ burada kullanılmaz çünkü Hesabım zaten ModalShell'in TEK
        overlay'i İÇİNDE render ediliyor (bkz. ensureStyles/#am-panel) — bağımsız, daha yüksek
@@ -264,6 +281,20 @@ const AuthModal = (function () {
     @media (max-width:720px){
       #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px; flex-basis:100%; width:100%;}
       #am-panel .dash-head-actions{width:100%; justify-content:center;}
+      /* kullanıcı isteği (2026-08-30): Hesabım'da mobilde "Profili Düzenle" avatarla AYNI üst satırda
+         (sağa hizalı) kalsın, "Aktivitelerim"/"İçeriklerim" başlığın ALTINDA ayrı, ortalanmış bir
+         satıra insin — bkz. yukarısı .dash-head-btn-group (display:contents sayesinde masaüstündeki
+         10px'lik küme burada ikiye ayrılıp iki farklı grid-area'ya yerleşebiliyor). */
+      #am-panel .dash-head-account{
+        display:grid; grid-template-columns:auto 1fr;
+        grid-template-areas:"avatar edit" "titles titles" "secondary secondary";
+        gap:10px 18px; align-items:center;
+      }
+      #am-panel .dash-head-account .dash-avatar{grid-area:avatar;}
+      #am-panel .dash-head-account .dash-head-titles{grid-area:titles;}
+      #am-panel .dash-head-account .dash-head-btn-group{display:contents;}
+      #am-panel .dash-head-account #am-dash-edit-btn{grid-area:edit; justify-self:end;}
+      #am-panel .dash-head-account .dash-head-actions{grid-area:secondary; width:100%; justify-content:center;}
     }
     @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
 
@@ -592,15 +623,15 @@ const AuthModal = (function () {
     return `
     <div class="dash-wrap" id="am-dash-wrap">
       <div id="am-payment-success-banner" style="display:none; background:rgba(62,122,85,0.12); border:1px solid #3E7A55; color:var(--ink); font-size:13px; padding:13px 16px; border-radius:12px; margin-bottom:20px; line-height:1.6;">Ödemen alındı — rozetin aktif edildi.</div>
-      <div class="dash-head">
+      <div class="dash-head dash-head-account">
         <div class="dash-avatar" id="am-dash-avatar">–</div>
-        <div class="dash-head-info">
-          <div>
-            <h1 id="am-dash-title">Hoş Geldin</h1>
-            <p id="am-dash-sub">—</p>
-          </div>
-          <div class="dash-head-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-            <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
+        <div class="dash-head-titles">
+          <h1 id="am-dash-title">Hoş Geldin</h1>
+          <p id="am-dash-sub">—</p>
+        </div>
+        <div class="dash-head-btn-group">
+          <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
+          <div class="dash-head-actions">
             <button type="button" class="dash-edit-btn" id="am-dash-activities-btn">Aktivitelerim</button>
             <button type="button" class="dash-edit-btn" id="am-dash-contents-btn">İçeriklerim</button>
           </div>
