@@ -53,6 +53,21 @@ async function resolveRecipients(env, profileType, profileKey, excludeUserId) {
   return results.filter(r => OFFICE_MESSAGE_POSITIONS.has(r.office_position)).map(r => r.user_id).filter(id => id !== excludeUserId);
 }
 
+// Aynı gönderenin, YENİ mesajın alıcılarından en az biriyle ORTAK bir açık (status='open') konuşması
+// var mı? (bkz. createThread'teki kullanıcı isteği yorumu) — varsa mesaj o konuşmaya eklenir, farklı
+// profile (ör. mimar vs. firma) gönderilmiş olması önemli değildir, önemli olan ALICI TARAFINDAKİ
+// kişinin aynı olması.
+async function findReusableOpenThread(env, senderUserId, recipients) {
+  if (!recipients.length) return null;
+  const placeholders = recipients.map(() => '?').join(',');
+  return env.DB.prepare(
+    `SELECT t.* FROM message_threads t
+     JOIN message_thread_recipients r ON r.thread_id = t.id
+     WHERE t.sender_user_id = ? AND t.status = 'open' AND r.user_id IN (${placeholders})
+     ORDER BY t.updated_at DESC LIMIT 1`
+  ).bind(senderUserId, ...recipients).first();
+}
+
 async function createThread(request, env, user) {
   // saved.js/follows.js#createSaved,createFollow İLE AYNI cömert üst sınır gerekçesi — ucuz/sık
   // kullanılan bir eylem, asıl kötüye kullanım engeli aşağıdaki 'message-send' sınırı.
@@ -79,6 +94,20 @@ async function createThread(request, env, user) {
   const recipients = await resolveRecipients(env, profileType, profileKey, user.id);
   if (!recipients.length) return errorJson('Bu profile şu anda mesaj gönderilemiyor.', 400);
 
+  // kullanıcı isteği (2026-08-30): AYNI kullanıcı (Kaan Çorbacı örneğindeki gibi kendi mimar VE firma
+  // profilinin ikisine de sahip biri) FARKLI profillerinden birine "Mesaj Gönder" formunu tekrar
+  // doldurursa yeni bir konuşma AÇILMASIN — gerçek bulgu: Ferhat Yılmaz önce Kaan'ın mimar profiline,
+  // sonra firma profiline yazınca Hesabım > Mesajlar'da AYNI kişi için 2 ayrı balon oluşuyordu, çünkü
+  // eski kontrol yalnızca AYNI profile (profile_type+profile_key) bakıyordu. Artık gönderenin herhangi
+  // bir açık (status='open') konuşmasının alıcılarıyla YENİ mesajın alıcıları arasında ORTAK bir kişi
+  // varsa (ör. aynı profil sahibi) mesaj o konuşmaya eklenir — yalnızca hiç ortak alıcılı açık konuşma
+  // yoksa veya öncekiler kapatılmışsa (bkz. closeThread) yeni bir thread oluşturulur.
+  const existing = await findReusableOpenThread(env, user.id, recipients);
+  if (existing) {
+    await appendMessageToThread(env, existing, user, description);
+    return json({ id: existing.id });
+  }
+
   const now = Date.now();
   const threadId = newId();
   await env.DB.prepare(
@@ -104,6 +133,29 @@ async function createThread(request, env, user) {
   }
 
   return json({ id: threadId }, 201);
+}
+
+// replyThread VE createThread'in "zaten açık bir konuşma var" dalı ORTAK kullanır (bkz. yukarıdaki
+// kullanıcı isteği yorumu) — mesajı ekler, thread'i updated_at ile öne çeker, diğer taraf(lar)a
+// bildirim yollar. `thread` en az {id, sender_user_id} taşımalı.
+async function appendMessageToThread(env, thread, user, text) {
+  const now = Date.now();
+  const messageId = newId();
+  await env.DB.prepare(
+    `INSERT INTO messages (id, thread_id, sender_user_id, body, created_at) VALUES (?, ?, ?, ?, ?)`
+  ).bind(messageId, thread.id, user.id, text, now).run();
+  await env.DB.prepare('UPDATE message_threads SET updated_at = ? WHERE id = ?').bind(now, thread.id).run();
+
+  const { results: recipientRows } = await env.DB.prepare(
+    'SELECT user_id FROM message_thread_recipients WHERE thread_id = ?'
+  ).bind(thread.id).all();
+  const otherPartyIds = new Set([thread.sender_user_id, ...recipientRows.map(r => r.user_id)]);
+  otherPartyIds.delete(user.id);
+
+  const preview = text.length > 140 ? text.slice(0, 140) + '…' : text;
+  for (const recipientId of otherPartyIds) {
+    await createNotification(env, recipientId, 'message', '1 Yeni Mesaj', `${user.name}: ${preview}`, `msg:${thread.id}`);
+  }
 }
 
 async function assertParticipant(env, threadId, userId) {
@@ -170,23 +222,7 @@ async function replyThread(request, env, user, threadId) {
   const text = (body.body || '').trim();
   if (!text || text.length > MAX_BODY_LEN) return errorJson('Mesaj metni boş olamaz.');
 
-  const now = Date.now();
-  const messageId = newId();
-  await env.DB.prepare(
-    `INSERT INTO messages (id, thread_id, sender_user_id, body, created_at) VALUES (?, ?, ?, ?, ?)`
-  ).bind(messageId, threadId, user.id, text, now).run();
-  await env.DB.prepare('UPDATE message_threads SET updated_at = ? WHERE id = ?').bind(now, threadId).run();
-
-  const { results: recipientRows } = await env.DB.prepare(
-    'SELECT user_id FROM message_thread_recipients WHERE thread_id = ?'
-  ).bind(threadId).all();
-  const otherPartyIds = new Set([thread.sender_user_id, ...recipientRows.map(r => r.user_id)]);
-  otherPartyIds.delete(user.id);
-
-  const preview = text.length > 140 ? text.slice(0, 140) + '…' : text;
-  for (const recipientId of otherPartyIds) {
-    await createNotification(env, recipientId, 'message', '1 Yeni Mesaj', `${user.name}: ${preview}`, `msg:${threadId}`);
-  }
+  await appendMessageToThread(env, thread, user, text);
 
   return json({ ok: true }, 201);
 }
@@ -236,7 +272,27 @@ async function listMyThreads(env, user) {
   ).bind(user.id).all();
   const unreadThreadIds = new Set(unreadRows.map(r => (r.link || '').startsWith('msg:') ? r.link.slice(4) : null).filter(Boolean));
 
-  const items = threads.map(t => {
+  // kullanıcı isteği (2026-08-30): "bir kullanıcının sadece bir konuşma balonu olsun" — findReusableOpenThread
+  // artık YENİ mesajların aynı karşı tarafa aynı açık thread'e eklenmesini sağlıyor, ama eski/legacy
+  // veride (ör. biri kapanmış eski bir görüşme + biri güncel açık görüşme, AYNI kişiyle) hâlâ birden
+  // fazla thread satırı olabilir — burada karşı taraf başına (gönderen yönünde: hedef profil; alıcı
+  // yönünde: gönderen kullanıcı — otherName/otherPhotoUrl İLE AYNI ayrım) yalnızca EN GÜNCEL
+  // (updatedAt) thread gösterilir, okunmadı bayrağı ise gruptaki HERHANGİ bir satır işaretliyse taşınır.
+  function groupKeyFor(t) {
+    return t.sender_user_id === user.id ? `p:${t.profile_type}:${t.profile_key}` : `u:${t.sender_user_id}`;
+  }
+  const unreadByGroup = new Map();
+  for (const t of threads) {
+    if (unreadThreadIds.has(t.id)) unreadByGroup.set(groupKeyFor(t), true);
+  }
+  const latestByGroup = new Map();
+  for (const t of threads) {
+    const key = groupKeyFor(t);
+    const prev = latestByGroup.get(key);
+    if (!prev || t.updated_at > prev.updated_at) latestByGroup.set(key, t);
+  }
+
+  const items = Array.from(latestByGroup.entries()).map(([key, t]) => {
     const isSender = t.sender_user_id === user.id;
     const last = lastMsgByThread.get(t.id);
     return {
@@ -246,7 +302,7 @@ async function listMyThreads(env, user) {
       otherName: isSender ? t.profile_key : t.sender_name,
       otherPhotoUrl: isSender ? null : (photoByUserId.get(t.sender_user_id) || null),
       lastMessage: last ? { body: last.body, isMe: last.sender_user_id === user.id, createdAt: last.created_at } : null,
-      unread: unreadThreadIds.has(t.id),
+      unread: unreadByGroup.get(key) || false,
       updatedAt: t.updated_at,
     };
   }).sort((a, b) => b.updatedAt - a.updatedAt);

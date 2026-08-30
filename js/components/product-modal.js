@@ -779,13 +779,6 @@ const ProductModal = (function () {
     saveBtn.dataset.href = `/urun/${encodeURIComponent(key)}`;
     const saveSlot = document.getElementById('pr-save-slot');
     saveSlot.innerHTML = '';
-
-    // Websitesi — artık listenin EN BAŞında (bkz. kullanıcı isteği: "websitesi butonunu en sola al"),
-    // Kaydet/Paylaş'tan ÖNCE.
-    const site = p.website ? safeUrl(p.website) : '';
-    if (site) {
-      saveSlot.insertAdjacentHTML('beforeend', `<a class="save-btn" id="pr-website-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`);
-    }
     saveSlot.appendChild(saveBtn);
     wireSaveButtons(ratingKindFor(p));
 
@@ -793,6 +786,16 @@ const ProductModal = (function () {
     if (typeof ShareWidget !== 'undefined') {
       afterSaveEl.insertAdjacentHTML('afterend', ShareWidget.html('pr-share-btn'));
       ShareWidget.wire('pr-share-btn', () => ({ title: p.title, url: `${window.location.origin}/urun/${encodeURIComponent(key)}` }));
+    }
+
+    // Websitesi — artık satırın EN BAŞında, Puanla'dan ÖNCE (bkz. kullanıcı isteği: "Websitesi,
+    // Puanla, Kaydet, Paylaş" sırası) — #pr-save-slot'un DIŞINDA olduğundan (yukarıdaki
+    // saveSlot.innerHTML='' onu temizlemez), her render'da elle kaldırılıp gerekiyorsa yeniden eklenir.
+    const existingWebsiteBtn = document.getElementById('pr-website-btn');
+    if (existingWebsiteBtn) existingWebsiteBtn.remove();
+    const site = p.website ? safeUrl(p.website) : '';
+    if (site) {
+      document.getElementById('pr-rating-save-row').insertAdjacentHTML('afterbegin', `<a class="save-btn" id="pr-website-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`);
     }
 
     const ratingWidget = document.getElementById('pr-rating');

@@ -102,7 +102,13 @@ const ArchitectProjects = (function () {
     const mySeq = ++mountSeq;
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const section = document.getElementById(mergedIds.section);
-    const designers = item.designerDetails || [];
+    // kullanıcı isteği (2026-08-30): projede bir mimarlık firması varsa bu bölüm SADECE o firma(lar)ın
+    // diğer projelerini göstersin, mimarların DEĞİL (proje-modal.js#pm-same-designer-title İLE AYNI
+    // "firma varsa öncelikli" kuralı — başlık zaten "Firmanın Diğer Projeleri"ne dönüyordu, ama içerik
+    // hâlâ hem mimar hem firma projelerini karıştırıyordu). Firma yoksa eskisi gibi mimar(lar)a düşülür.
+    const allDesigners = item.designerDetails || [];
+    const offices = allDesigners.filter(d => d.type === 'office');
+    const designers = offices.length ? offices : allDesigners;
     // buildStatus: kaynak projeyle AYNI kategori (bkz. gatherCandidateQueries'teki AYNI gerekçe).
     const buildStatus = item.buildStatus === 'concept' ? 'concept' : 'built';
     const lists = await Promise.all(designers.map(d => fetchByDesigner(d.name, d.type, buildStatus)));

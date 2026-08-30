@@ -380,6 +380,12 @@ async function mountRateButton(el, opts){
   const targetId = opts.targetId || el.dataset.key;
   if(!targetType || !targetId) return;
   el.classList.add('rate-trigger-btn');
+  // kullanıcı isteği (2026-08-30): buton önce BOŞ görünüp birkaç yüz ms sonra yıldız+"Puanla" metni
+  // birden beliriyordu ("lag" hissi) — gerçek neden, aşağıdaki savedWidgetReady + paint()'in kendi
+  // İKİ fetch'i tamamlanana kadar el.innerHTML'in hiç dolmamasıydı. Gerçek veriler gelene kadar HEMEN
+  // (senkron, hiçbir await'ten önce) nötr bir iskelet basılır — paint() yalnızca dolu yıldız/ortalama
+  // gibi İNCE ayrıntıları üstüne yazar, buton hiçbir zaman "hiç yokmuş" gibi görünmez.
+  el.innerHTML = `${starSvg(false, 14)}<span>Puanla</span>`;
   if(typeof savedWidgetReady !== 'undefined') await savedWidgetReady;
 
   async function paint(){

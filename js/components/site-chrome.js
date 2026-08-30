@@ -609,7 +609,7 @@
         <div class="nav-search-modal-section">
           <div class="nav-search-modal-section-title">Görsel ile Ürün Arama</div>
           <div class="nav-search-modal-image-box">
-            <label class="nav-search-modal-image-drop" id="nav-search-modal-image-drop">
+            <div class="nav-search-modal-image-drop" id="nav-search-modal-image-drop" role="button" tabindex="0" aria-label="Görsel seç">
               <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG veya JPEG (Maks. 10mb)</span>
               <div class="nav-search-modal-image-preview" id="nav-search-modal-image-preview" hidden>
                 <img id="nav-search-modal-image-preview-img" alt="">
@@ -619,7 +619,7 @@
                 </button>
               </div>
               <input type="file" accept="image/png,image/jpeg" id="nav-search-modal-image-input" hidden>
-            </label>
+            </div>
             <div class="nav-search-modal-image-or">veya</div>
             <label class="nav-search-modal-image-paste">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -636,9 +636,16 @@
     let debounceTimer = null;
     let currentQuery = '';
 
-    // kullanıcı isteği (2026-08-28): "Görsel ile Ürün Arama" artık görsel yükleme/sürükle-bırakla
-    // ÇALIŞIYOR (dosya seçilip önizlenebiliyor) — ama arama tarafı henüz bağlı değil, bu yüzden
-    // seçilen görsel hiçbir yere gönderilmez, yalnızca istemci tarafında önizlenir.
+    // kullanıcı isteği (2026-08-28): "Görsel ile Ürün Arama" görsel yükleme/sürükle-bırakla dosya
+    // seçilip önizlenebiliyor — ama arama tarafı henüz bağlı değil, bu yüzden seçilen görsel hiçbir
+    // yere gönderilmez, yalnızca istemci tarafında önizlenir.
+    // gerçek bulgu (2026-08-30, kullanıcı isteği: "görsel yükleme... aktif değil"): #nav-search-modal-
+    // image-drop eskiden bir <label> idi ve dosya input'u İÇİNDE barındırıyordu — tıklamanın native
+    // label→input yönlendirmesiyle dosya seçiciyi açması bekleniyordu, ama bu yönlendirme (özellikle
+    // otomasyon/CDP kaynaklı sentetik tıklamalarda, muhtemelen bazı gerçek tarayıcı/uzantı
+    // kombinasyonlarında da) güvenilir şekilde tetiklenmiyordu — tıklayınca HİÇBİR ŞEY olmuyordu.
+    // Artık düz bir <div role="button"> — tıklama/klavye (Enter/Space) input.click()'i AÇIKÇA çağırır,
+    // native label davranışına hiç güvenilmez.
     const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
     const imageDrop = overlay.querySelector('#nav-search-modal-image-drop');
     const imageInput = overlay.querySelector('#nav-search-modal-image-input');
@@ -681,6 +688,12 @@
     }
     imageInput.addEventListener('change', () => acceptImageFile(imageInput.files && imageInput.files[0]));
     imageRemoveBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearImage(); });
+    // imageRemoveBtn kendi handler'ında stopPropagation() çağırdığından ("Görseli kaldır" tıklaması
+    // buraya hiç ulaşmaz) — burası yalnızca kutunun geri kalanına (metin/önizleme alanı) tıklanınca çalışır.
+    imageDrop.addEventListener('click', () => imageInput.click());
+    imageDrop.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); imageInput.click(); }
+    });
     imageDrop.addEventListener('dragover', (e) => { e.preventDefault(); imageDrop.classList.add('dragover'); });
     imageDrop.addEventListener('dragleave', () => imageDrop.classList.remove('dragover'));
     imageDrop.addEventListener('drop', (e) => {
