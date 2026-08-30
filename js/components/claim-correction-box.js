@@ -1,6 +1,7 @@
 // Paylaşılan "Bu profil sana mı ait?" (claim) + "Geri Bildirim" (correction) yan sütun kutuları ve
-// bunlara bağlı "Düzenle"/"Arşivle"/"Sil" butonu: mimar-detay.html ve ofis-detay.html'de birebir
-// aynı akışı (yalnızca metin/anahtar/uç nokta farklarıyla) tekilleştirir (bkz.
+// bunlara bağlı "Sil" butonu (Düzenle/Arşivle kaldırıldı, bkz. kullanıcı isteği 2026-08-30):
+// mimar-detay.html ve ofis-detay.html'de birebir aynı akışı (yalnızca metin/anahtar/uç nokta
+// farklarıyla) tekilleştirir (bkz.
 // docs/architecture-roadmap.md Faz 2). save-widget.js gibi diğer paylaşılan script'lerle aynı
 // desen: her sayfa <script src="js/components/claim-correction-box.js"> ile dahil eder ve
 // createClaimCorrectionBox(config) çağırıp döneni kullanır — bu dosya `currentUser` (save-widget.js)
@@ -13,25 +14,18 @@
 //   profileType        'architect' | 'office'
 //   ready              (Promise, opsiyonel) currentUser hazır olana kadar beklenir — savedWidgetReady
 //   getProfileKey()    claim/correction API çağrılarında kullanılacak GÜNCEL profil anahtarını döner
-//   getClaimLinkKey()  (opsiyonel) "Düzenle" linkindeki ?claim= parametresi için anahtar döner;
-//                      verilmezse getProfileKey() kullanılır (ofis yeniden adlandırmasında bunlar
-//                      farklıdır, bkz. data.js#renameOfficeEverywhere / _claimKey)
-//   editUrlBase        'mimar-ekle.html' | 'firma-ekle.html'
-//   listUrl            silme/arşivleme sonrası yönlendirilecek liste sayfası ('mimar.html' | 'firma.html')
+//   listUrl            silme sonrası yönlendirilecek liste sayfası ('mimar.html' | 'firma.html')
 //   contentType         /api/admin/legacy/content-action için 'type' alanı ('architects' | 'offices')
 //   getModerationTarget() moderasyon isteğine eklenecek { key } ya da { id } döner
 //   labels             { claimTitle, loginPromptHtml, pendingHtml, claimNoteDescription,
 //                         claimButtonText, deleteConfirm, archiveConfirm }
 //   ownerCanModerate   (opsiyonel, varsayılan false) true ise profil sahibi (admin olmasa da)
-//                      Arşivle/Sil butonlarını da görür (bkz. kullanıcı isteği: danışman kendi
-//                      profilini yönetebilsin) — diğer çağıranları (mimar/ofis) ETKİLEMEZ.
-//   moderateUrl        (opsiyonel, varsayılan '/api/admin/legacy/content-action') Arşivle/Sil
-//                      isteğinin gönderileceği uç nokta — ownerCanModerate ile birlikte, admin
-//                      olmayan sahiplerin de yetkilendirilebileceği self-servis bir rotaya işaret
-//                      edebilir (bkz. kullanıcı isteği).
-//   onEditClick        (opsiyonel) verilirse "Düzenle" bir <a href> yerine <button> olur ve
-//                      tıklanınca bu callback çağrılır (sayfa değiştirmeden inline düzenleme
-//                      açmak için, bkz. kullanıcı isteği) — verilmezse mevcut link davranışı korunur.
+//                      Sil butonunu da görür (bkz. kullanıcı isteği: danışman kendi profilini
+//                      yönetebilsin) — diğer çağıranları (mimar/ofis) ETKİLEMEZ.
+//   moderateUrl        (opsiyonel, varsayılan '/api/admin/legacy/content-action') Sil isteğinin
+//                      gönderileceği uç nokta — ownerCanModerate ile birlikte, admin olmayan
+//                      sahiplerin de yetkilendirilebileceği self-servis bir rotaya işaret edebilir
+//                      (bkz. kullanıcı isteği).
 //   isStale()          (opsiyonel) çağrılan sayfa (architect-modal.js/office-modal.js) her
 //                      renderItem() başında GÜNCELLENEN kendi currentItem'ıyla karşılaştırıp bu
 //                      claimBox örneğinin hâlâ EKRANDA GÖRÜNEN profile mi ait olduğunu söyler — bkz.
@@ -40,7 +34,6 @@
 //                      claim-correction-box kullanılmadığından bu callback'e zaten ihtiyaç yok).
 function createClaimCorrectionBox(config){
   let isProfileOwner = false;
-  const getClaimLinkKey = config.getClaimLinkKey || config.getProfileKey;
 
   // product-modal.js#injectStyles'daki AYNI .pr-feedback-card kuralları — burada iki kutu (claim +
   // geri bildirim) AYNI sayfada yan yana durduğundan ID yerine class seçiciler kullanılır. Claim
@@ -225,48 +218,19 @@ function createClaimCorrectionBox(config){
     });
   }
 
-  // Profilin onaylı sahibi (isProfileOwner, bkz. loadClaimCard) ya da admin ise modal-shell.js'in
-  // paylaşılan header'ında, X butonunun yanında bir "Düzenle" butonu gösterir (bkz. kullanıcı
-  // isteği) — admin hiçbir profili sahiplenmeden de düzenleyebilir (bkz. src/routes/
-  // submissions.js#verifyClaimedProfileKey admin bypass). Admin ayrıca bu profili arşivleyip/
-  // silebilsin diye "Düzenle"nin yanına Arşivle/Sil butonları ekler. #profile-edit-slot artık
-  // architect-modal.js/office-modal.js tarafından header'ın İÇİNE yazılıyor (bkz. o dosyalar).
-  // Firma düzenleme yetkisi artık yalnızca onaylı bir sahiplenmeye değil pozisyona da bağlı (bkz.
-  // kullanıcı isteği: "Firma düzenleme yetkisi sadece admin, firma kurucusu, kurucu ortağı, ortağı
-  // ve ekip liderinde olsun") — src/routes/submissions.js#OFFICE_EDIT_POSITIONS ile BİREBİR aynı
-  // liste; sunucu tarafı asıl kapı, bu yalnızca artık kaydedemeyecek bir Ekip Üyesi'ne baştan
-  // yanıltıcı bir "Düzenle" butonu göstermemek için.
-  const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
+  // gerçek bulgu (kullanıcı isteği, 2026-08-30): mimar/firma pop-up'larında Düzenle ve Arşivle
+  // kaldırıldı, Sil korundu — #profile-edit-slot artık yalnızca Sil butonunu taşıyor.
+  // runProfileModeration'ın 'archive' dalı admin panelindeki genel arşivleme akışı için hâlâ
+  // kullanılabilir durumda bırakıldı, yalnızca buradaki UI kaldırıldı.
   function renderProfileEditButton(){
     const slot = document.getElementById('profile-edit-slot');
     if(!slot) return;
-    const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(currentUser && currentUser.position);
-    if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
-    // Arşivle/Sil normalde yalnızca admin'e açık; ownerCanModerate:true veren çağıranlarda (bkz.
-    // kullanıcı isteği: danışman kendi profilini yönetebilsin) profil sahibi de görür.
-    const canModerate = currentUser.role === 'admin' || (config.ownerCanModerate && isProfileOwner);
-    const adminButtonsHtml = canModerate ? `
-      <button type="button" class="card-edit-btn" id="profile-archive-btn">Arşivle</button>
-      <button type="button" class="card-delete-btn" id="profile-delete-btn">Sil</button>` : '';
-    // editButtonText — opsiyonel, verilmezse mimar/firma modallarındaki AYNI "Düzenle" varsayılanı
-    // korunur (bkz. kullanıcı isteği: danışman modalında "Profili Düzenle" yazsın — diğer çağıranlar
-    // etkilenmesin diye buraya bir varsayılan değerle eklendi).
-    const editLabel = (config.labels && config.labels.editButtonText) || 'Düzenle';
-    const editButtonHtml = config.onEditClick
-      ? `<button type="button" class="profile-edit-btn" id="profile-edit-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-          ${editLabel}
-        </button>`
-      : `<a class="profile-edit-btn" href="${config.editUrlBase}?claim=${encodeURIComponent(getClaimLinkKey())}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
-          ${editLabel}
-        </a>`;
-    slot.innerHTML = editButtonHtml + adminButtonsHtml;
-    if(config.onEditClick) document.getElementById('profile-edit-btn').addEventListener('click', () => config.onEditClick());
-    if(canModerate){
-      document.getElementById('profile-archive-btn').addEventListener('click', () => runProfileModeration('archive'));
-      document.getElementById('profile-delete-btn').addEventListener('click', () => runProfileModeration('delete'));
-    }
+    // Sil normalde yalnızca admin'e açık; ownerCanModerate:true veren çağıranlarda (bkz. kullanıcı
+    // isteği: danışman kendi profilini yönetebilsin) profil sahibi de görür.
+    const canModerate = currentUser && (currentUser.role === 'admin' || (config.ownerCanModerate && isProfileOwner));
+    if(!canModerate){ slot.innerHTML = ''; return; }
+    slot.innerHTML = `<button type="button" class="card-delete-btn" id="profile-delete-btn">Sil</button>`;
+    document.getElementById('profile-delete-btn').addEventListener('click', () => runProfileModeration('delete'));
   }
 
   async function runProfileModeration(action){
