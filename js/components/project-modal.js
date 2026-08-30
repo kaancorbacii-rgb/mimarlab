@@ -17,7 +17,6 @@ const ProjectModal = (function () {
     <div class="pm-rating-save-row" id="pm-rating-save-row">
       <button type="button" class="rating-widget" id="pm-rating" data-type="project" aria-label="Puanla"></button>
       <span class="pm-rating-avg" id="pm-rating-avg" style="display:none;"></span>
-      <div id="pm-save-slot"></div>
     </div>
     <div class="detail-byline" id="pm-byline" style="display:none;">
       <span class="detail-byline-avatar" id="pm-byline-avatar"></span>
@@ -620,6 +619,8 @@ const ProjectModal = (function () {
   function renderLoading() {
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '';
     // pm-title HIDE_ON_NOT_FOUND_IDS'te DEĞİL (renderNotFound() onu gizlemek yerine "Proje bulunamadı"
     // metniyle DOLDURUR) — burada da aynı şekilde ELLE boşaltılmazsa bir önceki projenin başlığı,
     // altındaki skeleton çubuğunun ÜSTÜNDE bayat metin olarak asılı kalırdı (gerçek bulgu, bu düzeltme
@@ -695,6 +696,8 @@ const ProjectModal = (function () {
     document.getElementById('pm-title').textContent = 'Proje bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '';
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('pm-force-hidden');

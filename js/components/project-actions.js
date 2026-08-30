@@ -1,13 +1,11 @@
-// ProjectActions — Kaydet/Düzenle/Arşivle/Sil buton satırı. proje-detay.html#mountEditButton/
+// ProjectActions — Kaydet/Paylaş/Düzenle/Arşivle/Sil buton satırı. proje-detay.html#mountEditButton/
 // mountAdminModerationButtons/runProjectModeration'ın taşınmış hâli; save-widget.js'in paylaşılan
 // wireSaveButtons/editSubmissionBtnHtml fonksiyonlarını AYNEN yeniden kullanır (bkz. kullanıcı
-// isteği: mevcut çalışan yardımcı fonksiyonları tekrar üretme).
+// isteği: mevcut çalışan yardımcı fonksiyonları tekrar üretme). Kaydet/Paylaş ARTIK Puanlama
+// satırında DEĞİL — X'in yanında (ModalShell.getHeaderActionsSlot()), Düzenle/Arşivle/Sil ise X'in
+// KARŞI kenarında (ModalShell.getAdminActionsSlot()) render edilir (bkz. kullanıcı isteği: aksiyon
+// butonları X'in yanına, admin butonları satırın diğer ucuna taşınsın).
 const ProjectActions = (function () {
-  // saveSlot: Kaydet butonu Puanlama ile AYNI satırda (bkz. kullanıcı isteği: "Puanlama alanı ile
-  // Kaydet butonu yan yana, tek bir satırda"). Düzenle/Arşivle/Sil ARTIK bu slot'un yanında bir yerde
-  // DEĞİL — modal-shell.js'in paylaşılan header'ında, X butonunun yanında render edilir (bkz.
-  // kullanıcı isteği: aksiyon butonları X'in yanına taşınsın) — ModalShell.getHeaderActionsSlot().
-  const DEFAULT_IDS = { saveSlot: 'pm-save-slot' };
   // renderSeq: project-comments.js#mountSeq ile AYNI desen/gerekçe — proje popup'ı hızla
   // değiştirildiğinde önceki projenin yavaş kalan sahiplik (/api/projects/mine) ya da kayıt-sayısı
   // isteği, artık ekranda olan YENİ projenin Düzenle/Sil butonlarını ya da Kaydet sayacını ezmesin diye.
@@ -153,12 +151,12 @@ const ProjectActions = (function () {
     }
   }
 
-  function render(item, ids) {
+  function render(item) {
     const mySeq = ++renderSeq;
-    const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
-    document.getElementById(mergedIds.saveSlot).innerHTML = saveBtnHtml(item) + (typeof ShareWidget !== 'undefined' ? ShareWidget.html('pm-share-btn') : '');
     const headerActions = ModalShell.getHeaderActionsSlot();
-    if (headerActions) headerActions.innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
+    if (headerActions) headerActions.innerHTML = saveBtnHtml(item) + (typeof ShareWidget !== 'undefined' ? ShareWidget.html('pm-share-btn') : '');
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = `<span id="pm-edit-submission-slot"></span><span id="pm-admin-actions-slot"></span>`;
     wireSaveButtons('project');
     if (typeof ShareWidget !== 'undefined') {
       ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}/proje/${encodeURIComponent(item.slug)}` }));

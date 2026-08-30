@@ -599,15 +599,9 @@
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:9.5px;
   }
   .detail-byline-avatar img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  /* Puanlama + Kaydet: kullanıcı isteği üzerine aynı satırda, ikisi de "pill" görünümlü (bkz.
-     .rating-widget kuralı aşağıda — save-btn ile AYNI çerçeve/dolgu dilini paylaşır). */
-  /* flex-wrap:nowrap !important — kullanıcı isteği: Puanla/Kaydet/Paylaş HİÇBİR genişlikte 2. satıra
-     düşmesin; dar ekranlarda satırın sığması Paylaş'ın ikon-only sabit boyutu (bkz. share-button.js)
-     ve Puanla/Kaydet'in flex-shrink+ellipsis ile daralması (metinleri HER ZAMAN görünür kalır, kullanıcı
-     isteği) ile sağlanır, taşma yerine ölçeklenme tercih edilir. Tüm bayraklar !important — kullanıcı
-     isteği: bu satır başka hiçbir kuralın ele geçiremeyeceği kadar katı olsun. */
-  /* gap 6px — #pm-save-slot'un (Kaydet-Paylaş arası) gap'iyle BİREBİR aynı (bkz. kullanıcı isteği:
-     Puanla-Kaydet ile Kaydet-Paylaş aralıkları eşitlensin). */
+  /* Puanlama — kullanıcı isteği: Kaydet/Paylaş artık bu satırda DEĞİL, X'in yanında (bkz.
+     modal-shell.js#injectStyles, js/components/project-actions.js) — bu satırda yalnızca Puanla
+     kalır. flex-wrap:nowrap !important — kullanıcı isteği: satır hiçbir genişlikte 2. satıra düşmesin. */
   .pm-rating-save-row{
     display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
     align-items:center !important; justify-content:flex-start !important; width:100% !important;
@@ -621,23 +615,14 @@
   */
   .pm-force-hidden{display:none;}
   .pm-rating-save-row.pm-force-hidden{display:none !important;}
-  /* gerçek bulgu: #pm-save-slot (Kaydet+Paylaş'ı BİRLİKTE tutan div, proje-actions.js#mount)
-     kendisi flex konteyner DEĞİLDİ — içindeki .save-btn/.share-widget salt inline-flex kutular
-     olduğundan sıradan satır-içi akışla dizilip konteynerin genişliğini aştıklarında (bkz. büyütülmüş
-     48px'lik pil boyutları, kullanıcı isteği) normal metin gibi ALT SATIRA kayıyorlardı — dıştaki
-     .pm-rating-save-row'un flex-wrap:nowrap'ı yalnızca KENDİ doğrudan çocuklarını (rating-widget +
-     bu slot) etkiliyor, slot'un İÇİNDEKİLERİ değil. Slot'u da flex/nowrap yapmak, .save-btn/
-     .share-btn'deki mevcut flex-shrink:1/min-width:0 kurallarının (yalnızca bir flex öğesindeyken
-     anlamlı) burada da devreye girmesini sağlar. */
-  #pm-save-slot{display:flex; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;}
-  /* Düzenle/Arşivle/Sil artık bu sütunda DEĞİL — modal-shell.js'in paylaşılan header'ında, X
-     butonunun yanında render edilir (bkz. kullanıcı isteği, js/components/project-actions.js). O
-     yüzden .detail-title-actions/.card-edit-btn/.card-delete-btn kuralları buradan kaldırıldı;
-     görsel stilleri artık TEK kaynaktan (modal-shell.js#injectStyles) geliyor. */
-  /* Yükseklik/dolgu/satır-yüksekliği .rating-widget ile BİREBİR aynı (bkz. kullanıcı isteği: "yan
-     yana geldiklerinde tam simetrik dursunlar") — height+box-sizing:border-box, içerik farklı olsa
-     bile (ikon vs yıldız satırı) dış kutuyu piksel piksel eşitler; yazı tipi/punto/kalınlık da sol
-     paneldeki künye etiketleriyle (.detail-meta strong: 14px/600) birebir aynı. */
+  /* Kaydet/Paylaş/Düzenle/Arşivle/Sil artık bu sütunda DEĞİL — Kaydet/Paylaş X'in yanında,
+     Düzenle/Arşivle/Sil X'in KARŞI kenarında render edilir (bkz. kullanıcı isteği,
+     js/components/project-actions.js). O yüzden #pm-save-slot/.detail-title-actions/.card-edit-btn/
+     .card-delete-btn kuralları buradan kaldırıldı; görsel stilleri artık TEK kaynaktan
+     (modal-shell.js#injectStyles) geliyor. .save-btn/.save-btn-label metinleri/.save-btn-count İSE
+     burada kalır — Kaydet header'a taşınsa da hâlâ bu sınıfları taşıyor, TEK stil kaynağı burası
+     (modal-shell.js yalnızca header bağlamındaki yükseklik/genişlik/metin-gizleme override'larını
+     ekler). */
   .save-btn{
     display:inline-flex; align-items:center; gap:5px;
     flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -652,31 +637,6 @@
   .save-btn.saved .save-btn-label-default{display:none;}
   .save-btn.saved .save-btn-label-saved{display:inline;}
   .save-btn-count{font-weight:600;}
-  /* gerçek bulgu: proje modalının Kaydet butonu save-widget.js'in .card-save-btn seçicisiyle
-     bulunabilmesi için hem .save-btn hem .card-save-btn sınıflarını birlikte taşıyor (bkz.
-     ProjectActions.render) — ama .card-save-btn KART bağlamında (üstteki kural, position:absolute;
-     top/right) mutlak konumlandırılmış dairesel bir simge olacak şekilde tanımlı; bu, modaldeki
-     butonu normal akıştan koparıp panelin sağ üst köşesine yapıştırıyordu. Aşağıdaki daha spesifik
-     seçici yalnızca modalin Puanlama+Kaydet satırı İÇİNDEKİ kopyayı normal akışa geri döndürür,
-     kart bağlamındaki (.content-card .card-save-btn) davranışı etkilemez. İKİNCİ gerçek bulgu: bu
-     seçici Kaydet'in DOM konumu proje-actions.js'te #pm-actions'tan #pm-save-slot'a taşındığında
-     (bkz. kullanıcı isteği: "Puanlama ile Kaydet aynı satırda") eski ".detail-title-actions
-     .card-save-btn" hedefini kaçırmıştı — buton yeniden köşeye yapıştı; seçici doğru kapsayıcıya
-     (.pm-rating-save-row) güncellendi.
-  */
-  /* height:auto DEĞİL — bare .card-save-btn kart bağlamı kuralı (height:32px) bu seçiciden DAHA
-     DÜŞÜK özgüllükte olsa da, height:auto burada .save-btn{height:36px}'i EZİYORDU (bkz. gerçek
-     bulgu: iki sınıfı birden taşıyan bu buton .pm-rating-save-row .card-save-btn'in (0,2,0) daha
-     yüksek özgüllüğüne sahip olduğundan .save-btn'in (0,1,0) height'ını görmezden geliyordu) —
-     .rating-widget ile piksel piksel eşit dursun diye height burada da AÇIKÇA 36px olarak yazılır. */
-  .pm-rating-save-row .card-save-btn{
-    position:static; width:auto; height:32px !important; z-index:auto;
-    background:var(--paper-card); border-radius:100px; color:var(--ink-soft);
-  }
-  .pm-rating-save-row .card-save-btn:hover{background:var(--paper-card);}
-  .pm-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card);}
-  /* Paylaş artık ikon-only (bkz. js/components/share-button.js) — boyutu tamamen o dosyadaki
-     paylaşılan .share-btn kuralından gelir, burada ayrı bir override gerekmiyor. */
 
   /* Kaydet butonuyla (.save-btn) AYNI pill çerçeve dili — kullanıcı isteği: "Kaydet butonundaki gibi
      dış çerçeve, border-radius/pill, hafif arka plan ve padding". Yıldız butonlarının kendi
@@ -1030,16 +990,12 @@
     #pm-comments-section{order:13;}
     #pm-feedback-card{order:14;}
 
-    /* Puanla/Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil
-       yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural
-       yalnızca bu kırılma noktasının altında geçerli. Satırın tek satırda kalma zorunluluğu (üstteki
-       .pm-rating-save-row flex-wrap:nowrap + her pildeki flex-shrink:1/min-width:0/overflow:hidden/
-       ellipsis) korunur — büyüyen pil genişliği dar ekranlarda ellipsis ile kendi içinde daralır.
-       Paylaş artık ikon-only olduğundan (bkz. share-button.js) buradaki listeden çıkarıldı, kendi
-       boyutunu paylaşılan .share-btn 860px kuralından alır. */
+    /* Puanla — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil yüksekliği en az
+       48px, tıklanabilir alan en az 44x44px. Masaüstü boyutları değişmez, bu kural yalnızca bu
+       kırılma noktasının altında geçerli. Kaydet/Paylaş artık bu satırda değil, X'in yanında sabit
+       36px'te (bkz. modal-shell.js#injectStyles) — buradaki listeden çıkarıldı. */
     .pm-rating-save-row{gap:8px !important;}
-    #pm-save-slot{gap:8px !important;}
-    .rating-widget, .save-btn, .pm-rating-save-row .card-save-btn{
+    .rating-widget{
       height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
     }
     .pm-rating-avg{display:none !important;}

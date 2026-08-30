@@ -37,29 +37,15 @@ const OfficeModal = (function () {
         font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:20px;
       }
       .profile-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper-card);}
-      .detail-title-actions{
-        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
-        align-items:center !important; justify-content:flex-start !important; width:100% !important;
-        gap:4px !important; margin:0 0 18px;
-      }
       .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
-      /* Düzenle/Arşivle/Sil artık #om-actions'ın İÇİNDE DEĞİL — modal-shell.js'in paylaşılan
-         header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği). Bu yüzden
-         .card-edit-btn/.card-delete-btn/.profile-edit-btn ve #profile-edit-slot'un display:contents
-         kuralı buradan kaldırıldı; TEK stil kaynağı artık modal-shell.js#injectStyles. */
-      /* Yalnızca "Websitesi" tarafından kullanılır — Kaydet KALDIRILDI (bkz. kullanıcı isteği). */
-      .save-btn{
-        display:inline-flex; align-items:center; gap:5px;
-        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
-        height:32px !important; box-sizing:border-box;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 8px !important; font-size:12px !important; font-weight:600; color:var(--ink-soft);
-        font-family:inherit; line-height:1; text-decoration:none;
-      }
-      .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
-      .save-btn svg{flex-shrink:0;}
-      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Websitesi/Paylaş ile
-         AYNI yükseklikte bir pil. Yanındaki takipçi sayısı (bkz. kullanıcı isteği) save-widget.js#
+      /* Düzenle/Arşivle/Sil (X'in KARŞI kenarında), Paylaş/Takip Et (X'in yanında) artık burada
+         DEĞİL — modal-shell.js'in paylaşılan header'ında render edilir (bkz. kullanıcı isteği: bu
+         satır tamamen kaldırıldı, altındaki içerik yukarı çekildi). .detail-title-actions/.save-btn/
+         .card-edit-btn/.card-delete-btn/.profile-edit-btn kuralları buradan kaldırıldı; TEK stil
+         kaynağı artık modal-shell.js#injectStyles. Websitesi ARTIK sosyal ikonlar satırının en
+         başında (bkz. aşağısı .social-icons .social-icon-website). */
+      /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Paylaş ile AYNI
+         yükseklikte bir pil. Yanındaki takipçi sayısı (bkz. kullanıcı isteği) save-widget.js#
          paintFollowBtn tarafından basılır. */
       .follow-btn{
         display:inline-flex; align-items:center; justify-content:center;
@@ -73,9 +59,13 @@ const OfficeModal = (function () {
       .follow-btn.following{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
       .detail-info{margin-top:8px;}
       /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (firma-ekle.html#social-row) */
-      .social-icons{display:flex; gap:12px; margin-top:4px;}
-      .social-icons a{color:var(--ink-soft); display:flex;}
+      .social-icons{display:flex; align-items:center; gap:12px; margin-top:4px; flex-wrap:wrap;}
+      .social-icons a{color:var(--ink-soft); display:inline-flex; align-items:center; gap:6px;}
       .social-icons a:hover{color:var(--walnut);}
+      /* Websitesi — artık sosyal ikonların EN BAŞINDA (bkz. kullanıcı isteği: firma-ekle.html'de
+         website adresi girildiğinde burada görünsün), ikonu+metni diğer sosyal ikonlarla AYNI
+         büyüklükte (18px ikon) — yalnızca bu buton yanında "Websitesi" yazısı taşır. */
+      .social-icons .social-icon-website{font-size:13px; font-weight:600;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
       /* Künye ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili/hiza (bkz. kullanıcı
@@ -170,14 +160,6 @@ const OfficeModal = (function () {
            (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
            çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
         .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
-        /* Websitesi — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil yüksekliği
-           en az 48px, tıklanabilir alan en az 44x44px. "Paylaş" burada scoped bir override taşımadığı
-           için share-button.js#injectStyles'daki AYNI kırılma noktasındaki generic .share-btn kuralı
-           uygulanır. Satırın tek satırda kalma zorunluluğu (üstteki .detail-title-actions
-           flex-wrap:nowrap + flex-shrink:1/min-width:0/overflow:hidden/ellipsis) korunur. */
-        .save-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
-        .follow-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
-        .detail-title-actions{gap:8px !important;}
       }
       .prevnext-mobile-divider{display:none;}
       /* Projeler haritası — bkz. js/components/architect-modal.js#injectStyles İLE BİREBİR AYNI
@@ -205,7 +187,6 @@ const OfficeModal = (function () {
       <div class="profile-logo" id="om-logo"></div>
       <h1 class="detail-title"><span id="om-name-text"></span><span id="om-verified-badge-wrap"></span></h1>
     </div>
-    <div class="detail-title-actions" id="om-actions"></div>
     <div id="om-social-links"></div>
     <div class="detail-info" id="om-detail-info">
       <div id="om-social-icons"></div>
@@ -429,10 +410,17 @@ const OfficeModal = (function () {
     website: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>',
   };
   const SOCIAL_LABELS = { instagram: 'Instagram', linkedin: 'LinkedIn', x: 'X (Twitter)', youtube: 'YouTube', behance: 'Behance', website: 'Web Sitesi' };
-  function socialIconsHtml(links) {
+  // websiteUrl: firma-ekle.html'de girilen o.website alanı (bkz. kullanıcı isteği) — sosyal ikonlar
+  // listesinin (o.social_links) DIŞINDA, ayrı bir alan olduğundan buraya parametre olarak geçilir ve
+  // her zaman listenin EN BAŞINDA, ikon+"Websitesi" metniyle (diğer ikonlarla AYNI 18px büyüklükte)
+  // render edilir (bkz. kullanıcı isteği: "websitesi butonunu sosyal simgelerin en başına al").
+  function socialIconsHtml(links, websiteUrl) {
     const valid = (links || []).map(s => ({ platform: s.platform, url: safeUrl(s.url) })).filter(s => s.url);
-    if (!valid.length) return '';
-    return `<div class="social-icons">${valid.map(s => `<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener" aria-label="${escapeAttr(SOCIAL_LABELS[s.platform] || s.platform)}">${SOCIAL_ICON_SVG[s.platform] || SOCIAL_ICON_SVG.website}</a>`).join('')}</div>`;
+    const websiteHtml = websiteUrl
+      ? `<a class="social-icon-website" href="${escapeAttr(websiteUrl)}" target="_blank" rel="noopener" aria-label="Web Sitesi">${SOCIAL_ICON_SVG.website}<span>Websitesi</span></a>`
+      : '';
+    if (!websiteHtml && !valid.length) return '';
+    return `<div class="social-icons">${websiteHtml}${valid.map(s => `<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener" aria-label="${escapeAttr(SOCIAL_LABELS[s.platform] || s.platform)}">${SOCIAL_ICON_SVG[s.platform] || SOCIAL_ICON_SVG.website}</a>`).join('')}</div>`;
   }
 
   // bkz. js/components/architect-modal.js#renderPrevNext — BİREBİR aynı desen, Firma etiketleriyle.
@@ -505,7 +493,7 @@ const OfficeModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['om-actions', 'om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
     'om-related-materials-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
@@ -521,7 +509,10 @@ const OfficeModal = (function () {
 
     updateHeadMeta(o);
     document.getElementById('om-name-text').textContent = o.name;
-    document.getElementById('om-social-icons').innerHTML = socialIconsHtml(o.social_links);
+    // Websitesi — artık sosyal ikonların EN BAŞINDA (bkz. kullanıcı isteği: firma-ekle.html'de
+    // girilen o.website adresi, ikon+"Websitesi" metniyle diğer ikonlarla AYNI büyüklükte).
+    const visitUrl = o.website ? safeUrl(o.website) : '';
+    document.getElementById('om-social-icons').innerHTML = socialIconsHtml(o.social_links, visitUrl);
     renderTruncatedDesc('om-about', o.about || '');
 
     const infoFacts = [];
@@ -548,18 +539,22 @@ const OfficeModal = (function () {
     }
 
     // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
-    // bu profillerde tek eylem artık Takip Et. Düzenle/Arşivle/Sil artık bu satırda DEĞİL —
-    // modal-shell.js'in paylaşılan header'ında, X butonunun yanında render edilir (bkz. kullanıcı
-    // isteği) — claim-correction-box.js#renderProfileEditButton hâlâ #profile-edit-slot id'sini
-    // arıyor, yalnızca DOM konumu değişti.
-    const actionsEl = document.getElementById('om-actions');
-    actionsEl.innerHTML = '';
+    // bu profillerde içerik aksiyonları Paylaş + Takip Et'tir, X'in yanında render edilir (bkz.
+    // kullanıcı isteği: sırayla önce Paylaş sonra Takip Et). Düzenle/Arşivle/Sil ise X'in KARŞI
+    // kenarında (ModalShell.getAdminActionsSlot()) — claim-correction-box.js#renderProfileEditButton
+    // hâlâ #profile-edit-slot id'sini arıyor, yalnızca DOM konumu değişti.
     const headerActions = ModalShell.getHeaderActionsSlot();
-    if (headerActions) headerActions.innerHTML = '<span id="profile-edit-slot"></span>';
+    if (headerActions) headerActions.innerHTML = '';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '<span id="profile-edit-slot"></span>';
     const officeKey = slugify(o.name);
-    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Websitesi'nin yanında.
-    // Yanındaki sayı (bkz. kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir,
-    // save-widget.js#paintFollowBtn dataset.followerCount'u okuyup 0'sa parantezi hiç basmaz.
+    if (typeof ShareWidget !== 'undefined' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('om-share-btn'));
+      ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
+    }
+    // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi. Yanındaki sayı (bkz.
+    // kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir, save-widget.js#
+    // paintFollowBtn dataset.followerCount'u okuyup 0'sa parantezi hiç basmaz.
     const followBtn = document.createElement('button');
     followBtn.type = 'button';
     followBtn.className = 'follow-btn card-follow-btn';
@@ -568,34 +563,17 @@ const OfficeModal = (function () {
     followBtn.dataset.key = officeKey;
     followBtn.dataset.title = o.name;
     followBtn.innerHTML = `<span class="follow-btn-label">Takip Et</span>`;
-    actionsEl.appendChild(followBtn);
+    if (headerActions) headerActions.appendChild(followBtn);
     wireFollowButtons();
     fetch(`/api/public/follow-count?type=office&key=${encodeURIComponent(officeKey)}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data) { followBtn.dataset.followerCount = String(data.count || 0); paintFollowBtn(followBtn); } })
       .catch(() => {});
-    if (typeof ShareWidget !== 'undefined') {
-      followBtn.insertAdjacentHTML('afterend', ShareWidget.html('om-share-btn'));
-      ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
-    }
     // Mesaj Gönder — bkz. js/components/architect-modal.js#renderMessageIcon İLE AYNI gerekçe/desen:
     // yalnızca doğrulanmış (rozetli) profillerde gösterilir, gerçek ikon renderVerifiedBadges()
     // içinde (rozetler hazır olduğunda) yerleştirilir/kaldırılır.
-    if (typeof MessageWidget !== 'undefined') {
-      const shareWidgetEl = document.getElementById('om-share-btn');
-      (shareWidgetEl ? shareWidgetEl.closest('.share-widget') : followBtn).insertAdjacentHTML('afterend', '<span id="om-message-slot"></span>');
-    }
-
-    // "Websitesi" — Takip Et ile AYNI satırda, en başta (bkz. kullanıcı isteği).
-    const visitUrl = o.website ? safeUrl(o.website) : '';
-    if (visitUrl) {
-      const visitBtn = document.createElement('a');
-      visitBtn.className = 'save-btn';
-      visitBtn.href = visitUrl;
-      visitBtn.target = '_blank';
-      visitBtn.rel = 'noopener';
-      visitBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span>`;
-      actionsEl.prepend(visitBtn);
+    if (typeof MessageWidget !== 'undefined' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', '<span id="om-message-slot"></span>');
     }
 
     const socialLinksEl = document.getElementById('om-social-links');
@@ -745,6 +723,8 @@ const OfficeModal = (function () {
     document.getElementById('om-name-text').textContent = 'Firma bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '';
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';

@@ -5,8 +5,8 @@ let currentUser = null;
 const savedKeys = new Set();
 // Takip Et (bkz. kullanıcı isteği: archello.com/brand/ofist benzeri) — savedKeys/wireSaveButtons İLE
 // BİREBİR AYNI iskelet, /api/saved yerine /api/follows. Yalnızca architect-modal.js/office-modal.js
-// içindeki tek bir buton için kullanılır (bkz. o dosyalardaki #am-actions/#om-actions), bu yüzden
-// wireSaveButtons(type)'ın aksine varsayılan tip almaz — buton zaten kendi dataset.type'ını taşır.
+// içindeki tek bir buton için kullanılır (modal-shell.js'in paylaşılan header'ında render edilir),
+// bu yüzden wireSaveButtons(type)'ın aksine varsayılan tip almaz — buton zaten kendi dataset.type'ını taşır.
 const followedKeys = new Set();
 
 // Başlık gibi serbest metinlerden kararlı, ASCII bir anahtar üretir (save/rating anahtarları için).

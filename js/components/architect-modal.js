@@ -39,18 +39,14 @@ const ArchitectModal = (function () {
         font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:20px;
       }
       .profile-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-      .detail-title-actions{
-        display:flex !important; flex-direction:row !important; flex-wrap:nowrap !important;
-        align-items:center !important; justify-content:flex-start !important; width:100% !important;
-        gap:4px !important; margin:0 0 18px;
-      }
       .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
-      /* Düzenle/Arşivle/Sil artık #am-actions'ın İÇİNDE DEĞİL — modal-shell.js'in paylaşılan
-         header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği). Bu yüzden
-         .card-edit-btn/.card-delete-btn/.profile-edit-btn ve #profile-edit-slot'un display:contents
-         kuralı buradan kaldırıldı; TEK stil kaynağı artık modal-shell.js#injectStyles. */
+      /* Düzenle/Arşivle/Sil (X'in KARŞI kenarında), Paylaş/Takip Et (X'in yanında) artık burada
+         DEĞİL — modal-shell.js'in paylaşılan header'ında render edilir (bkz. kullanıcı isteği: bu
+         satır tamamen kaldırıldı, altındaki içerik yukarı çekildi). .detail-title-actions/
+         .card-edit-btn/.card-delete-btn/.profile-edit-btn kuralları buradan kaldırıldı; TEK stil
+         kaynağı artık modal-shell.js#injectStyles. */
       /* Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok)
-         — bu profillerde tek eylem artık Takip Et. */
+         — bu profillerde içerik aksiyonları Paylaş + Takip Et'tir. */
       /* Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi, Paylaş ile AYNI
          yükseklikte bir pil. Yanındaki takipçi sayısı (bkz. kullanıcı isteği) save-widget.js#
          paintFollowBtn tarafından basılır. */
@@ -155,14 +151,6 @@ const ArchitectModal = (function () {
            (bkz. kullanıcı isteği) — masaüstünde prevnext/claim-card iki AYRI panelde olduğundan bu
            çizgiye gerek yok, yalnızca mobil/tablette (birleşik akışta) gösterilir. */
         .prevnext-mobile-divider{display:block; border:none; border-top:1px solid var(--line); margin:24px 0;}
-        /* Kaydet — Apple/Google dokunma hedefi standartları (bkz. kullanıcı isteği): pil yüksekliği
-           en az 48px, tıklanabilir alan en az 44x44px. "Paylaş" burada scoped bir override taşımadığı
-           için share-button.js#injectStyles'daki AYNI kırılma noktasındaki generic .share-btn kuralı
-           uygulanır (bkz. o dosya). Satırın tek satırda kalma zorunluluğu (üstteki
-           .detail-title-actions flex-wrap:nowrap + flex-shrink:1/min-width:0/overflow:hidden/
-           ellipsis) korunur. */
-        .follow-btn{height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;}
-        .detail-title-actions{gap:8px !important;}
       }
       .prevnext-mobile-divider{display:none;}
       /* Projeler haritası — bkz. kullanıcı isteği: "Projeler"in altına, mimarın/firmanın koordinatlı
@@ -189,7 +177,6 @@ const ArchitectModal = (function () {
       <div class="profile-logo" id="am-logo"></div>
       <h1 class="detail-title"><span id="am-name-text"></span><span id="am-verified-badge-wrap"></span></h1>
     </div>
-    <div class="detail-title-actions" id="am-actions"></div>
     <div id="am-social-links"></div>
     <div class="detail-info" id="am-detail-info">
       <div class="detail-meta" id="am-category"></div>
@@ -498,7 +485,7 @@ const ArchitectModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['am-actions', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['am-office-section', 'am-colleagues-section', 'am-related-projects-section',
     'am-related-architects-section', 'am-related-products-section', 'am-detail-info', 'am-prevnext'];
 
   async function renderItem(payload) {
@@ -556,15 +543,19 @@ const ArchitectModal = (function () {
     }
 
     // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
-    // bu profillerde tek eylem artık Takip Et. Düzenle/Arşivle/Sil artık bu satırda DEĞİL —
-    // modal-shell.js'in paylaşılan header'ında, X butonunun yanında render edilir (bkz. kullanıcı
-    // isteği) — claim-correction-box.js#renderProfileEditButton hâlâ #profile-edit-slot id'sini
-    // arıyor, yalnızca DOM konumu değişti.
-    const actionsEl = document.getElementById('am-actions');
-    actionsEl.innerHTML = '';
+    // bu profillerde içerik aksiyonları Paylaş + Takip Et'tir, X'in yanında render edilir (bkz.
+    // kullanıcı isteği: sırayla önce Paylaş sonra Takip Et). Düzenle/Arşivle/Sil ise X'in KARŞI
+    // kenarında (ModalShell.getAdminActionsSlot()) — claim-correction-box.js#renderProfileEditButton
+    // hâlâ #profile-edit-slot id'sini arıyor, yalnızca DOM konumu değişti.
     const headerActions = ModalShell.getHeaderActionsSlot();
-    if (headerActions) headerActions.innerHTML = '<span id="profile-edit-slot"></span>';
+    if (headerActions) headerActions.innerHTML = '';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '<span id="profile-edit-slot"></span>';
     const architectKey = slugify(a.name);
+    if (typeof ShareWidget !== 'undefined' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('am-share-btn'));
+      ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
+    }
     // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi. Yanındaki sayı (bkz.
     // kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir, save-widget.js#
     // paintFollowBtn dataset.followerCount'u okuyup 0'sa parantezi hiç basmaz.
@@ -576,22 +567,17 @@ const ArchitectModal = (function () {
     followBtn.dataset.key = architectKey;
     followBtn.dataset.title = a.name;
     followBtn.innerHTML = `<span class="follow-btn-label">Takip Et</span>`;
-    actionsEl.appendChild(followBtn);
+    if (headerActions) headerActions.appendChild(followBtn);
     wireFollowButtons();
     fetch(`/api/public/follow-count?type=architect&key=${encodeURIComponent(architectKey)}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data) { followBtn.dataset.followerCount = String(data.count || 0); paintFollowBtn(followBtn); } })
       .catch(() => {});
-    if (typeof ShareWidget !== 'undefined') {
-      followBtn.insertAdjacentHTML('afterend', ShareWidget.html('am-share-btn'));
-      ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
-    }
     // Mesaj Gönder — bkz. kullanıcı isteği: yalnızca doğrulanmış (rozetli) profillere gönderilebilir,
     // bu yüzden buradaki slot boş bırakılır, gerçek ikon renderVerifiedBadges() içinde (rozetler
-    // hazır olduğunda) yerleştirilir/kaldırılır — Paylaş'ın hemen sağında durur.
-    if (typeof MessageWidget !== 'undefined') {
-      const shareWidgetEl = document.getElementById('am-share-btn');
-      (shareWidgetEl ? shareWidgetEl.closest('.share-widget') : followBtn).insertAdjacentHTML('afterend', '<span id="am-message-slot"></span>');
+    // hazır olduğunda) yerleştirilir/kaldırılır — Takip Et'in hemen sağında durur.
+    if (typeof MessageWidget !== 'undefined' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', '<span id="am-message-slot"></span>');
     }
     const socialLinksEl = document.getElementById('am-social-links');
     if (socialLinksEl) socialLinksEl.innerHTML = typeof SocialLinks !== 'undefined' ? SocialLinks.html(a.socialPlatform, a.socialUrl) : '';
@@ -748,6 +734,8 @@ const ArchitectModal = (function () {
     document.getElementById('am-name-text').textContent = 'Mimar bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '';
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';

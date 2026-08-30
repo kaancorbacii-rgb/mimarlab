@@ -51,9 +51,6 @@ const ProductModal = (function () {
         align-items:center !important; justify-content:flex-start !important; width:100% !important;
         gap:4px !important; margin:0 0 14px;
       }
-      /* bkz. proje.html#pm-save-slot AYNI gerçek bulgu — #pr-save-slot kendisi flex konteyner
-         olmadığından içindeki .save-btn/.share-widget büyütülmüş boyutlarda alt satıra kayabiliyordu. */
-      #pr-save-slot{display:flex; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;}
       .pr-rating-save-row .rating-widget{
         display:flex; align-items:center; gap:4px; flex-wrap:nowrap;
         flex-shrink:1 !important; min-width:0 !important;
@@ -68,21 +65,12 @@ const ProductModal = (function () {
         display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
         font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
-      /* Kaydet artık yalnızca ikon taşıyor (bkz. kullanıcı isteği: "Kaydet" metni kaldırılsın) —
-         share-button.js#.share-btn İLE BİREBİR AYNI kare ölçüler/kırılma noktası. */
-      .pr-rating-save-row .card-save-btn{
-        position:static; z-index:auto;
-        display:inline-flex; align-items:center; justify-content:center;
-        flex-shrink:0 !important;
-        height:32px !important; width:32px !important; min-width:32px !important; box-sizing:border-box;
-        background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
-        padding:0 !important; color:var(--ink-soft);
-        font-family:inherit; line-height:1;
-      }
-      .pr-rating-save-row .card-save-btn:hover{background:var(--paper-card); border-color:var(--walnut); color:var(--ink);}
-      .pr-rating-save-row .card-save-btn.saved{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-      /* Web Sitesi künye butonu (#pr-website-slot) — artık Kaydet/Paylaş ile AYNI satırda, ikisinin
-         arasında (bkz. kullanıcı isteği), office-modal.js'in .save-btn tabanıyla BİREBİR aynı. */
+      /* Kaydet/Paylaş/Websitesi/Düzenle/Arşivle/Sil artık bu satırda DEĞİL — Kaydet (yalnızca ikon,
+         bkz. kullanıcı isteği) ve Paylaş X'in yanında, Düzenle/Arşivle/Sil X'in KARŞI kenarında
+         render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons); Websitesi tamamen kaldırıldı.
+         Bu satırda yalnızca Puanla kalır. Kaydet header'da da .save-btn/.card-save-btn sınıflarını
+         taşıdığından TEK stil kaynağı hâlâ burasıdır (modal-shell.js yalnızca header bağlamındaki
+         yükseklik/genişlik/konum override'larını ekler). */
       .save-btn{
         display:inline-flex; align-items:center; gap:5px;
         flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
@@ -93,10 +81,6 @@ const ProductModal = (function () {
       }
       .save-btn:hover{border-color:var(--walnut); color:var(--ink);}
       .save-btn svg{flex-shrink:0;}
-      /* Düzenle (Gönderiyi Düzenle)/Arşivle/Sil artık burada DEĞİL — modal-shell.js'in paylaşılan
-         header'ında, X butonunun yanında render edilir (bkz. kullanıcı isteği, mountEditAndAdminButtons).
-         Eski .pr-actions/.card-edit-btn/.card-delete-btn kuralları kaldırıldı; TEK stil kaynağı artık
-         modal-shell.js#injectStyles. */
       .designer-section{margin-top:0;}
       .designer-section + .designer-section{margin-top:16px;}
       .designer-label{display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink); font-weight:600; margin-bottom:10px;}
@@ -320,20 +304,12 @@ const ProductModal = (function () {
         #pr-files-card{order:11;}
         #pr-feedback-card{order:12;}
 
-        /* Puanla/Kaydet/Websitesi — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki
-           AYNI kural, kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px.
-           Masaüstü boyutları değişmez. Kaydet/Paylaş artık ikon-only olduğundan (bkz. share-button.js)
-           kare olarak büyütülür, kendi boyutunu paylaşılan .share-btn 860px kuralından alan Paylaş
+        /* Puanla — Apple/Google dokunma hedefi standartları (bkz. proje.html'deki AYNI kural,
+           kullanıcı isteği): pil yüksekliği en az 48px, tıklanabilir alan en az 44x44px. Masaüstü
+           boyutları değişmez. Kaydet/Paylaş/Websitesi artık bu satırda değil (bkz. yukarısı) —
            buradaki listeden çıkarıldı. */
         .pr-rating-save-row{gap:8px !important;}
-        #pr-save-slot{gap:8px !important;}
         .pr-rating-save-row .rating-widget{
-          height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
-        }
-        .pr-rating-save-row .card-save-btn{
-          height:48px !important; width:48px !important; min-width:48px !important;
-        }
-        .pr-rating-save-row a.save-btn{
           height:48px !important; min-height:48px !important; padding:0 14px !important; font-size:13.5px !important;
         }
         .pr-rating-save-row .pr-rating-avg{display:none !important;}
@@ -353,7 +329,6 @@ const ProductModal = (function () {
     <div class="pr-rating-save-row" id="pr-rating-save-row">
       <button type="button" class="rating-widget" id="pr-rating" aria-label="Puanla"></button>
       <span class="pr-rating-avg" id="pr-rating-avg" style="display:none;"></span>
-      <div id="pr-save-slot"></div>
     </div>
     <div class="detail-byline" id="pr-byline" style="display:none;">
       <span class="detail-byline-avatar" id="pr-byline-avatar"></span>
@@ -764,7 +739,10 @@ const ProductModal = (function () {
     // ayrıca (p.ratingKey) döndürüyor, save/rating işlemleri onu kullanmalı; `key` yalnızca URL/paylaşım
     // amaçlı kalır.
     const ratingKey = p.ratingKey || key;
-    // Kaydet — artık yalnızca ikon taşır (bkz. kullanıcı isteği: "Kaydet" yazısı silinsin).
+    // Kaydet/Paylaş — artık X'in yanında (bkz. kullanıcı isteği), Websitesi tamamen kaldırıldı.
+    // Kaydet yalnızca ikon taşır (bkz. kullanıcı isteği: "Kaydet" yazısı silinsin).
+    const headerActions = ModalShell.getHeaderActionsSlot();
+    if (headerActions) headerActions.innerHTML = '';
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'save-btn card-save-btn';
@@ -777,25 +755,12 @@ const ProductModal = (function () {
     saveBtn.dataset.meta = [p.category, p.brand].filter(Boolean).join(' · ');
     saveBtn.dataset.image = images[0] || '';
     saveBtn.dataset.href = `/urun/${encodeURIComponent(key)}`;
-    const saveSlot = document.getElementById('pr-save-slot');
-    saveSlot.innerHTML = '';
-    saveSlot.appendChild(saveBtn);
+    if (headerActions) headerActions.appendChild(saveBtn);
     wireSaveButtons(ratingKindFor(p));
 
-    let afterSaveEl = saveBtn;
-    if (typeof ShareWidget !== 'undefined') {
-      afterSaveEl.insertAdjacentHTML('afterend', ShareWidget.html('pr-share-btn'));
+    if (typeof ShareWidget !== 'undefined' && headerActions) {
+      headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('pr-share-btn'));
       ShareWidget.wire('pr-share-btn', () => ({ title: p.title, url: `${window.location.origin}/urun/${encodeURIComponent(key)}` }));
-    }
-
-    // Websitesi — artık satırın EN BAŞında, Puanla'dan ÖNCE (bkz. kullanıcı isteği: "Websitesi,
-    // Puanla, Kaydet, Paylaş" sırası) — #pr-save-slot'un DIŞINDA olduğundan (yukarıdaki
-    // saveSlot.innerHTML='' onu temizlemez), her render'da elle kaldırılıp gerekiyorsa yeniden eklenir.
-    const existingWebsiteBtn = document.getElementById('pr-website-btn');
-    if (existingWebsiteBtn) existingWebsiteBtn.remove();
-    const site = p.website ? safeUrl(p.website) : '';
-    if (site) {
-      document.getElementById('pr-rating-save-row').insertAdjacentHTML('afterbegin', `<a class="save-btn" id="pr-website-btn" href="${escapeAttr(site)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><span>Websitesi</span></a>`);
     }
 
     const ratingWidget = document.getElementById('pr-rating');
@@ -806,8 +771,8 @@ const ProductModal = (function () {
       });
     }
 
-    const headerActions = ModalShell.getHeaderActionsSlot();
-    if (headerActions) headerActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
     mountEditAndAdminButtons(p, key);
 
     observeOnce(document.getElementById('pr-gallery-wrap'), () => {
@@ -1031,6 +996,8 @@ const ProductModal = (function () {
     document.getElementById('pr-title').textContent = 'Ürün bulunamadı';
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
+    const adminActions = ModalShell.getAdminActionsSlot();
+    if (adminActions) adminActions.innerHTML = '';
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';

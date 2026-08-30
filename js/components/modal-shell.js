@@ -104,15 +104,27 @@ const ModalShell = (function () {
         }
       }
       .modal-shell-overlay.open .modal-shell-panel{opacity:1; transform:scale(1);}
-      /* Kapatma (X) butonu + Düzenle/Arşivle/Sil — proje/mimar/firma/ürün modallarının HEPSİ
-         tarafından paylaşılan tek bir header satırı (bkz. kullanıcı isteği: aksiyon butonları X'in
-         yanına taşınsın, [X] [Düzenle] [Arşivle] [Sil] tek satırda sola dizilsin). Her modal kendi
-         butonlarını ModalShell.getHeaderActionsSlot() üzerinden buraya yazar; X'in kendisi artık
-         kendi başına absolute değil, bu satırın bir flex öğesi. */
+      /* Kapatma (X) butonu + içerik aksiyonları (Kaydet/Paylaş/Takip Et) — proje/mimar/firma/ürün
+         modallarının HEPSİ tarafından paylaşılan tek bir header satırı (bkz. kullanıcı isteği:
+         aksiyon butonları X'in yanına taşınsın). Her modal kendi butonlarını
+         ModalShell.getHeaderActionsSlot() üzerinden buraya yazar; X'in kendisi artık kendi başına
+         absolute değil, bu satırın bir flex öğesi. Düzenle/Arşivle/Sil (admin/sahip aksiyonları)
+         ARTIK burada değil — aynı satırın KARŞI kenarında, ayrı bir .modal-shell-admin-header'da
+         (bkz. aşağısı, kullanıcı isteği: içerik aksiyonları X'in yanına taşınınca admin butonları
+         satırın diğer kenarına, medyanın üzerine binse bile). */
       .modal-shell-header{
         position:absolute; top:16px; left:32px; z-index:5;
         display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center;
         gap:8px; max-width:calc(100% - 64px);
+      }
+      /* Admin/sahip aksiyonları (Düzenle/Arşivle/Sil) — X'in KARŞI kenarında, AYNI satırda (top:16px).
+         row-reverse: DOM sırası Düzenle→Arşivle→Sil (bkz. proje-actions.js/product-modal.js/
+         claim-correction-box.js — üçü de bu sırayla yazıyor), ilk DOM çocuğu row-reverse'de main-start'a
+         (bu kenarın kendisine, right:32px) yerleşir — yani Düzenle kenara EN YAKIN, Sil merkeze en
+         yakın durur (bkz. kullanıcı isteği: "kenara en yakın sıralama düzenle, arşivle, sil"). */
+      .modal-shell-admin-header{
+        position:absolute; top:16px; right:32px; z-index:5;
+        display:flex; align-items:center; max-width:calc(100% - 64px);
       }
       .modal-shell-close{
         flex:0 0 auto;
@@ -125,13 +137,27 @@ const ModalShell = (function () {
         display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;
       }
       .modal-shell-header-actions:empty{display:none;}
-      /* Her modal dosyası kendi Düzenle/Arşivle/Sil butonlarını (bazen owner/admin durumuna göre
-         async doldurulan) boş bir <span id="..."> sarmalayıcının İÇİNE yazıyor — bkz. proje-actions.js/
-         claim-correction-box.js/product-modal.js. Sıradan bir <span> flex katılımcısı OLMADIĞINDAN
-         (bkz. office-modal.js/architect-modal.js'teki AYNI gerçek bulgu), display:contents span'i
-         kutu modelinden çıkarır, çocuklarını doğrudan bu satırın flex öğesi yapar. */
-      .modal-shell-header-actions > span{display:contents;}
-      .modal-shell-header-actions a, .modal-shell-header-actions button{
+      .modal-shell-admin-actions{
+        display:flex; flex-direction:row-reverse; flex-wrap:nowrap; align-items:center; gap:6px; min-width:0;
+      }
+      .modal-shell-admin-actions:empty{display:none;}
+      /* Her modal dosyası kendi butonlarını (bazen owner/admin durumuna göre async doldurulan) boş bir
+         <span id="..."> sarmalayıcının İÇİNE yazıyor — bkz. proje-actions.js/claim-correction-box.js/
+         product-modal.js. Sıradan bir <span> flex katılımcısı OLMADIĞINDAN (bkz. office-modal.js/
+         architect-modal.js'teki AYNI gerçek bulgu), display:contents span'i kutu modelinden çıkarır,
+         çocuklarını doğrudan bu satırın flex öğesi yapar. :not(.share-widget) — gerçek bulgu (code
+         review): share-button.js#html() ürettiği <span class="share-widget"> artık (Kaydet/Paylaş
+         header'a taşındığından) BU satırın DOĞRUDAN çocuğu; o span'in KENDİ position:relative'i
+         .share-popover/.share-toast'un position:absolute çapası — display:contents o kutuyu
+         KALDIRIP popover'ı bir üstteki konumlanmış atadan (.modal-shell-header, header'ın SOL ÜST
+         köşesi) referans almaya zorluyordu, Paylaş'a tıklanınca popover X/Kaydet'in üzerine
+         bindiriliyordu. .share-widget bu genel kuraldan HARİÇ tutulur, kendi kutusunu (dolayısıyla
+         position:relative çapasını) korur — flex katılımı zaten kendi display:inline-flex
+         tanımından (share-button.js) geliyor, display:contents'e ihtiyacı yok. */
+      .modal-shell-header-actions > span:not(.share-widget),
+      .modal-shell-admin-actions > span:not(.share-widget){display:contents;}
+      .modal-shell-header-actions a, .modal-shell-header-actions button,
+      .modal-shell-admin-actions a, .modal-shell-admin-actions button{
         flex:0 0 auto; display:inline-flex; align-items:center; gap:5px;
         height:36px; box-sizing:border-box; white-space:nowrap;
         border-radius:100px; padding:0 14px; font-size:12.5px; font-weight:600;
@@ -141,16 +167,58 @@ const ModalShell = (function () {
          için tamamen farklı boyut/görünüm taşıyabilir, bkz. urun.html'deki altçizgili metin varyantı)
          burada ele geçirilmesin diye header bağlamı ID yerine bu sınıfla kapsamlanır — özgüllüğü
          (0,2,0) her sayfanın kendi bare .card-edit-btn (0,1,0) kuralından her zaman yüksektir. */
-      .modal-shell-header-actions .card-edit-btn, .modal-shell-header-actions .profile-edit-btn{
+      .modal-shell-admin-actions .card-edit-btn, .modal-shell-admin-actions .profile-edit-btn{
         background:var(--paper-card); border:1px solid var(--line); color:var(--walnut);
       }
-      .modal-shell-header-actions .card-edit-btn:hover, .modal-shell-header-actions .profile-edit-btn:hover{
+      .modal-shell-admin-actions .card-edit-btn:hover, .modal-shell-admin-actions .profile-edit-btn:hover{
         border-color:var(--walnut); background:var(--paper-alt);
       }
-      .modal-shell-header-actions .card-delete-btn{
+      .modal-shell-admin-actions .card-delete-btn{
         background:var(--paper-card); border:1px solid rgba(184,76,76,0.4); color:#B84C4C;
       }
-      .modal-shell-header-actions .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+      .modal-shell-admin-actions .card-delete-btn:hover{background:rgba(184,76,76,0.08);}
+      /* İçerik aksiyonları (Kaydet/Paylaş/Takip Et) — X ile BİREBİR aynı 36px yükseklikte olmalı (bkz.
+         kullanıcı isteği). Bu butonların kendi kart/satır bağlamlarında (proje kartı, mobil dokunma
+         hedefi vb.) FARKLI yükseklikleri (32px/48px) olabildiğinden, TEK doğru kaynak burasıdır — hem
+         (0,2,0)/(0,3,0) özgüllüğü hem !important, her breakpoint'teki bare/scoped !important
+         kurallarının hepsini ezer. Kaydet header'da METİNSİZ (bkz. kullanıcı isteği: "sadece iconla") —
+         .save-btn-label metinleri ve .save-btn-count burada gizlenir, kutu Paylaş'la (.share-btn)
+         AYNI kare/pill ikon-only görünüme döner. */
+      .modal-shell-header-actions .save-btn,
+      .modal-shell-header-actions .share-btn,
+      .modal-shell-header-actions .follow-btn{
+        height:36px !important;
+      }
+      .modal-shell-header-actions .save-btn.card-save-btn,
+      .modal-shell-header-actions .share-btn{
+        width:36px !important; min-width:36px !important; padding:0 !important; justify-content:center;
+      }
+      /* .card-save-btn'in KART bağlamındaki (proje.html/urun.html'deki bare kural) position:absolute;
+         top/right; z-index tanımı, buradaki .save-btn ile PAYLAŞILMAYAN tek özellikler olduğundan
+         (bkz. kullanıcı isteği) kaynak sırasından bağımsız olarak hep kazanıyordu — Kaydet artık kart
+         değil header bağlamında olduğundan normal akışa döndürülür (proje.html#.pm-rating-save-row
+         .card-save-btn'in ESKİ görevinin AYNISI, yalnızca yeni konuma taşındı). */
+      .modal-shell-header-actions .save-btn.card-save-btn{
+        position:static; top:auto; right:auto; z-index:auto;
+      }
+      /* gerçek bulgu (code review): proje.html/en-iyi-100.html'de HÂLÂ duran
+         ".save-btn.saved .save-btn-label-saved{display:inline;}" kuralı (0,3,0) bu gizleme kuralından
+         (aşağıda, !important OLMADAN 0,2,0) daha özgül olduğundan, Kaydet butonu tıklanıp .saved
+         sınıfı eklendiğinde "Kaydedildi" yazısı ikon-only kutunun içinde tekrar görünür oluyordu —
+         !important eklenip özgüllük farkı ne olursa olsun kazanması sağlanır. */
+      .modal-shell-header-actions .save-btn-label-default,
+      .modal-shell-header-actions .save-btn-label-saved,
+      .modal-shell-header-actions .save-btn-count{display:none !important;}
+      /* gerçek bulgu (code review): proje.html/en-iyi-100.html'in ".pm-rating-save-row
+         .card-save-btn.saved{background:var(--ink);...}" kuralı ve product-modal.js'in eşdeğeri
+         Kaydet bu satırlardan header'a taşınınca silindi — kaydedilmiş durumdaki koyu/ink rengi artık
+         hiçbir yerde tanımlı değildi, buton yalnızca proje.html'in KART bağlamı ".card-save-btn.saved"
+         kuralından (farklı, --accent renkli) miras alıyordu. Header bağlamı için doğru "saved" rengi
+         burada yeniden tanımlanır. */
+      .modal-shell-header-actions .save-btn.card-save-btn.saved{
+        background:var(--ink); color:var(--paper-card); border-color:var(--ink);
+      }
+      .modal-shell-header-actions .save-btn.card-save-btn.saved:hover{background:var(--ink);}
       .modal-shell-body{
         flex:1; min-height:0; overflow-y:auto;
         display:grid; grid-template-columns:32% 68%;
@@ -167,17 +235,24 @@ const ModalShell = (function () {
            kurallar (width:95vw; height:92vh; border-radius:20px) tüm kırılma noktalarında geçerli.
         */
         .modal-shell-panel{border-radius:var(--radius-lg, 16px);}
-        /* header satırı (X + Düzenle/Arşivle/Sil) masaüstünde sol üstte (bkz. yukarısı left:32px) ama
-           mobil/tablette sağ üste taşınır (bkz. kullanıcı isteği: X her zaman sağ üstte olmalı, tek
-           elle erişim/alışılmış konum) — left:auto ile masaüstü değerini iptal edip right ile
+        /* header satırı (X + Kaydet/Paylaş/Takip Et) masaüstünde sol üstte (bkz. yukarısı left:32px)
+           ama mobil/tablette sağ üste taşınır (bkz. kullanıcı isteği: X her zaman sağ üstte olmalı,
+           tek elle erişim/alışılmış konum) — left:auto ile masaüstü değerini iptal edip right ile
            konumlandırıyoruz. Mobil/tablette ayrıca sıra TERSİNE çevrilir (bkz. kullanıcı isteği: X en
-           sağda, onun hemen solunda Düzenle → Arşivle → Sil sırayla tek satırda) — row-reverse sadece
-           bu satırın iki DOM çocuğunu (X, actions-slot) yer değiştirir, actions-slot'un KENDİ içindeki
-           Düzenle/Arşivle/Sil sırası (ayrı bir flex context, row) bozulmaz. Masaüstünde sıra DEĞİŞMEZ
-           (X → Düzenle → Arşivle → Sil, solda). */
+           sağda, onun hemen solunda içerik aksiyonları) — row-reverse sadece bu satırın iki DOM
+           çocuğunu (X, actions-slot) yer değiştirir, actions-slot'un KENDİ içindeki sıra (ayrı bir
+           flex context, row) bozulmaz. Masaüstünde sıra DEĞİŞMEZ (X → Kaydet → Paylaş, solda). */
         .modal-shell-header{left:auto; right:16px; gap:6px; flex-direction:row-reverse;}
         .modal-shell-header-actions{gap:4px;}
         .modal-shell-header-actions a, .modal-shell-header-actions button{padding:0 10px; font-size:11.5px;}
+        /* Admin/sahip aksiyonları — X'in KARŞI kenarı mobilde de değişmez: X sağda olduğundan burası
+           SOLA taşınır (bkz. kullanıcı isteği). flex-direction row (reverse DEĞİL): ilk DOM çocuğu
+           (Düzenle) main-start'a, yani container'ın SOL kenarına yerleşir — kenara en yakın buton
+           yine Düzenle olur (bkz. yukarısı .modal-shell-admin-header'daki AYNI gerekçe, kenar
+           değiştiği için yön de değişir). */
+        .modal-shell-admin-header{right:auto; left:16px;}
+        .modal-shell-admin-actions{flex-direction:row; gap:4px;}
+        .modal-shell-admin-actions a, .modal-shell-admin-actions button{padding:0 10px; font-size:11.5px;}
         /* padding-top: kapatma (X) butonu panele position:absolute (top:16px, height:36px) — içerik
            kaydırma öncesi tam bu bölgenin ALTINDA başlamazsa başlık/görseller X ile çakışıyordu (bkz.
            kullanıcı isteği). 16+36=52px'lik buton alanına en az 16-24px pay eklenir. */
@@ -277,6 +352,9 @@ const ModalShell = (function () {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
           <div class="modal-shell-header-actions" id="modal-shell-header-actions"></div>
+        </div>
+        <div class="modal-shell-admin-header">
+          <div class="modal-shell-admin-actions" id="modal-shell-admin-actions"></div>
         </div>
         <div class="modal-shell-body">
           <div class="modal-shell-left"></div>
@@ -457,12 +535,20 @@ const ModalShell = (function () {
 
   function scrollToTop() { if (bodyEl) bodyEl.scrollTop = 0; }
 
-  // Düzenle/Arşivle/Sil butonlarının X'in yanına yazıldığı paylaşılan yuva (bkz. kullanıcı isteği) —
-  // proje/mimar/firma/ürün modalları (bkz. js/components/project-actions.js, claim-correction-box.js,
-  // product-modal.js) kendi butonlarını render ederken bu elementi hedefler; ensureDom() henüz
-  // çalışmadıysa (overlay hiç açılmadıysa) null döner.
+  // İçerik aksiyonlarının (Kaydet/Paylaş/Takip Et) X'in yanına yazıldığı paylaşılan yuva (bkz.
+  // kullanıcı isteği) — proje/mimar/firma/ürün modalları (bkz. js/components/project-actions.js,
+  // product-modal.js, office-modal.js, architect-modal.js) kendi butonlarını render ederken bu
+  // elementi hedefler; ensureDom() henüz çalışmadıysa (overlay hiç açılmadıysa) null döner.
   function getHeaderActionsSlot() {
     return overlayEl ? overlayEl.querySelector('#modal-shell-header-actions') : null;
+  }
+
+  // Düzenle/Arşivle/Sil (admin/sahip) butonlarının yazıldığı yuva — X'in KARŞI kenarında, AYNI
+  // satırda (bkz. kullanıcı isteği: içerik aksiyonları X'in yanına taşınınca bu üçü satırın diğer
+  // ucuna geçsin). getHeaderActionsSlot() İLE AYNI çağıranlar (bkz. o fonksiyondaki yorum), yalnızca
+  // farklı bir DOM hedefi.
+  function getAdminActionsSlot() {
+    return overlayEl ? overlayEl.querySelector('#modal-shell-admin-actions') : null;
   }
 
   // denetim bulgusu (2026-08-14): panel role="dialog" aria-modal="true" taşıyor ama aria-label/
@@ -516,5 +602,5 @@ const ModalShell = (function () {
 
   function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
 
-  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults };
+  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults };
 })();
