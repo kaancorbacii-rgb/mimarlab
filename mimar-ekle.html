@@ -194,6 +194,14 @@
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
+  /* Arşivle/Sil — proje-ekle.html#.form-danger-row ile BİREBİR aynı stil/gerekçe (bkz. kullanıcı
+     isteği: ürün/mimar/firma düzenle sayfalarında da Gönder'in altında göster). */
+  .form-danger-row{display:flex; gap:10px; margin-top:12px;}
+  .form-danger-btn{flex:1; padding:12px; border-radius:100px; font-weight:600; font-size:13.5px; background:var(--paper-card); border:1px solid var(--line); color:var(--walnut); cursor:pointer;}
+  .form-danger-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+  .form-danger-btn.form-danger-btn-delete{border-color:rgba(184,76,76,0.4); color:#B84C4C;}
+  .form-danger-btn.form-danger-btn-delete:hover{background:rgba(184,76,76,0.08);}
+  .form-danger-btn:disabled{opacity:0.5; cursor:not-allowed;}
   /* ---------- ROZET (salt-okunur — admin-badge-section'ın aksine adminde DEĞİL, profilin
      sahibinde gösterilir; sadece mevcut durumu bildirir, düzenleme yetkisi yalnızca admindedir). ---------- */
   .my-badge-box{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--paper);}
@@ -413,6 +421,13 @@
       </div>
 
       <button class="form-submit" type="submit">Gönder</button>
+      <!-- Arşivle/Sil — proje-ekle.html#p-danger-row ile AYNI desen (bkz. kullanıcı isteği): yalnızca
+           admin görür (mimar/firma profilleri için sahibe açık bir owner-moderate ucu yok, bkz.
+           mountArchitectAdminActions yorumu), düzenleme modunda (?edit=/?claim=) görünür olur. -->
+      <div class="form-danger-row" id="m-danger-row" style="display:none;">
+        <button type="button" class="form-danger-btn" id="m-archive-btn">Arşivle</button>
+        <button type="button" class="form-danger-btn form-danger-btn-delete" id="m-delete-btn">Sil</button>
+      </div>
       <div class="form-loading" id="form-loading">Gönderiliyor...</div>
       <div class="form-notice" id="form-notice"></div>
       <details class="psc-box" id="psc-box">
@@ -829,6 +844,7 @@ async function prefillForEdit(){
     renderPreviews();
     wireAdminBadgePicker(item.name);
     wireMyBadgeBox(item.name, 'architect');
+    mountArchitectAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
@@ -930,6 +946,50 @@ async function prefillForClaim(){
   renderPreviews();
   wireAdminBadgePicker(claimName);
   wireMyBadgeBox(claimName, 'architect');
+  mountArchitectAdminActions();
+}
+
+// Arşivle/Sil — artık mimar popup'ında DEĞİL (bkz. kullanıcı isteği: proje-ekle.html#
+// mountProjectAdminActions ile AYNI desen bu sayfaya da taşınsın), Gönder'in altında gösterilir.
+// GERÇEK BULGU: architects/offices'in products/materials'takine (moderateOwnSubmission) ya da
+// projects'tekine (handleSelfProjectModerate/handleSelfProjectDelete) benzer bir OWNER-moderate ucu
+// yok — src/routes/legacyContent.js#CONTENT_ACTION_TYPES yalnızca admin'in POST /api/admin/legacy/
+// content-action ucundan erişilir (bkz. js/components/architect-modal.js#createClaimCorrectionBox
+// çağrısının ownerCanModerate hiç vermemesi — Sil eskiden de popup'ta yalnızca admin'e görünüyordu).
+// Bu yüzden bu buton sahibe DEĞİL yalnızca admine gösterilir; sahip kendi profilini Arşivle/Sil
+// istiyorsa admine yazması gerekir. targetKey her zaman `key` (claimed_profile_key/name) ile gider —
+// editId (bir architect_submissions taslak id'si) olsa bile id yolu yerine key yolu kullanılır,
+// çünkü key hem taslaklı hem taslaksız (statik) kayıtları kapsar.
+function mountArchitectAdminActions(){
+  if(!isAdmin) return;
+  const key = claimName || originalName;
+  if(!key) return;
+  const row = document.getElementById('m-danger-row');
+  const archiveBtn = document.getElementById('m-archive-btn');
+  const deleteBtn = document.getElementById('m-delete-btn');
+  row.style.display = '';
+  async function run(action){
+    const confirmText = action === 'delete'
+      ? 'Bu mimar profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
+      : 'Bu mimar profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+    if(!confirm(confirmText)) return;
+    archiveBtn.disabled = true;
+    deleteBtn.disabled = true;
+    try{
+      const res = await fetch('/api/admin/legacy/content-action', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'architects', action, key }),
+      });
+      if(!res.ok) throw new Error('request failed');
+      window.location.href = '/mimar';
+    }catch{
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      archiveBtn.disabled = false;
+      deleteBtn.disabled = false;
+    }
+  }
+  archiveBtn.addEventListener('click', () => run('archive'));
+  deleteBtn.addEventListener('click', () => run('delete'));
 }
 
 // "Ad Soyad" alanına kendi hesap adını yazan, henüz bir mimar profiliyle eşleşmemiş bir kullanıcı

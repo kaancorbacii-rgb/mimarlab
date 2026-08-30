@@ -221,6 +221,14 @@
 
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
+  /* Arşivle/Sil — proje-ekle.html#.form-danger-row ile BİREBİR aynı stil/gerekçe (bkz. kullanıcı
+     isteği: ürün/mimar/firma düzenle sayfalarında da Gönder'in altında göster). */
+  .form-danger-row{display:flex; gap:10px; margin-top:12px;}
+  .form-danger-btn{flex:1; padding:12px; border-radius:100px; font-weight:600; font-size:13.5px; background:var(--paper-card); border:1px solid var(--line); color:var(--walnut); cursor:pointer;}
+  .form-danger-btn:hover{border-color:var(--walnut); background:var(--paper-alt);}
+  .form-danger-btn.form-danger-btn-delete{border-color:rgba(184,76,76,0.4); color:#B84C4C;}
+  .form-danger-btn.form-danger-btn-delete:hover{background:rgba(184,76,76,0.08);}
+  .form-danger-btn:disabled{opacity:0.5; cursor:not-allowed;}
   .ai-analyze-btn{background:var(--ink); color:var(--paper-card); border:none; border-radius:10px; padding:0 18px; height:42px; font-weight:600; font-size:13px;}
   .ai-analyze-btn:hover{background:var(--walnut);}
   .form-notice{display:none; margin-top:16px; padding:13px 16px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
@@ -394,6 +402,13 @@
       </div>
 
       <button class="form-submit" type="submit">Ürünü Gönder</button>
+      <!-- Arşivle/Sil — proje-ekle.html#p-danger-row ile AYNI desen (bkz. kullanıcı isteği): yalnızca
+           düzenleme modunda (mountProductAdminActions, ?edit=/?adminedit= başarıyla yüklenip yetki
+           onaylandığında) görünür olur, yeni ürün eklerken gizli kalır. -->
+      <div class="form-danger-row" id="u-danger-row" style="display:none;">
+        <button type="button" class="form-danger-btn" id="u-archive-btn">Arşivle</button>
+        <button type="button" class="form-danger-btn form-danger-btn-delete" id="u-delete-btn">Sil</button>
+      </div>
       <div class="form-loading" id="form-loading">Gönderiliyor...</div>
       <div class="form-notice" id="form-notice"></div>
     </form>
@@ -731,6 +746,7 @@ let currentUserRole = null;
 // karşılığı) hiç olmadığından ayrı bir yol gerekti.
 const adminEditId = new URLSearchParams(window.location.search).get('adminedit');
 let adminEditSlug = null;
+let adminEditKind = null; // 'products' | 'materials' — mountProductAdminActions'a content-action 'type' alanı olarak gider
 const meReady = fetch('/api/auth/me').then(async res=>{
   if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
   currentUserRole = (await res.json()).user.role;
@@ -784,6 +800,7 @@ async function prefillForEdit(){
     }
     if(!item) return;
     applyPrefillItem(item);
+    mountProductAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 
@@ -796,11 +813,62 @@ async function prefillForAdminEdit(){
     if(!res.ok) return;
     const item = (await res.json()).item;
     adminEditSlug = item.slug;
+    adminEditKind = item.kind === 'material' ? 'materials' : 'products';
     applyPrefillItem(item);
+    mountProductAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
 prefillForEdit();
 prefillForAdminEdit();
+
+// Arşivle/Sil — artık ürün popup'ında DEĞİL (bkz. kullanıcı isteği: proje-ekle.html#
+// mountProjectAdminActions ile AYNI desen bu sayfaya da taşınsın), Gönder'in altında gösterilir.
+// ?edit= modunda gönderi sahibi /api/<tip>/:id/moderate ile (yalnızca products/materials için var
+// olan owner-moderate ucu, bkz. src/routes/submissions.js#moderateOwnSubmission), admin (kendi
+// gönderisi ya da isAdminEditingOther ile başkasının gönderisi) /api/admin/legacy/content-action'a
+// {id} ile gider. ?adminedit= modunda (legacy_static kökenli, gönderi taslağı hiç olmayabilir —
+// bkz. prefillForAdminEdit'in admin zorunluluğu) content-action'a {key: marka|||başlık} ile gider —
+// bu iki uç de src/routes/legacyContent.js#runContentAction'ın id/key dallarıyla birebir eşleşir.
+function mountProductAdminActions(){
+  const row = document.getElementById('u-danger-row');
+  const archiveBtn = document.getElementById('u-archive-btn');
+  const deleteBtn = document.getElementById('u-delete-btn');
+  row.style.display = '';
+  const type = adminEditId ? adminEditKind : (editTypeParam === 'materials' ? 'materials' : 'products');
+  async function run(action){
+    const confirmText = action === 'delete'
+      ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
+      : (currentUserRole === 'admin'
+        ? 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.'
+        : 'Bu ürünü arşivlemek istediğine emin misin? Ürün canlıdan kaldırılır, Gönderiyi Düzenle üzerinden tekrar yayınlayabilirsin.');
+    if(!confirm(confirmText)) return;
+    archiveBtn.disabled = true;
+    deleteBtn.disabled = true;
+    try{
+      let res;
+      if(currentUserRole === 'admin'){
+        const body = adminEditId
+          ? { type, action, key: `${originalBrand || ''}|||${originalTitle}` }
+          : { type, action, id: editId };
+        res = await fetch('/api/admin/legacy/content-action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+      } else {
+        res = await fetch(`/api/${type}/${encodeURIComponent(editId)}/moderate`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+        });
+      }
+      if(!res.ok) throw new Error('request failed');
+      window.location.href = '/urun';
+    }catch{
+      alert('Bir şeyler ters gitti, tekrar dene.');
+      archiveBtn.disabled = false;
+      deleteBtn.disabled = false;
+    }
+  }
+  archiveBtn.addEventListener('click', () => run('archive'));
+  deleteBtn.addEventListener('click', () => run('delete'));
+}
 
 // Marka önerileri artık data.js'in statik offices[] dizisi yerine canlı D1 aramasından beslenir
 // (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — mimar-ekle.html/firma-ekle.html/
