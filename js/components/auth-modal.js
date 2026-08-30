@@ -1030,7 +1030,7 @@ const AuthModal = (function () {
   // İçeriklerim > "Mimar/Firma Profilim" kutusundaki bir satıra tıklanınca mimar.html/firma.html'in
   // kullandığı GERÇEK profil popup'ını (ArchitectModal/OfficeModal) açar (bkz. kullanıcı isteği:
   // "profil görseline veya isme tıklayınca o popup açılsın"). Bu iki script + bağımlılıkları
-  // (badge-shared.js, save-widget.js, claim-correction-box.js, share-button.js, message-button.js,
+  // (badge-shared.js, save-widget.js, claim-correction-box.js, share-button.js,
   // social-links.js) index.html'de HİÇ yüklenmez (bkz. js/components/lazy-modals.js dosya başı
   // yorumu — AYNI "yalnızca gerçekten gerekince yükle" gerekçesi, burada da devam ettirilir); ilk
   // tıklamada dinamik <script> enjeksiyonuyla bir kez indirilip önbelleğe alınır (promise module
@@ -1043,7 +1043,7 @@ const AuthModal = (function () {
   // hepsi / ile başlar, geçerli URL'den TAMAMEN bağımsız.
   const PROFILE_MODAL_SCRIPTS = [
     '/save-widget.js', '/badge-shared.js', '/js/components/claim-correction-box.js',
-    '/js/components/share-button.js', '/js/components/message-button.js', '/js/components/social-links.js',
+    '/js/components/share-button.js', '/js/components/social-links.js',
     '/js/components/architect-modal.js', '/js/components/office-modal.js',
   ];
   let profileModalsReadyPromise = null;
