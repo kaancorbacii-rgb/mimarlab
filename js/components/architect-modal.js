@@ -520,6 +520,7 @@ const ArchitectModal = (function () {
     'am-preferred-brands-section', 'am-detail-info', 'am-prevnext'];
 
   async function renderItem(payload) {
+    ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = '';
@@ -783,8 +784,11 @@ const ArchitectModal = (function () {
     ModalShell.scrollToTop();
   }
 
-  function renderNotFound() {
-    document.getElementById('am-name-text').textContent = 'Mimar bulunamadı';
+  // status: 'missing' (sunucu 404/410 dedi — kayıt gerçekten yok) | 'error' (geçici sorun; bkz.
+  // modal-shell.js#fetchEntity kökten bulgusu — "bulunamadı" DEMEZ, tekrar denenebilir kutu gösterir).
+  function renderNotFound(status) {
+    ModalShell.clearLoadError();
+    const titleEl = document.getElementById('am-name-text');
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
     const adminActions = ModalShell.getAdminActionsSlot();
@@ -793,6 +797,12 @@ const ArchitectModal = (function () {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
+    if (status === 'error') {
+      const slug = currentSlug;
+      ModalShell.showLoadError(titleEl, 'Mimar profili şu an yüklenemedi', () => { if (slug) open(slug, { pushHistory: false }); });
+      return;
+    }
+    titleEl.textContent = 'Mimar bulunamadı';
   }
 
   function wireInternalNav() {
@@ -809,17 +819,11 @@ const ArchitectModal = (function () {
     });
   }
 
-  // gerçek bulgu (denetim, 2026-08-24, bkz. project-modal.js#fetchItem'daki AYNI kök neden): ağ hatası
-  // burada da yakalanmıyordu — open()/swap() renderNotFound()'ı hiç tetikleyemeden modal iskelet
-  // durumunda kalıyordu. Ağ hatası artık 404/gizli kayıtla AYNI null yola yönlendirilir.
-  async function fetchItem(slug) {
-    try {
-      const res = await fetch(`/api/architect/${encodeURIComponent(slug)}`);
-      if (!res.ok) return null;
-      const payload = await res.json();
-      if (!payload || !payload.item || payload.hidden) return null;
-      return payload;
-    } catch { return null; }
+  // ARTIK {status:'ok'|'missing'|'error', payload?} döner — bkz. modal-shell.js#fetchEntity'deki
+  // kökten bulgu (kullanıcı isteği, 2026-09-01 madde 4): her başarısızlığı null'a indirgemek,
+  // geçici bir 429/5xx/ağ hatasında yayında olan bir kaydı "Mimar bulunamadı" olarak gösteriyordu.
+  function fetchItem(slug) {
+    return ModalShell.fetchEntity(`/api/architect/${encodeURIComponent(slug)}`);
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null } = {}) {
@@ -833,10 +837,10 @@ const ArchitectModal = (function () {
     ensureTemplate();
 
     const mySeq = ++requestSeq;
-    const payload = await fetchItem(slug);
+    const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (!payload) { renderNotFound(); return; }
-    await renderItem(payload);
+    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    await renderItem(result.payload);
   }
 
   async function swap(slug) {
@@ -847,10 +851,10 @@ const ArchitectModal = (function () {
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen }, '', `/mimar/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
-    const payload = await fetchItem(slug);
+    const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (!payload) { renderNotFound(); return; }
-    await renderItem(payload);
+    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    await renderItem(result.payload);
   }
 
   function close() {
@@ -874,10 +878,10 @@ const ArchitectModal = (function () {
     currentSlug = slug;
     (async () => {
       const mySeq = ++requestSeq;
-      const payload = await fetchItem(slug);
+      const result = await fetchItem(slug);
       if (mySeq !== requestSeq || currentSlug !== slug) return;
-      if (!payload) { renderNotFound(); return; }
-      await renderItem(payload);
+      if (result.status !== 'ok') { renderNotFound(result.status); return; }
+      await renderItem(result.payload);
     })();
   }
 

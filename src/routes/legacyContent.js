@@ -237,7 +237,15 @@ export async function handlePublicSearchSuggest(request, env, url) {
   if (!rawQ) return json({ items: [], total: 0 });
   const queryWords = foldTr(rawQ).split(/\s+/).filter(Boolean);
 
-  return cachedPublicJson(request, env, url.pathname, async () => {
+  // KÖKTEN BULGU (2026-09-01, kullanıcı isteği madde 4 — "canlı arama sonuçlarında bazı URL'ler
+  // bulunamadı gösteriyor"): anahtar `url.pathname` idi, yani ?q= HARİÇ. Bu uç cacheable
+  // listelerinde olmadığından caches.default'a hiç yazılmıyor, ama cachedPublicJson'ın `!cacheable`
+  // dalı AYNI anahtarla withSingleFlight uyguluyor — kullanıcı yazarken art arda giden istekler
+  // (her tuş vuruşunda bir tane) tek bir in-flight Promise'e bağlanıp BAŞKA bir sorgunun (ör. üç
+  // harf önceki ön ekin, hatta aynı isolate'teki BAŞKA bir ziyaretçinin) sonuçlarını alıyordu;
+  // açılır pencerede görünen satırlar o yüzden yazılan metinle alakasız olabiliyordu.
+  // handlePublicSearchFull (aşağısı) zaten `url.pathname + url.search` kullanıyor — bu uç sapmıştı.
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     // SQL LIKE Türkçe diakritik foldlamasını (i/ı, s/ş, c/ç, g/ğ, u/ü, o/ö) bilmediğinden ve
     // kelime-parçalamalı eşleşme (bkz. fuzzyMatch) tek bir LIKE deseniyle ifade edilemediğinden,
     // her tablo TAMAMEN çekilip fuzzyMatch ile JS tarafında filtrelenir — tablolar küçük olduğundan

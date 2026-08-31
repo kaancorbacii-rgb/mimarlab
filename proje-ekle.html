@@ -390,6 +390,14 @@
   .hs-form-actions .hs-save{background:var(--ink); color:var(--paper-card);}
   .hs-form-actions .hs-remove{border-color:#B84C4C; color:#B84C4C;}
   .hs-form-note{font-size:11px; color:var(--ink-soft); margin:8px 0 0;}
+  /* Kural ihlali mesajları (kullanıcı isteği, 2026-09-01 madde 5) — .hs-form-error kutunun İÇİNDE
+     (mükerrer ürün), .hs-notice ise kutu hiç açılmadığında görselin üstünde (görsel başına 3 sınırı). */
+  .hs-form-error{font-size:11.5px; font-weight:600; color:#B84C4C; margin:8px 0 0;}
+  .hs-notice{
+    position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:6;
+    max-width:82%; text-align:center; background:rgba(15,19,26,0.92); color:#fff;
+    font-size:12.5px; font-weight:600; line-height:1.45; padding:9px 14px; border-radius:9px;
+  }
   .hs-ac{position:relative;}
   .hs-ac-list{
     position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:190px; overflow-y:auto; z-index:4;
@@ -724,7 +732,7 @@
     <button type="button" class="hs-close" id="hs-close" aria-label="Kapat">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <div class="hs-hint">Görselde bir ürünün üzerine tıkla ve o ürünü ara — kaydettiğin ürün, proje sayfasında görselin üzerinde tıklanabilir bir daire olarak görünür. Var olan bir işaretin üzerine tıklayarak düzenleyebilir ya da kaldırabilirsin.</div>
+    <div class="hs-hint">Görselde bir ürünün üzerine tıkla ve o ürünü ara — kaydettiğin ürün, proje sayfasında görselin üzerinde tıklanabilir bir daire olarak görünür. Var olan bir işaretin üzerine tıklayarak düzenleyebilir ya da kaldırabilirsin. Her görsele en fazla 3 ürün etiketlenebilir ve bir ürün yalnızca tek bir görselde etiketlenebilir.</div>
     <button type="button" class="hs-nav hs-nav-prev" id="hs-prev" aria-label="Önceki görsel">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -1519,6 +1527,36 @@ let hsDraft = null;    // {x, y, editIndex|null} — kutunun bağlı olduğu iş
 
 function hsCurrentItem(){ return hsIndex >= 0 ? mediaItems[hsIndex] : null; }
 
+// ---------- İŞARETLEME SINIRLARI (kullanıcı isteği, 2026-09-01 madde 5) ----------
+// (a) bir görsele en fazla 3 ürün, (b) aynı ürün yalnızca TEK bir görselde etiketlenebilir.
+// Sunucu tarafında da aynı iki kural uygulanır (bkz. src/lib/submissionTypes.js#sanitizeImageHotspots)
+// — oradaki uygulama sessizce kırpar, burada ise kullanıcıya NEDEN engellendiği söylenir.
+const HS_MAX_PER_IMAGE = 3;
+
+// Projenin TÜM görsellerinde şu an etiketli ürün slug'ları. exceptItem/exceptIndex, düzenlenmekte
+// olan işaretçinin KENDİSİNİ dışarıda bırakır — aksi halde bir işaretçiyi açıp aynı ürünle tekrar
+// kaydetmek "bu ürün zaten etiketli" hatasına takılırdı.
+function hsTaggedSlugs(exceptItem, exceptIndex){
+  const set = new Set();
+  mediaItems.forEach(it => (it.hotspots || []).forEach((h, i) => {
+    if(it === exceptItem && i === exceptIndex) return;
+    if(h && h.slug) set.add(h.slug);
+  }));
+  return set;
+}
+
+let hsNoticeTimer = null;
+function hsNotice(msg){
+  const old = hsStage.querySelector('.hs-notice');
+  if(old) old.remove();
+  clearTimeout(hsNoticeTimer);
+  const el = document.createElement('div');
+  el.className = 'hs-notice';
+  el.textContent = msg;
+  hsStage.appendChild(el);
+  hsNoticeTimer = setTimeout(()=>{ el.remove(); }, 4000);
+}
+
 function closeHotspotForm(){
   const hadDraft = !!hsStage.querySelector('.hs-pin[data-hs-index="draft"]');
   if(hsForm){ hsForm.remove(); hsForm = null; }
@@ -1581,7 +1619,8 @@ function openHotspotForm(xPct, yPct, editIndex){
     <div class="hs-ac">
       <input type="text" id="hs-product-input" placeholder="Ürün adı yaz ve listeden seç" autocomplete="off" value="${escapeAttr(existing ? existing.title : '')}">
     </div>
-    <p class="hs-form-note">Yalnızca sitede yayında olan ürünler bağlanabilir — listeden bir ürün seçmelisin.</p>
+    <p class="hs-form-note">Yalnızca sitede yayında olan ürünler bağlanabilir — listeden bir ürün seçmelisin. Bir ürün yalnızca tek bir görselde etiketlenebilir.</p>
+    <p class="hs-form-error" id="hs-form-error" hidden></p>
     <div class="hs-form-actions">
       <button type="button" class="hs-save">Kaydet</button>
       ${editIndex != null ? '<button type="button" class="hs-remove">Kaldır</button>' : '<button type="button" class="hs-cancel">Vazgeç</button>'}
@@ -1604,6 +1643,8 @@ function openHotspotForm(xPct, yPct, editIndex){
   }
 
   const input = hsForm.querySelector('#hs-product-input');
+  const errorEl = hsForm.querySelector('#hs-form-error');
+  const showError = (msg) => { errorEl.textContent = msg || ''; errorEl.hidden = !msg; };
   const acWrap = hsForm.querySelector('.hs-ac');
   let acList = null, acTimer = null;
   function closeAc(){ if(acList){ acList.remove(); acList = null; } }
@@ -1618,6 +1659,12 @@ function openHotspotForm(xPct, yPct, editIndex){
     // slug'sız bir öneri tıklanamaz bir işaretçi üretirdi (bkz. sanitizeImageHotspots — slug'suz
     // kayıtlar sunucuda zaten atılır), o yüzden listeden de düşürülür.
     items = items.filter(it => it.slug);
+    // Başka bir görselde (ya da bu görselde başka bir noktada) ZATEN etiketli ürünler öneri
+    // listesinden de düşürülür (kullanıcı isteği, 2026-09-01 madde 5) — seçilemeyen bir seçeneği
+    // göstermektense hiç göstermemek; kaydetme anındaki kontrol (aşağıda) yine de yerinde durur,
+    // çünkü kullanıcı arama yapmadan da (düzenlemeye dönerek) bir slug taşıyabilir.
+    const alreadyTagged = hsTaggedSlugs(item, hsDraft.editIndex);
+    items = items.filter(it => !alreadyTagged.has(it.slug));
     if(!items.length || !hsForm) return;
     acList = document.createElement('div');
     acList.className = 'hs-ac-list';
@@ -1631,6 +1678,7 @@ function openHotspotForm(xPct, yPct, editIndex){
         hsDraft.title = btn.dataset.title;
         hsDraft.brand = btn.dataset.brand || '';
         input.value = btn.dataset.title;
+        showError('');
         closeAc();
       });
     });
@@ -1640,6 +1688,8 @@ function openHotspotForm(xPct, yPct, editIndex){
     // bağlanan ürün asla ayrışmasın (kullanıcı bir ürün seçtikten sonra adı değiştirirse eski slug
     // sessizce kaydedilmiş olurdu).
     hsDraft.slug = '';
+    showError('');
+    input.style.borderColor = '';
     clearTimeout(acTimer);
     const q = input.value.trim();
     acTimer = setTimeout(()=> search(q), 220);
@@ -1651,11 +1701,25 @@ function openHotspotForm(xPct, yPct, editIndex){
     if(!hsDraft.slug){
       input.focus();
       input.style.borderColor = '#B84C4C';
+      showError('Listeden bir ürün seç.');
       return;
     }
     const it = hsCurrentItem();
     if(!it) return;
     if(!it.hotspots) it.hotspots = [];
+    // Aynı ürün birden fazla görselde etiketlenemez (kullanıcı isteği, 2026-09-01 madde 5) —
+    // düzenlenen işaretçinin KENDİSİ hariç tüm görsellere bakılır.
+    if(hsTaggedSlugs(it, hsDraft.editIndex).has(hsDraft.slug)){
+      input.focus();
+      input.style.borderColor = '#B84C4C';
+      showError('Bu ürün projenin bir görselinde zaten etiketli. Bir ürün yalnızca tek bir görselde etiketlenebilir.');
+      return;
+    }
+    // Yeni bir işaretçi eklenirken görsel başına 3 sınırı (düzenleme sayıyı artırmaz).
+    if(hsDraft.editIndex == null && it.hotspots.length >= HS_MAX_PER_IMAGE){
+      showError(`Bir görsele en fazla ${HS_MAX_PER_IMAGE} ürün etiketleyebilirsin.`);
+      return;
+    }
     // brand yalnızca form içi bir kolaylık (chip listesine eklemek ve düzenlemeye dönünce yeniden
     // kullanmak için) — sunucu sanitizeImageHotspots ile yalnızca x/y/slug/title'ı saklar.
     const entry = { x: hsDraft.x, y: hsDraft.y, slug: hsDraft.slug, title: hsDraft.title, brand: hsDraft.brand || '' };
@@ -1689,6 +1753,9 @@ function showHotspotImage(i){
   if(!mediaItems.length) return;
   hsIndex = (i + mediaItems.length) % mediaItems.length;
   closeHotspotForm();
+  // Bir önceki görsele ait uyarı yeni görselde asılı kalmasın (bkz. hsNotice).
+  clearTimeout(hsNoticeTimer);
+  hsStage.querySelectorAll('.hs-notice').forEach(n => n.remove());
   hsImage.src = mediaItemSrc(mediaItems[hsIndex]);
   hsCounter.textContent = `${hsIndex + 1} / ${mediaItems.length}`;
   document.getElementById('hs-prev').style.display = mediaItems.length > 1 ? '' : 'none';
@@ -1732,6 +1799,15 @@ hsStage.addEventListener('click', (e)=>{
   }
   if(e.target.closest('.hs-form')) return;
   if(e.target !== hsImage){ closeHotspotForm(); return; }
+  // Görsel başına 3 sınırı (kullanıcı isteği, 2026-09-01 madde 5) — kutu HİÇ açılmaz, sınır
+  // görselin üzerinde bir bildirimle söylenir; var olan işaretçilere tıklamak (yukarıdaki dal)
+  // düzenleme/kaldırma için hâlâ çalışır.
+  const cur = hsCurrentItem();
+  if(cur && (cur.hotspots || []).length >= HS_MAX_PER_IMAGE){
+    closeHotspotForm();
+    hsNotice(`Bir görsele en fazla ${HS_MAX_PER_IMAGE} ürün etiketleyebilirsin. Yeni bir ürün eklemek için var olan bir işaretçiye tıklayıp değiştir ya da kaldır.`);
+    return;
+  }
   const rect = hsImage.getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * 100;
   const y = ((e.clientY - rect.top) / rect.height) * 100;

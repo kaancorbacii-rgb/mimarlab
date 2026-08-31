@@ -68,7 +68,13 @@ async function handlePublicClaimStatus(request, env, url) {
   const profileType = url.searchParams.get('profileType');
   const profileKey = (url.searchParams.get('profileKey') || '').trim();
   if (!['architect', 'office'].includes(profileType) || !profileKey) return errorJson('Geçersiz istek.');
-  return cachedPublicJson(request, env, url.pathname, async () => {
+  // KÖKTEN BULGU (2026-09-01, kullanıcı isteği madde 4): anahtar `url.pathname` idi — bu ucun
+  // yanıtı SORGU DİZESİNE bağlı olduğu halde. Bu uç cacheable listelerinde YOK, bu yüzden
+  // caches.default'a hiç yazılmıyor; ama cachedPublicJson'ın `!cacheable` dalı AYNI anahtarla
+  // stampede koruması (withSingleFlight) uyguluyor — farklı parametrelerle EŞZAMANLI gelen istekler
+  // tek bir in-flight Promise'e bağlanıp BİRBİRİNİN yanıtını alıyordu. `url.search` eklenerek her
+  // parametre kombinasyonu kendi anahtarını alır (davranış değişmez, yalnızca karışma kalkar).
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const row = await env.DB.prepare(
       `SELECT id FROM profile_claims WHERE profile_type = ? AND profile_key = ? AND status = 'approved' LIMIT 1`
     ).bind(profileType, profileKey).first();
@@ -83,7 +89,13 @@ async function handlePublicSaveCount(request, env, url) {
   const itemType = url.searchParams.get('type');
   const itemKey = (url.searchParams.get('key') || '').trim();
   if (!ITEM_TYPES.has(itemType) || !itemKey) return errorJson('Geçersiz istek.');
-  return cachedPublicJson(request, env, url.pathname, async () => {
+  // KÖKTEN BULGU (2026-09-01, kullanıcı isteği madde 4): anahtar `url.pathname` idi — bu ucun
+  // yanıtı SORGU DİZESİNE bağlı olduğu halde. Bu uç cacheable listelerinde YOK, bu yüzden
+  // caches.default'a hiç yazılmıyor; ama cachedPublicJson'ın `!cacheable` dalı AYNI anahtarla
+  // stampede koruması (withSingleFlight) uyguluyor — farklı parametrelerle EŞZAMANLI gelen istekler
+  // tek bir in-flight Promise'e bağlanıp BİRBİRİNİN yanıtını alıyordu. `url.search` eklenerek her
+  // parametre kombinasyonu kendi anahtarını alır (davranış değişmez, yalnızca karışma kalkar).
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const row = await env.DB.prepare(
       'SELECT COUNT(*) AS count FROM saved_items WHERE item_type = ? AND item_key = ?'
     ).bind(itemType, itemKey).first();
@@ -98,7 +110,13 @@ async function handlePublicFollowCount(request, env, url) {
   const followedType = url.searchParams.get('type');
   const followedKey = (url.searchParams.get('key') || '').trim();
   if (!FOLLOW_TYPES.has(followedType) || !followedKey) return errorJson('Geçersiz istek.');
-  return cachedPublicJson(request, env, url.pathname, async () => {
+  // KÖKTEN BULGU (2026-09-01, kullanıcı isteği madde 4): anahtar `url.pathname` idi — bu ucun
+  // yanıtı SORGU DİZESİNE bağlı olduğu halde. Bu uç cacheable listelerinde YOK, bu yüzden
+  // caches.default'a hiç yazılmıyor; ama cachedPublicJson'ın `!cacheable` dalı AYNI anahtarla
+  // stampede koruması (withSingleFlight) uyguluyor — farklı parametrelerle EŞZAMANLI gelen istekler
+  // tek bir in-flight Promise'e bağlanıp BİRBİRİNİN yanıtını alıyordu. `url.search` eklenerek her
+  // parametre kombinasyonu kendi anahtarını alır (davranış değişmez, yalnızca karışma kalkar).
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const row = await env.DB.prepare(
       'SELECT COUNT(*) AS count FROM follows WHERE followed_type = ? AND followed_key = ?'
     ).bind(followedType, followedKey).first();
@@ -270,7 +288,13 @@ async function handlePublicProfileContent(request, env, url) {
   const profileKey = (url.searchParams.get('profileKey') || '').trim();
   if (!PROFILE_CONTENT_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
 
-  return cachedPublicJson(request, env, url.pathname, async () => {
+  // KÖKTEN BULGU (2026-09-01, kullanıcı isteği madde 4): anahtar `url.pathname` idi — bu ucun
+  // yanıtı SORGU DİZESİNE bağlı olduğu halde. Bu uç cacheable listelerinde YOK, bu yüzden
+  // caches.default'a hiç yazılmıyor; ama cachedPublicJson'ın `!cacheable` dalı AYNI anahtarla
+  // stampede koruması (withSingleFlight) uyguluyor — farklı parametrelerle EŞZAMANLI gelen istekler
+  // tek bir in-flight Promise'e bağlanıp BİRBİRİNİN yanıtını alıyordu. `url.search` eklenerek her
+  // parametre kombinasyonu kendi anahtarını alır (davranış değişmez, yalnızca karışma kalkar).
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const { results: claimRows } = await env.DB.prepare(
       `SELECT DISTINCT user_id FROM profile_claims WHERE status = 'approved' AND profile_type = ? AND profile_key = ?`
     ).bind(profileType, profileKey).all();

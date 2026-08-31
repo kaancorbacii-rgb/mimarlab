@@ -12,6 +12,10 @@ import { bumpFacetCounts } from '../lib/facetCounts.js';
 import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { notifyNewsletterOfNewContent } from '../lib/newsletterNotify.js';
+// bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
+import officeKindJs from '../../office-kind.js';
+
+const { isBrandOffice } = officeKindJs;
 
 const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products', 'materials']);
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
@@ -331,7 +335,18 @@ async function listMine(env, user, typeKey) {
   const { results } = await env.DB.prepare(
     `SELECT * FROM ${config.table} WHERE owner_user_id = ? ORDER BY created_at DESC`
   ).bind(user.id).all();
-  return json({ items: results.map(r => parseSubmissionRow(typeKey, r)) });
+  const items = results.map(r => parseSubmissionRow(typeKey, r));
+  // isBrand — İçeriklerim > Eklediklerim'in "Marka" filtresi için (kullanıcı isteği, 2026-09-01
+  // madde 3). Marka gönderileri AYRI bir gönderi tipi DEĞİL, offices gönderisidir (bkz.
+  // marka-ekle.html: type:'offices') — firma/marka ayrımının TEK kaynağı office-kind.js olduğundan
+  // (bkz. o dosyanın başı) karar burada, sunucuda verilir; istemcinin ikinci bir kategori listesi
+  // taşımasına gerek kalmaz. productCount burada bilinmiyor (gönderi henüz canonical bir satıra
+  // bağlı olmayabilir), bu yüzden yalnızca cats'e bakan 0 geçilir — marka-ekle.html her marka
+  // gönderisine zaten en az bir marka kategorisi yazdırır (zorunlu alan).
+  if (typeKey === 'offices') {
+    for (const item of items) item.isBrand = isBrandOffice(item.cats, 0);
+  }
+  return json({ items });
 }
 
 // Sahiplik kontrolü admin için atlanır — admin herhangi bir kullanıcının gönderisini görüntüleyip

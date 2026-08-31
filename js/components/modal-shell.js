@@ -717,5 +717,79 @@ const ModalShell = (function () {
 
   function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
 
-  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults };
+  // ---------------------------------------------------------------------------------------------
+  // fetchEntity — proje/mimar/firma/ürün modallarının PAYLAŞTIĞI detay çekme yardımcısı.
+  //
+  // KÖKTEN BULGU (kullanıcı isteği, 2026-09-01 madde 4: "bazı URL'ler Proje/Firma/Ürün bulunamadı
+  // gösterirken bazıları doğru SSR içerik veriyor"): dört modalın da kendi fetchItem()'ı HER
+  // başarısızlığı — 429 (Cloudflare hız sınırı), 5xx, D1 timeout, kopan bağlantı — `null`a
+  // indirgiyordu ve çağıran `null`ı "kayıt yok" sayıp renderNotFound() çağırıyordu. Sonuç: SSR
+  // gövdesi (edge cache'ten) DOĞRU içerikle gelen, D1'de gayet var olan bir kayıt, geçici bir ağ/
+  // sunucu hatasında kullanıcıya "Proje bulunamadı" olarak görünüyordu — ve bu, aynı URL'de bazen
+  // olup bazen olmadığı için rastgele/aralıklı görünüyordu.
+  //
+  // Artık üç durum ayrılır:
+  //   { status: 'ok', item, payload } → kayıt var (payload = ham gövde; mimar/firma modalları
+  //                                   item DIŞINDAKİ alanları da — projects/products vb. — kullanır)
+  //   { status: 'missing' }         → sunucu GERÇEKTEN 404/410 dedi (silinmiş/gizlenmiş/yanlış slug)
+  //   { status: 'error' }           → geçici hata; çağıran "bulunamadı" DEĞİL, tekrar denenebilir
+  //                                   bir hata durumu göstermeli
+  // 404/410 dışındaki her başarısızlıkta kısa bir gecikmeyle bir kez yeniden denenir — gözlenen
+  // 429/5xx'lerin çoğu tek bir ani yükten kaynaklandığından bu tek deneme çoğu kullanıcıda hatayı
+  // hiç göstermeden çözer.
+  const ENTITY_RETRY_DELAY_MS = 700;
+  async function fetchEntity(path) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(path);
+        // 404/410 = kaydın kendisi yok/kaldırılmış (bkz. src/lib/publicCache.js#statusFor) — bu
+        // KESİN bir cevap, tekrar denemek anlamsız.
+        if (res.status === 404 || res.status === 410) return { status: 'missing' };
+        if (!res.ok) { if (attempt === 0) { await sleep(ENTITY_RETRY_DELAY_MS); continue; } return { status: 'error' }; }
+        const data = await res.json();
+        // Gövde item:null (ya da hidden:true) taşıyorsa — eski/ara sürüm yanıtlar bunu 200 ile de
+        // dönebiliyordu — bu da "yok" demektir.
+        if (!data || !data.item || data.hidden) return { status: 'missing' };
+        return { status: 'ok', item: data.item, payload: data };
+      } catch {
+        // Ağ/DNS/çevrimdışı/JSON parse — hiçbiri "kayıt yok" anlamına gelmez.
+        if (attempt === 0) { await sleep(ENTITY_RETRY_DELAY_MS); continue; }
+        return { status: 'error' };
+      }
+    }
+    return { status: 'error' };
+  }
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // fetchEntity 'error' döndüğünde gösterilen, TEKRAR DENENEBİLİR hata kutusu — dört modalın da
+  // "bulunamadı" ekranından ayrı olması ŞART (bkz. fetchEntity yorumu): kullanıcıya içeriğin
+  // silinmediği, yalnızca geçici bir sorun olduğu söylenir ve tek tıkla yeniden denenir. Stiller
+  // burada inline: dört modalın CSS'i dört ayrı yerde tanımlı, tek bir sınıf eklemek için dördünü
+  // birden düzenlemek gerekirdi.
+  const LOAD_ERROR_ID = 'modal-shell-load-error';
+  function clearLoadError() {
+    const el = document.getElementById(LOAD_ERROR_ID);
+    if (el) el.remove();
+  }
+  function showLoadError(anchorEl, headline, onRetry) {
+    clearLoadError();
+    if (!anchorEl) return;
+    anchorEl.textContent = headline;
+    const box = document.createElement('div');
+    box.id = LOAD_ERROR_ID;
+    box.style.cssText = 'margin:14px 0 0; padding:14px 16px; border:1px solid var(--line, #DCD8D2); border-radius:12px; background:var(--paper-alt, #F2F1EE); max-width:520px;';
+    const p = document.createElement('p');
+    p.style.cssText = 'margin:0 0 12px; font-size:13.5px; line-height:1.6; color:var(--ink, #1B2A3D);';
+    p.textContent = 'Bağlantı ya da sunucu kaynaklı geçici bir sorun oldu — içerik silinmiş değil. Lütfen tekrar dene.';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Tekrar dene';
+    btn.style.cssText = 'background:var(--ink, #1B2A3D); color:var(--paper-card, #fff); border:none; border-radius:100px; padding:9px 20px; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;';
+    btn.addEventListener('click', () => { clearLoadError(); if (onRetry) onRetry(); });
+    box.appendChild(p);
+    box.appendChild(btn);
+    anchorEl.insertAdjacentElement('afterend', box);
+  }
+
+  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();

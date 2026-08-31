@@ -166,7 +166,10 @@ async function handleSeoAdmin(request, env, url, segments) {
     const key = segments[4];
     if (!SEO_TYPE_CONFIG[type]) return errorJson('Geçersiz tip.');
     if (request.method === 'GET') {
-      const derived = await buildMeta(type, key, env);
+      // .catch(() => null): buildMeta artık D1 hatasında fırlatıyor (bkz. src/lib/seo.js#
+      // MetaLookupError) — bu admin ucunda önceki davranış (hata = "bulunamadı") korunur, tek
+      // sonucu admin panelde bir 404 mesajı olduğundan SEO açısından bir etkisi yok.
+      const derived = await buildMeta(type, key, env).catch(() => null);
       if (!derived) return errorJson('Bulunamadı', 404);
       const override = await env.DB.prepare(`SELECT meta_title, meta_description FROM seo_overrides WHERE entity_type = ? AND entity_key = ?`).bind(type, key).first();
       return json({ derived: { title: derived.title, description: derived.description }, override: override || null });

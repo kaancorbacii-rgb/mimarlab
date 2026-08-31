@@ -613,10 +613,27 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   // gerçek bulgu (production audit, 2026-08-17): ASSETS.fetch (statik şablon) ve buildMeta (D1
   // sorgusu) birbirinden bağımsızdır ama sıralı await ediliyordu — cache MISS'te (ilk istek/
   // SSR_CACHE_VERSION bump sonrası/TTL sonrası) TTFB'ye gereksiz bir D1 round-trip'i ekliyordu.
-  const [assetResponse, meta] = await Promise.all([
+  // metaResult — buildMeta artık "kayıt yok"u (null) "aramada hata oldu"dan (MetaLookupError,
+  // bkz. src/lib/seo.js) AYIRT EDİYOR (kullanıcı isteği, 2026-09-01 madde 4). Geçici bir D1
+  // hatası eskiden yayındaki GERÇEK bir kaydı 404'e düşürüyordu — bu, arama motoru için kalıcı
+  // bir "bu URL yok" sinyalidir ve sayfa indeksten düşerdi. Promise.all reddi asset fetch'ini de
+  // boşa çıkarmasın diye hata BURADA sarılıp aşağıda 503'e çevrilir.
+  const [assetResponse, metaResult] = await Promise.all([
     env.ASSETS.fetch(new Request(assetUrl, request)),
-    rawSlug ? buildMeta(cleanRoute.type, rawSlug, env) : Promise.resolve(null),
+    rawSlug
+      ? buildMeta(cleanRoute.type, rawSlug, env).then(m => ({ meta: m }), (err) => ({ error: err }))
+      : Promise.resolve({ meta: null }),
   ]);
+  if (metaResult.error) {
+    // 503 + Retry-After: arama motorlarına "geçici, URL'yi düşürme, sonra tekrar dene" der
+    // (404/410'un aksine). Cache-Control:no-store — bu yanıt HİÇBİR katmanda saklanmamalı,
+    // yoksa geçici bir kesinti s-maxage boyunca dondurulmuş olurdu.
+    return new Response('Bu sayfa şu an yüklenemedi, lütfen birazdan tekrar dene.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '60', 'Cache-Control': 'no-store' },
+    });
+  }
+  const meta = metaResult.meta;
 
   // gerçek bulgu (production audit, 2026-08-17): slug büyük/küçük harf duyarlıydı — ör.
   // /proje/Khalkedon-Kalintilari canonical küçük-harf slug'a değil düz 404'e düşüyordu. Depolanan
@@ -628,7 +645,10 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
   if (!meta && rawSlug) {
     const normalizedSlug = slugify(rawSlug);
     if (normalizedSlug && normalizedSlug !== rawSlug) {
-      const normalizedMeta = await buildMeta(cleanRoute.type, normalizedSlug, env);
+      // .catch(() => null): buildMeta artık hata fırlatıyor (bkz. yukarıdaki metaResult yorumu) —
+      // burada asıl arama ZATEN "kayıt yok" demişti, bu yalnızca ek bir redirect yoklaması; hata
+      // durumunda "yönlendirme yok" varsayılıp mevcut 404 akışı DEĞİŞMEDEN sürer.
+      const normalizedMeta = await buildMeta(cleanRoute.type, normalizedSlug, env).catch(() => null);
       if (normalizedMeta) {
         const dest = new URL(normalizedMeta.canonicalUrl);
         dest.search = url.search;
@@ -643,7 +663,7 @@ async function serveDetailPage(request, env, url, cleanRoute, ctx) {
     const entityType = ENTITY_TYPE_BY_DETAIL_TYPE[cleanRoute.type];
     const newSlug = entityType ? await resolveSlugRedirect(env, entityType, rawSlug) : null;
     if (newSlug) {
-      const newMeta = await buildMeta(cleanRoute.type, newSlug, env);
+      const newMeta = await buildMeta(cleanRoute.type, newSlug, env).catch(() => null); // bkz. bir üstteki .catch gerekçesi
       if (newMeta) {
         const dest = new URL(newMeta.canonicalUrl);
         dest.search = url.search;

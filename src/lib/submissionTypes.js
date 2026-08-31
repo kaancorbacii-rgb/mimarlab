@@ -354,20 +354,31 @@ export function dateBucketFor(dateStr) {
 // koordinatlar 0-100 aralığına kırpılır, slug'suz kayıtlar (tıklanınca gidilecek bir yeri olmayan
 // işaretçi) atılır ve görsel başına/toplam işaretçi sayısı sınırlanır. Böylece bu sütun, gövdeye
 // istenen her şeyin yazılabildiği serbest bir JSON deposuna dönüşmez.
-const MAX_HOTSPOTS_PER_IMAGE = 30;
+// MAX_HOTSPOTS_PER_IMAGE 30 -> 3 ve ÜRÜN BAŞINA TEK GÖRSEL (kullanıcı isteği, 2026-09-01 madde 5:
+// "Proje ekle/düzenle sayfasında aynı ürün birden fazla görselde etiketlenemesin. Bir görsele en
+// fazla 3 tane ürün etiketleme sınırı olsun."). İstemci (proje-ekle.html#openHotspotForm) aynı iki
+// kuralı kullanıcıya açıklayarak ÖNCEDEN uygular; buradaki uygulama, doğrudan API'ye gönderilen
+// (ya da eski, kural öncesi kaydedilmiş) gövdelerin de kurala uymasını garanti eden son savunmadır.
+// Sınırı aşan işaretçiler sessizce ATILIR (hata döndürülmez) — bu fonksiyonun mevcut sözleşmesi
+// "temizle ve devam et"tir, tek bir bozuk işaretçi tüm proje kaydını reddetmemeli.
+const MAX_HOTSPOTS_PER_IMAGE = 3;
 const MAX_HOTSPOT_IMAGES = 60;
 export function sanitizeImageHotspots(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out = {};
+  // Tüm görseller genelinde paylaşılan — bir ürün (slug) yalnızca İLK göründüğü görselde kalır.
+  const seenSlugs = new Set();
   for (const url of Object.keys(raw).slice(0, MAX_HOTSPOT_IMAGES)) {
     const list = Array.isArray(raw[url]) ? raw[url] : [];
     const cleaned = [];
-    for (const h of list.slice(0, MAX_HOTSPOTS_PER_IMAGE)) {
+    for (const h of list) {
+      if (cleaned.length >= MAX_HOTSPOTS_PER_IMAGE) break;
       if (!h || typeof h !== 'object') continue;
       const slug = typeof h.slug === 'string' ? h.slug.trim().slice(0, 300) : '';
-      if (!slug) continue;
+      if (!slug || seenSlugs.has(slug)) continue;
       const x = Number(h.x), y = Number(h.y);
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      seenSlugs.add(slug);
       cleaned.push({
         x: Math.min(100, Math.max(0, Math.round(x * 100) / 100)),
         y: Math.min(100, Math.max(0, Math.round(y * 100) / 100)),

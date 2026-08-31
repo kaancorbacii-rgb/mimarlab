@@ -3,6 +3,11 @@ import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
+// bkz. src/routes/office.js'teki AYNI CJS-interop içe aktarma deseni — firma/marka ayrımının tek kaynağı.
+import officeKindJs from '../../office-kind.js';
+import { parseCanonicalRow } from '../lib/canonicalRead.js';
+
+const { isBrandOffice, isPureBrandOffice } = officeKindJs;
 
 // src/routes/saved.js İLE AYNI yapı — bkz. kullanıcı isteği: Archello (archello.com/brand/ofist)
 // benzeri "Takip Et" özelliği. Yalnızca mimar/firma takip edilebilir (bkz. schema.sql#follows).
@@ -38,11 +43,46 @@ async function listFollows(env, user) {
     ).bind(...architectIds).all();
     for (const r of rows) imageByRef.set(`architect:${r.id}`, r.photo_url);
   }
+  // is_brand — Koleksiyonum > Takip Ettiklerim'in "Marka" sekmesi için (kullanıcı isteği,
+  // 2026-09-01 madde 2: "Takip ettiklerim kutusuna marka butonu da ekle ve artık marka
+  // profillerinde takip et butonuna tıklayınca markalar bu kısımda gözüksün"). Marka takibi AYRI
+  // bir follows tipi DEĞİL — marka da bir offices satırıdır (bkz. office-kind.js dosya başı) ve
+  // marka profili firma modalının kendisiyle açılır, dolayısıyla Takip Et butonu type='office'
+  // gönderir. Firma/marka ayrımının TEK kaynağı office-kind.js olduğundan karar burada, sunucuda
+  // verilir. product_count: isBrandOffice'in üçüncü yolu (kendini 'Ürün' olarak etiketlememiş ama
+  // katalogda ürünü olan Autoban gibi firmalar) — src/routes/office.js#handleOfficeListRoute ile
+  // AYNI ölçüt, aynı sayfada iki farklı cevap çıkmasın diye.
+  // İKİ ayrı soru, tam olarak office-kind.js'in modellediği gibi:
+  //   is_brand      → MARKA sekmesinde görünür mü? (marka.html'de listelenenlerin aynısı)
+  //   is_pure_brand → yalnızca marka mı? (firma.html'den çıkarılanlar) — satırın ETİKETİNİ belirler
+  // Autoban gibi hem mimarlık yapan hem ürün tasarlayan bir ofis İKİ sekmede de görünür ama etiketi
+  // "Firma" kalır; VitrA gibi saf bir üretici yalnızca Marka sekmesinde ve "Marka" etiketiyle çıkar.
+  const brandByRefId = new Map();
+  const pureBrandByRefId = new Map();
   if (officeIds.length) {
-    const { results: rows } = await env.DB.prepare(
-      `SELECT id, logo_url FROM offices WHERE id IN (${officeIds.map(() => '?').join(',')})`
-    ).bind(...officeIds).all();
-    for (const r of rows) imageByRef.set(`office:${r.id}`, r.logo_url);
+    const placeholders = officeIds.map(() => '?').join(',');
+    const [{ results: rows }, { results: countRows }] = await Promise.all([
+      env.DB.prepare(`SELECT id, logo_url, cats FROM offices WHERE id IN (${placeholders})`).bind(...officeIds).all(),
+      env.DB.prepare(
+        `SELECT brand_office_id AS id, COUNT(*) AS n FROM products
+         WHERE deleted_at IS NULL AND hidden_at IS NULL AND brand_office_id IN (${placeholders})
+         GROUP BY brand_office_id`
+      ).bind(...officeIds).all(),
+    ]);
+    const productCountByRefId = new Map(countRows.map(r => [r.id, r.n]));
+    for (const r of rows) {
+      imageByRef.set(`office:${r.id}`, r.logo_url);
+      // parseCanonicalRow ŞART, elle bir JSON.parse denemesi DEĞİL (yerel testte yakalandı):
+      // offices.cats üç biçimde de saklanmış olabilir — JSON dizi ('["Ürün"]'), JSON-QUOTED düz
+      // metin ('"Mimarlık · İç Mimarlık · Ürün"', canlıda Autoban böyle) ya da NULL. Sadece '['
+      // ile başlayanı parse etmek ikinci biçimi ham bırakıyor, dış tırnaklar kategorilere yapışıyor
+      // ('Ürün"') ve isBrandOffice hiçbirini tanımıyordu. parseCanonicalRow bu üç biçimin TEK
+      // normalizasyon noktasıdır (bkz. src/lib/canonicalRead.js#JSON_FIELDS.offices).
+      const cats = parseCanonicalRow('offices', r).cats;
+      const productCount = productCountByRefId.get(r.id) || 0;
+      brandByRefId.set(r.id, isBrandOffice(cats, productCount));
+      pureBrandByRefId.set(r.id, isPureBrandOffice(cats, productCount));
+    }
   }
 
   const items = results.map(f => ({
@@ -50,6 +90,8 @@ async function listFollows(env, user) {
     followed_key: f.followed_key,
     followed_title: f.followed_title,
     followed_image: f.followed_ref_id ? (imageByRef.get(`${f.followed_type}:${f.followed_ref_id}`) || null) : null,
+    is_brand: f.followed_type === 'office' && !!brandByRefId.get(f.followed_ref_id),
+    is_pure_brand: f.followed_type === 'office' && !!pureBrandByRefId.get(f.followed_ref_id),
   }));
   return json({ items });
 }

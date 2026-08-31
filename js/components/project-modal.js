@@ -340,13 +340,11 @@ const ProjectModal = (function () {
   // kalıyordu (X ile kapatılabilir ama başka hiçbir şey çalışmıyordu). 404/gizli kayıt yolu (res.ok
   // false) zaten null döndürüp renderNotFound()'ı doğru tetikliyordu — ağ hatasını da AYNI null yola
   // yönlendirmek, kod değişikliği gerektirmeden open()/swap()'ın var olan "öğe yok" davranışını devreye sokar.
-  async function fetchItem(slug) {
-    try {
-      const res = await fetch(`/api/project/${encodeURIComponent(slug)}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data.item || null;
-    } catch { return null; }
+  // ARTIK {status:'ok'|'missing'|'error', item?} döner — bkz. modal-shell.js#fetchEntity'deki kökten
+  // bulgu (kullanıcı isteği, 2026-09-01 madde 4): her başarısızlığı null'a indirgemek, geçici bir
+  // 429/5xx/ağ hatasında yayında olan bir projeyi "Proje bulunamadı" olarak gösteriyordu.
+  function fetchItem(slug) {
+    return ModalShell.fetchEntity(`/api/project/${encodeURIComponent(slug)}`);
   }
 
   // "X tarafından" satırı — yalnızca üye gönderisi kökenli projelerde dolu (bkz. src/routes/
@@ -619,6 +617,7 @@ const ProjectModal = (function () {
   // hemen sonra çağrılır), yalnızca ARADAKİ görünüm artık "boş/bozuk" değil, kasıtlı bir yükleniyor
   // durumu olur.
   function renderLoading() {
+    ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni yüklemede asılı kalmasın
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
     const adminActions = ModalShell.getAdminActionsSlot();
@@ -701,9 +700,13 @@ const ProjectModal = (function () {
     ModalShell.scrollToTop();
   }
 
-  function renderNotFound() {
+  // status: 'missing' (kayıt gerçekten yok — sunucu 404/410 dedi) | 'error' (geçici sorun).
+  // İkinci durumda "bulunamadı" DEMEZ, tekrar denenebilir bir hata kutusu gösterir (bkz.
+  // modal-shell.js#showLoadError ve fetchEntity'deki kökten bulgu).
+  function renderNotFound(status) {
     hideLoadingSkeleton();
-    document.getElementById('pm-title').textContent = 'Proje bulunamadı';
+    ModalShell.clearLoadError();
+    const titleEl = document.getElementById('pm-title');
     const headerActions = ModalShell.getHeaderActionsSlot();
     if (headerActions) headerActions.innerHTML = '';
     const adminActions = ModalShell.getAdminActionsSlot();
@@ -713,6 +716,12 @@ const ProjectModal = (function () {
       if (el) el.classList.add('pm-force-hidden');
     });
     closeMapLightbox();
+    if (status === 'error') {
+      const slug = currentSlug;
+      ModalShell.showLoadError(titleEl, 'Proje şu an yüklenemedi', () => { if (slug) open(slug, { pushHistory: false, basePath: currentBasePath }); });
+      return;
+    }
+    titleEl.textContent = 'Proje bulunamadı';
   }
 
   async function open(slug, { pushHistory = true, triggerEl = null, basePath = '/proje/', topRank = null } = {}) {
@@ -737,9 +746,10 @@ const ProjectModal = (function () {
     // yalnızca İKİSİ de bitince göründüğünden top100 isteği yavaşsa/büyükse asıl proje verisi hazır
     // olsa bile ekranda tutuluyordu. Artık asıl render yalnızca fetchItem()'a bağlı; top100 araması
     // renderItem() SONRASINDA arka planda çalışır, sonucu geldiğinde rozeti ayrıca günceller.
-    const item = await fetchItem(slug);
+    const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return; // bu arada başka bir open/swap tetiklendi
-    if (!item) { renderNotFound(); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    const item = result.item;
     await renderItem(item, mySeq);
     if (!topRank) {
       fetchTop100Map().then(map => {
@@ -769,9 +779,10 @@ const ProjectModal = (function () {
     // görünümün asıl kaynaklarından biri). renderLoading() bunu da aynı yükleniyor iskeletine çevirir.
     renderLoading();
     const mySeq = ++requestSeq;
-    const item = await fetchItem(slug);
+    const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
-    if (!item) { renderNotFound(); return; }
+    if (result.status !== 'ok') { renderNotFound(result.status); return; }
+    const item = result.item;
     await renderItem(item, mySeq);
     // gerçek bulgu (kullanıcı isteği: iki açılış yolunun bire bir aynı görünmesi): rozet ÖNCEDEN
     // koşulsuz null'a sabitleniyordu ("geçilen projede anlamsız" varsayımıyla) — oysa geçilen proje de
@@ -826,9 +837,10 @@ const ProjectModal = (function () {
     renderLoading(); // bkz. open()/swap()'taki AYNI gerçek bulgu — geri/ileri ile geçişte de eski proje içeriği bir an bayat kalmasın
     (async () => {
       const mySeq = ++requestSeq;
-      const item = await fetchItem(slug);
+      const result = await fetchItem(slug);
       if (mySeq !== requestSeq || currentSlug !== slug) return;
-      if (!item) { renderNotFound(); return; }
+      if (result.status !== 'ok') { renderNotFound(result.status); return; }
+      const item = result.item;
       await renderItem(item, mySeq);
     })();
   }

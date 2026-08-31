@@ -399,6 +399,26 @@ const AuthModal = (function () {
        altında telefon genişliğine inilir ve tek sütuna düşülür. */
     #am-panel .dash-row.col-two-col{grid-template-columns:1fr 1fr;}
     @media (max-width:620px){ #am-panel .dash-row.col-two-col{grid-template-columns:1fr;} }
+    /* İki sütunlu bir satırda TEK başına kalan kutu (Aktivitelerim > Paylaştıklarım, Koleksiyonum >
+       Takip Ettiklerim) — yarım sütunda asılı kalmasın diye iki sütunu birden kaplar. */
+    #am-panel .dash-row.col-two-col > .dash-section-wide{grid-column:1 / -1;}
+    /* "Yeni" bildirimi (kullanıcı isteği, 2026-09-01 madde 2: "Takip edilenler kutusunda yeni bir
+       gönderi eklendiği zaman hemen yanında yeni eklendiğine dair bir bildirim olsun") — kutu
+       başlığının yanında toplam sayı, ilgili satırın başlığının yanında da tek tek rozet. */
+    #am-panel .dash-new-count{
+      display:inline-block; vertical-align:middle; margin-left:8px;
+      background:var(--accent); color:#fff; font-family:inherit; font-size:11px; font-weight:700;
+      line-height:1; padding:4px 9px; border-radius:100px;
+    }
+    /* [hidden] KURALI ŞART (yerel testte yakalandı): tarayıcının kendi [hidden]{display:none}
+       UA kuralı (0,0,1) yukarıdaki display:inline-block'un (1,1,0) altında kalıyor — bu satır
+       olmadan rozet "0 yeni" olarak HER ZAMAN görünür kalıyordu. */
+    #am-panel .dash-new-count[hidden]{display:none;}
+    #am-panel .saved-row-new{
+      display:inline-block; margin-left:7px; background:var(--accent); color:#fff;
+      font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
+      line-height:1; padding:3px 7px; border-radius:100px; vertical-align:middle;
+    }
     /* İki sütuna sıkışınca pano kartları için minmax(190px) fazla geniş kalıyor — sütun içinde
        en az iki kart yan yana sığsın diye bu görünümde daraltılır. */
     #am-panel .col-two-col .col-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;}
@@ -906,7 +926,12 @@ const AuthModal = (function () {
       </div>
       </div>
 
-      <div class="dash-row">
+      <!-- col-two-col: masaüstünde VE tablette iki sütun (kullanıcı isteği, 2026-09-01 madde 1:
+           "Hesabım, Aktivitelerim, Koleksiyonum, İçeriklerim popuplarının hepsi masaüstü ve tablet
+           görünümlerinde 2 sütunlu olsunlar") — Aktivitelerim/Koleksiyonum'un ZATEN kullandığı sınıf;
+           .dash-row'un varsayılan 860px eşiği çekmecenin 90vw'lik tablet genişliğini tek sütuna
+           düşürüyordu, bu sınıf eşiği 620px'e çeker (bkz. injectStyles'taki kural). -->
+      <div class="dash-row col-two-col">
         <div class="dash-section">
           <h2>Profil Bilgileri</h2>
           <div id="am-profile-tab-facts">
@@ -929,7 +954,7 @@ const AuthModal = (function () {
         </div>
       </div>
 
-      <div class="dash-row">
+      <div class="dash-row col-two-col"><!-- bkz. bir üstteki col-two-col gerekçesi -->
         <div class="dash-section">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
             <h2 style="margin:0;">Mesajlar</h2>
@@ -969,26 +994,15 @@ const AuthModal = (function () {
 
       <!-- Kaydettiklerim ARTIK BURADA DEĞİL — kullanıcı isteği (2026-08-31): yalnızca Koleksiyonum
            popup'ında dursun (bkz. collectionsTemplate#am-col-dash-saved).
-           Yerleşim (kullanıcı isteği, 2026-08-31 madde 1): 1. satır Takip Ettiklerim | Beğendiklerim,
-           2. satır Yorumlarım | Paylaştıklarım. Takip Ettiklerim eskiden tek başına tam genişlikteydi;
-           artık ilk satır DA iki sütunlu. Kırılma noktası .col-two-col ile 620px'e çekilir (bkz.
-           injectStyles'taki gerekçe) — istek açıkça "masaüstü VE tablet"te iki sütun diyor, .dash-row'un
-           varsayılan 860px eşiği çekmecenin 90vw genişliğindeki tablet görünümünü tek sütuna
-           düşürürdü. -->
+           Takip Ettiklerim de ARTIK BURADA DEĞİL — kullanıcı isteği (2026-09-01 madde 2: "Takip
+           ettiklerim kutusunu aktivitelerim popupından kaldırıp koleksiyonum popupında taşı"),
+           bkz. collectionsTemplate#am-dash-follow-feed.
+           Kalan üç kutunun yerleşimi: 1. satır Beğendiklerim | Yorumlarım, 2. satır Paylaştıklarım
+           (tek başına, tam genişlik — bkz. .dash-section-wide). Kırılma noktası .col-two-col ile
+           620px'e çekilir (bkz. injectStyles'taki gerekçe) — istek açıkça "masaüstü VE tablet"te iki
+           sütun diyor, .dash-row'un varsayılan 860px eşiği çekmecenin 90vw genişliğindeki tablet
+           görünümünü tek sütuna düşürürdü. -->
       <div class="dash-row col-two-col">
-        <div class="dash-section">
-          <h2>Takip Ettiklerim</h2>
-          <div class="saved-filter" id="am-follow-feed-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
-            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
-          </div>
-          <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-follow-feed-pagination"></div>
-        </div>
-
         <div class="dash-section">
           <h2>Beğendiklerim</h2>
           <div class="saved-filter" id="am-rated-filter">
@@ -999,9 +1013,7 @@ const AuthModal = (function () {
           <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-rated-pagination"></div>
         </div>
-      </div>
 
-      <div class="dash-row col-two-col">
         <div class="dash-section">
           <h2>Yorumlarım</h2>
           <div class="saved-filter" id="am-comments-filter">
@@ -1010,14 +1022,16 @@ const AuthModal = (function () {
           <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-comments-pagination"></div>
         </div>
+      </div>
 
+      <div class="dash-row col-two-col">
         <!-- Paylaştıklarım (kullanıcı isteği, 2026-08-31 madde 1): "kullanıcıların paylaş butonuna
              tıklayarak başkalarına ilettikleri gönderiler". Kaynak, Paylaş butonunun (bkz.
              js/components/share-button.js) gerçekten bir paylaşım eylemi TAMAMLANDIĞINDA yazdığı
              shared_items tablosudur (bkz. src/routes/shares.js) — butonu açıp kapatmak değil,
              bağlantıyı kopyalamak/WhatsApp/X/LinkedIn'e göndermek ya da yerel paylaşım sayfasını
              onaylamak sayılır. -->
-        <div class="dash-section">
+        <div class="dash-section dash-section-wide">
           <h2>Paylaştıklarım</h2>
           <div class="saved-filter" id="am-shares-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
@@ -1048,21 +1062,24 @@ const AuthModal = (function () {
         </div>
       </div>
 
-      <div class="dash-row">
+      <!-- col-two-col: bkz. accountTemplate()'teki AYNI gerekçe (kullanıcı isteği, 2026-09-01 madde 1). -->
+      <div class="dash-row col-two-col">
         <div class="dash-section">
-          <div class="submissions-toolbar-row">
-            <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
-            <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
-            <a class="submissions-add-link" href="mimar-ekle.html">Mimar Ekle</a>
-            <a class="submissions-add-link" href="firma-ekle.html">Firma Ekle</a>
-            <a class="submissions-add-link" href="marka-ekle.html">Marka Ekle</a>
-          </div>
+          <!-- Başlık "Eklediklerim" + "Proje Ekle/Ürün Ekle/..." bağlantı satırı KALDIRILDI
+               (kullanıcı isteği, 2026-09-01 madde 3). Ekleme sayfalarına giden yol zaten
+               nav/footer'daki "İçerik Ekle" akışında var (bkz. add-choice.js); bu kutu artık
+               yalnızca "ne eklediğimi göster" işini yapıyor.
+               "Marka" filtresi diğer butonların EN SONUNA eklendi — marka gönderileri ayrı bir
+               gönderi tipi değil, offices gönderisidir; ayrım sunucudan gelen item.isBrand ile
+               yapılır (bkz. src/routes/submissions.js#listMine ve office-kind.js). -->
+          <h2>Eklediklerim</h2>
           <div class="submissions-toolbar-row" id="am-submissions-filter">
             <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
             <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
             <button type="button" class="submissions-filter-btn" data-filter="architects">Mimar</button>
             <button type="button" class="submissions-filter-btn" data-filter="offices">Firma</button>
+            <button type="button" class="submissions-filter-btn" data-filter="brands">Marka</button>
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
@@ -1133,6 +1150,31 @@ const AuthModal = (function () {
           <div id="am-col-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-col-saved-pagination"></div>
         </div>
+
+        <!-- Takip Ettiklerim — kullanıcı isteği (2026-09-01 madde 2): "Takip ettiklerim kutusunu
+             aktivitelerim popupından kaldırıp koleksiyonum popupında taşı". Kutu Aktivitelerim'den
+             OLDUĞU GİBİ taşındı (aynı /api/follows + /api/follows/feed kaynağı, aynı .saved-row
+             işaretlemesi, aynı sekme/sayfalama) — yalnızca iki ekleme var:
+               • "Marka" filtresi: markalar da offices satırıdır (bkz. office-kind.js), sunucu
+                 /api/follows'ta is_brand döner ve istemci onları 'brand' tipinde sayar; böylece
+                 marka profilindeki Takip Et buradaki Marka sekmesinde görünür.
+               • "Yeni" rozeti: son ziyaretten sonra yayınlanmış gönderilerin yanında (bkz.
+                 followSeenAt / FOLLOW_FEED_SEEN_KEY).
+             .dash-section-wide: satırın üçüncü kutusu tek başına kaldığından tam genişlik kaplar. -->
+        <div class="dash-section dash-section-wide">
+          <h2>Takip Ettiklerim <span class="dash-new-count" id="am-follow-feed-new-count" hidden></span></h2>
+          <p class="section-hint">Takip ettiğin mimar, firma ve markalar ile onların takibe başladıktan SONRA eklediği proje ve ürünler.</p>
+          <div class="saved-filter" id="am-follow-feed-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+            <button type="button" class="saved-filter-btn" data-filter="brand">Marka</button>
+          </div>
+          <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-follow-feed-pagination"></div>
+        </div>
       </div>
 
       <div id="am-col-detail-view" style="display:none;">
@@ -1182,7 +1224,20 @@ const AuthModal = (function () {
   const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi', archived: 'Arşivlendi' };
   const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C', archived: 'var(--ink-soft)' };
   const EDIT_PAGE_BY_TYPE = { offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html' };
-  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
+  // Marka gönderileri offices tipindedir (bkz. marka-ekle.html: type:'offices') — İçeriklerim >
+  // Eklediklerim satırında hem etiketi ("Marka") hem Düzenle hedefi (marka-ekle.html) bu yüzden
+  // tipe DEĞİL, sunucudan gelen item.isBrand'a göre seçilir (bkz. src/routes/submissions.js#listMine).
+  function submissionTypeLabel(type, item) {
+    if (type === 'offices') return item && item.isBrand ? 'Marka' : 'Firma';
+    return TYPE_LABELS[type];
+  }
+  function editPageFor(type, item) {
+    if (type === 'offices' && item && item.isBrand) return 'marka-ekle.html';
+    return EDIT_PAGE_BY_TYPE[type];
+  }
+  // brand: gerçek bir saved/follow tipi DEĞİL — Takip Ettiklerim'in marka satırları için
+  // istemcide türetilen görüntüleme tipi (bkz. mountCollections#loadFollowFeed).
+  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma', brand: 'Marka' };
   // Paylaştıklarım satırının alt metnindeki kanal etiketi — js/components/share-button.js'in
   // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
   // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer
@@ -2448,82 +2503,6 @@ const AuthModal = (function () {
       renderDashPagination('am-rated-pagination', ratedPage, totalPages, (p) => { ratedPage = p; renderRated(); });
     }
 
-    // Takip Ettiklerim — loadRated/renderRated İLE AYNI desen (tip filtresi + tek liste + sayfalama),
-    // bkz. kullanıcı isteği: takip edilen bir mimar/firmaya ait yeni proje/ürün burada görünsün.
-    // Backend (/api/follows/feed) filtre/sayfalama YAPMAZ — Kaydettiklerim/Beğendiklerim İLE AYNI
-    // desen, ham liste döner, sekme+PAGE_SIZE_DASH sayfalaması burada uygulanır.
-    let followFeedItems = [];
-    let followFeedFilter = '';
-    let followFeedPage = 1;
-    // "Mimar"/"Firma" filtreleri (bkz. kullanıcı isteği: "Takip ettiklerim kutusu altındaki
-    // başlıklara firma ve mimar başlıklarını da koy") — /api/follows/feed'in aksine (yalnızca takip
-    // BAŞLADIKTAN SONRA yayınlanan proje/ürün) burada takip edilen mimar/firma PROFİLLERİNİN kendisi
-    // listelenir, bu yüzden ayrıca ham /api/follows listesi çekilip 'architect'/'office' tipinde
-    // sahte "içerik" satırlarına dönüştürülür.
-    async function loadFollowFeed() {
-      const [feedRes, followsRes] = await Promise.all([fetch('/api/follows/feed'), fetch('/api/follows')]);
-      const feedData = feedRes.ok ? await feedRes.json() : { items: [] };
-      const followsData = followsRes.ok ? await followsRes.json() : { items: [] };
-      const profileItems = (followsData.items || []).map(f => ({
-        type: f.followed_type,
-        key: f.followed_key,
-        title: f.followed_title || f.followed_key,
-        image: f.followed_image || null,
-        href: `/${f.followed_type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(f.followed_key)}`,
-      }));
-      followFeedItems = [...profileItems, ...(feedData.items || [])];
-      renderFollowFeed();
-    }
-    function renderFollowFeed() {
-      const container = document.getElementById('am-dash-follow-feed');
-      if (!container) return;
-      const items = followFeedFilter ? followFeedItems.filter(it => it.type === followFeedFilter) : followFeedItems;
-      if (!followFeedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz takip ettiğin bir mimar/firma yok ya da takip ettiklerinden henüz yeni bir paylaşım yok.<br><a href="mimar.html">Mimarlara göz at</a></div>';
-        document.getElementById('am-follow-feed-pagination').innerHTML = '';
-        return;
-      }
-      if (!items.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde yeni bir paylaşım yok.</div>';
-        document.getElementById('am-follow-feed-pagination').innerHTML = '';
-        return;
-      }
-      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
-      if (followFeedPage > totalPages) followFeedPage = totalPages;
-      const startIdx = (followFeedPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(it => `
-        <div class="saved-row"${it.key ? ` data-type="${escapeAttr(it.type)}" data-key="${escapeAttr(it.key)}"` : ''}>
-          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
-            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(avatarImg(it.image, 160, safeUrl(it.image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
-            <div style="min-width:0;">
-              <div class="saved-row-title">${escapeHtml(it.title || '—')}</div>
-              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''}</div>
-            </div>
-          </a>
-          ${it.key ? `<button class="saved-remove-btn" type="button" aria-label="Takibi bırak">✕</button>` : ''}
-        </div>`).join('');
-      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const row = btn.closest('.saved-row');
-          btn.disabled = true;
-          try {
-            await fetch(`/api/follows/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
-            loadFollowFeed();
-          } catch { btn.disabled = false; }
-        });
-      });
-      renderDashPagination('am-follow-feed-pagination', followFeedPage, totalPages, (p) => { followFeedPage = p; renderFollowFeed(); });
-    }
-    on('am-follow-feed-filter', 'click', (e) => {
-      const btn = e.target.closest('.saved-filter-btn');
-      if (!btn) return;
-      followFeedFilter = btn.dataset.filter;
-      followFeedPage = 1;
-      document.querySelectorAll('#am-follow-feed-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderFollowFeed();
-    });
-
     let commentItems = [];
     let commentsFilter = '';
     let commentsPage = 1;
@@ -2657,7 +2636,7 @@ const AuthModal = (function () {
 
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      [loadRated(), loadComments(), loadFollowFeed(), loadShares()].forEach(p => p.catch(() => {}));
+      [loadRated(), loadComments(), loadShares()].forEach(p => p.catch(() => {}));
     }).catch(() => {});
   }
 
@@ -2686,11 +2665,22 @@ const AuthModal = (function () {
     function renderSubmissions() {
       const container = document.getElementById('am-dash-submissions');
       if (!allSubmissions.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
+        // Ekleme bağlantıları BİLEREK yok (kullanıcı isteği, 2026-09-01 madde 3: bu kutudaki
+        // "Proje Ekle/Ürün Ekle/..." yazıları kaldırıldı) — yol nav/footer'daki "İçerik Ekle".
+        container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.</div>';
         document.getElementById('am-submissions-pagination').innerHTML = '';
         return;
       }
-      const all = submissionsFilter ? allSubmissions.filter(s => s.type === submissionsFilter) : allSubmissions;
+      // 'brands' gerçek bir gönderi tipi DEĞİL (bkz. şablondaki yorum): offices gönderilerinin
+      // marka olanları. 'offices' (Firma) ise simetrik olarak marka OLMAYANLARI gösterir — aksi
+      // halde her marka iki filtrede birden çıkar ve iki buton ayırt edici olmaktan çıkardı.
+      const matchesSubmissionFilter = (s) => {
+        if (!submissionsFilter) return true;
+        if (submissionsFilter === 'brands') return s.type === 'offices' && !!s.item.isBrand;
+        if (submissionsFilter === 'offices') return s.type === 'offices' && !s.item.isBrand;
+        return s.type === submissionsFilter;
+      };
+      const all = submissionsFilter ? allSubmissions.filter(matchesSubmissionFilter) : allSubmissions;
       if (!all.length) {
         container.innerHTML = '<div class="dash-empty">Bu türde gönderdiğin bir içerik yok.</div>';
         document.getElementById('am-submissions-pagination').innerHTML = '';
@@ -2709,10 +2699,10 @@ const AuthModal = (function () {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line-soft);">
           <div>
             ${titleHtml}
-            <div style="font-size:11.5px; color:var(--ink-soft);">${TYPE_LABELS[type]} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
+            <div style="font-size:11.5px; color:var(--ink-soft);">${submissionTypeLabel(type, item)} · ${new Date(item.created_at).toLocaleDateString('tr-TR')}</div>
           </div>
           <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-            ${(type === 'products' || type === 'materials') ? '' : `<a class="submission-edit-link" href="${EDIT_PAGE_BY_TYPE[type]}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`}
+            ${(type === 'products' || type === 'materials') ? '' : `<a class="submission-edit-link" href="${editPageFor(type, item)}?edit=${encodeURIComponent(item.id)}&stype=${encodeURIComponent(type)}">Düzenle</a>`}
             <span style="font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:100px; color:${STATUS_COLORS[item.status]}; background:${STATUS_COLORS[item.status]}22;">${STATUS_LABELS[item.status]}</span>
           </div>
         </div>
@@ -3183,10 +3173,132 @@ const AuthModal = (function () {
       renderColSaved();
     });
 
+    // ---- Takip Ettiklerim kutusu (kullanıcı isteği, 2026-09-01 madde 2) ----
+    // Aktivitelerim'den BURAYA taşındı (bkz. activitiesTemplate'teki yorum). loadRated/renderRated
+    // İLE AYNI desen (tip filtresi + tek liste + sayfalama); backend (/api/follows/feed) filtre/
+    // sayfalama YAPMAZ, ham liste döner.
+    //
+    // İki kaynak birleştirilir:
+    //   /api/follows      → takip edilen PROFİLLERİN kendisi (mimar/firma/marka satırları)
+    //   /api/follows/feed → o profillerin takip BAŞLADIKTAN SONRA yayınladığı proje/ürünler
+    // Marka takibi ayrı bir follows tipi DEĞİL: markalar da offices satırıdır (bkz. office-kind.js),
+    // sunucu /api/follows'ta is_brand döner. Görüntüleme/filtreleme tipi bu yüzden 'brand' olur ama
+    // TAKİBİ BIRAK isteği hâlâ gerçek tiple ('office') gider — deleteType alanı tam olarak bunun için.
+    // Markaların yeni ÜRÜNLERİ zaten feed'e gelir (src/routes/follows.js#followFeed products.
+    // brand_office_id üzerinden eşleştirir), yani "Ürün" sekmesinde görünürler.
+    let followFeedItems = [];
+    let followFeedFilter = '';
+    let followFeedPage = 1;
+    // "Yeni" bildirimi: bu kutu en son ne zaman görüntülendiyse ondan SONRA yayınlanmış gönderiler
+    // rozet alır. Zaman damgası tarayıcıda tutulur — sunucuda "okundu" durumu yok ve bu rozet salt
+    // bilgilendirici olduğundan cihazlar arası senkron gerekmiyor (bkz. kullanıcı isteği).
+    const FOLLOW_FEED_SEEN_KEY = 'mimarlab_follow_feed_seen_at';
+    let followSeenAt = 0;
+    function readFollowSeenAt() {
+      try { return Number(localStorage.getItem(FOLLOW_FEED_SEEN_KEY)) || 0; } catch { return 0; }
+    }
+    function writeFollowSeenAt(ts) {
+      try { localStorage.setItem(FOLLOW_FEED_SEEN_KEY, String(ts)); } catch { /* private mode: rozet her ziyarette görünür, zararsız */ }
+    }
+    // src/routes/follows.js created_at'i "YYYY-MM-DD HH:MM:SS" (UTC) biçiminde döner — Safari bu
+    // biçimi doğrudan ayrıştırmaz, ISO'ya çevirmek gerekir (bkz. aynı dosyadaki toSqliteDatetime).
+    function feedTimeMs(createdAt) {
+      if (!createdAt) return 0;
+      const ms = Date.parse(String(createdAt).replace(' ', 'T') + 'Z');
+      return Number.isFinite(ms) ? ms : 0;
+    }
+    async function loadFollowFeed() {
+      const [feedRes, followsRes] = await Promise.all([fetch('/api/follows/feed'), fetch('/api/follows')]);
+      const feedData = feedRes.ok ? await feedRes.json() : { items: [] };
+      const followsData = followsRes.ok ? await followsRes.json() : { items: [] };
+      const profileItems = (followsData.items || []).map(f => ({
+        // type = SATIRIN ETİKETİ, filterTypes = HANGİ SEKMELERDE görüneceği. İkisi bilerek ayrı:
+        // Autoban gibi hem mimarlık yapan hem ürün tasarlayan bir ofis marka.html'de DE listelenir
+        // (bkz. office-kind.js#isBrandOffice) ama etiketi "Firma" kalmalı; VitrA gibi saf üretici
+        // yalnızca Marka'dır. Sunucu bu iki soruyu is_brand/is_pure_brand olarak ayrı ayrı yanıtlar.
+        type: f.followed_type === 'office' && f.is_pure_brand ? 'brand' : f.followed_type,
+        filterTypes: f.followed_type !== 'office' ? [f.followed_type]
+          : (f.is_pure_brand ? ['brand'] : (f.is_brand ? ['office', 'brand'] : ['office'])),
+        deleteType: f.followed_type,
+        key: f.followed_key,
+        title: f.followed_title || f.followed_key,
+        image: f.followed_image || null,
+        // Marka profilleri de firma detay sayfasında yaşıyor (/marka yalnızca LİSTE sayfası, tekil
+        // bir /marka/:slug yolu YOK — bkz. src/index.js#CLEAN_URL_ASSETS), bu yüzden href aynı kalır.
+        href: `/${f.followed_type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(f.followed_key)}`,
+      }));
+      // followSeenAt render'dan ÖNCE okunur, yeni değer ise HEMEN yazılır: rozetler bu görüntüleme
+      // boyunca (filtre değişimi/sayfalama dahil, hepsi aynı followSeenAt'i kullanır) ekranda kalır,
+      // bir sonraki ziyarette düşer.
+      followSeenAt = readFollowSeenAt();
+      const feedItems = (feedData.items || []).map(it => ({ ...it, isNew: feedTimeMs(it.created_at) > followSeenAt }));
+      const latest = feedItems.reduce((max, it) => Math.max(max, feedTimeMs(it.created_at)), followSeenAt);
+      if (latest > followSeenAt) writeFollowSeenAt(latest);
+      followFeedItems = [...profileItems, ...feedItems];
+      renderFollowFeed();
+    }
+    function renderFollowFeed() {
+      const container = document.getElementById('am-dash-follow-feed');
+      if (!container) return;
+      const newCountEl = document.getElementById('am-follow-feed-new-count');
+      if (newCountEl) {
+        const newCount = followFeedItems.filter(it => it.isNew).length;
+        newCountEl.textContent = `${newCount} yeni`;
+        newCountEl.hidden = newCount === 0;
+      }
+      // filterTypes yoksa (feed'den gelen proje/ürün satırları) tipin kendisi kullanılır.
+      const items = followFeedFilter ? followFeedItems.filter(it => (it.filterTypes || [it.type]).includes(followFeedFilter)) : followFeedItems;
+      if (!followFeedItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz takip ettiğin bir mimar, firma ya da marka yok.<br><a href="marka.html">Markalara göz at</a></div>';
+        document.getElementById('am-follow-feed-pagination').innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde yeni bir paylaşım yok.</div>';
+        document.getElementById('am-follow-feed-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (followFeedPage > totalPages) followFeedPage = totalPages;
+      const startIdx = (followFeedPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(it => `
+        <div class="saved-row"${it.key ? ` data-type="${escapeAttr(it.deleteType || it.type)}" data-key="${escapeAttr(it.key)}"` : ''}>
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.href) || '#')}">
+            ${it.image && safeUrl(it.image) ? `<img src="${escapeAttr(avatarImg(it.image, 160, safeUrl(it.image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.title || '—')}${it.isNew ? '<span class="saved-row-new">Yeni</span>' : ''}</div>
+              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.type] || ''}</div>
+            </div>
+          </a>
+          ${it.key ? `<button class="saved-remove-btn" type="button" aria-label="Takibi bırak">✕</button>` : ''}
+        </div>`).join('');
+      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.saved-row');
+          btn.disabled = true;
+          try {
+            await fetch(`/api/follows/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
+            loadFollowFeed();
+          } catch { btn.disabled = false; }
+        });
+      });
+      renderDashPagination('am-follow-feed-pagination', followFeedPage, totalPages, (pg) => { followFeedPage = pg; renderFollowFeed(); });
+    }
+    on('am-follow-feed-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      followFeedFilter = btn.dataset.filter;
+      followFeedPage = 1;
+      document.querySelectorAll('#am-follow-feed-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderFollowFeed();
+    });
+
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
       loadCollections();
       loadColSaved().catch(() => {});
+      loadFollowFeed().catch(() => {});
     }).catch(() => {});
   }
 

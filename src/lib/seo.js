@@ -498,6 +498,20 @@ async function applySeoOverride(type, meta, env) {
   return next;
 }
 
+// buildMeta'nın "kayıt yok" (null) ile "arama BAŞARISIZ oldu" durumunu ayırt etmesini sağlar
+// (kullanıcı isteği, 2026-09-01 madde 4). 2026-08-27 auditinde bu ayrım yalnızca LOGLANMIŞTI,
+// davranış aynı kalmıştı: geçici bir D1 hatası (timeout/rate limit/kısa süreli kesinti) yayındaki
+// GERÇEK bir kaydı 404'e düşürüyor, arama motoru o URL'yi indeksten atıyordu. Artık çağıran taraf
+// (src/index.js#serveDetailPage) bunu yakalayıp 503 + Retry-After döner — arama motorları 503'ü
+// GEÇİCİ kabul eder ve URL'yi indeksten düşürmeden yeniden dener.
+export class MetaLookupError extends Error {
+  constructor(type, slugOrId, cause) {
+    super(`buildMeta failed for ${type}/${slugOrId}: ${cause?.message || String(cause)}`);
+    this.name = 'MetaLookupError';
+    this.cause = cause;
+  }
+}
+
 export async function buildMeta(type, slugOrId, env) {
   const builder = BUILDERS[type];
   if (!builder) return null;
@@ -505,13 +519,10 @@ export async function buildMeta(type, slugOrId, env) {
     const meta = await builder(slugOrId, env);
     return await applySeoOverride(type, meta, env);
   } catch (err) {
-    // Teknik SEO auditi (2026-08-27) bulgusu: bu catch önceden hatayı yutuyordu — bir D1 hatası
-    // (timeout/rate limit/şema uyuşmazlığı) GERÇEK, yayında bir kaydı sessizce 404/410'a
-    // düşürüyordu (bkz. çağıran taraf src/index.js#serveDetailPage: meta null ise sayfa 404 döner)
-    // ve bunu ayırt etmenin hiçbir yolu yoktu. console.error ile loglanır (Workers Logs zaten
-    // açık, bkz. wrangler.jsonc#observability) — davranış DEĞİŞMEZ, yalnızca görünür hale gelir.
+    // console.error korunur (Workers Logs zaten açık, bkz. wrangler.jsonc#observability) — artık
+    // AYRICA fırlatılır ki çağıran "bulunamadı" ile "bakılamadı"yı ayırabilsin (bkz. yukarısı).
     console.error('buildMeta failed', { type, slugOrId, error: err?.message || String(err) });
-    return null;
+    throw new MetaLookupError(type, slugOrId, err);
   }
 }
 
