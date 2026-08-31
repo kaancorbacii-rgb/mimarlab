@@ -95,7 +95,7 @@ const ArchitectModal = (function () {
       .related-card-title-text{display:block !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; width:100% !important;}
       /* "Projeler" (bu mimarın/firmanın kendi eserleri) grid'inde tek-satır+"…" kısıtlaması KALDIRILIR
          (bkz. kullanıcı isteği: "ismi uzun olan mimarın/firmanın diğer yapılarında metinlerindeki üç
-         nokta sistemini sil") — yukarıdaki genel kural Firmalar/Diğer Firma Ortakları kartlarında
+         nokta sistemini sil") — yukarıdaki genel kural Firmalar/Firma Ortakları kartlarında
          (isim tek satır) aynen kalır, yalnızca #am-related-projects-grid'e özel bu override başlığın
          normal şekilde birden çok satıra sarmasına izin verir. */
       #am-related-projects-grid .related-card-title-text{white-space:normal !important; overflow:visible !important; text-overflow:clip !important;}
@@ -103,6 +103,26 @@ const ArchitectModal = (function () {
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
+      /* Firmalar | Firma Ortakları ikili satırı (kullanıcı isteği, 2026-08-31). Kasıtlı olarak HİÇBİR
+         media query'de tek sütuna düşmez — kullanıcı üç görünümde de tek satır/iki sütun istedi.
+         min-width:0 ZORUNLU: grid hücrelerinin varsayılan min-width:auto'su, içindeki yatay kaydırma
+         şeridinin (.related-grid-scroll) taşmasına ve sütunun kart genişliği kadar şişip satırı
+         kırmasına yol açar (bkz. en-iyi-100 mobil taşma hatasıyla AYNI kök neden). */
+      .am-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .am-two-col-cell{min-width:0;}
+      .am-two-col-cell .related-title{margin-bottom:16px;}
+      /* Ortadaki KISA dik çizgi — yatay ayırıcılarla aynı renk/kalınlık. Yalnızca İKİ sütun da
+         doluyken çizilir (tek sütun varsa boşlukta asılı bir çizgi kalırdı, bkz. renderItem'daki
+         am-two-col-row-both sınıfı). */
+      .am-two-col-row::after{content:''; display:none;}
+      .am-two-col-row.am-two-col-row-both::after{
+        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:1px; height:72px; background:var(--line);
+      }
+      @media (max-width:860px){
+        .am-two-col-row{gap:14px;}
+        .am-two-col-row.am-two-col-row-both::after{height:56px;}
+      }
       .unregistered-badge{
         display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;
         background:var(--paper-card); border:1px solid var(--line-soft);
@@ -196,13 +216,20 @@ const ArchitectModal = (function () {
     </details>`;
 
   const RIGHT_TEMPLATE = `
-    <div class="related-section" id="am-office-section" style="display:none;">
-      <h2 class="related-title">Firmalar</h2>
-      <div class="related-grid-scroll" id="am-office-grid"></div>
-    </div>
-    <div class="related-section" id="am-colleagues-section" style="display:none;">
-      <h2 class="related-title">Diğer Firma Ortakları</h2>
-      <div class="related-grid-scroll" id="am-colleagues-grid"></div>
+    <!-- Firmalar + Firma Ortakları TEK satırda, iki sütun (kullanıcı isteği, 2026-08-31 — masaüstü,
+         tablet VE mobilde aynı; bu yüzden hiçbir kırılma noktasında tek sütuna düşmez). Üstteki
+         çizgi/boşluğu artık SARMALAYICI taşır (.related-section ondadır), iki hücre kendi
+         çizgilerini sıfırlar — aksi halde yan yana iki ayrı üst çizgi çıkardı. Aradaki kısa dik
+         çizgi .am-two-col-row::after ile, yatay çizgilerle AYNI 1px var(--line) değerinden. -->
+    <div class="related-section am-two-col-row" id="am-office-pair" style="display:none;">
+      <div class="am-two-col-cell" id="am-office-section" style="display:none;">
+        <h2 class="related-title">Firmalar</h2>
+        <div class="related-grid-scroll" id="am-office-grid"></div>
+      </div>
+      <div class="am-two-col-cell" id="am-colleagues-section" style="display:none;">
+        <h2 class="related-title">Firma Ortakları</h2>
+        <div class="related-grid-scroll" id="am-colleagues-grid"></div>
+      </div>
     </div>
     <div class="related-section" id="am-related-projects-section" style="display:none;">
       <h2 class="related-title">Projeler<span id="am-related-projects-count"></span></h2>
@@ -210,7 +237,7 @@ const ArchitectModal = (function () {
       <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
     </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
-      <h2 class="related-title">Ürünler<span id="am-related-products-count"></span></h2>
+      <h2 class="related-title">Tasarladığı Ürünler<span id="am-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
     </div>
     <!-- Tercih Ettiği Markalar / Kullandığı Ürünler (kullanıcı isteği, 2026-08-31; sıra yine
@@ -485,7 +512,7 @@ const ArchitectModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['am-office-section', 'am-colleagues-section', 'am-related-projects-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['am-office-pair', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
     'am-related-architects-section', 'am-related-products-section', 'am-used-products-section',
     'am-preferred-brands-section', 'am-detail-info', 'am-prevnext'];
 
@@ -608,6 +635,14 @@ const ArchitectModal = (function () {
       ).join('');
     }
     renderColleaguesGrid();
+
+    // Sarmalayıcı yalnızca en az bir sütun doluysa görünür (aksi halde boş bir bant + üst çizgi
+    // kalırdı); ortadaki kısa dik çizgi ise yalnızca İKİSİ de doluyken çizilir.
+    {
+      const pairEl = document.getElementById('am-office-pair');
+      pairEl.style.display = (offices.length || colleagues.length) ? '' : 'none';
+      pairEl.classList.toggle('am-two-col-row-both', !!(offices.length && colleagues.length));
+    }
 
     document.getElementById('am-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
     document.getElementById('am-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
