@@ -861,10 +861,10 @@ const AuthModal = (function () {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // AKTİVİTELERİM — Hesabım'dan ayrılmış, yalnızca Kaydettiklerim/Beğendiklerim/Yorumlarım/
+  // AKTİVİTELERİM — Hesabım'dan ayrılmış, yalnızca Takip Ettiklerim/Beğendiklerim/Yorumlarım/
   // Paylaştığım İçerikler kutularını taşıyan ikinci bir dashboard görünümü (bkz. kullanıcı isteği:
   // "Hesabım seçeneğinin altına Aktivitelerim seçeneği ekle"). Yükleme/render mantığı (loadSubmissions/
-  // loadSaved/loadRated/loadComments) accountTemplate()'in eskiden TEK parçası olan mountAccount()'tan
+  // loadRated/loadComments) accountTemplate()'in eskiden TEK parçası olan mountAccount()'tan
   // BİREBİR taşındı — accountUser gibi Hesabım'a özgü hiçbir state'e bağımlı değildi.
   // ---------------------------------------------------------------------------------------------
   function activitiesTemplate() {
@@ -874,7 +874,7 @@ const AuthModal = (function () {
         <div class="dash-head-info">
           <div>
             <h1>Aktivitelerim</h1>
-            <p>Kaydettiklerin, beğendiklerin, yorumların ve paylaştığın içerikler.</p>
+            <p>Takip ettiklerin, beğendiklerin ve yorumların.</p>
           </div>
           <div class="dash-head-actions">
             <button type="button" class="dash-edit-btn" id="am-activities-account-btn">Hesabım</button>
@@ -883,30 +883,21 @@ const AuthModal = (function () {
         </div>
       </div>
 
-      <div class="dash-row">
-        <div class="dash-section">
-          <h2>Takip Ettiklerim</h2>
-          <div class="saved-filter" id="am-follow-feed-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
-            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
-          </div>
-          <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-follow-feed-pagination"></div>
+      <!-- Kaydettiklerim ARTIK BURADA DEĞİL — kullanıcı isteği (2026-08-31): yalnızca Koleksiyonum
+           popup'ında dursun (bkz. collectionsTemplate#am-col-dash-saved). Takip Ettiklerim tek başına
+           kalınca .dash-row'un 2 sütunlu ızgarasında yarım genişlikte asılı kalmaması için satırdan
+           çıkarılıp tam genişlikte bağımsız bir .dash-section'a alındı. -->
+      <div class="dash-section">
+        <h2>Takip Ettiklerim</h2>
+        <div class="saved-filter" id="am-follow-feed-filter">
+          <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+          <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+          <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
         </div>
-
-        <div class="dash-section">
-          <h2>Kaydettiklerim</h2>
-          <div class="saved-filter" id="am-saved-filter">
-            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-          </div>
-          <div id="am-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
-          <div class="dash-pagination" id="am-saved-pagination"></div>
-        </div>
+        <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
+        <div class="dash-pagination" id="am-follow-feed-pagination"></div>
       </div>
 
       <div class="dash-row">
@@ -2287,7 +2278,7 @@ const AuthModal = (function () {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // AKTİVİTELERİM — Paylaştığım İçerikler/Kaydettiklerim/Beğendiklerim/Yorumlarım. mountAccount()'un
+  // AKTİVİTELERİM — Takip Ettiklerim/Beğendiklerim/Yorumlarım. mountAccount()'un
   // eski TEK parçasıydı (bkz. activitiesTemplate() üstündeki yorum); accountUser gibi Hesabım'a
   // özgü hiçbir state'e bağımlı olmadığından burada kendi başına, /api/auth/me ile ayrı bir oturum
   // kontrolüyle çalışır.
@@ -2304,64 +2295,15 @@ const AuthModal = (function () {
     on('am-activities-account-btn', 'click', () => swap('account'));
     on('am-activities-contents-btn', 'click', () => swap('contents'));
 
-    let savedItems = [];
-    let savedFilter = '';
-    let savedPage = 1;
-    async function loadSaved() {
-      const res = await fetch('/api/saved');
-      const data = res.ok ? await res.json() : { items: [] };
-      savedItems = data.items || [];
-      renderSaved();
-    }
     // "Ürün" filtresi hem product hem material tipini kapsar — urun.html'de bu ikisi zaten TEK
-    // katalog olarak birleşti, Kaydettiklerim/Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından
-    // ikisi de tek "Ürün" butonunun altında toplanır.
+    // katalog olarak birleşti, Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından ikisi de tek
+    // "Ürün" butonunun altında toplanır. (Kaydettiklerim bu görünümden kaldırıldı, bkz. şablon
+    // yorumu — bu yardımcı hâlâ renderRated/renderFollowFeed tarafından kullanılıyor.)
     function matchesCatalogFilter(itemType, filter) {
       if (!filter) return true;
       if (filter === 'product') return itemType === 'product' || itemType === 'material';
       return itemType === filter;
     }
-    function renderSaved() {
-      const container = document.getElementById('am-dash-saved');
-      const items = savedFilter ? savedItems.filter(it => matchesCatalogFilter(it.item_type, savedFilter)) : savedItems;
-      if (!savedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
-        document.getElementById('am-saved-pagination').innerHTML = '';
-        return;
-      }
-      if (!items.length) {
-        container.innerHTML = '<div class="dash-empty">Bu türde kaydettiğin bir içerik yok.</div>';
-        document.getElementById('am-saved-pagination').innerHTML = '';
-        return;
-      }
-      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
-      if (savedPage > totalPages) savedPage = totalPages;
-      const startIdx = (savedPage - 1) * PAGE_SIZE_DASH;
-      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
-      container.innerHTML = pageItems.map(it => `
-        <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
-          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
-            ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
-            <div style="min-width:0;">
-              <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
-              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.item_type] || ''}${it.item_meta ? ' · ' + escapeHtml(it.item_meta) : ''}</div>
-            </div>
-          </a>
-          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
-        </div>`).join('');
-      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const row = btn.closest('.saved-row');
-          btn.disabled = true;
-          try {
-            await fetch(`/api/saved/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
-            loadSaved();
-          } catch { btn.disabled = false; }
-        });
-      });
-      renderDashPagination('am-saved-pagination', savedPage, totalPages, (p) => { savedPage = p; renderSaved(); });
-    }
-
     let ratedItems = [];
     let ratedFilter = '';
     let ratedPage = 1;
@@ -2543,18 +2485,10 @@ const AuthModal = (function () {
       document.querySelectorAll('#am-rated-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
       renderRated();
     });
-    on('am-saved-filter', 'click', (e) => {
-      const btn = e.target.closest('.saved-filter-btn');
-      if (!btn) return;
-      savedFilter = btn.dataset.filter;
-      savedPage = 1;
-      document.querySelectorAll('#am-saved-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-      renderSaved();
-    });
 
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      [loadSaved(), loadRated(), loadComments(), loadFollowFeed()].forEach(p => p.catch(() => {}));
+      [loadRated(), loadComments(), loadFollowFeed()].forEach(p => p.catch(() => {}));
     }).catch(() => {});
   }
 
@@ -3003,10 +2937,10 @@ const AuthModal = (function () {
     });
 
     // ---- Kaydettiklerim kutusu (kullanıcı isteği, 2026-08-31) ----
-    // mountActivities()'teki AYNI kutunun ikinci bir örneği: AYNI /api/saved kaynağı, AYNI .saved-row
-    // işaretlemesi/filtre/sayfalama. Kod paylaşılmıyor çünkü o kutu mountActivities'in ÖZEL
-    // kapsamındaki state'e (savedItems/savedFilter/savedPage) bağlı — burada kendi bağımsız
-    // kopyası tutulur, iki popup birbirinin sayfa/filtre durumunu bozmaz.
+    // Sitedeki TEK Kaydettiklerim kutusu burasıdır: önce Aktivitelerim'in yanına eklenmişti, sonra
+    // kullanıcı isteğiyle oradan tamamen kaldırıldı (bkz. activitiesTemplate'teki yorum). Doğal yeri
+    // burası: panolara öğe eklemenin ana kaynağı bu liste ("Kaydettiklerimden Ekle" aynı veriyi
+    // kullanır). /api/saved kaynağı ve .saved-row işaretlemesi eski kutuyla BİREBİR aynı.
     let colSavedItems = [];
     let colSavedFilter = '';
     let colSavedPage = 1;
