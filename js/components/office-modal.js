@@ -51,8 +51,15 @@ const OfficeModal = (function () {
          .om-cover-fallback her zaman basılır, görsel (varsa) üzerine biner — marka.html#office-card-cover
          ile AYNI gerekçe (yükleme sırasında/404'te boş beyaz kutu kalmaz). Rengi renderCover()
          officeColor(o.name)'den atar, yani kapaksız marka da temaya uygun sabit bir renk alır. */
+      /* width:100% ZORUNLU (yalnızca kozmetik değil): aspect-ratio + min-height birlikte
+         kullanıldığında ve genişlik `auto` kaldığında, CSS min-height'i orana çevirip AKTARILMIŞ
+         BİR min-width üretir (110px × 3 = 330px). Sol panelin içerik genişliği tablette (~1024px
+         ekran, %32'lik sütun) yalnızca ~247px olduğundan bant kutusundan taşıp bölme çizgisinin
+         sağına kayıyordu (bkz. kullanıcı bildirimi 2026-08-31). Genişliği açıkça vermek oranın
+         yüksekliği genişlikten türetmesini sağlar; min-height artık SADECE yüksekliği kelepçeler,
+         geriye genişliğe aktarılmaz. */
       .om-cover{
-        position:relative; aspect-ratio:3/1; min-height:110px;
+        position:relative; width:100%; aspect-ratio:3/1; min-height:110px;
         border-radius:14px; margin-bottom:38px; background:var(--paper-alt);
       }
       .om-cover-fallback{
