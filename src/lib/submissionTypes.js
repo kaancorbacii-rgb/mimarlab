@@ -356,7 +356,7 @@ export function dateBucketFor(dateStr) {
 // istenen her şeyin yazılabildiği serbest bir JSON deposuna dönüşmez.
 const MAX_HOTSPOTS_PER_IMAGE = 30;
 const MAX_HOTSPOT_IMAGES = 60;
-function sanitizeImageHotspots(raw) {
+export function sanitizeImageHotspots(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out = {};
   for (const url of Object.keys(raw).slice(0, MAX_HOTSPOT_IMAGES)) {

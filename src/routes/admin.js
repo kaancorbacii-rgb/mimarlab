@@ -5,7 +5,7 @@ import { updateUserProfileFields } from './auth.js';
 import { listSaved } from './saved.js';
 import { myRatings } from './ratings.js';
 import { myComments } from './comments.js';
-import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, parseSubmissionRow, findInvalidUrlField, findInvalidProjectTaxonomyField, sanitizeImageHotspots } from '../lib/submissionTypes.js';
 import { createNotification } from '../lib/notify.js';
 import { handleLegacyAdmin, setLegacyHidden } from './legacyContent.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
@@ -505,6 +505,16 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
         if (!(field in body)) continue;
         let value = body[field];
         if (config.arrayFields.includes(field)) value = JSON.stringify(Array.isArray(value) ? value : []);
+        // objectFields (bkz. src/lib/submissionTypes.js — şu an yalnızca projects.imageHotspots):
+        // arrayFields ile AYNI gerekçe, JSON metne çevrilmeden bind edilirse D1 tip hatası verirdi.
+        // Bu uç, proje-ekle.html'in "admin başkasının gönderisini düzenliyor" yolunda kullanılıyor
+        // (bkz. o dosyadaki isAdminEditingOther) — o yoldan kaydedilen işaretçiler aksi halde hiç
+        // yazılamazdı.
+        else if ((config.objectFields || []).includes(field)) {
+          const clean = field === 'imageHotspots' ? sanitizeImageHotspots(value)
+            : ((value && typeof value === 'object' && !Array.isArray(value)) ? value : {});
+          value = Object.keys(clean).length ? JSON.stringify(clean) : null;
+        }
         updates.push(`${field} = ?`);
         values.push(value);
       }

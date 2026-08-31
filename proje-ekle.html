@@ -1225,6 +1225,25 @@ function renderBrandChips(){
     });
   });
 }
+// Görselde bir ürün işaretlendiğinde o ürünü "Kullanılan Ürünler / Firmalar" kutusuna da ekler
+// (kullanıcı isteği, 2026-09-01) — iki liste ayrı alanlara kaydedildiğinden (brands ve
+// imageHotspots) bu bağ otomatik kurulmazdı; görselde işaretlenmiş bir ürünün künyedeki ürün
+// listesinde görünmemesi tutarsız olurdu. Zaten listede olan bir çift tekrar eklenmez.
+// Markası olmayan ürün ATLANIR: brands kaydı marka üzerinden çözülüyor (bkz. src/lib/
+// canonicalSync.js#resolveProjectProductLinks), markasız bir chip hiçbir ürüne bağlanamazdı.
+// Not: bir işaretçiyi KALDIRMAK chip'i silmez — ürün künyede bilerek listelenmiş olabilir, o karar
+// kullanıcıya bırakılır (chip'in kendi ✕ düğmesi zaten var).
+function addBrandChipForProduct(title, brand){
+  const b = (brand || '').trim();
+  const p = (title || '').trim();
+  if(!b || !p) return;
+  const exists = brandChips.some(c => (c.brand || '').toLowerCase() === b.toLowerCase()
+    && (c.product || '').toLowerCase() === p.toLowerCase());
+  if(exists) return;
+  brandChips.push({ brand: b, product: p });
+  renderBrandChips();
+}
+
 function addBrandChip(){
   const brandInput = document.getElementById('p-brand-input');
   const productInput = document.getElementById('p-product-input');
@@ -1259,7 +1278,10 @@ function setExistingImages(urls, hotspotsByUrl){
     key: 'm' + (mediaKeySeq++), kind:'existing', url,
     // API zenginleştirilmiş nesneler döner (marka/görsel dahil, bkz. src/routes/project.js#
     // enrichImageHotspots) — formda yalnızca konum + slug + başlık gerekiyor, gerisi atılır.
-    hotspots: (hs[url] || []).map(h => ({ x: h.x, y: h.y, slug: h.slug, title: h.title || '' })),
+    // brand: yalnızca GET /api/project/:slug'ın zenginleştirdiği veride var (bkz. src/routes/
+    // project.js#enrichImageHotspots) ve yalnızca form içi kullanılır — bir işaretçi düzenlenip
+    // yeniden kaydedildiğinde "Kullanılan Ürünler" chip'inin doğru markayla eklenebilmesi için.
+    hotspots: (hs[url] || []).map(h => ({ x: h.x, y: h.y, slug: h.slug, title: h.title || '', brand: h.brand || '' })),
   }));
 }
 
@@ -1454,7 +1476,7 @@ function openHotspotForm(xPct, yPct, editIndex){
   const item = hsCurrentItem();
   if(!item) return;
   const existing = editIndex != null ? item.hotspots[editIndex] : null;
-  hsDraft = { x: xPct, y: yPct, editIndex: editIndex != null ? editIndex : null, slug: existing ? existing.slug : '', title: existing ? existing.title : '' };
+  hsDraft = { x: xPct, y: yPct, editIndex: editIndex != null ? editIndex : null, slug: existing ? existing.slug : '', title: existing ? existing.title : '', brand: existing ? (existing.brand || '') : '' };
   hsForm = document.createElement('div');
   hsForm.className = 'hs-form';
   hsForm.innerHTML = `
@@ -1504,12 +1526,13 @@ function openHotspotForm(xPct, yPct, editIndex){
     acList.className = 'hs-ac-list';
     // escapeAttr — bu sayfada escapeHtml TANIMLI DEĞİL (bkz. yukarısı, yalnızca escapeAttr var);
     // escapeAttr metin içeriği için de güvenli (üstüne tırnakları da kaçırır).
-    acList.innerHTML = items.map(it => `<button type="button" data-slug="${escapeAttr(it.slug)}" data-title="${escapeAttr(it.label)}">${escapeAttr(it.label)}${it.sub ? `<span class="hs-ac-sub">${escapeAttr(it.sub)}</span>` : ''}</button>`).join('');
+    acList.innerHTML = items.map(it => `<button type="button" data-slug="${escapeAttr(it.slug)}" data-title="${escapeAttr(it.label)}" data-brand="${escapeAttr(it.brand || '')}">${escapeAttr(it.label)}${it.sub ? `<span class="hs-ac-sub">${escapeAttr(it.sub)}</span>` : ''}</button>`).join('');
     acWrap.appendChild(acList);
     acList.querySelectorAll('button').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         hsDraft.slug = btn.dataset.slug;
         hsDraft.title = btn.dataset.title;
+        hsDraft.brand = btn.dataset.brand || '';
         input.value = btn.dataset.title;
         closeAc();
       });
@@ -1536,9 +1559,12 @@ function openHotspotForm(xPct, yPct, editIndex){
     const it = hsCurrentItem();
     if(!it) return;
     if(!it.hotspots) it.hotspots = [];
-    const entry = { x: hsDraft.x, y: hsDraft.y, slug: hsDraft.slug, title: hsDraft.title };
+    // brand yalnızca form içi bir kolaylık (chip listesine eklemek ve düzenlemeye dönünce yeniden
+    // kullanmak için) — sunucu sanitizeImageHotspots ile yalnızca x/y/slug/title'ı saklar.
+    const entry = { x: hsDraft.x, y: hsDraft.y, slug: hsDraft.slug, title: hsDraft.title, brand: hsDraft.brand || '' };
     if(hsDraft.editIndex != null) it.hotspots[hsDraft.editIndex] = entry;
     else it.hotspots.push(entry);
+    addBrandChipForProduct(hsDraft.title, hsDraft.brand);
     closeHotspotForm();
     renderHotspotPins();
     renderPreviews();
@@ -2144,6 +2170,25 @@ async function convertCopiedImageToWebp(mediaUrl, context, maxEdge){
 // olabilir (tarayıcı CORS nedeniyle bunları kendi indiremez) — bu yüzden http(s) ile başlayan
 // "existing" url'ler burada toplanıp SUNUCU tarafında /api/ai/copy-images ile R2'ye kopyalanır;
 // zaten /media/ ya da site-relative (ör. "projects/x.jpg") olanlar eskisi gibi aynen geçer.
+// GERÇEK BULGU (kullanıcı bildirimi, 2026-09-01 — görsel üzeri ürün işaretçileri kaydedilmiyordu):
+// buradaki "dış görsel" testi düz bir /^https?:\/\// idi. Ama sitedeki projelerin bir kısmının
+// görselleri MUTLAK ve BİZE AİT adreslerle saklanıyor (ör. "https://mimarlab.com/media/projects/
+// x.webp" — bkz. eski Arkitera içe aktarmaları). Bu yüzden her kaydetmede kendi görsellerimiz
+// "dışarıdan" sayılıp /api/ai/copy-images ile YENİDEN indirilip R2'ye kopyalanıyordu; kopyalama
+// başarısız olan görsel ise sessizce listeden düşürülüyordu (aşağıdaki urls[i] = null). Sonuç:
+// Koleksiyon Park Maçka gönderisinde olduğu gibi images alanı [] olarak kaydediliyor, buna bağlı
+// olarak hiçbir mediaItem'a finalUrl yazılamıyor ve collectImageHotspots() boş dönüyordu — yani
+// işaretçiler hiç kaydedilmiyordu (canonical satır images'i boş yazımda korumaya aldığından
+// görseller yerinde kalıyor, kullanıcı yalnızca işaretçilerin kaybolduğunu görüyordu).
+//
+// Aynı origin'deki mutlak adres ZATEN bizim: kopyalanmaz, olduğu gibi korunur. Böylece hem
+// işaretçi anahtarları bozulmaz hem de her kaydetmede R2'ye gereksiz kopya yazılmaz.
+function isForeignImageUrl(url){
+  if(!/^https?:\/\//i.test(url)) return false;
+  try{ return new URL(url, location.origin).origin !== location.origin; }
+  catch{ return true; }
+}
+
 async function collectImages(){
   const urls = [];
   // owners[i], urls[i]'yi üreten mediaItems öğesi — görsel üzeri ürün işaretçileri (bkz.
@@ -2157,7 +2202,7 @@ async function collectImages(){
     if(item.kind === 'existing'){
       urls.push(item.url);
       owners.push(item);
-      if(/^https?:\/\//i.test(item.url)) externalIndexes.push(urls.length - 1);
+      if(isForeignImageUrl(item.url)) externalIndexes.push(urls.length - 1);
       continue;
     }
     const fd = new FormData();
@@ -2194,7 +2239,15 @@ async function collectImages(){
   // Her mediaItem'a kendi NİHAİ url'ini yaz — collectImageHotspots bunu kullanarak işaretçi
   // haritasını doğru anahtarlarla kurar (elenen/kopyalanamayan görseller null kalır).
   urls.forEach((u, i) => { if(owners[i]) owners[i].finalUrl = u || null; });
-  return urls.filter(Boolean);
+  const kept = urls.filter(Boolean);
+  // Tek bir görselin kopyalanamaması gönderiyi engellemesin (bkz. yukarısı) — ama HEPSİNİN birden
+  // düşmesi bir "kısmi başarı" değil, sessiz bir veri kaybıdır: images:[] kaydedilir, kullanıcı
+  // galerisinin silindiğini fark etmez (bkz. yukarıdaki gerçek bulgu). Bu durumda kaydetmeyi
+  // durdurup nedeni söylemek tek doğru davranış.
+  if(!kept.length && mediaItems.length){
+    throw new Error('Görseller kaydedilemedi (kopyalama başarısız oldu). Değişiklikler kaydedilmedi — lütfen tekrar dene.');
+  }
+  return kept;
 }
 
 // Görsel üzeri ürün işaretçilerinin sunucuya gidecek hâli: { <nihai görsel url>: [{x,y,slug,title}] }
