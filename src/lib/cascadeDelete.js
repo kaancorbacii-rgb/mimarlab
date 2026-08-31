@@ -9,6 +9,9 @@ async function deleteEngagement(env, type, key) {
   await env.DB.prepare(`DELETE FROM comments WHERE target_type = ? AND target_id = ?`).bind(type, key).run();
   await env.DB.prepare(`DELETE FROM ratings WHERE target_type = ? AND target_id = ?`).bind(type, key).run();
   await env.DB.prepare(`DELETE FROM saved_items WHERE item_type = ? AND item_key = ?`).bind(type, key).run();
+  // Paylaştıklarım (bkz. migrations/0074_shared_items.sql) — saved_items İLE AYNI gerekçe: silinen
+  // içeriğe ait satırlar kalırsa Aktivitelerim artık var olmayan bir hedefi listelemeye devam eder.
+  await env.DB.prepare(`DELETE FROM shared_items WHERE item_type = ? AND item_key = ?`).bind(type, key).run();
   // follows yalnızca 'architect'/'office' için satır barındırır (bkz. schema.sql) — bu fonksiyon
   // proje/ürün silmede de çağrıldığından (type='project'/'product') o çağrılarda zaten eşleşen
   // satır olmayacağı için no-op, saved_items İLE AYNI paylaşılan-fonksiyon deseni.
@@ -146,6 +149,7 @@ export async function cascadeDeleteAccount(env, userId) {
   await env.DB.batch([
     env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM saved_items WHERE user_id = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM shared_items WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM follows WHERE user_id = ?`).bind(userId),
     // Koleksiyonum (bkz. migrations/0073_collections.sql) — saved_items/follows İLE AYNI gerekçe:
     // tamamen bu kullanıcıya ait kişisel pano verisi. collection_items, collections'a ON DELETE

@@ -148,6 +148,7 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
   ).bind(oldName, newName, oldName).first();
   await Promise.all([
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'office' AND item_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE shared_items SET item_key = ? WHERE item_type = 'office' AND item_key = ?`).bind(newName, oldName).run(),
     // follows.followed_ref_id id-tabanlı olduğundan rename'den etkilenmez, yalnızca UI/buton
     // state'inin dayandığı followed_key (slugify(name) — save-widget.js#wireSaveButtons'taki
     // dataset.key ile AYNI konvansiyon, ham isim DEĞİL) ve görünen ad güncellenir.
@@ -233,6 +234,7 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
   ).bind(oldName, newName, oldName).first();
   await Promise.all([
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'architect' AND item_key = ?`).bind(newName, oldName).run(),
+    env.DB.prepare(`UPDATE shared_items SET item_key = ? WHERE item_type = 'architect' AND item_key = ?`).bind(newName, oldName).run(),
     // bkz. renameOfficeEverywhere'deki AYNI follows satırı/gerekçe.
     env.DB.prepare(`UPDATE OR IGNORE follows SET followed_key = ?, followed_title = ? WHERE followed_type = 'architect' AND followed_key = ?`).bind(slugify(newName), newName, slugify(oldName)).run(),
     env.DB.prepare(`UPDATE OR IGNORE profile_claims SET profile_key = ? WHERE profile_type = 'architect' AND profile_key = ?`).bind(newName, oldName).run(),

@@ -145,6 +145,7 @@ async function renameProjectSlugEverywhere(env, oldSlug, newSlug) {
     env.DB.prepare(`UPDATE comments SET target_id = ? WHERE target_type = 'project' AND target_id = ?`).bind(newSlug, oldSlug).run(),
     env.DB.prepare(`UPDATE OR IGNORE ratings SET target_id = ? WHERE target_type = 'project' AND target_id = ?`).bind(newSlug, oldSlug).run(),
     env.DB.prepare(`UPDATE OR IGNORE saved_items SET item_key = ? WHERE item_type = 'project' AND item_key = ?`).bind(newSlug, oldSlug).run(),
+    env.DB.prepare(`UPDATE shared_items SET item_key = ? WHERE item_type = 'project' AND item_key = ?`).bind(newSlug, oldSlug).run(),
     env.DB.prepare(`UPDATE OR IGNORE legacy_content_hidden SET content_key = ? WHERE content_type = 'projects' AND content_key = ?`).bind(newSlug, oldSlug).run(),
     env.DB.prepare(`UPDATE top100_entries SET slug = ? WHERE slug = ?`).bind(newSlug, oldSlug).run(),
   ]);
@@ -274,7 +275,9 @@ export const MEDIA_IMAGE_FIELDS_BY_TYPE = {
   products: { arrayFields: ['images', 'files'] },
   materials: { arrayFields: ['images', 'files'] },
   architects: { stringFields: ['photo_url'] },
-  offices: { stringFields: ['logo_url'] },
+  // cover_url — marka kapak görseli (bkz. migrations/0075_office_cover_url.sql). logo_url ile AYNI
+  // türde tek bir R2 yolu; buraya eklenmezse değiştirilen/silinen kapaklar R2'de yetim kalırdı.
+  offices: { stringFields: ['logo_url', 'cover_url'] },
 };
 
 // Bir kaydın statik anahtarını (slug/name/"marka|||başlık") legacy_content_hidden'a kalıcı bir
@@ -598,6 +601,7 @@ async function syncOffice(env, row) {
       if (row.website) { sets.push('website = ?'); vals.push(row.website); }
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.logo_url) { sets.push('logo_url = ?'); vals.push(row.logo_url); }
+      if (row.cover_url) { sets.push('cover_url = ?'); vals.push(row.cover_url); }
       if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
       // GERÇEK BULGU: 'awards' bu dalda hiç yoktu — firma-ekle.html'de bir Ödül alanı olmadığından
       // (bkz. kullanıcı isteği: proje-ekle.html'e Ödül eklenirken firma-ekle.html'e de eklendi) bugüne
@@ -618,8 +622,8 @@ async function syncOffice(env, row) {
       if (claimedByUserId) { sets.push('claimed_by_user_id = ?'); vals.push(claimedByUserId); }
     } else {
       // bağımsız kayıt — kendi taslağının her düzenlemesi tam birebir yansır.
-      sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?', 'social_links = ?', 'awards = ?');
-      vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, socialLinks, awards);
+      sets.push('name = ?', 'loc = ?', 'cats = ?', 'yil = ?', 'website = ?', 'about = ?', 'logo_url = ?', 'cover_url = ?', 'social_links = ?', 'awards = ?');
+      vals.push(row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, row.cover_url || null, socialLinks, awards);
     }
     // hidden_at HER onaylı senkronda temizlenir — bir bağımsız (claimed_profile_key'siz) kaydın
     // sahibi onaylı içeriğini tekrar düzenlediğinde durum geçici olarak 'pending'e döner ve
@@ -641,9 +645,9 @@ async function syncOffice(env, row) {
     if (clash) slug = `${slug}-${row.id}`;
     const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, awards, social_links, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, awards, socialLinks, marker, claimedByUserId));
+      `INSERT INTO offices (slug, name, loc, cats, yil, website, about, logo_url, cover_url, awards, social_links, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+    ).bind(finalSlug, row.name, row.loc || null, cats, row.yil || null, row.website || null, row.about || null, row.logo_url || null, row.cover_url || null, awards, socialLinks, marker, claimedByUserId));
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
     // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate
     // edilmemiş olduğu anlamına gelir (gerçek bulgu: "mükerrer kayıt" — bu yeni satır firma.html/

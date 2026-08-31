@@ -15,6 +15,7 @@ import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/leg
 import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
+import { handleSharesRoute } from './routes/shares.js';
 import { handleCollectionsRoute } from './routes/collections.js';
 import { handleFollowRoute } from './routes/follows.js';
 import { handleRatingsRoute } from './routes/ratings.js';
@@ -926,6 +927,9 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
+  // Paylaştıklarım (bkz. src/routes/shares.js) — /api/saved ile AYNI desen ve AYNI gerekçe:
+  // tamamen oturum korumalı, herkese açık hiçbir okuma ucu yok.
+  if (path.startsWith('/api/shares')) return handleSharesRoute(request, env, url);
   // Koleksiyonum (bkz. src/routes/collections.js) — /api/saved ile AYNI desen: tamamen oturum
   // korumalı, herkese açık hiçbir okuma ucu yok.
   if (path.startsWith('/api/collections')) return handleCollectionsRoute(request, env, url);

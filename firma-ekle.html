@@ -123,6 +123,14 @@
   .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
+  /* Zorunlu alan yıldızı (kullanıcı isteği, 2026-08-31 madde 4): "zorunlu olarak doldurulması
+     gereken kutucukların başlıklarının yanına '*' işareti ekle". Yalnızca GERÇEKTEN zorunlu
+     alanlara basılır — ya HTML `required` taşıyanlara ya da submit handler'ın boş bırakılınca
+     durdurduğu alanlara (bkz. bu dosyanın submit doğrulamaları) — "(opsiyonel)" yazmayan her
+     başlığa DEĞİL. .opt ile aynı satırda yaşar, onun tersi anlamı taşır. aria-hidden: ekran
+     okuyucular zorunluluğu zaten input'un `required`/aria-required'ından duyar, yıldızı ayrıca
+     "yıldız" diye okumaları gürültü olur. */
+  .form-field label .req, .form-field legend .req{color:#B84C4C; font-weight:700; margin-left:2px;}
   /* denetim bulgusu (2026-08-14): "Konum" gibi TEK bir kontrolü değil birden fazla dropdown'ı
      (İl+İlçe) birlikte etiketleyen label'lar artık <fieldset><legend> — tarayıcının varsayılan
      fieldset kenarlığı/iç boşluğu sıfırlanıp legend, .form-field label ile GÖRSEL OLARAK BİREBİR
@@ -308,11 +316,11 @@
       <div class="form-section">
         <h2>Firma Bilgileri</h2>
         <div class="form-field">
-          <label for="o-name">Firma Adı</label>
+          <label for="o-name">Firma Adı <span class="req" aria-hidden="true">*</span></label>
           <input type="text" id="o-name" name="name" placeholder="ör. Autoban" required>
         </div>
         <fieldset class="form-field">
-          <legend>Konum</legend>
+          <legend>Konum <span class="req" aria-hidden="true">*</span></legend>
           <div class="form-row">
             <div class="dd-field" id="dd-il">
               <button type="button" class="dd-btn" id="dd-il-btn">
@@ -351,7 +359,7 @@
             </div>
           </div>
           <div class="form-field">
-            <label for="dd-hizmet-btn">Hizmet Alanı</label>
+            <label for="dd-hizmet-btn">Hizmet Alanı <span class="req" aria-hidden="true">*</span></label>
             <div class="dd-field" id="dd-hizmet">
               <button type="button" class="dd-btn" id="dd-hizmet-btn">
                 <span id="dd-hizmet-btn-label">Hizmet alanı seç</span>
@@ -398,7 +406,7 @@
           <div class="form-hint">Firmada çalışabilecek kişileri virgülle ayırarak yaz. Mimar profili olanlar aşağıda önerilir.</div>
         </div>
         <div class="form-field">
-          <label for="o-desc">Firma Hakkında Açıklama</label>
+          <label for="o-desc">Firma Hakkında Açıklama <span class="req" aria-hidden="true">*</span></label>
           <textarea id="o-desc" name="about" placeholder="Firma hakkında kısa bir metin yaz..." required></textarea>
         </div>
       </div>

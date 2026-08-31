@@ -152,7 +152,7 @@ export async function handleOfficeListRoute(request, env, url) {
     // getCachedPool). Filtre/sıralama mantığı DEĞİŞMEDİ.
     const pool = await getCachedPool(env, 'offices', async () => {
       const { results } = await env.DB.prepare(
-        `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url,
+        `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url,
            (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
             WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count,
            (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
@@ -172,7 +172,9 @@ export async function handleOfficeListRoute(request, env, url) {
         // productCount — ?brands=1 (marka.html) filtresinin tek kaynağı; buildOfficePayload'daki
         // brandProductsRes ile AYNI eşleşme kuralı (brand_office_id VEYA marka adı), böylece "Marka
         // sayfasında görünen firma"nın popup'ında mutlaka dolu bir "Ürünler" bölümü olur.
-        return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
+        // cover: marka kartlarının arka planı (bkz. marka.html#render, kullanıcı isteği 2026-08-31
+        // madde 6). firma.html AYNI havuzu okur ama bu alanı hiç kullanmaz — zararsız fazladan bir dize.
+        return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || null, projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
       });
     });
 
@@ -535,7 +537,7 @@ async function buildOfficePayload(env, key) {
 
   const item = {
     name: o.name, slug: o.slug, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
-    logo: o.logo_url, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
+    logo: o.logo_url, cover: o.cover_url || null, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html

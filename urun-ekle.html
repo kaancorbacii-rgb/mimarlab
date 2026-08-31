@@ -175,6 +175,17 @@
   .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
+  /* Zorunlu alan yıldızı (kullanıcı isteği, 2026-08-31 madde 4): "zorunlu olarak doldurulması
+     gereken kutucukların başlıklarının yanına '*' işareti ekle". Yalnızca GERÇEKTEN zorunlu
+     alanlara basılır — ya HTML `required` taşıyanlara ya da submit handler'ın boş bırakılınca
+     durdurduğu alanlara (bkz. bu dosyanın submit doğrulamaları) — "(opsiyonel)" yazmayan her
+     başlığa DEĞİL. .opt ile aynı satırda yaşar, onun tersi anlamı taşır. aria-hidden: ekran
+     okuyucular zorunluluğu zaten input'un `required`/aria-required'ından duyar, yıldızı ayrıca
+     "yıldız" diye okumaları gürültü olur. */
+  .form-field label .req, .form-field legend .req{color:#B84C4C; font-weight:700; margin-left:2px;}
+  /* Ürün Açıklaması görünür bir <label> DEĞİL, bir .form-subheading başlığı — yıldız kuralı bu
+     bağlamda da geçerli olsun diye ayrıca kapsanır. */
+  .form-subheading .req{color:#B84C4C; font-weight:700; margin-left:2px;}
   .form-field input[type=text], .form-field input[type=url], .form-field textarea, .form-field select{
     width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
     background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);
@@ -347,12 +358,12 @@
       <div class="form-section">
         <h2>Ürün Bilgileri</h2>
         <div class="form-field">
-          <label for="u-title">Ürün Adı</label>
+          <label for="u-title">Ürün Adı <span class="req" aria-hidden="true">*</span></label>
           <input type="text" id="u-title" name="title" placeholder="ör. Cloud Koltuk Takımı" required>
         </div>
         <div class="form-row">
           <div class="form-field ac-field" id="ac-brand-field">
-            <label for="u-brand">Firma</label>
+            <label for="u-brand">Firma <span class="req" aria-hidden="true">*</span></label>
             <input type="text" id="u-brand" name="brand" placeholder="ör. VitrA" autocomplete="off" required>
             <div class="ac-suggestions" id="ac-brand-suggestions"></div>
           </div>
@@ -389,7 +400,7 @@
         <div id="specs-rows"></div>
         <button type="button" class="specs-add-btn" id="specs-add-btn">+ Özellik Ekle</button>
 
-        <h3 class="form-subheading">Ürün Açıklaması</h3>
+        <h3 class="form-subheading">Ürün Açıklaması <span class="req" aria-hidden="true">*</span></h3>
         <div class="form-field">
           <textarea id="u-desc" name="description" placeholder="Ürün hakkında kısa bir metin yaz..." aria-label="Ürün Açıklaması" required></textarea>
         </div>

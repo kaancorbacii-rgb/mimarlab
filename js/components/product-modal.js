@@ -750,7 +750,15 @@ const ProductModal = (function () {
 
     if (typeof ShareWidget !== 'undefined' && headerActions) {
       headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('pr-share-btn'));
-      ShareWidget.wire('pr-share-btn', () => ({ title: p.title, url: `${window.location.origin}/urun/${encodeURIComponent(key)}` }));
+      // bkz. js/components/project-actions.js'teki AYNI ek alanlar/gerekçe — ürün tarafında anahtar
+      // ratingKey'dir (Kaydet/Puanla ile AYNI, `key` yalnızca URL içindir, bkz. yukarısı).
+      ShareWidget.wire('pr-share-btn', () => ({
+        title: p.title,
+        url: `${window.location.origin}/urun/${encodeURIComponent(key)}`,
+        type: ratingKindFor(p), key: ratingKey,
+        image: images[0] || '',
+        meta: [p.category, p.brand].filter(Boolean).join(' · '),
+      }));
     }
 
     // Puanla — X/Kaydet/Paylaş'ın EN DIŞINDA (bkz. kullanıcı isteği: "Puanla'yı da üste al, X,

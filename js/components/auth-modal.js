@@ -106,14 +106,29 @@ const AuthModal = (function () {
        yazılmayanlar .dash-head'den miras kalır. */
     #am-panel .dash-head-account{display:flex; align-items:center; gap:18px;}
     #am-panel .dash-head-titles{flex:1; min-width:0;}
-    /* .dash-head-btn-group: masaüstünde Profili Düzenle + Aktivitelerim/İçeriklerim'i TEK bir 10px
-       boşluklu küme olarak tutar (eski .dash-head-actions'ın 10px'i ile birebir aynı görünüm) — üstteki
-       18px'lik ana gap sadece avatar/başlık/buton-kümesi arasında kalır. Mobilde display:contents ile
-       kutu modelinden çıkar, iki çocuğu (Profili Düzenle butonu + Aktivitelerim/İçeriklerim sarmalayıcısı)
-       doğrudan .dash-head-account'un grid bağlamına katılır, ayrı grid-area'lara yerleşebilirler (bkz.
-       aşağısı @media). */
-    #am-panel .dash-head-btn-group{display:flex; align-items:center; gap:10px; flex-shrink:0;}
-    #am-panel .dash-head-btn-group .dash-head-actions{display:flex; align-items:center; gap:10px;}
+    /* ---------- DÖRTLÜ SAYFA GEÇİŞ SATIRI (.dash-nav-row) ----------
+       kullanıcı isteği (2026-08-31, madde 3): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim
+       popup'larından birinin içindeyken DİĞER ÜÇÜ üst tarafta buton olarak dursun; TÜM görünümlerde
+       tek satırda, yan yana, eşit aralıklarla — mobilde de ekran dışına taşmadan.
+       grid + repeat(3,1fr): "eşit aralık" isteğini flex/gap'ten daha kesin karşılar (üç buton eşit
+       genişlikte, aralarındaki iki boşluk her zaman aynı) ve satır sarması ihtimalini tamamen
+       ortadan kaldırır — flex-wrap ile dar ekranda alt satıra kaçabilirdi.
+       min-width:0 + overflow gizleme: en uzun etiket ("Aktivitelerim") dar telefonlarda sütunundan
+       taşıp yatay kaydırma açmasın diye. Eski .dash-head-btn-group/.dash-head-actions kuralları
+       KALDIRILDI — o iki sarmalayıcı yalnızca bu (artık başlık satırından çıkmış) geçiş butonlarını
+       taşıyordu; Hesabım'ın "Profili Düzenle" butonu başlık satırında tek başına kaldı. */
+    #am-panel .dash-nav-row{
+      display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;
+      align-items:stretch; margin-bottom:20px;
+      /* max-width: 1080px'lik .dash-wrap'te tam genişlik üç dev pil üretiyordu; satır sola hizalı
+         kalır (sayfa başlığıyla aynı kenar) ama makul bir genişlikte durur. Mobilde zaten
+         viewport'tan dar olduğundan bu sınır hiç devreye girmez. */
+      max-width:720px;
+    }
+    #am-panel .dash-nav-row .dash-edit-btn{
+      width:100%; min-width:0; padding:10px 8px; text-align:center;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
     /* Profili Düzenle pop-up — hesabim.html#profile-edit-overlay ile BİREBİR aynı desen (bkz. o
        dosya). ModalShell'in KENDİSİ burada kullanılmaz çünkü Hesabım zaten ModalShell'in TEK
        overlay'i İÇİNDE render ediliyor (bkz. ensureStyles/#am-panel) — bağımsız, daha yüksek
@@ -332,31 +347,43 @@ const AuthModal = (function () {
     #am-panel .col-saved-option-title{padding:8px 10px; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     #am-panel .col-notice{font-size:12.5px; color:var(--walnut); margin-top:10px; min-height:1em;}
     @media (max-width:480px){ #am-panel .badge-grid{grid-template-columns:1fr;} }
-    /* kullanıcı isteği (2026-08-28): mobilde Profili Düzenle/Aktivitelerim butonları artık sayfaya
-       yatayda ortalanıyor (önceki "sol tarafa hizala" isteğinin yerini aldı) — width:100% +
-       justify-content:center ile KOŞULSUZ/açık olarak sabitlenir. */
+    /* Geçiş butonları mobilde küçülür (bkz. kullanıcı isteği: "Mobil görünümde buton büyüklüğünü
+       biraz küçültebilirsin") — satır YAPISI değişmez, üçü hâlâ tek satırda ve eşit aralıkta. İki
+       kademe: tablet/geniş telefon (≤720px) ve dar telefon (≤400px, "Aktivitelerim" 320px'lik
+       ekranlarda buraya kadar sığmıyordu). */
+    @media (max-width:720px){
+      #am-panel .dash-nav-row{gap:8px; margin-bottom:16px;}
+      #am-panel .dash-nav-row .dash-edit-btn{padding:8px 6px; font-size:12px;}
+    }
+    /* 400px altı — çekmecenin kendi iç boşluğu düşülünce sütun başına ~77px kalıyor; en uzun etiket
+       ("Koleksiyonum") 11px'te 83px sürüyordu ve üç noktayla kırpılıyordu (yerel ölçümle yakalandı).
+       Etiketleri kısaltmak yerine punto/boşluk küçültülür — istek zaten mobilde küçültmeye izin
+       veriyor, kırpılmış bir etiket ise okunmaz bir sonuç olurdu. */
+    @media (max-width:400px){
+      #am-panel .dash-nav-row{gap:5px;}
+      #am-panel .dash-nav-row .dash-edit-btn{padding:7px 2px; font-size:10px; border-width:1px; letter-spacing:-0.1px;}
+    }
+    /* kullanıcı isteği (2026-08-28): mobilde Profili Düzenle butonu sayfaya yatayda ortalanıyor. */
     @media (max-width:720px){
       #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px; flex-basis:100%; width:100%;}
-      #am-panel .dash-head-actions{width:100%; justify-content:center;}
       /* kullanıcı isteği (2026-08-30): Hesabım'da mobilde "Profili Düzenle" avatarla AYNI üst satırda
-         (sağa hizalı) kalsın, "Aktivitelerim"/"İçeriklerim" başlığın ALTINDA ayrı, ortalanmış bir
-         satıra insin — bkz. yukarısı .dash-head-btn-group (display:contents sayesinde masaüstündeki
-         10px'lik küme burada ikiye ayrılıp iki farklı grid-area'ya yerleşebiliyor). */
+         (sağa hizalı) kalsın. Eski üçüncü "secondary" grid alanı KALDIRILDI — Aktivitelerim/
+         İçeriklerim artık başlığın altında değil, .dash-wrap'in en üstündeki .dash-nav-row'da. */
       #am-panel .dash-head-account{
         display:grid; grid-template-columns:auto 1fr;
-        grid-template-areas:"avatar edit" "titles titles" "secondary secondary";
+        grid-template-areas:"avatar edit" "titles titles";
         gap:10px 18px; align-items:center;
       }
       #am-panel .dash-head-account .dash-avatar{grid-area:avatar;}
       #am-panel .dash-head-account .dash-head-titles{grid-area:titles;}
-      #am-panel .dash-head-account .dash-head-btn-group{display:contents;}
       #am-panel .dash-head-account #am-dash-edit-btn{grid-area:edit; justify-self:end;}
-      #am-panel .dash-head-account .dash-head-actions{grid-area:secondary; width:100%; justify-content:center;}
     }
     @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
-    /* Koleksiyonum listesi (Panolarım + Kaydettiklerim) masaüstünde VE tablette iki sütun kalır —
-       bu iki kural yukarıdaki 860px kuralından SONRA geldiğinden (aynı özgüllük, kaynak sırası
-       kazanır) onu ezer. 620px altında telefon genişliğine inilir ve tek sütuna düşülür. */
+    /* .col-two-col — masaüstünde VE tablette iki sütun kalması istenen satırlar: Koleksiyonum
+       (Panolarım + Kaydettiklerim) ve Aktivitelerim'in İKİ satırı da (Takip Ettiklerim|Beğendiklerim,
+       Yorumlarım|Paylaştıklarım — bkz. kullanıcı isteği 2026-08-31 madde 1). Bu iki kural yukarıdaki
+       860px kuralından SONRA geldiğinden (aynı özgüllük, kaynak sırası kazanır) onu ezer. 620px
+       altında telefon genişliğine inilir ve tek sütuna düşülür. */
     #am-panel .dash-row.col-two-col{grid-template-columns:1fr 1fr;}
     @media (max-width:620px){ #am-panel .dash-row.col-two-col{grid-template-columns:1fr;} }
     /* İki sütuna sıkışınca pano kartları için minmax(190px) fazla geniş kalıyor — sütun içinde
@@ -684,9 +711,41 @@ const AuthModal = (function () {
   // dönüşü olmayan bir işlem sonrası ana sayfaya taze bir yükleme ile dönmek makul, bkz. kullanıcı
   // isteği: "ana sayfaya ... geri dönsün").
   // ---------------------------------------------------------------------------------------------
+  // dashNavRow(current): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim popup'larının HEPSİNİN en
+  // üstüne basılan, içinde bulunulan sayfa HARİÇ diğer ÜÇÜNÜ taşıyan geçiş satırı (bkz. kullanıcı
+  // isteği, 2026-08-31 madde 3). Dört şablonda dört kez elle yazmak yerine tek kaynaktan üretilir —
+  // böylece sıra/etiket/stil ve "içinde bulunduğunu gösterme" kuralı dördünde de zorunlu olarak aynı
+  // kalır. Butonlar data-am-nav taşır, her mount kendi delegated dinleyicisiyle bağlar (bkz.
+  // wireDashNav) — sabit id'lere gerek yok, dört şablonda çakışan id üretme riski de kalkar.
+  const DASH_NAV_VIEWS = [
+    { view: 'account', label: 'Hesabım' },
+    { view: 'activities', label: 'Aktivitelerim' },
+    { view: 'collections', label: 'Koleksiyonum' },
+    { view: 'contents', label: 'İçeriklerim' },
+  ];
+  function dashNavRow(current) {
+    const others = DASH_NAV_VIEWS.filter(v => v.view !== current);
+    return `<div class="dash-nav-row">${others
+      .map(v => `<button type="button" class="dash-edit-btn" data-am-nav="${v.view}">${v.label}</button>`)
+      .join('')}</div>`;
+  }
+  // Tek delegated dinleyici — mount fonksiyonları kendi kapsayıcı id'leriyle çağırır. Şablon her
+  // mount'ta yeniden basıldığından (innerHTML), dinleyici de her mount'ta yeniden bağlanmalıdır;
+  // mount'ların kendi `wired` Set'i (bkz. her mount fonksiyonundaki `on` yardımcısı) aynı DOM
+  // düğümüne iki kez bağlanmayı zaten engelliyor.
+  function wireDashNav(rootEl) {
+    if (!rootEl) return;
+    rootEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-am-nav]');
+      if (!btn || !rootEl.contains(btn)) return;
+      swap(btn.dataset.amNav);
+    });
+  }
+
   function accountTemplate() {
     return `
     <div class="dash-wrap" id="am-dash-wrap">
+      ${dashNavRow('account')}
       <div id="am-payment-success-banner" style="display:none; background:rgba(62,122,85,0.12); border:1px solid #3E7A55; color:var(--ink); font-size:13px; padding:13px 16px; border-radius:12px; margin-bottom:20px; line-height:1.6;">Ödemen alındı — rozetin aktif edildi.</div>
       <div class="dash-head dash-head-account">
         <div class="dash-avatar" id="am-dash-avatar">–</div>
@@ -694,13 +753,7 @@ const AuthModal = (function () {
           <h1 id="am-dash-title">Hoş Geldin</h1>
           <p id="am-dash-sub">—</p>
         </div>
-        <div class="dash-head-btn-group">
-          <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
-          <div class="dash-head-actions">
-            <button type="button" class="dash-edit-btn" id="am-dash-activities-btn">Aktivitelerim</button>
-            <button type="button" class="dash-edit-btn" id="am-dash-contents-btn">İçeriklerim</button>
-          </div>
-        </div>
+        <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
       </div>
 
       <div class="profile-edit-overlay" id="am-profile-edit-overlay">
@@ -878,37 +931,38 @@ const AuthModal = (function () {
   function activitiesTemplate() {
     return `
     <div class="dash-wrap" id="am-activities-wrap">
+      ${dashNavRow('activities')}
       <div class="dash-head">
         <div class="dash-head-info">
           <div>
             <h1>Aktivitelerim</h1>
-            <p>Takip ettiklerin, beğendiklerin ve yorumların.</p>
-          </div>
-          <div class="dash-head-actions">
-            <button type="button" class="dash-edit-btn" id="am-activities-account-btn">Hesabım</button>
-            <button type="button" class="dash-edit-btn" id="am-activities-contents-btn">İçeriklerim</button>
+            <p>Takip ettiklerin, beğendiklerin, yorumların ve paylaştıkların.</p>
           </div>
         </div>
       </div>
 
       <!-- Kaydettiklerim ARTIK BURADA DEĞİL — kullanıcı isteği (2026-08-31): yalnızca Koleksiyonum
-           popup'ında dursun (bkz. collectionsTemplate#am-col-dash-saved). Takip Ettiklerim tek başına
-           kalınca .dash-row'un 2 sütunlu ızgarasında yarım genişlikte asılı kalmaması için satırdan
-           çıkarılıp tam genişlikte bağımsız bir .dash-section'a alındı. -->
-      <div class="dash-section">
-        <h2>Takip Ettiklerim</h2>
-        <div class="saved-filter" id="am-follow-feed-filter">
-          <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
-          <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
-          <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-          <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
-          <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+           popup'ında dursun (bkz. collectionsTemplate#am-col-dash-saved).
+           Yerleşim (kullanıcı isteği, 2026-08-31 madde 1): 1. satır Takip Ettiklerim | Beğendiklerim,
+           2. satır Yorumlarım | Paylaştıklarım. Takip Ettiklerim eskiden tek başına tam genişlikteydi;
+           artık ilk satır DA iki sütunlu. Kırılma noktası .col-two-col ile 620px'e çekilir (bkz.
+           injectStyles'taki gerekçe) — istek açıkça "masaüstü VE tablet"te iki sütun diyor, .dash-row'un
+           varsayılan 860px eşiği çekmecenin 90vw genişliğindeki tablet görünümünü tek sütuna
+           düşürürdü. -->
+      <div class="dash-row col-two-col">
+        <div class="dash-section">
+          <h2>Takip Ettiklerim</h2>
+          <div class="saved-filter" id="am-follow-feed-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+          </div>
+          <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-follow-feed-pagination"></div>
         </div>
-        <div id="am-dash-follow-feed"><div class="dash-empty">Yükleniyor…</div></div>
-        <div class="dash-pagination" id="am-follow-feed-pagination"></div>
-      </div>
 
-      <div class="dash-row">
         <div class="dash-section">
           <h2>Beğendiklerim</h2>
           <div class="saved-filter" id="am-rated-filter">
@@ -919,7 +973,9 @@ const AuthModal = (function () {
           <div id="am-dash-rated"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-rated-pagination"></div>
         </div>
+      </div>
 
+      <div class="dash-row col-two-col">
         <div class="dash-section">
           <h2>Yorumlarım</h2>
           <div class="saved-filter" id="am-comments-filter">
@@ -927,6 +983,25 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-comments"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-comments-pagination"></div>
+        </div>
+
+        <!-- Paylaştıklarım (kullanıcı isteği, 2026-08-31 madde 1): "kullanıcıların paylaş butonuna
+             tıklayarak başkalarına ilettikleri gönderiler". Kaynak, Paylaş butonunun (bkz.
+             js/components/share-button.js) gerçekten bir paylaşım eylemi TAMAMLANDIĞINDA yazdığı
+             shared_items tablosudur (bkz. src/routes/shares.js) — butonu açıp kapatmak değil,
+             bağlantıyı kopyalamak/WhatsApp/X/LinkedIn'e göndermek ya da yerel paylaşım sayfasını
+             onaylamak sayılır. -->
+        <div class="dash-section">
+          <h2>Paylaştıklarım</h2>
+          <div class="saved-filter" id="am-shares-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+          </div>
+          <div id="am-dash-shares"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-shares-pagination"></div>
         </div>
       </div>
     </div>`;
@@ -938,15 +1013,12 @@ const AuthModal = (function () {
   function contentsTemplate() {
     return `
     <div class="dash-wrap" id="am-contents-wrap">
+      ${dashNavRow('contents')}
       <div class="dash-head">
         <div class="dash-head-info">
           <div>
             <h1>İçeriklerim</h1>
             <p>Platforma gönderdiğin proje, ürün, mimar ve firma içerikleri.</p>
-          </div>
-          <div class="dash-head-actions">
-            <button type="button" class="dash-edit-btn" id="am-contents-account-btn">Hesabım</button>
-            <button type="button" class="dash-edit-btn" id="am-contents-activities-btn">Aktivitelerim</button>
           </div>
         </div>
       </div>
@@ -993,15 +1065,12 @@ const AuthModal = (function () {
   function collectionsTemplate() {
     return `
     <div class="dash-wrap" id="am-collections-wrap">
+      ${dashNavRow('collections')}
       <div class="dash-head">
         <div class="dash-head-info">
           <div>
             <h1>Koleksiyonum</h1>
             <p>Kaydettiklerinden, kendi görsellerinden ve notlarından kendi panolarını oluştur.</p>
-          </div>
-          <div class="dash-head-actions">
-            <button type="button" class="dash-edit-btn" id="am-collections-account-btn">Hesabım</button>
-            <button type="button" class="dash-edit-btn" id="am-collections-contents-btn">İçeriklerim</button>
           </div>
         </div>
       </div>
@@ -1090,6 +1159,11 @@ const AuthModal = (function () {
   const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C', archived: 'var(--ink-soft)' };
   const EDIT_PAGE_BY_TYPE = { offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html' };
   const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
+  // Paylaştıklarım satırının alt metnindeki kanal etiketi — js/components/share-button.js'in
+  // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
+  // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer
+  // gelirse satır kanal etiketi olmadan basılır.
+  const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı' };
   const PAGE_SIZE_DASH = 10;
   const PROFESSION_LABELS = { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', ogrenci: 'Öğrenci', diger: 'Diğer' };
   const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
@@ -1645,8 +1719,8 @@ const AuthModal = (function () {
       }, true);
     }
 
-    on('am-dash-activities-btn', 'click', () => swap('activities'));
-    on('am-dash-contents-btn', 'click', () => swap('contents'));
+    // Dörtlü geçiş satırı (bkz. dashNavRow/wireDashNav) — eski tekil am-dash-*-btn dinleyicilerinin yerini alır.
+    wireDashNav(document.getElementById('am-dash-wrap'));
 
     // Firma seçimi ("Bu firma sana mı ait?" ile AYNI profile_claims('office') talebi) yalnızca
     // seçim GERÇEKTEN kullanıcının mevcut onaylı/beklemedeki talebinden farklıysa gönderilir —
@@ -2305,8 +2379,7 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
-    on('am-activities-account-btn', 'click', () => swap('account'));
-    on('am-activities-contents-btn', 'click', () => swap('contents'));
+    wireDashNav(document.getElementById('am-activities-wrap'));
 
     // "Ürün" filtresi hem product hem material tipini kapsar — urun.html'de bu ikisi zaten TEK
     // katalog olarak birleşti, Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından ikisi de tek
@@ -2499,9 +2572,73 @@ const AuthModal = (function () {
       renderRated();
     });
 
+    // Paylaştıklarım — loadRated/renderRated İLE BİREBİR AYNI desen (ham liste + sekme filtresi +
+    // PAGE_SIZE_DASH sayfalaması istemcide), kaynağı /api/shares (bkz. src/routes/shares.js).
+    let shareItems = [];
+    let sharesFilter = '';
+    let sharesPage = 1;
+    async function loadShares() {
+      const res = await fetch('/api/shares');
+      const data = res.ok ? await res.json() : { items: [] };
+      shareItems = data.items || [];
+      renderShares();
+    }
+    function renderShares() {
+      const container = document.getElementById('am-dash-shares');
+      if (!container) return;
+      const items = sharesFilter ? shareItems.filter(it => matchesCatalogFilter(it.item_type, sharesFilter)) : shareItems;
+      if (!shareItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz bir içerik paylaşmadın.<br>Bir proje ya da ürün popup\'ındaki Paylaş butonunu kullandığında burada listelenir.<br><a href="proje.html">Projelere göz at</a></div>';
+        document.getElementById('am-shares-pagination').innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde paylaştığın bir içerik yok.</div>';
+        document.getElementById('am-shares-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (sharesPage > totalPages) sharesPage = totalPages;
+      const startIdx = (sharesPage - 1) * PAGE_SIZE_DASH;
+      const pageItems = items.slice(startIdx, startIdx + PAGE_SIZE_DASH);
+      container.innerHTML = pageItems.map(it => {
+        const metaBits = [SAVED_TYPE_LABELS[it.item_type] || '', SHARE_CHANNEL_LABELS[it.channel] || '', it.item_meta || ''].filter(Boolean);
+        return `
+        <div class="saved-row" data-id="${escapeAttr(it.id)}">
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
+            ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(safeUrl(it.item_image))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.item_title || it.item_key || '—')}</div>
+              <div class="saved-row-meta">${escapeHtml(metaBits.join(' · '))}</div>
+            </div>
+          </a>
+          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
+        </div>`;
+      }).join('');
+      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.saved-row');
+          btn.disabled = true;
+          try {
+            await fetch(`/api/shares/${encodeURIComponent(row.dataset.id)}`, { method: 'DELETE' });
+            loadShares();
+          } catch { btn.disabled = false; }
+        });
+      });
+      renderDashPagination('am-shares-pagination', sharesPage, totalPages, (p) => { sharesPage = p; renderShares(); });
+    }
+    on('am-shares-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      sharesFilter = btn.dataset.filter;
+      sharesPage = 1;
+      document.querySelectorAll('#am-shares-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderShares();
+    });
+
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      [loadRated(), loadComments(), loadFollowFeed()].forEach(p => p.catch(() => {}));
+      [loadRated(), loadComments(), loadFollowFeed(), loadShares()].forEach(p => p.catch(() => {}));
     }).catch(() => {});
   }
 
@@ -2516,8 +2653,7 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
-    on('am-contents-account-btn', 'click', () => swap('account'));
-    on('am-contents-activities-btn', 'click', () => swap('activities'));
+    wireDashNav(document.getElementById('am-contents-wrap'));
 
     let allSubmissions = [];
     let submissionsFilter = '';
@@ -2650,8 +2786,7 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
-    on('am-collections-account-btn', 'click', () => swap('account'));
-    on('am-collections-contents-btn', 'click', () => swap('contents'));
+    wireDashNav(document.getElementById('am-collections-wrap'));
 
     let collections = [];
     let openCollection = null; // { item, items } — açık pano; null ise liste görünümü

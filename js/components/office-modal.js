@@ -42,6 +42,34 @@ const OfficeModal = (function () {
         font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:20px;
       }
       .profile-logo img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:var(--paper-card);}
+      /* ---------- MARKA KAPAK BANDI (kullanıcı isteği, 2026-08-31 madde 6) ----------
+         LinkedIn profil başlığındaki düzenin karşılığı: geniş kapak + sol alt köşesine binen yuvarlak
+         logo. Bant, sol panelin KENDİ kutusu içinde kalır (tam kanama YAPMAZ) — .modal-shell-left'in
+         64px/32px'lik iç boşluğu ve mobildeki tamamen farklı (display:contents + tek sütun akış)
+         yerleşimi negatif kenar boşluklarıyla dövüşmek yerine olduğu gibi bırakılır; sonuç yine
+         ekteki görselin ilişkisi, ama modalin kendi ritmine uygun.
+         .om-cover-fallback her zaman basılır, görsel (varsa) üzerine biner — marka.html#office-card-cover
+         ile AYNI gerekçe (yükleme sırasında/404'te boş beyaz kutu kalmaz). Rengi renderCover()
+         officeColor(o.name)'den atar, yani kapaksız marka da temaya uygun sabit bir renk alır. */
+      .om-cover{
+        position:relative; aspect-ratio:3/1; min-height:110px;
+        border-radius:14px; margin-bottom:38px; background:var(--paper-alt);
+      }
+      .om-cover-fallback{
+        position:absolute; inset:0; border-radius:14px;
+        background-image:linear-gradient(150deg, rgba(255,255,255,0.16), rgba(0,0,0,0.20));
+      }
+      .om-cover-img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:14px;}
+      /* Logonun bandın dışına taşan kısmı için .om-cover'a 38px alt boşluk verildi (yukarısı) —
+         72px'lik dairenin yarısı + nefes payı. */
+      .profile-logo-on-cover{
+        position:absolute; left:16px; bottom:-30px; z-index:2;
+        width:72px; height:72px; border:3px solid var(--paper-card);
+        box-shadow:0 6px 16px rgba(27,42,61,0.18);
+      }
+      /* Kapak bandı gösterilirken başlık satırındaki eski logo gizlenir (aynı logo iki kez
+         görünmesin) — renderIdentity bu sınıfı .om-identity'ye ekler/kaldırır. */
+      .om-identity.om-identity-has-cover .profile-logo{display:none;}
       .save-count{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
       /* Düzenle/Arşivle/Sil (X'in KARŞI kenarında), Paylaş/Takip Et (X'in yanında) artık burada
          DEĞİL — modal-shell.js'in paylaşılan header'ında render edilir (bkz. kullanıcı isteği: bu
@@ -188,6 +216,16 @@ const OfficeModal = (function () {
   }
 
   const LEFT_TEMPLATE = `
+    <!-- Kapak bandı (kullanıcı isteği, 2026-08-31 madde 6): marka popup'ının en üstünde geniş bir
+         kapak görseli, logosu sol alt köşesine binmiş halde. Yalnızca MARKA profillerinde (ya da
+         kapak görseli gerçekten yüklenmiş herhangi bir ofiste) gösterilir — sıradan firma
+         popup'larında bant hiç render edilmez ve logo eski yerinde, başlığın yanında kalır (bkz.
+         renderIdentity). -->
+    <div class="om-cover" id="om-cover" style="display:none;">
+      <span class="om-cover-fallback" id="om-cover-fallback"></span>
+      <img class="om-cover-img" id="om-cover-img" alt="" style="display:none;">
+      <div class="profile-logo profile-logo-on-cover" id="om-cover-logo"></div>
+    </div>
     <div class="om-identity">
       <div class="profile-logo" id="om-logo"></div>
       <h1 class="detail-title"><span id="om-name-text"></span><span id="om-verified-badge-wrap"></span></h1>
@@ -564,19 +602,50 @@ const OfficeModal = (function () {
     infoFactsEl.innerHTML = infoFacts.join('');
     infoFactsEl.style.display = infoFacts.length ? '' : 'none';
 
-    const logoEl = document.getElementById('om-logo');
-    logoEl.innerHTML = '';
-    logoEl.textContent = initials(o.name);
-    logoEl.style.background = officeColor(o.name);
     const officeLogoUrl = logoUrl(o);
-    if (officeLogoUrl) {
+    function paintLogo(el) {
+      el.innerHTML = '';
+      el.textContent = initials(o.name);
+      el.style.background = officeColor(o.name);
+      if (!officeLogoUrl) return;
       const img = document.createElement('img');
       img.src = officeLogoUrl;
       img.alt = '';
       img.decoding = 'async';
       img.fetchPriority = 'high';
       img.onerror = () => img.remove();
-      logoEl.appendChild(img);
+      el.appendChild(img);
+    }
+    paintLogo(document.getElementById('om-logo'));
+
+    // Kapak bandı (bkz. LEFT_TEMPLATE#om-cover / injectStyles, kullanıcı isteği 2026-08-31 madde 6).
+    // Gösterme koşulu: profil bir MARKA ise (kapak yüklenmemiş olsa da — istek açıkça "yüklenmemişse
+    // bu alan temaya uygun başka bir renkte olsun" diyor) YA DA herhangi bir ofiste gerçekten bir
+    // kapak görseli varsa. Sıradan firma popup'larında bant hiç render edilmez ve logo eski yerinde,
+    // başlığın yanında kalır — o tarafa dair bir istek yok.
+    const coverUrl = o.cover ? safeUrl(o.cover) : '';
+    const showCover = isBrandProfile || !!coverUrl;
+    const coverEl = document.getElementById('om-cover');
+    const identityEl = document.querySelector('.om-identity');
+    if (coverEl) {
+      coverEl.style.display = showCover ? '' : 'none';
+      if (identityEl) identityEl.classList.toggle('om-identity-has-cover', showCover);
+      if (showCover) {
+        document.getElementById('om-cover-fallback').style.backgroundColor = officeColor(o.name);
+        const coverImg = document.getElementById('om-cover-img');
+        if (coverUrl) {
+          // cdnImg HAM (göreli olabilen) değeri bekler, safeUrl'ün mutlak çıktısını değil — bkz.
+          // js/components/project-meta.js#designerChipHtml'deki AYNI ayrım: safeUrl yalnızca
+          // güvenlik kapısıdır (http(s)'e çözülüyor mu), src için ham değer CDN'e verilir.
+          coverImg.src = typeof cdnImg === 'function' ? cdnImg(o.cover, 900) : coverUrl;
+          coverImg.style.display = '';
+          coverImg.onerror = () => { coverImg.style.display = 'none'; };
+        } else {
+          coverImg.removeAttribute('src');
+          coverImg.style.display = 'none';
+        }
+        paintLogo(document.getElementById('om-cover-logo'));
+      }
     }
 
     // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
@@ -592,7 +661,15 @@ const OfficeModal = (function () {
     const officeKey = slugify(o.name);
     if (typeof ShareWidget !== 'undefined' && headerActions) {
       headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('om-share-btn'));
-      ShareWidget.wire('om-share-btn', () => ({ title: o.name, url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}` }));
+      // bkz. js/components/project-actions.js'teki AYNI ek alanlar/gerekçe — firma/mimar tarafında
+      // anahtar konvansiyonu slugify(name) (save-widget.js ile AYNI, bkz. canonicalSync.js#
+      // findCanonicalRowByNaturalKey'in slug fallback'i).
+      ShareWidget.wire('om-share-btn', () => ({
+        title: o.name,
+        url: `${window.location.origin}/firma/${encodeURIComponent(slugify(o.name))}`,
+        type: 'office', key: slugify(o.name),
+        image: logoUrl(o) || '', meta: o.loc || '',
+      }));
     }
     // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi. Yanındaki sayı (bkz.
     // kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir, save-widget.js#

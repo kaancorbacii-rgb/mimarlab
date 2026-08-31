@@ -74,7 +74,16 @@ const ProjectActions = (function () {
     if (adminActions) adminActions.innerHTML = `<span id="pm-edit-submission-slot"></span>`;
     wireSaveButtons('project');
     if (typeof ShareWidget !== 'undefined') {
-      ShareWidget.wire('pm-share-btn', () => ({ title: item.title, url: `${window.location.origin}/proje/${encodeURIComponent(item.slug)}` }));
+      // type/key/image/meta — yalnızca Aktivitelerim > Paylaştıklarım kaydı için (bkz.
+      // js/components/share-button.js#logShare); paylaşımın kendisini hiç etkilemez. Anahtar
+      // konvansiyonu Kaydet ile AYNI (proje: slug).
+      ShareWidget.wire('pm-share-btn', () => ({
+        title: item.title,
+        url: `${window.location.origin}/proje/${encodeURIComponent(item.slug)}`,
+        type: 'project', key: item.slug,
+        image: (item.images && item.images[0]) || '',
+        meta: [item.location, item.date].filter(Boolean).join(' · '),
+      }));
     }
     fetch(`/api/public/save-count?type=project&key=${encodeURIComponent(item.slug)}`)
       .then(res => res.ok ? res.json() : null)

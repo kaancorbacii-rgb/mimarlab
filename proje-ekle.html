@@ -157,6 +157,14 @@
   .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
+  /* Zorunlu alan yıldızı (kullanıcı isteği, 2026-08-31 madde 4): "zorunlu olarak doldurulması
+     gereken kutucukların başlıklarının yanına '*' işareti ekle". Yalnızca GERÇEKTEN zorunlu
+     alanlara basılır — ya HTML `required` taşıyanlara ya da submit handler'ın boş bırakılınca
+     durdurduğu alanlara (bkz. bu dosyanın submit doğrulamaları) — "(opsiyonel)" yazmayan her
+     başlığa DEĞİL. .opt ile aynı satırda yaşar, onun tersi anlamı taşır. aria-hidden: ekran
+     okuyucular zorunluluğu zaten input'un `required`/aria-required'ından duyar, yıldızı ayrıca
+     "yıldız" diye okumaları gürültü olur. */
+  .form-field label .req, .form-field legend .req{color:#B84C4C; font-weight:700; margin-left:2px;}
   /* denetim bulgusu (2026-08-14): bkz. firma-ekle.html'deki AYNI düzeltme — "Konum" birden fazla
      dropdown'ı (İl+İlçe) birlikte etiketliyordu, artık <fieldset><legend>; görünüm aynı kalır. */
   fieldset.form-field{border:none; padding:0; margin:0 0 16px;}
@@ -452,16 +460,16 @@
         <h2>Temel Bilgiler</h2>
         <div class="form-row">
           <div class="form-field">
-            <label for="p-title" id="p-title-label">Proje Adı</label>
+            <label for="p-title" id="p-title-label">Proje Adı <span class="req" aria-hidden="true">*</span></label>
             <input type="text" id="p-title" name="title" placeholder="ör. Terminal Kadıköy" required>
           </div>
           <div class="form-field">
-            <label>Tarih</label>
+            <label>Tarih <span class="req" aria-hidden="true">*</span></label>
             <div id="p-date-rows"></div>
           </div>
         </div>
         <fieldset class="form-field">
-          <legend>Yer</legend>
+          <legend>Yer <span class="req" aria-hidden="true">*</span></legend>
           <div class="map-search-row">
             <input type="text" id="p-map-search" placeholder="Konum ya da ilçe/il ara...">
             <button type="button" class="map-search-btn" id="p-map-search-btn">Ara</button>
@@ -539,20 +547,20 @@
         </div>
         <div class="form-row">
           <div class="form-field ac-field" id="ac-ofis-field">
-            <label for="p-office" id="p-office-label">Firma</label>
+            <label for="p-office" id="p-office-label">Firma <span class="req" aria-hidden="true">*</span></label>
             <input type="text" id="p-office" name="office" placeholder="ör. Autoban" autocomplete="off">
             <div class="ac-suggestions" id="ac-ofis-suggestions"></div>
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
           </div>
           <div class="form-field ac-field" id="ac-mimar-field">
-            <label for="p-designer" id="p-designer-label">Mimar</label>
+            <label for="p-designer" id="p-designer-label">Mimar <span class="req" aria-hidden="true">*</span></label>
             <input type="text" id="p-designer" name="designer" placeholder="ör. Emre Arolat" autocomplete="off">
             <div class="ac-suggestions" id="ac-mimar-suggestions"></div>
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Firma seçtiğinde üyeler otomatik eklenir, dilersen ekle-çıkar yapabilirsin.</div>
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Firma seçtiğinde üyeler otomatik eklenir, dilersen ekle-çıkar yapabilirsin. Mimar ve Firma alanlarından en az biri doldurulmalıdır.</div>
           </div>
         </div>
         <div class="form-field">
-          <label for="p-desc" id="p-desc-label">Proje Açıklaması</label>
+          <label for="p-desc" id="p-desc-label">Proje Açıklaması <span class="req" aria-hidden="true">*</span></label>
           <textarea id="p-desc" name="description" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
         </div>
         <div class="form-row">

@@ -111,10 +111,35 @@ const ShareWidget = (function () {
     setTimeout(() => toast.remove(), 1800);
   }
 
+  // logShare — Aktivitelerim > Paylaştıklarım kutusunu besleyen kayıt (bkz. kullanıcı isteği,
+  // 2026-08-31 madde 1: "kullanıcıların paylaş butonuna tıklayarak başkalarına ilettikleri
+  // gönderiler"). YALNIZCA paylaşım eylemi gerçekten tamamlandığında çağrılır — butonu açıp
+  // popover'ı kapatmak ya da navigator.share()'i iptal etmek sayılmaz.
+  // getData() `type`/`key` döndürmüyorsa (ör. en-iyi-100.html'in kendi Paylaş butonu, hangi
+  // canonical anahtara ait olduğunu bilmiyor) hiç istek atılmaz — sunucu zaten bu ikisi olmadan
+  // satır yazamaz, boşuna 400 dönmesine gerek yok. Giriş yapılmamışsa uç 401 döner; paylaşım
+  // eyleminin KENDİSİ bundan etkilenmemeli, bu yüzden hata tamamen yutulur (fire-and-forget).
+  function logShare(data, channel) {
+    if (!data || !data.type || !data.key) return;
+    try {
+      fetch('/api/shares', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: data.type, key: data.key, channel,
+          title: data.title || '', meta: data.meta || '',
+          image: data.image || '', href: data.href || data.url || '',
+        }),
+      }).catch(() => {});
+    } catch { /* fetch yoksa/engellendiyse sessiz */ }
+  }
+
   // wire(id, getData): id, html(id) ile üretilen butonun DOM id'si; getData tıklama anında
   // {title, url} döndüren bir fonksiyon — modallar prev/next ile AYNI DOM'u yeniden kullandığından
   // (bkz. proje/mimar/firma/ürün modallarının ortak state machine deseni) URL/başlık render anında
-  // DEĞİL, tıklama anında okunmalı.
+  // DEĞİL, tıklama anında okunmalı. getData ayrıca (opsiyonel) {type, key, image, meta} döndürebilir
+  // — bunlar yalnızca Paylaştıklarım kaydına gider (bkz. logShare), paylaşım davranışını hiç
+  // etkilemez, bu yüzden eski çağıranlar değiştirilmeden çalışmaya devam eder.
   function wire(id, getData) {
     injectStyles();
     const btn = document.getElementById(id);
@@ -124,13 +149,17 @@ const ShareWidget = (function () {
 
     popover.querySelectorAll('[data-action]').forEach(el => {
       el.addEventListener('click', async (e) => {
-        const { title, url } = getData();
+        const data = getData();
+        const { title, url } = data;
         const action = el.dataset.action;
         if (action === 'copy') {
           e.preventDefault();
           try {
             await navigator.clipboard.writeText(url);
             showToast(btn, 'Bağlantı kopyalandı!');
+            // Kayıt yalnızca kopyalama GERÇEKTEN başarılıysa (pano izni verildiyse) yazılır —
+            // catch dalına düşen bir tıklama kullanıcı açısından hiçbir şey paylaşmamış demektir.
+            logShare(data, 'copy');
           } catch { /* pano izni yoksa sessizce yoksay */ }
           popover.classList.remove('open');
           btn.setAttribute('aria-expanded', 'false');
@@ -141,15 +170,19 @@ const ShareWidget = (function () {
         if (action === 'whatsapp') el.href = `https://wa.me/?text=${shareText}%20${shareUrl}`;
         else if (action === 'x') el.href = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`;
         else if (action === 'linkedin') el.href = `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`;
+        if (action === 'whatsapp' || action === 'x' || action === 'linkedin') logShare(data, action);
         popover.classList.remove('open');
         btn.setAttribute('aria-expanded', 'false');
       });
     });
 
     btn.addEventListener('click', async () => {
-      const { title, url } = getData();
+      const data = getData();
+      const { title, url } = data;
       if (navigator.share) {
-        try { await navigator.share({ title, url }); } catch { /* kullanıcı iptal etti — sessiz */ }
+        // navigator.share() kullanıcı paylaşım sayfasını İPTAL ederse reject eder — kayıt yalnızca
+        // resolve dalında yazılır, iptal edilen bir paylaşım Paylaştıklarım'a düşmez.
+        try { await navigator.share({ title, url }); logShare(data, 'native'); } catch { /* kullanıcı iptal etti — sessiz */ }
         return;
       }
       const willOpen = !popover.classList.contains('open');

@@ -224,7 +224,7 @@ async function handlePublicProfileEdits(request, env) {
         // (data.js#renameOfficeEverywhere no-op geçer).
         name: parsed.name,
         loc: parsed.loc, cats: parsed.cats, yil: parsed.yil, website: parsed.website,
-        about: parsed.about, logo: parsed.logo_url,
+        about: parsed.about, logo: parsed.logo_url, cover: parsed.cover_url,
       };
     }
     return out;

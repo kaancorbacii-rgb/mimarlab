@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS office_submissions (
   website TEXT,
   about TEXT,
   logo_url TEXT,
+  cover_url TEXT, -- bkz. migrations/0075_office_cover_url.sql (marka kapak görseli)
   awards TEXT,
   claimed_profile_key TEXT,
   founders TEXT,
@@ -300,6 +301,25 @@ CREATE TABLE IF NOT EXISTS saved_items (
 CREATE INDEX IF NOT EXISTS idx_saved_user ON saved_items(user_id);
 -- bkz. migrations/0059_saved_items_type_key_index.sql
 CREATE INDEX IF NOT EXISTS idx_saved_items_type_key ON saved_items(item_type, item_key);
+
+-- PAYLAŞTIKLARIM — bkz. migrations/0074_shared_items.sql (kullanıcı isteği, 2026-08-31):
+-- Aktivitelerim'in "kullanıcıların paylaş butonuna tıklayarak başkalarına ilettikleri gönderiler"
+-- kutusu. saved_items ile AYNI anlık-görüntü deseni, ama UNIQUE kısıtı YOK (paylaşım bir bayrak
+-- değil, tekrarlanabilir bir olaydır) ve hangi kanaldan paylaşıldığını (channel) da tutar.
+CREATE TABLE IF NOT EXISTS shared_items (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  item_type TEXT NOT NULL,
+  item_key TEXT NOT NULL,
+  item_title TEXT,
+  item_meta TEXT,
+  item_image TEXT,
+  item_href TEXT,
+  channel TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_shared_items_user ON shared_items(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_shared_items_type_key ON shared_items(item_type, item_key);
 
 -- KOLEKSİYONUM — bkz. migrations/0073_collections.sql (kullanıcı isteği: Pinterest benzeri panolar).
 -- saved_items'tan AYRI: orası "kaydettim mi" bayrağı (kullanıcı+tip+anahtar başına tekil), burası
@@ -615,7 +635,7 @@ CREATE TABLE IF NOT EXISTS offices (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, social_platform TEXT, social_url TEXT, social_links TEXT);
+, hidden_at TEXT, social_platform TEXT, social_url TEXT, social_links TEXT, cover_url TEXT);
 CREATE INDEX IF NOT EXISTS idx_offices_claimed_by ON offices(claimed_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_offices_hidden_or_deleted ON offices(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_offices_legacy_key ON offices(legacy_key);

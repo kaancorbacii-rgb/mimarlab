@@ -21,7 +21,10 @@ export const CONCEPT_CATEGORIES = new Set(['Öğrenci', 'Yarışma', 'Fikir', 'K
 export const SUBMISSION_TYPES = {
   offices: {
     table: 'office_submissions',
-    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'awards', 'founders', 'team', 'claimed_profile_key', 'social_links'],
+    // cover_url: marka kapak görseli (bkz. migrations/0075_office_cover_url.sql, kullanıcı isteği
+    // 2026-08-31 madde 6) — yalnızca marka-ekle.html gönderir, firma-ekle.html'de böyle bir alan yok;
+    // gönderilmediğinde alan hiç yazılmaz (bkz. aşağıdaki genel alan döngüsü).
+    fields: ['name', 'loc', 'cats', 'yil', 'website', 'about', 'logo_url', 'cover_url', 'awards', 'founders', 'team', 'claimed_profile_key', 'social_links'],
     // social_links: [{platform,url}] — awards/founders ile AYNI JSON dizi deseni (bkz. kullanıcı
     // isteği: "sosyal medya kutusunun yanına ekle butonu koy", migrations/0036_social_links.sql —
     // paralel bir oturumun tekli social_platform/social_url kolonları yerine bu tercih edildi,
@@ -33,7 +36,7 @@ export const SUBMISSION_TYPES = {
     // isteği) — client tarafı doğrulamanın sunucu tarafı karşılığı, ' · ' ile ayrılmış boş olmayan
     // bir dize beklenir (validateRequired zaten boş/whitespace dizeyi reddeder).
     required: ['name', 'cats'],
-    urlFields: ['website', 'logo_url'],
+    urlFields: ['website', 'logo_url', 'cover_url'],
   },
   projects: {
     table: 'project_submissions',

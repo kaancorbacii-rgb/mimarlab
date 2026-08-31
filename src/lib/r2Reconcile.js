@@ -31,11 +31,11 @@ const GRACE_HOURS = 24;
 // kurtarılabilir olduğundan görseli "hâlâ referanslı" sayılır, orphan adayı olmamalı.
 const SOURCES = [
   { table: 'architects', fields: { stringFields: ['photo_url'] } },
-  { table: 'offices', fields: { stringFields: ['logo_url'] } },
+  { table: 'offices', fields: { stringFields: ['logo_url', 'cover_url'] } },
   { table: 'projects', fields: { arrayFields: ['images'] } },
   { table: 'products', fields: { arrayFields: ['images'] } },
   { table: 'architect_submissions', fields: { stringFields: ['photo_url'] } },
-  { table: 'office_submissions', fields: { stringFields: ['logo_url'] } },
+  { table: 'office_submissions', fields: { stringFields: ['logo_url', 'cover_url'] } },
   { table: 'project_submissions', fields: { arrayFields: ['images'], stringFields: ['photoCreditUrl'] } },
   { table: 'product_submissions', fields: { arrayFields: ['images'] } },
   { table: 'material_submissions', fields: { arrayFields: ['images'] } },

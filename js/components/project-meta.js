@@ -12,7 +12,13 @@ const ProjectMeta = (function () {
   // sırasında ondan ÖNCE yüklenir (bkz. proje.html script listesi).
   const ICONS = {
     architect: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="7.5" r="3"/><path d="M2.5 20c0-3.3 2.7-5.8 6-5.8s6 2.5 6 5.8"/><circle cx="17" cy="8.5" r="2.4"/><path d="M14.8 20c.3-2.7 2.4-4.7 4.7-5"/></svg>',
-    office: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21V9h6v12"/><path d="M7.5 7h1M7.5 10.5h1M7.5 14h1M11 7h1M11 10.5h1M11 14h1"/></svg>',
+    // kullanıcı isteği (2026-08-31): "Mimarlık Firması" künyesinin ikonu değişsin — eski pencereli
+    // kule silueti, hem kart/liste görünümlerindeki genel "bina" görsellerine hem de bir alt
+    // satırdaki proje künyelerine fazla yakın duruyordu. Yerine sütunlu/alınlıklı kurumsal bina
+    // simgesi: aynı çizim dili (24x24, stroke-width 1.6, dolgusuz), ama bu dosyadaki diğer HİÇBİR
+    // ikonla (architect/layers/tag/grid/pin/calendar/award/camera) ve office-modal.js'in kendi
+    // `briefcase` simgesiyle karışmıyor.
+    office: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.4 12 4.2l9 5.2"/><path d="M5.2 9.8v8.4M9.7 9.8v8.4M14.3 9.8v8.4M18.8 9.8v8.4"/><path d="M3.2 18.4h17.6"/><path d="M2.4 20.6h19.2"/></svg>',
     layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 8.2 12 13.4l9.5-5.2Z"/><path d="M2.5 13 12 18.2 21.5 13"/></svg>',
     tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.5H4.6a1.6 1.6 0 0 0-1.6 1.6v8a1.6 1.6 0 0 0 .47 1.13l9.3 9.3a1.6 1.6 0 0 0 2.26 0l6.57-6.57a1.6 1.6 0 0 0 0-2.26l-9.3-9.3a1.6 1.6 0 0 0-1.13-.47Z"/><circle cx="7.7" cy="7.7" r="1.1"/></svg>',
     grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1"/></svg>',

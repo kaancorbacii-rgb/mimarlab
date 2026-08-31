@@ -134,6 +134,14 @@
   .form-section > .form-field:last-child{margin-bottom:0;}
   .form-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
   .form-field label .opt{font-weight:400; color:var(--ink-soft);}
+  /* Zorunlu alan yıldızı (kullanıcı isteği, 2026-08-31 madde 4): "zorunlu olarak doldurulması
+     gereken kutucukların başlıklarının yanına '*' işareti ekle". Yalnızca GERÇEKTEN zorunlu
+     alanlara basılır — ya HTML `required` taşıyanlara ya da submit handler'ın boş bırakılınca
+     durdurduğu alanlara (bkz. bu dosyanın submit doğrulamaları) — "(opsiyonel)" yazmayan her
+     başlığa DEĞİL. .opt ile aynı satırda yaşar, onun tersi anlamı taşır. aria-hidden: ekran
+     okuyucular zorunluluğu zaten input'un `required`/aria-required'ından duyar, yıldızı ayrıca
+     "yıldız" diye okumaları gürültü olur. */
+  .form-field label .req, .form-field legend .req{color:#B84C4C; font-weight:700; margin-left:2px;}
   /* denetim bulgusu (2026-08-14): "Konum" gibi TEK bir kontrolü değil birden fazla dropdown'ı
      (İl+İlçe) birlikte etiketleyen label'lar artık <fieldset><legend> — tarayıcının varsayılan
      fieldset kenarlığı/iç boşluğu sıfırlanıp legend, .form-field label ile GÖRSEL OLARAK BİREBİR
@@ -319,11 +327,11 @@
       <div class="form-section">
         <h2>Marka Bilgileri</h2>
         <div class="form-field">
-          <label for="o-name">Marka Adı</label>
+          <label for="o-name">Marka Adı <span class="req" aria-hidden="true">*</span></label>
           <input type="text" id="o-name" name="name" placeholder="ör. Autoban" required>
         </div>
         <fieldset class="form-field">
-          <legend>Konum</legend>
+          <legend>Konum <span class="req" aria-hidden="true">*</span></legend>
           <div class="form-row">
             <div class="dd-field" id="dd-il">
               <button type="button" class="dd-btn" id="dd-il-btn">
@@ -362,7 +370,7 @@
             </div>
           </div>
           <div class="form-field">
-            <label for="dd-hizmet-btn">Ürün Kategorisi</label>
+            <label for="dd-hizmet-btn">Ürün Kategorisi <span class="req" aria-hidden="true">*</span></label>
             <div class="dd-field" id="dd-hizmet">
               <button type="button" class="dd-btn" id="dd-hizmet-btn">
                 <span id="dd-hizmet-btn-label">Ürün kategorisi seç</span>
@@ -409,7 +417,7 @@
           <div class="form-hint">Markada çalışabilecek kişileri virgülle ayırarak yaz. Mimar profili olanlar aşağıda önerilir.</div>
         </div>
         <div class="form-field">
-          <label for="o-desc">Marka Hakkında Açıklama</label>
+          <label for="o-desc">Marka Hakkında Açıklama <span class="req" aria-hidden="true">*</span></label>
           <textarea id="o-desc" name="about" placeholder="Marka hakkında kısa bir metin yaz..." required></textarea>
         </div>
       </div>
@@ -431,6 +439,25 @@
         </label>
         <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
+      </div>
+
+      <!-- Kapak Görseli (kullanıcı isteği, 2026-08-31 madde 6) — Logo bölümüyle BİREBİR aynı iskelet
+           (aynı .image-drop/.image-preview-grid işaretlemesi, aynı tek-dosya seçimi, aynı yeniden
+           boyutlandırma+yükleme yolu), yalnızca ayrı bir state (selectedCoverFiles/existingCoverUrl)
+           ve ayrı bir payload alanı (cover_url) taşır. Markalar sayfasındaki kartın arka planı ve
+           marka popup'ının üst bandı bu görseldir; boş bırakılırsa iki yer de temaya uygun düz bir
+           renge düşer (bkz. marka.html#.office-card-cover, office-modal.js#om-cover). -->
+      <div class="form-section">
+        <h2>Kapak Görseli <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <p class="section-hint">Markalar sayfasındaki kartının ve marka popup'ının üst bandında logonun arkasında görünür. Geniş (yatay) bir görsel seç.</p>
+        <label class="image-drop" id="cover-drop">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+          <strong>Kapak görselini sürükleyip bırak</strong>
+          <span>ya da bilgisayarından seçmek için tıkla</span>
+          <input type="file" id="cover-input" accept="image/*" style="display:none;">
+        </label>
+        <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
+        <div class="image-preview-grid" id="cover-preview-grid"></div>
       </div>
 
       <div class="form-section" id="my-badge-section" style="display:none;">
@@ -497,6 +524,12 @@ const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
 let selectedFiles = [];
 let existingLogoUrl = null;
+// Kapak görseli (kullanıcı isteği, 2026-08-31 madde 6) — Logo ile AYNI iki state'in kapak karsiligi.
+const coverDropZone = document.getElementById('cover-drop');
+const coverFileInput = document.getElementById('cover-input');
+const coverPreviewGrid = document.getElementById('cover-preview-grid');
+let selectedCoverFiles = [];
+let existingCoverUrl = null;
 const params = new URLSearchParams(window.location.search);
 let editId = params.get('edit');
 let claimName = params.get('claim');
@@ -766,6 +799,28 @@ dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classL
 dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.remove('dragover'); addFiles(e.dataTransfer.files); });
 
+// renderPreviews/addFiles'in kapak karsiligi — BIREBIR ayni mantik, ayri state uzerinde.
+function renderCoverPreviews(){
+  if(selectedCoverFiles.length){
+    const url = URL.createObjectURL(selectedCoverFiles[0]);
+    coverPreviewGrid.innerHTML = `<div class="image-preview-item"><img src="${url}" alt=""><button type="button" class="image-preview-remove" id="remove-selected-cover" aria-label="Kaldir">&#10005;</button></div>`;
+    document.getElementById('remove-selected-cover').addEventListener('click', ()=>{ selectedCoverFiles = []; renderCoverPreviews(); });
+  } else if(existingCoverUrl){
+    coverPreviewGrid.innerHTML = `<div class="image-preview-item"><img src="${escapeAttr(existingCoverUrl)}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-cover" aria-label="Kaldir">&#10005;</button></div>`;
+    document.getElementById('remove-existing-cover').addEventListener('click', ()=>{ existingCoverUrl = null; renderCoverPreviews(); });
+  } else {
+    coverPreviewGrid.innerHTML = '';
+  }
+}
+function addCoverFiles(fileList){
+  selectedCoverFiles = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0,1);
+  renderCoverPreviews();
+}
+coverFileInput.addEventListener('change', (e)=> addCoverFiles(e.target.files));
+coverDropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); coverDropZone.classList.add('dragover'); });
+coverDropZone.addEventListener('dragleave', ()=> coverDropZone.classList.remove('dragover'));
+coverDropZone.addEventListener('drop', (e)=>{ e.preventDefault(); coverDropZone.classList.remove('dragover'); addCoverFiles(e.dataTransfer.files); });
+
 let isAdmin = false;
 const currentUserReady = fetch('/api/auth/me').then(res=>{
   if(!res.ok){ window.location.href = 'giris-yap.html'; return null; }
@@ -899,7 +954,9 @@ async function prefillForEdit(){
     updateOdulLabel();
     (item.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
     existingLogoUrl = item.logo_url || null;
+    existingCoverUrl = item.cover_url || null;
     renderPreviews();
+    renderCoverPreviews();
     wireAdminBadgePicker(item.name);
     wireMyBadgeBox(item.name, 'office');
     mountOfficeAdminActions();
@@ -980,7 +1037,7 @@ async function prefillForClaim(){
       const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
       if(mine){
         editId = mine.id;
-        merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, team: mine.team, logo: mine.logo_url, social_links: mine.social_links };
+        merged = { ...merged, name: mine.name, loc: mine.loc, cats: mine.cats, yil: mine.yil, website: mine.website, about: mine.about, founders: mine.founders, team: mine.team, logo: mine.logo_url, cover: mine.cover_url, social_links: mine.social_links };
       }
     }
   }catch{}
@@ -1014,7 +1071,9 @@ async function prefillForClaim(){
   updateOdulLabel();
   (merged.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
   existingLogoUrl = merged.logo || merged.logo_url || null;
+  existingCoverUrl = merged.cover || merged.cover_url || null;
   renderPreviews();
+  renderCoverPreviews();
   wireAdminBadgePicker(merged.name || claimName);
   wireMyBadgeBox(merged.name || claimName, 'office');
   mountOfficeAdminActions();
@@ -1134,8 +1193,12 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   submitBtn.disabled = true;
   loading.classList.add('show');
   let logoUrl = existingLogoUrl;
+  let coverUrl = existingCoverUrl;
   try{
     if(selectedFiles.length) logoUrl = (await uploadFiles(selectedFiles))[0];
+    // Kapak, logoyla AYNI /api/uploads yolunu ve AYNI 'office' bağlamını kullanır — ayrı bir
+    // R2 klasörüne/kotasına gerek yok, r2Reconcile zaten cover_url'ü de tarıyor (bkz. o dosya).
+    if(selectedCoverFiles.length) coverUrl = (await uploadFiles(selectedCoverFiles))[0];
   }catch(err){
     notice.textContent = err.message || 'Görsel yüklenemedi, tekrar dene.';
     notice.classList.add('show');
@@ -1156,6 +1219,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     awards,
     about: document.getElementById('o-desc').value,
     logo_url: logoUrl,
+    cover_url: coverUrl,
     social_links: collectSocialLinks(),
   };
   if(claimName) payload.claimed_profile_key = claimName;

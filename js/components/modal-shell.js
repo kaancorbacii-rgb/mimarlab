@@ -270,6 +270,15 @@ const ModalShell = (function () {
            flex context, row) bozulmaz. Masaüstünde sıra DEĞİŞMEZ (X → Kaydet → Paylaş, solda). */
         .modal-shell-header{left:auto; right:16px; gap:6px; flex-direction:row-reverse;}
         .modal-shell-header-actions{gap:6px;}
+        /* Proje/ürün popup'ları — mobilde X'in hemen SOLUNDA Kaydet, sonra Paylaş, EN SOLDA Puanla
+           (kullanıcı isteği, 2026-08-31 madde 5). DOM sırası her iki modalde de Kaydet → Paylaş →
+           Puanla-butonu → Puanla-ortalaması (bkz. project-modal.js/product-modal.js#renderItem);
+           row-reverse bu satırı görsel olarak tersine çevirir, istenen sıra bire bir çıkar ve
+           ortalama/oy sayısı ("4.8 (312)") da otomatik olarak Puanla butonunun SOLUNA geçer.
+           Yalnızca bu iki modal kapsanır — mimar/firma popup'larının Paylaş/Takip Et/Mesaj sırası
+           (bkz. office-modal.js/architect-modal.js) DEĞİŞMEZ, oraya dair bir istek yok. */
+        .modal-shell-overlay[data-owner="project"] .modal-shell-header-actions,
+        .modal-shell-overlay[data-owner="product"] .modal-shell-header-actions{flex-direction:row-reverse;}
         .modal-shell-header-actions a, .modal-shell-header-actions button{padding:0 10px; font-size:11.5px;}
         /* Admin/sahip aksiyonları — X'in KARŞI kenarı mobilde de değişmez: X sağda olduğundan burası
            SOLA taşınır (bkz. kullanıcı isteği). flex-direction row (reverse DEĞİL): ilk DOM çocuğu
@@ -583,6 +592,12 @@ const ModalShell = (function () {
     // İçeriklerim > profil popup'ı gibi) close() hiç çalışmaz — açık kalmış bir galeri yeni içeriğin
     // önünde asılı kalırdı.
     closeOpenLightboxes();
+    // data-owner: hangi modalın (project/product/architect/office/auth/info) içerik sahibi olduğunu
+    // CSS'e açar — paylaşılan header satırı tüm modaller tarafından kullanıldığından, yalnızca proje
+    // ve ürün popup'larını etkileyen kurallar (bkz. injectStyles'taki mobil aksiyon sırası, kullanıcı
+    // isteği 2026-08-31 madde 5) başka türlü kapsamlanamazdı. isNewOwner kontrolünün DIŞINDA, her
+    // çağrıda yazılır — aynı sahip için tekrar çağrıldığında da doğru kalması bedava.
+    overlayEl.dataset.owner = ownerKey;
     const isNewOwner = ownerKey !== contentOwner;
     if (isNewOwner) {
       contentOwner = ownerKey;

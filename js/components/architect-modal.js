@@ -586,7 +586,13 @@ const ArchitectModal = (function () {
     const architectKey = slugify(a.name);
     if (typeof ShareWidget !== 'undefined' && headerActions) {
       headerActions.insertAdjacentHTML('beforeend', ShareWidget.html('am-share-btn'));
-      ShareWidget.wire('am-share-btn', () => ({ title: a.name, url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}` }));
+      // bkz. js/components/office-modal.js'teki AYNI ek alanlar/gerekçe.
+      ShareWidget.wire('am-share-btn', () => ({
+        title: a.name,
+        url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}`,
+        type: 'architect', key: architectKey,
+        image: a.photo || '', meta: a.loc || '',
+      }));
     }
     // Takip Et — bkz. kullanıcı isteği: archello.com/brand/ofist'teki gibi. Yanındaki sayı (bkz.
     // kullanıcı isteği: "Takip Et (12)") /api/public/follow-count'tan gelir, save-widget.js#

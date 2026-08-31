@@ -292,17 +292,46 @@
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .office-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
+  /* ---------- MARKA KARTI (kullanıcı isteği, 2026-08-31 madde 6) ----------
+     "marka logosunun arkasında kapak görseli olsun". Kart artık iki katman:
+       .office-card-cover — marka-ekle.html'de yüklenen kapak görseli (cover_url) tam kanama,
+       .office-card-logo  — onun SOL ALT köşesine binen, kendi kutusu olan logo rozeti.
+     Kapak yüklenmemişse (kullanıcı isteği: "temaya uygun başka bir renkte olsun") görsel yerine
+     markanın adından türetilen sabit rengin (officeColor, sitedeki diğer avatar/placeholder'larla
+     AYNI kaynak) üzerine ince bir degrade konur — rastgele değil, aynı marka her zaman aynı renk.
+     .office-card-logo, kapak kutusunun DIŞINA taşar; .office-card'ın overflow:hidden'ı taşan kısmı
+     kırpmasın diye gövdeye ekstra üst boşluk verilir (aşağısı .office-card-body). */
+  .office-card-cover{
+    position:relative; aspect-ratio:4/3; overflow:visible;
+    background:var(--paper-alt); border-radius:14px 14px 0 0;
+  }
+  .office-card-cover-img{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    border-radius:14px 14px 0 0;
+  }
+  /* Kapağı olmayan kartın düz renk zemini — .office-card-cover'ın kendi arka planının üzerine
+     binen, aynı köşe yarıçapını taşıyan ayrı bir katman (böylece renk hesabı tek bir inline
+     style'da kalır, kutu kuralları burada). */
+  .office-card-cover-fallback{
+    position:absolute; inset:0; border-radius:14px 14px 0 0;
+    background-image:linear-gradient(150deg, rgba(255,255,255,0.16), rgba(0,0,0,0.20));
+  }
   .office-card-logo{
-    position:relative; aspect-ratio:1/1; overflow:hidden;
+    position:absolute; left:14px; bottom:-24px; z-index:2;
+    width:88px; height:56px; border-radius:12px; overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    box-shadow:0 6px 16px rgba(27,42,61,0.16);
     display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:26px;
-    padding:16px;
+    color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:19px;
+    padding:8px; box-sizing:border-box;
   }
-  .office-card-logo img{
-    max-width:100%; max-height:100%; object-fit:contain;
-    background:var(--paper-card); border-radius:8px; padding:6px;
-  }
-  .office-card-body{padding:12px 14px;}
+  .office-card-logo img{max-width:100%; max-height:100%; object-fit:contain;}
+  /* Logosu olmayan markada kutunun içi baş harflerdir — o durumda kutu kendi (marka rengi) zeminini
+     alır, aksi halde açık kart zemininde açık renkli yazı okunmazdı (bkz. render()'daki inline
+     background). */
+  .office-card-logo.no-logo{padding:0;}
+  /* padding-top: yukarıdaki bottom:-24px'lik taşmaya + 12px nefes payına yer açar. */
+  .office-card-body{padding:36px 14px 14px;}
   .office-card-name{
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14.5px; color:var(--ink);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -667,14 +696,27 @@ async function render(){
     const logo = logoUrl(o);
     const safeInitialsAttr = escapeAttr(initials(o.name));
     const safeInitialsText = escapeHtml(initials(o.name));
-    const logoSrcset = logo ? cdnSrcset(logo, [400, 600, 800]) : '';
     // İlk sıradaki (i<eagerCardCount) kartlar sayfa açılışında ZATEN katlanma çizgisinin üstünde
     // görünür — js/pages/proje.js#render'daki AYNI desen/gerekçe: bunlar eager + fetchpriority="high",
     // alttakiler lazy kalır.
     const imgAttrs = i < eagerCardCount ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
+    // Kapak görseli (bkz. yukarıdaki .office-card-cover yorumu, kullanıcı isteği 2026-08-31 madde 6).
+    // safeUrl'ün karşılığı yok — cover, logo ile AYNI /api/uploads yolundan gelen depolanmış bir
+    // değerdir ve cdnImg zaten göreli/mutlak ikisini de kabul eder (bkz. logo satırının AYNI deseni).
+    const cover = o.cover || '';
+    const coverSrcset = cover ? cdnSrcset(cover, [400, 600, 800]) : '';
+    // Düz renk zemin HER ZAMAN basılır, kapak görseli (varsa) onun ÜZERİNE mutlak konumlu olarak
+    // biner — js/components/project-meta.js#designerChipHtml'deki AYNI gerçek bulgu/desen: kapak
+    // R2'den silinmişse onerror img'i kaldırır, altındaki zemin zaten oradaydı, kart hiçbir zaman
+    // boş/beyaz kalmaz (ayrıca yavaş bağlantıda yükleme sırasında da doğru renk görünür).
+    const coverHtml = `<span class="office-card-cover-fallback" style="background-color:${officeColor(o.name)}"></span>`
+      + (cover ? `<img class="office-card-cover-img" src="${escapeAttr(cdnImg(cover, 600))}"${coverSrcset ? ` srcset="${escapeAttr(coverSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove();">` : '');
     return `
     <a class="office-card" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}">
-      <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(cdnImg(logo, 600))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
+      <div class="office-card-cover">
+        ${coverHtml}
+        <div class="office-card-logo${logo ? '' : ' no-logo'}" data-initials="${safeInitialsAttr}"${logo ? '' : ` style="background:${officeColor(o.name)}"`}>${logo ? `<img src="${escapeAttr(cdnImg(logo, 400))}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('no-logo'); this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
+      </div>
       <div class="office-card-body">
         <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
         <div class="office-card-loc">${escapeHtml(o.loc)} · ${escapeHtml((o.cats||'').split(' · ')[0])}</div>
