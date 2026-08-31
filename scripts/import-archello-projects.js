@@ -49,8 +49,12 @@ function wrangler(args, opts = {}) {
   }).toString('utf8');
 }
 
+// DİKKAT: SQL'i tek satıra indirmek için `\s+ -> ' '` YAPMA. Bu, string literal'lerin İÇİNDEKİ
+// satır sonlarını da yer yapar; çok paragraflı `description` alanları sessizce tek paragrafa
+// çöker (2026-09-01 partisinde yakalandı). `--command` zaten tek bir argv değeri; SQLite çok
+// satırlı ifadeyi sorunsuz ayrıştırır.
 function d1(sql) {
-  const out = wrangler(['d1', 'execute', DB_NAME, ...TARGET, '--json', '--command', sql.replace(/\s+/g, ' ').trim()]);
+  const out = wrangler(['d1', 'execute', DB_NAME, ...TARGET, '--json', '--command', sql.trim()]);
   return JSON.parse(out.slice(out.indexOf('[')))[0];
 }
 

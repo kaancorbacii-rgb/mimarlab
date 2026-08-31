@@ -23,9 +23,14 @@
  * [[project_product_submission_draft_healing_2026_08_13]] — aynı sınıf hata).
  *
  * Kullanım:
- *   node scripts/backfill-unmatched-project-credits.js [--dry-run] [--local]
+ *   node scripts/backfill-unmatched-project-credits.js [--credits <dosya.json>] [--dry-run] [--local]
+ *
+ * `--credits` verilmezse aşağıdaki gömülü CREDITS haritası (2026-08-31 Archello partisi)
+ * kullanılır; sonraki partiler kendi haritasını JSON dosyası olarak geçirir — dosya biçimi
+ * gömülü haritayla aynıdır: { "<proje-slug>": { offices: [...], designers: [...] } }.
  */
 
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
@@ -45,7 +50,7 @@ const TARGET = LOCAL ? ['--local', '--persist-to', PERSIST_TO] : ['--remote'];
 // projeler; eşleşenlerin künyesi zaten `project_designers` üzerinden geliyor ve bu script onlara
 // dokunmaz (dokunsaydı isLegacy=false olacağı için firmanın kurucu mimarlarını otomatik "Mimar:"
 // chip'i yapan fallback'i de sessizce kapatırdı — bkz. src/routes/project.js:258).
-const CREDITS = {
+const CREDITS_DEFAULT = {
   'btd-international-fund-house-ofisi': {
     offices: ['Sonraki Architecture', 'Kapeti Interior Architecture'],
     designers: ['Servet Yüksel', 'Anıl Yüksel'],
@@ -67,9 +72,21 @@ const CREDITS = {
   'concentrix-istanbul-ofisi':        { offices: ['Altıpatlar Architects'], designers: [] },
 };
 
+const creditsPath = argv.includes('--credits') ? argv[argv.indexOf('--credits') + 1] : null;
+if (creditsPath && !fs.existsSync(creditsPath)) {
+  console.error(`--credits dosyası bulunamadı: ${creditsPath}`);
+  process.exit(1);
+}
+const CREDITS = creditsPath
+  ? JSON.parse(fs.readFileSync(creditsPath, 'utf8'))
+  : CREDITS_DEFAULT;
+
 function d1(sql) {
   const out = execFileSync('npx', ['wrangler', 'd1', 'execute', DB_NAME, ...TARGET, '--json',
-    '--command', sql.replace(/\s+/g, ' ').trim()], { cwd: ROOT, maxBuffer: 1024 * 1024 * 256 }).toString('utf8');
+    // `\s+ -> ' '` YAPMA: bu satır, kopyalanan `description`'ın İÇİNDEKİ paragraf sonlarını da
+    // yer yapıp taslağı canonical satırdan farklılaştırırdı (bkz. import-archello-projects.js'teki
+    // aynı not) — taslak, canonical satırın birebir aynası olmak zorunda.
+    '--command', sql.trim()], { cwd: ROOT, maxBuffer: 1024 * 1024 * 256 }).toString('utf8');
   return JSON.parse(out.slice(out.indexOf('[')))[0];
 }
 const q = (v) => (v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`);
