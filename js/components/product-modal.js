@@ -866,8 +866,17 @@ const ProductModal = (function () {
     try {
       const params = new URLSearchParams({ limit: '96', brand: p.brand });
       const res = await fetch(`/api/products?${params.toString()}`);
+      // GERÇEK BULGU (popup taraması, 2026-08-31): await'ten SONRA hiçbir bayatlık kontrolü yoktu —
+      // observeOnce yalnızca ÇAĞRI anında currentItem'ı doğruluyor, fetch dönene kadar kullanıcı
+      // başka bir ürüne geçmiş (hatta "bulunamayan" bir ürüne düşmüş) olabilir; geç dönen yanıt
+      // ESKİ ürünün kartlarını YENİ popup'ta gösteriyor ve renderNotFound'un gizlediği bölümü geri
+      // açıyordu (yerel doğrulamada üretildi: bulunamayan ürün ekranında "Benzer Ürünler" bir
+      // önceki ürünün listesiyle görünür kalıyordu). project-modal.js'teki requestSeq korumasının
+      // bu dosyadaki karşılığı: currentItem kimliği.
+      if (currentItem !== p) return;
       if (!res.ok) return;
       const data = await res.json();
+      if (currentItem !== p) return;
       const items = (data.items || []).filter(x => x.ratingKey !== selfKey).slice(0, 8);
       if (!items.length) return;
       document.getElementById('pr-company-grid').innerHTML = items.map(r =>
@@ -906,8 +915,10 @@ const ProductModal = (function () {
     try {
       const params = new URLSearchParams({ limit: '96', category: p.category });
       const res = await fetch(`/api/products?${params.toString()}`);
+      if (currentItem !== p) return; // bkz. loadCompanyProducts'taki AYNI bayatlık koruması
       if (!res.ok) return;
       const data = await res.json();
+      if (currentItem !== p) return;
       const related = (data.items || [])
         .filter(x => x.ratingKey !== selfKey && (!p.brand || x.brand !== p.brand))
         .slice(0, 10);

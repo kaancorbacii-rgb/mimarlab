@@ -252,6 +252,10 @@ function ensureRatePopup(){
   overlay.querySelector('.rate-popup-close').addEventListener('click', close);
   overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); });
   document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && overlay.classList.contains('open')) close(); });
+  // Popup bir modal İÇİNDEN açılmış olabilir (proje/ürün/mimar/firma popup'ındaki Puanla düğmesi) —
+  // modal kapanırsa bu overlay document.body'de asılı kalır ve body.overflow 'hidden' olarak
+  // takılırdı. close()'un KENDİSİ çağrılır ki overflow da geri alınsın (bkz. modal-shell.js#close).
+  document.addEventListener('mimarlab-modal-closed', close);
 
   // en-iyi-100.html'deki AYNI lazy-load deseni (bkz. o dosyadaki ensureAuthModal) —
   // js/components/lazy-modals.js'in kendi loadModule()'ü IIFE kapanışında dışa açık olmadığından

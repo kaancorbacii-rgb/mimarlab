@@ -95,6 +95,16 @@ const MessageWidget = (function () {
     if (overlay) overlay.remove();
   }
 
+  // Form her zaman bir profil popup'ının İÇİNDEN açılır; modal kapanırsa (özellikle
+  // OverlayManager yoluyla, bkz. modal-shell.js#close) form document.body'de asılı kalıyor VE
+  // openCompose'un yazdığı body.style.overflow='hidden' geri alınmadığı için TÜM SAYFA
+  // kaydırılamaz hale geliyordu — gerçek bulgu, yerel doğrulamada üretildi.
+  document.addEventListener('mimarlab-modal-closed', () => {
+    if (!document.getElementById('msg-compose-overlay')) return;
+    document.body.style.overflow = '';
+    closeCompose();
+  });
+
   function openCompose(data) {
     closeCompose();
     const overlay = document.createElement('div');

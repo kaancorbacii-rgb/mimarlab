@@ -746,8 +746,13 @@ const OfficeModal = (function () {
     async function loadRelatedProducts() {
       try {
         const res = await fetch(`/api/public/profile-content?profileType=office&profileKey=${encodeURIComponent(o.name)}`);
+        // bkz. js/components/product-modal.js#loadCompanyProducts'taki AYNI gerçek bulgu: çağrı anında
+        // (deferToIdle içinde) currentItem doğrulanıyor ama await'ten SONRA doğrulanmıyordu — geç
+        // dönen yanıt ESKİ firmanın ürünlerini YENİ popup'a yazabilirdi.
+        if (currentItem !== o) return;
         if (!res.ok) return;
         const data = await res.json();
+        if (currentItem !== o) return;
         renderProductGrid('om-related-products-section', 'om-related-products-grid',
           [...brandProductsData, ...brandMaterialsData], [...(data.products || []), ...(data.materials || [])], 'om-related-products-count');
       } catch {}

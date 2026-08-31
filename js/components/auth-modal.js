@@ -3040,6 +3040,14 @@ const AuthModal = (function () {
     }).catch(() => {});
   }
 
+  // Mesaj dizisi overlay'i document.body'nin çocuğu olarak yaşar (bkz. openMessageThread) — popup
+  // ModalShell üzerinden kapanırsa geride asılı kalırdı (bkz. modal-shell.js#close'taki
+  // 'mimarlab-modal-closed' yorumu ve message-button.js'teki AYNI dinleyici).
+  document.addEventListener('mimarlab-modal-closed', () => {
+    const overlay = document.getElementById('am-thread-overlay');
+    if (overlay) overlay.remove();
+  });
+
   // ---------------------------------------------------------------------------------------------
   // Ortak modal-shell state machine — js/components/project-modal.js#open/swap/close/handlePopState
   // ile AYNI desen (bkz. dosya başı yorumu).

@@ -540,6 +540,15 @@ const ModalShell = (function () {
     // bkz. closeOpenLightboxes yorumu — requestClose'dan GEÇMEYEN kapanış yolları da (popstate,
     // OverlayManager.closeOthers, doğrudan close() çağrıları) geride açık bir galeri bırakmamalı.
     closeOpenLightboxes();
+    // Modala AİT ama document.body'nin DOĞRUDAN çocuğu olarak yaşayan üst-katman overlay'ler
+    // (harita lightbox'ı, Puanla popup'ı, Mesaj Gönder formu, mesaj dizisi) closeOpenLightboxes'ın
+    // erişemeyeceği yerdeler — overlayEl'in İÇİNDE değiller. Bunları buradan sınıf silerek kapatmak
+    // DA yanlış olurdu: bazıları kendi close()'unda document.body.style.overflow'u geri alıyor
+    // (gerçek bulgu: Mesaj Gönder formu açıkken modal OverlayManager üzerinden kapanınca overflow
+    // 'hidden' olarak kalıyor ve TÜM SAYFA kaydırılamaz hale geliyordu). Bu yüzden ModalShell
+    // yalnızca bir "kapandım" sinyali yayınlar; her overlay sahibi KENDİ close()'unu çalıştırır
+    // (bkz. project-modal.js/rating-widget.js/message-button.js/auth-modal.js'teki dinleyiciler).
+    document.dispatchEvent(new CustomEvent('mimarlab-modal-closed'));
     overlayEl.classList.remove('open');
     unlockBodyScroll();
     if (pageHeadingEl) { pageHeadingEl.removeAttribute('aria-hidden'); pageHeadingEl = null; }

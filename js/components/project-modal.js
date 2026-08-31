@@ -585,6 +585,12 @@ const ProjectModal = (function () {
   }
   function wireMapLightbox() { ensureMapLightbox(); }
 
+  // Modal, ProjectModal.close()'tan GEÇMEYEN bir yolla kapanırsa (OverlayManager — hamburger/arama/
+  // avatar/Paylaş panellerinden biri açıldığında ModalShell.close() DOĞRUDAN çağrılır) büyütülmüş
+  // harita ekranda asılı kalıyordu (yerel doğrulamada üretildi). bkz. modal-shell.js#close'taki
+  // 'mimarlab-modal-closed' yorumu.
+  document.addEventListener('mimarlab-modal-closed', closeMapLightbox);
+
   // Puan/oy sayısı artık AYRICA burada gösterilmiyor (bkz. kullanıcı isteği: "puanları proje
   // popuplarına entegre et") — src/routes/ratings.js#summarize artık 'project' hedefi için
   // top100_entries taban puanını gerçek oylarla harmanladığından, hemen altındaki #pm-rating
