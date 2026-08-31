@@ -7,7 +7,7 @@ import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute } from './routes/project.js';
-import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
+import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
@@ -893,6 +893,9 @@ async function routeApi(request, env, url) {
   if (path === '/api/architects/schools') return handleArchitectSchoolsRoute(request, env, url);
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path === '/api/products/search') return handleProductSearchRoute(request, env, url);
+  // Ürün markaları (proje-ekle.html'deki Firma kutusu) — bkz. handleProductBrandSearchRoute'un
+  // "kaynak offices değil products" gerekçesi.
+  if (path === '/api/products/brands') return handleProductBrandSearchRoute(request, env, url);
   if (path === '/api/photographers/search') return handlePhotographerSearchRoute(request, env, url);
   // urun-ekle.html'deki "Kullanılan Projeler" kutusunun autocomplete'i — /api/projects/:id gibi
   // dinamik uçlardan ÖNCE yakalanmalı (bkz. yukarıdaki /api/architects/search ile AYNI gerekçe).

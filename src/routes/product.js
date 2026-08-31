@@ -46,25 +46,70 @@ function shapeProductItem(row) {
 // GET /api/products/search?q=... — src/routes/office.js#handleOfficeSearchRoute'un ürün karşılığı;
 // proje-ekle.html'deki "Kullanılan Ürünler / Firmalar" kutusundaki Ürün autocomplete'inin canlı D1
 // sorgusu (bkz. kullanıcı isteği: "Kullanılan ürünler kısmını geri getir").
+// ?brand=<firma adı> (kullanıcı isteği, 2026-09-01): proje-ekle.html'de önce firma seçilirse ürün
+// kutusu YALNIZCA o firmanın ürünlerini önerir. Marka filtresi varken minimum sorgu uzunluğu da
+// aranmaz — kullanıcı firmayı seçer seçmez kutuya tıklayınca o firmanın tüm ürünlerini görebilmeli
+// (liste zaten tek bir markayla sınırlı olduğundan kısa/boş sorgu "kalabalık liste" üretmez, bkz.
+// aşağıdaki 2 karakter eşiğinin gerekçesi).
 export async function handleProductSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
+    const brand = foldTr((url.searchParams.get('brand') || '').trim());
     // D1 audit (2026-08-25) P1-6 — 2 karakter altı sorgular hiç D1'e gitmez: istemci tarafında
     // (wireAutocompleteLive) bir minimum uzunluk kontrolü yoktu, her tuş vuruşu (1 karakter dahil)
     // tam tablo taramasını tetikliyordu (bkz. audit raporu D#5). 1 karakterlik bir aramanın önerisi
     // zaten pratikte kullanışsız kalabalık bir liste olurdu — bu eşik UX'i bozmaz, gürültüyü azaltır.
-    if (!q || q.length < 2) return { items: [] };
+    if (!brand && (!q || q.length < 2)) return { items: [] };
+    // office_name: markanın canonical bir offices satırı varsa onun adı. Marka filtresi İKİSİNİ de
+    // kabul eder — proje-ekle.html'deki Firma kutusu (bkz. handleProductBrandSearchRoute) markayı
+    // hangi kaynaktan önerdiyse o adla geri gelir, ikisi her zaman birebir aynı yazılmış olmayabilir.
     const { results } = await env.DB.prepare(
-      `SELECT slug, title, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY title`
+      `SELECT p.slug, p.title, p.brand_name_raw, o.name AS office_name
+       FROM products p LEFT JOIN offices o ON o.id = p.brand_office_id
+       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL ORDER BY p.title`
     ).all();
     const items = results
-      .filter(r => foldTr(r.title).includes(q))
+      .filter(r => !brand || foldTr(r.brand_name_raw || '') === brand || foldTr(r.office_name || '') === brand)
+      .filter(r => !q || foldTr(r.title).includes(q))
       .slice(0, 20)
       // slug: proje-ekle.html'deki görsel işaretçisi editörü (bkz. migrations/
       // 0076_project_image_hotspots.sql) seçilen ürünü slug'ıyla bağlar — "Kullanılan Ürünler"
       // kutusunun kendisi hâlâ yalnızca label/brand kullanır, bu alan ona zarar vermeden eklenir.
-      .map(r => ({ label: r.title, sub: r.brand_name_raw || '', brand: r.brand_name_raw || '', slug: r.slug }));
+      .map(r => ({
+        label: r.title,
+        sub: r.brand_name_raw || r.office_name || '',
+        brand: r.brand_name_raw || r.office_name || '',
+        slug: r.slug,
+      }));
+    return { items };
+  });
+}
+
+// GET /api/products/brands?q=... — proje-ekle.html'deki "Projede Kullanılan Ürünler" kutusunun Firma
+// autocomplete'i (kullanıcı isteği, 2026-09-01 madde 2: yalnızca sitede kayıtlı firmalar seçilebilsin).
+//
+// KAYNAK BİLEREK `offices` DEĞİL, `products`: prod verisinde 49 ürün markasının 27'sinin canonical bir
+// offices satırı YOK (marka yalnızca products.brand_name_raw olarak yaşıyor). /api/offices/search
+// kullanılsaydı sitedeki ürün markalarının yarısından fazlası bu kutuda hiç seçilemez, dolayısıyla o
+// markaların ürünleri projeye hiç eklenemez hâle gelirdi. Burada döndürülen her ad, en az bir ürünü
+// olan ve src/lib/canonicalSync.js#resolveProjectProductLinks tarafından GERÇEKTEN çözülebilen bir
+// markadır — kutunun sözü ("yalnızca sitede kayıtlı") bu şekilde doğru biçimde karşılanır.
+export async function handleProductBrandSearchRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const q = foldTr((url.searchParams.get('q') || '').trim());
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT COALESCE(p.brand_name_raw, o.name) AS name
+       FROM products p LEFT JOIN offices o ON o.id = p.brand_office_id
+       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
+         AND COALESCE(p.brand_name_raw, o.name) IS NOT NULL AND COALESCE(p.brand_name_raw, o.name) <> ''
+       ORDER BY name`
+    ).all();
+    const items = results
+      .filter(r => !q || foldTr(r.name).includes(q))
+      .slice(0, 20)
+      .map(r => ({ label: r.name, sub: '' }));
     return { items };
   });
 }

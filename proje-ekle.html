@@ -651,28 +651,30 @@
       </div>
 
       <div class="form-section">
-        <h2>Kullanılan Ürünler / Firmalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Projede kullanılan ürünleri eklemek için önce firmayı, sonra ürünü yaz. Dizindeki bir firma adıyla eşleşirse otomatik bağlanır.</p>
+        <h2>Projede Kullanılan Ürünler <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <p class="section-hint">Projede kullanılan ürünleri eklemek için marka ya da ürün arat. Yüklediğin görsellerde ürünleri etiketleyebilirsin.</p>
         <div class="form-field">
+          <!-- Firma kutusu ÖNCE (kullanıcı isteği, 2026-09-01): önce firma seçilince ürün kutusu
+               yalnızca o firmanın ürünlerini önerir (bkz. aşağıdaki wireAutocompleteLive#extraParams). -->
           <div class="brand-add-row">
-            <div class="ac-field" id="ac-urun-field">
-              <input type="text" id="p-product-input" placeholder="Ürün" autocomplete="off">
-              <div class="ac-suggestions" id="ac-urun-suggestions"></div>
-            </div>
             <div class="ac-field" id="ac-marka-field">
               <input type="text" id="p-brand-input" placeholder="Firma" autocomplete="off">
               <div class="ac-suggestions" id="ac-marka-suggestions"></div>
             </div>
+            <div class="ac-field" id="ac-urun-field">
+              <input type="text" id="p-product-input" placeholder="Ürün" autocomplete="off">
+              <div class="ac-suggestions" id="ac-urun-suggestions"></div>
+            </div>
             <button type="button" class="brand-add-btn" id="brand-add-btn">+ Ekle</button>
           </div>
-          <div class="form-hint">Eklemek için "+ Ekle"ye ya da Enter'a bas.</div>
+          <div class="form-hint" id="brand-add-hint">Yalnızca sitede kayıtlı firma ve ürünler eklenebilir — açılan listeden seç. Eklemek için "+ Ekle"ye ya da Enter'a bas.</div>
           <div class="brand-chip-list" id="brand-chip-list"></div>
         </div>
       </div>
 
       <div class="form-section">
         <h2>Görseller</h2>
-        <p class="section-hint">İlk görsel kapak fotoğrafı olarak kullanılır. Varsa önce dış mekan, sonrasında iç mekan ve en son çizim vb. diğer görselleri yükleyin lütfen.</p>
+        <p class="section-hint">İlk görsel kapak fotoğrafı olarak kullanılır. Varsa önce dış mekan, sonrasında iç mekan ve en son çizim vb. diğer görselleri yükleyin lütfen. Görsellere tıklayarak ürün etiketlemesi yapabilirsin.</p>
         <label class="image-drop" id="image-drop">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
           <strong>Görselleri sürükleyip bırak</strong>
@@ -680,7 +682,6 @@
           <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
         </label>
         <p class="image-spec-hint">Görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir projeye en fazla 50 görsel yükleyebilirsin.</p>
-        <p class="image-spec-hint">Bir görsele tıklayarak büyüt, sonra görseldeki bir ürünün üzerine tıklayıp o ürünü işaretle — işaretlenen ürünler proje sayfasında görselin üzerinde tıklanabilir birer daire olarak görünür.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
@@ -1107,7 +1108,11 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   }
   function fetchSuggestions(q){
     currentQuery = q;
-    fetch(`${searchUrl}?q=${encodeURIComponent(q)}`)
+    // opts.extraParams(): isteğe eklenecek EK sorgu parametreleri (ör. ürün aramasını seçili
+    // firmayla sınırlamak için "&brand=..."). Her istekte YENİDEN çağrılır — kullanıcı firmayı
+    // arada değiştirdiğinde filtre kendiliğinden güncel kalsın diye sabit bir değer alınmaz.
+    const extra = opts.extraParams ? (opts.extraParams() || '') : '';
+    fetch(`${searchUrl}?q=${encodeURIComponent(q)}${extra}`)
       .then(res => res.ok ? res.json() : {items: []})
       // Yanıt döndüğünde kullanıcı zaten başka bir şey yazmışsa (yarış durumu) eski sonucu
       // gösterme — bkz. yukarıdaki nav arama kutusundaki AYNI currentQuery karşılaştırma deseni.
@@ -1116,7 +1121,10 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
   }
   function onInput(){
     const q = opts.multi === false ? input.value.trim() : lastCommaSegment(input.value);
-    if(!q){ close(); currentQuery = ''; return; }
+    // opts.allowEmptyQuery(): boş kutuda da öneri getirilsin mi (ürün kutusu, bir firma seçiliyken
+    // o firmanın ürünlerini listelemek için — bkz. kullanıcı isteği 2026-09-01 madde 2).
+    const allowEmpty = opts.allowEmptyQuery ? opts.allowEmptyQuery() : false;
+    if(!q && !allowEmpty){ close(); currentQuery = ''; return; }
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(()=> fetchSuggestions(q), 300);
   }
@@ -1203,13 +1211,58 @@ async function fillDesignerFromOffice(officeName){
   }catch{}
 }
 wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search', { onPick: (item) => fillDesignerFromOffice(item.label) });
-wireAutocompleteLive('p-brand-input', 'ac-marka-suggestions', '/api/offices/search', {multi:false});
-wireAutocompleteLive('p-product-input', 'ac-urun-suggestions', '/api/products/search', {multi:false, onPick: (item)=>{
-  const brandInput = document.getElementById('p-brand-input');
-  if(!brandInput.value.trim() && item.brand) brandInput.value = item.brand;
+// "Projede Kullanılan Ürünler" kutusu — YALNIZCA sitede kayıtlı firma/ürünler eklenebilir
+// (kullanıcı isteği, 2026-09-01 madde 2). Serbest metin artık kabul edilmiyor; bu yüzden listeden
+// GERÇEKTEN seçilen değerler ayrıca tutulur ve "+ Ekle" anında kutudaki metinle karşılaştırılır —
+// kullanıcı seçtikten sonra metni değiştirirse seçim geçersiz sayılır (aksi halde var olmayan bir
+// ürün adı kaydedilip hiçbir kayda bağlanamazdı).
+let pickedBrand = null;    // listeden seçilen firma adı
+let pickedProduct = null;  // {label, brand} — listeden seçilen ürün
+// Kaynak /api/offices/search DEĞİL /api/products/brands: sitedeki ürün markalarının yarısından
+// fazlasının canonical bir offices satırı yok (bkz. src/routes/product.js#handleProductBrandSearchRoute)
+// — offices'a bağlansaydı o markaların ürünleri bu kutudan hiç eklenemezdi.
+wireAutocompleteLive('p-brand-input', 'ac-marka-suggestions', '/api/products/brands', {multi:false, allowEmptyQuery: ()=> true, onPick: (item)=>{
+  pickedBrand = item.label;
+  // Firma değişince önceki ürün seçimi artık geçerli olmayabilir (başka markanın ürünü) — temizlenir.
+  if(pickedProduct && trLower(pickedProduct.brand || '') !== trLower(item.label)){
+    pickedProduct = null;
+    document.getElementById('p-product-input').value = '';
+  }
+  setBrandAddHint('');
 }});
+wireAutocompleteLive('p-product-input', 'ac-urun-suggestions', '/api/products/search', {
+  multi:false,
+  // Firma seçiliyse ürün önerileri yalnızca o firmayla sınırlanır (bkz. src/routes/product.js#
+  // handleProductSearchRoute'un brand parametresi) ve kutu boşken de o firmanın ürünleri listelenir.
+  extraParams: ()=> pickedBrand ? `&brand=${encodeURIComponent(pickedBrand)}` : '',
+  allowEmptyQuery: ()=> !!pickedBrand,
+  onPick: (item)=>{
+    pickedProduct = { label: item.label, brand: item.brand || '' };
+    const brandInput = document.getElementById('p-brand-input');
+    // Ürün önce seçilirse firma kutusu ondan doldurulur — o firma da "listeden seçilmiş" sayılır,
+    // çünkü değer kullanıcının yazdığı serbest metin değil, ürün kaydının kendi markası.
+    if(item.brand && trLower(brandInput.value.trim()) !== trLower(item.brand)){
+      brandInput.value = item.brand;
+      pickedBrand = item.brand;
+    } else if(item.brand && !pickedBrand){
+      pickedBrand = item.brand;
+    }
+    setBrandAddHint('');
+  },
+});
+// Elle yazılan her değişiklik ilgili seçimi geçersizleştirir (bkz. yukarısı).
+document.getElementById('p-brand-input').addEventListener('input', ()=>{ pickedBrand = null; });
+document.getElementById('p-product-input').addEventListener('input', ()=>{ pickedProduct = null; });
 
-// ---------- KULLANILAN ÜRÜNLER / MARKALAR: marka+ürün çiftlerinden oluşan chip listesi ----------
+const BRAND_ADD_HINT_DEFAULT = 'Yalnızca sitede kayıtlı firma ve ürünler eklenebilir — açılan listeden seç. Eklemek için "+ Ekle"ye ya da Enter\'a bas.';
+function setBrandAddHint(msg){
+  const el = document.getElementById('brand-add-hint');
+  if(!el) return;
+  el.textContent = msg || BRAND_ADD_HINT_DEFAULT;
+  el.style.color = msg ? '#B84C4C' : '';
+}
+
+// ---------- PROJEDE KULLANILAN ÜRÜNLER: marka+ürün çiftlerinden oluşan chip listesi ----------
 let brandChips = [];
 function renderBrandChips(){
   const list = document.getElementById('brand-chip-list');
@@ -1231,8 +1284,8 @@ function renderBrandChips(){
 // listesinde görünmemesi tutarsız olurdu. Zaten listede olan bir çift tekrar eklenmez.
 // Markası olmayan ürün ATLANIR: brands kaydı marka üzerinden çözülüyor (bkz. src/lib/
 // canonicalSync.js#resolveProjectProductLinks), markasız bir chip hiçbir ürüne bağlanamazdı.
-// Not: bir işaretçiyi KALDIRMAK chip'i silmez — ürün künyede bilerek listelenmiş olabilir, o karar
-// kullanıcıya bırakılır (chip'in kendi ✕ düğmesi zaten var).
+// Bir işaretçi KALDIRILDIĞINDA (kullanıcı isteği, 2026-09-01 madde 1) ürün bu listeden de düşer —
+// bkz. removeBrandChipForProduct.
 function addBrandChipForProduct(title, brand){
   const b = (brand || '').trim();
   const p = (title || '').trim();
@@ -1244,15 +1297,56 @@ function addBrandChipForProduct(title, brand){
   renderBrandChips();
 }
 
+// Bir ürün etiketi görselden kaldırıldığında o ürünü "Projede Kullanılan Ürünler" listesinden de
+// düşürür (kullanıcı isteği, 2026-09-01 madde 1). AYNI ürün BAŞKA bir görselde hâlâ etiketliyse
+// chip KORUNUR — aksi halde iki görselde etiketli bir üründen birini kaldırmak, hâlâ etiketli olan
+// diğerini de listeden silerdi.
+// Eşleştirme ürün ADINA göre yapılır (marka biliniyorsa ayrıca marka da eşleşmeli): bir taslaktan
+// yüklenen işaretçilerde marka bilgisi yoktur (project_submissions yalnızca x/y/slug/title saklar,
+// bkz. migrations/0076_project_image_hotspots.sql).
+function removeBrandChipForProduct(hotspot){
+  if(!hotspot) return;
+  const title = (hotspot.title || '').trim();
+  if(!title) return;
+  const stillTagged = mediaItems.some(item => (item.hotspots || []).some(h => h.slug === hotspot.slug));
+  if(stillTagged) return;
+  const brand = (hotspot.brand || '').trim();
+  const before = brandChips.length;
+  brandChips = brandChips.filter(c => !(trLower(c.product || '') === trLower(title)
+    && (!brand || trLower(c.brand || '') === trLower(brand))));
+  if(brandChips.length !== before) renderBrandChips();
+}
+
 function addBrandChip(){
   const brandInput = document.getElementById('p-brand-input');
   const productInput = document.getElementById('p-product-input');
   const brand = brandInput.value.trim();
   const product = productInput.value.trim();
-  if(!brand){ brandInput.focus(); return; }
-  brandChips.push({ brand, product: product || null });
+  if(!brand){
+    setBrandAddHint('Önce listeden bir firma seç.');
+    brandInput.focus();
+    return;
+  }
+  // Kutudaki metin, listeden SEÇİLEN değerle bire bir aynı olmalı — kullanıcı seçtikten sonra
+  // metni değiştirmişse (ya da hiç seçmeden yazmışsa) sitede karşılığı olmayan bir ad kaydedilirdi.
+  if(!pickedBrand || trLower(pickedBrand) !== trLower(brand)){
+    setBrandAddHint('Bu firma sitede kayıtlı değil — açılan listeden seç.');
+    brandInput.focus();
+    return;
+  }
+  if(product && (!pickedProduct || trLower(pickedProduct.label) !== trLower(product))){
+    setBrandAddHint('Bu ürün sitede kayıtlı değil — açılan listeden seç.');
+    productInput.focus();
+    return;
+  }
+  const exists = brandChips.some(c => trLower(c.brand || '') === trLower(brand)
+    && trLower(c.product || '') === trLower(product));
+  if(!exists) brandChips.push({ brand, product: product || null });
   brandInput.value = '';
   productInput.value = '';
+  pickedBrand = null;
+  pickedProduct = null;
+  setBrandAddHint('');
   renderBrandChips();
   brandInput.focus();
 }
@@ -1304,6 +1398,9 @@ function renderPreviews(){
       const i = parseInt(btn.dataset.removeIndex);
       const [removed] = mediaItems.splice(i, 1);
       if(removed.objectUrl) URL.revokeObjectURL(removed.objectUrl);
+      // Görsel silinince üzerindeki etiketler de gider — o ürünler başka görselde etiketli
+      // değilse "Projede Kullanılan Ürünler" listesinden de düşer (bkz. removeBrandChipForProduct).
+      (removed.hotspots || []).forEach(removeBrandChipForProduct);
       renderPreviews();
     });
   });
@@ -1562,9 +1659,13 @@ function openHotspotForm(xPct, yPct, editIndex){
     // brand yalnızca form içi bir kolaylık (chip listesine eklemek ve düzenlemeye dönünce yeniden
     // kullanmak için) — sunucu sanitizeImageHotspots ile yalnızca x/y/slug/title'ı saklar.
     const entry = { x: hsDraft.x, y: hsDraft.y, slug: hsDraft.slug, title: hsDraft.title, brand: hsDraft.brand || '' };
+    // Var olan bir işaretin ürünü DEĞİŞTİRİLDİYSE eskisi de listeden düşmeli (başka bir görselde
+    // hâlâ etiketli değilse) — replace SONRASI kontrol edilir ki "hâlâ etiketli mi" doğru çıksın.
+    const replaced = hsDraft.editIndex != null ? it.hotspots[hsDraft.editIndex] : null;
     if(hsDraft.editIndex != null) it.hotspots[hsDraft.editIndex] = entry;
     else it.hotspots.push(entry);
     addBrandChipForProduct(hsDraft.title, hsDraft.brand);
+    if(replaced && replaced.slug !== entry.slug) removeBrandChipForProduct(replaced);
     closeHotspotForm();
     renderHotspotPins();
     renderPreviews();
@@ -1572,7 +1673,10 @@ function openHotspotForm(xPct, yPct, editIndex){
   const removeBtn = hsForm.querySelector('.hs-remove');
   if(removeBtn) removeBtn.addEventListener('click', ()=>{
     const it = hsCurrentItem();
-    if(it && hsDraft.editIndex != null) it.hotspots.splice(hsDraft.editIndex, 1);
+    let removed = null;
+    if(it && hsDraft.editIndex != null) removed = it.hotspots.splice(hsDraft.editIndex, 1)[0];
+    // Ürün artık hiçbir görselde etiketli değilse "Projede Kullanılan Ürünler" listesinden de düşer.
+    removeBrandChipForProduct(removed);
     closeHotspotForm();
     renderHotspotPins();
     renderPreviews();
