@@ -58,6 +58,10 @@ export async function handleCollectionsRoute(request, env, url) {
   if (segments.length === 3 && request.method === 'PATCH') return updateCollection(request, env, user, segments[2]);
   if (segments.length === 3 && request.method === 'DELETE') return deleteCollection(env, user, segments[2]);
   if (segments.length === 4 && segments[3] === 'items' && request.method === 'POST') return addItem(request, env, user, segments[2]);
+  // PATCH .../items — öğe SIRASINI yeniden yazar (bkz. reorderItems). Tek tek öğe güncellemesi
+  // (segments.length === 5 + PATCH) BİLEREK yok: sıralama her zaman TÜM liste olarak gönderilir,
+  // böylece pozisyonlar arasında boşluk/çakışma oluşamaz.
+  if (segments.length === 4 && segments[3] === 'items' && request.method === 'PATCH') return reorderItems(request, env, user, segments[2]);
   if (segments.length === 5 && segments[3] === 'items' && request.method === 'DELETE') return deleteItem(env, user, segments[2], segments[4]);
   return errorJson('Bulunamadı', 404);
 }
@@ -234,6 +238,46 @@ async function addItem(request, env, user, collectionId) {
   return json({
     item: shapeItem({ id, kind, item_type: itemType, item_key: itemKey, title, meta: body.meta || '', image, href, note, created_at: now }),
   }, 201);
+}
+
+// PATCH /api/collections/:id/items  body: { order: [itemId, ...] } — kullanıcı isteği (2026-08-31):
+// "koleksiyona eklediği şeylerin (not, görsel veya bir gönderi) sırasını değiştirebilsin".
+// İstemci panodaki GÜNCEL tam sırayı gönderir; burada her id'ye dizideki indeksi position olarak
+// yazılır. Yalnızca BU koleksiyona ait id'ler kabul edilir (gövdedeki yabancı bir id sessizce
+// atlanır, başka bir panonun satırına yazılamaz); gönderilmeyen satırlar listenin sonuna,
+// aralarındaki mevcut göreli sırayı koruyarak eklenir.
+async function reorderItems(request, env, user, collectionId) {
+  const collection = await findOwnCollection(env, user, collectionId);
+  if (!collection) return errorJson('Bulunamadı', 404);
+
+  const body = await readJson(request);
+  if (!Array.isArray(body.order)) return errorJson('Geçersiz sıralama.');
+
+  const { results } = await env.DB.prepare(
+    `SELECT id FROM collection_items WHERE collection_id = ? ORDER BY position, created_at`
+  ).bind(collectionId).all();
+  const owned = new Set(results.map(r => r.id));
+
+  const ordered = [];
+  const seen = new Set();
+  for (const id of body.order) {
+    if (typeof id !== 'string' || !owned.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(id);
+  }
+  for (const row of results) {
+    if (!seen.has(row.id)) ordered.push(row.id);
+  }
+  if (!ordered.length) return json({ ok: true });
+
+  // Tek bir batch (D1'de tek transaction) — yarım yazılmış bir sıralama bırakmaz.
+  await env.DB.batch([
+    ...ordered.map((id, index) => env.DB.prepare(
+      `UPDATE collection_items SET position = ? WHERE id = ? AND collection_id = ?`
+    ).bind(index, id, collectionId)),
+    env.DB.prepare(`UPDATE collections SET updated_at = ? WHERE id = ?`).bind(Date.now(), collectionId),
+  ]);
+  return json({ ok: true });
 }
 
 async function deleteItem(env, user, collectionId, itemId) {

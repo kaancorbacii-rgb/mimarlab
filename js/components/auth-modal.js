@@ -305,7 +305,10 @@ const AuthModal = (function () {
     #am-panel .col-item-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px;}
     #am-panel .col-item{position:relative; border:1px solid var(--line-soft); border-radius:12px; overflow:hidden; background:var(--paper);}
     #am-panel .col-item-media{display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--paper-alt);}
-    #am-panel .col-item-note{padding:14px; font-size:13px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
+    /* Üst padding, kartın sol üstündeki sıra oklarına ve sağ üstündeki silme butonuna yer açar —
+       görselli kartlarda bu kontroller görselin üzerine biner, notta binecek bir görsel olmadığından
+       metnin altlarından başlaması gerekir (yerel doğrulamada yakalandı). */
+    #am-panel .col-item-note{padding:42px 14px 14px; font-size:13px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
     #am-panel .col-item-body{padding:10px 12px;}
     #am-panel .col-item-title{font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     #am-panel .col-item-title a{color:inherit; text-decoration:none;}
@@ -313,6 +316,13 @@ const AuthModal = (function () {
     #am-panel .col-item-meta{font-size:11px; color:var(--ink-soft); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     #am-panel .col-item-remove{position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center;}
     #am-panel .col-item-remove:hover{background:#B84C4C;}
+    /* Sıra değiştirme okları (kullanıcı isteği, 2026-08-31) — kartın SOL üstünde, silme butonuyla
+       aynı görsel dilde. Sürükle-bırak yerine ok butonları: dokunmatikte de, klavyeyle de
+       calisir ve mevcut ızgara/kaydırma davranışını hiç bozmaz. */
+    #am-panel .col-item-move{position:absolute; top:8px; left:8px; display:flex; gap:4px;}
+    #am-panel .col-item-move button{width:26px; height:26px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center;}
+    #am-panel .col-item-move button:hover:not(:disabled){background:var(--walnut);}
+    #am-panel .col-item-move button:disabled{opacity:0.35;}
     #am-panel .col-add-panel{border:1px dashed var(--line); border-radius:12px; padding:16px; margin-bottom:18px;}
     #am-panel .col-add-panel textarea{width:100%; box-sizing:border-box; min-height:80px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13px; font-family:inherit; resize:vertical;}
     #am-panel .col-saved-picker{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; max-height:320px; overflow-y:auto; margin-top:12px;}
@@ -999,23 +1009,41 @@ const AuthModal = (function () {
 
       <div id="am-col-list-view">
         <div class="dash-section">
-          <h2>Koleksiyonlarım</h2>
-          <p class="section-hint">Yeni bir koleksiyon oluştur, sonra içine kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekle.</p>
+          <h2>Panolarım</h2>
+          <p class="section-hint">Yeni bir pano oluştur, sonra içine kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekle.</p>
           <div class="col-new-row">
-            <input type="text" id="am-col-new-title" placeholder="Yeni koleksiyon adı" maxlength="120" autocomplete="off">
+            <input type="text" id="am-col-new-title" placeholder="Yeni pano adı" maxlength="120" autocomplete="off">
             <button type="button" class="col-btn col-btn-primary" id="am-col-create-btn">Oluştur</button>
           </div>
           <div class="col-notice" id="am-col-list-notice"></div>
           <div id="am-col-list"><div class="dash-empty">Yükleniyor…</div></div>
+        </div>
+
+        <!-- Kaydettiklerim (kullanıcı isteği, 2026-08-31: "Kaydettiklerim kutucuğunu da KOLEKSİYONUM
+             popupına koy") — Aktivitelerim'deki KUTUNUN AYNISI (aynı /api/saved kaynağı, aynı
+             .saved-row işaretlemesi, aynı filtre/sayfalama), oradan KALDIRILMADAN buraya da eklendi.
+             Burada ayrıca doğal bir yeri var: panolara öğe eklemenin ana kaynağı bu liste. -->
+        <div class="dash-section">
+          <h2>Kaydettiklerim</h2>
+          <p class="section-hint">Panolarına eklemek için kaydettiğin içerikler. Bir panonun içinden "Kaydettiklerimden Ekle" ile seçebilirsin.</p>
+          <div class="saved-filter" id="am-col-saved-filter">
+            <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+            <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
+            <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
+          </div>
+          <div id="am-col-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="dash-pagination" id="am-col-saved-pagination"></div>
         </div>
       </div>
 
       <div id="am-col-detail-view" style="display:none;">
         <div class="dash-section">
           <div class="col-toolbar">
-            <button type="button" class="col-btn" id="am-col-back-btn">← Koleksiyonlarım</button>
+            <button type="button" class="col-btn" id="am-col-back-btn">← Panolarım</button>
             <button type="button" class="col-btn" id="am-col-rename-btn">Yeniden Adlandır</button>
-            <button type="button" class="col-btn col-btn-danger" id="am-col-delete-btn">Koleksiyonu Sil</button>
+            <button type="button" class="col-btn col-btn-danger" id="am-col-delete-btn">Panoyu Sil</button>
           </div>
           <h2 id="am-col-detail-title"></h2>
           <p class="section-hint" id="am-col-detail-count"></p>
@@ -1040,7 +1068,7 @@ const AuthModal = (function () {
           </div>
           <div class="col-add-panel" id="am-col-add-note" style="display:none;">
             <strong style="font-size:13px;">Not ekle</strong>
-            <textarea id="am-col-note-text" maxlength="4000" placeholder="Bu koleksiyonla ilgili bir not yaz…"></textarea>
+            <textarea id="am-col-note-text" maxlength="4000" placeholder="Bu panoyla ilgili bir not yaz…"></textarea>
             <div style="margin-top:10px;">
               <button type="button" class="col-btn col-btn-primary" id="am-col-note-save-btn">Notu Ekle</button>
             </div>
@@ -2705,7 +2733,7 @@ const AuthModal = (function () {
       const container = document.getElementById('am-col-list');
       if (!container) return;
       if (!collections.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir koleksiyonun yok.<br>Yukarıdaki kutuya bir isim yazıp ilk koleksiyonunu oluştur.</div>';
+        container.innerHTML = '<div class="dash-empty">Henüz bir panon yok.<br>Yukarıdaki kutuya bir isim yazıp ilk panonu oluştur.</div>';
         return;
       }
       container.innerHTML = `<div class="col-grid">${collections.map(c => `
@@ -2740,10 +2768,10 @@ const AuthModal = (function () {
       document.getElementById('am-col-detail-count').textContent = `${openCollection.items.length} öğe`;
       const container = document.getElementById('am-col-items');
       if (!openCollection.items.length) {
-        container.innerHTML = '<div class="dash-empty">Bu koleksiyon henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
+        container.innerHTML = '<div class="dash-empty">Bu pano henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
         return;
       }
-      container.innerHTML = `<div class="col-item-grid">${openCollection.items.map(it => {
+      container.innerHTML = `<div class="col-item-grid">${openCollection.items.map((it, i) => {
         const image = safeUrl(it.image);
         const href = safeUrl(it.href);
         // 'note' türünde görsel yok, metin kartın kendisi olur; 'image'/'saved' türünde görsel üstte,
@@ -2757,12 +2785,44 @@ const AuthModal = (function () {
           : '';
         const metaHtml = it.meta ? `<div class="col-item-meta">${escapeHtml(it.meta)}</div>` : '';
         const body = (titleHtml || metaHtml) ? `<div class="col-item-body">${titleHtml}${metaHtml}</div>` : '';
+        // Sıra değiştirme okları — ilk öğede "geri", son öğede "ileri" devre dışı.
+        const moveHtml = `
+          <div class="col-item-move">
+            <button type="button" data-move="up" aria-label="Öne al"${i === 0 ? ' disabled' : ''}>‹</button>
+            <button type="button" data-move="down" aria-label="Geriye al"${i === openCollection.items.length - 1 ? ' disabled' : ''}>›</button>
+          </div>`;
         return `
         <div class="col-item" data-item-id="${escapeAttr(it.id)}">
           ${media}${body}
+          ${moveHtml}
           <button type="button" class="col-item-remove" aria-label="Kaldır">✕</button>
         </div>`;
       }).join('')}</div>`;
+    }
+
+    // Sıra değiştirme (kullanıcı isteği, 2026-08-31) — yeni sıra ÖNCE yerel state'te uygulanıp
+    // hemen yeniden çizilir (anında geri bildirim), sonra sunucuya TÜM liste olarak yazılır (bkz.
+    // src/routes/collections.js#reorderItems). Yazma başarısız olursa sunucudaki gerçek sıra geri
+    // yüklenir, böylece ekran D1 ile tutarsız kalmaz.
+    async function moveItem(itemId, direction) {
+      if (!openCollection) return;
+      const items = openCollection.items;
+      const from = items.findIndex(it => it.id === itemId);
+      if (from < 0) return;
+      const to = direction === 'up' ? from - 1 : from + 1;
+      if (to < 0 || to >= items.length) return;
+      [items[from], items[to]] = [items[to], items[from]];
+      renderDetail();
+      try {
+        const res = await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: items.map(it => it.id) }),
+        });
+        if (!res.ok) throw new Error('reorder failed');
+      } catch {
+        notice('am-col-detail-notice', 'Sıra kaydedilemedi, tekrar dene.', true);
+        await reloadDetail();
+      }
     }
 
     async function openDetail(id) {
@@ -2798,7 +2858,7 @@ const AuthModal = (function () {
           body: JSON.stringify({ title }),
         });
         const data = await res.json();
-        if (!res.ok) { notice('am-col-list-notice', data.error || 'Koleksiyon oluşturulamadı.', true); return; }
+        if (!res.ok) { notice('am-col-list-notice', data.error || 'Pano oluşturulamadı.', true); return; }
         input.value = '';
         await loadCollections();
         openDetail(data.item.id);
@@ -2815,7 +2875,7 @@ const AuthModal = (function () {
 
     on('am-col-rename-btn', 'click', async () => {
       if (!openCollection) return;
-      const title = window.prompt('Koleksiyonun yeni adı:', openCollection.item.title);
+      const title = window.prompt('Panonun yeni adı:', openCollection.item.title);
       if (title === null) return;
       if (!title.trim()) return;
       try {
@@ -2831,7 +2891,7 @@ const AuthModal = (function () {
 
     on('am-col-delete-btn', 'click', async () => {
       if (!openCollection) return;
-      if (!window.confirm('Bu koleksiyonu silmek istediğine emin misin? İçindeki tüm öğeler de silinir.')) return;
+      if (!window.confirm('Bu panoyu silmek istediğine emin misin? İçindeki tüm öğeler de silinir.')) return;
       try {
         await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}`, { method: 'DELETE' });
         showList();
@@ -2860,7 +2920,7 @@ const AuthModal = (function () {
         });
         const data = await res.json();
         if (!res.ok) { notice('am-col-detail-notice', data.error || 'Öğe eklenemedi.', true); return; }
-        if (data.duplicate) { notice('am-col-detail-notice', 'Bu içerik zaten bu koleksiyonda.'); return; }
+        if (data.duplicate) { notice('am-col-detail-notice', 'Bu içerik zaten bu panoda.'); return; }
         await reloadDetail();
       } catch { notice('am-col-detail-notice', 'Sunucuya ulaşılamadı, tekrar dene.', true); }
     }
@@ -2926,6 +2986,12 @@ const AuthModal = (function () {
     });
 
     on('am-col-items', 'click', async (e) => {
+      const moveBtn = e.target.closest('.col-item-move button');
+      if (moveBtn) {
+        const itemEl = moveBtn.closest('.col-item');
+        if (itemEl) moveItem(itemEl.dataset.itemId, moveBtn.dataset.move);
+        return;
+      }
       const removeBtn = e.target.closest('.col-item-remove');
       if (!removeBtn || !openCollection) return;
       const itemEl = removeBtn.closest('.col-item');
@@ -2936,9 +3002,81 @@ const AuthModal = (function () {
       } catch { removeBtn.disabled = false; }
     });
 
+    // ---- Kaydettiklerim kutusu (kullanıcı isteği, 2026-08-31) ----
+    // mountActivities()'teki AYNI kutunun ikinci bir örneği: AYNI /api/saved kaynağı, AYNI .saved-row
+    // işaretlemesi/filtre/sayfalama. Kod paylaşılmıyor çünkü o kutu mountActivities'in ÖZEL
+    // kapsamındaki state'e (savedItems/savedFilter/savedPage) bağlı — burada kendi bağımsız
+    // kopyası tutulur, iki popup birbirinin sayfa/filtre durumunu bozmaz.
+    let colSavedItems = [];
+    let colSavedFilter = '';
+    let colSavedPage = 1;
+    function colMatchesCatalogFilter(itemType, filter) {
+      if (!filter) return true;
+      if (filter === 'product') return itemType === 'product' || itemType === 'material';
+      return itemType === filter;
+    }
+    function renderColSaved() {
+      const container = document.getElementById('am-col-dash-saved');
+      if (!container) return;
+      const items = colSavedFilter ? colSavedItems.filter(it => colMatchesCatalogFilter(it.item_type, colSavedFilter)) : colSavedItems;
+      if (!colSavedItems.length) {
+        container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+        document.getElementById('am-col-saved-pagination').innerHTML = '';
+        return;
+      }
+      if (!items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu türde kaydettiğin bir içerik yok.</div>';
+        document.getElementById('am-col-saved-pagination').innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE_DASH));
+      if (colSavedPage > totalPages) colSavedPage = totalPages;
+      const startIdx = (colSavedPage - 1) * PAGE_SIZE_DASH;
+      container.innerHTML = items.slice(startIdx, startIdx + PAGE_SIZE_DASH).map(it => `
+        <div class="saved-row" data-type="${escapeAttr(it.item_type)}" data-key="${escapeAttr(it.item_key)}">
+          <a class="saved-row-link" href="${escapeAttr(safeUrl(it.item_href) || '#')}">
+            ${it.item_image && safeUrl(it.item_image) ? `<img src="${escapeAttr(avatarImg(it.item_image, 160, safeUrl(it.item_image)))}" alt="" loading="lazy" decoding="async">` : `<div class="saved-row-noimg"></div>`}
+            <div style="min-width:0;">
+              <div class="saved-row-title">${escapeHtml(it.item_title || '—')}</div>
+              <div class="saved-row-meta">${SAVED_TYPE_LABELS[it.item_type] || ''}${it.item_meta ? ' · ' + escapeHtml(it.item_meta) : ''}</div>
+            </div>
+          </a>
+          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
+        </div>`).join('');
+      container.querySelectorAll('.saved-remove-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.saved-row');
+          btn.disabled = true;
+          try {
+            await fetch(`/api/saved/${row.dataset.type}/${encodeURIComponent(row.dataset.key)}`, { method: 'DELETE' });
+            savedItemsCache = null; // "Kaydettiklerimden Ekle" seçicisi de tazelensin
+            loadColSaved();
+          } catch { btn.disabled = false; }
+        });
+      });
+      renderDashPagination('am-col-saved-pagination', colSavedPage, totalPages, (pg) => { colSavedPage = pg; renderColSaved(); });
+    }
+    async function loadColSaved() {
+      try {
+        const res = await fetch('/api/saved');
+        const data = res.ok ? await res.json() : { items: [] };
+        colSavedItems = data.items || [];
+      } catch { colSavedItems = []; }
+      renderColSaved();
+    }
+    on('am-col-saved-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      colSavedFilter = btn.dataset.filter;
+      colSavedPage = 1;
+      document.querySelectorAll('#am-col-saved-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderColSaved();
+    });
+
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
       loadCollections();
+      loadColSaved().catch(() => {});
     }).catch(() => {});
   }
 

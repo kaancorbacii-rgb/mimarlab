@@ -74,12 +74,12 @@ const ProjectModal = (function () {
 
     <div class="related-section" id="pm-products-section" aria-live="polite">
       <h2 class="related-title">Kullanılan Ürünler</h2>
-      <div class="catalog-grid-scroll" id="pm-products-grid"></div>
+      <div class="related-grid-scroll" id="pm-products-grid"></div>
     </div>
 
     <div class="related-section" id="pm-materials-section" aria-live="polite">
       <h2 class="related-title">Kullanılan Malzemeler</h2>
-      <div class="catalog-grid-scroll" id="pm-materials-grid"></div>
+      <div class="related-grid-scroll" id="pm-materials-grid"></div>
     </div>
 
     <div class="prevnext" id="pm-prevnext"></div>
@@ -258,8 +258,10 @@ const ProjectModal = (function () {
 
     const productsSection = document.getElementById('pm-products-section');
     const materialsSection = document.getElementById('pm-materials-section');
-    document.getElementById('pm-products-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
-    document.getElementById('pm-materials-grid').innerHTML = skeletonCardsHtml(4, 'catalog-card');
+    // İskelet kartlar da artık .related-card (bkz. project-products.js dosya başı yorumu — .catalog-*
+    // sınıflarının hiçbir CSS karşılığı yoktu, iskeletler de stilsiz/dev görünüyordu).
+    document.getElementById('pm-products-grid').innerHTML = skeletonCardsHtml(4);
+    document.getElementById('pm-materials-grid').innerHTML = skeletonCardsHtml(4);
     observeOnce(productsSection, () => { if (mySeq === requestSeq) ProjectProducts.mount(item); }, 1200);
   }
 

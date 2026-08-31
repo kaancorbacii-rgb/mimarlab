@@ -121,9 +121,9 @@
           <div class="nav-avatar-menu-sep"></div>
           <a href="aktivitelerim.html"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
-          <div class="nav-avatar-menu-sep"></div>
           <a href="koleksiyonum.html"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
+          <div class="nav-avatar-menu-sep"></div>
+          <a href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
           <div class="nav-avatar-menu-sep"></div>
           ${adminLink}
           <button type="button" id="nav-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
@@ -150,8 +150,8 @@
         <div class="nav-mobile-account-links">
           <a class="nav-mobile-link" href="hesabim.html"><span>${ICON_ACCOUNT}</span> Hesabım</a>
           <a class="nav-mobile-link" href="aktivitelerim.html"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
-          <a class="nav-mobile-link" href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
           <a class="nav-mobile-link" href="koleksiyonum.html"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
+          <a class="nav-mobile-link" href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
           ${mobileAdminLink}
           <button type="button" class="nav-mobile-link" id="nav-mobile-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
         </div>`;

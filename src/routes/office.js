@@ -313,14 +313,14 @@ async function buildOfficePayload(env, key) {
   }
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
-  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], hidden: false };
+  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], hidden: false };
   // gerçek bulgu (denetim raporu): satır yukarıdaki redirect-birleştirmeden SONRA hâlâ hidden_at
   // taşıyorsa (yani gerçekten gizli, yeniden adlandırma/birleştirme DEĞİL) bu uç item'ı yine de tam
   // olarak döndürüyordu — yalnızca `hidden:true` bayrağı ekleniyordu, veri gizlenmiyordu. Client-side
   // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
   // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
   // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
-  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], hidden: true };
+  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
   // MİMARLAB AI, Faz 2 — Knowledge Graph katmanı Firma↔Şehir ilişkisi (bkz. kullanıcı isteği:
   // Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkileri proje/mimar/firma sayfalarında yüzeye
@@ -328,7 +328,7 @@ async function buildOfficePayload(env, key) {
   // kuralı (bkz. dosya başı tanım) — yeni bir ayrıştırma mantığı EKLENMEDİ.
   const officeCity = cityOf(o.loc);
 
-  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
+  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, brandProductProjectsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
@@ -406,6 +406,23 @@ async function buildOfficePayload(env, key) {
        GROUP BY b.id
        ORDER BY used_count DESC, b.name COLLATE NOCASE`
     ).bind(o.id, o.id).all(),
+    // "Ürünlerin Kullanıldığı Projeler" (kullanıcı isteği, 2026-08-31: "markanın bir ürünü bir
+    // projede kullanılmışsa marka popupında 'Ürünlerin Kullanıldığı Projeler' başlığı altında
+    // yatay-tek satır halinde bu projeler gözüksün. Yani aynı ürün popupında yaptığın gibi") —
+    // src/routes/product.js#fetchProductProjects'in FİRMA/MARKA düzeyindeki karşılığı: tek bir ürün
+    // yerine bu markanın TÜM ürünleri üzerinden proje kümesi toplanır. Marka eşleşmesi
+    // brandProductsRes ile AYNI kuraldır (brand_office_id, o boşsa marka adı).
+    // relatedProjects'ten (firmanın TASARLADIĞI projeler) tamamen ayrı bir kümedir; bir marka
+    // hiçbir proje tasarlamamış olsa bile burası dolu olabilir.
+    env.DB.prepare(
+      `SELECT DISTINCT p.slug, p.title, p.location, p.images
+       FROM products pr
+       JOIN project_products pp ON pp.product_id = pr.id
+       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+         AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
+       ORDER BY p.id DESC`
+    ).bind(o.id, o.name).all(),
     fetchRawFounderNames(env, o),
     // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
     // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
@@ -501,6 +518,12 @@ async function buildOfficePayload(env, key) {
   // İlgili Markalar — kartlar firma kartlarıyla AYNI şekle sahiptir (slug/name/loc/logo), böylece
   // office-modal.js'teki mevcut cardHtml/logoUrl yolu değişmeden kullanılabilir.
   const relatedBrands = relatedBrandsRes.results.map(b => ({ slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0 }));
+  // Kartlar proje kartlarıyla AYNI şekle sahiptir (slug/title/images) — office-modal.js'teki mevcut
+  // cardHtml yolu değişmeden kullanılabilsin diye.
+  const brandProductProjects = brandProductProjectsRes.results.map(p => {
+    const parsed = parseCanonicalRow('projects', p);
+    return { slug: parsed.slug, title: parsed.title, images: parsed.images, location: parsed.location };
+  });
   const relatedProducts = brandCatalog.filter(p => p.kind !== 'material');
   const relatedMaterials = brandCatalog.filter(p => p.kind === 'material');
   // brandCatalog ile AYNI şekillendirme; ürün/malzeme ayrımı YAPILMAZ — bölüm tek başlık altında
@@ -528,5 +551,5 @@ async function buildOfficePayload(env, key) {
 
   const adjacent = await fetchAdjacentOffice(env, o.id);
 
-  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
+  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
 }
