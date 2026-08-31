@@ -148,7 +148,7 @@ const RelatedProjects = (function () {
   // (Tür) BİRİNCİL öncelik sırasıdır — havuz önce bu iki kritere TAM uyan adaylarla doldurulur.
   // ANCAK artık sert bir filtre DEĞİL (bkz. kullanıcı isteği, gerçek bulgu: "bu kritere göre bazı
   // projelerde hiç eşleşen aday kalmıyor, bölüm boş/eksik kalıyordu — tam eşleşme olmasa bile
-  // benzer örnekler vererek İlgili Projeler sayısı her zaman en az 15 olsun, kategoriye uymasa bile
+  // benzer örnekler vererek İlgili Projeler sayısı her zaman RESULT_COUNT'a dolsun, kategoriye uymasa bile
   // aynı türden farklı projeler önerilsin"): havuz ÜÇ seviyeye ayrılır — strictPool (Tür+Tip tam
   // eşleşen), disciplinePool (yalnızca Tür eşleşen, Tip farklı) ve fallbackPool (ne Tür ne Tip
   // eşleşen) — strictPool RESULT_COUNT'u karşılamazsa mount() sırasıyla disciplinePool'dan, o da
@@ -163,7 +163,11 @@ const RelatedProjects = (function () {
   // girmez (bkz. kullanıcı isteği: "aynı mimara ait başka proje bu kısımda olmamalı") — bu,
   // mount()'a geçirilen excludeSlugsPromise (ArchitectProjects'in gösterdiği TÜM slug'lar) ile sağlanır.
   const YEAR_FULL_ZERO_WINDOW = 10; // bu yıl farkı VE ÜZERİ -> yıl yakınlığı puanı 0
-  const RESULT_COUNT = 10;
+  // 9 — kullanıcı isteği (2026-08-31): TÜM öneri şeritleri (Benzer Projeler, Şehirdeki Diğer
+  // Projeler, Benzer Ürünler, Firmanın Diğer Ürünleri, Diğer Mimarlar, Şehirdeki Diğer Firmalar)
+  // en fazla 9 gönderi gösterir. Yalnızca ÖNERİ bölümleri kapsanır — mimarın/firmanın KENDİ
+  // projeleri/ürünleri (ArchitectProjects vb.) hâlâ eksiksiz listelenir (bkz. ArchitectProjects#mount).
+  const RESULT_COUNT = 9;
 
   function cardHtml(p) {
     const img = p.images && p.images[0];
@@ -458,7 +462,7 @@ const RelatedProjects = (function () {
 const CityProjects = (function () {
   const DEFAULT_IDS = { section: 'pm-city-section', grid: 'pm-city-grid' };
   let mountSeq = 0;
-  const RESULT_COUNT = 10;
+  const RESULT_COUNT = 9; // bkz. RelatedProjects#RESULT_COUNT — tüm öneri şeritleri için AYNI üst sınır
 
   function cardHtml(p) {
     const img = p.images && p.images[0];

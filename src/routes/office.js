@@ -348,10 +348,10 @@ async function buildOfficePayload(env, key) {
     // çıkarıyordu (1209 rows_read/çağrı) — bkz. audit raporu D#1. Sıralama artık D1'de DEĞİL,
     // proje.js#handleProjectListRoute'taki `sort=random` dalıyla AYNI Fisher-Yates deseniyle
     // (kullanıcı isteği: mevcut yerleşik desen tekrar kullanılsın) Worker belleğinde yapılıyor —
-    // WHERE koşulu/eşleşen kayıt kümesi DEĞİŞMEDİ, yalnızca "rastgele 12 tanesi" artık D1'e
+    // WHERE koşulu/eşleşen kayıt kümesi DEĞİŞMEDİ, yalnızca "rastgele 9 tanesi" artık D1'e
     // sıralatılmıyor. LIMIT 50 — aynı şehirdeki firma sayısı make-sense bir üst sınırla
     // kısıtlanır (İstanbul gibi en kalabalık şehirde bile onlarca değil yüzlerce firma olması
-    // beklenmez); şehir gerçekten 12'den azsa davranış AYNI (tüm eşleşenler döner).
+    // beklenmez); şehir gerçekten 9'dan azsa davranış AYNI (tüm eşleşenler döner).
     // cats/product_count da çekilir: aday listesi, PROFİLİN KENDİ türüne göre süzülür (bir markanın
     // popup'ında "Şehirdeki Diğer Markalar", bir firmanınkinde "Şehirdeki Diğer Firmalar", bkz.
     // kullanıcı isteği 2026-08-31 ve office-kind.js).
@@ -497,8 +497,9 @@ async function buildOfficePayload(env, key) {
   }
   // Aday listesi profilin KENDİ türüne göre süzülür: bir marka popup'ında yalnızca markalar
   // ("Şehirdeki Diğer Markalar"), bir firma popup'ında saf markalar hariç firmalar (bkz.
-  // office-kind.js, kullanıcı isteği 2026-08-31). Süzme KARIŞTIRMADAN ÖNCE yapılır ki "rastgele 10"
-  // her zaman doğru türden 10 kayıt olsun.
+  // office-kind.js, kullanıcı isteği 2026-08-31). Süzme KARIŞTIRMADAN ÖNCE yapılır ki "rastgele 9"
+  // her zaman doğru türden 9 kayıt olsun. 9 — tüm öneri şeritlerinin ORTAK üst sınırı (kullanıcı
+  // isteği 2026-08-31, bkz. js/components/project-related.js#RESULT_COUNT).
   // GERÇEK BULGU: `r.cats` burada HAM sütun değeridir — offices.cats JSON olarak saklanır
   // ('"Mimarlık · İç Mimarlık"' ya da '["Mobilya"]'), bu yüzden parseCanonicalRow'dan geçirilmeden
   // officeCatList'e verilirse tırnaklar/köşeli parantezler kategori adının parçası sayılır ve HİÇBİR
@@ -511,7 +512,7 @@ async function buildOfficePayload(env, key) {
         ? isBrandOffice(cats, r.product_count || 0)
         : !isPureBrandOffice(cats, r.product_count || 0);
     })
-    .slice(0, 10)
+    .slice(0, 9)
     .map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
   const brandCatalog = brandProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);

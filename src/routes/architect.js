@@ -434,13 +434,15 @@ async function buildArchitectPayload(env, key) {
     })
     .map(({ _year, ...rest }) => rest);
   // D1 audit (2026-08-25) P1-4 — bkz. yukarıdaki similarAgeRes sorgusundaki AYNI gerekçe: en fazla
-  // 50 aday burada karıştırılıp ilk 12'si alınır (D1'de ORDER BY RANDOM() KALDIRILDI).
+  // 50 aday burada karıştırılıp ilk 9'u alınır (D1'de ORDER BY RANDOM() KALDIRILDI). 9 — kullanıcı
+  // isteği (2026-08-31), tüm öneri şeritlerinin ORTAK üst sınırı (bkz. js/components/project-related.js
+  // #RESULT_COUNT).
   const shuffledArchitects = [...similarAgeRes.results];
   for (let i = shuffledArchitects.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffledArchitects[i], shuffledArchitects[j]] = [shuffledArchitects[j], shuffledArchitects[i]];
   }
-  const relatedArchitects = shuffledArchitects.slice(0, 10).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
+  const relatedArchitects = shuffledArchitects.slice(0, 9).map(r => ({ slug: r.slug, name: r.name, dob: r.dob, photo: r.photo_url }));
   const architectNameLower = a.name.trim().toLowerCase();
   const relatedProducts = designerProductsRes.results
     .filter(p => (p.designer || '').split(',').some(seg => seg.trim().toLowerCase() === architectNameLower))

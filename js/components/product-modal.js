@@ -885,7 +885,8 @@ const ProductModal = (function () {
       if (!res.ok) return;
       const data = await res.json();
       if (currentItem !== p) return;
-      const items = (data.items || []).filter(x => x.ratingKey !== selfKey).slice(0, 8);
+      // 9 — bkz. js/components/project-related.js#RESULT_COUNT: tüm öneri şeritlerinin ORTAK üst sınırı.
+      const items = (data.items || []).filter(x => x.ratingKey !== selfKey).slice(0, 9);
       if (!items.length) return;
       document.getElementById('pr-company-grid').innerHTML = items.map(r =>
         cardHtml(`/urun/${encodeURIComponent(r.slug)}`, r.title, r.image, r.category)
@@ -929,7 +930,7 @@ const ProductModal = (function () {
       if (currentItem !== p) return;
       const related = (data.items || [])
         .filter(x => x.ratingKey !== selfKey && (!p.brand || x.brand !== p.brand))
-        .slice(0, 10);
+        .slice(0, 9); // bkz. loadCompanyProducts'taki AYNI ortak üst sınır
       if (!related.length) return;
       document.getElementById('pr-related-title').textContent = 'Benzer Ürünler';
       // bkz. kullanıcı isteği (2026-08-17): burada r.ratingKey kullanılıyordu — puanlama/kaydetme
