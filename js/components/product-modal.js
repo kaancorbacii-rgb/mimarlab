@@ -291,12 +291,16 @@ const ProductModal = (function () {
         #pr-title{order:2; margin-top:20px;}
         #pr-byline{order:4;}
         .detail-info{order:6;}
-        #pr-company-section{order:7;}
-        #pr-related-section{order:8;}
-        #pr-prevnext{order:9;}
-        #pr-info-divider{order:10;}
-        #pr-files-card{order:11;}
-        #pr-feedback-card{order:12;}
+        /* Kullanılan Projeler (bkz. kullanıcı isteği 2026-08-31) — proje modalındaki "Kullanılan
+           Ürünler"in AYNADAKİ karşılığı, iki "diğer ürünler" bölümünden ÖNCE gelir (ürünün kendi
+           gerçek kullanımları, benzer/ilgili önerilerden daha öncelikli). */
+        #pr-projects-section{order:7;}
+        #pr-company-section{order:8;}
+        #pr-related-section{order:9;}
+        #pr-prevnext{order:10;}
+        #pr-info-divider{order:11;}
+        #pr-files-card{order:12;}
+        #pr-feedback-card{order:13;}
 
         /* Puanla/Kaydet/Paylaş/Websitesi artık bu satırda değil, X'in yanında sabit 36px'te (bkz.
            modal-shell.js#injectStyles) — buradaki eski dokunma-hedefi/gizleme kuralları kaldırıldı. */
@@ -354,6 +358,10 @@ const ProductModal = (function () {
         <button class="gallery-nav gallery-next" id="pr-gallery-next" type="button" aria-label="Sonraki görsel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
       <div class="gallery-counter" id="pr-gallery-counter"></div>
+    </div>
+    <div class="related-section" id="pr-projects-section" style="display:none;">
+      <h2 class="related-title">Kullanılan Projeler</h2>
+      <div class="related-grid-scroll" id="pr-projects-grid"></div>
     </div>
     <div class="related-section" id="pr-company-section" style="display:none;">
       <h2 class="related-title" id="pr-company-title">Firmanın Diğer Ürünleri</h2>
@@ -585,7 +593,7 @@ const ProductModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-brand-section', 'pr-designer-section',
-    'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
+    'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-projects-section', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
   // "Firmanın Diğer Ürünleri"/"Benzer Ürünler" bölümleri önceden renderItem() içinde HER AÇILIŞTA
@@ -760,6 +768,7 @@ const ProductModal = (function () {
     if (adminActions) adminActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
     mountEditAndAdminButtons(p, key);
 
+    renderUsedInProjects(p);
     observeOnce(document.getElementById('pr-gallery-wrap'), () => {
       if (currentItem !== p) return;
       loadCompanyProducts(p, key);
@@ -866,6 +875,21 @@ const ProductModal = (function () {
       ).join('');
       section.style.display = '';
     } catch {}
+  }
+
+  // "Kullanılan Projeler" — js/components/project-products.js'in (proje popup'ındaki "Kullanılan
+  // Ürünler") AYNADAKİ karşılığı. Veri AYRI bir fetch GEREKTİRMEZ: item.projects zaten GET
+  // /api/product/:key yanıtında geliyor (bkz. src/routes/product.js#fetchProductProjects), tıpkı
+  // proje modalının item.products'ı gibi — bu yüzden observeOnce ile ertelenmez, hemen çizilir.
+  function renderUsedInProjects(p) {
+    const section = document.getElementById('pr-projects-section');
+    if (!section) return;
+    const items = p.projects || [];
+    if (!items.length) { section.style.display = 'none'; return; }
+    document.getElementById('pr-projects-grid').innerHTML = items.map(pr =>
+      cardHtml(`/proje/${encodeURIComponent(pr.slug)}`, pr.title, pr.image, pr.location)
+    ).join('');
+    section.style.display = '';
   }
 
   // Benzer Ürünler: AYNI kategoriden, FARKLI firmaların ürünleri (bkz. kullanıcı isteği) — kendi

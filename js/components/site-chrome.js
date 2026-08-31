@@ -16,11 +16,15 @@
   // proje.html içinde Liste/Harita'nın yanında üçüncü bir sekme (bkz. proje.html#view-toggle-top100).
   // Düello özelliği ise 2026-08-29'da tamamen kaldırıldı (bkz. kullanıcı isteği: "Takip Et"
   // özelliğine yer açmak için) — footerHtml()'in Topluluk sütunundaki link de bu yüzden gitti.
+  // Sıra kullanıcı isteğiyle sabitlendi (2026-08-31): PROJE · MİMAR · FİRMA · ÜRÜN · MARKA.
+  // 'marka' — üretici ürün firmalarının listesi (bkz. marka.html dosya başı yorumu); firma.html'le
+  // AYNI `offices` verisini ?brands=1 ile daraltır, ayrı bir tablo/tip DEĞİL.
   const NAV_ITEMS = [
     { key: 'proje', href: 'proje.html', label: 'Proje' },
-    { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
     { key: 'mimar', href: 'mimar.html', label: 'Mimar' },
     { key: 'firma', href: 'firma.html', label: 'Firma' },
+    { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
+    { key: 'marka', href: 'marka.html', label: 'Marka' },
   ];
 
   // Işık modunda logo koyu (lacivert/siyah) harflerle, R'daki daire+üçgen ise her zaman mavi (bkz.
@@ -286,7 +290,7 @@
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="urun.html">Ürün</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="urun.html">Ürün</a><a href="marka.html">Marka</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a><a href="cerez-politikasi.html">Çerez Politikası</a></div>
     </div>

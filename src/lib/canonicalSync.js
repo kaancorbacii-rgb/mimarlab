@@ -803,6 +803,61 @@ async function resolveProjectProductLinks(env, brandsArray, contextLabel) {
   return [...productIds];
 }
 
+// urun-ekle.html'deki "Kullanılan Projeler" kutusunun ({slug,title} listesi) proje id'lerine
+// çözülmesi — resolveProjectProductLinks'in AYNADAKİ karşılığı. Kutu autocomplete'ten seçim yaptığı
+// için slug neredeyse her zaman doludur; elle yazılıp slug'sız kalan bir satır için başlıkla
+// (tam eşleşme, büyük/küçük harf duyarsız) ikinci bir deneme yapılır.
+async function resolveProductProjectLinks(env, projectsArray, contextLabel) {
+  const projectIds = new Set();
+  for (const raw of (projectsArray || [])) {
+    const entry = raw && typeof raw === 'object' ? raw : { slug: String(raw || ''), title: '' };
+    const slug = (entry.slug || '').trim();
+    const title = (entry.title || '').trim();
+    let found = null;
+    if (slug) {
+      found = await env.DB.prepare(
+        `SELECT id FROM projects WHERE slug = ? AND deleted_at IS NULL AND hidden_at IS NULL LIMIT 1`
+      ).bind(slug).first();
+    }
+    if (!found && title) {
+      const { results } = await env.DB.prepare(
+        `SELECT id, title AS name FROM projects WHERE title = ? COLLATE NOCASE AND deleted_at IS NULL AND hidden_at IS NULL LIMIT 2`
+      ).bind(title).all();
+      // Aynı başlıkta birden fazla proje varsa hangisinin kastedildiği belirsiz — findOneByName'in
+      // AYNI davranışı: sessizce yanlış bir kaydı bağlamak yerine çakışma kaydedilip atlanır.
+      // `title AS name` — logConflict adayları {id, name} olarak serileştirir (bkz. o fonksiyon).
+      if (results.length === 1) found = results[0];
+      else if (results.length > 1) await logConflict(env, 'product_project', title, contextLabel, results);
+    }
+    if (found) projectIds.add(found.id);
+  }
+  return [...projectIds];
+}
+
+// project_products kenarlarını TEK bir taraftan (proje ya da ürün) yeniden kurar — bkz.
+// migrations/0072_product_project_links.sql. side='project' ise from_project sütunu, side='product'
+// ise from_product sütunu bu tarafın GÜNCEL listesine göre sıfırlanıp yeniden yazılır; karşı tarafın
+// bayrağına HİÇ dokunulmaz. Her iki bayrağı da 0'a düşen satır (artık hiçbir taraf istemiyor) silinir.
+//
+// Bu ayrım OLMADAN çift yönlülük imkânsızdı (kullanıcı isteği, 2026-08-31): eskiden syncProject bir
+// projenin TÜM project_products satırlarını silip brands'ten yeniden kuruyordu — ürün tarafından
+// eklenmiş bir kenar, o proje bir daha kaydedildiği anda sessizce yok olurdu.
+async function setProjectProductLinks(env, side, ownerColumn, ownerId, otherColumn, otherIds) {
+  const myFlag = side === 'project' ? 'from_project' : 'from_product';
+  const otherFlag = side === 'project' ? 'from_product' : 'from_project';
+  await env.DB.prepare(`UPDATE project_products SET ${myFlag} = 0 WHERE ${ownerColumn} = ?`).bind(ownerId).run();
+  for (const otherId of otherIds) {
+    await env.DB.prepare(
+      `INSERT INTO project_products (${ownerColumn}, ${otherColumn}, ${myFlag}, ${otherFlag})
+       VALUES (?, ?, 1, 0)
+       ON CONFLICT(project_id, product_id) DO UPDATE SET ${myFlag} = 1`
+    ).bind(ownerId, otherId).run();
+  }
+  await env.DB.prepare(
+    `DELETE FROM project_products WHERE ${ownerColumn} = ? AND from_project = 0 AND from_product = 0`
+  ).bind(ownerId).run();
+}
+
 async function syncProject(env, row) {
   const claimedSlug = row.claimed_slug;
   const marker = submissionMarker(row.id);
@@ -913,12 +968,14 @@ async function syncProject(env, row) {
     if (statements.length) await env.DB.batch(statements);
   }
 
-  if (row.brands && row.brands.length) {
-    await env.DB.prepare(`DELETE FROM project_products WHERE project_id = ?`).bind(projectId).run();
+  // Eskiden bu blok yalnızca `row.brands` DOLUYSA çalışıyordu (ve o projenin TÜM project_products
+  // satırlarını silip yeniden kuruyordu) — artık her onayda koşulsuz çalışır ama YALNIZCA from_project
+  // bayrağını yönetir (bkz. setProjectProductLinks). İki kazanım: (1) kutudaki son chip'in silinmesi
+  // artık gerçekten kenarı da kaldırır, (2) ürün tarafından (urun-ekle.html'in "Kullanılan Projeler"
+  // kutusundan) kurulmuş kenarlar bu projenin her kaydedilişinde silinmez.
+  {
     const productIds = await resolveProjectProductLinks(env, row.brands, `project_submission:${row.id}`);
-    for (const productId of productIds) {
-      await env.DB.prepare(`INSERT OR IGNORE INTO project_products (project_id, product_id) VALUES (?, ?)`).bind(projectId, productId).run();
-    }
+    await setProjectProductLinks(env, 'project', 'project_id', projectId, 'product_id', productIds);
   }
   return env.DB.prepare(`SELECT * FROM projects WHERE id = ?`).bind(projectId).first();
 }
@@ -973,6 +1030,13 @@ async function syncProduct(env, row, kind) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, legacyKey, row.owner_user_id));
     productId = insert.meta.last_row_id;
+  }
+  // "Kullanılan Projeler" kutusu — syncProject'teki AYNI desen, yalnızca from_product bayrağını
+  // yönetir (bkz. setProjectProductLinks, kullanıcı isteği 2026-08-31: ürün popup'ına eklenen proje,
+  // o projenin popup'ındaki "Kullanılan Ürünler"de de görünsün).
+  {
+    const projectIds = await resolveProductProjectLinks(env, row.projects, `${kind}_submission:${row.id}`);
+    await setProjectProductLinks(env, 'product', 'product_id', productId, 'project_id', projectIds);
   }
   return env.DB.prepare(`SELECT * FROM products WHERE id = ?`).bind(productId).first();
 }

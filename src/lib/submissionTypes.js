@@ -55,16 +55,22 @@ export const SUBMISSION_TYPES = {
     // öğeler düz URL string DEĞİL {url,filename,format,size} nesnesi olduğundan urlArrayFields'a
     // EKLENMEZ (isSafeUrlValue düz string bekler) — kendi doğrulaması findInvalidFilesField'de
     // (aşağıda) ayrıca yapılır.
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs', 'files'],
+    // projects: urun-ekle.html'deki "Kullanılan Projeler (opsiyonel)" kutusu — sitede halihazırda
+    // yayımlanmış projelerden seçilen [{slug,title}] listesi (bkz. migrations/
+    // 0072_product_project_links.sql, kullanıcı isteği). project_submissions.brands'in AYNADAKİ
+    // karşılığı; onaylandığında src/lib/canonicalSync.js#resolveProductProjectLinks tarafından
+    // project_products kenarına (from_product=1 ile) çevrilir. Serbest URL taşımadığından
+    // urlArrayFields'a girmez, öğeleri düz string DEĞİL nesne olduğundan da girmemeli (bkz. files).
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'source_url', 'ai_generated'],
+    arrayFields: ['images', 'specs', 'files', 'projects'],
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
   },
   materials: {
     table: 'material_submissions',
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'source_url', 'ai_generated'],
-    arrayFields: ['images', 'specs', 'files'],
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'source_url', 'ai_generated'],
+    arrayFields: ['images', 'specs', 'files', 'projects'],
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
     urlArrayFields: ['images'],
@@ -232,6 +238,29 @@ export function findInvalidFilesField(type, body) {
     total += size;
   }
   if (total > MAX_PRODUCT_FILES_TOTAL_BYTES) return 'Toplam dosya boyutu sınırı aşıldı (en fazla 30 MB).';
+  return null;
+}
+
+// body.projects (ürün/malzeme gönderilerindeki "Kullanılan Projeler" kutusu) yapısal olarak geçerli
+// mi: her öğe {slug, title} biçiminde düz metin taşır. findInvalidFilesField ile AYNI gerekçe —
+// arrayFields'a girdiği için JSON olarak olduğu gibi saklanıyor, öğe düz string DEĞİL nesne olduğundan
+// urlArrayFields'ın isSafeUrlValue kontrolü buraya uygulanamaz; doğrudan API'ye gönderilen bir istek
+// (curl/eski istemci) aksi halde buraya gelişigüzel bir yapı yazabilirdi.
+const MAX_PRODUCT_PROJECTS_COUNT = 50;
+export function findInvalidProjectsField(type, body) {
+  if (type !== 'products' && type !== 'materials') return null;
+  if (!('projects' in body) || body.projects == null) return null;
+  const projects = body.projects;
+  if (!Array.isArray(projects)) return 'Kullanılan Projeler alanı geçersiz.';
+  if (projects.length > MAX_PRODUCT_PROJECTS_COUNT) return `En fazla ${MAX_PRODUCT_PROJECTS_COUNT} proje ekleyebilirsin.`;
+  for (const p of projects) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return 'Kullanılan Projeler alanı geçersiz.';
+    const slug = p.slug == null ? '' : p.slug;
+    const title = p.title == null ? '' : p.title;
+    if (typeof slug !== 'string' || typeof title !== 'string') return 'Kullanılan Projeler alanı geçersiz.';
+    if (!slug.trim() && !title.trim()) return 'Kullanılan Projeler alanı geçersiz.';
+    if (slug.length > 300 || title.length > 300) return 'Kullanılan Projeler alanı geçersiz.';
+  }
   return null;
 }
 

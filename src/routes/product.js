@@ -69,6 +69,24 @@ export async function handleProductSearchRoute(request, env, url) {
 // Önceki/Sonraki Ürün — bkz. src/lib/adjacentEntity.js. kind (product/material) sınırı GÖZETİLMEZ —
 // id sırası tüm `products` tablosu üzerinden dairesel/sıralı. bkz. kullanıcı isteği: Önceki/Sonraki
 // butonlarına önizleme görseli eklenmesi.
+// "Kullanılan Projeler" (bkz. js/components/product-modal.js#renderUsedInProjects) — src/routes/
+// project.js#fetchProjectProducts'ın AYNADAKİ karşılığı, AYNI project_products join'i ters yönde
+// okunur. Kenar iki taraftan da kurulmuş olabilir (proje-ekle.html'deki "Kullanılan Ürünler /
+// Firmalar" kutusu ya da urun-ekle.html'deki "Kullanılan Projeler" kutusu, bkz. migrations/
+// 0072_product_project_links.sql) — burada ayrım YAPILMAZ, iki kaynak da aynı listeye düşer.
+function firstImage(imagesJson) {
+  try { const arr = imagesJson ? JSON.parse(imagesJson) : []; return arr[0] || null; } catch { return null; }
+}
+async function fetchProductProjects(env, productId) {
+  const { results } = await env.DB.prepare(
+    `SELECT p.slug, p.title, p.location, p.images FROM project_products pp
+     JOIN projects p ON p.id = pp.project_id
+     WHERE pp.product_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+     ORDER BY p.id DESC`
+  ).bind(productId).all();
+  return results.map(row => ({ slug: row.slug, title: row.title, location: row.location, image: firstImage(row.images) }));
+}
+
 async function fetchAdjacentProduct(env, id) {
   const { prev, next } = await fetchAdjacentEntity(env, 'products', id, { titleCol: 'title', imageCol: 'images', imageIsJsonArray: true });
   return { prevItem: prev, nextItem: next };
@@ -189,12 +207,14 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     // — yeni bir puanlama/kaydetme SessizCE yanlış bir target_id'ye yazılıp mevcut ortalamadan/sayaçtan
     // kopardı. Doğru anahtar burada AYRICA döndürülüp istemci tarafında slug yerine bu kullanılmalı.
     item.ratingKey = ratingKeyFor(item.title, item.brand, item.submissionId);
-    const [adjacent, owner] = await Promise.all([
+    const [adjacent, owner, usedInProjects] = await Promise.all([
       fetchAdjacentProduct(env, row.id),
       fetchOwnerByline(env, row.claimed_by_user_id),
+      fetchProductProjects(env, row.id),
     ]);
     item.prevItem = adjacent.prevItem;
     item.nextItem = adjacent.nextItem;
+    item.projects = usedInProjects;
     if (owner) Object.assign(item, owner);
     return { item, hidden: !!row.hidden_at };
   });

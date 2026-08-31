@@ -31,6 +31,9 @@
   const ICON_ACTIVITY = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.4 5.7 6.1.7-4.6 4.2 1.3 6-5.2-3.2-5.2 3.2 1.3-6-4.6-4.2 6.1-.7z"/></svg>';
   const ICON_CONTENT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.2A2 2 0 0 1 5 5.2h3.4l1.8 2.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.2z"/></svg>';
   const ICON_ADMIN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6.5" x2="20" y2="6.5"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17.5" x2="20" y2="17.5"/><circle cx="9" cy="6.5" r="1.7" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="10.5" cy="17.5" r="1.7" fill="currentColor" stroke="none"/></svg>';
+  // Koleksiyonum (kullanıcı isteği, 2026-08-31) — İçeriklerim ile ÇIKIŞ YAP arasındaki yeni sayfa
+  // (bkz. js/components/auth-modal.js#collectionsTemplate). Diğer ikonlarla AYNI 16px/stroke stili.
+  const ICON_COLLECTION = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg>';
   const ICON_LOGOUT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 21H5.8a1.8 1.8 0 0 1-1.8-1.8V4.8A1.8 1.8 0 0 1 5.8 3H9.5"/><polyline points="15.5 16.5 20.5 12 15.5 7.5"/><line x1="20.2" y1="12" x2="9" y2="12"/></svg>';
   function injectStyleOnce() {
     if (document.getElementById('auth-nav-style')) return;
@@ -120,6 +123,8 @@
           <div class="nav-avatar-menu-sep"></div>
           <a href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
           <div class="nav-avatar-menu-sep"></div>
+          <a href="koleksiyonum.html"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
+          <div class="nav-avatar-menu-sep"></div>
           ${adminLink}
           <button type="button" id="nav-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
         </div>
@@ -146,6 +151,7 @@
           <a class="nav-mobile-link" href="hesabim.html"><span>${ICON_ACCOUNT}</span> Hesabım</a>
           <a class="nav-mobile-link" href="aktivitelerim.html"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
           <a class="nav-mobile-link" href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
+          <a class="nav-mobile-link" href="koleksiyonum.html"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
           ${mobileAdminLink}
           <button type="button" class="nav-mobile-link" id="nav-mobile-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
         </div>`;

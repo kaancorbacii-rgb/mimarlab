@@ -1,7 +1,7 @@
 import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
-import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, findOversizedField, findInvalidFilesField } from '../lib/submissionTypes.js';
+import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequired, findInvalidUrlField, findInvalidSocialPlatform, isInvalidSchoolValue, findInvalidProjectTaxonomyField, findOversizedField, findInvalidFilesField, findInvalidProjectsField } from '../lib/submissionTypes.js';
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
@@ -192,6 +192,8 @@ async function createSubmission(request, env, user, typeKey) {
   if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);
   const invalidFilesError = findInvalidFilesField(typeKey, body);
   if (invalidFilesError) return errorJson(invalidFilesError);
+  const invalidProjectsError = findInvalidProjectsField(typeKey, body);
+  if (invalidProjectsError) return errorJson(invalidProjectsError);
   if (findInvalidSocialPlatform(typeKey, body)) return errorJson('Geçersiz sosyal medya platformu.');
   const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
   if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);
@@ -352,6 +354,8 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);
   const invalidFilesError = findInvalidFilesField(typeKey, body);
   if (invalidFilesError) return errorJson(invalidFilesError);
+  const invalidProjectsError = findInvalidProjectsField(typeKey, body);
+  if (invalidProjectsError) return errorJson(invalidProjectsError);
   if (findInvalidSocialPlatform(typeKey, body)) return errorJson('Geçersiz sosyal medya platformu.');
   const invalidTaxonomyField = findInvalidProjectTaxonomyField(typeKey, body);
   if (invalidTaxonomyField) return errorJson(`"${invalidTaxonomyField}" alanı yalnızca izin verilen seçeneklerden oluşabilir.`);

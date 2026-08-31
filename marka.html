@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<!-- marka.html — firma.html'in TÜRETİLMİŞ kopyası (kullanıcı isteği, 2026-08-31: "Ana menüdeki
+     FİRMA sayfasının aynısını kopyala ve ismini MARKA koy. Bu sayfada üretici ürün firmaları
+     yayınlanacak ve artık isimleri MARKA olacak"). firma.html'den SADECE üç şey farklı:
+       1) etiketler ("Firma" → "Marka") ve <head> meta/canonical (/firma → /marka),
+       2) liste isteği ?brands=1 taşır (bkz. src/routes/office.js#handleOfficeListRoute — aynı
+          `offices` havuzu, yalnızca kataloğunda ürünü olan firmalar),
+       3) data-nav-active="marka".
+     Kart tıklaması/detay popup'ı BİLEREK değişmedi: markalar da birer `offices` satırı olduğundan
+     detay URL'si /firma/:slug ve popup js/components/office-modal.js olarak kalır — ayrı bir
+     /marka/:slug SSR öneki/redirect zinciri açmaya gerek yok (bkz. src/index.js#CLEAN_URL_ASSETS). -->
+<html lang="tr">
+<head>
+<script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
+<script>(function(){try{if(/^\/firma\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
+<link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
+<title>Markalar — MİMARLAB</title>
+<meta name="description" content="Mimarlık ve tasarım ürünleri üreten markaları keşfet." id="meta-description">
+<link rel="canonical" href="https://mimarlab.com/marka" id="canonical-link">
+<meta property="og:type" content="website" id="og-type">
+<meta property="og:site_name" content="MİMARLAB">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Markalar — MİMARLAB" id="og-title">
+<meta property="og:description" content="Mimarlık ve tasarım ürünleri üreten markaları keşfet." id="og-description">
+<meta property="og:url" content="https://mimarlab.com/marka" id="og-url">
+<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Markalar — MİMARLAB" id="twitter-title">
+<meta name="twitter:description" content="Mimarlık ve tasarım ürünleri üreten markaları keşfet." id="twitter-description">
+<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
+<!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
+     sayfalarının <head>'ine ... application/ld+json ekle") — /firma/:slug detay görünümünde
+     OfficeModal kendi Organization şemasını AYRI bir <script> olarak ekler, bu ikisiyle çakışmaz. -->
+<script type="application/ld+json" id="list-jsonld">
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Markalar — MİMARLAB","url":"https://mimarlab.com/marka","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+</script>
+<!-- Temiz URL'lerle bu sayfa /firma dışında /firma/:slug altında da (firma modalını doğrudan açan
+     bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç
+     içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
+     gerekçe). -->
+<base href="/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- logoUrl() (bkz. badge-shared.js) resmi olmayan firmalarda icons.duckduckgo.com'a düşer — bu
+     sayfadaki ilk eager kartlar (bkz. renderGrid#eagerCardCount) arasında bu düşüş gerçekleşirse
+     DNS/TLS turu görselin İLK baytından önce eklenir; preconnect bunu erkenden başlatır (denetim
+     bulgusu, 2026-08-24 — yalnızca burada eklendi, çünkü firma.html'in eager kartları AYNI render
+     turunda logoUrl()'ün kendisini kullanıyor; en-iyi-100.html/arama.html'deki logoUrl() kullanımları
+     zaten loading="lazy"). -->
+<link rel="preconnect" href="https://icons.duckduckgo.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#1B2A3D;
+    --ink-soft:#4E6478;
+    --paper:#EDF0F3;
+    --paper-card:#F8FAFB;
+    --paper-alt:#E0E6EC;
+    --walnut:#2B425F;
+    --brass:#5B7A9B;
+    --brass-soft:#AFC5D8;
+    --sage:#4F6478;
+    --accent:#E08A3E;
+    --line: rgba(27,42,61,0.14);
+    --line-soft: rgba(27,42,61,0.08);
+  }
+
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ink:#E8ECF1;
+    --ink-soft:#93A4B8;
+    --paper:#12171F;
+    --paper-card:#1A212B;
+    --paper-alt:#212A35;
+    --walnut:#8FB0DA;
+    --brass:#7FA0C4;
+    --brass-soft:#2E3F52;
+    --sage:#8CA3BA;
+    --rust:#D08F8F;
+    --accent:#E8A968;
+    --accent-soft:#4A3624;
+    --good:#5FB37D;
+    --bad:#DD7676;
+    --line: rgba(232,236,241,0.14);
+    --line-soft: rgba(232,236,241,0.08);
+  }
+  [data-theme="dark"] .nav{background:rgba(18,23,31,0.92);}
+  [data-theme="dark"] .site-footer,
+  [data-theme="dark"] .cta-band,
+  [data-theme="dark"] .breadcrumb-bar{
+    --ink:#17202B; --ink-soft:#1E2836; --paper:#EDF0F3; --paper-card:#232C38; --brass-soft:#AFC5D8; --brass:#5B7A9B;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
+  .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:24px;
+    padding:10px 32px;
+    background:rgba(237,240,243,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-search{
+    flex:1; max-width:380px;
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:9px 16px;
+  }
+  .nav-search svg{flex-shrink:0; opacity:0.5;}
+  .nav-search input{
+    border:none; background:none; outline:none;
+    font-family:inherit; font-size:13.5px; width:100%; color:var(--ink);
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-logo{height:24px; width:auto; display:block;}
+  .nav-links{display:flex; align-items:center; gap:20px; margin-left:auto;}
+  .nav-link{font-size:14.5px; color:var(--ink-soft); font-weight:500; white-space:nowrap; text-transform:uppercase; background:none; border:none; font-family:inherit;}
+  .nav-link:hover, .nav-link.active{color:var(--ink);}
+  /* Ürün açılır menü düğmesi (bkz. js/components/nav-product-menu.js) — bu reset burada, sayfanın
+     KENDİ <style>'ında olmalı, yalnızca JS'in enjekte ettiği stilde değil: nav-product-menu.js
+     defer'lı olduğundan ilk boyamadan SONRA çalışır, o ana kadar <button> tarayıcı varsayılan
+     çerçeve/arkaplanıyla görünüp kaybolan bir gri dikdörtgen gibi çakıyordu (bkz. kullanıcı isteği). */
+  .nav-link-wrap{position:relative;}
+  .nav-link-trigger{display:flex; align-items:center; gap:5px; cursor:pointer; background:none; border:none; padding:0; margin:0;}
+  .nav-link-trigger svg{transition:transform .15s ease;}
+  .nav-link-trigger[aria-expanded="true"] svg{transform:rotate(180deg);}
+  .nav-hamburger{
+    display:none;
+    background:none; border:1px solid var(--line);
+    border-radius:8px; padding:8px;
+    color:var(--ink); align-items:center; justify-content:center;
+  }
+  .nav-mobile-menu{
+    display:none;
+    position:absolute; top:100%; right:18px; z-index:95;
+    background:var(--paper-card); border:1px solid var(--line);
+    border-radius:12px; padding:8px;
+    box-shadow:0 12px 28px rgba(27,42,61,0.15);
+    flex-direction:column; min-width:220px;
+    /* bkz. index.html'deki AYNI gerçek bulgu/gerekçe — kullanıcı isteği: mobil hamburger menüde
+       Ürün akordeonu açılınca panelin altına kaydırılamaması sorununun kökten çözümü. */
+    max-height:calc(100vh - 90px); overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .nav-mobile-menu.open{display:flex;}
+  .nav-mobile-link{
+    padding:11px 14px; border-radius:8px;
+    font-size:14.5px; font-weight:500; color:var(--ink);
+    text-transform:uppercase;
+  }
+  .nav-mobile-link:hover{background:var(--paper-alt);}
+  .nav-mobile-search{
+    display:flex; align-items:center; gap:8px;
+    background:var(--paper); border:1px solid var(--line);
+    border-radius:100px; padding:9px 14px;
+    margin-bottom:8px;
+  }
+  .nav-mobile-search svg{flex-shrink:0; opacity:0.55;}
+  .nav-mobile-search input{
+    border:none; background:none; outline:none;
+    font-family:inherit; font-size:16px; width:100%; color:var(--ink);
+  }
+  .nav-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .nav-rate{
+    background:none; color:var(--ink);
+    padding:8px 17px; border-radius:100px;
+    border:1.5px solid var(--ink);
+    font-size:14px; font-weight:600; white-space:nowrap;
+    text-transform:uppercase;
+  }
+  .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
+
+  /* ---------- BREADCRUMB ---------- */
+  .breadcrumb-bar{
+    background:var(--ink); color:rgba(237,240,243,0.7);
+    padding:14px 32px; font-size:13.5px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
+  .breadcrumb-bar a:hover{color:var(--brass-soft);}
+  .breadcrumb-bar .sep{opacity:0.4;}
+  .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
+
+  /* ---------- PAGE HEAD ---------- */
+  .page-head{max-width:1260px; margin:0 auto; padding:28px 32px 0;}
+  .page-head h1{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:28px; font-weight:700; margin:0 0 4px;}
+  .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
+
+  /* ---------- SSR ENTITY BODY (bkz. src/index.js#injectMeta, src/lib/seo.js#bodyHtml) ---------- */
+  /* /firma/:slug altında serveDetailPage tarafından doldurulur; listeleme sayfasında (/firma) boş
+     kalır, :empty kuralı sayfaya gereksiz bir boşluk eklenmesini önler. */
+  .ssr-entity:empty{display:none;}
+  .ssr-entity{max-width:1260px; margin:0 auto; padding:0 32px 20px; display:flex; gap:20px; align-items:flex-start;}
+  .ssr-entity img{width:160px; height:160px; object-fit:cover; border-radius:8px; flex-shrink:0;}
+  .ssr-entity-text{flex:1; min-width:0;}
+  .ssr-entity-text p{color:var(--ink-soft); font-size:14px; line-height:1.6; max-width:70ch; margin:0 0 10px;}
+  .ssr-facts{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:13.5px; margin:0;}
+  .ssr-facts dt{color:var(--ink-soft); font-weight:600;}
+  .ssr-facts dd{margin:0;}
+  .ssr-facts a{color:inherit;}
+  @media (max-width:720px){
+    .ssr-entity{flex-direction:column; padding:0 16px 16px;}
+    .ssr-entity img{width:100%; max-width:280px; height:auto;}
+  }
+
+  /* bkz. proje.html'deki AYNI gerçek bulgu (kullanıcı isteği, 2026-08-24) — /firma/:slug'a doğrudan
+     girildiğinde çıplak SSR içeriği (.page-head/.ssr-entity) defer script'ler yüklenip OfficeModal
+     devreye girene kadar hiçbir overlay olmadan görünür kalıyordu. <head>'deki senkron script ilk
+     boyamadan önce <html>'e pm-boot-loading ekler; js/pages/firma.js'teki DOMContentLoaded handler
+     OfficeModal.open()'ın Promise'i çözülünce kaldırır. */
+  html.pm-boot-loading .page-head, html.pm-boot-loading #ssr-entity-body{visibility:hidden;}
+  html.pm-boot-loading::before{
+    content:''; position:fixed; inset:0; z-index:160;
+    background:rgba(27,42,61,0.42); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  [data-theme="dark"].pm-boot-loading::before{background:rgba(255,255,255,0.16);}
+
+  /* ---------- FILTER SELECT (shared) ---------- */
+  .filter-select{position:relative;}
+  .filter-select select{
+    appearance:none; -webkit-appearance:none;
+    width:100%;
+    background:var(--paper); border:1px solid var(--line);
+    border-radius:10px; padding:10px 34px 10px 14px;
+    font-size:13.5px; font-weight:500; color:var(--ink); font-family:inherit;
+  }
+  .filter-select select:hover{border-color:var(--walnut);}
+  .select-arrow{position:absolute; right:14px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
+
+  /* ---------- GRID LAYOUT ---------- */
+  .grid-layout{
+    max-width:1260px; margin:0 auto;
+    padding:20px 32px 90px;
+    display:grid; grid-template-columns:240px 1fr;
+    gap:28px; align-items:start;
+  }
+  .grid-sidebar{
+    background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
+    padding:18px; display:flex; flex-direction:column; gap:12px;
+    position:sticky; top:90px;
+  }
+  .sidebar-filters-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:15px; font-weight:700;}
+  .sidebar-search{display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
+  .sidebar-search svg{flex-shrink:0; opacity:0.5;}
+  .sidebar-search input{border:none; background:none; outline:none; font-family:inherit; font-size:13px; width:100%; color:var(--ink);}
+  .grid-sidebar-head{display:flex; align-items:center; gap:8px; margin-bottom:2px;}
+  .grid-icon-btn{
+    width:32px; height:32px; border-radius:8px; flex-shrink:0;
+    border:1px solid var(--line); background:var(--paper);
+    display:flex; align-items:center; justify-content:center; color:var(--ink-soft);
+  }
+  .grid-icon-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .grid-icon-btn.reset{margin-left:auto;}
+  /* Masaüstünde .grid-sidebar'ın (dikey, tam genişlik) normal akışına karışmadan, Konum ve
+     Tecrübe'nin ayrı ayrı tam genişlikte alt alta sıralanmaya devam etmesi için display:contents
+     ile "görünmez" bırakılır; ≤960px'te gerçek bir yatay satıra dönüşür (bkz. aşağıdaki media query,
+     kullanıcı isteği: "tablet ve mobil görünümde konum kutucuğunun sağ yanına Tecrübe kutucuğunu
+     koy"). */
+  .loc-exp-row{display:contents;}
+  .sidebar-add-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; background:var(--ink); color:var(--paper-card);
+    padding:12px; border-radius:100px; font-weight:600; font-size:13.5px;
+  }
+  .sidebar-add-btn:hover{background:var(--walnut);}
+  .sidebar-add-icon{
+    display:flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:50%;
+    background:rgba(237,240,243,0.2); font-size:14px; line-height:1;
+  }
+
+  .card-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:20px;}
+  .office-card{
+    display:block; background:var(--paper-card);
+    border:1px solid var(--line-soft); border-radius:14px; overflow:hidden;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .office-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
+  .office-card-logo{
+    position:relative; aspect-ratio:1/1; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:26px;
+    padding:16px;
+  }
+  .office-card-logo img{
+    max-width:100%; max-height:100%; object-fit:contain;
+    background:var(--paper-card); border-radius:8px; padding:6px;
+  }
+  .office-card-body{padding:12px 14px;}
+  .office-card-name{
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14.5px; color:var(--ink);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .verified-badge-icon{display:inline-flex; align-items:center; color:var(--accent); vertical-align:middle; margin-left:4px; flex-shrink:0;}
+  .office-card-loc{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+  .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft); font-size:14px; display:none;}
+
+  .pagination{
+    display:flex; align-items:center; justify-content:center;
+    gap:6px; margin-top:28px;
+    flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;
+  }
+  .pagination::-webkit-scrollbar{display:none;}
+  .page-btn{
+    min-width:38px; height:38px; padding:0 10px; flex-shrink:0;
+    border:1px solid var(--line); background:var(--paper-card);
+    border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+  }
+  .page-btn:hover{border-color:var(--walnut); color:var(--ink);}
+  .page-btn.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+  .page-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .page-btn-arrow{display:flex; align-items:center; justify-content:center; padding:0;}
+  .page-ellipsis{
+    min-width:22px; height:38px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink-soft); font-size:13.5px; font-weight:600; user-select:none;
+  }
+
+  /* ---------- FOOTER ---------- */
+  .site-footer{background:var(--ink); color:var(--paper);}
+  .footer-top{
+    max-width:1080px; margin:0 auto;
+    padding:48px 32px 32px;
+    display:grid; grid-template-columns:2fr 1fr 1fr 1fr;
+    gap:32px;
+  }
+  .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .footer-logo-img{height:22px; width:auto; display:block;}
+  .footer-brand p{font-size:13px; color:rgba(237,240,243,0.6); line-height:1.6; margin:0 0 16px; max-width:280px;}
+  .footer-social{display:flex; gap:14px;}
+  .footer-social a{color:var(--paper); opacity:0.75;}
+  .footer-social a:hover{opacity:1;}
+  .footer-col h4{font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(237,240,243,0.5); margin:0 0 14px; font-weight:600;}
+  .footer-col a{display:block; font-size:13.5px; color:rgba(237,240,243,0.85); margin-bottom:11px;}
+  .footer-col a:hover{color:var(--brass-soft);}
+  .city-select{
+    display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600;
+    background:rgba(237,240,243,0.08); border:1px solid rgba(237,240,243,0.2);
+    border-radius:100px; padding:8px 16px; color:var(--paper);
+  }
+  .footer-bottom{border-top:1px solid rgba(237,240,243,0.12); text-align:center; padding:18px 32px; font-size:11.5px; line-height:1.7; color:rgba(237,240,243,0.45);}
+
+  @media (max-width:960px){
+    .grid-layout{grid-template-columns:1fr;}
+    .grid-sidebar{position:static; flex-direction:row; flex-wrap:wrap;}
+    .grid-sidebar .filter-select{flex:1 1 160px;}
+    .card-grid{grid-template-columns:repeat(3, 1fr);}
+    /* bkz. yukarıdaki .loc-exp-row yorumu — Konum ve Tecrübe burada gerçek bir yatay satıra
+       dönüşür ve kendi satırını kaplar (flex-basis:100%), diğer filtrelerle aynı satırı
+       paylaşmaz; böylece her genişlikte birbirinin yanında kalmaları garanti edilir. */
+    .loc-exp-row{display:flex; gap:8px; flex:1 1 100%;}
+    .loc-exp-row .filter-select{flex:1 1 0;}
+  }
+  @media (max-width:960px){
+    .nav{padding:10px 18px; gap:10px;}
+    .nav-search{display:none;}
+    .nav-links{display:none;}
+    .nav-hamburger{display:flex;}
+    .nav-right{margin-left:auto;}
+  }
+
+  @media (max-width:720px){
+    .breadcrumb-bar{padding:12px 18px; font-size:12.5px;}
+    .page-head{padding:20px 16px 0;}
+    .grid-layout{padding:16px 16px 70px; gap:16px;}
+    .card-grid{grid-template-columns:repeat(2, 1fr); gap:12px;}
+    .office-card-name{font-size:13px;}
+    .office-card-body{padding:9px 10px;}
+    .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
+    .footer-brand{grid-column:1 / -1;}
+  }
+</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-L4902Z57B8');
+</script>
+</head>
+<body>
+<script src="js/overlay-manager.js" defer></script>
+<script src="image-cdn.js" defer></script>
+<script src="auth-nav.js" defer></script>
+<script src="catalog-taxonomy.js" defer></script>
+<script src="js/components/nav-product-menu.js" defer></script>
+<script src="awards-shared.js" defer></script>
+<script src="js/components/lazy-modals.js" defer></script>
+<script src="save-widget.js" defer></script>
+
+  <div id="site-header-mount" data-nav-active="marka"></div>
+  <script src="js/components/site-chrome.js"></script>
+
+  <div class="breadcrumb-bar">
+    <a href="index.html">Ana Sayfa</a>
+    <span class="sep">›</span>
+    <span class="current">Markalar</span>
+  </div>
+
+  <div class="page-head">
+    <h1 id="entity-h1">Markalar</h1>
+    <p id="result-count"></p>
+  </div>
+
+  <div id="ssr-entity-body" class="ssr-entity"></div>
+
+  <div class="grid-layout">
+    <aside class="grid-sidebar">
+      <div class="sidebar-filters-title">Filtreler</div>
+      <div class="sidebar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="g-local-search" placeholder="Marka ara...">
+      </div>
+      <div class="grid-sidebar-head">
+        <div class="filter-select" style="flex:1;">
+          <select id="g-sort">
+            <option value="" selected>En Popüler</option>
+            <option value="name_asc">A-Z</option>
+            <option value="year_desc">En Yeni Kurulan</option>
+            <option value="year_asc">En Eski Kurulan</option>
+          </select>
+          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
+        <button class="grid-icon-btn reset" id="g-reset" title="Filtreleri sıfırla" aria-label="Filtreleri sıfırla">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"/></svg>
+        </button>
+      </div>
+      <div class="filter-select">
+        <select id="g-cat"><option value="">Hizmet Alanı</option></select>
+        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+      </div>
+      <!-- Konum ve Tecrübe, tablet/mobil görünümde (bkz. .loc-exp-row CSS) tek satırda yan yana
+           gösterilir (bkz. kullanıcı isteği); masaüstünde display:contents ile normal, ayrı ayrı
+           tam genişlikte alt alta sıralanan filter-select'ler gibi davranır. -->
+      <div class="loc-exp-row">
+        <div class="filter-select">
+          <select id="g-loc"><option value="">Konum</option></select>
+          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
+        <div class="filter-select">
+          <select id="g-exp">
+            <option value="">Tecrübe</option>
+            <option value="1-5">1-5 yıl</option>
+            <option value="6-10">6-10 yıl</option>
+            <option value="11-20">11-20 yıl</option>
+            <option value="21-30">21-30 yıl</option>
+            <option value="30+">30+ yıl</option>
+          </select>
+          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <a class="sidebar-add-btn" href="firma-ekle.html"><span class="sidebar-add-icon">+</span> Marka Ekle</a>
+    </aside>
+
+    <main>
+      <div class="card-grid" id="card-grid"></div>
+      <div class="empty-state" id="empty-state">Bu kritere uyan marka bulunamadı.</div>
+      <div class="pagination" id="pagination"></div>
+    </main>
+  </div>
+
+  <footer id="site-footer-mount"></footer>
+
+<script src="badge-shared.js"></script>
+<script src="js/components/claim-correction-box.js"></script>
+<script src="js/components/modal-shell.js"></script>
+<script src="js/components/share-button.js"></script>
+<script src="js/components/message-button.js"></script>
+<script src="js/components/social-links.js"></script>
+<script src="js/components/office-modal.js"></script>
+<script>
+// Faz 3 sonrası: firma.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
+// sayfalama, filtreleme ve sıralama backend'de (/api/offices) canonical D1 tablosu üzerinden
+// yapılıyor (bkz. src/routes/office.js#handleOfficeListRoute, orada cityOf/FOREIGN_LOC_TO_COUNTRY/
+// expBucketOf'un BİREBİR sunucu karşılığı var). Rozet sistemi + initials/officeColor/logoUrl
+// yardımcı fonksiyonları küçük badge-shared.js'ten gelir.
+const PAGE_SIZE = 24;
+let currentPage = 1;
+let searchQuery = '';
+
+// kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
+// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /firma/:slug
+// ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK firma içeriğinin üzerine OfficeModal
+// kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
+ModalShell.setSsrDefaults({
+  title: 'Markalar — MİMARLAB',
+  h1: 'Markalar',
+  description: 'Mimarlık ve tasarım ürünleri üreten markaları keşfet.',
+  canonicalUrl: 'https://mimarlab.com/marka',
+  ogType: 'website',
+  image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
+});
+
+// Sunucudan (data.filters) gelen loc/cat seçeneklerini <select>'lere yeniden çizer — eski
+// client-side hesaplı populateFilters()'ın AYNI görsel sonucu, yalnızca veri kaynağı sunucu.
+function populateFilterOptions(filtersData){
+  const locSel = document.getElementById('g-loc');
+  const prevLoc = locSel.value;
+  locSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
+  (filtersData.loc || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
+    locSel.appendChild(o);
+  });
+  locSel.value = prevLoc;
+
+  const catSel = document.getElementById('g-cat');
+  const prevCat = catSel.value;
+  catSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
+  (filtersData.cat || []).forEach(({value, count})=>{
+    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
+    catSel.appendChild(o);
+  });
+  catSel.value = prevCat;
+}
+
+function getPageWindowSize(){
+  const w = window.innerWidth;
+  if(w <= 480) return 3;
+  if(w <= 720) return 5;
+  return 9;
+}
+// Mevcut sayfayı her zaman ortalayan kayan pencere; ilk ve son sayfa (bkz. kullanıcı isteği:
+// "1. ve son sayfa her zaman görünür olsun") ayrıca her zaman ayrı buton olarak eklenir, pencereye
+// dahil değillerse aralarına '...' konur. Pencere bir uca yaklaştığında diğer ucu genişletip N
+// sayfa göstermeye devam eder (bkz. start===2/end===totalPages-1 dallari).
+function getPageList(totalPages, currentPage){
+  const N = getPageWindowSize();
+  if(totalPages <= N + 2){ const pages=[]; for(let p=1;p<=totalPages;p++) pages.push(p); return pages; }
+  const half = Math.floor(N / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+  if(start === 2) end = Math.min(totalPages - 1, start + N - 1);
+  if(end === totalPages - 1) start = Math.max(2, end - N + 1);
+  const pages = [1];
+  if(start > 2) pages.push('...');
+  for(let p=start; p<=end; p++) pages.push(p);
+  if(end < totalPages - 1) pages.push('...');
+  pages.push(totalPages);
+  return pages;
+}
+
+function goToPage(p){
+  currentPage = p;
+  syncBrowserUrl(true);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function renderPagination(totalPages){
+  const el = document.getElementById('pagination');
+  if(totalPages <= 1){ el.innerHTML = ''; return; }
+  let html = `<button class="page-btn page-btn-arrow" id="page-prev" aria-label="Önceki" ${currentPage===1?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  getPageList(totalPages, currentPage).forEach(p=>{
+    if(p==='...') html += `<span class="page-ellipsis">…</span>`;
+    else html += `<button class="page-btn${p===currentPage?' active':''}" data-page="${p}">${p}</button>`;
+  });
+  html += `<button class="page-btn page-btn-arrow" id="page-next" aria-label="Sonraki" ${currentPage===totalPages?'disabled':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-page]').forEach(btn=>{
+    btn.addEventListener('click', ()=> goToPage(parseInt(btn.dataset.page)));
+  });
+  const prevBtn = document.getElementById('page-prev');
+  const nextBtn = document.getElementById('page-next');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{ if(currentPage>1) goToPage(currentPage-1); });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{ if(currentPage<totalPages) goToPage(currentPage+1); });
+}
+
+// Aktif filtre/arama/sıralama/sayfa durumundan ?query string üretir — hem /api/offices isteği hem
+// de tarayıcı URL senkronu için TEK noktadan kullanılır (bkz. mimar.html'deki AYNI desen).
+function currentQueryParams(){
+  const params = new URLSearchParams();
+  const loc = document.getElementById('g-loc').value;
+  const cat = document.getElementById('g-cat').value;
+  const exp = document.getElementById('g-exp').value;
+  const sort = document.getElementById('g-sort').value;
+  if(loc) params.set('loc', loc);
+  if(cat) params.set('cat', cat);
+  if(exp) params.set('exp', exp);
+  if(sort) params.set('sort', sort);
+  if(searchQuery.trim()) params.set('search', searchQuery.trim());
+  return params;
+}
+function syncBrowserUrl(push){
+  const params = currentQueryParams();
+  if(currentPage > 1) params.set('page', String(currentPage));
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  if(newUrl === location.pathname + location.search) return;
+  if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
+}
+function applyStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  document.getElementById('g-loc').value = params.get('loc') || '';
+  document.getElementById('g-cat').value = params.get('cat') || '';
+  document.getElementById('g-exp').value = params.get('exp') || '';
+  document.getElementById('g-sort').value = params.get('sort') || '';
+  searchQuery = params.get('search') || '';
+  document.getElementById('g-local-search').value = searchQuery;
+  const pageParam = parseInt(params.get('page'), 10);
+  currentPage = (pageParam > 1) ? pageParam : 1;
+}
+
+// render() artık yalnızca mevcut sayfanın kartlarını /api/offices'ten çeker — tüm firma listesi
+// hiçbir zaman tarayıcıya inmiyor (bkz. mimar.html#render'daki AYNI desen).
+let renderRequestId = 0;
+async function render(){
+  const myRequest = ++renderRequestId;
+  const grid = document.getElementById('card-grid');
+  const empty = document.getElementById('empty-state');
+  grid.style.opacity = '0.5';
+
+  const params = currentQueryParams();
+  params.set('page', String(currentPage));
+  params.set('limit', String(PAGE_SIZE));
+  // brands=1 — firma.html ile bu sayfa arasındaki TEK veri farkı (bkz. src/routes/office.js#
+  // handleOfficeListRoute): havuz aynı `offices` tablosu, ama burada yalnızca kataloğunda en az bir
+  // ürün/malzeme bulunan firmalar listelenir ve "Marka" olarak adlandırılır (kullanıcı isteği).
+  params.set('brands', '1');
+
+  let data = null;
+  try{
+    const res = await fetch(`/api/offices?${params.toString()}`);
+    if(res.ok) data = await res.json();
+  }catch(err){ console.error('Marka listesi alınamadı:', err); }
+  if(myRequest !== renderRequestId) return;
+  grid.style.opacity = '1';
+
+  if(!data){
+    grid.innerHTML = '';
+    empty.textContent = 'Markalar yüklenemedi, lütfen sayfayı yenile.';
+    empty.style.display = 'block';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+
+  currentPage = data.page;
+  document.getElementById('result-count').textContent = `${data.total} marka listeleniyor`;
+  populateFilterOptions(data.filters || {});
+  renderPagination(data.totalPages);
+
+  if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan marka bulunamadı.'; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  // .card-grid sütun sayısı breakpoint'e göre değişiyor (4 -> ≤960px'de 3 -> ≤720px'de 2, bkz.
+  // yukarıdaki <style>) — sabit "4" varsayımı mobilde (2 sütun) 3./4. kartı aslında ikinci satırda
+  // olduğu halde gereksiz eager+fetchpriority=high ile isterdi (denetim bulgusu, 2026-08-14,
+  // bkz. mimar.html'deki AYNI düzeltme).
+  const eagerCardCount = window.innerWidth <= 720 ? 2 : window.innerWidth <= 960 ? 3 : 4;
+  grid.innerHTML = data.items.map((o, i)=>{
+    const logo = logoUrl(o);
+    const safeInitialsAttr = escapeAttr(initials(o.name));
+    const safeInitialsText = escapeHtml(initials(o.name));
+    const logoSrcset = logo ? cdnSrcset(logo, [400, 600, 800]) : '';
+    // İlk sıradaki (i<eagerCardCount) kartlar sayfa açılışında ZATEN katlanma çizgisinin üstünde
+    // görünür — js/pages/proje.js#render'daki AYNI desen/gerekçe: bunlar eager + fetchpriority="high",
+    // alttakiler lazy kalır.
+    const imgAttrs = i < eagerCardCount ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
+    return `
+    <a class="office-card" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}">
+      <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(cdnImg(logo, 600))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
+      <div class="office-card-body">
+        <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
+        <div class="office-card-loc">${escapeHtml(o.loc)} · ${escapeHtml((o.cats||'').split(' · ')[0])}</div>
+      </div>
+    </a>`;
+  }).join('');
+}
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+// Kart tıklaması: firma modalı (bkz. js/components/office-modal.js) proje.html#card-grid'in AYNI
+// deseniyle sayfa yenilenmeden açılsın diye düz sol tıklamalar burada yakalanır.
+document.getElementById('card-grid').addEventListener('click', (e)=>{
+  if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest('a.office-card');
+  if(!a) return;
+  const m = (a.getAttribute('href') || '').match(/^\/firma\/([^/?#]+)/);
+  if(!m) return;
+  e.preventDefault();
+  OfficeModal.open(decodeURIComponent(m[1]), { triggerEl: a });
+});
+
+let searchDebounce = null;
+['g-sort','g-loc','g-cat','g-exp'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
+});
+document.getElementById('g-local-search').addEventListener('input', (e)=>{
+  searchQuery = e.target.value;
+  currentPage = 1;
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(()=>{ syncBrowserUrl(false); render(); }, 300);
+});
+document.getElementById('g-reset').addEventListener('click', ()=>{
+  document.getElementById('g-sort').value = '';
+  document.getElementById('g-cat').value = '';
+  document.getElementById('g-loc').value = '';
+  document.getElementById('g-exp').value = '';
+  searchQuery = '';
+  document.getElementById('g-local-search').value = '';
+  document.getElementById('f-search-topnav').value = '';
+  const mobileNavSearch = document.getElementById('f-search-nav');
+  if(mobileNavSearch) mobileNavSearch.value = '';
+  currentPage = 1;
+  syncBrowserUrl(true);
+  render();
+});
+// Tarayıcı geri/ileri tuşu: /firma/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca firma modalını
+// güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ.
+window.addEventListener('popstate', ()=>{
+  const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
+  if(m){ OfficeModal.handlePopState(decodeURIComponent(m[1])); return; }
+  if(OfficeModal.isOpen()){ OfficeModal.handlePopState(null); return; }
+  applyStateFromUrl();
+  render();
+});
+
+
+
+// İlk otomatik render() DOMContentLoaded'a ertelenir — render() içindeki cdnImg() (image-cdn.js,
+// defer ile yüklenir) de tıpkı aşağıdaki OfficeModal yorumunda anlatılan AYNI riskle karşı
+// karşıya: /api/offices isteği bazen deferred script'ten daha hızlı dönebiliyor, bu da
+// "cdnImg is not defined" hatasıyla firma listesini sessizce boş bırakabiliyordu (bkz.
+// urun.html'deki BİREBİR AYNI gerçek bulgu/düzeltme — orada catalogCardMediaHtml ile yaşandı).
+// Deferred script'ler DOMContentLoaded'dan ÖNCE çalışmayı garanti eder.
+document.addEventListener('DOMContentLoaded', () => {
+  applyStateFromUrl();
+  render();
+});
+
+// Doğrudan /firma/:slug adresine girildiğinde ya da o adreste F5 yapıldığında firma modalı
+// otomatik açılsın (bkz. kullanıcı isteği). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek
+// bulgu — proje.html'de bulunup buraya da uygulandı) — /api/offices edge cache'ten render()'ın
+// kendisinden DAHA HIZLI dönebildiğinden, bu callback bazen OfficeModal (defer script) henüz
+// tanımlanmadan tetikleniyor, "OfficeModal is not defined" hatasıyla SESSİZCE (unhandled promise
+// rejection, konsolda görünmüyor) modalı hiç açmıyordu. DOMContentLoaded'a bağlamak deferred
+// script'lerin (OfficeModal dahil) KESİN olarak tanımlanmış olmasını garantiler — render()/network
+// zamanlamasından tamamen bağımsız.
+document.addEventListener('DOMContentLoaded', () => {
+  const m = location.pathname.match(/^\/firma\/([^/]+)\/?$/);
+  if (!m) return;
+  // bkz. <head>'deki pm-boot-loading senkron script'i (AYNI gerçek bulgu, proje.html'e bkz.) — çıplak
+  // SSR içeriğini bir "boot veil" ile örttü; OfficeModal.open()'ın Promise'i renderItem()/
+  // renderNotFound() tamamlanana kadar çözülmediğinden, GERÇEK modal tam opak açılana kadar veil
+  // kaldırılmaz. try/catch + zaman aşımı: defer script hiç yüklenmezse (ağ hatası) veil'in sonsuza
+  // dek takılı kalmaması için (bkz. proje.js'teki AYNI gerçek bulgu).
+  const clearBootVeil = () => document.documentElement.classList.remove('pm-boot-loading');
+  const bootVeilSafety = setTimeout(clearBootVeil, 8000);
+  try {
+    OfficeModal.open(decodeURIComponent(m[1]), { pushHistory:false }).finally(() => {
+      clearTimeout(bootVeilSafety);
+      clearBootVeil();
+    });
+  } catch (e) {
+    clearTimeout(bootVeilSafety);
+    clearBootVeil();
+  }
+});
+window.addEventListener('mimarlab-badges-ready', render);
+</script>
+</body>
+</html>

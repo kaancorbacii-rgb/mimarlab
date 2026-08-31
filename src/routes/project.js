@@ -165,6 +165,31 @@ export async function handlePhotographerSearchRoute(request, env, url) {
   });
 }
 
+// GET /api/projects/search?q=... — urun-ekle.html'deki YENİ "Kullanılan Projeler (opsiyonel)"
+// kutusunun autocomplete'i (kullanıcı isteği, 2026-08-31: "Bu kutudan seçim, sitede halihazırda
+// paylaşılan projeler arasından olsun"). src/routes/product.js#handleProductSearchRoute ile AYNI
+// desen: adaylar dar bir sütun listesiyle çekilip foldTr ile JS tarafında filtrelenir, 2 karakterin
+// altındaki sorgular D1'e hiç gitmez (bkz. o dosyadaki D1 audit P1-6 gerekçesi).
+// `slug` de döner — kutu, seçilen projeyi başlıkla değil SLUG ile saklar (bkz. urun-ekle.html#
+// projectChips, src/lib/canonicalSync.js#resolveProductProjectLinks), böylece aynı adlı iki proje
+// karışmaz ve proje sonradan yeniden adlandırılsa bile bağ doğru kayda gider.
+export async function handleProjectSearchRoute(request, env, url) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
+    const q = foldTr((url.searchParams.get('q') || '').trim());
+    if (!q || q.length < 2) return { items: [] };
+    const { results } = await env.DB.prepare(
+      `SELECT slug, title, location, project_date FROM projects
+       WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY title`
+    ).all();
+    const items = results
+      .filter(r => foldTr(r.title || '').includes(q))
+      .slice(0, 20)
+      .map(r => ({ label: r.title, sub: [r.location, r.project_date].filter(Boolean).join(' · '), slug: r.slug }));
+    return { items };
+  });
+}
+
 export async function handleProjectCanEditRoute(request, env, rawSlug) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   const user = await getSessionUser(request, env);

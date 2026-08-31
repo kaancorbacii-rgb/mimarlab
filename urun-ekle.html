@@ -140,6 +140,30 @@
   .ac-suggestion{padding:8px 10px; border-radius:8px; font-size:13.5px; color:var(--ink); cursor:pointer;}
   .ac-suggestion:hover, .ac-suggestion.active{background:var(--paper-alt);}
   .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
+
+  /* ---------- KULLANILAN PROJELER CHIP LİSTESİ ----------
+     proje-ekle.html'deki "Kullanılan Ürünler / Firmalar" kutusunun (.brand-add-row/.brand-chip)
+     BİREBİR aynı kuralları — kullanıcı isteği (2026-08-31): "Proje Ekle/Düzenle sayfasındaki
+     Kullanılan Ürünler / Firmalar (opsiyonel) kutusu gibi Ürün Ekle/Düzenle sayfasına da Kullanılan
+     Projeler (opsiyonel) kutusu ekle". Bu iki sayfa nav/footer dışında hiçbir CSS paylaşmadığından
+     (her *-ekle.html kendi <style>'ını taşır) kural burada tekrarlanır. */
+  .brand-add-row{display:flex; gap:10px; align-items:flex-start;}
+  .brand-add-row .ac-field{flex:1; min-width:0; margin-bottom:0;}
+  .brand-add-btn{
+    flex-shrink:0; background:var(--ink); color:var(--paper-card); border:none; border-radius:10px;
+    padding:0 18px; height:42px; font-weight:600; font-size:13px; white-space:nowrap;
+  }
+  .brand-add-btn:hover{background:var(--walnut);}
+  .brand-chip-list{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+  .brand-chip{
+    display:inline-flex; align-items:center; gap:8px; background:var(--paper-alt); border-radius:100px;
+    padding:7px 8px 7px 14px; font-size:13px; color:var(--ink);
+  }
+  .brand-chip-remove{
+    width:20px; height:20px; border-radius:50%; border:none; background:rgba(27,42,61,0.14);
+    color:var(--ink); display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;
+  }
+  .brand-chip-remove:hover{background:rgba(27,42,61,0.28);}
   /* GERÇEK BULGU: bare .form-field:last-child bir .form-row içindeki 2. (sağ sütun) alanı da
      eşleştiriyordu — mobilde/tablette .form-row tek sütuna düşünce bu alanın alt boşluğu
      SIFIRLANMIŞ oluyor, bir sonraki satır doğrudan üstüne yapışıyordu (bkz. kullanıcı isteği:
@@ -379,6 +403,26 @@
         </label>
         <p class="image-spec-hint">Galeriye eklenecek görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir ürüne en fazla 20 görsel yükleyebilirsin.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
+      </div>
+
+      <!-- Kullanılan Projeler — proje-ekle.html'deki "Kullanılan Ürünler / Firmalar" kutusunun
+           AYNADAKİ karşılığı (kullanıcı isteği, 2026-08-31). Seçim yalnızca sitede halihazırda
+           yayımlanmış projeler arasından yapılır (GET /api/projects/search, bkz. src/routes/
+           project.js#handleProjectSearchRoute) — chip, projenin SLUG'ını taşır. -->
+      <div class="form-section">
+        <h2>Kullanılan Projeler <span class="opt">(opsiyonel)</span></h2>
+        <p class="section-hint">Bu ürünün kullanıldığı projeleri ekle. Seçtiğin proje bu ürünün sayfasında "Kullanılan Projeler" olarak, ürün de o projenin sayfasında "Kullanılan Ürünler" olarak görünür.</p>
+        <div class="form-field">
+          <div class="brand-add-row">
+            <div class="form-field ac-field" id="ac-project-field">
+              <input type="text" id="u-project-input" placeholder="Proje adı" autocomplete="off">
+              <div class="ac-suggestions" id="ac-project-suggestions"></div>
+            </div>
+            <button type="button" class="brand-add-btn" id="project-add-btn">+ Ekle</button>
+          </div>
+          <div class="form-hint">Listeden bir proje seç, sonra "+ Ekle"ye ya da Enter'a bas.</div>
+          <div class="brand-chip-list" id="project-chip-list"></div>
+        </div>
       </div>
 
       <div class="form-section">
@@ -779,6 +823,11 @@ function applyPrefillItem(item){
   setExistingFiles(item.files);
   renderFilePreviews();
   (item.specs || []).forEach(s => addSpecRow(s.label, s.value));
+  // Kullanılan Projeler — gönderi satırındaki `projects` JSON'u (bkz. migrations/
+  // 0072_product_project_links.sql). ?adminedit= (canonical legacy kayıt) modunda bu alan yoktur,
+  // liste boş kalır ve o akış zaten project_products'a hiç dokunmaz.
+  projectChips = (item.projects || []).map(p => (typeof p === 'string' ? { slug: p, title: p } : { slug: p.slug || '', title: p.title || p.slug || '' }));
+  renderProjectChips();
 }
 
 async function prefillForEdit(){
@@ -927,6 +976,56 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
 
 wireAutocompleteLive('u-brand', 'ac-brand-suggestions', '/api/offices/search', { multi: false });
 wireAutocompleteLive('u-designer', 'ac-designer-suggestions', '/api/architects/search');
+
+// ---------- KULLANILAN PROJELER: yayımlanmış projelerden seçilen chip listesi ----------
+// proje-ekle.html#brandChips ile AYNI desen (bkz. kullanıcı isteği, 2026-08-31). Fark: burada
+// serbest metin KABUL EDİLMEZ — chip yalnızca autocomplete önerisinden seçilerek eklenebilir, çünkü
+// bağ projenin SLUG'ı üzerinden kurulur (bkz. src/lib/canonicalSync.js#resolveProductProjectLinks).
+// Kullanıcı kutuya bir şey yazıp öneriye tıklamadan "+ Ekle"ye basarsa, o metin başlıkla birebir
+// eşleşen TEK bir proje varsa yine de bağlanır (sunucu tarafı başlık fallback'i) — bu yüzden
+// slug'sız bir chip de gönderilebilir, sadece daha zayıf bir eşleşmedir.
+let projectChips = [];
+let pickedProjectSlug = null;
+function renderProjectChips(){
+  const list = document.getElementById('project-chip-list');
+  list.innerHTML = projectChips.map((c, i) => `
+    <span class="brand-chip">
+      ${escapeAttr(c.title || c.slug)}
+      <button type="button" class="brand-chip-remove" data-index="${i}" aria-label="Kaldır">✕</button>
+    </span>`).join('');
+  list.querySelectorAll('.brand-chip-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      projectChips.splice(parseInt(btn.dataset.index), 1);
+      renderProjectChips();
+    });
+  });
+}
+function addProjectChip(){
+  const input = document.getElementById('u-project-input');
+  const title = input.value.trim();
+  if(!title){ input.focus(); return; }
+  // Aynı proje iki kez eklenmesin (slug varsa slug'a, yoksa başlığa göre) — proje tarafındaki
+  // marka/ürün chip'lerinde olmayan ama burada anlamlı olan tek ek kural: kenar zaten tekil
+  // (project_id, product_id) birincil anahtarına sahip, mükerrer chip yalnızca kafa karıştırır.
+  const key = (pickedProjectSlug || title).toLowerCase();
+  const exists = projectChips.some(c => ((c.slug || c.title || '').toLowerCase() === key));
+  if(!exists) projectChips.push({ slug: pickedProjectSlug || '', title });
+  input.value = '';
+  pickedProjectSlug = null;
+  renderProjectChips();
+  input.focus();
+}
+wireAutocompleteLive('u-project-input', 'ac-project-suggestions', '/api/projects/search', {
+  multi: false,
+  onPick: (item) => { pickedProjectSlug = item.slug || null; },
+});
+// Kutu elle değiştirilirse önceki seçimin slug'ı geçersizdir (bkz. yukarıdaki yorum: slug'sız chip
+// sunucuda başlıkla çözülmeye çalışılır).
+document.getElementById('u-project-input').addEventListener('input', ()=>{ pickedProjectSlug = null; });
+document.getElementById('project-add-btn').addEventListener('click', addProjectChip);
+document.getElementById('u-project-input').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); addProjectChip(); }
+});
 
 // P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen, bkz.
 // mimar-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor).
@@ -1192,6 +1291,10 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     images,
     files,
     specs: collectSpecs(),
+    // Kullanılan Projeler — onaylandığında project_products kenarına çevrilir (bkz. src/lib/
+    // canonicalSync.js#resolveProductProjectLinks). BOŞ dizi de gönderilir: tüm chip'leri silen
+    // kullanıcı, mevcut bağların da kaldırılmasını bekler.
+    projects: projectChips.map(c => ({ slug: c.slug || '', title: c.title || '' })),
   };
   if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
 
@@ -1269,6 +1372,10 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     renderPreviews();
     setExistingFiles([]);
     renderFilePreviews();
+    // form.reset() yalnızca gerçek <input>'ları temizler — chip listesi kendi JS state'inde
+    // yaşadığından ayrıca sıfırlanmalı (bkz. proje-ekle.html'deki AYNI brandChips = [] satırı).
+    projectChips = [];
+    renderProjectChips();
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

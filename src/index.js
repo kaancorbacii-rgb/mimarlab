@@ -6,7 +6,7 @@ import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
-import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute } from './routes/project.js';
+import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
@@ -15,6 +15,7 @@ import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/leg
 import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './routes/upload.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
+import { handleCollectionsRoute } from './routes/collections.js';
 import { handleFollowRoute } from './routes/follows.js';
 import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
@@ -243,6 +244,8 @@ const PATH_RENAME_REDIRECTS = {
   // ama AUTH_MODAL_ROUTES'a hiç eklenmemişti — doğrudan /iceriklerim'e gidildiğinde (yer imi, F5,
   // yeni sekme) 404 dönüyordu, yalnızca SPA içi pushState navigasyonu çalışıyordu.
   '/iceriklerim.html': '/iceriklerim',
+  // Koleksiyonum — İçeriklerim ile AYNI desen (bkz. js/components/auth-modal.js#VIEW_PATH).
+  '/koleksiyonum.html': '/koleksiyonum',
   '/sifremi-unuttum.html': '/sifremi-unuttum',
   // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer de artık popup
   // modallar (bkz. kullanıcı isteği, js/components/info-modal.js) — AYNI gerekçe. "Rozet Al" ile
@@ -265,7 +268,7 @@ const PATH_RENAME_REDIRECTS = {
 // edilir, o da location.pathname'e bakıp ilgili modalı kendisi açar (bkz. auth-modal.js). Bu 3 sayfa
 // zaten noindex olduğundan (bkz. giris-yap.html/uye-ol.html/hesabim.html <meta name="robots">)
 // serveDetailPage'deki HTMLRewriter/meta enjeksiyonuna burada ihtiyaç yok.
-const AUTH_MODAL_ROUTES = new Set(['/giris', '/uye-ol', '/hesabim', '/aktivitelerim', '/iceriklerim', '/sifremi-unuttum']);
+const AUTH_MODAL_ROUTES = new Set(['/giris', '/uye-ol', '/hesabim', '/aktivitelerim', '/iceriklerim', '/koleksiyonum', '/sifremi-unuttum']);
 
 // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer — AYNI "ana sayfayı
 // servis et, istemci JS'i (bkz. js/components/info-modal.js) location.pathname'e göre ilgili modalı
@@ -314,6 +317,8 @@ const SITEMAP_STATIC_PAGES = [
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
+  // marka.html — bkz. o dosyanın başındaki yorum (firma.html'in ?brands=1 ile daraltılmış kopyası).
+  { loc: '/marka', changefreq: 'weekly', priority: '0.7' },
   { loc: '/en-iyi-100', changefreq: 'weekly', priority: '0.7' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
@@ -364,7 +369,7 @@ const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=
 // istemci tarafı fetch'lerle (kendi kısa TTL'li önbellekleriyle) yansıdığından kabuğun birkaç dakika
 // bayat kalması sorun yaratmaz.
 const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun']);
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun', '/marka']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
@@ -888,6 +893,9 @@ async function routeApi(request, env, url) {
   if (path === '/api/offices/search') return handleOfficeSearchRoute(request, env, url);
   if (path === '/api/products/search') return handleProductSearchRoute(request, env, url);
   if (path === '/api/photographers/search') return handlePhotographerSearchRoute(request, env, url);
+  // urun-ekle.html'deki "Kullanılan Projeler" kutusunun autocomplete'i — /api/projects/:id gibi
+  // dinamik uçlardan ÖNCE yakalanmalı (bkz. yukarıdaki /api/architects/search ile AYNI gerekçe).
+  if (path === '/api/projects/search') return handleProjectSearchRoute(request, env, url);
   if (path === '/api/ai/search') return handleAiSearchRoute(request, env, url);
   if (path.startsWith('/api/geocode/')) return handleGeocodeRoute(request, env, url);
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
@@ -918,6 +926,9 @@ async function routeApi(request, env, url) {
   if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
+  // Koleksiyonum (bkz. src/routes/collections.js) — /api/saved ile AYNI desen: tamamen oturum
+  // korumalı, herkese açık hiçbir okuma ucu yok.
+  if (path.startsWith('/api/collections')) return handleCollectionsRoute(request, env, url);
   if (path.startsWith('/api/follows')) return handleFollowRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
   if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);

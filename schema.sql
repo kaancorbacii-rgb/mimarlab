@@ -133,7 +133,8 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   architect TEXT, -- artık urun-ekle.html'de kutusu yok, hiçbir yazma yolu yok (bkz. migrations/0020_product_architect.sql) — yalnızca eski satırlar için korunuyor
   designer TEXT, -- serbest metin ürün tasarımcısı adı — bkz. migrations/0042_product_designer_year.sql
   year TEXT, -- serbest metin üretim/tasarım yılı — bkz. migrations/0042_product_designer_year.sql
-  files TEXT -- JSON dizi [{url,filename,format,size}] — "Dosyalar (BIM, CAD, 3D, Katalog)" ekleri, images İLE AYNI desen (bkz. migrations/0071_product_files.sql)
+  files TEXT, -- JSON dizi [{url,filename,format,size}] — "Dosyalar (BIM, CAD, 3D, Katalog)" ekleri, images İLE AYNI desen (bkz. migrations/0071_product_files.sql)
+  projects TEXT -- JSON dizi [{slug,title}] — urun-ekle.html'deki "Kullanılan Projeler" kutusu, project_submissions.brands ile AYNI desen (bkz. migrations/0072_product_project_links.sql)
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status_created ON product_submissions(status, created_at DESC);
@@ -161,7 +162,8 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   architect TEXT, -- bkz. product_submissions.architect açıklaması
   designer TEXT, -- bkz. product_submissions.designer açıklaması
   year TEXT, -- bkz. product_submissions.year açıklaması
-  files TEXT -- bkz. product_submissions.files açıklaması
+  files TEXT, -- bkz. product_submissions.files açıklaması
+  projects TEXT -- bkz. product_submissions.projects açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_material_status_created ON material_submissions(status, created_at DESC);
@@ -298,6 +300,39 @@ CREATE TABLE IF NOT EXISTS saved_items (
 CREATE INDEX IF NOT EXISTS idx_saved_user ON saved_items(user_id);
 -- bkz. migrations/0059_saved_items_type_key_index.sql
 CREATE INDEX IF NOT EXISTS idx_saved_items_type_key ON saved_items(item_type, item_key);
+
+-- KOLEKSİYONUM — bkz. migrations/0073_collections.sql (kullanıcı isteği: Pinterest benzeri panolar).
+-- saved_items'tan AYRI: orası "kaydettim mi" bayrağı (kullanıcı+tip+anahtar başına tekil), burası
+-- kullanıcının kendi düzenlediği, kendi yüklediği görsel/notu da barındırabilen panolar.
+CREATE TABLE IF NOT EXISTS collections (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  cover_image TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id, created_at DESC);
+
+-- kind: 'saved' | 'image' | 'note'. item_type/item_key yalnızca 'saved' satırlarda dolu (bkz.
+-- src/routes/saved.js#ITEM_TYPES ile AYNI enum). Başlık/görsel/bağlantı, öğe eklendiği andaki
+-- haliyle kopyalanır (saved_items'taki AYNI anlık-görüntü deseni).
+CREATE TABLE IF NOT EXISTS collection_items (
+  id TEXT PRIMARY KEY,
+  collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  item_type TEXT,
+  item_key TEXT,
+  title TEXT,
+  meta TEXT,
+  image TEXT,
+  href TEXT,
+  note TEXT,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_collection_items_collection ON collection_items(collection_id, position, created_at);
 
 -- bkz. migrations/0069_follows.sql — kullanıcı isteği: Archello benzeri "Takip Et" özelliği.
 -- saved_items ile AYNI şekil/gerekçe: followed_key = slugify(name) (rename cascade'i
@@ -662,11 +697,19 @@ CREATE INDEX IF NOT EXISTS idx_project_designers_architect ON project_designers(
 CREATE INDEX IF NOT EXISTS idx_project_designers_office ON project_designers(office_id);
 CREATE INDEX IF NOT EXISTS idx_project_designers_project ON project_designers(project_id);
 
+-- from_project/from_product: kenarı hangi tarafın talep ettiği (bkz. migrations/
+-- 0072_product_project_links.sql) — proje-ekle.html'deki "Kullanılan Ürünler / Firmalar" kutusu
+-- from_project'i, urun-ekle.html'deki "Kullanılan Projeler" kutusu from_product'ı yazar; her sync
+-- yalnızca KENDİ bayrağını sıfırlayıp yeniden kurar (bkz. src/lib/canonicalSync.js#
+-- setProjectProductLinks), böylece iki taraf birbirinin kenarlarını silmez.
 CREATE TABLE IF NOT EXISTS project_products (
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  from_project INTEGER NOT NULL DEFAULT 1,
+  from_product INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (project_id, product_id)
 );
+CREATE INDEX IF NOT EXISTS idx_project_products_product ON project_products(product_id);
 
 CREATE TABLE IF NOT EXISTS project_awards (
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

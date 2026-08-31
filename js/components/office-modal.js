@@ -226,6 +226,14 @@ const OfficeModal = (function () {
       <h2 class="related-title">Ürünler<span id="om-related-materials-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-materials-grid"></div>
     </div>
+    <!-- Projelerde Kullanılan Ürünler (kullanıcı isteği, 2026-08-31) — yukarıdaki "Ürünler"
+         bölümlerinden AYRI: onlar firmanın KENDİ marka kataloğu, bu ise firmanın tasarladığı
+         projelerde kullanılan (başka markalara ait olabilen) ürünler (bkz. src/routes/office.js#
+         buildOfficePayload projectProducts sorgusu). -->
+    <div class="related-section" id="om-project-products-section" style="display:none;">
+      <h2 class="related-title">Projelerde Kullanılan Ürünler<span id="om-project-products-count"></span></h2>
+      <div class="related-grid-scroll" id="om-project-products-grid"></div>
+    </div>
     <div class="related-section" id="om-city-section" style="display:none;">
       <h2 class="related-title">Şehirdeki Diğer Firmalar</h2>
       <div class="related-grid-scroll" id="om-city-grid"></div>
@@ -494,7 +502,7 @@ const OfficeModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
-    'om-related-materials-section', 'om-detail-info', 'om-prevnext'];
+    'om-related-materials-section', 'om-project-products-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
@@ -634,6 +642,17 @@ const OfficeModal = (function () {
     }
     renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, [], 'om-related-products-count');
     renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, [], 'om-related-materials-count');
+
+    // Projelerde Kullanılan Ürünler — payload'la BİRLİKTE gelir (ek bir fetch yok), bu yüzden
+    // renderProductGrid'in submission-birleştirme/dedupe mantığına ihtiyaç duymaz. Kart alt satırı
+    // kategori DEĞİL MARKA gösterir: buradaki ürünler firmanın kendi markası olmadığından, hangi
+    // markaya ait oldukları bu bölümde asıl ayırt edici bilgi.
+    const projectProductsData = payload.projectProducts || [];
+    document.getElementById('om-project-products-section').style.display = projectProductsData.length ? '' : 'none';
+    document.getElementById('om-project-products-grid').innerHTML = projectProductsData.map(p =>
+      cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
+    ).join('');
+    document.getElementById('om-project-products-count').textContent = projectProductsData.length ? ` (${projectProductsData.length})` : '';
 
     const PROFILE_TYPE = 'office';
     // gerçek bulgu (denetim, 2026-08-24, bkz. architect-modal.js'teki AYNI 2026-08-24 güncellemesi/

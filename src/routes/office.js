@@ -122,6 +122,12 @@ export async function handleOfficeListRoute(request, env, url) {
     const catParam = url.searchParams.get('cat') || '';
     const expParam = url.searchParams.get('exp') || '';
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
+    // ?brands=1 — marka.html (kullanıcı isteği, 2026-08-31: "FİRMA sayfasının aynısını kopyala ve
+    // ismini MARKA koy. Bu sayfada üretici ürün firmaları yayınlanacak"). Havuz AYNI (tek bir
+    // 'offices' KV havuzu, iki sayfa için iki ayrı sorgu yok); yalnızca kataloğunda en az bir
+    // ürün/malzeme bulunan firmalar (product_count > 0, bkz. aşağıdaki alt sorgu) geçirilir. firma.html
+    // bu parametreyi HİÇ göndermediğinden davranışı bit-bit aynı kalır.
+    const brandsOnly = url.searchParams.get('brands') === '1';
 
     // Varsayılan sıralama artık "en popüler" (en çok projesi olan firma önce) — bkz. kullanıcı
     // isteği: "Default Popularity-Based Sorting". ?sort=newest EXPLICIT olarak eski "son eklenen
@@ -141,7 +147,9 @@ export async function handleOfficeListRoute(request, env, url) {
       const { results } = await env.DB.prepare(
         `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url,
            (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-            WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
+            WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count,
+           (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+            AND (pr.brand_office_id = o.id OR pr.brand_name_raw = o.name COLLATE NOCASE)) AS product_count
          FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
       ).all();
       return results.map(row => {
@@ -154,11 +162,15 @@ export async function handleOfficeListRoute(request, env, url) {
         // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
         // (sayı/boolean/obje) güvenli bir düz metne düşer.
         const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
-        return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, projectCount: row.project_count || 0, badges: [] };
+        // productCount — ?brands=1 (marka.html) filtresinin tek kaynağı; buildOfficePayload'daki
+        // brandProductsRes ile AYNI eşleşme kuralı (brand_office_id VEYA marka adı), böylece "Marka
+        // sayfasında görünen firma"nın popup'ında mutlaka dolu bir "Ürünler" bölümü olur.
+        return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
       });
     });
 
     function passes(o) {
+      if (brandsOnly && !o.productCount) return false;
       if (locParam && cityOf(o.loc) !== locParam) return false;
       if (catParam && !(o.cats || '').includes(catParam)) return false;
       if (expParam && expBucketOf(o.yil) !== expParam) return false;
@@ -187,7 +199,10 @@ export async function handleOfficeListRoute(request, env, url) {
     // (mimar.html#handleArchitectListRoute'daki AYNI gerekçe). Türkiye tek başına bir konum
     // seçeneği olarak listelenmez (bkz. firma.html#populateFilters'daki AYNI `city === 'Türkiye'` atlama).
     const locCounts = {}, catCounts = {};
-    pool.forEach(o => {
+    // ?brands=1 için sayaçlar da yalnızca marka havuzundan hesaplanır — aksi halde marka.html'in
+    // kenar çubuğu, o sayfada hiç listelenmeyen firmaları içeren sayılar gösterirdi.
+    const countPool = brandsOnly ? pool.filter(o => o.productCount) : pool;
+    countPool.forEach(o => {
       const city = cityOf(o.loc);
       if (city && city !== 'Türkiye') locCounts[city] = (locCounts[city] || 0) + 1;
       (o.cats || '').split(' · ').map(s => s.trim()).filter(Boolean).forEach(cat => { catCounts[cat] = (catCounts[cat] || 0) + 1; });
@@ -196,7 +211,7 @@ export async function handleOfficeListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ projectCount, ...rest }) => rest);
+    const items = filtered.slice(start, start + limit).map(({ projectCount, productCount, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
@@ -277,14 +292,14 @@ async function buildOfficePayload(env, key) {
   }
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
-  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], hidden: false };
+  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], hidden: false };
   // gerçek bulgu (denetim raporu): satır yukarıdaki redirect-birleştirmeden SONRA hâlâ hidden_at
   // taşıyorsa (yani gerçekten gizli, yeniden adlandırma/birleştirme DEĞİL) bu uç item'ı yine de tam
   // olarak döndürüyordu — yalnızca `hidden:true` bayrağı ekleniyordu, veri gizlenmiyordu. Client-side
   // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
   // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
   // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
-  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], hidden: true };
+  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
   // MİMARLAB AI, Faz 2 — Knowledge Graph katmanı Firma↔Şehir ilişkisi (bkz. kullanıcı isteği:
   // Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkileri proje/mimar/firma sayfalarında yüzeye
@@ -292,7 +307,7 @@ async function buildOfficePayload(env, key) {
   // kuralı (bkz. dosya başı tanım) — yeni bir ayrıştırma mantığı EKLENMEDİ.
   const officeCity = cityOf(o.loc);
 
-  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
+  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
@@ -329,6 +344,22 @@ async function buildOfficePayload(env, key) {
        AND (brand_office_id = ? OR brand_name_raw = ? COLLATE NOCASE)
        ORDER BY title COLLATE NOCASE`
     ).bind(o.id, o.name).all(),
+    // "Projelerde Kullanılan Ürünler" (kullanıcı isteği, 2026-08-31: "Projelerde kullanılan ürünler;
+    // projenin sahibi mimarlık firması popupında da 'Projelerde Kullanılan Ürünler' kısmı açılarak
+    // bu başlığın altında paylaşılsınlar") — yukarıdaki brandProductsRes'ten TAMAMEN AYRI bir küme:
+    // o, firmanın KENDİ ürettiği katalog (brand_office_id/brand_name_raw eşleşmesi); bu ise firmanın
+    // TASARLADIĞI projelerde KULLANILAN, başka markalara ait olabilen ürünler. Zincir:
+    // project_designers (firma → proje) ⋈ project_products (proje → ürün, bkz. migrations/
+    // 0072_product_project_links.sql — kenar hangi taraftan kurulmuş olursa olsun sayılır).
+    env.DB.prepare(
+      `SELECT DISTINCT pr.slug, pr.title, pr.brand_name_raw, pr.category, pr.kind, pr.images
+       FROM project_designers pd
+       JOIN projects p ON p.id = pd.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_products pp ON pp.project_id = p.id
+       JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+       WHERE pd.office_id = ?
+       ORDER BY pr.title COLLATE NOCASE`
+    ).bind(o.id).all(),
     fetchRawFounderNames(env, o),
     // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
     // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
@@ -400,6 +431,12 @@ async function buildOfficePayload(env, key) {
   });
   const relatedProducts = brandCatalog.filter(p => p.kind !== 'material');
   const relatedMaterials = brandCatalog.filter(p => p.kind === 'material');
+  // brandCatalog ile AYNI şekillendirme; ürün/malzeme ayrımı YAPILMAZ — bölüm tek başlık altında
+  // ("Projelerde Kullanılan Ürünler") gösterilir, marka adı kartın alt satırında yer alır.
+  const projectProducts = projectProductsRes.results.map(p => {
+    const parsed = parseCanonicalRow('products', p);
+    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, brand: parsed.brand_name_raw, kind: parsed.kind };
+  });
 
   const item = {
     name: o.name, slug: o.slug, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
@@ -419,5 +456,5 @@ async function buildOfficePayload(env, key) {
 
   const adjacent = await fetchAdjacentOffice(env, o.id);
 
-  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
+  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
 }

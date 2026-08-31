@@ -147,6 +147,12 @@ export async function cascadeDeleteAccount(env, userId) {
     env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM saved_items WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM follows WHERE user_id = ?`).bind(userId),
+    // Koleksiyonum (bkz. migrations/0073_collections.sql) — saved_items/follows İLE AYNI gerekçe:
+    // tamamen bu kullanıcıya ait kişisel pano verisi. collection_items, collections'a ON DELETE
+    // CASCADE ile bağlı olsa da D1'de foreign_keys pragma'sına güvenilmediğinden (bkz. bu dosyadaki
+    // diğer adımların da hepsinin AÇIKÇA silinmesi) çocuk satırlar önce, açıkça silinir.
+    env.DB.prepare(`DELETE FROM collection_items WHERE collection_id IN (SELECT id FROM collections WHERE user_id = ?)`).bind(userId),
+    env.DB.prepare(`DELETE FROM collections WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM notifications WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM comments WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM ratings WHERE user_id = ?`).bind(userId),
