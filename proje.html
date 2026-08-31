@@ -946,7 +946,7 @@
     .detail-gallery a, .gallery-placeholder{flex-basis:92%;}
 
     /* Mobil/tablet proje modalı sıra: Galeri → Başlık → En İyi 100 rozeti → Puan+Aksiyon → Künye →
-       Açıklama → Diğer Projeler → İlgili Projeler → Şehirdeki Diğer Projeler → Yorumlar → Bilgi
+       Açıklama → Kullanılan Ürünler → Diğer Projeler → İlgili Projeler → Şehirdeki Diğer Projeler → Yorumlar → Bilgi
        Kaynağı/Geri Bildirim (bkz. kullanıcı isteği: Yorumlar aşağı taşınıp Geri Bildirim kutusunun
        hemen üstüne alındı; ardından Şehirdeki Diğer Projeler İlgili Projeler'den SONRA gelecek şekilde
        eklendi; ardından #pm-top-rank buraya eklendi — bu satır eklenene kadar bu blokta hiç order
@@ -970,20 +970,29 @@
     #pm-top-rank{order:3;}
     #pm-byline{order:4;}
     .detail-info{order:5;}
-    #pm-same-designer-section{order:6;}
-    #pm-related-section{order:7;}
-    #pm-city-section{order:8;}
-    #pm-prevnext{order:9;}
+    /* GERÇEK BULGU (2026-08-31): #pm-products-section (Kullanılan Ürünler) bu blokta HİÇ order
+       tanımlı değildi — yukarıdaki iki uyarının (#pm-top-rank ve ondalıklı order) AYNI tuzağı:
+       varsayılan order:0'a düşüp galeriden bile ÖNCE, modalın en üstünde çıkıyordu. Artık
+       "Diğer Projeler"in hemen ÜSTÜNDE (kullanıcı isteği: Kullanılan Ürünler, Firmanın Diğer
+       Projeleri'nin üzerine alınsın) — masaüstündeki DOM sırasıyla da birebir aynı bağıl konum.
+       Kaldırılan #pm-materials-section (Kullanılan Malzemeler) yüzünden ayrıca bir satır gerekmiyor;
+       malzemeler artık bu ızgaranın içinde. Alttaki tüm değerler birer artırıldı — aralıksız tam
+       sayı dizisi kuralı korunur. */
+    #pm-products-section{order:6;}
+    #pm-same-designer-section{order:7;}
+    #pm-related-section{order:8;}
+    #pm-city-section{order:9;}
+    #pm-prevnext{order:10;}
     /* Yorumlar — Bilgi Kaynağı & Geri Bildirim ile AYNI gerekçeyle (bkz. kullanıcı isteği) mobil/
        tablette aşağı, Geri Bildirim kutusunun hemen üstüne taşındı; masaüstünde DOM sırası (künye/
        açıklamadan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order değerleri etkilenir.
        #pm-info-divider Yorumlar'ın ÜSTÜNDE kalır (bkz. kullanıcı isteği). */
-    #pm-info-divider{order:10;}
+    #pm-info-divider{order:11;}
     /* Harita — kullanıcı isteği: mobilde de Yorumlar'ın HEMEN ÜSTÜNDE kalsın (masaüstündeki DOM
        sırasıyla aynı bağıl konum). */
-    #pm-map-section{order:11;}
-    #pm-comments-section{order:12;}
-    #pm-feedback-card{order:13;}
+    #pm-map-section{order:12;}
+    #pm-comments-section{order:13;}
+    #pm-feedback-card{order:14;}
 
     /* Puanla/Kaydet/Paylaş artık bu satırda değil, X'in yanında sabit 36px'te (bkz.
        modal-shell.js#injectStyles) — buradaki eski dokunma-hedefi/gizleme kuralları kaldırıldı. */

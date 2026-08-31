@@ -354,6 +354,14 @@ const AuthModal = (function () {
       #am-panel .dash-head-account .dash-head-actions{grid-area:secondary; width:100%; justify-content:center;}
     }
     @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
+    /* Koleksiyonum listesi (Panolarım + Kaydettiklerim) masaüstünde VE tablette iki sütun kalır —
+       bu iki kural yukarıdaki 860px kuralından SONRA geldiğinden (aynı özgüllük, kaynak sırası
+       kazanır) onu ezer. 620px altında telefon genişliğine inilir ve tek sütuna düşülür. */
+    #am-panel .dash-row.col-two-col{grid-template-columns:1fr 1fr;}
+    @media (max-width:620px){ #am-panel .dash-row.col-two-col{grid-template-columns:1fr;} }
+    /* İki sütuna sıkışınca pano kartları için minmax(190px) fazla geniş kalıyor — sütun içinde
+       en az iki kart yan yana sığsın diye bu görünümde daraltılır. */
+    #am-panel .col-two-col .col-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;}
 
     /* login/signup/hesabim modal-shell'in 32/68 ızgarasına DEĞİL, ortalı kart/tam genişlik dashboard
        biçimine ihtiyaç duyar (bkz. dosya başı yorumu) — yalnızca bu modal açıkken bodyEl'e eklenen
@@ -998,7 +1006,12 @@ const AuthModal = (function () {
         </div>
       </div>
 
-      <div id="am-col-list-view">
+      <!-- Masaüstü + tablette iki sütun (kullanıcı isteği, 2026-08-31) — Aktivitelerim/İçeriklerim
+           ile AYNI .dash-row ızgarası, ek olarak .col-two-col ile kırılma noktası 620px'e çekilir
+           (bkz. injectStyles): çekmece tablette 90vw olduğundan ~690px'lik bir alan kalıyor, iki
+           sütun orada hâlâ rahat sığıyor; .dash-row'un varsayılan 860px eşiği tablette gereksiz
+           yere tek sütuna düşürürdü. -->
+      <div id="am-col-list-view" class="dash-row col-two-col">
         <div class="dash-section">
           <h2>Panolarım</h2>
           <p class="section-hint">Yeni bir pano oluştur, sonra içine kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekle.</p>
@@ -2644,6 +2657,19 @@ const AuthModal = (function () {
     let openCollection = null; // { item, items } — açık pano; null ise liste görünümü
     let savedItemsCache = null;
 
+    // Kart altındaki son düzenleme tarihi (kullanıcı isteği, 2026-08-31). collections.updated_at bir
+    // epoch-ms sayısıdır (bkz. src/routes/collections.js) — bugün düzenlenmiş panolar "Bugün",
+    // dün olanlar "Dün" der, öncesi kısa tarih; böylece kart altyazısı sayı yığınına dönmez.
+    function formatCollectionDate(ts) {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '';
+      const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+      const dayDiff = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+      if (dayDiff <= 0) return 'Bugün';
+      if (dayDiff === 1) return 'Dün';
+      return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
     function notice(id, message, isError) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -2675,7 +2701,7 @@ const AuthModal = (function () {
           ${mosaicHtml(c.previewImages)}
           <div class="col-card-body">
             <div class="col-card-title">${escapeHtml(c.title)}</div>
-            <div class="col-card-count">${c.itemCount} öğe</div>
+            <div class="col-card-count">${c.itemCount} öğe${c.updated_at ? ` · ${formatCollectionDate(c.updated_at)}` : ''}</div>
           </div>
         </button>`).join('')}</div>`;
     }

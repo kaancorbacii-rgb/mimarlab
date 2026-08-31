@@ -1,4 +1,4 @@
-// ProjectProducts — "Kullanılan Ürünler"/"Kullanılan Malzemeler". item.products/item.materials
+// ProjectProducts — "Kullanılan Ürünler" (ürünler + malzemeler TEK ızgarada). item.products/item.materials
 // src/routes/project.js#handleProjectDetailRoute tarafından project_products join'inden doldurulur
 // (bkz. src/lib/canonicalSync.js#resolveProjectProductLinks — proje-ekle.html'deki Firma/Ürün
 // girişleri ya da urun-ekle.html'deki "Kullanılan Projeler" kutusu onaylandığında bağlanır).
@@ -14,7 +14,7 @@
 // (ve mimar/firma/ürün modallarının injectStyles'ında) zaten tanımlı, yatay kaydırma okları da
 // modal-shell.js#wireGridScrollArrows tarafından AYNI seçiciyle otomatik bağlanıyor.
 const ProjectProducts = (function () {
-  const DEFAULT_IDS = { productsSection: 'pm-products-section', productsGrid: 'pm-products-grid', materialsSection: 'pm-materials-section', materialsGrid: 'pm-materials-grid' };
+  const DEFAULT_IDS = { productsSection: 'pm-products-section', productsGrid: 'pm-products-grid' };
 
   // js/components/product-modal.js#cardHtml ile BİREBİR aynı işaretleme (alt satırda markanın adı) —
   // bu dosya proje.html/mimar.html gibi sayfalarda çalıştığından cdnImg/cdnSrcset/officeColor/
@@ -38,10 +38,15 @@ const ProjectProducts = (function () {
     document.getElementById(gridId).innerHTML = items.map(cardHtml).join('');
   }
 
+  // Ürünler ve malzemeler TEK ızgarada birleşir (kullanıcı isteği, 2026-08-31: "Malzemeler diye bir
+  // kısım olmasın, malzemeler de ürünler kısmına dahil edilsin") — ayrı "Kullanılan Malzemeler"
+  // bölümü kaldırıldı. Sunucu ikisini hâlâ AYRI döndürüyor (item.products/item.materials, bkz.
+  // src/routes/project.js#fetchProjectProducts) çünkü proje-ekle.html#prefillForClaim chip listesini
+  // bu iki diziden kuruyor — API şekli DEĞİŞMEDİ, yalnızca bu popup ikisini birleştirip gösteriyor.
   function mount(item, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
-    renderGroup(item.products, mergedIds.productsSection, mergedIds.productsGrid);
-    renderGroup(item.materials, mergedIds.materialsSection, mergedIds.materialsGrid);
+    const all = [...(item.products || []), ...(item.materials || [])];
+    renderGroup(all, mergedIds.productsSection, mergedIds.productsGrid);
   }
 
   return { mount };

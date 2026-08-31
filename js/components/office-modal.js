@@ -223,28 +223,25 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
       <div class="om-projects-map-wrap" id="om-projects-map-wrap" style="display:none;"></div>
     </div>
+    <!-- Ürünler — marka kataloğu. Ürün/malzeme ayrımı KALDIRILDI (kullanıcı isteği, 2026-08-31:
+         "malzemeler de ürünler kısmına dahil edilsin"); zaten iki bölümün de başlığı "Ürünler"di ve
+         aynı popup'ta arka arkaya iki özdeş başlık çıkıyordu. -->
     <div class="related-section" id="om-related-products-section" style="display:none;">
       <h2 class="related-title">Ürünler<span id="om-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-products-grid"></div>
     </div>
-    <div class="related-section" id="om-related-materials-section" style="display:none;">
-      <h2 class="related-title">Ürünler<span id="om-related-materials-count"></span></h2>
-      <div class="related-grid-scroll" id="om-related-materials-grid"></div>
-    </div>
-    <!-- Projelerde Kullanılan Ürünler (kullanıcı isteği, 2026-08-31) — yukarıdaki "Ürünler"
-         bölümlerinden AYRI: onlar firmanın KENDİ marka kataloğu, bu ise firmanın tasarladığı
-         projelerde kullanılan (başka markalara ait olabilen) ürünler (bkz. src/routes/office.js#
-         buildOfficePayload projectProducts sorgusu). -->
-    <div class="related-section" id="om-project-products-section" style="display:none;">
-      <h2 class="related-title">Projelerde Kullanılan Ürünler<span id="om-project-products-count"></span></h2>
-      <div class="related-grid-scroll" id="om-project-products-grid"></div>
-    </div>
-    <!-- İlgili Markalar (kullanıcı isteği, 2026-08-31) — yukarıdaki "Projelerde Kullanılan
-         Ürünler"in bir halka yukarısı: o ürünlerin ARKASINDAKİ markalar (bkz. src/routes/office.js#
-         buildOfficePayload relatedBrands sorgusu). -->
+    <!-- İlgili Markalar, "Projelerde Kullanılan Ürünler"in ÜSTÜNDE (kullanıcı isteği, 2026-08-31) —
+         önce hangi markalarla çalışıldığı (özet), sonra hangi ürünlerin kullanıldığı (ayrıntı).
+         Yukarıdaki "Ürünler" bölümünden AYRI: o firmanın KENDİ marka kataloğu, bu ikisi ise
+         firmanın tasarladığı projelerde kullanılan başka markalar/ürünler (bkz. src/routes/
+         office.js#buildOfficePayload relatedBrands/projectProducts sorguları). -->
     <div class="related-section" id="om-related-brands-section" style="display:none;">
       <h2 class="related-title">İlgili Markalar<span id="om-related-brands-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-brands-grid"></div>
+    </div>
+    <div class="related-section" id="om-project-products-section" style="display:none;">
+      <h2 class="related-title">Projelerde Kullanılan Ürünler<span id="om-project-products-count"></span></h2>
+      <div class="related-grid-scroll" id="om-project-products-grid"></div>
     </div>
     <!-- Ürünlerin Kullanıldığı Projeler (kullanıcı isteği, 2026-08-31) — ürün popup'ındaki
          "Kullanılan Projeler"in marka düzeyindeki karşılığı: bu markanın TÜM ürünlerinin
@@ -521,7 +518,7 @@ const OfficeModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
-    'om-related-materials-section', 'om-project-products-section', 'om-related-brands-section',
+    'om-project-products-section', 'om-related-brands-section',
     'om-brand-product-projects-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
@@ -681,8 +678,7 @@ const OfficeModal = (function () {
       document.getElementById(gridId).innerHTML = merged.map(productCardHtml).join('');
       if (countId) document.getElementById(countId).textContent = merged.length ? ` (${merged.length})` : '';
     }
-    renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, [], 'om-related-products-count');
-    renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, [], 'om-related-materials-count');
+    renderProductGrid('om-related-products-section', 'om-related-products-grid', [...brandProductsData, ...brandMaterialsData], [], 'om-related-products-count');
 
     // Projelerde Kullanılan Ürünler — payload'la BİRLİKTE gelir (ek bir fetch yok), bu yüzden
     // renderProductGrid'in submission-birleştirme/dedupe mantığına ihtiyaç duymaz. Kart alt satırı
@@ -752,8 +748,8 @@ const OfficeModal = (function () {
         const res = await fetch(`/api/public/profile-content?profileType=office&profileKey=${encodeURIComponent(o.name)}`);
         if (!res.ok) return;
         const data = await res.json();
-        renderProductGrid('om-related-products-section', 'om-related-products-grid', brandProductsData, data.products || [], 'om-related-products-count');
-        renderProductGrid('om-related-materials-section', 'om-related-materials-grid', brandMaterialsData, data.materials || [], 'om-related-materials-count');
+        renderProductGrid('om-related-products-section', 'om-related-products-grid',
+          [...brandProductsData, ...brandMaterialsData], [...(data.products || []), ...(data.materials || [])], 'om-related-products-count');
       } catch {}
     }
 

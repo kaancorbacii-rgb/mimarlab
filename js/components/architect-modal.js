@@ -213,17 +213,18 @@ const ArchitectModal = (function () {
       <h2 class="related-title">Ürünler<span id="am-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
     </div>
-    <!-- Kullandığı Ürünler / Tercih Ettiği Markalar (kullanıcı isteği, 2026-08-31) — yukarıdaki
-         "Ürünler" bölümünden AYRI: o, mimarın TASARLADIĞI ürünler; bunlar mimarın PROJELERİNDE
-         kullanılan ürünler ve o ürünlerin arkasındaki markalar (bkz. src/routes/architect.js#
-         usedProducts/preferredBrands). -->
-    <div class="related-section" id="am-used-products-section" style="display:none;">
-      <h2 class="related-title">Kullandığı Ürünler<span id="am-used-products-count"></span></h2>
-      <div class="related-grid-scroll" id="am-used-products-grid"></div>
-    </div>
+    <!-- Tercih Ettiği Markalar / Kullandığı Ürünler (kullanıcı isteği, 2026-08-31; sıra yine
+         kullanıcı isteğiyle markalar ÖNCE: önce hangi markalarla çalışıldığı özeti, sonra hangi
+         ürünlerin kullanıldığı ayrıntısı) — yukarıdaki "Ürünler" bölümünden AYRI: o, mimarın
+         TASARLADIĞI ürünler; bunlar mimarın PROJELERİNDE kullanılan ürünler ve o ürünlerin
+         arkasındaki markalar (bkz. src/routes/architect.js#usedProducts/preferredBrands). -->
     <div class="related-section" id="am-preferred-brands-section" style="display:none;">
       <h2 class="related-title">Tercih Ettiği Markalar<span id="am-preferred-brands-count"></span></h2>
       <div class="related-grid-scroll" id="am-preferred-brands-grid"></div>
+    </div>
+    <div class="related-section" id="am-used-products-section" style="display:none;">
+      <h2 class="related-title">Kullandığı Ürünler<span id="am-used-products-count"></span></h2>
+      <div class="related-grid-scroll" id="am-used-products-grid"></div>
     </div>
     <div class="related-section" id="am-related-architects-section" style="display:none;">
       <h2 class="related-title">Diğer Mimarlar</h2>
