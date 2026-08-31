@@ -334,7 +334,7 @@
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="urun.html">Ürün</a><a href="marka.html">Marka</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>
       <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a><a href="cerez-politikasi.html">Çerez Politikası</a></div>
     </div>
     <div class="footer-bottom">
@@ -362,6 +362,48 @@
     const style = document.createElement('style');
     style.id = 'footer-extra-style';
     style.textContent = `
+      /* Topluluk sütununun son satırındaki "İçerik Ekle" (kullanıcı isteği, 2026-08-31) — bir sayfaya
+         gitmediği (popup açtığı) için <a> değil <button>; sütundaki <a> kardeşleriyle GÖRSEL olarak
+         birebir aynı görünmesi gerektiğinden buton varsayılanları (arkaplan/kenarlık/hizalama/font)
+         burada sıfırlanır. Ölçüler her sayfanın kendi .footer-col a kuralıyla AYNI (13.5px, 11px alt
+         boşluk) — o kural her sayfanın <style>'ında tanımlı, buraya kopyalanmaz, yalnızca eşlenir. */
+      .footer-add-content{
+        display:block; width:100%; text-align:left; padding:0; margin:0 0 11px;
+        background:none; border:none; font-family:inherit; font-size:13.5px;
+        color:rgba(237,240,243,0.85); cursor:pointer;
+      }
+      .footer-add-content:hover{color:#EDF0F3;}
+      /* "İçerik Ekle" popup'ı — site genelinde tek bir hafif overlay. ModalShell KULLANILMAZ: bu
+         popup proje/mimar/firma/ürün modallarının paylaştığı o tek overlay'i sahiplenirse (bkz.
+         modal-shell.js#claimContent) altta açık bir detay popup'ının içeriğini silerdi; burada
+         gerekli olan tek şey beş bağlantı taşıyan küçük bir kart. */
+      .add-content-overlay{
+        display:none; position:fixed; inset:0; z-index:210; align-items:center; justify-content:center;
+        padding:20px; background:rgba(27,42,61,0.5); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+      }
+      [data-theme="dark"] .add-content-overlay{background:rgba(255,255,255,0.16);}
+      .add-content-overlay.open{display:flex;}
+      .add-content-panel{
+        position:relative; width:100%; max-width:380px; background:var(--paper-card); color:var(--ink);
+        border-radius:18px; padding:26px 24px 24px; box-shadow:0 24px 60px rgba(27,42,61,0.3);
+      }
+      .add-content-close{
+        position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:50%; border:none;
+        background:var(--paper-alt); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; cursor:pointer;
+      }
+      .add-content-close:hover{color:var(--ink);}
+      .add-content-panel h2{
+        font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size:19px; font-weight:700; margin:0 0 4px; padding-right:34px;
+      }
+      .add-content-panel p{font-size:12.5px; color:var(--ink-soft); margin:0 0 18px; line-height:1.55;}
+      .add-content-list{display:flex; flex-direction:column; gap:9px;}
+      .add-content-list a{
+        display:flex; align-items:center; justify-content:space-between; gap:10px;
+        padding:12px 18px; border-radius:100px; border:1.5px solid var(--ink);
+        font-size:13.5px; font-weight:600; color:var(--ink); text-decoration:none;
+      }
+      .add-content-list a:hover{background:var(--ink); color:var(--paper-card);}
       .footer-subscribe{background:#4E6478; border-bottom:1px solid rgba(237,240,243,0.12);}
       /* kullanıcı isteği: iki sütundaki başlık/açıklama/buton satırları TÜM görünümlerde aynı hizada
          ve aynı büyüklükte olmalı — bu yüzden iki .footer-subscribe-join/.footer-subscribe-news
@@ -982,12 +1024,60 @@
     });
   }
 
+  // "İçerik Ekle" (kullanıcı isteği, 2026-08-31): footer'ın Topluluk sütunundaki son satır, beş
+  // ekleme sayfasına (proje/mimar/firma/ürün/marka) götüren bağlantıları taşıyan küçük bir popup
+  // açar. Bağlantılar sıradan <a href> — tıklanınca tarayıcı normal şekilde o sayfaya gider, ayrı
+  // bir yönlendirme koduna gerek yok.
+  const ADD_CONTENT_LINKS = [
+    { href: 'proje-ekle.html', label: 'Proje Ekle' },
+    { href: 'mimar-ekle.html', label: 'Mimar Ekle' },
+    { href: 'firma-ekle.html', label: 'Firma Ekle' },
+    { href: 'urun-ekle.html', label: 'Ürün Ekle' },
+    { href: 'marka-ekle.html', label: 'Marka Ekle' },
+  ];
+  const ADD_CONTENT_ARROW = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>';
+
+  function wireAddContent(){
+    const trigger = document.getElementById('footer-add-content');
+    if(!trigger || document.getElementById('add-content-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'add-content-overlay';
+    overlay.id = 'add-content-overlay';
+    overlay.innerHTML = `
+      <div class="add-content-panel" role="dialog" aria-modal="true" aria-label="İçerik Ekle">
+        <button type="button" class="add-content-close" aria-label="Kapat">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h2>İçerik Ekle</h2>
+        <p>Platforma eklemek istediğin içerik türünü seç.</p>
+        <div class="add-content-list">
+          ${ADD_CONTENT_LINKS.map(l => `<a href="${escapeAttr(l.href)}">${escapeHtml(l.label)}${ADD_CONTENT_ARROW}</a>`).join('')}
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    function close(){ overlay.classList.remove('open'); }
+    function open(){
+      // Altta açık kalmış hamburger/arama/popup panelleri kapansın (bkz. js/overlay-manager.js) —
+      // footer görünür olduğu için pratikte nadiren gerekir, ama tutarlılık için diğer overlay'lerle
+      // AYNI protokol izlenir.
+      if(typeof OverlayManager !== 'undefined') OverlayManager.notifyOpen('add-content');
+      overlay.classList.add('open');
+    }
+    trigger.addEventListener('click', open);
+    overlay.querySelector('.add-content-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && overlay.classList.contains('open')) close(); });
+    if(typeof OverlayManager !== 'undefined') OverlayManager.register('add-content', close);
+  }
+
   function mountFooter(){
     const footerMount = document.getElementById('site-footer-mount');
     if(footerMount) footerMount.outerHTML = footerHtml();
     injectFooterStyle();
     wireFooterTheme();
     wireFooterNewsletter();
+    wireAddContent();
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', mountFooter);

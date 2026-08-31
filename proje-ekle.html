@@ -333,6 +333,79 @@
     font-size:13px; line-height:1; padding:0;
   }
   .image-move-btn:hover{background:var(--ink);}
+  /* ---------- GÖRSEL ÜZERİ ÜRÜN İŞARETLEME (kullanıcı isteği, 2026-08-31) ----------
+     Önizlemedeki bir görsele tıklanınca açılan tam ekran editör: görsel büyür, üzerine tıklanan
+     noktaya bir ürün bağlanır. Kaydedilen konumlar projects.image_hotspots'a yazılır (bkz.
+     migrations/0076_project_image_hotspots.sql) ve proje popup'ında js/components/image-hotspots.js
+     tarafından aynı yüzde konumlarda gösterilir. */
+  .image-preview-item .hotspot-count{
+    position:absolute; right:4px; bottom:4px; background:var(--accent); color:#fff;
+    font-size:9px; font-weight:700; padding:2px 6px; border-radius:100px; pointer-events:none;
+  }
+  .hs-overlay{
+    display:none; position:fixed; inset:0; z-index:300; background:rgba(15,19,26,0.9);
+    align-items:center; justify-content:center; padding:24px;
+  }
+  .hs-overlay.open{display:flex;}
+  .hs-stage{position:relative; max-width:100%; max-height:100%; line-height:0;}
+  .hs-stage img{max-width:100%; max-height:calc(100vh - 190px); border-radius:8px; display:block; cursor:crosshair; user-select:none; -webkit-user-drag:none;}
+  .hs-close{
+    position:absolute; top:16px; right:20px; width:40px; height:40px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.14); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .hs-close:hover{background:rgba(255,255,255,0.26);}
+  .hs-hint{
+    position:absolute; top:20px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.86);
+    font-size:12.5px; line-height:1.5; padding:0 70px; pointer-events:none;
+  }
+  .hs-nav{
+    position:absolute; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:50%;
+    border:none; background:rgba(255,255,255,0.14); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .hs-nav:hover{background:rgba(255,255,255,0.26);}
+  .hs-nav-prev{left:16px;}
+  .hs-nav-next{right:16px;}
+  .hs-counter{position:absolute; bottom:22px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.8); font-size:12px;}
+  .hs-pin{
+    position:absolute; transform:translate(-50%,-50%); width:26px; height:26px; border-radius:50%;
+    border:2.5px solid #fff; background:var(--accent); box-shadow:0 2px 10px rgba(15,19,26,0.5);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+  }
+  .hs-pin::after{content:''; width:9px; height:9px; border-radius:50%; background:#fff;}
+  .hs-pin.active{outline:3px solid rgba(255,255,255,0.55);}
+  .hs-form{
+    position:absolute; width:280px; max-width:82vw; background:var(--paper-card); border-radius:14px;
+    padding:14px; box-shadow:0 18px 44px rgba(15,19,26,0.4); line-height:1.5; z-index:3;
+  }
+  .hs-form label{display:block; font-size:11.5px; font-weight:600; margin-bottom:5px; color:var(--ink);}
+  .hs-form input{
+    width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid var(--line); border-radius:9px;
+    background:var(--paper); font-family:inherit; font-size:13px; color:var(--ink);
+  }
+  .hs-form-actions{display:flex; gap:8px; margin-top:10px;}
+  .hs-form-actions button{
+    flex:1; padding:8px 10px; border-radius:100px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    border:1.5px solid var(--ink); background:none; color:var(--ink);
+  }
+  .hs-form-actions .hs-save{background:var(--ink); color:var(--paper-card);}
+  .hs-form-actions .hs-remove{border-color:#B84C4C; color:#B84C4C;}
+  .hs-form-note{font-size:11px; color:var(--ink-soft); margin:8px 0 0;}
+  .hs-ac{position:relative;}
+  .hs-ac-list{
+    position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:190px; overflow-y:auto; z-index:4;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px rgba(27,42,61,0.18);
+  }
+  .hs-ac-list button{
+    display:block; width:100%; text-align:left; padding:8px 11px; border:none; background:none;
+    font-family:inherit; font-size:12.5px; color:var(--ink); cursor:pointer;
+  }
+  .hs-ac-list button:hover{background:var(--paper-alt);}
+  .hs-ac-list .hs-ac-sub{display:block; font-size:11px; color:var(--ink-soft);}
+  @media (max-width:720px){
+    .hs-overlay{padding:12px;}
+    .hs-stage img{max-height:calc(100vh - 210px);}
+    .hs-hint{padding:0 56px; font-size:11.5px;}
+  }
   .image-move-btn:disabled{opacity:0.25; cursor:default;}
   .image-move-left{left:4px;}
   .image-move-right{left:28px;}
@@ -607,6 +680,7 @@
           <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
         </label>
         <p class="image-spec-hint">Görseller 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır. Bir projeye en fazla 50 görsel yükleyebilirsin.</p>
+        <p class="image-spec-hint">Bir görsele tıklayarak büyüt, sonra görseldeki bir ürünün üzerine tıklayıp o ürünü işaretle — işaretlenen ürünler proje sayfasında görselin üzerinde tıklanabilir birer daire olarak görünür.</p>
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
@@ -641,6 +715,26 @@
   </div>
 
   <footer id="site-footer-mount"></footer>
+
+  <!-- Görsel üzeri ürün işaretleme editörü (bkz. yukarıdaki .hs-* stilleri ve aşağıdaki
+       wireHotspotEditor) — form'un DIŞINDA duruyor ki içindeki input'lar/butonlar yanlışlıkla
+       proje formunu göndermesin (bir <form> içindeki her <button> varsayılan olarak submit'tir). -->
+  <div class="hs-overlay" id="hs-overlay" aria-hidden="true">
+    <button type="button" class="hs-close" id="hs-close" aria-label="Kapat">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="hs-hint">Görselde bir ürünün üzerine tıkla ve o ürünü ara — kaydettiğin ürün, proje sayfasında görselin üzerinde tıklanabilir bir daire olarak görünür. Var olan bir işaretin üzerine tıklayarak düzenleyebilir ya da kaldırabilirsin.</div>
+    <button type="button" class="hs-nav hs-nav-prev" id="hs-prev" aria-label="Önceki görsel">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="hs-stage" id="hs-stage">
+      <img id="hs-image" src="" alt="">
+    </div>
+    <button type="button" class="hs-nav hs-nav-next" id="hs-next" aria-label="Sonraki görsel">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="hs-counter" id="hs-counter"></div>
+  </div>
 
 <script>
 const dropZone = document.getElementById('image-drop');
@@ -1154,20 +1248,32 @@ function mediaItemSrc(item){
   return item.kind === 'existing' ? item.url : item.objectUrl;
 }
 
-function setExistingImages(urls){
+// hotspotsByUrl: görsel URL'sine göre anahtarlı { url: [{x,y,slug,title}] } haritası (bkz.
+// migrations/0076_project_image_hotspots.sql) — düzenleme modunda API'den geldiği gibi geçirilir,
+// yeni/AI akışında hiç verilmez. mediaItems'ta her görselin işaretçileri KENDİ öğesinde taşınır ki
+// sürükle-bırak sıralaması onları da beraberinde götürsün.
+function setExistingImages(urls, hotspotsByUrl){
   mediaItems.forEach(item => { if(item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
-  mediaItems = (urls || []).map(url => ({ key: 'm' + (mediaKeySeq++), kind:'existing', url }));
+  const hs = hotspotsByUrl || {};
+  mediaItems = (urls || []).map(url => ({
+    key: 'm' + (mediaKeySeq++), kind:'existing', url,
+    // API zenginleştirilmiş nesneler döner (marka/görsel dahil, bkz. src/routes/project.js#
+    // enrichImageHotspots) — formda yalnızca konum + slug + başlık gerekiyor, gerisi atılır.
+    hotspots: (hs[url] || []).map(h => ({ x: h.x, y: h.y, slug: h.slug, title: h.title || '' })),
+  }));
 }
 
 function renderPreviews(){
   previewGrid.innerHTML = mediaItems.map((item, i) => {
     const isCover = i === 0;
     const isLast = i === mediaItems.length - 1;
+    const hsCount = (item.hotspots || []).length;
     return `<div class="image-preview-item" data-key="${escapeAttr(item.key)}">
       <img src="${escapeAttr(mediaItemSrc(item))}" alt="">
       <button type="button" class="image-move-btn image-move-left" data-move-index="${i}" data-dir="-1" aria-label="Sola taşı"${i === 0 ? ' disabled' : ''}>‹</button>
       <button type="button" class="image-move-btn image-move-right" data-move-index="${i}" data-dir="1" aria-label="Sağa taşı"${isLast ? ' disabled' : ''}>›</button>
       ${isCover ? '<span class="cover-badge">Kapak</span>' : `<button type="button" class="cover-set-btn" data-cover-index="${i}">Kapak Yap</button>`}
+      ${hsCount ? `<span class="hotspot-count">${hsCount} ürün</span>` : ''}
       <button type="button" class="image-preview-remove" data-remove-index="${i}" aria-label="Kaldır">✕</button>
     </div>`;
   }).join('');
@@ -1218,6 +1324,10 @@ function clearDragPending(){
 }
 
 previewGrid.addEventListener('pointerdown', (e)=>{
+  // Yeni bir basış, bir önceki sürüklemeden kalan "click'i yut" bayrağını her hâlükârda sıfırlar —
+  // sürükleme sonrası beklenen click hiç gelmezse (ör. pointercancel) bayrak takılı kalıp sonraki
+  // GERÇEK tıklamayı yutardı.
+  dragJustFinished = false;
   if(e.target.closest('button')) return;
   const tile = e.target.closest('.image-preview-item');
   if(!tile) return;
@@ -1258,6 +1368,9 @@ function finishDragReorder(e){
   tile.classList.remove('dragging');
   try{ tile.releasePointerCapture(dragState.pointerId); }catch{}
   dragState = null;
+  // bkz. aşağıdaki dragJustFinished — sürükleme sonrası tarayıcının ürettiği click, görsel
+  // büyütme editörünü açmamalı.
+  dragJustFinished = true;
   const order = [...previewGrid.children].map(el => el.dataset.key);
   const byKey = new Map(mediaItems.map(item => [item.key, item]));
   mediaItems = order.map(k => byKey.get(k)).filter(Boolean);
@@ -1265,6 +1378,243 @@ function finishDragReorder(e){
 }
 previewGrid.addEventListener('pointerup', finishDragReorder);
 previewGrid.addEventListener('pointercancel', finishDragReorder);
+
+// ---------- GÖRSEL ÜZERİ ÜRÜN İŞARETLEME EDİTÖRÜ (kullanıcı isteği, 2026-08-31) ----------
+// Önizlemedeki bir görsele TIKLAMAK (sürüklemek değil) görseli büyütür; büyütülmüş görselde bir
+// noktaya tıklamak oraya bir ürün bağlar. Konumlar görselin KENDİ kutusuna göre yüzde olarak
+// saklanır (bkz. migrations/0076_project_image_hotspots.sql) — proje popup'ındaki gösterim tarafı
+// (js/components/image-hotspots.js) aynı yüzdeleri kullanır, böylece işaretler her ekran boyutunda
+// ve hem şeritte hem büyütülmüş görselde doğru yere düşer.
+//
+// Sürükle-bırak sıralamasıyla ÇAKIŞMAMASI için: gerçek bir sürükleme yaşandıysa (dragState kurulmuş
+// ve pointer capture alınmışsa) tarayıcı pointerup'tan sonra yine de bir click üretebilir — bu
+// bayrak o click'i yutar, aksi halde her sıralama işleminden sonra editör açılırdı.
+let dragJustFinished = false;
+const hsOverlay = document.getElementById('hs-overlay');
+const hsStage = document.getElementById('hs-stage');
+const hsImage = document.getElementById('hs-image');
+const hsCounter = document.getElementById('hs-counter');
+let hsIndex = -1;      // mediaItems içindeki görsel indeksi
+let hsForm = null;     // açık düzenleme kutusu
+let hsDraft = null;    // {x, y, editIndex|null} — kutunun bağlı olduğu işaretçi
+
+function hsCurrentItem(){ return hsIndex >= 0 ? mediaItems[hsIndex] : null; }
+
+function closeHotspotForm(){
+  const hadDraft = !!hsStage.querySelector('.hs-pin[data-hs-index="draft"]');
+  if(hsForm){ hsForm.remove(); hsForm = null; }
+  hsDraft = null;
+  hsStage.querySelectorAll('.hs-pin.active').forEach(p => p.classList.remove('active'));
+  if(hadDraft) renderHotspotPins();
+}
+
+// draftAt: henüz kaydedilmemiş, kutusu açık duran işaretçi — kullanıcı tıkladığı noktayı görsün
+// diye geçici olarak çizilir (aksi halde form açılıyor ama görselde hiçbir iz olmuyor).
+function renderHotspotPins(draftAt){
+  hsStage.querySelectorAll('.hs-pin').forEach(p => p.remove());
+  const item = hsCurrentItem();
+  if(!item) return;
+  if(draftAt){
+    const draft = document.createElement('button');
+    draft.type = 'button';
+    draft.className = 'hs-pin active';
+    draft.style.left = draftAt.x + '%';
+    draft.style.top = draftAt.y + '%';
+    draft.dataset.hsIndex = 'draft';
+    hsStage.appendChild(draft);
+  }
+  (item.hotspots || []).forEach((h, i) => {
+    const pin = document.createElement('button');
+    pin.type = 'button';
+    pin.className = 'hs-pin';
+    pin.style.left = h.x + '%';
+    pin.style.top = h.y + '%';
+    pin.title = h.title || 'Ürün';
+    pin.dataset.hsIndex = String(i);
+    hsStage.appendChild(pin);
+  });
+}
+
+// Kutuyu işaretçinin yanına koyar ve görselin dışına taşmayacak şekilde kenarlardan çevirir.
+function placeHotspotForm(xPct, yPct){
+  const sw = hsStage.clientWidth, sh = hsStage.clientHeight;
+  const fw = hsForm.offsetWidth, fh = hsForm.offsetHeight;
+  const px = (xPct / 100) * sw, py = (yPct / 100) * sh;
+  let left = px + 20;
+  if(left + fw > sw - 4) left = px - 20 - fw;
+  left = Math.max(4, Math.min(left, Math.max(4, sw - fw - 4)));
+  let top = py - fh / 2;
+  top = Math.max(4, Math.min(top, Math.max(4, sh - fh - 4)));
+  hsForm.style.left = left + 'px';
+  hsForm.style.top = top + 'px';
+}
+
+function openHotspotForm(xPct, yPct, editIndex){
+  closeHotspotForm();
+  const item = hsCurrentItem();
+  if(!item) return;
+  const existing = editIndex != null ? item.hotspots[editIndex] : null;
+  hsDraft = { x: xPct, y: yPct, editIndex: editIndex != null ? editIndex : null, slug: existing ? existing.slug : '', title: existing ? existing.title : '' };
+  hsForm = document.createElement('div');
+  hsForm.className = 'hs-form';
+  hsForm.innerHTML = `
+    <label for="hs-product-input">Bu noktadaki ürün</label>
+    <div class="hs-ac">
+      <input type="text" id="hs-product-input" placeholder="Ürün adı yaz ve listeden seç" autocomplete="off" value="${escapeAttr(existing ? existing.title : '')}">
+    </div>
+    <p class="hs-form-note">Yalnızca sitede yayında olan ürünler bağlanabilir — listeden bir ürün seçmelisin.</p>
+    <div class="hs-form-actions">
+      <button type="button" class="hs-save">Kaydet</button>
+      ${editIndex != null ? '<button type="button" class="hs-remove">Kaldır</button>' : '<button type="button" class="hs-cancel">Vazgeç</button>'}
+    </div>`;
+  hsStage.appendChild(hsForm);
+  // GERÇEK BULGU (yerel test): kutunun İÇİNDEKİ tıklamalar hsStage'in delege dinleyicisine kadar
+  // kabarıyor ve orada "görselin dışına tıklandı" sayılıp kutuyu kapatıyordu. `e.target.closest(
+  // '.hs-form')` koruması bunu yakalamıyordu çünkü öneri listesindeki bir seçeneğe tıklandığında
+  // kendi handler'ı listeyi ÖNCE DOM'dan kaldırıyor — kabarma sırasında e.target artık kopuk bir
+  // düğüm, closest() de null dönüyor. Dinleyiciyi kutunun KENDİSİNE koymak bu tuzağı tamamen
+  // kapatır: olay yolu (event path) gönderim anında hesaplandığından, hedef sonradan DOM'dan
+  // koparılsa bile bu dinleyici yine çalışır.
+  hsForm.addEventListener('click', (e)=> e.stopPropagation());
+  placeHotspotForm(xPct, yPct);
+  if(editIndex != null){
+    const pin = hsStage.querySelector(`.hs-pin[data-hs-index="${editIndex}"]`);
+    if(pin) pin.classList.add('active');
+  } else {
+    renderHotspotPins({ x: xPct, y: yPct });
+  }
+
+  const input = hsForm.querySelector('#hs-product-input');
+  const acWrap = hsForm.querySelector('.hs-ac');
+  let acList = null, acTimer = null;
+  function closeAc(){ if(acList){ acList.remove(); acList = null; } }
+  async function search(q){
+    closeAc();
+    if(q.length < 2) return;
+    let items = [];
+    try{
+      const res = await fetch(`/api/products/search?q=${encodeURIComponent(q)}`);
+      if(res.ok) items = (await res.json()).items || [];
+    }catch{}
+    // slug'sız bir öneri tıklanamaz bir işaretçi üretirdi (bkz. sanitizeImageHotspots — slug'suz
+    // kayıtlar sunucuda zaten atılır), o yüzden listeden de düşürülür.
+    items = items.filter(it => it.slug);
+    if(!items.length || !hsForm) return;
+    acList = document.createElement('div');
+    acList.className = 'hs-ac-list';
+    // escapeAttr — bu sayfada escapeHtml TANIMLI DEĞİL (bkz. yukarısı, yalnızca escapeAttr var);
+    // escapeAttr metin içeriği için de güvenli (üstüne tırnakları da kaçırır).
+    acList.innerHTML = items.map(it => `<button type="button" data-slug="${escapeAttr(it.slug)}" data-title="${escapeAttr(it.label)}">${escapeAttr(it.label)}${it.sub ? `<span class="hs-ac-sub">${escapeAttr(it.sub)}</span>` : ''}</button>`).join('');
+    acWrap.appendChild(acList);
+    acList.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        hsDraft.slug = btn.dataset.slug;
+        hsDraft.title = btn.dataset.title;
+        input.value = btn.dataset.title;
+        closeAc();
+      });
+    });
+  }
+  input.addEventListener('input', ()=>{
+    // Elle yazılan her değişiklik seçimi geçersizleştirir — kutunun içindeki metin ile gerçekten
+    // bağlanan ürün asla ayrışmasın (kullanıcı bir ürün seçtikten sonra adı değiştirirse eski slug
+    // sessizce kaydedilmiş olurdu).
+    hsDraft.slug = '';
+    clearTimeout(acTimer);
+    const q = input.value.trim();
+    acTimer = setTimeout(()=> search(q), 220);
+  });
+  input.addEventListener('keydown', (e)=>{ if(e.key === 'Escape'){ e.stopPropagation(); closeAc(); } });
+  input.focus();
+
+  hsForm.querySelector('.hs-save').addEventListener('click', ()=>{
+    if(!hsDraft.slug){
+      input.focus();
+      input.style.borderColor = '#B84C4C';
+      return;
+    }
+    const it = hsCurrentItem();
+    if(!it) return;
+    if(!it.hotspots) it.hotspots = [];
+    const entry = { x: hsDraft.x, y: hsDraft.y, slug: hsDraft.slug, title: hsDraft.title };
+    if(hsDraft.editIndex != null) it.hotspots[hsDraft.editIndex] = entry;
+    else it.hotspots.push(entry);
+    closeHotspotForm();
+    renderHotspotPins();
+    renderPreviews();
+  });
+  const removeBtn = hsForm.querySelector('.hs-remove');
+  if(removeBtn) removeBtn.addEventListener('click', ()=>{
+    const it = hsCurrentItem();
+    if(it && hsDraft.editIndex != null) it.hotspots.splice(hsDraft.editIndex, 1);
+    closeHotspotForm();
+    renderHotspotPins();
+    renderPreviews();
+  });
+  const cancelBtn = hsForm.querySelector('.hs-cancel');
+  if(cancelBtn) cancelBtn.addEventListener('click', closeHotspotForm);
+}
+
+function showHotspotImage(i){
+  if(!mediaItems.length) return;
+  hsIndex = (i + mediaItems.length) % mediaItems.length;
+  closeHotspotForm();
+  hsImage.src = mediaItemSrc(mediaItems[hsIndex]);
+  hsCounter.textContent = `${hsIndex + 1} / ${mediaItems.length}`;
+  document.getElementById('hs-prev').style.display = mediaItems.length > 1 ? '' : 'none';
+  document.getElementById('hs-next').style.display = mediaItems.length > 1 ? '' : 'none';
+  // Görsel yüklenmeden stage'in ölçüsü bilinmediğinden pinler yükleme sonrasında da tazelenir.
+  renderHotspotPins();
+}
+
+function openHotspotEditor(i){
+  hsOverlay.classList.add('open');
+  hsOverlay.setAttribute('aria-hidden', 'false');
+  showHotspotImage(i);
+}
+function closeHotspotEditor(){
+  closeHotspotForm();
+  hsOverlay.classList.remove('open');
+  hsOverlay.setAttribute('aria-hidden', 'true');
+  hsIndex = -1;
+}
+
+previewGrid.addEventListener('click', (e)=>{
+  if(dragJustFinished){ dragJustFinished = false; return; }
+  if(e.target.closest('button')) return;
+  const tile = e.target.closest('.image-preview-item');
+  if(!tile) return;
+  const idx = [...previewGrid.children].indexOf(tile);
+  if(idx >= 0) openHotspotEditor(idx);
+});
+
+// Sarmalayıcı ok fonksiyonu ŞART: doğrudan bağlanırsa Event nesnesi renderHotspotPins'in draftAt
+// argümanına düşer ve (x/y'si olmadığı için) sol üst köşede hayalet bir işaretçi çizilir.
+hsImage.addEventListener('load', ()=> renderHotspotPins());
+hsStage.addEventListener('click', (e)=>{
+  const pin = e.target.closest('.hs-pin');
+  if(pin){
+    if(pin.dataset.hsIndex === 'draft') return; // kaydedilmemiş işaretçi: kutusu zaten açık
+    const i = parseInt(pin.dataset.hsIndex, 10);
+    const h = (hsCurrentItem().hotspots || [])[i];
+    if(h) openHotspotForm(h.x, h.y, i);
+    return;
+  }
+  if(e.target.closest('.hs-form')) return;
+  if(e.target !== hsImage){ closeHotspotForm(); return; }
+  const rect = hsImage.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  openHotspotForm(Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)), null);
+});
+document.getElementById('hs-close').addEventListener('click', closeHotspotEditor);
+document.getElementById('hs-prev').addEventListener('click', ()=> showHotspotImage(hsIndex - 1));
+document.getElementById('hs-next').addEventListener('click', ()=> showHotspotImage(hsIndex + 1));
+hsOverlay.addEventListener('click', (e)=>{ if(e.target === hsOverlay) closeHotspotEditor(); });
+document.addEventListener('keydown', (e)=>{
+  if(!hsOverlay.classList.contains('open') || e.key !== 'Escape') return;
+  if(hsForm) closeHotspotForm(); else closeHotspotEditor();
+});
 
 const MAX_PROJECT_IMAGES = 50;
 
@@ -1418,7 +1768,8 @@ async function prefillForEdit(){
     updateOdulLabel();
     brandChips = (item.brands || []).map(b => typeof b === 'string' ? { brand: b, product: null } : b);
     renderBrandChips();
-    setExistingImages(item.images || []);
+    // item.imageHotspots: bu taslağın kendi kaydettiği işaretçiler (bkz. parseSubmissionRow#objectFields).
+    setExistingImages(item.images || [], item.imageHotspots || {});
     renderPreviews();
     mountProjectAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
@@ -1515,7 +1866,9 @@ async function prefillForClaim(){
   // başı yorumu) — form chip listesi bunlardan {brand, product} çiftleri olarak yeniden kurulur.
   brandChips = [...(merged.products || []), ...(merged.materials || [])].map(p => ({ brand: p.brand || '', product: p.title || null }));
   renderBrandChips();
-  setExistingImages(merged.images || []);
+  // merged.imageHotspots: GET /api/project/:slug'ın zenginleştirilmiş hâli (bkz. src/routes/
+  // project.js#enrichImageHotspots) — setExistingImages yalnızca x/y/slug/title'ı alır.
+  setExistingImages(merged.images || [], merged.imageHotspots || {});
   renderPreviews();
   mountProjectAdminActions();
 }
@@ -1793,10 +2146,17 @@ async function convertCopiedImageToWebp(mediaUrl, context, maxEdge){
 // zaten /media/ ya da site-relative (ör. "projects/x.jpg") olanlar eskisi gibi aynen geçer.
 async function collectImages(){
   const urls = [];
+  // owners[i], urls[i]'yi üreten mediaItems öğesi — görsel üzeri ürün işaretçileri (bkz.
+  // collectImageHotspots) o öğede taşındığından, yükleme/kopyalama sonrası oluşan NİHAİ url ile
+  // eşleştirilebilmesi için bu eşleme gerekiyor (fonksiyon yalnızca url listesi döndüğünden başka
+  // türlü hangi işaretçinin hangi son url'e ait olduğu bilinemezdi).
+  const owners = [];
   const externalIndexes = [];
   for(const item of mediaItems){
+    item.finalUrl = null;
     if(item.kind === 'existing'){
       urls.push(item.url);
+      owners.push(item);
       if(/^https?:\/\//i.test(item.url)) externalIndexes.push(urls.length - 1);
       continue;
     }
@@ -1807,6 +2167,7 @@ async function collectImages(){
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
     urls.push(data.url);
+    owners.push(item);
   }
   if(externalIndexes.length){
     const res = await fetch('/api/ai/copy-images', {
@@ -1830,7 +2191,22 @@ async function collectImages(){
       if(urls[i]) urls[i] = await convertCopiedImageToWebp(urls[i], 'project', 2000);
     }));
   }
+  // Her mediaItem'a kendi NİHAİ url'ini yaz — collectImageHotspots bunu kullanarak işaretçi
+  // haritasını doğru anahtarlarla kurar (elenen/kopyalanamayan görseller null kalır).
+  urls.forEach((u, i) => { if(owners[i]) owners[i].finalUrl = u || null; });
   return urls.filter(Boolean);
+}
+
+// Görsel üzeri ürün işaretçilerinin sunucuya gidecek hâli: { <nihai görsel url>: [{x,y,slug,title}] }
+// (bkz. migrations/0076_project_image_hotspots.sql). YALNIZCA collectImages()'tan SONRA çağrılabilir —
+// yeni yüklenen görsellerin url'i o çağrıdan önce henüz yok.
+function collectImageHotspots(){
+  const out = {};
+  for(const item of mediaItems){
+    if(!item.finalUrl || !(item.hotspots || []).length) continue;
+    out[item.finalUrl] = item.hotspots.map(h => ({ x: h.x, y: h.y, slug: h.slug, title: h.title || '' }));
+  }
+  return out;
 }
 
 document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=>{
@@ -1916,6 +2292,8 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     photoCreditText: document.getElementById('p-credit-text').value || null,
     photoCreditUrl: document.getElementById('p-credit-url').value || null,
     images,
+    // bkz. collectImageHotspots — collectImages()'tan SONRA çağrılmalı (nihai url'lere ihtiyaç var).
+    imageHotspots: collectImageHotspots(),
   };
   // Yalnızca admin'e görünen alan (bkz. yukarıdaki meReady#p-publish-date-row) — sunucu tarafı da
   // admin olmayan gönderen için bunu ayrıca siler (bkz. src/routes/submissions.js), currentUserRole

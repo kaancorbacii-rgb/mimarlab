@@ -14,6 +14,13 @@ function initDetailGallery(opts){
   const title = (opts && opts.title) || '';
   const placeholderHtml = (opts && opts.placeholderHtml) || '';
   const ids = (opts && opts.ids) || {};
+  // Görsel üzerindeki ürün işaretçileri (kullanıcı isteği, 2026-08-31) — görsel URL'sine göre
+  // anahtarlı { url: [{x,y,slug,title,brand,image}] } haritası, bkz. js/components/image-hotspots.js
+  // ve src/routes/project.js#enrichImageHotspots. Ürün galerisi (product-modal.js) bu alanı hiç
+  // geçmez; boş harita = işaretçi yok, davranış eskisiyle bire bir aynı kalır.
+  const hotspotsByUrl = (opts && opts.hotspots) || {};
+  const hasHotspots = typeof ImageHotspots !== 'undefined' && Object.keys(hotspotsByUrl).length > 0;
+  const hotspotsFor = (url) => (hasHotspots && hotspotsByUrl[url]) || [];
 
   const galleryEl = document.getElementById(ids.gallery || 'detail-gallery');
   const galleryPrevBtn = document.getElementById(ids.galleryPrev || 'gallery-prev');
@@ -57,6 +64,7 @@ function initDetailGallery(opts){
   // başvuran kırık bir gezinmeye dönüşürdü.
   const state = galleryEl._pmGalleryState || (galleryEl._pmGalleryState = {});
   state.images = images;
+  state.hotspotsByUrl = hotspotsByUrl;
   state.galleryIndex = 0;
   state.lightboxIndex = 0;
   // scrollLeft, galleryEl'in İÇERİĞİNE değil KENDİSİNE ait bir özellik — innerHTML'i aşağıda
@@ -77,6 +85,9 @@ function initDetailGallery(opts){
     return `<a href="#" class="gallery-item" data-index="${i}"><img src="${escapeAttr(cdnImg(img, 480))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="480px"` : ''} alt="${escapeAttr(title)}" ${i === 0 ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" decoding="async"'}></a>`;
   }).join('') : placeholderHtml;
   state.galleryItems = Array.from(galleryEl.querySelectorAll('.gallery-item'));
+  // Şeritteki işaretçiler — galleryEl.innerHTML yukarıda yeniden yazıldığından her çağrıda yeniden
+  // kurulur (eski katmanlar o DOM ile birlikte zaten yok oldu).
+  mountThumbHotspots();
 
   function updateGalleryCounter(){
     const st = galleryEl._pmGalleryState;
@@ -89,7 +100,9 @@ function initDetailGallery(opts){
     galleryEl.scrollTo({ left: st.galleryItems[st.galleryIndex].offsetLeft - galleryEl.offsetLeft, behavior: 'smooth' });
     updateGalleryCounter();
   }
-  function showLightboxImage(i){
+  // openHotspotIndex: şeritteki bir işaretçiden büyütmeye geçilirken (bkz. mountThumbHotspots)
+  // hangi ürün kartının hemen açılacağı — normal gezinmede (ok/swipe/klavye) verilmez.
+  function showLightboxImage(i, openHotspotIndex){
     const st = galleryEl._pmGalleryState;
     if(!st.images.length) return;
     st.lightboxIndex = (i + st.images.length) % st.images.length;
@@ -105,6 +118,41 @@ function initDetailGallery(opts){
     if(srcset){ lightboxImg.srcset = srcset; lightboxImg.sizes = '100vw'; }
     else { lightboxImg.removeAttribute('srcset'); lightboxImg.removeAttribute('sizes'); }
     if(lightboxCounter) lightboxCounter.textContent = `${st.lightboxIndex + 1} / ${st.images.length}`;
+    mountLightboxHotspots(img, openHotspotIndex);
+  }
+
+  // Büyütülmüş görselin işaretçileri. Katman lightbox'ın (position:fixed, yani konumlandırılmış bir
+  // kutu) çocuğu olarak img'nin boyandığı dikdörtgene oturur — img max-width/max-height ile
+  // küçüldüğünden kendi kutusu ZATEN görselin kendisidir (fit:'contain').
+  function mountLightboxHotspots(url, openHotspotIndex){
+    if(typeof ImageHotspots === 'undefined' || !lightboxImg) return;
+    ImageHotspots.mount(lightbox, lightboxImg, hotspotsFor(url), {
+      fit: 'contain',
+      openIndex: typeof openHotspotIndex === 'number' ? openHotspotIndex : undefined,
+    });
+  }
+
+  // Şeritteki küçük görsellerin işaretçileri. Burada kart AÇILMAZ (ankor overflow:hidden ile
+  // kırpardı, bkz. image-hotspots.js dosya başı) — işaretçiye tıklamak görseli büyütür ve kartı
+  // orada açar. Görsel henüz yüklenmemiş olabileceğinden (naturalWidth 0) mount, ImageHotspots'un
+  // kendi 'load' dinleyicisiyle kendini yeniden konumlandırır.
+  function mountThumbHotspots(){
+    if(typeof ImageHotspots === 'undefined' || !hasHotspots) return;
+    const st = galleryEl._pmGalleryState;
+    galleryEl.querySelectorAll('a.gallery-item').forEach(a=>{
+      const idx = parseInt(a.dataset.index, 10);
+      const img = a.querySelector('img');
+      if(!img || Number.isNaN(idx)) return;
+      ImageHotspots.mount(a, img, hotspotsFor(st.images[idx]), {
+        fit: 'cover',
+        interactive: false,
+        onSelect: (hotspotIndex)=>{
+          setGridMode(false);
+          lightbox.classList.add('open');
+          showLightboxImage(idx, hotspotIndex);
+        },
+      });
+    });
   }
 
   // İkon-only, metinsiz (bkz. kullanıcı isteği: minimalist) — boyut/stroke-width lightbox-close'daki

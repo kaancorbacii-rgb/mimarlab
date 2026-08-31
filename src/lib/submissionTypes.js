@@ -44,13 +44,18 @@ export const SUBMISSION_TYPES = {
       'slug', 'title', 'category', 'type', 'discipline', 'location', 'locationDetail', 'date', 'dateBucket',
       'period', 'designer', 'office', 'photoCreditText', 'photoCreditUrl', 'description', 'images', 'brands',
       'claimed_slug', 'source_url', 'ai_generated', 'build_status', 'conceptCategory', 'awards', 'publishDate',
-      'lat', 'lng',
+      'lat', 'lng', 'imageHotspots',
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,
     // hangi kutudan geldiği künye render'ına kadar korunur. awards: mimar-ekle.html/firma-ekle.html
     // ile AYNI JSON dizi deseni (bkz. migrations/0049_project_awards.sql).
     arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'office', 'images', 'brands', 'awards'],
+    // imageHotspots — arrayFields'in NESNE karşılığı: kök değer bir dizi değil, görsel URL'sine göre
+    // anahtarlanmış bir harita ({url: [{x,y,slug,title}]}, bkz. migrations/0076_project_image_
+    // hotspots.sql). arrayFields'e konulsaydı normalizeSubmission onu `[nesne]` diye tek elemanlı bir
+    // diziye sarardı; bu yüzden ayrı bir tür gerekiyor (bkz. normalizeSubmission/parseSubmissionRow).
+    objectFields: ['imageHotspots'],
     required: ['title'],
     urlFields: ['photoCreditUrl', 'source_url'],
     urlArrayFields: ['images'],
@@ -344,6 +349,37 @@ export function dateBucketFor(dateStr) {
 // "NOT NULL constraint failed" ile 500 döner (bkz. kullanıcı raporu: kapak/sıra değişikliğini
 // kaydederken "Sunucu hatası oluştu" — aslında AI akışı dışındaki HER proje/ürün/malzeme
 // ekleme-düzenleme işlemini etkiliyordu, görsellerle ilgisi yoktu).
+// imageHotspots'un GÜVENLİ hâli — istemciden gelen ham nesne olduğu gibi saklanmaz (bkz.
+// migrations/0076_project_image_hotspots.sql): yalnızca beklenen dört alan (x/y/slug/title) alınır,
+// koordinatlar 0-100 aralığına kırpılır, slug'suz kayıtlar (tıklanınca gidilecek bir yeri olmayan
+// işaretçi) atılır ve görsel başına/toplam işaretçi sayısı sınırlanır. Böylece bu sütun, gövdeye
+// istenen her şeyin yazılabildiği serbest bir JSON deposuna dönüşmez.
+const MAX_HOTSPOTS_PER_IMAGE = 30;
+const MAX_HOTSPOT_IMAGES = 60;
+function sanitizeImageHotspots(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const url of Object.keys(raw).slice(0, MAX_HOTSPOT_IMAGES)) {
+    const list = Array.isArray(raw[url]) ? raw[url] : [];
+    const cleaned = [];
+    for (const h of list.slice(0, MAX_HOTSPOTS_PER_IMAGE)) {
+      if (!h || typeof h !== 'object') continue;
+      const slug = typeof h.slug === 'string' ? h.slug.trim().slice(0, 300) : '';
+      if (!slug) continue;
+      const x = Number(h.x), y = Number(h.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      cleaned.push({
+        x: Math.min(100, Math.max(0, Math.round(x * 100) / 100)),
+        y: Math.min(100, Math.max(0, Math.round(y * 100) / 100)),
+        slug,
+        title: typeof h.title === 'string' ? h.title.trim().slice(0, 300) : '',
+      });
+    }
+    if (cleaned.length) out[url] = cleaned;
+  }
+  return out;
+}
+
 export function normalizeSubmission(type, body) {
   const config = SUBMISSION_TYPES[type];
   const row = {};
@@ -365,6 +401,13 @@ export function normalizeSubmission(type, body) {
     } else if (config.arrayFields.includes(field)) {
       if (!Array.isArray(value)) value = value ? [value] : [];
       value = JSON.stringify(value.filter(Boolean));
+    } else if ((config.objectFields || []).includes(field)) {
+      // Düz JSON nesnesi (bkz. projects.imageHotspots). Dizi/ilkel/eksik değerler sessizce boş
+      // nesneye indirgenir — bu alanları hiç göndermeyen çağıranlar (AI ile otomatik ekleme,
+      // admin panelinin kısa düzenleme formu vb.) için güvenli varsayılan.
+      value = field === 'imageHotspots' ? sanitizeImageHotspots(value)
+        : ((value && typeof value === 'object' && !Array.isArray(value)) ? value : {});
+      value = Object.keys(value).length ? JSON.stringify(value) : null;
     } else {
       // denetim bulgusu: string alanlarda hiç trim() yapılmıyordu — architects/offices/products
       // BARE isim/başlıkla anahtarlandığından (bkz. "Duplicate name key limitation" belleği), baştaki/
@@ -400,6 +443,12 @@ export function parseSubmissionRow(type, row) {
     if (type === 'projects' && field === 'office' && row.office == null) { out.office = null; continue; }
     try { out[field] = row[field] ? JSON.parse(row[field]) : []; }
     catch { out[field] = []; }
+  }
+  for (const field of (config.objectFields || [])) {
+    try {
+      const parsed = row[field] ? JSON.parse(row[field]) : null;
+      out[field] = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+    } catch { out[field] = {}; }
   }
   // bkz. src/lib/canonicalRead.js#parseCanonicalRow'daki AYNI ".0" normalizasyonu — mimar-ekle.html/
   // firma-ekle.html'in ?edit=<id> modu bu satırı (canonical değil, kendi *_submissions taslağını) okur.

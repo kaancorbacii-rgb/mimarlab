@@ -875,6 +875,14 @@ async function syncProject(env, row) {
   const period = JSON.stringify(row.period || []);
   const images = JSON.stringify(row.images || []);
   const awards = JSON.stringify(row.awards || []);
+  // Görsel üzerindeki ürün işaretçileri (bkz. migrations/0076_project_image_hotspots.sql). Yalnızca
+  // images ile BİRLİKTE yazılır (aşağıdaki UPDATE dalında images = ? ile aynı koşulda) — bunun iki
+  // ayrı sebebi var: (1) işaretçiler görsel URL'sine göre anahtarlı, görsel listesi güncellenmeden
+  // anahtarlar anlamsız kalırdı; (2) images'i hiç göndermeyen çağıranlar (ör. admin panelinin kısa
+  // düzenleme formu, AI akışı) mevcut işaretçileri sessizce SİLMEMELİ — o çağrılarda images de
+  // korunuyor, ikisi birlikte dokunulmadan kalır.
+  const imageHotspots = row.imageHotspots && Object.keys(row.imageHotspots).length
+    ? JSON.stringify(row.imageHotspots) : null;
   // publishDate: yalnızca admin tarafından yazılabilir (bkz. src/routes/submissions.js'teki AYNI
   // rol kontrolü, kullanıcı isteği: "yalnızca admin proje ekle/düzenle sayfasından proje
   // gönderilerinin yayınlanma tarihlerini değiştirebilsin"). "YYYY-MM-DD" tarih girişi, created_at
@@ -907,7 +915,14 @@ async function syncProject(env, row) {
       row.description || null, row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
       row.lat ?? null, row.lng ?? null,
     ];
-    if (row.images && row.images.length) { sets.splice(-1, 0, 'images = ?'); vals.push(images); }
+    if (row.images && row.images.length) {
+      sets.splice(-1, 0, 'images = ?');
+      vals.push(images);
+      // bkz. yukarısı — işaretçiler görsel listesiyle AYNI koşulda yazılır. Kullanıcı son
+      // işaretçiyi de silmişse burada NULL yazılır (aksi halde silinen bir işaretçi geri gelirdi).
+      sets.splice(-1, 0, 'image_hotspots = ?');
+      vals.push(imageHotspots);
+    }
     // Başlık değiştiyse slug da değişir (bkz. kullanıcı isteği: "ismi değişirse URL'si de değişmeli"
     // — mimar/firma yeniden adlandırmasında zaten var olan davranışın proje karşılığı, bkz.
     // src/lib/officeFounderCascade.js#renameOfficeEverywhere/renameArchitectEverywhere). Karşılaştırma
@@ -928,11 +943,11 @@ async function syncProject(env, row) {
     const clash = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
     if (clash) slug = `${slug}-${row.id}`;
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, lat, lng, source, legacy_key, claimed_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+      `INSERT INTO projects (slug, title, category, type, discipline, location, location_detail, project_date, date_bucket, period, description, images, image_hotspots, photo_credit_text, photo_credit_url, source_url, ai_generated, build_status, concept_category, awards, publish_date, lat, lng, source, legacy_key, claimed_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
     ).bind(
       finalSlug, row.title, category, type, discipline, row.location || null, row.locationDetail || null,
-      row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images,
+      row.date || null, dateBucketFor(row.date) || null, period, row.description || null, images, imageHotspots,
       row.photoCreditText || null, row.photoCreditUrl || null, row.source_url || null, row.ai_generated ? 1 : 0,
       row.build_status === 'concept' ? 'concept' : 'built', row.conceptCategory || null, awards, publishDate,
       row.lat ?? null, row.lng ?? null,

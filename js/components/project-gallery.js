@@ -21,6 +21,10 @@ const ProjectGallery = (function () {
     const media = toMediaItems(item.images);
     initDetailGallery({
       images: media.map(m => m.url),
+      // Görsel üzerindeki ürün işaretçileri (bkz. js/components/image-hotspots.js) — API'den görsel
+      // URL'sine göre anahtarlı gelir (bkz. src/routes/project.js#enrichImageHotspots), o yüzden
+      // yukarıdaki url indirgemesinden BAĞIMSIZ olarak olduğu gibi geçilir.
+      hotspots: item.imageHotspots || {},
       title: item.title,
       placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`,
       ids: mergedIds,

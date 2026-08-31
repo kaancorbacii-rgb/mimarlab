@@ -55,6 +55,16 @@ export function officeNamesFrom(concat) {
   return out;
 }
 
+// projects.image_hotspots ham metnini güvenle çözer — biçim bozuksa/dizi ise boş nesneye düşer
+// (bkz. shapeProjectItem'daki kullanım ve migrations/0076_project_image_hotspots.sql).
+function parseHotspots(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+  } catch { return {}; }
+}
+
 // opts.coverOnly — YALNIZCA liste/kart bağlamı için (bkz. fetchActiveProjectPool aşağısı):
 // kartlar/İlgili Yapılar/Mimarın Diğer Yapıları her zaman yalnızca `images[0]`'ı render ediyor.
 // Tekil proje detayı ve handleProjectFiltersRoute'un kendi ayrı havuzu bu fonksiyonu opts'suz
@@ -62,6 +72,9 @@ export function officeNamesFrom(concat) {
 export function shapeProjectItem(row, opts) {
   const p = parseCanonicalRow('projects', row);
   const coverOnly = opts && opts.coverOnly;
+  // Alan yalnızca GERÇEKTEN işaretçi varsa yüke eklenir — liste/havuz yolunda (yüzlerce kayıt, KV'de
+  // önbelleklenen tek bir JSON) her karta boş bir nesne iliştirmenin hiçbir faydası yok.
+  const hotspots = coverOnly ? {} : parseHotspots(row.image_hotspots);
   return {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
     location: p.location, locationDetail: p.location_detail, lat: p.lat ?? null, lng: p.lng ?? null,
@@ -70,6 +83,11 @@ export function shapeProjectItem(row, opts) {
     officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
     description: p.description, images: coverOnly ? p.images.slice(0, 1) : p.images,
+    // Görsel üzerindeki ürün işaretçileri (bkz. migrations/0076_project_image_hotspots.sql) — liste/
+    // kart bağlamında (coverOnly) hiç gönderilmez, yalnızca detay yükünde anlamlı. parseCanonicalRow'un
+    // JSON_COLUMNS listesine EKLENMEZ: o liste her alanı diziye çözer (hata durumunda []), bu alan ise
+    // bir nesne. Ham metin yukarıda tek yerde ve güvenli biçimde çözülür.
+    ...(Object.keys(hotspots).length ? { imageHotspots: hotspots } : {}),
     buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
     conceptCategory: p.concept_category || null,
     awards: p.awards || [],

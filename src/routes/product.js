@@ -61,7 +61,10 @@ export async function handleProductSearchRoute(request, env, url) {
     const items = results
       .filter(r => foldTr(r.title).includes(q))
       .slice(0, 20)
-      .map(r => ({ label: r.title, sub: r.brand_name_raw || '', brand: r.brand_name_raw || '' }));
+      // slug: proje-ekle.html'deki görsel işaretçisi editörü (bkz. migrations/
+      // 0076_project_image_hotspots.sql) seçilen ürünü slug'ıyla bağlar — "Kullanılan Ürünler"
+      // kutusunun kendisi hâlâ yalnızca label/brand kullanır, bu alan ona zarar vermeden eklenir.
+      .map(r => ({ label: r.title, sub: r.brand_name_raw || '', brand: r.brand_name_raw || '', slug: r.slug }));
     return { items };
   });
 }

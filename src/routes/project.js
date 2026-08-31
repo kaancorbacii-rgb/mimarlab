@@ -198,6 +198,41 @@ export async function handleProjectCanEditRoute(request, env, rawSlug) {
   return json({ canEdit: await canUserEditProjectBySlug(env, user, slug) });
 }
 
+// Görsel üzerindeki ürün işaretçileri (bkz. migrations/0076_project_image_hotspots.sql) — D1'de
+// yalnızca {x, y, slug, title} saklanır; önizleme kartının gösterdiği marka ve küçük görsel HER
+// istekte products tablosundan TAZE okunur (tek bir IN(...) sorgusu, işaretçi başına değil). Böylece
+// bir ürünün adı/markası/kapak görseli değiştiğinde onu işaretleyen tüm projeler kendiliğinden
+// güncel kalır — denormalize edilseydi bayat başlık ve (R2 yolu değişince) kırık küçük görsellerle
+// kalırdık. Ürün silinmişse işaretçi tamamen atılır: tıklanınca 404'e götüren bir daire, hiç
+// olmayandan kötüdür.
+async function enrichImageHotspots(env, hotspotsByUrl) {
+  const urls = Object.keys(hotspotsByUrl || {});
+  if (!urls.length) return {};
+  const slugs = [...new Set(urls.flatMap(u => (hotspotsByUrl[u] || []).map(h => h.slug)).filter(Boolean))];
+  if (!slugs.length) return {};
+  // D1'in değişken sayısı sınırı (bkz. "Top 100 dynamic redesign" bulgusu — IN(...) parametre
+  // limiti) sanitizeImageHotspots'un üst sınırları sayesinde (60 görsel x 30 işaretçi tekilleştirilmiş)
+  // pratikte aşılamaz; yine de tek sorguda 300 slug ile sınırlanır.
+  const capped = slugs.slice(0, 300);
+  const placeholders = capped.map(() => '?').join(', ');
+  const { results } = await env.DB.prepare(
+    `SELECT slug, title, brand_name_raw, images FROM products
+     WHERE slug IN (${placeholders}) AND deleted_at IS NULL AND hidden_at IS NULL`
+  ).bind(...capped).all();
+  const bySlug = new Map(results.map(r => [r.slug, {
+    slug: r.slug, title: r.title, brand: r.brand_name_raw || '', image: firstImage(r.images),
+  }]));
+  const out = {};
+  for (const url of urls) {
+    const list = (hotspotsByUrl[url] || []).map(h => {
+      const product = bySlug.get(h.slug);
+      return product ? { x: h.x, y: h.y, ...product } : null;
+    }).filter(Boolean);
+    if (list.length) out[url] = list;
+  }
+  return out;
+}
+
 // GET /api/project/:slug — Faz 4: proje.html'deki proje modalı bu uca bağlandı (eski yorum artık
 // geçersiz), canonical D1'den doğrudan okur.
 export async function handleProjectDetailRoute(request, env, url, rawSlug) {
@@ -271,6 +306,9 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     const catalog = await fetchProjectProducts(env, row.id);
     item.products = catalog.products;
     item.materials = catalog.materials;
+    // item.imageHotspots yalnızca dolu olduğunda var (bkz. shapeProjectItem) — boşsa enrich hiç
+    // çalıştırılmaz, o projeler için ekstra bir products sorgusu da doğmaz.
+    if (item.imageHotspots) item.imageHotspots = await enrichImageHotspots(env, item.imageHotspots);
     return { item, hidden: false };
   });
 }
