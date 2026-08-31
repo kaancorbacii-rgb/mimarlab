@@ -949,6 +949,7 @@ const AuthModal = (function () {
             <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
             <a class="submissions-add-link" href="mimar-ekle.html">Mimar Ekle</a>
             <a class="submissions-add-link" href="firma-ekle.html">Firma Ekle</a>
+            <a class="submissions-add-link" href="marka-ekle.html">Marka Ekle</a>
           </div>
           <div class="submissions-toolbar-row" id="am-submissions-filter">
             <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>

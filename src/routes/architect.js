@@ -350,7 +350,7 @@ async function buildArchitectPayload(env, key) {
   const dobYear = a.dob ? parseInt(String(a.dob).slice(0, 4), 10) : null;
   const AGE_RANGE_YEARS = 5;
 
-  const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes] = await Promise.all([
+  const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes, usedProductsRes, preferredBrandsRes] = await Promise.all([
     office
       ? env.DB.prepare(
           `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
@@ -383,6 +383,36 @@ async function buildArchitectPayload(env, key) {
       `SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND designer LIKE ? COLLATE NOCASE
        ORDER BY title COLLATE NOCASE`
     ).bind(`%${a.name}%`).all(),
+    // "Kullandığı Ürünler" (kullanıcı isteği, 2026-08-31) — yukarıdaki relatedProducts'tan TAMAMEN
+    // AYRI bir küme: o, mimarın TASARLADIĞI ürünler (products.designer serbest metin eşleşmesi);
+    // bu ise mimarın PROJELERİNDE kullanılan (başkalarının tasarladığı) ürünler. Proje kümesi
+    // relatedRes ile BİREBİR aynı koşulu kullanır (mimarın kendi projeleri + firmasının projeleri),
+    // böylece popup'taki "Projeler" bölümüyle tutarlı kalır. Zincir: project_designers → projects →
+    // project_products → products (bkz. src/routes/office.js#projectProductsRes'in AYNI deseni).
+    env.DB.prepare(
+      `SELECT DISTINCT pr.slug, pr.title, pr.brand_name_raw, pr.category, pr.kind, pr.images
+       FROM project_designers pd
+       JOIN projects p ON p.id = pd.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_products pp ON pp.project_id = p.id
+       JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+       WHERE pd.architect_id = ?1 OR pd.office_id = ?2
+       ORDER BY pr.title COLLATE NOCASE`
+    ).bind(a.id, office ? office.id : -1).all(),
+    // "Tercih Ettiği Markalar" — yukarıdaki zincirin bir halka devamı (ürün → markası). Marka
+    // eşleşmesi src/routes/office.js#relatedBrandsRes ile BİREBİR AYNI kuraldır: önce
+    // brand_office_id, o boşsa marka adı (toplu/legacy eklenen ürünlerde brand_office_id boş kalır).
+    env.DB.prepare(
+      `SELECT b.slug, b.name, b.loc, b.logo_url, COUNT(DISTINCT pr.id) AS used_count
+       FROM project_designers pd
+       JOIN projects p ON p.id = pd.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_products pp ON pp.project_id = p.id
+       JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+       JOIN offices b ON b.deleted_at IS NULL AND b.hidden_at IS NULL
+         AND (b.id = pr.brand_office_id OR (pr.brand_office_id IS NULL AND b.name = pr.brand_name_raw COLLATE NOCASE))
+       WHERE pd.architect_id = ?1 OR pd.office_id = ?2
+       GROUP BY b.id
+       ORDER BY used_count DESC, b.name COLLATE NOCASE`
+    ).bind(a.id, office ? office.id : -1).all(),
   ]);
 
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
@@ -418,6 +448,14 @@ async function buildArchitectPayload(env, key) {
     .filter(p => p.kind !== 'material')
     .map(p => ({ slug: p.slug, title: p.title, images: p.images, category: p.category }));
 
+  // Kullandığı Ürünler / Tercih Ettiği Markalar — kart alt satırında ürünlerde MARKA, markalarda
+  // KONUM gösterilir (bkz. js/components/architect-modal.js#renderItem).
+  const usedProducts = usedProductsRes.results.map(p => {
+    const parsed = parseCanonicalRow('products', p);
+    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, brand: parsed.brand_name_raw, kind: parsed.kind };
+  });
+  const preferredBrands = preferredBrandsRes.results.map(b => ({ slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0 }));
+
   const item = {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
     role: a.position, awards: a.awards, about: a.about, photo: a.photo_url, office: office ? office.name : null,
@@ -445,6 +483,8 @@ async function buildArchitectPayload(env, key) {
     relatedProjects,
     relatedArchitects,
     relatedProducts,
+    usedProducts,
+    preferredBrands,
     prevItem: adjacent.prevItem,
     nextItem: adjacent.nextItem,
     hidden: !!a.hidden_at,

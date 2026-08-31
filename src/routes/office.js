@@ -5,6 +5,13 @@ import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { resolveSlugRedirect } from '../lib/slugRedirects.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
+// bkz. src/routes/product.js'teki AYNI CJS-interop yorumu — canonical veri DEĞİL, salt statik bir
+// sınıflandırma referansı (hangi hizmet alanı firmaya, hangisi markaya ait).
+import officeKindJs from '../../office-kind.js';
+
+const { isBrandOffice, isPureBrandOffice, officeCatList, OFFICE_SERVICE_CATS, BRAND_CATS, LEGACY_BRAND_CAT } = officeKindJs;
+const OFFICE_SERVICE_CAT_SET = new Set(OFFICE_SERVICE_CATS);
+const BRAND_CAT_SET = new Set([...BRAND_CATS, LEGACY_BRAND_CAT]);
 
 // Faz 3 — bkz. src/routes/architect.js'teki AYNI "canonical tablodan doğrudan okuma, overlay
 // merge-time'da zaten uygulandı" yorumu.
@@ -169,8 +176,12 @@ export async function handleOfficeListRoute(request, env, url) {
       });
     });
 
+    // FİRMA/MARKA ayrımı — bkz. office-kind.js dosya başı yorumu. brandsOnly (marka.html) marka
+    // olan HER ofisi gösterir (Autoban gibi hem firma hem marka olanlar dahil); firma.html ise
+    // yalnızca SAF markaları (hiçbir mimarlık hizmeti sunmayan üretici) dışlar.
     function passes(o) {
-      if (brandsOnly && !o.productCount) return false;
+      if (brandsOnly) { if (!isBrandOffice(o.cats, o.productCount)) return false; }
+      else if (isPureBrandOffice(o.cats, o.productCount)) return false;
       if (locParam && cityOf(o.loc) !== locParam) return false;
       if (catParam && !(o.cats || '').includes(catParam)) return false;
       if (expParam && expBucketOf(o.yil) !== expParam) return false;
@@ -199,13 +210,23 @@ export async function handleOfficeListRoute(request, env, url) {
     // (mimar.html#handleArchitectListRoute'daki AYNI gerekçe). Türkiye tek başına bir konum
     // seçeneği olarak listelenmez (bkz. firma.html#populateFilters'daki AYNI `city === 'Türkiye'` atlama).
     const locCounts = {}, catCounts = {};
-    // ?brands=1 için sayaçlar da yalnızca marka havuzundan hesaplanır — aksi halde marka.html'in
-    // kenar çubuğu, o sayfada hiç listelenmeyen firmaları içeren sayılar gösterirdi.
-    const countPool = brandsOnly ? pool.filter(o => o.productCount) : pool;
+    // Sayaçlar da sayfanın KENDİ havuzundan hesaplanır — aksi halde marka.html'in kenar çubuğu o
+    // sayfada hiç listelenmeyen firmaları, firma.html'inki ise oradan çıkarılmış saf markaları
+    // içeren sayılar gösterirdi. Hizmet Alanı seçenekleri ayrıca sayfaya AİT kümeye göre süzülür
+    // (kullanıcı isteği: "Firma sayfasındaki filtrelerdeki ürün seçeneğini kaldır") — saf markalar
+    // zaten havuzdan düştüğü için 'Ürün' pratikte hiç sayılmaz, ama bu süzgeç ileride 'Mimarlık ·
+    // Ürün' gibi karma bir kayıt oluşsa bile firma filtresine marka kategorisi sızdırmaz.
+    const countPool = pool.filter(o => (brandsOnly
+      ? isBrandOffice(o.cats, o.productCount)
+      : !isPureBrandOffice(o.cats, o.productCount)));
+    const allowedCatSet = brandsOnly ? BRAND_CAT_SET : OFFICE_SERVICE_CAT_SET;
     countPool.forEach(o => {
       const city = cityOf(o.loc);
       if (city && city !== 'Türkiye') locCounts[city] = (locCounts[city] || 0) + 1;
-      (o.cats || '').split(' · ').map(s => s.trim()).filter(Boolean).forEach(cat => { catCounts[cat] = (catCounts[cat] || 0) + 1; });
+      officeCatList(o.cats).forEach(cat => {
+        if (!allowedCatSet.has(cat)) return;
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
+      });
     });
 
     const total = filtered.length;
@@ -292,14 +313,14 @@ async function buildOfficePayload(env, key) {
   }
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
-  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], hidden: false };
+  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], hidden: false };
   // gerçek bulgu (denetim raporu): satır yukarıdaki redirect-birleştirmeden SONRA hâlâ hidden_at
   // taşıyorsa (yani gerçekten gizli, yeniden adlandırma/birleştirme DEĞİL) bu uç item'ı yine de tam
   // olarak döndürüyordu — yalnızca `hidden:true` bayrağı ekleniyordu, veri gizlenmiyordu. Client-side
   // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
   // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
   // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
-  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], hidden: true };
+  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
   // MİMARLAB AI, Faz 2 — Knowledge Graph katmanı Firma↔Şehir ilişkisi (bkz. kullanıcı isteği:
   // Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkileri proje/mimar/firma sayfalarında yüzeye
@@ -307,7 +328,7 @@ async function buildOfficePayload(env, key) {
   // kuralı (bkz. dosya başı tanım) — yeni bir ayrıştırma mantığı EKLENMEDİ.
   const officeCity = cityOf(o.loc);
 
-  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
+  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
@@ -329,9 +350,15 @@ async function buildOfficePayload(env, key) {
     // sıralatılmıyor. LIMIT 50 — aynı şehirdeki firma sayısı make-sense bir üst sınırla
     // kısıtlanır (İstanbul gibi en kalabalık şehirde bile onlarca değil yüzlerce firma olması
     // beklenmez); şehir gerçekten 12'den azsa davranış AYNI (tüm eşleşenler döner).
+    // cats/product_count da çekilir: aday listesi, PROFİLİN KENDİ türüne göre süzülür (bir markanın
+    // popup'ında "Şehirdeki Diğer Markalar", bir firmanınkinde "Şehirdeki Diğer Firmalar", bkz.
+    // kullanıcı isteği 2026-08-31 ve office-kind.js).
     officeCity ? env.DB.prepare(
-      `SELECT slug, name, loc, logo_url, website FROM offices
-       WHERE deleted_at IS NULL AND hidden_at IS NULL AND id != ? AND (loc = ? OR loc LIKE ?)
+      `SELECT o2.slug, o2.name, o2.loc, o2.cats, o2.logo_url, o2.website,
+         (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+          AND (pr.brand_office_id = o2.id OR pr.brand_name_raw = o2.name COLLATE NOCASE)) AS product_count
+       FROM offices o2
+       WHERE o2.deleted_at IS NULL AND o2.hidden_at IS NULL AND o2.id != ? AND (o2.loc = ? OR o2.loc LIKE ?)
        LIMIT 50`
     ).bind(o.id, officeCity, officeCity + ' / %').all() : Promise.resolve({ results: [] }),
     // Ürün/malzeme markası olarak bu firmaya ait katalog — brand_office_id yalnızca onaylanan bir
@@ -360,6 +387,25 @@ async function buildOfficePayload(env, key) {
        WHERE pd.office_id = ?
        ORDER BY pr.title COLLATE NOCASE`
     ).bind(o.id).all(),
+    // "İlgili Markalar" (kullanıcı isteği, 2026-08-31: "bir firma projelerinde hangi markaların
+    // ürünlerini kullanmışsa firma popupında İlgili Markalar kısmında bu markalar sıralansın") —
+    // yukarıdaki projectProducts zincirinin BİR HALKA DEVAMI: ürün → markası (offices). Ürün
+    // satırının markası önce brand_office_id ile, o boşsa marka ADIYLA eşleştirilir (toplu/legacy
+    // eklenen ürünlerde brand_office_id boş kalır, bkz. brandProductsRes'teki AYNI gerekçe).
+    // used_count: o markanın ürünlerinden kaç tanesinin bu firmanın projelerinde kullanıldığı —
+    // sıralama bununla yapılır, en çok tercih edilen marka başa gelir.
+    env.DB.prepare(
+      `SELECT b.slug, b.name, b.loc, b.logo_url, COUNT(DISTINCT pr.id) AS used_count
+       FROM project_designers pd
+       JOIN projects p ON p.id = pd.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_products pp ON pp.project_id = p.id
+       JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+       JOIN offices b ON b.deleted_at IS NULL AND b.hidden_at IS NULL
+         AND (b.id = pr.brand_office_id OR (pr.brand_office_id IS NULL AND b.name = pr.brand_name_raw COLLATE NOCASE))
+       WHERE pd.office_id = ? AND b.id != ?
+       GROUP BY b.id
+       ORDER BY used_count DESC, b.name COLLATE NOCASE`
+    ).bind(o.id, o.id).all(),
     fetchRawFounderNames(env, o),
     // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
     // ait?" kutusundan gönderilip admin tarafından onaylanan profile_claims('office') satırları —
@@ -416,6 +462,12 @@ async function buildOfficePayload(env, key) {
       return b._year - a._year;
     })
     .map(({ _year, ...rest }) => rest);
+  // Bu profil bir MARKA mı? (bkz. office-kind.js) — yalnızca hiçbir mimarlık hizmeti sunmayan saf
+  // üreticiler için true. Popup'taki başlıkları ("Şehirdeki Diğer Markalar"), claim kutusunun
+  // metnini ("Bu marka sana mı ait?") ve Düzenle bağlantısının hedefini (marka-ekle.html) bu belirler
+  // — Autoban gibi hem mimarlık yapıp hem ürün tasarlayan firmalar FİRMA kimliğini korur.
+  const isBrand = isPureBrandOffice(o.cats, brandProductsRes.results.length);
+
   // D1 audit (2026-08-25) P1-4 — yukarıdaki sorgu artık ORDER BY RANDOM() içermiyor, bkz. o
   // yorum: eşleşen kayıtlar (en fazla 50) burada Fisher-Yates ile karıştırılıp ilk 12'si alınır —
   // "her açılışta farklı 12 firma" davranışı DEĞİŞMEDİ, yalnızca karıştırma D1'den JS'e taşındı.
@@ -424,11 +476,31 @@ async function buildOfficePayload(env, key) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffledOffices[i], shuffledOffices[j]] = [shuffledOffices[j], shuffledOffices[i]];
   }
-  const relatedOffices = shuffledOffices.slice(0, 10).map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
+  // Aday listesi profilin KENDİ türüne göre süzülür: bir marka popup'ında yalnızca markalar
+  // ("Şehirdeki Diğer Markalar"), bir firma popup'ında saf markalar hariç firmalar (bkz.
+  // office-kind.js, kullanıcı isteği 2026-08-31). Süzme KARIŞTIRMADAN ÖNCE yapılır ki "rastgele 10"
+  // her zaman doğru türden 10 kayıt olsun.
+  // GERÇEK BULGU: `r.cats` burada HAM sütun değeridir — offices.cats JSON olarak saklanır
+  // ('"Mimarlık · İç Mimarlık"' ya da '["Mobilya"]'), bu yüzden parseCanonicalRow'dan geçirilmeden
+  // officeCatList'e verilirse tırnaklar/köşeli parantezler kategori adının parçası sayılır ve HİÇBİR
+  // kategori eşleşmez. Sonuç sessizce yanlış olurdu: saf markalar bir firmanın "Şehirdeki Diğer
+  // Firmalar" listesine sızar, bir markanınkinde ise firmalar görünürdü (yerel doğrulamada yakalandı).
+  const relatedOffices = shuffledOffices
+    .filter(r => {
+      const cats = parseCanonicalRow('offices', r).cats;
+      return isBrand
+        ? isBrandOffice(cats, r.product_count || 0)
+        : !isPureBrandOffice(cats, r.product_count || 0);
+    })
+    .slice(0, 10)
+    .map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
   const brandCatalog = brandProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, kind: parsed.kind };
   });
+  // İlgili Markalar — kartlar firma kartlarıyla AYNI şekle sahiptir (slug/name/loc/logo), böylece
+  // office-modal.js'teki mevcut cardHtml/logoUrl yolu değişmeden kullanılabilir.
+  const relatedBrands = relatedBrandsRes.results.map(b => ({ slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0 }));
   const relatedProducts = brandCatalog.filter(p => p.kind !== 'material');
   const relatedMaterials = brandCatalog.filter(p => p.kind === 'material');
   // brandCatalog ile AYNI şekillendirme; ürün/malzeme ayrımı YAPILMAZ — bölüm tek başlık altında
@@ -440,7 +512,7 @@ async function buildOfficePayload(env, key) {
 
   const item = {
     name: o.name, slug: o.slug, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
-    logo: o.logo_url, awards: o.awards, social_links: o.social_links || [], badges: [],
+    logo: o.logo_url, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html
@@ -456,5 +528,5 @@ async function buildOfficePayload(env, key) {
 
   const adjacent = await fetchAdjacentOffice(env, o.id);
 
-  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
+  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
 }

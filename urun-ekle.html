@@ -164,6 +164,9 @@
     color:var(--ink); display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;
   }
   .brand-chip-remove:hover{background:rgba(27,42,61,0.28);}
+  /* Kutuya elle yazılıp listeden seçilmeden "+ Ekle"ye basıldığında görünen uyarı (bkz. kullanıcı
+     isteği, 2026-08-31: "sadece yüklü projelerden ekleme yapabilsinler"). */
+  .form-notice-inline{font-size:12px; color:#B84C4C; margin-top:8px; min-height:1em;}
   /* GERÇEK BULGU: bare .form-field:last-child bir .form-row içindeki 2. (sağ sütun) alanı da
      eşleştiriyordu — mobilde/tablette .form-row tek sütuna düşünce bu alanın alt boşluğu
      SIFIRLANMIŞ oluyor, bir sonraki satır doğrudan üstüne yapışıyordu (bkz. kullanıcı isteği:
@@ -411,7 +414,7 @@
            project.js#handleProjectSearchRoute) — chip, projenin SLUG'ını taşır. -->
       <div class="form-section">
         <h2>Kullanılan Projeler <span class="opt">(opsiyonel)</span></h2>
-        <p class="section-hint">Bu ürünün kullanıldığı projeleri ekle. Seçtiğin proje bu ürünün sayfasında "Kullanılan Projeler" olarak, ürün de o projenin sayfasında "Kullanılan Ürünler" olarak görünür.</p>
+        <p class="section-hint">Bu ürünün kullanıldığı projeleri ekle — birden fazla proje seçebilirsin. Yalnızca MİMARLAB'da yayımlanmış projeler eklenebilir; kutuya yazmaya başla ve açılan listeden seç. Seçtiğin proje bu ürünün sayfasında "Kullanılan Projeler" olarak, ürün de o projenin sayfasında "Kullanılan Ürünler" olarak görünür.</p>
         <div class="form-field">
           <div class="brand-add-row">
             <div class="form-field ac-field" id="ac-project-field">
@@ -421,6 +424,7 @@
             <button type="button" class="brand-add-btn" id="project-add-btn">+ Ekle</button>
           </div>
           <div class="form-hint">Listeden bir proje seç, sonra "+ Ekle"ye ya da Enter'a bas.</div>
+          <div class="form-notice-inline" id="project-pick-notice"></div>
           <div class="brand-chip-list" id="project-chip-list"></div>
         </div>
       </div>
@@ -979,11 +983,13 @@ wireAutocompleteLive('u-designer', 'ac-designer-suggestions', '/api/architects/s
 
 // ---------- KULLANILAN PROJELER: yayımlanmış projelerden seçilen chip listesi ----------
 // proje-ekle.html#brandChips ile AYNI desen (bkz. kullanıcı isteği, 2026-08-31). Fark: burada
-// serbest metin KABUL EDİLMEZ — chip yalnızca autocomplete önerisinden seçilerek eklenebilir, çünkü
-// bağ projenin SLUG'ı üzerinden kurulur (bkz. src/lib/canonicalSync.js#resolveProductProjectLinks).
-// Kullanıcı kutuya bir şey yazıp öneriye tıklamadan "+ Ekle"ye basarsa, o metin başlıkla birebir
-// eşleşen TEK bir proje varsa yine de bağlanır (sunucu tarafı başlık fallback'i) — bu yüzden
-// slug'sız bir chip de gönderilebilir, sadece daha zayıf bir eşleşmedir.
+// serbest metin KABUL EDİLMEZ (kullanıcı isteği, madde 8: "Ürün ekle/düzenle sayfasında sadece
+// yüklü projelerden ekleme yapabilsinler") — bir chip ancak autocomplete önerisinden SEÇİLEREK
+// eklenebilir, çünkü bağ projenin SLUG'ı üzerinden kurulur (bkz. src/lib/canonicalSync.js#
+// resolveProductProjectLinks). Kutuya elle yazılıp seçilmeden "+ Ekle"ye basılırsa chip
+// EKLENMEZ, bunun yerine kullanıcıya listeden seçmesi gerektiği söylenir.
+// Bir ürüne birden fazla proje eklenebilir — chip listesi bir dizi, tekrar eklemeler slug'a göre
+// tekilleştirilir.
 let projectChips = [];
 let pickedProjectSlug = null;
 function renderProjectChips(){
@@ -1000,16 +1006,25 @@ function renderProjectChips(){
     });
   });
 }
+function setProjectPickNotice(message){
+  const el = document.getElementById('project-pick-notice');
+  if(el) el.textContent = message || '';
+}
 function addProjectChip(){
   const input = document.getElementById('u-project-input');
   const title = input.value.trim();
   if(!title){ input.focus(); return; }
-  // Aynı proje iki kez eklenmesin (slug varsa slug'a, yoksa başlığa göre) — proje tarafındaki
-  // marka/ürün chip'lerinde olmayan ama burada anlamlı olan tek ek kural: kenar zaten tekil
-  // (project_id, product_id) birincil anahtarına sahip, mükerrer chip yalnızca kafa karıştırır.
-  const key = (pickedProjectSlug || title).toLowerCase();
-  const exists = projectChips.some(c => ((c.slug || c.title || '').toLowerCase() === key));
-  if(!exists) projectChips.push({ slug: pickedProjectSlug || '', title });
+  // Slug YOKSA (öneri listesinden seçilmediyse) chip eklenmez — bkz. yukarıdaki yorum.
+  if(!pickedProjectSlug){
+    setProjectPickNotice('Yalnızca MİMARLAB\'da yayımlanmış projeler eklenebilir — açılan listeden bir proje seç.');
+    input.focus();
+    return;
+  }
+  setProjectPickNotice('');
+  // Aynı proje iki kez eklenmesin — kenar zaten tekil (project_id, product_id) birincil anahtarına
+  // sahip, mükerrer chip yalnızca kafa karıştırır.
+  const exists = projectChips.some(c => c.slug === pickedProjectSlug);
+  if(!exists) projectChips.push({ slug: pickedProjectSlug, title });
   input.value = '';
   pickedProjectSlug = null;
   renderProjectChips();
@@ -1017,10 +1032,10 @@ function addProjectChip(){
 }
 wireAutocompleteLive('u-project-input', 'ac-project-suggestions', '/api/projects/search', {
   multi: false,
-  onPick: (item) => { pickedProjectSlug = item.slug || null; },
+  onPick: (item) => { pickedProjectSlug = item.slug || null; setProjectPickNotice(''); },
 });
-// Kutu elle değiştirilirse önceki seçimin slug'ı geçersizdir (bkz. yukarıdaki yorum: slug'sız chip
-// sunucuda başlıkla çözülmeye çalışılır).
+// Kutu elle değiştirilirse önceki seçimin slug'ı geçersizdir — kullanıcı bir öneri seçtikten sonra
+// metni değiştirmişse artık o projeyi kastetmiyor olabilir.
 document.getElementById('u-project-input').addEventListener('input', ()=>{ pickedProjectSlug = null; });
 document.getElementById('project-add-btn').addEventListener('click', addProjectChip);
 document.getElementById('u-project-input').addEventListener('keydown', (e)=>{

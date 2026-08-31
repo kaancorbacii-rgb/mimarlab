@@ -12,6 +12,11 @@ const OfficeModal = (function () {
     calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-7.2 7-12.3a7 7 0 1 0-14 0c0 5.1 7 12.3 7 12.3Z"/><circle cx="12" cy="9.2" r="2.4"/></svg>',
     globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.4 2.6 3.8 6 3.8 9s-1.4 6.4-3.8 9c-2.4-2.6-3.8-6-3.8-9s1.4-6.4 3.8-9Z"/></svg>',
+    // Hizmet Alanı künyesi eskiden `globe` kullanıyordu — sosyal ikon satırındaki "Websitesi"
+    // ikonuyla BİREBİR aynı dünya simgesiydi ve aynı popup'ta iki farklı anlamı temsil ediyordu
+    // (kullanıcı isteği, 2026-08-31). architect-modal.js'in "Meslek" künyesindeki çanta ikonuyla
+    // AYNI simge kullanılır — firmanın hizmet alanı, mimarın mesleğinin kurumsal karşılığı.
+    briefcase: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12.5" rx="2"/><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5"/><path d="M3 12.5h18"/></svg>',
   };
   function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
   function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
@@ -195,7 +200,7 @@ const OfficeModal = (function () {
       <hr class="detail-info-divider">
     </div>
     <details class="feedback-card" id="claim-info-card">
-      <summary>Bu firma sana mı ait?<span class="feedback-card-plus" aria-hidden="true"></span></summary>
+      <summary><span id="om-claim-card-title">Bu firma sana mı ait?</span><span class="feedback-card-plus" aria-hidden="true"></span></summary>
       <div id="claim-card-body"></div>
     </details>
     <details class="feedback-card" id="correction-info-card">
@@ -234,8 +239,15 @@ const OfficeModal = (function () {
       <h2 class="related-title">Projelerde Kullanılan Ürünler<span id="om-project-products-count"></span></h2>
       <div class="related-grid-scroll" id="om-project-products-grid"></div>
     </div>
+    <!-- İlgili Markalar (kullanıcı isteği, 2026-08-31) — yukarıdaki "Projelerde Kullanılan
+         Ürünler"in bir halka yukarısı: o ürünlerin ARKASINDAKİ markalar (bkz. src/routes/office.js#
+         buildOfficePayload relatedBrands sorgusu). -->
+    <div class="related-section" id="om-related-brands-section" style="display:none;">
+      <h2 class="related-title">İlgili Markalar<span id="om-related-brands-count"></span></h2>
+      <div class="related-grid-scroll" id="om-related-brands-grid"></div>
+    </div>
     <div class="related-section" id="om-city-section" style="display:none;">
-      <h2 class="related-title">Şehirdeki Diğer Firmalar</h2>
+      <h2 class="related-title" id="om-city-title">Şehirdeki Diğer Firmalar</h2>
       <div class="related-grid-scroll" id="om-city-grid"></div>
     </div>
     <div class="prevnext" id="om-prevnext"></div>
@@ -502,7 +514,7 @@ const OfficeModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
-    'om-related-materials-section', 'om-project-products-section', 'om-detail-info', 'om-prevnext'];
+    'om-related-materials-section', 'om-project-products-section', 'om-related-brands-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
@@ -513,6 +525,20 @@ const OfficeModal = (function () {
     const founders = payload.founders || [];
     const team = payload.team || [];
     const relatedProjectsData = payload.relatedProjects || [];
+    // Bu profil MARKA kimliğinde mi? (bkz. src/routes/office.js#buildOfficePayload + office-kind.js)
+    // Yalnızca hiçbir mimarlık hizmeti sunmayan saf üreticiler için true — Autoban gibi hem mimarlık
+    // yapıp hem ürün tasarlayan kayıtlar FİRMA olarak adlandırılmaya devam eder (kullanıcı isteği,
+    // 2026-08-31, madde 9). Popup'ın TEK kimlik kaynağı budur: başlık, claim kutusu metinleri ve
+    // Düzenle bağlantısının hedef sayfası (marka-ekle.html / firma-ekle.html) hep buradan türer.
+    const isBrandProfile = !!o.isBrand;
+    const KIND_LABEL = isBrandProfile ? 'marka' : 'firma';
+    // Claim kutusunun <summary> başlığı şablonda SABİT yazılıdır ve şablon sayfa ömrü boyunca tek
+    // sefer mount edilir (bkz. ensureTemplate) — bu yüzden her render'da burada yeniden yazılmalı,
+    // aksi halde bir firmadan bir markaya (ya da tersine) geçildiğinde eski başlık kalırdı.
+    {
+      const claimTitleEl = document.getElementById('om-claim-card-title');
+      if (claimTitleEl) claimTitleEl.textContent = `Bu ${KIND_LABEL} sana mı ait?`;
+    }
     currentItem = o;
 
     updateHeadMeta(o);
@@ -526,7 +552,9 @@ const OfficeModal = (function () {
     const infoFacts = [];
     if (o.yil) infoFacts.push(metaRow('calendar', `<strong>Kuruluş Yılı:</strong> ${escapeHtml(String(o.yil))}`));
     if (o.loc) infoFacts.push(metaRow('pin', `<strong>Konum:</strong> ${escapeHtml(formatLocationDistrictFirst(o.loc))}`));
-    if (o.cats) infoFacts.push(metaRow('globe', `<strong>Hizmet Alanı:</strong> ${escapeHtml(o.cats)}`));
+    // Marka profillerinde bu alan bir hizmet değil, markanın ürettiği ürün kategorisidir (bkz.
+    // marka-ekle.html'deki AYNI etiket ve office-kind.js#BRAND_CATS) — etiket de ona göre değişir.
+    if (o.cats) infoFacts.push(metaRow('briefcase', `<strong>${isBrandProfile ? 'Ürün Kategorisi' : 'Hizmet Alanı'}:</strong> ${escapeHtml(o.cats)}`));
     const infoFactsEl = document.getElementById('om-info-facts');
     infoFactsEl.innerHTML = infoFacts.join('');
     infoFactsEl.style.display = infoFacts.length ? '' : 'none';
@@ -617,6 +645,11 @@ const OfficeModal = (function () {
     // altında o firmanın kendi konumu (arama.html sonuç satırlarındaki AYNI kullanım) alt bilgi
     // olarak gösterilir.
     const relatedOfficesData = payload.relatedOffices || [];
+    // Marka profillerinde başlık da, içerik de marka olur (kullanıcı isteği, 2026-08-31: "Marka
+    // popuplarındaki 'Şehirdeki Diğer Firmalar' başlığını 'Şehirdeki Diğer Markalar' yap ve bu
+    // kısımda sadece markalar gösterilsin") — listenin KENDİSİ zaten sunucuda süzülüyor (bkz.
+    // src/routes/office.js#relatedOffices), burada yalnızca başlık metni ayarlanır.
+    document.getElementById('om-city-title').textContent = isBrandProfile ? 'Şehirdeki Diğer Markalar' : 'Şehirdeki Diğer Firmalar';
     document.getElementById('om-city-section').style.display = relatedOfficesData.length ? '' : 'none';
     document.getElementById('om-city-grid').innerHTML = relatedOfficesData.map(o2 =>
       cardHtml(`/firma/${encodeURIComponent(o2.slug)}`, o2.name, logoUrl(o2), o2.loc)
@@ -654,6 +687,15 @@ const OfficeModal = (function () {
     ).join('');
     document.getElementById('om-project-products-count').textContent = projectProductsData.length ? ` (${projectProductsData.length})` : '';
 
+    // İlgili Markalar — kartlar firma kartlarıyla AYNI şekil/logoUrl yolunu kullanır, bu yüzden
+    // yukarıdaki om-city-grid ile AYNI cardHtml çağrısı yeterli.
+    const relatedBrandsData = payload.relatedBrands || [];
+    document.getElementById('om-related-brands-section').style.display = relatedBrandsData.length ? '' : 'none';
+    document.getElementById('om-related-brands-grid').innerHTML = relatedBrandsData.map(b =>
+      cardHtml(`/firma/${encodeURIComponent(b.slug)}`, b.name, logoUrl(b), b.loc)
+    ).join('');
+    document.getElementById('om-related-brands-count').textContent = relatedBrandsData.length ? ` (${relatedBrandsData.length})` : '';
+
     const PROFILE_TYPE = 'office';
     // gerçek bulgu (denetim, 2026-08-24, bkz. architect-modal.js'teki AYNI 2026-08-24 güncellemesi/
     // claim-correction-box.js#config.isStale yorumu) — kurucular/ekip ızgarasından hızlıca başka bir
@@ -669,18 +711,22 @@ const OfficeModal = (function () {
       // prefillForClaim slug/legacy_key/isim'in herhangi birini kabul edip gerçek `name`'e çözer).
       getClaimLinkKey: () => o.slug || o._claimKey || o.name,
       getStaticBadges: () => o.badges,
-      editUrlBase: 'firma-ekle.html',
-      listUrl: 'firma.html',
+      // Marka profillerinde Düzenle, marka-ekle.html'e gider (kullanıcı isteği, 2026-08-31: "Marka
+      // sayfasına özel marka ekle/düzenle url'si aç"). İki sayfa AYNI office_submissions kaydını
+      // yazar — yalnızca etiketler ve Hizmet Alanı seçenekleri farklıdır, bu yüzden contentType/
+      // getModerationTarget/claim akışının geri kalanı DEĞİŞMEZ.
+      editUrlBase: isBrandProfile ? 'marka-ekle.html' : 'firma-ekle.html',
+      listUrl: isBrandProfile ? 'marka.html' : 'firma.html',
       contentType: 'offices',
       getModerationTarget: () => o.submissionId ? { id: o.submissionId } : { key: o.name },
       labels: {
-        claimTitle: 'Bu firma sana mı ait?',
+        claimTitle: `Bu ${KIND_LABEL} sana mı ait?`,
         loginPromptHtml: 'Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.',
-        pendingHtml: '"Bu firma bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.',
-        claimNoteDescription: 'Bu firmanın sana ait olduğunu doğrulayabileceğimiz bir not ekle.',
+        pendingHtml: `"Bu ${KIND_LABEL} bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.`,
+        claimNoteDescription: `Bu ${KIND_LABEL}nın sana ait olduğunu doğrulayabileceğimiz bir not ekle.`,
         claimButtonText: 'Gönder',
-        deleteConfirm: 'Bu firma profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.',
-        archiveConfirm: 'Bu firma profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.',
+        deleteConfirm: `Bu ${KIND_LABEL} profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.`,
+        archiveConfirm: `Bu ${KIND_LABEL} profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.`,
       },
     });
 

@@ -1,7 +1,14 @@
 import { slugify } from './slugify.js';
 import projectTaxonomyJs from '../../project-taxonomy.js';
+// bkz. yukarıdaki AYNI CJS-interop gerekçesi — hangi hizmet alanının firmaya, hangisinin markaya
+// ait olduğunun TEK kaynağı (firma-ekle.html/marka-ekle.html AYNI dosyayı <script> ile okur).
+import officeKindJs from '../../office-kind.js';
 
 const { PROJECT_CATEGORY_OPTIONS, PROJECT_GROUP_OPTIONS } = projectTaxonomyJs;
+const { OFFICE_SERVICE_CATS, BRAND_CATS, LEGACY_BRAND_CAT, officeCatList } = officeKindJs;
+// firma-ekle.html + marka-ekle.html AYNI office_submissions tablosuna yazdığından whitelist iki
+// listenin BİRLEŞİMİ olmalı; 'Ürün' geriye dönük olarak (mevcut 20 marka kaydı) kabul edilir.
+const OFFICE_CATS_ALLOWED = new Set([...OFFICE_SERVICE_CATS, ...BRAND_CATS, LEGACY_BRAND_CAT]);
 
 // proje.html "Kategori" filtresi (bkz. migrations/0038_project_concept_category.sql, kullanıcı
 // isteği) — yalnızca build_status='concept' projelerde anlamlı, proje-ekle.html'deki seçeneklerle
@@ -91,6 +98,18 @@ export const SUBMISSION_TYPES = {
 // (bkz. kullanıcı isteği) — istemci (mimar-ekle.html/firma-ekle.html) VE burası
 // (submissions.js#createSubmission/updateOwnSubmission) AYNI enum'u kullanır.
 export const SOCIAL_PLATFORMS = new Set(['instagram', 'linkedin', 'x']);
+
+// offices.cats — firma-ekle.html/marka-ekle.html'deki Hizmet Alanı kutucukları yalnızca izin verilen
+// değerleri render eder ama bu tek başına yeterli değil (bkz. findInvalidProjectTaxonomyField'daki
+// AYNI gerekçe: doğrudan API'ye gönderilen bir istek whitelist dışı bir değer taşıyabilir).
+// Gönderim " · " ile ayrılmış düz bir string ya da JSON dizi olabilir — officeCatList ikisini de çözer.
+export function findInvalidOfficeCats(type, body) {
+  if (type !== 'offices') return null;
+  if (!('cats' in body) || body.cats == null) return null;
+  const values = officeCatList(body.cats);
+  if (values.some(v => !OFFICE_CATS_ALLOWED.has(v))) return 'cats';
+  return null;
+}
 
 export function findInvalidSocialPlatform(type, body) {
   if (!('social_platform' in body)) return false;

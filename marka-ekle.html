@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!-- marka-ekle.html — firma-ekle.html'in TÜRETİLMİŞ kopyası (kullanıcı isteği, 2026-08-31: "Marka
+     sayfasına özel marka ekle/düzenle url'si aç ve bu sayfada firma yazan tüm isimleri marka yap.
+     Hizmet alanı seçeneklerini de markalara özel olarak değiştir"). firma-ekle.html'den SADECE
+     üç şey farklı:
+       1) tüm kullanıcıya görünen "Firma" metinleri "Marka" oldu, yönlendirmeler /marka'ya gidiyor,
+       2) Hizmet Alanı kutusu artık "Ürün Kategorisi" ve seçenekleri office-kind.js#BRAND_CATS'ten
+          (ürün taksonomisinin 7 grubu + Yapı Malzemesi) geliyor, OFFICE_SERVICE_CATS'ten DEĞİL,
+       3) data-nav-active="marka".
+     Yazdığı tablo/uç AYNI (office_submissions, POST/PATCH /api/offices) — markalar da birer
+     `offices` satırı olduğundan ayrı bir gönderi tipi/tablo açılmadı; hangi kaydın marka sayılacağı
+     office-kind.js#isBrandOffice/isPureBrandOffice ile TEK noktadan belirlenir. -->
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
@@ -7,20 +18,20 @@
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
-<title>Firma Ekle — MİMARLAB</title>
-<meta name="description" content="MİMARLAB'a firma ekle.">
-<link rel="canonical" href="https://mimarlab.com/firma-ekle">
+<title>Marka Ekle — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'a marka ekle.">
+<link rel="canonical" href="https://mimarlab.com/marka-ekle">
 <meta name="robots" content="noindex, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Firma Ekle — MİMARLAB">
-<meta property="og:description" content="MİMARLAB'a firma ekle.">
-<meta property="og:url" content="https://mimarlab.com/firma-ekle">
+<meta property="og:title" content="Marka Ekle — MİMARLAB">
+<meta property="og:description" content="MİMARLAB'a marka ekle.">
+<meta property="og:url" content="https://mimarlab.com/marka-ekle">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Firma Ekle — MİMARLAB">
-<meta name="twitter:description" content="MİMARLAB'a firma ekle.">
+<meta name="twitter:title" content="Marka Ekle — MİMARLAB">
+<meta name="twitter:description" content="MİMARLAB'a marka ekle.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -286,29 +297,29 @@
 <script src="office-kind.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 
-  <div id="site-header-mount" data-nav-active="firma"></div>
+  <div id="site-header-mount" data-nav-active="marka"></div>
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
     <a href="index.html">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="firma.html">Firmalar</a>
+    <a href="marka.html">Markalar</a>
     <span class="sep">›</span>
-    <span class="current">Firma Ekle</span>
+    <span class="current">Marka Ekle</span>
   </div>
 
   <div class="page-head">
-    <div class="eyebrow">Firma Ekle</div>
-    <h1>Firmanı MİMARLAB'a ekle</h1>
-    <p>Firma bilgilerini paylaş, ekibimiz inceledikten sonra dizine eklensin.</p>
+    <div class="eyebrow">Marka Ekle</div>
+    <h1>Markanı MİMARLAB'a ekle</h1>
+    <p>Marka bilgilerini paylaş, ekibimiz inceledikten sonra dizine eklensin.</p>
   </div>
 
   <div class="form-wrap">
     <form id="firma-ekle-form">
       <div class="form-section">
-        <h2>Firma Bilgileri</h2>
+        <h2>Marka Bilgileri</h2>
         <div class="form-field">
-          <label for="o-name">Firma Adı</label>
+          <label for="o-name">Marka Adı</label>
           <input type="text" id="o-name" name="name" placeholder="ör. Autoban" required>
         </div>
         <fieldset class="form-field">
@@ -351,10 +362,10 @@
             </div>
           </div>
           <div class="form-field">
-            <label for="dd-hizmet-btn">Hizmet Alanı</label>
+            <label for="dd-hizmet-btn">Ürün Kategorisi</label>
             <div class="dd-field" id="dd-hizmet">
               <button type="button" class="dd-btn" id="dd-hizmet-btn">
-                <span id="dd-hizmet-btn-label">Hizmet alanı seç</span>
+                <span id="dd-hizmet-btn-label">Ürün kategorisi seç</span>
                 <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div class="dd-panel">
@@ -395,17 +406,17 @@
           <label for="o-team">Ekip <span class="opt">(opsiyonel)</span></label>
           <input type="text" id="o-team" name="team" placeholder="ör. Ahmet Yılmaz, Ayşe Demir" autocomplete="off">
           <div class="ac-suggestions" id="ac-ekip-suggestions"></div>
-          <div class="form-hint">Firmada çalışabilecek kişileri virgülle ayırarak yaz. Mimar profili olanlar aşağıda önerilir.</div>
+          <div class="form-hint">Markada çalışabilecek kişileri virgülle ayırarak yaz. Mimar profili olanlar aşağıda önerilir.</div>
         </div>
         <div class="form-field">
-          <label for="o-desc">Firma Hakkında Açıklama</label>
-          <textarea id="o-desc" name="about" placeholder="Firma hakkında kısa bir metin yaz..." required></textarea>
+          <label for="o-desc">Marka Hakkında Açıklama</label>
+          <textarea id="o-desc" name="about" placeholder="Marka hakkında kısa bir metin yaz..." required></textarea>
         </div>
       </div>
 
       <div class="form-section">
         <h2>Sosyal Medya <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Instagram, LinkedIn gibi profillerinizi ekleyin — firma sayfasında tıklanabilir birer ikon olarak gösterilir.</p>
+        <p class="section-hint">Instagram, LinkedIn gibi profillerinizi ekleyin — marka sayfasında tıklanabilir birer ikon olarak gösterilir.</p>
         <div id="social-rows"></div>
         <button type="button" class="social-add-btn" id="social-add-btn">+ Sosyal Medya Ekle</button>
       </div>
@@ -456,8 +467,8 @@
       <div class="form-loading" id="form-loading">Gönderiliyor...</div>
       <div class="form-notice" id="form-notice"></div>
       <details class="psc-box" id="psc-box">
-        <summary><span>Gönderdiğin Firma sana mı ait?</span><span class="psc-plus"></span></summary>
-        <p>Az önce gönderdiğin firma profili sana aitse, sahiplenme talebini şimdi gönderebilirsin — admin onayının ardından bu profili kendi hesabından yönetebilirsin.</p>
+        <summary><span>Gönderdiğin Marka sana mı ait?</span><span class="psc-plus"></span></summary>
+        <p>Az önce gönderdiğin marka profili sana aitse, sahiplenme talebini şimdi gönderebilirsin — admin onayının ardından bu profili kendi hesabından yönetebilirsin.</p>
         <button type="button" id="psc-claim-btn">Evet, bana ait — talep gönder</button>
         <p class="psc-msg" id="psc-msg" style="display:none;"></p>
       </details>
@@ -496,7 +507,7 @@ let originalName = '';
 const dupNameCheck = DuplicateNameCheck.attach({
   input: document.getElementById('o-name'),
   type: 'offices',
-  message: 'Bu firma zaten yayınlandı.',
+  message: 'Bu marka zaten yayınlandı.',
   getExclude: () => originalName,
 });
 
@@ -640,8 +651,8 @@ function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
 }
 // Hizmet Alanı: office-kind.js'teki PAYLAŞILAN OFFICE_SERVICE_CATS'ten (aynı liste sunucuda da
 // doğrulanır) dinamik üretilir — Ödül kutusunun ODUL_OPTIONS deseniyle BİREBİR aynı.
-document.getElementById('dd-hizmet-options').innerHTML = OFFICE_SERVICE_CATS.map(c => `<label class="dd-option"><input type="checkbox" name="cats" value="${escapeAttr(c)}"> ${escapeAttr(c)}</label>`).join('');
-const updateHizmetLabel = wireMultiDropdown('dd-hizmet', 'dd-hizmet-btn', 'dd-hizmet-btn-label', 'Hizmet alanı seç');
+document.getElementById('dd-hizmet-options').innerHTML = BRAND_CATS.map(c => `<label class="dd-option"><input type="checkbox" name="cats" value="${escapeAttr(c)}"> ${escapeAttr(c)}</label>`).join('');
+const updateHizmetLabel = wireMultiDropdown('dd-hizmet', 'dd-hizmet-btn', 'dd-hizmet-btn-label', 'Ürün kategorisi seç');
 // Ödül: mimar-ekle.html/proje-ekle.html ile PAYLAŞILAN ODUL_OPTIONS'tan (bkz. awards-shared.js)
 // dinamik olarak üretilir, sonra hizmet alanı ile AYNI wireMultiDropdown'a bağlanır.
 document.getElementById('dd-odul-options').innerHTML = ODUL_OPTIONS.map(o => `<label class="dd-option"><input type="checkbox" name="award" value="${escapeAttr(o)}"> ${escapeAttr(o)}</label>`).join('');
@@ -855,8 +866,8 @@ async function prefillForEdit(){
     // kaydedilirse bu taslak bağımsız bir kayda düşer, sonraki onayda statik firmanın YANINDA yeni
     // bir canonical satır daha oluşur ("mükerrer kayıt").
     if(item.claimed_profile_key) claimName = item.claimed_profile_key;
-    document.querySelector('.eyebrow').textContent = 'Firma Düzenle';
-    document.querySelector('.page-head h1').textContent = 'Firmanı düzenle';
+    document.querySelector('.eyebrow').textContent = 'Marka Düzenle';
+    document.querySelector('.page-head h1').textContent = 'Markanı düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
     document.getElementById('o-name').value = item.name || '';
@@ -904,8 +915,8 @@ async function prefillForEdit(){
 async function prefillForClaim(){
   if(!claimName) return;
   await currentUserReady;
-  document.querySelector('.eyebrow').textContent = 'Firma Düzenle';
-  document.querySelector('.page-head h1').textContent = 'Firmanı düzenle';
+  document.querySelector('.eyebrow').textContent = 'Marka Düzenle';
+  document.querySelector('.page-head h1').textContent = 'Markanı düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
   // Legacy Bundle Elimination Faz 3 (bkz. kullanıcı isteği): data.js'in statik offices[] dizisinden
@@ -1023,8 +1034,8 @@ function mountOfficeAdminActions(){
   row.style.display = '';
   async function run(action){
     const confirmText = action === 'delete'
-      ? 'Bu firma profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
-      : 'Bu firma profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+      ? 'Bu marka profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
+      : 'Bu marka profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
     if(!confirm(confirmText)) return;
     archiveBtn.disabled = true;
     deleteBtn.disabled = true;
@@ -1034,7 +1045,7 @@ function mountOfficeAdminActions(){
         body: JSON.stringify({ type: 'offices', action, key }),
       });
       if(!res.ok) throw new Error('request failed');
-      window.location.href = '/firma';
+      window.location.href = '/marka';
     }catch{
       alert('Bir şeyler ters gitti, tekrar dene.');
       archiveBtn.disabled = false;
@@ -1097,7 +1108,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   const submitBtn = form.querySelector('.form-submit');
 
   if(dupNameCheck.isDuplicate()){
-    notice.textContent = 'Bu firma zaten yayınlandı.';
+    notice.textContent = 'Bu marka zaten yayınlandı.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
@@ -1110,7 +1121,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   }
   const cats = Array.from(form.querySelectorAll('input[name="cats"]:checked')).map(el => el.value);
   if(!cats.length){
-    notice.textContent = 'Lütfen en az bir hizmet alanı seç.';
+    notice.textContent = 'Lütfen en az bir ürün kategorisi seç.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
@@ -1189,7 +1200,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
       setTimeout(()=>{ window.location.href = 'hesabim.html'; }, 1500);
       return;
     }
-    notice.textContent = 'Firma kaydın alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';
+    notice.textContent = 'Marka kaydın alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     showPostSubmitClaimBox(payload.name);

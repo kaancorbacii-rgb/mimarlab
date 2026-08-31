@@ -213,6 +213,18 @@ const ArchitectModal = (function () {
       <h2 class="related-title">Ürünler<span id="am-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
     </div>
+    <!-- Kullandığı Ürünler / Tercih Ettiği Markalar (kullanıcı isteği, 2026-08-31) — yukarıdaki
+         "Ürünler" bölümünden AYRI: o, mimarın TASARLADIĞI ürünler; bunlar mimarın PROJELERİNDE
+         kullanılan ürünler ve o ürünlerin arkasındaki markalar (bkz. src/routes/architect.js#
+         usedProducts/preferredBrands). -->
+    <div class="related-section" id="am-used-products-section" style="display:none;">
+      <h2 class="related-title">Kullandığı Ürünler<span id="am-used-products-count"></span></h2>
+      <div class="related-grid-scroll" id="am-used-products-grid"></div>
+    </div>
+    <div class="related-section" id="am-preferred-brands-section" style="display:none;">
+      <h2 class="related-title">Tercih Ettiği Markalar<span id="am-preferred-brands-count"></span></h2>
+      <div class="related-grid-scroll" id="am-preferred-brands-grid"></div>
+    </div>
     <div class="related-section" id="am-related-architects-section" style="display:none;">
       <h2 class="related-title">Diğer Mimarlar</h2>
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
@@ -473,7 +485,8 @@ const ArchitectModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['am-office-section', 'am-colleagues-section', 'am-related-projects-section',
-    'am-related-architects-section', 'am-related-products-section', 'am-detail-info', 'am-prevnext'];
+    'am-related-architects-section', 'am-related-products-section', 'am-used-products-section',
+    'am-preferred-brands-section', 'am-detail-info', 'am-prevnext'];
 
   async function renderItem(payload) {
     HIDE_ON_NOT_FOUND_IDS.forEach(id => {
@@ -660,6 +673,23 @@ const ArchitectModal = (function () {
       document.getElementById('am-related-products-count').textContent = designerProductsData.length ? ` (${designerProductsData.length})` : '';
     }
     renderDesignerProductsGrid();
+
+    // Kullandığı Ürünler / Tercih Ettiği Markalar — veri payload'la BİRLİKTE gelir (ek fetch yok).
+    // Ürün kartlarının alt satırında MARKA gösterilir (bu ürünleri mimar tasarlamadı, hangi markaya
+    // ait oldukları burada asıl ayırt edici bilgi); marka kartlarında ise firmanın konumu.
+    const usedProductsData = payload.usedProducts || [];
+    document.getElementById('am-used-products-section').style.display = usedProductsData.length ? '' : 'none';
+    document.getElementById('am-used-products-grid').innerHTML = usedProductsData.map(p =>
+      cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
+    ).join('');
+    document.getElementById('am-used-products-count').textContent = usedProductsData.length ? ` (${usedProductsData.length})` : '';
+
+    const preferredBrandsData = payload.preferredBrands || [];
+    document.getElementById('am-preferred-brands-section').style.display = preferredBrandsData.length ? '' : 'none';
+    document.getElementById('am-preferred-brands-grid').innerHTML = preferredBrandsData.map(b =>
+      cardHtml(`/firma/${encodeURIComponent(b.slug)}`, b.name, logoUrl(b), b.loc)
+    ).join('');
+    document.getElementById('am-preferred-brands-count').textContent = preferredBrandsData.length ? ` (${preferredBrandsData.length})` : '';
 
     // Mesaj Gönder ikonu — bkz. kullanıcı isteği (2026-08-30): "Sadece rozeti olan mimar ve firma
     // profillerinde mesaj gönder butonu çıksın" — doğrulanmış = en az bir aktif rozeti olan profil
