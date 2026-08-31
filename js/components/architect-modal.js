@@ -115,13 +115,16 @@ const ArchitectModal = (function () {
          doluyken çizilir (tek sütun varsa boşlukta asılı bir çizgi kalırdı, bkz. renderItem'daki
          am-two-col-row-both sınıfı). */
       .am-two-col-row::after{content:''; display:none;}
+      /* Yükseklik ORANSAL (kullanıcı isteği, 2026-08-31: "biraz daha uzat") — sabit px yerine satır
+         yüksekliğinin %70'i, böylece kartlı satırlarda belirgin şekilde uzar ama alt/üst sınırlarla
+         hiçbir zaman ne kaybolur ne de bölümün tamamına yayılıp "tam bölme çizgisi"ne dönüşür. */
       .am-two-col-row.am-two-col-row-both::after{
         display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-        width:1px; height:72px; background:var(--line);
+        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
       }
       @media (max-width:860px){
         .am-two-col-row{gap:14px;}
-        .am-two-col-row.am-two-col-row-both::after{height:56px;}
+        .am-two-col-row.am-two-col-row-both::after{min-height:76px; max-height:180px;}
       }
       .unregistered-badge{
         display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;

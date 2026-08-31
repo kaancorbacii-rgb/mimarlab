@@ -402,7 +402,30 @@ const ModalShell = (function () {
     if (typeof OverlayManager !== 'undefined') OverlayManager.register('modal-shell', close);
   }
 
+  // GERÇEK BULGU (kullanıcı bildirimi, 2026-08-31): galeri lightbox'ı (bkz. js/components/gallery.js)
+  // .modal-shell-panel'in İÇİNDE yaşıyor ve o panelin bir `transform` değeri var (açılış animasyonu,
+  // bkz. injectStyles) — CSS'e göre transform taşıyan bir ata, position:fixed torunları için YENİ bir
+  // containing block kurar, dolayısıyla lightbox tüm viewport'u DEĞİL yalnızca panel kutusunu kaplar
+  // (nav çekmecesindeki AYNI kök neden, bkz. site-chrome.js'teki backdrop-filter notu). Panelin
+  // DIŞINDA kalan overlay alanı bu yüzden hâlâ tıklanabilir kalıyor ve modalı kapatıyordu — ama
+  // lightbox'ın `.open` sınıfı üzerinde kalıyordu. Şablon sayfa ömrü boyunca TEK sefer mount
+  // edildiğinden (mountedOnce) bir sonraki popup açılışında ESKİ galerinin görselleri yeni içeriğin
+  // ÖNÜNDE beliriyordu.
+  //
+  // İki katmanlı çözüm: (1) burada, açık bir lightbox varken overlay/X/Escape önce YALNIZCA onu
+  // kapatır — Escape zaten gallery.js'te bu şekilde davranıyordu (o dosyadaki e.stopPropagation'lı
+  // dal), overlay tıklaması artık onunla tutarlı; (2) close() içinde koşulsuz temizlik, hangi yoldan
+  // kapanırsa kapansın (history/popstate, OverlayManager, başka bir modalın claimContent'i) geride
+  // açık bir lightbox kalmasın diye.
+  function closeOpenLightboxes() {
+    if (!overlayEl) return false;
+    const open = overlayEl.querySelectorAll('.lightbox.open');
+    open.forEach(el => el.classList.remove('open'));
+    return open.length > 0;
+  }
+
   function requestClose() {
+    if (closeOpenLightboxes()) return;
     if (onRequestClose) onRequestClose();
   }
 
@@ -514,6 +537,9 @@ const ModalShell = (function () {
   function close() {
     if (!opened) return;
     opened = false;
+    // bkz. closeOpenLightboxes yorumu — requestClose'dan GEÇMEYEN kapanış yolları da (popstate,
+    // OverlayManager.closeOthers, doğrudan close() çağrıları) geride açık bir galeri bırakmamalı.
+    closeOpenLightboxes();
     overlayEl.classList.remove('open');
     unlockBodyScroll();
     if (pageHeadingEl) { pageHeadingEl.removeAttribute('aria-hidden'); pageHeadingEl = null; }
@@ -544,6 +570,10 @@ const ModalShell = (function () {
   // (mountedOnce) korunur.
   function claimContent(ownerKey) {
     ensureDom();
+    // Üçüncü savunma katmanı: bir popup KAPANMADAN doğrudan başka bir içeriğe geçilirse (swap/
+    // İçeriklerim > profil popup'ı gibi) close() hiç çalışmaz — açık kalmış bir galeri yeni içeriğin
+    // önünde asılı kalırdı.
+    closeOpenLightboxes();
     const isNewOwner = ownerKey !== contentOwner;
     if (isNewOwner) {
       contentOwner = ownerKey;
