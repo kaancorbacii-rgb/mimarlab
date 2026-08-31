@@ -52,7 +52,7 @@ const OfficeModal = (function () {
          ile AYNI gerekçe (yükleme sırasında/404'te boş beyaz kutu kalmaz). Rengi renderCover()
          officeColor(o.name)'den atar, yani kapaksız marka da temaya uygun sabit bir renk alır. */
       /* width:100% ZORUNLU (yalnızca kozmetik değil): aspect-ratio + min-height birlikte
-         kullanıldığında ve genişlik `auto` kaldığında, CSS min-height'i orana çevirip AKTARILMIŞ
+         kullanıldığında ve genişlik auto kaldığında, CSS min-height'i orana çevirip AKTARILMIŞ
          BİR min-width üretir (110px × 3 = 330px). Sol panelin içerik genişliği tablette (~1024px
          ekran, %32'lik sütun) yalnızca ~247px olduğundan bant kutusundan taşıp bölme çizgisinin
          sağına kayıyordu (bkz. kullanıcı bildirimi 2026-08-31). Genişliği açıkça vermek oranın
