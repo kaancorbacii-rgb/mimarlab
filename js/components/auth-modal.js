@@ -107,28 +107,33 @@ const AuthModal = (function () {
     #am-panel .dash-head-account{display:flex; align-items:center; gap:18px;}
     #am-panel .dash-head-titles{flex:1; min-width:0;}
     /* ---------- DÖRTLÜ SAYFA GEÇİŞ SATIRI (.dash-nav-row) ----------
-       kullanıcı isteği (2026-08-31, madde 3): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim
-       popup'larından birinin içindeyken DİĞER ÜÇÜ üst tarafta buton olarak dursun; TÜM görünümlerde
-       tek satırda, yan yana, eşit aralıklarla — mobilde de ekran dışına taşmadan.
-       grid + repeat(3,1fr): "eşit aralık" isteğini flex/gap'ten daha kesin karşılar (üç buton eşit
-       genişlikte, aralarındaki iki boşluk her zaman aynı) ve satır sarması ihtimalini tamamen
-       ortadan kaldırır — flex-wrap ile dar ekranda alt satıra kaçabilirdi.
-       min-width:0 + overflow gizleme: en uzun etiket ("Aktivitelerim") dar telefonlarda sütunundan
-       taşıp yatay kaydırma açmasın diye. Eski .dash-head-btn-group/.dash-head-actions kuralları
-       KALDIRILDI — o iki sarmalayıcı yalnızca bu (artık başlık satırından çıkmış) geçiş butonlarını
-       taşıyordu; Hesabım'ın "Profili Düzenle" butonu başlık satırında tek başına kaldı. */
-    #am-panel .dash-nav-row{
-      display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;
-      align-items:stretch; margin-bottom:20px;
-      /* max-width: 1080px'lik .dash-wrap'te tam genişlik üç dev pil üretiyordu; satır sola hizalı
-         kalır (sayfa başlığıyla aynı kenar) ama makul bir genişlikte durur. Mobilde zaten
-         viewport'tan dar olduğundan bu sınır hiç devreye girmez. */
-      max-width:720px;
+       kullanıcı isteği (2026-08-31, madde 1 ve 3): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim
+       popup'larından birinin içindeyken DİĞER ÜÇÜ, kendi ayrı satırında değil, popup'ın KAPATMA (X)
+       düğmesiyle AYNI satırda dursun; üçü tek satırda, yan yana, birbirine EŞİT aralıklarla ve
+       yatayda ortalanmış olsun — dar ekranlarda taşmadan (gerekirse butonlar küçülerek).
+       Bu yüzden satır artık #am-panel'in İÇİNDE değil, barındırıcının başlık yuvasında yaşıyor
+       (masaüstünde modal-shell.js#.modal-shell-header-center, tablet/mobilde site-chrome.js#
+       .nav-mobile-menu-head-center — bkz. mountDashNav) ve kuralları da bu yüzden #am-panel'e
+       DEĞİL doğrudan .dash-nav-row'a bağlanır. .dash-edit-btn'in görünümü de burada bağımsız olarak
+       tanımlanır (eskiden #am-panel .dash-edit-btn'den miras alınıyordu, o kural artık yalnızca
+       "Profili Düzenle" butonunu kapsıyor).
+       flex + gap: "eşit aralık" isteğinin doğrudan karşılığı (gap her iki boşlukta da aynı);
+       flex-wrap:nowrap satırın alt satıra kaçmasını, min-width:0 ise dar ekranda başlık satırının
+       çekmeceden/panelden taşmasını engeller. Yükseklik 36px — modal-shell.js'teki X düğmesi ve
+       Kaydet/Paylaş aksiyonlarıyla AYNI değer, "aynı satırda" görünümü ancak böyle tutarlı olur. */
+    .dash-nav-row{
+      display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center;
+      justify-content:center; gap:10px; min-width:0; max-width:100%;
     }
-    #am-panel .dash-nav-row .dash-edit-btn{
-      width:100%; min-width:0; padding:10px 8px; text-align:center;
-      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    .dash-nav-row .dash-edit-btn{
+      flex:0 1 auto; min-width:0; box-sizing:border-box;
+      display:inline-flex; align-items:center; justify-content:center;
+      height:36px; padding:0 18px; border-radius:100px;
+      background:none; border:1.5px solid var(--ink); color:var(--ink);
+      font-family:inherit; font-weight:600; font-size:13px; line-height:1;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;
     }
+    .dash-nav-row .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
     /* Profili Düzenle pop-up — hesabim.html#profile-edit-overlay ile BİREBİR aynı desen (bkz. o
        dosya). ModalShell'in KENDİSİ burada kullanılmaz çünkü Hesabım zaten ModalShell'in TEK
        overlay'i İÇİNDE render ediliyor (bkz. ensureStyles/#am-panel) — bağımsız, daha yüksek
@@ -347,21 +352,29 @@ const AuthModal = (function () {
     #am-panel .col-saved-option-title{padding:8px 10px; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     #am-panel .col-notice{font-size:12.5px; color:var(--walnut); margin-top:10px; min-height:1em;}
     @media (max-width:480px){ #am-panel .badge-grid{grid-template-columns:1fr;} }
-    /* Geçiş butonları mobilde küçülür (bkz. kullanıcı isteği: "Mobil görünümde buton büyüklüğünü
-       biraz küçültebilirsin") — satır YAPISI değişmez, üçü hâlâ tek satırda ve eşit aralıkta. İki
-       kademe: tablet/geniş telefon (≤720px) ve dar telefon (≤400px, "Aktivitelerim" 320px'lik
-       ekranlarda buraya kadar sığmıyordu). */
-    @media (max-width:720px){
-      #am-panel .dash-nav-row{gap:8px; margin-bottom:16px;}
-      #am-panel .dash-nav-row .dash-edit-btn{padding:8px 6px; font-size:12px;}
+    /* Geçiş butonları tablet/mobilde küçülür (bkz. kullanıcı isteği, 2026-08-31 madde 3: "Sayfanın
+       dışına taşmasınlar gerekirse butonların büyüklükleri küçülsün") — satır YAPISI değişmez, üçü
+       hâlâ tek satırda ve eşit aralıkta. Bu kırılma noktalarında satır çekmecenin başlığında,
+       "‹ Menü" breadcrumb'ı ile X arasında kalan boşlukta yaşıyor; o boşluk viewport daraldıkça
+       hızla küçüldüğünden üç kademe gerekiyor. Etiketleri kısaltmak yerine punto/boşluk küçültülür —
+       kırpılmış bir etiket okunmaz bir sonuç olurdu (yerel ölçümle doğrulandı). */
+    @media (max-width:960px){
+      .dash-nav-row{gap:8px;}
+      .dash-nav-row .dash-edit-btn{height:32px; padding:0 12px; font-size:12px;}
     }
-    /* 400px altı — çekmecenin kendi iç boşluğu düşülünce sütun başına ~77px kalıyor; en uzun etiket
-       ("Koleksiyonum") 11px'te 83px sürüyordu ve üç noktayla kırpılıyordu (yerel ölçümle yakalandı).
-       Etiketleri kısaltmak yerine punto/boşluk küçültülür — istek zaten mobilde küçültmeye izin
-       veriyor, kırpılmış bir etiket ise okunmaz bir sonuç olurdu. */
-    @media (max-width:400px){
-      #am-panel .dash-nav-row{gap:5px;}
-      #am-panel .dash-nav-row .dash-edit-btn{padding:7px 2px; font-size:10px; border-width:1px; letter-spacing:-0.1px;}
+    @media (max-width:560px){
+      .dash-nav-row{gap:6px;}
+      .dash-nav-row .dash-edit-btn{height:30px; padding:0 8px; font-size:11px; border-width:1px;}
+    }
+    @media (max-width:430px){
+      .dash-nav-row{gap:4px;}
+      .dash-nav-row .dash-edit-btn{height:28px; padding:0 4px; font-size:10px; letter-spacing:-0.1px;}
+    }
+    /* 360px ve altı (iPhone SE sınıfı) — "Aktivitelerim" bu genişlikte 10px'te bile kırpılıyordu
+       (yerel ölçüm: sütun başına ~3px eksik kalıyordu). */
+    @media (max-width:360px){
+      .dash-nav-row{gap:2px;}
+      .dash-nav-row .dash-edit-btn{height:26px; padding:0 3px; font-size:9px;}
     }
     /* kullanıcı isteği (2026-08-28): mobilde Profili Düzenle butonu sayfaya yatayda ortalanıyor. */
     @media (max-width:720px){
@@ -711,33 +724,48 @@ const AuthModal = (function () {
   // dönüşü olmayan bir işlem sonrası ana sayfaya taze bir yükleme ile dönmek makul, bkz. kullanıcı
   // isteği: "ana sayfaya ... geri dönsün").
   // ---------------------------------------------------------------------------------------------
-  // dashNavRow(current): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim popup'larının HEPSİNİN en
-  // üstüne basılan, içinde bulunulan sayfa HARİÇ diğer ÜÇÜNÜ taşıyan geçiş satırı (bkz. kullanıcı
-  // isteği, 2026-08-31 madde 3). Dört şablonda dört kez elle yazmak yerine tek kaynaktan üretilir —
-  // böylece sıra/etiket/stil ve "içinde bulunduğunu gösterme" kuralı dördünde de zorunlu olarak aynı
-  // kalır. Butonlar data-am-nav taşır, her mount kendi delegated dinleyicisiyle bağlar (bkz.
-  // wireDashNav) — sabit id'lere gerek yok, dört şablonda çakışan id üretme riski de kalkar.
+  // dashNavRow(current): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim popup'larının HEPSİNDE
+  // görünen, içinde bulunulan sayfa HARİÇ diğer ÜÇÜNÜ taşıyan geçiş satırı (bkz. kullanıcı isteği,
+  // 2026-08-31 madde 3). Dört şablonda dört kez elle yazmak yerine tek kaynaktan üretilir — böylece
+  // sıra/etiket/stil ve "içinde bulunduğunu gösterme" kuralı dördünde de zorunlu olarak aynı kalır.
+  // Butonlar data-am-nav taşır, her mount kendi delegated dinleyicisiyle bağlar (bkz. mountDashNav)
+  // — sabit id'lere gerek yok, dört şablonda çakışan id üretme riski de kalkar.
+  //
+  // KONUM (kullanıcı isteği, 2026-08-31 madde 1 ve 3): bu satır artık .dash-wrap'in İÇİNDE, ayrı bir
+  // satır olarak DEĞİL, barındırıcının BAŞLIK satırında — masaüstünde ModalShell'in X'iyle aynı
+  // satırda, panelin yatay ortasında (bkz. modal-shell.js#getHeaderCenterSlot); tablet/mobilde ise
+  // çekmecenin "‹ Menü" breadcrumb'ı ile X'i arasında (bkz. site-chrome.js#getHeadCenterEl). Bu
+  // yüzden şablonlar onu artık HİÇ basmaz, mount tarafında (bkz. mountDashNav, renderView'in sonunda
+  // çağrılır) doğru yuvaya yazılır.
   const DASH_NAV_VIEWS = [
     { view: 'account', label: 'Hesabım' },
     { view: 'activities', label: 'Aktivitelerim' },
     { view: 'collections', label: 'Koleksiyonum' },
     { view: 'contents', label: 'İçeriklerim' },
   ];
-  function dashNavRow(current) {
+  // Geçiş satırının GÖRÜNDÜĞÜ dört görünüm — login/signup/forgot'ta yuva boş bırakılır (o üç
+  // görünümde geçilecek bir "diğer üç sayfa" yok).
+  const DASH_NAV_VIEW_KEYS = DASH_NAV_VIEWS.map(v => v.view);
+  function dashNavRowHtml(current) {
     const others = DASH_NAV_VIEWS.filter(v => v.view !== current);
     return `<div class="dash-nav-row">${others
       .map(v => `<button type="button" class="dash-edit-btn" data-am-nav="${v.view}">${v.label}</button>`)
       .join('')}</div>`;
   }
-  // Tek delegated dinleyici — mount fonksiyonları kendi kapsayıcı id'leriyle çağırır. Şablon her
-  // mount'ta yeniden basıldığından (innerHTML), dinleyici de her mount'ta yeniden bağlanmalıdır;
-  // mount'ların kendi `wired` Set'i (bkz. her mount fonksiyonundaki `on` yardımcısı) aynı DOM
-  // düğümüne iki kez bağlanmayı zaten engelliyor.
-  function wireDashNav(rootEl) {
-    if (!rootEl) return;
-    rootEl.addEventListener('click', (e) => {
+  // Aktif barındırıcının başlık yuvasını her renderView'da KOŞULSUZ yeniden yazar (yuva paylaşılan,
+  // uzun ömürlü bir DOM düğümü — şablonun aksine kendiliğinden sıfırlanmaz). Dinleyici yuvanın
+  // KENDİSİNE bir kez bağlanır (data-navWired), böylece her mount'ta üst üste dinleyici birikmez.
+  function mountDashNav(view, mobile) {
+    const slot = mobile
+      ? (window.NavDrawer && window.NavDrawer.getHeadCenterEl ? window.NavDrawer.getHeadCenterEl() : null)
+      : ModalShell.getHeaderCenterSlot();
+    if (!slot) return;
+    slot.innerHTML = DASH_NAV_VIEW_KEYS.includes(view) ? dashNavRowHtml(view) : '';
+    if (slot.dataset.navWired) return;
+    slot.dataset.navWired = '1';
+    slot.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-am-nav]');
-      if (!btn || !rootEl.contains(btn)) return;
+      if (!btn || !slot.contains(btn)) return;
       swap(btn.dataset.amNav);
     });
   }
@@ -745,7 +773,6 @@ const AuthModal = (function () {
   function accountTemplate() {
     return `
     <div class="dash-wrap" id="am-dash-wrap">
-      ${dashNavRow('account')}
       <div id="am-payment-success-banner" style="display:none; background:rgba(62,122,85,0.12); border:1px solid #3E7A55; color:var(--ink); font-size:13px; padding:13px 16px; border-radius:12px; margin-bottom:20px; line-height:1.6;">Ödemen alındı — rozetin aktif edildi.</div>
       <div class="dash-head dash-head-account">
         <div class="dash-avatar" id="am-dash-avatar">–</div>
@@ -931,7 +958,6 @@ const AuthModal = (function () {
   function activitiesTemplate() {
     return `
     <div class="dash-wrap" id="am-activities-wrap">
-      ${dashNavRow('activities')}
       <div class="dash-head">
         <div class="dash-head-info">
           <div>
@@ -1013,7 +1039,6 @@ const AuthModal = (function () {
   function contentsTemplate() {
     return `
     <div class="dash-wrap" id="am-contents-wrap">
-      ${dashNavRow('contents')}
       <div class="dash-head">
         <div class="dash-head-info">
           <div>
@@ -1065,7 +1090,6 @@ const AuthModal = (function () {
   function collectionsTemplate() {
     return `
     <div class="dash-wrap" id="am-collections-wrap">
-      ${dashNavRow('collections')}
       <div class="dash-head">
         <div class="dash-head-info">
           <div>
@@ -1718,9 +1742,6 @@ const AuthModal = (function () {
         else if (!overlay.contains(document.activeElement)) { e.preventDefault(); e.stopPropagation(); first.focus(); }
       }, true);
     }
-
-    // Dörtlü geçiş satırı (bkz. dashNavRow/wireDashNav) — eski tekil am-dash-*-btn dinleyicilerinin yerini alır.
-    wireDashNav(document.getElementById('am-dash-wrap'));
 
     // Firma seçimi ("Bu firma sana mı ait?" ile AYNI profile_claims('office') talebi) yalnızca
     // seçim GERÇEKTEN kullanıcının mevcut onaylı/beklemedeki talebinden farklıysa gönderilir —
@@ -2379,8 +2400,6 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
-    wireDashNav(document.getElementById('am-activities-wrap'));
-
     // "Ürün" filtresi hem product hem material tipini kapsar — urun.html'de bu ikisi zaten TEK
     // katalog olarak birleşti, Beğendiklerim'de ayrı bir "Malzeme" butonu olmadığından ikisi de tek
     // "Ürün" butonunun altında toplanır. (Kaydettiklerim bu görünümden kaldırıldı, bkz. şablon
@@ -2653,8 +2672,6 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
-    wireDashNav(document.getElementById('am-contents-wrap'));
-
     let allSubmissions = [];
     let submissionsFilter = '';
     let submissionsPage = 1;
@@ -2786,8 +2803,6 @@ const AuthModal = (function () {
       const el = document.getElementById(id);
       if (el) el.addEventListener(evt, fn);
     }
-    wireDashNav(document.getElementById('am-collections-wrap'));
-
     let collections = [];
     let openCollection = null; // { item, items } — açık pano; null ise liste görünümü
     let savedItemsCache = null;
@@ -3245,6 +3260,9 @@ const AuthModal = (function () {
     else if (view === 'contents') { wrap.innerHTML = contentsTemplate(); mountContents(); }
     else if (view === 'collections') { wrap.innerHTML = collectionsTemplate(); mountCollections(); }
     else { wrap.innerHTML = accountTemplate(); mountAccount(); }
+    // Geçiş satırı artık şablonun değil BARINDIRICI BAŞLIĞIN parçası (bkz. mountDashNav) — hostEl
+    // temizliğinden etkilenmediğinden her renderView'da açıkça yeniden yazılır.
+    mountDashNav(view, mobile);
     if (mobile) {
       hostEl.scrollTop = 0;
     } else {
@@ -3269,9 +3287,20 @@ const AuthModal = (function () {
   // GERÇEKTEN görünür olup olmadığı da kontrol edilir — NavDrawer.isSubpageActive() BİLEREK
   // kullanılmaz, o da AYNI şekilde stale kalabilir (closeDrawer() çağrılmadan .open kaldırılınca
   // subpageActive true'da takılı kalır); isDrawerOpen() ise doğrudan DOM sınıfını okur.
+  //
+  // GERÇEK BULGU (kullanıcı bildirimi, 2026-08-31 madde 2): burada eskiden isMobileDrawer() —yani
+  // ANLIK VIEWPORT— sorularak "hangi barındırıcıyı kontrol edeyim" kararı veriliyordu. Masaüstünde
+  // (ModalShell içinde) açık bir görünüm varken pencere 960px'in ALTINA küçültüldüğünde bu, "artık
+  // mobildeyim" deyip henüz hiç açılmamış ÇEKMECEYE bakıyor, isDrawerOpen() false dönüyor ve
+  // isOpen() —içerik ekranda dururken— false oluyordu; aşağıdaki resize dinleyicisi de ilk satırında
+  // tam bu isOpen()'a bakıp erken çıktığından barındırıcı geçişi HİÇ yapılmıyordu (diğer popup'lar
+  // tek bir barındırıcı kullandığı için bu sorunu yaşamıyor). Doğru soru "viewport ne?" değil,
+  // "içerik ŞU AN hangi barındırıcıda?" — yani currentHostIsMobile(). Yukarıdaki stale-subpageActive
+  // riski de ortadan kalkmıyor, çünkü seçilen barındırıcının GERÇEKTEN görünür olduğu (isDrawerOpen/
+  // ModalShell.isOpen) yine ayrıca doğrulanıyor.
   function isOpen() {
     if (currentView === null) return false;
-    return isMobileDrawer() ? !!(window.NavDrawer && window.NavDrawer.isDrawerOpen()) : ModalShell.isOpen();
+    return currentHostIsMobile() ? !!(window.NavDrawer && window.NavDrawer.isDrawerOpen()) : ModalShell.isOpen();
   }
 
   function open(view, { pushHistory = true, triggerEl = null } = {}) {
@@ -3305,6 +3334,10 @@ const AuthModal = (function () {
   function unmountSingleColumn() {
     const panels = ModalShell.getPanels();
     if (panels) panels.bodyEl.classList.remove('am-single');
+    // Geçiş satırı da AYNI paylaşılan ModalShell header'ında yaşıyor (bkz. mountDashNav) — AuthModal
+    // masaüstü barındırıcısını bıraktığında geride kalmamalı.
+    const centerSlot = ModalShell.getHeaderCenterSlot();
+    if (centerSlot) centerSlot.innerHTML = '';
   }
 
   // Yalnızca mobil çekmecenin breadcrumb'ından ("‹ Menü") çağrılır (bkz. NavDrawer.showSubpage'e
@@ -3346,7 +3379,9 @@ const AuthModal = (function () {
   // Bir görünüm açıkken viewport 960px kırılma noktasını geçerse (ör. tablet döndürme, tarayıcı
   // penceresi yeniden boyutlandırma) içerik URL/history'e DOKUNULMADAN doğru host'a (ModalShell <->
   // NavDrawer alt sayfası) yeniden mount edilir — bkz. kullanıcı isteği: "responsive geçiş düzgün
-  // çalışmalı".
+  // çalışmalı". Bu dinleyici 2026-08-31'e kadar TEK YÖNLÜ çalışıyordu (mobil > masaüstü); ters yön
+  // isOpen()'ın viewport'a bakan eski hâli yüzünden ilk satırda sessizce eleniyordu — kök neden ve
+  // düzeltme için bkz. isOpen() üzerindeki GERÇEK BULGU notu.
   window.addEventListener('resize', () => {
     if (!isOpen() || !window.NavDrawer) return;
     const wasMobile = currentHostIsMobile();

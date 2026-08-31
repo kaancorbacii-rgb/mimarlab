@@ -126,6 +126,20 @@ const ModalShell = (function () {
         position:absolute; top:16px; right:32px; z-index:5;
         display:flex; align-items:center; max-width:calc(100% - 64px);
       }
+      /* Header satırının ORTA yuvası (kullanıcı isteği, 2026-08-31 madde 1): Hesabım/Aktivitelerim/
+         Koleksiyonum/Iceriklerim popup'larindaki uc gecis butonu X ile AYNI satirda ama panelin
+         yatay ORTASINDA dursun. Sol (.modal-shell-header) ve sag (.modal-shell-admin-header)
+         yuvalar iki farkli kenara demirli oldugundan tek bir flex satiriyla gercek bir orta
+         hizalama elde edilemezdi; ayri, left:50% + translateX(-50%) ile konumlanan bu ucuncu yuva
+         her iki kenardan BAGIMSIZ olarak tam ortayi verir. max-width, iki kenardaki yuvalar icin
+         160px'lik simetrik bir pay birakir (sol yuvada X + aksiyonlar, sagda Duzenle/Arsivle/Sil).
+         Bos oldugunda (bu yuvayi yalnizca AuthModal doldurur) hicbir yer kaplamaz. */
+      .modal-shell-header-center{
+        position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:5;
+        display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; justify-content:center;
+        gap:10px; max-width:calc(100% - 320px); min-width:0;
+      }
+      .modal-shell-header-center:empty{display:none;}
       .modal-shell-close{
         flex:0 0 auto;
         width:36px; height:36px; border-radius:50%; border:none;
@@ -388,6 +402,7 @@ const ModalShell = (function () {
           </button>
           <div class="modal-shell-header-actions" id="modal-shell-header-actions"></div>
         </div>
+        <div class="modal-shell-header-center" id="modal-shell-header-center"></div>
         <div class="modal-shell-admin-header">
           <div class="modal-shell-admin-actions" id="modal-shell-admin-actions"></div>
         </div>
@@ -615,6 +630,10 @@ const ModalShell = (function () {
       if (headerActions) headerActions.innerHTML = '';
       const adminActions = overlayEl.querySelector('#modal-shell-admin-actions');
       if (adminActions) adminActions.innerHTML = '';
+      // AYNI gerekçe orta yuva için de geçerli (bkz. yukarısı) — yalnızca AuthModal doldurduğundan,
+      // Hesabım'dan bir mimar/firma popup'ına geçildiğinde geride üç geçiş butonu kalmamalı.
+      const centerSlot = overlayEl.querySelector('#modal-shell-header-center');
+      if (centerSlot) centerSlot.innerHTML = '';
     }
     return {
       leftPanelEl: overlayEl.querySelector('.modal-shell-left'),
@@ -639,6 +658,12 @@ const ModalShell = (function () {
   // farklı bir DOM hedefi.
   function getAdminActionsSlot() {
     return overlayEl ? overlayEl.querySelector('#modal-shell-admin-actions') : null;
+  }
+
+  // Header satırının ORTA yuvası (bkz. injectStyles#.modal-shell-header-center) — şu an yalnızca
+  // AuthModal'in Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim geçiş butonları için kullanılır.
+  function getHeaderCenterSlot() {
+    return overlayEl ? overlayEl.querySelector('#modal-shell-header-center') : null;
   }
 
   // denetim bulgusu (2026-08-14): panel role="dialog" aria-modal="true" taşıyor ama aria-label/
@@ -692,5 +717,5 @@ const ModalShell = (function () {
 
   function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
 
-  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults };
+  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults };
 })();

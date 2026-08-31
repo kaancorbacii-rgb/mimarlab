@@ -92,8 +92,50 @@
       .nav-mobile-menu-head{
         display:flex; align-items:center; justify-content:space-between; gap:10px; flex-shrink:0;
         padding:18px 16px 14px; border-bottom:1px solid var(--line);
+        /* .nav-mobile-menu-head-center'in genis ekranlarda mutlak konumla TAM ortalanabilmesi icin
+           kapsayici blok (bkz. asagidaki min-width:620px kurali). */
+        position:relative;
       }
-      .nav-mobile-menu-head-left{display:flex; align-items:center; gap:10px; min-width:0;}
+      .nav-mobile-menu-head-left{display:flex; align-items:center; gap:10px; min-width:0; flex-shrink:0;}
+      /* Cekmece basligindaki ORTA yuva (kullanici istegi, 2026-08-31 madde 3): Hesabim/Aktivitelerim/
+         Koleksiyonum/Iceriklerim alt sayfalarindaki uc gecis butonu, ayri bir satirda DEGIL, "Menu"
+         breadcrumb'i ile X arasinda AYNI satirda dursun. flex:1 + justify-content:center, butonlari o
+         iki sabit ucun arasinda kalan bosluga ortalar; min-width:0 ise dar telefonlarda satirin
+         cekmeceden tasmasini engeller (butonlarin kendisi @media ile kuculur, bkz. auth-modal.js#
+         .dash-nav-row). Bos oldugunda (ana menu, Giris Yap/Uye Ol gibi gecis butonu OLMAYAN alt
+         sayfalar) hicbir yer kaplamaz, baslik eski space-between duzenine doner. */
+      .nav-mobile-menu-head-center{display:flex; align-items:center; justify-content:center; flex:1 1 auto; min-width:0;}
+      .nav-mobile-menu-head-center:empty{display:none;}
+      /* 620px'ten genis ekranlarda (tablet) yuva akistan CIKARILIP cekmecenin tam ortasina demirlenir
+         — istek "sayfanin ortasi" diyor, akis icinde kalan bir flex ogesi ise "Menu" (~70px) ile X
+         (~34px) esit genislikte OLMADIGINDAN merkezden ~18px kayiyordu. Dar telefonlarda bu kural
+         BILEREK devre disi: orada tam ortalama, satirin iki yanindan ayni payi (en genis olan
+         "Menu" kadar) istedigi icin butonlara kalan yer etiketleri kirpacak kadar daralirdi —
+         okunur etiket, birkac pikselik matematiksel merkezden onemli (bkz. auth-modal.js#
+         .dash-nav-row media kurallari, ayni gerekce).
+         top/bottom degerleri .nav-mobile-menu-head'in KENDI dikey padding'iyle ayni (18/14) —
+         boylece satir, baslik satirinin icerik kutusunda breadcrumb/X ile tam ayni eksende durur.
+         max-width, iki yanda 110px'lik simetrik bir pay birakir (en genis kenar olan "Menu" +
+         padding + bosluk); asilirsa butonlar zaten kendi @media kurallariyla kuculuyor. */
+      @media (min-width:620px){
+        .nav-mobile-menu-head-center:not(:empty){
+          position:absolute; left:50%; top:18px; bottom:14px; transform:translateX(-50%);
+          max-width:calc(100% - 220px);
+        }
+      }
+      /* Dar telefonlarda baslik satirinin kendi yatay padding'i ve ic bosluklari kisilir — olculen
+         gercek deger: 390px'lik bir ekranda uc gecis butonu bu daralma OLMADAN toplam ~15px
+         kirpiliyordu. Yalnizca alt sayfa acikken uygulanir, ana menunun gorunumu degismez. */
+      @media (max-width:560px){
+        .nav-mobile-menu.subpage-active .nav-mobile-menu-head{padding-left:10px; padding-right:10px; gap:6px;}
+      }
+      /* 340px ve alti (iPhone SE 1. nesil sinifi) — bu genislikte "Menu" kelimesinin kapladigi ~50px,
+         uc gecis butonunun etiketlerini okunmaz bir puntoya inmeden sigdirmayi imkansiz kiliyor
+         (olculdu: 320px'te toplam ~19px eksik kaliyordu). Kelime gizlenir, geri okunun KENDISI ve
+         butonun aria-label'i ("Menuye don") oldugu gibi kalir — dokunma hedefi de kuculmez. */
+      @media (max-width:340px){
+        .nav-mobile-menu.subpage-active .nav-mobile-breadcrumb span{display:none;}
+      }
       .nav-mobile-menu-logo{height:22px; width:auto; display:block;}
       /* Menü ana listesinden Hesabım/Giriş Yap vb. bir alt sayfaya geçilince (bkz. NavDrawer.showSubpage
          aşağıda) logo yerine bu "‹ Menü" breadcrumb'u görünür olur — tıklanınca ana listeye döner,
@@ -238,6 +280,7 @@
             <span>Menü</span>
           </button>
         </div>
+        <div class="nav-mobile-menu-head-center" id="nav-mobile-menu-head-center"></div>
         <button type="button" class="nav-mobile-menu-close" id="nav-mobile-menu-close" aria-label="Kapat">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -821,6 +864,10 @@
     const navMobileClose = document.getElementById('nav-mobile-menu-close');
     const navMobileBreadcrumb = document.getElementById('nav-mobile-breadcrumb');
     const navMobileSubpageBody = document.getElementById('nav-mobile-subpage-body');
+    // Alt sayfanın başlık satırına (breadcrumb ile X arasına) buton yazabildiği yuva — bkz.
+    // getHeadCenterEl/CSS'teki .nav-mobile-menu-head-center. İçeriği tıpkı alt sayfa gövdesi gibi
+    // her kapanışta/geri dönüşte temizlenir (aksi halde ana menüde geçiş butonları asılı kalırdı).
+    const navMobileHeadCenter = document.getElementById('nav-mobile-menu-head-center');
     let subpageActive = false;
     let subpageCloseHandler = null; // X/overlay/Escape ile "tam kapat" isteğinde çağrılır (bkz. showSubpage)
     let subpageBackHandler = null; // breadcrumb "Menü" tıklamasında çağrılır (bkz. showSubpage)
@@ -848,6 +895,7 @@
       // kalır — querySelector/getElementById bu ÇEKMECEDEKİ ESKİ (görünmez ama hâlâ DOM'da duran)
       // kopyayı bulup yeni ModalShell popup'ının GÖRÜNMEYEN bir hayalet içerikle karışmasına yol açar.
       if(navMobileSubpageBody) navMobileSubpageBody.innerHTML = '';
+      if(navMobileHeadCenter) navMobileHeadCenter.innerHTML = '';
     }
     // Yalnızca alt sayfayı gizleyip ana menüye döner — çekmece AÇIK kalır (bkz. kullanıcı isteği:
     // "breadcrumb/back ile hamburger ana menüsüne dönülsün", çekmecenin kendisi kapanmaz).
@@ -860,6 +908,7 @@
       // bkz. closeDrawer()'daki AYNI gerçek bulgu/gerekçe — ana menüye dönüldüğünde de eski alt sayfa
       // içeriği (id çakışması ihtimaline karşı) hemen temizlenir.
       if(navMobileSubpageBody) navMobileSubpageBody.innerHTML = '';
+      if(navMobileHeadCenter) navMobileHeadCenter.innerHTML = '';
     }
     // opts.onBack: breadcrumb "Menü" tıklanınca. opts.onRequestFullClose: X/overlay/Escape ile
     // TAMAMEN kapatma isteğinde. İkisi de auth-modal.js/info-modal.js'in KENDİ close()/backToMenu()
@@ -875,6 +924,7 @@
       if(navMobileBreadcrumb) navMobileBreadcrumb.focus();
     }
     function getSubpageBodyEl(){ return navMobileSubpageBody; }
+    function getHeadCenterEl(){ return navMobileHeadCenter; }
     function isSubpageActive(){ return subpageActive; }
     function isDrawerOpen(){ return !!(navMobileMenu && navMobileMenu.classList.contains('open')); }
 
@@ -902,7 +952,7 @@
       if(e.key === 'Escape' && navMobileMenu && navMobileMenu.classList.contains('open')) requestClose();
     });
 
-    return { openDrawer, closeDrawer, hideSubpage, showSubpage, getSubpageBodyEl, isSubpageActive, isDrawerOpen };
+    return { openDrawer, closeDrawer, hideSubpage, showSubpage, getSubpageBodyEl, getHeadCenterEl, isSubpageActive, isDrawerOpen };
   }
 
   const headerMount = document.getElementById('site-header-mount');
