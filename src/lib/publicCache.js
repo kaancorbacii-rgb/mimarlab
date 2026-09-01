@@ -254,6 +254,20 @@ async function withSingleFlight(key, fn) {
 // tetikleyene kadar) eski değer görünmeye devam edebilir. listFingerprint verilmezse (mevcut tüm
 // eski çağıranlar) davranış ÖNCEKİYLE BİREBİR AYNI kalır — yalnızca cache HIT yolunda (D1'e hiç
 // gidilmeden) ETag eklenir.
+// GERÇEK BULGU (canlıda doğrulandı, 2026-09-01): ETag = hash(pathname :: fingerprint) idi ve
+// fingerprint YALNIZCA D1 İÇERİĞİNİ (count + max(updated_at)) özetliyordu — yanıtın ŞEKLİNİ değil.
+// kisi.html'e "Meslek" facet'i eklendiğinde (filters.profession) tablo içeriği hiç değişmediğinden
+// ETag de değişmedi: /kisi'yi deploy'dan ÖNCE ziyaret etmiş her tarayıcı, kendi HTTP önbelleğindeki
+// ESKİ gövdeyi doğrulamak için If-None-Match ile geliyor, sunucu 304 dönüyor ve tarayıcı yeni
+// facet'i HİÇ göremiyordu — üstelik süresiz olarak, çünkü bir sonraki mimar düzenlemesine kadar
+// fingerprint aynı kalır. (Aynı tuzak edge'deki caches.default girdisi için de geçerliydi.)
+// Bu sabit, ssrCache.js#SSR_CACHE_VERSION'ın JSON uçları için karşılığıdır: bir uç noktanın
+// DÖNDÜĞÜ ALANLAR/ŞEKİL değiştiğinde artırılır (veri değişikliğinde DEĞİL — onu fingerprint zaten
+// yakalıyor). Artırmak, tüm liste/detay/arama uçlarının ETag'lerini bir kerede döndürür.
+// v2: /api/architects yanıtına filters.profession eklendi + directory_listed filtresi total'i
+//     değiştirdi; /api/architects/search öneri satırına meslek etiketi eklendi.
+const API_PAYLOAD_VERSION = 'v2';
+
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
   if (admin) { const data = await computeData(); return json(data, statusFor(data), ADMIN_CACHE_HEADERS); }
@@ -295,7 +309,7 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
     if (freshEtag !== null) return freshEtag;
     if (!listFingerprint) return null;
     const fp = await listFingerprint();
-    freshEtag = `W/"${contentHash(`${pathname}::${fp}`)}"`;
+    freshEtag = `W/"${contentHash(`${pathname}::${API_PAYLOAD_VERSION}::${fp}`)}"`;
     return freshEtag;
   }
 
