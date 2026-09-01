@@ -775,9 +775,12 @@ async function render(){
   // basıyordu — proje/mimar/firma/marka listelerinin hepsi ilk satırı eager+fetchpriority=high ile
   // isterken (bkz. js/pages/proje.js#render, mimar.html#renderGrid) /urun sayfasının LCP görseli
   // (ilk satırın ilk kartı) tarayıcı tarafından bilerek geciktiriliyordu. AYNI "ilk satır eager"
-  // hesabı burada da yapılır — kolon sayısı grid'in gerçek genişliğinden türetilir.
-  const cardW = grid.getBoundingClientRect().width || 0;
-  const cols = cardW ? Math.max(1, Math.round(cardW / 230)) : 4;
+  // hesabı burada da yapılır. Kolon sayısı, mimar.html/firma.html/marka.html#renderGrid'in KULLANDIĞI
+  // AYNI yöntemle (window.innerWidth breakpoint'i) türetilir — ilk sürümde grid'in ölçülen genişliği
+  // (getBoundingClientRect) kullanılmıştı ama canlıda yalnızca 1 kart eager çıktı: grid bu noktada
+  // henüz nihai genişliğine oturmamış oluyor. .content-grid: varsayılan 3 kolon, ≤720px'de 2
+  // (bkz. yukarıdaki @media blokları).
+  const cols = window.innerWidth <= 720 ? 2 : 3;
   grid.innerHTML = pageItems.map((p, i) => `
     <div class="content-card">
       <div class="content-card-photo">
