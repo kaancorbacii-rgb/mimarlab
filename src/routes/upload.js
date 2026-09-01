@@ -261,6 +261,25 @@ export async function handleFileUploadRoute(request, env) {
 // "yok" yanıtı edge'de kalıcı olmasın.
 const MEDIA_EDGE_MAX_AGE_SECONDS = 2592000;
 
+// Görsel performans optimizasyonu (2026-09-01) — R2'de önceden üretilmiş responsive türevler
+// (bkz. image-cdn.js#derivativeUrl, scripts/generate-image-derivatives.js). Türev anahtarları:
+//   _derived/w<genişlik>/r2/<r2-anahtarı>     kaynak bir R2 nesnesi
+//   _derived/w<genişlik>/s/<statik-yol>       kaynak bir Cloudflare statik varlığı
+// Ücretli Cloudflare Images Transform YERİNE kullanılır (2026-08-22'de maliyet nedeniyle kapatıldı).
+const DERIVED_KEY_RE = /^_derived\/w(\d+)\/(r2|s)\/(.+)$/;
+
+// KRİTİK GÜVENLİK AĞI: bir türev henüz üretilmemişse (migration devam ediyor, yeni yüklenmiş bir
+// görsel, ya da türev üretimi başarısız olmuş) 404 DÖNMEZ — ORİJİNAL servis edilir. Bu sayede
+// image-cdn.js tek bir türev bile yokken canlıya alınabilir ve hiçbir görsel asla kırılmaz;
+// türevler üretildikçe iyileşme kendiliğinden devreye girer.
+//
+// Geri düşülen yanıt edge'de KISA (1 saat) tutulur: türev anahtarı DEĞİŞMEDEN içerik "yok"tan
+// "var"a geçebilen TEK durum budur, 30 günlük normal TTL burada yeni üretilen türevin bir ay
+// boyunca görünmemesine yol açardı. Türevin KENDİSİ bulunduğunda normal immutable TTL uygulanır
+// (türev anahtarları da tıpkı orijinaller gibi içerik-değişmezdir: aynı anahtara farklı içerik
+// yazılmaz, yeniden üretim birebir aynı çıktıyı verir).
+const DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS = 3600;
+
 export async function handleMediaRoute(request, env, url, ctx) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
@@ -284,12 +303,49 @@ export async function handleMediaRoute(request, env, url, ctx) {
   try { key = decodeURIComponent(url.pathname.slice('/media/'.length)); } catch { return errorJson('Bulunamadı', 404); }
   if (!key) return errorJson('Bulunamadı', 404);
 
-  const object = await env.UPLOADS.get(key);
-  if (!object) return errorJson('Bulunamadı', 404);
+  let object = await env.UPLOADS.get(key);
+  // Türev bulunamayıp orijinale geri düşüldüyse yanıt HEM edge'de HEM TARAYICIDA kısa ömürlü
+  // olmalı: aksi halde ziyaretçinin tarayıcısı, türev URL'sinin altında ORİJİNALİ bir yıl boyunca
+  // "immutable" olarak saklar ve türev sonradan üretilse bile o ziyaretçi iyileştirmeyi HİÇ görmez.
+  let isFallback = false;
+
+  if (!object) {
+    const derived = DERIVED_KEY_RE.exec(key);
+    if (derived) {
+      const [, , source, originalPath] = derived;
+      isFallback = true;
+      if (source === 'r2') {
+        object = await env.UPLOADS.get(originalPath);
+      } else {
+        // Statik varlık kaynağı — Cloudflare Assets'ten okunur. env.ASSETS.fetch mutlak bir URL
+        // ister; istekle AYNI origin kullanılır. Yanıt yeniden sarmalanmaz, kendi başına (kendi
+        // Content-Type'ı ve statik varlık cache header'larıyla) döner — yalnızca s-maxage'ı
+        // yukarıdaki kısa değere çekilir ki türev üretilince edge bir saat içinde onu görsün.
+        const assetUrl = new URL(url);
+        assetUrl.pathname = `/${originalPath}`;
+        assetUrl.search = '';
+        const assetRes = await env.ASSETS.fetch(new Request(assetUrl, { method: 'GET' }));
+        if (!assetRes.ok) return errorJson('Bulunamadı', 404);
+        const assetHeaders = new Headers(assetRes.headers);
+        assetHeaders.set('Cache-Control', `public, max-age=${DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS}, s-maxage=${DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS}`);
+        assetHeaders.set('X-Content-Type-Options', 'nosniff');
+        if (request.method === 'HEAD') return new Response(null, { status: 200, headers: assetHeaders });
+        const assetResponse = new Response(assetRes.body, { status: 200, headers: assetHeaders });
+        if (cache) {
+          const put = cache.put(cacheKey, assetResponse.clone()).catch(() => {});
+          if (ctx) ctx.waitUntil(put);
+        }
+        return assetResponse;
+      }
+    }
+    if (!object) return errorJson('Bulunamadı', 404);
+  }
 
   const headers = new Headers();
   headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
-  headers.set('Cache-Control', `public, max-age=31536000, s-maxage=${MEDIA_EDGE_MAX_AGE_SECONDS}, immutable`);
+  headers.set('Cache-Control', isFallback
+    ? `public, max-age=${DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS}, s-maxage=${DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS}`
+    : `public, max-age=31536000, s-maxage=${MEDIA_EDGE_MAX_AGE_SECONDS}, immutable`);
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('ETag', object.httpEtag);
   // Content-Length: edge'e yazılan yanıtın boyutu bilinsin diye (R2 nesnesinin kendi metadata'sı).

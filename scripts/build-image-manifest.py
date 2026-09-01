@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""scripts/generate-image-derivatives.py için iş listesi (manifest) üretir.
+
+Kaynak: canlı D1 — sitenin GERÇEKTEN render ettiği görsel referansları (projects.images,
+products.images, architects.photo_url, offices.logo_url/cover_url). R2 nesnelerini listelemek
+YERİNE D1 okunur; böylece hiçbir satırdan referans edilmeyen "orphan" R2 nesnelerine (bkz.
+src/lib/r2Reconcile.js) boşuna türev üretilmez.
+
+İKİ AŞAMA — sıralama performans önceliğine göre (bkz. kullanıcı isteği 2026-09-01, madde 18):
+  stage1  images[0] (kart/karusel kapakları) + mimar fotoğrafları + firma logo/kapakları.
+          Ana sayfa, TÜM liste sayfaları, arama sonuçları, En İyi 100 ve pop-up'lardaki ilgili-
+          içerik ızgaraları YALNIZCA bu görselleri gösterir — yani ölçülebilir kazancın neredeyse
+          tamamı buradadır.
+  stage2  images[1:] (yalnızca proje/ürün pop-up'ı açıldığında görünen galeri kareleri).
+
+Harici (http/https) URL'ler HER İKİ aşamada da hariç tutulur: bize ait olmadıkları için R2'ye
+kopyalamak hem telif hem depolama açısından yanlış olur (bkz. final rapor "Remaining").
+
+YENİ YÜKLEMELER: bu script yeniden çalıştırıldığında yeni eklenen görseller kendiliğinden listeye
+girer ve generate-image-derivatives.py idempotent olduğundan yalnızca EKSİK türevler üretilir.
+
+KULLANIM
+    python3 scripts/build-image-manifest.py --outdir /tmp/derivmanifest
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def d1(sql):
+    p = subprocess.run(
+        ['npx', 'wrangler', 'd1', 'execute', 'mimarlab-db', '--remote', '--json', '--command', sql],
+        cwd=ROOT, capture_output=True, text=True)
+    if p.returncode != 0:
+        raise SystemExit(f'D1 sorgusu başarısız:\n{p.stderr[:800]}')
+    return json.loads(p.stdout)[0]['results']
+
+
+def is_local(u):
+    """Bizim servis ettiğimiz bir yol mu? ("/media/..." R2 ya da "projects/..." statik varlık)"""
+    return isinstance(u, str) and bool(u) and not u.startswith(('http://', 'https://', 'data:', '//'))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--outdir', required=True)
+    args = ap.parse_args()
+    os.makedirs(args.outdir, exist_ok=True)
+
+    covers, gallery = [], []
+    for table in ('projects', 'products'):
+        rows = d1(f"SELECT images FROM {table} WHERE deleted_at IS NULL "
+                  f"AND images IS NOT NULL AND images != '[]'")
+        for r in rows:
+            try:
+                arr = [x for x in (json.loads(r['images']) or []) if is_local(x)]
+            except (ValueError, TypeError):
+                arr = []
+            if arr:
+                covers.append(arr[0])
+                gallery.extend(arr[1:])
+
+    profiles = []
+    for sql in ("SELECT photo_url AS u FROM architects WHERE deleted_at IS NULL AND photo_url IS NOT NULL AND photo_url != ''",
+                "SELECT logo_url AS u FROM offices WHERE deleted_at IS NULL AND logo_url IS NOT NULL AND logo_url != ''",
+                "SELECT cover_url AS u FROM offices WHERE deleted_at IS NULL AND cover_url IS NOT NULL AND cover_url != ''"):
+        profiles.extend(r['u'] for r in d1(sql) if is_local(r.get('u')))
+
+    stage1 = sorted(set(covers) | set(profiles))
+    stage2 = sorted(set(gallery) - set(stage1))
+
+    p1 = os.path.join(args.outdir, 'manifest-stage1.txt')
+    p2 = os.path.join(args.outdir, 'manifest-stage2.txt')
+    with open(p1, 'w', encoding='utf-8') as fh:
+        fh.write('\n'.join(stage1))
+    with open(p2, 'w', encoding='utf-8') as fh:
+        fh.write('\n'.join(stage2))
+    print(f'stage1 (kapak + profil/logo): {len(stage1):6d} -> {p1}')
+    print(f'stage2 (galeri kareleri)    : {len(stage2):6d} -> {p2}')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
