@@ -768,6 +768,9 @@ const ModalShell = (function () {
   // popup tam olarak oradan gelir ve gerçek başlangıç noktasının üzerine yazılmamalıdır.
   function rememberOriginPage(pushedHistory) {
     try {
+      // Zaten bir popup'ın ÜSTÜNE açılıyorsak location.href bir popup URL'idir, "geldiğim sayfa"
+      // değil — o durumda önceki (gerçek sayfa) kaydı korunur.
+      if (pushedHistory && popupHistoryDepth() > 0) return;
       const href = pushedHistory ? location.href : document.referrer;
       if (!href) return;
       if (new URL(href, location.href).origin !== location.origin) return;
@@ -782,6 +785,25 @@ const ModalShell = (function () {
       if (!href || new URL(href).origin !== location.origin) return null;
       return href;
     } catch { return null; }
+  }
+
+  // TÜR-BAĞIMSIZ popup zinciri derinliği (kullanıcı isteği, 2026-09-01 madde 4: "bir popup'tan
+  // diğer popup'a geçtiğimizde, sonrakini kapatınca bir önceki popup değil EN SON KALDIĞIMIZ SAYFA
+  // gelsin").
+  //
+  // GERÇEK BULGU: altı modalın (proje/ürün/kişi/firma/auth/info) her biri kendi pushState'ine
+  // {mimarlabModal:<tür>, depth} yazıyor, ama derinliği YALNIZCA KENDİ TÜRÜNDEKİ bir önceki
+  // girdiden devralıyordu. Proje popup'ından bir ürün popup'ına geçildiğinde ürün modalı
+  // "history.state.mimarlabModal === 'product'" koşulunu sağlayamıyor ve zinciri sıfırdan
+  // başlatıp depth=1 yazıyordu; kapanıştaki goBackAndWait(1) de bir adım geri gidip proje
+  // popup'ını YENİDEN açıyordu. Derinlik artık türden bağımsız okunur — ürün popup'ı depth=2 alır
+  // ve kapanış tek hamlede popup ÖNCESİ sayfaya (ör. /proje listesi) döner.
+  //
+  // Aynı tür içindeki gezinme (proje→proje swap) zaten bu sayaçla çalışıyordu; tek değişen, sayacın
+  // tür sınırında sıfırlanmaması.
+  function popupHistoryDepth() {
+    const st = history.state;
+    return (st && st.mimarlabModal && typeof st.depth === 'number') ? st.depth : 0;
   }
 
   function returnToPreviousPage(extraDepth) {
@@ -873,5 +895,5 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, rememberOriginPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, rememberOriginPage, popupHistoryDepth, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();

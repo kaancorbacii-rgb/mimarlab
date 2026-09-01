@@ -456,14 +456,6 @@ const OfficeModal = (function () {
     </a>`;
   }
 
-  // js/components/architect-modal.js#deferToIdle ile BİREBİR aynı (bkz. o dosyadaki dosya başı
-  // yorum) — loadRelatedProducts() modal açılışında hemen çekiliyordu, ilk boyamayla yarışan
-  // gereksiz bir istekti (denetim bulgusu, 2026-08-24).
-  function deferToIdle(fn, timeoutMs) {
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: timeoutMs });
-    else setTimeout(fn, timeoutMs);
-  }
-
   // Kurucular kutusuna yazılmış ama architects tablosunda karşılığı olmayan (bkz.
   // src/routes/office.js#fetchRawFounderNames, `unregistered: true`) isimler — tıklanabilir bir
   // profil kartı DEĞİL, yuvarlak baş harfli pasif bir rozet (bkz. kullanıcı isteği).
@@ -784,25 +776,32 @@ const OfficeModal = (function () {
       cardHtml(`/firma/${encodeURIComponent(o2.slug)}`, o2.name, logoUrl(o2), o2.loc)
     ).join('');
 
-    // Marka kataloğu — bu firmanın adı ürün/malzeme markası olarak eşleşen canonical products
-    // satırları (bkz. src/routes/office.js#buildOfficePayload, relatedProducts/relatedMaterials).
-    // "Bu firma sana mı ait?" ile bir kullanıcının KİŞİSEL olarak gönderip onaylattığı ürünlerden
-    // (aşağıdaki loadRelatedProducts) AYRI bir kaynak — ikisi aynı gridde birleştirilir (dedupe:
-    // aynı başlık ikisinde de varsa marka kataloğu kazanır, çünkü slug'ı olduğundan doğru /urun/
-    // linkine gider, submission kaynağının href'i yok — bkz. aşağıdaki gerçek bulgu notu).
+    // Marka kataloğu — TEK kaynak: bu firmanın adı/id'si ürün markası olarak eşleşen canonical
+    // products satırları (bkz. src/routes/office.js#buildOfficePayload, relatedProducts/
+    // relatedMaterials — kural `brand_office_id = o.id OR brand_name_raw = o.name`).
+    //
+    // GERÇEK BULGU (kullanıcı isteği, 2026-09-01: "MİMARLAB firmasının profilinde 3 ürün gözüküyor,
+    // bu ürünlerin MİMARLAB'la alakası yok ki"): buraya ayrıca /api/public/profile-content'in
+    // döndürdüğü, "bu profili sahiplenmiş kullanıcının HESABINDAN gönderdiği" ürünler de
+    // birleştiriliyordu. O eşleşme owner_user_id üzerinden yapılır, ürünün MARKASINA hiç bakmaz —
+    // yani bir hesabın siteye girdiği BAŞKA markaların ürünleri (Bellona, Union vb.) sahiplendiği
+    // firmanın kataloğunda görünüyordu. Aynı hata mimar profillerinde 2026-08-30'da düzeltilmişti
+    // (bkz. architect-modal.js#renderDesignerProductsGrid yorumu) ama firma tarafı "kendi markası
+    // altında gönderdiği ürün güçlü bir vekildir" gerekçesiyle bilerek bırakılmıştı — o gerekçe
+    // yanlıştı: gönderen HESAP ile ürünün MARKASI arasında hiçbir bağ yok. Gerçekten bu firmaya ait
+    // bir ürün ZATEN yukarıdaki marka eşleşmesiyle geliyor; birleştirme yalnızca alakasız ürün
+    // ekliyordu.
     const brandProductsData = payload.relatedProducts || [];
     const brandMaterialsData = payload.relatedMaterials || [];
     function productCardHtml(p) {
       return cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category);
     }
-    function renderProductGrid(sectionId, gridId, brandItems, submissionItems, countId) {
-      const seenTitles = new Set(brandItems.map(p => (p.title || '').trim().toLowerCase()));
-      const merged = [...brandItems, ...submissionItems.filter(p => !seenTitles.has((p.title || '').trim().toLowerCase()))];
-      document.getElementById(sectionId).style.display = merged.length ? '' : 'none';
-      document.getElementById(gridId).innerHTML = merged.map(productCardHtml).join('');
-      if (countId) document.getElementById(countId).textContent = merged.length ? ` (${merged.length})` : '';
+    function renderProductGrid(sectionId, gridId, items, countId) {
+      document.getElementById(sectionId).style.display = items.length ? '' : 'none';
+      document.getElementById(gridId).innerHTML = items.map(productCardHtml).join('');
+      if (countId) document.getElementById(countId).textContent = items.length ? ` (${items.length})` : '';
     }
-    renderProductGrid('om-related-products-section', 'om-related-products-grid', [...brandProductsData, ...brandMaterialsData], [], 'om-related-products-count');
+    renderProductGrid('om-related-products-section', 'om-related-products-grid', [...brandProductsData, ...brandMaterialsData], 'om-related-products-count');
 
     // Projelerde Kullanılan Ürünler — payload'la BİRLİKTE gelir (ek bir fetch yok), bu yüzden
     // renderProductGrid'in submission-birleştirme/dedupe mantığına ihtiyaç duymaz. Kart alt satırı
@@ -890,21 +889,6 @@ const OfficeModal = (function () {
       },
     });
 
-    async function loadRelatedProducts() {
-      try {
-        const res = await fetch(`/api/public/profile-content?profileType=office&profileKey=${encodeURIComponent(o.name)}`);
-        // bkz. js/components/product-modal.js#loadCompanyProducts'taki AYNI gerçek bulgu: çağrı anında
-        // (deferToIdle içinde) currentItem doğrulanıyor ama await'ten SONRA doğrulanmıyordu — geç
-        // dönen yanıt ESKİ firmanın ürünlerini YENİ popup'a yazabilirdi.
-        if (currentItem !== o) return;
-        if (!res.ok) return;
-        const data = await res.json();
-        if (currentItem !== o) return;
-        renderProductGrid('om-related-products-section', 'om-related-products-grid',
-          [...brandProductsData, ...brandMaterialsData], [...(data.products || []), ...(data.materials || [])], 'om-related-products-count');
-      } catch {}
-    }
-
     // js/components/architect-modal.js#renderMessageIcon İLE BİREBİR AYNI mantık — yalnızca burada
     // dynamicBadges.office'e bakar; ikon görünürlüğü sadece bu firmanın kendi rozeti var mı sorusuna
     // bağlıdır (bkz. kullanıcı isteği 2026-08-30: "Sadece rozeti olan ... firma profillerinde").
@@ -937,10 +921,6 @@ const OfficeModal = (function () {
     // AYNI listener-birikimi sorunu — badgesReadyPromise'e geçiş, kalıcı window listener'ı kaldırır.
     if (typeof badgesReadyPromise !== 'undefined') badgesReadyPromise.then(renderVerifiedBadges);
 
-    // currentItem === o koruması: js/components/architect-modal.js#renderItem'daki AYNI gerekçe —
-    // kullanıcı bu geciken callback ateşlenmeden önce bir sonraki firmaya geçerse, eski firmanın
-    // verisiyle yeni firmanın om-related-products-* DOM'unu ezmesin.
-    deferToIdle(() => { if (currentItem === o) loadRelatedProducts(); }, 800);
     await savedWidgetReady;
     await claimBox.init();
 
@@ -997,8 +977,11 @@ const OfficeModal = (function () {
     // "Düzenle → Kaydet → popup'ı kapat" dönüşü için popup'ın ALTINDAKİ sayfayı kaydeder
     // (bkz. ModalShell.rememberOriginPage / returnToPreviousPage, kullanıcı isteği 2026-09-01 madde 4).
     if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
-    pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'office', slug, depth: 1 }, '', `/firma/${encodeURIComponent(slug)}`);
+    // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
+    // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
+    // sayfaya döner.
+    pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
+    if (pushHistory) history.pushState({ mimarlabModal: 'office', slug, depth: pushCountSinceOpen }, '', `/firma/${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -1014,7 +997,7 @@ const OfficeModal = (function () {
     if (!ModalShell.isOpen()) return open(slug, { pushHistory: true });
     await ModalShell.waitForPendingNav();
     currentSlug = slug;
-    const currentDepth = (history.state && history.state.mimarlabModal === 'office') ? history.state.depth : pushCountSinceOpen;
+    const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'office', slug, depth: pushCountSinceOpen }, '', `/firma/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
@@ -1040,7 +1023,7 @@ const OfficeModal = (function () {
     if (ModalShell.wasCurrentPopSuperseded()) return;
     if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
-    if (history.state && history.state.mimarlabModal === 'office' && typeof history.state.depth === 'number') {
+    if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
     if (slug === currentSlug) return;

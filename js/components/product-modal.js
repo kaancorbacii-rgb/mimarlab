@@ -13,6 +13,12 @@ const ProductModal = (function () {
   // kopyasını taşır (architect-modal.js#META_ICONS İLE AYNI gerekçe).
   const META_ICONS = {
     office: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21V9h6v12"/><path d="M7.5 7h1M7.5 10.5h1M7.5 14h1M11 7h1M11 10.5h1M11 14h1"/></svg>',
+    // brand — "Marka" künye satırı (kullanıcı isteği, 2026-09-01: başlık "Ürün Firması"dan "Marka"ya
+    // döndü, ikon da değişsin). Tenteli vitrin/mağaza silueti: bu dosyadaki DİĞER ikonların
+    // (office=bina, pencil=tasarımcı, tag=kategori, calendar=yıl) HİÇBİRİYLE karışmaz. `office`
+    // ikonu SİLİNMEDİ — architect-modal.js/office-modal.js ile aynı çizim dilini paylaşan bu
+    // sözlük başka satırlar için de kullanılabilir kalsın diye duruyor.
+    brand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 4.5h17.2l1.1 4.1a3 3 0 0 1-5.8 1.1 3 3 0 0 1-5.8 0 3 3 0 0 1-5.8-1.1Z"/><path d="M4.6 10.6V20h14.8v-9.4"/><path d="M9.6 20v-5.2h4.8V20"/></svg>',
     pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.5 18.5l-4 1 1-4Z"/></svg>',
     tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.5H4.6a1.6 1.6 0 0 0-1.6 1.6v8a1.6 1.6 0 0 0 .47 1.13l9.3 9.3a1.6 1.6 0 0 0 2.26 0l6.57-6.57a1.6 1.6 0 0 0 0-2.26l-9.3-9.3a1.6 1.6 0 0 0-1.13-.47Z"/><circle cx="7.7" cy="7.7" r="1.1"/></svg>',
     calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
@@ -362,7 +368,7 @@ const ProductModal = (function () {
     </div>
     <div class="detail-info">
       <div class="designer-section" id="pr-brand-section" style="display:none;">
-        <div class="designer-label">${metaIconHtml('office')}Ürün Firması:</div>
+        <div class="designer-label">${metaIconHtml('brand')}Marka:</div>
         <div class="designer-chips" id="pr-brand-chips"></div>
       </div>
       <div class="designer-section" id="pr-designer-section" style="display:none;">
@@ -1095,8 +1101,11 @@ const ProductModal = (function () {
     // "Düzenle → Kaydet → popup'ı kapat" dönüşü için popup'ın ALTINDAKİ sayfayı kaydeder
     // (bkz. ModalShell.rememberOriginPage / returnToPreviousPage, kullanıcı isteği 2026-09-01 madde 4).
     if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
-    pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'product', slug, depth: 1 }, '', `/urun/${encodeURIComponent(slug)}`);
+    // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
+    // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
+    // sayfaya döner.
+    pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
+    if (pushHistory) history.pushState({ mimarlabModal: 'product', slug, depth: pushCountSinceOpen }, '', `/urun/${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -1112,7 +1121,7 @@ const ProductModal = (function () {
     if (!ModalShell.isOpen()) return open(slug, { pushHistory: true });
     await ModalShell.waitForPendingNav();
     currentSlug = slug;
-    const currentDepth = (history.state && history.state.mimarlabModal === 'product') ? history.state.depth : pushCountSinceOpen;
+    const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'product', slug, depth: pushCountSinceOpen }, '', `/urun/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
@@ -1138,7 +1147,7 @@ const ProductModal = (function () {
     if (ModalShell.wasCurrentPopSuperseded()) return;
     if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
-    if (history.state && history.state.mimarlabModal === 'product' && typeof history.state.depth === 'number') {
+    if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
     if (slug === currentSlug) return;

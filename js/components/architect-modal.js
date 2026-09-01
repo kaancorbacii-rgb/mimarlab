@@ -890,8 +890,11 @@ const ArchitectModal = (function () {
     // "Düzenle → Kaydet → popup'ı kapat" dönüşü için popup'ın ALTINDAKİ sayfayı kaydeder
     // (bkz. ModalShell.rememberOriginPage / returnToPreviousPage, kullanıcı isteği 2026-09-01 madde 4).
     if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
-    pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'architect', slug, depth: 1 }, '', `/kisi/${encodeURIComponent(slug)}`);
+    // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
+    // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
+    // sayfaya döner.
+    pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
+    if (pushHistory) history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen }, '', `/kisi/${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -907,7 +910,7 @@ const ArchitectModal = (function () {
     if (!ModalShell.isOpen()) return open(slug, { pushHistory: true });
     await ModalShell.waitForPendingNav();
     currentSlug = slug;
-    const currentDepth = (history.state && history.state.mimarlabModal === 'architect') ? history.state.depth : pushCountSinceOpen;
+    const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen }, '', `/kisi/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
@@ -933,7 +936,7 @@ const ArchitectModal = (function () {
     if (ModalShell.wasCurrentPopSuperseded()) return;
     if (!slug) { if (ModalShell.isOpen()) { currentSlug = null; currentItem = null; ModalShell.close(); } return; }
     if (!ModalShell.isOpen()) { openedViaPush = false; open(slug, { pushHistory: false }); return; }
-    if (history.state && history.state.mimarlabModal === 'architect' && typeof history.state.depth === 'number') {
+    if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
     if (slug === currentSlug) return;

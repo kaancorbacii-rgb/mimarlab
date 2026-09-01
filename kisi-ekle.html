@@ -885,6 +885,29 @@ function setDirectoryListed(value){
   if(el) el.checked = true;
 }
 
+// GERÇEK BULGU (kullanıcı isteği, 2026-09-01: "MİMARLAB firmasının profilinde sosyal simgeler
+// gözüküyor ama profili düzenle deyince o kutu boş"): sahiplenilmiş bir profilin formu üç kaynağı
+// üst üste bindirir — canonical (/api/office|architect/:key) → profile-edits overlay → kullanıcının
+// KENDİ en yeni taslağı (/api/*/mine). Üçüncü katman düz bir spread'di, yani taslağın BOŞ alanı
+// canonical'daki DOLU değerin üzerine yazıyordu. MİMARLAB'ın en yeni office_submissions satırında
+// social_links = [] olduğundan (sosyal medya kutusu o satır kaydedilirken doldurulmamış), canonical
+// offices.social_links üç bağlantıyı taşımasına rağmen form kutuyu boş açıyordu.
+//
+// Kural artık src/lib/canonicalSync.js#syncOffice/syncArchitect'in claimed dalıyla BİREBİR AYNI:
+// sahiplenilmiş bir profilde taslağın BOŞ alanı "belirtilmedi" demektir, "sil" demek değil —
+// yalnızca DOLU alanlar canonical'ın üzerine biner. İki taraf farklı davrandığı sürece form,
+// sunucunun asla silmeyeceği bir değeri kullanıcıya "yok" diye gösteriyordu.
+function overlayNonEmpty(base, patch){
+  const out = { ...base };
+  for(const [key, value] of Object.entries(patch)){
+    if(value === undefined || value === null) continue;
+    if(typeof value === 'string' && !value.trim()) continue;
+    if(Array.isArray(value) && !value.length) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 async function prefillForEdit(){
   if(!editId) return;
   try{
@@ -898,7 +921,17 @@ async function prefillForEdit(){
     // claimed_profile_key'i sessizce NULL'a düşürüyordu — sonraki onayda syncArchitect artık
     // eski statik kaydı bulamayıp YENİ bir "bağımsız" mimar kaydı oluşturuyordu, yani aynı mimar
     // sitede İKİ kez görünüyordu — "mükerrer kayıt" bulgusunun kök nedeni).
-    if(item.claimed_profile_key) claimName = item.claimed_profile_key;
+    if(item.claimed_profile_key){
+      // Sahiplenilmiş bir profilin taslağı — bkz. overlayNonEmpty'deki gerçek bulgu: doğru sonuç
+      // yalnızca canonical + profile-edits + taslak ÜÇLÜ katmanıyla elde edilir. Taslak TEK BAŞINA
+      // canonical'da DOLU olan alanları (ör. sosyal medya) "boş" gösterir; İçeriklerim'deki
+      // "Düzenle" linki ?claim= değil ?edit= kullandığından bu yol tam olarak o hataya düşüyordu.
+      // prefillForClaim zaten o katmanlamayı yapıyor (ve aynı profilin EN YENİ taslağını seçip
+      // editId'yi ona sabitliyor), bu yüzden burada tekrarlanmaz — oraya devredilir.
+      claimName = item.claimed_profile_key;
+      await prefillForClaim();
+      return;
+    }
     document.querySelector('.eyebrow').textContent = 'Kişi Düzenle';
     document.querySelector('.page-head h1').textContent = 'Bilgilerini düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
@@ -991,7 +1024,7 @@ async function prefillForClaim(){
       const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
       if(mine){
         editId = mine.id;
-        merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links };
+        merged = overlayNonEmpty(merged, { name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links });
         // Taslakta bu soru hiç yanıtlanmamışsa (NULL) canonical satırdan gelen değer korunur.
         if(mine.directory_listed !== undefined && mine.directory_listed !== null) merged.directory_listed = mine.directory_listed;
       }

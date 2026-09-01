@@ -814,8 +814,11 @@ const ProjectModal = (function () {
     // "Düzenle → Kaydet → popup'ı kapat" dönüşü için popup'ın ALTINDAKİ sayfayı kaydeder
     // (bkz. ModalShell.rememberOriginPage / returnToPreviousPage, kullanıcı isteği 2026-09-01 madde 4).
     if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
-    pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: 1 }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
+    // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
+    // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
+    // sayfaya döner.
+    pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
+    if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     // ModalShell.open() ÖNCE çağrılır (overlay/panel DOM'unu ilk kez o oluşturur) — ensureTemplate()
     // panellere innerHTML basmaya çalıştığında panel elemanları henüz yoksa (bkz. gerçek bulgu) null
     // referans hatası verirdi.
@@ -854,7 +857,7 @@ const ProjectModal = (function () {
     // görmediğinden yanlış (fazla) bir mesafeye göre history.go(-N) çağırıp asıl listenin
     // ÖTESİNE geçerdi. history.state her girdiyle birlikte taşındığından (pushState'in kendi
     // mekanizması) her zaman doğru "buradan modal-öncesi duruma kaç adım var" bilgisini verir.
-    const currentDepth = (history.state && history.state.mimarlabModal === 'project') ? history.state.depth : pushCountSinceOpen;
+    const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'project', slug, depth: pushCountSinceOpen }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     // bkz. open()'daki AYNI gerçek bulgu yorumu — swap() URL/pushState'i HEMEN güncelliyordu ama
@@ -916,7 +919,7 @@ const ProjectModal = (function () {
     // Geri/ileri ile bu projeye gelindi — history.state.depth (bkz. swap()'taki AYNI mekanizma)
     // pushCountSinceOpen'ı YENİDEN senkronlar, böylece buradan sonra X/Escape'e basılırsa
     // history.go(-N) doğru mesafeyi kullanır (geri navigasyon sırasında biriken sayaç sapmasını önler).
-    if (history.state && history.state.mimarlabModal === 'project' && typeof history.state.depth === 'number') {
+    if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
     if (slug === currentSlug) return;

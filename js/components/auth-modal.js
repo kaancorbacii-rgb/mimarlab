@@ -3514,8 +3514,11 @@ const AuthModal = (function () {
     // bkz. ModalShell.rememberOriginPage — "Düzenle → Kaydet → popup'ı kapat" dönüşünün
     // başlangıç noktası (kullanıcı isteği, 2026-09-01 madde 4).
     if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
-    pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: 1 }, '', VIEW_PATH[view]);
+    pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
+    // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
+    // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
+    // sayfaya döner.
+    if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
     if (isMobileDrawer(view)) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
     else ModalShell.open({ triggerEl, onRequestClose: close });
     renderView(view);
@@ -3537,7 +3540,7 @@ const AuthModal = (function () {
     if (!isOpen()) return open(view, { pushHistory: true });
     const wasMobile = currentHostIsMobile();
     currentView = view;
-    const currentDepth = (history.state && history.state.mimarlabModal === 'auth') ? history.state.depth : pushCountSinceOpen;
+    const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
     // Tüm AuthModal görünümleri her iki host'ta da (mobil/masaüstü) açılabildiğinden host normalde
@@ -3590,7 +3593,7 @@ const AuthModal = (function () {
   function handlePopState(view) {
     if (!view) { if (isOpen()) { currentView = null; deactivateHost(currentHostIsMobile()); } return; }
     if (!isOpen()) { openedViaPush = false; open(view, { pushHistory: false }); return; }
-    if (history.state && history.state.mimarlabModal === 'auth' && typeof history.state.depth === 'number') {
+    if (history.state && history.state.mimarlabModal && typeof history.state.depth === 'number') {
       pushCountSinceOpen = history.state.depth;
     }
     if (view === currentView) return;

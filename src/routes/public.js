@@ -7,23 +7,6 @@ import { cachedPublicJson } from '../lib/publicCache.js';
 import { getSiteSettings } from '../lib/siteSettings.js';
 import { handlePlatformRoute } from './platform.js';
 
-// Onaylanmış (status='approved') satırları, statik urunler-data.js/malzemeler-data.js
-// dizilerindeki mevcut şekle olabildiğince uyacak biçimde dönüştürür — böylece istemci
-// tarafında tek satırlık bir fetch+push ile mevcut render() koduna karışabilirler.
-function toPublicShape(type, row) {
-  const parsed = parseSubmissionRow(type, row);
-  // "X tarafından" satırı (bkz. urun.html/malzeme modalları) için — yalnızca owner join'i yapılmış
-  // sorgulardan gelen satırlarda dolu, diğer çağıranlarda sessizce undefined kalır, byline gösterilmez.
-  const owner = row.owner_name ? { ownerName: row.owner_name, ownerPhoto: row.owner_photo, ownerBadge: row.owner_badge } : {};
-  return {
-    title: parsed.title, brand: parsed.brand, architect: parsed.architect, website: parsed.website, category: parsed.category,
-    description: parsed.description, images: parsed.images, specs: parsed.specs,
-    image: parsed.images && parsed.images[0] ? parsed.images[0] : null,
-    slug: row.slug || null,
-    source: 'member', submissionId: parsed.id, ...owner,
-  };
-}
-
 export async function handlePublicRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "public", "offices"]
   if (segments[2] === 'hidden') return handlePublicHidden(request, env);
@@ -32,7 +15,6 @@ export async function handlePublicRoute(request, env, url) {
   if (segments[2] === 'check-name') return handlePublicCheckName(request, env, url);
   if (segments[2] === 'profile-edits') return handlePublicProfileEdits(request, env);
   if (segments[2] === 'project-edits') return handlePublicProjectEdits(request, env);
-  if (segments[2] === 'profile-content') return handlePublicProfileContent(request, env, url);
   if (segments[2] === 'claim-status') return handlePublicClaimStatus(request, env, url);
   if (segments[2] === 'save-count') return handlePublicSaveCount(request, env, url);
   if (segments[2] === 'follow-count') return handlePublicFollowCount(request, env, url);
@@ -278,50 +260,4 @@ async function handlePublicProjectEdits(request, env) {
   });
 }
 
-const PROFILE_CONTENT_TYPES = new Set(['architect', 'office']);
 
-// GET /api/public/profile-content?profileType=architect|office&profileKey=<isim> — auth
-// gerektirmez. Ürün/malzeme gönderilerinde mimar/ofis adını tutan bir alan olmadığından
-// (bkz. product_submissions.brand — serbest metin, isme göre eşleştirilemez), bu profili
-// sahiplenip onayı geçmiş kullanıcı(lar)ın (bkz. profile_claims) owner_user_id'si üzerinden
-// eşleştirme yapılır: "kişinin/markanın siteye girdiği" içerik budur. mimar-detay.html/
-// ofis-detay.html bunu Projeler'in altında Projeler'le aynı yatay kaydırmalı tasarımda gösterir.
-async function handlePublicProfileContent(request, env, url) {
-  const profileType = url.searchParams.get('profileType');
-  const profileKey = (url.searchParams.get('profileKey') || '').trim();
-  if (!PROFILE_CONTENT_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
-
-  // KÖKTEN BULGU (2026-09-01, kullanıcı isteği madde 4): anahtar `url.pathname` idi — bu ucun
-  // yanıtı SORGU DİZESİNE bağlı olduğu halde. Bu uç cacheable listelerinde YOK, bu yüzden
-  // caches.default'a hiç yazılmıyor; ama cachedPublicJson'ın `!cacheable` dalı AYNI anahtarla
-  // stampede koruması (withSingleFlight) uyguluyor — farklı parametrelerle EŞZAMANLI gelen istekler
-  // tek bir in-flight Promise'e bağlanıp BİRBİRİNİN yanıtını alıyordu. `url.search` eklenerek her
-  // parametre kombinasyonu kendi anahtarını alır (davranış değişmez, yalnızca karışma kalkar).
-  return cachedPublicJson(request, env, url.pathname + url.search, async () => {
-    const { results: claimRows } = await env.DB.prepare(
-      `SELECT DISTINCT user_id FROM profile_claims WHERE status = 'approved' AND profile_type = ? AND profile_key = ?`
-    ).bind(profileType, profileKey).all();
-    const userIds = claimRows.map(r => r.user_id);
-    if (!userIds.length) return { products: [], materials: [] };
-
-    const placeholders = userIds.map(() => '?').join(', ');
-
-    const [productsRes, materialsRes] = await Promise.all([
-      env.DB.prepare(
-        `SELECT ps.*, pr.slug AS slug FROM product_submissions ps
-         JOIN products pr ON pr.legacy_key = 'submission:' || ps.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-         WHERE ps.status = 'approved' AND ps.owner_user_id IN (${placeholders}) ORDER BY ps.created_at DESC`
-      ).bind(...userIds).all(),
-      env.DB.prepare(
-        `SELECT ms.*, pr.slug AS slug FROM material_submissions ms
-         JOIN products pr ON pr.legacy_key = 'submission:' || ms.id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-         WHERE ms.status = 'approved' AND ms.owner_user_id IN (${placeholders}) ORDER BY ms.created_at DESC`
-      ).bind(...userIds).all(),
-    ]);
-
-    return {
-      products: productsRes.results.map(r => toPublicShape('products', r)),
-      materials: materialsRes.results.map(r => toPublicShape('materials', r)),
-    };
-  });
-}
