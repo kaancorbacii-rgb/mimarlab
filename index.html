@@ -711,7 +711,7 @@ function slideAvatarColor(name){
 }
 
 function architectSlideHtml(a, i){
-  const photoSrcset = a.photo ? cdnSrcset(a.photo, [600, 900, 1200]) : '';
+  const photoSrcset = a.photo ? cdnSrcset(a.photo, [400, 800]) : '';
   const media = a.photo
     ? `<img src="${escapeAttr(cdnImg(a.photo, 900))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 860px) 50vw, 190px"` : ''} alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(a.name)}">${escapeHtml(slideInitials(a.name))}</div>`;
@@ -725,7 +725,7 @@ function architectSlideHtml(a, i){
 }
 
 function officeSlideHtml(o, i){
-  const logoSrcset = o.logo ? cdnSrcset(o.logo, [600, 900, 1200]) : '';
+  const logoSrcset = o.logo ? cdnSrcset(o.logo, [400, 800]) : '';
   const media = o.logo
     ? `<img class="slide-logo-img" src="${escapeAttr(cdnImg(o.logo, 900))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 860px) 50vw, 190px"` : ''} alt="${escapeAttr(o.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(o.name)}">${escapeHtml(slideInitials(o.name))}</div>`;
@@ -739,7 +739,7 @@ function officeSlideHtml(o, i){
 }
 
 function urunSlideHtml(p, i){
-  const imgSrcset = p.image ? cdnSrcset(p.image, [600, 900, 1200]) : '';
+  const imgSrcset = p.image ? cdnSrcset(p.image, [400, 800, 1600]) : '';
   const media = p.image
     ? `<img class="slide-logo-img" src="${escapeAttr(cdnImg(p.image, 900))}"${imgSrcset ? ` srcset="${escapeAttr(imgSrcset)}" sizes="(max-width: 860px) 100vw, 380px"` : ''} alt="${escapeAttr(p.title)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(p.title)}">${escapeHtml(slideInitials(p.title))}</div>`;
