@@ -648,7 +648,10 @@ const OfficeModal = (function () {
       el.style.background = officeColor(o.name);
       if (!officeLogoUrl) return;
       const img = document.createElement('img');
-      img.src = officeLogoUrl;
+      // bkz. js/components/architect-modal.js#am-logo'daki AYNI düzeltme/gerekçe: .profile-logo
+      // 64x64 px, ham URL yerine en küçük türev basamağı kullanılır (cdnImg türev yoksa yolu
+      // değiştirmeden döndürdüğünden görsel hiçbir durumda kırılmaz).
+      img.src = (typeof cdnImg === 'function') ? cdnImg(officeLogoUrl, 400) : officeLogoUrl;
       img.alt = '';
       img.decoding = 'async';
       img.fetchPriority = 'high';

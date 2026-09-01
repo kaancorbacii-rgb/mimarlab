@@ -607,7 +607,11 @@ const ArchitectModal = (function () {
     const photoUrl = a.photo ? safeUrl(a.photo) : '';
     if (photoUrl) {
       const img = document.createElement('img');
-      img.src = photoUrl;
+      // .profile-logo 64x64 px (bkz. injectStyles) — DPR 2'de 128 px yeter, en küçük türev basamağı
+      // (400 px) fazlasıyla karşılar. Final image audit'te ölçüldü: burası ham URL kullandığından
+      // 59 px'lik bir avatar için 37.354 B'lık ORİJİNAL iniyordu (bkz. image-cdn.js#cdnImg —
+      // türev yoksa yolu değiştirmeden döner, yani bu değişiklik hiçbir durumda görseli kırmaz).
+      img.src = (typeof cdnImg === 'function') ? cdnImg(photoUrl, 400) : photoUrl;
       img.alt = '';
       img.decoding = 'async';
       img.fetchPriority = 'high';
