@@ -764,6 +764,15 @@ async function resolveArchitectLink(env, name, contextLabel) {
   return null;
 }
 
+// "Cemal Emden, Egemen Karakaya" → ["Cemal Emden", "Egemen Karakaya"] (kullanıcı isteği, 2026-09-01
+// madde 6). proje-ekle.html'in Mimar kutusuyla AYNI ayırıcı/temizleme kuralı (bkz. o dosyadaki
+// `p-designer` split'i) — scripts/backfill-project-photographers.js VE src/routes/architect.js aynı
+// mantığı bağımsız olarak tekrarlar (bu kod tabanının bilinçli kopyalama kuralı, bkz. src/routes/
+// product.js#FILE_TYPE_META yorumu); biri değişirse üçü birlikte güncellenmeli.
+export function splitPhotographerNames(text) {
+  return String(text || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
 async function resolveOfficeLink(env, name, contextLabel) {
   const match = await findOneByName(env, 'offices', name);
   if (match.row) return { office_id: match.row.id, architect_id: null };
@@ -985,6 +994,28 @@ async function syncProject(env, row) {
       statements.push(env.DB.prepare(`INSERT INTO project_designers (project_id, architect_id, office_id) VALUES (?, ?, ?)`).bind(projectId, link.architect_id, link.office_id));
     }
     if (statements.length) await env.DB.batch(statements);
+  }
+
+  // Fotoğrafçı bağlantıları (kullanıcı isteği, 2026-09-01 madde 6: "fotoğrafçılar kutucuğu da mimar
+  // kutucuğuyla aynı mantıkta çalışsın") — photoCreditText artık Mimar kutusu gibi VİRGÜLLE AYRILMIŞ
+  // birden çok isim taşıyabilir; her isim architects tablosunda aranır ve eşleşenler için
+  // project_photographers kenarı kurulur (bkz. migrations/0080_project_photographers.sql).
+  // Yukarıdaki project_designers bloğuyla AYNI desen: çözümleme batch DIŞINDA (salt-okunur),
+  // DELETE+INSERT tek bir atomik batch'te. Eşleşmeyen isimler sessizce metin olarak kalır —
+  // photo_credit_text zaten yazıldı, künye onu göstermeye devam eder (bkz. project-meta.js).
+  // logConflict BİLEREK çağrılmaz: fotoğrafçıların büyük çoğunluğunun sitede profili yok ve bu
+  // normal bir durum, migration_name_conflicts'i gürültüye boğmamalı.
+  {
+    const photographerIds = [];
+    for (const name of splitPhotographerNames(row.photoCreditText)) {
+      const match = await findOneByName(env, 'architects', name);
+      if (match.row) photographerIds.push(match.row.id);
+    }
+    const statements = [env.DB.prepare(`DELETE FROM project_photographers WHERE project_id = ?`).bind(projectId)];
+    for (const id of [...new Set(photographerIds)]) {
+      statements.push(env.DB.prepare(`INSERT OR IGNORE INTO project_photographers (project_id, architect_id) VALUES (?, ?)`).bind(projectId, id));
+    }
+    await env.DB.batch(statements);
   }
 
   // Eskiden bu blok yalnızca `row.brands` DOLUYSA çalışıyordu (ve o projenin TÜM project_products

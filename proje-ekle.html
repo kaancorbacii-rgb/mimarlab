@@ -649,7 +649,13 @@
             <label for="p-credit-text" id="p-credit-text-label">Kaynak / Fotoğrafçı</label>
             <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden" autocomplete="off">
             <div class="ac-suggestions" id="ac-credit-suggestions"></div>
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+            <!-- kullanıcı isteği (2026-09-01 madde 6): bu kutu artık Mimar kutusuyla AYNI mantıkta —
+                 öneriler MİMARLAB'daki gerçek fotoğrafçı profillerinden gelir (bkz. src/routes/
+                 project.js#handlePhotographerSearchRoute) ve profilli bir isim seçilirse proje o
+                 kişinin popup'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz. migrations/
+                 0080_project_photographers.sql). Profili olmayan isimler eskisi gibi serbest metin
+                 olarak kaydedilmeye devam eder. -->
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Öneri listesinden seçtiğin fotoğrafçılar profillerine bağlanır.</div>
           </div>
           <div class="form-field">
             <label for="p-credit-url">Bağlantı <span class="opt">(opsiyonel)</span></label>

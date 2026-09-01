@@ -1096,6 +1096,17 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 window.addEventListener('popstate', ()=>{
   const m = location.pathname.match(/^\/proje\/([^/]+)\/?$/);
   if(m){ ProjectModal.handlePopState(decodeURIComponent(m[1])); return; }
+  // kullanıcı isteği (2026-09-01 madde 2): bu sayfa artık ürün popup'ını da barındırıyor (bkz.
+  // proje.html'deki product-modal.js <script>'i), dolayısıyla geri/ileri tuşu /urun/:slug girdilerine
+  // de uğrayabilir — onları ProductModal'a yönlendirmezsek geri tuşu ürün popup'ını hiç açmaz/kapatmaz
+  // ve URL ile ekran birbirinden ayrışırdı (urun.html'deki AYNI yönlendirmenin karşılığı).
+  const pu = location.pathname.match(/^\/urun\/([^/]+)\/?$/);
+  if(pu && typeof ProductModal !== 'undefined'){ ProductModal.handlePopState(decodeURIComponent(pu[1])); return; }
+  // Ürün popup'ı kapanırken (bkz. ProductModal.close#goBackAndWait) buraya, ürünün AÇILDIĞI
+  // /proje/:slug girdisine dönülür — o dal yukarıdaki ilk if'te işlenir. Buraya düşmek yalnızca
+  // ürün popup'ının /urun listesine ya da başka bir yola gitmesi demektir; açık kalmış ürün
+  // popup'ı kapatılır (proje popup'ının hemen altındaki AYNI mantık).
+  if(typeof ProductModal !== 'undefined' && ProductModal.isOpen() && ModalShell.getContentOwner() === 'product'){ ProductModal.handlePopState(null); return; }
   // Modal kapanırken buraya (bare /proje) dönülüyorsa arka plandaki liste modal açıkken hiç
   // değişmedi (etkileşim kilitliydi) — filtreleri sıfırlayıp grid'i YENİDEN ÇEKMEYE gerek yok;
   // bunu yapmak modal-shell.js'in geri yüklediği scroll konumunu, grid yeniden render olurken

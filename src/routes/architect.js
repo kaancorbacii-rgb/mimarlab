@@ -382,7 +382,7 @@ async function buildArchitectPayload(env, key) {
   const dobYear = a.dob ? parseInt(String(a.dob).slice(0, 4), 10) : null;
   const AGE_RANGE_YEARS = 5;
 
-  const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes, usedProductsRes, preferredBrandsRes] = await Promise.all([
+  const [colleaguesRes, relatedRes, similarAgeRes, designerProductsRes, usedProductsRes, preferredBrandsRes, photographedRes] = await Promise.all([
     office
       ? env.DB.prepare(
           `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
@@ -445,6 +445,16 @@ async function buildArchitectPayload(env, key) {
        GROUP BY b.id
        ORDER BY used_count DESC, b.name COLLATE NOCASE`
     ).bind(a.id, office ? office.id : -1).all(),
+    // "Fotoğrafladığı Projeler" (kullanıcı isteği, 2026-09-01 madde 6: "kişinin popupında
+    // Fotoğraflarım kısmı olsun — aynı mimar profillerindeki projelerim kısmı gibi"). Yukarıdaki
+    // relatedRes'in (mimar olarak TASARLADIĞI projeler) fotoğrafçı karşılığı: project_photographers
+    // → projects (bkz. migrations/0080_project_photographers.sql). Kişi profili tektir; bir kişi hem
+    // mimar hem fotoğrafçı olabildiğinden iki bölüm AYNI popup'ta yan yana durur, biri boşsa o bölüm
+    // hiç gösterilmez (bkz. js/components/architect-modal.js#am-photographed-section).
+    env.DB.prepare(
+      `SELECT p.* FROM project_photographers pp JOIN projects p ON p.id = pp.project_id
+       WHERE pp.architect_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
+    ).bind(a.id).all(),
   ]);
 
   // Meslektaşlar/ilgili projeler: role/photo/awards gibi alanlar artık canonical satırın kendisinden
@@ -453,7 +463,9 @@ async function buildArchitectPayload(env, key) {
   // En yeniden en eskiye sırala (bkz. src/routes/project.js#date_desc AYNI "tarihi çözülemeyen
   // sona düşer" davranışı) — kullanıcı isteği: popup'taki proje kartları soldan sağa en son
   // tasarlanandan en eskiye doğru dizilsin.
-  const relatedProjects = relatedRes.results
+  // Fotoğrafladığı Projeler (bkz. photographedRes) BİREBİR aynı şekil/sıralamayı kullandığından
+  // (aynı kart bileşeni, aynı "en yeni önce" kuralı) blok ortak bir yardımcıya alındı.
+  const shapeProjectsNewestFirst = rows => rows
     .map(p => {
       const parsed = parseCanonicalRow('projects', p);
       return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
@@ -465,6 +477,8 @@ async function buildArchitectPayload(env, key) {
       return b._year - a._year;
     })
     .map(({ _year, ...rest }) => rest);
+  const relatedProjects = shapeProjectsNewestFirst(relatedRes.results);
+  const photographedProjects = shapeProjectsNewestFirst(photographedRes.results);
   // D1 audit (2026-08-25) P1-4 — bkz. yukarıdaki similarAgeRes sorgusundaki AYNI gerekçe: en fazla
   // 50 aday burada karıştırılıp ilk 9'u alınır (D1'de ORDER BY RANDOM() KALDIRILDI). 9 — kullanıcı
   // isteği (2026-08-31), tüm öneri şeritlerinin ORTAK üst sınırı (bkz. js/components/project-related.js
@@ -515,6 +529,7 @@ async function buildArchitectPayload(env, key) {
     ],
     colleagues,
     relatedProjects,
+    photographedProjects,
     relatedArchitects,
     relatedProducts,
     usedProducts,

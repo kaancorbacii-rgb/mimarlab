@@ -239,6 +239,17 @@ const ArchitectModal = (function () {
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
       <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
     </div>
+    <!-- Fotoğrafladığı Projeler (kullanıcı isteği, 2026-09-01 madde 6: "kişinin popupında
+         Fotoğraflarım kısmı olsun — aynı mimar profillerindeki projelerim kısmı gibi"). Kişi profili
+         tek olduğundan (fotoğrafçı için AYRI bir tablo/popup açılmadı, bkz. migrations/
+         0080_project_photographers.sql başlığı) bu bölüm "Projeler"in hemen ardında yaşar ve
+         yalnızca kişi gerçekten bir proje künyesinde fotoğrafçı olarak etiketlenmişse görünür —
+         yani sıradan bir mimar profilinde hiç çıkmaz, saf fotoğrafçı profillerinde ise "Projeler"
+         boş kalıp yalnızca bu bölüm görünür. -->
+    <div class="related-section" id="am-photographed-section" style="display:none;">
+      <h2 class="related-title">Fotoğrafladığı Projeler<span id="am-photographed-count"></span></h2>
+      <div class="related-grid-scroll" id="am-photographed-grid"></div>
+    </div>
     <div class="related-section" id="am-related-products-section" style="display:none;">
       <h2 class="related-title">Tasarladığı Ürünler<span id="am-related-products-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
@@ -412,6 +423,16 @@ const ArchitectModal = (function () {
   // badgeHtml: yalnızca firma/meslektaş kartlarında geçilir (bkz. kullanıcı isteği: mavi onay
   // rozetinin ilişkili TÜM alanlarda görünmesi) — proje/ürün kartlarında rozet anlamsız olduğundan
   // çağıranlar orada bu parametreyi hiç geçmez, boş string varsayılanı hiçbir şey render etmez.
+  // architects.profession ham Türkçe etiket(ler) taşır ve artık virgülle ayrılmış birden çok meslek
+  // olabilir (bkz. mimar-ekle.html#meslekDropdown, kullanıcı isteği 2026-09-01 madde 6). Cümle
+  // içinde kullanılacağı için küçük harfe indirilir — Türkçe'ye özgü İ→i eşlemesi ZORUNLU (düz
+  // toLowerCase() "Fotoğrafçı"yı sorunsuz çevirir ama "İç Mimar" gibi değerlerde noktasız 'ı'
+  // üretirdi, bkz. src/routes/product.js#trLower'daki AYNI gerekçe).
+  function primaryProfessionWord(profession) {
+    const first = String(profession || '').split(',')[0].trim();
+    return first ? first.toLocaleLowerCase('tr') : 'mimar';
+  }
+
   function cardHtml(href, title, image, subtitle, badgeHtml) {
     const srcset = image ? cdnSrcset(image, [300, 450, 600]) : '';
     return `<a class="related-card" href="${href}">
@@ -516,6 +537,7 @@ const ArchitectModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['am-office-pair', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
+    'am-photographed-section',
     'am-related-architects-section', 'am-related-products-section', 'am-used-products-section',
     'am-preferred-brands-section', 'am-detail-info', 'am-prevnext'];
 
@@ -541,7 +563,12 @@ const ArchitectModal = (function () {
     document.getElementById('am-social-icons').innerHTML = socialIconsHtml(a.social_links);
     const aboutText = a.about || (displayOffice
       ? `${a.name}, ${displayOffice.name} bünyesinde${a.role ? ' ' + a.role + ' olarak' : ''} görev yapmaktadır.`
-      : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir mimar.`));
+      // "…yer alan bir mimar" ARTIK sabit değil (kullanıcı isteği, 2026-09-01 madde 6): kişi
+      // profilleri artık fotoğrafçıları da kapsıyor ve çoklu meslek taşıyabiliyor (bkz.
+      // migrations/0080_project_photographers.sql başlığı) — bir fotoğrafçının profilinde "bir
+      // mimar" yazması düpedüz yanlış olurdu. a.profession ham Türkçe etiket(ler)dir ("Fotoğrafçı",
+      // "Mimar, Fotoğrafçı"); ilki cümleye alınır, hiç yoksa eski "mimar" metnine düşülür.
+      : (a.role ? `${a.name}, ${a.role} olarak çalışmaktadır.` : `${a.name} — MİMARLAB dizininde yer alan bir ${primaryProfessionWord(a.profession)}.`));
     renderTruncatedDesc('am-about', aboutText);
 
     const infoFactsEl = document.getElementById('am-info-facts');
@@ -660,6 +687,16 @@ const ArchitectModal = (function () {
     ).join('');
     document.getElementById('am-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
     renderProjectsMap(relatedProjectsData);
+
+    // Fotoğrafladığı Projeler — bkz. şablondaki AYNI gerekçe (kullanıcı isteği, 2026-09-01 madde 6);
+    // "Projeler" bölümüyle BİREBİR aynı kart/sayaç deseni, yalnızca farklı veri kaynağı
+    // (src/routes/architect.js#photographedProjects, project_photographers kenarından).
+    const photographedData = payload.photographedProjects || [];
+    document.getElementById('am-photographed-section').style.display = photographedData.length ? '' : 'none';
+    document.getElementById('am-photographed-grid').innerHTML = photographedData.map(p =>
+      cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
+    ).join('');
+    document.getElementById('am-photographed-count').textContent = photographedData.length ? ` (${photographedData.length})` : '';
 
     // Diğer Mimarlar — kullanıcı isteği: projelerin ardından benzer yaştaki mimarlar öneri olarak
     // gösterilsin (bkz. src/routes/architect.js#buildArchitectPayload relatedArchitects, ±5 yıl

@@ -108,9 +108,18 @@ const ProductModal = (function () {
       .detail-meta strong{font-weight:600; color:var(--ink);}
       .detail-meta a{color:var(--walnut); text-decoration:underline; text-decoration-color:var(--line);}
       .detail-meta a:hover{color:var(--ink);}
-      .detail-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px; white-space:pre-line;}
-      .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer; white-space:normal;}
-      .detail-desc-more:hover{color:var(--ink);}
+      /* GERÇEK BULGU (2026-09-01 madde 2): bu <style> artık proje.html'de de DOM'a giriyor —
+         ProductModal o sayfada da yüklü (proje popup'ından ürün popup'ına geçiş için, bkz. dosya
+         sonundaki wireInternalNav) ve injectStyles() ilk ürün açılışında bunu sayfanın KENDİ
+         <style>'ından SONRA head'e ekliyor. Eşit özgüllükte çakışan her sınıf bu yüzden proje
+         popup'ını da ele geçirirdi. proje.html ile DEĞER OLARAK AYRIŞAN dört kural (bu üçü +
+         aşağıdaki .related-card-title / .detail-info order'ı) bu nedenle ürüne özgü bir id'ye ya da
+         [data-owner="product"] kapsamına bağlandı; geri kalan onlarca ortak kural (bkz. dosya başı
+         yorumu: "proje.html'deki AYNI ...") iki dosyada zaten BİREBİR aynı değerleri taşıdığından
+         hangisi kazanırsa kazansın sonuç değişmiyor. */
+      #pr-desc{font-size:15px; line-height:1.7; color:var(--ink); margin-top:18px; white-space:pre-line;}
+      #pr-desc .detail-desc-more{background:none; border:none; padding:0; color:var(--walnut); font-weight:600; font-size:14px; text-decoration:underline; text-decoration-color:var(--line); cursor:pointer; white-space:normal;}
+      #pr-desc .detail-desc-more:hover{color:var(--ink);}
       /* Teknik Özellikler — açılır/kapanır (bkz. kullanıcı isteği: buton görünümü DEĞİL, mevcut
          başlık aynen kalıp yanına + eklensin) — native <details>/<summary>, .pr-feedback-card'ın
          (Dosyalar/Geri Bildirim) AYNI .feedback-card-plus ikonunu paylaşır, ama kutu çerçevesi/
@@ -207,7 +216,9 @@ const ProductModal = (function () {
       .related-card-photo{position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--paper-alt);}
       .related-card-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
       .related-card-placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.92); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:22px; font-weight:700;}
-      .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13.5px; font-weight:700;}
+      /* [data-owner="product"] — bkz. yukarıdaki #pr-desc gerçek bulgusu: proje.html'in kendi
+         .related-card-title padding'i (10px 14px 12px) farklı, bu kural oraya sızmamalı. */
+      .modal-shell-overlay[data-owner="product"] .related-card-title{padding:12px 14px; color:var(--ink); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:13.5px; font-weight:700;}
       /* Pop-up içindeki ilgili ürün kartlarında tek satır kısıtlaması (bkz. kullanıcı isteği,
          js/components/architect-modal.js#related-card-title-text ile AYNI): uzun başlıklar tek
          satıra sığdığı kadar yazılır, sığmayan kelimeler alt satıra kesinlikle geçmez, satır
@@ -217,6 +228,22 @@ const ProductModal = (function () {
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
+      /* Kullanan Firmalar | Kullanan Mimarlar ikili satırı — js/components/architect-modal.js#
+         .am-two-col-row bloğunun BİREBİR kopyası (bkz. RIGHT_TEMPLATE'teki gerekçe). Orada olduğu
+         gibi HİÇBİR media query'de tek sütuna düşmez; min-width:0 ZORUNLU, aksi halde grid
+         hücresinin varsayılan min-width:auto'su içindeki yatay şeridi taşırıp satırı kırar. */
+      .pr-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .pr-two-col-cell{min-width:0;}
+      .pr-two-col-cell .related-title{margin-bottom:16px;}
+      .pr-two-col-row::after{content:''; display:none;}
+      .pr-two-col-row.pr-two-col-row-both::after{
+        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
+      }
+      @media (max-width:860px){
+        .pr-two-col-row{gap:14px;}
+        .pr-two-col-row.pr-two-col-row-both::after{min-height:76px; max-height:180px;}
+      }
       .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
       .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
       .prevnext a:hover{border-color:var(--walnut);}
@@ -290,17 +317,22 @@ const ProductModal = (function () {
         #pr-gallery-wrap{order:1;}
         #pr-title{order:2; margin-top:20px;}
         #pr-byline{order:4;}
-        .detail-info{order:6;}
+        /* [data-owner="product"] — proje.html AYNI sınıfa order:5 veriyor (bkz. yukarıdaki #pr-desc
+           gerçek bulgusu); kapsamsız bırakılırsa proje popup'ının mobil dizilimi bozulurdu. */
+        .modal-shell-overlay[data-owner="product"] .detail-info{order:6;}
         /* Kullanılan Projeler (bkz. kullanıcı isteği 2026-08-31) — proje modalındaki "Kullanılan
            Ürünler"in AYNADAKİ karşılığı, iki "diğer ürünler" bölümünden ÖNCE gelir (ürünün kendi
            gerçek kullanımları, benzer/ilgili önerilerden daha öncelikli). */
         #pr-projects-section{order:7;}
-        #pr-company-section{order:8;}
-        #pr-related-section{order:9;}
-        #pr-prevnext{order:10;}
-        #pr-info-divider{order:11;}
-        #pr-files-card{order:12;}
-        #pr-feedback-card{order:13;}
+        /* Kullanan Firmalar/Mimarlar — "Kullanılan Projeler"in hemen ardından (aynı kenardan
+           türetilmiş bilgi), iki "diğer ürünler" önerisinden ÖNCE (bkz. kullanıcı isteği madde 3). */
+        #pr-users-pair{order:8;}
+        #pr-company-section{order:9;}
+        #pr-related-section{order:10;}
+        #pr-prevnext{order:11;}
+        #pr-info-divider{order:12;}
+        #pr-files-card{order:13;}
+        #pr-feedback-card{order:14;}
 
         /* Puanla/Kaydet/Paylaş/Websitesi artık bu satırda değil, X'in yanında sabit 36px'te (bkz.
            modal-shell.js#injectStyles) — buradaki eski dokunma-hedefi/gizleme kuralları kaldırıldı. */
@@ -362,6 +394,23 @@ const ProductModal = (function () {
     <div class="related-section" id="pr-projects-section" style="display:none;">
       <h2 class="related-title">Kullanılan Projeler</h2>
       <div class="related-grid-scroll" id="pr-projects-grid"></div>
+    </div>
+    <!-- Kullanan Firmalar + Kullanan Mimarlar TEK satırda, iki sütun (kullanıcı isteği, 2026-09-01
+         madde 3: "aynı mimar popuplarında yaptığımız Firmalar ve Firma Ortakları satırı gibi yap") —
+         js/components/architect-modal.js#am-office-pair'in BİREBİR aynı iskeleti/CSS'i, yalnızca
+         .pr-* önekiyle: architect-modal.js urun.html'de yüklü DEĞİL, bu yüzden .am-two-col-* kuralları
+         burada miras alınamaz (bkz. bu dosyanın .related-*/.prevnext-* kopyalarıyla AYNI gerekçe).
+         "Kullanılan Projeler"in HEMEN ALTINDA: ikisi de aynı project_products kenarından türetilir
+         (bkz. src/routes/product.js#fetchProductUsers). -->
+    <div class="related-section pr-two-col-row" id="pr-users-pair" style="display:none;">
+      <div class="pr-two-col-cell" id="pr-used-offices-section" style="display:none;">
+        <h2 class="related-title">Kullanan Firmalar</h2>
+        <div class="related-grid-scroll" id="pr-used-offices-grid"></div>
+      </div>
+      <div class="pr-two-col-cell" id="pr-used-architects-section" style="display:none;">
+        <h2 class="related-title">Kullanan Mimarlar</h2>
+        <div class="related-grid-scroll" id="pr-used-architects-grid"></div>
+      </div>
     </div>
     <div class="related-section" id="pr-company-section" style="display:none;">
       <h2 class="related-title" id="pr-company-title">Firmanın Diğer Ürünleri</h2>
@@ -593,7 +642,7 @@ const ProductModal = (function () {
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-brand-section', 'pr-designer-section',
-    'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-projects-section', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
+    'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-projects-section', 'pr-users-pair', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
   // "Firmanın Diğer Ürünleri"/"Benzer Ürünler" bölümleri önceden renderItem() içinde HER AÇILIŞTA
@@ -739,6 +788,12 @@ const ProductModal = (function () {
     saveBtn.className = 'save-btn card-save-btn';
     saveBtn.id = 'pr-save-btn';
     saveBtn.setAttribute('aria-label', 'Kaydet');
+    // bkz. save-widget.js#openSaveChooser (kullanıcı isteği, 2026-09-01 madde 5) — ürün POPUP'ının
+    // Kaydet butonu önce "Kaydedilenler / Pano" seçicisini açar; urun.html'in ızgara kartlarındaki
+    // .card-save-btn'ler bu bayrağı taşımadığından orada tek tıkla kaydet davranışı değişmez.
+    saveBtn.dataset.saveChooser = '1';
+    saveBtn.setAttribute('aria-haspopup', 'dialog');
+    saveBtn.setAttribute('aria-expanded', 'false');
     saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>`;
     saveBtn.dataset.type = ratingKindFor(p);
     saveBtn.dataset.key = ratingKey;
@@ -778,6 +833,7 @@ const ProductModal = (function () {
     mountEditAndAdminButtons(p, key);
 
     renderUsedInProjects(p);
+    renderProductUsers(p);
     observeOnce(document.getElementById('pr-gallery-wrap'), () => {
       if (currentItem !== p) return;
       loadCompanyProducts(p, key);
@@ -911,6 +967,38 @@ const ProductModal = (function () {
     section.style.display = '';
   }
 
+  // "Kullanan Firmalar" / "Kullanan Mimarlar" (kullanıcı isteği, 2026-09-01 madde 3) — veri AYRI bir
+  // fetch GEREKTİRMEZ, item.usedByOffices/usedByArchitects GET /api/product/:key yanıtında geliyor
+  // (bkz. src/routes/product.js#fetchProductUsers), tıpkı item.projects gibi — bu yüzden
+  // renderUsedInProjects ile AYNI şekilde hemen çizilir, observeOnce ile ertelenmez.
+  // Sarmalayıcı/orta çizgi mantığı js/components/architect-modal.js#am-office-pair ile BİREBİR aynı:
+  // en az bir sütun doluysa satır görünür, orta dik çizgi yalnızca İKİSİ de doluyken çizilir.
+  function renderProductUsers(p) {
+    const pair = document.getElementById('pr-users-pair');
+    if (!pair) return;
+    const offices = p.usedByOffices || [];
+    const architects = p.usedByArchitects || [];
+
+    const officeSection = document.getElementById('pr-used-offices-section');
+    officeSection.style.display = offices.length ? '' : 'none';
+    document.getElementById('pr-used-offices-grid').innerHTML = offices.map(o =>
+      cardHtml(`/firma/${encodeURIComponent(o.slug)}`, o.name, logoUrl(o), projectCountLabel(o.projectCount))
+    ).join('');
+
+    const architectSection = document.getElementById('pr-used-architects-section');
+    architectSection.style.display = architects.length ? '' : 'none';
+    document.getElementById('pr-used-architects-grid').innerHTML = architects.map(a =>
+      cardHtml(`/mimar/${encodeURIComponent(a.slug)}`, a.name, a.photo, projectCountLabel(a.projectCount))
+    ).join('');
+
+    pair.style.display = (offices.length || architects.length) ? '' : 'none';
+    pair.classList.toggle('pr-two-col-row-both', !!(offices.length && architects.length));
+  }
+
+  function projectCountLabel(count) {
+    return count > 1 ? `${count} projede` : '1 projede';
+  }
+
   // Benzer Ürünler: AYNI kategoriden, FARKLI firmaların ürünleri (bkz. kullanıcı isteği) — kendi
   // markası burada hariç tutulur çünkü o artık ayrı "Firmanın Diğer Ürünleri" bölümünde (yukarıda)
   // gösteriliyor.
@@ -972,6 +1060,11 @@ const ProductModal = (function () {
     if (!panels || panels.bodyEl.dataset.prNavWired) return;
     panels.bodyEl.dataset.prNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
+      // bkz. modal-shell.js#getContentOwner — proje.html'de ProjectModal'ın dinleyicisi AYNI
+      // bodyEl'e bağlı (bkz. kullanıcı isteği 2026-09-01 madde 2); ekranda proje popup'ı varken
+      // ürün bağlantılarını O yönetir, burası sessiz kalmalı (aksi halde tek tıklama iki history
+      // girdisi yazardı).
+      if (ModalShell.getContentOwner() !== 'product') return;
       const a = e.target.closest('a[href^="/urun/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const m = a.getAttribute('href').match(/^\/urun\/([^/?#]+)/);

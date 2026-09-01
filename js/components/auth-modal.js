@@ -59,6 +59,18 @@ const AuthModal = (function () {
     #am-panel .auth-field label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
     #am-panel .auth-field input, #am-panel .auth-field select{width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:14px; color:var(--ink);}
     #am-panel .auth-field input:focus-visible, #am-panel .auth-field select:focus-visible{box-shadow:0 0 0 2px var(--brass);}
+    /* Çoklu meslek seçimi (kullanıcı isteği, 2026-09-01 madde 6) — uye-ol.html#.auth-check-group ile
+       AYNI görünüm. Üye Ol formunda VE Profili Düzenle formunda aynı sınıf kullanılır; ikincisi
+       .auth-field'ın DIŞINDA olduğundan (satır-içi stilli ayrı bir <div>) width:100% kuralı buraya
+       ayrıca yazılır. .am-check-group input'un width:auto'su, yukarıdaki genel input{width:100%}
+       kuralını ezmek için ZORUNLU (aksi halde her onay kutusu satırı kaplar). */
+    #am-panel .am-check-group{
+      display:flex; flex-wrap:wrap; gap:6px 14px; width:100%; box-sizing:border-box;
+      max-height:132px; overflow-y:auto;
+      padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper);
+    }
+    #am-panel .am-check-group label{display:flex; align-items:center; gap:6px; margin:0; font-size:13px; font-weight:500; cursor:pointer;}
+    #am-panel .am-check-group input{width:auto; margin:0; padding:0;}
     #am-panel .auth-field.ac-field{position:relative;}
     #am-panel .ac-suggestions{display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25; background:var(--paper-card); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px rgba(27,42,61,0.15); max-height:220px; overflow-y:auto; padding:6px;}
     #am-panel .ac-suggestions.show{display:block;}
@@ -605,19 +617,14 @@ const AuthModal = (function () {
             <input type="text" id="am-signup-school" name="school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off">
             <div class="ac-suggestions" id="am-school-suggestions"></div>
           </div>
+          <!-- Çoklu meslek (kullanıcı isteği, 2026-09-01 madde 6) — uye-ol.html'deki AYNI onay
+               kutusu grubu; o sayfa ile bu popup aynı formun iki kopyasıdır (bkz. dosya başı
+               yorumu), ikisi birlikte güncellenir. -->
           <div class="auth-field">
-            <label for="am-signup-profession">Meslek</label>
-            <select id="am-signup-profession" name="profession">
-              <option value="">Seç... (opsiyonel)</option>
-              <option value="mimar">Mimar</option>
-              <option value="ic_mimar">İç Mimar</option>
-              <option value="peyzaj_mimari">Peyzaj Mimarı</option>
-              <option value="sehir_plancisi">Şehir Plancısı</option>
-              <option value="restorator">Restoratör</option>
-              <option value="tasarimci">Tasarımcı</option>
-              <option value="ogrenci">Öğrenci</option>
-              <option value="diger">Diğer</option>
-            </select>
+            <label id="am-signup-profession-label">Meslek <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
+            <div class="am-check-group" id="am-signup-profession" role="group" aria-labelledby="am-signup-profession-label">
+              ${professionCheckboxesHtml('am-signup-profession-cb')}
+            </div>
           </div>
           <div class="auth-field">
             <label for="am-signup-password">Şifre *</label>
@@ -703,7 +710,8 @@ const AuthModal = (function () {
         name: document.getElementById('am-signup-name').value,
         dob: document.getElementById('am-signup-dob').value || null,
         school: schoolInput.value || null,
-        profession: document.getElementById('am-signup-profession').value || null,
+        // Çoklu meslek (bkz. getProfessionChecks / src/routes/auth.js#normalizeProfessions).
+        profession: getProfessionChecks('am-signup-profession') || null,
         email: document.getElementById('am-signup-email').value,
         password: pw,
         password_confirm: pwConfirm,
@@ -834,18 +842,10 @@ const AuthModal = (function () {
             <div class="ac-suggestions" id="am-edit-school-suggestions"></div>
           </div>
           <div>
-            <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Meslek</label>
-            <select id="am-edit-profession" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);">
-              <option value="">Seç... (opsiyonel)</option>
-              <option value="mimar">Mimar</option>
-              <option value="ic_mimar">İç Mimar</option>
-              <option value="peyzaj_mimari">Peyzaj Mimarı</option>
-              <option value="sehir_plancisi">Şehir Plancısı</option>
-              <option value="restorator">Restoratör</option>
-              <option value="tasarimci">Tasarımcı</option>
-              <option value="ogrenci">Öğrenci</option>
-              <option value="diger">Diğer</option>
-            </select>
+            <label id="am-edit-profession-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Meslek <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
+            <div class="am-check-group" id="am-edit-profession" role="group" aria-labelledby="am-edit-profession-label">
+              ${professionCheckboxesHtml('am-edit-profession-cb')}
+            </div>
           </div>
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Pozisyon</label>
@@ -1140,12 +1140,15 @@ const AuthModal = (function () {
         <div class="dash-section">
           <h2>Kaydettiklerim</h2>
           <p class="section-hint">Panolarına eklemek için kaydettiğin içerikler. Bir panonun içinden "Kaydettiklerimden Ekle" ile seçebilirsin.</p>
+          <!-- kullanıcı isteği (2026-09-01 madde 4): "Mimar" ve "Firma" filtre butonları BU kutudan
+               kaldırıldı. Yalnızca butonlar gitti — filtreleme mantığı (colMatchesCatalogFilter) ve
+               kaydedilmiş mimar/firma satırlarının kendisi olduğu gibi duruyor, "Tümü" onları
+               göstermeye devam eder. Aktivitelerim'deki ve Takip Ettiklerim'deki AYNI görünen
+               filtre satırları BİLEREK değişmedi (istek yalnızca Kaydettiklerim kutusunu sayıyor). -->
           <div class="saved-filter" id="am-col-saved-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
-            <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
           </div>
           <div id="am-col-dash-saved"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-col-saved-pagination"></div>
@@ -1244,7 +1247,32 @@ const AuthModal = (function () {
   // gelirse satır kanal etiketi olmadan basılır.
   const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı' };
   const PAGE_SIZE_DASH = 10;
-  const PROFESSION_LABELS = { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', ogrenci: 'Öğrenci', diger: 'Diğer' };
+  // 'fotografci' — kullanıcı isteği (2026-09-01 madde 6). Bu eşleme src/routes/auth.js#PROFESSIONS,
+  // uye-ol.html ve mimar-ekle.html#MESLEK_OPTIONS ile BİLİNÇLİ olarak kopyadır; dördü birlikte
+  // güncellenmeli (bkz. o dosyalardaki AYNI not).
+  const PROFESSION_LABELS = { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', fotografci: 'Fotoğrafçı', ogrenci: 'Öğrenci', diger: 'Diğer' };
+  // users.profession artık virgülle ayrılmış birden çok slug taşıyabilir (bkz. src/routes/auth.js#
+  // normalizeProfessions) — tek meslekli eski değerler bu biçimin geçerli bir örneği olduğundan
+  // aşağıdaki üç yardımcı iki durumu da tek kod yoluyla ele alır.
+  function professionSlugs(value) {
+    return String(value || '').split(',').map(s => s.trim()).filter(Boolean);
+  }
+  function professionLabelText(value) {
+    const labels = professionSlugs(value).map(s => PROFESSION_LABELS[s] || s);
+    return labels.length ? labels.join(', ') : '';
+  }
+  function professionCheckboxesHtml(namePrefix) {
+    return Object.keys(PROFESSION_LABELS)
+      .map(slug => `<label><input type="checkbox" name="${escapeAttr(namePrefix)}" value="${escapeAttr(slug)}"> ${escapeHtml(PROFESSION_LABELS[slug])}</label>`)
+      .join('');
+  }
+  function setProfessionChecks(groupId, value) {
+    const slugs = new Set(professionSlugs(value));
+    document.querySelectorAll(`#${groupId} input[type=checkbox]`).forEach(cb => { cb.checked = slugs.has(cb.value); });
+  }
+  function getProfessionChecks(groupId) {
+    return [...document.querySelectorAll(`#${groupId} input:checked`)].map(i => i.value).join(',');
+  }
   const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
   // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
   // (mimar-ekle.html/proje-ekle.html ile ortak) geliyor, bu dosyanın <script> etiketinden HEMEN
@@ -1523,7 +1551,7 @@ const AuthModal = (function () {
       document.getElementById('am-dash-title').textContent = 'Hoş Geldin, ' + (accountUser.name || '').split(' ')[0];
       document.getElementById('am-dash-sub').textContent = accountUser.email + ' · MİMARLAB üyesi';
       renderAmNameBadge();
-      document.getElementById('am-fact-profession').textContent = PROFESSION_LABELS[accountUser.profession] || accountUser.profession || '—';
+      document.getElementById('am-fact-profession').textContent = professionLabelText(accountUser.profession) || '—';
       document.getElementById('am-fact-position').textContent = accountUser.position || '—';
       document.getElementById('am-fact-school').textContent = accountUser.school || '—';
       document.getElementById('am-fact-dob').textContent = accountUser.dob ? String(accountUser.dob).slice(0, 4) : '—';
@@ -1532,7 +1560,7 @@ const AuthModal = (function () {
       ensureDobYearOptions();
       document.getElementById('am-edit-dob').value = accountUser.dob ? String(accountUser.dob).slice(0, 4) : '';
       document.getElementById('am-edit-school').value = accountUser.school || '';
-      document.getElementById('am-edit-profession').value = accountUser.profession || '';
+      setProfessionChecks('am-edit-profession', accountUser.profession);
       document.getElementById('am-edit-position').value = accountUser.position || '';
       ensureAwardsDropdown();
       awardsDropdown.setChecked(accountUser.awards || []);
@@ -1827,7 +1855,9 @@ const AuthModal = (function () {
       if (!architectSyncState) return;
       const payload = {
         name, dob: dob || null, school: school || null,
-        profession: PROFESSION_LABELS[professionSlug] || professionSlug || null,
+        // architects.profession HAM Türkçe etiket taşır ("Mimar, Fotoğrafçı") — çoklu meslek de
+        // aynı virgüllü biçimde yazılır (bkz. mimar-ekle.html#meslekDropdown).
+        profession: professionLabelText(professionSlug) || null,
         office: architectSyncState.office || null,
         position: position || null,
         awards,
@@ -1861,7 +1891,7 @@ const AuthModal = (function () {
       const name = document.getElementById('am-edit-name').value;
       const dob = document.getElementById('am-edit-dob').value;
       const school = document.getElementById('am-edit-school').value;
-      const profession = document.getElementById('am-edit-profession').value;
+      const profession = getProfessionChecks('am-edit-profession');
       const position = document.getElementById('am-edit-position').value;
       const awards = awardsDropdown ? awardsDropdown.getChecked() : [];
       const about = document.getElementById('am-edit-about').value;
@@ -2158,9 +2188,14 @@ const AuthModal = (function () {
       // doğrudan kopyalanabilir. Meslek ise mimar kaydında ham Türkçe etiket ("Mimar"), users.profession
       // ise kodlu bir slug ("mimar") olduğundan PROFESSION_LABELS ters çevrilerek eşleştirilir.
       if (!accountUser.position && arch.role) patch.position = arch.role;
+      // Çoklu meslek (kullanıcı isteği, 2026-09-01 madde 6): iki taraf da artık virgüllü olabilir
+      // ("Mimar, Fotoğrafçı" ↔ "mimar,fotografci") — her etiket ayrı ayrı ters çevrilir, eşleşmeyen
+      // (listede olmayan, elle yazılmış) etiketler sessizce atlanır.
       if (!accountUser.profession && arch.profession) {
-        const slug = Object.keys(PROFESSION_LABELS).find(k => PROFESSION_LABELS[k] === arch.profession);
-        if (slug) patch.profession = slug;
+        const slugs = String(arch.profession).split(',').map(s => s.trim()).filter(Boolean)
+          .map(label => Object.keys(PROFESSION_LABELS).find(k => PROFESSION_LABELS[k] === label))
+          .filter(Boolean);
+        if (slugs.length) patch.profession = slugs.join(',');
       }
       // Ödüller/Açıklama/Sosyal Medya artık her kullanıcının hesap profilinde de var (bkz. kullanıcı
       // isteği) — yeni onaylanan bir talepte mimar kaydında zaten dolu olan bu alanlar, hesap
@@ -3325,8 +3360,17 @@ const AuthModal = (function () {
   // davranışı (ModalShell popup) HİÇ değişmeden korunur. window.NavDrawer her sayfada bu dosyadan
   // (lazy-modals.js ile SONRADAN yüklenir) ÖNCE, senkron yüklendiğinden (bkz. site-chrome.js dosya
   // başı yorumu) burada koşulsuz var olduğu varsayılabilir; yine de savunmacı bir `&&` kontrolü var.
-  function isMobileDrawer() {
-    return !!(window.NavDrawer && window.matchMedia('(max-width:960px)').matches);
+  //
+  // kullanıcı isteği (2026-09-01 madde 1): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim artık
+  // MASAÜSTÜNDE de tablet/mobildeki gibi sağdan kayan çekmecede açılır — yani bu dört görünüm için
+  // kırılma noktası tamamen devre dışı. Giriş Yap/Üye Ol/Şifremi Unuttum ise DEĞİŞMEDİ: masaüstünde
+  // hâlâ ModalShell popup'ı (istek yalnızca o dört sayfayı sayıyor). Bu yüzden karar artık salt
+  // viewport'a değil, GÖRÜNÜME de bağlı — fonksiyon bir `view` argümanı alır.
+  const DESKTOP_DRAWER_VIEWS = new Set(DASH_NAV_VIEW_KEYS);
+  function isMobileDrawer(view) {
+    if (!window.NavDrawer) return false;
+    if (window.matchMedia('(max-width:960px)').matches) return true;
+    return DESKTOP_DRAWER_VIEWS.has(view);
   }
   // Şu an İÇERİĞİN barındırıldığı GERÇEK host — isMobileDrawer() yalnızca ANLIK viewport'u sorar,
   // bu ise (resize sırasında iki host arasında geçiş anlarında bile) her zaman doğru kalır çünkü tüm
@@ -3346,7 +3390,7 @@ const AuthModal = (function () {
 
   function renderView(view) {
     ensureStyles();
-    const mobile = isMobileDrawer();
+    const mobile = isMobileDrawer(view);
     let hostEl;
     if (mobile) {
       hostEl = window.NavDrawer.getSubpageBodyEl();
@@ -3420,7 +3464,7 @@ const AuthModal = (function () {
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
     if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: 1 }, '', VIEW_PATH[view]);
-    if (isMobileDrawer()) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
+    if (isMobileDrawer(view)) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
     else ModalShell.open({ triggerEl, onRequestClose: close });
     renderView(view);
   }
@@ -3435,7 +3479,9 @@ const AuthModal = (function () {
     // Tüm AuthModal görünümleri her iki host'ta da (mobil/masaüstü) açılabildiğinden host normalde
     // swap sırasında DEĞİŞMEZ — yalnızca resize sırasında (bkz. aşağıdaki resize dinleyicisi) farklı
     // olabilir; bu satır o nadir yarış durumuna karşı bir güvenlik ağı.
-    const willBeMobile = isMobileDrawer();
+    // 2026-09-01 madde 1'den SONRA host swap sırasında GERÇEKTEN değişebiliyor: masaüstünde
+    // Hesabım (çekmece) → Giriş Yap (ModalShell) geçişi tam olarak bu dalı kullanır.
+    const willBeMobile = isMobileDrawer(view);
     if (wasMobile !== willBeMobile) { deactivateHost(wasMobile); activateHost(willBeMobile); }
     renderView(view);
   }
@@ -3483,7 +3529,7 @@ const AuthModal = (function () {
     if (view === currentView) return;
     const wasMobile = currentHostIsMobile();
     currentView = view;
-    const willBeMobile = isMobileDrawer();
+    const willBeMobile = isMobileDrawer(view);
     if (wasMobile !== willBeMobile) { deactivateHost(wasMobile); activateHost(willBeMobile); }
     renderView(view);
   }
@@ -3497,7 +3543,7 @@ const AuthModal = (function () {
   window.addEventListener('resize', () => {
     if (!isOpen() || !window.NavDrawer) return;
     const wasMobile = currentHostIsMobile();
-    const willBeMobile = isMobileDrawer();
+    const willBeMobile = isMobileDrawer(currentView);
     if (wasMobile === willBeMobile) return;
     deactivateHost(wasMobile);
     activateHost(willBeMobile);

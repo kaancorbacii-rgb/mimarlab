@@ -565,16 +565,26 @@ function wireMultiDropdown(fieldId, btnId, labelId, optionsId, options, name, pl
   };
 }
 
-const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Öğrenci','Diğer'];
+// 'Fotoğrafçı' — kullanıcı isteği (2026-09-01 madde 6). Bu liste src/routes/auth.js#PROFESSIONS,
+// uye-ol.html ve js/components/auth-modal.js#PROFESSION_LABELS ile BİLİNÇLİ kopyadır; dördü birlikte
+// güncellenmeli.
+const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Fotoğrafçı','Öğrenci','Diğer'];
 const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Ekip Üyesi','Akademisyen','Serbest Çalışan','Öğrenci','Emekli','İşsiz'];
 // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
 // geliyor (proje-ekle.html/js/components/auth-modal.js ile ortak, bkz. o dosyanın başındaki yorum).
 // users.profession kodlu bir slug'dır (ör. "mimar"), MESLEK_OPTIONS/architects.profession ise ham
 // Türkçe etiket ("Mimar") — bkz. js/components/auth-modal.js#PROFESSION_LABELS ile AYNI eşleme,
 // aşağıdaki maybeAutoFillFromAccount'ta ters yönde kullanılır.
-const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
+const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', fotografci:'Fotoğrafçı', ogrenci:'Öğrenci', diger:'Diğer' };
+// architects.profession artık BİRDEN ÇOK meslek taşıyabilir (kullanıcı isteği, 2026-09-01 madde 6:
+// "Mimar profili oluşturulurken ya da düzenlenirken de birden fazla meslek seçilebilsin") — ham
+// Türkçe etiketler virgülle ayrılır ("Mimar, Fotoğrafçı"). Tek meslekli eski satırlar bu biçimin
+// geçerli bir örneği olduğundan hiçbir veri taşıması gerekmez.
+function professionLabelList(value){ return String(value || '').split(',').map(s => s.trim()).filter(Boolean); }
 
-const meslekDropdown = wireSingleDropdown('dd-meslek', 'dd-meslek-btn', 'dd-meslek-btn-label', 'dd-meslek-options', MESLEK_OPTIONS, 'Meslek seç');
+// Çoklu seçim (bkz. professionLabelList) — Ödül kutusuyla AYNI wireMultiDropdown, markup zaten
+// birebir aynı yapıda olduğundan HTML'e dokunmaya gerek yok.
+const meslekDropdown = wireMultiDropdown('dd-meslek', 'dd-meslek-btn', 'dd-meslek-btn-label', 'dd-meslek-options', MESLEK_OPTIONS, 'meslek', 'Meslek seç');
 const pozisyonDropdown = wireSingleDropdown('dd-pozisyon', 'dd-pozisyon-btn', 'dd-pozisyon-btn-label', 'dd-pozisyon-options', POZISYON_OPTIONS, 'Pozisyon seç');
 const odullerDropdown = wireMultiDropdown('dd-oduller', 'dd-oduller-btn', 'dd-oduller-btn-label', 'dd-oduller-options', ODUL_OPTIONS, 'award', 'Ödül seç');
 
@@ -842,7 +852,7 @@ async function prefillForEdit(){
     originalName = item.name || '';
     if(item.dob){ selectedDob = parseInt(String(item.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
     document.getElementById('m-school').value = item.school || '';
-    meslekDropdown.set(item.profession || null);
+    meslekDropdown.setChecked(professionLabelList(item.profession));
     document.getElementById('m-office').value = item.office || '';
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
@@ -944,7 +954,7 @@ async function prefillForClaim(){
   }
   if(merged.dob){ selectedDob = parseInt(String(merged.dob).slice(0, 4), 10); document.getElementById('dd-dob-btn-label').textContent = String(selectedDob); }
   document.getElementById('m-school').value = merged.school || '';
-  meslekDropdown.set(merged.profession || null);
+  meslekDropdown.setChecked(professionLabelList(merged.profession));
   document.getElementById('m-office').value = merged.office || '';
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
@@ -1021,9 +1031,10 @@ async function maybeAutoFillFromAccount(){
   }
   const schoolInput = document.getElementById('m-school');
   if(!schoolInput.value && user.school) schoolInput.value = user.school;
-  if(!meslekDropdown.get() && user.profession){
-    const label = PROFESSION_LABELS[user.profession];
-    if(label) meslekDropdown.set(label);
+  if(!meslekDropdown.getChecked().length && user.profession){
+    // users.profession kodlu slug listesi ("mimar,fotografci") → ham Türkçe etiketler.
+    const labels = String(user.profession).split(',').map(s => PROFESSION_LABELS[s.trim()]).filter(Boolean);
+    if(labels.length) meslekDropdown.setChecked(labels);
   }
   if(!pozisyonDropdown.get() && user.position) pozisyonDropdown.set(user.position);
   if(!odullerDropdown.getChecked().length && (user.awards || []).length) odullerDropdown.setChecked(user.awards);
@@ -1141,7 +1152,7 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
     name: document.getElementById('m-name').value,
     dob,
     school: document.getElementById('m-school').value || null,
-    profession: meslekDropdown.get(),
+    profession: meslekDropdown.getChecked().join(', ') || null,
     office: document.getElementById('m-office').value || null,
     position: pozisyonDropdown.get(),
     awards: odullerDropdown.getChecked(),

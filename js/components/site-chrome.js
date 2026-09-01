@@ -172,6 +172,15 @@
       .nav-mobile-menu.subpage-active .nav-mobile-menu-main{transform:translateX(-100%);}
       .nav-mobile-menu.subpage-active .nav-mobile-menu-subpage{transform:translateX(0);}
       .nav-mobile-subpage-body{flex:1; min-height:0; padding:18px 16px 28px; box-sizing:border-box;}
+      /* kullanıcı isteği (2026-09-01 madde 1): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim artık
+         MASAÜSTÜNDE de bu çekmecede açılıyor (bkz. auth-modal.js#isMobileDrawer'daki DESKTOP_DRAWER_VIEWS).
+         Çekmecenin kendisi/animasyonu/genişliği (90vw) her kırılma noktasında AYNI kalır — istek
+         "tablet ve mobildeki gibi" diyor; yalnızca iç boşluk, masaüstünde eskiden bu içeriği
+         barındıran ModalShell panelinin (.modal-shell-right, 32px) boşluğuna eşitlenir, aksi halde
+         geniş ekranda 16px'lik telefon payı içeriği kenara yapıştırıyordu. */
+      @media (min-width:961px){
+        .nav-mobile-subpage-body{padding:24px 32px 40px;}
+      }
       .nav-mobile-menu-links{padding:10px; flex:1;}
       .nav-mobile-menu-foot{padding:14px 16px 22px; border-top:1px solid var(--line); flex-shrink:0;}
       .nav-mobile-menu-foot .nav-mobile-cta{margin-top:0; display:flex; align-items:center; justify-content:center;}

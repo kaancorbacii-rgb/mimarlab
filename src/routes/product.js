@@ -182,6 +182,46 @@ async function fetchProductProjects(env, productId) {
   return results.map(row => ({ slug: row.slug, title: row.title, location: row.location, image: firstImage(row.images) }));
 }
 
+// "Kullanan Firmalar" / "Kullanan Mimarlar" (kullanıcı isteği, 2026-09-01 madde 3) — proje modalının
+// künyesindeki firma/mimar chip'lerinin ÜRÜN tarafındaki toplu karşılığı. Ayrı bir ürün↔firma /
+// ürün↔mimar tablosu YOK ve olmamalı: "bu ürünü kullanan" ilişkisi türetilmiş bir bilgidir —
+// project_products (ürün hangi projelerde kullanıldı) ile project_designers (o projeleri kim yaptı)
+// join'inin sonucudur, bu yüzden proje-ekle/urun-ekle'deki bağlantılar değiştikçe kendiliğinden
+// güncel kalır.
+//
+// DISTINCT + COUNT: aynı firma birden çok projesinde aynı ürünü kullanmış olabilir — kart bir kez
+// çıkar, alt satırında kaç projede kullandığı yazar (kart altyazısı, bkz. product-modal.js#cardHtml).
+// products.brand (ürünün KENDİ üretici firması) bilerek hariç tutulmaz: bir marka kendi ürününü
+// kendi projesinde kullanmışsa bu da gerçek bir kullanımdır ve zaten "Ürün Firması" chip'inden
+// ayrı bir bölümde görünür.
+async function fetchProductUsers(env, productId) {
+  const [offices, architects] = await Promise.all([
+    env.DB.prepare(
+      `SELECT o.slug, o.name, o.logo_url AS logo, COUNT(DISTINCT p.id) AS projectCount
+       FROM project_products pp
+       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_designers pd ON pd.project_id = p.id AND pd.office_id IS NOT NULL
+       JOIN offices o ON o.id = pd.office_id AND o.deleted_at IS NULL AND o.hidden_at IS NULL
+       WHERE pp.product_id = ?
+       GROUP BY o.id ORDER BY projectCount DESC, o.name LIMIT 24`
+    ).bind(productId).all(),
+    env.DB.prepare(
+      `SELECT a.slug, a.name, a.photo_url AS photo, COUNT(DISTINCT p.id) AS projectCount
+       FROM project_products pp
+       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_designers pd ON pd.project_id = p.id AND pd.architect_id IS NOT NULL
+       JOIN architects a ON a.id = pd.architect_id AND a.deleted_at IS NULL AND a.hidden_at IS NULL
+       WHERE pp.product_id = ?
+       GROUP BY a.id ORDER BY projectCount DESC, a.name LIMIT 24`
+    ).bind(productId).all(),
+  ]);
+  const shape = rows => (rows.results || []).map(r => ({
+    slug: r.slug, name: r.name, logo: r.logo || null, photo: r.photo || null,
+    projectCount: r.projectCount || 0,
+  }));
+  return { offices: shape(offices), architects: shape(architects) };
+}
+
 async function fetchAdjacentProduct(env, id) {
   const { prev, next } = await fetchAdjacentEntity(env, 'products', id, { titleCol: 'title', imageCol: 'images', imageIsJsonArray: true });
   return { prevItem: prev, nextItem: next };
@@ -302,14 +342,18 @@ export async function handleProductDetailRoute(request, env, url, rawKey) {
     // — yeni bir puanlama/kaydetme SessizCE yanlış bir target_id'ye yazılıp mevcut ortalamadan/sayaçtan
     // kopardı. Doğru anahtar burada AYRICA döndürülüp istemci tarafında slug yerine bu kullanılmalı.
     item.ratingKey = ratingKeyFor(item.title, item.brand, item.submissionId);
-    const [adjacent, owner, usedInProjects] = await Promise.all([
+    const [adjacent, owner, usedInProjects, users] = await Promise.all([
       fetchAdjacentProduct(env, row.id),
       fetchOwnerByline(env, row.claimed_by_user_id),
       fetchProductProjects(env, row.id),
+      fetchProductUsers(env, row.id),
     ]);
     item.prevItem = adjacent.prevItem;
     item.nextItem = adjacent.nextItem;
     item.projects = usedInProjects;
+    // bkz. fetchProductUsers — "Kullanan Firmalar"/"Kullanan Mimarlar" ikili satırını besler.
+    item.usedByOffices = users.offices;
+    item.usedByArchitects = users.architects;
     if (owner) Object.assign(item, owner);
     return { item, hidden: !!row.hidden_at };
   });

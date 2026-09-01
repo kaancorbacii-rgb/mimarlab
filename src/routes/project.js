@@ -44,6 +44,20 @@ async function fetchDesignerDetails(env, projectId) {
     .filter(Boolean);
 }
 
+// Künyedeki "Fotoğraf:" satırındaki isimlerden MİMARLAB'da gerçekten bir profili olanlar (kullanıcı
+// isteği, 2026-09-01 madde 6) — fetchDesignerDetails'in fotoğrafçı karşılığı, kaynağı
+// project_photographers (bkz. migrations/0080_project_photographers.sql). Eşleşmeyen isimler burada
+// HİÇ dönmez; künye onları serbest metin olarak photoCredit.text'ten göstermeye devam eder (bkz.
+// js/components/project-meta.js#renderMeta).
+async function fetchPhotographerDetails(env, projectId) {
+  const { results } = await env.DB.prepare(
+    `SELECT ar.name, ar.slug, ar.photo_url FROM project_photographers pp
+     JOIN architects ar ON ar.id = pp.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+     WHERE pp.project_id = ?`
+  ).bind(projectId).all();
+  return results.map(r => ({ name: r.name, slug: r.slug, photo: r.photo_url || null }));
+}
+
 // proje-ekle.html'in Mimar/Firma alanlarına yazılan ama architects/offices'te eşleşen bir kaydı
 // olmayan isimler resolveArchitectLink()/resolveOfficeLink() tarafından sessizce ATLANIYOR (bkz.
 // src/lib/canonicalSync.js#syncProject — CHECK ((architect_id IS NOT NULL) != (office_id IS NOT
@@ -160,13 +174,39 @@ export async function handlePhotographerSearchRoute(request, env, url) {
     // eşleşen satırlar gruplanır ve Worker'a tüm fotoğrafçı listesi yerine en fazla 8 satır taşınır.
     const cond = q ? ` AND photo_credit_fold LIKE ? ESCAPE '\\'` : '';
     const params = q ? [`%${escapeLike(q)}%`] : [];
-    const { results } = await env.DB.prepare(
-      `SELECT photo_credit_text AS name, COUNT(*) AS c FROM projects
-       WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text != ''${cond}
-       GROUP BY photo_credit_text ORDER BY c DESC LIMIT 8`
-    ).bind(...params).all();
-    const items = results
-      .map(r => ({ label: r.name }));
+    // kullanıcı isteği (2026-09-01 madde 6): "fotoğrafçılar kutucuğu da mimar kutucuğuyla aynı
+    // mantıkta çalışsın" — Mimar kutusunun önerileri GERÇEK profillerden gelir (/api/architects/
+    // search), buradakiler ise yalnızca serbest metinden türetiliyordu. Artık iki kaynak
+    // BİRLEŞTİRİLİR ve profilli olanlar ÖNCE gelir: fotoğrafçı profilleri architects tablosunda,
+    // profession alanında "Fotoğrafçı" etiketiyle yaşar (bkz. migrations/
+    // 0080_project_photographers.sql başlığı — kişi başına TEK profil, çoklu meslek). Öneriden
+    // profilli bir isim seçmek, kaydedildiğinde project_photographers kenarını da kurar (bkz.
+    // src/lib/canonicalSync.js#syncProject) ve o kişinin popup'ında "Fotoğrafladığı Projeler"
+    // bölümünü doldurur.
+    const [freeText, profiles] = await Promise.all([
+      env.DB.prepare(
+        `SELECT photo_credit_text AS name, COUNT(*) AS c FROM projects
+         WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text != ''${cond}
+         GROUP BY photo_credit_text ORDER BY c DESC LIMIT 8`
+      ).bind(...params).all(),
+      env.DB.prepare(
+        `SELECT name, profession FROM architects
+         WHERE deleted_at IS NULL AND hidden_at IS NULL AND profession LIKE '%Fotoğrafçı%'
+         ORDER BY name COLLATE NOCASE LIMIT 200`
+      ).all(),
+    ]);
+    // Profil adları foldTr ile Worker'da süzülür — architects.profession'da bir fold sütunu yok ve
+    // fotoğrafçı profillerinin sayısı (yüzler mertebesi) bunu ucuz kılıyor (bkz. office.js#
+    // handleOfficeSearchRoute'taki AYNI desen).
+    const profileItems = (profiles.results || [])
+      .filter(r => !q || foldTr(r.name).includes(q))
+      .slice(0, 8)
+      .map(r => ({ label: r.name, sub: 'Fotoğrafçı' }));
+    const seen = new Set(profileItems.map(i => foldTr(i.label)));
+    const items = [
+      ...profileItems,
+      ...(freeText.results || []).filter(r => !seen.has(foldTr(r.name))).map(r => ({ label: r.name })),
+    ].slice(0, 8);
     return { items };
   });
 }
@@ -260,12 +300,14 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     if (!row) return { item: null, hidden: false };
     if (row.hidden_at) return { item: null, hidden: true };
     const item = shapeProjectItem(row);
-    const [designerDetails, rawNames, owner] = await Promise.all([
+    const [designerDetails, rawNames, owner, photographerDetails] = await Promise.all([
       fetchDesignerDetails(env, row.id),
       fetchRawDesignerNames(env, row),
       fetchOwnerByline(env, row.claimed_by_user_id),
+      fetchPhotographerDetails(env, row.id),
     ]);
     if (owner) Object.assign(item, owner);
+    item.photographerDetails = photographerDetails;
     // Zaten eşleşmiş (profilli) isimlerin ÜZERİNE yazmayan, formda yazılan ama hiçbir profile
     // bağlanamamış isimler için künyede baş harfli, tıklanamaz bir "rozet" fallback'i (bkz. yukarıdaki
     // fetchRawDesignerNames yorumu ve kullanıcı isteği). rawNames.isLegacy=false (bkz. migrations/

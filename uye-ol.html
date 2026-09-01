@@ -149,6 +149,16 @@
   }
   .auth-field input:focus-visible, .auth-field select:focus-visible{box-shadow:0 0 0 2px var(--brass);}
   .auth-field.ac-field{position:relative;}
+  /* Çoklu meslek seçimi (bkz. #signup-profession, kullanıcı isteği 2026-09-01 madde 6) — sarmalayan
+     kutu formun diğer alanlarıyla aynı çerçeve/dolguyu taşır, seçenekler sığdığı kadar yan yana
+     akar. max-height + scroll: dokuz seçenek dar telefonlarda formu gereğinden fazla uzatmasın. */
+  .auth-check-group{
+    display:flex; flex-wrap:wrap; gap:6px 14px;
+    max-height:132px; overflow-y:auto;
+    padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--paper);
+  }
+  .auth-check-group label{display:flex; align-items:center; gap:6px; margin:0; font-size:13px; font-weight:500; cursor:pointer;}
+  .auth-check-group input{width:auto; margin:0;}
   .ac-suggestions{
     display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:25;
     background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
@@ -281,19 +291,25 @@
           <input type="text" id="signup-school" name="school" placeholder="Örn. Yıldız Teknik Üniversitesi" autocomplete="off">
           <div class="ac-suggestions" id="ac-school-suggestions"></div>
         </div>
+        <!-- kullanıcı isteği (2026-09-01 madde 6): "bir kullanıcı siteye üye olurken ... artık
+             birden fazla meslek seçebilsin" — tek seçimlik <select> yerine onay kutusu grubu.
+             Native <select multiple> BİLEREK kullanılmadı: mobilde çoklu seçim keşfedilemiyor ve
+             hangi seçeneklerin işaretli olduğu tek bakışta görünmüyor. 'fotografci' seçeneği de
+             aynı istekle eklendi (bkz. src/routes/auth.js#PROFESSIONS, dört kopyanın hepsi
+             birlikte güncellenmeli). -->
         <div class="auth-field">
-          <label for="signup-profession">Meslek</label>
-          <select id="signup-profession" name="profession">
-            <option value="">Seç... (opsiyonel)</option>
-            <option value="mimar">Mimar</option>
-            <option value="ic_mimar">İç Mimar</option>
-            <option value="peyzaj_mimari">Peyzaj Mimarı</option>
-            <option value="sehir_plancisi">Şehir Plancısı</option>
-            <option value="restorator">Restoratör</option>
-            <option value="tasarimci">Tasarımcı</option>
-            <option value="ogrenci">Öğrenci</option>
-            <option value="diger">Diğer</option>
-          </select>
+          <label id="signup-profession-label">Meslek <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
+          <div class="auth-check-group" id="signup-profession" role="group" aria-labelledby="signup-profession-label">
+            <label><input type="checkbox" name="profession" value="mimar"> Mimar</label>
+            <label><input type="checkbox" name="profession" value="ic_mimar"> İç Mimar</label>
+            <label><input type="checkbox" name="profession" value="peyzaj_mimari"> Peyzaj Mimarı</label>
+            <label><input type="checkbox" name="profession" value="sehir_plancisi"> Şehir Plancısı</label>
+            <label><input type="checkbox" name="profession" value="restorator"> Restoratör</label>
+            <label><input type="checkbox" name="profession" value="tasarimci"> Tasarımcı</label>
+            <label><input type="checkbox" name="profession" value="fotografci"> Fotoğrafçı</label>
+            <label><input type="checkbox" name="profession" value="ogrenci"> Öğrenci</label>
+            <label><input type="checkbox" name="profession" value="diger"> Diğer</label>
+          </div>
         </div>
         <div class="auth-field">
           <label for="signup-password">Şifre *</label>
@@ -421,7 +437,10 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
     name: document.getElementById('signup-name').value,
     dob: document.getElementById('signup-dob').value || null,
     school: document.getElementById('signup-school').value || null,
-    profession: document.getElementById('signup-profession').value || null,
+    // Çoklu meslek: sunucu virgülle ayrılmış slug listesi bekler (bkz. src/routes/auth.js#
+    // normalizeProfessions) — tek meslek seçildiğinde üretilen değer eski tek-değerli biçimin
+    // aynısıdır, bu yüzden hiçbir eski kayıt/okuma yolu bozulmaz.
+    profession: [...document.querySelectorAll('#signup-profession input:checked')].map(i => i.value).join(',') || null,
     email: document.getElementById('signup-email').value,
     password: pw,
     password_confirm: pwConfirm,

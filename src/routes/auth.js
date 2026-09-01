@@ -11,7 +11,26 @@ import { cascadeDeleteAccount } from '../lib/cascadeDelete.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
-export const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'ogrenci', 'diger']);
+// 'fotografci' — kullanıcı isteği (2026-09-01 madde 6): fotoğrafçılar da site içinde profili olan
+// kişilerdir (bkz. migrations/0080_project_photographers.sql başlığındaki gerekçe), bu yüzden meslek
+// listesine eklendi. uye-ol.html / js/components/auth-modal.js#PROFESSION_LABELS / mimar-ekle.html#
+// MESLEK_OPTIONS aynı listenin bilinçli kopyalarıdır — biri değişirse dördü birlikte güncellenmeli.
+export const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'fotografci', 'ogrenci', 'diger']);
+// users.profession artık BİRDEN ÇOK meslek taşıyabilir (kullanıcı isteği, 2026-09-01 madde 6: "bir
+// kullanıcı siteye üye olurken ya da profilini düzenlerken artık birden fazla meslek seçebilsin") —
+// biçim: virgülle ayrılmış slug listesi ("mimar,fotografci"). Ayrı bir user_professions tablosu
+// AÇILMADI: alan yalnızca gösterim amaçlı (hiçbir sorgu profession'a göre JOIN/filtre yapmıyor),
+// bir tablo eklemek okuma yollarının tamamını N+1'e sokardı. TEK meslekli eski satırlar bu biçimin
+// zaten geçerli bir örneği olduğundan hiçbir veri taşıması gerekmez.
+const MAX_PROFESSIONS = 4;
+export function normalizeProfessions(value) {
+  if (typeof value !== 'string') return { ok: true, value: null };
+  const slugs = [...new Set(value.split(',').map(s => s.trim()).filter(Boolean))];
+  if (!slugs.length) return { ok: true, value: null };
+  if (slugs.length > MAX_PROFESSIONS) return { ok: false };
+  if (slugs.some(s => !PROFESSIONS.has(s))) return { ok: false };
+  return { ok: true, value: slugs.join(',') };
+}
 const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bolge_planlama', 'restorasyon', 'diger']);
 // mimar-ekle.html'deki POZISYON_OPTIONS ile BİREBİR aynı (bkz. kullanıcı isteği: "Mimar ekle sayfası
 // ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — 'Ortak'/'Ekip Lideri' bu
@@ -148,14 +167,16 @@ async function signup(request, env) {
   const dob = body.dob || null;
   const school = (body.school || '').trim() || null;
   const dept = body.dept || null;
-  const profession = body.profession || null;
+  // bkz. normalizeProfessions — birden çok meslek virgülle ayrılmış tek bir string olarak gelir.
+  const professionResult = normalizeProfessions(body.profession);
+  const profession = professionResult.value;
 
   if (!name) return errorJson('Ad soyad gerekli.');
   if (!dob) return errorJson('Doğum tarihi gerekli.');
   if (!EMAIL_RE.test(email)) return errorJson('Geçerli bir e-posta adresi gir.');
   if (password.length < 8) return errorJson('Şifre en az 8 karakter olmalı.');
   if (body.password !== body.password_confirm) return errorJson('Şifreler eşleşmiyor.');
-  if (profession && !PROFESSIONS.has(profession)) return errorJson('Geçersiz meslek.');
+  if (!professionResult.ok) return errorJson('Geçersiz meslek.');
   if (dept && !DEPTS.has(dept)) return errorJson('Geçersiz bölüm.');
   if (isInvalidSchoolValue(school)) return errorJson('Geçerli bir üniversite adı gir (kısaltma kullanma).');
   if (!body.botCheck) return errorJson('Lütfen "Ben bir bot değilim" kutucuğunu işaretle.');
@@ -350,8 +371,12 @@ export async function updateUserProfileFields(env, userId, body) {
   if ('photo_url' in body && !isSafeUrlValue(body.photo_url)) {
     return { error: 'Profil fotoğrafı bağlantısı geçersiz.' };
   }
-  if ('profession' in body && body.profession && !PROFESSIONS.has(body.profession)) {
-    return { error: 'Geçersiz meslek.' };
+  // bkz. normalizeProfessions — çoklu meslek (virgülle ayrılmış slug'lar). Doğrulanmış/normalize
+  // edilmiş değer aşağıdaki genel `fields` döngüsünde yazılabilsin diye body'e geri yazılır.
+  if ('profession' in body) {
+    const result = normalizeProfessions(body.profession);
+    if (!result.ok) return { error: 'Geçersiz meslek.' };
+    body.profession = result.value;
   }
   if ('position' in body && body.position && !POSITIONS.has(body.position)) {
     return { error: 'Geçersiz pozisyon.' };

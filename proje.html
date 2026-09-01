@@ -1036,6 +1036,13 @@
 <script src="js/components/project-related.js" defer></script>
 <script src="js/components/project-products.js" defer></script>
 <script src="js/components/project-modal.js" defer></script>
+<!-- kullanıcı isteği (2026-09-01 madde 2): proje popup'ındaki ürün bağlantıları (Kullanılan Ürünler
+     kartları + görsel üzerindeki ürün işaretçilerinin önizleme kartı) artık tam sayfa gezinme yerine
+     AYNI ModalShell'de ürün popup'ını açar; ürün popup'ı kapatılınca geri sarılan history girdisi
+     yine bu projeye denk gelir ve proje popup'ı geri gelir. Yükleme sırası ÖNEMLİ: modal-shell.js'ten
+     SONRA gelmeli (defer sırayı korur) ve ProjectModal'ın delege dinleyicisi `typeof ProductModal`e
+     baktığından bu satırın varlığı davranışı açıp kapatan tek anahtardır. -->
+<script src="js/components/product-modal.js" defer></script>
 <script src="add-choice.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="proje"></div>

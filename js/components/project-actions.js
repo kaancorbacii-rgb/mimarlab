@@ -16,7 +16,11 @@ const ProjectActions = (function () {
   function saveBtnHtml(item) {
     const hrefPrefix = '/proje/';
     return `
-      <button class="save-btn card-save-btn" id="pm-save-btn" type="button" data-key="${escapeAttr(item.slug)}" data-title="${escapeAttr(item.title)}" data-meta="${escapeAttr(item.location || '')}" data-image="${escapeAttr((item.images && item.images[0]) || '')}" data-href="${hrefPrefix}${encodeURIComponent(item.slug)}" aria-label="Kaydet">
+      <!-- data-save-chooser: kullanıcı isteği (2026-09-01 madde 5) — proje POPUP'ının Kaydet
+           butonu tıklanınca doğrudan kaydetmez, "Kaydedilenler / Pano" seçicisini açar (bkz.
+           save-widget.js#openSaveChooser). Izgara kartlarındaki .card-save-btn'ler bu bayrağı
+           TAŞIMAZ, onlarda tek tıkla kaydet davranışı aynen kalır. -->
+      <button class="save-btn card-save-btn" id="pm-save-btn" type="button" data-save-chooser="1" aria-haspopup="dialog" aria-expanded="false" data-key="${escapeAttr(item.slug)}" data-title="${escapeAttr(item.title)}" data-meta="${escapeAttr(item.location || '')}" data-image="${escapeAttr((item.images && item.images[0]) || '')}" data-href="${hrefPrefix}${encodeURIComponent(item.slug)}" aria-label="Kaydet">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
         <span class="save-btn-label-default">Kaydet</span>
         <span class="save-btn-label-saved">Kaydedildi</span>

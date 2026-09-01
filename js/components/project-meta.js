@@ -123,6 +123,36 @@ const ProjectMeta = (function () {
     return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`;
   }
 
+  // "Fotoğraf:" satırının gövdesi (kullanıcı isteği, 2026-09-01 madde 6): fotoğrafçı adı artık
+  // MİMARLAB'da bir profili varsa o profilin popup'ına götüren bir bağlantıdır (bkz. src/routes/
+  // project.js#fetchPhotographerDetails — yalnızca project_photographers'ta gerçekten eşleşmiş
+  // isimler döner). photoCredit.text birden çok isim taşıyabildiğinden (Mimar kutusuyla AYNI virgül
+  // kuralı, bkz. src/lib/canonicalSync.js#splitPhotographerNames) her segment BAĞIMSIZ eşleştirilir:
+  // profili olan segment link olur, olmayan düz metin kalır.
+  //
+  // Eski davranış (photoCredit.url varsa TÜM metni o dış siteye bağlama) korunur ama artık yalnızca
+  // HİÇBİR segment bir profile eşleşmediğinde geçerli — iç profil bağlantısı, serbest metin bir dış
+  // bağlantıdan her zaman daha değerli.
+  function photoCreditHtml(item) {
+    const text = item.photoCredit.text;
+    const matched = item.photographerDetails || [];
+    if (matched.length) {
+      const bySlugName = new Map(matched.map(p => [p.name.trim().toLocaleLowerCase('tr'), p]));
+      return text.split(',').map(seg => {
+        const name = seg.trim();
+        if (!name) return '';
+        const hit = bySlugName.get(name.toLocaleLowerCase('tr'));
+        return hit
+          ? `<a href="/mimar/${encodeURIComponent(hit.slug)}">${escapeHtml(name)}</a>`
+          : escapeHtml(name);
+      }).filter(Boolean).join(', ');
+    }
+    const creditUrl = item.photoCredit.url ? safeUrl(item.photoCredit.url) : '';
+    return creditUrl
+      ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(text)}</a>`
+      : escapeHtml(text);
+  }
+
   function renderMeta(item, ids) {
     let html = '';
     if (item.discipline && item.discipline.length) html += metaRow('layers', `<strong>Tür:</strong> ${item.discipline.map(v => filterLinkHtml(item, 'discipline', v)).join(' / ')}`);
@@ -136,8 +166,7 @@ const ProjectMeta = (function () {
     if (item.date) html += metaRow('calendar', `<strong>Yıl:</strong> ${item.dateBucket ? filterLinkHtml(item, 'dateBucket', item.dateBucket, item.date) : escapeHtml(item.date)}`);
     if (item.awards && item.awards.length) html += metaRow('award', `<strong>Ödül:</strong> ${item.awards.map(v => filterLinkHtml(item, 'award', v)).join(' / ')}`);
     if (item.photoCredit && item.photoCredit.text) {
-      const creditUrl = item.photoCredit.url ? safeUrl(item.photoCredit.url) : '';
-      html += metaRow('camera', `<strong>Fotoğraf:</strong> ${creditUrl ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(item.photoCredit.text)}</a>` : escapeHtml(item.photoCredit.text)}`);
+      html += metaRow('camera', `<strong>Fotoğraf:</strong> ${photoCreditHtml(item)}`);
     }
     document.getElementById(ids.meta).innerHTML = html;
   }

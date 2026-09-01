@@ -323,8 +323,28 @@ const ProjectModal = (function () {
     if (!panels || panels.bodyEl.dataset.pmNavWired) return;
     panels.bodyEl.dataset.pmNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // bkz. modal-shell.js#getContentOwner — bu dinleyici PAYLAŞILAN bodyEl'e kalıcı olarak bağlı;
+      // ekranda bir ÜRÜN popup'ı varken (proje.html'de mümkün) buradaki dallar çalışmamalı.
+      if (ModalShell.getContentOwner() !== 'project') return;
+      // kullanıcı isteği (2026-09-01 madde 2): proje popup'ı İÇİNDEKİ bir ürün bağlantısı —
+      // "Kullanılan Ürünler" kartları VE galeri görsellerinin üzerindeki ürün işaretçilerinin
+      // önizleme kartı (bkz. js/components/image-hotspots.js#cardHtml, o kart lightbox'ın içinde
+      // yaşadığından tıklaması buraya kadar kabarır) — artık TAM SAYFA GEZİNME yapmaz, aynı
+      // ModalShell'de ürün popup'ını açar. Kazanç isteğin kendisi: ürün popup'ı kapatılınca
+      // ProductModal.close() history.go(-N) ile bir önceki /proje/:slug girdisine döner, proje.js'in
+      // popstate dinleyicisi de onu ProjectModal.handlePopState'e yönlendirir — yani kullanıcı
+      // AYNI proje popup'ında bulur kendini (tam sayfa gezinmede /urun listesine düşüyordu).
+      // ProductModal yalnızca proje.html'de ve urun.html'de yüklü; başka bir sayfada (ör. mimar/
+      // firma popup'ı içinden gelen ürün kartları) tanımsızsa hiçbir şey yapılmaz ve tarayıcının
+      // normal gezinmesi eskisi gibi çalışır.
+      const prA = e.target.closest('a[href^="/urun/"]');
+      if (prA && typeof ProductModal !== 'undefined') {
+        const pm = prA.getAttribute('href').match(/^\/urun\/([^/?#]+)/);
+        if (pm) { e.preventDefault(); ProductModal.open(decodeURIComponent(pm[1]), { triggerEl: prA }); return; }
+      }
       const a = e.target.closest('a[href^="/proje/"]');
-      if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!a) return;
       const m = a.getAttribute('href').match(/^(\/proje\/)([^/?#]+)/);
       if (!m) return;
       e.preventDefault();

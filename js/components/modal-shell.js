@@ -642,6 +642,15 @@ const ModalShell = (function () {
     };
   }
 
+  // Panelleri EN SON hangi modalın doldurduğu (bkz. claimContent) — proje.html gibi AYNI paylaşılan
+  // bodyEl üzerinde BİRDEN FAZLA modalın (ProjectModal + ProductModal, bkz. kullanıcı isteği
+  // 2026-09-01 madde 2) delege edilmiş tıklama dinleyicisi bulunduğu sayfalarda ZORUNLU: her iki
+  // dinleyici de aynı bodyEl'e kalıcı olarak bağlı olduğundan, hangisinin o anki içeriğin sahibi
+  // olduğunu bilmeden ikisi de aynı tıklamayı işler (ör. bir ürün popup'ındaki ürün bağlantısına
+  // tıklanınca hem ProductModal.swap hem ProjectModal'ın ürün dalı çalışır, iki history girdisi
+  // birden yazılırdı).
+  function getContentOwner() { return contentOwner; }
+
   function scrollToTop() { if (bodyEl) bodyEl.scrollTop = 0; }
 
   // İçerik aksiyonlarının (Kaydet/Paylaş/Takip Et) X'in yanına yazıldığı paylaşılan yuva (bkz.
@@ -791,5 +800,5 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();
