@@ -38,7 +38,14 @@ import sys
 import threading
 import time
 
-from PIL import Image
+from PIL import Image, ImageFile
+
+# Kesilmiş (truncated) dosyaları da çöz. GERÇEK BULGU: projects/proje-varyap-meridian-h-block-1.jpg
+# eksik yazılmış ("image file is truncated (54 bytes not processed)") — tarayıcılar böyle dosyaları
+# sorunsuz gösterdiğinden bu kart canlıda ÇALIŞIYOR ama 988 KB'lık orijinali indiriyordu. Bu bayrak
+# olmadan Pillow hata verip o görsele hiç türev üretmiyordu; bayrakla, dosyanın GEÇERLİ kısmından
+# (yani tarayıcının da gösterdiği görüntüden) türev üretilir.
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUCKET = 'mimarlab-uploads'
