@@ -28,7 +28,11 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // kisi.html'inkiyle AYNI çok seçmeli akordeona (#filter-groups) dönüştü; ayrıca hesabim düzeni
 // değişti. Markup/CSS/satır içi JS SSR HTML'ine gömülü olduğundan, sürüm artırılmazsa /firma/:slug
 // ve /urun/:slug sayfaları s-maxage boyunca ESKİ filtre kabuğunu sunardı (v104'ün birebir aynısı).
-export const SSR_CACHE_VERSION = 'v105';
+// v106 (kullanıcı isteği, 2026-09-01 madde 2): kisi.html'in satır içi JS'indeki PROFESSION_ORDER
+// dizisine "Mühendis" eklendi — /kisi/:slug SSR kabuğunun İÇİNDEKİ bu dizi "Meslek" filtresinin
+// sıralamasını belirler, sürüm artırılmazsa o sayfalardan girenlerde yeni seçenek s-maxage boyunca
+// yanlış sırada (listenin sonunda) görünürdü.
+export const SSR_CACHE_VERSION = 'v106';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

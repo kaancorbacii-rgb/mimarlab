@@ -280,6 +280,15 @@
   /* ---------- MARKA/ÜRÜN CHIP LİSTESİ ---------- */
   .brand-add-row{display:flex; gap:10px; align-items:flex-start;}
   .brand-add-row .ac-field{flex:1; min-width:0;}
+  /* Firma/Ürün açılır menüleri (kullanıcı isteği, 2026-09-01 madde 7) — görünümleri sayfadaki
+     diğer form alanlarıyla (input/textarea) AYNI olsun diye .form-field input kuralının aynı
+     değerlerini taşır; .ac-field ile aynı esneme davranışı. */
+  .brand-add-row .brand-select, .brand-add-row .brand-other-input{
+    flex:1; min-width:0; width:100%; box-sizing:border-box;
+    padding:11px 13px; border:1px solid var(--line); border-radius:10px;
+    background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px;
+  }
+  .brand-add-row .brand-select:disabled{opacity:.55;}
   .brand-add-btn{
     flex-shrink:0; background:var(--ink); color:var(--paper-card); border:none; border-radius:10px;
     padding:0 18px; height:42px; font-weight:600; font-size:13px; white-space:nowrap;
@@ -668,20 +677,22 @@
         <h2>Projede Kullanılan Ürünler <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
         <p class="section-hint">Projede kullanılan ürünleri eklemek için marka ya da ürün arat. Yüklediğin görsellerde ürünleri etiketleyebilirsin.</p>
         <div class="form-field">
-          <!-- Firma kutusu ÖNCE (kullanıcı isteği, 2026-09-01): önce firma seçilince ürün kutusu
-               yalnızca o firmanın ürünlerini önerir (bkz. aşağıdaki wireAutocompleteLive#extraParams). -->
+          <!-- Firma ve Ürün artık SERBEST METİN DEĞİL, AÇILIR MENÜ (kullanıcı isteği, 2026-09-01
+               madde 7: "sadece sitede yüklü olan firmalardan biri seçilebilsin ... bir firma
+               seçince ürün kutucuğunda da yine sadece o firmaya ait ürünler seçilebilir menü
+               şeklinde çıksın"). Sitede karşılığı olmayan bir ürün için son satırdaki "Diğer"
+               seçilir; o zaman ürün kutusu serbest metne döner (bkz. syncProductField). -->
           <div class="brand-add-row">
-            <div class="ac-field" id="ac-marka-field">
-              <input type="text" id="p-brand-input" placeholder="Firma" autocomplete="off">
-              <div class="ac-suggestions" id="ac-marka-suggestions"></div>
-            </div>
-            <div class="ac-field" id="ac-urun-field">
-              <input type="text" id="p-product-input" placeholder="Ürün" autocomplete="off">
-              <div class="ac-suggestions" id="ac-urun-suggestions"></div>
-            </div>
+            <select id="p-brand-select" class="brand-select" aria-label="Firma">
+              <option value="">Firma seç</option>
+            </select>
+            <select id="p-product-select" class="brand-select" aria-label="Ürün" disabled>
+              <option value="">Önce firma seç</option>
+            </select>
+            <input type="text" id="p-product-input" class="brand-other-input" placeholder="Ürün adı" autocomplete="off" style="display:none;">
             <button type="button" class="brand-add-btn" id="brand-add-btn">+ Ekle</button>
           </div>
-          <div class="form-hint" id="brand-add-hint">Yalnızca sitede kayıtlı firma ve ürünler eklenebilir — açılan listeden seç. Eklemek için "+ Ekle"ye ya da Enter'a bas.</div>
+          <div class="form-hint" id="brand-add-hint">Firma ve ürünü açılır listeden seç. Sitede kayıtlı olmayan bir ürün için firma listesinden "Diğer"i seçip adını yazabilirsin. Eklemek için "+ Ekle"ye bas.</div>
           <div class="brand-chip-list" id="brand-chip-list"></div>
         </div>
       </div>
@@ -1225,50 +1236,84 @@ async function fillDesignerFromOffice(officeName){
   }catch{}
 }
 wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search', { onPick: (item) => fillDesignerFromOffice(item.label) });
-// "Projede Kullanılan Ürünler" kutusu — YALNIZCA sitede kayıtlı firma/ürünler eklenebilir
-// (kullanıcı isteği, 2026-09-01 madde 2). Serbest metin artık kabul edilmiyor; bu yüzden listeden
-// GERÇEKTEN seçilen değerler ayrıca tutulur ve "+ Ekle" anında kutudaki metinle karşılaştırılır —
-// kullanıcı seçtikten sonra metni değiştirirse seçim geçersiz sayılır (aksi halde var olmayan bir
-// ürün adı kaydedilip hiçbir kayda bağlanamazdı).
-let pickedBrand = null;    // listeden seçilen firma adı
-let pickedProduct = null;  // {label, brand} — listeden seçilen ürün
-// Kaynak /api/offices/search DEĞİL /api/products/brands: sitedeki ürün markalarının yarısından
-// fazlasının canonical bir offices satırı yok (bkz. src/routes/product.js#handleProductBrandSearchRoute)
-// — offices'a bağlansaydı o markaların ürünleri bu kutudan hiç eklenemezdi.
-wireAutocompleteLive('p-brand-input', 'ac-marka-suggestions', '/api/products/brands', {multi:false, allowEmptyQuery: ()=> true, onPick: (item)=>{
-  pickedBrand = item.label;
-  // Firma değişince önceki ürün seçimi artık geçerli olmayabilir (başka markanın ürünü) — temizlenir.
-  if(pickedProduct && trLower(pickedProduct.brand || '') !== trLower(item.label)){
-    pickedProduct = null;
-    document.getElementById('p-product-input').value = '';
-  }
-  setBrandAddHint('');
-}});
-wireAutocompleteLive('p-product-input', 'ac-urun-suggestions', '/api/products/search', {
-  multi:false,
-  // Firma seçiliyse ürün önerileri yalnızca o firmayla sınırlanır (bkz. src/routes/product.js#
-  // handleProductSearchRoute'un brand parametresi) ve kutu boşken de o firmanın ürünleri listelenir.
-  extraParams: ()=> pickedBrand ? `&brand=${encodeURIComponent(pickedBrand)}` : '',
-  allowEmptyQuery: ()=> !!pickedBrand,
-  onPick: (item)=>{
-    pickedProduct = { label: item.label, brand: item.brand || '' };
-    const brandInput = document.getElementById('p-brand-input');
-    // Ürün önce seçilirse firma kutusu ondan doldurulur — o firma da "listeden seçilmiş" sayılır,
-    // çünkü değer kullanıcının yazdığı serbest metin değil, ürün kaydının kendi markası.
-    if(item.brand && trLower(brandInput.value.trim()) !== trLower(item.brand)){
-      brandInput.value = item.brand;
-      pickedBrand = item.brand;
-    } else if(item.brand && !pickedBrand){
-      pickedBrand = item.brand;
-    }
-    setBrandAddHint('');
-  },
-});
-// Elle yazılan her değişiklik ilgili seçimi geçersizleştirir (bkz. yukarısı).
-document.getElementById('p-brand-input').addEventListener('input', ()=>{ pickedBrand = null; });
-document.getElementById('p-product-input').addEventListener('input', ()=>{ pickedProduct = null; });
+// "Projede Kullanılan Ürünler" kutusu — Firma ve Ürün AÇILIR MENÜ (kullanıcı isteği, 2026-09-01
+// madde 7). Serbest metin + autocomplete yerine <select> kullanılmasının nedeni: kutuya yalnızca
+// SİTEDE KAYITLI bir firma/ürün girilebilmesi isteniyordu ve autocomplete bunu ancak "seçileni
+// hatırla, sonra metinle karşılaştır" gibi kırılgan bir kontrolle sağlayabiliyordu (kullanıcı
+// seçtikten sonra metni değiştirebiliyordu). Menüde geçersiz bir değer üretmek mümkün değil.
+//
+// Firma listesi /api/products/brands'ten TEK SEFERDE çekilir (marka sayısı iki haneli, bkz. o
+// ucun LIMIT notu); ürün listesi ise seçilen markaya göre /api/products/search?brand=... ile
+// doldurulur — yani "bir firma seçince ürün kutucuğunda sadece o firmaya ait ürünler" isteğinin
+// doğrudan karşılığı.
+//
+// BRAND_OTHER: listenin EN SON satırındaki "Diğer". Seçilince ürün menüsü gizlenip yerine serbest
+// metin kutusu gelir; oluşan chip'in markası BOŞ kalır. Bu bilinçli: src/lib/canonicalSync.js#
+// resolveProjectProductLinks markasız bir girdiyi atlar, yani sitede karşılığı olmayan bu ad
+// hiçbir ürüne yanlışlıkla bağlanmaz — yalnızca projenin künyesinde metin olarak durur.
+const BRAND_OTHER = '__other__';
+const brandSelect = document.getElementById('p-brand-select');
+const productSelect = document.getElementById('p-product-select');
+const productInput = document.getElementById('p-product-input');
 
-const BRAND_ADD_HINT_DEFAULT = 'Yalnızca sitede kayıtlı firma ve ürünler eklenebilir — açılan listeden seç. Eklemek için "+ Ekle"ye ya da Enter\'a bas.';
+function optionHtml(value, label){
+  return `<option value="${escapeAttr(value)}">${escapeAttr(label)}</option>`;
+}
+fetch('/api/products/brands')
+  .then(res => res.ok ? res.json() : {items: []})
+  .then(data => {
+    const names = (data.items || []).map(it => it.label).filter(Boolean);
+    brandSelect.innerHTML = optionHtml('', 'Firma seç')
+      + names.map(n => optionHtml(n, n)).join('')
+      + optionHtml(BRAND_OTHER, 'Diğer');
+  })
+  .catch(()=>{});
+
+// Seçilen markanın ürünleri — aynı marka için ikinci kez ağ isteği atılmaz (kullanıcı menüler
+// arasında gidip gelebiliyor).
+const productsByBrand = new Map();
+async function loadProductsForBrand(brand){
+  if(productsByBrand.has(brand)) return productsByBrand.get(brand);
+  let titles = [];
+  try{
+    const res = await fetch(`/api/products/search?brand=${encodeURIComponent(brand)}`);
+    const data = res.ok ? await res.json() : {items: []};
+    titles = (data.items || []).map(it => it.label).filter(Boolean);
+  }catch{}
+  productsByBrand.set(brand, titles);
+  return titles;
+}
+
+function syncProductField(){
+  const brand = brandSelect.value;
+  setBrandAddHint('');
+  if(brand === BRAND_OTHER){
+    productSelect.style.display = 'none';
+    productInput.style.display = '';
+    productInput.value = '';
+    productInput.focus();
+    return;
+  }
+  productInput.style.display = 'none';
+  productSelect.style.display = '';
+  if(!brand){
+    productSelect.innerHTML = optionHtml('', 'Önce firma seç');
+    productSelect.disabled = true;
+    return;
+  }
+  productSelect.disabled = true;
+  productSelect.innerHTML = optionHtml('', 'Yükleniyor…');
+  loadProductsForBrand(brand).then(titles => {
+    // Kullanıcı bu arada markayı değiştirdiyse geç gelen yanıt menüyü ezmemeli.
+    if(brandSelect.value !== brand) return;
+    productSelect.innerHTML = optionHtml('', titles.length ? 'Ürün seç (opsiyonel)' : 'Bu firmanın kayıtlı ürünü yok')
+      + titles.map(t => optionHtml(t, t)).join('');
+    productSelect.disabled = !titles.length;
+  });
+}
+brandSelect.addEventListener('change', syncProductField);
+
+const BRAND_ADD_HINT_DEFAULT = 'Firma ve ürünü açılır listeden seç. Sitede kayıtlı olmayan bir ürün için firma listesinden "Diğer"i seçip adını yazabilirsin. Eklemek için "+ Ekle"ye bas.';
 function setBrandAddHint(msg){
   const el = document.getElementById('brand-add-hint');
   if(!el) return;
@@ -1282,7 +1327,7 @@ function renderBrandChips(){
   const list = document.getElementById('brand-chip-list');
   list.innerHTML = brandChips.map((c, i) => `
     <span class="brand-chip">
-      ${escapeAttr(c.product ? `${c.product} — ${c.brand}` : c.brand)}
+      ${escapeAttr(c.product && c.brand ? `${c.product} — ${c.brand}` : (c.product || c.brand || ''))}
       <button type="button" class="brand-chip-remove" data-index="${i}" aria-label="Kaldır">✕</button>
     </span>`).join('');
   list.querySelectorAll('.brand-chip-remove').forEach(btn=>{
@@ -1332,43 +1377,32 @@ function removeBrandChipForProduct(hotspot){
 }
 
 function addBrandChip(){
-  const brandInput = document.getElementById('p-brand-input');
-  const productInput = document.getElementById('p-product-input');
-  const brand = brandInput.value.trim();
-  const product = productInput.value.trim();
-  if(!brand){
+  const selected = brandSelect.value;
+  if(!selected){
     setBrandAddHint('Önce listeden bir firma seç.');
-    brandInput.focus();
+    brandSelect.focus();
     return;
   }
-  // Kutudaki metin, listeden SEÇİLEN değerle bire bir aynı olmalı — kullanıcı seçtikten sonra
-  // metni değiştirmişse (ya da hiç seçmeden yazmışsa) sitede karşılığı olmayan bir ad kaydedilirdi.
-  if(!pickedBrand || trLower(pickedBrand) !== trLower(brand)){
-    setBrandAddHint('Bu firma sitede kayıtlı değil — açılan listeden seç.');
-    brandInput.focus();
-    return;
-  }
-  if(product && (!pickedProduct || trLower(pickedProduct.label) !== trLower(product))){
-    setBrandAddHint('Bu ürün sitede kayıtlı değil — açılan listeden seç.');
+  // "Diğer": sitede kaydı olmayan ürün — marka BOŞ bırakılır (bkz. BRAND_OTHER yorumu).
+  const brand = selected === BRAND_OTHER ? '' : selected;
+  const product = (selected === BRAND_OTHER ? productInput.value : productSelect.value).trim();
+  if(selected === BRAND_OTHER && !product){
+    setBrandAddHint('Ürün adını yaz.');
     productInput.focus();
     return;
   }
   const exists = brandChips.some(c => trLower(c.brand || '') === trLower(brand)
     && trLower(c.product || '') === trLower(product));
-  if(!exists) brandChips.push({ brand, product: product || null });
-  brandInput.value = '';
+  if(!exists) brandChips.push({ brand: brand || null, product: product || null });
+  brandSelect.value = '';
   productInput.value = '';
-  pickedBrand = null;
-  pickedProduct = null;
-  setBrandAddHint('');
+  syncProductField();
   renderBrandChips();
-  brandInput.focus();
+  brandSelect.focus();
 }
 document.getElementById('brand-add-btn').addEventListener('click', addBrandChip);
-['p-brand-input','p-product-input'].forEach(id=>{
-  document.getElementById(id).addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter'){ e.preventDefault(); addBrandChip(); }
-  });
+productInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); addBrandChip(); }
 });
 
 function mediaItemSrc(item){

@@ -375,14 +375,9 @@
             </div>
           </div>
         </div>
-        <div class="form-field ac-field" id="ac-kurucular-field">
-          <label for="o-founders">Kurucular <span class="opt">(opsiyonel)</span></label>
-          <input type="text" id="o-founders" name="founders" placeholder="ör. Emre Arolat, Gonca Paşolar" autocomplete="off">
-          <div class="ac-suggestions" id="ac-kurucular-suggestions"></div>
-          <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
-        </div>
-        <!-- Websitesi ve Ödül kutularının yeri KASITLI olarak takas edildi (kullanıcı isteği,
-             2026-08-31, madde 7) — Websitesi artık solda, Ödül sağda. -->
+        <!-- Websitesi + Ödül satırı, Kurucular satırının ÜSTÜNDE (kullanıcı isteği, 2026-09-01
+             madde 6: "websitesi ve ödül satırıyla kurucu satırının yerlerini değiştir").
+             Satırın KENDİ İÇİNDE Websitesi solda / Ödül sağda kalır (2026-08-31 madde 7). -->
         <div class="form-row">
           <div class="form-field">
             <label for="o-website">Websitesi <span class="opt">(opsiyonel)</span></label>
@@ -399,6 +394,12 @@
             </div>
           </div>
         </div>
+        <div class="form-field ac-field" id="ac-kurucular-field">
+          <label for="o-founders">Kurucular <span class="opt">(opsiyonel)</span></label>
+          <input type="text" id="o-founders" name="founders" placeholder="ör. Emre Arolat, Gonca Paşolar" autocomplete="off">
+          <div class="ac-suggestions" id="ac-kurucular-suggestions"></div>
+          <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
+        </div>
         <div class="form-field ac-field" id="ac-ekip-field">
           <label for="o-team">Ekip <span class="opt">(opsiyonel)</span></label>
           <input type="text" id="o-team" name="team" placeholder="ör. Ahmet Yılmaz, Ayşe Demir" autocomplete="off">
@@ -413,7 +414,7 @@
 
       <div class="form-section">
         <h2>Sosyal Medya <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Instagram, LinkedIn gibi profillerinizi ekleyin — firma sayfasında tıklanabilir birer ikon olarak gösterilir.</p>
+        <p class="section-hint">Instagram, LinkedIn gibi hesaplarını ekle, profil sayfanda tıklanabilir birer ikon olarak gözüksün.</p>
         <div id="social-rows"></div>
         <button type="button" class="social-add-btn" id="social-add-btn">+ Sosyal Medya Ekle</button>
       </div>

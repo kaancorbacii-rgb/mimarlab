@@ -113,7 +113,10 @@ export async function handleProductSearchRoute(request, env, url) {
           foldColumn: 'p.title_fold',
           q, limit: 20, keyOf: r => r.slug,
         })
-      : (await env.DB.prepare(`${baseSelect} ORDER BY p.title LIMIT 20`).bind(...brandParams).all()).results;
+      // Yalnızca ?brand= verilmişse (proje-ekle.html'deki "Ürün" AÇILIR MENÜSÜ o markanın TÜM
+      // ürünlerini listeler, bkz. kullanıcı isteği 2026-09-01 madde 7) 20'lik öneri limiti
+      // yetmez — menüden seçilemeyen ürün kalırdı. Marka başına ürün sayısı onlarla ölçülüyor.
+      : (await env.DB.prepare(`${baseSelect} ORDER BY p.title LIMIT ${brand ? 500 : 20}`).bind(...brandParams).all()).results;
     const items = results
       // slug: proje-ekle.html'deki görsel işaretçisi editörü (bkz. migrations/
       // 0076_project_image_hotspots.sql) seçilen ürünü slug'ıyla bağlar — "Kullanılan Ürünler"
@@ -141,6 +144,9 @@ export async function handleProductBrandSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
+    // LIMIT 500 (eski 20): bu uç artık bir öneri listesi DEĞİL, proje-ekle.html'deki "Firma"
+    // AÇILIR MENÜSÜNÜN tam kaynağıdır (kullanıcı isteği, 2026-09-01 madde 7) — kesilen her marka
+    // menüde hiç seçilemez olurdu. DISTINCT marka sayısı iki haneli olduğundan maliyeti yok.
     // production audit (2026-09-01, madde B): filtre artık SQL'de. Bu uç DISTINCT ile
     // tekilleştirdiğinden (marka için ayrı bir tablo yok) sonuç kümesi zaten küçüktür — burada
     // index'li önek yolu yerine tek bir LIKE yeterli; kazanç, tüm marka listesini Worker'a
@@ -154,7 +160,7 @@ export async function handleProductBrandSearchRoute(request, env, url) {
        FROM products p LEFT JOIN offices o ON o.id = p.brand_office_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
          AND COALESCE(p.brand_name_raw, o.name) IS NOT NULL AND COALESCE(p.brand_name_raw, o.name) <> ''${cond}
-       ORDER BY name LIMIT 20`
+       ORDER BY name LIMIT 500`
     ).bind(...params).all();
     const items = results.map(r => ({ label: r.name, sub: '' }));
     return { items };

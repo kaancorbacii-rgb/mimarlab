@@ -1390,7 +1390,7 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 // handleUsersAdmin). İçerik düzenlemesi (proje/mimar/firma/ürün) burada değil, "Düzenle" linkiyle
 // açılan *-ekle.html?edit= sayfasında yapılır (admin zaten o sayfalarda herkesin gönderisini
 // düzenleyebiliyor, bkz. src/routes/submissions.js#getOwnSubmission).
-const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
+const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', muhendis:'Mühendis', fotografci:'Fotoğrafçı', ogrenci:'Öğrenci', diger:'Diğer' };
 const UD_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
 const UD_CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
 const UD_CLAIM_EDIT_STYPE = { architect: 'architects', office: 'offices' };

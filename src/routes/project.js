@@ -177,57 +177,45 @@ async function fetchFoundersForOffices(env, officeNames) {
 // başı yorumu, kullanıcı isteği). Oturum yoksa sessizce false döner, 401 fırlatmaz — çağıranlar bunu
 // "Düzenle" butonunu göstermeyip göstermeme kararı için kullanıyor.
 // GET /api/photographers/search?q=... — proje-ekle.html'deki Kaynak/Fotoğrafçı kutusunun
-// autocomplete'i, src/routes/office.js#handleOfficeSearchRoute ile AYNI desen (tüm adaylar çekilip
-// foldTr ile JS tarafında filtrelenir). Ayrı bir photographers tablosu YOK (bkz. migrations/
-// 0022_id_first_entities.sql'deki kapsam daraltma notu) — projects.photo_credit_text serbest metin
-// alanı zaten en çok kullanılan isim/firmaları taşıyor, en sık kullanılandan aza doğru sıralanır.
+// autocomplete'i.
+//
+// KAYNAK ARTIK TEK: `architects` (yani siteye KİŞİ olarak yüklenmiş profiller) — kullanıcı isteği
+// (2026-09-01: "Kaynak / Fotoğrafçı kutucuğunun altında sadece siteye kişi olarak yüklenen isimler
+// öneri olarak çıksın"). Önceden buraya projects.photo_credit_text'ten türetilen SERBEST METİN de
+// karışıyordu ve o metin çoğu satırda tek bir kişi değil, künyenin tamamıydı: "Cem Sorguç, Cemal
+// Emden", "Four Seasons Hotel, Cemal Emden" gibi öneriler çıkıyordu (bkz. kullanıcı ekran görüntüsü)
+// — seçildiğinde hiçbir profile bağlanmayan, üstelik künyeyi bozan değerler.
+//
+// Fotoğrafçı profilleri architects tablosunda, profession alanında "Fotoğrafçı" etiketiyle yaşar
+// (bkz. migrations/0080_project_photographers.sql başlığı — kişi başına TEK profil, çoklu meslek),
+// bu yüzden önce onlar sıralanır; kalan kişiler de önerilir çünkü künyedeki isim her zaman
+// "Fotoğrafçı" olarak etiketlenmiş olmayabilir. Öneriden bir isim seçmek, kaydedildiğinde
+// project_photographers kenarını da kurar (bkz. src/lib/canonicalSync.js#syncProject) ve o kişinin
+// popup'ında "Fotoğrafladığı Projeler" bölümünü doldurur.
 export async function handlePhotographerSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
     // D1 audit (2026-08-25) P1-6 — bkz. product.js#handleProductSearchRoute'taki AYNI gerekçe.
-    // Boş q (odaklanınca en çok kullanılanları göster — bkz. yukarıdaki dosya başı yorumu) BİLEREK
-    // muaf: yalnızca 1 karakterlik gürültülü kısmi aramalar D1'e hiç gitmez.
+    // Boş q (odaklanınca ilk fotoğrafçıları göster) BİLEREK muaf: yalnızca 1 karakterlik gürültülü
+    // kısmi aramalar D1'e hiç gitmez.
     if (q && q.length < 2) return { items: [] };
-    // production audit (2026-09-01, madde B): filtre GROUP BY'DAN ÖNCE, SQL içinde uygulanıyor
-    // (indexli photo_credit_fold, bkz. migrations/0079). Fotoğrafçı için ayrı bir tablo olmadığından
-    // (bkz. yukarıdaki dosya başı yorumu) agregasyonun kendisi kaçınılmaz kalır, ama artık yalnızca
-    // eşleşen satırlar gruplanır ve Worker'a tüm fotoğrafçı listesi yerine en fazla 8 satır taşınır.
-    const cond = q ? ` AND photo_credit_fold LIKE ? ESCAPE '\\'` : '';
+    // name_fold: foldTr()'nin SQL karşılığı olan indexli generated column (bkz. migrations/0079) —
+    // filtre Worker'a hiç satır taşımadan SQLite içinde uygulanır.
+    const cond = q ? ` AND name_fold LIKE ? ESCAPE '\\'` : '';
     const params = q ? [`%${escapeLike(q)}%`] : [];
-    // kullanıcı isteği (2026-09-01 madde 6): "fotoğrafçılar kutucuğu da mimar kutucuğuyla aynı
-    // mantıkta çalışsın" — Mimar kutusunun önerileri GERÇEK profillerden gelir (/api/architects/
-    // search), buradakiler ise yalnızca serbest metinden türetiliyordu. Artık iki kaynak
-    // BİRLEŞTİRİLİR ve profilli olanlar ÖNCE gelir: fotoğrafçı profilleri architects tablosunda,
-    // profession alanında "Fotoğrafçı" etiketiyle yaşar (bkz. migrations/
-    // 0080_project_photographers.sql başlığı — kişi başına TEK profil, çoklu meslek). Öneriden
-    // profilli bir isim seçmek, kaydedildiğinde project_photographers kenarını da kurar (bkz.
-    // src/lib/canonicalSync.js#syncProject) ve o kişinin popup'ında "Fotoğrafladığı Projeler"
-    // bölümünü doldurur.
-    const [freeText, profiles] = await Promise.all([
-      env.DB.prepare(
-        `SELECT photo_credit_text AS name, COUNT(*) AS c FROM projects
-         WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text != ''${cond}
-         GROUP BY photo_credit_text ORDER BY c DESC LIMIT 8`
-      ).bind(...params).all(),
-      env.DB.prepare(
-        `SELECT name, profession FROM architects
-         WHERE deleted_at IS NULL AND hidden_at IS NULL AND profession LIKE '%Fotoğrafçı%'
-         ORDER BY name COLLATE NOCASE LIMIT 200`
-      ).all(),
-    ]);
-    // Profil adları foldTr ile Worker'da süzülür — architects.profession'da bir fold sütunu yok ve
-    // fotoğrafçı profillerinin sayısı (yüzler mertebesi) bunu ucuz kılıyor (bkz. office.js#
-    // handleOfficeSearchRoute'taki AYNI desen).
-    const profileItems = (profiles.results || [])
-      .filter(r => !q || foldTr(r.name).includes(q))
-      .slice(0, 8)
-      .map(r => ({ label: r.name, sub: 'Fotoğrafçı' }));
-    const seen = new Set(profileItems.map(i => foldTr(i.label)));
-    const items = [
-      ...profileItems,
-      ...(freeText.results || []).filter(r => !seen.has(foldTr(r.name))).map(r => ({ label: r.name })),
-    ].slice(0, 8);
+    const { results } = await env.DB.prepare(
+      `SELECT name, profession FROM architects
+       WHERE deleted_at IS NULL AND hidden_at IS NULL${cond}
+       ORDER BY (profession LIKE '%Fotoğrafçı%') DESC, name COLLATE NOCASE
+       LIMIT 8`
+    ).bind(...params).all();
+    // sub: kişinin ilk mesleği (architects.profession virgüllü ham Türkçe etiket listesidir, bkz.
+    // migrations/0080 başlığı) — listede kimin fotoğrafçı olduğu tek bakışta görünür.
+    const items = (results || []).map(r => ({
+      label: r.name,
+      sub: String(r.profession || '').split(',')[0].trim() || 'Kişi',
+    }));
     return { items };
   });
 }

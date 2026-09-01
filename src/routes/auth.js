@@ -13,9 +13,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
 // 'fotografci' — kullanıcı isteği (2026-09-01 madde 6): fotoğrafçılar da site içinde profili olan
 // kişilerdir (bkz. migrations/0080_project_photographers.sql başlığındaki gerekçe), bu yüzden meslek
-// listesine eklendi. uye-ol.html / js/components/auth-modal.js#PROFESSION_LABELS / kisi-ekle.html#
-// MESLEK_OPTIONS aynı listenin bilinçli kopyalarıdır — biri değişirse dördü birlikte güncellenmeli.
-export const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'fotografci', 'ogrenci', 'diger']);
+// listesine eklendi. 'muhendis' — kullanıcı isteği (2026-09-01, "tüm meslek sorulan yerlere Mühendis
+// seçeneğini de ekle; Tasarımcı seçeneğinden sonra gelsin").
+// BU LİSTENİN BİLİNÇLİ KOPYALARI (biri değişirse HEPSİ birlikte güncellenmeli):
+//   uye-ol.html                              — üye ol formundaki onay kutuları
+//   js/components/auth-modal.js#PROFESSION_LABELS — Hesabım > Profili Düzenle
+//   kisi-ekle.html#MESLEK_OPTIONS / #PROFESSION_LABELS
+//   kisi.html#PROFESSION_ORDER               — /kisi "Meslek" filtresinin sırası
+//   admin.html#UD_PROFESSION_LABELS          — admin kullanıcı detayı
+export const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'muhendis', 'fotografci', 'ogrenci', 'diger']);
 // users.profession artık BİRDEN ÇOK meslek taşıyabilir (kullanıcı isteği, 2026-09-01 madde 6: "bir
 // kullanıcı siteye üye olurken ya da profilini düzenlerken artık birden fazla meslek seçebilsin") —
 // biçim: virgülle ayrılmış slug listesi ("mimar,fotografci"). Ayrı bir user_professions tablosu

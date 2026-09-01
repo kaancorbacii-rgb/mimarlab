@@ -310,6 +310,9 @@
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
+<!-- Üniversite öneri listesi (bkz. universities-data.js) — defer YOK: aşağıdaki inline script
+     TR_UNIVERSITIES'i doğrudan okur, ondan ÖNCE çalışmış olmalı. -->
+<script src="universities-data.js"></script>
 
   <div id="site-header-mount" data-nav-active="kisi"></div>
   <script src="js/components/site-chrome.js"></script>
@@ -324,7 +327,7 @@
 
   <div class="page-head">
     <div class="eyebrow">Kişi Ekle</div>
-    <h1>Kendini ya da bir mimarı MİMARLAB'a ekle</h1>
+    <h1>Kendini ya da bir profesyoneli MİMARLAB'a ekle</h1>
     <p>Bilgileri paylaş, ekibimiz inceledikten sonra dizine eklensin.</p>
   </div>
 
@@ -386,14 +389,14 @@
 
       <div class="form-section">
         <h2>Sosyal Medya <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Instagram, LinkedIn gibi profillerini ekle — profil sayfanda tıklanabilir birer ikon olarak gösterilir.</p>
+        <p class="section-hint">Instagram, LinkedIn gibi hesaplarını ekle, profil sayfanda tıklanabilir birer ikon olarak gözüksün.</p>
         <div id="social-rows"></div>
         <button type="button" class="social-add-btn" id="social-add-btn">+ Sosyal Medya Ekle</button>
       </div>
 
       <div class="form-section">
-        <h2>Firmalar</h2>
-        <p class="section-hint">Bağlı olduğun firma(lar) — MİMARLAB dizinindeki bir firma adıyla birebir eşleşirse profil sayfasına otomatik bağlanır. Birden fazla firman varsa aralarına virgül koyarak yaz.</p>
+        <h2>Firmalar / Markalar</h2>
+        <p class="section-hint">Bağlı olduğun firma veya markaları profiline ekleyebilirsin. Birden fazla firma veya markadan sorumluysan aralarına virgül koyarak yaz.</p>
         <div class="form-row">
           <div class="form-field">
             <label for="dd-pozisyon-btn">Pozisyon</label>
@@ -406,7 +409,7 @@
             </div>
           </div>
           <div class="form-field ac-field" id="ac-marka-field">
-            <label for="m-office">Varsa Firma Adı/Adları <span class="opt">(opsiyonel)</span></label>
+            <label for="m-office">Firma / Marka Adı <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="m-office" name="office" placeholder="ör. EAA — Emre Arolat Architecture, B Tasarım Studio" autocomplete="off">
             <div class="ac-suggestions" id="ac-marka-suggestions"></div>
           </div>
@@ -599,14 +602,14 @@ function wireMultiDropdown(fieldId, btnId, labelId, optionsId, options, name, pl
 // 'Fotoğrafçı' — kullanıcı isteği (2026-09-01 madde 6). Bu liste src/routes/auth.js#PROFESSIONS,
 // uye-ol.html ve js/components/auth-modal.js#PROFESSION_LABELS ile BİLİNÇLİ kopyadır; dördü birlikte
 // güncellenmeli.
-const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Fotoğrafçı','Öğrenci','Diğer'];
+const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Mühendis','Fotoğrafçı','Öğrenci','Diğer'];
 const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Ekip Üyesi','Akademisyen','Serbest Çalışan','Öğrenci','Emekli','İşsiz'];
 // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
 // geliyor (proje-ekle.html/js/components/auth-modal.js ile ortak, bkz. o dosyanın başındaki yorum).
 // users.profession kodlu bir slug'dır (ör. "mimar"), MESLEK_OPTIONS/architects.profession ise ham
 // Türkçe etiket ("Mimar") — bkz. js/components/auth-modal.js#PROFESSION_LABELS ile AYNI eşleme,
 // aşağıdaki maybeAutoFillFromAccount'ta ters yönde kullanılır.
-const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', fotografci:'Fotoğrafçı', ogrenci:'Öğrenci', diger:'Diğer' };
+const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', muhendis:'Mühendis', fotografci:'Fotoğrafçı', ogrenci:'Öğrenci', diger:'Diğer' };
 // architects.profession artık BİRDEN ÇOK meslek taşıyabilir (kullanıcı isteği, 2026-09-01 madde 6:
 // "Mimar profili oluşturulurken ya da düzenlenirken de birden fazla meslek seçilebilsin") — ham
 // Türkçe etiketler virgülle ayrılır ("Mimar, Fotoğrafçı"). Tek meslekli eski satırlar bu biçimin
@@ -688,7 +691,14 @@ function wireAutocomplete(inputId, suggestionsId, getItems){
   function renderSuggestions(){
     const q = trLower(input.value.trim());
     if(!q){ close(); return; }
-    const items = getItems().filter(it => trLower(it.label).includes(q)).slice(0, 8);
+    // Baştan eşleşenler ÖNCE (kullanıcı isteği: "ilk harfleri yazmaya başladığında ilgili olanlar
+    // çıksın") — liste artık ~200 üniversite taşıdığından, saf "içinde geçiyor mu" sıralaması
+    // "Yıldız" yazan birine önce "Ankara Yıldırım Beyazıt"ı gösterebiliyordu. İçinde geçenler
+    // atılmaz, yalnızca arkaya alınır.
+    const all = getItems();
+    const starts = all.filter(it => trLower(it.label).startsWith(q));
+    const contains = all.filter(it => !trLower(it.label).startsWith(q) && trLower(it.label).includes(q));
+    const items = starts.concat(contains).slice(0, 8);
     if(!items.length){ close(); return; }
     box.innerHTML = items.map((it,i) => `<div class="ac-suggestion" data-index="${i}">${escapeAttr(it.label)}${it.sub ? `<small>${escapeAttr(it.sub)}</small>` : ''}</div>`).join('');
     box.classList.add('show');
@@ -756,13 +766,22 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
 }
 wireAutocompleteLive('m-office', 'ac-marka-suggestions', '/api/offices/search');
 
-// ---------- OTOMATİK TAMAMLAMA: Üniversite (sitede kayıtlı mimarların okuduğu okullar) ----------
-// Liste artık data.js'in statik architects[] dizisi yerine canonical D1'den tek seferlik çekilir
-// (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3, src/routes/architect.js#
-// handleArchitectSchoolsRoute, uye-ol.html'deki AYNI değişiklik) — wireAutocomplete zaten getItems()'i
-// her tuş vuruşunda YENİDEN çağırdığından, fetch tamamlandığında liste otomatik güncel olur.
-let UNIVERSITY_SUGGESTIONS = [];
-fetch('/api/architects/schools').then(r => r.ok ? r.json() : {items:[]}).then(d => { UNIVERSITY_SUGGESTIONS = (d.items || []).map(s => ({label: s})); }).catch(()=>{});
+// ---------- OTOMATİK TAMAMLAMA: Üniversite ----------
+// İKİ KAYNAK BİRLEŞTİRİLİR (kullanıcı isteği, 2026-09-01: "Türkiye'deki TÜM üniversiteler öneri
+// olarak çıksın"):
+//   TR_UNIVERSITIES (universities-data.js) — YÖK listesi; sitede henüz kimsenin girmediği bir
+//                                            üniversite de ilk harften itibaren önerilir.
+//   /api/architects/schools                — sitede kayıtlı kişilerin GERÇEKTEN girdiği okullar;
+//                                            yurt dışı üniversiteleri ve listede olmayan kurumlar
+//                                            bu sayede kaybolmaz.
+// Eskiden YALNIZCA ikinci kaynak vardı, yani bir üniversite ancak zaten birileri oraya yazdıysa
+// önerilebiliyordu. wireAutocomplete getItems()'i her tuş vuruşunda YENİDEN çağırdığından, fetch
+// geç tamamlansa bile liste kendiliğinden güncellenir.
+let UNIVERSITY_SUGGESTIONS = (typeof TR_UNIVERSITIES !== 'undefined' ? TR_UNIVERSITIES : []).map(s => ({label: s}));
+fetch('/api/architects/schools').then(r => r.ok ? r.json() : {items:[]}).then(d => {
+  const seen = new Set(UNIVERSITY_SUGGESTIONS.map(it => trLower(it.label)));
+  (d.items || []).forEach(s => { const key = trLower(String(s).trim()); if(s && !seen.has(key)){ seen.add(key); UNIVERSITY_SUGGESTIONS.push({label: s}); } });
+}).catch(()=>{});
 wireAutocomplete('m-school', 'ac-school-suggestions', () => UNIVERSITY_SUGGESTIONS);
 
 function renderPreviews(){
