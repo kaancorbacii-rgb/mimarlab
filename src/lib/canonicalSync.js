@@ -602,7 +602,14 @@ async function syncOffice(env, row) {
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.logo_url) { sets.push('logo_url = ?'); vals.push(row.logo_url); }
       if (row.cover_url) { sets.push('cover_url = ?'); vals.push(row.cover_url); }
-      if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
+      // `row.social_links.length` KOŞULU KALDIRILDI (kullanıcı isteği, 2026-09-01: "sosyal medya
+      // silme sorununu da çöz"): boş dizi de yazılır, çünkü artık BOŞ DİZİ ile ALAN HİÇ YOK
+      // birbirinden ayrılıyor (bkz. submissionTypes.js#nullableArrayFields — gövdede olmayan alan
+      // NULL olarak saklanır ve buraya `null` gelir, dolayısıyla bu koşul onu zaten atlar).
+      // Eskiden ikisi de '[]' idi; boş diziyi atlamak "hiç göndermeyen çağıranı koru" demekti ama
+      // aynı zamanda kullanıcının TÜM satırları silip kaydetmesini de sessizce yok sayıyordu —
+      // bağlantılar profilde kalmaya devam ediyor, silmenin hiçbir yolu olmuyordu.
+      if (row.social_links) { sets.push('social_links = ?'); vals.push(socialLinks); }
       // GERÇEK BULGU: 'awards' bu dalda hiç yoktu — firma-ekle.html'de bir Ödül alanı olmadığından
       // (bkz. kullanıcı isteği: proje-ekle.html'e Ödül eklenirken firma-ekle.html'e de eklendi) bugüne
       // kadar tetiklenmemiş, ama offices.awards kolonu/config zaten vardı (bkz. schema.sql, migrations/
@@ -713,7 +720,14 @@ async function syncArchitect(env, row) {
       if (row.photo_url) { sets.push('photo_url = ?'); vals.push(row.photo_url); }
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.position) { sets.push('position = ?'); vals.push(row.position); }
-      if (row.social_links && row.social_links.length) { sets.push('social_links = ?'); vals.push(socialLinks); }
+      // `row.social_links.length` KOŞULU KALDIRILDI (kullanıcı isteği, 2026-09-01: "sosyal medya
+      // silme sorununu da çöz"): boş dizi de yazılır, çünkü artık BOŞ DİZİ ile ALAN HİÇ YOK
+      // birbirinden ayrılıyor (bkz. submissionTypes.js#nullableArrayFields — gövdede olmayan alan
+      // NULL olarak saklanır ve buraya `null` gelir, dolayısıyla bu koşul onu zaten atlar).
+      // Eskiden ikisi de '[]' idi; boş diziyi atlamak "hiç göndermeyen çağıranı koru" demekti ama
+      // aynı zamanda kullanıcının TÜM satırları silip kaydetmesini de sessizce yok sayıyordu —
+      // bağlantılar profilde kalmaya devam ediyor, silmenin hiçbir yolu olmuyordu.
+      if (row.social_links) { sets.push('social_links = ?'); vals.push(socialLinks); }
       sets.push('office_id = ?'); vals.push(officeId);
       // bkz. syncOffice'teki AYNI gerçek bulgu/gerekçe — bu UPDATE dalı claimed_by_user_id'yi hiç
       // yazmıyordu, onaylı bir claim UPDATE dalına düştüğünde (statik kayıt zaten var olduğundan

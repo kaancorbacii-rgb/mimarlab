@@ -1098,9 +1098,6 @@ const ProductModal = (function () {
     await ModalShell.waitForPendingNav();
     currentSlug = slug;
     openedViaPush = pushHistory;
-    // "Düzenle → Kaydet → popup'ı kapat" dönüşü için popup'ın ALTINDAKİ sayfayı kaydeder
-    // (bkz. ModalShell.rememberOriginPage / returnToPreviousPage, kullanıcı isteği 2026-09-01 madde 4).
-    if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.

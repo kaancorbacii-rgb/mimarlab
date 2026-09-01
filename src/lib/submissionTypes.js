@@ -32,6 +32,9 @@ export const SUBMISSION_TYPES = {
     // desende serbest isim listesi (bkz. migrations/0048_office_team.sql) — kurucu olmayıp firmada
     // çalışabilecek kişiler, opsiyonel.
     arrayFields: ['awards', 'founders', 'team', 'social_links'],
+    // nullableArrayFields — bkz. aşağıdaki normalizeSubmission/parseSubmissionRow yorumu: bu
+    // alanlar için "gövdede HİÇ yok" (NULL) ile "gönderildi ama boş" ([]) AYIRT EDİLİR.
+    nullableArrayFields: ['social_links'],
     // cats: firma-ekle.html'de en az bir hizmet alanı işaretlenmeden gönderilemez (bkz. kullanıcı
     // isteği) — client tarafı doğrulamanın sunucu tarafı karşılığı, ' · ' ile ayrılmış boş olmayan
     // bir dize beklenir (validateRequired zaten boş/whitespace dizeyi reddeder).
@@ -101,6 +104,7 @@ export const SUBMISSION_TYPES = {
       'directory_listed',
     ],
     arrayFields: ['awards', 'social_links'],
+    nullableArrayFields: ['social_links'], // bkz. offices'teki AYNI not
     required: ['name'],
     urlFields: ['photo_url'],
   },
@@ -419,8 +423,23 @@ export function normalizeSubmission(type, body) {
       // konsept'ten inşa edilmişe çevrilirse eski kategori sessizce takılı kalmasın.
       value = (body.build_status === 'concept' && CONCEPT_CATEGORIES.has(value)) ? value : null;
     } else if (config.arrayFields.includes(field)) {
-      if (!Array.isArray(value)) value = value ? [value] : [];
-      value = JSON.stringify(value.filter(Boolean));
+      // KÖKTEN DÜZELTME (kullanıcı isteği, 2026-09-01: "sosyal medya silme sorununu da çöz"):
+      // dizi alanları bugüne kadar "gövdede HİÇ YOK" ile "gönderildi ama BOŞ" durumlarını AYNI
+      // '[]' değerine indiriyordu. canonicalSync'in sahiplenilmiş profil dalı boş diziyi
+      // "belirtilmedi" sayıp ATLADIĞINDAN (bkz. syncOffice/syncArchitect) bir kullanıcı sosyal
+      // medya satırlarının HEPSİNİ silip kaydettiğinde canonical satır hiç güncellenmiyordu —
+      // bağlantılar profilde kalmaya devam ediyordu, silmek imkânsızdı.
+      // nullableArrayFields'taki alanlarda bu iki durum artık ayrılır: alan gövdede yoksa NULL
+      // ("dokunma"), varsa (boş olsa bile) JSON dizi ("bunu yaz"). Diğer dizi alanlarının
+      // davranışı BİLEREK değişmedi — images/awards/founders gibi alanları gönderMEYEN çağıranlar
+      // (AI ile otomatik ekleme, admin kısa düzenleme formu) var ve onlar için '[]' güvenli
+      // varsayılan olmaya devam etmeli.
+      if ((config.nullableArrayFields || []).includes(field) && !(field in body)) {
+        value = null;
+      } else {
+        if (!Array.isArray(value)) value = value ? [value] : [];
+        value = JSON.stringify(value.filter(Boolean));
+      }
     } else if ((config.objectFields || []).includes(field)) {
       // Düz JSON nesnesi (bkz. projects.imageHotspots). Dizi/ilkel/eksik değerler sessizce boş
       // nesneye indirgenir — bu alanları hiç göndermeyen çağıranlar (AI ile otomatik ekleme,
@@ -461,6 +480,9 @@ export function parseSubmissionRow(type, row) {
     // "hiç Firma girilmemiş" ile "eski/birleşik kayıt" durumunu ayırt edebilsin (birincisinde
     // designer'ı olduğu gibi güvenip heuristiğe hiç düşmemeli).
     if (type === 'projects' && field === 'office' && row.office == null) { out.office = null; continue; }
+    // nullableArrayFields (bkz. normalizeSubmission): NULL "hiç gönderilmedi" demektir ve okurken
+    // de [] ile karıştırılmamalı — canonicalSync tam olarak bu ayrımla "dokunma"ya karar veriyor.
+    if ((config.nullableArrayFields || []).includes(field) && row[field] == null) { out[field] = null; continue; }
     try { out[field] = row[field] ? JSON.parse(row[field]) : []; }
     catch { out[field] = []; }
   }

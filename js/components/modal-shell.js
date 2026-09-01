@@ -744,48 +744,58 @@ const ModalShell = (function () {
   // Dışarıdan gelinmediyse (Google'dan doğrudan deep link, adres çubuğuna elle yazma, boş referrer)
   // false döner ve çağıran kendi liste sayfasına pushState eden eski davranışını sürdürür.
   // ---------------------------------------------------------------------------------------------
-  // "DÜZENLE → KAYDET → POPUP'I KAPAT" DÖNÜŞÜ (kullanıcı isteği, 2026-09-01 madde 4)
+  // "SON GERÇEK SAYFA" TAKİBİ — bir popup kapatıldığında nereye dönüleceğinin TEK kaynağı
+  // (kullanıcı isteği, 2026-09-01: "bir popup'ı kapattığımda tekrar eski popup'a dönmeyeyim,
+  // en son kaldığım SAYFA karşıma çıksın").
   //
-  // GERÇEK BULGU: /proje listesinde bir proje popup'ı açıp "Düzenle"ye basmak TAM SAYFA bir
-  // navigasyondur (→ /proje-ekle?claim=...). Kaydet'ten sonra o sayfa kullanıcıyı /proje/:slug'a
-  // götürür; orada popup açılır ama openedViaPush=false olduğundan kapanış returnToPreviousPage'e
-  // düşer ve document.referrer artık DÜZENLEME SAYFASIDIR — history.go(-1) kullanıcıyı yeni
-  // kaydettiği formun başına geri atıyordu ("halbuki proje sayfasında olmam gerekiyor").
+  // GERÇEK BULGU: popup'lar arasında geçiş HER ZAMAN aynı belgede olmuyor. proje.html
+  // architect-modal.js/office-modal.js'i, urun.html de architect-modal.js'i YÜKLEMEZ (bkz.
+  // js/components/lazy-modals.js dosya başı yorumu — bilinçli bir yükleme bütçesi kararı), bu
+  // yüzden proje popup'ındaki bir mimar adına ya da ürün popup'ındaki bir tasarımcı adına tıklamak
+  // GERÇEK bir tam sayfa navigasyonudur. Yeni belgede openedViaPush=false olur, pushState zinciri
+  // sıfırlanır (history.state null'dır) ve kapanış document.referrer'a bir adım geri gidiyordu —
+  // referrer de bir POPUP URL'i (/proje/:slug) olduğundan kullanıcı kapattığı popup'ın yerine bir
+  // öncekini görüyordu. Zincir uzadıkça (ürün → tasarımcı → marka) her kapatma bir öncekini
+  // açıyordu.
   //
-  // Çözüm: popup kendi pushState'iyle açılırken ALTINDAKİ sayfanın URL'i sessionStorage'a yazılır
-  // (rememberOriginPage) — o an location.href tam olarak "popup'ı hangi sayfadan açtım" demektir.
-  // Kaydet dönüşünde referrer bir *-ekle sayfasıysa history yerine BU adres kullanılır.
-  // sessionStorage seçilmesinin nedeni: değer aradaki tam sayfa navigasyonundan (form sayfası)
-  // sağ çıkmalı, ama sekme kapanınca yaşamamalı ve başka sekmelere sızmamalı.
-  const ORIGIN_PAGE_KEY = 'mimarlab:popupOriginPage';
+  // Çözüm history adımı SAYMAK değil (adım sayısı belgeler arasında güvenilir biçimde bilinemez),
+  // "zincirin başladığı gerçek sayfa"yı hatırlamak: her BELGE YÜKLENİŞİNDE, URL bir varlık popup'ı
+  // (/proje|kisi|firma|urun/:slug) ya da bir düzenleme formu (*-ekle) DEĞİLSE o URL sessionStorage'a
+  // yazılır. Popup URL'leriyle yapılan yüklemeler bu değeri EZMEZ — zincir ne kadar uzarsa uzasın
+  // kayıt hep zincirin başındaki sayfada kalır. Hesabım/Koleksiyonum gibi auth-modal görünümleri
+  // kullanıcı için birer "sayfa" olduğundan onlar da kendi pushState'lerinden sonra bunu çağırır
+  // (bkz. auth-modal.js#markRealPage).
+  //
+  // sessionStorage seçilmesinin nedeni: değer aradaki tam sayfa navigasyonlarından sağ çıkmalı,
+  // ama sekme kapanınca yaşamamalı ve başka sekmelere sızmamalı. (Aynı mekanizma "Düzenle →
+  // Kaydet → popup'ı kapat" dönüşünü de karşılar: *-ekle sayfaları hiç kaydedilmediğinden,
+  // kaydetten sonra açılan popup kapatılınca forma değil zincirin başındaki sayfaya dönülür.)
+  const REAL_PAGE_KEY = 'mimarlab:lastRealPage';
   const EDIT_PAGE_RE = /^\/(proje|urun|kisi|firma|marka|mimar|haber)-ekle(\.html)?$/;
-  function isEditPageUrl(href) {
-    try { const u = new URL(href, location.href); return u.origin === location.origin && EDIT_PAGE_RE.test(u.pathname); } catch { return false; }
+  // Varlık popup'ı URL'leri — src/index.js#CLEAN_URL_ASSETS ile AYNI dört önek (+ /mimar, artık
+  // yalnızca /kisi'ye 301'lenen eski aile). Bir slug segmenti ŞART: /proje listedir, /proje/x popup.
+  const ENTITY_POPUP_RE = /^\/(proje|kisi|firma|urun|mimar)\/[^/]+/;
+  function sameOriginUrl(href) {
+    try { const u = new URL(href, location.href); return u.origin === location.origin ? u : null; } catch { return null; }
   }
-  // pushedHistory=true (popup gerçek bir tıklamayla açıldı) → altındaki sayfa location.href'tir.
-  // pushedHistory=false (tam sayfa navigasyonuyla/deep link ile açıldı) → geldiği sayfa referrer'dır.
-  // İKİ durumda da bir *-ekle sayfası ASLA "geldiğim sayfa" olarak kaydedilmez: Kaydet dönüşünde
-  // popup tam olarak oradan gelir ve gerçek başlangıç noktasının üzerine yazılmamalıdır.
-  function rememberOriginPage(pushedHistory) {
-    try {
-      // Zaten bir popup'ın ÜSTÜNE açılıyorsak location.href bir popup URL'idir, "geldiğim sayfa"
-      // değil — o durumda önceki (gerçek sayfa) kaydı korunur.
-      if (pushedHistory && popupHistoryDepth() > 0) return;
-      const href = pushedHistory ? location.href : document.referrer;
-      if (!href) return;
-      if (new URL(href, location.href).origin !== location.origin) return;
-      if (isEditPageUrl(href)) return;
-      sessionStorage.setItem(ORIGIN_PAGE_KEY, new URL(href, location.href).href);
-    } catch { /* sessionStorage kapalı (özel mod/kota) — dönüş mevcut history davranışına düşer */ }
+  function isEditPageUrl(href) { const u = sameOriginUrl(href); return !!u && EDIT_PAGE_RE.test(u.pathname); }
+  function isEntityPopupUrl(href) { const u = sameOriginUrl(href); return !!u && ENTITY_POPUP_RE.test(u.pathname); }
+
+  // Dışarıdan da çağrılabilir (auth-modal.js): "burası artık gerçek bir sayfa sayılsın".
+  function markRealPage(href) {
+    const u = sameOriginUrl(href || location.href);
+    if (!u || isEntityPopupUrl(u.href) || isEditPageUrl(u.href)) return;
+    try { sessionStorage.setItem(REAL_PAGE_KEY, u.href); } catch { /* özel mod/kota — dönüş history davranışına düşer */ }
   }
-  function takeOriginPage() {
+  function readRealPage() {
     try {
-      const href = sessionStorage.getItem(ORIGIN_PAGE_KEY);
-      sessionStorage.removeItem(ORIGIN_PAGE_KEY); // tek kullanımlık — bayat bir değer ikinci kez tüketilmesin
-      if (!href || new URL(href).origin !== location.origin) return null;
-      return href;
+      const href = sessionStorage.getItem(REAL_PAGE_KEY);
+      return href && sameOriginUrl(href) ? href : null;
     } catch { return null; }
   }
+  // Belge yüklenirken bir kez. TÜKETİLMEZ (silinmez): her gerçek sayfa yüklenişinde tazelendiğinden
+  // bayatlayamaz, popup yüklenişlerinde ise korunması tam olarak istenen davranıştır.
+  markRealPage(location.href);
 
   // TÜR-BAĞIMSIZ popup zinciri derinliği (kullanıcı isteği, 2026-09-01 madde 4: "bir popup'tan
   // diğer popup'a geçtiğimizde, sonrakini kapatınca bir önceki popup değil EN SON KALDIĞIMIZ SAYFA
@@ -806,19 +816,21 @@ const ModalShell = (function () {
     return (st && st.mimarlabModal && typeof st.depth === 'number') ? st.depth : 0;
   }
 
+  // extraDepth: popup açıldıktan SONRA aynı belgede yapılan swap()'ların sayısı.
   function returnToPreviousPage(extraDepth) {
-    let ref = null;
-    try { ref = document.referrer ? new URL(document.referrer) : null; } catch {}
-    if (!ref || ref.origin !== location.origin) return false;
-    // Bir düzenleme formundan gelindiyse (Kaydet sonrası yönlendirme) history KULLANILMAZ —
-    // bir adım geri gitmek formun kendisine döner. Bunun yerine popup'ın ilk açıldığı sayfaya.
-    if (EDIT_PAGE_RE.test(ref.pathname)) {
-      const origin = takeOriginPage();
-      if (origin) { location.replace(origin); return true; }
-      return false; // hiç kayıt yok → çağıran kendi liste sayfasına pushState eder
+    const ref = document.referrer ? sameOriginUrl(document.referrer) : null;
+    // Geldiğim yer ZATEN gerçek bir sayfaysa history ile dönmek en iyisi: bfcache sayesinde
+    // scroll/filtre durumu korunur, yeni bir istek atılmaz.
+    if (ref && !isEntityPopupUrl(ref.href) && !isEditPageUrl(ref.href)) {
+      history.go(-(1 + (extraDepth || 0)));
+      return true;
     }
-    history.go(-(1 + (extraDepth || 0)));
-    return true;
+    // Referrer bir POPUP (zincirin ortasındayız) ya da bir DÜZENLEME FORMU: bir adım geri gitmek
+    // kullanıcıyı kapattığı popup'ın bir öncekine / az önce kaydettiği forma atardı. Bunun yerine
+    // doğrudan zincirin başladığı gerçek sayfaya gidilir (bkz. yukarıdaki REAL_PAGE_KEY yorumu).
+    const real = readRealPage();
+    if (real && real !== location.href) { location.replace(real); return true; }
+    return false; // hiç kayıt yok (yeni sekme/doğrudan deep link) → çağıran liste sayfasına düşer
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -895,5 +907,5 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, rememberOriginPage, popupHistoryDepth, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, markRealPage, popupHistoryDepth, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();

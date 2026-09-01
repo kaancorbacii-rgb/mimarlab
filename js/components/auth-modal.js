@@ -3511,14 +3511,17 @@ const AuthModal = (function () {
   function open(view, { pushHistory = true, triggerEl = null } = {}) {
     currentView = view;
     openedViaPush = pushHistory;
-    // bkz. ModalShell.rememberOriginPage — "Düzenle → Kaydet → popup'ı kapat" dönüşünün
-    // başlangıç noktası (kullanıcı isteği, 2026-09-01 madde 4).
-    if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
     pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.
     if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
+    // Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim kullanıcı için birer SAYFADIR (bkz. kullanıcı
+    // isteği: "koleksiyonum sayfasındayken bir proje popup'ına girip ... kapattığımda koleksiyonum
+    // sayfası karşıma çıksın") — bu yüzden buradan açılan varlık popup'ları kapatılınca dönülecek
+    // "son gerçek sayfa" olarak işaretlenirler. pushState'ten SONRA çağrılır: location.href artık
+    // görünümün kendi URL'idir (bkz. ModalShell.markRealPage).
+    if (ModalShell.markRealPage) ModalShell.markRealPage(); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
     if (isMobileDrawer(view)) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
     else ModalShell.open({ triggerEl, onRequestClose: close });
     renderView(view);
@@ -3543,6 +3546,7 @@ const AuthModal = (function () {
     const currentDepth = ModalShell.popupHistoryDepth() || pushCountSinceOpen; // tür-bağımsız, bkz. o fonksiyonun yorumu
     pushCountSinceOpen = currentDepth + 1;
     history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
+    if (ModalShell.markRealPage) ModalShell.markRealPage(); // bkz. open()'daki AYNI gerekçe
     // Tüm AuthModal görünümleri her iki host'ta da (mobil/masaüstü) açılabildiğinden host normalde
     // swap sırasında DEĞİŞMEZ — yalnızca resize sırasında (bkz. aşağıdaki resize dinleyicisi) farklı
     // olabilir; bu satır o nadir yarış durumuna karşı bir güvenlik ağı.

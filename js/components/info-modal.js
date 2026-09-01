@@ -1223,9 +1223,6 @@ const InfoModal = (function () {
   function open(view, { pushHistory = true, triggerEl = null } = {}) {
     currentView = view;
     openedViaPush = pushHistory;
-    // bkz. ModalShell.rememberOriginPage — "Düzenle → Kaydet → popup'ı kapat" dönüşünün
-    // başlangıç noktası (kullanıcı isteği, 2026-09-01 madde 4).
-    if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
     pushCountSinceOpen = pushHistory ? ModalShell.popupHistoryDepth() + 1 : 0;
     // depth artık TÜR-BAĞIMSIZ sayılır (bkz. ModalShell.popupHistoryDepth) — bu popup başka bir
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
