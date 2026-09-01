@@ -91,6 +91,8 @@ function putOnce(f) {
   });
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function uploadAll(files) {
   let done = 0; const fails = [];
   let cursor = 0;
@@ -98,7 +100,15 @@ async function uploadAll(files) {
     while (cursor < files.length) {
       const f = files[cursor++];
       let ok = false;
-      for (let a = 0; a < 3 && !ok; a++) ok = await putOnce(f);
+      // ÜSTEL GERİ ÇEKİLME ŞART: denemeler arasında bekleme olmadığında üç deneme de AYNI
+      // kesinti penceresine düşüyor. 2026-09-01 / 4. partisinde 453 nesnenin 8'i (selimiye
+      // 9-16, ARDIŞIK) böyle başarısız oldu — dosya boyutuyla ilgisi yoktu, 1,4 MB'lik kare
+      // geçerken 216 KB'lik kare düştü. Yükleme eksik kalınca D1 satırları hiç yazılmıyor
+      // (aşağıdaki guard), yani tüm parti tek geçici 5xx yüzünden baştan alınıyordu.
+      for (let a = 0; a < 4 && !ok; a++) {
+        if (a) await sleep(1500 * 2 ** (a - 1) + Math.floor(Math.random() * 500));
+        ok = await putOnce(f);
+      }
       if (!ok) fails.push(f.key);
       if (++done % 50 === 0) console.log(`  R2 ${done}/${files.length}`);
     }
