@@ -724,6 +724,13 @@ async function syncArchitect(env, row) {
       sets.push('name = ?', 'dob = ?', 'school = ?', 'dept = ?', 'profession = ?', 'awards = ?', 'photo_url = ?', 'about = ?', 'position = ?', 'social_links = ?', 'office_id = ?');
       vals.push(row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, awards, row.photo_url || null, row.about || null, row.position || null, socialLinks, officeId);
     }
+    // "Kişi sayfasında ... görünmek istiyor musunuz?" — NULL, bu gönderinin soruyu HİÇ göndermediği
+    // anlamına gelir (bkz. migrations/0081 + submissionTypes.js#normalizeSubmission), o durumda
+    // canonical satırdaki mevcut tercih korunur. İKİ dala da (claimed ve bağımsız) uygulanır:
+    // tercih, sahiplenilmiş bir profilde de kişinin kendi kararıdır.
+    if (row.directory_listed !== undefined && row.directory_listed !== null) {
+      sets.push('directory_listed = ?'); vals.push(Number(row.directory_listed) === 0 ? 0 : 1);
+    }
     // bkz. syncOffice'teki AYNI koşulsuz hidden_at temizliği ve gerekçesi.
     sets.push('hidden_at = NULL');
     sets.push(`updated_at = datetime('now')`);
@@ -738,9 +745,9 @@ async function syncArchitect(env, row) {
   if (clash) slug = `${slug}-${row.id}`;
   const claimedByUserId = await resolveClaimedByUserId(env, row.owner_user_id);
   const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
-    `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, social_links, office_id, source, legacy_key, claimed_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, officeId, marker, claimedByUserId));
+    `INSERT INTO architects (slug, name, dob, school, dept, profession, position, awards, about, photo_url, social_links, office_id, directory_listed, source, legacy_key, claimed_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
+  ).bind(finalSlug, row.name, row.dob || null, row.school || null, row.dept || null, row.profession || null, row.position || null, awards, row.about || null, row.photo_url || null, socialLinks, officeId, Number(row.directory_listed) === 0 ? 0 : 1, marker, claimedByUserId));
   const architectId = insert.meta.last_row_id;
   await syncOfficeFounderLink(env, architectId, officeIds);
   // bkz. syncOffice'teki AYNI "claimedKey'li ama hedef bulunamadı" durumu ve gerekçesi.

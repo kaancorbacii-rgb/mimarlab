@@ -227,6 +227,42 @@
   .filter-select select:hover{border-color:var(--walnut);}
   .select-arrow{position:absolute; right:14px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
 
+  /* ---------- ÇOK SEÇMELİ FİLTRE AKORDEONU ----------
+     kullanıcı isteği (2026-09-01 madde 2): "Kişi sayfasındaki filtreleri de proje ve ürün
+     sayfalarındaki gibi çok seçmeli seçilebilecek şekilde düzenle". Sınıf adları proje.html'deki
+     AYNI blokla birebir aynı (.filter-group/.filter-opt/.filter-search-row) — orada da her sayfa
+     kendi kopyasını taşır (bkz. o dosyadaki .detail-title yorumundaki sayfa-başına-kopyalama
+     deseni). Tek fark: bu sayfanın .grid-sidebar'ı proje.html'in aksine 18px iç boşluklu, bu yüzden
+     gruplar kenardan kenara değil, kendi çerçeveli kutusunun içine oturuyor. */
+  #filter-groups{display:flex; flex-direction:column; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden;}
+  #filter-groups:empty{display:none;}
+  .filter-group{border-bottom:1px solid var(--line-soft);}
+  .filter-group:last-child{border-bottom:none;}
+  .filter-group-head{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:11px 12px; background:none; border:none; text-align:left;
+    font-size:13.5px; font-weight:600; color:var(--ink);
+  }
+  .filter-group-head:hover{background:var(--paper-alt);}
+  .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
+  .filter-group-body{display:none; padding:0 12px 12px; max-height:240px; overflow-y:auto;}
+  .filter-group.open .filter-group-body{display:block;}
+  .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
+  .filter-opt{
+    display:flex; align-items:center; gap:8px;
+    padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;
+  }
+  .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
+  .filter-opt:hover{color:var(--ink);}
+  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;}
+  .filter-search-row{
+    display:flex; align-items:center; gap:6px; margin:2px 0 8px;
+    padding:6px 10px; background:var(--paper); border:1px solid var(--line); border-radius:100px;
+    position:sticky; top:0; z-index:1;
+  }
+  .filter-search-row svg{flex-shrink:0; opacity:0.5;}
+  .filter-search-row input{border:none; background:none; outline:none; font-family:inherit; font-size:12px; width:100%; color:var(--ink);}
+
   /* ---------- GRID LAYOUT ---------- */
   .grid-layout{
     max-width:1260px; margin:0 auto;
@@ -238,6 +274,11 @@
     background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
     padding:18px; display:flex; flex-direction:column; gap:12px;
     position:sticky; top:90px;
+    /* Akordeon filtre grupları (bkz. #filter-groups) sidebar'ı viewport'tan uzun hâle
+       getirebiliyor — proje.html'in .grid-sidebar'ındaki AYNI çözüm: kutu kendi içinde kayar,
+       "Kişi Ekle" butonu hiçbir zaman erişilemez hâle gelmez. */
+    max-height:calc(100vh - 110px); overflow-y:auto; overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
   }
   .sidebar-filters-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:15px; font-weight:700;}
   .sidebar-search{display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
@@ -336,8 +377,11 @@
 
   @media (max-width:960px){
     .grid-layout{grid-template-columns:1fr;}
-    .grid-sidebar{position:static; flex-direction:row; flex-wrap:wrap;}
+    .grid-sidebar{position:static; flex-direction:row; flex-wrap:wrap; max-height:none; overflow:visible;}
     .grid-sidebar .filter-select{flex:1 1 160px;}
+    /* Sidebar mobilde satır düzenine (flex-direction:row) geçtiğinden akordeon kutusu tam
+       genişlikte kendi satırına alınır — aksi halde arama/sıralama kutularının yanında daralırdı. */
+    .grid-sidebar > .sidebar-search, .grid-sidebar > .grid-sidebar-head, #filter-groups, .sidebar-add-btn{flex:1 1 100%;}
     .card-grid{grid-template-columns:repeat(3, 1fr);}
   }
   @media (max-width:960px){
@@ -414,18 +458,10 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"/></svg>
         </button>
       </div>
-      <div class="filter-select">
-        <select id="g-dob"><option value="">Doğum Yılı Seç</option></select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <div class="filter-select">
-        <select id="g-award"><option value="">Ödül</option></select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <div class="filter-select">
-        <select id="g-position"><option value="">Pozisyon</option></select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
+      <!-- Meslek / Doğum Yılı / Ödül / Pozisyon akordeonları — tamamı sunucudan gelen sayaçlardan
+           üretilir (bkz. buildFilterGroups). Eski tekil <select>'lerin yerini aldılar (kullanıcı
+           isteği, 2026-09-01 madde 1-2). -->
+      <div id="filter-groups"></div>
       <a class="sidebar-add-btn" href="/kisi-ekle"><span class="sidebar-add-icon">+</span> Kişi Ekle</a>
     </aside>
 
@@ -470,50 +506,146 @@ ModalShell.setSsrDefaults({
 
 // Bilinen pozisyon kovaları için tercih edilen görüntüleme sırası — listede olmayan (gelecekte
 // kisi-ekle.html#POZISYON_OPTIONS'a eklenebilecek) bir değer sona, alfabetik eklenir (bkz. aşağıdaki
-// positionSel bloğu — artık HTML'de sabit <option> yok, TÜMÜ sunucudan gelen sayaçlardan üretilir).
+// sortByPreferredOrder — artık HTML'de sabit <option> yok, TÜMÜ sunucudan gelen sayaçlardan üretilir).
 const POSITION_ORDER = ['Kurucu', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
+// kisi-ekle.html#MESLEK_OPTIONS ile AYNI sıra (BİLİNÇLİ kopya — POSITION_ORDER'daki AYNI desen).
+// kullanıcı isteği (2026-09-01 madde 1): "kisi-ekle sayfasında çıkan mesleklerin hepsi burada filtre
+// olarak gözüksün. 0 kişi sayısında olan filtreler en az 1 kişi bu filtreye eklenene kadar
+// gözükmesin" — bu dizi yalnızca SIRALAMA içindir, hangi seçeneklerin çizileceğini sunucudan gelen
+// sayaçlar belirler (bkz. src/routes/architect.js#professionCounts), böylece sıfır kişili bir meslek
+// hiç görünmez, ilk kişisini aldığı anda kendiliğinden belirir.
+const PROFESSION_ORDER = ['Mimar', 'İç Mimar', 'Peyzaj Mimarı', 'Şehir Plancısı', 'Restoratör', 'Tasarımcı', 'Fotoğrafçı', 'Öğrenci', 'Diğer'];
 
-// Sunucudan (data.filters) gelen dob/award/position seçeneklerini <select>'lere yeniden çizer —
-// kisi.html#populateFilters'ın eski client-side hesaplı hâliyle AYNI görsel sonucu üretir, yalnızca
-// veri kaynağı sunucu. GERÇEK BULGU: position select'i eskiden sabit HTML seçenekleriydi, sunucunun
-// üretebileceği ama HTML'de karşılığı olmayan bir kova (ör. "Ortak") hiç seçilemez durumdaydı (bkz.
-// kullanıcı isteği) — artık dob/award ile AYNI desende tamamen dinamik.
-function populateFilterOptions(filtersData){
-  const dobSel = document.getElementById('g-dob');
-  const prevDob = dobSel.value;
-  dobSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  (filtersData.dob || []).forEach(({value, count})=>{
-    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
-    dobSel.appendChild(o);
-  });
-  dobSel.value = prevDob;
+// Çok seçmeli filtre durumu — proje.html#activeFilters ile AYNI şekil (grup anahtarı -> Set).
+// Grup İÇİ mantık OR, gruplar ARASI AND (sunucu tarafı bkz. src/routes/architect.js#passes).
+const FILTER_GROUPS = [
+  { key: 'profession', label: 'Meslek' },
+  { key: 'dob', label: 'Doğum Yılı' },
+  { key: 'award', label: 'Ödül' },
+  { key: 'position', label: 'Pozisyon' },
+];
+const activeFilters = { profession: new Set(), dob: new Set(), award: new Set(), position: new Set() };
+// Grup içi arama kutularına yazılan metin — buildFilterGroups() DOM'u her render'da sıfırdan
+// kurduğundan (bkz. proje.js#groupSearchQueries'teki AYNI gerekçe) burada saklanıp geri uygulanır.
+const groupSearchQueries = {};
+// Akordeonların açık/kapalı durumu da aynı sebeple burada tutulur.
+const openGroups = new Set();
 
-  const awardSel = document.getElementById('g-award');
-  const prevAward = awardSel.value;
-  awardSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  (filtersData.award || []).forEach(({value, count})=>{
-    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
-    awardSel.appendChild(o);
-  });
-  awardSel.value = prevAward;
+function trLower(s){
+  return String(s || '').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
+}
 
-  const positionSel = document.getElementById('g-position');
-  const prevPosition = positionSel.value;
-  const positionCounts = filtersData.position || {};
-  positionSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  Object.keys(positionCounts)
+// Sunucudan gelen sayaç yapısını [{value, count}] dizisine normalize eder. dob/award zaten bu
+// biçimde gelir (sıralaması sunucuda belirlenmiş), position/profession ise {değer: sayı} nesnesi —
+// onlar burada tercih edilen sıraya (POSITION_ORDER/PROFESSION_ORDER) göre dizilir, listede olmayan
+// bir değer sona alfabetik eklenir.
+function sortByPreferredOrder(counts, order){
+  return Object.keys(counts || {})
     .sort((a, b)=>{
-      const ia = POSITION_ORDER.indexOf(a), ib = POSITION_ORDER.indexOf(b);
+      const ia = order.indexOf(a), ib = order.indexOf(b);
       if (ia === -1 && ib === -1) return a.localeCompare(b, 'tr');
       if (ia === -1) return 1;
       if (ib === -1) return -1;
       return ia - ib;
     })
-    .forEach(value=>{
-      const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${positionCounts[value]})`; o.dataset.dynamic = '1';
-      positionSel.appendChild(o);
+    .map(value => ({ value, count: counts[value] }));
+}
+function groupOptions(filtersData, key){
+  if(key === 'position') return sortByPreferredOrder(filtersData.position, POSITION_ORDER);
+  if(key === 'profession') return sortByPreferredOrder(filtersData.profession, PROFESSION_ORDER);
+  return filtersData[key] || [];
+}
+
+// Sunucudan (data.filters) gelen seçenekleri akordeon + checkbox olarak yeniden çizer —
+// proje.js#buildSidebar ile AYNI desen, tek farkı seçeneklerin ayrı bir /filters ucundan değil,
+// zaten çekilmiş olan liste yanıtının `filters` alanından gelmesi (bu sayfa hep böyle çalışıyordu,
+// ek bir istek atmaya gerek yok). Seçenek üretmeyen (sayacı hiç oluşmamış) bir grup hiç çizilmez.
+// Önceden seçili bir filtre (paylaşılan link/geri tuşu) varsa o grup açık gösterilir.
+function openSelectedGroups(wrap){
+  FILTER_GROUPS.forEach(g=>{
+    if(activeFilters[g.key].size === 0) return;
+    openGroups.add(g.key);
+    const grp = wrap.querySelector(`.filter-group[data-key="${g.key}"]`);
+    if(grp) grp.classList.add('open');
+  });
+}
+
+// Seçenek listesinin son çizilen hâli. Bu sayfada sayaçlar aktif filtrelerden BAĞIMSIZ (tüm havuz
+// üzerinden hesaplanır, bkz. src/routes/architect.js#dobCounts yorumu), yani bir kutucuk
+// işaretlendiğinde seçenekler/sayaçlar hiç değişmez — o durumda innerHTML'i yeniden yazmak yalnızca
+// odağı ve grup içi kaydırmayı sıfırlar. İmza aynıysa DOM korunur, yalnızca işaretli durumlar
+// activeFilters'tan tazelenir (geri tuşu/sıfırlama gibi kutucuğa dokunmadan değişen yollar için).
+let lastFilterSignature = null;
+function buildFilterGroups(filtersData){
+  const wrap = document.getElementById('filter-groups');
+  const groups = FILTER_GROUPS.map(g => [g.key, groupOptions(filtersData, g.key)]);
+  const signature = JSON.stringify(groups);
+  if(signature === lastFilterSignature){
+    wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.checked = activeFilters[cb.dataset.key].has(cb.value);
     });
-  positionSel.value = prevPosition;
+    openSelectedGroups(wrap);
+    return;
+  }
+  lastFilterSignature = signature;
+  let html = '';
+  FILTER_GROUPS.forEach(g=>{
+    const options = groupOptions(filtersData, g.key);
+    if(!options.length) return;
+    html += `<div class="filter-group${openGroups.has(g.key) ? ' open' : ''}" data-key="${g.key}">
+      <button class="filter-group-head" data-toggle="${g.key}">${escapeHtml(g.label)} <span class="filter-group-toggle">+</span></button>
+      <div class="filter-group-body">
+        <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
+        ${options.map(({value, count})=>`
+        <label class="filter-opt">
+          <input type="checkbox" data-key="${g.key}" value="${escapeAttr(value)}" ${activeFilters[g.key].has(value)?'checked':''}>
+          <span>${escapeHtml(value)}</span>
+          <span class="filter-opt-count">(${count})</span>
+        </label>`).join('')}
+      </div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+
+  openSelectedGroups(wrap);
+
+  wrap.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.dataset.toggle;
+      const opened = btn.parentElement.classList.toggle('open');
+      if(opened) openGroups.add(key); else openGroups.delete(key);
+    });
+  });
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) activeFilters[cb.dataset.key].add(cb.value); else activeFilters[cb.dataset.key].delete(cb.value);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      render();
+    });
+  });
+  // Grup içi arama YALNIZCA o grubun satırlarını gösterip gizler — seçim/sayaç mantığını etkilemez
+  // (bkz. proje.js#applyGroupSearchFilter'daki AYNI davranış).
+  function applyGroupSearchFilter(input){
+    const body = input.closest('.filter-group-body');
+    const q = trLower(input.value.trim());
+    body.querySelectorAll('.filter-opt').forEach(opt=>{
+      const label = trLower(opt.querySelector('span').textContent);
+      opt.style.display = !q || label.includes(q) ? '' : 'none';
+    });
+  }
+  wrap.querySelectorAll('.filter-search-input').forEach(input=>{
+    const groupKey = input.closest('.filter-group').dataset.key;
+    if(groupSearchQueries[groupKey]){
+      input.value = groupSearchQueries[groupKey];
+      applyGroupSearchFilter(input);
+    }
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('input', ()=>{
+      groupSearchQueries[groupKey] = input.value;
+      applyGroupSearchFilter(input);
+    });
+  });
 }
 
 function getPageWindowSize(){
@@ -571,13 +703,10 @@ function renderPagination(totalPages){
 // hem de tarayıcı URL senkronu (syncBrowserUrl) için TEK noktadan kullanılır.
 function currentQueryParams(){
   const params = new URLSearchParams();
-  const dob = document.getElementById('g-dob').value;
-  const award = document.getElementById('g-award').value;
-  const position = document.getElementById('g-position').value;
+  // Çoklu seçim: her seçili değer AYRI bir parametre olarak eklenir (?position=Kurucu&position=Ortak)
+  // — proje.js#currentQueryParams ile AYNI desen, sunucu tarafı getAll() ile okur.
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
   const sort = document.getElementById('g-sort').value;
-  if(dob) params.set('dob', dob);
-  if(award) params.set('award', award);
-  if(position) params.set('position', position);
   if(sort) params.set('sort', sort);
   if(searchQuery.trim()) params.set('search', searchQuery.trim());
   return params;
@@ -593,9 +722,12 @@ function syncBrowserUrl(push){
 }
 function applyStateFromUrl(){
   const params = new URLSearchParams(location.search);
-  document.getElementById('g-dob').value = params.get('dob') || '';
-  document.getElementById('g-award').value = params.get('award') || '';
-  document.getElementById('g-position').value = params.get('position') || '';
+  // getAll — tek değerli eski linkler (mimar popup'ındaki filtre bağlantıları, paylaşılmış URL'ler)
+  // tek elemanlı bir küme olarak AYNI şekilde çalışır.
+  FILTER_GROUPS.forEach(g => {
+    activeFilters[g.key].clear();
+    params.getAll(g.key).filter(Boolean).forEach(v => activeFilters[g.key].add(v));
+  });
   document.getElementById('g-sort').value = params.get('sort') || '';
   searchQuery = params.get('search') || '';
   document.getElementById('g-local-search').value = searchQuery;
@@ -636,7 +768,7 @@ async function render(){
 
   currentPage = data.page;
   document.getElementById('result-count').textContent = `${data.total} kişi listeleniyor`;
-  populateFilterOptions(data.filters || {});
+  buildFilterGroups(data.filters || {});
   renderPagination(data.totalPages);
 
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan kişi bulunamadı.'; empty.style.display = 'block'; return; }
@@ -683,9 +815,9 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 });
 
 let searchDebounce = null;
-['g-sort','g-dob','g-award','g-position'].forEach(id=>{
-  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
-});
+// Filtre kutucuklarının dinleyicileri buildFilterGroups() içinde (her yeniden çizimde) bağlanır —
+// burada yalnızca sabit kalan sıralama <select>'i kalır.
+document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
 document.getElementById('g-local-search').addEventListener('input', (e)=>{
   searchQuery = e.target.value;
   currentPage = 1;
@@ -694,9 +826,8 @@ document.getElementById('g-local-search').addEventListener('input', (e)=>{
 });
 document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-sort').value = '';
-  document.getElementById('g-dob').value = '';
-  document.getElementById('g-award').value = '';
-  document.getElementById('g-position').value = '';
+  FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
+  Object.keys(groupSearchQueries).forEach(k => delete groupSearchQueries[k]);
   searchQuery = '';
   document.getElementById('g-local-search').value = '';
   document.getElementById('f-search-topnav').value = '';

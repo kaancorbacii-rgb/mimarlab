@@ -28,12 +28,17 @@ export async function fetchArchitectPool(env) {
     // satırı ona bağlı değil, yalnızca bu liste havuzundan dışlanıyor). Bu iki yer de (kisi.html
     // + index.html mini-carousel) AYNI bu pool'u tüketiyor, başka hiçbir uç (mimar-detay, arama
     // autocomplete) etkilenmiyor.
+    // directory_listed = 0 → kişi "Kişi sayfasında diğer profesyonellerle birlikte görünmek"
+    // istemediğini söylemiş (bkz. migrations/0081, kisi-ekle.html#m-directory-listed). Profil
+    // yaşamaya devam eder (popup, arama, autocomplete, künye bağları) — yalnızca bu dizin havuzunun
+    // dışında kalır. Bu havuz aynı zamanda /api/public/platform'un "Mimar" sayacını da besliyor
+    // (bkz. aşağıdaki dosya başı yorumu), yani sayaç da listelenenle aynı kalır.
     const { results } = await env.DB.prepare(
-      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards,
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, o.name AS office_name, o.awards AS office_awards,
          (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
           WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
+       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.directory_listed = 1 AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
     ).all();
 
     return results.map(row => {
@@ -43,7 +48,7 @@ export async function fetchArchitectPool(env) {
       // positionRaw: kisi.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
       // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), officeAwards, projectCount: row.project_count || 0, badges: [] };
     });
   });
 }
@@ -134,14 +139,27 @@ export async function handleArchitectSearchRoute(request, env, url) {
     // önceden TÜM mimarlar Worker'a çekilip JS'te foldTr ile filtreleniyordu.
     // officeParam dalı (tam isim eşleşmesi, tuş vuruşuyla değil seçimle set edilir) substring
     // araması DEĞİL, bu yüzden kendi basit sorgusunu kullanır — o da artık SQL'de filtreleniyor.
-    const baseSelect = `SELECT a.id AS id, a.name AS name, o.name AS office_name FROM architects a
+    // kullanıcı isteği (2026-09-01 madde 4): "kişi sayfasında görünen tüm kullanıcılar mesleklerine
+    // göre mimar, tasarımcı veya fotoğrafçı profili olarak ALGILANABİLSİN ve proje, ürün, firma
+    // veya markalara eklenebilsinler". Bu uç ZATEN tüm kişi profillerini döndürüyordu (meslek
+    // ayrımı yapmıyor) — eksik olan, öneri satırında kişinin ne olduğunun görünmesiydi: alt satır
+    // yalnızca firma adıydı, firması olmayan bir Tasarımcı/Fotoğrafçı ise etiketsiz kalıyordu.
+    // Artık firma ve meslek birlikte gösterilir, `profession` da ham olarak döner (çağıranların
+    // kendi filtre/etiket ihtiyaçları için).
+    // directory_listed BİLEREK filtrelenmiyor: /kisi dizininde görünmek istemeyen biri de künyelere
+    // eklenebilmeye devam eder (bkz. migrations/0081 başlığı).
+    const baseSelect = `SELECT a.id AS id, a.name AS name, a.profession AS profession, o.name AS office_name FROM architects a
        LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
        WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL`;
+    const toItem = (r) => {
+      const professionLabel = professionLabelList(r.profession).join(', ');
+      return { label: r.name, sub: [r.office_name, professionLabel].filter(Boolean).join(' · '), profession: professionLabel || null };
+    };
     if (officeParam) {
       const { results } = await env.DB.prepare(
         `${baseSelect} AND o.name = ? ORDER BY a.name LIMIT 20`
       ).bind(officeParam).all();
-      return { items: results.map(r => ({ label: r.name, sub: r.office_name || '' })) };
+      return { items: results.map(toItem) };
     }
     const rows = await foldedPrefixThenSubstring({
       runQuery: (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results),
@@ -152,7 +170,7 @@ export async function handleArchitectSearchRoute(request, env, url) {
       // aynı adlı iki kayıt olabiliyor) birbirine karıştırıp birini düşürmez.
       q, limit: 20, keyOf: r => r.id,
     });
-    const items = rows.map(r => ({ label: r.name, sub: r.office_name || '' }));
+    const items = rows.map(toItem);
     return { items };
   });
 }
@@ -183,6 +201,14 @@ export async function handleArchitectSchoolsRoute(request, env, url) {
 // görünüyordu (bkz. kullanıcı isteği: Melkan Gürsel/Nur Urfalıoğlu). Artık tanınmayan her değer
 // OLDUĞU GİBİ kendi kovasına döner — kisi-ekle.html#POZISYON_OPTIONS'a yeni bir değer eklendiğinde
 // bile sessizce yanlış kovaya düşme riski kalmaz.
+// architects.profession, 2026-09-01'den beri virgülle ayrılmış BİRDEN ÇOK ham Türkçe etiket
+// taşıyabilir ("Mimar, Fotoğrafçı", bkz. migrations/0080_project_photographers.sql başlığı ve
+// kisi-ekle.html#professionLabelList — BİLİNÇLİ kopya, iki taraf da AYNI biçimi okur). Tek meslekli
+// eski satırlar bu biçimin geçerli bir örneği olduğundan veri taşıması gerekmedi.
+export function professionLabelList(value) {
+  return String(value || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
 export function positionOf(position) {
   if (!position) return null;
   if (position === 'İş arıyor' || position === 'İş Arıyor') return 'İşsiz';
@@ -201,9 +227,15 @@ export async function handleArchitectListRoute(request, env, url) {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
-    const dobParam = url.searchParams.get('dob') || '';
-    const awardParam = url.searchParams.get('award') || '';
-    const positionParam = url.searchParams.get('position') || '';
+    // kullanıcı isteği (2026-09-01 madde 2): "Kişi sayfasındaki filtreleri de proje ve ürün
+    // sayfalarındaki gibi çok seçmeli seçilebilecek şekilde düzenle" — her filtre grubu artık
+    // getAll() ile ÇOKLU değer alır (?position=Kurucu&position=Ortak). Tek değerli eski linkler
+    // (künyelerden, paylaşılan URL'lerden) tek elemanlı bir dizi olarak AYNI şekilde çalışır.
+    // Grup İÇİ mantık OR, gruplar ARASI AND — proje.html/urun.html'deki desenle birebir aynı.
+    const dobParams = url.searchParams.getAll('dob').filter(Boolean);
+    const awardParams = url.searchParams.getAll('award').filter(Boolean);
+    const positionParams = url.searchParams.getAll('position').filter(Boolean);
+    const professionParams = url.searchParams.getAll('profession').filter(Boolean);
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     // Varsayılan sıralama artık "en popüler" (en çok projesi olan mimar önce) — bkz. kullanıcı
@@ -228,9 +260,12 @@ export async function handleArchitectListRoute(request, env, url) {
     const pool = await fetchArchitectPool(env);
 
     function passes(a) {
-      if (dobParam && String(a.dob) !== dobParam) return false;
-      if (awardParam && !a.officeAwards.includes(awardParam)) return false;
-      if (positionParam && a.position !== positionParam) return false;
+      if (dobParams.length && !dobParams.includes(String(a.dob))) return false;
+      if (awardParams.length && !awardParams.some(w => a.officeAwards.includes(w))) return false;
+      if (positionParams.length && !positionParams.includes(a.position)) return false;
+      // (a.professions || []) — bkz. aşağıdaki professionCounts'taki AYNI gerekçe: deploy anında
+      // KV'de duran ESKİ havuz (bu alan eklenmeden önce yazılmış) bu alanı taşımaz.
+      if (professionParams.length && !professionParams.some(p => (a.professions || []).includes(p))) return false;
       if (searchQuery && !foldTr(a.name).includes(searchQuery)) return false;
       return true;
     }
@@ -254,17 +289,29 @@ export async function handleArchitectListRoute(request, env, url) {
 
     // kisi.html#populateFilters — sayaçlar aktif filtrelerden BAĞIMSIZ, tüm havuz üzerinden
     // (proje.html'deki bağımlı/faceted sayaçların aksine; kisi.html'de zaten hiç öyle çalışmıyordu).
-    const dobCounts = {}, awardCounts = {}, positionCounts = {};
+    // kullanıcı isteği (2026-09-01 madde 1): "0 kişi sayısında olan filtreler en az 1 kişi bu
+    // filtreye eklenene kadar gözükmesin" — sayaçlar VERİDEN türetildiğinden (sabit bir seçenek
+    // listesinden değil) sıfırlık bir kova burada hiç oluşmaz, dolayısıyla kisi.html'de de hiç
+    // çizilmez. kisi-ekle.html#MESLEK_OPTIONS'taki bir meslek ilk kişisini alır almaz kendiliğinden
+    // filtre olarak belirir; sıralaması kisi.html#PROFESSION_ORDER ile o formdaki sırayla eşlenir.
+    const dobCounts = {}, awardCounts = {}, positionCounts = {}, professionCounts = {};
     pool.forEach(a => {
       if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
       a.officeAwards.forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
       if (a.position) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
+      // (a.professions || []) — GERÇEK BULGU (yerelde 500 ile yaşandı): havuz KV'de 30 dakikaya
+      // kadar önbelleklenir (bkz. publicCache.js#POOL_CACHE_TTL_SECONDS), yani deploy anında
+      // BU ALANIN HENÜZ OLMADIĞI eski bir havuz nesnesi hâlâ okunuyor olabilir. Çıplak
+      // a.professions.forEach, o pencerede TÜM /api/architects isteklerini 500'e düşürürdü —
+      // yani kişi listesi manuel bir KV temizliği yapılana kadar tamamen çöker. Bu geri düşüş,
+      // aynı pencerede yalnızca meslek sayaçlarının boş kalmasına (kendiliğinden düzelir) yol açar.
+      (a.professions || []).forEach(p => { professionCounts[p] = (professionCounts[p] || 0) + 1; });
     });
 
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ officeAwards, projectCount, ...rest }) => rest);
+    const items = filtered.slice(start, start + limit).map(({ officeAwards, projectCount, professions, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
@@ -272,6 +319,7 @@ export async function handleArchitectListRoute(request, env, url) {
         dob: Object.keys(dobCounts).sort((x, y) => y - x).map(v => ({ value: v, count: dobCounts[v] })),
         award: Object.keys(awardCounts).sort((x, y) => awardCounts[y] - awardCounts[x] || x.localeCompare(y, 'tr')).map(v => ({ value: v, count: awardCounts[v] })),
         position: positionCounts,
+        profession: professionCounts,
       },
     };
   }, () => architectListFingerprint(env));
@@ -508,6 +556,10 @@ async function buildArchitectPayload(env, key) {
     name: a.name, slug: a.slug, dob: a.dob, school: a.school, dept: a.dept, profession: a.profession,
     role: a.position, awards: a.awards, about: a.about, photo: a.photo_url, office: office ? office.name : null,
     social_links: a.social_links || [],
+    // kisi-ekle.html#prefillForClaim bu değeri "Kişi sayfasında ... görünmek istiyor musunuz?"
+    // sorusuna geri yazar (bkz. setDirectoryListed) — aksi halde profilini ikinci kez düzenleyen
+    // biri, formun varsayılanı "Evet" olduğu için önceki "Hayır" tercihini sessizce geri alırdı.
+    directory_listed: a.directory_listed,
     badges: [],
   };
   // bkz. src/routes/office.js#buildOfficePayload'daki AYNI _claimKey gerekçesi — renderProfileEditButton'ın

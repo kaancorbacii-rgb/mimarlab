@@ -20,7 +20,11 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // /mimar/:slug -> /kisi/:slug. SSR HTML'ine gömülü canonical/og:url ve breadcrumb JSON-LD bağlantıları
 // yeni yolu taşıdığından (bkz. src/lib/seo.js#architectMetaFromRecord) sürüm artırılmazsa edge,
 // s-maxage boyunca ESKİ canonical'ı (artık 301'lenen /mimar/:slug) gösteren HTML sunardı.
-export const SSR_CACHE_VERSION = 'v103';
+// v104 (kullanıcı isteği, 2026-09-01 madde 1-2): kisi.html'in filtre kenar çubuğu tekil <select>'ler
+// yerine çok seçmeli akordeon kutucuklarına (#filter-groups) dönüştü ve yeni bir "Meslek" grubu
+// eklendi. Hem markup hem CSS hem de sayfanın satır içi JS'i SSR HTML'ine gömülü olduğundan, sürüm
+// artırılmazsa /kisi/:slug ile açılan sayfalar s-maxage boyunca ESKİ filtre kabuğunu sunardı.
+export const SSR_CACHE_VERSION = 'v104';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

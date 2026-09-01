@@ -328,8 +328,8 @@
       <div class="footer-subscribe-inner">
         <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
         <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
-        <p class="footer-subscribe-join-desc">Kişi veya firma bilgilerini hemen doldur.</p>
-        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
+        <p class="footer-subscribe-join-desc">Kişi, firma veya marka bilgilerini hemen doldur.</p>
+        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar, firma ve markalar e-postana gelsin.</p>
         <div class="footer-subscribe-join-action">
           <a class="footer-subscribe-btn" href="/uye-ol">Üye Ol</a>
         </div>

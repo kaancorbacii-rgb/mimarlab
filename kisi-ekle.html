@@ -200,6 +200,25 @@
   .image-preview-item img{width:100%; height:100%; object-fit:cover;}
   .image-preview-remove{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:rgba(27,42,61,0.75); color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:11px;}
 
+  /* ---------- Dizinde görünme sorusu (kullanıcı isteği, 2026-09-01 madde 4: "gönder-kaydet
+     butonunun üzerinde TEK SATIRDA ... diye sor") — soru metni ve Evet/Hayır aynı satırda kalır,
+     yalnızca dar ekranda (≤560px) alt alta sarar. ---------- */
+  .listing-consent{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    margin-bottom:16px; padding:13px 16px;
+    border:1px solid var(--line); border-radius:12px; background:var(--paper);
+    font-size:13.5px; color:var(--ink);
+  }
+  .listing-consent-q{flex:1; min-width:0;}
+  .listing-consent-opts{display:flex; align-items:center; gap:14px; flex-shrink:0;}
+  .listing-consent-opts label{display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;}
+  .listing-consent-opts input{accent-color:var(--ink); width:15px; height:15px;}
+  .listing-consent-opts label:hover{color:var(--ink);}
+  @media (max-width:560px){
+    .listing-consent{align-items:flex-start;}
+    .listing-consent-q{flex:1 1 100%;}
+  }
+
   .form-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:14px; border-radius:100px; font-weight:600; font-size:15px;}
   .form-submit:hover{background:var(--walnut);}
   /* Arşivle/Sil — proje-ekle.html#.form-danger-row ile BİREBİR aynı stil/gerekçe (bkz. kullanıcı
@@ -426,6 +445,18 @@
           </select>
           <p class="section-hint" id="admin-badge-source-hint" style="display:none; margin-top:6px;"></p>
         </div>
+      </div>
+
+      <!-- kullanıcı isteği (2026-09-01 madde 4). "Hayır" YALNIZCA /kisi dizin listesinden çıkarır
+           (bkz. migrations/0081_architect_directory_listed.sql) — profil, popup'ı, künye bağları ve
+           proje/ürün/firma/marka formlarındaki mimar/tasarımcı/fotoğrafçı önerileri aynen çalışmaya
+           devam eder (aynı maddenin ikinci cümlesi). -->
+      <div class="listing-consent">
+        <span class="listing-consent-q">Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?</span>
+        <span class="listing-consent-opts">
+          <label><input type="radio" name="directory_listed" value="1" checked> Evet</label>
+          <label><input type="radio" name="directory_listed" value="0"> Hayır</label>
+        </span>
       </div>
 
       <button class="form-submit" type="submit">Gönder</button>
@@ -830,6 +861,22 @@ async function wireAdminBadgePicker(profileKey){
   });
 }
 
+// "Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?" (bkz. .listing-consent
+// markup'ı) — 1/0 olarak gönderilir. Değer HER ZAMAN gönderilir (undefined bırakılmaz): düzenleme
+// modunda "Hayır"dan "Evet"e dönüş de kaydedilebilmeli.
+function getDirectoryListed(){
+  const checked = document.querySelector('input[name="directory_listed"]:checked');
+  return checked && checked.value === '0' ? 0 : 1;
+}
+// Kaydedilmiş tercihi forma geri yazar. undefined/null (bu soru eklenmeden önce oluşmuş kayıtlar)
+// varsayılan "Evet"te bırakılır — bugün dizinde görünen hiçbir profil sessizce kaybolmaz.
+function setDirectoryListed(value){
+  if(value === undefined || value === null) return;
+  const wanted = String(Number(value) === 0 ? '0' : '1');
+  const el = document.querySelector(`input[name="directory_listed"][value="${wanted}"]`);
+  if(el) el.checked = true;
+}
+
 async function prefillForEdit(){
   if(!editId) return;
   try{
@@ -857,6 +904,7 @@ async function prefillForEdit(){
     pozisyonDropdown.set(item.position || null);
     odullerDropdown.setChecked(item.awards || []);
     document.getElementById('m-about').value = item.about || '';
+    setDirectoryListed(item.directory_listed);
     (item.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
     existingPhotoUrl = item.photo_url || null;
     renderPreviews();
@@ -936,6 +984,8 @@ async function prefillForClaim(){
       if(mine){
         editId = mine.id;
         merged = { ...merged, name: mine.name, dob: mine.dob, school: mine.school, office: mine.office, position: mine.position, profession: mine.profession, awards: mine.awards, photo: mine.photo_url, about: mine.about, social_links: mine.social_links };
+        // Taslakta bu soru hiç yanıtlanmamışsa (NULL) canonical satırdan gelen değer korunur.
+        if(mine.directory_listed !== undefined && mine.directory_listed !== null) merged.directory_listed = mine.directory_listed;
       }
     }
   }catch{}
@@ -959,6 +1009,7 @@ async function prefillForClaim(){
   pozisyonDropdown.set(merged.position || merged.role || null);
   odullerDropdown.setChecked(merged.awards || []);
   document.getElementById('m-about').value = merged.about || '';
+  setDirectoryListed(merged.directory_listed);
   (merged.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
   existingPhotoUrl = merged.photo || merged.photo_url || null;
   renderPreviews();
@@ -1159,6 +1210,7 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
     photo_url: photoUrl,
     about: document.getElementById('m-about').value || null,
     social_links: collectSocialLinks(),
+    directory_listed: getDirectoryListed(),
   };
   if(claimName) payload.claimed_profile_key = claimName;
 

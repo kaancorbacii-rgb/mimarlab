@@ -95,6 +95,10 @@ export const SUBMISSION_TYPES = {
     fields: [
       'name', 'dob', 'school', 'dept', 'office', 'position', 'profession', 'awards', 'photo_url', 'about', 'claimed_profile_key',
       'social_links',
+      // "Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?" (bkz.
+      // migrations/0081_architect_directory_listed.sql, kisi-ekle.html#getDirectoryListed) — 1/0,
+      // gönderilmemişse NULL ("bu form soruyu sormadı, canonical satırdaki değere dokunma").
+      'directory_listed',
     ],
     arrayFields: ['awards', 'social_links'],
     required: ['name'],
@@ -398,6 +402,11 @@ export function normalizeSubmission(type, body) {
     let value = body[field];
     if (field === 'ai_generated') {
       value = value ? 1 : 0;
+    } else if (field === 'directory_listed') {
+      // Üç durumlu: 1 (Evet) / 0 (Hayır) / NULL (form bu soruyu hiç göndermedi — admin panelinin
+      // kısa düzenleme formu, AI ile otomatik ekleme vb.). NULL, syncArchitect'te "canonical
+      // satırdaki mevcut tercihe dokunma" anlamına gelir (bkz. migrations/0081).
+      value = (value === undefined || value === null || value === '') ? null : (Number(value) === 0 ? 0 : 1);
     } else if (field === 'build_status') {
       // build_status NOT NULL'dur (bkz. migrations/0037_project_build_status.sql) — bu alanı
       // henüz göndermeyen çağıranlarda (ör. AI ile otomatik ekleme, src/routes/ai.js) undefined/''
