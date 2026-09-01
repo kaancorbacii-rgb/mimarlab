@@ -5,6 +5,7 @@ import { FOLLOW_TYPES } from './follows.js';
 import { handlePublicHidden, handlePublicSearchSuggest, handlePublicSearchFull } from './legacyContent.js';
 import { cachedPublicJson } from '../lib/publicCache.js';
 import { getSiteSettings } from '../lib/siteSettings.js';
+import { handlePlatformRoute } from './platform.js';
 
 // Onaylanmış (status='approved') satırları, statik urunler-data.js/malzemeler-data.js
 // dizilerindeki mevcut şekle olabildiğince uyacak biçimde dönüştürür — böylece istemci
@@ -36,6 +37,8 @@ export async function handlePublicRoute(request, env, url) {
   if (segments[2] === 'save-count') return handlePublicSaveCount(request, env, url);
   if (segments[2] === 'follow-count') return handlePublicFollowCount(request, env, url);
   if (segments[2] === 'site-settings') return handlePublicSiteSettings(request, env, url);
+  // /neden-mimarlab sayfasının canlı platform verileri (bkz. src/routes/platform.js).
+  if (segments[2] === 'platform') return handlePlatformRoute(request, env, url);
   return errorJson('Bulunamadı', 404);
 }
 

@@ -68,6 +68,11 @@ const CACHEABLE_PATHS = [
   // desene uyuyor. Admin mutasyonları (handleTop100AdminRoute — POST/PATCH/move/reorder/DELETE)
   // artık burayı da invalidatePublicCache() ile temizliyor (bkz. top100.js).
   '/api/public/top100',
+  // /neden-mimarlab sayfasının canlı platform sayaçları + vitrin verisi (bkz. src/routes/
+  // platform.js). Sorgu dizesi taşımaz, bu yüzden diğer sabit yollarla AYNI basit desene uyar;
+  // her içerik mutasyonunda invalidatePublicCache() ile temizlendiğinden yeni onaylanan bir
+  // proje/ürün sayacı anında yükseltir.
+  '/api/public/platform',
 ];
 
 // kökten bulgu (2026-08-16): '/api/public/badges' bir ara CACHEABLE_PATHS'teydi (bkz. bir üstteki
@@ -264,8 +269,12 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
   // aksine top100 pahalı bir sorgu — ratings tam taraması dahil, bkz. audit raporu B3 — bu yüzden
   // varsayılan kısa ANON_CACHE_HEADERS'tan bilerek ayrılır); tazelik yine handleTop100AdminRoute'un
   // (top100.js) her mutasyonda çağırdığı invalidatePublicCache() ile aktif sağlanır.
+  // '/api/public/platform' de top100 ile AYNI uzun TTL'i alır: /neden-mimarlab sayfasının sayaçları
+  // (proje/mimar/firma/ürün/marka) saniyelik tazelik gerektirmez, asıl tazelik yine her içerik
+  // mutasyonundaki invalidatePublicCache()'ten gelir — kısa ANON TTL'i yalnızca gereksiz D1 turu
+  // yaratırdı.
   const headers = pathname === '/api/public/badges' ? BADGE_NO_CACHE_HEADERS
-    : (listPath || detailPath || pathname === '/api/public/top100') ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
+    : (listPath || detailPath || pathname === '/api/public/top100' || pathname === '/api/public/platform') ? PUBLIC_LIST_CACHE_HEADERS : ANON_CACHE_HEADERS;
 
   if (!cacheable) { const data = await withSingleFlight(`json:${pathname}`, computeData); return json(data, statusFor(data), headers); }
 

@@ -40,7 +40,7 @@ ok "kök seviyesi .js dosyaları kontrol edildi"
 
 echo ""
 echo "3) HTML sayfalarındaki inline <script> blokları (proje-ekle/mimar-ekle/firma-ekle/urun-ekle/index/admin/hesabim)"
-for f in index.html admin.html hesabim.html proje.html mimar.html firma.html urun.html proje-ekle.html mimar-ekle.html firma-ekle.html urun-ekle.html; do
+for f in index.html admin.html hesabim.html proje.html mimar.html firma.html urun.html proje-ekle.html mimar-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html; do
   [ -f "$f" ] || continue
   node -e "
     const fs = require('fs');

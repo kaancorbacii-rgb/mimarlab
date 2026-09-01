@@ -261,6 +261,12 @@ const PATH_RENAME_REDIRECTS = {
   '/gizlilik-politikasi.html': '/gizlilik-politikasi',
   '/hizmet-sartlari.html': '/hizmet-sartlari',
   '/cerez-politikasi.html': '/cerez-politikasi',
+  // "Neden MİMARLAB?" (bkz. neden-mimarlab.html) — INFO_MODAL_META'daki popup sayfalarının aksine
+  // GERÇEK, kendi <head>'ini/gövdesini taşıyan bağımsız bir statik sayfa (uzun kaydırmalı editoryal
+  // içerik bir modal kabuğuna sığmaz, ayrıca sunum olarak paylaşılabilir olması isteniyor). Bu
+  // yüzden ek bir meta enjeksiyonu GEREKMEZ — Cloudflare Assets '/neden-mimarlab' isteğini doğrudan
+  // dosyaya eşler; burada yalnızca ".html"li eski/elle yazılmış biçim kanonik yola 301'lenir.
+  '/neden-mimarlab.html': '/neden-mimarlab',
 };
 
 // Giriş/Üye Ol/Hesabım modallarının doğrudan URL ile açılması (F5/deep-link) — CLEAN_URL_ASSETS'in
@@ -321,6 +327,9 @@ const SITEMAP_STATIC_PAGES = [
   // marka.html — bkz. o dosyanın başındaki yorum (firma.html'in ?brands=1 ile daraltılmış kopyası).
   { loc: '/marka', changefreq: 'weekly', priority: '0.7' },
   { loc: '/en-iyi-100', changefreq: 'weekly', priority: '0.7' },
+  // "Neden MİMARLAB?" — platformun mimarlara/ofislere/markalara kendini anlattığı ana sunum
+  // sayfası; kurumsal sayfalardan daha yüksek öncelik, içeriği (canlı sayaçlar) haftalık değişir.
+  { loc: '/neden-mimarlab', changefreq: 'weekly', priority: '0.8' },
   { loc: '/hakkinda', changefreq: 'monthly', priority: '0.5' },
   { loc: '/iletisim', changefreq: 'monthly', priority: '0.5' },
   // gerçek bulgu: bu ikisi indexlenebilir (robots noindex YOK, bkz. INFO_MODAL_META) ama sitemap'te
@@ -370,7 +379,10 @@ const SSR_PAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=
 // istemci tarafı fetch'lerle (kendi kısa TTL'li önbellekleriyle) yansıdığından kabuğun birkaç dakika
 // bayat kalması sorun yaratmaz.
 const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun', '/marka']);
+// '/neden-mimarlab' de AYNI gerekçeyle burada: tamamen statik bir HTML kabuğu (canlı sayaçlar
+// istemci tarafında /api/public/platform'dan çekilir, sayfada D1'e bağlı hiçbir SSR enjeksiyonu
+// yok), ama Assets'in markasız `max-age=0, must-revalidate` varsayılanıyla servis ediliyordu.
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun', '/marka', '/neden-mimarlab']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır

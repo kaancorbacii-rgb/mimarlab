@@ -25,6 +25,13 @@
     { key: 'firma', href: 'firma.html', label: 'Firma' },
     { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
     { key: 'marka', href: 'marka.html', label: 'Marka' },
+    // "Neden MİMARLAB?" — platformun mimarlara/ofislere/markalara kendini anlattığı sunum sayfası
+    // (bkz. neden-mimarlab.html). Diğer beş öğe birer İÇERİK LİSTESİ, bu ise bir anlatım sayfası
+    // olduğundan görsel olarak da ayrışır: nav'da `standalone` işaretiyle çerçeveli/ikincil bir
+    // düğme gibi render edilir (bkz. injectHeaderStyle#.nav-link-standalone). Etiket masaüstünde
+    // kısa tutulur ("Neden?") — tam ad hem başlıkta hem çekmecede/footer'da geçer; uzun etiket
+    // 1024-1280px arasında nav satırını taşırıyordu (yerel doğrulamada ölçüldü).
+    { key: 'neden', href: 'neden-mimarlab.html', label: 'Neden?', title: 'Neden MİMARLAB?', drawerLabel: 'Neden MİMARLAB?', standalone: true },
   ];
 
   // Işık modunda logo koyu (lacivert/siyah) harflerle, R'daki daire+üçgen ise her zaman mavi (bkz.
@@ -65,6 +72,17 @@
         background:var(--paper-alt); color:var(--ink-soft); padding:0;
       }
       .nav-search-visual-btn:hover{background:var(--brass-soft); color:var(--ink);}
+      /* "Neden?" (bkz. NAV_ITEMS#neden) — Proje/Mimar/Firma/Ürün/Marka birer içerik listesi, bu ise
+         platformun kendini anlattığı sunum sayfası; aynı satırda dursun ama onlardan görsel olarak
+         ayrılsın diye ince çerçeveli, sönük bir "pill" olarak render edilir (Giriş Yap düğmesiyle
+         AYNI 100px radius ailesi, ama daha hafif). */
+      .nav-link-standalone{
+        border:1px solid var(--line); border-radius:100px; padding:5px 13px;
+        color:var(--ink-soft); font-weight:600; letter-spacing:0.01em;
+      }
+      .nav-link-standalone:hover, .nav-link-standalone.active{
+        border-color:var(--ink); color:var(--ink); background:transparent;
+      }
       .nav-mobile-overlay{display:none; position:fixed; inset:0; z-index:120; background:rgba(15,19,26,0.55);}
       .nav-mobile-overlay.open{display:block;}
       .nav-mobile-menu{
@@ -232,7 +250,9 @@
         </button>
       </div>`;
       }
-      return `<a class="nav-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
+      const standaloneClass = item.standalone ? ' nav-link-standalone' : '';
+      const titleAttr = item.title ? ` title="${escapeAttr(item.title)}" aria-label="${escapeAttr(item.title)}"` : '';
+      return `<a class="nav-link${standaloneClass}${activeClass}" href="${escapeAttr(item.href)}"${titleAttr}>${escapeHtml(item.label)}</a>`;
     }).join('\n      ');
 
     const mobileLinks = NAV_ITEMS.map(item => {
@@ -246,7 +266,8 @@
         <div class="nav-mobile-accordion-panel" id="urun-mobile-panel"></div>
       </div>`;
       }
-      return `<a class="nav-mobile-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
+      // Çekmecede yer darlığı yok — kısaltılmış masaüstü etiketi yerine tam ad gösterilir.
+      return `<a class="nav-mobile-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.drawerLabel || item.label)}</a>`;
     }).join('\n      ');
 
     return `<nav class="nav">
@@ -335,7 +356,7 @@
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="urun.html">Ürün</a><a href="marka.html">Marka</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a><a href="cerez-politikasi.html">Çerez Politikası</a></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="neden-mimarlab.html">Neden MİMARLAB?</a><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a><a href="cerez-politikasi.html">Çerez Politikası</a></div>
     </div>
     <div class="footer-bottom">
       <div class="footer-social">
