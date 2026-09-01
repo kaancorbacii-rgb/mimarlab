@@ -1,5 +1,6 @@
 import { slugify } from './slugify.js';
 import { cacheKeyFor } from './publicCache.js';
+import { purgeGlobalUrls } from './globalPurge.js';
 
 // src/index.js#serveDetailPage bu sürümü SSR HTML önbelleğinin (caches.default) anahtarına ekler
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
@@ -49,16 +50,24 @@ const SLUGIFY_TYPES = new Set(['architect', 'office']);
 // bir garanti değildir; bu yüzden src/index.js'teki SSR_PAGE_CACHE_HEADERS s-maxage'ı da kısa
 // tutulur, bu purge sadece en yaygın durumda (aynı PoP'a düşen sonraki istek) anlık bir düzeltme
 // sağlar. rawKey boşsa ya da tip tanınmıyorsa sessizce hiçbir şey yapmaz.
-export async function purgeSsrDetailCache(type, rawKey) {
+// env (opsiyonel, 2026-09-01 madde E): verilirse bu kaydın SSR sayfası + JSON detay ucu
+// Cloudflare purge-by-URL API'siyle TÜM PoP'larda da temizlenir (bkz. src/lib/globalPurge.js).
+// Verilmeyen/secret'sız çağrılarda davranış ESKİSİYLE BİREBİR aynı — yalnızca yerel PoP.
+export async function purgeSsrDetailCache(type, rawKey, env) {
   const prefixes = PREFIX_BY_TYPE[type];
   if (!prefixes || !rawKey) return;
   const slug = SLUGIFY_TYPES.has(type) ? slugify(rawKey) : rawKey;
   if (!slug) return;
+  const globalUrls = [];
   for (const prefix of Array.isArray(prefixes) ? prefixes : [prefixes]) {
     try {
       const keyUrl = new URL(`https://mimarlab.com${prefix}${encodeURIComponent(slug)}`);
       keyUrl.searchParams.set('__cv', SSR_CACHE_VERSION);
       await caches.default.delete(new Request(keyUrl));
+      // Zone-geneli purge, gerçek (kullanıcının gördüğü) URL'yi hedefler — __cv yalnızca Worker'ın
+      // KENDİ cache anahtarına eklediği bir sürüm parametresidir, tarayıcı/Cloudflare edge'i
+      // sayfayı çıplak yoluyla saklar.
+      globalUrls.push(`https://mimarlab.com${prefix}${encodeURIComponent(slug)}`);
     } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev) kullanılamayabilir */ }
   }
   // D1 audit (2026-08-25) P0-1 — /api/project|architect|office|product/:key JSON detay cache'i
@@ -73,7 +82,9 @@ export async function purgeSsrDetailCache(type, rawKey) {
     try {
       await caches.default.delete(cacheKeyFor(`${apiPrefix}${encodeURIComponent(slug)}`));
     } catch { /* caches API bazı ortamlarda (ör. yerel wrangler dev) kullanılamayabilir */ }
+    globalUrls.push(`https://mimarlab.com${apiPrefix}${encodeURIComponent(slug)}`);
   }
+  if (env) await purgeGlobalUrls(env, globalUrls);
 }
 
 // src/lib/submissionTypes.js#SUBMISSION_TYPES anahtarlarını (offices/projects/products/materials/

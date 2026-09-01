@@ -953,7 +953,14 @@ function toggleMegaMenu(){
 }
 {
   const urunMenuTrigger = document.getElementById('urun-menu-trigger');
-  if(urunMenuTrigger) urunMenuTrigger.addEventListener('click', (e)=>{ e.stopPropagation(); toggleMegaMenu(); });
+  // bkz. js/components/nav-product-menu.js'teki AYNI dinleyici/gerekçe — tetikleyici artık bir
+  // <a href="/urun">, Cmd/Ctrl/Shift/Alt/orta tıkta tarayıcı doğal davranışını sürdürür.
+  if(urunMenuTrigger) urunMenuTrigger.addEventListener('click', (e)=>{
+    if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleMegaMenu();
+  });
 }
 document.addEventListener('click', (e)=>{
   const wrap = document.getElementById('urun-menu-wrap');

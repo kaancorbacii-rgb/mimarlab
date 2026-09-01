@@ -186,7 +186,7 @@ async function handleSeoAdmin(request, env, url, segments) {
            ON CONFLICT(entity_type, entity_key) DO UPDATE SET meta_title = excluded.meta_title, meta_description = excluded.meta_description, updated_at = excluded.updated_at`
         ).bind(type, key, metaTitle || null, metaDescription || null, Date.now()).run();
       }
-      await purgeSsrDetailCache(type, key);
+      await purgeSsrDetailCache(type, key, env);
       return json({ ok: true });
     }
   }
@@ -595,7 +595,7 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
         await invalidatePublicCache(env);
         // Var olan (güncelleme ÖNCESİ) kaydın kimliğini hedefler — bkz. src/lib/ssrCache.js.
         const target = ssrPurgeTargetFor(typeKey, existing);
-        if (target) await purgeSsrDetailCache(target.type, target.key);
+        if (target) await purgeSsrDetailCache(target.type, target.key, env);
       }
 
       // Admin panelinden doğrudan firma/mimar adı değiştirildiyse (bkz. src/routes/submissions.js#
@@ -661,7 +661,7 @@ async function handleSubmissionsAdmin(request, env, url, segments, user) {
       if (existing && CANONICAL_TYPES.has(typeKey)) await markCanonicalDeletedForSubmission(env, typeKey, existing, user.id);
       if (existing && existing.status === 'approved' && FACET_TYPES.has(typeKey)) await bumpFacetCounts(env, typeKey);
       await invalidatePublicCache(env);
-      if (target) await purgeSsrDetailCache(target.type, target.key);
+      if (target) await purgeSsrDetailCache(target.type, target.key, env);
       return json({ ok: true });
     }
   }

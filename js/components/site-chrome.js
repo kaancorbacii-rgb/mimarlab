@@ -229,11 +229,17 @@
     const desktopLinks = NAV_ITEMS.map(item => {
       const activeClass = item.key === active ? ' active' : '';
       if(item.mega){
+        // denetim bulgusu (2026-09-01): bu öğe bir <button>'dı — yani masaüstü ana menüsünde /urun'e
+        // giden TARANABİLİR hiçbir bağlantı yoktu (diğer 4 nav öğesinin hepsi <a href>). Google için
+        // ürün listeleme sayfasına tek iç bağlantı footer'daki bağlantıydı; kullanıcı için de
+        // Cmd/orta tıkla yeni sekmede açmak mümkün değildi. Artık gerçek bir <a href="/urun">:
+        // düz sol tıklama (aşağıdaki dinleyicilerde preventDefault ile) YİNE mega menüyü açar,
+        // Cmd/Ctrl/Shift/orta tıkta tarayıcının doğal davranışı çalışır.
         return `<div class="nav-link-wrap" id="urun-menu-wrap">
-        <button class="nav-link nav-link-trigger${activeClass}" id="urun-menu-trigger" type="button" aria-expanded="false" aria-controls="urun-mega-menu">
+        <a class="nav-link nav-link-trigger${activeClass}" id="urun-menu-trigger" href="${escapeAttr(item.href)}" aria-expanded="false" aria-controls="urun-mega-menu">
           ${escapeHtml(item.label)}
           <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-        </button>
+        </a>
       </div>`;
       }
       return `<a class="nav-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;

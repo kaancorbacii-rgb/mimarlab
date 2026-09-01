@@ -339,6 +339,16 @@ async function buildSidebar(){
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="g-local-search" placeholder="Proje ara..." value="${escapeAttr(localSearchQuery)}">
     </div>`;
+  // production audit (2026-09-01, P2): /api/projects/filters artık her facet'in sayaçlarını
+  // `options` ile AYNI SIRADA bir DİZİ olarak döndürüyor (önceden `{ad: sayı}` nesnesiydi ve 459
+  // tasarımcı adı gövdede İKİ KEZ geçiyordu — bkz. src/routes/project.js#facetPayload). Eski nesne
+  // biçimi de okunmaya devam eder: deploy anında edge'de duran eski yanıtlar (s-maxage=15) yeni JS
+  // ile karşılaşabilir, bu geri düşüş o pencereyi tamamen zararsız kılar.
+  function facetCount(groupData, opt, index){
+    const c = groupData && groupData.counts;
+    if(Array.isArray(c)) return c[index];
+    return c ? c[opt] : undefined;
+  }
   FILTER_GROUPS.forEach(g => {
     if(g.nested) return; // ana grubun (örn. Yer) seçeneklerinin arasına gömülü olarak ayrıca çiziliyor
     const groupData = filtersData[g.key];
@@ -351,10 +361,10 @@ async function buildSidebar(){
       <button class="filter-group-head" data-toggle="${g.key}">${escapeHtml(g.label)} <span class="filter-group-toggle">+</span></button>
       <div class="filter-group-body" id="fg-${g.key}">
         <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
-        ${options.map(opt => {
-          let row = optRow(g, opt, groupData.counts[opt], false);
+        ${options.map((opt, i) => {
+          let row = optRow(g, opt, facetCount(groupData, opt, i), false);
           if(childGroup && opt === childGroup.parentValue && childData && childData.options.length){
-            row += childData.options.map(cOpt => optRow(childGroup, cOpt, childData.counts[cOpt], true)).join('');
+            row += childData.options.map((cOpt, ci) => optRow(childGroup, cOpt, facetCount(childData, cOpt, ci), true)).join('');
           }
           return row;
         }).join('')}

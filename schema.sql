@@ -918,3 +918,21 @@ CREATE TABLE IF NOT EXISTS duel_analyses (
 );
 CREATE INDEX IF NOT EXISTS idx_duel_analyses_user ON duel_analyses(user_id, created_at DESC);
 
+-- ===================== entity_stats (0078) =====================
+-- Liste uçlarının parmak izi (fingerprint) kaynağı — COUNT(*) tam taramasının O(1) karşılığı.
+-- Bakımı SQLite trigger'larıyla otomatik yapılır; tam gerekçe, trigger gövdeleri ve `rev` alanının
+-- neden gerekli olduğu için bkz. migrations/0078_entity_stats.sql (bu dosyada tekrarlanmaz).
+-- Okuyucu: src/lib/entityStats.js (tablo yoksa eski COUNT sorgusuna güvenle düşer).
+CREATE TABLE IF NOT EXISTS entity_stats (
+  kind TEXT PRIMARY KEY,
+  live_count INTEGER NOT NULL DEFAULT 0,
+  latest_updated_at TEXT,
+  rev INTEGER NOT NULL DEFAULT 0
+);
+
+-- Arama katlama kolonları (0079) — architects.name_fold, offices.name_fold, products.title_fold,
+-- products.brand_fold, projects.title_fold, projects.photo_credit_fold: foldTr()'nin birebir SQL
+-- karşılığını hesaplayan VIRTUAL generated column'lar + index'leri. İfadeler uzun olduğundan burada
+-- TEKRARLANMAZ; tek kaynak migrations/0079_search_fold_columns.sql'dir (sıfırdan kurulumda o dosya
+-- bu şemadan SONRA uygulanmalıdır). NOT: pragma_table_info() generated kolonları göstermez,
+-- doğrulama için pragma_table_xinfo() kullanın.

@@ -151,8 +151,8 @@ async function renameProjectSlugEverywhere(env, oldSlug, newSlug) {
   ]);
   // bkz. migrations/0041_slug_redirects.sql — eski /yapi/:slug ve /proje/:slug hâlâ çalışsın (301 ile yeniye).
   await recordSlugRedirect(env, 'projects', oldSlug, newSlug);
-  await purgeSsrDetailCache('project', oldSlug);
-  await purgeSsrDetailCache('project', newSlug);
+  await purgeSsrDetailCache('project', oldSlug, env);
+  await purgeSsrDetailCache('project', newSlug, env);
 }
 
 // architects/offices/projects.slug hepsi TEXT UNIQUE NOT NULL (bkz. migrations/

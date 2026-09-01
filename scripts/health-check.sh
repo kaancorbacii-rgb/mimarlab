@@ -101,6 +101,21 @@ else
   echo "  OK: canlı worker_version = $deployed_version"
 fi
 
+# Zone-geneli önbellek temizliği (production audit 2026-09-01, madde E) — YALNIZCA bilgi amaçlı,
+# BAŞARISIZLIK SAYILMAZ: kod, CF_ZONE_ID + CF_PURGE_TOKEN secret'ları yokken de tamamen çalışır
+# (purge sessizce atlanır, mevcut s-maxage tabanlı tazelik davranışı korunur). Bu satır yalnızca
+# "secret'ları eklemeyi unuttum mu?" sorusunun cevabını her deploy'da görünür kılar.
+purge_ready=$(echo "$health_json" | jq -r '.globalCachePurge // false')
+if [ "$purge_ready" = "true" ]; then
+  echo "  OK: zone-geneli önbellek temizliği ETKİN (CF_ZONE_ID + CF_PURGE_TOKEN tanımlı)"
+else
+  echo "  BİLGİ: zone-geneli önbellek temizliği KAPALI — etkinleştirmek için:"
+  echo "         npx wrangler secret put CF_ZONE_ID      (Cloudflare > mimarlab.com > Zone ID)"
+  echo "         npx wrangler secret put CF_PURGE_TOKEN  (API token, izin: Zone > Cache Purge > Purge)"
+  echo "         Kapalıyken site normal çalışır; yalnızca admin değişikliği diğer PoP'larda"
+  echo "         s-maxage (en fazla 5 dk) kadar geç görünebilir."
+fi
+
 if [ "$fail" -eq 1 ]; then
   echo "Sağlık kontrolü BAŞARISIZ oldu." >&2
   exit 1

@@ -103,6 +103,11 @@
         trigger.setAttribute('aria-expanded', 'false');
       };
       trigger.addEventListener('click', (e)=>{
+        // Tetikleyici artık bir <a href="/urun"> (bkz. js/components/site-chrome.js#headerHtml):
+        // Cmd/Ctrl/Shift/Alt/orta tıkta tarayıcının doğal "yeni sekmede aç" davranışına dokunulmaz;
+        // yalnızca düz sol tıklama mega menüyü açar.
+        if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
         e.stopPropagation();
         if(!built){ panel.innerHTML = megaMenuHtml(); built = true; }
         const willOpen = !panel.classList.contains('open');

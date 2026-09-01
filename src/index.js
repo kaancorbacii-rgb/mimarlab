@@ -34,6 +34,7 @@ import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
 import { getSessionUser } from './lib/auth.js';
 import { getSiteSettings } from './lib/siteSettings.js';
+import { isGlobalPurgeConfigured } from './lib/globalPurge.js';
 
 const SITE_ORIGIN = 'https://mimarlab.com';
 
@@ -990,6 +991,11 @@ function handleHealthRoute(env) {
     status: 'ok',
     version: env.CF_VERSION_METADATA ? { id: env.CF_VERSION_METADATA.id, tag: env.CF_VERSION_METADATA.tag } : null,
     environment: env.ENVIRONMENT ?? null,
+    // production audit (2026-09-01, madde E): zone-geneli önbellek temizliği YALNIZCA CF_ZONE_ID +
+    // CF_PURGE_TOKEN secret'ları tanımlıysa çalışır (bkz. src/lib/globalPurge.js). Bu bayrak,
+    // secret'ların gerçekten yüklenip yüklenmediğini dışarıdan (scripts/health-check.sh) tek
+    // bakışta görebilmek için — token'ın KENDİSİ değil, yalnızca var/yok bilgisi döner.
+    globalCachePurge: isGlobalPurgeConfigured(env),
     timestamp: new Date().toISOString(),
   });
 }

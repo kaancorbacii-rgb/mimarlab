@@ -1,6 +1,8 @@
 import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
+import { entityFingerprint } from '../lib/entityStats.js';
+import { foldedPrefixThenSubstring, escapeLike } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
@@ -94,15 +96,25 @@ export async function handleProductSearchRoute(request, env, url) {
     // office_name: markanın canonical bir offices satırı varsa onun adı. Marka filtresi İKİSİNİ de
     // kabul eder — proje-ekle.html'deki Firma kutusu (bkz. handleProductBrandSearchRoute) markayı
     // hangi kaynaktan önerdiyse o adla geri gelir, ikisi her zaman birebir aynı yazılmış olmayabilir.
-    const { results } = await env.DB.prepare(
-      `SELECT p.slug, p.title, p.brand_name_raw, o.name AS office_name
+    // production audit (2026-09-01, madde B) — bkz. migrations/0079 + src/lib/searchFold.js.
+    // Hem marka (tam eşleşme, indexli brand_fold/name_fold) hem başlık (substring, indexli
+    // title_fold önek yolu) filtresi artık SQLite içinde; önceden TÜM ürünler Worker'a çekiliyordu.
+    const brandCond = brand ? ' AND (p.brand_fold = ? OR o.name_fold = ?)' : '';
+    const brandParams = brand ? [brand, brand] : [];
+    const baseSelect = `SELECT p.slug, p.title, p.brand_name_raw, o.name AS office_name
        FROM products p LEFT JOIN offices o ON o.id = p.brand_office_id
-       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL ORDER BY p.title`
-    ).all();
+       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL${brandCond}`;
+    // q yoksa (yalnızca ?brand= verilmiş — marka seçilince o markanın ürünlerini listeleme akışı)
+    // iki aşamalı substring aramasına hiç gerek yok, tek düz sorgu yeterli.
+    const results = q
+      ? await foldedPrefixThenSubstring({
+          runQuery: (sql, params) => env.DB.prepare(sql).bind(...brandParams, ...params).all().then(r => r.results),
+          sqlFor: (cond, limit) => `${baseSelect} ${cond} ORDER BY p.title LIMIT ${limit}`,
+          foldColumn: 'p.title_fold',
+          q, limit: 20, keyOf: r => r.slug,
+        })
+      : (await env.DB.prepare(`${baseSelect} ORDER BY p.title LIMIT 20`).bind(...brandParams).all()).results;
     const items = results
-      .filter(r => !brand || foldTr(r.brand_name_raw || '') === brand || foldTr(r.office_name || '') === brand)
-      .filter(r => !q || foldTr(r.title).includes(q))
-      .slice(0, 20)
       // slug: proje-ekle.html'deki görsel işaretçisi editörü (bkz. migrations/
       // 0076_project_image_hotspots.sql) seçilen ürünü slug'ıyla bağlar — "Kullanılan Ürünler"
       // kutusunun kendisi hâlâ yalnızca label/brand kullanır, bu alan ona zarar vermeden eklenir.
@@ -129,17 +141,22 @@ export async function handleProductBrandSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
+    // production audit (2026-09-01, madde B): filtre artık SQL'de. Bu uç DISTINCT ile
+    // tekilleştirdiğinden (marka için ayrı bir tablo yok) sonuç kümesi zaten küçüktür — burada
+    // index'li önek yolu yerine tek bir LIKE yeterli; kazanç, tüm marka listesini Worker'a
+    // taşımak yerine en fazla 20 satır taşımaktır. COALESCE üzerinden gidildiği için hazır
+    // brand_fold/name_fold kolonları da COALESCE ile birleştirilir.
+    const foldExpr = `COALESCE(p.brand_fold, o.name_fold)`;
+    const cond = q ? ` AND ${foldExpr} LIKE ? ESCAPE '\\'` : '';
+    const params = q ? [`%${escapeLike(q)}%`] : [];
     const { results } = await env.DB.prepare(
       `SELECT DISTINCT COALESCE(p.brand_name_raw, o.name) AS name
        FROM products p LEFT JOIN offices o ON o.id = p.brand_office_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
-         AND COALESCE(p.brand_name_raw, o.name) IS NOT NULL AND COALESCE(p.brand_name_raw, o.name) <> ''
-       ORDER BY name`
-    ).all();
-    const items = results
-      .filter(r => !q || foldTr(r.name).includes(q))
-      .slice(0, 20)
-      .map(r => ({ label: r.name, sub: '' }));
+         AND COALESCE(p.brand_name_raw, o.name) IS NOT NULL AND COALESCE(p.brand_name_raw, o.name) <> ''${cond}
+       ORDER BY name LIMIT 20`
+    ).bind(...params).all();
+    const items = results.map(r => ({ label: r.name, sub: '' }));
     return { items };
   });
 }
@@ -442,8 +459,12 @@ export async function handleProductListRoute(request, env, url) {
 
 // Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
 // desen.
+// production audit (2026-09-01, madde A): buradaki ÇIPLAK `SELECT COUNT(*), MAX(updated_at) ...`
+// artık src/lib/entityStats.js#entityFingerprint üzerinden okunuyor — değer yazma yolunda (SQLite
+// trigger'ları, bkz. migrations/0078_entity_stats.sql) bakımı yapılan entity_stats tablosundan TEK
+// satırlık bir PRIMARY KEY aramasıyla geliyor, yani kayıt sayısından bağımsız. entityFingerprint,
+// entity_stats yoksa ESKİ tam-tarama sorgusuna kendisi düşer (davranış aynı kalır). Dış katman
+// (getCachedFingerprint'in 60sn'lik KV önbelleği + invalidatePublicCache temizliği) DEĞİŞMEDİ.
 function productListFingerprint(env) {
-  return getCachedFingerprint(env, 'products', () => env.DB.prepare(
-    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
+  return getCachedFingerprint(env, 'products', () => entityFingerprint(env, 'products'));
 }

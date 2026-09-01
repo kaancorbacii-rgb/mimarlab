@@ -301,7 +301,7 @@ async function createSubmission(request, env, user, typeKey) {
     // src/lib/ssrCache.js). Marka yeni (claim'siz) bir kayıt için bu bir no-op'tur (henüz hiç
     // önbelleklenmemiş bir anahtarı silmeye çalışmak zararsızdır).
     const target = ssrPurgeTargetFor(typeKey, { ...row, id });
-    if (target) await purgeSsrDetailCache(target.type, target.key);
+    if (target) await purgeSsrDetailCache(target.type, target.key, env);
 
     // Bülten bildirimi (bkz. src/lib/newsletterNotify.js dosya başı yorumu) — YALNIZCA gerçekten
     // yeni bir kayıt için (isOwnerProfileEdit/claimed_slug'lı gönderiler mevcut statik bir kaydın
@@ -477,7 +477,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
     // slug DEĞİŞMEDEN yapılan bir düzenlemede de (ör. görsel/açıklama güncellemesi) sayfa önbelleği
     // eskimiş olur.
     const target = ssrPurgeTargetFor(typeKey, existing);
-    if (target) await purgeSsrDetailCache(target.type, target.key);
+    if (target) await purgeSsrDetailCache(target.type, target.key, env);
   }
 
   // Firma/mimar yeniden adlandırıldıysa (statik/claimed profilde yalnızca admin, claim'siz sıradan

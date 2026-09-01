@@ -1,6 +1,8 @@
 import { errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
+import { entityFingerprint } from '../lib/entityStats.js';
+import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { resolveSlugRedirect } from '../lib/slugRedirects.js';
@@ -108,19 +110,26 @@ function parseProjectDateYear(dateStr) {
 }
 
 // GET /api/offices/search?q=... — src/routes/architect.js#handleArchitectSearchRoute'un firma
-// karşılığı; proje-ekle.html'deki Firma/Marka autocomplete kutularının canlı D1 sorgusu. Türkçe
-// harf duyarlılığı için SQL LIKE yerine tüm adaylar çekilip foldTr ile JS tarafında filtrelenir
-// (tablo küçük olduğundan, bkz. findOffice'teki AYNI tam-tarama gerekçesi).
+// karşılığı; proje-ekle.html'deki Firma/Marka autocomplete kutularının canlı D1 sorgusu.
+// Eşleştirme 2026-09-01 denetiminde JS'ten SQL'e taşındı — indexli `name_fold` generated column'u
+// (bkz. migrations/0079) + iki aşamalı önek/substring araması (bkz. src/lib/searchFold.js).
 export async function handleOfficeSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
     // D1 audit (2026-08-25) P1-6 — bkz. product.js#handleProductSearchRoute'taki AYNI gerekçe.
     if (!q || q.length < 2) return { items: [] };
-    const { results } = await env.DB.prepare(
-      `SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY name`
-    ).all();
-    const items = results.filter(r => foldTr(r.name).includes(q)).slice(0, 20).map(r => ({ label: r.name, sub: r.loc || '' }));
+    // production audit (2026-09-01, madde B) — bkz. src/routes/architect.js#handleArchitectSearchRoute
+    // ve migrations/0079: eşleştirme artık indexli name_fold kolonu üzerinde SQLite içinde yapılıyor.
+    const rows = await foldedPrefixThenSubstring({
+      runQuery: (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results),
+      sqlFor: (cond, limit) => `SELECT id, name, loc FROM offices
+        WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} ORDER BY name LIMIT ${limit}`,
+      foldColumn: 'name_fold',
+      // keyOf = satır kimliği — bkz. src/routes/architect.js'teki AYNI gerekçe.
+      q, limit: 20, keyOf: r => r.id,
+    });
+    const items = rows.map(r => ({ label: r.name, sub: r.loc || '' }));
     return { items };
   });
 }
@@ -258,10 +267,14 @@ export async function handleOfficeListRoute(request, env, url) {
 // Faz 4B — Conditional Requests: bkz. src/routes/architect.js#architectListFingerprint'teki AYNI
 // desen.
 // D1 audit (2026-08-25) P0-3 — bkz. project.js#projectListFingerprint'teki AYNI gerekçe.
+// production audit (2026-09-01, madde A): buradaki ÇIPLAK `SELECT COUNT(*), MAX(updated_at) ...`
+// artık src/lib/entityStats.js#entityFingerprint üzerinden okunuyor — değer yazma yolunda (SQLite
+// trigger'ları, bkz. migrations/0078_entity_stats.sql) bakımı yapılan entity_stats tablosundan TEK
+// satırlık bir PRIMARY KEY aramasıyla geliyor, yani kayıt sayısından bağımsız. entityFingerprint,
+// entity_stats yoksa ESKİ tam-tarama sorgusuna kendisi düşer (davranış aynı kalır). Dış katman
+// (getCachedFingerprint'in 60sn'lik KV önbelleği + invalidatePublicCache temizliği) DEĞİŞMEDİ.
 function officeListFingerprint(env) {
-  return getCachedFingerprint(env, 'offices', () => env.DB.prepare(
-    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
+  return getCachedFingerprint(env, 'offices', () => entityFingerprint(env, 'offices'));
 }
 
 // GET /api/office/:key — ofis-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:

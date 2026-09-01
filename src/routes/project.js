@@ -1,6 +1,8 @@
 import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
+import { entityFingerprint } from '../lib/entityStats.js';
+import { foldedPrefixThenSubstring, escapeLike } from '../lib/searchFold.js';
 import { getCachedFacetCounts } from '../lib/facetCounts.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
@@ -152,14 +154,18 @@ export async function handlePhotographerSearchRoute(request, env, url) {
     // Boş q (odaklanınca en çok kullanılanları göster — bkz. yukarıdaki dosya başı yorumu) BİLEREK
     // muaf: yalnızca 1 karakterlik gürültülü kısmi aramalar D1'e hiç gitmez.
     if (q && q.length < 2) return { items: [] };
+    // production audit (2026-09-01, madde B): filtre GROUP BY'DAN ÖNCE, SQL içinde uygulanıyor
+    // (indexli photo_credit_fold, bkz. migrations/0079). Fotoğrafçı için ayrı bir tablo olmadığından
+    // (bkz. yukarıdaki dosya başı yorumu) agregasyonun kendisi kaçınılmaz kalır, ama artık yalnızca
+    // eşleşen satırlar gruplanır ve Worker'a tüm fotoğrafçı listesi yerine en fazla 8 satır taşınır.
+    const cond = q ? ` AND photo_credit_fold LIKE ? ESCAPE '\\'` : '';
+    const params = q ? [`%${escapeLike(q)}%`] : [];
     const { results } = await env.DB.prepare(
       `SELECT photo_credit_text AS name, COUNT(*) AS c FROM projects
-       WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text != ''
-       GROUP BY photo_credit_text ORDER BY c DESC`
-    ).all();
+       WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_credit_text IS NOT NULL AND photo_credit_text != ''${cond}
+       GROUP BY photo_credit_text ORDER BY c DESC LIMIT 8`
+    ).bind(...params).all();
     const items = results
-      .filter(r => !q || foldTr(r.name).includes(q))
-      .slice(0, 8)
       .map(r => ({ label: r.name }));
     return { items };
   });
@@ -178,13 +184,18 @@ export async function handleProjectSearchRoute(request, env, url) {
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
     const q = foldTr((url.searchParams.get('q') || '').trim());
     if (!q || q.length < 2) return { items: [] };
-    const { results } = await env.DB.prepare(
-      `SELECT slug, title, location, project_date FROM projects
-       WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY title`
-    ).all();
-    const items = results
-      .filter(r => foldTr(r.title || '').includes(q))
-      .slice(0, 20)
+    // production audit (2026-09-01, madde B) — bkz. migrations/0079 + src/lib/searchFold.js:
+    // eşleştirme indexli title_fold kolonu üzerinde SQLite içinde yapılıyor. Bu uç, dördü içinde
+    // en çok kazanan: projects tablosu hem en büyük hem de en geniş satırlara sahip (images/
+    // description JSON'ları), önceden hepsi her tuş vuruşunda Worker'a taşınıyordu.
+    const rows = await foldedPrefixThenSubstring({
+      runQuery: (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results),
+      sqlFor: (cond, limit) => `SELECT slug, title, location, project_date FROM projects
+        WHERE deleted_at IS NULL AND hidden_at IS NULL ${cond} ORDER BY title LIMIT ${limit}`,
+      foldColumn: 'title_fold',
+      q, limit: 20, keyOf: r => r.slug,
+    });
+    const items = rows
       .map(r => ({ label: r.title, sub: [r.location, r.project_date].filter(Boolean).join(' · '), slug: r.slug }));
     return { items };
   });
@@ -416,6 +427,17 @@ function dateBucketSortKey(s) {
 // önbelleği sağlar (bkz. handleProjectFiltersRoute'un facet_counts fast-path'i, aynı dosyada
 // tanımlı); herhangi bir filtre aktifken bu tam tarama (artık canonical tablo üzerinden) çalışmaya
 // devam eder — mevcut canlı davranışla birebir aynı.
+// production audit (2026-09-01, P2): bu ucun gövdesinin ~%40'ı SAF TEKRAR idi. Her facet
+// `{counts: {ad: sayı, ...}, options: [ad, ...]}` şeklinde dönüyordu — yani 459 tasarımcı adının
+// TAMAMI hem counts'un anahtarları hem de options'ın elemanları olarak, İKİ KEZ serialize ediliyordu
+// (yalnızca designer + designerOffice = 40,5 KB'lık yanıtın ~17 KB'ı). counts artık options ile
+// AYNI SIRADA bir sayı dizisi: adlar bir kez yazılır, sayılar indexle eşleşir.
+// İstemci (js/pages/proje.js#buildSidebar) her iki biçimi de okuyabilir — deploy anında edge'de
+// duran eski gövdelerle (s-maxage=15) yeni JS'in karşılaşma ihtimaline karşı.
+function facetPayload(counts, options) {
+  return { options, counts: options.map(o => counts[o]) };
+}
+
 export async function handleProjectFiltersRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
 
@@ -437,7 +459,8 @@ export async function handleProjectFiltersRoute(request, env, url) {
         const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = 'built'`).first();
         const out = {};
         for (const [key, counts] of Object.entries(cached)) {
-          out[key] = { counts, options: Object.keys(counts).sort((a, b) => (key === 'dateBucket' ? dateBucketSortKey(b) - dateBucketSortKey(a) : counts[b] - counts[a] || a.localeCompare(b))) };
+          const options = Object.keys(counts).sort((a, b) => (key === 'dateBucket' ? dateBucketSortKey(b) - dateBucketSortKey(a) : counts[b] - counts[a] || a.localeCompare(b)));
+          out[key] = facetPayload(counts, options);
         }
         return { filters: out, total: totalRow?.n || 0 };
       }
@@ -485,7 +508,7 @@ export async function handleProjectFiltersRoute(request, env, url) {
         if (g.key === 'dateBucket') return dateBucketSortKey(b) - dateBucketSortKey(a);
         return counts[b] - counts[a] || a.localeCompare(b);
       });
-      out[g.key] = { counts, options };
+      out[g.key] = facetPayload(counts, options);
     }
     return { filters: out, total: pool.filter(p => passesFilters(p, null)).length };
   });
@@ -721,8 +744,12 @@ export async function handleProjectListRoute(request, env, url) {
 // cache HIT'te bile — bkz. cachedPublicJson#computeFreshEtag). getCachedFingerprint kısa TTL'li
 // (60sn) bir KV önbelleği araya koyar, mutasyonlarda invalidatePublicCache() tarafından temizlenir
 // (bkz. publicCache.js) — sorgunun kendisi/doğruluğu DEĞİŞMEDİ, yalnızca ne sıklıkla çalıştığı.
+// production audit (2026-09-01, madde A): buradaki ÇIPLAK `SELECT COUNT(*), MAX(updated_at) ...`
+// artık src/lib/entityStats.js#entityFingerprint üzerinden okunuyor — değer yazma yolunda (SQLite
+// trigger'ları, bkz. migrations/0078_entity_stats.sql) bakımı yapılan entity_stats tablosundan TEK
+// satırlık bir PRIMARY KEY aramasıyla geliyor, yani kayıt sayısından bağımsız. entityFingerprint,
+// entity_stats yoksa ESKİ tam-tarama sorgusuna kendisi düşer (davranış aynı kalır). Dış katman
+// (getCachedFingerprint'in 60sn'lik KV önbelleği + invalidatePublicCache temizliği) DEĞİŞMEDİ.
 function projectListFingerprint(env) {
-  return getCachedFingerprint(env, 'projects', () => env.DB.prepare(
-    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
+  return getCachedFingerprint(env, 'projects', () => entityFingerprint(env, 'projects'));
 }

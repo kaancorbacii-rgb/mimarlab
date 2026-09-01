@@ -1,6 +1,7 @@
 import { json } from './http.js';
 import { getSessionUser } from './auth.js';
 import { reserveKvWrite } from './kvQuota.js';
+import { purgeGlobalUrls } from './globalPurge.js';
 
 // Admin oturumu taşıyan istekler (mimarlab_session çerezi + role==='admin') hiçbir zaman
 // önbelleklenmez — admin panelinden yapılan bir değişikliğin aynı oturumda anında görünmesi için
@@ -81,9 +82,12 @@ const CACHEABLE_PATHS = [
 // PoP'un girdisi temizlenir, admin farklı bir PoP'tan (ör. farklı ağ/telefon) hemen sonra profili
 // kontrol ederse s-maxage (15sn) dolana kadar hâlâ eski rozeti görebiliyordu — kullanıcı isteği
 // "hangi rozeti verirsem vereyim HEMEN her rozet alanında gözükmesi gerekiyor" bunu kabul etmiyor.
-// Cloudflare'de Worker'dan tüm PoP'ları TEK seferde temizleyen ücretsiz bir "global purge" yok,
-// bu yüzden gecikme penceresini küçültmek yerine bu uç için edge/tarayıcı önbelleğinin TAMAMI
-// kaldırıldı — sorgu iki küçük indeksli JOIN + admin_badges'in (küçük bir tablo) tam taraması,
+// DÜZELTME (2026-09-01, madde E): buradaki "Cloudflare'de ücretsiz bir global purge YOK" ifadesi
+// YANLIŞTI — zone-geneli purge-by-URL REST API'si Free dahil TÜM planlarda mevcut (bkz. src/lib/
+// globalPurge.js). Yine de bu uç için no-store kararı DEĞİŞTİRİLMEDİ: rozet görünürlüğü
+// "gecikmesiz" olmalı (kullanıcı isteği) ve purge API'si de anlık değil saniyeler mertebesinde
+// yayılır; ayrıca sorgu zaten çok hafif. Aşağıdaki gerekçe geçerliliğini koruyor —
+// sorgu iki küçük indeksli JOIN + admin_badges'in (küçük bir tablo) tam taraması,
 // önbelleksiz her istekte çalıştırılabilecek kadar hafif (bkz. schema.sql#admin_badges/
 // badge_requests/profile_claims index'leri). handlePublicBadges artık BADGE_NO_CACHE_HEADERS ile
 // (aşağıya bkz.) private/no-store döner — hem caches.default'a hiç yazılmaz hem de tarayıcı
@@ -439,7 +443,15 @@ export async function getCachedFingerprint(env, kind, computeFingerprint) {
 // binding'ine (FACET_CACHE) erişmek için gerekli, öncesinde bu fonksiyon parametresizdi; TÜM çağıran
 // noktalar (13 tanesi) buna göre güncellendi.
 export async function invalidatePublicCache(env) {
+  // production audit (2026-09-01, madde E): aşağıdaki caches.default.delete() çağrıları YALNIZCA bu
+  // isteği işleyen PoP'u temizler. purgeGlobalUrls, AYNI yol listesini Cloudflare'ın purge-by-URL
+  // REST API'siyle TÜM PoP'larda temizler — ama yalnızca CF_ZONE_ID + CF_PURGE_TOKEN secret'ları
+  // tanımlıysa; tanımlı değilse sessizce atlanır ve davranış ESKİSİYLE BİREBİR aynı kalır
+  // (bkz. src/lib/globalPurge.js#isGlobalPurgeConfigured). await ediliyor ama içeride her hata
+  // yutuluyor — bu fonksiyonun çağıranları (admin yazma yolları) hiçbir koşulda bundan etkilenmez.
+  const globalPurge = purgeGlobalUrls(env, [...CACHEABLE_PATHS, ...BARE_LIST_PATHS].map(p => `https://mimarlab.com${p}`));
   await Promise.all([
+    globalPurge,
     ...[...CACHEABLE_PATHS, ...BARE_LIST_PATHS].map(async p => {
       try { await caches.default.delete(cacheKeyFor(p)); } catch {}
     }),

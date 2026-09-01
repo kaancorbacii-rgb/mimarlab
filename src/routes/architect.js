@@ -2,6 +2,8 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint, invalidatePublicCache } from '../lib/publicCache.js';
+import { entityFingerprint } from '../lib/entityStats.js';
+import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
@@ -108,8 +110,10 @@ function parseProjectDateYear(dateStr) {
 // formlardaki Mimar autocomplete kutularının canlı D1 sorgusu (bkz. kullanıcı isteği: "Admin
 // panelinden yeni eklenen mimarlar Proje Ekle'deki öneri kutusunda görünmüyor" — eski hâli data.js'
 // teki statik architects[] dizisini kullanıyordu, D1'e yeni eklenen kayıtları hiç görmüyordu).
-// Türkçe harf duyarlılığı için SQL LIKE yerine tüm adaylar çekilip trLower ile JS tarafında
-// filtrelenir (tablo küçük olduğundan, bkz. findArchitect'teki AYNI tam-tarama gerekçesi).
+// Türkçe harf duyarlılığı (İ/I/ı/i, Ş/ş ...) SQLite'ın lower()/LIKE'ı tarafından bilinmediğinden bu
+// eşleştirme eskiden TÜM adaylar Worker'a çekilip JS'te foldTr ile yapılıyordu. 2026-09-01 denetimi
+// bunu SQL'e taşıdı: foldTr'nin birebir SQL karşılığını hesaplayan indexli `name_fold` generated
+// column'u (bkz. migrations/0079) + iki aşamalı önek/substring araması (bkz. src/lib/searchFold.js).
 // office parametresi (q ile birlikte DEĞİL, onun yerine kullanılır) — urun-ekle.html'in "Marka"
 // alanından bir firma seçildiğinde o firmanın bünyesindeki TÜM mimarları (architects.office_id
 // eşleşmesi) döner; Legacy Bundle Elimination Faz 3'ten önce bu istemci tarafında data.js'in statik
@@ -125,15 +129,30 @@ export async function handleArchitectSearchRoute(request, env, url) {
     // officeParam (tam isim eşleşmesi, tuş vuruşuyla değil seçimle set edilir) bu eşikten muaf —
     // yalnızca serbest metin `q` araması 2 karakter altında D1'e hiç gitmez.
     if (!officeParam && q.length < 2) return { items: [] };
-    const { results } = await env.DB.prepare(
-      `SELECT a.name AS name, o.name AS office_name FROM architects a
+    // production audit (2026-09-01, madde B): eşleştirme artık SQLite içinde, indexli name_fold
+    // generated column'u üzerinde yapılıyor (bkz. migrations/0079 + src/lib/searchFold.js) —
+    // önceden TÜM mimarlar Worker'a çekilip JS'te foldTr ile filtreleniyordu.
+    // officeParam dalı (tam isim eşleşmesi, tuş vuruşuyla değil seçimle set edilir) substring
+    // araması DEĞİL, bu yüzden kendi basit sorgusunu kullanır — o da artık SQL'de filtreleniyor.
+    const baseSelect = `SELECT a.id AS id, a.name AS name, o.name AS office_name FROM architects a
        LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL ORDER BY a.name`
-    ).all();
-    const filtered = officeParam
-      ? results.filter(r => r.office_name === officeParam)
-      : results.filter(r => foldTr(r.name).includes(q));
-    const items = filtered.slice(0, 20).map(r => ({ label: r.name, sub: r.office_name || '' }));
+       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL`;
+    if (officeParam) {
+      const { results } = await env.DB.prepare(
+        `${baseSelect} AND o.name = ? ORDER BY a.name LIMIT 20`
+      ).bind(officeParam).all();
+      return { items: results.map(r => ({ label: r.name, sub: r.office_name || '' })) };
+    }
+    const rows = await foldedPrefixThenSubstring({
+      runQuery: (sql, params) => env.DB.prepare(sql).bind(...params).all().then(r => r.results),
+      sqlFor: (cond, limit) => `${baseSelect} ${cond} ORDER BY a.name LIMIT ${limit}`,
+      foldColumn: 'a.name_fold',
+      // keyOf = satır kimliği (ad DEĞİL): iki aşamanın AYNI satırı iki kez listelemesini önler,
+      // ama aynı ada sahip FARKLI iki mimarı (bkz. proje notu: kayıtlar çıplak isimle anahtarlanıyor,
+      // aynı adlı iki kayıt olabiliyor) birbirine karıştırıp birini düşürmez.
+      q, limit: 20, keyOf: r => r.id,
+    });
+    const items = rows.map(r => ({ label: r.name, sub: r.office_name || '' }));
     return { items };
   });
 }
@@ -262,10 +281,14 @@ export async function handleArchitectListRoute(request, env, url) {
 // çok daha ucuz bir "içerik değişti mi" özeti — bkz. src/lib/publicCache.js#cachedPublicJson
 // listFingerprint parametresi.
 // D1 audit (2026-08-25) P0-3 — bkz. project.js#projectListFingerprint'teki AYNI gerekçe.
+// production audit (2026-09-01, madde A): buradaki ÇIPLAK `SELECT COUNT(*), MAX(updated_at) ...`
+// artık src/lib/entityStats.js#entityFingerprint üzerinden okunuyor — değer yazma yolunda (SQLite
+// trigger'ları, bkz. migrations/0078_entity_stats.sql) bakımı yapılan entity_stats tablosundan TEK
+// satırlık bir PRIMARY KEY aramasıyla geliyor, yani kayıt sayısından bağımsız. entityFingerprint,
+// entity_stats yoksa ESKİ tam-tarama sorgusuna kendisi düşer (davranış aynı kalır). Dış katman
+// (getCachedFingerprint'in 60sn'lik KV önbelleği + invalidatePublicCache temizliği) DEĞİŞMEDİ.
 function architectListFingerprint(env) {
-  return getCachedFingerprint(env, 'architects', () => env.DB.prepare(
-    `SELECT COUNT(*) AS cnt, MAX(updated_at) AS latest FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`
-  ).first().then(row => `${row?.cnt ?? 0}:${row?.latest ?? ''}`));
+  return getCachedFingerprint(env, 'architects', () => entityFingerprint(env, 'architects'));
 }
 
 // GET /api/architect/:key — mimar-detay.html'nin TEK istekte aldığı birleşik yanıt. Dönen şekil:
@@ -539,8 +562,8 @@ export async function handleArchitectPrimaryOfficeRoute(request, env, url) {
     await env.DB.prepare(`UPDATE architects SET office_id = ?, updated_at = datetime('now') WHERE id = ?`).bind(officeRow.id, architect.id).run();
   }
 
-  await purgeSsrDetailCache('architect', architect.slug);
-  if (architect.legacy_key && architect.legacy_key !== architect.slug) await purgeSsrDetailCache('architect', architect.legacy_key);
+  await purgeSsrDetailCache('architect', architect.slug, env);
+  if (architect.legacy_key && architect.legacy_key !== architect.slug) await purgeSsrDetailCache('architect', architect.legacy_key, env);
   // denetim bulgusu: bu route architects.office_id'yi değiştirip SSR detay önbelleğini temizliyordu
   // ama /api/architects liste havuzunun KV önbelleğini (bkz. publicCache.js#POOL_CACHE_KINDS)
   // temizlemiyordu — mimar listesindeki kart en fazla o havuzun TTL'i (30dk) kadar eski firma adını

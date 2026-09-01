@@ -50,7 +50,7 @@ export async function clearArchitectOfficeIfMatches(env, user, architectName, of
       `INSERT INTO architect_submissions (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`
     ).bind(newId(), user.id, 'approved', now, now, architectName, architectName, ...values).run();
   }
-  await purgeSsrDetailCache('architect', architectName);
+  await purgeSsrDetailCache('architect', architectName, env);
 }
 
 // offices submission update sırasında çağrılır (bkz. src/routes/submissions.js#updateOwnSubmission,
@@ -179,8 +179,8 @@ export async function renameOfficeEverywhere(env, oldName, newName) {
       // purgeSsrDetailCache zaten-slug bir değer alırsa slugify idempotent olduğundan sorun çıkarmaz —
       // isim yerine BİLİNEN gerçek eski/yeni slug'ı vermek, isimden yeniden türetmenin (bkz.
       // ssrPurgeTargetFor) daha önce bir çakışma soneki almış slug'larda yanlış anahtarı hedeflemesini önler.
-      await purgeSsrDetailCache('office', canonRow.slug);
-      await purgeSsrDetailCache('office', finalSlug);
+      await purgeSsrDetailCache('office', canonRow.slug, env);
+      await purgeSsrDetailCache('office', finalSlug, env);
     } else {
       await env.DB.prepare(`UPDATE offices SET name = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, canonRow.id).run();
     }
@@ -253,8 +253,8 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
       await env.DB.prepare(`UPDATE architects SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, finalSlug, canonRow.id).run();
       // bkz. migrations/0041_slug_redirects.sql — eski /mimar/:slug hâlâ çalışsın (301 ile yeniye).
       await recordSlugRedirect(env, 'architects', canonRow.slug, finalSlug);
-      await purgeSsrDetailCache('architect', canonRow.slug);
-      await purgeSsrDetailCache('architect', finalSlug);
+      await purgeSsrDetailCache('architect', canonRow.slug, env);
+      await purgeSsrDetailCache('architect', finalSlug, env);
     } else {
       await env.DB.prepare(`UPDATE architects SET name = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, canonRow.id).run();
     }
