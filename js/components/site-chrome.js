@@ -327,12 +327,12 @@
     <div class="footer-subscribe">
       <div class="footer-subscribe-inner">
         <h4 class="footer-subscribe-join-title">MİMARLAB'da yok musun?</h4>
-        <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
         <p class="footer-subscribe-join-desc">Kişi, firma veya marka bilgilerini hemen doldur.</p>
-        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar, firma ve markalar e-postana gelsin.</p>
         <div class="footer-subscribe-join-action">
           <a class="footer-subscribe-btn" href="/uye-ol">Üye Ol</a>
         </div>
+        <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
+        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar, firma ve markalar e-postana gelsin.</p>
         <div class="footer-subscribe-news-action">
           <form class="footer-newsletter-form" id="footer-newsletter-form">
             <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
@@ -424,16 +424,17 @@
       }
       .add-content-list a:hover{background:var(--ink); color:var(--paper-card);}
       .footer-subscribe{background:#4E6478; border-bottom:1px solid rgba(237,240,243,0.12);}
-      /* kullanıcı isteği: iki sütundaki başlık/açıklama/buton satırları TÜM görünümlerde aynı hizada
-         ve aynı büyüklükte olmalı — bu yüzden iki .footer-subscribe-join/.footer-subscribe-news
-         SARMALAYICISI yerine 6 öğe DOĞRUDAN grid'in çocuğu (satır-öncelikli otomatik yerleşim: h4/h4
-         → satır1, p/p → satır2, action/action → satır3), her satırın yüksekliği iki sütundaki en uzun
-         içeriğe göre PAYLAŞILA belirlenir (bağımsız iki flex sütunda metin uzunluğu farkı satırları
-         kaydırırdı). kullanıcı isteği (sonraki tur): ortadaki dikey ayırıcı çizgi kaldırıldı — sütunlar
-         artık yalnızca column-gap ile ayrılıyor, footer-top'un (Ana Menü/Topluluk/Kurumsal) AYNI
-         deseni kullandığı gibi. */
-      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:48px; align-items:start;}
+      /* kullanıcı isteği (2026-09-01): açık mavi üst bant artık İKİ SÜTUN değil, sayfaya ortalanmış
+         TEK bir dikey akış — sırasıyla "MİMARLAB'da yok musun?" başlığı, açıklaması, Üye Ol butonu,
+         ardından "Bültene Abone Ol" başlığı, açıklaması ve e-posta kutucuğu. (Önceki tur iki sütunu
+         satır satır hizalamak için 6 öğeyi doğrudan grid'in çocuğu yapıyordu; tek sütunda o hizalama
+         sorunu ortadan kalktığı için düz flex yeterli — DOM sırası da artık görsel sırayla birebir,
+         bkz. footerHtml().) */
+      .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:flex; flex-direction:column; align-items:center; text-align:center;}
       .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
+      .footer-subscribe-news-title{margin-top:30px;}
+      /* form/buton öğeleri açıklama metinleriyle aynı ölçüde kalsın diye aynı max-width */
+      .footer-subscribe-news-action{width:100%; max-width:340px;}
       .footer-subscribe-btn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 26px; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; border-radius:100px; border:none; cursor:pointer; white-space:nowrap;}
       .footer-subscribe-btn:hover{opacity:0.9;}
       .footer-subscribe-btn:disabled{opacity:0.6; cursor:default;}
@@ -486,11 +487,7 @@
       @media (max-width: 860px){
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
         .footer-brand{grid-column:auto;}
-        /* kullanıcı isteği: tablet/mobilde sütun başları footer-top'un (Ana Menü/Topluluk/Kurumsal)
-           sütun başlarıyla AYNI hizadan başlasın — footer-top HER ZAMAN 32px yatay padding + 20px
-           column-gap kullanır (bkz. .footer-top{padding:48px 32px 32px;} temel kuralı, bu satırlarda
-           değişmez), o yüzden burada da BİREBİR aynı değerler kullanılıyor. */
-        .footer-subscribe-inner{column-gap:20px; padding:26px 32px;}
+        .footer-subscribe-inner{padding:26px 32px;}
         .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:14.5px;}
       }
       @media (max-width: 560px){
