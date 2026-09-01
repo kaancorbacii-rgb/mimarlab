@@ -48,7 +48,7 @@ export async function getActiveSelfBadge(env, userId) {
 }
 
 // Bir kullanıcının yorum/gönderi gibi KİŞİSEL içeriklerinin yanında gösterilecek admin rozetini
-// çözer — src/routes/badges.js#getAdminBadgeForTarget('self')'in aksine yalnızca kullanıcının KENDİ
+// çözer — src/routes/badges.js#getProfileBadgesForUser'ın `self` alanının aksine yalnızca kullanıcının KENDİ
 // mimar profiliyle sınırlı kalmaz, yönetici pozisyonuyla (Kurucu/Kurucu Ortak/Ortak/Ekip Lideri —
 // OFFICE_EDIT_POSITIONS ile AYNI küme) sahiplendiği bir firmanın admin rozetini de kapsar.
 //

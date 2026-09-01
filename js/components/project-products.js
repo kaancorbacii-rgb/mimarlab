@@ -14,7 +14,14 @@
 // (ve mimar/firma/ürün modallarının injectStyles'ında) zaten tanımlı, yatay kaydırma okları da
 // modal-shell.js#wireGridScrollArrows tarafından AYNI seçiciyle otomatik bağlanıyor.
 const ProjectProducts = (function () {
-  const DEFAULT_IDS = { productsSection: 'pm-products-section', productsGrid: 'pm-products-grid' };
+  const DEFAULT_IDS = {
+    productsSection: 'pm-products-section', productsGrid: 'pm-products-grid',
+    // "Kullanılan Markalar" (kullanıcı isteği, 2026-09-01 madde 5) — "Kullanılan Ürünler" ile AYNI
+    // satırda, iki sütun (bkz. js/components/project-modal.js#pm-two-col-row). Veri ek bir istek
+    // GEREKTİRMEZ: item.brands proje payload'ıyla birlikte gelir (bkz. src/routes/project.js#
+    // fetchProjectProducts), yani ürünlerin markalarının zincirin bir halka devamı olarak çözülmüş hâli.
+    brandsSection: 'pm-brands-section', brandsGrid: 'pm-brands-grid', pair: 'pm-products-pair',
+  };
 
   // js/components/product-modal.js#cardHtml ile BİREBİR aynı işaretleme (alt satırda markanın adı) —
   // bu dosya proje.html/mimar.html gibi sayfalarda çalıştığından cdnImg/cdnSrcset/officeColor/
@@ -31,11 +38,25 @@ const ProjectProducts = (function () {
     </a>`;
   }
 
-  function renderGroup(items, sectionId, gridId) {
+  // Marka kartı — js/components/office-modal.js#cardHtml ile BİREBİR aynı işaretleme (alt satırda
+  // konum), hedef /firma/:slug (marka profilleri de firma modalıyla açılır, bkz. office-kind.js).
+  function brandCardHtml(b) {
+    const srcset = b.logo ? cdnSrcset(b.logo, [300, 450, 600]) : '';
+    return `<a class="related-card" href="/firma/${encodeURIComponent(b.slug)}">
+      <div class="related-card-photo">
+        ${b.logo ? `<img src="${escapeAttr(cdnImg(b.logo, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(b.name)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(b.name)}">${escapeHtml(initials(b.name))}</div>`}
+      </div>
+      <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(b.name)}</span>${b.loc ? `<div class="related-card-subtitle">${escapeHtml(b.loc)}</div>` : ''}</div>
+    </a>`;
+  }
+
+  function renderGroup(items, sectionId, gridId, toHtml) {
     const section = document.getElementById(sectionId);
-    if (!items || !items.length) { section.style.display = 'none'; return; }
+    if (!section) return false;
+    if (!items || !items.length) { section.style.display = 'none'; return false; }
     section.style.display = '';
-    document.getElementById(gridId).innerHTML = items.map(cardHtml).join('');
+    document.getElementById(gridId).innerHTML = items.map(toHtml || cardHtml).join('');
+    return true;
   }
 
   // Ürünler ve malzemeler TEK ızgarada birleşir (kullanıcı isteği, 2026-08-31: "Malzemeler diye bir
@@ -46,7 +67,15 @@ const ProjectProducts = (function () {
   function mount(item, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const all = [...(item.products || []), ...(item.materials || [])];
-    renderGroup(all, mergedIds.productsSection, mergedIds.productsGrid);
+    const hasProducts = renderGroup(all, mergedIds.productsSection, mergedIds.productsGrid);
+    const hasBrands = renderGroup(item.brands || [], mergedIds.brandsSection, mergedIds.brandsGrid, brandCardHtml);
+    // Sarmalayıcı satır: iki bölüm de boşsa tamamen gizlenir (üstteki çizgi/boşluk ondadır),
+    // ikisi de doluysa ortadaki kısa dik ayırıcı çizilir (bkz. project-modal.js#pm-two-col-row-both).
+    const pair = document.getElementById(mergedIds.pair);
+    if (pair) {
+      pair.style.display = (hasProducts || hasBrands) ? '' : 'none';
+      pair.classList.toggle('pm-two-col-row-both', hasProducts && hasBrands);
+    }
   }
 
   return { mount };

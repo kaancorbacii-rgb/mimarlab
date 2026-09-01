@@ -229,9 +229,10 @@ const ProductModal = (function () {
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
       /* Kullanan Firmalar | Kullanan Mimarlar ikili satırı — js/components/architect-modal.js#
-         .am-two-col-row bloğunun BİREBİR kopyası (bkz. RIGHT_TEMPLATE'teki gerekçe). Orada olduğu
-         gibi HİÇBİR media query'de tek sütuna düşmez; min-width:0 ZORUNLU, aksi halde grid
-         hücresinin varsayılan min-width:auto'su içindeki yatay şeridi taşırıp satırı kırar. */
+         .am-two-col-row bloğunun BİREBİR kopyası (bkz. RIGHT_TEMPLATE'teki gerekçe). min-width:0
+         ZORUNLU, aksi halde grid hücresinin varsayılan min-width:auto'su içindeki yatay şeridi
+         taşırıp satırı kırar. Kullanıcı isteği (2026-09-01 madde 9): masaüstü VE tablette iki sütun,
+         MOBİLDE alt alta iki ayrı satır — bkz. aşağıdaki 767px media query'si. */
       .pr-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
       .pr-two-col-cell{min-width:0;}
       .pr-two-col-cell .related-title{margin-bottom:16px;}
@@ -243,6 +244,12 @@ const ProductModal = (function () {
       @media (max-width:860px){
         .pr-two-col-row{gap:14px;}
         .pr-two-col-row.pr-two-col-row-both::after{min-height:76px; max-height:180px;}
+      }
+      /* MOBİL (kullanıcı isteği, 2026-09-01 madde 9) — tek sütun; tablet (768px ve üzeri) masaüstüyle
+         AYNI iki sütunda kalır. Tek sütuna düşünce ortadaki dik ayırıcı anlamsızlaşır, kapatılır. */
+      @media (max-width:767px){
+        .pr-two-col-row{grid-template-columns:1fr; gap:28px;}
+        .pr-two-col-row.pr-two-col-row-both::after{display:none;}
       }
       .prevnext{margin-top:32px; padding-top:24px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:16px;}
       .prevnext a{display:flex; align-items:center; gap:10px; flex:1; max-width:48%; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper-card); font-size:13.5px; color:var(--ink-soft);}
@@ -1115,8 +1122,10 @@ const ProductModal = (function () {
   function close() {
     currentSlug = null;
     currentItem = null;
+    // bkz. js/components/project-modal.js#close — BİREBİR aynı gerekçe (kullanıcı isteği 2026-09-01
+    // madde 11: Koleksiyonum'dan açılan ürün popup'ı kapatılınca Koleksiyonum'a dönülmeli).
     if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else history.pushState({}, '', '/urun');
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/urun');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }

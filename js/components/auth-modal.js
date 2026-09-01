@@ -11,6 +11,9 @@
 // yakalanıp preventDefault edilir (bkz. aşağısı).
 const AuthModal = (function () {
   const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', activities: '/aktivitelerim', contents: '/iceriklerim', collections: '/koleksiyonum', forgot: '/sifremi-unuttum' };
+  // ESKİ (*.html) bağlantı biçimi — artık sitede hiç üretilmiyor ama bookmark/eski sekme/harici
+  // bağlantılar hâlâ bu biçimde gelebildiğinden tanınmaya devam eder. KANONİK temiz yollar
+  // (VIEW_PATH'in kendisi) pathToView ile eşlenir, bkz. hrefToView.
   const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, contents: /(^|\/)iceriklerim\.html$/, collections: /(^|\/)koleksiyonum\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
@@ -3467,6 +3470,18 @@ const AuthModal = (function () {
     if (isMobileDrawer(view)) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
     else ModalShell.open({ triggerEl, onRequestClose: close });
     renderView(view);
+    // "Giriş Yap"/"Üye Ol" açıldığında oturum zaten açıksa sessizce Hesabım'a geçilir (kullanıcı
+    // isteği, 2026-09-01 madde 4). Kontrol BİLEREK open()'ın İÇİNDE, aşağıdaki tıklama
+    // dinleyicisinde DEĞİL — gerçek bulgu: bu modül çoğu sayfada tembel yüklendiğinden (bkz.
+    // js/components/lazy-modals.js) İLK tıklamayı o dosya yakalayıp doğrudan AuthModal.open()
+    // çağırır; kontrol yalnızca buradaki dinleyicide olduğu sürece o ilk tıklamada HİÇ çalışmıyordu
+    // (yerel doğrulamada yakalandı: girişli kullanıcı footer'daki "Üye Ol"a basınca üye ol formunu
+    // görüyordu). Deep-link/F5 ile /giris|/uye-ol'a gelen girişli kullanıcı da aynı şekilde
+    // Hesabım'a düşer. Popup ÖNCE anında açılır, kontrol arka planda koşar — /api/auth/me yavaşsa
+    // tıklama tepkisiz görünmesin (2026-08-14 gerçek bulgusu, davranış korunuyor).
+    if (view === 'login' || view === 'signup') {
+      fetch('/api/auth/me').then(r => { if (r.ok && currentView === view) swap('account'); }).catch(() => {});
+    }
   }
 
   function swap(view) {
@@ -3514,8 +3529,11 @@ const AuthModal = (function () {
   function close() {
     const mobile = currentHostIsMobile();
     currentView = null;
+    // bkz. ModalShell.returnToPreviousPage (kullanıcı isteği 2026-09-01 madde 8/11): kendi
+    // pushState'imizle açılmadıysak (deep link/F5) bile site içinden gelinmişse geldiğimiz sayfaya
+    // döneriz; yalnızca site dışından/doğrudan gelinmişse ana sayfaya düşülür.
     if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
-    else history.pushState({}, '', '/');
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/');
     deactivateHost(mobile);
     pushCountSinceOpen = 0;
   }
@@ -3562,32 +3580,51 @@ const AuthModal = (function () {
     return null;
   }
 
+  // KÖK NEDEN (kullanıcı isteği, 2026-09-01 madde 4 ve 8: "giriş yap/üye ol'a tıklayınca girişliyse
+  // Hesabım'a gitsin", "avatardan Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim'e tıklayınca site
+  // önce ana sayfaya iletmesin"): bu eşleme YALNIZCA eski `*.html` href biçimini tanıyordu. Sitedeki
+  // 230 iç bağlantı 2026-09-01'de kanonik temiz yollara çevrildiğinde (href="/hesabim" vb.) hiçbiri
+  // artık eşleşmiyor, tıklama preventDefault EDİLMİYOR ve tarayıcı /hesabim'e TAM SAYFA gidiyordu —
+  // o yol index.html'i (ana sayfa) servis ettiğinden kullanıcı önce ana sayfaya "ışınlanıp" popup'ı
+  // orada görüyor, kapatınca da bulunduğu sayfaya değil ana sayfaya düşüyordu. Aynı nedenle
+  // aşağıdaki "zaten girişliyse Hesabım'a geç" dalı da hiç çalışmıyordu.
+  // Artık href, ANCHOR'IN ÇÖZÜLMÜŞ pathname'i üzerinden değerlendirilir: önce kanonik temiz yol
+  // (pathToView — VIEW_PATH ile aynı tablo, geri/ileri tuşu da onu kullanır), sonra eski *.html biçimi.
+  function hrefToView(a) {
+    const raw = a.getAttribute('href') || '';
+    if (!raw || raw.startsWith('#')) return null;
+    let path;
+    try {
+      const u = new URL(raw, document.baseURI);
+      if (u.origin !== location.origin) return null; // dış bağlantılara dokunma
+      path = u.pathname;
+    } catch { return null; }
+    const cleanView = pathToView(path);
+    if (cleanView) return cleanView;
+    for (const view of Object.keys(HREF_VIEW_RE)) {
+      if (HREF_VIEW_RE[view].test(path)) return view;
+    }
+    return null;
+  }
+
   // Header/footer/auth-nav.js'in ürettiği MEVCUT bağlantılar (bkz. dosya başı yorumu) — hiçbir
   // sayfanın kendi href'i değiştirilmedi, yalnızca burada delege edilip preventDefault edilir.
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    const href = a.getAttribute('href');
-    let view = null;
-    if (HREF_VIEW_RE.login.test(href)) view = 'login';
-    else if (HREF_VIEW_RE.signup.test(href)) view = 'signup';
-    else if (HREF_VIEW_RE.account.test(href)) view = 'account';
-    else if (HREF_VIEW_RE.activities.test(href)) view = 'activities';
-    else if (HREF_VIEW_RE.contents.test(href)) view = 'contents';
-    else if (HREF_VIEW_RE.collections.test(href)) view = 'collections';
-    else if (HREF_VIEW_RE.forgot.test(href)) view = 'forgot';
+    const view = hrefToView(a);
     if (!view) return;
     e.preventDefault();
-    if (isOpen()) swap(view); else open(view, { triggerEl: a });
-    // "Giriş Yap" veya "Üye Ol" tıklandığında oturum zaten açıksa (ör. auth-nav.js'in header'ı henüz
-    // güncellemediği kısa an, bookmark/eski sekme ya da footer'daki statik link) o görünüm yerine
-    // Hesabım'a geçilir (bkz. kullanıcı isteği). gerçek bulgu (2026-08-14): bu kontrol eskiden popup'ı
-    // AÇMADAN ÖNCE bekleniyordu — /api/auth/me yavaş/gecikmeli olduğunda popup tıklamadan saniyelerce
-    // sonra açılıyor, hatta hiç açılmıyormuş gibi görünüyordu ("bazen yavaş açılıyor/takılıyor"). Artık
-    // her modal gibi (bkz. project-modal.js#open AYNI desen) önce popup ANINDA açılır, oturum kontrolü
-    // arka planda yapılır; zaten girişliyse sessizce Hesabım'a geçilir.
-    if (view === 'login' || view === 'signup') {
-      fetch('/api/auth/me').then(r => { if (r.ok) swap('account'); }).catch(() => {});
+    // "Giriş Yap"/"Üye Ol" zaten girişliyken Hesabım'a geçme kontrolü artık open()'ın içinde (bkz.
+    // orada anlatılan gerçek bulgu); swap() dalı için burada ayrıca uygulanır — swap() open()'dan
+    // geçmez (popup zaten açıkken görünüm değiştirir).
+    if (isOpen()) {
+      swap(view);
+      if (view === 'login' || view === 'signup') {
+        fetch('/api/auth/me').then(r => { if (r.ok && currentView === view) swap('account'); }).catch(() => {});
+      }
+    } else {
+      open(view, { triggerEl: a });
     }
   });
 

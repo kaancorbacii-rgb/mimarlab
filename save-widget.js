@@ -8,6 +8,13 @@ const savedKeys = new Set();
 // içindeki tek bir buton için kullanılır (modal-shell.js'in paylaşılan header'ında render edilir),
 // bu yüzden wireSaveButtons(type)'ın aksine varsayılan tip almaz — buton zaten kendi dataset.type'ını taşır.
 const followedKeys = new Set();
+// boardKeys — kullanıcının PANOLARINDA (Koleksiyonum > Panolarım) bulunan içeriklerin "type:key"
+// kümesi. Kullanıcı isteği (2026-09-01 madde 10): bir proje/ürün panoya kaydedilince de Kaydet
+// butonu "kaydedildi" rengine dönmeli. savedKeys'ten AYRI tutulur çünkü iki kaydetme yolu birbirinden
+// bağımsızdır (saved_items vs collection_items, bkz. src/routes/collections.js) — Kaydedilenler'den
+// çıkarmak panodaki kopyayı silmez, bu yüzden aynı kümede birleştirilemezler; buton rengi ikisinin
+// BİRLEŞİMİNE bakar (bkz. paintSaveBtn).
+const boardKeys = new Set();
 
 // Başlık gibi serbest metinlerden kararlı, ASCII bir anahtar üretir (save/rating anahtarları için).
 // Türkçe harfleri (ğ,ş,ç,ö,ü,ı) [^a-z0-9] tarafından süzülüp kaybolmasınlar diye önce çevirir.
@@ -23,7 +30,8 @@ function slugify(text){
 function paintSaveBtn(btn){
   const type = btn.dataset.type;
   const key = btn.dataset.key;
-  btn.classList.toggle('saved', savedKeys.has(type + ':' + key));
+  const mapKey = type + ':' + key;
+  btn.classList.toggle('saved', savedKeys.has(mapKey) || boardKeys.has(mapKey));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -171,6 +179,10 @@ async function addToCollection(collectionId, btn){
   });
   const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(data.error || 'Panoya eklenemedi.');
+  // Panoya girdiği an buton "kaydedildi" rengine döner (bkz. boardKeys/paintSaveBtn) — sayfadaki
+  // AYNI içeriğin tüm kopyaları (ızgara kartı + popup header'ı) birlikte boyanır.
+  boardKeys.add(p.type + ':' + p.key);
+  document.querySelectorAll('.card-save-btn').forEach(paintSaveBtn);
   return data;
 }
 
@@ -357,6 +369,8 @@ async function initSavedWidget(){
       if(res.ok){
         const data = await res.json();
         (data.items || []).forEach(it => savedKeys.add(it.item_type + ':' + it.item_key));
+        // collectionKeys — panolardaki içerikler (bkz. src/routes/saved.js#listSaved, boardKeys).
+        (data.collectionKeys || []).forEach(k => boardKeys.add(k));
       }
     }catch{}
   }
@@ -443,6 +457,7 @@ const followedWidgetReady = initFollowedWidget();
 // fresh:true dalı) taze currentUser/savedKeys okunur ve mevcut kartlar yeniden boyanır.
 window.addEventListener('mimarlab:authchange', () => {
   savedKeys.clear();
+  boardKeys.clear();
   followedKeys.clear();
   // gerçek bulgu: myEditableIdsCache (bkz. aşağısı) burada temizlenmiyordu — modal içinden çıkış
   // yapmadan (sayfa yenilenmeden) farklı bir hesapla giriş yapılırsa (bkz. initAuthNav#fresh:true,

@@ -146,6 +146,29 @@ const OfficeModal = (function () {
       .related-grid-scroll{display:flex; gap:16px; overflow-x:auto; scroll-behavior:smooth; scrollbar-width:none; padding-bottom:4px;}
       .related-grid-scroll::-webkit-scrollbar{display:none;}
       .related-grid-scroll .related-card{flex:0 0 200px;}
+      /* Tercih Eden Firmalar | Tercih Eden Mimarlar ikili satırı (kullanıcı isteği, 2026-09-01
+         madde 7) — js/components/architect-modal.js#.am-two-col-row bloğunun BİREBİR kopyası, .om-*
+         önekiyle (architect-modal.js firma.html/marka.html'de yüklü DEĞİL, o kurallara güvenilemez).
+         min-width:0 ZORUNLU: grid hücresinin varsayılan min-width:auto'su içindeki yatay kaydırma
+         şeridini taşırıp satırı kırar. */
+      .om-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .om-two-col-cell{min-width:0;}
+      .om-two-col-cell .related-title{margin-bottom:16px;}
+      .om-two-col-row::after{content:''; display:none;}
+      .om-two-col-row.om-two-col-row-both::after{
+        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
+      }
+      @media (max-width:860px){
+        .om-two-col-row{gap:14px;}
+        .om-two-col-row.om-two-col-row-both::after{min-height:76px; max-height:180px;}
+      }
+      /* MOBİL (kullanıcı isteği: "Mobil görünümde bölümler alt alta 2 ayrı satırda sergilensinler")
+         — tablet (768px ve üzeri) masaüstüyle AYNI iki sütunda kalır. */
+      @media (max-width:767px){
+        .om-two-col-row.om-two-col-row-stack-mobile{grid-template-columns:1fr; gap:28px;}
+        .om-two-col-row.om-two-col-row-stack-mobile.om-two-col-row-both::after{display:none;}
+      }
       .unregistered-badge{
         display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;
         background:var(--paper-card); border:1px solid var(--line-soft);
@@ -288,12 +311,27 @@ const OfficeModal = (function () {
       <h2 class="related-title">Projelerde Kullanılan Ürünler<span id="om-project-products-count"></span></h2>
       <div class="related-grid-scroll" id="om-project-products-grid"></div>
     </div>
-    <!-- Ürünlerin Kullanıldığı Projeler (kullanıcı isteği, 2026-08-31) — ürün popup'ındaki
-         "Kullanılan Projeler"in marka düzeyindeki karşılığı: bu markanın TÜM ürünlerinin
-         kullanıldığı projeler (bkz. src/routes/office.js#brandProductProjects). -->
+    <!-- Markanın Kullanıldığı Projeler (kullanıcı isteği, 2026-08-31; başlık 2026-09-01 madde 7 ile
+         "Ürünlerin Kullanıldığı Projeler"den değiştirildi) — ürün popup'ındaki "Kullanılan
+         Projeler"in marka düzeyindeki karşılığı: bu markanın TÜM ürünlerinin kullanıldığı projeler
+         (bkz. src/routes/office.js#brandProductProjects). -->
     <div class="related-section" id="om-brand-product-projects-section" style="display:none;">
-      <h2 class="related-title">Ürünlerin Kullanıldığı Projeler<span id="om-brand-product-projects-count"></span></h2>
+      <h2 class="related-title">Markanın Kullanıldığı Projeler<span id="om-brand-product-projects-count"></span></h2>
       <div class="related-grid-scroll" id="om-brand-product-projects-grid"></div>
+    </div>
+    <!-- Tercih Eden Firmalar | Tercih Eden Mimarlar (kullanıcı isteği, 2026-09-01 madde 7) —
+         hemen üstteki satırın devamı: o projeleri KİMLER tasarladı, yani bu markayı kimler tercih
+         etti (bkz. src/routes/office.js#preferringOffices/preferringArchitects). Masaüstü ve
+         tablette tek satır/iki sütun, mobilde alt alta — bkz. .om-two-col-row-stack-mobile. -->
+    <div class="related-section om-two-col-row om-two-col-row-stack-mobile" id="om-preferring-pair" style="display:none;">
+      <div class="om-two-col-cell" id="om-preferring-offices-section" style="display:none;">
+        <h2 class="related-title">Tercih Eden Firmalar<span id="om-preferring-offices-count"></span></h2>
+        <div class="related-grid-scroll" id="om-preferring-offices-grid"></div>
+      </div>
+      <div class="om-two-col-cell" id="om-preferring-architects-section" style="display:none;">
+        <h2 class="related-title">Tercih Eden Mimarlar<span id="om-preferring-architects-count"></span></h2>
+        <div class="related-grid-scroll" id="om-preferring-architects-grid"></div>
+      </div>
     </div>
     <div class="related-section" id="om-city-section" style="display:none;">
       <h2 class="related-title" id="om-city-title">Şehirdeki Diğer Firmalar</h2>
@@ -564,7 +602,8 @@ const OfficeModal = (function () {
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['om-founders-section', 'om-team-section', 'om-related-projects-section', 'om-city-section', 'om-related-products-section',
     'om-project-products-section', 'om-related-brands-section',
-    'om-brand-product-projects-section', 'om-detail-info', 'om-prevnext'];
+    'om-brand-product-projects-section', 'om-preferring-pair', 'om-preferring-offices-section',
+    'om-preferring-architects-section', 'om-detail-info', 'om-prevnext'];
 
   async function renderItem(payload) {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
@@ -794,6 +833,29 @@ const OfficeModal = (function () {
     ).join('');
     document.getElementById('om-brand-product-projects-count').textContent = brandProductProjectsData.length ? ` (${brandProductProjectsData.length})` : '';
 
+    // Tercih Eden Firmalar / Tercih Eden Mimarlar (kullanıcı isteği, 2026-09-01 madde 7) — payload'la
+    // BİRLİKTE gelir (ek fetch yok). Firma kartları yukarıdaki "İlgili Markalar" ile AYNI logoUrl
+    // yolunu, mimar kartları ise "Kurucular" ızgarasıyla AYNI photo alanını kullanır.
+    const preferringOfficesData = payload.preferringOffices || [];
+    document.getElementById('om-preferring-offices-section').style.display = preferringOfficesData.length ? '' : 'none';
+    document.getElementById('om-preferring-offices-grid').innerHTML = preferringOfficesData.map(b =>
+      cardHtml(`/firma/${encodeURIComponent(b.slug)}`, b.name, logoUrl(b), b.loc)
+    ).join('');
+    document.getElementById('om-preferring-offices-count').textContent = preferringOfficesData.length ? ` (${preferringOfficesData.length})` : '';
+
+    const preferringArchitectsData = payload.preferringArchitects || [];
+    document.getElementById('om-preferring-architects-section').style.display = preferringArchitectsData.length ? '' : 'none';
+    document.getElementById('om-preferring-architects-grid').innerHTML = preferringArchitectsData.map(a =>
+      cardHtml(`/mimar/${encodeURIComponent(a.slug)}`, a.name, a.photo, '')
+    ).join('');
+    document.getElementById('om-preferring-architects-count').textContent = preferringArchitectsData.length ? ` (${preferringArchitectsData.length})` : '';
+
+    // Sarmalayıcı ikili satır — iki hücre de boşsa satır tamamen gizlenir (üstteki çizgi/boşluk
+    // ondadır), ikisi de doluysa ortadaki kısa dik ayırıcı çizilir.
+    const preferringPair = document.getElementById('om-preferring-pair');
+    preferringPair.style.display = (preferringOfficesData.length || preferringArchitectsData.length) ? '' : 'none';
+    preferringPair.classList.toggle('om-two-col-row-both', !!(preferringOfficesData.length && preferringArchitectsData.length));
+
     const PROFILE_TYPE = 'office';
     // gerçek bulgu (denetim, 2026-08-24, bkz. architect-modal.js'teki AYNI 2026-08-24 güncellemesi/
     // claim-correction-box.js#config.isStale yorumu) — kurucular/ekip ızgarasından hızlıca başka bir
@@ -962,8 +1024,10 @@ const OfficeModal = (function () {
   function close() {
     currentSlug = null;
     currentItem = null;
+    // bkz. js/components/project-modal.js#close — BİREBİR aynı gerekçe (kullanıcı isteği 2026-09-01
+    // madde 11: proje popup'ından firma adına tıklayıp kapatınca proje popup'ına dönülmeli).
     if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else history.pushState({}, '', '/firma');
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/firma');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }

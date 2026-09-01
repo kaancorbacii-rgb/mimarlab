@@ -70,45 +70,57 @@ export async function verifyOfficeTargetOwnership(env, userId, target) {
   return !!row;
 }
 
-// Bir hedefin (kendisi ya da belirli bir firma) üzerinde admin'in doğrudan verdiği rozeti çözer
-// (bkz. schema.sql#admin_badges, computeBadgesPayload'daki AYNI profil eşleme kuralı): 'self'
-// hedefte kullanıcının onaylı ARCHITECT profiline, 'office' hedefte target_key'in birebir
-// eşleştiği OFFICE profiline bakılır. Satın alma uçları (createBadgeRequest, payments.js#
-// startCheckout) bunu var olan 'active' badge_requests kontrolüyle birleştirir — aksi halde
-// admin'in verdiği bir rozet (admin_badges'te user_id yok, yalnızca profile_key) bu sorgulara hiç
-// görünmez ve aynı kişi aynı/daha düşük kademeyi tekrar satın alabilirdi (gerçek bulgu: admin'in
-// kendine altın rozet verdiği bir kullanıcı hâlâ "Satın Al" görüyordu).
-export async function getAdminBadgeForTarget(env, userId, target) {
-  if (target.targetType === 'office') {
-    const row = await env.DB.prepare(
-      `SELECT badge_type FROM admin_badges WHERE profile_type = 'office' AND profile_key = ?`
-    ).bind(target.targetKey).first();
-    return row ? row.badge_type : null;
+// Kullanıcının onaylı sahiplendiği HER profilde (kendisi + firmaları) O AN GÖRÜNEN rozet.
+// "Rozet Al"/"İade Et" ekranlarının "halihazırda olan rozeti algılamıyor" kök nedeni buydu
+// (kullanıcı isteği, 2026-09-01 madde 3): o ekranlar rozeti İKİ ayrı yerden, birbirinden habersiz
+// arıyordu — kullanıcının KENDİ badge_requests satırları (myBadges) ve admin_badges (adminBadges).
+// Bu ikisi bir profildeki rozeti tanımlamaya YETMİYOR:
+//   • firmanın rozetini başka bir ortak (aynı firmayı onaylı sahiplenmiş BAŞKA bir user_id) satın
+//     almış olabilir — o satır bu kullanıcının myBadges'inde YOK ama rozet firma profilinde görünür;
+//   • aynı profile bağlı birden fazla aktif satın alma varsa profilde yalnızca EN YÜKSEK kademe
+//     görünür, admin_badges varsa hepsinin YERİNİ alır.
+// Bu yüzden karar tek bir yerde, profilde gerçekten ne göründüğünü hesaplayan computeBadgesPayload
+// üzerinden verilir — böylece "profilde görünen rozet" ile "satın alma ekranının engellediği rozet"
+// aynı kaynaktan gelir, ikisi bir daha ayrışamaz.
+export async function getProfileBadgesForUser(env, userId) {
+  const out = { self: null, selfKey: null, offices: {} };
+  const { results: claims } = await env.DB.prepare(
+    `SELECT profile_type, profile_key FROM profile_claims WHERE user_id = ? AND status = 'approved' AND profile_type IN ('architect', 'office')`
+  ).bind(userId).all();
+  if (!claims.length) return out;
+  const payload = await computeBadgesPayload(env);
+  for (const c of claims) {
+    const bucket = payload[c.profile_type];
+    const badge = bucket && bucket[c.profile_key] ? bucket[c.profile_key][0] : null;
+    if (!badge) continue;
+    if (c.profile_type === 'office') { out.offices[c.profile_key] = badge; continue; }
+    // Birden fazla onaylı mimar profili teoride mümkün — en yüksek kademeli olan kazanır (BADGE_RANK
+    // dışı/özel bir admin rozeti Infinity'e düşer, bkz. getBlockingRank'teki AYNI gerekçe).
+    if (!out.self || (BADGE_RANK[badge] ?? Infinity) > (BADGE_RANK[out.self] ?? Infinity)) {
+      out.self = badge;
+      out.selfKey = c.profile_key;
+    }
   }
-  const claim = await env.DB.prepare(
-    `SELECT profile_key FROM profile_claims WHERE user_id = ? AND profile_type = 'architect' AND status = 'approved'`
-  ).bind(userId).first();
-  if (!claim) return null;
-  const row = await env.DB.prepare(
-    `SELECT badge_type FROM admin_badges WHERE profile_type = 'architect' AND profile_key = ?`
-  ).bind(claim.profile_key).first();
-  return row ? row.badge_type : null;
+  return out;
 }
 
-// Aktif badge_requests kaydı + admin_badges'ten gelen olası override'ı TEK bir kademeye indirger —
-// createBadgeRequest ve payments.js#startCheckout aynı satırı çağırıp sonucu BADGE_RANK ile
-// karşılaştırır. admin_badges'teki bilinmeyen/eski bir tip (ör. 'platinum', 'destekci',
-// 'iz-birakan' — artık BADGE_RANK'te yok) kasıtlı olarak Infinity'e düşer: admin özel bir rozet
-// atadıysa self-servis satın alma bunun üzerine hiçbir kademeyle geçemez.
+// Aktif badge_requests kaydı + profilde görünen rozeti (bkz. getProfileBadgesForUser) TEK bir
+// kademeye indirger — createBadgeRequest ve payments.js#startCheckout aynı satırı çağırıp sonucu
+// BADGE_RANK ile karşılaştırır. Bilinmeyen/eski bir tip (ör. 'platinum', 'destekci', 'iz-birakan' —
+// artık BADGE_RANK'te yok) kasıtlı olarak Infinity'e düşer: admin özel bir rozet atadıysa
+// self-servis satın alma bunun üzerine hiçbir kademeyle geçemez.
 export async function getBlockingRank(env, userId, target) {
   const now = Date.now();
   const active = await env.DB.prepare(
     `SELECT badge_type FROM badge_requests WHERE user_id = ? AND target_type = ? AND target_key IS ? AND status = 'active' AND (expires_at IS NULL OR expires_at > ?)`
   ).bind(userId, target.targetType, target.targetKey, now).first();
-  const adminBadgeType = await getAdminBadgeForTarget(env, userId, target);
+  const profileBadges = await getProfileBadgesForUser(env, userId);
+  const profileBadgeType = target.targetType === 'office'
+    ? (profileBadges.offices[target.targetKey] || null)
+    : profileBadges.self;
   const activeRank = active ? (BADGE_RANK[active.badge_type] || 0) : 0;
-  const adminRank = adminBadgeType ? (BADGE_RANK[adminBadgeType] ?? Infinity) : 0;
-  return Math.max(activeRank, adminRank);
+  const profileRank = profileBadgeType ? (BADGE_RANK[profileBadgeType] ?? Infinity) : 0;
+  return Math.max(activeRank, profileRank);
 }
 
 async function createBadgeRequest(request, env, user) {
@@ -162,7 +174,12 @@ async function listMyBadges(env, user) {
   // rozet. src/routes/comments.js/ownerByline.js'teki AYNI birleştirme kuralı: kendi satın aldığı
   // (self) rozet + Kurucu/Ortak vb. olduğu bir firmanın admin rozeti arasından en yükseği.
   const effectivePersonalBadge = higherRankBadge(await getActiveSelfBadge(env, user.id), await getPersonalAdminBadge(env, user.id));
-  return json({ items: results, adminBadges, effectivePersonalBadge });
+  // profileBadges — Rozet Al/İade Et ekranlarının kullandığı TEK kaynak (bkz.
+  // getProfileBadgesForUser): kullanıcının sahiplendiği profillerde O AN GÖRÜNEN rozet, kimin
+  // satın aldığından bağımsız. adminBadges bunun bir ALT kümesidir ve yalnızca auth-modal.js'deki
+  // "admin tarafından verildi" satırını ayırt edebilmek için ayrıca döndürülmeye devam eder.
+  const profileBadges = await getProfileBadgesForUser(env, user.id);
+  return json({ items: results, adminBadges, profileBadges, effectivePersonalBadge });
 }
 
 // Reddedilen bir talebi kalıcı olarak siler (kullanıcı isteği: "Rozet Ayrıcalıklarından
@@ -180,7 +197,7 @@ async function deleteRejectedBadgeRequest(env, user, id) {
 // Kullanıcının onaylı sahiplendiği TÜM profiller (kendisi + firmaları) üzerinden admin'in
 // doğrudan verdiği rozetleri döner — /api/badges/mine bunu satın alma ekranlarının (satin-al.html,
 // info-modal.js#mountRozetAl, auth-modal.js'deki Rozet kutusu) "zaten bu rozetin var" kontrolüne
-// admin_badges'i de katabilmesi için taşır (bkz. getAdminBadgeForTarget, aynı mantığın tek hedefli
+// admin_badges'i de katabilmesi için taşır (bkz. getProfileBadgesForUser, aynı mantığın tek hedefli
 // hali — sunucu tarafı satın alma kontrolünde kullanılıyor).
 async function getAdminBadgesForUser(env, userId) {
   const { results: claims } = await env.DB.prepare(

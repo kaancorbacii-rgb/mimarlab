@@ -69,7 +69,21 @@ export async function listSaved(env, user) {
   const items = results
     .map((r, i) => (info[i].buildStatus ? { ...r, item_build_status: info[i].buildStatus } : r))
     .filter((_, i) => info[i].live);
-  return json({ items });
+
+  // collectionKeys — kullanıcının PANOLARINDA ("Koleksiyonum > Panolarım", bkz.
+  // src/routes/collections.js) bulunan içeriklerin "type:key" listesi. Kullanıcı isteği
+  // (2026-09-01 madde 10): "bir proje ya da ürün kaydet butonuna tıklayıp PANOYA kaydedilince de
+  // kaydedildi rengine dönüşsün" — Kaydet butonunun rengi eskiden yalnızca saved_items'a bakıyordu,
+  // panolar ayrı bir tablo olduğundan panoya eklenen içerik kaydedilmemiş gibi görünüyordu. Bu uç
+  // save-widget.js tarafından sayfa başına ZATEN bir kez çağrıldığından ek bir round-trip yok.
+  const { results: collectionRows } = await env.DB.prepare(
+    `SELECT DISTINCT ci.item_type, ci.item_key FROM collection_items ci
+     JOIN collections c ON c.id = ci.collection_id
+     WHERE c.user_id = ? AND ci.kind = 'saved' AND ci.item_type IS NOT NULL AND ci.item_key IS NOT NULL`
+  ).bind(user.id).all();
+  const collectionKeys = collectionRows.map(r => `${r.item_type}:${r.item_key}`);
+
+  return json({ items, collectionKeys });
 }
 
 async function createSaved(request, env, user) {

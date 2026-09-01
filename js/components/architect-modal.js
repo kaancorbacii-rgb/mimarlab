@@ -126,6 +126,15 @@ const ArchitectModal = (function () {
         .am-two-col-row{gap:14px;}
         .am-two-col-row.am-two-col-row-both::after{min-height:76px; max-height:180px;}
       }
+      /* am-two-col-row-stack-mobile — YALNIZCA bu modifiyeyi taşıyan satırlar (Tercih Ettiği
+         Markalar | Kullandığı Ürünler, kullanıcı isteği 2026-09-01 madde 5) mobilde tek sütuna
+         düşer; Firmalar | Firma Ortakları satırı üç görünümde de iki sütun kalmaya devam eder
+         (2026-08-31'deki AYRI istek). Tablet (768px ve üzeri) masaüstüyle aynı. Tek sütuna
+         düşünce ortadaki dik ayırıcı anlamsızlaşır, kapatılır. */
+      @media (max-width:767px){
+        .am-two-col-row.am-two-col-row-stack-mobile{grid-template-columns:1fr; gap:28px;}
+        .am-two-col-row.am-two-col-row-stack-mobile.am-two-col-row-both::after{display:none;}
+      }
       .unregistered-badge{
         display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;
         background:var(--paper-card); border:1px solid var(--line-soft);
@@ -259,13 +268,18 @@ const ArchitectModal = (function () {
          ürünlerin kullanıldığı ayrıntısı) — yukarıdaki "Ürünler" bölümünden AYRI: o, mimarın
          TASARLADIĞI ürünler; bunlar mimarın PROJELERİNDE kullanılan ürünler ve o ürünlerin
          arkasındaki markalar (bkz. src/routes/architect.js#usedProducts/preferredBrands). -->
-    <div class="related-section" id="am-preferred-brands-section" style="display:none;">
-      <h2 class="related-title">Tercih Ettiği Markalar<span id="am-preferred-brands-count"></span></h2>
-      <div class="related-grid-scroll" id="am-preferred-brands-grid"></div>
-    </div>
-    <div class="related-section" id="am-used-products-section" style="display:none;">
-      <h2 class="related-title">Kullandığı Ürünler<span id="am-used-products-count"></span></h2>
-      <div class="related-grid-scroll" id="am-used-products-grid"></div>
+    <!-- Kullanıcı isteği (2026-09-01 madde 5): bu iki bölüm masaüstü ve tablette TEK satırda iki
+         sütun (Firmalar | Firma Ortakları ile AYNI desen), mobilde alt alta iki ayrı satır — bu
+         yüzden am-office-pair'in aksine am-two-col-row-stack-mobile modifiyesini taşır. -->
+    <div class="related-section am-two-col-row am-two-col-row-stack-mobile" id="am-brands-products-pair" style="display:none;">
+      <div class="am-two-col-cell" id="am-preferred-brands-section" style="display:none;">
+        <h2 class="related-title">Tercih Ettiği Markalar<span id="am-preferred-brands-count"></span></h2>
+        <div class="related-grid-scroll" id="am-preferred-brands-grid"></div>
+      </div>
+      <div class="am-two-col-cell" id="am-used-products-section" style="display:none;">
+        <h2 class="related-title">Kullandığı Ürünler<span id="am-used-products-count"></span></h2>
+        <div class="related-grid-scroll" id="am-used-products-grid"></div>
+      </div>
     </div>
     <div class="related-section" id="am-related-architects-section" style="display:none;">
       <h2 class="related-title">Diğer Mimarlar</h2>
@@ -538,8 +552,8 @@ const ArchitectModal = (function () {
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
   const HIDE_ON_NOT_FOUND_IDS = ['am-office-pair', 'am-office-section', 'am-colleagues-section', 'am-related-projects-section',
     'am-photographed-section',
-    'am-related-architects-section', 'am-related-products-section', 'am-used-products-section',
-    'am-preferred-brands-section', 'am-detail-info', 'am-prevnext'];
+    'am-related-architects-section', 'am-related-products-section', 'am-brands-products-pair',
+    'am-used-products-section', 'am-preferred-brands-section', 'am-detail-info', 'am-prevnext'];
 
   async function renderItem(payload) {
     ModalShell.clearLoadError(); // bir önceki denemenin hata kutusu yeni içerikte asılı kalmasın
@@ -774,6 +788,12 @@ const ArchitectModal = (function () {
     ).join('');
     document.getElementById('am-preferred-brands-count').textContent = preferredBrandsData.length ? ` (${preferredBrandsData.length})` : '';
 
+    // Sarmalayıcı ikili satır — am-office-pair ile BİREBİR aynı mantık: iki hücre de boşsa satır
+    // tamamen gizlenir (üstteki çizgi/boşluk ondadır), ikisi de doluysa ortadaki dik ayırıcı çizilir.
+    const brandsProductsPair = document.getElementById('am-brands-products-pair');
+    brandsProductsPair.style.display = (usedProductsData.length || preferredBrandsData.length) ? '' : 'none';
+    brandsProductsPair.classList.toggle('am-two-col-row-both', !!(usedProductsData.length && preferredBrandsData.length));
+
     // Mesaj Gönder ikonu — bkz. kullanıcı isteği (2026-08-30): "Sadece rozeti olan mimar ve firma
     // profillerinde mesaj gönder butonu çıksın" — doğrulanmış = en az bir aktif rozeti olan profil
     // (badge-shared.js#verifiedBadgeHtml İLE AYNI dynamic-önce/static-yedek mantığı, orada sadece
@@ -897,8 +917,10 @@ const ArchitectModal = (function () {
   function close() {
     currentSlug = null;
     currentItem = null;
+    // bkz. js/components/project-modal.js#close — BİREBİR aynı gerekçe (kullanıcı isteği 2026-09-01
+    // madde 11: proje popup'ından mimar adına tıklayıp kapatınca proje popup'ına dönülmeli).
     if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else history.pushState({}, '', '/mimar');
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/mimar');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }

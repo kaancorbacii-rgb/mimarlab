@@ -214,6 +214,13 @@ export async function handleOfficeListRoute(request, env, url) {
     // sort boşsa (varsayılan) ya da 'popular' ise en çok projesi olan firma önce gelir, eşitlikte
     // isim A-Z (bkz. src/routes/architect.js#handleArchitectListRoute'daki AYNI desen). 'newest' —
     // id DESC — anasayfa carousel'inin AÇIKÇA istediği eski varsayılan davranış.
+    // MARKA (?brands=1) İSTİSNASI — kullanıcı isteği (2026-09-01 madde 2): "Marka sayfasında da en
+    // çok ürünü olandan en az ürüne olana şeklinde ilerlesin". Marka için "popülerlik" ölçüsü proje
+    // DEĞİL ürün sayısıdır (bir markanın hiç projesi olmayabilir ama yüzlerce ürünü olabilir);
+    // firma.html ile marka.html aynı uca gittiği için ayrım burada, brandsOnly ile yapılır.
+    const popularKey = brandsOnly
+      ? (o => o.productCount || 0)
+      : (o => o.projectCount || 0);
     filtered.sort((a, b) => {
       switch (sort) {
         case 'name_asc': return a.name.localeCompare(b.name, 'tr');
@@ -222,7 +229,7 @@ export async function handleOfficeListRoute(request, env, url) {
         case 'newest': return 0; // pool zaten id DESC ile geldi, ek bir JS sıralaması gerekmiyor
         case 'popular':
         default:
-          return (b.projectCount - a.projectCount) || a.name.localeCompare(b.name, 'tr');
+          return (popularKey(b) - popularKey(a)) || a.name.localeCompare(b.name, 'tr');
       }
     });
 
@@ -337,14 +344,14 @@ async function buildOfficePayload(env, key) {
   }
   // bkz. src/routes/architect.js#buildArchitectPayload'daki AYNI gerçek bulgu — silinmiş/eşleşmeyen
   // bir key için en düşük id'li ofisin profiline sessizce düşen fallback kaldırıldı.
-  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], hidden: false };
+  if (!row) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], preferringOffices: [], preferringArchitects: [], hidden: false };
   // gerçek bulgu (denetim raporu): satır yukarıdaki redirect-birleştirmeden SONRA hâlâ hidden_at
   // taşıyorsa (yani gerçekten gizli, yeniden adlandırma/birleştirme DEĞİL) bu uç item'ı yine de tam
   // olarak döndürüyordu — yalnızca `hidden:true` bayrağı ekleniyordu, veri gizlenmiyordu. Client-side
   // (office-modal.js) bu bayrağı kontrol edip "bulunamadı" gösteriyor, ama /api/office/:key'i
   // DOĞRUDAN çağıran biri gizlenmiş bir ofisin TAM verisini alabiliyordu — src/routes/project.js#
   // handleProjectDetailRoute'un AYNI durumda zaten yaptığı gibi item burada da null'lanır.
-  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], hidden: true };
+  if (row.hidden_at) return { item: null, founders: [], team: [], relatedProjects: [], relatedOffices: [], relatedProducts: [], relatedMaterials: [], projectProducts: [], relatedBrands: [], brandProductProjects: [], preferringOffices: [], preferringArchitects: [], hidden: true };
   const o = parseCanonicalRow('offices', row);
   // MİMARLAB AI, Faz 2 — Knowledge Graph katmanı Firma↔Şehir ilişkisi (bkz. kullanıcı isteği:
   // Proje↔Mimar↔Firma↔Şehir↔Yıl↔Tipoloji↔Grup ilişkileri proje/mimar/firma sayfalarında yüzeye
@@ -352,7 +359,7 @@ async function buildOfficePayload(env, key) {
   // kuralı (bkz. dosya başı tanım) — yeni bir ayrıştırma mantığı EKLENMEDİ.
   const officeCity = cityOf(o.loc);
 
-  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, brandProductProjectsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
+  const [foundersRes, relatedRes, relatedOfficesRes, brandProductsRes, projectProductsRes, relatedBrandsRes, brandProductProjectsRes, preferringOfficesRes, preferringArchitectsRes, rawFounderNames, teamClaimRows, rawTeamNames] = await Promise.all([
     env.DB.prepare(
       `SELECT ar.* FROM office_founders f JOIN architects ar ON ar.id = f.architect_id
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
@@ -446,6 +453,39 @@ async function buildOfficePayload(env, key) {
        WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
          AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
        ORDER BY p.id DESC`
+    ).bind(o.id, o.name).all(),
+    // "Tercih Eden Firmalar" / "Tercih Eden Mimarlar" (kullanıcı isteği, 2026-09-01 madde 7) —
+    // hemen yukarıdaki brandProductProjects zincirinin BİR HALKA DEVAMI: marka → ürünleri →
+    // kullanıldığı projeler → o projelerin künyesindeki firmalar/mimarlar (project_designers).
+    // Yani "bu markayı kimler tercih etti?" sorusunun cevabı. src/routes/office.js#relatedBrandsRes
+    // ile simetriktir (o, bir FİRMANIN tercih ettiği markaları verir; bunlar bir MARKAYI tercih
+    // eden firma/mimarları). used_count: markanın ürünlerinin kaç ayrı projesinde kullanıldığı —
+    // en çok tercih eden başa gelir. Markanın KENDİSİ (b.id != o.id) elenir: bir marka kendi
+    // ürününü kendi projesinde kullandıysa bu "tercih eden" sayılmaz.
+    env.DB.prepare(
+      `SELECT o2.slug, o2.name, o2.loc, o2.logo_url, COUNT(DISTINCT p.id) AS used_count
+       FROM products pr
+       JOIN project_products pp ON pp.product_id = pr.id
+       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_designers pd ON pd.project_id = p.id
+       JOIN offices o2 ON o2.id = pd.office_id AND o2.deleted_at IS NULL AND o2.hidden_at IS NULL
+       WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+         AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
+         AND o2.id != ?1
+       GROUP BY o2.id
+       ORDER BY used_count DESC, o2.name COLLATE NOCASE`
+    ).bind(o.id, o.name).all(),
+    env.DB.prepare(
+      `SELECT ar.slug, ar.name, ar.photo_url, COUNT(DISTINCT p.id) AS used_count
+       FROM products pr
+       JOIN project_products pp ON pp.product_id = pr.id
+       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       JOIN project_designers pd ON pd.project_id = p.id
+       JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
+       WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+         AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
+       GROUP BY ar.id
+       ORDER BY used_count DESC, ar.name COLLATE NOCASE`
     ).bind(o.id, o.name).all(),
     fetchRawFounderNames(env, o),
     // Kullanıcı hesabından "Profili Düzenle > Firma" ile ya da firma sayfasındaki "Bu firma sana mı
@@ -549,6 +589,10 @@ async function buildOfficePayload(env, key) {
     const parsed = parseCanonicalRow('projects', p);
     return { slug: parsed.slug, title: parsed.title, images: parsed.images, location: parsed.location };
   });
+  // Tercih Eden Firmalar/Mimarlar — kartlar firma/mimar kartlarıyla AYNI şekle sahiptir, böylece
+  // office-modal.js'teki mevcut cardHtml/logoUrl yolu değişmeden kullanılabilir.
+  const preferringOffices = preferringOfficesRes.results.map(b => ({ slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0 }));
+  const preferringArchitects = preferringArchitectsRes.results.map(a => ({ slug: a.slug, name: a.name, photo: a.photo_url, usedCount: a.used_count || 0 }));
   const relatedProducts = brandCatalog.filter(p => p.kind !== 'material');
   const relatedMaterials = brandCatalog.filter(p => p.kind === 'material');
   // brandCatalog ile AYNI şekillendirme; ürün/malzeme ayrımı YAPILMAZ — bölüm tek başlık altında
@@ -576,5 +620,5 @@ async function buildOfficePayload(env, key) {
 
   const adjacent = await fetchAdjacentOffice(env, o.id);
 
-  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
+  return { item, founders, team, relatedProjects, relatedOffices, relatedProducts, relatedMaterials, projectProducts, relatedBrands, brandProductProjects, preferringOffices, preferringArchitects, prevItem: adjacent.prevItem, nextItem: adjacent.nextItem, hidden: !!o.hidden_at };
 }

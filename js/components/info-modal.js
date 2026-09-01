@@ -806,14 +806,14 @@ const InfoModal = (function () {
     renderSummary();
 
     let myBadges = [];
-    let myAdminBadges = { self: null, offices: {} };
+    let myProfileBadges = { self: null, offices: {} };
     async function loadMyBadges() {
       try {
         const res = await fetch('/api/badges/mine');
         if (res.ok) {
           const data = await res.json();
           myBadges = data.items || [];
-          myAdminBadges = data.adminBadges || { self: null, offices: {} };
+          myProfileBadges = data.profileBadges || { self: null, offices: {} };
         }
       } catch {}
       updateExistingBadgePanel();
@@ -824,18 +824,19 @@ const InfoModal = (function () {
       const matches = (b) => b.target_type === selectedTargetType && (b.target_key || null) === selectedTargetKey;
       const activeBadge = myBadges.find(b => matches(b) && b.status === 'active' && (!b.expires_at || b.expires_at > now));
       const pendingBadge = myBadges.find(b => matches(b) && b.status === 'pending');
-      // admin'in doğrudan verdiği rozet (bkz. satin-al.html'deki AYNI mantık, src/routes/badges.js#
-      // getAdminBadgeForTarget sunucu tarafında da uygular).
-      const adminBadgeType = selectedTargetType === 'office'
-        ? (selectedTargetKey ? myAdminBadges.offices[selectedTargetKey] : null)
-        : myAdminBadges.self;
+      // Hedef profilde O AN GÖRÜNEN rozet (bkz. src/routes/badges.js#getProfileBadgesForUser) —
+      // admin'in verdiği rozeti de, firmayı sahiplenen BAŞKA bir ortağın satın aldığı rozeti de
+      // kapsar; sunucu tarafı satın alma kontrolü (getBlockingRank) BİREBİR aynı kaynağı kullanır.
+      const profileBadgeType = selectedTargetType === 'office'
+        ? (selectedTargetKey ? myProfileBadges.offices[selectedTargetKey] : null)
+        : myProfileBadges.self;
       const activeRank = activeBadge ? (BADGE_RANK[activeBadge.badge_type] || 0) : 0;
-      const adminRank = adminBadgeType ? (BADGE_RANK[adminBadgeType] ?? Infinity) : 0;
-      const blockingRank = Math.max(activeRank, adminRank);
+      const profileRank = profileBadgeType ? (BADGE_RANK[profileBadgeType] ?? Infinity) : 0;
+      const blockingRank = Math.max(activeRank, profileRank);
       const isDowngradeOrSame = blockingRank > 0 && (BADGE_RANK[selectedTier] || 0) <= blockingRank;
       let blocking = pendingBadge || null;
       if (!blocking && isDowngradeOrSame) {
-        blocking = adminRank >= activeRank ? { badge_type: adminBadgeType, status: 'active', admin: true } : activeBadge;
+        blocking = profileRank >= activeRank ? { badge_type: profileBadgeType, status: 'active', admin: true } : activeBadge;
       }
 
       const paymentSection = document.getElementById('im-payment-section');
@@ -860,6 +861,14 @@ const InfoModal = (function () {
     }
     loadMyBadges();
 
+    // KÖK NEDEN (kullanıcı isteği, 2026-09-01 madde 3: "firma için rozet al kısmı halihazırda firma
+    // üzerinde olan rozeti algılamıyor"): bu liste ASENKRON dolar ve eskiden yalnızca radyo "Bir
+    // firmam için"e geçtiğinde çağrılıyordu. Radyo işleyicisi selectedTargetKey'i HENÜZ BOŞ olan
+    // select'ten okuyup (=> null) updateExistingBadgePanel()'i hemen çalıştırıyor, liste sonradan
+    // dolduğunda ise paneli BİR DAHA hiç güncellemiyordu — yani firmanın rozeti bilinse bile panel
+    // "rozet yok" halinde donuyordu. İki düzeltme: (1) liste dolduktan sonra panel yeniden
+    // hesaplanır, (2) liste mount anında önden yüklenir, böylece radyoya basıldığı anda anahtar hazır.
+    let claimedOfficesReady = null;
     async function loadClaimedOffices() {
       const select = document.getElementById('im-target-office-select');
       const empty = document.getElementById('im-target-office-empty');
@@ -875,12 +884,14 @@ const InfoModal = (function () {
         select.style.display = '';
         empty.style.display = 'none';
         select.innerHTML = offices.map(o => `<option value="${escapeAttr(o.profile_key)}">${escapeHtml(o.profile_key)}</option>`).join('');
-        selectedTargetKey = select.value || null;
+        if (selectedTargetType === 'office') selectedTargetKey = select.value || null;
       } catch {
         select.style.display = 'none';
         empty.style.display = 'block';
       }
+      updateExistingBadgePanel();
     }
+    claimedOfficesReady = loadClaimedOffices();
     document.getElementById('im-target-office-select').addEventListener('change', (e) => {
       selectedTargetKey = e.target.value || null;
       updateExistingBadgePanel();
@@ -891,7 +902,9 @@ const InfoModal = (function () {
         document.getElementById('im-target-office-wrap').style.display = selectedTargetType === 'office' ? '' : 'none';
         if (selectedTargetType === 'office') {
           selectedTargetKey = document.getElementById('im-target-office-select').value || null;
-          loadClaimedOffices();
+          // Önden yüklenen liste henüz gelmediyse geldiğinde panel kendini tazeler (loadClaimedOffices
+          // sonunda updateExistingBadgePanel çağırır); geldiyse bu await anında çözülür.
+          if (claimedOfficesReady) claimedOfficesReady.then(() => { if (selectedTargetType === 'office') updateExistingBadgePanel(); });
         } else {
           selectedTargetKey = null;
         }
@@ -1016,15 +1029,42 @@ const InfoModal = (function () {
       const tierLabel = BADGE_TYPE_LABELS[b.badge_type] || b.badge_type;
       const targetLabel = b.target_type === 'office' ? `Firma: ${b.target_key}` : 'Kendisi için';
       const statusLabel = BADGE_STATUS_LABELS[b.status] || b.status;
+      // synthetic (bkz. mergeProfileBadges) — bu hesapta bir satın alma KAYDI yok, tarih de yok.
+      if (b.synthetic) return `${tierLabel} — ${targetLabel} — ${statusLabel} (bu hesapta ödeme kaydı yok)`;
       const dateStr = new Date(b.created_at).toLocaleDateString('tr-TR');
       return `${tierLabel} — ${targetLabel} — ${statusLabel} (${dateStr})`;
+    }
+
+    // KÖK NEDEN (kullanıcı isteği, 2026-09-01 madde 3: "iade et sayfası da halihazırda olan rozeti
+    // algılamıyor"): bu ekran YALNIZCA kullanıcının KENDİ badge_requests satırlarını listeliyordu.
+    // Profilde görünen bir rozetin bu tabloda karşılığı olmayabilir — admin doğrudan vermiş
+    // olabilir (admin_badges, user_id taşımaz) ya da firmayı sahiplenen başka bir ortak satın almış
+    // olabilir. Bu durumda ekran "Henüz bir rozet satın alımın yok" diyordu. Artık profilde GÖRÜNEN
+    // rozetler (bkz. src/routes/badges.js#getProfileBadgesForUser — Rozet Al ekranıyla AYNI kaynak)
+    // listeye ekleniyor, kendi siparişiyle zaten temsil edilenler mükerrer olmasın diye eleniyor.
+    function mergeProfileBadges(orders, profileBadges) {
+      const out = orders.slice();
+      const covered = new Set(orders.map(b => `${b.target_type}:${b.target_key || ''}:${b.badge_type}`));
+      const add = (targetType, targetKey, badgeType) => {
+        if (!badgeType) return;
+        if (covered.has(`${targetType}:${targetKey || ''}:${badgeType}`)) return;
+        out.push({
+          id: `profile:${targetType}:${targetKey || ''}`,
+          badge_type: badgeType, target_type: targetType, target_key: targetKey,
+          status: 'active', price_try: 0, created_at: null, synthetic: true,
+        });
+      };
+      add('self', null, profileBadges.self);
+      Object.keys(profileBadges.offices || {}).forEach(key => add('office', key, profileBadges.offices[key]));
+      return out;
     }
 
     async function loadMyOrders() {
       try {
         const res = await fetch('/api/badges/mine');
-        const items = res.ok ? (await res.json()).items || [] : [];
-        myOrders = items.filter(b => b.status !== 'rejected');
+        const data = res.ok ? await res.json() : {};
+        const items = (data.items || []).filter(b => b.status !== 'rejected');
+        myOrders = mergeProfileBadges(items, data.profileBadges || { self: null, offices: {} });
       } catch {
         myOrders = [];
       }
@@ -1064,7 +1104,9 @@ const InfoModal = (function () {
       const message = [
         'İade Talebi',
         `Rozet: ${orderLabel(order)}`,
-        `Tutar: ${Number(order.price_try).toFixed(2)} TL`,
+        order.synthetic
+          ? 'Tutar: bu hesapta ödeme kaydı yok (rozet yönetici tarafından verilmiş ya da profili sahiplenen başka bir hesap satın almış olabilir)'
+          : `Tutar: ${Number(order.price_try).toFixed(2)} TL`,
         `İade IBAN: ${iban.replace(/\s+/g, '').toUpperCase()}`,
         `Hesap Sahibi: ${accountName}`,
         `Sebep: ${reason}`,
@@ -1222,8 +1264,9 @@ const InfoModal = (function () {
   function close() {
     const mobile = currentHostIsMobile();
     currentView = null;
+    // bkz. js/components/auth-modal.js#close — BİREBİR aynı gerekçe (ModalShell.returnToPreviousPage).
     if (openedViaPush && pushCountSinceOpen > 0) history.go(-pushCountSinceOpen);
-    else history.pushState({}, '', '/');
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/');
     deactivateHost(mobile);
     pushCountSinceOpen = 0;
   }
@@ -1264,12 +1307,28 @@ const InfoModal = (function () {
   // değiştirilmedi, yalnızca burada delege edilip preventDefault edilir. AuthModal'ınkiyle AYNI
   // desen — iki modül birbirinden habersiz, aynı VIEW_PATH mantığını kendi görünümleri için
   // bağımsızca uygular; ModalShell tek paylaşılan singleton'dur.
+  // bkz. js/components/auth-modal.js#hrefToView — BİREBİR aynı kök neden/düzeltme: eşleme yalnızca
+  // eski `*.html` biçimini tanıyordu, sitedeki bağlantılar ise kanonik temiz yollara (/rozet-al,
+  // /iade-et …) çevrilmişti; eşleşmeyen tıklama TAM SAYFA gidip kullanıcıyı ana sayfaya düşürüyordu.
+  function hrefToView(a) {
+    const raw = a.getAttribute('href') || '';
+    if (!raw || raw.startsWith('#')) return null;
+    let path;
+    try {
+      const u = new URL(raw, document.baseURI);
+      if (u.origin !== location.origin) return null; // dış bağlantılara dokunma
+      path = u.pathname;
+    } catch { return null; }
+    const cleanView = pathToView(path);
+    if (cleanView) return cleanView;
+    for (const key in HREF_VIEW_RE) { if (HREF_VIEW_RE[key].test(path)) return key; }
+    return null;
+  }
+
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    const href = a.getAttribute('href');
-    let view = null;
-    for (const key in HREF_VIEW_RE) { if (HREF_VIEW_RE[key].test(href)) { view = key; break; } }
+    const view = hrefToView(a);
     if (!view) return;
     e.preventDefault();
     if (isOpen()) swap(view); else open(view, { triggerEl: a });

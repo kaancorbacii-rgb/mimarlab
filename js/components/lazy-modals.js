@@ -4,10 +4,19 @@
 // Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer popup'larından HİÇBİRİNİ hiç açmıyor. Bu dosya
 // ikisini de yalnızca gerçekten gerekince yükler: (a) ilgili nav/footer linkine tıklanınca, (b) o
 // linkin temiz URL'ine (ör. /giris, /hakkinda) doğrudan gidilince/F5 yapılınca, ya da (c) tarayıcı
-// geri/ileri tuşuyla o URL'e dönülünce. HREF_VIEW_RE/pathRe eşlemeleri auth-modal.js/info-modal.js'in
+// geri/ileri tuşuyla o URL'e dönülünce. hrefRe/viewByPath eşlemeleri auth-modal.js/info-modal.js'in
 // kendi başlarındaki AYNI sabitlerin BİLEREK kopyasıdır — asıl (büyük) modülü indirmeden hangi linkin
 // hangi popup'ı açacağını bilmemiz gerekiyor; biri değişirse ikisi birlikte güncellenmeli.
 (function () {
+  // viewByPath — KANONİK temiz yol -> görünüm (auth-modal.js#VIEW_PATH / info-modal.js#VIEW_PATH'in
+  // ters çevrilmiş hâli). hrefRe ise yalnızca ESKİ `*.html` biçimi içindir.
+  //
+  // KÖK NEDEN (kullanıcı isteği, 2026-09-01 madde 4 ve 8): bu dosya bir tıklamayı YALNIZCA hrefRe
+  // (yani `*.html`) ile eşliyordu ve asıl kapı bekçisi burasıdır — modüller çoğu sayfada henüz
+  // YÜKLENMEMİŞ olduğundan onların kendi (düzeltilmiş) dinleyicileri hiç çalışmaz. Sitedeki iç
+  // bağlantılar 2026-09-01'de temiz URL'lere çevrilince hiçbir tıklama eşleşmiyor, tarayıcı
+  // /hesabim'e TAM SAYFA gidiyor, o yol da index.html'i servis ettiğinden kullanıcı önce ana sayfaya
+  // ışınlanıyor ve popup'ı kapatınca bulunduğu sayfaya dönemiyordu.
   const MODULES = {
     auth: {
       src: 'js/components/auth-modal.js',
@@ -17,7 +26,10 @@
         account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, contents: /(^|\/)iceriklerim\.html$/,
         collections: /(^|\/)koleksiyonum\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/,
       },
-      pathRe: /^\/(giris|uye-ol|hesabim|aktivitelerim|iceriklerim|koleksiyonum|sifremi-unuttum)\/?$/,
+      viewByPath: {
+        '/giris': 'login', '/uye-ol': 'signup', '/hesabim': 'account', '/aktivitelerim': 'activities',
+        '/iceriklerim': 'contents', '/koleksiyonum': 'collections', '/sifremi-unuttum': 'forgot',
+      },
     },
     info: {
       src: 'js/components/info-modal.js',
@@ -29,9 +41,37 @@
         'hizmet-sartlari': /(^|\/)hizmet-sartlari\.html$/, 'kariyer': /(^|\/)kariyer\.html$/,
         'cerez-politikasi': /(^|\/)cerez-politikasi\.html$/,
       },
-      pathRe: /^\/(rozet-al|iade-et|iletisim|hakkinda|gizlilik-politikasi|hizmet-sartlari|kariyer|cerez-politikasi)\/?$/,
+      viewByPath: {
+        '/rozet-al': 'rozet-al', '/iade-et': 'iade-et', '/iletisim': 'iletisim', '/hakkinda': 'hakkinda',
+        '/gizlilik-politikasi': 'gizlilik-politikasi', '/hizmet-sartlari': 'hizmet-sartlari',
+        '/kariyer': 'kariyer', '/cerez-politikasi': 'cerez-politikasi',
+      },
     },
   };
+
+  // Bir yol (pathname) hangi modülün hangi görünümüne karşılık geliyor? Sondaki '/' yok sayılır —
+  // auth-modal.js/info-modal.js#pathToView ile AYNI normalizasyon.
+  function viewForPath(mod, pathname) {
+    const path = (pathname || '').replace(/\/+$/, '') || '/';
+    return mod.viewByPath[path] || null;
+  }
+
+  // Bir <a>'nın hedefi hangi görünüm? Önce kanonik temiz yol, sonra eski *.html biçimi — bkz.
+  // js/components/auth-modal.js#hrefToView (BİREBİR aynı sıra/gerekçe).
+  function viewForAnchor(mod, a) {
+    const raw = a.getAttribute('href') || '';
+    if (!raw || raw.startsWith('#')) return null;
+    let path;
+    try {
+      const u = new URL(raw, document.baseURI);
+      if (u.origin !== location.origin) return null; // dış bağlantılara dokunma
+      path = u.pathname;
+    } catch { return null; }
+    const cleanView = viewForPath(mod, path);
+    if (cleanView) return cleanView;
+    for (const v in mod.hrefRe) { if (mod.hrefRe[v].test(path)) return v; }
+    return null;
+  }
 
   const pending = {};
   // src'si zaten sayfada varsa (ör. bu betik iki kez dahil edilmişse) tekrar enjekte etmez —
@@ -59,13 +99,12 @@
   // info-modal.js dosya sonu) location.pathname'i okuyup popup'ı kendi açar, burada sadece indirmek
   // yeterli.
   for (const key in MODULES) {
-    if (MODULES[key].pathRe.test(location.pathname)) loadModule(key).catch(() => {});
+    if (viewForPath(MODULES[key], location.pathname)) loadModule(key).catch(() => {});
   }
 
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    const href = a.getAttribute('href');
     for (const key in MODULES) {
       const mod = MODULES[key];
       // Modül zaten yüklendiyse KENDİ document click listener'ı (bkz. auth-modal.js/info-modal.js
@@ -73,12 +112,12 @@
       // burada hem orada open() çağrılıp popup'ın çift açılmasına/view'ın gereksiz re-render'ına
       // yol açardı.
       if (window[mod.globalName]) continue;
-      let view = null;
-      for (const v in mod.hrefRe) { if (mod.hrefRe[v].test(href)) { view = v; break; } }
+      const view = viewForAnchor(mod, a);
       if (!view) continue;
       e.preventDefault();
       // Yükleme başarısız olursa (bkz. loadModule#onerror) preventDefault sonrası kullanıcıyı elleri
       // boş bırakmamak için normal (tam sayfa) navigasyona düşülür.
+      const href = a.getAttribute('href');
       loadModule(key).then((Modal) => { if (Modal) Modal.open(view, { triggerEl: a }); }).catch(() => { window.location.href = href; });
       return;
     }
@@ -89,7 +128,7 @@
   // mantığı zaten devreye girer (popstate'in kendisini ayrıca dinlemeye gerek yok).
   window.addEventListener('popstate', () => {
     for (const key in MODULES) {
-      if (MODULES[key].pathRe.test(location.pathname)) loadModule(key).catch(() => {});
+      if (viewForPath(MODULES[key], location.pathname)) loadModule(key).catch(() => {});
     }
   });
 })();

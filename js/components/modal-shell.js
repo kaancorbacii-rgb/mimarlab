@@ -726,6 +726,31 @@ const ModalShell = (function () {
 
   function wasCurrentPopSuperseded() { return pendingGoBackSuperseded; }
 
+  // KÖKTEN DÜZELTME (kullanıcı isteği, 2026-09-01 madde 11: "bir popup'ı kapattığımızda tekrar
+  // geldiğimiz sayfada kalmış olalım — site genelinde"): bir popup AYNI SEKMEDE kendi pushState'ini
+  // yaparak açıldığında kapanış zaten goBackAndWait(N) ile o girdiyi geri sarar ve kullanıcı
+  // bulunduğu yerde kalır. Ama popup TAM SAYFA bir navigasyonla açıldığında (proje popup'ındaki
+  // mimar/firma/fotoğrafçı adına tıklamak, Koleksiyonum'dan bir proje/ürün açmak — bu sayfalar o
+  // modal script'ini barındırmadığından tarayıcı gerçekten /mimar/:slug'a gider) openedViaPush
+  // false olur ve kapanış "liste sayfasına pushState" davranışına düşerdi: kullanıcı geldiği yer
+  // yerine /mimar, /firma, /proje, /urun listesinde bulurdu kendini.
+  //
+  // Bu fonksiyon o dalın yerini alır: aynı origin'den gelinmişse (Referrer-Policy
+  // 'strict-origin-when-cross-origin' olduğundan site içi navigasyonlarda referrer TAM URL olarak
+  // gelir, bkz. src/index.js) geçmişte bir adım geri gidilir — kullanıcı geldiği sayfaya, o
+  // sayfadaki popup/scroll durumu (bfcache ya da deep-link ile yeniden açılış) korunarak döner.
+  // extraDepth: popup açıldıktan SONRA yapılan swap()'ların sayısı (aynı popup içinde başka bir
+  // kayda geçilmişse) — onlar da aynı hamlede geri sarılır.
+  // Dışarıdan gelinmediyse (Google'dan doğrudan deep link, adres çubuğuna elle yazma, boş referrer)
+  // false döner ve çağıran kendi liste sayfasına pushState eden eski davranışını sürdürür.
+  function returnToPreviousPage(extraDepth) {
+    let sameOrigin = false;
+    try { sameOrigin = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch {}
+    if (!sameOrigin) return false;
+    history.go(-(1 + (extraDepth || 0)));
+    return true;
+  }
+
   // ---------------------------------------------------------------------------------------------
   // fetchEntity — proje/mimar/firma/ürün modallarının PAYLAŞTIĞI detay çekme yardımcısı.
   //
@@ -800,5 +825,5 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();

@@ -62,9 +62,20 @@ const ProjectModal = (function () {
          algoritmik önerilerden önce gelir. "Kullanılan Malzemeler" AYRI bir bölüm olarak KALDIRILDI:
          malzemeler de bu ızgaraya karışır (bkz. js/components/project-products.js#mount, kullanıcı
          isteği: "Malzemeler diye bir kısım olmasın, malzemeler de ürünler kısmına dahil edilsin"). -->
-    <div class="related-section" id="pm-products-section" aria-live="polite">
-      <h2 class="related-title">Kullanılan Ürünler</h2>
-      <div class="related-grid-scroll" id="pm-products-grid"></div>
+    <!-- Kullanılan Ürünler | Kullanılan Markalar TEK satırda, iki sütun (kullanıcı isteği,
+         2026-09-01 madde 5) — js/components/architect-modal.js#am-two-col-row deseniyle AYNI, tek
+         farkı MOBİLDE tek sütuna düşmesi (istek: "Mobil görünümde ayrı satırlar halinde olsunlar").
+         Üstteki çizgiyi/boşluğu SARMALAYICI taşır (.related-section ondadır), hücreler yalnızca
+         içerik tutar — aksi halde yan yana iki ayrı üst çizgi çıkardı. -->
+    <div class="related-section pm-two-col-row" id="pm-products-pair" aria-live="polite">
+      <div class="pm-two-col-cell" id="pm-products-section">
+        <h2 class="related-title">Kullanılan Ürünler</h2>
+        <div class="related-grid-scroll" id="pm-products-grid"></div>
+      </div>
+      <div class="pm-two-col-cell" id="pm-brands-section" style="display:none;">
+        <h2 class="related-title">Kullanılan Markalar</h2>
+        <div class="related-grid-scroll" id="pm-brands-grid"></div>
+      </div>
     </div>
 
     <div class="related-section" id="pm-same-designer-section" aria-live="polite">
@@ -130,7 +141,44 @@ const ProjectModal = (function () {
   // bkz. js/components/modal-shell.js#claimContent — sahip DEĞİŞTİYSE (Hesabım/başka bir detay
   // modalından geçildiyse) panelleri boşaltıp isNewOwner:true döner, bu durumda mountedOnce true
   // olsa da şablon KOŞULSUZ yeniden kurulur (bkz. office-modal.js#ensureTemplate AYNI gerçek bulgu).
+  // Bu modül (diğer modalların aksine) kendi tasarımını barındıran sayfaların CSS'ine dayanır —
+  // proje.html/en-iyi-100.html .related-section/.related-card/.related-grid-scroll'u zaten tanımlar.
+  // Burada YALNIZCA "Kullanılan Ürünler | Kullanılan Markalar" ikili satırının kuralları enjekte
+  // edilir; sınıf adları `.pm-*` önekli olduğundan (bkz. product-modal.js'in jenerik sınıfları
+  // proje.html'e sızdıran deneyimi) sayfanın kendi stillerine hiçbir şekilde karışmaz.
+  function injectStyles() {
+    if (document.getElementById('project-modal-two-col-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'project-modal-two-col-styles';
+    // min-width:0 ZORUNLU — grid hücresinin varsayılan min-width:auto'su içindeki yatay kaydırma
+    // şeridini (.related-grid-scroll) taşırıp satırı kırar (bkz. architect-modal.js#am-two-col-row).
+    style.textContent = `
+      .pm-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .pm-two-col-cell{min-width:0;}
+      .pm-two-col-cell .related-title{margin-bottom:16px;}
+      .pm-two-col-row::after{content:''; display:none;}
+      .pm-two-col-row.pm-two-col-row-both::after{
+        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
+      }
+      @media (max-width:860px){
+        .pm-two-col-row{gap:14px;}
+        .pm-two-col-row.pm-two-col-row-both::after{min-height:76px; max-height:180px;}
+      }
+      /* MOBİL (kullanıcı isteği, 2026-09-01 madde 5: "Mobil görünümde ayrı satırlar halinde
+         olsunlar") — tablet (768px ve üzeri) masaüstüyle AYNI iki sütunda kalır. Tek sütuna
+         düşünce ortadaki dik ayırıcı anlamsızlaşır, kapatılır; iki bölüm arasına yatay bir boşluk
+         bırakılır ki alt alta yapışık görünmesinler. */
+      @media (max-width:767px){
+        .pm-two-col-row{grid-template-columns:1fr; gap:28px;}
+        .pm-two-col-row.pm-two-col-row-both::after{display:none;}
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function ensureTemplate() {
+    injectStyles();
     const panels = ModalShell.claimContent('project');
     if (mountedOnce && !panels.isNewOwner) return;
     panels.leftPanelEl.innerHTML = LEFT_TEMPLATE;
@@ -256,7 +304,14 @@ const ProjectModal = (function () {
       Promise.allSettled([architectSlugsPromise, relatedSlugsPromise, cityPromise]);
     }, 600);
 
+    // Şablon sayfa ömrü boyunca TEK SEFER mount edildiğinden (bkz. ensureTemplate#mountedOnce) bir
+    // önceki projede ürünsüz/markasız kalan hücreler display:none'da takılı kalır — iskeleti
+    // yazmadan ÖNCE ikisi de görünür duruma sıfırlanır, aksi halde IntersectionObserver'ın layout
+    // kutusu olmayan bir elemana bağlanması gerekirdi (bkz. observeOnce'taki AYNI gerekçe).
+    const productsPair = document.getElementById('pm-products-pair');
     const productsSection = document.getElementById('pm-products-section');
+    if (productsPair) productsPair.style.display = '';
+    if (productsSection) productsSection.style.display = '';
     // İskelet kartlar da artık .related-card (bkz. project-products.js dosya başı yorumu — .catalog-*
     // sınıflarının hiçbir CSS karşılığı yoktu, iskeletler de stilsiz/dev görünüyordu).
     document.getElementById('pm-products-grid').innerHTML = skeletonCardsHtml(4);
@@ -393,7 +448,7 @@ const ProjectModal = (function () {
   // ProjectMeta.render, RelatedProjects.mount vb.) kendi koşuluna göre tekrar gizleyebilir.
   const HIDE_ON_NOT_FOUND_IDS = ['pm-byline', 'pm-architect-section', 'pm-office-section',
     'pm-meta', 'pm-desc', 'pm-map-section', 'pm-comments-section', 'pm-info-divider', 'pm-feedback-card', 'pm-same-designer-section',
-    'pm-related-section', 'pm-city-section', 'pm-products-section', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
+    'pm-related-section', 'pm-city-section', 'pm-products-pair', 'pm-prevnext', 'pm-gallery-wrap', 'pm-top-rank'];
 
   // ---------- Harita akordeonu — Leaflet + Esri World Imagery (uydu), anahtarsız/ücretsiz (bkz.
   // kullanıcı isteği: Google Maps iframe'i tamamen kaldır) — proje geneliyle AYNI yığın (bkz.
@@ -826,8 +881,11 @@ const ProjectModal = (function () {
     // tek seferde geri sarılır, böylece birden fazla proje gezildikten sonra bile X/Escape doğrudan
     // asıl listeye döner. Hydration ile açılmışsa (deep link/F5) listeye ait GÜVENLİ bir geçmiş
     // girdisi hiç yok — o durumda doğrudan listPath'e pushState edilir.
+    // Hydration ile açılmışsa (deep link/F5 ya da BAŞKA bir sayfadan tam sayfa gelinerek) önce
+    // "geldiğim sayfaya dön" denenir — bkz. ModalShell.returnToPreviousPage (kullanıcı isteği,
+    // 2026-09-01 madde 11); yalnızca site dışından/doğrudan gelinmişse listeye düşülür.
     if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else history.pushState({}, '', listPath);
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', listPath);
     ModalShell.close();
     pushCountSinceOpen = 0;
   }

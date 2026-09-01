@@ -118,16 +118,37 @@ async function fetchAdjacentProject(env, id, buildStatus) {
 // migrations/0022_id_first_entities.sql). Bağlama proje-ekle.html'deki Firma/Ürün girişi
 // onaylandığında src/lib/canonicalSync.js#resolveProjectProductLinks tarafından yapılır.
 async function fetchProjectProducts(env, projectId) {
-  const { results } = await env.DB.prepare(
-    `SELECT p.slug, p.title, p.brand_name_raw, p.category, p.kind, p.images
-     FROM project_products pp JOIN products p ON p.id = pp.product_id
-     WHERE pp.project_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
-  ).bind(projectId).all();
+  // brands — "Kullanılan Markalar" (kullanıcı isteği, 2026-09-01 madde 5: proje popup'ındaki
+  // "Kullanılan Ürünler" satırı iki sütuna bölünüp sağ tarafa markalar gelsin). Ürün zincirinin BİR
+  // HALKA DEVAMI: proje → ürün → markası (offices). Marka eşleşmesi src/routes/office.js#
+  // relatedBrandsRes ile BİREBİR AYNI kuraldır — önce brand_office_id, o boşsa marka ADI (toplu/
+  // legacy eklenen ürünlerde brand_office_id boş kalır). used_count: markanın bu projede kullanılan
+  // ürün sayısı; en çok kullanılan marka başa gelir.
+  const [{ results }, { results: brandRows }] = await Promise.all([
+    env.DB.prepare(
+      `SELECT p.slug, p.title, p.brand_name_raw, p.category, p.kind, p.images
+       FROM project_products pp JOIN products p ON p.id = pp.product_id
+       WHERE pp.project_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
+    ).bind(projectId).all(),
+    env.DB.prepare(
+      `SELECT b.slug, b.name, b.loc, b.logo_url, COUNT(DISTINCT pr.id) AS used_count
+       FROM project_products pp
+       JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+       JOIN offices b ON b.deleted_at IS NULL AND b.hidden_at IS NULL
+         AND (b.id = pr.brand_office_id OR (pr.brand_office_id IS NULL AND b.name = pr.brand_name_raw COLLATE NOCASE))
+       WHERE pp.project_id = ?
+       GROUP BY b.id
+       ORDER BY used_count DESC, b.name COLLATE NOCASE`
+    ).bind(projectId).all(),
+  ]);
   const items = results.map(row => ({
     slug: row.slug, title: row.title, brand: row.brand_name_raw, category: row.category,
     kind: row.kind, image: firstImage(row.images),
   }));
-  return { products: items.filter(i => i.kind !== 'material'), materials: items.filter(i => i.kind === 'material') };
+  // Kartlar firma kartlarıyla AYNI şekle sahiptir (slug/name/loc/logo) — office-modal.js'teki
+  // mevcut cardHtml/logoUrl yolu ile aynı işaretleme kullanılabilsin diye (bkz. office.js#relatedBrands).
+  const brands = brandRows.map(b => ({ slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0 }));
+  return { products: items.filter(i => i.kind !== 'material'), materials: items.filter(i => i.kind === 'material'), brands };
 }
 
 // Mimarı girilmemiş, sadece Mimarlık Firması tanımlı projeler (ör. Foster + Partners'ın Dolunay
@@ -359,6 +380,7 @@ export async function handleProjectDetailRoute(request, env, url, rawSlug) {
     const catalog = await fetchProjectProducts(env, row.id);
     item.products = catalog.products;
     item.materials = catalog.materials;
+    item.brands = catalog.brands;
     // item.imageHotspots yalnızca dolu olduğunda var (bkz. shapeProjectItem) — boşsa enrich hiç
     // çalıştırılmaz, o projeler için ekstra bir products sorgusu da doğmaz.
     if (item.imageHotspots) item.imageHotspots = await enrichImageHotspots(env, item.imageHotspots);

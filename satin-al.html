@@ -353,7 +353,7 @@ renderSummary();
 // seçiliyse (bkz. target radio grubu) o hedefin durumunu gösterir — artık tek bir global "zaten
 // rozetin var" durumu yok, her hedef bağımsız (bkz. src/routes/badges.js).
 let myBadges = [];
-let myAdminBadges = { self: null, offices: {} };
+let myProfileBadges = { self: null, offices: {} };
 
 async function loadMyBadges(){
   try{
@@ -361,7 +361,7 @@ async function loadMyBadges(){
     if(res.ok){
       const data = await res.json();
       myBadges = data.items || [];
-      myAdminBadges = data.adminBadges || { self: null, offices: {} };
+      myProfileBadges = data.profileBadges || { self: null, offices: {} };
     }
   }catch{}
   updateExistingBadgePanel();
@@ -372,23 +372,24 @@ function updateExistingBadgePanel(){
   const matches = (b) => b.target_type === selectedTargetType && (b.target_key || null) === selectedTargetKey;
   const activeBadge = myBadges.find(b => matches(b) && b.status === 'active' && (!b.expires_at || b.expires_at > now));
   const pendingBadge = myBadges.find(b => matches(b) && b.status === 'pending');
-  // admin'in doğrudan verdiği rozet (bkz. src/routes/badges.js#getAdminBadgeForTarget aynı profil
-  // eşleme kuralını sunucu tarafında da uygular) — gerçek bulgu: bu panel yalnızca myBadges'e
-  // (badge_requests) bakıyordu, admin_badges'ten gelen bir rozeti hiç görmüyor, kullanıcı zaten
-  // sahip olduğu bir rozeti tekrar satın almaya çalışabiliyordu.
-  const adminBadgeType = selectedTargetType === 'office'
-    ? (selectedTargetKey ? myAdminBadges.offices[selectedTargetKey] : null)
-    : myAdminBadges.self;
+  // Hedef profilde O AN GÖRÜNEN rozet (bkz. src/routes/badges.js#getProfileBadgesForUser) —
+  // admin'in verdiği rozeti de, firmayı sahiplenen BAŞKA bir ortağın satın aldığı rozeti de kapsar;
+  // gerçek bulgu: bu panel yalnızca myBadges'e (kullanıcının KENDİ badge_requests satırlarına)
+  // bakıyordu, bu iki kaynaktan gelen bir rozeti hiç görmüyor, kullanıcı zaten sahip olduğu bir
+  // rozeti tekrar satın almaya çalışabiliyordu.
+  const profileBadgeType = selectedTargetType === 'office'
+    ? (selectedTargetKey ? myProfileBadges.offices[selectedTargetKey] : null)
+    : myProfileBadges.self;
   // Bir aktif rozet varsa yalnızca DAHA YÜKSEK bir kademe seçildiğinde satın almaya izin ver
   // (yükseltme); aynı ya da daha düşük bir kademe seçiliyse mevcut rozetin süresi dolana kadar
   // engelle (bkz. src/routes/payments.js#startCheckout aynı kuralı sunucu tarafında da uygular).
   const activeRank = activeBadge ? (BADGE_RANK[activeBadge.badge_type] || 0) : 0;
-  const adminRank = adminBadgeType ? (BADGE_RANK[adminBadgeType] ?? Infinity) : 0;
-  const blockingRank = Math.max(activeRank, adminRank);
+  const profileRank = profileBadgeType ? (BADGE_RANK[profileBadgeType] ?? Infinity) : 0;
+  const blockingRank = Math.max(activeRank, profileRank);
   const isDowngradeOrSame = blockingRank > 0 && (BADGE_RANK[selectedTier] || 0) <= blockingRank;
   let blocking = pendingBadge || null;
   if (!blocking && isDowngradeOrSame) {
-    blocking = adminRank >= activeRank ? { badge_type: adminBadgeType, status: 'active', admin: true } : activeBadge;
+    blocking = profileRank >= activeRank ? { badge_type: profileBadgeType, status: 'active', admin: true } : activeBadge;
   }
 
   const paymentSection = document.getElementById('payment-section');
@@ -416,6 +417,11 @@ loadMyBadges();
 // Yalnızca onaylı şekilde sahiplenilmiş markalar seçilebilir — aksi halde satın alınan rozet
 // hiçbir profilde görünmez (bkz. src/routes/badges.js#verifyOfficeTargetOwnership aynı kontrolü
 // sunucu tarafında da uygular).
+// KÖK NEDEN (kullanıcı isteği, 2026-09-01 madde 3): bu liste ASENKRON dolar ve eskiden yalnızca
+// radyo "Bir firmam için"e geçtiğinde çağrılıyordu — radyo işleyicisi selectedTargetKey'i HENÜZ BOŞ
+// olan select'ten okuyup (=> null) paneli hemen hesaplıyor, liste sonradan dolduğunda ise paneli
+// BİR DAHA hiç güncellemiyordu; firmanın rozeti bilinse bile panel "rozet yok" halinde donuyordu.
+let claimedOfficesReady = null;
 async function loadClaimedOffices(){
   const select = document.getElementById('target-office-select');
   const empty = document.getElementById('target-office-empty');
@@ -431,12 +437,14 @@ async function loadClaimedOffices(){
     select.style.display = '';
     empty.style.display = 'none';
     select.innerHTML = offices.map(o => `<option value="${escapeAttr(o.profile_key)}">${escapeHtml(o.profile_key)}</option>`).join('');
-    selectedTargetKey = select.value || null;
+    if(selectedTargetType === 'office') selectedTargetKey = select.value || null;
   }catch{
     select.style.display = 'none';
     empty.style.display = 'block';
   }
+  updateExistingBadgePanel();
 }
+claimedOfficesReady = loadClaimedOffices();
 document.getElementById('target-office-select').addEventListener('change', (e)=>{
   selectedTargetKey = e.target.value || null;
   updateExistingBadgePanel();
@@ -447,7 +455,7 @@ document.querySelectorAll('input[name="badge-target"]').forEach(radio=>{
     document.getElementById('target-office-wrap').style.display = selectedTargetType === 'office' ? '' : 'none';
     if(selectedTargetType === 'office'){
       selectedTargetKey = document.getElementById('target-office-select').value || null;
-      loadClaimedOffices();
+      if(claimedOfficesReady) claimedOfficesReady.then(()=>{ if(selectedTargetType === 'office') updateExistingBadgePanel(); });
     } else {
       selectedTargetKey = null;
     }

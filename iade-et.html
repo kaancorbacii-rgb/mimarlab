@@ -256,15 +256,41 @@ function orderLabel(b){
   const tierLabel = BADGE_TYPE_LABELS[b.badge_type] || b.badge_type;
   const targetLabel = b.target_type === 'office' ? `Firma: ${b.target_key}` : 'Kendisi için';
   const statusLabel = BADGE_STATUS_LABELS[b.status] || b.status;
+  // synthetic (bkz. mergeProfileBadges) — bu hesapta bir satın alma KAYDI yok, tarih de yok.
+  if(b.synthetic) return `${tierLabel} — ${targetLabel} — ${statusLabel} (bu hesapta ödeme kaydı yok)`;
   const dateStr = new Date(b.created_at).toLocaleDateString('tr-TR');
   return `${tierLabel} — ${targetLabel} — ${statusLabel} (${dateStr})`;
+}
+
+// KÖK NEDEN (kullanıcı isteği, 2026-09-01 madde 3: "iade et sayfası da halihazırda olan rozeti
+// algılamıyor"): bu ekran YALNIZCA kullanıcının KENDİ badge_requests satırlarını listeliyordu.
+// Profilde görünen bir rozetin bu tabloda karşılığı olmayabilir — admin doğrudan vermiş olabilir
+// (admin_badges, user_id taşımaz) ya da firmayı sahiplenen başka bir ortak satın almış olabilir;
+// o durumda ekran "Henüz bir rozet satın alımın yok" diyordu. Artık profilde GÖRÜNEN rozetler de
+// (bkz. src/routes/badges.js#getProfileBadgesForUser — Rozet Al ekranıyla AYNI kaynak) listeleniyor.
+function mergeProfileBadges(orders, profileBadges){
+  const out = orders.slice();
+  const covered = new Set(orders.map(b => `${b.target_type}:${b.target_key || ''}:${b.badge_type}`));
+  const add = (targetType, targetKey, badgeType)=>{
+    if(!badgeType) return;
+    if(covered.has(`${targetType}:${targetKey || ''}:${badgeType}`)) return;
+    out.push({
+      id: `profile:${targetType}:${targetKey || ''}`,
+      badge_type: badgeType, target_type: targetType, target_key: targetKey,
+      status: 'active', price_try: 0, created_at: null, synthetic: true,
+    });
+  };
+  add('self', null, profileBadges.self);
+  Object.keys(profileBadges.offices || {}).forEach(key => add('office', key, profileBadges.offices[key]));
+  return out;
 }
 
 async function loadMyOrders(){
   try{
     const res = await fetch('/api/badges/mine');
-    const items = res.ok ? (await res.json()).items || [] : [];
-    myOrders = items.filter(b => b.status !== 'rejected');
+    const data = res.ok ? await res.json() : {};
+    const items = (data.items || []).filter(b => b.status !== 'rejected');
+    myOrders = mergeProfileBadges(items, data.profileBadges || { self: null, offices: {} });
   }catch{
     myOrders = [];
   }
@@ -305,7 +331,9 @@ document.getElementById('refund-submit-btn').addEventListener('click', async ()=
   const message = [
     'İade Talebi',
     `Rozet: ${orderLabel(order)}`,
-    `Tutar: ${Number(order.price_try).toFixed(2)} TL`,
+    order.synthetic
+      ? 'Tutar: bu hesapta ödeme kaydı yok (rozet yönetici tarafından verilmiş ya da profili sahiplenen başka bir hesap satın almış olabilir)'
+      : `Tutar: ${Number(order.price_try).toFixed(2)} TL`,
     `İade IBAN: ${iban.replace(/\s+/g, '').toUpperCase()}`,
     `Hesap Sahibi: ${accountName}`,
     `Sebep: ${reason}`,
