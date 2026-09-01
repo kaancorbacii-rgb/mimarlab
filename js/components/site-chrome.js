@@ -431,10 +431,15 @@
          sorunu ortadan kalktığı için düz flex yeterli — DOM sırası da artık görsel sırayla birebir,
          bkz. footerHtml().) */
       .footer-subscribe-inner{max-width:1080px; margin:0 auto; padding:34px 32px; display:flex; flex-direction:column; align-items:center; text-align:center;}
-      .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:16px; font-weight:700; color:var(--paper); margin:0 0 8px;}
+      .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:20px; font-weight:700; color:var(--paper); margin:0 0 8px;}
       .footer-subscribe-news-title{margin-top:30px;}
-      /* form/buton öğeleri açıklama metinleriyle aynı ölçüde kalsın diye aynı max-width */
-      .footer-subscribe-news-action{width:100%; max-width:340px;}
+      /* kullanıcı isteği (2026-09-01): "Üye Ol" butonu ve e-posta kutusu aynı GENİŞ ölçüde
+         (masaüstünde 390px) — buton artık metnine göre daralmıyor, altındaki input ile birebir
+         aynı kutuyu doldurur. Açıklama metinleri ise bilerek DAHA GENİŞ (max-width yok, bkz.
+         .footer-subscribe-join-desc kuralı) ki tek satırda kalsınlar. */
+      .footer-subscribe-join-action{width:100%; max-width:390px;}
+      .footer-subscribe-join-action .footer-subscribe-btn{width:100%;}
+      .footer-subscribe-news-action{width:100%; max-width:390px;}
       .footer-subscribe-btn{display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 26px; background:var(--brass-soft); color:var(--ink); font-weight:700; font-size:13px; border-radius:100px; border:none; cursor:pointer; white-space:nowrap;}
       .footer-subscribe-btn:hover{opacity:0.9;}
       .footer-subscribe-btn:disabled{opacity:0.6; cursor:default;}
@@ -445,7 +450,10 @@
       .footer-bottom{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; max-width:1080px; margin:0 auto; box-sizing:border-box;}
       .footer-bottom .footer-social{justify-self:start;}
       .footer-copyright{justify-self:center; text-align:center;}
-      .footer-bottom .footer-theme-toggle{justify-self:end;}
+      /* kullanıcı isteği (2026-09-01): gece/gündüz düğmesi artık sağ kenara YAPIŞMAZ, kendi
+         (sağdaki 1fr) sütununun ortasına oturur — telif metniyle sağ kenar arasında duran daha
+         dengeli bir konum. Sütun 1fr olduğundan bu konum pencere genişliğiyle birlikte kayar. */
+      .footer-bottom .footer-theme-toggle{justify-self:center;}
       .footer-social{display:flex; align-items:center; gap:14px; height:28px;}
       .footer-social a{display:flex; align-items:center; justify-content:center;}
       .footer-social svg{display:block;}
@@ -469,7 +477,11 @@
         transition: left 0.2s ease;
       }
       [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:27px;}
-      .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:12.5px; color:rgba(237,240,243,0.6); margin:0 0 16px; max-width:340px;}
+      /* max-width YOK (kullanıcı isteği, 2026-09-01: "açıklama metnini tek satırda topladım") —
+         340px'e sıkışınca "Yeni proje, ürün, mimar, firma ve markalar e-postana gelsin." iki
+         satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek satırda kalır,
+         dar ekranlarda ise kapsayıcı zaten daralttığı için kendiliğinden sarar. */
+      .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:16px; color:rgba(237,240,243,0.6); margin:0 0 16px;}
       /* kullanıcı isteği (2026-08-30): abone ol gönder butonu artık TÜM görünümlerde (masaüstü/
          tablet/mobil) input'un sağ ucuna gömülü dairesel bir ikon — eskiden yalnızca mobilde
          (≤560px) böyleydi, masaüstünde ayrı metin butonu vardı; artık üç görünüm de aynı deseni
@@ -488,10 +500,12 @@
         .footer-top{grid-template-columns: 1fr 1fr; column-gap:20px; row-gap:28px;}
         .footer-brand{grid-column:auto;}
         .footer-subscribe-inner{padding:26px 32px;}
-        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:14.5px;}
+        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:18px;}
+        .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:14.5px;}
       }
       @media (max-width: 560px){
-        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:13px;}
+        .footer-subscribe-join-title, .footer-subscribe-news-title{font-size:16px;}
+        .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:13px;}
         .footer-subscribe-btn{padding:0 14px; font-size:12px; height:34px;}
         .footer-newsletter-input{height:34px; padding:0 40px 0 12px;}
         .footer-newsletter-btn{width:28px; height:28px;}
