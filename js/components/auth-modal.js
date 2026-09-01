@@ -264,7 +264,7 @@ const AuthModal = (function () {
     #am-panel .dash-field{margin-bottom:12px;}
     #am-panel .dash-field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
     #am-panel .dash-field input{width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink);}
-    /* mimar-ekle.html#dd-field ile BİREBİR aynı açılır çoklu-seçim widget'ı (bkz. kullanıcı isteği:
+    /* kisi-ekle.html#dd-field ile BİREBİR aynı açılır çoklu-seçim widget'ı (bkz. kullanıcı isteği:
        "aynı firma kutucuğu gibi ama birden fazla seçenek seçilebilsin") — yalnızca Ödüller kutusunda
        kullanılır. */
     #am-panel .dd-field{position:relative;}
@@ -580,7 +580,7 @@ const AuthModal = (function () {
 
   // ---------------------------------------------------------------------------------------------
   // ÜYE OL — uye-ol.html#auth-wrap ile BİREBİR aynı işaretleme/mantık (bkz. o dosya). Okul
-  // autocomplete kutusunun id'si mimar-ekle.html'deki #ac-school-suggestions ile ÇAKIŞMASIN diye
+  // autocomplete kutusunun id'si kisi-ekle.html'deki #ac-school-suggestions ile ÇAKIŞMASIN diye
   // (bkz. gerçek bulgu: aynı sayfada iki #ac-school-suggestions olması getElementById'i belirsizleştirir)
   // am- önekiyle benzersizleştirildi.
   // ---------------------------------------------------------------------------------------------
@@ -877,7 +877,7 @@ const AuthModal = (function () {
                için her zaman görünür, users.awards/about/social_links'e yazılır; onaylı bir mimar
                profili sahiplenilmişse AYNI Kaydet'te architect_submissions/architects kaydına da
                senkronize edilir (bkz. submitArchitectSyncIfNeeded). Ödüller kutusu Firma ile AYNI
-               kapalı/açılır davranışı verir, mimar-ekle.html#dd-oduller ile BİREBİR aynı widget
+               kapalı/açılır davranışı verir, kisi-ekle.html#dd-oduller ile BİREBİR aynı widget
                (bkz. wireAmMultiDropdown), ama çoklu seçim destekler. -->
           <div>
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Ödül</label>
@@ -1040,7 +1040,7 @@ const AuthModal = (function () {
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Kişi</button>
             <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
           </div>
           <div id="am-dash-shares"><div class="dash-empty">Yükleniyor…</div></div>
@@ -1080,7 +1080,7 @@ const AuthModal = (function () {
             <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="submissions-filter-btn" data-filter="projects">Proje</button>
             <button type="button" class="submissions-filter-btn" data-filter="products">Ürün</button>
-            <button type="button" class="submissions-filter-btn" data-filter="architects">Mimar</button>
+            <button type="button" class="submissions-filter-btn" data-filter="architects">Kişi</button>
             <button type="button" class="submissions-filter-btn" data-filter="offices">Firma</button>
             <button type="button" class="submissions-filter-btn" data-filter="brands">Marka</button>
           </div>
@@ -1089,7 +1089,7 @@ const AuthModal = (function () {
         </div>
 
         <div class="dash-section">
-          <h2>Mimar/Firma Profilim</h2>
+          <h2>Kişi/Firma Profilim</h2>
           <div id="am-contents-claims-list"><div class="dash-empty">Yükleniyor…</div></div>
         </div>
       </div>
@@ -1174,7 +1174,7 @@ const AuthModal = (function () {
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
             <button type="button" class="saved-filter-btn" data-filter="project">Proje</button>
             <button type="button" class="saved-filter-btn" data-filter="product">Ürün</button>
-            <button type="button" class="saved-filter-btn" data-filter="architect">Mimar</button>
+            <button type="button" class="saved-filter-btn" data-filter="architect">Kişi</button>
             <button type="button" class="saved-filter-btn" data-filter="office">Firma</button>
             <button type="button" class="saved-filter-btn" data-filter="brand">Marka</button>
           </div>
@@ -1226,10 +1226,10 @@ const AuthModal = (function () {
     </div>`;
   }
 
-  const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
+  const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Kişi', news: 'Haber' };
   const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi', archived: 'Arşivlendi' };
   const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C', archived: 'var(--ink-soft)' };
-  const EDIT_PAGE_BY_TYPE = { offices: '/firma-ekle', projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle', architects: '/mimar-ekle', news: 'haber-ekle.html' };
+  const EDIT_PAGE_BY_TYPE = { offices: '/firma-ekle', projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle', architects: '/kisi-ekle', news: 'haber-ekle.html' };
   // Marka gönderileri offices tipindedir (bkz. marka-ekle.html: type:'offices') — İçeriklerim >
   // Eklediklerim satırında hem etiketi ("Marka") hem Düzenle hedefi (marka-ekle.html) bu yüzden
   // tipe DEĞİL, sunucudan gelen item.isBrand'a göre seçilir (bkz. src/routes/submissions.js#listMine).
@@ -1243,7 +1243,7 @@ const AuthModal = (function () {
   }
   // brand: gerçek bir saved/follow tipi DEĞİL — Takip Ettiklerim'in marka satırları için
   // istemcide türetilen görüntüleme tipi (bkz. mountCollections#loadFollowFeed).
-  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma', brand: 'Marka' };
+  const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Kişi', office: 'Firma', brand: 'Marka' };
   // Paylaştıklarım satırının alt metnindeki kanal etiketi — js/components/share-button.js'in
   // logShare'e geçirdiği ('copy'|'whatsapp'|'x'|'linkedin'|'native') değerlerin okunabilir karşılığı
   // (bkz. src/routes/shares.js#SHARE_CHANNELS, TEK doğru kaynak orası). Eski/tanınmayan bir değer
@@ -1251,7 +1251,7 @@ const AuthModal = (function () {
   const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı' };
   const PAGE_SIZE_DASH = 10;
   // 'fotografci' — kullanıcı isteği (2026-09-01 madde 6). Bu eşleme src/routes/auth.js#PROFESSIONS,
-  // uye-ol.html ve mimar-ekle.html#MESLEK_OPTIONS ile BİLİNÇLİ olarak kopyadır; dördü birlikte
+  // uye-ol.html ve kisi-ekle.html#MESLEK_OPTIONS ile BİLİNÇLİ olarak kopyadır; dördü birlikte
   // güncellenmeli (bkz. o dosyalardaki AYNI not).
   const PROFESSION_LABELS = { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', fotografci: 'Fotoğrafçı', ogrenci: 'Öğrenci', diger: 'Diğer' };
   // users.profession artık virgülle ayrılmış birden çok slug taşıyabilir (bkz. src/routes/auth.js#
@@ -1276,12 +1276,12 @@ const AuthModal = (function () {
   function getProfessionChecks(groupId) {
     return [...document.querySelectorAll(`#${groupId} input:checked`)].map(i => i.value).join(',');
   }
-  const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
+  const CLAIM_TYPE_LABELS = { architect: 'Kişi', office: 'Firma' };
   // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
-  // (mimar-ekle.html/proje-ekle.html ile ortak) geliyor, bu dosyanın <script> etiketinden HEMEN
+  // (kisi-ekle.html/proje-ekle.html ile ortak) geliyor, bu dosyanın <script> etiketinden HEMEN
   // önce her sayfada senkron yüklenir (bkz. o dosyanın başındaki yorum). Buradaki "Mimar Profili"
   // alt bölümünü besler, yalnızca onaylı bir mimar profili sahiplenilmişse görünür (bkz.
-  // loadArchitectSyncFields). SOCIAL_PLATFORMS ise mimar-ekle.html#SOCIAL_PLATFORMS ile BİREBİR
+  // loadArchitectSyncFields). SOCIAL_PLATFORMS ise kisi-ekle.html#SOCIAL_PLATFORMS ile BİREBİR
   // AYNI kalmaya devam ediyor (henüz ayrı bir paylaşım dosyasına taşınmadı).
   const SOCIAL_PLATFORMS = [
     { value: 'instagram', label: 'Instagram' },
@@ -1293,7 +1293,7 @@ const AuthModal = (function () {
   ];
   const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
   const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
-  const CLAIM_EDIT_PAGE = { architect: '/mimar-ekle', office: '/firma-ekle' };
+  const CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
   // bkz. src/routes/submissions.js#OFFICE_EDIT_POSITIONS / js/components/claim-correction-box.js
   // (firma sayfasındaki Düzenle butonu) ile BİREBİR aynı liste — kullanıcı isteği: "Firmayı sadece
   // kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir". Hesabım'daki Firma satırı bu kontrolü
@@ -1633,7 +1633,7 @@ const AuthModal = (function () {
       } catch {}
     }
 
-    // Ödüller kutusu — mimar-ekle.html#wireMultiDropdown ile BİREBİR aynı desen: kapalı bir düğme
+    // Ödüller kutusu — kisi-ekle.html#wireMultiDropdown ile BİREBİR aynı desen: kapalı bir düğme
     // (seçili sayıyı/tek seçimi gösterir), tıklanınca checkbox'lı bir panel açılır. Bir kere kurulur
     // (ensureAwardsDropdown), her loadUser()'da yalnızca setChecked çağrılır.
     let awardsDropdown = null;
@@ -1696,7 +1696,7 @@ const AuthModal = (function () {
 
     // Onaylı bir mimar profili sahiplenilmişse yukarıdaki TÜM alanlar (Ad Soyad/Doğum Yılı/Üniversite/
     // Meslek/Pozisyon/Ödüller/Açıklama/Sosyal Medya) AYNI Kaydet'te architect_submissions/architects
-    // kaydına da yazılır (bkz. submitArchitectSyncIfNeeded, mimar-ekle.html?claim= ile TAM AYNI uç
+    // kaydına da yazılır (bkz. submitArchitectSyncIfNeeded, kisi-ekle.html?claim= ile TAM AYNI uç
     // noktalar). architectSyncState null'sa (henüz bir mimar profiliyle eşleşilmemişse) bu alanlar
     // yine de görünür ve users tablosuna kaydedilir (bkz. kullanıcı isteği: "Mimar profiliyle henüz
     // eşleşmemiş kullanıcılar da ödül, sosyal medya ve açıklama ekleyebilsinler") — yalnızca ikinci,
@@ -1722,10 +1722,10 @@ const AuthModal = (function () {
     }
     on('am-add-social-row', 'click', () => addAmSocialRow());
 
-    // mimar-ekle.html#prefillForClaim ile AYNI iki aşamalı kaynak: önce canonical (/api/architect/:key,
+    // kisi-ekle.html#prefillForClaim ile AYNI iki aşamalı kaynak: önce canonical (/api/architect/:key,
     // `item.role`/`item.photo` alan adlarıyla), sonra varsa kullanıcının kendi architect_submissions
     // satırı (/api/architects/mine, claimed_profile_key eşleşmesiyle) ÜZERİNE yazılır — böylece
-    // kullanıcı daha önce mimar-ekle.html'den bir taslak kaydettiyse o taslak esas alınır.
+    // kullanıcı daha önce kisi-ekle.html'den bir taslak kaydettiyse o taslak esas alınır.
     async function fetchArchitectRecordForSync(profileKey) {
       let merged = { name: '', dob: '', school: '', profession: '', position: '', office: '', awards: [], about: '', social_links: [], photo_url: '' };
       try {
@@ -1750,8 +1750,8 @@ const AuthModal = (function () {
           const mineData = await mineRes.json();
           // /api/architects/mine created_at DESC sıralı döner ve owner_user_id'nin BİRDEN FAZLA
           // architect_submissions satırı olabilir — ilk eşleşeni (en SON OLUŞTURULAN) almak yerine
-          // updated_at'i EN YENİ olanı seçilir (bkz. mimar-ekle.html#prefillForClaim'deki AYNI
-          // gerçek bulgu: Profilini Düzenle'de eklenen sosyal medya linkleri mimar-ekle.html'de
+          // updated_at'i EN YENİ olanı seçilir (bkz. kisi-ekle.html#prefillForClaim'deki AYNI
+          // gerçek bulgu: Profilini Düzenle'de eklenen sosyal medya linkleri kisi-ekle.html'de
           // görünmüyordu — bu editId, o iki taslaktan biri diğerinden GÜNCEL olsa bile ilk (en eski
           // oluşturulan) eşleşeni bulup ona yazıyordu).
           const claimMatches = (mineData.items || []).filter(m => m.claimed_profile_key === profileKey);
@@ -1849,7 +1849,7 @@ const AuthModal = (function () {
     }
 
     // Onaylı bir mimar profili sahiplenilmişse "Mimar Profili" alt bölümündeki alanlar AYNI Kaydet
-    // tıklamasıyla architect_submissions/architects kaydına da yazılır — mimar-ekle.html?claim='in
+    // tıklamasıyla architect_submissions/architects kaydına da yazılır — kisi-ekle.html?claim='in
     // kullandığı UÇLARLA (createSubmission/updateOwnSubmission) BİREBİR aynı, bu yüzden ikisi de
     // gerçekten TEK bir veri kaynağını düzenlemiş olur (bkz. kullanıcı isteği: "tam bir
     // senkronizasyon"). office/photo_url bu formda düzenlenmediğinden fetchArchitectRecordForSync'in
@@ -1859,7 +1859,7 @@ const AuthModal = (function () {
       const payload = {
         name, dob: dob || null, school: school || null,
         // architects.profession HAM Türkçe etiket taşır ("Mimar, Fotoğrafçı") — çoklu meslek de
-        // aynı virgüllü biçimde yazılır (bkz. mimar-ekle.html#meslekDropdown).
+        // aynı virgüllü biçimde yazılır (bkz. kisi-ekle.html#meslekDropdown).
         profession: professionLabelText(professionSlug) || null,
         office: architectSyncState.office || null,
         position: position || null,

@@ -83,7 +83,7 @@ function toIso8601(sqliteDatetime) {
 // (ör. proje-detay.html "Ana Sayfa › Projeler › <başlık>") BİREBİR aynı olmalı; Google yapılandırılmış
 // verinin sayfada görünen içerikle tutarlı olmasını bekler (bkz. structured data guidelines).
 const CATALOG_CRUMB = {
-  architect: { label: 'Mimarlar', path: '/mimar' },
+  architect: { label: 'Kişiler', path: '/mimar' },
   office: { label: 'Firmalar', path: '/firma' },
   project: { label: 'Projeler', path: '/proje' },
   product: { label: 'Ürün', path: '/urun' },

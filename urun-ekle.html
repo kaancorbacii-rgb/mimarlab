@@ -935,7 +935,7 @@ function mountProductAdminActions(){
 }
 
 // Marka önerileri artık data.js'in statik offices[] dizisi yerine canlı D1 aramasından beslenir
-// (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — mimar-ekle.html/firma-ekle.html/
+// (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 — kisi-ekle.html/firma-ekle.html/
 // proje-ekle.html#wireAutocompleteLive'daki BİREBİR AYNI fonksiyon/gerekçe, statik dizi yalnızca
 // deploy anındaki anlık görüntüyü içerdiğinden D1'e az önce eklenmiş bir firma burada hiç görünmüyordu).
 // bkz. proje-ekle.html#wireAutocompleteLive'daki AYNI lastCommaSegment/replaceLastCommaSegment
@@ -1054,7 +1054,7 @@ document.getElementById('u-project-input').addEventListener('keydown', (e)=>{
 });
 
 // P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen, bkz.
-// mimar-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor).
+// kisi-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor).
 function resizeImageForUpload(file, maxEdge, quality){
   return new Promise((resolve) => {
     if(!/^image\/(jpeg|png|webp)$/.test(file.type)){ resolve(file); return; }

@@ -8,18 +8,18 @@
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
-<title>Mimarlar — MİMARLAB</title>
+<title>Kişiler — MİMARLAB</title>
 <meta name="description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="meta-description">
 <link rel="canonical" href="https://mimarlab.com/mimar" id="canonical-link">
 <meta property="og:type" content="website" id="og-type">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Mimarlar — MİMARLAB" id="og-title">
+<meta property="og:title" content="Kişiler — MİMARLAB" id="og-title">
 <meta property="og:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="og-description">
 <meta property="og:url" content="https://mimarlab.com/mimar" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Mimarlar — MİMARLAB" id="twitter-title">
+<meta name="twitter:title" content="Kişiler — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
@@ -27,7 +27,7 @@
      ArchitectModal (bkz. js/components/architect-modal.js#renderStructuredData) kendi Person
      şemasını AYRI bir <script id="am-ld-json"> olarak ekler, bu ikisiyle çakışmaz. -->
 <script type="application/ld+json" id="list-jsonld">
-{"@context":"https://schema.org","@type":"CollectionPage","name":"Mimarlar — MİMARLAB","url":"https://mimarlab.com/mimar","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Kişiler — MİMARLAB","url":"https://mimarlab.com/mimar","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
 <!-- Temiz URL'lerle bu sayfa /mimar dışında /mimar/:slug altında da (mimar modalını doğrudan açan
      bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç
@@ -383,11 +383,11 @@
   <div class="breadcrumb-bar">
     <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <span class="current">Mimarlar</span>
+    <span class="current">Kişiler</span>
   </div>
 
   <div class="page-head">
-    <h1 id="entity-h1">Mimarlar</h1>
+    <h1 id="entity-h1">Kişiler</h1>
     <p id="result-count"></p>
   </div>
 
@@ -398,7 +398,7 @@
       <div class="sidebar-filters-title">Filtreler</div>
       <div class="sidebar-search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="g-local-search" placeholder="Mimar ara...">
+        <input type="text" id="g-local-search" placeholder="Kişi ara...">
       </div>
       <div class="grid-sidebar-head">
         <div class="filter-select" style="flex:1;">
@@ -426,12 +426,12 @@
         <select id="g-position"><option value="">Pozisyon</option></select>
         <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
       </div>
-      <a class="sidebar-add-btn" href="/mimar-ekle"><span class="sidebar-add-icon">+</span> Mimar Ekle</a>
+      <a class="sidebar-add-btn" href="/kisi-ekle"><span class="sidebar-add-icon">+</span> Kişi Ekle</a>
     </aside>
 
     <main>
       <div class="card-grid" id="card-grid"></div>
-      <div class="empty-state" id="empty-state">Bu kritere uyan mimar bulunamadı.</div>
+      <div class="empty-state" id="empty-state">Bu kritere uyan kişi bulunamadı.</div>
       <div class="pagination" id="pagination"></div>
     </main>
   </div>
@@ -460,8 +460,8 @@ let searchQuery = '';
 // ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK mimar içeriğinin üzerine ArchitectModal
 // kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
 ModalShell.setSsrDefaults({
-  title: 'Mimarlar — MİMARLAB',
-  h1: 'Mimarlar',
+  title: 'Kişiler — MİMARLAB',
+  h1: 'Kişiler',
   description: "Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.",
   canonicalUrl: 'https://mimarlab.com/mimar',
   ogType: 'website',
@@ -469,7 +469,7 @@ ModalShell.setSsrDefaults({
 });
 
 // Bilinen pozisyon kovaları için tercih edilen görüntüleme sırası — listede olmayan (gelecekte
-// mimar-ekle.html#POZISYON_OPTIONS'a eklenebilecek) bir değer sona, alfabetik eklenir (bkz. aşağıdaki
+// kisi-ekle.html#POZISYON_OPTIONS'a eklenebilecek) bir değer sona, alfabetik eklenir (bkz. aşağıdaki
 // positionSel bloğu — artık HTML'de sabit <option> yok, TÜMÜ sunucudan gelen sayaçlardan üretilir).
 const POSITION_ORDER = ['Kurucu', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
 
@@ -621,13 +621,13 @@ async function render(){
   try{
     const res = await fetch(`/api/architects?${params.toString()}`);
     if(res.ok) data = await res.json();
-  }catch(err){ console.error('Mimar listesi alınamadı:', err); }
+  }catch(err){ console.error('Kişi listesi alınamadı:', err); }
   if(myRequest !== renderRequestId) return; // bu arada başka bir render() tetiklendi, bu yanıt bayat
   grid.style.opacity = '1';
 
   if(!data){
     grid.innerHTML = '';
-    empty.textContent = 'Mimarlar yüklenemedi, lütfen sayfayı yenile.';
+    empty.textContent = 'Kişiler yüklenemedi, lütfen sayfayı yenile.';
     empty.style.display = 'block';
     document.getElementById('pagination').innerHTML = '';
     document.getElementById('result-count').textContent = '';
@@ -639,7 +639,7 @@ async function render(){
   populateFilterOptions(data.filters || {});
   renderPagination(data.totalPages);
 
-  if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan mimar bulunamadı.'; empty.style.display = 'block'; return; }
+  if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan kişi bulunamadı.'; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
   // .card-grid sütun sayısı breakpoint'e göre değişiyor (4 -> ≤960px'de 3 -> ≤720px'de 2, bkz.

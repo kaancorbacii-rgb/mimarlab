@@ -7,19 +7,19 @@
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
-<title>Mimar Ekle — MİMARLAB</title>
+<title>Kişi Ekle — MİMARLAB</title>
 <meta name="description" content="MİMARLAB'a mimar profili ekle.">
-<link rel="canonical" href="https://mimarlab.com/mimar-ekle">
+<link rel="canonical" href="https://mimarlab.com/kisi-ekle">
 <meta name="robots" content="noindex, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Mimar Ekle — MİMARLAB">
+<meta property="og:title" content="Kişi Ekle — MİMARLAB">
 <meta property="og:description" content="MİMARLAB'a mimar profili ekle.">
-<meta property="og:url" content="https://mimarlab.com/mimar-ekle">
+<meta property="og:url" content="https://mimarlab.com/kisi-ekle">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Mimar Ekle — MİMARLAB">
+<meta name="twitter:title" content="Kişi Ekle — MİMARLAB">
 <meta name="twitter:description" content="MİMARLAB'a mimar profili ekle.">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -298,19 +298,19 @@
   <div class="breadcrumb-bar">
     <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="/mimar">Mimarlar</a>
+    <a href="/mimar">Kişiler</a>
     <span class="sep">›</span>
-    <span class="current">Mimar Ekle</span>
+    <span class="current">Kişi Ekle</span>
   </div>
 
   <div class="page-head">
-    <div class="eyebrow">Mimar Ekle</div>
+    <div class="eyebrow">Kişi Ekle</div>
     <h1>Kendini ya da bir mimarı MİMARLAB'a ekle</h1>
     <p>Bilgileri paylaş, ekibimiz inceledikten sonra dizine eklensin.</p>
   </div>
 
   <div class="form-wrap">
-    <form id="mimar-ekle-form">
+    <form id="kisi-ekle-form">
       <div class="form-section">
         <h2>Kişisel Bilgiler</h2>
         <div class="form-field">
@@ -477,7 +477,7 @@ let originalName = '';
 const dupNameCheck = DuplicateNameCheck.attach({
   input: document.getElementById('m-name'),
   type: 'architects',
-  message: 'Bu mimar zaten yayınlandı.',
+  message: 'Bu kişi zaten yayınlandı.',
   getExclude: () => originalName,
 });
 
@@ -844,7 +844,7 @@ async function prefillForEdit(){
     // eski statik kaydı bulamayıp YENİ bir "bağımsız" mimar kaydı oluşturuyordu, yani aynı mimar
     // sitede İKİ kez görünüyordu — "mükerrer kayıt" bulgusunun kök nedeni).
     if(item.claimed_profile_key) claimName = item.claimed_profile_key;
-    document.querySelector('.eyebrow').textContent = 'Mimar Düzenle';
+    document.querySelector('.eyebrow').textContent = 'Kişi Düzenle';
     document.querySelector('.page-head h1').textContent = 'Bilgilerini düzenle';
     document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
@@ -876,7 +876,7 @@ async function prefillForEdit(){
 async function prefillForClaim(){
   if(!claimName) return;
   await currentUserReady;
-  document.querySelector('.eyebrow').textContent = 'Mimar Düzenle';
+  document.querySelector('.eyebrow').textContent = 'Kişi Düzenle';
   document.querySelector('.page-head h1').textContent = 'Profilini düzenle';
   document.querySelector('.form-submit').textContent = 'Değişiklikleri Kaydet';
 
@@ -929,7 +929,7 @@ async function prefillForClaim(){
       // bkz. o dosyadaki AYNI gerçek bulgu) — ilk eşleşeni (en SON OLUŞTURULAN) almak yerine
       // updated_at'i EN YENİ olanı seçilir, aksi halde "Profilini Düzenle"den az önce güncellenmiş
       // sosyal medya/ödül gibi alanlar burada eski/boş bir taslaktan geri okunup kayboluyormuş gibi
-      // görünüyordu (gerçek bulgu: sosyal medya linkleri profilde görünüyor ama mimar-ekle.html'de
+      // görünüyordu (gerçek bulgu: sosyal medya linkleri profilde görünüyor ama kisi-ekle.html'de
       // boş geliyordu).
       const claimMatches = (mineData.items || []).filter(it => it.claimed_profile_key === claimName);
       const mine = claimMatches.length ? claimMatches.reduce((a, b) => (b.updated_at > a.updated_at ? b : a)) : null;
@@ -988,8 +988,8 @@ function mountArchitectAdminActions(){
   row.style.display = '';
   async function run(action){
     const confirmText = action === 'delete'
-      ? 'Bu mimar profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
-      : 'Bu mimar profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
+      ? 'Bu kişi profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.'
+      : 'Bu kişi profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.';
     if(!confirm(confirmText)) return;
     archiveBtn.disabled = true;
     deleteBtn.disabled = true;
@@ -1112,7 +1112,7 @@ async function uploadFiles(files){
   return urls;
 }
 
-document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=>{
+document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const notice = document.getElementById('form-notice');
   const loading = document.getElementById('form-loading');
@@ -1120,7 +1120,7 @@ document.getElementById('mimar-ekle-form').addEventListener('submit', async (e)=
   const submitBtn = form.querySelector('.form-submit');
 
   if(dupNameCheck.isDuplicate()){
-    notice.textContent = 'Bu mimar zaten yayınlandı.';
+    notice.textContent = 'Bu kişi zaten yayınlandı.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;

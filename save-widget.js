@@ -482,7 +482,7 @@ window.addEventListener('mimarlab:authchange', () => {
 // applyEditButtons).
 const EDIT_PAGE_BY_SUBMISSION_TYPE = {
   projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle',
-  news: 'haber-ekle.html', offices: '/firma-ekle', architects: '/mimar-ekle',
+  news: 'haber-ekle.html', offices: '/firma-ekle', architects: '/kisi-ekle',
 };
 const myEditableIdsCache = {};
 async function myEditableIds(type){

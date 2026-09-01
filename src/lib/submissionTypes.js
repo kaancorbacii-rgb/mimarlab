@@ -48,7 +48,7 @@ export const SUBMISSION_TYPES = {
     ],
     // designer: yalnızca "Mimar" kutusundan gelen isimler; office: yalnızca "Firma" kutusundan
     // gelen isimler (bkz. migrations/0030_project_submission_office.sql) — artık BİRLEŞTİRİLMEZ,
-    // hangi kutudan geldiği künye render'ına kadar korunur. awards: mimar-ekle.html/firma-ekle.html
+    // hangi kutudan geldiği künye render'ına kadar korunur. awards: kisi-ekle.html/firma-ekle.html
     // ile AYNI JSON dizi deseni (bkz. migrations/0049_project_awards.sql).
     arrayFields: ['category', 'type', 'discipline', 'period', 'designer', 'office', 'images', 'brands', 'awards'],
     // imageHotspots — arrayFields'in NESNE karşılığı: kök değer bir dizi değil, görsel URL'sine göre
@@ -103,7 +103,7 @@ export const SUBMISSION_TYPES = {
 };
 
 // Mimar/Firma ekle-düzenle sayfalarındaki Sosyal Medya kutucuğunun platform seçim listesi
-// (bkz. kullanıcı isteği) — istemci (mimar-ekle.html/firma-ekle.html) VE burası
+// (bkz. kullanıcı isteği) — istemci (kisi-ekle.html/firma-ekle.html) VE burası
 // (submissions.js#createSubmission/updateOwnSubmission) AYNI enum'u kullanır.
 export const SOCIAL_PLATFORMS = new Set(['instagram', 'linkedin', 'x']);
 
@@ -170,7 +170,7 @@ export function findOversizedField(type, body) {
   return null;
 }
 
-// Üye ol / mimar-ekle-düzenle / hesabım "Üniversite" kutucuğuna kısaltma girilmesini engeller
+// Üye ol / kisi-ekle-düzenle / hesabım "Üniversite" kutucuğuna kısaltma girilmesini engeller
 // (bkz. kullanıcı isteği: "YTÜ, İTÜ, ODTÜ, MSGSÜ gibi kısaltmalara izin verme"). Türkçe üniversite
 // kısaltmalarının neredeyse tamamı yalnızca büyük harflerle yazılır — bu yüzden değerde HİÇ küçük
 // harf yoksa kısaltma sayılır (hardcoded bir liste yerine genel bir kural: yeni/az bilinen bir
@@ -190,7 +190,7 @@ export function isInvalidSchoolValue(value) {
 // (src="..."/href="...") gömüldüğünde tırnak kaçışıyla enjeksiyona izin vermeyecek güvenli bir
 // bağlantı olduğunu garantiler: ya kendi /media/ yükleme yolumuz, ya da düz bir http(s) URL'i,
 // ya da data.js'teki statik kayıtlarda kullanılan şemasız site-relative bir varlık yolu (ör.
-// "mimarlar-thumb/x.jpg", "logos-thumb/x.jpg") — claim akışında (mimar-ekle/firma-ekle ?claim=)
+// "mimarlar-thumb/x.jpg", "logos-thumb/x.jpg") — claim akışında (kisi-ekle/firma-ekle ?claim=)
 // fotoğraf/logo değiştirilmeden gönderildiğinde payload'a bu haliyle geliyor. Şema/host taşıyan
 // (":" içeren, ör. "javascript:...") ya da protokol-relative ("//host/...") değerler reddedilir.
 // Anlamsız/zararlı biçimli girişleri (ör. içine `"` veya `javascript:` gömülü) daha veritabanına
@@ -461,7 +461,7 @@ export function parseSubmissionRow(type, row) {
       out[field] = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
     } catch { out[field] = {}; }
   }
-  // bkz. src/lib/canonicalRead.js#parseCanonicalRow'daki AYNI ".0" normalizasyonu — mimar-ekle.html/
+  // bkz. src/lib/canonicalRead.js#parseCanonicalRow'daki AYNI ".0" normalizasyonu — kisi-ekle.html/
   // firma-ekle.html'in ?edit=<id> modu bu satırı (canonical değil, kendi *_submissions taslağını) okur.
   if (type === 'offices' && out.yil != null) {
     const n = parseInt(out.yil, 10);

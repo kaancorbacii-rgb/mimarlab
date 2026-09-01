@@ -1,6 +1,6 @@
 // Site genelinde üst menü (nav) ve alt menü (footer) artık TEK kaynaktan üretilir. Önceden her sayfa
 // bu markup'ın kendi kopyasını tutuyordu ve zamanla birbirinden sapıyordu — ör. proje-ekle.html,
-// mimar-ekle.html, firma-ekle.html gibi sayfalarda "Ürün" açılır menüsü (mega-menu) hiç eklenmemişti,
+// kisi-ekle.html, firma-ekle.html gibi sayfalarda "Ürün" açılır menüsü (mega-menu) hiç eklenmemişti,
 // bu yüzden o sayfalarda Ürün'ün yanındaki çentik/ok görünmüyordu (bkz. kullanıcı isteği: "üst ve alt
 // menüde yapılan değişikliklerin sitedeki tüm sayfalarda eş zamanlı güncellenmesi gerekiyor").
 //
@@ -16,12 +16,12 @@
   // proje.html içinde Liste/Harita'nın yanında üçüncü bir sekme (bkz. proje.html#view-toggle-top100).
   // Düello özelliği ise 2026-08-29'da tamamen kaldırıldı (bkz. kullanıcı isteği: "Takip Et"
   // özelliğine yer açmak için) — footerHtml()'in Topluluk sütunundaki link de bu yüzden gitti.
-  // Sıra kullanıcı isteğiyle sabitlendi (2026-08-31): PROJE · MİMAR · FİRMA · ÜRÜN · MARKA.
+  // Sıra kullanıcı isteğiyle sabitlendi (2026-08-31): PROJE · KİŞİ · FİRMA · ÜRÜN · MARKA.
   // 'marka' — üretici ürün firmalarının listesi (bkz. marka.html dosya başı yorumu); firma.html'le
   // AYNI `offices` verisini ?brands=1 ile daraltır, ayrı bir tablo/tip DEĞİL.
   const NAV_ITEMS = [
     { key: 'proje', href: '/proje', label: 'Proje' },
-    { key: 'mimar', href: '/mimar', label: 'Mimar' },
+    { key: 'mimar', href: '/mimar', label: 'Kişi' },
     { key: 'firma', href: '/firma', label: 'Firma' },
     { key: 'urun', href: '/urun', label: 'Ürün', mega: true },
     { key: 'marka', href: '/marka', label: 'Marka' },
@@ -1049,7 +1049,7 @@
   // bir yönlendirme koduna gerek yok.
   const ADD_CONTENT_LINKS = [
     { href: '/proje-ekle', label: 'Proje Ekle' },
-    { href: '/mimar-ekle', label: 'Mimar Ekle' },
+    { href: '/kisi-ekle', label: 'Kişi Ekle' },
     { href: '/firma-ekle', label: 'Firma Ekle' },
     { href: '/urun-ekle', label: 'Ürün Ekle' },
     { href: '/marka-ekle', label: 'Marka Ekle' },

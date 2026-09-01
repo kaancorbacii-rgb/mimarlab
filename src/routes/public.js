@@ -144,7 +144,7 @@ const CHECK_NAME_HREF_BASE = { projects: '/proje/', architects: '/mimar/', offic
 
 // GET /api/public/check-name?type=projects|architects|offices|products|materials&name=<metin>
 // [&brand=<metin>][&exclude=<metin>][&excludeBrand=<metin>] — auth gerektirmez. proje-ekle.html/
-// mimar-ekle.html/firma-ekle.html/urun-ekle.html'in Proje/Mimar/Firma/Ürün Adı kutusuna, o adla
+// kisi-ekle.html/firma-ekle.html/urun-ekle.html'in Proje/Mimar/Firma/Ürün Adı kutusuna, o adla
 // ZATEN yayınlanmış bir kayıt varsa yazarken canlı uyarı verebilmesi için (bkz. kullanıcı isteği:
 // "daha önce siteye yüklenen projelerle aynı isimde proje yüklenemesin"). Karşılaştırma TR-duyarlı
 // foldTr ile TAM eşleşme arar (fuzzyMatch'teki kelime-parçalamalı GİBİ DEĞİL — burada amaç "aynı isim",

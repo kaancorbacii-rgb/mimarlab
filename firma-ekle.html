@@ -183,7 +183,7 @@
   .ac-suggestion small{display:block; color:var(--ink-soft); font-size:11px; margin-top:1px;}
   .form-hint{font-size:11.5px; color:var(--ink-soft); margin-top:5px;}
   /* ---------- SOSYAL MEDYA (birden fazla bağlantı — bkz. kullanıcı isteği: "sosyal medya
-     kutusunun yanına ekle butonu koy") — mimar-ekle.html#social-row ile AYNI desen. ---------- */
+     kutusunun yanına ekle butonu koy") — kisi-ekle.html#social-row ile AYNI desen. ---------- */
   .social-row{display:grid; grid-template-columns:150px 1fr auto; gap:10px; margin-bottom:10px; align-items:center;}
   .social-row select, .social-row input{
     width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line);
@@ -225,7 +225,7 @@
   .form-notice.show{display:block;}
   .form-loading{display:none; margin-top:12px; text-align:center; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
   .form-loading.show{display:block;}
-  /* ---------- Gönderim sonrası "sana mı ait?" claim kutusu (bkz. kullanıcı isteği) — mimar-ekle.html
+  /* ---------- Gönderim sonrası "sana mı ait?" claim kutusu (bkz. kullanıcı isteği) — kisi-ekle.html
      ile BİREBİR aynı desen, bkz. o dosyadaki dosya başı yorumu. ---------- */
   .psc-box{display:none; margin-top:14px; padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:var(--paper-card);}
   .psc-box[open]{padding-bottom:18px;}
@@ -403,7 +403,7 @@
           <label for="o-team">Ekip <span class="opt">(opsiyonel)</span></label>
           <input type="text" id="o-team" name="team" placeholder="ör. Ahmet Yılmaz, Ayşe Demir" autocomplete="off">
           <div class="ac-suggestions" id="ac-ekip-suggestions"></div>
-          <div class="form-hint">Firmada çalışabilecek kişileri virgülle ayırarak yaz. Mimar profili olanlar aşağıda önerilir.</div>
+          <div class="form-hint">Firmada çalışabilecek kişileri virgülle ayırarak yaz. Kişi profili olanlar aşağıda önerilir.</div>
         </div>
         <div class="form-field">
           <label for="o-desc">Firma Hakkında Açıklama <span class="req" aria-hidden="true">*</span></label>
@@ -443,7 +443,7 @@
             <option value="">Rozet yok</option>
             <option value="verified">Doğrulanmış Üye</option>
             <option value="gold">Altın Üye</option>
-            <!-- bkz. mimar-ekle.html'deki aynı seçenek: "İz Bırakanlar" rozeti — burada kapanmış/tarihe
+            <!-- bkz. kisi-ekle.html'deki aynı seçenek: "İz Bırakanlar" rozeti — burada kapanmış/tarihe
                  karışmış firmalar için. Admin bunu profil profil elle seçer (bkz. src/routes/badges.js
                  #handlePublicBadges içindeki AYNI rozet, seçildiğinde diğer TÜM rozetlerin yerini alır). -->
             <option value="iz-birakan">İz Bırakan</option>
@@ -454,7 +454,7 @@
 
       <button class="form-submit" type="submit">Gönder</button>
       <!-- Arşivle/Sil — proje-ekle.html#p-danger-row ile AYNI desen (bkz. kullanıcı isteği): yalnızca
-           admin görür (mimar-ekle.html#mountArchitectAdminActions'daki AYNI gerekçe — firma
+           admin görür (kisi-ekle.html#mountArchitectAdminActions'daki AYNI gerekçe — firma
            profilleri için de sahibe açık bir owner-moderate ucu yok), düzenleme modunda
            (?edit=/?claim=) görünür olur. -->
       <div class="form-danger-row" id="o-danger-row" style="display:none;">
@@ -650,12 +650,12 @@ function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
 // doğrulanır) dinamik üretilir — Ödül kutusunun ODUL_OPTIONS deseniyle BİREBİR aynı.
 document.getElementById('dd-hizmet-options').innerHTML = OFFICE_SERVICE_CATS.map(c => `<label class="dd-option"><input type="checkbox" name="cats" value="${escapeAttr(c)}"> ${escapeAttr(c)}</label>`).join('');
 const updateHizmetLabel = wireMultiDropdown('dd-hizmet', 'dd-hizmet-btn', 'dd-hizmet-btn-label', 'Hizmet alanı seç');
-// Ödül: mimar-ekle.html/proje-ekle.html ile PAYLAŞILAN ODUL_OPTIONS'tan (bkz. awards-shared.js)
+// Ödül: kisi-ekle.html/proje-ekle.html ile PAYLAŞILAN ODUL_OPTIONS'tan (bkz. awards-shared.js)
 // dinamik olarak üretilir, sonra hizmet alanı ile AYNI wireMultiDropdown'a bağlanır.
 document.getElementById('dd-odul-options').innerHTML = ODUL_OPTIONS.map(o => `<label class="dd-option"><input type="checkbox" name="award" value="${escapeAttr(o)}"> ${escapeAttr(o)}</label>`).join('');
 const updateOdulLabel = wireMultiDropdown('dd-odul', 'dd-odul-btn', 'dd-odul-btn-label', 'Ödül seç');
 
-// ---------- SOSYAL MEDYA: tekrarlanabilir satır (bkz. mimar-ekle.html#addSocialRow AYNI desen) ----------
+// ---------- SOSYAL MEDYA: tekrarlanabilir satır (bkz. kisi-ekle.html#addSocialRow AYNI desen) ----------
 const SOCIAL_PLATFORMS = [
   { value: 'instagram', label: 'Instagram' },
   { value: 'linkedin', label: 'LinkedIn' },
@@ -859,7 +859,7 @@ async function prefillForEdit(){
     const res = await fetch(`/api/offices/${encodeURIComponent(editId)}`);
     if(!res.ok) return;
     const { item } = await res.json();
-    // bkz. mimar-ekle.html#prefillForEdit'teki AYNI geri-doldurma ve gerçek bulgu — claimed_profile_key'siz
+    // bkz. kisi-ekle.html#prefillForEdit'teki AYNI geri-doldurma ve gerçek bulgu — claimed_profile_key'siz
     // kaydedilirse bu taslak bağımsız bir kayda düşer, sonraki onayda statik firmanın YANINDA yeni
     // bir canonical satır daha oluşur ("mükerrer kayıt").
     if(item.claimed_profile_key) claimName = item.claimed_profile_key;
@@ -933,7 +933,7 @@ async function prefillForClaim(){
   // hiç görünmüyordu — bu artık OTOMATIK doldurulur).
   let claimedFounderNames = [];
 
-  // Bağımsız dizin kaydı — bkz. mimar-ekle.html#prefillForClaim'deki AYNI gerekçe/düzeltme (gerçek
+  // Bağımsız dizin kaydı — bkz. kisi-ekle.html#prefillForClaim'deki AYNI gerekçe/düzeltme (gerçek
   // bulgu: data.js'in statik offices[] dizisinde hiç yer almayan bir firma profilinin Düzenle
   // butonu, formu her zaman boş açıyordu). Aynı canonical okuma yolunu (GET /api/office/:key)
   // kullanır; `item.name` claimName'e tam eşit değilse (bulunamadığında rastgele bir firmaya düşen
@@ -969,7 +969,7 @@ async function prefillForClaim(){
     if(mineRes.ok){
       const mineData = await mineRes.json();
       // /api/offices/mine created_at DESC sıralı döner ve owner_user_id'nin BİRDEN FAZLA
-      // office_submissions satırı olabilir (bkz. mimar-ekle.html#prefillForClaim'deki AYNI gerçek
+      // office_submissions satırı olabilir (bkz. kisi-ekle.html#prefillForClaim'deki AYNI gerçek
       // bulgu) — ilk eşleşeni (en SON OLUŞTURULAN) almak yerine updated_at'i EN YENİ olanı seçilir,
       // aksi halde az önce kaydedilmiş alanlar burada eski/boş bir taslaktan geri okunup kayboluyormuş
       // gibi görünüyordu.
@@ -1019,7 +1019,7 @@ async function prefillForClaim(){
 
 // Arşivle/Sil — artık firma popup'ında DEĞİL (bkz. kullanıcı isteği: proje-ekle.html#
 // mountProjectAdminActions ile AYNI desen bu sayfaya da taşınsın), Gönder'in altında gösterilir.
-// mimar-ekle.html#mountArchitectAdminActions'daki AYNI gerekçe — offices için de owner-moderate
+// kisi-ekle.html#mountArchitectAdminActions'daki AYNI gerekçe — offices için de owner-moderate
 // ucu yok, yalnızca admin görür; targetKey her zaman `key` (claimed_profile_key/name) ile gider.
 function mountOfficeAdminActions(){
   if(!isAdmin) return;
@@ -1056,7 +1056,7 @@ function mountOfficeAdminActions(){
 if(claimName) prefillForClaim(); else prefillForEdit();
 
 // P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen (bkz.
-// mimar-ekle.html'deki AYNI fonksiyonun yorumu), TEK fark: logo genellikle şeffaf arka planlı PNG
+// kisi-ekle.html'deki AYNI fonksiyonun yorumu), TEK fark: logo genellikle şeffaf arka planlı PNG
 // olduğundan (bkz. logos/*.png), kaynak PNG ise çıktı da PNG kalır (JPEG'e çevirmek şeffaflığı
 // beyaza/siyaha düzleştirirdi) — yalnızca JPEG/WEBP kaynaklar JPEG'e dönüştürülür.
 function resizeImageForUpload(file, maxEdge, quality){
@@ -1220,7 +1220,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
 });
 
 // Gönderdiğin (yeni, admin onayı bekleyen) firma profili sana aitse aynı sayfadan sahiplenme talebi
-// gönderebilsin diye — bkz. mimar-ekle.html'deki AYNI desen/gerekçe.
+// gönderebilsin diye — bkz. kisi-ekle.html'deki AYNI desen/gerekçe.
 let pscProfileKey = null;
 const pscBox = document.getElementById('psc-box');
 const pscBtn = document.getElementById('psc-claim-btn');

@@ -69,7 +69,7 @@ const ArchitectModal = (function () {
       .meta-icon svg{display:block; width:100%; height:100%;}
       .detail-meta .meta-row{display:flex; align-items:flex-start; gap:9px;}
       .detail-meta .meta-row .meta-icon{margin-top:3px;}
-      /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (mimar-ekle.html#social-row) */
+      /* bkz. kullanıcı isteği: profile birden fazla sosyal medya eklenebilsin (kisi-ekle.html#social-row) */
       .social-icons{display:flex; gap:12px; margin-top:12px;}
       .social-icons a{color:var(--ink-soft); display:flex;}
       .social-icons a:hover{color:var(--walnut);}
@@ -282,7 +282,7 @@ const ArchitectModal = (function () {
       </div>
     </div>
     <div class="related-section" id="am-related-architects-section" style="display:none;">
-      <h2 class="related-title">Diğer Mimarlar</h2>
+      <h2 class="related-title">Diğer Kişiler</h2>
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
@@ -409,7 +409,7 @@ const ArchitectModal = (function () {
   }
 
   // bkz. kullanıcı isteği: profile birden fazla sosyal medya bağlantısı eklenebilsin
-  // (mimar-ekle.html#social-row, migrations/0036_social_links.sql) — office-modal.js'te
+  // (kisi-ekle.html#social-row, migrations/0036_social_links.sql) — office-modal.js'te
   // AYNI ikon seti/fonksiyon kopyalanır.
   const SOCIAL_ICON_SVG = {
     instagram: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>',
@@ -438,7 +438,7 @@ const ArchitectModal = (function () {
   // rozetinin ilişkili TÜM alanlarda görünmesi) — proje/ürün kartlarında rozet anlamsız olduğundan
   // çağıranlar orada bu parametreyi hiç geçmez, boş string varsayılanı hiçbir şey render etmez.
   // architects.profession ham Türkçe etiket(ler) taşır ve artık virgülle ayrılmış birden çok meslek
-  // olabilir (bkz. mimar-ekle.html#meslekDropdown, kullanıcı isteği 2026-09-01 madde 6). Cümle
+  // olabilir (bkz. kisi-ekle.html#meslekDropdown, kullanıcı isteği 2026-09-01 madde 6). Cümle
   // içinde kullanılacağı için küçük harfe indirilir — Türkçe'ye özgü İ→i eşlemesi ZORUNLU (düz
   // toLowerCase() "Fotoğrafçı"yı sorunsuz çevirir ama "İç Mimar" gibi değerlerde noktasız 'ı'
   // üretirdi, bkz. src/routes/product.js#trLower'daki AYNI gerekçe).
@@ -481,8 +481,8 @@ const ArchitectModal = (function () {
   function renderPrevNext(payload) {
     const el = document.getElementById('am-prevnext');
     let html = '';
-    if (payload.nextItem) html += `<a class="prev" href="/mimar/${encodeURIComponent(payload.nextItem.slug)}">${prevNextThumbHtml(payload.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Mimar</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></span></a>`;
-    if (payload.prevItem) html += `<a class="next" href="/mimar/${encodeURIComponent(payload.prevItem.slug)}">${prevNextThumbHtml(payload.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Mimar →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></span></a>`;
+    if (payload.nextItem) html += `<a class="prev" href="/mimar/${encodeURIComponent(payload.nextItem.slug)}">${prevNextThumbHtml(payload.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Kişi</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></span></a>`;
+    if (payload.prevItem) html += `<a class="next" href="/mimar/${encodeURIComponent(payload.prevItem.slug)}">${prevNextThumbHtml(payload.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Kişi →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></span></a>`;
     el.innerHTML = html;
   }
 
@@ -735,12 +735,12 @@ const ArchitectModal = (function () {
       getProfileKey: () => a.name,
       // bkz. kullanıcı isteği (2026-08-17): "?claim=" URL'si isim yerine slug kullanınca boşluk/
       // TR karakter/em-dash içeren isimler (ör. "EAA — Emre Arolat Architecture") çirkin %-encode'lu
-      // URL'ler üretiyordu. mimar-ekle.html#prefillForClaim artık slug/legacy_key/isim'in HERHANGİ
+      // URL'ler üretiyordu. kisi-ekle.html#prefillForClaim artık slug/legacy_key/isim'in HERHANGİ
       // birini kabul edip gerçek `name`'e çözüyor (bkz. o dosyadaki AYNI 2026-08-17 güncellemesi),
       // bu yüzden burada temiz olan slug'a öncelik verilebilir.
       getClaimLinkKey: () => a.slug || a._claimKey || a.name,
       getStaticBadges: () => a.badges,
-      editUrlBase: '/mimar-ekle',
+      editUrlBase: '/kisi-ekle',
       listUrl: '/mimar',
       contentType: 'architects',
       getModerationTarget: () => ({ key: a.name }),
@@ -750,8 +750,8 @@ const ArchitectModal = (function () {
         pendingHtml: '"Bu profil bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.',
         claimNoteDescription: 'Bu profilin sana ait olduğunu doğrulayabileceğimiz bir not ekle.',
         claimButtonText: 'Gönder',
-        deleteConfirm: 'Bu mimar profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.',
-        archiveConfirm: 'Bu mimar profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.',
+        deleteConfirm: 'Bu kişi profilini silmek istediğine emin misin? Profil anında canlı siteden kaldırılır.',
+        archiveConfirm: 'Bu kişi profilini arşivlemek istediğine emin misin? Profil canlıdan kaldırılıp admin panelindeki Arşiv sekmesine taşınır.',
       },
     });
 
@@ -859,7 +859,7 @@ const ArchitectModal = (function () {
       ModalShell.showLoadError(titleEl, 'Mimar profili şu an yüklenemedi', () => { if (slug) open(slug, { pushHistory: false }); });
       return;
     }
-    titleEl.textContent = 'Mimar bulunamadı';
+    titleEl.textContent = 'Kişi bulunamadı';
   }
 
   function wireInternalNav() {

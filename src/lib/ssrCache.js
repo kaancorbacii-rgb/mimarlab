@@ -12,7 +12,11 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // bağlantısı eklendi ve firma/marka.html'den ölü icons.duckduckgo.com preconnect'i kaldırıldı.
 // Bu değerin artırılmaması, /proje|mimar|firma|urun/:slug SSR sayfalarının edge'de s-maxage
 // boyunca ESKİ (hâlâ .html bağlantılı) HTML'i sunmasına yol açardı.
-export const SSR_CACHE_VERSION = 'v101';
+// v102 (kullanıcı isteği, 2026-09-01): "Mimar" dizini "Kişi" olarak yeniden adlandırıldı —
+// mimar.html'in SSR kabuğundaki <h1>/breadcrumb metni ("Mimarlar" -> "Kişiler") ve
+// src/lib/seo.js#CATALOG_CRUMB.architect.label (breadcrumb JSON-LD) değişti; ikisi de SSR HTML'ine
+// gömülü olduğundan sürüm artırılmazsa /mimar/:slug sayfaları s-maxage boyunca eski metni sunardı.
+export const SSR_CACHE_VERSION = 'v102';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

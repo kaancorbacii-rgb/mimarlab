@@ -915,7 +915,7 @@ async function handleBadgesAdmin(request, env, url, segments) {
 }
 
 // iz-birakan: "İz Bırakanlar" (bkz. kullanıcı isteği) — vefat etmiş mimarlar için siyah rozet,
-// admin mimar-ekle.html'deki AYNI rozet seçicisinden (bkz. o dosyadaki #admin-badge-select) elle
+// admin kisi-ekle.html'deki AYNI rozet seçicisinden (bkz. o dosyadaki #admin-badge-select) elle
 // verir; src/routes/badges.js#handlePublicBadges bu rozeti taşıyan bir profilin diğer TÜM
 // rozetlerini (satın alınmış olsa bile) gizler — mavi Doğrulanmış Üye rozetinin YERİNİ alır.
 const ADMIN_GRANTABLE_BADGES = new Set(['verified', 'gold', 'iz-birakan']);

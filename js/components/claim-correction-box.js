@@ -17,7 +17,7 @@
 //   getClaimLinkKey()  (opsiyonel) "Düzenle" linkindeki ?claim= parametresi için anahtar döner;
 //                      verilmezse getProfileKey() kullanılır (ofis yeniden adlandırmasında bunlar
 //                      farklıdır, bkz. data.js#renameOfficeEverywhere / _claimKey)
-//   editUrlBase        'mimar-ekle.html' | 'firma-ekle.html'
+//   editUrlBase        'kisi-ekle.html' | 'firma-ekle.html'
 //   labels             { claimTitle, loginPromptHtml, pendingHtml, claimNoteDescription,
 //                         claimButtonText }
 //   onEditClick        (opsiyonel) verilirse "Düzenle" bir <a href> yerine <button> olur ve

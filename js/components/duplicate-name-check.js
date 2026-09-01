@@ -1,4 +1,4 @@
-// DuplicateNameCheck — proje-ekle.html/mimar-ekle.html/firma-ekle.html/urun-ekle.html'in Proje/
+// DuplicateNameCheck — proje-ekle.html/kisi-ekle.html/firma-ekle.html/urun-ekle.html'in Proje/
 // Mimar/Firma/Ürün Adı kutusuna bağlanır (bkz. kullanıcı isteği: "daha önce siteye yüklenen
 // projelerle aynı isimde proje yüklenemesin ... kutu kırmızıya dönsün ve 'Bu proje zaten
 // yayınlandı' uyarısı versin"; ikinci istek: uyarının yanında altı çizili "Projeye git./Ürüne
@@ -10,7 +10,7 @@
 const DuplicateNameCheck = (function () {
   const LINK_LABELS = {
     projects: 'Projeye git.',
-    architects: 'Mimara git.',
+    architects: 'Kişiye git.',
     offices: 'Firmaya git.',
     products: 'Ürüne git.',
     materials: 'Ürüne git.',

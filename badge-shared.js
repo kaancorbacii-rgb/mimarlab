@@ -4,7 +4,7 @@
 //
 // data.js'in KENDİSİ ve onu hâlâ tam architects[]/offices[] dizileri için yükleyen ~12 diğer sayfa
 // (index.html, arama.html, mimar-detay.html, ofis-detay.html, proje-detay.html, urun-detay.html,
-// mimar-ekle.html, firma-ekle.html, proje-ekle.html, urun-ekle.html, hesabim.html, uye-ol.html)
+// kisi-ekle.html, firma-ekle.html, proje-ekle.html, urun-ekle.html, hesabim.html, uye-ol.html)
 // buradan HİÇ etkilenmez, kasıtlı olarak dokunulmadı. mimar.html/firma.html sayfalama artık
 // backend'den (/api/architects, /api/offices) geldiğinden bu iki sayfanın data.js'in ağır (~325KB)
 // dizilerine ihtiyacı kalmadı, ama bu küçük yardımcı fonksiyonlara hâlâ ihtiyaç var — data.js'i

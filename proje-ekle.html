@@ -1078,8 +1078,8 @@ function wireMultiDropdown(fieldId, btnId, labelId, placeholderText){
 }
 const updateKategoriLabel = wireMultiDropdown('dd-kategori', 'dd-kategori-btn', 'dd-kategori-btn-label', 'Kategori seç');
 const updateTurLabel = wireMultiDropdown('dd-tur', 'dd-tur-btn', 'dd-tur-btn-label', 'Tür seç');
-// Ödül: mimar-ekle.html'in aksine burada checkbox'lar HTML'de sabit değil — ODUL_OPTIONS
-// (awards-shared.js, mimar-ekle.html/js/components/auth-modal.js ile PAYLAŞILAN tek kaynak) dinamik
+// Ödül: kisi-ekle.html'in aksine burada checkbox'lar HTML'de sabit değil — ODUL_OPTIONS
+// (awards-shared.js, kisi-ekle.html/js/components/auth-modal.js ile PAYLAŞILAN tek kaynak) dinamik
 // olarak üretilir, sonra AYNI wireMultiDropdown ile (kategori/tür gibi) bağlanır.
 document.getElementById('dd-odul-options').innerHTML = ODUL_OPTIONS.map(o => `<label class="dd-option"><input type="checkbox" name="award" value="${escapeAttr(o)}"> ${escapeAttr(o)}</label>`).join('');
 const updateOdulLabel = wireMultiDropdown('dd-odul', 'dd-odul-btn', 'dd-odul-btn-label', 'Ödül seç');
@@ -1937,7 +1937,7 @@ async function prefillForEdit(){
     }
     if(!item) return;
     existingSlug = item.slug || null;
-    // bkz. mimar-ekle.html#prefillForEdit'teki AYNI geri-doldurma ve gerçek bulgu — claimed_slug'sız
+    // bkz. kisi-ekle.html#prefillForEdit'teki AYNI geri-doldurma ve gerçek bulgu — claimed_slug'sız
     // kaydedilirse bu taslak bağımsız bir kayda düşer, sonraki onayda statik projenin YANINDA yeni
     // bir canonical satır daha oluşur ("mükerrer kayıt").
     if(item.claimed_slug) claimSlug = item.claimed_slug;
@@ -2279,7 +2279,7 @@ wireAiPanel();
 // konumlarında yüklenir, sonuç dizisi hem mevcut hem yeni görselleri son (kullanıcının belirlediği)
 // sırayla döner (bkz. mediaItems tanımındaki yorum).
 // P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen, bkz.
-// mimar-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor). Proje galerisi
+// kisi-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor). Proje galerisi
 // fotoğrafları mimar profil fotoğrafından daha büyük gösterilebildiğinden (tam genişlik hero/galeri)
 // kenar sınırı burada daha cömert (1920px).
 function resizeImageForUpload(file, maxEdge, quality){

@@ -124,7 +124,7 @@ function isDetailPath(pathname) {
   return rest.length > 0 && !rest.includes('/');
 }
 
-// D1 audit (2026-08-25) P1-6 — autocomplete/arama uçları (mimar-ekle/firma-ekle/proje-ekle/
+// D1 audit (2026-08-25) P1-6 — autocomplete/arama uçları (kisi-ekle/firma-ekle/proje-ekle/
 // urun-ekle formlarındaki canlı isim önerileri + tekrar-isim uyarısı). Hiçbiri CACHEABLE_LIST_
 // PREFIXES/DETAIL_PREFIXES'e girmediğinden (farklı segment adları: "search"/"check-name")
 // `!cacheable` dalına düşüyor, her tuş vuruşunda tam tablo taraması üretiyordu (bkz. audit raporu

@@ -229,6 +229,12 @@ const PATH_RENAME_REDIRECTS = {
   '/ofis.html': '/firma',
   '/ofis-ekle': '/firma-ekle',
   '/ofis-ekle.html': '/firma-ekle',
+  // "Mimar Ekle" sayfası "Kişi Ekle" oldu (kullanıcı isteği, 2026-09-01): mimar dizini artık
+  // yalnızca mimarları değil fotoğrafçı/tasarımcı/öğrencileri de barındırıyor (bkz.
+  // kisi-ekle.html#MESLEK_OPTIONS), dosya da mimar-ekle.html -> kisi-ekle.html olarak yeniden
+  // adlandırıldı. Eski bağlantılar/yer imleri kırılmasın diye 301'lenir.
+  '/mimar-ekle': '/kisi-ekle',
+  '/mimar-ekle.html': '/kisi-ekle',
   '/malzeme': '/urun',
   '/malzeme.html': '/urun',
   '/malzeme-ekle': '/urun-ekle',

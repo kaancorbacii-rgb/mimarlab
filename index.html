@@ -473,7 +473,7 @@
 
   <section class="hero">
     <h1>Türkiye'nin En Gelişmiş <em>Mimarlık</em> ve <em>Ürün</em> Rehberi</h1>
-    <p>Mimarlar, tasarımcılar, öğrenciler ve firmalar için üst düzey araştırma ve işbirliği platformu.</p>
+    <p>Mimarlar, tasarımcılar, fotoğrafçılar, firmalar ve markalar için üst düzey araştırma ve işbirliği platformu.</p>
   </section>
 
   <section class="bento-grid">
@@ -717,7 +717,7 @@ function architectSlideHtml(a, i){
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(a.name)}">${escapeHtml(slideInitials(a.name))}</div>`;
   return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/mimar/${encodeURIComponent(a.slug || idxSlugify(a.name))}" data-index="${i}">
     ${media}
-    <span class="slide-tag">Mimar</span>
+    <span class="slide-tag">Kişi</span>
     <div class="slide-caption">
       <h2 class="slide-title">${escapeHtml(a.name)}</h2>
     </div>
@@ -883,7 +883,7 @@ Promise.all([
   // havuzdan DÜŞÜRMÜYOR (bkz. gerçek bulgu: bu filtre firma tarafında tüm 6'lık havuzu boşaltıp
   // carousel'in kalıcı olarak boş kalmasına yol açabiliyordu) — architectSlideHtml/officeSlideHtml
   // eksik görselde kendi baş harf rozetine düşer (bkz. yukarısı).
-  if(architectRes.failed) mimarSlider.renderError('Mimarlar şu an yüklenemedi.');
+  if(architectRes.failed) mimarSlider.renderError('Kişiler şu an yüklenemedi.');
   else mimarSlider.render(architectRes.items || []);
 
   if(officeRes.failed) markaSlider.renderError('Firmalar şu an yüklenemedi.');

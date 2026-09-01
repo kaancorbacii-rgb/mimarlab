@@ -397,7 +397,7 @@
           </select>
           <select id="conflicts-type-filter">
             <option value="">Tüm türler</option>
-            <option value="architect">Mimar</option>
+            <option value="architect">Kişi</option>
             <option value="office">Firma</option>
             <option value="office_founder">Ofis Kurucusu</option>
             <option value="project_designer">Proje Tasarımcısı</option>
@@ -410,7 +410,7 @@
       <div class="admin-section" id="section-seo">
         <div class="admin-subtabs" id="seo-type-tabs">
           <button class="admin-subtab active" data-seo-type="project">Proje</button>
-          <button class="admin-subtab" data-seo-type="architect">Mimar</button>
+          <button class="admin-subtab" data-seo-type="architect">Kişi</button>
           <button class="admin-subtab" data-seo-type="office">Firma</button>
           <button class="admin-subtab" data-seo-type="product">Ürün</button>
         </div>
@@ -512,13 +512,13 @@
       </div>
 
       <div class="ud-section">
-        <h3>Mimar/Firma Profili</h3>
+        <h3>Kişi/Firma Profili</h3>
         <div class="ud-claims-cols">
           <div class="ud-claims-col">
-            <h4>Mimar</h4>
+            <h4>Kişi</h4>
             <div id="ud-claims-architect-list"></div>
             <div class="ud-assign-box">
-              <input type="text" id="ud-assign-architect-q" placeholder="Atamak için mimar ara…">
+              <input type="text" id="ud-assign-architect-q" placeholder="Atamak için kişi ara…">
               <div class="ud-assign-results" id="ud-assign-architect-results"></div>
             </div>
           </div>
@@ -558,7 +558,7 @@
   <footer id="site-footer-mount"></footer>
 
 <script>
-const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar' };
+const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Kişi' };
 // Bekleyen Gönderiler/Yayındaki İçerikler sekmelerinde filtre BUTONU olarak yalnızca bu tipler
 // gösterilir (bkz. kullanıcı isteği: "malzeme, mimar butonlarını kaldır") — TYPE_LABELS'in kendisi
 // hâlâ tüm tipleri içerir, bu yüzden "Tümü" seçiliyken (varsayılan) diğer tipler de (etiketleriyle
@@ -566,12 +566,12 @@ const TYPE_LABELS = { offices: 'Firma', projects: 'Proje', products: 'Ürün', m
 const SUBTAB_TYPES = ['offices', 'projects', 'products'];
 // Bekleyen Gönderiler listesindeki "Düzenle / İncele" bağlantısı için — hesabim.html#EDIT_PAGE_BY_TYPE
 // ile BİREBİR aynı eşleme, admin onaylamadan önce gönderiyi ?edit=<id> modunda (kendi taslağını
-// okuyan, claimed_profile_key/claimed_slug'ı koruyarak kaydeden mod — bkz. mimar-ekle.html/
+// okuyan, claimed_profile_key/claimed_slug'ı koruyarak kaydeden mod — bkz. kisi-ekle.html/
 // firma-ekle.html/proje-ekle.html#prefillForEdit'teki claimName/claimSlug geri-doldurma) formda görüp
 // gerekirse düzenleyebilsin diye (bkz. kullanıcı isteği).
 const EDIT_PAGE_BY_TYPE = {
   offices: '/firma-ekle', projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle',
-  architects: '/mimar-ekle',
+  architects: '/kisi-ekle',
 };
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 let pendingType = 'all';
@@ -913,8 +913,8 @@ async function toggleFeaturedProject(slug){
 // olarak burada aynı listede görünür (bkz. kullanıcı isteği: "mimar, firma ve ürüne silme ve
 // arşivleme yetkisi ver"). "Düzenle" statik kökenliyse claim=, üye gönderisiyse edit= linkine gider
 // (ürünlerin claim akışı yok, her zaman edit=); "Yayınla" düzenlemeden doğrudan tekrar yayına alır.
-const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Mimar', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
-const ARCHIVE_EDIT_PAGE = { projects: '/proje-ekle', architects: '/mimar-ekle', offices: '/firma-ekle', products: '/urun-ekle', materials: '/urun-ekle' };
+const ARCHIVE_TYPE_LABELS = { projects: 'Proje', architects: 'Kişi', offices: 'Firma', products: 'Ürün', materials: 'Malzeme' };
+const ARCHIVE_EDIT_PAGE = { projects: '/proje-ekle', architects: '/kisi-ekle', offices: '/firma-ekle', products: '/urun-ekle', materials: '/urun-ekle' };
 const ARCHIVE_CLAIMED_COLUMN = { projects: 'claimed_slug', architects: 'claimed_profile_key', offices: 'claimed_profile_key', products: null, materials: null };
 let archiveType = 'projects';
 
@@ -984,7 +984,7 @@ const CLAIM_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı', reject
 const CORRECTION_STATUS_LABELS = { pending:'Beklemede', resolved:'Çözüldü', dismissed:'Reddedildi' };
 const CLAIM_KIND_LABELS = { ownership:'Sahiplenme Talepleri', correction:'Düzeltme Önerileri' };
 const BADGE_STATUS_LABELS_ADMIN = { pending:'Beklemede', active:'Aktif', rejected:'Reddedildi' };
-const PROFILE_TYPE_LABELS = { architect:'Mimar', office:'Firma' };
+const PROFILE_TYPE_LABELS = { architect:'Kişi', office:'Firma' };
 const BADGE_TYPE_LABELS = { destekci:'Destekçi', verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye' };
 
 function renderStatusSubtabs(container, labels, activeStatus, onSelect, includeAll){
@@ -1314,7 +1314,7 @@ function wireTop100Drag(list){
   });
 })();
 
-const COMMENT_TARGET_LABELS = { project: 'Proje', news: 'Haber', architect: 'Mimar', office: 'Firma' };
+const COMMENT_TARGET_LABELS = { project: 'Proje', news: 'Haber', architect: 'Kişi', office: 'Firma' };
 const COMMENT_STATUS_LABELS = { pending:'Beklemede', approved:'Onaylandı' };
 let commentsStatus = 'pending';
 
@@ -1392,7 +1392,7 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 // düzenleyebiliyor, bkz. src/routes/submissions.js#getOwnSubmission).
 const UD_PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', ogrenci:'Öğrenci', diger:'Diğer' };
 const UD_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
-const UD_CLAIM_EDIT_PAGE = { architect: '/mimar-ekle', office: '/firma-ekle' };
+const UD_CLAIM_EDIT_PAGE = { architect: '/kisi-ekle', office: '/firma-ekle' };
 const UD_CLAIM_EDIT_STYPE = { architect: 'architects', office: 'offices' };
 const UD_CLAIM_STATUS_LABELS = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
 
@@ -1748,7 +1748,7 @@ async function loadPerformance(){
     perfBar('KV Günlük Yazma', kv.writesCount, kv.safeWritesPerDay, `${kv.writesCount} / ${kv.safeWritesPerDay}${kv.writesDay ? ' · ' + kv.writesDay : ''}`),
     `<div class="admin-card"><div class="admin-card-title" style="font-size:14px;">İçerik Sayıları</div><div class="admin-card-details" style="margin-top:10px;">
       <div><span>Proje:</span> ${counts.projects}</div>
-      <div><span>Mimar:</span> ${counts.architects}</div>
+      <div><span>Kişi:</span> ${counts.architects}</div>
       <div><span>Firma:</span> ${counts.offices}</div>
       <div><span>Ürün/Malzeme:</span> ${counts.products}</div>
       <div><span>Yorum:</span> ${counts.comments}</div>
@@ -1849,7 +1849,7 @@ document.getElementById('r2orphans-delete-selected').addEventListener('click', a
 // amaçlı gösterir. Gerçek disambiguation admin'in mevcut mimar/ofis düzenleme ekranlarında elle
 // yapılır (bkz. modülün kendi dosya başı yorumu).
 const CONFLICT_TYPE_LABELS = {
-  architect: 'Mimar',
+  architect: 'Kişi',
   office: 'Firma',
   office_founder: 'Ofis Kurucusu',
   project_designer: 'Proje Tasarımcısı',

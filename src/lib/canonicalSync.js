@@ -443,7 +443,7 @@ export async function findOneByName(env, table, name) {
   const { results } = await env.DB.prepare(`SELECT * FROM ${table} WHERE deleted_at IS NULL AND name = ?`).bind(trimmed).all();
   if (results.length === 1) return { row: results[0], ambiguous: false };
   if (results.length > 1) return { row: null, ambiguous: true, candidates: results };
-  // Birebir eşleşme yok — gerçek bulgu: proje-ekle.html/mimar-ekle.html'in Mimar/Firma kutusuna
+  // Birebir eşleşme yok — gerçek bulgu: proje-ekle.html/kisi-ekle.html'in Mimar/Firma kutusuna
   // otomatik tamamlamadan seçmeden serbestçe yazılan bir isim ("nevzat sayın" vb.), canonical
   // "Nevzat Sayın" kaydıyla yalnızca harf büyüklüğü/baştaki-sondaki boşluk/TR karakter farkı
   // yüzünden hiç eşleşmiyor, bağlantı (project_designers/office_founders/architects.office_id)
@@ -462,7 +462,7 @@ export async function findOneByName(env, table, name) {
 // Kök neden düzeltmesi (bkz. kullanıcı isteği: "neden 2 tane Kaan Çorbacı mimar profili oluşmuş?
 // Aynı isimle mimar, firma, ürün, proje oluşmasına asla izin verme") — syncArchitect/syncOffice'in
 // "bu claimed_profile_key'e karşılık gelen canonical satır hangisi" sorgusu ÖNCEDEN strict SQL
-// `legacy_key = ? OR name = ?` kullanıyordu. claimed_profile_key (mimar-ekle.html/firma-ekle.html/
+// `legacy_key = ? OR name = ?` kullanıyordu. claimed_profile_key (kisi-ekle.html/firma-ekle.html/
 // js/components/auth-modal.js'in gönderdiği ham isim) canonical satırın name'inden yalnızca büyük/
 // küçük harf, baştaki-sondaki boşluk ya da TR karakter (İ/I/ı/Ş/Ğ/Ü/Ö/Ç) katlamasıyla ayrışsa bile
 // bu strict eşleşme sessizce BAŞARISIZ olup çağıranı "canonical karşılığı yok" sanıp İKİNCİ, mükerrer
@@ -667,7 +667,7 @@ async function syncArchitect(env, row) {
   const claimedKey = row.claimed_profile_key;
   const marker = submissionMarker(row.id);
 
-  // mimar-ekle.html'in Firma alanına virgülle ayrılmış birden fazla firma adı girilebilir (bkz.
+  // kisi-ekle.html'in Firma alanına virgülle ayrılmış birden fazla firma adı girilebilir (bkz.
   // kullanıcı isteği: "A Mimarlık, B Tasarım Studio"). architect_submissions.office tek bir TEXT
   // kolonu olduğundan (schema değişikliği gerektirmemek için) burada virgüle göre bölünüp her adı
   // ayrı ayrı offices tablosuyla eşleştirilir. İlk eşleşen firma "birincil" firma olarak architects.

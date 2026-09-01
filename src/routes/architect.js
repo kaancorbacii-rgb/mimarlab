@@ -157,7 +157,7 @@ export async function handleArchitectSearchRoute(request, env, url) {
   });
 }
 
-// GET /api/architects/schools — uye-ol.html (kayıt formu) / mimar-ekle.html'deki "Üniversite"
+// GET /api/architects/schools — uye-ol.html (kayıt formu) / kisi-ekle.html'deki "Üniversite"
 // otomatik tamamlama kutusu için canonical D1'deki tüm mimarların KAYITLI OLDUĞU okulların
 // tekilleştirilmiş listesini döner (bkz. kullanıcı isteği: Legacy Bundle Elimination Faz 3 —
 // eskiden data.js'in statik architects[] dizisi üzerinde `[...new Set(architects.map(a=>a.school))]`
@@ -181,7 +181,7 @@ export async function handleArchitectSchoolsRoute(request, env, url) {
 // "Akademisyen", "Freelance", "Ekip Lideri") sessizce "Çalışan" kovasına düşürüyordu — bir mimarın
 // profili "Ortak"/"Akademisyen" olarak düzenlense bile mimar.html filtresinde hâlâ "Çalışan" altında
 // görünüyordu (bkz. kullanıcı isteği: Melkan Gürsel/Nur Urfalıoğlu). Artık tanınmayan her değer
-// OLDUĞU GİBİ kendi kovasına döner — mimar-ekle.html#POZISYON_OPTIONS'a yeni bir değer eklendiğinde
+// OLDUĞU GİBİ kendi kovasına döner — kisi-ekle.html#POZISYON_OPTIONS'a yeni bir değer eklendiğinde
 // bile sessizce yanlış kovaya düşme riski kalmaz.
 export function positionOf(position) {
   if (!position) return null;
@@ -512,7 +512,7 @@ async function buildArchitectPayload(env, key) {
   };
   // bkz. src/routes/office.js#buildOfficePayload'daki AYNI _claimKey gerekçesi — renderProfileEditButton'ın
   // "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key) kullanmalı, a.name bir yeniden
-  // adlandırmadan sonra değişmiş olabilir. Aksi halde mimar-ekle.html'in ?claim= prefill'i eski
+  // adlandırmadan sonra değişmiş olabilir. Aksi halde kisi-ekle.html'in ?claim= prefill'i eski
   // claimed_profile_key ile eşleşmez, PATCH yerine POST'a düşer ve mükerrer bir architect_submissions/
   // canonical satır oluşur (gerçek bulgu: bu, ofis tarafında zaten önlenmişken mimar tarafında eksikti).
   const isSubmissionMarker = typeof a.legacy_key === 'string' && a.legacy_key.startsWith('submission:');

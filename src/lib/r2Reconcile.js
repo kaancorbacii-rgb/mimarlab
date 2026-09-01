@@ -1,6 +1,6 @@
 // gerçek bulgu (denetim raporu, 2026-08-16): src/routes/upload.js bir dosyayı R2'ye (env.UPLOADS,
 // `u/<userId>/<uuid>.<ext>` anahtarıyla) HİÇBİR D1 satırına referans yazılmadan önce yazıyor —
-// çok adımlı bir form (proje-ekle.html/mimar-ekle.html vb.) galeri görseli yüklenip TERK edilirse
+// çok adımlı bir form (proje-ekle.html/kisi-ekle.html vb.) galeri görseli yüklenip TERK edilirse
 // (kaydedilmeden sekme kapatılırsa) ya da bir görsel kaydetmeden önce değiştirilirse (upload.js
 // yalnızca EKLER, önceki seçimi silmez) R2 nesnesi hiçbir zaman hiçbir kolondan referans edilmeden
 // sonsuza kalır. Repo genelinde bu tür bir mutabakat/temizlik job'ı hiç yoktu (grep sıfır sonuç) —

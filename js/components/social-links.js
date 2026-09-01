@@ -3,7 +3,7 @@
 // altındaki satırda en soldan başlayarak sağa doğru sıralansınlar"). save-widget.js/share-button.js
 // ile AYNI desen — modal-shell.js gibi içerikten bağımsız, her sayfada
 // <script src="js/components/social-links.js"> ile dahil edilir, global `SocialLinks` nesnesini
-// dışa verir. mimar-ekle.html/firma-ekle.html'deki Sosyal Medya kutucuğunun
+// dışa verir. kisi-ekle.html/firma-ekle.html'deki Sosyal Medya kutucuğunun
 // platform seçenekleriyle (instagram/linkedin/x) BİREBİR aynı enum — bkz. src/lib/
 // submissionTypes.js#SOCIAL_PLATFORMS.
 const SocialLinks = (function () {

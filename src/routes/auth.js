@@ -13,7 +13,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
 // 'fotografci' — kullanıcı isteği (2026-09-01 madde 6): fotoğrafçılar da site içinde profili olan
 // kişilerdir (bkz. migrations/0080_project_photographers.sql başlığındaki gerekçe), bu yüzden meslek
-// listesine eklendi. uye-ol.html / js/components/auth-modal.js#PROFESSION_LABELS / mimar-ekle.html#
+// listesine eklendi. uye-ol.html / js/components/auth-modal.js#PROFESSION_LABELS / kisi-ekle.html#
 // MESLEK_OPTIONS aynı listenin bilinçli kopyalarıdır — biri değişirse dördü birlikte güncellenmeli.
 export const PROFESSIONS = new Set(['mimar', 'ic_mimar', 'peyzaj_mimari', 'sehir_plancisi', 'restorator', 'tasarimci', 'fotografci', 'ogrenci', 'diger']);
 // users.profession artık BİRDEN ÇOK meslek taşıyabilir (kullanıcı isteği, 2026-09-01 madde 6: "bir
@@ -32,7 +32,7 @@ export function normalizeProfessions(value) {
   return { ok: true, value: slugs.join(',') };
 }
 const DEPTS = new Set(['mimarlik', 'ic_mimarlik', 'peyzaj_mimarligi', 'sehir_bolge_planlama', 'restorasyon', 'diger']);
-// mimar-ekle.html'deki POZISYON_OPTIONS ile BİREBİR aynı (bkz. kullanıcı isteği: "Mimar ekle sayfası
+// kisi-ekle.html'deki POZISYON_OPTIONS ile BİREBİR aynı (bkz. kullanıcı isteği: "Mimar ekle sayfası
 // ile profilini düzenle bölümünü tam bir senkronizasyon haline getir") — 'Ortak'/'Ekip Lideri' bu
 // listede eskiden yoktu, hesap profili formu o formdaki tüm seçenekleri sunmadığından.
 export const POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz']);
@@ -385,7 +385,7 @@ export async function updateUserProfileFields(env, userId, body) {
     return { error: 'Geçerli bir üniversite adı gir (kısaltma kullanma).' };
   }
   // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
-  // ödül, sosyal medya ve açıklama ekleyebilsinler" — mimar-ekle.html'in aynı alanlarıyla AYNI JSON
+  // ödül, sosyal medya ve açıklama ekleyebilsinler" — kisi-ekle.html'in aynı alanlarıyla AYNI JSON
   // dizi kalıbı (bkz. src/lib/submissionTypes.js#SUBMISSION_TYPES.architects). social_links'teki her
   // URL, photo_url ile AYNI isSafeUrlValue kontrolünden geçirilir (mevcut submission pipeline'ından
   // daha sıkı — orada bu alan hiç doğrulanmıyor, burada baştan güvenli tutulur).

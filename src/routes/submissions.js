@@ -21,7 +21,7 @@ const CANONICAL_TYPES = new Set(['architects', 'offices', 'projects', 'products'
 // bkz. src/routes/admin.js'deki AYNI temizlik/gerekçe.
 const FACET_TYPES = new Set(['projects']);
 // bkz. src/routes/public.js#handlePublicCheckName (istemci tarafı canlı uyarının AYNI metinleri) —
-// proje-ekle.html/mimar-ekle.html/firma-ekle.html/urun-ekle.html buradaki hatayı form-notice
+// proje-ekle.html/kisi-ekle.html/firma-ekle.html/urun-ekle.html buradaki hatayı form-notice
 // kutusunda gösterir (bkz. aşağıdaki createSubmission çağrısı).
 const DUPLICATE_NAME_ERROR = {
   projects: 'Bu proje zaten yayınlandı.',
@@ -50,7 +50,7 @@ const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
 // bkz. src/routes/public.js#CLAIMED_COLUMN_BY_TYPE (aynı eşleme) — bir statik kaydı admin panelinden
 // arşivleyip (bkz. src/routes/legacyContent.js#handleContentAction/handleProjectAction) sonra bu
 // GENEL uç noktadan (Admin Arşiv sekmesindeki özel "Yayınla" butonu DIŞINDA, ör. proje-ekle.html/
-// mimar-ekle.html/firma-ekle.html'in normal ?claim= düzenleme formundan) tekrar onaylarsak, aşağıdaki
+// kisi-ekle.html/firma-ekle.html'in normal ?claim= düzenleme formundan) tekrar onaylarsak, aşağıdaki
 // unhideIfClaimedApproved çağrısı olmadan satır 'approved' olur ama statik kayıt legacy_content_hidden
 // içinde gizli KALIRDI — canlıda ne overlay ne statik hali görünmeyen, veritabanında "onaylı" ama
 // sitede hiç var olmayan bir kayıt (gerçek bulgu: GAD Architecture'ı arşivleyip normal formdan
@@ -502,7 +502,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
   // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
   await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key);
-  // slug/prefix: proje-ekle.html/mimar-ekle.html/firma-ekle.html'in kaydettikten sonra doğrudan
+  // slug/prefix: proje-ekle.html/kisi-ekle.html/firma-ekle.html'in kaydettikten sonra doğrudan
   // (olası yeni) canlı sayfaya yönlendirebilmesi için (bkz. kullanıcı isteği). architects/offices'te
   // slug'ı asıl DEĞİŞTİREN updateRenameCascade'dir (syncedRow.slug bu adımdan ÖNCEki değeri taşır,
   // bkz. yukarıdaki sıralama yorumu) — renamedSlug varsa o esas alınır, yoksa (isim değişmediyse)
