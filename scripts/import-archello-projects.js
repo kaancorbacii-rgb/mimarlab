@@ -135,15 +135,24 @@ for (const p of todo) {
   if (DRY) { console.log(`  [dry] INSERT ${p.slug} (${p.images.length} görsel)`); continue; }
   d1(sql);
   const id = d1(`SELECT id FROM projects WHERE slug = ${q(p.slug)}`).results[0].id;
-  if (p.officeId) {
-    d1(`INSERT INTO project_designers (project_id, office_id) VALUES (${id}, ${p.officeId})`);
-  } else {
-    // Kullanıcı talimatı: eşleşmeyen firmaya YENİ PROFİL AÇILMAZ — yalnızca künye metni
-    // (açıklamada geçiyor) + moderasyon kuyruğu. `projects`'te office_name_raw kolonu yok.
-    d1(`INSERT INTO migration_name_conflicts (entity_type, conflict_key, context, candidates, status)
-        VALUES ('project_designer', ${q(p.officeName)}, ${q(`${p.slug} (office)`)}, '[]', 'pending')`);
+  // Bir projede birden fazla eşleşen ofis olabilir (ör. mimari + iç mimari ayrı ofisler:
+  // Maxx Royal'de GEOMİM + GEO_ID). `officeIds` dizisi yeni biçim; tekil `officeId` geriye
+  // dönük olarak desteklenir.
+  const officeIds = p.officeIds || (p.officeId ? [p.officeId] : []);
+  for (const oid of officeIds) {
+    d1(`INSERT INTO project_designers (project_id, office_id) VALUES (${id}, ${oid})`);
   }
-  console.log(`  + ${p.slug} -> id ${id} (${p.images.length} görsel, ofis: ${p.officeId ? `#${p.officeId}` : 'eşleşmedi'})`);
+  if (!officeIds.length) {
+    // Kullanıcı talimatı: eşleşmeyen firmaya YENİ PROFİL AÇILMAZ — yalnızca künye metni
+    // (backfill-unmatched-project-credits.js yazar) + moderasyon kuyruğu. `projects`'te
+    // office_name_raw kolonu yok.
+    for (const name of (p.creditOffices && p.creditOffices.length ? p.creditOffices : [p.officeName])) {
+      if (!name) continue;
+      d1(`INSERT INTO migration_name_conflicts (entity_type, conflict_key, context, candidates, status)
+          VALUES ('project_designer', ${q(name)}, ${q(`${p.slug} (office)`)}, '[]', 'pending')`);
+    }
+  }
+  console.log(`  + ${p.slug} -> id ${id} (${p.images.length} görsel, ofis: ${officeIds.length ? officeIds.map((o) => `#${o}`).join(',') : 'eşleşmedi'})`);
 }
 console.log(DRY ? 'dry-run bitti, hiçbir şey yazılmadı.' : `bitti: ${todo.length} proje eklendi.`);
 }
