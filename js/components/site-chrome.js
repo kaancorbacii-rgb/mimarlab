@@ -25,12 +25,10 @@
     { key: 'firma', href: 'firma.html', label: 'Firma' },
     { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
     { key: 'marka', href: 'marka.html', label: 'Marka' },
-    // "Neden MİMARLAB?" — platformun mimarlara/ofislere/markalara kendini anlattığı sunum sayfası
-    // (bkz. neden-mimarlab.html). Kullanıcı isteği: nav'da kısaltma ("Neden?") ve çerçeveli pill
-    // görünümü YOK, diğer beş öğeyle aynı düz bağlantı biçiminde tam ad yazar. Uzun etiket nav
-    // satırını daralttığından arama kutusunun esneme payı (.nav-search{flex:1}) buna göre azalır —
-    // 965-1280px arasında taşma olmadığı ölçülerek doğrulandı.
-    { key: 'neden', href: 'neden-mimarlab.html', label: 'Neden MİMARLAB?' },
+    // "Neden MİMARLAB?" (bkz. neden-mimarlab.html) BİLEREK burada DEĞİL — kullanıcı isteği
+    // (2026-09-01): sayfaya yalnızca footer'ın Kurumsal sütunundan girilir, üst menü beş içerik
+    // listesiyle sınırlı kalır. Nav'a eklenmiş, sonra aynı gün kaldırılmıştır; geri eklenmeden önce
+    // bkz. feedback_urun_nav_removed_intentionally deseni (durumu varsaymayın, buraya bakın).
   ];
 
   // Işık modunda logo koyu (lacivert/siyah) harflerle, R'daki daire+üçgen ise her zaman mavi (bkz.
