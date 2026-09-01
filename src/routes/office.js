@@ -16,6 +16,41 @@ const BRAND_CAT_SET = new Set([...BRAND_CATS, LEGACY_BRAND_CAT]);
 // Faz 3 — bkz. src/routes/architect.js'teki AYNI "canonical tablodan doğrudan okuma, overlay
 // merge-time'da zaten uygulandı" yorumu.
 
+// firma.html + marka.html'in paylaştığı ofis havuzu — handleOfficeListRoute'un içindeydi, GET
+// /api/public/platform'un (bkz. src/routes/platform.js) "Firma" ve "Marka" sayaçlarını AYNI
+// kümeden ve AYNI productCount kuralından okuyabilmesi için buraya çıkarıldı. Sayaçları ayrı bir
+// SQL'le hesaplamak canlıda marka için 21 / 22'lik sessiz bir sapma üretiyordu (ad eşleşmesinde
+// SQLite COLLATE NOCASE yalnızca ASCII katlar, JS tarafındaki Türkçe küçültme ise farklı davranır).
+export async function fetchOfficePool(env) {
+  return getCachedPool(env, 'offices', async () => {
+    const { results } = await env.DB.prepare(
+      `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url,
+         (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+          WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count,
+         (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+          AND (pr.brand_office_id = o.id OR pr.brand_name_raw = o.name COLLATE NOCASE)) AS product_count
+       FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
+    ).all();
+    return results.map(row => {
+      const o = parseCanonicalRow('offices', row);
+      // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
+      // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de
+      // olduğu gibi döner (bkz. o dosyadaki JSON_FIELDS notu). firma.html'in her yerde beklediği
+      // düz " · "-ayrımlı string biçimine burada TEK noktadan normalize edilir. Yalnızca dizi/string
+      // değil (bkz. gerçek bulgu: bir kayıtta cats JSON.parse sonrası ne dizi ne string bir değere
+      // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
+      // (sayı/boolean/obje) güvenli bir düz metne düşer.
+      const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
+      // productCount — ?brands=1 (marka.html) filtresinin tek kaynağı; buildOfficePayload'daki
+      // brandProductsRes ile AYNI eşleşme kuralı (brand_office_id VEYA marka adı), böylece "Marka
+      // sayfasında görünen firma"nın popup'ında mutlaka dolu bir "Ürünler" bölümü olur.
+      // cover: marka kartlarının arka planı (bkz. marka.html#render, kullanıcı isteği 2026-08-31
+      // madde 6). firma.html AYNI havuzu okur ama bu alanı hiç kullanmaz — zararsız fazladan bir dize.
+      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || null, projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
+    });
+  });
+}
+
 async function findOffice(env, key) {
   const row = await env.DB.prepare(
     `SELECT * FROM offices WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
@@ -150,33 +185,7 @@ export async function handleOfficeListRoute(request, env, url) {
     // sidebar sayaçları (loc/cat) TÜM havuzdan hesaplandığından D1 LIMIT/OFFSET burada işe yaramaz,
     // bunun yerine ham sorgu+şekillendirme sonucu KV'de önbelleklenir (bkz. publicCache.js#
     // getCachedPool). Filtre/sıralama mantığı DEĞİŞMEDİ.
-    const pool = await getCachedPool(env, 'offices', async () => {
-      const { results } = await env.DB.prepare(
-        `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url,
-           (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-            WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count,
-           (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-            AND (pr.brand_office_id = o.id OR pr.brand_name_raw = o.name COLLATE NOCASE)) AS product_count
-         FROM offices o WHERE o.deleted_at IS NULL AND o.hidden_at IS NULL ORDER BY o.id DESC`
-      ).all();
-      return results.map(row => {
-        const o = parseCanonicalRow('offices', row);
-        // gerçek bulgu: bazı üye gönderisi kökenli ofislerde `cats` bir dizi olarak (JSON.stringify(["a · b"]))
-        // yazılmış, statik/legacy kayıtlarda ise düz string ("a · b") — parseCanonicalRow ikisini de
-        // olduğu gibi döner (bkz. o dosyadaki JSON_FIELDS notu). firma.html'in her yerde beklediği
-        // düz " · "-ayrımlı string biçimine burada TEK noktadan normalize edilir. Yalnızca dizi/string
-        // değil (bkz. gerçek bulgu: bir kayıtta cats JSON.parse sonrası ne dizi ne string bir değere
-        // çözülmüştü, `(o.cats || '').split` TypeError fırlatıyordu) — typeof kontrolü her ihtimalde
-        // (sayı/boolean/obje) güvenli bir düz metne düşer.
-        const cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (typeof o.cats === 'string' ? o.cats : '');
-        // productCount — ?brands=1 (marka.html) filtresinin tek kaynağı; buildOfficePayload'daki
-        // brandProductsRes ile AYNI eşleşme kuralı (brand_office_id VEYA marka adı), böylece "Marka
-        // sayfasında görünen firma"nın popup'ında mutlaka dolu bir "Ürünler" bölümü olur.
-        // cover: marka kartlarının arka planı (bkz. marka.html#render, kullanıcı isteği 2026-08-31
-        // madde 6). firma.html AYNI havuzu okur ama bu alanı hiç kullanmaz — zararsız fazladan bir dize.
-        return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || null, projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
-      });
-    });
+    const pool = await fetchOfficePool(env);
 
     // FİRMA/MARKA ayrımı — bkz. office-kind.js dosya başı yorumu. brandsOnly (marka.html) marka
     // olan HER ofisi gösterir (Autoban gibi hem firma hem marka olanlar dahil); firma.html ise

@@ -4,6 +4,10 @@ import { cachedPublicJson } from '../lib/publicCache.js';
 // sayısını burada ayrı bir SQL kuralıyla yeniden tanımlamak, marka.html'in gerçekten listelediği
 // sayıdan sapan bir "21 marka" göstergesine yol açardı — aynı fonksiyonlar kullanılır.
 import officeKindJs from '../../office-kind.js';
+// Sayaçlar, liste sayfalarının KENDİ havuzlarından okunur (bkz. aşağıdaki "tek kaynak" notu).
+import { fetchArchitectPool } from './architect.js';
+import { fetchOfficePool } from './office.js';
+import { fetchProductPool } from './product.js';
 
 const { isBrandOffice, isPureBrandOffice } = officeKindJs;
 
@@ -24,28 +28,25 @@ export async function handlePlatformRoute(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
 
   return cachedPublicJson(request, env, url.pathname, async () => {
-    const [countsRow, officeRows, brandKeyRows, showcaseRows] = await Promise.all([
+    // TEK KAYNAK KURALI — sayaçlar liste uçlarının KENDİ (KV önbellekli) havuzlarından okunur,
+    // ayrı bir COUNT(*) ile DEĞİL. İlk sürüm bağımsız COUNT'lar kullanıyordu ve canlıda üç sessiz
+    // sapma üretti: Mimar 916/915 ('Bilinmiyor' placeholder'ı yalnızca liste havuzunda dışlanıyor),
+    // Ürün 133/188 (urun.html ürün VE yapı malzemesini birlikte listeler), Marka 21/22 (ad
+    // eşleşmesinde SQLite COLLATE NOCASE ile JS Türkçe küçültmesi farklı davranıyor). Sayfadaki bir
+    // sayaca tıklayan kişi o sayıyı listede birebir görmeli — havuzlar zaten KV'de önbellekli ve
+    // her içerik mutasyonunda temizlendiğinden bu, ek D1 maliyeti de getirmez.
+    const [countsRow, architectPool, officePool, productPool, showcaseRows] = await Promise.all([
       env.DB.prepare(
         `SELECT
-           (SELECT COUNT(*) FROM projects  WHERE deleted_at IS NULL AND hidden_at IS NULL) AS projects,
-           (SELECT COUNT(*) FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL) AS architects,
-           (SELECT COUNT(*) FROM products  WHERE deleted_at IS NULL AND hidden_at IS NULL AND kind = 'product') AS products,
-           (SELECT COUNT(*) FROM products  WHERE deleted_at IS NULL AND hidden_at IS NULL AND kind = 'material') AS materials,
-           (SELECT COUNT(*) FROM products  WHERE deleted_at IS NULL AND hidden_at IS NULL
+           (SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL) AS projects,
+           (SELECT COUNT(*) FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND kind = 'material') AS materials,
+           (SELECT COUNT(*) FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL
               AND files IS NOT NULL AND files NOT IN ('', '[]')) AS productsWithFiles,
            (SELECT COUNT(*) FROM project_products) AS projectProductLinks`
       ).first(),
-      env.DB.prepare(
-        `SELECT id, name, cats FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`
-      ).all(),
-      // Marka tespiti için gereken "bu ofisin kataloğunda ürün var mı" bilgisi. office.js'teki
-      // havuz sorgusu bunu ofis BAŞINA correlated subquery ile hesaplıyor (735 x 188) — burada
-      // yalnızca sayaç gerektiğinden ürün tarafı TEK KEZ okunup JS'te eşleştirilir (aynı eşleşme
-      // kuralı: brand_office_id VEYA marka adı, büyük/küçük harf duyarsız).
-      env.DB.prepare(
-        `SELECT DISTINCT brand_office_id, brand_name_raw FROM products
-         WHERE deleted_at IS NULL AND hidden_at IS NULL`
-      ).all(),
+      fetchArchitectPool(env),
+      fetchOfficePool(env),
+      fetchProductPool(env),
       // Vitrin (bkz. neden-mimarlab.html#demo): gerçek, yayında olan, kapak görseli VE en az bir
       // künye bağlantısı (mimar ya da firma) bulunan en yeni 3 proje. Sabit bir slug listesi
       // GÖMÜLMEZ — o kayıt ileride gizlenir/silinirse sayfa kırık bir örnek gösterirdi.
@@ -60,21 +61,10 @@ export async function handlePlatformRoute(request, env, url) {
       ).all(),
     ]);
 
-    const brandOfficeIds = new Set();
-    const brandNames = new Set();
-    for (const r of brandKeyRows.results) {
-      if (r.brand_office_id) brandOfficeIds.add(r.brand_office_id);
-      if (r.brand_name_raw) brandNames.add(String(r.brand_name_raw).trim().toLocaleLowerCase('tr'));
-    }
-    let brands = 0;
-    let offices = 0;
-    for (const o of officeRows.results) {
-      const productCount = (brandOfficeIds.has(o.id) || brandNames.has(String(o.name || '').trim().toLocaleLowerCase('tr'))) ? 1 : 0;
-      if (isBrandOffice(o.cats, productCount)) brands++;
-      // firma.html'in gerçekten listelediği küme: saf markalar (hiçbir mimarlık hizmeti sunmayan
-      // üreticiler) dışarıda kalır — bkz. src/routes/office.js#passes.
-      if (!isPureBrandOffice(o.cats, productCount)) offices++;
-    }
+    // marka.html ve firma.html'in AYNI havuz üzerinde uyguladığı iki predicate (bkz.
+    // src/routes/office.js#passes ve office-kind.js).
+    const brands = officePool.filter(o => isBrandOffice(o.cats, o.productCount)).length;
+    const offices = officePool.filter(o => !isPureBrandOffice(o.cats, o.productCount)).length;
 
     const showcaseIds = showcaseRows.results.map(r => r.id);
     const [designerRows, linkedProductRows] = showcaseIds.length
@@ -155,10 +145,12 @@ export async function handlePlatformRoute(request, env, url) {
     return {
       counts: {
         projects: countsRow?.projects || 0,
-        architects: countsRow?.architects || 0,
+        architects: architectPool.length,
         offices,
         brands,
-        products: countsRow?.products || 0,
+        // urun.html ürün VE yapı malzemesi kayıtlarını TEK listede gösterir — "Ürün" sayacı da o
+        // listenin toplamıdır; `materials` yalnızca bilgi amaçlı bir alt kırılımdır.
+        products: productPool.length,
         materials: countsRow?.materials || 0,
         productsWithFiles: countsRow?.productsWithFiles || 0,
         projectProductLinks: countsRow?.projectProductLinks || 0,

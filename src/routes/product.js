@@ -43,6 +43,36 @@ function shapeProductItem(row) {
   };
 }
 
+// urun.html'in listelediği ürün+malzeme havuzu — handleProductListRoute'un içindeydi, GET
+// /api/public/platform'un (bkz. src/routes/platform.js) "Ürün" sayacını AYNI kümeden
+// okuyabilmesi için buraya çıkarıldı (urun.html ürün VE yapı malzemesi kayıtlarını birlikte
+// listeler — ayrı bir kind='product' COUNT'u sayfada görünenden düşük bir sayı üretiyordu).
+export async function fetchProductPool(env) {
+  return getCachedPool(env, 'products', async () => {
+    const [productsRes, ratingRows] = await Promise.all([
+      env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
+      env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
+    ]);
+    const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
+
+    return productsRes.results.map(row => {
+      const p = shapeProductItem(row);
+      const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
+      const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
+      const ratingKey = ratingKeyFor(p.title, p.brand, submissionId);
+      const group = taxonomyGroupOf(CATALOG_TAXONOMY, p.category);
+      const ratingKind = p.kind === 'material' ? 'material' : 'product';
+      const rating = ratingByKey.get(`${ratingKind}:${ratingKey}`) || { average: 0, count: 0 };
+      const designers = (p.designer || '').split(',').map(s => s.trim()).filter(Boolean);
+      return {
+        slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
+        image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
+        year: p.year || null, designers,
+      };
+    });
+  });
+}
+
 // GET /api/products/search?q=... — src/routes/office.js#handleOfficeSearchRoute'un ürün karşılığı;
 // proje-ekle.html'deki "Kullanılan Ürünler / Firmalar" kutusundaki Ürün autocomplete'inin canlı D1
 // sorgusu (bkz. kullanıcı isteği: "Kullanılan ürünler kısmını geri getir").
@@ -333,30 +363,7 @@ export async function handleProductListRoute(request, env, url) {
     // içerik yazmalarıyla AYNI invalidatePublicCache() tetiklenmediğinden ("Puan" filtre sayacı VE
     // rating_desc/rating_asc sıralaması için) en fazla POOL_CACHE_TTL_SECONDS (5dk) kadar bayat
     // kalabilir — facet_counts.js'in kendi KV_TTL_SECONDS'ı ile AYNI kabul edilebilir pencere.
-    const pool = await getCachedPool(env, 'products', async () => {
-      const [productsRes, ratingRows] = await Promise.all([
-        env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
-        env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
-      ]);
-      const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
-
-      return productsRes.results.map(row => {
-        const p = shapeProductItem(row);
-        const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
-        const submissionId = isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null;
-        const ratingKey = ratingKeyFor(p.title, p.brand, submissionId);
-        const group = taxonomyGroupOf(CATALOG_TAXONOMY, p.category);
-        const ratingKind = p.kind === 'material' ? 'material' : 'product';
-        const rating = ratingByKey.get(`${ratingKind}:${ratingKey}`) || { average: 0, count: 0 };
-        const designers = (p.designer || '').split(',').map(s => s.trim()).filter(Boolean);
-        return {
-          slug: row.slug, title: p.title, brand: p.brand, category: p.category, kind: p.kind,
-          image: (p.images && p.images[0]) || null, group, ratingKey, submissionId, rating,
-          year: p.year || null, designers,
-        };
-      });
-    });
-
+    const pool = await fetchProductPool(env);
     // urun.html#passesFilters ile BİREBİR aynı — exceptKey ile o grubun kendi seçimi hariç tutularak
     // faceted (diğer aktif filtrelerle bağımlı) sayaç üretir (bkz. proje.html#passesFilters'daki AYNI desen).
     function passes(p, exceptKey) {

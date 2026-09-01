@@ -942,12 +942,12 @@
       /* Sıfır olan alt kırılımlar cümleye hiç girmez — "teknik dosyası yüklü 0 ürün" gibi bir
          ifade doğru ama sunum bağlamında anlamsız. */
       var extra = [];
-      /* materials, "Ürün" sayacının İÇİNDE değil (uç kind='product' ve kind='material' sayaçlarını
-         ayrı döner, bkz. src/routes/platform.js) — bu yüzden "ek olarak" ifadesi doğru. */
-      if(counts.materials) extra.push('ürün sayısına ek olarak ' + fmt.format(counts.materials) + ' yapı malzemesi kaydı bulunuyor');
+      /* "Ürün" sayacı, ürün sayfasının listelediği kümenin tamamıdır (ürün + yapı malzemesi, bkz.
+         src/routes/platform.js#products) — malzeme sayısı bu toplamın İÇİNDEKİ bir alt kırılımdır. */
+      if(counts.materials) extra.push('bunların ' + fmt.format(counts.materials) + ' tanesi yapı malzemesi');
       if(counts.productsWithFiles) extra.push(fmt.format(counts.productsWithFiles) + ' ürünün teknik dosyası yüklü');
       note.textContent = 'Bu sayılar platformun canlı veritabanından okunur, her yeni kayıtla güncellenir.'
-        + (extra.length ? ' Ayrıca ' + extra.join('; ') + '.' : '');
+        + (extra.length ? ' Ürün kataloğunda ' + extra.join('; ') + '.' : '');
     }
     var live = document.getElementById('network-live');
     if(live){

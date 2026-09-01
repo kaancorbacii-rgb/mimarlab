@@ -13,6 +13,39 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 // merge-submissions-to-id-first.js tarafından merge-time'da BİR KEZ uygulanıp canonical satıra
 // yazılmış durumda — bu yüzden burada ayrı bir overlay birleştirme adımı YOK, doğrudan kolon okuma.
 
+// mimar.html'in listelediği mimar havuzu — handleArchitectListRoute'un içindeydi, GET
+// /api/public/platform'un (bkz. src/routes/platform.js) "Mimar" sayacını AYNI kümeden okuyabilmesi
+// için buraya çıkarıldı. Sayacı ayrı bir COUNT(*) ile hesaplamak, aşağıdaki 'Bilinmiyor'
+// istisnası yüzünden sayfada listelenenden 1 fazla değer üretiyordu (canlıda doğrulandı: 916 / 915)
+// — tek kaynak kuralı bu tür sessiz sapmaların TEK güvenilir çözümü.
+export async function fetchArchitectPool(env) {
+  return getCachedPool(env, 'architects', async () => {
+    // "Bilinmiyor" (id 835) — proje künyelerinde mimarı bilinmeyen kayıtlar için placeholder,
+    // gerçek bir mimar profili değil (bkz. kullanıcı isteği: mimar.html listesinden ve anasayfa
+    // carousel'inden kaldırılsın ama satır SİLİNMESİN — hiçbir project_designers/office_founders
+    // satırı ona bağlı değil, yalnızca bu liste havuzundan dışlanıyor). Bu iki yer de (mimar.html
+    // + index.html mini-carousel) AYNI bu pool'u tüketiyor, başka hiçbir uç (mimar-detay, arama
+    // autocomplete) etkilenmiyor.
+    const { results } = await env.DB.prepare(
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards,
+         (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+          WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
+       FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
+       WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
+    ).all();
+
+    return results.map(row => {
+      const a = parseCanonicalRow('architects', row);
+      let officeAwards = [];
+      if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
+      // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
+      // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
+      // ham metin ise kart altyazısı için ayrı tutulur.
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
+    });
+  });
+}
+
 async function findArchitect(env, key) {
   const row = await env.DB.prepare(
     `SELECT * FROM architects WHERE deleted_at IS NULL AND (name = ? OR slug = ? OR legacy_key = ?) LIMIT 1`
@@ -173,31 +206,7 @@ export async function handleArchitectListRoute(request, env, url) {
     // yorumu). Bunun yerine ham sorgu+şekillendirme sonucu (pool) KV'de önbelleklenir — farklı sayfa/
     // sort/filtre kombinasyonları (farklı TAM URL, farklı caches.default anahtarı) AYNI pool'u
     // paylaşır. Filtre/sıralama mantığı (aşağısı) DEĞİŞMEDİ, hâlâ her istekte JS'te çalışır.
-    const pool = await getCachedPool(env, 'architects', async () => {
-      // "Bilinmiyor" (id 835) — proje künyelerinde mimarı bilinmeyen kayıtlar için placeholder,
-      // gerçek bir mimar profili değil (bkz. kullanıcı isteği: mimar.html listesinden ve anasayfa
-      // carousel'inden kaldırılsın ama satır SİLİNMESİN — hiçbir project_designers/office_founders
-      // satırı ona bağlı değil, yalnızca bu liste havuzundan dışlanıyor). Bu iki yer de (mimar.html
-      // + index.html mini-carousel) AYNI bu pool'u tüketiyor, başka hiçbir uç (mimar-detay, arama
-      // autocomplete) etkilenmiyor.
-      const { results } = await env.DB.prepare(
-        `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, o.name AS office_name, o.awards AS office_awards,
-           (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
-            WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
-         FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
-         WHERE a.deleted_at IS NULL AND a.hidden_at IS NULL AND a.name != 'Bilinmiyor' ORDER BY a.id DESC`
-      ).all();
-
-      return results.map(row => {
-        const a = parseCanonicalRow('architects', row);
-        let officeAwards = [];
-        if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
-        // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
-        // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
-        // ham metin ise kart altyazısı için ayrı tutulur.
-        return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
-      });
-    });
+    const pool = await fetchArchitectPool(env);
 
     function passes(a) {
       if (dobParam && String(a.dob) !== dobParam) return false;
