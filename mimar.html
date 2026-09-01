@@ -635,7 +635,7 @@ async function render(){
   }
 
   currentPage = data.page;
-  document.getElementById('result-count').textContent = `${data.total} mimar listeleniyor`;
+  document.getElementById('result-count').textContent = `${data.total} kişi listeleniyor`;
   populateFilterOptions(data.filters || {});
   renderPagination(data.totalPages);
 
