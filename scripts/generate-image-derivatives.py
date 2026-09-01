@@ -224,7 +224,17 @@ def main():
     ap.add_argument('--concurrency', type=int, default=8)
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--report', default='')
+    # Galeri kareleri (stage2) için yalnızca küçük basamaklar üretmek üzere: o görseller SADECE
+    # pop-up'ın 480 px'lik galeri şeridinde ve 240 px'lik küçük resimlerinde kullanılıyor; 1600 px
+    # yalnızca tam ekran lightbox içindir ve orada zaten ORİJİNAL istenir (bkz. image-cdn.js
+    # merdiven yorumu). Basamak sayısını 3'ten 2'ye indirmek R2 yazma sayısını ~%33 azaltır.
+    ap.add_argument('--widths', default='',
+                    help='virgülle ayrılmış genişlikler (varsayılan: 400,800,1600)')
     args = ap.parse_args()
+
+    if args.widths:
+        global WIDTHS
+        WIDTHS = [int(w) for w in args.widths.split(',') if w.strip()]
 
     paths = [l.strip() for l in open(args.manifest, encoding='utf-8') if l.strip()]
     if args.limit:
