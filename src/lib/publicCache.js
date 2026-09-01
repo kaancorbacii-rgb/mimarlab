@@ -266,7 +266,11 @@ async function withSingleFlight(key, fn) {
 // yakalıyor). Artırmak, tüm liste/detay/arama uçlarının ETag'lerini bir kerede döndürür.
 // v2: /api/architects yanıtına filters.profession eklendi + directory_listed filtresi total'i
 //     değiştirdi; /api/architects/search öneri satırına meslek etiketi eklendi.
-const API_PAYLOAD_VERSION = 'v2';
+// v3: /api/offices yanıtına filters.exp eklendi (Tecrübe seçenekleri artık sabit <option> değil,
+//     sunucudan gelen sayaçlardan üretiliyor — bkz. src/routes/office.js#expCounts). Sürüm
+//     artırılmazsa firma/marka sayfasını daha önce ziyaret etmiş tarayıcılar 304 ile eski gövdede
+//     kalır ve Tecrübe grubu HİÇ çizilmez (yukarıdaki v2 tuzağının birebir aynısı).
+const API_PAYLOAD_VERSION = 'v3';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

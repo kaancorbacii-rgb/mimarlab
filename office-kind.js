@@ -17,8 +17,14 @@
 // firma-ekle.html'deki Hizmet Alanı seçenekleri. 'Ürün'/'Yapı Malzemesi' BİLEREK kaldırıldı (bkz.
 // kullanıcı isteği: "Firma sayfasındaki filtrelerdeki ürün seçeneğini kaldır") — bu ikisi artık
 // marka tarafının işi, yeni bir firma gönderisi kendini 'Ürün' olarak etiketleyemez.
+// 'Fotoğrafçılık' (kullanıcı isteği, 2026-09-01 madde 1: "Firma ekle/düzenle sayfasında hizmet
+// alanına fotoğrafçılık da ekle") — mimari fotoğraf stüdyoları (ZM Yasa gibi) artık kişi değil,
+// kendi hizmet alanı olan birer FİRMA olarak kaydedilebilir. Bir mimarlık HİZMETİ olduğundan bu
+// listeye girer: yalnızca fotoğrafçılık yapan bir stüdyo firma.html'de listelenir ve
+// isPureBrandOffice onu marka sanıp firma listesinden düşürmez.
 const OFFICE_SERVICE_CATS = [
   'Mimarlık', 'İç Mimarlık', 'Peyzaj Mimarlığı', 'Kentsel Tasarım', 'Restorasyon', 'Uygulama / İnşaat',
+  'Fotoğrafçılık',
 ];
 
 // marka-ekle.html'deki Hizmet Alanı seçenekleri — catalog-taxonomy.js#CATALOG_MENU_COLUMNS'un 7 ürün

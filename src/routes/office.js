@@ -148,6 +148,10 @@ function cityOf(loc) {
   return loc.split(' / ')[0];
 }
 
+// Tecrübe kovalarının görüntüleme sırası — expBucketOf'un ürettiği değerlerle BİREBİR aynı küme.
+// firma.html/marka.html#EXP_LABELS bu değerleri okunabilir etiketlere ("1-5 yıl") çevirir.
+const EXP_BUCKET_ORDER = ['1-5', '6-10', '11-20', '21-30', '30+'];
+
 // firma.html#expBucketOf ile BİREBİR aynı.
 function expBucketOf(yil) {
   if (!yil) return null;
@@ -169,9 +173,15 @@ export async function handleOfficeListRoute(request, env, url) {
     const page = Math.max(1, parseInt(url.searchParams.get('page'), 10) || 1);
     const limit = Math.min(96, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 24));
     const sort = url.searchParams.get('sort') || '';
-    const locParam = url.searchParams.get('loc') || '';
-    const catParam = url.searchParams.get('cat') || '';
-    const expParam = url.searchParams.get('exp') || '';
+    // kullanıcı isteği (2026-09-01 madde 1): "Firma ve marka sayfalarındaki filtreler kısmını da
+    // kişi sayfasındaki gibi çoktan seçmeli yap" — her filtre grubu artık getAll() ile ÇOKLU değer
+    // alır (?loc=İstanbul&loc=Ankara). Tek değerli eski linkler (firma popup'ındaki filtre
+    // bağlantıları, paylaşılmış URL'ler, index.html carousel'i) tek elemanlı bir dizi olarak AYNI
+    // şekilde çalışır. Grup İÇİ mantık OR, gruplar ARASI AND — src/routes/architect.js#
+    // handleArchitectListRoute ile birebir aynı desen.
+    const locParams = url.searchParams.getAll('loc').filter(Boolean);
+    const catParams = url.searchParams.getAll('cat').filter(Boolean);
+    const expParams = url.searchParams.getAll('exp').filter(Boolean);
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
     // ?brands=1 — marka.html (kullanıcı isteği, 2026-08-31: "FİRMA sayfasının aynısını kopyala ve
     // ismini MARKA koy. Bu sayfada üretici ürün firmaları yayınlanacak"). Havuz AYNI (tek bir
@@ -202,9 +212,9 @@ export async function handleOfficeListRoute(request, env, url) {
     function passes(o) {
       if (brandsOnly) { if (!isBrandOffice(o.cats, o.productCount)) return false; }
       else if (isPureBrandOffice(o.cats, o.productCount)) return false;
-      if (locParam && cityOf(o.loc) !== locParam) return false;
-      if (catParam && !(o.cats || '').includes(catParam)) return false;
-      if (expParam && expBucketOf(o.yil) !== expParam) return false;
+      if (locParams.length && !locParams.includes(cityOf(o.loc))) return false;
+      if (catParams.length && !catParams.some(c => (o.cats || '').includes(c))) return false;
+      if (expParams.length && !expParams.includes(expBucketOf(o.yil))) return false;
       if (searchQuery && !foldTr(o.name).includes(searchQuery)) return false;
       return true;
     }
@@ -236,7 +246,7 @@ export async function handleOfficeListRoute(request, env, url) {
     // firma.html#populateFilters — sayaçlar tüm havuz üzerinden, aktif filtrelerden bağımsız
     // (kisi.html#handleArchitectListRoute'daki AYNI gerekçe). Türkiye tek başına bir konum
     // seçeneği olarak listelenmez (bkz. firma.html#populateFilters'daki AYNI `city === 'Türkiye'` atlama).
-    const locCounts = {}, catCounts = {};
+    const locCounts = {}, catCounts = {}, expCounts = {};
     // Sayaçlar da sayfanın KENDİ havuzundan hesaplanır — aksi halde marka.html'in kenar çubuğu o
     // sayfada hiç listelenmeyen firmaları, firma.html'inki ise oradan çıkarılmış saf markaları
     // içeren sayılar gösterirdi. Hizmet Alanı seçenekleri ayrıca sayfaya AİT kümeye göre süzülür
@@ -254,6 +264,14 @@ export async function handleOfficeListRoute(request, env, url) {
         if (!allowedCatSet.has(cat)) return;
         catCounts[cat] = (catCounts[cat] || 0) + 1;
       });
+      // Tecrübe sayaçları — ESKİDEN bu grup firma.html/marka.html'de SABİT <option>'lardı, yani
+      // hiçbir firmanın düşmediği bir kova (ör. "30+ yıl") da her zaman seçilebilir görünüyordu ve
+      // seçildiğinde boş liste veriyordu. Çok seçmeli akordeona geçişte (kullanıcı isteği,
+      // 2026-09-01 madde 1) diğer gruplarla AYNI kurala bağlandı: seçenekler VERİDEN türetilir,
+      // sıfırlık bir kova hiç çizilmez (bkz. src/routes/architect.js#professionCounts'taki AYNI
+      // gerekçe).
+      const expBucket = expBucketOf(o.yil);
+      if (expBucket) expCounts[expBucket] = (expCounts[expBucket] || 0) + 1;
     });
 
     const total = filtered.length;
@@ -266,6 +284,10 @@ export async function handleOfficeListRoute(request, env, url) {
       filters: {
         loc: Object.keys(locCounts).sort((a, b) => locCounts[b] - locCounts[a] || a.localeCompare(b, 'tr')).map(v => ({ value: v, count: locCounts[v] })),
         cat: Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a] || a.localeCompare(b, 'tr')).map(v => ({ value: v, count: catCounts[v] })),
+        // Tecrübe kovaları sayaca göre DEĞİL, doğal (artan yıl) sırayla döner — "1-5" ile "30+"
+        // arasında popülerlik sıralaması okunabilirliği bozardı. Etiketler ("1-5 yıl") istemcide
+        // eklenir; değerler eski tek seçmeli linklerle bit-bit aynı kalır.
+        exp: EXP_BUCKET_ORDER.filter(v => expCounts[v]).map(v => ({ value: v, count: expCounts[v] })),
       },
     };
   }, () => officeListFingerprint(env));

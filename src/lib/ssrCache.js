@@ -24,7 +24,11 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // yerine çok seçmeli akordeon kutucuklarına (#filter-groups) dönüştü ve yeni bir "Meslek" grubu
 // eklendi. Hem markup hem CSS hem de sayfanın satır içi JS'i SSR HTML'ine gömülü olduğundan, sürüm
 // artırılmazsa /kisi/:slug ile açılan sayfalar s-maxage boyunca ESKİ filtre kabuğunu sunardı.
-export const SSR_CACHE_VERSION = 'v104';
+// v105 (kullanıcı isteği, 2026-09-01 madde 1): firma.html ve marka.html'in filtre kenar çubukları da
+// kisi.html'inkiyle AYNI çok seçmeli akordeona (#filter-groups) dönüştü; ayrıca hesabim düzeni
+// değişti. Markup/CSS/satır içi JS SSR HTML'ine gömülü olduğundan, sürüm artırılmazsa /firma/:slug
+// ve /urun/:slug sayfaları s-maxage boyunca ESKİ filtre kabuğunu sunardı (v104'ün birebir aynısı).
+export const SSR_CACHE_VERSION = 'v105';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

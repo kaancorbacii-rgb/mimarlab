@@ -232,6 +232,40 @@
   .filter-select select:hover{border-color:var(--walnut);}
   .select-arrow{position:absolute; right:14px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--ink-soft);}
 
+  /* ---------- ÇOK SEÇMELİ FİLTRE AKORDEONU ----------
+     kullanıcı isteği (2026-09-01 madde 1): "Firma ve marka sayfalarındaki filtreler kısmını da kişi
+     sayfasındaki çoktan seçmeli yap". Blok kisi.html'deki AYNI blokla birebir aynı (sınıf adları
+     dahil) — orada da her sayfa kendi kopyasını taşır, bkz. o dosyadaki sayfa-başına-kopyalama
+     yorumu. */
+  #filter-groups{display:flex; flex-direction:column; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden;}
+  #filter-groups:empty{display:none;}
+  .filter-group{border-bottom:1px solid var(--line-soft);}
+  .filter-group:last-child{border-bottom:none;}
+  .filter-group-head{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:11px 12px; background:none; border:none; text-align:left;
+    font-size:13.5px; font-weight:600; color:var(--ink);
+  }
+  .filter-group-head:hover{background:var(--paper-alt);}
+  .filter-group-toggle{font-size:16px; color:var(--ink-soft); font-weight:400; line-height:1;}
+  .filter-group-body{display:none; padding:0 12px 12px; max-height:240px; overflow-y:auto;}
+  .filter-group.open .filter-group-body{display:block;}
+  .filter-group.open .filter-group-toggle{transform:rotate(45deg);}
+  .filter-opt{
+    display:flex; align-items:center; gap:8px;
+    padding:5px 0; font-size:13px; color:var(--ink-soft); cursor:pointer;
+  }
+  .filter-opt input{flex-shrink:0; accent-color:var(--ink); width:14px; height:14px;}
+  .filter-opt:hover{color:var(--ink);}
+  .filter-opt-count{margin-left:auto; font-size:11px; color:var(--ink-soft); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;}
+  .filter-search-row{
+    display:flex; align-items:center; gap:6px; margin:2px 0 8px;
+    padding:6px 10px; background:var(--paper); border:1px solid var(--line); border-radius:100px;
+    position:sticky; top:0; z-index:1;
+  }
+  .filter-search-row svg{flex-shrink:0; opacity:0.5;}
+  .filter-search-row input{border:none; background:none; outline:none; font-family:inherit; font-size:12px; width:100%; color:var(--ink);}
+
   /* ---------- GRID LAYOUT ---------- */
   .grid-layout{
     max-width:1260px; margin:0 auto;
@@ -243,6 +277,11 @@
     background:var(--paper-card); border:1px solid var(--line-soft); border-radius:14px;
     padding:18px; display:flex; flex-direction:column; gap:12px;
     position:sticky; top:90px;
+    /* Akordeon filtre grupları (bkz. #filter-groups) sidebar'ı viewport'tan uzun hâle getirebiliyor
+       — kisi.html/proje.html'in .grid-sidebar'ındaki AYNI çözüm: kutu kendi içinde kayar, "Firma
+       Ekle" butonu hiçbir zaman erişilemez hâle gelmez. */
+    max-height:calc(100vh - 110px); overflow-y:auto; overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
   }
   .sidebar-filters-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:15px; font-weight:700;}
   .sidebar-search{display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:100px;}
@@ -256,12 +295,9 @@
   }
   .grid-icon-btn:hover{border-color:var(--walnut); color:var(--ink);}
   .grid-icon-btn.reset{margin-left:auto;}
-  /* Masaüstünde .grid-sidebar'ın (dikey, tam genişlik) normal akışına karışmadan, Konum ve
-     Tecrübe'nin ayrı ayrı tam genişlikte alt alta sıralanmaya devam etmesi için display:contents
-     ile "görünmez" bırakılır; ≤960px'te gerçek bir yatay satıra dönüşür (bkz. aşağıdaki media query,
-     kullanıcı isteği: "tablet ve mobil görünümde konum kutucuğunun sağ yanına Tecrübe kutucuğunu
-     koy"). */
-  .loc-exp-row{display:contents;}
+  /* .loc-exp-row (Konum + Tecrübe'yi mobilde yan yana koyan display:contents kutusu) KALDIRILDI —
+     her iki filtre de artık #filter-groups akordeonunun içinde birer grup (kullanıcı isteği,
+     2026-09-01 madde 1), yani yan yana dizilecek ayrı bir <select> kalmadı. */
   .sidebar-add-btn{
     display:flex; align-items:center; justify-content:center; gap:8px;
     width:100%; background:var(--ink); color:var(--paper-card);
@@ -348,14 +384,13 @@
 
   @media (max-width:960px){
     .grid-layout{grid-template-columns:1fr;}
-    .grid-sidebar{position:static; flex-direction:row; flex-wrap:wrap;}
+    .grid-sidebar{position:static; flex-direction:row; flex-wrap:wrap; max-height:none; overflow:visible;}
     .grid-sidebar .filter-select{flex:1 1 160px;}
     .card-grid{grid-template-columns:repeat(3, 1fr);}
-    /* bkz. yukarıdaki .loc-exp-row yorumu — Konum ve Tecrübe burada gerçek bir yatay satıra
-       dönüşür ve kendi satırını kaplar (flex-basis:100%), diğer filtrelerle aynı satırı
-       paylaşmaz; böylece her genişlikte birbirinin yanında kalmaları garanti edilir. */
-    .loc-exp-row{display:flex; gap:8px; flex:1 1 100%;}
-    .loc-exp-row .filter-select{flex:1 1 0;}
+    /* Sidebar mobilde satır düzenine (flex-direction:row) geçtiğinden akordeon kutusu tam
+       genişlikte kendi satırına alınır — aksi halde arama/sıralama kutularının yanında daralırdı
+       (bkz. kisi.html'deki AYNI kural). */
+    .grid-sidebar > .sidebar-search, .grid-sidebar > .grid-sidebar-head, #filter-groups, .sidebar-add-btn{flex:1 1 100%;}
   }
   @media (max-width:960px){
     .nav{padding:10px 18px; gap:10px;}
@@ -431,30 +466,11 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"/></svg>
         </button>
       </div>
-      <div class="filter-select">
-        <select id="g-cat"><option value="">Hizmet Alanı</option></select>
-        <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-      </div>
-      <!-- Konum ve Tecrübe, tablet/mobil görünümde (bkz. .loc-exp-row CSS) tek satırda yan yana
-           gösterilir (bkz. kullanıcı isteği); masaüstünde display:contents ile normal, ayrı ayrı
-           tam genişlikte alt alta sıralanan filter-select'ler gibi davranır. -->
-      <div class="loc-exp-row">
-        <div class="filter-select">
-          <select id="g-loc"><option value="">Konum</option></select>
-          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-        </div>
-        <div class="filter-select">
-          <select id="g-exp">
-            <option value="">Tecrübe</option>
-            <option value="1-5">1-5 yıl</option>
-            <option value="6-10">6-10 yıl</option>
-            <option value="11-20">11-20 yıl</option>
-            <option value="21-30">21-30 yıl</option>
-            <option value="30+">30+ yıl</option>
-          </select>
-          <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
-        </div>
-      </div>
+      <!-- Hizmet Alanı / Konum / Tecrübe akordeonları — tamamı sunucudan gelen sayaçlardan
+           üretilir (bkz. buildFilterGroups). Eski tekil <select>'lerin yerini aldılar (kullanıcı
+           isteği, 2026-09-01 madde 1). Tecrübe de artık sabit <option> listesi DEĞİL: hiç firması
+           olmayan bir kova hiç çizilmez. -->
+      <div id="filter-groups"></div>
       <a class="sidebar-add-btn" href="/firma-ekle"><span class="sidebar-add-icon">+</span> Firma Ekle</a>
     </aside>
 
@@ -497,26 +513,122 @@ ModalShell.setSsrDefaults({
   image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
 });
 
-// Sunucudan (data.filters) gelen loc/cat seçeneklerini <select>'lere yeniden çizer — eski
-// client-side hesaplı populateFilters()'ın AYNI görsel sonucu, yalnızca veri kaynağı sunucu.
-function populateFilterOptions(filtersData){
-  const locSel = document.getElementById('g-loc');
-  const prevLoc = locSel.value;
-  locSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  (filtersData.loc || []).forEach(({value, count})=>{
-    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
-    locSel.appendChild(o);
-  });
-  locSel.value = prevLoc;
+// Çok seçmeli filtre durumu — kisi.html/proje.html#activeFilters ile AYNI şekil (grup anahtarı ->
+// Set). Grup İÇİ mantık OR, gruplar ARASI AND (sunucu tarafı bkz. src/routes/office.js#passes).
+const FILTER_GROUPS = [
+  { key: 'cat', label: 'Hizmet Alanı' },
+  { key: 'loc', label: 'Konum' },
+  { key: 'exp', label: 'Tecrübe' },
+];
+const activeFilters = { cat: new Set(), loc: new Set(), exp: new Set() };
+// Sunucu Tecrübe kovalarını ham değerle ("1-5") döndürür — okunabilir etiket burada eklenir, böylece
+// URL'ler ve eski tek seçmeli linkler bit-bit aynı kalır (bkz. src/routes/office.js#EXP_BUCKET_ORDER).
+const EXP_LABELS = { '1-5': '1-5 yıl', '6-10': '6-10 yıl', '11-20': '11-20 yıl', '21-30': '21-30 yıl', '30+': '30+ yıl' };
+// Grup içi arama kutularına yazılan metin — buildFilterGroups() DOM'u her render'da sıfırdan
+// kurduğundan (bkz. kisi.html#groupSearchQueries'teki AYNI gerekçe) burada saklanıp geri uygulanır.
+const groupSearchQueries = {};
+// Akordeonların açık/kapalı durumu da aynı sebeple burada tutulur.
+const openGroups = new Set();
 
-  const catSel = document.getElementById('g-cat');
-  const prevCat = catSel.value;
-  catSel.querySelectorAll('option[data-dynamic]').forEach(o=>o.remove());
-  (filtersData.cat || []).forEach(({value, count})=>{
-    const o = document.createElement('option'); o.value = value; o.textContent = `${value} (${count})`; o.dataset.dynamic = '1';
-    catSel.appendChild(o);
+function trLower(s){
+  return String(s || '').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase();
+}
+
+// Sunucudan gelen sayaçlar zaten [{value, count}] biçiminde ve sıralanmış geliyor — burada yalnızca
+// görüntülenecek etiket eklenir (Tecrübe dışındaki gruplarda etiket = değerin kendisi).
+function groupOptions(filtersData, key){
+  return (filtersData[key] || []).map(({value, count}) => ({
+    value, count, label: key === 'exp' ? (EXP_LABELS[value] || value) : value,
+  }));
+}
+
+// Önceden seçili bir filtre (paylaşılan link/geri tuşu) varsa o grup açık gösterilir.
+function openSelectedGroups(wrap){
+  FILTER_GROUPS.forEach(g=>{
+    if(activeFilters[g.key].size === 0) return;
+    openGroups.add(g.key);
+    const grp = wrap.querySelector(`.filter-group[data-key="${g.key}"]`);
+    if(grp) grp.classList.add('open');
   });
-  catSel.value = prevCat;
+}
+
+// Sunucudan (data.filters) gelen seçenekleri akordeon + checkbox olarak yeniden çizer —
+// kisi.html#buildFilterGroups ile BİREBİR aynı desen. Seçenek üretmeyen (sayacı hiç oluşmamış) bir
+// grup hiç çizilmez.
+// Bu sayfada da sayaçlar aktif filtrelerden BAĞIMSIZ (tüm havuz üzerinden, bkz. src/routes/
+// office.js#countPool), yani bir kutucuk işaretlendiğinde seçenekler/sayaçlar hiç değişmez — o
+// durumda innerHTML'i yeniden yazmak yalnızca odağı ve grup içi kaydırmayı sıfırlar. İmza aynıysa
+// DOM korunur, yalnızca işaretli durumlar activeFilters'tan tazelenir.
+let lastFilterSignature = null;
+function buildFilterGroups(filtersData){
+  const wrap = document.getElementById('filter-groups');
+  const groups = FILTER_GROUPS.map(g => [g.key, groupOptions(filtersData, g.key)]);
+  const signature = JSON.stringify(groups);
+  if(signature === lastFilterSignature){
+    wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.checked = activeFilters[cb.dataset.key].has(cb.value);
+    });
+    openSelectedGroups(wrap);
+    return;
+  }
+  lastFilterSignature = signature;
+  let html = '';
+  FILTER_GROUPS.forEach(g=>{
+    const options = groupOptions(filtersData, g.key);
+    if(!options.length) return;
+    html += `<div class="filter-group${openGroups.has(g.key) ? ' open' : ''}" data-key="${g.key}">
+      <button class="filter-group-head" data-toggle="${g.key}">${escapeHtml(g.label)} <span class="filter-group-toggle">+</span></button>
+      <div class="filter-group-body">
+        <div class="filter-search-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="filter-search-input" placeholder="Ara..." autocomplete="off"></div>
+        ${options.map(({value, count, label})=>`
+        <label class="filter-opt">
+          <input type="checkbox" data-key="${g.key}" value="${escapeAttr(value)}" ${activeFilters[g.key].has(value)?'checked':''}>
+          <span>${escapeHtml(label)}</span>
+          <span class="filter-opt-count">(${count})</span>
+        </label>`).join('')}
+      </div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+
+  openSelectedGroups(wrap);
+
+  wrap.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.dataset.toggle;
+      const opened = btn.parentElement.classList.toggle('open');
+      if(opened) openGroups.add(key); else openGroups.delete(key);
+    });
+  });
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) activeFilters[cb.dataset.key].add(cb.value); else activeFilters[cb.dataset.key].delete(cb.value);
+      currentPage = 1;
+      syncBrowserUrl(true);
+      render();
+    });
+  });
+  // Grup içi arama YALNIZCA o grubun satırlarını gösterip gizler — seçim/sayaç mantığını etkilemez.
+  function applyGroupSearchFilter(input){
+    const body = input.closest('.filter-group-body');
+    const q = trLower(input.value.trim());
+    body.querySelectorAll('.filter-opt').forEach(opt=>{
+      const label = trLower(opt.querySelector('span').textContent);
+      opt.style.display = !q || label.includes(q) ? '' : 'none';
+    });
+  }
+  wrap.querySelectorAll('.filter-search-input').forEach(input=>{
+    const groupKey = input.closest('.filter-group').dataset.key;
+    if(groupSearchQueries[groupKey]){
+      input.value = groupSearchQueries[groupKey];
+      applyGroupSearchFilter(input);
+    }
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('input', ()=>{
+      groupSearchQueries[groupKey] = input.value;
+      applyGroupSearchFilter(input);
+    });
+  });
 }
 
 function getPageWindowSize(){
@@ -574,13 +686,10 @@ function renderPagination(totalPages){
 // de tarayıcı URL senkronu için TEK noktadan kullanılır (bkz. kisi.html'deki AYNI desen).
 function currentQueryParams(){
   const params = new URLSearchParams();
-  const loc = document.getElementById('g-loc').value;
-  const cat = document.getElementById('g-cat').value;
-  const exp = document.getElementById('g-exp').value;
+  // Çoklu seçim: her seçili değer AYRI bir parametre olarak eklenir (?loc=İstanbul&loc=Ankara) —
+  // kisi.html#currentQueryParams ile AYNI desen, sunucu tarafı getAll() ile okur.
+  FILTER_GROUPS.forEach(g => { activeFilters[g.key].forEach(v => params.append(g.key, v)); });
   const sort = document.getElementById('g-sort').value;
-  if(loc) params.set('loc', loc);
-  if(cat) params.set('cat', cat);
-  if(exp) params.set('exp', exp);
   if(sort) params.set('sort', sort);
   if(searchQuery.trim()) params.set('search', searchQuery.trim());
   return params;
@@ -595,9 +704,12 @@ function syncBrowserUrl(push){
 }
 function applyStateFromUrl(){
   const params = new URLSearchParams(location.search);
-  document.getElementById('g-loc').value = params.get('loc') || '';
-  document.getElementById('g-cat').value = params.get('cat') || '';
-  document.getElementById('g-exp').value = params.get('exp') || '';
+  // getAll — tek değerli eski linkler (firma popup'ındaki filtre bağlantıları, paylaşılmış URL'ler)
+  // tek elemanlı bir küme olarak AYNI şekilde çalışır.
+  FILTER_GROUPS.forEach(g => {
+    activeFilters[g.key].clear();
+    params.getAll(g.key).filter(Boolean).forEach(v => activeFilters[g.key].add(v));
+  });
   document.getElementById('g-sort').value = params.get('sort') || '';
   searchQuery = params.get('search') || '';
   document.getElementById('g-local-search').value = searchQuery;
@@ -637,7 +749,7 @@ async function render(){
 
   currentPage = data.page;
   document.getElementById('result-count').textContent = `${data.total} firma listeleniyor`;
-  populateFilterOptions(data.filters || {});
+  buildFilterGroups(data.filters || {});
   renderPagination(data.totalPages);
 
   if(data.items.length === 0){ grid.innerHTML = ''; empty.textContent = 'Bu kritere uyan firma bulunamadı.'; empty.style.display = 'block'; return; }
@@ -684,9 +796,9 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
 });
 
 let searchDebounce = null;
-['g-sort','g-loc','g-cat','g-exp'].forEach(id=>{
-  document.getElementById(id).addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
-});
+// Filtre kutucuklarının dinleyicileri buildFilterGroups() içinde (her yeniden çizimde) bağlanır —
+// burada yalnızca sabit kalan sıralama <select>'i kalır.
+document.getElementById('g-sort').addEventListener('change', ()=>{ currentPage = 1; syncBrowserUrl(true); render(); });
 document.getElementById('g-local-search').addEventListener('input', (e)=>{
   searchQuery = e.target.value;
   currentPage = 1;
@@ -695,9 +807,8 @@ document.getElementById('g-local-search').addEventListener('input', (e)=>{
 });
 document.getElementById('g-reset').addEventListener('click', ()=>{
   document.getElementById('g-sort').value = '';
-  document.getElementById('g-cat').value = '';
-  document.getElementById('g-loc').value = '';
-  document.getElementById('g-exp').value = '';
+  FILTER_GROUPS.forEach(g => activeFilters[g.key].clear());
+  Object.keys(groupSearchQueries).forEach(k => delete groupSearchQueries[k]);
   searchQuery = '';
   document.getElementById('g-local-search').value = '';
   document.getElementById('f-search-topnav').value = '';

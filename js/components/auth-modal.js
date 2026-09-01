@@ -945,9 +945,24 @@ const AuthModal = (function () {
             <div class="profile-fact"><span class="profile-fact-label">Pozisyon</span><span class="profile-fact-value" id="am-fact-position">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Üyelik</span><span class="profile-fact-value" id="am-fact-joined">—</span></div>
           </div>
-          <div id="am-claims-mine-list"></div>
         </div>
 
+        <!-- Firma Bilgileri — kullanıcı isteği (2026-09-01 madde 2): "Profil Bilgileri kutusunun
+             yanındaki sütuna Firma Bilgileri kutusu ekle ve bir kullanıcı bir firmada görev
+             alıyorsa firma bilgileri bu kısımda gözüksün". Kullanıcının firmayla bağı zaten
+             profile_claims('office') satırında duruyor (Profili Düzenle'deki "Firma" kutusu bu
+             talebi oluşturur, bkz. submitFirmaClaimIfChanged) — #am-claims-mine-list'in TEK içeriği
+             de zaten oydu (mimar tipi filtreleniyor), bu yüzden o liste Profil Bilgileri'nden
+             BURAYA taşındı: aynı bilgi iki kutuda birden görünmesin. Kutu ayrıca firmanın kendi
+             künyesini (/api/office/:key) çeker, bkz. loadFirmInfo. -->
+        <div class="dash-section">
+          <h2>Firma Bilgileri</h2>
+          <div id="am-firm-facts"><div class="dash-empty">Yükleniyor…</div></div>
+          <div id="am-claims-mine-list"></div>
+        </div>
+      </div>
+
+      <div class="dash-row col-two-col"><!-- bkz. bir üstteki col-two-col gerekçesi -->
         <div class="dash-section">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
             <h2 style="margin:0;">Bildirimler</h2>
@@ -955,9 +970,7 @@ const AuthModal = (function () {
           <div id="am-dash-notifications"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-notif-pagination"></div>
         </div>
-      </div>
 
-      <div class="dash-row col-two-col"><!-- bkz. bir üstteki col-two-col gerekçesi -->
         <div class="dash-section">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;">
             <h2 style="margin:0;">Mesajlar</h2>
@@ -965,8 +978,13 @@ const AuthModal = (function () {
           <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-msg-pagination"></div>
         </div>
+      </div>
 
-        <div class="dash-section">
+      <!-- Rozetlerim ARTIK TEK BAŞINA, TAM GENİŞLİKTE bir satır (kullanıcı isteği, 2026-09-01
+           madde 2: "Rozetlerim de 3. satırda tek satır halinde gözüksün") — .dash-section-wide,
+           activitiesTemplate'teki "Paylaştıklarım" kutusuyla AYNI desen (grid-column:1 / -1). -->
+      <div class="dash-row col-two-col">
+        <div class="dash-section dash-section-wide">
           <h2>Rozetlerim</h2>
           <p class="section-hint">Rozetlerin sağladıkları avantajlar farklıdır ve aylık kiralanırlar. Kendin için ayrı, firmaların için ayrı rozet alabilirsin.</p>
           <div id="am-my-badges-list" style="display:none; margin-bottom:16px;"></div>
@@ -1338,6 +1356,10 @@ const AuthModal = (function () {
   // çağırarak, o ana kadar hazır olan veriyle yeniden çizilir.
   let amBadgeItems = [];
   let amClaimItems = [];
+  // #am-firm-facts kutusunda hâlihazırda gösterilen firmanın anahtarı (bkz. loadFirmInfo).
+  // amClaimItems ile AYNI kapsamda tutulur çünkü renderClaimsList onu, loadFirmInfo'dan ÖNCE de
+  // çağrılabilecek şekilde okuyor (bkz. oradaki filtre).
+  let firmInfoKey = null;
   // /api/public/badges: profil başına TEK, nihai rozeti döndürür (admin_badges satın alınanın
   // yerine geçer, bkz. src/routes/badges.js#computeBadgesPayload) — Mimar/Firma satırındaki rozet
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
@@ -2118,13 +2140,19 @@ const AuthModal = (function () {
       // kullanıcı isteği (2026-08-30): Profil Bilgileri kutusu artık salt bilgi amaçlı — Mimar satırı
       // tamamen kaldırıldı, Firma satırı da Düzenle linki OLMADAN gösterilir (profil düzenleme artık
       // yalnızca İçeriklerim > Mimar/Firma Profilim'den yapılır, bkz. renderContentsClaims).
-      const visibleItems = amClaimItems.filter(c => c.status !== 'rejected' && c.profile_type !== 'architect');
-      // #am-profile-tab-facts'in son satırı (Üyelik) kendi kutusunda :last-child olduğundan .profile-
-      // fact'in border-bottom:none kuralına takılır — burada claim satırı EKLENDİĞİNDE aradaki çizgiyi
-      // geri getirmek için .profile-fact ile AYNI çizgiyi bu ayrı kutunun üstüne koyuyoruz (bkz.
-      // kullanıcı isteği: "üyelik ve firma başlıkları arasında ... diğer satırlarla aynı şekilde line").
+      // firmInfoKey — künye kutusunda (#am-firm-facts) ZATEN tam olarak gösterilen firma; aynı adı
+      // hemen altında ikinci kez listelemek anlamsız olurdu. Bir kullanıcının birden fazla firma
+      // talebi olabildiğinden (canlıda var) geri kalanlar bu listede durmaya devam eder — durum
+      // etiketleriyle birlikte, çünkü künye kutusu yalnızca BİR firmayı gösterebilir.
+      const visibleItems = amClaimItems.filter(c => c.status !== 'rejected' && c.profile_type !== 'architect'
+        && !(c.profile_type === 'office' && c.profile_key === firmInfoKey));
+      // Bu liste artık "Firma Bilgileri" kutusunda, #am-firm-facts'in ALTINDA duruyor (kullanıcı
+      // isteği, 2026-09-01 madde 2) — üstündeki künye satırlarından ayrılması için AYNI .profile-fact
+      // çizgisi kutunun üstüne konur; künye hiç çizilmediyse (firma yoksa) çizgiye de gerek yok.
+      const factsBox = document.getElementById('am-firm-facts');
+      const hasFactsAbove = !!(factsBox && factsBox.querySelector('.profile-fact'));
       if (!visibleItems.length) { list.innerHTML = ''; list.style.borderTop = 'none'; return; }
-      list.style.borderTop = '1px solid var(--line-soft)';
+      list.style.borderTop = hasFactsAbove ? '1px solid var(--line-soft)' : 'none';
       list.innerHTML = visibleItems.map(c => {
         // gerçek bulgu: bu satır kendi satın alınan rozetinden (amBadgeItems) seçim yapıyordu, ama
         // /api/public/badges (mimar/firma kartlarında, profil modallarında gösterilen TEK doğru
@@ -2170,6 +2198,59 @@ const AuthModal = (function () {
       renderClaimsList();
       renderAmNameBadge();
       syncClaimedArchitectData(items);
+      loadFirmInfo(items);
+    }
+
+    // "Firma Bilgileri" kutusu (kullanıcı isteği, 2026-09-01 madde 2). Kullanıcının bir firmada görev
+    // alıp almadığının kaynağı profile_claims('office') satırıdır — Profili Düzenle'deki "Firma"
+    // kutusu tam olarak bu talebi oluşturur (bkz. submitFirmaClaimIfChanged), yani bu kutu formda
+    // seçilen firmayı gösterir. Onaylı talep beklemedekine tercih edilir; ikisi de yoksa kutu boş
+    // durumunu gösterir.
+    // İKİNCİ KAYNAK YOK: mimar kaydındaki `office` alanı (architectSyncState.office) BİLEREK
+    // kullanılmıyor — o alan formdaki Firma kutusuyla AYNI Kaydet'te senkronlandığından (bkz.
+    // submitArchitectSyncIfNeeded'in office parametresi) ayrı bir doğruluk kaynağı değil, yalnızca
+    // aynı değerin kopyası; iki kaynak tutarsızlaşırsa hangisinin gösterileceği belirsizleşirdi.
+    async function loadFirmInfo(claimItems) {
+      const box = document.getElementById('am-firm-facts');
+      if (!box) return;
+      const claim = claimItems.find(c => c.profile_type === 'office' && c.status === 'approved')
+        || claimItems.find(c => c.profile_type === 'office' && c.status === 'pending');
+      if (!claim) {
+        firmInfoKey = null;
+        box.innerHTML = '<div class="dash-empty">Henüz bir firmada görev almıyorsun. Profili Düzenle\'den firmanı seçebilirsin.</div>';
+        renderClaimsList();
+        return;
+      }
+      // Aynı anahtar için ikinci kez ağ isteği atma — loadMyClaims her loadUser()'da çalışıyor.
+      if (firmInfoKey === claim.profile_key) return;
+      firmInfoKey = claim.profile_key;
+      let office = null;
+      try {
+        const res = await fetch(`/api/office/${encodeURIComponent(claim.profile_key)}`);
+        if (res.ok) office = (await res.json()).item;
+      } catch {}
+      // Firma künyesi çekilemediyse (ağ hatası ya da henüz canonical'a senkronlanmamış bekleyen bir
+      // talep) en azından adı gösterilir — kutu asla "Yükleniyor…"da takılı kalmaz.
+      const rows = [['Firma', office ? office.name : claim.profile_key]];
+      if (office) {
+        // cats üç biçimde gelebilir (JSON dizi / ' · ' ayrımlı string / null) — office-kind.js#
+        // officeCatList'in tarayıcı tarafında yüklü olduğuna güvenmek yerine (bu dosya onu <script>
+        // olarak İSTEMİYOR) burada AYNI iki durum yerinde ele alınır.
+        const cats = Array.isArray(office.cats) ? office.cats.join(' · ') : (office.cats || '');
+        if (office.loc) rows.push(['Konum', office.loc]);
+        if (cats) rows.push(['Hizmet Alanı', cats]);
+        if (office.yil) rows.push(['Kuruluş Yılı', String(office.yil)]);
+      }
+      if (accountUser && accountUser.position) rows.push(['Görevin', accountUser.position]);
+      const slug = office && office.slug ? office.slug : '';
+      box.innerHTML = rows.map(([label, value], i) => `
+        <div class="profile-fact">
+          <span class="profile-fact-label">${escapeHtml(label)}</span>
+          <span class="profile-fact-value">${i === 0 && slug
+            ? `<a href="/firma/${encodeURIComponent(slug)}" style="color:var(--walnut); font-weight:600;">${escapeHtml(value)}</a>`
+            : escapeHtml(value)}</span>
+        </div>`).join('');
+      renderClaimsList();
     }
 
     async function syncClaimedArchitectData(items) {
