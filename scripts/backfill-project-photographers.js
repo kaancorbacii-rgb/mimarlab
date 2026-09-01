@@ -81,6 +81,8 @@ const NON_PERSON_PATTERNS = [
   /^t\.?\s?c\.?\s/i, /bakanl[ıi][ğg][ıi]/i, /belediye/i, /^[iİ]bb\b/i, /müdürlü[ğg]ü/i, /üniversite/i,
   /platform/i, /haber/i, /kolektif/i, /vakf[ıi]/i, /derne[ğg]i/i, /müze/i, /museum/i, /koleksiyon/i,
   /tasar[ıi]m/i, /holding/i, /in[şs]aat/i, /yap[ıi]$/i, /grup$/i, /group$/i, /^salon\s/i, /^atölye/i,
+  // PROD kuru çalıştırmasında yakalanan son kurum kalıntısı: "HPP International Turkey".
+  /international/i, /\bturkey\b/i, /\bt[üu]rkiye\b/i, /\bglobal\b/i, /\bpartners?\b/i,
   /foto[ğg]raf(ç[ıi]l[ıi]k)?$/i, /\bA\.?Ş\.?$/, /\bLtd\.?/i, /\binc\.?$/i, /&/, /—/, /\|/,
 ];
 function looksLikePersonName(name) {
