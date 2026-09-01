@@ -653,23 +653,25 @@
           <label for="p-desc" id="p-desc-label">Proje Açıklaması <span class="req" aria-hidden="true">*</span></label>
           <textarea id="p-desc" name="description" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
         </div>
-        <div class="form-row">
-          <div class="form-field ac-field" id="ac-credit-field">
-            <label for="p-credit-text" id="p-credit-text-label">Kaynak / Fotoğrafçı</label>
-            <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden" autocomplete="off">
-            <div class="ac-suggestions" id="ac-credit-suggestions"></div>
-            <!-- kullanıcı isteği (2026-09-01 madde 6): bu kutu artık Mimar kutusuyla AYNI mantıkta —
-                 öneriler MİMARLAB'daki gerçek fotoğrafçı profillerinden gelir (bkz. src/routes/
-                 project.js#handlePhotographerSearchRoute) ve profilli bir isim seçilirse proje o
-                 kişinin popup'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz. migrations/
-                 0080_project_photographers.sql). Profili olmayan isimler eskisi gibi serbest metin
-                 olarak kaydedilmeye devam eder. -->
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Öneri listesinden seçtiğin fotoğrafçılar profillerine bağlanır.</div>
-          </div>
-          <div class="form-field">
-            <label for="p-credit-url">Bağlantı <span class="opt">(opsiyonel)</span></label>
-            <input type="url" id="p-credit-url" name="photoCreditUrl" placeholder="https://...">
-          </div>
+        <!-- kullanıcı isteği (2026-09-01): yanındaki "Bağlantı" kutusu kaldırıldı, bu kutu artık tek
+             başına TAM satır — o yüzden iki sütunlu .form-row sarmalayıcısı da kaldırıldı. -->
+        <div class="form-field ac-field" id="ac-credit-field">
+          <label for="p-credit-text" id="p-credit-text-label">Fotoğrafçı veya Kaynak</label>
+          <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden" autocomplete="off">
+          <div class="ac-suggestions" id="ac-credit-suggestions"></div>
+          <!-- kullanıcı isteği (2026-09-01 madde 6): bu kutu artık Mimar kutusuyla AYNI mantıkta —
+               öneriler MİMARLAB'daki gerçek fotoğrafçı profillerinden gelir (bkz. src/routes/
+               project.js#handlePhotographerSearchRoute) ve profilli bir isim seçilirse proje o
+               kişinin popup'ındaki "Fotoğrafladığı Projeler" bölümüne düşer (bkz. migrations/
+               0080_project_photographers.sql). Profili olmayan isimler eskisi gibi serbest metin
+               olarak kaydedilmeye devam eder. -->
+          <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Öneri listesinden seçtiğin fotoğrafçılar profillerine bağlanır.</div>
+          <!-- "Bağlantı" kutusu formdan kaldırıldı (yukarıdaki nota bkz.) ama photo_credit_url
+               kolonu ve onu okuyan/yazan tüm yollar (bkz. src/lib/canonicalSync.js, projectPool.js)
+               duruyor: alan GİZLİ bir input olarak korunuyor, böylece daha önce bir bağlantısı olan
+               projeler düzenlenip kaydedildiğinde o değer SİLİNMEZ (element tamamen kaldırılsaydı
+               kaydetme yolundaki getElementById('p-credit-url').value çağrıları da patlardı). -->
+          <input type="hidden" id="p-credit-url" name="photoCreditUrl">
         </div>
       </div>
 
@@ -1179,37 +1181,13 @@ document.getElementById('dd-grup-btn').addEventListener('click', () => {
   setTimeout(() => search.focus(), 0);
 });
 wireAutocompleteLive('p-designer', 'ac-mimar-suggestions', '/api/architects/search');
-// Kaynak/Fotoğrafçı kutusuna bir mimarlık firmasının adı yazılırsa (öneriden seçilerek ya da
-// serbestçe yazılıp kutudan çıkılarak) Bağlantı kutusu o firmanın web sitesiyle otomatik
-// doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in de kullandığı AYNI
-// arama (name/slug/legacy_key eşleşmesi, yoksa slugify taraması, bkz. src/routes/office.js#
-// findOffice). Kullanıcı Bağlantı kutusuna kendi eliyle bir şey yazarsa (data-autofilled bayrağı
-// temizlenir) bir daha OTOMATİK doldurma bunun üzerine yazmaz — yalnızca kendi elleriyle
-// silene/boşaltana kadar manuel değer korunur.
-async function tryFillCreditUrlFromFirm(name){
-  name = (name || '').trim();
-  if(!name) return;
-  const urlInput = document.getElementById('p-credit-url');
-  if(urlInput.value.trim() && urlInput.dataset.autofilled !== '1') return;
-  try{
-    const res = await fetch(`/api/office/${encodeURIComponent(name)}`);
-    if(!res.ok) return;
-    const data = await res.json();
-    const website = data && data.item && data.item.website;
-    if(!website) return;
-    urlInput.value = website;
-    urlInput.dataset.autofilled = '1';
-  }catch{}
-}
-document.getElementById('p-credit-url').addEventListener('input', () => {
-  document.getElementById('p-credit-url').dataset.autofilled = '';
-});
-wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search', {
-  onPick: (item) => tryFillCreditUrlFromFirm(lastCommaSegment(item.label)),
-});
-document.getElementById('p-credit-text').addEventListener('blur', () => {
-  setTimeout(() => tryFillCreditUrlFromFirm(lastCommaSegment(document.getElementById('p-credit-text').value)), 150);
-});
+// "Fotoğrafçı veya Kaynak" kutusuna bir mimarlık firmasının adı yazıldığında Bağlantı kutusunu o
+// firmanın web sitesiyle OTOMATİK dolduran mantık (GET /api/office/:key + data-autofilled bayrağı)
+// buradan kaldırıldı: Bağlantı kutusu 2026-09-01'de formdan çıkarıldığı için otomatik doldurmanın
+// görünür bir hedefi kalmadı — kullanıcının göremediği/düzeltemediği/temizleyemediği gizli bir
+// alana sessizce URL yazmak istenmeyen bir yan etki olurdu. photo_credit_url alanı yalnızca
+// düzenleme sırasında MEVCUT değeri koruyan gizli bir input olarak duruyor (bkz. formdaki not).
+wireAutocompleteLive('p-credit-text', 'ac-credit-suggestions', '/api/photographers/search');
 // Firma kutusundan bir öneri seçildiğinde Mimar kutusu o firmanın ortakları/kurucuları VE ekip
 // üyeleriyle otomatik doldurulur (bkz. kullanıcı isteği) — GET /api/office/:key firma.html'in
 // Ekip/Kurucular bölümünü besleyen AYNI birleşik listeyi döner (bkz. src/routes/office.js#

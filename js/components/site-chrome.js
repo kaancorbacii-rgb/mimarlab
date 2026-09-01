@@ -274,7 +274,7 @@
     </a>
     <div class="nav-search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="f-search-topnav" placeholder="İhtiyacını yaz, bulmana yardımcı olalım..." aria-label="Ara">
+      <input type="text" id="f-search-topnav" placeholder="Aradığını yaz, bulmana yardımcı olalım" aria-label="Ara">
       <button type="button" class="nav-search-visual-btn" id="nav-search-visual-btn" aria-label="Görsel ile ara">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2"/></svg>
       </button>
@@ -693,7 +693,7 @@
           .nav-search-modal-overlay{padding:60px 12px 12px;}
           .nav-search-modal{padding:22px;}
           .nav-search-modal-image-box{flex-direction:column;}
-          /* kullanıcı isteği (2026-08-30): "İhtiyacını yaz, bulmana yardımcı olalım..." placeholder'ı
+          /* kullanıcı isteği (2026-08-30): "Aradığını yaz, bulmana yardımcı olalım" placeholder'ı
              mobilde kutunun genişliğine sığmadığından kırpılıyordu — yalnızca mobilde punto küçültüldü. */
           .nav-search-modal-input-row input{font-size:13px;}
         }
@@ -708,7 +708,7 @@
         <button type="button" class="nav-search-modal-close" aria-label="Kapat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         <div class="nav-search-modal-input-row">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="nav-search-modal-input" placeholder="İhtiyacını yaz, bulmana yardımcı olalım..." aria-label="Ara">
+          <input type="text" id="nav-search-modal-input" placeholder="Aradığını yaz, bulmana yardımcı olalım" aria-label="Ara">
         </div>
         <div class="nav-search-modal-section" id="nav-search-modal-body"></div>
         <div class="nav-search-modal-section">
