@@ -248,7 +248,76 @@
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+// Türkçe büyük/küçük + aksan-bağımsız eşleştirme — src/lib/textMatch.js#foldTr ve sunucudaki diğer
+// kopyalarla BİREBİR aynı. Burada yalnızca "Sayfalar" bölümünün (sabit, istemci tarafı liste)
+// eşleştirmesi için gerekiyor; diğer tüm bölümler eşleştirmeyi zaten sunucuda yapıyor.
+function trLower(s){ return (s || '').replace(/İ/g,'i').replace(/I/g,'ı').replace(/Ş/g,'ş').replace(/Ğ/g,'ğ').replace(/Ü/g,'ü').replace(/Ö/g,'ö').replace(/Ç/g,'ç').toLowerCase(); }
+function foldTr(s){ return trLower(s).replace(/ı/g,'i').replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o'); }
+
 const MAX_PER_GROUP = 20;
+
+// ---------------------------------------------------------------------------
+// KÖK NEDEN (kullanıcı bildirimi, 2026-09-01): /arama sayfası "Mimarlar (12), Firmalar (2),
+// Projeler (14), Mimarlar (24), Firmalar (2), Projeler (68)" gibi HER TÜRDEN İKİ tablo
+// gösteriyordu. Sebep, sayfanın BİRBİRİNDEN BAĞIMSIZ iki sonuç bloğu render etmesiydi:
+//   1) #ai-search-result — MİMARLAB AI panosu, KENDİ Mimarlar/Firmalar/Projeler bölümlerini çizerdi
+//      (AI daralttığı için sayılar daha küçük: 12/2/14)
+//   2) #search-wrap      — klasik anahtar-kelime araması, AYNI başlıklarla (24/2/68)
+// İki blok görsel olarak neredeyse aynı olduğundan "tablo iki kere çıkıyor" olarak görünüyordu.
+//
+// ÇÖZÜM: her tür için TEK bölüm. AI'nın SONUÇ SATIRLARI artık klasik bölümlerin İÇİNE birleştirilir
+// (slug'a göre tekilleştirilerek); AI panosu yalnızca kendine özgü katkısını (özet + facet'ler)
+// gösterir, kendi tablolarını çizmez. Böylece "bursa'daki camiler" gibi yalnızca AI'nın
+// yanıtlayabildiği doğal dil sorgularında sonuçlar KAYBOLMAZ (bkz. runAiSearch yorumu), sadece
+// mükerrer tablolar ortadan kalkar.
+//
+// Bölüm sırası (kullanıcı isteği): Projeler, Mimarlar, Firmalar, Ürünler, Markalar, Sayfalar.
+// ---------------------------------------------------------------------------
+
+// FİRMA/MARKA ayrımı sitenin geri kalanıyla AYNI kuraldır (bkz. src/routes/office.js#passes ve
+// office-kind.js): marka.html (?brands=1) marka olan HER ofisi gösterir (Autoban gibi hem firma hem
+// marka olanlar dahil), firma.html ise yalnızca SAF markaları (hiç mimarlık hizmeti sunmayan
+// üretici, ör. VitrA) dışlar. Bu yüzden iki bölüm ayrı ayrı /api/offices'tan çekilir — /api/public/
+// search bu ayrımı hiç uygulamadığından (VitrA'yı "Firma" sayıyordu) ondan türetilemez.
+
+// "Sayfalar" bölümü — sitenin kendi sayfaları. Tamamen istemci tarafı, sabit bir liste (bu sayfalar
+// D1'de bir kayıt DEĞİL); eşleştirme aynı foldTr ile yapılır. keywords: sayfa adında geçmeyen ama
+// kullanıcının arayabileceği eş anlamlılar.
+const SITE_PAGES = [
+  { title: 'Projeler', href: '/proje', meta: 'Proje listesi', keywords: 'yapi bina eser' },
+  { title: 'Mimarlar', href: '/mimar', meta: 'Mimar listesi', keywords: 'tasarimci' },
+  { title: 'Firmalar', href: '/firma', meta: 'Firma listesi', keywords: 'ofis studyo buro' },
+  { title: 'Ürünler', href: '/urun', meta: 'Ürün ve malzeme kataloğu', keywords: 'malzeme katalog mobilya' },
+  { title: 'Markalar', href: '/marka', meta: 'Marka listesi', keywords: 'uretici' },
+  { title: 'En İyi 100 Mimari Eser', href: '/en-iyi-100', meta: 'Sıralama', keywords: 'top 100 siralama puan' },
+  { title: 'Neden MİMARLAB?', href: '/neden-mimarlab', meta: 'Kurumsal', keywords: 'tanitim sunum platform' },
+  { title: 'Hakkında', href: '/hakkinda', meta: 'Kurumsal', keywords: 'biz kimiz' },
+  { title: 'İletişim', href: '/iletisim', meta: 'Kurumsal', keywords: 'ulasim eposta mail destek' },
+  { title: 'Gizlilik Politikası', href: '/gizlilik-politikasi', meta: 'Kurumsal', keywords: 'kvkk gdpr veri' },
+  { title: 'Hizmet Şartları', href: '/hizmet-sartlari', meta: 'Kurumsal', keywords: 'kullanim kosullari sozlesme' },
+  { title: 'Çerez Politikası', href: '/cerez-politikasi', meta: 'Kurumsal', keywords: 'cookie' },
+  { title: 'Rozet Al', href: '/rozet-al', meta: 'Üyelik', keywords: 'satin al abonelik dogrulanmis altin elmas' },
+  { title: 'İade Et', href: '/iade-et', meta: 'Üyelik', keywords: 'iade geri odeme' },
+  { title: 'Proje Ekle', href: '/proje-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder yukle' },
+  { title: 'Mimar Ekle', href: '/mimar-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
+  { title: 'Firma Ekle', href: '/firma-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
+  { title: 'Ürün Ekle', href: '/urun-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
+  { title: 'Marka Ekle', href: '/marka-ekle', meta: 'İçerik Ekle', keywords: 'yeni gonder' },
+];
+
+// AI sonuçları burada saklanır ki runSearch() onları klasik bölümlerin içine karıştırabilsin.
+// Sorgu değiştiğinde bayatlamasın diye sorgunun kendisi de tutulur.
+let lastAiResults = { query: null, architects: [], offices: [], projects: [] };
+
+// İki listeyi slug'a göre birleştirir: önce klasik sonuçlar (mevcut alaka sırası korunur), sonra
+// yalnızca AI'nın bulduğu ekstralar. Dönen sayı, bölüm başlığındaki toplamın ne kadar artacağını
+// bildirir — klasik toplam AI'nın bulduğu YENİ kayıtlarla toplanır, böylece başlıktaki sayı asla
+// olduğundan büyük gösterilmez.
+function mergeWithAi(classicItems, aiItems, classicTotal){
+  const seen = new Set(classicItems.map(x => x.slug).filter(Boolean));
+  const extras = (aiItems || []).filter(x => x && x.slug && !seen.has(x.slug));
+  return { items: classicItems.concat(extras), total: (classicTotal || 0) + extras.length };
+}
 
 // badge: yalnızca Mimarlar/Firmalar gruplarında geçilir (bkz. kullanıcı isteği: mavi onay
 // rozetinin arama sonuçlarında da görünmesi) — proje/ürün satırlarında rozet anlamsız
@@ -322,9 +391,15 @@ async function runSearch(){
   let full = { architects: [], offices: [], projects: [], totals: { architects: 0, offices: 0, projects: 0 } };
   let urunResults = [];
   let urunTotal = 0;
-  const [fullRes, productsRes] = await Promise.allSettled([
+  // Firma ve Marka AYRI uçlardan çekilir (bkz. dosya başındaki FİRMA/MARKA ayrımı notu) — /api/
+  // public/search bu ayrımı uygulamadığından tek başına doğru bir bölümleme üretemez.
+  let firmaResults = []; let firmaTotal = 0;
+  let markaResults = []; let markaTotal = 0;
+  const [fullRes, productsRes, officesRes, brandsRes] = await Promise.allSettled([
     fetch('/api/public/search?q=' + encodeURIComponent(query)),
     fetch('/api/products?search=' + encodeURIComponent(query) + '&limit=' + MAX_PER_GROUP),
+    fetch('/api/offices?search=' + encodeURIComponent(query) + '&limit=' + MAX_PER_GROUP),
+    fetch('/api/offices?brands=1&search=' + encodeURIComponent(query) + '&limit=' + MAX_PER_GROUP),
   ]);
   if(fullRes.status === 'fulfilled' && fullRes.value.ok) full = await fullRes.value.json();
   if(productsRes.status === 'fulfilled' && productsRes.value.ok){
@@ -332,9 +407,31 @@ async function runSearch(){
     urunResults = data.items || [];
     urunTotal = data.total || 0;
   }
+  if(officesRes.status === 'fulfilled' && officesRes.value.ok){
+    const data = await officesRes.value.json();
+    firmaResults = data.items || []; firmaTotal = data.total || 0;
+  }
+  if(brandsRes.status === 'fulfilled' && brandsRes.value.ok){
+    const data = await brandsRes.value.json();
+    markaResults = data.items || []; markaTotal = data.total || 0;
+  }
   if(runToken !== searchRunToken) return; // yarış durumu — daha yeni bir çağrı zaten başladı
 
-  const total = full.totals.architects + full.totals.offices + full.totals.projects + urunTotal;
+  // AI sonuçları (varsa, AYNI sorgu için) klasik bölümlerin içine karıştırılır — ayrı bir tablo
+  // seti oluşturulmaz (bkz. dosya başındaki kök neden notu).
+  const ai = (lastAiResults.query === query) ? lastAiResults : { architects: [], offices: [], projects: [] };
+  const mimarMerged  = mergeWithAi(full.architects || [], ai.architects, full.totals.architects);
+  const projeMerged  = mergeWithAi(full.projects || [], ai.projects, full.totals.projects);
+  // AI'nın döndürdüğü ofisler firma/marka ayrımı taşımaz; saf marka olmayanlar Firmalar'a eklenir
+  // (AI ekstraları zaten yalnızca klasik aramanın kaçırdıklarıdır, sayı olarak küçüktür).
+  const markaSlugs = new Set(markaResults.map(o => o.slug));
+  const firmaMerged = mergeWithAi(firmaResults, (ai.offices || []).filter(o => !markaSlugs.has(o.slug)), firmaTotal);
+
+  // Sayfalar — sabit site sayfaları, aynı foldTr eşleştirmesiyle.
+  const qFold = foldTr(query);
+  const sayfaResults = SITE_PAGES.filter(p => foldTr(p.title).includes(qFold) || foldTr(p.keywords || '').includes(qFold));
+
+  const total = projeMerged.total + mimarMerged.total + firmaMerged.total + urunTotal + markaTotal + sayfaResults.length;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
@@ -354,35 +451,53 @@ async function runSearch(){
     return;
   }
 
+  // Ortak satır üreticileri — AYNI tür hem klasik hem AI kaynağından gelebildiği ve Firma/Marka
+  // aynı satır biçimini paylaştığı için tek noktada tanımlanır.
+  const projectRow = p => rowHtml({
+    href: `/proje/${encodeURIComponent(p.slug)}`,
+    avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
+    title: p.title,
+    meta: [p.location, p.date].filter(Boolean).join(' · '),
+  });
+  const architectRow = a => rowHtml({
+    href: `/mimar/${encodeURIComponent(a.slug)}`,
+    avatarStyle: `background:${officeColor(a.name)}`,
+    avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 200))}"${cdnSrcset(a.photo, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(a.photo, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
+    title: a.name,
+    meta: a.office || 'Mimar',
+    badge: verifiedBadgeHtml('architect', a.name, a.badges, 13),
+  });
+  // Marka satırları da /firma/:slug'a gider — markaların ayrı bir detay URL'si yok (bkz.
+  // marka.html: detay URL'si /firma/:slug ve popup office-modal.js olarak kalır).
+  const officeRow = o => rowHtml({
+    href: `/firma/${encodeURIComponent(o.slug)}`,
+    avatarStyle: `background:${officeColor(o.name)}`,
+    avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
+    title: o.name,
+    meta: o.loc || '',
+    badge: verifiedBadgeHtml('office', o.name, o.badges, 13),
+  });
+
+  // Bölüm sırası kullanıcı isteğiyle sabit: Projeler → Mimarlar → Firmalar → Ürünler → Markalar →
+  // Sayfalar. groupHtml boş listeler için '' döndürdüğünden sonuçsuz türler kendiliğinden gizlenir.
   wrap.innerHTML = [
-    groupHtml('Mimarlar', full.architects, a => rowHtml({
-      href: `/mimar/${encodeURIComponent(a.slug)}`,
-      avatarStyle: `background:${officeColor(a.name)}`,
-      avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 200))}"${cdnSrcset(a.photo, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(a.photo, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
-      title: a.name,
-      meta: a.office || 'Mimar',
-      badge: verifiedBadgeHtml('architect', a.name, a.badges, 13),
-    }), full.totals.architects),
-    groupHtml('Firmalar', full.offices, o => rowHtml({
-      href: `/firma/${encodeURIComponent(o.slug)}`,
-      avatarStyle: `background:${officeColor(o.name)}`,
-      avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}"${cdnSrcset(logoUrl(o), [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(logoUrl(o), [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
-      title: o.name,
-      meta: o.loc || '',
-      badge: verifiedBadgeHtml('office', o.name, o.badges, 13),
-    }), full.totals.offices),
-    groupHtml('Projeler', full.projects, p => rowHtml({
-      href: `/proje/${encodeURIComponent(p.slug)}`,
-      avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
-      title: p.title,
-      meta: [p.location, p.date].filter(Boolean).join(' · '),
-    }), full.totals.projects),
+    groupHtml('Projeler', projeMerged.items, projectRow, projeMerged.total),
+    groupHtml('Mimarlar', mimarMerged.items, architectRow, mimarMerged.total),
+    groupHtml('Firmalar', firmaMerged.items, officeRow, firmaMerged.total),
     groupHtml('Ürünler', urunResults, p => rowHtml({
       href: `/urun/${encodeURIComponent(p.slug)}`,
       avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.category, p.brand].filter(Boolean).join(' · '),
     }), urunTotal),
+    groupHtml('Markalar', markaResults, officeRow, markaTotal),
+    groupHtml('Sayfalar', sayfaResults, s => rowHtml({
+      href: s.href,
+      avatarStyle: `background:${officeColor(s.title)}`,
+      avatarContent: initials(s.title),
+      title: s.title,
+      meta: s.meta || '',
+    }), sayfaResults.length),
   ].join('');
 
   wireNavSearch();
@@ -454,30 +569,6 @@ async function runAiSearch(q){
   data = await res.json();
   if(runToken !== aiRunToken) return false;
 
-  const html = [`<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-summary">${escapeHtml(data.summary)}</div>`, facetsHtml(data.facets)];
-  html.push(groupHtml('Mimarlar', data.architects, a => rowHtml({
-    href: `/mimar/${encodeURIComponent(a.slug)}`,
-    avatarStyle: `background:${officeColor(a.name)}`,
-    avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 200))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
-    title: a.name,
-    meta: a.office || 'Mimar',
-    badge: verifiedBadgeHtml('architect', a.name, a.badges, 13),
-  }), data.totals.architects));
-  html.push(groupHtml('Firmalar', data.offices, o => rowHtml({
-    href: `/firma/${encodeURIComponent(o.slug)}`,
-    avatarStyle: `background:${officeColor(o.name)}`,
-    avatarContent: `${initials(o.name)}${logoUrl(o) ? `<img src="${escapeAttr(cdnImg(logoUrl(o), 200))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
-    title: o.name,
-    meta: o.loc || '',
-    badge: verifiedBadgeHtml('office', o.name, o.badges, 13),
-  }), data.totals.offices));
-  html.push(groupHtml('Projeler', data.projects, p => rowHtml({
-    href: `/proje/${encodeURIComponent(p.slug)}`,
-    avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}" alt="" loading="lazy" decoding="async">` : '',
-    title: p.title,
-    meta: [p.location, p.date].filter(Boolean).join(' · '),
-  }), data.totals.projects));
-
   const total = data.totals.architects + data.totals.offices + data.totals.projects;
   if(!total){
     // AI hiç sonuç bulamadıysa (yanıt veremediği İÇİN ya da gerçekten eşleşme yoksa fark etmez) bu
@@ -486,9 +577,30 @@ async function runAiSearch(q){
     // tekrar olur — sessizce gizlenir, mesajlaşmayı klasik kutuya bırakır.
     aiResultEl.hidden = true;
     aiResultEl.innerHTML = '';
+    lastAiResults = { query: null, architects: [], offices: [], projects: [] };
     return false;
   }
-  aiResultEl.innerHTML = html.join('');
+
+  // kullanıcı bildirimi (2026-09-01): bu blok ESKİDEN kendi Mimarlar/Firmalar/Projeler tablolarını
+  // da çiziyordu — klasik aramanınkilerle birlikte sayfada her türden İKİ tablo oluşuyordu (bkz.
+  // dosya başındaki kök neden notu). Artık AI panosu yalnızca kendine ÖZGÜ katkısını gösterir
+  // (doğal dil özeti + gerçek sayımlara dayalı facet'ler); bulduğu KAYITLAR aşağıdaki runSearch()
+  // çağrısıyla klasik bölümlerin İÇİNE karıştırılır, böylece yalnızca AI'nın yanıtlayabildiği
+  // sorgularda ("bursa'daki camiler" gibi) sonuçlar kaybolmaz ama tablo tekrarı da olmaz.
+  aiResultEl.innerHTML = [
+    `<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-summary">${escapeHtml(data.summary)}</div>`,
+    facetsHtml(data.facets),
+  ].join('');
+
+  lastAiResults = {
+    query: q,
+    architects: data.architects || [],
+    offices: data.offices || [],
+    projects: data.projects || [],
+  };
+  // Sonuçları klasik bölümlere karıştırmak için tek bir yeniden render. runSearch() AI'yı geri
+  // ÇAĞIRMAZ (maybeRunAiSearch ayrı ve tek seferliktir), bu yüzden döngü oluşmaz.
+  runSearch();
   return true;
 }
 
