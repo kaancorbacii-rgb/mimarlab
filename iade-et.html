@@ -176,9 +176,9 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="hesabim.html">Hesabım</a>
+    <a href="/hesabim">Hesabım</a>
     <span class="sep">›</span>
     <span class="current">İade Talebi</span>
   </div>
@@ -195,7 +195,7 @@
       <p class="section-hint">Satın aldığın rozetlerden hangisi için iade istiyorsun?</p>
       <div class="order-empty" id="order-empty" style="display:none;">
         <p>Henüz bir rozet satın alımın yok.</p>
-        <a class="form-submit" href="satin-al.html" style="display:inline-block; width:auto; padding:12px 28px;">Rozet Satın Al</a>
+        <a class="form-submit" href="/rozet-al" style="display:inline-block; width:auto; padding:12px 28px;">Rozet Satın Al</a>
       </div>
       <div class="field" id="order-field" style="margin-bottom:0;">
         <select id="order-select"></select>
@@ -338,7 +338,7 @@ document.getElementById('refund-submit-btn').addEventListener('click', async ()=
 });
 
 fetch('/api/auth/me').then(async res=>{
-  if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
+  if(!res.ok){ window.location.href = '/giris'; return; }
   const data = await res.json().catch(()=>({}));
   iadeUser = data.user || null;
 });

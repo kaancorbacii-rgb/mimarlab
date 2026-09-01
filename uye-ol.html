@@ -240,7 +240,7 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
     <span class="current">Üye Ol</span>
   </div>
@@ -313,7 +313,7 @@
         <div class="auth-notice" id="signup-notice"></div>
       </form>
     </div>
-    <p class="auth-switch">Zaten hesabın var mı? <a href="giris-yap.html">Giriş Yap</a></p>
+    <p class="auth-switch">Zaten hesabın var mı? <a href="/giris">Giriş Yap</a></p>
   </div>
 
   <footer id="site-footer-mount"></footer>
@@ -442,7 +442,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e)=>{
       submitBtn.disabled = false;
       return;
     }
-    window.location.href = 'hesabim.html';
+    window.location.href = '/hesabim';
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

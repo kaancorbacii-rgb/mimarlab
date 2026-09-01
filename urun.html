@@ -311,6 +311,13 @@
   /* Kart altı başlık 2 satıra taşmasın diye tek satıra sıkıştırılıp "…" ile kesilir (bkz. kullanıcı
      isteği) — punto da hafifçe küçültülür (16.5px yerine 15px) ki uzun isimler daha az kesilsin. */
   .content-card-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:15px; font-weight:700; line-height:1.25; margin-bottom:3px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* denetim bulgusu (2026-09-01): ürün kartları sitedeki TEK <div>+JS-tıklama kartıydı (proje/mimar/
+     firma/marka listeleri hepsi <a href>) — /urun sayfasından 188 ürün detayına giden HİÇBİR
+     taranabilir iç bağlantı yoktu (sitemap dışında Google'ın ürün sayfalarına ulaşacağı bir yol yok),
+     kartlar klavyeyle odaklanamıyor ve Cmd/orta tıkla yeni sekmede açılamıyordu. Başlık artık gerçek
+     bir <a>; görünüm birebir korunsun diye renk/alt çizgi devralınır, düz sol tıklama ise aşağıdaki
+     kart dinleyicisinde preventDefault ile YİNE modalı açar (mimar.html#card-grid ile AYNI desen). */
+  .content-card-titlelink{color:inherit; text-decoration:none;}
   .content-card-by{font-size:11.5px; color:var(--ink-soft);}
 
   .verified-badge-icon{display:inline-flex; align-items:center; vertical-align:middle; margin-left:4px; flex-shrink:0;}
@@ -432,7 +439,7 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar" id="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
     <span class="current">Ürünler</span>
   </div>
@@ -601,7 +608,7 @@ async function buildSidebar(){
       </div>
     </div>`;
   });
-  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="urun-ekle.html"><span class="sidebar-add-icon">+</span> Ürün Ekle</a></div>`;
+  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="/urun-ekle"><span class="sidebar-add-icon">+</span> Ürün Ekle</a></div>`;
   sidebar.innerHTML = html;
 
   FILTER_GROUPS.forEach(g => {
@@ -764,16 +771,23 @@ async function render(){
   empty.style.display = 'none';
 
   const pageItems = data.items;
-  grid.innerHTML = pageItems.map(p => `
+  // denetim bulgusu (2026-09-01, LCP): catalogCardMediaHtml HER kart görselini loading="lazy" ile
+  // basıyordu — proje/mimar/firma/marka listelerinin hepsi ilk satırı eager+fetchpriority=high ile
+  // isterken (bkz. js/pages/proje.js#render, mimar.html#renderGrid) /urun sayfasının LCP görseli
+  // (ilk satırın ilk kartı) tarayıcı tarafından bilerek geciktiriliyordu. AYNI "ilk satır eager"
+  // hesabı burada da yapılır — kolon sayısı grid'in gerçek genişliğinden türetilir.
+  const cardW = grid.getBoundingClientRect().width || 0;
+  const cols = cardW ? Math.max(1, Math.round(cardW / 230)) : 4;
+  grid.innerHTML = pageItems.map((p, i) => `
     <div class="content-card">
       <div class="content-card-photo">
-        ${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}
-        <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="urun.html" aria-label="Kaydet">
+        ${catalogCardMediaHtml(p, escapeHtml, escapeAttr, i < cols)}
+        <button class="card-save-btn" type="button" data-type="${ratingKindFor(p)}" data-key="${escapeAttr(p.ratingKey)}" data-title="${escapeAttr(p.title)}" data-meta="${escapeAttr([p.category, p.brand].filter(Boolean).join(' · '))}" data-image="${escapeAttr(p.image||'')}" data-href="/urun/${encodeURIComponent(p.slug)}" aria-label="Kaydet">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16Z"/></svg>
         </button>
       </div>
       <div class="content-card-info">
-        <div class="content-card-title">${escapeHtml(p.title)}</div>
+        <div class="content-card-title"><a class="content-card-titlelink" href="/urun/${encodeURIComponent(p.slug)}">${escapeHtml(p.title)}</a></div>
         ${p.brand ? `<div class="content-card-by">${escapeHtml(p.brand)}</div>` : ''}
         <span class="edit-slot" data-type="${submissionTypeFor(p)}" data-id="${escapeAttr(p.submissionId || '')}"></span>
         ${p.kind !== 'material' ? `<span class="admin-action-slot" data-id="${escapeAttr(p.submissionId || '')}" data-key="${escapeAttr(`${p.brand || ''}|||${p.title}`)}"></span>` : ''}
@@ -787,8 +801,14 @@ async function render(){
   grid.querySelectorAll('.content-card').forEach((card, i)=>{
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e)=>{
-      if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot') || e.target.closest('a')) return;
+      if(e.target.closest('.card-save-btn') || e.target.closest('.edit-slot') || e.target.closest('.admin-action-slot')) return;
+      // Kartın KENDİ ürün bağlantısı (başlık) dışındaki bağlantılar (ör. "Gönderiyi Düzenle")
+      // tarayıcının doğal davranışına bırakılır; başlık bağlantısı düz sol tıklamada modalı açar,
+      // Cmd/Ctrl/orta tıkta ise gerçek bir yeni sekme açılır (bkz. .content-card-titlelink yorumu).
+      const anchor = e.target.closest('a');
+      if(anchor && !anchor.classList.contains('content-card-titlelink')) return;
       if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
       // Ürün modalı (bkz. js/components/product-modal.js) proje.html#card-grid'in AYNI deseniyle
       // sayfa yenilenmeden açılsın diye tam sayfa yönlendirme yerine modal açılır.
       // bkz. kullanıcı isteği (2026-08-17): burada ratingKey kullanılıyordu — puanlama/kaydetme
@@ -850,8 +870,8 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // Nav'daki "Ürün" linkine tıklayınca açılır; kalın grup başlıkları (CATALOG_MENU_COLUMNS'taki
 // sütun dizilimi) ve altlarında kategori linkleri gösterir. Grup başlığı -> grup iniş sayfası
 // (renderLanding), kategori linki -> doğrudan filtrelenmiş liste (mevcut sidebar+grid).
-function groupHref(group){ return `urun.html?group=${encodeURIComponent(group)}`; }
-function categoryHref(group, category){ return `urun.html?group=${encodeURIComponent(group)}&category=${encodeURIComponent(category)}`; }
+function groupHref(group){ return `/urun?group=${encodeURIComponent(group)}`; }
+function categoryHref(group, category){ return `/urun?group=${encodeURIComponent(group)}&category=${encodeURIComponent(category)}`; }
 
 let megaMenuBuilt = false;
 function buildMegaMenu(){
@@ -870,7 +890,7 @@ function buildMegaMenu(){
       }).join('')}
     </div>`).join('');
   panel.innerHTML = `<div class="mega-menu-cols">${html}</div>
-    <div class="mega-menu-footer"><a class="mega-viewall" href="urun.html">Tümünü Gör →</a></div>`;
+    <div class="mega-menu-footer"><a class="mega-viewall" href="/urun">Tümünü Gör →</a></div>`;
   wireInternalLinks(panel);
 }
 let mobileMenuBuilt = false;
@@ -894,7 +914,7 @@ function buildMobileProductMenu(){
       </div>
     </div>`;
   }).join('');
-  panel.innerHTML = html + `<a class="nav-mobile-viewall" href="urun.html">Tümünü Gör</a>`;
+  panel.innerHTML = html + `<a class="nav-mobile-viewall" href="/urun">Tümünü Gör</a>`;
   wireInternalLinks(panel);
   panel.querySelectorAll('.nav-mobile-subtrigger').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -950,7 +970,7 @@ document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeMegaMenu
 // urun.html?... linklerine (mega menü, grup iniş kartları, breadcrumb) tam sayfa yenileme yerine
 // pushState + refreshView ile tepki verir — filtre değişikliklerinin zaten kullandığı AYNI SPA deseni.
 function wireInternalLinks(container){
-  container.querySelectorAll('a[href^="urun.html"]').forEach(a=>{
+  container.querySelectorAll('a[href^="/urun?"]').forEach(a=>{
     if(a.dataset.internalWired) return;
     a.dataset.internalWired = '1';
     a.addEventListener('click', (e)=>{
@@ -986,23 +1006,23 @@ function updateHeader(mode){
   if(mode === 'landing' && group){
     title.textContent = group;
     desc.textContent = `${group} kategorisindeki alt kategorileri ve öne çıkan ürünleri keşfet.`;
-    crumb.innerHTML = `<a href="index.html">Ana Sayfa</a><span class="sep">›</span><a href="urun.html">Ürünler</a><span class="sep">›</span><span class="current">${escapeHtml(group)}</span>`;
+    crumb.innerHTML = `<a href="/">Ana Sayfa</a><span class="sep">›</span><a href="/urun">Ürünler</a><span class="sep">›</span><span class="current">${escapeHtml(group)}</span>`;
   } else if(category){
     title.textContent = category;
     desc.textContent = `${category} kategorisindeki ürünleri filtrele ve keşfet.`;
     const groupOfCat = (typeof taxonomyGroupOf === 'function') ? taxonomyGroupOf(CATALOG_TAXONOMY, category) : null;
-    crumb.innerHTML = `<a href="index.html">Ana Sayfa</a><span class="sep">›</span><a href="urun.html">Ürünler</a><span class="sep">›</span>` +
+    crumb.innerHTML = `<a href="/">Ana Sayfa</a><span class="sep">›</span><a href="/urun">Ürünler</a><span class="sep">›</span>` +
       (groupOfCat ? `<a href="${escapeAttr(groupHref(groupOfCat))}">${escapeHtml(groupOfCat)}</a><span class="sep">›</span>` : '') +
       `<span class="current">${escapeHtml(category)}</span>`;
   } else if(group){
     // "Tüm Ürünleri Gör" (?group=X&view=list) — kategori seçilmemiş ama grup filtresi hâlâ aktif.
     title.textContent = group;
     desc.textContent = `${group} kategorisindeki tüm ürünleri filtrele ve keşfet.`;
-    crumb.innerHTML = `<a href="index.html">Ana Sayfa</a><span class="sep">›</span><a href="urun.html">Ürünler</a><span class="sep">›</span><span class="current">${escapeHtml(group)}</span>`;
+    crumb.innerHTML = `<a href="/">Ana Sayfa</a><span class="sep">›</span><a href="/urun">Ürünler</a><span class="sep">›</span><span class="current">${escapeHtml(group)}</span>`;
   } else {
     title.textContent = 'Ürünler';
     desc.textContent = 'Projelerinde kullanabileceğin mobilya, aydınlatma, aksesuar, yapı malzemeleri ve firmaları keşfet.';
-    crumb.innerHTML = `<a href="index.html">Ana Sayfa</a><span class="sep">›</span><span class="current">Ürünler</span>`;
+    crumb.innerHTML = `<a href="/">Ana Sayfa</a><span class="sep">›</span><span class="current">Ürünler</span>`;
   }
   wireInternalLinks(crumb);
 }
@@ -1025,7 +1045,7 @@ async function renderLanding(){
   const topGrid = document.getElementById('landing-top-grid');
   if(!group){ subEl.innerHTML = ''; topGrid.innerHTML = ''; return; }
 
-  viewAllBtn.setAttribute('href', `urun.html?group=${encodeURIComponent(group)}&view=list`);
+  viewAllBtn.setAttribute('href', `/urun?group=${encodeURIComponent(group)}&view=list`);
   topGrid.innerHTML = '';
 
   let data = null;
@@ -1054,18 +1074,23 @@ async function renderLanding(){
     return;
   }
   const items = data.items;
-  topGrid.innerHTML = items.map(p => `
+  topGrid.innerHTML = items.map((p, i) => `
     <div class="content-card">
-      <div class="content-card-photo">${catalogCardMediaHtml(p, escapeHtml, escapeAttr)}</div>
+      <div class="content-card-photo">${catalogCardMediaHtml(p, escapeHtml, escapeAttr, i < 4)}</div>
       <div class="content-card-info">
-        <div class="content-card-title">${escapeHtml(p.title)}</div>
+        <div class="content-card-title"><a class="content-card-titlelink" href="/urun/${encodeURIComponent(p.slug)}">${escapeHtml(p.title)}</a></div>
         ${p.brand ? `<div class="content-card-by">${escapeHtml(p.brand)}</div>` : ''}
       </div>
     </div>`).join('');
   topGrid.querySelectorAll('.content-card').forEach((card, i)=>{
     card.style.cursor = 'pointer';
-    // bkz. yukarıdaki render()'daki AYNI 2026-08-17 düzeltmesi/gerekçe.
-    card.addEventListener('click', ()=>{ ProductModal.open(items[i].slug, { triggerEl: card }); });
+    // bkz. yukarıdaki render()'daki AYNI 2026-08-17 düzeltmesi/gerekçe + .content-card-titlelink
+    // yorumu: başlık artık gerçek bir <a>, düz sol tıklama yine modalı açar.
+    card.addEventListener('click', (e)=>{
+      if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      ProductModal.open(items[i].slug, { triggerEl: card });
+    });
   });
 }
 

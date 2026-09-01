@@ -309,9 +309,9 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="marka.html">Markalar</a>
+    <a href="/marka">Markalar</a>
     <span class="sep">›</span>
     <span class="current">Marka Ekle</span>
   </div>
@@ -823,7 +823,7 @@ coverDropZone.addEventListener('drop', (e)=>{ e.preventDefault(); coverDropZone.
 
 let isAdmin = false;
 const currentUserReady = fetch('/api/auth/me').then(res=>{
-  if(!res.ok){ window.location.href = 'giris-yap.html'; return null; }
+  if(!res.ok){ window.location.href = '/giris'; return null; }
   return res.json();
 }).then(data => { isAdmin = !!(data && data.user && data.user.role === 'admin'); return data; }).catch(()=>null);
 
@@ -845,7 +845,7 @@ async function wireMyBadgeBox(profileKey, profileType){
     const badgeType = (data[profileType] && data[profileType][profileKey] && data[profileType][profileKey][0]) || null;
     box.innerHTML = badgeType
       ? `<span class="my-badge-label">${escapeAttr(MY_BADGE_LABELS[badgeType] || badgeType)} rozeti aktif.</span>`
-      : `<span class="my-badge-label">Henüz bir rozetin yok.</span><a class="my-badge-cta" href="satin-al.html">Rozet Al</a>`;
+      : `<span class="my-badge-label">Henüz bir rozetin yok.</span><a class="my-badge-cta" href="/rozet-al">Rozet Al</a>`;
     section.style.display = '';
   }catch{}
 }
@@ -1230,7 +1230,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
-    if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
+    if(res.status === 401){ window.location.href = '/giris'; return; }
     const data = await res.json();
     if(!res.ok){
       notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
@@ -1261,7 +1261,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = 'hesabim.html'; }, 1500);
+      setTimeout(()=>{ window.location.href = '/hesabim'; }, 1500);
       return;
     }
     notice.textContent = 'Marka kaydın alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';

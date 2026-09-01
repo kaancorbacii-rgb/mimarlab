@@ -201,7 +201,7 @@ const MessageWidget = (function () {
     if (!btn || btn.dataset.msgWired) return;
     btn.dataset.msgWired = '1';
     btn.addEventListener('click', () => {
-      if (typeof currentUser === 'undefined' || !currentUser) { window.location.href = 'giris-yap.html'; return; }
+      if (typeof currentUser === 'undefined' || !currentUser) { window.location.href = '/giris'; return; }
       openCompose(getData());
     });
   }

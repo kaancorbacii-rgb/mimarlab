@@ -185,12 +185,12 @@ const InfoModal = (function () {
       <div class="content-section">
         <h2>Üyelik, katkı ve rozetler</h2>
         <p>Üye olarak proje, mimar veya firma gönderebilir; içerik yayına alınmadan önce ekibimizin incelemesinden geçmesini bekleyebilirsiniz. Hesabınızdan gönderdiğiniz içerikleri, kaydettiğiniz öğeleri ve profil bilgilerinizi yönetebilirsiniz.</p>
-        <p>Profilinizi öne çıkarmak isteyenler için aylık kiralanan iki rozet kademesi sunuyoruz — Doğrulanmış Üye ve Altın Üye. Kademeye göre profilinizde doğrulanmış rozet ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="satin-al.html">Rozet Al</a> sayfasını, iade talepleri için <a href="iade-et.html">İade Et</a> sayfasını inceleyebilirsiniz.</p>
+        <p>Profilinizi öne çıkarmak isteyenler için aylık kiralanan iki rozet kademesi sunuyoruz — Doğrulanmış Üye ve Altın Üye. Kademeye göre profilinizde doğrulanmış rozet ve kendi içeriğinize gelen yorumları yönetme yetkisi gibi ayrıcalıklar kazanırsınız; güncel ayrıcalıklar ve fiyatlar için <a href="/rozet-al">Rozet Al</a> sayfasını, iade talepleri için <a href="/iade-et">İade Et</a> sayfasını inceleyebilirsiniz.</p>
       </div>
 
       <div class="content-section">
         <h2>İletişim</h2>
-        <p>Sorularınız, düzeltme talepleriniz ya da iş birliği önerileriniz için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Ekibe katılmak isteyenler <a href="kariyer.html">kariyer sayfamıza</a> göz atabilir.</p>
+        <p>Sorularınız, düzeltme talepleriniz ya da iş birliği önerileriniz için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -355,7 +355,7 @@ const InfoModal = (function () {
           <li><strong>Teknik veriler</strong> — IP adresi, tarayıcı/cihaz bilgisi, ziyaret edilen sayfalar; bunlar Cloudflare edge altyapısı ve Google Analytics aracılığıyla toplanır (bkz. <a href="#im-cerezler">Çerezler ve analytics</a>).</li>
           <li><strong>Ödeme verileri</strong> — rozet satın alımlarında kart bilgileriniz bizim sunucularımıza hiç ulaşmaz; ödeme doğrudan iyzico'nun güvenli altyapısında işlenir, biz yalnızca işlemin sonucunu (başarılı/başarısız, tutar, tarih) saklarız.</li>
         </ul>
-        <p>Sitede yer alan proje/mimar/firma profillerinin büyük bir kısmı, ilgili kişi veya kurumla üyelik ilişkisi olmadan halka açık kaynaklardan derlenmiştir; bu durum <a href="hakkinda.html">Hakkında</a> sayfasında ayrıca açıklanır.</p>
+        <p>Sitede yer alan proje/mimar/firma profillerinin büyük bir kısmı, ilgili kişi veya kurumla üyelik ilişkisi olmadan halka açık kaynaklardan derlenmiştir; bu durum <a href="/hakkinda">Hakkında</a> sayfasında ayrıca açıklanır.</p>
       </div>
 
       <div class="content-section" id="im-kullanim-amaclari">
@@ -373,7 +373,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-uyelik-profil">
         <h2>3. Üyelik ve profil yönetimi</h2>
-        <p>Üye olduğunuzda oluşturduğunuz hesap, oturumunuzu (session) sunucu tarafında yönetmemizi sağlar; şifreniz asla düz metin olarak saklanmaz. <a href="hesabim.html">Hesabım</a> sayfanızdan e-posta ve şifre bilgilerinizi güncelleyebilir, gönderdiğiniz içerikleri ve rozet aboneliğinizi görüntüleyebilir, hesabınızı silme talebinde bulunabilirsiniz. Hesap silme talebi, yasal saklama yükümlülüğü bulunan kayıtlar (örn. ödeme geçmişi) dışındaki tüm kişisel verilerinizin silinmesiyle sonuçlanır.</p>
+        <p>Üye olduğunuzda oluşturduğunuz hesap, oturumunuzu (session) sunucu tarafında yönetmemizi sağlar; şifreniz asla düz metin olarak saklanmaz. <a href="/hesabim">Hesabım</a> sayfanızdan e-posta ve şifre bilgilerinizi güncelleyebilir, gönderdiğiniz içerikleri ve rozet aboneliğinizi görüntüleyebilir, hesabınızı silme talebinde bulunabilirsiniz. Hesap silme talebi, yasal saklama yükümlülüğü bulunan kayıtlar (örn. ödeme geçmişi) dışındaki tüm kişisel verilerinizin silinmesiyle sonuçlanır.</p>
       </div>
 
       <div class="content-section" id="im-favoriler">
@@ -389,12 +389,12 @@ const InfoModal = (function () {
       <div class="content-section" id="im-ugc">
         <h2>6. Kullanıcı içerikleri (UGC) ve telif hakları</h2>
         <p>Platforma gönderdiğiniz proje, ürün, yorum, puanlama ve görseller "kullanıcı tarafından oluşturulan içerik" (UGC) sayılır. Bu içerikleri göndererek, içeriği yayınlamak, göstermek ve platformumuzda tanıtmak için MİMARLAB'a münhasır olmayan, dünya çapında, telifsiz bir kullanım hakkı verirsiniz; içeriğin mülkiyeti ve telif hakkı sizde (veya gerçek hak sahibinde) kalmaya devam eder.</p>
-        <p>Yalnızca yayınlama hakkına sahip olduğunuz içerikleri yüklemekle yükümlüsünüz. Bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, ilgili sayfanın bağlantısı ve hak sahipliğinizi gösteren bilgilerle birlikte <a href="iletisim.html">iletişim sayfamızdan</a> bize ulaşın; bildirimi inceleyip gerekirse içeriği kaldırırız. Ayrıntılı UGC ve telif kuralları için <a href="hizmet-sartlari.html">Hizmet Şartları</a> sayfasına bakabilirsiniz.</p>
+        <p>Yalnızca yayınlama hakkına sahip olduğunuz içerikleri yüklemekle yükümlüsünüz. Bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, ilgili sayfanın bağlantısı ve hak sahipliğinizi gösteren bilgilerle birlikte <a href="/iletisim">iletişim sayfamızdan</a> bize ulaşın; bildirimi inceleyip gerekirse içeriği kaldırırız. Ayrıntılı UGC ve telif kuralları için <a href="/hizmet-sartlari">Hizmet Şartları</a> sayfasına bakabilirsiniz.</p>
       </div>
 
       <div class="content-section" id="im-cerezler">
         <h2>7. Çerezler ve analytics</h2>
-        <p>MİMARLAB, sitenin çalışması için gerekli <strong>oturum çerezleri</strong> (giriş durumunuzu hatırlamak için) kullanır; bunlar devre dışı bırakılamaz çünkü hesabınızla ilgili özellikler bunlara bağlıdır. Ayrıca site trafiğini anlamak için <strong>Google Analytics</strong> kullanıyoruz. Kullandığımız çerezlerin tam listesi, süreleri ve devre dışı bırakma yöntemleri için ayrı <a href="cerez-politikasi.html">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
+        <p>MİMARLAB, sitenin çalışması için gerekli <strong>oturum çerezleri</strong> (giriş durumunuzu hatırlamak için) kullanır; bunlar devre dışı bırakılamaz çünkü hesabınızla ilgili özellikler bunlara bağlıdır. Ayrıca site trafiğini anlamak için <strong>Google Analytics</strong> kullanıyoruz. Kullandığımız çerezlerin tam listesi, süreleri ve devre dışı bırakma yöntemleri için ayrı <a href="/cerez-politikasi">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
       </div>
 
       <div class="content-section" id="im-altyapi">
@@ -457,7 +457,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-iletisim-gz">
         <h2>15. İletişim</h2>
-        <p>Gizlilik politikamız veya kişisel verilerinizle ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Platform kullanım kurallarımız için <a href="hizmet-sartlari.html">Hizmet Şartları</a>, çerez kullanımımız için <a href="cerez-politikasi.html">Çerez Politikası</a> sayfasına göz atabilirsiniz.</p>
+        <p>Gizlilik politikamız veya kişisel verilerinizle ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Platform kullanım kurallarımız için <a href="/hizmet-sartlari">Hizmet Şartları</a>, çerez kullanımımız için <a href="/cerez-politikasi">Çerez Politikası</a> sayfasına göz atabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -472,7 +472,7 @@ const InfoModal = (function () {
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">Hizmet Şartları</h1>
       <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
-      <p class="content-lead">Bu Hizmet Şartları, MİMARLAB'ı (mimarlab.com) kullanımınızı düzenleyen kuralları içerir. Siteyi ziyaret ederek, üye olarak veya içerik göndererek bu şartları kabul etmiş sayılırsınız. Kişisel verilerinizin nasıl işlendiğini öğrenmek için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
+      <p class="content-lead">Bu Hizmet Şartları, MİMARLAB'ı (mimarlab.com) kullanımınızı düzenleyen kuralları içerir. Siteyi ziyaret ederek, üye olarak veya içerik göndererek bu şartları kabul etmiş sayılırsınız. Kişisel verilerinizin nasıl işlendiğini öğrenmek için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
 
       <div class="content-toc">
         <h2>Bu sayfada</h2>
@@ -500,7 +500,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-uyelik-hs">
         <h2>2. Üyelik ve hesap</h2>
-        <p>Üye olmak için doğru ve güncel bilgiler vermeniz gerekir. Hesabınızın ve şifrenizin gizliliğinden siz sorumlusunuz; hesabınız üzerinden gerçekleştirilen tüm işlemlerden sorumlu tutulursunuz. Hesabınızda yetkisiz bir erişim şüphesi varsa derhal <a href="iletisim.html">bize bildirin</a>. MİMARLAB, şartları ihlal eden hesapları uyarmadan askıya alma veya kapatma hakkını saklı tutar.</p>
+        <p>Üye olmak için doğru ve güncel bilgiler vermeniz gerekir. Hesabınızın ve şifrenizin gizliliğinden siz sorumlusunuz; hesabınız üzerinden gerçekleştirilen tüm işlemlerden sorumlu tutulursunuz. Hesabınızda yetkisiz bir erişim şüphesi varsa derhal <a href="/iletisim">bize bildirin</a>. MİMARLAB, şartları ihlal eden hesapları uyarmadan askıya alma veya kapatma hakkını saklı tutar.</p>
       </div>
 
       <div class="content-section" id="im-ugc-hs">
@@ -527,7 +527,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-rozet">
         <h2>7. Rozet/üyelik paketleri ve ödemeler</h2>
-        <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, yorum yönetimi vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz; güncel kademeler ve fiyatlar <a href="satin-al.html">Rozet Al</a> sayfasında yer alır. Ödemeleriniz iyzico'nun güvenli altyapısı üzerinden işlenir; kart bilgileriniz MİMARLAB sunucularında saklanmaz. Rozet abonelikleri aylık yenilenir; iptal ve iade koşulları için <a href="iade-et.html">İade Et</a> sayfasına bakabilirsiniz.</p>
+        <p>Profilinizi öne çıkarmak veya ek ayrıcalıklar (doğrulanmış rozet, yorum yönetimi vb.) kazanmak için aylık kiralanan rozet kademeleri sunuyoruz; güncel kademeler ve fiyatlar <a href="/rozet-al">Rozet Al</a> sayfasında yer alır. Ödemeleriniz iyzico'nun güvenli altyapısı üzerinden işlenir; kart bilgileriniz MİMARLAB sunucularında saklanmaz. Rozet abonelikleri aylık yenilenir; iptal ve iade koşulları için <a href="/iade-et">İade Et</a> sayfasına bakabilirsiniz.</p>
       </div>
 
       <div class="content-section" id="im-yasaklar">
@@ -548,7 +548,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-sorumluluk">
         <h2>10. Sorumluluğun sınırlandırılması</h2>
-        <p>MİMARLAB, sitede yer alan halka açık kaynaklardan derlenmiş profil bilgilerinin veya kullanıcılar tarafından gönderilen içeriklerin doğruluğunu garanti etmez; içerikler "olduğu gibi" sunulur. Platform kullanımından doğabilecek dolaylı, arızi veya sonuç niteliğindeki zararlardan, yürürlükteki mevzuatın izin verdiği azami ölçüde sorumlu tutulamayız. Bir bilginin hatalı olduğunu düşünüyorsanız <a href="iletisim.html">bize bildirin</a>.</p>
+        <p>MİMARLAB, sitede yer alan halka açık kaynaklardan derlenmiş profil bilgilerinin veya kullanıcılar tarafından gönderilen içeriklerin doğruluğunu garanti etmez; içerikler "olduğu gibi" sunulur. Platform kullanımından doğabilecek dolaylı, arızi veya sonuç niteliğindeki zararlardan, yürürlükteki mevzuatın izin verdiği azami ölçüde sorumlu tutulamayız. Bir bilginin hatalı olduğunu düşünüyorsanız <a href="/iletisim">bize bildirin</a>.</p>
       </div>
 
       <div class="content-section" id="im-degisiklik">
@@ -563,7 +563,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-iletisim-hs">
         <h2>13. İletişim</h2>
-        <p>Hizmet şartlarımızla ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin işlenmesi hakkında bilgi için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a>, çerez kullanımımız için <a href="cerez-politikasi.html">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
+        <p>Hizmet şartlarımızla ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin işlenmesi hakkında bilgi için <a href="/gizlilik-politikasi">Gizlilik Politikası</a>, çerez kullanımımız için <a href="/cerez-politikasi">Çerez Politikası</a> sayfamıza bakabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -579,7 +579,7 @@ const InfoModal = (function () {
       <div class="content-eyebrow">Kurumsal</div>
       <h1 class="content-title">Çerez Politikası</h1>
       <p class="content-updated">Son güncelleme: 28 Ağustos 2026</p>
-      <p class="content-lead">Bu Çerez Politikası, MİMARLAB'ı (mimarlab.com) ziyaret ettiğinizde tarayıcınızda hangi çerezlerin ve benzer teknolojilerin kullanıldığını, bunları hangi amaçla kullandığımızı ve nasıl kontrol edebileceğinizi açıklar. Kişisel verilerinizin genel olarak nasıl işlendiği için <a href="gizlilik-politikasi.html">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
+      <p class="content-lead">Bu Çerez Politikası, MİMARLAB'ı (mimarlab.com) ziyaret ettiğinizde tarayıcınızda hangi çerezlerin ve benzer teknolojilerin kullanıldığını, bunları hangi amaçla kullandığımızı ve nasıl kontrol edebileceğinizi açıklar. Kişisel verilerinizin genel olarak nasıl işlendiği için <a href="/gizlilik-politikasi">Gizlilik Politikası</a> sayfamıza bakabilirsiniz.</p>
 
       <div class="content-toc">
         <h2>Bu sayfada</h2>
@@ -654,7 +654,7 @@ const InfoModal = (function () {
 
       <div class="content-section" id="im-cz-iletisim">
         <h2>7. İletişim</h2>
-        <p>Çerez politikamızla ilgili sorularınız için <a href="iletisim.html">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin genel olarak işlenmesi hakkında <a href="gizlilik-politikasi.html">Gizlilik Politikası</a>, platform kullanım kurallarımız için <a href="hizmet-sartlari.html">Hizmet Şartları</a> sayfalarına bakabilirsiniz.</p>
+        <p>Çerez politikamızla ilgili sorularınız için <a href="/iletisim">iletişim sayfamızdan</a> ya da doğrudan <a href="mailto:info@mimarlab.com">info@mimarlab.com</a> adresinden bize ulaşabilirsiniz. Kişisel verilerinizin genel olarak işlenmesi hakkında <a href="/gizlilik-politikasi">Gizlilik Politikası</a>, platform kullanım kurallarımız için <a href="/hizmet-sartlari">Hizmet Şartları</a> sayfalarına bakabilirsiniz.</p>
       </div>
     </div>`;
   }
@@ -697,7 +697,7 @@ const InfoModal = (function () {
         <label class="target-option"><input type="radio" name="im-badge-target" id="im-target-office" value="office"> Bir firmam için</label>
         <div id="im-target-office-wrap" style="display:none; margin-top:10px;">
           <select class="target-office-select" id="im-target-office-select"></select>
-          <p id="im-target-office-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Rozet alabilmen için önce bir firma profilini sahiplenip onaylatman gerekiyor. <a href="firma.html" style="color:var(--walnut); font-weight:600;">Firmanı bul</a>.</p>
+          <p id="im-target-office-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Rozet alabilmen için önce bir firma profilini sahiplenip onaylatman gerekiyor. <a href="/firma" style="color:var(--walnut); font-weight:600;">Firmanı bul</a>.</p>
         </div>
       </div>
 
@@ -744,7 +744,7 @@ const InfoModal = (function () {
         <div class="already-has">
           <strong id="im-already-has-title">Zaten aktif bir rozetin var</strong>
           <p id="im-already-has-text">Aynı ya da daha düşük bir kademeye geçemezsin. Bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye yükseltebilirsin.</p>
-          <a class="form-submit" href="hesabim.html" style="display:inline-block; width:auto; padding:12px 28px;">Hesabım'a Dön</a>
+          <a class="form-submit" href="/hesabim" style="display:inline-block; width:auto; padding:12px 28px;">Hesabım'a Dön</a>
         </div>
       </div>
     </div>`;
@@ -965,7 +965,7 @@ const InfoModal = (function () {
         <p class="section-hint">Satın aldığın rozetlerden hangisi için iade istiyorsun?</p>
         <div class="order-empty" id="im-order-empty" style="display:none;">
           <p>Henüz bir rozet satın alımın yok.</p>
-          <a class="form-submit" href="satin-al.html" style="display:inline-block; width:auto; padding:12px 28px;">Rozet Satın Al</a>
+          <a class="form-submit" href="/rozet-al" style="display:inline-block; width:auto; padding:12px 28px;">Rozet Satın Al</a>
         </div>
         <div class="field" id="im-order-field" style="margin-bottom:0;">
           <select id="im-order-select"></select>

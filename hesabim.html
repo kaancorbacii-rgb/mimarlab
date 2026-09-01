@@ -352,7 +352,7 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
     <span class="current">Hesabım</span>
   </div>
@@ -497,8 +497,8 @@
       <div class="dash-section">
         <h2>Paylaştığım İçerikler</h2>
         <div class="submissions-toolbar-row">
-          <a class="submissions-add-link" href="proje-ekle.html">Proje Ekle</a>
-          <a class="submissions-add-link" href="urun-ekle.html">Ürün Ekle</a>
+          <a class="submissions-add-link" href="/proje-ekle">Proje Ekle</a>
+          <a class="submissions-add-link" href="/urun-ekle">Ürün Ekle</a>
         </div>
         <div class="submissions-toolbar-row" id="submissions-filter">
           <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
@@ -561,8 +561,8 @@ const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', ma
 const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi' };
 const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
 const EDIT_PAGE_BY_TYPE = {
-  offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
-  architects: 'mimar-ekle.html',
+  offices: '/firma-ekle', projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle',
+  architects: '/mimar-ekle',
 };
 const SAVED_TYPE_LABELS = { project: 'Proje', product: 'Ürün', material: 'Malzeme', news: 'Haber', job: 'İş İlanı', architect: 'Mimar', office: 'Firma' };
 const PAGE_SIZE_DASH = 10;
@@ -714,7 +714,7 @@ function itemDetailUrl(type, item){
 
 async function loadUser(){
   const res = await fetch('/api/auth/me');
-  if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
+  if(!res.ok){ window.location.href = '/giris'; return; }
   const data = await res.json();
   currentUser = data.user;
   document.getElementById('dash-wrap').style.display = 'block';
@@ -869,7 +869,7 @@ function renderSubmissions(){
   const container = document.getElementById('dash-submissions');
 
   if(!allSubmissions.length){
-    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="proje-ekle.html">Proje Ekle</a> · <a href="mimar-ekle.html">Mimar Ekle</a> · <a href="firma-ekle.html">Firma Ekle</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz bir içerik göndermedin.<br><a href="/proje-ekle">Proje Ekle</a> · <a href="/mimar-ekle">Mimar Ekle</a> · <a href="/firma-ekle">Firma Ekle</a></div>';
     document.getElementById('submissions-pagination').innerHTML = '';
     return;
   }
@@ -928,7 +928,7 @@ function renderSaved(){
   const container = document.getElementById('dash-saved');
   const items = savedFilter ? savedItems.filter(it => matchesCatalogFilter(it.item_type, savedFilter)) : savedItems;
   if(!savedItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="/proje">Projelere göz at</a></div>';
     document.getElementById('saved-pagination').innerHTML = '';
     return;
   }
@@ -982,7 +982,7 @@ function renderRated(){
   const container = document.getElementById('dash-rated');
   const items = ratedFilter ? ratedItems.filter(it => matchesCatalogFilter(it.type, ratedFilter)) : ratedItems;
   if(!ratedItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="/proje">Projelere göz at</a></div>';
     document.getElementById('rated-pagination').innerHTML = '';
     return;
   }
@@ -1032,7 +1032,7 @@ async function loadComments(){
 function renderComments(){
   const container = document.getElementById('dash-comments');
   if(!commentItems.length){
-    container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
+    container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="/proje">Projelere göz at</a></div>';
     document.getElementById('comments-pagination').innerHTML = '';
     return;
   }
@@ -1133,7 +1133,7 @@ async function loadBadges(){
     <div class="badge-card">
       <div class="badge-card-name">${tier.label}</div>
       <div class="badge-card-price">${tier.price} / ay</div>
-      <a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>
+      <a class="badge-buy-btn" href="/rozet-al?tier=${tier.type}">Satın Al</a>
     </div>`).join('');
 }
 
@@ -1166,7 +1166,7 @@ document.getElementById('delete-account-btn').addEventListener('click', async ()
   try{
     const res = await fetch('/api/account', { method: 'DELETE' });
     if(!res.ok) throw new Error('request failed');
-    window.location.href = '/index.html';
+    window.location.href = '/';
   }catch{
     msg.textContent = 'Bir şeyler ters gitti, tekrar dene.';
     btn.disabled = false;
@@ -1215,7 +1215,7 @@ function avatarImg(rawUrl, size, resolvedUrl){
 const CLAIM_TYPE_LABELS = { architect: 'Mimar', office: 'Firma' };
 const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
 const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
-const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html' };
+const CLAIM_EDIT_PAGE = { architect: '/mimar-ekle', office: '/firma-ekle' };
 
 // "Bu profil bana ait" ile onaylanan mimar/ofis profilleri: onaylı olanlar için ilgili ekle
 // formunu ?claim=<isim> modunda açan bir Düzenle bağlantısı gösterir (bkz. mimar-ekle.html/firma-ekle.html).
@@ -1231,9 +1231,9 @@ function renderEditFirmaBox(officeClaim){
   if(officeClaim){
     // bkz. kullanıcı isteği (2026-08-17): profile_key (bare isim) yerine varsa temiz slug'a
     // öncelik verilir — src/routes/claims.js#myClaims artık onaylı taleplerde bunu ayrıca döner.
-    box.innerHTML = `<span style="font-weight:600;">${escapeHtml(officeClaim.profile_key)}</span><a class="submission-edit-link" href="firma-ekle.html?claim=${encodeURIComponent(officeClaim.slug || officeClaim.profile_key)}">Düzenle</a>`;
+    box.innerHTML = `<span style="font-weight:600;">${escapeHtml(officeClaim.profile_key)}</span><a class="submission-edit-link" href="/firma-ekle?claim=${encodeURIComponent(officeClaim.slug || officeClaim.profile_key)}">Düzenle</a>`;
   } else {
-    box.innerHTML = `<span style="color:var(--ink-soft);">Bağlı bir firman yok</span><a class="submission-edit-link" href="firma-ekle.html">+ Firma Ekle</a>`;
+    box.innerHTML = `<span style="color:var(--ink-soft);">Bağlı bir firman yok</span><a class="submission-edit-link" href="/firma-ekle">+ Firma Ekle</a>`;
   }
 }
 

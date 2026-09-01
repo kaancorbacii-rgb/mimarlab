@@ -29,11 +29,18 @@ function officeDomain(website){
   try{ return new URL(website).hostname.replace(/^www\./,''); }
   catch(e){ return null; }
 }
+// denetim bulgusu (2026-09-01): burası logosu olmayan firmalar için
+// `https://icons.duckduckgo.com/ip3/<domain>.ico` dönüyordu — ama site genelindeki CSP'nin img-src
+// direktifi bu origin'i HİÇ İÇERMİYOR (bkz. src/index.js#CONTENT_SECURITY_POLICY). Canlıda
+// doğrulandı: bu URL'lerle oluşturulan her <img> tarayıcı tarafından ENGELLENİYOR, yani fallback
+// hiçbir zaman görsel üretmiyordu; üstelik her engellenen istek ayrıca bir CSP ihlal raporunu
+// (POST /api/csp-report) tetikliyor ve ziyaretçinin IP'sini üçüncü tarafa sızdırıyordu. Fallback
+// null'a çevrildi — çağıranların hepsi zaten null'da markanın baş harflerinden oluşan renkli yer
+// tutucuyu gösteriyor (bkz. firma.html/marka.html#renderGrid, arama.html, office-modal.js).
+// officeDomain/NO_LOGO_DOMAINS korunuyor: ikisi de başka yerlerde (ör. website alan adı gösterimi)
+// hâlâ anlamlı ve ileride kendi barındırdığımız bir logo çözümüne dönülürse gerekli olacak.
 function logoUrl(o){
-  if(o.logo) return o.logo;
-  const domain = officeDomain(o.website);
-  if(!domain || NO_LOGO_DOMAINS.has(domain)) return null;
-  return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+  return o.logo || null;
 }
 
 // Satın alınıp admin tarafından onaylanmış rozetler /api/public/badges'ten gelir; sayfa ilk

@@ -689,13 +689,13 @@ const ArchitectModal = (function () {
       // bu yüzden burada temiz olan slug'a öncelik verilebilir.
       getClaimLinkKey: () => a.slug || a._claimKey || a.name,
       getStaticBadges: () => a.badges,
-      editUrlBase: 'mimar-ekle.html',
-      listUrl: 'mimar.html',
+      editUrlBase: '/mimar-ekle',
+      listUrl: '/mimar',
       contentType: 'architects',
       getModerationTarget: () => ({ key: a.name }),
       labels: {
         claimTitle: 'Bu profil sana mı ait?',
-        loginPromptHtml: 'Bilgilerini güncellemek ve doğrulanmış üye rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.',
+        loginPromptHtml: 'Bilgilerini güncellemek ve doğrulanmış üye rozeti almak için <a href="/giris" class="info-card-link">giriş yap</a>.',
         pendingHtml: '"Bu profil bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.',
         claimNoteDescription: 'Bu profilin sana ait olduğunu doğrulayabileceğimiz bir not ekle.',
         claimButtonText: 'Gönder',
@@ -715,7 +715,7 @@ const ArchitectModal = (function () {
     // tasarımcı vekili.
     function renderDesignerProductsGrid() {
       document.getElementById('am-related-products-section').style.display = designerProductsData.length ? '' : 'none';
-      document.getElementById('am-related-products-grid').innerHTML = designerProductsData.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
+      document.getElementById('am-related-products-grid').innerHTML = designerProductsData.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
       document.getElementById('am-related-products-count').textContent = designerProductsData.length ? ` (${designerProductsData.length})` : '';
     }
     renderDesignerProductsGrid();

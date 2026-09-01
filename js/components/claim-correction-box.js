@@ -180,7 +180,7 @@ function createClaimCorrectionBox(config){
     const extra = document.getElementById('correction-card-extra');
     if(!extra) return;
     if(!currentUser){
-      extra.innerHTML = `<p style="margin-top:10px;">Bir bildirim göndermek için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.</p>`;
+      extra.innerHTML = `<p style="margin-top:10px;">Bir bildirim göndermek için <a href="/giris" class="info-card-link">giriş yap</a>.</p>`;
       return;
     }
     extra.innerHTML = `

@@ -797,7 +797,7 @@ const ProductModal = (function () {
     if (!body) return;
     body.innerHTML = '';
     if (!currentUser) {
-      body.innerHTML = `<p style="margin-top:10px; font-size:13px; color:var(--ink-soft);">Bir bildirim göndermek için <a href="giris-yap.html" style="color:var(--walnut); font-weight:600; text-decoration:underline;">giriş yap</a>.</p>`;
+      body.innerHTML = `<p style="margin-top:10px; font-size:13px; color:var(--ink-soft);">Bir bildirim göndermek için <a href="/giris" style="color:var(--walnut); font-weight:600; text-decoration:underline;">giriş yap</a>.</p>`;
       return;
     }
     body.innerHTML = `
@@ -858,7 +858,7 @@ const ProductModal = (function () {
       // isteği: "Admine tüm ürünleri düzenleyebilme yetkisi ver"; bkz. src/routes/legacyContent.js#
       // handleAdminProductEdit, canonical `products` satırını doğrudan id'siyle günceller).
       const editSlot = document.getElementById('pr-edit-slot');
-      if (editSlot) editSlot.innerHTML = `<a class="card-edit-btn" href="urun-ekle.html?adminedit=${encodeURIComponent(p.id)}">Düzenle</a>`;
+      if (editSlot) editSlot.innerHTML = `<a class="card-edit-btn" href="/urun-ekle?adminedit=${encodeURIComponent(p.id)}">Düzenle</a>`;
     }
   }
 

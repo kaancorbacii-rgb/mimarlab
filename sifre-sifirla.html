@@ -217,9 +217,9 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="giris-yap.html">Giriş Yap</a>
+    <a href="/giris">Giriş Yap</a>
     <span class="sep">›</span>
     <span class="current">Şifre Sıfırla</span>
   </div>
@@ -242,7 +242,7 @@
         <div class="auth-notice" id="reset-notice"></div>
       </form>
     </div>
-    <p class="auth-switch"><a href="giris-yap.html">Giriş sayfasına dön</a></p>
+    <p class="auth-switch"><a href="/giris">Giriş sayfasına dön</a></p>
   </div>
 
   <footer id="site-footer-mount"></footer>
@@ -284,7 +284,7 @@ document.getElementById('reset-form').addEventListener('submit', async (e)=>{
     }
     notice.textContent = 'Şifren güncellendi. Giriş sayfasına yönlendiriliyorsun...';
     notice.classList.add('show', 'success');
-    setTimeout(()=>{ window.location.href = 'giris-yap.html'; }, 1800);
+    setTimeout(()=>{ window.location.href = '/giris'; }, 1800);
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

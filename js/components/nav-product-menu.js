@@ -5,8 +5,8 @@
 (function(){
   function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-  function groupHref(group){ return `urun.html?group=${encodeURIComponent(group)}`; }
-  function categoryHref(group, category){ return `urun.html?group=${encodeURIComponent(group)}&category=${encodeURIComponent(category)}`; }
+  function groupHref(group){ return `/urun?group=${encodeURIComponent(group)}`; }
+  function categoryHref(group, category){ return `/urun?group=${encodeURIComponent(group)}&category=${encodeURIComponent(category)}`; }
 
   function injectStyleOnce(){
     if(document.getElementById('nav-product-menu-style')) return;
@@ -65,7 +65,7 @@
         }).join('')}
       </div>`).join('');
     return `<div class="mega-menu-cols">${cols}</div>
-      <div class="mega-menu-footer"><a class="mega-viewall" href="urun.html">Tümünü Gör →</a></div>`;
+      <div class="mega-menu-footer"><a class="mega-viewall" href="/urun">Tümünü Gör →</a></div>`;
   }
 
   function mobilePanelHtml(){
@@ -83,7 +83,7 @@
         </div>
       </div>`;
     }).join('');
-    return groups + `<a class="nav-mobile-viewall" href="urun.html">Tümünü Gör</a>`;
+    return groups + `<a class="nav-mobile-viewall" href="/urun">Tümünü Gör</a>`;
   }
 
   function init(){

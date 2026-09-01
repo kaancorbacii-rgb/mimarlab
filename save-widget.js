@@ -45,7 +45,7 @@ function wireSaveButtons(type){
     btn.addEventListener('click', async (e)=>{
       e.preventDefault();
       e.stopPropagation();
-      if(!currentUser){ window.location.href = 'giris-yap.html'; return; }
+      if(!currentUser){ window.location.href = '/giris'; return; }
       const btnType = btn.dataset.type;
       const key = btn.dataset.key;
       const mapKey = btnType + ':' + key;
@@ -123,7 +123,7 @@ function wireFollowButtons(){
     btn.addEventListener('click', async (e)=>{
       e.preventDefault();
       e.stopPropagation();
-      if(!currentUser){ window.location.href = 'giris-yap.html'; return; }
+      if(!currentUser){ window.location.href = '/giris'; return; }
       const btnType = btn.dataset.type;
       const key = btn.dataset.key;
       const mapKey = btnType + ':' + key;
@@ -201,8 +201,8 @@ window.addEventListener('mimarlab:authchange', () => {
 // bilmek üzere aşağıdaki linklere eklenen ?stype= parametresini okur (bkz. editSubmissionBtnHtml/
 // applyEditButtons).
 const EDIT_PAGE_BY_SUBMISSION_TYPE = {
-  projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html',
-  news: 'haber-ekle.html', offices: 'firma-ekle.html', architects: 'mimar-ekle.html',
+  projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle',
+  news: 'haber-ekle.html', offices: '/firma-ekle', architects: '/mimar-ekle',
 };
 const myEditableIdsCache = {};
 async function myEditableIds(type){

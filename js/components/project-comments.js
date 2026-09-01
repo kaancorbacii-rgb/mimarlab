@@ -73,7 +73,7 @@ const ProjectComments = (function () {
   function renderCommentForm(targetId, ids, targetType, mySeq) {
     const wrap = document.getElementById(ids.formWrap);
     if (!currentUser) {
-      wrap.innerHTML = `<div class="comment-login-note">Yorum yapmak için <a href="giris-yap.html">giriş yap</a>.</div>`;
+      wrap.innerHTML = `<div class="comment-login-note">Yorum yapmak için <a href="/giris">giriş yap</a>.</div>`;
       return;
     }
     wrap.innerHTML = `

@@ -328,9 +328,9 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="urun.html">Ürünler</a>
+    <a href="/urun">Ürünler</a>
     <span class="sep">›</span>
     <span class="current">Ürün Ekle</span>
   </div>
@@ -807,7 +807,7 @@ const adminEditId = new URLSearchParams(window.location.search).get('adminedit')
 let adminEditSlug = null;
 let adminEditKind = null; // 'products' | 'materials' — mountProductAdminActions'a content-action 'type' alanı olarak gider
 const meReady = fetch('/api/auth/me').then(async res=>{
-  if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
+  if(!res.ok){ window.location.href = '/giris'; return; }
   currentUserRole = (await res.json()).user.role;
 });
 
@@ -871,7 +871,7 @@ async function prefillForEdit(){
 async function prefillForAdminEdit(){
   if(!adminEditId) return;
   await meReady;
-  if(currentUserRole !== 'admin'){ window.location.href = 'urun.html'; return; }
+  if(currentUserRole !== 'admin'){ window.location.href = '/urun'; return; }
   try{
     const res = await fetch(`/api/admin/legacy/product/${encodeURIComponent(adminEditId)}`);
     if(!res.ok) return;
@@ -1149,7 +1149,7 @@ function wireAiPanel(){
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ url, kind: 'urun' }),
       });
-      if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
+      if(res.status === 401){ window.location.href = '/giris'; return; }
       const data = await res.json().catch(()=>({}));
       if(!res.ok){
         notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
@@ -1348,7 +1348,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
-    if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
+    if(res.status === 401){ window.location.href = '/giris'; return; }
     const data = await res.json();
     if(!res.ok){
       notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
@@ -1387,7 +1387,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
         : 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = isAdminEditingOther ? 'admin.html' : 'hesabim.html'; }, 1500);
+      setTimeout(()=>{ window.location.href = isAdminEditingOther ? '/admin' : '/hesabim'; }, 1500);
       return;
     }
     notice.textContent = 'Ürünün alındı — admin onayının ardından yayına girecek. Durumunu Hesabım sayfandan takip edebilirsin.';

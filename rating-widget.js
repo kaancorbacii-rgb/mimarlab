@@ -109,7 +109,7 @@ async function mountRatingWidget(el, prefetched){
   }
 
   async function submit(stars){
-    if(!currentUser){ window.location.href = 'giris-yap.html'; return; }
+    if(!currentUser){ window.location.href = '/giris'; return; }
     el.querySelectorAll('.rating-star-btn').forEach(b => b.disabled = true);
     try{
       const res = await fetch('/api/ratings', {
@@ -270,7 +270,7 @@ function ensureRatePopup(){
     // popup'ı hiç açılmıyordu; kullanıcı neden hiçbir şey olmadığını anlamadan kalıyordu. Script
     // yüklenemezse en azından tam sayfa giriş sayfasına yönlendirilir, kuyruklanan puan
     // 'mimarlab:authchange' yerine giriş sonrası sayfa script'lerinin kendi akışıyla ele alınabilir.
-    s.onerror = ()=> { window.location.href = 'giris-yap.html'; };
+    s.onerror = ()=> { window.location.href = '/giris'; };
     document.head.appendChild(s);
   }
 

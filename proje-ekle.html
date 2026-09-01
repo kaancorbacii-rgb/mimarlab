@@ -509,9 +509,9 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="proje.html">Projeler</a>
+    <a href="/proje">Projeler</a>
     <span class="sep">›</span>
     <span class="current">Proje Ekle</span>
   </div>
@@ -1863,7 +1863,7 @@ const dupNameCheck = DuplicateNameCheck.attach({
   getExclude: () => originalTitle,
 });
 const meReady = fetch('/api/auth/me').then(async res=>{
-  if(!res.ok){ window.location.href = 'giris-yap.html'; return; }
+  if(!res.ok){ window.location.href = '/giris'; return; }
   currentUserRole = (await res.json()).user.role;
   // Yayın Tarihi yalnızca admin'e görünür/düzenlenebilir (bkz. kullanıcı isteği) — sunucu tarafı
   // da AYNI kontrolü zorunlu kılar (bkz. src/routes/submissions.js#createSubmission/
@@ -2228,7 +2228,7 @@ function wireAiPanel(){
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ url, kind: 'project' }),
       });
-      if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
+      if(res.status === 401){ window.location.href = '/giris'; return; }
       const data = await res.json().catch(()=>({}));
       if(!res.ok){
         notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
@@ -2546,7 +2546,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
-    if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
+    if(res.status === 401){ window.location.href = '/giris'; return; }
     const data = await res.json();
     if(!res.ok){
       notice.textContent = data.error || 'Bir şeyler ters gitti, tekrar dene.';
@@ -2600,7 +2600,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
         : 'Değişiklikler kaydedildi — admin onayının ardından yayına girecek.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = isAdminEditingOther ? 'admin.html' : 'hesabim.html'; }, 1500);
+      setTimeout(()=>{ window.location.href = isAdminEditingOther ? '/admin' : '/hesabim'; }, 1500);
       return;
     }
     notice.textContent = 'Proje gönderildi, onayın ardından yayına girecek. Hesabım sayfandan takip edebilirsin.';

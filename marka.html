@@ -45,13 +45,12 @@
 <base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- logoUrl() (bkz. badge-shared.js) resmi olmayan firmalarda icons.duckduckgo.com'a düşer — bu
-     sayfadaki ilk eager kartlar (bkz. renderGrid#eagerCardCount) arasında bu düşüş gerçekleşirse
-     DNS/TLS turu görselin İLK baytından önce eklenir; preconnect bunu erkenden başlatır (denetim
-     bulgusu, 2026-08-24 — yalnızca burada eklendi, çünkü firma.html'in eager kartları AYNI render
-     turunda logoUrl()'ün kendisini kullanıyor; en-iyi-100.html/arama.html'deki logoUrl() kullanımları
-     zaten loading="lazy"). -->
-<link rel="preconnect" href="https://icons.duckduckgo.com">
+<!-- denetim bulgusu (2026-09-01): burada icons.duckduckgo.com'a bir preconnect vardı, ama
+     site genelindeki CSP img-src bu origin'i HİÇ İÇERMİYOR (bkz. src/index.js#CONTENT_SECURITY_POLICY)
+     — logoUrl()'ün favicon fallback'i canlıda tarayıcı tarafından ENGELLENİYORDU (canlıda
+     doğrulandı: img yükleme "BLOCKED"). Yani her ziyaretçi hiç kullanılamayacak bir kaynak için
+     DNS+TCP+TLS turu ödüyor ve IP'si üçüncü tarafa sızıyordu. Preconnect kaldırıldı, fallback'in
+     kendisi de badge-shared.js#logoUrl içinde null'a çevrildi (baş harf yer tutucusu gösterilir). -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -448,7 +447,7 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
     <span class="current">Markalar</span>
   </div>
@@ -505,7 +504,7 @@
           <svg class="select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l4 4 4-4"/></svg>
         </div>
       </div>
-      <a class="sidebar-add-btn" href="marka-ekle.html"><span class="sidebar-add-icon">+</span> Marka Ekle</a>
+      <a class="sidebar-add-btn" href="/marka-ekle"><span class="sidebar-add-icon">+</span> Marka Ekle</a>
     </aside>
 
     <main>

@@ -208,9 +208,9 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="hesabim.html">Hesabım</a>
+    <a href="/hesabim">Hesabım</a>
     <span class="sep">›</span>
     <span class="current">Rozet Satın Al</span>
   </div>
@@ -229,7 +229,7 @@
       <label class="target-option"><input type="radio" name="badge-target" id="target-office" value="office"> Bir firmam için</label>
       <div id="target-office-wrap" style="display:none; margin-top:10px;">
         <select class="target-office-select" id="target-office-select"></select>
-        <p id="target-office-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Rozet alabilmen için önce bir firma profilini sahiplenip onaylatman gerekiyor. <a href="firma.html" style="color:var(--walnut); font-weight:600;">Firmanı bul</a>.</p>
+        <p id="target-office-empty" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Rozet alabilmen için önce bir firma profilini sahiplenip onaylatman gerekiyor. <a href="/firma" style="color:var(--walnut); font-weight:600;">Firmanı bul</a>.</p>
       </div>
     </div>
 
@@ -276,7 +276,7 @@
       <div class="already-has">
         <strong id="already-has-title">Zaten aktif bir rozetin var</strong>
         <p id="already-has-text">Aynı ya da daha düşük bir kademeye geçemezsin. Bunun için mevcut rozetinin süresi dolmalı. Daha yüksek bir kademeye yükseltebilirsin.</p>
-        <a class="form-submit" href="hesabim.html" style="display:inline-block; width:auto; padding:12px 28px;">Hesabım'a Dön</a>
+        <a class="form-submit" href="/hesabim" style="display:inline-block; width:auto; padding:12px 28px;">Hesabım'a Dön</a>
       </div>
     </div>
   </div>
@@ -486,7 +486,7 @@ document.getElementById('confirm-btn').addEventListener('click', async ()=>{
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ badgeType: selectedTier, targetType: selectedTargetType, targetKey: selectedTargetKey }),
     });
-    if(res.status === 401){ window.location.href = 'giris-yap.html'; return; }
+    if(res.status === 401){ window.location.href = '/giris'; return; }
     const data = await res.json().catch(()=>({}));
     if(!res.ok){
       notice.textContent = data.error || 'Talep gönderilemedi, tekrar dene.';
@@ -507,7 +507,7 @@ document.getElementById('confirm-btn').addEventListener('click', async ()=>{
   }
 });
 
-fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = 'giris-yap.html'; });
+fetch('/api/auth/me').then(res=>{ if(!res.ok) window.location.href = '/giris'; });
 
 
 </script>

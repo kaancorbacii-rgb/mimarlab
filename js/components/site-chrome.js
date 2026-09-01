@@ -20,11 +20,11 @@
   // 'marka' — üretici ürün firmalarının listesi (bkz. marka.html dosya başı yorumu); firma.html'le
   // AYNI `offices` verisini ?brands=1 ile daraltır, ayrı bir tablo/tip DEĞİL.
   const NAV_ITEMS = [
-    { key: 'proje', href: 'proje.html', label: 'Proje' },
-    { key: 'mimar', href: 'mimar.html', label: 'Mimar' },
-    { key: 'firma', href: 'firma.html', label: 'Firma' },
-    { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
-    { key: 'marka', href: 'marka.html', label: 'Marka' },
+    { key: 'proje', href: '/proje', label: 'Proje' },
+    { key: 'mimar', href: '/mimar', label: 'Mimar' },
+    { key: 'firma', href: '/firma', label: 'Firma' },
+    { key: 'urun', href: '/urun', label: 'Ürün', mega: true },
+    { key: 'marka', href: '/marka', label: 'Marka' },
     // "Neden MİMARLAB?" (bkz. neden-mimarlab.html) BİLEREK burada DEĞİL — kullanıcı isteği
     // (2026-09-01): sayfaya yalnızca footer'ın Kurumsal sütunundan girilir, üst menü beş içerik
     // listesiyle sınırlı kalır. Nav'a eklenmiş, sonra aynı gün kaldırılmıştır; geri eklenmeden önce
@@ -254,7 +254,7 @@
     }).join('\n      ');
 
     return `<nav class="nav">
-    <a class="brand" href="index.html">
+    <a class="brand" href="/">
       <img class="brand-logo" id="brand-logo-img" src="${currentLogoSrc()}" alt="MimarLab">
     </a>
     <div class="nav-search">
@@ -269,7 +269,7 @@
     </div>
     <div class="mega-menu" id="urun-mega-menu"></div>
     <div class="nav-right">
-      <a class="nav-rate" href="giris-yap.html">Giriş Yap</a>
+      <a class="nav-rate" href="/giris">Giriş Yap</a>
     </div>
     <button class="nav-hamburger" id="nav-hamburger" aria-label="Menü">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
@@ -295,8 +295,8 @@
             ${mobileLinks}
           </div>
           <div class="nav-mobile-menu-foot" id="nav-mobile-menu-foot">
-            <a class="nav-mobile-cta" href="giris-yap.html">Giriş Yap</a>
-            <a class="nav-mobile-cta nav-mobile-cta-secondary" href="uye-ol.html">Üye Ol</a>
+            <a class="nav-mobile-cta" href="/giris">Giriş Yap</a>
+            <a class="nav-mobile-cta nav-mobile-cta-secondary" href="/uye-ol">Üye Ol</a>
           </div>
         </div>
         <div class="nav-mobile-menu-subpage" id="nav-mobile-menu-subpage">
@@ -316,7 +316,7 @@
         <p class="footer-subscribe-join-desc">Kişi veya firma bilgilerini hemen doldur.</p>
         <p class="footer-newsletter-desc">Yeni proje, ürün, mimar ve firmalar e-postana gelsin.</p>
         <div class="footer-subscribe-join-action">
-          <a class="footer-subscribe-btn" href="uye-ol.html">Üye Ol</a>
+          <a class="footer-subscribe-btn" href="/uye-ol">Üye Ol</a>
         </div>
         <div class="footer-subscribe-news-action">
           <form class="footer-newsletter-form" id="footer-newsletter-form">
@@ -332,14 +332,14 @@
     </div>
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="footer-logo" href="index.html">
+        <a class="footer-logo" href="/">
           <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
       </div>
-      <div class="footer-col"><h4>Ana Menü</h4><a href="proje.html">Proje</a><a href="mimar.html">Mimar</a><a href="firma.html">Firma</a><a href="urun.html">Ürün</a><a href="marka.html">Marka</a></div>
-      <div class="footer-col"><h4>Topluluk</h4><a href="giris-yap.html">Giriş Yap</a><a href="uye-ol.html">Üye Ol</a><a href="satin-al.html">Rozet Al</a><a href="iade-et.html">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>
-      <div class="footer-col"><h4>Kurumsal</h4><a href="neden-mimarlab.html">Neden MİMARLAB?</a><a href="hakkinda.html">Hakkında</a><a href="iletisim.html">İletişim</a><a href="gizlilik-politikasi.html">Gizlilik Politikası</a><a href="hizmet-sartlari.html">Hizmet Şartları</a><a href="cerez-politikasi.html">Çerez Politikası</a></div>
+      <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/mimar">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a></div>
+      <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>
+      <div class="footer-col"><h4>Kurumsal</h4><a href="/neden-mimarlab">Neden MİMARLAB?</a><a href="/hakkinda">Hakkında</a><a href="/iletisim">İletişim</a><a href="/gizlilik-politikasi">Gizlilik Politikası</a><a href="/hizmet-sartlari">Hizmet Şartları</a><a href="/cerez-politikasi">Çerez Politikası</a></div>
     </div>
     <div class="footer-bottom">
       <div class="footer-social">
@@ -804,7 +804,7 @@
         ).join('')}</div>`;
       body.querySelectorAll('.nav-search-modal-chip').forEach(btn => {
         btn.addEventListener('click', () => {
-          window.location.href = 'arama.html?q=' + encodeURIComponent(btn.dataset.term);
+          window.location.href = '/arama?q=' + encodeURIComponent(btn.dataset.term);
         });
       });
     }
@@ -820,7 +820,7 @@
           <span class="nav-search-modal-row-title">${escapeHtml(it.title)}</span>
           <span class="nav-search-modal-row-meta">${escapeHtml(it.meta || '')}</span>
         </a>`).join('');
-      const moreHref = 'arama.html?q=' + encodeURIComponent(query);
+      const moreHref = '/arama?q=' + encodeURIComponent(query);
       body.innerHTML = `<div class="nav-search-modal-results">${rows}</div>
         <a class="nav-search-modal-more" href="${escapeAttr(moreHref)}">"${escapeHtml(query)}" için tüm sonuçları gör (${data.total})</a>`;
     }
@@ -839,7 +839,7 @@
     });
     modalInput.addEventListener('keydown', (e) => {
       if(e.key === 'Enter' && modalInput.value.trim()){
-        window.location.href = 'arama.html?q=' + encodeURIComponent(modalInput.value.trim());
+        window.location.href = '/arama?q=' + encodeURIComponent(modalInput.value.trim());
       } else if(e.key === 'Escape'){
         close();
       }
@@ -1033,11 +1033,11 @@
   // açar. Bağlantılar sıradan <a href> — tıklanınca tarayıcı normal şekilde o sayfaya gider, ayrı
   // bir yönlendirme koduna gerek yok.
   const ADD_CONTENT_LINKS = [
-    { href: 'proje-ekle.html', label: 'Proje Ekle' },
-    { href: 'mimar-ekle.html', label: 'Mimar Ekle' },
-    { href: 'firma-ekle.html', label: 'Firma Ekle' },
-    { href: 'urun-ekle.html', label: 'Ürün Ekle' },
-    { href: 'marka-ekle.html', label: 'Marka Ekle' },
+    { href: '/proje-ekle', label: 'Proje Ekle' },
+    { href: '/mimar-ekle', label: 'Mimar Ekle' },
+    { href: '/firma-ekle', label: 'Firma Ekle' },
+    { href: '/urun-ekle', label: 'Ürün Ekle' },
+    { href: '/marka-ekle', label: 'Marka Ekle' },
   ];
   const ADD_CONTENT_ARROW = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>';
 

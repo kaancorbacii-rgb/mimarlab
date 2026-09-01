@@ -5,7 +5,13 @@ import { cacheKeyFor } from './publicCache.js';
 // (bkz. o dosyadaki withVersionedCacheKey/SSR_CACHE_VERSION yorumu) — koda gömülü *-detay.html
 // şablonlarından biri değiştiğinde bu değer artırılır. Tek kaynak burada tutulur ki purgeSsrDetailCache
 // (aşağıda) index.js'in kullandığıyla AYNI anahtarı üretsin.
-export const SSR_CACHE_VERSION = 'v100';
+// v101 (production audit, 2026-09-01): proje/mimar/firma/urun/marka.html şablonlarının HEPSİ
+// değişti — site genelindeki iç bağlantılar *.html'den kanonik temiz yollara çevrildi (nav/footer/
+// drawer'ın 307/301 hop'u kalktı), urun.html kartlarına gerçek <a href="/urun/:slug"> başlık
+// bağlantısı eklendi ve firma/marka.html'den ölü icons.duckduckgo.com preconnect'i kaldırıldı.
+// Bu değerin artırılmaması, /proje|mimar|firma|urun/:slug SSR sayfalarının edge'de s-maxage
+// boyunca ESKİ (hâlâ .html bağlantılı) HTML'i sunmasına yol açardı.
+export const SSR_CACHE_VERSION = 'v101';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

@@ -754,7 +754,7 @@ const OfficeModal = (function () {
     const brandProductsData = payload.relatedProducts || [];
     const brandMaterialsData = payload.relatedMaterials || [];
     function productCardHtml(p) {
-      return cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : 'urun.html', p.title, (p.images && p.images[0]) || p.image, p.category);
+      return cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category);
     }
     function renderProductGrid(sectionId, gridId, brandItems, submissionItems, countId) {
       const seenTitles = new Set(brandItems.map(p => (p.title || '').trim().toLowerCase()));
@@ -813,13 +813,13 @@ const OfficeModal = (function () {
       // sayfasına özel marka ekle/düzenle url'si aç"). İki sayfa AYNI office_submissions kaydını
       // yazar — yalnızca etiketler ve Hizmet Alanı seçenekleri farklıdır, bu yüzden contentType/
       // getModerationTarget/claim akışının geri kalanı DEĞİŞMEZ.
-      editUrlBase: isBrandProfile ? 'marka-ekle.html' : 'firma-ekle.html',
-      listUrl: isBrandProfile ? 'marka.html' : 'firma.html',
+      editUrlBase: isBrandProfile ? '/marka-ekle' : '/firma-ekle',
+      listUrl: isBrandProfile ? '/marka' : '/firma',
       contentType: 'offices',
       getModerationTarget: () => o.submissionId ? { id: o.submissionId } : { key: o.name },
       labels: {
         claimTitle: `Bu ${KIND_LABEL} sana mı ait?`,
-        loginPromptHtml: 'Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="giris-yap.html" class="info-card-link">giriş yap</a>.',
+        loginPromptHtml: 'Bilgilerini güncellemek ve Doğrulanmış Profil rozeti almak için <a href="/giris" class="info-card-link">giriş yap</a>.',
         pendingHtml: `"Bu ${KIND_LABEL} bana ait" talebini aldık, ekibimiz en kısa sürede onaylayacak.`,
         claimNoteDescription: `Bu ${KIND_LABEL}nın sana ait olduğunu doğrulayabileceğimiz bir not ekle.`,
         claimButtonText: 'Gönder',

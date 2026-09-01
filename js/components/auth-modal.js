@@ -6,7 +6,7 @@
 // olduğundan (ortalı bir kart / tam genişlik dashboard) tek sütuna geçilir (bkz. #am-panel altındaki
 // .modal-shell-body.am-single kuralı). Bu dosya HER sayfada (bkz. kullanıcı isteği: "Header'daki
 // butonlar") modal-shell.js'ten HEMEN sonra <script defer> ile dahil edilir; giriş noktaları
-// (nav/footer/auth-nav.js'in ürettiği mevcut href="giris-yap.html"/"uye-ol.html"/"hesabim.html"
+// (nav/footer/auth-nav.js'in ürettiği mevcut href="/giris"/"uye-ol.html"/"hesabim.html"
 // linkleri) HİÇ değiştirilmedi — bunun yerine burada TEK bir delege edilmiş click dinleyicisiyle
 // yakalanıp preventDefault edilir (bkz. aşağısı).
 const AuthModal = (function () {
@@ -466,7 +466,7 @@ const AuthModal = (function () {
             <label for="am-login-password">Şifre</label>
             <input type="password" id="am-login-password" name="password" placeholder="••••••••" required>
           </div>
-          <p class="auth-forgot"><a href="sifremi-unuttum.html">Şifremi unuttum</a></p>
+          <p class="auth-forgot"><a href="/sifremi-unuttum">Şifremi unuttum</a></p>
           <button class="auth-submit" type="submit">Giriş Yap</button>
           <div class="auth-notice" id="am-login-notice"></div>
         </form>
@@ -1223,7 +1223,7 @@ const AuthModal = (function () {
   const TYPE_LABELS = { offices: 'Ofis', projects: 'Proje', products: 'Ürün', materials: 'Malzeme', architects: 'Mimar', news: 'Haber' };
   const STATUS_LABELS = { pending: 'Beklemede', approved: 'Yayında', rejected: 'Reddedildi', archived: 'Arşivlendi' };
   const STATUS_COLORS = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C', archived: 'var(--ink-soft)' };
-  const EDIT_PAGE_BY_TYPE = { offices: 'firma-ekle.html', projects: 'proje-ekle.html', products: 'urun-ekle.html', materials: 'urun-ekle.html', architects: 'mimar-ekle.html', news: 'haber-ekle.html' };
+  const EDIT_PAGE_BY_TYPE = { offices: '/firma-ekle', projects: '/proje-ekle', products: '/urun-ekle', materials: '/urun-ekle', architects: '/mimar-ekle', news: 'haber-ekle.html' };
   // Marka gönderileri offices tipindedir (bkz. marka-ekle.html: type:'offices') — İçeriklerim >
   // Eklediklerim satırında hem etiketi ("Marka") hem Düzenle hedefi (marka-ekle.html) bu yüzden
   // tipe DEĞİL, sunucudan gelen item.isBrand'a göre seçilir (bkz. src/routes/submissions.js#listMine).
@@ -1232,7 +1232,7 @@ const AuthModal = (function () {
     return TYPE_LABELS[type];
   }
   function editPageFor(type, item) {
-    if (type === 'offices' && item && item.isBrand) return 'marka-ekle.html';
+    if (type === 'offices' && item && item.isBrand) return '/marka-ekle';
     return EDIT_PAGE_BY_TYPE[type];
   }
   // brand: gerçek bir saved/follow tipi DEĞİL — Takip Ettiklerim'in marka satırları için
@@ -1262,7 +1262,7 @@ const AuthModal = (function () {
   ];
   const CLAIM_STATUS_LABELS_ACCOUNT = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
   const CLAIM_STATUS_COLORS_ACCOUNT = { pending: 'var(--accent)', approved: '#3E7A55', rejected: '#B84C4C' };
-  const CLAIM_EDIT_PAGE = { architect: 'mimar-ekle.html', office: 'firma-ekle.html' };
+  const CLAIM_EDIT_PAGE = { architect: '/mimar-ekle', office: '/firma-ekle' };
   // bkz. src/routes/submissions.js#OFFICE_EDIT_POSITIONS / js/components/claim-correction-box.js
   // (firma sayfasındaki Düzenle butonu) ile BİREBİR aynı liste — kullanıcı isteği: "Firmayı sadece
   // kurucu, kurucu ortak, ortak ve ekip lideri düzenleyebilir". Hesabım'daki Firma satırı bu kontrolü
@@ -1999,7 +1999,7 @@ const AuthModal = (function () {
           <div class="badge-card-price">${formatTRY(tier.selfPrice)} / ay</div>
           ${already
             ? `<span class="badge-buy-btn" style="opacity:.5; pointer-events:none;">Zaten Sahipsin</span>`
-            : `<a class="badge-buy-btn" href="satin-al.html?tier=${tier.type}">Satın Al</a>`}
+            : `<a class="badge-buy-btn" href="/rozet-al?tier=${tier.type}">Satın Al</a>`}
         </div>`;
       }).join('');
     }
@@ -2044,7 +2044,7 @@ const AuthModal = (function () {
       try {
         const res = await fetch('/api/account', { method: 'DELETE' });
         if (!res.ok) throw new Error('request failed');
-        window.location.href = '/index.html';
+        window.location.href = '/';
       } catch {
         msg.textContent = 'Bir şeyler ters gitti, tekrar dene.';
         btn.disabled = false;
@@ -2477,7 +2477,7 @@ const AuthModal = (function () {
       const container = document.getElementById('am-dash-rated');
       const items = ratedFilter ? ratedItems.filter(it => matchesCatalogFilter(it.type, ratedFilter)) : ratedItems;
       if (!ratedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+        container.innerHTML = '<div class="dash-empty">Henüz puanladığın bir içerik yok.<br><a href="/proje">Projelere göz at</a></div>';
         document.getElementById('am-rated-pagination').innerHTML = '';
         return;
       }
@@ -2516,7 +2516,7 @@ const AuthModal = (function () {
       const container = document.getElementById('am-dash-comments');
       const items = commentsFilter ? commentItems.filter(it => it.type === commentsFilter) : commentItems;
       if (!commentItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="proje.html">Projelere göz at</a></div>';
+        container.innerHTML = '<div class="dash-empty">Henüz bir yorum yapmadın.<br><a href="/proje">Projelere göz at</a></div>';
         document.getElementById('am-comments-pagination').innerHTML = '';
         return;
       }
@@ -2586,7 +2586,7 @@ const AuthModal = (function () {
       if (!container) return;
       const items = sharesFilter ? shareItems.filter(it => matchesCatalogFilter(it.item_type, sharesFilter)) : shareItems;
       if (!shareItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz bir içerik paylaşmadın.<br>Bir proje ya da ürün popup\'ındaki Paylaş butonunu kullandığında burada listelenir.<br><a href="proje.html">Projelere göz at</a></div>';
+        container.innerHTML = '<div class="dash-empty">Henüz bir içerik paylaşmadın.<br>Bir proje ya da ürün popup\'ındaki Paylaş butonunu kullandığında burada listelenir.<br><a href="/proje">Projelere göz at</a></div>';
         document.getElementById('am-shares-pagination').innerHTML = '';
         return;
       }
@@ -3035,7 +3035,7 @@ const AuthModal = (function () {
         } catch { savedItemsCache = []; }
       }
       if (!savedItemsCache.length) {
-        picker.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+        picker.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="/proje">Projelere göz at</a></div>';
         return;
       }
       picker.innerHTML = savedItemsCache.map((it, i) => {
@@ -3120,7 +3120,7 @@ const AuthModal = (function () {
       if (!container) return;
       const items = colSavedFilter ? colSavedItems.filter(it => colMatchesCatalogFilter(it.item_type, colSavedFilter)) : colSavedItems;
       if (!colSavedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="proje.html">Projelere göz at</a></div>';
+        container.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="/proje">Projelere göz at</a></div>';
         document.getElementById('am-col-saved-pagination').innerHTML = '';
         return;
       }
@@ -3249,7 +3249,7 @@ const AuthModal = (function () {
       // filterTypes yoksa (feed'den gelen proje/ürün satırları) tipin kendisi kullanılır.
       const items = followFeedFilter ? followFeedItems.filter(it => (it.filterTypes || [it.type]).includes(followFeedFilter)) : followFeedItems;
       if (!followFeedItems.length) {
-        container.innerHTML = '<div class="dash-empty">Henüz takip ettiğin bir mimar, firma ya da marka yok.<br><a href="marka.html">Markalara göz at</a></div>';
+        container.innerHTML = '<div class="dash-empty">Henüz takip ettiğin bir mimar, firma ya da marka yok.<br><a href="/marka">Markalara göz at</a></div>';
         document.getElementById('am-follow-feed-pagination').innerHTML = '';
         return;
       }

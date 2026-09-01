@@ -361,7 +361,7 @@ async function buildSidebar(){
       </div>
     </div>`;
   });
-  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="proje-ekle.html"><span class="sidebar-add-icon">+</span> Proje Ekle</a></div>`;
+  html += `<div class="sidebar-add"><a class="sidebar-add-btn" href="/proje-ekle"><span class="sidebar-add-icon">+</span> Proje Ekle</a></div>`;
   sidebar.innerHTML = html;
 
   // Bir künye linkinden (?category=...) ya da doğrudan URL'den önceden seçili gelen bir filtre

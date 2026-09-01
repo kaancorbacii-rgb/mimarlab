@@ -615,6 +615,10 @@ CREATE TABLE IF NOT EXISTS architects (
 CREATE INDEX IF NOT EXISTS idx_architects_claimed_by ON architects(claimed_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_architects_consultant ON architects(is_consultant) WHERE is_consultant = 1;
 CREATE INDEX IF NOT EXISTS idx_architects_hidden_or_deleted ON architects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+-- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL
+-- AND hidden_at IS NULL) yukarıdaki TERS koşullu kısmi index'i kullanamıyordu, tam tablo
+-- taraması yapıyordu (bkz. migrations/0077_live_row_fingerprint_indexes.sql).
+CREATE INDEX IF NOT EXISTS idx_architects_live_updated ON architects(updated_at) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_architects_legacy_key ON architects(legacy_key);
 CREATE INDEX IF NOT EXISTS idx_architects_name ON architects(name);
 CREATE INDEX IF NOT EXISTS idx_architects_office ON architects(office_id);
@@ -639,6 +643,10 @@ CREATE TABLE IF NOT EXISTS offices (
 , hidden_at TEXT, social_platform TEXT, social_url TEXT, social_links TEXT, cover_url TEXT);
 CREATE INDEX IF NOT EXISTS idx_offices_claimed_by ON offices(claimed_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_offices_hidden_or_deleted ON offices(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+-- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL
+-- AND hidden_at IS NULL) yukarıdaki TERS koşullu kısmi index'i kullanamıyordu, tam tablo
+-- taraması yapıyordu (bkz. migrations/0077_live_row_fingerprint_indexes.sql).
+CREATE INDEX IF NOT EXISTS idx_offices_live_updated ON offices(updated_at) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_offices_legacy_key ON offices(legacy_key);
 CREATE INDEX IF NOT EXISTS idx_offices_name ON offices(name);
 
@@ -671,6 +679,10 @@ CREATE TABLE IF NOT EXISTS projects (
 , hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT, publish_date TEXT, lat REAL, lng REAL, image_hotspots TEXT);
 CREATE INDEX IF NOT EXISTS idx_projects_build_status ON projects(build_status);
 CREATE INDEX IF NOT EXISTS idx_projects_hidden_or_deleted ON projects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+-- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL
+-- AND hidden_at IS NULL) yukarıdaki TERS koşullu kısmi index'i kullanamıyordu, tam tablo
+-- taraması yapıyordu (bkz. migrations/0077_live_row_fingerprint_indexes.sql).
+CREATE INDEX IF NOT EXISTS idx_projects_live_updated ON projects(updated_at) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_legacy_key ON projects(legacy_key);
 CREATE INDEX IF NOT EXISTS idx_projects_build_status_order ON projects(build_status, COALESCE(publish_date, created_at) DESC, id DESC) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 
@@ -697,6 +709,10 @@ CREATE TABLE IF NOT EXISTS products (
 , hidden_at TEXT, designer TEXT, year TEXT, files TEXT);
 CREATE INDEX IF NOT EXISTS idx_products_brand_office ON products(brand_office_id);
 CREATE INDEX IF NOT EXISTS idx_products_hidden_or_deleted ON products(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
+-- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL
+-- AND hidden_at IS NULL) yukarıdaki TERS koşullu kısmi index'i kullanamıyordu, tam tablo
+-- taraması yapıyordu (bkz. migrations/0077_live_row_fingerprint_indexes.sql).
+CREATE INDEX IF NOT EXISTS idx_products_live_updated ON products(updated_at) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_products_legacy_key ON products(legacy_key);
 
 -- ---------- İlişki / bağlantı tabloları ----------

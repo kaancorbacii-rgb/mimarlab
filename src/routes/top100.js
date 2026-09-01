@@ -81,7 +81,17 @@ async function computeTop100(env) {
     // alan (category/type/dateBucket/location zaten yukarıda vardı).
     const discipline = live ? live.discipline : [];
     const awards = live ? live.awards : [];
-    const description = live ? live.description : null;
+    // denetim bulgusu (2026-09-01, performans): `description` bu yanıtın 121 KB'lık gövdesinin
+    // 73 KB'ını (yaklaşık %60) tek başına oluşturuyordu — oysa TÜM tüketiciler (en-iyi-100.html,
+    // js/pages/proje.js) değeri yalnızca kendi firstSentence()'larından geçiriyor; o fonksiyon
+    // metnin 260. karakterinden ÖTESİNE hiç bakmaz (cümle sonu döngüsü `i < 260` ile sınırlı) ve
+    // cümle sonu bulamazsa zaten 160 karaktere kırpar. Bu yüzden 300 karakterlik bir kırpma
+    // ÇIKTIYI HİÇ DEĞİŞTİRMEZ (her iki dalda da birebir aynı string üretilir), ama proje popup'ının
+    // arka planda çektiği bu listeyi ~50 KB küçültür. Tam açıklama zaten /api/project/:slug'dan
+    // (proje detayının kendi ucundan) geliyor.
+    const TOP100_DESC_MAX = 300;
+    const fullDescription = live ? live.description : null;
+    const description = fullDescription ? String(fullDescription).slice(0, TOP100_DESC_MAX) : null;
 
     const real = resolvedSlug ? realRatingsBySlug.get(resolvedSlug) : null;
     const blendedCount = entry.baseCount + (real ? real.count : 0);

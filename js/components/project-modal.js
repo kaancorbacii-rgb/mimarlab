@@ -188,7 +188,7 @@ const ProjectModal = (function () {
     const body = document.getElementById('pm-feedback-body');
     if (!body) return;
     if (!currentUser) {
-      body.innerHTML = `<p style="margin-top:10px; font-size:13px; color:var(--ink-soft);">Bir bildirim göndermek için <a href="giris-yap.html" style="color:var(--walnut); font-weight:600; text-decoration:underline;">giriş yap</a>.</p>`;
+      body.innerHTML = `<p style="margin-top:10px; font-size:13px; color:var(--ink-soft);">Bir bildirim göndermek için <a href="/giris" style="color:var(--walnut); font-weight:600; text-decoration:underline;">giriş yap</a>.</p>`;
       return;
     }
     body.innerHTML = `

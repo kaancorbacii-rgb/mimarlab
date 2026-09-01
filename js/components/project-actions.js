@@ -52,7 +52,7 @@ const ProjectActions = (function () {
       const html = await editSubmissionBtnHtml('projects', mySubmission.id);
       if (html) editSlot.innerHTML = html;
     } else if (currentUser.role === 'admin') {
-      editSlot.innerHTML = `<a class="card-edit-btn" href="proje-ekle.html?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
+      editSlot.innerHTML = `<a class="card-edit-btn" href="/proje-ekle?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
     } else {
       let canEdit = false;
       try {
@@ -61,7 +61,7 @@ const ProjectActions = (function () {
       } catch { /* claim tabanlı yetki kontrolü başarısız — güvenli varsayılan: buton gösterme */ }
       if (mySeq !== renderSeq) return;
       if (canEdit) {
-        editSlot.innerHTML = `<a class="card-edit-btn" href="proje-ekle.html?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
+        editSlot.innerHTML = `<a class="card-edit-btn" href="/proje-ekle?claim=${encodeURIComponent(item.slug)}">Düzenle</a>`;
       }
     }
   }

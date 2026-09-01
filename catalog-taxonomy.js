@@ -127,20 +127,30 @@ function catalogColor(name) {
 function catalogInitials(name) {
   return (name || '?').replace(/[—.]/g, ' ').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
+// denetim bulgusu (2026-09-01) — bkz. badge-shared.js#logoUrl'deki AYNI kök neden: site CSP'sinin
+// img-src'si icons.duckduckgo.com'u içermiyor, bu yüzden dönen URL canlıda HER ZAMAN engelleniyor
+// (canlıda doğrulandı) ve yalnızca kırık bir <img> + bir CSP ihlal raporu üretiyordu. null dönülünce
+// çağıranlar (catalogCardMediaHtml, product-modal.js#placeholderHtml) zaten markanın baş harflerinden
+// oluşan renkli yer tutucuyu tek başına gösteriyor.
 function catalogBrandFavicon(brand) {
-  const domain = brand && CATALOG_BRAND_DOMAINS[brand];
-  return domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null;
+  return null;
 }
 
 // Kart görseli: gerçek bir fotoğraf varsa onu, yoksa marka/başlık renginden türetilmiş, markanın
 // (biliniyorsa) küçük favicon'unu ve baş harflerini içeren güvenli bir yer tutucu döner — hiçbir
 // zaman gerçek bir ürün fotoğrafı taklit edilmez (bkz. kullanıcı isteği: telif riski almadan).
-function catalogCardMediaHtml(item, escapeHtmlFn, escapeAttrFn) {
+// eager (opsiyonel, varsayılan false) — denetim bulgusu (2026-09-01): bu fonksiyon HER görseli
+// koşulsuz loading="lazy" ile basıyordu, oysa proje/mimar/firma/marka listeleri ilk satırı
+// eager+fetchpriority="high" ile istiyor (bkz. js/pages/proje.js#render). /urun sayfasının LCP
+// görseli bu yüzden gereksiz yere geciktiriliyordu. Parametre verilmeyen çağıranlar (js/components/
+// project-products.js) ESKİ davranışı birebir korur.
+function catalogCardMediaHtml(item, escapeHtmlFn, escapeAttrFn, eager) {
   if (item.image) {
     // cdnImg/cdnSrcset (bkz. image-cdn.js) sayfayı çağıran her yerde (urun.html, js/components/
     // project-products.js) zaten yüklü — IMAGE_CDN_ENABLED false olduğu sürece passthrough, srcset boş.
     const srcset = cdnSrcset(item.image, [400, 600, 800]);
-    return `<img src="${escapeAttrFn(cdnImg(item.image, 600))}"${srcset ? ` srcset="${escapeAttrFn(srcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="${escapeAttrFn(item.title)}" loading="lazy" decoding="async">`;
+    const loadAttrs = eager ? 'loading="eager" fetchpriority="high" decoding="sync"' : 'loading="lazy" fetchpriority="low" decoding="async"';
+    return `<img src="${escapeAttrFn(cdnImg(item.image, 600))}"${srcset ? ` srcset="${escapeAttrFn(srcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="${escapeAttrFn(item.title)}" ${loadAttrs}>`;
   }
   const label = item.brand || item.title;
   const favicon = catalogBrandFavicon(item.brand);

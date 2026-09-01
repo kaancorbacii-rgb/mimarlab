@@ -228,7 +228,7 @@
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
-    <a href="index.html">Ana Sayfa</a>
+    <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
     <span class="current">Giriş Yap</span>
   </div>
@@ -258,12 +258,12 @@
           <label for="login-password">Şifre</label>
           <input type="password" id="login-password" name="password" placeholder="••••••••" required>
         </div>
-        <p class="auth-forgot"><a href="sifremi-unuttum.html">Şifremi unuttum</a></p>
+        <p class="auth-forgot"><a href="/sifremi-unuttum">Şifremi unuttum</a></p>
         <button class="auth-submit" type="submit">Giriş Yap</button>
         <div class="auth-notice" id="login-notice"></div>
       </form>
     </div>
-    <p class="auth-switch">Hesabın yok mu? <a href="uye-ol.html">Üye Ol</a></p>
+    <p class="auth-switch">Hesabın yok mu? <a href="/uye-ol">Üye Ol</a></p>
   </div>
 
   <footer id="site-footer-mount"></footer>
@@ -308,7 +308,7 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
       submitBtn.disabled = false;
       return;
     }
-    window.location.href = 'hesabim.html';
+    window.location.href = '/hesabim';
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

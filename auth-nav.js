@@ -99,7 +99,7 @@
     if (!user) return;
 
     injectStyleOnce();
-    const adminLink = user.role === 'admin' ? `<a href="admin.html"><span>${ICON_ADMIN}</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>` : '';
+    const adminLink = user.role === 'admin' ? `<a href="/admin"><span>${ICON_ADMIN}</span> Admin Paneli</a><div class="nav-avatar-menu-sep"></div>` : '';
     const avatarInner = user.photoUrl
       ? `<img src="${escapeAttr(user.photoUrl)}" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
       : initials(user.name);
@@ -117,13 +117,13 @@
             </div>
           </div>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="hesabim.html"><span>${ICON_ACCOUNT}</span> Hesabım</a>
+          <a href="/hesabim"><span>${ICON_ACCOUNT}</span> Hesabım</a>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="aktivitelerim.html"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
+          <a href="/aktivitelerim"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="koleksiyonum.html"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
+          <a href="/koleksiyonum"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
           <div class="nav-avatar-menu-sep"></div>
-          <a href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
+          <a href="/iceriklerim"><span>${ICON_CONTENT}</span> İçeriklerim</a>
           <div class="nav-avatar-menu-sep"></div>
           ${adminLink}
           <button type="button" id="nav-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
@@ -137,7 +137,7 @@
     // satırlarıyla (tek satır = tek sayfa ismi, bkz. site-chrome.js düzeltmesi) render ediyoruz.
     const mobileFoot = document.getElementById('nav-mobile-menu-foot');
     if (mobileFoot) {
-      const mobileAdminLink = user.role === 'admin' ? `<a class="nav-mobile-link" href="admin.html"><span>${ICON_ADMIN}</span> Admin Paneli</a>` : '';
+      const mobileAdminLink = user.role === 'admin' ? `<a class="nav-mobile-link" href="/admin"><span>${ICON_ADMIN}</span> Admin Paneli</a>` : '';
       mobileFoot.innerHTML = `
         <div class="nav-mobile-account-header">
           <span class="nav-mobile-account-avatar">${avatarInner}</span>
@@ -148,10 +148,10 @@
         </div>
         <div class="nav-mobile-account-sep"></div>
         <div class="nav-mobile-account-links">
-          <a class="nav-mobile-link" href="hesabim.html"><span>${ICON_ACCOUNT}</span> Hesabım</a>
-          <a class="nav-mobile-link" href="aktivitelerim.html"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
-          <a class="nav-mobile-link" href="koleksiyonum.html"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
-          <a class="nav-mobile-link" href="iceriklerim.html"><span>${ICON_CONTENT}</span> İçeriklerim</a>
+          <a class="nav-mobile-link" href="/hesabim"><span>${ICON_ACCOUNT}</span> Hesabım</a>
+          <a class="nav-mobile-link" href="/aktivitelerim"><span>${ICON_ACTIVITY}</span> Aktivitelerim</a>
+          <a class="nav-mobile-link" href="/koleksiyonum"><span>${ICON_COLLECTION}</span> Koleksiyonum</a>
+          <a class="nav-mobile-link" href="/iceriklerim"><span>${ICON_CONTENT}</span> İçeriklerim</a>
           ${mobileAdminLink}
           <button type="button" class="nav-mobile-link" id="nav-mobile-logout-btn"><span>${ICON_LOGOUT}</span> Çıkış Yap</button>
         </div>`;
@@ -159,7 +159,7 @@
       if (mobileLogoutBtn) {
         mobileLogoutBtn.addEventListener('click', async () => {
           await fetch('/api/auth/logout', { method: 'POST' });
-          window.location.href = 'index.html';
+          window.location.href = '/';
         });
       }
     }
@@ -180,7 +180,7 @@
     });
     document.getElementById('nav-logout-btn').addEventListener('click', async () => {
       await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = 'index.html';
+      window.location.href = '/';
     });
   }
 
