@@ -27,6 +27,12 @@ const ProjectModal = (function () {
         <div class="designer-label">${ProjectMeta.metaIconHtml('office')}Mimarlık Firması:</div>
         <div class="designer-chips" id="pm-office-chips"></div>
       </div>
+      <!-- Fotoğrafçılar (kullanıcı isteği, 2026-09-01): eskiden künyede düz bir "Fotoğraf:" satırıydı,
+           artık Mimar/Mimarlık Firması ile AYNI çip tasarımı — bkz. ProjectMeta#renderPhotographers. -->
+      <div class="designer-section" id="pm-photographer-section" style="display:none;">
+        <div class="designer-label">${ProjectMeta.metaIconHtml('camera')}Fotoğraf:</div>
+        <div class="designer-chips" id="pm-photographer-chips"></div>
+      </div>
       <div class="detail-meta" id="pm-meta"></div>
       <div class="detail-desc" id="pm-desc"></div>
     </div>
@@ -805,6 +811,9 @@ const ProjectModal = (function () {
     currentBasePath = basePath;
     currentTopRank = topRank;
     openedViaPush = pushHistory;
+    // "Düzenle → Kaydet → popup'ı kapat" dönüşü için popup'ın ALTINDAKİ sayfayı kaydeder
+    // (bkz. ModalShell.rememberOriginPage / returnToPreviousPage, kullanıcı isteği 2026-09-01 madde 4).
+    if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
     pushCountSinceOpen = pushHistory ? 1 : 0;
     if (pushHistory) history.pushState({ mimarlabModal: 'project', slug, depth: 1 }, '', `${currentBasePath}${encodeURIComponent(slug)}`);
     // ModalShell.open() ÖNCE çağrılır (overlay/panel DOM'unu ilk kez o oluşturur) — ensureTemplate()

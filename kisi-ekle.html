@@ -1244,7 +1244,7 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
       // döndüğü GÜNCEL slug'a güvenilir (bkz. src/routes/submissions.js#updateOwnSubmission), yeni
       // kayıtta (data.slug yoksa) isimden aynı algoritmayla türetilen slug'a düşülür.
       const finalSlug = data.slug || slugify(payload.name);
-      setTimeout(()=>{ window.location.href = `/kisi/${encodeURIComponent(finalSlug)}`; }, 1200);
+      setTimeout(()=>{ window.location.replace(`/kisi/${encodeURIComponent(finalSlug)}`); }, 1200);
       return;
     }
     if(editId || claimName){

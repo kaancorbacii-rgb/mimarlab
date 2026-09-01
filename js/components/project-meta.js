@@ -88,7 +88,12 @@ const ProjectMeta = (function () {
       }
       return `<span class="designer-chip">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></span>`;
     }
-    const href = d.type === 'architect' ? `/kisi/${encodeURIComponent(slugify(d.name))}` : `/firma/${encodeURIComponent(slugify(d.name))}`;
+    // d.slug: kaydın GERÇEK slug'ı (bkz. src/routes/project.js#fetchDesignerDetails/
+    // fetchPhotographerDetails) — slugify(d.name) yalnızca eski çağıranların slug taşımadığı
+    // durumlar için fallback olarak kalır. Bu ayrım fotoğrafçı çipleri için ŞART: slug'lar
+    // isimden bağımsız olabiliyor (bkz. "legacy_static slug ≠ slugify(title)" notu).
+    const key = encodeURIComponent(d.slug || slugify(d.name));
+    const href = d.type === 'architect' ? `/kisi/${key}` : `/firma/${key}`;
     const badge = verifiedBadgeHtml(d.type, d.name, d.badges, 13);
     return `<a class="designer-chip" href="${href}">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}${badge}</span></a>`;
   }
@@ -112,6 +117,47 @@ const ProjectMeta = (function () {
     }
   }
 
+  // Fotoğrafçılar (kullanıcı isteği, 2026-09-01: "fotoğrafçılar için de mimar isim butonları gibi
+  // buton tasarımı olsun; profili varsa avatarıyla, yoksa sadece isim olarak butonun içinde").
+  // İki kaynak birleştirilir:
+  //   item.photoCredit.text — künyeye yazılmış SERBEST metin (virgülle ayrılmış isimler); sıralamayı
+  //                           ve profilsiz isimleri bu belirler.
+  //   item.photographerDetails — project_photographers üzerinden GERÇEKTEN bir kişi kaydına bağlanmış
+  //                           isimler (name/slug/photo, bkz. src/routes/project.js).
+  // Eşleşen isim designerChipHtml'e normal (avatarlı, /kisi/:slug'a giden) bir mimar çipi olarak,
+  // eşleşmeyen isim ise unregistered olarak verilir — o dal zaten "avatarsız, tıklanamaz, yalnızca
+  // isim" çipi üretiyor, yani istenen iki görünüm için ayrı bir şablona gerek yok.
+  function photographerChipList(item) {
+    const matched = (item.photographerDetails || []).filter(p => p && p.name);
+    const text = item.photoCredit && item.photoCredit.text ? item.photoCredit.text : '';
+    const byName = new Map(matched.map(p => [p.name.trim().toLocaleLowerCase('tr'), p]));
+    const chips = [];
+    const seen = new Set();
+    const push = (name, hit) => {
+      const key = name.toLocaleLowerCase('tr');
+      if (seen.has(key)) return;
+      seen.add(key);
+      chips.push(hit
+        ? { type: 'architect', name: hit.name, slug: hit.slug, photo: hit.photo }
+        : { type: 'architect', name, unregistered: true });
+    };
+    text.split(',').map(s => s.trim()).filter(Boolean).forEach(name => push(name, byName.get(name.toLocaleLowerCase('tr'))));
+    // Künye metninde geçmeyen ama kenar tablosunda bağlı olan bir fotoğrafçı (ör. isim sonradan
+    // düzenlenmiş) kaybolmasın.
+    matched.forEach(p => push(p.name.trim(), p));
+    return chips;
+  }
+
+  function renderPhotographers(item, ids) {
+    const section = document.getElementById(ids.photographerSection);
+    const chipsEl = document.getElementById(ids.photographerChips);
+    if (!section || !chipsEl) return;
+    const chips = photographerChipList(item);
+    if (!chips.length) { section.style.display = 'none'; chipsEl.innerHTML = ''; return; }
+    section.style.display = '';
+    chipsEl.innerHTML = chips.map(designerChipHtml).join('');
+  }
+
   // Künyedeki Tür/Tip/Grup/Yer/Yıl değerleri filtrelenmiş proje listesine bağlanır (bkz. kullanıcı
   // isteği: künyedeki linkler artık proje URL'sine yönlendirsin).
   function filterLinkHtml(item, key, value, label) {
@@ -121,36 +167,6 @@ const ProjectMeta = (function () {
   // metaRow: her künye satırını AYNI hizada/büyüklükte bir ikonla sarar (bkz. kullanıcı isteği).
   function metaRow(iconKey, bodyHtml) {
     return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`;
-  }
-
-  // "Fotoğraf:" satırının gövdesi (kullanıcı isteği, 2026-09-01 madde 6): fotoğrafçı adı artık
-  // MİMARLAB'da bir profili varsa o profilin popup'ına götüren bir bağlantıdır (bkz. src/routes/
-  // project.js#fetchPhotographerDetails — yalnızca project_photographers'ta gerçekten eşleşmiş
-  // isimler döner). photoCredit.text birden çok isim taşıyabildiğinden (Mimar kutusuyla AYNI virgül
-  // kuralı, bkz. src/lib/canonicalSync.js#splitPhotographerNames) her segment BAĞIMSIZ eşleştirilir:
-  // profili olan segment link olur, olmayan düz metin kalır.
-  //
-  // Eski davranış (photoCredit.url varsa TÜM metni o dış siteye bağlama) korunur ama artık yalnızca
-  // HİÇBİR segment bir profile eşleşmediğinde geçerli — iç profil bağlantısı, serbest metin bir dış
-  // bağlantıdan her zaman daha değerli.
-  function photoCreditHtml(item) {
-    const text = item.photoCredit.text;
-    const matched = item.photographerDetails || [];
-    if (matched.length) {
-      const bySlugName = new Map(matched.map(p => [p.name.trim().toLocaleLowerCase('tr'), p]));
-      return text.split(',').map(seg => {
-        const name = seg.trim();
-        if (!name) return '';
-        const hit = bySlugName.get(name.toLocaleLowerCase('tr'));
-        return hit
-          ? `<a href="/kisi/${encodeURIComponent(hit.slug)}">${escapeHtml(name)}</a>`
-          : escapeHtml(name);
-      }).filter(Boolean).join(', ');
-    }
-    const creditUrl = item.photoCredit.url ? safeUrl(item.photoCredit.url) : '';
-    return creditUrl
-      ? `<a href="${escapeAttr(creditUrl)}" target="_blank" rel="noopener">${escapeHtml(text)}</a>`
-      : escapeHtml(text);
   }
 
   function renderMeta(item, ids) {
@@ -165,9 +181,8 @@ const ProjectMeta = (function () {
     }
     if (item.date) html += metaRow('calendar', `<strong>Yıl:</strong> ${item.dateBucket ? filterLinkHtml(item, 'dateBucket', item.dateBucket, item.date) : escapeHtml(item.date)}`);
     if (item.awards && item.awards.length) html += metaRow('award', `<strong>Ödül:</strong> ${item.awards.map(v => filterLinkHtml(item, 'award', v)).join(' / ')}`);
-    if (item.photoCredit && item.photoCredit.text) {
-      html += metaRow('camera', `<strong>Fotoğraf:</strong> ${photoCreditHtml(item)}`);
-    }
+    // "Fotoğraf:" ARTIK bir künye satırı DEĞİL — Mimar/Mimarlık Firması gibi kendi çip bölümünde
+    // (bkz. renderPhotographers, kullanıcı isteği 2026-09-01).
     document.getElementById(ids.meta).innerHTML = html;
   }
 
@@ -220,7 +235,9 @@ const ProjectMeta = (function () {
 
   const DEFAULT_IDS = {
     title: 'pm-title', architectSection: 'pm-architect-section', architectChips: 'pm-architect-chips',
-    officeSection: 'pm-office-section', officeChips: 'pm-office-chips', meta: 'pm-meta', desc: 'pm-desc',
+    officeSection: 'pm-office-section', officeChips: 'pm-office-chips',
+    photographerSection: 'pm-photographer-section', photographerChips: 'pm-photographer-chips',
+    meta: 'pm-meta', desc: 'pm-desc',
   };
 
   function render(item, ids) {
@@ -228,6 +245,7 @@ const ProjectMeta = (function () {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     document.getElementById(mergedIds.title).textContent = item.title;
     renderDesigners(item, mergedIds);
+    renderPhotographers(item, mergedIds);
     // Rozetler /api/public/badges'ten sayfa yüklenirken asenkron gelir (bkz. badge-shared.js) —
     // proje modalı bu fetch tamamlanmadan açılmışsa çipler baş harfli/rozetsiz render edilmiş
     // olabilir; js/components/architect-modal.js#renderVerifiedBadges ile AYNI desen, geldiğinde

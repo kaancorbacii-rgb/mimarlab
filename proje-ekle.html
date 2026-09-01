@@ -2570,11 +2570,15 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       // Başlık değiştiyse slug de değişmiş olabilir (bkz. kullanıcı isteği: "ismi değişirse URL'si
       // de değişmeli") — backend'in döndüğü GÜNCEL slug/prefix'e güvenilir, sayfa yüklenirken
       // bilinen eski claimSlug'a değil.
+      // location.replace (href DEĞİL — kullanıcı isteği, 2026-09-01 madde 4): kaydedilmiş bir formun
+      // history'de durmasının bir değeri yok; replace onu detay URL'iyle değiştirir, böylece popup'tan
+      // "geri" ya da popup'ı kapatmak kullanıcıyı bir daha ASLA doldurduğu forma geri atmaz. Kapatma
+      // dönüşünün kendisi ayrıca ModalShell.returnToPreviousPage tarafından ele alınır (aynı istek).
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       const dest = data.slug ? `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}` : `/proje/${encodeURIComponent(claimSlug)}`;
-      setTimeout(()=>{ window.location.href = dest; }, 1200);
+      setTimeout(()=>{ window.location.replace(dest); }, 1200);
       return;
     }
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi düzenlemesi, bkz. src/routes/
@@ -2587,7 +2591,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
       const dest = data.slug ? `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}` : `/proje/${encodeURIComponent(existingSlug)}`;
-      setTimeout(()=>{ window.location.href = dest; }, 1200);
+      setTimeout(()=>{ window.location.replace(dest); }, 1200);
       return;
     }
     // claimSlug/existingSlug'lı yukarıdaki iki durumun DIŞINDA kalan, admin'in SIFIRDAN (editId'siz)

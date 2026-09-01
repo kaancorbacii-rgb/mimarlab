@@ -743,10 +743,58 @@ const ModalShell = (function () {
   // kayda geçilmişse) — onlar da aynı hamlede geri sarılır.
   // Dışarıdan gelinmediyse (Google'dan doğrudan deep link, adres çubuğuna elle yazma, boş referrer)
   // false döner ve çağıran kendi liste sayfasına pushState eden eski davranışını sürdürür.
+  // ---------------------------------------------------------------------------------------------
+  // "DÜZENLE → KAYDET → POPUP'I KAPAT" DÖNÜŞÜ (kullanıcı isteği, 2026-09-01 madde 4)
+  //
+  // GERÇEK BULGU: /proje listesinde bir proje popup'ı açıp "Düzenle"ye basmak TAM SAYFA bir
+  // navigasyondur (→ /proje-ekle?claim=...). Kaydet'ten sonra o sayfa kullanıcıyı /proje/:slug'a
+  // götürür; orada popup açılır ama openedViaPush=false olduğundan kapanış returnToPreviousPage'e
+  // düşer ve document.referrer artık DÜZENLEME SAYFASIDIR — history.go(-1) kullanıcıyı yeni
+  // kaydettiği formun başına geri atıyordu ("halbuki proje sayfasında olmam gerekiyor").
+  //
+  // Çözüm: popup kendi pushState'iyle açılırken ALTINDAKİ sayfanın URL'i sessionStorage'a yazılır
+  // (rememberOriginPage) — o an location.href tam olarak "popup'ı hangi sayfadan açtım" demektir.
+  // Kaydet dönüşünde referrer bir *-ekle sayfasıysa history yerine BU adres kullanılır.
+  // sessionStorage seçilmesinin nedeni: değer aradaki tam sayfa navigasyonundan (form sayfası)
+  // sağ çıkmalı, ama sekme kapanınca yaşamamalı ve başka sekmelere sızmamalı.
+  const ORIGIN_PAGE_KEY = 'mimarlab:popupOriginPage';
+  const EDIT_PAGE_RE = /^\/(proje|urun|kisi|firma|marka|mimar|haber)-ekle(\.html)?$/;
+  function isEditPageUrl(href) {
+    try { const u = new URL(href, location.href); return u.origin === location.origin && EDIT_PAGE_RE.test(u.pathname); } catch { return false; }
+  }
+  // pushedHistory=true (popup gerçek bir tıklamayla açıldı) → altındaki sayfa location.href'tir.
+  // pushedHistory=false (tam sayfa navigasyonuyla/deep link ile açıldı) → geldiği sayfa referrer'dır.
+  // İKİ durumda da bir *-ekle sayfası ASLA "geldiğim sayfa" olarak kaydedilmez: Kaydet dönüşünde
+  // popup tam olarak oradan gelir ve gerçek başlangıç noktasının üzerine yazılmamalıdır.
+  function rememberOriginPage(pushedHistory) {
+    try {
+      const href = pushedHistory ? location.href : document.referrer;
+      if (!href) return;
+      if (new URL(href, location.href).origin !== location.origin) return;
+      if (isEditPageUrl(href)) return;
+      sessionStorage.setItem(ORIGIN_PAGE_KEY, new URL(href, location.href).href);
+    } catch { /* sessionStorage kapalı (özel mod/kota) — dönüş mevcut history davranışına düşer */ }
+  }
+  function takeOriginPage() {
+    try {
+      const href = sessionStorage.getItem(ORIGIN_PAGE_KEY);
+      sessionStorage.removeItem(ORIGIN_PAGE_KEY); // tek kullanımlık — bayat bir değer ikinci kez tüketilmesin
+      if (!href || new URL(href).origin !== location.origin) return null;
+      return href;
+    } catch { return null; }
+  }
+
   function returnToPreviousPage(extraDepth) {
-    let sameOrigin = false;
-    try { sameOrigin = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch {}
-    if (!sameOrigin) return false;
+    let ref = null;
+    try { ref = document.referrer ? new URL(document.referrer) : null; } catch {}
+    if (!ref || ref.origin !== location.origin) return false;
+    // Bir düzenleme formundan gelindiyse (Kaydet sonrası yönlendirme) history KULLANILMAZ —
+    // bir adım geri gitmek formun kendisine döner. Bunun yerine popup'ın ilk açıldığı sayfaya.
+    if (EDIT_PAGE_RE.test(ref.pathname)) {
+      const origin = takeOriginPage();
+      if (origin) { location.replace(origin); return true; }
+      return false; // hiç kayıt yok → çağıran kendi liste sayfasına pushState eder
+    }
     history.go(-(1 + (extraDepth || 0)));
     return true;
   }
@@ -825,5 +873,5 @@ const ModalShell = (function () {
     anchorEl.insertAdjacentElement('afterend', box);
   }
 
-  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
+  return { open, close, isOpen, getPanels, claimContent, getContentOwner, scrollToTop, wireGridScrollArrows, getHeaderActionsSlot, getAdminActionsSlot, getHeaderCenterSlot, setLabel, goBackAndWait, waitForPendingNav, wasCurrentPopSuperseded, returnToPreviousPage, rememberOriginPage, setSsrDefaults, fetchEntity, showLoadError, clearLoadError };
 })();

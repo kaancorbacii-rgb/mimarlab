@@ -1092,6 +1092,9 @@ const ProductModal = (function () {
     await ModalShell.waitForPendingNav();
     currentSlug = slug;
     openedViaPush = pushHistory;
+    // "Düzenle → Kaydet → popup'ı kapat" dönüşü için popup'ın ALTINDAKİ sayfayı kaydeder
+    // (bkz. ModalShell.rememberOriginPage / returnToPreviousPage, kullanıcı isteği 2026-09-01 madde 4).
+    if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
     pushCountSinceOpen = pushHistory ? 1 : 0;
     if (pushHistory) history.pushState({ mimarlabModal: 'product', slug, depth: 1 }, '', `/urun/${encodeURIComponent(slug)}`);
     injectStyles();

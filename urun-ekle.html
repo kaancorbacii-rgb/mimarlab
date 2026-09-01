@@ -1363,7 +1363,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
-      setTimeout(()=>{ window.location.href = `/urun/${encodeURIComponent(data.slug || adminEditSlug)}`; }, 1200);
+      setTimeout(()=>{ window.location.replace(`/urun/${encodeURIComponent(data.slug || adminEditSlug)}`); }, 1200);
       return;
     }
     // Kaydetme onaylanıp anında yayına girdiyse (admin'in kendi gönderisi/düzenlemesi, bkz. src/
@@ -1378,7 +1378,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       // bkz. src/routes/submissions.js#createSubmission/updateOwnSubmission — artık gerçek/nihai
       // canonical slug'ı (başlık+marka'dan üretilen) döner, eskiden burada 'm-' + data.id ile
       // (artık doğru olmayan bir varsayımla) yeniden üretiliyordu.
-      setTimeout(()=>{ window.location.href = `/urun/${encodeURIComponent(data.slug || ('m-' + data.id))}`; }, 1200);
+      setTimeout(()=>{ window.location.replace(`/urun/${encodeURIComponent(data.slug || ('m-' + data.id))}`); }, 1200);
       return;
     }
     if(editId){

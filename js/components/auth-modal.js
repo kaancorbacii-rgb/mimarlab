@@ -175,6 +175,15 @@ const AuthModal = (function () {
     #am-panel .dash-row{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; align-items:start;}
     #am-panel .dash-row .dash-section{margin-bottom:0; min-width:0;}
     #am-panel .dash-section h2{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 4px;}
+    /* kullanıcı isteği (2026-09-01): "Profili Düzenle" ARTIK sayfa başlığında (avatarın yanında)
+       DEĞİL — Profil Bilgileri ve Firma Bilgileri kutularının KENDİ başlıklarının yanında AYRI AYRI
+       birer buton olarak duruyor. Kutu başlığı bu yüzden h2 + butonu aynı satırda taşıyan bir flex
+       satır oldu. .dash-edit-btn-sm: aynı hap/çerçeve görünümü, ama 17px'lik kutu başlığının yanında
+       orantılı kalması için küçültülmüş; <a> olarak da kullanıldığından (Firma Bilgileri butonu
+       doğrudan /firma-ekle'ye gider) inline-flex + text-decoration:none burada ayrıca verilir. */
+    #am-panel .dash-section-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px;}
+    #am-panel .dash-section-head h2{margin:0;}
+    #am-panel .dash-edit-btn-sm{display:inline-flex; align-items:center; justify-content:center; padding:7px 14px; font-size:12.5px; text-decoration:none; white-space:nowrap; cursor:pointer;}
     #am-panel .dash-section .section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
     #am-panel .dash-empty{border:1px dashed var(--line); border-radius:12px; padding:24px; text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.6;}
     #am-panel .dash-empty a{color:var(--walnut); font-weight:600;}
@@ -391,20 +400,14 @@ const AuthModal = (function () {
       .dash-nav-row{gap:2px;}
       .dash-nav-row .dash-edit-btn{height:26px; padding:0 3px; font-size:9px;}
     }
-    /* kullanıcı isteği (2026-08-28): mobilde Profili Düzenle butonu sayfaya yatayda ortalanıyor. */
     @media (max-width:720px){
       #am-panel .dash-head-info{flex-direction:column; align-items:flex-start; gap:10px; flex-basis:100%; width:100%;}
-      /* kullanıcı isteği (2026-08-30): Hesabım'da mobilde "Profili Düzenle" avatarla AYNI üst satırda
-         (sağa hizalı) kalsın. Eski üçüncü "secondary" grid alanı KALDIRILDI — Aktivitelerim/
-         İçeriklerim artık başlığın altında değil, .dash-wrap'in en üstündeki .dash-nav-row'da. */
-      #am-panel .dash-head-account{
-        display:grid; grid-template-columns:auto 1fr;
-        grid-template-areas:"avatar edit" "titles titles";
-        gap:10px 18px; align-items:center;
-      }
-      #am-panel .dash-head-account .dash-avatar{grid-area:avatar;}
-      #am-panel .dash-head-account .dash-head-titles{grid-area:titles;}
-      #am-panel .dash-head-account #am-dash-edit-btn{grid-area:edit; justify-self:end;}
+      /* Hesabım başlığı artık YALNIZCA avatar + isim taşıyor — "Profili Düzenle" (kullanıcı isteği,
+         2026-09-01) Profil Bilgileri kutusunun başlığına taşındığından buradaki eski üç alanlı grid
+         (avatar/edit/titles) gereksiz kaldı; mobilde de masaüstündeki AYNI tek satır korunur. */
+      #am-panel .dash-head-account{gap:12px;}
+      /* Kutu başlığındaki buton dar ekranda başlığı ezmesin: başlık ile buton alt alta düşer. */
+      #am-panel .dash-section-head{flex-wrap:wrap; gap:8px;}
     }
     @media (max-width:860px){ #am-panel .dash-row{grid-template-columns:1fr; gap:20px;} }
     /* .col-two-col — masaüstünde VE tablette iki sütun kalması istenen satırlar: Koleksiyonum
@@ -811,7 +814,6 @@ const AuthModal = (function () {
           <h1 id="am-dash-title">Hoş Geldin</h1>
           <p id="am-dash-sub">—</p>
         </div>
-        <button class="dash-edit-btn" id="am-dash-edit-btn">Profili Düzenle</button>
       </div>
 
       <div class="profile-edit-overlay" id="am-profile-edit-overlay">
@@ -936,7 +938,10 @@ const AuthModal = (function () {
            düşürüyordu, bu sınıf eşiği 620px'e çeker (bkz. injectStyles'taki kural). -->
       <div class="dash-row col-two-col">
         <div class="dash-section">
-          <h2>Profil Bilgileri</h2>
+          <div class="dash-section-head">
+            <h2>Profil Bilgileri</h2>
+            <button type="button" class="dash-edit-btn dash-edit-btn-sm" id="am-dash-edit-btn">Profili Düzenle</button>
+          </div>
           <div id="am-profile-tab-facts">
             <div class="profile-fact"><span class="profile-fact-label">Ad Soyad</span><span class="profile-fact-value" id="am-fact-name">—</span></div>
             <div class="profile-fact"><span class="profile-fact-label">Doğum Tarihi</span><span class="profile-fact-value" id="am-fact-dob">—</span></div>
@@ -956,7 +961,13 @@ const AuthModal = (function () {
              BURAYA taşındı: aynı bilgi iki kutuda birden görünmesin. Kutu ayrıca firmanın kendi
              künyesini (/api/office/:key) çeker, bkz. loadFirmInfo. -->
         <div class="dash-section">
-          <h2>Firma Bilgileri</h2>
+          <!-- Firma künyesinin kendi "Profili Düzenle" butonu (kullanıcı isteği, 2026-09-01 madde 1)
+               — yalnızca firmada YETKİLİ bir görevi olan kullanıcıya gösterilir, bkz.
+               renderFirmEditBtn / OFFICE_EDIT_POSITIONS. -->
+          <div class="dash-section-head">
+            <h2>Firma Bilgileri</h2>
+            <a class="dash-edit-btn dash-edit-btn-sm" id="am-firm-edit-btn" href="#" style="display:none;">Profili Düzenle</a>
+          </div>
           <div id="am-firm-facts"><div class="dash-empty">Yükleniyor…</div></div>
           <div id="am-claims-mine-list"></div>
         </div>
@@ -1083,8 +1094,12 @@ const AuthModal = (function () {
         </div>
       </div>
 
-      <!-- col-two-col: bkz. accountTemplate()'teki AYNI gerekçe (kullanıcı isteği, 2026-09-01 madde 1). -->
-      <div class="dash-row col-two-col">
+      <!-- TEK SÜTUN (kullanıcı isteği, 2026-09-01 madde 2): yanındaki "Kişi/Firma Profilim" kutusu
+           KALDIRILDI — aynı bilgi (ve firma için "Profili Düzenle") artık Hesabım > Firma Bilgileri
+           kutusunda duruyor (bkz. accountTemplate#am-firm-facts / renderFirmEditBtn). Tek kutu
+           kaldığından .dash-row ızgarası da gereksiz: .dash-section kendi margin-bottom'unu zaten
+           taşıyor ve tam genişliği kaplar. -->
+      <div>
         <div class="dash-section">
           <!-- Başlık "Eklediklerim" + "Proje Ekle/Ürün Ekle/..." bağlantı satırı KALDIRILDI
                (kullanıcı isteği, 2026-09-01 madde 3). Ekleme sayfalarına giden yol zaten
@@ -1104,11 +1119,6 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-submissions"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-submissions-pagination"></div>
-        </div>
-
-        <div class="dash-section">
-          <h2>Kişi/Firma Profilim</h2>
-          <div id="am-contents-claims-list"><div class="dash-empty">Yükleniyor…</div></div>
         </div>
       </div>
     </div>`;
@@ -1360,6 +1370,11 @@ const AuthModal = (function () {
   // amClaimItems ile AYNI kapsamda tutulur çünkü renderClaimsList onu, loadFirmInfo'dan ÖNCE de
   // çağrılabilecek şekilde okuyor (bkz. oradaki filtre).
   let firmInfoKey = null;
+  // Firma Bilgileri kutusunun "Profili Düzenle" butonunun hedefi/görünürlüğü (bkz. renderFirmEditBtn).
+  // firmInfoSlug: /firma-ekle?claim=<slug> için gereken slug; firmInfoApproved: talep onaylı mı
+  // (bekleyen bir talep henüz düzenleme yetkisi vermez).
+  let firmInfoSlug = null;
+  let firmInfoApproved = false;
   // /api/public/badges: profil başına TEK, nihai rozeti döndürür (admin_badges satın alınanın
   // yerine geçer, bkz. src/routes/badges.js#computeBadgesPayload) — Mimar/Firma satırındaki rozet
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
@@ -1392,44 +1407,6 @@ const AuthModal = (function () {
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
 
-  // İçeriklerim > "Mimar/Firma Profilim" kutusundaki bir satıra tıklanınca kisi.html/firma.html'in
-  // kullandığı GERÇEK profil popup'ını (ArchitectModal/OfficeModal) açar (bkz. kullanıcı isteği:
-  // "profil görseline veya isme tıklayınca o popup açılsın"). Bu iki script + bağımlılıkları
-  // (badge-shared.js, save-widget.js, claim-correction-box.js, share-button.js, message-button.js,
-  // social-links.js) index.html'de HİÇ yüklenmez (bkz. js/components/lazy-modals.js dosya başı
-  // yorumu — AYNI "yalnızca gerçekten gerekince yükle" gerekçesi, burada da devam ettirilir); ilk
-  // tıklamada dinamik <script> enjeksiyonuyla bir kez indirilip önbelleğe alınır (promise module
-  // düzeyinde saklanır, aksi halde ikinci tıklamada `const ArchitectModal = ...` YENİDEN çalışıp
-  // "already declared" SyntaxError'ıyla sayfayı kırardı).
-  // GERÇEK BULGU: köksüz (başında / OLMAYAN) src'ler İçeriklerim'in KENDİSİ /iceriklerim gibi tek
-  // parçalı bir yoldayken çalışıyordu ama Modal.open() history.pushState ile URL'i /kisi/<slug>'a
-  // (iki parçalı) değiştirir değiştirmez, HENÜZ tamamlanmamış <script> etiketleri o YENİ taban'a göre
-  // yeniden çözülüp (ör. save-widget.js -> /kisi/save-widget.js) 404 oluyordu — kökten kaçınmak için
-  // hepsi / ile başlar, geçerli URL'den TAMAMEN bağımsız.
-  const PROFILE_MODAL_SCRIPTS = [
-    '/save-widget.js', '/badge-shared.js', '/js/components/claim-correction-box.js',
-    '/js/components/share-button.js', '/js/components/message-button.js', '/js/components/social-links.js',
-    '/js/components/architect-modal.js', '/js/components/office-modal.js',
-  ];
-  let profileModalsReadyPromise = null;
-  function loadProfileModals() {
-    if (profileModalsReadyPromise) return profileModalsReadyPromise;
-    profileModalsReadyPromise = Promise.all(PROFILE_MODAL_SCRIPTS.map(src => new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-      const script = document.createElement('script');
-      script.src = src;
-      script.onload = () => resolve();
-      script.onerror = () => { script.remove(); reject(new Error('profil popup betiği yüklenemedi: ' + src)); };
-      document.head.appendChild(script);
-    }))).catch(err => { profileModalsReadyPromise = null; throw err; });
-    return profileModalsReadyPromise;
-  }
-  function openProfilePopup(profileType, slug, triggerEl) {
-    loadProfileModals().then(() => {
-      const Modal = profileType === 'office' ? OfficeModal : ArchitectModal;
-      Modal.open(slug, { triggerEl });
-    }).catch(() => { window.location.href = `/${profileType === 'office' ? 'firma' : 'mimar'}/${encodeURIComponent(slug)}`; });
-  }
   // Kutular masaüstünde 2 sütunlu (bkz. .dash-row) olduğundan asıl genişlik window.innerWidth değil
   // KUTUNUN kendisi — bu yüzden sabit bir eşik yerine gerçek konteyner genişliğine göre, taşıyorsa
   // pencere daraltılarak tek satıra sığdırılır (bkz. renderDashPagination).
@@ -1578,6 +1555,7 @@ const AuthModal = (function () {
       renderAmNameBadge();
       document.getElementById('am-fact-profession').textContent = professionLabelText(accountUser.profession) || '—';
       document.getElementById('am-fact-position').textContent = accountUser.position || '—';
+      renderFirmEditBtn(); // pozisyon değişmiş olabilir (bkz. o fonksiyondaki paralel-yükleme gerekçesi)
       document.getElementById('am-fact-school').textContent = accountUser.school || '—';
       document.getElementById('am-fact-dob').textContent = accountUser.dob ? String(accountUser.dob).slice(0, 4) : '—';
       document.getElementById('am-fact-joined').textContent = new Date(accountUser.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long' });
@@ -2138,8 +2116,9 @@ const AuthModal = (function () {
       // karıştırıyor. Talep tekrar gönderilirse (bkz. src/routes/claims.js#createClaim'in rejected→pending reset'i)
       // zaten yeniden 'pending' olarak burada görünür.
       // kullanıcı isteği (2026-08-30): Profil Bilgileri kutusu artık salt bilgi amaçlı — Mimar satırı
-      // tamamen kaldırıldı, Firma satırı da Düzenle linki OLMADAN gösterilir (profil düzenleme artık
-      // yalnızca İçeriklerim > Mimar/Firma Profilim'den yapılır, bkz. renderContentsClaims).
+      // tamamen kaldırıldı, bu ek firma satırları da Düzenle linki OLMADAN gösterilir. Firma künyesi
+      // düzenleme artık TEK yerde: Firma Bilgileri kutusunun başlığındaki "Profili Düzenle" butonu
+      // (bkz. renderFirmEditBtn) — ve o buton kutuda GÖSTERİLEN firmayı hedefler, bu listeyi değil.
       // firmInfoKey — künye kutusunda (#am-firm-facts) ZATEN tam olarak gösterilen firma; aynı adı
       // hemen altında ikinci kez listelemek anlamsız olurdu. Bir kullanıcının birden fazla firma
       // talebi olabildiğinden (canlıda var) geri kalanlar bu listede durmaya devam eder — durum
@@ -2217,10 +2196,17 @@ const AuthModal = (function () {
         || claimItems.find(c => c.profile_type === 'office' && c.status === 'pending');
       if (!claim) {
         firmInfoKey = null;
+        firmInfoSlug = null;
+        firmInfoApproved = false;
+        renderFirmEditBtn();
         box.innerHTML = '<div class="dash-empty">Henüz bir firmada görev almıyorsun. Profili Düzenle\'den firmanı seçebilirsin.</div>';
         renderClaimsList();
         return;
       }
+      firmInfoApproved = claim.status === 'approved';
+      // Künye çekilemese bile buton bir hedefe sahip olsun: talebin kendi slug'ı (yoksa adı).
+      firmInfoSlug = claim.slug || claim.profile_key;
+      renderFirmEditBtn();
       // Aynı anahtar için ikinci kez ağ isteği atma — loadMyClaims her loadUser()'da çalışıyor.
       if (firmInfoKey === claim.profile_key) return;
       firmInfoKey = claim.profile_key;
@@ -2243,6 +2229,7 @@ const AuthModal = (function () {
       }
       if (accountUser && accountUser.position) rows.push(['Görevin', accountUser.position]);
       const slug = office && office.slug ? office.slug : '';
+      if (slug) { firmInfoSlug = slug; renderFirmEditBtn(); }
       box.innerHTML = rows.map(([label, value], i) => `
         <div class="profile-fact">
           <span class="profile-fact-label">${escapeHtml(label)}</span>
@@ -2251,6 +2238,24 @@ const AuthModal = (function () {
             : escapeHtml(value)}</span>
         </div>`).join('');
       renderClaimsList();
+    }
+
+    // "Firma Bilgileri" kutusunun kendi "Profili Düzenle" butonu (kullanıcı isteği, 2026-09-01
+    // madde 1: "Firma bilgilerini sadece firma kurucusu, kurucu ortağı, ortağı ya da ekip lideri
+    // değiştirebilsin. Ekip üyesi olanlar değiştiremesin."). Kural İçeriklerim'deki eski
+    // "Kişi/Firma Profilim" satırıyla (o kutu bu istekle KALDIRILDI, bkz. contentsTemplate) ve
+    // sunucudaki src/routes/submissions.js#OFFICE_EDIT_POSITIONS ile BİREBİR aynı — istemci burada
+    // yalnızca butonu gizler, asıl yetki kontrolü her zaman sunucuda tekrar yapılır.
+    // accountUser (pozisyon) ve firma talebi (loadMyClaims) BAĞIMSIZ/paralel yüklendiğinden bu
+    // fonksiyon her ikisinin de bittiği yerlerden ayrı ayrı çağrılır — hangisi sonra biterse
+    // butonu doğru duruma getirir (renderClaimsList ile AYNI desen).
+    function renderFirmEditBtn() {
+      const btn = document.getElementById('am-firm-edit-btn');
+      if (!btn) return;
+      const canEdit = !!firmInfoSlug && firmInfoApproved
+        && OFFICE_EDIT_POSITIONS.has(accountUser && accountUser.position);
+      btn.style.display = canEdit ? '' : 'none';
+      if (canEdit) btn.href = `${CLAIM_EDIT_PAGE.office}?claim=${encodeURIComponent(firmInfoSlug)}`;
     }
 
     async function syncClaimedArchitectData(items) {
@@ -2839,64 +2844,14 @@ const AuthModal = (function () {
       renderSubmissions();
     });
 
-    // "Mimar/Firma Profilim" kutusu — accountTemplate()#renderClaimsList İLE AYNI /api/claims/mine
-    // kaynağı, ama mountAccount()'un ÖZEL kapsamındaki amClaimItems/accountUser'dan bağımsız kendi
-    // fetch'ini yapar (kullanıcı isteği: İçeriklerim'e doğrudan gidildiğinde, Hesabım hiç mount
-    // edilmemiş olsa bile hesaba bağlı onaylı/bekleyen mimar-firma profili burada görünsün).
-    let contentsUser = null;
-    function renderContentsClaims(items) {
-      const list = document.getElementById('am-contents-claims-list');
-      const visibleItems = items.filter(c => c.status !== 'rejected');
-      if (!visibleItems.length) { list.innerHTML = '<div class="dash-empty">Hesabına bağlı bir mimar ya da firma profili yok.</div>'; return; }
-      const sortedItems = visibleItems.slice().sort((a, b) => (a.profile_type === 'office' ? 0 : 1) - (b.profile_type === 'office' ? 0 : 1));
-      list.innerHTML = sortedItems.map(c => {
-        const canEdit = c.status === 'approved' && (c.profile_type !== 'office' || OFFICE_EDIT_POSITIONS.has(contentsUser && contentsUser.position));
-        const profileUrl = c.status === 'approved' ? `/${c.profile_type === 'office' ? 'firma' : 'mimar'}/${encodeURIComponent(c.slug || c.profile_key)}` : null;
-        // kullanıcı isteği (2026-08-30): profil görseli de gösterilsin, görsele/isme tıklayınca
-        // gerçek profil popup'ı (ArchitectModal/OfficeModal, bkz. openProfilePopup) açılsın — normal
-        // bir <a href> olarak kalır (yeni sekmede aç/orta tık gibi tarayıcı davranışları bozulmaz),
-        // yalnızca düz sol tık aşağıdaki delegasyonla yakalanıp popup'a yönlendirilir.
-        const avatarHtml = c.image
-          ? `<img class="profile-fact-avatar" src="${escapeAttr(avatarImg(c.image, 80, c.image))}" alt="" loading="lazy" decoding="async">`
-          : `<span class="profile-fact-avatar profile-fact-avatar-fallback">${escapeHtml(dashInitials(c.profile_key))}</span>`;
-        const linkAttrs = `href="${escapeAttr(profileUrl || '#')}" class="profile-fact-open-link" data-profile-type="${escapeAttr(c.profile_type)}" data-slug="${escapeAttr(c.slug || c.profile_key)}"`;
-        const identityHtml = profileUrl
-          ? `<a ${linkAttrs}>${avatarHtml}</a><a ${linkAttrs} style="color:inherit; text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${escapeHtml(c.profile_key)}</a>`
-          : `${avatarHtml}<span>${escapeHtml(c.profile_key)}</span>`;
-        return `
-        <div class="profile-fact">
-          <span class="profile-fact-label">${CLAIM_TYPE_LABELS[c.profile_type] || c.profile_type}</span>
-          <span class="profile-fact-value" style="display:flex; align-items:center; gap:10px; flex:1; justify-content:space-between;">
-            <span style="display:flex; align-items:center; gap:10px; min-width:0;">${identityHtml}</span>
-            ${canEdit
-              ? `<a class="submission-edit-link" href="${CLAIM_EDIT_PAGE[c.profile_type]}?claim=${encodeURIComponent(c.slug || c.profile_key)}">Düzenle</a>`
-              : c.status === 'approved'
-                ? ''
-                : `<span style="font-size:11px; font-weight:700; text-transform:uppercase; color:${CLAIM_STATUS_COLORS_ACCOUNT[c.status] || 'var(--ink-soft)'};">${CLAIM_STATUS_LABELS_ACCOUNT[c.status] || c.status}</span>`}
-          </span>
-        </div>
-      `;
-      }).join('');
-    }
-    on('am-contents-claims-list', 'click', (e) => {
-      const link = e.target.closest('.profile-fact-open-link');
-      if (!link || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      openProfilePopup(link.dataset.profileType, link.dataset.slug, link);
-    });
-    async function loadContentsClaims() {
-      try {
-        const res = await fetch('/api/claims/mine');
-        const data = res.ok ? await res.json() : { items: [] };
-        renderContentsClaims(data.items || []);
-      } catch { renderContentsClaims([]); }
-    }
-
-    fetch('/api/auth/me').then(async r => {
+    // "Kişi/Firma Profilim" kutusu KALDIRILDI (kullanıcı isteği, 2026-09-01 madde 2) — hesaba bağlı
+    // mimar/firma profili ve firma künyesinin "Profili Düzenle" butonu artık YALNIZCA Hesabım
+    // popup'ındaki Profil Bilgileri / Firma Bilgileri kutularında duruyor (bkz. accountTemplate,
+    // renderClaimsList, renderFirmEditBtn). Bu kutunun kendi /api/claims/mine fetch'i de bu yüzden
+    // tamamen kaldırıldı — İçeriklerim artık yalnızca "Eklediklerim"i yükler.
+    fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      contentsUser = (await r.json()).user;
       loadSubmissions().catch(() => {});
-      loadContentsClaims().catch(() => {});
     }).catch(() => {});
   }
 
@@ -3546,6 +3501,9 @@ const AuthModal = (function () {
   function open(view, { pushHistory = true, triggerEl = null } = {}) {
     currentView = view;
     openedViaPush = pushHistory;
+    // bkz. ModalShell.rememberOriginPage — "Düzenle → Kaydet → popup'ı kapat" dönüşünün
+    // başlangıç noktası (kullanıcı isteği, 2026-09-01 madde 4).
+    if (ModalShell.rememberOriginPage) ModalShell.rememberOriginPage(pushHistory); // modal-shell.js ayrı cache'lenen bir asset — eski bir kopya yüklüyse sessizce atla
     pushCountSinceOpen = pushHistory ? 1 : 0;
     if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: 1 }, '', VIEW_PATH[view]);
     if (isMobileDrawer(view)) window.NavDrawer.showSubpage({ onBack: backToMenu, onRequestFullClose: close });
