@@ -49,6 +49,14 @@ function safeInternalPath(value) {
 export async function handleCollectionsRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "collections", ...]
 
+  // GET /api/collections/shared/:token — TEK oturumsuz uç (kullanıcı isteği, 2026-09-02: "Pano
+  // başkalarının da görebileceği şekilde paylaşılabilsin"). getSessionUser'dan ÖNCE ele alınır;
+  // aşağıdaki 401 kapısı diğer TÜM işlemler için aynen yerinde kalır. Yalnızca sahibi paylaşımı
+  // açmışsa (share_token dolu) veri döner — bkz. getSharedCollection.
+  if (segments.length === 4 && segments[2] === 'shared' && request.method === 'GET') {
+    return getSharedCollection(env, segments[3]);
+  }
+
   const user = await getSessionUser(request, env);
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
@@ -63,7 +71,54 @@ export async function handleCollectionsRoute(request, env, url) {
   // böylece pozisyonlar arasında boşluk/çakışma oluşamaz.
   if (segments.length === 4 && segments[3] === 'items' && request.method === 'PATCH') return reorderItems(request, env, user, segments[2]);
   if (segments.length === 5 && segments[3] === 'items' && request.method === 'DELETE') return deleteItem(env, user, segments[2], segments[4]);
+  // POST/DELETE .../share — paylaşımı aç / geri al (bkz. shareCollection/unshareCollection).
+  if (segments.length === 4 && segments[3] === 'share' && request.method === 'POST') return shareCollection(env, user, segments[2]);
+  if (segments.length === 4 && segments[3] === 'share' && request.method === 'DELETE') return unshareCollection(env, user, segments[2]);
   return errorJson('Bulunamadı', 404);
+}
+
+// Paylaşımı açar ve TAHMİN EDİLEMEZ bir token üretir (newId — createCollection'ın id'leriyle AYNI
+// kaynak). Zaten paylaşılmışsa mevcut token KORUNUR: kullanıcı butona tekrar bastığında daha önce
+// dağıttığı bağlantı ölmemeli.
+async function shareCollection(env, user, id) {
+  const row = await findOwnCollection(env, user, id);
+  if (!row) return errorJson('Bulunamadı', 404);
+  let token = row.share_token;
+  if (!token) {
+    token = newId();
+    await env.DB.prepare(`UPDATE collections SET share_token = ?, shared_at = ? WHERE id = ? AND user_id = ?`)
+      .bind(token, Date.now(), id, user.id).run();
+  }
+  return json({ shareToken: token, shareUrl: `/pano/${token}` });
+}
+
+// Paylaşımı geri alır — token silinir, dağıtılmış bağlantı çalışmaz hale gelir (bkz.
+// migrations/0082_collection_share.sql tasarım notu).
+async function unshareCollection(env, user, id) {
+  const row = await findOwnCollection(env, user, id);
+  if (!row) return errorJson('Bulunamadı', 404);
+  await env.DB.prepare(`UPDATE collections SET share_token = NULL, shared_at = NULL WHERE id = ? AND user_id = ?`)
+    .bind(id, user.id).run();
+  return json({ shareToken: null });
+}
+
+// Herkese açık okuma. Yalnızca token ile bulunur (id ile DEĞİL) ve yalnızca paylaşımı AÇIK panolar
+// döner. Sahibin kimliği/e-postası KASITLI olarak dönmez — yalnızca panonun kendi içeriği.
+async function getSharedCollection(env, token) {
+  if (!token) return errorJson('Bulunamadı', 404);
+  const row = await env.DB.prepare(
+    `SELECT * FROM collections WHERE share_token = ? LIMIT 1`
+  ).bind(token).first();
+  if (!row) return errorJson('Bulunamadı', 404);
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM collection_items WHERE collection_id = ? ORDER BY position, created_at`
+  ).bind(row.id).all();
+  const previewImages = results.filter(r => r.image).slice(0, 4).map(r => r.image);
+  const shaped = shapeCollection(row, results.length, previewImages);
+  // Paylaşılan görünümde pano id'si sızdırılmaz: id'yi bilen biri yazma uçlarını deneyemesin
+  // (denese de findOwnCollection user_id ile eşleşmediğinden 404 alırdı — bu ek bir savunma katmanı).
+  delete shaped.id;
+  return json({ item: shaped, items: results.map(shapeItem) });
 }
 
 // Koleksiyonun kullanıcıya ait olduğunu doğrular — TÜM alt işlemlerin (öğe ekleme/silme, düzenleme)
@@ -81,6 +136,8 @@ function shapeCollection(row, itemCount, previewImages) {
     coverImage: row.cover_image || previewImages[0] || null,
     itemCount,
     previewImages,
+    // Paylaşım durumu — istemci "Paylaş" / "Paylaşımı Durdur" ayrımını buradan yapar.
+    shareToken: row.share_token || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

@@ -365,7 +365,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   const body = await readJson(request);
   const missing = validateRequired(typeKey, body);
   if (missing.length) return errorJson(`Eksik alan(lar): ${missing.join(', ')}`);
-  const oversizedField = findOversizedField(typeKey, body);
+  const oversizedField = findOversizedField(typeKey, body, existing);
   if (oversizedField) return errorJson(`"${oversizedField}" alanı çok uzun.`);
   const invalidUrlField = findInvalidUrlField(typeKey, body);
   if (invalidUrlField) return errorJson(`"${invalidUrlField}" alanı geçerli bir bağlantı değil.`);

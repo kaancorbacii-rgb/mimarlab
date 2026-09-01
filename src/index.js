@@ -504,6 +504,17 @@ async function routeAsset(request, env, url, ctx) {
     return Response.redirect(new URL(`${legacySlugAsset.asset}/${encodeURIComponent(legacySlugValue)}`, url.origin).href, 301);
   }
 
+  // /pano/:token — paylaşılan pano (kullanıcı isteği, 2026-09-02). CLEAN_URL_ASSETS'ten AYRI
+  // tutulur çünkü serveDetailPage D1'den SEO meta üretip SSR gövdesi enjekte eder; panolar ise
+  // KİŞİSEL içeriktir, noindex'tir (bkz. pano.html) ve arama motoru meta'sı istenmez. Sayfa
+  // token'ı kendi JS'inde URL'den okuyup GET /api/collections/shared/:token ile doldurur.
+  if (url.pathname.startsWith('/pano/') && url.pathname.length > '/pano/'.length) {
+    const panoUrl = new URL(url);
+    panoUrl.pathname = '/pano';
+    const panoRes = await env.ASSETS.fetch(new Request(panoUrl, request));
+    return withStaticAssetCacheHeaders(url, panoRes);
+  }
+
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
   if (cleanRoute) return serveDetailPage(request, env, url, cleanRoute, ctx);
 

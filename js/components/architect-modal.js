@@ -282,7 +282,10 @@ const ArchitectModal = (function () {
       </div>
     </div>
     <div class="related-section" id="am-related-architects-section" style="display:none;">
-      <h2 class="related-title">Diğer Kişiler</h2>
+      <!-- Sayaç (kullanıcı isteği, 2026-09-02): bölüm zaten en fazla 9 kişi gösteriyordu (bkz.
+           src/routes/architect.js#relatedArchitects, .slice(0, 9) — tüm öneri şeritlerinin ORTAK
+           üst sınırı) ama kardeş bölümlerin aksine sayıyı BAŞLIKTA göstermiyordu. -->
+      <h2 class="related-title">Diğer Kişiler<span id="am-related-architects-count"></span></h2>
       <div class="related-grid-scroll" id="am-related-architects-grid"></div>
     </div>
     <div class="prevnext" id="am-prevnext"></div>
@@ -617,6 +620,15 @@ const ArchitectModal = (function () {
       img.fetchPriority = 'high';
       img.onerror = () => img.remove();
       logoEl.appendChild(img);
+      // Tıklayınca büyüsün (kullanıcı isteği, 2026-09-02) — bkz. js/components/image-lightbox.js.
+      // data-lightbox-src ORİJİNALİ gösterir: kart 400 px'lik türevi indiriyor ama büyütünce tam
+      // çözünürlük istenir. Delege dinleyici sayesinde ayrıca listener bağlamaya gerek yok.
+      logoEl.classList.add('img-zoomable');
+      logoEl.setAttribute('data-lightbox-src', photoUrl);
+      logoEl.setAttribute('data-lightbox-alt', a.name || '');
+    } else {
+      logoEl.classList.remove('img-zoomable');
+      logoEl.removeAttribute('data-lightbox-src');
     }
 
     // Kaydet KALDIRILDI (bkz. kullanıcı isteği: mimar/firma profillerinde Kaydet butonu artık yok) —
@@ -676,18 +688,18 @@ const ArchitectModal = (function () {
     // yeniden çizer) — aşağıdaki renderVerifiedBadges ile AYNI /api/public/badges gecikmesi burada
     // da var: rozetler ilk çizimde henüz gelmemiş olabilir, 'mimarlab-badges-ready' ile tekrar çizilir.
     function renderOfficeGrid() {
-      document.getElementById('am-office-grid').innerHTML = offices.map(off => off.unregistered
+      RelatedStrip.render(document.getElementById('am-office-grid'), offices, off => off.unregistered
         ? unregisteredBadgeHtml(off.name)
         : cardHtml(`/firma/${encodeURIComponent(slugify(off.name))}`, off.name, logoUrl(off), [off.loc, off.yil ? 'K. ' + off.yil : null].filter(Boolean).join(' · '), verifiedBadgeHtml('office', off.name, off.badges, 14))
-      ).join('');
+      );
     }
     renderOfficeGrid();
 
     document.getElementById('am-colleagues-section').style.display = colleagues.length ? '' : 'none';
     function renderColleaguesGrid() {
-      document.getElementById('am-colleagues-grid').innerHTML = colleagues.map(c =>
+      RelatedStrip.render(document.getElementById('am-colleagues-grid'), colleagues, c =>
         cardHtml(`/kisi/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
-      ).join('');
+      );
     }
     renderColleaguesGrid();
 
@@ -700,9 +712,9 @@ const ArchitectModal = (function () {
     }
 
     document.getElementById('am-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
-    document.getElementById('am-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
+    RelatedStrip.render(document.getElementById('am-related-projects-grid'), relatedProjectsData, p =>
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
-    ).join('');
+    );
     document.getElementById('am-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
     renderProjectsMap(relatedProjectsData);
 
@@ -711,19 +723,20 @@ const ArchitectModal = (function () {
     // (src/routes/architect.js#photographedProjects, project_photographers kenarından).
     const photographedData = payload.photographedProjects || [];
     document.getElementById('am-photographed-section').style.display = photographedData.length ? '' : 'none';
-    document.getElementById('am-photographed-grid').innerHTML = photographedData.map(p =>
+    RelatedStrip.render(document.getElementById('am-photographed-grid'), photographedData, p =>
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
-    ).join('');
+    );
     document.getElementById('am-photographed-count').textContent = photographedData.length ? ` (${photographedData.length})` : '';
 
     // Diğer Mimarlar — kullanıcı isteği: projelerin ardından benzer yaştaki mimarlar öneri olarak
     // gösterilsin (bkz. src/routes/architect.js#buildArchitectPayload relatedArchitects, ±5 yıl
     // aralığında ORDER BY RANDOM() ile seçilir, her açılışta farklı isimler gelir).
     document.getElementById('am-related-architects-section').style.display = relatedArchitectsData.length ? '' : 'none';
+    document.getElementById('am-related-architects-count').textContent = relatedArchitectsData.length ? ` (${relatedArchitectsData.length})` : '';
     function renderRelatedArchitectsGrid() {
-      document.getElementById('am-related-architects-grid').innerHTML = relatedArchitectsData.map(r =>
+      RelatedStrip.render(document.getElementById('am-related-architects-grid'), relatedArchitectsData, r =>
         cardHtml(`/kisi/${encodeURIComponent(slugify(r.name))}`, r.name, r.photo, r.dob ? String(r.dob).slice(0, 4) : null, verifiedBadgeHtml('architect', r.name, r.badges, 14))
-      ).join('');
+      );
     }
     renderRelatedArchitectsGrid();
 
@@ -770,7 +783,7 @@ const ArchitectModal = (function () {
     // tasarımcı vekili.
     function renderDesignerProductsGrid() {
       document.getElementById('am-related-products-section').style.display = designerProductsData.length ? '' : 'none';
-      document.getElementById('am-related-products-grid').innerHTML = designerProductsData.map(p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category)).join('');
+      RelatedStrip.render(document.getElementById('am-related-products-grid'), designerProductsData, p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category));
       document.getElementById('am-related-products-count').textContent = designerProductsData.length ? ` (${designerProductsData.length})` : '';
     }
     renderDesignerProductsGrid();
@@ -780,16 +793,16 @@ const ArchitectModal = (function () {
     // ait oldukları burada asıl ayırt edici bilgi); marka kartlarında ise firmanın konumu.
     const usedProductsData = payload.usedProducts || [];
     document.getElementById('am-used-products-section').style.display = usedProductsData.length ? '' : 'none';
-    document.getElementById('am-used-products-grid').innerHTML = usedProductsData.map(p =>
+    RelatedStrip.render(document.getElementById('am-used-products-grid'), usedProductsData, p =>
       cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
-    ).join('');
+    );
     document.getElementById('am-used-products-count').textContent = usedProductsData.length ? ` (${usedProductsData.length})` : '';
 
     const preferredBrandsData = payload.preferredBrands || [];
     document.getElementById('am-preferred-brands-section').style.display = preferredBrandsData.length ? '' : 'none';
-    document.getElementById('am-preferred-brands-grid').innerHTML = preferredBrandsData.map(b =>
+    RelatedStrip.render(document.getElementById('am-preferred-brands-grid'), preferredBrandsData, b =>
       cardHtml(`/firma/${encodeURIComponent(b.slug)}`, b.name, logoUrl(b), b.loc)
-    ).join('');
+    );
     document.getElementById('am-preferred-brands-count').textContent = preferredBrandsData.length ? ` (${preferredBrandsData.length})` : '';
 
     // Sarmalayıcı ikili satır — am-office-pair ile BİREBİR aynı mantık: iki hücre de boşsa satır

@@ -124,7 +124,7 @@ const ArchitectProjects = (function () {
     // Sabit bir üst sınır YOK (kullanıcı isteği: "TÜM projelerinin eksiksiz listelenmesi") —
     // .related-grid-scroll zaten yatay kaydırmalı bir satır (bkz. proje.html), liste ne kadar
     // uzarsa uzasın taşma olmadan kaydırılarak gezilebilir.
-    document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
+    RelatedStrip.render(document.getElementById(mergedIds.grid), merged, cardHtml);
     const countEl = document.getElementById(mergedIds.count);
     if (countEl) countEl.textContent = ` (${merged.length})`;
     return { slugs: new Set(merged.map(p => p.slug)) };
@@ -436,7 +436,7 @@ const RelatedProjects = (function () {
 
     if (!merged.length) { section.style.display = 'none'; return { slugs: new Set() }; }
     section.style.display = '';
-    document.getElementById(mergedIds.grid).innerHTML = merged.map(cardHtml).join('');
+    RelatedStrip.render(document.getElementById(mergedIds.grid), merged, cardHtml);
     rememberSeenSlugs(seen, merged.map(p => p.slug));
     return { slugs: new Set(merged.map(p => p.slug)) };
   }
@@ -538,7 +538,7 @@ const CityProjects = (function () {
     const candidates = sortByYearProximity(items.filter(p => !exclude.has(p.slug)), item.date);
     if (!candidates.length) { section.style.display = 'none'; return; }
     section.style.display = '';
-    document.getElementById(mergedIds.grid).innerHTML = candidates.slice(0, RESULT_COUNT).map(cardHtml).join('');
+    RelatedStrip.render(document.getElementById(mergedIds.grid), candidates.slice(0, RESULT_COUNT), cardHtml);
   }
 
   return { mount };

@@ -7,21 +7,12 @@
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="/logos/site/favicon-32.png">
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
-<title>Kariyer — MİMARLAB</title>
-<meta name="description" content="Mimarlık ve tasarım alanında kariyer fırsatları ve rehberi.">
-<meta name="robots" content="noindex, follow">
-<link rel="canonical" href="https://mimarlab.com/kariyer">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="MİMARLAB">
-<meta property="og:locale" content="tr_TR">
-<meta property="og:title" content="Kariyer — MİMARLAB">
-<meta property="og:description" content="Mimarlık ve tasarım alanında kariyer fırsatları ve rehberi.">
-<meta property="og:url" content="https://mimarlab.com/kariyer">
-<meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Kariyer — MİMARLAB">
-<meta name="twitter:description" content="Mimarlık ve tasarım alanında kariyer fırsatları ve rehberi.">
-<meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png">
+<title>Paylaşılan Pano — MİMARLAB</title>
+<meta name="description" content="MİMARLAB'da paylaşılan bir pano.">
+<!-- noindex: panolar KİŞİSEL içeriktir; sahibi bağlantıyı kiminle paylaşacağına kendisi karar
+     verir, arama motorlarına girmemeli (bkz. src/routes/collections.js#getSharedCollection —
+     bağlantı tahmin edilemez bir token taşır ve sahibi paylaşımı geri alabilir). -->
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -66,6 +57,7 @@
   :focus-visible{outline:none; box-shadow: 0 0 0 2px var(--brass) inset;}
   .nav-search input:focus-visible, .nav-mobile-search input:focus-visible{box-shadow:none;}
 
+  /* ---------- NAV ---------- */
   .nav{position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:24px; padding:10px 32px; background:rgba(237,240,243,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
   .nav-search{flex:1; max-width:380px; display:flex; align-items:center; gap:8px; background:var(--paper-card); border:1px solid var(--line); border-radius:100px; padding:9px 16px;}
   .nav-search svg{flex-shrink:0; opacity:0.5;}
@@ -87,30 +79,26 @@
   .nav-rate{background:none; color:var(--ink); padding:8px 17px; border-radius:100px; border:1.5px solid var(--ink); font-size:14px; font-weight:600; white-space:nowrap; text-transform:uppercase;}
   .nav-rate:hover{background:var(--ink); color:var(--paper-card);}
 
+  /* ---------- BREADCRUMB ---------- */
   .breadcrumb-bar{background:var(--ink); color:rgba(237,240,243,0.7); padding:14px 32px; font-size:13.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .breadcrumb-bar a{color:rgba(237,240,243,0.85); font-weight:500;}
   .breadcrumb-bar a:hover{color:var(--brass-soft);}
   .breadcrumb-bar .sep{opacity:0.4;}
   .breadcrumb-bar .current{color:var(--paper); font-weight:600;}
 
+  /* ---------- CONTENT ---------- */
   .content-wrap{max-width:760px; margin:0 auto; padding:56px 32px 90px;}
   .content-eyebrow{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--sage); font-weight:600; margin-bottom:12px;}
   .content-title{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:clamp(28px, 4vw, 38px); font-weight:700; margin:0 0 18px; letter-spacing:-0.01em;}
   .content-lead{font-size:16px; line-height:1.7; color:var(--ink-soft); margin:0 0 36px;}
   .content-section{margin-bottom:32px;}
-  .content-section h2{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:19px; font-weight:700; margin:0 0 10px;}
+  .content-section h2{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:20px; font-weight:700; margin:0 0 12px;}
   .content-section p{font-size:14.5px; line-height:1.75; color:var(--ink-soft); margin:0 0 12px;}
   .content-section a{color:var(--walnut); font-weight:600;}
   .content-section a:hover{text-decoration:underline;}
-  .jobs-card{background:var(--paper-card); border:1px dashed var(--brass); border-radius:14px; padding:22px; margin-bottom:32px;}
-  .jobs-card strong{display:block; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:16px; font-weight:700; margin-bottom:6px;}
-  .jobs-card p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.6;}
-  .jobs-card a{color:var(--walnut); font-weight:600;}
-  .cta-card{background:var(--ink); color:var(--paper-card); border-radius:16px; padding:28px; text-align:center;}
-  .cta-card p{color:rgba(237,240,243,0.7); font-size:13.5px; margin:6px 0 18px;}
-  .cta-btn{display:inline-block; background:var(--paper-card); color:var(--ink); padding:12px 24px; border-radius:100px; font-weight:600; font-size:14px;}
-  .cta-btn:hover{background:var(--brass-soft);}
+  .content-section ul{margin:0; padding-left:20px; font-size:14.5px; line-height:1.8; color:var(--ink-soft);}
 
+  /* ---------- FOOTER ---------- */
   .site-footer{background:var(--ink); color:var(--paper);}
   .footer-top{max-width:1080px; margin:0 auto; padding:48px 32px 32px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px;}
   .footer-logo{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
@@ -139,16 +127,31 @@
     .footer-brand{grid-column:1 / -1;}
   }
 </style>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-L4902Z57B8');
-</script>
+
+<style>
+  /* Paylaşılan pano (kullanıcı isteği, 2026-09-02) — Koleksiyonum'daki .col-item-grid ile AYNI
+     kart ölçüsü/oranı (bkz. js/components/auth-modal.js#injectStyles), böylece sahibinin gördüğü
+     düzenle paylaşılan görünüm birebir aynı hissettirir. */
+  .pano-wrap{max-width:1260px; margin:0 auto; padding:28px 32px 60px;}
+  .pano-head{margin:0 0 6px; font-size:26px; font-weight:700; letter-spacing:-0.01em;}
+  .pano-sub{color:var(--ink-soft); font-size:13.5px; margin:0 0 24px;}
+  .pano-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px;}
+  .pano-item{position:relative; border:1px solid var(--line-soft); border-radius:12px; overflow:hidden; background:var(--paper-card);}
+  .pano-media{display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--paper-alt); cursor:zoom-in;}
+  .pano-note{padding:16px; font-size:13px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
+  .pano-body{padding:10px 12px;}
+  .pano-title{font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pano-title a{color:inherit; text-decoration:none;}
+  .pano-title a:hover{text-decoration:underline;}
+  .pano-meta{font-size:11px; color:var(--ink-soft); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pano-state{padding:60px 0; text-align:center; color:var(--ink-soft);}
+  @media (max-width: 720px){ .pano-wrap{padding:20px 16px 44px;} .pano-head{font-size:21px;} }
+</style>
+
 </head>
 <body>
 <script src="js/overlay-manager.js" defer></script>
+<script src="image-cdn.js" defer></script>
 <script src="auth-nav.js" defer></script>
 <script src="catalog-taxonomy.js" defer></script>
 <script src="js/components/nav-product-menu.js" defer></script>
@@ -160,35 +163,60 @@
   <div id="site-header-mount" data-nav-active=""></div>
   <script src="js/components/site-chrome.js"></script>
 
-  <div class="breadcrumb-bar">
-    <a href="/">Ana Sayfa</a>
-    <span class="sep">›</span>
-    <span class="current">Kariyer</span>
-  </div>
-
-  <div class="content-wrap">
-    <div class="content-eyebrow">Kariyer</div>
-    <h1 class="content-title">MİMARLAB'da Kariyer</h1>
-    <p class="content-lead">MİMARLAB, küçük ve bağımsız bir ekip tarafından geliştirilip yürütülüyor.</p>
-
-    <div class="jobs-card">
-      <strong>Şu anda açık bir pozisyonumuz yok</strong>
-      <p>Bu sayfada güncel olarak yayınlanmış bir iş ilanımız bulunmuyor. Yine de platforma katkıda bulunmak, içerik/ortaklık/teknik konularda birlikte çalışmak isterseniz bize yazmaktan çekinmeyin.</p>
-    </div>
-
-    <div class="content-section">
-      <h2>Mimarlık sektöründe iş mi arıyorsunuz?</h2>
-      <p>MİMARLAB'ın kendisi değil, platformdaki ofislerin açtığı pozisyonlar için  sayfamıza göz atabilirsiniz.</p>
-    </div>
-
-    <div class="cta-card">
-      <div style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:19px; font-weight:700;">Bize katkıda bulunmak ister misiniz?</div>
-      <p>İçerik, ortaklık ya da teknik konularda ilginizi bizimle paylaşın.</p>
-      <a class="cta-btn" href="mailto:info@mimarlab.com">info@mimarlab.com</a>
-    </div>
+  <div class="pano-wrap">
+    <h1 class="pano-head" id="pano-title">Pano</h1>
+    <p class="pano-sub" id="pano-sub"></p>
+    <div id="pano-content"><div class="pano-state">Yükleniyor…</div></div>
   </div>
 
   <footer id="site-footer-mount"></footer>
 
+<script>
+// Paylaşılan pano görüntüleyici — TEK veri kaynağı GET /api/collections/shared/:token (oturum
+// GEREKTİRMEZ, yalnızca sahibi paylaşımı açtıysa 200 döner, bkz. src/routes/collections.js).
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// auth-modal.js#safeUrl ile AYNI gerekçe: yalnızca http/https'e izin ver (javascript: engellensin).
+function safeUrl(u){
+  try { const p = new URL(u, document.baseURI); if (p.protocol==='http:'||p.protocol==='https:') return p.href; } catch(e) {}
+  return '';
+}
+const cdn = (u,w) => (typeof cdnImg==='function' ? cdnImg(u,w) : u);
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const m = location.pathname.match(/^\/pano\/([^/]+)\/?$/);
+  const content = document.getElementById('pano-content');
+  if (!m) { content.innerHTML = '<div class="pano-state">Pano bulunamadı.</div>'; return; }
+  let data = null;
+  try {
+    const res = await fetch('/api/collections/shared/' + encodeURIComponent(m[1]));
+    if (res.ok) data = await res.json();
+  } catch(e) {}
+  if (!data || !data.item) {
+    content.innerHTML = '<div class="pano-state">Bu pano bulunamadı ya da paylaşımı kaldırılmış.</div>';
+    return;
+  }
+  document.getElementById('pano-title').textContent = data.item.title || 'Pano';
+  document.title = (data.item.title || 'Pano') + ' — MİMARLAB';
+  const items = data.items || [];
+  document.getElementById('pano-sub').textContent = items.length + ' öğe · MİMARLAB\'da paylaşılan pano';
+  if (!items.length) { content.innerHTML = '<div class="pano-state">Bu pano henüz boş.</div>'; return; }
+  content.innerHTML = '<div class="pano-grid">' + items.map(it => {
+    const image = safeUrl(it.image);
+    const href = safeUrl(it.href);
+    // Koleksiyonum'daki kart şablonuyla AYNI yapı; görsele tıklayınca büyür (image-lightbox.js).
+    const media = image
+      ? '<img class="pano-media img-zoomable" src="' + escapeAttr(cdn(image,400)) + '" data-lightbox-src="' + escapeAttr(image) + '" data-lightbox-alt="' + escapeAttr(it.title||'') + '" alt="" loading="lazy" decoding="async">'
+      : (it.kind === 'note' ? '<div class="pano-note">' + escapeHtml(it.note) + '</div>' : '');
+    const titleText = it.title || (it.kind === 'note' ? '' : '—');
+    const titleHtml = titleText
+      ? '<div class="pano-title">' + (href ? '<a href="' + escapeAttr(href) + '">' + escapeHtml(titleText) + '</a>' : escapeHtml(titleText)) + '</div>'
+      : '';
+    const metaHtml = it.meta ? '<div class="pano-meta">' + escapeHtml(it.meta) + '</div>' : '';
+    const body = (titleHtml || metaHtml) ? '<div class="pano-body">' + titleHtml + metaHtml + '</div>' : '';
+    return '<div class="pano-item">' + media + body + '</div>';
+  }).join('') + '</div>';
+});
+</script>
 </body>
 </html>

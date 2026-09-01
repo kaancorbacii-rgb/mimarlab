@@ -320,6 +320,7 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/image-lightbox.js" defer></script>
 <script src="catalog-taxonomy.js"></script>
 <script src="js/components/duplicate-name-check.js"></script>
 <script src="js/components/nav-product-menu.js" defer></script>
@@ -402,7 +403,7 @@
 
         <h3 class="form-subheading">Ürün Açıklaması <span class="req" aria-hidden="true">*</span></h3>
         <div class="form-field">
-          <textarea id="u-desc" name="description" placeholder="Ürün hakkında kısa bir metin yaz..." aria-label="Ürün Açıklaması" required></textarea>
+          <textarea id="u-desc" name="description" maxlength="1500" placeholder="Ürün hakkında kısa bir metin yaz..." aria-label="Ürün Açıklaması" required></textarea>
         </div>
       </div>
 
@@ -1412,5 +1413,6 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
 
 
 </script>
+<script src="char-counter.js" defer></script>
 </body>
 </html>

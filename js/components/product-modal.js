@@ -958,9 +958,9 @@ const ProductModal = (function () {
       // 9 — bkz. js/components/project-related.js#RESULT_COUNT: tüm öneri şeritlerinin ORTAK üst sınırı.
       const items = (data.items || []).filter(x => x.ratingKey !== selfKey).slice(0, 9);
       if (!items.length) return;
-      document.getElementById('pr-company-grid').innerHTML = items.map(r =>
+      RelatedStrip.render(document.getElementById('pr-company-grid'), items, r =>
         cardHtml(`/urun/${encodeURIComponent(r.slug)}`, r.title, r.image, r.category)
-      ).join('');
+      );
       section.style.display = '';
     } catch {}
   }
@@ -974,9 +974,9 @@ const ProductModal = (function () {
     if (!section) return;
     const items = p.projects || [];
     if (!items.length) { section.style.display = 'none'; return; }
-    document.getElementById('pr-projects-grid').innerHTML = items.map(pr =>
+    RelatedStrip.render(document.getElementById('pr-projects-grid'), items, pr =>
       cardHtml(`/proje/${encodeURIComponent(pr.slug)}`, pr.title, pr.image, pr.location)
-    ).join('');
+    );
     section.style.display = '';
   }
 
@@ -994,15 +994,15 @@ const ProductModal = (function () {
 
     const officeSection = document.getElementById('pr-used-offices-section');
     officeSection.style.display = offices.length ? '' : 'none';
-    document.getElementById('pr-used-offices-grid').innerHTML = offices.map(o =>
+    RelatedStrip.render(document.getElementById('pr-used-offices-grid'), offices, o =>
       cardHtml(`/firma/${encodeURIComponent(o.slug)}`, o.name, logoUrl(o), projectCountLabel(o.projectCount))
-    ).join('');
+    );
 
     const architectSection = document.getElementById('pr-used-architects-section');
     architectSection.style.display = architects.length ? '' : 'none';
-    document.getElementById('pr-used-architects-grid').innerHTML = architects.map(a =>
+    RelatedStrip.render(document.getElementById('pr-used-architects-grid'), architects, a =>
       cardHtml(`/kisi/${encodeURIComponent(a.slug)}`, a.name, a.photo, projectCountLabel(a.projectCount))
-    ).join('');
+    );
 
     pair.style.display = (offices.length || architects.length) ? '' : 'none';
     pair.classList.toggle('pr-two-col-row-both', !!(offices.length && architects.length));
@@ -1040,9 +1040,9 @@ const ProductModal = (function () {
       // "m-<id>" biçiminde ve BİLEREK slug'dan bağımsız (bkz. src/lib/canonicalSync.js#syncProduct
       // dosya başı yorumu) — bu yüzden "X Markasından Diğer Ürünler" kartları hâlâ eski çirkin
       // URL'ye gidiyordu. Kartın kendi canonical slug'ı (r.slug, /api/products zaten döner) kullanılmalı.
-      document.getElementById('pr-related-grid').innerHTML = related.map(r =>
+      RelatedStrip.render(document.getElementById('pr-related-grid'), related, r =>
         cardHtml(`/urun/${encodeURIComponent(r.slug)}`, r.title, r.image, r.brand)
-      ).join('');
+      );
       section.style.display = '';
     } catch {}
   }

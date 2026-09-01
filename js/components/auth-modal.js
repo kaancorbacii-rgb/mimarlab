@@ -1221,6 +1221,9 @@ const AuthModal = (function () {
           <div class="col-toolbar">
             <button type="button" class="col-btn" id="am-col-back-btn">← Panolarım</button>
             <button type="button" class="col-btn" id="am-col-rename-btn">Yeniden Adlandır</button>
+            <!-- Paylaş (kullanıcı isteği, 2026-09-02): panoyu herkese açık bir bağlantıyla
+                 paylaşır. Etiket panonun paylaşım durumuna göre renderDetail'de güncellenir. -->
+            <button type="button" class="col-btn" id="am-col-share-btn">Paylaş</button>
             <button type="button" class="col-btn col-btn-danger" id="am-col-delete-btn">Panoyu Sil</button>
           </div>
           <h2 id="am-col-detail-title"></h2>
@@ -2950,6 +2953,9 @@ const AuthModal = (function () {
       if (!openCollection) return;
       document.getElementById('am-col-detail-title').textContent = openCollection.item.title;
       document.getElementById('am-col-detail-count').textContent = `${openCollection.items.length} öğe`;
+      // Paylaşım durumu — sunucu shapeCollection'da shareToken döner (bkz. src/routes/collections.js).
+      const shareBtn = document.getElementById('am-col-share-btn');
+      if (shareBtn) shareBtn.textContent = openCollection.item.shareToken ? 'Paylaşımı Durdur' : 'Paylaş';
       const container = document.getElementById('am-col-items');
       if (!openCollection.items.length) {
         container.innerHTML = '<div class="dash-empty">Bu pano henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
@@ -2960,8 +2966,12 @@ const AuthModal = (function () {
         const href = safeUrl(it.href);
         // 'note' türünde görsel yok, metin kartın kendisi olur; 'image'/'saved' türünde görsel üstte,
         // başlık altta. Başlık yalnızca href varsa (yani sitedeki bir kayda işaret ediyorsa) linktir.
+        // Tıklayınca görsel büyür (kullanıcı isteği, 2026-09-02: "tıklanan görsel popup şeklinde
+        // büyüsün, aynı proje medyasında olduğu gibi") — bkz. js/components/image-lightbox.js.
+        // data-lightbox-src ORİJİNALİ taşır: kart 400 px'lik türevi gösterir, büyütmede tam
+        // çözünürlük istenir. Başlıktaki <a> ETKİLENMEZ (lightbox yalnızca görselin kendisinde).
         const media = image
-          ? `<img class="col-item-media" src="${escapeAttr(avatarImg(image, 400, image))}" alt="" loading="lazy" decoding="async">`
+          ? `<img class="col-item-media img-zoomable" src="${escapeAttr(avatarImg(image, 400, image))}" data-lightbox-src="${escapeAttr(image)}" data-lightbox-alt="${escapeAttr(it.title || '')}" alt="" loading="lazy" decoding="async">`
           : (it.kind === 'note' ? `<div class="col-item-note">${escapeHtml(it.note)}</div>` : '');
         const titleText = it.title || (it.kind === 'note' ? '' : '—');
         const titleHtml = titleText
@@ -3070,6 +3080,44 @@ const AuthModal = (function () {
         if (!res.ok) { notice('am-col-detail-notice', 'Ad değiştirilemedi.', true); return; }
         openCollection.item.title = title.trim();
         renderDetail();
+      } catch { notice('am-col-detail-notice', 'Sunucuya ulaşılamadı, tekrar dene.', true); }
+    });
+
+    // Paylaş / Paylaşımı Durdur (kullanıcı isteği, 2026-09-02). Açıkken bağlantı panoya özel,
+    // tahmin edilemez bir token taşır (bkz. src/routes/collections.js#shareCollection) ve
+    // /pano/<token> adresinden oturum GEREKMEDEN görüntülenir. Kapatınca bağlantı ölür.
+    on('am-col-share-btn', 'click', async () => {
+      if (!openCollection) return;
+      const alreadyShared = !!openCollection.item.shareToken;
+      try {
+        if (alreadyShared) {
+          if (!window.confirm('Paylaşımı durdurmak istediğine emin misin? Daha önce paylaştığın bağlantı çalışmayacak.')) return;
+          const res = await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/share`, { method: 'DELETE' });
+          if (!res.ok) { notice('am-col-detail-notice', 'Paylaşım durdurulamadı.', true); return; }
+          openCollection.item.shareToken = null;
+          renderDetail();
+          notice('am-col-detail-notice', 'Panonun paylaşımı durduruldu.');
+          return;
+        }
+        const res = await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/share`, { method: 'POST' });
+        if (!res.ok) { notice('am-col-detail-notice', 'Pano paylaşılamadı.', true); return; }
+        const data = await res.json();
+        openCollection.item.shareToken = data.shareToken;
+        renderDetail();
+        const shareUrl = location.origin + '/pano/' + data.shareToken;
+        // Panoyu paylaşmanın kendisi bir yazma işlemi DEĞİL, bağlantıyı kullanıcıya vermek — bu
+        // yüzden önce panoya özel bir paylaşım denenir (mobilde yerel paylaşım sayfası), yoksa
+        // panoya kopyalanır. İkisi de yoksa bağlantı bildirim satırında düz metin olarak gösterilir
+        // ki kullanıcı elle kopyalayabilsin (bkz. js/components/share-button.js'teki AYNI desen).
+        let done = '';
+        if (navigator.share) {
+          try { await navigator.share({ title: openCollection.item.title, url: shareUrl }); done = 'Pano paylaşıldı.'; }
+          catch { done = ''; } // kullanıcı paylaşım sayfasını kapattı — aşağıdaki kopyalamaya düş
+        }
+        if (!done && navigator.clipboard && navigator.clipboard.writeText) {
+          try { await navigator.clipboard.writeText(shareUrl); done = 'Paylaşım bağlantısı kopyalandı: ' + shareUrl; } catch { done = ''; }
+        }
+        notice('am-col-detail-notice', done || ('Paylaşım bağlantısı: ' + shareUrl));
       } catch { notice('am-col-detail-notice', 'Sunucuya ulaşılamadı, tekrar dene.', true); }
     });
 

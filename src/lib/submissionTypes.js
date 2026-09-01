@@ -59,7 +59,14 @@ export const SUBMISSION_TYPES = {
     // hotspots.sql). arrayFields'e konulsaydı normalizeSubmission onu `[nesne]` diye tek elemanlı bir
     // diziye sarardı; bu yüzden ayrı bir tür gerekiyor (bkz. normalizeSubmission/parseSubmissionRow).
     objectFields: ['imageHotspots'],
-    required: ['title'],
+    // Kullanıcı isteği (2026-09-02): "Proje ekle/düzenle sayfasında Tür, tip, grup, Fotoğrafçı veya
+    // Kaynak zorunlu olsun." Form etiketleriyle alan adlarının eşleşmesi: Tür=discipline,
+    // Tip=category, Grup=type, Fotoğrafçı veya Kaynak=photoCreditText (bkz. proje-ekle.html#
+    // dd-tur/dd-kategori/dd-grup ve #p-credit-text). validateRequired boş DİZİYİ de eksik sayar
+    // (String([]).trim() === ''), bu yüzden çoklu seçim alanları için ayrı bir kontrol gerekmiyor.
+    // NOT: proje-ekle.html yalnızca build_status='built' gönderir (conceptCategory her zaman null),
+    // yani konsept projelerin ayrı kategori alanıyla bir çakışma yok.
+    required: ['title', 'discipline', 'category', 'type', 'photoCreditText'],
     urlFields: ['photoCreditUrl', 'source_url'],
     urlArrayFields: ['images'],
   },
@@ -168,15 +175,39 @@ const FIELD_MAX_LENGTHS = {
   architects: { name: 200, about: 20000, school: 200, dept: 200 },
 };
 
-export function findOversizedField(type, body) {
+// Kullanıcı isteği (2026-09-02): serbest anlatı alanlarına (proje/ürün açıklaması, kişi/firma/marka
+// "hakkında") 1500 karakterlik bir sınır. Yukarıdaki 20.000'lik değerler KALDIRILMADI — onlar
+// kötüye kullanım/D1 satır şişmesine karşı mutlak tavan olarak kalır ve DEĞİŞMEMİŞ eski metinlere de
+// uygulanır; 1500 ise editoryal sınırdır ve yalnızca DEĞİŞTİRİLEN/YENİ metne uygulanır.
+const NARRATIVE_MAX_LENGTH = 1500;
+const NARRATIVE_FIELDS = ['about', 'description'];
+
+// previousRow (opsiyonel): düzenlenen gönderinin MEVCUT satırı. Kullanıcı isteği: "Bundan önceki
+// gönderiler olduğu gibi kalabilir" — 1500'den uzun eski bir metin, kullanıcı ONA DOKUNMADIĞI
+// sürece kaydetmeyi engellememelidir (aksi halde eski bir kaydın alakasız bir alanını düzenlemek
+// imkânsız hale gelirdi). Gönderilen değer saklanan değerle BİREBİR aynıysa editoryal sınır
+// atlanır; metin değiştirildiği anda 1500 kuralı devreye girer.
+// İstemci tarafında aynı davranış maxlength ile kendiliğinden oluşur: HTML "too long" kısıtı
+// yalnızca kullanıcı alanı DÜZENLEDİĞİNDE (dirty value flag) geçerli olur, JS ile önceden
+// doldurulmuş uzun bir değeri geçersiz saymaz.
+export function findOversizedField(type, body, previousRow) {
   const limits = FIELD_MAX_LENGTHS[type];
   if (!limits) return null;
   for (const field of Object.keys(limits)) {
     const value = body[field];
     if (typeof value === 'string' && value.length > limits[field]) return field;
   }
+  for (const field of NARRATIVE_FIELDS) {
+    const value = body[field];
+    if (typeof value !== 'string' || value.length <= NARRATIVE_MAX_LENGTH) continue;
+    const previous = previousRow ? previousRow[field] : null;
+    if (typeof previous === 'string' && previous === value) continue; // dokunulmamış eski metin
+    return field;
+  }
   return null;
 }
+
+export { NARRATIVE_MAX_LENGTH };
 
 // Üye ol / kisi-ekle-düzenle / hesabım "Üniversite" kutucuğuna kısaltma girilmesini engeller
 // (bkz. kullanıcı isteği: "YTÜ, İTÜ, ODTÜ, MSGSÜ gibi kısaltmalara izin verme"). Türkçe üniversite

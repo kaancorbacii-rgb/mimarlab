@@ -646,6 +646,18 @@ const OfficeModal = (function () {
       el.innerHTML = '';
       el.textContent = initials(o.name);
       el.style.background = officeColor(o.name);
+      // Tıklayınca büyüsün (kullanıcı isteği, 2026-09-02) — bkz. architect-modal.js#am-logo'daki
+      // AYNI desen ve js/components/image-lightbox.js. Logo yoksa (yalnızca baş harfler) nitelikler
+      // temizlenir; aksi halde önceki firmanın logosu açılırdı (paintLogo iki farklı öğeye ve her
+      // pop-up açılışında yeniden çağrılır).
+      el.classList.toggle('img-zoomable', !!officeLogoUrl);
+      if (officeLogoUrl) {
+        el.setAttribute('data-lightbox-src', officeLogoUrl);
+        el.setAttribute('data-lightbox-alt', o.name || '');
+      } else {
+        el.removeAttribute('data-lightbox-src');
+        el.removeAttribute('data-lightbox-alt');
+      }
       if (!officeLogoUrl) return;
       const img = document.createElement('img');
       // bkz. js/components/architect-modal.js#am-logo'daki AYNI düzeltme/gerekçe: .profile-logo
@@ -746,20 +758,20 @@ const OfficeModal = (function () {
     // renderFoundersGrid ayrı bir fonksiyon olarak tutulur — aşağıdaki renderVerifiedBadges ile AYNI
     // /api/public/badges gecikmesi burada da var, rozetler geldiğinde tekrar çizilir.
     function renderFoundersGrid() {
-      document.getElementById('om-founders-grid').innerHTML = founders.map(a => a.unregistered
+      RelatedStrip.render(document.getElementById('om-founders-grid'), founders, a => a.unregistered
         ? unregisteredBadgeHtml(a.name)
         : cardHtml(`/kisi/${encodeURIComponent(slugify(a.name))}`, a.name, a.photo, a.role, verifiedBadgeHtml('architect', a.name, a.badges, 14))
-      ).join('');
+      );
     }
     renderFoundersGrid();
 
     document.getElementById('om-team-section').style.display = team.length ? '' : 'none';
-    document.getElementById('om-team-grid').innerHTML = team.map(teamBadgeHtml).join('');
+    RelatedStrip.render(document.getElementById('om-team-grid'), team, teamBadgeHtml);
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
-    document.getElementById('om-related-projects-grid').innerHTML = relatedProjectsData.map(p =>
+    RelatedStrip.render(document.getElementById('om-related-projects-grid'), relatedProjectsData, p =>
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
-    ).join('');
+    );
     document.getElementById('om-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
     renderProjectsMap(relatedProjectsData);
 
@@ -775,9 +787,9 @@ const OfficeModal = (function () {
     // src/routes/office.js#relatedOffices), burada yalnızca başlık metni ayarlanır.
     document.getElementById('om-city-title').textContent = isBrandProfile ? 'Şehirdeki Diğer Markalar' : 'Şehirdeki Diğer Firmalar';
     document.getElementById('om-city-section').style.display = relatedOfficesData.length ? '' : 'none';
-    document.getElementById('om-city-grid').innerHTML = relatedOfficesData.map(o2 =>
+    RelatedStrip.render(document.getElementById('om-city-grid'), relatedOfficesData, o2 =>
       cardHtml(`/firma/${encodeURIComponent(o2.slug)}`, o2.name, logoUrl(o2), o2.loc)
-    ).join('');
+    );
 
     // Marka kataloğu — TEK kaynak: bu firmanın adı/id'si ürün markası olarak eşleşen canonical
     // products satırları (bkz. src/routes/office.js#buildOfficePayload, relatedProducts/
@@ -801,7 +813,7 @@ const OfficeModal = (function () {
     }
     function renderProductGrid(sectionId, gridId, items, countId) {
       document.getElementById(sectionId).style.display = items.length ? '' : 'none';
-      document.getElementById(gridId).innerHTML = items.map(productCardHtml).join('');
+      RelatedStrip.render(document.getElementById(gridId), items, productCardHtml);
       if (countId) document.getElementById(countId).textContent = items.length ? ` (${items.length})` : '';
     }
     renderProductGrid('om-related-products-section', 'om-related-products-grid', [...brandProductsData, ...brandMaterialsData], 'om-related-products-count');
@@ -812,27 +824,27 @@ const OfficeModal = (function () {
     // markaya ait oldukları bu bölümde asıl ayırt edici bilgi.
     const projectProductsData = payload.projectProducts || [];
     document.getElementById('om-project-products-section').style.display = projectProductsData.length ? '' : 'none';
-    document.getElementById('om-project-products-grid').innerHTML = projectProductsData.map(p =>
+    RelatedStrip.render(document.getElementById('om-project-products-grid'), projectProductsData, p =>
       cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
-    ).join('');
+    );
     document.getElementById('om-project-products-count').textContent = projectProductsData.length ? ` (${projectProductsData.length})` : '';
 
     // İlgili Markalar — kartlar firma kartlarıyla AYNI şekil/logoUrl yolunu kullanır, bu yüzden
     // yukarıdaki om-city-grid ile AYNI cardHtml çağrısı yeterli.
     const relatedBrandsData = payload.relatedBrands || [];
     document.getElementById('om-related-brands-section').style.display = relatedBrandsData.length ? '' : 'none';
-    document.getElementById('om-related-brands-grid').innerHTML = relatedBrandsData.map(b =>
+    RelatedStrip.render(document.getElementById('om-related-brands-grid'), relatedBrandsData, b =>
       cardHtml(`/firma/${encodeURIComponent(b.slug)}`, b.name, logoUrl(b), b.loc)
-    ).join('');
+    );
     document.getElementById('om-related-brands-count').textContent = relatedBrandsData.length ? ` (${relatedBrandsData.length})` : '';
 
     // Ürünlerin Kullanıldığı Projeler — proje kartlarıyla AYNI cardHtml/alt satır (konum) deseni,
     // yukarıdaki "Projeler" ızgarasıyla birebir aynı görünür.
     const brandProductProjectsData = payload.brandProductProjects || [];
     document.getElementById('om-brand-product-projects-section').style.display = brandProductProjectsData.length ? '' : 'none';
-    document.getElementById('om-brand-product-projects-grid').innerHTML = brandProductProjectsData.map(p =>
+    RelatedStrip.render(document.getElementById('om-brand-product-projects-grid'), brandProductProjectsData, p =>
       cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0], p.location)
-    ).join('');
+    );
     document.getElementById('om-brand-product-projects-count').textContent = brandProductProjectsData.length ? ` (${brandProductProjectsData.length})` : '';
 
     // Tercih Eden Firmalar / Tercih Eden Mimarlar (kullanıcı isteği, 2026-09-01 madde 7) — payload'la
@@ -840,16 +852,16 @@ const OfficeModal = (function () {
     // yolunu, mimar kartları ise "Kurucular" ızgarasıyla AYNI photo alanını kullanır.
     const preferringOfficesData = payload.preferringOffices || [];
     document.getElementById('om-preferring-offices-section').style.display = preferringOfficesData.length ? '' : 'none';
-    document.getElementById('om-preferring-offices-grid').innerHTML = preferringOfficesData.map(b =>
+    RelatedStrip.render(document.getElementById('om-preferring-offices-grid'), preferringOfficesData, b =>
       cardHtml(`/firma/${encodeURIComponent(b.slug)}`, b.name, logoUrl(b), b.loc)
-    ).join('');
+    );
     document.getElementById('om-preferring-offices-count').textContent = preferringOfficesData.length ? ` (${preferringOfficesData.length})` : '';
 
     const preferringArchitectsData = payload.preferringArchitects || [];
     document.getElementById('om-preferring-architects-section').style.display = preferringArchitectsData.length ? '' : 'none';
-    document.getElementById('om-preferring-architects-grid').innerHTML = preferringArchitectsData.map(a =>
+    RelatedStrip.render(document.getElementById('om-preferring-architects-grid'), preferringArchitectsData, a =>
       cardHtml(`/kisi/${encodeURIComponent(a.slug)}`, a.name, a.photo, '')
-    ).join('');
+    );
     document.getElementById('om-preferring-architects-count').textContent = preferringArchitectsData.length ? ` (${preferringArchitectsData.length})` : '';
 
     // Sarmalayıcı ikili satır — iki hücre de boşsa satır tamamen gizlenir (üstteki çizgi/boşluk

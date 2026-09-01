@@ -309,6 +309,7 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/image-lightbox.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
 
   <div id="site-header-mount" data-nav-active="kisi"></div>
@@ -380,7 +381,7 @@
         </div>
         <div class="form-field">
           <label for="m-about">Açıklama <span class="opt">(opsiyonel)</span></label>
-          <textarea id="m-about" name="about" placeholder="Kendin hakkında kısa bir metin yaz..."></textarea>
+          <textarea id="m-about" name="about" maxlength="1500" placeholder="Kendin hakkında kısa bir metin yaz..."></textarea>
         </div>
       </div>
 
@@ -1349,5 +1350,6 @@ pscBtn.addEventListener('click', async ()=>{
 });
 
 </script>
+<script src="char-counter.js" defer></script>
 </body>
 </html>

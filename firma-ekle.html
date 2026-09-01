@@ -293,6 +293,7 @@
 <script src="awards-shared.js"></script>
 <script src="office-kind.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/image-lightbox.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="firma"></div>
   <script src="js/components/site-chrome.js"></script>
@@ -408,7 +409,7 @@
         </div>
         <div class="form-field">
           <label for="o-desc">Firma Hakkında Açıklama <span class="req" aria-hidden="true">*</span></label>
-          <textarea id="o-desc" name="about" placeholder="Firma hakkında kısa bir metin yaz..." required></textarea>
+          <textarea id="o-desc" name="about" maxlength="1500" placeholder="Firma hakkında kısa bir metin yaz..." required></textarea>
         </div>
       </div>
 
@@ -1290,5 +1291,6 @@ pscBtn.addEventListener('click', async ()=>{
 
 
 </script>
+<script src="char-counter.js" defer></script>
 </body>
 </html>

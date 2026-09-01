@@ -509,6 +509,7 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/image-lightbox.js" defer></script>
 <script src="il-ilce-data.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="project-taxonomy.js"></script>
@@ -573,7 +574,7 @@
         </fieldset>
         <div class="form-row">
           <div class="form-field">
-            <label for="dd-tur-btn">Tür</label>
+            <label for="dd-tur-btn">Tür <span class="req" aria-hidden="true">*</span></label>
             <div class="dd-field" id="dd-tur">
               <button type="button" class="dd-btn" id="dd-tur-btn">
                 <span id="dd-tur-btn-label">Tür seç</span>
@@ -590,7 +591,7 @@
             </div>
           </div>
           <div class="form-field">
-            <label for="dd-kategori-btn">Tip</label>
+            <label for="dd-kategori-btn">Tip <span class="req" aria-hidden="true">*</span></label>
             <div class="dd-field" id="dd-kategori">
               <button type="button" class="dd-btn" id="dd-kategori-btn">
                 <span id="dd-kategori-btn-label">Kategori seç</span>
@@ -612,7 +613,7 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="dd-grup-btn">Grup</label>
+            <label for="dd-grup-btn">Grup <span class="req" aria-hidden="true">*</span></label>
             <div class="dd-field" id="dd-grup">
               <button type="button" class="dd-btn" id="dd-grup-btn">
                 <span id="dd-grup-btn-label">Grup seç</span>
@@ -651,12 +652,12 @@
         </div>
         <div class="form-field">
           <label for="p-desc" id="p-desc-label">Proje Açıklaması <span class="req" aria-hidden="true">*</span></label>
-          <textarea id="p-desc" name="description" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
+          <textarea id="p-desc" name="description" maxlength="1500" placeholder="Proje hakkında tek paragraflık kısa bir metin yaz." required></textarea>
         </div>
         <!-- kullanıcı isteği (2026-09-01): yanındaki "Bağlantı" kutusu kaldırıldı, bu kutu artık tek
              başına TAM satır — o yüzden iki sütunlu .form-row sarmalayıcısı da kaldırıldı. -->
         <div class="form-field ac-field" id="ac-credit-field">
-          <label for="p-credit-text" id="p-credit-text-label">Fotoğrafçı veya Kaynak</label>
+          <label for="p-credit-text" id="p-credit-text-label">Fotoğrafçı veya Kaynak <span class="req" aria-hidden="true">*</span></label>
           <input type="text" id="p-credit-text" name="photoCreditText" placeholder="ör. Cemal Emden" autocomplete="off">
           <div class="ac-suggestions" id="ac-credit-suggestions"></div>
           <!-- kullanıcı isteği (2026-09-01 madde 6): bu kutu artık Mimar kutusuyla AYNI mantıkta —
@@ -2505,6 +2506,24 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
+  // Kullanıcı isteği (2026-09-02): Tür / Tip / Grup / Fotoğrafçı veya Kaynak zorunlu. Bu dördü
+  // <select>/<input required> DEĞİL (çoklu seçim açılır menüleri ve serbest metin autocomplete'i),
+  // bu yüzden tarayıcının kendi required kontrolü onları kapsamıyor — yukarıdaki Konum/Tarih/Mimar
+  // guard'larıyla AYNI desende burada elle kontrol edilirler. Sunucu tarafı karşılığı:
+  // src/lib/submissionTypes.js#SUBMISSION_TYPES.projects.required.
+  const missingChoices = [];
+  if(!discipline.length) missingChoices.push('Tür');
+  if(!category.length) missingChoices.push('Tip');
+  if(!type.length) missingChoices.push('Grup');
+  if(!document.getElementById('p-credit-text').value.trim()) missingChoices.push('Fotoğrafçı veya Kaynak');
+  if(missingChoices.length){
+    notice.textContent = missingChoices.length === 1
+      ? `${missingChoices[0]} alanını doldur.`
+      : `Şu alanları doldur: ${missingChoices.join(', ')}.`;
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
   if(aiGenerated && !document.getElementById('ai-consent-checkbox').checked){
     notice.textContent = 'Devam etmek için içeriğin hak sahibi olduğunu ya da yayınlama iznine sahip olduğunu onaylamalısın.';
     notice.classList.add('show');
@@ -2648,5 +2667,6 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
 
 
 </script>
+<script src="char-counter.js" defer></script>
 </body>
 </html>

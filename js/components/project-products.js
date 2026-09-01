@@ -55,7 +55,7 @@ const ProjectProducts = (function () {
     if (!section) return false;
     if (!items || !items.length) { section.style.display = 'none'; return false; }
     section.style.display = '';
-    document.getElementById(gridId).innerHTML = items.map(toHtml || cardHtml).join('');
+    RelatedStrip.render(document.getElementById(gridId), items, toHtml || cardHtml);
     return true;
   }
 

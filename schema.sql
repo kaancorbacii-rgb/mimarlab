@@ -331,10 +331,16 @@ CREATE TABLE IF NOT EXISTS collections (
   title TEXT NOT NULL,
   description TEXT,
   cover_image TEXT,
+  -- Pano paylaşımı (bkz. migrations/0082_collection_share.sql, kullanıcı isteği 2026-09-02):
+  -- NULL = paylaşılmamış (varsayılan). Doluysa /pano/<share_token> adresinden herkese açık.
+  share_token TEXT,
+  shared_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_collections_share_token
+  ON collections(share_token) WHERE share_token IS NOT NULL;
 
 -- kind: 'saved' | 'image' | 'note'. item_type/item_key yalnızca 'saved' satırlarda dolu (bkz.
 -- src/routes/saved.js#ITEM_TYPES ile AYNI enum). Başlık/görsel/bağlantı, öğe eklendiği andaki
