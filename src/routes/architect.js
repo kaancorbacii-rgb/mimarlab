@@ -5,9 +5,10 @@ import { cachedPublicJson, getCachedPool, getCachedFingerprint, invalidatePublic
 import { entityFingerprint } from '../lib/entityStats.js';
 import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
-import { serializePublicEntity } from '../lib/serializePublicEntity.js';
+import { serializePublicEntity, coverImage } from '../lib/serializePublicEntity.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
+import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 import { TR_UNIVERSITIES } from '../lib/universities.js';
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
@@ -460,7 +461,7 @@ async function buildArchitectPayload(env, key) {
         ).bind(office.id, a.id).all()
       : Promise.resolve({ results: [] }),
     env.DB.prepare(
-      `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+      `SELECT DISTINCT ${PROJECT_CARD_COLUMNS} FROM project_designers pd JOIN projects p ON p.id = pd.project_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND (pd.architect_id = ? OR pd.office_id = ?)`
     ).bind(a.id, office ? office.id : -1).all(),
     // D1 audit (2026-08-25) P1-4 — bkz. src/routes/office.js#relatedOffices'teki AYNI gerekçe:
@@ -482,7 +483,10 @@ async function buildArchitectPayload(env, key) {
     // tarafında virgülle bölünüp TAM (case-insensitive) karşılaştırılır, "Emre Aro" gibi bir alt-dize
     // yanlışlıkla "Emre Arolat" ile eşleşmesin diye.
     env.DB.prepare(
-      `SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL AND designer LIKE ? COLLATE NOCASE
+      // performance audit (2026-09-01, P2) — eskiden `SELECT *`; aşağıdaki tek tüketici yalnızca
+      // `designer` (JS tarafındaki tam ad eşleşmesi) + slug/title/images/category/kind okuyor.
+      `SELECT slug, title, images, category, kind, designer FROM products
+       WHERE deleted_at IS NULL AND hidden_at IS NULL AND designer LIKE ? COLLATE NOCASE
        ORDER BY title COLLATE NOCASE`
     ).bind(`%${a.name}%`).all(),
     // "Kullandığı Ürünler" (kullanıcı isteği, 2026-08-31) — yukarıdaki relatedProducts'tan TAMAMEN
@@ -522,7 +526,7 @@ async function buildArchitectPayload(env, key) {
     // mimar hem fotoğrafçı olabildiğinden iki bölüm AYNI popup'ta yan yana durur, biri boşsa o bölüm
     // hiç gösterilmez (bkz. js/components/architect-modal.js#am-photographed-section).
     env.DB.prepare(
-      `SELECT p.* FROM project_photographers pp JOIN projects p ON p.id = pp.project_id
+      `SELECT ${PROJECT_CARD_COLUMNS} FROM project_photographers pp JOIN projects p ON p.id = pp.project_id
        WHERE pp.architect_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
     ).bind(a.id).all(),
   ]);
@@ -538,7 +542,7 @@ async function buildArchitectPayload(env, key) {
   const shapeProjectsNewestFirst = rows => rows
     .map(p => {
       const parsed = parseCanonicalRow('projects', p);
-      return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
+      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
     })
     .sort((a, b) => {
       if (a._year == null && b._year == null) return 0;
@@ -564,13 +568,13 @@ async function buildArchitectPayload(env, key) {
     .filter(p => (p.designer || '').split(',').some(seg => seg.trim().toLowerCase() === architectNameLower))
     .map(p => parseCanonicalRow('products', p))
     .filter(p => p.kind !== 'material')
-    .map(p => ({ slug: p.slug, title: p.title, images: p.images, category: p.category }));
+    .map(p => ({ slug: p.slug, title: p.title, images: coverImage(p.images), category: p.category }));
 
   // Kullandığı Ürünler / Tercih Ettiği Markalar — kart alt satırında ürünlerde MARKA, markalarda
   // KONUM gösterilir (bkz. js/components/architect-modal.js#renderItem).
   const usedProducts = usedProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
-    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, brand: parsed.brand_name_raw, kind: parsed.kind };
+    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, brand: parsed.brand_name_raw, kind: parsed.kind };
   });
   const preferredBrands = preferredBrandsRes.results.map(b => ({ slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0 }));
 

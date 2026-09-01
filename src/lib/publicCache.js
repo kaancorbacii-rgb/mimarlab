@@ -270,7 +270,15 @@ async function withSingleFlight(key, fn) {
 //     sunucudan gelen sayaçlardan üretiliyor — bkz. src/routes/office.js#expCounts). Sürüm
 //     artırılmazsa firma/marka sayfasını daha önce ziyaret etmiş tarayıcılar 304 ile eski gövdede
 //     kalır ve Tecrübe grubu HİÇ çizilmez (yukarıdaki v2 tuzağının birebir aynısı).
-const API_PAYLOAD_VERSION = 'v3';
+// v4 (performance audit, 2026-09-01): yanıt ŞEKLİ KÜÇÜLDÜ — /api/projects artık `description`
+//     göndermiyor (bkz. src/routes/project.js#stripListOnlyFields) ve /api/architect/:key ile
+//     /api/office/:key'in kart ızgaraları (relatedProjects/relatedProducts/usedProducts/
+//     projectProducts/brandProductProjects/photographedProjects) `images` dizisinin yalnızca
+//     kapak görselini taşıyor (bkz. src/lib/serializePublicEntity.js#coverImage). Alan
+//     EKLEMEK gibi alan KALDIRMAK da sürüm artırmayı gerektirir: aksi halde bu uçları daha önce
+//     ziyaret etmiş tarayıcılar aynı ETag'i gönderip 304 alır ve küçültülmüş gövdeyi hiç görmez
+//     (yani iyileştirme dönen ziyaretçilerde HİÇ devreye girmezdi — v2/v3'teki tuzağın aynısı).
+const API_PAYLOAD_VERSION = 'v4';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

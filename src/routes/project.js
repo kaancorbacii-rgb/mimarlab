@@ -591,17 +591,48 @@ function hasActiveProjectListFilters(url) {
 
 // fetchActiveProjectPool'daki (yukarıda) AYNI açık sütun listesi + JOIN/GROUP BY + ORDER BY
 // (bkz. o dosyadaki publish_date/created_at yorumu) — tek fark LIMIT/OFFSET eklenmesi.
+//
+// performance audit (2026-09-01, P1) — LIMIT/OFFSET önceden DIŞ sorguda duruyordu. SQLite bu
+// durumda önce TÜM aktif projeleri (1667) project_designers/architects/offices ile join'leyip
+// GROUP BY yapmak, sonra hepsini bir temp B-tree'de sıralamak ZORUNDA kalıyordu; 24 satır dönmek
+// için canlıda ÖLÇÜLEN maliyet: rows_read=10.394, 30,5 ms — ve `idx_projects_build_status_order`
+// (tam olarak bu sıralama için var olan kısmi index) hiç kullanılamıyordu (EXPLAIN QUERY PLAN:
+// "SEARCH p USING INDEX idx_projects_build_status" + "USE TEMP B-TREE FOR ORDER BY").
+// LIMIT/OFFSET'i bir alt sorguya taşımak, sayfayı ÖNCE (yalnızca projects tablosundan, doğru
+// index'le) seçip join'i yalnızca o 24 satır için çalıştırır: rows_read=131, 3,6 ms (-%98,7).
+// ORDER BY dışta AYNEN tekrarlanır — join sonrası satır sırası garanti değildir.
+// Sonuç eşitliği canlı D1'de doğrulandı: offset 0 / 48 / 960 için eski ve yeni sorgunun döndürdüğü
+// (id, slug, designer_names, office_names) satırları BİREBİR aynı.
 async function fetchProjectPageRows(env, buildStatus, limit, offset) {
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
-     FROM projects p ${DESIGNER_JOIN_SQL}
-     WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?
-     GROUP BY p.id ORDER BY COALESCE(p.publish_date, p.created_at) DESC, p.id DESC LIMIT ? OFFSET ?`
+     FROM (SELECT * FROM projects
+           WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?
+           ORDER BY COALESCE(publish_date, created_at) DESC, id DESC
+           LIMIT ? OFFSET ?) p ${DESIGNER_JOIN_SQL}
+     GROUP BY p.id ORDER BY COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(buildStatus, limit, offset).all();
   return results;
+}
+
+// performance audit (2026-09-01, P1) — `description` (proje metninin TAMAMI, ortalama ~2,3 KB)
+// /api/projects yanıtının %80'ini oluşturuyordu (ölçüm: ?limit=24 -> 69 KB'ın 56 KB'ı, ?limit=96 ->
+// 264 KB). Kart render eden HİÇBİR tüketici bu alanı okumuyor — tek tek doğrulandı: js/pages/proje.js
+// (kart şablonu), index.html (ana sayfa karuseli), js/components/project-related.js (İlgili Yapılar /
+// Mimarın Diğer Yapıları, ?limit=96 ile SAYFA SAYFA tüm havuzu geziyor), admin.html#top100 ekleme
+// autocomplete'i. Proje AÇIKLAMASINI gerçekten gösteren tek yer proje pop-up'ı, o da AYRI bir uçtan
+// (`/api/project/:slug`, handleProjectDetailRoute) besleniyor ve DEĞİŞMEDİ.
+// shapeProjectItem'ın KENDİSİ bilerek değiştirilmedi: havuzu (fetchActiveProjectPoolCached) MİMARLAB
+// AI de tüketiyor ve serbest metin anahtar kelime eşleşmesi için description'a ihtiyaç duyuyor
+// (bkz. src/routes/ai.js#matchesFilters) — budama yalnızca bu ucun YANIT şekline uygulanır.
+// NOT: bu bir YANIT ŞEKLİ değişikliğidir — src/lib/publicCache.js#API_PAYLOAD_VERSION bu yüzden
+// artırıldı (aksi halde dönen ziyaretçiler eski ETag'le 304 alıp eski gövdede takılırdı).
+function stripListOnlyFields(p) {
+  const { description, ...rest } = p;
+  return rest;
 }
 
 // handleProjectListRoute'daki ratingBySlug oluşturma döngüsüyle BİREBİR AYNI eşleştirme mantığı
@@ -645,7 +676,7 @@ async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
   const ratingBySlug = await fetchRatingsForSlugs(env, items.map(p => p.slug));
   const withRatings = items.map(p => {
     const r = ratingBySlug.get(p.slug);
-    return { ...p, rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
+    return { ...stripListOnlyFields(p), rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
   });
   return { items: serializePublicEntity(withRatings), total, page: clampedPage, totalPages };
 }
@@ -781,7 +812,7 @@ export async function handleProjectListRoute(request, env, url) {
     // burada sadece sayfalanmış dilime iğneleniyor, ek bir sorgu gerekmiyor.
     const items = filtered.slice(start, start + limit).map(p => {
       const r = ratingBySlug.get(p.slug);
-      return { ...p, rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
+      return { ...stripListOnlyFields(p), rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
     });
     return { items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages };
   }, () => projectListFingerprint(env));

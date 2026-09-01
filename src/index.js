@@ -428,7 +428,7 @@ export default {
       if (url.pathname.startsWith('/api/')) {
         response = await routeApi(request, env, url);
       } else if (url.pathname.startsWith('/media/')) {
-        response = await handleMediaRoute(request, env, url);
+        response = await handleMediaRoute(request, env, url, ctx);
       } else if (url.pathname === '/sitemap.xml') {
         response = await handleSitemapRoute(request, env, ctx);
       } else if (SITEMAP_CHUNK_PATH_RE.test(url.pathname)) {

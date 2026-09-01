@@ -240,8 +240,41 @@ export async function handleFileUploadRoute(request, env) {
   return json({ url: `/media/${key}`, filename: originalName || `dosya.${ext}`, format: ext, size: bytes.byteLength }, 201);
 }
 
-export async function handleMediaRoute(request, env, url) {
+// performance audit (2026-09-01, P1) — /media/* Cloudflare edge'inde HİÇ önbelleklenmiyordu.
+// Ölçüm: aynı görsele (https://mimarlab.com/media/projects/y-evi-bodrum-1.webp) art arda 3 istek,
+// üçünde de `cf-cache-status` header'ı HİÇ YOK ve TTFB 0,39-0,44sn — yani her görüntülemede Worker
+// çalışıyor ve R2'den tam nesne okunuyor. Karşılaştırma: statik varlıklar (/mimarlar-thumb/*.webp)
+// `cf-cache-status: HIT` dönüyor. Sebep: Cloudflare, bir Worker'ın ÜRETTİĞİ yanıtı Cache-Control
+// header'ına bakarak KENDİLİĞİNDEN edge'e yazmaz — bunun için Cache API (caches.default) açıkça
+// kullanılmalı (SSR sayfaları ve /api/* uçları bu dosyanın dışında zaten bu deseni kullanıyor,
+// bkz. src/index.js#cachePut, src/lib/publicCache.js#cachedPublicJson). Sitedeki her proje/ürün/
+// profil görseli bu yoldan geçtiğinden bu, her sayfa görüntülemesinde onlarca gereksiz R2 Class B
+// okumasına ve görsel başına ~0,4sn'lik bir TTFB'ye mal oluyordu.
+//
+// Anahtarlar DEĞİŞMEZ (immutable): yüklemeler `u/<user>/<uuid>.<ext>` / `f/<user>/<uuid>.<ext>`
+// biçiminde UUID'lidir (bkz. yukarısı) — bir anahtarın içeriği hiçbir zaman ÜZERİNE yazılmaz, bu
+// yüzden zaten beyan edilen `max-age=31536000, immutable` sözleşmesi edge için de güvenlidir.
+// Yine de bir nesne SİLİNEBİLDİĞİNDEN (bkz. src/lib/canonicalSync.js#UPLOADS.delete) paylaşımlı
+// (edge) kopyaya AYRICA `s-maxage=2592000` (30 gün) veriliyor: tarayıcı bir yıllık immutable
+// kopyayı korur (mevcut davranış AYNEN), edge kopyası ise en geç bir ay içinde kendiliğinden
+// düşer. 404'ler BİLEREK önbelleğe yazılmaz — henüz yüklenmemiş/az önce yüklenmiş bir nesnenin
+// "yok" yanıtı edge'de kalıcı olmasın.
+const MEDIA_EDGE_MAX_AGE_SECONDS = 2592000;
+
+export async function handleMediaRoute(request, env, url, ctx) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
+
+  // Cache anahtarı HER ZAMAN GET'tir — HEAD isteği (uptime/monitoring araçları) GET'in önbelleğini
+  // paylaşır ama kendisi gövdesiz döner (aşağıdaki request.method kontrolü korunur).
+  const cacheKey = new Request(url.toString(), { method: 'GET' });
+  let cache = null;
+  try { cache = caches.default; } catch { /* caches API bazı ortamlarda (yerel wrangler dev) yok */ }
+  if (cache) {
+    try {
+      const hit = await cache.match(cacheKey);
+      if (hit) return request.method === 'HEAD' ? new Response(null, { status: hit.status, headers: hit.headers }) : hit;
+    } catch { /* okuma başarısızsa aşağıdaki R2 yoluna düş — davranış eski hâliyle birebir aynı */ }
+  }
 
   // denetim bulgusu: bozuk `%`-encoding içeren bir path (ör. tek başına "%") decodeURIComponent'ten
   // URIError fırlatır — bu, index.js'teki genel catch-all'a düşüp temiz bir 404 yerine jenerik
@@ -256,9 +289,23 @@ export async function handleMediaRoute(request, env, url) {
 
   const headers = new Headers();
   headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('Cache-Control', `public, max-age=31536000, s-maxage=${MEDIA_EDGE_MAX_AGE_SECONDS}, immutable`);
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('ETag', object.httpEtag);
+  // Content-Length: edge'e yazılan yanıtın boyutu bilinsin diye (R2 nesnesinin kendi metadata'sı).
+  if (typeof object.size === 'number') headers.set('Content-Length', String(object.size));
 
-  return new Response(request.method === 'HEAD' ? null : object.body, { headers });
+  // HEAD: gövde hiç okunmaz, bu yüzden önbelleğe de YAZILMAZ (bir gövde akışını clone'layıp yalnızca
+  // bir dalını tüketmek gereksiz tampon büyümesine yol açar; HEAD zaten yalnızca monitoring için).
+  if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
+
+  const response = new Response(object.body, { headers });
+  if (cache) {
+    const toCache = response.clone();
+    // ctx varsa edge'e yazma isteğin dönüşünü BEKLETMEZ (waitUntil); yoksa (ör. bu fonksiyonu
+    // ctx'siz çağıran bir yol) yazma yine denenir ama beklenmez — yanıt her hâlükârda normal döner.
+    const put = cache.put(cacheKey, toCache).catch(() => {});
+    if (ctx) ctx.waitUntil(put);
+  }
+  return response;
 }

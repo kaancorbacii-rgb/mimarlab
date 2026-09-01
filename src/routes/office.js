@@ -4,9 +4,10 @@ import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/pu
 import { entityFingerprint } from '../lib/entityStats.js';
 import { foldedPrefixThenSubstring } from '../lib/searchFold.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
-import { serializePublicEntity } from '../lib/serializePublicEntity.js';
+import { serializePublicEntity, coverImage } from '../lib/serializePublicEntity.js';
 import { resolveSlugRedirect } from '../lib/slugRedirects.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
+import { PROJECT_CARD_COLUMNS } from '../lib/projectPool.js';
 // bkz. src/routes/product.js'teki AYNI CJS-interop yorumu — canonical veri DEĞİL, salt statik bir
 // sınıflandırma referansı (hangi hizmet alanı firmaya, hangisi markaya ait).
 import officeKindJs from '../../office-kind.js';
@@ -387,7 +388,7 @@ async function buildOfficePayload(env, key) {
        WHERE f.office_id = ? AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL`
     ).bind(o.id).all(),
     env.DB.prepare(
-      `SELECT DISTINCT p.* FROM project_designers pd JOIN projects p ON p.id = pd.project_id
+      `SELECT DISTINCT ${PROJECT_CARD_COLUMNS} FROM project_designers pd JOIN projects p ON p.id = pd.project_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND pd.office_id = ?`
     ).bind(o.id).all(),
     // relatedOffices — bkz. yukarıdaki officeCity yorumu. loc = 'İl / İlçe' ya da bazen bare 'İl'
@@ -420,7 +421,10 @@ async function buildOfficePayload(env, key) {
     // isim eşleşmesi burada da kullanılır (brand_office_id VARSA o da OR ile kabul edilir, isim
     // değişse bile eski eşleşme kaybolmasın diye).
     env.DB.prepare(
-      `SELECT * FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL
+      // performance audit (2026-09-01, P2) — eskiden `SELECT *`; bu sonuç kümesinin TEK tüketicisi
+      // brandCatalog (slug/title/images/category/kind) ve isPureBrandOffice'in okuduğu satır SAYISI.
+      // description/specs/files gibi hiç okunmayan büyük kolonlar artık D1'den çekilmiyor.
+      `SELECT slug, title, images, category, kind FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL
        AND (brand_office_id = ? OR brand_name_raw = ? COLLATE NOCASE)
        ORDER BY title COLLATE NOCASE`
     ).bind(o.id, o.name).all(),
@@ -556,7 +560,7 @@ async function buildOfficePayload(env, key) {
   const relatedProjects = relatedRes.results
     .map(p => {
       const parsed = parseCanonicalRow('projects', p);
-      return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
+      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
     })
     .sort((a, b) => {
       if (a._year == null && b._year == null) return 0;
@@ -600,7 +604,7 @@ async function buildOfficePayload(env, key) {
     .map(r => ({ slug: r.slug, name: r.name, loc: r.loc, logo: r.logo_url, website: r.website }));
   const brandCatalog = brandProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
-    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, kind: parsed.kind };
+    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, kind: parsed.kind };
   });
   // İlgili Markalar — kartlar firma kartlarıyla AYNI şekle sahiptir (slug/name/loc/logo), böylece
   // office-modal.js'teki mevcut cardHtml/logoUrl yolu değişmeden kullanılabilir.
@@ -609,7 +613,7 @@ async function buildOfficePayload(env, key) {
   // cardHtml yolu değişmeden kullanılabilsin diye.
   const brandProductProjects = brandProductProjectsRes.results.map(p => {
     const parsed = parseCanonicalRow('projects', p);
-    return { slug: parsed.slug, title: parsed.title, images: parsed.images, location: parsed.location };
+    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), location: parsed.location };
   });
   // Tercih Eden Firmalar/Mimarlar — kartlar firma/mimar kartlarıyla AYNI şekle sahiptir, böylece
   // office-modal.js'teki mevcut cardHtml/logoUrl yolu değişmeden kullanılabilir.
@@ -621,7 +625,7 @@ async function buildOfficePayload(env, key) {
   // ("Projelerde Kullanılan Ürünler") gösterilir, marka adı kartın alt satırında yer alır.
   const projectProducts = projectProductsRes.results.map(p => {
     const parsed = parseCanonicalRow('products', p);
-    return { slug: parsed.slug, title: parsed.title, images: parsed.images, category: parsed.category, brand: parsed.brand_name_raw, kind: parsed.kind };
+    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, brand: parsed.brand_name_raw, kind: parsed.kind };
   });
 
   const item = {

@@ -37,6 +37,16 @@ export const DESIGNER_JOIN_SQL = `
 // seo.js#findProjectRow zaten baştan beri bu şekilde (ar_ofc'siz) yazılmıştı.
 export const OFFICE_NAMES_SQL = `GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS office_names`;
 
+// performance audit (2026-09-01, P2) — mimar/firma pop-up'larının proje ızgaralarını besleyen
+// sorgular `SELECT p.*` / `SELECT DISTINCT p.*` kullanıyordu; bu, hiç okunmayan `description`
+// (proje başına ortalama ~2,3 KB) dahil TÜM kolonları D1'den Worker'a taşıyordu — 36-39 projelik
+// bir profilde tek pop-up için ~90 KB gereksiz D1→Worker aktarımı. Bu ızgaraların GERÇEKTEN
+// okuduğu alanlar yalnızca şunlar (bkz. src/routes/architect.js#shapeProjectsNewestFirst ve
+// src/routes/office.js#relatedProjects — ikisi de aynı 7 alanı çıkarır). `id` DAHİL edilir ki
+// `SELECT DISTINCT` semantiği eski `p.*` hâliyle BİREBİR aynı kalsın (id birincil anahtardır,
+// dolayısıyla DISTINCT hiçbir satırı birleştirmez — eski davranış korunur).
+export const PROJECT_CARD_COLUMNS = 'p.id, p.slug, p.title, p.category, p.images, p.lat, p.lng, p.project_date, p.location';
+
 export function designerNamesFrom(concat) {
   return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
 }

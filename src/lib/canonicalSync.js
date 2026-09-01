@@ -259,6 +259,17 @@ export async function deleteR2MediaKeys(env, keys) {
     try {
       await env.UPLOADS.delete(chunk);
       for (const key of chunk) freedBytes += sizeByKey.get(key) || 0;
+      // performance audit (2026-09-01) — /media/* artık edge'de (caches.default) önbellekleniyor
+      // (bkz. src/routes/upload.js#handleMediaRoute). Silinen nesnenin edge kopyası kendi
+      // s-maxage'ı (30 gün) dolana kadar yaşamaya devam ederdi; burada aynı işlemde temizleniyor.
+      // caches.default PoP-BAŞINADIR (bkz. src/lib/ssrCache.js#purgeSsrDetailCache'teki AYNI
+      // sınırlama notu) — yalnızca bu silme isteğini işleyen edge node'un girdisi düşer, tam
+      // garanti s-maxage'ın kendisidir. Best-effort: hata silme işlemini ETKİLEMEZ.
+      try {
+        await Promise.all(chunk.map(key =>
+          caches.default.delete(new Request(`https://mimarlab.com/media/${key.split('/').map(encodeURIComponent).join('/')}`)).catch(() => {})
+        ));
+      } catch { /* caches API yoksa (yerel wrangler dev) sessizce atla — silme BAŞARILI sayılır */ }
     } catch (err) {
       console.error(JSON.stringify({ event: 'r2_delete_chunk_failed', keyCount: chunk.length, reason: (err && err.message) || String(err) }));
     }
