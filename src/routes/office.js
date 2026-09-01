@@ -234,7 +234,7 @@ export async function handleOfficeListRoute(request, env, url) {
     });
 
     // firma.html#populateFilters — sayaçlar tüm havuz üzerinden, aktif filtrelerden bağımsız
-    // (mimar.html#handleArchitectListRoute'daki AYNI gerekçe). Türkiye tek başına bir konum
+    // (kisi.html#handleArchitectListRoute'daki AYNI gerekçe). Türkiye tek başına bir konum
     // seçeneği olarak listelenmez (bkz. firma.html#populateFilters'daki AYNI `city === 'Türkiye'` atlama).
     const locCounts = {}, catCounts = {};
     // Sayaçlar da sayfanın KENDİ havuzundan hesaplanır — aksi halde marka.html'in kenar çubuğu o

@@ -26,7 +26,7 @@ echo "Sağlık kontrolü başlıyor: $BASE_URL"
 
 echo "1) HTTP durum kontrolleri"
 check_status "/" 200
-check_status "/mimar" 200
+check_status "/kisi" 200
 check_status "/firma" 200
 check_status "/sitemap.xml" 200
 

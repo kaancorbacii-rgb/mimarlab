@@ -37,7 +37,7 @@ const ProjectMeta = (function () {
   // bkz. XSS escaping convention (memory) — depolanmış herhangi bir URL http(s) değilse asla
   // href/src'e basılmaz. proje-detay.html#safeUrl ile birebir aynı.
   //
-  // gerçek bulgu (regresyon, 2026-08-13): base window.location.href idi — ama proje.html/mimar.html/
+  // gerçek bulgu (regresyon, 2026-08-13): base window.location.href idi — ama proje.html/kisi.html/
   // firma.html/urun.html'in HEPSİNDE <base href="/"> var (tam olarak "göreli src'ler /proje/:slug gibi
   // iç içe bir yolda yanlış çözülmesin" diye, bkz. proje.html içindeki <base> yorumu). window.location.href
   // kullanmak bu <base>'i BYPASS ediyordu: legacy_static kaynaklı, başında "/" olmayan bir logo_url
@@ -88,7 +88,7 @@ const ProjectMeta = (function () {
       }
       return `<span class="designer-chip">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}</span></span>`;
     }
-    const href = d.type === 'architect' ? `/mimar/${encodeURIComponent(slugify(d.name))}` : `/firma/${encodeURIComponent(slugify(d.name))}`;
+    const href = d.type === 'architect' ? `/kisi/${encodeURIComponent(slugify(d.name))}` : `/firma/${encodeURIComponent(slugify(d.name))}`;
     const badge = verifiedBadgeHtml(d.type, d.name, d.badges, 13);
     return `<a class="designer-chip" href="${href}">${avatarHtml}<span class="designer-chip-name">${escapeHtml(d.name)}${badge}</span></a>`;
   }
@@ -143,7 +143,7 @@ const ProjectMeta = (function () {
         if (!name) return '';
         const hit = bySlugName.get(name.toLocaleLowerCase('tr'));
         return hit
-          ? `<a href="/mimar/${encodeURIComponent(hit.slug)}">${escapeHtml(name)}</a>`
+          ? `<a href="/kisi/${encodeURIComponent(hit.slug)}">${escapeHtml(name)}</a>`
           : escapeHtml(name);
       }).filter(Boolean).join(', ');
     }

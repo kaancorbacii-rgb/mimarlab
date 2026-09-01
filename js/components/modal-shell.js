@@ -731,9 +731,9 @@ const ModalShell = (function () {
   // yaparak açıldığında kapanış zaten goBackAndWait(N) ile o girdiyi geri sarar ve kullanıcı
   // bulunduğu yerde kalır. Ama popup TAM SAYFA bir navigasyonla açıldığında (proje popup'ındaki
   // mimar/firma/fotoğrafçı adına tıklamak, Koleksiyonum'dan bir proje/ürün açmak — bu sayfalar o
-  // modal script'ini barındırmadığından tarayıcı gerçekten /mimar/:slug'a gider) openedViaPush
+  // modal script'ini barındırmadığından tarayıcı gerçekten /kisi/:slug'a gider) openedViaPush
   // false olur ve kapanış "liste sayfasına pushState" davranışına düşerdi: kullanıcı geldiği yer
-  // yerine /mimar, /firma, /proje, /urun listesinde bulurdu kendini.
+  // yerine /kisi, /firma, /proje, /urun listesinde bulurdu kendini.
   //
   // Bu fonksiyon o dalın yerini alır: aynı origin'den gelinmişse (Referrer-Policy
   // 'strict-origin-when-cross-origin' olduğundan site içi navigasyonlarda referrer TAM URL olarak

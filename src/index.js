@@ -120,7 +120,7 @@ const SECURITY_HEADERS = {
 // tarafından bu tablo hiç kontrol edilmeden doğrudan 404'e yönlendiriliyor.
 const CLEAN_URL_REDIRECTS = {
   '/proje-detay': { param: 'proje', prefix: '/proje/', slugifyValue: false },
-  '/mimar-detay': { param: 'mimar', prefix: '/mimar/', slugifyValue: true },
+  '/mimar-detay': { param: 'mimar', prefix: '/kisi/', slugifyValue: true },
   '/ofis-detay': { param: 'ofis', prefix: '/firma/', slugifyValue: true },
 };
 // Yeni temiz yol önekini, aynı içeriği render eden gerçek statik HTML dosyasına eşler — istemci
@@ -130,18 +130,18 @@ const CLEAN_URL_REDIRECTS = {
 // (auto-trailing-slash) davranışıyla bunu tekrar uzantısız hale 301 yönlendirir — bu da orijinal
 // /yapi/:slug isteğimizin path bilgisini kaybederdi; uzantısız istemek doğrudan içeriği döner.
 const CLEAN_URL_ASSETS = [
-  // /proje/:slug, /mimar/:slug, /firma/:slug, /urun/:slug artık kendi listeleme sayfalarına
+  // /proje/:slug, /kisi/:slug, /firma/:slug, /urun/:slug artık kendi listeleme sayfalarına
   // eşleniyor (proje-detay.html/mimar-detay.html/ofis-detay.html/urun-detay.html kaldırıldı) — her
   // sayfa kendi JS'inde bu yolu algılayıp ilgili modalı (ProjectModal/ArchitectModal/OfficeModal/
   // ProductModal, bkz. js/components/) doğrudan açar, injectMeta() ise AYNI HTMLRewriter
   // mekanizmasıyla o listeleme sayfasının <head>'indeki id'li meta etiketlerini hedefler (bkz.
-  // proje.html/mimar.html/firma.html/urun.html#meta-description vb.).
+  // proje.html/kisi.html/firma.html/urun.html#meta-description vb.).
   // Eskiden "Yapı" (buildStatus='built', /yapi/:slug) ve "Proje" (buildStatus='concept', /proje/:slug)
   // ayrı sayfa/önek çiftiydi (bkz. kullanıcı isteği) — konsept kategori tamamen kaldırıldı, Yapı
   // sayfası "Proje" adını aldı, tek önek kaldı. Eski /yapi/:slug bağlantıları PREFIX_RENAME_REDIRECTS'te
   // buraya 301'lenir.
   { prefix: '/proje/', asset: '/proje', type: 'project' },
-  { prefix: '/mimar/', asset: '/mimar', type: 'architect' },
+  { prefix: '/kisi/', asset: '/kisi', type: 'architect' },
   { prefix: '/firma/', asset: '/firma', type: 'office' },
   { prefix: '/urun/', asset: '/urun', type: 'product' },
 ];
@@ -229,10 +229,13 @@ const PATH_RENAME_REDIRECTS = {
   '/ofis.html': '/firma',
   '/ofis-ekle': '/firma-ekle',
   '/ofis-ekle.html': '/firma-ekle',
-  // "Mimar Ekle" sayfası "Kişi Ekle" oldu (kullanıcı isteği, 2026-09-01): mimar dizini artık
-  // yalnızca mimarları değil fotoğrafçı/tasarımcı/öğrencileri de barındırıyor (bkz.
-  // kisi-ekle.html#MESLEK_OPTIONS), dosya da mimar-ekle.html -> kisi-ekle.html olarak yeniden
-  // adlandırıldı. Eski bağlantılar/yer imleri kırılmasın diye 301'lenir.
+  // "Mimar" dizini "Kişi" oldu (kullanıcı isteği, 2026-09-01): dizin artık yalnızca mimarları değil
+  // fotoğrafçı/tasarımcı/öğrencileri de barındırıyor (bkz. kisi-ekle.html#MESLEK_OPTIONS); dosyalar
+  // mimar.html -> kisi.html, mimar-ekle.html -> kisi-ekle.html olarak yeniden adlandırıldı.
+  // Liste sayfası burada, PROFİL sayfaları (/mimar/:slug) ise PREFIX_RENAME_REDIRECTS'te 301'lenir —
+  // ikisi de indexlenmiş/backlink almış URL'ler olduğundan yönlendirme kalıcı olmalı.
+  '/mimar': '/kisi',
+  '/mimar.html': '/kisi',
   '/mimar-ekle': '/kisi-ekle',
   '/mimar-ekle.html': '/kisi-ekle',
   '/malzeme': '/urun',
@@ -321,13 +324,18 @@ const PREFIX_RENAME_REDIRECTS = [
   // diye AYNI desenle 301'lenir.
   { from: '/projeler/', to: '/proje/' },
   { from: '/yapi/', to: '/proje/' },
+  // Kişi profil URL öneki (kullanıcı isteği, 2026-09-01): /mimar/:slug -> /kisi/:slug. Bu, sitedeki
+  // EN ÇOK indexlenmiş ikinci URL ailesi (bkz. SITEMAP'teki architects girdileri) — 301 şart.
+  // PATH_RENAME_REDIRECTS'teki '/mimar' girdisi yalnızca TAM eşleşen liste sayfasını yakalar,
+  // slug'lı yollar buraya düşer (routeAsset'te PATH_RENAME'den hemen SONRA çalışır).
+  { from: '/mimar/', to: '/kisi/' },
 ];
 
 // Statik (build adımı olmayan) üst seviye sayfalar — bkz. eski kök dizindeki sitemap.xml (artık
 // /sitemap.xml Worker route'u tarafından üretiliyor, bu dosya kaldırıldı).
 const SITEMAP_STATIC_PAGES = [
   { loc: '/', changefreq: 'daily', priority: '1.0' },
-  { loc: '/mimar', changefreq: 'daily', priority: '0.9' },
+  { loc: '/kisi', changefreq: 'daily', priority: '0.9' },
   { loc: '/firma', changefreq: 'daily', priority: '0.9' },
   { loc: '/proje', changefreq: 'daily', priority: '0.9' },
   { loc: '/urun', changefreq: 'weekly', priority: '0.7' },
@@ -389,7 +397,7 @@ const LIST_PAGE_CACHE_HEADERS = SSR_PAGE_CACHE_HEADERS;
 // '/neden-mimarlab' de AYNI gerekçeyle burada: tamamen statik bir HTML kabuğu (canlı sayaçlar
 // istemci tarafında /api/public/platform'dan çekilir, sayfada D1'e bağlı hiçbir SSR enjeksiyonu
 // yok), ama Assets'in markasız `max-age=0, must-revalidate` varsayılanıyla servis ediliyordu.
-const LIST_PAGE_PATHS = new Set(['/', '/proje', '/mimar', '/firma', '/urun', '/marka', '/neden-mimarlab']);
+const LIST_PAGE_PATHS = new Set(['/', '/proje', '/kisi', '/firma', '/urun', '/marka', '/neden-mimarlab']);
 // audit bulgusu: max-age=3600 + stale-while-revalidate=21600 (önceki), sitemap'in yeni onaylanan bir
 // kayıttan sonra 1-7 saat bayat kalabilmesine yol açıyordu (canlıda doğrulandı: sitemap 1191 proje
 // gösterirken D1'de 1192 vardı — duplicate slug DEĞİL, salt bu TTL penceresi). Sitemap üretimi ağır
@@ -610,7 +618,7 @@ function withStaticAssetCacheHeaders(url, response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// /mimar/:slug, /firma/:slug, /yapi/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
+// /kisi/:slug, /firma/:slug, /yapi/:slug, /haberler/:id — statik şablonu ASSETS'ten alır,
 // slug data.js/projeler-data.js/haberler-data.js'te bulunuyorsa title/meta/OG/Twitter/JSON-LD'yi
 // HTMLRewriter ile (Google/sosyal medya botları JS çalıştırmadan da) doğru değerlerle değiştirir.
 // Bulunamazsa (ör. yalnızca D1'de var olan, henüz bu detay sayfalarını desteklemeyen bir kayıt)
@@ -880,7 +888,7 @@ async function listCanonicalEntityUrls(env) {
     env.DB.prepare(`SELECT slug, updated_at FROM products WHERE ${where}`).all(),
   ]);
   return [
-    ...archRes.results.map(r => [`/mimar/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
+    ...archRes.results.map(r => [`/kisi/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
     ...officeRes.results.map(r => [`/firma/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
     ...projRes.results.map(r => [`/proje/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
     ...prodRes.results.map(r => [`/urun/${encodeURIComponent(r.slug)}`, toLastmod(r.updated_at)]),
@@ -913,7 +921,7 @@ async function routeApi(request, env, url) {
   // (handleSubmissionRoute) ÇAKIŞMAZ — yalnızca /api/projects/filters, /api/projects prefix'iyle
   // başladığından o genel eşleşmeden ÖNCE burada özel olarak yakalanmalı.
   if (path === '/api/projects/filters') return handleProjectFiltersRoute(request, env, url);
-  // proje.html/mimar.html/firma.html/urun.html'in yeni sayfalanmış (?page=&limit=) liste uçları —
+  // proje.html/kisi.html/firma.html/urun.html'in yeni sayfalanmış (?page=&limit=) liste uçları —
   // BARE /api/projects/architects/offices/products, method GET iken buraya düşer; aynı path'lere
   // POST (yeni gönderi oluşturma) her zaman aşağıdaki handleSubmissionRoute'a gider (bkz. o dosyadaki
   // segments.length===2 dalı, yalnızca POST'u işliyor — GET için hiçbir dal eşleşmediğinden bu

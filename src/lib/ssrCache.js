@@ -13,14 +13,18 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // Bu değerin artırılmaması, /proje|mimar|firma|urun/:slug SSR sayfalarının edge'de s-maxage
 // boyunca ESKİ (hâlâ .html bağlantılı) HTML'i sunmasına yol açardı.
 // v102 (kullanıcı isteği, 2026-09-01): "Mimar" dizini "Kişi" olarak yeniden adlandırıldı —
-// mimar.html'in SSR kabuğundaki <h1>/breadcrumb metni ("Mimarlar" -> "Kişiler") ve
+// kisi.html'in SSR kabuğundaki <h1>/breadcrumb metni ("Mimarlar" -> "Kişiler") ve
 // src/lib/seo.js#CATALOG_CRUMB.architect.label (breadcrumb JSON-LD) değişti; ikisi de SSR HTML'ine
-// gömülü olduğundan sürüm artırılmazsa /mimar/:slug sayfaları s-maxage boyunca eski metni sunardı.
-export const SSR_CACHE_VERSION = 'v102';
+// gömülü olduğundan sürüm artırılmazsa /kisi/:slug sayfaları s-maxage boyunca eski metni sunardı.
+// v103 (kullanıcı isteği, 2026-09-01): kişi dizininin URL'i de değişti — /mimar -> /kisi,
+// /mimar/:slug -> /kisi/:slug. SSR HTML'ine gömülü canonical/og:url ve breadcrumb JSON-LD bağlantıları
+// yeni yolu taşıdığından (bkz. src/lib/seo.js#architectMetaFromRecord) sürüm artırılmazsa edge,
+// s-maxage boyunca ESKİ canonical'ı (artık 301'lenen /mimar/:slug) gösteren HTML sunardı.
+export const SSR_CACHE_VERSION = 'v103';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',
-  architect: '/mimar/',
+  architect: '/kisi/',
   office: '/firma/',
   product: '/urun/',
 };

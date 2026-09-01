@@ -21,7 +21,7 @@ const OfficeModal = (function () {
   function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
   function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
   // architect-modal.js#injectStyles ile BİREBİR aynı ortak sınıflar (.detail-title/.related-*/
-  // .save-btn) — firma.html farklı bir sayfa olduğundan proje.html/mimar.html'in <style>'ını miras
+  // .save-btn) — firma.html farklı bir sayfa olduğundan proje.html/kisi.html'in <style>'ını miras
   // alamaz, kendi <style>'ını bir kez enjekte eder (görsel bütünlük için AYNI değerler).
   // .card-edit-btn/.card-delete-btn/.profile-edit-btn ARTIK burada değil — Düzenle/Arşivle/Sil
   // modal-shell.js'in paylaşılan header'ında render edilir, TEK stil kaynağı orası (bkz. kullanıcı
@@ -753,7 +753,7 @@ const OfficeModal = (function () {
     function renderFoundersGrid() {
       document.getElementById('om-founders-grid').innerHTML = founders.map(a => a.unregistered
         ? unregisteredBadgeHtml(a.name)
-        : cardHtml(`/mimar/${encodeURIComponent(slugify(a.name))}`, a.name, a.photo, a.role, verifiedBadgeHtml('architect', a.name, a.badges, 14))
+        : cardHtml(`/kisi/${encodeURIComponent(slugify(a.name))}`, a.name, a.photo, a.role, verifiedBadgeHtml('architect', a.name, a.badges, 14))
       ).join('');
     }
     renderFoundersGrid();
@@ -846,7 +846,7 @@ const OfficeModal = (function () {
     const preferringArchitectsData = payload.preferringArchitects || [];
     document.getElementById('om-preferring-architects-section').style.display = preferringArchitectsData.length ? '' : 'none';
     document.getElementById('om-preferring-architects-grid').innerHTML = preferringArchitectsData.map(a =>
-      cardHtml(`/mimar/${encodeURIComponent(a.slug)}`, a.name, a.photo, '')
+      cardHtml(`/kisi/${encodeURIComponent(a.slug)}`, a.name, a.photo, '')
     ).join('');
     document.getElementById('om-preferring-architects-count').textContent = preferringArchitectsData.length ? ` (${preferringArchitectsData.length})` : '';
 

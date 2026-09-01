@@ -285,7 +285,7 @@ const MAX_PER_GROUP = 20;
 // kullanıcının arayabileceği eş anlamlılar.
 const SITE_PAGES = [
   { title: 'Projeler', href: '/proje', meta: 'Proje listesi', keywords: 'yapi bina eser' },
-  { title: 'Kişiler', href: '/mimar', meta: 'Kişi listesi', keywords: 'mimar tasarimci fotografci ogrenci' },
+  { title: 'Kişiler', href: '/kisi', meta: 'Kişi listesi', keywords: 'mimar tasarimci fotografci ogrenci' },
   { title: 'Firmalar', href: '/firma', meta: 'Firma listesi', keywords: 'ofis studyo buro' },
   { title: 'Ürünler', href: '/urun', meta: 'Ürün ve malzeme kataloğu', keywords: 'malzeme katalog mobilya' },
   { title: 'Markalar', href: '/marka', meta: 'Marka listesi', keywords: 'uretici' },
@@ -460,7 +460,7 @@ async function runSearch(){
     meta: [p.location, p.date].filter(Boolean).join(' · '),
   });
   const architectRow = a => rowHtml({
-    href: `/mimar/${encodeURIComponent(a.slug)}`,
+    href: `/kisi/${encodeURIComponent(a.slug)}`,
     avatarStyle: `background:${officeColor(a.name)}`,
     avatarContent: `${initials(a.name)}${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 200))}"${cdnSrcset(a.photo, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(a.photo, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}`,
     title: a.name,

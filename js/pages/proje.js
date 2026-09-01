@@ -389,7 +389,7 @@ async function buildSidebar(){
     });
   });
   const resetBtn = document.getElementById('g-reset');
-  // gerçek bulgu (denetim, 2026-08-24): mimar.html/firma.html'deki AYNI "Filtreleri temizle" butonu
+  // gerçek bulgu (denetim, 2026-08-24): kisi.html/firma.html'deki AYNI "Filtreleri temizle" butonu
   // sıralamayı (g-sort) ve üst/mobil nav arama kutularını (f-search-topnav/f-search-nav) da açıkça
   // sıfırlıyor — buradaki (checkbox tabanlı sidebar'a özgü) sürüm yalnızca activeFilters/
   // localSearchQuery'i temizleyip bunları hiç dokunmuyordu. Sonuç: proje.html'de "Filtreleri temizle"ye

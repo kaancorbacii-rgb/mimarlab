@@ -187,9 +187,9 @@ async function toggleLegacyHidden(request, env, user) {
   return json({ ok: true });
 }
 
-// GET /api/public/hidden — proje.html/mimar.html/firma.html/urun.html gibi statik sayfaların
+// GET /api/public/hidden — proje.html/kisi.html/firma.html/urun.html gibi statik sayfaların
 // hardcoded data.js dizilerini (projeler-data.js vb.) filtrelemek için kullandığı TEK D1 sinyali
-// (bkz. proje.html/proje-detay.html/mimar.html/firma.html/urun.html — hepsi bu uçtan dönen
+// (bkz. proje.html/proje-detay.html/kisi.html/firma.html/urun.html — hepsi bu uçtan dönen
 // slug/name/"marka|||başlık" setini statik diziden çıkarmak için kullanır). Bu yüzden her tip için
 // İKİ ayrı "artık gösterme" kaynağını BİRLEŞTİRİR:
 //   1) canonical satırın kendisi hâlâ duruyor ama hidden_at (Gizle/Arşivle, geri alınabilir) veya
@@ -271,7 +271,7 @@ export async function handlePublicSearchSuggest(request, env, url) {
     }
 
     const groups = [
-      { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/mimar/${encodeURIComponent(slugify(a.name))}` })) },
+      { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/kisi/${encodeURIComponent(slugify(a.name))}` })) },
       { label: 'Firma', items: officeMatches.map(o => ({ title: o.name, meta: o.loc || '', href: `/firma/${encodeURIComponent(slugify(o.name))}` })) },
       { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/proje/${encodeURIComponent(p.slug)}` })) },
       { label: 'Ürün', items: prodMatches.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}` })) },

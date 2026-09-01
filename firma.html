@@ -571,7 +571,7 @@ function renderPagination(totalPages){
 }
 
 // Aktif filtre/arama/sıralama/sayfa durumundan ?query string üretir — hem /api/offices isteği hem
-// de tarayıcı URL senkronu için TEK noktadan kullanılır (bkz. mimar.html'deki AYNI desen).
+// de tarayıcı URL senkronu için TEK noktadan kullanılır (bkz. kisi.html'deki AYNI desen).
 function currentQueryParams(){
   const params = new URLSearchParams();
   const loc = document.getElementById('g-loc').value;
@@ -606,7 +606,7 @@ function applyStateFromUrl(){
 }
 
 // render() artık yalnızca mevcut sayfanın kartlarını /api/offices'ten çeker — tüm firma listesi
-// hiçbir zaman tarayıcıya inmiyor (bkz. mimar.html#render'daki AYNI desen).
+// hiçbir zaman tarayıcıya inmiyor (bkz. kisi.html#render'daki AYNI desen).
 let renderRequestId = 0;
 async function render(){
   const myRequest = ++renderRequestId;
@@ -646,7 +646,7 @@ async function render(){
   // .card-grid sütun sayısı breakpoint'e göre değişiyor (4 -> ≤960px'de 3 -> ≤720px'de 2, bkz.
   // yukarıdaki <style>) — sabit "4" varsayımı mobilde (2 sütun) 3./4. kartı aslında ikinci satırda
   // olduğu halde gereksiz eager+fetchpriority=high ile isterdi (denetim bulgusu, 2026-08-14,
-  // bkz. mimar.html'deki AYNI düzeltme).
+  // bkz. kisi.html'deki AYNI düzeltme).
   const eagerCardCount = window.innerWidth <= 720 ? 2 : window.innerWidth <= 960 ? 3 : 4;
   grid.innerHTML = data.items.map((o, i)=>{
     const logo = logoUrl(o);

@@ -292,13 +292,13 @@
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
 
-  <div id="site-header-mount" data-nav-active="mimar"></div>
+  <div id="site-header-mount" data-nav-active="kisi"></div>
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
     <a href="/">Ana Sayfa</a>
     <span class="sep">›</span>
-    <a href="/mimar">Kişiler</a>
+    <a href="/kisi">Kişiler</a>
     <span class="sep">›</span>
     <span class="current">Kişi Ekle</span>
   </div>
@@ -767,7 +767,7 @@ const currentUserReady = fetch('/api/auth/me').then(res=>{
 
 const MY_BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye', 'iz-birakan':'İz Bırakan' };
 // Kaydet'in üstünde salt-okunur rozet durumu (bkz. kullanıcı isteği) — admin-badge-section'ın
-// aksine düzenlenemez, yalnızca /api/public/badges'teki (mimar.html/firma.html kartlarını da
+// aksine düzenlenemez, yalnızca /api/public/badges'teki (kisi.html/firma.html kartlarını da
 // besleyen AYNI genel uç) güncel rozeti gösterir ya da yoksa satin-al.html'e yönlendirir. Rozeti
 // değiştirme/verme yetkisi yalnızca admindedir (bkz. wireAdminBadgePicker) — admin zaten kendi
 // düzenleme kutusunu gördüğünden bu kutu admine hiç gösterilmez.
@@ -999,7 +999,7 @@ function mountArchitectAdminActions(){
         body: JSON.stringify({ type: 'architects', action, key }),
       });
       if(!res.ok) throw new Error('request failed');
-      window.location.href = '/mimar';
+      window.location.href = '/kisi';
     }catch{
       alert('Bir şeyler ters gitti, tekrar dene.');
       archiveBtn.disabled = false;
@@ -1192,7 +1192,7 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
       // döndüğü GÜNCEL slug'a güvenilir (bkz. src/routes/submissions.js#updateOwnSubmission), yeni
       // kayıtta (data.slug yoksa) isimden aynı algoritmayla türetilen slug'a düşülür.
       const finalSlug = data.slug || slugify(payload.name);
-      setTimeout(()=>{ window.location.href = `/mimar/${encodeURIComponent(finalSlug)}`; }, 1200);
+      setTimeout(()=>{ window.location.href = `/kisi/${encodeURIComponent(finalSlug)}`; }, 1200);
       return;
     }
     if(editId || claimName){
@@ -1218,7 +1218,7 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
 });
 
 // Gönderdiğin (yeni, admin onayı bekleyen) mimar profili sana aitse, formu tekrar doldurup
-// mimar-detay/mimar.html'e gitmeye gerek kalmadan aynı sayfadan sahiplenme talebi gönderebilsin diye
+// mimar-detay/kisi.html'e gitmeye gerek kalmadan aynı sayfadan sahiplenme talebi gönderebilsin diye
 // (bkz. kullanıcı isteği) — POST /api/claims claim-correction-box.js#loadClaimCard'daki AYNI uç,
 // admin talebi "Profil Talepleri" kuyruğunda normal şekilde görür (src/routes/claims.js#createClaim
 // canonical satırın önceden var olmasını gerektirmiyor).

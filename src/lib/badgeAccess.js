@@ -56,7 +56,7 @@ export async function getActiveSelfBadge(env, userId) {
 // çöz"): Kaan'ın Altın Üye rozeti kişisel mimar profiline değil, Kurucusu olduğu MİMARLAB firma
 // profiline admin tarafından verilmişti (admin_badges profile_type='office') — src/routes/
 // comments.js ve bu dosyanın (ownerByline.js) eski hali yalnızca satın alınan badge_requests'e
-// bakıyordu, admin_badges'e HİÇ bakmıyordu; profil sayfasında (mimar.html — bkz. src/routes/
+// bakıyordu, admin_badges'e HİÇ bakmıyordu; profil sayfasında (kisi.html — bkz. src/routes/
 // badges.js#computeBadgesPayload'daki "kendisi için aldığı rozet bir markaya sızmaz" kuralı) doğru
 // şekilde boş kalması GEREKEN bu ayrım, yorum/gönderi bylinelarında rozetin tamamen KAYBOLMASINA
 // yol açıyordu. Yalnızca EN YÜKSEK kademeli rozet döner (BADGE_RANK); bilinmeyen/derece dışı tipler

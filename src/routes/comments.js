@@ -32,7 +32,7 @@ export async function handleCommentsRoute(request, env, url) {
 // commenterProfile: yorumu yapan kullanıcının hesabı bir mimar/firma profiline BAĞLIYSA (bkz.
 // architects/offices.claimed_by_user_id — profile_claims onayında kanonik satıra yazılır) o
 // profilin fotoğrafı/adı/slug'ı (kullanıcı isteği: yorumda varsayılan avatar yerine profil fotosu,
-// tıklanınca /mimar veya /firma'ya git). Bir hesap teorik olarak hem bir mimar HEM bir firma
+// tıklanınca /kisi veya /firma'ya git). Bir hesap teorik olarak hem bir mimar HEM bir firma
 // kaydını claim etmiş olabilir — architects/offices'ten en fazla BİRER satırı garanti eden
 // korelasyonlu alt sorgularla (LIMIT 1) satır çoğalması önlenir, ikisi de doluysa proje.html
 // #DESIGNER_JOIN_SQL'deki COALESCE(ar, ofc) ile AYNI önceliğe (mimar > firma) uyulur.
@@ -90,7 +90,7 @@ async function listComments(env, url) {
 // (CANONICAL_TYPE_BY_TARGET'te yok, kendi 'news' tablosundan id'yle çekilir — bkz. haber-detay.html
 // targetId=news.id kullanımı). Sonradan silinmiş/gizlenmiş bir hedefse sessizce atlanır.
 const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
-const HREF_BASE_BY_TARGET = { project: '/proje/', architect: '/mimar/', office: '/firma/' };
+const HREF_BASE_BY_TARGET = { project: '/proje/', architect: '/kisi/', office: '/firma/' };
 
 function commentCardShape(targetType, row) {
   if (targetType === 'project') {

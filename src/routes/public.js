@@ -140,7 +140,7 @@ const CHECK_NAME_TYPES = new Set(['projects', 'architects', 'offices', 'products
 
 // bkz. src/routes/ratings.js#HREF_BASE_BY_TARGET (AYNI eşleme) — check-name eşleşen kaydın
 // detay sayfasına "Projeye/Mimara/Firmaya/Ürüne git." linki için (bkz. kullanıcı isteği).
-const CHECK_NAME_HREF_BASE = { projects: '/proje/', architects: '/mimar/', offices: '/firma/', products: '/urun/', materials: '/urun/' };
+const CHECK_NAME_HREF_BASE = { projects: '/proje/', architects: '/kisi/', offices: '/firma/', products: '/urun/', materials: '/urun/' };
 
 // GET /api/public/check-name?type=projects|architects|offices|products|materials&name=<metin>
 // [&brand=<metin>][&exclude=<metin>][&excludeBrand=<metin>] — auth gerektirmez. proje-ekle.html/

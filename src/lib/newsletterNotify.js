@@ -52,7 +52,7 @@ function buildCoverImage(typeKey, row) {
 function buildLink(typeKey, row) {
   if (typeKey === 'projects') return row.slug ? `https://mimarlab.com/proje/${encodeURIComponent(row.slug)}` : null;
   if (typeKey === 'products' || typeKey === 'materials') return row.slug ? `https://mimarlab.com/urun/${encodeURIComponent(row.slug)}` : null;
-  if (typeKey === 'architects') return row.name ? `https://mimarlab.com/mimar/${encodeURIComponent(slugify(row.name))}` : null;
+  if (typeKey === 'architects') return row.name ? `https://mimarlab.com/kisi/${encodeURIComponent(slugify(row.name))}` : null;
   if (typeKey === 'offices') return row.name ? `https://mimarlab.com/firma/${encodeURIComponent(slugify(row.name))}` : null;
   return null;
 }

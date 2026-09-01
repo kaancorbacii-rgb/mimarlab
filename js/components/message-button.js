@@ -2,7 +2,7 @@
 // isteği: archello.com/brand/ofist'teki "Contact Brand" popup'ı). js/components/share-button.js İLE
 // AYNI desen: içerikten bağımsız, plain <script> olarak dahil edilir, global `MessageWidget`
 // nesnesini dışa verir. save-widget.js/badge-shared.js İLE AYNI paylaşılan script-scope global'lere
-// (currentUser, escapeHtml, escapeAttr) güvenir — bu dosya mimar.html/firma.html'de o dosyalardan
+// (currentUser, escapeHtml, escapeAttr) güvenir — bu dosya kisi.html/firma.html'de o dosyalardan
 // SONRA yüklenmelidir (bkz. o sayfalardaki <script> sırası).
 const MessageWidget = (function () {
   function injectStyles() {

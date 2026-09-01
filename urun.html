@@ -316,7 +316,7 @@
      taranabilir iç bağlantı yoktu (sitemap dışında Google'ın ürün sayfalarına ulaşacağı bir yol yok),
      kartlar klavyeyle odaklanamıyor ve Cmd/orta tıkla yeni sekmede açılamıyordu. Başlık artık gerçek
      bir <a>; görünüm birebir korunsun diye renk/alt çizgi devralınır, düz sol tıklama ise aşağıdaki
-     kart dinleyicisinde preventDefault ile YİNE modalı açar (mimar.html#card-grid ile AYNI desen). */
+     kart dinleyicisinde preventDefault ile YİNE modalı açar (kisi.html#card-grid ile AYNI desen). */
   .content-card-titlelink{color:inherit; text-decoration:none;}
   .content-card-by{font-size:11.5px; color:var(--ink-soft);}
 
@@ -773,9 +773,9 @@ async function render(){
   const pageItems = data.items;
   // denetim bulgusu (2026-09-01, LCP): catalogCardMediaHtml HER kart görselini loading="lazy" ile
   // basıyordu — proje/mimar/firma/marka listelerinin hepsi ilk satırı eager+fetchpriority=high ile
-  // isterken (bkz. js/pages/proje.js#render, mimar.html#renderGrid) /urun sayfasının LCP görseli
+  // isterken (bkz. js/pages/proje.js#render, kisi.html#renderGrid) /urun sayfasının LCP görseli
   // (ilk satırın ilk kartı) tarayıcı tarafından bilerek geciktiriliyordu. AYNI "ilk satır eager"
-  // hesabı burada da yapılır. Kolon sayısı, mimar.html/firma.html/marka.html#renderGrid'in KULLANDIĞI
+  // hesabı burada da yapılır. Kolon sayısı, kisi.html/firma.html/marka.html#renderGrid'in KULLANDIĞI
   // AYNI yöntemle (window.innerWidth breakpoint'i) türetilir — ilk sürümde grid'in ölçülen genişliği
   // (getBoundingClientRect) kullanılmıştı ama canlıda yalnızca 1 kart eager çıktı: grid bu noktada
   // henüz nihai genişliğine oturmamış oluyor. .content-grid: varsayılan 3 kolon, ≤720px'de 2

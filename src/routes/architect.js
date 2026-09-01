@@ -15,7 +15,7 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 // merge-submissions-to-id-first.js tarafından merge-time'da BİR KEZ uygulanıp canonical satıra
 // yazılmış durumda — bu yüzden burada ayrı bir overlay birleştirme adımı YOK, doğrudan kolon okuma.
 
-// mimar.html'in listelediği mimar havuzu — handleArchitectListRoute'un içindeydi, GET
+// kisi.html'in listelediği mimar havuzu — handleArchitectListRoute'un içindeydi, GET
 // /api/public/platform'un (bkz. src/routes/platform.js) "Mimar" sayacını AYNI kümeden okuyabilmesi
 // için buraya çıkarıldı. Sayacı ayrı bir COUNT(*) ile hesaplamak, aşağıdaki 'Bilinmiyor'
 // istisnası yüzünden sayfada listelenenden 1 fazla değer üretiyordu (canlıda doğrulandı: 916 / 915)
@@ -23,9 +23,9 @@ import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
 export async function fetchArchitectPool(env) {
   return getCachedPool(env, 'architects', async () => {
     // "Bilinmiyor" (id 835) — proje künyelerinde mimarı bilinmeyen kayıtlar için placeholder,
-    // gerçek bir mimar profili değil (bkz. kullanıcı isteği: mimar.html listesinden ve anasayfa
+    // gerçek bir mimar profili değil (bkz. kullanıcı isteği: kisi.html listesinden ve anasayfa
     // carousel'inden kaldırılsın ama satır SİLİNMESİN — hiçbir project_designers/office_founders
-    // satırı ona bağlı değil, yalnızca bu liste havuzundan dışlanıyor). Bu iki yer de (mimar.html
+    // satırı ona bağlı değil, yalnızca bu liste havuzundan dışlanıyor). Bu iki yer de (kisi.html
     // + index.html mini-carousel) AYNI bu pool'u tüketiyor, başka hiçbir uç (mimar-detay, arama
     // autocomplete) etkilenmiyor.
     const { results } = await env.DB.prepare(
@@ -40,7 +40,7 @@ export async function fetchArchitectPool(env) {
       const a = parseCanonicalRow('architects', row);
       let officeAwards = [];
       if (row.office_awards) { try { officeAwards = JSON.parse(row.office_awards) || []; } catch { officeAwards = []; } }
-      // positionRaw: mimar.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
+      // positionRaw: kisi.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
       // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
       return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
@@ -179,7 +179,7 @@ export async function handleArchitectSchoolsRoute(request, env, url) {
 // gruplanır (bkz. eski yorum: 485 "Kurucu Ortak" + 312 "Kurucu"), "İş arıyor"/"İş Arıyor" normalize
 // edilip "İşsiz" olur. GERÇEK BULGU: eski sürüm burada tanınmayan HER değeri (ör. "Ortak",
 // "Akademisyen", "Freelance", "Ekip Lideri") sessizce "Çalışan" kovasına düşürüyordu — bir mimarın
-// profili "Ortak"/"Akademisyen" olarak düzenlense bile mimar.html filtresinde hâlâ "Çalışan" altında
+// profili "Ortak"/"Akademisyen" olarak düzenlense bile kisi.html filtresinde hâlâ "Çalışan" altında
 // görünüyordu (bkz. kullanıcı isteği: Melkan Gürsel/Nur Urfalıoğlu). Artık tanınmayan her değer
 // OLDUĞU GİBİ kendi kovasına döner — kisi-ekle.html#POZISYON_OPTIONS'a yeni bir değer eklendiğinde
 // bile sessizce yanlış kovaya düşme riski kalmaz.
@@ -190,8 +190,8 @@ export function positionOf(position) {
   return position;
 }
 
-// GET /api/architects — mimar.html#render()'ın sayfalanmış sunucu karşılığı (bkz. kullanıcı isteği:
-// "Bütün sayfaların verisini tek seferde DOM'a yükleme"). mimar.html#populateFilters()'ın dob/award/
+// GET /api/architects — kisi.html#render()'ın sayfalanmış sunucu karşılığı (bkz. kullanıcı isteği:
+// "Bütün sayfaların verisini tek seferde DOM'a yükleme"). kisi.html#populateFilters()'ın dob/award/
 // position sayaçlarını `filters` alanında birlikte döner — tablo küçük (~800 satır) olduğundan tam
 // tarama ucuz (bkz. handleArchitectSearchRoute'daki AYNI gerekçe).
 export async function handleArchitectListRoute(request, env, url) {
@@ -252,8 +252,8 @@ export async function handleArchitectListRoute(request, env, url) {
       }
     });
 
-    // mimar.html#populateFilters — sayaçlar aktif filtrelerden BAĞIMSIZ, tüm havuz üzerinden
-    // (proje.html'deki bağımlı/faceted sayaçların aksine; mimar.html'de zaten hiç öyle çalışmıyordu).
+    // kisi.html#populateFilters — sayaçlar aktif filtrelerden BAĞIMSIZ, tüm havuz üzerinden
+    // (proje.html'deki bağımlı/faceted sayaçların aksine; kisi.html'de zaten hiç öyle çalışmıyordu).
     const dobCounts = {}, awardCounts = {}, positionCounts = {};
     pool.forEach(a => {
       if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
@@ -333,7 +333,7 @@ async function buildArchitectPayload(env, key) {
   // döndürüyordu — ör. architects id 1-6 silindiğinde /mimar/gokhan-avcioglu id 7'nin (Seyhan
   // Özdemir Sarper) verisini gösteriyordu. src/routes/project.js#handleProjectDetailRoute'un
   // AYNI durumdaki "item: null, hidden: false" dönüşüyle tutarlı hale getirildi — istemci
-  // (mimar-detay.html) bunu zaten "bulunamadı" olarak ele alıp mimar.html'e yönlendiriyor.
+  // (mimar-detay.html) bunu zaten "bulunamadı" olarak ele alıp kisi.html'e yönlendiriyor.
   if (!row) return { item: null, hidden: false };
   // gerçek bulgu (denetim raporu): findArchitect yalnızca deleted_at IS NULL filtreliyor, hidden_at'a
   // hiç bakmıyor — bu uç gizlenmiş bir mimarın TAM verisini `hidden:true` bayrağıyla birlikte ama

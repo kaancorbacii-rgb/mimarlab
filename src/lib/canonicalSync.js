@@ -466,7 +466,7 @@ export async function findOneByName(env, table, name) {
 // js/components/auth-modal.js'in gönderdiği ham isim) canonical satırın name'inden yalnızca büyük/
 // küçük harf, baştaki-sondaki boşluk ya da TR karakter (İ/I/ı/Ş/Ğ/Ü/Ö/Ç) katlamasıyla ayrışsa bile
 // bu strict eşleşme sessizce BAŞARISIZ olup çağıranı "canonical karşılığı yok" sanıp İKİNCİ, mükerrer
-// bir canonical satır (yeni slug + UUID sonekli, bkz. gerçek bulgu: /mimar/kaan-corbaci-<uuid>)
+// bir canonical satır (yeni slug + UUID sonekli, bkz. gerçek bulgu: /kisi/kaan-corbaci-<uuid>)
 // oluşturmaya sürüklüyordu — findOneByName'in ("Nevzat Sayın" gerçek bulgusu, bkz. yukarısı) AYNI
 // foldTr'lı ikinci deneme mantığı burada da (legacy_key'i de kapsayacak şekilde) uygulanır. Birden
 // fazla bulanık eşleşme varsa (ör. iki farklı mimar tesadüfen aynı ada foldTr sonrası indirgeniyorsa)
@@ -651,7 +651,7 @@ async function syncOffice(env, row) {
     result = await env.DB.prepare(`SELECT * FROM offices WHERE id = ?`).bind(insert.meta.last_row_id).first();
     // claimedKey doluyken buraya düşmek, o statik data.js kaydının HENÜZ canonical'a migrate
     // edilmemiş olduğu anlamına gelir (gerçek bulgu: "mükerrer kayıt" — bu yeni satır firma.html/
-    // mimar.html gibi Faz 3 sayfalarında görünürken, arama.html gibi ham data.js okuyan sayfalar
+    // kisi.html gibi Faz 3 sayfalarında görünürken, arama.html gibi ham data.js okuyan sayfalar
     // hâlâ ESKİ/bayat statik girdiyi gösteriyordu, aynı firma/mimar İKİ farklı sayfada iki farklı
     // içerikle görünüyordu). Statik girdiyi legacy_content_hidden'a blacklist'leyip bu ham
     // okuyuculardan (bkz. src/routes/legacyContent.js#fetchHiddenMap) düşürmek, bu yeni canonical

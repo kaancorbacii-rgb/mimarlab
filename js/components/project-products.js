@@ -24,7 +24,7 @@ const ProjectProducts = (function () {
   };
 
   // js/components/product-modal.js#cardHtml ile BİREBİR aynı işaretleme (alt satırda markanın adı) —
-  // bu dosya proje.html/mimar.html gibi sayfalarda çalıştığından cdnImg/cdnSrcset/officeColor/
+  // bu dosya proje.html/kisi.html gibi sayfalarda çalıştığından cdnImg/cdnSrcset/officeColor/
   // initials globallerine project-related.js ile AYNI şekilde güvenir.
   function cardHtml(p) {
     const image = p.image || (p.images && p.images[0]);

@@ -121,7 +121,7 @@ async function upsertRating(request, env) {
 // slugify(title-brand) biçimi) — bu yüzden onlar findProductsByKeys ile (findCanonicalRowByNaturalKey
 // DEĞİL) ayrıca çözülür, bkz. aşağıdaki myRatings.
 const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
-const HREF_BASE_BY_TARGET = { project: '/proje/', product: '/urun/', material: '/urun/', architect: '/mimar/', office: '/firma/' };
+const HREF_BASE_BY_TARGET = { project: '/proje/', product: '/urun/', material: '/urun/', architect: '/kisi/', office: '/firma/' };
 
 function ratingCardShape(targetType, row) {
   if (targetType === 'project') {

@@ -32,7 +32,7 @@ const ProjectComments = (function () {
       const canDelete = currentUser && (currentUser.id === c.user_id || canModerate);
       // commenterProfile: yorumcunun hesabı bir mimar/firma profiline bağlıysa (bkz.
       // src/routes/comments.js#listComments) varsayılan baş harf avatarı/düz isim yerine profil
-      // fotoğrafı+adı gösterilir, ikisi de /mimar veya /firma sayfasına link olur (kullanıcı isteği).
+      // fotoğrafı+adı gösterilir, ikisi de /kisi veya /firma sayfasına link olur (kullanıcı isteği).
       // href, proje künyesindeki designer-chip ile AYNI kuralı (slugify(name), stored slug değil —
       // bkz. js/components/project-meta.js#designerChipHtml yorumu) izler.
       const cp = c.commenterProfile;

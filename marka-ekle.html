@@ -829,7 +829,7 @@ const currentUserReady = fetch('/api/auth/me').then(res=>{
 
 const MY_BADGE_LABELS = { verified:'Doğrulanmış Üye', gold:'Altın Üye', platinum:'Elmas Üye', 'iz-birakan':'İz Bırakan' };
 // Kaydet'in üstünde salt-okunur rozet durumu (bkz. kullanıcı isteği) — admin-badge-section'ın
-// aksine düzenlenemez, yalnızca /api/public/badges'teki (mimar.html/firma.html kartlarını da
+// aksine düzenlenemez, yalnızca /api/public/badges'teki (kisi.html/firma.html kartlarını da
 // besleyen AYNI genel uç) güncel rozeti gösterir ya da yoksa satin-al.html'e yönlendirir. Rozeti
 // değiştirme/verme yetkisi yalnızca admindedir (bkz. wireAdminBadgePicker) — admin zaten kendi
 // düzenleme kutusunu gördüğünden bu kutu admine hiç gösterilmez.

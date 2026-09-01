@@ -251,7 +251,7 @@ export async function renameArchitectEverywhere(env, oldName, newName) {
     finalSlug = await freshSlugFor(env, 'architects', canonRow.id, newName);
     if (finalSlug !== canonRow.slug) {
       await env.DB.prepare(`UPDATE architects SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?`).bind(newName, finalSlug, canonRow.id).run();
-      // bkz. migrations/0041_slug_redirects.sql — eski /mimar/:slug hâlâ çalışsın (301 ile yeniye).
+      // bkz. migrations/0041_slug_redirects.sql — eski /kisi/:slug hâlâ çalışsın (301 ile yeniye).
       await recordSlugRedirect(env, 'architects', canonRow.slug, finalSlug);
       await purgeSsrDetailCache('architect', canonRow.slug, env);
       await purgeSsrDetailCache('architect', finalSlug, env);

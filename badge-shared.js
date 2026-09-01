@@ -1,11 +1,11 @@
-// MİMARLAB — mimar.html/firma.html için data.js'in kuyruğundaki kendi kendine yeten (architects[]/
+// MİMARLAB — kisi.html/firma.html için data.js'in kuyruğundaki kendi kendine yeten (architects[]/
 // offices[] dizilerine bağımlı OLMAYAN) yardımcı fonksiyon bloğunun BİREBİR kopyası: initials/
 // officeColor/logoUrl + rozet sistemi (verifiedBadgeHtml) + escapeHtmlGlobal/escapeAttrGlobal.
 //
 // data.js'in KENDİSİ ve onu hâlâ tam architects[]/offices[] dizileri için yükleyen ~12 diğer sayfa
 // (index.html, arama.html, mimar-detay.html, ofis-detay.html, proje-detay.html, urun-detay.html,
 // kisi-ekle.html, firma-ekle.html, proje-ekle.html, urun-ekle.html, hesabim.html, uye-ol.html)
-// buradan HİÇ etkilenmez, kasıtlı olarak dokunulmadı. mimar.html/firma.html sayfalama artık
+// buradan HİÇ etkilenmez, kasıtlı olarak dokunulmadı. kisi.html/firma.html sayfalama artık
 // backend'den (/api/architects, /api/offices) geldiğinden bu iki sayfanın data.js'in ağır (~325KB)
 // dizilerine ihtiyacı kalmadı, ama bu küçük yardımcı fonksiyonlara hâlâ ihtiyaç var — data.js'i
 // bölüp onu kullanan ~12 sayfanın <script> etiketlerini de güncellemek yerine (regresyon riski,

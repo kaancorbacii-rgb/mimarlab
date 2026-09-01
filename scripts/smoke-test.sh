@@ -46,7 +46,7 @@ split_body() { printf '%s' "$1" | sed '$d'; }
 split_status() { printf '%s' "$1" | tail -n1; }
 
 list_endpoint_for() { case "$1" in project) echo projects;; architect) echo architects;; firm) echo offices;; product) echo products;; esac; }
-detail_prefix_for() { case "$1" in project) echo proje;; architect) echo mimar;; firm) echo firma;; product) echo urun;; esac; }
+detail_prefix_for() { case "$1" in project) echo proje;; architect) echo kisi;; firm) echo firma;; product) echo urun;; esac; }
 
 echo "Smoke test başlıyor: $BASE_URL"
 echo ""

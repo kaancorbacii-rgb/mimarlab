@@ -1,10 +1,10 @@
 // Faz 4B — Payload Minimization: liste/kart görünümlerindeki null/undefined/boş string/boş array/
-// boş obje alanları JSON'dan tamamen çıkarır. Yalnızca LİSTE/KART öğelerine (mimar.html/firma.html/
+// boş obje alanları JSON'dan tamamen çıkarır. Yalnızca LİSTE/KART öğelerine (kisi.html/firma.html/
 // urun.html/proje.html'in kart render fonksiyonları) uygulanır — sayfalama meta verisi (total/page/
 // totalPages/filters) bu fonksiyondan HİÇ geçirilmez, istemci bunların her zaman mevcut olmasını
 // bekler.
 //
-// Güvenlik notu: budama öncesi js/components/*.js + mimar.html/firma.html/urun.html/proje.html'deki
+// Güvenlik notu: budama öncesi js/components/*.js + kisi.html/firma.html/urun.html/proje.html'deki
 // TÜM tüketim noktaları tek tek grep'lendi — hepsi zaten güvenli erişim kalıbı kullanıyor (`a.dob ?`,
 // `o.badges || []`, `config.getStaticBadges() || []`, `(candidate.designer || [])`, `item.discipline
 // && item.discipline.length` vb.). TEK istisna proje.html'deki kart "kaydet" butonuydu

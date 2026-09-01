@@ -287,7 +287,7 @@
   .proje-slide img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   /* Mimar/Firma mini-carousel'lerinde fotoğraf/logo eksikse (bkz. gerçek bulgu: bu daha önce
      kart tamamen HAVUZDAN düşürülerek "gizleniyordu", firma tarafında havuzun tamamı boşalıp
-     carousel'in sonsuza dek boş kalmasına yol açıyordu) — mimar.html/firma.html'deki AYNI
+     carousel'in sonsuza dek boş kalmasına yol açıyordu) — kisi.html/firma.html'deki AYNI
      initials/renk baş harfleri düşüşü, tam ekran kaplayan bir kutu olarak burada da kullanılır. */
   .slide-fallback-avatar{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -694,7 +694,7 @@ wireSwipe(sliderEl, { onNext: () => { nextSlide(); restartAutoplay(); }, onPrev:
 // geçerli: TEK render, aşağıdaki Promise.all'ın .then() bloğunda; boş kalan #slider-track kendi
 // nötr .proje-slider arka planını (bkz. yukarısı) gösterir, veri gelince .loaded ile fade-in yapar.
 
-// mimar.html/firma.html'in kart havuzunda kullandığı AYNI baş harf/renk düşüşü (initials/
+// kisi.html/firma.html'in kart havuzunda kullandığı AYNI baş harf/renk düşüşü (initials/
 // officeColor) — index.html data.js/badge-shared.js yüklemediğinden burada küçük, kendi kendine
 // yeten birer kopyası tutulur (bkz. gerçek bulgu: fotoğrafı/logosu olmayan mimar/firma kartları
 // önceden HAVUZDAN tamamen filtrelenip düşürülüyordu, bu da firma tarafında tüm 6'lık havuzun
@@ -715,7 +715,7 @@ function architectSlideHtml(a, i){
   const media = a.photo
     ? `<img src="${escapeAttr(cdnImg(a.photo, 900))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 100vw, 700px"` : ''} alt="${escapeAttr(a.name)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="${i === 0 ? 'sync' : 'async'}"${i === 0 ? ' fetchpriority="high"' : ''}>`
     : `<div class="slide-fallback-avatar" style="background:${slideAvatarColor(a.name)}">${escapeHtml(slideInitials(a.name))}</div>`;
-  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/mimar/${encodeURIComponent(a.slug || idxSlugify(a.name))}" data-index="${i}">
+  return `<a class="proje-slide${i === 0 ? ' active' : ''}" href="/kisi/${encodeURIComponent(a.slug || idxSlugify(a.name))}" data-index="${i}">
     ${media}
     <span class="slide-tag">Kişi</span>
     <div class="slide-caption">
@@ -825,7 +825,7 @@ function fetchPublicJson(url){
 }
 
 // İlk otomatik render() DOMContentLoaded'a ertelenir — aşağıdaki .then() içindeki cdnImg()/
-// cdnSrcset() (image-cdn.js, defer ile yüklenir) mimar.html/firma.html/js/pages/proje.js'de
+// cdnSrcset() (image-cdn.js, defer ile yüklenir) kisi.html/firma.html/js/pages/proje.js'de
 // zaten belgelenen AYNI ırk koşuluna açıktı: /api/projects|architects|offices isteği bazen
 // deferred script'ten daha hızlı dönebiliyor, bu da "cdnSrcset is not defined" hatasıyla anasayfa
 // carousel'lerini sessizce boş bırakıyordu (denetim raporu, 2026-08-22 — canlıda doğrulandı).
@@ -838,7 +838,7 @@ Promise.all([
   // edits fetch'lerine (ve client-side overlay'e) artık gerek yok.
   fetchPublicJson('/api/projects?limit=' + PROJECT_CAROUSEL_FETCH_LIMIT),
   // Mimar/Firma mini-carousel'leri (bkz. kullanıcı isteği: "en çok projesi olan ilk N Mimar ve
-  // Firma") artık statik dizi/el ile seçilmiş vitrin OKUMUYOR — proje.html/mimar.html/firma.html'in
+  // Firma") artık statik dizi/el ile seçilmiş vitrin OKUMUYOR — proje.html/kisi.html/firma.html'in
   // kendi listeleme sayfalarında da kullandığı genel D1 uçlarından, Proje carousel'iyle AYNI slot
   // sayısıyla (PROJECT_CAROUSEL_SLOTS=9, bkz. kullanıcı isteği) çekilir. sort PARAMETRESİZ
   // varsayılanı popülerlik sıralamasıdır (en çok projesi olan önce, bkz. src/routes/

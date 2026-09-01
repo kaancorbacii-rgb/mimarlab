@@ -1,4 +1,4 @@
-// save-widget.js (frontend) ile birebir aynı algoritma — mimar/marka temiz URL'lerinde (/mimar/:slug,
+// save-widget.js (frontend) ile birebir aynı algoritma — mimar/marka temiz URL'lerinde (/kisi/:slug,
 // /firma/:slug) isim eşleştirmesinin sunucu (redirect) ve istemci (profil sayfası lookup) tarafında
 // aynı sonucu üretmesi gerekir; save-widget.js tarayıcıda modül olmadan çalıştığından orada bilerek
 // birebir kopyalanmıştır. Sunucu tarafındaki DİĞER tüm kullanımlar (ör. submissionTypes.js) BURADAN

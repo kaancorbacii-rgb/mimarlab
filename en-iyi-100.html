@@ -24,7 +24,7 @@
 <!-- Temiz URL'lerle bu sayfanın proje modalı /en-iyi-100/:slug altına (iç içe bir yola) pushState
      yapıyor; <base> olmadan modal içindeki "Düzenle" gibi göreli linkler (bkz.
      js/components/project-actions.js) o iç içe yola göre yanlış çözümlenip 404 verirdi (bkz.
-     proje.html/mimar.html/firma.html/urun.html'deki AYNI gerekçe). -->
+     proje.html/kisi.html/firma.html/urun.html'deki AYNI gerekçe). -->
 <base href="/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1339,7 +1339,7 @@
 
     function renderTop100(items){
       var list = document.getElementById('top100-list');
-      // .top100-list tek sütun (bkz. .top100-row{display:flex}) — proje.js/mimar.html/firma.html'deki
+      // .top100-list tek sütun (bkz. .top100-row{display:flex}) — proje.js/kisi.html/firma.html'deki
       // gibi bir sütun-sayısı hesabına gerek yok, ilk birkaç satır her ekran genişliğinde katlanma
       // çizgisinin üstünde. Sabit 4: aynı sayfadaki person-card grid'inin mobil (2 sütun) eager
       // davranışıyla aynı ölçekte, gereğinden fazla eager istek göndermeden ilk görünür satırları kapsar.

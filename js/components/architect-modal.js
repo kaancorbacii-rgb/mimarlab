@@ -2,13 +2,13 @@
 // AYNI open/swap/close/handlePopState state machine deseni). DOM çerçevesi (overlay/panel/focus-trap/
 // scroll-lock) js/components/modal-shell.js'ten gelir; içerik eskiden mimar-detay.html'in kendi
 // sayfası olarak render ettiği her şeyi (kimlik, künye, ofis kartı, meslektaşlar, ilgili
-// projeler/ürünler, claim/correction kutusu) mimar.html'in kartına tıklandığında sayfa yenilenmeden
+// projeler/ürünler, claim/correction kutusu) kisi.html'in kartına tıklandığında sayfa yenilenmeden
 // açan bir modale taşır. Yorum/puanlama YOK — mimar-detay.html'de de hiç yoktu, kapsam dışı kalmaya
 // devam ediyor (bkz. proje hafızası: "comments/ratings stay project/product-only").
 const ArchitectModal = (function () {
   // Künye satırı ikonları — js/components/project-meta.js#ICONS İLE AYNI çizim dili (24x24 viewBox,
   // stroke-width 1.6, dolgu yok, bkz. kullanıcı isteği) ama bu dosya proje modalının script'inden
-  // BAĞIMSIZ yüklenebildiğinden (mimar.html) kendi kopyasını taşır.
+  // BAĞIMSIZ yüklenebildiğinden (kisi.html) kendi kopyasını taşır.
   const META_ICONS = {
     calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
     cap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9 12 4.3 22 9l-10 4.7L2 9Z"/><path d="M6.3 11.2v4.3c0 1.5 2.6 2.7 5.7 2.7s5.7-1.2 5.7-2.7v-4.3"/><path d="M21 9v6"/></svg>',
@@ -18,7 +18,7 @@ const ArchitectModal = (function () {
   function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
   function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
   // .detail-title/.related-*/.save-btn proje.html'in modal içeriğinde tanımladığı AYNI sınıflar/
-  // değerler — mimar.html farklı bir sayfa olduğundan proje.html'in <style>'ını miras alamaz, bu
+  // değerler — kisi.html farklı bir sayfa olduğundan proje.html'in <style>'ını miras alamaz, bu
   // yüzden modal-shell.js'in injectStyles() deseniyle burada KENDİ <style>'ını bir kez enjekte eder
   // (görsel bütünlük için proje modalıyla BİREBİR aynı değerler). .card-edit-btn/.card-delete-btn/
   // .profile-edit-btn ARTIK burada değil — Düzenle/Arşivle/Sil modal-shell.js'in paylaşılan
@@ -187,7 +187,7 @@ const ArchitectModal = (function () {
       .prevnext-mobile-divider{display:none;}
       /* Projeler haritası — bkz. kullanıcı isteği: "Projeler"in altına, mimarın/firmanın koordinatlı
          TÜM projelerini pinleyen açık bir harita; js/pages/proje.js#loadLeaflet İLE AYNI Leaflet +
-         Esri World Imagery yığını/marker popup kartı (bu modül mimar.html'de Leaflet YÜKLEMEYEN diğer
+         Esri World Imagery yığını/marker popup kartı (bu modül kisi.html'de Leaflet YÜKLEMEYEN diğer
          sayfalardan bağımsız kendi yükleyicisini taşır, bkz. aşağıdaki loadAmMapLeaflet). */
       .am-projects-map-wrap{margin-top:16px; border-radius:12px; overflow:hidden; border:1px solid var(--line-soft); height:280px; background:var(--paper-alt);}
       .am-projects-map-wrap .leaflet-container{width:100%; height:100%; background:var(--paper-alt); font-family:inherit;}
@@ -300,7 +300,7 @@ const ArchitectModal = (function () {
   // /api/architect/:slug'tan (bkz. fetchItem) taze geldiğinden — bir proje bu mimara eklenip/
   // çıkarıldığında payload.relatedProjects da değişir — harita da otomatik güncellenir, ayrıca bir
   // "canlı senkron" mekanizmasına gerek yok. js/pages/proje.js#loadLeaflet İLE AYNI Leaflet + Esri
-  // World Imagery yığını (anahtarsız/ücretsiz) — bu modül mimar.html'de Leaflet YÜKLEMEYEN diğer
+  // World Imagery yığını (anahtarsız/ücretsiz) — bu modül kisi.html'de Leaflet YÜKLEMEYEN diğer
   // sayfalardan bağımsız kendi yükleyicisini taşır (proje.js'in sayfa-özel global'ine bağımlı kalınamaz).
   let amMapLeafletPromise = null;
   function loadAmMapLeaflet() {
@@ -322,7 +322,7 @@ const ArchitectModal = (function () {
   let amProjectsMap = null;
   let amMapRequestSeq = 0;
   // Marker'a tıklamak burada (proje.js#syncMapMarkers'ın AKSİNE) doğrudan bir <a href="/proje/...">
-  // linkine gider — ProjectModal bu sayfada (mimar.html) hiç yüklenmiyor (bkz. kart tıklamalarının
+  // linkine gider — ProjectModal bu sayfada (kisi.html) hiç yüklenmiyor (bkz. kart tıklamalarının
   // AYNI davranışı, cardHtml), bu yüzden marker popup'ındaki karta tıklamak zaten normal bir
   // sayfa geçişi (o adreste ProjectModal kendi DOMContentLoaded'ında otomatik açılır).
   function renderProjectsMap(projects) {
@@ -397,7 +397,7 @@ const ArchitectModal = (function () {
   // BİREBİR aynı desen, bu modül proje modalıyla import paylaşamadığından burada tekrarlanır.
   const DESC_TRUNCATE_AT = 320;
   // gerçek bulgu (regresyon, 2026-08-13): bkz. project-meta.js#safeUrl'deki AYNI düzeltme —
-  // window.location.href yerine document.baseURI kullanılır, mimar.html'deki <base href="/">
+  // window.location.href yerine document.baseURI kullanılır, kisi.html'deki <base href="/">
   // dikkate alınır (legacy_static kaynaklı, başında "/" olmayan photo_url değerleri artık doğru
   // mutlak yola çözülür).
   function safeUrl(u) {
@@ -481,8 +481,8 @@ const ArchitectModal = (function () {
   function renderPrevNext(payload) {
     const el = document.getElementById('am-prevnext');
     let html = '';
-    if (payload.nextItem) html += `<a class="prev" href="/mimar/${encodeURIComponent(payload.nextItem.slug)}">${prevNextThumbHtml(payload.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Kişi</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></span></a>`;
-    if (payload.prevItem) html += `<a class="next" href="/mimar/${encodeURIComponent(payload.prevItem.slug)}">${prevNextThumbHtml(payload.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Kişi →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></span></a>`;
+    if (payload.nextItem) html += `<a class="prev" href="/kisi/${encodeURIComponent(payload.nextItem.slug)}">${prevNextThumbHtml(payload.nextItem)}<span class="prevnext-text"><span class="prevnext-label">← Önceki Kişi</span><span class="prevnext-title">${escapeHtml(payload.nextItem.title)}</span></span></a>`;
+    if (payload.prevItem) html += `<a class="next" href="/kisi/${encodeURIComponent(payload.prevItem.slug)}">${prevNextThumbHtml(payload.prevItem)}<span class="prevnext-text"><span class="prevnext-label">Sonraki Kişi →</span><span class="prevnext-title">${escapeHtml(payload.prevItem.title)}</span></span></a>`;
     el.innerHTML = html;
   }
 
@@ -503,7 +503,7 @@ const ArchitectModal = (function () {
     const desc = office
       ? `${a.name}, ${office.name} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
       : `${a.name} — MİMARLAB'da mimar profilini incele.`;
-    const canonicalUrl = `https://mimarlab.com/mimar/${encodeURIComponent(slugify(a.name))}`;
+    const canonicalUrl = `https://mimarlab.com/kisi/${encodeURIComponent(slugify(a.name))}`;
     const image = a.photo ? new URL(a.photo, window.location.origin).href : 'https://mimarlab.com/logos/site/mimarlab-og-image.png';
     const setIf = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
     setIf('meta-description', 'content', desc);
@@ -631,7 +631,7 @@ const ArchitectModal = (function () {
       // bkz. js/components/office-modal.js'teki AYNI ek alanlar/gerekçe.
       ShareWidget.wire('am-share-btn', () => ({
         title: a.name,
-        url: `${window.location.origin}/mimar/${encodeURIComponent(slugify(a.name))}`,
+        url: `${window.location.origin}/kisi/${encodeURIComponent(slugify(a.name))}`,
         type: 'architect', key: architectKey,
         image: a.photo || '', meta: a.loc || '',
       }));
@@ -682,7 +682,7 @@ const ArchitectModal = (function () {
     document.getElementById('am-colleagues-section').style.display = colleagues.length ? '' : 'none';
     function renderColleaguesGrid() {
       document.getElementById('am-colleagues-grid').innerHTML = colleagues.map(c =>
-        cardHtml(`/mimar/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
+        cardHtml(`/kisi/${encodeURIComponent(slugify(c.name))}`, c.name, c.photo, c.role, verifiedBadgeHtml('architect', c.name, c.badges, 14))
       ).join('');
     }
     renderColleaguesGrid();
@@ -718,7 +718,7 @@ const ArchitectModal = (function () {
     document.getElementById('am-related-architects-section').style.display = relatedArchitectsData.length ? '' : 'none';
     function renderRelatedArchitectsGrid() {
       document.getElementById('am-related-architects-grid').innerHTML = relatedArchitectsData.map(r =>
-        cardHtml(`/mimar/${encodeURIComponent(slugify(r.name))}`, r.name, r.photo, r.dob ? String(r.dob).slice(0, 4) : null, verifiedBadgeHtml('architect', r.name, r.badges, 14))
+        cardHtml(`/kisi/${encodeURIComponent(slugify(r.name))}`, r.name, r.photo, r.dob ? String(r.dob).slice(0, 4) : null, verifiedBadgeHtml('architect', r.name, r.badges, 14))
       ).join('');
     }
     renderRelatedArchitectsGrid();
@@ -741,7 +741,7 @@ const ArchitectModal = (function () {
       getClaimLinkKey: () => a.slug || a._claimKey || a.name,
       getStaticBadges: () => a.badges,
       editUrlBase: '/kisi-ekle',
-      listUrl: '/mimar',
+      listUrl: '/kisi',
       contentType: 'architects',
       getModerationTarget: () => ({ key: a.name }),
       labels: {
@@ -867,9 +867,9 @@ const ArchitectModal = (function () {
     if (!panels || panels.bodyEl.dataset.amNavWired) return;
     panels.bodyEl.dataset.amNavWired = '1';
     panels.bodyEl.addEventListener('click', (e) => {
-      const a = e.target.closest('a[href^="/mimar/"]');
+      const a = e.target.closest('a[href^="/kisi/"]');
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const m = a.getAttribute('href').match(/^\/mimar\/([^/?#]+)/);
+      const m = a.getAttribute('href').match(/^\/kisi\/([^/?#]+)/);
       if (!m) return;
       e.preventDefault();
       swap(decodeURIComponent(m[1]));
@@ -888,7 +888,7 @@ const ArchitectModal = (function () {
     currentSlug = slug;
     openedViaPush = pushHistory;
     pushCountSinceOpen = pushHistory ? 1 : 0;
-    if (pushHistory) history.pushState({ mimarlabModal: 'architect', slug, depth: 1 }, '', `/mimar/${encodeURIComponent(slug)}`);
+    if (pushHistory) history.pushState({ mimarlabModal: 'architect', slug, depth: 1 }, '', `/kisi/${encodeURIComponent(slug)}`);
     injectStyles();
     ModalShell.open({ triggerEl, onRequestClose: close });
     ensureTemplate();
@@ -906,7 +906,7 @@ const ArchitectModal = (function () {
     currentSlug = slug;
     const currentDepth = (history.state && history.state.mimarlabModal === 'architect') ? history.state.depth : pushCountSinceOpen;
     pushCountSinceOpen = currentDepth + 1;
-    history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen }, '', `/mimar/${encodeURIComponent(slug)}`);
+    history.pushState({ mimarlabModal: 'architect', slug, depth: pushCountSinceOpen }, '', `/kisi/${encodeURIComponent(slug)}`);
     const mySeq = ++requestSeq;
     const result = await fetchItem(slug);
     if (mySeq !== requestSeq || currentSlug !== slug) return;
@@ -920,7 +920,7 @@ const ArchitectModal = (function () {
     // bkz. js/components/project-modal.js#close — BİREBİR aynı gerekçe (kullanıcı isteği 2026-09-01
     // madde 11: proje popup'ından mimar adına tıklayıp kapatınca proje popup'ına dönülmeli).
     if (openedViaPush && pushCountSinceOpen > 0) ModalShell.goBackAndWait(pushCountSinceOpen);
-    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/mimar');
+    else if (!ModalShell.returnToPreviousPage(pushCountSinceOpen)) history.pushState({}, '', '/kisi');
     ModalShell.close();
     pushCountSinceOpen = 0;
   }

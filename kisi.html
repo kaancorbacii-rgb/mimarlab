@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <script>(function(){try{var t=localStorage.getItem('mimarlab-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();</script>
-<script>(function(){try{if(/^\/mimar\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
+<script>(function(){try{if(/^\/kisi\/[^/]+\/?$/.test(location.pathname)){document.documentElement.classList.add('pm-boot-loading');setTimeout(function(){document.documentElement.classList.remove('pm-boot-loading');},10000);}}catch(e){}})();</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
@@ -10,26 +10,26 @@
 <link rel="apple-touch-icon" href="/logos/site/favicon-180.png">
 <title>Kişiler — MİMARLAB</title>
 <meta name="description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="meta-description">
-<link rel="canonical" href="https://mimarlab.com/mimar" id="canonical-link">
+<link rel="canonical" href="https://mimarlab.com/kisi" id="canonical-link">
 <meta property="og:type" content="website" id="og-type">
 <meta property="og:site_name" content="MİMARLAB">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:title" content="Kişiler — MİMARLAB" id="og-title">
 <meta property="og:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="og-description">
-<meta property="og:url" content="https://mimarlab.com/mimar" id="og-url">
+<meta property="og:url" content="https://mimarlab.com/kisi" id="og-url">
 <meta property="og:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="og-image">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Kişiler — MİMARLAB" id="twitter-title">
 <meta name="twitter:description" content="Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle." id="twitter-description">
 <meta name="twitter:image" content="https://mimarlab.com/logos/site/mimarlab-og-image.png" id="twitter-image">
 <!-- Liste sayfası için jenerik yapısal veri (bkz. kullanıcı isteği: "tüm ana sayfa ve detay
-     sayfalarının <head>'ine ... application/ld+json ekle") — /mimar/:slug detay görünümünde
+     sayfalarının <head>'ine ... application/ld+json ekle") — /kisi/:slug detay görünümünde
      ArchitectModal (bkz. js/components/architect-modal.js#renderStructuredData) kendi Person
      şemasını AYRI bir <script id="am-ld-json"> olarak ekler, bu ikisiyle çakışmaz. -->
 <script type="application/ld+json" id="list-jsonld">
-{"@context":"https://schema.org","@type":"CollectionPage","name":"Kişiler — MİMARLAB","url":"https://mimarlab.com/mimar","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Kişiler — MİMARLAB","url":"https://mimarlab.com/kisi","isPartOf":{"@type":"WebSite","name":"MİMARLAB","url":"https://mimarlab.com/"}}
 </script>
-<!-- Temiz URL'lerle bu sayfa /mimar dışında /mimar/:slug altında da (mimar modalını doğrudan açan
+<!-- Temiz URL'lerle bu sayfa /kisi dışında /kisi/:slug altında da (kişi modalını doğrudan açan
      bir iç içe yolda) servis edilir; <base> olmadan script/link/img gibi göreli kaynak yolları o iç
      içe yola göre yanlış çözümlenirdi (bkz. src/index.js#CLEAN_URL_ASSETS, proje.html'deki AYNI
      gerekçe). -->
@@ -187,7 +187,7 @@
   .page-head p{color:var(--ink-soft); font-size:14px; margin:0;}
 
   /* ---------- SSR ENTITY BODY (bkz. src/index.js#injectMeta, src/lib/seo.js#bodyHtml) ---------- */
-  /* /mimar/:slug altında serveDetailPage tarafından doldurulur; listeleme sayfasında (/mimar) boş
+  /* /kisi/:slug altında serveDetailPage tarafından doldurulur; listeleme sayfasında (/kisi) boş
      kalır, :empty kuralı sayfaya gereksiz bir boşluk eklenmesini önler. */
   .ssr-entity:empty{display:none;}
   .ssr-entity{max-width:1260px; margin:0 auto; padding:0 32px 20px; display:flex; gap:20px; align-items:flex-start;}
@@ -203,10 +203,10 @@
     .ssr-entity img{width:100%; max-width:280px; height:auto;}
   }
 
-  /* bkz. proje.html'deki AYNI gerçek bulgu (kullanıcı isteği, 2026-08-24) — /mimar/:slug'a doğrudan
+  /* bkz. proje.html'deki AYNI gerçek bulgu (kullanıcı isteği, 2026-08-24) — /kisi/:slug'a doğrudan
      girildiğinde çıplak SSR içeriği (.page-head/.ssr-entity) defer script'ler yüklenip ArchitectModal
      devreye girene kadar hiçbir overlay olmadan görünür kalıyordu. <head>'deki senkron script ilk
-     boyamadan önce <html>'e pm-boot-loading ekler; js/pages/mimar.js'teki DOMContentLoaded handler
+     boyamadan önce <html>'e pm-boot-loading ekler; kisi.html'in DOMContentLoaded handler'ı
      ArchitectModal.open()'ın Promise'i çözülünce kaldırır. */
   html.pm-boot-loading .page-head, html.pm-boot-loading #ssr-entity-body{visibility:hidden;}
   html.pm-boot-loading::before{
@@ -377,7 +377,7 @@
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="save-widget.js" defer></script>
 
-  <div id="site-header-mount" data-nav-active="mimar"></div>
+  <div id="site-header-mount" data-nav-active="kisi"></div>
   <script src="js/components/site-chrome.js"></script>
 
   <div class="breadcrumb-bar">
@@ -446,7 +446,7 @@
 <script src="js/components/social-links.js"></script>
 <script src="js/components/architect-modal.js"></script>
 <script>
-// Faz 3 sonrası: mimar.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
+// Faz 3 sonrası: kisi.html artık data.js'in ağır architects[]/offices[] dizilerini indirmiyor —
 // sayfalama, filtreleme ve sıralama backend'de (/api/architects) canonical D1 tablosu üzerinden
 // yapılıyor (bkz. src/routes/architect.js#handleArchitectListRoute). Rozet sistemi + initials/
 // officeColor/logoUrl yardımcı fonksiyonları data.js'ten kopyalanan küçük badge-shared.js'ten gelir
@@ -456,14 +456,14 @@ let currentPage = 1;
 let searchQuery = '';
 
 // kullanıcı isteği ("popup kapatınca bazen bilgiler ekranda kalıyor") — bkz. modal-shell.js#
-// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /mimar/:slug
+// resetSsrEntity yorumu: bu sayfanın statik/jenerik <title>/#entity-h1/meta değerleri, /kisi/:slug
 // ile doğrudan açılışta sunucunun HTML'e gömdüğü GERÇEK mimar içeriğinin üzerine ArchitectModal
 // kapanınca geri yazılabilsin diye burada bir kez kaydedilir.
 ModalShell.setSsrDefaults({
   title: 'Kişiler — MİMARLAB',
   h1: 'Kişiler',
   description: "Türkiye'deki mimarları keşfet — profilleri, ofisleri ve projeleriyle.",
-  canonicalUrl: 'https://mimarlab.com/mimar',
+  canonicalUrl: 'https://mimarlab.com/kisi',
   ogType: 'website',
   image: 'https://mimarlab.com/logos/site/mimarlab-og-image.png',
 });
@@ -474,7 +474,7 @@ ModalShell.setSsrDefaults({
 const POSITION_ORDER = ['Kurucu', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi', 'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz'];
 
 // Sunucudan (data.filters) gelen dob/award/position seçeneklerini <select>'lere yeniden çizer —
-// mimar.html#populateFilters'ın eski client-side hesaplı hâliyle AYNI görsel sonucu üretir, yalnızca
+// kisi.html#populateFilters'ın eski client-side hesaplı hâliyle AYNI görsel sonucu üretir, yalnızca
 // veri kaynağı sunucu. GERÇEK BULGU: position select'i eskiden sabit HTML seçenekleriydi, sunucunun
 // üretebileceği ama HTML'de karşılığı olmayan bir kova (ör. "Ortak") hiç seçilemez durumdaydı (bkz.
 // kullanıcı isteği) — artık dob/award ile AYNI desende tamamen dinamik.
@@ -655,7 +655,7 @@ async function render(){
     // alttakiler lazy kalır.
     const imgAttrs = i < eagerCardCount ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
     return `
-    <a class="person-card" href="/mimar/${encodeURIComponent(a.slug || slugify(a.name))}">
+    <a class="person-card" href="/kisi/${encodeURIComponent(a.slug || slugify(a.name))}">
       <div class="person-card-photo" style="background:${officeColor(a.name)}">${a.photo ? `<img src="${escapeAttr(cdnImg(a.photo, 600))}"${photoSrcset ? ` srcset="${escapeAttr(photoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove()">` : escapeHtml(initials(a.name))}</div>
       <div class="person-card-body">
         <div class="person-card-name">${escapeHtml(a.name)}${verifiedBadgeHtml('architect', a.name, a.badges)}</div>
@@ -676,7 +676,7 @@ document.getElementById('card-grid').addEventListener('click', (e)=>{
   if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest('a.person-card');
   if(!a) return;
-  const m = (a.getAttribute('href') || '').match(/^\/mimar\/([^/?#]+)/);
+  const m = (a.getAttribute('href') || '').match(/^\/kisi\/([^/?#]+)/);
   if(!m) return;
   e.preventDefault();
   ArchitectModal.open(decodeURIComponent(m[1]), { triggerEl: a });
@@ -706,11 +706,11 @@ document.getElementById('g-reset').addEventListener('click', ()=>{
   syncBrowserUrl(true);
   render();
 });
-// Tarayıcı geri/ileri tuşu: /mimar/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca mimar modalını
+// Tarayıcı geri/ileri tuşu: /kisi/:slug yoluna gidiliyorsa/dönülüyorsa yalnızca mimar modalını
 // güncelle (bkz. proje.html'deki AYNI desen) — liste burada YENİDEN ÇİZİLMEZ, modal kapanana kadar
 // arka plandaki liste durumu sabit kalır.
 window.addEventListener('popstate', ()=>{
-  const m = location.pathname.match(/^\/mimar\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/kisi\/([^/]+)\/?$/);
   if(m){ ArchitectModal.handlePopState(decodeURIComponent(m[1])); return; }
   if(ArchitectModal.isOpen()){ ArchitectModal.handlePopState(null); return; }
   applyStateFromUrl();
@@ -730,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
 });
 
-// Doğrudan /mimar/:slug adresine girildiğinde ya da o adreste F5 yapıldığında mimar modalı
+// Doğrudan /kisi/:slug adresine girildiğinde ya da o adreste F5 yapıldığında mimar modalı
 // otomatik açılsın (bkz. kullanıcı isteği). ESKİDEN render()'ın .then()'ine bağlıydı (bkz. gerçek
 // bulgu — proje.html'de bulunup buraya da uygulandı) — /api/architects edge cache'ten render()'ın
 // kendisinden DAHA HIZLI dönebildiğinden, bu callback bazen ArchitectModal (defer script) henüz
@@ -739,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // deferred script'lerin (ArchitectModal dahil) KESİN olarak tanımlanmış olmasını garantiler —
 // render()/network zamanlamasından tamamen bağımsız.
 document.addEventListener('DOMContentLoaded', () => {
-  const m = location.pathname.match(/^\/mimar\/([^/]+)\/?$/);
+  const m = location.pathname.match(/^\/kisi\/([^/]+)\/?$/);
   if (!m) return;
   // bkz. <head>'deki pm-boot-loading senkron script'i (AYNI gerçek bulgu, proje.html'e bkz.) — çıplak
   // SSR içeriğini bir "boot veil" ile örttü; ArchitectModal.open()'ın Promise'i renderItem()/

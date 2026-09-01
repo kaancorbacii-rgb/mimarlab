@@ -83,7 +83,7 @@ function toIso8601(sqliteDatetime) {
 // (ör. proje-detay.html "Ana Sayfa › Projeler › <başlık>") BİREBİR aynı olmalı; Google yapılandırılmış
 // verinin sayfada görünen içerikle tutarlı olmasını bekler (bkz. structured data guidelines).
 const CATALOG_CRUMB = {
-  architect: { label: 'Kişiler', path: '/mimar' },
+  architect: { label: 'Kişiler', path: '/kisi' },
   office: { label: 'Firmalar', path: '/firma' },
   project: { label: 'Projeler', path: '/proje' },
   product: { label: 'Ürün', path: '/urun' },
@@ -220,7 +220,7 @@ function architectMetaFromRecord(a, officeName, slug, officeSlug) {
   const description = officeName
     ? `${a.name}, ${officeName} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
     : `${a.name} — MİMARLAB'da mimar profilini incele.`;
-  const canonicalUrl = `${SITE_ORIGIN}/mimar/${encodeURIComponent(slug)}`;
+  const canonicalUrl = `${SITE_ORIGIN}/kisi/${encodeURIComponent(slug)}`;
   const photoUrl = a.photo ? absoluteUrl(a.photo) : null;
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Person', name: a.name, url: canonicalUrl };
   if (a.role) jsonLd.jobTitle = a.role;
@@ -271,10 +271,10 @@ async function officeMetaFromRecord(o, slug, env) {
     // architects satırı yoksa (teoride olmaz, join zaten architects üzerinden geliyor) slugify(name)
     // fallback'ine düşer — audit bulgusu: önceden HER ZAMAN slugify(name) kullanılıyordu, legacy
     // city-suffixed slug'larla (bkz. proje memory notu) uyuşmayabiliyordu.
-    jsonLd.founder = founders.map(f => ({ '@type': 'Person', name: f.name, url: `${SITE_ORIGIN}/mimar/${encodeURIComponent(f.slug || slugify(f.name))}` }));
+    jsonLd.founder = founders.map(f => ({ '@type': 'Person', name: f.name, url: `${SITE_ORIGIN}/kisi/${encodeURIComponent(f.slug || slugify(f.name))}` }));
   }
   const foundersHtml = founders.length
-    ? founders.map(f => internalLink(`/mimar/${encodeURIComponent(f.slug || slugify(f.name))}`, f.name)).join(', ')
+    ? founders.map(f => internalLink(`/kisi/${encodeURIComponent(f.slug || slugify(f.name))}`, f.name)).join(', ')
     : null;
   const bodyHtml = [
     o.about ? `<p>${escapeHtml(o.about)}</p>` : `<p>${escapeHtml(description)}</p>`,
@@ -343,7 +343,7 @@ async function buildProjectMeta(slug, env) {
   const officeNames = namesFromConcat(row.office_names);
   const officeSlugs = namesFromConcat(row.office_slugs);
   const designerLinksHtml = [
-    ...architectNames.map((name, i) => architectSlugs[i] ? internalLink(`/mimar/${encodeURIComponent(architectSlugs[i])}`, name) : escapeHtml(name)),
+    ...architectNames.map((name, i) => architectSlugs[i] ? internalLink(`/kisi/${encodeURIComponent(architectSlugs[i])}`, name) : escapeHtml(name)),
     ...officeNames.map((name, i) => officeSlugs[i] ? internalLink(`/firma/${encodeURIComponent(officeSlugs[i])}`, name) : escapeHtml(name)),
   ].join(', ') || null;
   const typeLabel = [...(p.category || []), ...(p.type || [])].join(', ') || null;

@@ -621,7 +621,7 @@ const ProductModal = (function () {
       const arch = await tryArchitectChip(name);
       if (!arch || currentItem !== p) return;
       const badge = verifiedBadgeHtml('architect', arch.name, arch.badges, 13);
-      chipEls[i].outerHTML = `<a class="designer-chip" href="/mimar/${encodeURIComponent(slugify(arch.name))}">
+      chipEls[i].outerHTML = `<a class="designer-chip" href="/kisi/${encodeURIComponent(slugify(arch.name))}">
         <div class="designer-chip-avatar" style="background:${officeColor(arch.name)}">${escapeHtml(initials(arch.name))}${arch.photo ? `<img src="${escapeAttr(cdnImg(arch.photo, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>
         <span class="designer-chip-name">${escapeHtml(arch.name)}${badge}</span>
       </a>`;
@@ -641,7 +641,7 @@ const ProductModal = (function () {
     avatar.innerHTML = escapeHtml(initials(item.ownerName)) + (item.ownerPhoto ? `<img src="${escapeAttr(cdnImg(item.ownerPhoto, 96))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : '');
     const ownerNameHtml = `<strong>${escapeHtml(item.ownerName)}</strong>${badgeIconHtml(item.ownerBadge, 14)}`;
     document.getElementById('pr-byline-text').innerHTML = item.ownerArchitectSlug
-      ? `<a href="/mimar/${encodeURIComponent(item.ownerArchitectSlug)}">${ownerNameHtml}</a> tarafından`
+      ? `<a href="/kisi/${encodeURIComponent(item.ownerArchitectSlug)}">${ownerNameHtml}</a> tarafından`
       : `${ownerNameHtml} tarafından`;
   }
 
@@ -995,7 +995,7 @@ const ProductModal = (function () {
     const architectSection = document.getElementById('pr-used-architects-section');
     architectSection.style.display = architects.length ? '' : 'none';
     document.getElementById('pr-used-architects-grid').innerHTML = architects.map(a =>
-      cardHtml(`/mimar/${encodeURIComponent(a.slug)}`, a.name, a.photo, projectCountLabel(a.projectCount))
+      cardHtml(`/kisi/${encodeURIComponent(a.slug)}`, a.name, a.photo, projectCountLabel(a.projectCount))
     ).join('');
 
     pair.style.display = (offices.length || architects.length) ? '' : 'none';

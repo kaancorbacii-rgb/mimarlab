@@ -36,7 +36,7 @@ const AuthModal = (function () {
   // Bu modal site genelinde (image-cdn.js'in YÜKLENMEDİĞİ birçok sayfa dahil — hesabim.html,
   // giris-yap.html, admin.html, *-ekle.html formları vb.) çalışır, cdnImg/cdnSrcset globallerine
   // KOŞULSUZ güvenilemez (denetim bulgusu, 2026-08-14: bu modaldaki avatar/kayıtlı-öğe görselleri
-  // önceden hep orijinal çözünürlükte isteniyordu). Yüklüyse (proje.html/mimar.html/firma.html/
+  // önceden hep orijinal çözünürlükte isteniyordu). Yüklüyse (proje.html/kisi.html/firma.html/
   // urun.html/arama.html/index.html) cdnImg'in ham (göreli) path'i beklediği için `rawUrl` kullanılıp
   // küçültülmüş, KÖK-göreli ("/cdn-cgi/...") bir URL döner — <base href> bağlamından bağımsız güvenli.
   // Yüklü DEĞİLSE `resolvedUrl` (çağıranın zaten safeUrl() ile document.baseURI'ye göre çözdüğü
@@ -1370,7 +1370,7 @@ const AuthModal = (function () {
 
   function dashInitials(name) { return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
 
-  // İçeriklerim > "Mimar/Firma Profilim" kutusundaki bir satıra tıklanınca mimar.html/firma.html'in
+  // İçeriklerim > "Mimar/Firma Profilim" kutusundaki bir satıra tıklanınca kisi.html/firma.html'in
   // kullandığı GERÇEK profil popup'ını (ArchitectModal/OfficeModal) açar (bkz. kullanıcı isteği:
   // "profil görseline veya isme tıklayınca o popup açılsın"). Bu iki script + bağımlılıkları
   // (badge-shared.js, save-widget.js, claim-correction-box.js, share-button.js, message-button.js,
@@ -1380,9 +1380,9 @@ const AuthModal = (function () {
   // düzeyinde saklanır, aksi halde ikinci tıklamada `const ArchitectModal = ...` YENİDEN çalışıp
   // "already declared" SyntaxError'ıyla sayfayı kırardı).
   // GERÇEK BULGU: köksüz (başında / OLMAYAN) src'ler İçeriklerim'in KENDİSİ /iceriklerim gibi tek
-  // parçalı bir yoldayken çalışıyordu ama Modal.open() history.pushState ile URL'i /mimar/<slug>'a
+  // parçalı bir yoldayken çalışıyordu ama Modal.open() history.pushState ile URL'i /kisi/<slug>'a
   // (iki parçalı) değiştirir değiştirmez, HENÜZ tamamlanmamış <script> etiketleri o YENİ taban'a göre
-  // yeniden çözülüp (ör. save-widget.js -> /mimar/save-widget.js) 404 oluyordu — kökten kaçınmak için
+  // yeniden çözülüp (ör. save-widget.js -> /kisi/save-widget.js) 404 oluyordu — kökten kaçınmak için
   // hepsi / ile başlar, geçerli URL'den TAMAMEN bağımsız.
   const PROFILE_MODAL_SCRIPTS = [
     '/save-widget.js', '/badge-shared.js', '/js/components/claim-correction-box.js',
@@ -1451,7 +1451,7 @@ const AuthModal = (function () {
   }
   function itemTitle(type, item) { if (type === 'offices') return item.name; if (type === 'architects') return item.name; return item.title; }
   // hesabim.html#itemDetailUrl ile AYNI mantık/gerekçe (bkz. o dosyadaki AYNI yorum) — proje.html/
-  // mimar.html/firma.html/urun.html location.pathname'i ayrıştırıp ilgili modalı otomatik açar, bu
+  // kisi.html/firma.html/urun.html location.pathname'i ayrıştırıp ilgili modalı otomatik açar, bu
   // yüzden yalnızca YAYINDA (approved) gönderiler için (canonical satır var olduğundan) bir link
   // üretilir; anahtar canonicalSync.js'in senkron sırasında GERÇEKTEN yazdığı değerle birebir aynı
   // olmalı (istemci tarafı slugify(name) çakışma soneki alabileceğinden YANLIŞ olurdu).
@@ -1459,7 +1459,7 @@ const AuthModal = (function () {
     if (item.status !== 'approved') return null;
     if (type === 'projects') return `/proje/${encodeURIComponent(item.claimed_slug || item.slug)}`;
     if (type === 'offices') return `/firma/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
-    if (type === 'architects') return `/mimar/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
+    if (type === 'architects') return `/kisi/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
     // bkz. hesabim.html#itemDetailUrl'deki AYNI 2026-08-17 güncellemesi — ürün/malzeme slug'ı artık
     // isim+marka'dan üretiliyor (src/lib/canonicalSync.js#syncProduct), "m-<id>" DEĞİL; mimar/firma
     // ile AYNI "submission:<id>" işaretine dönülür (src/routes/product.js#findProductByLegacyMarker

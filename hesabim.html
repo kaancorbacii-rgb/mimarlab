@@ -692,7 +692,7 @@ function itemTitle(type, item){
   if(type === 'architects') return item.name;
   return item.title;
 }
-// itemDetailUrl: proje.html/mimar.html/firma.html/urun.html'in her biri sayfa yüklenirken
+// itemDetailUrl: proje.html/kisi.html/firma.html/urun.html'in her biri sayfa yüklenirken
 // location.pathname'i "/proje|mimar|firma|urun/:key" biçiminde ayrıştırıp ilgili modalı otomatik
 // açıyor (bkz. o dosyalardaki AYNI desen) — yalnızca YAYINDA (approved) gönderiler için bir canonical
 // satır var olduğundan link sadece o durumda üretilir. Anahtar, canonicalSync.js'in senkron sırasında
@@ -707,7 +707,7 @@ function itemDetailUrl(type, item){
   if(item.status !== 'approved') return null;
   if(type === 'projects') return `/proje/${encodeURIComponent(item.claimed_slug || item.slug)}`;
   if(type === 'offices') return `/firma/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
-  if(type === 'architects') return `/mimar/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
+  if(type === 'architects') return `/kisi/${encodeURIComponent(item.claimed_profile_key || ('submission:' + item.id))}`;
   if(type === 'products' || type === 'materials') return `/urun/${encodeURIComponent('submission:' + item.id)}`;
   return null;
 }

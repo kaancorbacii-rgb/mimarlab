@@ -6,7 +6,7 @@
 //
 // ÖNEMLİ KAPSAM NOTU: yalnızca 'projects' için dolduruluyor — kullanıcının verdiği örneklerle
 // ("Mimari (461)") birebir örtüşen, sayfasında gerçek bir GENEL (filtresiz) kategori facet'i olan
-// tip. 'architects' (mimar.html'in "Kurucu/Çalışan" pozisyon sayacı ve OFİSİN ödüllerinden türetilen
+// tip. 'architects' (kisi.html'in "Kurucu/Çalışan" pozisyon sayacı ve OFİSİN ödüllerinden türetilen
 // bambaşka bir sayaç) ve 'offices' (firma.html'de hiç per-option sayaç YOK, yalnızca toplam sonuç
 // sayısı) bu düz list_type/facet_key/facet_value modeline doğal olarak oturmuyor — bu iki tip
 // kapsam dışı bırakıldı. 'products' bir süre dolduruluyordu ama HİÇBİR okuyucusu yoktu (urun.html

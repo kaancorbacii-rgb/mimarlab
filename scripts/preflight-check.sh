@@ -39,12 +39,12 @@ done
 ok "kök seviyesi .js dosyaları kontrol edildi"
 
 echo ""
-echo "3) HTML sayfalarındaki inline <script> blokları (proje-ekle/mimar-ekle/firma-ekle/urun-ekle/index/admin/hesabim)"
-for f in index.html admin.html hesabim.html proje.html mimar.html firma.html urun.html proje-ekle.html mimar-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html; do
+echo "3) HTML sayfalarındaki inline <script> blokları (proje-ekle/kisi-ekle/firma-ekle/urun-ekle/index/admin/hesabim)"
+for f in index.html admin.html hesabim.html proje.html kisi.html firma.html urun.html proje-ekle.html kisi-ekle.html firma-ekle.html urun-ekle.html neden-mimarlab.html; do
   [ -f "$f" ] || continue
   node -e "
     const fs = require('fs');
-    // HTML yorumlarını (<!-- ... -->) ÖNCE temizle — gerçek bulgu: mimar.html/firma.html'deki bir
+    // HTML yorumlarını (<!-- ... -->) ÖNCE temizle — gerçek bulgu: kisi.html/firma.html'deki bir
     // Türkçe kod yorumu metninde örnek olarak \"<script id=...>\" GEÇİYORDU; yorumları çıkarmadan
     // yapılan bir regex bunu GERÇEK bir script açılış etiketi sanıp bir sonraki gerçek </script>'e
     // kadar olan her şeyi (asıl JSON-LD içeriği dahil) o sahte bloğun içeriği zannedip JS olarak
@@ -75,7 +75,7 @@ if grep -q "document.addEventListener('DOMContentLoaded'" index.html; then
 else
   bad "index.html — DOMContentLoaded sarmalayıcısı kayıp görünüyor (cdnSrcset regresyon riski)"
 fi
-for f in proje.html mimar.html firma.html urun.html; do
+for f in proje.html kisi.html firma.html urun.html; do
   if grep -q 'id="ssr-entity-body"' "$f"; then
     ok "$f — #ssr-entity-body konteyneri mevcut"
   else

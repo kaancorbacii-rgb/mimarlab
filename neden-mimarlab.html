@@ -378,7 +378,7 @@
       <p class="sec-lead">Aşağıdaki sayılar sabit değil — platformun canlı veritabanından okunur ve her yeni proje, mimar, firma, ürün ya da marka eklendiğinde kendiliğinden güncellenir.</p>
       <div class="stats" id="stats-band">
         <a class="stat" href="/proje"><span class="stat-num" data-stat="projects">—</span><span class="stat-label">Proje</span></a>
-        <a class="stat" href="/mimar"><span class="stat-num" data-stat="architects">—</span><span class="stat-label">Kişi</span></a>
+        <a class="stat" href="/kisi"><span class="stat-num" data-stat="architects">—</span><span class="stat-label">Kişi</span></a>
         <a class="stat" href="/firma"><span class="stat-num" data-stat="offices">—</span><span class="stat-label">Firma</span></a>
         <a class="stat" href="/urun"><span class="stat-num" data-stat="products">—</span><span class="stat-label">Ürün</span></a>
         <a class="stat" href="/marka"><span class="stat-num" data-stat="brands">—</span><span class="stat-label">Marka</span></a>
@@ -417,7 +417,7 @@
         </svg>
         <div class="orbit-core"><strong>MİMARLAB</strong><span>Bağlantı katmanı</span></div>
         <a class="orbit-node" href="/proje" style="--x:0%; --y:-37%"><strong>Projeler</strong><span>Yapılar, künyeleri ve görselleriyle</span></a>
-        <a class="orbit-node" href="/mimar" style="--x:28.9%; --y:-23.1%"><strong>Kişiler</strong><span>Bireysel profiller ve portföyler</span></a>
+        <a class="orbit-node" href="/kisi" style="--x:28.9%; --y:-23.1%"><strong>Kişiler</strong><span>Bireysel profiller ve portföyler</span></a>
         <a class="orbit-node" href="/firma" style="--x:36.1%; --y:8.2%"><strong>Firmalar</strong><span>Ofisler, ekipler, uzmanlıklar</span></a>
         <a class="orbit-node" href="/urun" style="--x:16.1%; --y:33.3%"><strong>Ürünler</strong><span>Mobilya, aydınlatma, malzeme</span></a>
         <a class="orbit-node" href="/marka" style="--x:-16.1%; --y:33.3%"><strong>Markalar</strong><span>Üretici ve tedarikçi profilleri</span></a>
@@ -427,7 +427,7 @@
 
       <div class="orbit-list">
         <a class="card" href="/proje"><h3>Projeler</h3><p>Yapılar, künyeleri ve görselleriyle.</p></a>
-        <a class="card" href="/mimar"><h3>Kişiler</h3><p>Bireysel profiller ve portföyler.</p></a>
+        <a class="card" href="/kisi"><h3>Kişiler</h3><p>Bireysel profiller ve portföyler.</p></a>
         <a class="card" href="/firma"><h3>Firmalar</h3><p>Ofisler, ekipler, uzmanlık alanları.</p></a>
         <a class="card" href="/urun"><h3>Ürünler</h3><p>Mobilya, aydınlatma, yapı malzemesi.</p></a>
         <a class="card" href="/marka"><h3>Markalar</h3><p>Üretici ve tedarikçi profilleri.</p></a>
@@ -1010,7 +1010,7 @@
       + (p.location || p.year ? '<div class="demo-empty" style="margin-top:6px">' + escapeHtml([p.location, p.year].filter(Boolean).join(' · ')) + '</div>' : ''));
 
     html += chainItem('02 · Mimar', p.architects.length
-      ? linkChips(p.architects, '/mimar/')
+      ? linkChips(p.architects, '/kisi/')
       : '<div class="demo-empty">Bu projenin künyesinde bireysel mimar değil, tasarım firması yer alıyor.</div>');
 
     html += chainItem('03 · Firma', p.offices.length
