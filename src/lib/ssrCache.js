@@ -32,7 +32,11 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // dizisine "Mühendis" eklendi — /kisi/:slug SSR kabuğunun İÇİNDEKİ bu dizi "Meslek" filtresinin
 // sıralamasını belirler, sürüm artırılmazsa o sayfalardan girenlerde yeni seçenek s-maxage boyunca
 // yanlış sırada (listenin sonunda) görünürdü.
-export const SSR_CACHE_VERSION = 'v106';
+// v107 (görsel performans optimizasyonu, 2026-09-01): #ssr-entity-body'deki <img src>, orijinal
+// yerine 400 px'lik R2 türevini gösteriyor (bkz. src/index.js#bodyHandler). SSR HTML'i edge'de
+// önbelleklendiğinden sürüm artırılmazsa daha önce ziyaret edilmiş detay sayfaları eski (tam boy
+// görselli) gövdeyi servis etmeye devam ederdi.
+export const SSR_CACHE_VERSION = 'v107';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

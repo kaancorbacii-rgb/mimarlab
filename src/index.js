@@ -13,6 +13,7 @@ import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
 import { handleUploadRoute, handleFileUploadRoute, handleMediaRoute } from './routes/upload.js';
+import { derivedImageUrl } from './lib/imageDerivative.js';
 import { handleCommentsRoute } from './routes/comments.js';
 import { handleSavedRoute } from './routes/saved.js';
 import { handleSharesRoute } from './routes/shares.js';
@@ -767,8 +768,15 @@ function injectMeta(response, meta) {
   const bodyHandler = {
     element(el) {
       if (!meta.bodyHtml) return;
+      // Görsel performans optimizasyonu (2026-09-01) — bu görsel CSS'te 160x160 px (mobilde en fazla
+      // 280 px) render ediliyor (bkz. proje.html#.ssr-entity img) ama ORİJİNALİ yükleniyordu:
+      // /proje/y-evi-bodrum'a doğrudan girildiğinde (Google/paylaşım linki — yani sayfanın en yaygın
+      // GİRİŞ noktası) 160 px'lik bir küçük resim için 2400 px / 640 KB indiriliyordu, üstelik
+      // loading="eager" ile. En küçük türev basamağı (400 px) 160 px'lik slot için 2,5x yeterli.
+      // meta.image (OG/Twitter paylaşım görseli) BİLEREK DEĞİŞMEDİ — sosyal medya crawler'ları büyük
+      // görsel bekler, orası küçültülmemeli.
       const img = meta.bodyImage
-        ? `<img src="${escapeForAttr(meta.bodyImage)}" alt="${escapeForAttr(meta.bodyImageAlt)}" loading="eager">`
+        ? `<img src="${escapeForAttr(derivedImageUrl(meta.bodyImage, 400))}" alt="${escapeForAttr(meta.bodyImageAlt)}" loading="eager">`
         : '';
       el.setInnerContent(`${img}<div class="ssr-entity-text">${meta.bodyHtml}</div>`, { html: true });
     },
