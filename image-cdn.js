@@ -59,15 +59,36 @@ function derivativeWidthFor(width) {
 // "/media/u/.../foo.webp" (R2 nesnesi, baştan eğik çizgili) olabilir; ikisi de canlıda gerçekten
 // kullanılıyor (bkz. src/routes/upload.js#handleMediaRoute, proje/mimar/firma kayıtlarındaki
 // fotoğraf alanları). Harici (http/https/data:) URL'ler bize ait olmadığından hiç dokunulmaz.
+// GERÇEK BULGU (canlıda yakalandı): /api/projects'in `images` dizisi bazı satırlarda MUTLAK URL
+// taşıyor ("https://mimarlab.com/media/projects/y-evi-bodrum-1.webp"), bazılarında göreli
+// ("/media/u/.../x.webp") — veri tarihsel olarak KARIŞIK yazılmış (mimar fotoğrafı/firma logosu ise
+// her zaman göreli). İlk denemede mutlak URL'ler "harici" sayılıp hiç dönüştürülmüyordu; sonuç:
+// mimar/firma/ürün karuselleri türev alırken ANA SAYFANIN LCP GÖRSELİ (proje karuseli) hâlâ 640 KB'lık
+// orijinali indiriyordu. KENDİ origin'imize ait mutlak URL'ler bu yüzden göreli yola indirgenir;
+// gerçekten harici olanlar (başka bir host) eskisi gibi hiç dokunulmadan geçer.
+function toLocalPath(path) {
+  if (typeof path !== 'string' || !path) return null;
+  if (path.startsWith('data:') || path.startsWith('blob:')) return null;
+  if (!/^(https?:)?\/\//i.test(path)) return path;
+  // Protokol-göreli ("//host/...") ve tam URL'ler — tarayıcıda location.origin ile karşılaştırılır.
+  try {
+    const parsed = new URL(path, window.location.origin);
+    if (parsed.origin !== window.location.origin) return null;
+    return parsed.pathname;
+  } catch (e) {
+    return null;
+  }
+}
+
 function derivativeUrl(path, width) {
   if (!IMAGE_DERIVATIVES_ENABLED || !path) return null;
-  if (typeof path !== 'string') return null;
-  if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return null;
-  if (DERIVATIVE_SKIP_RE.test(path)) return null;
+  const localPath = toLocalPath(path);
+  if (!localPath) return null;
+  if (DERIVATIVE_SKIP_RE.test(localPath)) return null;
   const step = derivativeWidthFor(width);
   if (!step) return null;
 
-  const clean = path.replace(/^\/+/, '');
+  const clean = localPath.replace(/^\/+/, '');
   if (clean.startsWith('media/')) {
     // R2 nesnesi — "/media/" öneki soyulup ham R2 anahtarı kullanılır.
     return `/media/_derived/w${step}/r2/${clean.slice('media/'.length)}`;
