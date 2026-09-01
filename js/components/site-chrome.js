@@ -26,12 +26,11 @@
     { key: 'urun', href: 'urun.html', label: 'Ürün', mega: true },
     { key: 'marka', href: 'marka.html', label: 'Marka' },
     // "Neden MİMARLAB?" — platformun mimarlara/ofislere/markalara kendini anlattığı sunum sayfası
-    // (bkz. neden-mimarlab.html). Diğer beş öğe birer İÇERİK LİSTESİ, bu ise bir anlatım sayfası
-    // olduğundan görsel olarak da ayrışır: nav'da `standalone` işaretiyle çerçeveli/ikincil bir
-    // düğme gibi render edilir (bkz. injectHeaderStyle#.nav-link-standalone). Etiket masaüstünde
-    // kısa tutulur ("Neden?") — tam ad hem başlıkta hem çekmecede/footer'da geçer; uzun etiket
-    // 1024-1280px arasında nav satırını taşırıyordu (yerel doğrulamada ölçüldü).
-    { key: 'neden', href: 'neden-mimarlab.html', label: 'Neden?', title: 'Neden MİMARLAB?', drawerLabel: 'Neden MİMARLAB?', standalone: true },
+    // (bkz. neden-mimarlab.html). Kullanıcı isteği: nav'da kısaltma ("Neden?") ve çerçeveli pill
+    // görünümü YOK, diğer beş öğeyle aynı düz bağlantı biçiminde tam ad yazar. Uzun etiket nav
+    // satırını daralttığından arama kutusunun esneme payı (.nav-search{flex:1}) buna göre azalır —
+    // 965-1280px arasında taşma olmadığı ölçülerek doğrulandı.
+    { key: 'neden', href: 'neden-mimarlab.html', label: 'Neden MİMARLAB?' },
   ];
 
   // Işık modunda logo koyu (lacivert/siyah) harflerle, R'daki daire+üçgen ise her zaman mavi (bkz.
@@ -72,17 +71,6 @@
         background:var(--paper-alt); color:var(--ink-soft); padding:0;
       }
       .nav-search-visual-btn:hover{background:var(--brass-soft); color:var(--ink);}
-      /* "Neden?" (bkz. NAV_ITEMS#neden) — Proje/Mimar/Firma/Ürün/Marka birer içerik listesi, bu ise
-         platformun kendini anlattığı sunum sayfası; aynı satırda dursun ama onlardan görsel olarak
-         ayrılsın diye ince çerçeveli, sönük bir "pill" olarak render edilir (Giriş Yap düğmesiyle
-         AYNI 100px radius ailesi, ama daha hafif). */
-      .nav-link-standalone{
-        border:1px solid var(--line); border-radius:100px; padding:5px 13px;
-        color:var(--ink-soft); font-weight:600; letter-spacing:0.01em;
-      }
-      .nav-link-standalone:hover, .nav-link-standalone.active{
-        border-color:var(--ink); color:var(--ink); background:transparent;
-      }
       .nav-mobile-overlay{display:none; position:fixed; inset:0; z-index:120; background:rgba(15,19,26,0.55);}
       .nav-mobile-overlay.open{display:block;}
       .nav-mobile-menu{
@@ -250,9 +238,7 @@
         </button>
       </div>`;
       }
-      const standaloneClass = item.standalone ? ' nav-link-standalone' : '';
-      const titleAttr = item.title ? ` title="${escapeAttr(item.title)}" aria-label="${escapeAttr(item.title)}"` : '';
-      return `<a class="nav-link${standaloneClass}${activeClass}" href="${escapeAttr(item.href)}"${titleAttr}>${escapeHtml(item.label)}</a>`;
+      return `<a class="nav-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
     }).join('\n      ');
 
     const mobileLinks = NAV_ITEMS.map(item => {
@@ -266,8 +252,7 @@
         <div class="nav-mobile-accordion-panel" id="urun-mobile-panel"></div>
       </div>`;
       }
-      // Çekmecede yer darlığı yok — kısaltılmış masaüstü etiketi yerine tam ad gösterilir.
-      return `<a class="nav-mobile-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.drawerLabel || item.label)}</a>`;
+      return `<a class="nav-mobile-link${activeClass}" href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`;
     }).join('\n      ');
 
     return `<nav class="nav">
