@@ -690,7 +690,12 @@ const AuthModal = (function () {
     function renderSchoolBox() {
       const q = trLower(schoolInput.value.trim());
       if (!q) { closeSchoolBox(); return; }
-      const matches = schoolItems.filter(it => trLower(it).includes(q)).slice(0, 8);
+      // Baştan eşleşenler ÖNCE (kullanıcı isteği: "ilk harfleri yazmaya başladığında ilgili
+      // olanlar çıksın") — liste artık Türkiye'deki tüm üniversiteleri taşıdığından (bkz.
+      // /api/architects/schools) saf "içinde geçiyor mu" sıralaması "Yıldız" yazan birine önce
+      // "Ankara Yıldırım Beyazıt"ı gösterebiliyordu. İçinde geçenler atılmaz, arkaya alınır.
+      const starts = schoolItems.filter(it => trLower(it).startsWith(q));
+      const matches = starts.concat(schoolItems.filter(it => !trLower(it).startsWith(q) && trLower(it).includes(q))).slice(0, 8);
       if (!matches.length) { closeSchoolBox(); return; }
       schoolBox.innerHTML = matches.map(it => `<div class="ac-suggestion">${escapeHtml(it)}</div>`).join('');
       schoolBox.classList.add('show');
@@ -1531,7 +1536,12 @@ const AuthModal = (function () {
       function renderBox() {
         const q = trLower(input.value.trim());
         if (!q) { closeBox(); return; }
-        const matches = items.filter(it => trLower(it).includes(q)).slice(0, 8);
+        // Baştan eşleşenler ÖNCE (kullanıcı isteği: "ilk harfleri yazmaya başladığında ilgili
+        // olanlar çıksın") — liste artık Türkiye'deki tüm üniversiteleri taşıdığından (bkz.
+        // /api/architects/schools) saf "içinde geçiyor mu" sıralaması "Yıldız" yazan birine önce
+        // "Ankara Yıldırım Beyazıt"ı gösterebiliyordu. İçinde geçenler atılmaz, arkaya alınır.
+        const starts = items.filter(it => trLower(it).startsWith(q));
+        const matches = starts.concat(items.filter(it => !trLower(it).startsWith(q) && trLower(it).includes(q))).slice(0, 8);
         if (!matches.length) { closeBox(); return; }
         box.innerHTML = matches.map(it => `<div class="ac-suggestion">${escapeHtml(it)}</div>`).join('');
         box.classList.add('show');

@@ -1,20 +1,22 @@
-// Türkiye'deki üniversitelerin adları (YÖK listesi) — kisi-ekle.html'deki "Üniversite" kutusunun
-// öneri kaynağı (kullanıcı isteği, 2026-09-01: "üniversiteler kısmında Türkiye'deki tüm
-// üniversiteler, kişi ilk harfleri yazmaya başladığında ilgili olanlar kutucuğun altında öneri
-// olarak çıksın").
+// Türkiye'deki üniversitelerin adları (YÖK listesi) — sitedeki TÜM "Üniversite" kutularının öneri
+// kaynağı (kullanıcı isteği, 2026-09-01: kişi ekle/düzenle, ardından "Üye Ol ve Hesabım'daki
+// üniversite kutularına da ekle").
 //
-// NEDEN STATİK BİR DOSYA: bu liste D1'de tutulmuyor ve tutulmasına da gerek yok — hiçbir sorgu
-// okula göre JOIN/filtre yapmıyor, alan yalnızca serbest metin olarak saklanıp gösteriliyor.
-// il-ilce-data.js ile AYNI desen: nadiren değişen, tamamen istemci tarafında kullanılan bir
-// referans listesi.
+// TEK KULLANICI: src/routes/architect.js#handleArchitectSchoolsRoute. Liste D1'e KONULMADI çünkü
+// hiçbir sorgu okula göre JOIN/filtre yapmıyor — alan yalnızca serbest metin olarak saklanıp
+// gösteriliyor; bir migration + yönetim ekranı, nadiren değişen sabit bir referans listesi için
+// gereksiz olurdu.
 //
-// BU LİSTE TEK BAŞINA KULLANILMAZ: kisi-ekle.html onu /api/architects/schools'tan gelen
-// (sitede kayıtlı kişilerin GERÇEKTEN girdiği) okullarla birleştirir — böylece yurt dışı
-// üniversiteleri ve bu listede olmayan yeni kurumlar da önerilmeye devam eder.
+// NEDEN ROUTE'TAN SERVİS EDİLİYOR, İSTEMCİDE STATİK BİR .js DEĞİL: aynı kutu ÜÇ ayrı yerde var
+// (kisi-ekle.html, uye-ol.html, js/components/auth-modal.js'in HEM Üye Ol HEM Profili Düzenle
+// formu) ve auth-modal.js site genelinde yükleniyor. Statik bir <script> her sayfaya eklenmek
+// zorunda kalırdı; /api/architects/schools ise üçünün de ZATEN çağırdığı tek uç.
 //
-// Not: liste bir anlık görüntüdür; yeni bir üniversite kurulduğunda buraya eklenmesi yeterlidir,
-// başka hiçbir yerde karşılığı yoktur.
-const TR_UNIVERSITIES = [
+// Uç, bu listeyi architects.school'daki GERÇEK değerlerle birleştirir — yurt dışı üniversiteleri ve
+// buraya henüz eklenmemiş yeni kurumlar önerilmeye devam eder. Yeni bir üniversite kurulduğunda
+// yalnızca buraya eklenmesi yeterlidir.
+export const TR_UNIVERSITIES = [
+
   // ---- Devlet üniversiteleri ----
   'Abdullah Gül Üniversitesi',
   'Adana Alparslan Türkeş Bilim ve Teknoloji Üniversitesi',

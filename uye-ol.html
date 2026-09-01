@@ -377,7 +377,12 @@ function isInvalidSchoolValue(v){
   function render(){
     const q = trLower(input.value.trim());
     if(!q){ close(); return; }
-    const matches = items.filter(it => trLower(it).includes(q)).slice(0, 8);
+    // Baştan eşleşenler ÖNCE (kullanıcı isteği: "ilk harfleri yazmaya başladığında ilgili
+    // olanlar çıksın") — liste artık Türkiye'deki tüm üniversiteleri taşıdığından (bkz.
+    // /api/architects/schools) saf "içinde geçiyor mu" sıralaması "Yıldız" yazan birine önce
+    // "Ankara Yıldırım Beyazıt"ı gösterebiliyordu. İçinde geçenler atılmaz, arkaya alınır.
+    const starts = items.filter(it => trLower(it).startsWith(q));
+    const matches = starts.concat(items.filter(it => !trLower(it).startsWith(q) && trLower(it).includes(q))).slice(0, 8);
     if(!matches.length){ close(); return; }
     box.innerHTML = matches.map(it => `<div class="ac-suggestion">${escapeAttr(it)}</div>`).join('');
     box.classList.add('show');

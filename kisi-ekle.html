@@ -310,9 +310,6 @@
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
-<!-- Üniversite öneri listesi (bkz. universities-data.js) — defer YOK: aşağıdaki inline script
-     TR_UNIVERSITIES'i doğrudan okur, ondan ÖNCE çalışmış olmalı. -->
-<script src="universities-data.js"></script>
 
   <div id="site-header-mount" data-nav-active="kisi"></div>
   <script src="js/components/site-chrome.js"></script>
@@ -767,21 +764,13 @@ function wireAutocompleteLive(inputId, suggestionsId, searchUrl, opts){
 wireAutocompleteLive('m-office', 'ac-marka-suggestions', '/api/offices/search');
 
 // ---------- OTOMATİK TAMAMLAMA: Üniversite ----------
-// İKİ KAYNAK BİRLEŞTİRİLİR (kullanıcı isteği, 2026-09-01: "Türkiye'deki TÜM üniversiteler öneri
-// olarak çıksın"):
-//   TR_UNIVERSITIES (universities-data.js) — YÖK listesi; sitede henüz kimsenin girmediği bir
-//                                            üniversite de ilk harften itibaren önerilir.
-//   /api/architects/schools                — sitede kayıtlı kişilerin GERÇEKTEN girdiği okullar;
-//                                            yurt dışı üniversiteleri ve listede olmayan kurumlar
-//                                            bu sayede kaybolmaz.
-// Eskiden YALNIZCA ikinci kaynak vardı, yani bir üniversite ancak zaten birileri oraya yazdıysa
-// önerilebiliyordu. wireAutocomplete getItems()'i her tuş vuruşunda YENİDEN çağırdığından, fetch
-// geç tamamlansa bile liste kendiliğinden güncellenir.
-let UNIVERSITY_SUGGESTIONS = (typeof TR_UNIVERSITIES !== 'undefined' ? TR_UNIVERSITIES : []).map(s => ({label: s}));
-fetch('/api/architects/schools').then(r => r.ok ? r.json() : {items:[]}).then(d => {
-  const seen = new Set(UNIVERSITY_SUGGESTIONS.map(it => trLower(it.label)));
-  (d.items || []).forEach(s => { const key = trLower(String(s).trim()); if(s && !seen.has(key)){ seen.add(key); UNIVERSITY_SUGGESTIONS.push({label: s}); } });
-}).catch(()=>{});
+// /api/architects/schools artık Türkiye'deki TÜM üniversiteleri (src/lib/universities.js) ve
+// architects.school'daki gerçek değerleri BİRLEŞTİRİLMİŞ olarak döndürür (bkz. kullanıcı isteği,
+// 2026-09-01 ve o uçtaki gerekçe) — birleştirme sunucuda yapılır, çünkü aynı kutu sitede dört
+// yerde var. wireAutocomplete getItems()'i her tuş vuruşunda YENİDEN çağırdığından, fetch geç
+// tamamlansa bile liste kendiliğinden güncellenir.
+let UNIVERSITY_SUGGESTIONS = [];
+fetch('/api/architects/schools').then(r => r.ok ? r.json() : {items:[]}).then(d => { UNIVERSITY_SUGGESTIONS = (d.items || []).map(s => ({label: s})); }).catch(()=>{});
 wireAutocomplete('m-school', 'ac-school-suggestions', () => UNIVERSITY_SUGGESTIONS);
 
 function renderPreviews(){

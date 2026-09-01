@@ -8,6 +8,7 @@ import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
+import { TR_UNIVERSITIES } from '../lib/universities.js';
 
 // Faz 3 — statik data.js/projeler-data.js dizileri + *_submissions overlay yerine doğrudan
 // canonical `architects`/`offices`/`projects` tablolarından okur (bkz. docs/architecture-roadmap.md
@@ -182,13 +183,34 @@ export async function handleArchitectSearchRoute(request, env, url) {
 // ile istemci tarafında hesaplanıyordu). Sonuç istemci tarafında zaten yerel/senkron substring
 // filtrelendiğinden (bkz. o sayfalardaki wireAutocomplete — canlı arama DEĞİL, tek seferlik tam
 // liste + yerel filtre) burada sayfalama/arama parametresi yok, tek seferlik tam liste döner.
+// Kaynak İKİ TANE (kullanıcı isteği, 2026-09-01: "Türkiye'deki tüm üniversiteler ... öneri olarak
+// çıksın", ardından "Üye Ol ve Hesabım'daki üniversite kutularına da ekle"):
+//   TR_UNIVERSITIES (src/lib/universities.js) — YÖK listesi; sitede henüz kimsenin girmediği bir
+//                                               üniversite de ilk harften itibaren önerilebilsin.
+//   architects.school                          — GERÇEKTEN girilmiş okullar; yurt dışı kurumları ve
+//                                               listede olmayanlar kaybolmasın.
+// Eskiden YALNIZCA ikincisi vardı, yani bir üniversite ancak zaten birileri oraya yazdıysa
+// önerilebiliyordu. Bu uç sitedeki DÖRT "Üniversite" kutusunun da (kisi-ekle.html, uye-ol.html,
+// auth-modal.js'in Üye Ol ve Profili Düzenle formları) ORTAK kaynağıdır — birleştirme bu yüzden
+// istemcide değil BURADA yapılır, aksi halde aynı kod dört yere kopyalanırdı.
+// Tekilleştirme büyük/küçük harf duyarsız (Türkçe): aynı okul iki yazımla listelenmesin; çakışmada
+// buradaki kanonik yazım kazanır.
 export async function handleArchitectSchoolsRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname, async () => {
     const { results } = await env.DB.prepare(
       `SELECT DISTINCT school FROM architects WHERE deleted_at IS NULL AND school IS NOT NULL AND school != ''`
     ).all();
-    const items = results.map(r => r.school).sort((a, b) => a.localeCompare(b, 'tr'));
+    const items = [...TR_UNIVERSITIES];
+    const seen = new Set(items.map(s => s.toLocaleLowerCase('tr')));
+    for (const row of results) {
+      const name = String(row.school || '').trim();
+      const key = name.toLocaleLowerCase('tr');
+      if (!name || seen.has(key)) continue;
+      seen.add(key);
+      items.push(name);
+    }
+    items.sort((a, b) => a.localeCompare(b, 'tr'));
     return { items };
   });
 }
