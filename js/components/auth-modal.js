@@ -914,8 +914,10 @@ const AuthModal = (function () {
         <div class="am-listing-consent" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; margin:4px 0 16px; border:1px solid var(--line); border-radius:10px; background:var(--paper);">
           <span style="flex:1; min-width:0; font-size:13px;">Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?</span>
           <span style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
-            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="yes" checked style="accent-color:var(--ink); width:15px; height:15px;"> Evet</label>
-            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="no" style="accent-color:var(--ink); width:15px; height:15px;"> Hayır</label>
+            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="yes" style="accent-color:var(--ink); width:15px; height:15px;"> Evet</label>
+            <!-- Varsayılan HAYIR (kullanıcı isteği, 2026-09-02 madde 2): profil yayımlamak bilinçli
+                 bir tercih olmalı; kullanıcı Evet demeden kişi dizinine düşmez. -->
+            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="no" checked style="accent-color:var(--ink); width:15px; height:15px;"> Hayır</label>
           </span>
         </div>
 
@@ -943,8 +945,17 @@ const AuthModal = (function () {
         <div style="border-top:1px solid var(--line); margin:22px 0 18px;"></div>
         <h2 style="font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 8px; color:#B3261E;">Hesabımı Sil</h2>
         <p style="margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); max-width:520px;">Hesabını sildiğinde profilin, oturumların, kaydettiklerin ve bildirimlerin kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
-        <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
-        <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E; margin-left:10px;"></span>
+        <!-- Kullanıcı isteği (2026-09-02 madde 1): silme butonunun ÜSTÜNDE e-posta kutusu; kullanıcı
+             giriş yaptığı adresi yazmadan hesabını silemez. Yanlışlıkla silmeye karşı gerçek bir
+             sürtünme — tek başına confirm() diyaloğu bunu sağlamıyordu. Doğrulama İSTEMCİDE
+             yapılır (sunucu zaten oturum sahibinden başkasının hesabını silemez, bkz.
+             src/routes/auth.js#handleAccountDeleteRoute); buradaki amaç kasıt teyidi. -->
+        <label for="am-delete-confirm-email" style="display:block; font-size:12.5px; font-weight:600; margin:0 0 5px;">Onaylamak için e-posta adresini yaz</label>
+        <input type="email" id="am-delete-confirm-email" autocomplete="off" placeholder="ornek@eposta.com" style="width:100%; max-width:320px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="dash-edit-btn" id="am-delete-account-btn" style="margin-left:0; background:#B3261E; color:#fff; border-color:#B3261E;">Hesabımı Sil</button>
+          <span id="am-delete-account-msg" style="font-size:12.5px; color:#B3261E;"></span>
+        </div>
       </div>
       </div>
 
@@ -1230,15 +1241,24 @@ const AuthModal = (function () {
 
       <div id="am-col-detail-view" style="display:none;">
         <div class="dash-section">
+          <!-- Buton sırası kullanıcı isteği (2026-09-02 madde 5): Paylaş, Dışa Aktar, Panoyu Sil.
+               "Yeniden Adlandır" buradan KALDIRILDI — artık pano adının sağındaki kalem ikonu. -->
           <div class="col-toolbar">
             <button type="button" class="col-btn" id="am-col-back-btn">← Panolarım</button>
-            <button type="button" class="col-btn" id="am-col-rename-btn">Yeniden Adlandır</button>
-            <!-- Paylaş (kullanıcı isteği, 2026-09-02): panoyu herkese açık bir bağlantıyla
-                 paylaşır. Etiket panonun paylaşım durumuna göre renderDetail'de güncellenir. -->
             <button type="button" class="col-btn" id="am-col-share-btn">Paylaş</button>
+            <!-- Dışa Aktar YALNIZCA rozetli kullanıcılarda etkin (kullanıcı isteği). Rozetsizde
+                 buton görünür ama devre dışı ve nedenini title ile söyler — gizlemek yerine
+                 göstermek, özelliğin varlığını keşfedilebilir kılar. -->
+            <button type="button" class="col-btn" id="am-col-export-btn" disabled title="Dışa aktarma rozetli üyelere özeldir.">Dışa Aktar</button>
             <button type="button" class="col-btn col-btn-danger" id="am-col-delete-btn">Panoyu Sil</button>
           </div>
-          <h2 id="am-col-detail-title"></h2>
+          <h2 id="am-col-detail-title" style="display:inline-flex; align-items:center; gap:8px;">
+            <span id="am-col-detail-title-text"></span>
+            <button type="button" id="am-col-rename-btn" aria-label="Panoyu yeniden adlandır" title="Yeniden adlandır"
+              style="background:none; border:none; padding:2px; line-height:0; cursor:pointer; color:var(--ink-soft);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </button>
+          </h2>
           <p class="section-hint" id="am-col-detail-count"></p>
 
           <div class="col-toolbar">
@@ -1988,15 +2008,23 @@ const AuthModal = (function () {
       if (isInvalidSchoolValue(school)) { msg.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; return; }
       // Kullanıcı isteği (2026-09-02): meslek artık ZORUNLU (kisi-ekle.html ile aynı kural).
       if (!profession) { msg.textContent = 'Meslek seçmelisin.'; return; }
-      // Kullanıcı isteği: "Kişi kaydete tıklamadan önce profil fotoğrafı yüklemek zorunda olsun."
-      // Yalnızca dizinde görünmeyi KABUL ETMİŞ kullanıcılar için zorunlu — dizine girmek istemeyen
-      // biri fotoğrafsız da profilini düzenleyebilmeli (fotoğraf yalnızca herkese açık kişi
-      // kartında anlamlı). Kaynak: aşağıdaki #am-edit-directory-listed radyo grubu.
+      // Profili YAYIMLAMAK (kişi dizininde görünmek) için ek zorunlu alanlar — kullanıcı isteği
+      // 2026-09-02 madde 2: "profilinin yayınlanması için Ad Soyad, Doğum Yılı, Meslek ve Açıklama
+      // alanları zorunlu olsun" + daha önceki istekle profil fotoğrafı. Dizine GİRMEK İSTEMEYEN
+      // biri bu alanlar boşken de profilini kaydedebilir — zorunluluk yalnızca herkese açık
+      // kartta eksik bilgi görünmesini engellemek için. kisi-ekle.html'de AYNI dörtlü zorunludur.
       const wantsDirectory = document.querySelector('input[name="am-directory-listed"]:checked');
-      const photoUrl = (accountUser && accountUser.photo_url) || '';
-      if (wantsDirectory && wantsDirectory.value === 'yes' && !photoUrl) {
-        msg.textContent = 'Kişi sayfasında görünmek için önce profil fotoğrafı yüklemelisin.';
-        return;
+      if (wantsDirectory && wantsDirectory.value === 'yes') {
+        const eksik = [];
+        if (!name || !name.trim()) eksik.push('Ad Soyad');
+        if (!dob) eksik.push('Doğum Yılı');
+        if (!profession) eksik.push('Meslek');
+        if (!about || !about.trim()) eksik.push('Açıklama');
+        if (!((accountUser && accountUser.photo_url) || '')) eksik.push('Profil Fotoğrafı');
+        if (eksik.length) {
+          msg.textContent = 'Kişi sayfasında yayımlanmak için şu alanlar zorunlu: ' + eksik.join(', ') + '.';
+          return;
+        }
       }
       btn.disabled = true;
       try {
@@ -2168,9 +2196,16 @@ const AuthModal = (function () {
     });
 
     on('am-delete-account-btn', 'click', async () => {
-      if (!confirm('Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
       const btn = document.getElementById('am-delete-account-btn');
       const msg = document.getElementById('am-delete-account-msg');
+      // Giriş yapılan e-posta ile birebir eşleşme (büyük/küçük harf ve baştaki/sondaki boşluk
+      // yok sayılır — e-posta adresleri zaten harf büyüklüğünden bağımsız kabul edilir).
+      const typed = (document.getElementById('am-delete-confirm-email').value || '').trim().toLowerCase();
+      const actual = ((accountUser && accountUser.email) || '').trim().toLowerCase();
+      if (!typed) { msg.textContent = 'Silmek için e-posta adresini yaz.'; return; }
+      if (!actual || typed !== actual) { msg.textContent = 'E-posta adresi eşleşmiyor.'; return; }
+      msg.textContent = '';
+      if (!confirm('Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
       btn.disabled = true;
       try {
         const res = await fetch('/api/account', { method: 'DELETE' });
@@ -3041,11 +3076,20 @@ const AuthModal = (function () {
 
     function renderDetail() {
       if (!openCollection) return;
-      document.getElementById('am-col-detail-title').textContent = openCollection.item.title;
+      document.getElementById('am-col-detail-title-text').textContent = openCollection.item.title;
       document.getElementById('am-col-detail-count').textContent = `${openCollection.items.length} öğe`;
       // Paylaşım durumu — sunucu shapeCollection'da shareToken döner (bkz. src/routes/collections.js).
       const shareBtn = document.getElementById('am-col-share-btn');
       if (shareBtn) shareBtn.textContent = openCollection.item.shareToken ? 'Paylaşımı Durdur' : 'Paylaş';
+      // Dışa Aktar yalnızca AKTİF rozeti olan üyelerde (kullanıcı isteği, 2026-09-02 madde 5).
+      // Kaynak amBadgeItems — loadBadges()'in /api/badges/mine'dan doldurduğu liste; rozet
+      // görünürlüğünün TEK doğru kaynağı budur (bkz. proje belleği "profileBadges tek kaynak").
+      const exportBtn = document.getElementById('am-col-export-btn');
+      if (exportBtn) {
+        const hasBadge = (amBadgeItems || []).some(b => b.status === 'active');
+        exportBtn.disabled = !hasBadge;
+        exportBtn.title = hasBadge ? 'Panoyu PDF olarak dışa aktar' : 'Dışa aktarma rozetli üyelere özeldir.';
+      }
       const container = document.getElementById('am-col-items');
       if (!openCollection.items.length) {
         container.innerHTML = '<div class="dash-empty">Bu pano henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
@@ -3171,6 +3215,67 @@ const AuthModal = (function () {
         openCollection.item.title = title.trim();
         renderDetail();
       } catch { notice('am-col-detail-notice', 'Sunucuya ulaşılamadı, tekrar dene.', true); }
+    });
+
+    // Panoyu PDF olarak dışa aktar (kullanıcı isteği, 2026-09-02 madde 5).
+    //
+    // NEDEN window.print(): bu repoda HİÇ npm bağımlılığı yok ve CSP dış script'leri engelliyor
+    // (bkz. src/index.js#SECURITY_HEADERS) — jsPDF/pdfmake gibi bir kütüphane ne paketlenebilir
+    // ne CDN'den çekilebilir. Tarayıcının kendi "PDF olarak kaydet" çıktısı bağımlılıksız,
+    // vektörel (metin seçilebilir/aranabilir) ve baskıya hazır bir PDF üretir. Yazdırma penceresi
+    // AYRI bir sekmede açılır: mevcut pop-up'ın DOM'una/kaydırma kilidine hiç dokunulmaz.
+    function exportBoardPdf() {
+      if (!openCollection) return;
+      const c = openCollection.item, items = openCollection.items || [];
+      const esc = (v) => escapeHtml(v == null ? '' : String(v));
+      const cards = items.map((it, i) => {
+        const image = safeUrl(it.image);
+        const media = image
+          ? `<img src="${escapeAttr(image)}" alt="">`
+          : (it.kind === 'note' ? `<div class="note">${esc(it.note)}</div>` : '<div class="ph"></div>');
+        const meta = [it.meta, it.itemType].filter(Boolean).join(' · ');
+        return `<figure class="card">${media}
+          <figcaption><span class="n">${i + 1}</span><b>${esc(it.title || (it.kind === 'note' ? 'Not' : '—'))}</b>
+          ${meta ? `<span class="m">${esc(meta)}</span>` : ''}</figcaption></figure>`;
+      }).join('');
+      const today = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+      // Tamamen kendi kendine yeten bir belge — dış CSS/font/script YOK, bu yüzden yazdırma
+      // önizlemesi ağ beklemeden anında hazır olur.
+      const doc = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8">
+<title>${esc(c.title)} — MİMARLAB</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; color:#1B2A3D; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  header{border-bottom:2px solid #1B2A3D; padding-bottom:10px; margin-bottom:18px; display:flex; align-items:baseline; justify-content:space-between; gap:16px;}
+  h1{font-size:20pt; margin:0; letter-spacing:-0.01em;}
+  .sub{font-size:9pt; color:#4E6478; white-space:nowrap;}
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10mm 6mm;}
+  .card{margin:0; break-inside:avoid; page-break-inside:avoid;}
+  .card img,.card .ph,.card .note{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:3mm; background:#E0E6EC; display:block;}
+  .card .note{aspect-ratio:auto; min-height:26mm; padding:4mm; font-size:8.5pt; line-height:1.5; white-space:pre-wrap; overflow:hidden;}
+  figcaption{margin-top:2mm; font-size:8.5pt; line-height:1.35;}
+  figcaption .n{display:inline-block; min-width:5mm; color:#7A8CA0;}
+  figcaption b{font-weight:600;}
+  figcaption .m{display:block; color:#4E6478; margin-left:5mm;}
+  footer{margin-top:14mm; padding-top:6px; border-top:1px solid #C9D3DD; font-size:8pt; color:#7A8CA0; display:flex; justify-content:space-between;}
+  @media print { .noprint{display:none;} }
+</style></head><body>
+<header><h1>${esc(c.title)}</h1><div class="sub">${items.length} öğe · ${esc(today)}</div></header>
+${items.length ? `<div class="grid">${cards}</div>` : '<p>Bu pano boş.</p>'}
+<footer><span>MİMARLAB — mimarlab.com</span><span>${esc(c.title)}</span></footer>
+<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 400); });<\/script>
+</body></html>`;
+      const w = window.open('', '_blank');
+      if (!w) { notice('am-col-detail-notice', 'Yazdırma penceresi engellendi — tarayıcı açılır pencere iznini kontrol et.', true); return; }
+      w.document.write(doc);
+      w.document.close();
+    }
+
+    on('am-col-export-btn', 'click', () => {
+      const btn = document.getElementById('am-col-export-btn');
+      if (btn && btn.disabled) return;
+      exportBoardPdf();
     });
 
     // Paylaş / Paylaşımı Durdur (kullanıcı isteği, 2026-09-02). Açıkken bağlantı panoya özel,

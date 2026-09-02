@@ -340,7 +340,7 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="dd-dob-btn">Doğum Yılı <span class="opt">(opsiyonel)</span></label>
+            <label for="dd-dob-btn">Doğum Yılı <span class="req" aria-hidden="true">*</span></label>
             <div class="dd-field" id="dd-dob">
               <button type="button" class="dd-btn" id="dd-dob-btn">
                 <span id="dd-dob-btn-label">Yıl seç</span>
@@ -381,7 +381,7 @@
           </div>
         </div>
         <div class="form-field">
-          <label for="m-about">Açıklama <span class="opt">(opsiyonel)</span></label>
+          <label for="m-about">Açıklama <span class="req" aria-hidden="true">*</span></label>
           <textarea id="m-about" name="about" maxlength="1500" placeholder="Kendin hakkında kısa bir metin yaz..."></textarea>
         </div>
       </div>
@@ -1221,6 +1221,21 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
   }
   if(isInvalidSchoolValue(document.getElementById('m-school').value)){
     notice.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).';
+    notice.classList.add('show');
+    notice.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  // Kullanıcı isteği (2026-09-02 madde 3): kişi profili yayımlanacaksa Ad Soyad, Doğum Yılı,
+  // Meslek ve Açıklama zorunlu. Profili Düzenle'deki (js/components/auth-modal.js#am-dash-save-btn)
+  // dizin yayını kuralıyla BİREBİR aynı dörtlü — iki form aynı kişi kaydını beslediğinden
+  // (bkz. claimed_profile_key entegrasyonu) kuralların ayrışmaması şart.
+  const eksikAlanlar = [];
+  if(!document.getElementById('m-name').value.trim()) eksikAlanlar.push('Ad Soyad');
+  if(!selectedDob) eksikAlanlar.push('Doğum Yılı');
+  if(!meslekDropdown.getChecked().length) eksikAlanlar.push('Meslek');
+  if(!document.getElementById('m-about').value.trim()) eksikAlanlar.push('Açıklama');
+  if(eksikAlanlar.length){
+    notice.textContent = 'Şu alanlar zorunlu: ' + eksikAlanlar.join(', ') + '.';
     notice.classList.add('show');
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
