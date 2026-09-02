@@ -36,7 +36,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // yerine 400 px'lik R2 türevini gösteriyor (bkz. src/index.js#bodyHandler). SSR HTML'i edge'de
 // önbelleklendiğinden sürüm artırılmazsa daha önce ziyaret edilmiş detay sayfaları eski (tam boy
 // görselli) gövdeyi servis etmeye devam ederdi.
-export const SSR_CACHE_VERSION = 'v107';
+// v108 (SEO denetimi, 2026-09-03): /kisi/:slug ve /firma/:slug SSR gövdesine, o kişinin/firmanın
+// GERÇEK projelerine giden crawlable bir "Projeler" satırı eklendi (bkz. src/lib/seo.js#
+// fetchDesignerProjects). Sürüm artırılmazsa daha önce ziyaret edilmiş profil sayfaları s-maxage
+// boyunca bu bağlantıları TAŞIMAYAN eski gövdeyi sunmaya devam eder — yani düzeltmenin tek amacı
+// olan iç bağlantı grafiği Googlebot'a görünmezdi.
+export const SSR_CACHE_VERSION = 'v108';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

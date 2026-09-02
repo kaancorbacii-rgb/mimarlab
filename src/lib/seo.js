@@ -62,6 +62,20 @@ function internalLink(path, name) {
   return `<a href="${escapeHtml(path)}">${escapeHtml(name)}</a>`;
 }
 
+// SEO denetimi (2026-09-03, D1'de doğrudan sayıldı): 736 görünür firma kaydının 82'sinde `about`
+// alanı 60 karakterin ALTINDA ve neredeyse tamamı FİRMANIN KENDİ ADININ TEKRARI — offices.about =
+// "Designnobis", "MDM Mimarlık", "Tures Mimarlık". Bu değerler `about || fallback` kalıbıyla
+// okunduğu için meta description olarak aynen servis ediliyordu, yani /firma/designnobis sayfasının
+// Google'a anlattığı tek şey "Designnobis" idi. Aynı durum 1 proje kaydında var, ürünlerde yok.
+//
+// Eşik veriyi DEĞİŞTİRMEZ — yalnızca "bu alan meta description olarak kullanılabilir mi" sorusunu
+// yanıtlar; kısa metin sayfanın kendi görünür gövdesinde (bodyHtml) gösterilmeye devam eder.
+const MIN_MEANINGFUL_DESCRIPTION = 60;
+function meaningfulText(value) {
+  const text = String(value == null ? '' : value).trim();
+  return text.length >= MIN_MEANINGFUL_DESCRIPTION ? text : null;
+}
+
 // gerçek bulgu (denetim raporu, 2026-08-16): <title> hiçbir yerde uzunluk sınırına kırpılmıyordu —
 // çok uzun mimar/firma/proje/ürün adlarında (ör. cümle uzunluğunda proje başlıkları) Google'ın SERP'te
 // gösterdiği pratik ~60 karakterlik sınırı aşılıp başlık ortasından kesilebiliyordu. Sabit " — MİMARLAB"
@@ -119,6 +133,42 @@ async function fetchFounderNames(env, officeName) {
     ).bind(officeName).all();
     return results.filter(r => r.name).map(r => ({ name: r.name, slug: r.slug || null }));
   } catch { return []; }
+}
+
+// SEO denetimi (2026-09-03, canlı Googlebot taraması): kişi ve firma profillerinin SSR gövdesi
+// SADECE firma↔kurucu bağını taşıyordu — bir mimarın/ofisin KENDİ PROJELERİNE tek bir crawlable
+// bağlantısı yoktu. Sonuç: 1.697 proje sayfası crawl grafiğinde YETİM kalıyor, Google'a yalnızca
+// sitemap üzerinden ulaşıyor; entity ilişkisi (Person→CreativeWork, Organization→CreativeWork)
+// hiçbir yerde HTML olarak ifade edilmiyordu. project_designers zaten bu kenarı taşıyor (2.832
+// satır; 463 mimar + 384 ofis proje bağı var), yani üretilen her bağlantı GERÇEK bir D1 ilişkisidir
+// — uydurma/tahmini link yoktur.
+//
+// hidden_at/deleted_at filtresi ZORUNLU: arşivlenmiş projeler canlıda 410 döner (bkz. 2026-09-03
+// manifest düzeltmesi), sitemap'te de yoklar — profilden onlara link vermek Google'a 410'a giden
+// ölü bağlantı sunardı.
+const RELATED_PROJECT_LIMIT = 12;
+async function fetchDesignerProjects(env, { architectId = null, officeId = null }) {
+  if (!env || !env.DB) return [];
+  const id = architectId || officeId;
+  if (!id) return [];
+  // Kolon adı sabit iki değerden biri (kullanıcı girdisi DEĞİL) — id her zaman bind edilir.
+  const column = architectId ? 'architect_id' : 'office_id';
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT DISTINCT p.slug, p.title FROM project_designers pd
+       JOIN projects p ON p.id = pd.project_id
+       WHERE pd.${column} = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+         AND p.slug IS NOT NULL AND p.slug != '' AND p.title IS NOT NULL AND p.title != ''
+       ORDER BY COALESCE(p.project_date, '') DESC, p.title
+       LIMIT ${RELATED_PROJECT_LIMIT}`
+    ).bind(id).all();
+    return (results || []).map(r => ({ slug: r.slug, title: r.title }));
+  } catch { return []; }
+}
+
+function projectLinksHtml(projects) {
+  if (!projects || !projects.length) return null;
+  return projects.map(p => internalLink(`/proje/${encodeURIComponent(p.slug)}`, p.title)).join(', ');
 }
 
 // D1 canonical tablolardan tekil mimar/firma kaydı bulma — src/routes/architect.js#findArchitect/
@@ -215,11 +265,25 @@ async function findProductRow(env, key) {
 // URL'den kendi kendine canonical olur (duplicate content). officeSlug de aynı gerekçeyle GERÇEK
 // o.slug'tır; eşleşen bir ofis kaydı yoksa (ör. serbest metin ofis adı) slugify(officeName) fallback'ine
 // düşer — önceki (tek) davranışla aynı, yalnızca gerçek bir eşleşme varken daha doğru URL üretir.
-function architectMetaFromRecord(a, officeName, slug, officeSlug) {
+function architectMetaFromRecord(a, officeName, slug, officeSlug, projects = []) {
   const title = pageTitle(a.name);
-  const description = officeName
-    ? `${a.name}, ${officeName} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır. MİMARLAB'da profilini incele.`
-    : `${a.name} — MİMARLAB'da mimar profilini incele.`;
+  // SEO denetimi (2026-09-03): 953 kişi kaydının 767'sinde (%80) `about` boş ve bu kayıtlar meta
+  // description olarak yalnızca "<ad> — MİMARLAB'da mimar profilini incele." şablonunu alıyordu.
+  // 140 sayfalık canlı örneklemde 60 karakterin altında kalan 15 açıklamanın TAMAMI bu şablondu.
+  // (Ölçüm notu: bunlar teknik olarak DUPLICATE DEĞİL — ad her sayfada farklı; örneklemde birebir
+  // duplicate description sayısı sıfır. Sorun benzersizlik değil, açıklamanın arama sonucunda
+  // hiçbir bilgi taşımaması.) Artık kişinin GERÇEK projelerinden (fetchDesignerProjects) örnek
+  // başlıklar eklenir — uydurma değil, arama niyetiyle ("<mimar> projeleri") doğrudan örtüşen
+  // içerik. Projesi olmayan kayıtlarda eski şablon aynen korunur.
+  const sampleTitles = (projects || []).slice(0, 3).map(p => p.title).filter(Boolean);
+  const baseDescription = officeName
+    ? `${a.name}, ${officeName} bünyesinde ${a.role || 'mimar'} olarak görev yapmaktadır.`
+    : `${a.name} — ${a.role || 'mimar'}.`;
+  const description = truncate(
+    sampleTitles.length
+      ? `${baseDescription} MİMARLAB'da projeleri: ${sampleTitles.join(', ')}.`
+      : `${baseDescription} MİMARLAB'da profilini incele.`,
+    200);
   const canonicalUrl = `${SITE_ORIGIN}/kisi/${encodeURIComponent(slug)}`;
   const photoUrl = a.photo ? absoluteUrl(a.photo) : null;
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Person', name: a.name, url: canonicalUrl };
@@ -239,6 +303,7 @@ function architectMetaFromRecord(a, officeName, slug, officeSlug) {
       ['Firma', officeLink],
       ['Okul', a.school ? escapeHtml(a.school) : null],
       ['Bölüm', a.dept ? escapeHtml(a.dept) : null],
+      ['Projeler', projectLinksHtml(projects)],
     ]),
   ].filter(Boolean).join('');
   return { title, h1: a.name, description, canonicalUrl, image: photoUrl || DEFAULT_IMAGE, jsonLd, breadcrumbJsonLd: breadcrumbJsonLd('architect', a.name, canonicalUrl), bodyHtml, bodyImage: photoUrl, bodyImageAlt: a.name };
@@ -248,14 +313,14 @@ async function buildArchitectMeta(slug, env) {
   const row = await findArchitectRow(env, slug);
   if (!row) return null;
   const a = parseCanonicalRow('architects', row);
-  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept, about: a.about }, row.office_name || null, row.slug, row.office_slug || null);
+  const projects = await fetchDesignerProjects(env, { architectId: row.id });
+  return architectMetaFromRecord({ name: a.name, role: a.position, photo: a.photo_url, school: a.school, dept: a.dept, about: a.about }, row.office_name || null, row.slug, row.office_slug || null, projects);
 }
 
 // architectMetaFromRecord ile AYNI paylaşım deseni — canonical D1 offices satırı ortak şekle
 // ({name, about, yil, loc, logo, website}) indirgenip tek fonksiyondan geçirilir.
 async function officeMetaFromRecord(o, slug, env) {
   const title = pageTitle(o.name);
-  const description = o.about ? truncate(o.about, 200) : `${o.name} — MİMARLAB'da firma profilini incele.`;
   const canonicalUrl = `${SITE_ORIGIN}/firma/${encodeURIComponent(slug)}`;
   const logoUrl = o.logo ? absoluteUrl(o.logo) : null;
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Organization', name: o.name, url: canonicalUrl };
@@ -265,7 +330,24 @@ async function officeMetaFromRecord(o, slug, env) {
   if (logoUrl) jsonLd.logo = logoUrl;
   const site = safeHttpUrl(o.website);
   if (site) jsonLd.sameAs = [site];
-  const founders = await fetchFounderNames(env, o.name);
+  // İki bağımsız okuma tek turda — kurucular ve firmanın projeleri birbirini beklemesin (bkz.
+  // findArchitectRow'daki AYNI "N+1/sıralı round-trip açma" gerekçesi).
+  const [founders, projects] = await Promise.all([
+    fetchFounderNames(env, o.name),
+    fetchDesignerProjects(env, { officeId: o.id }),
+  ]);
+  // description, projects'e bağlı olduğu için BURADA (Promise.all'dan sonra) hesaplanır — bkz.
+  // architectMetaFromRecord'daki AYNI duplicate-description gerekçesi. `about` dolu olan 736
+  // firmanın 661'inde eski davranış birebir korunur; yalnızca about'suz 75 kayıt gerçek proje
+  // başlıklarıyla benzersizleşir.
+  const officeSamples = projects.slice(0, 3).map(p => p.title).filter(Boolean);
+  const officeBase = [o.name, o.loc || null, o.yil ? `${o.yil} kuruluşlu` : null].filter(Boolean).join(' — ');
+  const description = truncate(
+    meaningfulText(o.about)
+      || (officeSamples.length
+        ? `${officeBase}. MİMARLAB'da projeleri: ${officeSamples.join(', ')}.`
+        : `${officeBase}. MİMARLAB'da firma profilini incele.`),
+    200);
   if (founders.length) {
     // founder.slug — bulunan kurucunun GERÇEK a.slug'ı (bkz. fetchFounderNames); eşleşen bir
     // architects satırı yoksa (teoride olmaz, join zaten architects üzerinden geliyor) slugify(name)
@@ -282,6 +364,7 @@ async function officeMetaFromRecord(o, slug, env) {
       ['Kurucular', foundersHtml],
       ['Kuruluş Yılı', o.yil ? escapeHtml(String(o.yil)) : null],
       ['Konum', o.loc ? escapeHtml(o.loc) : null],
+      ['Projeler', projectLinksHtml(projects)],
       ['Website', site ? `<a href="${escapeHtml(site)}" rel="nofollow noopener" target="_blank">${escapeHtml(site.replace(/^https?:\/\//, ''))}</a>` : null],
     ]),
   ].filter(Boolean).join('');
@@ -294,7 +377,7 @@ async function buildOfficeMeta(slug, env) {
   const row = await findOfficeRow(env, slug);
   if (!row) return null;
   const o = parseCanonicalRow('offices', row);
-  return officeMetaFromRecord({ name: o.name, about: o.about, yil: o.yil, loc: o.loc, logo: o.logo_url, website: o.website }, row.slug, env);
+  return officeMetaFromRecord({ id: row.id, name: o.name, about: o.about, yil: o.yil, loc: o.loc, logo: o.logo_url, website: o.website }, row.slug, env);
 }
 
 async function buildProjectMeta(slug, env) {
@@ -302,8 +385,6 @@ async function buildProjectMeta(slug, env) {
   if (!row) return null;
   const p = parseCanonicalRow('projects', row);
   const title = pageTitle(p.title);
-  const rawDesc = p.description || `${p.title}${p.location ? ' — ' + p.location : ''}. MİMARLAB'da proje detaylarını incele.`;
-  const description = truncate(rawDesc, 200);
   // Proje (eski "Yapı") tek URL öneki: /proje/:slug (bkz. kullanıcı isteği: Yapı sayfası Proje
   // adını aldı, eski konsept "Proje" kategorisi tamamen kaldırıldı — artık tek kategori var).
   const canonicalUrl = `${SITE_ORIGIN}/proje/${encodeURIComponent(p.slug)}`;
@@ -347,8 +428,23 @@ async function buildProjectMeta(slug, env) {
     ...officeNames.map((name, i) => officeSlugs[i] ? internalLink(`/firma/${encodeURIComponent(officeSlugs[i])}`, name) : escapeHtml(name)),
   ].join(', ') || null;
   const typeLabel = [...(p.category || []), ...(p.type || [])].join(', ') || null;
+  // description, künye alanlarına (designerNames/typeLabel) bağlı olduğu için BURADA hesaplanır.
+  // p.description yalnızca ANLAMLI uzunluktaysa kullanılır (bkz. meaningfulText — projelerde bu
+  // durumda olan 1 kayıt var). Asıl kazanç, description'ı HİÇ olmayan projelerin eski jenerik
+  // metin yerine gerçek künye verisi taşıması: konum, yıl, tür ve mimar/firma adları.
+  const designerNames = [...namesFromConcat(row.architect_names), ...namesFromConcat(row.office_names)];
+  const generatedProjectDesc = [
+    `${p.title}${p.location ? ' — ' + p.location : ''}${p.project_date ? ' (' + p.project_date + ')' : ''}.`,
+    typeLabel ? `${typeLabel}.` : '',
+    designerNames.length ? `${designerNames.slice(0, 3).join(', ')} imzalı.` : '',
+    'MİMARLAB\'da proje detaylarını incele.',
+  ].filter(Boolean).join(' ');
+  const rawDesc = meaningfulText(p.description) || generatedProjectDesc;
+  const description = truncate(rawDesc, 200);
   const bodyHtml = [
-    `<p>${escapeHtml(rawDesc)}</p>`,
+    // Görünür gövde metni HER ZAMAN kaydın kendi açıklamasını (kısa olsa da) tercih eder — eşik
+    // yalnızca meta description içindir, sayfadaki içeriği sansürlemez.
+    `<p>${escapeHtml(p.description || generatedProjectDesc)}</p>`,
     factsListHtml([
       ['Mimar / Firma', designerLinksHtml],
       ['Konum', p.location ? escapeHtml(p.location) : null],
@@ -364,7 +460,15 @@ async function buildProjectMeta(slug, env) {
 // material_submissions satırları (bkz. buildProductMeta) aynı şekli taşıdığından paylaşılabilir.
 function productMetaFromRecord(record, canonicalUrl) {
   const title = pageTitle(record.title);
-  const rawDesc = record.description || `${record.title}${record.brand ? ' — ' + record.brand : ''}. MİMARLAB'da ürün detaylarını incele.`;
+  // bkz. meaningfulText. Ürünlerde şu an 60 karakterin altında kayıt YOK (D1'de sayıldı) — eşik
+  // burada koruyucu, asıl kazanç description'ı hiç olmayan kayıtların artık marka + kategori
+  // taşıyan bir metin almasıdır.
+  const generatedProductDesc = [
+    `${record.title}${record.brand ? ' — ' + record.brand : ''}.`,
+    record.category ? `${record.category} kategorisinde.` : '',
+    'MİMARLAB\'da ürün detaylarını, teknik bilgilerini ve kullanıldığı projeleri incele.',
+  ].filter(Boolean).join(' ');
+  const rawDesc = meaningfulText(record.description) || generatedProductDesc;
   const description = truncate(rawDesc, 200);
   const images = (record.images || []).map(absoluteUrl).filter(Boolean);
   const jsonLd = { '@context': 'https://schema.org', '@type': 'Product', name: record.title, url: canonicalUrl };
@@ -531,6 +635,73 @@ export async function buildMeta(type, slugOrId, env) {
 // eklenecek statik bir kaynak kalmadı.
 export function listEntityUrls() {
   return [];
+}
+
+// SEO denetimi (2026-09-03): /proje, /kisi, /firma, /urun listeleme sayfalarının ham HTML'i
+// (Googlebot User-Agent'ıyla doğrulandı) TEK BİR entity bağlantısı içermiyordu — kartlar tamamen
+// client-side, /api/* uçlarından dolduruluyor. Yani 1.697 proje + 954 kişi + 737 firma + 189 ürün
+// sayfasının HİÇBİRİNE siteden crawlable bir yol yoktu; Google'a yalnızca sitemap üzerinden
+// ulaşıyorlardı. Sitemap indexlemeyi mümkün kılar ama site içi bağlantı grafiğinin taşıdığı
+// sinyalleri (bağlam, konu kümesi, önem) taşımaz.
+//
+// Bu dizin bloğu ızgaradan SONRA, footer'dan ÖNCE enjekte edilir (bkz. src/index.js#injectListIndex)
+// ve GÖRÜNÜRDÜR — gizli link/cloaking değildir, JS'siz ziyaretçi için de gerçek bir gezinme aracıdır.
+// Seçki ile sınırlıdır: tüm kayıtları dökmek footer'ı link çöplüğüne çevirir (Google'ın "site-wide
+// footer link" kalıbı olarak değersizleştirdiği desen). Kalan kayıtlar sitemap + entity grafiği
+// (kişi/firma profillerindeki 'Projeler' satırı, bkz. fetchDesignerProjects) üzerinden erişilir.
+const LIST_INDEX_LIMIT = 60;
+const LIST_INDEX_CONFIG = {
+  '/proje': {
+    heading: 'Projelerden bir seçki', prefix: '/proje',
+    sql: `SELECT slug, title AS label FROM projects
+          WHERE deleted_at IS NULL AND hidden_at IS NULL AND slug IS NOT NULL AND slug != ''
+            AND title IS NOT NULL AND title != ''
+          ORDER BY COALESCE(project_date, '') DESC, title LIMIT ${LIST_INDEX_LIMIT}`,
+  },
+  '/kisi': {
+    heading: 'Kişilerden bir seçki', prefix: '/kisi',
+    sql: `SELECT slug, name AS label FROM architects
+          WHERE deleted_at IS NULL AND hidden_at IS NULL AND slug IS NOT NULL AND slug != ''
+            AND name IS NOT NULL AND name != ''
+          ORDER BY name LIMIT ${LIST_INDEX_LIMIT}`,
+  },
+  '/firma': {
+    heading: 'Firmalardan bir seçki', prefix: '/firma',
+    sql: `SELECT slug, name AS label FROM offices
+          WHERE deleted_at IS NULL AND hidden_at IS NULL AND slug IS NOT NULL AND slug != ''
+            AND name IS NOT NULL AND name != ''
+          ORDER BY name LIMIT ${LIST_INDEX_LIMIT}`,
+  },
+  '/urun': {
+    heading: 'Ürünlerden bir seçki', prefix: '/urun',
+    sql: `SELECT slug, title AS label FROM products
+          WHERE deleted_at IS NULL AND hidden_at IS NULL AND slug IS NOT NULL AND slug != ''
+            AND title IS NOT NULL AND title != ''
+          ORDER BY title LIMIT ${LIST_INDEX_LIMIT}`,
+  },
+};
+
+export function isListIndexPath(pathname) {
+  return Object.prototype.hasOwnProperty.call(LIST_INDEX_CONFIG, pathname);
+}
+
+// Hata durumunda '' döner — dizin bloğu bir EK'tir, üretilemezse sayfa aynen eskisi gibi servis
+// edilmelidir (D1 sorunu yüzünden liste sayfası hiç açılmaması kabul edilemez).
+export async function buildListIndexHtml(pathname, env) {
+  const cfg = LIST_INDEX_CONFIG[pathname];
+  if (!cfg || !env || !env.DB) return '';
+  try {
+    const { results } = await env.DB.prepare(cfg.sql).all();
+    const rows = (results || []).filter(r => r.slug && r.label);
+    if (!rows.length) return '';
+    const items = rows
+      .map(r => `<li>${internalLink(`${cfg.prefix}/${encodeURIComponent(r.slug)}`, r.label)}</li>`)
+      .join('');
+    return `<nav class="ssr-index" aria-label="${escapeHtml(cfg.heading)}">`
+      + `<h2>${escapeHtml(cfg.heading)}</h2><ul>${items}</ul></nav>`;
+  } catch {
+    return '';
+  }
 }
 
 // type -> tablo adı + eşleşme sütunları. architects/offices name/slug/legacy_key alias'larının
