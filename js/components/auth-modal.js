@@ -1620,6 +1620,9 @@ const AuthModal = (function () {
   let amDropdownCloseWired = false;
 
   function mountAccount() {
+    // Kaydet'e basılana kadar bellekte tutulan profil fotoğrafı (bkz. am-avatar-file-input).
+    let pendingAvatarFile = null;
+    let pendingAvatarUrl = null;
     const wired = new Set();
     function on(id, evt, fn) {
       const key = id + ':' + evt;
@@ -2144,7 +2147,9 @@ const AuthModal = (function () {
         // durumda başarısız oluyor, yani fotoğrafı olan kullanıcı da profilini yayımlayamıyordu.
         // Aynı dosyadaki diğer iki kullanım (renderAvatar, mimar senkronizasyonu) zaten doğru
         // camelCase okuyordu — yalnızca bu satır sapmıştı.
-        if (!((accountUser && accountUser.photoUrl) || '')) eksik.push('Profil Fotoğrafı');
+        // Bu turda seçilmiş ama henüz yüklenmemiş bir fotoğraf da "var" sayılır — aksi halde ilk kez
+        // fotoğraf seçen kullanıcı, fotoğrafı ekranda görmesine rağmen zorunlu alan uyarısı alırdı.
+        if (!((accountUser && accountUser.photoUrl) || '') && !pendingAvatarFile) eksik.push('Profil Fotoğrafı');
         if (eksik.length) {
           msg.textContent = 'Kişi sayfasında yayımlanmak için şu alanlar zorunlu: ' + eksik.join(', ') + '.';
           return;
@@ -2152,11 +2157,32 @@ const AuthModal = (function () {
       }
       btn.disabled = true;
       try {
+        // Bekleyen profil fotoğrafı VARSA önce R2'ye yüklenir, dönen URL profil yazımına eklenir —
+        // böylece fotoğraf ve diğer alanlar TEK Kaydet'te birlikte kalıcılaşır.
+        const patch = { name, dob, school, profession, position, awards, about, social_links: socialLinks };
+        if (pendingAvatarFile) {
+          msg.textContent = 'Fotoğraf yükleniyor…';
+          try {
+            const blob = await resizeImageFile(pendingAvatarFile, 480, 0.82);
+            const fd = new FormData();
+            fd.append('file', blob, 'avatar.jpg');
+            const up = await fetch('/api/uploads', { method: 'POST', body: fd });
+            const upData = await up.json();
+            if (!up.ok) throw new Error(upData.error || 'Yükleme başarısız.');
+            patch.photo_url = upData.url;
+          } catch (err) {
+            msg.textContent = err.message || 'Fotoğraf yüklenemedi, tekrar dene.';
+            return;
+          }
+        }
         const res = await fetch('/api/profile', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, dob, school, profession, position, awards, about, social_links: socialLinks }),
+          body: JSON.stringify(patch),
         });
         if (!res.ok) { msg.textContent = 'Kaydedilemedi, tekrar dene.'; return; }
+        // Kayıt başarılı — bekleyen dosya tüketildi.
+        if (pendingAvatarUrl) { URL.revokeObjectURL(pendingAvatarUrl); pendingAvatarUrl = null; }
+        pendingAvatarFile = null;
         const claimSubmitted = await submitFirmaClaimIfChanged();
         await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
 
@@ -2179,36 +2205,28 @@ const AuthModal = (function () {
 
     on('am-avatar-upload-btn', 'click', () => document.getElementById('am-avatar-file-input').click());
     on('am-avatar-file-input', 'change', async (e) => {
-      let file = e.target.files[0];
-      if (!file) return;
+      const picked = e.target.files[0];
+      e.target.value = '';                 // aynı dosya tekrar seçilebilsin
+      if (!picked) return;
       const hint = document.getElementById('am-avatar-upload-hint');
-      // Kullanıcı isteği (2026-09-02 madde 2): profil fotoğrafı 1:1 kırpılır. Kullanıcı kırpmazsa
-      // ImageCrop görseli ortadan kare kırpar, yani avatar her durumda kare olur.
-      // ImageCrop yüklenmemişse akış eskisi gibi ham dosyayla devam eder — fotoğraf yükleyememek,
-      // kırpılmamış bir fotoğraf yüklemekten kötüdür.
+      // 1:1 kadraj ZORUNLU (kullanıcı isteği, 2026-09-03). Vazgeçilirse hiçbir şey değişmez.
+      let file = picked;
       if (window.ImageCrop) {
-        try { file = await ImageCrop.open(file, { title: 'Profil fotoğrafını kırp' }); }
-        catch (err) { /* ham dosyayla devam */ }
+        try { file = await ImageCrop.open(picked, { title: 'Profil fotoğrafını kırp' }); }
+        catch (err) { file = picked; }
+        if (!file) { hint.textContent = 'Fotoğraf değiştirilmedi.'; return; }
       }
-      hint.textContent = 'Yükleniyor…';
-      try {
-        const blob = await resizeImageFile(file, 480, 0.82);
-        const form = new FormData();
-        form.append('file', blob, 'avatar.jpg');
-        const uploadRes = await fetch('/api/uploads', { method: 'POST', body: form });
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) throw new Error(uploadData.error || 'Yükleme başarısız.');
-        const profileRes = await fetch('/api/profile', {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ photo_url: uploadData.url }),
-        });
-        if (!profileRes.ok) throw new Error('Profil güncellenemedi.');
-        hint.textContent = `JPEG/PNG/WEBP, otomatik küçültülür (~150KB). Yaklaşık boyut: ${Math.round(blob.size / 1024)} KB.`;
-        await loadUser();
-      } catch (err) {
-        hint.textContent = err.message || 'Fotoğraf yüklenemedi, tekrar dene.';
-      }
-      e.target.value = '';
+      // KULLANICI BİLDİRİMİ (2026-09-03): fotoğraf, Kaydet'e basılmadan kendiliğinden
+      // kaydediliyordu — burada eskiden doğrudan /api/uploads + PATCH /api/profile çağrılıyordu.
+      // Artık dosya yalnızca BELLEKTE tutulup önizleniyor; gerçek yükleme ve kayıt Kaydet'te
+      // yapılıyor (bkz. am-dash-save-btn). Yüklemeyi de ertelemek bilinçli: kullanıcı vazgeçerse
+      // R2'de öksüz bir dosya kalmaz.
+      pendingAvatarFile = file;
+      if (pendingAvatarUrl) URL.revokeObjectURL(pendingAvatarUrl);
+      pendingAvatarUrl = URL.createObjectURL(file);
+      const prev = document.getElementById('am-avatar-preview');
+      if (prev) prev.innerHTML = `<img src="${escapeAttr(pendingAvatarUrl)}" alt="">`;
+      hint.textContent = 'Önizleme — Kaydet\'e bastığında yüklenecek.';
     });
 
     async function loadBadges() {

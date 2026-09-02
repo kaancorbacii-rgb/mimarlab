@@ -802,7 +802,14 @@ function renderPreviews(){
 async function addFiles(fileList){
   const picked = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0,1);
   if(picked.length && window.ImageCrop){
-    try{ picked[0] = await ImageCrop.open(picked[0], { title: 'Profil fotoğrafını kırp' }); }catch(e){ /* ham dosyayla devam */ }
+    var cropped = null;
+    try{ cropped = await ImageCrop.open(picked[0], { title: 'Profil fotoğrafını kırp' }); }
+    catch(e){ cropped = picked[0]; }   /* bileşen hata verdiyse ham dosyayla devam */
+    /* Kullanıcı VAZGEÇTİYSE (null) hiçbir şey seçilmemiş sayılır — kırpılmamış görsel kabul
+       edilmez (kullanıcı isteği 2026-09-03: 1:1 kadraj zorunlu). Dosya girdisi de temizlenir ki
+       kullanıcı AYNI dosyayı tekrar seçtiğinde 'change' olayı yeniden tetiklensin. */
+    if(!cropped){ fileInput.value = ''; return; }
+    picked[0] = cropped;
   }
   selectedFiles = picked;
   renderPreviews();

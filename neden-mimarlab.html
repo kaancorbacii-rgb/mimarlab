@@ -425,42 +425,53 @@
     border-radius:50%; background:var(--accent,#E08A3E);}
   .nm-mfg-media .nm-tag-stage{aspect-ratio:4/3;}
 
-  /* Firma popup ÖNİZLEMESİ — sitedeki gerçek firma popup'ının (js/components/office-modal.js)
-     iki sütunlu düzenini birebir yansıtır: solda künye, sağda Kurucular/Ortaklar + Projeler.
-     Kullanıcı isteği (2026-09-03): önizleme, gerçek popup neye benziyorsa ona benzesin.
-     İçerik CANLI (/api/office/:slug) — tek çağrı hem künyeyi hem kurucuları hem projeleri verir. */
-  .nm-pop{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--paper-card);
+  /* Firma popup ÖNİZLEMESİ — sitedeki gerçek popup'ın (js/components/office-modal.js) düzenini
+     yansıtır: sol sütunda X/Paylaş/Takip Et çerçevesi, dikey kimlik (logo üstte, ad altında),
+     ikonlu künye satırları, kısaltılmış açıklama ve iki akordeon satırı; sağ sütunda
+     "Kurucular / Ortaklar" kartları ile yatay "Projeler (N)" şeridi.
+     İçerik CANLI (/api/office/:slug) — tek çağrı item + founders + relatedProjects döndürür. */
+  .nm-pop{border:1px solid var(--line); border-radius:18px; overflow:hidden; background:var(--paper-card);
     box-shadow:0 18px 50px rgba(15,19,26,.18);}
-  .nm-pop-body{display:grid; grid-template-columns:minmax(0,0.82fr) minmax(0,1.18fr); min-height:260px;}
+  .nm-pop-body{display:grid; grid-template-columns:minmax(0,0.78fr) minmax(0,1.22fr); min-height:280px;}
   @media (max-width:700px){ .nm-pop-body{grid-template-columns:1fr;} }
-  .nm-pop-left{padding:18px; border-right:1px solid var(--line);}
+  .nm-pop-left{padding:16px; border-right:1px solid var(--line);}
   @media (max-width:700px){ .nm-pop-left{border-right:none; border-bottom:1px solid var(--line);} }
-  .nm-pop-idrow{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
-  .nm-pop-logo{width:44px; height:44px; border-radius:50%; flex:0 0 auto; overflow:hidden;
+  .nm-pop-chrome{display:flex; align-items:center; gap:7px; margin-bottom:14px;}
+  .nm-pop-cbtn{width:26px; height:26px; border-radius:50%; border:1px solid var(--line);
+    background:var(--paper); display:flex; align-items:center; justify-content:center; color:var(--ink-soft);}
+  .nm-pop-cbtn svg{width:12px; height:12px;}
+  .nm-pop-follow{margin-left:2px; padding:5px 12px; border-radius:100px; border:1px solid var(--line);
+    background:var(--paper); font-size:11px; font-weight:600; color:var(--ink);}
+  .nm-pop-logo{width:46px; height:46px; border-radius:50%; overflow:hidden; margin-bottom:8px;
     border:1px solid var(--line); background:var(--paper); display:flex; align-items:center; justify-content:center;}
-  .nm-pop-logo img{width:100%; height:100%; object-fit:contain; padding:5px; box-sizing:border-box;}
-  .nm-pop-name{font-size:15px; font-weight:700; line-height:1.2; margin:0;}
-  .nm-pop-links{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; font-size:11.5px; color:var(--ink-soft);}
-  .nm-pop-facts{list-style:none; margin:0 0 10px; padding:0;}
-  .nm-pop-facts li{font-size:11.5px; color:var(--ink-soft); padding:3px 0; line-height:1.4;}
+  .nm-pop-logo img{width:100%; height:100%; object-fit:contain; padding:6px; box-sizing:border-box;}
+  .nm-pop-name{font-size:16px; font-weight:700; line-height:1.2; margin:0 0 9px;}
+  .nm-pop-links{display:flex; flex-wrap:wrap; gap:9px; margin-bottom:11px; font-size:11px; color:var(--ink-soft);}
+  .nm-pop-facts{list-style:none; margin:0 0 11px; padding:0;}
+  .nm-pop-facts li{display:flex; gap:6px; font-size:11px; color:var(--ink-soft); padding:2.5px 0; line-height:1.4;}
+  .nm-pop-facts svg{width:12px; height:12px; flex:0 0 auto; margin-top:2px; color:var(--ink-soft);}
   .nm-pop-facts b{color:var(--ink); font-weight:600;}
-  .nm-pop-about{font-size:11.5px; line-height:1.55; color:var(--ink-soft); margin:0;
-    display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;}
-  .nm-pop-right{padding:18px; min-width:0;}
-  .nm-pop-h{font-size:12px; font-weight:700; margin:0 0 9px;}
-  .nm-pop-h + .nm-pop-h{margin-top:16px;}
-  .nm-pop-people{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
-  .nm-pop-person{border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--paper); color:inherit;}
+  .nm-pop-about{font-size:11px; line-height:1.55; color:var(--ink-soft); margin:0 0 12px;
+    display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical; overflow:hidden;}
+  .nm-pop-acc{border:1px solid var(--line); border-radius:9px; background:var(--paper);
+    padding:9px 11px; font-size:11.5px; font-weight:600; display:flex; justify-content:space-between; margin-top:7px;}
+  .nm-pop-acc span:last-child{color:var(--ink-soft); font-weight:400;}
+  .nm-pop-right{padding:16px; min-width:0;}
+  .nm-pop-h{font-size:12.5px; font-weight:700; margin:0 0 9px;}
+  .nm-pop-sep{height:1px; background:var(--line); margin:16px 0 14px;}
+  .nm-pop-people{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; max-width:340px;}
+  .nm-pop-person{border:1px solid var(--line); border-radius:11px; overflow:hidden; background:var(--paper);}
   .nm-pop-person img{width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:var(--paper-alt);}
-  .nm-pop-person div{padding:6px 8px;}
+  .nm-pop-person div{padding:7px 9px;}
   .nm-pop-person b{display:block; font-size:11.5px; line-height:1.2;}
   .nm-pop-person span{font-size:10.5px; color:var(--ink-soft);}
-  /* Projeler: gerçek popup'taki gibi YATAY şerit (bkz. .related-grid-scroll). */
-  .nm-pop-projects{display:flex; gap:9px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin;}
-  .nm-pop-proj{flex:0 0 108px; color:inherit;}
-  .nm-pop-proj img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; display:block; background:var(--paper-alt);}
-  .nm-pop-proj span{display:block; font-size:10.5px; margin-top:5px; line-height:1.25; color:var(--ink-soft);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* Projeler: gerçek popup'taki gibi YATAY şerit, beyaz kartlar (bkz. .related-grid-scroll). */
+  .nm-pop-projects{display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin;}
+  .nm-pop-proj{flex:0 0 118px; color:inherit; border:1px solid var(--line); border-radius:11px;
+    overflow:hidden; background:var(--paper);}
+  .nm-pop-proj img{width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:var(--paper-alt);}
+  .nm-pop-proj span{display:block; font-size:10.5px; padding:7px 8px 9px; line-height:1.3; font-weight:600;
+    color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
@@ -605,9 +616,14 @@
         <a class="btn btn-ghost" href="/urun-ekle">Ürün Ekle</a>
       </div>
       <div class="nm-mfg-media">
+        <!-- KULLANICI BİLDİRİMİ (2026-09-03): burada sayfanın EN ÜSTÜNDEKİ işaretçi bölümüyle
+             AYNI görsel kullanılıyordu, yani aynı kare iki kez görünüyordu. Artık farklı bir
+             örnek proje karesi. Kullanıcı "dinamik olmasına gerek yok" dediği için görsel
+             sabittir; bu yüzden koordinata bağlı işaretçi noktaları da KALDIRILDI — başka bir
+             görsele başka bir projenin koordinatlarını basmak yanlış yerde nokta gösterirdi. -->
         <div class="nm-tag-stage" id="nm-mfg-stage">
-          <img id="nm-mfg-img" alt="" decoding="async">
-          <div id="nm-mfg-dots"></div>
+          <img id="nm-mfg-img" src="https://mimarlab.com/media/projects/decovita-etiler-showroom-2.webp"
+               alt="Decovita Etiler Showroom" decoding="async" loading="lazy">
         </div>
         <p class="nm-note" id="nm-mfg-caption"></p>
       </div>
@@ -918,56 +934,29 @@
   })();
 
 
-  /* ---------- Üretici bölümü: AYNI canlı işaretçi kaydından, marka odaklı anlatım ----------
-     Görsel ve ürünler /api/project/...'ten gelir. Buradaki liste ürün/marka ADLARINI veriden
-     yazar — sayfada elle yazılmış tek bir ürün adı yoktur. Kayıt yoksa bölüm kaldırılır. */
+  /* ---------- Üretici bölümü ----------
+     Görsel SABİT (kullanıcı isteği: dinamik olmasına gerek yok) ve sayfanın üstündekinden farklı
+     bir proje karesi. Marka listesi ise CANLI kalır: hangi markaların ürünü gerçekten bir projede
+     işaretlenmişse o yazılır — sayfada elle yazılmış marka adı yoktur. Veri gelmezse liste
+     gizlenir, bölümün geri kalanı (başlık, görsel, CTA) durur. */
   (function(){
-    var sec = document.getElementById('markalar-icin');
-    if(!sec) return;
-    function drop(){ sec.remove(); }
+    var list = document.getElementById('nm-mfg-list');
+    var cap  = document.getElementById('nm-mfg-caption');
+    if(cap) cap.textContent = 'Decovita Etiler Showroom · İstanbul (Beşiktaş)';
+    if(!list) return;
     fetch('/api/project/oyakkent-ornek-daire', { headers:{ 'Accept':'application/json' } })
       .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
       .then(function(d){
         var item = d.item || d, hs = item.imageHotspots || {};
-        var url = Object.keys(hs)[0], pts = url ? hs[url] : null;
-        if(!url || !pts || !pts.length) return drop();
-        var img = document.getElementById('nm-mfg-img');
-        img.src = url; img.alt = item.title || '';
-        var host = document.getElementById('nm-mfg-dots');
-        document.getElementById('nm-mfg-caption').textContent =
-          (item.title||'') + (item.location ? ' · ' + item.location : '');
-        /* Marka listesi: bu karede ürünü görünen markalar — tekilleştirilmiş. */
+        var url = Object.keys(hs)[0], pts = url ? hs[url] : [];
         var brands = [];
-        pts.forEach(function(p){ if(p.brand && brands.indexOf(p.brand)===-1) brands.push(p.brand); });
-        document.getElementById('nm-mfg-list').innerHTML = brands.map(function(b){
-          return '<li>' + escapeHtml(b) + ' — bu projede ürünü kullanıldı</li>';
+        (pts||[]).forEach(function(p){ if(p.brand && brands.indexOf(p.brand)===-1) brands.push(p.brand); });
+        if(!brands.length){ list.remove(); return; }
+        list.innerHTML = brands.map(function(b){
+          return '<li>' + escapeHtml(b) + ' — ürünü bir projede işaretlendi</li>';
         }).join('');
-        pts.forEach(function(p, i){
-          var dot = document.createElement('button');
-          dot.type='button'; dot.className='nm-dot';
-          dot.style.left=p.x+'%'; dot.style.top=p.y+'%';
-          dot.setAttribute('aria-label',(p.title||'Ürün'));
-          var card = document.createElement('a');
-          card.className='nm-tagcard';
-          card.href = p.slug ? '/urun/'+encodeURIComponent(p.slug) : '#';
-          card.style.left=p.x+'%'; card.style.top='calc('+p.y+'% + 18px)';
-          var im = p.image ? (typeof cdnImg==='function'?cdnImg(p.image,160):p.image) : '';
-          card.innerHTML=(im?'<img src="'+escapeHtml(im)+'" alt="" loading="lazy" onerror="this.remove()">':'')
-            + '<span><b>'+escapeHtml(p.title||'')+'</b><span>'+escapeHtml(p.brand||'')+'</span></span>';
-          if(p.x > 62) card.classList.add('flip');
-          function show(){
-            host.querySelectorAll('.nm-tagcard.open').forEach(function(c){ if(c!==card) c.classList.remove('open'); });
-            host.querySelectorAll('.nm-dot.is-open').forEach(function(x){ if(x!==dot) x.classList.remove('is-open'); });
-            card.classList.add('open'); dot.classList.add('is-open');
-          }
-          dot.addEventListener('mouseenter', show);
-          dot.addEventListener('focus', show);
-          dot.addEventListener('click', function(e){ e.preventDefault(); show(); });
-          host.appendChild(dot); host.appendChild(card);
-          if(i===1 || (pts.length===1 && i===0)) show();
-        });
       })
-      .catch(drop);
+      .catch(function(){ list.remove(); });
   })();
 
   /* ---------- Firma profili önizlemesi: CANLI (ekran görüntüsü DEĞİL) ----------
@@ -995,11 +984,18 @@
           return pl.charAt(0).toLocaleUpperCase('tr') + pl.slice(1);
         })).filter(Boolean);
 
+        var ICO = {
+          cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+          pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+          bag:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>'
+        };
+        var svg = function(d){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+          + 'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>'; };
         var facts = '';
-        if(o.yil)  facts += '<li><b>Kuruluş Yılı:</b> '+escapeHtml(String(o.yil))+'</li>';
-        if(o.loc)  facts += '<li><b>Konum:</b> '+escapeHtml(o.loc)+'</li>';
+        if(o.yil)  facts += '<li>'+svg(ICO.cal)+'<span><b>Kuruluş Yılı:</b> '+escapeHtml(String(o.yil))+'</span></li>';
+        if(o.loc)  facts += '<li>'+svg(ICO.pin)+'<span><b>Konum:</b> '+escapeHtml(o.loc)+'</span></li>';
         var cats = Array.isArray(o.cats) ? o.cats.join(' · ') : (o.cats || '');
-        if(cats)   facts += '<li><b>Hizmet Alanı:</b> '+escapeHtml(cats)+'</li>';
+        if(cats)   facts += '<li>'+svg(ICO.bag)+'<span><b>Hizmet Alanı:</b> '+escapeHtml(cats)+'</span></li>';
 
         /* /api/office/:slug'un founders kayıtları slug TAŞIMAZ (alanlar: name, role, photo, badges).
            Bu yüzden kart bir bağlantı DEĞİL düz bir kutudur — "/kisi/" gibi kırık bir adrese
@@ -1017,18 +1013,29 @@
             + '<span>'+escapeHtml(p.title||'')+'</span></a>';
         }).join('');
 
+        var ic = function(d){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+          + 'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>'; };
+        var chrome = '<div class="nm-pop-chrome">'
+          + '<span class="nm-pop-cbtn">'+ic('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')+'</span>'
+          + '<span class="nm-pop-cbtn">'+ic('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/>')+'</span>'
+          + '<span class="nm-pop-follow">Takip Et</span></div>';
+
         document.getElementById('nm-firm-body').innerHTML =
           '<div class="nm-pop-left">'
-          +   '<div class="nm-pop-idrow"><span class="nm-pop-logo">'+logo+'</span>'
-          +     '<p class="nm-pop-name">'+escapeHtml(o.name)+'</p></div>'
+          +   chrome
+          +   '<span class="nm-pop-logo">'+logo+'</span>'
+          +   '<p class="nm-pop-name">'+escapeHtml(o.name)+'</p>'
           +   (links.length ? '<div class="nm-pop-links">'
                 + links.map(function(t){ return '<span>'+escapeHtml(t)+'</span>'; }).join('')
                 + '</div>' : '')
           +   (facts ? '<ul class="nm-pop-facts">'+facts+'</ul>' : '')
           +   (o.about ? '<p class="nm-pop-about">'+escapeHtml(o.about)+'</p>' : '')
+          +   '<div class="nm-pop-acc"><span>Bu firma sana mı ait?</span><span>+</span></div>'
+          +   '<div class="nm-pop-acc"><span>Geri Bildirim</span><span>+</span></div>'
           + '</div>'
           + '<div class="nm-pop-right">'
           +   (peopleHtml ? '<p class="nm-pop-h">Kurucular / Ortaklar</p><div class="nm-pop-people">'+peopleHtml+'</div>' : '')
+          +   (peopleHtml && projHtml ? '<div class="nm-pop-sep"></div>' : '')
           +   (projHtml ? '<p class="nm-pop-h">Projeler ('+projects.length+')</p><div class="nm-pop-projects">'+projHtml+'</div>' : '')
           + '</div>';
       })

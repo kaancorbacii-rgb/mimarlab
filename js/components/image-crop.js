@@ -4,11 +4,13 @@
 // js/components/auth-modal.js (Hesabım > profil fotoğrafı). Marka KAPAK görseli bilinçli olarak
 // KAPSAM DIŞIDIR — o geniş/yatay bir bant, kare kırpmak onu bozardı.
 //
-// DAVRANIŞ (kullanıcı isteği):
-//   * Kullanıcı bir logo/fotoğraf seçtiğinde kırpma penceresi açılır, kare çerçeveyi sürükleyip
-//     yakınlaştırarak kadraj seçebilir.
-//   * Kullanıcı KIRPMAZSA (pencereyi kapatır/atlar) görsel yine de 1:1 olur: ortadan kare kırpılır.
-//     Yani "kırpma yok" durumu ham/çarpık bir görsel değil, makul bir varsayılan üretir.
+// DAVRANIŞ (kullanıcı isteği, 2026-09-03'te güncellendi):
+//   * Kullanıcı bir logo/fotoğraf seçtiğinde kırpma penceresi açılır ve kadrajı KENDİSİ seçer.
+//   * "Kırpmadan Kullan" seçeneği KALDIRILDI — 1:1 kadraj artık zorunlu. Vazgeçen kullanıcı için
+//     tek çıkış "Vazgeç"tir ve bu, dosyayı hiç almamak anlamına gelir (open() null döner);
+//     sessizce ortadan kırpılmış bir görsel YÜKLENMEZ.
+//   * centerSquare() yardımcı olarak DURUYOR (dışarıdan çağrılabilir) ama artık iptal yolunda
+//     otomatik uygulanmaz.
 //
 // TASARIM KARARI — neden ayrı bir dosya ve neden Promise: dört ayrı form (üçü HTML, biri modal
 // bileşeni) aynı davranışı istiyor. Her birine kopyalanmış bir kırpma UI'ı, bu depoda daha önce
@@ -90,8 +92,9 @@
     document.head.appendChild(el);
   }
 
-  // open(file) -> Promise<File>. HER ZAMAN bir File döner (kırpılmış ya da ortadan kare);
-  // çağıran tarafın "kullanıcı vazgeçti mi" diye ayrıca kontrol etmesi gerekmez.
+  // open(file) -> Promise<File|null>. Kırpılmış dosyayı döndürür; kullanıcı VAZGEÇERSE null
+  // döner ve çağıran taraf hiçbir şey almamalıdır (kullanıcı isteği: 1:1 kadraj zorunlu).
+  // Desteklenmeyen bir tür verilirse dosya olduğu gibi geri döner (kırpılamaz ama engellenmez).
   function open(file, opts) {
     if (!isCroppable(file)) return Promise.resolve(file);
     injectStyles();
@@ -107,7 +110,7 @@
         + '<div class="ic-stage"><canvas></canvas></div>'
         + '<div class="ic-zoom"><span>Yakınlaştır</span><input type="range" min="100" max="300" value="100" aria-label="Yakınlaştır"></div>'
         + '<div class="ic-actions">'
-        + '<button type="button" class="ic-btn ic-btn-ghost">Kırpmadan Kullan</button>'
+        + '<button type="button" class="ic-btn ic-btn-ghost">Vazgeç</button>'
         + '<button type="button" class="ic-btn ic-btn-primary">Kırp ve Kullan</button>'
         + '</div></div>';
       overlay.querySelector('.ic-title').textContent = title;
@@ -197,20 +200,27 @@
         resolve(f || file);
       }
 
-      async function skip() {
+      // Vazgeçme: dosya HİÇ alınmaz (null). Çağıran taraf bunu "kullanıcı seçimden vazgeçti"
+      // olarak yorumlar ve önizlemeye/yüklemeye bir şey koymaz. Eskiden burada ortadan kare
+      // kırpılıp yine de kabul ediliyordu; kullanıcı isteğiyle bu davranış kaldırıldı.
+      function cancel() {
         cleanup();
-        resolve(await centerSquare(file));   // kırpmayan kullanıcı da 1:1 alır
+        resolve(null);
       }
 
       overlay.querySelector('.ic-btn-primary').addEventListener('click', useCrop);
-      overlay.querySelector('.ic-btn-ghost').addEventListener('click', skip);
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) skip(); });
+      overlay.querySelector('.ic-btn-ghost').addEventListener('click', cancel);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) cancel(); });
       document.addEventListener('keydown', function esc(e) {
         if (e.key !== 'Escape' || !document.body.contains(overlay)) return;
         document.removeEventListener('keydown', esc);
-        skip();
+        cancel();
       });
-    })).catch(() => centerSquare(file));   // görsel açılamadıysa yine de kare üretmeyi dene
+    })).catch(function () {
+      // Görsel açılamadıysa kırpma yaptırılamaz; sessizce kırpılmamış bir dosya kabul etmek
+      // yerine null döndürülür (bkz. zorunlu 1:1 kuralı). Çağıran kullanıcıya bilgi verir.
+      return null;
+    });
   }
 
   window.ImageCrop = { open, centerSquare };
