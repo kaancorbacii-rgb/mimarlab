@@ -89,7 +89,7 @@ function buildPrompt() {
 JSON şeması:
 {
   "isArchitectural": boolean,
-  "spaceType": string|null,
+  "spaceTypes": string[],
   "discipline": string|null,
   "materials": string[],
   "products": [{"category": string, "confidence": number}],
@@ -98,7 +98,9 @@ JSON şeması:
 
 Kurallar:
 - "isArchitectural": fotoğraf bir yapı, iç mekan, cephe, kentsel mekan ya da bir mobilya/yapı ürünü gösteriyorsa true. İnsan portresi, manzara, gökyüzü, hayvan, yemek, belge gibi mimarlıkla ilgisiz fotoğraflarda false.
-- "spaceType": SADECE şu listeden BİRİ, emin değilsen null: ${SPACE_TYPES.join(', ')}
+- "spaceTypes": yapının İŞLEVİ için EN OLASI 1-3 seçenek, en olasısı BAŞTA. SADECE şu listeden: ${SPACE_TYPES.join(', ')}. Hiçbiri uymuyorsa boş dizi.
+- "Kentsel Tasarım" SADECE birden çok yapıyı kapsayan meydan/masterplan/kamusal açık alan fotoğraflarında kullanılır. TEK bir binanın dış cephesini görüyorsan Kentsel Tasarım DEME; binanın İŞLEVİNİ tahmin et (otel mi, okul mu, ofis mi, konut mu).
+- Dış cephe fotoğrafında işlevden emin olamıyorsan 2-3 aday yaz, tek bir tahminde ısrar etme.
 - "discipline": SADECE şunlardan biri, emin değilsen null: ${DISCIPLINES.join(', ')}
 - "materials": fotoğrafta AÇIKÇA görünen malzemeler, SADECE şu listeden: ${MATERIALS.join(', ')}
 - "products": fotoğrafta gördüğün TAŞINABİLİR ürünler. Kategori SADECE şu listeden olmalı: ${PRODUCT_CATEGORIES.join(', ')}
@@ -122,16 +124,27 @@ function parseJsonLoose(text) {
 // dönüşemez (brief 23: "AI kendi bilgisinden proje veya ürün uydurmamalı").
 export function normalizeVision(raw) {
   const out = {
-    isArchitectural: false, spaceType: null, discipline: null,
+    isArchitectural: false, spaceType: null, spaceTypes: [], discipline: null,
     materials: [], products: [], description: '',
     droppedProducts: [],   // gözlemlenebilirlik: neyin neden atıldığı
   };
   if (!raw || typeof raw !== 'object') return out;
 
   out.isArchitectural = raw.isArchitectural === true;
-  if (typeof raw.spaceType === 'string' && PROJECT_GROUP_OPTIONS.includes(raw.spaceType)) {
-    out.spaceType = raw.spaceType;
+  // GERÇEK BULGU (20 görsellik ölçüm, 2026-09-02): tek bir mekan türü istemek proje isabetini
+  // 5/11'de tıkıyordu. Kaçırmaların YARISI dış cephe fotoğraflarında "Kentsel Tasarım"a
+  // düşmekti (YKKS, Sosyal Sigortalar, Grand Tarabya) — model tek bir binanın cephesini
+  // kentsel ölçek sanıyor. Artık sıralı ADAY LİSTESİ isteniyor ve arama adayların HEPSİNDE
+  // yapılıyor; `spaceType` (ilk aday) geriye dönük uyumluluk için korunuyor.
+  const rawTypes = Array.isArray(raw.spaceTypes) ? raw.spaceTypes
+    : (typeof raw.spaceType === 'string' ? [raw.spaceType] : []);
+  for (const t of rawTypes) {
+    if (typeof t === 'string' && PROJECT_GROUP_OPTIONS.includes(t) && !out.spaceTypes.includes(t)) {
+      out.spaceTypes.push(t);
+    }
+    if (out.spaceTypes.length >= 3) break;
   }
+  out.spaceType = out.spaceTypes[0] || null;
   if (typeof raw.discipline === 'string' && DISCIPLINES.includes(raw.discipline)) {
     out.discipline = raw.discipline;
   }

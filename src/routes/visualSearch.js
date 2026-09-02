@@ -71,7 +71,10 @@ async function sha256Hex(bytes) {
 // ---------------------------------------------------------------------------------------------
 function projectPlanFromVision(vision) {
   const plan = emptyPlan();
-  if (vision.spaceType) plan.type = [vision.spaceType];
+  // Adayların HEPSİ aranır (bkz. visionAnalyze.js#normalizeVision'daki ölçüm notu). searchEngine
+  // plan.type'ı zaten "bunlardan HERHANGİ biri" (OR) olarak yorumluyor, ek bir değişiklik gerekmedi.
+  if (vision.spaceTypes && vision.spaceTypes.length) plan.type = vision.spaceTypes.slice();
+  else if (vision.spaceType) plan.type = [vision.spaceType];
   if (vision.discipline) plan.discipline = [vision.discipline];
   const expand = [];
   for (const m of vision.materials) for (const t of (MATERIAL_EXPANSION[m] || [m])) if (!expand.includes(t)) expand.push(t);
@@ -137,7 +140,10 @@ export async function handleVisualSearchRoute(request, env, url) {
   if (!mime) return errorJson('Yalnızca PNG, JPG veya JPEG dosyaları desteklenir.');
 
   const hash = await sha256Hex(bytes);
-  const cacheKey = `vsearch:v1:${hash}`;
+  // Sürüm eki ZORUNLU: prompt/şema değişince eski önbellek kayıtları yeni davranışı maskeler
+  // (v1 kayıtları tek `spaceType` taşıyordu, v2 sıralı aday listesi taşıyor). Analiz mantığı her
+  // değiştiğinde bu numara artırılmalı — aksi halde bir hafta boyunca eski sonuçlar servis edilir.
+  const cacheKey = `vsearch:v2:${hash}`;
 
   // 1) ANALİZ — aynı görsel daha önce görüldüyse AI'ya HİÇ gidilmez.
   let vision = null;
@@ -196,6 +202,7 @@ export async function handleVisualSearchRoute(request, env, url) {
       isArchitectural: true,
       model: vision.model || null,
       spaceType: vision.spaceType,
+      spaceTypes: vision.spaceTypes || [],
       discipline: vision.discipline,
       materials: vision.materials,
       // Kullanıcıya gösterilen tespit listesi — ürün ADI değil KATEGORİ (brief 11).
