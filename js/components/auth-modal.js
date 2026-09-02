@@ -1246,10 +1246,13 @@ const AuthModal = (function () {
           <div class="col-toolbar">
             <button type="button" class="col-btn" id="am-col-back-btn">← Panolarım</button>
             <button type="button" class="col-btn" id="am-col-share-btn">Paylaş</button>
-            <!-- Dışa Aktar YALNIZCA rozetli kullanıcılarda etkin (kullanıcı isteği). Rozetsizde
-                 buton görünür ama devre dışı ve nedenini title ile söyler — gizlemek yerine
-                 göstermek, özelliğin varlığını keşfedilebilir kılar. -->
-            <button type="button" class="col-btn" id="am-col-export-btn" disabled title="Dışa aktarma rozetli üyelere özeldir.">Dışa Aktar</button>
+            <!-- Dışa Aktar rozetli üyelere özel (kullanıcı isteği). Buton BİLEREK devre dışı
+                 (disabled) DEĞİL: devre dışı bir buton hiç click olayı üretmez, dolayısıyla
+                 rozetsiz kullanıcıya "rozet al" yönlendirmesini gösteremezdik (kullanıcı isteği,
+                 2026-09-02). Yetki kontrolü tıklama anında yapılır.
+                 NOT: bu blok bir template literal içindedir - ters tırnak KULLANMA (bkz. proje
+                 belleği: sekme içi ters tırnak şablonu sessizce bozar). -->
+            <button type="button" class="col-btn" id="am-col-export-btn">Dışa Aktar</button>
             <button type="button" class="col-btn col-btn-danger" id="am-col-delete-btn">Panoyu Sil</button>
           </div>
           <h2 id="am-col-detail-title" style="display:inline-flex; align-items:center; gap:8px;">
@@ -1436,6 +1439,24 @@ const AuthModal = (function () {
     }
     const selfBadge = amBadgeItems.find(b => b.target_type === 'self' && b.status === 'active' && b.badge_type !== 'destekci');
     return selfBadge ? selfBadge.badge_type : null;
+  }
+  // "Bu kullanıcının HERHANGİ bir rozeti var mı?" — Dışa Aktar gibi rozet kapılı özelliklerin
+  // yetki kaynağı. myEffectiveBadgeType()'tan farkı: o, isim yanında GÖSTERİLECEK TEK rozeti
+  // seçer (yalnızca architect claim'ine bakar), bu ise firma rozetini de sayar.
+  // Neden önemli: bir firmanın rozetini ortaklardan yalnızca BİRİ satın alır; diğer ortakların
+  // kendi badge_requests satırı yoktur ama rozet profillerinde görünür. Aynı şekilde admin'in
+  // elle verdiği rozetler admin_badges'tedir. amPublicBadges her ikisini de içerir (public rozet
+  // haritası = profilde fiilen görünen rozet); ham `items` içermez, bu yüzden yetki için
+  // KULLANILMAZ (bkz. proje belleği "profileBadges tek kaynak").
+  function amHasAnyBadge() {
+    for (const c of amClaimItems) {
+      if (c.status !== 'approved') continue;
+      const map = amPublicBadges[c.profile_type];
+      const list = map && map[c.profile_key];
+      if (list && list.length) return true;
+    }
+    // Henüz profil sahiplenmemiş ama kendi adına rozet almış üye.
+    return amBadgeItems.some(b => b.status === 'active' && b.badge_type !== 'destekci');
   }
   function renderAmNameBadge() {
     const nameEl = document.getElementById('am-fact-name');
@@ -3081,15 +3102,10 @@ const AuthModal = (function () {
       // Paylaşım durumu — sunucu shapeCollection'da shareToken döner (bkz. src/routes/collections.js).
       const shareBtn = document.getElementById('am-col-share-btn');
       if (shareBtn) shareBtn.textContent = openCollection.item.shareToken ? 'Paylaşımı Durdur' : 'Paylaş';
-      // Dışa Aktar yalnızca AKTİF rozeti olan üyelerde (kullanıcı isteği, 2026-09-02 madde 5).
-      // Kaynak amBadgeItems — loadBadges()'in /api/badges/mine'dan doldurduğu liste; rozet
-      // görünürlüğünün TEK doğru kaynağı budur (bkz. proje belleği "profileBadges tek kaynak").
-      const exportBtn = document.getElementById('am-col-export-btn');
-      if (exportBtn) {
-        const hasBadge = (amBadgeItems || []).some(b => b.status === 'active');
-        exportBtn.disabled = !hasBadge;
-        exportBtn.title = hasBadge ? 'Panoyu PDF olarak dışa aktar' : 'Dışa aktarma rozetli üyelere özeldir.';
-      }
+      // NOT: Dışa Aktar'ın rozet kontrolü BİLEREK burada YAPILMAZ. renderDetail(), loadBadges()
+      // tamamlanmadan ÖNCE de çalışabiliyor (ikisi bağımsız/paralel yükleniyor, bkz. amBadgeItems
+      // yorumu) — burada hesaplanan bir "rozetin yok" durumu, rozet verisi sonradan gelse bile
+      // butonda donup kalıyordu. Kontrol artık tıklama anında yapılıyor (bkz. am-col-export-btn).
       const container = document.getElementById('am-col-items');
       if (!openCollection.items.length) {
         container.innerHTML = '<div class="dash-empty">Bu pano henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
@@ -3273,8 +3289,28 @@ ${items.length ? `<div class="grid">${cards}</div>` : '<p>Bu pano boş.</p>'}
     }
 
     on('am-col-export-btn', 'click', () => {
-      const btn = document.getElementById('am-col-export-btn');
-      if (btn && btn.disabled) return;
+      // GERÇEK BULGU (kullanıcı bildirimi: "dışa aktar butonu çalışmıyor"): ilk sürüm yetkiyi ham
+      // `amBadgeItems` (kullanıcının KENDİ badge_requests satırları) üzerinden hesaplıyordu. Bu,
+      // proje belleğindeki "profileBadges tek kaynak" kuralının tam olarak uyardığı hata:
+      //   * admin tarafından verilen rozetler badge_requests'te DEĞİL admin_badges'tedir,
+      //   * bir firmanın rozetini BAŞKA bir ortak satın almış olabilir (satır onun user_id'sinde).
+      // Her iki durumda da kullanıcının rozeti profilinde GÖRÜNÜR ama `items` boştur -> buton
+      // haksız yere kilitleniyordu (canlı veriyle doğrulandı: Kaan Çorbacı'nın badge_requests'te 0,
+      // admin_badges'te 2 rozeti var). Doğru kaynak amHasAnyBadge() -> amPublicBadges, yani
+      // profilde FİİLEN görünen rozet haritası; admin override'ı ve firma rozetini de kapsar.
+      const msgEl = document.getElementById('am-col-detail-notice');
+      if (!amHasAnyBadge()) {
+        // Uyarıda "rozet al" altı çizili bir bağlantıdır (kullanıcı isteği, 2026-09-02).
+        // notice() burada KULLANILAMAZ: textContent atadığı için bağlantıyı düz metne çevirirdi.
+        // Rengi elle veriyoruz çünkü notice() önceki çağrılarında el.style.color'ı bırakmış olabilir.
+        if (msgEl) {
+          msgEl.style.color = '#B84C4C';
+          msgEl.innerHTML = 'Sadece rozeti olan kullanıcılar kullanabilir, '
+            + '<a href="/rozet-al" style="color:inherit; text-decoration:underline; font-weight:600;">rozet al</a>.';
+        }
+        return;
+      }
+      if (msgEl) msgEl.textContent = '';
       exportBoardPdf();
     });
 
