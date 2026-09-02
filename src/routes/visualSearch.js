@@ -143,7 +143,7 @@ export async function handleVisualSearchRoute(request, env, url) {
   // Sürüm eki ZORUNLU: prompt/şema değişince eski önbellek kayıtları yeni davranışı maskeler
   // (v1 kayıtları tek `spaceType` taşıyordu, v2 sıralı aday listesi taşıyor). Analiz mantığı her
   // değiştiğinde bu numara artırılmalı — aksi halde bir hafta boyunca eski sonuçlar servis edilir.
-  const cacheKey = `vsearch:v2:${hash}`;
+  const cacheKey = `vsearch:v3:${hash}`;
 
   // 1) ANALİZ — aynı görsel daha önce görüldüyse AI'ya HİÇ gidilmez.
   let vision = null;
@@ -185,10 +185,26 @@ export async function handleVisualSearchRoute(request, env, url) {
 
   // A) Projeler. Mekan türü hiç anlaşılamadıysa proje araması yapılmaz — 1698 projeyi
   // rastgele sıralayıp "benzer" diye sunmak, hiç sonuç vermemekten daha kötü olurdu (brief 12).
+  // ADAY SIRASI KORUNUR — ölçülmüş bir gerileme bunu gerektirdi:
+  // Tüm adayları TEK bir plana koyup aramak (v2) mekan türü isabetini 5/11'den 6/11'e çıkardı ama
+  // Top-1 relevance'ı 0.455'ten 0.364'e DÜŞÜRDÜ; havuz karışınca en görünür sıraya İKİNCİ (daha az
+  // olası) adaydan bir sonuç düşebiliyordu. Çözüm: her aday için AYRI arama, aday sırasıyla
+  // birleştirme. Böylece ilk sıralar her zaman EN OLASI türden gelir, alternatifler listenin
+  // devamında kalır — hem isabet kazancı hem Top-1 korunur.
   const plan = projectPlanFromVision(vision);
+  const candidates = plan.type.length ? plan.type : [null];
+  const seenProjects = new Set();
   let projects = [];
-  if (plan.type.length || plan.discipline.length) {
-    projects = searchProjectPool(projectPool, plan, parseProjectDateYear, new Set()).slice(0, MAX_PROJECTS);
+  for (const cand of candidates) {
+    if (projects.length >= MAX_PROJECTS) break;
+    const p = { ...plan, type: cand ? [cand] : [] };
+    if (!p.type.length && !p.discipline.length) continue;
+    for (const r of searchProjectPool(projectPool, p, parseProjectDateYear, new Set())) {
+      if (seenProjects.has(r.item.slug)) continue;
+      seenProjects.add(r.item.slug);
+      projects.push(r);
+      if (projects.length >= MAX_PROJECTS) break;
+    }
   }
 
   // B) Ürünler.
