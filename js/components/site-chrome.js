@@ -597,7 +597,7 @@
   // kullanıcı isteği (2026-08-28, ekli Architonic ekran görüntüleri referans alınarak): üst
   // menüdeki arama kutusuna tıklayınca artık küçük bir öneri açılır penceresi DEĞİL, tüm ekranı
   // kaplayan bir popup büyüyor — üstte büyük arama kutusu, boşken "Önerilen Aramalar" çipleri +
-  // "Görsel ile Ürün Arama" bölümü (bkz. aşağıdaki NAV_SEARCH_RECOMMENDED), yazmaya başlanınca
+  // "Görsel ile Proje ve Ürün Arama" bölümü (bkz. aşağıdaki NAV_SEARCH_RECOMMENDED), yazmaya başlanınca
   // öneriler AYNI /api/public/search-suggest ucundan (eski panelin kullandığı UÇLA BİREBİR AYNI)
   // canlı sonuçlarla değişiyor. Görsel arama bölümü YALNIZCA görsel — hiçbir dosya seçici/URL
   // gönderimi bağlı değil (kullanıcı isteği: "ürün arama kısmı şimdilik aktif olmasın").
@@ -729,7 +729,7 @@
         </div>
         <div class="nav-search-modal-section" id="nav-search-modal-body"></div>
         <div class="nav-search-modal-section">
-          <div class="nav-search-modal-section-title">Görsel ile Ürün Arama</div>
+          <div class="nav-search-modal-section-title">Görsel ile Proje ve Ürün Arama</div>
           <div class="nav-search-modal-image-box">
             <div class="nav-search-modal-image-drop" id="nav-search-modal-image-drop" role="button" tabindex="0" aria-label="Görsel seç">
               <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG veya JPEG (Maks. 10mb)</span>
@@ -758,7 +758,7 @@
     let debounceTimer = null;
     let currentQuery = '';
 
-    // kullanıcı isteği (2026-08-28): "Görsel ile Ürün Arama" görsel yükleme/sürükle-bırakla dosya
+    // kullanıcı isteği (2026-08-28): "Görsel ile Proje ve Ürün Arama" görsel yükleme/sürükle-bırakla dosya
     // seçilip önizlenebiliyor — ama arama tarafı henüz bağlı değil, bu yüzden seçilen görsel hiçbir
     // yere gönderilmez, yalnızca istemci tarafında önizlenir.
     // gerçek bulgu (2026-08-30, kullanıcı isteği: "görsel yükleme... aktif değil"): #nav-search-modal-
