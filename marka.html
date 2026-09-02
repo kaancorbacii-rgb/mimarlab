@@ -364,7 +364,9 @@
     color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:19px;
     padding:8px; box-sizing:border-box;
   }
-  .office-card-logo img{max-width:100%; max-height:100%; object-fit:contain;}
+  /* firma.html#.office-card-logo img ile AYNI gerekçe (kullanıcı isteği, 2026-09-02): her logonun
+     kutusu eşit kare olsun; contain logoyu kırpmadan içine ortalar. */
+  .office-card-logo img{width:100%; height:100%; object-fit:contain; box-sizing:border-box;}
   /* Logosu olmayan markada kutunun içi baş harflerdir — o durumda kutu kendi (marka rengi) zeminini
      alır, aksi halde açık kart zemininde açık renkli yazı okunmazdı (bkz. render()'daki inline
      background). */

@@ -1453,6 +1453,45 @@ const AuthModal = (function () {
   // elle verdiği rozetler admin_badges'tedir. amPublicBadges her ikisini de içerir (public rozet
   // haritası = profilde fiilen görünen rozet); ham `items` içermez, bu yüzden yetki için
   // KULLANILMAZ (bkz. proje belleği "profileBadges tek kaynak").
+  // ---------------------------------------------------------------------------------------
+  // ROZET ERİŞİMİ — TEK ve YARIŞSIZ kaynak.
+  //
+  // KÖK NEDEN (kullanıcı bildirimi: "rozeti olmasına rağmen BAZEN rozet al uyarısı veriyor"):
+  // amHasAnyBadge() üç ayrı modül değişkenine bakıyordu (amClaimItems / amPublicBadges /
+  // amBadgeItems) ve bu üçü YALNIZCA Hesabım görünümü açılırken dolduruluyordu (bkz. mountAccount
+  // sonundaki loadUser().then(...) bloğu). Kullanıcı doğrudan /koleksiyonum'a girip Dışa Aktar'a
+  // bastığında bu yüklemeler hiç çalışmamış oluyor, dolayısıyla rozet "yok" görünüyordu —
+  // "bazen" olmasının sebebi buydu: önce Hesabım'a uğrayan kullanıcıda çalışıyor, doğrudan
+  // Panolarım'a gidende çalışmıyordu.
+  //
+  // Çözüm: yetki artık görünüm yükleme sırasına HİÇ bağlı değil. /api/badges/mine bir kez çağrılıp
+  // (memoize) sonucu paylaşılıyor. Kaynak `profileBadges` — sunucuda admin_badges ile satın alınan
+  // rozeti ZATEN birleştiren tek harita (bkz. src/routes/badges.js#getProfileBadgesForUser), yani
+  // "admin tarafından verilen rozetle satın alınan rozetin farkı olmasın" kuralı burada değil
+  // sunucuda, tek noktada sağlanıyor.
+  let amBadgeAccessPromise = null;
+  function badgeAccessFrom(data) {
+    const pb = (data && data.profileBadges) || {};
+    if (pb.self) return true;
+    if (pb.offices && Object.keys(pb.offices).some(k => pb.offices[k])) return true;
+    // Henüz profil sahiplenmemiş ama kendi adına rozet almış üye.
+    return (data && Array.isArray(data.items) ? data.items : [])
+      .some(b => b.status === 'active' && b.badge_type !== 'destekci');
+  }
+  function fetchBadgeAccess(force) {
+    if (force) amBadgeAccessPromise = null;
+    if (!amBadgeAccessPromise) {
+      amBadgeAccessPromise = fetch('/api/badges/mine')
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => (d ? badgeAccessFrom(d) : null))
+        // null = BİLİNMİYOR (ağ/oturum hatası). Çağıran taraf bunu "rozetin yok" saymaz;
+        // kullanıcıyı yanlışlıkla suçlamaktansa işlemi denemek daha doğru.
+        .catch(() => null);
+    }
+    return amBadgeAccessPromise;
+  }
+  window.addEventListener('mimarlab-badges-changed', () => { amBadgeAccessPromise = null; });
+
   function amHasAnyBadge() {
     for (const c of amClaimItems) {
       if (c.status !== 'approved') continue;
@@ -2143,7 +2182,7 @@ const AuthModal = (function () {
             <div class="my-badge-row">
               <div><strong>${escapeHtml(tier ? tier.label : adminBadges.self)}</strong> — Kendim için</div>
               <div style="display:flex; align-items:center; gap:6px;">
-                <span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS.active}; background:${BADGE_STATUS_COLORS.active}22;">Aktif (Yönetici tanımlı)</span>
+                <span class="badge-status-pill" style="color:${BADGE_STATUS_COLORS.active}; background:${BADGE_STATUS_COLORS.active}22;">Aktif</span>
               </div>
             </div>`);
       }
@@ -3293,7 +3332,7 @@ ${items.length ? `<div class="grid">${cards}</div>` : '<p>Bu pano boş.</p>'}
       w.document.close();
     }
 
-    on('am-col-export-btn', 'click', () => {
+    on('am-col-export-btn', 'click', async () => {
       // GERÇEK BULGU (kullanıcı bildirimi: "dışa aktar butonu çalışmıyor"): ilk sürüm yetkiyi ham
       // `amBadgeItems` (kullanıcının KENDİ badge_requests satırları) üzerinden hesaplıyordu. Bu,
       // proje belleğindeki "profileBadges tek kaynak" kuralının tam olarak uyardığı hata:
@@ -3304,16 +3343,25 @@ ${items.length ? `<div class="grid">${cards}</div>` : '<p>Bu pano boş.</p>'}
       // admin_badges'te 2 rozeti var). Doğru kaynak amHasAnyBadge() -> amPublicBadges, yani
       // profilde FİİLEN görünen rozet haritası; admin override'ı ve firma rozetini de kapsar.
       const msgEl = document.getElementById('am-col-detail-notice');
+      // Yetki artık SUNUCUDAN, tek kaynaktan sorulur (bkz. fetchBadgeAccess'teki kök neden notu).
+      // amHasAnyBadge() yalnızca ANINDA bilinen bir "evet" için kısayol olarak kullanılır — hayır
+      // cevabı asla yerel duruma dayanarak verilmez.
       if (!amHasAnyBadge()) {
+        if (msgEl) msgEl.textContent = 'Rozet kontrol ediliyor…';
+        const access = await fetchBadgeAccess();
+        if (access === false) {
         // Uyarıda "rozet al" altı çizili bir bağlantıdır (kullanıcı isteği, 2026-09-02).
         // notice() burada KULLANILAMAZ: textContent atadığı için bağlantıyı düz metne çevirirdi.
         // Rengi elle veriyoruz çünkü notice() önceki çağrılarında el.style.color'ı bırakmış olabilir.
-        if (msgEl) {
-          msgEl.style.color = '#B84C4C';
-          msgEl.innerHTML = 'Sadece rozeti olan kullanıcılar kullanabilir, '
-            + '<a href="/rozet-al" style="color:inherit; text-decoration:underline; font-weight:600;">rozet al</a>.';
+          if (msgEl) {
+            msgEl.style.color = '#B84C4C';
+            msgEl.innerHTML = 'Sadece rozeti olan kullanıcılar kullanabilir, '
+              + '<a href="/rozet-al" style="color:inherit; text-decoration:underline; font-weight:600;">rozet al</a>.';
+          }
+          return;
         }
-        return;
+        // access === null: sunucuya ulaşılamadı. Rozeti olan bir kullanıcıyı ağ hatası yüzünden
+        // engellemektense dışa aktarmayı DENERİZ — PDF çıktısı yıkıcı bir işlem değil.
       }
       if (msgEl) msgEl.textContent = '';
       exportBoardPdf();

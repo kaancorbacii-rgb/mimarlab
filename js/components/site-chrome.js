@@ -40,6 +40,12 @@
   const LOGO_LIGHT = 'logos/site/mimarlab-logo.png';
   const LOGO_DARK = 'logos/site/mimarlab-logo-dark.png';
   function currentLogoSrc(){ return currentTheme() === 'dark' ? LOGO_DARK : LOGO_LIGHT; }
+  // Footer logosu GECE GÖRÜNÜMÜNDE üst menüdekiyle aynı beyaz harfli logoya döner (kullanıcı isteği,
+  // 2026-09-02). Eskiden sabit mimarlab-logo-footer.png idi ve temaya hiç tepki vermiyordu — koyu
+  // zeminde koyu harfli bir logo neredeyse görünmez oluyordu. Gündüz görünümünde footer'a özel
+  // dosya (farklı oran/renk için hazırlanmış) OLDUĞU GİBİ korunur.
+  const LOGO_FOOTER_LIGHT = 'logos/site/mimarlab-logo-footer.png';
+  function currentFooterLogoSrc(){ return currentTheme() === 'dark' ? LOGO_DARK : LOGO_FOOTER_LIGHT; }
 
   // Nav/hamburger CSS'i her sayfanın KENDİ <style>'ında (25 sayfada kopyalanmış hâlde) yaşıyor —
   // bkz. site-chrome.js'in üstündeki dosya yorumu: yalnızca markup TEK kaynaktan üretiliyor, görsel
@@ -348,7 +354,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="/">
-          <img class="footer-logo-img" src="logos/site/mimarlab-logo-footer.png" alt="MimarLab" loading="lazy" decoding="async">
+          <img class="footer-logo-img" id="footer-logo-img" src="${currentFooterLogoSrc()}" alt="MimarLab" loading="lazy" decoding="async">
         </a>
         <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
       </div>
@@ -536,6 +542,12 @@
     try{ localStorage.setItem('mimarlab-theme', theme); }catch(e){}
     const logoImg = document.getElementById('brand-logo-img');
     if(logoImg) logoImg.src = theme === 'dark' ? LOGO_DARK : LOGO_LIGHT;
+    // Çekmece (hamburger) ve footer logoları da AYNI anda güncellenmeli — eskiden yalnızca başlık
+    // logosu değişiyordu, tema düğmesine basıldığında diğer ikisi eski temada kalıyordu.
+    const drawerLogo = document.getElementById('nav-mobile-menu-logo');
+    if(drawerLogo) drawerLogo.src = theme === 'dark' ? LOGO_DARK : LOGO_LIGHT;
+    const footerLogo = document.getElementById('footer-logo-img');
+    if(footerLogo) footerLogo.src = theme === 'dark' ? LOGO_DARK : LOGO_FOOTER_LIGHT;
   }
 
   function wireFooterTheme(){
@@ -624,6 +636,9 @@
       .catch(() => {});
   }
   let navSearchModalApi = null;
+
+  // Görsel arama sonuçlarının geri dönüşte yeniden açılması için kullanılan sessionStorage anahtarı.
+  const VS_RESTORE_KEY = 'mimarlab-visual-search-restore';
 
   function ensureNavSearchModal(){
     if(navSearchModalApi) return navSearchModalApi;
@@ -900,6 +915,18 @@
       }
       vsResults.innerHTML = parts.join('');
       vsResults.hidden = false;
+      // Sonuca tıklanınca TAM SAYFA gidilir (proje/ürün popup'ı o sayfada açılır). Kullanıcı o
+      // popup'ı kapatıp geri döndüğünde arama sonuçlarını YENİDEN GÖRMELİ (kullanıcı isteği,
+      // 2026-09-02 madde 8) — aksi halde her tıklama aramayı sıfırlıyor ve görseli yeniden
+      // yüklemek gerekiyordu. Sonuç kümesi sessionStorage'a yazılır; geri dönüşte (bkz. aşağıdaki
+      // restoreVisualSearch) modal aynı sonuçlarla yeniden açılır. Yeniden AI çağrısı YAPILMAZ.
+      vsResults.querySelectorAll('a.nav-search-modal-row').forEach(a => {
+        a.addEventListener('click', () => {
+          try {
+            sessionStorage.setItem(VS_RESTORE_KEY, JSON.stringify({ from: location.href, data }));
+          } catch (e) { /* kota/gizli mod — geri dönüşte sadece eski davranış olur */ }
+        });
+      });
     }
 
     async function runVisualSearch(file){
@@ -1017,6 +1044,24 @@
     }
     overlay.querySelector('.nav-search-modal-close').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if(e.target === overlay) close(); });
+
+    // Geri dönüşte (tarayıcı geri tuşu, ModalShell'in returnToPreviousPage'i ya da bfcache) arama
+    // sonuçlarını olduğu gibi geri getirir. Kayıt TEK KULLANIMLIK: okunur okunmaz silinir, aksi
+    // halde kullanıcı bambaşka bir gezinmeden sonra da beklenmedik şekilde modalı açık bulurdu.
+    function restoreVisualSearch(){
+      let saved = null;
+      try {
+        const raw = sessionStorage.getItem(VS_RESTORE_KEY);
+        if (raw) saved = JSON.parse(raw);
+      } catch (e) { saved = null; }
+      if (!saved || !saved.data) return;
+      // Yalnızca AYRILDIĞIMIZ sayfaya geri dönüldüyse aç.
+      if (saved.from && saved.from !== location.href) return;
+      try { sessionStorage.removeItem(VS_RESTORE_KEY); } catch (e) {}
+      navSearchModalApi.open('');
+      vsRender(saved.data);
+    }
+    overlay.__restoreVisualSearch = restoreVisualSearch;
 
     navSearchModalApi = {
       open(prefill){
@@ -1185,6 +1230,21 @@
   injectHeaderStyle();
   window.NavDrawer = initNavDrawer();
   wireNavSearch();
+
+  // Görsel arama sonuçlarını geri dönüşte yeniden aç (kullanıcı isteği, 2026-09-02 madde 8).
+  // pageshow KULLANILIR, DOMContentLoaded değil: bfcache'ten dönen sayfada script yeniden
+  // çalışmaz ve DOMContentLoaded bir daha tetiklenmez (aynı tuzak modal-shell.js'te de kayıtlı) —
+  // pageshow her iki durumda da (normal yükleme + bfcache) çalışır.
+  function tryRestoreVisualSearch(){
+    let has = false;
+    try { has = !!sessionStorage.getItem(VS_RESTORE_KEY); } catch (e) { has = false; }
+    if (!has) return;   // kayıt yoksa modalı BOŞ YERE kurma (DOM/CSS maliyeti)
+    const api = ensureNavSearchModal();
+    const overlay = document.querySelector('.nav-search-modal-overlay');
+    if (overlay && overlay.__restoreVisualSearch) overlay.__restoreVisualSearch();
+  }
+  window.addEventListener('pageshow', tryRestoreVisualSearch);
+  tryRestoreVisualSearch();
 
   const navSearchVisualBtn = document.getElementById('nav-search-visual-btn');
   if(navSearchVisualBtn){

@@ -978,21 +978,36 @@
        Kaldırılan #pm-materials-section (Kullanılan Malzemeler) yüzünden ayrıca bir satır gerekmiyor;
        malzemeler artık bu ızgaranın içinde. Alttaki tüm değerler birer artırıldı — aralıksız tam
        sayı dizisi kuralı korunur. */
-    #pm-products-section{order:6;}
+    /* GERÇEK BULGU (2026-09-02, tablette ölçüldü): order YANLIŞ ELEMANA veriliyordu.
+       "Kullanılan Ürünler" artık tek başına bir akış öğesi DEĞİL — #pm-products-pair adlı iki
+       sütunlu bir ızgaranın İÇİNDE bir hücre (bkz. project-modal.js#RIGHT_TEMPLATE). Dolayısıyla
+       #pm-products-section'a verilen order modal akışını değil O IZGARAYI etkiliyordu; sarmalayıcı
+       ise order tanımsız kalıp 0'a düşüyor ve TÜM ikili satır galeriden de başlıktan da ÖNCE,
+       popup'ın en üstüne çıkıyordu (ölçüm: ikili satır 168px, galeri 401px, başlık 770px).
+       Üstelik ızgara içinde Ürünler order:6, Markalar order tanımsız (0) olduğundan MARKALAR
+       sola, ÜRÜNLER sağa geçiyordu — istenenin tersi.
+       Düzeltme: order akış öğesi olan SARMALAYICIYA verilir; hücreler DOM sırasında kalır
+       (Ürünler 1. sütun, Markalar 2. sütun; mobilde tek sütuna düşünce Ürünler üstte, Markalar
+       altta — kullanıcı isteği 2026-09-02 madde 3). */
+    #pm-products-pair{order:6;}
     #pm-same-designer-section{order:7;}
     #pm-related-section{order:8;}
     #pm-city-section{order:9;}
-    #pm-prevnext{order:10;}
     /* Yorumlar — Bilgi Kaynağı & Geri Bildirim ile AYNI gerekçeyle (bkz. kullanıcı isteği) mobil/
        tablette aşağı, Geri Bildirim kutusunun hemen üstüne taşındı; masaüstünde DOM sırası (künye/
        açıklamadan hemen sonra) DEĞİŞMEDİ, yalnızca bu breakpoint'in order değerleri etkilenir.
        #pm-info-divider Yorumlar'ın ÜSTÜNDE kalır (bkz. kullanıcı isteği). */
-    #pm-info-divider{order:11;}
+    #pm-info-divider{order:10;}
     /* Harita — kullanıcı isteği: mobilde de Yorumlar'ın HEMEN ÜSTÜNDE kalsın (masaüstündeki DOM
        sırasıyla aynı bağıl konum). */
-    #pm-map-section{order:12;}
-    #pm-comments-section{order:13;}
-    #pm-feedback-card{order:14;}
+    #pm-map-section{order:11;}
+    #pm-comments-section{order:12;}
+    #pm-feedback-card{order:13;}
+    /* Önceki/Sonraki Proje EN SONA alındı (kullanıcı isteği, 2026-09-02 madde 4): tablet ve
+       mobilde Harita/Yorumlar/Geri Bildirim bu iki gezinme bağlantısının ÜSTÜNDE olmalı. Eskiden
+       order:10 ile onların üstündeydi; ölçüldü (tablet 820px): önceki/sonraki 1780px, harita
+       1913px. Masaüstünde DOM sırası ETKİLENMEZ — bu blok yalnızca ≤860px'te geçerli. */
+    #pm-prevnext{order:14;}
 
     /* Puanla/Kaydet/Paylaş artık bu satırda değil, X'in yanında sabit 36px'te (bkz.
        modal-shell.js#injectStyles) — buradaki eski dokunma-hedefi/gizleme kuralları kaldırıldı. */
