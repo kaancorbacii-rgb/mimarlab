@@ -349,10 +349,14 @@
   .nm-role p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
 
   /* ---------- Görselden ürüne (işaretçi) gösterimi ---------- */
-  /* GERÇEK BULGU (canlıda ölçüldü): görsel yüklenmeden önce kapsayıcı 900x0 oluyordu; sıfır
-     yükseklikli bir öğe hiçbir zaman görüş alanına girmediğinden loading="lazy" HİÇ tetiklenmiyor
-     ve görsel sonsuza kadar yüklenmiyordu (naturalWidth 0). aspect-ratio alanı önceden ayırır:
-     hem bu kısır döngüyü kırar hem de yüklenince düzen kaymasını (CLS) önler. */
+  /* aspect-ratio: görsel yüklenmeden önce kapsayıcı 900x0 oluyordu; alanı önceden ayırmak hem
+     yüklenince düzen kaymasını (CLS) önler hem de sıfır yükseklikli öğenin hiç görünür alana
+     girmemesi riskini ortadan kaldırır.
+     GERÇEK BULGU (canlıda ölçüldü): bu görsel loading="lazy" iken HİÇ istek atılmıyordu
+     (naturalWidth 0, ağ kaydında istek yok); eager'a çevrilince anında yüklendi (2000x1460),
+     yani URL/CSP sorunu yoktu. Zaten sayfanın EN ÜSTÜNDEKİ bölümün ana görseli olduğu için
+     lazy hiçbir kazanç sağlamıyor, yalnızca en önemli görseli geciktiriyordu — bilinçli olarak
+     eager + fetchpriority=high yapıldı. */
   .nm-tag-stage{position:relative; border-radius:14px; overflow:hidden; background:var(--paper-alt);
     max-width:900px; margin:0 auto; aspect-ratio:4/3;}
   .nm-tag-stage img{width:100%; height:100%; object-fit:cover; display:block;}
@@ -463,7 +467,7 @@
     <div class="wrap">
       <h2 class="sec-title nm-h2" id="etiket-h">Fotoğraftaki ürünü işaretle,<br>gerçek ürün sayfasına bağla.</h2>
       <div class="nm-tag-stage" id="nm-tag-stage">
-        <img id="nm-tag-img" alt="" loading="lazy" decoding="async">
+        <img id="nm-tag-img" alt="" decoding="async" fetchpriority="high">
         <div id="nm-tag-dots"></div>
       </div>
       <p class="nm-note" id="nm-tag-caption"></p>
