@@ -23,7 +23,38 @@ import catalogJs from '../../catalog-taxonomy.js';
 const { PROJECT_GROUP_OPTIONS } = projectTaxonomyJs;
 const { CATALOG_TAXONOMY } = catalogJs;
 
-export const VISION_MODEL = '@cf/meta/llama-3.2-11b-vision-instruct';
+// MODEL SEÇİMİ — GERÇEK BULGU (canlı test, 2026-09-02):
+// İlk tercih @cf/meta/llama-3.2-11b-vision-instruct idi; Workers AI bu modeli
+//   AiError 5016: "Prior to using this model, you must submit the prompt 'agree'"
+// ile reddetti — Meta'nın lisansının bir kez KABUL EDİLMESİ gerekiyor. Bu bir sözleşme
+// kabulüdür ve hesap sahibinin kararıdır, o yüzden onaylanmadı; lisans kapısı OLMAYAN
+// modellere geçildi. (Kullanıcı isterse llama'yı açabilir, tek seferlik bir onaydır.)
+//
+// Sırayla denenir; ilk çalışan kullanılır. Farklı model aileleri FARKLI girdi biçimi ister,
+// bu yüzden her adayın kendi `build` fonksiyonu var.
+export const VISION_CANDIDATES = [
+  {
+    model: '@cf/mistralai/mistral-small-3.1-24b-instruct',
+    // Vision-LLM'ler (Text Generation ailesi) OpenAI uyumlu messages + data URL bekler.
+    build: (b64, prompt) => ({
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: prompt },
+        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } },
+      ] }],
+      max_tokens: 700,
+      temperature: 0,
+    }),
+  },
+  {
+    model: '@cf/moondream/moondream3.1-9B-A2B',
+    // Image-to-Text ailesi: ham bayt dizisi + düz prompt.
+    build: (b64, prompt, bytes) => ({ image: Array.from(bytes), prompt, max_tokens: 700 }),
+  },
+  {
+    model: '@cf/llava-hf/llava-1.5-7b-hf',
+    build: (b64, prompt, bytes) => ({ image: Array.from(bytes), prompt, max_tokens: 700 }),
+  },
+];
 
 // Gerçek ürün kategorileri (35 adet) — modelin döndürdüğü kategori BUNLARDAN biri değilse atılır.
 export const PRODUCT_CATEGORIES = Object.values(CATALOG_TAXONOMY)
@@ -124,17 +155,36 @@ export function normalizeVision(raw) {
 
 // analyzeImage — TEK vision çağrısı. Görsel Uint8Array olarak verilir (Workers AI `image` alanı
 // bayt dizisi bekler).
+function toBase64(bytes) {
+  let bin = '';
+  const CH = 0x8000; // parça parça — tek seferde apply çok büyük diziyle yığını taşırır
+  for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  return btoa(bin);
+}
+
+// analyzeImage — TEK başarılı vision çağrısı. Adaylar sırayla denenir; biri lisans/biçim hatası
+// verirse sıradakine geçilir ve HANGİSİNİN çalıştığı döndürülür (gözlemlenebilirlik).
 export async function analyzeImage(env, bytes, timeoutMs) {
-  const call = env.AI.run(VISION_MODEL, {
-    image: Array.from(bytes),
-    prompt: buildPrompt(),
-    max_tokens: 700,
-    temperature: 0,
-  });
-  const result = await Promise.race([
-    call,
-    new Promise((_, rej) => setTimeout(() => rej(new Error('vision timeout')), timeoutMs)),
-  ]);
-  const text = result && (result.response ?? result.description ?? result);
-  return normalizeVision(parseJsonLoose(typeof text === 'string' ? text : JSON.stringify(text)));
+  const prompt = buildPrompt();
+  const b64 = toBase64(bytes);
+  const errors = [];
+  for (const cand of VISION_CANDIDATES) {
+    try {
+      const result = await Promise.race([
+        env.AI.run(cand.model, cand.build(b64, prompt, bytes)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('vision timeout')), timeoutMs)),
+      ]);
+      const text = result && (result.response ?? result.description ?? result);
+      const parsed = parseJsonLoose(typeof text === 'string' ? text : JSON.stringify(text));
+      if (!parsed) { errors.push(`${cand.model}: JSON çözülemedi`); continue; }
+      const out = normalizeVision(parsed);
+      out.model = cand.model;
+      return out;
+    } catch (err) {
+      errors.push(`${cand.model}: ${err && err.message ? err.message : err}`);
+    }
+  }
+  const e = new Error('vision: hiçbir model yanıt vermedi');
+  e.details = errors;
+  throw e;
 }

@@ -154,7 +154,7 @@ export async function handleVisualSearchRoute(request, env, url) {
       aiCalls = 1;
     } catch (err) {
       // brief 22: AI başarısız olursa BOŞ BEYAZ MODAL bırakma, anlaşılır bir hata döndür.
-      console.error('visualSearch: vision failed', err);
+      console.error('visualSearch: vision failed', err && err.message, JSON.stringify(err && err.details || []));
       return errorJson('Görsel analiz edilemedi, lütfen tekrar dene.', 503);
     }
     try {
@@ -194,6 +194,7 @@ export async function handleVisualSearchRoute(request, env, url) {
     aiCalls,
     analysis: {
       isArchitectural: true,
+      model: vision.model || null,
       spaceType: vision.spaceType,
       discipline: vision.discipline,
       materials: vision.materials,
