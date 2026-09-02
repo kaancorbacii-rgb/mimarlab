@@ -217,11 +217,20 @@ Kurallar:
 - SADECE sana verilen sayıları kullan. Yeni bir sayı, proje adı, kişi, firma, ürün ya da ilişki UYDURMA.
 - Sana verilmeyen hiçbir şehir/yıl/tipoloji adını yazma.
 - Yüzde, "eşleşme skoru" ya da niteleyici övgü (ör. "en önemli", "en iyi") KULLANMA.
-- Sonuçların nerede/hangi dönemde yoğunlaştığını yalnızca verilen dağılıma dayanarak söyleyebilirsin.`;
+- Sonuçların nerede/hangi dönemde yoğunlaştığını yalnızca verilen dağılıma dayanarak söyleyebilirsin.
+- DOĞRUDAN bulguyla başla. "Kullanıcı ... aradı", "Sorgu ... ile yapılmıştır", "Bu arama" gibi
+  ifadelerle sorguyu ANLATMA.
+- Sıfır olan hiçbir sayıyı yazma (sana zaten yalnızca sıfırdan büyük sayımlar verilir).
+- Aynı ifadeyi tekrarlama.
+Örnek biçim: "İstanbul'da 2016-2026 arasında 84 ofis/iş merkezi projesi var. Sonuçlar özellikle Şişli, Beşiktaş ve Ataşehir'de yoğunlaşıyor."`;
+  // Sıfır olan sayımlar modele HİÇ verilmez — verildiğinde "0 mimarlık ofisi ile 0 mimarlık ofisi"
+  // gibi hem gereksiz hem tekrarlı cümleler üretiyordu (canlıda gözlendi).
+  const nonZero = Object.fromEntries(Object.entries(totals).filter(([, v]) => v > 0));
   const payload = {
     sorgu: query,
-    bulunan: totals,
+    bulunan: nonZero,
     sehir_dagilimi: facets.cities,
+    ilce_dagilimi: facets.districts,
     tip_dagilimi: facets.types,
     kategori_dagilimi: facets.categories,
     yil_araligi: facets.yearRange,
@@ -246,7 +255,12 @@ Kurallar:
 function summaryIsGrounded(text, allowedNumbers) {
   if (!text) return false;
   const nums = String(text).match(/\d+/g) || [];
-  return nums.every(n => allowedNumbers.has(parseInt(n, 10)));
+  if (!nums.every(n => allowedNumbers.has(parseInt(n, 10)))) return false;
+  // Üslup denetimi (canlıda gözlendi): model bazen sonucu değil SORGUYU anlatıyordu
+  // ("Kullanıcı ... arama yaptı", "Sorgu ... ile yapılmıştır"). Böyle bir özet, deterministik
+  // cümleden daha kötüdür — reddedilir ve deterministik olan kullanılır.
+  if (/\b(kullanıcı|sorgu\s+")/i.test(text)) return false;
+  return true;
 }
 
 function deterministicSummary(query, totals, facets) {
@@ -385,7 +399,8 @@ export async function handleAiSearchRoute(request, env, url) {
   if (aiAvailable && totalCount) {
     const allowed = new Set([
       ...Object.values(totals), totalCount,
-      ...facets.cities.map(c => c.count), ...facets.types.map(t => t.count),
+      ...facets.cities.map(c => c.count), ...(facets.districts || []).map(d => d.count),
+      ...facets.types.map(t => t.count),
       ...facets.categories.map(c => c.count), ...facets.discipline.map(d => d.count),
       ...(facets.yearRange ? [facets.yearRange.from, facets.yearRange.to] : []),
     ]);

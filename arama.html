@@ -561,14 +561,14 @@ function activeFiltersHtml(plan){
   return `<div class="ai-chips">${chips.join('')}</div>`;
 }
 
-const FACET_LABELS = { cities: 'Şehir', categories: 'Tip', discipline: 'Tür', types: 'Grup' };
+const FACET_LABELS = { cities: 'Şehir', districts: 'İlçe', categories: 'Tip', discipline: 'Tür', types: 'Grup' };
 // facetsHtml — computeFacets()'in (bkz. src/routes/ai.js) döndürdüğü GERÇEK sayımları düz metin
 // olarak listeler, hiçbir yüzde/skor göstermez (bkz. kullanıcı isteği: "anlamsız yüzde skorları
 // üretme").
 function facetsHtml(facets){
   if(!facets) return '';
   const parts = [];
-  ['cities', 'types', 'categories', 'discipline'].forEach(key => {
+  ['cities', 'districts', 'types', 'categories', 'discipline'].forEach(key => {
     const items = facets[key];
     if(items && items.length) parts.push(`<div class="ai-facet-row"><strong>${FACET_LABELS[key]}:</strong> ${items.map(i => `${escapeHtml(i.value)} (${i.count})`).join(', ')}</div>`);
   });

@@ -465,10 +465,16 @@ export async function relatedProjectsForBrandOrProduct(env, { brandName, product
 // ---------------------------------------------------------------------------------------------
 export function computeFacets(items, parseYear) {
   const cities = new Map(), categories = new Map(), disciplines = new Map(), types = new Map();
+  // districts — brief 8'deki örnek çıktı ("özellikle Şişli, Beşiktaş ve Ataşehir'de yoğunlaşıyor")
+  // il düzeyinde ifade edilemez. parseLocationFull zaten ilçeyi ayırıyor.
+  const districts = new Map();
   let minYear = null, maxYear = null;
   for (const p of items) {
-    const { city } = parseLocationFull(p.location || '');
+    const parsed = parseLocationFull(p.location || '');
+    const city = parsed.city;
     if (city) cities.set(city, (cities.get(city) || 0) + 1);
+    const district = parsed.ilce || parsed.district || null;
+    if (district) districts.set(district, (districts.get(district) || 0) + 1);
     for (const c of (p.category || [])) categories.set(c, (categories.get(c) || 0) + 1);
     for (const d of (p.discipline || [])) disciplines.set(d, (disciplines.get(d) || 0) + 1);
     for (const t of (p.type || [])) types.set(t, (types.get(t) || 0) + 1);
@@ -482,6 +488,7 @@ export function computeFacets(items, parseYear) {
     .map(([value, count]) => ({ value, count }));
   return {
     cities: topN(cities, 6),
+    districts: topN(districts, 5),
     categories: topN(categories, 5),
     discipline: topN(disciplines, 4),
     types: topN(types, 6),
