@@ -2085,7 +2085,14 @@ const AuthModal = (function () {
         if (!dob) eksik.push('Doğum Yılı');
         if (!profession) eksik.push('Meslek');
         if (!about || !about.trim()) eksik.push('Açıklama');
-        if (!((accountUser && accountUser.photo_url) || '')) eksik.push('Profil Fotoğrafı');
+        // GERÇEK BULGU (kullanıcı bildirimi: fotoğraf yüklendiği hâlde "Profil Fotoğrafı zorunlu"
+        // uyarısı çıkıyordu): burada `accountUser.photo_url` okunuyordu ama /api/auth/me kullanıcıyı
+        // publicUser() ile serileştiriyor ve alan adı `photoUrl` (bkz. src/lib/auth.js:47,
+        // "photoUrl: photo_url"). snake_case alan HİÇBİR ZAMAN tanımlı olmadığından kontrol her
+        // durumda başarısız oluyor, yani fotoğrafı olan kullanıcı da profilini yayımlayamıyordu.
+        // Aynı dosyadaki diğer iki kullanım (renderAvatar, mimar senkronizasyonu) zaten doğru
+        // camelCase okuyordu — yalnızca bu satır sapmıştı.
+        if (!((accountUser && accountUser.photoUrl) || '')) eksik.push('Profil Fotoğrafı');
         if (eksik.length) {
           msg.textContent = 'Kişi sayfasında yayımlanmak için şu alanlar zorunlu: ' + eksik.join(', ') + '.';
           return;
