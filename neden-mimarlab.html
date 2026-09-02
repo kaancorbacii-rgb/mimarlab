@@ -360,11 +360,16 @@
   .nm-tag-stage{position:relative; border-radius:14px; overflow:hidden; background:var(--paper-alt);
     max-width:900px; margin:0 auto; aspect-ratio:4/3;}
   .nm-tag-stage img{width:100%; height:100%; object-fit:cover; display:block;}
+  /* Kullanıcı isteği (2026-09-02): imleç gelince dairenin İÇİ turuncu olsun — proje popup'ındaki
+     işaretçilerle AYNI renk. Kaynak: js/components/image-hotspots.js#.ih-dot (background
+     var(--accent,#E08A3E), beyaz çekirdek, nabız halkası). Renk oradan birebir alındı ki iki
+     yerdeki işaretçi görsel olarak ayrışmasın. */
   .nm-dot{position:absolute; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%;
-    border:2px solid #fff; background:rgba(255,255,255,.35); backdrop-filter:blur(2px); cursor:pointer;
-    box-shadow:0 2px 10px rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:0;}
+    border:2.5px solid #fff; background:rgba(255,255,255,.35); backdrop-filter:blur(2px); cursor:pointer;
+    box-shadow:0 2px 10px rgba(15,19,26,.45); display:flex; align-items:center; justify-content:center;
+    padding:0; transition:background .18s ease, transform .18s ease;}
   .nm-dot::after{content:''; width:9px; height:9px; border-radius:50%; background:#fff;}
-  .nm-dot:hover,.nm-dot:focus-visible{transform:scale(1.12);}
+  .nm-dot:hover,.nm-dot:focus-visible,.nm-dot.is-open{background:var(--accent,#E08A3E); transform:scale(1.12);}
   /* Kart, işaretçinin yanında açılır; sağ kenara taşarsa .flip ile sola çevrilir (JS ölçer). */
   .nm-tagcard{position:absolute; z-index:3; display:none; gap:10px; align-items:center;
     width:230px; padding:9px; border-radius:12px; background:var(--paper-card);
@@ -388,7 +393,11 @@
   .nm-ring-1{width:28%;  aspect-ratio:2/1; background:#8FBCFB;}
 
   /* ---------- Marka duvarı ---------- */
-  .nm-brandwall{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:14px; align-items:center;}
+  /* Kullanıcı isteği: tam 2 satır x 8 = 16 marka. Sabit 8 sütun; dar ekranda 4 ve 2'ye düşer ki
+     satırlar taşmasın (16 öğe her durumda tam satır doldurur: 8x2, 4x4, 2x8). */
+  .nm-brandwall{display:grid; grid-template-columns:repeat(8,1fr); gap:12px; align-items:center;}
+  @media (max-width:900px){ .nm-brandwall{grid-template-columns:repeat(4,1fr);} }
+  @media (max-width:480px){ .nm-brandwall{grid-template-columns:repeat(2,1fr);} }
   .nm-brand{display:flex; align-items:center; justify-content:center; min-height:64px; padding:10px 12px;
     border:1px solid var(--line); border-radius:12px; background:var(--paper-card);
     font-size:13px; font-weight:600; color:var(--ink-soft); text-align:center; line-height:1.2;}
@@ -406,6 +415,39 @@
   .nm-free-list li:first-child{border-top:none;}
   .nm-free-list li::before{content:''; position:absolute; left:4px; top:13px; width:9px; height:5px;
     border-left:2px solid var(--walnut); border-bottom:2px solid var(--walnut); transform:rotate(-45deg);}
+
+  /* ---------- Üretici anlatımı + firma önizlemesi (iki sütun) ---------- */
+  .nm-mfg, .nm-firm{display:grid; grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr); gap:clamp(20px,4vw,54px); align-items:center;}
+  @media (max-width:860px){ .nm-mfg, .nm-firm{grid-template-columns:1fr;} }
+  .nm-mfg-list{list-style:none; margin:0 0 20px; padding:0;}
+  .nm-mfg-list li{position:relative; padding:7px 0 7px 20px; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+  .nm-mfg-list li::before{content:''; position:absolute; left:2px; top:15px; width:6px; height:6px;
+    border-radius:50%; background:var(--accent,#E08A3E);}
+  .nm-mfg-media .nm-tag-stage{aspect-ratio:4/3;}
+
+  /* Tarayıcı çerçevesi — içi CANLI veriyle dolar (bkz. bölüm yorumu). */
+  .nm-browser{border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    background:var(--paper-card); box-shadow:0 16px 44px rgba(15,19,26,.16);}
+  .nm-browser-bar{display:flex; gap:6px; align-items:center; padding:9px 12px; border-bottom:1px solid var(--line); background:var(--paper-alt);}
+  .nm-browser-bar span{width:9px; height:9px; border-radius:50%; background:var(--line);}
+  .nm-browser-body{padding:0;}
+  .nm-firm-cover{position:relative; aspect-ratio:16/6; background:var(--paper-alt); overflow:hidden;}
+  .nm-firm-cover img{width:100%; height:100%; object-fit:cover; display:block;}
+  .nm-firm-logo{position:absolute; left:50%; bottom:-26px; transform:translateX(-50%);
+    width:64px; height:64px; border-radius:14px; background:var(--paper-card); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 6px 18px rgba(15,19,26,.18);}
+  .nm-firm-logo img{width:100%; height:100%; object-fit:contain; padding:6px; box-sizing:border-box;}
+  .nm-firm-head{padding:34px 16px 12px; text-align:center;}
+  .nm-firm-name{font-size:16px; font-weight:700; margin:0 0 3px;}
+  .nm-firm-meta{font-size:12px; color:var(--ink-soft); margin:0;}
+  .nm-firm-tabs{display:flex; gap:16px; justify-content:center; padding:8px 12px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); font-size:11.5px; color:var(--ink-soft);}
+  .nm-firm-tabs b{color:var(--ink);}
+  .nm-firm-projects{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:12px;}
+  @media (max-width:520px){ .nm-firm-projects{grid-template-columns:repeat(2,1fr);} }
+  .nm-firm-proj{display:block; color:inherit;}
+  .nm-firm-proj img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:7px; display:block; background:var(--paper-alt);}
+  .nm-firm-proj span{display:block; font-size:10.5px; margin-top:5px; line-height:1.25; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; color:var(--ink-soft);}
 
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
@@ -538,6 +580,51 @@
     </div>
   </section>
 
+  <!-- ============ ÜRETİCİ/MARKA ANLATIMI ============ (kullanıcı isteği, ekli 1. görsel deseni)
+       Solda iddia, sağda ürünün GERÇEKTEN kullanıldığı projeden bir kare. Metin ve bağlantılar
+       canlı veriden gelir (aynı işaretçi kaydı), elle yazılmış ürün/marka adı yoktur. -->
+  <section class="sec band-alt nm-mfg-sec" id="markalar-icin" aria-labelledby="markalar-icin-h">
+    <div class="wrap nm-mfg">
+      <div class="nm-mfg-text">
+        <h2 class="nm-h2" id="markalar-icin-h">Ürününüz vitrinde değil,<br>gerçek projede görünsün.</h2>
+        <p class="nm-lead">Mimar bir projeyi incelerken kullandığı ürünü de görür — ve doğrudan sizin marka sayfanıza geçer.</p>
+        <ul class="nm-mfg-list" id="nm-mfg-list"></ul>
+        <a class="btn btn-ghost" href="/urun-ekle">Ürün Ekle</a>
+      </div>
+      <div class="nm-mfg-media">
+        <div class="nm-tag-stage" id="nm-mfg-stage">
+          <img id="nm-mfg-img" alt="" decoding="async">
+          <div id="nm-mfg-dots"></div>
+        </div>
+        <p class="nm-note" id="nm-mfg-caption"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FİRMA PROFİLİ ÖNİZLEMESİ ============ (kullanıcı isteği, ekli 2. görsel deseni)
+       ÖNEMLİ: bu bir EKRAN GÖRÜNTÜSÜ DEĞİL. Kullanıcı "sitedeki firma popup'ından bir görüntü
+       koy" derken aynı zamanda "bu sayfadaki tüm içerikler dinamik olsun, profillerde bir şey
+       değişince buraya da yansısın" dedi. Statik bir PNG bu ikinci şartı KARŞILAYAMAZDI (firma
+       adı/logosu/projesi değişse görüntü eskirdi). Bu yüzden tarayıcı çerçevesinin İÇİ canlı
+       veriyle (/api/office/... + /api/projects?designerOffice=...) çizilir. -->
+  <section class="sec nm-firm-sec" id="firma-onizleme" aria-labelledby="firma-onizleme-h">
+    <div class="wrap nm-firm">
+      <div class="nm-firm-text">
+        <h2 class="nm-h2" id="firma-onizleme-h">Firmanızın dijital künyesi</h2>
+        <ul class="nm-mfg-list">
+          <li>Ekip üyelerinizi profile bağlayın</li>
+          <li>Projelerinizi künyesiyle yayınlayın</li>
+          <li>Kullandığınız markaları projeye iliştirin</li>
+          <li>Tek bağlantıyla portföyünüzü paylaşın</li>
+        </ul>
+      </div>
+      <div class="nm-browser" id="nm-firm-frame" aria-label="Firma profili önizlemesi">
+        <div class="nm-browser-bar"><span></span><span></span><span></span></div>
+        <div class="nm-browser-body" id="nm-firm-body"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ YAYIN DÖNGÜSÜ ============ Metin yerine tek bir eş merkezli diyagram. -->
   <section class="sec band-alt nm-funnel-sec" id="dongu" aria-labelledby="dongu-h">
     <div class="wrap">
@@ -588,16 +675,6 @@
     </div>
   </section>
 
-  <section class="sec band-dark nm-cta" id="yayinla" aria-labelledby="yayinla-h">
-    <div class="wrap">
-      <h2 class="sec-title nm-h2" id="yayinla-h">Ağa katıl.</h2>
-      <div class="btn-row">
-        <a class="btn" href="/uye-ol">Ücretsiz Üye Ol</a>
-        <a class="btn btn-ghost" href="/proje-ekle">Proje Ekle</a>
-        <a class="btn btn-ghost" href="/urun-ekle">Ürün Ekle</a>
-      </div>
-    </div>
-  </section>
 </main>
 
 <a class="btn btn-ghost sunum-exit" href="/neden-mimarlab">Sunum modundan çık</a>
@@ -798,7 +875,8 @@
           if(p.x > 62) card.classList.add('flip');
           function show(){
             host.querySelectorAll('.nm-tagcard.open').forEach(function(c){ if(c!==card) c.classList.remove('open'); });
-            card.classList.add('open');
+            host.querySelectorAll('.nm-dot.is-open').forEach(function(x){ if(x!==dot) x.classList.remove('is-open'); });
+            card.classList.add('open'); dot.classList.add('is-open');
           }
           dot.addEventListener('mouseenter', show);
           dot.addEventListener('focus', show);
@@ -814,10 +892,10 @@
   (function(){
     var host = document.getElementById('nm-brandwall');
     if(!host) return;
-    fetch('/api/offices?brands=1&limit=18', { headers:{ 'Accept':'application/json' } })
+    fetch('/api/offices?brands=1&limit=16', { headers:{ 'Accept':'application/json' } })
       .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
       .then(function(d){
-        var items = (d.items || []).filter(function(o){ return o && o.name; });
+        var items = (d.items || []).filter(function(o){ return o && o.name; }).slice(0,16);
         if(!items.length){ host.closest('section').remove(); return; }
         host.innerHTML = items.map(function(o){
           var logo = o.logo ? '<img src="'+escapeHtml(typeof cdnImg==='function'?cdnImg(o.logo,240):o.logo)+'" alt="'+escapeHtml(o.name)+'" loading="lazy" onerror="this.parentElement.textContent=this.alt">' : escapeHtml(o.name);
@@ -825,6 +903,91 @@
         }).join('');
       })
       .catch(function(){ var sec=host.closest('section'); if(sec) sec.remove(); });
+  })();
+
+
+  /* ---------- Üretici bölümü: AYNI canlı işaretçi kaydından, marka odaklı anlatım ----------
+     Görsel ve ürünler /api/project/...'ten gelir. Buradaki liste ürün/marka ADLARINI veriden
+     yazar — sayfada elle yazılmış tek bir ürün adı yoktur. Kayıt yoksa bölüm kaldırılır. */
+  (function(){
+    var sec = document.getElementById('markalar-icin');
+    if(!sec) return;
+    function drop(){ sec.remove(); }
+    fetch('/api/project/oyakkent-ornek-daire', { headers:{ 'Accept':'application/json' } })
+      .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
+      .then(function(d){
+        var item = d.item || d, hs = item.imageHotspots || {};
+        var url = Object.keys(hs)[0], pts = url ? hs[url] : null;
+        if(!url || !pts || !pts.length) return drop();
+        var img = document.getElementById('nm-mfg-img');
+        img.src = url; img.alt = item.title || '';
+        var host = document.getElementById('nm-mfg-dots');
+        document.getElementById('nm-mfg-caption').textContent =
+          (item.title||'') + (item.location ? ' · ' + item.location : '');
+        /* Marka listesi: bu karede ürünü görünen markalar — tekilleştirilmiş. */
+        var brands = [];
+        pts.forEach(function(p){ if(p.brand && brands.indexOf(p.brand)===-1) brands.push(p.brand); });
+        document.getElementById('nm-mfg-list').innerHTML = brands.map(function(b){
+          return '<li>' + escapeHtml(b) + ' — bu projede ürünü kullanıldı</li>';
+        }).join('');
+        pts.forEach(function(p, i){
+          var dot = document.createElement('button');
+          dot.type='button'; dot.className='nm-dot';
+          dot.style.left=p.x+'%'; dot.style.top=p.y+'%';
+          dot.setAttribute('aria-label',(p.title||'Ürün'));
+          var card = document.createElement('a');
+          card.className='nm-tagcard';
+          card.href = p.slug ? '/urun/'+encodeURIComponent(p.slug) : '#';
+          card.style.left=p.x+'%'; card.style.top='calc('+p.y+'% + 18px)';
+          var im = p.image ? (typeof cdnImg==='function'?cdnImg(p.image,160):p.image) : '';
+          card.innerHTML=(im?'<img src="'+escapeHtml(im)+'" alt="" loading="lazy" onerror="this.remove()">':'')
+            + '<span><b>'+escapeHtml(p.title||'')+'</b><span>'+escapeHtml(p.brand||'')+'</span></span>';
+          if(p.x > 62) card.classList.add('flip');
+          function show(){
+            host.querySelectorAll('.nm-tagcard.open').forEach(function(c){ if(c!==card) c.classList.remove('open'); });
+            host.querySelectorAll('.nm-dot.is-open').forEach(function(x){ if(x!==dot) x.classList.remove('is-open'); });
+            card.classList.add('open'); dot.classList.add('is-open');
+          }
+          dot.addEventListener('mouseenter', show);
+          dot.addEventListener('focus', show);
+          dot.addEventListener('click', function(e){ e.preventDefault(); show(); });
+          host.appendChild(dot); host.appendChild(card);
+          if(i===1 || (pts.length===1 && i===0)) show();
+        });
+      })
+      .catch(drop);
+  })();
+
+  /* ---------- Firma profili önizlemesi: CANLI (ekran görüntüsü değil) ---------- */
+  (function(){
+    var sec = document.getElementById('firma-onizleme');
+    if(!sec) return;
+    var SLUG = 'eaa-emre-arolat-architecture';
+    function drop(){ sec.remove(); }
+    Promise.all([
+      fetch('/api/office/'+SLUG).then(function(r){ return r.ok ? r.json() : null; }),
+      fetch('/api/projects?designerOffice=' + encodeURIComponent('EAA (Emre Arolat Architecture)') + '&limit=4')
+        .then(function(r){ return r.ok ? r.json() : null; })
+    ]).then(function(res){
+      var o = res[0] && (res[0].item || res[0]);
+      var pr = (res[1] && res[1].items) || [];
+      if(!o || !o.name) return drop();
+      var body = document.getElementById('nm-firm-body');
+      var cover = o.cover ? '<img src="'+escapeHtml(o.cover)+'" alt="" loading="lazy" onerror="this.remove()">' : '';
+      var logo = o.logo ? '<img src="'+escapeHtml(typeof cdnImg==='function'?cdnImg(o.logo,200):o.logo)+'" alt="" loading="lazy" onerror="this.remove()">' : '';
+      var meta = [o.loc, o.yil ? String(o.yil) : '', o.cats].filter(Boolean).join(' · ');
+      body.innerHTML =
+        '<div class="nm-firm-cover">'+cover+'<div class="nm-firm-logo">'+logo+'</div></div>'
+        + '<div class="nm-firm-head"><p class="nm-firm-name">'+escapeHtml(o.name)+'</p>'
+        + '<p class="nm-firm-meta">'+escapeHtml(meta)+'</p></div>'
+        + '<div class="nm-firm-tabs"><b>Projeler</b><span>Ekip</span><span>Ürünler</span><span>Hakkında</span></div>'
+        + '<div class="nm-firm-projects">' + pr.slice(0,4).map(function(p){
+            var im = (p.images && p.images[0]) ? (typeof cdnImg==='function'?cdnImg(p.images[0],400):p.images[0]) : '';
+            return '<a class="nm-firm-proj" href="/proje/'+encodeURIComponent(p.slug)+'">'
+              + (im ? '<img src="'+escapeHtml(im)+'" alt="" loading="lazy" onerror="this.remove()">' : '')
+              + '<span>'+escapeHtml(p.title||'')+'</span></a>';
+          }).join('') + '</div>';
+    }).catch(drop);
   })();
 
   fetch('/api/public/platform', { headers: { 'Accept': 'application/json' } })
