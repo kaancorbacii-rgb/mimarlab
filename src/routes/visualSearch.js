@@ -143,7 +143,7 @@ export async function handleVisualSearchRoute(request, env, url) {
   // Sürüm eki ZORUNLU: prompt/şema değişince eski önbellek kayıtları yeni davranışı maskeler
   // (v1 kayıtları tek `spaceType` taşıyordu, v2 sıralı aday listesi taşıyor). Analiz mantığı her
   // değiştiğinde bu numara artırılmalı — aksi halde bir hafta boyunca eski sonuçlar servis edilir.
-  const cacheKey = `vsearch:v3:${hash}`;
+  const cacheKey = `vsearch:v4:${hash}`;
 
   // 1) ANALİZ — aynı görsel daha önce görüldüyse AI'ya HİÇ gidilmez.
   let vision = null;
@@ -169,7 +169,11 @@ export async function handleVisualSearchRoute(request, env, url) {
   }
 
   // 2) MİMARİ OLMAYAN GÖRSEL (brief 18) — zorla sonuç üretme.
-  if (!vision.isArchitectural) {
+  // GERÇEK BULGU (ölçüm, 2026-09-02): tek kapı olarak `isArchitectural` kullanmak, düz zeminli bir
+  // ÜRÜN fotoğrafında (beyaz fon üzerinde sandalye) tüm boru hattını kapatıyordu — model o kareyi
+  // "mimari değil" sayıyor, oysa ürün araması tam da bunun için var. Artık ürün tespiti VARSA
+  // görsel ilgisiz sayılmaz; ilgisizlik kararı ancak İKİSİ de yoksa verilir.
+  if (!vision.isArchitectural && !(vision.products && vision.products.length)) {
     return json({
       ok: true, cached, aiCalls,
       analysis: { isArchitectural: false, spaceType: null, materials: [], products: [], description: vision.description || '' },

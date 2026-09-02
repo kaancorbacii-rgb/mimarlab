@@ -97,7 +97,14 @@ JSON şeması:
 }
 
 Kurallar:
-- "isArchitectural": fotoğraf bir yapı, iç mekan, cephe, kentsel mekan ya da bir mobilya/yapı ürünü gösteriyorsa true. İnsan portresi, manzara, gökyüzü, hayvan, yemek, belge gibi mimarlıkla ilgisiz fotoğraflarda false.
+- "isArchitectural": şu İKİ durumdan biri varsa true:
+  (a) fotoğraf bir yapı, iç mekan, cephe ya da kentsel mekan gösteriyor, VEYA
+  (b) fotoğraf tek bir MOBİLYA/AYDINLATMA/VİTRİFİYE/KAPLAMA ÜRÜNÜ gösteriyor — düz beyaz veya sade
+      bir zeminde çekilmiş katalog/ürün fotoğrafı da BUNA DAHİLDİR (ör. beyaz zeminde bir sandalye,
+      bir lavabo, bir armatür, bir sarkıt aydınlatma). Bu tür fotoğraflarda spaceTypes BOŞ bırakılır
+      ama "products" MUTLAKA doldurulur.
+  SADECE şu durumlarda false: insan portresi, manzara, gökyüzü, hayvan, yemek, belge/ekran görüntüsü,
+  ya da hiçbir nesnenin seçilemediği tamamen boş/karanlık/gürültülü görüntüler.
 - "spaceTypes": yapının İŞLEVİ için EN OLASI 1-3 seçenek, en olasısı BAŞTA. SADECE şu listeden: ${SPACE_TYPES.join(', ')}. Hiçbiri uymuyorsa boş dizi.
 - "Kentsel Tasarım" SADECE birden çok yapıyı kapsayan meydan/masterplan/kamusal açık alan fotoğraflarında kullanılır. TEK bir binanın dış cephesini görüyorsan Kentsel Tasarım DEME; binanın İŞLEVİNİ tahmin et (otel mi, okul mu, ofis mi, konut mu).
 - Dış cephe fotoğrafında işlevden emin olamıyorsan 2-3 aday yaz, tek bir tahminde ısrar etme.
