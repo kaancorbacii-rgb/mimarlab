@@ -167,6 +167,12 @@
      "eşleşme skoru" DEĞİL, yalnızca "kaç projede geçiyor" sayımı (bkz. kullanıcı isteği: "anlamsız
      yüzde skorları üretme") — bu yüzden görsel olarak da normal metinden ayrılmayan, sade bir bilgi
      satırı. */
+  /* Aktif filtre etiketleri (kullanıcı isteği 2026-09-02, brief 9) — AI'ın GERÇEKTEN uyguladığı
+     plandan üretilir (bkz. activeFiltersHtml). */
+  .ai-chips{display:flex; flex-wrap:wrap; gap:6px; margin:0 2px 14px;}
+  .ai-chip{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px;
+    border:1px solid var(--line); background:var(--paper); font-size:12px; color:var(--ink);}
+  .ai-chip-k{font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);}
   .ai-facets{display:flex; flex-direction:column; gap:4px; font-size:12.5px; color:var(--ink-soft); margin-bottom:20px; padding:0 2px;}
   .ai-facet-row strong{color:var(--ink); font-weight:600;}
 
@@ -309,7 +315,7 @@ const SITE_PAGES = [
 
 // AI sonuçları burada saklanır ki runSearch() onları klasik bölümlerin içine karıştırabilsin.
 // Sorgu değiştiğinde bayatlamasın diye sorgunun kendisi de tutulur.
-let lastAiResults = { query: null, architects: [], offices: [], projects: [] };
+let lastAiResults = { query: null, architects: [], offices: [], projects: [], products: [], brands: [] };
 
 // İki listeyi slug'a göre birleştirir: önce klasik sonuçlar (mevcut alaka sırası korunur), sonra
 // yalnızca AI'nın bulduğu ekstralar. Dönen sayı, bölüm başlığındaki toplamın ne kadar artacağını
@@ -421,19 +427,24 @@ async function runSearch(){
 
   // AI sonuçları (varsa, AYNI sorgu için) klasik bölümlerin içine karıştırılır — ayrı bir tablo
   // seti oluşturulmaz (bkz. dosya başındaki kök neden notu).
-  const ai = (lastAiResults.query === query) ? lastAiResults : { architects: [], offices: [], projects: [] };
+  const ai = (lastAiResults.query === query) ? lastAiResults : { architects: [], offices: [], projects: [], products: [], brands: [] };
   const mimarMerged  = mergeWithAi(full.architects || [], ai.architects, full.totals.architects);
   const projeMerged  = mergeWithAi(full.projects || [], ai.projects, full.totals.projects);
   // AI'nın döndürdüğü ofisler firma/marka ayrımı taşımaz; saf marka olmayanlar Firmalar'a eklenir
   // (AI ekstraları zaten yalnızca klasik aramanın kaçırdıklarıdır, sayı olarak küçüktür).
   const markaSlugs = new Set(markaResults.map(o => o.slug));
   const firmaMerged = mergeWithAi(firmaResults, (ai.offices || []).filter(o => !markaSlugs.has(o.slug)), firmaTotal);
+  // Ürün ve Marka da artık AI kanalından besleniyor (2026-09-02): sunucu tarafı hibrit arama bu iki
+  // türü de döndürüyor, oysa klasik uçlar yalnızca düz metin eşleşmesi yapıyor — ör. "Vitra" sorgusu
+  // klasik tarafta ürün başlıklarında geçmediği için kaçıyordu, AI kanalı marka alanından buluyor.
+  const urunMerged  = mergeWithAi(urunResults, ai.products, urunTotal);
+  const markaMerged = mergeWithAi(markaResults, ai.brands, markaTotal);
 
   // Sayfalar — sabit site sayfaları, aynı foldTr eşleştirmesiyle.
   const qFold = foldTr(query);
   const sayfaResults = SITE_PAGES.filter(p => foldTr(p.title).includes(qFold) || foldTr(p.keywords || '').includes(qFold));
 
-  const total = projeMerged.total + mimarMerged.total + firmaMerged.total + urunTotal + markaTotal + sayfaResults.length;
+  const total = projeMerged.total + mimarMerged.total + firmaMerged.total + urunMerged.total + markaMerged.total + sayfaResults.length;
   subtitleEl.textContent = total ? `${total} sonuç bulundu` : '';
 
   if(total === 0){
@@ -486,13 +497,13 @@ async function runSearch(){
     groupHtml('Projeler', projeMerged.items, projectRow, projeMerged.total),
     groupHtml('Kişiler', mimarMerged.items, architectRow, mimarMerged.total),
     groupHtml('Firmalar', firmaMerged.items, officeRow, firmaMerged.total),
-    groupHtml('Ürünler', urunResults, p => rowHtml({
+    groupHtml('Ürünler', urunMerged.items, p => rowHtml({
       href: `/urun/${encodeURIComponent(p.slug)}`,
       avatarContent: p.image ? `<img src="${escapeAttr(cdnImg(p.image, 200))}"${cdnSrcset(p.image, [160, 240, 320]) ? ` srcset="${escapeAttr(cdnSrcset(p.image, [160, 240, 320]))}" sizes="48px"` : ''} alt="" loading="lazy" decoding="async">` : '',
       title: p.title,
       meta: [p.category, p.brand].filter(Boolean).join(' · '),
-    }), urunTotal),
-    groupHtml('Markalar', markaResults, officeRow, markaTotal),
+    }), urunMerged.total),
+    groupHtml('Markalar', markaMerged.items, officeRow, markaMerged.total),
     groupHtml('Sayfalar', sayfaResults, s => rowHtml({
       href: s.href,
       avatarStyle: `background:${officeColor(s.title)}`,
@@ -524,14 +535,40 @@ const aiResultEl = document.getElementById('ai-search-result');
 // görünmesin diye (kullanıcı isteği).
 let aiHasResultsPromise = Promise.resolve(false);
 
-const FACET_LABELS = { cities: 'Şehir', categories: 'Tip', discipline: 'Tür' };
+// activeFiltersHtml — brief 9: AI açıklamasının altında "hangi filtreler uygulandı" görünsün.
+// Bunlar sunucunun GERÇEKTEN uyguladığı plandan (data.filters) gelir, ayrı bir tahminden DEĞİL;
+// yani kullanıcının gördüğü etiket ile sonucu üreten filtre her zaman aynıdır.
+function activeFiltersHtml(plan){
+  if(!plan) return '';
+  const chips = [];
+  const add = (label, value) => chips.push(
+    `<span class="ai-chip"><span class="ai-chip-k">${escapeHtml(label)}</span>${escapeHtml(value)}</span>`);
+  if(plan.city) add('Şehir', plan.city);
+  if(plan.district) add('İlçe', plan.district);
+  if(plan.yearFrom != null || plan.yearTo != null){
+    const a = plan.yearFrom != null ? plan.yearFrom : '…';
+    const b = plan.yearTo != null ? plan.yearTo : '…';
+    add('Yıl', `${a} – ${b}`);
+  }
+  (plan.discipline || []).forEach(d => add('Tür', d));
+  (plan.category || []).forEach(c => add('Tip', c));
+  (plan.type || []).forEach(t => add('Grup', t));
+  if(plan.name) add('İsim', plan.name);
+  // Malzeme/üslup gibi D1'de kolonu olmayan ama ZORUNLU metin filtresi olarak uygulanan terimler
+  // (bkz. src/lib/searchConcepts.js#textGroups) — kullanıcı bunların da uygulandığını görmeli.
+  (plan.textGroups || []).forEach(g => { if(g && g.length) add('Geçen', g[0]); });
+  if(!chips.length) return '';
+  return `<div class="ai-chips">${chips.join('')}</div>`;
+}
+
+const FACET_LABELS = { cities: 'Şehir', categories: 'Tip', discipline: 'Tür', types: 'Grup' };
 // facetsHtml — computeFacets()'in (bkz. src/routes/ai.js) döndürdüğü GERÇEK sayımları düz metin
 // olarak listeler, hiçbir yüzde/skor göstermez (bkz. kullanıcı isteği: "anlamsız yüzde skorları
 // üretme").
 function facetsHtml(facets){
   if(!facets) return '';
   const parts = [];
-  ['cities', 'categories', 'discipline'].forEach(key => {
+  ['cities', 'types', 'categories', 'discipline'].forEach(key => {
     const items = facets[key];
     if(items && items.length) parts.push(`<div class="ai-facet-row"><strong>${FACET_LABELS[key]}:</strong> ${items.map(i => `${escapeHtml(i.value)} (${i.count})`).join(', ')}</div>`);
   });
@@ -571,7 +608,8 @@ async function runAiSearch(q){
   data = await res.json();
   if(runToken !== aiRunToken) return false;
 
-  const total = data.totals.architects + data.totals.offices + data.totals.projects;
+  const total = data.totals.architects + data.totals.offices + data.totals.projects
+    + (data.totals.products || 0) + (data.totals.brands || 0);
   if(!total){
     // AI hiç sonuç bulamadıysa (yanıt veremediği İÇİN ya da gerçekten eşleşme yoksa fark etmez) bu
     // blok, klasik arama kutusunun (bkz. aşağıdaki aiHasResultsPromise/runSearch total===0 dalı,
@@ -579,7 +617,7 @@ async function runAiSearch(q){
     // tekrar olur — sessizce gizlenir, mesajlaşmayı klasik kutuya bırakır.
     aiResultEl.hidden = true;
     aiResultEl.innerHTML = '';
-    lastAiResults = { query: null, architects: [], offices: [], projects: [] };
+    lastAiResults = { query: null, architects: [], offices: [], projects: [], products: [], brands: [] };
     return false;
   }
 
@@ -591,6 +629,7 @@ async function runAiSearch(q){
   // sorgularda ("bursa'daki camiler" gibi) sonuçlar kaybolmaz ama tablo tekrarı da olmaz.
   aiResultEl.innerHTML = [
     `<div class="ai-eyebrow">✦ MİMARLAB AI</div><div class="ai-summary">${escapeHtml(data.summary)}</div>`,
+    activeFiltersHtml(data.filters),
     facetsHtml(data.facets),
   ].join('');
 
@@ -599,6 +638,8 @@ async function runAiSearch(q){
     architects: data.architects || [],
     offices: data.offices || [],
     projects: data.projects || [],
+    products: data.products || [],
+    brands: data.brands || [],
   };
   // Sonuçları klasik bölümlere karıştırmak için tek bir yeniden render. runSearch() AI'yı geri
   // ÇAĞIRMAZ (maybeRunAiSearch ayrı ve tek seferliktir), bu yüzden döngü oluşmaz.
