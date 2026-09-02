@@ -294,6 +294,7 @@
 <script src="office-kind.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
+<script src="js/components/image-crop.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="firma"></div>
@@ -757,8 +758,19 @@ function renderPreviews(){
     previewGrid.innerHTML = '';
   }
 }
-function addFiles(fileList){
-  selectedFiles = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0,1);
+// Kullanıcı isteği (2026-09-02 madde 2): logo yüklenince 1:1 kırpma penceresi açılır.
+// Kullanıcı kırpmazsa (pencereyi kapatır/atlar) ImageCrop görseli ORTADAN kare kırpar — yani
+// "kırpmadım" durumu ham/çarpık bir görsel değil, makul bir varsayılan üretir.
+// Marka KAPAK görseli bilinçli olarak KAPSAM DIŞI (bkz. addCoverFiles): o geniş bir bant,
+// kare kırpmak onu bozardı.
+// ImageCrop yüklenmemişse (ağ hatası) akış eskisi gibi ham dosyayla devam eder — logo yükleyememek,
+// kırpılmamış bir logo yüklemekten kötüdür.
+async function addFiles(fileList){
+  const picked = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0,1);
+  if(picked.length && window.ImageCrop){
+    try{ picked[0] = await ImageCrop.open(picked[0], { title: 'Logoyu kırp' }); }catch(e){ /* ham dosyayla devam */ }
+  }
+  selectedFiles = picked;
   renderPreviews();
 }
 fileInput.addEventListener('change', (e)=> addFiles(e.target.files));

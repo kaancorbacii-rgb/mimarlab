@@ -2126,15 +2126,15 @@ const AuthModal = (function () {
       // Kullanıcı isteği (2026-09-02): meslek artık ZORUNLU (kisi-ekle.html ile aynı kural).
       if (!profession) { msg.textContent = 'Meslek seçmelisin.'; return; }
       // Profili YAYIMLAMAK (kişi dizininde görünmek) için ek zorunlu alanlar — kullanıcı isteği
-      // 2026-09-02 madde 2: "profilinin yayınlanması için Ad Soyad, Doğum Yılı, Meslek ve Açıklama
-      // alanları zorunlu olsun" + daha önceki istekle profil fotoğrafı. Dizine GİRMEK İSTEMEYEN
+      // Ad Soyad, Meslek, Açıklama ve profil fotoğrafı zorunlu. Doğum Yılı 2026-09-02'de
+      // kullanıcı isteğiyle OPSİYONELE çevrildi; kisi-ekle.html ile bu dörtlü birebir aynı
+      // kalmalı — iki form aynı kişi kaydını besliyor. Dizine GİRMEK İSTEMEYEN
       // biri bu alanlar boşken de profilini kaydedebilir — zorunluluk yalnızca herkese açık
       // kartta eksik bilgi görünmesini engellemek için. kisi-ekle.html'de AYNI dörtlü zorunludur.
       const wantsDirectory = document.querySelector('input[name="am-directory-listed"]:checked');
       if (wantsDirectory && wantsDirectory.value === 'yes') {
         const eksik = [];
         if (!name || !name.trim()) eksik.push('Ad Soyad');
-        if (!dob) eksik.push('Doğum Yılı');
         if (!profession) eksik.push('Meslek');
         if (!about || !about.trim()) eksik.push('Açıklama');
         // GERÇEK BULGU (kullanıcı bildirimi: fotoğraf yüklendiği hâlde "Profil Fotoğrafı zorunlu"
@@ -2179,9 +2179,17 @@ const AuthModal = (function () {
 
     on('am-avatar-upload-btn', 'click', () => document.getElementById('am-avatar-file-input').click());
     on('am-avatar-file-input', 'change', async (e) => {
-      const file = e.target.files[0];
+      let file = e.target.files[0];
       if (!file) return;
       const hint = document.getElementById('am-avatar-upload-hint');
+      // Kullanıcı isteği (2026-09-02 madde 2): profil fotoğrafı 1:1 kırpılır. Kullanıcı kırpmazsa
+      // ImageCrop görseli ortadan kare kırpar, yani avatar her durumda kare olur.
+      // ImageCrop yüklenmemişse akış eskisi gibi ham dosyayla devam eder — fotoğraf yükleyememek,
+      // kırpılmamış bir fotoğraf yüklemekten kötüdür.
+      if (window.ImageCrop) {
+        try { file = await ImageCrop.open(file, { title: 'Profil fotoğrafını kırp' }); }
+        catch (err) { /* ham dosyayla devam */ }
+      }
       hint.textContent = 'Yükleniyor…';
       try {
         const blob = await resizeImageFile(file, 480, 0.82);

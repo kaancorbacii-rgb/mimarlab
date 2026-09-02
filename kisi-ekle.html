@@ -311,6 +311,7 @@
 <script src="profession-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
+<script src="js/components/image-crop.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
 
@@ -341,7 +342,7 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="dd-dob-btn">Doğum Yılı <span class="req" aria-hidden="true">*</span></label>
+            <label for="dd-dob-btn">Doğum Yılı <span class="opt">(opsiyonel)</span></label>
             <div class="dd-field" id="dd-dob">
               <button type="button" class="dd-btn" id="dd-dob-btn">
                 <span id="dd-dob-btn-label">Yıl seç</span>
@@ -791,8 +792,19 @@ function renderPreviews(){
     previewGrid.innerHTML = '';
   }
 }
-function addFiles(fileList){
-  selectedFiles = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0,1);
+// Kullanıcı isteği (2026-09-02 madde 2): profil fotoğrafı yüklenince 1:1 kırpma penceresi açılır.
+// Kullanıcı kırpmazsa (pencereyi kapatır/atlar) ImageCrop görseli ORTADAN kare kırpar — yani
+// "kırpmadım" durumu ham/çarpık bir görsel değil, makul bir varsayılan üretir.
+// Marka KAPAK görseli bilinçli olarak KAPSAM DIŞI (bkz. addCoverFiles): o geniş bir bant,
+// kare kırpmak onu bozardı.
+// ImageCrop yüklenmemişse (ağ hatası) akış eskisi gibi ham dosyayla devam eder — logo yükleyememek,
+// kırpılmamış bir logo yüklemekten kötüdür.
+async function addFiles(fileList){
+  const picked = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0,1);
+  if(picked.length && window.ImageCrop){
+    try{ picked[0] = await ImageCrop.open(picked[0], { title: 'Profil fotoğrafını kırp' }); }catch(e){ /* ham dosyayla devam */ }
+  }
+  selectedFiles = picked;
   renderPreviews();
 }
 fileInput.addEventListener('change', (e)=> addFiles(e.target.files));
@@ -1225,13 +1237,14 @@ document.getElementById('kisi-ekle-form').addEventListener('submit', async (e)=>
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  // Kullanıcı isteği (2026-09-02 madde 3): kişi profili yayımlanacaksa Ad Soyad, Doğum Yılı,
-  // Meslek ve Açıklama zorunlu. Profili Düzenle'deki (js/components/auth-modal.js#am-dash-save-btn)
+  // Kişi profili yayımlanacaksa Ad Soyad, Meslek ve Açıklama zorunlu (Doğum Yılı 2026-09-02'de
+  // kullanıcı isteğiyle opsiyonele çevrildi). Profili Düzenle'deki (js/components/auth-modal.js#am-dash-save-btn)
   // dizin yayını kuralıyla BİREBİR aynı dörtlü — iki form aynı kişi kaydını beslediğinden
   // (bkz. claimed_profile_key entegrasyonu) kuralların ayrışmaması şart.
+  // Doğum Yılı 2026-09-02'de OPSİYONEL yapıldı (kullanıcı isteği) — zorunlular listesinden
+  // çıkarıldı; alan yine gönderiliyor, yalnızca boş bırakılabiliyor.
   const eksikAlanlar = [];
   if(!document.getElementById('m-name').value.trim()) eksikAlanlar.push('Ad Soyad');
-  if(!selectedDob) eksikAlanlar.push('Doğum Yılı');
   if(!meslekDropdown.getChecked().length) eksikAlanlar.push('Meslek');
   if(!document.getElementById('m-about').value.trim()) eksikAlanlar.push('Açıklama');
   if(eksikAlanlar.length){
