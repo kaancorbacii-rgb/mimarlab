@@ -421,6 +421,19 @@
         <div class="image-preview-grid" id="image-preview-grid"></div>
       </div>
 
+      <div class="form-section">
+        <h2>Dosya Yükle (BIM, CAD, 3D, Katalog) <span class="opt">(opsiyonel)</span></h2>
+        <p class="section-hint">Ürünün BIM/CAD/3D modellerini ya da ürün kataloğunu ekleyebilirsin.</p>
+        <label class="file-drop" id="file-drop">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+          <strong>Dosyaları sürükleyip bırak</strong>
+          <span>ya da bilgisayarından seçmek için tıkla</span>
+          <input type="file" id="file-input" accept=".rfa,.rvt,.ifc,.ifczip,.dwg,.dxf,.skp,.3dm,.obj,.fbx,.3ds,.stl,.step,.stp,.iges,.igs,.pdf" multiple style="display:none;">
+        </label>
+        <p class="image-spec-hint">İzin verilen formatlar: RFA, RVT, IFC, IFCZIP (BIM) · DWG, DXF (CAD) · SKP, 3DM, OBJ, FBX, 3DS, STL, STEP, STP, IGES, IGS (3D) · PDF (Katalog). Dosya başına en fazla 10 MB, ürün başına en fazla 5 dosya ve toplam 30 MB.</p>
+        <div class="file-preview-grid" id="file-preview-grid"></div>
+      </div>
+
       <!-- Kullanılan Projeler — proje-ekle.html'deki "Kullanılan Ürünler / Firmalar" kutusunun
            AYNADAKİ karşılığı (kullanıcı isteği, 2026-08-31). Seçim yalnızca sitede halihazırda
            yayımlanmış projeler arasından yapılır (GET /api/projects/search, bkz. src/routes/
@@ -440,19 +453,6 @@
           <div class="form-notice-inline" id="project-pick-notice"></div>
           <div class="brand-chip-list" id="project-chip-list"></div>
         </div>
-      </div>
-
-      <div class="form-section">
-        <h2>Dosya Yükle (BIM, CAD, 3D, Katalog) <span class="opt">(opsiyonel)</span></h2>
-        <p class="section-hint">Ürünün BIM/CAD/3D modellerini ya da ürün kataloğunu ekleyebilirsin.</p>
-        <label class="file-drop" id="file-drop">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
-          <strong>Dosyaları sürükleyip bırak</strong>
-          <span>ya da bilgisayarından seçmek için tıkla</span>
-          <input type="file" id="file-input" accept=".rfa,.rvt,.ifc,.ifczip,.dwg,.dxf,.skp,.3dm,.obj,.fbx,.3ds,.stl,.step,.stp,.iges,.igs,.pdf" multiple style="display:none;">
-        </label>
-        <p class="image-spec-hint">İzin verilen formatlar: RFA, RVT, IFC, IFCZIP (BIM) · DWG, DXF (CAD) · SKP, 3DM, OBJ, FBX, 3DS, STL, STEP, STP, IGES, IGS (3D) · PDF (Katalog). Dosya başına en fazla 10 MB, ürün başına en fazla 5 dosya ve toplam 30 MB.</p>
-        <div class="file-preview-grid" id="file-preview-grid"></div>
       </div>
 
       <div class="form-field" id="ai-consent-field" style="display:none;">

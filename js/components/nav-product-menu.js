@@ -102,14 +102,43 @@
         panel.classList.remove('open');
         trigger.setAttribute('aria-expanded', 'false');
       };
+      const build = () => { if(!built){ panel.innerHTML = megaMenuHtml(); built = true; } };
+      const openMenu = () => {
+        build();
+        panel.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+      };
+
+      // Masaüstü (kullanıcı isteği, 2026-09-02 madde 5): ÜRÜN başlığının üzerine gelince çekmece
+      // KENDİLİĞİNDEN açılır, başlığa TIKLAMAK ise tüm ürünlerin listelendiği /urun sayfasına gider.
+      //
+      // "Masaüstü"nü pencere genişliğiyle değil hover YETENEĞİYLE ayırt ediyoruz: dokunmatik bir
+      // cihazda mouseenter, ilk dokunuşta sentetik olarak tetiklenir — genişliğe baksaydık, geniş
+      // ekranlı bir tablette tek dokunuş hem menüyü açar hem de bağlantıyı izleyip sayfayı
+      // değiştirirdi. hover:hover olmayan cihazlarda ESKİ tıkla-aç/kapa davranışı aynen korunur,
+      // yani o cihazlarda menüye erişim kaybolmaz.
+      const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)');
+      let closeTimer = null;
+      const cancelClose = () => { if(closeTimer){ clearTimeout(closeTimer); closeTimer = null; } };
+      // Panel, wrap'in İÇİNDE DEĞİL kardeşidir (bkz. site-chrome.js#headerHtml) — bu yüzden
+      // tetikleyiciden panele inerken imleç kısa süre ikisinin de dışında kalır. Gecikmeli kapatma
+      // olmadan menü tam da kullanıcı ona uzanırken kapanırdı.
+      const scheduleClose = () => { cancelClose(); closeTimer = setTimeout(closeMenu, 220); };
+      [wrap, panel].forEach(el => {
+        el.addEventListener('mouseenter', ()=>{ if(!hoverCapable.matches) return; cancelClose(); openMenu(); });
+        el.addEventListener('mouseleave', ()=>{ if(!hoverCapable.matches) return; scheduleClose(); });
+      });
+
       trigger.addEventListener('click', (e)=>{
-        // Tetikleyici artık bir <a href="/urun"> (bkz. js/components/site-chrome.js#headerHtml):
-        // Cmd/Ctrl/Shift/Alt/orta tıkta tarayıcının doğal "yeni sekmede aç" davranışına dokunulmaz;
-        // yalnızca düz sol tıklama mega menüyü açar.
+        // Tetikleyici bir <a href="/urun"> (bkz. js/components/site-chrome.js#headerHtml):
+        // Cmd/Ctrl/Shift/Alt/orta tıkta tarayıcının doğal "yeni sekmede aç" davranışına dokunulmaz.
         if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        // Hover'lı cihazda menü zaten üzerine gelince açıldı; tıklama artık /urun'e GİDER —
+        // preventDefault ETME, tarayıcı bağlantıyı normal şekilde izlesin.
+        if(hoverCapable.matches){ cancelClose(); return; }
         e.preventDefault();
         e.stopPropagation();
-        if(!built){ panel.innerHTML = megaMenuHtml(); built = true; }
+        build();
         const willOpen = !panel.classList.contains('open');
         panel.classList.toggle('open', willOpen);
         trigger.setAttribute('aria-expanded', String(willOpen));

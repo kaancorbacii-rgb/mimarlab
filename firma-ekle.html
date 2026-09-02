@@ -321,31 +321,6 @@
           <label for="o-name">Firma Adı <span class="req" aria-hidden="true">*</span></label>
           <input type="text" id="o-name" name="name" placeholder="ör. Autoban" required>
         </div>
-        <fieldset class="form-field">
-          <legend>Konum <span class="req" aria-hidden="true">*</span></legend>
-          <div class="form-row">
-            <div class="dd-field" id="dd-il">
-              <button type="button" class="dd-btn" id="dd-il-btn">
-                <span id="dd-il-btn-label">İl seç</span>
-                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dd-panel">
-                <input type="text" class="dd-search" id="dd-il-search" placeholder="İl ara...">
-                <div class="dd-options" id="dd-il-options"></div>
-              </div>
-            </div>
-            <div class="dd-field" id="dd-ilce">
-              <button type="button" class="dd-btn" id="dd-ilce-btn" disabled>
-                <span id="dd-ilce-btn-label">Önce il seç</span>
-                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dd-panel">
-                <input type="text" class="dd-search" id="dd-ilce-search" placeholder="İlçe ara...">
-                <div class="dd-options" id="dd-ilce-options"></div>
-              </div>
-            </div>
-          </div>
-        </fieldset>
         <div class="form-row">
           <div class="form-field">
             <label for="dd-yil-btn">Kuruluş Yılı <span class="opt">(opsiyonel)</span></label>
@@ -377,6 +352,31 @@
             </div>
           </div>
         </div>
+        <fieldset class="form-field">
+          <legend>Konum <span class="req" aria-hidden="true">*</span></legend>
+          <div class="form-row">
+            <div class="dd-field" id="dd-il">
+              <button type="button" class="dd-btn" id="dd-il-btn">
+                <span id="dd-il-btn-label">İl seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <input type="text" class="dd-search" id="dd-il-search" placeholder="İl ara...">
+                <div class="dd-options" id="dd-il-options"></div>
+              </div>
+            </div>
+            <div class="dd-field" id="dd-ilce">
+              <button type="button" class="dd-btn" id="dd-ilce-btn" disabled>
+                <span id="dd-ilce-btn-label">Önce il seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <input type="text" class="dd-search" id="dd-ilce-search" placeholder="İlçe ara...">
+                <div class="dd-options" id="dd-ilce-options"></div>
+              </div>
+            </div>
+          </div>
+        </fieldset>
         <!-- Websitesi + Ödül satırı, Kurucular satırının ÜSTÜNDE (kullanıcı isteği, 2026-09-01
              madde 6: "websitesi ve ödül satırıyla kurucu satırının yerlerini değiştir").
              Satırın KENDİ İÇİNDE Websitesi solda / Ödül sağda kalır (2026-08-31 madde 7). -->

@@ -332,31 +332,6 @@
           <label for="o-name">Marka Adı <span class="req" aria-hidden="true">*</span></label>
           <input type="text" id="o-name" name="name" placeholder="ör. Autoban" required>
         </div>
-        <fieldset class="form-field">
-          <legend>Konum <span class="req" aria-hidden="true">*</span></legend>
-          <div class="form-row">
-            <div class="dd-field" id="dd-il">
-              <button type="button" class="dd-btn" id="dd-il-btn">
-                <span id="dd-il-btn-label">İl seç</span>
-                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dd-panel">
-                <input type="text" class="dd-search" id="dd-il-search" placeholder="İl ara...">
-                <div class="dd-options" id="dd-il-options"></div>
-              </div>
-            </div>
-            <div class="dd-field" id="dd-ilce">
-              <button type="button" class="dd-btn" id="dd-ilce-btn" disabled>
-                <span id="dd-ilce-btn-label">Önce il seç</span>
-                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dd-panel">
-                <input type="text" class="dd-search" id="dd-ilce-search" placeholder="İlçe ara...">
-                <div class="dd-options" id="dd-ilce-options"></div>
-              </div>
-            </div>
-          </div>
-        </fieldset>
         <div class="form-row">
           <div class="form-field">
             <label for="dd-yil-btn">Kuruluş Yılı <span class="opt">(opsiyonel)</span></label>
@@ -388,6 +363,31 @@
             </div>
           </div>
         </div>
+        <fieldset class="form-field">
+          <legend>Konum <span class="req" aria-hidden="true">*</span></legend>
+          <div class="form-row">
+            <div class="dd-field" id="dd-il">
+              <button type="button" class="dd-btn" id="dd-il-btn">
+                <span id="dd-il-btn-label">İl seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <input type="text" class="dd-search" id="dd-il-search" placeholder="İl ara...">
+                <div class="dd-options" id="dd-il-options"></div>
+              </div>
+            </div>
+            <div class="dd-field" id="dd-ilce">
+              <button type="button" class="dd-btn" id="dd-ilce-btn" disabled>
+                <span id="dd-ilce-btn-label">Önce il seç</span>
+                <svg class="dd-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dd-panel">
+                <input type="text" class="dd-search" id="dd-ilce-search" placeholder="İlçe ara...">
+                <div class="dd-options" id="dd-ilce-options"></div>
+              </div>
+            </div>
+          </div>
+        </fieldset>
         <!-- Websitesi + Ödül satırı, Kurucular satırının ÜSTÜNDE (kullanıcı isteği, 2026-09-01
              madde 6: "websitesi ve ödül satırıyla kurucu satırının yerlerini değiştir").
              Satırın KENDİ İÇİNDE Websitesi solda / Ödül sağda kalır (2026-08-31 madde 7). -->
@@ -432,36 +432,47 @@
         <button type="button" class="social-add-btn" id="social-add-btn">+ Sosyal Medya Ekle</button>
       </div>
 
-      <div class="form-section">
-        <h2>Logo <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <label class="image-drop" id="image-drop">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
-          <strong>Logoyu sürükleyip bırak</strong>
-          <span>ya da bilgisayarından seçmek için tıkla</span>
-          <input type="file" id="image-input" accept="image/*" style="display:none;">
-        </label>
-        <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
-        <div class="image-preview-grid" id="image-preview-grid"></div>
-      </div>
-
       <!-- Kapak Görseli (kullanıcı isteği, 2026-08-31 madde 6) — Logo bölümüyle BİREBİR aynı iskelet
            (aynı .image-drop/.image-preview-grid işaretlemesi, aynı tek-dosya seçimi, aynı yeniden
            boyutlandırma+yükleme yolu), yalnızca ayrı bir state (selectedCoverFiles/existingCoverUrl)
            ve ayrı bir payload alanı (cover_url) taşır. Markalar sayfasındaki kartın arka planı ve
            marka popup'ının üst bandı bu görseldir; boş bırakılırsa iki yer de temaya uygun düz bir
            renge düşer (bkz. marka.html#.office-card-cover, office-modal.js#om-cover). -->
+      <!-- Logo + Kapak tek satirda, yan yana 2 sutun (kullanici istegi, 2026-09-02 madde 1).
+           .form-row zaten 1fr 1fr grid'dir ve <=760px'te tek sutuna duser (bkz. bu dosyanin
+           media query'si), yani mobilde ikisi alt alta yiginlanir - ayri bir CSS gerekmez. -->
       <div class="form-section">
-        <h2>Kapak Görseli <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Markalar sayfasında ve marka profilinde görünür. Geniş (yatay) bir görsel seç.</p>
-        <label class="image-drop" id="cover-drop">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
-          <strong>Kapak görselini sürükleyip bırak</strong>
-          <span>ya da bilgisayarından seçmek için tıkla</span>
-          <input type="file" id="cover-input" accept="image/*" style="display:none;">
-        </label>
-        <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
-        <div class="image-preview-grid" id="cover-preview-grid"></div>
+        <div class="form-row">
+          <div>
+          <h2>Logo <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+          <!-- Bu açıklama satırı yalnızca bilgi için değil HİZALAMA için de gerekli: yanındaki
+               Kapak sütununda bir .section-hint var, burada olmasaydı iki yükleme kutusu aynı
+               satırda 38px kayık dururdu (tarayıcıda ölçüldü). -->
+          <p class="section-hint">Marka profilinde ve marka listelerinde görünür. Kare (1:1) bir logo seç.</p>
+          <label class="image-drop" id="image-drop">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+            <strong>Logoyu sürükleyip bırak</strong>
+            <span>ya da bilgisayarından seçmek için tıkla</span>
+            <input type="file" id="image-input" accept="image/*" style="display:none;">
+          </label>
+          <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
+          <div class="image-preview-grid" id="image-preview-grid"></div>
+          </div>
+          <div>
+          <h2>Kapak Görseli <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+          <p class="section-hint">Markalar sayfasında ve marka profilinde görünür. Geniş (yatay) bir görsel seç.</p>
+          <label class="image-drop" id="cover-drop">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+            <strong>Kapak görselini sürükleyip bırak</strong>
+            <span>ya da bilgisayarından seçmek için tıkla</span>
+            <input type="file" id="cover-input" accept="image/*" style="display:none;">
+          </label>
+          <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
+          <div class="image-preview-grid" id="cover-preview-grid"></div>
+          </div>
+        </div>
       </div>
+
 
       <div class="form-section" id="my-badge-section" style="display:none;">
         <h2>Rozet</h2>

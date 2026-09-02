@@ -639,16 +639,16 @@
         </div>
         <div class="form-row">
           <div class="form-field ac-field" id="ac-ofis-field">
-            <label for="p-office" id="p-office-label">Firma <span class="req" aria-hidden="true">*</span></label>
+            <label for="p-office" id="p-office-label">Firma <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="p-office" name="office" placeholder="ör. Autoban" autocomplete="off">
             <div class="ac-suggestions" id="ac-ofis-suggestions"></div>
             <div class="form-hint">Birden fazla isim gireceksen virgülle ayır.</div>
           </div>
           <div class="form-field ac-field" id="ac-mimar-field">
-            <label for="p-designer" id="p-designer-label">Mimar <span class="req" aria-hidden="true">*</span></label>
+            <label for="p-designer" id="p-designer-label">Mimar <span class="opt">(opsiyonel)</span></label>
             <input type="text" id="p-designer" name="designer" placeholder="ör. Emre Arolat" autocomplete="off">
             <div class="ac-suggestions" id="ac-mimar-suggestions"></div>
-            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Firma seçtiğinde üyeler otomatik eklenir, dilersen ekle-çıkar yapabilirsin. Mimar ve Firma alanlarından en az biri doldurulmalıdır.</div>
+            <div class="form-hint">Birden fazla isim gireceksen virgülle ayır. Firma seçtiğinde üyeler otomatik eklenir, dilersen ekle-çıkar yapabilirsin.</div>
           </div>
         </div>
         <div class="form-field">
@@ -2501,12 +2501,10 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
     notice.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
-  if(!designer.length && !office.length){
-    notice.textContent = 'En az bir mimar ya da firma adı gir.';
-    notice.classList.add('show');
-    notice.scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
+  // Kullanıcı isteği (2026-09-02 madde 4): Firma ve Mimar artık OPSİYONEL. Eskiden burada
+  // "en az bir mimar ya da firma adı gir" kontrolü gönderimi durduruyordu; kaldırıldı.
+  // Sunucu tarafı zaten bu ikisini hiç zorunlu tutmuyordu (bkz. src/lib/submissionTypes.js
+  // projects.required), yani bu yalnızca istemci tarafı bir kısıttı.
   // Kullanıcı isteği (2026-09-02): Tür / Tip / Grup / Fotoğrafçı veya Kaynak zorunlu. Bu dördü
   // <select>/<input required> DEĞİL (çoklu seçim açılır menüleri ve serbest metin autocomplete'i),
   // bu yüzden tarayıcının kendi required kontrolü onları kapsamıyor — yukarıdaki Konum/Tarih/Mimar
