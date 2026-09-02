@@ -674,6 +674,9 @@
         .nav-search-modal-row-tag{flex-shrink:0; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); background:var(--paper-alt); border-radius:100px; padding:2px 8px;}
         .nav-search-modal-row-title{flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
         .nav-search-modal-row-meta{flex-shrink:0; font-size:11.5px; color:var(--ink-soft); max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+        .nav-search-modal-row-thumb{flex-shrink:0; width:40px; height:40px; border-radius:8px; object-fit:cover; background:var(--paper-alt); border:1px solid var(--line-soft);}
+        .nav-search-modal-row-thumb-ph{display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:var(--ink-soft);}
+        @media (max-width: 480px){ .nav-search-modal-row-meta{max-width:80px;} .nav-search-modal-row-thumb{width:34px; height:34px;} }
         .nav-search-modal-more{display:block; margin-top:6px; padding:10px 12px; font-size:12.5px; font-weight:600; color:var(--brass); text-align:center;}
         .nav-search-modal-empty{padding:14px 12px; font-size:12.5px; color:var(--ink-soft); text-align:center;}
         .nav-search-modal-image-box{
@@ -841,11 +844,21 @@
         body.innerHTML = `<div class="nav-search-modal-empty">"${escapeHtml(query)}" için öneri bulunamadı.</div>`;
         return;
       }
-      const rows = items.map(it => `<a class="nav-search-modal-row" href="${escapeAttr(it.href)}">
+      // Önizleme görseli satırın EN SAĞINDA (kullanıcı isteği, 2026-09-02). Görseli olmayan
+      // kayıtlarda baş harfli renkli bir kutu gösterilir ki satır yükseklikleri oynamasın.
+      // cdnImg 96 px'lik türevi ister (DPR 2'de 40 px'lik kutuya fazlasıyla yeter, bkz.
+      // image-cdn.js merdiveni — 400 px en küçük basamaktır ve türev yoksa orijinale düşer).
+      const rows = items.map(it => {
+        const img = it.image
+          ? `<img class="nav-search-modal-row-thumb" src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(it.image, 96) : it.image)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+          : `<span class="nav-search-modal-row-thumb nav-search-modal-row-thumb-ph">${escapeHtml((it.title || '?').trim().charAt(0).toLocaleUpperCase('tr'))}</span>`;
+        return `<a class="nav-search-modal-row" href="${escapeAttr(it.href)}">
           <span class="nav-search-modal-row-tag">${escapeHtml(it.label)}</span>
           <span class="nav-search-modal-row-title">${escapeHtml(it.title)}</span>
           <span class="nav-search-modal-row-meta">${escapeHtml(it.meta || '')}</span>
-        </a>`).join('');
+          ${img}
+        </a>`;
+      }).join('');
       const moreHref = '/arama?q=' + encodeURIComponent(query);
       body.innerHTML = `<div class="nav-search-modal-results">${rows}</div>
         <a class="nav-search-modal-more" href="${escapeAttr(moreHref)}">"${escapeHtml(query)}" için tüm sonuçları gör (${data.total})</a>`;

@@ -232,6 +232,16 @@ export async function handlePublicHidden(request, env) {
 const SEARCH_SUGGEST_PER_GROUP = 3;
 const SEARCH_SUGGEST_TOTAL = 8;
 
+// projects/products `images` JSON dizisinin İLK öğesi — bozuk/boş değerlerde sessizce null.
+// Arama önerisi satırındaki küçük önizleme için (kullanıcı isteği, 2026-09-02).
+function firstImage(raw) {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    return (Array.isArray(arr) && typeof arr[0] === 'string' && arr[0]) ? arr[0] : null;
+  } catch { return null; }
+}
+
 export async function handlePublicSearchSuggest(request, env, url) {
   const rawQ = (url.searchParams.get('q') || '').trim();
   if (!rawQ) return json({ items: [], total: 0 });
@@ -252,10 +262,14 @@ export async function handlePublicSearchSuggest(request, env, url) {
     // (mimar/ofis/proje ~600-800, ürün ~80 satır, bkz. src/routes/architect.js#handleArchitectSearchRoute
     // ile AYNI "tablo küçük, tam tarama ucuz" gerekçesi) bu tam tarama ucuzdur.
     const [archRes, officeRes, projRes, prodRes] = await Promise.all([
-      env.DB.prepare(`SELECT name, office_id FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
-      env.DB.prepare(`SELECT name, loc FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
-      env.DB.prepare(`SELECT slug, title, location, project_date FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
-      env.DB.prepare(`SELECT slug, title, category, brand_name_raw FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      // photo_url/logo_url/images: kullanıcı isteği (2026-09-02) — öneri satırlarında küçük bir
+      // önizleme görseli gösterilecek. `images` TAM metin olarak çekilip aşağıda JS'te ilk öğeye
+      // indirgenir (SQL json_extract KULLANILMADI: bozuk bir images JSON'ı tüm sorguyu 500'letirdi,
+      // bkz. src/lib/projectPool.js'teki AYNI gerekçe).
+      env.DB.prepare(`SELECT name, office_id, photo_url FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT name, loc, logo_url FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT slug, title, location, project_date, images FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
+      env.DB.prepare(`SELECT slug, title, category, brand_name_raw, images FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL`).all(),
     ]);
 
     const archMatches = archRes.results.filter(a => fuzzyMatch(a.name, queryWords)).slice(0, 20);
@@ -271,10 +285,10 @@ export async function handlePublicSearchSuggest(request, env, url) {
     }
 
     const groups = [
-      { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/kisi/${encodeURIComponent(slugify(a.name))}` })) },
-      { label: 'Firma', items: officeMatches.map(o => ({ title: o.name, meta: o.loc || '', href: `/firma/${encodeURIComponent(slugify(o.name))}` })) },
-      { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/proje/${encodeURIComponent(p.slug)}` })) },
-      { label: 'Ürün', items: prodMatches.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}` })) },
+      { label: 'Mimar', items: archMatches.map(a => ({ title: a.name, meta: officeNameById.get(a.office_id) || 'Mimar', href: `/kisi/${encodeURIComponent(slugify(a.name))}`, image: a.photo_url || null })) },
+      { label: 'Firma', items: officeMatches.map(o => ({ title: o.name, meta: o.loc || '', href: `/firma/${encodeURIComponent(slugify(o.name))}`, image: o.logo_url || null })) },
+      { label: 'Proje', items: projMatches.map(p => ({ title: p.title, meta: [p.location, p.project_date].filter(Boolean).join(' · '), href: `/proje/${encodeURIComponent(p.slug)}`, image: firstImage(p.images) })) },
+      { label: 'Ürün', items: prodMatches.map(p => ({ title: p.title, meta: [p.category, p.brand_name_raw].filter(Boolean).join(' · '), href: `/urun/${encodeURIComponent(p.slug)}`, image: firstImage(p.images) })) },
     ];
 
     const items = [];

@@ -797,6 +797,22 @@ const ModalShell = (function () {
   // bayatlayamaz, popup yüklenişlerinde ise korunması tam olarak istenen davranıştır.
   markRealPage(location.href);
 
+  // GERÇEK BULGU (kullanıcı isteği, 2026-09-02 madde 2: "ana sayfadaki karuselden bir popup açıp
+  // en son popup'ı kapattığımda Hesabım sayfası karşıma çıktı"): yukarıdaki çağrı YALNIZCA betik
+  // ilk kez değerlendirildiğinde çalışır. Tarayıcı bir sayfayı bfcache'ten geri yüklediğinde
+  // (history.back ile dönüş) betikler YENİDEN ÇALIŞMAZ — dolayısıyla kayıt, o oturumda daha önce
+  // açılmış bir "sayfa sayılan" popup'ta (Hesabım/Aktivitelerim/Koleksiyonum, bkz. auth-modal.js#
+  // open'daki markRealPage çağrısı) takılı kalıyordu. Senaryo: Hesabım aç -> geri ile ana sayfaya
+  // dön (bfcache, kayıt HÂLÂ /hesabim) -> karuselden proje popup'ı aç -> kapat -> readRealPage()
+  // /hesabim döndürüyor ve kullanıcı ana sayfa yerine Hesabım'a düşüyordu.
+  //
+  // pageshow bfcache geri yüklemesinde de tetiklenir (persisted:true), popstate ise aynı belgede
+  // yapılan geri/ileri hareketlerini yakalar. İkisi de markRealPage'in kendi guard'ından geçer:
+  // varlık popup'ı ve düzenleme formu URL'leri zaten yazılmaz, yani popup zinciri içindeki
+  // geri hareketleri kaydı BOZMAZ — yalnızca gerçek bir sayfaya dönüldüğünde tazelenir.
+  window.addEventListener('pageshow', () => markRealPage(location.href));
+  window.addEventListener('popstate', () => markRealPage(location.href));
+
   // TÜR-BAĞIMSIZ popup zinciri derinliği (kullanıcı isteği, 2026-09-01 madde 4: "bir popup'tan
   // diğer popup'a geçtiğimizde, sonrakini kapatınca bir önceki popup değil EN SON KALDIĞIMIZ SAYFA
   // gelsin").
