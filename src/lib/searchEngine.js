@@ -98,21 +98,32 @@ export function deterministicParse(query) {
 
   // Yıl ifadeleri. Sıra önemli: "son N yıl" ve aralık, tek yıl kalıbından ÖNCE denenir.
   const now = new Date().getUTCFullYear();
+  // matchedSpans — yıl/bölge kalıbının GERÇEKTEN kapsadığı ham metin. Bu kelimeler yapılandırılmış
+  // bir filtreye dönüştüğü için residual'a (çözülmemiş özel isim adayı) girmemeli.
+  const matchedSpans = [];
   let m;
-  if ((m = /son\s+(\d{1,3})\s*(yıl|yil|sene)/i.exec(q))) {
+  if ((m = /son\s+(\d{1,3})\s*(yıl|yil|sene)\S*/i.exec(q))) {
     plan.yearFrom = now - parseInt(m[1], 10);
     plan.yearTo = now;
+    matchedSpans.push(m[0]);
   } else if ((m = /(\d{4})\s*[-–—]\s*(\d{4})/.exec(q))) {
     plan.yearFrom = Math.min(+m[1], +m[2]);
     plan.yearTo = Math.max(+m[1], +m[2]);
+    matchedSpans.push(m[0]);
   } else if ((m = /(\d{4})\s*(sonrası|sonrasi|ve sonrası|den sonra|dan sonra|'den sonra|itibaren)/i.exec(q))) {
     plan.yearFrom = +m[1];
+    matchedSpans.push(m[0]);
   } else if ((m = /(\d{4})\s*(öncesi|oncesi|den önce|dan önce|'den önce)/i.exec(q))) {
     plan.yearTo = +m[1] - 1;
+    matchedSpans.push(m[0]);
   } else if ((m = /\b(19|20)(\d{2})\b/.exec(q))) {
     const y = parseInt(m[0], 10);
     plan.yearFrom = y; plan.yearTo = y;
+    matchedSpans.push(m[0]);
   }
+  // Bölge ifadesi ("Anadolu yakasında") ayrı bir filtreye dönüşüyor (bkz. sideOfIstanbul).
+  const sideM = /(anadolu|avrupa)\s+yaka\S*/i.exec(q);
+  if (sideM) matchedSpans.push(sideM[0]);
 
   // Kavram sözlüğü — tipoloji/disiplin/kategori + semantik genişletme.
   const ex = expandQuery(q);
@@ -138,6 +149,7 @@ export function deterministicParse(query) {
   // bir filtreye (şehir) ya da bir kavrama (tipoloji/malzeme) dönüşmüş terimler çıkarılır. Geriye
   // kalan, gerçekten "bu bir isim olabilir" diyebileceğimiz terimlerdir ("Vitra", "Emre Arolat").
   const consumed = new Set();
+  for (const span of matchedSpans) foldTr(span).split(/[^a-z0-9ğüşıöç]+/i).forEach(w => w && consumed.add(w));
   if (plan.city) foldTr(plan.city).split(/\s+/).forEach(w => consumed.add(w));
   for (const c of plan.concepts) String(c.via || '').split(/[\s~]+/).forEach(w => w && consumed.add(w));
   for (const t of plan.expand) foldTr(t).split(/\s+/).forEach(w => consumed.add(w));
@@ -302,6 +314,21 @@ export function searchProjectPool(pool, plan, parseYear, relatedSlugs) {
     // 2) İsim aranıyorsa tutmalı (ilişki kanalından gelmediyse).
     if (plan.name && !nameHit && !isRelated) continue;
 
+    // 2b) ÇÖZÜLMEMİŞ ÖZEL İSİM KORUMASI.
+    // GERÇEK BULGU (canlı halüsinasyon testi): "Zorblax Mimarlık ofisinin projeleri" — böyle bir
+    // ofis YOK — 67 proje döndürüyordu. Sistem hiçbir kayıt uydurmuyordu (hepsi gerçek D1 satırı)
+    // ama "Zorblax"ı sessizce yok sayıp sorguyu "mimarlık ofisi" tipoloji aramasına indirgiyordu;
+    // kullanıcı açısından bu, olmayan bir ofisin 67 projesi varmış gibi görünür.
+    // Kural: yapılandırılmış bir filtreye ya da bir kavrama DÖNÜŞMEMİŞ terimler (residual) varsa,
+    // kaydın bunlardan EN AZ BİRİNİ metninde/künyesinde geçirmesi gerekir. Grup içi OR seçildi ki
+    // "deniz manzaralı ev" gibi betimleyici sorgular tamamen boşalmasın.
+    if (!isRelated && !nameHit && plan.residual && plan.residual.length) {
+      const allText = `${bodyText} ${creditText}`;
+      const tokens = textTokens(allText);
+      const hay = foldTr(allText);
+      if (!plan.residual.some(t => termInTokens(t, tokens, hay))) continue;
+    }
+
     // 3) Sorgu bir TİPOLOJİ ima ediyorsa (kavram sözlüğü type/category/discipline üretti), kaydın ya
     //    o tipolojide olması ya da BAŞLIĞININ o kavramı içermesi gerekir. Başlık istisnası bilinçli:
     //    "X Ofisi" adlı ama `type` alanı boş bırakılmış kayıtlar (veri eksikliği) elenmesin.
@@ -351,7 +378,9 @@ export function searchProjectPool(pool, plan, parseYear, relatedSlugs) {
 // firmaları döndürmek gürültüdür.
 function genericSearch(pool, plan, opts) {
   const textOf = opts.textOf, nameOf = opts.nameOf;
-  const terms = (plan.residual && plan.residual.length) ? plan.residual : [];
+  // 2 harfli terimler ("ay") ad araması için kullanılmaz: tek başlarına ayırt edici değiller ve
+  // 131 alakasız kişiyi eşleştiriyorlardı (gerçek bulgu, "Ay'da yapılmış konut projeleri" testi).
+  const terms = (plan.residual || []).filter(t => foldTr(t).length >= 3);
   const expand = opts.allowSemantic ? plan.expand : [];
   const wanted = plan.name;
   const out = [];
@@ -458,6 +487,44 @@ export async function relatedProjectsForBrandOrProduct(env, { brandName, product
       LIMIT 300`
   ).bind(...binds).all();
   return results.map(r => r.slug);
+}
+
+// buildVocabulary / unresolvableTerms — HALÜSİNASYON KORUMASININ ÇEKİRDEĞİ.
+//
+// GERÇEK BULGU (canlı test): "Zorblax Mimarlık ofisinin projeleri" — böyle bir ofis YOK — 67 proje
+// döndürüyordu. Hiçbir kayıt uydurulmuyordu (hepsi gerçek D1 satırı) ama sistem tanımadığı
+// "Zorblax" kelimesini sessizce atıp sorguyu genel bir "mimarlık" aramasına indirgiyordu; kullanıcı
+// için bu, olmayan bir ofisin 67 projesi varmış gibi görünür — yani sonucun KENDİSİ yanıltıcıydı.
+//
+// Çözüm: sorguda ayırt edici (5+ harf) ama TÜM korpusta (proje başlıkları + kişi/firma/ürün/marka
+// adları) hiç geçmeyen bir terim varsa, o sorgu karşılanamaz. Bu bir tahmin değil, doğrulanabilir
+// bir olgudur: kelime veritabanında yok. Bu durumda dürüst yanıt "bulunamadı"dır.
+export function buildVocabulary(pools) {
+  const vocab = new Set();
+  const add = text => { for (const t of textTokens(text)) if (t.length >= 3) vocab.add(t); };
+  for (const p of pools.projects || []) add(p.title);
+  for (const a of pools.architects || []) add(a.name);
+  for (const o of pools.offices || []) add(o.name);
+  for (const pr of pools.products || []) { add(pr.title); add(pr.brand); }
+  return vocab;
+}
+
+export function unresolvableTerms(plan, vocab) {
+  const out = [];
+  for (const t of (plan.residual || [])) {
+    const f = foldTr(t);
+    if (f.length < 5) continue;                 // kısa kelimeler ayırt edici değil
+    if (vocab.has(f) || vocab.has(stemTr(f))) continue;
+    // Yazım hatası toleransı: korpusta 1 harf farkla varsa çözülmüş sayılır, aksi halde her yazım
+    // hatası "bulunamadı"ya düşerdi.
+    let near = false;
+    for (const v of vocab) {
+      if (Math.abs(v.length - f.length) > 1) continue;
+      if (editDistance(v, f) <= 1) { near = true; break; }
+    }
+    if (!near) out.push(t);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------

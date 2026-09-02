@@ -43,7 +43,7 @@ import { fetchProductPool } from './product.js';
 import {
   deterministicParse, mergePlans, normalizePlan, searchProjectPool, searchArchitects,
   searchOffices, searchProducts, computeFacets, relatedProjectsForBrandOrProduct,
-  nameMatches, sideOfIstanbul, RESULTS_PER_TYPE,
+  nameMatches, sideOfIstanbul, RESULTS_PER_TYPE, buildVocabulary, unresolvableTerms,
 } from '../lib/searchEngine.js';
 import { DISCIPLINE_VALUES, CATEGORY_VALUES } from '../lib/searchConcepts.js';
 import ilIlceJs from '../../il-ilce-data.js';
@@ -355,6 +355,24 @@ export async function handleAiSearchRoute(request, env, url) {
       // İlişki kanalı bir EK sinyaldir; çökerse arama diğer kanallarla devam eder.
       console.error('ai.js relation channel failed', err);
     }
+  }
+
+  // 4b) Çözülemeyen ayırt edici terim var mı? (bkz. searchEngine.js#unresolvableTerms)
+  // Varsa sorgu karşılanamaz — genel bir aramaya İNDİRGEMEK yanıltıcı olurdu.
+  const vocab = buildVocabulary({ projects: projectPool, architects: architectPool, offices: officePool, products: productPool });
+  const unknown = relatedProjectSlugs.size ? [] : unresolvableTerms(plan, vocab);
+  if (unknown.length) {
+    const emptyTotals = { projects: 0, architects: 0, offices: 0, products: 0, brands: 0 };
+    return json({
+      query,
+      filters: plan,
+      summary: `"${query}" için MİMARLAB'da eşleşen bir kayıt bulunamadı — ${unknown.map(t => `"${t}"`).join(', ')} veritabanında geçmiyor. Farklı bir yazım ya da terimle tekrar deneyebilirsin.`,
+      aiAvailable,
+      totals: emptyTotals,
+      facets: computeFacets([], parseProjectDateYear),
+      projects: [], architects: [], offices: [], brands: [], products: [],
+      unresolved: unknown,
+    });
   }
 
   // 5) Kanalları çalıştır.

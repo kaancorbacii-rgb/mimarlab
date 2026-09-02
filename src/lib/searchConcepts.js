@@ -163,7 +163,24 @@ const STOPWORDS = new Set(['ve', 'ile', 'için', 'icin', 'bir', 'bu', 'su', 'şu
   'olan', 'olarak', 'gibi', 'kadar', 'daha', 'en', 'çok', 'cok', 'az', 'var', 'yok', 'mi', 'mı',
   'projeleri', 'proje', 'projeler', 'yapı', 'yapi', 'yapılar', 'yapilar', 'bina', 'binalar',
   'göster', 'goster', 'bul', 'ara', 'listele', 'nedir', 'hangi', 'son', 'yapılmış', 'yapilmis',
-  'kullanılan', 'kullanilan', 'kullanan', 'olanları', 'olanlar']);
+  'kullanılan', 'kullanilan', 'kullanan', 'olanları', 'olanlar',
+  // Zamansal/bağlayıcı kelimeler — bunlar bir İSİM değildir. Eksik oldukları için "İstanbul'da son
+  // 10 yıldaki ofisler" sorgusunda "yıldaki" çözülmemiş bir özel isim sanılıyor ve sonuç 155'ten
+  // 0'a düşüyordu (bkz. searchEngine.js#2b çözülmemiş özel isim koruması).
+  'yıl', 'yil', 'yıllar', 'yillar', 'yıllarda', 'yillarda', 'yıldaki', 'yildaki', 'yılda', 'yilda',
+  'sene', 'senede', 'arasında', 'arasinda', 'arası', 'arasi', 'sonrası', 'sonrasi', 'öncesi',
+  'oncesi', 'boyunca', 'dönem', 'donem', 'döneminde', 'doneminde',
+  'yaka', 'yakası', 'yakasi', 'yakasında', 'yakasinda', 'bölge', 'bolge', 'bölgesi', 'bolgesi',
+  'civarı', 'civari', 'çevresinde', 'cevresinde', 'yakınında', 'yakininda',
+  'yapılan', 'yapilan', 'tasarlanan', 'inşa', 'insa', 'edilen', 'bulunan', 'yer', 'alan',
+  'içeren', 'iceren', 'sahip', 'ait', 'imzalı', 'imzali', 'tarafından', 'tarafindan',
+  // Varlık türünü ADLANDIRAN dilbilgisel kelimeler. Bunlar "çözülemeyen özel isim" sayılmamalı:
+  // "Kuantum Beton markasının ürünleri" sorgusunda kullanıcıya "markasinin, urunleri veritabanında
+  // geçmiyor" demek anlamsızdı — asıl bilinmeyen terim yalnızca "kuantum".
+  'marka', 'markası', 'markasi', 'markasının', 'markasinin', 'markanın', 'markanin',
+  'ürün', 'urun', 'ürünü', 'urunu', 'ürünleri', 'urunleri', 'ürünlerinin', 'urunlerinin',
+  'firma', 'firması', 'firmasi', 'firmanın', 'firmanin', 'ofisinin', 'ofisin',
+  'mimar', 'mimarı', 'mimari', 'mimarın', 'mimarin', 'projesi', 'projenin', 'projelerinin']);
 
 // Yanlış yazılmış durak kelimeleri de eler: "projleri" ~ "projeleri". Aksi halde bir yazım hatası
 // aramaya anlamsız bir terim sokuyordu ("İstanbulda ofis projleri" sorgusu 13 alakasız firma
