@@ -3284,52 +3284,167 @@ const AuthModal = (function () {
     // ne CDN'den çekilebilir. Tarayıcının kendi "PDF olarak kaydet" çıktısı bağımlılıksız,
     // vektörel (metin seçilebilir/aranabilir) ve baskıya hazır bir PDF üretir. Yazdırma penceresi
     // AYRI bir sekmede açılır: mevcut pop-up'ın DOM'una/kaydırma kilidine hiç dokunulmaz.
-    function exportBoardPdf() {
+    // ---------------------------------------------------------------------------------------
+    // PANO PDF DIŞA AKTARIMI (kullanıcı isteği, 2026-09-02 madde 7 — tamamen yeniden yazıldı).
+    //
+    // Eski sürüm panodaki KAYITLI alanları (tek kapak görseli + kısa meta) 3'lü bir ızgarada
+    // basıyordu; künye, açıklama ve ek görseller hiç yoktu çünkü collection_items yalnızca
+    // {title, meta, image, href} taşır. Yeni tasarım proje detay popup'ının yapısını izlediğinden
+    // GERÇEK proje verisi gerekiyor — bu yüzden her proje öğesi için /api/project/:slug çekilir
+    // (sınırlı eşzamanlılıkla; dışa aktarma seyrek ve kullanıcı tetiklidir).
+    // ---------------------------------------------------------------------------------------
+    const PDF_ICONS = {
+      architect: '<path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M12 22V12"/><path d="M3 7l9 5 9-5"/>',
+      office: '<path d="M3 21h18"/><path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16"/><path d="M15 21V9h3a1 1 0 0 1 1 1v11"/><path d="M8 7h2M8 11h2M8 15h2"/>',
+      camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+      layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+      tag: '<path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+      grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+      pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+      calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+    };
+    function pdfIcon(name) {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (PDF_ICONS[name] || '') + '</svg>';
+    }
+
+    // Sınırlı eşzamanlılık — 40 projelik bir panoda 40 paralel istek hem tarayıcıyı hem uç noktayı
+    // gereksiz yorar; 4'erli akış pratikte yeterince hızlı.
+    async function fetchProjectsForPdf(slugs) {
+      const out = {};
+      const queue = slugs.slice();
+      async function worker() {
+        while (queue.length) {
+          const slug = queue.shift();
+          try {
+            const res = await fetch('/api/project/' + encodeURIComponent(slug));
+            if (res.ok) {
+              const d = await res.json();
+              out[slug] = d.item || d;
+            }
+          } catch (e) { /* tek bir proje çekilemezse o kart yalnızca panodaki özet veriyle basılır */ }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+      return out;
+    }
+
+    async function exportBoardPdf() {
       if (!openCollection) return;
       const c = openCollection.item, items = openCollection.items || [];
       const esc = (v) => escapeHtml(v == null ? '' : String(v));
-      const cards = items.map((it, i) => {
-        const image = safeUrl(it.image);
-        const media = image
-          ? `<img src="${escapeAttr(image)}" alt="">`
-          : (it.kind === 'note' ? `<div class="note">${esc(it.note)}</div>` : '<div class="ph"></div>');
-        const meta = [it.meta, it.itemType].filter(Boolean).join(' · ');
-        return `<figure class="card">${media}
-          <figcaption><span class="n">${i + 1}</span><b>${esc(it.title || (it.kind === 'note' ? 'Not' : '—'))}</b>
-          ${meta ? `<span class="m">${esc(meta)}</span>` : ''}</figcaption></figure>`;
+
+      notice('am-col-detail-notice', 'PDF hazırlanıyor…');
+      const slugs = items
+        .filter(it => it.itemType === 'project' && it.itemKey)
+        .map(it => it.itemKey);
+      const details = slugs.length ? await fetchProjectsForPdf(slugs) : {};
+
+      const creditRow = (icon, label, value) => value
+        ? '<li>' + pdfIcon(icon) + '<span class="k">' + esc(label) + '</span><span class="v">' + esc(value) + '</span></li>'
+        : '';
+
+      const modules = items.map((it) => {
+        // NOT kartı — görselsiz, sade zeminli, temiz tipografi (brief madde 4).
+        if (it.kind === 'note' || (!it.itemKey && it.note)) {
+          return '<article class="mod note-mod">'
+            + '<div class="note-label">Not</div>'
+            + '<div class="note-text">' + esc(it.note || it.title || '') + '</div>'
+            + '</article>';
+        }
+        const p = details[it.itemKey];
+        if (!p) {
+          // Proje verisi çekilemedi ya da öğe proje değil (ürün/kişi/firma) — panodaki özet veriyle
+          // sade bir kart. Boş bırakmaktansa elimizdekini basmak daha iyi.
+          const img = safeUrl(it.image);
+          return '<article class="mod slim-mod">'
+            + (img ? '<img class="slim-img" src="' + escapeAttr(img) + '" alt="">' : '')
+            + '<div><h2>' + esc(it.title || '—') + '</h2>'
+            + (it.meta ? '<p class="slim-meta">' + esc(it.meta) + '</p>' : '') + '</div>'
+            + '</article>';
+        }
+        const imgs = (p.images || []).slice(0, 3).map(safeUrl).filter(Boolean);
+        const shots = imgs.length
+          ? '<div class="shots' + (imgs.length < 3 ? ' shots-' + imgs.length : '') + '">'
+            + imgs.map(u => '<img src="' + escapeAttr(u) + '" alt="">').join('') + '</div>'
+          : '';
+        const dd = p.designerDetails || [];
+        const architects = dd.filter(d => d.type === 'architect').map(d => d.name).join(', ');
+        const offices = dd.filter(d => d.type === 'office').map(d => d.name).join(', ');
+        const photographers = (p.photographerDetails || []).map(d => d.name).join(', ')
+          || (p.photoCredit && p.photoCredit.text) || '';
+        const credits = [
+          creditRow('architect', 'Mimar', architects),
+          creditRow('office', 'Mimarlık Firması', offices || (p.officeNames || []).join(', ')),
+          creditRow('camera', 'Fotoğrafçı', photographers),
+          creditRow('layers', 'Tür', (p.discipline || []).join(', ')),
+          creditRow('tag', 'Tip', (p.category || []).join(', ')),
+          creditRow('grid', 'Grup', (p.type || []).join(', ')),
+          creditRow('pin', 'Yer', p.location),
+          creditRow('calendar', 'Yıl', p.date),
+        ].join('');
+        return '<article class="mod">'
+          + shots
+          + '<div class="body">'
+          + '<div class="col-left"><h2>' + esc(p.title) + '</h2><ul class="credits">' + credits + '</ul></div>'
+          + '<div class="col-right">' + (p.description ? '<p>' + esc(p.description) + '</p>' : '') + '</div>'
+          + '</div></article>';
       }).join('');
+
       const today = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-      // Tamamen kendi kendine yeten bir belge — dış CSS/font/script YOK, bu yüzden yazdırma
-      // önizlemesi ağ beklemeden anında hazır olur.
-      const doc = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8">
-<title>${esc(c.title)} — MİMARLAB</title>
-<style>
-  @page { size: A4; margin: 16mm 14mm; }
-  *{box-sizing:border-box;}
-  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; color:#1B2A3D; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
-  header{border-bottom:2px solid #1B2A3D; padding-bottom:10px; margin-bottom:18px; display:flex; align-items:baseline; justify-content:space-between; gap:16px;}
-  h1{font-size:20pt; margin:0; letter-spacing:-0.01em;}
-  .sub{font-size:9pt; color:#4E6478; white-space:nowrap;}
-  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10mm 6mm;}
-  .card{margin:0; break-inside:avoid; page-break-inside:avoid;}
-  .card img,.card .ph,.card .note{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:3mm; background:#E0E6EC; display:block;}
-  .card .note{aspect-ratio:auto; min-height:26mm; padding:4mm; font-size:8.5pt; line-height:1.5; white-space:pre-wrap; overflow:hidden;}
-  figcaption{margin-top:2mm; font-size:8.5pt; line-height:1.35;}
-  figcaption .n{display:inline-block; min-width:5mm; color:#7A8CA0;}
-  figcaption b{font-weight:600;}
-  figcaption .m{display:block; color:#4E6478; margin-left:5mm;}
-  footer{margin-top:14mm; padding-top:6px; border-top:1px solid #C9D3DD; font-size:8pt; color:#7A8CA0; display:flex; justify-content:space-between;}
-  @media print { .noprint{display:none;} }
-</style></head><body>
-<header><h1>${esc(c.title)}</h1><div class="sub">${items.length} öğe · ${esc(today)}</div></header>
-${items.length ? `<div class="grid">${cards}</div>` : '<p>Bu pano boş.</p>'}
-<footer><span>MİMARLAB — mimarlab.com</span><span>${esc(c.title)}</span></footer>
-<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 400); });<\/script>
-</body></html>`;
+      // Tamamen kendi kendine yeten belge — dış CSS/font/script YOK, yazdırma önizlemesi ağ
+      // beklemeden hazır olur. (Görseller aynı origin'den gelir.)
+      const doc = '<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8">'
++ '<title>' + esc(c.title) + ' — MİMARLAB</title><style>'
++ '@page { size: A4; margin: 20mm; }'
++ '*{box-sizing:border-box;}'
++ ':root{color-scheme:light;}'
+/* GERÇEK BULGU (önizlemede görüldü): belgede açık arka plan BELİRTİLMEYİNCE, tarayıcı gece
+   modundayken bu pencere de koyu zeminde açılıyor ve koyu metin neredeyse okunmaz oluyordu.
+   Çıktı her zaman beyaz kâğıda basıldığından belge temayı MİRAS ALMAMALI: color-scheme:light +
+   açık arka plan ikisi birlikte hem ekran önizlemesini hem yazdırmayı sabitler. */
++ 'body{margin:0; background:#FFFFFF; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; color:#1B2A3D; font-size:9pt; -webkit-print-color-adjust:exact; print-color-adjust:exact;}'
++ 'header{display:flex; align-items:baseline; justify-content:space-between; gap:16px; border-bottom:1.5px solid #1B2A3D; padding-bottom:8px; margin-bottom:10mm;}'
++ 'header h1{font-size:19pt; margin:0; letter-spacing:-0.01em; font-weight:700;}'
++ 'header .sub{font-size:8.5pt; color:#7A8CA0; white-space:nowrap;}'
+/* Her modül sayfa geçişinde ORTADAN BÖLÜNMEZ (brief madde 1). */
++ '.mod{break-inside:avoid; page-break-inside:avoid; margin-bottom:12mm; padding-bottom:10mm; border-bottom:1px solid #E3E9EF;}'
++ '.mod:last-child{border-bottom:none;}'
+/* 1. SATIR — ilk 3 görsel, eşit 3 sütun, aynı hizada. */
++ '.shots{display:grid; grid-template-columns:repeat(3,1fr); gap:4mm;}'
++ '.shots-1{grid-template-columns:1fr;} .shots-2{grid-template-columns:repeat(2,1fr);}'
++ '.shots img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:2.5mm; display:block; background:#EDF1F5;}'
+/* 2. SATIR — asimetrik iki sütun: solda künye, sağda açıklama. */
++ '.body{display:grid; grid-template-columns:35% 1fr; gap:8mm; margin-top:5mm;}'
++ '.col-left h2{font-size:13.5pt; line-height:1.25; margin:0 0 4mm; font-weight:700; letter-spacing:-0.01em;}'
++ '.credits{list-style:none; margin:0; padding:0;}'
++ '.credits li{display:flex; align-items:flex-start; gap:2.2mm; padding:1.4mm 0; border-top:1px solid #EDF1F5; font-size:8.2pt; line-height:1.35;}'
++ '.credits li:first-child{border-top:none;}'
++ '.credits svg{width:3.6mm; height:3.6mm; flex:0 0 auto; color:#8FA0B2; margin-top:0.3mm;}'
++ '.credits .k{color:#8FA0B2; flex:0 0 20mm;}'
++ '.credits .v{color:#1B2A3D; font-weight:600; min-width:0;}'
++ '.col-right p{margin:0; font-size:9pt; line-height:1.6; color:#3C4E63; text-align:justify;}'
+/* NOT kartı — görselsiz, sade zemin (brief madde 4). */
++ '.note-mod{background:#F5F7FA; border:1px solid #E3E9EF; border-radius:3mm; padding:6mm; border-bottom:1px solid #E3E9EF;}'
++ '.note-label{font-size:7.5pt; text-transform:uppercase; letter-spacing:0.08em; color:#8FA0B2; margin-bottom:2mm;}'
++ '.note-text{font-size:9.5pt; line-height:1.6; white-space:pre-wrap;}'
+/* Proje olmayan / verisi çekilemeyen öğeler için sade satır. */
++ '.slim-mod{display:flex; gap:5mm; align-items:flex-start;}'
++ '.slim-img{width:34mm; height:26mm; object-fit:cover; border-radius:2.5mm; flex:0 0 auto; background:#EDF1F5;}'
++ '.slim-mod h2{font-size:11.5pt; margin:0 0 1.5mm;}'
++ '.slim-meta{margin:0; font-size:8.5pt; color:#7A8CA0;}'
++ 'footer{margin-top:8mm; padding-top:5px; border-top:1px solid #E3E9EF; font-size:7.5pt; color:#8FA0B2; display:flex; justify-content:space-between;}'
++ '</style></head><body>'
++ '<header><h1>' + esc(c.title) + '</h1><div class="sub">' + items.length + ' öğe · ' + esc(today) + '</div></header>'
++ (items.length ? modules : '<p>Bu pano boş.</p>')
++ '<footer><span>MİMARLAB — mimarlab.com</span><span>' + esc(c.title) + '</span></footer>'
++ '<scr' + 'ipt>window.addEventListener("load",function(){setTimeout(function(){window.print();},600);});</scr' + 'ipt>'
++ '</body></html>';
+
       const w = window.open('', '_blank');
       if (!w) { notice('am-col-detail-notice', 'Yazdırma penceresi engellendi — tarayıcı açılır pencere iznini kontrol et.', true); return; }
       w.document.write(doc);
       w.document.close();
+      notice('am-col-detail-notice', '');
     }
 
     on('am-col-export-btn', 'click', async () => {
