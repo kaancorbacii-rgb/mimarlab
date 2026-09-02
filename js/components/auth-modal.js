@@ -673,6 +673,16 @@ const AuthModal = (function () {
   function wireSignup() {
     document.getElementById('am-goto-login').addEventListener('click', () => swap('login'));
 
+    // Meslek çekmecesi (kullanıcı isteği, 2026-09-02): 10 seçenek düz bir kutuda değil, kişi-ekle
+    // ve Profili Düzenle'dekiyle AYNI açılır pencerede.
+    // GERÇEK BULGU: çekmece daha önce yalnızca uye-ol.html'e ve Profili Düzenle formuna
+    // takılmıştı; oysa temiz /uye-ol yolu index.html + BU POPUP'ı servis ediyor (bkz.
+    // lazy-modals.js), yani kullanıcıların gerçekte gördüğü form buydu ve çıplak kalıyordu.
+    if (window.ProfessionDrawer) {
+      const grp = document.getElementById('am-signup-profession');
+      if (grp) ProfessionDrawer.mount(grp, { placeholder: 'Meslek seç' });
+    }
+
     const dobSel = document.getElementById('am-signup-dob');
     const currentYear = new Date().getFullYear();
     for (let y = currentYear; y >= 1950; y--) {

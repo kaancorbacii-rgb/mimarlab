@@ -26,7 +26,11 @@
       // TEMBEL yüklendiği için sayfalara ayrı <script> etiketi eklemek işe yaramazdı; bağımlılık
       // burada, modülün kendisinden ÖNCE yüklenir. auth-modal.js'te ayrıca bir yedek kopya var —
       // bu dosya bir nedenle yüklenemezse meslek kutusu boş kalmaz.
-      deps: ['profession-shared.js'],
+      // profession-drawer.js de burada: auth-modal'ın hem Üye Ol hem Profili Düzenle formundaki
+      // meslek kutusu bu bileşene bağlı. Çoğu sayfa onu ayrıca yüklüyor ama bağımlılığı burada
+      // belirtmek, yüklemeyen bir sayfada da (ör. gelecekte eklenecek yeni bir sayfa) formun
+      // çıplak kalmasını önler; zaten sayfada varsa tekrar enjekte edilmez (bkz. querySelector).
+      deps: ['profession-shared.js', 'js/components/profession-drawer.js'],
       hrefRe: {
         login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/,
         account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, contents: /(^|\/)iceriklerim\.html$/,

@@ -284,9 +284,16 @@ document.getElementById('reset-form').addEventListener('submit', async (e)=>{
       submitBtn.disabled = false;
       return;
     }
-    notice.textContent = 'Şifren güncellendi. Giriş sayfasına yönlendiriliyorsun...';
+    // Kullanıcı isteği (2026-09-02): sıfırlama sonrası kullanıcı ZATEN giriş yapmış olur — sunucu
+    // yanıtla birlikte oturum çerezini de gönderir (bkz. src/routes/auth.js#resetPassword). Bu
+    // yüzden artık giriş sayfasına değil ANA SAYFAYA yönlendirilir. Sunucu bir nedenle oturum
+    // açamadıysa (data.user yoksa) eski davranışa düşülür — kullanıcı en azından giriş yapabilsin.
+    const loggedIn = !!(data && data.user);
+    notice.textContent = loggedIn
+      ? 'Şifren güncellendi. Giriş yapıldı, ana sayfaya yönlendiriliyorsun...'
+      : 'Şifren güncellendi. Giriş sayfasına yönlendiriliyorsun...';
     notice.classList.add('show', 'success');
-    setTimeout(()=>{ window.location.href = '/giris'; }, 1800);
+    setTimeout(()=>{ window.location.href = loggedIn ? '/' : '/giris'; }, 1500);
   }catch(err){
     notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
     notice.classList.add('show');

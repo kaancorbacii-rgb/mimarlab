@@ -411,9 +411,22 @@ async function resetPassword(request, env) {
   const passwordHash = await hashPassword(newPassword);
   await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(passwordHash, row.user_id).run();
   await env.DB.prepare('UPDATE password_resets SET used = 1 WHERE token_hash = ?').bind(tokenHash).run();
+  // Şifre değişince MEVCUT tüm oturumlar kapatılır — bu kasıtlıdır: hesabı ele geçiren biri varsa
+  // sıfırlama onu da dışarı atmalı. Aşağıda YENİ bir oturum açılması bunu zayıflatmaz; kapatılan
+  // oturumlar eski şifreyle açılmış olanlardır, yeni oturum ise e-posta kutusuna erişimi kanıtlamış
+  // olan bu isteğe aittir.
   await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(row.user_id).run();
 
-  return json({ ok: true });
+  // Kullanıcı isteği (2026-09-02): şifre yenilendikten sonra kullanıcı otomatik olarak GİRİŞ YAPMIŞ
+  // olsun. Sıfırlama bağlantısı zaten e-posta sahipliğini kanıtlar (login ile aynı güven düzeyi),
+  // bu yüzden ayrıca şifre sormak gereksiz bir adım. Oturum çerezi login ile AYNI yardımcıyla
+  // kurulur, böylece iki akış arasında çerez ayarları (Secure/SameSite/maxAge) sapamaz.
+  const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(row.user_id).first();
+  if (!user) return json({ ok: true });
+  const { token: sessionToken, maxAge } = await createSession(env, user.id);
+  return json({ ok: true, user: publicUser(user) }, 200, {
+    'Set-Cookie': sessionCookieHeader(sessionToken, request, maxAge),
+  });
 }
 
 // Profil alanlarını doğrulayıp günceller — hem kullanıcının kendi PATCH /api/profile isteğinde
