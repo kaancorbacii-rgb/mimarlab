@@ -59,6 +59,12 @@ export function normalizePlan(raw, rawQuery) {
   if (Number.isFinite(r.yearTo)) p.yearTo = Math.trunc(r.yearTo);
   if (Array.isArray(r.discipline)) p.discipline = r.discipline.filter(d => DISCIPLINE_VALUES.includes(d));
   if (Array.isArray(r.category)) p.category = r.category.filter(c => CATEGORY_VALUES.includes(c));
+  // BİLGİ TAŞIMAYAN FİLTREYİ AT: model bazen bir alanın neredeyse TÜM olası değerlerini
+  // döndürüyor (canlıda gözlendi: 4 disiplinden 3'ü birden). Böyle bir "filtre" hiçbir kaydı
+  // elemez ama kullanıcıya uygulanmış gibi etiket olarak gösterilir ve yanıltır. Çoğunluğu
+  // kapsıyorsa filtre hiç uygulanmamış sayılır.
+  if (p.discipline.length >= DISCIPLINE_VALUES.length - 1) p.discipline = [];
+  if (p.category.length >= CATEGORY_VALUES.length - 2) p.category = [];
   if (Array.isArray(r.type)) p.type = r.type.filter(t => PROJECT_GROUP_OPTIONS.includes(t));
   if (typeof r.name === 'string' && r.name.trim()) p.name = r.name.trim().slice(0, 120);
   if (Array.isArray(r.keywords)) {
