@@ -696,6 +696,17 @@
         .nav-search-modal-image-preview-name{flex:1; min-width:0; font-size:12.5px; color:var(--ink); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
         .nav-search-modal-image-remove{flex-shrink:0; background:none; border:none; color:var(--ink-soft); padding:5px; border-radius:50%; display:flex;}
         .nav-search-modal-image-remove:hover{background:var(--paper-alt); color:var(--ink);}
+        .nav-vs-status{margin-top:12px; font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:8px; justify-content:center;}
+        .nav-vs-status[hidden]{display:none;}
+        .nav-vs-spin{width:13px; height:13px; border:2px solid var(--line); border-top-color:var(--walnut); border-radius:50%; animation:nav-vs-rot .7s linear infinite; flex-shrink:0;}
+        @keyframes nav-vs-rot{to{transform:rotate(360deg);}}
+        .nav-vs-results[hidden]{display:none;}
+        .nav-vs-analysis{margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-alt); font-size:12.5px; color:var(--ink);}
+        .nav-vs-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px;}
+        .nav-vs-chip{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--paper-card); font-size:11.5px;}
+        .nav-vs-chip-k{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);}
+        .nav-vs-group-title{margin-top:16px; margin-bottom:7px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft);}
+        .nav-vs-empty{margin-top:8px; font-size:12.5px; color:var(--ink-soft);}
         .nav-search-modal-image-error{margin-top:10px; font-size:12px; color:var(--rust); text-align:center;}
         .nav-search-modal-image-or{flex-shrink:0; font-size:11px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em;}
         .nav-search-modal-image-paste{
@@ -749,6 +760,11 @@
             </label>
           </div>
           <div class="nav-search-modal-image-error" id="nav-search-modal-image-error" hidden></div>
+          <!-- Görsel arama durumu ve sonuçları (kullanıcı isteği, 2026-09-02). İlerleme GERÇEK
+               aşamaları gösterir (sahte ilerleme çubuğu YOK, brief 21): yükleme -> analiz ->
+               eşleştirme; her aşama gerçekten o an olan işi anlatır. -->
+          <div class="nav-vs-status" id="nav-vs-status" hidden></div>
+          <div class="nav-vs-results" id="nav-vs-results" hidden></div>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -789,6 +805,7 @@
       imagePreview.hidden = true;
       imageDropText.hidden = false;
       imageError.hidden = true;
+      vsClear();
     }
     function acceptImageFile(file){
       if(!file) return;
@@ -807,7 +824,117 @@
       imagePreviewName.textContent = file.name;
       imageDropText.hidden = true;
       imagePreview.hidden = false;
+      runVisualSearch(file);
     }
+    // ---------------------------------------------------------------------------------------
+    // GÖRSEL ARAMA (kullanıcı isteği, 2026-09-02). Önceden görsel yalnızca istemcide önizleniyordu
+    // ("arama tarafı henüz bağlı değil" — bkz. yukarıdaki eski yorum); artık gerçekten
+    // /api/ai/visual-search'e gönderiliyor.
+    // ---------------------------------------------------------------------------------------
+    const vsStatus = overlay.querySelector('#nav-vs-status');
+    const vsResults = overlay.querySelector('#nav-vs-results');
+    let vsToken = 0;
+
+    function vsSetStatus(text){
+      if(!text){ vsStatus.hidden = true; vsStatus.innerHTML = ''; return; }
+      vsStatus.hidden = false;
+      vsStatus.innerHTML = `<span class="nav-vs-spin"></span><span>${escapeHtml(text)}</span>`;
+    }
+    function vsClear(){
+      vsToken++;              // uçuştaki bir isteğin geç gelen yanıtı ekrana yazmasın
+      vsSetStatus('');
+      vsResults.hidden = true;
+      vsResults.innerHTML = '';
+    }
+    function vsRow(it){
+      const thumb = it.image
+        ? `<img class="nav-search-modal-row-thumb" src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(it.image, 96) : it.image)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+        : `<span class="nav-search-modal-row-thumb nav-search-modal-row-thumb-ph">${escapeHtml((it.title || '?').trim().charAt(0).toLocaleUpperCase('tr'))}</span>`;
+      return `<a class="nav-search-modal-row" href="${escapeAttr(it.href)}">
+        <span class="nav-search-modal-row-tag">${escapeHtml(it.label)}</span>
+        <span class="nav-search-modal-row-title">${escapeHtml(it.title)}</span>
+        <span class="nav-search-modal-row-meta">${escapeHtml(it.meta || '')}</span>
+        ${thumb}
+      </a>`;
+    }
+    function vsRender(data){
+      const a = data.analysis || {};
+      const chips = [];
+      if(a.spaceType) chips.push(['Mekan', a.spaceType]);
+      if(a.discipline) chips.push(['Tür', a.discipline]);
+      (a.materials || []).forEach(m => chips.push(['Malzeme', m]));
+      // Tespit KATEGORİ olarak gösterilir, ürün ADI olarak değil (brief 11): sistem "bu şu üründür"
+      // demez, "şu kategoride bir nesne gördüm, MİMARLAB'da benzerleri şunlar" der.
+      (a.products || []).forEach(p => chips.push(['Tespit', p.category]));
+
+      const parts = [];
+      if(a.description || chips.length){
+        parts.push(`<div class="nav-vs-analysis">
+          ${a.description ? `<div>${escapeHtml(a.description)}</div>` : ''}
+          ${chips.length ? `<div class="nav-vs-chips">${chips.map(([k,v]) =>
+            `<span class="nav-vs-chip"><span class="nav-vs-chip-k">${escapeHtml(k)}</span>${escapeHtml(v)}</span>`).join('')}</div>` : ''}
+        </div>`);
+      }
+      if(data.message) parts.push(`<div class="nav-vs-empty">${escapeHtml(data.message)}</div>`);
+
+      const projects = data.projects || [];
+      const products = data.products || [];
+      if(projects.length){
+        parts.push('<div class="nav-vs-group-title">Görselinle benzer projeler</div>');
+        parts.push(projects.map(p => vsRow({
+          href: '/proje/' + encodeURIComponent(p.slug), label: 'Proje', title: p.title,
+          meta: [p.location, p.date].filter(Boolean).join(' · '), image: p.image,
+        })).join(''));
+      } else if(!data.message){
+        parts.push('<div class="nav-vs-group-title">Görselinle benzer projeler</div><div class="nav-vs-empty">Benzer proje bulunamadı.</div>');
+      }
+      if(products.length){
+        parts.push('<div class="nav-vs-group-title">Görselde bulunan / benzer ürünler</div>');
+        parts.push(products.map(p => vsRow({
+          href: '/urun/' + encodeURIComponent(p.slug), label: 'Ürün', title: p.title,
+          meta: [p.category, p.brand].filter(Boolean).join(' · '), image: p.image,
+        })).join(''));
+      } else if(!data.message){
+        // Zorla sonuç üretmemek, yanlış ürün göstermekten iyidir (brief 12).
+        parts.push('<div class="nav-vs-group-title">Görselde bulunan / benzer ürünler</div><div class="nav-vs-empty">Benzer ürün bulunamadı.</div>');
+      }
+      vsResults.innerHTML = parts.join('');
+      vsResults.hidden = false;
+    }
+
+    async function runVisualSearch(file){
+      const token = ++vsToken;
+      vsResults.hidden = true;
+      vsResults.innerHTML = '';
+      // GERÇEK aşamalar (brief 21: sahte ilerleme yok) — her metin o an fiilen yapılan işi anlatır.
+      vsSetStatus('Görsel yükleniyor…');
+      const fd = new FormData();
+      fd.append('image', file);
+      let res, data;
+      try{
+        const p = fetch('/api/ai/visual-search', { method: 'POST', body: fd });
+        // İstek yola çıktı; sunucu tarafındaki asıl iş analiz.
+        vsSetStatus('Görsel analiz ediliyor…');
+        res = await p;
+        if(token !== vsToken) return;
+        vsSetStatus('Projeler ve ürünler eşleştiriliyor…');
+        data = await res.json();
+      } catch(e){
+        if(token !== vsToken) return;
+        vsSetStatus('');
+        showImageError('Bağlantı sorunu oluştu, tekrar dene.');
+        return;
+      }
+      if(token !== vsToken) return;
+      vsSetStatus('');
+      if(!res.ok || !data.ok){
+        // brief 22: hiçbir durumda boş beyaz alan bırakma.
+        showImageError((data && data.error) || 'Görsel araması şu anda yapılamıyor.');
+        return;
+      }
+      vsRender(data);
+    }
+
     imageInput.addEventListener('change', () => acceptImageFile(imageInput.files && imageInput.files[0]));
     imageRemoveBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearImage(); });
     // imageRemoveBtn kendi handler'ında stopPropagation() çağırdığından ("Görseli kaldır" tıklaması

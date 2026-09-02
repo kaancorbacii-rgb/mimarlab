@@ -9,6 +9,7 @@ import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } fro
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
+import { handleVisualSearchRoute } from './routes/visualSearch.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
@@ -967,6 +968,9 @@ async function routeApi(request, env, url) {
   // dinamik uçlardan ÖNCE yakalanmalı (bkz. yukarıdaki /api/architects/search ile AYNI gerekçe).
   if (path === '/api/projects/search') return handleProjectSearchRoute(request, env, url);
   if (path === '/api/ai/search') return handleAiSearchRoute(request, env, url);
+  // Görsel arama — /api/ai/ genel eşleşmesinden (handleAiRoute) ÖNCE yakalanmalı, tıpkı
+  // /api/ai/search gibi (bkz. o satırın gerekçesi).
+  if (path === '/api/ai/visual-search') return handleVisualSearchRoute(request, env, url);
   if (path.startsWith('/api/geocode/')) return handleGeocodeRoute(request, env, url);
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));
