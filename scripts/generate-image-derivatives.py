@@ -120,17 +120,26 @@ def r2_head_exists(key):
     return 'immutable' in p.stdout.lower()
 
 
-def r2_put(key, data, content_type='image/webp', tries=4):
+def r2_put(key, data, content_type='image/webp', tries=7):
     """`wrangler r2 object put` — repo'daki mevcut toplu yükleme deseni (bkz.
-    scripts/import-archello-projects.js#putOnce): üstel geri çekilmeli 4 deneme, çünkü Cloudflare
-    tarafındaki geçici 5xx'ler ardışık dosyaları tek bir kesinti penceresinde düşürebiliyor."""
+    scripts/import-archello-projects.js#putOnce): üstel geri çekilmeli denemeler, çünkü Cloudflare
+    tarafındaki geçici 5xx'ler ardışık dosyaları tek bir kesinti penceresinde düşürebiliyor.
+
+    GERÇEK BULGU (2026-09-02, stage2 koşusu): 4 deneme + 1.5*2^n geri çekilme TOPLAM ~10 saniye
+    sürüyordu. Cloudflare HESAP DÜZEYİNDE API hız sınırı uyguluyor (1200 istek/5dk); 10 eşzamanlı
+    put (~200 istek/dk) zaten tavana yakın çalışırken AYNI ANDA bir deploy + D1 migration +
+    birkaç `wrangler d1 execute` çalıştırılınca sınır aşıldı ve ~2.200 kaynak (4.271 basamak)
+    ardışık olarak düştü. Pencere DAKİKALAR sürdüğünden 10 saniyelik geri çekilme onu asla
+    atlatamıyordu; pencere kapanınca hata birikimi kendiliğinden durdu (16.900'den sonra sıfır).
+    7 deneme + 3*2^n: toplam ~190 saniye bekleme, dakikalar süren bir kısıtlama penceresini
+    atlatmaya yeter. Ayrıca bkz. --concurrency: sürekli koşularda 6 civarı güvenli bir tavandır."""
     tmp = os.path.join('/tmp', f'deriv-{os.getpid()}-{threading.get_ident()}.webp')
     with open(tmp, 'wb') as fh:
         fh.write(data)
     try:
         for attempt in range(tries):
             if attempt:
-                time.sleep(1.5 * (2 ** (attempt - 1)))
+                time.sleep(3 * (2 ** (attempt - 1)))
             p = subprocess.run(
                 ['npx', 'wrangler', 'r2', 'object', 'put', f'{BUCKET}/{key}',
                  '--remote', '--file', tmp, '--content-type', content_type],
