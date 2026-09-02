@@ -36,10 +36,13 @@ export const VISION_CANDIDATES = [
   {
     model: '@cf/mistralai/mistral-small-3.1-24b-instruct',
     // Vision-LLM'ler (Text Generation ailesi) OpenAI uyumlu messages + data URL bekler.
-    build: (b64, prompt) => ({
+    // mime GERÇEK tespit edilen türdür (magic byte), beyan edilen değil — sabit "image/jpeg"
+    // yazılsaydı kullanıcının yüklediği bir PNG yanlış etiketle gönderilir ve model onu
+    // çözemeyebilirdi (gerçek bulgu: yanlış-pozitif test görselleri PNG üretiliyor).
+    build: (b64, prompt, bytes, mime) => ({
       messages: [{ role: 'user', content: [
         { type: 'text', text: prompt },
-        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } },
+        { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },
       ] }],
       max_tokens: 700,
       temperature: 0,
@@ -164,14 +167,14 @@ function toBase64(bytes) {
 
 // analyzeImage — TEK başarılı vision çağrısı. Adaylar sırayla denenir; biri lisans/biçim hatası
 // verirse sıradakine geçilir ve HANGİSİNİN çalıştığı döndürülür (gözlemlenebilirlik).
-export async function analyzeImage(env, bytes, timeoutMs) {
+export async function analyzeImage(env, bytes, timeoutMs, mime) {
   const prompt = buildPrompt();
   const b64 = toBase64(bytes);
   const errors = [];
   for (const cand of VISION_CANDIDATES) {
     try {
       const result = await Promise.race([
-        env.AI.run(cand.model, cand.build(b64, prompt, bytes)),
+        env.AI.run(cand.model, cand.build(b64, prompt, bytes, mime || 'image/jpeg')),
         new Promise((_, rej) => setTimeout(() => rej(new Error('vision timeout')), timeoutMs)),
       ]);
       const text = result && (result.response ?? result.description ?? result);

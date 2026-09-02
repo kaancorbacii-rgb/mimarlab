@@ -150,7 +150,7 @@ export async function handleVisualSearchRoute(request, env, url) {
 
   if (!vision) {
     try {
-      vision = await analyzeImage(env, bytes, VISION_TIMEOUT_MS);
+      vision = await analyzeImage(env, bytes, VISION_TIMEOUT_MS, mime);
       aiCalls = 1;
     } catch (err) {
       // brief 22: AI başarısız olursa BOŞ BEYAZ MODAL bırakma, anlaşılır bir hata döndür.
