@@ -245,6 +245,7 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 
   <div id="site-header-mount" data-nav-active=""></div>
@@ -299,7 +300,7 @@
              aynı istekle eklendi (bkz. src/routes/auth.js#PROFESSIONS, dört kopyanın hepsi
              birlikte güncellenmeli). -->
         <div class="auth-field">
-          <label id="signup-profession-label">Meslek <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
+          <label id="signup-profession-label">Meslek * <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
           <div class="auth-check-group" id="signup-profession" role="group" aria-labelledby="signup-profession-label">
             <label><input type="checkbox" name="profession" value="mimar"> Mimar</label>
             <label><input type="checkbox" name="profession" value="ic_mimar"> İç Mimar</label>
@@ -412,6 +413,31 @@ function isInvalidSchoolValue(v){
     notice.textContent = OAUTH_ERROR_MESSAGES[err] || 'Sosyal kayıtta bir sorun oluştu, lütfen tekrar dene.';
     notice.classList.add('show');
   }
+})();
+
+// Meslek çekmecesi (kullanıcı isteği, 2026-09-02) — onay kutuları DOM'da aynen kalır, yalnızca
+// açılır panele sarılır; aşağıdaki `#signup-profession input:checked` okuması değişmeden çalışır.
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.ProfessionDrawer) ProfessionDrawer.mount(document.getElementById('signup-profession'));
+});
+
+// Ad Soyad: her kelimenin ilk harfi otomatik BÜYÜK (kullanıcı isteği). Türkçe'ye duyarlı —
+// 'i' harfinin büyüğü 'İ'dir, toUpperCase() bunu tr yerel ayarı olmadan 'I' yapar ve "Irmak"
+// gibi yanlış yazımlar üretir. Kesme işareti/tire içeren adlar (O'Neill, Ali-Rıza) da bölünür.
+// Kullanıcı yazarken imleç konumu korunur; elle yapılan büyük harfler (McDonald) bozulmaz —
+// yalnızca kelime BAŞLARI yükseltilir, gerisi olduğu gibi bırakılır.
+function toTitleCaseTr(value){
+  return value.replace(/(^|[\s'’\-])([\p{Ll}])/gu, (m, sep, ch) =>
+    sep + (ch === 'i' ? 'İ' : ch.toLocaleUpperCase('tr')));
+}
+(function wireNameAutoCase(){
+  const el = document.getElementById('signup-name');
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const pos = el.selectionStart;
+    const next = toTitleCaseTr(el.value);
+    if (next !== el.value) { el.value = next; el.setSelectionRange(pos, pos); }
+  });
 })();
 
 document.getElementById('signup-form').addEventListener('submit', async (e)=>{

@@ -293,6 +293,7 @@
 <script src="awards-shared.js"></script>
 <script src="office-kind.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="firma"></div>
@@ -506,7 +507,7 @@ let originalName = '';
 const dupNameCheck = DuplicateNameCheck.attach({
   input: document.getElementById('o-name'),
   type: 'offices',
-  message: 'Bu firma zaten yayınlandı.',
+  message: 'Bu profil zaten yüklü,',
   getExclude: () => originalName,
 });
 

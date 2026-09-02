@@ -10,8 +10,10 @@
 const DuplicateNameCheck = (function () {
   const LINK_LABELS = {
     projects: 'Projeye git.',
-    architects: 'Kişiye git.',
-    offices: 'Firmaya git.',
+    // Kullanıcı isteği (2026-09-02): kişi/firma/marka formlarında uyarı tam olarak
+    // "Bu profil zaten yüklü, profile git." okunmalı — "profile git." altı çizili bağlantıdır.
+    architects: 'profile git.',
+    offices: 'profile git.',
     products: 'Ürüne git.',
     materials: 'Ürüne git.',
   };

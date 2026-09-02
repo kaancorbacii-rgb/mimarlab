@@ -8,6 +8,7 @@ import {
   isLinkedInConfigured, buildLinkedInAuthUrl, handleLinkedInCallback,
 } from '../lib/oauth.js';
 import { cascadeDeleteAccount } from '../lib/cascadeDelete.js';
+import { createNotification } from '../lib/notify.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESET_TTL_SECONDS = 60 * 60; // 1 saat
@@ -160,6 +161,31 @@ async function oauthCallback(request, env, url, provider) {
   }
 }
 
+
+// architects tablosunda Türkçe-duyarlı TAM ad eşleşmesi arar. SQL LIKE/COLLATE NOCASE yalnızca
+// ASCII harfleri katladığından (bkz. src/routes/office.js#trLower'daki AYNI gerçek bulgu) eşleştirme
+// JS tarafında yapılır; tablo birkaç yüz satır olduğundan bu tam tarama ucuzdur ve
+// /api/public/check-name'in kullandığı normalize ile BİREBİR aynı sonucu verir.
+function foldTrName(v) {
+  return (v || '')
+    .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/Ş/g, 'ş').replace(/Ğ/g, 'ğ')
+    .replace(/Ü/g, 'ü').replace(/Ö/g, 'ö').replace(/Ç/g, 'ç')
+    .toLocaleLowerCase('tr')
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u').replace(/ö/g, 'o')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export async function findArchitectByFoldedName(env, name) {
+  const target = foldTrName(name);
+  if (!target) return null;
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, slug, claimed_by_user_id FROM architects WHERE deleted_at IS NULL`
+  ).all();
+  return results.find(r => foldTrName(r.name) === target) || null;
+}
+
 async function signup(request, env) {
   const ip = clientIp(request);
   if (!(await checkRateLimit(env, 'signup', ip, 10, 60 * 60 * 1000))) {
@@ -191,12 +217,34 @@ async function signup(request, env) {
   const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (existing) return errorJson('Bu e-posta ile zaten bir hesap var.', 409);
 
+  // Kullanıcı isteği (2026-09-02): "Kişi sayfasında yer alan halihazırdaki bir ad soyadla siteye
+  // tekrar üye olunamasın." Kişi dizinindeki (architects) bir adla AYNI ada sahip yeni hesap
+  // açılamaz — aksi halde iki farklı kişi sitede aynı isimle görünür ve künye eşleştirmesi
+  // (isim bazlı, bkz. proje belleği "duplicate name key limitation") belirsizleşir.
+  // Karşılaştırma foldTrName ile Türkçe-duyarlı yapılır ("İnci" ile "inci" aynı sayılır);
+  // aynı normalize karşılaştırma /api/public/check-name'de de kullanılıyor, iki taraf tutarlı.
+  const nameClash = await findArchitectByFoldedName(env, name);
+  if (nameClash) {
+    return errorJson('Bu ad soyad Kişi sayfasında zaten kayıtlı. Bu profil sanaysa kayıt olduktan sonra "Bu profil bana ait" ile sahiplenebilirsin.', 409);
+  }
+
   const id = newId();
   const now = Date.now();
   const passwordHash = await hashPassword(password);
   await env.DB.prepare(
     'INSERT INTO users (id, email, password_hash, name, dob, school, dept, profession, kvkk_accepted_at, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   ).bind(id, email, passwordHash, name, dob, school, dept, profession, now, 'user', now).run();
+
+  // Kullanıcı isteği (2026-09-02 madde 4): kayıt olur olmaz kişiyi dizine davet eden bir bildirim.
+  // link=/hesabim?dizin=1 — hesabim (Hesabım pop-up'ı) bu parametreyi görünce evet/hayır sorusunu
+  // açar (bkz. js/components/auth-modal.js#maybeOpenDirectoryPrompt). createNotification hataları
+  // kendi içinde yutar, yani bildirim yazılamazsa kayıt akışı ETKİLENMEZ.
+  await createNotification(
+    env, id, 'directory_invite',
+    'Kişi sayfasında diğer profesyonellerle birlikte yer almak ister misin?',
+    'Profilini tamamlayıp kişi dizininde görünmeyi seçebilirsin.',
+    '/hesabim?dizin=1',
+  );
 
   const { token, maxAge } = await createSession(env, id);
   const user = await env.DB.prepare(
@@ -389,6 +437,16 @@ export async function updateUserProfileFields(env, userId, body) {
   }
   if ('school' in body && isInvalidSchoolValue(body.school)) {
     return { error: 'Geçerli bir üniversite adı gir (kısaltma kullanma).' };
+  }
+  // Kullanıcı isteği (2026-09-02): "...ya da profilini düzenle deyip aynı ad soyad seçilemesin."
+  // signup'taki AYNI kontrol (bkz. findArchitectByFoldedName). KENDİ sahiplendiği profil hariç
+  // tutulur — kullanıcı zaten bir mimar profiline sahipse adını o profille aynı bırakabilmeli,
+  // aksi halde kendi profilini "çakışma" sayıp her kaydetmeyi engellerdik.
+  if ('name' in body && body.name) {
+    const clash = await findArchitectByFoldedName(env, body.name);
+    if (clash && clash.claimed_by_user_id !== userId) {
+      return { error: 'Bu ad soyad Kişi sayfasında zaten kayıtlı. Farklı bir ad soyad gir.' };
+    }
   }
   // awards/social_links — bkz. kullanıcı isteği: "Mimar profiliyle henüz eşleşmemiş kullanıcılar da
   // ödül, sosyal medya ve açıklama ekleyebilsinler" — kisi-ekle.html'in aynı alanlarıyla AYNI JSON

@@ -309,6 +309,7 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
 
@@ -359,7 +360,7 @@
         </div>
         <div class="form-row">
           <div class="form-field">
-            <label for="dd-meslek-btn">Meslek <span class="opt">(opsiyonel)</span></label>
+            <label for="dd-meslek-btn">Meslek <span class="req" aria-hidden="true">*</span></label>
             <div class="dd-field" id="dd-meslek">
               <button type="button" class="dd-btn" id="dd-meslek-btn">
                 <span id="dd-meslek-btn-label">Meslek seç</span>
@@ -393,7 +394,7 @@
       </div>
 
       <div class="form-section">
-        <h2>Firmalar / Markalar</h2>
+        <h2>Firmalar / Markalar <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
         <p class="section-hint">Bağlı olduğun firma veya markaları profiline ekleyebilirsin. Birden fazla firma veya markadan sorumluysan aralarına virgül koyarak yaz.</p>
         <div class="form-row">
           <div class="form-field">
@@ -415,7 +416,7 @@
       </div>
 
       <div class="form-section">
-        <h2>Fotoğraf <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <h2>Profil Fotoğrafı</h2>
         <label class="image-drop" id="image-drop">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
           <strong>Fotoğrafı sürükleyip bırak</strong>
@@ -509,7 +510,7 @@ let originalName = '';
 const dupNameCheck = DuplicateNameCheck.attach({
   input: document.getElementById('m-name'),
   type: 'architects',
-  message: 'Bu kişi zaten yayınlandı.',
+  message: 'Bu profil zaten yüklü,',
   getExclude: () => originalName,
 });
 

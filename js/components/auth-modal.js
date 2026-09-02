@@ -830,7 +830,7 @@ const AuthModal = (function () {
         <div class="avatar-upload-row">
           <div class="avatar-upload-preview" id="am-avatar-preview">–</div>
           <div>
-            <button type="button" class="avatar-upload-btn" id="am-avatar-upload-btn">Fotoğraf Yükle</button>
+            <button type="button" class="avatar-upload-btn" id="am-avatar-upload-btn">Profil Fotoğrafı Yükle</button>
             <input type="file" id="am-avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none;">
             <div class="avatar-upload-hint" id="am-avatar-upload-hint">JPEG/PNG/WEBP, otomatik küçültülür (~150KB).</div>
           </div>
@@ -852,7 +852,7 @@ const AuthModal = (function () {
             <div class="ac-suggestions" id="am-edit-school-suggestions"></div>
           </div>
           <div>
-            <label id="am-edit-profession-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Meslek <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
+            <label id="am-edit-profession-label" style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Meslek * <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
             <div class="am-check-group" id="am-edit-profession" role="group" aria-labelledby="am-edit-profession-label">
               ${professionCheckboxesHtml('am-edit-profession-cb')}
             </div>
@@ -905,6 +905,18 @@ const AuthModal = (function () {
             <label style="display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;">Açıklama</label>
             <textarea id="am-edit-about" rows="4" style="width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper); font-family:inherit; font-size:13.5px; color:var(--ink); resize:vertical;"></textarea>
           </div>
+        </div>
+
+        <!-- Kullanıcı isteği (2026-09-02 madde 4): Kaydet butonunun ÜSTÜNDE, kisi-ekle.html'deki
+             ile AYNI soru ve AYNI varsayılan (Evet işaretli). Kayıt sonrası bildirimden "Evet"
+             ile gelindiğinde bu grup zaten Evet'te olur; kullanıcı isterse Hayır'a çevirebilir.
+             Değer architects.directory_listed'e yazılır (bkz. submitArchitectSyncIfNeeded). -->
+        <div class="am-listing-consent" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 14px; margin:4px 0 16px; border:1px solid var(--line); border-radius:10px; background:var(--paper);">
+          <span style="flex:1; min-width:0; font-size:13px;">Kişi sayfasında diğer profesyonellerle birlikte görünmek istiyor musunuz?</span>
+          <span style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
+            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="yes" checked style="accent-color:var(--ink); width:15px; height:15px;"> Evet</label>
+            <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-soft); cursor:pointer;"><input type="radio" name="am-directory-listed" value="no" style="accent-color:var(--ink); width:15px; height:15px;"> Hayır</label>
+          </span>
         </div>
 
         <button class="dash-edit-btn" id="am-dash-save-btn" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Kaydet</button>
@@ -1563,6 +1575,10 @@ const AuthModal = (function () {
       const data = await res.json();
       accountUser = data.user;
       renderAvatar();
+      // Bildirimdeki /hesabim?dizin=1 bağlantısıyla gelindiyse dizin sorusunu aç (kullanıcı isteği,
+      // 2026-09-02 madde 4). loadUser() içinde çağrılır çünkü pop-up yalnızca oturum doğrulandıktan
+      // SONRA anlamlı — oturumsuz gelen biri zaten login görünümüne düşer (yukarıdaki swap).
+      maybeOpenDirectoryPrompt();
       document.getElementById('am-dash-title').textContent = 'Hoş Geldin, ' + (accountUser.name || '').split(' ')[0];
       document.getElementById('am-dash-sub').textContent = accountUser.email + ' · MİMARLAB üyesi';
       renderAmNameBadge();
@@ -1789,13 +1805,63 @@ const AuthModal = (function () {
       if (!claim) { architectSyncState = null; return; }
       const { merged, editId } = await fetchArchitectRecordForSync(claim.profile_key);
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
+      // Dizin tercihini mevcut kayda göre ayarla — kullanıcı daha önce "Hayır" dediyse form onu
+      // "Evet" olarak göstermemeli (varsayılan Evet, YALNIZCA hiç kaydı olmayanlar için).
+      const dirEl = document.querySelector(`input[name="am-directory-listed"][value="${merged.directory_listed === 0 ? 'no' : 'yes'}"]`);
+      if (dirEl) dirEl.checked = true;
     }
 
     // Profili Düzenle artık ayrı bir pop-up (bkz. hesabim.html#openProfileEditPopup ile AYNI desen) —
     // TEK fark: bu görünüm zaten ModalShell'in overlay'i İÇİNDE render edildiğinden gövde kaydırması
     // ZATEN kilitli (bkz. ModalShell#lockBodyScroll), burada ikinci kez kilitlenmez.
+    // "Kişi sayfasında diğer profesyonellerle birlikte yer almak ister misin?" (kullanıcı isteği,
+    // 2026-09-02 madde 4). Evet -> Profili Düzenle açılır ve dizin sorusu Evet'te gelir; Hayır ->
+    // yalnızca kapanır (kullanıcının mevcut tercihi DEĞİŞTİRİLMEZ, sessizce "hayır" yazmak
+    // kullanıcının hiç görmediği bir kaydı değiştirmek olurdu).
+    function openDirectoryPrompt() {
+      let ov = document.getElementById('am-directory-prompt');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'am-directory-prompt';
+        ov.className = 'profile-edit-overlay';
+        ov.innerHTML = `
+          <div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:420px;">
+            <h2 style="font-size:16px; font-weight:700; margin:0 0 10px;">Kişi sayfasında diğer profesyonellerle birlikte yer almak ister misin?</h2>
+            <p style="font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0 0 18px;">Evet dersen profilini tamamlayabilmen için Profili Düzenle ekranına yönlendirilirsin.</p>
+            <div style="display:flex; gap:10px;">
+              <button type="button" class="dash-edit-btn" id="am-dirprompt-yes" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Evet</button>
+              <button type="button" class="dash-edit-btn" id="am-dirprompt-no" style="margin-left:0;">Hayır</button>
+            </div>
+          </div>`;
+        document.getElementById('am-panel').appendChild(ov);
+        ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); });
+        ov.querySelector('#am-dirprompt-no').addEventListener('click', () => ov.classList.remove('open'));
+        ov.querySelector('#am-dirprompt-yes').addEventListener('click', () => {
+          ov.classList.remove('open');
+          openAmProfileEditPopup();
+          const yes = document.querySelector('input[name="am-directory-listed"][value="yes"]');
+          if (yes) yes.checked = true;
+        });
+      }
+      ov.classList.add('open');
+    }
+
+    // Bildirimden gelen /hesabim?dizin=1 bağlantısı — Hesabım açıldığında soruyu doğrudan sor.
+    function maybeOpenDirectoryPrompt() {
+      try {
+        if (new URLSearchParams(location.search).get('dizin') === '1') openDirectoryPrompt();
+      } catch (e) {}
+    }
+
     function openAmProfileEditPopup() {
       document.getElementById('am-profile-edit-overlay').classList.add('open');
+      // Meslek çekmecesi (kullanıcı isteği, 2026-09-02) — panel her açılışta mount edilir;
+      // ProfessionDrawer.mount ikinci çağrıda kendini atlar (dataset.pdrawerBound).
+      if (window.ProfessionDrawer) {
+        const grp = document.getElementById('am-edit-profession');
+        ProfessionDrawer.mount(grp);
+        if (grp && grp._pdrawerRefresh) grp._pdrawerRefresh(); // JS ile doldurulan seçimleri yansıt
+      }
       document.getElementById('am-profile-edit-close').focus();
     }
     function closeAmProfileEditPopup() {
@@ -1880,6 +1946,13 @@ const AuthModal = (function () {
         photo_url: architectSyncState.photoUrl || null,
         about: about || null,
         social_links: socialLinks,
+        // Kişi dizininde görünme tercihi (kullanıcı isteği, 2026-09-02) — kisi-ekle.html'in
+        // gönderdiği AYNI alan (bkz. migrations/0081_architect_directory_listed.sql). Radyo grubu
+        // bulunamazsa alan HİÇ gönderilmez ki mevcut değer ezilmesin (nullable semantiği).
+        ...(function () {
+          const picked = document.querySelector('input[name="am-directory-listed"]:checked');
+          return picked ? { directory_listed: picked.value === 'yes' ? 1 : 0 } : {};
+        })(),
       };
       if (!architectSyncState.editId) payload.claimed_profile_key = architectSyncState.profileKey;
       try {
@@ -1913,6 +1986,18 @@ const AuthModal = (function () {
       const about = document.getElementById('am-edit-about').value;
       const socialLinks = collectAmSocialLinks();
       if (isInvalidSchoolValue(school)) { msg.textContent = 'Geçerli bir üniversite adı gir (kısaltma kullanma).'; return; }
+      // Kullanıcı isteği (2026-09-02): meslek artık ZORUNLU (kisi-ekle.html ile aynı kural).
+      if (!profession) { msg.textContent = 'Meslek seçmelisin.'; return; }
+      // Kullanıcı isteği: "Kişi kaydete tıklamadan önce profil fotoğrafı yüklemek zorunda olsun."
+      // Yalnızca dizinde görünmeyi KABUL ETMİŞ kullanıcılar için zorunlu — dizine girmek istemeyen
+      // biri fotoğrafsız da profilini düzenleyebilmeli (fotoğraf yalnızca herkese açık kişi
+      // kartında anlamlı). Kaynak: aşağıdaki #am-edit-directory-listed radyo grubu.
+      const wantsDirectory = document.querySelector('input[name="am-directory-listed"]:checked');
+      const photoUrl = (accountUser && accountUser.photo_url) || '';
+      if (wantsDirectory && wantsDirectory.value === 'yes' && !photoUrl) {
+        msg.textContent = 'Kişi sayfasında görünmek için önce profil fotoğrafı yüklemelisin.';
+        return;
+      }
       btn.disabled = true;
       try {
         const res = await fetch('/api/profile', {
@@ -2389,7 +2474,12 @@ const AuthModal = (function () {
             } catch {}
           }
           const threadId = threadIdFromLink(item.link);
-          if (threadId) openMessageThread(threadId);
+          if (threadId) { openMessageThread(threadId); return; }
+          // Kullanıcı isteği (2026-09-02 madde 4): kayıt sonrası gönderilen dizin daveti
+          // bildirimine tıklayınca AYNI soruyu evet/hayır ile soran bir pop-up açılır.
+          if (item.type === 'directory_invite' || (item.link || '').indexOf('dizin=1') !== -1) {
+            openDirectoryPrompt();
+          }
         });
       });
       container.querySelectorAll('.notif-del').forEach(btn => {
