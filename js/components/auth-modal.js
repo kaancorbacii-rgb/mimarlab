@@ -1885,9 +1885,36 @@ const AuthModal = (function () {
     }
     // Alanların GÖRÜNÜRLÜĞÜNÜ artık etkilemez (her zaman görünürler) — yalnızca varsa architectSyncState'i
     // (editId/office/photoUrl) kurar ki Kaydet'te submitArchitectSyncIfNeeded doğru uca yazsın.
+    // Kullanıcının onaylı bir mimar profili YOKKEN oluşturduğu kendi kişi gönderisini bulur
+    // (claimed_profile_key TAŞIMAZ — bir profili sahiplenme değil, kendi kaydını açma).
+    async function fetchOwnSelfSubmission() {
+      try {
+        const res = await fetch('/api/architects/mine');
+        if (!res.ok) return null;
+        const data = await res.json();
+        const own = (data.items || []).filter(m => !m.claimed_profile_key);
+        if (!own.length) return null;
+        return own.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
+      } catch { return null; }
+    }
+
     async function refreshArchitectSyncState(claimItems) {
       const claim = claimItems.find(c => c.profile_type === 'architect' && c.status === 'approved');
-      if (!claim) { architectSyncState = null; return; }
+      if (!claim) {
+        // GERÇEK BULGU (kullanıcı bildirimi): burada eskiden yalnızca `architectSyncState = null`
+        // vardı. Onaylı mimar profili OLMAYAN normal bir kullanıcı "Kişi sayfasında görünmek
+        // istiyorum: Evet" deyip kaydettiğinde submitArchitectSyncIfNeeded ilk satırında geri
+        // dönüyor, tercih HİÇBİR YERE yazılmıyordu; /api/profile gövdesinde de bu alan yok.
+        // Formu yeniden açınca da okunacak bir kayıt olmadığından radyo HTML'deki varsayılan
+        // "Hayır"a düşüyordu — kullanıcının gördüğü "Evet dedim, Hayır'a dönmüş" davranışı buydu.
+        // Artık kullanıcının kendi kişi gönderisi (varsa) durum olarak kurulur ve tercih ondan okunur.
+        const own = await fetchOwnSelfSubmission();
+        if (!own) { architectSyncState = null; return; }
+        architectSyncState = { profileKey: null, editId: own.id, office: own.office || '', photoUrl: own.photo_url || '' };
+        const el = document.querySelector(`input[name="am-directory-listed"][value="${own.directory_listed === 0 ? 'no' : 'yes'}"]`);
+        if (el) el.checked = true;
+        return;
+      }
       const { merged, editId } = await fetchArchitectRecordForSync(claim.profile_key);
       architectSyncState = { profileKey: claim.profile_key, editId, office: merged.office, photoUrl: merged.photo_url };
       // Dizin tercihini mevcut kayda göre ayarla — kullanıcı daha önce "Hayır" dediyse form onu
@@ -2018,8 +2045,19 @@ const AuthModal = (function () {
     // gerçekten TEK bir veri kaynağını düzenlemiş olur (bkz. kullanıcı isteği: "tam bir
     // senkronizasyon"). office/photo_url bu formda düzenlenmediğinden fetchArchitectRecordForSync'in
     // getirdiği son bilinen değerleriyle olduğu gibi geri gönderilir, sıfırlanmazlar.
+    // Kaydet mesajının "onaya gönderildi" demesi için: bu turda YENİ bir kişi kaydı açıldı mı?
+    let createdSelfRecord = false;
     async function submitArchitectSyncIfNeeded(name, dob, school, professionSlug, position, awards, about, socialLinks) {
-      if (!architectSyncState) return;
+      createdSelfRecord = false;
+      // Onaylı profili de kendi kaydı da olmayan kullanıcı dizine girmek istiyorsa, kaydı BURADA
+      // oluşturulur — kisi-ekle.html'in kullandığı AYNI uç (POST /api/architects). "Hayır" diyen
+      // ve zaten kaydı olmayan kullanıcı için yapılacak bir şey yok, boş gönderi açılmaz.
+      if (!architectSyncState) {
+        const picked = document.querySelector('input[name="am-directory-listed"]:checked');
+        if (!picked || picked.value !== 'yes') return;
+        architectSyncState = { profileKey: null, editId: null, office: '', photoUrl: (accountUser && accountUser.photoUrl) || '' };
+        createdSelfRecord = true;
+      }
       const payload = {
         name, dob: dob || null, school: school || null,
         // architects.profession HAM Türkçe etiket taşır ("Mimar, Fotoğrafçı") — çoklu meslek de
@@ -2039,7 +2077,11 @@ const AuthModal = (function () {
           return picked ? { directory_listed: picked.value === 'yes' ? 1 : 0 } : {};
         })(),
       };
-      if (!architectSyncState.editId) payload.claimed_profile_key = architectSyncState.profileKey;
+      // profileKey yalnızca bir PROFİL SAHİPLENME akışında doludur; kendi kaydını açan kullanıcıda
+      // null'dır ve alan hiç gönderilmemelidir (aksi halde sunucu boş bir sahiplenme anahtarı yazar).
+      if (!architectSyncState.editId && architectSyncState.profileKey) {
+        payload.claimed_profile_key = architectSyncState.profileKey;
+      }
       try {
         const res = await fetch(architectSyncState.editId ? `/api/architects/${encodeURIComponent(architectSyncState.editId)}` : '/api/architects', {
           method: architectSyncState.editId ? 'PATCH' : 'POST',
@@ -2108,7 +2150,11 @@ const AuthModal = (function () {
         const claimSubmitted = await submitFirmaClaimIfChanged();
         await submitArchitectSyncIfNeeded(name, dob, school, profession, position, awards, about, socialLinks);
 
-        msg.textContent = claimSubmitted ? 'Kaydedildi. Firma talebi admin onayına gönderildi.' : 'Kaydedildi.';
+        // Dizine yeni girenler, kaydın HEMEN yayımlanmadığını bilmeli — kişi kaydı diğer tüm üye
+        // gönderileri gibi admin onayından sonra /kisi listesine düşer (bkz. architect_submissions).
+        msg.textContent = claimSubmitted
+          ? 'Kaydedildi. Firma talebi admin onayına gönderildi.'
+          : (createdSelfRecord ? 'Kaydedildi. Kişi sayfasında yayımlanmak için admin onayına gönderildi.' : 'Kaydedildi.');
         await loadUser();
         await loadMyClaims();
         // Kaydetme başarılıysa kısa bir onay anından sonra pop-up kapanıp Hesabım'a dönülür (bkz.
@@ -2435,12 +2481,22 @@ const AuthModal = (function () {
       if (accountUser && accountUser.position) rows.push(['Görevin', accountUser.position]);
       const slug = office && office.slug ? office.slug : '';
       if (slug) { firmInfoSlug = slug; renderFirmEditBtn(); }
+      // Firma satırında, firmanın rozeti varsa adının yanında gösterilir (kullanıcı isteği,
+      // 2026-09-02 madde 4). Kaynak amPublicBadges — profilde FİİLEN görünen rozet haritası; satın
+      // alınan ve admin tarafından verilen rozeti sunucuda zaten birleştirir, yani buradaki rozet
+      // ile firma sayfasındaki rozet asla farklı olamaz (bkz. renderClaimsList'teki AYNI kaynak).
+      // Yalnızca ONAYLI sahiplenmede gösterilir: bekleyen bir talepte firma henüz kullanıcının
+      // değildir.
+      const firmBadgeList = firmInfoApproved
+        ? (amPublicBadges.office && amPublicBadges.office[claim.profile_key])
+        : null;
+      const firmBadgeType = firmBadgeList && firmBadgeList.length ? firmBadgeList[0] : null;
       box.innerHTML = rows.map(([label, value], i) => `
         <div class="profile-fact">
           <span class="profile-fact-label">${escapeHtml(label)}</span>
           <span class="profile-fact-value">${i === 0 && slug
             ? `<a href="/firma/${encodeURIComponent(slug)}" style="color:var(--walnut); font-weight:600;">${escapeHtml(value)}</a>`
-            : escapeHtml(value)}</span>
+            : escapeHtml(value)}${i === 0 && firmBadgeType ? accountBadgeIconHtml(firmBadgeType) : ''}</span>
         </div>`).join('');
       renderClaimsList();
     }

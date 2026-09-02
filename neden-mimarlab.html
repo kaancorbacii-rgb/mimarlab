@@ -317,6 +317,37 @@
     .btn{padding:12px 20px; font-size:14px;}
     .btn-row .btn{flex:1 1 100%; justify-content:center;}
   }
+  /* ---------- Sadeleştirilmiş sunum (kullanıcı isteği, 2026-09-02 madde 3) ----------
+     Anlatım metinden görsele kaydırıldı: dev rakamlar, satır içi SVG ağ diyagramı, ikonlu rol
+     kartları. Ölçüler clamp() ile akışkan — ayrı bir mobil kırılma noktası gerekmiyor. */
+  .nm-sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
+  .nm-hero{padding-top:clamp(56px,9vw,120px); padding-bottom:clamp(40px,6vw,80px);}
+  .nm-h1{font-size:clamp(34px,6.4vw,76px); line-height:1.04; letter-spacing:-0.03em; margin:0 0 18px; font-weight:700;}
+  .nm-accent{color:var(--walnut);}
+  .nm-lead{font-size:clamp(15px,2vw,21px); color:var(--ink-soft); margin:0 0 26px; max-width:46ch;}
+  .nm-h2{font-size:clamp(22px,3.4vw,38px); letter-spacing:-0.02em; margin:0 0 26px;}
+  .nm-note{font-size:12.5px; color:var(--ink-soft); margin-top:18px;}
+
+  .nm-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:clamp(14px,2.5vw,34px);}
+  .nm-stat{display:flex; flex-direction:column; gap:4px; text-align:left;}
+  .nm-num{font-size:clamp(34px,6vw,68px); font-weight:700; line-height:1; letter-spacing:-0.03em;}
+  .nm-lab{font-size:11.5px; text-transform:uppercase; letter-spacing:0.1em; opacity:.7;}
+
+  .nm-graph{margin:0 auto; max-width:900px;}
+  .nm-graph svg{width:100%; height:auto; display:block; color:var(--line);}
+  .nm-graph .nm-edge{opacity:.85;}
+  .nm-graph .nm-node circle{fill:var(--paper-card); stroke:var(--line); stroke-width:1.5;}
+  .nm-graph .nm-node text{text-anchor:middle; fill:var(--ink); font-size:15px; font-weight:700; letter-spacing:0.04em;}
+  .nm-graph .nm-node text.nm-sub{font-size:11px; font-weight:500; fill:var(--ink-soft); letter-spacing:0;}
+
+  .nm-roles{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px;}
+  .nm-role{display:block; padding:26px 22px; border:1px solid var(--line); border-radius:16px;
+    background:var(--paper-card); color:var(--ink); transition:border-color .15s ease, transform .15s ease;}
+  .nm-role:hover{border-color:var(--walnut); transform:translateY(-2px);}
+  .nm-role svg{width:30px; height:30px; color:var(--walnut); margin-bottom:14px;}
+  .nm-role h3{margin:0 0 6px; font-size:17px;}
+  .nm-role p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
@@ -348,544 +379,126 @@
 </div>
 
 <main>
-
-  <!-- ============ HERO ============ -->
-  <section class="sec hero" id="hero">
+  <!-- ============================================================================================
+       KULLANICI İSTEĞİ (2026-09-02 madde 3): sayfa sadeleştirildi — 21 metin ağırlıklı bölüm 7
+       görsel bölüme indirildi (Archello'nun üretici/mimar sayfalarındaki anlatım dili referans
+       alındı). Metin en aza indirildi; anlatım büyük sayılar, satır içi SVG diyagram ve gerçek
+       proje görselleri üzerinden yürüyor.
+       KORUNAN BETİK KANCALARI (bunlar kaldırılırsa sayfa betiği sessizce bozulur):
+       #stats-band, [data-stat], #stats-note, #network-live, #file-showcase,
+       #demo / #demo-chain / #demo-media / #demo-next.
+       ============================================================================================ -->
+  <section class="sec hero nm-hero" id="hero">
     <div class="wrap">
-      <p class="eyebrow">Platform Sunumu</p>
-      <h1>Neden MİMARLAB?</h1>
-      <p class="hero-lead">Türkiye'nin mimarlık, tasarım ve yapı dünyası bugün dağınık: proje bir yerde, mimar başka yerde, ürün ve marka bambaşka bir yerde duruyor. MİMARLAB bunları tek bir dijital ekosistemde birbirine bağlar — projeden mimara, mimardan firmaya, firmadan ürüne ve markaya.</p>
+      <h1 class="nm-h1">Türkiye'nin yapı dünyası<br><span class="nm-accent">tek bir ağda.</span></h1>
+      <p class="nm-lead">Proje, kişi, firma, ürün ve marka — hepsi birbirine bağlı.</p>
       <div class="btn-row">
         <a class="btn" href="/proje" data-ml-event="neden_mimarlab_project_cta">Platformu Keşfet</a>
-        <a class="btn btn-ghost" href="#yayinla" data-ml-event="neden_mimarlab_signup_cta">İçeriğini Yayınla</a>
+        <a class="btn btn-ghost" href="/uye-ol" data-ml-event="neden_mimarlab_signup_cta">Ücretsiz Katıl</a>
       </div>
-      <nav class="hero-chips" aria-label="Sayfa bölümleri">
-        <a class="chip" href="#ekosistem">Ekosistem</a>
-        <a class="chip" href="#mimarlar">Mimarlar</a>
-        <a class="chip" href="#ofisler">Ofisler</a>
-        <a class="chip" href="#markalar">Markalar</a>
-        <a class="chip" href="#urunler">Ürünler ve dosyalar</a>
-        <a class="chip" href="#demo">Canlı örnek</a>
-        <a class="chip" href="#yayinla">İçerik ekle</a>
-        <a class="chip" href="#gelecek">Gelecek</a>
-      </nav>
     </div>
   </section>
 
-  <!-- ============ CANLI PLATFORM VERİLERİ ============ -->
-  <section class="sec band-dark" id="veriler" aria-labelledby="veriler-h">
+  <!-- Canlı sayılar — sayfanın ana görsel iddiası. Metin yok, yalnızca rakam. -->
+  <section class="sec band-dark nm-stats-sec" id="veriler" aria-labelledby="veriler-h">
     <div class="wrap">
-      <p class="eyebrow">Platform Verileri</p>
-      <h2 class="sec-title" id="veriler-h">Bugün MİMARLAB'da ne var?</h2>
-      <p class="sec-lead">Aşağıdaki sayılar sabit değil — platformun canlı veritabanından okunur ve her yeni proje, mimar, firma, ürün ya da marka eklendiğinde kendiliğinden güncellenir.</p>
-      <div class="stats" id="stats-band">
-        <a class="stat" href="/proje"><span class="stat-num" data-stat="projects">—</span><span class="stat-label">Proje</span></a>
-        <a class="stat" href="/kisi"><span class="stat-num" data-stat="architects">—</span><span class="stat-label">Kişi</span></a>
-        <a class="stat" href="/firma"><span class="stat-num" data-stat="offices">—</span><span class="stat-label">Firma</span></a>
-        <a class="stat" href="/urun"><span class="stat-num" data-stat="products">—</span><span class="stat-label">Ürün</span></a>
-        <a class="stat" href="/marka"><span class="stat-num" data-stat="brands">—</span><span class="stat-label">Marka</span></a>
+      <h2 class="nm-sr" id="veriler-h">Platform verileri</h2>
+      <div class="stats nm-stats" id="stats-band">
+        <a class="stat nm-stat" href="/proje"><span class="stat-num nm-num" data-stat="projects">—</span><span class="stat-label nm-lab">Proje</span></a>
+        <a class="stat nm-stat" href="/kisi"><span class="stat-num nm-num" data-stat="architects">—</span><span class="stat-label nm-lab">Kişi</span></a>
+        <a class="stat nm-stat" href="/firma"><span class="stat-num nm-num" data-stat="offices">—</span><span class="stat-label nm-lab">Firma</span></a>
+        <a class="stat nm-stat" href="/urun"><span class="stat-num nm-num" data-stat="products">—</span><span class="stat-label nm-lab">Ürün</span></a>
+        <a class="stat nm-stat" href="/marka"><span class="stat-num nm-num" data-stat="brands">—</span><span class="stat-label nm-lab">Marka</span></a>
       </div>
-      <p class="stats-note" id="stats-note" role="status" aria-live="polite">Canlı platform verileri yükleniyor…</p>
+      <p class="stats-note nm-note" id="stats-note" role="status" aria-live="polite">Canlı veriler yükleniyor…</p>
     </div>
   </section>
 
-  <!-- ============ MİMARLAB NEDİR ============ -->
-  <section class="sec" id="nedir" aria-labelledby="nedir-h">
-    <div class="wrap-narrow">
-      <p class="eyebrow">Kısaca</p>
-      <h2 class="sec-title" id="nedir-h">MİMARLAB nedir?</h2>
-      <p class="sec-lead">MİMARLAB, Türkiye'deki mimarlık, tasarım ve yapı dünyasını proje, mimar, firma, ürün ve marka verileri üzerinden birbirine bağlayan dijital keşif platformudur.</p>
-      <p>Bir mimarlık dergisi değil, bir ilan sitesi de değil. Kayıtların birbirine bağlı olduğu bir veri katmanı: bir projeye baktığınızda onu kimin tasarladığını, hangi ofisin imzasını taşıdığını, künyesinde hangi markaların geçtiğini görürsünüz. Bir mimara baktığınızda hangi projelerin altında adı olduğunu; bir markaya baktığınızda kataloğundaki ürünleri ve o ürünlerin teknik dosyalarını.</p>
-      <p>Platform bugün proje keşfi, mimar ve firma keşfi, ürün ve marka keşfi, teknik dosya erişimi, profesyonel profil, koleksiyon, içerik paylaşımı ve sektör araştırması için çalışıyor. Her biri ayrı bir araç değil, aynı bağlantı ağının farklı giriş kapıları.</p>
-    </div>
-  </section>
-
-  <!-- ============ EKOSİSTEM ============ -->
-  <section class="sec band-alt" id="ekosistem" aria-labelledby="ekosistem-h">
+  <!-- Ekosistem — metin yerine DİYAGRAM. Satır içi SVG: dış bağımlılık yok, currentColor ile
+       gece/gündüz temasına kendiliğinden uyar. -->
+  <section class="sec nm-graph-sec" id="ekosistem" aria-labelledby="ekosistem-h">
     <div class="wrap">
-      <p class="eyebrow">Ekosistem</p>
-      <h2 class="sec-title" id="ekosistem-h">Her şey birbirine bağlı</h2>
-      <p class="sec-lead">MİMARLAB'ın merkezinde tek bir içerik türü yok. Yedi varlık türü aynı ağın parçası; birinden girip diğerine geçebilirsiniz.</p>
-
-      <div class="orbit" aria-hidden="true">
-        <svg class="orbit-lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
-          <line x1="50" y1="50" x2="50" y2="13"></line>
-          <line x1="50" y1="50" x2="78.9" y2="26.9"></line>
-          <line x1="50" y1="50" x2="86.1" y2="58.2"></line>
-          <line x1="50" y1="50" x2="66.1" y2="83.3"></line>
-          <line x1="50" y1="50" x2="33.9" y2="83.3"></line>
-          <line x1="50" y1="50" x2="13.9" y2="58.2"></line>
-          <line x1="50" y1="50" x2="21.1" y2="26.9"></line>
+      <h2 class="sec-title nm-h2" id="ekosistem-h">Her kayıt bir diğerine açılır</h2>
+      <div class="nm-graph">
+        <svg viewBox="0 0 900 420" role="img" aria-label="Proje, kişi, firma, ürün ve marka kayıtlarının birbirine bağlandığı ağ diyagramı">
+          <g class="nm-edge" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M450 210 L200 110"/><path d="M450 210 L700 110"/>
+            <path d="M450 210 L200 310"/><path d="M450 210 L700 310"/>
+            <path d="M200 110 L200 310"/><path d="M700 110 L700 310"/>
+          </g>
+          <g class="nm-node">
+            <circle cx="450" cy="210" r="62"/><text x="450" y="205">PROJE</text><text x="450" y="224" class="nm-sub">künye · görsel</text>
+            <circle cx="200" cy="110" r="52"/><text x="200" y="106">KİŞİ</text><text x="200" y="124" class="nm-sub">portföy</text>
+            <circle cx="700" cy="110" r="52"/><text x="700" y="106">FİRMA</text><text x="700" y="124" class="nm-sub">ekip</text>
+            <circle cx="200" cy="310" r="52"/><text x="200" y="306">ÜRÜN</text><text x="200" y="324" class="nm-sub">dosya</text>
+            <circle cx="700" cy="310" r="52"/><text x="700" y="306">MARKA</text><text x="700" y="324" class="nm-sub">katalog</text>
+          </g>
         </svg>
-        <div class="orbit-core"><strong>MİMARLAB</strong><span>Bağlantı katmanı</span></div>
-        <a class="orbit-node" href="/proje" style="--x:0%; --y:-37%"><strong>Projeler</strong><span>Yapılar, künyeleri ve görselleriyle</span></a>
-        <a class="orbit-node" href="/kisi" style="--x:28.9%; --y:-23.1%"><strong>Kişiler</strong><span>Bireysel profiller ve portföyler</span></a>
-        <a class="orbit-node" href="/firma" style="--x:36.1%; --y:8.2%"><strong>Firmalar</strong><span>Ofisler, ekipler, uzmanlıklar</span></a>
-        <a class="orbit-node" href="/urun" style="--x:16.1%; --y:33.3%"><strong>Ürünler</strong><span>Mobilya, aydınlatma, malzeme</span></a>
-        <a class="orbit-node" href="/marka" style="--x:-16.1%; --y:33.3%"><strong>Markalar</strong><span>Üretici ve tedarikçi profilleri</span></a>
-        <a class="orbit-node" href="/koleksiyonum" style="--x:-36.1%; --y:8.2%"><strong>Koleksiyonlar</strong><span>Kendi panolarınız</span></a>
-        <a class="orbit-node" href="/urun" style="--x:-28.9%; --y:-23.1%"><strong>Dosyalar</strong><span>Ürünlerin teknik dosyaları</span></a>
       </div>
+      <p class="nm-note" id="network-live"></p>
+    </div>
+  </section>
 
-      <div class="orbit-list">
-        <a class="card" href="/proje"><h3>Projeler</h3><p>Yapılar, künyeleri ve görselleriyle.</p></a>
-        <a class="card" href="/kisi"><h3>Kişiler</h3><p>Bireysel profiller ve portföyler.</p></a>
-        <a class="card" href="/firma"><h3>Firmalar</h3><p>Ofisler, ekipler, uzmanlık alanları.</p></a>
-        <a class="card" href="/urun"><h3>Ürünler</h3><p>Mobilya, aydınlatma, yapı malzemesi.</p></a>
-        <a class="card" href="/marka"><h3>Markalar</h3><p>Üretici ve tedarikçi profilleri.</p></a>
-        <a class="card" href="/koleksiyonum"><h3>Koleksiyonlar</h3><p>Beğendiklerinizi topladığınız panolar.</p></a>
-        <a class="card" href="/urun"><h3>Dosyalar</h3><p>Ürünlere yüklenen teknik dosyalar.</p></a>
+  <!-- Roller — üç kart, kart başına tek cümle. -->
+  <section class="sec band-alt nm-roles-sec" id="senin-icin" aria-labelledby="senin-icin-h">
+    <div class="wrap">
+      <h2 class="sec-title nm-h2" id="senin-icin-h">Sen ne yapıyorsun?</h2>
+      <div class="nm-roles">
+        <a class="nm-role" href="/proje-ekle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V6l7-3 7 3v15"/><path d="M9 21v-6h6v6"/></svg>
+          <h3>Mimar &amp; Firma</h3>
+          <p>Projelerini künyesiyle yayınla, portföyünü kur.</p>
+        </a>
+        <a class="nm-role" href="/urun-ekle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 16V8l-9-5-9 5v8l9 5z"/><path d="M3.3 7.3 12 12l8.7-4.7"/><path d="M12 12v9"/></svg>
+          <h3>Marka &amp; Üretici</h3>
+          <p>Ürünlerini ve teknik dosyalarını mimarların önüne koy.</p>
+        </a>
+        <a class="nm-role" href="/urun">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <h3>Araştırmacı</h3>
+          <p>Proje, malzeme ve marka araştırmanı tek yerden yap.</p>
+        </a>
       </div>
     </div>
   </section>
 
-  <!-- ============ SENİN İÇİN MİMARLAB ============ -->
-  <section class="sec" id="senin-icin" aria-labelledby="senin-icin-h">
+  <!-- Canlı örnek — gerçek bir projenin bağlantı zinciri (veritabanından). -->
+  <section class="sec nm-demo-sec" id="demo" aria-labelledby="demo-h">
     <div class="wrap">
-      <p class="eyebrow">Kullanım</p>
-      <h2 class="sec-title" id="senin-icin-h">Sen MİMARLAB'ı nasıl kullanacaksın?</h2>
-      <p class="sec-lead">Aynı platform, kim olduğunuza göre farklı bir işe yarar. Rolünüzü seçin.</p>
-
-      <div class="tabs" role="tablist" aria-label="Kullanıcı profilleri">
-        <button class="tab" type="button" role="tab" id="tab-mimar" aria-controls="panel-mimar" aria-selected="true">Mimar / İç Mimar</button>
-        <button class="tab" type="button" role="tab" id="tab-ofis" aria-controls="panel-ofis" aria-selected="false">Tasarım Ofisi</button>
-        <button class="tab" type="button" role="tab" id="tab-marka" aria-controls="panel-marka" aria-selected="false">Marka / Üretici</button>
-        <button class="tab" type="button" role="tab" id="tab-ogrenci" aria-controls="panel-ogrenci" aria-selected="false">Öğrenci</button>
-        <button class="tab" type="button" role="tab" id="tab-diger" aria-controls="panel-diger" aria-selected="false">Diğer profesyoneller</button>
-      </div>
-
-      <div class="panel" role="tabpanel" id="panel-mimar" aria-labelledby="tab-mimar">
-        <h3>Projelerinizi yayınlar, sektörü araştırırsınız.</h3>
-        <p>Kendi projelerinizi künyesiyle birlikte yayınlar, profilinizi oluşturur ve çalıştığınız ofisle bağlarsınız. Aynı anda başkalarının projelerini, kullandıkları ürünleri ve markaları araştırma kaynağı olarak kullanırsınız.</p>
-        <ul>
-          <li>Proje yayınlama ve künyede mimar/firma/fotoğrafçı bağlantıları</li>
-          <li>Mimar profili ve portföy — projeleriniz profilinizde toplanır</li>
-          <li>Ürün, malzeme ve marka keşfi; teknik dosyalara erişim</li>
-          <li>Beğendiklerinizi koleksiyona kaydetme, mimar ve markaları takip etme</li>
-        </ul>
-      </div>
-      <div class="panel" role="tabpanel" id="panel-ofis" aria-labelledby="tab-ofis" hidden>
-        <h3>Ofisinizin dijital referans dosyasını kurarsınız.</h3>
-        <p>Firma profili açar, uzmanlık alanlarınızı tanımlar, projelerinizi ofis adı altında toplarsınız. Ekipteki mimarların profilleri firmanıza bağlanır; ofisiniz artık dağınık bir portföy değil, tek bir referans sayfası olur.</p>
-        <ul>
-          <li>Firma profili: konum, kuruluş yılı, hizmet alanları, web sitesi, sosyal hesaplar</li>
-          <li>Proje portföyü — ofis künyesi geçen tüm projeler otomatik toplanır</li>
-          <li>Kurucular ve ekip mimarlarıyla çift yönlü bağlantı</li>
-          <li>Profil sahipliği talebi ve doğrulanmış profil rozeti</li>
-        </ul>
-      </div>
-      <div class="panel" role="tabpanel" id="panel-marka" aria-labelledby="tab-marka" hidden>
-        <h3>Ürünlerinizi mimarların araştırdığı yere koyarsınız.</h3>
-        <p>Marka profili açar, ürün ve malzeme kataloğunuzu yayınlar, ürünlerin teknik dosyalarını (BIM, CAD, 3D, katalog PDF'i) mimarların erişimine sunarsınız. Ürünleriniz kategori ağacında ve arama sonuçlarında yerini alır.</p>
-        <ul>
-          <li>Marka profili ve ürün/malzeme kataloğu</li>
-          <li>Ürün başına teknik dosya yükleme</li>
-          <li>Projelerde kullanılan ürün olarak işaretlenebilme (çift yönlü bağ)</li>
-          <li>Mimarların koleksiyonlarına kaydedilebilme ve takip edilebilme</li>
-        </ul>
-      </div>
-      <div class="panel" role="tabpanel" id="panel-ogrenci" aria-labelledby="tab-ogrenci" hidden>
-        <h3>Araştırmanıza buradan başlarsınız.</h3>
-        <p>Bir referans ararken projeyi, mimarını, firmasını ve kullanılan malzemeyi ayrı ayrı aramak zorunda kalmazsınız. Şehre, yıla, türe ve disipline göre filtreler; bulduklarınızı koleksiyonlara ayırırsınız.</p>
-        <ul>
-          <li>Şehir, yıl, tür ve disipline göre proje araştırması</li>
-          <li>Malzeme ve ürün araştırması, markaların teknik dosyaları</li>
-          <li>Konu başlığına göre koleksiyon panoları</li>
-          <li>Kendi projelerinizi yayınlayarak erken bir portföy kurma</li>
-        </ul>
-      </div>
-      <div class="panel" role="tabpanel" id="panel-diger" aria-labelledby="tab-diger" hidden>
-        <h3>Yapı dünyasının ortak sözlüğünü kullanırsınız.</h3>
-        <p>Peyzaj mimarı, şehir plancısı, inşaat mühendisi, ürün tasarımcısı, akademisyen, danışman ya da yapı sektöründen herhangi biri olarak aynı bağlantı ağına girersiniz: kim neyi yaptı, hangi üründe hangi marka var, hangi ofis nerede çalışıyor.</p>
-        <ul>
-          <li>Disiplin bazlı proje filtreleri (peyzaj, kentsel tasarım, restorasyon, uygulama)</li>
-          <li>Firma ve mimar rehberi üzerinden profesyonel araştırma</li>
-          <li>Ürün ve malzeme kataloğu, marka rehberi</li>
-          <li>Kendi içeriğinizi ekleyerek ekosisteme katılma</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ MİMARLAR ============ -->
-  <section class="sec band-alt" id="mimarlar" aria-labelledby="mimarlar-h">
-    <div class="wrap">
-      <p class="eyebrow">Mimarlar ve İç Mimarlar</p>
-      <h2 class="sec-title" id="mimarlar-h">Projelerinizi görünür kılın.</h2>
-      <p class="sec-lead">Bir proje yayınladığınızda yalnızca bir görsel galerisi eklemiş olmazsınız — o projeyi mimarına, ofisine, fotoğrafçısına ve künyesindeki markalara bağlamış olursunuz. Bu bağlar iki yönlü çalışır: proje sizin profilinizde, siz projenin künyesinde görünürsünüz.</p>
-      <div class="cards cards-3">
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Proje yayınlama</h3><p>Görseller, künye, konum, yıl, tür ve disiplin bilgileriyle. Yayına alınmadan önce inceleme sürecinden geçer.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Mimar profili</h3><p>Eğitim, ofis, unvan ve hakkında bilgileriniz. Projeleriniz profilinizde otomatik toplanır.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Profil sahiplenme</h3><p>Adınıza açık bir profil zaten varsa sahiplik talebinde bulunur, onaydan sonra düzenleme yetkisi alırsınız.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Ürün ve marka keşfi</h3><p>Projeniz için ürün ve malzeme araştırır, markaların teknik dosyalarına ulaşırsınız.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Koleksiyon ve takip</h3><p>Beğendiğiniz proje, ürün, mimar ve firmaları kaydeder; markaları takip edip yeni içeriklerini görürsünüz.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Puanlama ve yorum</h3><p>Projelere puan verir, yorum yazar; kendi içeriğinize gelen yorumları yönetirsiniz.</p></div>
-      </div>
-      <div class="btn-row" style="margin-top:26px">
-        <a class="btn" href="/proje-ekle" data-ml-event="neden_mimarlab_project_cta">Projemi Yayınla</a>
-        <a class="btn btn-ghost" href="/kisi-ekle" data-ml-event="neden_mimarlab_signup_cta">Kişi Profili Oluştur</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ OFİSLER ============ -->
-  <section class="sec" id="ofisler" aria-labelledby="ofisler-h">
-    <div class="wrap">
-      <p class="eyebrow">Mimarlık Ofisleri ve Yapı Firmaları</p>
-      <h2 class="sec-title" id="ofisler-h">Ofisinizi dijital olarak görünür kılın.</h2>
-      <p class="sec-lead">Bir ofisin işi genelde birkaç farklı yerde dağınık durur: bazı projeler yayınlarda, bazıları kendi sitesinde, bazıları hiç kayıtlı değil. MİMARLAB'da ofis profili, künyesinde adınız geçen tüm projeleri tek bir sayfada toplar.</p>
-      <div class="cards cards-2">
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Firma profili</h3><p>Konum, kuruluş yılı, hizmet alanları, logo, kapak görseli, web sitesi ve sosyal medya hesapları.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Proje portföyü</h3><p>Künyesinde firmanız geçen projeler profilinizde otomatik listelenir — tek tek eklemeye gerek yok.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Ekip bağlantıları</h3><p>Kurucular ve ekip mimarları profillerine bağlanır; ziyaretçi ofisten mimara, mimardan ofise geçebilir.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Uzmanlık alanları</h3><p>Mimarlık, iç mimarlık, peyzaj, kentsel tasarım, restorasyon ve uygulama alanlarına göre filtrelenirsiniz.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Şehir bazlı keşif</h3><p>Aynı şehirdeki diğer firmalar arasında yer alırsınız; yerel arayışlarda görünür olursunuz.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Doğrulanmış profil</h3><p>Sahiplik talebi onaylandığında profilinizi düzenler ve doğrulanmış profil rozetini kullanabilirsiniz.</p></div>
-      </div>
-      <div class="btn-row" style="margin-top:26px">
-        <a class="btn" href="/firma-ekle" data-ml-event="neden_mimarlab_signup_cta">Firma Profili Oluştur</a>
-        <a class="btn btn-ghost" href="/firma">Firmaları İncele</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ MARKA & ÜRETİCİLER ============ -->
-  <section class="sec band-dark" id="markalar" aria-labelledby="markalar-h">
-    <div class="wrap">
-      <p class="eyebrow">Markalar ve Üreticiler</p>
-      <h2 class="sec-title" id="markalar-h">Ürünlerinizi sadece göstermeyin. Gerçek projelerin içinde keşfedilebilir hale getirin.</h2>
-      <p class="sec-lead">Bir katalog PDF'i, onu indiren kişiyi tanımaz. MİMARLAB'da ürününüz bir kataloğun içinde değil, mimarların zaten araştırdığı bağlantı ağının içinde durur: kategoride, aramada, projelerin künyesinde ve mimarların koleksiyonlarında.</p>
-
-      <ul class="flow">
-        <li>Marka</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Ürün</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Proje</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Mimar / Ofis</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Keşif</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Koleksiyon</li><li class="arrow" aria-hidden="true">→</li>
-        <li class="is-soon">Bağlantı / talep</li>
-      </ul>
-
-      <div class="cards cards-3">
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Marka profili</h3><p>Logo, kapak, konum, ürün grupları ve web siteniz. Marka sayfasında listelenir, aramada bulunursunuz.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Ürün kataloğu</h3><p>Ürün ve yapı malzemelerinizi görselleri, teknik özellikleri ve tasarımcı bilgisiyle yayınlarsınız.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Teknik dosya dağıtımı</h3><p>BIM, CAD, 3D model ve katalog dosyalarınızı ürünün kendi sayfasından mimarların erişimine açarsınız.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Proje künyesinde yer alma</h3><p>Bir mimar projesini eklerken kullandığı ürünü işaretlediğinde, bağ iki yönlü kurulur: ürününüz o projede, proje de ürününüzün sayfasında görünür.</p></div>
-        <div class="card"><span class="tag tag-now">Bugün</span><h3>Takip edilebilme</h3><p>Mimarlar markanızı takip eder; yeni eklediğiniz içerikler takipçilerinin akışında yeni olarak işaretlenir.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Ölçülebilir ticari bağlantı</h3><p>Talep formu, lead yönetimi ve marka paneli analitiği henüz yok. Yol haritasında — bkz. <a href="#gelecek" style="color:inherit;text-decoration:underline">Gelecek</a>.</p></div>
-      </div>
-      <div class="btn-row" style="margin-top:26px">
-        <a class="btn" href="/marka-ekle" data-ml-event="neden_mimarlab_brand_cta">Marka Profili Oluştur</a>
-        <a class="btn btn-ghost" href="/urun-ekle" data-ml-event="neden_mimarlab_product_cta">Ürün Ekle</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ ÜRÜNÜ PROJEDEN KEŞFET + TEKNİK DOSYA ============ -->
-  <section class="sec" id="urunler" aria-labelledby="urunler-h">
-    <div class="wrap">
-      <p class="eyebrow">Farklılaştırıcı</p>
-      <h2 class="sec-title" id="urunler-h">Ürünü katalogdan değil, projeden keşfedin.</h2>
-      <p class="sec-lead">Bir mimar ürün ararken çoğu zaman ürünün adını bilmez — gördüğü bir mekânı bilir. MİMARLAB'da proje ile ürün arasındaki bağ iki yönlü: proje eklerken kullandığınız ürünü işaretlersiniz, ürün sayfasında da o proje görünür. Aynı bağ ürün tarafından da kurulabilir.</p>
-
-      <ul class="flow">
-        <li>Proje</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Kullanılan ürün</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Marka</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Teknik dosya</li>
-      </ul>
-
-      <h3 style="margin:34px 0 14px; font-size:20px">Aradığınız ürünü keşfedin, teknik dosyasına ulaşın, projenizde kullanın.</h3>
-      <p class="sec-lead">Ürün sayfalarına yüklenebilen dosya türleri:</p>
-      <div class="cards cards-4">
-        <div class="card"><h3>BIM</h3><p>RFA, RVT, IFC, IFCZIP</p></div>
-        <div class="card"><h3>CAD</h3><p>DWG, DXF</p></div>
-        <div class="card"><h3>3D</h3><p>SKP, 3DM, OBJ, FBX, 3DS, STL, STEP, STP, IGES, IGS</p></div>
-        <div class="card"><h3>Katalog ve teknik doküman</h3><p>PDF</p></div>
-      </div>
-      <p class="stats-note" id="files-note">Ürün başına en fazla 5 dosya yüklenebilir.</p>
-
-      <div id="file-showcase" class="cards cards-3" style="margin-top:22px" aria-live="polite"></div>
-
-      <div class="btn-row" style="margin-top:26px">
-        <a class="btn btn-ghost" href="/urun" data-ml-event="neden_mimarlab_product_cta">Ürün Kataloğunu Aç</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ CANLI ÖRNEK / DEMO ============ -->
-  <section class="sec band-alt" id="demo" aria-labelledby="demo-h">
-    <div class="wrap">
-      <div class="demo-head">
-        <div>
-          <p class="eyebrow">Canlı Örnek</p>
-          <h2 class="sec-title" id="demo-h" style="margin-bottom:0">Bakın, MİMARLAB'da bu şekilde çalışıyor.</h2>
-        </div>
-        <button class="btn btn-ghost" type="button" id="demo-next" hidden>Başka bir örnek</button>
-      </div>
-      <p class="sec-lead">Aşağıdaki örnek yazılmış bir senaryo değil — platformdaki gerçek bir kayıttan, o kaydın gerçek bağlantılarıyla üretiliyor. Her adım ilgili sayfaya gider.</p>
-
-      <div class="demo-grid">
+      <h2 class="sec-title nm-h2" id="demo-h">Canlı örnek</h2>
+      <div class="demo-grid" id="demo-grid">
         <div class="demo-media" id="demo-media"></div>
-        <ol class="demo-chain" id="demo-chain">
-          <li class="demo-skeleton">Canlı örnek yükleniyor…</li>
-        </ol>
+        <ol class="demo-chain" id="demo-chain"></ol>
       </div>
+      <div class="btn-row"><button class="btn btn-ghost" type="button" id="demo-next">Başka bir proje göster</button></div>
     </div>
   </section>
 
-  <!-- ============ KOLEKSİYON ============ -->
-  <section class="sec" id="koleksiyon" aria-labelledby="koleksiyon-h">
-    <div class="wrap-narrow">
-      <p class="eyebrow">Koleksiyon</p>
-      <h2 class="sec-title" id="koleksiyon-h">Beğendiğin şeyleri kaybetme.</h2>
-      <p class="sec-lead">Araştırma yaparken bulduğunuz şeyi bir daha bulamamak, bu işin en bilinen zaman kaybı. Koleksiyon, tek bir "favoriler" listesi değil — konu başlığına göre ayırabildiğiniz panolardır.</p>
-      <ul class="flow">
-        <li>Keşfet</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Kaydet</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Koleksiyona ekle</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Sonra geri dön</li>
-      </ul>
-      <p>Koleksiyona kaydedebileceğiniz içerik türleri: proje, ürün, yapı malzemesi, mimar ve firma. Ayrıca mimarları ve markaları takip edebilir, takip ettiklerinizin yeni içeriklerini ayrı bir panoda görebilirsiniz.</p>
-      <div class="btn-row" style="margin-top:22px">
-        <a class="btn btn-ghost" href="/koleksiyonum">Koleksiyonum</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ SADECE BİR DİZİN DEĞİL ============ -->
-  <section class="sec band-dark" id="dizin-degil" aria-labelledby="dizin-degil-h">
+  <!-- Teknik dosyalar — ürün kartları (veritabanından). -->
+  <section class="sec band-alt" id="urunler" aria-labelledby="urunler-h">
     <div class="wrap">
-      <p class="eyebrow">Manifesto</p>
-      <h2 class="sec-title" id="dizin-degil-h">MİMARLAB sadece bir dizin değil.</h2>
-      <p class="sec-lead">Bir dizin, kayıtları alfabetik sıraya dizer. MİMARLAB kayıtları birbirine bağlar. Aradaki fark şu cümlede toplanıyor: <strong>bir proje sadece bir proje değildir.</strong></p>
-      <ul class="flow">
-        <li>Proje</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Kişi</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Firma</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Ürün</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Marka</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Dosya</li>
-      </ul>
-      <div class="cards cards-4">
-        <div class="card"><h3>Proje arşivi</h3><p>Yapılar, künyeleri, görselleri ve konumlarıyla.</p></div>
-        <div class="card"><h3>Profesyonel rehber</h3><p>Mimarlar ve ofisler; uzmanlık, şehir ve deneyime göre.</p></div>
-        <div class="card"><h3>Ürün ve marka rehberi</h3><p>Kategori ağacıyla ürünler, malzemeler ve üreticiler.</p></div>
-        <div class="card"><h3>Teknik kaynak</h3><p>Ürünlere yüklenen BIM, CAD, 3D ve katalog dosyaları.</p></div>
-        <div class="card"><h3>Portföy</h3><p>Mimar ve firma profillerinde otomatik toplanan işler.</p></div>
-        <div class="card"><h3>Keşif platformu</h3><p>Filtre, arama ve kategori ile hedefli araştırma.</p></div>
-        <div class="card"><h3>Profesyonel ağ</h3><p>Takip, koleksiyon, puanlama, yorum ve paylaşım.</p></div>
-        <div class="card"><h3>Tek veri katmanı</h3><p>Hepsi ayrı ürünler değil; aynı bağlantı ağının yüzleri.</p></div>
+      <h2 class="sec-title nm-h2" id="urunler-h">İndirilebilir teknik dosyalar</h2>
+      <div class="cards" id="file-showcase"></div>
+    </div>
+  </section>
+
+  <section class="sec band-dark nm-cta" id="yayinla" aria-labelledby="yayinla-h">
+    <div class="wrap">
+      <h2 class="sec-title nm-h2" id="yayinla-h">Ağa katıl.</h2>
+      <div class="btn-row">
+        <a class="btn" href="/uye-ol">Ücretsiz Üye Ol</a>
+        <a class="btn btn-ghost" href="/proje-ekle">Proje Ekle</a>
+        <a class="btn btn-ghost" href="/urun-ekle">Ürün Ekle</a>
       </div>
     </div>
   </section>
-
-  <!-- ============ TÜRKİYE ODAĞI ============ -->
-  <section class="sec" id="turkiye" aria-labelledby="turkiye-h">
-    <div class="wrap">
-      <p class="eyebrow">Yerel Odak</p>
-      <h2 class="sec-title" id="turkiye-h">Neden Türkiye için MİMARLAB?</h2>
-      <p class="sec-lead">Global platformlar Türkiye'deki üretimin yalnızca küçük bir bölümünü görür. Buradaki ofislerin çoğu, buradaki markaların neredeyse tamamı ve şehir ölçeğindeki yapı üretimi o platformların dışında kalır. MİMARLAB, global platformların yanında Türkiye'nin yerel mimarlık ve yapı ekosistemini dijital olarak birbirine bağlayan platformdur.</p>
-      <div class="cards cards-3">
-        <div class="card"><h3>Türkiye'deki projeler</h3><p>İl ve ilçe ayrıntısına kadar konumlandırılmış yapılar; şehir bazlı keşif.</p></div>
-        <div class="card"><h3>Türkiye'deki mimarlar ve ofisler</h3><p>Yerel ofisler, kurucular ve ekipler; okul ve deneyim bilgileriyle.</p></div>
-        <div class="card"><h3>Türkiye'deki markalar</h3><p>Yerli üreticilerin ürün ve malzeme kataloğu, teknik dosyalarıyla.</p></div>
-        <div class="card"><h3>Türkçe içerik</h3><p>Arayüz, kategori ağacı ve arama Türkçe karakter kurallarına göre çalışır.</p></div>
-        <div class="card"><h3>Yerel ürün ve malzeme pazarı</h3><p>Buradan tedarik edilebilen ürünler; global kataloglarda yer almayanlar dahil.</p></div>
-        <div class="card"><h3>Yerel sektör bağlantıları</h3><p>Mimar, ofis, marka ve ürün aynı ağın içinde; aracısız görünürlük.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ ÖĞRENCİLER ============ -->
-  <section class="sec band-alt" id="ogrenciler" aria-labelledby="ogrenciler-h">
-    <div class="wrap">
-      <p class="eyebrow">Öğrenciler</p>
-      <h2 class="sec-title" id="ogrenciler-h">Yeni nesil mimarlar araştırmaya MİMARLAB'da başlayabilir.</h2>
-      <p class="sec-lead">Bir proje ödevinde en çok vakit alan şey, dağınık kaynaklardan referans toplamaktır. MİMARLAB'da referansın kendisi, mimarı, firması ve malzemesi aynı yerde durur.</p>
-      <div class="cards cards-4">
-        <div class="card"><h3>Proje araştırması</h3><p>Şehir, yıl, tür ve disipline göre filtreleyerek örnek toplayın.</p></div>
-        <div class="card"><h3>Referans ve ilham</h3><p>Benzer ölçek ve programdaki yapıları karşılaştırın.</p></div>
-        <div class="card"><h3>Malzeme ve ürün</h3><p>Kategori ağacından malzeme araştırın, teknik dosyalara ulaşın.</p></div>
-        <div class="card"><h3>Erken portföy</h3><p>Kendi projelerinizi yayınlayıp mimar profilinizi bugünden kurun.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ MARKALAR İÇİN DEĞER ============ -->
-  <section class="sec" id="marka-degeri" aria-labelledby="marka-degeri-h">
-    <div class="wrap">
-      <p class="eyebrow">Değer Alanları</p>
-      <h2 class="sec-title" id="marka-degeri-h">Markanız MİMARLAB'da ne kazanır?</h2>
-      <p class="sec-lead">Aşağıdaki on maddenin hangisinin bugün çalıştığı, hangisinin yol haritasında olduğu açıkça işaretli.</p>
-      <ol class="valuelist">
-        <li><span class="n">01</span><h3>Görünürlük <span class="tag tag-now">Bugün</span></h3><p>Marka sayfasında listelenir, site içi aramada ve kategori filtrelerinde çıkarsınız.</p></li>
-        <li><span class="n">02</span><h3>Ürün keşfi <span class="tag tag-now">Bugün</span></h3><p>Ürünleriniz kategori ağacında ve ürün kataloğunda mimarların önüne gelir.</p></li>
-        <li><span class="n">03</span><h3>Proje referansları <span class="tag tag-now">Bugün</span></h3><p>Bir mimar projesinde ürününüzü işaretlediğinde bağ iki yönlü kurulur.</p></li>
-        <li><span class="n">04</span><h3>Profesyonel kitle <span class="tag tag-now">Bugün</span></h3><p>Platformun ziyaretçisi mimar, iç mimar, ofis ve öğrenci — genel tüketici değil.</p></li>
-        <li><span class="n">05</span><h3>Teknik dosya dağıtımı <span class="tag tag-now">Bugün</span></h3><p>BIM, CAD, 3D ve katalog dosyalarınız ürün sayfasından indirilebilir.</p></li>
-        <li><span class="n">06</span><h3>Marka profili <span class="tag tag-now">Bugün</span></h3><p>Logo, kapak, konum, ürün grupları, web sitesi ve sosyal hesaplar.</p></li>
-        <li><span class="n">07</span><h3>Ürün portföyü <span class="tag tag-now">Bugün</span></h3><p>Tüm ürün ve malzemeleriniz marka profilinizde tek listede toplanır.</p></li>
-        <li><span class="n">08</span><h3>Mimarlarla keşif <span class="tag tag-now">Bugün</span></h3><p>Takip edilebilir, koleksiyonlara kaydedilebilir, puanlanıp yorumlanabilirsiniz.</p></li>
-        <li><span class="n">09</span><h3>Marka bilinirliği <span class="tag tag-now">Bugün</span></h3><p>Ürün ve marka sayfalarınız arama motorlarına açık, paylaşılabilir adreslerdir.</p></li>
-        <li><span class="n">10</span><h3>Ölçülebilir ticari bağlantı <span class="tag tag-soon">Yakında</span></h3><p>Talep/lead toplama, marka paneli analitiği ve doğrudan iletişim akışı henüz yok.</p></li>
-      </ol>
-    </div>
-  </section>
-
-  <!-- ============ İÇERİĞİNİ YAYINLA ============ -->
-  <section class="sec band-dark" id="yayinla" aria-labelledby="yayinla-h">
-    <div class="wrap">
-      <p class="eyebrow">Katkı</p>
-      <h2 class="sec-title" id="yayinla-h">MİMARLAB'ın büyümesi, sektörün katkısıyla mümkün.</h2>
-      <p class="sec-lead">İçerik eklemek ücretsizdir. Gönderilen her kayıt yayına alınmadan önce inceleme sürecinden geçer; yayınlandıktan sonra kendi içeriğinizi düzenleyebilir, arşivleyebilir ya da silebilirsiniz.</p>
-      <div class="cards cards-3">
-        <a class="card" href="/proje-ekle" data-ml-event="neden_mimarlab_project_cta"><h3>Proje Ekle</h3><p>Görseller, künye, konum ve yıl bilgileriyle bir yapı ya da proje yayınlayın.</p></a>
-        <a class="card" href="/kisi-ekle" data-ml-event="neden_mimarlab_signup_cta"><h3>Kişi Profili Oluştur</h3><p>Eğitim, ofis ve unvan bilgilerinizle bireysel profilinizi kurun.</p></a>
-        <a class="card" href="/firma-ekle" data-ml-event="neden_mimarlab_signup_cta"><h3>Firma Ekle</h3><p>Ofisinizi hizmet alanları, konum ve kuruluş yılıyla tanıtın.</p></a>
-        <a class="card" href="/urun-ekle" data-ml-event="neden_mimarlab_product_cta"><h3>Ürün Ekle</h3><p>Ürün ya da yapı malzemenizi teknik özellikleri ve dosyalarıyla yayınlayın.</p></a>
-        <a class="card" href="/marka-ekle" data-ml-event="neden_mimarlab_brand_cta"><h3>Marka Ekle</h3><p>Üretici/tedarikçi markanızı ürün gruplarıyla birlikte tanımlayın.</p></a>
-        <a class="card" href="/uye-ol" data-ml-event="neden_mimarlab_signup_cta"><h3>Üye Ol</h3><p>İçerik eklemek, kaydetmek ve takip etmek için ücretsiz hesap açın.</p></a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ NETWORK EFFECT ============ -->
-  <section class="sec" id="network" aria-labelledby="network-h">
-    <div class="wrap">
-      <p class="eyebrow">Ağ Etkisi</p>
-      <h2 class="sec-title" id="network-h">Platform büyüdükçe herkes için daha değerli hale gelir.</h2>
-      <p class="sec-lead">MİMARLAB'da her yeni proje, ürün, mimar ve marka platformun tamamının değerini artırır — çünkü her yeni kayıt yalnızca kendini değil, bağlandığı her şeyi de zenginleştirir.</p>
-      <ul class="flow">
-        <li>Daha fazla proje</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Daha fazla mimar</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Daha fazla ürün</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Daha fazla marka</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Daha fazla keşif</li><li class="arrow" aria-hidden="true">→</li>
-        <li>Daha fazla katkı</li><li class="arrow" aria-hidden="true">↻</li>
-      </ul>
-      <p id="network-live" class="stats-note"></p>
-    </div>
-  </section>
-
-  <!-- ============ NASIL ÇALIŞIR ============ -->
-  <section class="sec band-alt" id="nasil" aria-labelledby="nasil-h">
-    <div class="wrap">
-      <p class="eyebrow">Akış</p>
-      <h2 class="sec-title" id="nasil-h">Nasıl çalışır?</h2>
-      <ol class="steps">
-        <li><span class="n">01</span><h3>Keşfet</h3><p>Proje, mimar, firma, ürün ve marka sayfalarında filtreleyerek dolaşın.</p></li>
-        <li><span class="n">02</span><h3>Araştır</h3><p>Bir kayıttan bağlantılı kayıtlara geçin: projeden mimara, üründen markaya.</p></li>
-        <li><span class="n">03</span><h3>Kaydet</h3><p>İşinize yarayanı koleksiyon panolarınıza ekleyin, sonra geri dönün.</p></li>
-        <li><span class="n">04</span><h3>Bağlan</h3><p>Mimarları ve markaları takip edin, profilinizi sahiplenin, yorum yapın.</p></li>
-        <li><span class="n">05</span><h3>Paylaş</h3><p>Kendi projenizi, profilinizi ya da ürününüzü yayınlayın; ağa siz de katkı verin.</p></li>
-      </ol>
-    </div>
-  </section>
-
-  <!-- ============ GELECEK ============ -->
-  <section class="sec" id="gelecek" aria-labelledby="gelecek-h">
-    <div class="wrap">
-      <p class="eyebrow">Yol Haritası</p>
-      <h2 class="sec-title" id="gelecek-h">MİMARLAB'ın bir sonraki aşaması.</h2>
-      <p class="sec-lead">Aşağıdaki maddelerin hiçbiri bugün platformda yok. Vizyonun parçası oldukları için burada açıkça yazıyoruz — bir özellik yayına girdiğinde bu listeden çıkıp yukarıdaki "Bugün" bölümlerine taşınır.</p>
-      <div class="cards cards-3">
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>AI destekli arama</h3><p>Doğal dilde yazılan bir ihtiyacın filtreye çevrilmesi ve sonuçların özetlenmesi.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Akıllı ürün keşfi</h3><p>Projenin türüne ve programına göre ürün/malzeme önerileri.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Proje ve ürün önerileri</h3><p>Baktığınız kayda benzeyen içeriklerin kişiselleştirilmiş olarak sunulması.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Gelişmiş specification</h3><p>Proje bazlı ürün şartnamesi hazırlama ve dışa aktarma.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Marka analitiği</h3><p>Ürün görüntülenme, dosya indirme ve koleksiyon istatistikleri paneli.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Marka–mimar bağlantısı</h3><p>Doğrudan talep/teklif akışı ve ölçülebilir lead üretimi.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Kişiselleştirilmiş keşif</h3><p>İlgi alanına göre şekillenen bir keşif akışı.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Gelişmiş teknik dosya sistemi</h3><p>Sürüm takibi, format dönüşümü ve toplu indirme.</p></div>
-        <div class="card"><span class="tag tag-soon">Yakında</span><h3>Profesyonel ticari araçlar</h3><p>Markalar ve ofisler için abonelik tabanlı gelişmiş özellikler.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ SSS ============ -->
-  <section class="sec band-alt" id="sss" aria-labelledby="sss-h">
-    <div class="wrap-narrow">
-      <p class="eyebrow">Sık Sorulan Sorular</p>
-      <h2 class="sec-title" id="sss-h">Merak edilenler</h2>
-      <div class="faq">
-        <details open>
-          <summary>MİMARLAB nedir?</summary>
-          <div class="faq-body"><p>MİMARLAB, Türkiye'deki mimarlık, tasarım ve yapı dünyasını proje, mimar, firma, ürün ve marka verileri üzerinden birbirine bağlayan dijital bir keşif platformudur. Kayıtlar birbirine bağlıdır: bir projeden mimarına, mimardan ofisine, ofisten ürünlere ve markalara geçebilirsiniz.</p></div>
-        </details>
-        <details>
-          <summary>MİMARLAB kimler için?</summary>
-          <div class="faq-body"><p>Mimarlar, iç mimarlar, peyzaj mimarları, şehir plancıları, mimarlık ve tasarım ofisleri, yapı firmaları, ürün ve malzeme üreticisi markalar, mimarlık öğrencileri ve yapı sektöründeki diğer profesyoneller için.</p></div>
-        </details>
-        <details>
-          <summary>Mimarlar neden MİMARLAB'a katılmalı?</summary>
-          <div class="faq-body"><p>Projelerinizi künyesiyle birlikte yayınlayıp kendi profilinizde toplayabilir, ofisinizle bağlayabilir ve arama motorlarına açık bir portföy oluşturabilirsiniz. Aynı zamanda ürün, malzeme ve marka araştırmanızı da aynı yerden yapar, bulduklarınızı koleksiyonlarınıza kaydedersiniz.</p></div>
-        </details>
-        <details>
-          <summary>Firmalar neden MİMARLAB'da yer almalı?</summary>
-          <div class="faq-body"><p>Firma profili, künyesinde ofisinizin adı geçen projeleri otomatik olarak tek sayfada toplar. Uzmanlık alanı ve şehir filtrelerinde görünür olur, ekip mimarlarınızla çift yönlü bağ kurar ve profil sahipliği onaylandığında doğrulanmış profil rozetini kullanabilirsiniz.</p></div>
-        </details>
-        <details>
-          <summary>Markalar ürünlerini nasıl yayınlayabilir?</summary>
-          <div class="faq-body"><p>Önce ücretsiz üye olun, sonra Marka Ekle sayfasından marka profilinizi oluşturun. Ardından Ürün Ekle sayfasından ürünlerinizi görselleri, teknik özellikleri ve isterseniz BIM/CAD/3D/katalog dosyalarıyla birlikte gönderin. Gönderiler yayına alınmadan önce incelenir.</p></div>
-        </details>
-        <details>
-          <summary>Proje nasıl eklenir?</summary>
-          <div class="faq-body"><p>Üye girişi yaptıktan sonra Proje Ekle sayfasından projenizin görsellerini, künyesini (mimar, firma, fotoğrafçı), konumunu, yılını, türünü ve açıklamasını girersiniz. Projede kullanılan ürün ve firmaları da işaretleyebilirsiniz. Proje incelemeden geçtikten sonra yayına alınır.</p></div>
-        </details>
-        <details>
-          <summary>Ürün nasıl eklenir?</summary>
-          <div class="faq-body"><p>Ürün Ekle sayfasından markayı, ürün adını, kategoriyi, görselleri ve teknik özellikleri girersiniz. İsteğe bağlı olarak ürünün BIM, CAD, 3D model ya da katalog dosyalarını da yükleyebilirsiniz. Ürününüzün kullanıldığı projeleri de bağlayabilirsiniz.</p></div>
-        </details>
-        <details>
-          <summary>MİMARLAB ücretsiz mi?</summary>
-          <div class="faq-body"><p>Evet. Platformu gezmek, araştırma yapmak, üye olmak ve proje, mimar, firma, ürün ya da marka içeriği eklemek ücretsizdir. Profilini öne çıkarmak isteyenler için ayrıca aylık kiralanan isteğe bağlı rozet kademeleri bulunur; bunlar içerik eklemek için gerekli değildir.</p></div>
-        </details>
-        <details>
-          <summary>Ürünlerde teknik dosyalar bulunabilir mi?</summary>
-          <div class="faq-body"><p>Evet. Markalar ürünlerine BIM (RFA, RVT, IFC, IFCZIP), CAD (DWG, DXF), 3D model (SKP, 3DM, OBJ, FBX, 3DS, STL, STEP, STP, IGES, IGS) ve katalog/teknik doküman (PDF) dosyaları yükleyebilir. Bu dosyalar ürünün kendi sayfasından indirilebilir. Her ürünün dosyası olması zorunlu değildir; bu alan markanın kendi yüklemesine bağlıdır.</p></div>
-        </details>
-        <details>
-          <summary>MİMARLAB hangi profesyonellere hitap ediyor?</summary>
-          <div class="faq-body"><p>Mimar, iç mimar, peyzaj mimarı, şehir plancısı, restorasyon uzmanı, inşaat mühendisi, ürün tasarımcısı, akademisyen, öğrenci, yapı sektörü profesyonelleri, geliştiriciler ve danışmanlar. Ortak nokta, projeler ile onları var eden kişiler, firmalar ve ürünler arasındaki bağı görme ihtiyacıdır.</p></div>
-        </details>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ KAPANIŞ ============ -->
-  <section class="sec band-dark" id="kapanis" aria-labelledby="kapanis-h">
-    <div class="wrap-narrow" style="text-align:center">
-      <h2 class="sec-title" id="kapanis-h" style="margin-bottom:16px">Sıradaki kayıt sizin olsun.</h2>
-      <p class="sec-lead" style="margin:0 auto 28px">Bir proje, bir profil ya da bir ürün — eklediğiniz her kayıt hem sizi görünür kılar hem de ağın tamamını güçlendirir.</p>
-      <div class="btn-row" style="justify-content:center">
-        <a class="btn" href="/uye-ol" data-ml-event="neden_mimarlab_signup_cta">Ücretsiz Üye Ol</a>
-        <a class="btn btn-ghost" href="/iletisim">İletişime Geç</a>
-      </div>
-    </div>
-  </section>
-
 </main>
 
 <a class="btn btn-ghost sunum-exit" href="/neden-mimarlab">Sunum modundan çık</a>
 
 <footer id="site-footer-mount"></footer>
 
-<!-- FAQPage — soruların HTML karşılığı yukarıda görünür durumda (Google'ın koşulu). -->
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"MİMARLAB nedir?","acceptedAnswer":{"@type":"Answer","text":"MİMARLAB, Türkiye'deki mimarlık, tasarım ve yapı dünyasını proje, mimar, firma, ürün ve marka verileri üzerinden birbirine bağlayan dijital bir keşif platformudur."}},
-{"@type":"Question","name":"MİMARLAB kimler için?","acceptedAnswer":{"@type":"Answer","text":"Mimarlar, iç mimarlar, peyzaj mimarları, şehir plancıları, mimarlık ve tasarım ofisleri, yapı firmaları, ürün ve malzeme üreticisi markalar, mimarlık öğrencileri ve yapı sektöründeki diğer profesyoneller için."}},
-{"@type":"Question","name":"Mimarlar neden MİMARLAB'a katılmalı?","acceptedAnswer":{"@type":"Answer","text":"Projelerini künyesiyle yayınlayıp kendi profilinde toplayabilir, ofisiyle bağlayabilir ve arama motorlarına açık bir portföy oluşturabilir; aynı zamanda ürün, malzeme ve marka araştırmasını da aynı platformdan yapabilir."}},
-{"@type":"Question","name":"Firmalar neden MİMARLAB'da yer almalı?","acceptedAnswer":{"@type":"Answer","text":"Firma profili, künyesinde ofisin adı geçen projeleri otomatik olarak tek sayfada toplar; uzmanlık alanı ve şehir filtrelerinde görünür olur, ekip mimarlarıyla çift yönlü bağ kurar ve sahiplik onayından sonra doğrulanmış profil rozeti kullanılabilir."}},
-{"@type":"Question","name":"Markalar ürünlerini nasıl yayınlayabilir?","acceptedAnswer":{"@type":"Answer","text":"Ücretsiz üye olduktan sonra Marka Ekle sayfasından marka profili oluşturulur, ardından Ürün Ekle sayfasından ürünler görselleri, teknik özellikleri ve isteğe bağlı BIM/CAD/3D/katalog dosyalarıyla gönderilir. Gönderiler yayına alınmadan önce incelenir."}},
-{"@type":"Question","name":"Proje nasıl eklenir?","acceptedAnswer":{"@type":"Answer","text":"Üye girişinden sonra Proje Ekle sayfasından görseller, künye (mimar, firma, fotoğrafçı), konum, yıl, tür ve açıklama girilir; projede kullanılan ürün ve firmalar da işaretlenebilir. Proje incelemeden geçtikten sonra yayına alınır."}},
-{"@type":"Question","name":"Ürün nasıl eklenir?","acceptedAnswer":{"@type":"Answer","text":"Ürün Ekle sayfasından marka, ürün adı, kategori, görseller ve teknik özellikler girilir; isteğe bağlı olarak BIM, CAD, 3D model ya da katalog dosyaları yüklenebilir ve ürünün kullanıldığı projeler bağlanabilir."}},
-{"@type":"Question","name":"MİMARLAB ücretsiz mi?","acceptedAnswer":{"@type":"Answer","text":"Evet. Platformu gezmek, üye olmak ve proje, mimar, firma, ürün ya da marka içeriği eklemek ücretsizdir. Profilini öne çıkarmak isteyenler için ayrıca aylık kiralanan isteğe bağlı rozet kademeleri bulunur."}},
-{"@type":"Question","name":"Ürünlerde teknik dosyalar bulunabilir mi?","acceptedAnswer":{"@type":"Answer","text":"Evet. Markalar ürünlerine BIM (RFA, RVT, IFC, IFCZIP), CAD (DWG, DXF), 3D model (SKP, 3DM, OBJ, FBX, 3DS, STL, STEP, STP, IGES, IGS) ve katalog/teknik doküman (PDF) dosyaları yükleyebilir; bu dosyalar ürün sayfasından indirilebilir."}},
-{"@type":"Question","name":"MİMARLAB hangi profesyonellere hitap ediyor?","acceptedAnswer":{"@type":"Answer","text":"Mimar, iç mimar, peyzaj mimarı, şehir plancısı, restorasyon uzmanı, inşaat mühendisi, ürün tasarımcısı, akademisyen, öğrenci, yapı sektörü profesyonelleri, geliştiriciler ve danışmanlar."}}
-]}
-</script>
 
 <script>
 (function(){
