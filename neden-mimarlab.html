@@ -620,10 +620,14 @@
              AYNI görsel kullanılıyordu, yani aynı kare iki kez görünüyordu. Artık farklı bir
              örnek proje karesi. Kullanıcı "dinamik olmasına gerek yok" dediği için görsel
              sabittir; bu yüzden koordinata bağlı işaretçi noktaları da KALDIRILDI — başka bir
-             görsele başka bir projenin koordinatlarını basmak yanlış yerde nokta gösterirdi. -->
+             görsele başka bir projenin koordinatlarını basmak yanlış yerde nokta gösterirdi.
+             loading="lazy" BİLEREK YOK: sayfanın üstündeki işaretçi görselinde de aynısı yaşandı —
+             lazy iken görsel için hiç istek atılmıyor, bölüm boş kalıyordu (ölçüldü; eager'a
+             çevrilince anında yüklendi, 2400x1600). Bölümün ANA görselini bir yükleme
+             optimizasyonu uğruna boş bırakma riskine değmez. -->
         <div class="nm-tag-stage" id="nm-mfg-stage">
           <img id="nm-mfg-img" src="https://mimarlab.com/media/projects/decovita-etiler-showroom-2.webp"
-               alt="Decovita Etiler Showroom" decoding="async" loading="lazy">
+               alt="Decovita Etiler Showroom" decoding="async">
         </div>
         <p class="nm-note" id="nm-mfg-caption"></p>
       </div>
