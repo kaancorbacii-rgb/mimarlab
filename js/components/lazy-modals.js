@@ -21,6 +21,12 @@
     auth: {
       src: 'js/components/auth-modal.js',
       globalName: 'AuthModal',
+      // Profili Düzenle formundaki meslek listesinin PAYLAŞILAN kaynağı (uye-ol.html ve
+      // kisi-ekle.html ile aynı dosya, bkz. profession-shared.js). auth-modal.js her sayfada değil
+      // TEMBEL yüklendiği için sayfalara ayrı <script> etiketi eklemek işe yaramazdı; bağımlılık
+      // burada, modülün kendisinden ÖNCE yüklenir. auth-modal.js'te ayrıca bir yedek kopya var —
+      // bu dosya bir nedenle yüklenemezse meslek kutusu boş kalmaz.
+      deps: ['profession-shared.js'],
       hrefRe: {
         login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/,
         account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, contents: /(^|\/)iceriklerim\.html$/,
@@ -80,7 +86,19 @@
     if (pending[key]) return pending[key];
     const mod = MODULES[key];
     if (window[mod.globalName]) { pending[key] = Promise.resolve(window[mod.globalName]); return pending[key]; }
-    pending[key] = new Promise((resolve, reject) => {
+    // Bağımlılıklar modülden ÖNCE ve sırayla yüklenir. Bir bağımlılık yüklenemezse modül YİNE DE
+    // yüklenir (bkz. auth-modal.js'teki yedek liste) — yardımcı bir veri dosyası yüzünden tüm
+    // Hesabım popup'ını kaybetmek çok daha kötü olurdu.
+    const depsReady = (mod.deps || []).reduce((chain, src) => chain.then(() => new Promise(res => {
+      if (document.querySelector(`script[src="${src}"]`)) return res();
+      const dep = document.createElement('script');
+      dep.src = src;
+      dep.onload = () => res();
+      dep.onerror = () => { dep.remove(); res(); };
+      document.head.appendChild(dep);
+    })), Promise.resolve());
+
+    pending[key] = depsReady.then(() => new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = mod.src;
       script.onload = () => resolve(window[mod.globalName]);
@@ -91,7 +109,7 @@
       // ile tekrar dener.
       script.onerror = () => { script.remove(); delete pending[key]; reject(new Error('lazy-modals: ' + mod.src + ' yüklenemedi')); };
       document.head.appendChild(script);
-    });
+    }));
     return pending[key];
   }
 

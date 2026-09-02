@@ -1324,7 +1324,12 @@ const AuthModal = (function () {
   // 'fotografci' — kullanıcı isteği (2026-09-01 madde 6). Bu eşleme src/routes/auth.js#PROFESSIONS,
   // uye-ol.html ve kisi-ekle.html#MESLEK_OPTIONS ile BİLİNÇLİ olarak kopyadır; dördü birlikte
   // güncellenmeli (bkz. o dosyalardaki AYNI not).
-  const PROFESSION_LABELS = { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', muhendis: 'Mühendis', fotografci: 'Fotoğrafçı', ogrenci: 'Öğrenci', diger: 'Diğer' };
+  // Meslek listesi profession-shared.js'ten gelir (uye-ol.html ve kisi-ekle.html ile TEK kaynak,
+  // kullanıcı isteği 2026-09-02). Paylaşılan dosya bir nedenle yüklenmemişse buradaki kopya devreye
+  // girer — meslek alanı boş bir açılır kutuya düşmesin (auth-modal her sayfada yüklü, o yüzden
+  // sessiz bir bozulma tüm siteyi etkilerdi).
+  const PROFESSION_LABELS = (typeof window !== 'undefined' && window.PROFESSION_LABELS)
+    || { mimar: 'Mimar', ic_mimar: 'İç Mimar', peyzaj_mimari: 'Peyzaj Mimarı', sehir_plancisi: 'Şehir Plancısı', restorator: 'Restoratör', tasarimci: 'Tasarımcı', muhendis: 'Mühendis', fotografci: 'Fotoğrafçı', ogrenci: 'Öğrenci', diger: 'Diğer' };
   // users.profession artık virgülle ayrılmış birden çok slug taşıyabilir (bkz. src/routes/auth.js#
   // normalizeProfessions) — tek meslekli eski değerler bu biçimin geçerli bir örneği olduğundan
   // aşağıdaki üç yardımcı iki durumu da tek kod yoluyla ele alır.

@@ -16,18 +16,26 @@
     el.id = 'profession-drawer-styles';
     el.textContent = [
       '.pdrawer{position:relative;}',
+      /* kisi-ekle.html#.dd-btn ile birebir aynı ölçüler. */
       '.pdrawer-btn{width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;',
-      '  padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper);',
-      '  font-family:inherit; font-size:13.5px; color:var(--ink); cursor:pointer; text-align:left;}',
+      '  padding:11px 14px; border-radius:10px; border:1px solid var(--line); background:var(--paper);',
+      '  font-family:inherit; font-size:14px; color:var(--ink); cursor:pointer; text-align:left;}',
       '.pdrawer-btn:hover{border-color:var(--brass);}',
       '.pdrawer-btn[aria-expanded="true"]{border-color:var(--brass);}',
       '.pdrawer-btn-label{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}',
       '.pdrawer-btn-label.is-placeholder{color:var(--ink-soft);}',
       '.pdrawer-arrow{flex:0 0 auto; transition:transform .18s ease;}',
       '.pdrawer-btn[aria-expanded="true"] .pdrawer-arrow{transform:rotate(180deg);}',
-      '.pdrawer-panel{display:none; margin-top:6px; padding:10px 12px; border:1px solid var(--line);',
-      '  border-radius:9px; background:var(--paper); max-height:240px; overflow-y:auto;}',
-      '.pdrawer-panel.open{display:block;}',
+      /* KULLANICI BİLDİRİMİ (2026-09-02): panel eskiden SATIR İÇİ idi (margin-top + normal akış),
+         yani açılınca formun geri kalanını aşağı itiyordu. kisi-ekle.html#dd-meslek ise ÜSTTE
+         açılan yüzen bir pencere. İstenen "kişi ekle sayfasındakiyle aynı açılır pencere"
+         davranışı buydu — aşağıdaki değerler kisi-ekle.html#.dd-panel ile BİREBİR aynı
+         (position/top/z-index/radius/shadow/padding/max-height). */
+      '.pdrawer-panel{display:none; flex-direction:column; position:absolute; top:calc(100% + 6px);',
+      '  left:0; right:0; z-index:25; background:var(--paper-card); border:1px solid var(--line);',
+      '  border-radius:12px; box-shadow:0 12px 28px rgba(27,42,61,0.15); padding:8px;',
+      '  max-height:280px; overflow-y:auto;}',
+      '.pdrawer-panel.open{display:flex;}',
       /* İçerideki mevcut onay kutusu grubu — dikey listeye çevrilir. */
       '.pdrawer-panel .auth-check-group, .pdrawer-panel .am-check-group{display:flex; flex-direction:column; gap:2px;}',
       '.pdrawer-panel label{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:13px; cursor:pointer;}',

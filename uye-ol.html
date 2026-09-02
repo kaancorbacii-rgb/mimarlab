@@ -245,6 +245,7 @@
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
+<script src="profession-shared.js"></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 
@@ -302,16 +303,10 @@
         <div class="auth-field">
           <label id="signup-profession-label">Meslek * <span style="font-weight:400; color:var(--ink-soft);">(birden fazla seçebilirsin)</span></label>
           <div class="auth-check-group" id="signup-profession" role="group" aria-labelledby="signup-profession-label">
-            <label><input type="checkbox" name="profession" value="mimar"> Mimar</label>
-            <label><input type="checkbox" name="profession" value="ic_mimar"> İç Mimar</label>
-            <label><input type="checkbox" name="profession" value="peyzaj_mimari"> Peyzaj Mimarı</label>
-            <label><input type="checkbox" name="profession" value="sehir_plancisi"> Şehir Plancısı</label>
-            <label><input type="checkbox" name="profession" value="restorator"> Restoratör</label>
-            <label><input type="checkbox" name="profession" value="tasarimci"> Tasarımcı</label>
-            <label><input type="checkbox" name="profession" value="muhendis"> Mühendis</label>
-            <label><input type="checkbox" name="profession" value="fotografci"> Fotoğrafçı</label>
-            <label><input type="checkbox" name="profession" value="ogrenci"> Öğrenci</label>
-            <label><input type="checkbox" name="profession" value="diger"> Diğer</label>
+            <!-- Seçenekler paylaşılan tek kaynaktan JS ile üretilir (aşağıdaki mount kodu) — bu
+                 kutu bilerek BOŞ bırakıldı. Eskiden 10 satır elle yazılıydı ve kisi-ekle.html ile
+                 auth-modal.js'teki listelerle elle senkron tutulmak zorundaydı; biri unutulduğunda
+                 hata sessizdi (kullanıcı isteği 2026-09-02: üç sayfa dinamik/entegre olmalı). -->
           </div>
         </div>
         <div class="auth-field">
@@ -418,6 +413,14 @@ function isInvalidSchoolValue(v){
 // Meslek çekmecesi (kullanıcı isteği, 2026-09-02) — onay kutuları DOM'da aynen kalır, yalnızca
 // açılır panele sarılır; aşağıdaki `#signup-profession input:checked` okuması değişmeden çalışır.
 document.addEventListener('DOMContentLoaded', () => {
+  // Meslek seçeneklerini PAYLAŞILAN tek kaynaktan üret. Çekmeceyi mount etmeden ÖNCE doldurulmalı:
+  // ProfessionDrawer mount anında mevcut onay kutularını sarmalıyor.
+  (function buildProfessionOptions(){
+    const grp = document.getElementById('signup-profession');
+    if (!grp || typeof PROFESSION_ITEMS === 'undefined') return;
+    grp.innerHTML = PROFESSION_ITEMS.map(p =>
+      `<label><input type="checkbox" name="profession" value="${p.slug}"> ${p.label}</label>`).join('');
+  })();
   if (window.ProfessionDrawer) ProfessionDrawer.mount(document.getElementById('signup-profession'));
 });
 

@@ -956,10 +956,38 @@ function toggleMegaMenu(){
 }
 {
   const urunMenuTrigger = document.getElementById('urun-menu-trigger');
-  // bkz. js/components/nav-product-menu.js'teki AYNI dinleyici/gerekçe — tetikleyici artık bir
+  const urunMenuWrap = document.getElementById('urun-menu-wrap');
+  const urunMegaPanel = document.getElementById('urun-mega-menu');
+
+  // Masaüstünde hover ile açılma (kullanıcı isteği, 2026-09-02). Bu sayfa mega menünün KENDİ
+  // kopyasını taşıyor (bkz. yukarıdaki buildMegaMenu) — js/components/nav-product-menu.js'e
+  // eklenen hover davranışı buraya OTOMATİK yansımıyordu, bu yüzden /urun sayfasında menü
+  // hover'la açılmıyordu (kullanıcı bildirimi). Mantık oradakiyle BİREBİR aynı tutuldu.
+  const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)');
+  let megaCloseTimer = null;
+  const cancelMegaClose = () => { if(megaCloseTimer){ clearTimeout(megaCloseTimer); megaCloseTimer = null; } };
+  // Panel, wrap'in kardeşidir — tetikleyiciden panele inerken imleç kısa süre ikisinin de dışında
+  // kalır, gecikmesiz kapatma menüyü tam ona uzanırken kapatırdı.
+  const scheduleMegaClose = () => { cancelMegaClose(); megaCloseTimer = setTimeout(closeMegaMenu, 220); };
+  [urunMenuWrap, urunMegaPanel].forEach(el => {
+    if(!el) return;
+    el.addEventListener('mouseenter', ()=>{
+      if(!hoverCapable.matches) return;
+      cancelMegaClose();
+      buildMegaMenu();
+      const panel = document.getElementById('urun-mega-menu');
+      if(panel) panel.classList.add('open');
+      if(urunMenuTrigger) urunMenuTrigger.setAttribute('aria-expanded', 'true');
+    });
+    el.addEventListener('mouseleave', ()=>{ if(hoverCapable.matches) scheduleMegaClose(); });
+  });
+
+  // bkz. js/components/nav-product-menu.js'teki AYNI dinleyici/gerekçe — tetikleyici bir
   // <a href="/urun">, Cmd/Ctrl/Shift/Alt/orta tıkta tarayıcı doğal davranışını sürdürür.
   if(urunMenuTrigger) urunMenuTrigger.addEventListener('click', (e)=>{
     if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    // Hover'lı cihazda menü zaten açıldı; tıklama /urun'e GİDER (preventDefault etme).
+    if(hoverCapable.matches){ cancelMegaClose(); return; }
     e.preventDefault();
     e.stopPropagation();
     toggleMegaMenu();

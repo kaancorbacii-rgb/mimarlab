@@ -308,6 +308,7 @@
 <script src="js/components/nav-product-menu.js" defer></script>
 <script src="js/components/modal-shell.js" defer></script>
 <script src="awards-shared.js"></script>
+<script src="profession-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
@@ -601,14 +602,13 @@ function wireMultiDropdown(fieldId, btnId, labelId, optionsId, options, name, pl
 // 'Fotoğrafçı' — kullanıcı isteği (2026-09-01 madde 6). Bu liste src/routes/auth.js#PROFESSIONS,
 // uye-ol.html ve js/components/auth-modal.js#PROFESSION_LABELS ile BİLİNÇLİ kopyadır; dördü birlikte
 // güncellenmeli.
-const MESLEK_OPTIONS = ['Mimar','İç Mimar','Peyzaj Mimarı','Şehir Plancısı','Restoratör','Tasarımcı','Mühendis','Fotoğrafçı','Öğrenci','Diğer'];
+// MESLEK_OPTIONS ve PROFESSION_LABELS artık profession-shared.js'ten geliyor (tek kaynak).
 const POZISYON_OPTIONS = ['Kurucu','Kurucu Ortak','Ortak','Ekip Lideri','Ekip Üyesi','Akademisyen','Serbest Çalışan','Öğrenci','Emekli','İşsiz'];
 // ODUL_OPTIONS artık burada tanımlı DEĞİL — awards-shared.js'teki TEK paylaşılan global koptan
 // geliyor (proje-ekle.html/js/components/auth-modal.js ile ortak, bkz. o dosyanın başındaki yorum).
 // users.profession kodlu bir slug'dır (ör. "mimar"), MESLEK_OPTIONS/architects.profession ise ham
 // Türkçe etiket ("Mimar") — bkz. js/components/auth-modal.js#PROFESSION_LABELS ile AYNI eşleme,
 // aşağıdaki maybeAutoFillFromAccount'ta ters yönde kullanılır.
-const PROFESSION_LABELS = { mimar:'Mimar', ic_mimar:'İç Mimar', peyzaj_mimari:'Peyzaj Mimarı', sehir_plancisi:'Şehir Plancısı', restorator:'Restoratör', tasarimci:'Tasarımcı', muhendis:'Mühendis', fotografci:'Fotoğrafçı', ogrenci:'Öğrenci', diger:'Diğer' };
 // architects.profession artık BİRDEN ÇOK meslek taşıyabilir (kullanıcı isteği, 2026-09-01 madde 6:
 // "Mimar profili oluşturulurken ya da düzenlenirken de birden fazla meslek seçilebilsin") — ham
 // Türkçe etiketler virgülle ayrılır ("Mimar, Fotoğrafçı"). Tek meslekli eski satırlar bu biçimin

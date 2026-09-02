@@ -170,6 +170,31 @@
       e.stopPropagation();
       menu.classList.toggle('open');
     });
+
+    // Masaüstünde imleç avatarın üzerine gelince menü kendiliğinden açılır (kullanıcı isteği,
+    // 2026-09-02). "Masaüstü" ayrımı pencere genişliğiyle DEĞİL hover yeteneğiyle yapılır: dokunmatik
+    // bir cihazda mouseenter ilk dokunuşta sentetik olarak tetiklenir, genişliğe bakılsaydı geniş
+    // ekranlı bir tablette tek dokunuş menüyü açıp hemen ardından toggle ile geri kapatırdı.
+    // Tıklama davranışı hover'sız cihazlarda AYNEN korunur.
+    // .nav-avatar-menu, .nav-avatar-wrap'in İÇİNDEDİR (bkz. yukarıdaki CSS: .nav-avatar-wrap
+    // position:relative, menü absolute) — bu yüzden tek bir mouseleave yeterli, ÜRÜN mega
+    // menüsündeki gibi ayrı bir gecikme/kardeş-panel sorunu yok. Yine de küçük bir gecikme
+    // bırakıldı: menü ile buton arasındaki 8px boşluktan geçerken kapanmasın.
+    const avatarWrap = btn.closest('.nav-avatar-wrap');
+    if (avatarWrap) {
+      const hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)');
+      let closeTimer = null;
+      avatarWrap.addEventListener('mouseenter', () => {
+        if (!hoverCapable.matches) return;
+        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+        menu.classList.add('open');
+      });
+      avatarWrap.addEventListener('mouseleave', () => {
+        if (!hoverCapable.matches) return;
+        if (closeTimer) clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => menu.classList.remove('open'), 200);
+      });
+    }
     document.addEventListener('click', (e) => {
       if (!navRight.contains(e.target)) menu.classList.remove('open');
     });
