@@ -348,6 +348,56 @@
   .nm-role h3{margin:0 0 6px; font-size:17px;}
   .nm-role p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
 
+  /* ---------- Görselden ürüne (işaretçi) gösterimi ---------- */
+  .nm-tag-stage{position:relative; border-radius:14px; overflow:hidden; background:var(--paper-alt); max-width:900px; margin:0 auto;}
+  .nm-tag-stage img{width:100%; height:auto; display:block;}
+  .nm-dot{position:absolute; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%;
+    border:2px solid #fff; background:rgba(255,255,255,.35); backdrop-filter:blur(2px); cursor:pointer;
+    box-shadow:0 2px 10px rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:0;}
+  .nm-dot::after{content:''; width:9px; height:9px; border-radius:50%; background:#fff;}
+  .nm-dot:hover,.nm-dot:focus-visible{transform:scale(1.12);}
+  /* Kart, işaretçinin yanında açılır; sağ kenara taşarsa .flip ile sola çevrilir (JS ölçer). */
+  .nm-tagcard{position:absolute; z-index:3; display:none; gap:10px; align-items:center;
+    width:230px; padding:9px; border-radius:12px; background:var(--paper-card);
+    box-shadow:0 10px 30px rgba(15,19,26,.28); border:1px solid var(--line); text-align:left;}
+  .nm-tagcard.open{display:flex;}
+  .nm-tagcard.flip{transform:translateX(-100%);}
+  .nm-tagcard img{width:56px; height:56px; object-fit:cover; border-radius:8px; flex:0 0 auto; background:var(--paper-alt);}
+  .nm-tagcard b{display:block; font-size:13px; line-height:1.25; color:var(--ink);}
+  .nm-tagcard span{font-size:11.5px; color:var(--ink-soft);}
+
+  /* ---------- Yayın döngüsü (eş merkezli) ---------- */
+  .nm-funnel{position:relative; max-width:620px; margin:0 auto; aspect-ratio:2/1; overflow:hidden;}
+  .nm-ring{position:absolute; left:50%; bottom:0; transform:translateX(-50%);
+    border-radius:999px 999px 0 0; display:flex; align-items:flex-start; justify-content:center;
+    padding-top:clamp(8px,1.6vw,16px); color:#fff; font-weight:700; font-size:clamp(10px,1.5vw,13.5px);
+    letter-spacing:.01em; text-align:center;}
+  .nm-ring span{max-width:80%;}
+  .nm-ring-4{width:100%; aspect-ratio:2/1; background:#1D6FF2;}
+  .nm-ring-3{width:76%;  aspect-ratio:2/1; background:#3B85F5;}
+  .nm-ring-2{width:52%;  aspect-ratio:2/1; background:#63A0F8;}
+  .nm-ring-1{width:28%;  aspect-ratio:2/1; background:#8FBCFB;}
+
+  /* ---------- Marka duvarı ---------- */
+  .nm-brandwall{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:14px; align-items:center;}
+  .nm-brand{display:flex; align-items:center; justify-content:center; min-height:64px; padding:10px 12px;
+    border:1px solid var(--line); border-radius:12px; background:var(--paper-card);
+    font-size:13px; font-weight:600; color:var(--ink-soft); text-align:center; line-height:1.2;}
+  .nm-brand:hover{color:var(--ink); border-color:var(--walnut);}
+  .nm-brand img{max-width:100%; max-height:40px; object-fit:contain;}
+
+  /* ---------- Ücretsiz kartı ---------- */
+  .nm-free-card{max-width:460px; margin:0 auto; padding:30px 28px; border-radius:18px;
+    border:1px solid var(--line); background:var(--paper-card); text-align:center;}
+  .nm-free-card h2{margin:0 0 4px; font-size:22px;}
+  .nm-free-sub{margin:0 0 16px; font-size:13.5px; color:var(--ink-soft);}
+  .nm-free-price{font-size:clamp(30px,5vw,46px); font-weight:700; color:var(--walnut); margin-bottom:18px; letter-spacing:-.02em;}
+  .nm-free-list{list-style:none; margin:0 0 22px; padding:0; text-align:left;}
+  .nm-free-list li{position:relative; padding:7px 0 7px 26px; font-size:13.5px; border-top:1px solid var(--line);}
+  .nm-free-list li:first-child{border-top:none;}
+  .nm-free-list li::before{content:''; position:absolute; left:4px; top:13px; width:9px; height:5px;
+    border-left:2px solid var(--walnut); border-bottom:2px solid var(--walnut); transform:rotate(-45deg);}
+
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-L4902Z57B8"></script>
 <script>
@@ -396,6 +446,22 @@
         <a class="btn" href="/proje" data-ml-event="neden_mimarlab_project_cta">Platformu Keşfet</a>
         <a class="btn btn-ghost" href="/uye-ol" data-ml-event="neden_mimarlab_signup_cta">Ücretsiz Katıl</a>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ GÖRSELDEN ÜRÜNE (kullanıcı isteği, 2026-09-02: en öne alınsın) ============
+       MİMARLAB'ın ayırt edici özelliği: proje fotoğrafındaki ürünler işaretlenip gerçek ürün
+       kayıtlarına bağlanır (bkz. migrations/0076_project_image_hotspots.sql,
+       js/components/image-hotspots.js). Buradaki gösterim UYDURMA DEĞİL — canlı bir projenin
+       (/api/project/...) gerçek işaretçilerinden çizilir; işaretçi yoksa bölüm kendini kaldırır. -->
+  <section class="sec nm-tag-sec" id="etiket" aria-labelledby="etiket-h">
+    <div class="wrap">
+      <h2 class="sec-title nm-h2" id="etiket-h">Fotoğraftaki ürünü işaretle,<br>gerçek ürün sayfasına bağla.</h2>
+      <div class="nm-tag-stage" id="nm-tag-stage">
+        <img id="nm-tag-img" alt="" loading="lazy" decoding="async">
+        <div id="nm-tag-dots"></div>
+      </div>
+      <p class="nm-note" id="nm-tag-caption"></p>
     </div>
   </section>
 
@@ -463,17 +529,47 @@
     </div>
   </section>
 
-  <!-- Canlı örnek — gerçek bir projenin bağlantı zinciri (veritabanından). -->
-  <section class="sec nm-demo-sec" id="demo" aria-labelledby="demo-h">
+  <!-- ============ YAYIN DÖNGÜSÜ ============ Metin yerine tek bir eş merkezli diyagram. -->
+  <section class="sec band-alt nm-funnel-sec" id="dongu" aria-labelledby="dongu-h">
     <div class="wrap">
-      <h2 class="sec-title nm-h2" id="demo-h">Canlı örnek</h2>
-      <div class="demo-grid" id="demo-grid">
-        <div class="demo-media" id="demo-media"></div>
-        <ol class="demo-chain" id="demo-chain"></ol>
+      <h2 class="sec-title nm-h2" id="dongu-h">Yayınla, karşılığını al</h2>
+      <div class="nm-funnel">
+        <div class="nm-ring nm-ring-4"><span>İş bağlantısı</span></div>
+        <div class="nm-ring nm-ring-3"><span>Ağ büyür</span></div>
+        <div class="nm-ring nm-ring-2"><span>İçerik dağıtılır</span></div>
+        <div class="nm-ring nm-ring-1"><span>İçerik yayınla</span></div>
       </div>
-      <div class="btn-row"><button class="btn btn-ghost" type="button" id="demo-next">Başka bir proje göster</button></div>
     </div>
   </section>
+
+  <!-- ============ MARKA DUVARI ============ Gerçek marka adları /api/offices?brands=1'den. -->
+  <section class="sec nm-brands-sec" id="markalar" aria-labelledby="markalar-h">
+    <div class="wrap">
+      <h2 class="sec-title nm-h2" id="markalar-h">Platformdaki markalar</h2>
+      <div class="nm-brandwall" id="nm-brandwall"></div>
+    </div>
+  </section>
+
+  <!-- ============ ÜCRETSİZ ============ -->
+  <section class="sec band-alt nm-free-sec" id="ucretsiz" aria-labelledby="ucretsiz-h">
+    <div class="wrap">
+      <div class="nm-free-card">
+        <h2 id="ucretsiz-h">MİMARLAB</h2>
+        <p class="nm-free-sub">Yayınla, keşfet, bağlan.</p>
+        <div class="nm-free-price">Ücretsiz</div>
+        <ul class="nm-free-list">
+          <li>Sınırsız proje yayınlama</li>
+          <li>Kişi ve firma profili</li>
+          <li>Görselde ürün işaretleme</li>
+          <li>Ürün kataloğu ve teknik dosyalar</li>
+          <li>Koleksiyon panoları ve PDF dışa aktarma</li>
+          <li>Markalarla doğrudan bağlantı</li>
+        </ul>
+        <a class="btn" href="/uye-ol">Ücretsiz Üye Ol</a>
+      </div>
+    </div>
+  </section>
+
 
   <!-- Teknik dosyalar — ürün kartları (veritabanından). -->
   <section class="sec band-alt" id="urunler" aria-labelledby="urunler-h">
@@ -654,6 +750,73 @@
       };
     }
   }
+
+
+  /* ---------- Görselden ürüne: GERÇEK işaretçilerle (kullanıcı isteği, 2026-09-02) ----------
+     Veri canlı bir projeden gelir; hiçbir koordinat/ürün adı elle yazılmaz. İşaretçisi olan bir
+     proje yoksa bölüm tamamen kaldırılır — boş bir kutu bırakmak yanıltıcı olurdu. */
+  (function(){
+    var sec = document.getElementById('etiket');
+    if(!sec) return;
+    function drop(){ sec.remove(); }
+    fetch('/api/project/oyakkent-ornek-daire', { headers:{ 'Accept':'application/json' } })
+      .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
+      .then(function(d){
+        var item = d.item || d;
+        var hs = item.imageHotspots || {};
+        var imgUrl = Object.keys(hs)[0];
+        var pts = imgUrl ? hs[imgUrl] : null;
+        if(!imgUrl || !pts || !pts.length) return drop();
+        var img = document.getElementById('nm-tag-img');
+        img.src = imgUrl; img.alt = item.title || '';
+        var host = document.getElementById('nm-tag-dots');
+        var cap = document.getElementById('nm-tag-caption');
+        cap.textContent = (item.title || '') + (item.location ? ' · ' + item.location : '')
+          + ' — ' + pts.length + ' ürün işaretli';
+        pts.forEach(function(p, i){
+          var dot = document.createElement('button');
+          dot.type='button'; dot.className='nm-dot';
+          dot.style.left = p.x + '%'; dot.style.top = p.y + '%';
+          dot.setAttribute('aria-label', (p.title||'Ürün') + ' — ürün sayfasına git');
+          var card = document.createElement('a');
+          card.className='nm-tagcard';
+          card.href = p.slug ? '/urun/' + encodeURIComponent(p.slug) : '#';
+          card.style.left = p.x + '%'; card.style.top = 'calc(' + p.y + '% + 18px)';
+          var safeImg = p.image ? (typeof cdnImg==='function' ? cdnImg(p.image,160) : p.image) : '';
+          card.innerHTML = (safeImg ? '<img src="'+escapeHtml(safeImg)+'" alt="" loading="lazy" onerror="this.remove()">' : '')
+            + '<span><b>'+escapeHtml(p.title||'')+'</b><span>'+escapeHtml(p.brand||'')+'</span></span>';
+          /* Sağ kenara taşacaksa kartı sola çevir — sabit bir eşik yerine gerçek konum ölçülür. */
+          if(p.x > 62) card.classList.add('flip');
+          function show(){
+            host.querySelectorAll('.nm-tagcard.open').forEach(function(c){ if(c!==card) c.classList.remove('open'); });
+            card.classList.add('open');
+          }
+          dot.addEventListener('mouseenter', show);
+          dot.addEventListener('focus', show);
+          dot.addEventListener('click', function(e){ e.preventDefault(); show(); });
+          host.appendChild(dot); host.appendChild(card);
+          if(i===0) show();
+        });
+      })
+      .catch(drop);
+  })();
+
+  /* ---------- Marka duvarı: gerçek markalar ---------- */
+  (function(){
+    var host = document.getElementById('nm-brandwall');
+    if(!host) return;
+    fetch('/api/offices?brands=1&limit=18', { headers:{ 'Accept':'application/json' } })
+      .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
+      .then(function(d){
+        var items = (d.items || []).filter(function(o){ return o && o.name; });
+        if(!items.length){ host.closest('section').remove(); return; }
+        host.innerHTML = items.map(function(o){
+          var logo = o.logo ? '<img src="'+escapeHtml(typeof cdnImg==='function'?cdnImg(o.logo,240):o.logo)+'" alt="'+escapeHtml(o.name)+'" loading="lazy" onerror="this.parentElement.textContent=this.alt">' : escapeHtml(o.name);
+          return '<a class="nm-brand" href="/firma/'+encodeURIComponent(o.slug)+'">'+logo+'</a>';
+        }).join('');
+      })
+      .catch(function(){ var sec=host.closest('section'); if(sec) sec.remove(); });
+  })();
 
   fetch('/api/public/platform', { headers: { 'Accept': 'application/json' } })
     .then(function(r){ if(!r.ok) throw new Error('platform'); return r.json(); })

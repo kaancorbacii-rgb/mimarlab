@@ -37,7 +37,15 @@
       '  max-height:280px; overflow-y:auto;}',
       '.pdrawer-panel.open{display:flex;}',
       /* İçerideki mevcut onay kutusu grubu — dikey listeye çevrilir. */
-      '.pdrawer-panel .auth-check-group, .pdrawer-panel .am-check-group{display:flex; flex-direction:column; gap:2px;}',
+      /* GERÇEK BULGU (kullanıcı bildirimi: popup'ta seçenekler hâlâ yan yana diziliyordu):
+         auth-modal.js'teki `#am-panel .am-check-group` kuralı ID içerdiğinden (0,1,1,0) buradaki
+         iki-sınıflı kuraldan (0,0,2,0) DAHA ÖZGÜL; flex-wrap:wrap ve max-height onu eziyordu.
+         Çekmece içindeyken sarmalama/yükseklik sınırı anlamsız (panelin kendi kaydırması var),
+         bu yüzden kural ID'li seçiciyle eşit özgüllüğe çıkarılıp açıkça sıfırlanıyor. */
+      '.pdrawer-panel .auth-check-group, .pdrawer-panel .am-check-group,',
+      '#am-panel .pdrawer-panel .am-check-group{',
+      '  display:flex; flex-direction:column; flex-wrap:nowrap; gap:2px;',
+      '  max-height:none; overflow:visible; border:none; padding:0; background:none;}',
       '.pdrawer-panel label{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:13px; cursor:pointer;}',
     ].join('\n');
     document.head.appendChild(el);
