@@ -21,6 +21,14 @@ hem telif hem depolama açısından yanlış olur.
 YENİ YÜKLEMELER: bu script yeniden çalıştırıldığında yeni eklenen görseller kendiliğinden listeye
 girer ve generate-image-derivatives.py idempotent olduğundan yalnızca EKSİK türevler üretilir.
 
+GİZLENMİŞ KAYITLAR: deleted_at TEK BAŞINA YETMİYOR. Arşivleme (admin "Arşivle" akışı) satırı
+silmez, hidden_at'i doldurur ve R2 görsellerini temizler; satır D1'de deleted_at NULL olarak
+kalmaya devam eder. Bu yüzden filtre yalnızca deleted_at'e bakarsa arşivlenmiş kayıtların ARTIK
+VAR OLMAYAN görselleri iş listesine girer — 2026-09-03 doğrulamasında 29.827 referansın 32'si
+tam olarak buydu (29'u tek bir proje: ertegun-evi, hidden_at 2026-08-09). Zararı türev üretiminin
+bu satırlarda boşuna 404 alması ve kapsam ölçümünün yanıltıcı "ölü kaynak" raporlaması.
+Dört tabloda da (projects/products/architects/offices) hidden_at kolonu mevcuttur.
+
 KULLANIM
     python3 scripts/build-image-manifest.py --outdir /tmp/derivmanifest
 """
@@ -80,7 +88,7 @@ def main():
 
     covers, gallery = [], []
     for table in ('projects', 'products'):
-        rows = d1(f"SELECT images FROM {table} WHERE deleted_at IS NULL "
+        rows = d1(f"SELECT images FROM {table} WHERE deleted_at IS NULL AND hidden_at IS NULL "
                   f"AND images IS NOT NULL AND images != '[]'")
         for r in rows:
             try:
@@ -92,9 +100,9 @@ def main():
                 gallery.extend(arr[1:])
 
     profiles = []
-    for sql in ("SELECT photo_url AS u FROM architects WHERE deleted_at IS NULL AND photo_url IS NOT NULL AND photo_url != ''",
-                "SELECT logo_url AS u FROM offices WHERE deleted_at IS NULL AND logo_url IS NOT NULL AND logo_url != ''",
-                "SELECT cover_url AS u FROM offices WHERE deleted_at IS NULL AND cover_url IS NOT NULL AND cover_url != ''"):
+    for sql in ("SELECT photo_url AS u FROM architects WHERE deleted_at IS NULL AND hidden_at IS NULL AND photo_url IS NOT NULL AND photo_url != ''",
+                "SELECT logo_url AS u FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL AND logo_url IS NOT NULL AND logo_url != ''",
+                "SELECT cover_url AS u FROM offices WHERE deleted_at IS NULL AND hidden_at IS NULL AND cover_url IS NOT NULL AND cover_url != ''"):
         profiles.extend(p for p in (to_local(r.get('u')) for r in d1(sql)) if p)
 
     stage1 = sorted(set(covers) | set(profiles))
