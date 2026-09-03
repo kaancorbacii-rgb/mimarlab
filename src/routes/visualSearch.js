@@ -15,32 +15,57 @@
 // Üstelik tür içi sıralama neredeyse rastgeleydi: 60 cami arasında hangisinin öne geleceğini
 // yalnızca malzeme kelimesinin açıklamada geçip geçmemesi belirliyordu.
 //
-// YENİ MİMARİ — İKİ AŞAMA
+// YENİ MİMARİ — İKİ AŞAMA (2026-09-03, İKİNCİ TUR: GERÇEK GÖRSEL-GÖRSEL EMBEDDING)
 //   AŞAMA A (kimlik):  vision -> {identity, visibleText/OCR, brand, model, place}
 //                      -> src/lib/entityMatch.js ile D1 BAŞLIKLARINA karşı IDF ağırlıklı eşleşme.
 //                      Model bir kayıt UYDURAMAZ: eşleşmeyen ad sessizce düşer.
-//   AŞAMA B (benzerlik): vision'ın ayırt edici Türkçe betimlemesi -> bge-m3 embedding
-//                      -> önceden kurulmuş varlık dizini (src/lib/visualIndex.js) ile kosinüs.
-//                      AYNI yapının FARKLI fotoğrafı bu yolla da aynı varlığa yaklaşır, çünkü
-//                      karşılaştırma piksellerde değil ANLAM uzayında yapılır (brief 3/6).
+//   AŞAMA B (görsel benzerlik): kullanıcının yüklediği FOTOĞRAF -> TARAYICIDA hesaplanmış GERÇEK
+//                      CLIP görsel embedding'i (bkz. image-clip-embed.js) -> önceden kurulmuş
+//                      GÖRSEL-DÜZEYİNDE dizin (src/lib/imageEmbedIndex.js, her proje/ürünün
+//                      GERÇEK fotoğrafları) ile kosinüs + varlık-düzeyinde ağırlıklı toplama.
+//                      AYNI yapının FARKLI fotoğrafı bu yolla aynı varlığa yaklaşır — çünkü bu
+//                      artık GERÇEKTEN piksellerin (dolaylı olarak, CLIP'in öğrendiği görsel
+//                      temsilin) karşılaştırılmasıdır, vision'ın ürettiği METNİN değil.
+//
+//   NEDEN TARAYICIDA, SUNUCUDA DEĞİL (mimari kısıt, denetlendi 2026-09-03): Cloudflare Workers AI
+//   kataloğunda (resmi docs + `wrangler ai models`, 86 model) görsel embedding modeli YOKTUR.
+//   Harici bir API (Jina/Vertex AI/HF) canlı sorgu embedding'i için değerlendirildi ama HEPSİ
+//   YENİ BİR HESAP açılmasını gerektiriyor — Claude'un asla yapamayacağı bir eylem (kimlik/hesap
+//   oluşturma güvenlik kısıtı). Çözüm: image-upload.js'in "türev üretimi tarayıcıda, maliyet
+//   sıfır" desenini CNN çıkarımına genelleştirmek — bkz. image-clip-embed.js dosya başı yorumu.
+//
+//   YEDEK KANAL (queryVec/EMBED_MODEL, src/lib/visualIndex.js): tarayıcı WASM'ı desteklemiyorsa,
+//   89 MB'lık model indirilemiyorsa ya da görsel dizini henüz o varlık için boşsa, sistem ESKİ
+//   (2026-09-03 birinci tur) bge-m3 METİN AÇIKLAMASI embedding'ine YUMUŞAK DÜŞER — bu KESİNLİKLE
+//   "BGE-M3'ü image embedding modeli GİBİ" kullanmak DEĞİLDİR, yalnızca birincil kanal
+//   kullanılamadığında devreye giren, önceden var olan ve test edilmiş bir GERİ DÜŞÜŞ ağıdır
+//   (brief madde 13: "missing/stale embedding" toleransı, madde 12: "mevcut sistemi bozma").
+//
 //   Bunlara taksonomi (tür/disiplin/malzeme) ve coğrafya sinyalleri eklenip AĞIRLIKLI olarak
 //   birleştirilir (brief 12). Hiçbir sinyal tek başına karar vermez.
 //
 // TIER AYRIMI (brief 2/13/26): "aynı varlık" iddiası ile "benzer" sonucu BİRBİRİNE KARIŞTIRILMAZ.
 // Exact eşleşme yalnızca ad eşleşmesi güçlüyse VE ikinci adaya belirgin bir fark varsa ilan
 // edilir; aksi halde sistem exact iddiasında BULUNMAZ ve sonuçlar "en yakın" başlığı altında
-// gösterilir. Zorlama yoktur.
+// gösterilir. GERÇEK BULGU (bu turun ölçümü): SAF görsel benzerlik TEK BAŞINA farklı ama
+// "fotojenik anıt" tarzı benzer iki varlığı (ör. Ayasofya/Galata Kulesi) ayırt etmekte YETERSİZ
+// kalabiliyor (ölçülen kosinüs: aynı varlık farklı foto 0,75; FARKLI varlık ama benzer tarz 0,79)
+// — bu YÜZDEN görsel benzerlik yalnızca ADAY KÜMESİ genişletme + puanlama sinyali olarak kullanılır,
+// exact kararının birincil kapısı HÂLÂ kimlik (ad) eşleşmesidir (brief madde 6: "vision'ı reranker
+// olarak kullan, retrieval'ın YERİNE koyma").
 //
 // MALİYET KONTROLÜ (brief 15/24):
-//   * İstek başına EN FAZLA 2 AI çağrısı: 1 vision + 1 metin embedding (sorgu için).
-//     Varlık embedding'leri arama sırasında ÜRETİLMEZ — önceden kurulmuş dizinden okunur.
+//   * İstek başına EN FAZLA 1 AI ÇAĞRISI (Workers AI): yalnızca vision analizi. Görsel embedding
+//     TARAYICIDA (ücretsiz), metin embedding (yedek kanal) yalnızca görsel kanalı yoksa çalışır.
 //   * Aynı görsel (SHA-256) daha önce görüldüyse AI'ya HİÇ gidilmez (KV önbelleği, 7 gün).
-//   * Dizin TEK bir KV nesnesidir: arama başına 0 (sıfır) ek D1 satırı okunur.
+//   * Dizinler TEK birer KV nesnesidir: arama başına 0 (sıfır) ek D1 satırı okunur.
 //   * IP başına hız sınırı. Ücretli hiçbir Cloudflare özelliği (Images Transform, Vectorize) yok.
 //
 // GİZLİLİK (brief 25): yüklenen görsel R2'ye YAZILMAZ, kalıcı olarak saklanmaz, hiçbir kullanıcıya
-// gösterilmez. Bellekte analiz edilir, sonra düşer. Önbellekte yalnızca görselin HASH'i ve ondan
-// türeyen yapılandırılmış analiz tutulur — görselin kendisi değil.
+// gösterilmez. Sunucuda bellekte analiz edilir, sonra düşer. Görsel embedding'i TARAYICIDA
+// hesaplandığından ham piksel verisi SUNUCUYA hiç gitmez (yalnızca vision analizi için gönderilen
+// asıl dosya hariç — o da aynı şekilde kalıcı olarak saklanmaz). Önbellekte yalnızca görselin
+// HASH'i ve ondan türeyen yapılandırılmış analiz tutulur.
 
 import { json, errorJson } from '../lib/http.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
@@ -52,6 +77,9 @@ import { foldTr } from '../lib/textMatch.js';
 import { buildNameIndex, matchNames } from '../lib/entityMatch.js';
 import { cosineScores, cosineScoresFromRow, EMBED_MODEL, EMBED_DIM } from '../lib/visualIndex.js';
 import { loadIndex, embedTexts } from '../lib/visualIndexStore.js';
+import { aggregateImageIndex, aggregateRowScores, imageCosineScoresFromRow, IMAGE_EMBED_DIM, IMAGE_EMBED_MODEL } from '../lib/imageEmbedIndex.js';
+import { loadImageIndex, addEntityImageEmbedding } from '../lib/imageEmbedStore.js';
+import { getSessionUser } from '../lib/auth.js';
 // bkz. src/lib/projectPool.js'teki AYNI import — il/ilçe çözümlemesi TEK kaynaktan (~970 ilçelik
 // veri). geoScore İLÇE adını (ör. "Fatih") ŞEHRE ("İstanbul") çözmek için bunu kullanır; aksi
 // halde vision'ın "İstanbul" tahmini, projelerin ezici çoğunluğunda location alanı İLÇE adı olarak
@@ -91,11 +119,20 @@ const PRODUCT_MIN_SCORE = 0.22;
 // Ürün bölümünün AÇILMASI için gereken en düşük ürün kimlik sinyali (brief 11: mimari fotoğrafta
 // alakasız sandalye/lavabo gösterme).
 const PRODUCT_GATE_NAME_MIN = 0.50;
-// Kosinüsün [0,1]'e ölçeklenmesi. bge-m3'te ilgisiz metin çiftleri ~0.30-0.40, gerçekten ilgili
-// olanlar ~0.65-0.85 bandındadır; ham kosinüsü doğrudan ağırlıklandırmak taban gürültüyü
-// "benzerlik" gibi gösterirdi.
+// Kosinüsün [0,1]'e ölçeklenmesi — YEDEK metin kanalı (bge-m3). İlgisiz metin çiftleri ~0.30-0.40,
+// gerçekten ilgili olanlar ~0.65-0.85 bandındadır; ham kosinüsü doğrudan ağırlıklandırmak taban
+// gürültüyü "benzerlik" gibi gösterirdi.
 const SEM_FLOOR = 0.38;
 const SEM_CEIL = 0.82;
+// GERÇEK GÖRSEL kanalı (CLIP ViT-B/32) için AYRI ölçek — ÖLÇÜLDÜ (bu turun kalibrasyonu,
+// production'daki gerçek Ayasofya/Küçük Ayasofya/Galata Kulesi fotoğraflarıyla): tamamen alakasız
+// bir çift ~0,41-0,44, aynı varlığın farklı fotoğrafı ~0,69-0,75, farklı ama GÖRSEL OLARAK benzer
+// tarzda bir varlık (ör. iki "fotojenik anıt, mavi gökyüzü" kompozisyonu) da şaşırtıcı biçimde
+// yüksek çıkabiliyor (~0,79) — CLIP'in global görsel embedding'i sahne/kompozisyon/ışığa da
+// duyarlı, YALNIZCA nesne kimliğine değil. Bu YÜZDEN görsel kanal tek başına exact karar
+// VEREMEZ (bkz. decideExact) — yalnızca aday kümesi + puanlama sinyalidir (brief madde 6).
+const IMG_SEM_FLOOR = 0.45;
+const IMG_SEM_CEIL = 0.80;
 
 const MATERIAL_EXPANSION = {
   'ahşap': ['ahşap', 'wood', 'timber', 'lamine ahşap'],
@@ -149,6 +186,27 @@ async function sha256Hex(bytes) {
   return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// TARAYICIDAN GELEN GÖRSEL EMBEDDING'İNİN DOĞRULANMASI (brief madde 13/25 — production hardening).
+// Bu, sunucunun İSTEMCİDEN aldığı tek "ham sayısal" girdidir; kötü niyetli/bozuk bir istemci
+// yanlış boyutlu, sonsuz/NaN değerli ya da anormal büyüklükte bir dizi gönderebilir. Doğrulama
+// BAŞARISIZ olursa sessizce null döner (istek REDDEDİLMEZ) — sistem otomatik olarak metin
+// kanalına düşer, brief'in "hiçbir durumda boş beyaz alan bırakma" ilkesiyle uyumlu.
+function parseImageEmbedding(raw) {
+  if (typeof raw !== 'string' || raw.length > 20000) return null;   // 512 float JSON ~9KB, cömert pay
+  let arr;
+  try { arr = JSON.parse(raw); } catch { return null; }
+  if (!Array.isArray(arr) || arr.length !== IMAGE_EMBED_DIM) return null;
+  const out = new Float32Array(IMAGE_EMBED_DIM);
+  for (let i = 0; i < IMAGE_EMBED_DIM; i++) {
+    const v = Number(arr[i]);
+    // CLIP çıktı büyüklüğü ölçüldü (~-5..+2 aralığında, bkz. gerçek embedding örneği) — 50 sınırı
+    // makul bir bozuk-veri kelepçesi, gerçek bir CLIP vektörünü asla kesmez.
+    if (!Number.isFinite(v) || Math.abs(v) > 50) return null;
+    out[i] = v;
+  }
+  return out;
+}
+
 // Önbellekten (KV JSON) gelen analiz nesnesinin EKSİK alanları tamamlanır. Önbellek anahtarı
 // sürümlenmiş olsa bile bu güvenlik ağı gerekir: aynı sürüm içinde yazılmış bir kayıt, kısmi bir
 // yazma ya da ileride eklenecek bir alan yüzünden eksik olabilir ve `vision.identity.length`
@@ -166,7 +224,9 @@ export function hydrateVision(v) {
 }
 
 function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); }
-function sem01(cos) { return clamp01((cos - SEM_FLOOR) / (SEM_CEIL - SEM_FLOOR)); }
+// scale: {floor, ceil} — GÖRSEL (IMG_SEM_*) ya da METİN (SEM_*) kanalının kendi ölçeği. Hangi
+// kanalın aktif olduğu resolveVisualMatch#pickVisualChannel'da belirlenir.
+function sem01(cos, scale) { return clamp01((cos - scale.floor) / (scale.ceil - scale.floor)); }
 
 // ---------------------------------------------------------------------------------------------
 // SORGU METNİ — anlamsal aramanın girdisi. Varlık belgeleriyle (bkz. src/lib/visualIndex.js#
@@ -259,19 +319,23 @@ function geoScore(item, vision) {
 
 // ---------------------------------------------------------------------------------------------
 // PROJE SIRALAMASI
+// `visual`: { map: Map<slug,cosine>, floor, ceil, channel: 'image'|'text' } | null — bkz.
+// resolveVisualMatch#pickVisualChannel. Hangi kanaldan geldiği ranking formülünü DEĞİŞTİRMEZ,
+// yalnızca ölçeklemeyi (sem01) etkiler; iki kanal da normalize edildikten sonra [0,1] aralığında
+// karşılaştırılabilir tek bir "sem" sinyaline indirgenir.
 // ---------------------------------------------------------------------------------------------
-function rankProjects(pool, poolBySlug, vision, semBySlug, nameIndex) {
+function rankProjects(pool, poolBySlug, vision, visual, nameIndex) {
   const nameBySlug = matchNames(nameIndex, projectGuesses(vision), it => it.slug, 25);
 
   // ADAY KÜMESİ üç kaynaktan gelir; hiçbiri tek başına yeterli değildir:
   //   1) sözlüksel kimlik eşleşmeleri (Aşama A),
-  //   2) anlamsal en yakınlar (Aşama B),
+  //   2) görsel/anlamsal en yakınlar (Aşama B — gerçek CLIP embedding ya da yedek metin kanalı),
   //   3) taksonomi araması — dizin henüz kurulmamışsa ya da fotoğraf hiçbir şeye benzemiyorsa
   //      sistemin eski, kanıtlanmış davranışı korunsun diye (geriye dönük güvenlik ağı).
   const candidates = new Map();   // slug -> item
   for (const [slug, m] of nameBySlug) candidates.set(slug, m.item);
-  if (semBySlug) {
-    const top = [...semBySlug.entries()].sort((a, b) => b[1] - a[1]).slice(0, 60);
+  if (visual) {
+    const top = [...visual.map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 60);
     for (const [slug] of top) {
       const item = poolBySlug.get(slug);
       if (item) candidates.set(slug, item);
@@ -295,7 +359,7 @@ function rankProjects(pool, poolBySlug, vision, semBySlug, nameIndex) {
   const scored = [];
   for (const [slug, item] of candidates) {
     const name = nameBySlug.has(slug) ? nameBySlug.get(slug).score : 0;
-    const sem = semBySlug ? sem01(semBySlug.get(slug) || 0) : 0;
+    const sem = visual ? sem01(visual.map.get(slug) || 0, visual) : 0;
     const tax = projectTaxScore(item, vision);
     const geo = geoScore(item, vision);
     const final = 0.46 * name + 0.32 * sem + 0.16 * tax + 0.06 * geo;
@@ -319,7 +383,7 @@ function productCategoryScore(item, vision) {
   return best;
 }
 
-function rankProducts(pool, poolBySlug, vision, semBySlug, nameIndex) {
+function rankProducts(pool, poolBySlug, vision, visual, nameIndex) {
   const nameBySlug = matchNames(nameIndex, productGuesses(vision), it => it.slug, 25);
   const brandFold = foldTr(vision.brand || '');
 
@@ -333,8 +397,8 @@ function rankProducts(pool, poolBySlug, vision, semBySlug, nameIndex) {
       if (productCategoryScore(p, vision) > 0) candidates.set(p.slug, p);
     }
   }
-  if (semBySlug) {
-    const top = [...semBySlug.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30);
+  if (visual) {
+    const top = [...visual.map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30);
     for (const [slug] of top) {
       if (candidates.has(slug)) continue;
       const item = poolBySlug.get(slug);
@@ -345,7 +409,7 @@ function rankProducts(pool, poolBySlug, vision, semBySlug, nameIndex) {
   const scored = [];
   for (const [slug, item] of candidates) {
     const name = nameBySlug.has(slug) ? nameBySlug.get(slug).score : 0;
-    const sem = semBySlug ? sem01(semBySlug.get(slug) || 0) : 0;
+    const sem = visual ? sem01(visual.map.get(slug) || 0, visual) : 0;
     const cat = productCategoryScore(item, vision);
     const brand = brandFold && foldTr(item.brand || '') === brandFold ? 1 : 0;
     const mat = vision.materials.length && materialHit(`${item.title || ''} ${item.category || ''}`, vision.materials) ? 1 : 0;
@@ -356,6 +420,19 @@ function rankProducts(pool, poolBySlug, vision, semBySlug, nameIndex) {
   }
   scored.sort((a, b) => (b.score - a.score) || String(a.item.slug).localeCompare(String(b.item.slug)));
   return scored;
+}
+
+// KORONASYONSUZ SAF GÖRSEL EŞLEŞMEYİ ELE — GERÇEK ÖLÇÜM BULGUSU (bu turun eval'ı,
+// scripts/visual-search-image-eval.mjs): binlerce gerçek fotoğraf arasında en-iyi-eşleşen-görseli
+// arayan bir sorguda, TAMAMEN ALAKASIZ bir sorgu görseli bile ~9700 aday arasından SALT ŞANS
+// eseri bir-iki görselle "yeterince yüksek" kosinüs yakalayabiliyor (aşırı değer istatistiği: N
+// arttıkça maksimum benzerlik, "tipik" benzerlikten sistematik olarak sapar). Bu YÜZDEN bir
+// adayın SIRF görsel skorla PROJECT_MIN_SCORE/PRODUCT_MIN_SCORE eşiğini geçmesi YETERLİ DEĞİL —
+// en az BİR bağımsız doğrulayan sinyal (isim/OCR eşleşmesi, taksonomi, coğrafya, marka, kategori)
+// de sıfırdan büyük olmalı. Bu, brief madde 6'nın ("vision'ı reranker olarak kullan, retrieval'ın
+// YERİNE koyma") doğrudan uygulanmasıdır — tek bir kanalın asla tek başına karar vermemesi.
+function hasCorroboration(r) {
+  return r.name > 0 || r.tax > 0 || r.geo === 1 || r.cat > 0 || r.brand === 1;
 }
 
 // Exact karar kapısı — üç koşul BİRLİKTE sağlanmalı (brief 13/26).
@@ -374,27 +451,73 @@ function decideExact(scored, nameMin) {
   return top;
 }
 
+// GÖRSEL ya da METİN kanalından TEK bir `visual` nesnesi üretir (bkz. rankProjects/rankProducts
+// dosya başı yorumu). Görsel kanal HER ZAMAN önceliklidir — gerçek bir sinyal olduğundan (brief
+// "BGE-M3'ü image embedding modeli GİBİ kullanma" itirazının doğrudan çözümü). Yalnızca görsel
+// kanal kullanılamıyorsa (istemci embedding göndermedi ya da o varlık türünün görsel dizini boş/
+// henüz kurulmamış) metin kanalına YUMUŞAK DÜŞÜLÜR.
+function pickVisualChannel(imageIndex, imageQueryVec, textIndex, textQueryVec) {
+  if (imageQueryVec && imageIndex && imageIndex.entities.length) {
+    const agg = aggregateImageIndex(imageIndex, imageQueryVec);
+    const map = new Map();
+    for (const [slug, v] of agg) map.set(slug, v.score);
+    return { map, floor: IMG_SEM_FLOOR, ceil: IMG_SEM_CEIL, channel: 'image', index: imageIndex, agg };
+  }
+  if (textIndex && textQueryVec) {
+    const scores = cosineScores(textIndex, textQueryVec);
+    const map = new Map();
+    for (let i = 0; i < textIndex.items.length; i++) map.set(textIndex.items[i].s, scores[i]);
+    return { map, floor: SEM_FLOOR, ceil: SEM_CEIL, channel: 'text', index: textIndex };
+  }
+  return null;
+}
+
+// Eşleşen varlığa GÖRSEL OLARAK benzeyen diğer varlıkları hesaplar — eşleşen varlığın EN İYİ
+// (sorguya en yakın) fotoğrafından dizindeki TÜM diğer görsellere kosinüs alınıp varlık başına
+// toplanır. Görsel kanalda bu, "bestImageIndex" satırından; metin kanalında eşleşen varlığın TEK
+// satırından (cosineScoresFromRow) yapılır — ikisi de EK bir AI/embedding çağrısı GEREKTİRMEZ,
+// vektör zaten dizinde duruyor (brief madde 6 gerekçesiyle aynı: "aynı entity'nin diğer
+// fotoğraflarının birbirini temsil etmesini sağla").
+function similarToMatchedEntity(visual, matchedSlug) {
+  if (!visual) return null;
+  if (visual.channel === 'image') {
+    const matchedAgg = visual.agg.get(matchedSlug);
+    if (!matchedAgg || matchedAgg.bestImageIndex < 0) return null;
+    const fromRow = imageCosineScoresFromRow(visual.index, matchedAgg.bestImageIndex);
+    const agg = aggregateRowScores(visual.index, fromRow);
+    const map = new Map();
+    for (const [slug, v] of agg) {
+      // %50 sorguya-benzerlik + %50 eşleşen-varlığa-benzerlik — TAMAMEN eşleşen varlığa kaymak
+      // (query'yi unutmak) yerine ikisinin dengelenmesi, kullanıcının ASIL yüklediği görselin
+      // karakterini de "benzerler" sıralamasında bir miktar korur.
+      map.set(slug, 0.5 * (visual.map.get(slug) || 0) + 0.5 * v.score);
+    }
+    return { map, floor: visual.floor, ceil: visual.ceil, channel: visual.channel };
+  }
+  const idx = visual.index.items.findIndex(it => it.s === matchedSlug);
+  if (idx < 0) return null;
+  const fromEntity = cosineScoresFromRow(visual.index, idx);
+  const map = new Map();
+  for (let i = 0; i < visual.index.items.length; i++) {
+    const slug = visual.index.items[i].s;
+    map.set(slug, 0.5 * (visual.map.get(slug) || 0) + 0.5 * fromEntity[i]);
+  }
+  return { map, floor: visual.floor, ceil: visual.ceil, channel: visual.channel };
+}
+
 // ---------------------------------------------------------------------------------------------
-// SAF ÇEKİRDEK — vision + sorgu embedding'i + havuzlar/dizinler alır, karar üretir. HTTP/AI/D1'e
+// SAF ÇEKİRDEK — vision + sorgu embedding'leri + havuzlar/dizinler alır, karar üretir. HTTP/AI/D1'e
 // dokunmaz, bu yüzden hem handleVisualSearchRoute hem de scripts/visual-search-eval.mjs TARAFINDAN
 // çağrılabilir (brief 23: kalıcı regresyon testleri gerçek karar mantığını test etmeli, HTTP
-// katmanının bir kopyasını değil). Eval betiği gerçek D1 havuzlarını + gerçek KV dizinini + gerçek
-// bge-m3 sorgu embedding'ini kullanır; yalnızca "vision" TARAFI (gerçek fotoğraf + AI çağrısı)
-// elle yazılmış sabit kurgularla (fixture) simüle edilir — bu, sistemin GERÇEK zayıf noktasını
-// (sıralama/eşik mantığı) test eder, Cloudflare'in vision modelinin kendisini değil.
+// katmanının bir kopyasını değil). `pools.projectImageIndex`/`productImageIndex` ve
+// `imageQueryVec` OPSİYONELDİR — verilmezse (ör. eval betiğinin henüz güncellenmemiş eski
+// çağrıları) sistem otomatik olarak METİN kanalına düşer, hiçbir çağıran KIRILMAZ.
 // ---------------------------------------------------------------------------------------------
-export function resolveVisualMatch(vision, queryVec, pools) {
-  const { projectPool, productPool, projectIndex, productIndex } = pools;
+export function resolveVisualMatch(vision, queryVec, pools, imageQueryVec) {
+  const { projectPool, productPool, projectIndex, productIndex, projectImageIndex, productImageIndex } = pools;
 
-  function semMap(index) {
-    if (!index || !queryVec) return null;
-    const scores = cosineScores(index, queryVec);
-    const map = new Map();
-    for (let i = 0; i < index.items.length; i++) map.set(index.items[i].s, scores[i]);
-    return map;
-  }
-  const projSem = semMap(projectIndex);
-  const prodSem = semMap(productIndex);
+  const projVisual = pickVisualChannel(projectImageIndex, imageQueryVec, projectIndex, queryVec);
+  const prodVisual = pickVisualChannel(productImageIndex, imageQueryVec, productIndex, queryVec);
 
   const projectBySlug = new Map(projectPool.map(p => [p.slug, p]));
   const productBySlug = new Map(productPool.map(p => [p.slug, p]));
@@ -403,38 +526,37 @@ export function resolveVisualMatch(vision, queryVec, pools) {
   const productNameIndex = buildNameIndex(productPool, it =>
     [it.brand || '', it.title || '', (it.designers || []).join(' ')].join(' '));
 
-  const projScored = rankProjects(projectPool, projectBySlug, vision, projSem, projectNameIndex);
+  const projScored = rankProjects(projectPool, projectBySlug, vision, projVisual, projectNameIndex);
   const projectMatch = decideExact(projScored, EXACT_NAME_MIN);
 
   let similarProjects = projScored;
-  if (projectMatch && projectIndex) {
-    const idx = projectIndex.items.findIndex(it => it.s === projectMatch.item.slug);
-    if (idx >= 0) {
-      const fromEntity = cosineScoresFromRow(projectIndex, idx);
-      const blended = new Map();
-      for (let i = 0; i < projectIndex.items.length; i++) {
-        const slug = projectIndex.items[i].s;
-        const q = projSem ? (projSem.get(slug) || 0) : 0;
-        blended.set(slug, 0.5 * q + 0.5 * fromEntity[i]);
-      }
-      similarProjects = rankProjects(projectPool, projectBySlug, vision, blended, projectNameIndex);
-    }
+  if (projectMatch) {
+    const blended = similarToMatchedEntity(projVisual, projectMatch.item.slug);
+    if (blended) similarProjects = rankProjects(projectPool, projectBySlug, vision, blended, projectNameIndex);
   }
 
   const projects = similarProjects
     .filter(r => r.score >= PROJECT_MIN_SCORE)
+    .filter(hasCorroboration)
     .filter(r => !projectMatch || r.item.slug !== projectMatch.item.slug)
     .slice(0, MAX_PROJECTS);
 
-  const prodScored = rankProducts(productPool, productBySlug, vision, prodSem, productNameIndex);
+  const prodScored = rankProducts(productPool, productBySlug, vision, prodVisual, productNameIndex);
   const productMatch = decideExact(prodScored, EXACT_NAME_MIN);
   const bestProductName = prodScored.length ? prodScored[0].name : 0;
   const productSignal = (vision.products && vision.products.length > 0)
     || vision.subject === 'product'
     || bestProductName >= PRODUCT_GATE_NAME_MIN;
+
+  let similarProducts = prodScored;
+  if (productSignal && productMatch) {
+    const blended = similarToMatchedEntity(prodVisual, productMatch.item.slug);
+    if (blended) similarProducts = rankProducts(productPool, productBySlug, vision, blended, productNameIndex);
+  }
   const products = productSignal
-    ? prodScored
+    ? similarProducts
       .filter(r => r.score >= PRODUCT_MIN_SCORE)
+      .filter(hasCorroboration)
       .filter(r => !productMatch || r.item.slug !== productMatch.item.slug)
       .slice(0, MAX_PRODUCTS)
     : [];
@@ -447,6 +569,7 @@ export function resolveVisualMatch(vision, queryVec, pools) {
     projects: projects.map(projectPayload),
     products: products.map(productPayload),
     productsSuppressed: !productSignal,
+    visualChannel: { project: projVisual ? projVisual.channel : 'none', product: prodVisual ? prodVisual.channel : 'none' },
     // Ham skorlar (eval için) — payload'a girmeyen ama Top-K doğruluğu ölçmek için gereken tam sıra.
     projectsRanked: similarProjects, productsRanked: prodScored,
   };
@@ -457,7 +580,9 @@ function projectPayload(r) {
     slug: r.item.slug, title: r.item.title, location: r.item.location, date: r.item.date,
     image: (r.item.images && r.item.images[0]) || null,
     score: Number(r.score.toFixed(3)),
-    signals: { name: Number(r.name.toFixed(3)), semantic: Number(r.sem.toFixed(3)), taxonomy: Number(r.tax.toFixed(3)), geo: r.geo },
+    // "visual": image kanalıysa GERÇEK CLIP görsel benzerliği, text kanalıysa yedek metin
+    // açıklaması benzerliği (bkz. resolveVisualMatch#pickVisualChannel + üstteki match.*Channel).
+    signals: { name: Number(r.name.toFixed(3)), visual: Number(r.sem.toFixed(3)), taxonomy: Number(r.tax.toFixed(3)), geo: r.geo },
   };
 }
 
@@ -466,7 +591,7 @@ function productPayload(r) {
     slug: r.item.slug, title: r.item.title, brand: r.item.brand, category: r.item.category,
     image: r.item.image,
     score: Number(r.score.toFixed(3)),
-    signals: { name: Number(r.name.toFixed(3)), semantic: Number(r.sem.toFixed(3)), category: Number(r.cat.toFixed(3)), brand: r.brand },
+    signals: { name: Number(r.name.toFixed(3)), visual: Number(r.sem.toFixed(3)), category: Number(r.cat.toFixed(3)), brand: r.brand },
   };
 }
 
@@ -484,6 +609,9 @@ export async function handleVisualSearchRoute(request, env, url) {
   const file = form.get('image');
   if (!file || typeof file === 'string') return errorJson('Bir görsel seç.');
   if (file.size > MAX_BYTES) return errorJson("Görsel 10mb'tan küçük olmalı.");
+  // GERÇEK GÖRSEL EMBEDDING'İ — tarayıcının image-clip-embed.js ile ÖNCEDEN hesapladığı 512
+  // boyutlu CLIP vektörü (bkz. dosya başı yorumu). Yoksa/bozuksa null: sistem metin kanalına düşer.
+  let imageQueryVec = parseImageEmbedding(form.get('imageEmbedding'));
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   // İçerik türü BEYANA değil MAGIC BYTE'a göre doğrulanır (mevcut /api/uploads ile aynı kural).
@@ -502,6 +630,7 @@ export async function handleVisualSearchRoute(request, env, url) {
   let vision = null;
   let queryVec = null;
   let cached = false;
+  let hadCachedImageVec = false;
   let aiCalls = 0;
   try {
     const hit = await env.FACET_CACHE.get(cacheKey, 'json');
@@ -510,6 +639,14 @@ export async function handleVisualSearchRoute(request, env, url) {
       // Vektör önbellekte int16 dizisi olarak (×10000) saklanır: 1024 float'ın JSON'u ~14 KB
       // yerine ~5 KB olur ve kosinüs için bu çözünürlük fazlasıyla yeterlidir.
       if (Array.isArray(hit.qv) && hit.qv.length === EMBED_DIM) queryVec = hit.qv.map(v => v / 10000);
+      // Görsel embedding de AYNI görsel için önbellekten geri gelir — istemci WASM'ı bu kez
+      // desteklemiyor/başarısız olsa BİLE (ör. farklı bir tarayıcıdan aynı görsel), önceki bir
+      // istekte hesaplanmış GERÇEK vektör varsa kullanılır (brief madde 13: "stale embedding"
+      // toleransının tersi — burada TAZE bir embedding'i BOŞA HARCAMAMAK).
+      if (!imageQueryVec && Array.isArray(hit.iv) && hit.iv.length === IMAGE_EMBED_DIM) {
+        imageQueryVec = new Float32Array(hit.iv.map(v => v / 10000));
+        hadCachedImageVec = true;
+      }
       cached = true;
     }
   } catch { /* önbellek okunamazsa normal yola devam */ }
@@ -529,8 +666,12 @@ export async function handleVisualSearchRoute(request, env, url) {
   // hattını kapatıyordu (ölçülmüş gerileme, 2026-09-02): model o kareyi "mimari değil" sayıyor,
   // oysa ürün araması tam da bunun için var. İlgisizlik kararı ancak İKİSİ de yoksa verilir.
   if (!vision.isArchitectural && !(vision.products && vision.products.length) && !vision.identity.length) {
-    if (!cached) {
-      try { await env.FACET_CACHE.put(cacheKey, JSON.stringify({ vision }), { expirationTtl: CACHE_TTL_SECONDS }); } catch { /* yok sayılır */ }
+    if (!cached || (imageQueryVec && !hadCachedImageVec)) {
+      try {
+        await env.FACET_CACHE.put(cacheKey, JSON.stringify({
+          vision, iv: imageQueryVec ? Array.from(imageQueryVec).map(v => Math.round(v * 10000)) : null,
+        }), { expirationTtl: CACHE_TTL_SECONDS });
+      } catch { /* yok sayılır */ }
     }
     return json({
       ok: true, cached, aiCalls,
@@ -541,30 +682,42 @@ export async function handleVisualSearchRoute(request, env, url) {
     });
   }
 
-  const queryText = buildQueryText(vision);
-  if (!queryVec && queryText) {
-    const [vec] = await embedTexts(env, [queryText]);
-    if (vec && vec.length === EMBED_DIM) { queryVec = vec; aiCalls++; }
+  // METİN embedding'i (bge-m3, yedek kanal) YALNIZCA gerçek görsel embedding'i YOKSA hesaplanır —
+  // istemci genelde her zaman bir tane üretebildiğinden (WASM yaygın destekleniyor) bu, brief'in
+  // maliyet ilkesiyle (madde 15/24: "gereksiz AI çağrısı yapma") uyumlu olarak AI çağrısını
+  // çoğu istekte SIFIRA indirir — eskiden HER aramada 1 bge-m3 çağrısı ZORUNLUYDU.
+  let queryText = null;
+  if (!queryVec && !imageQueryVec) {
+    queryText = buildQueryText(vision);
+    if (queryText) {
+      const [vec] = await embedTexts(env, [queryText]);
+      if (vec && vec.length === EMBED_DIM) { queryVec = vec; aiCalls++; }
+    }
   }
-  if (!cached) {
+  if (!cached || (imageQueryVec && !hadCachedImageVec)) {
     try {
       await env.FACET_CACHE.put(cacheKey, JSON.stringify({
         vision,
         qv: queryVec ? queryVec.map(v => Math.round(v * 10000)) : null,
+        iv: imageQueryVec ? Array.from(imageQueryVec).map(v => Math.round(v * 10000)) : null,
       }), { expirationTtl: CACHE_TTL_SECONDS });
     } catch { /* önbellek yazılamazsa sonuç yine döner */ }
   }
 
-  const [projectPool, productPool, projectIndex, productIndex] = await Promise.all([
+  const [projectPool, productPool, projectIndex, productIndex, projectImageIndex, productImageIndex] = await Promise.all([
     fetchActiveProjectPoolCached(env, 'built'),
     fetchProductPool(env),
     loadIndex(env, 'project'),
     loadIndex(env, 'product'),
+    loadImageIndex(env, 'project'),
+    loadImageIndex(env, 'product'),
   ]);
 
-  // Dizin yoksa (ilk deploy, henüz kurulmadı) resolveVisualMatch içindeki semBySlug null kalır ve
-  // sistem sözlüksel + taksonomik yoldan ÇALIŞMAYA DEVAM EDER — bilerek yumuşak bir bağımlılık.
-  const resolved = resolveVisualMatch(vision, queryVec, { projectPool, productPool, projectIndex, productIndex });
+  // Dizin(ler) yoksa (ilk deploy, henüz kurulmadı) resolveVisualMatch otomatik olarak sözlüksel +
+  // taksonomik yoldan ÇALIŞMAYA DEVAM EDER — bilerek yumuşak bir bağımlılık (brief madde 12).
+  const resolved = resolveVisualMatch(vision, queryVec,
+    { projectPool, productPool, projectIndex, productIndex, projectImageIndex, productImageIndex },
+    imageQueryVec);
 
   return json({
     ok: true,
@@ -574,8 +727,15 @@ export async function handleVisualSearchRoute(request, env, url) {
       isArchitectural: true,
       subject: vision.subject,
       model: vision.model || null,
+      // visualChannel: bu aramanın "benzerlik" katmanı GERÇEK CLIP görsel embedding'i mi ('image')
+      // yoksa yedek bge-m3 metin açıklaması embedding'i mi ('text') kullandı — gözlemlenebilirlik.
+      visualChannel: resolved.visualChannel,
+      imageEmbedModel: imageQueryVec ? IMAGE_EMBED_MODEL : null,
       embedModel: queryVec ? EMBED_MODEL : null,
-      indexed: { project: projectIndex ? projectIndex.items.length : 0, product: productIndex ? productIndex.items.length : 0 },
+      indexed: {
+        project: projectIndex ? projectIndex.items.length : 0, product: productIndex ? productIndex.items.length : 0,
+        projectImages: projectImageIndex ? projectImageIndex.entities.length : 0, productImages: productImageIndex ? productImageIndex.entities.length : 0,
+      },
       spaceType: vision.spaceType,
       spaceTypes: vision.spaceTypes || [],
       discipline: vision.discipline,
@@ -597,4 +757,58 @@ export async function handleVisualSearchRoute(request, env, url) {
     products: resolved.products,
     productsSuppressed: resolved.productsSuppressed,
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// POST /api/ai/image-embed — ARTIMLI GÖRSEL DİZİN GÜNCELLEMESİ (brief madde 8/18: "yeni proje/
+// ürün görseli eklendiğinde index otomatik güncellensin").
+//
+// Sunucu HİÇBİR CNN çalıştırmaz — yalnızca proje-ekle.html/urun-ekle.html'in KAYIT ANINDA
+// tarayıcıda (image-clip-embed.js) ÖNCEDEN hesapladığı 512 boyutlu vektörü doğrulayıp dizine
+// EKLER. Bu, Workers'ın görsel embedding üretemediği (bkz. dosya başı yorumu) bir dünyada
+// "yeni içerik otomatik indekslensin" isteğini karşılayan TEK sürdürülebilir yoldur.
+//
+// GÜVENLİK (brief madde 25 — "AI abuse"): giriş yapmış olmak yeterli, sahiplik KONTROL EDİLMEZ
+// (mevcut /api/uploads ile AYNI gevşeklik — kullanıcı isteği: proje-ekle formunun admin/claim
+// sahipliğine bakılmaksızın herkese açık gönderi kabul ettiği desenle tutarlı). Asıl güvenlik
+// kapısı: (a) slug GERÇEKTEN var olan, silinmemiş bir D1 kaydına karşılık gelmeli — rastgele bir
+// slug'a embedding EKLENEMEZ; (b) vektör sıkı doğrulanır (boyut + sonluluk + büyüklük); (c) hız
+// sınırı (brief 24: kötüye kullanımı engelle).
+// ---------------------------------------------------------------------------------------------
+export async function handleImageEmbedAppendRoute(request, env, url) {
+  if (url.pathname !== '/api/ai/image-embed' || request.method !== 'POST') return errorJson('Bulunamadı', 404);
+
+  const user = await getSessionUser(request, env);
+  if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
+
+  if (!(await checkRateLimit(env, 'image-embed-append', user.id, 60, 10 * 60 * 1000))) {
+    return errorJson('Çok fazla istek gönderdin, birkaç dakika sonra tekrar dene.', 429, { 'Retry-After': '600' });
+  }
+
+  let body;
+  try { body = await request.json(); } catch { return errorJson('Geçersiz istek.'); }
+  const type = body && body.type;
+  if (type !== 'project' && type !== 'product') return errorJson('Geçersiz tür.');
+  const slug = typeof body.slug === 'string' ? body.slug.trim().slice(0, 200) : '';
+  const imageKey = typeof body.imageKey === 'string' ? body.imageKey.trim().slice(0, 500) : '';
+  if (!slug || !imageKey) return errorJson('slug ve imageKey gerekli.');
+
+  const vector = Array.isArray(body.embedding) ? body.embedding : null;
+  if (!vector || vector.length !== IMAGE_EMBED_DIM) return errorJson(`embedding ${IMAGE_EMBED_DIM} boyutlu bir dizi olmalı.`);
+  for (const v of vector) {
+    if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > 50) return errorJson('embedding geçersiz değer içeriyor.');
+  }
+
+  // Varlık GERÇEKTEN var mı? (bkz. dosya başı güvenlik notu — rastgele bir slug'a yazma kapatılır).
+  const table = type === 'project' ? 'projects' : 'products';
+  const row = await env.DB.prepare(`SELECT id FROM ${table} WHERE slug = ? AND deleted_at IS NULL`).bind(slug).first();
+  if (!row) return errorJson('Kayıt bulunamadı.', 404);
+
+  try {
+    const result = await addEntityImageEmbedding(env, type, slug, imageKey, vector);
+    return json({ ok: true, ...result });
+  } catch (err) {
+    console.error('image-embed-append başarısız', err && err.message);
+    return errorJson('Görsel dizine eklenemedi.', 500);
+  }
 }

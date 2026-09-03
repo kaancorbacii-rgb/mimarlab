@@ -2384,6 +2384,50 @@ async function collectImages(){
   return kept;
 }
 
+// GÖRSEL ARAMA — ARTIMLI İNDEKSLEME (kullanıcı isteği, 2026-09-03 ikinci tur, brief madde 8/18:
+// "yeni proje görseli eklendiğinde index otomatik güncellensin"). Cloudflare Workers CNN
+// çalıştıramadığından (bkz. src/routes/visualSearch.js dosya başı yorumu) bu, YENİ görsellerin
+// arama dizinine girebilmesinin TEK yoludur: tarayıcı KAYIT ANINDA image-clip-embed.js ile GERÇEK
+// bir CLIP embedding'i hesaplar ve sunucuya yalnızca 512 sayılık vektörü gönderir (ham piksel
+// verisi DEĞİL). YALNIZCA yeni yüklenen dosyalar (mediaItems[i].file dolu — "existing"/kopyalanmış
+// görseller DEĞİL, onlar zaten ya offline backfill'de ya da kendi eklendikleri anda işlendi).
+// FIRE-AND-FORGET: kaydetme akışını (yönlendirme/bildirim) ASLA bloklamaz ya da başarısızlıkla
+// engellemez — en kötü durumda o birkaç görsel bir sonraki elle backfill koşusuna kadar dizinde
+// eksik kalır, kullanıcı deneyimini hiçbir şekilde etkilemez.
+let clipEmbedLoaderPE = null;
+function loadClipEmbedModulePE(){
+  if(window.MimarlabClipEmbed) return Promise.resolve(window.MimarlabClipEmbed);
+  if(!clipEmbedLoaderPE){
+    clipEmbedLoaderPE = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = '/image-clip-embed.js';
+      script.onload = () => resolve(window.MimarlabClipEmbed || null);
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+  }
+  return clipEmbedLoaderPE;
+}
+async function syncNewImageEmbeddings(type, slug){
+  if(!slug) return;
+  const fresh = mediaItems.filter(it => it.file && it.finalUrl);
+  if(!fresh.length) return;
+  try{
+    const clip = await loadClipEmbedModulePE();
+    if(!clip) return;
+    for(const it of fresh){
+      try{
+        const vec = await clip.embed(it.file);
+        if(!vec) continue;
+        await fetch('/api/ai/image-embed', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ type, slug, imageKey: it.finalUrl, embedding: Array.from(vec) }),
+        });
+      }catch(e){ /* tek görselin başarısız olması diğerlerini/kaydetmeyi engellemez */ }
+    }
+  }catch(e){ /* CLIP modülü yüklenemedi — sessizce atlanır */ }
+}
+
 // Görsel üzeri ürün işaretçilerinin sunucuya gidecek hâli: { <nihai görsel url>: [{x,y,slug,title}] }
 // (bkz. migrations/0076_project_image_hotspots.sql). YALNIZCA collectImages()'tan SONRA çağrılabilir —
 // yeni yüklenen görsellerin url'i o çağrıdan önce henüz yok.
@@ -2541,6 +2585,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
+      syncNewImageEmbeddings('project', data.slug || claimSlug);
       const dest = data.slug ? `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}` : `/proje/${encodeURIComponent(claimSlug)}`;
       setTimeout(()=>{ window.location.replace(dest); }, 1200);
       return;
@@ -2554,6 +2599,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
+      syncNewImageEmbeddings('project', data.slug || existingSlug);
       const dest = data.slug ? `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}` : `/proje/${encodeURIComponent(existingSlug)}`;
       setTimeout(()=>{ window.location.replace(dest); }, 1200);
       return;
@@ -2565,6 +2611,7 @@ document.getElementById('proje-ekle-form').addEventListener('submit', async (e)=
       notice.textContent = 'Proje eklendi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
+      syncNewImageEmbeddings('project', data.slug);
       setTimeout(()=>{ window.location.href = `${data.prefix || '/proje/'}${encodeURIComponent(data.slug)}`; }, 1200);
       return;
     }

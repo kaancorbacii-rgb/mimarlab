@@ -9,7 +9,7 @@ import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } fro
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute } from './routes/project.js';
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
-import { handleVisualSearchRoute } from './routes/visualSearch.js';
+import { handleVisualSearchRoute, handleImageEmbedAppendRoute } from './routes/visualSearch.js';
 import { rebuildIndex } from './lib/visualIndexStore.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
@@ -87,9 +87,13 @@ const SITE_ORIGIN = 'https://mimarlab.com';
 // sessizce CORS hatasına yol açıyordu), bu yüzden arama/ters-jeokodlama artık tarayıcıdan değil
 // src/routes/geocode.js üzerinden sunucu-sunucu proxy'leniyor (bkz. o dosyanın başındaki not) — bu
 // origin'e artık hiçbir sayfadan doğrudan tarayıcı isteği atılmıyor.
+// 'wasm-unsafe-eval' (kullanıcı isteği, 2026-09-03 — gerçek görsel-görsel CLIP embedding):
+// tarayıcı WebAssembly.instantiate() çağırırken modern Chrome/Firefox bu direktifi ARAR, yoksa
+// WASM derlemesini CSP SESSİZCE ENGELLER (bkz. js/vendor/ort/ — self-host edilmiş onnxruntime-web,
+// image-clip-embed.js). 'unsafe-eval' DEĞİL — yalnızca WASM derlemesine izin verir, JS eval()'e değil.
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com https://unpkg.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com https://static.cloudflareinsights.com https://unpkg.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://unpkg.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.tile.openstreetmap.org",
@@ -395,6 +399,35 @@ const STATIC_IMAGE_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=604800, s
 // bu repo'da zaten kanıtlanmış, tazelik/round-trip dengesi — yeni bir politika icat ETMEK yerine.
 const SCRIPT_EXT_RE = /\.js$/i;
 const STATIC_SCRIPT_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=300' };
+// .wasm/.onnx (kullanıcı isteği, 2026-09-03 — tarayıcı-taraflı CLIP embedding, bkz. models/ ve
+// js/vendor/ort/) GERÇEKTEN değişmez içeriktir: bir model/çalışma zamanı güncellemesi her zaman
+// YENİ bir dosya adına gider (bu depodaki sürüm disiplini — bkz. src/lib/imageEmbedIndex.js#
+// IMAGE_INDEX_VERSION), aynı yol asla farklı bayt döndürmez. STATIC_SCRIPT_CACHE_HEADERS'ın 60sn'lik
+// kısa TTL'i burada anlamsız olurdu — 88,6 MB'lık model dosyası ARAMA KULLANAN her ziyaretçide
+// tekrar tekrar koşullu-GET'e zorlanırdı. `immutable` tarayıcıya revalidate'i TAMAMEN atlatır.
+const LARGE_BINARY_EXT_RE = /\.(wasm|onnx)$/i;
+const LARGE_BINARY_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=31536000, immutable' };
+
+// GET /models/<dosya> — GERÇEK GÖRSEL EMBEDDING (kullanıcı isteği, 2026-09-03 ikinci tur, bkz.
+// image-clip-embed.js dosya başı yorumu) için self-host edilen CLIP görsel kodlayıcısı (88,6 MB).
+// R2'den servis edilir, statik ASSETS'ten DEĞİL — Cloudflare Workers statik varlıkları tek dosya
+// başına 25 MiB ile sınırlıdır (resmi limit, doğrulandı) ve bu dosya onu aşıyor. js/vendor/ort/
+// altındaki WASM çalışma zamanı (~11 MB, sınırın altında) sıradan statik varlık olarak kalmaya
+// devam ediyor — yalnızca bu TEK büyük dosya için R2 yolu gerekti.
+async function handleModelAssetRoute(request, env, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
+  const key = url.pathname.slice(1); // "models/clip-vision-uint8.onnx" — R2'deki anahtarla AYNI
+  // Path traversal/istenmeyen erişim yüzeyi: yalnızca "models/" öneki + güvenli dosya adı karakterleri.
+  if (!/^models\/[a-z0-9_-]+\.(onnx|wasm)$/i.test(key)) return errorJson('Bulunamadı', 404);
+  const object = await env.UPLOADS.get(key);
+  if (!object) return errorJson('Bulunamadı', 404);
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/octet-stream');
+  headers.set('Content-Length', String(object.size));
+  for (const [k, v] of Object.entries(LARGE_BINARY_CACHE_HEADERS)) headers.set(k, v);
+  if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
+  return new Response(object.body, { status: 200, headers });
+}
 // SSR enjeksiyonu yapılmış detay sayfaları için: kısa tarayıcı cache'i + edge'de daha uzun ömür.
 // Ayrıca Cache API (caches.default) ile edge'e de yazılıyor (bkz. serveDetailPage) — yüksek
 // trafikte her istek ASSETS.fetch + HTMLRewriter çalıştırmak zorunda kalmaz. s-maxage önceden 3600
@@ -455,6 +488,8 @@ export default {
         response = await routeApi(request, env, url, ctx);
       } else if (url.pathname.startsWith('/media/')) {
         response = await handleMediaRoute(request, env, url, ctx);
+      } else if (url.pathname.startsWith('/models/')) {
+        response = await handleModelAssetRoute(request, env, url);
       } else if (url.pathname === '/sitemap.xml') {
         response = await handleSitemapRoute(request, env, ctx);
       } else if (SITEMAP_CHUNK_PATH_RE.test(url.pathname)) {
@@ -669,6 +704,7 @@ function notFoundDetailPageResponse(assetResponse, status = 404) {
 function withStaticAssetCacheHeaders(url, response) {
   if (response.status !== 200) return response;
   const extHeaders = IMAGE_EXT_RE.test(url.pathname) ? STATIC_IMAGE_CACHE_HEADERS
+    : LARGE_BINARY_EXT_RE.test(url.pathname) ? LARGE_BINARY_CACHE_HEADERS
     : SCRIPT_EXT_RE.test(url.pathname) ? STATIC_SCRIPT_CACHE_HEADERS
     : null;
   if (!extHeaders) return response;
@@ -1025,6 +1061,7 @@ async function routeApi(request, env, url, ctx) {
   // Görsel arama — /api/ai/ genel eşleşmesinden (handleAiRoute) ÖNCE yakalanmalı, tıpkı
   // /api/ai/search gibi (bkz. o satırın gerekçesi).
   if (path === '/api/ai/visual-search') return handleVisualSearchRoute(request, env, url);
+  if (path === '/api/ai/image-embed') return handleImageEmbedAppendRoute(request, env, url);
   if (path.startsWith('/api/geocode/')) return handleGeocodeRoute(request, env, url);
   if (path.startsWith('/api/architect/')) return handleArchitectRoute(request, env, url, path.slice('/api/architect/'.length));
   if (path.startsWith('/api/office/')) return handleOfficeRoute(request, env, url, path.slice('/api/office/'.length));

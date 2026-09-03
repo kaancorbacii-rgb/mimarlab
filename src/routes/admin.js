@@ -24,6 +24,7 @@ import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSe
 import { SAFE_STORAGE_BYTES, SAFE_OPS_PER_MONTH } from '../lib/r2Quota.js';
 import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
 import { rebuildIndex, indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
+import { removeEntityImages } from '../lib/imageEmbedStore.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -47,9 +48,21 @@ async function runCascadeDelete(env, user, typeKey, row) {
   if (!row) return;
   if (typeKey === 'architects') return cascadeDeleteArchitect(env, row.name);
   if (typeKey === 'offices') return cascadeDeleteOffice(env, user, row.name);
-  if (typeKey === 'projects') return cascadeDeleteProject(env, row.claimed_slug || row.slug);
-  if (typeKey === 'products') return cascadeDeleteProduct(env, 'product', `m-${row.id}`);
-  if (typeKey === 'materials') return cascadeDeleteProduct(env, 'material', `m-${row.id}`);
+  if (typeKey === 'projects') {
+    // Görsel arama VARLIK EMBEDDING dizininden de çıkar (brief madde 13: "deleted project ...
+    // embedding index'te kalmasını engelle") — cascadeDeleteProject'in kendi `key` sistemi
+    // (engagement anahtarı) farklı olduğundan burada GERÇEK slug ile ayrıca çağrılır. Başarısız
+    // olursa (KV geçici hatası) sessizce yutulur — asıl silme işlemini ENGELLEMEMELİ, en kötü
+    // durumda o proje bir sonraki manuel temizliğe kadar dizinde "hayalet" kalır.
+    const slug = row.claimed_slug || row.slug;
+    removeEntityImages(env, 'project', slug).catch(err => console.error('removeEntityImages(project) başarısız', slug, err && err.message));
+    return cascadeDeleteProject(env, slug);
+  }
+  if (typeKey === 'products' || typeKey === 'materials') {
+    if (row.slug) removeEntityImages(env, 'product', row.slug).catch(err => console.error('removeEntityImages(product) başarısız', row.slug, err && err.message));
+    const engagementType = typeKey === 'materials' ? 'material' : 'product';
+    return cascadeDeleteProduct(env, engagementType, `m-${row.id}`);
+  }
 }
 
 // gerçek bulgu (denetim raporu, 2026-08-16): düz {} obje literalinde TYPE_BY_PATH['__proto__']

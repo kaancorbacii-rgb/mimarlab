@@ -1175,10 +1175,13 @@ wireAiPanel();
 
 async function collectImages(){
   const urls = [];
+  const owners = [];
   const externalIndexes = [];
   for(const item of mediaItems){
+    item.finalUrl = null;
     if(item.kind === 'existing'){
       urls.push(item.url);
+      owners.push(item);
       if(/^https?:\/\//i.test(item.url)) externalIndexes.push(urls.length - 1);
       continue;
     }
@@ -1187,6 +1190,7 @@ async function collectImages(){
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
     urls.push(data.url);
+    owners.push(item);
   }
   // AI akışında önizlemedeki "existing" görsellerin url'i henüz bizim değil, dış bir sitenin adresi
   // olabilir (tarayıcı CORS nedeniyle bunları kendi indiremez) — bu yüzden http(s) ile başlayan
@@ -1212,7 +1216,46 @@ async function collectImages(){
       if(urls[i]) urls[i] = await MimarlabUpload.reuploadFromMediaUrl(urls[i], { context: 'product', maxEdge: 2000 });
     }));
   }
+  // Her mediaItem'a NİHAİ url'ini yaz — syncNewImageEmbeddings() bunu kullanarak hangi yüklenen
+  // dosyanın hangi imageKey'e karşılık geldiğini bulur (bkz. proje-ekle.html#collectImages AYNI desen).
+  urls.forEach((u, i) => { if(owners[i]) owners[i].finalUrl = u || null; });
   return urls.filter(Boolean);
+}
+
+// GÖRSEL ARAMA — ARTIMLI İNDEKSLEME. bkz. proje-ekle.html#syncNewImageEmbeddings dosya başı
+// yorumu — AYNI gerekçe, ürün tarafı için.
+let clipEmbedLoaderUE = null;
+function loadClipEmbedModuleUE(){
+  if(window.MimarlabClipEmbed) return Promise.resolve(window.MimarlabClipEmbed);
+  if(!clipEmbedLoaderUE){
+    clipEmbedLoaderUE = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = '/image-clip-embed.js';
+      script.onload = () => resolve(window.MimarlabClipEmbed || null);
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+  }
+  return clipEmbedLoaderUE;
+}
+async function syncNewImageEmbeddings(type, slug){
+  if(!slug) return;
+  const fresh = mediaItems.filter(it => it.file && it.finalUrl);
+  if(!fresh.length) return;
+  try{
+    const clip = await loadClipEmbedModuleUE();
+    if(!clip) return;
+    for(const it of fresh){
+      try{
+        const vec = await clip.embed(it.file);
+        if(!vec) continue;
+        await fetch('/api/ai/image-embed', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ type, slug, imageKey: it.finalUrl, embedding: Array.from(vec) }),
+        });
+      }catch(e){ /* tek görselin başarısız olması diğerlerini/kaydetmeyi engellemez */ }
+    }
+  }catch(e){ /* CLIP modülü yüklenemedi — sessizce atlanır */ }
 }
 
 document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>{
@@ -1307,6 +1350,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       notice.textContent = 'Değişiklikler kaydedildi ve yayına girdi.';
       notice.classList.add('show');
       notice.scrollIntoView({behavior:'smooth', block:'center'});
+      syncNewImageEmbeddings('product', data.slug || adminEditSlug);
       setTimeout(()=>{ window.location.replace(`/urun/${encodeURIComponent(data.slug || adminEditSlug)}`); }, 1200);
       return;
     }
@@ -1322,6 +1366,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
       // bkz. src/routes/submissions.js#createSubmission/updateOwnSubmission — artık gerçek/nihai
       // canonical slug'ı (başlık+marka'dan üretilen) döner, eskiden burada 'm-' + data.id ile
       // (artık doğru olmayan bir varsayımla) yeniden üretiliyordu.
+      syncNewImageEmbeddings('product', data.slug || ('m-' + data.id));
       setTimeout(()=>{ window.location.replace(`/urun/${encodeURIComponent(data.slug || ('m-' + data.id))}`); }, 1200);
       return;
     }

@@ -954,14 +954,51 @@
       });
     }
 
+    // js/components/auth-modal.js#loadImageUploadModule İLE AYNI desen (bkz. o dosyadaki yorum):
+    // 100 MB'a yakın CLIP model + WASM çalışma zamanı yalnızca GÖRSEL ARAMA gerçekten kullanılınca
+    // indirilir, her sayfa yüklemesinde DEĞİL. Yüklenemezse null döner, çağıran metin-kanalı
+    // yedeğine (sunucudaki bge-m3) sorunsuz düşer — akış hiçbir zaman kırılmaz.
+    let clipEmbedLoader = null;
+    function loadClipEmbedModule(){
+      if(window.MimarlabClipEmbed) return Promise.resolve(window.MimarlabClipEmbed);
+      if(!clipEmbedLoader){
+        clipEmbedLoader = new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = '/image-clip-embed.js';
+          script.onload = () => resolve(window.MimarlabClipEmbed || null);
+          script.onerror = () => resolve(null);
+          document.head.appendChild(script);
+        });
+      }
+      return clipEmbedLoader;
+    }
+
     async function runVisualSearch(file){
       const token = ++vsToken;
       vsResults.hidden = true;
       vsResults.innerHTML = '';
       // GERÇEK aşamalar (brief 21: sahte ilerleme yok) — her metin o an fiilen yapılan işi anlatır.
+      // GERÇEK GÖRSEL EMBEDDING (kullanıcı isteği, 2026-09-03 ikinci tur): sunucuya göndermeden
+      // ÖNCE tarayıcıda GERÇEK bir CLIP vektörü hesaplanır (bkz. image-clip-embed.js dosya başı
+      // yorumu — Cloudflare Workers AI'de image embedding modeli yok, harici bir API hesap
+      // gerektiriyor, bu yüzden hesaplama tarayıcıda yapılıyor). Başarısız olursa (WASM yok, ağ
+      // hatası, model ısınmamış) `imageEmbedding` gönderilmez ve sunucu OTOMATİK olarak metin
+      // kanalına düşer — kullanıcı hiçbir hata GÖRMEZ, yalnızca biraz daha az kesin sonuç alır.
+      vsSetStatus('Görsel imzası hesaplanıyor…');
+      let imageEmbedding = null;
+      try{
+        const clip = await loadClipEmbedModule();
+        if(clip){
+          const vec = await clip.embed(file);
+          if(vec) imageEmbedding = Array.from(vec);
+        }
+      } catch(e){ /* sessizce yedek kanala düşülür */ }
+      if(token !== vsToken) return;
+
       vsSetStatus('Görsel yükleniyor…');
       const fd = new FormData();
       fd.append('image', file);
+      if(imageEmbedding) fd.append('imageEmbedding', JSON.stringify(imageEmbedding));
       let res, data;
       try{
         const p = fetch('/api/ai/visual-search', { method: 'POST', body: fd });
@@ -1097,6 +1134,12 @@
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
         setTimeout(() => modalInput.focus(), 0);
+        // GERÇEK GÖRSEL EMBEDDING ISITMA (kullanıcı isteği, 2026-09-03 ikinci tur): 89 MB'lık CLIP
+        // modelini + ~11 MB WASM çalışma zamanını, kullanıcı bir görsel SEÇMEDEN ÖNCE, arka planda
+        // indirmeye başlar. Böylece "Görsel seç"e tıklandığında model çoğunlukla zaten hazırdır —
+        // bkz. image-clip-embed.js#warmup. Başarısız olursa (WASM desteklenmiyor/ağ hatası) sessizce
+        // yutulur; runVisualSearch yine de metin-kanalı yedeğine sorunsuz düşer.
+        loadClipEmbedModule().then(m => { if(m) m.warmup(); });
       },
     };
     return navSearchModalApi;
