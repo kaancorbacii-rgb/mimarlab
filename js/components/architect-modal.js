@@ -263,8 +263,12 @@ const ArchitectModal = (function () {
       <h2 class="related-title">Fotoğrafladığı Projeler<span id="am-photographed-count"></span></h2>
       <div class="related-grid-scroll" id="am-photographed-grid"></div>
     </div>
+    <!-- Kategoriye göre filtre (kullanıcı isteği, 2026-09-04) — marka pop-up'ındaki "Ürünler"
+         bölümüyle BİREBİR aynı bileşen/gruplama alanı (products.category), bkz. js/components/
+         office-modal.js#om-related-products-title ve js/components/project-group-filter.js. -->
     <div class="related-section" id="am-related-products-section" style="display:none;">
-      <h2 class="related-title">Tasarladığı Ürünler<span id="am-related-products-count"></span></h2>
+      <h2 class="related-title" id="am-related-products-title">Tasarladığı Ürünler<span id="am-related-products-count"></span><button type="button" class="pgf-toggle" id="am-products-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="am-products-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="am-related-products-grid"></div>
     </div>
     <!-- Tercih Ettiği Markalar / Kullandığı Ürünler (kullanıcı isteği, 2026-08-31; sıra yine
@@ -803,12 +807,29 @@ const ArchitectModal = (function () {
     // değil ki", 2026-08-30). office-modal.js'teki AYNI birleştirme kasıtlı olarak DOKUNULMADAN
     // bırakıldı — bir firmanın kendi markası altında gönderdiği ürün, sahiplik için çok daha güçlü bir
     // tasarımcı vekili.
-    function renderDesignerProductsGrid() {
-      document.getElementById('am-related-products-section').style.display = designerProductsData.length ? '' : 'none';
-      RelatedStrip.render(document.getElementById('am-related-products-grid'), designerProductsData, p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category));
-      document.getElementById('am-related-products-count').textContent = designerProductsData.length ? ` (${designerProductsData.length})` : '';
+    // Izgara + başlık sayacı TEK yerden çizilir; kategori filtresi seçim değiştikçe bu fonksiyonu
+    // süzülmüş listeyle yeniden çağırır (kullanıcı isteği, 2026-09-04 — yukarıdaki
+    // paintRelatedProjects ve office-modal.js#paintCatalogProducts İLE AYNI desen). Bölümün
+    // GÖRÜNÜRLÜĞÜ bilerek bu fonksiyonun DIŞINDA, tam liste üzerinden bir kez ayarlanır: filtre
+    // listeyi daraltınca bölümün kendisi (ve dolayısıyla çipleri) kaybolmasın diye.
+    function paintDesignerProducts(list) {
+      RelatedStrip.render(document.getElementById('am-related-products-grid'), list, p => cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category));
+      document.getElementById('am-related-products-count').textContent = list.length ? ` (${list.length})` : '';
     }
-    renderDesignerProductsGrid();
+    document.getElementById('am-related-products-section').style.display = designerProductsData.length ? '' : 'none';
+    paintDesignerProducts(designerProductsData);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        titleEl: document.getElementById('am-related-products-title'),
+        toggleEl: document.getElementById('am-products-filter-toggle'),
+        chipsEl: document.getElementById('am-products-filter-chips'),
+        items: designerProductsData,
+        // Ürünlerde grup = kategori (products.category TEK bir string'tir, projelerdeki type gibi
+        // dizi değil — byField ikisini de aynı şekilde ele alır).
+        groupsOf: ProjectGroupFilter.byField('category'),
+        onChange: paintDesignerProducts,
+      });
+    }
 
     // Kullandığı Ürünler / Tercih Ettiği Markalar — veri payload'la BİRLİKTE gelir (ek fetch yok).
     // Ürün kartlarının alt satırında MARKA gösterilir (bu ürünleri mimar tasarlamadı, hangi markaya
