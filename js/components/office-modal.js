@@ -286,8 +286,13 @@ const OfficeModal = (function () {
       <h2 class="related-title">Ekip</h2>
       <div class="related-grid-scroll" id="om-team-grid"></div>
     </div>
+    <!-- Başlıktaki çentik + grup çipleri (kullanıcı isteği, 2026-09-04) — bkz. js/components/
+         project-group-filter.js ve architect-modal.js'teki BİREBİR AYNI blok; künyedeki "Grup"
+         (projects.type) değerlerine göre bu ızgarayı, başlıktaki sayacı ve altındaki haritayı
+         birlikte süzer. -->
     <div class="related-section" id="om-related-projects-section" style="display:none;">
-      <h2 class="related-title">Projeler<span id="om-related-projects-count"></span></h2>
+      <h2 class="related-title">Projeler<span id="om-related-projects-count"></span><button type="button" class="pgf-toggle" id="om-projects-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="om-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
       <div class="om-projects-map-wrap" id="om-projects-map-wrap" style="display:none;"></div>
     </div>
@@ -778,11 +783,24 @@ const OfficeModal = (function () {
     RelatedStrip.render(document.getElementById('om-team-grid'), team, teamBadgeHtml);
 
     document.getElementById('om-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('om-related-projects-grid'), relatedProjectsData, p =>
-      cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
-    );
-    document.getElementById('om-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
-    renderProjectsMap(relatedProjectsData);
+    // Izgara + sayaç + harita TEK yerden çizilir — bkz. js/components/architect-modal.js#
+    // paintRelatedProjects İLE BİREBİR AYNI desen/gerekçe (kullanıcı isteği, 2026-09-04).
+    function paintRelatedProjects(list) {
+      RelatedStrip.render(document.getElementById('om-related-projects-grid'), list, p =>
+        cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
+      );
+      document.getElementById('om-related-projects-count').textContent = list.length ? ` (${list.length})` : '';
+      renderProjectsMap(list);
+    }
+    paintRelatedProjects(relatedProjectsData);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        toggleEl: document.getElementById('om-projects-filter-toggle'),
+        chipsEl: document.getElementById('om-projects-filter-chips'),
+        projects: relatedProjectsData,
+        onChange: paintRelatedProjects,
+      });
+    }
 
     // MİMARLAB AI, Faz 2 — Firma↔Şehir ilişkisi (bkz. src/routes/office.js#buildOfficePayload
     // relatedOffices yorumu). Bölüm başlığı zaten "Şehirdeki Diğer Firmalar" diyerek nedeni

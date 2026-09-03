@@ -291,7 +291,14 @@ async function withSingleFlight(key, fn) {
 //     ({label, sub}) değişmedi ama KÜME değişti ve architects fingerprint'i aynı kaldığından sürüm
 //     artırılmazsa proje-ekle sayfasını daha önce açmış tarayıcılar 304 ile eski öneri listesinde
 //     kalırdı.
-const API_PAYLOAD_VERSION = 'v6';
+// v7 (kullanıcı isteği, 2026-09-04): /api/architect/:key ve /api/office/:key yüklerindeki
+//     relatedProjects[] (ve photographedProjects[]) kartlarına YENİ bir alan eklendi — `type`
+//     (künyedeki "Grup"). Kişi/firma pop-up'ındaki yeni grup filtresi (bkz. js/components/
+//     project-group-filter.js) bu alan olmadan hiçbir çip üretemez. Bu, sürümün asıl amaçladığı
+//     durum: yanıt ŞEKLİ değişti ama architects/offices/projects fingerprint'leri değişmedi —
+//     sürüm artırılmazsa profil pop-up'ını daha önce açmış tarayıcılar aynı ETag'i gönderip 304
+//     alır ve `type`'sız eski gövdede süresiz takılırdı (filtre çentiği hiç görünmezdi).
+const API_PAYLOAD_VERSION = 'v7';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

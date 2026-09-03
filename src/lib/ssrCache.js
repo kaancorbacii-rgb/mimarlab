@@ -51,7 +51,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // AYNI tuzak). AYNI sürüm, canlıdaki 188 projenin (project_designers'a bağlanamamış serbest
 // metin künyeler) SSR gövdesindeki artık DOLU olan "Mimar / Firma" satırını + meta
 // description'daki "... imzalı." cümlesini de kapsıyor (bkz. seo.js#fetchUnlinkedProjectCredits).
-export const SSR_CACHE_VERSION = 'v109';
+// v110 (kullanıcı isteği, 2026-09-04): kisi.html/firma.html/marka.html kabuklarına YENİ bir script
+// etiketi eklendi — js/components/project-group-filter.js ("Projeler" başlığındaki grup filtresi
+// çentiği). Etiketin kendisi SSR HTML'ine gömülü olduğundan, sürüm artırılmazsa daha önce ziyaret
+// edilmiş /kisi/:slug ve /firma/:slug sayfaları s-maxage boyunca bu script'i HİÇ yüklemeyen eski
+// kabuğu sunar — pop-up açılır ama çentik hiç görünmezdi (v104/v105'teki AYNI tuzak).
+export const SSR_CACHE_VERSION = 'v110';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

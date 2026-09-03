@@ -548,7 +548,9 @@ async function buildArchitectPayload(env, key) {
   const shapeProjectsNewestFirst = rows => rows
     .map(p => {
       const parsed = parseCanonicalRow('projects', p);
-      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
+      // type — künyedeki "Grup" alanı; pop-up'taki grup filtresi (bkz. js/components/
+      // project-group-filter.js) bunun üzerinden çalışır.
+      return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), category: parsed.category, type: parsed.type, lat: parsed.lat, lng: parsed.lng, _year: parseProjectDateYear(p.project_date) };
     })
     .sort((a, b) => {
       if (a._year == null && b._year == null) return 0;

@@ -243,8 +243,12 @@ const ArchitectModal = (function () {
         <div class="related-grid-scroll" id="am-colleagues-grid"></div>
       </div>
     </div>
+    <!-- Başlıktaki çentik + grup çipleri (kullanıcı isteği, 2026-09-04) — bkz. js/components/
+         project-group-filter.js; künyedeki "Grup" (projects.type) değerlerine göre bu ızgarayı,
+         başlıktaki sayacı ve altındaki haritayı birlikte süzer. -->
     <div class="related-section" id="am-related-projects-section" style="display:none;">
-      <h2 class="related-title">Projeler<span id="am-related-projects-count"></span></h2>
+      <h2 class="related-title">Projeler<span id="am-related-projects-count"></span><button type="button" class="pgf-toggle" id="am-projects-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="am-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
       <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
     </div>
@@ -712,11 +716,26 @@ const ArchitectModal = (function () {
     }
 
     document.getElementById('am-related-projects-section').style.display = relatedProjectsData.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('am-related-projects-grid'), relatedProjectsData, p =>
-      cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
-    );
-    document.getElementById('am-related-projects-count').textContent = relatedProjectsData.length ? ` (${relatedProjectsData.length})` : '';
-    renderProjectsMap(relatedProjectsData);
+    // Izgara + sayaç + harita TEK yerden çizilir; grup filtresi (bkz. aşağıdaki ProjectGroupFilter)
+    // seçim değiştikçe bu fonksiyonu süzülmüş listeyle yeniden çağırır (kullanıcı isteği,
+    // 2026-09-04: "başlıktaki sayı da seçilen filtre grubuna ait proje sayısıyla güncellensin …
+    // alttaki harita da seçilen filtreye göre güncellensin").
+    function paintRelatedProjects(list) {
+      RelatedStrip.render(document.getElementById('am-related-projects-grid'), list, p =>
+        cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0])
+      );
+      document.getElementById('am-related-projects-count').textContent = list.length ? ` (${list.length})` : '';
+      renderProjectsMap(list);
+    }
+    paintRelatedProjects(relatedProjectsData);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        toggleEl: document.getElementById('am-projects-filter-toggle'),
+        chipsEl: document.getElementById('am-projects-filter-chips'),
+        projects: relatedProjectsData,
+        onChange: paintRelatedProjects,
+      });
+    }
 
     // Fotoğrafladığı Projeler — bkz. şablondaki AYNI gerekçe (kullanıcı isteği, 2026-09-01 madde 6);
     // "Projeler" bölümüyle BİREBİR aynı kart/sayaç deseni, yalnızca farklı veri kaynağı

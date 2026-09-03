@@ -45,7 +45,10 @@ export const OFFICE_NAMES_SQL = `GROUP_CONCAT(ofc.name, '${DESIGNER_SEP}') AS of
 // src/routes/office.js#relatedProjects — ikisi de aynı 7 alanı çıkarır). `id` DAHİL edilir ki
 // `SELECT DISTINCT` semantiği eski `p.*` hâliyle BİREBİR aynı kalsın (id birincil anahtardır,
 // dolayısıyla DISTINCT hiçbir satırı birleştirmez — eski davranış korunur).
-export const PROJECT_CARD_COLUMNS = 'p.id, p.slug, p.title, p.category, p.images, p.lat, p.lng, p.project_date, p.location';
+// `p.type` (künyedeki "Grup" alanı) 2026-09-04'te eklendi — kişi/firma pop-up'larındaki "Projeler"
+// başlığının yanındaki grup filtresi (bkz. js/components/project-group-filter.js) bu kartların
+// KENDİ üzerinden çalışır, ayrı bir istek açmaz.
+export const PROJECT_CARD_COLUMNS = 'p.id, p.slug, p.title, p.category, p.type, p.images, p.lat, p.lng, p.project_date, p.location';
 
 export function designerNamesFrom(concat) {
   return concat ? concat.split(DESIGNER_SEP).filter(Boolean) : [];
