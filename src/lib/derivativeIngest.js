@@ -102,15 +102,31 @@ export async function ingestClientDerivatives(env, form, originalKey, originalBy
   // sonsuza kadar "bekliyor" görünmeleri gerçek boşlukları gizlerdi.
   if (SKIP_RE.test(originalKey) || originalBytes < MIN_SOURCE_BYTES) return { written, pending };
 
+  // BİR BASAMAĞIN GELMEMESİ HER ZAMAN ARIZA DEĞİLDİR. İstemci, betikle AYNI kuralları uygular ve
+  // bir basamağı BİLEREK üretmez: kaynak o basamaktan darsa (büyütme yasak) ya da türev orijinalin
+  // %90'ından büyükse (kazanç yok). En yaygın örnek: master zaten 1600 px ise w1600 hiçbir zaman
+  // üretilmez. Bunları kuyruğa yazmak, betiğin her koşuda kaynağı boşuna indirip AYNI kuralla yine
+  // hiçbir şey yazmamasına yol açardı — yani kuyruk gerçek boşlukları gizleyen kalıcı bir gürültüyle
+  // dolardı (canlı doğrulamada birebir gözlendi).
+  //
+  // AYIRIM: alan HİÇ GÖNDERİLMEMİŞSE bilinçli bir atlamadır — AMA yalnızca istemci boru hattının
+  // gerçekten çalıştığını biliyorsak. Boru hattı hiç çalışmamışsa (WebP kodlayamayan eski tarayıcı,
+  // decode hatası, /api/ai/copy-images'in sunucu tarafı kopyası) HİÇBİR alan gelmez — o zaman
+  // eksiklik gerçektir ve kuyruğa girer. Alan GÖNDERİLMİŞ ama reddedilmişse (bozuk gövde, yanlış
+  // genişlik, kota) bu her hâlükârda gerçek bir arızadır ve kuyruğa girer.
+  const clientRan = DERIVATIVE_WIDTHS.some(w => {
+    const part = form.get(`d${w}`);
+    return part && typeof part !== 'string' && part.size > 0;
+  });
+
   for (const width of DERIVATIVE_WIDTHS) {
     let reserved = 0;
     try {
-      const buffer = await readDerivative(form.get(`d${width}`), width, originalBytes);
+      const part = form.get(`d${width}`);
+      const supplied = !!part && typeof part !== 'string' && part.size > 0;
+      const buffer = supplied ? await readDerivative(part, width, originalBytes) : null;
       if (!buffer) {
-        // İki ayrı durum aynı sonuca çıkar ve ayırt edilemez: (a) istemci "kazanç yok"/"büyütme yok"
-        // diye bilinçli olarak üretmedi, (b) üretemedi. (a) kuyruğa girse bile zararsızdır: betik
-        // AYNI kuralları uygular, yine hiçbir şey yazmaz ve satırı temizler.
-        pending.push(width);
+        if (supplied || !clientRan) pending.push(width);
         continue;
       }
       const quota = await reserveR2Usage(env, buffer.byteLength);
