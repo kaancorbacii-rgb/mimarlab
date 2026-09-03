@@ -247,7 +247,7 @@ const ArchitectModal = (function () {
          project-group-filter.js; künyedeki "Grup" (projects.type) değerlerine göre bu ızgarayı,
          başlıktaki sayacı ve altındaki haritayı birlikte süzer. -->
     <div class="related-section" id="am-related-projects-section" style="display:none;">
-      <h2 class="related-title">Projeler<span id="am-related-projects-count"></span><button type="button" class="pgf-toggle" id="am-projects-filter-toggle" style="display:none;"></button></h2>
+      <h2 class="related-title" id="am-related-projects-title">Projeler<span id="am-related-projects-count"></span><button type="button" class="pgf-toggle" id="am-projects-filter-toggle" style="display:none;"></button></h2>
       <div class="pgf-chips" id="am-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="am-related-projects-grid"></div>
       <div class="am-projects-map-wrap" id="am-projects-map-wrap" style="display:none;"></div>
@@ -730,9 +730,12 @@ const ArchitectModal = (function () {
     paintRelatedProjects(relatedProjectsData);
     if (typeof ProjectGroupFilter !== 'undefined') {
       ProjectGroupFilter.attach({
+        // titleEl: başlığa tıklamak da çentikle AYNI şekilde açar/kapatır (kullanıcı isteği,
+        // 2026-09-04 madde 1).
+        titleEl: document.getElementById('am-related-projects-title'),
         toggleEl: document.getElementById('am-projects-filter-toggle'),
         chipsEl: document.getElementById('am-projects-filter-chips'),
-        projects: relatedProjectsData,
+        items: relatedProjectsData,
         onChange: paintRelatedProjects,
       });
     }

@@ -14,7 +14,14 @@
 //     getirdiğinden bağımsız); son liste her mount()'ta ağırlıklı-rastgele karıştırılır (bkz.
 //     weightedSample) — popup her açıldığında birebir aynı sıralama/liste çıkmaz.
 const ArchitectProjects = (function () {
-  const DEFAULT_IDS = { section: 'pm-same-designer-section', grid: 'pm-same-designer-grid', count: 'pm-same-designer-count' };
+  // filterTitle/filterToggle/filterChips — "gruba göre filtrele" çentiği (kullanıcı isteği,
+  // 2026-09-04 madde 2), bkz. js/components/project-group-filter.js. Bu üçü OPSİYONELDİR: id'ler
+  // DOM'da yoksa (ör. bu bölümü kendi şablonunda basan başka bir sayfa) attach() hiç çağrılmaz ve
+  // bölüm bugünkü davranışıyla birebir aynı kalır.
+  const DEFAULT_IDS = {
+    section: 'pm-same-designer-section', grid: 'pm-same-designer-grid', count: 'pm-same-designer-count',
+    filterTitle: 'pm-same-designer-heading', filterToggle: 'pm-same-designer-filter-toggle', filterChips: 'pm-same-designer-filter-chips',
+  };
   // mountSeq: project-comments.js#mountSeq ile AYNI desen/gerekçe — proje popup'ı hızla
   // değiştirildiğinde önceki projenin yavaş kalan sayfalanmış /api/projects isteği, artık ekranda
   // olan YENİ projenin "Diğer Projeleri" bölümünü ezmesin diye.
@@ -124,9 +131,32 @@ const ArchitectProjects = (function () {
     // Sabit bir üst sınır YOK (kullanıcı isteği: "TÜM projelerinin eksiksiz listelenmesi") —
     // .related-grid-scroll zaten yatay kaydırmalı bir satır (bkz. proje.html), liste ne kadar
     // uzarsa uzasın taşma olmadan kaydırılarak gezilebilir.
-    RelatedStrip.render(document.getElementById(mergedIds.grid), merged, cardHtml);
-    const countEl = document.getElementById(mergedIds.count);
-    if (countEl) countEl.textContent = ` (${merged.length})`;
+    // Izgara + başlık sayacı TEK yerden çizilir; grup filtresi seçim değiştikçe bu fonksiyonu
+    // süzülmüş listeyle yeniden çağırır (kullanıcı isteği, 2026-09-04 madde 2 — kişi/firma
+    // pop-up'larındaki paintRelatedProjects İLE AYNI desen). Bölümün display'i bilerek burada
+    // DEĞİL yukarıda, tam liste üzerinden ayarlanır: filtre daraltınca bölüm (ve çipleri)
+    // kaybolmasın diye.
+    function paint(list) {
+      RelatedStrip.render(document.getElementById(mergedIds.grid), list, cardHtml);
+      const countEl = document.getElementById(mergedIds.count);
+      if (countEl) countEl.textContent = ` (${list.length})`;
+    }
+    paint(merged);
+    const filterToggle = document.getElementById(mergedIds.filterToggle);
+    const filterChips = document.getElementById(mergedIds.filterChips);
+    if (typeof ProjectGroupFilter !== 'undefined' && filterToggle && filterChips) {
+      ProjectGroupFilter.attach({
+        // Hem başlığa hem çentiğe tıklamak açar (kullanıcı isteği) — dinleyici başlığa bağlanır,
+        // çentik zaten onun içindedir.
+        titleEl: document.getElementById(mergedIds.filterTitle),
+        toggleEl: filterToggle,
+        chipsEl: filterChips,
+        // /api/projects kartları künyedeki "Grup"u `type` dizisi olarak taşır (bkz.
+        // src/lib/projectPool.js#shapeProjectItem) — varsayılan okuyucu bu yüzden yeterli.
+        items: merged,
+        onChange: paint,
+      });
+    }
     return { slugs: new Set(merged.map(p => p.slug)) };
   }
 

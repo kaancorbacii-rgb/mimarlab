@@ -56,7 +56,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // çentiği). Etiketin kendisi SSR HTML'ine gömülü olduğundan, sürüm artırılmazsa daha önce ziyaret
 // edilmiş /kisi/:slug ve /firma/:slug sayfaları s-maxage boyunca bu script'i HİÇ yüklemeyen eski
 // kabuğu sunar — pop-up açılır ama çentik hiç görünmezdi (v104/v105'teki AYNI tuzak).
-export const SSR_CACHE_VERSION = 'v110';
+// v111 (kullanıcı isteği, 2026-09-04 madde 2): proje.html kabuğuna da project-group-filter.js
+// script etiketi eklendi — proje pop-up'ındaki "Firmanın Diğer Projeleri" bölümü artık aynı grup
+// filtresini kullanıyor. v110'daki AYNI tuzak, bu kez /proje/:slug için: sürüm artırılmazsa daha
+// önce ziyaret edilmiş proje sayfaları s-maxage boyunca bu script'i hiç yüklemeyen eski kabuğu
+// sunar ve çentik o sayfalarda görünmezdi.
+export const SSR_CACHE_VERSION = 'v111';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

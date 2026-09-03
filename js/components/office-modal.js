@@ -291,7 +291,7 @@ const OfficeModal = (function () {
          (projects.type) değerlerine göre bu ızgarayı, başlıktaki sayacı ve altındaki haritayı
          birlikte süzer. -->
     <div class="related-section" id="om-related-projects-section" style="display:none;">
-      <h2 class="related-title">Projeler<span id="om-related-projects-count"></span><button type="button" class="pgf-toggle" id="om-projects-filter-toggle" style="display:none;"></button></h2>
+      <h2 class="related-title" id="om-related-projects-title">Projeler<span id="om-related-projects-count"></span><button type="button" class="pgf-toggle" id="om-projects-filter-toggle" style="display:none;"></button></h2>
       <div class="pgf-chips" id="om-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-related-projects-grid"></div>
       <div class="om-projects-map-wrap" id="om-projects-map-wrap" style="display:none;"></div>
@@ -299,8 +299,14 @@ const OfficeModal = (function () {
     <!-- Ürünler — marka kataloğu. Ürün/malzeme ayrımı KALDIRILDI (kullanıcı isteği, 2026-08-31:
          "malzemeler de ürünler kısmına dahil edilsin"); zaten iki bölümün de başlığı "Ürünler"di ve
          aynı popup'ta arka arkaya iki özdeş başlık çıkıyordu. -->
+    <!-- Ürünlerde de aynı filtre (kullanıcı isteği, 2026-09-04 madde 3: "Marka popuplarındaki
+         Ürünler başlığına da aynı şekilde firma popuplarındaki gibi filtreleme özelliği getir,
+         ürünler kategorilerine göre filtrelenebilsinler") — tek fark gruplama alanı: projelerde
+         künyedeki "Grup" (type), burada ürünün KATEGORİSİ (products.category, kartın alt satırında
+         zaten gösterilen değer). -->
     <div class="related-section" id="om-related-products-section" style="display:none;">
-      <h2 class="related-title">Ürünler<span id="om-related-products-count"></span></h2>
+      <h2 class="related-title" id="om-related-products-title">Ürünler<span id="om-related-products-count"></span><button type="button" class="pgf-toggle" id="om-products-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="om-products-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-related-products-grid"></div>
     </div>
     <!-- İlgili Markalar, "Projelerde Kullanılan Ürünler"in ÜSTÜNDE (kullanıcı isteği, 2026-08-31) —
@@ -795,9 +801,12 @@ const OfficeModal = (function () {
     paintRelatedProjects(relatedProjectsData);
     if (typeof ProjectGroupFilter !== 'undefined') {
       ProjectGroupFilter.attach({
+        // titleEl: başlığa tıklamak da çentikle AYNI şekilde açar/kapatır (kullanıcı isteği,
+        // 2026-09-04 madde 1).
+        titleEl: document.getElementById('om-related-projects-title'),
         toggleEl: document.getElementById('om-projects-filter-toggle'),
         chipsEl: document.getElementById('om-projects-filter-chips'),
-        projects: relatedProjectsData,
+        items: relatedProjectsData,
         onChange: paintRelatedProjects,
       });
     }
@@ -838,12 +847,31 @@ const OfficeModal = (function () {
     function productCardHtml(p) {
       return cardHtml(p.slug ? `/urun/${encodeURIComponent(p.slug)}` : '/urun', p.title, (p.images && p.images[0]) || p.image, p.category);
     }
-    function renderProductGrid(sectionId, gridId, items, countId) {
-      document.getElementById(sectionId).style.display = items.length ? '' : 'none';
-      RelatedStrip.render(document.getElementById(gridId), items, productCardHtml);
-      if (countId) document.getElementById(countId).textContent = items.length ? ` (${items.length})` : '';
+    // Marka kataloğu + kategori filtresi (kullanıcı isteği, 2026-09-04 madde 3) — "Projeler"
+    // bölümündeki paintRelatedProjects İLE AYNI desen: ızgara ve başlık sayacı tek bir çizim
+    // fonksiyonundan geldiği için seçim değiştiğinde ikisi birlikte güncellenir. (Ürünler
+    // bölümünün altında harita YOK, tek fark bu.) Bölümün GÖRÜNÜRLÜĞÜ bilerek bu fonksiyonun
+    // DIŞINDA, tam katalog üzerinden bir kez belirlenir — filtre listeyi daraltınca bölümün
+    // kendisi (ve dolayısıyla filtre çipleri) kaybolmasın diye.
+    const catalogProductsData = [...brandProductsData, ...brandMaterialsData];
+    function paintCatalogProducts(list) {
+      RelatedStrip.render(document.getElementById('om-related-products-grid'), list, productCardHtml);
+      document.getElementById('om-related-products-count').textContent = list.length ? ` (${list.length})` : '';
     }
-    renderProductGrid('om-related-products-section', 'om-related-products-grid', [...brandProductsData, ...brandMaterialsData], 'om-related-products-count');
+    document.getElementById('om-related-products-section').style.display = catalogProductsData.length ? '' : 'none';
+    paintCatalogProducts(catalogProductsData);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        titleEl: document.getElementById('om-related-products-title'),
+        toggleEl: document.getElementById('om-products-filter-toggle'),
+        chipsEl: document.getElementById('om-products-filter-chips'),
+        items: catalogProductsData,
+        // Ürünlerde grup = kategori (products.category TEK bir string'tir, projelerdeki type gibi
+        // dizi değil — byField ikisini de aynı şekilde ele alır).
+        groupsOf: ProjectGroupFilter.byField('category'),
+        onChange: paintCatalogProducts,
+      });
+    }
 
     // Projelerde Kullanılan Ürünler — payload'la BİRLİKTE gelir (ek bir fetch yok), bu yüzden
     // renderProductGrid'in submission-birleştirme/dedupe mantığına ihtiyaç duymaz. Kart alt satırı

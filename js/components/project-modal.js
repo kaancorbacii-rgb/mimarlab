@@ -84,8 +84,15 @@ const ProjectModal = (function () {
       </div>
     </div>
 
+    <!-- Gruba göre filtre çentiği (kullanıcı isteği, 2026-09-04 madde 2: "Bu filtreleme özelliğini
+         proje popuplarında Firmanın Diğer Projeleri kısmına da ekle. Hem başlığa hem de sağı
+         gösteren çentiğe tıklayınca filtreleme butonları açılsın.") — kişi/firma pop-up'larındaki
+         "Projeler" bölümüyle BİREBİR aynı bileşen, bkz. js/components/project-group-filter.js.
+         Çipler ArchitectProjects.mount()'ın topladığı listeden üretilir (bkz. o dosyadaki
+         onFilter geri çağrısı). -->
     <div class="related-section" id="pm-same-designer-section" aria-live="polite">
-      <h2 class="related-title"><span id="pm-same-designer-title">Mimarın Diğer Projeleri</span><span id="pm-same-designer-count"></span></h2>
+      <h2 class="related-title" id="pm-same-designer-heading"><span id="pm-same-designer-title">Mimarın Diğer Projeleri</span><span id="pm-same-designer-count"></span><button type="button" class="pgf-toggle" id="pm-same-designer-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="pm-same-designer-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="pm-same-designer-grid"></div>
     </div>
 

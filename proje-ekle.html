@@ -280,10 +280,11 @@
   /* ---------- MARKA/ÜRÜN CHIP LİSTESİ ---------- */
   .brand-add-row{display:flex; gap:10px; align-items:flex-start;}
   .brand-add-row .ac-field{flex:1; min-width:0;}
-  /* Firma/Ürün açılır menüleri (kullanıcı isteği, 2026-09-01 madde 7) — görünümleri sayfadaki
+  /* Marka/Ürün açılır menüleri (kullanıcı isteği, 2026-09-01 madde 7) — görünümleri sayfadaki
      diğer form alanlarıyla (input/textarea) AYNI olsun diye .form-field input kuralının aynı
-     değerlerini taşır; .ac-field ile aynı esneme davranışı. */
-  .brand-add-row .brand-select, .brand-add-row .brand-other-input{
+     değerlerini taşır; .ac-field ile aynı esneme davranışı. (.brand-other-input seçicisi 2026-09-04'te
+     düştü: serbest metinli "Diğer" seçeneği kaldırıldı, o kutu artık DOM'da yok.) */
+  .brand-add-row .brand-select{
     flex:1; min-width:0; width:100%; box-sizing:border-box;
     padding:11px 13px; border:1px solid var(--line); border-radius:10px;
     background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px;
@@ -679,25 +680,26 @@
       </div>
 
       <div class="form-section">
-        <h2>Projede Kullanılan Ürünler <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <p class="section-hint">Projede kullanılan ürünleri eklemek için marka ya da ürün arat. Yüklediğin görsellerde ürünleri etiketleyebilirsin.</p>
+        <h2>Projede Kullanılan Markalar / Ürünler <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+        <p class="section-hint">Projede kullanılan markaları ya da ürünleri eklemek için marka ya da ürün arat. Ayrıca yüklediğin görsellere tıklayarak ürünleri etiketleyebilirsin.</p>
         <div class="form-field">
-          <!-- Firma ve Ürün artık SERBEST METİN DEĞİL, AÇILIR MENÜ (kullanıcı isteği, 2026-09-01
+          <!-- Marka ve Ürün SERBEST METİN DEĞİL, AÇILIR MENÜ (kullanıcı isteği, 2026-09-01
                madde 7: "sadece sitede yüklü olan firmalardan biri seçilebilsin ... bir firma
                seçince ürün kutucuğunda da yine sadece o firmaya ait ürünler seçilebilir menü
-               şeklinde çıksın"). Sitede karşılığı olmayan bir ürün için son satırdaki "Diğer"
-               seçilir; o zaman ürün kutusu serbest metne döner (bkz. syncProductField). -->
+               şeklinde çıksın"). Etiketler "Firma" -> "Marka" olarak değişti ve serbest metinli
+               "Diğer" seçeneği KALDIRILDI (kullanıcı isteği, 2026-09-04 madde 4) — kutunun tek
+               işi artık sitede KAYITLI marka/ürün seçmek; ürün seçmek zorunlu değil, yalnızca
+               marka da eklenebilir (bkz. addBrandChip). -->
           <div class="brand-add-row">
-            <select id="p-brand-select" class="brand-select" aria-label="Firma">
-              <option value="">Firma seç</option>
+            <select id="p-brand-select" class="brand-select" aria-label="Marka">
+              <option value="">Marka seç</option>
             </select>
             <select id="p-product-select" class="brand-select" aria-label="Ürün" disabled>
-              <option value="">Önce firma seç</option>
+              <option value="">Önce marka seç</option>
             </select>
-            <input type="text" id="p-product-input" class="brand-other-input" placeholder="Ürün adı" autocomplete="off" style="display:none;">
             <button type="button" class="brand-add-btn" id="brand-add-btn">+ Ekle</button>
           </div>
-          <div class="form-hint" id="brand-add-hint">Firma ve ürünü açılır listeden seç. Sitede kayıtlı olmayan bir ürün için firma listesinden "Diğer"i seçip adını yazabilirsin. Eklemek için "+ Ekle"ye bas.</div>
+          <div class="form-hint" id="brand-add-hint">Sadece marka seçimleri de yapabilirsin, ürün seçmek zorunlu değil.</div>
           <div class="brand-chip-list" id="brand-chip-list"></div>
         </div>
       </div>
@@ -1217,25 +1219,25 @@ async function fillDesignerFromOffice(officeName){
   }catch{}
 }
 wireAutocompleteLive('p-office', 'ac-ofis-suggestions', '/api/offices/search', { onPick: (item) => fillDesignerFromOffice(item.label) });
-// "Projede Kullanılan Ürünler" kutusu — Firma ve Ürün AÇILIR MENÜ (kullanıcı isteği, 2026-09-01
-// madde 7). Serbest metin + autocomplete yerine <select> kullanılmasının nedeni: kutuya yalnızca
-// SİTEDE KAYITLI bir firma/ürün girilebilmesi isteniyordu ve autocomplete bunu ancak "seçileni
-// hatırla, sonra metinle karşılaştır" gibi kırılgan bir kontrolle sağlayabiliyordu (kullanıcı
-// seçtikten sonra metni değiştirebiliyordu). Menüde geçersiz bir değer üretmek mümkün değil.
+// "Projede Kullanılan Markalar / Ürünler" kutusu — Marka ve Ürün AÇILIR MENÜ (kullanıcı isteği,
+// 2026-09-01 madde 7). Serbest metin + autocomplete yerine <select> kullanılmasının nedeni: kutuya
+// yalnızca SİTEDE KAYITLI bir marka/ürün girilebilmesi isteniyordu ve autocomplete bunu ancak
+// "seçileni hatırla, sonra metinle karşılaştır" gibi kırılgan bir kontrolle sağlayabiliyordu
+// (kullanıcı seçtikten sonra metni değiştirebiliyordu). Menüde geçersiz bir değer üretmek mümkün
+// değil.
 //
-// Firma listesi /api/products/brands'ten TEK SEFERDE çekilir (marka sayısı iki haneli, bkz. o
+// Marka listesi /api/products/brands'ten TEK SEFERDE çekilir (marka sayısı iki haneli, bkz. o
 // ucun LIMIT notu); ürün listesi ise seçilen markaya göre /api/products/search?brand=... ile
-// doldurulur — yani "bir firma seçince ürün kutucuğunda sadece o firmaya ait ürünler" isteğinin
+// doldurulur — yani "bir marka seçince ürün kutucuğunda sadece o markaya ait ürünler" isteğinin
 // doğrudan karşılığı.
 //
-// BRAND_OTHER: listenin EN SON satırındaki "Diğer". Seçilince ürün menüsü gizlenip yerine serbest
-// metin kutusu gelir; oluşan chip'in markası BOŞ kalır. Bu bilinçli: src/lib/canonicalSync.js#
-// resolveProjectProductLinks markasız bir girdiyi atlar, yani sitede karşılığı olmayan bu ad
-// hiçbir ürüne yanlışlıkla bağlanmaz — yalnızca projenin künyesinde metin olarak durur.
-const BRAND_OTHER = '__other__';
+// Serbest metinli "Diğer" seçeneği KALDIRILDI (kullanıcı isteği, 2026-09-04 madde 4). Sitede
+// karşılığı olmayan bir ad zaten hiçbir ürüne bağlanamıyordu (src/lib/canonicalSync.js#
+// resolveProjectProductLinks markasız girdiyi atlar), yalnızca künyede metin olarak duruyordu;
+// artık kutunun tek işi kayıtlı marka/ürün seçmek. Ürün seçmek ZORUNLU DEĞİL — yalnızca marka
+// seçip "+ Ekle"ye basmak geçerli bir giriştir (bkz. addBrandChip).
 const brandSelect = document.getElementById('p-brand-select');
 const productSelect = document.getElementById('p-product-select');
-const productInput = document.getElementById('p-product-input');
 
 function optionHtml(value, label){
   return `<option value="${escapeAttr(value)}">${escapeAttr(label)}</option>`;
@@ -1244,9 +1246,8 @@ fetch('/api/products/brands')
   .then(res => res.ok ? res.json() : {items: []})
   .then(data => {
     const names = (data.items || []).map(it => it.label).filter(Boolean);
-    brandSelect.innerHTML = optionHtml('', 'Firma seç')
-      + names.map(n => optionHtml(n, n)).join('')
-      + optionHtml(BRAND_OTHER, 'Diğer');
+    brandSelect.innerHTML = optionHtml('', 'Marka seç')
+      + names.map(n => optionHtml(n, n)).join('');
   })
   .catch(()=>{});
 
@@ -1268,17 +1269,8 @@ async function loadProductsForBrand(brand){
 function syncProductField(){
   const brand = brandSelect.value;
   setBrandAddHint('');
-  if(brand === BRAND_OTHER){
-    productSelect.style.display = 'none';
-    productInput.style.display = '';
-    productInput.value = '';
-    productInput.focus();
-    return;
-  }
-  productInput.style.display = 'none';
-  productSelect.style.display = '';
   if(!brand){
-    productSelect.innerHTML = optionHtml('', 'Önce firma seç');
+    productSelect.innerHTML = optionHtml('', 'Önce marka seç');
     productSelect.disabled = true;
     return;
   }
@@ -1294,7 +1286,7 @@ function syncProductField(){
 }
 brandSelect.addEventListener('change', syncProductField);
 
-const BRAND_ADD_HINT_DEFAULT = 'Firma ve ürünü açılır listeden seç. Sitede kayıtlı olmayan bir ürün için firma listesinden "Diğer"i seçip adını yazabilirsin. Eklemek için "+ Ekle"ye bas.';
+const BRAND_ADD_HINT_DEFAULT = 'Sadece marka seçimleri de yapabilirsin, ürün seçmek zorunlu değil.';
 function setBrandAddHint(msg){
   const el = document.getElementById('brand-add-hint');
   if(!el) return;
@@ -1357,34 +1349,26 @@ function removeBrandChipForProduct(hotspot){
   if(brandChips.length !== before) renderBrandChips();
 }
 
+// Ürün seçimi OPSİYONELDİR (kullanıcı isteği, 2026-09-04 madde 4: "Sadece marka seçimleri de
+// yapabilirsin") — yalnızca marka seçilip eklenirse chip'in product'ı null kalır ve künyede marka
+// adıyla görünür.
 function addBrandChip(){
-  const selected = brandSelect.value;
-  if(!selected){
-    setBrandAddHint('Önce listeden bir firma seç.');
+  const brand = brandSelect.value;
+  if(!brand){
+    setBrandAddHint('Önce listeden bir marka seç.');
     brandSelect.focus();
     return;
   }
-  // "Diğer": sitede kaydı olmayan ürün — marka BOŞ bırakılır (bkz. BRAND_OTHER yorumu).
-  const brand = selected === BRAND_OTHER ? '' : selected;
-  const product = (selected === BRAND_OTHER ? productInput.value : productSelect.value).trim();
-  if(selected === BRAND_OTHER && !product){
-    setBrandAddHint('Ürün adını yaz.');
-    productInput.focus();
-    return;
-  }
+  const product = productSelect.value.trim();
   const exists = brandChips.some(c => trLower(c.brand || '') === trLower(brand)
     && trLower(c.product || '') === trLower(product));
-  if(!exists) brandChips.push({ brand: brand || null, product: product || null });
+  if(!exists) brandChips.push({ brand: brand, product: product || null });
   brandSelect.value = '';
-  productInput.value = '';
   syncProductField();
   renderBrandChips();
   brandSelect.focus();
 }
 document.getElementById('brand-add-btn').addEventListener('click', addBrandChip);
-productInput.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){ e.preventDefault(); addBrandChip(); }
-});
 
 function mediaItemSrc(item){
   return item.kind === 'existing' ? item.url : item.objectUrl;
