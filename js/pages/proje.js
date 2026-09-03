@@ -303,6 +303,7 @@ function syncBrowserUrl(push){
   if(newUrl === location.pathname + location.search) return;
   if(push) history.pushState({}, '', newUrl);
   else history.replaceState({}, '', newUrl);
+  if(window.ModalShell && ModalShell.markRealPage) ModalShell.markRealPage();
 }
 
 function optRow(g, opt, count, nested){

@@ -1718,8 +1718,12 @@ const AuthModal = (function () {
       document.getElementById('am-edit-about').value = accountUser.about || '';
       document.getElementById('am-social-rows').innerHTML = '';
       (accountUser.social_links || []).forEach(s => addAmSocialRow(s.platform, s.url));
-      await loadFirmaOptions();
-      await prefillFirmaSelect();
+      // Bilerek await EDİLMİYOR (kullanıcı isteği, 2026-09-03: "Hesabım çok yavaş yükleniyor") —
+      // ikisi de henüz görünmeyen Profili Düzenle formunun Firma açılır listesini doldurur, dashboard
+      // kutularının (bildirim/mesaj/rozet/firma bilgisi) render'ını beklettirmeye değmez. Onlar
+      // loadUser()'ın DÖNÜŞÜNÜ bekleyen aşağıdaki paralel yükleme grubunda (loadUser().then(...)).
+      loadFirmaOptions().catch(() => {});
+      prefillFirmaSelect().catch(() => {});
     }
 
     // Doğum Yılı artık bir açılır liste (bkz. kullanıcı isteği) — yıl aralığı önceki number
@@ -1746,6 +1750,15 @@ const AuthModal = (function () {
     // 96/sayfa) tüm firmaları toplamak için totalPages'e kadar döngüyle çekilir; sonuç bu modülün
     // ömrü boyunca önbelleklenir (allOfficeNamesPromise) — modal her açıldığında/loadUser her
     // çalıştığında yeniden istek atılmaz.
+    // loadMyClaims() (dashboard) VE prefillFirmaSelect() (Profili Düzenle formu) AYNI /api/claims/mine
+    // ucunu okuyordu — ikisi de loadUser()'ın tetiklediği açılışta neredeyse eşzamanlı çağrıldığından
+    // her Hesabım açılışında bu uca gereksiz İKİNCİ bir istek atılıyordu (bkz. kullanıcı isteği,
+    // 2026-09-03: "Hesabım çok yavaş yükleniyor"). Tek sonuç mountAccount() ömrü boyunca paylaşılır.
+    let myClaimsPromise = null;
+    function fetchMyClaims() {
+      if (!myClaimsPromise) myClaimsPromise = fetch('/api/claims/mine').then(r => r.ok ? r.json() : { items: [] }).catch(() => ({ items: [] }));
+      return myClaimsPromise;
+    }
     let allOfficeNamesPromise = null;
     async function fetchAllOfficeNames() {
       const names = [];
@@ -1773,8 +1786,7 @@ const AuthModal = (function () {
     async function prefillFirmaSelect() {
       const select = document.getElementById('am-edit-office');
       try {
-        const claimsRes = await fetch('/api/claims/mine');
-        const claims = claimsRes.ok ? (await claimsRes.json()).items || [] : [];
+        const claims = (await fetchMyClaims()).items || [];
         const officeClaim = claims.find(c => c.profile_type === 'office' && c.status === 'approved')
           || claims.find(c => c.profile_type === 'office' && c.status === 'pending');
         select.value = officeClaim ? officeClaim.profile_key : '';
@@ -2478,8 +2490,7 @@ const AuthModal = (function () {
     }
 
     async function loadMyClaims() {
-      const res = await fetch('/api/claims/mine');
-      const data = res.ok ? await res.json() : { items: [] };
+      const data = await fetchMyClaims();
       const items = data.items || [];
       amClaimItems = items;
       refreshArchitectSyncState(items);

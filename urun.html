@@ -690,6 +690,7 @@ function syncBrowserUrl(push){
   const newUrl = location.pathname + (qs ? '?' + qs : '');
   if(newUrl === location.pathname + location.search) return;
   if(push) history.pushState({}, '', newUrl); else history.replaceState({}, '', newUrl);
+  if(window.ModalShell && ModalShell.markRealPage) ModalShell.markRealPage();
 }
 function applyStateFromUrl(){
   const params = new URLSearchParams(location.search);
