@@ -1436,6 +1436,9 @@ const AuthModal = (function () {
   // (bekleyen bir talep henüz düzenleme yetkisi vermez).
   let firmInfoSlug = null;
   let firmInfoApproved = false;
+  // Onaylı firma talebinin ONAY ANINDA dondurulmuş office_position'ı (bkz. renderFirmEditBtn) —
+  // /api/claims/mine artık bu alanı döndürüyor.
+  let firmInfoPosition = null;
   // /api/public/badges: profil başına TEK, nihai rozeti döndürür (admin_badges satın alınanın
   // yerine geçer, bkz. src/routes/badges.js#computeBadgesPayload) — Mimar/Firma satırındaki rozet
   // ikonu buradan okunur, kendi satın aldığından (amBadgeItems) DEĞİL, böylece site genelindeki
@@ -2518,12 +2521,16 @@ const AuthModal = (function () {
         firmInfoKey = null;
         firmInfoSlug = null;
         firmInfoApproved = false;
+        firmInfoPosition = null;
         renderFirmEditBtn();
         box.innerHTML = '<div class="dash-empty">Henüz bir firmada görev almıyorsun. Profili Düzenle\'den firmanı seçebilirsin.</div>';
         renderClaimsList();
         return;
       }
       firmInfoApproved = claim.status === 'approved';
+      // Onay anında dondurulmuş pozisyon (bkz. renderFirmEditBtn'deki gerçek bulgu) — accountUser'ın
+      // CANLI position'ı değil, sunucunun düzenleme yetkisi için gerçekten baktığı değer.
+      firmInfoPosition = claim.officePosition || null;
       // Künye çekilemese bile buton bir hedefe sahip olsun: talebin kendi slug'ı (yoksa adı).
       firmInfoSlug = claim.slug || claim.profile_key;
       renderFirmEditBtn();
@@ -2579,11 +2586,18 @@ const AuthModal = (function () {
     // accountUser (pozisyon) ve firma talebi (loadMyClaims) BAĞIMSIZ/paralel yüklendiğinden bu
     // fonksiyon her ikisinin de bittiği yerlerden ayrı ayrı çağrılır — hangisi sonra biterse
     // butonu doğru duruma getirir (renderClaimsList ile AYNI desen).
+    //
+    // gerçek bulgu (denetim, 2026-09-04, bkz. js/components/claim-correction-box.js#
+    // renderProfileEditButton'daki AYNI düzeltme): burada accountUser.position (CANLI pozisyon)
+    // okunuyordu, sunucu ise talebin ONAY ANINDA dondurulmuş office_position'ına bakıyor. Kullanıcı
+    // pozisyonunu sonradan değiştirdiğinde ikisi ayrışıyor ve buton ya haksız yere gizleniyor
+    // (gerçek sahip kendi firmasından kilitleniyor) ya da haksız yere gösteriliyordu (yukarıdaki
+    // yorumun tam da önlemek istediği "boş yere doldurulan form, sonra 403" durumu).
     function renderFirmEditBtn() {
       const btn = document.getElementById('am-firm-edit-btn');
       if (!btn) return;
       const canEdit = !!firmInfoSlug && firmInfoApproved
-        && OFFICE_EDIT_POSITIONS.has(accountUser && accountUser.position);
+        && OFFICE_EDIT_POSITIONS.has(firmInfoPosition);
       btn.style.display = canEdit ? '' : 'none';
       if (canEdit) btn.href = `${CLAIM_EDIT_PAGE.office}?claim=${encodeURIComponent(firmInfoSlug)}`;
     }

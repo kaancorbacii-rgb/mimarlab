@@ -732,6 +732,22 @@ async function handleProfileOptionsAdmin(env, url) {
 // kullanıcı isteği: "Adminin bir mimar ya da firmayı bir kullanıcı üzerine atama yetkisi olsun",
 // aşağıdaki normal onay akışının (sahiplenme talebi + admin onayı) kısayolu, sonuç AYNI approved
 // profile_claims satırı)
+//
+// office_position — bir firma/marka talebini onaylarken admin'in AÇIKÇA seçebildiği (ve varsayılan
+// olarak kullanıcının o anki position'ından gelen) dondurulmuş pozisyon. gerçek bulgu (denetim,
+// 2026-09-04, canlı veri: "MEEZ Mimarlık" talebi): kullanıcı kendi profilinde hiç Pozisyon
+// seçmemişse office_position NULL olarak donuyor ve onay HİÇBİR düzenleme yetkisi vermiyordu —
+// ne kullanıcıya ne admin'e bir uyarı çıkmadan. Admin panelinde artık bir pozisyon seçici + uyarı
+// var (bkz. admin.html#loadOwnershipClaims), bu uç de o seçimi kabul eder.
+const OFFICE_POSITIONS_ADMIN = new Set([
+  'Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri', 'Ekip Üyesi',
+  'Akademisyen', 'Serbest Çalışan', 'Öğrenci', 'Emekli', 'İşsiz',
+]);
+function normalizeOfficePosition(value) {
+  const v = (value || '').trim();
+  return OFFICE_POSITIONS_ADMIN.has(v) ? v : null;
+}
+
 async function handleClaimsAdmin(request, env, url, segments) {
   if (segments.length === 3 && request.method === 'POST') {
     const body = await readJson(request);
@@ -748,7 +764,11 @@ async function handleClaimsAdmin(request, env, url, segments) {
     // bkz. migrations/0068 — office_position, admin BU ANDA gördüğü/onayladığı position'ın
     // dondurulmuş kopyası; kullanıcının sonradan kendi profilinden değiştirdiği position bu
     // atamanın yetkisini artık ETKİLEMEZ (P1 güvenlik düzeltmesi).
-    const officePosition = profileType === 'office' ? (userRow.position || null) : null;
+    // body.officePosition — admin açıkça bir pozisyon gönderdiyse o kazanır (bkz. dosya üstündeki
+    // OFFICE_POSITIONS_ADMIN gerekçesi), aksi halde kullanıcının o anki position'ı dondurulur.
+    const officePosition = profileType === 'office'
+      ? (normalizeOfficePosition(body.officePosition) || userRow.position || null)
+      : null;
     const existing = await env.DB.prepare(
       'SELECT id FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
     ).bind(userId, profileType, profileKey).first();
@@ -817,7 +837,9 @@ async function handleClaimsAdmin(request, env, url, segments) {
     if (body.status === 'approved' && claim.profile_type === 'office') {
       const claimUser = await env.DB.prepare('SELECT position FROM users WHERE id = ?').bind(claim.user_id).first();
       officePositionUpdate = ', office_position = ?';
-      bindArgs.push(claimUser ? (claimUser.position || null) : null);
+      // bkz. dosya üstündeki OFFICE_POSITIONS_ADMIN gerekçesi — admin panelindeki pozisyon seçici
+      // bu alanı gönderir; gönderilmezse (eski istemci) davranış aynen korunur.
+      bindArgs.push(normalizeOfficePosition(body.officePosition) || (claimUser ? (claimUser.position || null) : null));
     }
     bindArgs.push(id);
     await env.DB.prepare(

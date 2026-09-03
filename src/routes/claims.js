@@ -2,8 +2,12 @@ import { json, errorJson, readJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { newId } from '../lib/crypto.js';
 import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
+import { canonicalRowExistsByKey } from '../lib/canonicalRead.js';
 
 const PROFILE_TYPES = new Set(['architect', 'office']);
+// profile_claims.profile_key'in eşleşmesi GEREKEN canonical tablo (bkz. src/routes/admin.js#
+// PROFILE_OPTION_TABLE ve src/routes/submissions.js#CANONICAL_TABLE_BY_TYPE ile AYNI eşleme).
+const CLAIM_CANONICAL_TABLE = { architect: 'architects', office: 'offices' };
 // /api/corrections (bkz. handleCorrectionsRoute) sahiplenme değil salt bilgi-bildirimi olduğundan
 // project/product de kabul eder — proje/ürün modallarındaki "Bilgi Kaynağı & Geri Bildirim" kutusu
 // (bkz. kullanıcı isteği) BU uç noktayı kullanır. /api/claims (sahiplenme) mimar/firma ile sınırlı kalır.
@@ -69,8 +73,17 @@ export async function handleCorrectionsRoute(request, env, url) {
 // GET /api/claims/mine — hesabim.html'in "Mimar/Marka Profilim" bölümü için kullanıcının
 // kendi profil taleplerini (her durumdan) döner.
 async function myClaims(env, user) {
+  // office_position — onay ANINDA dondurulmuş pozisyon (bkz. migrations/0068, src/routes/
+  // submissions.js#verifyClaimedProfileKey). gerçek bulgu (denetim, 2026-09-04): istemci tarafındaki
+  // TÜM "Düzenle" kapıları (js/components/claim-correction-box.js#renderProfileEditButton,
+  // js/components/auth-modal.js#renderFirmEditBtn) bunun yerine kullanıcının CANLI position'ına
+  // bakıyordu — sunucu ise dondurulmuş değere. İkisi kullanıcı kendi pozisyonunu değiştirdiği anda
+  // ayrışıyor ve iki yönde de yanlış sonuç veriyordu: (a) Kurucu olarak onaylanıp sonra pozisyonunu
+  // değiştiren gerçek sahip, sunucu hâlâ izin verdiği hâlde butonu hiçbir yerde göremiyor (kendi
+  // firmasından kilitleniyor); (b) yetkisiz bir pozisyonla onaylanmış biri pozisyonunu "Kurucu"
+  // yapınca butonu görüyor, formu dolduruyor ve kaydederken 403 yiyor. Doğru değer sunucudan gelmeli.
   const { results } = await env.DB.prepare(
-    'SELECT profile_type, profile_key, status FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
+    'SELECT profile_type, profile_key, status, office_position AS officePosition FROM profile_claims WHERE user_id = ? ORDER BY updated_at DESC'
   ).bind(user.id).all();
   // slug: hesabim.html/auth-modal.js'in "Düzenle" linkini profile_key (bare isim, boşluk/TR karakter
   // içerebilir — bkz. kullanıcı isteği 2026-08-17: "?claim= şeklinde bozuk bir URL çıkıyor") yerine
@@ -107,6 +120,18 @@ async function createClaim(request, env, user) {
   const note = (body.note || '').trim().slice(0, 1000) || null;
   if (!PROFILE_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
 
+  // gerçek bulgu (denetim, 2026-09-04): bu uç profileKey'in GERÇEKTEN bir canonical mimar/firma
+  // satırına karşılık gelip gelmediğini hiç kontrol etmiyordu — POST /api/admin/claims'in (admin'in
+  // doğrudan atama yolu) AYNI kontrolü ("Böyle bir profil bulunamadı.") zaten yaptığının aksine.
+  // Uydurma bir profileKey ile (curl/bayat bir "Düzenle" linki) açılan talep admin kuyruğuna
+  // düşüyor, onaylanırsa da hiçbir profile bağlı OLMAYAN kalıcı bir approved satır bırakıyordu:
+  // düzenleme yetkisi vermez (verifyClaimedProfileKey canonical satırı bulamaz), Hesabım'da
+  // slug/görsel'siz hayalet bir satır olarak görünür. Yerel veritabanında bu yolla oluşmuş
+  // "Nonexistent Test Architect 1/2/3" satırları vardı.
+  if (!(await canonicalRowExistsByKey(env, CLAIM_CANONICAL_TABLE[profileType], profileKey))) {
+    return errorJson('Böyle bir profil bulunamadı. Sayfayı yenileyip tekrar dene.', 404);
+  }
+
   const existing = await env.DB.prepare(
     'SELECT id, status FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
   ).bind(user.id, profileType, profileKey).first();
@@ -136,8 +161,10 @@ async function claimStatus(env, url, user) {
   if (!PROFILE_TYPES.has(profileType) || !profileKey) return errorJson('Geçersiz istek.');
 
   const row = await env.DB.prepare(
-    'SELECT status FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
+    'SELECT status, office_position FROM profile_claims WHERE user_id = ? AND profile_type = ? AND profile_key = ?'
   ).bind(user.id, profileType, profileKey).first();
 
-  return json({ status: row ? row.status : 'none' });
+  // officePosition — bkz. dosya sonundaki AYNI gerekçe/myClaims: istemcinin "Düzenle" butonunu
+  // sunucuyla AYNI değere (onay anında dondurulmuş pozisyon) göre gösterebilmesi için.
+  return json({ status: row ? row.status : 'none', officePosition: row ? (row.office_position || null) : null });
 }

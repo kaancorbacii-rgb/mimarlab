@@ -118,6 +118,11 @@
   .admin-card-meta{font-size:12.5px; color:var(--ink-soft); line-height:1.6;}
   .admin-card-desc{font-size:13px; color:var(--ink); margin-top:8px; line-height:1.55; white-space:pre-wrap;}
   .admin-card-claim-note{display:inline-block; font-size:11.5px; font-weight:600; color:var(--accent); background:rgba(224,138,62,0.12); border-radius:100px; padding:3px 10px; margin:2px 0 5px;}
+  /* Sahiplenme talebi onaylanırken dondurulacak pozisyon seçici (bkz. claimPositionPickerHtml). */
+  .claim-position-row{margin-top:8px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft);}
+  .claim-position-row label{display:flex; align-items:center; gap:6px; font-weight:600; color:var(--ink);}
+  .claim-position-row select{font-family:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink);}
+  .claim-position-warning{font-size:11.5px; font-weight:600; color:#B84C4C; background:rgba(184,76,76,0.10); border-radius:100px; padding:3px 10px;}
   .admin-card-details{margin-top:8px; font-size:12.5px; color:var(--ink-soft); display:flex; flex-direction:column; gap:3px;}
   .admin-card-details span{font-weight:600; color:var(--ink);}
   .admin-card-details a{color:var(--walnut); font-weight:600;}
@@ -1013,7 +1018,7 @@ async function loadOwnershipClaims(){
   const items = data.items || [];
   if(!items.length){ list.innerHTML = '<div class="admin-empty">Bu durumda talep yok.</div>'; return; }
   list.innerHTML = items.map(c => `
-    <div class="admin-card" data-id="${c.id}">
+    <div class="admin-card" data-id="${c.id}" data-profile-type="${escapeAttr(c.profile_type)}">
       <div class="admin-card-head">
         <div>
           <div class="admin-card-title">${escapeHtml(c.profile_key)} <span class="admin-badge badge-pending">${PROFILE_TYPE_LABELS[c.profile_type] || c.profile_type}</span></div>
@@ -1025,19 +1030,63 @@ async function loadOwnershipClaims(){
           <button class="admin-btn danger" data-action="reject">Reddet</button>
         </div>` : ''}
       </div>
+      ${claimPositionPickerHtml(c)}
       ${c.note ? `<div class="admin-card-note"><strong>Kullanıcının notu</strong>${escapeHtml(c.note)}</div>` : ''}
     </div>
   `).join('');
+  list.querySelectorAll('.claim-position-select').forEach(sel=>{
+    sel.addEventListener('change', ()=> updateClaimPositionWarning(sel));
+    updateClaimPositionWarning(sel);
+  });
   list.querySelectorAll('[data-action]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      const id = btn.closest('.admin-card').dataset.id;
-      const status = btn.dataset.action === 'approve' ? 'approved' : 'rejected';
+      const card = btn.closest('.admin-card');
+      const id = card.dataset.id;
+      // 'reposition' — zaten onaylı bir firma talebinin dondurulmuş pozisyonunu düzeltmek (aynı PATCH,
+      // status yine 'approved'). Bkz. claimPositionPickerHtml.
+      const status = (btn.dataset.action === 'approve' || btn.dataset.action === 'reposition') ? 'approved' : 'rejected';
+      // Firma/marka onayında dondurulacak pozisyon (bkz. src/routes/admin.js#OFFICE_POSITIONS_ADMIN)
+      // — kutuda ne seçiliyse o gider; boş bırakılırsa sunucu eski davranışa (kullanıcının o anki
+      // position'ı) düşer.
+      const body = { status };
+      const sel = card.querySelector('.claim-position-select');
+      if(status === 'approved' && sel && sel.value) body.officePosition = sel.value;
       btn.disabled = true;
-      await api(`/api/admin/claims/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+      await api(`/api/admin/claims/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
       loadClaims();
       refreshAdminSummary();
     });
   });
+}
+
+// Firma/marka sahiplenme talebi onaylanırken dondurulacak pozisyonu seçtiren kutu (bkz.
+// src/routes/admin.js#OFFICE_POSITIONS_ADMIN'deki gerçek bulgu — canlıda "MEEZ Mimarlık" talebi
+// pozisyonsuz onaylandığı için sahibine HİÇBİR düzenleme yetkisi vermemişti). Kişi (architect)
+// taleplerinde pozisyonun yetkiyle ilgisi yok, o yüzden yalnızca office için çizilir.
+// UD_POSITIONS ile AYNI liste; OFFICE_EDIT_POSITIONS ise src/routes/submissions.js'teki düzenleme
+// yetkisi veren alt küme (BİREBİR aynı dört değer).
+const CLAIM_OFFICE_EDIT_POSITIONS = ['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri'];
+function claimPositionPickerHtml(c){
+  if(c.profile_type !== 'office') return '';
+  if(c.status !== 'pending' && c.status !== 'approved') return '';
+  // Beklemede: kullanıcının o anki pozisyonu ön seçili (onaylandığında dondurulacak değer).
+  // Onaylı: ZATEN dondurulmuş office_position seçili — yanlış/boş donmuş eski bir onay (canlıdaki
+  // "MEEZ Mimarlık" gibi) panelden düzeltilebilsin diye, "Pozisyonu Güncelle" ile yeniden onaylanır.
+  const current = (c.status === 'approved' ? c.office_position : c.user_position) || '';
+  const options = ['', ...UD_POSITIONS].map(p =>
+    `<option value="${escapeAttr(p)}"${p === current ? ' selected' : ''}>${p ? escapeHtml(p) : '— pozisyon seçilmemiş —'}</option>`
+  ).join('');
+  return `<div class="claim-position-row">
+    <label>${c.status === 'approved' ? 'Onaydaki pozisyon' : 'Onaydaki pozisyon'} <select class="claim-position-select">${options}</select></label>
+    ${c.status === 'approved' ? '<button class="admin-btn" data-action="reposition">Pozisyonu Güncelle</button>' : ''}
+    <span class="claim-position-warning" style="display:none;"></span>
+  </div>`;
+}
+function updateClaimPositionWarning(sel){
+  const warn = sel.closest('.claim-position-row').querySelector('.claim-position-warning');
+  const ok = CLAIM_OFFICE_EDIT_POSITIONS.includes(sel.value);
+  warn.style.display = ok ? 'none' : '';
+  warn.textContent = ok ? '' : '⚠ Bu pozisyon firma bilgilerini düzenleme yetkisi VERMEZ (yalnızca Kurucu, Kurucu Ortak, Ortak, Ekip Lideri verir).';
 }
 
 async function loadCorrections(){

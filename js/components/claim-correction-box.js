@@ -31,6 +31,9 @@
 //                      claim-correction-box kullanılmadığından bu callback'e zaten ihtiyaç yok).
 function createClaimCorrectionBox(config){
   let isProfileOwner = false;
+  // Onay ANINDA dondurulmuş pozisyon (/api/claims/status → officePosition). Kullanıcının canlı
+  // position'ı DEĞİL — bkz. renderProfileEditButton'daki gerçek bulgu.
+  let claimOfficePosition = null;
   const getClaimLinkKey = config.getClaimLinkKey || config.getProfileKey;
 
   // product-modal.js#injectStyles'daki AYNI .pr-feedback-card kuralları — burada iki kutu (claim +
@@ -82,6 +85,7 @@ function createClaimCorrectionBox(config){
 
   async function loadClaimCard(){
     isProfileOwner = false;
+    claimOfficePosition = null;
     const card = document.getElementById('claim-info-card');
     const body = document.getElementById('claim-card-body');
     // Bu fonksiyon TÜM ClaimCorrectionBox çağıranları için (init() üzerinden) çalışır, ama yalnızca
@@ -97,6 +101,7 @@ function createClaimCorrectionBox(config){
         const res = await fetch(`/api/claims/status?profileType=${config.profileType}&profileKey=${encodeURIComponent(config.getProfileKey())}`);
         const data = res.ok ? await res.json() : { status: 'none' };
         isProfileOwner = data.status === 'approved';
+        claimOfficePosition = data.officePosition || null;
       }catch{}
       return;
     }
@@ -135,6 +140,7 @@ function createClaimCorrectionBox(config){
       const res = await fetch(`/api/claims/status?profileType=${config.profileType}&profileKey=${encodeURIComponent(profileKey)}`);
       const data = res.ok ? await res.json() : { status: 'none' };
       if(config.isStale && config.isStale()) return;
+      claimOfficePosition = data.officePosition || null;
       if(data.status === 'approved'){
         isProfileOwner = true;
         card.style.display = 'none';
@@ -227,11 +233,21 @@ function createClaimCorrectionBox(config){
   // ve ekip liderinde olsun") — src/routes/submissions.js#OFFICE_EDIT_POSITIONS ile BİREBİR aynı
   // liste; sunucu tarafı asıl kapı, bu yalnızca artık kaydedemeyecek bir Ekip Üyesi'ne baştan
   // yanıltıcı bir "Düzenle" butonu göstermemek için.
+  //
+  // gerçek bulgu (denetim, 2026-09-04): burada kullanıcının CANLI position'ına (currentUser.position)
+  // bakılıyordu, sunucu ise onay anında DONDURULMUŞ office_position'a (bkz. migrations/0068). İkisi
+  // kullanıcı kendi pozisyonunu Hesabım'dan değiştirdiği anda ayrışıyor ve iki yönde de yanlış
+  // davranıyordu: (a) "Kurucu" olarak onaylanmış gerçek sahip pozisyonunu (ör. "Serbest Çalışan")
+  // değiştirince, sunucu kaydetmeye hâlâ izin verdiği hâlde Düzenle butonu kayboluyor — sahip kendi
+  // firmasından kilitleniyordu; (b) "Ekip Üyesi" ile onaylanmış biri pozisyonunu "Kurucu" yapınca
+  // buton görünüyor, form dolduruluyor ve kaydederken 403 dönüyordu — auth-modal.js'teki AYNI
+  // kontrolün yorumunda "önce boş yere doldurulan form, sonra 403" olarak tarif edilen tam da bu.
+  // Artık tek kaynak sunucudan gelen dondurulmuş değer (/api/claims/status → officePosition).
   const OFFICE_EDIT_POSITIONS = new Set(['Kurucu', 'Kurucu Ortak', 'Ortak', 'Ekip Lideri']);
   function renderProfileEditButton(){
     const slot = document.getElementById('profile-edit-slot');
     if(!slot) return;
-    const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(currentUser && currentUser.position);
+    const canEditByPosition = config.profileType !== 'office' || OFFICE_EDIT_POSITIONS.has(claimOfficePosition);
     if(!currentUser || !((isProfileOwner && canEditByPosition) || currentUser.role === 'admin')){ slot.innerHTML = ''; return; }
     // editButtonText — opsiyonel, verilmezse mimar/firma modallarındaki AYNI "Düzenle" varsayılanı
     // korunur (bkz. kullanıcı isteği: danışman modalında "Profili Düzenle" yazsın — diğer çağıranlar
