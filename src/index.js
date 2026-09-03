@@ -1,6 +1,6 @@
 import { json, errorJson } from './lib/http.js';
 import { logRequest } from './lib/logger.js';
-import { buildMeta, listEntityUrls, isKnownButHidden, isListIndexPath, buildListIndexHtml } from './lib/seo.js';
+import { buildMeta, listEntityUrls, isKnownButHidden } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
@@ -536,16 +536,7 @@ async function routeAsset(request, env, url, ctx) {
   if (request.method === 'GET' && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
-    // SEO: /proje, /kisi, /firma, /urun'a crawlable entity dizini enjekte edilir (bkz.
-    // src/lib/seo.js#buildListIndexHtml — gerekçe ve "neden görünür" tartışması orada). Yalnızca
-    // sorgu dizesi OLMAYAN kanonik liste URL'sinde: /proje?sehir=... zaten /proje'ye canonical
-    // veriyor, filtrelenmiş her varyanta aynı bloğu basmak gereksiz D1 okuması olurdu.
-    const withCacheHeaders = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
-    if (!url.search && isListIndexPath(url.pathname)) {
-      const indexHtml = await buildListIndexHtml(url.pathname, env);
-      if (indexHtml) return injectListIndex(withCacheHeaders, indexHtml);
-    }
-    return withCacheHeaders;
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   }
   // denetim bulgusu: DISABLED_PAGE_PATHS/detay-slug 404'lerinin (notFoundPageResponse/
   // notFoundDetailPageResponse) aksine, buraya kadar hiçbir kurala uymayan TAMAMEN rastgele bir yol
@@ -827,30 +818,6 @@ function injectMeta(response, meta) {
     .on('meta#twitter-description', { element(el) { el.setAttribute('content', meta.description); } })
     .on('meta#twitter-image', { element(el) { el.setAttribute('content', meta.image); } })
     .on('head', { element(el) { el.append(`<script type="application/ld+json">${ldJson}</script>${breadcrumbScript}`, { html: true }); } })
-    .transform(response);
-}
-
-// Liste sayfalarına (bkz. src/lib/seo.js#buildListIndexHtml) crawlable entity dizinini ekler.
-// Konum: .grid-layout'tan hemen SONRA, yani ızgaranın altında ve footer'ın üstünde — #ssr-entity-body
-// KULLANILMAZ, o konteyner .page-head ile ızgara ARASINDA durur ve oraya 60 bağlantı basmak listeyi
-// sayfanın altına iterdi. HTMLRewriter Element.after() ile kardeş olarak eklenir.
-// Stil <head>'e ayrı bir <style> olarak enjekte edilir (CSP: style-src 'self' 'unsafe-inline' —
-// bkz. SECURITY_HEADERS). Aşağıdaki CSS metninde ters tırnak/blok-yorum kapanışı KULLANILMAZ:
-// şablon dizesi içinde bunlardan biri enjekte edilen CSS'i sessizce bozar (bkz. proje kuralı).
-const LIST_INDEX_STYLE = '<style id="ssr-index-style">'
-  + '.ssr-index{max-width:1400px;margin:8px auto 40px;padding:20px 24px;border-top:1px solid var(--line);}'
-  + '.ssr-index h2{font-size:15px;font-weight:600;margin:0 0 12px;color:var(--ink-soft);letter-spacing:.02em;}'
-  + '.ssr-index ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 14px;}'
-  + '.ssr-index li{font-size:13px;line-height:1.6;}'
-  + '.ssr-index a{color:var(--ink-soft);text-decoration:none;}'
-  + '.ssr-index a:hover{color:var(--accent);text-decoration:underline;}'
-  + '@media (max-width:768px){.ssr-index{padding:16px;margin-bottom:24px;}}'
-  + '</style>';
-
-function injectListIndex(response, indexHtml) {
-  return new HTMLRewriter()
-    .on('head', { element(el) { el.append(LIST_INDEX_STYLE, { html: true }); } })
-    .on('div.grid-layout', { element(el) { el.after(indexHtml, { html: true }); } })
     .transform(response);
 }
 
