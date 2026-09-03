@@ -18,6 +18,12 @@ import {
   fetchActiveProjectPool, buildFilterGroups,
 } from '../lib/projectPool.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
+// bkz. src/routes/office.js'teki AYNI CJS-interop yorumu — canonical veri DEĞİL, salt statik bir
+// sınıflandırma referansı. Burada yalnızca "Fotoğrafçı veya Kaynak" önerilerinde bir ofisin
+// FİRMA mı MARKA mı diye etiketlenmesi için kullanılır (bkz. handlePhotographerSearchRoute).
+import officeKindJs from '../../office-kind.js';
+
+const { isBrandOffice } = officeKindJs;
 
 // Faz 3 — statik projeler-data.js + project_submissions overlay yerine doğrudan canonical
 // `projects`/`project_designers` tablolarından okur (bkz. src/routes/architect.js'teki AYNI
@@ -192,6 +198,19 @@ async function fetchFoundersForOffices(env, officeNames) {
 // "Fotoğrafçı" olarak etiketlenmiş olmayabilir. Öneriden bir isim seçmek, kaydedildiğinde
 // project_photographers kenarını da kurar (bkz. src/lib/canonicalSync.js#syncProject) ve o kişinin
 // popup'ında "Fotoğrafladığı Projeler" bölümünü doldurur.
+//
+// GENİŞLETME (kullanıcı isteği, 2026-09-03 madde 1): "Fotoğrafçı veya Kaynak kutucuğunda bir şeyler
+// yazılmaya başlandığında öneri olarak Kişi sayfasına yüklü olanlar, firmalar ve markalar çıksın."
+// Kaynak çoğu zaman bir kişi DEĞİLDİR — künyedeki fotoğraf kaynağı bir mimarlık ofisi (kendi
+// arşivinden görsel veren firma), bir fotoğraf stüdyosu ya da bir MARKA (ürün görselini kendi
+// kataloğundan veren üretici) olabilir. Bu yüzden `offices` de aynı kutuya beslenir; satırın alt
+// etiketinde firma mı marka mı olduğu görünür (office-kind.js#isBrandOffice — TEK sınıflandırma
+// kaynağı). isBrandOffice'e productCount 0 verilir: sayım için ürün tablosuna ayrı bir JOIN atmak
+// tuş vuruşu başına çalışan bu uç için gereksiz D1 yüküdür ve kendini 'Ürün' olarak etiketlememiş
+// ama ürünü olan bir ofis (Autoban) yalnızca "Firma" etiketi alır — seçildiğinde künyeye yazılan
+// DEĞER iki durumda da ofisin ADI olduğundan bu etiket farkının veriye hiçbir etkisi yoktur.
+const CREDIT_SUGGEST_PER_SOURCE = 5;
+
 export async function handlePhotographerSearchRoute(request, env, url) {
   if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
   return cachedPublicJson(request, env, url.pathname + url.search, async () => {
@@ -204,18 +223,38 @@ export async function handlePhotographerSearchRoute(request, env, url) {
     // filtre Worker'a hiç satır taşımadan SQLite içinde uygulanır.
     const cond = q ? ` AND name_fold LIKE ? ESCAPE '\\'` : '';
     const params = q ? [`%${escapeLike(q)}%`] : [];
-    const { results } = await env.DB.prepare(
-      `SELECT name, profession FROM architects
-       WHERE deleted_at IS NULL AND hidden_at IS NULL${cond}
-       ORDER BY (profession LIKE '%Fotoğrafçı%') DESC, name COLLATE NOCASE
-       LIMIT 8`
-    ).bind(...params).all();
+    // Ofis dalı q BOŞKEN çalıştırılmaz: boş kutuya odaklanma senaryosu "ilk fotoğrafçıları göster"
+    // içindir, 745 ofisin alfabetik ilk beşini oraya koymak yalnızca gürültü olurdu.
+    const [archRes, officeRes] = await Promise.all([
+      env.DB.prepare(
+        `SELECT name, profession FROM architects
+         WHERE deleted_at IS NULL AND hidden_at IS NULL${cond}
+         ORDER BY (profession LIKE '%Fotoğrafçı%') DESC, name COLLATE NOCASE
+         LIMIT ${CREDIT_SUGGEST_PER_SOURCE}`
+      ).bind(...params).all(),
+      q ? env.DB.prepare(
+        `SELECT name, loc, cats FROM offices
+         WHERE deleted_at IS NULL AND hidden_at IS NULL${cond}
+         ORDER BY name COLLATE NOCASE
+         LIMIT ${CREDIT_SUGGEST_PER_SOURCE}`
+      ).bind(...params).all() : Promise.resolve({ results: [] }),
+    ]);
     // sub: kişinin ilk mesleği (architects.profession virgüllü ham Türkçe etiket listesidir, bkz.
     // migrations/0080 başlığı) — listede kimin fotoğrafçı olduğu tek bakışta görünür.
-    const items = (results || []).map(r => ({
+    const items = (archRes.results || []).map(r => ({
       label: r.name,
       sub: String(r.profession || '').split(',')[0].trim() || 'Kişi',
     }));
+    const seen = new Set(items.map(it => foldTr(it.label)));
+    for (const r of (officeRes.results || [])) {
+      // Aynı ad hem kişi hem ofis olarak kayıtlıysa (fotoğraf stüdyoları tam olarak bu durumda —
+      // bkz. office-kind.js'teki 'Fotoğrafçılık' hizmet alanı notu) satır iki kez listelenmez.
+      const key = foldTr(r.name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const kindLabel = isBrandOffice(r.cats, 0) ? 'Marka' : 'Firma';
+      items.push({ label: r.name, sub: [kindLabel, r.loc].filter(Boolean).join(' · ') });
+    }
     return { items };
   });
 }

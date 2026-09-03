@@ -285,7 +285,13 @@ async function withSingleFlight(key, fn) {
 //     fingerprint'inden türüyor, offices satırlarının kendisi ise DEĞİŞMEDİ. Sürüm artırılmazsa
 //     firma/marka sayfasını daha önce ziyaret etmiş tarayıcılar aynı ETag'i gönderip 304 alır ve
 //     kapaksız eski gövdede SÜRESİZ takılırdı (v2/v3/v4'teki tuzağın aynısı).
-const API_PAYLOAD_VERSION = 'v5';
+// v6 (kullanıcı isteği, 2026-09-03 madde 1): /api/photographers/search artık yalnızca `architects`
+//     satırlarını değil, eşleşen `offices` satırlarını (firma + marka) da döndürüyor (bkz.
+//     src/routes/project.js#handlePhotographerSearchRoute). v5'teki tuzağın aynısı: satır ŞEKLİ
+//     ({label, sub}) değişmedi ama KÜME değişti ve architects fingerprint'i aynı kaldığından sürüm
+//     artırılmazsa proje-ekle sayfasını daha önce açmış tarayıcılar 304 ile eski öneri listesinde
+//     kalırdı.
+const API_PAYLOAD_VERSION = 'v6';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

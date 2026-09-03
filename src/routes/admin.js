@@ -23,6 +23,7 @@ import { buildMeta } from '../lib/seo.js';
 import { getSiteSettings, setSiteSetting, DEFAULT_SETTINGS } from '../lib/siteSettings.js';
 import { SAFE_STORAGE_BYTES, SAFE_OPS_PER_MONTH } from '../lib/r2Quota.js';
 import { SAFE_WRITES_PER_DAY } from '../lib/kvQuota.js';
+import { rebuildIndex, indexStatus, INDEX_TYPES } from '../lib/visualIndexStore.js';
 
 // canonical modelde karşılığı olan tipler (bkz. migrations/0022_id_first_entities.sql) — news
 // bu modelin dışında, syncApprovedSubmissionToCanonical zaten bunlar için no-op ama burada da
@@ -106,6 +107,7 @@ export async function handleAdminRoute(request, env, url) {
     if (sub === 'settings') return await handleSiteSettingsAdmin(request, env);
     if (sub === 'performance') return await handlePerformanceAdmin(request, env, segments);
     if (sub === 'top100') return await handleTop100AdminRoute(request, env, url, segments);
+    if (sub === 'visual-index') return await handleVisualIndexAdmin(request, env, url);
     if (sub === 'summary' && request.method === 'GET') return await handleAdminSummary(env);
     return errorJson('Bulunamadı', 404);
   } catch (err) {
@@ -235,6 +237,32 @@ async function handlePerformanceAdmin(request, env, segments) {
     if (env.FACET_CACHE) await env.FACET_CACHE.delete('site_settings_v1');
     try { await caches.default.delete(new Request('https://mimarlab.com/sitemap.xml')); } catch {}
     return json({ ok: true, note: "Bu işlem yalnızca isteği işleyen edge PoP'unu temizler, global anında temizlik garantisi yoktur." });
+  }
+  return errorJson('Bulunamadı', 404);
+}
+
+// GET  /api/admin/visual-index          — görsel arama varlık dizininin durumu (AI çağrısı YOK).
+// POST /api/admin/visual-index?type=project&max=400 — ARTIMLI yeniden kurulum, elle tetikleme.
+//
+// Normal işleyişte buna gerek YOKTUR: dizini 6 saatte bir cron tazeler (bkz. src/index.js#scheduled)
+// ve ilk kurulum scripts/build-visual-index.mjs ile yapılır. Bu uç iki durum için var: (a) dizinin
+// gerçekten kurulu olduğunu canlıda doğrulamak, (b) toplu bir import sonrası cron turunu beklemeden
+// dizini elle tazelemek. Yetki, dosyanın tamamı gibi handleAdminRoute'un requireAdmin kapısındadır.
+async function handleVisualIndexAdmin(request, env, url) {
+  if (request.method === 'GET') {
+    const types = Object.keys(INDEX_TYPES);
+    const status = await Promise.all(types.map(t => indexStatus(env, t)));
+    return json({ items: status });
+  }
+  if (request.method === 'POST') {
+    const type = url.searchParams.get('type') || 'project';
+    if (!INDEX_TYPES[type]) return errorJson('Geçersiz dizin türü.');
+    // Üst sınır kelepçelenir: tek bir istekte binlerce embedding üretmek hem Worker CPU süresini
+    // hem de AI maliyetini kontrolsüz bırakırdı. Kalan iş `pending` olarak döner, çağıran döngüye
+    // girip bitirebilir (scripts/build-visual-index.mjs bunu yapar).
+    const max = Math.max(1, Math.min(400, Number(url.searchParams.get('max')) || 200));
+    const res = await rebuildIndex(env, type, { maxEmbeds: max });
+    return json(res);
   }
   return errorJson('Bulunamadı', 404);
 }

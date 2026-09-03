@@ -16,6 +16,23 @@
 //
 // Bu sınır rapora AÇIKÇA yazıldı; kullanıcı ücretli servis açmayı yasakladığı için harici bir
 // CLIP sağlayıcısı da değerlendirilmedi.
+//
+// ---------------------------------------------------------------------------------------------
+// 2026-09-03 GENİŞLETMESİ — "ÖNCE KİMLİK, SONRA BENZERLİK" (kullanıcı isteği madde 5/26)
+// Yukarıdaki yapı yalnızca TÜR düzeyinde çalışıyordu: bir Ayasofya fotoğrafı "Cami + Restorasyon +
+// taş" olarak anlaşılıp 1715 projeden cami olanlar arasında sıralanıyordu — yani MİMARLAB'da
+// Ayasofya KAYITLI OLSA BİLE onu #1 yapacak hiçbir mekanizma YOKTU. Bu, kullanıcının açıkça
+// "KABUL EDİLMEZ" dediği davranıştı.
+//
+// Eklenen dört sinyal (`identity`, `visibleText`, `brand`/`model`, `place`) bu boşluğu kapatır ve
+// yukarıdaki ilkeyi BOZMAZ, çünkü hiçbiri doğrudan sonuç olarak gösterilmez:
+//   * `identity` modelin "bu Galata Kulesi" tahminidir ve YALNIZCA D1 başlıklarına karşı bir ARAMA
+//     ANAHTARI olarak kullanılır (bkz. src/lib/entityMatch.js). MİMARLAB'da karşılığı olmayan bir
+//     ad hiçbir şeyle eşleşmez ve sessizce düşer — model bir kayıt UYDURAMAZ.
+//   * `visibleText` OCR'dır; tek başına eşleşme kabulü DEĞİLDİR (brief 8), yalnızca skora katılır.
+//   * `description` artık ayırt edici 2-3 cümledir; anlamsal aramanın sorgu metnidir
+//     (bkz. src/lib/visualIndex.js — aynı yapının FARKLI fotoğrafı bu yolla aynı varlığa düşer).
+// ---------------------------------------------------------------------------------------------
 
 import projectTaxonomyJs from '../../project-taxonomy.js';
 import catalogJs from '../../catalog-taxonomy.js';
@@ -44,18 +61,18 @@ export const VISION_CANDIDATES = [
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },
       ] }],
-      max_tokens: 700,
+      max_tokens: 900,
       temperature: 0,
     }),
   },
   {
     model: '@cf/moondream/moondream3.1-9B-A2B',
     // Image-to-Text ailesi: ham bayt dizisi + düz prompt.
-    build: (b64, prompt, bytes) => ({ image: Array.from(bytes), prompt, max_tokens: 700 }),
+    build: (b64, prompt, bytes) => ({ image: Array.from(bytes), prompt, max_tokens: 900 }),
   },
   {
     model: '@cf/llava-hf/llava-1.5-7b-hf',
-    build: (b64, prompt, bytes) => ({ image: Array.from(bytes), prompt, max_tokens: 700 }),
+    build: (b64, prompt, bytes) => ({ image: Array.from(bytes), prompt, max_tokens: 900 }),
   },
 ];
 
@@ -88,7 +105,13 @@ function buildPrompt() {
 
 JSON şeması:
 {
+  "subject": "project"|"product"|"other",
   "isArchitectural": boolean,
+  "identity": [{"name": string, "kind": "project"|"product", "confidence": number}],
+  "visibleText": string[],
+  "brand": string|null,
+  "model": string|null,
+  "place": {"city": string|null, "country": string|null},
   "spaceTypes": string[],
   "discipline": string|null,
   "materials": string[],
@@ -97,6 +120,11 @@ JSON şeması:
 }
 
 Kurallar:
+- "subject": fotoğrafın ASIL konusu. Bir yapı/mekan/kentsel sahne ise "project"; tek bir satın alınabilir mobilya/aydınlatma/vitrifiye/kaplama ürünü (katalog fotoğrafı gibi) ise "product"; ikisi de değilse "other".
+- "identity": fotoğraftaki yapıyı ya da ürünü GERÇEKTEN TANIYORSAN adını yaz (en olası önce, en fazla 3). Örnek: ünlü bir yapı, anıt, cami, müze, köprü, kule; ya da tanıdığın bir marka+model. TÜRKİYE'DEKİ bir yapıysa adını TÜRKÇE yaz (ör. "Hagia Sophia" değil "Ayasofya", "Galata Tower" değil "Galata Kulesi") — bu veritabanı Türkçe adlarla kayıtlı. Yurt dışındaki bir yapıysa kendi dilindeki/uluslararası bilinen adını yaz. Bilmiyorsan BOŞ DİZİ ver — TAHMİN UYDURMA, benzer bir yapının adını YAZMA. Emin olmadığın adlarda confidence'ı düşük tut.
+- "visibleText": fotoğrafta OKUYABİLDİĞİN metinler (tabela, kitabe, marka logosu yazısı, model kodu, vitrin yazısı). Hiç yoksa boş dizi. Metni OLDUĞU GİBİ yaz, çevirme, yorumlama.
+- "brand"/"model": yalnızca fotoğrafta AÇIKÇA okunuyorsa ya da kesin olarak tanıyorsan; yoksa null.
+- "place": yapının bulunduğu şehir/ülkeyi tanıyorsan yaz, yoksa null. Tahmin uydurma.
 - "isArchitectural": şu İKİ durumdan biri varsa true:
   (a) fotoğraf bir yapı, iç mekan, cephe ya da kentsel mekan gösteriyor, VEYA
   (b) fotoğraf tek bir MOBİLYA/AYDINLATMA/VİTRİFİYE/KAPLAMA ÜRÜNÜ gösteriyor — düz beyaz veya sade
@@ -114,7 +142,7 @@ Kurallar:
 - ÖNEMLİ: pencere, kapı, duvar, zemin, tavan, kolon, merdiven, bitki, insan, araç gibi şeyler ÜRÜN DEĞİLDİR; bunları "products" içine YAZMA. Yalnızca gerçekten satın alınabilir bir mobilya/aydınlatma/vitrifiye/kaplama ürünü görüyorsan yaz.
 - "confidence": 0 ile 1 arasında, gerçekten ne kadar emin olduğun. Emin değilsen düşük ver.
 - Marka veya ürün ADI TAHMİN ETME. Sadece kategori yaz.
-- "description": fotoğraftaki mekanın Türkçe, tek cümlelik betimlemesi (mekan türü, malzeme, ışık, karakter).`;
+- "description": fotoğrafın Türkçe betimlemesi, 2-3 cümle. Neyi gördüğünü mümkün olduğunca AYIRT EDİCİ biçimde anlat: yapı/ürün türü, biçim ve geometri, malzeme, renk, cephe/yüzey karakteri, çevre ve peyzaj, iç/dış mekan, ışık, dönem/üslup. Bu metin veritabanında eşleşme aramak için kullanılacak, o yüzden "güzel bir bina" gibi genel ifadelerden kaçın.`;
 }
 
 function parseJsonLoose(text) {
@@ -131,13 +159,56 @@ function parseJsonLoose(text) {
 // dönüşemez (brief 23: "AI kendi bilgisinden proje veya ürün uydurmamalı").
 export function normalizeVision(raw) {
   const out = {
+    subject: 'other',
     isArchitectural: false, spaceType: null, spaceTypes: [], discipline: null,
     materials: [], products: [], description: '',
+    // KİMLİK SİNYALLERİ (2026-09-03) — bunlar SONUÇ DEĞİL, yalnızca D1'e karşı çalıştırılacak
+    // arama anahtarlarıdır (bkz. src/lib/entityMatch.js dosya başı). Beyaz listeye tabi
+    // değildirler çünkü serbest metindir; güvenlik kapısı şudur: hiçbir MİMARLAB kaydıyla
+    // eşleşmeyen bir ad sessizce düşer ve hiçbir sonuç üretemez.
+    identity: [], visibleText: [], brand: null, model: null, place: { city: null, country: null },
     droppedProducts: [],   // gözlemlenebilirlik: neyin neden atıldığı
   };
   if (!raw || typeof raw !== 'object') return out;
 
   out.isArchitectural = raw.isArchitectural === true;
+  if (raw.subject === 'project' || raw.subject === 'product' || raw.subject === 'other') {
+    out.subject = raw.subject;
+  } else {
+    // Eski/uyumsuz çıktı: konu alanı yoksa mevcut sinyallerden türetilir.
+    out.subject = out.isArchitectural ? 'project' : 'other';
+  }
+  // Serbest metin alanları: uzunluk kelepçesi + adet kelepçesi. Model çok uzun bir "ad"
+  // uydurursa (halüsinasyon) bu, sorgu metnini ve token sözlüğünü şişirmemeli.
+  if (Array.isArray(raw.identity)) {
+    for (const g of raw.identity.slice(0, 6)) {
+      if (!g || typeof g !== 'object') continue;
+      const name = typeof g.name === 'string' ? g.name.trim().slice(0, 120) : '';
+      if (name.length < 3) continue;
+      const conf = Number(g.confidence);
+      out.identity.push({
+        name,
+        kind: g.kind === 'product' ? 'product' : 'project',
+        confidence: Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : 0.5,
+      });
+      if (out.identity.length >= 3) break;
+    }
+  }
+  if (Array.isArray(raw.visibleText)) {
+    for (const t of raw.visibleText.slice(0, 12)) {
+      if (typeof t !== 'string') continue;
+      const s = t.trim().slice(0, 80);
+      if (s.length < 2 || out.visibleText.includes(s)) continue;
+      out.visibleText.push(s);
+      if (out.visibleText.length >= 8) break;
+    }
+  }
+  if (typeof raw.brand === 'string' && raw.brand.trim()) out.brand = raw.brand.trim().slice(0, 80);
+  if (typeof raw.model === 'string' && raw.model.trim()) out.model = raw.model.trim().slice(0, 80);
+  if (raw.place && typeof raw.place === 'object') {
+    if (typeof raw.place.city === 'string' && raw.place.city.trim()) out.place.city = raw.place.city.trim().slice(0, 60);
+    if (typeof raw.place.country === 'string' && raw.place.country.trim()) out.place.country = raw.place.country.trim().slice(0, 60);
+  }
   // GERÇEK BULGU (20 görsellik ölçüm, 2026-09-02): tek bir mekan türü istemek proje isabetini
   // 5/11'de tıkıyordu. Kaçırmaların YARISI dış cephe fotoğraflarında "Kentsel Tasarım"a
   // düşmekti (YKKS, Sosyal Sigortalar, Grand Tarabya) — model tek bir binanın cephesini
@@ -172,7 +243,10 @@ export function normalizeVision(raw) {
       out.products.push({ category: cat, confidence: Math.min(1, conf) });
     }
   }
-  if (typeof raw.description === 'string') out.description = raw.description.trim().slice(0, 400);
+  // 700 karakter (eski 400): betimleme artık yalnızca kullanıcıya gösterilen bir cümle değil,
+  // ANLAMSAL ARAMANIN SORGU METNİ (bkz. src/lib/visualIndex.js) — ayırt edici ayrıntıyı kesmemek
+  // için sınır yükseltildi, yine de sınırsız değil (token maliyeti + gürültü).
+  if (typeof raw.description === 'string') out.description = raw.description.trim().slice(0, 700);
   return out;
 }
 

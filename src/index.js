@@ -10,6 +10,7 @@ import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListR
 import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
 import { handleVisualSearchRoute } from './routes/visualSearch.js';
+import { rebuildIndex } from './lib/visualIndexStore.js';
 import { handleGeocodeRoute } from './routes/geocode.js';
 import { handleAdminRoute } from './routes/admin.js';
 import { handleSelfProjectDelete, handleSelfProjectModerate } from './routes/legacyContent.js';
@@ -473,6 +474,34 @@ export default {
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
     logRequest({ request, url, env, requestId, startedAt, status: response.status, errorMessage });
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  },
+
+  // ---------------------------------------------------------------------------------------------
+  // CRON — GÖRSEL ARAMA VARLIK DİZİNİNİN ARTIMLI BAKIMI (kullanıcı isteği, 2026-09-03 madde 18:
+  // "Yeni proje/ürün eklendiğinde otomatik olarak visual-search index'e dahil edilmeli").
+  //
+  // NEDEN CRON, NEDEN İSTEK ANINDA DEĞİL: bir projeyi kaydeden kullanıcı, embedding üretilmesini
+  // beklememeli; ayrıca yükleme/düzenleme yollarının HEPSİNE (admin, submissions, canonicalSync,
+  // toplu import betikleri, doğrudan D1 migration'ları) tek tek kanca takmak, ilerideki bir yeni
+  // yolun sessizce dizini bozuk bırakmasına açık kapı bırakırdı — bu tam olarak bu depodaki
+  // tekrar eden kök nedendir (bkz. proje notu: "doğru yardımcı, kod yolu taşınınca bypass edildi").
+  // Cron bunun yerine GERÇEĞİ (D1'in kendisini) okur: belge hash'i değişmiş her satırı yakalar,
+  // hangi kod yolundan değiştiğinden bağımsız olarak.
+  //
+  // MALİYET: değişiklik yoksa AI çağrısı ve KV yazımı SIFIRDIR (bkz. rebuildIndex). Tur başına
+  // en fazla 400 embedding sınırı, kötü bir durumda (toplu import) maliyeti de süreyi de kelepçeler.
+  // ---------------------------------------------------------------------------------------------
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => {
+      for (const type of ['project', 'product']) {
+        try {
+          const res = await rebuildIndex(env, type, { maxEmbeds: 400 });
+          console.log('visualIndex cron', JSON.stringify(res));
+        } catch (err) {
+          console.error('visualIndex cron başarısız', type, err && err.message);
+        }
+      }
+    })());
   },
 };
 

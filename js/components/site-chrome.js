@@ -722,6 +722,12 @@
         .nav-vs-chip-k{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);}
         .nav-vs-group-title{margin-top:16px; margin-bottom:7px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft);}
         .nav-vs-empty{margin-top:8px; font-size:12.5px; color:var(--ink-soft);}
+        /* Tier 1 — "aynı varlık" bulgusu benzerlerden GÖRSEL OLARAK da ayrılır (kullanıcı isteği,
+           2026-09-03 madde 20): eşleşme vurgulu bir başlık + kendi çerçevesi alır, benzerler
+           sıradan liste satırları olarak kalır. Böylece kullanıcı "bu senin görselindeki yapının
+           kendisi" ile "buna benziyor" arasındaki farkı okumadan da görür. */
+        .nav-vs-match-title{color:var(--accent);}
+        .nav-vs-match{border:1px solid var(--accent); border-radius:10px; padding:2px 6px; background:var(--paper-alt);}
         .nav-search-modal-image-error{margin-top:10px; font-size:12px; color:var(--rust); text-align:center;}
         .nav-search-modal-image-or{flex-shrink:0; font-size:11px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em;}
         .nav-search-modal-image-paste{
@@ -892,26 +898,45 @@
       }
       if(data.message) parts.push(`<div class="nav-vs-empty">${escapeHtml(data.message)}</div>`);
 
+      // İKİ KADEMELİ SUNUM (kullanıcı isteği, 2026-09-03 madde 20): "aynı varlık" bulunduysa
+      // ÖNCE o gösterilir ve açıkça EŞLEŞME olarak etiketlenir; benzerler ondan sonra ve AYRI bir
+      // başlık altında gelir. Eşleşme yoksa sistem eşleşme iddiasında BULUNMAZ — başlık
+      // "en yakın ..." olur. İkisi asla aynı listede karışmaz.
+      const match = data.match || {};
       const projects = data.projects || [];
       const products = data.products || [];
+      const projectRow = (p) => vsRow({
+        href: '/proje/' + encodeURIComponent(p.slug), label: 'Proje', title: p.title,
+        meta: [p.location, p.date].filter(Boolean).join(' · '), image: p.image,
+      });
+      const productRow = (p) => vsRow({
+        href: '/urun/' + encodeURIComponent(p.slug), label: 'Ürün', title: p.title,
+        meta: [p.category, p.brand].filter(Boolean).join(' · '), image: p.image,
+      });
+
+      if(match.project){
+        parts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen proje</div>');
+        parts.push(`<div class="nav-vs-match">${projectRow(match.project)}</div>`);
+      }
       if(projects.length){
-        parts.push('<div class="nav-vs-group-title">Görselinle benzer projeler</div>');
-        parts.push(projects.map(p => vsRow({
-          href: '/proje/' + encodeURIComponent(p.slug), label: 'Proje', title: p.title,
-          meta: [p.location, p.date].filter(Boolean).join(' · '), image: p.image,
-        })).join(''));
-      } else if(!data.message){
-        parts.push('<div class="nav-vs-group-title">Görselinle benzer projeler</div><div class="nav-vs-empty">Benzer proje bulunamadı.</div>');
+        parts.push(`<div class="nav-vs-group-title">${match.project ? 'Benzer projeler' : 'Görseline en yakın projeler'}</div>`);
+        parts.push(projects.map(projectRow).join(''));
+      } else if(!data.message && !match.project){
+        parts.push('<div class="nav-vs-group-title">Görseline en yakın projeler</div><div class="nav-vs-empty">Eşleşen proje bulunamadı.</div>');
+      }
+
+      if(match.product){
+        parts.push('<div class="nav-vs-group-title nav-vs-match-title">Görselinle eşleşen ürün</div>');
+        parts.push(`<div class="nav-vs-match">${productRow(match.product)}</div>`);
       }
       if(products.length){
-        parts.push('<div class="nav-vs-group-title">Görselde bulunan / benzer ürünler</div>');
-        parts.push(products.map(p => vsRow({
-          href: '/urun/' + encodeURIComponent(p.slug), label: 'Ürün', title: p.title,
-          meta: [p.category, p.brand].filter(Boolean).join(' · '), image: p.image,
-        })).join(''));
-      } else if(!data.message){
-        // Zorla sonuç üretmemek, yanlış ürün göstermekten iyidir (brief 12).
-        parts.push('<div class="nav-vs-group-title">Görselde bulunan / benzer ürünler</div><div class="nav-vs-empty">Benzer ürün bulunamadı.</div>');
+        parts.push(`<div class="nav-vs-group-title">${match.product ? 'Benzer ürünler' : 'Görseline en yakın ürünler'}</div>`);
+        parts.push(products.map(productRow).join(''));
+      } else if(!data.message && !data.productsSuppressed && !match.product){
+        // productsSuppressed: görselde hiç ürün tespit edilmedi — o zaman "bulunamadı" bile YAZMA,
+        // bölüm hiç açılmaz (kullanıcı isteği madde 11/20: "Eğer güvenilir ürün eşleşmesi yoksa
+        // ürün bölümünü hiç gösterme"). Zorla sonuç üretmemek, yanlış ürün göstermekten iyidir.
+        parts.push('<div class="nav-vs-group-title">Görseline en yakın ürünler</div><div class="nav-vs-empty">Eşleşen ürün bulunamadı.</div>');
       }
       vsResults.innerHTML = parts.join('');
       vsResults.hidden = false;

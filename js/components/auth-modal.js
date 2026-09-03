@@ -1286,7 +1286,7 @@ const AuthModal = (function () {
           </div>
           <div class="col-add-panel" id="am-col-add-image" style="display:none;">
             <strong style="font-size:13px;">Bilgisayarından görsel yükle</strong>
-            <div class="avatar-upload-hint">JPEG, PNG, WEBP ya da GIF · en fazla 5 MB</div>
+            <div class="avatar-upload-hint">JPEG, PNG, WEBP ya da GIF · en fazla 2 MB</div>
             <div style="margin-top:10px;">
               <button type="button" class="col-btn" id="am-col-image-btn">Görsel Seç</button>
               <input type="file" id="am-col-image-input" accept="image/*" style="display:none;">
@@ -1331,6 +1331,9 @@ const AuthModal = (function () {
   // gelirse satır kanal etiketi olmadan basılır.
   const SHARE_CHANNEL_LABELS = { copy: 'Bağlantı kopyalandı', whatsapp: 'WhatsApp', x: 'X', linkedin: 'LinkedIn', native: 'Paylaşıldı' };
   const PAGE_SIZE_DASH = 10;
+  // Panolarım'a bilgisayardan yüklenen görselin ÜST SINIRI (kullanıcı isteği, 2026-09-03).
+  // src/routes/upload.js#CONTEXT_MAX_BYTES['collection'] ile AYNI değer olmak zorunda.
+  const COLLECTION_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
   // 'fotografci' — kullanıcı isteği (2026-09-01 madde 6). Bu eşleme src/routes/auth.js#PROFESSIONS,
   // uye-ol.html ve kisi-ekle.html#MESLEK_OPTIONS ile BİLİNÇLİ olarak kopyadır; dördü birlikte
   // güncellenmeli (bkz. o dosyalardaki AYNI not).
@@ -3723,12 +3726,22 @@ const AuthModal = (function () {
       const file = e.target.files && e.target.files[0];
       e.target.value = '';
       if (!file) return;
+      // 2 MB ÜST SINIRI (kullanıcı isteği, 2026-09-03: "Panolarım kısmında 2mb'tan büyük görsel
+      // yüklenemesin"). Kontrol KULLANICININ SEÇTİĞİ ham dosya üzerinde yapılır, aşağıdaki
+      // buildImageUploadForm'un küçülttüğü sonuç üzerinde DEĞİL: küçültme 5 MB'lık bir telefon
+      // fotoğrafını da ~300 KB'a indirdiğinden, işlenmiş boyuta bakan bir kontrol pratikte hiçbir
+      // dosyayı reddetmezdi. Sunucu tarafında da ayrıca `context: 'collection'` ile 2 MB'a
+      // kelepçelenir (bkz. src/routes/upload.js#CONTEXT_MAX_BYTES) — istemci kontrolü atlanamasın.
+      if (file.size > COLLECTION_IMAGE_MAX_BYTES) {
+        notice('am-col-detail-notice', 'Görsel en fazla 2 MB olabilir.', true);
+        return;
+      }
       notice('am-col-detail-notice', 'Görsel yükleniyor…');
       try {
         // Denetim bulgusu (2026-09-03): burada dosya HİÇ işlenmeden yükleniyordu — sitedeki tek
         // kalan "ham telefon fotoğrafı doğrudan R2'ye" yolu buydu. Artık diğer tüm yükleme
         // noktalarıyla AYNI boru hattından geçer (küçültme + WebP + responsive türevler).
-        const form = await buildImageUploadForm(file, { maxEdge: 1600, quality: 0.85 });
+        const form = await buildImageUploadForm(file, { context: 'collection', maxEdge: 1600, quality: 0.85 });
         const res = await fetch('/api/uploads', { method: 'POST', body: form });
         const data = await res.json();
         if (!res.ok) { notice('am-col-detail-notice', data.error || 'Görsel yüklenemedi.', true); return; }

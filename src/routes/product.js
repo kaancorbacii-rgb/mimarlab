@@ -34,7 +34,10 @@ const CATALOG_CATEGORY_ORDER = new Map(
 // isSubmissionMarker: handleProductListRoute'taki (aşağıda) AYNI "legacy_key 'submission:' ile
 // başlıyorsa üye/marka gönderisi kökenli" kontrolü — js/components/product-modal.js#mountAdminActions
 // admin Arşivle/Sil isteğinde id (üye gönderisi) mi key (statik kayıt) mi göndereceğine bununla karar verir.
-function shapeProductItem(row) {
+// export EDİLİR: scripts/visual-search-eval.mjs (görsel arama regresyon testi) fetchProductPool'un
+// D1 erişimini REST API ile taklit ederken AYNI şekillendirmeyi kullanmak için import eder —
+// kopyalanmaz, tek kaynak burasıdır.
+export function shapeProductItem(row) {
   const p = parseCanonicalRow('products', row);
   const isSubmissionMarker = typeof row.legacy_key === 'string' && row.legacy_key.startsWith('submission:');
   return {

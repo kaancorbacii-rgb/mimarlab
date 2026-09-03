@@ -354,10 +354,14 @@
     box-shadow:0 6px 16px rgba(27,42,61,0.16);
     display:flex; align-items:center; justify-content:center;
     color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:25px;
-    padding:10px; box-sizing:border-box;
+    /* padding:0 (kullanıcı isteği, 2026-09-03): "logolar etrafındaki kutucuklara kenarlara değecek
+       şekilde tam otursunlar, logonun etrafında margin olmasın". Kutu ölçüsü DEĞİŞMEDİ (118x76) —
+       iç boşluk kalkınca object-fit:contain logoyu 98x56 yerine 118x76'lık alana sığdırır, yani
+       görünür logo ~%20 büyür. `contain` korunur, dolayısıyla logo hâlâ kırpılmaz ve "her logo aynı
+       büyüklükte" kuralı (2026-09-02) bozulmaz. */
+    padding:0; box-sizing:border-box;
   }
   .office-card-logo img{width:100%; height:100%; object-fit:contain; box-sizing:border-box;}
-  .office-card-logo.no-logo{padding:0;}
   /* padding-top: yukarıdaki bottom:-14px'lik taşmaya + nefes payına yer açar (marka.html ile AYNI). */
   .office-card-body{padding:26px 14px 14px;}
   .office-card-name{
@@ -444,7 +448,7 @@
     .office-card-body{padding:22px 10px 10px;}
     /* Masaüstündeki AYNI ~%35'lik büyütme (kullanıcı isteği 2026-09-03, "tüm görünümlerde"):
        66x42 -> 90x58. `bottom` DEĞİŞMEDİĞİ için .office-card-body'nin padding-top'u da aynı kalır. */
-    .office-card-logo{left:10px; bottom:-11px; width:90px; height:58px; border-radius:12px; padding:8px; font-size:20px;}
+    .office-card-logo{left:10px; bottom:-11px; width:90px; height:58px; border-radius:12px; padding:0; font-size:20px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }

@@ -370,15 +370,16 @@
     box-shadow:0 6px 16px rgba(27,42,61,0.16);
     display:flex; align-items:center; justify-content:center;
     color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:25px;
-    padding:10px; box-sizing:border-box;
+    /* padding:0 (kullanıcı isteği, 2026-09-03) — firma.html#.office-card-logo ile AYNI gerekçe:
+       logo kutunun kenarlarına değsin, etrafında boşluk kalmasın. Kutu ölçüsü aynı kalır. */
+    padding:0; box-sizing:border-box;
   }
   /* firma.html#.office-card-logo img ile AYNI gerekçe (kullanıcı isteği, 2026-09-02): her logonun
      kutusu eşit kare olsun; contain logoyu kırpmadan içine ortalar. */
   .office-card-logo img{width:100%; height:100%; object-fit:contain; box-sizing:border-box;}
   /* Logosu olmayan markada kutunun içi baş harflerdir — o durumda kutu kendi (marka rengi) zeminini
      alır, aksi halde açık kart zemininde açık renkli yazı okunmazdı (bkz. render()'daki inline
-     background). */
-  .office-card-logo.no-logo{padding:0;}
+     background). Ayrı bir padding:0 kuralına gerek kalmadı: kutunun kendisi artık padding'siz. */
   /* padding-top: yukarıdaki bottom:-14px'lik taşmaya + 12px nefes payına yer açar. */
   .office-card-body{padding:26px 14px 14px;}
   .office-card-name{
@@ -467,7 +468,7 @@
     .office-card-body{padding:22px 10px 10px;}
     /* Masaüstündeki AYNI ~%35'lik büyütme (kullanıcı isteği 2026-09-03, "tüm görünümlerde"):
        66x42 -> 90x58. `bottom` DEĞİŞMEDİĞİ için .office-card-body'nin padding-top'u da aynı kalır. */
-    .office-card-logo{left:10px; bottom:-11px; width:90px; height:58px; border-radius:12px; padding:8px; font-size:20px;}
+    .office-card-logo{left:10px; bottom:-11px; width:90px; height:58px; border-radius:12px; padding:0; font-size:20px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }

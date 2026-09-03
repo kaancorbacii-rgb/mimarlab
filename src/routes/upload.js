@@ -10,6 +10,10 @@ const CONTEXT_MAX_BYTES = {
   product: 2 * 1024 * 1024, // urun-ekle.html galeri görselleri
   architect: 2 * 1024 * 1024, // kisi-ekle.html profil fotoğrafı
   office: 2 * 1024 * 1024, // firma-ekle.html logo
+  // Panolarım'a bilgisayardan yüklenen görsel (kullanıcı isteği, 2026-09-03: "Panolarım kısmında
+  // 2mb'tan büyük görsel yüklenemesin"). İstemci ham dosyayı zaten reddeder (bkz. js/components/
+  // auth-modal.js#COLLECTION_IMAGE_MAX_BYTES); bu, o kontrolün atlanamayacağı sunucu kapısıdır.
+  collection: 2 * 1024 * 1024,
 };
 const EXT_BY_MIME = {
   'image/jpeg': 'jpg',

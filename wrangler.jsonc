@@ -74,6 +74,11 @@
   // https://developers.cloudflare.com/workers-ai/platform/pricing/) — her iki uç noktadaki rate
   // limit'ler maliyeti sınırlı tutar.
   "ai": { "binding": "AI" },
+  // Görsel arama VARLIK DİZİNİNİN artımlı bakımı (bkz. src/index.js#scheduled, src/lib/
+  // visualIndexStore.js#rebuildIndex). Cron Triggers Workers planına DAHİLDİR, ek ücreti yoktur.
+  // 6 saatte bir: yeni/değişmiş proje ve ürünlerin embedding'i üretilip dizin yeniden paketlenir;
+  // değişiklik yoksa hiçbir AI çağrısı yapılmaz ve KV'ye yazılmaz.
+  "triggers": { "crons": ["23 */6 * * *"] },
   "vars": {
     // iyzico Sandbox test ortamı — canlıya alırken "https://api.iyzipay.com" olarak değiştirilmeli.
     // Gizli anahtarlar (IYZICO_API_KEY, IYZICO_SECRET_KEY, RESEND_API_KEY) burada değil, `wrangler

@@ -680,8 +680,14 @@ const OfficeModal = (function () {
     // görselini kapak olarak döndürmesi (bkz. src/routes/office.js#latestProjectCover). Yani projesi
     // olan her firmada coverUrl artık dolu gelir; ne projesi ne kapağı olan firmada bant yine hiç
     // render edilmez ve logo eski yerinde, başlığın yanında kalır.
+    // GÜNCELLEME (kullanıcı isteği, 2026-09-03): "Firma popuplarında kapak görseli yoksa dahi kapak
+    // görseli olarak marka popuplarındaki gibi renk kaplaması gözüksün." Bant artık KOŞULSUZ
+    // gösterilir — markalarda zaten öyleydi (isBrandProfile dalı), fark yalnızca ne projesi ne
+    // kapağı olan firmaların bandı hiç görmemesiydi. Görsel yoksa .om-cover-fallback
+    // officeColor(o.name) zemininde tek başına kalır, yani her firma/marka popup'ı aynı LinkedIn
+    // tarzı başlık düzenine (kapak + sol alt köşeye binen logo) sahip olur.
     const coverUrl = o.cover ? safeUrl(o.cover) : '';
-    const showCover = isBrandProfile || !!coverUrl;
+    const showCover = true;
     const coverEl = document.getElementById('om-cover');
     const identityEl = document.querySelector('.om-identity');
     if (coverEl) {
