@@ -284,10 +284,33 @@ const PATH_RENAME_REDIRECTS = {
 // Giriş/Üye Ol/Hesabım modallarının doğrudan URL ile açılması (F5/deep-link) — CLEAN_URL_ASSETS'in
 // aksine bir slug'a değil TEK bir sabit yola karşılık geldiklerinden ayrı, basit bir eşleme yeterli.
 // index.html HER sayfada zaten yüklü olan auth-modal.js'i barındırdığından burada "ana sayfa" servis
-// edilir, o da location.pathname'e bakıp ilgili modalı kendisi açar (bkz. auth-modal.js). Bu 3 sayfa
-// zaten noindex olduğundan (bkz. giris-yap.html/uye-ol.html/hesabim.html <meta name="robots">)
-// serveDetailPage'deki HTMLRewriter/meta enjeksiyonuna burada ihtiyaç yok.
-const AUTH_MODAL_ROUTES = new Set(['/giris', '/uye-ol', '/hesabim', '/aktivitelerim', '/iceriklerim', '/koleksiyonum', '/sifremi-unuttum']);
+// edilir, o da location.pathname'e bakıp ilgili modalı kendisi açar (bkz. auth-modal.js).
+//
+// SEO denetimi (2026-09-03) — GERÇEK BULGU: burada eskiden "bu sayfalar zaten noindex (bkz.
+// giris-yap.html/uye-ol.html/hesabim.html <meta name=robots>), meta enjeksiyonuna gerek yok" yazan
+// bir not vardı ve bu YANLIŞTI. O statik dosyalar bu yollar için HİÇ servis edilmiyor — servis
+// edilen index.html'dir ve index.html tamamen indexlenebilir. Sonuç: bu 7 URL, ana sayfayla
+// neredeyse birebir aynı gövdeyi robots etiketi OLMADAN dönüyordu; üstelik /giris ve /uye-ol
+// sitedeki HER sayfanın footer/nav'ında gerçek <a href> olarak duruyor (bkz. js/components/
+// site-chrome.js), yani Googlebot'un en sık gördüğü iç bağlantılardan ikisi. Canlıda doğrulandı:
+// GET /giris -> 200, <meta name="robots"> YOK, <title> ana sayfanınkiyle aynı.
+//
+// Çözüm, INFO_MODAL_META'nın (aşağısı) Rozet Al/İade Et için ZATEN kullandığı kanıtlanmış desenin
+// birebir aynısı: kendi title/description'ı + KENDİ yoluna işaret eden canonical + noindex. Ayrı
+// bir mekanizma icat edilmez, serveInfoModalPage yeniden kullanılır. canonical'ın ana sayfaya
+// DEĞİL kendi yoluna işaret etmesi bilinçli: "noindex + başka bir URL'e canonical" çelişkili bir
+// sinyaldir ve Google'ın canonical HEDEFİNİ (burada ana sayfayı) de indeksten düşürme riski taşır.
+const AUTH_MODAL_META = {
+  '/giris': { title: 'Giriş Yap — MİMARLAB', description: 'MİMARLAB hesabına giriş yap; projelerini, kaydettiklerini ve profilini yönet.', noindex: true },
+  '/uye-ol': { title: 'Üye Ol — MİMARLAB', description: 'MİMARLAB\'a ücretsiz üye ol; proje, kişi, firma ve ürün ekle, içerikleri kaydet ve takip et.', noindex: true },
+  '/hesabim': { title: 'Hesabım — MİMARLAB', description: 'MİMARLAB hesap ayarların, profil bilgilerin ve üyelik yönetimin.', noindex: true },
+  '/aktivitelerim': { title: 'Aktivitelerim — MİMARLAB', description: 'MİMARLAB\'da kaydettiklerin, takip ettiklerin, puanladıkların ve yorumların.', noindex: true },
+  '/iceriklerim': { title: 'İçeriklerim — MİMARLAB', description: 'MİMARLAB\'a eklediğin projeler, kişiler, firmalar ve ürünler.', noindex: true },
+  '/koleksiyonum': { title: 'Koleksiyonum — MİMARLAB', description: 'MİMARLAB panoların ve koleksiyonların.', noindex: true },
+  '/sifremi-unuttum': { title: 'Şifremi Unuttum — MİMARLAB', description: 'MİMARLAB şifreni sıfırla; e-posta adresine sıfırlama bağlantısı gönderelim.', noindex: true },
+};
+// (Bu yollar artık ayrı bir Set üzerinden değil, doğrudan AUTH_MODAL_META üzerinden eşleşiyor —
+// bkz. routeAsset'teki `AUTH_MODAL_META[url.pathname] || INFO_MODAL_META[url.pathname]`.)
 
 // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer — AYNI "ana sayfayı
 // servis et, istemci JS'i (bkz. js/components/info-modal.js) location.pathname'e göre ilgili modalı
@@ -519,17 +542,11 @@ async function routeAsset(request, env, url, ctx) {
   const cleanRoute = CLEAN_URL_ASSETS.find(r => url.pathname.startsWith(r.prefix) && url.pathname.length > r.prefix.length);
   if (cleanRoute) return serveDetailPage(request, env, url, cleanRoute, ctx);
 
-  if (AUTH_MODAL_ROUTES.has(url.pathname)) {
-    // gerçek bulgu: '/index' Cloudflare Assets tarafından kanonik doküman (index.html'in kendi
-    // kanonik yolu '/'dir) olarak özel ele alınıyor ve '/'e 307 yönlendiriliyor — CLEAN_URL_ASSETS'teki
-    // '/proje' gibi sıradan bir sayfa adı DEĞİL. '/' doğrudan istenirse bu ek yönlendirme hiç olmaz.
-    const assetUrl = new URL(url);
-    assetUrl.pathname = '/';
-    const response = await env.ASSETS.fetch(new Request(assetUrl, request));
-    return withStaticAssetCacheHeaders(url, response);
-  }
-
-  const infoMeta = INFO_MODAL_META[url.pathname];
+  // AUTH_MODAL_META ve INFO_MODAL_META artık AYNI yolu paylaşıyor (bkz. AUTH_MODAL_META'daki SEO
+  // denetimi notu) — serveInfoModalPage zaten "ana sayfayı servis et + kendi meta'sını enjekte et"
+  // işini yapıyor; auth yolları için ayrıca bir '/index' 307 tuzağı da yok, çünkü o fonksiyon da
+  // assetUrl.pathname'i doğrudan '/' yapar.
+  const infoMeta = AUTH_MODAL_META[url.pathname] || INFO_MODAL_META[url.pathname];
   if (infoMeta) return serveInfoModalPage(request, env, url, infoMeta);
 
   const response = await env.ASSETS.fetch(request);

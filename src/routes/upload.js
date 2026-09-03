@@ -274,6 +274,24 @@ const MEDIA_EDGE_MAX_AGE_SECONDS = 2592000;
 // Ücretli Cloudflare Images Transform YERİNE kullanılır (2026-08-22'de maliyet nedeniyle kapatıldı).
 const DERIVED_KEY_RE = /^_derived\/w(\d+)\/(r2|s)\/(.+)$/;
 
+// GÜVENLİK/HİJYEN DÜZELTMESİ (production audit, 2026-09-03) — "s" (statik varlık) kaynağı,
+// çözülmüş yolu doğrudan env.ASSETS.fetch'e veriyordu. URL nesnesi nokta segmentlerini
+// normalize ettiğinden bu, `/media/` altında KEYFİ bir statik varlığa erişim demekti; canlıda
+// doğrulandı: GET /media/_derived/w400/s/..%2F..%2Fadmin.html -> 200 ve admin.html'in TAM HTML'i
+// /media/ yolu altından servis ediliyordu. Ayrıcalık yükseltmesi DEĞİL (o varlıklar zaten kendi
+// yollarından herkese açık) ama iki gerçek zararı var: (1) her statik dosya için sınırsız sayıda
+// alternatif URL üretilebiliyor — tarama bütçesi israfı ve duplicate content; (2) HTML sayfalar
+// asla ait olmadıkları bir yol/Cache-Control sözleşmesi altında servis ediliyor.
+//
+// Kısıt, meşru trafiği HİÇ etkilemeyecek kadar dar seçildi: "s" türevleri YALNIZCA görseller için
+// üretilir (bkz. image-cdn.js#derivativeUrl ve src/lib/imageDerivative.js#derivedImageUrl — ikisi
+// de bu yolu sadece görsel alanlarından kurar, DERIVATIVE_SKIP_RE ile svg/gif zaten elenir). Bu
+// yüzden NORMALIZE EDİLMİŞ hedef yolun bir görsel uzantısıyla bitmesi şart koşulur — çözülmüş yol
+// bir görsele işaret etmiyorsa (yani traversal bizi HTML/JS/başka bir şeye götürdüyse) 404 dönülür.
+// Kontrol ham string üzerinde ".." aramaz, URL'in KENDİ normalizasyonundan SONRAKİ sonuca bakar —
+// böylece çift kodlama (%252e%252e) gibi varyantlar da aynı kapıya çarpar.
+const DERIVED_STATIC_IMAGE_RE = /\.(jpe?g|png|webp|avif|gif|svg)$/i;
+
 // KRİTİK GÜVENLİK AĞI: bir türev henüz üretilmemişse (migration devam ediyor, yeni yüklenmiş bir
 // görsel, ya da türev üretimi başarısız olmuş) 404 DÖNMEZ — ORİJİNAL servis edilir. Bu sayede
 // image-cdn.js tek bir türev bile yokken canlıya alınabilir ve hiçbir görsel asla kırılmaz;
@@ -336,6 +354,9 @@ export async function handleMediaRoute(request, env, url, ctx) {
         const assetUrl = new URL(url);
         assetUrl.pathname = `/${originalPath}`;
         assetUrl.search = '';
+        // bkz. DERIVED_STATIC_IMAGE_RE — pathname ataması nokta segmentlerini ZATEN çözdüğü için
+        // bu kontrol traversal SONRASI gerçek hedefi görür.
+        if (!DERIVED_STATIC_IMAGE_RE.test(assetUrl.pathname)) return errorJson('Bulunamadı', 404);
         const assetRes = await env.ASSETS.fetch(new Request(assetUrl, { method: 'GET' }));
         if (!assetRes.ok) return errorJson('Bulunamadı', 404);
         const assetHeaders = new Headers(assetRes.headers);

@@ -1,5 +1,11 @@
 import { slugify } from './slugify.js';
 import { parseCanonicalRow } from './canonicalRead.js';
+// isOfficeName — bkz. fetchUnlinkedProjectCredits aşağısı. src/routes/project.js#
+// handleProjectDetailRoute ZATEN aynı fonksiyonu aynı amaçla (eski, office sütunu NULL olan
+// project_submissions satırlarında bir ismin mimar mı firma mı olduğunu kestirmek) kullanıyor —
+// ikinci bir sezgi yazmak yerine AYNI kaynak paylaşılır, aksi halde popup ile SSR farklı
+// sınıflandırma üretebilirdi.
+import { isOfficeName } from './projectPool.js';
 // data.js/projeler-data.js/urunler-data.js/malzemeler-data.js BİLEREK burada YOK — mimar/firma/
 // proje/ürün SSR meta + JSON-LD üretimi artık doğrudan canonical D1 (architects/offices/projects/
 // products) tablolarından okunuyor, src/routes/architect.js|office.js|project.js|product.js'in
@@ -243,6 +249,44 @@ async function findProjectRow(env, slug) {
   ).bind(slug).first();
 }
 
+// SEO denetimi (2026-09-03) — GERÇEK BULGU, canlıda doğrulandı: findProjectRow künyeyi YALNIZCA
+// project_designers'tan okuyor, oysa /api/project/:slug (popup) AYRICA project_submissions'ın
+// serbest metin designer/office dizilerini de gösteriyor (bkz. src/routes/project.js#
+// fetchRawDesignerNames — bir isim canonical bir architects/offices satırıyla eşleşmiyorsa
+// canonicalSync onu project_designers'a HİÇ yazmaz, bkz. o dosyadaki CHECK kısıtı notu).
+// Sonuç: canlıdaki 1.697 yayın projesinin 188'inde (%11) kullanıcı sayfada tam künyeyi GÖRÜYOR
+// ama Googlebot'un gördüğü SSR gövdesinde "Mimar / Firma" satırı BOŞ, JSON-LD'de `creator` HİÇ
+// YOK ve meta description'daki "... imzalı." cümlesi eksik. Örnek: /proje/villa-neox — popup'ta
+// 4 mimar + Neos Studio görünürken JSON-LD'de creator alanı hiç üretilmiyordu.
+//
+// Bu fonksiyon YALNIZCA project_designers hiçbir isim vermediğinde çağrılır (188/1697 kayıt) ve
+// yalnızca SSR cache MISS'inde çalışır — yani ek D1 maliyeti marjinaldir. Dönen isimlerin
+// canonical bir slug'ı YOKTUR (zaten bu yüzden bağlanamadılar), bu yüzden ne JSON-LD'de `url`
+// alırlar ne de gövdede <a> olurlar; popup'ın `unregistered: true` rozetsiz düz metin gösterimiyle
+// BİREBİR aynı davranış. Uydurma/tahmini hiçbir URL üretilmez.
+async function fetchUnlinkedProjectCredits(env, projectRow) {
+  const submissionId = (projectRow.legacy_key || '').startsWith('submission:') ? projectRow.legacy_key.slice('submission:'.length) : '';
+  // src/routes/project.js#fetchRawDesignerNames ile BİREBİR AYNI sorgu/eşleştirme (claimed_slug ya
+  // da legacy_key="submission:<id>", en son güncellenen satır) — iki katman aynı künyeyi göstermeli.
+  const row = await env.DB.prepare(
+    `SELECT designer, office FROM project_submissions WHERE claimed_slug = ?1 OR id = ?2 ORDER BY updated_at DESC LIMIT 1`
+  ).bind(projectRow.slug, submissionId).first().catch(() => null);
+  if (!row) return { architectNames: [], officeNames: [] };
+  const parseArr = (v) => { try { const p = v ? JSON.parse(v) : []; return Array.isArray(p) ? p.filter(n => typeof n === 'string' && n.trim()) : []; } catch { return []; } };
+  const designers = parseArr(row.designer);
+  // office sütunu NULL = migration 0030 ÖNCESİ kaydedilmiş satır; o dönemde Mimar/Firma kutuları
+  // TEK bir designer dizisinde birleştiriliyordu, bu yüzden ayrım isOfficeName sezgisine düşer —
+  // src/routes/project.js#handleProjectDetailRoute'un yaptığının AYNISI (bkz. oradaki "geriye
+  // dönük bozmama amaçlı, TEK istisna" notu).
+  if (row.office == null) {
+    return {
+      architectNames: designers.filter(n => !isOfficeName(n)),
+      officeNames: designers.filter(n => isOfficeName(n)),
+    };
+  }
+  return { architectNames: designers, officeNames: parseArr(row.office) };
+}
+
 // brand_office_name/brand_office_slug — ürünün brand_office_id'si eşleşen bir firma kaydına
 // bağlıysa (bkz. buildProductMeta#bodyHtml) marka adını gerçek /firma/:slug linkine çevirebilmek
 // için AYNI sorguya eklenen tek bir LEFT JOIN; eşleşme yoksa (serbest metin marka adı, bkz.
@@ -403,9 +447,36 @@ async function buildProjectMeta(slug, env) {
     if (!info.district && !info.city) address.addressLocality = p.location;
     jsonLd.locationCreated = { '@type': 'Place', address };
   }
+  // SEO denetimi (2026-09-03) — `creator` girdileri yalnızca `name` taşıyordu, oysa AYNI sorgu
+  // (findProjectRow) mimar/firma slug'larını da getiriyor ve bunlar zaten aşağıdaki görünür
+  // designerLinksHtml'de gerçek /kisi/:slug ve /firma/:slug bağlantılarına çevriliyor. `url`
+  // eklemek, Google'ın "Villa NeoX'un yaratıcısı" düğümünü sitedeki GERÇEK mimar/firma sayfasıyla
+  // aynı varlık olarak birleştirmesini sağlar (entity reconciliation) — yeni hiçbir sorgu, uydurma
+  // hiçbir veri gerektirmez; slug yoksa (teoride olmaz, aynı LEFT JOIN'den gelir) alan eklenmez,
+  // kırık URL üretilmez. AYNI iki dizi aşağıda designerLinksHtml için de kullanıldığından burada
+  // bir kez ayrıştırılıp paylaşılır.
+  let architectNames = namesFromConcat(row.architect_names);
+  let architectSlugs = namesFromConcat(row.architect_slugs);
+  let officeNames = namesFromConcat(row.office_names);
+  let officeSlugs = namesFromConcat(row.office_slugs);
+  // bkz. fetchUnlinkedProjectCredits — project_designers HİÇBİR isim vermediyse künye serbest
+  // metin olarak yalnızca project_submissions'ta yaşıyor olabilir (canlıdaki 188 proje). Slug
+  // dizileri BİLEREK boş bırakılır: bu isimlerin canonical bir kaydı yok, aşağıdaki creator/
+  // designerLinksHtml üreticileri slug yokken zaten url'siz/linksiz düz metne düşüyor.
+  if (!architectNames.length && !officeNames.length) {
+    const fallback = await fetchUnlinkedProjectCredits(env, row);
+    architectNames = fallback.architectNames;
+    officeNames = fallback.officeNames;
+    architectSlugs = [];
+    officeSlugs = [];
+  }
   const creators = [
-    ...namesFromConcat(row.architect_names).map(name => ({ '@type': 'Person', name })),
-    ...namesFromConcat(row.office_names).map(name => ({ '@type': 'Organization', name })),
+    ...architectNames.map((name, i) => architectSlugs[i]
+      ? { '@type': 'Person', name, url: `${SITE_ORIGIN}/kisi/${encodeURIComponent(architectSlugs[i])}` }
+      : { '@type': 'Person', name }),
+    ...officeNames.map((name, i) => officeSlugs[i]
+      ? { '@type': 'Organization', name, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(officeSlugs[i])}` }
+      : { '@type': 'Organization', name }),
   ];
   if (creators.length) jsonLd.creator = creators.length === 1 ? creators[0] : creators;
   // audit bulgusu: og:type tüm detay sayfalarında sabit "website" kalıyordu — proje sayfaları
@@ -419,10 +490,8 @@ async function buildProjectMeta(slug, env) {
   // designerLinksHtml — mimar/firma isimlerini (varsa) GERÇEK a.slug/o.slug'a (bkz. yukarıdaki
   // findProjectRow#architect_slugs/office_slugs) `<a>` linkine çevirir; bir isim için (teoride
   // olmaz, aynı LEFT JOIN'den gelir) slug yoksa düz escape'lenmiş metne düşer, kırık link üretmez.
-  const architectNames = namesFromConcat(row.architect_names);
-  const architectSlugs = namesFromConcat(row.architect_slugs);
-  const officeNames = namesFromConcat(row.office_names);
-  const officeSlugs = namesFromConcat(row.office_slugs);
+  // (architectNames/architectSlugs/officeNames/officeSlugs yukarıda jsonLd.creator için zaten
+  // ayrıştırıldı — aynı diziler burada tekrar kullanılır.)
   const designerLinksHtml = [
     ...architectNames.map((name, i) => architectSlugs[i] ? internalLink(`/kisi/${encodeURIComponent(architectSlugs[i])}`, name) : escapeHtml(name)),
     ...officeNames.map((name, i) => officeSlugs[i] ? internalLink(`/firma/${encodeURIComponent(officeSlugs[i])}`, name) : escapeHtml(name)),
@@ -432,7 +501,10 @@ async function buildProjectMeta(slug, env) {
   // p.description yalnızca ANLAMLI uzunluktaysa kullanılır (bkz. meaningfulText — projelerde bu
   // durumda olan 1 kayıt var). Asıl kazanç, description'ı HİÇ olmayan projelerin eski jenerik
   // metin yerine gerçek künye verisi taşıması: konum, yıl, tür ve mimar/firma adları.
-  const designerNames = [...namesFromConcat(row.architect_names), ...namesFromConcat(row.office_names)];
+  // row.* yerine YUKARIDAKİ dizilerden okunur — aksi halde fetchUnlinkedProjectCredits fallback'i
+  // (bkz. yukarısı) JSON-LD/gövdeye yansırken meta description'daki "... imzalı." cümlesi 188
+  // projede yine boş kalırdı (kısmi düzeltme, en kolay gözden kaçacak yer).
+  const designerNames = [...architectNames, ...officeNames];
   const generatedProjectDesc = [
     `${p.title}${p.location ? ' — ' + p.location : ''}${p.project_date ? ' (' + p.project_date + ')' : ''}.`,
     typeLabel ? `${typeLabel}.` : '',
@@ -478,7 +550,16 @@ function productMetaFromRecord(record, canonicalUrl) {
   // zorunlu görüyor. meta.image (OG/Twitter) zaten DEFAULT_IMAGE'a düşüyor, JSON-LD de AYNI görsel
   // varsayılanını kullanmalı ki sayfada görünen içerikle tutarlı, geçerli bir Product şeması olsun.
   jsonLd.image = images.length ? images : [DEFAULT_IMAGE];
-  if (record.brand) jsonLd.brand = { '@type': 'Brand', name: record.brand };
+  // SEO denetimi (2026-09-03) — buildProjectMeta#creator ile AYNI gerekçe: marka gerçek bir firma
+  // kaydına bağlıysa (record.brandOfficeSlug, bkz. findProductRow#brand_office_slug — aşağıdaki
+  // görünür brandHtml zaten bu slug'ı kullanıyor) Brand düğümüne `url` eklenir; böylece Google
+  // ürünün markasını sitedeki /firma/:slug sayfasıyla AYNI varlık sayar. Eşleşme yoksa (serbest
+  // metin marka adı) alan eklenmez — tahmini/kırık bir URL üretilmez.
+  if (record.brand) {
+    jsonLd.brand = record.brandOfficeSlug
+      ? { '@type': 'Brand', name: record.brand, url: `${SITE_ORIGIN}/firma/${encodeURIComponent(record.brandOfficeSlug)}` }
+      : { '@type': 'Brand', name: record.brand };
+  }
   // audit bulgusu: bu obje daha önce offers/aggregateRating/review'dan HİÇBİRİNİ taşımıyordu — Google
   // Product zengin sonuçları için (2023'ten beri) en az birini şart koşuyor. `products` tablosunda
   // fiyat kolonu hiç yok (ürün kataloğu bir e-ticaret listesi değil, bkz. schema.sql) — bu yüzden

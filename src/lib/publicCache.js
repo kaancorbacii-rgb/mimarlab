@@ -369,7 +369,16 @@ export async function cachedPublicJson(request, env, pathname, computeData, list
 
   const responseHeaders = etag ? { ...headers, ETag: etag } : headers;
   const data = await withSingleFlight(`json:${pathname}`, computeData);
-  const response = json(data, 200, responseHeaders);
+  // gerçek bulgu (production audit, 2026-09-03): burada durum kodu SABİT 200 yazılıydı — oysa
+  // statusFor() tam olarak bu şekli (tekil detay uçlarının `{item:null}` yanıtı) 404/410'a
+  // çevirmek için var. D1 audit'in P0-1 adımı (2026-08-25) `/api/project|architect|office|
+  // product/:slug` uçlarını `isDetailPath` ile cacheable yaptığında bu uçlar `!cacheable`
+  // dalından (statusFor'u DOĞRU uygulayan tek okuma dalı) buraya taşınmış, ama sabit 200
+  // güncellenmemişti — yani soft-404 düzeltmesi o günden beri canlıda TAMAMEN ölüydü: var
+  // olmayan HER slug 200 OK dönüyordu (canlıda doğrulandı: GET /api/project/bu-slug-yok-12345
+  // -> 200). Liste uçları bu şekli hiç üretmediğinden (dizi döner, `item` alanı yok) statusFor
+  // orada zaten değişmeden 200 döner — davranış yalnızca 4 detay ucunda düzelir.
+  const response = json(data, statusFor(data), responseHeaders);
   try { await caches.default.put(cacheKey, response.clone()); } catch {}
   return response;
 }

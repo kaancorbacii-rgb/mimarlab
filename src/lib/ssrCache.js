@@ -41,7 +41,17 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // fetchDesignerProjects). Sürüm artırılmazsa daha önce ziyaret edilmiş profil sayfaları s-maxage
 // boyunca bu bağlantıları TAŞIMAYAN eski gövdeyi sunmaya devam eder — yani düzeltmenin tek amacı
 // olan iç bağlantı grafiği Googlebot'a görünmezdi.
-export const SSR_CACHE_VERSION = 'v108';
+// v109 (SEO denetimi, 2026-09-03): /proje/:slug JSON-LD'sindeki `creator` düğümleri ve
+// /urun/:slug'daki `brand` düğümü artık `url` taşıyor (bkz. src/lib/seo.js#buildProjectMeta /
+// productMetaFromRecord) — böylece Google, projenin yaratıcısını/ürünün markasını sitedeki
+// GERÇEK /kisi/:slug ve /firma/:slug sayfalarıyla AYNI varlık olarak birleştirebilir. JSON-LD
+// bloğu SSR HTML'inin İÇİNE enjekte edildiğinden (bkz. src/index.js#injectMeta), sürüm
+// artırılmazsa daha önce ziyaret edilmiş detay sayfaları s-maxage boyunca url'siz eski
+// JSON-LD'yi sunmaya devam eder — yani düzeltme Googlebot'a hiç görünmezdi (v107/v108'deki
+// AYNI tuzak). AYNI sürüm, canlıdaki 188 projenin (project_designers'a bağlanamamış serbest
+// metin künyeler) SSR gövdesindeki artık DOLU olan "Mimar / Firma" satırını + meta
+// description'daki "... imzalı." cümlesini de kapsıyor (bkz. seo.js#fetchUnlinkedProjectCredits).
+export const SSR_CACHE_VERSION = 'v109';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

@@ -147,6 +147,63 @@ echo ""
 echo "5) Migration Conflicts admin gate (P1 düzeltmesi regresyon koruması)"
 check_status "/api/admin/migration-conflicts" 401
 
+# ------------------------------------------------------------------------------------------------
+# Aşağıdakiler production audit'te (2026-09-03) BULUNAN VE DÜZELTİLEN dört hatanın regresyon
+# korumasıdır. Dördü de canlıda gerçekten kırıktı; bu kontroller olmadan sessizce geri gelebilirler.
+# ------------------------------------------------------------------------------------------------
+echo ""
+echo "6) Tekil detay uçlarının soft-404'ü (publicCache.js#statusFor regresyon koruması)"
+# Bulgu: cachedPublicJson'ın CACHE'LENEBİLİR dalı durum kodunu SABİT 200 yazıyordu — detay uçları
+# 2026-08-25'te cacheable yapıldığında statusFor() bypass edildi ve var olmayan HER slug 200 döndü.
+for ep in "/api/project" "/api/architect" "/api/office" "/api/product"; do
+  check_status "$ep/bu-kayit-kesinlikle-yok-smoke-test" 404
+done
+
+echo ""
+echo "7) Hesap/oturum yollarında noindex (src/index.js#AUTH_MODAL_META regresyon koruması)"
+# Bulgu: /giris, /uye-ol, /hesabim ... ana sayfanın gövdesini robots etiketi OLMADAN döndürüyordu;
+# /giris ile /uye-ol sitedeki her sayfanın footer'ında gerçek <a href> — yani indexlenebilir
+# duplicate'lardı. Kaynak kodda AKSİ İDDİA EDİLEN bir yorum vardı, bu yüzden kontrol canlıya bakar.
+for p in "/giris" "/uye-ol" "/hesabim" "/aktivitelerim" "/iceriklerim" "/koleksiyonum" "/sifremi-unuttum"; do
+  page_html=$(curl -s "$BASE_URL$p")
+  if [[ "$page_html" == *'name="robots" content="noindex'* ]]; then ok "$p noindex taşıyor"; else bad "$p noindex TAŞIMIYOR (ana sayfa duplicate'i indexlenebilir)"; fi
+done
+# Ters kontrol: indexlenmesi GEREKEN sayfalar yanlışlıkla noindex almasın.
+for p in "/" "/iletisim" "/hakkinda"; do
+  page_html=$(curl -s "$BASE_URL$p")
+  if [[ "$page_html" == *'name="robots" content="noindex'* ]]; then bad "$p YANLIŞLIKLA noindex aldı"; else ok "$p indexlenebilir kaldı"; fi
+done
+
+echo ""
+echo "8) /media/_derived/.../s/ statik kaynak kısıtı (upload.js#DERIVED_STATIC_IMAGE_RE koruması)"
+# Bulgu: "s" (statik varlık) türev kaynağı çözülmüş yolu doğrudan ASSETS.fetch'e veriyordu; URL
+# nesnesi nokta segmentlerini normalize ettiğinden /media/ altından KEYFİ bir statik varlık
+# (ör. admin.html'in tam HTML'i) 200 ile servis edilebiliyordu.
+check_status "/media/_derived/w400/s/..%2F..%2Fadmin.html" 404
+check_status "/media/_derived/w400/s/..%252F..%252Fadmin.html" 404
+check_status "/media/_derived/w400/s/admin.html" 404
+
+echo ""
+echo "9) Proje JSON-LD entity grafiği (seo.js#creator url regresyon koruması)"
+# Bulgu: creator düğümleri yalnızca `name` taşıyordu; slug'lar AYNI sorguda zaten mevcuttu ama
+# kullanılmıyordu, dolayısıyla Google projeyi mimar/firma sayfasıyla aynı varlık sayamıyordu.
+first_project_slug=$(curl -s "$BASE_URL/api/projects?limit=1" | sed -n 's/.*"slug":"\([^"]*\)".*/\1/p' | head -1)
+if [ -n "$first_project_slug" ]; then
+  proj_html=$(curl -s "$BASE_URL/proje/$first_project_slug")
+  if [[ "$proj_html" == *'"creator"'* ]]; then
+    if [[ "$proj_html" == *'"creator"'*'mimarlab.com/kisi/'* ]] || [[ "$proj_html" == *'"creator"'*'mimarlab.com/firma/'* ]]; then
+      ok "/proje/$first_project_slug creator düğümü url taşıyor"
+    else
+      bad "/proje/$first_project_slug creator düğümü url TAŞIMIYOR"
+    fi
+  else
+    # Künyesiz (mimar/firma bağı olmayan) bir proje ilk sırada olabilir — bu bir hata değil.
+    warnf "/proje/$first_project_slug JSON-LD'sinde creator yok (künyesiz proje olabilir), kontrol atlandı"
+  fi
+else
+  warnf "ilk proje slug'ı okunamadı, JSON-LD creator kontrolü atlandı"
+fi
+
 echo ""
 if [ "$fail" -eq 1 ]; then
   echo "Smoke test BAŞARISIZ oldu." >&2
