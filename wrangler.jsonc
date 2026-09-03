@@ -41,7 +41,22 @@
   // 2026-08-22: "images" binding kaldırılmıştı — Cloudflare "Images Transformed" faturalandırması
   // beklenmedik ~$16/ay maliyete yol açmıştı.
   //
-  // 2026-09-03: GERİ AÇILDI. Neden bu sefer farklı:
+  // 2026-09-03 (aynı gün, kullanıcı kararı): TEKRAR KAPATILDI. Aşağıdaki maliyet gerekçesi
+  // kullanıcıya sunuldu ve REDDEDİLDİ ("hemen geri kapat"). Binding satırı yorum içinde bırakıldı
+  // ki tekrar açılmak istenirse gerekçesiyle birlikte hazır olsun.
+  //
+  // KAPALIYKEN GEÇERLİ OLAN DURUM (bilinçli kabul edilen ödünler):
+  //   * src/lib/derivativeBackfill.js ilk satırda sessizce çıkar — yeni yüklenen görseller türev
+  //     ALMAZ, /media/_derived/... orijinale düşer, sayfa tam boy görseli indirir.
+  //   * Türev üretmenin TEK yolu elle çalıştırılan scripts/generate-image-derivatives.py'dir
+  //     (2026-09-03 turu 26.333 kaynak için 9,5 saat sürdü). Yeni görseller biriktikçe bu betiğin
+  //     periyodik olarak yeniden çalıştırılması gerekir.
+  //   * src/lib/imageOptimize.js da null döner — yüklemeler tam boy, yeniden boyutlandırılmadan
+  //     R2'ye yazılır, yani ücretli R2 depolaması (tavan 100 GB) daha hızlı dolar.
+  //
+  // Aşağısı, geri açılması istenirse geçerli olan gerekçedir:
+  // "images": { "binding": "IMAGES" },
+  // Neden geri açmak mantıklı olurdu:
   //   * O maliyeti üreten şey SERVE-TIME dönüşümlerdi (/cdn-cgi/image/width=... her SAYFA
   //     GÖRÜNTÜLEMESİNDE yeniden dönüştürüyordu). O yol hâlâ KAPALI ve açılmıyor — image-cdn.js
   //     artık R2'de önceden üretilmiş türevleri okuyor.
@@ -60,7 +75,6 @@
   //      null döner) — yani her yükleme tam boy, yeniden boyutlandırılmamış olarak R2'ye yazılıyordu.
   //      Bu, artık ÜCRETLİ olan R2 depolamasını (bkz. src/lib/r2Quota.js, tavan 100 GB) gereksiz
   //      şişiriyordu. Binding'i açmak burada net TASARRUF sağlar.
-  "images": { "binding": "IMAGES" },
   // MİMARLAB AI — doğal dil arama sorgusundan yapılandırılmış filtre çıkarımı/özet (bkz.
   // src/routes/ai.js#handleAiSearchRoute) VE proje/ürün AI destekli otomatik ekleme akışı (bkz.
   // src/routes/ai.js#handleAiExtractRoute, src/lib/aiProvider.js) — ikisi de aynı Cloudflare
