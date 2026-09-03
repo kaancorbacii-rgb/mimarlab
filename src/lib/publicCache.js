@@ -298,7 +298,12 @@ async function withSingleFlight(key, fn) {
 //     durum: yanıt ŞEKLİ değişti ama architects/offices/projects fingerprint'leri değişmedi —
 //     sürüm artırılmazsa profil pop-up'ını daha önce açmış tarayıcılar aynı ETag'i gönderip 304
 //     alır ve `type`'sız eski gövdede süresiz takılırdı (filtre çentiği hiç görünmezdi).
-const API_PAYLOAD_VERSION = 'v7';
+// v8 (kullanıcı isteği, 2026-09-04): /api/architects yanıtındaki `filters` nesnesine YENİ bir
+//     grup eklendi — `school` ("Üniversite" filtresi, bkz. src/routes/architect.js#schoolCounts).
+//     v7'nin AYNI gerekçesi: architects fingerprint'i değişmediğinden, sürüm artırılmazsa /kisi
+//     listesini daha önce açmış tarayıcılar aynı ETag'i gönderip 304 alır ve `school` grubu
+//     OLMAYAN eski gövdede süresiz takılırdı (yani yeni filtre onlarda hiç görünmezdi).
+const API_PAYLOAD_VERSION = 'v8';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

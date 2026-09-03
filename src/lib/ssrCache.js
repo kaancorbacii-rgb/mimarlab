@@ -61,7 +61,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // filtresini kullanıyor. v110'daki AYNI tuzak, bu kez /proje/:slug için: sürüm artırılmazsa daha
 // önce ziyaret edilmiş proje sayfaları s-maxage boyunca bu script'i hiç yüklemeyen eski kabuğu
 // sunar ve çentik o sayfalarda görünmezdi.
-export const SSR_CACHE_VERSION = 'v111';
+// v112 (kullanıcı isteği, 2026-09-04): kisi.html'in FILTER_GROUPS dizisi değişti — yeni bir
+// "Üniversite" grubu eklendi ve sıra Pozisyon/Doğum Yılı/Üniversite/Meslek/Ödül olarak
+// güncellendi. Bu dizi sayfanın SATIR İÇİ JS'inde, yani SSR HTML'inin İÇİNDE duruyor (v104/v106
+// ile AYNI tuzak): sürüm artırılmazsa /kisi/:slug ile açılan sayfalar s-maxage boyunca eski
+// grup listesini/sırasını sunardı.
+export const SSR_CACHE_VERSION = 'v112';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

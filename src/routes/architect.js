@@ -36,7 +36,10 @@ export async function fetchArchitectPool(env) {
     // dışında kalır. Bu havuz aynı zamanda /api/public/platform'un "Mimar" sayacını da besliyor
     // (bkz. aşağıdaki dosya başı yorumu), yani sayaç da listelenenle aynı kalır.
     const { results } = await env.DB.prepare(
-      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, o.name AS office_name, o.awards AS office_awards,
+      // a.school — kisi.html'in "Üniversite" filtre grubu (kullanıcı isteği, 2026-09-04). Sayaçlar
+      // TÜM havuzdan hesaplandığından (bkz. aşağıdaki schoolCounts) bu kolon havuzda olmak
+      // ZORUNDA; kart listesine sızmaz, items'a çıkmadan önce ayıklanır (bkz. items .map()).
+      `SELECT a.id, a.slug, a.name, a.dob, a.photo_url, a.position, a.profession, a.school, o.name AS office_name, o.awards AS office_awards,
          (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
           WHERE pd.architect_id = a.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count
        FROM architects a LEFT JOIN offices o ON o.id = a.office_id AND o.deleted_at IS NULL
@@ -50,7 +53,7 @@ export async function fetchArchitectPool(env) {
       // positionRaw: kisi.html kartında ofis yoksa gösterilen alt-etiket (eski data.js#a.status
       // fallback'inin karşılığı) — bucketed `position` (bkz. positionOf) filtre eşleştirme için,
       // ham metin ise kart altyazısı için ayrı tutulur.
-      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), officeAwards, projectCount: row.project_count || 0, badges: [] };
+      return { slug: a.slug, name: a.name, dob: a.dob, photo: a.photo_url, office: row.office_name || null, position: positionOf(a.position), positionRaw: a.position || null, professions: professionLabelList(a.profession), school: (a.school || '').trim() || null, officeAwards, projectCount: row.project_count || 0, badges: [] };
     });
   });
 }
@@ -259,6 +262,9 @@ export async function handleArchitectListRoute(request, env, url) {
     const awardParams = url.searchParams.getAll('award').filter(Boolean);
     const positionParams = url.searchParams.getAll('position').filter(Boolean);
     const professionParams = url.searchParams.getAll('profession').filter(Boolean);
+    // school — "Üniversite" grubu (kullanıcı isteği, 2026-09-04); diğer gruplarla BİREBİR aynı
+    // çoklu-değer/OR semantiği.
+    const schoolParams = url.searchParams.getAll('school').filter(Boolean);
     const searchQuery = foldTr((url.searchParams.get('search') || '').trim());
 
     // Varsayılan sıralama artık "en popüler" (en çok projesi olan mimar önce) — bkz. kullanıcı
@@ -289,6 +295,12 @@ export async function handleArchitectListRoute(request, env, url) {
       // (a.professions || []) — bkz. aşağıdaki professionCounts'taki AYNI gerekçe: deploy anında
       // KV'de duran ESKİ havuz (bu alan eklenmeden önce yazılmış) bu alanı taşımaz.
       if (professionParams.length && !professionParams.some(p => (a.professions || []).includes(p))) return false;
+      // (a.school || '') — professions'takiyle AYNI "deploy anında KV'de bu alanı taşımayan ESKİ
+      // havuz okunuyor olabilir" koruması. O pencerede school filtresi hiçbir kişiyi eşleştirmez;
+      // ama sayaçlar da aynı havuzdan geldiği için grup kisi.html'de zaten hiç çizilmez, yani
+      // yalnızca eski/paylaşılmış bir ?school= linki geçici olarak boş sonuç verir (kendiliğinden
+      // düzelir, havuz TTL'i dolunca alan gelir).
+      if (schoolParams.length && !schoolParams.includes(a.school || '')) return false;
       if (searchQuery && !foldTr(a.name).includes(searchQuery)) return false;
       return true;
     }
@@ -317,11 +329,15 @@ export async function handleArchitectListRoute(request, env, url) {
     // listesinden değil) sıfırlık bir kova burada hiç oluşmaz, dolayısıyla kisi.html'de de hiç
     // çizilmez. kisi-ekle.html#MESLEK_OPTIONS'taki bir meslek ilk kişisini alır almaz kendiliğinden
     // filtre olarak belirir; sıralaması kisi.html#PROFESSION_ORDER ile o formdaki sırayla eşlenir.
-    const dobCounts = {}, awardCounts = {}, positionCounts = {}, professionCounts = {};
+    const dobCounts = {}, awardCounts = {}, positionCounts = {}, professionCounts = {}, schoolCounts = {};
     pool.forEach(a => {
       if (a.dob) dobCounts[a.dob] = (dobCounts[a.dob] || 0) + 1;
       a.officeAwards.forEach(award => { awardCounts[award] = (awardCounts[award] || 0) + 1; });
       if (a.position) positionCounts[a.position] = (positionCounts[a.position] || 0) + 1;
+      // Okul adları serbest metin ama canlıda ölçüldü: 313 kişi / 66 farklı okul, büyük-küçük harf
+      // varyantı YOK (COUNT(DISTINCT school) === COUNT(DISTINCT LOWER(school))) — bu yüzden ekstra
+      // bir normalizasyon katmanı eklenmedi, değerler havuzda zaten trim'lenmiş hâlde duruyor.
+      if (a.school) schoolCounts[a.school] = (schoolCounts[a.school] || 0) + 1;
       // (a.professions || []) — GERÇEK BULGU (yerelde 500 ile yaşandı): havuz KV'de 30 dakikaya
       // kadar önbelleklenir (bkz. publicCache.js#POOL_CACHE_TTL_SECONDS), yani deploy anında
       // BU ALANIN HENÜZ OLMADIĞI eski bir havuz nesnesi hâlâ okunuyor olabilir. Çıplak
@@ -334,7 +350,10 @@ export async function handleArchitectListRoute(request, env, url) {
     const total = filtered.length;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const start = (Math.min(page, totalPages) - 1) * limit;
-    const items = filtered.slice(start, start + limit).map(({ officeAwards, projectCount, professions, ...rest }) => rest);
+    // school da (officeAwards/projectCount/professions gibi) YALNIZCA filtre/sayaç için havuzda
+    // duruyor — kisi.html kartı okulu hiç render etmiyor, bu yüzden kart yüküne sızmasın diye
+    // burada ayıklanır (bkz. Faz 4A Projection Optimization yorumu).
+    const items = filtered.slice(start, start + limit).map(({ officeAwards, projectCount, professions, school, ...rest }) => rest);
 
     return {
       items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages,
@@ -343,6 +362,10 @@ export async function handleArchitectListRoute(request, env, url) {
         award: Object.keys(awardCounts).sort((x, y) => awardCounts[y] - awardCounts[x] || x.localeCompare(y, 'tr')).map(v => ({ value: v, count: awardCounts[v] })),
         position: positionCounts,
         profession: professionCounts,
+        // award ile AYNI sıralama (önce kalabalık okullar, eşitlikte Türkçe alfabetik) — 66 okul
+        // var, grup içi arama kutusu (bkz. kisi.html#filter-search-input) uzun listeyi gezilebilir
+        // kılıyor.
+        school: Object.keys(schoolCounts).sort((x, y) => schoolCounts[y] - schoolCounts[x] || x.localeCompare(y, 'tr')).map(v => ({ value: v, count: schoolCounts[v] })),
       },
     };
   }, () => architectListFingerprint(env));
