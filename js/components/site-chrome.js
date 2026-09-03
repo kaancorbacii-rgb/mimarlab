@@ -764,7 +764,7 @@
           <div class="nav-search-modal-section-title">Görsel ile Proje ve Ürün Arama</div>
           <div class="nav-search-modal-image-box">
             <div class="nav-search-modal-image-drop" id="nav-search-modal-image-drop" role="button" tabindex="0" aria-label="Görsel seç">
-              <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG veya JPEG (Maks. 10mb)</span>
+              <span class="nav-search-modal-image-drop-text" id="nav-search-modal-image-drop-text">Görselini buraya sürükle veya <strong>seçmek için tıkla</strong><br>PNG, JPG, JPEG ya da WEBP (Maks. 10mb)</span>
               <div class="nav-search-modal-image-preview" id="nav-search-modal-image-preview" hidden>
                 <img id="nav-search-modal-image-preview-img" alt="">
                 <span class="nav-search-modal-image-preview-name" id="nav-search-modal-image-preview-name"></span>
@@ -772,7 +772,7 @@
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
-              <input type="file" accept="image/png,image/jpeg" id="nav-search-modal-image-input" hidden>
+              <input type="file" accept="image/png,image/jpeg,image/webp" id="nav-search-modal-image-input" hidden>
             </div>
             <div class="nav-search-modal-image-or">veya</div>
             <label class="nav-search-modal-image-paste">
@@ -831,8 +831,14 @@
     function acceptImageFile(file){
       if(!file) return;
       imageError.hidden = true;
-      if(!/^image\/(png|jpe?g)$/.test(file.type)){
-        showImageError('Yalnızca PNG, JPG veya JPEG dosyaları desteklenir.');
+      // WEBP DESTEĞİ (üçüncü tur denetim, madde 8): file.type tarayıcının BEYANIdır (dosya
+      // uzantısına göre türetilir) — GERÇEK doğrulama sunucuda magic byte ile yapılır (bkz.
+      // src/routes/visualSearch.js#sniffImageMime), burası yalnızca kullanıcıya ERKEN, anlamlı bir
+      // hata göstermek için bir ön-kontrol. WebP kalite kaybı olmadan olduğu gibi gönderilir —
+      // hiçbir dönüştürme yapılmaz (image-clip-embed.js'in createImageBitmap'i WebP'yi tarayıcının
+      // KENDİ donanım/yazılım kod çözücüsüyle doğrudan çözer, ayrı bir kütüphane gerekmez).
+      if(!/^image\/(png|jpe?g|webp)$/.test(file.type)){
+        showImageError('Yalnızca PNG, JPG, JPEG ya da WEBP dosyaları desteklenir.');
         return;
       }
       if(file.size > IMAGE_MAX_BYTES){

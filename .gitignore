@@ -18,3 +18,8 @@ scripts/output/
 # `wrangler deploy` (deploy.sh) bu dizini KULLANMAZ — production, wrangler.jsonc'daki
 # değişmeyen "." dizinini eksiksiz tarar. Yeniden üretilebilir, commit edilmez.
 .localdev-assets/
+# Görsel arama regresyon testleri için türetilmiş CLIP embedding vektörleri (bkz. scripts/
+# visual-search-image-eval.mjs dosya başı yorumu) — gerçek fotoğraflardan offline Python/
+# onnxruntime ile yeniden üretilebilir, commit edilmesine GEREK YOK (ve gereksiz yere büyük/
+# değişken bir dosya deposu şişirmesin diye BİLEREK commit edilmiyor).
+scratch-test-vecs*.json

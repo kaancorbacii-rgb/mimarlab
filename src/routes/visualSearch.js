@@ -124,13 +124,29 @@ const PRODUCT_GATE_NAME_MIN = 0.50;
 // gürültüyü "benzerlik" gibi gösterirdi.
 const SEM_FLOOR = 0.38;
 const SEM_CEIL = 0.82;
-// GERÇEK GÖRSEL kanalı (CLIP ViT-B/32) için AYRI ölçek — ÖLÇÜLDÜ (bu turun kalibrasyonu,
-// production'daki gerçek Ayasofya/Küçük Ayasofya/Galata Kulesi fotoğraflarıyla): tamamen alakasız
-// bir çift ~0,41-0,44, aynı varlığın farklı fotoğrafı ~0,69-0,75, farklı ama GÖRSEL OLARAK benzer
-// tarzda bir varlık (ör. iki "fotojenik anıt, mavi gökyüzü" kompozisyonu) da şaşırtıcı biçimde
-// yüksek çıkabiliyor (~0,79) — CLIP'in global görsel embedding'i sahne/kompozisyon/ışığa da
-// duyarlı, YALNIZCA nesne kimliğine değil. Bu YÜZDEN görsel kanal tek başına exact karar
-// VEREMEZ (bkz. decideExact) — yalnızca aday kümesi + puanlama sinyalidir (brief madde 6).
+// GERÇEK GÖRSEL kanalı (CLIP ViT-B/32) için AYRI ölçek.
+//
+// BÜYÜK ÖLÇEKLİ KALİBRASYON (üçüncü tur denetim, madde 6 — scripts/visual-search-calibration-
+// bench.mjs, PRODUCTION'daki GERÇEK dizin üzerinde "held-out" testi: her varlığın kendi
+// fotoğraflarından biri sorgu olarak ayrılıp dizinin geri kalanında arandı, KİMLİK SİNYALİ HİÇ
+// KULLANILMADAN — yalnızca ham görsel kanal). n=1666 proje + n=167 ürün (uydurma değil, TÜM
+// uygun varlıklar — bkz. betiğin konsol çıktısı):
+//   * Top-1 doğruluğu (yalnızca görsel): proje %40,8 — ürün %18,0.
+//   * Top-5 recall (yalnızca görsel):    proje %58,0 — ürün %24,6.
+//   * doğru-eşleşme skoru: p10=0,72 p50=0,85 p90=0,91 (proje)
+//   * YANLIŞ Top-1 çıktığında o adayın skoru: p50=0,86 p90=0,91 — yani DOĞRU ve YANLIŞ eşleşmelerin
+//     skor dağılımları ÖNEMLİ ÖLÇÜDE ÇAKIŞIYOR (aşırı-değer istatistiği: 1666 varlığın ARASINDAN en
+//     yüksek YANLIŞ skor da doğal olarak yüksek çıkar).
+//   * çapraz-alan "kesinlikle alakasız" taban (ürün görseli → proje dizini): p50=0,81 p90=0,87.
+// SONUÇ (ölçüldü, uydurulmadı): ham CLIP görsel benzerliği TEK BAŞINA "aynı varlık" ile "farklı ama
+// görsel olarak benzer" adayı GÜVENİLİR biçimde AYIRT EDEMİYOR — hiçbir floor/ceil çifti bu
+// çakışmayı ortadan kaldıramaz (istatistiksel bir kalibrasyon sorunu değil, sinyalin doğasında var).
+// Bu YÜZDEN mevcut eşikler (aşağıda) DEĞİŞTİRİLMEDİ: veri, "farklı bir sayı dene" değil, "görsel
+// kanalı ASLA tek başına karara bağlama" tasarım ilkesini (decideExact'in isim eşleşmesini birincil
+// kapı olarak kullanması, hasCorroboration'ın saf-görsel adayları listeye bile sokmaması)
+// DOĞRULUYOR. FLOOR/CEIL yalnızca SIRALAMA ağırlığı (0,32×sem) için kullanılmaya devam ediyor —
+// zaten kimlik/coğrafya/taksonomiyle KORONE olmuş bir adayın görsel skorunu ince ayarlamak için
+// makul bir bant; tek başına eşik olarak KULLANILMIYOR.
 const IMG_SEM_FLOOR = 0.45;
 const IMG_SEM_CEIL = 0.80;
 
@@ -146,10 +162,16 @@ const MATERIAL_EXPANSION = {
   'seramik': ['seramik', 'porselen', 'karo'],
 };
 
+// WEBP DESTEĞİ (üçüncü tur denetim, madde 8): src/routes/upload.js#sniffImageMime İLE BİREBİR
+// AYNI RIFF....WEBP imzası — mevcut yükleme ucuyla TUTARLI, ayrı bir doğrulama kuralı icat
+// edilmedi. Beyan edilen Content-Type'a DEĞİL, gerçek dosya baytlarına bakılır (yukarıdaki JPEG/
+// PNG kontrolleriyle AYNI ilke, bkz. dosya başı "10 MB → ... → magic byte" güvenlik notu).
 function sniffImageMime(bytes) {
   if (bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
   if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47
       && bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) return 'image/png';
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
+      && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
   return null;
 }
 
@@ -157,12 +179,51 @@ function sniffImageMime(bytes) {
 // korumasıdır (brief 25): 2 KB'lık bir PNG 60000×60000 piksel beyan edebilir ve onu çözmeye
 // çalışan aşama belleği tüketir. Ölçü okunamazsa (nadir/parçalı başlık) istek ENGELLENMEZ —
 // bu bir ek savunma katmanıdır, tek kapı değil (asıl kapı MAX_BYTES + magic byte).
+// WebP boyutu — RIFF/WEBP kapsayıcısının İLK chunk'ı (VP8 /VP8L/VP8X) üç farklı iç biçimde
+// genişlik/yükseklik taşır (bkz. WebP Container/Lossy/Lossless bitstream spesifikasyonu). Üçü de
+// desteklenir; tanınmayan bir chunk türünde (nadir/gelecekteki bir uzantı) sessizce 0 döner —
+// yukarıdaki dosya başı yorumundaki AYNI ilke: bu bir EK savunma katmanı, tek kapı değil.
+function webpPixels(bytes, view) {
+  if (bytes.length < 30) return 0;
+  const fourcc = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+  if (fourcc === 'VP8X') {
+    // bayrak(1) + ayrılmış(3) + genişlik-1(3, LE 24-bit) + yükseklik-1(3, LE 24-bit)
+    const w = (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16)) + 1;
+    const h = (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16)) + 1;
+    return w * h;
+  }
+  if (fourcc === 'VP8L') {
+    // imza(1, 0x2F) + 4 bayt paketlenmiş: genişlik-1 (14 bit) + yükseklik-1 (14 bit)
+    if (bytes[20] !== 0x2F) return 0;
+    const b0 = bytes[21], b1 = bytes[22], b2 = bytes[23], b3 = bytes[24];
+    const w = (b0 | ((b1 & 0x3F) << 8)) + 1;
+    const h = ((b1 >> 6) | (b2 << 2) | ((b3 & 0x0F) << 10)) + 1;
+    return w * h;
+  }
+  if (fourcc === 'VP8 ') {
+    // çerçeve etiketi(3) + başlangıç kodu(3, 0x9d 0x01 0x2a) + genişlik(2, LE alt 14 bit) +
+    // yükseklik(2, LE alt 14 bit) — chunk verisi offset 20'de başlar.
+    if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return 0;
+    const w = view.getUint16(26, true) & 0x3FFF;
+    const h = view.getUint16(28, true) & 0x3FFF;
+    return w * h;
+  }
+  return 0;
+}
+
+// PNG/JPEG/WEBP başlığından piksel ölçüsü. Amaç boyut doğrulaması DEĞİL, DEKOMPRESYON BOMBASI
+// korumasıdır (brief 25): 2 KB'lık bir PNG 60000×60000 piksel beyan edebilir ve onu çözmeye
+// çalışan aşama belleği tüketir. Ölçü okunamazsa (nadir/parçalı başlık) istek ENGELLENMEZ —
+// bu bir ek savunma katmanıdır, tek kapı değil (asıl kapı MAX_BYTES + magic byte).
 function imagePixels(bytes) {
   try {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     if (bytes[0] === 0x89 && bytes[1] === 0x50) {
-      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       // IHDR her zaman ilk chunk'tır: 8 bayt imza + 4 uzunluk + 4 tip = 16. offset'te genişlik.
       return view.getUint32(16, false) * view.getUint32(20, false);
+    }
+    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+      return webpPixels(bytes, view);
     }
     // JPEG: SOF0/1/2 işaretçisini ara.
     for (let i = 2; i + 9 < bytes.length;) {
@@ -561,11 +622,24 @@ export function resolveVisualMatch(vision, queryVec, pools, imageQueryVec) {
       .slice(0, MAX_PRODUCTS)
     : [];
 
+  const matchProject = projectMatch ? { ...projectPayload(projectMatch), confidence: Number(projectMatch.conf.toFixed(3)) } : null;
+  const matchProduct = (productSignal && productMatch) ? { ...productPayload(productMatch), confidence: Number(productMatch.conf.toFixed(3)) } : null;
+
+  // matchType (üçüncü tur denetim, madde 3): "EXACT PROJECT / SIMILAR PROJECT / EXACT PRODUCT /
+  // SIMILAR PRODUCT / NO MATCH" — bunlar zaten match.*/projects[]/products[] alanlarından TÜRETİLEBİLİR
+  // durumlardı (bu alan mantığı DEĞİŞTİRMEZ), ancak API tüketicilerinin (site-chrome.js, ileride
+  // olası başka istemciler) "hangi durumdayım" sorusunu her seferinde 4 alanı kendi yeniden çıkarmak
+  // yerine TEK bir açık etiketle okuyabilmesi için eklendi. Proje sinyali ürün sinyalinden HER ZAMAN
+  // önce gelir (görsel arama birincil olarak mimari odaklı — bkz. dosya başı brief).
+  let matchType = 'NO_MATCH';
+  if (matchProject) matchType = 'EXACT_PROJECT';
+  else if (matchProduct) matchType = 'EXACT_PRODUCT';
+  else if (projects.length) matchType = 'SIMILAR_PROJECT';
+  else if (products.length) matchType = 'SIMILAR_PRODUCT';
+
   return {
-    match: {
-      project: projectMatch ? { ...projectPayload(projectMatch), confidence: Number(projectMatch.conf.toFixed(3)) } : null,
-      product: (productSignal && productMatch) ? { ...productPayload(productMatch), confidence: Number(productMatch.conf.toFixed(3)) } : null,
-    },
+    match: { project: matchProject, product: matchProduct },
+    matchType,
     projects: projects.map(projectPayload),
     products: products.map(productPayload),
     productsSuppressed: !productSignal,
@@ -616,7 +690,7 @@ export async function handleVisualSearchRoute(request, env, url) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   // İçerik türü BEYANA değil MAGIC BYTE'a göre doğrulanır (mevcut /api/uploads ile aynı kural).
   const mime = sniffImageMime(bytes);
-  if (!mime) return errorJson('Yalnızca PNG, JPG veya JPEG dosyaları desteklenir.');
+  if (!mime) return errorJson('Yalnızca PNG, JPG, JPEG ya da WEBP dosyaları desteklenir.');
   const pixels = imagePixels(bytes);
   if (pixels > MAX_PIXELS) return errorJson('Görselin çözünürlüğü çok yüksek, lütfen daha küçük bir dosya dene.');
 
@@ -677,6 +751,7 @@ export async function handleVisualSearchRoute(request, env, url) {
       ok: true, cached, aiCalls,
       analysis: { isArchitectural: false, subject: vision.subject, spaceType: null, materials: [], products: [], description: vision.description || '' },
       match: { project: null, product: null },
+      matchType: 'NO_MATCH',
       projects: [], products: [], productsSuppressed: true,
       message: 'Bu görselde mimari bir mekan ya da yapı ürünü tespit edilemedi. Bir iç mekan, cephe ya da ürün fotoğrafı deneyebilirsin.',
     });
@@ -752,6 +827,9 @@ export async function handleVisualSearchRoute(request, env, url) {
     },
     // TIER 1 — aynı varlık. null ise sistem "aynı varlık" iddiasında BULUNMUYOR demektir.
     match: resolved.match,
+    // EXACT_PROJECT | SIMILAR_PROJECT | EXACT_PRODUCT | SIMILAR_PRODUCT | NO_MATCH — bkz.
+    // resolveVisualMatch dosya içi yorumu.
+    matchType: resolved.matchType,
     // TIER 2 — benzerler.
     projects: resolved.projects,
     products: resolved.products,

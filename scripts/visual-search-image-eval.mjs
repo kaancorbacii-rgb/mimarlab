@@ -159,6 +159,47 @@ async function main() {
       expect: (r) => r.match.product && r.match.product.slug === 'mony-lazzoni',
       expectDesc: 'exact=mony-lazzoni',
     },
+    // --- ÜÇÜNCÜ TUR DENETİM (madde 11) EK SENARYOLARI — hepsi GERÇEK fotoğraf + GERÇEK backfill ---
+    {
+      id: 'sumela-exact',
+      desc: 'GERÇEK Sümela Manastırı fotoğrafı + kimlik "Sümela Manastırı" — brief\'in BAŞLICA kabul testi.',
+      vision: vision({ identity: [{ name: 'Sümela Manastırı', kind: 'project', confidence: 0.85 }], spaceTypes: [], place: { city: 'Trabzon', country: null } }),
+      qv: TEST_VECS.sumela1, kind: 'project',
+      expect: (r) => r.match.project && r.match.project.slug === 'sumela-manastiri',
+      expectDesc: 'exact=sumela-manastiri',
+    },
+    {
+      id: 'rumeli-hisari-exact',
+      desc: 'GERÇEK Rumeli Hisarı fotoğrafı + kimlik "Rumeli Hisarı" — farklı bir taş yapı ailesinde (kale/hisar) exact doğrulaması.',
+      vision: vision({ identity: [{ name: 'Rumeli Hisarı', kind: 'project', confidence: 0.85 }], place: { city: 'İstanbul', country: null } }),
+      qv: TEST_VECS.rumeli1, kind: 'project',
+      expect: (r) => r.match.project && r.match.project.slug === 'rumeli-hisari',
+      expectDesc: 'exact=rumeli-hisari',
+    },
+    {
+      id: 'different-stone-building-no-false-exact',
+      desc: 'GERÇEK Rumeli Hisarı fotoğrafı ama kimlik tahmini YOK — başka bir taş/tarihi yapıyla (madde 5: "farklı tarihi taş yapılar") karıştırıp yanlış exact üretmemeli.',
+      vision: vision({}),
+      qv: TEST_VECS.rumeli1, kind: 'project',
+      expect: (r) => r.match.project === null,
+      expectDesc: 'exact YOK',
+    },
+    {
+      id: 'same-product-different-angle',
+      desc: 'AYNI Mony koltuğun FARKLI açıdan/kadraj gerçek fotoğrafı (mony-sofa.jpg — backfill\'deki mony-sofa-2.jpg\'den FARKLI dosya) + kimlik "Lazzoni Mony" — madde 5: "Aynı ürünün farklı açısı exact kabul edilebilmeli."',
+      vision: hydrateVision({ subject: 'product', isArchitectural: true, identity: [{ name: 'Lazzoni Mony', kind: 'product', confidence: 0.8 }], brand: 'Lazzoni', model: 'Mony', products: [{ category: 'Koltuk & Kanepe', confidence: 0.8 }] }),
+      qv: TEST_VECS.mony_angle2, kind: 'product',
+      expect: (r) => r.match.product && r.match.product.slug === 'mony-lazzoni',
+      expectDesc: 'exact=mony-lazzoni (farklı açıdan bile)',
+    },
+    {
+      id: 'same-brand-different-product-no-false-exact',
+      desc: 'GERÇEK Gola (Lazzoni) koltuk fotoğrafı ama vision YANLIŞLIKLA "Lazzoni Mony" kimliğini tahmin etti (marka doğru, model YANLIŞ) — madde 5: "Aynı markanın farklı ürünü exact olmamalı." Görsel kanal Mony\'nin GERÇEK fotoğraflarıyla eşleşmediğinden isim tek başına exact\'ı KURTARMAMALI.',
+      vision: hydrateVision({ subject: 'product', isArchitectural: true, identity: [{ name: 'Lazzoni Mony', kind: 'product', confidence: 0.6 }], brand: 'Lazzoni', products: [{ category: 'Koltuk & Kanepe', confidence: 0.7 }] }),
+      qv: TEST_VECS.gola1, kind: 'product',
+      expect: (r) => !r.match.product || r.match.product.slug !== 'mony-lazzoni',
+      expectDesc: 'exact != mony-lazzoni (yanlış model iddiası görsel kanalca doğrulanmıyor)',
+    },
   ];
 
   let pass = 0;
