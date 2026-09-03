@@ -38,11 +38,29 @@
       "id": "9a8a1cfde13447a498bc5dcc4bc7d4ae"
     }
   ],
-  // 2026-08-22: "images" binding kaldırıldı — Cloudflare "Images Transformed" faturalandırması
-  // beklenmedik ~$16/ay maliyete yol açtı, kullanıcı isteğiyle kapatıldı. env.IMAGES artık
-  // undefined olacağından src/lib/imageOptimize.js kendi tasarlanmış fallback'ine düşer (satır 33:
-  // `if (!env.IMAGES ...) return null`) — upload akışı bozulmaz, sadece görseller artık yeniden
-  // boyutlandırılmadan orijinal haliyle R2'ye yazılır.
+  // 2026-08-22: "images" binding kaldırılmıştı — Cloudflare "Images Transformed" faturalandırması
+  // beklenmedik ~$16/ay maliyete yol açmıştı.
+  //
+  // 2026-09-03: GERİ AÇILDI. Neden bu sefer farklı:
+  //   * O maliyeti üreten şey SERVE-TIME dönüşümlerdi (/cdn-cgi/image/width=... her SAYFA
+  //     GÖRÜNTÜLEMESİNDE yeniden dönüştürüyordu). O yol hâlâ KAPALI ve açılmıyor — image-cdn.js
+  //     artık R2'de önceden üretilmiş türevleri okuyor.
+  //   * Bu binding'in ürettiği dönüşümler GÖRSEL BAŞINA BİR KEREDİR: upload anında bir optimizasyon
+  //     ve (bkz. src/lib/derivativeBackfill.js) bir türev ilk kez istendiğinde bir dönüşüm. Sonuç
+  //     kalıcı olarak R2'ye yazılır, ikinci kez asla dönüştürülmez. Yani maliyet sayfa trafiğiyle
+  //     DEĞİL, yeni yüklenen görsel sayısıyla ölçeklenir.
+  //   * Fiyat: 5.000 dönüşüm/ay ücretsiz, sonrası $0.50/1.000. Ayda ~2.000 yeni görsel x 3 basamak
+  //     = 6.000 dönüşüm -> faturalanan 1.000 -> ~$0.50/ay.
+  //
+  // Binding OLMADAN bu iki şey İMKÂNSIZDI (2026-09-03 denetiminde ölçüldü):
+  //   1. Yeni yüklenen hiçbir görsel türev alamıyordu; /media/_derived/... sessizce orijinale
+  //      düşüyor, sayfa tam boy görseli indiriyordu. Türevleri üretmenin tek yolu elle çalıştırılan
+  //      scripts/generate-image-derivatives.py idi (son tur 9,5 saat sürdü).
+  //   2. src/lib/imageOptimize.js 2026-08-22'den beri SESSİZCE ÖLÜYDÜ (satır 33: env.IMAGES yoksa
+  //      null döner) — yani her yükleme tam boy, yeniden boyutlandırılmamış olarak R2'ye yazılıyordu.
+  //      Bu, artık ÜCRETLİ olan R2 depolamasını (bkz. src/lib/r2Quota.js, tavan 100 GB) gereksiz
+  //      şişiriyordu. Binding'i açmak burada net TASARRUF sağlar.
+  "images": { "binding": "IMAGES" },
   // MİMARLAB AI — doğal dil arama sorgusundan yapılandırılmış filtre çıkarımı/özet (bkz.
   // src/routes/ai.js#handleAiSearchRoute) VE proje/ürün AI destekli otomatik ekleme akışı (bkz.
   // src/routes/ai.js#handleAiExtractRoute, src/lib/aiProvider.js) — ikisi de aynı Cloudflare
