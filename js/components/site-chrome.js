@@ -484,9 +484,9 @@
       }
       [data-theme="dark"] .footer-theme-toggle .theme-toggle-knob{left:27px;}
       /* max-width YOK (kullanıcı isteği, 2026-09-01: "açıklama metnini tek satırda topladım") —
-         340px'e sıkışınca "Yeni proje, ürün, mimar, firma ve markalar e-postana gelsin." iki
-         satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek satırda kalır,
-         dar ekranlarda ise kapsayıcı zaten daralttığı için kendiliğinden sarar. */
+         340px'e sıkışınca bülten açıklaması ("Yeni proje, ürün, firma ve markalar e-postana
+         gelsin.") iki satıra bölünüyordu; artık bandın tam genişliğini kullanıp masaüstünde tek
+         satırda kalır, dar ekranlarda ise kapsayıcı zaten daralttığı için kendiliğinden sarar. */
       .footer-subscribe-join-desc, .footer-newsletter-desc{font-size:16px; color:rgba(237,240,243,0.6); margin:0 0 16px;}
       /* kullanıcı isteği (2026-08-30): abone ol gönder butonu artık TÜM görünümlerde (masaüstü/
          tablet/mobil) input'un sağ ucuna gömülü dairesel bir ikon — eskiden yalnızca mobilde
