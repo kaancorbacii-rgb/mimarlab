@@ -113,6 +113,14 @@
      kendi margin-bottom:18px'i ile zaten yeterli boşluk bıraktığından yalnızca hint'i ATLAYIP
      doğrudan ilk alana geçen başlıklara telafi edici bir üst boşluk eklenir. */
   .form-section h2 + :not(.section-hint){margin-top:14px;}
+  /* Logo + Kapak iki sütunlu satırı (kullanıcı isteği, 2026-09-03): iki açıklama METNİ farklı
+     uzunlukta olduğundan biri 2, diğeri 3 satıra sarıyor ve yükleme kutuları aynı satırda 15px
+     kayık duruyordu (tarayıcıda ölçüldü — marka-ekle.html'de aynı sorun metinleri birbirine
+     uydurarak çözülmüştü, ki bu metin her değiştiğinde yeniden bozulan kırılgan bir çözüm).
+     Burada bunun yerine iki açıklamaya AYNI taban yükseklik verilir: sarma sayısı ne olursa olsun
+     (ve ileride metin değişse de) kutular aynı y'de başlar. 3lh = üç satır; `lh` desteklenmeyen
+     eski tarayıcılarda em tabanlı ilk kural geçerli kalır, davranış yine makul olur. */
+  .form-row .image-col-hint{min-height:3.6em; min-height:3lh;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .form-field{margin-bottom:16px;}
   /* GERÇEK BULGU: bare .form-field:last-child bir .form-row içindeki 2. (sağ sütun) alanı da
@@ -423,16 +431,48 @@
         <button type="button" class="social-add-btn" id="social-add-btn">+ Sosyal Medya Ekle</button>
       </div>
 
+      <!-- Logo + Kapak tek satırda, yan yana 2 sütun (kullanıcı isteği, 2026-09-03) — marka-ekle.html'in
+           AYNI bölümünün birebir karşılığı: aynı .form-row iskeleti, aynı .image-drop/.image-preview-grid
+           işaretlemesi, aynı tek-dosya seçimi ve aynı yükleme yolu; yalnızca ayrı bir state
+           (selectedCoverFiles/existingCoverUrl) ve ayrı bir payload alanı (cover_url) taşır.
+           .form-row zaten 1fr 1fr grid'dir ve <=760px'te tek sütuna düşer (bkz. bu dosyanın media
+           query'si), yani mobilde ikisi alt alta yığınlanır — ayrı bir CSS gerekmez.
+
+           KAPAK BOŞ BIRAKILIRSA (kullanıcı isteği): firma kartının/pop-up'ının arka planı, firmanın
+           EN YENİ projesinin İLK görseli olur — uydurma değil, gerçek projects.images[0] (bkz.
+           src/routes/office.js#latestProjectCover; hem liste hem detay ucunda AYNI kural). Kapak
+           YÜKLENİRSE yüklenen görsel her zaman önceliklidir (cover_url || latestProjectCover).
+           Hiçbiri yoksa firma adından türeyen sabit renge düşülür (firma.html#.office-card-cover). -->
       <div class="form-section">
-        <h2>Logo <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
-        <label class="image-drop" id="image-drop">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
-          <strong>Logoyu sürükleyip bırak</strong>
-          <span>ya da bilgisayarından seçmek için tıkla</span>
-          <input type="file" id="image-input" accept="image/*" style="display:none;">
-        </label>
-        <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
-        <div class="image-preview-grid" id="image-preview-grid"></div>
+        <div class="form-row">
+          <div>
+          <h2>Logo <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+          <!-- Bu açıklama satırı yalnızca bilgi için değil HİZALAMA için de gerekli: yanındaki Kapak
+               sütununda bir .section-hint var, burada olmasaydı iki yükleme kutusu aynı satırda kayık
+               dururdu (marka-ekle.html'de tarayıcıda ölçülen AYNI durum). -->
+          <p class="section-hint image-col-hint">Firma profilinde ve firma listelerinde görünür. Kare (1:1) bir logo seç.</p>
+          <label class="image-drop" id="image-drop">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+            <strong>Logoyu sürükleyip bırak</strong>
+            <span>ya da bilgisayarından seçmek için tıkla</span>
+            <input type="file" id="image-input" accept="image/*" style="display:none;">
+          </label>
+          <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
+          <div class="image-preview-grid" id="image-preview-grid"></div>
+          </div>
+          <div>
+          <h2>Kapak Görseli <span class="opt" style="font-weight:400; font-size:13px;">(opsiyonel)</span></h2>
+          <p class="section-hint image-col-hint">Firmalar sayfasında ve profilinde logonun arkasında görünür. Boş bırakırsan son projenin ilk görseli kullanılır.</p>
+          <label class="image-drop" id="cover-drop">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+            <strong>Kapak görselini sürükleyip bırak</strong>
+            <span>ya da bilgisayarından seçmek için tıkla</span>
+            <input type="file" id="cover-input" accept="image/*" style="display:none;">
+          </label>
+          <p class="image-spec-hint">Görsel 72 DPI çözünürlükte, min. 1.000–maks. 2.000 piksel genişliğinde ve en fazla 2 MB boyutunda olmalıdır.</p>
+          <div class="image-preview-grid" id="cover-preview-grid"></div>
+          </div>
+        </div>
       </div>
 
       <div class="form-section" id="my-badge-section" style="display:none;">
@@ -499,6 +539,13 @@ const fileInput = document.getElementById('image-input');
 const previewGrid = document.getElementById('image-preview-grid');
 let selectedFiles = [];
 let existingLogoUrl = null;
+// Kapak görseli (kullanıcı isteği, 2026-09-03) — Logo ile AYNI iki state'in kapak karşılığı
+// (marka-ekle.html'deki birebir aynı desen).
+const coverDropZone = document.getElementById('cover-drop');
+const coverFileInput = document.getElementById('cover-input');
+const coverPreviewGrid = document.getElementById('cover-preview-grid');
+let selectedCoverFiles = [];
+let existingCoverUrl = null;
 const params = new URLSearchParams(window.location.search);
 let editId = params.get('edit');
 let claimName = params.get('claim');
@@ -759,6 +806,31 @@ function renderPreviews(){
     previewGrid.innerHTML = '';
   }
 }
+// renderPreviews/addFiles'in kapak karşılığı — BİREBİR aynı mantık, ayrı state üzerinde
+// (marka-ekle.html#renderCoverPreviews ile aynı).
+function renderCoverPreviews(){
+  if(selectedCoverFiles.length){
+    const url = URL.createObjectURL(selectedCoverFiles[0]);
+    coverPreviewGrid.innerHTML = `<div class="image-preview-item"><img src="${url}" alt=""><button type="button" class="image-preview-remove" id="remove-selected-cover" aria-label="Kaldır">&#10005;</button></div>`;
+    document.getElementById('remove-selected-cover').addEventListener('click', ()=>{ selectedCoverFiles = []; renderCoverPreviews(); });
+  } else if(existingCoverUrl){
+    coverPreviewGrid.innerHTML = `<div class="image-preview-item"><img src="${escapeAttr(existingCoverUrl)}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-cover" aria-label="Kaldır">&#10005;</button></div>`;
+    document.getElementById('remove-existing-cover').addEventListener('click', ()=>{ existingCoverUrl = null; renderCoverPreviews(); });
+  } else {
+    coverPreviewGrid.innerHTML = '';
+  }
+}
+// KAPAK 1:1 KIRPMADAN GEÇMEZ (marka-ekle.html'deki AYNI bilinçli istisna): kapak geniş/yatay bir
+// banttır, kare kırpmak onu bozardı — kırpma yalnızca logoya uygulanır (bkz. addFiles).
+function addCoverFiles(fileList){
+  selectedCoverFiles = Array.from(fileList).filter(f => f.type.startsWith('image/')).slice(0,1);
+  renderCoverPreviews();
+}
+coverFileInput.addEventListener('change', (e)=> addCoverFiles(e.target.files));
+coverDropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); coverDropZone.classList.add('dragover'); });
+coverDropZone.addEventListener('dragleave', ()=> coverDropZone.classList.remove('dragover'));
+coverDropZone.addEventListener('drop', (e)=>{ e.preventDefault(); coverDropZone.classList.remove('dragover'); addCoverFiles(e.dataTransfer.files); });
+
 // Kullanıcı isteği (2026-09-02 madde 2): logo yüklenince 1:1 kırpma penceresi açılır.
 // Kullanıcı kırpmazsa (pencereyi kapatır/atlar) ImageCrop görseli ORTADAN kare kırpar — yani
 // "kırpmadım" durumu ham/çarpık bir görsel değil, makul bir varsayılan üretir.
@@ -953,6 +1025,8 @@ async function prefillForEdit(){
     (item.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
     existingLogoUrl = item.logo_url || null;
     renderPreviews();
+    existingCoverUrl = item.cover_url || null;
+    renderCoverPreviews();
     wireAdminBadgePicker(item.name);
     wireMyBadgeBox(item.name, 'office');
     mountOfficeAdminActions();
@@ -1068,6 +1142,12 @@ async function prefillForClaim(){
   (merged.social_links || []).forEach(s => addSocialRow(s.platform, s.url));
   existingLogoUrl = merged.logo || merged.logo_url || null;
   renderPreviews();
+  // DİKKAT: merged.cover, cover_url BOŞKEN son projenin ilk görseline düşmüş OLABİLİR (bkz.
+  // src/routes/office.js#latestProjectCover) — o türetilmiş değeri forma "yüklenmiş kapak" gibi
+  // yazmak, kullanıcı hiçbir şey yüklemediği hâlde cover_url'ü kalıcı olarak sabitlerdi ve firma
+  // yeni proje ekledikçe kapağın güncellenmesi dururdu. Bu yüzden YALNIZCA gerçek cover_url okunur.
+  existingCoverUrl = merged.cover_url || null;
+  renderCoverPreviews();
   wireAdminBadgePicker(merged.name || claimName);
   wireMyBadgeBox(merged.name || claimName, 'office');
   mountOfficeAdminActions();
@@ -1169,8 +1249,12 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
   submitBtn.disabled = true;
   loading.classList.add('show');
   let logoUrl = existingLogoUrl;
+  let coverUrl = existingCoverUrl;
   try{
     if(selectedFiles.length) logoUrl = (await uploadFiles(selectedFiles))[0];
+    // Kapak, logoyla AYNI /api/uploads yolunu ve AYNI 'office' bağlamını kullanır — ayrı bir R2
+    // klasörüne/kotasına gerek yok, r2Reconcile zaten cover_url'ü de tarıyor (bkz. o dosya).
+    if(selectedCoverFiles.length) coverUrl = (await uploadFiles(selectedCoverFiles))[0];
   }catch(err){
     notice.textContent = err.message || 'Görsel yüklenemedi, tekrar dene.';
     notice.classList.add('show');
@@ -1191,6 +1275,7 @@ document.getElementById('firma-ekle-form').addEventListener('submit', async (e)=
     awards,
     about: document.getElementById('o-desc').value,
     logo_url: logoUrl,
+    cover_url: coverUrl,
     social_links: collectSocialLinks(),
   };
   if(claimName) payload.claimed_profile_key = claimName;

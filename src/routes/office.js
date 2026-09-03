@@ -76,8 +76,11 @@ export async function fetchOfficePool(env) {
       // productCount — ?brands=1 (marka.html) filtresinin tek kaynağı; buildOfficePayload'daki
       // brandProductsRes ile AYNI eşleşme kuralı (brand_office_id VEYA marka adı), böylece "Marka
       // sayfasında görünen firma"nın popup'ında mutlaka dolu bir "Ürünler" bölümü olur.
-      // cover: marka kartlarının arka planı (bkz. marka.html#render, kullanıcı isteği 2026-08-31
-      // madde 6). firma.html AYNI havuzu okur ama bu alanı hiç kullanmaz — zararsız fazladan bir dize.
+      // cover: HEM marka HEM firma kartlarının arka planı (marka.html#render 2026-08-31,
+      // firma.html#render 2026-09-03 — ikisi de AYNI havuzu ve AYNI alanı okur).
+      // ÖNCELİK: elle yüklenen cover_url (marka-ekle.html / firma-ekle.html) her zaman kazanır;
+      // boşsa firmanın EN YENİ projesinin İLK görseline düşülür (latestProjectCover), o da yoksa
+      // istemci adından türeyen sabit renge düşer. Detay ucunda da (buildOfficePayload) AYNI sıra.
       return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || latestProjectCover(row.latest_project_images), projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
     });
   });

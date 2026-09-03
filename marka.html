@@ -355,14 +355,22 @@
      (2026-08-31): "logoyu biraz daha üste al, şu an marka başlıkları gözükmüyor" — taşma azaltıldı,
      .office-card-body'nin padding-top'u ile birlikte ayarlanır (ikisi BİRLİKTE değişmeli: padding-top
      < taşma + nefes payı olursa logo başlığın üzerine biner). */
+  /* ÖLÇÜ (kullanıcı isteği, 2026-09-03): "logo kutucuklarını arka plandaki kapak görseline doğru
+     büyüt". Kutu 88x56'dan 118x76'ya çıkarıldı (~%35). Büyüme YUKARI, yani kapağın içine doğru
+     olur: kutu alt kenarından (bottom:-14px) konumlandığından yükseklik artışı tamamen kapak
+     alanını yer; kartın ALTINA taşma miktarı DEĞİŞMEZ, bu yüzden .office-card-body'nin padding-top'u
+     olduğu gibi kalabilir (ikisinin birlikte değişmesi kuralı yalnızca `bottom` değişirse geçerli).
+     Kapak 4/3 oranında olduğundan 76px yükseklik, en dar kartta bile kapağın ~%40'ının altında
+     kalır — logo kapağı ezmez. "Her logo AYNI büyüklükte" kuralı (2026-09-02) korunur: kutu hâlâ
+     SABİT ölçüdedir, object-fit:contain logoyu kırpmadan içine ortalar. */
   .office-card-logo{
     position:absolute; left:14px; bottom:-14px; z-index:2;
-    width:88px; height:56px; border-radius:12px; overflow:hidden;
+    width:118px; height:76px; border-radius:14px; overflow:hidden;
     background:var(--paper-card); border:1px solid var(--line-soft);
     box-shadow:0 6px 16px rgba(27,42,61,0.16);
     display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:19px;
-    padding:8px; box-sizing:border-box;
+    color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:25px;
+    padding:10px; box-sizing:border-box;
   }
   /* firma.html#.office-card-logo img ile AYNI gerekçe (kullanıcı isteği, 2026-09-02): her logonun
      kutusu eşit kare olsun; contain logoyu kırpmadan içine ortalar. */
@@ -457,7 +465,9 @@
        kutusu da küçültülüp taşması azaltılır ve padding-top ona göre verilir — bkz. yukarıdaki
        .office-card-logo yorumu: bu iki değer BİRLİKTE değişmeli. */
     .office-card-body{padding:22px 10px 10px;}
-    .office-card-logo{left:10px; bottom:-11px; width:66px; height:42px; border-radius:10px; padding:6px; font-size:15px;}
+    /* Masaüstündeki AYNI ~%35'lik büyütme (kullanıcı isteği 2026-09-03, "tüm görünümlerde"):
+       66x42 -> 90x58. `bottom` DEĞİŞMEDİĞİ için .office-card-body'nin padding-top'u da aynı kalır. */
+    .office-card-logo{left:10px; bottom:-11px; width:90px; height:58px; border-radius:12px; padding:8px; font-size:20px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
