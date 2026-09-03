@@ -24,10 +24,39 @@ const BRAND_CAT_SET = new Set([...BRAND_CATS, LEGACY_BRAND_CAT]);
 // kümeden ve AYNI productCount kuralından okuyabilmesi için buraya çıkarıldı. Sayaçları ayrı bir
 // SQL'le hesaplamak canlıda marka için 21 / 22'lik sessiz bir sapma üretiyordu (ad eşleşmesinde
 // SQLite COLLATE NOCASE yalnızca ASCII katlar, JS tarafındaki Türkçe küçültme ise farklı davranır).
+// Kullanıcı isteği (2026-09-03): "her firmanın son projesinin ilk görselini logonun arkasına kapak
+// görseli olarak ekle". Kapak alanı (offices.cover_url) marka-ekle.html'de ELLE yükleniyordu ve
+// firmaların ezici çoğunluğunda boştu — bu yüzden firma kartlarında/popup'ında logonun arkası hep
+// düz renkti. Artık cover_url boşsa firmanın EN YENİ projesinin İLK görseline düşülür.
+//
+// Uydurma yok: değer gerçek bir projects.images[0]'dır. images kolonu JSON dizi olarak saklanır ama
+// bazı legacy satırlarda düz string olabilir (bkz. parseCanonicalRow'daki AYNI karışıklık notu) —
+// her iki durumda da güvenli şekilde tek bir yola çözülür, çözülemezse null döner ve eski düz-renk
+// davranışı aynen korunur.
+function latestProjectCover(imagesRaw) {
+  if (!imagesRaw) return null;
+  try {
+    const parsed = typeof imagesRaw === 'string' ? JSON.parse(imagesRaw) : imagesRaw;
+    if (Array.isArray(parsed)) {
+      const first = parsed.find(x => typeof x === 'string' && x.trim());
+      return first ? first.trim() : null;
+    }
+    if (typeof parsed === 'string' && parsed.trim()) return parsed.trim();
+    return null;
+  } catch {
+    // JSON değilse ham değerin kendisi tek bir yol olabilir (legacy satırlar).
+    return typeof imagesRaw === 'string' && imagesRaw.trim().startsWith('/') ? imagesRaw.trim() : null;
+  }
+}
+
 export async function fetchOfficePool(env) {
   return getCachedPool(env, 'offices', async () => {
     const { results } = await env.DB.prepare(
       `SELECT o.slug, o.name, o.loc, o.cats, o.yil, o.website, o.logo_url, o.cover_url,
+         (SELECT p.images FROM project_designers pd2 JOIN projects p ON p.id = pd2.project_id
+          WHERE pd2.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+            AND p.images IS NOT NULL AND p.images != '' AND p.images != '[]'
+          ORDER BY COALESCE(p.project_date, '') DESC, p.id DESC LIMIT 1) AS latest_project_images,
          (SELECT COUNT(*) FROM project_designers pd JOIN projects p ON p.id = pd.project_id
           WHERE pd.office_id = o.id AND p.deleted_at IS NULL AND p.hidden_at IS NULL) AS project_count,
          (SELECT COUNT(*) FROM products pr WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
@@ -49,7 +78,7 @@ export async function fetchOfficePool(env) {
       // sayfasında görünen firma"nın popup'ında mutlaka dolu bir "Ürünler" bölümü olur.
       // cover: marka kartlarının arka planı (bkz. marka.html#render, kullanıcı isteği 2026-08-31
       // madde 6). firma.html AYNI havuzu okur ama bu alanı hiç kullanmaz — zararsız fazladan bir dize.
-      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || null, projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
+      return { slug: o.slug, name: o.name, loc: o.loc, cats, yil: o.yil, website: o.website, logo: o.logo_url, cover: o.cover_url || latestProjectCover(row.latest_project_images), projectCount: row.project_count || 0, productCount: row.product_count || 0, badges: [] };
     });
   });
 }
@@ -630,7 +659,11 @@ async function buildOfficePayload(env, key) {
 
   const item = {
     name: o.name, slug: o.slug, loc: o.loc, cats: o.cats, yil: o.yil, website: o.website, about: o.about,
-    logo: o.logo_url, cover: o.cover_url || null, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
+    // cover — bkz. latestProjectCover yorumu. Burada EK SORGU AÇILMAZ: relatedProjects zaten bu
+    // firmanın projelerini en yeniden en eskiye sıralı taşıyor (bkz. yukarıdaki sort) ve her kart
+    // coverImage() ile ilk görselini içeriyor, yani [0].images[0] tam olarak "son projenin ilk
+    // görseli"dir. Havuz sorgusundaki SQL sıralaması ile bu JS sıralaması aynı veriyi kullanır.
+    logo: o.logo_url, cover: o.cover_url || (relatedProjects[0] && relatedProjects[0].images && relatedProjects[0].images[0]) || null, awards: o.awards, social_links: o.social_links || [], badges: [], isBrand,
   };
   // renderProfileEditButton'ın "claim=" linki HER ZAMAN orijinal statik anahtarı (legacy_key)
   // kullanmalı — o.name bir yeniden adlandırmadan sonra değişmiş olabilir (bkz. ofis-detay.html

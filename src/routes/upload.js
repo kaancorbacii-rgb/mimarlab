@@ -3,6 +3,7 @@ import { getSessionUser } from '../lib/auth.js';
 import { reserveR2Usage, finalizeR2Reservation, releaseR2Reservation, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 import { optimizeUploadedImage } from '../lib/imageOptimize.js';
+import { backfillDerivative } from '../lib/derivativeBackfill.js';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (haber/iş ilanı görselleri)
 const CONTEXT_MAX_BYTES = {
@@ -312,10 +313,17 @@ export async function handleMediaRoute(request, env, url, ctx) {
   if (!object) {
     const derived = DERIVED_KEY_RE.exec(key);
     if (derived) {
-      const [, , source, originalPath] = derived;
+      const [, widthStr, source, originalPath] = derived;
       isFallback = true;
       if (source === 'r2') {
         object = await env.UPLOADS.get(originalPath);
+        // Türev EKSİK ve kaynak R2'de VAR — bu isteği bekletmeden arka planda üret (bkz.
+        // src/lib/derivativeBackfill.js: neden upload anında değil de burada). Bu istek orijinali
+        // alır, bir sonraki istek gerçek türevi. Bu sayede yeni yüklenen görseller için
+        // scripts/generate-image-derivatives.py'yi bir daha elle çalıştırmak gerekmez.
+        if (object && ctx) {
+          ctx.waitUntil(backfillDerivative(env, key, Number(widthStr), originalPath));
+        }
       } else {
         // Statik varlık kaynağı — Cloudflare Assets'ten okunur. env.ASSETS.fetch mutlak bir URL
         // ister; istekle AYNI origin kullanılır. Yanıt yeniden sarmalanmaz, kendi başına (kendi

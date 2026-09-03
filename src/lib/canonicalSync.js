@@ -248,11 +248,42 @@ export function collectR2MediaKeys(row, { arrayFields = [], stringFields = [] } 
 // hâlâ dururken sayaç "silindi" varsayıyordu. Bu, releaseR2StorageBytes'ın gerçek kullanımdan
 // sapmasına (drift) yol açar. Artık yalnızca delete() BAŞARILI olan chunk'ların head() boyutu
 // toplanıp düşürülüyor; başarısız chunk yapılandırılmış olarak loglanıyor (sessizce yutulmuyor).
-export async function deleteR2MediaKeys(env, keys) {
-  if (!keys.length) return;
-  const heads = await Promise.all(keys.map(key => env.UPLOADS.head(key).catch(() => null)));
+// image-cdn.js#DERIVATIVE_WIDTHS / src/lib/imageDerivative.js#DERIVATIVE_WIDTHS /
+// scripts/generate-image-derivatives.py#WIDTHS ile AYNI merdiven olmalı.
+const DERIVATIVE_WIDTHS_FOR_CLEANUP = [400, 800, 1600];
+
+// Denetim bulgusu (2026-09-03): silme yolu yalnızca ORİJİNAL anahtarı siliyordu — o görselin
+// _derived/w400|w800|w1600/r2/<anahtar> türevleri R2'de ÖKSÜZ kalıyordu. Türevler eskiden yalnızca
+// tek seferlik bir betikle üretildiğinden bu sınırlı bir sızıntıydı; src/lib/derivativeBackfill.js
+// ile türevler artık görüntülenen HER görsel için çalışma zamanında üretildiğinden sızıntı kalıcı
+// olarak büyürdü (silinen her galeri, arkasında 3 katına kadar öksüz nesne bırakırdı).
+//
+// GÜVENLİK: yalnızca ZATEN SİLİNMEKTE OLAN anahtarların türevleri genişletilir. Hâlâ kullanımda
+// olan bir görselin türevine asla dokunulmaz — türev anahtarı orijinalin anahtarından deterministik
+// olarak üretilir, dolayısıyla bu liste orijinal listesinin dışına çıkamaz.
+function withDerivativeKeys(keys) {
+  const out = [];
+  for (const key of keys) {
+    out.push(key);
+    // Türevi hiç olmayan (SVG/GIF, ya da kazanç yoksa yazılmayan) anahtarlar için delete() sessizce
+    // başarılıdır — var olmayan nesneyi silmek hata değildir, ayrıca bir kontrol gerektirmez.
+    for (const w of DERIVATIVE_WIDTHS_FOR_CLEANUP) out.push(`_derived/w${w}/r2/${key}`);
+  }
+  return out;
+}
+
+export async function deleteR2MediaKeys(env, originalKeys) {
+  if (!originalKeys.length) return;
+  const keys = withDerivativeKeys(originalKeys);
+  // head() YALNIZCA orijinaller için çağrılır, genişletilmiş liste için DEĞİL — bu fonksiyon
+  // Workers'ın istek başına subrequest limitine karşı bilerek optimize edilmişti (bkz. yukarıdaki
+  // not); türevlerle birlikte head() sayısı 4 katına çıkar ve 20 görsellik bir galeride limite
+  // dayanırdı. Sonuç: türevlerin baytları kota sayacından DÜŞÜLMEZ, yani sayaç gerçek kullanımın
+  // biraz ÜSTÜNDE kalır. Bu bilinçli ve güvenli yön: sayacın gerçeğin altına düşmesi tavanı aşmaya
+  // yol açardı, üstünde kalması yalnızca bir miktar payı erken harcar (bkz. r2Quota.js).
+  const heads = await Promise.all(originalKeys.map(key => env.UPLOADS.head(key).catch(() => null)));
   const sizeByKey = new Map();
-  keys.forEach((key, i) => { if (heads[i]) sizeByKey.set(key, heads[i].size); });
+  originalKeys.forEach((key, i) => { if (heads[i]) sizeByKey.set(key, heads[i].size); });
   let freedBytes = 0;
   for (let i = 0; i < keys.length; i += 1000) {
     const chunk = keys.slice(i, i + 1000);

@@ -2803,6 +2803,14 @@ const AuthModal = (function () {
             </form>`}
         <div class="am-thread-error" id="am-thread-error" style="display:none;"></div>`;
 
+      // Kullanıcı isteği (2026-09-03): mesaj kutusu EN SON mesajı göstererek açılsın. .am-thread-messages
+      // max-height:340px + overflow-y:auto olduğundan uzun bir konuşmada varsayılan scroll konumu en
+      // ÜSTdü — yani kutu, kullanıcının okumak istediği son mesaj yerine aylar önceki ilk mesajı
+      // gösteriyordu. renderThreadBody hem ilk açılışta hem her cevaptan sonra çağrıldığından tek nokta
+      // yeterli: cevap gönderildiğinde de yeni mesaj görünür kalır.
+      const messagesEl = bodyEl.querySelector('.am-thread-messages');
+      if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+
       const replyForm = bodyEl.querySelector('#am-thread-reply-form');
       if (replyForm) {
         replyForm.addEventListener('submit', async (e) => {

@@ -50,6 +50,7 @@ import ilIlceJs from '../../il-ilce-data.js';
 import { getSessionUser } from '../lib/auth.js';
 import { getActiveBadge } from '../lib/badgeAccess.js';
 import { safeFetch, limitResponseSize, UnsafeUrlError } from '../lib/safeFetch.js';
+import { optimizeUploadedImage } from '../lib/imageOptimize.js';
 import { extractPageContent } from '../lib/htmlExtract.js';
 import { stripInjectionAttempts } from '../lib/injectionFilter.js';
 import { callOnce, isAiProviderConfigured, AiProviderError } from '../lib/aiProvider.js';
@@ -938,6 +939,18 @@ function mapSafeFetchError(err) {
 const IMG_MAX_BYTES = 4 * 1024 * 1024;
 const IMG_EXT_BY_CONTENT_TYPE = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
 
+// Dosya imzası (magic bytes) kontrolü — src/routes/upload.js#sniffImageMime ve
+// src/routes/visualSearch.js#sniffImageMime ile BİREBİR AYNI. Üçü de bağımsız kopyadır (bu kod
+// tabanının kuralı, bkz. FILE_UPLOAD_EXTENSIONS'daki aynı not): biri değişirse diğer ikisi de
+// güncellenmeli. Güvenlik açısından kritik olduğu için üçünün de aynı imzaları tanıması ŞARTTIR.
+function sniffImageMime(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 && bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) return 'image/png';
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38 && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61) return 'image/gif';
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
+  return null;
+}
+
 async function handleCopyImages(request, env, user) {
   const body = await readJson(request);
   const images = Array.isArray(body.images) ? body.images.filter(u => typeof u === 'string').slice(0, AI_COPY_IMAGES_MAX_PER_REQUEST) : [];
@@ -974,6 +987,17 @@ async function handleCopyImages(request, env, user) {
       if (!quota.ok) { items.push({ url: rawUrl, error: 'r2_quota_reached' }); continue; }
 
       const buf = await limitResponseSize(response, IMG_MAX_BYTES).arrayBuffer();
+      // Denetim bulgusu (2026-09-03): burada UZAK sunucunun Content-Type başlığına GÜVENİLİYORDU —
+      // /api/uploads'ın aksine (bkz. upload.js#sniffImageMime) baytlar hiç doğrulanmıyordu. Kötü
+      // yapılandırılmış ya da kötü niyetli bir kaynak, izin verilen bir Content-Type ile görsel
+      // olmayan içeriği R2'ye yazdırabilirdi. Aynı sınıftan bir hata miras/*.webp'nin yanlış
+      // etiketlenmesine yol açmıştı.
+      const sniffed = sniffImageMime(new Uint8Array(buf.slice(0, 12)));
+      if (!sniffed || !IMG_EXT_BY_CONTENT_TYPE[sniffed]) {
+        await releaseR2Reservation(env, reserveEstimate);
+        items.push({ url: rawUrl, error: 'unsupported_type' });
+        continue;
+      }
       const hashBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
       const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
       if (seenHashes.has(hashHex)) {
@@ -982,14 +1006,25 @@ async function handleCopyImages(request, env, user) {
         continue;
       }
       seenHashes.add(hashHex);
-      const key = `u/${user.id}/${crypto.randomUUID()}.${ext}`;
+      // Denetim bulgusu (2026-09-03): AI ile kopyalanan görseller /api/uploads'tan geçenlerin aksine
+      // HİÇ optimize edilmiyordu — dış kaynaktan gelen tam boy (çoğu zaman 3000+ px) dosya olduğu
+      // gibi R2'ye yazılıyordu. Aynı optimizasyon (max 1600 px, WebP) burada da uygulanır: hem
+      // depolama hem de sayfa ağırlığı açısından iki yolun davranışı artık aynıdır.
+      // optimizeUploadedImage bir Blob/File bekler (file.stream() çağırır) — ArrayBuffer'ı sarmak
+      // yeterli. Best-effort: null dönerse orijinal baytlar aynen yazılır, akış hiç bozulmaz.
+      const sourceBlob = new Blob([buf], { type: sniffed });
+      const optimized = await optimizeUploadedImage(env, sourceBlob, sniffed);
+      const outBytes = optimized ? optimized.arrayBuffer : buf;
+      const outType = optimized ? optimized.contentType : sniffed;
+      const outExt = optimized ? optimized.ext : IMG_EXT_BY_CONTENT_TYPE[sniffed];
+      const key = `u/${user.id}/${crypto.randomUUID()}.${outExt}`;
       try {
-        await env.UPLOADS.put(key, buf, { httpMetadata: { contentType } });
+        await env.UPLOADS.put(key, outBytes, { httpMetadata: { contentType: outType } });
       } catch (err) {
         await releaseR2Reservation(env, reserveEstimate);
         throw err;
       }
-      await finalizeR2Reservation(env, reserveEstimate, buf.byteLength);
+      await finalizeR2Reservation(env, reserveEstimate, outBytes.byteLength);
       items.push({ url: rawUrl, mediaUrl: `/media/${key}`, sourceUrl: finalUrl });
     } catch {
       items.push({ url: rawUrl, error: 'blocked_or_too_large' });

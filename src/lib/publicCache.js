@@ -278,7 +278,14 @@ async function withSingleFlight(key, fn) {
 //     EKLEMEK gibi alan KALDIRMAK da sürüm artırmayı gerektirir: aksi halde bu uçları daha önce
 //     ziyaret etmiş tarayıcılar aynı ETag'i gönderip 304 alır ve küçültülmüş gövdeyi hiç görmez
 //     (yani iyileştirme dönen ziyaretçilerde HİÇ devreye girmezdi — v2/v3'teki tuzağın aynısı).
-const API_PAYLOAD_VERSION = 'v4';
+// v5 (kullanıcı isteği, 2026-09-03): /api/offices ve /api/office/:key'deki `cover` alanı, firmalarda
+//     artık boş gelmiyor — cover_url yüklenmemişse firmanın EN YENİ projesinin ilk görseline
+//     düşülüyor (bkz. src/routes/office.js#latestProjectCover). Alanın ŞEKLİ değişmedi ama DEĞERİ
+//     değişti ve bu, sürüm artırmayı gerektiren nadir durumlardan biri: ETag yalnızca veri
+//     fingerprint'inden türüyor, offices satırlarının kendisi ise DEĞİŞMEDİ. Sürüm artırılmazsa
+//     firma/marka sayfasını daha önce ziyaret etmiş tarayıcılar aynı ETag'i gönderip 304 alır ve
+//     kapaksız eski gövdede SÜRESİZ takılırdı (v2/v3/v4'teki tuzağın aynısı).
+const API_PAYLOAD_VERSION = 'v5';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

@@ -674,9 +674,12 @@ const OfficeModal = (function () {
 
     // Kapak bandı (bkz. LEFT_TEMPLATE#om-cover / injectStyles, kullanıcı isteği 2026-08-31 madde 6).
     // Gösterme koşulu: profil bir MARKA ise (kapak yüklenmemiş olsa da — istek açıkça "yüklenmemişse
-    // bu alan temaya uygun başka bir renkte olsun" diyor) YA DA herhangi bir ofiste gerçekten bir
-    // kapak görseli varsa. Sıradan firma popup'larında bant hiç render edilmez ve logo eski yerinde,
-    // başlığın yanında kalır — o tarafa dair bir istek yok.
+    // bu alan temaya uygun başka bir renkte olsun" diyor) YA DA gerçekten bir kapak görseli varsa.
+    // GÜNCELLEME (kullanıcı isteği, 2026-09-03): artık SIRADAN FİRMALAR da bant görür. Buradaki
+    // koşul değişmedi — değişen, sunucunun cover_url boşken firmanın EN YENİ projesinin ilk
+    // görselini kapak olarak döndürmesi (bkz. src/routes/office.js#latestProjectCover). Yani projesi
+    // olan her firmada coverUrl artık dolu gelir; ne projesi ne kapağı olan firmada bant yine hiç
+    // render edilmez ve logo eski yerinde, başlığın yanında kalır.
     const coverUrl = o.cover ? safeUrl(o.cover) : '';
     const showCover = isBrandProfile || !!coverUrl;
     const coverEl = document.getElementById('om-cover');

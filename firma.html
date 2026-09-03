@@ -317,23 +317,41 @@
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .office-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(27,42,61,0.1); border-color:var(--line);}
+  /* ---------- FİRMA KARTI (kullanıcı isteği, 2026-09-03) ----------
+     "her firmanın son projesinin ilk görselini logonun arkasına kapak görseli olarak ekle" —
+     marka.html'deki AYNI iki katmanlı yapı buraya taşındı, birebir aynı sınıf adları ve ölçülerle:
+       .office-card-cover — kapak görseli tam kanama (firmada cover_url genelde boş olduğundan
+                            src/routes/office.js#latestProjectCover ile son projenin ilk görseline
+                            düşülür; o da yoksa firma renginde düz zemin),
+       .office-card-logo  — onun SOL ALT köşesine binen, kendi kutusu olan logo rozeti.
+     2026-09-02'deki "her logo AYNI büyüklükte görünsün" isteği KORUNUR: rozet kutusu sabit
+     88x56'dır ve object-fit:contain logoyu kırpmadan içine ortalar — yani logo boyutu kart
+     arasında hâlâ tutarlı, sadece kutu tam kare yerine kapağa binen bir rozet oldu. */
+  .office-card-cover{
+    position:relative; aspect-ratio:4/3; overflow:visible;
+    background:var(--paper-alt); border-radius:14px 14px 0 0;
+  }
+  .office-card-cover-img{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    border-radius:14px 14px 0 0;
+  }
+  .office-card-cover-fallback{
+    position:absolute; inset:0; border-radius:14px 14px 0 0;
+    background-image:linear-gradient(150deg, rgba(255,255,255,0.16), rgba(0,0,0,0.20));
+  }
   .office-card-logo{
-    position:relative; aspect-ratio:1/1; overflow:hidden;
+    position:absolute; left:14px; bottom:-14px; z-index:2;
+    width:88px; height:56px; border-radius:12px; overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line-soft);
+    box-shadow:0 6px 16px rgba(27,42,61,0.16);
     display:flex; align-items:center; justify-content:center;
-    color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:26px;
-    padding:16px;
+    color:var(--paper-card); font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; font-size:19px;
+    padding:8px; box-sizing:border-box;
   }
-  /* Kullanıcı isteği (2026-09-02): her firmanın logosu AYNI kare büyüklükte görünsün (kisi.html
-     #.person-card-photo ile aynı his). Eskiden max-width/max-height kullanılıyordu; bu, görselin
-     KENDİ doğal oranı kadar yer kaplaması demekti — geniş bir logo kısa ve küçük, kare bir logo
-     kutuyu dolduracak kadar büyük görünüyordu, yani kartlar arasında boyut tutarsızdı.
-     width/height:100% + object-fit:contain ile her logonun KUTUSU eşit kare olur; contain sayesinde
-     logo kırpılmadan bu karenin içine ortalanır (cover kullanılamaz — logoyu keserdi). */
-  .office-card-logo img{
-    width:100%; height:100%; object-fit:contain;
-    background:var(--paper-card); border-radius:8px; padding:6px; box-sizing:border-box;
-  }
-  .office-card-body{padding:12px 14px;}
+  .office-card-logo img{width:100%; height:100%; object-fit:contain; box-sizing:border-box;}
+  .office-card-logo.no-logo{padding:0;}
+  /* padding-top: yukarıdaki bottom:-14px'lik taşmaya + nefes payına yer açar (marka.html ile AYNI). */
+  .office-card-body{padding:26px 14px 14px;}
   .office-card-name{
     font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:14.5px; color:var(--ink);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -412,7 +430,11 @@
     .grid-layout{padding:16px 16px 70px; gap:16px;}
     .card-grid{grid-template-columns:repeat(2, 1fr); gap:12px;}
     .office-card-name{font-size:13px;}
-    .office-card-body{padding:9px 10px;}
+    /* marka.html'deki AYNI mobil ölçüler — .office-card-logo'nun taşması (bottom) ile
+       .office-card-body'nin padding-top'u BİRLİKTE değişmeli, aksi halde logo başlığın üzerine
+       biner (bkz. yukarıdaki .office-card-logo yorumu). */
+    .office-card-body{padding:22px 10px 10px;}
+    .office-card-logo{left:10px; bottom:-11px; width:66px; height:42px; border-radius:10px; padding:6px; font-size:15px;}
     .footer-top{grid-template-columns:1fr 1fr; gap:28px 20px;}
     .footer-brand{grid-column:1 / -1;}
   }
@@ -778,9 +800,20 @@ async function render(){
     // görünür — js/pages/proje.js#render'daki AYNI desen/gerekçe: bunlar eager + fetchpriority="high",
     // alttakiler lazy kalır.
     const imgAttrs = i < eagerCardCount ? `loading="eager" fetchpriority="high"` : `loading="lazy" fetchpriority="low"`;
+    // Kapak görseli — marka.html#render ile BİREBİR aynı desen ve gerekçe: düz renk zemin HER ZAMAN
+    // basılır, kapak (varsa) onun ÜZERİNE mutlak konumlu biner; görsel R2'den silinmişse onerror
+    // img'i kaldırır ve altındaki zemin kalır, kart hiçbir zaman boş/beyaz görünmez. o.cover artık
+    // firmalarda da dolu gelebilir (bkz. src/routes/office.js#latestProjectCover).
+    const cover = o.cover || '';
+    const coverSrcset = cover ? cdnSrcset(cover, [400, 600, 800]) : '';
+    const coverHtml = `<span class="office-card-cover-fallback" style="background-color:${officeColor(o.name)}"></span>`
+      + (cover ? `<img class="office-card-cover-img" src="${escapeAttr(cdnImg(cover, 600))}"${coverSrcset ? ` srcset="${escapeAttr(coverSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.remove();">` : '');
     return `
     <a class="office-card" href="/firma/${encodeURIComponent(o.slug || slugify(o.name))}">
-      <div class="office-card-logo" data-initials="${safeInitialsAttr}" style="background:${logo ? 'var(--paper-alt)' : officeColor(o.name)}">${logo ? `<img src="${escapeAttr(cdnImg(logo, 600))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="(max-width: 720px) 50vw, (max-width: 960px) 33vw, 400px"` : ''} alt="" ${imgAttrs} decoding="async" onerror="this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
+      <div class="office-card-cover">
+        ${coverHtml}
+        <div class="office-card-logo${logo ? '' : ' no-logo'}" data-initials="${safeInitialsAttr}"${logo ? '' : ` style="background:${officeColor(o.name)}"`}>${logo ? `<img src="${escapeAttr(cdnImg(logo, 400))}"${logoSrcset ? ` srcset="${escapeAttr(logoSrcset)}" sizes="88px"` : ''} alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('no-logo'); this.parentElement.style.background='${officeColor(o.name)}'; this.parentElement.textContent=this.parentElement.dataset.initials;">` : safeInitialsText}</div>
+      </div>
       <div class="office-card-body">
         <div class="office-card-name">${escapeHtml(o.name)}${verifiedBadgeHtml('office', o.name, o.badges)}</div>
         <div class="office-card-loc">${escapeHtml(o.loc)} · ${escapeHtml((o.cats||'').split(' · ')[0])}</div>
