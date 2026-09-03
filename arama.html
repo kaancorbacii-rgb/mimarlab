@@ -252,6 +252,7 @@
   <footer id="site-footer-mount"></footer>
 
 <script src="badge-shared.js"></script>
+<script src="js/analytics-beacon.js" defer></script>
 <script>
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -512,6 +513,18 @@ async function runSearch(){
       meta: s.meta || '',
     }), sayfaResults.length),
   ].join('');
+
+  // Arama gösterimleri (kullanıcı isteği, 2026-09-04 — Profil İstatistikleri). YALNIZCA gerçekten
+  // ekrana basılan kişi/firma/marka satırları sayılır; sayaç oturum başına tekilleştirilir ve tek
+  // istekte toplu gönderilir (bkz. js/analytics-beacon.js). Proje/ürün burada BİLEREK sayılmaz —
+  // "arama gösterimi" metriği istekte profil metrikleri altında tanımlı.
+  if (window.MimarlabAnalytics) {
+    MimarlabAnalytics.impressions([
+      ...mimarMerged.items.map(a => ({ type: 'architect', key: a.slug })),
+      ...firmaMerged.items.map(o => ({ type: 'office', key: o.slug })),
+      ...markaMerged.items.map(o => ({ type: 'office', key: o.slug })),
+    ].filter(x => x.key));
+  }
 
   wireNavSearch();
 }

@@ -188,6 +188,60 @@ const AuthModal = (function () {
     #am-panel .dash-empty{border:1px dashed var(--line); border-radius:12px; padding:24px; text-align:center; color:var(--ink-soft); font-size:13px; line-height:1.6;}
     #am-panel .dash-empty a{color:var(--walnut); font-weight:600;}
     #am-panel .dash-empty a:hover{text-decoration:underline;}
+    /* ---------- İSTATİSTİKLER (kullanıcı isteği, 2026-09-04) ----------
+       Tüm renkler mevcut değişkenlerden (--ink/--ink-soft/--line/--paper-alt/--walnut) gelir, yani
+       koyu tema otomatik doğru çalışır (bkz. arama.html/#[data-theme="dark"] tanımları). Izgara
+       auto-fit/minmax ile akar: masaüstünde 4, tablette 2-3, mobilde 2 sütun — ayrı media query
+       yazmaya gerek kalmaz. */
+    #am-panel .stat-range{display:flex; flex-wrap:wrap; gap:6px;}
+    #am-panel .stat-range-btn{
+      background:var(--paper-card); border:1px solid var(--line); border-radius:100px;
+      padding:6px 12px; font-family:inherit; font-size:12px; font-weight:600; color:var(--ink-soft);
+      transition:background .15s, color .15s, border-color .15s;
+    }
+    #am-panel .stat-range-btn:hover{border-color:var(--brass); color:var(--ink);}
+    #am-panel .stat-range-btn.active{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
+    #am-panel .stat-group{margin-top:18px;}
+    #am-panel .stat-group:first-child{margin-top:4px;}
+    #am-panel .stat-group-title{font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--sage); margin:0 0 10px;}
+    #am-panel .stat-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;}
+    #am-panel .stat-card{border:1px solid var(--line-soft); border-radius:12px; background:var(--paper); padding:12px 14px; min-width:0;}
+    #am-panel .stat-card-value{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:22px; font-weight:700; line-height:1.15;}
+    #am-panel .stat-card-label{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.35;}
+    #am-panel .stat-chart{margin-top:10px; border:1px solid var(--line-soft); border-radius:12px; background:var(--paper); padding:12px;}
+    /* max-height: preserveAspectRatio="none" ile SVG kapsayıcının genişliğine göre uzar; geniş
+       masaüstünde 260px'i aşıp bölümü gereksiz şişiriyordu. 160px sade bir "spark" yüksekliği. */
+    #am-panel .stat-chart svg{display:block; width:100%; height:160px;}
+    #am-panel .stat-legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; font-size:11.5px; color:var(--ink-soft);}
+    #am-panel .stat-legend span{display:inline-flex; align-items:center; gap:6px;}
+    #am-panel .stat-legend i{width:10px; height:3px; border-radius:2px; display:inline-block;}
+    #am-panel .stat-list{list-style:none; margin:0; padding:0;}
+    #am-panel .stat-list li{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:13px; min-width:0;}
+    #am-panel .stat-list li:last-child{border-bottom:none;}
+    #am-panel .stat-list .stat-list-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    #am-panel .stat-list .stat-list-count{font-weight:700; flex-shrink:0;}
+    #am-panel .stat-list .stat-list-kind{font-size:11px; color:var(--ink-soft); flex-shrink:0;}
+    /* Dağılım çubuğu — meslek/kurum kırılımı için; oran genişlikle gösterilir, ayrı bir grafik
+       kütüphanesi gerekmez. */
+    #am-panel .stat-bar-row{display:grid; grid-template-columns:minmax(90px, 34%) 1fr auto; align-items:center; gap:10px; padding:6px 0; font-size:12.5px;}
+    /* display:block ZORUNLU — ikisi de <span>, yani varsayılan inline; inline kutularda width/height
+       hiç uygulanmaz ve dolgu 0x0 render edilirdi (yerelde ölçüldü: fillW=0, fillH=0 — çubuklar boş
+       görünüyordu). Aynı hata sınıfı proje.html#.prevnext-title'da da yaşanmıştı. */
+    #am-panel .stat-bar-track{display:block; background:var(--paper-alt); border-radius:100px; height:8px; overflow:hidden; min-width:0;}
+    #am-panel .stat-bar-fill{display:block; background:var(--walnut); height:100%; border-radius:100px;}
+    #am-panel .stat-bar-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink-soft);}
+    #am-panel .stat-note{font-size:11.5px; color:var(--ink-soft); margin-top:12px; line-height:1.5;}
+    #am-panel .stat-two{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+    @media (max-width:620px){
+      #am-panel .stat-two{grid-template-columns:1fr;}
+      /* Sabit 2 sütun: auto-fit + minmax(120px) 375px'lik ekranda (kutu iç genişliği ~247px, gap 10px)
+         2x120+10 = 250 > 247 olduğu için TEK sütuna düşüyordu ve kartlar gereksiz yer kaplıyordu
+         (yerelde ölçüldü). Mobilde 2 sütun okunabilirliği bozmuyor, bölümü yarı yarıya kısaltıyor. */
+      #am-panel .stat-grid{grid-template-columns:1fr 1fr; gap:8px;}
+      #am-panel .stat-card{padding:10px 11px;}
+      #am-panel .stat-card-value{font-size:19px;}
+      #am-panel .stat-card-label{font-size:11.5px;}
+    }
     #am-panel .profile-fact{display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:13px;}
     #am-panel .profile-fact:last-child{border-bottom:none;}
     #am-panel .profile-fact-label{color:var(--ink-soft); flex:0 0 110px;}
@@ -1026,6 +1080,28 @@ const AuthModal = (function () {
           </div>
           <div id="am-dash-messages"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-msg-pagination"></div>
+        </div>
+      </div>
+
+      <!-- İSTATİSTİKLER (kullanıcı isteği, 2026-09-04) — YALNIZCA rozetli üyelere gösterilir.
+           Kutu varsayılan olarak display:none'dır ve ancak /api/analytics/summary 200 dönerse
+           açılır (bkz. loadStats): rozet kontrolü SUNUCUDA yapılır, istemci yalnızca sonucuna
+           uyar — 403 alırsa bölüm hiç görünmez. Tam genişlik, .dash-section-wide (Rozetlerim ile
+           AYNI desen) çünkü içindeki ızgara/grafik iki sütuna sığmaz. -->
+      <div class="dash-row col-two-col" id="am-stats-row" style="display:none;">
+        <div class="dash-section dash-section-wide" id="am-stats-section">
+          <div class="dash-section-head">
+            <h2>İstatistikler</h2>
+            <div class="stat-range" id="am-stats-range">
+              <button type="button" class="stat-range-btn" data-range="7d">Son 7 Gün</button>
+              <button type="button" class="stat-range-btn active" data-range="30d">30 Gün</button>
+              <button type="button" class="stat-range-btn" data-range="90d">90 Gün</button>
+              <button type="button" class="stat-range-btn" data-range="12m">12 Ay</button>
+              <button type="button" class="stat-range-btn" data-range="all">Tüm Zamanlar</button>
+            </div>
+          </div>
+          <p class="section-hint" id="am-stats-hint">Profilinin ve içeriklerinin performansı.</p>
+          <div id="am-stats-body"><div class="dash-empty">Yükleniyor…</div></div>
         </div>
       </div>
 
@@ -2910,10 +2986,165 @@ const AuthModal = (function () {
       }
     }
 
+    // ---------------------------------------------------------------------------------------
+    // İSTATİSTİKLER (kullanıcı isteği, 2026-09-04) — Hesabım > İstatistikler bölümü.
+    //
+    // YETKİ: bölüm yalnızca /api/analytics/summary 200 dönerse açılır. 401/403'te (giriş yok ya da
+    // rozet yok) kutu display:none kalır — yani "rozetli mi?" sorusunun cevabı TAMAMEN sunucudan
+    // gelir, istemcide ayrı bir rozet kontrolü kopyalanmaz (bkz. src/lib/analyticsAccess.js
+    // #hasAnalyticsAccess). Bu, PDF dışa aktarımındaki fetchBadgeAccess deseninden bilinçli olarak
+    // daha katı: orada UI zaten görünüyordu ve yalnızca eylem engelleniyordu, burada VERİNİN
+    // KENDİSİ gizli olduğundan uç noktanın cevabı tek gerçek kaynaktır.
+    //
+    // VERİ: hiçbir metrik tahmin/mock değil (bkz. kullanıcı isteği) — görüntülenme ve arama
+    // gösterimi analytics_daily sayaçlarından, kaydetme/takip/mesaj metrikleri ise zaten var olan
+    // saved_items/follows/messages tablolarından gelir.
+    let statsRange = '30d';
+    let statsSeq = 0;
+    async function loadStats() {
+      const row = document.getElementById('am-stats-row');
+      const body = document.getElementById('am-stats-body');
+      if (!row || !body) return;
+      const mySeq = ++statsSeq;
+      body.innerHTML = '<div class="dash-empty">Yükleniyor…</div>';
+      let data = null;
+      try {
+        const res = await fetch('/api/analytics/summary?range=' + encodeURIComponent(statsRange));
+        if (res.ok) data = await res.json();
+        else { row.style.display = 'none'; return; } // 401/403: rozetsiz — bölüm hiç görünmez
+      } catch { row.style.display = 'none'; return; }
+      if (mySeq !== statsSeq) return; // daha yeni bir dönem seçimi zaten başladı
+      row.style.display = '';
+      renderStats(data);
+    }
+
+    function statCard(value, label) {
+      return `<div class="stat-card"><div class="stat-card-value">${escapeHtml(formatStatNumber(value))}</div><div class="stat-card-label">${escapeHtml(label)}</div></div>`;
+    }
+    function formatStatNumber(n) {
+      if (n === null || n === undefined) return '—';
+      return Number(n).toLocaleString('tr-TR');
+    }
+    function statBars(rows) {
+      const list = (rows || []).slice(0, 6);
+      if (!list.length) return '<div class="stat-note">Bu dönemde veri yok.</div>';
+      const max = Math.max(...list.map(r => r.count), 1);
+      return list.map(r => `<div class="stat-bar-row">
+        <span class="stat-bar-name" title="${escapeAttr(r.label)}">${escapeHtml(r.label)}</span>
+        <span class="stat-bar-track"><span class="stat-bar-fill" style="width:${Math.round((r.count / max) * 100)}%"></span></span>
+        <span class="stat-list-count">${escapeHtml(formatStatNumber(r.count))}</span>
+      </div>`).join('');
+    }
+    function statTopList(items, emptyText) {
+      if (!items || !items.length) return `<div class="stat-note">${escapeHtml(emptyText)}</div>`;
+      const KIND = { project: 'Proje', product: 'Ürün' };
+      return `<ul class="stat-list">${items.map(it => `<li>
+        <a class="stat-list-name" href="/${it.type === 'product' ? 'urun' : 'proje'}/${encodeURIComponent(it.key)}" title="${escapeAttr(it.title)}">${escapeHtml(it.title)}</a>
+        <span class="stat-list-kind">${escapeHtml(KIND[it.type] || '')}</span>
+        <span class="stat-list-count">${escapeHtml(formatStatNumber(it.count))}</span>
+      </li>`).join('')}</ul>`;
+    }
+    // Sade trend grafiği (kullanıcı isteği: "sade trend grafikleri") — bağımlılıksız inline SVG.
+    // CSP dış script'leri engellediğinden (bkz. auth-modal.js#PDF dışa aktarımındaki AYNI gerekçe)
+    // bir grafik kütüphanesi zaten kullanılamazdı. İki seri: profil ve içerik görüntülenmeleri.
+    function statChart(trend) {
+      const rows = trend || [];
+      if (rows.length < 2) return '<div class="stat-note">Trend grafiği için en az iki günlük veri gerekiyor.</div>';
+      const W = 680, H = 140, PAD = 6;
+      const max = Math.max(1, ...rows.map(r => Math.max(r.profileViews, r.contentViews)));
+      const x = i => PAD + (i * (W - PAD * 2)) / Math.max(1, rows.length - 1);
+      const y = v => H - PAD - (v / max) * (H - PAD * 2);
+      const path = key => rows.map((r, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(r[key]).toFixed(1)}`).join(' ');
+      return `<div class="stat-chart">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Görüntülenme trendi">
+          <path d="${path('profileViews')}" fill="none" stroke="var(--walnut)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="${path('contentViews')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <div class="stat-legend">
+          <span><i style="background:var(--walnut)"></i>Profil görüntülenmeleri</span>
+          <span><i style="background:var(--accent)"></i>İçerik görüntülenmeleri</span>
+          <span>${escapeHtml(rows[0].bucket)} → ${escapeHtml(rows[rows.length - 1].bucket)}</span>
+        </div>
+      </div>`;
+    }
+
+    function renderStats(d) {
+      const body = document.getElementById('am-stats-body');
+      const p = d.profile || {}, c = d.content || {}, m = d.messages || {};
+      const rate = m.profileToMessageRate === null || m.profileToMessageRate === undefined
+        ? '—' : String(m.profileToMessageRate).replace('.', ',') + '%';
+      body.innerHTML = `
+        <div class="stat-group">
+          <h3 class="stat-group-title">Profil</h3>
+          <div class="stat-grid">
+            ${statCard(p.views, 'Profil görüntülenmeleri')}
+            ${statCard(p.searchImpressions, 'Arama gösterimleri')}
+            ${statCard(p.saves, 'Profil kaydetmeleri')}
+            ${statCard(p.newFollowers, 'Yeni takipçiler')}
+          </div>
+        </div>
+        <div class="stat-group">
+          <h3 class="stat-group-title">İçerik</h3>
+          <div class="stat-grid">
+            ${statCard(c.projectViews, 'Proje görüntülenmeleri')}
+            ${statCard(c.productViews, 'Ürün görüntülenmeleri')}
+            ${statCard(c.projectSaves, 'Proje kaydetmeleri')}
+            ${statCard(c.productSaves, 'Ürün kaydetmeleri')}
+          </div>
+          <div class="stat-two" style="margin-top:14px;">
+            <div>
+              <h3 class="stat-group-title">En çok görüntülenen</h3>
+              ${statTopList(c.topViewed, 'Bu dönemde görüntülenme kaydı yok.')}
+            </div>
+            <div>
+              <h3 class="stat-group-title">En çok kaydedilen</h3>
+              ${statTopList(c.topSaved, 'Bu dönemde kaydetme yok.')}
+            </div>
+          </div>
+        </div>
+        <div class="stat-group">
+          <h3 class="stat-group-title">İletişim</h3>
+          <div class="stat-grid">
+            ${statCard(m.received, 'Alınan mesajlar')}
+            ${statCard(m.uniqueSenders, 'Benzersiz gönderenler')}
+            <div class="stat-card"><div class="stat-card-value">${escapeHtml(rate)}</div><div class="stat-card-label">Profil → Mesaj dönüşümü</div></div>
+          </div>
+          <div class="stat-two" style="margin-top:14px;">
+            <div>
+              <h3 class="stat-group-title">Gönderenlerin meslek grubu</h3>
+              ${statBars(m.professions)}
+            </div>
+            <div>
+              <h3 class="stat-group-title">Gönderenlerin kurum türü</h3>
+              ${statBars(m.orgTypes)}
+            </div>
+          </div>
+        </div>
+        <div class="stat-group">
+          <h3 class="stat-group-title">Trend</h3>
+          ${statChart(d.trend)}
+        </div>
+        <div class="stat-note">
+          ${d.hasOwnedContent ? '' : 'Henüz sana bağlı bir profil ya da içerik yok; sahiplenme onaylandığında burada dolmaya başlar. '}
+          Görüntülenme ve arama gösterimi sayaçları ${d.viewTrackingSince ? escapeHtml(d.viewTrackingSince) + ' tarihinden' : 'özellik açıldığından'} itibaren toplanıyor — daha eski dönemler için bu iki metrik sıfır görünür. Kaydetme, takip ve mesaj sayıları geçmişi de kapsar.
+        </div>`;
+    }
+
     loadUser().then(() => {
       if (accountUser) {
-        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages()]
+        [loadBadges(), loadMyClaims(), loadPublicBadgesForClaims(), loadNotifications(), loadMessages(), loadStats()]
           .forEach(p => p.catch(() => {}));
+        const rangeWrap = document.getElementById('am-stats-range');
+        if (rangeWrap && !rangeWrap.dataset.wired) {
+          rangeWrap.dataset.wired = '1';
+          rangeWrap.addEventListener('click', (e) => {
+            const btn = e.target.closest('.stat-range-btn');
+            if (!btn) return;
+            statsRange = btn.dataset.range;
+            rangeWrap.querySelectorAll('.stat-range-btn').forEach(b => b.classList.toggle('active', b === btn));
+            loadStats();
+          });
+        }
         if (new URLSearchParams(window.location.search).get('payment') === 'success') {
           document.getElementById('am-payment-success-banner').style.display = 'block';
         }

@@ -615,6 +615,8 @@ const OfficeModal = (function () {
       if (el) el.style.display = '';
     });
     const o = payload.item;
+    // Firma/marka profil görüntülenmesi — bkz. js/analytics-beacon.js (kullanıcı isteği, 2026-09-04).
+    if (window.MimarlabAnalytics) MimarlabAnalytics.view('office', o.slug || slugify(o.name));
     const founders = payload.founders || [];
     const team = payload.team || [];
     const relatedProjectsData = payload.relatedProjects || [];

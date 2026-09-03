@@ -21,6 +21,7 @@ import { handleSavedRoute } from './routes/saved.js';
 import { handleSharesRoute } from './routes/shares.js';
 import { handleCollectionsRoute } from './routes/collections.js';
 import { handleFollowRoute } from './routes/follows.js';
+import { handleAnalyticsRoute } from './routes/analytics.js';
 import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
@@ -1098,6 +1099,11 @@ async function routeApi(request, env, url, ctx) {
   // korumalı, herkese açık hiçbir okuma ucu yok.
   if (path.startsWith('/api/collections')) return handleCollectionsRoute(request, env, url);
   if (path.startsWith('/api/follows')) return handleFollowRoute(request, env, url);
+  // Profil İstatistikleri (bkz. src/routes/analytics.js). İKİ AYRI yetki seviyesi taşır ve bu yüzden
+  // /api/saved gibi tek blokta korunamaz: /track herkese açıktır (giriş yapmamış ziyaretçilerin
+  // görüntülenmeleri de sayılmalı, IP başına rate-limit ile korunur), /summary ise oturum + AKTİF
+  // ROZET ister ve yalnızca isteği yapan kullanıcının kendi verisini döner.
+  if (path.startsWith('/api/analytics')) return handleAnalyticsRoute(request, env, url);
   if (path.startsWith('/api/ratings')) return handleRatingsRoute(request, env, url);
   if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);
   if (path.startsWith('/api/corrections')) return handleCorrectionsRoute(request, env, url);

@@ -66,7 +66,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // güncellendi. Bu dizi sayfanın SATIR İÇİ JS'inde, yani SSR HTML'inin İÇİNDE duruyor (v104/v106
 // ile AYNI tuzak): sürüm artırılmazsa /kisi/:slug ile açılan sayfalar s-maxage boyunca eski
 // grup listesini/sırasını sunardı.
-export const SSR_CACHE_VERSION = 'v112';
+// v113 (kullanıcı isteği, 2026-09-04): kisi/firma/marka/proje/urun/en-iyi-100/arama.html kabuklarına
+// js/analytics-beacon.js script etiketi eklendi (Profil İstatistikleri görüntülenme sayacı) ve
+// arama.html'in satır içi JS'ine arama-gösterimi çağrısı girdi. v110/v111'deki AYNI tuzak: sürüm
+// artırılmazsa daha önce ziyaret edilmiş detay sayfaları s-maxage boyunca bu script'i hiç
+// yüklemeyen eski kabuğu sunar ve o ziyaretler HİÇ sayılmazdı.
+export const SSR_CACHE_VERSION = 'v113';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

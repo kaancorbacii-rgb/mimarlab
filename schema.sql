@@ -942,3 +942,21 @@ CREATE TABLE IF NOT EXISTS entity_stats (
 -- TEKRARLANMAZ; tek kaynak migrations/0079_search_fold_columns.sql'dir (sıfırdan kurulumda o dosya
 -- bu şemadan SONRA uygulanmalıdır). NOT: pragma_table_info() generated kolonları göstermez,
 -- doğrulama için pragma_table_xinfo() kullanın.
+
+-- ===================== analytics_daily (0084) =====================
+-- Profil İstatistikleri (kullanıcı isteği, 2026-09-04) — rozetli üyelerin Hesabım > İstatistikler
+-- bölümünü besleyen tek yeni tablo: yalnızca GÖRÜNTÜLENME ve ARAMA GÖSTERİMİ sayaçları. Kaydetme/
+-- takip/mesaj metrikleri zaten saved_items/follows/messages'ta durduğundan burada TEKRARLANMAZ.
+-- Olay başına satır değil GÜNLÜK KOVA tutulur (1000 görüntülenme de 1 satır) ve satır varlığın
+-- SAHİBİNE değil KENDİSİNE (slug) göre anahtarlanır — sahiplik çözümlemesi okuma yolundadır.
+-- Tam gerekçe: migrations/0084_analytics_daily.sql; okuyucu/yazıcı: src/routes/analytics.js.
+CREATE TABLE IF NOT EXISTS analytics_daily (
+  day          TEXT    NOT NULL,
+  subject_type TEXT    NOT NULL,
+  subject_key  TEXT    NOT NULL,
+  metric       TEXT    NOT NULL,
+  count        INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, subject_type, subject_key, metric)
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_daily_subject
+  ON analytics_daily (subject_type, subject_key, day);

@@ -758,9 +758,19 @@ const InfoModal = (function () {
     // mesaj gönderip TÜM kullanıcılardan mesaj alabilir — gönderen taraf rozetliyse alıcı profilin
     // kendi rozeti olması ARANMAZ, bkz. badge-shared.js#myEffectiveBadge; alıcı taraf da firma pozisyon
     // kısıtlaması olmadan mesaj alabilir, bkz. src/routes/messages.js#resolveRecipients).
+    // "Dışa PDF Aktarma" (kullanıcı isteği, 2026-09-04 madde 1): Koleksiyonum'daki panoyu PDF olarak
+    // dışa aktarma ZATEN rozet kapısının arkasındaydı (bkz. auth-modal.js#am-col-export-btn ->
+    // fetchBadgeAccess, 2026-09-02) ama ayrıcalık listesinde hiç yazmıyordu — kapı her iki kademede
+    // de aynı olduğundan ikisinde birden listelenir.
+    //
+    // "Profil İstatistikleri" (kullanıcı isteği, 2026-09-04 madde 2) YALNIZCA Altın Üye altında
+    // yazılır ("Rozet Ayrıcalıkları bölümünde bu özellikten sadece Altın Üye altında bahset").
+    // NOT: bu bir TANITIM tercihidir, erişim kuralı değil — özellik istekteki "yalnızca rozetli
+    // kullanıcılar" cümlesi gereği her iki kademede de açıktır (bkz. src/lib/analyticsAccess.js
+    // #hasAnalyticsAccess, kademe ayrımı yapmaz).
     const BADGE_TIERS = [
-      { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.'] },
-      { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.'] },
+      { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.'] },
+      { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.', 'Hesabım sayfasında Profil İstatistikleri bölümünü açar: profil ve içerik görüntülenmeleri, arama gösterimleri, kaydetmeler, takipçiler ve mesaj analizleri.'] },
     ];
     const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };
     const BADGE_RANK = { gold: 2, verified: 1 };

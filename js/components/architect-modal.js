@@ -583,6 +583,9 @@ const ArchitectModal = (function () {
     currentItem = a;
 
     updateHeadMeta(a, displayOffice);
+    // Profil görüntülenmesi (kullanıcı isteği, 2026-09-04 — Profil İstatistikleri). Sayaç
+    // js/analytics-beacon.js'te oturum başına tekilleştirilir; modül yüklü değilse hiçbir şey olmaz.
+    if (window.MimarlabAnalytics) MimarlabAnalytics.view('architect', a.slug || slugify(a.name));
     document.getElementById('am-name-text').textContent = a.name;
     document.getElementById('am-category').innerHTML = `<strong>${escapeHtml([a.role, displayOffice ? displayOffice.name : null].filter(Boolean).join(' · '))}</strong>`;
     document.getElementById('am-social-icons').innerHTML = socialIconsHtml(a.social_links);

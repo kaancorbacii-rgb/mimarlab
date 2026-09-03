@@ -741,6 +741,8 @@ const ProjectModal = (function () {
       if (el) el.classList.remove('pm-force-hidden');
     });
     updateHeadMeta(item);
+    // Proje görüntülenmesi — bkz. js/analytics-beacon.js (kullanıcı isteği, 2026-09-04).
+    if (window.MimarlabAnalytics) MimarlabAnalytics.view('project', item.slug);
     renderTopRankBadge();
     renderByline(item);
     ProjectMeta.render(item);

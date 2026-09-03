@@ -741,6 +741,8 @@ const ProductModal = (function () {
       if (el) el.style.display = '';
     });
     updateHeadMeta(p, key);
+    // Ürün görüntülenmesi — bkz. js/analytics-beacon.js (kullanıcı isteği, 2026-09-04).
+    if (window.MimarlabAnalytics) MimarlabAnalytics.view('product', p.slug || key);
     document.getElementById('pr-title').textContent = p.title;
     renderByline(p);
 
