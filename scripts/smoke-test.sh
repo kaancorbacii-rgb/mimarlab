@@ -179,30 +179,47 @@ echo "8) /media/_derived/.../s/ statik kaynak kısıtı (upload.js#DERIVED_STATI
 # Bulgu: "s" (statik varlık) türev kaynağı çözülmüş yolu doğrudan ASSETS.fetch'e veriyordu; URL
 # nesnesi nokta segmentlerini normalize ettiğinden /media/ altından KEYFİ bir statik varlık
 # (ör. admin.html'in tam HTML'i) 200 ile servis edilebiliyordu.
-check_status "/media/_derived/w400/s/..%2F..%2Fadmin.html" 404
-check_status "/media/_derived/w400/s/..%252F..%252Fadmin.html" 404
-check_status "/media/_derived/w400/s/admin.html" 404
+# Sorgu dizesi bir CACHE BUSTER'dır, kontrolün kendisinin parçası değil: handleMediaRoute'un
+# caches.default anahtarı TAM URL'dir (bkz. o dosyadaki `new Request(url.toString())`) ama R2/asset
+# aramasında kullanılan `key` yalnızca pathname'den türer — yani ?cb=... anahtarı ayrıştırır,
+# davranışı DEĞİŞTİRMEZ. Buna ihtiyaç var çünkü bu yolun eski (düzeltme öncesi) 200 yanıtı edge'de
+# 1 saat (DERIVED_FALLBACK_EDGE_MAX_AGE_SECONDS) yaşayabiliyor ve cache HIT, kontrolden ÖNCE
+# kısa devre yapıyor — test kodu doğrulamalı, bayat bir edge girdisini değil.
+cb="cb=$$-$(date +%s)"
+check_status "/media/_derived/w400/s/..%2F..%2Fadmin.html?$cb" 404
+check_status "/media/_derived/w400/s/..%252F..%252Fadmin.html?$cb" 404
+check_status "/media/_derived/w400/s/admin.html?$cb" 404
 
 echo ""
 echo "9) Proje JSON-LD entity grafiği (seo.js#creator url regresyon koruması)"
 # Bulgu: creator düğümleri yalnızca `name` taşıyordu; slug'lar AYNI sorguda zaten mevcuttu ama
 # kullanılmıyordu, dolayısıyla Google projeyi mimar/firma sayfasıyla aynı varlık sayamıyordu.
-first_project_slug=$(curl -s "$BASE_URL/api/projects?limit=1" | sed -n 's/.*"slug":"\([^"]*\)".*/\1/p' | head -1)
-if [ -n "$first_project_slug" ]; then
-  proj_html=$(curl -s "$BASE_URL/proje/$first_project_slug")
-  if [[ "$proj_html" == *'"creator"'* ]]; then
-    if [[ "$proj_html" == *'"creator"'*'mimarlab.com/kisi/'* ]] || [[ "$proj_html" == *'"creator"'*'mimarlab.com/firma/'* ]]; then
-      ok "/proje/$first_project_slug creator düğümü url taşıyor"
-    else
-      bad "/proje/$first_project_slug creator düğümü url TAŞIMIYOR"
-    fi
-  else
-    # Künyesiz (mimar/firma bağı olmayan) bir proje ilk sırada olabilir — bu bir hata değil.
-    warnf "/proje/$first_project_slug JSON-LD'sinde creator yok (künyesiz proje olabilir), kontrol atlandı"
-  fi
-else
-  warnf "ilk proje slug'ı okunamadı, JSON-LD creator kontrolü atlandı"
-fi
+# İKİ AYRI şeyi doğrular ve bu ayrım ŞART (ilk sürümde yapılmadığı için canlıda yanlış pozitif
+# verdi): (a) künyesi olan HER projede `creator` düğümü ÜRETİLİYOR mu — bu, project_designers'a
+# bağlanamamış serbest metin künyelerin (188 proje) fallback'ini korur; (b) künyesi canonical bir
+# mimar/firma kaydına BAĞLI olan projelerde creator `url` taşıyor mu — bu, entity grafiği
+# düzeltmesini korur. Bir projenin creator'ında url OLMAMASI tek başına hata DEĞİLDİR (kayıtsız
+# künye) — bu yüzden url'li bir örnek bulana kadar birkaç proje taranır.
+# "https://mimarlab.com/kisi/" ve "https://mimarlab.com/firma/" MUTLAK biçimleri bir PROJE
+# sayfasında YALNIZCA JSON-LD creator[].url'den gelir — SSR gövdesindeki mimar/firma bağlantıları
+# göreli href kullanır (bkz. src/lib/seo.js#internalLink), canonical/og:url ise /proje/ önekli.
+# Bu yüzden düz bir alt dize kontrolü yeterli ve taşınabilir (macOS bash 3.2 + BRE farkları
+# nedeniyle ilk sürümdeki `grep '.\{0,600\}'` yaklaşımı bu ortamda hata veriyordu).
+# limit=30: liste en yeniden eskiye sıralı ve en yeni gönderiler ağırlıkla serbest metin künyeli
+# olabiliyor (canlıda ilk 10'un tamamı öyleydi) — canonical kayda bağlı bir örnek bulmak için
+# daha geniş bir pencere gerekiyor.
+project_slugs=$(curl -s "$BASE_URL/api/projects?limit=30" | tr ',' '\n' | sed -n 's/.*"slug":"\([^"]*\)".*/\1/p')
+creator_seen=0; creator_url_seen=0; seen_slug=""; url_slug=""
+for s in $project_slugs; do
+  [ -n "$s" ] || continue
+  proj_html=$(curl -s "$BASE_URL/proje/$s")
+  case "$proj_html" in *'"creator"'*) if [ "$creator_seen" -eq 0 ]; then creator_seen=1; seen_slug="$s"; fi ;; esac
+  case "$proj_html" in
+    *'https://mimarlab.com/kisi/'*|*'https://mimarlab.com/firma/'*) creator_url_seen=1; url_slug="$s"; break ;;
+  esac
+done
+if [ "$creator_seen" -eq 1 ]; then ok "proje JSON-LD'sinde creator düğümü üretiliyor (ör. /proje/$seen_slug)"; else bad "taranan projelerin HİÇBİRİNDE JSON-LD creator yok (künye fallback'i kırılmış olabilir)"; fi
+if [ "$creator_url_seen" -eq 1 ]; then ok "kayıtlı künyeli projede creator url taşıyor (/proje/$url_slug)"; else bad "taranan projelerin hiçbirinde creator url'i yok (entity grafiği düzeltmesi kırılmış olabilir)"; fi
 
 echo ""
 if [ "$fail" -eq 1 ]; then
