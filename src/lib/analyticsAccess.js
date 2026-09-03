@@ -3,27 +3,33 @@
 // auth-modal.js#badgeAccessFrom yalnızca UI'ı gizler, gerçek kapı burasıdır.
 import { getActiveSelfBadge, getPersonalAdminBadge, higherRankBadge, BADGE_RANK } from './badgeAccess.js';
 
-// Erişim kuralı: "rozetli kullanıcı" (kullanıcı isteği: "Özellik yalnızca rozetli kullanıcılarda
-// görünsün ... Rozetsiz kullanıcılar API dahil hiçbir şekilde verilere erişemesin"). Kademe AYRIMI
-// YOK — Doğrulanmış Üye de Altın Üye de erişir; istekteki "sadece Altın Üye altında bahset" cümlesi
-// /rozet-al sayfasındaki TANITIM metniyle ilgilidir, erişimle değil (bkz. info-modal.js#BADGE_TIERS).
+// Erişim kuralı: YALNIZCA ALTIN ÜYE (kullanıcı isteği, 2026-09-04: "İstatistik erişimini altın
+// üyeyle sınırla"). İlk sürümde kapı "herhangi bir rozet" idi ve /rozet-al'da özellikten yalnızca
+// Altın Üye altında bahsediliyordu; kural artık tanıtım metniyle birebir örtüşüyor — Doğrulanmış
+// Üye bu veriye ERİŞEMEZ (UI'da bölüm hiç görünmez, API 403 döner).
 //
-// Kaynak, PDF dışa aktarımının kapısıyla (auth-modal.js#badgeAccessFrom -> /api/badges/mine) AYNI
-// üç yeri kapsar, böylece iki özellik aynı kullanıcı kümesine açılır:
+// PDF dışa aktarımının kapısı (auth-modal.js#badgeAccessFrom) BİLEREK olduğu gibi bırakıldı: o
+// ayrıcalık her iki kademede de listeleniyor, yani iki özellik artık farklı kümelere açılıyor.
+//
+// Rozetin geldiği ÜÇ kaynak da (aşağıdaki iki sorgu) kabul edilir, yeter ki kademe 'gold' olsun:
 //   1. kendisi için satın aldığı aktif rozet          (badge_requests target_type='self')
 //   2. sahiplendiği bir firmanın admin rozeti          (admin_badges + onaylı profile_claims)
 //   3. sahiplendiği bir firma/profil için satın aldığı rozet (badge_requests target_type='office')
+const GOLD_RANK = BADGE_RANK.gold;
+
 export async function hasAnalyticsAccess(env, userId) {
   const personal = higherRankBadge(await getActiveSelfBadge(env, userId), await getPersonalAdminBadge(env, userId));
-  if ((BADGE_RANK[personal] || 0) > 0) return true;
+  if ((BADGE_RANK[personal] || 0) >= GOLD_RANK) return true;
   // target_type='office' rozetleri getActiveSelfBadge'in dışında kalır (o yalnızca 'self' bakar) —
   // bir markası için Altın Üye almış ama kendisi için almamış üye de bu özelliğe erişebilmeli.
+  // Kademe filtresi SQL'de: 'verified' satırlar hiç dönmesin, aksi halde LIMIT 1 rastgele bir
+  // düşük kademeli satırı seçip Altın Üye rozetini gözden kaçırabilirdi.
   const row = await env.DB.prepare(
     `SELECT badge_type FROM badge_requests
-     WHERE user_id = ? AND status = 'active' AND badge_type != 'destekci'
+     WHERE user_id = ? AND status = 'active' AND badge_type = 'gold'
        AND (expires_at IS NULL OR expires_at > ?) LIMIT 1`
   ).bind(userId, Date.now()).first();
-  return !!row && (BADGE_RANK[row.badge_type] || 0) > 0;
+  return !!row;
 }
 
 // Kullanıcının SAHİP OLDUĞU varlıkların slug listesi. analytics_daily konuya (slug) göre

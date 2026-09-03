@@ -338,7 +338,7 @@
           <a class="footer-subscribe-btn" href="/uye-ol">Üye Ol</a>
         </div>
         <h4 class="footer-subscribe-news-title">Bültene Abone Ol</h4>
-        <p class="footer-newsletter-desc">Yeni proje, ürün, mimar, firma ve markalar e-postana gelsin.</p>
+        <p class="footer-newsletter-desc">Yeni proje, ürün, firma ve markalar e-postana gelsin.</p>
         <div class="footer-subscribe-news-action">
           <form class="footer-newsletter-form" id="footer-newsletter-form">
             <input type="email" class="footer-newsletter-input" id="footer-newsletter-email" placeholder="E-posta adresin" required aria-label="E-posta adresin">
@@ -356,7 +356,7 @@
         <a class="footer-logo" href="/">
           <img class="footer-logo-img" id="footer-logo-img" src="${currentFooterLogoSrc()}" alt="MimarLab" loading="lazy" decoding="async">
         </a>
-        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı disiplinlerini ve çeşitli firmaları bir araya getiren mimar platformu.</p>
+        <p>Mimarlık, iç mimarlık, peyzaj mimarlığı ve fotoğrafçılık gibi disiplinleri ve çeşitli üreticileri bir araya getiren çok disiplinli bir platform.</p>
       </div>
       <div class="footer-col"><h4>Ana Menü</h4><a href="/proje">Proje</a><a href="/kisi">Mimar</a><a href="/firma">Firma</a><a href="/urun">Ürün</a><a href="/marka">Marka</a></div>
       <div class="footer-col"><h4>Topluluk</h4><a href="/giris">Giriş Yap</a><a href="/uye-ol">Üye Ol</a><a href="/rozet-al">Rozet Al</a><a href="/iade-et">İade Et</a><button type="button" class="footer-add-content" id="footer-add-content">İçerik Ekle</button></div>

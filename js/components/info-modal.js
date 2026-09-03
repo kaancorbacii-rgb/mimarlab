@@ -763,11 +763,10 @@ const InfoModal = (function () {
     // fetchBadgeAccess, 2026-09-02) ama ayrıcalık listesinde hiç yazmıyordu — kapı her iki kademede
     // de aynı olduğundan ikisinde birden listelenir.
     //
-    // "Profil İstatistikleri" (kullanıcı isteği, 2026-09-04 madde 2) YALNIZCA Altın Üye altında
-    // yazılır ("Rozet Ayrıcalıkları bölümünde bu özellikten sadece Altın Üye altında bahset").
-    // NOT: bu bir TANITIM tercihidir, erişim kuralı değil — özellik istekteki "yalnızca rozetli
-    // kullanıcılar" cümlesi gereği her iki kademede de açıktır (bkz. src/lib/analyticsAccess.js
-    // #hasAnalyticsAccess, kademe ayrımı yapmaz).
+    // "Profil İstatistikleri" YALNIZCA Altın Üye altında yazılır — ve 2026-09-04'teki takip
+    // isteğinden ("İstatistik erişimini altın üyeyle sınırla") sonra ERİŞİM de öyle: kapı artık
+    // 'gold' kademesi arıyor (bkz. src/lib/analyticsAccess.js#hasAnalyticsAccess). Yani bu satır
+    // artık salt tanıtım değil, gerçek kuralın birebir karşılığı.
     const BADGE_TIERS = [
       { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.'] },
       { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.', 'Hesabım sayfasında Profil İstatistikleri bölümünü açar: profil ve içerik görüntülenmeleri, arama gösterimleri, kaydetmeler, takipçiler ve mesaj analizleri.'] },
