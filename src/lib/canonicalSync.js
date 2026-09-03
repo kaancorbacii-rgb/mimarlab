@@ -21,6 +21,7 @@ import { freshSlugFor } from './officeFounderCascade.js';
 import { recordSlugRedirect } from './slugRedirects.js';
 import { purgeSsrDetailCache } from './ssrCache.js';
 import { releaseR2StorageBytes } from './r2Quota.js';
+import { clearPendingForKeys } from './derivativeIngest.js';
 import { SUBMISSION_TYPES, dateBucketFor } from './submissionTypes.js';
 import { slugify } from './slugify.js';
 
@@ -254,9 +255,9 @@ const DERIVATIVE_WIDTHS_FOR_CLEANUP = [400, 800, 1600];
 
 // Denetim bulgusu (2026-09-03): silme yolu yalnızca ORİJİNAL anahtarı siliyordu — o görselin
 // _derived/w400|w800|w1600/r2/<anahtar> türevleri R2'de ÖKSÜZ kalıyordu. Türevler eskiden yalnızca
-// tek seferlik bir betikle üretildiğinden bu sınırlı bir sızıntıydı; src/lib/derivativeBackfill.js
-// ile türevler artık görüntülenen HER görsel için çalışma zamanında üretildiğinden sızıntı kalıcı
-// olarak büyürdü (silinen her galeri, arkasında 3 katına kadar öksüz nesne bırakırdı).
+// tek seferlik bir betikle üretildiğinden bu sınırlı bir sızıntıydı; türevler artık HER yüklemede
+// üretildiğinden (bkz. src/lib/derivativeIngest.js) sızıntı kalıcı olarak büyürdü — silinen her
+// galeri, arkasında 3 katına kadar öksüz nesne bırakırdı.
 //
 // GÜVENLİK: yalnızca ZATEN SİLİNMEKTE OLAN anahtarların türevleri genişletilir. Hâlâ kullanımda
 // olan bir görselin türevine asla dokunulmaz — türev anahtarı orijinalin anahtarından deterministik
@@ -306,6 +307,9 @@ export async function deleteR2MediaKeys(env, originalKeys) {
     }
   }
   if (freedBytes) await releaseR2StorageBytes(env, freedBytes);
+  // Bu kaynaklar için bekleyen türev işi varsa DÜŞÜR — aksi halde kuyruk artık var olmayan bir
+  // görsel için sonsuza kadar iş taşır (betik her koşuda 404 alır, satır hiç temizlenmezdi).
+  await clearPendingForKeys(env, originalKeys);
 }
 
 // Aynı kolon adları (images/photo_url/logo_url) *_submissions taslak tablolarında da kullanılır

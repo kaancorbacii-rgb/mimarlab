@@ -511,6 +511,7 @@
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
+<script src="image-upload.js" defer></script>
 <script src="il-ilce-data.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="project-taxonomy.js"></script>
@@ -2292,79 +2293,12 @@ wireAiPanel();
 // mediaItems, kullanıcının sürükleyip bıraktığı sırayı korur — yeni dosyalar bu sıradaki
 // konumlarında yüklenir, sonuç dizisi hem mevcut hem yeni görselleri son (kullanıcının belirlediği)
 // sırayla döner (bkz. mediaItems tanımındaki yorum).
-// P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen, bkz.
-// kisi-ekle.html'deki AYNI fonksiyonun yorumu (gerekçe orada tekrar edilmiyor). Proje galerisi
-// fotoğrafları mimar profil fotoğrafından daha büyük gösterilebildiğinden (tam genişlik hero/galeri)
-// kenar sınırı burada daha cömert (1920px).
-function resizeImageForUpload(file, maxEdge, quality){
-  return new Promise((resolve) => {
-    if(!/^image\/(jpeg|png|webp)$/.test(file.type)){ resolve(file); return; }
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-      if(width > height && width > maxEdge){ height = Math.round(height * (maxEdge / width)); width = maxEdge; }
-      else if(height > maxEdge){ width = Math.round(width * (maxEdge / height)); height = maxEdge; }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      canvas.toBlob(blob => {
-        resolve(blob && blob.size < file.size ? new File([blob], 'upload.jpg', { type: 'image/jpeg' }) : file);
-      }, 'image/jpeg', quality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
-  });
-}
-
-// MİMARLAB görsel standardı (WebP, en fazla 2000px, 2MB) — Cloudflare Images/Image Resizing YENİDEN
-// EKLENMEDEN (bkz. kullanıcı isteği: maliyet nedeniyle kaldırılmıştı) ve yeni bir npm/WASM görüntü
-// kodek bağımlılığı EKLENMEDEN uygulanır: Cloudflare Workers runtime'ının (workerd) Canvas/OffscreenCanvas
-// API'si YOK, bu yüzden SUNUCU tarafında gerçek bir yeniden-boyutlandırma/WebP kodlama imkansız — ama
-// AI'ın kopyaladığı görsel artık kendi /media/ origin'imizde (bkz. /api/ai/copy-images), yani TARAYICI
-// bunu CORS sorunu olmadan <canvas>'a çizebilir. Bu fonksiyon tam olarak resizeImageForUpload'ın
-// (yukarısı) yaptığını yapar — TEK fark çıktının 'image/jpeg' değil 'image/webp' olması — ve sonucu
-// /api/uploads'a (mevcut, değişmeyen) yükler. Orijinal (henüz WebP'ye çevrilmemiş) ham kopya R2'de
-// kalır; mevcut /api/admin/r2-orphans temizleme aracı (bkz. proje geçmişi) bunu zaten süpürür, bu
-// yüzden burada ayrıca bir silme adımı eklenmedi.
-async function convertCopiedImageToWebp(mediaUrl, context, maxEdge){
-  try{
-    const res = await fetch(mediaUrl);
-    if(!res.ok) return mediaUrl;
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const img = await new Promise((resolve) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => resolve(null);
-      el.src = objectUrl;
-    });
-    if(!img){ URL.revokeObjectURL(objectUrl); return mediaUrl; }
-    let { width, height } = img;
-    // Yalnızca BÜYÜKSE küçültülür — düşük çözünürlüklü bir kaynağı gereksiz yere büyütmek (upscale)
-    // MİMARLAB standardının açıkça istemediği bir şey (bkz. kullanıcı isteği).
-    if(width > height && width > maxEdge){ height = Math.round(height * (maxEdge / width)); width = maxEdge; }
-    else if(height > maxEdge){ width = Math.round(width * (maxEdge / height)); height = maxEdge; }
-    const canvas = document.createElement('canvas');
-    canvas.width = width; canvas.height = height;
-    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-    URL.revokeObjectURL(objectUrl);
-    const webpBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
-    // Tarayıcı 'image/webp' kodlamayı desteklemiyorsa toBlob farklı bir type (genelde image/png) ile
-    // döner (asla hata FIRLATMAZ) — bu durumda ham (henüz dönüştürülmemiş ama gerçek bir fotoğraf
-    // olan) kopya kullanılır, akış hiç kesilmez.
-    if(!webpBlob || webpBlob.type !== 'image/webp') return mediaUrl;
-    const fd = new FormData();
-    fd.append('file', new File([webpBlob], 'ai-import.webp', { type: 'image/webp' }));
-    fd.append('context', context);
-    const uploadRes = await fetch('/api/uploads', { method:'POST', body: fd });
-    const data = await uploadRes.json().catch(()=>({}));
-    return (uploadRes.ok && data.url) ? data.url : mediaUrl;
-  }catch{
-    return mediaUrl; // dönüştürme opsiyonel bir iyileştirme — başarısız olursa ham kopya kullanılır
-  }
-}
+// GÖRSEL YÜKLEME BORU HATTI: image-upload.js (bkz. o dosyanın başındaki gerekçe). Buradaki eski
+// resizeImageForUpload/convertCopiedImageToWebp kopyaları KALDIRILDI — ikisi de yalnızca
+// küçültüyor, responsive TÜREV üretmiyordu; bu yüzden yeni yüklenen her görselin
+// /media/_derived/... isteği sessizce tam boy orijinale düşüyordu. Ortak modül aynı tek decode'dan
+// hem master'ı hem w400/w800/w1600 türevlerini üretir, sunucu doğrulayıp kalıcı olarak R2'ye yazar
+// (bkz. src/lib/derivativeIngest.js) — ücretli hiçbir Cloudflare Image Transformation kullanılmaz.
 
 // AI akışında önizlemedeki "existing" görsellerin url'i henüz bizim değil, dış bir sitenin adresi
 // olabilir (tarayıcı CORS nedeniyle bunları kendi indiremez) — bu yüzden http(s) ile başlayan
@@ -2405,9 +2339,9 @@ async function collectImages(){
       if(isForeignImageUrl(item.url)) externalIndexes.push(urls.length - 1);
       continue;
     }
-    const fd = new FormData();
-    fd.append('file', await resizeImageForUpload(item.file, 1920, 0.85));
-    fd.append('context', 'project');
+    // Proje galerisi fotoğrafları tam genişlik hero/galeri olarak gösterilebildiğinden kenar
+    // sınırı diğer formlardan cömert (1920 px).
+    const fd = await MimarlabUpload.buildUploadForm(item.file, { context: 'project', maxEdge: 1920, quality: 0.85 });
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
@@ -2429,11 +2363,11 @@ async function collectImages(){
       const result = byUrl.get(urls[i]);
       urls[i] = result && result.mediaUrl ? result.mediaUrl : null;
     });
-    // MİMARLAB standardı (WebP, ≤2000px) — bkz. yukarıdaki convertCopiedImageToWebp. Yalnızca
+    // MİMARLAB standardı (WebP, ≤2000px) + responsive türevler (bkz. image-upload.js). Yalnızca
     // BAŞARIYLA kopyalanmış (null olmayan) görseller için denenir; dönüştürme başarısız olursa
     // fonksiyon zaten ham kopya URL'ini olduğu gibi döner.
     await Promise.all(externalIndexes.map(async i => {
-      if(urls[i]) urls[i] = await convertCopiedImageToWebp(urls[i], 'project', 2000);
+      if(urls[i]) urls[i] = await MimarlabUpload.reuploadFromMediaUrl(urls[i], { context: 'project', maxEdge: 2000 });
     }));
   }
   // Her mediaItem'a kendi NİHAİ url'ini yaz — collectImageHotspots bunu kullanarak işaretçi

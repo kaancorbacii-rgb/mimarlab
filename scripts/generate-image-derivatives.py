@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """R2'ye önceden üretilmiş responsive görsel türevleri yazar (ücretli Image Transform YERİNE).
 
+>>> BU BİR MIGRATION ARACIDIR — GÜNLÜK KULLANIM İÇİN DEĞİL (2026-09-03'te değişti). <<<
+Yeni yüklenen görsellerin türevlerini artık TARAYICI üretir ve sunucu doğrulayıp doğrudan R2'ye
+yazar (bkz. image-upload.js + src/lib/derivativeIngest.js) — yani bir yüklemeden sonra bu betiği
+çalıştırmaya GEREK YOKTUR. Tarayıcının üretemediği istisnalar D1'deki image_derivative_queue
+tablosuna düşer ve ARTIMLI olarak scripts/drain-derivative-queue.py ile tamamlanır.
+Bu betik yalnızca TAM TARAMA gerektiğinde kullanılır (ör. merdiven değişirse, ya da kuyruk dışında
+kalmış geçmiş veri şüphesi varsa): her kaynak için basamak başına bir HEAD ister, yani 26.333
+kaynakta ~79.000 istek ve ~9,5 saat. Rutin işler için drain-derivative-queue.py'yi kullan.
+
 NEDEN: 2026-08-22'de Cloudflare "Images Transformed" faturalandırması (~$16/ay) yüzünden serve-time
 resize kapatıldı (bkz. image-cdn.js dosya başı). O tarihten beri sitedeki her görsel tam
 çözünürlükte iniyordu — ana sayfanın LCP görseli 2400 px / 640 KB, 760 CSS px'lik bir slot için.

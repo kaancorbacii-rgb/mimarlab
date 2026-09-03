@@ -50,7 +50,7 @@ import ilIlceJs from '../../il-ilce-data.js';
 import { getSessionUser } from '../lib/auth.js';
 import { getActiveBadge } from '../lib/badgeAccess.js';
 import { safeFetch, limitResponseSize, UnsafeUrlError } from '../lib/safeFetch.js';
-import { optimizeUploadedImage } from '../lib/imageOptimize.js';
+import { recordPendingWidths, DERIVATIVE_WIDTHS } from '../lib/derivativeIngest.js';
 import { extractPageContent } from '../lib/htmlExtract.js';
 import { stripInjectionAttempts } from '../lib/injectionFilter.js';
 import { callOnce, isAiProviderConfigured, AiProviderError } from '../lib/aiProvider.js';
@@ -1006,25 +1006,29 @@ async function handleCopyImages(request, env, user) {
         continue;
       }
       seenHashes.add(hashHex);
-      // Denetim bulgusu (2026-09-03): AI ile kopyalanan görseller /api/uploads'tan geçenlerin aksine
-      // HİÇ optimize edilmiyordu — dış kaynaktan gelen tam boy (çoğu zaman 3000+ px) dosya olduğu
-      // gibi R2'ye yazılıyordu. Aynı optimizasyon (max 1600 px, WebP) burada da uygulanır: hem
-      // depolama hem de sayfa ağırlığı açısından iki yolun davranışı artık aynıdır.
-      // optimizeUploadedImage bir Blob/File bekler (file.stream() çağırır) — ArrayBuffer'ı sarmak
-      // yeterli. Best-effort: null dönerse orijinal baytlar aynen yazılır, akış hiç bozulmaz.
-      const sourceBlob = new Blob([buf], { type: sniffed });
-      const optimized = await optimizeUploadedImage(env, sourceBlob, sniffed);
-      const outBytes = optimized ? optimized.arrayBuffer : buf;
-      const outType = optimized ? optimized.contentType : sniffed;
-      const outExt = optimized ? optimized.ext : IMG_EXT_BY_CONTENT_TYPE[sniffed];
+      // BURADA KÜÇÜLTME/YENİDEN KODLAMA YAPILAMAZ: Workers runtime'ında (workerd) canvas/kodek
+      // yoktur ve ücretli Cloudflare Image Transformations (env.IMAGES) bu projede kalıcı olarak
+      // kapalıdır (kullanıcı kararı, bkz. wrangler.jsonc). Dış kaynaktan inen baytlar bu yüzden
+      // olduğu gibi yazılır — bu yolun çıktısı GEÇİCİDİR: çağıran sayfa (proje-ekle.html/
+      // urun-ekle.html) hemen ardından bu /media/ URL'sini TARAYICIDA MİMARLAB standardına
+      // (WebP, ≤2000 px) çevirip türevleriyle birlikte /api/uploads'a yeniden yükler (bkz.
+      // image-upload.js#reuploadFromMediaUrl) ve buradaki ham kopya öksüz kalıp
+      // /api/admin/r2-orphans tarafından süpürülür.
+      const outExt = IMG_EXT_BY_CONTENT_TYPE[sniffed];
       const key = `u/${user.id}/${crypto.randomUUID()}.${outExt}`;
       try {
-        await env.UPLOADS.put(key, outBytes, { httpMetadata: { contentType: outType } });
+        await env.UPLOADS.put(key, buf, { httpMetadata: { contentType: sniffed } });
       } catch (err) {
         await releaseR2Reservation(env, reserveEstimate);
         throw err;
       }
-      await finalizeR2Reservation(env, reserveEstimate, outBytes.byteLength);
+      await finalizeR2Reservation(env, reserveEstimate, buf.byteLength);
+      // Tarayıcıdaki yeniden yükleme BAŞARISIZ olursa (kullanıcı sekmeyi kapattı, decode hatası)
+      // bu ham kopya kalıcı olarak kullanılır — o durumda türevsiz kalmasın diye basamaklar
+      // bekleyen-iş kuyruğuna yazılır ve scripts/generate-image-derivatives.py tamamlar. Kopya
+      // öksüz kalırsa satırlar silme yolunda temizlenir (bkz. src/lib/canonicalSync.js#
+      // deleteR2MediaKeys -> clearPendingForKeys).
+      await recordPendingWidths(env, key, DERIVATIVE_WIDTHS);
       items.push({ url: rawUrl, mediaUrl: `/media/${key}`, sourceUrl: finalUrl });
     } catch {
       items.push({ url: rawUrl, error: 'blocked_or_too_large' });

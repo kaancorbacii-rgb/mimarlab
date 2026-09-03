@@ -1581,23 +1581,41 @@ const AuthModal = (function () {
     if (type === 'products' || type === 'materials') return `/urun/${encodeURIComponent('submission:' + item.id)}`;
     return null;
   }
-  function resizeImageFile(file, maxEdge, quality) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        let { width, height } = img;
-        if (width > height && width > maxEdge) { height = Math.round(height * (maxEdge / width)); width = maxEdge; }
-        else if (height > maxEdge) { width = Math.round(width * (maxEdge / height)); height = maxEdge; }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/jpeg', quality);
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
+  // Ortak görsel yükleme boru hattı (image-upload.js): tarayıcı görseli MİMARLAB standardına
+  // (WebP, kutuya sığdırılmış, asla büyütülmemiş) çevirir VE aynı decode'dan w400/w800/w1600
+  // responsive türevlerini üretir; sunucu doğrulayıp kalıcı olarak R2'ye yazar (bkz.
+  // src/lib/derivativeIngest.js). Ücretli hiçbir Cloudflare Image Transformation kullanılmaz.
+  //
+  // NEDEN <script src> DEĞİL DE DİNAMİK YÜKLEME: bu bileşen SİTENİN HER SAYFASINDA yüklenir ama
+  // görsel yükleme yalnızca iki nadir akışta (profil fotoğrafı, koleksiyona görsel ekleme) olur.
+  // 15+ HTML dosyasına etiket eklemek yerine dosya ilk ihtiyaç anında indirilir. CSP uyumludur
+  // ("script-src 'self'", bkz. src/index.js#CONTENT_SECURITY_POLICY). Yüklenemezse null döner ve
+  // çağıran, işlenmemiş dosyayı yükleyen eski yoluna geri düşer — akış hiçbir zaman kırılmaz.
+  let imageUploadLoader = null;
+  function loadImageUploadModule() {
+    if (window.MimarlabUpload) return Promise.resolve(window.MimarlabUpload);
+    if (!imageUploadLoader) {
+      imageUploadLoader = new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = '/image-upload.js';
+        script.onload = () => resolve(window.MimarlabUpload || null);
+        script.onerror = () => resolve(null);
+        document.head.appendChild(script);
+      });
+    }
+    return imageUploadLoader;
+  }
+
+  // Hazırlanmış (ve mümkünse türevli) bir FormData döner. Modül yüklenemezse dosyayı OLDUĞU GİBİ
+  // taşıyan bir FormData döner — davranış bu değişiklikten önceki hâliyle birebir aynı olur.
+  async function buildImageUploadForm(file, opts) {
+    const mod = await loadImageUploadModule();
+    if (mod) return mod.buildUploadForm(file, opts);
+    const form = new FormData();
+    if (opts && opts.filename) form.append('file', file, opts.filename);
+    else form.append('file', file);
+    if (opts && opts.context) form.append('context', opts.context);
+    return form;
   }
 
   // hesabim.html'in "let currentUser" ile AYNI ada sahip olabilecek herhangi bir global (bkz. gerçek
@@ -2163,9 +2181,10 @@ const AuthModal = (function () {
         if (pendingAvatarFile) {
           msg.textContent = 'Fotoğraf yükleniyor…';
           try {
-            const blob = await resizeImageFile(pendingAvatarFile, 480, 0.82);
-            const fd = new FormData();
-            fd.append('file', blob, 'avatar.jpg');
+            // 480 px'lik bir avatar için responsive türev ÜRETİLMEZ ve bu doğrudur: modül,
+            // betikle aynı 40 KB eşiğini uygular (bkz. image-upload.js#MIN_SOURCE_BYTES) — bu
+            // boyutta üç ek R2 nesnesi kazandırdığından fazlasına mal olurdu.
+            const fd = await buildImageUploadForm(pendingAvatarFile, { maxEdge: 480, quality: 0.82, filename: 'avatar.webp' });
             const up = await fetch('/api/uploads', { method: 'POST', body: fd });
             const upData = await up.json();
             if (!up.ok) throw new Error(upData.error || 'Yükleme başarısız.');
@@ -3706,8 +3725,10 @@ const AuthModal = (function () {
       if (!file) return;
       notice('am-col-detail-notice', 'Görsel yükleniyor…');
       try {
-        const form = new FormData();
-        form.append('file', file);
+        // Denetim bulgusu (2026-09-03): burada dosya HİÇ işlenmeden yükleniyordu — sitedeki tek
+        // kalan "ham telefon fotoğrafı doğrudan R2'ye" yolu buydu. Artık diğer tüm yükleme
+        // noktalarıyla AYNI boru hattından geçer (küçültme + WebP + responsive türevler).
+        const form = await buildImageUploadForm(file, { maxEdge: 1600, quality: 0.85 });
         const res = await fetch('/api/uploads', { method: 'POST', body: form });
         const data = await res.json();
         if (!res.ok) { notice('am-col-detail-notice', data.error || 'Görsel yüklenemedi.', true); return; }

@@ -63,10 +63,11 @@ export function r2QuotaErrorResponse(reason) {
 // artış VE limit kontrolü aynı SQLite ifadesinde gerçekleşir, D1/SQLite bir satırı aynı anda yalnızca
 // tek bir yazma ifadesiyle güncelleyebildiğinden iki eşzamanlı istek asla ikisi birden "geçti"
 // sonucunu alamaz — WHERE koşulunu sağlamayan istek RETURNING'de hiçbir satır almaz (row === null).
-// Optimize edilmemiş orijinal file.size ÜST SINIR olarak rezerve edilir (optimizeUploadedImage
-// henüz çalışmadığından gerçek yazılacak boyut bilinmez, WebP dönüşümü boyutu KÜÇÜLTÜR ya da
-// olduğu gibi bırakır — büyütmez, bkz. imageOptimize.js MAX_DIMENSION/fit:'scale-down'), R2
-// yazımından SONRA finalizeR2Reservation ile gerçek boyuta düzeltilir (bkz. upload.js).
+// file.size ÜST SINIR olarak rezerve edilir, R2 yazımından SONRA finalizeR2Reservation ile gerçek
+// boyuta düzeltilir (bkz. upload.js). Görselin kendisi ZATEN İSTEMCİDE küçültülüp WebP'ye çevrilmiş
+// olarak gelir (bkz. image-upload.js) — sunucu baytları olduğu gibi yazar, dolayısıyla rezerve
+// edilen ve yazılan boyut normalde eşittir; düzeltme adımı yine de korunur çünkü bu fonksiyon
+// türev yazımları gibi boyutun önceden tam bilindiği çağrılarla da paylaşılır.
 export async function reserveR2Usage(env, estimatedBytes) {
   const month = currentMonthKey();
   const now = Date.now();

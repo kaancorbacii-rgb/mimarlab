@@ -428,7 +428,7 @@ export default {
     // çökertip Cloudflare'in kendi genel hata sayfasını döndürürdü, hem de hiç loglanmadan.
     try {
       if (url.pathname.startsWith('/api/')) {
-        response = await routeApi(request, env, url);
+        response = await routeApi(request, env, url, ctx);
       } else if (url.pathname.startsWith('/media/')) {
         response = await handleMediaRoute(request, env, url, ctx);
       } else if (url.pathname === '/sitemap.xml') {
@@ -921,7 +921,7 @@ async function listCanonicalEntityUrls(env) {
   ];
 }
 
-async function routeApi(request, env, url) {
+async function routeApi(request, env, url, ctx) {
   const path = url.pathname;
   // Faz 4D — deploy sonrası sağlık kontrolü (bkz. scripts/health-check.sh) deploy edilen
   // worker_version'ın gerçekten değiştiğini bu uçtan teyit eder. Auth gerektirmez, hassas veri
@@ -931,7 +931,9 @@ async function routeApi(request, env, url) {
   if (path === '/api/profile') return handleProfileRoute(request, env, url);
   if (path === '/api/profile/office') return handleArchitectPrimaryOfficeRoute(request, env, url);
   if (path === '/api/account') return handleAccountDeleteRoute(request, env, url);
-  if (path === '/api/uploads') return handleUploadRoute(request, env);
+  // ctx: türev yazımları yanıt döndükten SONRA ctx.waitUntil ile tamamlanır (bkz.
+  // src/routes/upload.js#handleUploadRoute) — yükleme yanıtı bekletilmez.
+  if (path === '/api/uploads') return handleUploadRoute(request, env, ctx);
   if (path === '/api/uploads/file') return handleFileUploadRoute(request, env);
   if (path === '/api/contact') return handleContactRoute(request, env, url);
   if (path.startsWith('/api/newsletter/')) return handleNewsletterRoute(request, env, url);

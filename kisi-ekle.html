@@ -313,6 +313,7 @@
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-crop.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
+<script src="image-upload.js" defer></script>
 <script src="js/components/duplicate-name-check.js"></script>
 
   <div id="site-header-mount" data-nav-active="kisi"></div>
@@ -1182,41 +1183,17 @@ document.getElementById('m-name').addEventListener('blur', maybeAutoFillFromAcco
 
 if(claimName) prefillForClaim(); else prefillForEdit();
 
-// P2 hardening (denetim raporu, 2026-08-23) — Cloudflare Images kapatıldığından beri (bkz.
-// wrangler.jsonc yorumu) sunucu artık hiçbir yeniden boyutlandırma yapmıyor; orijinal telefon
-// fotoğrafları (genelde birkaç MB, 3000px+ kenar) doğrudan R2'ye gidiyordu. hesabim.html#
-// resizeImageFile ile AYNI desen (canvas resize + toBlob) — yalnızca JPEG/PNG/WEBP işlenir (GIF
-// animasyon kaybı riskiyle dokunulmadan geçer), her zaman JPEG'e dönüştürülür (profil fotoğrafında
-// şeffaflık gerekmez). Sonuç orijinalden BÜYÜKSE ya da herhangi bir adım başarısız olursa orijinal
-// dosya değişmeden döner — bu adım isteğe bağlı bir optimizasyondur, yükleme akışını bozmaz.
-function resizeImageForUpload(file, maxEdge, quality){
-  return new Promise((resolve) => {
-    if(!/^image\/(jpeg|png|webp)$/.test(file.type)){ resolve(file); return; }
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-      if(width > height && width > maxEdge){ height = Math.round(height * (maxEdge / width)); width = maxEdge; }
-      else if(height > maxEdge){ width = Math.round(width * (maxEdge / height)); height = maxEdge; }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      canvas.toBlob(blob => {
-        resolve(blob && blob.size < file.size ? new File([blob], 'upload.jpg', { type: 'image/jpeg' }) : file);
-      }, 'image/jpeg', quality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
-  });
-}
-
+// Görsel yükleme boru hattı image-upload.js'te (bkz. o dosyanın başındaki gerekçe): tarayıcı
+// görseli MİMARLAB standardına (WebP, kutuya sığdırılmış, asla büyütülmemiş) çevirir VE aynı
+// decode'dan w400/w800/w1600 responsive türevlerini üretir; sunucu bunları doğrulayıp kalıcı
+// olarak R2'ye yazar (bkz. src/lib/derivativeIngest.js). Bu sayede yeni yüklenen görseller
+// ÜCRETLİ hiçbir Cloudflare Image Transformation'a gerek kalmadan türevli olur — daha önce
+// buradaki yerel resizeImageForUpload kopyası yalnızca küçültüyor, türev ÜRETMİYORDU ve her yeni
+// görsel /media/_derived/... isteğinde sessizce tam boy orijinale düşüyordu.
 async function uploadFiles(files){
   const urls = [];
   for(const file of files){
-    const fd = new FormData();
-    fd.append('file', await resizeImageForUpload(file, 1000, 0.85));
-    fd.append('context', 'architect');
+    const fd = await MimarlabUpload.buildUploadForm(file, { context: 'architect', maxEdge: 1000, quality: 0.85 });
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');

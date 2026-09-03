@@ -2,8 +2,7 @@ import { json, errorJson } from '../lib/http.js';
 import { getSessionUser } from '../lib/auth.js';
 import { reserveR2Usage, finalizeR2Reservation, releaseR2Reservation, r2QuotaErrorResponse } from '../lib/r2Quota.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
-import { optimizeUploadedImage } from '../lib/imageOptimize.js';
-import { backfillDerivative } from '../lib/derivativeBackfill.js';
+import { ingestClientDerivatives, recordPendingWidths } from '../lib/derivativeIngest.js';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB — varsayılan (haber/iş ilanı görselleri)
 const CONTEXT_MAX_BYTES = {
@@ -22,10 +21,9 @@ const EXT_BY_MIME = {
 // gerçek bulgu (denetim raporu): eskiden yalnızca istemcinin gönderdiği (kolayca sahtelenebilen)
 // Content-Type başlığına güveniliyordu — bir dosyanın GERÇEK baytları hiç kontrol edilmiyordu. Bu
 // tam olarak miras/*.webp'nin yıllar önce yanlış etiketlenmesine (bkz. proje geçmişi) yol açan
-// sınıftaki bir açık: keyfi bir dosya, izin verilen bir Content-Type ile R2'ye ve
-// imageOptimize.js'e kadar sorunsuz ilerleyebilirdi. Yalnızca ilk 12 bayt (en uzun imza olan
-// WEBP'nin RIFF....WEBP deseni için yeterli) her formatın dosya imzasıyla (magic bytes)
-// karşılaştırılır.
+// sınıftaki bir açık: keyfi bir dosya, izin verilen bir Content-Type ile R2'ye kadar sorunsuz
+// ilerleyebilirdi. Yalnızca ilk 12 bayt (en uzun imza olan WEBP'nin RIFF....WEBP deseni için
+// yeterli) her formatın dosya imzasıyla (magic bytes) karşılaştırılır.
 function sniffImageMime(bytes) {
   if (bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
   if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 && bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) return 'image/png';
@@ -34,7 +32,7 @@ function sniffImageMime(bytes) {
   return null;
 }
 
-export async function handleUploadRoute(request, env) {
+export async function handleUploadRoute(request, env, ctx) {
   if (request.method !== 'POST') return errorJson('Bulunamadı', 404);
 
   const user = await getSessionUser(request, env);
@@ -65,8 +63,8 @@ export async function handleUploadRoute(request, env) {
     return errorJson(`Görsel en fazla ${Math.round(maxBytes / (1024 * 1024))} MB olabilir.`);
   }
 
-  // file.slice() orijinal dosya akışını TÜKETMEZ (bkz. aşağıdaki optimizeUploadedImage'in AYNI
-  // file nesnesi üzerinde file.stream() çağırması) — yalnızca ilk 12 baytı ayrı bir görünüm olarak okur.
+  // file.slice() orijinal dosya akışını TÜKETMEZ — yalnızca ilk 12 baytı ayrı bir görünüm olarak
+  // okur, aşağıdaki file.arrayBuffer() yine tam dosyayı verir.
   const headerBytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   if (sniffImageMime(headerBytes) !== file.type) {
     return errorJson('Dosya içeriği belirtilen görsel formatıyla uyuşmuyor.');
@@ -77,20 +75,16 @@ export async function handleUploadRoute(request, env) {
   const quota = await reserveR2Usage(env, file.size);
   if (!quota.ok) return r2QuotaErrorResponse(quota.reason);
 
-  // gerçek bulgu: R2'ye eskiden dosya olduğu gibi yazılıyordu — depolama kotasını orijinal
-  // (genelde birkaç MB'lık telefon fotoğrafı) boyutlarla dolduruyordu. optimizeUploadedImage
-  // (bkz. src/lib/imageOptimize.js) best-effort'tur: başarısız olursa (GIF, binding yapılandırılmamış,
-  // kota aşımı, geçersiz görsel) null döner ve orijinal dosya olduğu gibi yazılmaya devam eder —
-  // yükleme akışı hiçbir durumda kullanıcıya hata göstermez ya da başarısız olmaz.
-  const optimized = await optimizeUploadedImage(env, file, file.type);
-  const bytes = optimized ? optimized.arrayBuffer : await file.arrayBuffer();
-  const contentType = optimized ? optimized.contentType : file.type;
-  const finalExt = optimized ? optimized.ext : ext;
-
-  const key = `u/${user.id}/${crypto.randomUUID()}.${finalExt}`;
+  // Görsel ZATEN İSTEMCİDE küçültülüp WebP'ye çevrilmiş olarak gelir (bkz. image-upload.js#
+  // prepareImage). Sunucuda yeniden boyutlandırma YAPILAMAZ ve YAPILMAZ: Workers runtime'ında
+  // (workerd) canvas/kodek yoktur ve ücretli Cloudflare Image Transformations (env.IMAGES /
+  // /cdn-cgi/image) bu projede kalıcı olarak kapalıdır (kullanıcı kararı — bkz. wrangler.jsonc).
+  // Baytlar olduğu gibi, yalnızca yukarıdaki magic-byte doğrulamasından geçerek yazılır.
+  const bytes = await file.arrayBuffer();
+  const key = `u/${user.id}/${crypto.randomUUID()}.${ext}`;
   try {
     await env.UPLOADS.put(key, bytes, {
-      httpMetadata: { contentType },
+      httpMetadata: { contentType: file.type },
     });
   } catch (err) {
     // Yazım başarısız oldu — hiç gerçekleşmemiş bir yükleme kotayı kalıcı olarak tüketmesin diye
@@ -98,9 +92,20 @@ export async function handleUploadRoute(request, env) {
     await releaseR2Reservation(env, file.size);
     throw err;
   }
-  // Rezerve edilen üst sınır (file.size), gerçekte yazılan boyuta (optimize edildiyse daha küçük)
-  // düzeltilir.
   await finalizeR2Reservation(env, file.size, bytes.byteLength);
+
+  // Responsive türevler (w400/w800/w1600 WebP). İstemcinin ürettikleri doğrulanıp KALICI olarak
+  // R2'ye yazılır; üretilemeyenler bekleyen-iş kuyruğuna düşer ve scripts/generate-image-
+  // derivatives.py ile toplu tamamlanır (bkz. src/lib/derivativeIngest.js dosya başı).
+  //
+  // Yanıt BEKLETİLMEZ: türev yazımı ctx.waitUntil ile yanıt döndükten sonra tamamlanır — kullanıcı
+  // bir galeride 20 görsel yüklerken her birine 3 ek R2 yazımının gecikmesini ödemek istemeyiz.
+  // ctx yoksa (bu fonksiyonu ctx'siz çağıran bir yol) beklenir; iki durumda da sonuç aynıdır.
+  const derivatives = (async () => {
+    const { pending } = await ingestClientDerivatives(env, form, key, bytes.byteLength);
+    await recordPendingWidths(env, key, pending);
+  })().catch(() => { /* türev üretimi opsiyoneldir, yükleme yanıtını asla etkilemez */ });
+  if (ctx) ctx.waitUntil(derivatives); else await derivatives;
 
   return json({ url: `/media/${key}` }, 201);
 }
@@ -174,7 +179,7 @@ function sniffFileSignature(ext, bytes) {
 }
 
 // POST /api/uploads/file — urun-ekle.html "Dosya Yükle (BIM, CAD, 3D, Katalog)" kutusu (bkz. kullanıcı
-// isteği). handleUploadRoute'un (yukarıda) görsel-özel MIME whitelist'i + optimizeUploadedImage'i bu
+// isteği). handleUploadRoute'un (yukarıda) görsel-özel MIME whitelist'i ve türev boru hattı bu
 // format ailesine uygulanamayacağından (bkz. isBannedMimeType'ın dosya başı yorumu) ayrı bir uç —
 // aynı auth/rate-limit/R2 kota iskeletini paylaşır.
 export async function handleFileUploadRoute(request, env) {
@@ -316,14 +321,13 @@ export async function handleMediaRoute(request, env, url, ctx) {
       const [, widthStr, source, originalPath] = derived;
       isFallback = true;
       if (source === 'r2') {
+        // İSTEK ANINDA TÜREV ÜRETİLMEZ — ne ücretli bir dönüşümle (env.IMAGES / /cdn-cgi/image; bu
+        // projede kalıcı olarak kapalı, bkz. wrangler.jsonc) ne başka bir yolla: Workers
+        // runtime'ında canvas/kodek yoktur. Türevler yükleme anında istemcide üretilir (bkz.
+        // image-upload.js) ya da eksik kalanlar bekleyen-iş kuyruğundan toplu tamamlanır (bkz.
+        // src/lib/derivativeIngest.js). Buraya düşen istek, aşağıdaki güvenlik ağıyla ORİJİNALİ
+        // alır — hiçbir görsel kırılmaz, yalnızca o an daha büyük bir dosya iner.
         object = await env.UPLOADS.get(originalPath);
-        // Türev EKSİK ve kaynak R2'de VAR — bu isteği bekletmeden arka planda üret (bkz.
-        // src/lib/derivativeBackfill.js: neden upload anında değil de burada). Bu istek orijinali
-        // alır, bir sonraki istek gerçek türevi. Bu sayede yeni yüklenen görseller için
-        // scripts/generate-image-derivatives.py'yi bir daha elle çalıştırmak gerekmez.
-        if (object && ctx) {
-          ctx.waitUntil(backfillDerivative(env, key, Number(widthStr), originalPath));
-        }
       } else {
         // Statik varlık kaynağı — Cloudflare Assets'ten okunur. env.ASSETS.fetch mutlak bir URL
         // ister; istekle AYNI origin kullanılır. Yanıt yeniden sarmalanmaz, kendi başına (kendi

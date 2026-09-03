@@ -296,6 +296,7 @@
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-crop.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
+<script src="image-upload.js" defer></script>
 
   <div id="site-header-mount" data-nav-active="firma"></div>
   <script src="js/components/site-chrome.js"></script>
@@ -1110,40 +1111,22 @@ function mountOfficeAdminActions(){
 
 if(claimName) prefillForClaim(); else prefillForEdit();
 
-// P2 hardening (denetim raporu, 2026-08-23) — hesabim.html#resizeImageFile ile AYNI desen (bkz.
-// kisi-ekle.html'deki AYNI fonksiyonun yorumu), TEK fark: logo genellikle şeffaf arka planlı PNG
-// olduğundan (bkz. logos/*.png), kaynak PNG ise çıktı da PNG kalır (JPEG'e çevirmek şeffaflığı
-// beyaza/siyaha düzleştirirdi) — yalnızca JPEG/WEBP kaynaklar JPEG'e dönüştürülür.
-function resizeImageForUpload(file, maxEdge, quality){
-  return new Promise((resolve) => {
-    if(!/^image\/(jpeg|png|webp)$/.test(file.type)){ resolve(file); return; }
-    const isPng = file.type === 'image/png';
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-      if(width > height && width > maxEdge){ height = Math.round(height * (maxEdge / width)); width = maxEdge; }
-      else if(height > maxEdge){ width = Math.round(width * (maxEdge / height)); height = maxEdge; }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      const outType = isPng ? 'image/png' : 'image/jpeg';
-      canvas.toBlob(blob => {
-        resolve(blob && blob.size < file.size ? new File([blob], isPng ? 'upload.png' : 'upload.jpg', { type: outType }) : file);
-      }, outType, quality);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
-  });
-}
-
+// Görsel yükleme boru hattı image-upload.js'te (bkz. o dosyanın başındaki gerekçe): tarayıcı
+// görseli MİMARLAB standardına (WebP, kutuya sığdırılmış, asla büyütülmemiş) çevirir VE aynı
+// decode'dan w400/w800/w1600 responsive türevlerini üretir; sunucu bunları doğrulayıp kalıcı
+// olarak R2'ye yazar (bkz. src/lib/derivativeIngest.js). Bu sayede yeni yüklenen görseller
+// ÜCRETLİ hiçbir Cloudflare Image Transformation'a gerek kalmadan türevli olur — daha önce
+// buradaki yerel resizeImageForUpload kopyası yalnızca küçültüyor, türev ÜRETMİYORDU ve her yeni
+// görsel /media/_derived/... isteğinde sessizce tam boy orijinale düşüyordu.
+//
+// ŞEFFAFLIK KORUNUR: buradaki eski kopya, şeffaf PNG logolar JPEG'e çevrilip beyaza/siyaha
+// düzleşmesin diye "kaynak PNG ise çıktı da PNG kalsın" kuralını taşıyordu. WebP alfa kanalını
+// zaten desteklediğinden bu ayrıma gerek kalmadı — çıktı her durumda WebP'dir ve şeffaflık aynen
+// korunur (canvas varsayılan olarak şeffaf zeminlidir, arka plan doldurulmaz).
 async function uploadFiles(files){
   const urls = [];
   for(const file of files){
-    const fd = new FormData();
-    fd.append('file', await resizeImageForUpload(file, 1000, 0.9));
-    fd.append('context', 'office');
+    const fd = await MimarlabUpload.buildUploadForm(file, { context: 'office', maxEdge: 1000, quality: 0.9 });
     const res = await fetch('/api/uploads', { method:'POST', body: fd });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || 'Görsel yüklenemedi.');
