@@ -1,20 +1,43 @@
-// R2 (mimarlab-uploads) ücretsiz kota koruması (bkz. kullanıcı isteği: "Cloudflare'daki R2 Paid'in
-// benden asla para çekmesini istemiyorum ... asla ama asla ücretli kota kullanımına geçme").
-// Cloudflare'ın hesap düzeyinde sabit bir "harcama tavanı" özelliği yok — ücretsiz kota (10 GB
-// depolama, ayda 1M Class A / 10M Class B işlem) aşıldığında otomatik faturalandırır, bunu
-// durduran bir anahtar yok. Bu yüzden koruma burada, UYGULAMA katmanında: her R2 yazımından ÖNCE
-// kümülatif kullanım kontrol edilir; ücretsiz kotanın belirgin bir güvenlik payıyla altında kalan
-// bir eşiği aşacaksa yazma denemesi hiç yapılmadan reddedilir. Cloudflare R2'nin kendi tarafında
-// hâlâ ücretsiz kota bitince faturalandırmaya geçme İHTİMALİ vardır (bu kontrol sadece BU
-// UYGULAMANIN üretebileceği kullanımı sınırlar) — hesapta R2 için ödeme yöntemi olup olmadığını
-// Cloudflare panelinden ayrıca kontrol etmek gerekir, bu koddan görülemez/değiştirilemez.
+// R2 (mimarlab-uploads) harcama tavanı koruması.
+//
+// TARİHÇE — bu dosya başlangıçta "ücretsiz kotayı ASLA aşma" kuralını uyguluyordu (kullanıcı
+// isteği: "Cloudflare'daki R2 Paid'in benden asla para çekmesini istemiyorum"). 2026-09-03'te
+// kullanıcı bu kuralı BİLEREK GEVŞETTİ: sitenin görsel arşivi büyüdükçe 10 GB'ın aşılması
+// kaçınılmaz ve R2'nin GB-ay başına $0.015'lik fiyatı (100 GB'da ayda ~$1.35) kabul edilebilir
+// bulundu. Artık amaç ücretsiz kotada kalmak DEĞİL, faturanın öngörülebilir kalması (bkz.
+// SAFE_STORAGE_BYTES).
+//
+// Cloudflare'ın hesap düzeyinde sabit bir "harcama tavanı" özelliği yok — kota aşıldığında otomatik
+// faturalandırır, bunu durduran bir anahtar yoktur. Bu yüzden tavan burada, UYGULAMA katmanında:
+// her R2 yazımından ÖNCE kümülatif kullanım kontrol edilir, eşiği aşacaksa yazma denemesi hiç
+// yapılmadan reddedilir. Bu kontrol yalnızca BU UYGULAMANIN ürettiği kullanımı sınırlar; wrangler
+// CLI ile doğrudan yapılan yazımlar (ör. scripts/generate-image-derivatives.py) buradan GEÇMEZ ve
+// sayacı kendiliğinden güncellemez — böyle bir toplu işten sonra r2_usage.total_bytes'ın gerçek kova
+// boyutuna elle senkronlanması gerekir, aksi halde tavan gerçekte olduğundan daha uzakta sanılır.
 import { errorJson } from './http.js';
 
-// Ücretsiz kotanın (10 GB / 1M işlem) altında bilinçli bir güvenlik payı — kalan pay diğer
-// olası kullanım kaynaklarını (ör. wrangler CLI ile elle yüklenen dosyalar) da tolere eder.
+// POLİTİKA DEĞİŞİKLİĞİ (kullanıcı kararı, 2026-09-03): depolamada ücretsiz kotanın aşılması artık
+// KABUL EDİLİYOR. Gerekçe kullanıcının kendi hesabı: R2 depolama 10 GB'ın üstünde GB-ay başına
+// $0.015 (developers.cloudflare.com/r2/pricing üzerinden doğrulandı; egress ücretsiz), yani 100 GB'a
+// çıkıldığında faturalanan 90 GB x $0.015 = ayda ~$1.35. Kullanıcı bu tutarı açıkça kabul etti ve
+// sitenin görsel arşivinin zamanla bugünkünün iki katına çıkmasını bekliyor.
+//
+// EŞİK NEDEN HÂLÂ VAR: kaçak/döngüsel bir yazımın faturayı sessizce büyütmesini engellemek için.
+// 100 GB, kullanıcının açıkça "sorun değil" dediği tutara (~$1.35/ay) denk gelen tavandır — ücretsiz
+// kotayı korumak için DEĞİL, beklenmeyen büyümeyi yakalamak için konmuştur.
+//
+// 2026-09-03 tarihinde bu eşiğin yükseltilmesi ZORUNLUYDU: türev üretimi (scripts/
+// generate-image-derivatives.py) wrangler ile DOĞRUDAN yazdığından bu sayaçtan geçmiyor; gerçek
+// kova ~9.5 GB'a çıkmıştı. Sayaç gerçeğe senkronlanırken eşik 9 GiB'de bırakılsaydı, ilk kullanıcı
+// yüklemesinden itibaren TÜM yüklemeler 403 ile reddedilirdi.
+//
+// Bayt cinsinden ondalık GB (Cloudflare faturalandırması da ondalık GB üzerinden) — bilerek 1024
+// tabanı kullanılmadı ki 100 GB tavanı kullanıcının konuştuğu sayıyla birebir örtüşsün.
 // export edildi — src/routes/admin.js#handlePerformanceAdmin bunu Performans sekmesinde
 // kullanılan/limit gösterimi için okur (bkz. o dosyadaki çağrı noktası).
-export const SAFE_STORAGE_BYTES = 9 * 1024 * 1024 * 1024; // 9 GB
+export const SAFE_STORAGE_BYTES = 100 * 1000 * 1000 * 1000; // 100 GB (~$1.35/ay)
+// İşlem (Class A) tarafı DEĞİŞMEDİ — kullanıcının kararı depolama maliyetiyle ilgiliydi. Class A
+// $4.50/milyon olduğundan burada aynı gevşetme çok daha hızlı para yakar; ayrı bir karar gerektirir.
 export const SAFE_OPS_PER_MONTH = 900000; // 900k
 
 function currentMonthKey() {
