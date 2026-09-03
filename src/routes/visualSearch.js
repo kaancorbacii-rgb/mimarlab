@@ -119,6 +119,15 @@ const PRODUCT_MIN_SCORE = 0.22;
 // Ürün bölümünün AÇILMASI için gereken en düşük ürün kimlik sinyali (brief 11: mimari fotoğrafta
 // alakasız sandalye/lavabo gösterme).
 const PRODUCT_GATE_NAME_MIN = 0.50;
+// PROJE/ÜRÜN İÇİN AYRI KALİBRASYON GEREKİYOR MU? (dördüncü tur denetim, madde 12) — KONTROL EDİLDİ,
+// AYRI EŞİK EKLENMEDİ. Ham görsel-kanal Top-1 doğruluğu ürün için hâlâ projeden düşük (max-aggregation
+// SONRASI: proje %46,2 / ürün %47,9 — bkz. scripts/visual-search-aggregation-ablation.mjs çıktısı,
+// max()'a geçişle bu fark aslında KAPANDI). Katman ablation testinde (scripts/visual-search-layer-
+// ablation.mjs) TAM SİSTEM hem proje hem ürün senaryolarında (Mony×2 açı, Gola yanlış-marka-iddiası
+// dahil) 9/9 doğru sonuç verdi — kimlik gate'i her iki türde de eşit güçlü çalışıyor. Bu YÜZDEN
+// PRODUCT_GATE_NAME_MIN/EXACT_* eşikleri proje ile PAYLAŞILMAYA devam ediyor; veri ayrı bir ürün
+// eşiğini haklı çıkarmıyor (brief: "keyfi değer kullanma").
+
 // Kosinüsün [0,1]'e ölçeklenmesi — YEDEK metin kanalı (bge-m3). İlgisiz metin çiftleri ~0.30-0.40,
 // gerçekten ilgili olanlar ~0.65-0.85 bandındadır; ham kosinüsü doğrudan ağırlıklandırmak taban
 // gürültüyü "benzerlik" gibi gösterirdi.
@@ -425,7 +434,10 @@ function rankProjects(pool, poolBySlug, vision, visual, nameIndex) {
     const geo = geoScore(item, vision);
     const final = 0.46 * name + 0.32 * sem + 0.16 * tax + 0.06 * geo;
     const conf = 0.70 * name + 0.18 * sem + 0.07 * geo + 0.05 * tax;
-    scored.push({ item, name, sem, tax, geo, score: final, conf, via: nameBySlug.get(slug) || null });
+    // visualEvidence: yalnızca GÖRSEL kanalda ve yalnızca GÖZLEMLENEBİLİRLİK için (brief madde 16:
+    // "explainable result") — sıralama kararına girmiyor (o hâlâ `sem`/final/conf üzerinden).
+    const visualEvidence = (visual && visual.channel === 'image' && visual.agg) ? visual.agg.get(slug) || null : null;
+    scored.push({ item, name, sem, tax, geo, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
   }
   scored.sort((a, b) => (b.score - a.score) || String(a.item.slug).localeCompare(String(b.item.slug)));
   return scored;
@@ -477,7 +489,8 @@ function rankProducts(pool, poolBySlug, vision, visual, nameIndex) {
     const rating = (item.rating && item.rating.count) ? Math.min(1, item.rating.average / 5) : 0;
     const final = 0.40 * name + 0.24 * sem + 0.20 * cat + 0.10 * brand + 0.03 * mat + 0.03 * rating;
     const conf = 0.62 * name + 0.16 * sem + 0.14 * brand + 0.08 * cat;
-    scored.push({ item, name, sem, cat, brand, score: final, conf, via: nameBySlug.get(slug) || null });
+    const visualEvidence = (visual && visual.channel === 'image' && visual.agg) ? visual.agg.get(slug) || null : null;
+    scored.push({ item, name, sem, cat, brand, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
   }
   scored.sort((a, b) => (b.score - a.score) || String(a.item.slug).localeCompare(String(b.item.slug)));
   return scored;
@@ -649,6 +662,21 @@ export function resolveVisualMatch(vision, queryVec, pools, imageQueryVec) {
   };
 }
 
+// visualEvidence alanını API yanıtı için biçimlendirir (brief madde 16: "explainable result" —
+// entityId/visualScore/maxSimilarity/topKSupport/finalScore/matchType izlenebilir olmalı ama
+// kullanıcıya GÖSTERİLMEK ZORUNDA değil). site-chrome.js bu alanı hiç okumuyor/render etmiyor —
+// yalnızca ağ sekmesinden/geliştirici konsolundan izlenebilir bir gözlemlenebilirlik alanı.
+function visualEvidencePayload(ve) {
+  if (!ve) return null;
+  return {
+    maxSimilarity: Number(ve.maxSimilarity.toFixed(3)),
+    top2Average: Number(ve.top2Average.toFixed(3)),
+    top3Average: Number(ve.top3Average.toFixed(3)),
+    supportingImageCount: ve.supportingImageCount,
+    bestImageId: ve.bestImageId,
+  };
+}
+
 function projectPayload(r) {
   return {
     slug: r.item.slug, title: r.item.title, location: r.item.location, date: r.item.date,
@@ -657,6 +685,7 @@ function projectPayload(r) {
     // "visual": image kanalıysa GERÇEK CLIP görsel benzerliği, text kanalıysa yedek metin
     // açıklaması benzerliği (bkz. resolveVisualMatch#pickVisualChannel + üstteki match.*Channel).
     signals: { name: Number(r.name.toFixed(3)), visual: Number(r.sem.toFixed(3)), taxonomy: Number(r.tax.toFixed(3)), geo: r.geo },
+    visualEvidence: visualEvidencePayload(r.visualEvidence),
   };
 }
 
@@ -666,6 +695,7 @@ function productPayload(r) {
     image: r.item.image,
     score: Number(r.score.toFixed(3)),
     signals: { name: Number(r.name.toFixed(3)), visual: Number(r.sem.toFixed(3)), category: Number(r.cat.toFixed(3)), brand: r.brand },
+    visualEvidence: visualEvidencePayload(r.visualEvidence),
   };
 }
 

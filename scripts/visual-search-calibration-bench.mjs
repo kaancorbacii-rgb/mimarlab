@@ -29,7 +29,7 @@
 //
 // KULLANIM: node scripts/visual-search-calibration-bench.mjs [--sample N]
 
-import { unpackImageIndex, imageIndexKvKey, imageCosineScores, aggregateRowScores, aggregateEntityScore } from '../src/lib/imageEmbedIndex.js';
+import { unpackImageIndex, imageIndexKvKey, imageCosineScores, aggregateRowScores } from '../src/lib/imageEmbedIndex.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

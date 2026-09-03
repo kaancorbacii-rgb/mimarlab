@@ -134,26 +134,55 @@ export function imageCosineScores(index, queryVec) {
   return out;
 }
 
-// GÖRSEL SKORLARINI VARLIK SKORUNA TOPLA (brief madde 3/4B): "entity_score = weighted_top_k".
-// Yalnızca EN YAKIN tek görsele bağlı kalmıyoruz (brief'in açıkça uyardığı hata) — bir varlığın
-// en iyi K görseli AĞIRLIKLI ortalamayla birleşir; K=1 durumunda (ör. ürünlerin çoğu 1-3 görsel)
-// otomatik olarak "en iyi görsel" davranışına düşer.
-// AĞIRLIKLAR (0.5, 0.3, 0.15, 0.05 — azalan, toplam 1.0): bu bilinçli bir dengeleme. Salt max()
-// kullanmak (K=1) tek bir iyi kadrajlı fotoğrafın gürültülü tek bir yüksek skorundan etkilenmeye
-// açıktır; salt ortalama (tüm görseller eşit ağırlık) 16 görselli bir projede 15 vasat açı 1 mükemmel
-// eşleşmeyi boğar. Azalan ağırlık ikisi arasında bir orta yol: en iyi eşleşme baskın kalır, 2.-4.
-// en iyi görseller onu DOĞRULAR (aynı varlığın birden fazla görselinin de yüksek çıkması, tek bir
-// rastgele yüksek skordan daha güvenilir bir sinyaldir).
-const AGG_WEIGHTS = [0.5, 0.3, 0.15, 0.05];
+// GÖRSEL SKORLARINI VARLIK SKORUNA TOPLA (brief madde 3/4/8, dördüncü tur denetim).
+//
+// AKTİF FORMÜL: entity_score = max(görsel skorları). Bu, ÖLÇÜLEREK seçildi — "makul göründüğü
+// için" değil (bkz. scripts/visual-search-aggregation-ablation.mjs). Önceki sürüm azalan ağırlıklı
+// bir top-4 ortalaması kullanıyordu (0.5/0.3/0.15/0.05) — akla yatkın bir gerekçesi vardı ("tek
+// tesadüfi yükseğe bağlı kalma" riskini azaltmak) ama HİÇ KARŞILAŞTIRILMAMIŞTI. Gerçek production
+// dizini üzerinde "held-out" testiyle (her varlığın kendi görsellerinden biri sorgu olarak ayrılıp
+// dizinin geri kalanında arandı, n=1666 proje + n=167 ürün, TÜM uygun varlıklar) ÖLÇÜLDÜĞÜNDE:
+//
+//   yöntem          proje Top-1 / Top-5      ürün Top-1 / Top-5
+//   max             %46,2 / %64,9            %47,9 / %67,7   <- KAZANAN, HER İKİSİNDE de
+//   top2_mean       %43,9 / %60,9             %26,3 / %36,5
+//   eski (top-4 ağırlıklı)  %40,8 / %58,0     %18,0 / %24,6
+//   top3_mean       %38,4 / %55,1             %19,2 / %25,1
+//   consistency-bonus %34,8 / %52,7           %33,5 / %55,7
+//   mean_all (TÜM görseller) %0,0 / %0,0      %0,0 / %0,0   <- brief'in uyardığı "boğulma" TAM olarak gerçekleşti
+//
+// max() HEM projede HEM üründe, HEM Top-1'de HEM Top-5'te AÇIKÇA ve TUTARLI biçimde kazandı (ürünte
+// Top-1 neredeyse 3 KAT arttı: %18,0 -> %47,9). Sezgisel "outlier riski" gerçek veride tam tersi
+// çıktı: bir varlığın FARKLI açı/ışıktaki diğer fotoğraflarını ortalamaya katmak, doğru varlığın
+// GÜÇLÜ tek eşleşmesini SEYRELTİYOR — yanlış varlıkların gürültüsünü bastırmıyor. Bu YÜZDEN
+// weighted-top-k TERK EDİLDİ. `topScores`/`maxSimilarity`/`top2Average`/`top3Average`/
+// `supportingImageCount` alanları GÖZLEMLENEBİLİRLİK için hesaplanmaya devam ediyor (brief madde
+// 16: "explainable result") — yalnızca SIRALAMA kararında artık KULLANILMIYOR.
+//
+// GÜVENLİK AĞI DEĞİŞMEDİ: bu formül yalnızca AŞAMA B'nin (görsel benzerlik) kendi iç skorunu
+// belirler; src/routes/visualSearch.js#decideExact hâlâ kimlik (ad) eşleşmesini birincil kapı
+// olarak kullanıyor, hasCorroboration hâlâ saf-görsel adayları listeye hiç sokmuyor — max()'a
+// geçiş bu iki güvenlik katmanını ATLAMAZ, yalnızca "adayın görsel skoru ne kadar güvenilir"
+// sorusuna daha isabetli bir cevap verir.
+const SUPPORTING_IMAGE_BAND = 0.05; // maxSimilarity - bu payın içindeki görseller "destekliyor" sayılır
 
-export function aggregateEntityScore(sortedTopScores) {
-  if (!sortedTopScores.length) return 0;
-  let sum = 0, wsum = 0;
-  for (let i = 0; i < Math.min(sortedTopScores.length, AGG_WEIGHTS.length); i++) {
-    sum += sortedTopScores[i] * AGG_WEIGHTS[i];
-    wsum += AGG_WEIGHTS[i];
-  }
-  return wsum ? sum / wsum : 0;
+function summarizeEntityRows(rows) {
+  // rows: azalan sıralı {s: skor, i: satır indeksi} dizisi (en az 1 eleman garantili çağrılır)
+  const scores = rows.map(r => r.s);
+  const max = scores[0];
+  const top2 = scores.slice(0, 2);
+  const top3 = scores.slice(0, 3);
+  const supportingImageCount = scores.filter(s => s >= max - SUPPORTING_IMAGE_BAND).length - 1; // max hariç
+  return {
+    score: max, // AKTİF sıralama skoru — bkz. yukarıdaki ölçüm
+    maxSimilarity: max,
+    top2Average: top2.reduce((a, b) => a + b, 0) / top2.length,
+    top3Average: top3.reduce((a, b) => a + b, 0) / top3.length,
+    supportingImageCount: Math.max(0, supportingImageCount),
+    bestImageIndex: rows[0].i,
+    bestImageId: rows[0].i,
+    topScores: scores.slice(0, 4),
+  };
 }
 
 // Zaten hesaplanmış bir "her satır için skor" dizisini (rows.length uzunluğunda) varlık başına
@@ -163,16 +192,14 @@ export function aggregateEntityScore(sortedTopScores) {
 export function aggregateRowScores(index, rowScores) {
   const out = new Map();
   for (const e of index.entities) {
-    if (!e.c) { out.set(e.s, { score: 0, bestImageIndex: -1, topScores: [] }); continue; }
+    if (!e.c) {
+      out.set(e.s, { score: 0, maxSimilarity: 0, top2Average: 0, top3Average: 0, supportingImageCount: 0, bestImageIndex: -1, bestImageId: -1, topScores: [] });
+      continue;
+    }
     const rows = [];
     for (let i = 0; i < e.c; i++) rows.push({ s: rowScores[e.offset + i], i: e.offset + i });
     rows.sort((a, b) => b.s - a.s);
-    const top = rows.slice(0, AGG_WEIGHTS.length);
-    out.set(e.s, {
-      score: aggregateEntityScore(top.map(t => t.s)),
-      bestImageIndex: top.length ? top[0].i : -1,
-      topScores: top.map(t => t.s),
-    });
+    out.set(e.s, summarizeEntityRows(rows));
   }
   return out;
 }
