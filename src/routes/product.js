@@ -325,7 +325,13 @@ export async function findProductsByKeys(env, keys) {
 }
 
 export async function handleProductDetailRoute(request, env, url, rawKey) {
-  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  // P3-1 hardening tamamlaması (production audit, 2026-09-03): 4 ÇOĞUL liste ucu 2026'da
+  // HEAD'i GET ile aynı route'a düşürmüştü (bkz. src/index.js#routeApi'deki o not) ama TEKİL
+  // detay uçları GET-only kalmıştı — canlıda doğrulandı: HEAD /api/projects 200 dönerken
+  // HEAD /api/project/:slug 404 dönüyordu. Aynı uç GET'te 200, HEAD'te 404 demek, standart
+  // HTTP semantiğini bozar ve uptime/monitoring araçlarını yanıltır. Gövde Cloudflare
+  // runtime'ı tarafından zaten atılır (liste uçlarında kanıtlı: HEAD -> 200, size=0).
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
   const key = decodeURIComponent(rawKey || '');
   if (!key) return errorJson('Geçersiz istek.');
 

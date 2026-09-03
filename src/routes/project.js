@@ -296,7 +296,13 @@ async function enrichImageHotspots(env, hotspotsByUrl) {
 // GET /api/project/:slug — Faz 4: proje.html'deki proje modalı bu uca bağlandı (eski yorum artık
 // geçersiz), canonical D1'den doğrudan okur.
 export async function handleProjectDetailRoute(request, env, url, rawSlug) {
-  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  // P3-1 hardening tamamlaması (production audit, 2026-09-03): 4 ÇOĞUL liste ucu 2026'da
+  // HEAD'i GET ile aynı route'a düşürmüştü (bkz. src/index.js#routeApi'deki o not) ama TEKİL
+  // detay uçları GET-only kalmıştı — canlıda doğrulandı: HEAD /api/projects 200 dönerken
+  // HEAD /api/project/:slug 404 dönüyordu. Aynı uç GET'te 200, HEAD'te 404 demek, standart
+  // HTTP semantiğini bozar ve uptime/monitoring araçlarını yanıltır. Gövde Cloudflare
+  // runtime'ı tarafından zaten atılır (liste uçlarında kanıtlı: HEAD -> 200, size=0).
+  if (request.method !== 'GET' && request.method !== 'HEAD') return errorJson('Bulunamadı', 404);
   const slug = decodeURIComponent(rawSlug || '');
   if (!slug) return errorJson('Geçersiz istek.');
 
