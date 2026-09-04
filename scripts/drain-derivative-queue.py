@@ -224,12 +224,39 @@ def process_source(r2_key, widths, dry_run=False):
     return settled, counts
 
 
+# SQLite'ın ifade AĞACI derinlik sınırı 100'dür; `A OR B OR C ...` her terim için bir seviye
+# daha derinleşir. 200'lük bir OR zinciri bu yüzden 100'ü aşıyor ve D1 sorguyu
+# "Expression tree is too large (maximum depth 100): SQLITE_ERROR [code: 7500]" ile REDDEDİYOR.
+# DÜZ bir `IN (...)` listesi ise tek bir düğümdür, terim sayısıyla derinleşmez.
+MAX_OR_TERMS = 50          # yedek yolun güvenli tavanı (< 100)
+MAX_IN_TERMS = 500         # düz IN listesinin parça boyu (derinlik değil, ifade UZUNLUĞU sınırı)
+
+
 def clear_queue_rows(pairs):
-    """Sonuçlanan (kaynak, basamak) çiftlerini kuyruktan siler. Tek bir devasa ifade yerine
-    parçalara bölünür — D1'in ifade uzunluğu sınırına takılmamak için."""
-    for i in range(0, len(pairs), 200):
-        chunk = pairs[i:i + 200]
-        conds = ' OR '.join(f'(r2_key = {sql_quote(k)} AND width = {int(w)})' for k, w in chunk)
+    """Sonuçlanan (kaynak, basamak) çiftlerini kuyruktan siler.
+
+    GERÇEK BULGU (2026-09-04, 114 bağlantılık ürün partisi): buradaki 200 terimli OR zinciri
+    D1'de HER ZAMAN hata veriyordu (yukarıdaki derinlik sınırı) — yani kuyruk hiçbir zaman
+    boşalmıyordu ve her koşu tüm birikmiş işi baştan işliyordu. Betiğin geri kalanı hatasız
+    çalıştığı, silme adımı da en SONDA olduğu için bu ancak kuyruk yüzlerce satıra çıkınca
+    (bu partide 1047) fark edildi.
+
+    Çift anahtarı `r2_key || '|' || width` olarak düzleştirilip tek bir IN listesine konur.
+    Ayırıcı çakışması teorik olarak yanlış satır silebileceğinden ('|' içeren bir r2_key başka
+    bir çiftin düzleştirilmiş hâline eşit olabilirdi), böyle bir anahtar görülürse o parça için
+    ESKİ kesin OR formuna düşülür — sadece derinlik sınırının altındaki parça boyuyla.
+    """
+    flat = [(k, int(w)) for k, w in pairs if '|' not in k]
+    risky = [(k, int(w)) for k, w in pairs if '|' in k]
+
+    for i in range(0, len(flat), MAX_IN_TERMS):
+        chunk = flat[i:i + MAX_IN_TERMS]
+        keys = ', '.join(sql_quote(f'{k}|{w}') for k, w in chunk)
+        d1(f"DELETE FROM image_derivative_queue WHERE (r2_key || '|' || width) IN ({keys})")
+
+    for i in range(0, len(risky), MAX_OR_TERMS):
+        chunk = risky[i:i + MAX_OR_TERMS]
+        conds = ' OR '.join(f'(r2_key = {sql_quote(k)} AND width = {w})' for k, w in chunk)
         d1(f'DELETE FROM image_derivative_queue WHERE {conds}')
 
 
