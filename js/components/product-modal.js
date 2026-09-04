@@ -206,6 +206,13 @@ const ProductModal = (function () {
       .lightbox img{max-width:100%; max-height:100%; border-radius:8px; user-select:none;}
       .lightbox-close{position:absolute; top:24px; right:32px; background:none; border:none; color:var(--paper); opacity:0.8; z-index:2;}
       .lightbox-close:hover{opacity:1;}
+      /* Kırp butonu — kapatma ikonunun SOLUNDA, aynı hizada (bkz. mountLightboxCrop). */
+      .lightbox-crop-btn{position:absolute; top:24px; right:76px; z-index:2; padding:7px 14px;
+        border-radius:999px; border:1px solid rgba(255,255,255,0.55); background:rgba(15,19,26,0.5);
+        color:var(--paper,#fff); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;}
+      .lightbox-crop-btn:hover{background:rgba(15,19,26,0.75);}
+      .lightbox-crop-btn[disabled]{opacity:0.5; cursor:default;}
+      .lightbox.grid-mode .lightbox-crop-btn{display:none;}
       .lightbox-nav{position:absolute; top:0; bottom:0; width:15%; min-width:56px; display:flex; align-items:center; background:none; border:none; color:var(--paper); opacity:0.6;}
       .lightbox-nav:hover{opacity:1;}
       .lightbox-prev{left:0; justify-content:flex-start; padding-left:18px;}
@@ -1026,6 +1033,7 @@ const ProductModal = (function () {
     const adminActions = ModalShell.getAdminActionsSlot();
     if (adminActions) adminActions.innerHTML = '<span id="pr-edit-slot"></span><span id="pr-admin-slot"></span>';
     mountEditAndAdminButtons(p, key);
+    mountLightboxCrop(p);
 
     renderUsedInProjects(p);
     renderProductUsers(p);
@@ -1094,6 +1102,90 @@ const ProductModal = (function () {
   // Düzenle butonu artık ekranda görünen YENİ ürünün header'ına yazılıyordu. `currentItem` her
   // renderItem() başında güncellenen paylaşılan modül state'i (bkz. o fonksiyon) — diğer async
   // devamlarla AYNI deseni burada da uygularız.
+  // Büyütülmüş görselde KIRPMA (kullanıcı isteği, 2026-09-04: "Ürün popupında ürün görseline
+  // tıklayınca görsel büyüsün ve kırpma özelliği etkin olsun"). Büyütme zaten vardı
+  // (gallery.js#initDetailGallery lightbox'ı), eksik olan kırpmaydı.
+  //
+  // YALNIZCA ADMİN'E AÇIK ve bilerek öyle: kırpılan kare bir YÜKLEME + ürünün `images` dizisini
+  // yeniden yazma demektir; bunu yapan tek uç `PATCH /api/admin/legacy/product/:id`
+  // (src/routes/legacyContent.js#handleAdminProductEdit) ve o uç requireAdmin arkasında. Sahibi
+  // olduğu ürünü düzenlemek isteyen üye için doğru yol popup'taki "Düzenle" butonudur — orada
+  // aynı kırpma penceresi zaten çalışıyor (urun-ekle.html#enableThumbCrop).
+  //
+  // DİKKAT: bu uç `variants` kolonuna DOKUNMAZ (bilinçli boşluk, bkz.
+  // [[project_product_variants_architecture_2026_09_04]]) — yani kırpma versiyonları silmez. Ama
+  // aynı sebeple versiyon galerileri de güncellenmez; bu yüzden yalnızca ANA galeri kırpılabilir.
+  function loadScriptOnce(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+      const el = document.createElement('script');
+      el.src = src;
+      el.onload = () => resolve();
+      el.onerror = () => reject(new Error('yüklenemedi: ' + src));
+      document.head.appendChild(el);
+    });
+  }
+
+  // image-crop.js / image-upload.js bu sayfalarda (proje.html, urun.html, en-iyi-100.html) statik
+  // olarak YOK — admin-only bir özellik için her ziyaretçiye indirtmek yerine ilk kullanımda gelir.
+  async function ensureCropDeps() {
+    if (typeof ImageCrop === 'undefined') await loadScriptOnce('/js/components/image-crop.js');
+    if (typeof MimarlabUpload === 'undefined') await loadScriptOnce('/image-upload.js');
+  }
+
+  function mountLightboxCrop(p) {
+    const lb = document.getElementById('pr-lightbox');
+    const lbImg = document.getElementById('pr-lightbox-img');
+    if (!lb || !lbImg) return;
+    let btn = document.getElementById('pr-lightbox-crop');
+    const allowed = !!(currentUser && currentUser.role === 'admin' && p && p.id
+      && Array.isArray(p.images) && p.images.length);
+    if (!allowed) { if (btn) btn.remove(); return; }
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'pr-lightbox-crop';
+      btn.className = 'lightbox-crop-btn';
+      btn.type = 'button';
+      lb.appendChild(btn);
+      btn.addEventListener('click', async () => {
+        const target = lbImg.getAttribute('src');
+        const item = currentItem;
+        if (!target || !item) return;
+        try { await ensureCropDeps(); } catch (err) { alert(err.message); return; }
+        const idx = (item.images || []).indexOf(target);
+        if (idx < 0) { alert('Bu kare ürünün ana galerisinde değil, kırpılamıyor.'); return; }
+        let file = null;
+        try { file = await ImageCrop.open(target, { title: 'Görseli kırp', aspect: 'free' }); }
+        catch (err) { file = null; }
+        if (!file || currentItem !== item) return;
+        btn.disabled = true;
+        try {
+          const fd = await MimarlabUpload.buildUploadForm(file, { context: 'product', maxEdge: 1600, quality: 0.85 });
+          const up = await fetch('/api/uploads', { method: 'POST', body: fd });
+          const upJson = await up.json();
+          if (!up.ok || !upJson.url) throw new Error(upJson.error || 'Yükleme başarısız');
+          const images = item.images.slice();
+          images[idx] = upJson.url;
+          const res = await fetch(`/api/admin/legacy/product/${encodeURIComponent(item.id)}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: item.title, brand: item.brand, website: item.website, category: item.category,
+              description: item.description, images, specs: item.specs || [], files: item.files || [],
+              designer: item.designer, year: item.year,
+            }),
+          });
+          const out = await res.json();
+          if (!res.ok || !out.ok) throw new Error(out.error || 'Kaydedilemedi');
+          item.images = images;
+          lbImg.src = upJson.url;
+        } catch (err) {
+          alert('Kırpma kaydedilemedi: ' + (err && err.message ? err.message : err));
+        } finally { btn.disabled = false; }
+      });
+    }
+    btn.textContent = 'Kırp';
+  }
+
   async function mountEditAndAdminButtons(p, key) {
     await savedWidgetReady;
     if (currentItem !== p) return;

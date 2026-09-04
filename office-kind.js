@@ -24,7 +24,7 @@
 // isPureBrandOffice onu marka sanıp firma listesinden düşürmez.
 const OFFICE_SERVICE_CATS = [
   'Mimarlık', 'İç Mimarlık', 'Peyzaj Mimarlığı', 'Kentsel Tasarım', 'Restorasyon', 'Uygulama / İnşaat',
-  'Fotoğrafçılık',
+  'Ürün Tasarımı', 'Fotoğrafçılık',
 ];
 
 // marka-ekle.html'deki Hizmet Alanı seçenekleri — catalog-taxonomy.js#CATALOG_MENU_COLUMNS'un 7 ürün

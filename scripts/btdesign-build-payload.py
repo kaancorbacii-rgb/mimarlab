@@ -163,9 +163,15 @@ def build_one(fam):
             options = ([{'label': axis, 'value': model}] if (axis and model) else [])
             options += split_config(slug, cfg['label'])
             label = f"{model} · {cfg['label']}" if model else cfg['label']
-            # Versiyon galerisi: önce O versiyonun teknik çizimi, sonra sayfa fotoğrafları,
-            # sonra dekupe render'lar (bkz. dosya başı 3. karar).
-            images = ds[:1] + gallery + cutouts
+            # Versiyon galerisi: önce sayfa FOTOĞRAFLARI, sonra dekupe render'lar, EN SONDA
+            # teknik çizim.
+            #
+            # KULLANICI BULGUSU (2026-09-04): teknik çizim BAŞA konunca ürün popup'ı ölçü
+            # çizimiyle açılıyordu — kapak fotoğrafı ayrı ve düzgünken medya alanında çizim
+            # görünüyordu. Çizim ayrıca sayfanın TÜM konfigürasyonları için AYNI karedir (B&T tek
+            # föyde bütün varyantları ölçülendiriyor), yani versiyonlar arası ayırt edici de
+            # değil. Galeride kalır ama en sonda.
+            images = gallery + cutouts + ds
             variants.append({
                 'label': label,
                 'options': options,

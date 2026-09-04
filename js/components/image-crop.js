@@ -52,24 +52,31 @@
     });
   }
 
+  // GERÇEK BULGU (2026-09-04, tarayıcıda tekrar üretildi): object URL'i <img> yüklenir yüklenmez
+  // revoke etmek, o URL'i SONRADAN kullanan her tüketiciyi kırar. Eski kod tam bunu yapıyordu ve
+  // open() aşağıda `stageImg.src = img.src` diyerek AYNI (artık iptal edilmiş) URL'e ikinci bir
+  // istek açıyordu: pencere içindeki görsel 0x0 yükleniyor, kadraj sıfır boyutlu bir şeride
+  // çöküyor ve ölçü etiketi saçmalıyordu ("23408 × 23408 px"). URL artık pencere KAPANANA kadar
+  // yaşar; iptal cleanup()'ta yapılır (resolved.revoke).
   function loadImage(file) {
     const url = URL.createObjectURL(file);
     return loadImageFromUrl(url)
-      .then((img) => { URL.revokeObjectURL(url); return img; })
+      .then((img) => ({ img, revoke: () => URL.revokeObjectURL(url) }))
       .catch((err) => { URL.revokeObjectURL(url); throw err; });
   }
 
-  // open()'ın kabul ettiği üç kaynak tipini TEK bir {img, name} şekline indirger.
+  // open()'ın kabul ettiği üç kaynak tipini TEK bir {img, name, revoke} şekline indirger.
   // Dize verilirse KENDİ origin'imizdeki bir /media/... yolu beklenir; <img> ile doğrudan
   // yüklenir (fetch+blob'a gerek yok, canvas aynı origin olduğu için kirlenmez).
+  const NOOP = () => {};
   async function resolveSource(source) {
     if (typeof source === 'string') {
       const img = await loadImageFromUrl(source);
-      return { img, name: 'crop.jpg' };
+      return { img, name: 'crop.jpg', revoke: NOOP };
     }
     if (!isCroppableFile(source)) return null;
-    const img = await loadImage(source);
-    return { img, name: source.name || 'crop.jpg' };
+    const { img, revoke } = await loadImage(source);
+    return { img, name: source.name || 'crop.jpg', revoke };
   }
 
   function canvasToFile(canvas, name) {
@@ -98,12 +105,15 @@
   // Kırpma YAPILMADIĞINDA kullanılabilecek varsayılan: görselin ORTASINDAN kare al.
   async function centerSquare(file) {
     if (!isCroppableFile(file)) return file;
-    let img;
-    try { img = await loadImage(file); } catch { return file; }
-    const side = Math.min(img.naturalWidth, img.naturalHeight);
-    const out = await renderCrop(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2,
-      side, side, SQUARE_OUT_SIZE, SQUARE_OUT_SIZE, 'crop.jpg');
-    return out || file;
+    let loaded;
+    try { loaded = await loadImage(file); } catch { return file; }
+    const { img, revoke } = loaded;
+    try {
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const out = await renderCrop(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2,
+        side, side, SQUARE_OUT_SIZE, SQUARE_OUT_SIZE, 'crop.jpg');
+      return out || file;
+    } finally { revoke(); }
   }
 
   function injectStyles() {
@@ -126,7 +136,7 @@
       '  border-radius:12px; padding:10px; overflow:hidden;}',
       '.ic-frame{position:relative; line-height:0; touch-action:none; user-select:none;',
       '  -webkit-user-select:none;}',
-      '.ic-frame img{display:block; max-width:100%; max-height:min(58vh,520px); width:auto; height:auto;',
+      '.ic-frame img{display:block; max-width:none; max-height:none;',
       '  pointer-events:none; -webkit-user-drag:none;}',
       /* Kadrajın DIŞI karartılır: dev bir box-shadow ile (ayrı 4 maske düğümü gerekmez). */
       '.ic-rect{position:absolute; box-sizing:border-box; border:1.5px solid #fff; cursor:move;',
@@ -142,6 +152,15 @@
       '.ic-handle[data-corner="sw"]{left:-8px; bottom:-8px; cursor:nesw-resize;}',
       '.ic-handle[data-corner="se"]{right:-8px; bottom:-8px; cursor:nwse-resize;}',
       '.ic-meta{font-size:11.5px; color:var(--ink-soft,#6B7C90); margin:10px 0 0; text-align:center;}',
+      /* Oran ön ayarları (kullanıcı isteği, 2026-09-04: "2:1, 4:3 gibi alternatif kırpma oranları
+         öneri olarak çıksın"). Yalnızca oranı KİLİTLİ OLMAYAN çağrılarda gösterilir; logo/profil
+         1:1'e sabitlendiği için orada bu satır hiç basılmaz. */
+      '.ic-ratios{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:12px 0 0;}',
+      '.ic-ratio{padding:6px 12px; border-radius:999px; font-family:inherit; font-size:12.5px;',
+      '  font-weight:600; cursor:pointer; background:none; color:var(--ink,#1B2A3D);',
+      '  border:1px solid var(--line,#D8E0E8);}',
+      '.ic-ratio[aria-pressed="true"]{background:var(--ink,#1B2A3D); color:#fff;',
+      '  border-color:var(--ink,#1B2A3D);}',
       /* Önizleme küçük resmi (bkz. enableThumbCrop) — tıklanabilir olduğu imleçle belli olsun. */
       '.ic-thumb-clickable{cursor:zoom-in;}',
       '.ic-actions{display:flex; gap:10px; margin-top:14px;}',
@@ -167,9 +186,25 @@
    * Kullanıcı vazgeçerse null döner. Desteklenmeyen bir dosya türü verilirse dosya OLDUĞU GİBİ
    * geri döner (kırpılamaz ama akış engellenmez).
    */
+  // Serbest kırpmada önerilen oranlar. `null` = serbest. Sıra ekrandaki sıradır.
+  const RATIO_PRESETS = [
+    { label: 'Serbest', value: null },
+    { label: '1:1', value: 1 },
+    { label: '4:3', value: 4 / 3 },
+    { label: '3:2', value: 3 / 2 },
+    { label: '2:1', value: 2 },
+    { label: '16:9', value: 16 / 9 },
+    { label: '3:4', value: 3 / 4 },
+    { label: '2:3', value: 2 / 3 },
+  ];
+
   function open(source, opts) {
     const options = opts || {};
-    const aspect = options.aspect === 'free' ? null : (Number(options.aspect) || 1);
+    // Çağıran SAYI verdiyse oran KİLİTLİDİR (logo/profil için 1) ve ön ayar şeridi hiç basılmaz;
+    // 'free' verdiyse kullanıcı şeritten oran seçebilir, başlangıçta serbesttir.
+    const lockedAspect = options.aspect === 'free' ? null : (Number(options.aspect) || 1);
+    const allowRatioChoice = lockedAspect === null;
+    let aspect = lockedAspect;
     if (typeof source !== 'string' && !isCroppableFile(source)) return Promise.resolve(source);
     injectStyles();
     const title = options.title || 'Görseli kırp';
@@ -185,12 +220,17 @@
         '<div class="ic-panel" role="dialog" aria-modal="true">'
         + '<p class="ic-title"></p><p class="ic-sub"></p>'
         + '<div class="ic-stage"><div class="ic-frame">'
-        + '<img alt="">'
         + '<div class="ic-rect">'
         + '<span class="ic-handle" data-corner="nw"></span><span class="ic-handle" data-corner="ne"></span>'
         + '<span class="ic-handle" data-corner="sw"></span><span class="ic-handle" data-corner="se"></span>'
         + '</div></div></div>'
         + '<p class="ic-meta"></p>'
+        + (allowRatioChoice
+          ? '<div class="ic-ratios">' + RATIO_PRESETS.map(function (r, i) {
+              return '<button type="button" class="ic-ratio" data-ratio="' + i + '" aria-pressed="'
+                + (i === 0 ? 'true' : 'false') + '">' + r.label + '</button>';
+            }).join('') + '</div>'
+          : '')
         + '<div class="ic-actions">'
         + '<button type="button" class="ic-btn ic-btn-ghost">Vazgeç</button>'
         + '<button type="button" class="ic-btn ic-btn-primary">Kırp ve Kullan</button>'
@@ -201,10 +241,15 @@
       document.body.appendChild(overlay);
 
       const frame = overlay.querySelector('.ic-frame');
-      const stageImg = overlay.querySelector('.ic-frame img');
+      const stage = overlay.querySelector('.ic-stage');
       const rectEl = overlay.querySelector('.ic-rect');
       const metaEl = overlay.querySelector('.ic-meta');
-      stageImg.src = img.src;
+      // ZATEN YÜKLENMİŞ <img> düğümünün KENDİSİ sahneye konur; `src` kopyalanıp İKİNCİ bir istek
+      // açılmaz. Böylece hem yukarıdaki revoke tuzağı tümden ortadan kalkar hem de görsel ikinci
+      // kez çözülmez (büyük fotoğraflarda gözle görülür gecikme).
+      const stageImg = img;
+      stageImg.alt = '';
+      frame.insertBefore(stageImg, frame.firstChild);
 
       // Kadraj, ÇERÇEVE PİKSELİNDE tutulur (çerçeve kaynağın oranını birebir korur, bu yüzden
       // ekrandaki oran = kaynaktaki oran). Pencere yeniden boyutlandığında oransal olarak taşınır.
@@ -229,17 +274,35 @@
       }
 
       // Çerçeve ölçüsü değiştiğinde (ilk yerleşim, pencere boyutu) kadrajı ORANSAL koru.
+      //
+      // GÖRÜNTÜLENECEK BOYUT, GÖRSELİN O ANKİ YERLEŞİMİNDEN DEĞİL; kaynağın DOĞAL ölçüsünden ve
+      // sahnenin kutusundan türetilir. Eski sürüm `frame.style.width`i `stageImg.clientWidth`ten
+      // yazıyordu, ama `.ic-frame img`in `max-width:100%`i de aynı frame'e çözülüyordu: measure()
+      // her çağrıldığında (complete + load + rAF + resize = en az 3 kez) görsel bir tık daha
+      // küçülüyor, kadraj MIN_RECT_PX'e çöküyor ve ölçek patlıyordu. Yeni hesap İDEMPOTENT —
+      // aynı girdilerle kaç kez çalışırsa çalışsın aynı sonucu verir.
       function measure() {
-        const w = stageImg.clientWidth, h = stageImg.clientHeight;
-        if (!w || !h) return;
+        const natW = img.naturalWidth, natH = img.naturalHeight;
+        if (!natW || !natH) return;
+        const stagePad = 20;                       // .ic-stage padding:10px * 2
+        const availW = Math.max(80, (stage.clientWidth || 640) - stagePad);
+        const availH = Math.max(80, Math.min(window.innerHeight * 0.58, 520));
+        const k = Math.min(availW / natW, availH / natH);
+        const w = Math.max(1, Math.round(natW * k));
+        const h = Math.max(1, Math.round(natH * k));
+        if (w === frameW && h === frameH) return;  // yerleşim değişmediyse kadrajı hiç oynatma
         if (!frameW || !frameH) { rect = initialRect(w, h); }
         else {
           const kx = w / frameW, ky = h / frameH;
           rect = { x: rect.x * kx, y: rect.y * ky, w: rect.w * kx, h: rect.h * ky };
         }
         frameW = w; frameH = h;
+        // Hem çerçeveye hem görsele AÇIK ölçü yazılır; böylece görselin yerleşimi bir daha
+        // çerçevenin ölçüsüne (dolayısıyla kendi geçmişine) bağlı olmaz.
         frame.style.width = w + 'px';
         frame.style.height = h + 'px';
+        stageImg.style.width = w + 'px';
+        stageImg.style.height = h + 'px';
         clampRect();
         paint();
       }
@@ -330,6 +393,7 @@
       function cleanup() {
         window.removeEventListener('resize', measure);
         overlay.remove();
+        resolved.revoke();   // object URL'i BURADA bırakılır (bkz. loadImage'deki not)
       }
 
       async function useCrop() {
@@ -337,7 +401,7 @@
         const sx = rect.x * scale, sy = rect.y * scale;
         const sw = Math.max(1, rect.w * scale), sh = Math.max(1, rect.h * scale);
         let outW, outH;
-        if (aspect === 1) {
+        if (lockedAspect === 1) {
           outW = outH = SQUARE_OUT_SIZE;   // logo/avatar: sabit 800×800 (eski davranış)
         } else {
           const k = Math.min(1, FREE_MAX_EDGE / Math.max(sw, sh));
@@ -351,6 +415,26 @@
       // Vazgeçme: hiçbir şey döndürülmez (null). Yükleme akışında "kırpılmamış görsel kabul edilmez"
       // (kullanıcı isteği, 2026-09-03), mevcut bir görseli yeniden kırparken "değişiklik yapma".
       function cancel() { cleanup(); resolve(null); }
+
+      // Oran seçimi: yeni oran uygulanırken kadrajın MERKEZİ korunur, alan olabildiğince büyük
+      // tutulur — kullanıcı "4:3" deyince kadraj sıfırlanıp köşeye kaçmasın.
+      overlay.querySelectorAll('.ic-ratio').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          aspect = RATIO_PRESETS[Number(btn.dataset.ratio)].value;
+          overlay.querySelectorAll('.ic-ratio').forEach(function (b) {
+            b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+          });
+          if (aspect) {
+            const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+            const fit = initialRect(frameW, frameH);          // orana uyan EN BÜYÜK dikdörtgen
+            const w = Math.min(fit.w, Math.max(rect.w, rect.h * aspect));
+            const h = w / aspect;
+            rect = { x: cx - w / 2, y: cy - h / 2, w: w, h: h };
+          }
+          clampRect();
+          paint();
+        });
+      });
 
       overlay.querySelector('.ic-btn-primary').addEventListener('click', useCrop);
       overlay.querySelector('.ic-btn-ghost').addEventListener('click', cancel);
