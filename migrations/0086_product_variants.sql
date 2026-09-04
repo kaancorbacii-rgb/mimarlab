@@ -1,0 +1,37 @@
+-- ÜRÜN VERSİYONLARI / VARYANTLARI (kullanıcı isteği, 2026-09-04: "aynı ürün ailesine/tasarımına ait
+-- farklı varyantları (ayak tipi, sırt yüksekliği, renk/kumaş, modül yönü vb.) tek bir ana ürün çatısı
+-- altında toplayıp ürün popup'ı içinde 'Versiyonlar / Varyantlar' olarak sun").
+--
+-- NEDEN AYRI BİR `product_variants` TABLOSU DEĞİL, `products` ÜZERİNDE JSON KOLON:
+-- Varyant, bu sistemde ASLA bağımsız bir varlık değildir. Bir varyantın kendi URL'si, kendi
+-- puanı/kaydı (ratings.target_id / saved_items.item_key), kendi künyesi, kendi projeye bağlanma
+-- kenarı (project_products) YOKTUR — hepsi ANA ÜRÜNE aittir. Ayrı bir satır/tablo açmak, katalog
+-- listesinden (src/routes/product.js#fetchProductPool) arama, facet sayaçları, entity_stats
+-- trigger'ları, görsel arama havuzu ve sitemap dahil ONLARCA okuma yolunun her birine "çocuk
+-- satırları hariç tut" filtresi eklemeyi gerektirirdi; bunlardan biri unutulduğunda 114 URL'lik bu
+-- parti katalogda 114 ayrı kart olarak görünürdü — kullanıcının açıkça yasakladığı sonuç.
+-- Varyant verisi yalnızca TEK bir yerde okunuyor (GET /api/product/:key → ürün popup'ı), bu yüzden
+-- ürünün kendi satırında bir JSON kolon hem doğru sahiplik hem de sıfır sorgu maliyeti demek.
+--
+-- BİÇİM — `products.images`/`specs`/`files` ile AYNI sözleşme (JSON metin; okuma tarafında
+-- src/lib/canonicalRead.js#JSON_FIELDS üzerinden parse edilir, bozuk/boş değer [] olur):
+--   [
+--     {
+--       "label":   "Alçak Sırt · 5 Yıldız Ayak",        -- versiyon başlığı (zorunlu)
+--       "options": [{"label":"Sırt Yüksekliği","value":"Alçak Sırt"},
+--                   {"label":"Ayak Tipi","value":"5 Yıldız Ayak"}],
+--       "images":  ["/media/import/products/<slug>/v1-1.webp", ...],
+--       "specs":   [{"label":"Genişlik","value":"108 cm"}, ...],
+--       "files":   [{"url":"...","filename":"...","format":"dwg","size":null}],
+--       "description": "…",                              -- opsiyonel; yoksa ana ürününki gösterilir
+--       "sourceUrl":   "https://…"                       -- varyantın geldiği üretici sayfası
+--     }, …
+--   ]
+-- Seçenek GRUPLARI (Sırt Yüksekliği / Ayak Tipi / Ebat…) ayrıca saklanmaz: js/components/
+-- product-modal.js#buildVariantGroups bunları dizinin sırasını koruyarak options[].label'lardan
+-- türetir — tek kaynak dizinin kendisi, iki yapının birbirinden kayma ihtimali yok.
+--
+-- Bu kolonu HİÇBİR yazma yolu (canonicalSync.js#syncProduct, legacyContent.js#handleAdminProductEdit)
+-- güncellemiyor; ikisi de kolon listelerini elle sayıyor ve `variants`'ı içermiyor, dolayısıyla bir
+-- üye/admin düzenlemesi içe aktarılan versiyonları SİLMEZ.
+ALTER TABLE products ADD COLUMN variants TEXT;

@@ -316,7 +316,15 @@ async function withSingleFlight(key, fn) {
 //     yazıldığından projects/offices satırlarının `updated_at`'i DEĞİŞMEZ — yani fingerprint
 //     kesinlikle aynı kalır. Sürüm artırılmazsa proje/marka pop-up'ını daha önce açmış HİÇBİR
 //     ziyaretçi yeni marka künyesini göremez, üstelik süresiz olarak.
-const API_PAYLOAD_VERSION = 'v9';
+// v10 (kullanıcı isteği, 2026-09-04 — 114 bağlantılık toplu ürün içe aktarımı): /api/product/:key
+//     yükü YENİ bir alan taşıyor — `variants[]` (ürün popup'ındaki "Versiyonlar" seçicisi, bkz.
+//     migrations/0086_product_variants.sql ve js/components/product-modal.js#renderVariantSwitcher).
+//     Buradaki tuzak v5-v9'unkiyle AYNI ama bu sefer ŞU nedenle kaçınılmaz: alan mevcut ürünlere
+//     ALTER TABLE ile eklendi ve yalnızca içe aktarılan yeni satırlarda dolu; DAHA ÖNCE açılmış bir
+//     ürünün popup'ında ise satır güncellenmediği için fingerprint hiç değişmez. Sürüm artırılmazsa
+//     versiyon seçicisi eklenen bir ürünü daha önce görmüş ziyaretçiler 304 ile eski gövdede
+//     süresiz takılır ve seçiciyi HİÇ göremezdi.
+const API_PAYLOAD_VERSION = 'v10';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

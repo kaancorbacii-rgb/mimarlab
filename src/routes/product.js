@@ -44,6 +44,10 @@ export function shapeProductItem(row) {
     id: p.id, title: p.title, brand: p.brand_name_raw, website: p.website, category: p.category,
     designer: p.designer || null, year: p.year || null,
     description: p.description, images: p.images, specs: p.specs, files: p.files, kind: p.kind,
+    // variants: "Versiyonlar" seçicisi (bkz. migrations/0086_product_variants.sql). fetchProductPool
+    // (liste ucu) bu kolonu SELECT etmiyor — orada parseCanonicalRow boş dizi üretir ve zaten
+    // kart çıktısına yansıtılmaz; ağır JSON yalnızca tekil ürün ucunda taşınır.
+    variants: p.variants,
     submissionId: isSubmissionMarker ? row.legacy_key.slice('submission:'.length) : null,
   };
 }

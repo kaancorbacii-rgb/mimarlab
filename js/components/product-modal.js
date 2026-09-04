@@ -22,6 +22,10 @@ const ProductModal = (function () {
     pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.5 18.5l-4 1 1-4Z"/></svg>',
     tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.5H4.6a1.6 1.6 0 0 0-1.6 1.6v8a1.6 1.6 0 0 0 .47 1.13l9.3 9.3a1.6 1.6 0 0 0 2.26 0l6.57-6.57a1.6 1.6 0 0 0 0-2.26l-9.3-9.3a1.6 1.6 0 0 0-1.13-.47Z"/><circle cx="7.7" cy="7.7" r="1.1"/></svg>',
     calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg>',
+    // layers — "Versiyonlar" başlığı (bkz. renderVariantSwitcher). Üst üste binmiş üç katman:
+    // bu sözlükteki diğer dört ikonun HİÇBİRİYLE karışmaz ve "aynı ürünün birden çok türevi"
+    // fikrini doğrudan anlatır.
+    layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2.5 9 4.6-9 4.6-9-4.6 9-4.6Z"/><path d="m3.6 12 8.4 4.3 8.4-4.3"/><path d="m3.6 16.6 8.4 4.3 8.4-4.3"/></svg>',
   };
   function metaIconHtml(key) { return `<span class="meta-icon">${META_ICONS[key] || ''}</span>`; }
   function metaRow(iconKey, bodyHtml) { return `<div class="meta-row">${metaIconHtml(iconKey)}<span>${bodyHtml}</span></div>`; }
@@ -109,6 +113,30 @@ const ProductModal = (function () {
       .designer-chip-avatar.office-avatar img{object-fit:contain; background:var(--paper-card);}
       .designer-chip-name{font-size:13px; font-weight:600; color:var(--ink);}
       .designer-chip-no-avatar{padding:6px 16px; min-height:46px;}
+      /* ---------- Versiyonlar / Varyantlar (kullanıcı isteği, 2026-09-04) ----------
+         Aynı ürün ailesinin türevleri (sırt yüksekliği, ayak tipi, ebat/modül…) ana ürünün
+         İÇİNDE seçilir; her seçenek grubu kendi satırında hap butonlarla listelenir. Görsel dil
+         .designer-chip'ten türetildi (aynı yuvarlak hat, aynı çerçeve rengi) — modalda üçüncü bir
+         buton stili icat etmemek için; farkı, seçili hap'ın dolu (var(--ink)) olması.
+         [data-owner="product"] KAPSAMI ZORUNLU DEĞİL: bu sınıflar (.pr-variant-*) yalnızca bu
+         dosyada tanımlı ve proje.html'de karşılığı yok (bkz. yukarıdaki #pr-desc gerçek bulgusu —
+         orada kapsam gerekiyordu çünkü sınıf adı İKİ dosyada birden vardı). */
+      .pr-variant-group{margin-bottom:12px;}
+      .pr-variant-group:last-child{margin-bottom:0;}
+      .pr-variant-group-label{font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:7px;}
+      .pr-variant-pills{display:flex; flex-wrap:wrap; gap:8px;}
+      .pr-variant-pill{
+        display:inline-flex; align-items:center; justify-content:center;
+        background:var(--paper); border:1px solid var(--line-soft); border-radius:100px;
+        padding:7px 15px; font-family:inherit; font-size:13px; font-weight:600; color:var(--ink);
+        cursor:pointer; line-height:1.2; transition:border-color .15s ease, background .15s ease, color .15s ease;
+      }
+      .pr-variant-pill:hover{border-color:var(--brass);}
+      .pr-variant-pill[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--paper-card);}
+      /* Seçili kombinasyonun tam adı — hap satırlarının altında tek satır, kullanıcı hangi
+         versiyona baktığını hap'lara bakıp zihninde birleştirmek zorunda kalmasın. */
+      .pr-variant-current{margin:10px 0 0; font-size:12.5px; color:var(--ink-soft);}
+      .pr-variant-current strong{color:var(--ink); font-weight:600;}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -367,6 +395,14 @@ const ProductModal = (function () {
       <span id="pr-byline-text"></span>
     </div>
     <div class="detail-info">
+      <!-- Versiyonlar — künyenin EN ÜSTÜNDE (Marka/Tasarımcı chip'lerinden de önce): seçim
+           galeriyi, teknik özellikleri, dosyaları ve açıklamayı değiştirdiğinden, altındaki her
+           şeyin neye ait olduğunu belirleyen kontrol budur. -->
+      <div class="designer-section" id="pr-variants-section" style="display:none;">
+        <div class="designer-label">${metaIconHtml('layers')}Versiyonlar:</div>
+        <div id="pr-variant-groups"></div>
+        <p class="pr-variant-current" id="pr-variant-current"></p>
+      </div>
       <div class="designer-section" id="pr-brand-section" style="display:none;">
         <div class="designer-label">${metaIconHtml('brand')}Marka:</div>
         <div class="designer-chips" id="pr-brand-chips"></div>
@@ -654,7 +690,7 @@ const ProductModal = (function () {
   // bkz. js/components/project-modal.js#HIDE_ON_NOT_FOUND_IDS AYNI gerçek bulgu: renderNotFound()
   // bu ID'leri gizliyor, ModalShell'in şablonu sayfa ömrü boyunca tek sefer mount edildiğinden bir
   // sonraki başarılı render bunları geri açmazsa modal kalıcı olarak yarı-boş görünürdü.
-  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-brand-section', 'pr-designer-section',
+  const HIDE_ON_NOT_FOUND_IDS = ['pr-byline', 'pr-variants-section', 'pr-brand-section', 'pr-designer-section',
     'pr-info-divider', 'pr-files-card', 'pr-feedback-card', 'pr-projects-section', 'pr-users-pair', 'pr-company-section', 'pr-related-section', 'pr-gallery-wrap', 'pr-specs-wrap', 'pr-prevnext'];
 
   // js/components/project-modal.js#observeOnce ile BİREBİR aynı (bkz. o dosyadaki dosya başı yorum) —
@@ -714,10 +750,12 @@ const ProductModal = (function () {
     return FILE_TYPE_META[ext] || { label: ext ? ext.toUpperCase().slice(0, 4) : 'DOSYA', color: '#8a8a8a' };
   }
 
-  function renderFilesSection(p) {
+  // fileList: ana ürünün p.files'ı YA DA seçili versiyonun kendi dosyaları (bkz.
+  // renderDetailBody) — bu yüzden fonksiyon artık ürünü değil doğrudan listeyi alır.
+  function renderFilesSection(fileList) {
     const grid = document.getElementById('pr-files-grid');
     if (!grid) return;
-    const files = Array.isArray(p.files) ? p.files.filter(f => f && f.url) : [];
+    const files = Array.isArray(fileList) ? fileList.filter(f => f && f.url) : [];
     if (!files.length) {
       grid.innerHTML = '<p class="pr-files-empty">Yüklenen dosya yok.</p>';
       return;
@@ -731,6 +769,153 @@ const ProductModal = (function () {
         <span class="pr-file-name">${escapeHtml(name)}</span>
       </a>`;
     }).join('');
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Versiyonlar / Varyantlar — bkz. migrations/0086_product_variants.sql (alan sözleşmesi ve
+  // "neden ayrı tablo değil" gerekçesi orada). p.variants HER ZAMAN bir dizidir (canonicalRead.js
+  // bozuk/boş değeri [] yapar), bu yüzden burada null kontrolü gerekmez.
+  // ---------------------------------------------------------------------------------------
+  let currentVariantIndex = 0;
+
+  function variantOptionValue(v, label) {
+    const o = ((v && v.options) || []).find(x => x && x.label === label);
+    return o ? o.value : null;
+  }
+
+  // Seçenek grupları AYRICA saklanmaz, varyant dizisinden türetilir (tek kaynak = dizi).
+  // Sıra korunur: gruplar ilk görüldükleri, değerler ilk göründükleri sırada dizilir — böylece
+  // içe aktarma sırasındaki anlamlı sıralama ("Alçak / Orta / Yüksek", "S / M / L") ekranda da
+  // aynen çıkar, alfabetik sıraya bozulmaz.
+  // TEK DEĞERLİ gruplar ELENİR: her versiyonda aynı olan bir seçenek bir "seçim" değildir; hap
+  // olarak gösterilirse tıklanamaz/anlamsız bir buton olurdu.
+  function buildVariantGroups(variants) {
+    const groups = [];
+    const byLabel = new Map();
+    variants.forEach(v => ((v && v.options) || []).forEach(o => {
+      if (!o || !o.label || !o.value) return;
+      let g = byLabel.get(o.label);
+      if (!g) { g = { label: o.label, values: [] }; byLabel.set(o.label, g); groups.push(g); }
+      if (!g.values.includes(o.value)) g.values.push(o.value);
+    }));
+    const multi = groups.filter(g => g.values.length > 1);
+    // Hiç seçenek ekseni yoksa (ya da hepsi tek değerliyse) versiyonların KENDİ adları tek bir
+    // grup olur — "Versiyon: Tekli / İkili / Üçlü" gibi. Böylece options'ı olmayan bir varyant
+    // listesi de çalışır durumda kalır.
+    if (multi.length) return multi;
+    const labels = variants.map(v => (v && v.label) || '').filter(Boolean);
+    return labels.length > 1 ? [{ label: 'Versiyon', values: labels, byVariantLabel: true }] : [];
+  }
+
+  // Bir hap'a tıklanınca hangi versiyona geçilecek. Varyant matrisi SEYREK olabilir (ör. Toya'nın
+  // her sırt yüksekliğinde her ayak tipi yok); bu yüzden "değişen ekseni zorla, kalan eksenlerde
+  // mevcut seçime EN ÇOK benzeyeni al" puanlaması yapılır — hiç eşleşme olmayan bir kombinasyona
+  // tıklamak mümkün değil, en yakın gerçek versiyona düşülür.
+  function pickVariantIndex(variants, groups, curIdx, group, value) {
+    const cur = variants[curIdx] || {};
+    let best = -1, bestScore = -1;
+    variants.forEach((v, i) => {
+      const matches = group.byVariantLabel ? (v && v.label) === value : variantOptionValue(v, group.label) === value;
+      if (!matches) return;
+      let score = 0;
+      groups.forEach(g => {
+        if (g === group || g.byVariantLabel) return;
+        if (variantOptionValue(v, g.label) === variantOptionValue(cur, g.label)) score++;
+      });
+      if (score > bestScore) { bestScore = score; best = i; }
+    });
+    return best;
+  }
+
+  function renderVariantSwitcher(p) {
+    const section = document.getElementById('pr-variants-section');
+    if (!section) return;
+    const variants = Array.isArray(p.variants) ? p.variants : [];
+    if (variants.length < 2) { section.style.display = 'none'; return; }
+    const groups = buildVariantGroups(variants);
+    if (!groups.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+
+    const wrap = document.getElementById('pr-variant-groups');
+    wrap.innerHTML = groups.map((g, gi) => `<div class="pr-variant-group" data-group="${gi}">
+      <div class="pr-variant-group-label">${escapeHtml(g.label)}</div>
+      <div class="pr-variant-pills">${g.values.map(v =>
+        `<button type="button" class="pr-variant-pill" data-group="${gi}" data-value="${escapeAttr(v)}" aria-pressed="false">${escapeHtml(v)}</button>`
+      ).join('')}</div>
+    </div>`).join('');
+
+    wrap.querySelectorAll('.pr-variant-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Bayatlık koruması: bu dinleyici DOM'a bağlı kaldığı sürece yaşar, ama kullanıcı bu arada
+        // başka bir ürüne geçtiyse (swap) wrap içeriği yeniden yazılır — yine de currentItem
+        // kontrolü, geç kalmış bir tıklamanın YENİ ürünün galerisini ESKİ ürünün versiyonuyla
+        // ezmesini kesin olarak engeller (bkz. loadCompanyProducts'taki AYNI desen).
+        if (currentItem !== p) return;
+        const g = groups[parseInt(btn.dataset.group, 10)];
+        const idx = pickVariantIndex(variants, groups, currentVariantIndex, g, btn.dataset.value);
+        if (idx < 0 || idx === currentVariantIndex) { syncVariantPills(p, groups); return; }
+        currentVariantIndex = idx;
+        syncVariantPills(p, groups);
+        renderDetailBody(p, variants[idx]);
+      });
+    });
+
+    syncVariantPills(p, groups);
+  }
+
+  function syncVariantPills(p, groups) {
+    const variants = p.variants || [];
+    const cur = variants[currentVariantIndex] || {};
+    document.querySelectorAll('#pr-variant-groups .pr-variant-pill').forEach(btn => {
+      const g = groups[parseInt(btn.dataset.group, 10)];
+      const active = g.byVariantLabel ? cur.label === btn.dataset.value
+        : variantOptionValue(cur, g.label) === btn.dataset.value;
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    const cap = document.getElementById('pr-variant-current');
+    if (cap) {
+      cap.innerHTML = cur.label
+        ? `Seçili versiyon: <strong>${escapeHtml(cur.label)}</strong>`
+        : '';
+    }
+  }
+
+  // Galeri + Teknik Özellikler + Dosyalar + Açıklama — ürünün KENDİ verisiyle ya da seçili
+  // versiyonun verisiyle çizilir. Görsel/spec/açıklama alanlarında versiyonun alanı boşsa ana
+  // ürününkine DÜŞÜLÜR (aile fotoğrafı ve aile açıklaması her versiyon için geçerlidir; ör.
+  // Archello'da Ozzy Yemek Sandalyesi'nin kendi açıklaması hiç yok, ailesininki doğru metindir).
+  //
+  // DOSYALAR BUNUN İSTİSNASI, BİLEREK: ana ürünün `files` alanı İLK versiyonun dosyalarıdır (bkz.
+  // scripts/import-batch114.py) — bir versiyonun kendi CAD/PDF'i yoksa oraya düşmek, kullanıcıya
+  // BAŞKA bir versiyonun teknik föyünü o versiyonunmuş gibi indirtir. Yanlış dosya, hiç dosya
+  // olmamasından kötüdür; bu yüzden versiyon seçiliyken yalnızca O versiyonun dosyaları gösterilir.
+  function renderDetailBody(p, variant) {
+    const images = (variant && variant.images && variant.images.length) ? variant.images : (p.images || []);
+    const specs = (variant && variant.specs && variant.specs.length) ? variant.specs : (p.specs || []);
+    const files = variant ? (variant.files || []) : (p.files || []);
+    const description = (variant && variant.description) || p.description || '';
+
+    renderTruncatedDesc('pr-desc', description);
+
+    const specsWrap = document.getElementById('pr-specs-wrap');
+    const specRows = specs.filter(s => s && (s.label || s.value));
+    if (specRows.length) {
+      specsWrap.style.display = '';
+      document.getElementById('pr-specs-table').innerHTML = specRows
+        .map(s => `<tr><td>${escapeHtml(s.label || '')}</td><td>${escapeHtml(s.value || '')}</td></tr>`).join('');
+    } else specsWrap.style.display = 'none';
+
+    renderFilesSection(files);
+
+    const favicon = (typeof catalogBrandFavicon === 'function') ? catalogBrandFavicon(p.brand) : null;
+    initDetailGallery({
+      images, title: p.title,
+      placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(p.brand || p.title)}">
+        ${favicon ? `<img src="${escapeAttr(favicon)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
+        <span>${escapeHtml(initials(p.brand || p.title))}</span>
+      </div>`,
+      ids: GALLERY_IDS,
+    });
   }
 
   async function renderItem(p, key) {
@@ -759,31 +944,19 @@ const ProductModal = (function () {
     if (p.year) metaHtml += metaRow('calendar', `<strong>Yıl:</strong> ${escapeHtml(p.year)}`);
     document.getElementById('pr-meta').innerHTML = metaHtml;
 
-    renderTruncatedDesc('pr-desc', p.description || '');
-
-    const specsWrap = document.getElementById('pr-specs-wrap');
-    if (p.specs && p.specs.length) {
-      specsWrap.style.display = '';
-      document.getElementById('pr-specs-table').innerHTML = p.specs
-        .filter(s => s && (s.label || s.value))
-        .map(s => `<tr><td>${escapeHtml(s.label || '')}</td><td>${escapeHtml(s.value || '')}</td></tr>`).join('');
-    } else specsWrap.style.display = 'none';
-
-    renderFilesSection(p);
-
     renderStructuredData(p);
     renderPrevNext(p);
 
+    // Versiyon seçici + gövde. Her yeni ürün AÇILIŞINDA ilk versiyona dönülür (0) — swap sonrası
+    // önceki ürünün seçili indeksi devralınırsa yeni üründe alakasız/olmayan bir versiyon açılırdı.
+    currentVariantIndex = 0;
+    renderVariantSwitcher(p);
+    renderDetailBody(p, (p.variants || [])[currentVariantIndex]);
+
+    // saveBtn/ShareWidget/OG görseli için HER ZAMAN ANA ürünün kapak görseli kullanılır — versiyon
+    // seçimi URL'yi değiştirmediğinden (tek canonical /urun/:slug), paylaşılan/kaydedilen kartın
+    // görseli de ürünün kendi kapağı olmalı.
     const images = p.images || [];
-    const favicon = (typeof catalogBrandFavicon === 'function') ? catalogBrandFavicon(p.brand) : null;
-    initDetailGallery({
-      images, title: p.title,
-      placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(p.brand || p.title)}">
-        ${favicon ? `<img src="${escapeAttr(favicon)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
-        <span>${escapeHtml(initials(p.brand || p.title))}</span>
-      </div>`,
-      ids: GALLERY_IDS,
-    });
 
     // ratingKey: puanlama/kaydetme sistemi (ratings.target_id/saved_items.item_key) `key`'den (URL
     // slug'ı) BİLEREK AYRI bir anahtar kullanır (bkz. src/routes/product.js#ratingKeyFor'un dosya

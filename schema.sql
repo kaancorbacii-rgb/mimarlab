@@ -712,7 +712,9 @@ CREATE TABLE IF NOT EXISTS products (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, designer TEXT, year TEXT, files TEXT);
+-- variants: ürünün "Versiyonlar" listesi (JSON dizi) — bkz. migrations/0086_product_variants.sql
+-- (neden ayrı bir product_variants tablosu DEĞİL + alan sözleşmesi orada anlatılıyor).
+, hidden_at TEXT, designer TEXT, year TEXT, files TEXT, variants TEXT);
 CREATE INDEX IF NOT EXISTS idx_products_brand_office ON products(brand_office_id);
 CREATE INDEX IF NOT EXISTS idx_products_hidden_or_deleted ON products(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 -- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL

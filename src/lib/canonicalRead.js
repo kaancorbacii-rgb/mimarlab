@@ -9,7 +9,10 @@ const JSON_FIELDS = {
   architects: ['awards', 'social_links'],
   offices: ['cats', 'awards', 'social_links'],
   projects: ['category', 'type', 'discipline', 'period', 'images', 'awards'],
-  products: ['images', 'specs', 'files'],
+  // variants: ürün popup'ındaki "Versiyonlar" seçici (bkz. migrations/0086_product_variants.sql).
+  // Diğer üçüyle AYNI sözleşme — JSON dizi, bozuk/boş değer [] olur, bu yüzden okuyan taraf
+  // (product-modal.js) hiçbir zaman null kontrolü yapmak zorunda kalmaz.
+  products: ['images', 'specs', 'files', 'variants'],
 };
 
 // Adla/slug'la/legacy_key ile bir canonical satırın VAR OLUP OLMADIĞINI arar — src/routes/

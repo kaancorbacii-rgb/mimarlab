@@ -15,7 +15,11 @@ import json, os, re, html, subprocess, time, concurrent.futures
 UA = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/124.0 Safari/537.36')
 HERE = os.path.dirname(os.path.abspath(__file__))
-URLS = [l.strip() for l in open(os.path.join(HERE, 'output', 'archello-products-urls.txt'), encoding='utf8') if l.strip()]
+# Modül olarak import EDİLEBİLİR olmalı: scripts/scrape-batch114.py bu dosyanın Archello
+# ayrıştırıcısını (fetch/parse/slice_div/txt) tek kaynak olarak yeniden kullanır — kopyalanmaz.
+# Bu yüzden URL listesi import anında DEĞİL, yalnızca bu dosya doğrudan çalıştırıldığında okunur
+# (aksi halde her import bu dosyanın varlığına bağımlı olurdu) ve main() aşağıda __main__ altında.
+URLS = []
 
 
 def fetch(url, tries=4):
@@ -210,4 +214,7 @@ def main():
     print('\nscripts/output/archello-products-raw.json yazıldı.')
 
 
-main()
+if __name__ == '__main__':
+    URLS = [l.strip() for l in open(os.path.join(HERE, 'output', 'archello-products-urls.txt'),
+                                    encoding='utf8') if l.strip()]
+    main()
