@@ -316,6 +316,67 @@ export async function deleteR2MediaKeys(env, originalKeys) {
 // (bkz. src/lib/submissionTypes.js#SUBMISSION_TYPES) — bu yüzden hem canonical satırlar hem taslak
 // satırlar için R2 temizliğinde AYNI eşleme yeniden kullanılır (bkz. src/routes/legacyContent.js/
 // admin.js'teki taslak-satır hard-delete noktaları).
+// Bir ürünün galerisi (products.images) düzenlendiğinde, products.variants içindeki VERSİYON
+// galerilerini de aynı düzenlemeye uyarlar (kullanıcı isteği, 2026-09-04 — bkz. syncProduct'taki
+// uzun gerekçe). İki kural, ikisi de yalnızca ürün galerisiyle ORTAK görselleri etkiler:
+//   1. SİLME  — eski galeride olup yenisinde olmayan görsel, versiyondan da düşer.
+//   2. SIRA   — hem versiyonda hem yeni galeride bulunan görseller YENİ SIRAYA dizilir.
+// Versiyona ÖZEL görseller (ürün galerisinde hiç bulunmayanlar, ör. "Ithaca Light"in kendi
+// fotoğrafları) DOKUNULMADAN, kendi göreli sıralarını koruyarak sona eklenir — migrations/
+// 0086_product_variants.sql'in "bir üye/admin düzenlemesi içe aktarılan versiyonları SİLMEZ"
+// güvencesi böylece korunur.
+// Değişiklik yoksa (ya da ürünün hiç versiyonu yoksa / JSON bozuksa) null döner: çağıran o zaman
+// `variants` kolonuna HİÇ dokunmaz.
+export function reconcileVariantImages(rawVariants, rawOldImages, rawNewImages) {
+  const parse = (raw) => { try { const v = JSON.parse(raw || 'null'); return Array.isArray(v) ? v : null; } catch { return null; } };
+  const variants = parse(rawVariants);
+  if (!variants || !variants.length) return null;
+  const oldImages = parse(rawOldImages) || [];
+  const newImages = parse(rawNewImages) || [];
+  const removed = new Set(oldImages.filter(u => !newImages.includes(u)));
+  const order = new Map(newImages.map((u, i) => [u, i]));
+  if (!removed.size && !order.size) return null;
+
+  let changed = false;
+  const out = variants.map(v => {
+    if (!v || !Array.isArray(v.images) || !v.images.length) return v;
+    const kept = v.images.filter(u => !removed.has(u));
+    const shared = kept.filter(u => order.has(u)).sort((a, b) => order.get(a) - order.get(b));
+    const own = kept.filter(u => !order.has(u));
+    const next = shared.concat(own);
+    if (next.length !== v.images.length || next.some((u, i) => u !== v.images[i])) changed = true;
+    return { ...v, images: next };
+  });
+  return changed ? JSON.stringify(out) : null;
+}
+
+// Bir ürünün versiyonlarının (products.variants) HÂLÂ referans verdiği R2 anahtarları. Galeriden
+// çıkarılan bir görsel bir versiyonda duruyor olabilir — o nesneyi silmek, versiyon galerisinde
+// KIRIK bir görsel bırakır (canlıda yaşandı: ithaca-casa/1.webp). cleanupReplacedR2Media bu
+// anahtarları "hâlâ kullanımda" sayar. Sonradan reconcileVariantImages onları versiyondan da
+// düşerse nesne R2'de yetim kalır; bu bilinçli bir tercihtir — yetimleri mevcut
+// /api/admin/r2-orphans aracı zaten süpürüyor, KIRIK bir görselin geri dönüşü ise yok.
+async function variantReferencedKeys(env, type, submissionId) {
+  if (type !== 'products' && type !== 'materials') return [];
+  try {
+    const row = await env.DB.prepare(`SELECT variants FROM products WHERE legacy_key = ?`)
+      .bind(submissionMarker(submissionId)).first();
+    return variantImageKeys(row && row.variants);
+  } catch { return []; }
+}
+function variantImageKeys(rawVariants) {
+  const keys = [];
+  try {
+    const variants = JSON.parse(rawVariants || 'null');
+    if (!Array.isArray(variants)) return keys;
+    for (const v of variants) {
+      if (v && Array.isArray(v.images)) v.images.forEach(u => collectMediaKeysFromValue(u, keys));
+      if (v && Array.isArray(v.files)) v.files.forEach(f => collectMediaKeysFromValue(f && f.url, keys));
+    }
+  } catch { /* bozuk JSON — atla */ }
+  return keys;
+}
+
 export const MEDIA_IMAGE_FIELDS_BY_TYPE = {
   projects: { arrayFields: ['images'] },
   products: { arrayFields: ['images', 'files'] },
@@ -363,6 +424,8 @@ export async function cleanupReplacedR2Media(env, type, oldRow, newRow) {
   const oldKeys = collectR2MediaKeys(oldRow, fields);
   if (!oldKeys.length) return;
   const newKeys = new Set(collectR2MediaKeys(newRow, fields));
+  // Ürün VERSİYONLARININ hâlâ referans verdiği anahtarlar silinmez (bkz. variantReferencedKeys).
+  for (const key of await variantReferencedKeys(env, type, oldRow.id)) newKeys.add(key);
   const removedKeys = oldKeys.filter(key => !newKeys.has(key));
   if (removedKeys.length) await deleteR2MediaKeys(env, removedKeys);
 }
@@ -1144,9 +1207,22 @@ async function syncProduct(env, row, kind) {
     // düzenleyip admin onayladığında görünürlük geri gelmeliydi, gelmiyordu). slug'a BİLEREK
     // dokunulmaz — bkz. src/routes/legacyContent.js#handleAdminProductEdit'teki AYNI gerekçe
     // (products/materials hiçbir rename cascade'i desteklemiyor, başlık değişse bile URL sabit kalır).
+    //
+    // GERÇEK BULGU (kullanıcı isteği, 2026-09-04: "ürün pop-up'larındaki sorun düzelmemiş"):
+    // versiyonlu bir üründe galeriyi düzenlemek pop-up'ta HİÇBİR ETKİ yapmıyordu. Sebep,
+    // migrations/0086_product_variants.sql'in bilinçli kararının görülmeyen yan etkisi: hiçbir
+    // yazma yolu `variants`'a dokunmuyor (içe aktarılan versiyonlar silinmesin diye) AMA
+    // product-modal.js#renderDetailBody seçili versiyonun `images`'ini ÖNCELİKLİ okuyor — yani
+    // düzenlenen `products.images` hiç gösterilmiyordu; üstelik silinen görselin R2 nesnesi
+    // temizlendiğinden versiyon galerisinde KIRIK görsel kalıyordu (canlıda Ithaca/Casa).
+    // Çözüm: versiyonları SİLMEDEN, yalnızca galeri düzenlemesini onlara da UYARLA
+    // (bkz. reconcileVariantImages).
+    const nextVariants = reconcileVariantImages(existing.variants, existing.images, images);
+    const variantSet = nextVariants === null ? '' : ', variants = ?';
+    const variantVal = nextVariants === null ? [] : [nextVariants];
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?, legacy_key = ?, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
-    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, legacyKey, existing.id).run();
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?, legacy_key = ?${variantSet}, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
+    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, legacyKey, ...variantVal, existing.id).run();
     productId = existing.id;
   } else {
     // architects/offices/projects'teki AYNI desen (bkz. syncArchitect/syncOffice) — yeni bir
