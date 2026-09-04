@@ -29,7 +29,7 @@ export async function handleFollowRoute(request, env, url) {
 
 async function listFollows(env, user) {
   const { results } = await env.DB.prepare(
-    'SELECT followed_type, followed_key, followed_title, followed_ref_id FROM follows WHERE user_id = ? ORDER BY created_at DESC'
+    'SELECT followed_type, followed_key, followed_title, followed_ref_id, created_at FROM follows WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
 
   // follows tablosunda görsel alanı YOK (bkz. schema.sql#follows) — Takip Ettiklerim satırlarının
@@ -92,6 +92,7 @@ async function listFollows(env, user) {
     followed_image: f.followed_ref_id ? (imageByRef.get(`${f.followed_type}:${f.followed_ref_id}`) || null) : null,
     is_brand: f.followed_type === 'office' && !!brandByRefId.get(f.followed_ref_id),
     is_pure_brand: f.followed_type === 'office' && !!pureBrandByRefId.get(f.followed_ref_id),
+    created_at: f.created_at,
   }));
   return json({ items });
 }

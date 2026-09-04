@@ -4176,15 +4176,22 @@ const AuthModal = (function () {
         // Marka profilleri de firma detay sayfasında yaşıyor (/marka yalnızca LİSTE sayfası, tekil
         // bir /marka/:slug yolu YOK — bkz. src/index.js#CLEAN_URL_ASSETS), bu yüzden href aynı kalır.
         href: `/${f.followed_type === 'architect' ? 'mimar' : 'firma'}/${encodeURIComponent(f.followed_key)}`,
+        // follows.created_at ms epoch olarak saklanır (bkz. src/routes/follows.js#createFollow) —
+        // projects/products'ın "YYYY-MM-DD HH:MM:SS" metnini bekleyen feedTimeMs'e ihtiyaç yok.
+        _sortTs: Number(f.created_at) || 0,
       }));
       // followSeenAt render'dan ÖNCE okunur, yeni değer ise HEMEN yazılır: rozetler bu görüntüleme
       // boyunca (filtre değişimi/sayfalama dahil, hepsi aynı followSeenAt'i kullanır) ekranda kalır,
       // bir sonraki ziyarette düşer.
       followSeenAt = readFollowSeenAt();
-      const feedItems = (feedData.items || []).map(it => ({ ...it, isNew: feedTimeMs(it.created_at) > followSeenAt }));
+      const feedItems = (feedData.items || []).map(it => ({ ...it, isNew: feedTimeMs(it.created_at) > followSeenAt, _sortTs: feedTimeMs(it.created_at) }));
       const latest = feedItems.reduce((max, it) => Math.max(max, feedTimeMs(it.created_at)), followSeenAt);
       if (latest > followSeenAt) writeFollowSeenAt(latest);
-      followFeedItems = [...profileItems, ...feedItems];
+      // En son eklenen (yeni bir gönderi YA DA yeni bir takip) en üstte olacak şekilde TEK bir
+      // kronolojik listeye karıştırılır (kullanıcı isteği, 2026-09-04: "yeni eklenen gönderiler ilk
+      // sıralardan son sıralara doğru ilerlesinler") — eskiden gönderiler HER ZAMAN takip edilen
+      // profil satırlarının ALTINDA sabit dururdu, ne kadar yeni olursa olsun.
+      followFeedItems = [...profileItems, ...feedItems].sort((a, b) => b._sortTs - a._sortTs);
       renderFollowFeed();
     }
     function renderFollowFeed() {
