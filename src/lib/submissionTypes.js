@@ -125,7 +125,7 @@ export const SUBMISSION_TYPES = {
 // Mimar/Firma ekle-düzenle sayfalarındaki Sosyal Medya kutucuğunun platform seçim listesi
 // (bkz. kullanıcı isteği) — istemci (kisi-ekle.html/firma-ekle.html) VE burası
 // (submissions.js#createSubmission/updateOwnSubmission) AYNI enum'u kullanır.
-export const SOCIAL_PLATFORMS = new Set(['instagram', 'linkedin', 'x']);
+export const SOCIAL_PLATFORMS = new Set(['instagram', 'facebook', 'linkedin', 'x']);
 
 // offices.cats — firma-ekle.html/marka-ekle.html'deki Hizmet Alanı kutucukları yalnızca izin verilen
 // değerleri render eder ama bu tek başına yeterli değil (bkz. findInvalidProjectTaxonomyField'daki

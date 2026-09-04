@@ -40,6 +40,17 @@ q, d1, d1_file = imp.q, imp.d1, imp.d1_file
 # proje id -> { görsel indeksi: [ (x%, y%, ürün slug) ] }
 # Görsel indeksi projects.images dizisindeki sıradır; URL'ye betik içinde çevrilir.
 HOTSPOTS = {
+    # --- Akbank Genel Merkezi (Autoban) — bt.design/projeler/akbankhq/ 10 ürün listeliyor -----
+    1742: {
+        0: [  # lounge: iki Ora koltuk, Durgu kanepe, Modest sehpa, bar tarafında Glee tabureler
+            (43.7, 77.2, 'ora-koltuk-b-t-design'),
+            (81.2, 89.9, 'ora-koltuk-b-t-design'),
+            (69.0, 72.0, 'durgu-kanepe-b-t-design'),
+            (59.0, 81.4, 'modest-sehpa-b-t-design'),
+            (46.6, 58.5, 'glee-tabure-b-t-design'),
+        ],
+    },
+
     # --- Agave Games Ofisleri (BuildUp) ------------------------------------------------------
     1485: {
         0: [  # açık ofis — ön planda üç Zenger puf

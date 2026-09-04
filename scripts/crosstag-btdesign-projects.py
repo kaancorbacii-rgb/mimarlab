@@ -52,6 +52,10 @@ from btdesign_families import BRAND_OFFICE_ID, FAMILIES  # noqa: E402
 
 # bt.design proje adı -> (MİMARLAB projects.id listesi, dayanak)
 MATCHES = {
+    # Kullanıcı 2026-09-04'te bu eşleşmeyi DOĞRUDAN onayladı (mimarlab.com/proje/akbank-genel-merkezi
+    # ile bt.design/projeler/akbankhq/ aynı proje). İlk taramada dışarıda bırakılmıştı: D1'deki ad
+    # "Akbank Genel Merkezi", kaynaktaki ad "Akbank HQ" ve künyeler de örtüşmüyordu (kaynak: Autoban).
+    'Akbank HQ': ([1742], 'kullanıcı onayı; D1: Akbank Genel Merkezi'),
     'Agave Games': ([1485], 'ad+şehir; künye BuildUp ↔ Build Up Aac'),
     'Amadeus': ([748], 'ad+şehir; künye Udesign Architecture ↔ tasarımcı Udesign'),
     'Anadolu Hayat Emeklilik': ([1702], 'ad+şehir; künye Yalın Tan + Partners ↔ aynı'),
@@ -76,12 +80,23 @@ MATCHES = {
 ELEMENT = 'Mobilya'
 
 
+# Kullanıcının verdiği 85'lik listede OLMAYAN ama AİLESİ MİMARLAB'da bulunan bt.design sayfaları.
+# Bunlar aynı ürün ailesinin başka bir ayak/döşeme türevidir — aile kartı zaten o türevleri
+# `variants` içinde taşıdığı için doğru hedef ailenin kendisidir (yeni satır AÇILMAZ).
+PAGE_ALIASES = {
+    'bonny-metal-doner-ayak-koltuk': 'bonny',          # ahşap ayak sürümü listede vardı
+    'daisy-premium-ofis-sandalye': 'daisy',            # Daisy ailesinin premium ofis ayağı
+    'rego-papel-ayak-sandalye': 'rego',                # Rego ailesinin papel (kontrplak) ayağı
+}
+
+
 def page_to_key():
     """bt.design ürün sayfası slug'ı -> aile anahtarı."""
     out = {}
     for fam in FAMILIES:
         for slug, _ in fam['pages']:
             out[slug] = fam['key']
+    out.update(PAGE_ALIASES)
     return out
 
 

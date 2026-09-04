@@ -941,24 +941,60 @@ async function findMatchingProductIds(env, officeId, brandNameRaw, productTitle)
   return results.map(r => r.id);
 }
 
-// project_products (bkz. migrations/0022_id_first_entities.sql) şemada var olmasına rağmen daha
-// önce HİÇBİR yerde doldurulmuyordu — ne bu canlı onay akışında ne de tek seferlik
-// scripts/merge-submissions-to-id-first.js'te (orada kasıtlı olarak ertelenmişti, bkz. o dosyadaki
-// yorum). Ürün adı belirtilmemiş bir girişte (yalnızca marka seçilmiş) o markanın TÜM ürün/
-// malzemeleri bağlanır — proje-detay.html#renderRelatedCatalog'un eski istemci-taraf eşleştirme
-// kuralıyla aynı davranış, artık sunucu tarafında ve kalıcı.
+// proje-ekle.html'deki "Kullanılan Markalar/Ürünler" kutusunu iki KENAR TÜRÜNE ayırır:
+//   * marka + ÜRÜN ADI verilmiş satır -> project_products (o tek ürün)
+//   * yalnızca MARKA verilmiş satır   -> project_brands  (marka kenarı, ürün YOK)
+//
+// GERÇEK BULGU (kullanıcı isteği, 2026-09-04): eskiden ürün adı boş bırakılan bir satırda
+// `findMatchingProductIds` markanın TÜM ürünlerini döndürüyordu ve hepsi project_products'a
+// yazılıyordu. Sonuç: kullanıcı yalnızca "B&T Design" seçtiği hâlde proje popup'ının "Kullanılan
+// Ürünler" ızgarasında markanın kataloğundaki 63 ürünün TAMAMI çıkıyordu (canlıda Akbank Genel
+// Merkezi). Bu yalnızca gürültü değil, gerçeğe aykırı bir iddia: o projede o ürünlerin
+// kullanıldığını hiç kimse söylememişti.
+//
+// Doğru karşılık project_brands'tir (migrations/0085) — tam da "ürün bilinmiyor ama marka bu"
+// durumu için var. Okuma tarafı iki kenarı zaten UNION'lıyor (bkz. src/routes/project.js#
+// fetchProjectProducts), popup da ürünleri önce, markaları sonra çiziyor
+// (js/components/project-products.js#mount) — yani ürün eklendiğinde istenen sıra kendiliğinden
+// oluşur, boş bölüm gizlenir.
 async function resolveProjectProductLinks(env, brandsArray, contextLabel) {
   const productIds = new Set();
+  const brandOfficeIds = new Set();
   for (const raw of (brandsArray || [])) {
     const entry = brandEntryOf(raw);
     if (!entry || !entry.brand) continue;
     const officeMatch = await findOneByName(env, 'offices', entry.brand);
     if (officeMatch.ambiguous) { await logConflict(env, 'product_brand', entry.brand, contextLabel, officeMatch.candidates); continue; }
     const officeId = officeMatch.row ? officeMatch.row.id : null;
+    if (!entry.product) {
+      // Yalnızca marka: ürün kenarı KURULMAZ. Marka MİMARLAB'da bir offices satırıyla
+      // eşleşmiyorsa (officeId null) yazılabilecek bir kenar da yoktur — sessizce atlanır,
+      // eskisi gibi marka adıyla tüm katalog taranmaz.
+      if (officeId) brandOfficeIds.add(officeId);
+      continue;
+    }
     const ids = await findMatchingProductIds(env, officeId, entry.brand, entry.product);
     ids.forEach(id => productIds.add(id));
   }
-  return [...productIds];
+  return { productIds: [...productIds], brandOfficeIds: [...brandOfficeIds] };
+}
+
+// Projenin KENDİ formundan gelen marka kenarlarını yeniden kurar.
+//
+// `source` ayrımı KRİTİK: toplu içe aktarımların yazdığı kenarlar (Archello künyesi, B&T partisi —
+// hepsi source='admin') bu fonksiyonla SİLİNMEZ. Aksi hâlde bir proje sahibinin formu kaydetmesi,
+// içe aktarımdan gelen marka künyesini sessizce yok ederdi. Yalnızca 'submission' kaynaklı satırlar
+// bu tarafın sorumluluğundadır — project_products'taki from_project/from_product ayrımının
+// project_brands karşılığı.
+async function setProjectBrandLinks(env, projectId, officeIds) {
+  await env.DB.prepare(`DELETE FROM project_brands WHERE project_id = ? AND source = 'submission'`)
+    .bind(projectId).run();
+  for (const officeId of officeIds) {
+    // OR IGNORE: aynı (proje, marka) için zaten bir 'admin' satırı varsa onun elemanı korunur.
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO project_brands (project_id, office_id, source) VALUES (?, ?, 'submission')`
+    ).bind(projectId, officeId).run();
+  }
 }
 
 // urun-ekle.html'deki "Kullanılan Projeler" kutusunun ({slug,title} listesi) proje id'lerine
@@ -1169,8 +1205,11 @@ async function syncProject(env, row) {
   // artık gerçekten kenarı da kaldırır, (2) ürün tarafından (urun-ekle.html'in "Kullanılan Projeler"
   // kutusundan) kurulmuş kenarlar bu projenin her kaydedilişinde silinmez.
   {
-    const productIds = await resolveProjectProductLinks(env, row.brands, `project_submission:${row.id}`);
+    const { productIds, brandOfficeIds } =
+      await resolveProjectProductLinks(env, row.brands, `project_submission:${row.id}`);
     await setProjectProductLinks(env, 'project', 'project_id', projectId, 'product_id', productIds);
+    // Yalnızca marka seçilmiş satırlar ürün DEĞİL marka kenarı üretir (bkz. o fonksiyonun notu).
+    await setProjectBrandLinks(env, projectId, brandOfficeIds);
   }
   return env.DB.prepare(`SELECT * FROM projects WHERE id = ?`).bind(projectId).first();
 }
