@@ -110,8 +110,20 @@ def http_get(url, tries=3):
 def to_webp(data, max_w):
     from PIL import Image
     im = Image.open(io.BytesIO(data))
-    if im.mode in ('RGBA', 'LA', 'P'):
-        im = im.convert('RGB')
+    # Saydam görsel BEYAZ zemine YAPIŞTIRILIR; alfa kanalı düpedüz DÜŞÜRÜLMEZ.
+    #
+    # 2026-09-04 CANLI HATASI: eski kod `im.convert('RGB')` diyordu. Bu, alfayı atıp RGB'yi
+    # olduğu gibi bırakır — Koleksiyon'un modül render'ları ise **LA** kipinde ve görüntünün
+    # TAMAMI alfa kanalında kodlanmış (parlaklık kanalı her pikselde 0). Sonuç: 2000x1577'lik
+    # perspektif render'ı düpedüz SİYAH BİR SİLUET olarak R2'ye yazıldı ve canlıdaki ürün
+    # pop-up'ında öyle göründü (batch67'de 621 kaynağın 192'si alfalı: 137 RGBA + 55 LA).
+    # Beyaza yapıştırmak her iki kipte de doğrudur: LA'da siyah çizim beyaz zemine oturur,
+    # RGBA'da saydam bölgelerin altındaki çöp piksel siyah hâle bulaşmaz.
+    if im.mode in ('RGBA', 'LA', 'PA') or (im.mode == 'P' and 'transparency' in im.info):
+        rgba = im.convert('RGBA')
+        flat = Image.new('RGB', rgba.size, (255, 255, 255))
+        flat.paste(rgba, mask=rgba.getchannel('A'))
+        im = flat
     elif im.mode != 'RGB':
         im = im.convert('RGB')
     if im.width > max_w:
