@@ -22,7 +22,11 @@ import html as H
 from pathlib import Path
 
 PAGES = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("pages")
-OUT = Path(__file__).parent / "output" / "btdesign-scraped.json"
+# ÇIKTI YOLU ARGÜMANLA VERİLEBİLİR. Sabit tek bir yol, ikinci bir partiyi kazırken BİRİNCİ partinin
+# çıktısını sessizce EZİYOR (2026-09-04'te 17'lik parti 85'lik dosyanın üstüne yazdı; payload
+# üreticisi ve onarım betikleri o dosyayı okuduğu için fark edilmeden bozulabilirdi).
+OUT = Path(sys.argv[2]) if len(sys.argv) > 2 else (
+    Path(__file__).parent / "output" / "btdesign-scraped.json")
 
 BASE = "https://bt.design"
 

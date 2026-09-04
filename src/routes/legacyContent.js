@@ -9,7 +9,7 @@ import { cascadeDeleteArchitect, cascadeDeleteOffice, cascadeDeleteProject, casc
 import {
   findCanonicalRowByNaturalKey, syncApprovedSubmissionToCanonical, CANONICAL_TABLE_BY_TYPE, canonicalKeyFor,
   deleteCanonicalRowFully, collectR2MediaKeys, deleteR2MediaKeys, MEDIA_IMAGE_FIELDS_BY_TYPE,
-  findOneByName, findOrHealSubmissionDraft, cleanupReplacedR2Media,
+  findOneByName, findOrHealSubmissionDraft, cleanupReplacedR2Media, reconcileVariantImages,
 } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -134,9 +134,26 @@ async function handleAdminProductEdit(request, env, id) {
   const images = JSON.stringify(body.images || []);
   const specs = JSON.stringify(body.specs || []);
   const files = JSON.stringify(body.files || []); // bkz. migrations/0071_product_files.sql
+
+  // GERÇEK BULGU (kullanıcı isteği, 2026-09-04: "senin yüklediğin ürünlerde görsellerin yerlerini
+  // değiştiriyorum ama sıralama popupta değişmiyor"): versiyon galerisinin ürün galerisini
+  // gölgelemesi sorunu 2026-09-04'te düzeltilmişti AMA yalnızca GÖNDERİ yolunda
+  // (canonicalSync.js#syncProduct). Bu handler İKİNCİ yazma yolu ve tam da içe aktarılmış
+  // satırların düzenlendiği yol: toplu içe aktarım `products` satırını doğrudan yazar, hiç
+  // `product_submissions` taslağı açmaz — bu yüzden pop-up'taki "Düzenle" o ürünleri buraya
+  // (/urun-ekle?adminedit=<id> -> PATCH /api/admin/legacy/product/:id) yönlendirir. Burada
+  // `variants` hiç güncellenmediğinden `product-modal.js#renderDetailBody` seçili versiyonun ESKİ
+  // `images` dizisini okumaya devam ediyor ve galeri sıralaması pop-up'a HİÇ yansımıyordu.
+  //
+  // reconcileVariantImages versiyonları SİLMEZ (0086'nın güvencesi korunur): ortak görseller yeni
+  // sıraya dizilir, ürün galerisinden çıkarılan görsel versiyondan da düşer, versiyona ÖZEL
+  // görseller (teknik çizim gibi, ürün galerisinde hiç bulunmayanlar) dokunulmadan kalır.
+  const nextVariants = reconcileVariantImages(row.variants, row.images, images);
+  const variantSet = nextVariants === null ? '' : ', variants = ?';
+  const variantVal = nextVariants === null ? [] : [nextVariants];
   await env.DB.prepare(
-    `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?, updated_at = datetime('now') WHERE id = ?`
-  ).bind(title, brandOfficeId, body.brand || null, body.website || null, body.category || null, body.description || null, images, specs, files, body.designer || null, body.year || null, id).run();
+    `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}, updated_at = datetime('now') WHERE id = ?`
+  ).bind(title, brandOfficeId, body.brand || null, body.website || null, body.category || null, body.description || null, images, specs, files, body.designer || null, body.year || null, ...variantVal, id).run();
 
   // legacy_static kökenli ürünlerin bir product_submissions taslağı hiç olmadığından updateOwnSubmission'daki
   // cleanupReplacedR2Media çağrısından geçmezler — galeriden çıkarılan/dosyalar listesinden kaldırılan

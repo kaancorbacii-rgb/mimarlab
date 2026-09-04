@@ -1,0 +1,909 @@
+{
+ "set-kanepe": {
+  "title": "SET",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 240,
+    "D": 93.5,
+    "H": 81,
+    "SH": 39,
+    "extra": {
+     "Oturum Derinliği": 52
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 180,
+    "D": 93.5,
+    "H": 81,
+    "SH": 39,
+    "extra": {
+     "Oturum Derinliği": 52
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 90.5,
+    "D": 93.5,
+    "H": 81,
+    "SH": 39,
+    "extra": {
+     "Oturum Derinliği": 40
+    }
+   }
+  ]
+ },
+ "plat-kanepe": {
+  "title": "PLAT",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 226,
+    "D": 102.5,
+    "H": 68.5,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 64
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 111,
+    "D": 86.5,
+    "H": 68.5,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf",
+    "W": 84,
+    "D": 66,
+    "H": 42,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 56
+    }
+   }
+  ]
+ },
+ "dor-kanepe": {
+  "title": "DOR",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 240,
+    "D": 91,
+    "H": 70,
+    "SH": 39,
+    "extra": {
+     "Oturum Derinliği": 48
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 180,
+    "D": 91,
+    "H": 70,
+    "SH": 39,
+    "extra": {
+     "Oturum Derinliği": 48
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 97,
+    "D": 83,
+    "H": 70,
+    "SH": 39,
+    "extra": {
+     "Oturum Derinliği": 38
+    }
+   },
+   {
+    "label": "Lounge (Daybed)",
+    "W": 185,
+    "D": 77,
+    "H": 73.5,
+    "SH": 41,
+    "extra": {}
+   },
+   {
+    "label": "Puf Ø83",
+    "W": 83,
+    "D": 83,
+    "H": 39,
+    "SH": 39,
+    "extra": {}
+   },
+   {
+    "label": "Puf Ø65",
+    "W": 65,
+    "D": 65,
+    "H": 39,
+    "SH": 39,
+    "extra": {}
+   }
+  ]
+ },
+ "clap-kanepe": {
+  "title": "CLAP",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 215,
+    "D": 88,
+    "H": 81,
+    "SH": 39,
+    "extra": {
+     "Kolçak Yüksekliği": 54,
+     "Oturum Derinliği": 48
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 160,
+    "D": 88,
+    "H": 81,
+    "SH": 39,
+    "extra": {
+     "Kolçak Yüksekliği": 54,
+     "Oturum Derinliği": 48
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 76,
+    "D": 88,
+    "H": 81,
+    "SH": 39,
+    "extra": {
+     "Kolçak Yüksekliği": 54,
+     "Oturum Derinliği": 48
+    }
+   }
+  ]
+ },
+ "roy-sandalye-outdoor": {
+  "title": "ROY",
+  "primary": "Roy Sandalye",
+  "configs": [
+   {
+    "label": "Roy Sandalye",
+    "W": 57.5,
+    "D": 59,
+    "H": 74,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 42
+    }
+   }
+  ]
+ },
+ "vivi-masa": {
+  "title": "VIVI",
+  "primary": "250 × 90",
+  "configs": [
+   {
+    "label": "250 × 90",
+    "W": 250,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "220 × 90",
+    "W": 220,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "180 × 90",
+    "W": 180,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "rego-play-klasik-outdoor": {
+  "title": "REGO PLAY OUTDOOR",
+  "primary": "Klasik Ayak — Oturum Döşemeli",
+  "configs": [
+   {
+    "label": "Klasik Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 56,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Klasik Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 57,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Klasik Ayak — Düz",
+    "W": 61,
+    "D": 56,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Kızak Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 58,
+    "H": 81,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Kızak Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Kızak Ayak — Düz",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "X Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 58,
+    "H": 79,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "X Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "X Ayak — Düz",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 59,
+    "H": 82,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 58,
+    "H": 77,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Düz",
+    "W": 61,
+    "D": 58,
+    "H": 77,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 40
+    }
+   }
+  ]
+ },
+ "rest-klasik-kollu-outdoor": {
+  "title": "REST OUTDOOR",
+  "primary": "Klasik Ayak — Kolçaklı",
+  "configs": [
+   {
+    "label": "Klasik Ayak — Kolçaklı",
+    "W": 55,
+    "D": 53,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Klasik Ayak Tam Döşemeli — Kolçaklı",
+    "W": 55,
+    "D": 52,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Klasik Ayak Oturum Döşemeli — Kolçaklı",
+    "W": 55,
+    "D": 53,
+    "H": 79,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Klasik Ayak — Kolçaksız",
+    "W": 58,
+    "D": 52,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Klasik Ayak Tam Döşemeli — Kolçaksız",
+    "W": 57,
+    "D": 49,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Klasik Ayak Oturum Döşemeli — Kolçaksız",
+    "W": 58,
+    "D": 52,
+    "H": 79,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak — Kolçaklı",
+    "W": 54,
+    "D": 50,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak Tam Döşemeli — Kolçaklı",
+    "W": 54,
+    "D": 50,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak Oturum Döşemeli — Kolçaklı",
+    "W": 54,
+    "D": 50,
+    "H": 79,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak — Kolçaksız",
+    "W": 51,
+    "D": 50,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak Tam Döşemeli — Kolçaksız",
+    "W": 51,
+    "D": 50,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak Oturum Döşemeli — Kolçaksız",
+    "W": 51,
+    "D": 50,
+    "H": 79,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   }
+  ]
+ },
+ "sorbe-puf": {
+  "title": "SORBE",
+  "primary": "Puf Ø120 × 42h",
+  "configs": [
+   {
+    "label": "Puf Ø120 × 42h",
+    "W": 120,
+    "D": 120,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf 92 × 92 × 42h",
+    "W": 92,
+    "D": 92,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf 62 × 62 × 42h",
+    "W": 62,
+    "D": 62,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   }
+  ]
+ },
+ "tori-masa": {
+  "title": "TORI OUTDOOR",
+  "primary": "250 × 100 — Seramik",
+  "configs": [
+   {
+    "label": "250 × 100 — Seramik",
+    "W": 250,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "250 × 100 — Iroko",
+    "W": 250,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "220 × 100 — Seramik",
+    "W": 220,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "220 × 100 — Iroko",
+    "W": 220,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "180 × 90 — Seramik",
+    "W": 180,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "180 × 90 — Iroko",
+    "W": 180,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø90 — Seramik",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø90 — Iroko",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "elusive-masa-outdoor": {
+  "title": "ELUSIVE TABLE OUTDOOR",
+  "primary": "240 × 90 — Seramik",
+  "configs": [
+   {
+    "label": "240 × 90 — Seramik",
+    "W": 240,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "240 × 90 — Iroko",
+    "W": 240,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "200 × 90 — Seramik",
+    "W": 200,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "200 × 90 — Iroko",
+    "W": 200,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "160 × 90 — Seramik",
+    "W": 160,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "160 × 90 — Iroko",
+    "W": 160,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 — Seramik",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 — Iroko",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "globe-masa-outdoor": {
+  "title": "GLOBE TABLE OUTDOOR",
+  "primary": "Ø90 × 75h",
+  "configs": [
+   {
+    "label": "Ø90 × 75h",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 × 75h",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "70 × 70 × 75h",
+    "W": 70,
+    "D": 70,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "sini-sehpa-outdoor": {
+  "title": "SINI OUTDOOR",
+  "primary": "Ø68 × 43h",
+  "configs": [
+   {
+    "label": "Ø48 × 53h",
+    "W": 48,
+    "D": 48,
+    "H": 53,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø68 × 43h",
+    "W": 68,
+    "D": 68,
+    "H": 43,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø88 × 33h",
+    "W": 88,
+    "D": 88,
+    "H": 33,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "drage-sehpa-outdoor": {
+  "title": "DRAGE LOW TABLE OUTDOOR",
+  "primary": "Ø68 × 42h",
+  "configs": [
+   {
+    "label": "Ø48 × 51h",
+    "W": 48,
+    "D": 48,
+    "H": 51,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø68 × 42h",
+    "W": 68,
+    "D": 68,
+    "H": 42,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø88 × 32h",
+    "W": 88,
+    "D": 88,
+    "H": 32,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "globe-sehpa-outdoor": {
+  "title": "GLOBE LOW TABLE OUTDOOR",
+  "primary": "140 × 90 × 40h",
+  "configs": [
+   {
+    "label": "140 × 90 × 40h",
+    "W": 140,
+    "D": 90,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 80 × 40h",
+    "W": 120,
+    "D": 80,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø50 × 55h",
+    "W": 50,
+    "D": 50,
+    "H": 55,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø60 × 45h",
+    "W": 60,
+    "D": 60,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "fly-sehpa-outdoor": {
+  "title": "FLY LOW TABLE OUTDOOR",
+  "primary": "160 × 80 × 37h — Dikdörtgen",
+  "configs": [
+   {
+    "label": "160 × 80 × 37h — Dikdörtgen",
+    "W": 160,
+    "D": 80,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 60 × 37h — Dikdörtgen",
+    "W": 120,
+    "D": 60,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "160 × 80 × 37h — Elips",
+    "W": 160,
+    "D": 80,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 60 × 37h — Elips",
+    "W": 120,
+    "D": 60,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 × 37h — Dikdörtgen",
+    "W": 90,
+    "D": 90,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø90 × 37h",
+    "W": 90,
+    "D": 90,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "55 × 55 × 45h — Dikdörtgen",
+    "W": 55,
+    "D": 55,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø60 × 45h",
+    "W": 60,
+    "D": 60,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "elusive-sehpa-outdoor": {
+  "title": "ELUSIVE LOW TABLE OUTDOOR",
+  "primary": "140 × 60 × 35h — Neolith",
+  "configs": [
+   {
+    "label": "140 × 60 × 35h — Neolith",
+    "W": 140,
+    "D": 60,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "140 × 60 × 35h — Iroko",
+    "W": 140,
+    "D": 60,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 60 × 35h — Neolith",
+    "W": 120,
+    "D": 60,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 60 × 35h — Iroko",
+    "W": 120,
+    "D": 60,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 × 35h — Neolith",
+    "W": 90,
+    "D": 90,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 × 35h — Iroko",
+    "W": 90,
+    "D": 90,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ }
+}
