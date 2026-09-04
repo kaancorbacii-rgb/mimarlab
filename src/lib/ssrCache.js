@@ -76,7 +76,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // üç sayfada hâlâ ayrı bir HTTP isteği doğuruyordu; dosya silindi. Sürüm artırılmazsa daha önce
 // ziyaret edilmiş /proje/:slug ve /urun/:slug sayfaları s-maxage boyunca eski kabuğu sunmaya devam
 // eder ve artık var olmayan add-choice.js için 404 üreten bir istek atardı (v110–v113 ile AYNI tuzak).
-export const SSR_CACHE_VERSION = 'v114';
+// v115 (kullanıcı isteği, 2026-09-04): urun.html kabuğuna da project-group-filter.js script
+// etiketi eklendi — ürün pop-up'ındaki "Firmanın Diğer Ürünleri" bölümü artık marka pop-up'ındaki
+// "Ürünler" ile AYNI kategori filtresini kullanıyor. v110/v111'deki AYNI tuzak, bu kez /urun/:slug
+// için: sürüm artırılmazsa daha önce ziyaret edilmiş ürün sayfaları s-maxage boyunca bu script'i
+// hiç yüklemeyen eski kabuğu sunar ve çentik o sayfalarda görünmezdi.
+export const SSR_CACHE_VERSION = 'v115';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

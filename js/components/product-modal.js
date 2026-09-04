@@ -461,8 +461,15 @@ const ProductModal = (function () {
         <div class="related-grid-scroll" id="pr-used-architects-grid"></div>
       </div>
     </div>
+    <!-- Kategoriye göre filtre çentiği (kullanıcı isteği, 2026-09-04: "Marka popupında Ürünler
+         başlığında yaptığımız filtrelemenin aynısını Ürün popupında Firmanın Diğer Ürünleri
+         başlığında da yap.") — marka pop-up'ındaki "Ürünler" bölümüyle BİREBİR aynı bileşen ve
+         gruplama alanı (products.category), bkz. js/components/project-group-filter.js ve
+         js/components/office-modal.js#paintCatalogProducts. Hem başlığa hem çentiğe tıklamak
+         çipleri açar/kapatır, sayaç seçime göre güncellenir. -->
     <div class="related-section" id="pr-company-section" style="display:none;">
-      <h2 class="related-title" id="pr-company-title">Firmanın Diğer Ürünleri</h2>
+      <h2 class="related-title" id="pr-company-title">Firmanın Diğer Ürünleri<span id="pr-company-count"></span><button type="button" class="pgf-toggle" id="pr-company-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="pr-company-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="pr-company-grid"></div>
     </div>
     <div class="related-section" id="pr-related-section" style="display:none;">
@@ -1130,12 +1137,38 @@ const ProductModal = (function () {
       if (!res.ok) return;
       const data = await res.json();
       if (currentItem !== p) return;
-      // 9 — bkz. js/components/project-related.js#RESULT_COUNT: tüm öneri şeritlerinin ORTAK üst sınırı.
-      const items = (data.items || []).filter(x => x.ratingKey !== selfKey).slice(0, 9);
+      // Sabit 9'luk üst sınır KALDIRILDI (kullanıcı isteği, 2026-09-04 — bu bölüme kategori filtresi
+      // eklenince): liste 9'a kırpılırsa çipler markanın TÜM kataloğunu değil yalnızca ilk 9 ürünün
+      // kategorilerini gösterir, yani filtre çoğu markada ya hiç çıkmaz ya da yanıltıcı sayılar
+      // verirdi (ör. Nurus: 36 ürün / 6 kategori, ilk 9'unda 2-3 kategori). DOM maliyeti değişmez —
+      // RelatedStrip zaten 9'ar 9'ar basıyor ve gerisini "Devamını Gör" ile ekliyor; proje
+      // pop-up'ındaki AYNADAKİ bölüm ("Firmanın Diğer Projeleri") de bu yüzden sınırsızdır
+      // (bkz. js/components/project-related.js#mount).
+      const items = (data.items || []).filter(x => x.ratingKey !== selfKey);
       if (!items.length) return;
-      RelatedStrip.render(document.getElementById('pr-company-grid'), items, r =>
-        cardHtml(`/urun/${encodeURIComponent(r.slug)}`, r.title, r.image, r.category)
-      );
+      // Izgara + başlık sayacı TEK yerden çizilir; filtre seçim değiştikçe bunu süzülmüş listeyle
+      // yeniden çağırır (office-modal.js#paintCatalogProducts İLE AYNI desen). Bölümün display'i
+      // bilerek bu fonksiyonun DIŞINDA, tam liste üzerinden ayarlanır — filtre daraltınca bölüm
+      // (ve çipleri) kaybolmasın diye.
+      const paint = (list) => {
+        RelatedStrip.render(document.getElementById('pr-company-grid'), list, r =>
+          cardHtml(`/urun/${encodeURIComponent(r.slug)}`, r.title, r.image, r.category)
+        );
+        document.getElementById('pr-company-count').textContent = list.length ? ` (${list.length})` : '';
+      };
+      paint(items);
+      if (typeof ProjectGroupFilter !== 'undefined') {
+        ProjectGroupFilter.attach({
+          // Hem başlığa hem çentiğe tıklamak açar — dinleyici başlığa bağlanır, çentik onun içinde.
+          titleEl: document.getElementById('pr-company-title'),
+          toggleEl: document.getElementById('pr-company-filter-toggle'),
+          chipsEl: document.getElementById('pr-company-filter-chips'),
+          items,
+          // Ürünlerde grup = kategori (marka pop-up'ındaki "Ürünler" bölümüyle AYNI alan).
+          groupsOf: ProjectGroupFilter.byField('category'),
+          onChange: paint,
+        });
+      }
       section.style.display = '';
     } catch {}
   }
