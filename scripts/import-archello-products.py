@@ -34,6 +34,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_NAME = 'mimarlab-db'
@@ -132,6 +133,61 @@ def r2_put(key, data, content_type='image/webp'):
         os.unlink(path)
 
 
+def webp_width(data):
+    """Kodlanmış WebP'nin GERÇEK genişliği — note_derivatives'in "asla büyütme" kararı için."""
+    from PIL import Image
+    try:
+        return Image.open(io.BytesIO(data)).width
+    except Exception:
+        return 0
+
+
+# image-cdn.js#DERIVATIVE_WIDTHS / src/lib/derivativeIngest.js#DERIVATIVE_WIDTHS ile BİREBİR AYNI.
+DERIVATIVE_WIDTHS = [400, 800, 1600]
+# Bu koşuda R2'ye yazılan her ORİJİNAL için üretilmesi gereken (r2_key, width) çiftleri.
+_pending_derivatives = []
+
+
+def note_derivatives(key, src_width):
+    """Yazılan bir orijinali responsive türev kuyruğuna aday olarak biriktirir.
+
+    DENETİM BULGUSU (2026-09-04): bu betik (ve import-archello-brands.py) R2'ye yalnızca ORİJİNALİ
+    yazıyor, ne türev üretiyor ne de D1'deki image_derivative_queue'ya iş bırakıyordu. Tarayıcı
+    üzerinden yapılan yüklemelerde bu boşluk yok (image-upload.js türevleri üretir, üretemediğini
+    src/lib/derivativeIngest.js kuyruğa yazar) — ama içe aktarma betikleri o yolun TAMAMEN dışında
+    çalışıyor. Sonuç: 2026-09-04'te içe aktarılan 27 Archello ürününün kapak görselleri ana sayfa
+    ürün ızgarasında w800 türevi bulunamadığı için ORİJİNALE geri düşüyordu — 380 CSS px'lik bir
+    kart için 401 KB'lık 1600 px'lik dosya (türev üretildiğinde 117 KB; %71 tasarruf).
+
+    Kuyruğa yazmak yeterli: scripts/drain-derivative-queue.py artımlı olarak boşaltır ve
+    generate-image-derivatives.py ile TAM TARAMA yapmak (26.500 kaynak, saatler) gerekmez.
+    ASLA BÜYÜTME kuralı burada da geçerli — kaynaktan geniş basamak kuyruğa hiç girmez.
+    """
+    for w in DERIVATIVE_WIDTHS:
+        if src_width > w:
+            _pending_derivatives.append((key, w))
+
+
+def flush_derivative_queue(dry_run):
+    """Biriken çiftleri tek bir batch ile image_derivative_queue'ya yazar (INSERT OR IGNORE —
+    src/lib/derivativeIngest.js#queueDerivatives ile AYNI idempotent desen)."""
+    if not _pending_derivatives:
+        return 0
+    if dry_run:
+        print(f'  [dry-run] türev kuyruğuna {len(_pending_derivatives)} iş yazılmazdı.')
+        return 0
+    now = int(time.time() * 1000)
+    rows = ',\n'.join(
+        f'({q(k)}, {w}, {now})' for k, w in _pending_derivatives)
+    d1_file('INSERT OR IGNORE INTO image_derivative_queue (r2_key, width, created_at) VALUES\n'
+            + rows + ';\n')
+    n = len(_pending_derivatives)
+    _pending_derivatives.clear()
+    print(f'  türev kuyruğuna {n} iş yazıldı — boşaltmak için: '
+          'python3 scripts/drain-derivative-queue.py')
+    return n
+
+
 # --------------------------------------------------------------------------------------------
 # 1) Markalar
 # --------------------------------------------------------------------------------------------
@@ -163,8 +219,10 @@ WHERE deleted_at IS NULL AND (slug IN ({slugs}) OR name COLLATE NOCASE IN ({name
                     logo_path = f'/media/{key}'
                     print(f'    [dry] logo {key} ({len(raw)//1024} KB)')
                 else:
-                    ok, err = r2_put(key, to_webp(raw, MAX_LOGO_W))
+                    logo_webp = to_webp(raw, MAX_LOGO_W)
+                    ok, err = r2_put(key, logo_webp)
                     if ok:
+                        note_derivatives(key, webp_width(logo_webp))
                         logo_path = f'/media/{key}'
                         print(f'    logo yüklendi: {key}')
                     else:
@@ -225,6 +283,8 @@ def upload_images(item, dry_run, skip_images):
         if dry_run:
             return (idx, f'/media/{key}', None)
         ok, err = r2_put(key, webp)
+        if ok:
+            note_derivatives(key, webp_width(webp))
         return (idx, f'/media/{key}', None) if ok else (idx, None, f'R2: {err}')
 
     jobs = list(enumerate(item['images'], start=1))
@@ -315,6 +375,13 @@ def main():
     else:
         d1_file('\n'.join(stmts))
         print(f'  {len(stmts)} ürün yazıldı.')
+
+    # Responsive türev kuyruğu — bkz. note_derivatives dosya içi notu. Ürün satırları YAZILDIKTAN
+    # sonra çalışır: kuyruğu boşaltan betik türevi üretirken kaynağı public /media/ üzerinden
+    # indirir, o da yalnızca R2'de duran nesneye bakar (D1 satırına değil), ama sıralamayı yine de
+    # "önce içerik, sonra optimizasyon" tutmak akışı okunur kılıyor.
+    print('\n--- 6) Responsive türev kuyruğu ---')
+    flush_derivative_queue(args.dry_run)
 
     out = os.path.join(ROOT, 'scripts', 'output', 'archello-products-import-report.json')
     os.makedirs(os.path.dirname(out), exist_ok=True)

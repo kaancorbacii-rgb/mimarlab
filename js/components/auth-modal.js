@@ -1217,7 +1217,7 @@ const AuthModal = (function () {
         <div class="dash-section">
           <!-- Başlık "Eklediklerim" + "Proje Ekle/Ürün Ekle/..." bağlantı satırı KALDIRILDI
                (kullanıcı isteği, 2026-09-01 madde 3). Ekleme sayfalarına giden yol zaten
-               nav/footer'daki "İçerik Ekle" akışında var (bkz. add-choice.js); bu kutu artık
+               nav/footer'daki "İçerik Ekle" akışında var (bkz. site-chrome.js); bu kutu artık
                yalnızca "ne eklediğimi göster" işini yapıyor.
                "Marka" filtresi diğer butonların EN SONUNA eklendi — marka gönderileri ayrı bir
                gönderi tipi değil, offices gönderisidir; ayrım sunucudan gelen item.isBrand ile

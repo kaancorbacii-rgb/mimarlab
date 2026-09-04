@@ -784,7 +784,8 @@ const editParams = new URLSearchParams(window.location.search);
 let editId = editParams.get('edit');
 let claimSlug = editParams.get('claim');
 // ?ai=1: proje.html'deki seçim modalından "Yapay Zeka ile Otomatik Ekle" seçilince buraya düşülür
-// (bkz. add-choice.js). editId/claimSlug ile aynı anda anlamlı değildir; edit/claim varsa AI paneli
+// (AI ile ekle akışı şimdilik kapalı, bkz. aşağıdaki wireAiPanel). editId/claimSlug ile aynı anda
+// anlamlı değildir; edit/claim varsa AI paneli
 // hiç gösterilmez (aşağıdaki wireAiPanel guard'ı).
 const aiMode = editParams.get('ai') === '1';
 let aiSourceUrl = null; // gönderimde source_url olarak payload'a eklenir
@@ -2135,7 +2136,7 @@ function mountProjectAdminActions(){
 
 if(claimSlug) prefillForClaim(); else prefillForEdit();
 
-// ---------- AI ile Otomatik Doldur (?ai=1, bkz. add-choice.js) ----------
+// ---------- AI ile Otomatik Doldur (?ai=1) ----------
 // AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit/prefillForClaim) ile AYNI alanları AYNI
 // fonksiyonlarla (parseLocationFull, updateKategoriLabel, setExistingImages/renderPreviews) doldurur
 // — tek fark veri kaynağının bir gönderi kaydı değil, /api/ai/extract'in dönüşü olması.
@@ -2185,7 +2186,11 @@ async function applyAiResult(data){
 }
 
 function wireAiPanel(){
-  return; // AI ile ekle özelliği şimdilik kaldırıldı (bkz. add-choice.js)
+  // AI ile ekle özelliği ŞİMDİLİK KAPALI (kullanıcı kararı). Aşağıdaki gövde bilinçli olarak
+  // korunuyor: özellik geri açılacağı gün tek satırlık bu return silinerek devreye girer.
+  // (Eskiden seçim modalını add-choice.js açardı; o dosya 2026-09-04 denetiminde no-op olduğu için
+  // silindi — geri gelirse modal yeniden yazılır.)
+  return;
   if(!aiMode || editId || claimSlug) return; // düzenleme/sahiplenme akışlarıyla asla aynı anda değil
   document.getElementById('ai-panel').style.display = 'block';
   const urlInput = document.getElementById('ai-url-input');

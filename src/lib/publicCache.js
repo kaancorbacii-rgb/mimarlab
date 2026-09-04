@@ -61,7 +61,10 @@ const PUBLIC_LIST_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxa
 // düzeyinde, kendiliğinden dolan) önbelleklenir.
 const CACHEABLE_PATHS = [
   '/api/public/hidden', '/api/public/project-edits', '/api/public/profile-edits',
-  '/api/public/news',
+  // '/api/public/news' KALDIRILDI (denetim, 2026-09-04): bu yolu servis eden BİR handler YOK —
+  // src/routes/public.js'te karşılığı hiç bulunmuyor ve canlıda 404 dönüyor (doğrulandı; `news`
+  // tablosu da 0 satır, haber özelliği kaldırıldı). Listede durduğu sürece invalidatePublicCache()
+  // her içerik mutasyonunda var olmayan bir URL için gereksiz bir edge cache DELETE'i atıyordu.
   // D1 audit (2026-08-25) P0-2 — En İyi 100 (computeTop100) sitedeki TEK sıfır-cache public liste
   // ucuydu (bkz. audit raporu B3): top100_entries + 2x projects IN + ratings tam taraması + snapshot,
   // her istekte, hiçbir cachedPublicJson sarmalayıcısı olmadan. Sorgu dizesi taşımadığından
@@ -95,15 +98,15 @@ const CACHEABLE_PATHS = [
 // (aşağıdaki `!cacheable` dalı zaten bunu çağırıyor) korunmaya devam eder.
 const BADGE_NO_CACHE_HEADERS = { 'Cache-Control': 'private, no-store, must-revalidate' };
 
-// Faz 4B — GET /api/projects, /api/architects, /api/offices, /api/products, /api/news (sayfalama/
-// filtre query string'i taşıyan liste uçları — /api/news, Faz 4B doğrulama turunda routing
-// çakışması bulunup düzeltildikten sonra buraya eklendi, bkz. src/routes/public.js#
-// handleNewsListRoute). CACHEABLE_PATHS'teki sabit yollardan farkı: anahtar TAM URL'dir (pathname +
-// query string BİRLİKTE) — sayfa/limit/sıralama/filtre kombinasyonu, profil anahtarları gibi
-// sınırsız DEĞİL (pratikte kullanıcılar birkaç sayfa/filtre kombinasyonunu ziyaret eder), bu yüzden
-// her kombinasyon kendi caches.default girdisi olarak güvenle tutulabilir. NOT: `/api/news` prefix'i
-// `/api/public/news` ile ÇAKIŞMAZ — farklı path segmentleri (bkz. isListPath'teki tam-önek eşleşmesi).
-const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products', '/api/news'];
+// Faz 4B — GET /api/projects, /api/architects, /api/offices, /api/products (sayfalama/filtre query
+// string'i taşıyan liste uçları). CACHEABLE_PATHS'teki sabit yollardan farkı: anahtar TAM URL'dir
+// (pathname + query string BİRLİKTE) — sayfa/limit/sıralama/filtre kombinasyonu, profil anahtarları
+// gibi sınırsız DEĞİL (pratikte kullanıcılar birkaç sayfa/filtre kombinasyonunu ziyaret eder), bu
+// yüzden her kombinasyon kendi caches.default girdisi olarak güvenle tutulabilir.
+// '/api/news' KALDIRILDI (denetim, 2026-09-04): yorumun işaret ettiği src/routes/public.js#
+// handleNewsListRoute HİÇ YOK, uç canlıda 404 dönüyor ve `news` tablosu 0 satır (haber özelliği
+// kaldırıldı, bkz. DISABLED_PAGE_PATHS'teki '/haber-detay'). Zararsızdı ama ölü yapılandırmaydı.
+const CACHEABLE_LIST_PREFIXES = ['/api/projects', '/api/architects', '/api/offices', '/api/products'];
 
 // D1 audit (2026-08-25) P0-1 — tekil kayıt (detay) uçları: /api/project/:slug, /api/architect/:key,
 // /api/office/:key, /api/product/:key. Önceden bu 4 uç `isListPath`'in yalnızca ÇOĞUL path'leri

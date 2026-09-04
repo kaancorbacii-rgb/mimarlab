@@ -509,7 +509,8 @@ const dupNameCheck = DuplicateNameCheck.attach({
   getExcludeBrand: () => originalBrand,
 });
 // ?ai=1: urun.html'deki seçim modalından "Yapay Zeka ile Otomatik Ekle" seçilince buraya düşülür
-// (bkz. add-choice.js). editId ile aynı anda anlamlı değildir; edit varsa AI paneli gösterilmez.
+// (AI ile ekle akışı şimdilik kapalı, bkz. aşağıdaki wireAiPanel). editId ile aynı anda anlamlı
+// değildir; edit varsa AI paneli gösterilmez.
 const aiMode = new URLSearchParams(window.location.search).get('ai') === '1';
 let aiSourceUrl = null; // gönderimde source_url olarak payload'a eklenir
 let aiGenerated = false; // gönderimde ai_generated:1 olarak payload'a eklenir + onay kutusunu zorunlu kılar
@@ -1060,7 +1061,7 @@ document.getElementById('u-project-input').addEventListener('keydown', (e)=>{
 // başındaki gerekçe). Buradaki eski resizeImageForUpload/convertCopiedImageToWebp kopyaları
 // KALDIRILDI — türev üretmiyorlardı, yeni her görsel tam boy iniyordu.
 
-// ---------- AI ile Otomatik Doldur (?ai=1, bkz. add-choice.js) ----------
+// ---------- AI ile Otomatik Doldur (?ai=1) ----------
 // AI'ın doldurduğu form, mevcut düzenleme (prefillForEdit) ile AYNI alanları AYNI fonksiyonlarla
 // (taxonomyGroupOf/populateCategoryOptions, renderPreviews) doldurur — tek fark veri kaynağının bir
 // gönderi kaydı değil, /api/ai/extract'in dönüşü olması.
@@ -1086,7 +1087,11 @@ function applyAiResult(data){
 }
 
 function wireAiPanel(){
-  return; // AI ile ekle özelliği şimdilik kaldırıldı (bkz. add-choice.js)
+  // AI ile ekle özelliği ŞİMDİLİK KAPALI (kullanıcı kararı). Aşağıdaki gövde bilinçli olarak
+  // korunuyor: özellik geri açılacağı gün tek satırlık bu return silinerek devreye girer.
+  // (Eskiden seçim modalını add-choice.js açardı; o dosya 2026-09-04 denetiminde no-op olduğu için
+  // silindi — geri gelirse modal yeniden yazılır.)
+  return;
   if(!aiMode || editId) return; // düzenleme akışıyla asla aynı anda değil
   document.getElementById('ai-panel').style.display = 'block';
   const urlInput = document.getElementById('ai-url-input');

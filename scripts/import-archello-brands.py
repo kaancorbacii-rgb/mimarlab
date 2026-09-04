@@ -35,6 +35,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_NAME = 'mimarlab-db'
@@ -176,6 +177,52 @@ def r2_put(key: str, data: bytes) -> bool:
         os.unlink(path)
 
 
+# image-cdn.js#DERIVATIVE_WIDTHS / src/lib/derivativeIngest.js#DERIVATIVE_WIDTHS ile BİREBİR AYNI.
+DERIVATIVE_WIDTHS = [400, 800, 1600]
+_pending_derivatives = []
+
+
+def webp_width(data: bytes) -> int:
+    """Kodlanmış WebP'nin GERÇEK genişliği — "asla büyütme" kararı için."""
+    from PIL import Image
+    try:
+        return Image.open(io.BytesIO(data)).width
+    except Exception:
+        return 0
+
+
+def note_derivatives(key: str, src_width: int):
+    """Yazılan orijinali responsive türev kuyruğuna aday olarak biriktirir.
+
+    DENETİM BULGUSU (2026-09-04, import-archello-products.py#note_derivatives ile AYNI kök neden):
+    içe aktarma betikleri R2'ye yalnızca ORİJİNALİ yazıyor, tarayıcı yükleme yolundaki türev
+    üretimini (image-upload.js) ve onun kuyruk yedeğini (src/lib/derivativeIngest.js) tamamen
+    atlıyordu. Sonuç: içe aktarılan marka logo/kapaklarında w400/w800 türevi bulunamayınca
+    /media/_derived/... güvenlik ağı ORİJİNALE geri düşüyor ve küçük bir slota tam boy dosya iniyor.
+    """
+    for w in DERIVATIVE_WIDTHS:
+        if src_width > w:
+            _pending_derivatives.append((key, w))
+
+
+def flush_derivative_queue(dry_run: bool) -> int:
+    """INSERT OR IGNORE — src/lib/derivativeIngest.js#queueDerivatives ile AYNI idempotent desen."""
+    if not _pending_derivatives:
+        return 0
+    if dry_run:
+        print(f'  [dry-run] türev kuyruğuna {len(_pending_derivatives)} iş yazılmazdı.')
+        return 0
+    now = int(time.time() * 1000)
+    rows = ',\n'.join(f'({q(k)}, {w}, {now})' for k, w in _pending_derivatives)
+    d1_file('INSERT OR IGNORE INTO image_derivative_queue (r2_key, width, created_at) VALUES\n'
+            + rows + ';\n')
+    n = len(_pending_derivatives)
+    _pending_derivatives.clear()
+    print(f'  türev kuyruğuna {n} iş yazıldı — boşaltmak için: '
+          'python3 scripts/drain-derivative-queue.py')
+    return n
+
+
 def process_images(records, dry_run: bool, skip: bool):
     """Her marka için logo/kapak → WebP → R2. Sonuç: rec['logoPath']/rec['coverPath'] (/media/...)."""
     if skip:
@@ -204,6 +251,7 @@ def process_images(records, dry_run: bool, skip: bool):
                 r[f'{kind}Path'] = f'/media/{key}'
                 continue
             if r2_put(key, webp):
+                note_derivatives(key, webp_width(webp))
                 r[f'{kind}Path'] = f'/media/{key}'
                 print(f'    {key}  {len(raw) // 1024}KB -> {len(webp) // 1024}KB')
         return r
@@ -347,6 +395,9 @@ VALUES
 {rows}
 ON CONFLICT(project_id, office_id) DO UPDATE SET element = excluded.element;""")
         print('  project_brands yazıldı.')
+
+    # Responsive türev kuyruğu — bkz. note_derivatives.
+    flush_derivative_queue(args.dry_run)
 
     return 0
 

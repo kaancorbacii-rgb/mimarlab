@@ -71,7 +71,12 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // arama.html'in satır içi JS'ine arama-gösterimi çağrısı girdi. v110/v111'deki AYNI tuzak: sürüm
 // artırılmazsa daha önce ziyaret edilmiş detay sayfaları s-maxage boyunca bu script'i hiç
 // yüklemeyen eski kabuğu sunar ve o ziyaretler HİÇ sayılmazdı.
-export const SSR_CACHE_VERSION = 'v113';
+// v114 (denetim/temizlik, 2026-09-04): proje.html ve urun.html kabuklarından <script
+// src="add-choice.js"> etiketi KALDIRILDI — o dosya bir no-op IIFE'ye dönüşmüştü (içi boş) ama
+// üç sayfada hâlâ ayrı bir HTTP isteği doğuruyordu; dosya silindi. Sürüm artırılmazsa daha önce
+// ziyaret edilmiş /proje/:slug ve /urun/:slug sayfaları s-maxage boyunca eski kabuğu sunmaya devam
+// eder ve artık var olmayan add-choice.js için 404 üreten bir istek atardı (v110–v113 ile AYNI tuzak).
+export const SSR_CACHE_VERSION = 'v114';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

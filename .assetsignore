@@ -1,7 +1,23 @@
+# DENETİM BULGUSU (2026-09-04): aşağıdaki dosyaların HİÇBİRİ burada listelenmiyordu ve canlıda
+# 200 ile HERKESE AÇIK servis ediliyordu (curl ile doğrulandı):
+#   https://mimarlab.com/deploy.sh                  -> deploy prosedürü + worktree guard mantığı
+#   https://mimarlab.com/CLAUDE.md                  -> iç proje notları
+#   https://mimarlab.com/docs/architecture-roadmap.md, /docs/disaster-recovery.md,
+#   /docs/rate-limiting-runbook.md                  -> altyapı/kurtarma runbook'ları, D1 yedek yordamı
+#   https://mimarlab.com/.gitignore                 -> secret dosya adları (.dev.vars vb.)
+#   https://mimarlab.com/.github/workflows/smoke-test.yml
+# .gitignore'da olmak YETMEZ (bkz. memory: ".gitignore ≠ .assetsignore") — Cloudflare Assets
+# yalnızca BU dosyayı okur. Hiçbiri tarayıcıdan istenmiyor; tamamı ölü + bilgi sızıntısı.
 .git
+.gitignore
+.assetsignore
+.github
 .wrangler
 .DS_Store
 .claude
+CLAUDE.md
+docs
+deploy.sh
 wrangler.jsonc
 src
 schema.sql
