@@ -130,7 +130,12 @@ async function fetchProjectProducts(env, projectId) {
   // relatedBrandsRes ile BİREBİR AYNI kuraldır — önce brand_office_id, o boşsa marka ADI (toplu/
   // legacy eklenen ürünlerde brand_office_id boş kalır). used_count: markanın bu projede kullanılan
   // ürün sayısı; en çok kullanılan marka başa gelir.
-  const [{ results }, { results: brandRows }] = await Promise.all([
+  //
+  // İKİNCİ KENAR TÜRÜ (2026-09-04): project_brands — markayı bir katalog ürünü ARACILIĞIYLA DEĞİL,
+  // doğrudan yapı elemanı künyesiyle projeye bağlar ("Vitrifiye Elemanları → VitrA"). Gerekçe için
+  // bkz. migrations/0085_project_brands.sql. İki küme burada UNION ile birleştirilir; aynı marka
+  // her iki yoldan da geliyorsa aşağıdaki birleştirme onu TEK karta indirger.
+  const [{ results }, { results: brandRows }, { results: directBrandRows }] = await Promise.all([
     env.DB.prepare(
       `SELECT p.slug, p.title, p.brand_name_raw, p.category, p.kind, p.images
        FROM project_products pp JOIN products p ON p.id = pp.product_id
@@ -146,6 +151,13 @@ async function fetchProjectProducts(env, projectId) {
        GROUP BY b.id
        ORDER BY used_count DESC, b.name COLLATE NOCASE`
     ).bind(projectId).all(),
+    env.DB.prepare(
+      `SELECT b.slug, b.name, b.loc, b.logo_url, pb.element
+       FROM project_brands pb
+       JOIN offices b ON b.id = pb.office_id AND b.deleted_at IS NULL AND b.hidden_at IS NULL
+       WHERE pb.project_id = ?
+       ORDER BY b.name COLLATE NOCASE`
+    ).bind(projectId).all(),
   ]);
   const items = results.map(row => ({
     slug: row.slug, title: row.title, brand: row.brand_name_raw, category: row.category,
@@ -153,7 +165,19 @@ async function fetchProjectProducts(env, projectId) {
   }));
   // Kartlar firma kartlarıyla AYNI şekle sahiptir (slug/name/loc/logo) — office-modal.js'teki
   // mevcut cardHtml/logoUrl yolu ile aynı işaretleme kullanılabilsin diye (bkz. office.js#relatedBrands).
-  const brands = brandRows.map(b => ({ slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0 }));
+  // İki kenar türü slug üzerinden birleştirilir: bir marka hem katalog ürünüyle hem eleman künyesiyle
+  // aynı projede geçiyorsa iki kart DEĞİL, tek kart çıkar (usedCount korunur, element eklenir).
+  const brandBySlug = new Map();
+  for (const b of brandRows) {
+    brandBySlug.set(b.slug, { slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: b.used_count || 0, element: null });
+  }
+  for (const b of directBrandRows) {
+    const existing = brandBySlug.get(b.slug);
+    if (existing) existing.element = b.element || existing.element;
+    else brandBySlug.set(b.slug, { slug: b.slug, name: b.name, loc: b.loc, logo: b.logo_url, usedCount: 0, element: b.element || null });
+  }
+  const brands = [...brandBySlug.values()]
+    .sort((a, b) => (b.usedCount - a.usedCount) || a.name.localeCompare(b.name, 'tr'));
   return { products: items.filter(i => i.kind !== 'material'), materials: items.filter(i => i.kind === 'material'), brands };
 }
 

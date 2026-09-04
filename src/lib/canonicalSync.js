@@ -398,6 +398,10 @@ export async function hardDeleteCanonicalRow(env, type, row, userId) {
       env.DB.prepare(`UPDATE products SET brand_office_id = NULL WHERE brand_office_id = ?`).bind(row.id),
       env.DB.prepare(`DELETE FROM office_founders WHERE office_id = ?`).bind(row.id),
       env.DB.prepare(`DELETE FROM project_designers WHERE office_id = ?`).bind(row.id),
+      // project_brands — markanın doğrudan proje kenarları (bkz. migrations/0085_project_brands.sql).
+      // project_designers ile AYNI gerekçe: şemada ON DELETE CASCADE olmasına rağmen bu fonksiyon
+      // join tablolarını ELLE de temizler (D1'de FK enforcement'a güvenilmiyor, bkz. üstteki not).
+      env.DB.prepare(`DELETE FROM project_brands WHERE office_id = ?`).bind(row.id),
     );
   }
   if (type === 'architects') {
@@ -411,6 +415,8 @@ export async function hardDeleteCanonicalRow(env, type, row, userId) {
     statements.push(
       env.DB.prepare(`DELETE FROM project_designers WHERE project_id = ?`).bind(row.id),
       env.DB.prepare(`DELETE FROM project_products WHERE project_id = ?`).bind(row.id),
+      // bkz. yukarıdaki offices bloğundaki AYNI satır (migrations/0085_project_brands.sql).
+      env.DB.prepare(`DELETE FROM project_brands WHERE project_id = ?`).bind(row.id),
       env.DB.prepare(`DELETE FROM project_awards WHERE project_id = ?`).bind(row.id),
     );
   }

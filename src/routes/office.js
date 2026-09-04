@@ -509,14 +509,23 @@ async function buildOfficePayload(env, key) {
     // brandProductsRes ile AYNI kuraldır (brand_office_id, o boşsa marka adı).
     // relatedProjects'ten (firmanın TASARLADIĞI projeler) tamamen ayrı bir kümedir; bir marka
     // hiçbir proje tasarlamamış olsa bile burası dolu olabilir.
+    // İKİNCİ KENAR TÜRÜ (2026-09-04): project_brands — katalog ürünü olmadan, yapı elemanı
+    // künyesiyle kurulan doğrudan marka→proje kenarı (bkz. migrations/0085_project_brands.sql).
+    // src/routes/project.js#fetchProjectProducts'taki AYNI birleşimin marka tarafındaki eşi;
+    // UNION tekilleştirdiği için iki yoldan da gelen bir proje TEK kez listelenir.
     env.DB.prepare(
-      `SELECT DISTINCT p.slug, p.title, p.location, p.images
+      `SELECT p.slug, p.title, p.location, p.images, p.id AS pid
        FROM products pr
        JOIN project_products pp ON pp.product_id = pr.id
        JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
        WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
          AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
-       ORDER BY p.id DESC`
+       UNION
+       SELECT p.slug, p.title, p.location, p.images, p.id AS pid
+       FROM project_brands pb
+       JOIN projects p ON p.id = pb.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+       WHERE pb.office_id = ?1
+       ORDER BY pid DESC`
     ).bind(o.id, o.name).all(),
     // "Tercih Eden Firmalar" / "Tercih Eden Mimarlar" (kullanıcı isteği, 2026-09-01 madde 7) —
     // hemen yukarıdaki brandProductProjects zincirinin BİR HALKA DEVAMI: marka → ürünleri →
@@ -526,28 +535,42 @@ async function buildOfficePayload(env, key) {
     // eden firma/mimarları). used_count: markanın ürünlerinin kaç ayrı projesinde kullanıldığı —
     // en çok tercih eden başa gelir. Markanın KENDİSİ (b.id != o.id) elenir: bir marka kendi
     // ürününü kendi projesinde kullandıysa bu "tercih eden" sayılmaz.
+    // NOT: iç sorgu (brand_project_ids) hemen yukarıdaki brandProductProjects UNION'ının AYNISIDIR —
+    // "markanın geçtiği projeler" tanımı üç sorguda da aynı kalsın diye. Yalnızca project_products
+    // tarafına bakılsaydı, kenarları sadece project_brands'ten gelen bir marka popup'ında dolu bir
+    // proje listesi ama BOŞ "Tercih Eden Firmalar" bölümü gösterirdi.
     env.DB.prepare(
-      `SELECT o2.slug, o2.name, o2.loc, o2.logo_url, COUNT(DISTINCT p.id) AS used_count
-       FROM products pr
-       JOIN project_products pp ON pp.product_id = pr.id
-       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+      `WITH brand_project_ids AS (
+         SELECT pp.project_id AS pid FROM products pr
+         JOIN project_products pp ON pp.product_id = pr.id
+         WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+           AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
+         UNION
+         SELECT pb.project_id AS pid FROM project_brands pb WHERE pb.office_id = ?1
+       )
+       SELECT o2.slug, o2.name, o2.loc, o2.logo_url, COUNT(DISTINCT p.id) AS used_count
+       FROM brand_project_ids b
+       JOIN projects p ON p.id = b.pid AND p.deleted_at IS NULL AND p.hidden_at IS NULL
        JOIN project_designers pd ON pd.project_id = p.id
        JOIN offices o2 ON o2.id = pd.office_id AND o2.deleted_at IS NULL AND o2.hidden_at IS NULL
-       WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-         AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
-         AND o2.id != ?1
+       WHERE o2.id != ?1
        GROUP BY o2.id
        ORDER BY used_count DESC, o2.name COLLATE NOCASE`
     ).bind(o.id, o.name).all(),
     env.DB.prepare(
-      `SELECT ar.slug, ar.name, ar.photo_url, COUNT(DISTINCT p.id) AS used_count
-       FROM products pr
-       JOIN project_products pp ON pp.product_id = pr.id
-       JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
+      `WITH brand_project_ids AS (
+         SELECT pp.project_id AS pid FROM products pr
+         JOIN project_products pp ON pp.product_id = pr.id
+         WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
+           AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
+         UNION
+         SELECT pb.project_id AS pid FROM project_brands pb WHERE pb.office_id = ?1
+       )
+       SELECT ar.slug, ar.name, ar.photo_url, COUNT(DISTINCT p.id) AS used_count
+       FROM brand_project_ids b
+       JOIN projects p ON p.id = b.pid AND p.deleted_at IS NULL AND p.hidden_at IS NULL
        JOIN project_designers pd ON pd.project_id = p.id
        JOIN architects ar ON ar.id = pd.architect_id AND ar.deleted_at IS NULL AND ar.hidden_at IS NULL
-       WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-         AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
        GROUP BY ar.id
        ORDER BY used_count DESC, ar.name COLLATE NOCASE`
     ).bind(o.id, o.name).all(),

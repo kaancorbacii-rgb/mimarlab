@@ -754,6 +754,21 @@ CREATE TABLE IF NOT EXISTS project_products (
 );
 CREATE INDEX IF NOT EXISTS idx_project_products_product ON project_products(product_id);
 
+-- MARKA ↔ PROJE doğrudan kenarı — project_products'ın ÜRÜNSÜZ karşılığı. Archello künyesi ürün
+-- değil YAPI ELEMANI düzeyinde ("Vitrifiye Elemanları → VitrA"), yani araya bir products satırı
+-- koymadan kurulan bir kenar gerekiyordu; tam gerekçe için bkz. migrations/0085_project_brands.sql.
+-- Okuma tarafında project_products zinciriyle UNION'lanır (src/routes/project.js#fetchProjectProducts,
+-- src/routes/office.js#buildOfficePayload), yani iki kenar türü birbirini EZMEZ, birikir.
+CREATE TABLE IF NOT EXISTS project_brands (
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  office_id  INTEGER NOT NULL REFERENCES offices(id)  ON DELETE CASCADE,
+  element    TEXT,                 -- künyedeki yapı elemanı, Türkçe ("Camlı Bölücüler")
+  source     TEXT NOT NULL DEFAULT 'admin' CHECK (source IN ('legacy_static','submission','admin')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (project_id, office_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_brands_office ON project_brands(office_id);
+
 CREATE TABLE IF NOT EXISTS project_awards (
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   award_id INTEGER NOT NULL REFERENCES awards(id) ON DELETE CASCADE,

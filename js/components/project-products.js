@@ -38,15 +38,20 @@ const ProjectProducts = (function () {
     </a>`;
   }
 
-  // Marka kartı — js/components/office-modal.js#cardHtml ile BİREBİR aynı işaretleme (alt satırda
-  // konum), hedef /firma/:slug (marka profilleri de firma modalıyla açılır, bkz. office-kind.js).
+  // Marka kartı — js/components/office-modal.js#cardHtml ile BİREBİR aynı işaretleme, hedef
+  // /firma/:slug (marka profilleri de firma modalıyla açılır, bkz. office-kind.js).
+  // Alt satır: markanın bu projede karşıladığı YAPI ELEMANI varsa o ("Vitrifiye Elemanları"),
+  // yoksa markanın konumu. Eleman yalnızca project_brands kenarlarında dolu gelir (bkz.
+  // migrations/0085_project_brands.sql) ve bu bağlamda konumdan daha bilgilendiricidir —
+  // "Kullanılan Markalar" bölümü bir künyedir, marka dizini değil.
   function brandCardHtml(b) {
     const srcset = b.logo ? cdnSrcset(b.logo, [300, 450, 600]) : '';
+    const subtitle = b.element || b.loc || '';
     return `<a class="related-card" href="/firma/${encodeURIComponent(b.slug)}">
       <div class="related-card-photo">
         ${b.logo ? `<img src="${escapeAttr(cdnImg(b.logo, 450))}"${srcset ? ` srcset="${escapeAttr(srcset)}" sizes="300px"` : ''} alt="${escapeAttr(b.name)}" loading="lazy" decoding="async">` : `<div class="related-card-placeholder" style="background:${officeColor(b.name)}">${escapeHtml(initials(b.name))}</div>`}
       </div>
-      <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(b.name)}</span>${b.loc ? `<div class="related-card-subtitle">${escapeHtml(b.loc)}</div>` : ''}</div>
+      <div class="related-card-title"><span class="related-card-title-text">${escapeHtml(b.name)}</span>${subtitle ? `<div class="related-card-subtitle">${escapeHtml(subtitle)}</div>` : ''}</div>
     </a>`;
   }
 

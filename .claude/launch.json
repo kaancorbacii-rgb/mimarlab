@@ -12,6 +12,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["wrangler", "dev", "--port", "8787", "--persist-to", "/Users/kaancorbaci/.mimarlab-dev-state", "--assets", ".localdev-assets"],
       "port": 8787
+    },
+    {
+      "name": "mimarlab-worker-remote",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "dev", "--remote", "--port", "8788", "--assets", ".localdev-assets"],
+      "port": 8788
     }
   ]
 }

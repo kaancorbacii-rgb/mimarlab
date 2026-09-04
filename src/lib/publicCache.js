@@ -303,7 +303,17 @@ async function withSingleFlight(key, fn) {
 //     v7'nin AYNI gerekçesi: architects fingerprint'i değişmediğinden, sürüm artırılmazsa /kisi
 //     listesini daha önce açmış tarayıcılar aynı ETag'i gönderip 304 alır ve `school` grubu
 //     OLMAYAN eski gövdede süresiz takılırdı (yani yeni filtre onlarda hiç görünmezdi).
-const API_PAYLOAD_VERSION = 'v8';
+// v9 (kullanıcı isteği, 2026-09-04 — 58 Archello markasının toplu içe aktarımı): MARKA ↔ PROJE
+//     kenarı artık yalnızca ürün üzerinden değil, project_brands ile DOĞRUDAN da kurulabiliyor
+//     (bkz. migrations/0085_project_brands.sql). İki yanıt birden etkilendi: (a) /api/project/:key
+//     yükündeki `brands[]` kartlarına YENİ bir alan geldi — `element` (künyedeki yapı elemanı,
+//     bkz. js/components/project-products.js#brandCardHtml) ve KÜMESİ büyüdü; (b) /api/office/:key
+//     yükündeki brandProductProjects/preferringOffices/preferringArchitects kümeleri büyüdü.
+//     v5/v6'nın AYNI gerekçesi ve bu sürümün en tehlikeli varyantı: kenarlar AYRI bir tabloya
+//     yazıldığından projects/offices satırlarının `updated_at`'i DEĞİŞMEZ — yani fingerprint
+//     kesinlikle aynı kalır. Sürüm artırılmazsa proje/marka pop-up'ını daha önce açmış HİÇBİR
+//     ziyaretçi yeni marka künyesini göremez, üstelik süresiz olarak.
+const API_PAYLOAD_VERSION = 'v9';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
