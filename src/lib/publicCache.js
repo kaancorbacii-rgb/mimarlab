@@ -324,7 +324,18 @@ async function withSingleFlight(key, fn) {
 //     ürünün popup'ında ise satır güncellenmediği için fingerprint hiç değişmez. Sürüm artırılmazsa
 //     versiyon seçicisi eklenen bir ürünü daha önce görmüş ziyaretçiler 304 ile eski gövdede
 //     süresiz takılır ve seçiciyi HİÇ göremezdi.
-const API_PAYLOAD_VERSION = 'v10';
+// v11 (kullanıcı isteği, 2026-09-04 — 85 bağlantılık B&T Design ürün partisi): v9'un TAM OLARAK
+//     aynı tuzağı, bu kez B&T Design için. MEVCUT 15 proje satırına yeni `project_brands` ve
+//     `project_products` kenarları yazıldı (bkz. scripts/crosstag-btdesign-projects.py); kenarlar
+//     AYRI tablolarda olduğu için `projects.updated_at` hiç değişmez, yani fingerprint kesinlikle
+//     aynı kalır. Etkilenen üç yanıt: (a) /api/project/:key — `brands[]` ve `items[]` kümeleri
+//     büyüdü (Agave Games, Nokia, Unilever… popup'larında B&T Design kartı ve ürünleri);
+//     (b) /api/office/b-t-design — "Markanın Kullanıldığı Projeler" ızgarası doldu;
+//     (c) /api/product/:key — bu partide GÜNCELLENEN dört ürüne (Pera/Rest Klasik/Roller/To Be)
+//     `variants[]` eklendi. (c) kendi başına fingerprint'i hareket ettirirdi ama (a) ve (b)
+//     ETTİRMEZ — sürüm artırılmazsa bu projeleri daha önce açmış ziyaretçiler B&T Design
+//     etiketini SÜRESİZ göremezdi.
+const API_PAYLOAD_VERSION = 'v11';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

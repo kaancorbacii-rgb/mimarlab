@@ -1,0 +1,4564 @@
+{
+ "alek-sandalye": {
+  "title": "ALEK CHAIR",
+  "configs": [
+   {
+    "label": "Alek Sandalye",
+    "W": 59.5,
+    "D": 51.5,
+    "H": 73.5,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 65.5,
+     "Oturum Derinliği": 45.5
+    }
+   }
+  ]
+ },
+ "alek-lounge-koltuk": {
+  "title": "ALEK LOUNGE",
+  "configs": [
+   {
+    "label": "Alek Lounge",
+    "W": 73.5,
+    "D": 64.5,
+    "H": 64.5,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 56,
+     "Oturum Derinliği": 58
+    }
+   }
+  ]
+ },
+ "another-chair-tr": {
+  "title": "ANOTHER CHAIR",
+  "configs": [
+   {
+    "label": "Another Chair",
+    "W": 58,
+    "D": 53,
+    "H": 74,
+    "SH": 43
+   },
+   {
+    "label": "Another Chair Seat-Up",
+    "W": 58,
+    "D": 55,
+    "H": 74,
+    "SH": 46
+   },
+   {
+    "label": "Another Chair Up",
+    "W": 58,
+    "D": 55,
+    "H": 74,
+    "SH": 46
+   }
+  ]
+ },
+ "daisy-papel-ayak-sandalye": {
+  "title": "DAISY",
+  "configs": [
+   {
+    "label": "Papel (Kontrplak) Ayak",
+    "W": 57.5,
+    "D": 53,
+    "H": 80.5,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 65,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "4 Kollu Dönebilen Ayak",
+    "W": 57.5,
+    "D": 54,
+    "H": 80.5,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 65,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak",
+    "W": 57.5,
+    "D": 53,
+    "H": 80.5,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 65,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Premium Ofis Ayağı",
+    "W": 62,
+    "D": 63,
+    "H": 80.5,
+    "SH": 46,
+    "extra": {
+     "Yükseklik Aralığı": "80,5 - 90,5",
+     "Oturum Yüksekliği Aralığı": "46 - 56",
+     "Oturum Derinliği": 40
+    }
+   }
+  ]
+ },
+ "daisy-lounge-koltuk-": {
+  "title": "DAISY LOUNGE",
+  "configs": [
+   {
+    "label": "Ahşap Ayak",
+    "W": 69,
+    "D": 69.5,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 46
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak",
+    "W": 69,
+    "D": 69.5,
+    "H": 78,
+    "SH": 43.5,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 46
+    }
+   }
+  ]
+ },
+ "dante-sandalye": {
+  "title": "DANTE CHAIR",
+  "configs": [
+   {
+    "label": "Ahşap Oturum",
+    "W": 47.5,
+    "D": 51,
+    "H": 78.5,
+    "SH": 46.5,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   },
+   {
+    "label": "Döşemeli Oturum",
+    "W": 48,
+    "D": 51,
+    "H": 79,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   },
+   {
+    "label": "Döşemeli Oturum + Ahşap Sırt",
+    "W": 48,
+    "D": 51,
+    "H": 78.5,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   }
+  ]
+ },
+ "dante-bar-taburesi": {
+  "title": "DANTE BAR STOOL",
+  "configs": [
+   {
+    "label": "Ahşap Oturum — Bar",
+    "W": 51.5,
+    "D": 49,
+    "H": 100,
+    "SH": 74.5,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Döşemeli Oturum — Bar",
+    "W": 52,
+    "D": 49,
+    "H": 100.5,
+    "SH": 75,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Döşemeli Oturum + Ahşap Sırt — Bar",
+    "W": 52,
+    "D": 49,
+    "H": 100,
+    "SH": 75,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Ahşap Oturum — Mutfak",
+    "W": 50.5,
+    "D": 48,
+    "H": 91,
+    "SH": 64,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Döşemeli Oturum — Mutfak",
+    "W": 51,
+    "D": 48,
+    "H": 91.5,
+    "SH": 64.5,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Döşemeli Oturum + Ahşap Sırt — Mutfak",
+    "W": 51,
+    "D": 48,
+    "H": 91,
+    "SH": 64.5,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   }
+  ]
+ },
+ "dion-sandalye": {
+  "title": "DION",
+  "configs": [
+   {
+    "label": "Kolçaklı",
+    "W": 59,
+    "D": 55,
+    "H": 77.5,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 51
+    }
+   },
+   {
+    "label": "Kolçaksız",
+    "W": 47,
+    "D": 54.5,
+    "H": 77.5,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 51
+    }
+   }
+  ]
+ },
+ "dot-sandalye": {
+  "title": "DOT CHAIR",
+  "configs": [
+   {
+    "label": "Ahşap — Kolçaklı",
+    "W": 54.5,
+    "D": 53,
+    "H": 85,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "Ahşap — Kolçaksız",
+    "W": 49.5,
+    "D": 53,
+    "H": 85,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "Döşemeli — Kolçaklı",
+    "W": 54.5,
+    "D": 53,
+    "H": 85,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "Döşemeli — Kolçaksız",
+    "W": 49.5,
+    "D": 53,
+    "H": 85,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   }
+  ]
+ },
+ "dot-bar-taburesi-papel": {
+  "title": "DOT BAR STOOL",
+  "configs": [
+   {
+    "label": "Ahşap — Bar",
+    "W": 44.5,
+    "D": 52,
+    "H": 111.5,
+    "SH": 75,
+    "extra": {
+     "Oturum Derinliği": 34
+    }
+   },
+   {
+    "label": "Döşemeli — Bar",
+    "W": 44.5,
+    "D": 52,
+    "H": 111.5,
+    "SH": 76,
+    "extra": {
+     "Oturum Derinliği": 36
+    }
+   },
+   {
+    "label": "Ahşap — Mutfak",
+    "W": 44.5,
+    "D": 52,
+    "H": 101.5,
+    "SH": 65,
+    "extra": {
+     "Oturum Derinliği": 34
+    }
+   },
+   {
+    "label": "Döşemeli — Mutfak",
+    "W": 44.5,
+    "D": 52,
+    "H": 101.5,
+    "SH": 66,
+    "extra": {
+     "Oturum Derinliği": 36
+    }
+   }
+  ]
+ },
+ "dupont-sandalye-dosemeli": {
+  "title": "DUPONT CHAIR",
+  "configs": [
+   {
+    "label": "Ahşap",
+    "W": 51,
+    "D": 55,
+    "H": 84,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 36
+    }
+   },
+   {
+    "label": "Döşemeli",
+    "W": 51,
+    "D": 55,
+    "H": 84,
+    "SH": 48,
+    "extra": {
+     "Oturum Derinliği": 36
+    }
+   }
+  ]
+ },
+ "dupont-koltuk-dosemeli": {
+  "title": "DUPONT LOUNGE",
+  "configs": [
+   {
+    "label": "Ahşap",
+    "W": 58,
+    "D": 64,
+    "H": 74,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   },
+   {
+    "label": "Döşemeli",
+    "W": 58,
+    "D": 64,
+    "H": 75,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   }
+  ]
+ },
+ "dupont-bar-taburesi-papel": {
+  "title": "DUPONT BAR STOOL",
+  "configs": [
+   {
+    "label": "Ahşap — Bar",
+    "W": 53,
+    "D": 57,
+    "H": 112,
+    "SH": 76,
+    "extra": {
+     "Oturum Derinliği": 36
+    }
+   },
+   {
+    "label": "Ahşap — Mutfak",
+    "W": 53,
+    "D": 57,
+    "H": 102,
+    "SH": 66,
+    "extra": {
+     "Oturum Derinliği": 36
+    }
+   },
+   {
+    "label": "Döşemeli — Bar",
+    "W": 53,
+    "D": 57,
+    "H": 113,
+    "SH": 78,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "Döşemeli — Mutfak",
+    "W": 53,
+    "D": 57,
+    "H": 103,
+    "SH": 68,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   }
+  ]
+ },
+ "grace-premium-donebilen-sandalye": {
+  "title": "GRACE",
+  "configs": [
+   {
+    "label": "Premium Dönebilen — Papel Sırt",
+    "W": 60,
+    "D": 58.5,
+    "H": 80.5,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 61,
+     "Oturum Derinliği": 44
+    }
+   },
+   {
+    "label": "Premium Dönebilen — Döşemeli Sırt",
+    "W": 60,
+    "D": 58.5,
+    "H": 80.5,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 61,
+     "Oturum Derinliği": 44
+    }
+   },
+   {
+    "label": "Premium Ofis — Papel Sırt",
+    "W": 60,
+    "D": 61.5,
+    "H": "78 - 88",
+    "SH": "41 - 51",
+    "extra": {
+     "Sırt Yüksekliği": "59 - 69",
+     "Oturum Derinliği": 44
+    }
+   },
+   {
+    "label": "Premium Ofis — Döşemeli Sırt",
+    "W": 60,
+    "D": 61.5,
+    "H": "78 - 88",
+    "SH": "41 - 51",
+    "extra": {
+     "Sırt Yüksekliği": "59 - 69",
+     "Oturum Derinliği": 44
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Papel Sırt",
+    "W": 60,
+    "D": 58.5,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 62,
+     "Oturum Derinliği": 44
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Döşemeli Sırt",
+    "W": 60,
+    "D": 58.5,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 62,
+     "Oturum Derinliği": 44
+    }
+   }
+  ]
+ },
+ "lamy-elips-donebilen-ayak-sandalye": {
+  "title": "LAMY CHAIR",
+  "configs": [
+   {
+    "label": "Elips Ayak",
+    "W": 64,
+    "D": 67,
+    "H": 82,
+    "SH": 46.5,
+    "extra": {
+     "Sırt Yüksekliği": 65,
+     "Oturum Derinliği": 46
+    }
+   },
+   {
+    "label": "Premium Ofis Ayağı",
+    "W": 64,
+    "D": 74,
+    "H": "85 - 95",
+    "SH": "46 - 57",
+    "extra": {
+     "Sırt Yüksekliği": "58 - 69",
+     "Oturum Derinliği": 46
+    }
+   },
+   {
+    "label": "Ahşap Dönebilen Ayak",
+    "W": 76.5,
+    "D": 81,
+    "H": 81.5,
+    "SH": 48.5,
+    "extra": {
+     "Sırt Yüksekliği": 64.5,
+     "Oturum Derinliği": 46
+    }
+   },
+   {
+    "label": "Metal Dönebilen Ayak",
+    "W": 70.5,
+    "D": 77.5,
+    "H": 79,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 62,
+     "Oturum Derinliği": 46
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak",
+    "W": 64,
+    "D": 65,
+    "H": 80,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 63,
+     "Oturum Derinliği": 46
+    }
+   },
+   {
+    "label": "X Ayak",
+    "W": 64,
+    "D": 64,
+    "H": 78,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 61,
+     "Oturum Derinliği": 46
+    }
+   }
+  ]
+ },
+ "mentor-executive-sandalye": {
+  "title": "MENTOR",
+  "configs": [
+   {
+    "label": "Yüksek Sırt Executive — Syncro Ayak",
+    "W": 66,
+    "D": 65,
+    "H": "130 - 140",
+    "SH": "49 - 59",
+    "extra": {
+     "Sırt Yüksekliği": "71 - 81",
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Alçak Sırt Ofis — Syncro Ayak",
+    "W": 66,
+    "D": 65,
+    "H": "106 - 116",
+    "SH": "49 - 59",
+    "extra": {
+     "Sırt Yüksekliği": "71 - 81",
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Misafir (Visitor)",
+    "W": 66,
+    "D": 60,
+    "H": 102,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 50
+    }
+   }
+  ]
+ },
+ "mika-sandalye": {
+  "title": "MIKA CHAIR",
+  "configs": [
+   {
+    "label": "Döşemeli Oturum",
+    "W": 49,
+    "D": 48,
+    "H": 79,
+    "SH": 47
+   },
+   {
+    "label": "Ahşap Oturum",
+    "W": 49,
+    "D": 48,
+    "H": 79,
+    "SH": 46
+   }
+  ]
+ },
+ "mika-sirtli-bar-taburesi": {
+  "title": "MIKA BAR STOOL",
+  "configs": [
+   {
+    "label": "Döşemeli Sırtlı — Bar",
+    "W": 53,
+    "D": 48,
+    "H": 99,
+    "SH": 78,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   },
+   {
+    "label": "Ahşap Sırtlı — Bar",
+    "W": 53,
+    "D": 48,
+    "H": 99,
+    "SH": 74,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   },
+   {
+    "label": "Döşemeli Sırtlı — Mutfak",
+    "W": 52,
+    "D": 47,
+    "H": 89,
+    "SH": 68,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   },
+   {
+    "label": "Ahşap Sırtlı — Mutfak",
+    "W": 52,
+    "D": 47,
+    "H": 89,
+    "SH": 64,
+    "extra": {
+     "Oturum Derinliği": 43
+    }
+   },
+   {
+    "label": "Döşemeli Sırtsız — Bar",
+    "W": 47,
+    "D": 42,
+    "H": 79,
+    "SH": 79
+   },
+   {
+    "label": "Ahşap Sırtsız — Bar",
+    "W": 47,
+    "D": 42,
+    "H": 75,
+    "SH": 75
+   },
+   {
+    "label": "Döşemeli Sırtsız — Mutfak",
+    "W": 46,
+    "D": 41,
+    "H": 69,
+    "SH": 69
+   },
+   {
+    "label": "Ahşap Sırtsız — Mutfak",
+    "W": 46,
+    "D": 41,
+    "H": 65,
+    "SH": 65
+   }
+  ]
+ },
+ "odin-bar": {
+  "title": "ODIN BAR",
+  "configs": [
+   {
+    "label": "Ahşap Oturum — Bar",
+    "W": 58,
+    "D": 50,
+    "H": 106,
+    "SH": 76,
+    "extra": {
+     "Sırt Yüksekliği": 101,
+     "Oturum Derinliği": 41.5
+    }
+   },
+   {
+    "label": "Döşemeli Oturum — Bar",
+    "W": 58,
+    "D": 50,
+    "H": 106,
+    "SH": 76,
+    "extra": {
+     "Sırt Yüksekliği": 101,
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "Ahşap Oturum — Mutfak",
+    "W": 58,
+    "D": 50,
+    "H": 96,
+    "SH": 67,
+    "extra": {
+     "Sırt Yüksekliği": 91.5,
+     "Oturum Derinliği": 41.5
+    }
+   },
+   {
+    "label": "Döşemeli Oturum — Mutfak",
+    "W": 58,
+    "D": 50,
+    "H": 96,
+    "SH": 67,
+    "extra": {
+     "Sırt Yüksekliği": 91.5,
+     "Oturum Derinliği": 42
+    }
+   }
+  ]
+ },
+ "pera-premium-ofis-sandalye": {
+  "title": "PERA CHAIRS",
+  "configs": [
+   {
+    "label": "Premium Ofis Ayağı — Kolçaklı",
+    "W": 57,
+    "D": 61,
+    "H": "79 - 89",
+    "SH": "43 - 53",
+    "extra": {
+     "Sırt Yüksekliği": "64 - 74",
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Premium Ofis Ayağı — Kolçaksız",
+    "W": 57,
+    "D": 61,
+    "H": "79 - 89",
+    "SH": "43 - 53",
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Elips Ayak (Tekerlekli) — Kolçaklı",
+    "W": 52,
+    "D": 55,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Elips Ayak (Tekerlekli) — Kolçaksız",
+    "W": 46,
+    "D": 55,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "4 Kollu Dönebilen (Tekerlekli) — Kolçaklı",
+    "W": 52,
+    "D": 56,
+    "H": 83,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "4 Kollu Dönebilen (Tekerlekli) — Kolçaksız",
+    "W": 51,
+    "D": 56,
+    "H": 83,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Ahşap Ayak",
+    "W": 46,
+    "D": 55,
+    "H": 81,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "X Ayak",
+    "W": 47,
+    "D": 56,
+    "H": 80,
+    "SH": 44,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   }
+  ]
+ },
+ "pera-bar-elips-ayak-bar-taburesi": {
+  "title": "PERA BAR STOOLS",
+  "configs": [
+   {
+    "label": "Elips Ayak — Bar",
+    "W": 47,
+    "D": 47,
+    "H": 96,
+    "SH": 72,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "Elips Ayak — Mutfak",
+    "W": 43,
+    "D": 45,
+    "H": 86,
+    "SH": 62,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Bar",
+    "W": 46,
+    "D": 46,
+    "H": 96,
+    "SH": 72,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Mutfak",
+    "W": 43,
+    "D": 45,
+    "H": 86,
+    "SH": 62,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "X Ayak — Bar",
+    "W": 46,
+    "D": 48,
+    "H": 97,
+    "SH": 73,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   },
+   {
+    "label": "X Ayak — Mutfak",
+    "W": 43,
+    "D": 48,
+    "H": 87,
+    "SH": 63,
+    "extra": {
+     "Oturum Derinliği": 37
+    }
+   }
+  ]
+ },
+ "rego-x-ayak-sandalye": {
+  "title": "REGO CHAIR",
+  "primary": "X Ayak",
+  "configs": [
+   {
+    "label": "X Ayak",
+    "W": 61,
+    "D": 57,
+    "H": 80.5,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 66.5,
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "Elips Ayak",
+    "W": 61,
+    "D": 57,
+    "H": 81,
+    "SH": 46.5,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak",
+    "W": 61,
+    "D": 57,
+    "H": 82,
+    "SH": 47.5,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "Premium Dönebilen Ayak",
+    "W": 70.5,
+    "D": 70.5,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 65,
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "4 Kollu Dönebilen (Tekerlekli)",
+    "W": 71,
+    "D": 71,
+    "H": 79,
+    "SH": 44.5,
+    "extra": {
+     "Sırt Yüksekliği": 65,
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "5 Kollu Dönebilen (Tekerlekli, Amortisörlü)",
+    "W": 67,
+    "D": 69,
+    "H": "84 - 94",
+    "SH": "50 - 60",
+    "extra": {
+     "Sırt Yüksekliği": "70 - 80",
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "Premium Ofis Ayağı",
+    "W": 61,
+    "D": 58.5,
+    "H": "77,5 - 87,5",
+    "SH": "43,5 - 53,5",
+    "extra": {
+     "Sırt Yüksekliği": "63,5 - 73,5",
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "Ahşap Ayak",
+    "W": 61,
+    "D": 57,
+    "H": 81,
+    "SH": 46.5,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 42
+    }
+   },
+   {
+    "label": "Papel (Kontrplak) Ayak",
+    "W": 61,
+    "D": 57,
+    "H": 82,
+    "SH": 47.5,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 42
+    }
+   }
+  ]
+ },
+ "rego-play-ahsap-ayak-sandalye": {
+  "title": "REGO PLAY",
+  "primary": "Ahşap Ayak — Oturum Döşemeli",
+  "configs": [
+   {
+    "label": "Ahşap Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 58,
+    "H": 77,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 59,
+    "H": 82,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Düz",
+    "W": 61,
+    "D": 58,
+    "H": 77,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Elips Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 57,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Elips Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 56,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Elips Ayak — Düz",
+    "W": 61,
+    "D": 56,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Kızak Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 58,
+    "H": 81,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Kızak Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Kızak Ayak — Düz",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "4 Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 57,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "4 Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 56,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "4 Ayak — Düz",
+    "W": 61,
+    "D": 56,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "X Ayak — Tam Döşemeli",
+    "W": 62,
+    "D": 58,
+    "H": 79,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "X Ayak — Oturum Döşemeli",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "X Ayak — Düz",
+    "W": 61,
+    "D": 57,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Premium Dönebilen — Tam Döşemeli",
+    "W": 70,
+    "D": 70,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Premium Dönebilen — Oturum Döşemeli",
+    "W": 70,
+    "D": 70,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Premium Dönebilen — Düz",
+    "W": 70,
+    "D": 70,
+    "H": 78,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 67,
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Premium Ofis — Tam Döşemeli",
+    "W": 63,
+    "D": 63,
+    "H": "79 - 89",
+    "SH": "45 - 55",
+    "extra": {
+     "Sırt Yüksekliği": "68 - 78",
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Premium Ofis — Oturum Döşemeli",
+    "W": 63,
+    "D": 63,
+    "H": "78 - 88",
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": "67 - 77",
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Premium Ofis — Düz",
+    "W": 63,
+    "D": 63,
+    "H": "78 - 88",
+    "SH": "43 - 53",
+    "extra": {
+     "Sırt Yüksekliği": "67 - 77",
+     "Oturum Derinliği": 40
+    }
+   }
+  ]
+ },
+ "rego-koltuk-klasik-ahsap": {
+  "title": "REGO LOUNGE",
+  "primary": "Klasik — Ahşap Dönebilen Ayak",
+  "configs": [
+   {
+    "label": "Klasik — Ahşap Dönebilen Ayak",
+    "W": 76,
+    "D": 68,
+    "H": 71.5,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "Klasik — Premium Dönebilen Ayak",
+    "W": 76,
+    "D": 68,
+    "H": 71.5,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "Puf — Ahşap Dönebilen Ayak",
+    "W": 62,
+    "D": 53,
+    "H": 40,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 45.5
+    }
+   },
+   {
+    "label": "Puf — Premium Dönebilen Ayak",
+    "W": 62,
+    "D": 51,
+    "H": 40,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 45.5
+    }
+   }
+  ]
+ },
+ "rego-lounge-executive-tr": {
+  "title": "REGO LOUNGE",
+  "primary": "Executive — Premium Dönebilen Ayak",
+  "configs": [
+   {
+    "label": "Executive — Premium Dönebilen Ayak",
+    "W": 83,
+    "D": 91,
+    "H": 106,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "Executive — Ahşap Dönebilen Ayak",
+    "W": 83,
+    "D": 91,
+    "H": 106,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "Puf — Premium Dönebilen Ayak",
+    "W": 62,
+    "D": 51,
+    "H": 40,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 45.5
+    }
+   },
+   {
+    "label": "Puf — Ahşap Dönebilen Ayak",
+    "W": 62,
+    "D": 53,
+    "H": 40,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 45.5
+    }
+   }
+  ]
+ },
+ "rest-klasik-kollu-sandalye": {
+  "title": "REST CHAIR",
+  "primary": "4 Ayak Metal — Kolçaklı",
+  "configs": [
+   {
+    "label": "4 Ayak Metal — Kolçaklı",
+    "W": 55,
+    "D": 53,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "4 Ayak Metal — Kolçaksız",
+    "W": 58,
+    "D": 52,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "4 Ayak Metal Döşemeli — Kolçaklı",
+    "W": 55,
+    "D": 52,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "4 Ayak Metal Döşemeli — Kolçaksız",
+    "W": 57,
+    "D": 49,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak — Kolçaklı",
+    "W": 54,
+    "D": 50,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Kızak Ayak — Kolçaksız",
+    "W": 51,
+    "D": 50,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Kızak Ayak Döşemeli — Kolçaklı",
+    "W": 54,
+    "D": 50,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Kızak Ayak Döşemeli — Kolçaksız",
+    "W": 51,
+    "D": 50,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Metal Dönebilen — Kolçaklı",
+    "W": 50,
+    "D": 50,
+    "H": 75,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 63,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Metal Dönebilen — Kolçaksız",
+    "W": 50,
+    "D": 50,
+    "H": 75,
+    "SH": 41,
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Metal Dönebilen Döşemeli — Kolçaklı",
+    "W": 50,
+    "D": 49,
+    "H": 77,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 63,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Metal Dönebilen Döşemeli — Kolçaksız",
+    "W": 49,
+    "D": 49,
+    "H": 77,
+    "SH": 43,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Ofis 5 Kollu — Kolçaklı",
+    "W": 70,
+    "D": 69,
+    "H": "75 - 84",
+    "SH": "41 - 50",
+    "extra": {
+     "Sırt Yüksekliği": "64 - 73",
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 5 Kollu — Kolçaksız",
+    "W": 70,
+    "D": 69,
+    "H": "75 - 84",
+    "SH": "41 - 50",
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 5 Kollu Döşemeli — Kolçaklı",
+    "W": 70,
+    "D": 69,
+    "H": "77 - 86",
+    "SH": "43 - 52",
+    "extra": {
+     "Sırt Yüksekliği": "66 - 75",
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Ofis 5 Kollu Döşemeli — Kolçaksız",
+    "W": 70,
+    "D": 69,
+    "H": "77 - 86",
+    "SH": "43 - 52",
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu — Kolçaklı",
+    "W": 52,
+    "D": 57,
+    "H": 75,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 63,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu — Kolçaksız",
+    "W": 52,
+    "D": 57,
+    "H": 75,
+    "SH": 41,
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu Döşemeli — Kolçaklı",
+    "W": 52,
+    "D": 55,
+    "H": 77,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 63,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu Döşemeli — Kolçaksız",
+    "W": 52,
+    "D": 55,
+    "H": 77,
+    "SH": 43,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Ahşap Ayak",
+    "W": 47,
+    "D": 50,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ahşap Ayak Döşemeli",
+    "W": 47,
+    "D": 49,
+    "H": 81,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "İstiflenebilir Tabletli",
+    "W": 56,
+    "D": 63,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "İstiflenebilir Tabletli Döşemeli",
+    "W": 56,
+    "D": 61,
+    "H": 80,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 41
+    }
+   },
+   {
+    "label": "Tekerlekli Tabletli",
+    "W": 74,
+    "D": 68,
+    "H": 78,
+    "SH": 44,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Tekerlekli Tabletli Döşemeli",
+    "W": 74,
+    "D": 64,
+    "H": 79,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 66,
+     "Oturum Derinliği": 41
+    }
+   }
+  ]
+ },
+ "sole-sandalye-metal": {
+  "title": "SOLE CHAIR",
+  "primary": "Döşemeli",
+  "configs": [
+   {
+    "label": "Döşemeli",
+    "W": 48.5,
+    "D": 53,
+    "H": 83,
+    "SH": 47,
+    "extra": {
+     "Oturum Derinliği": 39
+    }
+   },
+   {
+    "label": "Çıkarılabilir Oturum Minderli",
+    "W": 48.5,
+    "D": 53,
+    "H": 83,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 39
+    }
+   }
+  ]
+ },
+ "sole-bar-taburesi-oturum-dosemeli": {
+  "title": "SOLE BAR STOOL",
+  "primary": "Döşemeli Oturum — Bar",
+  "configs": [
+   {
+    "label": "Döşemeli Oturum — Bar",
+    "W": 48.5,
+    "D": 55,
+    "H": 111,
+    "SH": 75,
+    "extra": {
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Çıkarılabilir Minderli — Bar",
+    "W": 48.5,
+    "D": 55,
+    "H": 111,
+    "SH": 74,
+    "extra": {
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Döşemeli Oturum — Mutfak",
+    "W": 48.5,
+    "D": 53,
+    "H": 101,
+    "SH": 65,
+    "extra": {
+     "Oturum Derinliği": 40
+    }
+   },
+   {
+    "label": "Çıkarılabilir Minderli — Mutfak",
+    "W": 48.5,
+    "D": 53,
+    "H": 101,
+    "SH": 64,
+    "extra": {
+     "Oturum Derinliği": 40
+    }
+   }
+  ]
+ },
+ "spirit-kollu-sandalye": {
+  "title": "SPIRIT CHAIR",
+  "primary": "Kolçaklı",
+  "configs": [
+   {
+    "label": "Kolçaklı",
+    "W": 57.5,
+    "D": 56,
+    "H": 82.5,
+    "SH": 46.5,
+    "extra": {
+     "Sırt Yüksekliği": 64,
+     "Oturum Derinliği": 44.5
+    }
+   },
+   {
+    "label": "Kolçaksız",
+    "W": 51,
+    "D": 57,
+    "H": 82.5,
+    "SH": 46.5,
+    "extra": {
+     "Oturum Derinliği": 44.5
+    }
+   }
+  ]
+ },
+ "zone-executive-sandalye": {
+  "title": "ZONE",
+  "primary": "Executive Syncro — 5 Kollu, Kolçaklı, Tekerlekli",
+  "configs": [
+   {
+    "label": "Executive Syncro — 5 Kollu, Kolçaklı, Tekerlekli",
+    "W": 70.5,
+    "D": 74,
+    "H": "123 - 133",
+    "SH": "43 - 53",
+    "extra": {
+     "Sırt Yüksekliği": "66 - 76",
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Executive Syncro — 5 Kollu, Tekerlekli",
+    "W": 70.5,
+    "D": 74,
+    "H": "123 - 133",
+    "SH": "43 - 53",
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis Syncro — 5 Kollu, Kolçaklı, Tekerlekli",
+    "W": 70.5,
+    "D": 74,
+    "H": "97 - 107",
+    "SH": "43 - 53",
+    "extra": {
+     "Sırt Yüksekliği": "66 - 76",
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis Syncro — 5 Kollu, Tekerlekli",
+    "W": 70.5,
+    "D": 74,
+    "H": "97 - 107",
+    "SH": "43 - 53",
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu Dönebilen — Kolçaklı, Tekerlekli",
+    "W": 57.5,
+    "D": 63,
+    "H": 99,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu Dönebilen — Tekerlekli",
+    "W": 57,
+    "D": 63,
+    "H": 99,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu Dönebilen — Kolçaklı",
+    "W": 57.5,
+    "D": 59,
+    "H": 99,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 68,
+     "Oturum Derinliği": 45
+    }
+   },
+   {
+    "label": "Ofis 4 Kollu Dönebilen",
+    "W": 52,
+    "D": 59,
+    "H": 99,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 45
+    }
+   }
+  ]
+ },
+ "glee-tabure": {
+  "title": "GLEE",
+  "primary": "Bar",
+  "configs": [
+   {
+    "label": "Bar",
+    "W": 36.5,
+    "D": 36.5,
+    "H": 75,
+    "SH": 75,
+    "extra": {}
+   },
+   {
+    "label": "Mutfak",
+    "W": 36.5,
+    "D": 36.5,
+    "H": 65,
+    "SH": 65,
+    "extra": {}
+   }
+  ]
+ },
+ "dia-50-bar-taburesi": {
+  "title": "DIA 50",
+  "primary": "Bar — Retro Dönebilen Ayak",
+  "configs": [
+   {
+    "label": "Bar — Retro Dönebilen Ayak",
+    "W": 50,
+    "D": 50,
+    "H": 99,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Mutfak — Retro Dönebilen Ayak",
+    "W": 50,
+    "D": 50,
+    "H": 89,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "bonny-ahsap-donebilen-ayak-koltuk": {
+  "title": "BONNY",
+  "primary": "Ahşap Dönebilen Ayak",
+  "configs": [
+   {
+    "label": "Ahşap Dönebilen Ayak",
+    "W": 78,
+    "D": 73,
+    "H": 73,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 55,
+     "Oturum Derinliği": 57
+    }
+   },
+   {
+    "label": "Metal Dönebilen Ayak",
+    "W": 78,
+    "D": 73,
+    "H": 73,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 55,
+     "Oturum Derinliği": 57
+    }
+   }
+  ]
+ },
+ "bold-sehpali-koltuk": {
+  "title": "BOLD",
+  "primary": "Sehpalı",
+  "configs": [
+   {
+    "label": "Sehpalı",
+    "W": 94,
+    "D": 90.5,
+    "H": 68.5,
+    "SH": 41,
+    "extra": {
+     "Sehpa Yüksekliği": 51,
+     "Oturum Derinliği": 51
+    }
+   },
+   {
+    "label": "Sehpasız",
+    "W": 83,
+    "D": 90.5,
+    "H": 68.5,
+    "SH": 41,
+    "extra": {
+     "Oturum Derinliği": 51
+    }
+   }
+  ]
+ },
+ "ferno": {
+  "title": "FERNO",
+  "primary": "Ferno Koltuk",
+  "configs": [
+   {
+    "label": "Ferno Koltuk",
+    "W": 74,
+    "D": 78,
+    "H": 73,
+    "SH": 39,
+    "extra": {
+     "Sırt Yüksekliği": 55,
+     "Oturum Derinliği": 57
+    }
+   }
+  ]
+ },
+ "kav-koltuk": {
+  "title": "KAV",
+  "primary": "Kav Dönebilen Koltuk",
+  "configs": [
+   {
+    "label": "Kav Dönebilen Koltuk",
+    "W": 87,
+    "D": 82,
+    "H": 60,
+    "SH": 37,
+    "extra": {
+     "Oturum Derinliği": 76
+    }
+   }
+  ]
+ },
+ "lamy-lounge-metal": {
+  "title": "LAMY LOUNGE",
+  "primary": "Premium (Metal) Dönebilen Ayak",
+  "configs": [
+   {
+    "label": "Premium (Metal) Dönebilen Ayak",
+    "W": 82,
+    "D": 94,
+    "H": 89,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Premium (Metal) Dönebilen Ayak — Başlıklı",
+    "W": 82,
+    "D": 99.5,
+    "H": 111,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Dönebilen Ayak",
+    "W": 75,
+    "D": 82.5,
+    "H": 88,
+    "SH": 42,
+    "extra": {
+     "Sırt Yüksekliği": 57,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Dönebilen Ayak — Başlıklı",
+    "W": 75,
+    "D": 88,
+    "H": 110,
+    "SH": 42,
+    "extra": {
+     "Sırt Yüksekliği": 57,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Ayak",
+    "W": 75,
+    "D": 79.5,
+    "H": 87,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 56,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Başlıklı",
+    "W": 75,
+    "D": 85,
+    "H": 109,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 56,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak",
+    "W": 75,
+    "D": 80.5,
+    "H": 91,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 60,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak — Başlıklı",
+    "W": 75,
+    "D": 86,
+    "H": 113,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 60,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Puf — Premium Dönebilen Ayak",
+    "W": 51,
+    "D": 50,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf — Ahşap Dönebilen Ayak",
+    "W": 52,
+    "D": 50,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf — Ahşap Ayak",
+    "W": 46.5,
+    "D": 42,
+    "H": 38,
+    "SH": 38,
+    "extra": {}
+   },
+   {
+    "label": "Puf — Kızak Ayak",
+    "W": 46.5,
+    "D": 42,
+    "H": 38,
+    "SH": 38,
+    "extra": {}
+   }
+  ]
+ },
+ "lamy-lounge-premium-donebilen-ayak---baslikli": {
+  "title": "LAMY LOUNGE",
+  "primary": "Premium (Metal) Dönebilen Ayak — Başlıklı",
+  "configs": [
+   {
+    "label": "Premium (Metal) Dönebilen Ayak",
+    "W": 82,
+    "D": 94,
+    "H": 89,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Premium (Metal) Dönebilen Ayak — Başlıklı",
+    "W": 82,
+    "D": 99.5,
+    "H": 111,
+    "SH": 43,
+    "extra": {
+     "Sırt Yüksekliği": 58,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Dönebilen Ayak",
+    "W": 75,
+    "D": 82.5,
+    "H": 88,
+    "SH": 42,
+    "extra": {
+     "Sırt Yüksekliği": 57,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Dönebilen Ayak — Başlıklı",
+    "W": 75,
+    "D": 88,
+    "H": 110,
+    "SH": 42,
+    "extra": {
+     "Sırt Yüksekliği": 57,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Ayak",
+    "W": 75,
+    "D": 79.5,
+    "H": 87,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 56,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Ahşap Ayak — Başlıklı",
+    "W": 75,
+    "D": 85,
+    "H": 109,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 56,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak",
+    "W": 75,
+    "D": 80.5,
+    "H": 91,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 60,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak — Başlıklı",
+    "W": 75,
+    "D": 86,
+    "H": 113,
+    "SH": 45,
+    "extra": {
+     "Sırt Yüksekliği": 60,
+     "Oturum Derinliği": 50
+    }
+   },
+   {
+    "label": "Puf — Premium Dönebilen Ayak",
+    "W": 51,
+    "D": 50,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf — Ahşap Dönebilen Ayak",
+    "W": 52,
+    "D": 50,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf — Ahşap Ayak",
+    "W": 46.5,
+    "D": 42,
+    "H": 38,
+    "SH": 38,
+    "extra": {}
+   },
+   {
+    "label": "Puf — Kızak Ayak",
+    "W": 46.5,
+    "D": 42,
+    "H": 38,
+    "SH": 38,
+    "extra": {}
+   }
+  ]
+ },
+ "ora-koltuk": {
+  "title": "ORA LOUNGE",
+  "primary": "Ora Koltuk",
+  "configs": [
+   {
+    "label": "Ora Koltuk",
+    "W": 86,
+    "D": 74,
+    "H": 68.5,
+    "SH": 45,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   }
+  ]
+ },
+ "pera-lounge-metal-donebilen-ayak-koltuk": {
+  "title": "PERA LOUNGE",
+  "primary": "Metal Dönebilen Ayak — Kolçaklı",
+  "configs": [
+   {
+    "label": "Metal Dönebilen Ayak — Kolçaklı",
+    "W": 65,
+    "D": 65,
+    "H": 77.5,
+    "SH": 42,
+    "extra": {
+     "Sırt Yüksekliği": 61.5,
+     "Oturum Derinliği": 48
+    }
+   },
+   {
+    "label": "Metal Dönebilen Ayak — Kolçaksız",
+    "W": 60,
+    "D": 65,
+    "H": 77.5,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 48
+    }
+   },
+   {
+    "label": "Kızak (Sled) Ayak",
+    "W": 60,
+    "D": 65,
+    "H": 77.5,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 48
+    }
+   }
+  ]
+ },
+ "round-metal-donebilen-ayak-koltuk": {
+  "title": "ROUND",
+  "primary": "Metal S — Dönebilen Ayak",
+  "configs": [
+   {
+    "label": "Private S",
+    "W": 78,
+    "D": 75.5,
+    "H": 119,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 61
+    }
+   },
+   {
+    "label": "Private S — Ø30 Tabletli Kolçak",
+    "W": 89,
+    "D": 88,
+    "H": 119,
+    "SH": 42,
+    "extra": {
+     "Tabla Yüksekliği": 57.5,
+     "Oturum Derinliği": 61
+    }
+   },
+   {
+    "label": "Metal S — Dönebilen Ayak",
+    "W": 78,
+    "D": 75.5,
+    "H": 65.5,
+    "SH": 41,
+    "extra": {
+     "Oturum Derinliği": 61
+    }
+   }
+  ]
+ },
+ "round-private-koltuk": {
+  "title": "ROUND",
+  "primary": "Private S",
+  "configs": [
+   {
+    "label": "Private S",
+    "W": 78,
+    "D": 75.5,
+    "H": 119,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 61
+    }
+   },
+   {
+    "label": "Private S — Ø30 Tabletli Kolçak",
+    "W": 89,
+    "D": 88,
+    "H": 119,
+    "SH": 42,
+    "extra": {
+     "Tabla Yüksekliği": 57.5,
+     "Oturum Derinliği": 61
+    }
+   },
+   {
+    "label": "Metal S — Dönebilen Ayak",
+    "W": 78,
+    "D": 75.5,
+    "H": 65.5,
+    "SH": 41,
+    "extra": {
+     "Oturum Derinliği": 61
+    }
+   }
+  ]
+ },
+ "to-be-koltuk": {
+  "title": "TO BE",
+  "primary": "To Be Koltuk",
+  "configs": [
+   {
+    "label": "To Be Koltuk",
+    "W": 76,
+    "D": 73,
+    "H": 80,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 59,
+     "Oturum Derinliği": 47
+    }
+   }
+  ]
+ },
+ "yuki-koltuk-tr": {
+  "title": "YUKI SOFA",
+  "primary": "Tekli Koltuk",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 250,
+    "D": 87,
+    "H": 75,
+    "SH": 40,
+    "extra": {
+     "Oturum Genişliği": 232,
+     "Oturum Derinliği": 60
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 216,
+    "D": 87,
+    "H": 75,
+    "SH": 40,
+    "extra": {
+     "Oturum Genişliği": 198,
+     "Oturum Derinliği": 60
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 105,
+    "D": 87,
+    "H": 75,
+    "SH": 40,
+    "extra": {
+     "Oturum Genişliği": 80,
+     "Oturum Derinliği": 60
+    }
+   }
+  ]
+ },
+ "yuki-kanepe": {
+  "title": "YUKI SOFA",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 250,
+    "D": 87,
+    "H": 75,
+    "SH": 40,
+    "extra": {
+     "Oturum Genişliği": 232,
+     "Oturum Derinliği": 60
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 216,
+    "D": 87,
+    "H": 75,
+    "SH": 40,
+    "extra": {
+     "Oturum Genişliği": 198,
+     "Oturum Derinliği": 60
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 105,
+    "D": 87,
+    "H": 75,
+    "SH": 40,
+    "extra": {
+     "Oturum Genişliği": 80,
+     "Oturum Derinliği": 60
+    }
+   }
+  ]
+ },
+ "bob-kanepe": {
+  "title": "BOB",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 194,
+    "D": 85,
+    "H": 76,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 62,
+     "Oturum Derinliği": 54
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 164,
+    "D": 85,
+    "H": 76,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 62,
+     "Oturum Derinliği": 54
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 74,
+    "D": 85,
+    "H": 76,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 62,
+     "Oturum Derinliği": 54
+    }
+   },
+   {
+    "label": "Tekli Koltuk — Dönebilen",
+    "W": 74,
+    "D": 85,
+    "H": 76,
+    "SH": 41,
+    "extra": {
+     "Sırt Yüksekliği": 62,
+     "Oturum Derinliği": 54
+    }
+   }
+  ]
+ },
+ "durgu-kanepe": {
+  "title": "DURGU",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 246,
+    "D": 82,
+    "H": 71,
+    "SH": 38,
+    "extra": {
+     "Oturum Derinliği": 57
+    }
+   },
+   {
+    "label": "Dörtlü Kanepe",
+    "W": 328,
+    "D": 82,
+    "H": 71,
+    "SH": 38,
+    "extra": {
+     "Oturum Derinliği": 57
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 180,
+    "D": 82,
+    "H": 71,
+    "SH": 38,
+    "extra": {
+     "Oturum Derinliği": 57
+    }
+   },
+   {
+    "label": "Orta Modül (Kolçaksız)",
+    "W": 82,
+    "D": 82,
+    "H": 71,
+    "SH": 38,
+    "extra": {
+     "Oturum Derinliği": 57
+    }
+   },
+   {
+    "label": "Daybed — Sağ Kolçaklı",
+    "W": 164,
+    "D": 82,
+    "H": 71,
+    "SH": 38,
+    "extra": {
+     "Oturum Derinliği": 57
+    }
+   },
+   {
+    "label": "Daybed — Sol Kolçaklı",
+    "W": 164,
+    "D": 82,
+    "H": 71,
+    "SH": 38,
+    "extra": {
+     "Oturum Derinliği": 57
+    }
+   }
+  ]
+ },
+ "led-kanepe": {
+  "title": "LED",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 188,
+    "D": 70,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 61,
+     "Oturum Derinliği": 54
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 132,
+    "D": 70,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 61,
+     "Oturum Derinliği": 54
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 80,
+    "D": 70,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 61,
+     "Oturum Derinliği": 54
+    }
+   },
+   {
+    "label": "Puf",
+    "W": 165,
+    "D": 55,
+    "H": 40,
+    "SH": 40,
+    "extra": {}
+   }
+  ]
+ },
+ "mabel-comfort-kanepe": {
+  "title": "MABEL COMFORT SOFA",
+  "primary": "Üçlü Kanepe 227",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe 227",
+    "W": 227,
+    "D": 86,
+    "H": 74.5,
+    "SH": 38.5,
+    "extra": {
+     "Kolçak Yüksekliği": 53.5,
+     "Oturum Derinliği": 56
+    }
+   },
+   {
+    "label": "Üçlü Kanepe 197",
+    "W": 197,
+    "D": 86,
+    "H": 74.5,
+    "SH": 38.5,
+    "extra": {
+     "Kolçak Yüksekliği": 53.5,
+     "Oturum Derinliği": 56
+    }
+   },
+   {
+    "label": "İkili Kanepe 167",
+    "W": 167,
+    "D": 86,
+    "H": 74.5,
+    "SH": 38.5,
+    "extra": {
+     "Kolçak Yüksekliği": 53.5,
+     "Oturum Derinliği": 56
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 100,
+    "D": 86,
+    "H": 74.5,
+    "SH": 38.5,
+    "extra": {
+     "Kolçak Yüksekliği": 53.5,
+     "Oturum Derinliği": 56
+    }
+   },
+   {
+    "label": "Tekli Koltuk — Yuvarlak Dönebilen Ayak",
+    "W": 100,
+    "D": 86,
+    "H": 74.5,
+    "SH": 38.5,
+    "extra": {
+     "Kolçak Yüksekliği": 53.5,
+     "Oturum Derinliği": 56
+    }
+   }
+  ]
+ },
+ "most-kanepe": {
+  "title": "MOST",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 230,
+    "D": 96,
+    "H": 69,
+    "SH": 39,
+    "extra": {
+     "Kolçak Yüksekliği": 49.5,
+     "Oturum Derinliği": 64.5
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 167,
+    "D": 96,
+    "H": 69,
+    "SH": 39,
+    "extra": {
+     "Kolçak Yüksekliği": 49.5,
+     "Oturum Derinliği": 64.5
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 105,
+    "D": 96,
+    "H": 69,
+    "SH": 39,
+    "extra": {
+     "Kolçak Yüksekliği": 49.5,
+     "Oturum Derinliği": 64.5
+    }
+   }
+  ]
+ },
+ "zen-kanepe": {
+  "title": "ZEN",
+  "primary": "Üçlü Kanepe",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe",
+    "W": 253,
+    "D": 115,
+    "H": 73,
+    "SH": 44,
+    "extra": {
+     "Oturum Derinliği": 63
+    }
+   },
+   {
+    "label": "İkili Kanepe",
+    "W": 201,
+    "D": 107,
+    "H": 73,
+    "SH": 44,
+    "extra": {
+     "Oturum Derinliği": 63
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 85,
+    "D": 90,
+    "H": 73,
+    "SH": 44,
+    "extra": {
+     "Oturum Derinliği": 63
+    }
+   },
+   {
+    "label": "Puf Ø100",
+    "W": 100,
+    "D": 100,
+    "H": 43,
+    "SH": 43,
+    "extra": {}
+   },
+   {
+    "label": "Puf Ø80",
+    "W": 80,
+    "D": 80,
+    "H": 43,
+    "SH": 43,
+    "extra": {}
+   },
+   {
+    "label": "Puf Ø60",
+    "W": 60,
+    "D": 60,
+    "H": 43,
+    "SH": 43,
+    "extra": {}
+   }
+  ]
+ },
+ "pick-kanepe": {
+  "title": "PICK MODULES",
+  "primary": "Üçlü Kanepe 343",
+  "configs": [
+   {
+    "label": "Üçlü Kanepe 343",
+    "W": 343,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "Üçlü Kanepe 283",
+    "W": 283,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "İkili Kanepe 240",
+    "W": 240,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "İkili Kanepe 200",
+    "W": 200,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "Tekli Koltuk",
+    "W": 117,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Sırt Yüksekliği": 69,
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "Modül 100 — Sağ Kolçaklı",
+    "W": 100,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "Modül 100 — Sol Kolçaklı",
+    "W": 100,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "Modül 120 — Sağ Kolçaklı",
+    "W": 120,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 65
+    }
+   },
+   {
+    "label": "Modül 120 — Sol Kolçaklı",
+    "W": 120,
+    "D": 90,
+    "H": 70,
+    "SH": 40,
+    "extra": {
+     "Oturum Derinliği": 65
+    }
+   }
+  ]
+ },
+ "piu-kanepe": {
+  "title": "PIU CONFIGURATIONS",
+  "primary": "Plan 03",
+  "configs": [
+   {
+    "label": "Plan 01",
+    "W": 250,
+    "D": 154.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 02",
+    "W": 280,
+    "D": 154.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 03",
+    "W": 350,
+    "D": 154.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 04",
+    "W": 239.5,
+    "D": 239.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 05",
+    "W": 279.5,
+    "D": 279.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 06",
+    "W": 279.5,
+    "D": 239.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 07",
+    "W": 300,
+    "D": 84.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 08",
+    "W": 309.5,
+    "D": 209.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 09",
+    "W": 279.5,
+    "D": 288.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 10",
+    "W": 250,
+    "D": 154.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 11",
+    "W": 390,
+    "D": 84.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "noda-kanepe": {
+  "title": "NODA MODULES",
+  "primary": "1S — Tekli Oturum",
+  "configs": [
+   {
+    "label": "1S — Tekli Oturum",
+    "W": 70,
+    "D": 72,
+    "H": 70,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "1SH — Tekli Oturum, Yüksek Sırt",
+    "W": 70,
+    "D": 72,
+    "H": 125,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "1SWA — Tekli Oturum, Kolçaklı",
+    "W": 88,
+    "D": 72,
+    "H": 70,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "1SWAH — Tekli Oturum, Kolçaklı, Yüksek Sırt",
+    "W": 88,
+    "D": 72,
+    "H": 125,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "C — Köşe Modülü",
+    "W": 55,
+    "D": 72,
+    "H": 70,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "CH — Köşe Modülü, Yüksek Sırt",
+    "W": 72,
+    "D": 72,
+    "H": 125,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "P1 — Puf",
+    "W": 72,
+    "D": 72,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "P2 — Puf",
+    "W": 140,
+    "D": 72,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   }
+  ]
+ },
+ "noda-bank": {
+  "title": "NODA MODULES",
+  "primary": "1S — Tekli Oturum",
+  "configs": [
+   {
+    "label": "1S — Tekli Oturum",
+    "W": 70,
+    "D": 72,
+    "H": 70,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "1SH — Tekli Oturum, Yüksek Sırt",
+    "W": 70,
+    "D": 72,
+    "H": 125,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "1SWA — Tekli Oturum, Kolçaklı",
+    "W": 88,
+    "D": 72,
+    "H": 70,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "1SWAH — Tekli Oturum, Kolçaklı, Yüksek Sırt",
+    "W": 88,
+    "D": 72,
+    "H": 125,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "C — Köşe Modülü",
+    "W": 55,
+    "D": 72,
+    "H": 70,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "CH — Köşe Modülü, Yüksek Sırt",
+    "W": 72,
+    "D": 72,
+    "H": 125,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 55
+    }
+   },
+   {
+    "label": "P1 — Puf",
+    "W": 72,
+    "D": 72,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "P2 — Puf",
+    "W": 140,
+    "D": 72,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   }
+  ]
+ },
+ "pick-small-oturum-sistemleri-tr": {
+  "title": "PICK S MODULES",
+  "primary": "Pick S Mid 90",
+  "configs": [
+   {
+    "label": "Pick S Mid 70",
+    "W": 70,
+    "D": 82,
+    "H": 67,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Mid 90",
+    "W": 90,
+    "D": 82,
+    "H": 67,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Mid 135",
+    "W": 135,
+    "D": 82,
+    "H": 67,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Concave (İçbükey)",
+    "W": 120,
+    "D": 87,
+    "H": 67,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Convex (Dışbükey)",
+    "W": 120,
+    "D": 87,
+    "H": 67,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Puf 35",
+    "W": 35,
+    "D": 82,
+    "H": 40,
+    "SH": 40,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Puf 70",
+    "W": 70,
+    "D": 82,
+    "H": 40,
+    "SH": 40,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Puf — Kavisli",
+    "W": 120,
+    "D": 87,
+    "H": 35,
+    "SH": 35,
+    "extra": {}
+   },
+   {
+    "label": "Pick S Yan Sehpa 35",
+    "W": 32,
+    "D": 82,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "loft-bank": {
+  "title": "LOFT MODULES",
+  "primary": "L3B — Tam Sırtlı Bank",
+  "configs": [
+   {
+    "label": "L3B — Tam Sırtlı",
+    "W": 177,
+    "D": 60,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "L32R — 2/3 Sırt, Sağ",
+    "W": 177,
+    "D": 60,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "L32L — 2/3 Sırt, Sol",
+    "W": 177,
+    "D": 60,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "L31R — 1/3 Sırt, Sağ",
+    "W": 177,
+    "D": 60,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "L31L — 1/3 Sırt, Sol",
+    "W": 177,
+    "D": 60,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "L31R1L — 1/3 Sırt, Sağ + Sol",
+    "W": 177,
+    "D": 60,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "L31M — 1/3 Sırt, Orta",
+    "W": 177,
+    "D": 60,
+    "H": 82,
+    "SH": 46,
+    "extra": {
+     "Oturum Derinliği": 49
+    }
+   },
+   {
+    "label": "L3P — Sırtsız Bank",
+    "W": 177,
+    "D": 55,
+    "H": 46,
+    "SH": 46,
+    "extra": {}
+   }
+  ]
+ },
+ "metric-ortak-oturum": {
+  "title": "METRIC STANDALONE BENCHES",
+  "primary": "K4L2S2 — Dörtlü Bank",
+  "configs": [
+   {
+    "label": "K4L2S2 — Dörtlü Bank",
+    "W": 300,
+    "D": 116,
+    "H": 116,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 60
+    }
+   },
+   {
+    "label": "K4S2L2 — Dörtlü Bank",
+    "W": 300,
+    "D": 116,
+    "H": 116,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 60
+    }
+   },
+   {
+    "label": "K4L2S2 F — Dörtlü Bank (Sehpalı)",
+    "W": 300,
+    "D": 116,
+    "H": 116,
+    "SH": 42,
+    "extra": {
+     "Oturum Derinliği": 60
+    }
+   }
+  ]
+ },
+ "drage-ortak-oturum": {
+  "title": "DRAGE",
+  "primary": "Yuvarlak Ø152",
+  "configs": [
+   {
+    "label": "Yuvarlak Ø180",
+    "W": 180,
+    "D": 180,
+    "H": 44,
+    "SH": 44,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø152",
+    "W": 152,
+    "D": 152,
+    "H": 44,
+    "SH": 44,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø140",
+    "W": 140,
+    "D": 140,
+    "H": 44,
+    "SH": 44,
+    "extra": {}
+   },
+   {
+    "label": "Düz 270",
+    "W": 270,
+    "D": 90,
+    "H": 44,
+    "SH": 44,
+    "extra": {}
+   },
+   {
+    "label": "Düz 220",
+    "W": 220,
+    "D": 90,
+    "H": 44,
+    "SH": 44,
+    "extra": {}
+   },
+   {
+    "label": "Düz 160",
+    "W": 160,
+    "D": 90,
+    "H": 44,
+    "SH": 44,
+    "extra": {}
+   }
+  ]
+ },
+ "elusive-masa": {
+  "title": "ELUSIVE",
+  "primary": "240 × 100",
+  "configs": [
+   {
+    "label": "240 × 100",
+    "W": 240,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "220 × 100",
+    "W": 220,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "200 × 100",
+    "W": 200,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "180 × 90",
+    "W": 180,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "160 × 90",
+    "W": 160,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "160 × 80",
+    "W": 160,
+    "D": 80,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 80",
+    "W": 120,
+    "D": 80,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "fil-masa": {
+  "title": "FIL TABLE",
+  "primary": "260 × 100",
+  "configs": [
+   {
+    "label": "260 × 100",
+    "W": 260,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "240 × 100",
+    "W": 240,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "220 × 100",
+    "W": 220,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "200 × 100",
+    "W": 200,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "180 × 90",
+    "W": 180,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø160",
+    "W": 160,
+    "D": 160,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø140",
+    "W": 140,
+    "D": 140,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø120",
+    "W": 120,
+    "D": 120,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "globe-masa": {
+  "title": "GLOBE TABLE",
+  "primary": "Yuvarlak Tabla Ø80 — Yuvarlak Ayak",
+  "configs": [
+   {
+    "label": "Yuvarlak Tabla Ø60 — Yuvarlak Ayak",
+    "W": 60,
+    "D": 60,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø70 — Yuvarlak Ayak",
+    "W": 70,
+    "D": 70,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø80 — Yuvarlak Ayak",
+    "W": 80,
+    "D": 80,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø90 — Yuvarlak Ayak",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø100 — Yuvarlak Ayak",
+    "W": 100,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø110 — Yuvarlak Ayak",
+    "W": 110,
+    "D": 110,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø120 — Yuvarlak Ayak",
+    "W": 120,
+    "D": 120,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø130 — Yuvarlak Ayak",
+    "W": 130,
+    "D": 130,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø60 — Kare Ayak",
+    "W": 60,
+    "D": 60,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø70 — Kare Ayak",
+    "W": 70,
+    "D": 70,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø80 — Kare Ayak",
+    "W": 80,
+    "D": 80,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Tabla Ø90 — Kare Ayak",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Kare Tabla 60 × 60 — Yuvarlak Ayak",
+    "W": 60,
+    "D": 60,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Kare Tabla 70 × 70 — Yuvarlak Ayak",
+    "W": 70,
+    "D": 70,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Kare Tabla 80 × 80 — Yuvarlak Ayak",
+    "W": 80,
+    "D": 80,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Kare Tabla 90 × 90 — Yuvarlak Ayak",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Kare Tabla 100 × 100 — Yuvarlak Ayak",
+    "W": 100,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "radius-masa": {
+  "title": "RADIUS TABLE",
+  "primary": "270 × 100",
+  "configs": [
+   {
+    "label": "270 × 100 — Laminat / Kaplama",
+    "W": 270,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "240 × 100 — Laminat / Kaplama",
+    "W": 240,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "270 × 100 — Mermer",
+    "W": 270,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "240 × 100 — Mermer",
+    "W": 240,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "seri-masa": {
+  "title": "SERI TABLE",
+  "primary": "240 × 120 (Elips)",
+  "configs": [
+   {
+    "label": "240 × 120 (Elips)",
+    "W": 240,
+    "D": 120,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "220 × 110 (Elips)",
+    "W": 220,
+    "D": 110,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "180 × 100 (Elips)",
+    "W": 180,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø160",
+    "W": 160,
+    "D": 160,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø150",
+    "W": 150,
+    "D": 150,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø140",
+    "W": 140,
+    "D": 140,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "woodplate-masa": {
+  "title": "WOODPLATE",
+  "primary": "180 × 90",
+  "configs": [
+   {
+    "label": "180 × 90",
+    "W": 180,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "140 × 80",
+    "W": 140,
+    "D": 80,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 120",
+    "W": 120,
+    "D": 120,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "100 × 100",
+    "W": 100,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø100",
+    "W": 100,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø120",
+    "W": 120,
+    "D": 120,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "tori-indoor-masa": {
+  "title": "TORI INDOOR TABLE",
+  "primary": "250 × 100",
+  "configs": [
+   {
+    "label": "250 × 100",
+    "W": 250,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "220 × 100",
+    "W": 220,
+    "D": 100,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "180 × 90",
+    "W": 180,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø160",
+    "W": 160,
+    "D": 160,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø140",
+    "W": 140,
+    "D": 140,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø120",
+    "W": 120,
+    "D": 120,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø90",
+    "W": 90,
+    "D": 90,
+    "H": 75,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "pod-quad-oturum-adasi": {
+  "title": "POD BENCH",
+  "primary": "Quad Bench 180 × 180",
+  "configs": [
+   {
+    "label": "Quad Bench 180 × 180",
+    "W": 180,
+    "D": 180,
+    "H": 45,
+    "SH": 45,
+    "extra": {}
+   },
+   {
+    "label": "Trio Bench 180 × 160",
+    "W": 180,
+    "D": 160,
+    "H": 45,
+    "SH": 45,
+    "extra": {}
+   }
+  ]
+ },
+ "drage-sehpa": {
+  "title": "DRAGE",
+  "primary": "Ø68 × 42h",
+  "configs": [
+   {
+    "label": "Ø48 × 52h",
+    "W": 48,
+    "D": 48,
+    "H": 52,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø68 × 42h",
+    "W": 68,
+    "D": 68,
+    "H": 42,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø88 × 32h",
+    "W": 88,
+    "D": 88,
+    "H": 32,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "globe-sehpa": {
+  "title": "GLOBE LOW TABLE",
+  "primary": "Elips 140 × 90 × 40h",
+  "configs": [
+   {
+    "label": "Elips 140 × 90 × 40h",
+    "W": 140,
+    "D": 90,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Elips 120 × 80 × 40h",
+    "W": 120,
+    "D": 80,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Elips 90 × 60 × 40h",
+    "W": 90,
+    "D": 60,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø50 × 55h",
+    "W": 50,
+    "D": 50,
+    "H": 55,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø60 × 55h",
+    "W": 60,
+    "D": 60,
+    "H": 55,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø50 × 45h",
+    "W": 50,
+    "D": 50,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø60 × 45h",
+    "W": 60,
+    "D": 60,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "woodplate-sehpa": {
+  "title": "WOODPLATE",
+  "primary": "140 × 70 × 40h",
+  "configs": [
+   {
+    "label": "140 × 70 × 40h",
+    "W": 140,
+    "D": 70,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 60 × 40h",
+    "W": 120,
+    "D": 60,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 120 × 40h",
+    "W": 120,
+    "D": 120,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 × 40h",
+    "W": 90,
+    "D": 90,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø90 × 40h",
+    "W": 90,
+    "D": 90,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø120 × 40h",
+    "W": 120,
+    "D": 120,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "50 × 50 × 45h",
+    "W": 50,
+    "D": 50,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø50 × 45h",
+    "W": 50,
+    "D": 50,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø38 × 50h",
+    "W": 38,
+    "D": 38,
+    "H": 50,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "loom-sehpa": {
+  "title": "LOOM",
+  "primary": "180 × 49,5 × 35,5h",
+  "configs": [
+   {
+    "label": "180 × 49,5 × 35,5h",
+    "W": 180,
+    "D": 49.5,
+    "H": 35.5,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "160 × 49,5 × 35,5h",
+    "W": 160,
+    "D": 49.5,
+    "H": 35.5,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "84,5 × 80 × 35,5h",
+    "W": 84.5,
+    "D": 80,
+    "H": 35.5,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "64,5 × 60 × 35,5h",
+    "W": 64.5,
+    "D": 60,
+    "H": 35.5,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "46,5 × 42 × 51h",
+    "W": 46.5,
+    "D": 42,
+    "H": 51,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "modest-sehpa": {
+  "title": "MODEST",
+  "primary": "120 × 60 × 40h",
+  "configs": [
+   {
+    "label": "120 × 60 × 40h",
+    "W": 120,
+    "D": 60,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 45 × 40h",
+    "W": 90,
+    "D": 45,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 × 40h",
+    "W": 90,
+    "D": 90,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø70 × 40h",
+    "W": 70,
+    "D": 70,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø90 × 40h",
+    "W": 90,
+    "D": 90,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø50 × 45h",
+    "W": 50,
+    "D": 50,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø38 × 50h",
+    "W": 38,
+    "D": 38,
+    "H": 50,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "noa-sehpa": {
+  "title": "NOA",
+  "primary": "40 × 40 × 48h",
+  "configs": [
+   {
+    "label": "Kare 40 × 40 × 48h",
+    "W": 40,
+    "D": 40,
+    "H": 48,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Kare 40 × 40 × 40h",
+    "W": 40,
+    "D": 40,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø40 × 48h",
+    "W": 40,
+    "D": 40,
+    "H": 48,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Yuvarlak Ø40 × 40h",
+    "W": 40,
+    "D": 40,
+    "H": 40,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "52 × 32 × 60h",
+    "W": 52,
+    "D": 32,
+    "H": 60,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "32 × 32 × 60h",
+    "W": 32,
+    "D": 32,
+    "H": 60,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "sini-sehpa": {
+  "title": "SINI",
+  "primary": "Ø68 × 43h",
+  "configs": [
+   {
+    "label": "Ø48 × 53h",
+    "W": 48,
+    "D": 48,
+    "H": 53,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø68 × 43h",
+    "W": 68,
+    "D": 68,
+    "H": 43,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø88 × 33h",
+    "W": 88,
+    "D": 88,
+    "H": 33,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "theo-sehpa": {
+  "title": "THEO",
+  "primary": "160 × 50 × 35h",
+  "configs": [
+   {
+    "label": "160 × 50 × 35h",
+    "W": 160,
+    "D": 50,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 50 × 35h",
+    "W": 120,
+    "D": 50,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø100 × 35h",
+    "W": 100,
+    "D": 100,
+    "H": 35,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø60 × 45h",
+    "W": 60,
+    "D": 60,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Ø45 × 55h",
+    "W": 45,
+    "D": 45,
+    "H": 55,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "fly-sehpa": {
+  "title": "FLY",
+  "primary": "180 × 90 × 37h",
+  "configs": [
+   {
+    "label": "180 × 90 × 37h",
+    "W": 180,
+    "D": 90,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "160 × 80 × 37h",
+    "W": 160,
+    "D": 80,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "120 × 60 × 37h",
+    "W": 120,
+    "D": 60,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 50 × 37h",
+    "W": 90,
+    "D": 50,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "90 × 90 × 37h",
+    "W": 90,
+    "D": 90,
+    "H": 37,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "55 × 55 × 45h",
+    "W": 55,
+    "D": 55,
+    "H": 45,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "45 × 45 × 55h",
+    "W": 45,
+    "D": 45,
+    "H": 55,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "boxer-puf": {
+  "title": "BOXER",
+  "primary": "42 × 42 × 42h",
+  "configs": [
+   {
+    "label": "42 × 42 × 42h",
+    "W": 42,
+    "D": 42,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   }
+  ]
+ },
+ "flint-puf": {
+  "title": "FLINT",
+  "primary": "Flint Large",
+  "configs": [
+   {
+    "label": "Flint Large",
+    "W": 145,
+    "D": 113,
+    "H": 39,
+    "SH": 39,
+    "extra": {}
+   },
+   {
+    "label": "Flint Medium",
+    "W": 100,
+    "D": 86,
+    "H": 39,
+    "SH": 39,
+    "extra": {}
+   },
+   {
+    "label": "Flint Small",
+    "W": 75,
+    "D": 55,
+    "H": 39,
+    "SH": 39,
+    "extra": {}
+   }
+  ]
+ },
+ "may-puf": {
+  "title": "MAY",
+  "primary": "49,5 × 42,5 × 45,5h",
+  "configs": [
+   {
+    "label": "49,5 × 42,5 × 45,5h",
+    "W": 49.5,
+    "D": 42.5,
+    "H": 45.5,
+    "SH": 45.5,
+    "extra": {
+     "Tekerlekli": "Evet"
+    }
+   }
+  ]
+ },
+ "pi-puf": {
+  "title": "PI",
+  "primary": "48 × 38 × 44h",
+  "configs": [
+   {
+    "label": "48 × 38 × 44h",
+    "W": 48,
+    "D": 38,
+    "H": 44,
+    "SH": 44,
+    "extra": {}
+   }
+  ]
+ },
+ "roller-puf": {
+  "title": "ROLLER",
+  "primary": "Ø36 × 40h",
+  "configs": [
+   {
+    "label": "Ø36 × 40h",
+    "W": 36,
+    "D": 36,
+    "H": 40,
+    "SH": 40,
+    "extra": {}
+   }
+  ]
+ },
+ "sorbe-tr": {
+  "title": "SORBE INDOOR",
+  "primary": "Puf Ø120 × 42h",
+  "configs": [
+   {
+    "label": "Puf Ø120 × 42h",
+    "W": 120,
+    "D": 120,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf 92 × 92 × 42h",
+    "W": 92,
+    "D": 92,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   },
+   {
+    "label": "Puf 62 × 62 × 42h",
+    "W": 62,
+    "D": 62,
+    "H": 42,
+    "SH": 42,
+    "extra": {}
+   }
+  ]
+ },
+ "zenger-puf": {
+  "title": "ZENGER",
+  "primary": "41 × 37 × 49h",
+  "configs": [
+   {
+    "label": "41 × 37 × 49h",
+    "W": 41,
+    "D": 37,
+    "H": 49,
+    "SH": 49,
+    "extra": {}
+   }
+  ]
+ },
+ "matt-moduler-oturma-sistemi": {
+  "title": "MATT MODULES",
+  "primary": "MT75 — Sırtlı Modül",
+  "configs": [
+   {
+    "label": "MT75 — Sırtlı Modül",
+    "W": 76,
+    "D": 88,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "MTP50 — Puf",
+    "W": 50,
+    "D": 82,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "MTST — Yan Sehpa",
+    "W": 49,
+    "D": 82,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "MTC — Köşe Modülü",
+    "W": 141,
+    "D": 125,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 01 — Kurgu",
+    "W": 452,
+    "D": 87.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   },
+   {
+    "label": "Plan 02 — Kurgu",
+    "W": 413,
+    "D": 168.5,
+    "H": null,
+    "SH": null,
+    "extra": {}
+   }
+  ]
+ },
+ "odin-sandalye": {
+  "title": "ODIN CHAIR",
+  "primary": "Ahşap Oturum",
+  "configs": [
+   {
+    "label": "Ahşap Oturum",
+    "W": 57,
+    "D": 48,
+    "H": 75,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 70.5,
+     "Oturum Derinliği": 45.5
+    }
+   },
+   {
+    "label": "Döşemeli Oturum",
+    "W": 57,
+    "D": 48,
+    "H": 75,
+    "SH": 46,
+    "extra": {
+     "Sırt Yüksekliği": 70.5,
+     "Oturum Derinliği": 45.5
+    }
+   }
+  ]
+ }
+}
