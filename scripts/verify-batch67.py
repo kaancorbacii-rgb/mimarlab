@@ -108,7 +108,13 @@ for r in rows:
     imgs = json.loads(r['images'] or '[]')
     v = json.loads(r['variants'] or '[]')
     lost_l = p['labels'] - labels
-    lost_i = [i for i in p['images'] if i not in imgs]
+    # `-w` soneki bir KAYIP değil, yeniden adreslemedir: alfa düzeltmesi sonrası kareler
+    # `<n>-w.webp` anahtarlarına taşındı (bkz. rekey-batch67-alpha-images.py — uç önbelleği
+    # `immutable` olduğu için içerik değil ADRES değiştirildi).
+    def norm(path):
+        return path.replace('-w.webp', '.webp')
+    have = {norm(i) for i in imgs}
+    lost_i = [i for i in p['images'] if norm(i) not in have]
     # Küratörlü etiketler her VERSİYONA da taşınmalı: versiyonun kendi spec'i dolu olduğundan
     # ana satıra düşülmez, taşınmazsa versiyon seçilince ekrandan kaybolurlar.
     missing_in_var = [x.get('label') for x in v
