@@ -440,8 +440,13 @@ const ProductModal = (function () {
       </div>
       <div class="gallery-counter" id="pr-gallery-counter"></div>
     </div>
+    <!-- Gruba göre filtre çentiği (kullanıcı isteği, 2026-09-04: "diğer örnek filtrelenebilir
+         başlıklar gibi") — proje pop-up'ındaki "Firmanın Diğer Projeleri" ile BİREBİR aynı bileşen
+         ve gruplama alanı (künyedeki "Grup", projects.type), bkz. js/components/
+         project-group-filter.js ve renderUsedInProjects. -->
     <div class="related-section" id="pr-projects-section" style="display:none;">
-      <h2 class="related-title">Kullanılan Projeler</h2>
+      <h2 class="related-title" id="pr-projects-title">Kullanılan Projeler<span id="pr-projects-count"></span><button type="button" class="pgf-toggle" id="pr-projects-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="pr-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="pr-projects-grid"></div>
     </div>
     <!-- Kullanan Firmalar + Kullanan Mimarlar TEK satırda, iki sütun (kullanıcı isteği, 2026-09-01
@@ -1182,10 +1187,23 @@ const ProductModal = (function () {
     if (!section) return;
     const items = p.projects || [];
     if (!items.length) { section.style.display = 'none'; return; }
-    RelatedStrip.render(document.getElementById('pr-projects-grid'), items, pr =>
-      cardHtml(`/proje/${encodeURIComponent(pr.slug)}`, pr.title, pr.image, pr.location)
-    );
+    function paint(list) {
+      RelatedStrip.render(document.getElementById('pr-projects-grid'), list, pr =>
+        cardHtml(`/proje/${encodeURIComponent(pr.slug)}`, pr.title, pr.image, pr.location)
+      );
+      document.getElementById('pr-projects-count').textContent = list.length ? ` (${list.length})` : '';
+    }
     section.style.display = '';
+    paint(items);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        titleEl: document.getElementById('pr-projects-title'),
+        toggleEl: document.getElementById('pr-projects-filter-toggle'),
+        chipsEl: document.getElementById('pr-projects-filter-chips'),
+        items,
+        onChange: paint,
+      });
+    }
   }
 
   // "Kullanan Firmalar" / "Kullanan Mimarlar" (kullanıcı isteği, 2026-09-01 madde 3) — veri AYRI bir

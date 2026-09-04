@@ -187,12 +187,14 @@ function firstImage(imagesJson) {
 }
 async function fetchProductProjects(env, productId) {
   const { results } = await env.DB.prepare(
-    `SELECT p.slug, p.title, p.location, p.images FROM project_products pp
+    `SELECT p.slug, p.title, p.location, p.images, p.type FROM project_products pp
      JOIN projects p ON p.id = pp.project_id
      WHERE pp.product_id = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL
      ORDER BY p.id DESC`
   ).bind(productId).all();
-  return results.map(row => ({ slug: row.slug, title: row.title, location: row.location, image: firstImage(row.images) }));
+  // type — künyedeki "Grup" alanı; ürün pop-up'ındaki "Kullanılan Projeler" grup filtresi (bkz.
+  // js/components/product-modal.js#renderUsedInProjects, project-group-filter.js) bunun üzerinden çalışır.
+  return results.map(row => ({ slug: row.slug, title: row.title, location: row.location, image: firstImage(row.images), type: parseCanonicalRow('projects', row).type }));
 }
 
 // "Kullanan Firmalar" / "Kullanan Mimarlar" (kullanıcı isteği, 2026-09-01 madde 3) — proje modalının

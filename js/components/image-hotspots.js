@@ -172,6 +172,8 @@ const ImageHotspots = (function () {
   //   fit: 'contain' | 'cover'
   //   interactive: false ise (şerit) işaretçiye tıklama kart açmaz, opts.onSelect'e devredilir
   //   onSelect(index): interactive=false iken çağrılır
+  //   hoverPreview: true ise (bkz. index.html#mountSlideHotspots) fare ile üzerine gelmek metin
+  //                 etiketi yerine DOĞRUDAN tam önizleme kartını açar
   //   openIndex: mount'tan hemen sonra açılacak kart (şeritten büyütmeye geçiş için)
   function mount(hostEl, imgEl, hotspots, opts) {
     if (!hostEl || !imgEl) return;
@@ -241,9 +243,21 @@ const ImageHotspots = (function () {
 
     // Fareyle üzerine gelince ürün adı (bkz. kullanıcı ekran görüntüsü 2'deki koyu etiket) —
     // dokunmatikte hover diye bir şey olmadığından orada yalnızca tıklama/dokunma kartı açar.
+    //
+    // hoverPreview (kullanıcı isteği, 2026-09-04: "Ana sayfadaki caroseldeki hotspotların üzerine
+    // mouse imleci getirince ... ürün önizlemesi gözüksün") — bu modda hover metin etiketi yerine
+    // DOĞRUDAN tam önizleme kartını açar (openFor ile AYNI kart, tıklamayla açılanın birebir aynısı).
+    // Yalnızca ana sayfa carousel'i bunu ister; diğer çağıranlar (galeri/lightbox) opsiyonu hiç
+    // vermediğinden eski metin-etiketi davranışı DEĞİŞMEDEN kalır.
     function onOver(e) {
       const dot = e.target.closest('.ih-dot');
-      if (!dot || !tip || dot.classList.contains('open')) return;
+      if (!dot) return;
+      if (options.hoverPreview) {
+        if (dot.classList.contains('open')) return;
+        openFor(parseInt(dot.dataset.ih, 10));
+        return;
+      }
+      if (!tip || dot.classList.contains('open')) return;
       const h = list[parseInt(dot.dataset.ih, 10)];
       if (!h) return;
       tip.textContent = h.title || '';
@@ -253,8 +267,13 @@ const ImageHotspots = (function () {
       tip.classList.add('show');
     }
     function onOut(e) {
-      if (!tip || (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.ih-dot'))) return;
-      tip.classList.remove('show');
+      // Kartın/işaretçinin ÜZERİNE geçiliyorsa kapatma — kullanıcı fareyi karta taşıyıp "Ürünü gör"
+      // bağlantısına tıklayabilsin.
+      const enteringDotOrCard = e.relatedTarget && e.relatedTarget.closest
+        && (e.relatedTarget.closest('.ih-dot') || (options.hoverPreview && e.relatedTarget.closest('.ih-card')));
+      if (enteringDotOrCard) return;
+      if (options.hoverPreview) { closeCard(); return; }
+      if (tip) tip.classList.remove('show');
     }
     layer.addEventListener('mouseover', onOver);
     layer.addEventListener('mouseout', onOut);

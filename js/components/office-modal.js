@@ -319,7 +319,8 @@ const OfficeModal = (function () {
       <div class="related-grid-scroll" id="om-related-brands-grid"></div>
     </div>
     <div class="related-section" id="om-project-products-section" style="display:none;">
-      <h2 class="related-title">Projelerde Kullanılan Ürünler<span id="om-project-products-count"></span></h2>
+      <h2 class="related-title" id="om-project-products-title">Projelerde Kullanılan Ürünler<span id="om-project-products-count"></span><button type="button" class="pgf-toggle" id="om-project-products-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="om-project-products-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-project-products-grid"></div>
     </div>
     <!-- Markanın Kullanıldığı Projeler (kullanıcı isteği, 2026-08-31; başlık 2026-09-01 madde 7 ile
@@ -327,7 +328,8 @@ const OfficeModal = (function () {
          Projeler"in marka düzeyindeki karşılığı: bu markanın TÜM ürünlerinin kullanıldığı projeler
          (bkz. src/routes/office.js#brandProductProjects). -->
     <div class="related-section" id="om-brand-product-projects-section" style="display:none;">
-      <h2 class="related-title">Markanın Kullanıldığı Projeler<span id="om-brand-product-projects-count"></span></h2>
+      <h2 class="related-title" id="om-brand-product-projects-title">Markanın Kullanıldığı Projeler<span id="om-brand-product-projects-count"></span><button type="button" class="pgf-toggle" id="om-brand-product-projects-filter-toggle" style="display:none;"></button></h2>
+      <div class="pgf-chips" id="om-brand-product-projects-filter-chips" style="display:none;"></div>
       <div class="related-grid-scroll" id="om-brand-product-projects-grid"></div>
     </div>
     <!-- Tercih Eden Firmalar | Tercih Eden Mimarlar (kullanıcı isteği, 2026-09-01 madde 7) —
@@ -881,11 +883,24 @@ const OfficeModal = (function () {
     // kategori DEĞİL MARKA gösterir: buradaki ürünler firmanın kendi markası olmadığından, hangi
     // markaya ait oldukları bu bölümde asıl ayırt edici bilgi.
     const projectProductsData = payload.projectProducts || [];
+    function paintProjectProducts(list) {
+      RelatedStrip.render(document.getElementById('om-project-products-grid'), list, p =>
+        cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
+      );
+      document.getElementById('om-project-products-count').textContent = list.length ? ` (${list.length})` : '';
+    }
     document.getElementById('om-project-products-section').style.display = projectProductsData.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('om-project-products-grid'), projectProductsData, p =>
-      cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
-    );
-    document.getElementById('om-project-products-count').textContent = projectProductsData.length ? ` (${projectProductsData.length})` : '';
+    paintProjectProducts(projectProductsData);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        titleEl: document.getElementById('om-project-products-title'),
+        toggleEl: document.getElementById('om-project-products-filter-toggle'),
+        chipsEl: document.getElementById('om-project-products-filter-chips'),
+        items: projectProductsData,
+        groupsOf: ProjectGroupFilter.byField('category'),
+        onChange: paintProjectProducts,
+      });
+    }
 
     // İlgili Markalar — kartlar firma kartlarıyla AYNI şekil/logoUrl yolunu kullanır, bu yüzden
     // yukarıdaki om-city-grid ile AYNI cardHtml çağrısı yeterli.
@@ -899,11 +914,23 @@ const OfficeModal = (function () {
     // Ürünlerin Kullanıldığı Projeler — proje kartlarıyla AYNI cardHtml/alt satır (konum) deseni,
     // yukarıdaki "Projeler" ızgarasıyla birebir aynı görünür.
     const brandProductProjectsData = payload.brandProductProjects || [];
+    function paintBrandProductProjects(list) {
+      RelatedStrip.render(document.getElementById('om-brand-product-projects-grid'), list, p =>
+        cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0], p.location)
+      );
+      document.getElementById('om-brand-product-projects-count').textContent = list.length ? ` (${list.length})` : '';
+    }
     document.getElementById('om-brand-product-projects-section').style.display = brandProductProjectsData.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('om-brand-product-projects-grid'), brandProductProjectsData, p =>
-      cardHtml(`/proje/${encodeURIComponent(p.slug)}`, p.title, p.images && p.images[0], p.location)
-    );
-    document.getElementById('om-brand-product-projects-count').textContent = brandProductProjectsData.length ? ` (${brandProductProjectsData.length})` : '';
+    paintBrandProductProjects(brandProductProjectsData);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        titleEl: document.getElementById('om-brand-product-projects-title'),
+        toggleEl: document.getElementById('om-brand-product-projects-filter-toggle'),
+        chipsEl: document.getElementById('om-brand-product-projects-filter-chips'),
+        items: brandProductProjectsData,
+        onChange: paintBrandProductProjects,
+      });
+    }
 
     // Tercih Eden Firmalar / Tercih Eden Mimarlar (kullanıcı isteği, 2026-09-01 madde 7) — payload'la
     // BİRLİKTE gelir (ek fetch yok). Firma kartları yukarıdaki "İlgili Markalar" ile AYNI logoUrl

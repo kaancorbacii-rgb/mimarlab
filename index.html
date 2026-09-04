@@ -671,10 +671,16 @@ function renderSlider(items){
 // İki davranış kararı:
 //   * fit:'cover' — slayt görseli object-fit:cover ile kırpılıyor (bkz. .proje-slide img);
 //     işaretçi katmanı görselin GERÇEKTEN boyandığı dikdörtgene oturmalı, kutusuna değil.
-//   * interactive:false + onSelect — slaytın kendisi projeye giden bir <a>. Önizleme kartını
-//     burada açmak, slaytın overflow'unda kırpılırdı; onun yerine tıklama doğrudan ÜRÜN sayfasına
-//     götürür. Nokta tıklaması <a>'yı tetiklemez: ImageHotspots#onLayerClick zaten
-//     preventDefault+stopPropagation yapıyor.
+//   * interactive:true + hoverPreview:true (kullanıcı isteği, 2026-09-04: "hotspotların üzerine
+//     mouse imleci getirince ya da tablet ve mobilde tıklayınca ürün önizlemesi gözüksün") —
+//     masaüstünde üzerine gelmek, dokunmatikte dokunmak AYNI tam önizleme kartını açar (bkz.
+//     image-hotspots.js#openFor/hoverPreview); karttaki bağlantı ürün sayfasına götürür. Kart
+//     .ih-layer'ın (yani görselin boyandığı dikdörtgenin) İÇİNE kendini sığdırır (bkz.
+//     image-hotspots.js#placeCard) — .proje-slider'ın overflow:hidden'ı burada sorun ÇIKARMAZ,
+//     kartın boyutu (260px/220px) slider'ın gerçek genişliğinin altında kaldığı sürece (bkz. o
+//     dosyadaki "ÖNİZLEME KARTI YALNIZCA LIGHTBOX'TA" notu — o kısıtlama küçük galeri şeritleri
+//     içindir, buradaki slider onlardan çok daha geniştir). Nokta tıklaması <a>'yı tetiklemez:
+//     ImageHotspots#onLayerClick zaten preventDefault+stopPropagation yapıyor.
 function mountSlideHotspots(trackEl, items){
   if(typeof ImageHotspots === 'undefined') return;
   trackEl.querySelectorAll('.proje-slide').forEach(slide => {
@@ -687,11 +693,8 @@ function mountSlideHotspots(trackEl, items){
     if(!dots.length) return;
     ImageHotspots.mount(slide, img, dots, {
       fit: 'cover',
-      interactive: false,
-      onSelect: (i) => {
-        const slug = dots[i] && dots[i].slug;
-        if(slug) window.location.href = '/urun/' + encodeURIComponent(slug);
-      },
+      interactive: true,
+      hoverPreview: true,
     });
   });
 }

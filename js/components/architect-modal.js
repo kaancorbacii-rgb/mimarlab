@@ -289,7 +289,8 @@ const ArchitectModal = (function () {
         <div class="related-grid-scroll" id="am-preferred-brands-grid"></div>
       </div>
       <div class="am-two-col-cell" id="am-used-products-section" style="display:none;">
-        <h2 class="related-title">Kullandığı Ürünler<span id="am-used-products-count"></span></h2>
+        <h2 class="related-title" id="am-used-products-title">Kullandığı Ürünler<span id="am-used-products-count"></span><button type="button" class="pgf-toggle" id="am-used-products-filter-toggle" style="display:none;"></button></h2>
+        <div class="pgf-chips" id="am-used-products-filter-chips" style="display:none;"></div>
         <div class="related-grid-scroll" id="am-used-products-grid"></div>
       </div>
     </div>
@@ -857,11 +858,24 @@ const ArchitectModal = (function () {
     // Ürün kartlarının alt satırında MARKA gösterilir (bu ürünleri mimar tasarlamadı, hangi markaya
     // ait oldukları burada asıl ayırt edici bilgi); marka kartlarında ise firmanın konumu.
     const usedProductsData = payload.usedProducts || [];
+    function paintUsedProducts(list) {
+      RelatedStrip.render(document.getElementById('am-used-products-grid'), list, p =>
+        cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
+      );
+      document.getElementById('am-used-products-count').textContent = list.length ? ` (${list.length})` : '';
+    }
     document.getElementById('am-used-products-section').style.display = usedProductsData.length ? '' : 'none';
-    RelatedStrip.render(document.getElementById('am-used-products-grid'), usedProductsData, p =>
-      cardHtml(`/urun/${encodeURIComponent(p.slug)}`, p.title, (p.images && p.images[0]) || p.image, p.brand || p.category)
-    );
-    document.getElementById('am-used-products-count').textContent = usedProductsData.length ? ` (${usedProductsData.length})` : '';
+    paintUsedProducts(usedProductsData);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        titleEl: document.getElementById('am-used-products-title'),
+        toggleEl: document.getElementById('am-used-products-filter-toggle'),
+        chipsEl: document.getElementById('am-used-products-filter-chips'),
+        items: usedProductsData,
+        groupsOf: ProjectGroupFilter.byField('category'),
+        onChange: paintUsedProducts,
+      });
+    }
 
     const preferredBrandsData = payload.preferredBrands || [];
     document.getElementById('am-preferred-brands-section').style.display = preferredBrandsData.length ? '' : 'none';

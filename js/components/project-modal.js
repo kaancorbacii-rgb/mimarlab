@@ -75,7 +75,8 @@ const ProjectModal = (function () {
          içerik tutar — aksi halde yan yana iki ayrı üst çizgi çıkardı. -->
     <div class="related-section pm-two-col-row" id="pm-products-pair" aria-live="polite">
       <div class="pm-two-col-cell" id="pm-products-section">
-        <h2 class="related-title">Kullanılan Ürünler</h2>
+        <h2 class="related-title" id="pm-products-title">Kullanılan Ürünler<span id="pm-products-count"></span><button type="button" class="pgf-toggle" id="pm-products-filter-toggle" style="display:none;"></button></h2>
+        <div class="pgf-chips" id="pm-products-filter-chips" style="display:none;"></div>
         <div class="related-grid-scroll" id="pm-products-grid"></div>
       </div>
       <div class="pm-two-col-cell" id="pm-brands-section" style="display:none;">

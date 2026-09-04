@@ -16,6 +16,8 @@
 const ProjectProducts = (function () {
   const DEFAULT_IDS = {
     productsSection: 'pm-products-section', productsGrid: 'pm-products-grid',
+    productsTitle: 'pm-products-title', productsFilterToggle: 'pm-products-filter-toggle',
+    productsFilterChips: 'pm-products-filter-chips', productsCount: 'pm-products-count',
     // "Kullanılan Markalar" (kullanıcı isteği, 2026-09-01 madde 5) — "Kullanılan Ürünler" ile AYNI
     // satırda, iki sütun (bkz. js/components/project-modal.js#pm-two-col-row). Veri ek bir istek
     // GEREKTİRMEZ: item.brands proje payload'ıyla birlikte gelir (bkz. src/routes/project.js#
@@ -69,10 +71,37 @@ const ProjectProducts = (function () {
   // bölümü kaldırıldı. Sunucu ikisini hâlâ AYRI döndürüyor (item.products/item.materials, bkz.
   // src/routes/project.js#fetchProjectProducts) çünkü proje-ekle.html#prefillForClaim chip listesini
   // bu iki diziden kuruyor — API şekli DEĞİŞMEDİ, yalnızca bu popup ikisini birleştirip gösteriyor.
+  // "Kullanılan Ürünler" için gruba (kategoriye) göre filtre çentiği (kullanıcı isteği, 2026-09-04
+  // madde 4: "diğer örnek filtrelenebilir başlıklar gibi") — marka pop-up'ındaki "Ürünler"
+  // bölümüyle BİREBİR aynı bileşen/desen, bkz. js/components/project-group-filter.js.
+  function renderProductsGroup(items, ids) {
+    const section = document.getElementById(ids.productsSection);
+    const countEl = document.getElementById(ids.productsCount);
+    if (!section) return false;
+    if (!items.length) { section.style.display = 'none'; return false; }
+    section.style.display = '';
+    function paint(list) {
+      RelatedStrip.render(document.getElementById(ids.productsGrid), list, cardHtml);
+      if (countEl) countEl.textContent = list.length ? ` (${list.length})` : '';
+    }
+    paint(items);
+    if (typeof ProjectGroupFilter !== 'undefined') {
+      ProjectGroupFilter.attach({
+        titleEl: document.getElementById(ids.productsTitle),
+        toggleEl: document.getElementById(ids.productsFilterToggle),
+        chipsEl: document.getElementById(ids.productsFilterChips),
+        items,
+        groupsOf: ProjectGroupFilter.byField('category'),
+        onChange: paint,
+      });
+    }
+    return true;
+  }
+
   function mount(item, ids) {
     const mergedIds = Object.assign({}, DEFAULT_IDS, ids || {});
     const all = [...(item.products || []), ...(item.materials || [])];
-    const hasProducts = renderGroup(all, mergedIds.productsSection, mergedIds.productsGrid);
+    const hasProducts = renderProductsGroup(all, mergedIds);
     const hasBrands = renderGroup(item.brands || [], mergedIds.brandsSection, mergedIds.brandsGrid, brandCardHtml);
     // Sarmalayıcı satır: iki bölüm de boşsa tamamen gizlenir (üstteki çizgi/boşluk ondadır),
     // ikisi de doluysa ortadaki kısa dik ayırıcı çizilir (bkz. project-modal.js#pm-two-col-row-both).

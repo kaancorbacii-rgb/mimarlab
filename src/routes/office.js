@@ -514,14 +514,14 @@ async function buildOfficePayload(env, key) {
     // src/routes/project.js#fetchProjectProducts'taki AYNI birleşimin marka tarafındaki eşi;
     // UNION tekilleştirdiği için iki yoldan da gelen bir proje TEK kez listelenir.
     env.DB.prepare(
-      `SELECT p.slug, p.title, p.location, p.images, p.id AS pid
+      `SELECT p.slug, p.title, p.location, p.images, p.type, p.id AS pid
        FROM products pr
        JOIN project_products pp ON pp.product_id = pr.id
        JOIN projects p ON p.id = pp.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
        WHERE pr.deleted_at IS NULL AND pr.hidden_at IS NULL
          AND (pr.brand_office_id = ?1 OR pr.brand_name_raw = ?2 COLLATE NOCASE)
        UNION
-       SELECT p.slug, p.title, p.location, p.images, p.id AS pid
+       SELECT p.slug, p.title, p.location, p.images, p.type, p.id AS pid
        FROM project_brands pb
        JOIN projects p ON p.id = pb.project_id AND p.deleted_at IS NULL AND p.hidden_at IS NULL
        WHERE pb.office_id = ?1
@@ -676,7 +676,9 @@ async function buildOfficePayload(env, key) {
   // cardHtml yolu değişmeden kullanılabilsin diye.
   const brandProductProjects = brandProductProjectsRes.results.map(p => {
     const parsed = parseCanonicalRow('projects', p);
-    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), location: parsed.location };
+    // type — künyedeki "Grup" alanı; marka pop-up'ındaki "Markanın Kullanıldığı Projeler" grup
+    // filtresi (bkz. js/components/office-modal.js, project-group-filter.js) bunun üzerinden çalışır.
+    return { slug: parsed.slug, title: parsed.title, images: coverImage(parsed.images), location: parsed.location, type: parsed.type };
   });
   // Tercih Eden Firmalar/Mimarlar — kartlar firma/mimar kartlarıyla AYNI şekle sahiptir, böylece
   // office-modal.js'teki mevcut cardHtml/logoUrl yolu değişmeden kullanılabilir.
