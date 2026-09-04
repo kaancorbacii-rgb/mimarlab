@@ -138,16 +138,37 @@ const ImageHotspots = (function () {
 
   // Kartı işaretçinin yanına koyar ve katmanın DIŞINA taşmayacak şekilde kenarlardan çevirir/kırpar.
   // Ölçüm için karta önce görünmez ama düzenlenmiş (display akışında) bir hâl verilir.
-  function placeCard(layer, card, xPct, yPct) {
+  //
+  // GERÇEK BULGU (kullanıcı bildirimi + ekran görüntüsü, 2026-09-05: "hotspotlardaki görseller
+  // kaymış gözüküyor" — ana sayfa carousel'inde hoverPreview eklendikten SONRA ortaya çıktı):
+  // fit:'cover' olduğunda katman (.ih-layer), paintedRect()'in döndürdüğü ÖLÇEKLENMİŞ görsel
+  // kutusuna oturur — bu kutu host'tan (.proje-slide) BÜYÜK olabilir ve negatif left/top ile
+  // taşabilir (görselin bir ekseni kırpılarak host'u doldurduğu için). Eski kod kartı yalnızca
+  // katmanın KENDİ [0,lw]x[0,lh] aralığına sığdırıyordu — katmanın taştığı, host'un
+  // overflow:hidden'ıyla GERÇEKTE görünmeyen kısmına da kart yerleştirebiliyordu; sonuç, kartın
+  // (görseliyle/metniyle birlikte) host'un kenarında sert biçimde kırpılması ("kaymış/kesik"
+  // görünüm). fit:'contain' olan çağrı noktalarında (bkz. gallery.js — lightbox) katman zaten
+  // host'un İÇİNDE kaldığından (asla taşmaz) bu düzeltme onlarda bir NO-OP'tur.
+  function placeCard(layer, card, xPct, yPct, hostEl) {
     const lw = layer.clientWidth, lh = layer.clientHeight;
     const cw = card.offsetWidth, ch = card.offsetHeight;
     const px = (xPct / 100) * lw, py = (yPct / 100) * lh;
+    // Katmanın host içinde GERÇEKTEN görünen aralığı — katman host'tan taşıyorsa (cover'da negatif
+    // offsetLeft/Top ile) bu aralık [0,lw]'den DAR olur, host'tan küçükse (contain'de olağan durum)
+    // [0,lw]'yi kapsar ve aşağıdaki clamp'ler eskisiyle birebir aynı sonucu verir.
+    let visMinX = 0, visMaxX = lw, visMinY = 0, visMaxY = lh;
+    if (hostEl) {
+      visMinX = Math.max(0, -layer.offsetLeft);
+      visMaxX = Math.min(lw, hostEl.clientWidth - layer.offsetLeft);
+      visMinY = Math.max(0, -layer.offsetTop);
+      visMaxY = Math.min(lh, hostEl.clientHeight - layer.offsetTop);
+    }
     const GAP = 20;
     let left = px + GAP;
-    if (left + cw > lw - 4) left = px - GAP - cw;
-    left = Math.max(4, Math.min(left, Math.max(4, lw - cw - 4)));
+    if (left + cw > visMaxX - 4) left = px - GAP - cw;
+    left = Math.max(visMinX + 4, Math.min(left, Math.max(visMinX + 4, visMaxX - cw - 4)));
     let top = py - ch / 2;
-    top = Math.max(4, Math.min(top, Math.max(4, lh - ch - 4)));
+    top = Math.max(visMinY + 4, Math.min(top, Math.max(visMinY + 4, visMaxY - ch - 4)));
     card.style.left = left + 'px';
     card.style.top = top + 'px';
   }
@@ -216,7 +237,7 @@ const ImageHotspots = (function () {
       card.innerHTML = cardHtml(h);
       layer.appendChild(card);
       openCard = card;
-      placeCard(layer, card, h.x, h.y);
+      placeCard(layer, card, h.x, h.y, hostEl);
       // Zorlanmış reflow + .show — geçişin bir "önce" karesi taahhüt edilsin diye (bkz.
       // modal-shell.js#open'daki AYNI desen). requestAnimationFrame BİLEREK kullanılmıyor: yerel
       // testte kartın .show sınıfı hiç eklenmiyor (dolayısıyla opacity:0'da görünmez kalıyordu) —
