@@ -672,6 +672,12 @@ function hasActiveProjectListFilters(url) {
 // ORDER BY dışta AYNEN tekrarlanır — join sonrası satır sırası garanti değildir.
 // Sonuç eşitliği canlı D1'de doğrulandı: offset 0 / 48 / 960 için eski ve yeni sorgunun döndürdüğü
 // (id, slug, designer_names, office_names) satırları BİREBİR aynı.
+// display_order (bkz. migrations/0087_project_display_order.sql) — NULL = atanmamış, COALESCE
+// ile 0'a düşürülür, mevcut/atanmış her değerden (>=1) küçük olduğundan atanmamış (yeni normal
+// submission/admin akışıyla eklenen) satırlar eskisi gibi en üstte kalmaya devam eder; yalnızca
+// elle serpiştirilmiş bir parti (bkz. B&T Design 43-proje partisi, 2026-09-04) sıralamayı burada
+// override eder. idx_projects_build_status_order bu ifadeyi AYNEN kapsayacak şekilde yeniden
+// oluşturuldu, ORDER BY dışta AYNEN tekrarlanır (bkz. yukarıdaki performans notu).
 async function fetchProjectPageRows(env, buildStatus, limit, offset) {
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
@@ -681,9 +687,9 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
            WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?
-           ORDER BY COALESCE(publish_date, created_at) DESC, id DESC
+           ORDER BY COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC
            LIMIT ? OFFSET ?) p ${DESIGNER_JOIN_SQL}
-     GROUP BY p.id ORDER BY COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
+     GROUP BY p.id ORDER BY COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(buildStatus, limit, offset).all();
   return results;
 }

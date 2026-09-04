@@ -682,7 +682,7 @@ CREATE TABLE IF NOT EXISTS projects (
   deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-, hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT, publish_date TEXT, lat REAL, lng REAL, image_hotspots TEXT);
+, hidden_at TEXT, build_status TEXT NOT NULL DEFAULT 'built', concept_category TEXT, awards TEXT, publish_date TEXT, lat REAL, lng REAL, image_hotspots TEXT, display_order INTEGER);
 CREATE INDEX IF NOT EXISTS idx_projects_build_status ON projects(build_status);
 CREATE INDEX IF NOT EXISTS idx_projects_hidden_or_deleted ON projects(hidden_at, deleted_at) WHERE hidden_at IS NOT NULL OR deleted_at IS NOT NULL;
 -- 0077 — liste uçlarının fingerprint sorgusu (COUNT(*)+MAX(updated_at) WHERE deleted_at IS NULL
@@ -690,7 +690,12 @@ CREATE INDEX IF NOT EXISTS idx_projects_hidden_or_deleted ON projects(hidden_at,
 -- taraması yapıyordu (bkz. migrations/0077_live_row_fingerprint_indexes.sql).
 CREATE INDEX IF NOT EXISTS idx_projects_live_updated ON projects(updated_at) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_projects_legacy_key ON projects(legacy_key);
-CREATE INDEX IF NOT EXISTS idx_projects_build_status_order ON projects(build_status, COALESCE(publish_date, created_at) DESC, id DESC) WHERE deleted_at IS NULL AND hidden_at IS NULL;
+-- 0087 — display_order NULL = atanmamış, COALESCE(...,0) ile mevcut/atanmış her değerden (>=1)
+-- küçük olduğundan gelecekteki normal proje ekleme akışı dokunulmadan en üstte kalmaya devam eder
+-- (bkz. migrations/0087_project_display_order.sql).
+CREATE INDEX IF NOT EXISTS idx_projects_build_status_order
+  ON projects(build_status, COALESCE(display_order, 0) ASC, COALESCE(publish_date, created_at) DESC, id DESC)
+  WHERE deleted_at IS NULL AND hidden_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

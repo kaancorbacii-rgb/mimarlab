@@ -164,6 +164,9 @@ export async function fetchActiveProjectPool(env, buildStatus) {
   // JSON'ı bozuksa bu tüm sorguyu 500'letebilirdi; mevcut JS tarafı parseCanonicalRow/try-catch
   // güvenliği korunuyor), yalnızca shapeProjectItem'a coverOnly:true geçirilerek İLK görsele
   // aşağıda JS'te indirgeniyor.
+  // display_order (bkz. migrations/0087_project_display_order.sql) — proje.html#render()'daki
+  // varsayılan sıralamayla (sort seçilmemişse) BİREBİR aynı olmalı, bkz. fetchProjectPageRows'daki
+  // AYNI COALESCE(display_order,0) notu (src/routes/project.js).
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
@@ -172,7 +175,7 @@ export async function fetchActiveProjectPool(env, buildStatus) {
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?
-     GROUP BY p.id ORDER BY COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
+     GROUP BY p.id ORDER BY COALESCE(p.display_order, 0) ASC, COALESCE(p.publish_date, p.created_at) DESC, p.id DESC`
   ).bind(status).all();
   return results.map(row => shapeProjectItem(row, { coverOnly: true }));
 }

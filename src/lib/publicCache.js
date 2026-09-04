@@ -342,7 +342,16 @@ async function withSingleFlight(key, fn) {
 //     projects satırlarının `updated_at`'i değişmediği için fingerprint kıpırdamaz — sürüm
 //     artırılmazsa ana sayfayı daha önce açmış ziyaretçiler eski ETag'le 304 alır ve işaretçisiz
 //     gövdede süresiz takılırdı.
-const API_PAYLOAD_VERSION = 'v12';
+// v13 (kullanıcı isteği, 2026-09-04): proje listesi ORDER BY'ı display_order'ı önceliklendirecek
+//     şekilde değişti (bkz. migrations/0087_project_display_order.sql, src/routes/project.js#
+//     fetchProjectPageRows, src/lib/projectPool.js#fetchActiveProjectPool) — B&T Design partisiyle
+//     açılan 27 yeni proje artık 1. sayfada YIĞILMAK yerine katalog derinliğine serpiştirildi.
+//     Backfill 1730 satırın display_order'ını UPDATE etti ama updated_at'e DOKUNMADI (kasıtlı —
+//     bu saf bir görüntüleme SIRASI değişikliği, "içerik değişti" fingerprint'i tetiklemesi
+//     YANLIŞ olurdu) — yani v5-v12'nin AYNI tuzağı: fingerprint kıpırdamaz, sürüm artırılmazsa
+//     /api/projects'i daha önce açmış ziyaretçiler eski ETag'le 304 alıp eski (yığılmış) sırada
+//     süresiz takılırdı.
+const API_PAYLOAD_VERSION = 'v13';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);
