@@ -357,17 +357,28 @@ def main():
         img_paths = upload_images(it, args.dry_run, args.skip_images)
         office_id = by_slug.get(it['brand_slug']) or by_fold.get(fold_tr(it['brand']))
 
+        # Archello'ya ÇIKAN bağlantı YAZILMAZ (kullanıcı isteği, 2026-09-04: "Archello sitesine
+        # yaptığın link göndermelerini kaldır"). Archello'nun katalog/broşür indirmeleri zaten
+        # lead-form arkasında (bkz. [[project_archello_product_import_2026_09_04]] — dosya baytı
+        # alınamıyor), yani bu URL'ler ürün pop-up'ındaki "Dosyalar" karolarını Archello'ya
+        # yönlendiren birer dış bağlantıdan ibaretti. Kendi R2'mize indirebildiğimiz bir dosya
+        # olursa (mimarlab.com kaynaklı /media/... yolu) aynen korunur.
         files = [{'url': f['url'],
                   'filename': f.get('filename') or f"{it['slug']}.{f.get('format') or 'bin'}",
                   'format': f.get('format') or '',
-                  'size': f.get('size')} for f in it['files']]
+                  'size': f.get('size')} for f in it['files']
+                 if 'archello.com' not in (f.get('url') or '')]
 
         cols = ['slug', 'kind', 'title', 'brand_office_id', 'brand_name_raw', 'website', 'category',
                 'description', 'images', 'specs', 'source_url', 'source', 'legacy_key',
                 'designer', 'files']
         vals = [q(it['slug']), "'product'", q(it['title']),
                 str(office_id) if office_id else 'NULL',
-                q(it['brand']), q(it['source_url']), q(it['category']),
+                # website: eskiden it['source_url'] (Archello ürün sayfası) yazılıyordu — aynı
+                # gerekçeyle (yukarıdaki files notu) artık BOŞ. source_url alanı ise yalnızca
+                # içe aktarım izlenebilirliği/mükerrer denetimi için tutulur, hiçbir yerde
+                # kullanıcıya bağlantı olarak gösterilmez.
+                q(it['brand']), 'NULL', q(it['category']),
                 q(it['description']),
                 q(json.dumps(img_paths, ensure_ascii=False)),
                 q(json.dumps(it['specs'], ensure_ascii=False)),

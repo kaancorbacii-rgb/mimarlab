@@ -9,9 +9,12 @@
 //
 // ŞU AN NEREDE KULLANILIYOR
 //   * kişi pop-up'ı  — "Projeler"                     (architect-modal.js, alan: type)
+//   * kişi pop-up'ı  — "Fotoğrafladığı Projeler"      (architect-modal.js, alan: type)
+//   * kişi pop-up'ı  — "Tasarladığı Ürünler"          (architect-modal.js, alan: category)
 //   * firma pop-up'ı — "Projeler"                     (office-modal.js,    alan: type)
 //   * marka pop-up'ı — "Ürünler"                      (office-modal.js,    alan: category)
 //   * proje pop-up'ı — "Firmanın Diğer Projeleri"     (project-modal.js,   alan: type)
+//   * ürün pop-up'ı  — "Firmanın Diğer Ürünleri"      (product-modal.js,   alan: category)
 //
 // "Grup" = projects.type (bkz. js/components/project-meta.js#176 ve js/pages/proje.js#137 —
 // künyede "Grup" etiketiyle görünen ALAN budur; "Tür" ayrı bir alandır: category). Ürünlerde ise
