@@ -43,6 +43,38 @@ com'un kendi "Architect" alanı D1'deki hiçbir adayla eşleşmiyor:
     hiçbir "Mavi" projesi yok (yalnızca alakasız "Mavi Cami"/"Yedimavi"/"Mavi Ev") — ELENDİ.
   * "Fi" -> D1'de başlığı TAM OLARAK "Fi" olan proje yok, iki harfli ad aşırı jenerik — ELENDİ.
 
+YENİDEN DOĞRULAMA (kullanıcı isteği, 2026-09-05: "eşleşmeyen 24 projeyi de bir kontrol et") — 24'ü
+TEK TEK web araştırmasıyla tekrar denetlendi, hiçbiri için YENİ bir eşleşme bulunamadı ama birkaç
+gerçek bulgu kaydı düzeltti/güçlendirdi:
+  * "Star" (Polisan, Croda, Çeşme Dalyan Panorama, Bakraz Evleri, Pelit İnşaat, Fi'nin HEPSİNDE
+    koleksiyondesign.com'un "Architect" alanına yazılmış) GERÇEK bir mimarlık ofisi DEĞİL — web
+    araştırması Bakraz Evleri'nin GERÇEK mimarının Faruk Malhan (D1 architects#987, PROJESİ YOK),
+    Çeşme Dalyan Panorama'nınkinin PAO Mimarlık Tasarım (D1 offices#441, PROJESİ YOK) olduğunu
+    gösterdi — "Star" muhtemelen koleksiyondesign.com'un kendi CMS'inde bir iç kod/placeholder.
+    Polisan/Croda/Pelit İnşaat için tek bir güvenilir mimar ismi web'de bulunamadı (Pelit İnşaat
+    TEK bir mimarlık ofisiyle çalışan bir firma değil, birden fazla proje/mimarı var) — hepsi
+    ELENDİ olarak kalıyor.
+  * "Etiler Dünyagöz" -> kaynaktaki "Kapıcıoğlu" bir mimarlık ofisi DEĞİL, hastanenin sahibi/
+    yatırımcısı Kapıcıoğlu İnşaat'ın (Dünyagöz Grubu kurucusu Eray Kapıcıoğlu) adı — D1'de
+    (mimar ya da ofis olarak) hiç yok, olması da beklenmez (bir yapı MÜŞTERİSİ, mimarı değil) —
+    ELENDİ.
+  * "Bilge Adam Koleji" -> web araştırması GERÇEK mimarları buldu: Şevket Altındal (D1
+    architects#724, 3 projesi var: Bayou Villas/İstanbul Tarım Ofis Binası/Kaleiçi Evi — HİÇBİRİ
+    "Bilge Adam") ve iç mimar Zeynep Esengil Ceylan (D1 architects#369, TEK projesi Batı Akdeniz
+    Teknokenti — "Bilge Adam" değil) — ELENDİ.
+  * "Doğuş Otomotiv" (Oğuz Bayazıt) -> Oğuz Bayazıt Mimarlık D1'de VAR (offices#598) ama HİÇBİR
+    projesi künyeli değil (0 satır) — 3 aday arasında hangisi olduğu YİNE belirlenemedi — ELENDİ.
+  * "MILO Interiors LLC" (Mercer/GT Law/GCGRA/Savills/Cognita/Clyde&Co) web'de HİÇ iz bırakmıyor
+    (Türkiye web aramasında tek bir sonuç bile yok) — muhtemelen yerel bir ofis değil ya da hiç
+    web varlığı olmayan küçük bir danışmanlık şubesi — ELENDİ olarak kalıyor.
+  * "Kuwait Üniversitesi" (Gulf Consult Kuwait, 1967 kurulmuş, Kuveyt merkezli, ~92. sıra dünya
+    mimarlık ofisi) tamamen ULUSLARARASI bir ofis, Türkiye/MİMARLAB bağlantısı yok — ELENDİ.
+  * Okan Üniversitesi/Acıbadem Üniversitesi/Ernst & Young/Covidien: koleksiyondesign.com sayfasında
+    Architect/Year alanı TAMAMEN BOŞ, aranacak hiçbir dayanak yok — ELENDİ.
+
+SONUÇ: 24'ün hiçbirine ekleme yapılmadı, mevcut 10 eşleşme (project_brands, yukarıdaki MATCHES
+sözlüğü) hâlâ TEK doğru küme.
+
 Kullanım:
   python3 scripts/crosstag-koleksiyon2-projects.py [--dry-run]
 """
