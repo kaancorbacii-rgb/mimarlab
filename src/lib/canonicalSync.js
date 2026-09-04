@@ -652,8 +652,15 @@ async function syncOffice(env, row) {
       if (row.yil) { sets.push('yil = ?'); vals.push(row.yil); }
       if (row.website) { sets.push('website = ?'); vals.push(row.website); }
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
-      if (row.logo_url) { sets.push('logo_url = ?'); vals.push(row.logo_url); }
-      if (row.cover_url) { sets.push('cover_url = ?'); vals.push(row.cover_url); }
+      // KÖKTEN DÜZELTME (kullanıcı isteği, 2026-09-04: "marka pop-up'ında düzenleye tıklayıp
+      // görsellerin yerini değiştirdiğimde yerleri değişmiyor ya da silmeye tıkladığımda
+      // silinmiyorlar"). Eskiden `if (row.logo_url)` idi — bu, ✕ ile temizlenmiş bir logoyu/kapağı
+      // "belirtilmedi" sayıp ATLIYORDU, yani silme HİÇ yansımıyor, logo↔kapak yer değiştirmek de
+      // (silme adımı boşa düştüğü için) imkânsız oluyordu. social_links'te aynı gün çözülen AYNI
+      // hata sınıfı; ayrım artık submissionTypes.js#nullableStringFields ile taslak satırında
+      // taşınıyor: null = "dokunma", '' = "temizle". '' canonical'a NULL olarak yazılır.
+      if (row.logo_url != null) { sets.push('logo_url = ?'); vals.push(row.logo_url || null); }
+      if (row.cover_url != null) { sets.push('cover_url = ?'); vals.push(row.cover_url || null); }
       // `row.social_links.length` KOŞULU KALDIRILDI (kullanıcı isteği, 2026-09-01: "sosyal medya
       // silme sorununu da çöz"): boş dizi de yazılır, çünkü artık BOŞ DİZİ ile ALAN HİÇ YOK
       // birbirinden ayrılıyor (bkz. submissionTypes.js#nullableArrayFields — gövdede olmayan alan
@@ -769,7 +776,9 @@ async function syncArchitect(env, row) {
       if (row.dept) { sets.push('dept = ?'); vals.push(row.dept); }
       if (row.profession) { sets.push('profession = ?'); vals.push(row.profession); }
       if (row.awards && row.awards.length) { sets.push('awards = ?'); vals.push(awards); }
-      if (row.photo_url) { sets.push('photo_url = ?'); vals.push(row.photo_url); }
+      // bkz. syncOffice#logo_url'deki AYNI kökten düzeltme (nullableStringFields): null = "dokunma",
+      // '' = "temizle" — profil fotoğrafını ✕ ile silmek de artık canonical'a yansır.
+      if (row.photo_url != null) { sets.push('photo_url = ?'); vals.push(row.photo_url || null); }
       if (row.about !== undefined && row.about !== null && row.about !== '') { sets.push('about = ?'); vals.push(row.about); }
       if (row.position) { sets.push('position = ?'); vals.push(row.position); }
       // `row.social_links.length` KOŞULU KALDIRILDI (kullanıcı isteği, 2026-09-01: "sosyal medya

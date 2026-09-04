@@ -1732,10 +1732,37 @@ const AuthModal = (function () {
       if (el) el.addEventListener(evt, fn);
     }
 
+    // Önizlemedeki fotoğrafa tıklamak onu büyütüp yeniden kırpar (kullanıcı isteği, 2026-09-04) —
+    // bkz. js/components/image-crop.js#enableThumbCrop, kisi-ekle.html'deki AYNI desen. PROFİL
+    // FOTOĞRAFI 1:1 KİLİTLİ. Kırpılan dosya (yeni seçilen bir dosya gibi) yalnızca BELLEKTE tutulur,
+    // gerçek yükleme Kaydet'te olur (bkz. am-avatar-file-input handler'ındaki AYNI gerekçe).
+    function wireAvatarThumbCrop(source) {
+      const prev = document.getElementById('am-avatar-preview');
+      const imgEl = prev && prev.querySelector('img');
+      if (!imgEl || !window.ImageCrop) return;
+      ImageCrop.enableThumbCrop(imgEl, {
+        source, aspect: 1, title: 'Profil fotoğrafını kırp',
+        onCropped: (file) => { setPendingAvatar(file); },
+      });
+    }
+    function setPendingAvatar(file) {
+      pendingAvatarFile = file;
+      if (pendingAvatarUrl) URL.revokeObjectURL(pendingAvatarUrl);
+      pendingAvatarUrl = URL.createObjectURL(file);
+      const prev = document.getElementById('am-avatar-preview');
+      if (prev) prev.innerHTML = `<img src="${escapeAttr(pendingAvatarUrl)}" alt="">`;
+      const hint = document.getElementById('am-avatar-upload-hint');
+      if (hint) hint.textContent = 'Önizleme — Kaydet\'e bastığında yüklenecek.';
+      wireAvatarThumbCrop(file);
+    }
+
     function renderAvatar() {
       const img = accountUser.photoUrl ? `<img src="${escapeAttr(avatarImg(accountUser.photoUrl, 128, accountUser.photoUrl))}" alt="">` : '';
       document.getElementById('am-dash-avatar').innerHTML = img || dashInitials(accountUser.name);
       document.getElementById('am-avatar-preview').innerHTML = img || dashInitials(accountUser.name);
+      // Kaynak olarak ORİJİNAL photoUrl verilir, önizlemedeki 128px'lik türev DEĞİL — kırpma tam
+      // çözünürlükten yapılsın (bkz. avatarImg'in ikinci/üçüncü argümanı).
+      wireAvatarThumbCrop(accountUser.photoUrl || null);
     }
 
     // Üniversite otomatik tamamlama — am-signup-school (bkz. wireSignup) ile BİREBİR aynı desen,
@@ -2334,12 +2361,7 @@ const AuthModal = (function () {
       // Artık dosya yalnızca BELLEKTE tutulup önizleniyor; gerçek yükleme ve kayıt Kaydet'te
       // yapılıyor (bkz. am-dash-save-btn). Yüklemeyi de ertelemek bilinçli: kullanıcı vazgeçerse
       // R2'de öksüz bir dosya kalmaz.
-      pendingAvatarFile = file;
-      if (pendingAvatarUrl) URL.revokeObjectURL(pendingAvatarUrl);
-      pendingAvatarUrl = URL.createObjectURL(file);
-      const prev = document.getElementById('am-avatar-preview');
-      if (prev) prev.innerHTML = `<img src="${escapeAttr(pendingAvatarUrl)}" alt="">`;
-      hint.textContent = 'Önizleme — Kaydet\'e bastığında yüklenecek.';
+      setPendingAvatar(file);
     });
 
     async function loadBadges() {

@@ -35,6 +35,10 @@ export const SUBMISSION_TYPES = {
     // nullableArrayFields — bkz. aşağıdaki normalizeSubmission/parseSubmissionRow yorumu: bu
     // alanlar için "gövdede HİÇ yok" (NULL) ile "gönderildi ama boş" ([]) AYIRT EDİLİR.
     nullableArrayFields: ['social_links'],
+    // nullableStringFields — nullableArrayFields'ın tek değerli karşılığı (bkz. normalizeSubmission
+    // içindeki uzun gerekçe): logo/kapak için "gövdede HİÇ yok" (null) ile "gönderildi ama BOŞ" ('')
+    // AYIRT EDİLİR, yoksa ✕ ile silme canonical'a hiç yansımaz.
+    nullableStringFields: ['logo_url', 'cover_url'],
     // cats: firma-ekle.html'de en az bir hizmet alanı işaretlenmeden gönderilemez (bkz. kullanıcı
     // isteği) — client tarafı doğrulamanın sunucu tarafı karşılığı, ' · ' ile ayrılmış boş olmayan
     // bir dize beklenir (validateRequired zaten boş/whitespace dizeyi reddeder).
@@ -112,6 +116,7 @@ export const SUBMISSION_TYPES = {
     ],
     arrayFields: ['awards', 'social_links'],
     nullableArrayFields: ['social_links'], // bkz. offices'teki AYNI not
+    nullableStringFields: ['photo_url'],   // bkz. offices'teki AYNI not — profil fotoğrafı silinebilsin
     required: ['name'],
     urlFields: ['photo_url'],
   },
@@ -470,6 +475,29 @@ export function normalizeSubmission(type, body) {
       } else {
         if (!Array.isArray(value)) value = value ? [value] : [];
         value = JSON.stringify(value.filter(Boolean));
+      }
+    } else if ((config.nullableStringFields || []).includes(field)) {
+      // KÖKTEN DÜZELTME (kullanıcı isteği, 2026-09-04: "marka pop-up'ında düzenleye tıklayıp
+      // görselleri silmeye tıkladığımda silinmiyorlar"). nullableArrayFields'ın (yukarısı) TEK
+      // DEĞERLİ karşılığı ve BİREBİR aynı gerekçe: logo/kapak/profil fotoğrafı alanları bugüne
+      // kadar "gövdede HİÇ YOK" ile "gönderildi ama BOŞ" durumlarını AYNI `null` değerine
+      // indiriyordu. canonicalSync'in sahiplenilmiş profil dalı `if (row.logo_url)` diyerek
+      // null'ı "belirtilmedi" sayıp ATLADIĞINDAN, kullanıcı ✕'e basıp kaydettiğinde canonical
+      // satır hiç güncellenmiyor, logo/kapak profilde kalmaya devam ediyordu — silmenin (ve
+      // dolayısıyla logo↔kapak yer değiştirmenin) hiçbir yolu yoktu.
+      //
+      // Ayrım artık iki AYRI değerle yapılır:
+      //   * alan gövdede YOK           -> null  ("dokunma")
+      //   * alan gövdede var ama boş   -> ''    ("bunu temizle")
+      // Boş dize canonical'a NULL olarak yazılır (bkz. canonicalSync#syncOffice/syncArchitect),
+      // yani DB'de yine tek bir "görsel yok" temsili kalır; '' YALNIZCA taslak satırında niyeti
+      // taşıyan bir işarettir. Alanı hiç göndermeyen çağıranlar (admin panelinin kısa düzenleme
+      // formu, AI ile otomatik ekleme) bugünkü davranışlarını AYNEN korur.
+      if (!(field in body)) {
+        value = null;
+      } else {
+        if (typeof value === 'string') value = value.trim();
+        value = (value === undefined || value === null) ? '' : String(value);
       }
     } else if ((config.objectFields || []).includes(field)) {
       // Düz JSON nesnesi (bkz. projects.imageHotspots). Dizi/ilkel/eksik değerler sessizce boş

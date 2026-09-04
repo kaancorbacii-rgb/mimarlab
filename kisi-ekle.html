@@ -786,12 +786,26 @@ function renderPreviews(){
     previewGrid.querySelectorAll('.image-preview-remove').forEach(btn=>{
       btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
     });
+    wirePhotoThumbCrop(previewGrid.querySelector('img'), selectedFiles[0]);
   } else if(existingPhotoUrl){
     previewGrid.innerHTML = `<div class="image-preview-item"><img src="${escapeAttr(existingPhotoUrl)}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-photo" aria-label="Kaldır">✕</button></div>`;
     document.getElementById('remove-existing-photo').addEventListener('click', ()=>{ existingPhotoUrl = null; renderPreviews(); });
+    wirePhotoThumbCrop(previewGrid.querySelector('img'), existingPhotoUrl);
   } else {
     previewGrid.innerHTML = '';
   }
+}
+// Önizlemedeki fotoğrafa tıklamak onu büyütüp yeniden kırpar (kullanıcı isteği, 2026-09-04) — bkz.
+// js/components/image-crop.js#enableThumbCrop. PROFİL FOTOĞRAFI 1:1 KİLİTLİ (kullanıcı isteği:
+// "logo ve profil fotoğrafları sadece kare yani 1:1 boyutlarında kırpılabilsin"). Kırpılan görsel
+// selectedFiles'a düşer: zaten yüklenmiş bir fotoğrafı kırpmak da onu yeni bir yüklemeye çevirir,
+// eski R2 nesnesi kaydetmede temizlenir (bkz. src/lib/canonicalSync.js#cleanupReplacedR2Media).
+function wirePhotoThumbCrop(imgEl, source){
+  if(!window.ImageCrop) return;
+  ImageCrop.enableThumbCrop(imgEl, {
+    source, aspect: 1, title: 'Profil fotoğrafını kırp',
+    onCropped: (file)=>{ selectedFiles = [file]; renderPreviews(); },
+  });
 }
 // Kullanıcı isteği (2026-09-02 madde 2): profil fotoğrafı yüklenince 1:1 kırpma penceresi açılır.
 // Kullanıcı kırpmazsa (pencereyi kapatır/atlar) ImageCrop görseli ORTADAN kare kırpar — yani

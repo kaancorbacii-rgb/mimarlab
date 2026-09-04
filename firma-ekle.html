@@ -799,12 +799,34 @@ function renderPreviews(){
     previewGrid.querySelectorAll('.image-preview-remove').forEach(btn=>{
       btn.addEventListener('click', ()=>{ selectedFiles.splice(parseInt(btn.dataset.index), 1); renderPreviews(); });
     });
+    wireLogoThumbCrop(previewGrid.querySelector('img'), selectedFiles[0]);
   } else if(existingLogoUrl){
     previewGrid.innerHTML = `<div class="image-preview-item"><img src="${escapeAttr(existingLogoUrl)}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-logo" aria-label="Kaldır">✕</button></div>`;
     document.getElementById('remove-existing-logo').addEventListener('click', ()=>{ existingLogoUrl = null; renderPreviews(); });
+    wireLogoThumbCrop(previewGrid.querySelector('img'), existingLogoUrl);
   } else {
     previewGrid.innerHTML = '';
   }
+}
+// Önizlemedeki görsele tıklamak onu büyütüp yeniden kırpar (kullanıcı isteği, 2026-09-04) — bkz.
+// js/components/image-crop.js#enableThumbCrop ve marka-ekle.html'deki BİREBİR aynı iki yardımcı.
+// LOGO 1:1 KİLİTLİ (kullanıcı isteği: "logo ve profil fotoğrafları sadece kare yani 1:1
+// boyutlarında kırpılabilsin"), KAPAK serbest oranlıdır (geniş bir bant, kare onu bozardı).
+// Kırpılan görsel selected*Files'a düşer: zaten yüklenmiş bir görseli kırpmak da onu yeni bir
+// yüklemeye çevirir, eski R2 nesnesi kaydetmede temizlenir (bkz. canonicalSync#cleanupReplacedR2Media).
+function wireLogoThumbCrop(imgEl, source){
+  if(!window.ImageCrop) return;
+  ImageCrop.enableThumbCrop(imgEl, {
+    source, aspect: 1, title: 'Logoyu kırp',
+    onCropped: (file)=>{ selectedFiles = [file]; renderPreviews(); },
+  });
+}
+function wireCoverThumbCrop(imgEl, source){
+  if(!window.ImageCrop) return;
+  ImageCrop.enableThumbCrop(imgEl, {
+    source, aspect: 'free', title: 'Kapak görselini kırp',
+    onCropped: (file)=>{ selectedCoverFiles = [file]; renderCoverPreviews(); },
+  });
 }
 // renderPreviews/addFiles'in kapak karşılığı — BİREBİR aynı mantık, ayrı state üzerinde
 // (marka-ekle.html#renderCoverPreviews ile aynı).
@@ -813,9 +835,11 @@ function renderCoverPreviews(){
     const url = URL.createObjectURL(selectedCoverFiles[0]);
     coverPreviewGrid.innerHTML = `<div class="image-preview-item"><img src="${url}" alt=""><button type="button" class="image-preview-remove" id="remove-selected-cover" aria-label="Kaldır">&#10005;</button></div>`;
     document.getElementById('remove-selected-cover').addEventListener('click', ()=>{ selectedCoverFiles = []; renderCoverPreviews(); });
+    wireCoverThumbCrop(coverPreviewGrid.querySelector('img'), selectedCoverFiles[0]);
   } else if(existingCoverUrl){
     coverPreviewGrid.innerHTML = `<div class="image-preview-item"><img src="${escapeAttr(existingCoverUrl)}" alt=""><button type="button" class="image-preview-remove" id="remove-existing-cover" aria-label="Kaldır">&#10005;</button></div>`;
     document.getElementById('remove-existing-cover').addEventListener('click', ()=>{ existingCoverUrl = null; renderCoverPreviews(); });
+    wireCoverThumbCrop(coverPreviewGrid.querySelector('img'), existingCoverUrl);
   } else {
     coverPreviewGrid.innerHTML = '';
   }

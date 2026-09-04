@@ -575,6 +575,34 @@ function renderPreviews(){
       renderPreviews();
     });
   });
+  // Görsele TIKLAMAK (sürüklemek değil) onu büyütür ve kırpma penceresini açar (kullanıcı isteği,
+  // 2026-09-04) — bkz. js/components/image-crop.js#enableThumbCrop. Ürün galerisinde oran SERBEST;
+  // 1:1 kilidi yalnızca logo/profil fotoğraflarındadır (bkz. marka-ekle.html/kisi-ekle.html).
+  previewGrid.querySelectorAll('.image-preview-item').forEach((tile, i)=>{
+    wireGalleryThumbCrop(tile.querySelector('img'), mediaItems[i]);
+  });
+}
+
+// Kırpılan görsel, sırasını KORUYARAK yeni bir 'file' öğesine dönüşür — zaten yüklenmiş bir
+// görseli kırpmak da onu yeni bir yüklemeye çevirir (eski R2 nesnesi kaydetmede temizlenir,
+// bkz. src/lib/canonicalSync.js#cleanupReplacedR2Media).
+function replaceMediaItemWithCrop(item, file){
+  const i = mediaItems.indexOf(item);
+  if(i < 0) return;
+  if(item.objectUrl) URL.revokeObjectURL(item.objectUrl);
+  mediaItems[i] = { key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) };
+  renderPreviews();
+}
+function wireGalleryThumbCrop(imgEl, item){
+  if(!window.ImageCrop || !item) return;
+  ImageCrop.enableThumbCrop(imgEl, {
+    source: item.kind === 'existing' ? item.url : item.file,
+    aspect: 'free',
+    title: 'Görseli kırp',
+    // Bir sürüklemenin ardından tarayıcının ürettiği click'i yut (bkz. finishDragReorder).
+    guard: ()=> !dragJustFinished,
+    onCropped: (file)=> replaceMediaItemWithCrop(item, file),
+  });
 }
 
 // Basılı tutup sürükleyerek sıralama — bkz. proje-ekle.html'deki AYNI desen/gerekçe (Pointer Events
@@ -584,6 +612,10 @@ const DRAG_LONG_PRESS_MS = 260;
 const DRAG_MOVE_CANCEL_PX = 8;
 let dragPending = null;
 let dragState = null;
+// Gerçek bir sürükleme yaşandıysa tarayıcı pointerup'tan sonra yine de bir click üretebilir — bu
+// bayrak o click'i yutar (bkz. wireGalleryThumbCrop#guard ve proje-ekle.html'deki AYNI desen),
+// aksi halde her sıralama işleminden sonra kırpma penceresi açılırdı.
+let dragJustFinished = false;
 
 function clearDragPending(){
   if(dragPending && dragPending.timer) clearTimeout(dragPending.timer);
@@ -634,6 +666,8 @@ function finishDragReorder(e){
   const order = [...previewGrid.children].map(el => el.dataset.key);
   const byKey = new Map(mediaItems.map(item => [item.key, item]));
   mediaItems = order.map(k => byKey.get(k)).filter(Boolean);
+  dragJustFinished = true;
+  setTimeout(()=>{ dragJustFinished = false; }, 0);
   renderPreviews();
 }
 previewGrid.addEventListener('pointerup', finishDragReorder);
