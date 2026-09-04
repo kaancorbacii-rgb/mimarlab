@@ -7,7 +7,7 @@ import { handlePublicRoute } from './routes/public.js';
 import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute } from './routes/architect.js';
 import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
 import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute } from './routes/project.js';
-import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute } from './routes/product.js';
+import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute, handleProductCanEditRoute } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
 import { handleVisualSearchRoute, handleImageEmbedAppendRoute } from './routes/visualSearch.js';
 import { rebuildIndex } from './lib/visualIndexStore.js';
@@ -1089,7 +1089,16 @@ async function routeApi(request, env, url, ctx) {
   }
   // Ürün detay — js/components/product-modal.js#fetchItem bu uca bağlanır (urun.html'in ProductModal'ı
   // urun-detay.html'i tamamen ikame ettiği desenin ürün karşılığı).
-  if (path.startsWith('/api/product/')) return handleProductDetailRoute(request, env, url, path.slice('/api/product/'.length));
+  if (path.startsWith('/api/product/')) {
+    const productSlug = path.slice('/api/product/'.length);
+    // GET .../can-edit — src/index.js'teki AYNI /api/project/.../can-edit deseninin ürün karşılığı
+    // (bkz. handleProductCanEditRoute dosya başı yorumu) — handleProductDetailRoute'tan ÖNCE
+    // özel olarak yakalanmalı, aksi halde slug'ı "some-slug/can-edit" olarak arardı.
+    if (productSlug.endsWith('/can-edit') && request.method === 'GET') {
+      return handleProductCanEditRoute(request, env, productSlug.slice(0, -'/can-edit'.length));
+    }
+    return handleProductDetailRoute(request, env, url, productSlug);
+  }
   if (path.startsWith('/api/comments')) return handleCommentsRoute(request, env, url);
   if (path.startsWith('/api/saved')) return handleSavedRoute(request, env, url);
   // Paylaştıklarım (bkz. src/routes/shares.js) — /api/saved ile AYNI desen ve AYNI gerekçe:

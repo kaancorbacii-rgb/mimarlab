@@ -1115,6 +1115,22 @@ const ProductModal = (function () {
       // handleAdminProductEdit, canonical `products` satırını doğrudan id'siyle günceller).
       const editSlot = document.getElementById('pr-edit-slot');
       if (editSlot) editSlot.innerHTML = `<a class="card-edit-btn" href="/urun-ekle?adminedit=${encodeURIComponent(p.id)}">Düzenle</a>`;
+    } else if (currentUser && p.id) {
+      // js/components/project-actions.js#mountOwnerActions'daki AYNI üçüncü dal (kullanıcı isteği,
+      // 2026-09-05: "Ürün ekle ile ürün düzenle birbiriyle entegre değil mi? ... ürün ekle/düzenle
+      // için de aynı olması gerekiyor") — kendi göndermediği ama MARKASINI onaylı bir profile_claims
+      // ile sahiplendiği bir ürün için de (bkz. src/routes/product.js#handleProductCanEditRoute,
+      // src/lib/projectClaimAccess.js#canUserEditProductBySlug) AYNI Düzenle linki gösterilir.
+      try {
+        const res = await fetch(`/api/product/${encodeURIComponent(key)}/can-edit`);
+        if (currentItem !== p) return;
+        const canEdit = res.ok && (await res.json()).canEdit;
+        if (currentItem !== p) return;
+        if (canEdit) {
+          const editSlot = document.getElementById('pr-edit-slot');
+          if (editSlot) editSlot.innerHTML = `<a class="card-edit-btn" href="/urun-ekle?claim=${encodeURIComponent(key)}">Düzenle</a>`;
+        }
+      } catch { /* claim tabanlı yetki kontrolü başarısız — güvenli varsayılan: buton gösterme */ }
     }
   }
 

@@ -136,10 +136,12 @@ CREATE TABLE IF NOT EXISTS product_submissions (
   designer TEXT, -- serbest metin ürün tasarımcısı adı — bkz. migrations/0042_product_designer_year.sql
   year TEXT, -- serbest metin üretim/tasarım yılı — bkz. migrations/0042_product_designer_year.sql
   files TEXT, -- JSON dizi [{url,filename,format,size}] — "Dosyalar (BIM, CAD, 3D, Katalog)" ekleri, images İLE AYNI desen (bkz. migrations/0071_product_files.sql)
-  projects TEXT -- JSON dizi [{slug,title}] — urun-ekle.html'deki "Kullanılan Projeler" kutusu, project_submissions.brands ile AYNI desen (bkz. migrations/0072_product_project_links.sql)
+  projects TEXT, -- JSON dizi [{slug,title}] — urun-ekle.html'deki "Kullanılan Projeler" kutusu, project_submissions.brands ile AYNI desen (bkz. migrations/0072_product_project_links.sql)
+  claimed_slug TEXT -- project_submissions.claimed_slug İLE AYNI desen — bkz. migrations/0088_product_claimed_slug.sql
 );
 CREATE INDEX IF NOT EXISTS idx_product_owner ON product_submissions(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_product_status_created ON product_submissions(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_product_claimed_slug ON product_submissions(claimed_slug);
 
 -- Yapı malzemeleri (doğal taş, boya, seramik vb.) — mobilya gibi tüketici ürünlerinden ayrı bir
 -- kategori/sayfa (Malzeme) olarak product_submissions ile aynı şemayı kullanır (bkz. urun.html/
@@ -165,9 +167,11 @@ CREATE TABLE IF NOT EXISTS material_submissions (
   designer TEXT, -- bkz. product_submissions.designer açıklaması
   year TEXT, -- bkz. product_submissions.year açıklaması
   files TEXT, -- bkz. product_submissions.files açıklaması
-  projects TEXT -- bkz. product_submissions.projects açıklaması
+  projects TEXT, -- bkz. product_submissions.projects açıklaması
+  claimed_slug TEXT -- bkz. product_submissions.claimed_slug açıklaması
 );
 CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_material_claimed_slug ON material_submissions(claimed_slug);
 CREATE INDEX IF NOT EXISTS idx_material_status_created ON material_submissions(status, created_at DESC);
 
 -- published_at: ilan onaylanıp (yeniden) yayına alındığı an (bkz. src/routes/admin.js). İlan yayında

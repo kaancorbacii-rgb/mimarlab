@@ -1,4 +1,4 @@
-import { errorJson } from '../lib/http.js';
+import { json, errorJson } from '../lib/http.js';
 import { slugify } from '../lib/slugify.js';
 import { cachedPublicJson, getCachedPool, getCachedFingerprint } from '../lib/publicCache.js';
 import { entityFingerprint } from '../lib/entityStats.js';
@@ -7,6 +7,8 @@ import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { fetchOwnerByline } from '../lib/ownerByline.js';
 import { serializePublicEntity } from '../lib/serializePublicEntity.js';
 import { fetchAdjacentEntity } from '../lib/adjacentEntity.js';
+import { getSessionUser } from '../lib/auth.js';
+import { canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 // bkz. src/routes/project.js'teki AYNI CJS-interop yorumu (il-ilce-data.js için) — bu dosya da
 // canonical veri DEĞİL, salt statik bir taksonomi referans tablosu.
 import catalogTaxonomyJs from '../../catalog-taxonomy.js';
@@ -331,6 +333,19 @@ export async function findProductsByKeys(env, keys) {
 
   for (const key of wanted) map.set(key, rowById.get(idByKey.get(key)) || null);
   return map;
+}
+
+// GET /api/product/:slug/can-edit — src/routes/project.js#handleProjectCanEditRoute İLE BİREBİR
+// AYNI desen, ürün karşılığı (bkz. js/components/product-modal.js#mountEditAndAdminButtons,
+// urun-ekle.html#prefillForClaim, kullanıcı isteği: "Ürün ekle ile ürün düzenle birbiriyle entegre
+// değil mi? Proje ekle ve proje düzenle de kurduğumuz entegre sistemin ürün ekle/düzenle için de
+// aynı olması gerekiyor."). Oturum yoksa sessizce false döner, 401 fırlatmaz.
+export async function handleProductCanEditRoute(request, env, rawSlug) {
+  if (request.method !== 'GET') return errorJson('Bulunamadı', 404);
+  const user = await getSessionUser(request, env);
+  if (!user) return json({ canEdit: false });
+  const slug = decodeURIComponent(rawSlug || '');
+  return json({ canEdit: await canUserEditProductBySlug(env, user, slug) });
 }
 
 export async function handleProductDetailRoute(request, env, url, rawKey) {

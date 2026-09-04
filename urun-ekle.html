@@ -233,6 +233,46 @@
   .image-move-left{left:4px;}
   .image-move-right{left:28px;}
 
+  /* Görsel büyütme penceresi — proje-ekle.html#.hs-overlay İLE BİREBİR AYNI kabuk/gerekçe (kullanıcı
+     isteği, 2026-09-05: "ürün ekle/düzenle sayfasında görsellere tıklayınca aynı proje ekle/düzenle
+     sayfasındaki gibi popup şeklinde büyüsünler, aynı şekilde kırp butonu olsun"). Ürün galerisinde
+     işaretçi/pin YOK (hotspot yalnızca proje görsellerinde anlamlı) — bu yüzden yalnızca büyütme +
+     ok navigasyonu + ayrı bir Kırp butonu taşınır, proje-ekle'nin .hs-pin/.hs-form kısımları hariç.
+     Sınıf adları KASITLI OLARAK proje-ekle'den FARKLI (.ie-* öneki, "image enlarge") — iki sayfa
+     ayrı <style> bloklarında yaşadığından çakışma riski yok, ama gelecekte biri diğerini
+     etkilemeden değişebilsin diye paylaşılan bir isim alanı kullanılmadı. */
+  .ie-overlay{
+    display:none; position:fixed; inset:0; z-index:300; background:rgba(15,19,26,0.9);
+    align-items:center; justify-content:center; padding:24px;
+  }
+  .ie-overlay.open{display:flex;}
+  .ie-stage{position:relative; max-width:100%; max-height:100%; line-height:0;}
+  .ie-stage img{max-width:100%; max-height:calc(100vh - 130px); border-radius:8px; display:block; user-select:none; -webkit-user-drag:none;}
+  .ie-close{
+    position:absolute; top:16px; right:20px; width:40px; height:40px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.14); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .ie-close:hover{background:rgba(255,255,255,0.26);}
+  .ie-crop{
+    position:absolute; top:16px; right:70px; height:40px; padding:0 16px; border-radius:20px; border:none;
+    background:rgba(255,255,255,0.14); color:#fff; display:flex; align-items:center; gap:7px; cursor:pointer;
+    font-family:inherit; font-size:13.5px; font-weight:600;
+  }
+  .ie-crop:hover{background:rgba(255,255,255,0.26);}
+  .ie-nav{
+    position:absolute; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:50%;
+    border:none; background:rgba(255,255,255,0.14); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .ie-nav:hover{background:rgba(255,255,255,0.26);}
+  .ie-nav-prev{left:16px;}
+  .ie-nav-next{right:16px;}
+  .ie-counter{position:absolute; bottom:22px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.8); font-size:12px;}
+  @media (max-width:720px){
+    .ie-overlay{padding:12px;}
+    .ie-stage img{max-height:calc(100vh - 150px);}
+    .ie-crop{right:62px; padding:0 12px; font-size:12.5px;}
+  }
+
   /* Dosya Yükle (BIM, CAD, 3D, Katalog) — .image-drop İLE AYNI kabuk (bkz. kullanıcı isteği:
      "Görseller kutusunun hemen altına ... opsiyonel bir alan"), önizleme kare kutucukları ise
      yeniden sıralama/kapak GEREKTİRMEDİĞİNDEN (bkz. kullanıcı isteği, sadece ekleme/kaldırma)
@@ -321,9 +361,8 @@
 <script src="awards-shared.js"></script>
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
-<!-- image-crop.js: galerideki görsele tıklayınca büyütüp kırpma penceresi (bkz. wireGalleryThumbCrop).
-     GERÇEK BULGU (2026-09-04): bu etiket eksikti — window.ImageCrop hiç tanımlanmadığından
-     wireGalleryThumbCrop sessizce erken dönüyor, görsele tıklamak HİÇBİR ŞEY yapmıyordu. -->
+<!-- image-crop.js: büyütülmüş görselin "Kırp" butonu (bkz. #ie-crop, proje-ekle.html#hs-crop İLE
+     AYNI kullanım). -->
 <script src="js/components/image-crop.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
 <script src="image-upload.js" defer></script>
@@ -482,6 +521,28 @@
 
   <footer id="site-footer-mount"></footer>
 
+  <!-- Görsel büyütme + kırp penceresi (bkz. yukarıdaki .ie-* stilleri) — proje-ekle.html#hs-overlay
+       İLE AYNI kabuk, form'un DIŞINDA (içindeki butonlar formu yanlışlıkla göndermesin). -->
+  <div class="ie-overlay" id="ie-overlay" aria-hidden="true">
+    <button type="button" class="ie-close" id="ie-close" aria-label="Kapat">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <button type="button" class="ie-crop" id="ie-crop">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+      Kırp
+    </button>
+    <button type="button" class="ie-nav ie-nav-prev" id="ie-prev" aria-label="Önceki görsel">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="ie-stage" id="ie-stage">
+      <img id="ie-image" src="" alt="">
+    </div>
+    <button type="button" class="ie-nav ie-nav-next" id="ie-next" aria-label="Sonraki görsel">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="ie-counter" id="ie-counter"></div>
+  </div>
+
 <script>
 const dropZone = document.getElementById('image-drop');
 const fileInput = document.getElementById('image-input');
@@ -491,7 +552,14 @@ const previewGrid = document.getElementById('image-preview-grid');
 // özelliğine sahip olsun).
 let mediaItems = []; // {key, kind:'existing'|'file', url?, file?, objectUrl?}
 let mediaKeySeq = 0;
-const editId = new URLSearchParams(window.location.search).get('edit');
+let editId = new URLSearchParams(window.location.search).get('edit');
+// ?claim=<slug> — proje-ekle.html?claim= İLE AYNI akış (kullanıcı isteği, 2026-09-05: "Ürün ekle ile
+// ürün düzenle birbiriyle entegre değil mi? Proje ekle ve proje düzenle de kurduğumuz entegre
+// sistemin ürün ekle/düzenle için de aynı olması gerekiyor.") — bir ürünün MARKASINI onaylı bir
+// profile_claims ile sahiplenen kullanıcı, o markanın toplu içe aktarılmış (legacy_static) bir
+// ürününü de bu akıştan düzenleyebilir (bkz. aşağıdaki prefillForClaim, src/routes/submissions.js#
+// verifyProductClaimedSlug, migrations/0088_product_claimed_slug.sql).
+let claimSlug = new URLSearchParams(window.location.search).get('claim');
 // Ürün ve Malzeme ekleme tek sayfada birleştirildiği için (bkz. kullanıcı isteği), düzenleme
 // linkleri hangi API'ye (products/materials) ait olduğunu ?stype= ile taşır (bkz. save-widget.js#
 // editSubmissionBtnHtml/applyEditButtons). Yeni gönderilerde bu değer, seçilen KATEGORİYE göre
@@ -579,12 +647,6 @@ function renderPreviews(){
       renderPreviews();
     });
   });
-  // Görsele TIKLAMAK (sürüklemek değil) onu büyütür ve kırpma penceresini açar (kullanıcı isteği,
-  // 2026-09-04) — bkz. js/components/image-crop.js#enableThumbCrop. Ürün galerisinde oran SERBEST;
-  // 1:1 kilidi yalnızca logo/profil fotoğraflarındadır (bkz. marka-ekle.html/kisi-ekle.html).
-  previewGrid.querySelectorAll('.image-preview-item').forEach((tile, i)=>{
-    wireGalleryThumbCrop(tile.querySelector('img'), mediaItems[i]);
-  });
 }
 
 // Kırpılan görsel, sırasını KORUYARAK yeni bir 'file' öğesine dönüşür — zaten yüklenmiş bir
@@ -596,18 +658,62 @@ function replaceMediaItemWithCrop(item, file){
   if(item.objectUrl) URL.revokeObjectURL(item.objectUrl);
   mediaItems[i] = { key: 'm' + (mediaKeySeq++), kind:'file', file, objectUrl: URL.createObjectURL(file) };
   renderPreviews();
+  showEnlargedImage(i);
 }
-function wireGalleryThumbCrop(imgEl, item){
-  if(!window.ImageCrop || !item) return;
-  ImageCrop.enableThumbCrop(imgEl, {
-    source: item.kind === 'existing' ? item.url : item.file,
-    aspect: 'free',
-    title: 'Görseli kırp',
-    // Bir sürüklemenin ardından tarayıcının ürettiği click'i yut (bkz. finishDragReorder).
-    guard: ()=> !dragJustFinished,
-    onCropped: (file)=> replaceMediaItemWithCrop(item, file),
-  });
+
+// Görsel büyütme penceresi (kullanıcı isteği, 2026-09-05: "ürün ekle/düzenle sayfasında yüklenen
+// görsellere tıklayınca aynı proje ekle/düzenle sayfasındaki gibi görseller popup şeklinde
+// büyüsünler ve aynı proje ekle/düzenle sayfasındaki gibi kırp butonu olsun") — bkz. yukarıdaki
+// .ie-* stilleri, proje-ekle.html#openHotspotEditor/showHotspotImage/closeHotspotEditor İLE AYNI
+// desen (işaretçi/pin kısmı hariç, ürün görsellerinde hotspot yok).
+const ieOverlay = document.getElementById('ie-overlay');
+const ieImage = document.getElementById('ie-image');
+const ieCounter = document.getElementById('ie-counter');
+let ieIndex = -1;
+
+function showEnlargedImage(i){
+  if(!mediaItems.length) return;
+  ieIndex = (i + mediaItems.length) % mediaItems.length;
+  ieImage.src = mediaItemSrc(mediaItems[ieIndex]);
+  ieCounter.textContent = `${ieIndex + 1} / ${mediaItems.length}`;
+  document.getElementById('ie-prev').style.display = mediaItems.length > 1 ? '' : 'none';
+  document.getElementById('ie-next').style.display = mediaItems.length > 1 ? '' : 'none';
 }
+function openImageEditor(i){
+  ieOverlay.classList.add('open');
+  ieOverlay.setAttribute('aria-hidden', 'false');
+  showEnlargedImage(i);
+}
+function closeImageEditor(){
+  ieOverlay.classList.remove('open');
+  ieOverlay.setAttribute('aria-hidden', 'true');
+  ieIndex = -1;
+}
+previewGrid.addEventListener('click', (e)=>{
+  if(dragJustFinished){ dragJustFinished = false; return; }
+  if(e.target.closest('button')) return;
+  const tile = e.target.closest('.image-preview-item');
+  if(!tile) return;
+  const idx = [...previewGrid.children].indexOf(tile);
+  if(idx >= 0) openImageEditor(idx);
+});
+document.getElementById('ie-close').addEventListener('click', closeImageEditor);
+document.getElementById('ie-crop').addEventListener('click', async ()=>{
+  const item = mediaItems[ieIndex];
+  if(!item || !window.ImageCrop) return;
+  const file = await ImageCrop.open(item.kind === 'existing' ? item.url : item.file, { title: 'Görseli kırp', aspect: 'free' });
+  if(!file) return;
+  replaceMediaItemWithCrop(item, file);
+});
+document.getElementById('ie-prev').addEventListener('click', ()=> showEnlargedImage(ieIndex - 1));
+document.getElementById('ie-next').addEventListener('click', ()=> showEnlargedImage(ieIndex + 1));
+ieOverlay.addEventListener('click', (e)=>{ if(e.target === ieOverlay) closeImageEditor(); });
+document.addEventListener('keydown', (e)=>{
+  if(!ieOverlay.classList.contains('open')) return;
+  if(e.key === 'Escape') closeImageEditor();
+  else if(e.key === 'ArrowLeft') showEnlargedImage(ieIndex - 1);
+  else if(e.key === 'ArrowRight') showEnlargedImage(ieIndex + 1);
+});
 
 // Basılı tutup sürükleyerek sıralama — bkz. proje-ekle.html'deki AYNI desen/gerekçe (Pointer Events
 // ile uzun-basma eşikli sürükleme, previewGrid'e event delegation, sürükleme sırasında renderPreviews()
@@ -617,8 +723,8 @@ const DRAG_MOVE_CANCEL_PX = 8;
 let dragPending = null;
 let dragState = null;
 // Gerçek bir sürükleme yaşandıysa tarayıcı pointerup'tan sonra yine de bir click üretebilir — bu
-// bayrak o click'i yutar (bkz. wireGalleryThumbCrop#guard ve proje-ekle.html'deki AYNI desen),
-// aksi halde her sıralama işleminden sonra kırpma penceresi açılırdı.
+// bayrak o click'i yutar (bkz. previewGrid'in click dinleyicisi ve proje-ekle.html'deki AYNI desen),
+// aksi halde her sıralama işleminden sonra büyütme penceresi açılırdı.
 let dragJustFinished = false;
 
 function clearDragPending(){
@@ -924,8 +1030,52 @@ async function prefillForAdminEdit(){
     mountProductAdminActions();
   }catch(err){ /* prefill başarısızsa boş formla devam edilir */ }
 }
+// ?claim=<slug>: markanın (offices satırı) onaylı bir profile_claims sahibi için (bkz. yukarıdaki
+// claimSlug tanımı) — proje-ekle.html#prefillForClaim İLE AYNI desen.
+let claimKind = null; // 'products' | 'materials' — canonical kaydın kind'ından çözülür
+async function prefillForClaim(){
+  if(!claimSlug) return;
+  await meReady;
+  if(currentUserRole !== 'admin'){
+    let canEdit = false;
+    try{
+      const res = await fetch(`/api/product/${encodeURIComponent(claimSlug)}/can-edit`);
+      if(res.ok) canEdit = (await res.json()).canEdit;
+    }catch{}
+    if(!canEdit){
+      document.querySelector('.form-submit').disabled = true;
+      document.getElementById('form-notice').textContent = 'Bu ürünü düzenlemek için markasının profilinin sahibi olman gerekiyor.';
+      document.getElementById('form-notice').classList.add('show');
+      return;
+    }
+  }
+
+  let merged = { slug: claimSlug, title: '' };
+  try{
+    const res = await fetch(`/api/product/${encodeURIComponent(claimSlug)}`);
+    if(res.ok){
+      const data = await res.json();
+      if(data.item) merged = data.item;
+    }
+  }catch{}
+  claimKind = merged.kind === 'material' ? 'materials' : 'products';
+
+  // Bu ürün için zaten (bu sahiplenmeyle) oluşturulmuş bir düzenleme satırı varsa PATCH moduna geç.
+  try{
+    const mineRes = await fetch(`/api/${claimKind}/mine`);
+    if(mineRes.ok){
+      const mineData = await mineRes.json();
+      const mine = (mineData.items || []).find(it => it.claimed_slug === claimSlug);
+      if(mine) editId = mine.id;
+    }
+  }catch{}
+
+  applyPrefillItem(merged);
+  mountProductAdminActions();
+}
 prefillForEdit();
 prefillForAdminEdit();
+prefillForClaim();
 
 // Arşivle/Sil — artık ürün popup'ında DEĞİL (bkz. kullanıcı isteği: proje-ekle.html#
 // mountProjectAdminActions ile AYNI desen bu sayfaya da taşınsın), Gönder'in altında gösterilir.
@@ -940,7 +1090,7 @@ function mountProductAdminActions(){
   const archiveBtn = document.getElementById('u-archive-btn');
   const deleteBtn = document.getElementById('u-delete-btn');
   row.style.display = '';
-  const type = adminEditId ? adminEditKind : (editTypeParam === 'materials' ? 'materials' : 'products');
+  const type = adminEditId ? adminEditKind : (claimSlug ? claimKind : (editTypeParam === 'materials' ? 'materials' : 'products'));
   async function run(action){
     const confirmText = action === 'delete'
       ? 'Bu ürünü silmek istediğine emin misin? Ürün anında canlı siteden kaldırılır.'
@@ -1353,6 +1503,7 @@ document.getElementById('urun-ekle-form').addEventListener('submit', async (e)=>
     projects: projectChips.map(c => ({ slug: c.slug || '', title: c.title || '' })),
   };
   if(aiGenerated){ payload.source_url = aiSourceUrl; payload.ai_generated = 1; }
+  if(claimSlug) payload.claimed_slug = claimSlug;
 
   // Seçilen kategorinin ait olduğu tür (bkz. catalog-taxonomy.js#CATALOG_CATEGORY_KIND) hangi
   // API'ye gönderileceğini belirler — Ürün ve Malzeme tek formda birleştiği için (bkz. kullanıcı

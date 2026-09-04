@@ -90,7 +90,11 @@ export const SUBMISSION_TYPES = {
     // karşılığı; onaylandığında src/lib/canonicalSync.js#resolveProductProjectLinks tarafından
     // project_products kenarına (from_product=1 ile) çevrilir. Serbest URL taşımadığından
     // urlArrayFields'a girmez, öğeleri düz string DEĞİL nesne olduğundan da girmemeli (bkz. files).
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'source_url', 'ai_generated'],
+    // claimed_slug — project_submissions.claimed_slug İLE AYNI desen (bkz. migrations/
+    // 0088_product_claimed_slug.sql, kullanıcı isteği: "ürün ekle/düzenle de proje ekle/düzenle'deki
+    // entegre sistemle aynı olsun"): doluysa bu satır yeni bir ürün DEĞİL, canonical products'taki
+    // statik bir kaydın ÜZERİNE bindirilen bir marka sahiplenme düzenlemesidir.
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'claimed_slug', 'source_url', 'ai_generated'],
     arrayFields: ['images', 'specs', 'files', 'projects'],
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],
@@ -98,7 +102,7 @@ export const SUBMISSION_TYPES = {
   },
   materials: {
     table: 'material_submissions',
-    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'source_url', 'ai_generated'],
+    fields: ['title', 'brand', 'designer', 'year', 'website', 'category', 'description', 'images', 'specs', 'files', 'projects', 'claimed_slug', 'source_url', 'ai_generated'],
     arrayFields: ['images', 'specs', 'files', 'projects'],
     required: ['title', 'brand'],
     urlFields: ['website', 'source_url'],

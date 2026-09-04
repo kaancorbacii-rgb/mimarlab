@@ -543,7 +543,11 @@ export async function findCanonicalRowByNaturalKey(env, typeKey, key) {
     return env.DB.prepare(`SELECT * FROM projects WHERE slug = ? OR legacy_key = ? LIMIT 1`).bind(key, key).first();
   }
   if (typeKey === 'products' || typeKey === 'materials') {
-    return env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ? LIMIT 1`).bind(key).first();
+    // OR slug = ?: claimed_slug'lı ürün sahiplenmeleri artık BURADAN da bulunabilmeli (bkz.
+    // migrations/0088_product_claimed_slug.sql, src/lib/canonicalSync.js#syncProduct) — aksi halde
+    // unhideIfClaimedApproved (Gizle/Arşivle'den geri açma) claim edilmiş bir statik ürünü hiç
+    // bulamazdı, yalnızca "marka|||başlık" biçimindeki eski legacy_key ile eşleşen çağrılar çalışırdı.
+    return env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ? OR slug = ? LIMIT 1`).bind(key, key).first();
   }
   return null;
 }
@@ -1215,15 +1219,21 @@ async function syncProject(env, row) {
 }
 
 async function syncProduct(env, row, kind) {
-  // products/materials'ta claim sistemi yok (bkz. schema.sql yorumu) — her onaylı satırın kendi
-  // canonical karşılığı idempotent bulunmalı. GERÇEK BULGU (kullanıcı isteği: "Ürün sayfalarındaki
-  // ürünlerin URL'lerini ürün adları olarak düzgünce düzelt"): bu idempotent arama önceden
-  // slug='m-<submissionId>' üzerinden yapılıyordu — slug artık aşağıda title/marka'dan üretildiğinden
-  // (architects/offices/projects'teki AYNI desen) bu arama artık HER ZAMAN legacy_key='submission:<id>'
-  // üzerinden yapılır (bu değer her onaylı senkronda zaten koşulsuz yazılıyor, aşağıya bkz.) —
-  // idempotency artık slug'ın biçiminden tamamen bağımsız.
-  const legacyKey = submissionMarker(row.id);
-  const existing = await env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ?`).bind(legacyKey).first();
+  // claimed_slug (kullanıcı isteği, 2026-09-05: "ürün ekle/düzenle de proje ekle/düzenle'deki
+  // entegre sistemle aynı olsun") — syncProject'teki AYNI desen: doluysa bu satır YENİ bir ürün
+  // DEĞİL, canonical products'taki (slug/legacy_key eşleşmesiyle) statik/legacy_static bir kaydın
+  // ÜZERİNE bindirilen bir sahiplenme düzenlemesidir (bkz. migrations/0088_product_claimed_slug.sql,
+  // src/routes/submissions.js#verifyProductClaimedSlug). Doldurulmadıysa (normal/marka'sız kendi
+  // ürün gönderimi) idempotent arama HER ZAMAN legacy_key='submission:<id>' üzerinden yapılır (bu
+  // değer her onaylı senkronda zaten koşulsuz yazılıyor, aşağıya bkz.) — GERÇEK BULGU (kullanıcı
+  // isteği: "Ürün sayfalarındaki ürünlerin URL'lerini ürün adları olarak düzgünce düzelt"): bu arama
+  // önceden slug='m-<submissionId>' üzerinden yapılıyordu, slug artık title/marka'dan üretildiğinden
+  // idempotency slug biçiminden tamamen bağımsız hale getirildi.
+  const claimedSlug = row.claimed_slug;
+  const marker = submissionMarker(row.id);
+  const existing = claimedSlug
+    ? await env.DB.prepare(`SELECT * FROM products WHERE deleted_at IS NULL AND (slug = ? OR legacy_key = ?) LIMIT 1`).bind(claimedSlug, claimedSlug).first()
+    : await env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ?`).bind(marker).first();
   const images = JSON.stringify(row.images || []);
   const specs = JSON.stringify(row.specs || []);
   const files = JSON.stringify(row.files || []); // bkz. migrations/0071_product_files.sql
@@ -1256,12 +1266,19 @@ async function syncProduct(env, row, kind) {
     // temizlendiğinden versiyon galerisinde KIRIK görsel kalıyordu (canlıda Ithaca/Casa).
     // Çözüm: versiyonları SİLMEDEN, yalnızca galeri düzenlemesini onlara da UYARLA
     // (bkz. reconcileVariantImages).
+    //
+    // legacy_key BİLEREK BURADA YAZILMAZ (syncProject'teki AYNI karar — o da UPDATE dalında
+    // legacy_key'e dokunmaz): claimedSlug ile bulunan bir satırın ORİJİNAL legacy_key'i (ör.
+    // "Marka|||Başlık" biçimi) korunmalı, aksi halde findCanonicalRowByNaturalKey/setLegacyHidden
+    // (Gizle/Arşivle) bir daha bu satırı BULAMAZDI. İdempotency zaten claimedSlug'lı satırlarda
+    // slug'a (products/materials asla yeniden adlandırılmadığından SABİT), claimsız satırlarda ise
+    // legacy_key='submission:<id>'in kendisine (aşağıdaki arama koşulu, hiç değişmez) dayanır.
     const nextVariants = reconcileVariantImages(existing.variants, existing.images, images);
     const variantSet = nextVariants === null ? '' : ', variants = ?';
     const variantVal = nextVariants === null ? [] : [nextVariants];
     await env.DB.prepare(
-      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?, legacy_key = ?${variantSet}, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
-    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, legacyKey, ...variantVal, existing.id).run();
+      `UPDATE products SET title = ?, brand_office_id = ?, brand_name_raw = ?, website = ?, category = ?, description = ?, images = ?, specs = ?, files = ?, designer = ?, year = ?${variantSet}, hidden_at = NULL, updated_at = datetime('now') WHERE id = ?`
+    ).bind(row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, ...variantVal, existing.id).run();
     productId = existing.id;
   } else {
     // architects/offices/projects'teki AYNI desen (bkz. syncArchitect/syncOffice) — yeni bir
@@ -1275,8 +1292,12 @@ async function syncProduct(env, row, kind) {
     const insert = await insertWithSlugRetry(env, slug, row.id, (finalSlug) => env.DB.prepare(
       `INSERT INTO products (slug, kind, title, brand_office_id, brand_name_raw, website, category, description, images, specs, files, designer, year, source_url, ai_generated, source, legacy_key, claimed_by_user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submission', ?, ?)`
-    ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, legacyKey, row.owner_user_id));
+    ).bind(finalSlug, kind, row.title, brandOfficeId, row.brand || null, row.website || null, row.category || null, row.description || null, images, specs, files, row.designer || null, row.year || null, row.source_url || null, row.ai_generated ? 1 : 0, marker, row.owner_user_id));
     productId = insert.meta.last_row_id;
+    // bkz. syncProject'teki AYNI "claimedSlug'lı ama hedef bulunamadı" durumu ve gerekçesi (ör.
+    // sahiplenilen ürün claim onaylanmadan ÖNCE silindiyse) — stale link'ler ARAYA yeni bir
+    // legacy_static kayıt oluşturmasın diye bir sonraki senkronda tekrar hedeflenmesinler.
+    if (claimedSlug) await blacklistLegacyKey(env, row.owner_user_id, kind === 'material' ? 'materials' : 'products', claimedSlug);
   }
   // "Kullanılan Projeler" kutusu — syncProject'teki AYNI desen, yalnızca from_product bayrağını
   // yönetir (bkz. setProjectProductLinks, kullanıcı isteği 2026-08-31: ürün popup'ına eklenen proje,
@@ -1313,7 +1334,12 @@ export async function hideCanonicalForUnapprovedSubmission(env, typeKey, row) {
     return;
   }
   if (typeKey === 'products' || typeKey === 'materials') {
-    await env.DB.prepare(`UPDATE products SET hidden_at = datetime('now') WHERE slug = ?`).bind(`m-${row.id}`).run();
+    // legacy_key='submission:<id>' — yukarıdaki `table` dalıyla AYNI idempotent anahtar/gerekçe.
+    // GERÇEK BULGU: bu satır önceden slug='m-<id>' arıyordu — slug artık syncProduct'ta title/
+    // marka'dan üretildiğinden (bkz. o fonksiyondaki AYNI yorum) bu koşul HİÇBİR ZAMAN eşleşmiyordu.
+    // legacy_key ile arama, claimed_slug'lı (statik kökenli) satırları da yukarıdaki `table` dalıyla
+    // AYNI şekilde kasıtlı olarak dışarıda bırakır (bkz. dosya başı yorumu).
+    await env.DB.prepare(`UPDATE products SET hidden_at = datetime('now') WHERE legacy_key = ?`).bind(marker).run();
   }
 }
 
@@ -1336,7 +1362,10 @@ export async function hideCanonicalForUnapprovedSubmission(env, typeKey, row) {
 export async function markCanonicalDeletedForSubmission(env, typeKey, row, userId) {
   if (!row) return;
   const marker = submissionMarker(row.id);
-  const claimedKey = typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key;
+  // claimed_slug artık products/materials'ta da var (bkz. migrations/0088_product_claimed_slug.sql) —
+  // projects İLE AYNI alan/gerekçe, architects/offices ise ayrı bir isim (claimed_profile_key) kullanır.
+  const claimedKey = (typeKey === 'projects' || typeKey === 'products' || typeKey === 'materials')
+    ? row.claimed_slug : row.claimed_profile_key;
   const table = { architects: 'architects', offices: 'offices', projects: 'projects' }[typeKey];
   if (table) {
     const canonRow = claimedKey
@@ -1346,7 +1375,13 @@ export async function markCanonicalDeletedForSubmission(env, typeKey, row, userI
     else if (claimedKey) await blacklistLegacyKey(env, userId, typeKey, claimedKey);
     return;
   }
-  // products/materials
-  const canonRow = await env.DB.prepare(`SELECT * FROM products WHERE slug = ?`).bind(`m-${row.id}`).first();
+  // products/materials — claimedKey doluysa (statik/legacy_static bir kaydı sahiplenen düzenleme)
+  // findCanonicalRowByNaturalKey ile (slug/legacy_key), aksi halde HER ZAMAN legacy_key='submission:
+  // <id>' üzerinden (bkz. syncProduct'taki AYNI idempotent anahtar — eski 'm-<id>' slug varsayımı
+  // artık slug title/marka'dan üretildiğinden hiçbir zaman eşleşmiyordu, gerçek bulgu).
+  const canonRow = claimedKey
+    ? await findCanonicalRowByNaturalKey(env, typeKey, claimedKey)
+    : await env.DB.prepare(`SELECT * FROM products WHERE legacy_key = ?`).bind(marker).first();
   if (canonRow) await hardDeleteCanonicalRow(env, typeKey, canonRow, userId);
+  else if (claimedKey) await blacklistLegacyKey(env, userId, typeKey, claimedKey);
 }

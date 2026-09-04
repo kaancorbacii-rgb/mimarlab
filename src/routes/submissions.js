@@ -5,7 +5,7 @@ import { SUBMISSION_TYPES, normalizeSubmission, parseSubmissionRow, validateRequ
 import { invalidatePublicCache } from '../lib/publicCache.js';
 import { purgeSsrDetailCache, ssrPurgeTargetFor } from '../lib/ssrCache.js';
 import { cascadeRemovedFounders, cascadeRemovedProfileClaims, renameOfficeEverywhere, renameArchitectEverywhere } from '../lib/officeFounderCascade.js';
-import { canUserEditProjectBySlug } from '../lib/projectClaimAccess.js';
+import { canUserEditProjectBySlug, canUserEditProductBySlug } from '../lib/projectClaimAccess.js';
 import { setLegacyHidden, runContentAction } from './legacyContent.js';
 import { syncApprovedSubmissionToCanonical, hideCanonicalForUnapprovedSubmission, isDuplicateCanonicalName, cleanupReplacedR2Media, findOrHealSubmissionDraft } from '../lib/canonicalSync.js';
 import { bumpFacetCounts } from '../lib/facetCounts.js';
@@ -55,7 +55,13 @@ const CLAIM_PROFILE_TYPE = { architects: 'architect', offices: 'office' };
 // içinde gizli KALIRDI — canlıda ne overlay ne statik hali görünmeyen, veritabanında "onaylı" ama
 // sitede hiç var olmayan bir kayıt (gerçek bulgu: GAD Architecture'ı arşivleyip normal formdan
 // düzenleyince firma sitede tamamen kayboluyordu, admin panelinde her şey normal görünüyordu).
-const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'claimed_profile_key', projects: 'claimed_slug' };
+const CLAIMED_COLUMN_BY_TYPE = { architects: 'claimed_profile_key', offices: 'claimed_profile_key', projects: 'claimed_slug', products: 'claimed_slug', materials: 'claimed_slug' };
+
+// projects/products/materials'ın claimed_profile_key YERİNE claimed_slug kullanan tipler (bkz.
+// migrations/0088_product_claimed_slug.sql, kullanıcı isteği: "ürün ekle/düzenle de proje ekle/
+// düzenle'deki entegre sistemle aynı olsun") — architects/offices ayrı bir alan (claimed_profile_key)
+// kullanmaya devam eder, o yüzden bu üçü TEK bir sette toplanır.
+const CLAIMED_SLUG_TYPES = new Set(['projects', 'products', 'materials']);
 
 // Admin'in claimed_profile_key'den FARKLI bir isim gönderebildiği (bkz. aşağıdaki istisnalar) ve
 // buna bağlı olarak bir yeniden adlandırma cascade'i tetiklenen tipler — mimar ve firma (bkz.
@@ -158,6 +164,28 @@ async function verifyClaimedSlug(env, user, slug) {
   return null;
 }
 
+// verifyClaimedSlug'ın ÜRÜN/MALZEME karşılığı (kullanıcı isteği, 2026-09-05: "Ürün ekle ile ürün
+// düzenle birbiriyle entegre değil mi? Proje ekle ve proje düzenle de kurduğumuz entegre sistemin
+// ürün ekle/düzenle için de aynı olması gerekiyor.") — admin her ürünü/malzemeyi düzenleyebilir;
+// admin olmayan bir kullanıcı yalnızca ürünün MARKASINI (offices satırı) onaylı bir profile_claims
+// ile sahipleniyorsa düzenleyebilir (bkz. src/lib/projectClaimAccess.js#canUserEditProductBySlug).
+async function verifyProductClaimedSlug(env, user, slug) {
+  const canonicalRow = await env.DB.prepare(
+    `SELECT id FROM products WHERE deleted_at IS NULL AND (slug = ? OR legacy_key = ?) LIMIT 1`
+  ).bind(slug, slug).first();
+  if (!canonicalRow) return errorJson('Bu ürün artık bu adla mevcut değil, sayfayı yenileyip tekrar dene.', 404);
+  if (user.role === 'admin') return null;
+  if (!(await canUserEditProductBySlug(env, user, slug))) {
+    return errorJson('Bu ürünü düzenlemek için ürünün markasının profilinin sahibi olman gerekiyor.', 403);
+  }
+  return null;
+}
+// typeKey'e göre doğru doğrulayıcıyı seçer — createSubmission/updateOwnSubmission'daki İKİ AYNI
+// çağrı noktası bunu paylaşır.
+function claimedSlugVerifierFor(typeKey) {
+  return typeKey === 'projects' ? verifyClaimedSlug : verifyProductClaimedSlug;
+}
+
 export async function handleSubmissionRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "offices", ...]
   const typeKey = TYPE_BY_PATH[segments[1]];
@@ -220,8 +248,8 @@ async function createSubmission(request, env, user, typeKey) {
       body.name = body.claimed_profile_key;
     }
   }
-  if (typeKey === 'projects' && body.claimed_slug) {
-    const err = await verifyClaimedSlug(env, user, body.claimed_slug);
+  if (CLAIMED_SLUG_TYPES.has(typeKey) && body.claimed_slug) {
+    const err = await claimedSlugVerifierFor(typeKey)(env, user, body.claimed_slug);
     if (err) return err;
   }
 
@@ -229,7 +257,7 @@ async function createSubmission(request, env, user, typeKey) {
   // body.name yukarıda zaten claimed_profile_key ile AYNI değere ayarlandığından (rename istisnası
   // dışında), bu iki tip ZATEN kasıtlı olarak mevcut bir isimle eşleşir; bu yüzden çakışma kontrolü
   // yalnızca GERÇEKTEN yeni bir kayıt oluşturulurken çalışır (bkz. isDuplicateCanonicalName yorumu).
-  if (!body.claimed_profile_key && !(typeKey === 'projects' && body.claimed_slug)) {
+  if (!body.claimed_profile_key && !(CLAIMED_SLUG_TYPES.has(typeKey) && body.claimed_slug)) {
     const dupName = typeKey === 'projects' ? body.title : body.name;
     if (dupName && (await isDuplicateCanonicalName(env, typeKey, dupName, { brand: body.brand }))) {
       return errorJson(DUPLICATE_NAME_ERROR[typeKey]);
@@ -253,12 +281,13 @@ async function createSubmission(request, env, user, typeKey) {
   // updateOwnSubmission'a (PATCH) gider. Marka yeni (claimed_profile_key'siz) bir gönderi/proje/ürün
   // hâlâ normal moderasyon kuyruğuna girer — bu yalnızca "zaten kendi olan bir şeyi düzenleme"
   // durumunu kapsar, ilk kez içerik göndermeyi DEĞİL.
-  // typeKey==='projects' && body.claimed_slug: yukarıdaki verifyClaimedSlug bunun ya admin ya da
-  // künyedeki bir mimar/firmayı onaylı şekilde sahiplenen bir kullanıcıdan geldiğini ZATEN doğruladı —
-  // claimed_profile_key'li mimar/firma düzenlemesiyle AYNI mantıkla, bu da bir onay kuyruğuna değil
-  // doğrudan yayına girmeli (bkz. kullanıcı isteği: "kullanıcı o firmaya/mimara ait projelerde de
-  // istediği zaman değişiklik yapabilsin").
-  const isOwnerProfileEdit = !!body.claimed_profile_key || (typeKey === 'projects' && !!body.claimed_slug);
+  // CLAIMED_SLUG_TYPES.has(typeKey) && body.claimed_slug: yukarıdaki claimedSlugVerifierFor bunun ya
+  // admin ya da (projede) künyedeki bir mimar/firmayı, (ürün/malzemede) markayı onaylı şekilde
+  // sahiplenen bir kullanıcıdan geldiğini ZATEN doğruladı — claimed_profile_key'li mimar/firma
+  // düzenlemesiyle AYNI mantıkla, bu da bir onay kuyruğuna değil doğrudan yayına girmeli (bkz.
+  // kullanıcı isteği: "kullanıcı o firmaya/mimara ait projelerde de istediği zaman değişiklik
+  // yapabilsin" / "ürün ekle/düzenle de aynı entegre sistem").
+  const isOwnerProfileEdit = !!body.claimed_profile_key || (CLAIMED_SLUG_TYPES.has(typeKey) && !!body.claimed_slug);
   const status = (user.role === 'admin' || isOwnerProfileEdit) ? 'approved' : 'pending';
 
   const columns = ['id', 'owner_user_id', 'status', 'created_at', 'updated_at', ...config.fields];
@@ -272,7 +301,7 @@ async function createSubmission(request, env, user, typeKey) {
   // Bu, önceden arşivlenmiş (bkz. handleContentAction/handleProjectAction) bir statik kaydın
   // taslağıysa (nadir — normalde prefillForClaim mevcut taslağı bulup PATCH'e düşer) statik kayıt
   // hâlâ gizli olabilir; onaylandığı an tekrar görünür olmalı (bkz. unhideIfClaimedApproved).
-  await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? body.claimed_slug : body.claimed_profile_key);
+  await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? body.claimed_slug : body.claimed_profile_key);
 
   // Admin bu firmayı/mimarı ilk kez düzenlerken adını da değiştirmiş olabilir (bkz. yukarıdaki
   // istisna) — statik ad hâlâ TÜM diğer D1 satırlarında (rozetler, kayıtlı öğeler vb.) anahtar
@@ -393,8 +422,8 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
       body.name = body.claimed_profile_key;
     }
   }
-  if (typeKey === 'projects' && body.claimed_slug) {
-    const err = await verifyClaimedSlug(env, user, body.claimed_slug);
+  if (CLAIMED_SLUG_TYPES.has(typeKey) && body.claimed_slug) {
+    const err = await claimedSlugVerifierFor(typeKey)(env, user, body.claimed_slug);
     if (err) return err;
   }
 
@@ -501,7 +530,7 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
 
   // bkz. createSubmission'daki aynı çağrı/yorum — bu satır önceden arşivlenmiş bir statik kaydın
   // taslağıysa, düzenleme onaylanır onaylanmaz statik kayıt tekrar görünür olmalı.
-  await unhideIfClaimedApproved(env, user, typeKey, status, typeKey === 'projects' ? row.claimed_slug : row.claimed_profile_key);
+  await unhideIfClaimedApproved(env, user, typeKey, status, CLAIMED_SLUG_TYPES.has(typeKey) ? row.claimed_slug : row.claimed_profile_key);
   // slug/prefix: proje-ekle.html/kisi-ekle.html/firma-ekle.html'in kaydettikten sonra doğrudan
   // (olası yeni) canlı sayfaya yönlendirebilmesi için (bkz. kullanıcı isteği). architects/offices'te
   // slug'ı asıl DEĞİŞTİREN updateRenameCascade'dir (syncedRow.slug bu adımdan ÖNCEki değeri taşır,
