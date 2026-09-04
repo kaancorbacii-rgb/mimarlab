@@ -72,7 +72,19 @@ const ImageHotspots = (function () {
         flex:0 0 74px; width:74px; height:74px; border-radius:10px; overflow:hidden;
         background:var(--paper-alt, #F2F1EE); display:flex; align-items:center; justify-content:center;
       }
-      .ih-card-media img{width:100%; height:100%; object-fit:contain; display:block;}
+      /* GERÇEK BULGU (kullanıcı bildirimi + ekran görüntüsü, 2026-09-05: "hotspotlardaki
+         görseller kaymış gözüküyor" — ana sayfa carousel'inde): bu bileşen proje.html'in
+         galerisinde OLDUĞU GİBİ ana sayfanın .proje-slide'ının İÇİNDE de çalışır, ve index.html'in
+         KENDİ ".proje-slide img{position:absolute; inset:0; width:100%; height:100%;
+         object-fit:cover;}" kuralı bir ÜST-SEÇİCİ (descendant selector) olduğundan bu kartın küçük
+         ürün görseline de sızıyordu — img position:absolute alıp en yakın konumlandırılmış atası
+         olan .ih-card'ın (74x74'lük .ih-card-media'nın DEĞİL) TAMAMINI kaplıyor, kartın metnini
+         örtüyor ve "kaymış/taşmış" görünüyordu. !important'lar bu sızıntıyı KESİN olarak keser —
+         bu paylaşılan bileşen proje.html/urun.html gibi başka sayfalarda da farklı, önceden
+         bilinmeyen "img{...}" kurallarının olduğu bağlamlarda çalıştığından savunmacı bir önlem.
+         NOT: bu CSS bloğu bir template literal (backtick) içinde yaşıyor — bkz. proje notu
+         [[feedback_no_backtick_in_style_template_literals]] — buraya ASLA backtick eklenmemeli. */
+      .ih-card-media img{position:static !important; inset:auto !important; width:100% !important; height:100% !important; object-fit:contain !important; display:block;}
       /* Govde ve satirlari <span> — display:block SART, aksi halde baslik/marka/CTA yan yana tek bir
          satira akiyor (yerel testte goruldu). */
       .ih-card-body{display:block; min-width:0; flex:1;}
