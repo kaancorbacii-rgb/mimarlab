@@ -61,7 +61,13 @@ export function shapeProductItem(row) {
 export async function fetchProductPool(env) {
   return getCachedPool(env, 'products', async () => {
     const [productsRes, ratingRows] = await Promise.all([
-      env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY id DESC`).all(),
+      // ORDER BY COALESCE(display_order, 0) ASC, id DESC — migrations/0089_product_display_order.sql
+      // (projects.display_order/migrations/0087 ile AYNI desen): display_order NULL olan (henüz
+      // atanmamış, submission/admin akışlarının hep ürettiği durum) satırlar 0 muamelesi görüp id'ye
+      // göre "son eklenen ilk" sırasını korur; 2026-09-05 Koleksiyon partisinin 37 yeni satırına
+      // atanan >=1 değerleri onları katalog sayfaları arasına serpiştirir (aksi halde hepsi en
+      // yüksek id olarak 1. sayfaya yığılırdı).
+      env.DB.prepare(`SELECT slug, title, brand_name_raw, category, kind, images, legacy_key, designer, year FROM products WHERE deleted_at IS NULL AND hidden_at IS NULL ORDER BY COALESCE(display_order, 0) ASC, id DESC`).all(),
       env.DB.prepare(`SELECT target_type, target_id, AVG(stars) AS average, COUNT(*) AS count FROM ratings WHERE target_type IN ('product','material') GROUP BY target_type, target_id`).all(),
     ]);
     const ratingByKey = new Map(ratingRows.results.map(r => [`${r.target_type}:${r.target_id}`, { average: r.average, count: r.count }]));
