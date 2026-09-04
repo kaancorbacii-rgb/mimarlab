@@ -677,6 +677,7 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
+            p.image_hotspots,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM (SELECT * FROM projects
            WHERE deleted_at IS NULL AND hidden_at IS NULL AND build_status = ?
@@ -702,6 +703,26 @@ async function fetchProjectPageRows(env, buildStatus, limit, offset) {
 function stripListOnlyFields(p) {
   const { description, ...rest } = p;
   return rest;
+}
+
+// Liste yükündeki (carousel/kart) işaretçileri ürün künyesiyle zenginleştirir.
+//
+// Ham `image_hotspots` yalnızca {x,y,slug,title} taşır; önizleme kartı için marka ve ürün görseli
+// de gerekir (bkz. js/components/image-hotspots.js). Detay ucu bunu zaten yapıyordu
+// (handleProjectDetailRoute), liste ucu ise işaretçileri hiç göndermiyordu — ana sayfa
+// carousel'inde işaretçi istendiği için (kullanıcı isteği, 2026-09-04) burada da yapılır.
+//
+// MALİYET: yalnızca GERÇEKTEN işaretçi taşıyan kayıtlar için çalışır. `shapeProjectItem`
+// coverOnly yolunda alanı yalnızca kapak görselinde işaretçi varsa ekliyor, dolayısıyla tipik bir
+// sayfada (24 kart) bu döngü sıfır ya da bir-iki kez döner — sonuç ayrıca cachedPublicJson
+// tarafından önbelleklenir.
+async function enrichListHotspots(env, items) {
+  for (const item of items) {
+    if (item && item.imageHotspots) {
+      item.imageHotspots = await enrichImageHotspots(env, item.imageHotspots);
+    }
+  }
+  return items;
 }
 
 // handleProjectListRoute'daki ratingBySlug oluşturma döngüsüyle BİREBİR AYNI eşleştirme mantığı
@@ -747,7 +768,8 @@ async function fetchProjectListPageFromD1(env, buildStatus, page, limit) {
     const r = ratingBySlug.get(p.slug);
     return { ...stripListOnlyFields(p), rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
   });
-  return { items: serializePublicEntity(withRatings), total, page: clampedPage, totalPages };
+  return { items: serializePublicEntity(await enrichListHotspots(env, withRatings)),
+           total, page: clampedPage, totalPages };
 }
 
 // GET /api/projects — proje.html#render()'ın sayfalanmış sunucu karşılığı. `/api/projects/filters`
@@ -883,7 +905,8 @@ export async function handleProjectListRoute(request, env, url) {
       const r = ratingBySlug.get(p.slug);
       return { ...stripListOnlyFields(p), rating: r ? r.average : null, ratingCount: r ? r.count : 0 };
     });
-    return { items: serializePublicEntity(items), total, page: Math.min(page, totalPages), totalPages };
+    return { items: serializePublicEntity(await enrichListHotspots(env, items)),
+             total, page: Math.min(page, totalPages), totalPages };
   }, () => projectListFingerprint(env));
 }
 

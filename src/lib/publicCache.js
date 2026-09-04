@@ -335,7 +335,14 @@ async function withSingleFlight(key, fn) {
 //     `variants[]` eklendi. (c) kendi başına fingerprint'i hareket ettirirdi ama (a) ve (b)
 //     ETTİRMEZ — sürüm artırılmazsa bu projeleri daha önce açmış ziyaretçiler B&T Design
 //     etiketini SÜRESİZ göremezdi.
-const API_PAYLOAD_VERSION = 'v11';
+// v12 (kullanıcı isteği, 2026-09-04): /api/projects LİSTE yükü artık `imageHotspots` taşıyor —
+//     ana sayfa carousel'indeki proje görselinde ürün işaretçileri gösterilebilsin diye
+//     (bkz. src/lib/projectPool.js#shapeProjectItem coverOnly dalı, yalnızca KAPAK görselininki).
+//     Alan daha önce yalnızca /api/project/:slug detay yükünde vardı. v5-v11'in AYNI tuzağı:
+//     projects satırlarının `updated_at`'i değişmediği için fingerprint kıpırdamaz — sürüm
+//     artırılmazsa ana sayfayı daha önce açmış ziyaretçiler eski ETag'le 304 alır ve işaretçisiz
+//     gövdede süresiz takılırdı.
+const API_PAYLOAD_VERSION = 'v12';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

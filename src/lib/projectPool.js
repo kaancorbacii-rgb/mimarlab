@@ -87,7 +87,18 @@ export function shapeProjectItem(row, opts) {
   const coverOnly = opts && opts.coverOnly;
   // Alan yalnızca GERÇEKTEN işaretçi varsa yüke eklenir — liste/havuz yolunda (yüzlerce kayıt, KV'de
   // önbelleklenen tek bir JSON) her karta boş bir nesne iliştirmenin hiçbir faydası yok.
-  const hotspots = coverOnly ? {} : parseHotspots(row.image_hotspots);
+  //
+  // KULLANICI İSTEĞİ (2026-09-04): ana sayfa carousel'indeki proje görselinde de işaretçiler
+  // görünsün ve tıklanabilsin. Carousel bu liste yolundan besleniyor ve YALNIZCA `images[0]`'ı
+  // gösteriyor — bu yüzden coverOnly'de işaretçiler tamamen atılmaz ama SADECE kapak görselininki
+  // taşınır. Yükü şişirmeyen tek doğru kapsam bu: bugün işaretçi taşıyan proje sayısı bir avuç,
+  // taşımayan yüzlerce kayıt alanı hiç görmez (aşağıdaki Object.keys kontrolü).
+  const allHotspots = parseHotspots(row.image_hotspots);
+  let hotspots = allHotspots;
+  if (coverOnly) {
+    const cover = p.images[0];
+    hotspots = (cover && allHotspots[cover]) ? { [cover]: allHotspots[cover] } : {};
+  }
   return {
     slug: p.slug, title: p.title, category: p.category, type: p.type, discipline: p.discipline,
     location: p.location, locationDetail: p.location_detail, lat: p.lat ?? null, lng: p.lng ?? null,
@@ -96,10 +107,11 @@ export function shapeProjectItem(row, opts) {
     officeNames: officeNamesFrom(row.office_names),
     photoCredit: { text: p.photo_credit_text || '', url: p.photo_credit_url || '' },
     description: p.description, images: coverOnly ? p.images.slice(0, 1) : p.images,
-    // Görsel üzerindeki ürün işaretçileri (bkz. migrations/0076_project_image_hotspots.sql) — liste/
-    // kart bağlamında (coverOnly) hiç gönderilmez, yalnızca detay yükünde anlamlı. parseCanonicalRow'un
-    // JSON_COLUMNS listesine EKLENMEZ: o liste her alanı diziye çözer (hata durumunda []), bu alan ise
-    // bir nesne. Ham metin yukarıda tek yerde ve güvenli biçimde çözülür.
+    // Görsel üzerindeki ürün işaretçileri (bkz. migrations/0076_project_image_hotspots.sql).
+    // Detay yükünde TÜM görsellerinki, liste/kart yükünde (coverOnly) yalnızca KAPAK görselininki
+    // taşınır (bkz. yukarıdaki hesap). parseCanonicalRow'un JSON_COLUMNS listesine EKLENMEZ: o
+    // liste her alanı diziye çözer (hata durumunda []), bu alan ise bir nesne. Ham metin yukarıda
+    // tek yerde ve güvenli biçimde çözülür.
     ...(Object.keys(hotspots).length ? { imageHotspots: hotspots } : {}),
     buildStatus: p.build_status === 'concept' ? 'concept' : 'built',
     conceptCategory: p.concept_category || null,
@@ -156,6 +168,7 @@ export async function fetchActiveProjectPool(env, buildStatus) {
     `SELECT p.id, p.slug, p.title, p.category, p.type, p.discipline, p.location, p.location_detail,
             p.project_date, p.date_bucket, p.period, p.description, p.images, p.photo_credit_text,
             p.photo_credit_url, p.build_status, p.concept_category, p.awards, p.lat, p.lng,
+            p.image_hotspots,
             GROUP_CONCAT(COALESCE(ar.name, ofc.name), '${DESIGNER_SEP}') AS designer_names, ${OFFICE_NAMES_SQL}
      FROM projects p ${DESIGNER_JOIN_SQL}
      WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL AND p.build_status = ?

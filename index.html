@@ -469,6 +469,9 @@
 <script src="js/components/lazy-modals.js" defer></script>
 <script src="js/components/profession-drawer.js" defer></script>
 <script src="js/components/image-lightbox.js" defer></script>
+<!-- Ana sayfa carousel'indeki proje görselinde ürün işaretçileri (kullanıcı isteği,
+     2026-09-04) — proje/ürün pop-up'larıyla AYNI bileşen. -->
+<script src="js/components/image-hotspots.js" defer></script>
 
   <div id="site-header-mount" data-nav-active=""></div>
   <script src="js/components/site-chrome.js"></script>
@@ -654,7 +657,43 @@ function renderSlider(items){
   const trackEl = document.getElementById('slider-track');
   trackEl.innerHTML = items.map(projectSlideHtml).join('');
   trackEl.classList.add('loaded');
+  mountSlideHotspots(trackEl, items);
   restartAutoplay();
+}
+
+// Carousel slaytlarındaki ürün işaretçileri (kullanıcı isteği, 2026-09-04: "proje görselinde
+// etiketli ürünler hali hazırdaki dairesel etiket tasarımıyla gözüksünler ve tıklanabilsinler").
+//
+// Proje/ürün pop-up'larındaki AYNI bileşen kullanılır (js/components/image-hotspots.js) — ayrı bir
+// daire tasarımı yazılmaz. Veri /api/projects yükünden gelir: shapeProjectItem coverOnly yolunda
+// YALNIZCA kapak görselinin işaretçilerini taşır (bkz. src/lib/projectPool.js).
+//
+// İki davranış kararı:
+//   * fit:'cover' — slayt görseli object-fit:cover ile kırpılıyor (bkz. .proje-slide img);
+//     işaretçi katmanı görselin GERÇEKTEN boyandığı dikdörtgene oturmalı, kutusuna değil.
+//   * interactive:false + onSelect — slaytın kendisi projeye giden bir <a>. Önizleme kartını
+//     burada açmak, slaytın overflow'unda kırpılırdı; onun yerine tıklama doğrudan ÜRÜN sayfasına
+//     götürür. Nokta tıklaması <a>'yı tetiklemez: ImageHotspots#onLayerClick zaten
+//     preventDefault+stopPropagation yapıyor.
+function mountSlideHotspots(trackEl, items){
+  if(typeof ImageHotspots === 'undefined') return;
+  trackEl.querySelectorAll('.proje-slide').forEach(slide => {
+    const idx = parseInt(slide.dataset.index, 10);
+    const p = items[idx];
+    const img = slide.querySelector('img');
+    if(!p || !img) return;
+    const cover = (p.images && p.images[0]) || '';
+    const dots = (p.imageHotspots && p.imageHotspots[cover]) || [];
+    if(!dots.length) return;
+    ImageHotspots.mount(slide, img, dots, {
+      fit: 'cover',
+      interactive: false,
+      onSelect: (i) => {
+        const slug = dots[i] && dots[i].slug;
+        if(slug) window.location.href = '/urun/' + encodeURIComponent(slug);
+      },
+    });
+  });
 }
 
 // /api/projects başarısız olursa (ağ hatası/5xx) — artık statik projeler-data.js yedek kataloğu
