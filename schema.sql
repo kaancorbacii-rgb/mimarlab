@@ -174,31 +174,8 @@ CREATE INDEX IF NOT EXISTS idx_material_owner ON material_submissions(owner_user
 CREATE INDEX IF NOT EXISTS idx_material_claimed_slug ON material_submissions(claimed_slug);
 CREATE INDEX IF NOT EXISTS idx_material_status_created ON material_submissions(status, created_at DESC);
 
--- published_at: ilan onaylanıp (yeniden) yayına alındığı an (bkz. src/routes/admin.js). İlan yayında
--- kalma süresi 30 gündür; /api/public/jobs, published_at + 30 günü geçmiş satırları listeye dahil
--- etmeyerek yayından kaldırır (durum DB'de 'approved' kalır, sadece herkese açık listeden düşer).
-CREATE TABLE IF NOT EXISTS job_submissions (
-  id TEXT PRIMARY KEY,
-  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
-  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
-  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  office TEXT,
-  loc TEXT,
-  level TEXT,
-  role TEXT,
-  tags TEXT,
-  domain TEXT,
-  description TEXT,
-  apply TEXT,
-  image_url TEXT,
-  published_at INTEGER
-);
-CREATE INDEX IF NOT EXISTS idx_job_owner ON job_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_job_status_created ON job_submissions(status, created_at DESC);
+-- (KALDIRILDI 2026-09-05 — bkz. migrations/0090_drop_dead_feature_tables.sql: İş İlanı
+--  özelliği yayından çekilmişti, tablo(lar) production D1'den düşürüldü.)
 
 -- claimed_profile_key: bkz. office_submissions üzerindeki aynı alanın açıklaması (architects[].name
 -- ile eşleşen statik bir profile onaylı profile_claims üzerinden yapılan düzenleme talebi).
@@ -243,34 +220,8 @@ CREATE INDEX IF NOT EXISTS idx_architect_status_created ON architect_submissions
 CREATE INDEX IF NOT EXISTS idx_architect_claimed_key ON architect_submissions(claimed_profile_key);
 CREATE INDEX IF NOT EXISTS idx_architect_submissions_consultant ON architect_submissions(consultant_request) WHERE consultant_request = 1;
 
-CREATE TABLE IF NOT EXISTS news_submissions (
-  id TEXT PRIMARY KEY,
-  -- owner_user_id: bkz. office_submissions üzerindeki aynı alanın açıklaması — nullable + ON
-  -- DELETE SET NULL (migrations/0055_submissions_owner_user_id_nullable.sql).
-  owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  category TEXT,
-  source TEXT,
-  description TEXT,
-  image_url TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_news_sub_owner ON news_submissions(owner_user_id);
-CREATE INDEX IF NOT EXISTS idx_news_sub_status_created ON news_submissions(status, created_at DESC);
-
-CREATE TABLE IF NOT EXISTS news (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  category TEXT,
-  source TEXT,
-  description TEXT,
-  image_url TEXT,
-  published INTEGER NOT NULL DEFAULT 1,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
+-- (KALDIRILDI 2026-09-05 — bkz. migrations/0090_drop_dead_feature_tables.sql: Haber
+--  özelliği yayından çekilmişti, tablo(lar) production D1'den düşürüldü.)
 
 -- admin_seen/status (migrations/0027_comment_admin_seen.sql, 0029_comment_moderation.sql) — bu
 -- dosya denetim bulgusu (2026-08-22) sonrası production sqlite_master ile eşleştirildi, önceden
@@ -566,10 +517,11 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 -- bu tablo admin panelinden bu kayıtları canlı siteden gizlemek/tekrar göstermek için kullanılan
 -- bir moderasyon bayrağı, profile_claims/profile_corrections'taki gibi kaydın DOĞAL anahtarıyla
 -- eşleşir (bkz. kullanıcı isteği: "admin tüm sitede tüm yetkilere sahip olsun ... arşivleme").
--- content_key: projects->slug, architects/offices->name, news->id, products/materials->"marka|||başlık".
+-- content_key: projects->slug, architects/offices->name, products/materials->"marka|||başlık".
 CREATE TABLE IF NOT EXISTS legacy_content_hidden (
   id TEXT PRIMARY KEY,
-  content_type TEXT NOT NULL, -- 'projects' | 'architects' | 'offices' | 'products' | 'materials' | 'news'
+  content_type TEXT NOT NULL, -- 'projects' | 'architects' | 'offices' | 'products' | 'materials'
+                              -- ('news' 2026-09-05'te çıkarıldı, bkz. migrations/0090; canlıda o tipte satır yoktu)
   content_key TEXT NOT NULL,
   hidden_by_user_id TEXT NOT NULL REFERENCES users(id),
   hidden_at INTEGER NOT NULL,
@@ -912,43 +864,8 @@ CREATE TABLE IF NOT EXISTS consultation_requests (
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_consultant ON consultation_requests(consultant_key);
 CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id);
 
--- ---------- Düello (bkz. migrations/0062_duel_system.sql) ----------
-
-CREATE TABLE IF NOT EXISTS project_duel_stats (
-  project_id INTEGER PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
-  duel_score INTEGER NOT NULL DEFAULT 0,
-  total_comparisons INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_project_duel_stats_score ON project_duel_stats(duel_score DESC);
-
-CREATE TABLE IF NOT EXISTS duel_matches (
-  id TEXT PRIMARY KEY,
-  actor_key TEXT NOT NULL,
-  project_a_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  project_b_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  winner_project_id INTEGER REFERENCES projects(id),
-  voted_at INTEGER,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_duel_matches_actor ON duel_matches(actor_key, created_at DESC);
-
-CREATE TABLE IF NOT EXISTS duel_sessions (
-  actor_key TEXT PRIMARY KEY,
-  active_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-  streak INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS duel_analyses (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  choice_count INTEGER NOT NULL,
-  project_slugs_json TEXT NOT NULL,
-  summary_json TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_duel_analyses_user ON duel_analyses(user_id, created_at DESC);
+-- (KALDIRILDI 2026-09-05 — bkz. migrations/0090_drop_dead_feature_tables.sql: Düello
+--  özelliği yayından çekilmişti, tablo(lar) production D1'den düşürüldü.)
 
 -- ===================== entity_stats (0078) =====================
 -- Liste uçlarının parmak izi (fingerprint) kaynağı — COUNT(*) tam taramasının O(1) karşılığı.

@@ -21,7 +21,9 @@ const FACET_TYPES = new Set(['projects']);
 // Faz 3 — architects/offices/projects/products/materials artık canonical tablolardan (bkz.
 // migrations/0022_id_first_entities.sql) okunuyor/gizleniyor/siliniyor; legacy_content_hidden bu 5
 // tip için ARTIK KULLANILMIYOR (bkz. migrations/0025_drop_legacy_content_hidden.sql'deki gerekçe —
-// tablo yalnızca 'news' için, o tipin kendi ID-first karşılığı henüz olmadığından, canlı kalıyor).
+// tablo 2026-09-05'te 'news' tipini de kaybetti — haber özelliği yayından çekilmiş, `news`/
+// `news_submissions` migrations/0090_drop_dead_feature_tables.sql ile düşürülmüştü; canlıda
+// legacy_content_hidden içinde o tipte tek bir satır bile yoktu).
 // "Gizle" (hidden_at, geri alınabilir) ile "Sil" (deleted_at, kalıcı + cascade) artık canonical
 // satırın KENDİSİNDE tutulur — ayrı bir moderasyon tablosuna gerek kalmadı.
 

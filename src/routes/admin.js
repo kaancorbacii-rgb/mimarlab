@@ -318,8 +318,10 @@ async function handleAdminSummary(env) {
 // yorumun kalıcı bir kaydı tutulmasını gerektiren bir akış yok). admin_seen (migrations/
 // 0027_comment_admin_seen.sql) BUNDAN bağımsız, "Yeni" rozetini kontrol eden ayrı bir alan.
 // architect/office hedefli yorumlar da target_id üzerinden aynı listede görünür, ancak künye
-// başlığı yalnızca project/news için zenginleştirilir çünkü şu an yorum arayüzü yalnızca proje/haber
-// sayfalarında etkin (bkz. "Detail page template gaps" belleği).
+// başlığı yalnızca project için zenginleştirilir çünkü şu an yorum arayüzü yalnızca proje
+// sayfalarında etkin (bkz. "Detail page template gaps" belleği). 'news' LEFT JOIN'i 2026-09-05'te
+// kaldırıldı: haber özelliği yayından çekilmişti, `news` tablosu düşürüldü (migrations/0090) ve
+// admin.html zaten `news_title` alanını HİÇ kullanmıyordu (COMMENT_TARGET_LABELS ile etiketliyor).
 async function handleCommentsAdmin(request, env, url, segments) {
   if (segments.length === 3 && request.method === 'GET') {
     const status = url.searchParams.get('status');
@@ -327,12 +329,10 @@ async function handleCommentsAdmin(request, env, url, segments) {
       ? env.DB.prepare(
           `SELECT c.id, c.target_type, c.target_id, c.body, c.created_at, c.admin_seen, c.status,
                   u.name AS user_name, u.email AS user_email,
-                  p.title AS project_title, p.slug AS project_slug,
-                  n.title AS news_title
+                  p.title AS project_title, p.slug AS project_slug
            FROM comments c
            JOIN users u ON u.id = c.user_id
            LEFT JOIN projects p ON c.target_type = 'project' AND p.slug = c.target_id
-           LEFT JOIN news n ON c.target_type = 'news' AND n.id = c.target_id
            WHERE c.status = ?
            ORDER BY c.created_at DESC
            LIMIT 200`
@@ -340,12 +340,10 @@ async function handleCommentsAdmin(request, env, url, segments) {
       : env.DB.prepare(
           `SELECT c.id, c.target_type, c.target_id, c.body, c.created_at, c.admin_seen, c.status,
                   u.name AS user_name, u.email AS user_email,
-                  p.title AS project_title, p.slug AS project_slug,
-                  n.title AS news_title
+                  p.title AS project_title, p.slug AS project_slug
            FROM comments c
            JOIN users u ON u.id = c.user_id
            LEFT JOIN projects p ON c.target_type = 'project' AND p.slug = c.target_id
-           LEFT JOIN news n ON c.target_type = 'news' AND n.id = c.target_id
            ORDER BY c.created_at DESC
            LIMIT 200`
         );
@@ -354,7 +352,7 @@ async function handleCommentsAdmin(request, env, url, segments) {
       id: r.id, targetType: r.target_type, targetId: r.target_id, body: r.body,
       created_at: r.created_at, admin_seen: r.admin_seen, status: r.status,
       user_name: r.user_name, user_email: r.user_email,
-      targetLabel: r.project_title || r.news_title || r.target_id,
+      targetLabel: r.project_title || r.target_id, // r.news_title kaldırıldı (bkz. yukarıdaki 2026-09-05 notu)
       targetHref: r.project_slug ? `/proje/${encodeURIComponent(r.project_slug)}` : null,
     }));
     return json({ items });

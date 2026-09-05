@@ -110,19 +110,14 @@ export async function cascadeDeleteOffice(env, user, name) {
 // Bir proje SİLİNDİĞİNDE — aldığı yorum/puan/kaydetme kayıtları silinir. (top100_entries.slug
 // burada temizlenmez — bkz. src/lib/canonicalSync.js#renameProjectSlugEverywhere yorumu;
 // computeTop100 zaten eşleşmeyen slug'ı "bağlantısız" olarak ele alıp eski statik isme düşer.)
-// Düello (bkz. migrations/0062_duel_system.sql, src/routes/duel.js) — comments/ratings/saved_items
-// İLE AYNI gerekçe: silinen bir proje düello istatistiklerinde/geçmişinde/aktif oturumlarda hayalet
-// bir referans olarak kalmamalı. deleteCanonicalRowFully bu fonksiyonu HER ZAMAN gerçek satır
-// silinmeden ÖNCE çağırdığından (bkz. o dosyadaki runCascadeCleanup() sıralaması) id burada hâlâ
-// slug üzerinden çözülebilir.
+// Düello temizliği KALDIRILDI (2026-09-05, ölü tablo temizliği): Düello özelliği yayından
+// kaldırılmıştı (src/routes/duel.js ve duello.html artık YOK) ama project_duel_stats/duel_matches/
+// duel_sessions tabloları D1'de duruyordu ve BURASI onlara hâlâ yazıyordu. Tablolar
+// migrations/0090_drop_dead_feature_tables.sql ile düşürüldüğünden bu üç ifade "no such table"
+// fırlatır ve admin'in HER proje silme işlemini kırardı — bu yüzden tablo DROP'undan ÖNCE
+// kaldırılmaları zorunluydu.
 export async function cascadeDeleteProject(env, slug) {
   await deleteEngagement(env, 'project', slug);
-  const row = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ?`).bind(slug).first();
-  if (row) {
-    await env.DB.prepare(`DELETE FROM project_duel_stats WHERE project_id = ?`).bind(row.id).run();
-    await env.DB.prepare(`DELETE FROM duel_matches WHERE project_a_id = ? OR project_b_id = ?`).bind(row.id, row.id).run();
-    await env.DB.prepare(`UPDATE duel_sessions SET active_project_id = NULL, streak = 0 WHERE active_project_id = ?`).bind(row.id).run();
-  }
 }
 
 // Bir ürün/malzeme SİLİNDİĞİNDE — aldığı puan/kaydetme kayıtları silinir (comments bu tipleri hiç
@@ -160,13 +155,11 @@ export async function cascadeDeleteAccount(env, userId) {
     env.DB.prepare(`DELETE FROM notifications WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM comments WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM ratings WHERE user_id = ?`).bind(userId),
-    // Düello (bkz. migrations/0062_duel_system.sql) — ratings/comments İLE AYNI gerekçe: bunlar bu
-    // kullanıcıya özel kişisel etkileşim/oturum verisi (canlı proje içeriği DEĞİL), bu yüzden dosya
-    // başı yorumdaki "yalnızca kişisel bağ silinir" ilkesine göre silinir. project_duel_stats
-    // (proje-düzeyi toplam sayaç) BİLEREK dokunulmaz — ratings'in aksine tekil kullanıcı satırları
-    // değil, tüm kullanıcılardan gelen agregasyonlar barındırır.
-    env.DB.prepare(`DELETE FROM duel_matches WHERE actor_key = ?`).bind(`u:${userId}`),
-    env.DB.prepare(`DELETE FROM duel_sessions WHERE actor_key = ?`).bind(`u:${userId}`),
+    // (Düello satırları KALDIRILDI — 2026-09-05 ölü tablo temizliği, bkz. cascadeDeleteProject'teki
+    // aynı gerekçe. BURADA ayrıca kritikti: bu adımlar TEK bir env.DB.batch() içinde, yani tek bir
+    // transaction'da yürüyor — düşürülmüş bir tabloya yapılan tek bir ifade TÜM hesap silme
+    // işlemini atomik olarak başarısız kılardı ve "Hesabımı Sil" (KVKK/GDPR silme hakkı) kalıcı
+    // olarak çalışmaz hâle gelirdi.)
     env.DB.prepare(`DELETE FROM profile_claims WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM profile_corrections WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM badge_requests WHERE user_id = ?`).bind(userId),

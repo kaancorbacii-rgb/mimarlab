@@ -39,9 +39,11 @@ const SOURCES = [
   { table: 'project_submissions', fields: { arrayFields: ['images'], stringFields: ['photoCreditUrl'] } },
   { table: 'product_submissions', fields: { arrayFields: ['images'] } },
   { table: 'material_submissions', fields: { arrayFields: ['images'] } },
-  { table: 'job_submissions', fields: { stringFields: ['image_url'] } },
-  { table: 'news_submissions', fields: { stringFields: ['image_url'] } },
-  { table: 'news', fields: { stringFields: ['image_url'] } },
+  // job_submissions / news_submissions / news KALDIRILDI (2026-09-05): İş İlanı ve Haber
+  // özellikleri yayından çekilmişti, üç tablo da BOŞTU ve migrations/0090_drop_dead_feature_
+  // tables.sql ile düşürüldü. Burada bırakılsalardı loadReferencedKeys() "no such table" ile
+  // fırlar ve R2 orphan taramasının TAMAMI çalışmaz hâle gelirdi — orphan görsel tespiti sessizce
+  // ölürdü, ki bu tam da bu dosyanın var oluş sebebi.
   { table: 'users', fields: { stringFields: ['photo_url'] } },
 ];
 

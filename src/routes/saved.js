@@ -5,13 +5,17 @@ import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { findProductsByKeys } from './product.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 
-export const ITEM_TYPES = new Set(['project', 'product', 'material', 'news', 'job', 'architect', 'office']);
+// 'news' ve 'job' KALDIRILDI (2026-09-05): Haber/İş İlanı özellikleri yayından çekilmişti ve
+// ilgili tablolar migrations/0090_drop_dead_feature_tables.sql ile düşürüldü. Canlıda bu iki
+// tipte TEK BİR saved_items satırı bile yoktu (doğrulandı), yani mevcut hiçbir kayıt etkilenmez;
+// bu yalnızca yeni yazımlar için geçerli bir doğrulama daralmasıdır.
+export const ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
 
 // saved_items görsel/başlık alanlarını kaydedildiği andaki haliyle tutar (bkz. createSaved) — hedef
 // sonradan gizlenir/silinirse bu satır D1'de bozulmadan kalır ve "Kaydettiklerim" bunu göstermeye
 // devam ederdi. src/routes/ratings.js#myRatings'teki AYNI canonical-satır kontrolüyle (bkz. o
-// dosyadaki gerekçe) hedefi olmayan/gizli/silinmiş kayıtları burada da sessizce atlıyoruz — news/job
-// için hide sistemi olmadığından (bkz. ratings.js'in de bu ikisini kapsamaması) kontrol dışı bırakıldı.
+// dosyadaki gerekçe) hedefi olmayan/gizli/silinmiş kayıtları burada da sessizce atlıyoruz.
+// (news/job istisnası 2026-09-05'te kaldırıldı — o iki tip artık hiç kabul edilmiyor.)
 const CANONICAL_TYPE_BY_ITEM = { project: 'projects', architect: 'architects', office: 'offices' };
 
 // live + (yalnızca item_type='project' için) GÜNCEL build_status — saved_items'ın kaydedildiği
@@ -63,7 +67,7 @@ export async function listSaved(env, user) {
       return shapeSavedTargetInfo(r.item_type, productRows.get(r.item_key) || null);
     }
     const canonicalType = CANONICAL_TYPE_BY_ITEM[r.item_type];
-    if (!canonicalType) return { live: true, buildStatus: null }; // news/job — hide sistemi yok
+    if (!canonicalType) return { live: true, buildStatus: null }; // beklenmedik/eski bir item_type — satırı gizleme
     return findCanonicalRowByNaturalKey(env, canonicalType, r.item_key).then(row => shapeSavedTargetInfo(r.item_type, row));
   }));
   const items = results

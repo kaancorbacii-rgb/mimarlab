@@ -9,7 +9,10 @@ import { checkRateLimit } from '../lib/rateLimit.js';
 // "kullanıcıların paylaş butonuna tıklayarak başkalarına ilettikleri gönderiler". src/routes/saved.js
 // ile BİREBİR aynı iskelet (aynı ITEM_TYPES evreni, aynı anlık-görüntü alanları, aynı "hedefi artık
 // yayında olmayan satırı sessizce atla" kuralı) — farklar migrations/0074_shared_items.sql'in başında.
-export const SHARE_ITEM_TYPES = new Set(['project', 'product', 'material', 'news', 'job', 'architect', 'office']);
+// 'news'/'job' KALDIRILDI (2026-09-05) — bkz. src/routes/saved.js#ITEM_TYPES'taki AYNI daraltma
+// ve gerekçe (özellikler yayından çekildi, tablolar migrations/0090 ile düşürüldü, canlıda bu
+// iki tipte tek bir shared_items satırı bile yoktu).
+export const SHARE_ITEM_TYPES = new Set(['project', 'product', 'material', 'architect', 'office']);
 // share-button.js'in gönderdiği kanallar; whitelist dışı bir değer sessizce null'a düşürülür (ham
 // kullanıcı/istemci girdisi Aktivitelerim satırının alt metnine basıldığından serbest metin olamaz).
 const SHARE_CHANNELS = new Set(['copy', 'whatsapp', 'x', 'linkedin', 'native']);
@@ -52,7 +55,7 @@ export async function listShares(env, user) {
       return Promise.resolve(productRows.get(r.item_key) || null);
     }
     const canonicalType = CANONICAL_TYPE_BY_ITEM[r.item_type];
-    if (!canonicalType) return Promise.resolve(undefined); // news/job — hide sistemi yok, filtrelenmez
+    if (!canonicalType) return Promise.resolve(undefined); // beklenmedik/eski bir item_type — filtrelenmez
     return findCanonicalRowByNaturalKey(env, canonicalType, r.item_key);
   }));
 

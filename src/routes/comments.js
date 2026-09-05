@@ -7,7 +7,10 @@ import { findCanonicalRowByNaturalKey } from '../lib/canonicalSync.js';
 import { parseCanonicalRow } from '../lib/canonicalRead.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
 
-const TARGET_TYPES = new Set(['project', 'news', 'architect', 'office']);
+// 'news' KALDIRILDI (2026-09-05): haber özelliği yayından çekilmişti ve `news`/`news_submissions`
+// tabloları migrations/0090_drop_dead_feature_tables.sql ile düşürüldü. Canlıda target_type='news'
+// olan TEK BİR yorum bile yoktu (doğrulandı), yani bu daralma hiçbir mevcut kaydı etkilemez.
+const TARGET_TYPES = new Set(['project', 'architect', 'office']);
 
 export async function handleCommentsRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "comments", maybe "mine"/id]
@@ -86,9 +89,8 @@ async function listComments(env, url) {
 // yaptığı TÜM yorumları (statüden bağımsız — kendi yorumu, onay bekleyen de dahil) hedefin başlık/
 // görsel/bağlantısıyla zenginleştirip döner. ratings.js#myRatings ile AYNI desen: ratings tablosu
 // gibi comments da hedefi yalnızca (target_type, target_id) doğal anahtarıyla tutuyor, görüntüleme
-// alanlarını KAYDETMİYOR — bu yüzden her satır için canonical satır ayrıca bulunur; 'news' hariç
-// (CANONICAL_TYPE_BY_TARGET'te yok, kendi 'news' tablosundan id'yle çekilir — bkz. haber-detay.html
-// targetId=news.id kullanımı). Sonradan silinmiş/gizlenmiş bir hedefse sessizce atlanır.
+// alanlarını KAYDETMİYOR — bu yüzden her satır için canonical satır ayrıca bulunur. Sonradan
+// silinmiş/gizlenmiş bir hedefse sessizce atlanır. ('news' özel yolu 2026-09-05'te kaldırıldı.)
 const CANONICAL_TYPE_BY_TARGET = { project: 'projects', architect: 'architects', office: 'offices' };
 const HREF_BASE_BY_TARGET = { project: '/proje/', architect: '/kisi/', office: '/firma/' };
 
@@ -107,34 +109,17 @@ export async function myComments(env, user) {
     'SELECT id, target_type, target_id, body, status, created_at FROM comments WHERE user_id = ? ORDER BY created_at DESC'
   ).bind(user.id).all();
 
-  // gerçek bulgu: 'news' hedefleri eskiden her satır için ayrı bir SELECT ... WHERE id = ? atıyordu
-  // (ucuz, tek satır primary-key sorgusu olsa da N ayrı round-trip anlamına geliyordu) — burada tek
-  // bir IN(...) sorgusuyla toplu çözülür. project/architect/office için AYNI batching yapılmadı:
+  // ('news' hedefleri için buradaki toplu IN(...) çözümlemesi 2026-09-05'te kaldırıldı — tablo
+  // düşürüldü.) project/architect/office için toplu batching BİLEREK yapılmıyor:
   // findCanonicalRowByNaturalKey mimar/firma'da BARE isimle eşleşiyor ([[project_duplicate_name_key_
   // limitation]]) — aynı isme sahip iki kayıt varsa hangi satırın hangi target_id'ye ait olduğu
   // IN(...) sonucunda güvenle geri eşlenemez; zaten tek satırlık indeksli sorgular olduğundan (tam
   // tablo taraması DEĞİL) bu riski göze almaya değecek bir performans kazancı da yok.
-  const newsIds = [...new Set(results.filter(r => r.target_type === 'news').map(r => r.target_id))];
-  const newsById = new Map();
-  if (newsIds.length) {
-    const placeholders = newsIds.map(() => '?').join(',');
-    const { results: newsRows } = await env.DB.prepare(
-      `SELECT id, title, image_url FROM news WHERE id IN (${placeholders})`
-    ).bind(...newsIds).all();
-    for (const n of newsRows) newsById.set(n.id, n);
-  }
-
   const items = [];
   for (const r of results) {
-    let shaped = null;
-    if (r.target_type === 'news') {
-      const n = newsById.get(r.target_id);
-      if (n) shaped = { title: n.title, image: n.image_url || null, href: '/haberler/' + encodeURIComponent(n.id) };
-    } else {
-      const canonicalType = CANONICAL_TYPE_BY_TARGET[r.target_type];
-      const row = canonicalType ? await findCanonicalRowByNaturalKey(env, canonicalType, r.target_id) : null;
-      if (row && !row.deleted_at && !row.hidden_at) shaped = commentCardShape(r.target_type, row);
-    }
+    const canonicalType = CANONICAL_TYPE_BY_TARGET[r.target_type];
+    const row = canonicalType ? await findCanonicalRowByNaturalKey(env, canonicalType, r.target_id) : null;
+    const shaped = (row && !row.deleted_at && !row.hidden_at) ? commentCardShape(r.target_type, row) : null;
     if (!shaped) continue;
     items.push({ id: r.id, type: r.target_type, body: r.body, status: r.status, createdAt: r.created_at, ...shaped });
   }
@@ -215,11 +200,8 @@ async function notifyCommentOwner(env, commenter, targetType, targetId, commentB
       if (d.office_uid) recipients.add(d.office_uid);
     }
     subjectLabel = 'projene';
-  } else if (targetType === 'news') {
-    const row = await env.DB.prepare('SELECT owner_user_id FROM news_submissions WHERE id = ?').bind(targetId).first();
-    if (row) recipients.add(row.owner_user_id);
-    subjectLabel = 'haberine';
   }
+  // ('news' dalı 2026-09-05'te kaldırıldı — news_submissions tablosu düşürüldü.)
   recipients.delete(commenter.id);
   recipients.delete(null);
   recipients.delete(undefined);
@@ -260,11 +242,11 @@ async function canDeleteComment(env, user, comment) {
   if (comment.user_id === user.id) return true;
   if (user.role === 'admin') return true;
 
-  if (comment.target_type === 'project' || comment.target_type === 'news') {
-    const table = comment.target_type === 'project' ? 'project_submissions' : 'news_submissions';
-    const idField = comment.target_type === 'project' ? 'slug' : 'id';
+  if (comment.target_type === 'project') {
+    // ('news' ortak yolu 2026-09-05'te kaldırıldı — news_submissions tablosu düşürüldü; geriye
+    // yalnızca project_submissions kaldığından tablo/alan adları artık sabit.)
     const row = await env.DB.prepare(
-      `SELECT id FROM ${table} WHERE owner_user_id = ? AND ${idField} = ?`
+      `SELECT id FROM project_submissions WHERE owner_user_id = ? AND slug = ?`
     ).bind(user.id, comment.target_id).first();
     if (!row) return false;
     // 'destekci' herhangi bir hak vermez (bkz. src/routes/badges.js#BADGE_PRICES yorumu) —
