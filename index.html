@@ -477,7 +477,13 @@
   <script src="js/components/site-chrome.js"></script>
 
   <section class="hero">
-    <h1>Türkiye'nin En Gelişmiş <em>Mimarlık</em> ve <em>Ürün</em> Rehberi</h1>
+    <!-- id="entity-h1": proje/kisi/firma/urun.html'deki AYNI kanca (bkz. src/index.js#injectMeta'nın
+         'h1#entity-h1' kuralı). Ana sayfanın KENDİSİ ('/') injectMeta'dan geçmez, bu yüzden burada
+         hiçbir şey değişmez; kanca yalnızca index.html'in BAŞKA bir yol için servis edildiği
+         durumda (bkz. serveInfoModalPage — /hakkinda, /iletisim, /gizlilik-politikasi,
+         /hizmet-sartlari, /cerez-politikasi) devreye girer. SEO denetimi (2026-09-05) bu 5
+         indexlenebilir URL'nin ham HTML'inde ana sayfanın <h1>'ini aynen döndüğünü buldu. -->
+    <h1 id="entity-h1">Türkiye'nin En Gelişmiş <em>Mimarlık</em> ve <em>Ürün</em> Rehberi</h1>
     <p>Mimar, tasarımcı, fotoğrafçı, firma ve markalar için üst düzey araştırma ve işbirliği platformu.</p>
   </section>
 

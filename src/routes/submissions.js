@@ -435,15 +435,33 @@ async function updateOwnSubmission(request, env, user, typeKey, id) {
   const row = normalizeSubmission(typeKey, body);
 
   const now = Date.now();
-  // Bu satıra ulaşan HERKES zaten sahip (existing.owner_user_id === user.id) ya da admin'dir —
-  // yukarıdaki 404 koruması (satır 270) bunu ZATEN garanti ediyor. Yani kendi profilini/kendi
-  // yüklediği proje-ürünü düzenleyen sıradan bir üye de admin ile AYNI şekilde anında yayına
-  // girer (bkz. kullanıcı isteği: "kendi ... düzenliyorsa admin onayına gerek yok direkt kaydet").
-  // Eskiden burası niyet olmadan 'pending'e düşüp (bkz. createSubmission'daki AYNI eski satır)
-  // zaten ONAYLI/CANLI bir kaydı hideCanonicalForUnapprovedSubmission ile sitenin ÜZERİNDEN
-  // ÇEKİYORDU (bkz. aşağısı) — sahibi kendi profilini güncellediği an profilinin siteden
-  // kaybolması olarak yaşanıyordu.
-  const status = 'approved';
+  // P1 GÜVENLİK DÜZELTMESİ (denetim, 2026-09-05) — burası koşulsuz `'approved'` idi ve bu, TÜM
+  // moderasyon kuyruğunu atlanabilir kılıyordu: sıradan bir üye createSubmission ile 'pending' bir
+  // kayıt oluşturup (yanıt id'yi döner) hemen ardından o id'ye TEK bir PATCH atınca kayıt 'approved'
+  // olup syncApprovedSubmissionToCanonical ile ANINDA canlıya (ve sitemap'e, SSR sayfalarına)
+  // giriyordu. Canlıda doğrulandı: production'da HİÇBİR tabloda 'pending' satır kalmamış
+  // (project/product/architect/office gönderilerinin tamamı 'approved') — yani kuyruk pratikte
+  // zaten hiç çalışmıyordu. İstemci tarafı bu durumu ZATEN doğru bekliyordu ama sunucu asla
+  // üretmediğinden o dal ölüydü (bkz. proje-ekle.html:2648 / urun-ekle.html:1568 —
+  // "Değişiklikler kaydedildi — admin onayının ardından yayına girecek.").
+  //
+  // Yeni kural, düzeltmenin sebebi olan ÜÇ davranışın HEPSİNİ korur:
+  //   * admin                       -> her zaman anında yayında (kullanıcı isteği),
+  //   * isOwnerProfileEdit          -> sahiplenilmiş profil/proje/ürün düzenlemesi; yukarıdaki
+  //                                    verifyClaimedProfileKey/claimedSlugVerifierFor bunu ZATEN
+  //                                    onaylı bir claim'e bağladı (kullanıcı isteği: "kendi ...
+  //                                    düzenliyorsa admin onayına gerek yok direkt kaydet"),
+  //   * existing.status==='approved'-> ZATEN canlı olan kendi içeriğini düzenlemek onu asla
+  //                                    siteden düşürmemeli (bu satırın eskiden 'pending'e düşüp
+  //                                    hideCanonicalForUnapprovedSubmission'ı tetiklemesiyle
+  //                                    yaşanan regresyon — o gerekçe aynen korunuyor).
+  // Geriye YALNIZCA "hâlâ onay bekleyen, claim'siz, admin olmayan gönderi" kalır; o 'pending'
+  // KALIR — yani düzenlemek onu yayına sokmaz. Kapsam bilerek DAR tutuldu: 'archived' bir kaydın
+  // sahibi düzenleyip yeniden yayınlayabilme davranışı (sahibin zaten moderateOwnSubmission ile
+  // arşivleme yetkisi var) OLDUĞU GİBİ korunur, yalnızca hiç onaylanmamış içerik kapıda durur.
+  const isOwnerProfileEdit = !!body.claimed_profile_key || (CLAIMED_SLUG_TYPES.has(typeKey) && !!body.claimed_slug);
+  const mustStayPending = existing.status === 'pending' && user.role !== 'admin' && !isOwnerProfileEdit;
+  const status = mustStayPending ? 'pending' : 'approved';
   const updates = config.fields.map(f => `${f} = ?`);
   const values = config.fields.map(f => row[f]);
   updates.push('status = ?', 'updated_at = ?');

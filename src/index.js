@@ -330,14 +330,23 @@ const AUTH_MODAL_META = {
 // iade-et.html'deki <meta name="robots" content="noindex, follow"> ile AYNI, giriş gerektiren
 // işlemsel sayfalar) ayrıca bir robots meta etiketi de alır — index.html'in kendisi tamamen
 // indexlenebilir olduğundan üzerine yazılacak bir robots etiketi yoktur.
+// h1: SEO denetimi (2026-09-05) — GERÇEK BULGU. Bu yollar index.html'i (ana sayfa gövdesini)
+// servis edip yalnızca <title>/description/canonical/OG'yi enjekte ediyordu; sayfanın <h1>'i ham
+// HTML'de ana sayfanınki ("Türkiye'nin En Gelişmiş Mimarlık ve Ürün Rehberi") olarak kalıyordu.
+// Bu 5 URL (iletisim/hakkinda/gizlilik-politikasi/hizmet-sartlari/cerez-politikasi) noindex DEĞİL
+// ve sitemap'te (bkz. SITEMAP_STATIC_PAGES) yer alıyor — yani arama motorları beş ayrı indexlenebilir
+// URL'yi ana sayfayla AYNI H1 ile görüyordu. injectMeta'nın ZATEN var olan 'h1#entity-h1' kuralı
+// yeniden kullanılır (bkz. index.html#entity-h1) — yeni bir mekanizma icat edilmez. Görsel etki
+// yok: bu yollarda InfoModal tam ekran overlay'i hero'nun üstünü zaten kapatıyor (canlıda
+// doğrulandı), ayrıca modalın kendi başlığı da aynı metni taşıyor.
 const INFO_MODAL_META = {
-  '/rozet-al': { title: 'Rozet Satın Al — MİMARLAB', description: 'MİMARLAB rozet satın al — profilini doğrulanmış üye, altın üye ya da elmas üye rozetiyle öne çıkar.', noindex: true },
-  '/iade-et': { title: 'Rozet İadesi Talep Et — MİMARLAB', description: 'MİMARLAB rozet iadesi talep et — satın aldığın rozet için iade talebinde bulun.', noindex: true },
-  '/iletisim': { title: 'İletişim — MİMARLAB', description: 'MİMARLAB ile iletişime geç — soru, öneri ve iş birliği için bize ulaş.', noindex: false },
-  '/hakkinda': { title: 'Hakkında — MİMARLAB', description: 'MİMARLAB hakkında — Türkiye\'nin mimarlık, iç mimarlık ve peyzaj mimarlığı platformu.', noindex: false },
-  '/gizlilik-politikasi': { title: 'Gizlilik Politikası — MİMARLAB', description: 'MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.', noindex: false },
-  '/hizmet-sartlari': { title: 'Hizmet Şartları — MİMARLAB', description: 'MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.', noindex: false },
-  '/cerez-politikasi': { title: 'Çerez Politikası — MİMARLAB', description: 'MİMARLAB çerez politikası — çerez nedir, hangi çerezleri (oturum, tercih, Google Analytics) kullandığımız, üçüncü taraf çerezleri ve çerezleri nasıl devre dışı bırakabileceğiniz.', noindex: false },
+  '/rozet-al': { title: 'Rozet Satın Al — MİMARLAB', description: 'MİMARLAB rozet satın al — profilini doğrulanmış üye, altın üye ya da elmas üye rozetiyle öne çıkar.', h1: 'Rozet Satın Al', noindex: true },
+  '/iade-et': { title: 'Rozet İadesi Talep Et — MİMARLAB', description: 'MİMARLAB rozet iadesi talep et — satın aldığın rozet için iade talebinde bulun.', h1: 'Rozet İadesi Talep Et', noindex: true },
+  '/iletisim': { title: 'İletişim — MİMARLAB', description: 'MİMARLAB ile iletişime geç — soru, öneri ve iş birliği için bize ulaş.', h1: 'İletişim', noindex: false },
+  '/hakkinda': { title: 'Hakkında — MİMARLAB', description: 'MİMARLAB hakkında — Türkiye\'nin mimarlık, iç mimarlık ve peyzaj mimarlığı platformu.', h1: 'Hakkında', noindex: false },
+  '/gizlilik-politikasi': { title: 'Gizlilik Politikası — MİMARLAB', description: 'MİMARLAB gizlilik politikası — hangi verileri topladığımız, üyelik/profil yönetimi, favoriler, mimar/firma sahiplik talepleri, kullanıcı içerikleri, Cloudflare altyapısı ve KVKK/GDPR haklarınız.', h1: 'Gizlilik Politikası', noindex: false },
+  '/hizmet-sartlari': { title: 'Hizmet Şartları — MİMARLAB', description: 'MİMARLAB hizmet şartları — üyelik, kullanıcı içerikleri ve telif hakları, mimar/firma sahiplik talepleri, rozet/üyelik paketleri, topluluk kuralları ve sorumluluk sınırları.', h1: 'Hizmet Şartları', noindex: false },
+  '/cerez-politikasi': { title: 'Çerez Politikası — MİMARLAB', description: 'MİMARLAB çerez politikası — çerez nedir, hangi çerezleri (oturum, tercih, Google Analytics) kullandığımız, üçüncü taraf çerezleri ve çerezleri nasıl devre dışı bırakabileceğiniz.', h1: 'Çerez Politikası', noindex: false },
   // Kariyer artık yayında değil (bkz. kullanıcı isteği, DISABLED_PAGE_PATHS) — /kariyer isteği
   // routeAsset()'in en başındaki isDisabledPagePath() kontrolünde 404'e düştüğünden buraya hiç
   // ulaşmaz.
@@ -557,6 +566,20 @@ async function routeAsset(request, env, url, ctx) {
 
   if (isDisabledPagePath(url.pathname)) return notFoundPageResponse();
 
+  // /favicon.ico — denetim bulgusu (2026-09-05): canlıda 404 dönüyordu. Site sayfaları ikonu
+  // <link rel="icon" href="/logos/site/favicon-32.png"> ile bildiriyor, ama o etiketi HİÇ
+  // görmeyen istemciler kök /favicon.ico'yu ister: (a) tarayıcıların bu depoda <link> taşımayan
+  // Worker-üretimi sayfaları — notFoundPageResponse ve maintenanceResponse, (b) RSS/okuyucu,
+  // sohbet/paylaşım önizlemeleri ve ikonu yalnızca kök yoldan arayan tarayıcılar. Yönlendirme
+  // yerine İÇ YENİDEN YAZMA kullanılır (ekstra bir 301 hop'u yok); PNG baytları .ico uzantısıyla
+  // servis edilse de Content-Type doğru (image/png) döndüğünden tüm modern tarayıcılar kabul eder.
+  if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/favicon.ico') {
+    const iconUrl = new URL(url);
+    iconUrl.pathname = '/logos/site/favicon-32.png';
+    const iconRes = await env.ASSETS.fetch(new Request(iconUrl, request));
+    return withStaticAssetCacheHeaders(iconUrl, iconRes);
+  }
+
   const renameTarget = PATH_RENAME_REDIRECTS[url.pathname];
   if (renameTarget) {
     const dest = new URL(renameTarget, url.origin);
@@ -648,6 +671,10 @@ async function serveInfoModalPage(request, env, url, meta) {
   const rewritten = injectMeta(assetResponse, {
     title: meta.title,
     description: meta.description,
+    // bkz. INFO_MODAL_META yukarısındaki h1 notu — index.html#entity-h1'i bu yolun kendi başlığına
+    // çevirir. AUTH_MODAL_META girdilerinde h1 YOKTUR (hepsi noindex hesap ekranları), injectMeta'nın
+    // h1 kuralı da `if (meta.h1)` ile korunduğundan orada sessizce hiçbir şey yapmaz.
+    h1: meta.h1,
     canonicalUrl,
     image: `${SITE_ORIGIN}/logos/site/mimarlab-og-image.png`,
     jsonLd: { '@context': 'https://schema.org', '@type': 'WebPage', name: meta.title, url: canonicalUrl, isPartOf: { '@type': 'WebSite', name: 'MİMARLAB', url: `${SITE_ORIGIN}/` } },

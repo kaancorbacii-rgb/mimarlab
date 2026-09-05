@@ -222,6 +222,37 @@ if [ "$creator_seen" -eq 1 ]; then ok "proje JSON-LD'sinde creator düğümü ü
 if [ "$creator_url_seen" -eq 1 ]; then ok "kayıtlı künyeli projede creator url taşıyor (/proje/$url_slug)"; else bad "taranan projelerin hiçbirinde creator url'i yok (entity grafiği düzeltmesi kırılmış olabilir)"; fi
 
 echo ""
+echo "10) /favicon.ico (denetim 2026-09-05: canlıda 404'tü — src/index.js#routeAsset iç yeniden yazması)"
+# Site sayfaları ikonu <link rel="icon"> ile bildiriyor, ama Worker'ın kendi ürettiği sayfalar
+# (notFoundPageResponse/maintenanceResponse) ve ikonu yalnızca kök yoldan arayan istemciler
+# /favicon.ico'yu ister. 200 VE bir image/* Content-Type'ı bekliyoruz (yönlendirme değil).
+favicon_headers=$(curl -s -D- -o /dev/null "$BASE_URL/favicon.ico")
+case "$favicon_headers" in
+  *"200"*) case "$favicon_headers" in
+             *[Ii]mage/*) ok "/favicon.ico -> 200, image/* Content-Type" ;;
+             *) bad "/favicon.ico 200 döndü ama Content-Type image/* değil" ;;
+           esac ;;
+  *) bad "/favicon.ico 200 dönmüyor (kök favicon route'u kırılmış olabilir)" ;;
+esac
+
+echo ""
+echo "11) Bilgi sayfalarının kendi H1'i (denetim 2026-09-05: INFO_MODAL_META#h1 regresyon koruması)"
+# Bu 5 URL noindex DEĞİL ve sitemap'te — ham HTML'lerinde ana sayfanın H1'ini döndürüyorlardı
+# (bkz. src/index.js#INFO_MODAL_META'daki h1 notu). Ana sayfanın H1'inin bu yollarda ARTIK
+# görünmemesi ve her sayfanın kendi başlığını taşıması beklenir.
+for pair in "/hakkinda:Hakkında" "/iletisim:İletişim" "/gizlilik-politikasi:Gizlilik Politikası" "/hizmet-sartlari:Hizmet Şartları" "/cerez-politikasi:Çerez Politikası"; do
+  info_path="${pair%%:*}"; want_h1="${pair#*:}"
+  # Tek satıra indirgeyip <h1 id="entity-h1"> ... </h1> arasını al (macOS sed/bash 3.2 uyumlu).
+  info_h1=$(curl -s "$BASE_URL$info_path" | tr -d '\n' | sed -n 's/.*<h1 id="entity-h1">\([^<]*\)<.*/\1/p')
+  case "$info_h1" in
+    "$want_h1") ok "$info_path — H1 kendi başlığını taşıyor (\"$info_h1\")" ;;
+    *"Gelişmiş"*) bad "$info_path — H1 hâlâ ana sayfanınki (\"$info_h1\"); INFO_MODAL_META#h1 enjeksiyonu çalışmıyor" ;;
+    "") warnf "$info_path — H1 okunamadı (index.html#entity-h1 kancası kaldırılmış olabilir)" ;;
+    *) bad "$info_path — beklenmeyen H1: \"$info_h1\" (beklenen \"$want_h1\")" ;;
+  esac
+done
+
+echo ""
 if [ "$fail" -eq 1 ]; then
   echo "Smoke test BAŞARISIZ oldu." >&2
   exit 1
