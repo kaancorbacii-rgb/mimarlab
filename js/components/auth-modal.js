@@ -408,6 +408,21 @@ const AuthModal = (function () {
        js/components/image-hotspots.js'teki AYNI "piksel değil yüzde" gerekçesi, duyarlı genişlik
        değişiminde konumlar bozulmadan ölçeklenir). touch-action:none sürükleme sırasında sayfanın
        kaymasını engeller (bkz. image-crop.js#injectStyles'daki AYNI kural). */
+    /* ---------- Liste/Izgara görünüm geçişi + Liste Modu (kullanıcı isteği) ---------- */
+    #am-panel .col-view-toggle{display:inline-flex; border:1px solid var(--line); border-radius:100px; overflow:hidden; margin:8px 0 2px;}
+    #am-panel .col-view-toggle button{padding:6px 16px; border:none; background:var(--paper-card); color:var(--ink); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
+    #am-panel .col-view-toggle button + button{border-left:1px solid var(--line);}
+    #am-panel .col-view-toggle button.active{background:var(--ink); color:var(--paper-card);}
+    #am-panel .col-list{display:flex; flex-direction:column; gap:8px;}
+    #am-panel .col-list-row{display:flex; align-items:center; gap:10px; padding:8px; border:1px solid var(--line-soft); border-radius:10px; background:var(--paper);}
+    #am-panel .col-list-row.dragging{opacity:0.5;}
+    #am-panel .col-list-handle{display:flex; align-items:center; color:var(--ink-soft); cursor:grab; touch-action:none; flex-shrink:0;}
+    #am-panel .col-list-handle:active{cursor:grabbing;}
+    #am-panel .col-list-thumb{width:48px; height:48px; border-radius:8px; object-fit:cover; background:var(--paper-alt); flex-shrink:0;}
+    #am-panel .col-list-thumb-empty{background:var(--paper-alt);}
+    #am-panel .col-list-title{font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    #am-panel .col-list-remove{flex-shrink:0; width:26px; height:26px; border-radius:50%; border:none; background:var(--paper-alt); color:var(--ink-soft); font-size:12px; cursor:pointer;}
+    #am-panel .col-list-remove:hover{background:#B84C4C; color:#fff;}
     /* ---------- A4 Pafta araç çubuğu (kullanıcı isteği, 2026-09-06 madde 1/2) ---------- */
     #am-panel .col-canvas-toolbar{display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:12px; padding:10px 12px; border:1px solid var(--line-soft); border-radius:12px; background:var(--paper);}
     #am-panel .col-canvas-toolbar-group{display:flex; align-items:center; gap:6px;}
@@ -436,22 +451,31 @@ const AuthModal = (function () {
         linear-gradient(to right, rgba(27,42,61,0.08) 1px, transparent 1px);
       background-size:24px 24px;
     }
-    #am-panel .col-canvas-strokes-svg{position:absolute; inset:0; width:100%; height:100%; pointer-events:none;}
-    #am-panel .col-canvas.pen-active .col-canvas-strokes-svg{pointer-events:all;}
+    /* Vektörel Çizim Objeleri (kullanıcı isteği) — her kalem izi kendi tam-sayfa SVG sarmalayıcısında,
+       .canvas-item'larla AYNI position:absolute+z-index stacking uzayında (bkz. renderDetail). Pen
+       aracı aktifken TÜMÜ pointer-events:none olur (çizim, altındaki mevcut izleri seçmemeli). */
+    #am-panel .canvas-stroke-obj{position:absolute; inset:0; width:100%; height:100%; pointer-events:none;}
+    #am-panel .col-canvas.pen-active .canvas-stroke-obj path{pointer-events:none !important;}
+    #am-panel .canvas-stroke-obj path.selected{filter:drop-shadow(0 0 0.5px #fff) drop-shadow(0 0 2.5px var(--walnut)) drop-shadow(0 0 2.5px var(--walnut));}
     #am-panel .canvas-item{position:absolute; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden; background:var(--paper); box-sizing:border-box; touch-action:none; cursor:grab;}
     #am-panel .canvas-item.dragging{cursor:grabbing; z-index:9999 !important; box-shadow:0 12px 30px rgba(0,0,0,0.22);}
     #am-panel .canvas-item.readonly{cursor:default;}
     #am-panel .canvas-item-media{display:block; width:100%; height:100%; object-fit:cover; background:var(--paper-alt); pointer-events:none;}
-    #am-panel .canvas-item-note{width:100%; height:100%; padding:14px; font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; overflow:auto; box-sizing:border-box; background:var(--paper); pointer-events:none;}
+    /* Şeffaf arka plan (kullanıcı isteği) — not doğrudan tuval/altındaki görsel üzerinde durur,
+       arkasında beyaz/renkli bir kutu YOK. pointer-events yalnızca düzenleme sırasında (bkz.
+       renderDetail#editingNoteId) 'auto'ya çevrilir ki içerik doğrudan editable olabilsin. */
+    #am-panel .canvas-item-note{width:100%; height:100%; padding:14px; font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; overflow:auto; box-sizing:border-box; background:transparent; pointer-events:none;}
+    #am-panel .canvas-item-note[contenteditable="true"]{pointer-events:auto; cursor:text; outline:1.5px dashed var(--walnut); outline-offset:2px;}
     #am-panel .canvas-item-body{position:absolute; left:0; right:0; bottom:0; padding:6px 8px; background:linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0)); color:#fff; pointer-events:none;}
     #am-panel .canvas-item-title{font-weight:600; font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     #am-panel .canvas-item-remove{position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;}
     #am-panel .canvas-item-remove:hover{background:#B84C4C;}
     #am-panel .canvas-item-open{position:absolute; top:6px; left:6px; width:24px; height:24px; border-radius:50%; background:rgba(27,42,61,0.72); color:#fff; display:flex; align-items:center; justify-content:center; text-decoration:none;}
     #am-panel .canvas-item-open:hover{background:var(--walnut);}
-    /* Not "Kalem" (düzenle) ikonu (kullanıcı isteği madde 2) — yalnızca kind='note' öğelerde,
-       silme butonunun yanında (bkz. renderDetail). */
-    #am-panel .canvas-item-edit{position:absolute; top:6px; left:34px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+    /* Not "Kalem" (düzenle) ikonu (kullanıcı isteği) — yalnızca kind='note' öğelerde, silme
+       butonunun HEMEN SOLUNDA (bkz. renderDetail) — .canvas-item-remove right:6px/24px genişlik
+       + 4px boşluk = right:34px. */
+    #am-panel .canvas-item-edit{position:absolute; top:6px; right:34px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;}
     #am-panel .canvas-item-edit:hover{background:var(--walnut);}
     #am-panel .canvas-item-handle{position:absolute; width:14px; height:14px; background:var(--ink); border:2px solid var(--paper-card); border-radius:50%; z-index:5;}
     #am-panel .canvas-item-handle.nw{top:-7px; left:-7px; cursor:nwse-resize;}
@@ -1378,6 +1402,12 @@ const AuthModal = (function () {
             </button>
           </h2>
           <p class="section-hint" id="am-col-detail-count"></p>
+          <!-- Liste/Izgara görünüm geçişi (kullanıcı isteği madde 1) — ikisi de AYNI openCollection.
+               items dizisinden beslenir (bkz. renderDetail). -->
+          <div class="col-view-toggle" id="am-col-view-toggle">
+            <button type="button" class="active" data-view="grid">Izgara</button>
+            <button type="button" data-view="list">Liste</button>
+          </div>
 
           <!-- Paylaş/İşbirliği paneli — kullanıcı isteği madde 3. Herkese açık bağlantı aç/kapat +
                e-posta ile davet + mevcut işbirlikçi listesi tek panelde. -->
@@ -1434,8 +1464,15 @@ const AuthModal = (function () {
             </div>
           </div>
           <div class="col-add-panel" id="am-col-add-note" style="display:none;">
-            <strong style="font-size:13px;">Not ekle</strong>
-            <textarea id="am-col-note-text" maxlength="4000" placeholder="Bu panoyla ilgili bir not yaz…"></textarea>
+            <strong style="font-size:13px;">Not Stili</strong>
+            <p class="section-hint" style="margin:4px 0 8px;">Önce rengi/puntoyu/kalınlığı seç, sonra metni yaz.</p>
+            <div class="col-canvas-pen-swatches" id="am-col-new-note-swatches"></div>
+            <div style="display:flex; align-items:center; gap:14px; margin-top:10px; flex-wrap:wrap;">
+              <input type="color" id="am-col-new-note-color-custom" value="#1B2A3D" title="Özel renk">
+              <label class="col-note-style-row" style="margin-top:0;">Punto <input type="range" id="am-col-new-note-size" min="10" max="48" value="14"></label>
+              <label class="col-note-style-row" style="margin-top:0;"><input type="checkbox" id="am-col-new-note-bold"> Kalın</label>
+            </div>
+            <textarea id="am-col-note-text" maxlength="4000" placeholder="Bu panoyla ilgili bir not yaz…" style="margin-top:12px;"></textarea>
             <div style="margin-top:10px;">
               <button type="button" class="col-btn col-btn-primary" id="am-col-note-save-btn">Notu Ekle</button>
             </div>
@@ -1495,6 +1532,22 @@ const AuthModal = (function () {
               <button type="button" class="col-btn" id="am-col-note-style-close" style="margin-top:8px;">Kapat</button>
             </div>
           </div>
+
+          <!-- Vektörel Çizim Objesi araç çubuğu (kullanıcı isteği) — bir kalem izine tıklanınca
+               görünür (bkz. selectStroke). Sil/Öne Getir/Arkaya Gönder. -->
+          <div class="col-note-style-panel" id="am-col-stroke-toolbar" style="display:none; left:14px; top:14px; bottom:auto;">
+            <strong style="font-size:12.5px;">Seçili Çizim</strong>
+            <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+              <button type="button" class="col-btn" data-stroke-action="front">Öne Getir</button>
+              <button type="button" class="col-btn" data-stroke-action="back">Arkaya Gönder</button>
+              <button type="button" class="col-btn col-btn-danger" data-stroke-action="delete">Sil</button>
+            </div>
+          </div>
+
+          <!-- Liste görünümü (kullanıcı isteği madde 1) — .col-canvas-wrap ile AYNI seviyede, ikisi
+               karşılıklı gizlenir (bkz. renderDetail). Kalem çizimleri burada YOK — yalnızca
+               collection_items satır satır listelenir. -->
+          <div class="col-list" id="am-col-list-mode" style="display:none;"></div>
         </div>
       </div>
     </div>`;
@@ -3789,6 +3842,12 @@ const AuthModal = (function () {
     let penActive = false, penColor = STANDARD_PEN_COLORS[0], penWidth = 3;
     let lastPaletteHexes = [];
     let styleTargetItemId = null;
+    // "Not Ekle" akışının ön-seçili stili (kullanıcı isteği madde 2: önce stil, sonra metin).
+    let newNoteColor = STANDARD_PEN_COLORS[0], newNoteSize = 14, newNoteBold = false;
+    // Liste/Izgara görünüm anahtarı (kullanıcı isteği madde 1) — 'grid' | 'list'.
+    let boardViewMode = 'grid';
+    // Seçili vektörel çizim objesi (kullanıcı isteği) — tuval her yeniden çizildiğinde sıfırlanır.
+    let selectedStrokeId = null;
 
     function canEdit() {
       return openCollection && openCollection.item.role !== 'viewer';
@@ -3836,10 +3895,29 @@ const AuthModal = (function () {
     // Pafta SABİT piksel boyutlu (CANVAS_PAGE_SIZES) — pan/zoom yalnızca bu paftanın kendi
     // transform'unu değiştirir, öğe yüzdeleri hiç etkilenmez (bkz. wireCanvasInteractions'ın
     // getBoundingClientRect'e dayalı matematiği zoom'dan bağımsız kalır).
+    // ---------- Dinamik Izgara / Snap-to-Grid (kullanıcı isteği madde 4) ----------
+    // Hücre boyutu paftanın KENDİ (transform'dan ÖNCEki, baseline) piksel uzayında tanımlanır — pafta
+    // zaten transform:scale ile büyütülüp küçültüldüğünden (bkz. dosya başı yorumu), aynı EKRAN
+    // boyutunun zoom arttıkça paftanın DAHA KÜÇÜK bir kesrini (dolayısıyla daha SIK bir alt ızgarayı)
+    // temsil etmesi için hücre kademeli olarak küçültülür (zoom azaldıkça büyütülür). Snap hesabı da
+    // AYNI kademeleri kullanır ki görünen ızgara ile kenetlenme noktaları her zaman örtüşsün.
+    function currentGridCellPx() {
+      if (zoomScale <= 0.65) return 48;
+      if (zoomScale <= 1.3) return 24;
+      if (zoomScale <= 2.2) return 12;
+      return 6;
+    }
+    function snapToGridPct(valuePct, dimPx) {
+      const cellPct = (currentGridCellPx() / dimPx) * 100;
+      if (!Number.isFinite(cellPct) || cellPct <= 0) return valuePct;
+      return Math.round(valuePct / cellPct) * cellPct;
+    }
     function applyCanvasTransform() {
       const page = document.getElementById('am-col-canvas');
       if (!page) return;
       page.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+      const cell = currentGridCellPx();
+      page.style.backgroundSize = `${cell}px ${cell}px`;
       const label = document.getElementById('am-col-zoom-label');
       if (label) label.textContent = Math.round(zoomScale * 100) + '%';
     }
@@ -3876,6 +3954,10 @@ const AuthModal = (function () {
       if (penEl) penEl.innerHTML = html;
       const noteEl = document.getElementById('am-col-note-style-swatches');
       if (noteEl) noteEl.innerHTML = html;
+      // "Not Ekle" akışının ÖN stil seçici paleti (kullanıcı isteği madde 2) — AYNI kaynak, ÜÇÜNCÜ
+      // bir DOM konteynerine basılır (bkz. dosya başı yorumu: pen/not-düzenle ile aynı renkler).
+      const newNoteEl = document.getElementById('am-col-new-note-swatches');
+      if (newNoteEl) newNoteEl.innerHTML = html;
     }
 
     function setPenActive(active) {
@@ -4014,7 +4096,9 @@ const AuthModal = (function () {
       // yorumu) — burada hesaplanan bir "rozetin yok" durumu, rozet verisi sonradan gelse bile
       // butonda donup kalıyordu. Kontrol artık tıklama anında yapılıyor (bkz. am-col-export-btn).
       autoArrangeIfNeeded();
-      canvasMaxZ = Math.max(0, ...openCollection.items.map(it => it.zIndex || 0));
+      // canvasMaxZ artık ÖĞELER VE ÇİZİMLER birlikte hesaplanır (kullanıcı isteği: vektörel çizim
+      // objeleri diğer öğelerle AYNI z-index hiyerarşisini paylaşır, bkz. migrations/0097).
+      canvasMaxZ = Math.max(0, ...openCollection.items.map(it => it.zIndex || 0), ...(openCollection.strokes || []).map(s => s.zIndex || 0));
       const readonly = !canEdit();
       const dims = CANVAS_PAGE_SIZES[openCollection.item.canvasOrientation] || CANVAS_PAGE_SIZES.landscape;
       const strokes = openCollection.strokes || [];
@@ -4049,21 +4133,136 @@ const AuthModal = (function () {
         </div>`;
       }).join('');
 
-      // Çizimler her zaman öğelerin ÜSTÜNDE, tek bir katman (bkz. migrations/0095 dosya başı yorumu)
-      // — viewBox pafta ile AYNI en-boy oranını taşıdığından ölçek bozulmaz (strokePathD).
-      const strokesHtml = strokes.map(s => `<path data-stroke-id="${escapeAttr(s.id)}" d="${strokePathD(s.points, dims)}" stroke="${escapeAttr(s.color)}" stroke-width="${s.strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+      // Vektörel Çizim Objeleri (kullanıcı isteği) — her çizim ARTIK kendi bağımsız, tam sayfa
+      // kaplayan SVG sarmalayıcısında (.canvas-stroke-obj), diğer .canvas-item'larla AYNI seviyede
+      // ve AYNI sayısal z-index uzayında render edilir — eskiden TEK bir üstteki SVG katmanıydı
+      // (bkz. migrations/0095), artık Öne Getir/Arkaya Gönder ile öğelerin ARASINA girebiliyor.
+      // Sarmalayıcının pointer-events:none olması gerekir (aksi halde iz ÇİZİLMEYEN her piksel de
+      // tıklamaları yutardı) — yalnızca path'in KENDİSİ (stroke-events) tıklanabilir/sürüklenebilir.
+      const strokesHtml = strokes.map(s => `
+        <svg class="canvas-stroke-obj" data-stroke-id="${escapeAttr(s.id)}" viewBox="0 0 ${dims.w} ${dims.h}" preserveAspectRatio="none" style="z-index:${s.zIndex || 0};">
+          <path d="${strokePathD(s.points, dims)}" stroke="${escapeAttr(s.color)}" stroke-width="${s.strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:${readonly ? 'none' : 'stroke'}; cursor:${readonly ? 'default' : 'move'};"/>
+        </svg>`).join('');
 
       const container = document.getElementById('am-col-items');
       container.innerHTML = `<div class="col-canvas" id="am-col-canvas" style="width:${dims.w}px; height:${dims.h}px;">
-        ${itemsHtml}${emptyHint}
-        <svg class="col-canvas-strokes-svg" id="am-col-strokes-svg" viewBox="0 0 ${dims.w} ${dims.h}" preserveAspectRatio="none">${strokesHtml}</svg>
+        ${itemsHtml}${emptyHint}${strokesHtml}
       </div>`;
       const pageEl = document.getElementById('am-col-canvas');
       if (penActive) pageEl.classList.add('pen-active');
+      selectedStrokeId = null; // tuval yeniden çizildi — önceki seçim artık geçersiz DOM'a işaret eder
+      const strokeToolbarEl = document.getElementById('am-col-stroke-toolbar');
+      if (strokeToolbarEl) strokeToolbarEl.style.display = 'none';
       wireCanvasInteractions(pageEl);
+      wireStrokeInteractions(pageEl);
       wirePenAndPan(document.getElementById('am-col-canvas-viewport'), pageEl);
       if (!canvasInitialized) { fitCanvasToViewport(); canvasInitialized = true; } else { applyCanvasTransform(); }
       computePalette();
+
+      // ---------- Liste/Izgara görünüm senkronizasyonu (kullanıcı isteği madde 1) ----------
+      // Liste görünümü AYRI bir DOM ağacında, yukarıdaki tuval her zaman (görünmese bile) yeniden
+      // çizilir — böylece "Izgara"ya geri dönüldüğünde konum/zoom/kalem durumu KORUNUR, iki görünüm
+      // arasında ekstra bir state-senkronizasyon mekanizması İCAT ETMEYE gerek kalmaz: ikisi de AYNI
+      // openCollection.items dizisinden okur. Kalem çizimleri (strokes) YAPISI GEREĞİ yalnızca tuval
+      // ağacında var — liste bunlardan hiç haberdar değildir (kullanıcı isteği istisna kuralı).
+      renderItemsListMode();
+      document.querySelectorAll('#am-col-view-toggle button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === boardViewMode));
+      const canvasWrapEl = document.querySelector('.col-canvas-wrap');
+      const canvasToolbarEl = document.querySelector('.col-canvas-toolbar');
+      const listWrapEl = document.getElementById('am-col-list-mode');
+      if (canvasWrapEl) canvasWrapEl.style.display = boardViewMode === 'list' ? 'none' : '';
+      if (canvasToolbarEl) canvasToolbarEl.style.display = boardViewMode === 'list' ? 'none' : '';
+      if (listWrapEl) listWrapEl.style.display = boardViewMode === 'list' ? '' : 'none';
+    }
+
+    // ---------- Liste Modu (kullanıcı isteği madde 1) ----------
+    // Öğeler satır satır, sol tutamaçtan sürükle-bırakla yeniden sıralanabilir. Yalnızca collection_
+    // items'ı listeler — çizimler (kalem izleri) burada YOK SAYILIR (yapıları gereği bir tuval
+    // konsepti, "sıra"ları/satırları olmaz).
+    function renderItemsListMode() {
+      const container = document.getElementById('am-col-list-mode');
+      if (!container || !openCollection) return;
+      const readonly = !canEdit();
+      if (!openCollection.items.length) {
+        container.innerHTML = '<div class="dash-empty">Bu pano henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
+        return;
+      }
+      container.innerHTML = openCollection.items.map((it) => {
+        const image = safeUrl(it.image);
+        const thumb = image
+          ? `<img class="col-list-thumb" src="${escapeAttr(avatarImg(image, 120, image))}" alt="" loading="lazy" decoding="async">`
+          : '<div class="col-list-thumb col-list-thumb-empty"></div>';
+        const titleText = it.title || (it.kind === 'note' ? (it.note || '').slice(0, 60) : 'Adsız öğe');
+        const kindLabel = it.kind === 'note' ? 'Not' : (it.kind === 'image' ? 'Görsel' : (SAVED_TYPE_LABELS[it.itemType] || 'Kayıt'));
+        const handle = readonly ? '' : `<span class="col-list-handle" aria-label="Sürükle, yeniden sırala" title="Sürükle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg>
+          </span>`;
+        const removeBtn = readonly ? '' : '<button type="button" class="col-list-remove" aria-label="Kaldır">✕</button>';
+        return `<div class="col-list-row" data-item-id="${escapeAttr(it.id)}">
+          ${handle}${thumb}
+          <div style="min-width:0; flex:1;">
+            <div class="col-list-title">${escapeHtml(titleText)}</div>
+            <div class="saved-row-meta">${escapeHtml(kindLabel)}</div>
+          </div>
+          ${removeBtn}
+        </div>`;
+      }).join('');
+      if (!readonly) wireListReorder(container);
+      container.querySelectorAll('.col-list-remove').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.col-list-row');
+          btn.disabled = true;
+          try {
+            await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items/${encodeURIComponent(row.dataset.itemId)}`, { method: 'DELETE' });
+            await reloadDetail();
+          } catch { btn.disabled = false; }
+        });
+      });
+    }
+
+    // Sol tutamaçtan Pointer Events ile sürükle-sırala — wireCanvasInteractions'taki AYNI
+    // setPointerCapture deseni, burada delta değil "en yakın satırın önüne/arkasına taşı" mantığı.
+    function wireListReorder(container) {
+      container.querySelectorAll('.col-list-handle').forEach(handle => {
+        handle.addEventListener('pointerdown', (e) => {
+          if (e.button !== undefined && e.button !== 0) return;
+          const row = handle.closest('.col-list-row');
+          if (!row) return;
+          e.preventDefault();
+          row.classList.add('dragging');
+          handle.setPointerCapture(e.pointerId);
+
+          function onMove(ev) {
+            const rows = Array.from(container.querySelectorAll('.col-list-row')).filter(r => r !== row);
+            for (const other of rows) {
+              const rect = other.getBoundingClientRect();
+              const mid = rect.top + rect.height / 2;
+              const otherIsAfter = !!(other.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_PRECEDING);
+              if (ev.clientY < mid && otherIsAfter) { container.insertBefore(row, other); break; }
+              if (ev.clientY > mid && !otherIsAfter) { container.insertBefore(row, other.nextSibling); break; }
+            }
+          }
+          function onUp(ev) {
+            handle.releasePointerCapture(ev.pointerId);
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onUp);
+            handle.removeEventListener('pointercancel', onUp);
+            row.classList.remove('dragging');
+            const order = Array.from(container.querySelectorAll('.col-list-row')).map(r => r.dataset.itemId);
+            // Sunucu cevabını beklemeden openCollection.items'ı da AYNI sıraya sok — aksi halde bir
+            // sonraki renderDetail (ör. başka bir öğe eklenince tetiklenen reloadDetail) sürüklemeyi
+            // eski sıraya geri sıçratırdı.
+            const byId = new Map(openCollection.items.map(it => [it.id, it]));
+            openCollection.items = order.map(id => byId.get(id)).filter(Boolean);
+            fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order }),
+            }).catch(() => {});
+          }
+          handle.addEventListener('pointermove', onMove);
+          handle.addEventListener('pointerup', onUp);
+          handle.addEventListener('pointercancel', onUp);
+        });
+      });
     }
 
     // Sürükle (gövdeden, tutamaçlardan/linklerden/silme butonundan DEĞİL) ve köşe tutamaçlarından
@@ -4087,19 +4286,23 @@ const AuthModal = (function () {
           el.setPointerCapture(e.pointerId);
           el.classList.add('dragging');
 
+          const dims = CANVAS_PAGE_SIZES[openCollection.item.canvasOrientation] || CANVAS_PAGE_SIZES.landscape;
           function onMove(ev) {
             const dxPct = ((ev.clientX - startPointer.x) / rect.width) * 100;
             const dyPct = ((ev.clientY - startPointer.y) / rect.height) * 100;
             if (!moved && Math.hypot(ev.clientX - startPointer.x, ev.clientY - startPointer.y) > DRAG_MOVE_THRESHOLD_PX) moved = true;
+            // Snap-to-Grid (kullanıcı isteği madde 4) — hücre boyutu zoom seviyesine göre kademeli
+            // değişir (bkz. currentGridCellPx), her sürükleme/boyutlandırma adımında en yakın
+            // kesişime kenetlenir.
             if (mode === 'move') {
-              item.x = start.x + dxPct;
-              item.y = start.y + dyPct;
+              item.x = snapToGridPct(start.x + dxPct, dims.w);
+              item.y = snapToGridPct(start.y + dyPct, dims.h);
             } else {
               // Köşe çapası — sürüklenen köşenin KARŞI kenarı sabit kalır.
-              if (handle.includes('e')) item.width = Math.max(4, start.width + dxPct);
-              if (handle.includes('s')) item.height = Math.max(4, start.height + dyPct);
-              if (handle.includes('w')) { const nw = Math.max(4, start.width - dxPct); item.x = start.x + (start.width - nw); item.width = nw; }
-              if (handle.includes('n')) { const nh = Math.max(4, start.height - dyPct); item.y = start.y + (start.height - nh); item.height = nh; }
+              if (handle.includes('e')) item.width = Math.max(4, snapToGridPct(start.width + dxPct, dims.w));
+              if (handle.includes('s')) item.height = Math.max(4, snapToGridPct(start.height + dyPct, dims.h));
+              if (handle.includes('w')) { const nw = Math.max(4, snapToGridPct(start.width - dxPct, dims.w)); item.x = snapToGridPct(start.x + (start.width - nw), dims.w); item.width = nw; }
+              if (handle.includes('n')) { const nh = Math.max(4, snapToGridPct(start.height - dyPct, dims.h)); item.y = snapToGridPct(start.y + (start.height - nh), dims.h); item.height = nh; }
             }
             el.style.left = item.x + '%'; el.style.top = item.y + '%';
             el.style.width = item.width + '%'; el.style.height = item.height + '%';
@@ -4130,10 +4333,112 @@ const AuthModal = (function () {
           const handle = e.target.closest('.canvas-item-handle');
           if (handle) { e.preventDefault(); e.stopPropagation(); startDrag(e, 'resize', handle.dataset.handle); return; }
           if (e.target.closest('.canvas-item-remove') || e.target.closest('.canvas-item-open') || e.target.closest('.canvas-item-edit')) return;
+          // Not düzenlenirken (kalem ikonuyla contenteditable açılmışken) tıklama imleci
+          // konumlandırmalı, öğeyi SÜRÜKLEMEMELİ (kullanıcı isteği: "içerik doğrudan düzenlenebilir").
+          if (e.target.closest('.canvas-item-note[contenteditable="true"]')) return;
           startDrag(e, 'move');
         });
       });
     }
+
+    // ---------- Vektörel Çizim Objeleri: seç / taşı / sil / z-index (kullanıcı isteği) ----------
+    // Her çizim (.canvas-stroke-obj > path) .canvas-item'larla AYNI Pointer Events + setPointerCapture
+    // deseniyle bağımsız bir obje gibi davranır: tıkla-seç (küçük araç çubuğu açılır), sürükle-taşı,
+    // Sil/Öne Getir/Arkaya Gönder butonlarıyla düzenle.
+    function deselectStroke() {
+      if (!selectedStrokeId) { selectedStrokeId = null; return; }
+      const prevPath = document.querySelector(`.canvas-stroke-obj[data-stroke-id="${CSS.escape(selectedStrokeId)}"] path`);
+      if (prevPath) prevPath.classList.remove('selected');
+      selectedStrokeId = null;
+      const toolbar = document.getElementById('am-col-stroke-toolbar');
+      if (toolbar) toolbar.style.display = 'none';
+    }
+    function selectStroke(strokeId) {
+      if (selectedStrokeId === strokeId) return;
+      deselectStroke();
+      selectedStrokeId = strokeId;
+      const path = document.querySelector(`.canvas-stroke-obj[data-stroke-id="${CSS.escape(strokeId)}"] path`);
+      if (path) path.classList.add('selected');
+      const toolbar = document.getElementById('am-col-stroke-toolbar');
+      if (toolbar) toolbar.style.display = '';
+    }
+    function wireStrokeObject(wrapperEl, canvasEl) {
+      const path = wrapperEl.querySelector('path');
+      if (!path || !canEdit()) return;
+      path.addEventListener('pointerdown', (e) => {
+        if (penActive) return; // çizim modundayken mevcut izler seçilmez/sürüklenmez
+        if (e.button !== undefined && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation(); // page'in kendi pan/çizim dinleyicisi (wirePenAndPan) tetiklenmesin
+        const strokeId = wrapperEl.dataset.strokeId;
+        const stroke = (openCollection.strokes || []).find(s => s.id === strokeId);
+        if (!stroke) return;
+        selectStroke(strokeId);
+        const rect = canvasEl.getBoundingClientRect();
+        const startPointer = { x: e.clientX, y: e.clientY };
+        const startPoints = stroke.points.map(p => [p[0], p[1]]);
+        const dims = CANVAS_PAGE_SIZES[openCollection.item.canvasOrientation] || CANVAS_PAGE_SIZES.landscape;
+        let moved = false;
+        path.setPointerCapture(e.pointerId);
+        function onMove(ev) {
+          const dxPct = ((ev.clientX - startPointer.x) / rect.width) * 100;
+          const dyPct = ((ev.clientY - startPointer.y) / rect.height) * 100;
+          if (!moved && Math.hypot(ev.clientX - startPointer.x, ev.clientY - startPointer.y) > DRAG_MOVE_THRESHOLD_PX) moved = true;
+          stroke.points = startPoints.map(([x, y]) => [x + dxPct, y + dyPct]);
+          path.setAttribute('d', strokePathD(stroke.points, dims));
+        }
+        function onUp(ev) {
+          try { path.releasePointerCapture(ev.pointerId); } catch {}
+          path.removeEventListener('pointermove', onMove);
+          path.removeEventListener('pointerup', onUp);
+          path.removeEventListener('pointercancel', onUp);
+          if (moved) {
+            fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/strokes/${encodeURIComponent(strokeId)}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: stroke.points }),
+            }).catch(() => {});
+          }
+        }
+        path.addEventListener('pointermove', onMove);
+        path.addEventListener('pointerup', onUp);
+        path.addEventListener('pointercancel', onUp);
+      });
+    }
+    function wireStrokeInteractions(canvasEl) {
+      if (!canvasEl || !canEdit()) return;
+      canvasEl.querySelectorAll('.canvas-stroke-obj').forEach(wrapperEl => wireStrokeObject(wrapperEl, canvasEl));
+    }
+    function applyStrokeZIndex(strokeId, zIndex) {
+      const stroke = (openCollection.strokes || []).find(s => s.id === strokeId);
+      if (!stroke) return;
+      stroke.zIndex = zIndex;
+      const wrapperEl = document.querySelector(`.canvas-stroke-obj[data-stroke-id="${CSS.escape(strokeId)}"]`);
+      if (wrapperEl) wrapperEl.style.zIndex = String(zIndex);
+      fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/strokes/${encodeURIComponent(strokeId)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zIndex }),
+      }).catch(() => {});
+    }
+    on('am-col-stroke-toolbar', 'click', (e) => {
+      if (!selectedStrokeId || !openCollection) return;
+      const strokeId = selectedStrokeId;
+      if (e.target.closest('[data-stroke-action="delete"]')) {
+        const wrapperEl = document.querySelector(`.canvas-stroke-obj[data-stroke-id="${CSS.escape(strokeId)}"]`);
+        if (wrapperEl) wrapperEl.remove();
+        openCollection.strokes = (openCollection.strokes || []).filter(s => s.id !== strokeId);
+        deselectStroke();
+        fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/strokes/${encodeURIComponent(strokeId)}`, { method: 'DELETE' }).catch(() => {});
+        return;
+      }
+      if (e.target.closest('[data-stroke-action="front"]')) {
+        canvasMaxZ += 1;
+        applyStrokeZIndex(strokeId, canvasMaxZ);
+        return;
+      }
+      if (e.target.closest('[data-stroke-action="back"]')) {
+        const minZ = Math.min(0, ...openCollection.items.map(it => it.zIndex || 0), ...openCollection.strokes.map(s => s.zIndex || 0));
+        applyStrokeZIndex(strokeId, minZ - 1);
+        return;
+      }
+    });
 
     // ---------- Pan (boş tuval üzerinde sürükle) + Çizim Aracı (kullanıcı isteği madde 1/2) ----------
     // İkisi AYNI pointerdown/move/up zincirini paylaşır: hedef bir .canvas-item DEĞİLSE (o durum
@@ -4162,21 +4467,35 @@ const AuthModal = (function () {
       let drawState = null;
 
       page.addEventListener('pointerdown', (e) => {
+        // Boş tuvale (bir çizim objesinin ÜZERİNE değil) tıklamak seçili çizimi bırakır — .canvas-item
+        // sürüklemesi de dahil (bkz. aşağıdaki erken return, bu satır ONDAN ÖNCE çalışır).
+        if (!e.target.closest('.canvas-stroke-obj')) deselectStroke();
         if (e.target.closest('.canvas-item')) return; // öğe kendi dinleyicisinde ele alınır
+        if (e.target.closest('.canvas-stroke-obj')) return; // çizim kendi dinleyicisinde ele alınır (wireStrokeObject)
         if (e.button !== undefined && e.button !== 0) return;
         if (penActive && canEdit()) {
           const rect = page.getBoundingClientRect();
           const xPct = ((e.clientX - rect.left) / rect.width) * 100;
           const yPct = ((e.clientY - rect.top) / rect.height) * 100;
           const dims = CANVAS_PAGE_SIZES[openCollection.item.canvasOrientation] || CANVAS_PAGE_SIZES.landscape;
+          // Vektörel Çizim Objeleri (kullanıcı isteği) — her iz KENDİ tam-sayfa SVG sarmalayıcısında
+          // (.canvas-stroke-obj), diğer öğelerle AYNI z-index uzayında (bkz. renderDetail yorumu).
+          // Yeni çizim her zaman EN ÜSTE başlar.
+          canvasMaxZ += 1;
+          const wrapperEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          wrapperEl.setAttribute('class', 'canvas-stroke-obj');
+          wrapperEl.setAttribute('viewBox', `0 0 ${dims.w} ${dims.h}`);
+          wrapperEl.setAttribute('preserveAspectRatio', 'none');
+          wrapperEl.style.zIndex = String(canvasMaxZ);
           const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           pathEl.setAttribute('stroke', penColor);
           pathEl.setAttribute('stroke-width', String(penWidth));
           pathEl.setAttribute('fill', 'none');
           pathEl.setAttribute('stroke-linecap', 'round');
           pathEl.setAttribute('stroke-linejoin', 'round');
-          document.getElementById('am-col-strokes-svg').appendChild(pathEl);
-          drawState = { points: [[xPct, yPct]], pathEl, dims };
+          wrapperEl.appendChild(pathEl);
+          page.appendChild(wrapperEl);
+          drawState = { points: [[xPct, yPct]], pathEl, wrapperEl, dims, zIndex: canvasMaxZ };
           pathEl.setAttribute('d', strokePathD(drawState.points, dims));
         } else {
           panState = { startX: e.clientX, startY: e.clientY, panX0: panX, panY0: panY };
@@ -4205,16 +4524,21 @@ const AuthModal = (function () {
           if (finished.points.length >= 2) {
             fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/strokes`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ points: finished.points, color: penColor, strokeWidth: penWidth }),
+              body: JSON.stringify({ points: finished.points, color: penColor, strokeWidth: penWidth, zIndex: finished.zIndex }),
             }).then(async (res) => {
               const data = await res.json().catch(() => ({}));
               if (res.ok && data.item) {
-                finished.pathEl.dataset.strokeId = data.item.id;
+                finished.wrapperEl.dataset.strokeId = data.item.id;
+                // Kaydedilmeden önce path'in pointer-events'i BİLEREK yok (çizim bitmeden seçilebilir
+                // olmamalı) — obje kalıcı olunca .canvas-item'larla AYNI etkileşim setine kavuşur.
+                finished.pathEl.style.pointerEvents = 'stroke';
+                finished.pathEl.style.cursor = 'move';
                 openCollection.strokes = openCollection.strokes || [];
                 openCollection.strokes.push(data.item);
-              } else finished.pathEl.remove();
-            }).catch(() => finished.pathEl.remove());
-          } else finished.pathEl.remove();
+                wireStrokeObject(finished.wrapperEl, page);
+              } else finished.wrapperEl.remove();
+            }).catch(() => finished.wrapperEl.remove());
+          } else finished.wrapperEl.remove();
         }
         if (panState) { panState = null; viewport.classList.remove('panning'); }
       }
@@ -4233,6 +4557,7 @@ const AuthModal = (function () {
       canvasInitialized = false;
       setPenActive(false);
       styleTargetItemId = null;
+      boardViewMode = 'grid';
       try {
         const res = await fetch(`/api/collections/${encodeURIComponent(id)}`);
         if (!res.ok) { showList(); return; }
@@ -4273,6 +4598,15 @@ const AuthModal = (function () {
       if (card) openDetail(card.dataset.colId);
     });
     on('am-col-back-btn', 'click', showList);
+
+    // Liste/Izgara görünüm geçişi (kullanıcı isteği madde 1).
+    on('am-col-view-toggle', 'click', (e) => {
+      const btn = e.target.closest('button[data-view]');
+      if (!btn || !openCollection) return;
+      if (btn.dataset.view === boardViewMode) return;
+      boardViewMode = btn.dataset.view;
+      renderDetail();
+    });
 
     on('am-col-rename-btn', 'click', async () => {
       if (!openCollection) return;
@@ -4348,14 +4682,36 @@ const AuthModal = (function () {
       ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, dims.w, dims.h);
-      // Işgara — ekrandaki AYNI 24px hücre (bkz. .col-canvas CSS'i), gerçek WYSIWYG için.
-      ctx.strokeStyle = 'rgba(27,42,61,0.08)';
-      ctx.lineWidth = 1;
-      for (let x = 0; x <= dims.w; x += 24) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, dims.h); ctx.stroke(); }
-      for (let y = 0; y <= dims.h; y += 24) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(dims.w, y); ctx.stroke(); }
+      // Işgara BİLEREK dışa aktarıma çizilmez (kullanıcı isteği madde 6) — ekrandaki ızgara yalnızca
+      // düzenleme rehberi, PDF çıktısı bembeyaz A4 arka planı olmalı. Ekrandaki CSS ızgarasına hiç
+      // dokunulmaz (zaten ayrı bir katman, bkz. .col-canvas background-image), yalnızca bu rasterize
+      // ediciye eskiden eklenen çizim bloğu kaldırıldı.
 
-      const sortedItems = [...openCollection.items].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-      for (const it of sortedItems) {
+      // Öğeler VE çizimler ARTIK tek bir z-index uzayını paylaşıyor (kullanıcı isteği: vektörel
+      // çizim objeleri Öne Getir/Arkaya Gönder ile diğer öğelerin arasına girebiliyor, bkz.
+      // migrations/0097) — gerçek WYSIWYG için ikisi TEK bir sıralı listede birleştirilip z-index'e
+      // göre çizilir, eskiden olduğu gibi çizimler artık KOŞULSUZ en üstte değil.
+      const drawables = [
+        ...openCollection.items.map(it => ({ type: 'item', zIndex: it.zIndex || 0, data: it })),
+        ...(openCollection.strokes || []).map(s => ({ type: 'stroke', zIndex: s.zIndex || 0, data: s })),
+      ].sort((a, b) => a.zIndex - b.zIndex);
+
+      for (const d of drawables) {
+        if (d.type === 'stroke') {
+          const s = d.data;
+          if (!s.points || s.points.length < 2) continue;
+          ctx.strokeStyle = s.color;
+          ctx.lineWidth = s.strokeWidth;
+          ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+          ctx.beginPath();
+          s.points.forEach((p, i) => {
+            const px = p[0] / 100 * dims.w, py = p[1] / 100 * dims.h;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+          continue;
+        }
+        const it = d.data;
         const x = it.x / 100 * dims.w, y = it.y / 100 * dims.h, w = it.width / 100 * dims.w, h = it.height / 100 * dims.h;
         const imageUrl = safeUrl(it.image);
         if (imageUrl) {
@@ -4370,29 +4726,14 @@ const AuthModal = (function () {
             ctx.restore();
           }
         } else if (it.kind === 'note') {
-          ctx.fillStyle = '#F5F7FA';
-          ctx.fillRect(x, y, w, h);
+          // Not arka planı ARTIK şeffaf (kullanıcı isteği madde 2) — dışa aktarımda da beyaz kutu
+          // ÇİZİLMEZ, yalnızca metin (ekrandaki .canvas-item-note ile AYNI, bkz. renderDetail).
           ctx.fillStyle = it.textColor || '#1B2A3D';
           const fontSize = it.fontSize || 14;
           ctx.font = `${it.fontWeight === 'bold' ? '700' : '400'} ${fontSize}px Inter, -apple-system, sans-serif`;
           ctx.textBaseline = 'top';
           wrapCanvasText(ctx, it.note || '', x + 8, y + 8, Math.max(10, w - 16), fontSize * 1.3);
         }
-      }
-
-      // Serbest çizimler — ekranda olduğu gibi her zaman öğelerin ÜSTÜNDE (bkz. migrations/0095
-      // dosya başı yorumu).
-      for (const s of (openCollection.strokes || [])) {
-        if (!s.points || s.points.length < 2) continue;
-        ctx.strokeStyle = s.color;
-        ctx.lineWidth = s.strokeWidth;
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.beginPath();
-        s.points.forEach((p, i) => {
-          const px = p[0] / 100 * dims.w, py = p[1] / 100 * dims.h;
-          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        });
-        ctx.stroke();
       }
 
       let dataUrl;
@@ -4649,6 +4990,98 @@ const AuthModal = (function () {
       styleTargetItemId = null;
     });
 
+    // ---------- Medya Seçici / Galeri Modalı (kullanıcı isteği madde 5) ----------
+    // "Kaydettiklerimden"/"Takip Ettiklerimden" bir PROJE ya da ÜRÜN eklenirken öğe doğrudan tuvale
+    // düşmez: önce o proje/ürünün TÜM galerisi açılır, kullanıcı hangi görseli istediğini kendi seçer.
+    // Ayrı bir modül DEĞİL (bkz. js/components/image-lightbox.js dosya başı yorumu — o TEK görsel
+    // büyütmek için, burada aynı anda birden çok görsel + her birinin altında bir "Seç" butonu
+    // gerekiyor) — kendi overlay'ini image-lightbox.js İLE AYNI "ilk kullanımda bir kez kur" desenini
+    // izleyerek document.body'e ekler (STYLES'daki #am-panel scope'undan BAĞIMSIZ, çünkü bu overlay
+    // #am-panel'in DIŞINA - doğrudan body'e - eklenir).
+    let mediaPickerOverlay = null;
+    function ensureMediaPickerDom() {
+      if (mediaPickerOverlay) return;
+      if (!document.getElementById('am-media-picker-styles')) {
+        const style = document.createElement('style');
+        style.id = 'am-media-picker-styles';
+        style.textContent = [
+          '.am-media-picker{display:none; position:fixed; inset:0; background:rgba(27,42,61,0.92); z-index:270; align-items:center; justify-content:center; padding:32px;}',
+          '.am-media-picker.open{display:flex;}',
+          '.am-media-picker-frame{width:min(720px,92vw); max-height:86vh; overflow-y:auto; background:var(--paper-card,#fff); border-radius:14px; padding:22px; box-sizing:border-box;}',
+          '.am-media-picker-title{font-weight:700; font-size:15px; margin-bottom:4px; color:var(--ink,#1B2A3D); font-family:Inter,-apple-system,sans-serif;}',
+          '.am-media-picker-sub{font-size:12.5px; color:var(--ink-soft,#6b7785); margin-bottom:16px; font-family:Inter,-apple-system,sans-serif;}',
+          '.am-media-picker-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px;}',
+          '.am-media-picker-item{position:relative; border-radius:10px; overflow:hidden; background:var(--paper-alt,#F2F4F6); aspect-ratio:4/3;}',
+          '.am-media-picker-item img{display:block; width:100%; height:100%; object-fit:cover;}',
+          '.am-media-picker-select{position:absolute; left:0; right:0; bottom:0; padding:8px; border:none; background:rgba(27,42,61,0.82); color:#fff; font-size:12px; font-weight:600; cursor:pointer; font-family:Inter,-apple-system,sans-serif;}',
+          '.am-media-picker-select:hover{background:#B5793A;}',
+          '.am-media-picker-close{position:absolute; top:24px; right:32px; background:none; border:none; color:#EDF0F3; opacity:.85; cursor:pointer; padding:4px; line-height:0;}',
+          '.am-media-picker-close:hover{opacity:1;}',
+          '@media (max-width:520px){ .am-media-picker{padding:16px;} .am-media-picker-close{top:12px; right:14px;} }',
+        ].join('\n');
+        document.head.appendChild(style);
+      }
+      mediaPickerOverlay = document.createElement('div');
+      mediaPickerOverlay.className = 'am-media-picker';
+      mediaPickerOverlay.setAttribute('role', 'dialog');
+      mediaPickerOverlay.setAttribute('aria-modal', 'true');
+      mediaPickerOverlay.innerHTML =
+        '<button type="button" class="am-media-picker-close" aria-label="Kapat">' +
+          '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+          '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
+        '<div class="am-media-picker-frame">' +
+          '<div class="am-media-picker-title"></div>' +
+          '<div class="am-media-picker-sub">Panoya eklemek istediğin görseli seç.</div>' +
+          '<div class="am-media-picker-grid"></div>' +
+        '</div>';
+      mediaPickerOverlay.querySelector('.am-media-picker-close').addEventListener('click', closeMediaPicker);
+      mediaPickerOverlay.addEventListener('click', (e) => { if (e.target === mediaPickerOverlay) closeMediaPicker(); });
+      document.body.appendChild(mediaPickerOverlay);
+    }
+    function closeMediaPicker() {
+      if (!mediaPickerOverlay) return;
+      mediaPickerOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    function openMediaGalleryPicker(images, titleText, onPick) {
+      ensureMediaPickerDom();
+      mediaPickerOverlay.querySelector('.am-media-picker-title').textContent = titleText || 'Görsel Seç';
+      const grid = mediaPickerOverlay.querySelector('.am-media-picker-grid');
+      grid.innerHTML = images.map((img, i) => {
+        const url = safeUrl(img);
+        return `<div class="am-media-picker-item"><img src="${escapeAttr(avatarImg(url, 320, url))}" alt="" loading="lazy" decoding="async"><button type="button" class="am-media-picker-select" data-idx="${i}">Seç</button></div>`;
+      }).join('');
+      grid.querySelectorAll('.am-media-picker-select').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.idx, 10);
+          closeMediaPicker();
+          onPick(images[idx]);
+        });
+      });
+      mediaPickerOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    // Proje/ürün/malzeme öğeleri için: panonun kendi ekleme uç noktasına gitmeden ÖNCE tam galeriyi
+    // getirir. Galerisi olmayan (0 görsel) ya da tipçe uygun olmayan (mimar/firma/haber/iş ilanı vb.)
+    // öğeler eskisi gibi DOĞRUDAN eklenir — seçilecek bir şey yoksa modal açmanın bir anlamı yok.
+    async function addSavedOrOpenGallery(payload, itemType, itemKey) {
+      const galleryEligible = (itemType === 'project' || itemType === 'product' || itemType === 'material') && itemKey;
+      if (!galleryEligible) { addItem(payload); return; }
+      let images = [];
+      try {
+        const endpoint = itemType === 'project'
+          ? `/api/project/${encodeURIComponent(itemKey)}`
+          : `/api/product/${encodeURIComponent(itemKey)}`;
+        const res = await fetch(endpoint);
+        const data = res.ok ? await res.json() : null;
+        images = (data && data.item && Array.isArray(data.item.images)) ? data.item.images.filter(Boolean) : [];
+      } catch { images = []; }
+      if (!images.length) { addItem(payload); return; }
+      openMediaGalleryPicker(images, payload.title || 'Görsel Seç', (chosenImage) => {
+        addItem({ ...payload, image: chosenImage });
+      });
+    }
+
     async function addItem(payload) {
       if (!openCollection) return;
       notice('am-col-detail-notice', '');
@@ -4707,10 +5140,10 @@ const AuthModal = (function () {
       if (!option) return;
       const it = savedItemsCache[parseInt(option.dataset.savedIndex, 10)];
       if (!it) return;
-      addItem({
+      addSavedOrOpenGallery({
         kind: 'saved', itemType: it.item_type, itemKey: it.item_key,
         title: it.item_title || '', meta: it.item_meta || '', image: it.item_image || '', href: it.item_href || '',
-      });
+      }, it.item_type, it.item_key);
     });
 
     // "Takip Ettiklerimden Ekle" (kullanıcı isteği madde 4, YENİ) — takip ettiğin mimar/firma/
@@ -4761,7 +5194,7 @@ const AuthModal = (function () {
       // followFeed) — itemKey son yol parçasıdır.
       const itemKey = decodeURIComponent(it.href.split('/').filter(Boolean).pop() || '');
       if (!itemKey) return;
-      addItem({ kind: 'saved', itemType: it.type, itemKey, title: it.title || '', image: it.image || '', href: it.href || '' });
+      addSavedOrOpenGallery({ kind: 'saved', itemType: it.type, itemKey, title: it.title || '', image: it.image || '', href: it.href || '' }, it.type, itemKey);
     });
 
     // Görsel yükleme — hesabim.html/proje-ekle.html'deki AYNI /api/uploads ucu (bkz. src/routes/
@@ -4790,21 +5223,69 @@ const AuthModal = (function () {
         const res = await fetch('/api/uploads', { method: 'POST', body: form });
         const data = await res.json();
         if (!res.ok) { notice('am-col-detail-notice', data.error || 'Görsel yüklenemedi.', true); return; }
-        await addItem({ kind: 'image', image: data.url, title: file.name.replace(/\.[^.]+$/, '').slice(0, 120) });
+        // title BİLEREK boş bırakılır (kullanıcı isteği: "Dosya İsimlerini Gizleme") — daha önce
+        // dosya adı buradan canvas-item-title alt yazısına akıyordu, artık bilgisayardan yüklenen
+        // görsellerin altında hiçbir başlık gösterilmez (bkz. renderDetail'deki body/titleText koşulu).
+        await addItem({ kind: 'image', image: data.url });
       } catch { notice('am-col-detail-notice', 'Görsel yüklenemedi, tekrar dene.', true); }
     });
+
+    // "Not Ekle" ön-stil seçiciler (kullanıcı isteği madde 2) — pen/not-düzenle swatch'larıyla AYNI
+    // click/DOM deseni, yalnızca hedef state newNote*.
+    on('am-col-new-note-swatches', 'click', (e) => {
+      const btn = e.target.closest('.col-canvas-pen-swatch');
+      if (!btn) return;
+      newNoteColor = btn.dataset.hex;
+      document.getElementById('am-col-new-note-color-custom').value = newNoteColor;
+      document.querySelectorAll('#am-col-new-note-swatches .col-canvas-pen-swatch').forEach(s => s.classList.toggle('active', s.dataset.hex === newNoteColor));
+    });
+    on('am-col-new-note-color-custom', 'input', (e) => { newNoteColor = e.target.value; });
+    on('am-col-new-note-size', 'input', (e) => { newNoteSize = parseInt(e.target.value, 10) || 14; });
+    on('am-col-new-note-bold', 'change', (e) => { newNoteBold = e.target.checked; });
 
     on('am-col-note-save-btn', 'click', async () => {
       const textarea = document.getElementById('am-col-note-text');
       const note = textarea.value.trim();
       if (!note) { textarea.focus(); return; }
-      await addItem({ kind: 'note', note });
+      await addItem({ kind: 'note', note, textColor: newNoteColor, fontSize: newNoteSize, fontWeight: newNoteBold ? 'bold' : 'normal' });
       textarea.value = '';
     });
 
+    // Kalem ikonu (kullanıcı isteği): notun metni DOĞRUDAN düzenlenebilir hale gelir (contenteditable)
+    // — stil paneli (renk/punto/kalınlık) de AYNI anda açılır, ikisi birbirini dışlamaz.
+    function startInlineNoteEdit(itemId) {
+      const itemEl = document.querySelector(`.canvas-item[data-item-id="${CSS.escape(itemId)}"]`);
+      const noteEl = itemEl && itemEl.querySelector('.canvas-item-note');
+      if (!noteEl) return;
+      noteEl.setAttribute('contenteditable', 'true');
+      noteEl.focus();
+      const range = document.createRange();
+      range.selectNodeContents(noteEl);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      function onKey(ev) { if (ev.key === 'Escape') { ev.preventDefault(); noteEl.blur(); } }
+      function save() {
+        noteEl.removeEventListener('blur', save);
+        noteEl.removeEventListener('keydown', onKey);
+        noteEl.removeAttribute('contenteditable');
+        // innerText (textContent DEĞİL) — çok satırlı notlarda tarayıcının <div>/<br> ile ürettiği
+        // görsel satır sonlarını \n'e çevirir, aksi halde satırlar birleşip tek satıra düşerdi.
+        const newNote = noteEl.innerText.trim();
+        const item = openCollection && openCollection.items.find(it => it.id === itemId);
+        if (!item || !openCollection || newNote === (item.note || '')) return;
+        item.note = newNote;
+        fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items/${encodeURIComponent(itemId)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note: newNote }),
+        }).catch(() => {});
+      }
+      noteEl.addEventListener('blur', save);
+      noteEl.addEventListener('keydown', onKey);
+    }
     on('am-col-items', 'click', async (e) => {
       const editBtn = e.target.closest('.canvas-item-edit');
-      if (editBtn) { openNoteStylePanel(editBtn.dataset.styleTarget); return; }
+      if (editBtn) { openNoteStylePanel(editBtn.dataset.styleTarget); startInlineNoteEdit(editBtn.dataset.styleTarget); return; }
       const removeBtn = e.target.closest('.canvas-item-remove');
       if (!removeBtn || !openCollection) return;
       const itemEl = removeBtn.closest('.canvas-item');

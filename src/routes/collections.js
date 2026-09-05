@@ -108,6 +108,10 @@ export async function handleCollectionsRoute(request, env, url) {
   // Çizim Aracı (kullanıcı isteği madde 2) — serbest el kalem izleri, collection_items'tan AYRI
   // (bkz. migrations/0095_board_a4_canvas_and_strokes.sql dosya başı yorumu).
   if (segments.length === 4 && segments[3] === 'strokes' && request.method === 'POST') return addStroke(request, env, user, segments[2]);
+  // PATCH .../strokes/:strokeId — vektörel çizim objesi TAŞINDIĞINDA (noktalar) ya da Öne Getir/
+  // Arkaya Gönder ile z-index'i değiştiğinde (kullanıcı isteği: "her bir çizim hamlesi bağımsız bir
+  // obje ... taşınabilmeli ... z-index hiyerarşisinde işlem yapılabilmeli").
+  if (segments.length === 5 && segments[3] === 'strokes' && request.method === 'PATCH') return updateStroke(request, env, user, segments[2], segments[4]);
   if (segments.length === 5 && segments[3] === 'strokes' && request.method === 'DELETE') return deleteStroke(env, user, segments[2], segments[4]);
   // POST/DELETE .../share — herkese açık, tahmin edilemez bağlantı (aç/kapat). Rozet şartlı
   // (kullanıcı isteği, 2026-09-05 madde 3: "Paylaş butonu ... SADECE rozet sahibi kullanıcılar
@@ -177,7 +181,10 @@ function shapeItem(row) {
 function shapeStroke(row) {
   let points = [];
   try { points = JSON.parse(row.points || '[]'); } catch { /* bozuk JSON — boş çizim olarak render edilir */ }
-  return { id: row.id, points, color: row.color, strokeWidth: row.stroke_width, createdAt: row.created_at };
+  // z_index: collection_items.z_index İLE AYNI sayısal uzay — kullanıcı isteği (vektörel çizim
+  // objeleri) çizimlerin diğer öğelerle Z-INDEX HİYERARŞİSİNDE karışık sıralanabilmesini istiyor
+  // (bkz. migrations/0097_board_stroke_zindex.sql).
+  return { id: row.id, points, color: row.color, strokeWidth: row.stroke_width, zIndex: row.z_index || 0, createdAt: row.created_at };
 }
 
 async function listCollections(env, user) {
@@ -331,6 +338,24 @@ async function addItem(request, env, user, collectionId) {
     if (dupe) return json({ item: shapeItem(dupe), duplicate: true });
   }
 
+  // Not stili DOĞRUDAN oluşturma anında (kullanıcı isteği: "Not Ekle ... önce Not Stili menüsü
+  // açılsın ... kullanıcı buradan seçim yaparak metni eklesin") — updateItemStyle'daki AYNI
+  // doğrulama, yalnızca kind='note' değilse sessizce yok sayılır (diğer türlerde alanın anlamı yok).
+  let textColor = null, fontSize = null, fontWeight = null;
+  if (kind === 'note') {
+    if (body.textColor !== undefined && body.textColor !== null) {
+      if (!HEX_COLOR_RE.test(body.textColor)) return errorJson('Geçersiz renk.');
+      textColor = body.textColor;
+    }
+    if (body.fontSize !== undefined && body.fontSize !== null) {
+      fontSize = Math.trunc(clampNum(body.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 14));
+    }
+    if (body.fontWeight !== undefined && body.fontWeight !== null) {
+      if (!FONT_WEIGHTS.has(body.fontWeight)) return errorJson('Geçersiz yazı kalınlığı.');
+      fontWeight = body.fontWeight;
+    }
+  }
+
   const id = newId();
   const now = Date.now();
   const position = (countRow?.maxPos ?? -1) + 1;
@@ -339,13 +364,13 @@ async function addItem(request, env, user, collectionId) {
   // konum ÜRETİLMEZ: aynı anda birden çok kişi (editör) öğe eklerse çakışan tahminler yerine
   // istemcinin GÖRDÜĞÜ tuvale göre yerleştirmesi daha tutarlı.
   await env.DB.prepare(
-    `INSERT INTO collection_items (id, collection_id, kind, item_type, item_key, title, meta, image, href, note, position, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, collectionId, kind, itemType, itemKey, title, trimOrNull(body.meta, MAX_TITLE_LEN), image, href, note, position, now).run();
+    `INSERT INTO collection_items (id, collection_id, kind, item_type, item_key, title, meta, image, href, note, position, created_at, text_color, font_size, font_weight)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, collectionId, kind, itemType, itemKey, title, trimOrNull(body.meta, MAX_TITLE_LEN), image, href, note, position, now, textColor, fontSize, fontWeight).run();
   await env.DB.prepare(`UPDATE collections SET updated_at = ? WHERE id = ?`).bind(now, collectionId).run();
 
   return json({
-    item: shapeItem({ id, kind, item_type: itemType, item_key: itemKey, title, meta: body.meta || '', image, href, note, created_at: now, pos_x: -1, pos_y: -1, width: 22, height: 22, z_index: 0 }),
+    item: shapeItem({ id, kind, item_type: itemType, item_key: itemKey, title, meta: body.meta || '', image, href, note, created_at: now, pos_x: -1, pos_y: -1, width: 22, height: 22, z_index: 0, text_color: textColor, font_size: fontSize, font_weight: fontWeight }),
   }, 201);
 }
 
@@ -488,6 +513,13 @@ async function updateItemStyle(request, env, user, collectionId, itemId) {
     if (!FONT_WEIGHTS.has(body.fontWeight)) return errorJson('Geçersiz yazı kalınlığı.');
     sets.push('font_weight = ?'); vals.push(body.fontWeight);
   }
+  // Not metninin KENDİSİ (kullanıcı isteği: kalem ikonuyla doğrudan inline düzenleme) — AYNI tek-öğe
+  // PATCH ucu, addItem'daki kind='note' boş-olamaz kuralıyla tutarlı olsun diye boş not reddedilir.
+  if ('note' in body) {
+    const note = trimOrNull(body.note, MAX_NOTE_LEN);
+    if (!note) return errorJson('Not boş olamaz.');
+    sets.push('note = ?'); vals.push(note);
+  }
   if (!sets.length) return errorJson('Güncellenecek alan yok.');
   await env.DB.prepare(`UPDATE collection_items SET ${sets.join(', ')} WHERE id = ? AND collection_id = ?`).bind(...vals, itemId, collectionId).run();
   return json({ ok: true });
@@ -514,14 +546,41 @@ async function addStroke(request, env, user, collectionId) {
   if (points.length < 2) return errorJson('Geçersiz çizim.');
   const color = HEX_COLOR_RE.test(body.color) ? body.color : '#1B2A3D';
   const strokeWidth = clampNum(body.strokeWidth, STROKE_WIDTH_MIN, STROKE_WIDTH_MAX, 3);
+  // z-index — istemci kendi bildiği canvasMaxZ+1'i gönderir (collection_items'ın position'ıyla AYNI
+  // "istemcinin GÖRDÜĞÜ tuvale göre" gerekçesi, bkz. addItem yorumu); gönderilmezse 0 (en altta).
+  const zIndex = Math.trunc(clampNum(body.zIndex, 0, 100000, 0));
 
   const id = newId();
   const now = Date.now();
   await env.DB.prepare(
-    `INSERT INTO board_strokes (id, collection_id, points, color, stroke_width, created_by_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, collectionId, JSON.stringify(points), color, strokeWidth, user.id, now).run();
+    `INSERT INTO board_strokes (id, collection_id, points, color, stroke_width, created_by_user_id, created_at, z_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, collectionId, JSON.stringify(points), color, strokeWidth, user.id, now, zIndex).run();
   await env.DB.prepare(`UPDATE collections SET updated_at = ? WHERE id = ?`).bind(now, collectionId).run();
-  return json({ item: { id, points, color, strokeWidth, createdAt: now } }, 201);
+  return json({ item: { id, points, color, strokeWidth, zIndex, createdAt: now } }, 201);
+}
+
+// Vektörel çizim objesi TAŞINMASI (points) ve/ya Öne Getir/Arkaya Gönder (zIndex) — kullanıcı isteği.
+// addStroke'un doğrulamalarıyla AYNI sınırlar, yalnızca gönderilen alanlar güncellenir.
+async function updateStroke(request, env, user, collectionId, strokeId) {
+  const access = await resolveAccess(env, user, collectionId);
+  if (!access || access.role === 'viewer') return errorJson('Bulunamadı', 404);
+  const body = await readJson(request);
+  const sets = [];
+  const vals = [];
+  if ('points' in body) {
+    if (!Array.isArray(body.points) || body.points.length < 2) return errorJson('Geçersiz çizim.');
+    const points = body.points.slice(0, MAX_STROKE_POINTS)
+      .filter(p => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+      .map(([x, y]) => [clampNum(x, POS_MIN, POS_MAX, 0), clampNum(y, POS_MIN, POS_MAX, 0)]);
+    if (points.length < 2) return errorJson('Geçersiz çizim.');
+    sets.push('points = ?'); vals.push(JSON.stringify(points));
+  }
+  if ('zIndex' in body) {
+    sets.push('z_index = ?'); vals.push(Math.trunc(clampNum(body.zIndex, 0, 100000, 0)));
+  }
+  if (!sets.length) return errorJson('Güncellenecek alan yok.');
+  await env.DB.prepare(`UPDATE board_strokes SET ${sets.join(', ')} WHERE id = ? AND collection_id = ?`).bind(...vals, strokeId, collectionId).run();
+  return json({ ok: true });
 }
 
 async function deleteStroke(env, user, collectionId, strokeId) {
