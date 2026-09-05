@@ -20,6 +20,8 @@ import { createNotification } from '../lib/notify.js';
 
 const ITEM_KINDS = new Set(['saved', 'image', 'note']);
 const COLLAB_ROLES = new Set(['viewer', 'editor']);
+const ORIENTATIONS = new Set(['landscape', 'portrait']);
+const FONT_WEIGHTS = new Set(['normal', 'bold']);
 // Kötüye kullanım/D1 satır şişmesi sınırları — src/lib/submissionTypes.js#findOversizedField'daki
 // AYNI "sunucu tarafı da doğrulasın, sadece UI'a güvenme" ilkesi.
 const MAX_COLLECTIONS_PER_USER = 100;
@@ -33,6 +35,14 @@ const MAX_URLISH_LEN = 600;
 // tamamen kaybolamaz/absürt büyüklüğe ulaşamaz diye gevşek ama sonlu bir aralık.
 const POS_MIN = -20, POS_MAX = 120;
 const SIZE_MIN = 4, SIZE_MAX = 100;
+const FONT_SIZE_MIN = 8, FONT_SIZE_MAX = 72;
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+// Çizim Aracı (kullanıcı isteği, 2026-09-06 madde 2) sınırları — bir kalem izi çok uzun bir dizi
+// olabileceğinden (uzun bir sürükleme) hem nokta sayısı hem pano başına toplam çizim sayısı ayrı
+// ayrı sınırlanır (bkz. migrations/0095_board_a4_canvas_and_strokes.sql).
+const MAX_STROKES_PER_COLLECTION = 400;
+const MAX_STROKE_POINTS = 800;
+const STROKE_WIDTH_MIN = 1, STROKE_WIDTH_MAX = 40;
 
 function trimOrNull(value, maxLen) {
   if (typeof value !== 'string') return null;
@@ -91,6 +101,14 @@ export async function handleCollectionsRoute(request, env, url) {
   // sürükleme/boyutlandırma bittiğinde SADECE o öğe gönderilir ama uç noktası aynı kalır.
   if (segments.length === 4 && segments[3] === 'items' && request.method === 'PATCH') return reorderItems(request, env, user, segments[2]);
   if (segments.length === 5 && segments[3] === 'items' && request.method === 'DELETE') return deleteItem(env, user, segments[2], segments[4]);
+  // PATCH .../items/:itemId — TEK öğenin STİLİ (kullanıcı isteği madde 2: not renk/punto/kalınlık).
+  // reorderItems'ın YUKARIDAKİ "tek tek PATCH yok" kuralı SIRAYA özeldi (çakışan pozisyon riski) —
+  // stil alanları bağımsız/çakışmasız olduğundan burada tek öğe PATCH'i doğaldır.
+  if (segments.length === 5 && segments[3] === 'items' && request.method === 'PATCH') return updateItemStyle(request, env, user, segments[2], segments[4]);
+  // Çizim Aracı (kullanıcı isteği madde 2) — serbest el kalem izleri, collection_items'tan AYRI
+  // (bkz. migrations/0095_board_a4_canvas_and_strokes.sql dosya başı yorumu).
+  if (segments.length === 4 && segments[3] === 'strokes' && request.method === 'POST') return addStroke(request, env, user, segments[2]);
+  if (segments.length === 5 && segments[3] === 'strokes' && request.method === 'DELETE') return deleteStroke(env, user, segments[2], segments[4]);
   // POST/DELETE .../share — herkese açık, tahmin edilemez bağlantı (aç/kapat). Rozet şartlı
   // (kullanıcı isteği, 2026-09-05 madde 3: "Paylaş butonu ... SADECE rozet sahibi kullanıcılar
   // için aktif olmalı") — bkz. shareCollection.
@@ -135,6 +153,9 @@ function shapeCollection(row, itemCount, previewImages, role) {
     // paylaş/davet et) bu alana göre gösterir/gizler. listCollections'ta HER ZAMAN dolu; getCollection
     // resolveAccess'ten geleni geçirir.
     role: role || 'owner',
+    // A4 kağıt yönü (kullanıcı isteği, 2026-09-06 madde 1) — istemci baseline piksel boyutlarını
+    // (794x1123 @96dpi) buna göre seçer, bkz. js/components/auth-modal.js#CANVAS_PAGE_SIZES.
+    canvasOrientation: ORIENTATIONS.has(row.canvas_orientation) ? row.canvas_orientation : 'landscape',
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -148,7 +169,15 @@ function shapeItem(row) {
     // Serbest tuval konumu — pos_x -1 ise istemci bunu "hiç konumlandırılmamış" sayıp otomatik
     // yerleştirir (bkz. migrations/0094_board_canvas_and_sharing.sql dosya başı yorumu).
     x: row.pos_x, y: row.pos_y, width: row.width, height: row.height, zIndex: row.z_index,
+    // Not stili (kullanıcı isteği madde 2) — NULL ise istemci varsayılanı (ink/14px/normal) uygular.
+    textColor: row.text_color || null, fontSize: row.font_size || null, fontWeight: row.font_weight || null,
   };
+}
+
+function shapeStroke(row) {
+  let points = [];
+  try { points = JSON.parse(row.points || '[]'); } catch { /* bozuk JSON — boş çizim olarak render edilir */ }
+  return { id: row.id, points, color: row.color, strokeWidth: row.stroke_width, createdAt: row.created_at };
 }
 
 async function listCollections(env, user) {
@@ -190,11 +219,16 @@ async function listCollections(env, user) {
 async function getCollection(env, user, id) {
   const access = await resolveAccess(env, user, id);
   if (!access) return errorJson('Bulunamadı', 404);
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM collection_items WHERE collection_id = ? ORDER BY position, created_at`
-  ).bind(id).all();
+  const [{ results }, { results: strokeRows }] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM collection_items WHERE collection_id = ? ORDER BY position, created_at`).bind(id).all(),
+    env.DB.prepare(`SELECT * FROM board_strokes WHERE collection_id = ? ORDER BY created_at`).bind(id).all(),
+  ]);
   const previewImages = results.filter(r => r.image).slice(0, 4).map(r => r.image);
-  return json({ item: shapeCollection(access.collection, results.length, previewImages, access.role), items: results.map(shapeItem) });
+  return json({
+    item: shapeCollection(access.collection, results.length, previewImages, access.role),
+    items: results.map(shapeItem),
+    strokes: strokeRows.map(shapeStroke),
+  });
 }
 
 async function createCollection(request, env, user) {
@@ -237,6 +271,10 @@ async function updateCollection(request, env, user, id) {
   }
   if ('description' in body) { sets.push('description = ?'); vals.push(trimOrNull(body.description, MAX_DESCRIPTION_LEN)); }
   if ('coverImage' in body) { sets.push('cover_image = ?'); vals.push(safeInternalPath(body.coverImage)); }
+  if ('canvasOrientation' in body) {
+    if (!ORIENTATIONS.has(body.canvasOrientation)) return errorJson('Geçersiz kağıt yönü.');
+    sets.push('canvas_orientation = ?'); vals.push(body.canvasOrientation);
+  }
   if (!sets.length) return errorJson('Güncellenecek alan yok.');
 
   sets.push('updated_at = ?'); vals.push(Date.now());
@@ -252,6 +290,7 @@ async function deleteCollection(env, user, id) {
   await env.DB.batch([
     env.DB.prepare(`DELETE FROM collection_items WHERE collection_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM board_shares WHERE collection_id = ?`).bind(id),
+    env.DB.prepare(`DELETE FROM board_strokes WHERE collection_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM collections WHERE id = ? AND user_id = ?`).bind(id, user.id),
   ]);
   return json({ ok: true });
@@ -418,15 +457,78 @@ async function getSharedCollection(env, token) {
     `SELECT * FROM collections WHERE share_token = ? LIMIT 1`
   ).bind(token).first();
   if (!row) return errorJson('Bulunamadı', 404);
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM collection_items WHERE collection_id = ? ORDER BY position, created_at`
-  ).bind(row.id).all();
+  const [{ results }, { results: strokeRows }] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM collection_items WHERE collection_id = ? ORDER BY position, created_at`).bind(row.id).all(),
+    env.DB.prepare(`SELECT * FROM board_strokes WHERE collection_id = ? ORDER BY created_at`).bind(row.id).all(),
+  ]);
   const previewImages = results.filter(r => r.image).slice(0, 4).map(r => r.image);
   const shaped = shapeCollection(row, results.length, previewImages, 'viewer');
   // Paylaşılan görünümde pano id'si sızdırılmaz: id'yi bilen biri yazma uçlarını deneyemesin
   // (denese de findOwnCollection user_id ile eşleşmediğinden 404 alırdı — bu ek bir savunma katmanı).
   delete shaped.id;
-  return json({ item: shaped, items: results.map(shapeItem) });
+  return json({ item: shaped, items: results.map(shapeItem), strokes: strokeRows.map(shapeStroke) });
+}
+
+// Not stili (kullanıcı isteği madde 2) — TEK öğe PATCH'i, yalnızca gönderilen alanlar güncellenir.
+async function updateItemStyle(request, env, user, collectionId, itemId) {
+  const access = await resolveAccess(env, user, collectionId);
+  if (!access || access.role === 'viewer') return errorJson('Bulunamadı', 404);
+  const body = await readJson(request);
+  const sets = [];
+  const vals = [];
+  if ('textColor' in body) {
+    if (body.textColor !== null && !HEX_COLOR_RE.test(body.textColor)) return errorJson('Geçersiz renk.');
+    sets.push('text_color = ?'); vals.push(body.textColor);
+  }
+  if ('fontSize' in body) {
+    const size = Math.trunc(clampNum(body.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, 14));
+    sets.push('font_size = ?'); vals.push(size);
+  }
+  if ('fontWeight' in body) {
+    if (!FONT_WEIGHTS.has(body.fontWeight)) return errorJson('Geçersiz yazı kalınlığı.');
+    sets.push('font_weight = ?'); vals.push(body.fontWeight);
+  }
+  if (!sets.length) return errorJson('Güncellenecek alan yok.');
+  await env.DB.prepare(`UPDATE collection_items SET ${sets.join(', ')} WHERE id = ? AND collection_id = ?`).bind(...vals, itemId, collectionId).run();
+  return json({ ok: true });
+}
+
+// ---- Çizim Aracı (kullanıcı isteği madde 2) ----
+
+async function addStroke(request, env, user, collectionId) {
+  const access = await resolveAccess(env, user, collectionId);
+  if (!access || access.role === 'viewer') return errorJson('Bulunamadı', 404);
+  if (!(await checkRateLimit(env, 'board-stroke', user.id, 300, 60 * 60 * 1000))) {
+    return errorJson('Çok fazla çizim yaptın, birkaç dakika sonra tekrar dene.', 429, { 'Retry-After': '3600' });
+  }
+  const countRow = await env.DB.prepare(`SELECT COUNT(*) AS c FROM board_strokes WHERE collection_id = ?`).bind(collectionId).first();
+  if ((countRow?.c || 0) >= MAX_STROKES_PER_COLLECTION) {
+    return errorJson(`Bir panoya en fazla ${MAX_STROKES_PER_COLLECTION} çizim eklenebilir.`);
+  }
+
+  const body = await readJson(request);
+  if (!Array.isArray(body.points) || body.points.length < 2) return errorJson('Geçersiz çizim.');
+  const points = body.points.slice(0, MAX_STROKE_POINTS)
+    .filter(p => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+    .map(([x, y]) => [clampNum(x, POS_MIN, POS_MAX, 0), clampNum(y, POS_MIN, POS_MAX, 0)]);
+  if (points.length < 2) return errorJson('Geçersiz çizim.');
+  const color = HEX_COLOR_RE.test(body.color) ? body.color : '#1B2A3D';
+  const strokeWidth = clampNum(body.strokeWidth, STROKE_WIDTH_MIN, STROKE_WIDTH_MAX, 3);
+
+  const id = newId();
+  const now = Date.now();
+  await env.DB.prepare(
+    `INSERT INTO board_strokes (id, collection_id, points, color, stroke_width, created_by_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, collectionId, JSON.stringify(points), color, strokeWidth, user.id, now).run();
+  await env.DB.prepare(`UPDATE collections SET updated_at = ? WHERE id = ?`).bind(now, collectionId).run();
+  return json({ item: { id, points, color, strokeWidth, createdAt: now } }, 201);
+}
+
+async function deleteStroke(env, user, collectionId, strokeId) {
+  const access = await resolveAccess(env, user, collectionId);
+  if (!access || access.role === 'viewer') return errorJson('Bulunamadı', 404);
+  await env.DB.prepare(`DELETE FROM board_strokes WHERE id = ? AND collection_id = ?`).bind(strokeId, collectionId).run();
+  return json({ ok: true });
 }
 
 // ---- Ortak çalışma / davetler (kullanıcı isteği madde 3) ----

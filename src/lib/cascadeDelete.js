@@ -155,6 +155,11 @@ export async function cascadeDeleteAccount(env, userId) {
     // olabilir (collection_id üzerinden), (b) kendisi başka birinin panosuna davetli olabilir
     // (user_id üzerinden) — ikisi de collections satırından ÖNCE, açıkça silinir.
     env.DB.prepare(`DELETE FROM board_shares WHERE collection_id IN (SELECT id FROM collections WHERE user_id = ?)`).bind(userId),
+    // board_strokes (Çizim Aracı, bkz. migrations/0095_board_a4_canvas_and_strokes.sql) — AYNI
+    // gerekçe: sildiği panoların çizimleri (collection_id) + başka birinin panosuna çizdiği izler
+    // (created_by_user_id) ikisi de collections'tan ÖNCE temizlenir.
+    env.DB.prepare(`DELETE FROM board_strokes WHERE collection_id IN (SELECT id FROM collections WHERE user_id = ?)`).bind(userId),
+    env.DB.prepare(`DELETE FROM board_strokes WHERE created_by_user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM board_shares WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM collections WHERE user_id = ?`).bind(userId),
     env.DB.prepare(`DELETE FROM notifications WHERE user_id = ?`).bind(userId),
