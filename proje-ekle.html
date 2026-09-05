@@ -420,12 +420,26 @@
     position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:190px; overflow-y:auto; z-index:4;
     background:var(--paper-card); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 28px rgba(27,42,61,0.18);
   }
+  /* Öneri satırı: solda küçük ürün önizlemesi, sağda ad + marka (kullanıcı isteği, 2026-09-05:
+     "ürün aratırken ürünün önizleme görseli de isminin yanında gözüksün"). display:flex — eskiden
+     display:block idi, görsel eklenince ad görselin ALTINA düşerdi. */
   .hs-ac-list button{
-    display:block; width:100%; text-align:left; padding:8px 11px; border:none; background:none;
-    font-family:inherit; font-size:12.5px; color:var(--ink); cursor:pointer;
+    display:flex; align-items:center; gap:9px; width:100%; text-align:left; padding:8px 11px;
+    border:none; background:none; font-family:inherit; font-size:12.5px; color:var(--ink); cursor:pointer;
   }
   .hs-ac-list button:hover{background:var(--paper-alt);}
   .hs-ac-list .hs-ac-sub{display:block; font-size:11px; color:var(--ink-soft);}
+  /* flex:0 0 auto + min-width:0 ikilisi: küçük görsel uzun ürün adı yüzünden ezilmesin, metin de
+     taşmak yerine kısalsın. object-fit:contain — ürün görselleri çoğunlukla beyaz zeminli katalog
+     kareleri, cover onları kırpardı. */
+  .hs-ac-thumb{
+    flex:0 0 34px; width:34px; height:34px; border-radius:7px; overflow:hidden;
+    background:var(--paper-alt); display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:var(--ink-soft);
+  }
+  .hs-ac-thumb img{width:100%; height:100%; object-fit:contain; display:block;}
+  .hs-ac-text{min-width:0; flex:1;}
+  .hs-ac-text > span:first-child{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   @media (max-width:720px){
     .hs-overlay{padding:12px;}
     .hs-stage img{max-height:calc(100vh - 210px);}
@@ -777,7 +791,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
       Kırp
     </button>
-    <div class="hs-hint">Görseldeki ürünlere tıklayarak tek görselde en fazla üç ürün etiketleyebilir ve mevcut etiketleri tıklayarak düzenleyip silebilirsiniz.</div>
+    <!-- Sayı HS_MAX_PER_IMAGE ile aynı olmalı (bkz. o sabitin üstündeki not). 2026-09-05'te 3 -> 4
+         oldu ve bu metin geride kalmıştı: kullanıcı ekran görüntüsünde "en fazla üç ürün" yazarken
+         form dört ürüne izin veriyordu. -->
+    <div class="hs-hint">Görseldeki ürünlere tıklayarak tek görselde en fazla dört ürün etiketleyebilir, aynı ürünü farklı görsellerde de işaretleyebilir ve mevcut etiketleri tıklayarak düzenleyip silebilirsiniz.</div>
     <button type="button" class="hs-nav hs-nav-prev" id="hs-prev" aria-label="Önceki görsel">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -1701,7 +1718,18 @@ function openHotspotForm(xPct, yPct, editIndex){
     acList.className = 'hs-ac-list';
     // escapeAttr — bu sayfada escapeHtml TANIMLI DEĞİL (bkz. yukarısı, yalnızca escapeAttr var);
     // escapeAttr metin içeriği için de güvenli (üstüne tırnakları da kaçırır).
-    acList.innerHTML = items.map(it => `<button type="button" data-slug="${escapeAttr(it.slug)}" data-title="${escapeAttr(it.label)}" data-brand="${escapeAttr(it.brand || '')}">${escapeAttr(it.label)}${it.sub ? `<span class="hs-ac-sub">${escapeAttr(it.sub)}</span>` : ''}</button>`).join('');
+    // Önizleme görseli /api/products/search'ten `image` alanıyla gelir (kullanıcı isteği,
+    // 2026-09-05). Görseli olmayan üründe baş harf yer tutucusu çizilir — boş bir kare, satırların
+    // hizasını bozmadan "görsel yok"u anlatır. onerror: R2'de bulunamayan bir görsel kırık ikon
+    // bırakmasın, yer tutucuya düşsün.
+    acList.innerHTML = items.map(it => {
+      const initial = escapeAttr((it.label || '?').trim().charAt(0).toLocaleUpperCase('tr'));
+      const src = it.image ? (typeof cdnImg === 'function' ? cdnImg(it.image, 120) : it.image) : '';
+      const thumb = src
+        ? `<span class="hs-ac-thumb"><img src="${escapeAttr(src)}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></span>`
+        : `<span class="hs-ac-thumb">${initial}</span>`;
+      return `<button type="button" data-slug="${escapeAttr(it.slug)}" data-title="${escapeAttr(it.label)}" data-brand="${escapeAttr(it.brand || '')}">${thumb}<span class="hs-ac-text"><span>${escapeAttr(it.label)}</span>${it.sub ? `<span class="hs-ac-sub">${escapeAttr(it.sub)}</span>` : ''}</span></button>`;
+    }).join('');
     acWrap.appendChild(acList);
     acList.querySelectorAll('button').forEach(btn=>{
       btn.addEventListener('click', ()=>{

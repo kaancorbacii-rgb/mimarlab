@@ -55,7 +55,13 @@ const HotspotTagger = (function () {
         background:none; text-align:left; font-size:12.5px; font-family:inherit; color:inherit; cursor:pointer;
       }
       .ht-ac-list button:hover{background:var(--paper-alt, #F2F1EE);}
-      .ht-ac-list img{width:30px; height:30px; border-radius:6px; object-fit:contain; flex:0 0 30px; background:var(--paper-alt, #F2F1EE);}
+      .ht-ac-thumb{
+        flex:0 0 30px; width:30px; height:30px; border-radius:6px; overflow:hidden;
+        background:var(--paper-alt, #F2F1EE); display:flex; align-items:center; justify-content:center;
+        font-size:11px; font-weight:700; color:var(--ink-soft, #6B7280);
+      }
+      .ht-ac-thumb img{width:100%; height:100%; object-fit:contain; display:block;}
+      .ht-ac-text{min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis;}
       .ht-ac-sub{display:block; font-size:11px; color:var(--ink-soft, #6B7280);}
       .ht-msg{margin:9px 0 0; font-size:11.5px; line-height:1.45;}
       .ht-msg.err{color:#B84C4C;}
@@ -207,11 +213,18 @@ const HotspotTagger = (function () {
       if (!openForm) return;
       acList = document.createElement('div');
       acList.className = 'ht-ac-list';
-      acList.innerHTML = items.map(it => `
-        <button type="button" data-slug="${esc(it.slug)}" data-title="${esc(it.title)}">
-          ${it.image ? `<img src="${esc(typeof cdnImg === 'function' ? cdnImg(it.image, 120) : it.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
-          <span>${esc(it.title)}${it.brand ? `<span class="ht-ac-sub">${esc(it.brand)}</span>` : ''}</span>
-        </button>`).join('');
+      // Görseli olmayan üründe baş harf yer tutucusu (proje-ekle.html#hs-ac-thumb ile AYNI desen) —
+      // boş bırakmak satırların hizasını bozuyordu.
+      acList.innerHTML = items.map(it => {
+        const src = it.image ? (typeof cdnImg === 'function' ? cdnImg(it.image, 120) : it.image) : '';
+        const thumb = src
+          ? `<span class="ht-ac-thumb"><img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()"></span>`
+          : `<span class="ht-ac-thumb">${esc((it.title || '?').trim().charAt(0).toLocaleUpperCase('tr'))}</span>`;
+        return `<button type="button" data-slug="${esc(it.slug)}" data-title="${esc(it.title)}">
+          ${thumb}
+          <span class="ht-ac-text">${esc(it.title)}${it.brand ? `<span class="ht-ac-sub">${esc(it.brand)}</span>` : ''}</span>
+        </button>`;
+      }).join('');
       acWrap.appendChild(acList);
       acList.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('click', () => {

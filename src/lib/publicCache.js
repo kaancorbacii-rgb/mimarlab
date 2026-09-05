@@ -358,7 +358,12 @@ async function withSingleFlight(key, fn) {
 //     tuzağı: bu uç, fingerprint'i projects/products satırlarının updated_at'inden türetmiyor ve
 //     yalnızca yanıt ŞEKLİ değişti — sürüm artırılmazsa sayfayı daha önce açmış ziyaretçiler eski
 //     ETag'le 304 alıp yeni alanları HİÇ görmez, sayfa da o bölümleri "veri yok" sayıp kaldırırdı.
-const API_PAYLOAD_VERSION = 'v14';
+// v15 (kullanıcı isteği, 2026-09-05): /api/products/search öneri satırlarına `image` (ilk ürün
+//     görseli) eklendi — proje-ekle.html'deki işaretçi editörü ve "Ürün Etiketle" formu artık ürün
+//     adının yanında küçük bir önizleme çiziyor. v5-v14'ün AYNI tuzağı, burada daha da keskin: bu
+//     uç bir ARAMA yolu (isSearchPath) ve listFingerprint TAŞIMIYOR, yani sürüm artırılmazsa daha
+//     önce aynı sorguyu yapmış istemciler eski ETag'le 304 alır ve görselsiz gövdede süresiz kalır.
+const API_PAYLOAD_VERSION = 'v15';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

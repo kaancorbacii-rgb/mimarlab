@@ -116,7 +116,11 @@ export async function handleProductSearchRoute(request, env, url) {
     // title_fold önek yolu) filtresi artık SQLite içinde; önceden TÜM ürünler Worker'a çekiliyordu.
     const brandCond = brand ? ' AND (p.brand_fold = ? OR o.name_fold = ?)' : '';
     const brandParams = brand ? [brand, brand] : [];
-    const baseSelect = `SELECT p.slug, p.title, p.brand_name_raw, o.name AS office_name
+    // p.images: öneri satırında ürünün küçük ÖNİZLEME GÖRSELİ için (kullanıcı isteği, 2026-09-05:
+    // "ürün aratırken ürünün önizleme görseli de isminin yanında gözüksün"). Kolon TAM JSON dizisi
+    // olarak okunur ama dışarıya YALNIZCA ilk görselin URL'si verilir (bkz. aşağıdaki map) —
+    // 20-500 satırlık bir öneri listesinde tüm galerileri yüke koymak boşuna kilobayt olurdu.
+    const baseSelect = `SELECT p.slug, p.title, p.brand_name_raw, p.images, o.name AS office_name
        FROM products p LEFT JOIN offices o ON o.id = p.brand_office_id
        WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL${brandCond}`;
     // q yoksa (yalnızca ?brand= verilmiş — marka seçilince o markanın ürünlerini listeleme akışı)
@@ -141,6 +145,9 @@ export async function handleProductSearchRoute(request, env, url) {
         sub: r.brand_name_raw || r.office_name || '',
         brand: r.brand_name_raw || r.office_name || '',
         slug: r.slug,
+        // Öneri satırındaki küçük önizleme (kullanıcı isteği, 2026-09-05). Görseli olmayan ürün
+        // null döner; istemci o satırda görsel yerine baş harfli bir yer tutucu çizer.
+        image: firstImage(r.images),
       }));
     return { items };
   });
