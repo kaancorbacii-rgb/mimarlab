@@ -15,20 +15,18 @@ bilgi yazmak olurdu. Bu yüzden kaynak olarak markanın KENDİ referans listesi 
 `https://www.koleksiyondesign.com/tr/projeler/` (sitemap.xml'den 34 proje).
 
 =============================================================================================
-ÜRÜN DÜZEYİ KENAR (project_products) BU PARTİDE DE YAZILMIYOR — kanıt yok.
+ÜRÜN DÜZEYİ KENAR — BU DOSYADAKİ İLK SONUÇ YANLIŞTI, DÜZELTİLDİ
 =============================================================================================
-Görev metni proje künyesinde ÜRÜNLERİN de listelenmesini istiyor. koleksiyondesign.com'un proje
-detay sayfalarında "Bu Projedeki Ürünler" ızgarası YOK; 2026-09-05'te yeniden ölçüldü (sayfalar
-bu arada `/tr/projeler/<kategori>/<slug>/` yoluna taşınmış):
+Bu dosyanın ilk sürümü "koleksiyondesign.com proje sayfalarında ürün ızgarası YOK" diyerek hiç
+`project_products` yazmamıştı. **YANLIŞTI — ÖRNEKLEM HATASI:** yalnızca DÖRT projeye bakılmıştı
+(unilever/tbwa/sahibinden/mercedes-benz) ve dördü de ürünsüz sayfalardı. Ayrıca kullanılan regex
+sondaki '/' karakterini zorunlu tutuyordu, sayfadaki bağlantılar ise onu taşımıyor.
 
-    unilever / tbwa / sahibinden / mercedes-benz / calisma listesi
-      -> sayfa başına /urunler/... bağlantısı sayısı: 0
+34 projenin TAMAMI yeniden tarandığında 4 projede gerçek ürün listesi bulundu (11 bağlantı) ve
+bunlardan MİMARLAB'da karşılığı olan tek proje için ürün kenarları YAZILDI —
+bkz. `crosstag-koleksiyon4-project-products.py` (Villa Topos <- Terna/Homer/Milos).
 
-Yani "bu projede Koleksiyon'un HANGİ ürünü kullanıldı" sorusunun kaynakta bir cevabı yok.
-Uydurulmuş bir ürün kenarı, proje popup'ının künyesinde doğrulanamaz bir iddia olurdu — bu
-yüzden YALNIZCA marka↔proje kenarı (project_brands) yazılır. Ürün kenarları, sitede zaten
-çalışan iki gerçek yoldan doğar: (a) proje sahibinin proje-ekle.html'de kurduğu bağ,
-(b) görsel üzeri ürün işaretçileri (bkz. migrations/0076 + src/routes/hotspotTags.js).
+Bu dosya artık YALNIZCA marka↔proje (project_brands) kenarından sorumludur.
 
 =============================================================================================
 BU PARTİDE EKLENEN TEK YENİ EŞLEŞME
