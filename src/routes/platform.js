@@ -195,9 +195,13 @@ async function buildHotspotShowcase(env, rows) {
       points,
       brands: [...new Set(points.map(pt => pt.brand).filter(Boolean))],
     });
-    if (out.length >= 6) break;
   }
-  return out;
+  // EN ZENGİN ÖRNEK ÖNCE. Sıralama SQL'deki updated_at DESC'ten devralınsaydı sayfanın açılışta
+  // gösterdiği örnek rastgele olurdu — canlıda ilk turda tek işaretçili bir proje başa geldi ve
+  // bölümün tüm anlatısı ("fotoğraftaki ürünleri işaretle") tek bir daireyle temsil edildi.
+  // Kesme (slice) sıralamadan SONRA yapılır ki en zengin altı örnek seçilsin, ilk altı DEĞİL.
+  out.sort((a, b) => b.points.length - a.points.length);
+  return out.slice(0, 6);
 }
 
 function firstImage(imagesJson) {
