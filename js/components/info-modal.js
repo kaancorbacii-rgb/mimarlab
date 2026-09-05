@@ -767,9 +767,16 @@ const InfoModal = (function () {
     // isteğinden ("İstatistik erişimini altın üyeyle sınırla") sonra ERİŞİM de öyle: kapı artık
     // 'gold' kademesi arıyor (bkz. src/lib/analyticsAccess.js#hasAnalyticsAccess). Yani bu satır
     // artık salt tanıtım değil, gerçek kuralın birebir karşılığı.
+    //
+    // "Görselde Ürün Etiketleme" (kullanıcı isteği, 2026-09-05: "sadece rozeti olan kullanıcılara
+    // has olsun ... rozet al sayfasında bu özellikten ayrıcalık olarak bahset") HER İKİ kademede
+    // de listelenir, çünkü kapı kademe AYIRT ETMİYOR: src/routes/hotspotTags.js#hasTaggingAccess
+    // yalnızca "aktif rozet var mı" diye soruyor (badgeAccess.js#hasAnyActiveBadge). Bir kademeye
+    // özel yazılsaydı tanıtım ile gerçek kural ayrışırdı — İstatistikler'de bilerek kaçınılan hata.
+    const TAGGING_PERK = 'Proje görsellerinde ürün etiketleme özelliğini açar: katalogdaki herhangi bir ürünü projenin fotoğrafında işaretlersin, markanın onayından sonra işaretçi herkese görünür.';
     const BADGE_TIERS = [
-      { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.'] },
-      { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.', 'Hesabım sayfasında Profil İstatistikleri bölümünü açar: profil ve içerik görüntülenmeleri, arama gösterimleri, kaydetmeler, takipçiler ve mesaj analizleri.'] },
+      { type: 'verified', label: 'Doğrulanmış Üye', selfPrice: 49, officePrice: 129, perks: ['Doğrulanmış Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.', TAGGING_PERK] },
+      { type: 'gold', label: 'Altın Üye', selfPrice: 99, officePrice: 199, perks: ['Altın Üye rozeti verir.', 'Tüm kullanıcılara mesaj gönderip tüm kullanıcılardan mesaj alabilme özelliğini açar.', 'Panolarını dışa PDF aktarma özelliğini açar.', TAGGING_PERK, 'Hesabım sayfasında Profil İstatistikleri bölümünü açar: profil ve içerik görüntülenmeleri, arama gösterimleri, kaydetmeler, takipçiler ve mesaj analizleri.'] },
     ];
     const BADGE_STATUS_LABELS = { pending: 'İnceleniyor', active: 'Aktif' };
     const BADGE_RANK = { gold: 2, verified: 1 };

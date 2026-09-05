@@ -28,8 +28,14 @@ function injectGalleryBarStyles(){
       position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
       display:flex; align-items:center; gap:10px; max-width:calc(100% - 24px);
     }
-    /* Sayacin kendi mutlak konumlandirmasi (sayfa CSS'inde) cubugun icinde notrlenir. */
-    .lightbox-bottombar .lightbox-counter{position:static; transform:none; left:auto; bottom:auto;}
+    /* Sayacin kendi mutlak konumlandirmasi (sayfa CSS'inde) cubugun icinde notrlenir.
+       flex:0 0 auto + white-space:nowrap SART (yerel testte goruldu): sayac mutlak konumlandirmayken
+       kendi icerigi kadar genisliyordu, flex satirina girince kucultulebilir bir oge oldu ve dar
+       ekranlarda "26 / 38" ARALARINDAN kirilip uc satira yayildi. */
+    .lightbox-bottombar .lightbox-counter{
+      position:static; transform:none; left:auto; bottom:auto;
+      flex:0 0 auto; white-space:nowrap;
+    }
     .lightbox-tag-btn{
       flex:0 0 auto; border:none; cursor:pointer; white-space:nowrap;
       color:#fff; font-size:13px; font-weight:600;
@@ -137,7 +143,21 @@ function initDetailGallery(opts){
     tagBtn.type = 'button';
     tagBtn.className = 'lightbox-tag-btn';
     tagBtn.textContent = 'Ürün Etiketle';
+    // ROZET KAPISI (kullanıcı isteği, 2026-09-05 takip: "Ürün Etiketle butonu ve özelliği sadece
+    // rozeti olan kullanıcılara has olsun ... Rozeti olmayanlar lightbox'ta Ürün Etiketle butonunu
+    // görmesinler."). Buton GİZLİ doğar ve yalnızca sunucu "evet" derse açılır — varsayılanın
+    // "gizli" olması şart: aksi halde yanıt gecikirse rozetsiz/oturumsuz ziyaretçiler butonu bir
+    // an için görürdü. Cevap oturum başına bir kez alınır (bkz. HotspotTagger.hasAccess).
+    // Bu YALNIZCA arayüz kararıdır; gerçek kapı sunucudadır (src/routes/hotspotTags.js#createTag).
+    tagBtn.style.display = 'none';
     lightboxBar.appendChild(tagBtn);
+    if(typeof HotspotTagger !== 'undefined'){
+      HotspotTagger.hasAccess().then(function(ok){
+        // Buton DOM'da kalıcı; galeri bu arada başka bir sahibe geçmiş olabilir (o durumda buton
+        // aşağıdaki dalda zaten kaldırılmıştır ve parentElement null'dır).
+        if(ok && tagBtn.parentElement) tagBtn.style.display = '';
+      });
+    }
   }
   // Galeri başka bir sahibe (ör. ürün modalı) geçtiyse önceki projeden kalan buton kaldırılır.
   if(!tagging && tagBtn){ tagBtn.remove(); tagBtn = null; }

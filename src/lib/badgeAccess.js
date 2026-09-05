@@ -99,6 +99,27 @@ export async function getPersonalAdminBadgesForUsers(env, userIds) {
   return map;
 }
 
+// "Bu hesabın HERHANGİ bir aktif rozeti var mı?" — kademe (verified/gold) AYIRT ETMEYEN kapılar
+// için. İstemcideki js/components/auth-modal.js#badgeAccessFrom ile AYNI üç kaynağa bakar:
+//   1. kendisi için aktif satın alma            (badge_requests target_type='self')
+//   2. bir marka/firma için aktif satın alma     (badge_requests target_type='office')
+//   3. sahiplendiği profile admin'in verdiği rozet (admin_badges + onaylı profile_claims)
+// 'destekci' hariç tutulur — o kademe 2026-08-29'da satın alınabilir olmaktan çıktı ve hiçbir hak
+// vermiyor (bkz. dosya başındaki not); BADGE_RANK'te olmadığından zaten rank 0.
+//
+// hasAnalyticsAccess (analyticsAccess.js) ile karıştırma: o KADEME arar ('gold'), bu ise yalnızca
+// varlık arar. İkisi bilerek ayrı — istatistikler Altın Üye'ye özel, ürün etiketleme (bkz.
+// src/routes/hotspotTags.js) her iki kademeye de açık.
+export async function hasAnyActiveBadge(env, userId) {
+  const row = await env.DB.prepare(
+    `SELECT 1 FROM badge_requests
+     WHERE user_id = ? AND status = 'active' AND badge_type != 'destekci'
+       AND (expires_at IS NULL OR expires_at > ?) LIMIT 1`
+  ).bind(userId, Date.now()).first();
+  if (row) return true;
+  return !!(await getPersonalAdminBadge(env, userId));
+}
+
 // Satın alınan (purchased) ile admin rozeti arasından EN YÜKSEK kademeliyi seçer — src/routes/
 // badges.js#computeBadgesPayload'daki "admin rozeti satın alınanın YERİNİ alır" kuralından farklı
 // olarak burada iki AYRI KAYNAK (kişisel satın alma + firma admin rozeti) birleştirildiğinden basit

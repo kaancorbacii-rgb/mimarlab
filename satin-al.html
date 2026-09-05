@@ -293,6 +293,14 @@ function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/
 // sunucu tarafı src/routes/badges.js#getBadgePrice ile BİREBİR aynı tutarı hesaplar (buradaki
 // gösterim yalnızca bilgilendirme amaçlı, gerçek tutar her zaman sunucuda targetType'a göre
 // doğrulanır).
+// DİKKAT — BU LİSTE CANLIDA GÖRÜNMEZ, DÜZENLEMEK İÇİN BURAYA BAKMA.
+// Bu sayfa artık doğrudan servis edilmiyor: /satin-al.html ve /satin-al, src/index.js#PATH_ALIASES
+// ile /rozet-al'a 301 yapıyor ve /rozet-al bir pop-up olarak açılıyor (bkz.
+// js/components/info-modal.js#rozetAlTemplate/mountRozetAl). Ayrıcalık listesinin TEK CANLI kaynağı
+// oradaki BADGE_TIERS'tır; aşağıdaki kopya 2026-09-04'ten beri bayat (PDF dışa aktarma, Profil
+// İstatistikleri ve ürün etiketleme ayrıcalıkları burada hiç yok). Bilerek güncellenmiyor —
+// senkronize tutmak, iki kaynağın sessizce ayrışmasına davetiye çıkarır; doğru olan tek kaynağa
+// bakmaktır (bkz. proje notu [[project_hesabim_html_is_dead_auth_modal_is_live]] — AYNI tuzak).
 const BADGE_TIERS = [
   { type:'verified', label:'Doğrulanmış Üye', selfPrice:49, officePrice:129, perks:[
     'Doğrulanmış Üye rozeti verir.',

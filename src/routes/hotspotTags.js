@@ -7,6 +7,7 @@ import { purgeSsrDetailCache } from '../lib/ssrCache.js';
 import { MAX_HOTSPOTS_PER_IMAGE } from '../lib/submissionTypes.js';
 import { foldTr } from '../lib/textMatch.js';
 import { escapeLike } from '../lib/searchFold.js';
+import { hasAnyActiveBadge } from '../lib/badgeAccess.js';
 
 // ============================================================================================
 // MARKA SAHİBİ ÜRÜN ETİKETLEME + ONAY AKIŞI (kullanıcı isteği, 2026-09-05 madde 5)
@@ -18,16 +19,28 @@ import { escapeLike } from '../lib/searchFold.js';
 //
 // TASARIM KARARLARI (ve NEDEN):
 //
-// 1) KİM ETİKETLEYEBİLİR — herkes değil, yalnızca "etiketlenebilir ürünü olan" hesaplar. Öneri
-//    formundaki ürün araması (GET .../my-products) admin'e TÜM ürünleri, diğer herkese YALNIZCA
-//    sahiplendiği ürünleri + sahiplendiği marka/firma profiline bağlı ürünleri döner. Böylece
-//    "kendi ürünlerini işaretlesinler" kuralı, POST'taki yetki kontrolüyle BİRLİKTE iki kez
-//    (arama + yazma) uygulanır — istemci filtresi tek başına bir yetki sınırı değildir.
+// 1) KİM ETİKETLEYEBİLİR — **ROZETLİ ÜYELER VE ADMİN** (kullanıcı isteği, 2026-09-05 takip:
+//    "Ürün Etiketle butonu ve özelliği sadece rozeti olan kullanıcılara has olsun. Rozeti olan tüm
+//    kullanıcılar tüm ürünleri etiketleme yetkisine sahip olsunlar ... Rozeti olmayanlar lightbox'ta
+//    Ürün Etiketle butonunu görmesinler.").
 //
-// 2) SAHİPLİK İKİ YOLDAN GELİR: products.claimed_by_user_id (ürünü doğrudan sahiplenmiş hesap) VEYA
-//    products.brand_office_id -> offices.claimed_by_user_id (markanın/firmanın profilini sahiplenmiş
-//    hesap). İkincisi olmadan "marka sahibi" ifadesi karşılıksız kalırdı: canlıda ürünlerin büyük
-//    kısmı tek tek sahiplenilmemiş, marka profili sahiplenilmiş durumda.
+//    İLK SÜRÜMDEN FARK: kapı önce "kendi ürünün" idi (ürünü ya da markasını sahiplenmiş olmak) ve
+//    ürün araması buna göre daraltılıyordu. Artık kapı ROZET; rozetli bir üye SİTEDEKİ HER ürünü
+//    etiketleyebilir. Yetkinin genişlemesi onay kuyruğunu ZAYIFLATMAZ, tam tersine onun varlık
+//    sebebini güçlendirir: etiketleyen kişi artık ürünle ilgisiz biri olabileceğinden, bildirim ve
+//    onay hâlâ ÜRÜNÜN/MARKANIN SAHİBİNE + adminlere gider (bkz. canDecide — orası DEĞİŞMEDİ).
+//
+//    Rozet kademesi (verified/gold) AYIRT EDİLMEZ — istek "rozeti olan tüm kullanıcılar" diyor.
+//    Kapı: badgeAccess.js#hasAnyActiveBadge (üç rozet kaynağını da kabul eder). İstemci tarafı
+//    (js/components/gallery.js butonu gizler) yalnızca UI'dır; GERÇEK kapı buradaki
+//    requireTaggingAccess'tir — /api/hotspot-tags/access yalnızca butonun gösterilip
+//    gösterilmeyeceğini söyler, hiçbir yetki VERMEZ.
+//
+// 2) ÜRÜN SAHİPLİĞİ artık ETİKETLEME yetkisini değil yalnızca ONAY yetkisini ve bildirim
+//    alıcılarını belirler. İki yoldan gelir: products.claimed_by_user_id (ürünü doğrudan
+//    sahiplenmiş hesap) VEYA products.brand_office_id -> offices.claimed_by_user_id (markanın/
+//    firmanın profilini sahiplenmiş hesap). İkincisi olmadan "marka sahibi" ifadesi karşılıksız
+//    kalırdı: canlıda ürünlerin büyük kısmı tek tek sahiplenilmemiş, marka profili sahiplenilmiş.
 //
 // 3) ONAY KUYRUĞU ATLATILAMAZ — POST, status'ü İSTEMCİDEN HİÇ OKUMAZ; yalnızca isteği yapanın
 //    rolüne bakar (admin -> 'approved' + anında uygula, diğer herkes -> 'pending'). Bkz. proje notu
@@ -46,7 +59,9 @@ const PENDING = 'pending';
 
 function isAdmin(user) { return !!user && user.role === 'admin'; }
 
-// Kullanıcının sahiplendiği ofis/marka id'leri — ürün sahipliğinin İKİNCİ yolu (bkz. tasarım notu 2).
+// Kullanıcının sahiplendiği ofis/marka id'leri. ETİKETLEME yetkisiyle ilgisi YOK (o artık rozete
+// bağlı, bkz. tasarım notu 1) — yalnızca ONAY tarafında kullanılır: "bana düşen bekleyen öneriler"
+// (listPending) sorgusu, kullanıcının markası altındaki ürünlere gelen önerileri bulmak için.
 async function ownedOfficeIds(env, userId) {
   const { results } = await env.DB.prepare(
     'SELECT id FROM offices WHERE claimed_by_user_id = ? AND deleted_at IS NULL'
@@ -54,21 +69,24 @@ async function ownedOfficeIds(env, userId) {
   return results.map(r => r.id);
 }
 
-// Bu kullanıcı bu ürünü etiketleyebilir mi? Admin her ürünü; diğerleri yalnızca kendi ürünlerini.
-// Ürün satırını da döndürür (çağıranlar başlık/marka için zaten ihtiyaç duyuyor) — ayrı bir SELECT
-// atmamak için.
-async function loadTaggableProduct(env, user, productSlug) {
-  const row = await env.DB.prepare(
+// ETİKETLEME KAPISI (bkz. tasarım notu 1): admin ya da HERHANGİ bir aktif rozet.
+async function hasTaggingAccess(env, user) {
+  if (isAdmin(user)) return true;
+  return hasAnyActiveBadge(env, user.id);
+}
+
+// Etiketlenecek ürünü yükler. ARTIK SAHİPLİK KONTROLÜ YOK (bkz. tasarım notu 1) — rozetli üye her
+// ürünü etiketleyebilir; buradaki tek koşul ürünün YAYINDA olmasıdır (silinmiş/gizlenmiş bir ürün,
+// tıklanınca 404'e götüren bir işaretçi üretirdi). Dönen satır ayrıca onay/bildirim tarafının
+// ihtiyaç duyduğu sahiplik alanlarını da taşır, ayrı bir SELECT atılmasın diye.
+async function loadPublishedProduct(env, productSlug) {
+  return env.DB.prepare(
     `SELECT p.id, p.slug, p.title, p.images, p.brand_name_raw, p.claimed_by_user_id, p.brand_office_id,
             o.name AS brand_office_name, o.claimed_by_user_id AS brand_owner_user_id
      FROM products p
      LEFT JOIN offices o ON o.id = p.brand_office_id AND o.deleted_at IS NULL
      WHERE p.slug = ? AND p.deleted_at IS NULL AND p.hidden_at IS NULL`
   ).bind(productSlug).first();
-  if (!row) return { row: null, allowed: false };
-  if (isAdmin(user)) return { row, allowed: true };
-  const allowed = row.claimed_by_user_id === user.id || row.brand_owner_user_id === user.id;
-  return { row, allowed };
 }
 
 // Bu öneriyi kim karara bağlayabilir: ürünün/markanın sahibi ya da admin (kullanıcı isteği:
@@ -180,10 +198,21 @@ export async function handleHotspotTagsRoute(request, env, url) {
   const segments = url.pathname.split('/').filter(Boolean); // ["api", "hotspot-tags", ...]
 
   const user = await getSessionUser(request, env);
+
+  // GET .../access — YALNIZCA "bu ziyaretçiye 'Ürün Etiketle' butonu gösterilsin mi" sorusunu
+  // yanıtlar (bkz. js/components/gallery.js). Diğer uçların aksine oturumsuz istekte 401 DEĞİL
+  // {canTag:false} döner: giriş yapmamış bir ziyaretçi için "hayır" doğru ve beklenen yanıttır,
+  // 401 ise her proje sayfasında gereksiz bir konsol hatası üretirdi. Hiçbir yetki VERMEZ —
+  // gerçek kapı createTag'deki hasTaggingAccess kontrolüdür.
+  if (segments.length === 3 && segments[2] === 'access' && request.method === 'GET') {
+    if (!user) return json({ canTag: false });
+    return json({ canTag: await hasTaggingAccess(env, user) });
+  }
+
   if (!user) return errorJson('Bu işlem için giriş yapmalısın.', 401);
 
   if (segments.length === 3 && segments[2] === 'my-products' && request.method === 'GET') {
-    return listMyProducts(env, user, url);
+    return listTaggableProducts(env, user, url);
   }
   if (segments.length === 3 && segments[2] === 'pending' && request.method === 'GET') {
     return listPending(env, user);
@@ -200,26 +229,23 @@ export async function handleHotspotTagsRoute(request, env, url) {
   return errorJson('Bulunamadı', 404);
 }
 
-// GET /api/hotspot-tags/my-products?q=... — etiketleme formunun ürün araması (bkz. tasarım notu 1).
+// GET /api/hotspot-tags/my-products?q=... — etiketleme formunun ürün araması.
+// Yol adı ('my-products') tarihsel: ilk sürümde liste kullanıcının KENDİ ürünleriyle sınırlıydı.
+// Artık kapı rozettir ve rozetli üye SİTEDEKİ TÜM yayında ürünleri görür (bkz. tasarım notu 1);
+// isim, dışarıdaki tek çağıranı (hotspot-tagger.js) kırmamak için korundu.
 // /api/products/search'ün YETKİYE DUYARLI karşılığı: o uç herkese açık ve önbelleklidir, bu uç
-// kullanıcıya özeldir ve ASLA önbelleklenmez.
-async function listMyProducts(env, user, url) {
+// oturuma bağlıdır ve ASLA önbelleklenmez.
+async function listTaggableProducts(env, user, url) {
+  if (!(await hasTaggingAccess(env, user))) {
+    return json({ items: [], canTag: false });
+  }
   const q = foldTr((url.searchParams.get('q') || '').trim());
   const params = [];
   let where = 'p.deleted_at IS NULL AND p.hidden_at IS NULL';
-  if (!isAdmin(user)) {
-    const officeIds = await ownedOfficeIds(env, user.id);
-    // Sahiplenilmiş ofis yoksa IN() boş kalır — geçersiz SQL üretmemek için sabit 0 ile doldurulur
-    // (hiçbir office id'si 0 değildir, yani koşul kapalı kalır).
-    const officePlaceholders = officeIds.length ? officeIds.map(() => '?').join(', ') : '0';
-    where += ` AND (p.claimed_by_user_id = ? OR p.brand_office_id IN (${officePlaceholders}))`;
-    params.push(user.id, ...officeIds);
-  }
   if (q) {
-    // title_fold/brand_fold — foldTr()'nin SQL karşılığını hesaplayan generated column'lar (bkz.
-    // migrations/0079). Buradaki liste zaten kullanıcının KENDİ ürünleriyle (en fazla birkaç yüz
-    // satır) sınırlı olduğundan foldedPrefixThenSubstring'in iki aşamalı index optimizasyonuna
-    // gerek yok; düz substring araması hem daha basit hem de bu boyutta ölçülebilir bir maliyet
+    // title_fold/brand_fold — foldTr()'nin SQL karşılığını hesaplayan generated column'lar ve
+    // ikisi de index'li (bkz. migrations/0079). Liste artık TÜM kataloğu kapsadığından (birkaç yüz
+    // ürün) LIMIT 40 ile sınırlanır; düz substring araması bu boyutta ölçülebilir bir maliyet
     // getirmiyor. % ve _ kullanıcı girdisinde joker anlamı kazanmasın diye kaçışlanır.
     where += " AND (p.title_fold LIKE ? ESCAPE '\\' OR p.brand_fold LIKE ? ESCAPE '\\')";
     const like = `%${escapeLike(q)}%`;
@@ -235,13 +261,18 @@ async function listMyProducts(env, user, url) {
   ).bind(...params).all();
   return json({
     items: results.map(r => ({ slug: r.slug, title: r.title, brand: r.brand, image: firstImage(r.images) })),
-    // İstemci, hiç ürünü olmayan bir hesaba arama kutusu yerine açıklayıcı bir mesaj gösterir.
-    canTag: isAdmin(user) || results.length > 0 || !!q,
+    canTag: true,
   });
 }
 
 // POST /api/hotspot-tags — yeni etiketleme önerisi. Admin'de anında uygulanır (kullanıcı isteği).
 async function createTag(request, env, user) {
+  // GERÇEK KAPI (bkz. tasarım notu 1) — istemcideki buton gizleme yalnızca UI'dır, yetki burada
+  // verilir. Doğrulama, gövde ayrıştırmasından ÖNCE: rozetsiz bir hesabın gönderdiği istek hiçbir
+  // sorgu/yazma tetiklemeden reddedilsin.
+  if (!(await hasTaggingAccess(env, user))) {
+    return errorJson('Ürün etiketleme rozetli üyelere özel bir ayrıcalıktır.', 403);
+  }
   const body = await readJson(request);
   const projectSlug = String(body.projectSlug || '').trim();
   const imageUrl = String(body.imageUrl || '').trim();
@@ -260,9 +291,10 @@ async function createTag(request, env, user) {
   try { images = JSON.parse(project.images || '[]'); } catch { images = []; }
   if (!Array.isArray(images) || !images.includes(imageUrl)) return errorJson('Bu görsel bu projeye ait değil.');
 
-  const { row: productRow, allowed } = await loadTaggableProduct(env, user, productSlug);
+  // Sahiplik ARANMAZ (bkz. tasarım notu 1) — rozetli üye her yayında ürünü etiketleyebilir; satırın
+  // sahiplik alanları yalnızca aşağıdaki bildirim alıcılarını belirlemek için okunur.
+  const productRow = await loadPublishedProduct(env, productSlug);
   if (!productRow) return errorJson('Ürün bulunamadı.', 404);
-  if (!allowed) return errorJson('Yalnızca kendi ürünlerini etiketleyebilirsin.', 403);
 
   const now = Date.now();
   const id = newId();

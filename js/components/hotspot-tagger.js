@@ -7,10 +7,12 @@
 // yazılır (bkz. src/routes/hotspotTags.js). Admin'in gönderdiği etiketleme sunucuda anında
 // uygulanır; kullanıcı sayfayı yenilediğinde işaretçiyi görür.
 //
-// Yetki İSTEMCİDE sorulmaz: butona basan herkese form açılır, ürün listesi sunucudan gelir ve
-// sunucu yalnızca kullanıcının kendi ürünlerini döner (admin'e hepsi). Etiketlenebilir ürünü
-// olmayan hesap boş liste yerine açıklayıcı bir mesaj görür. Böylece "buton her görselde gözüksün"
-// isteği, yetki kararını istemciye taşımadan karşılanır.
+// YETKİ (kullanıcı isteği, 2026-09-05 takip): özellik ROZETLİ üyelere (ve admin'e) özeldir ve
+// rozetli üye SİTEDEKİ HER ürünü etiketleyebilir — ürünü/markayı sahiplenmiş olması gerekmez.
+// Onay ise değişmedi: bildirim ve karar hakkı hep ÜRÜNÜN/MARKANIN sahibinde + adminlerde.
+// hasAccess() yalnızca butonun gösterilip gösterilmeyeceğini söyler (arayüz kararı); gerçek kapı
+// sunucudadır (src/routes/hotspotTags.js#createTag -> hasTaggingAccess), yani istemci kodunu
+// değiştirerek özellik açılamaz.
 const HotspotTagger = (function () {
   // Bu modül proje.html/en-iyi-100.html/kisi.html/index.html gibi farklı sayfalarda çalışır;
   // escapeHtml/escapeAttr globalleri her birinde tanımlı OLMAYABİLİR (bkz. proje notu:
@@ -79,6 +81,27 @@ const HotspotTagger = (function () {
     document.head.appendChild(style);
   }
 
+  // "Bu ziyaretçiye 'Ürün Etiketle' butonu gösterilsin mi" — oturum başına TEK istek, sonuç
+  // modül düzeyinde önbelleklenir (auth-modal.js#fetchBadgeAccess ile AYNI desen). gallery.js
+  // butonu bunun sonucuna göre açar. Yalnızca ARAYÜZ kararıdır: rozetsiz bir hesap butonu
+  // görmediği hâlde isteği elle gönderse bile sunucu 403 döner
+  // (src/routes/hotspotTags.js#createTag). Hata/oturumsuz durumda `false` — butonu göstermemek,
+  // basıldığında "yetkin yok" demekten iyidir.
+  let accessPromise = null;
+  function hasAccess() {
+    if (!accessPromise) {
+      accessPromise = fetch('/api/hotspot-tags/access')
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => !!(d && d.canTag))
+        .catch(() => false);
+    }
+    return accessPromise;
+  }
+  // Rozet alındığında/iade edildiğinde Hesabım bu olayı yayınlıyor (bkz. auth-modal.js'teki AYNI
+  // dinleyici) — önbelleği düşürmek, kullanıcının rozet aldıktan sonra sayfayı yenilemeden
+  // butonu görmesini sağlar.
+  window.addEventListener('mimarlab-badges-changed', () => { accessPromise = null; });
+
   let openForm = null;
   let openPin = null;
 
@@ -127,8 +150,8 @@ const HotspotTagger = (function () {
     form.className = 'ht-form';
     form.innerHTML = `
       <h4>Ürün Etiketle</h4>
-      <p class="ht-sub">Bu noktadaki ürünü seç. Etiketlemen marka sahibinin ve yöneticinin onayına gider; onaylanınca projede işaretçi olarak görünür.</p>
-      <div class="ht-ac"><input type="text" placeholder="Ürün adı yaz ve listeden seç" autocomplete="off"></div>
+      <p class="ht-sub">Bu noktadaki ürünü seç. Katalogdaki her ürünü işaretleyebilirsin; etiketlemen ürünün marka sahibinin ve yöneticinin onayına gider, onaylanınca projede işaretçi olarak görünür.</p>
+      <div class="ht-ac"><input type="text" placeholder="Ürün adı ya da marka yaz" autocomplete="off"></div>
       <p class="ht-msg" hidden></p>
       <div class="ht-actions">
         <button type="button" class="ht-save">Gönder</button>
@@ -169,13 +192,15 @@ const HotspotTagger = (function () {
         if (!res.ok) return;
         data = await res.json();
       } catch { return; }
+      // canTag:false = rozetsiz hesap (bkz. src/routes/hotspotTags.js#listTaggableProducts).
+      // Normalde bu forma hiç ulaşılamaz (buton gizli) ama rozet form açıkken sona ermiş olabilir.
+      if (data.canTag === false) {
+        showMsg('Ürün etiketleme rozetli üyelere özel bir ayrıcalıktır.', 'err');
+        return;
+      }
       const items = data.items || [];
       if (!items.length) {
-        // Sorgu boşken hiç ürün dönmemesi "bu hesabın etiketleyebileceği ürün yok" demektir;
-        // sorguyla dönmemesi ise sadece "eşleşme yok".
-        showMsg(q
-          ? 'Bu aramaya uyan ürünün yok.'
-          : 'Etiketleyebileceğin bir ürün bulunamadı. Yalnızca sahiplendiğin ürünleri ya da marka profiline bağlı ürünleri işaretleyebilirsin.', 'err');
+        showMsg(q ? 'Bu aramaya uyan ürün bulunamadı.' : 'Katalogda henüz ürün yok.', 'err');
         return;
       }
       showMsg('');
@@ -247,5 +272,5 @@ const HotspotTagger = (function () {
     form.querySelector('.ht-cancel').addEventListener('click', close);
   }
 
-  return { open, close };
+  return { open, close, hasAccess };
 })();
