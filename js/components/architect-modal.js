@@ -60,6 +60,18 @@ const ArchitectModal = (function () {
       }
       .follow-btn:hover{border-color:var(--walnut); color:var(--ink);}
       .follow-btn.following{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+      /* Danışmanlık Al — kullanıcı isteği, 2026-09-05: ŞİMDİLİK yalnızca kaan-corbaci profilinde
+         (bkz. renderItem'daki a.slug kapısı) Mesajlaşma ile Takip Et arasında görünen buton.
+         .follow-btn İLE AYNI pil ölçüsü/yüksekliği ama walnut dolgu ile öne çıkar. */
+      .consult-btn{
+        display:inline-flex; align-items:center; justify-content:center;
+        flex-shrink:1 !important; min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis;
+        height:32px !important; box-sizing:border-box;
+        background:var(--walnut); border:1px solid var(--walnut); border-radius:100px;
+        padding:0 14px !important; font-size:12px !important; font-weight:600; color:var(--paper-card);
+        font-family:inherit; line-height:1;
+      }
+      .consult-btn:hover{opacity:0.88;}
       .detail-info{margin-top:8px;}
       .detail-meta{font-size:14px; line-height:1.9; margin-top:18px;}
       .detail-meta strong{font-weight:600; color:var(--ink);}
@@ -689,6 +701,23 @@ const ArchitectModal = (function () {
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data) { followBtn.dataset.followerCount = String(data.count || 0); paintFollowBtn(followBtn); } })
       .catch(() => {});
+    // Danışmanlık Al — bkz. kullanıcı isteği (2026-09-05): ŞİMDİLİK yalnızca kaan-corbaci profilinde
+    // (id 20) görünür, diğer hiçbir kişi profilinde render EDİLMEZ. a.slug DB'deki canonical alan
+    // (bkz. src/routes/architect.js); architectKey (slugify(a.name)) fallback olarak da kontrol
+    // edilir — a.slug boş dönerse (ör. eski/legacy satır) buton yine de doğru profilde görünsün diye.
+    if ((a.slug === 'kaan-corbaci' || architectKey === 'kaan-corbaci') && headerActions) {
+      const consultBtn = document.createElement('button');
+      consultBtn.type = 'button';
+      consultBtn.className = 'consult-btn';
+      consultBtn.id = 'am-consult-btn';
+      consultBtn.textContent = 'Danışmanlık Al';
+      consultBtn.addEventListener('click', () => {
+        if (typeof ConsultationModal !== 'undefined') {
+          ConsultationModal.open({ hostSlug: a.slug || architectKey, hostName: a.name });
+        }
+      });
+      headerActions.appendChild(consultBtn);
+    }
     // Mesaj Gönder — bkz. kullanıcı isteği (2026-08-30): sadece rozeti olan mimar/firma profillerinde
     // gösterilsin, Paylaş ile aynı boyutta (bkz. message-button.js#injectStyles, .share-btn İLE
     // BİREBİR AYNI ölçüler); gerçek ikon renderVerifiedBadges() içinde (rozetler hazır olduğunda)

@@ -25,6 +25,7 @@ import { handleAnalyticsRoute } from './routes/analytics.js';
 import { handleRatingsRoute } from './routes/ratings.js';
 import { handleClaimsRoute, handleCorrectionsRoute } from './routes/claims.js';
 import { handleBadgesRoute, handlePublicBadges } from './routes/badges.js';
+import { handleConsultationsRoute } from './routes/consultations.js';
 import { handleTop100Route } from './routes/top100.js';
 import { handlePaymentsRoute } from './routes/payments.js';
 import { handleContactRoute } from './routes/contact.js';
@@ -1184,6 +1185,7 @@ async function routeApi(request, env, url, ctx) {
   if (path.startsWith('/api/claims')) return handleClaimsRoute(request, env, url);
   if (path.startsWith('/api/corrections')) return handleCorrectionsRoute(request, env, url);
   if (path.startsWith('/api/badges')) return handleBadgesRoute(request, env, url);
+  if (path.startsWith('/api/consultations')) return handleConsultationsRoute(request, env, url);
   if (path.startsWith('/api/payments/')) return handlePaymentsRoute(request, env, url);
   if (path.startsWith('/api/notifications')) return handleNotificationsRoute(request, env, url);
   // Marka sahibi ürün etiketleme önerileri (bkz. src/routes/hotspotTags.js). /api/projects/... ALTINA
