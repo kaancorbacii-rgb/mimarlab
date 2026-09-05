@@ -842,27 +842,32 @@ CREATE TABLE IF NOT EXISTS migration_name_conflicts (
 );
 CREATE INDEX IF NOT EXISTS idx_migration_conflicts_status ON migration_name_conflicts(entity_type, status);
 
--- ---------- Kaldırılmış "danışmanlık" özelliği (bkz. migrations/0040) ----------
--- 2026-08-10'da üründen kaldırıldı; hiçbir canlı route bu tabloyu okumuyor/yazmıyor.
--- migrations/0040_remove_consultant_schema.sql bu tabloyu (ve architects/
--- architect_submissions'daki consultant_* kolonlarını) DROP etmek için yazıldı ama
--- kendi başlığında belirttiği gibi PRODUCTION'a hiç uygulanmadı — production hâlâ bu
--- şemayı taşıyor, bu yüzden parity için burada belgeleniyor.
-
+-- ---------- "Danışmanlık Al" birebir mentörlük randevusu (0092/0093/0096) ----------
+-- Kişi popup'ında ŞİMDİLİK yalnızca "kaan-corbaci" profilinde gösteriliyor (bkz.
+-- js/components/architect-modal.js — a.slug === 'kaan-corbaci' kapısı, src/routes/
+-- consultations.js#ALLOWED_HOST_SLUGS ile ÇİFT kapılı). Bu, 2026-08-10'da kaldırılan ve hiç canlıya
+-- uygulanmamış eski consultant_key şemasının (migrations/0032/0039, hiçbir zaman production'da
+-- olmadı) YERİNE geçen, host_slug tabanlı GÜNCEL tablodur — schema.sql önceden yanlışlıkla o eski
+-- şemayı belgeliyordu, burası artık gerçek/canlı şemadır.
 CREATE TABLE IF NOT EXISTS consultation_requests (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id),
-  consultant_key TEXT NOT NULL,
+  host_slug TEXT NOT NULL,
   requested_date TEXT NOT NULL,
   requested_time TEXT NOT NULL,
-  price_try INTEGER,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','rejected','cancelled')),
+  price_try INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
   payment_provider TEXT NOT NULL DEFAULT 'havale',
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-, phone TEXT);
-CREATE INDEX IF NOT EXISTS idx_consultation_requests_consultant ON consultation_requests(consultant_key);
-CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id);
+  updated_at INTEGER NOT NULL,
+  contact_name TEXT,
+  contact_email TEXT,
+  contact_phone TEXT,
+  note TEXT,
+  has_rescheduled INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_consultation_requests_user ON consultation_requests(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_consultation_requests_host_status ON consultation_requests(host_slug, status, requested_date);
 
 -- (KALDIRILDI 2026-09-05 — bkz. migrations/0090_drop_dead_feature_tables.sql: Düello
 --  özelliği yayından çekilmişti, tablo(lar) production D1'den düşürüldü.)

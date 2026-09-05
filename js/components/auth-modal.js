@@ -3001,6 +3001,27 @@ const AuthModal = (function () {
     function threadIdFromLink(link) {
       return link && link.startsWith('msg:') ? link.slice(4) : null;
     }
+    // "Görüşme Detayı" popup (kullanıcı isteği, 2026-09-06, Aşama 4) — threadIdFromLink/
+    // hotspotTagIdFromLink İLE AYNI kalıp. kisi.html gibi ConsultationModal'ı zaten yükleyen
+    // sayfalar dışında (auth-modal.js site genelinde yüklendiğinden) consultation-detail-modal.js
+    // HER sayfada statik <script> ile eklenmek yerine yalnızca ihtiyaç anında (bu bildirime
+    // tıklanınca) tembel yüklenir.
+    function consultationIdFromLink(link) {
+      return link && link.startsWith('consultation:') ? link.slice('consultation:'.length) : null;
+    }
+    let consultationDetailModalLoad = null;
+    function ensureConsultationDetailModalLoaded() {
+      if (typeof ConsultationDetailModal !== 'undefined') return Promise.resolve();
+      if (!consultationDetailModalLoad) {
+        consultationDetailModalLoad = new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = '/js/components/consultation-detail-modal.js';
+          script.onload = () => resolve();
+          document.head.appendChild(script);
+        });
+      }
+      return consultationDetailModalLoad;
+    }
     function renderNotifList(items, page, setPage, containerId, paginationId, emptyText) {
       const container = document.getElementById(containerId);
       if (!items.length) {
@@ -3037,6 +3058,8 @@ const AuthModal = (function () {
           }
           const threadId = threadIdFromLink(item.link);
           if (threadId) { openMessageThread(threadId); return; }
+          const consultationId = consultationIdFromLink(item.link);
+          if (consultationId) { ensureConsultationDetailModalLoaded().then(() => ConsultationDetailModal.open(consultationId)); return; }
           // Ürün etiketleme onayı (kullanıcı isteği, 2026-09-05 madde 5) — bkz. openHotspotTagPrompt.
           const hotspotTagId = hotspotTagIdFromLink(item.link);
           if (hotspotTagId) { openHotspotTagPrompt(hotspotTagId); return; }

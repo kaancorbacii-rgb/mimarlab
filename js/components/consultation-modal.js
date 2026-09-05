@@ -21,6 +21,11 @@
 // onay (success). "Görüşme Tarihini Değiştir" onay ekranından book'a geri döner ve state.requestId
 // doluysa Devam Et artık YENİ bir talep açmaz, PATCH /api/consultations/:id ile mevcut talebin
 // tarih/saatini günceller (bkz. src/routes/consultations.js#updateConsultationRequest).
+//
+// Takvim, yatay tarih şeridinden AYLIK IZGARA'ya çevrildi (kullanıcı isteği, 2026-09-06): her gün
+// hücresinin altında yeşil (müsait)/kırmızı (kapalı ya da dolu) nokta gösterilir, geçmiş günler ve
+// ilk 24 saat noktasız/tıklanamaz. Doluluk src/routes/consultations.js#getAvailability'den (herkese
+// açık, kişisel veri İÇERMEZ) ay bazında çekilir — bkz. calendarState.availability.
 const ConsultationModal = (function () {
   const CONSULTATION_PRICE_TRY = 1500; // sunucudaki src/routes/consultations.js#CONSULTATION_PRICE_TRY İLE AYNI — burası yalnızca gösterim, gerçek fiyat sunucuda sabitlenir.
   const HAVALE_IBAN_FORMATTED = 'TR22 0004 6001 7088 8000 2482 94';
@@ -30,30 +35,29 @@ const ConsultationModal = (function () {
   // doğrular (istemciye güvenilmez).
   const ALLOWED_WEEKDAYS = new Set([1, 3, 5]);
   const ALLOWED_TIMES = ['18:00', '19:00', '20:00'];
-  const DATE_CHOICE_COUNT = 12; // ~4 haftalık ufuk (haftada 3 gün)
+  // src/routes/consultations.js#MIN_NOTICE_MS İLE AYNI — yalnızca takvimde günü erkenden
+  // noktasız/tıklanamaz göstermek için, asıl doğrulama sunucudadır.
+  const MIN_NOTICE_MS = 24 * 60 * 60 * 1000;
+  const WEEKDAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
   let popupApi = null;
 
   function pad2(n) { return String(n).padStart(2, '0'); }
   function isoDateLocal(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+  function capitalizeFirst(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-  // İstemci saat dilimi ne olursa olsun aynı takvim gününün haftanın aynı gününe denk gelmesi için
-  // yerel Date alanları kullanılır (bkz. src/routes/consultations.js#isAllowedSlot'taki AYNI gerekçe,
-  // orada UTC ayrıştırma ile simetriktir).
-  function nextAllowedDates(count) {
-    const out = [];
-    const cur = new Date();
-    cur.setHours(0, 0, 0, 0);
-    cur.setDate(cur.getDate() + 1); // bugün hariç, yarından başla
-    let guard = 0;
-    while (out.length < count && guard < 60) {
-      guard++;
-      if (ALLOWED_WEEKDAYS.has(cur.getDay())) {
-        out.push({ iso: isoDateLocal(cur), label: cur.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' }) });
-      }
-      cur.setDate(cur.getDate() + 1);
-    }
-    return out;
+  // Bir takvim gününün durumu — 'past' (geçmiş/ilk 24 saat, noktasız/tıklanamaz), 'red' (haftanın
+  // uygun olmayan günü YA DA tüm uygun saatler dolu), 'green' (en az bir saat seçilebilir).
+  // `bookedTimes`, o gün için zaten alınmış (pending/approved) saatlerin listesi.
+  function dayStatus(dateIso, todayIso, bookedTimes) {
+    if (dateIso < todayIso) return 'past';
+    const dow = new Date(`${dateIso}T00:00:00`).getDay();
+    if (!ALLOWED_WEEKDAYS.has(dow)) return 'red';
+    const cutoffMs = Date.now() + MIN_NOTICE_MS;
+    const eligible = ALLOWED_TIMES.filter((t) => new Date(`${dateIso}T${t}:00`).getTime() >= cutoffMs);
+    if (!eligible.length) return 'past'; // bugün/yarın — henüz ilk 24 saat dolmamış
+    const free = eligible.filter((t) => !(bookedTimes || []).includes(t));
+    return free.length ? 'green' : 'red'; // tamamen dolu
   }
 
   function formatDateTr(isoDate) {
@@ -82,12 +86,33 @@ const ConsultationModal = (function () {
         .cns-intro{font-size:13px; line-height:1.6; color:var(--ink-soft); margin:0 0 16px;}
         .cns-field-label{font-size:12px; font-weight:600; color:var(--ink-soft); margin:14px 0 6px;}
         .cns-field-label:first-of-type{margin-top:0;}
-        .cns-date-row{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:4px; -webkit-overflow-scrolling:touch;}
-        .cns-date-chip{flex-shrink:0; padding:9px 13px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:12.5px; font-weight:600; cursor:pointer; text-align:center; white-space:nowrap; font-family:inherit;}
-        .cns-date-chip.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
-        .cns-time-row{display:flex; gap:8px; margin-bottom:6px;}
-        .cns-time-chip{flex:1; padding:11px 6px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;}
+        .cns-notice-banner{display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.55; color:var(--ink); background:rgba(224,138,62,0.10); border:1px solid var(--accent); border-radius:10px; padding:10px 12px; margin:0 0 16px; font-weight:600;}
+        .cns-cal{border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:4px;}
+        .cns-cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+        .cns-cal-month{font-size:13.5px; font-weight:700; color:var(--ink); text-transform:capitalize;}
+        .cns-cal-nav{background:none; border:1px solid var(--line); border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink); font-size:15px; line-height:1; font-family:inherit;}
+        .cns-cal-nav:hover{background:var(--paper-alt);}
+        .cns-cal-nav:disabled{opacity:0.35; cursor:default;}
+        .cns-cal-nav:disabled:hover{background:none;}
+        .cns-cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:2px;}
+        .cns-cal-weekdays span{text-align:center; font-size:10.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase;}
+        .cns-cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px;}
+        .cns-cal-cell{aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:none; border:1.5px solid transparent; border-radius:8px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink); padding:2px;}
+        .cns-cal-cell-empty{visibility:hidden;}
+        .cns-cal-clickable{cursor:pointer;}
+        .cns-cal-clickable:hover{background:var(--paper-alt);}
+        .cns-cal-cell.active{border-color:var(--ink); background:var(--paper-alt);}
+        .cns-cal-disabled{color:var(--ink-soft); opacity:0.45; cursor:default;}
+        .cns-dot{display:block; width:5px; height:5px; border-radius:50%;}
+        .cns-dot-green{background:#3E7A55;}
+        .cns-dot-red{background:#B84C4C;}
+        .cns-cal-legend{display:flex; gap:16px; margin-top:10px; padding-top:8px; border-top:1px solid var(--line-soft); font-size:11px; color:var(--ink-soft);}
+        .cns-cal-legend span{display:flex; align-items:center; gap:5px;}
+        .cns-time-row{display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap;}
+        .cns-time-chip{flex:1; min-width:70px; padding:11px 6px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;}
         .cns-time-chip.active{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+        .cns-time-chip:disabled{cursor:default; opacity:0.5;}
+        .cns-time-taken{color:#B84C4C; border-color:#B84C4C; background:rgba(184,76,76,0.08);}
         .cns-back{display:inline-flex; align-items:center; gap:4px; background:none; border:none; color:var(--ink-soft); font-size:12.5px; font-weight:600; cursor:pointer; padding:0; margin-bottom:14px;}
         .cns-back:hover{color:var(--ink);}
         .cns-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:13px; border-radius:100px; font-weight:600; font-size:14.5px; margin-top:6px; cursor:pointer;}
@@ -140,13 +165,22 @@ const ConsultationModal = (function () {
 
         <div id="cns-screen-book">
           <p class="cns-intro" id="cns-intro"></p>
+          <div class="cns-notice-banner">Görüşme süresi 45 dakikadır. Saatler İstanbul (GMT+3) zaman dilimine göredir.</div>
           <div class="cns-field-label">Tarih</div>
-          <div class="cns-date-row" id="cns-date-row"></div>
-          <div class="cns-field-label">Saat</div>
-          <div class="cns-time-row" id="cns-time-row">
-            ${ALLOWED_TIMES.map(t => `<button type="button" class="cns-time-chip" data-time="${t}">${t}</button>`).join('')}
+          <div class="cns-cal">
+            <div class="cns-cal-head">
+              <button type="button" class="cns-cal-nav" id="cns-cal-prev" aria-label="Önceki ay">‹</button>
+              <div class="cns-cal-month" id="cns-cal-month">—</div>
+              <button type="button" class="cns-cal-nav" id="cns-cal-next" aria-label="Sonraki ay">›</button>
+            </div>
+            <div class="cns-cal-weekdays">${WEEKDAY_LABELS.map(w => `<span>${w}</span>`).join('')}</div>
+            <div class="cns-cal-grid" id="cns-cal-grid"></div>
+            <div class="cns-cal-legend"><span><i class="cns-dot cns-dot-green"></i>Müsait</span><span><i class="cns-dot cns-dot-red"></i>Kapalı / Dolu</span></div>
           </div>
+          <div class="cns-field-label" id="cns-time-label" style="display:none;">Saat</div>
+          <div class="cns-time-row" id="cns-time-row" style="display:none;"></div>
           <button class="cns-submit" type="button" id="cns-continue-btn" disabled>Devam Et</button>
+          <div class="cns-pay-notice" id="cns-book-notice"></div>
         </div>
 
         <div id="cns-screen-pay" style="display:none;">
@@ -192,7 +226,7 @@ const ConsultationModal = (function () {
 
         <div id="cns-screen-success" style="display:none;">
           <div class="cns-success-summary" id="cns-success-summary"></div>
-          <p class="cns-success-text">Ödemen onaylandıktan sonra Kaan Çorbacı e-posta adresinden görüşme linkini sana iletilecek. Görüşmenin faydalı geçmesini dileriz.</p>
+          <p class="cns-success-text" id="cns-success-text"></p>
           <button type="button" class="cns-btn-outline" id="cns-reschedule-btn">Görüşme Tarihini Değiştir</button>
           <button type="button" class="cns-submit" id="cns-success-close-btn">Tamam</button>
         </div>
@@ -201,8 +235,13 @@ const ConsultationModal = (function () {
 
     const titleEl = overlay.querySelector('#cns-title');
     const introEl = overlay.querySelector('#cns-intro');
-    const dateRowEl = overlay.querySelector('#cns-date-row');
+    const calPrevBtn = overlay.querySelector('#cns-cal-prev');
+    const calNextBtn = overlay.querySelector('#cns-cal-next');
+    const calMonthEl = overlay.querySelector('#cns-cal-month');
+    const calGridEl = overlay.querySelector('#cns-cal-grid');
+    const timeLabelEl = overlay.querySelector('#cns-time-label');
     const timeRowEl = overlay.querySelector('#cns-time-row');
+    const bookNotice = overlay.querySelector('#cns-book-notice');
     const continueBtn = overlay.querySelector('#cns-continue-btn');
     const bookScreen = overlay.querySelector('#cns-screen-book');
     const payScreen = overlay.querySelector('#cns-screen-pay');
@@ -221,11 +260,14 @@ const ConsultationModal = (function () {
     const noteInput = overlay.querySelector('#cns-note');
     const noteSendBtn = overlay.querySelector('#cns-note-send-btn');
     const successSummaryEl = overlay.querySelector('#cns-success-summary');
+    const successTextEl = overlay.querySelector('#cns-success-text');
     const rescheduleBtn = overlay.querySelector('#cns-reschedule-btn');
     const successCloseBtn = overlay.querySelector('#cns-success-close-btn');
     const CONFIRM_BTN_LABEL = 'Ödemeyi Yaptım';
 
-    const state = { hostSlug: null, hostName: null, requestId: null, date: null, time: null };
+    const state = { hostSlug: null, hostName: null, requestId: null, date: null, time: null, hasRescheduled: false };
+    const calendarState = { year: 0, month: 0, availability: {} };
+    let availReqSeq = 0;
     let prefill = { name: '', email: '' };
 
     function close() {
@@ -240,25 +282,91 @@ const ConsultationModal = (function () {
     // body.overflow'u 'hidden'da kilitli bırakmasın diye info-modal.js#ensureRozetPayPopup İLE AYNI temizlik.
     document.addEventListener('mimarlab-modal-closed', close);
 
-    function renderDateChips() {
-      const dates = nextAllowedDates(DATE_CHOICE_COUNT);
-      // Yeniden planlarken (Görüşme Tarihini Değiştir) mevcut seçim listede yoksa (ör. geçmişte
-      // kalmışsa) yine de başa eklenir ki kullanıcı "ne seçiliydi" bilgisini kaybetmesin.
-      if (state.date && !dates.some(d => d.iso === state.date)) {
-        dates.unshift({ iso: state.date, label: formatDateTr(state.date) });
+    // Ay ızgarasını (mevcut calendarState.year/month + calendarState.availability'e göre) çizer.
+    // Doluluk sunucudan zaten alınmışsa (loadAvailabilityForMonth) burası SADECE görüntüler, ağ
+    // isteği atmaz — ay değiştirmenin/gün seçmenin hızlı hissettirmesi için ayrıştırılmıştır.
+    function renderCalendarMonth() {
+      const y = calendarState.year, m = calendarState.month;
+      const now = new Date();
+      calMonthEl.textContent = capitalizeFirst(new Date(y, m, 1).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }));
+      const firstIdx = (new Date(y, m, 1).getDay() + 6) % 7; // Pazartesi=0 olacak şekilde kaydır
+      const numDays = new Date(y, m + 1, 0).getDate();
+      const todayIso = isoDateLocal(now);
+      let html = '';
+      for (let i = 0; i < firstIdx; i++) html += '<div class="cns-cal-cell cns-cal-cell-empty"></div>';
+      for (let day = 1; day <= numDays; day++) {
+        const iso = `${y}-${pad2(m + 1)}-${pad2(day)}`;
+        const status = dayStatus(iso, todayIso, calendarState.availability[iso]);
+        const clickable = status === 'green';
+        const isActive = iso === state.date;
+        const dot = status === 'green' ? '<span class="cns-dot cns-dot-green"></span>' : status === 'red' ? '<span class="cns-dot cns-dot-red"></span>' : '';
+        html += `<button type="button" class="cns-cal-cell${clickable ? ' cns-cal-clickable' : ' cns-cal-disabled'}${isActive ? ' active' : ''}" data-date="${iso}"${clickable ? '' : ' disabled'}><span>${day}</span>${dot}</button>`;
       }
-      dateRowEl.innerHTML = dates.map(d => `<button type="button" class="cns-date-chip${d.iso === state.date ? ' active' : ''}" data-date="${d.iso}">${d.label}</button>`).join('');
+      calGridEl.innerHTML = html;
+      const curKey = now.getFullYear() * 12 + now.getMonth();
+      calPrevBtn.disabled = (y * 12 + m) <= curKey;
     }
-    dateRowEl.addEventListener('click', (e) => {
-      const chip = e.target.closest('.cns-date-chip');
-      if (!chip) return;
-      state.date = chip.dataset.date;
-      dateRowEl.querySelectorAll('.cns-date-chip').forEach(el => el.classList.toggle('active', el === chip));
+
+    async function loadAvailabilityForMonth(y, m) {
+      const seq = ++availReqSeq;
+      const from = `${y}-${pad2(m + 1)}-01`;
+      const to = `${y}-${pad2(m + 1)}-${pad2(new Date(y, m + 1, 0).getDate())}`;
+      let booked = {};
+      try {
+        const res = await fetch(`/api/consultations/availability?hostSlug=${encodeURIComponent(state.hostSlug)}&from=${from}&to=${to}`);
+        const data = res.ok ? await res.json() : {};
+        booked = data.booked || {};
+      } catch {}
+      if (seq !== availReqSeq) return; // ay hızlıca değiştirildiyse eski yanıt yok sayılır
+      calendarState.availability = booked;
+      renderCalendarMonth();
+    }
+
+    function shiftMonth(delta) {
+      calendarState.month += delta;
+      if (calendarState.month < 0) { calendarState.month = 11; calendarState.year--; }
+      else if (calendarState.month > 11) { calendarState.month = 0; calendarState.year++; }
+      loadAvailabilityForMonth(calendarState.year, calendarState.month);
+    }
+    calPrevBtn.addEventListener('click', () => shiftMonth(-1));
+    calNextBtn.addEventListener('click', () => shiftMonth(1));
+
+    calGridEl.addEventListener('click', (e) => {
+      const cell = e.target.closest('.cns-cal-clickable');
+      if (!cell) return;
+      state.date = cell.dataset.date;
+      state.time = null;
+      calGridEl.querySelectorAll('.cns-cal-cell').forEach((el) => el.classList.toggle('active', el === cell));
+      renderTimeRowForSelectedDate();
       refreshContinueState();
     });
+
+    function renderTimeRowForSelectedDate() {
+      if (!state.date) {
+        timeLabelEl.style.display = 'none';
+        timeRowEl.style.display = 'none';
+        timeRowEl.innerHTML = '';
+        return;
+      }
+      const booked = calendarState.availability[state.date] || [];
+      const cutoffMs = Date.now() + MIN_NOTICE_MS;
+      timeRowEl.innerHTML = ALLOWED_TIMES.map((t) => {
+        const slotMs = new Date(`${state.date}T${t}:00`).getTime();
+        const isBooked = booked.includes(t);
+        const tooSoon = slotMs < cutoffMs;
+        const disabled = isBooked || tooSoon;
+        const cls = ['cns-time-chip'];
+        if (state.time === t) cls.push('active');
+        if (isBooked) cls.push('cns-time-taken');
+        return `<button type="button" class="${cls.join(' ')}" data-time="${t}"${disabled ? ' disabled' : ''}>${t}</button>`;
+      }).join('');
+      timeLabelEl.style.display = '';
+      timeRowEl.style.display = '';
+    }
+
     timeRowEl.addEventListener('click', (e) => {
       const chip = e.target.closest('.cns-time-chip');
-      if (!chip) return;
+      if (!chip || chip.disabled) return;
       state.time = chip.dataset.time;
       timeRowEl.querySelectorAll('.cns-time-chip').forEach(el => el.classList.toggle('active', el === chip));
       refreshContinueState();
@@ -290,11 +398,18 @@ const ConsultationModal = (function () {
 
     function showSuccessScreen() {
       successSummaryEl.textContent = `Randevu: ${formatDateTr(state.date)} · ${state.time}`;
+      // Kullanıcı isteği, 2026-09-06 — metin BİREBİR bu kalıpla eşleşmeli.
+      successTextEl.textContent = `${state.hostName} ile ${formatDateTr(state.date)} saat ${state.time}'te görüşmeniz onaylanmıştır. Görüşmeye katılabileceğiniz toplantı linki e-posta adresinize iletilecektir.`;
+      // "yalnızca 1 kez" limiti (kullanıcı isteği, 2026-09-06) — sunucu zaten reddeder, burası
+      // yalnızca UI'da butonu gizler ki kullanıcı boşuna denemesin.
+      rescheduleBtn.style.display = state.hasRescheduled ? 'none' : '';
       showScreen('success');
     }
 
     continueBtn.addEventListener('click', async () => {
       if (!state.date || !state.time) return;
+      bookNotice.classList.remove('show', 'success');
+      bookNotice.textContent = '';
       if (state.requestId) {
         // Yeniden planlama — ödeme adımı tekrarlanmaz, mevcut talebin tarih/saati güncellenir.
         continueBtn.disabled = true;
@@ -305,10 +420,17 @@ const ConsultationModal = (function () {
             body: JSON.stringify({ date: state.date, time: state.time }),
           });
           if (res.status === 401) { window.location.href = '/giris'; return; }
-          if (!res.ok) throw new Error('update failed');
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            bookNotice.textContent = data.error || 'Güncellenemedi, tekrar dene.';
+            bookNotice.classList.add('show');
+            return;
+          }
+          state.hasRescheduled = true;
           showSuccessScreen();
         } catch {
-          showScreen('book');
+          bookNotice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+          bookNotice.classList.add('show');
         } finally {
           continueBtn.disabled = false;
           continueBtn.textContent = 'Devam Et';
@@ -380,8 +502,16 @@ const ConsultationModal = (function () {
     });
 
     rescheduleBtn.addEventListener('click', () => {
-      renderDateChips();
+      // Mevcut randevunun ayına atla ki kullanıcı "neyi değiştiriyorum" bağlamını kaybetmesin.
+      const targetY = state.date ? parseInt(state.date.slice(0, 4), 10) : new Date().getFullYear();
+      const targetM = state.date ? parseInt(state.date.slice(5, 7), 10) - 1 : new Date().getMonth();
+      calendarState.year = targetY;
+      calendarState.month = targetM;
+      bookNotice.classList.remove('show', 'success');
+      bookNotice.textContent = '';
+      renderTimeRowForSelectedDate();
       refreshContinueState();
+      loadAvailabilityForMonth(targetY, targetM);
       showScreen('book');
     });
     successCloseBtn.addEventListener('click', close);
@@ -393,18 +523,25 @@ const ConsultationModal = (function () {
         state.requestId = null;
         state.date = null;
         state.time = null;
+        state.hasRescheduled = false;
+        const now = new Date();
+        calendarState.year = now.getFullYear();
+        calendarState.month = now.getMonth();
+        calendarState.availability = {};
         titleEl.textContent = `${hostName} ile Görüşme`;
         introEl.textContent = `${hostName}; mimarlık kariyeri, portföy geliştirme ve dijital ürün/yayıncılık alanlarında birebir online mentörlük görüşmesi sunar.`;
         nameInput.value = '';
         emailInput.value = '';
         phoneInput.value = '';
         noteInput.value = '';
-        renderDateChips();
-        timeRowEl.querySelectorAll('.cns-time-chip').forEach(el => el.classList.remove('active'));
+        bookNotice.classList.remove('show', 'success');
+        bookNotice.textContent = '';
+        renderTimeRowForSelectedDate();
         refreshContinueState();
         showScreen('book');
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
+        loadAvailabilityForMonth(calendarState.year, calendarState.month);
         // İsim/e-posta ön doldurma (best-effort) — hesapta kayıtlıysa kullanıcı ödeme ekranında
         // tekrar yazmasın. Başarısız olursa alanlar boş kalır, akış hiçbir şekilde engellenmez.
         fetch('/api/auth/me').then(r => (r.ok ? r.json() : null)).then(d => {
