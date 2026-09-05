@@ -716,6 +716,10 @@
         .nav-vs-spin{width:13px; height:13px; border:2px solid var(--line); border-top-color:var(--walnut); border-radius:50%; animation:nav-vs-rot .7s linear infinite; flex-shrink:0;}
         @keyframes nav-vs-rot{to{transform:rotate(360deg);}}
         .nav-vs-results[hidden]{display:none;}
+        .nav-search-modal-row-why{
+          display:block; font-size:11px; font-weight:600; color:var(--walnut, #8A6A4B);
+          margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
         .nav-vs-analysis{margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper-alt); font-size:12.5px; color:var(--ink);}
         .nav-vs-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px;}
         .nav-vs-chip{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--paper-card); font-size:11.5px;}
@@ -877,10 +881,18 @@
       const thumb = it.image
         ? `<img class="nav-search-modal-row-thumb" src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(it.image, 96) : it.image)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
         : `<span class="nav-search-modal-row-thumb nav-search-modal-row-thumb-ph">${escapeHtml((it.title || '?').trim().charAt(0).toLocaleUpperCase('tr'))}</span>`;
+      // EŞLEŞME GEREKÇESİ (kullanıcı isteği, 2026-09-05 / brief madde 14: "neden eşleşti" —
+      // ama SAHTE YÜZDE ya da uydurma açıklama YOK). İki durum ayrılır:
+      //   near-duplicate -> yüklenen görsel, o projenin N. galeri görselinin KENDİSİ (ya da
+      //                     yeniden kodlanmış/boyutlandırılmış hâli). Kesin bir ifade kullanılır.
+      //   similar        -> yalnızca görsel benzerlik; "benzer" denir, eşleşme İDDİA EDİLMEZ.
+      // Sıra numarası uydurma değil: dizin, galerideki images[] sırasıyla aynı kurulur.
+      const why = it.why ? `<span class="nav-search-modal-row-why">${escapeHtml(it.why)}</span>` : '';
       return `<a class="nav-search-modal-row" href="${escapeAttr(it.href)}">
         <span class="nav-search-modal-row-tag">${escapeHtml(it.label)}</span>
         <span class="nav-search-modal-row-title">${escapeHtml(it.title)}</span>
-        <span class="nav-search-modal-row-meta">${escapeHtml(it.meta || '')}</span>
+        <span class="nav-search-modal-row-meta">${escapeHtml(it.meta || '')}${why ? ' ' : ''}</span>
+        ${why}
         ${thumb}
       </a>`;
     }
@@ -911,13 +923,27 @@
       const match = data.match || {};
       const projects = data.projects || [];
       const products = data.products || [];
+      // visualEvidence sunucudan gelir (bkz. src/routes/visualSearch.js#visualEvidencePayload).
+      // Görsel kanal kullanılmadıysa (metin yedeği) alan null olur ve hiçbir gerekçe yazılmaz —
+      // olmayan bir kanıt uydurulmaz.
+      function whyText(ve){
+        if(!ve) return '';
+        const n = ve.matchedImageOrdinal;
+        if(ve.matchType === 'near-duplicate'){
+          return n ? `Projenin ${n}. görseliyle birebir eşleşme` : 'Görselin birebir eşleşmesi';
+        }
+        return n ? `Projenin ${n}. görseliyle görsel benzerlik` : '';
+      }
       const projectRow = (p) => vsRow({
         href: '/proje/' + encodeURIComponent(p.slug), label: 'Proje', title: p.title,
         meta: [p.location, p.date].filter(Boolean).join(' · '), image: p.image,
+        why: whyText(p.visualEvidence),
       });
       const productRow = (p) => vsRow({
         href: '/urun/' + encodeURIComponent(p.slug), label: 'Ürün', title: p.title,
         meta: [p.category, p.brand].filter(Boolean).join(' · '), image: p.image,
+        why: (p.visualEvidence && p.visualEvidence.matchType === 'near-duplicate')
+          ? 'Ürün görseliyle birebir eşleşme' : '',
       });
 
       if(match.project){

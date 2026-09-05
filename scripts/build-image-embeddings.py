@@ -31,6 +31,7 @@ GEREKSİNİMLER (izole venv, bkz. /tmp/clip_env — proje deposuna hiçbir npm/p
 
 import argparse
 import io
+import hashlib
 import json
 import os
 import re
@@ -43,6 +44,8 @@ import threading
 
 import numpy as np
 import requests
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 from PIL import Image, ImageFile
 from transformers import CLIPImageProcessor
 import onnxruntime as ort
@@ -62,11 +65,85 @@ DIM = 512
 INDEX_VERSION = 'v1'
 MODEL_LABEL = 'Xenova/clip-vit-base-patch32 (vision, uint8)'
 
-# Varlık başına en fazla kaç görsel embed edilir. Projeler ortalama 16,3 görsel taşıyor (D1 ölçümü,
-# 2026-09-03) — HEPSİNİ embed etmek indirme+CPU süresini ~3x büyütürdü, oysa images[] dizisinin
-# BAŞI zaten kapak + en temsil edici kareler (proje-ekle.html'de kullanıcı bu sırayı kendi seçiyor).
-# Ürünler ortalama 3,3 görsel taşıdığından pratikte bu sınıra neredeyse hiç değmiyor.
+# Varlık başına en fazla kaç görsel embed edilir (--max-images ile geçersiz kılınır).
+#
+# ============================================================================================
+# 6 SINIRI VISUAL SEARCH V2'DE KALDIRILDI — ÖLÇÜLEN KÖK NEDEN (2026-09-05)
+# ============================================================================================
+# Eski gerekçe "images[] dizisinin BAŞI zaten kapak + en temsil edici kareler" idi. Bu, ARAMA
+# için yanlış bir varsayım: kullanıcı arama kutusuna projenin 1-6. karesini değil, ELİNDEKİ
+# kareyi yükler. D1 ölçümü (2026-09-05):
+#     toplam proje galeri görseli : 27.997
+#     indekslenen (ilk 6)         :  9.927
+#     INDEKS DIŞI                 : 18.070  (%65)
+#     6'dan fazla görselli proje  :  1.476 / 1.730
+# Yani kullanıcı bir projenin 7. veya sonraki karesini yüklediğinde — ki tüm proje karelerinin
+# %65'i budur — görsel-görsel kanalı o proje için SIFIR üretiyordu ve sistem yalnızca metin/
+# taksonomi kanalına düşüyordu. Project Top1 ≈ 0,545 baseline'ının birincil sebebi budur.
+#
+# Yeni varsayılan hâlâ 6 (ürün tarafı ve eski davranış DEĞİŞMESİN diye); projeler için çağıran
+# --max-images 0 (sınırsız) geçer.
 MAX_IMAGES_PER_ENTITY = 6
+
+# ============================================================================================
+# EMBEDDING DİSK ÖNBELLEĞİ — idempotent / resumable / retry-safe (brief madde 12)
+# ============================================================================================
+# Bir görselin embedding'i URL'sine göre tek bir .npy dosyasında saklanır. Böylece:
+#   * yarıda kalan bir koşu baştan başlamaz (aynı komut tekrar çalıştırılır, kaldığı yerden),
+#   * zaten embed edilmiş görsel bir daha İNDİRİLMEZ ve CNN'e SOKULMAZ,
+#   * ağ/decode hatası alan tek bir görsel koşunun tamamını düşürmez.
+# Cache türetilmiş veridir (silinebilir, yeniden üretilir) — repo'ya girmez.
+EMBED_CACHE_DIR = os.environ.get('CLIP_EMBED_CACHE', '/tmp/clip-embed-cache')
+
+def cache_path_for(url):
+    return os.path.join(EMBED_CACHE_DIR, hashlib.sha1(url.encode('utf8')).hexdigest() + '.npy')
+
+def cached_embedding(url):
+    p = cache_path_for(url)
+    if os.path.exists(p):
+        try:
+            v = np.load(p)
+            if v.shape == (DIM,):
+                return v
+        except Exception:
+            pass
+    return None
+
+def store_embedding(url, vec):
+    os.makedirs(EMBED_CACHE_DIR, exist_ok=True)
+    final = cache_path_for(url)
+    tmp = final + '.tmp'
+    # np.save(path) uzantı '.npy' DEĞİLSE dosya adının SONUNA '.npy' EKLER — 'x.npy.tmp' verince
+    # gerçekte 'x.npy.tmp.npy' yazar ve aşağıdaki os.replace 'x.npy.tmp'yi bulamaz (yakalandı:
+    # ilk koşuda 7/7 görsel "No such file or directory" ile düştü). Dosya NESNESİNE yazınca
+    # numpy adı değiştirmez.
+    with open(tmp, 'wb') as f:
+        np.save(f, vec)
+    os.replace(tmp, final)   # atomik — yarım dosya asla kalmaz
+
+# ============================================================================================
+# TÜREVDEN İNDİRME — bant genişliği (brief madde 17)
+# ============================================================================================
+# CLIP girdiyi zaten 224x224'e indiriyor; 2000px orijinali indirmek saf israf. image-cdn.js'in
+# türev şeması kullanılır (bkz. o dosyanın başı):
+#     R2 nesnesi     "/media/projects/x.webp"  -> /media/_derived/w<W>/r2/projects/x.webp
+#     statik varlik  "projects/x.webp"         -> /media/_derived/w<W>/s/projects/x.webp
+# GÜVENLİ: türev yoksa handleMediaRoute ORİJİNALİ servis eder (404 DÖNMEZ), yani bu yol her
+# durumda çalışır — en kötü ihtimalle orijinali indirmiş oluruz.
+def derivative_url(path, width):
+    if not isinstance(path, str) or not path or width <= 0:
+        return None
+    if re.match(r'^https?://', path):
+        # Mutlak ama AYNI origin ise yerel yola indirgenir; harici origin türev alamaz.
+        if not path.startswith(SITE_ORIGIN):
+            return None
+        path = path[len(SITE_ORIGIN):]
+    clean = path.lstrip('/')
+    if clean.lower().endswith('.svg'):
+        return None
+    if clean.startswith('media/'):
+        return f'{SITE_ORIGIN}/media/_derived/w{width}/r2/{clean[len("media/"):]}'
+    return f'{SITE_ORIGIN}/media/_derived/w{width}/s/{clean}"'.rstrip('"')
 
 def oauth_token():
     path = os.path.expanduser('~/Library/Preferences/.wrangler/config/default.toml')
@@ -103,10 +180,40 @@ def resolve_image_url(path):
         return path  # mutlak URL (aynı ya da harici origin) — olduğu gibi indirilir
     return SITE_ORIGIN + ('' if path.startswith('/') else '/') + path
 
-def fetch_image_bytes(url, timeout=20):
-    r = requests.get(url, timeout=timeout, headers={'User-Agent': 'MimarlabImageEmbedBackfill/1.0'})
-    r.raise_for_status()
-    return r.content
+# PAYLAŞILAN OTURUM + RETRY — GERÇEK BULGU (2026-09-05, 28k'lık koşu): 10 paralel worker ile
+# istekler DNS'te çöktü ("Failed to resolve 'mimarlab.com'"), 16.200 görselin 12.444'ü bu yüzden
+# düştü. Sebep ağ değil YEREL RESOLVER TÜKENMESİ: her requests.get() yeni bir bağlantı (ve yeni
+# bir DNS sorgusu) açıyordu. Session bağlantıyı canlı tutar (DNS bir kez çözülür), HTTPAdapter'ın
+# retry'si de kalan geçici hataları yutar. Bu, cache ile birlikte koşuyu gerçekten retry-safe yapar.
+_session = None
+_session_lock = threading.Lock()
+
+def _get_session():
+    global _session
+    with _session_lock:
+        if _session is None:
+            s = requests.Session()
+            retry = Retry(total=4, backoff_factor=0.6,
+                          status_forcelist=(429, 500, 502, 503, 504),
+                          allowed_methods=('GET',))
+            ad = HTTPAdapter(max_retries=retry, pool_connections=32, pool_maxsize=32)
+            s.mount('https://', ad)
+            s.mount('http://', ad)
+            s.headers.update({'User-Agent': 'MimarlabImageEmbedBackfill/1.0'})
+            _session = s
+        return _session
+
+def fetch_image_bytes(url, timeout=25):
+    last = None
+    for attempt in range(3):
+        try:
+            r = _get_session().get(url, timeout=timeout)
+            r.raise_for_status()
+            return r.content
+        except Exception as e:
+            last = e
+            time.sleep(0.5 * (attempt + 1))   # DNS/geçici hata için kısa bekleme
+    raise last
 
 def quantize_unit(vec):
     """src/lib/imageEmbedIndex.js#quantizeUnit İLE BİREBİR AYNI formül."""
@@ -162,6 +269,10 @@ def main():
     ap.add_argument('--limit', type=int, default=None, help='yalnızca ilk N varlık (deneme için)')
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--workers', type=int, default=8)
+    ap.add_argument('--max-images', type=int, default=MAX_IMAGES_PER_ENTITY,
+                    help='varlık başına en fazla görsel; 0 = SINIRSIZ (bkz. MAX_IMAGES_PER_ENTITY notu)')
+    ap.add_argument('--derivative', type=int, default=0,
+                    help='görselleri /media/_derived/w<N>/ türevinden indir (0 = orijinal). CLIP zaten 224px kullanır.')
     args = ap.parse_args()
 
     print(f'[{args.type}] D1\'den okunuyor...')
@@ -196,7 +307,7 @@ def main():
                 continue
             seen.add(u)
             urls.append(u)
-            if len(urls) >= MAX_IMAGES_PER_ENTITY:
+            if args.max_images and len(urls) >= args.max_images:
                 break
         entities.append({'slug': row['slug'], 'urls': urls, 'count': 0, 'keys': []})
         for ii, u in enumerate(urls):
@@ -217,8 +328,19 @@ def main():
     def worker(job):
         ei, ii, url = job
         try:
-            img_bytes = fetch_image_bytes(url)
-            vec = embedder.embed(img_bytes)
+            # (1) DİSK ÖNBELLEĞİ — bu URL daha önce embed edildiyse ne indir ne CNN çalıştır.
+            vec = cached_embedding(url)
+            if vec is None:
+                # (2) Türev tercih edilir; türev yoksa/üretilemiyorsa orijinale düşülür.
+                src = derivative_url(url, args.derivative) if args.derivative else None
+                try:
+                    img_bytes = fetch_image_bytes(src or url)
+                except Exception:
+                    if not src:
+                        raise
+                    img_bytes = fetch_image_bytes(url)   # türev yolu patlarsa orijinal
+                vec = embedder.embed(img_bytes)
+                store_embedding(url, vec)
             with lock:
                 vectors_by_entity[ei][ii] = vec
         except Exception as e:

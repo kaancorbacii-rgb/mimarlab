@@ -359,21 +359,37 @@
   .hs-overlay.open{display:flex;}
   .hs-stage{position:relative; max-width:100%; max-height:100%; line-height:0;}
   .hs-stage img{max-width:100%; max-height:calc(100vh - 190px); border-radius:8px; display:block; cursor:crosshair; user-select:none; -webkit-user-drag:none;}
+  /* ÜST BAR (kullanıcı isteği + ekran görüntüsü, 2026-09-05: "görselin üzerindeki metin Kırp ve X
+     butonlarının üzerine gelmesin"). ÖNCEDEN üçü de AYRI AYRI position:absolute idi: ipucu
+     `left:0; right:0` ile TÜM genişliği kaplıyor ve yalnızca 70px sağ dolgu bırakıyordu — oysa
+     Kırp+X ikilisi sağda ~160px yer tutuyor, dolayısıyla metin dar/orta genişliklerde butonların
+     ALTINA giriyordu. Dolguyu büyütmek çözüm değil: mobilde metne hiç yer kalmazdı.
+     Yapısal çözüm — üçü tek bir flex satırında: metin kalan alanı alır (flex:1) ve sarar,
+     butonlar sabit genişlikle sağda durur. Hangi genişlikte olursa olsun ÇAKIŞMA İMKÂNSIZ.
+     Bar absolute kalır (top:0) ki .hs-stage'in dikey ortalanması aynen korunsun. */
+  .hs-topbar{
+    position:absolute; top:0; left:0; right:0; z-index:2;
+    display:flex; align-items:flex-start; gap:10px; padding:16px 20px;
+  }
   .hs-close{
-    position:absolute; top:16px; right:20px; width:40px; height:40px; border-radius:50%; border:none;
+    flex:0 0 auto; width:40px; height:40px; border-radius:50%; border:none;
     background:rgba(255,255,255,0.14); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;
   }
   .hs-close:hover{background:rgba(255,255,255,0.26);}
   /* Kırp — X'in hemen solunda, aynı yarı saydam dil (bkz. hs-crop butonunun HTML'indeki gerekçe). */
   .hs-crop{
-    position:absolute; top:16px; right:70px; height:40px; padding:0 16px; border-radius:20px; border:none;
+    flex:0 0 auto; height:40px; padding:0 16px; border-radius:20px; border:none;
     background:rgba(255,255,255,0.14); color:#fff; display:flex; align-items:center; gap:7px; cursor:pointer;
-    font-family:inherit; font-size:13.5px; font-weight:600;
+    font-family:inherit; font-size:13.5px; font-weight:600; white-space:nowrap;
   }
   .hs-crop:hover{background:rgba(255,255,255,0.26);}
+  /* min-width:0 — flex öğesinin varsayılan min-width:auto'su uzun metni sarmak yerine satırı
+     taşırır ve butonları ekran dışına iter. max-width: metin çok geniş ekranda tek satıra yayılıp
+     butonlara kadar uzamasın, ortada okunur bir blok kalsın. */
   .hs-hint{
-    position:absolute; top:20px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.86);
-    font-size:12.5px; line-height:1.5; padding:0 70px; pointer-events:none;
+    flex:1; min-width:0; max-width:640px; margin:0 auto; align-self:center;
+    text-align:center; color:rgba(255,255,255,0.86);
+    font-size:12.5px; line-height:1.5; pointer-events:none;
   }
   .hs-nav{
     position:absolute; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:50%;
@@ -443,8 +459,12 @@
   @media (max-width:720px){
     .hs-overlay{padding:12px;}
     .hs-stage img{max-height:calc(100vh - 210px);}
-    .hs-hint{padding:0 56px; font-size:11.5px;}
-    .hs-crop{right:62px; padding:0 12px; font-size:12.5px;}
+    /* Mobilde bar dar: ipucu küçülür, Kırp yalnızca ikon kalır (etiket gizlenir) — böylece
+       üç öğe de tek satıra sığar ve metin hiçbir genişlikte butonlara girmez. */
+    .hs-topbar{padding:12px 12px; gap:8px;}
+    .hs-hint{font-size:11.5px; line-height:1.45;}
+    .hs-crop{padding:0 12px; font-size:12.5px;}
+    .hs-crop-label{display:none;}
   }
   .image-move-btn:disabled{opacity:0.25; cursor:default;}
   .image-move-left{left:4px;}
@@ -779,22 +799,27 @@
        wireHotspotEditor) — form'un DIŞINDA duruyor ki içindeki input'lar/butonlar yanlışlıkla
        proje formunu göndermesin (bir <form> içindeki her <button> varsayılan olarak submit'tir). -->
   <div class="hs-overlay" id="hs-overlay" aria-hidden="true">
-    <button type="button" class="hs-close" id="hs-close" aria-label="Kapat">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <!-- Kırp (kullanıcı isteği, 2026-09-04: "görsele tıklayınca görsel büyüsün ve görseli kırpma
-         özelliği aktif olsun"). Bu sayfada görsele tıklamak ZATEN büyütüyordu — büyütülmüş görselin
-         üzerine tıklamak ürün işaretçisi eklediğinden (bkz. wireHotspotEditor) kırpma, tıklamayı
-         gasp etmek yerine buraya AYRI bir butona bağlandı. Proje galerisinde oran SERBEST; 1:1
-         kilidi yalnızca logo/profil fotoğraflarındadır. -->
-    <button type="button" class="hs-crop" id="hs-crop">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
-      Kırp
-    </button>
-    <!-- Sayı HS_MAX_PER_IMAGE ile aynı olmalı (bkz. o sabitin üstündeki not). 2026-09-05'te 3 -> 4
-         oldu ve bu metin geride kalmıştı: kullanıcı ekran görüntüsünde "en fazla üç ürün" yazarken
-         form dört ürüne izin veriyordu. -->
-    <div class="hs-hint">Görseldeki ürünlere tıklayarak tek görselde en fazla dört ürün etiketleyebilir, aynı ürünü farklı görsellerde de işaretleyebilir ve mevcut etiketleri tıklayarak düzenleyip silebilirsiniz.</div>
+    <!-- İpucu + Kırp + X TEK bir flex satırında (bkz. .hs-topbar'ın üstündeki gerekçe) — üçü ayrı
+         absolute konumdayken metin butonların altına giriyordu. DOM sırası: metin önce, butonlar
+         sağda; görsel sıra da bu. -->
+    <div class="hs-topbar">
+      <!-- Sayı HS_MAX_PER_IMAGE ile aynı olmalı (bkz. o sabitin üstündeki not). 2026-09-05'te 3 -> 4
+           oldu ve bu metin geride kalmıştı: kullanıcı ekran görüntüsünde "en fazla üç ürün" yazarken
+           form dört ürüne izin veriyordu. -->
+      <div class="hs-hint">Görseldeki ürünlere tıklayarak tek görselde en fazla dört ürün etiketleyebilir, aynı ürünü farklı görsellerde de işaretleyebilir ve mevcut etiketleri tıklayarak düzenleyip silebilirsiniz.</div>
+      <!-- Kırp (kullanıcı isteği, 2026-09-04: "görsele tıklayınca görsel büyüsün ve görseli kırpma
+           özelliği aktif olsun"). Bu sayfada görsele tıklamak ZATEN büyütüyordu — büyütülmüş görselin
+           üzerine tıklamak ürün işaretçisi eklediğinden (bkz. wireHotspotEditor) kırpma, tıklamayı
+           gasp etmek yerine buraya AYRI bir butona bağlandı. Proje galerisinde oran SERBEST; 1:1
+           kilidi yalnızca logo/profil fotoğraflarındadır. -->
+      <button type="button" class="hs-crop" id="hs-crop">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+        <span class="hs-crop-label">Kırp</span>
+      </button>
+      <button type="button" class="hs-close" id="hs-close" aria-label="Kapat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
     <button type="button" class="hs-nav hs-nav-prev" id="hs-prev" aria-label="Önceki görsel">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </button>

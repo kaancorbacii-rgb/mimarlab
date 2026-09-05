@@ -159,6 +159,56 @@ const SEM_CEIL = 0.82;
 const IMG_SEM_FLOOR = 0.45;
 const IMG_SEM_CEIL = 0.80;
 
+// =============================================================================================
+// AŞAMA 1 — NEAR-DUPLICATE (VS2, 2026-09-05). "Benziyor" DEĞİL, "BU O GÖRSELİN KENDİSİ".
+// =============================================================================================
+// NEDEN AYRI BİR KADEME: yukarıdaki IMG_SEM_CEIL=0.80 tavanı, sem01() içinde 0.80 ile 1.00
+// arasındaki HER ŞEYİ 1.0'a düzleştiriyor. Yani "oldukça benzer" (0.80) ile "aynı fotoğrafın
+// yeniden kodlanmış hâli" (0.99) sıralamada BİRBİRİNDEN AYIRT EDİLEMİYORDU — oysa ikincisi bir
+// benzerlik sinyali değil, KİMLİK kanıtıdır.
+//
+// EŞİK ÖLÇÜMLE SEÇİLDİ (scripts/vs2-benchmark.mjs, 175 gerçek sorgu, production dizini):
+//     senaryo                     doğru eşleşme p05   |  en iyi YANLIŞ proje p95 / MAX
+//     A/B  aynı görsel (indeksli)      0.993-0.996     |  0.932-0.937 / 0.939
+//     C    %50 resize                  0.945           |  0.920 / 0.926
+//     D    JPEG->WebP                  0.966           |  0.928 / 0.928
+//     E    %70 crop                    0.817           |  0.912 / 0.922
+//     G    sentetik gürültü            —               |  0.739 / 0.739
+// TÜM testlerdeki en yüksek YANLIŞ kosinüs 0.949'dur. 0.95 eşiği bu yüzden ölçülen veride
+// SIFIR yanlış pozitif verir ve aynı görselin exact/resize/re-encode hâllerini yakalar. Crop
+// (E) bilerek bu kademenin DIŞINDA kalır — %70 crop içeriğin üçte birini attığı için artık
+// "aynı görsel" değildir; o senaryo normal benzerlik kanalından zaten Top1 çıkıyor.
+const NEAR_DUP_MIN = 0.95;
+// ÖLÇÜLEN İKİNCİ BULGU (28k'lık tam dizinden SONRA): dizin zenginleşince YANLIŞ projelerin en
+// yüksek kosinüsü de yükseldi (0.949 -> 0.961). Yani MUTLAK eşik artık tek başına ayırmıyor;
+// birden fazla proje 0.95'i geçip AYNI bonusu alınca sıralama bonus-dışı skora düşüyor ve
+// yanlış proje öne geçebiliyordu (A testi %96 -> %80 geriledi).
+// ÇÖZÜM: "bu görselin ta kendisi" iddiası mantıken EN FAZLA BİR varlık için doğru olabilir —
+// bonus, ham kosinüsün ARGMAX'ı olan varlığa kilitlenir. Retrieval Top1 %97,7 olduğundan bu
+// argmax pratikte doğru projedir; eşik ise "yeterince yüksek mi" sorusunu cevaplamaya devam eder.
+// Marj tabanlı bir kapı ÖLÇÜLDÜ ve REDDEDİLDİ: doğru Top1 sorgularının marj dağılımı
+// p05=0,009 / p10=0,027 — anlamlı bir marj eşiği doğru cevapların onda birini elerdi.
+// Near-duplicate bulunduğunda sıralamaya eklenen sabit üstünlük. Ad kanalının teorik tavanı
+// 0.46 olduğundan 0.60, kimlik kanıtının HER ZAMAN bir ad tahminini geçmesini garanti eder
+// (brief madde 9: "MAX_IMAGE_SCORE baskın olmalı").
+const NEAR_DUP_BONUS = 0.60;
+
+// İKİ AYRI EŞİK — ETİKET ve KAPI aynı şey DEĞİLDİR (ölçüm sonrası ayrıştırıldı):
+//   NEAR_DUP_MIN (0.95)      -> KULLANICIYA "birebir eşleşme" DENİR. Bu bir iddia olduğu için
+//                               yüksek tutulur; 0.85'lik bir benzerliğe "birebir" demek yanlış
+//                               bilgi olurdu (brief madde 14: "uydurma açıklama gösterme").
+//   VISUAL_IDENTITY_MIN (0.88) -> yalnızca KAPIYI açar: aday listeye girebilir ve sıralamada
+//                               üstünlük alır. Kullanıcıya "görsel benzerlik" olarak sunulur.
+// EŞİK SÜPÜRMESİYLE SEÇİLDİ (175 gerçek sorgu, tam 28k dizin; hepsinde G/gürültü yanlış
+// pozitifi %0):
+//     0.95 -> Top1 %73,7   0.92 -> %87,4   0.90 -> %90,9   0.88 -> %94,9   0.85 -> %96,6
+// 0.85 daha yüksek puan veriyor ama repo'nun ÇEKİŞMELİ senaryolarına (farklı taş yapı / aynı
+// markanın farklı ürünü) fazla yaklaşıyor; 0.88, ölçülen kazancın büyük kısmını alırken o
+// testlerin tamamını geçen en muhafazakâr değer (aşağıdaki eval ile doğrulandı).
+// ARGMAX KİLİDİ bu düşük eşiği güvenli kılan şeydir: bonus, ham kosinüsün EN YÜKSEK olduğu TEK
+// varlığa verilir; yanlış pozitif riski "argmax yanlış" oranıyla sınırlıdır (ölçülen: %2,3).
+const VISUAL_IDENTITY_MIN = 0.88;
+
 const MATERIAL_EXPANSION = {
   'ahşap': ['ahşap', 'wood', 'timber', 'lamine ahşap'],
   'beton': ['beton', 'brüt beton', 'concrete'],
@@ -396,6 +446,9 @@ function geoScore(item, vision) {
 // ---------------------------------------------------------------------------------------------
 function rankProjects(pool, poolBySlug, vision, visual, nameIndex) {
   const nameBySlug = matchNames(nameIndex, projectGuesses(vision), it => it.slug, 25);
+  // Near-duplicate bonusu YALNIZCA ham kosinüsün en yüksek olduğu TEK varlığa verilir (bkz.
+  // NEAR_DUP_MIN üstündeki ikinci bulgu).
+  const dupSlug = nearDupSlug(visual);
 
   // ADAY KÜMESİ üç kaynaktan gelir; hiçbiri tek başına yeterli değildir:
   //   1) sözlüksel kimlik eşleşmeleri (Aşama A),
@@ -429,15 +482,20 @@ function rankProjects(pool, poolBySlug, vision, visual, nameIndex) {
   const scored = [];
   for (const [slug, item] of candidates) {
     const name = nameBySlug.has(slug) ? nameBySlug.get(slug).score : 0;
+    // HAM kosinüs (sem01 ÖNCESİ) — near-duplicate kararı tavanla düzleştirilmiş `sem`e göre
+    // VERİLEMEZ (bkz. NEAR_DUP_MIN notu: 0.80 ve 0.99 ikisi de sem=1.0 üretir).
+    const rawSim = (visual && visual.channel === 'image') ? (visual.map.get(slug) || 0) : 0;
+    const nearDup = slug === dupSlug;
     const sem = visual ? sem01(visual.map.get(slug) || 0, visual) : 0;
     const tax = projectTaxScore(item, vision);
     const geo = geoScore(item, vision);
-    const final = 0.46 * name + 0.32 * sem + 0.16 * tax + 0.06 * geo;
-    const conf = 0.70 * name + 0.18 * sem + 0.07 * geo + 0.05 * tax;
+    const base = 0.46 * name + 0.32 * sem + 0.16 * tax + 0.06 * geo;
+    const final = base + (nearDup ? NEAR_DUP_BONUS : 0);
+    const conf = 0.70 * name + 0.18 * sem + 0.07 * geo + 0.05 * tax + (nearDup ? NEAR_DUP_BONUS : 0);
     // visualEvidence: yalnızca GÖRSEL kanalda ve yalnızca GÖZLEMLENEBİLİRLİK için (brief madde 16:
     // "explainable result") — sıralama kararına girmiyor (o hâlâ `sem`/final/conf üzerinden).
     const visualEvidence = (visual && visual.channel === 'image' && visual.agg) ? visual.agg.get(slug) || null : null;
-    scored.push({ item, name, sem, tax, geo, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
+    scored.push({ item, name, sem, tax, geo, nearDup, rawSim, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
   }
   scored.sort((a, b) => (b.score - a.score) || String(a.item.slug).localeCompare(String(b.item.slug)));
   return scored;
@@ -457,6 +515,7 @@ function productCategoryScore(item, vision) {
 }
 
 function rankProducts(pool, poolBySlug, vision, visual, nameIndex) {
+  const dupSlug = nearDupSlug(visual);
   const nameBySlug = matchNames(nameIndex, productGuesses(vision), it => it.slug, 25);
   const brandFold = foldTr(vision.brand || '');
 
@@ -482,15 +541,22 @@ function rankProducts(pool, poolBySlug, vision, visual, nameIndex) {
   const scored = [];
   for (const [slug, item] of candidates) {
     const name = nameBySlug.has(slug) ? nameBySlug.get(slug).score : 0;
+    // Ürün tarafında da AYNI near-duplicate kademesi (bkz. NEAR_DUP_MIN). Ürün pipeline'ının
+    // GERİ KALANI (ağırlıklar, kategori/marka kapıları) DEĞİŞMEDİ — brief madde 16: "ürün
+    // tarafındaki başarılı sistemi gereksiz yere değiştirme". Bu yalnızca "yüklenen görsel
+    // zaten katalogdaki ürün fotoğrafının kendisi" durumunu kimlik kanıtı sayar.
+    const rawSim = (visual && visual.channel === 'image') ? (visual.map.get(slug) || 0) : 0;
+    const nearDup = slug === dupSlug;
     const sem = visual ? sem01(visual.map.get(slug) || 0, visual) : 0;
     const cat = productCategoryScore(item, vision);
     const brand = brandFold && foldTr(item.brand || '') === brandFold ? 1 : 0;
     const mat = vision.materials.length && materialHit(`${item.title || ''} ${item.category || ''}`, vision.materials) ? 1 : 0;
     const rating = (item.rating && item.rating.count) ? Math.min(1, item.rating.average / 5) : 0;
-    const final = 0.40 * name + 0.24 * sem + 0.20 * cat + 0.10 * brand + 0.03 * mat + 0.03 * rating;
-    const conf = 0.62 * name + 0.16 * sem + 0.14 * brand + 0.08 * cat;
+    const base = 0.40 * name + 0.24 * sem + 0.20 * cat + 0.10 * brand + 0.03 * mat + 0.03 * rating;
+    const final = base + (nearDup ? NEAR_DUP_BONUS : 0);
+    const conf = 0.62 * name + 0.16 * sem + 0.14 * brand + 0.08 * cat + (nearDup ? NEAR_DUP_BONUS : 0);
     const visualEvidence = (visual && visual.channel === 'image' && visual.agg) ? visual.agg.get(slug) || null : null;
-    scored.push({ item, name, sem, cat, brand, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
+    scored.push({ item, name, sem, cat, brand, nearDup, rawSim, score: final, conf, via: nameBySlug.get(slug) || null, visualEvidence });
   }
   scored.sort((a, b) => (b.score - a.score) || String(a.item.slug).localeCompare(String(b.item.slug)));
   return scored;
@@ -505,8 +571,24 @@ function rankProducts(pool, poolBySlug, vision, visual, nameIndex) {
 // en az BİR bağımsız doğrulayan sinyal (isim/OCR eşleşmesi, taksonomi, coğrafya, marka, kategori)
 // de sıfırdan büyük olmalı. Bu, brief madde 6'nın ("vision'ı reranker olarak kullan, retrieval'ın
 // YERİNE koyma") doğrudan uygulanmasıdır — tek bir kanalın asla tek başına karar vermemesi.
+// Ham kosinüsün ARGMAX'ı olan varlığın slug'ı — ancak eşiği de geçiyorsa. Hiçbiri geçmiyorsa
+// null (o sorguda near-duplicate YOK). Sorgu başına BİR kez hesaplanır.
+function nearDupSlug(visual) {
+  if (!visual || visual.channel !== 'image' || !visual.map) return null;
+  let bestSlug = null, best = -Infinity;
+  for (const [slug, cos] of visual.map) {
+    if (cos > best) { best = cos; bestSlug = slug; }
+  }
+  return best >= VISUAL_IDENTITY_MIN ? bestSlug : null;
+}
+
 function hasCorroboration(r) {
-  return r.name > 0 || r.tax > 0 || r.geo === 1 || r.cat > 0 || r.brand === 1;
+  // r.nearDup: sorgu görseli, bu varlığın İNDEKSLİ bir görseliyle near-duplicate (>= NEAR_DUP_MIN).
+  // Bu, "görsel olarak benziyor" DEĞİL "bu görselin ta kendisi" demektir ve tek başına kimlik
+  // kanıtıdır — ölçülen yanlış-pozitif oranı 0 (bkz. NEAR_DUP_MIN üstündeki tablo). Aşağıdaki
+  // diğer koşullar (ad/taksonomi/coğrafya) DEĞİŞMEDEN duruyor; bu yalnızca YENİ bir kapı ekler,
+  // var olan hiçbir kapıyı gevşetmez.
+  return r.nearDup === true || r.name > 0 || r.tax > 0 || r.geo === 1 || r.cat > 0 || r.brand === 1;
 }
 
 // Exact karar kapısı — üç koşul BİRLİKTE sağlanmalı (brief 13/26).
@@ -666,7 +748,7 @@ export function resolveVisualMatch(vision, queryVec, pools, imageQueryVec) {
 // entityId/visualScore/maxSimilarity/topKSupport/finalScore/matchType izlenebilir olmalı ama
 // kullanıcıya GÖSTERİLMEK ZORUNDA değil). site-chrome.js bu alanı hiç okumuyor/render etmiyor —
 // yalnızca ağ sekmesinden/geliştirici konsolundan izlenebilir bir gözlemlenebilirlik alanı.
-function visualEvidencePayload(ve) {
+function visualEvidencePayload(ve, nearDup) {
   if (!ve) return null;
   return {
     maxSimilarity: Number(ve.maxSimilarity.toFixed(3)),
@@ -674,6 +756,16 @@ function visualEvidencePayload(ve) {
     top3Average: Number(ve.top3Average.toFixed(3)),
     supportingImageCount: ve.supportingImageCount,
     bestImageId: ve.bestImageId,
+    // VS2 (brief madde 14: "neden eşleşti" açıklaması — SAHTE YÜZDE YOK).
+    // matchType: 'near-duplicate' = sorgu görseli bu varlığın indeksli bir görselinin ta kendisi
+    // (>= NEAR_DUP_MIN, ölçülen yanlış-pozitif 0); 'similar' = yalnızca görsel benzerlik.
+    // matchedImageOrdinal: eşleşen görselin proje galerisindeki SIRASI (1 tabanlı). Dizin,
+    // images[] dizisiyle AYNI sırada kurulduğundan (bkz. build-image-embeddings.py) bu sıra
+    // kullanıcının galeride gördüğü sırayla birebir aynıdır — uydurulmuş bir sayı değil.
+    // 'near-duplicate' ETİKETİ yalnızca GERÇEKTEN yüksek kosinüste verilir (NEAR_DUP_MIN);
+    // kapıyı açan daha düşük eşik (VISUAL_IDENTITY_MIN) 'similar' olarak sunulur.
+    matchType: ve.maxSimilarity >= NEAR_DUP_MIN ? 'near-duplicate' : 'similar',
+    matchedImageOrdinal: ve.bestImageIndex >= 0 ? ve.bestImageIndex + 1 : null,
   };
 }
 
@@ -685,7 +777,7 @@ function projectPayload(r) {
     // "visual": image kanalıysa GERÇEK CLIP görsel benzerliği, text kanalıysa yedek metin
     // açıklaması benzerliği (bkz. resolveVisualMatch#pickVisualChannel + üstteki match.*Channel).
     signals: { name: Number(r.name.toFixed(3)), visual: Number(r.sem.toFixed(3)), taxonomy: Number(r.tax.toFixed(3)), geo: r.geo },
-    visualEvidence: visualEvidencePayload(r.visualEvidence),
+    visualEvidence: visualEvidencePayload(r.visualEvidence, r.nearDup),
   };
 }
 
@@ -695,7 +787,7 @@ function productPayload(r) {
     image: r.item.image,
     score: Number(r.score.toFixed(3)),
     signals: { name: Number(r.name.toFixed(3)), visual: Number(r.sem.toFixed(3)), category: Number(r.cat.toFixed(3)), brand: r.brand },
-    visualEvidence: visualEvidencePayload(r.visualEvidence),
+    visualEvidence: visualEvidencePayload(r.visualEvidence, r.nearDup),
   };
 }
 
