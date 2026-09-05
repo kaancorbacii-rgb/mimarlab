@@ -263,13 +263,13 @@ const PATH_RENAME_REDIRECTS = {
   '/uye-ol.html': '/uye-ol',
   '/hesabim.html': '/hesabim',
   '/aktivitelerim.html': '/aktivitelerim',
-  // gerçek bulgu (2026-08-30): İçeriklerim (bkz. js/components/auth-modal.js#VIEW_PATH'teki
-  // contents: '/iceriklerim') Aktivitelerim'in AYNI gün ayrı bir popup'a çıkarılmasıyla eklendi
-  // ama AUTH_MODAL_ROUTES'a hiç eklenmemişti — doğrudan /iceriklerim'e gidildiğinde (yer imi, F5,
-  // yeni sekme) 404 dönüyordu, yalnızca SPA içi pushState navigasyonu çalışıyordu.
-  '/iceriklerim.html': '/iceriklerim',
-  // Koleksiyonum — İçeriklerim ile AYNI desen (bkz. js/components/auth-modal.js#VIEW_PATH).
+  // Koleksiyonum — Aktivitelerim ile AYNI desen (bkz. js/components/auth-modal.js#VIEW_PATH).
   '/koleksiyonum.html': '/koleksiyonum',
+  // İçeriklerim sayfası kaldırıldı (kullanıcı isteği, 2026-09-05): "Eklediklerim" kutusu
+  // Aktivitelerim'e taşındı. Eski /iceriklerim bağlantıları/yer imleri kırılmasın diye Aktivitelerim'e
+  // 301'lenir (bkz. aşağıdaki PREFIX olmayan sabit yol yönlendirmesi).
+  '/iceriklerim': '/aktivitelerim',
+  '/iceriklerim.html': '/aktivitelerim',
   '/sifremi-unuttum.html': '/sifremi-unuttum',
   // Rozet Al/İade Et/İletişim/Hakkında/Gizlilik Politikası/Hizmet Şartları/Kariyer de artık popup
   // modallar (bkz. kullanıcı isteği, js/components/info-modal.js) — AYNI gerekçe. "Rozet Al" ile
@@ -315,8 +315,7 @@ const AUTH_MODAL_META = {
   '/giris': { title: 'Giriş Yap — MİMARLAB', description: 'MİMARLAB hesabına giriş yap; projelerini, kaydettiklerini ve profilini yönet.', noindex: true },
   '/uye-ol': { title: 'Üye Ol — MİMARLAB', description: 'MİMARLAB\'a ücretsiz üye ol; proje, kişi, firma ve ürün ekle, içerikleri kaydet ve takip et.', noindex: true },
   '/hesabim': { title: 'Hesabım — MİMARLAB', description: 'MİMARLAB hesap ayarların, profil bilgilerin ve üyelik yönetimin.', noindex: true },
-  '/aktivitelerim': { title: 'Aktivitelerim — MİMARLAB', description: 'MİMARLAB\'da kaydettiklerin, takip ettiklerin, puanladıkların ve yorumların.', noindex: true },
-  '/iceriklerim': { title: 'İçeriklerim — MİMARLAB', description: 'MİMARLAB\'a eklediğin projeler, kişiler, firmalar ve ürünler.', noindex: true },
+  '/aktivitelerim': { title: 'Aktivitelerim — MİMARLAB', description: 'MİMARLAB\'da kaydettiklerin, takip ettiklerin, puanladıkların, yorumların ve eklediklerin.', noindex: true },
   '/koleksiyonum': { title: 'Koleksiyonum — MİMARLAB', description: 'MİMARLAB panoların ve koleksiyonların.', noindex: true },
   '/sifremi-unuttum': { title: 'Şifremi Unuttum — MİMARLAB', description: 'MİMARLAB şifreni sıfırla; e-posta adresine sıfırlama bağlantısı gönderelim.', noindex: true },
 };

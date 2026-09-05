@@ -33,12 +33,12 @@
       deps: ['profession-shared.js', 'js/components/profession-drawer.js', 'js/components/image-crop.js'],
       hrefRe: {
         login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/,
-        account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, contents: /(^|\/)iceriklerim\.html$/,
+        account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/,
         collections: /(^|\/)koleksiyonum\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/,
       },
       viewByPath: {
         '/giris': 'login', '/uye-ol': 'signup', '/hesabim': 'account', '/aktivitelerim': 'activities',
-        '/iceriklerim': 'contents', '/koleksiyonum': 'collections', '/sifremi-unuttum': 'forgot',
+        '/koleksiyonum': 'collections', '/sifremi-unuttum': 'forgot',
       },
     },
     info: {

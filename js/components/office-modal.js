@@ -315,7 +315,7 @@ const OfficeModal = (function () {
          firmanın tasarladığı projelerde kullanılan başka markalar/ürünler (bkz. src/routes/
          office.js#buildOfficePayload relatedBrands/projectProducts sorguları). -->
     <div class="related-section" id="om-related-brands-section" style="display:none;">
-      <h2 class="related-title">İlgili Markalar<span id="om-related-brands-count"></span></h2>
+      <h2 class="related-title">Projelerde Kullanılan Markalar<span id="om-related-brands-count"></span></h2>
       <div class="related-grid-scroll" id="om-related-brands-grid"></div>
     </div>
     <div class="related-section" id="om-project-products-section" style="display:none;">

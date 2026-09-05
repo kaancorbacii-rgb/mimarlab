@@ -10,11 +10,11 @@
 // linkleri) HİÇ değiştirilmedi — bunun yerine burada TEK bir delege edilmiş click dinleyicisiyle
 // yakalanıp preventDefault edilir (bkz. aşağısı).
 const AuthModal = (function () {
-  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', activities: '/aktivitelerim', contents: '/iceriklerim', collections: '/koleksiyonum', forgot: '/sifremi-unuttum' };
+  const VIEW_PATH = { login: '/giris', signup: '/uye-ol', account: '/hesabim', activities: '/aktivitelerim', collections: '/koleksiyonum', forgot: '/sifremi-unuttum' };
   // ESKİ (*.html) bağlantı biçimi — artık sitede hiç üretilmiyor ama bookmark/eski sekme/harici
   // bağlantılar hâlâ bu biçimde gelebildiğinden tanınmaya devam eder. KANONİK temiz yollar
   // (VIEW_PATH'in kendisi) pathToView ile eşlenir, bkz. hrefToView.
-  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, contents: /(^|\/)iceriklerim\.html$/, collections: /(^|\/)koleksiyonum\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
+  const HREF_VIEW_RE = { login: /(^|\/)giris-yap\.html$/, signup: /(^|\/)uye-ol\.html$/, account: /(^|\/)hesabim\.html$/, activities: /(^|\/)aktivitelerim\.html$/, collections: /(^|\/)koleksiyonum\.html$/, forgot: /(^|\/)sifremi-unuttum\.html$/ };
 
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s === undefined || s === null ? '' : s; return d.innerHTML; }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -113,19 +113,20 @@ const AuthModal = (function () {
     #am-panel .dash-edit-btn{flex-shrink:0; background:none; border:1.5px solid var(--ink); color:var(--ink); padding:10px 20px; border-radius:100px; font-weight:600; font-size:13.5px;}
     #am-panel .dash-edit-btn:hover{background:var(--ink); color:var(--paper-card);}
     /* Hesabım başlık satırı — accountTemplate() özelinde .dash-head-info YERİNE bu (bkz. kullanıcı
-       isteği: mobilde "Profili Düzenle" avatarın yanında üst satırda, "Aktivitelerim"/"İçeriklerim"
-       başlığın ALTINDA ayrı bir satırda kalsın). activitiesTemplate()/contentsTemplate() hâlâ eski
+       isteği: mobilde "Profili Düzenle" avatarın yanında üst satırda, "Aktivitelerim" başlığın
+       ALTINDA ayrı bir satırda kalsın). activitiesTemplate() hâlâ eski
        .dash-head-info'yu kullanıyor, bu yeni sınıf sadece Hesabım'ın kendi başlığını etkiler — aynı
        özgüllükte (1,1,0) olduğundan ve BURADA (.dash-head kuralından SONRA) tanımlandığından, çakışan
        display/gap/align-items kaynak sırasıyla kazanır, margin-bottom/flex-wrap gibi tekrar
        yazılmayanlar .dash-head'den miras kalır. */
     #am-panel .dash-head-account{display:flex; align-items:center; gap:18px;}
     #am-panel .dash-head-titles{flex:1; min-width:0;}
-    /* ---------- DÖRTLÜ SAYFA GEÇİŞ SATIRI (.dash-nav-row) ----------
-       kullanıcı isteği (2026-08-31, madde 1 ve 3): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim
-       popup'larından birinin içindeyken DİĞER ÜÇÜ, kendi ayrı satırında değil, popup'ın KAPATMA (X)
-       düğmesiyle AYNI satırda dursun; üçü tek satırda, yan yana, birbirine EŞİT aralıklarla ve
+    /* ---------- SAYFA GEÇİŞ SATIRI (.dash-nav-row) ----------
+       kullanıcı isteği (2026-08-31, madde 1 ve 3): Hesabım/Aktivitelerim/Koleksiyonum
+       popup'larından birinin içindeyken DİĞER İKİSİ, kendi ayrı satırında değil, popup'ın KAPATMA (X)
+       düğmesiyle AYNI satırda dursun; tek satırda, yan yana, birbirine EŞİT aralıklarla ve
        yatayda ortalanmış olsun — dar ekranlarda taşmadan (gerekirse butonlar küçülerek).
+       (İçeriklerim 2026-09-05'te kaldırıldı, o tarihe kadar dördüncü sayfaydı.)
        Bu yüzden satır artık #am-panel'in İÇİNDE değil, barındırıcının başlık yuvasında yaşıyor
        (masaüstünde modal-shell.js#.modal-shell-header-center, tablet/mobilde site-chrome.js#
        .nav-mobile-menu-head-center — bkz. mountDashNav) ve kuralları da bu yüzden #am-panel'e
@@ -827,10 +828,11 @@ const AuthModal = (function () {
   // dönüşü olmayan bir işlem sonrası ana sayfaya taze bir yükleme ile dönmek makul, bkz. kullanıcı
   // isteği: "ana sayfaya ... geri dönsün").
   // ---------------------------------------------------------------------------------------------
-  // dashNavRow(current): Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim popup'larının HEPSİNDE
-  // görünen, içinde bulunulan sayfa HARİÇ diğer ÜÇÜNÜ taşıyan geçiş satırı (bkz. kullanıcı isteği,
-  // 2026-08-31 madde 3). Dört şablonda dört kez elle yazmak yerine tek kaynaktan üretilir — böylece
-  // sıra/etiket/stil ve "içinde bulunduğunu gösterme" kuralı dördünde de zorunlu olarak aynı kalır.
+  // dashNavRow(current): Hesabım/Aktivitelerim/Koleksiyonum popup'larının HEPSİNDE görünen, içinde
+  // bulunulan sayfa HARİÇ diğer İKİSİNİ taşıyan geçiş satırı (bkz. kullanıcı isteği, 2026-08-31
+  // madde 3; İçeriklerim 2026-09-05'te kaldırıldı). Üç şablonda üç kez elle yazmak yerine tek
+  // kaynaktan üretilir — böylece sıra/etiket/stil ve "içinde bulunduğunu gösterme" kuralı üçünde de
+  // zorunlu olarak aynı kalır.
   // Butonlar data-am-nav taşır, her mount kendi delegated dinleyicisiyle bağlar (bkz. mountDashNav)
   // — sabit id'lere gerek yok, dört şablonda çakışan id üretme riski de kalkar.
   //
@@ -844,10 +846,9 @@ const AuthModal = (function () {
     { view: 'account', label: 'Hesabım' },
     { view: 'activities', label: 'Aktivitelerim' },
     { view: 'collections', label: 'Koleksiyonum' },
-    { view: 'contents', label: 'İçeriklerim' },
   ];
-  // Geçiş satırının GÖRÜNDÜĞÜ dört görünüm — login/signup/forgot'ta yuva boş bırakılır (o üç
-  // görünümde geçilecek bir "diğer üç sayfa" yok).
+  // Geçiş satırının GÖRÜNDÜĞÜ üç görünüm — login/signup/forgot'ta yuva boş bırakılır (o üç
+  // görünümde geçilecek bir "diğer sayfa" yok).
   const DASH_NAV_VIEW_KEYS = DASH_NAV_VIEWS.map(v => v.view);
   function dashNavRowHtml(current) {
     const others = DASH_NAV_VIEWS.filter(v => v.view !== current);
@@ -1143,11 +1144,11 @@ const AuthModal = (function () {
            Takip Ettiklerim de ARTIK BURADA DEĞİL — kullanıcı isteği (2026-09-01 madde 2: "Takip
            ettiklerim kutusunu aktivitelerim popupından kaldırıp koleksiyonum popupında taşı"),
            bkz. collectionsTemplate#am-dash-follow-feed.
-           Kalan üç kutunun yerleşimi: 1. satır Beğendiklerim | Yorumlarım, 2. satır Paylaştıklarım
-           (tek başına, tam genişlik — bkz. .dash-section-wide). Kırılma noktası .col-two-col ile
-           620px'e çekilir (bkz. injectStyles'taki gerekçe) — istek açıkça "masaüstü VE tablet"te iki
-           sütun diyor, .dash-row'un varsayılan 860px eşiği çekmecenin 90vw genişliğindeki tablet
-           görünümünü tek sütuna düşürürdü. -->
+           Kutuların yerleşimi: 1. satır Beğendiklerim | Yorumlarım, 2. satır Paylaştıklarım |
+           Eklediklerim (kullanıcı isteği, 2026-09-05: İçeriklerim sayfası kaldırıldı, Eklediklerim
+           buraya taşındı). Kırılma noktası .col-two-col ile 620px'e çekilir (bkz. injectStyles'taki
+           gerekçe) — istek açıkça "masaüstü VE tablet"te iki sütun diyor, .dash-row'un varsayılan
+           860px eşiği çekmecenin 90vw genişliğindeki tablet görünümünü tek sütuna düşürürdü. -->
       <div class="dash-row col-two-col">
         <div class="dash-section">
           <h2>Beğendiklerim</h2>
@@ -1170,6 +1171,8 @@ const AuthModal = (function () {
         </div>
       </div>
 
+      <!-- Paylaştıklarım | Eklediklerim (kullanıcı isteği, 2026-09-05): İçeriklerim sayfası kaldırıldı,
+           "Eklediklerim" kutusu (eski contentsTemplate) buraya taşındı — 2. satır iki sütun. -->
       <div class="dash-row col-two-col">
         <!-- Paylaştıklarım (kullanıcı isteği, 2026-08-31 madde 1): "kullanıcıların paylaş butonuna
              tıklayarak başkalarına ilettikleri gönderiler". Kaynak, Paylaş butonunun (bkz.
@@ -1177,7 +1180,7 @@ const AuthModal = (function () {
              shared_items tablosudur (bkz. src/routes/shares.js) — butonu açıp kapatmak değil,
              bağlantıyı kopyalamak/WhatsApp/X/LinkedIn'e göndermek ya da yerel paylaşım sayfasını
              onaylamak sayılır. -->
-        <div class="dash-section dash-section-wide">
+        <div class="dash-section">
           <h2>Paylaştıklarım</h2>
           <div class="saved-filter" id="am-shares-filter">
             <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
@@ -1189,39 +1192,13 @@ const AuthModal = (function () {
           <div id="am-dash-shares"><div class="dash-empty">Yükleniyor…</div></div>
           <div class="dash-pagination" id="am-shares-pagination"></div>
         </div>
-      </div>
-    </div>`;
-  }
 
-  // İçeriklerim — kullanıcının kendi gönderdiği içerikler (bkz. kullanıcı isteği: eskiden
-  // Aktivitelerim'in "Paylaştığım İçerikler" kutusuydu, artık avatar menüsünden ayrı bir popup
-  // olarak açılıyor) — activitiesTemplate() İLE AYNI .dash-wrap/.dash-section iskeleti, tek bölüm.
-  function contentsTemplate() {
-    return `
-    <div class="dash-wrap" id="am-contents-wrap">
-      <div class="dash-head">
-        <div class="dash-head-info">
-          <div>
-            <h1>İçeriklerim</h1>
-            <p>Platforma gönderdiğin proje, ürün, mimar ve firma içerikleri.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- TEK SÜTUN (kullanıcı isteği, 2026-09-01 madde 2): yanındaki "Kişi/Firma Profilim" kutusu
-           KALDIRILDI — aynı bilgi (ve firma için "Profili Düzenle") artık Hesabım > Firma Bilgileri
-           kutusunda duruyor (bkz. accountTemplate#am-firm-facts / renderFirmEditBtn). Tek kutu
-           kaldığından .dash-row ızgarası da gereksiz: .dash-section kendi margin-bottom'unu zaten
-           taşıyor ve tam genişliği kaplar. -->
-      <div>
+        <!-- Eklediklerim — eski contentsTemplate/İçeriklerim popup'ından TAŞINDI (kullanıcı isteği,
+             2026-09-05: İçeriklerim sayfası tamamen kaldırıldı). "Marka" filtresi diğer butonların EN
+             SONUNA eklendi — marka gönderileri ayrı bir gönderi tipi değil, offices gönderisidir;
+             ayrım sunucudan gelen item.isBrand ile yapılır (bkz. src/routes/submissions.js#listMine
+             ve office-kind.js). -->
         <div class="dash-section">
-          <!-- Başlık "Eklediklerim" + "Proje Ekle/Ürün Ekle/..." bağlantı satırı KALDIRILDI
-               (kullanıcı isteği, 2026-09-01 madde 3). Ekleme sayfalarına giden yol zaten
-               nav/footer'daki "İçerik Ekle" akışında var (bkz. site-chrome.js); bu kutu artık
-               yalnızca "ne eklediğimi göster" işini yapıyor.
-               "Marka" filtresi diğer butonların EN SONUNA eklendi — marka gönderileri ayrı bir
-               gönderi tipi değil, offices gönderisidir; ayrım sunucudan gelen item.isBrand ile
-               yapılır (bkz. src/routes/submissions.js#listMine ve office-kind.js). -->
           <h2>Eklediklerim</h2>
           <div class="submissions-toolbar-row" id="am-submissions-filter">
             <button type="button" class="submissions-filter-btn active" data-filter="">Tümü</button>
@@ -1267,7 +1244,9 @@ const AuthModal = (function () {
            sütun orada hâlâ rahat sığıyor; .dash-row'un varsayılan 860px eşiği tablette gereksiz
            yere tek sütuna düşürürdü. -->
       <div id="am-col-list-view" class="dash-row col-two-col">
-        <div class="dash-section">
+        <!-- dash-section-wide: Panolarım tek başına ilk satırı tam genişlik kaplar, Kaydettiklerim
+             ve Takip Ettiklerim altında yan yana ikinci satıra düşer. -->
+        <div class="dash-section dash-section-wide">
           <h2>Panolarım</h2>
           <p class="section-hint">Yeni bir pano oluştur, sonra içine kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekle.</p>
           <div class="col-new-row">
@@ -1307,9 +1286,8 @@ const AuthModal = (function () {
                  /api/follows'ta is_brand döner ve istemci onları 'brand' tipinde sayar; böylece
                  marka profilindeki Takip Et buradaki Marka sekmesinde görünür.
                • "Yeni" rozeti: son ziyaretten sonra yayınlanmış gönderilerin yanında (bkz.
-                 followSeenAt / FOLLOW_FEED_SEEN_KEY).
-             .dash-section-wide: satırın üçüncü kutusu tek başına kaldığından tam genişlik kaplar. -->
-        <div class="dash-section dash-section-wide">
+                 followSeenAt / FOLLOW_FEED_SEEN_KEY). -->
+        <div class="dash-section">
           <h2>Takip Ettiklerim <span class="dash-new-count" id="am-follow-feed-new-count" hidden></span></h2>
           <p class="section-hint">Takip ettiğin mimar, firma ve markalar ile onların takibe başladıktan SONRA eklediği proje ve ürünler.</p>
           <div class="saved-filter" id="am-follow-feed-filter">
@@ -3472,23 +3450,8 @@ const AuthModal = (function () {
       renderShares();
     });
 
-    fetch('/api/auth/me').then(r => {
-      if (!r.ok) { swap('login'); return; }
-      [loadRated(), loadComments(), loadShares()].forEach(p => p.catch(() => {}));
-    }).catch(() => {});
-  }
-
-  // İçeriklerim popup'ının mount fonksiyonu — mountActivities() İÇİNDE "Paylaştığım İçerikler"in
-  // eskiden kullandığı loadSubmissions/renderSubmissions AYNEN buraya taşındı (bkz. contentsTemplate).
-  function mountContents() {
-    const wired = new Set();
-    function on(id, evt, fn) {
-      const key = id + ':' + evt;
-      if (wired.has(key)) return;
-      wired.add(key);
-      const el = document.getElementById(id);
-      if (el) el.addEventListener(evt, fn);
-    }
+    // Eklediklerim — eski contentsTemplate/İçeriklerim popup'ının mountContents() fonksiyonundan
+    // AYNEN taşındı (kullanıcı isteği, 2026-09-05: İçeriklerim sayfası kaldırıldı).
     let allSubmissions = [];
     let submissionsFilter = '';
     let submissionsPage = 1;
@@ -3558,18 +3521,13 @@ const AuthModal = (function () {
       renderSubmissions();
     });
 
-    // "Kişi/Firma Profilim" kutusu KALDIRILDI (kullanıcı isteği, 2026-09-01 madde 2) — hesaba bağlı
-    // mimar/firma profili ve firma künyesinin "Profili Düzenle" butonu artık YALNIZCA Hesabım
-    // popup'ındaki Profil Bilgileri / Firma Bilgileri kutularında duruyor (bkz. accountTemplate,
-    // renderClaimsList, renderFirmEditBtn). Bu kutunun kendi /api/claims/mine fetch'i de bu yüzden
-    // tamamen kaldırıldı — İçeriklerim artık yalnızca "Eklediklerim"i yükler.
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { swap('login'); return; }
-      loadSubmissions().catch(() => {});
+      [loadRated(), loadComments(), loadShares(), loadSubmissions()].forEach(p => p.catch(() => {}));
     }).catch(() => {});
   }
 
-  // Koleksiyonum'un mount fonksiyonu — mountContents() ile AYNI iskelet (wired Set'i + on() yardımcısı
+  // Koleksiyonum'un mount fonksiyonu — mountActivities() ile AYNI iskelet (wired Set'i + on() yardımcısı
   // ile idempotent dinleyici bağlama, sonda TEK bir /api/auth/me kontrolü). Tüm veri
   // /api/collections* uçlarından gelir (bkz. src/routes/collections.js).
   function mountCollections() {
@@ -4439,7 +4397,6 @@ const AuthModal = (function () {
     else if (view === 'signup') { wrap.innerHTML = signupTemplate(); wireSignup(); }
     else if (view === 'forgot') { wrap.innerHTML = forgotTemplate(); wireForgot(); }
     else if (view === 'activities') { wrap.innerHTML = activitiesTemplate(); mountActivities(); }
-    else if (view === 'contents') { wrap.innerHTML = contentsTemplate(); mountContents(); }
     else if (view === 'collections') { wrap.innerHTML = collectionsTemplate(); mountCollections(); }
     else { wrap.innerHTML = accountTemplate(); mountAccount(); }
     // Geçiş satırı artık şablonun değil BARINDIRICI BAŞLIĞIN parçası (bkz. mountDashNav) — hostEl
@@ -4451,7 +4408,7 @@ const AuthModal = (function () {
       // denetim bulgusu (AUDIT-009): bu modal document.title'ı hiç değiştirmiyor (sayfanın kendi
       // başlığı korunur), o yüzden diğer modallardaki gibi document.title'ı yeniden kullanamayız —
       // aria-label için ayrı, sabit bir Türkçe etiket haritası.
-      const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum', activities: 'Aktivitelerim', contents: 'İçeriklerim', collections: 'Koleksiyonum' };
+      const AUTH_VIEW_LABELS = { login: 'Giriş Yap', signup: 'Üye Ol', forgot: 'Şifremi Unuttum', activities: 'Aktivitelerim', collections: 'Koleksiyonum' };
       ModalShell.setLabel(AUTH_VIEW_LABELS[view] || 'Hesabım');
       ModalShell.scrollToTop();
     }
@@ -4493,7 +4450,7 @@ const AuthModal = (function () {
     // popup'ın üstüne açıldıysa zincir kaldığı yerden devam eder, kapanış tek hamlede popup ÖNCESİ
     // sayfaya döner.
     if (pushHistory) history.pushState({ mimarlabModal: 'auth', view, depth: pushCountSinceOpen }, '', VIEW_PATH[view]);
-    // Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim kullanıcı için birer SAYFADIR (bkz. kullanıcı
+    // Hesabım/Aktivitelerim/Koleksiyonum kullanıcı için birer SAYFADIR (bkz. kullanıcı
     // isteği: "koleksiyonum sayfasındayken bir proje popup'ına girip ... kapattığımda koleksiyonum
     // sayfası karşıma çıksın") — bu yüzden buradan açılan varlık popup'ları kapatılınca dönülecek
     // "son gerçek sayfa" olarak işaretlenirler. pushState'ten SONRA çağrılır: location.href artık
@@ -4607,7 +4564,6 @@ const AuthModal = (function () {
     if (path === '/uye-ol') return 'signup';
     if (path === '/hesabim') return 'account';
     if (path === '/aktivitelerim') return 'activities';
-    if (path === '/iceriklerim') return 'contents';
     if (path === '/koleksiyonum') return 'collections';
     if (path === '/sifremi-unuttum') return 'forgot';
     return null;

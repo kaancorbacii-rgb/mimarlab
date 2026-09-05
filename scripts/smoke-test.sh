@@ -164,7 +164,7 @@ echo "7) Hesap/oturum yollarında noindex (src/index.js#AUTH_MODAL_META regresyo
 # Bulgu: /giris, /uye-ol, /hesabim ... ana sayfanın gövdesini robots etiketi OLMADAN döndürüyordu;
 # /giris ile /uye-ol sitedeki her sayfanın footer'ında gerçek <a href> — yani indexlenebilir
 # duplicate'lardı. Kaynak kodda AKSİ İDDİA EDİLEN bir yorum vardı, bu yüzden kontrol canlıya bakar.
-for p in "/giris" "/uye-ol" "/hesabim" "/aktivitelerim" "/iceriklerim" "/koleksiyonum" "/sifremi-unuttum"; do
+for p in "/giris" "/uye-ol" "/hesabim" "/aktivitelerim" "/koleksiyonum" "/sifremi-unuttum"; do
   page_html=$(curl -s "$BASE_URL$p")
   if [[ "$page_html" == *'name="robots" content="noindex'* ]]; then ok "$p noindex taşıyor"; else bad "$p noindex TAŞIMIYOR (ana sayfa duplicate'i indexlenebilir)"; fi
 done

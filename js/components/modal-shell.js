@@ -670,7 +670,7 @@ const ModalShell = (function () {
   }
 
   // Header satırının ORTA yuvası (bkz. injectStyles#.modal-shell-header-center) — şu an yalnızca
-  // AuthModal'in Hesabım/Aktivitelerim/Koleksiyonum/İçeriklerim geçiş butonları için kullanılır.
+  // AuthModal'in Hesabım/Aktivitelerim/Koleksiyonum geçiş butonları için kullanılır.
   function getHeaderCenterSlot() {
     return overlayEl ? overlayEl.querySelector('#modal-shell-header-center') : null;
   }

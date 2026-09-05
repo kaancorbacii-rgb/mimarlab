@@ -109,22 +109,6 @@ const InfoModal = (function () {
     #im-panel .tier-card-perks{font-size:12px; color:var(--ink-soft); line-height:1.5; margin:0; padding-left:15px;}
     #im-panel .tier-card-perks li{margin-bottom:3px;}
     #im-panel .tier-card-perks li:last-child{margin-bottom:0;}
-    #im-panel .payment-option-disabled{opacity:0.55; cursor:default;}
-    #im-panel .payment-option-disabled input{cursor:default;}
-    #im-panel .payment-soon-tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); background:var(--paper-alt); padding:3px 9px; border-radius:100px;}
-    #im-panel .havale-box{margin-top:14px; border:1px solid var(--line); border-radius:12px; padding:16px 18px; background:var(--paper);}
-    #im-panel .havale-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px;}
-    #im-panel .havale-row:last-of-type{border-bottom:none;}
-    #im-panel .havale-row-label{color:var(--ink-soft); flex-shrink:0;}
-    #im-panel .havale-row-value{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; text-align:right; word-break:break-word;}
-    #im-panel .havale-copy-btn{flex-shrink:0; background:none; border:1px solid var(--line); border-radius:100px; padding:5px 12px; font-size:11.5px; font-weight:600; color:var(--ink);}
-    #im-panel .havale-copy-btn:hover{background:var(--paper-alt);}
-    #im-panel .havale-hint{font-size:12.5px; color:var(--ink-soft); line-height:1.6; margin:12px 0 0;}
-    #im-panel .summary-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line-soft); font-size:14px;}
-    #im-panel .summary-row:last-child{border-bottom:none;}
-    #im-panel .summary-row-label{color:var(--ink-soft);}
-    #im-panel .summary-row-value{font-weight:600;}
-    #im-panel .summary-total{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:20px; font-weight:600;}
     #im-panel .already-has{text-align:center; padding:10px 4px;}
     #im-panel .already-has strong{display:block; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; margin-bottom:6px;}
     #im-panel .already-has p{color:var(--ink-soft); font-size:13.5px; margin:0 0 16px; line-height:1.6;}
@@ -702,42 +686,11 @@ const InfoModal = (function () {
       </div>
 
       <div class="form-section">
-        <h2>Kademe</h2>
+        <h2>Rozetler</h2>
         <p class="section-hint">Devam etmeden önce dilediğin kademeyi seçebilirsin.</p>
         <div class="tier-grid" id="im-tier-grid"></div>
-      </div>
-
-      <div class="form-section" id="im-payment-section">
-        <h2>Ödeme Yöntemi</h2>
-        <p class="section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
-        <label class="target-option"><input type="radio" name="im-payment-method" id="im-payment-havale" value="havale" checked> Havale / EFT</label>
-        <label class="target-option payment-option-disabled"><input type="radio" name="im-payment-method" id="im-payment-card" value="card" disabled> Kredi / Banka Kartı <span class="payment-soon-tag">Şu an aktif değil</span></label>
-
-        <div class="havale-box" id="im-havale-box">
-          <div class="havale-row">
-            <span class="havale-row-label">IBAN</span>
-            <span class="havale-row-value" id="im-havale-iban">TR22 0004 6001 7088 8000 2482 94</span>
-            <button type="button" class="havale-copy-btn" id="im-havale-copy-btn">Kopyala</button>
-          </div>
-          <div class="havale-row"><span class="havale-row-label">Hesap Sahibi</span><span class="havale-row-value">Kaan Çorbacı</span></div>
-          <div class="havale-row"><span class="havale-row-label">Tutar</span><span class="havale-row-value" id="im-havale-amount">—</span></div>
-          <div class="havale-row"><span class="havale-row-label">Açıklama</span><span class="havale-row-value">info@mimarlab.com</span></div>
-          <p class="havale-hint">Ödemeni yukarıdaki IBAN'a gönderirken açıklama kısmına e-posta adresini yaz. Ödemeyi tamamladıktan sonra aşağıdaki butona tıkla, satın alımın onaylandığında rozetin hemen aktifleşecek.</p>
-        </div>
-      </div>
-
-      <div class="form-section" id="im-summary-section">
-        <h2>Sipariş Özeti</h2>
-        <div class="summary-row">
-          <span class="summary-row-label" id="im-summary-tier-label">—</span>
-          <span class="summary-row-value summary-total" id="im-summary-tier-price">—</span>
-        </div>
-        <div class="summary-row">
-          <span class="summary-row-label">Yenileme</span>
-          <span class="summary-row-value">Aylık, elle iptal edilene kadar</span>
-        </div>
-        <button class="form-submit" id="im-confirm-btn" type="button" style="margin-top:18px;">Ödemeyi Yaptım</button>
-        <div class="form-notice" id="im-rozet-notice"></div>
+        <button class="form-submit" id="im-select-tier-btn" type="button" style="margin-top:18px;">Rozeti Seç</button>
+        <div class="form-notice" id="im-select-tier-notice"></div>
       </div>
 
       <div class="form-section" id="im-already-has-section" style="display:none;">
@@ -750,8 +703,182 @@ const InfoModal = (function () {
     </div>`;
   }
 
+  // Ödeme Yöntemi popup'ı — Rozetler bölümündeki "Rozeti Seç" butonuna tıklandığında AÇILAN ikinci
+  // popup (kullanıcı isteği, 2026-09-05: "Ödeme Yöntemleri rozet al sayfasında değil, Rozeti Seç
+  // butonuna tıkladıktan sonra gelecek olan başka bir popup sayfasında yer alsın"). ModalShell TEK
+  // bir paylaşılan singleton olduğundan (rozet-al zaten onu kullanıyor, bir üstüne ikinci bir
+  // ModalShell içeriği açılamaz) bu popup rating-widget.js#ensureRatePopup İLE AYNI desenle kendi
+  // bağımsız overlay'ini document.body'ye TEK seferlik enjekte eder (z-index 400, ModalShell'in
+  // 150'sinin üstünde) — rozet-al popup'ı ister ModalShell'de ister (tablet/mobil) NavDrawer alt
+  // sayfasında açılsın, sabit konumlandırma ikisinin de üstünü kaplar.
+  let rozetPayPopupApi = null;
+  function ensureRozetPayPopup() {
+    if (rozetPayPopupApi) return rozetPayPopupApi;
+    if (!document.getElementById('rozet-pay-style')) {
+      const style = document.createElement('style');
+      style.id = 'rozet-pay-style';
+      style.textContent = `
+        .rozet-pay-overlay{display:none; position:fixed; inset:0; z-index:400; background:rgba(20,24,30,0.62); backdrop-filter:blur(2px); align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto;}
+        .rozet-pay-overlay.open{display:flex;}
+        .rozet-pay-popup{width:100%; max-width:440px; background:var(--paper-card); border-radius:16px; padding:28px 26px 26px; position:relative; box-shadow:0 24px 60px rgba(0,0,0,0.35); margin:auto;}
+        .rozet-pay-close{position:absolute; top:12px; right:12px; background:none; border:none; color:var(--ink-soft); padding:8px; cursor:pointer; display:flex; border-radius:50%;}
+        .rozet-pay-close:hover{color:var(--ink); background:var(--paper-alt);}
+        .rozet-pay-eyebrow{font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--sage);}
+        .rozet-pay-title{margin:4px 0 18px; font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:19px; font-weight:700; color:var(--ink); padding-right:20px;}
+        .rozet-pay-summary-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:14px;}
+        .rozet-pay-summary-row:last-of-type{border-bottom:none; margin-bottom:14px;}
+        .rozet-pay-summary-total{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:700; font-size:17px;}
+        .rozet-pay-section-title{font-size:14px; font-weight:700; margin:6px 0 2px;}
+        .rozet-pay-section-hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 6px;}
+        .rozet-pay-option{display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:500; cursor:pointer; padding:8px 4px;}
+        .rozet-pay-option input{width:16px; height:16px; accent-color:var(--walnut); flex-shrink:0;}
+        .rozet-pay-option-disabled{opacity:0.55; cursor:default;}
+        .rozet-pay-option-disabled input{cursor:default;}
+        .rozet-pay-soon-tag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); background:var(--paper-alt); padding:3px 8px; border-radius:100px;}
+        .rozet-pay-havale-box{margin-top:12px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--paper);}
+        .rozet-pay-havale-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line-soft); font-size:13px;}
+        .rozet-pay-havale-row:last-of-type{border-bottom:none;}
+        .rozet-pay-havale-label{color:var(--ink-soft); flex-shrink:0;}
+        .rozet-pay-havale-value{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight:600; text-align:right; word-break:break-word;}
+        .rozet-pay-copy-btn{flex-shrink:0; background:none; border:1px solid var(--line); border-radius:100px; padding:5px 11px; font-size:11px; font-weight:600; color:var(--ink);}
+        .rozet-pay-copy-btn:hover{background:var(--paper-alt);}
+        .rozet-pay-hint{font-size:12px; color:var(--ink-soft); line-height:1.6; margin:10px 0 0;}
+        .rozet-pay-submit{width:100%; background:var(--ink); color:var(--paper-card); border:none; padding:13px; border-radius:100px; font-weight:600; font-size:14.5px; margin-top:18px; cursor:pointer;}
+        .rozet-pay-submit:hover{background:var(--walnut);}
+        .rozet-pay-submit:disabled{background:var(--paper-alt); color:var(--ink-soft); cursor:default;}
+        .rozet-pay-notice{display:none; margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(224,138,62,0.12); border:1px solid var(--accent); color:var(--ink); font-size:12.5px; line-height:1.6;}
+        .rozet-pay-notice.success{background:rgba(62,122,85,0.12); border-color:#3E7A55;}
+        .rozet-pay-notice.show{display:block;}
+      `;
+      document.head.appendChild(style);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'rozet-pay-overlay';
+    overlay.innerHTML = `
+      <div class="rozet-pay-popup" role="dialog" aria-modal="true" aria-labelledby="rozet-pay-title">
+        <button type="button" class="rozet-pay-close" aria-label="Kapat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <div class="rozet-pay-eyebrow">Ödeme</div>
+        <h3 class="rozet-pay-title" id="rozet-pay-title">—</h3>
+
+        <div class="rozet-pay-summary-row">
+          <span>Tutar</span>
+          <span class="rozet-pay-summary-total" id="rozet-pay-price">—</span>
+        </div>
+        <div class="rozet-pay-summary-row">
+          <span>Yenileme</span>
+          <span>Aylık, elle iptal edilene kadar</span>
+        </div>
+
+        <div class="rozet-pay-section-title">Ödeme Yöntemi</div>
+        <p class="rozet-pay-section-hint">Şu anda yalnızca havale/EFT ile ödeme alıyoruz.</p>
+        <label class="rozet-pay-option"><input type="radio" name="rozet-pay-method" checked> Havale / EFT</label>
+        <label class="rozet-pay-option rozet-pay-option-disabled"><input type="radio" disabled> Kredi / Banka Kartı <span class="rozet-pay-soon-tag">Şu an aktif değil</span></label>
+
+        <div class="rozet-pay-havale-box">
+          <div class="rozet-pay-havale-row">
+            <span class="rozet-pay-havale-label">IBAN</span>
+            <span class="rozet-pay-havale-value">TR22 0004 6001 7088 8000 2482 94</span>
+            <button type="button" class="rozet-pay-copy-btn" id="rozet-pay-copy-btn">Kopyala</button>
+          </div>
+          <div class="rozet-pay-havale-row"><span class="rozet-pay-havale-label">Hesap Sahibi</span><span class="rozet-pay-havale-value">Kaan Çorbacı</span></div>
+          <div class="rozet-pay-havale-row"><span class="rozet-pay-havale-label">Tutar</span><span class="rozet-pay-havale-value" id="rozet-pay-amount">—</span></div>
+          <div class="rozet-pay-havale-row"><span class="rozet-pay-havale-label">Açıklama</span><span class="rozet-pay-havale-value">info@mimarlab.com</span></div>
+          <p class="rozet-pay-hint">Ödemeni yukarıdaki IBAN'a gönderirken açıklama kısmına e-posta adresini yaz. Ödemeyi tamamladıktan sonra aşağıdaki butona tıkla, satın alımın onaylandığında rozetin hemen aktifleşecek.</p>
+        </div>
+
+        <button class="rozet-pay-submit" type="button" id="rozet-pay-confirm-btn">Ödemeyi Yaptım</button>
+        <div class="rozet-pay-notice" id="rozet-pay-notice"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const titleEl = overlay.querySelector('#rozet-pay-title');
+    const priceEl = overlay.querySelector('#rozet-pay-price');
+    const amountEl = overlay.querySelector('#rozet-pay-amount');
+    const confirmBtn = overlay.querySelector('#rozet-pay-confirm-btn');
+    const notice = overlay.querySelector('#rozet-pay-notice');
+    const copyBtn = overlay.querySelector('#rozet-pay-copy-btn');
+    const ORIGINAL_BTN_LABEL = 'Ödemeyi Yaptım';
+    const HAVALE_IBAN_RAW = 'TR220004600170888000248294';
+    const state = { badgeType: null, targetType: 'self', targetKey: null, onSuccess: null };
+
+    function close() {
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    overlay.querySelector('.rozet-pay-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) close(); });
+    // Bu popup bir InfoModal içeriğinin ÜSTÜNDE açılır — rozet-al popup'ı kapanırsa (X, geri tuşu,
+    // başka bir popup'a geçiş) bu overlay document.body'de asılı kalıp body.overflow'u 'hidden'da
+    // kilitli bırakmasın diye rating-widget.js#ensureRatePopup İLE AYNI temizlik.
+    document.addEventListener('mimarlab-modal-closed', close);
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(HAVALE_IBAN_RAW);
+        const original = copyBtn.textContent;
+        copyBtn.textContent = 'Kopyalandı';
+        setTimeout(() => { copyBtn.textContent = original; }, 1500);
+      } catch {}
+    });
+
+    confirmBtn.addEventListener('click', async () => {
+      notice.classList.remove('show', 'success');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Gönderiliyor…';
+      try {
+        const res = await fetch('/api/badges', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ badgeType: state.badgeType, targetType: state.targetType, targetKey: state.targetKey }),
+        });
+        if (res.status === 401) { window.location.href = '/giris'; return; }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          notice.textContent = data.error || 'Talep gönderilemedi, tekrar dene.';
+          notice.classList.add('show');
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = ORIGINAL_BTN_LABEL;
+          return;
+        }
+        notice.textContent = 'Talebin alındı. Ödemen kontrol edilip onaylandığında rozetin aktif olacak — sonucu Hesabım sayfandan takip edebilirsin.';
+        notice.classList.add('show', 'success');
+        confirmBtn.textContent = 'Talebin Gönderildi';
+        if (state.onSuccess) state.onSuccess();
+      } catch {
+        notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+        notice.classList.add('show');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = ORIGINAL_BTN_LABEL;
+      }
+    });
+
+    rozetPayPopupApi = {
+      open({ tierLabel, priceLabel, badgeType, targetType, targetKey, onSuccess }) {
+        state.badgeType = badgeType;
+        state.targetType = targetType;
+        state.targetKey = targetKey;
+        state.onSuccess = onSuccess || null;
+        titleEl.textContent = tierLabel;
+        priceEl.textContent = `${priceLabel} / ay`;
+        amountEl.textContent = priceLabel;
+        notice.textContent = '';
+        notice.classList.remove('show', 'success');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = ORIGINAL_BTN_LABEL;
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      },
+    };
+    return rozetPayPopupApi;
+  }
+
   function mountRozetAl() {
-    fetch('/api/auth/me').then(res => { if (!res.ok) window.location.href = '/giris'; }).catch(() => {});
+    // Sayfa artık giriş YAPMADAN da görüntülenebilir (kullanıcı isteği, 2026-09-05) — eskiden burada
+    // oturum yoksa '/giris'e sessizce yönlendiren bir kontrol vardı. Girişin ZORUNLU olduğu tek an,
+    // aşağıdaki "Rozeti Seç" tıklamasıyla ödeme popup'ına geçilmeye çalışıldığı andır (bkz. o
+    // butonun dinleyicisi) — /api/claims/mine ve /api/badges/mine gibi diğer uçlar oturumsuzken
+    // zaten sessizce boş sonuç döner (catch/res.ok kontrolleri), sayfa çökmez.
 
     // "Mesaj" perk'i her iki kademede de listelenir — bkz. architect-modal.js/office-modal.js#
     // renderMessageIcon (kullanıcı isteği 2026-08-30: doğrulanmış/altın üyeler artık TÜM kullanıcılara
@@ -804,22 +931,12 @@ const InfoModal = (function () {
         card.addEventListener('click', () => {
           selectedTier = card.dataset.type;
           renderTierGrid();
-          renderSummary();
           updateExistingBadgePanel();
         });
       });
     }
 
-    function renderSummary() {
-      const tier = BADGE_TIERS.find(t => t.type === selectedTier);
-      const priceLabel = formatTRY(priceForTier(tier));
-      document.getElementById('im-summary-tier-label').textContent = tier.label;
-      document.getElementById('im-summary-tier-price').textContent = `${priceLabel} / ay`;
-      document.getElementById('im-havale-amount').textContent = priceLabel;
-    }
-
     renderTierGrid();
-    renderSummary();
 
     let myBadges = [];
     let myProfileBadges = { self: null, offices: {} };
@@ -855,18 +972,16 @@ const InfoModal = (function () {
         blocking = profileRank >= activeRank ? { badge_type: profileBadgeType, status: 'active', admin: true } : activeBadge;
       }
 
-      const paymentSection = document.getElementById('im-payment-section');
-      const summarySection = document.getElementById('im-summary-section');
+      const selectTierBtn = document.getElementById('im-select-tier-btn');
       const alreadyHasSection = document.getElementById('im-already-has-section');
       if (!blocking) {
-        paymentSection.style.display = '';
-        summarySection.style.display = '';
+        selectTierBtn.style.display = '';
         alreadyHasSection.style.display = 'none';
         return;
       }
       const tier = BADGE_TIERS.find(t => t.type === blocking.badge_type);
-      paymentSection.style.display = 'none';
-      summarySection.style.display = 'none';
+      selectTierBtn.style.display = 'none';
+      document.getElementById('im-select-tier-notice').classList.remove('show');
       alreadyHasSection.style.display = 'block';
       const targetLabel = selectedTargetType === 'office' ? ` (${selectedTargetKey})` : '';
       document.getElementById('im-already-has-title').textContent =
@@ -925,56 +1040,48 @@ const InfoModal = (function () {
           selectedTargetKey = null;
         }
         renderTierGrid();
-        renderSummary();
         updateExistingBadgePanel();
       });
     });
 
-    const HAVALE_IBAN_RAW = 'TR220004600170888000248294';
-    const havaleCopyBtn = document.getElementById('im-havale-copy-btn');
-    havaleCopyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(HAVALE_IBAN_RAW);
-        const original = havaleCopyBtn.textContent;
-        havaleCopyBtn.textContent = 'Kopyalandı';
-        setTimeout(() => { havaleCopyBtn.textContent = original; }, 1500);
-      } catch {}
-    });
+    // "Rozeti Seç" (kullanıcı isteği, 2026-09-05): Ödeme Yöntemi/Sipariş Özeti artık bu sayfada
+    // DEĞİL, bu butona tıklandığında açılan AYRI bir popup'ta (bkz. ensureRozetPayPopup). Ödeme
+    // popup'ına geçmek GİRİŞ gerektirir — oturum yoksa uyarı + Giriş Yap/Üye Ol bağlantısı
+    // gösterilir, popup açılmaz (yalnızca sayfanın kendisi girişsiz görüntülenebilir).
+    document.getElementById('im-select-tier-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('im-select-tier-btn');
+      const notice = document.getElementById('im-select-tier-notice');
+      notice.classList.remove('show');
 
-    const ORIGINAL_BTN_LABEL = 'Ödemeyi Yaptım';
-    document.getElementById('im-confirm-btn').addEventListener('click', async () => {
-      const btn = document.getElementById('im-confirm-btn');
-      const notice = document.getElementById('im-rozet-notice');
-      notice.classList.remove('show', 'success');
-
-      if (selectedTargetType === 'office' && !selectedTargetKey) { notice.textContent = 'Rozet almak için önce onaylı bir firma profiline sahip olmalısın.'; notice.classList.add('show'); return; }
+      if (selectedTargetType === 'office' && !selectedTargetKey) {
+        notice.textContent = 'Rozet almak için önce onaylı bir firma profiline sahip olmalısın.';
+        notice.classList.add('show');
+        return;
+      }
 
       btn.disabled = true;
-      btn.textContent = 'Gönderiliyor…';
+      let authed = false;
       try {
-        const res = await fetch('/api/badges', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ badgeType: selectedTier, targetType: selectedTargetType, targetKey: selectedTargetKey }),
-        });
-        if (res.status === 401) { window.location.href = '/giris'; return; }
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          notice.textContent = data.error || 'Talep gönderilemedi, tekrar dene.';
-          notice.classList.add('show');
-          btn.disabled = false;
-          btn.textContent = ORIGINAL_BTN_LABEL;
-          return;
-        }
-        notice.textContent = 'Talebin alındı. Ödemen kontrol edilip onaylandığında rozetin aktif olacak — sonucu Hesabım sayfandan takip edebilirsin.';
-        notice.classList.add('show', 'success');
-        btn.textContent = 'Talebin Gönderildi';
-        loadMyBadges();
-      } catch {
-        notice.textContent = 'Sunucuya ulaşılamadı, lütfen tekrar dene.';
+        const res = await fetch('/api/auth/me');
+        authed = res.ok;
+      } catch {}
+      btn.disabled = false;
+
+      if (!authed) {
+        notice.innerHTML = 'Ödeme yöntemine ilerlemek için hesabına giriş yapman gerekiyor. <a href="/giris" style="color:var(--walnut); font-weight:600;">Giriş Yap</a> ya da <a href="/uye-ol" style="color:var(--walnut); font-weight:600;">Üye Ol</a>.';
         notice.classList.add('show');
-        btn.disabled = false;
-        btn.textContent = ORIGINAL_BTN_LABEL;
+        return;
       }
+
+      const tier = BADGE_TIERS.find(t => t.type === selectedTier);
+      ensureRozetPayPopup().open({
+        tierLabel: tier.label,
+        priceLabel: formatTRY(priceForTier(tier)),
+        badgeType: selectedTier,
+        targetType: selectedTargetType,
+        targetKey: selectedTargetKey,
+        onSuccess: () => loadMyBadges(),
+      });
     });
   }
 
