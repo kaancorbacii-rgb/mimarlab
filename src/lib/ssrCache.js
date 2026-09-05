@@ -87,7 +87,14 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // sürüm artırılmazsa daha önce ziyaret edilmiş proje sayfaları s-maxage boyunca bu script'i hiç
 // yüklemeyen eski kabuğu sunar; buton görünür ama basıldığında (HotspotTagger tanımsız olduğundan,
 // bkz. gallery.js'teki typeof koruması) işaretleme modu sessizce hiçbir şey yapmazdı.
-export const SSR_CACHE_VERSION = 'v116';
+// v117 (kullanıcı isteği, 2026-09-05: "her popupın SEO verisi popupın içinden alınsın"): dört
+// detay tipinin de SSR gövdesi + JSON-LD'si popup künyesiyle hizalandı (bkz. src/lib/seo.js#
+// "POPUP KÜNYE SÖZLEŞMESİ") — kişide Doğum Tarihi/Üniversite/Meslek/Ödüller, projede Tür/Tip/Grup
+// üç ayrı eksen + Fotoğraf + Kullanılan Ürünler/Markalar, üründe Versiyonlar/Tasarımcı/Yıl,
+// markada Ürün Kategorisi + Ürünler + Markanın Kullanıldığı Projeler. Bu içerik ÖNBELLEKLENEN
+// HTML'in İÇİNDE (#ssr-entity-body + <head> JSON-LD) durduğundan, sürüm artırılmazsa daha önce
+// ziyaret edilmiş detay sayfaları s-maxage boyunca eski, eksik künyeyi sunmaya devam ederdi.
+export const SSR_CACHE_VERSION = 'v117';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',
