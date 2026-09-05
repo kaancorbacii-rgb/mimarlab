@@ -190,21 +190,6 @@
   /* /kisi/:slug altında serveDetailPage tarafından doldurulur; listeleme sayfasında (/kisi) boş
      kalır, :empty kuralı sayfaya gereksiz bir boşluk eklenmesini önler. */
   .ssr-entity:empty{display:none;}
-  /* SSR HUB LİSTESİ (SEO denetimi, 2026-09-05 — bkz. src/lib/hubLinks.js). Sunucu, hub sayfasına
-     ilk 100 kaydın GERÇEK bağlantısını basar: JS'siz kullanıcı ve Googlebot bu listeyi görür ve
-     siteyi buradan gezebilir (önceden ham HTML'de detay sayfasına giden HİÇBİR bağlantı yoktu).
-     Asıl kart ızgarası (#card-grid) dolduğu anda bu liste gizlenir — aynı içeriğin iki kez
-     görünmesini engeller. GİZLİ METİN/CLOAKING DEĞİL: liste, JS çalışmadığında tam olarak
-     botun gördüğü hâliyle görünür kalır ve JS çalıştığında yerini daha zengin ızgaraya bırakır. */
-  .ssr-hub{width:100%;}
-  .ssr-hub h2{font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size:17px; font-weight:700; margin:0 0 6px;}
-  .ssr-hub > p{color:var(--ink-soft); font-size:14px; line-height:1.6; margin:0 0 12px;}
-  .ssr-hub-list{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:6px 18px;}
-  .ssr-hub-list li{font-size:13.5px; line-height:1.5;}
-  .ssr-hub-list a{color:var(--ink); font-weight:600;}
-  .ssr-hub-list span{color:var(--ink-soft); margin-left:6px; font-size:12px;}
-  body.grid-ready #ssr-entity-body{display:none;}
-
   .ssr-entity{max-width:1260px; margin:0 auto; padding:0 32px 20px; display:flex; gap:20px; align-items:flex-start;}
   .ssr-entity img{width:160px; height:160px; object-fit:cover; border-radius:8px; flex-shrink:0;}
   .ssr-entity-text{flex:1; min-width:0;}

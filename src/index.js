@@ -37,7 +37,7 @@ import { handleAiRoute } from './routes/ai.js';
 import { slugify } from './lib/slugify.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
 // Hub sayfalarının SSR iç link grafiği (SEO denetimi, 2026-09-05) — bkz. o dosyanın başındaki ölçüm.
-import { isHubPath, hubLinksHtml } from './lib/hubLinks.js';
+import { isHubPath, hubItemListJsonLd } from './lib/hubLinks.js';
 // office-kind.js — FİRMA/MARKA ayrımının tek kaynağı (bkz. loadHubPool).
 import officeKindJs from '../office-kind.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
@@ -644,20 +644,23 @@ async function routeAsset(request, env, url, ctx) {
 
   const response = await env.ASSETS.fetch(request);
   if (request.method === 'GET' && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
-    // HUB SAYFALARINA SSR İÇ LİNK LİSTESİ (SEO denetimi, 2026-09-05). Ölçüm: bu beş sayfanın ham
-    // HTML'inde detay sayfasına giden bağlantı sayısı SIFIRDI — 4.000 detay sayfasının keşfi
-    // tamamen sitemap'e bağlıydı ve hub sayfalarının kendisi indekslenecek içerik taşımıyordu.
-    // Tam gerekçe + veri kaynağı: src/lib/hubLinks.js. Hata durumunda html null döner ve sayfa
-    // eskisi gibi (bağlantısız) servis edilir — SEO iyileştirmesi sayfayı ASLA düşürmemeli.
-    let hubHtml = null;
+    // HUB SAYFALARINA ItemList YAPILANDIRILMIŞ VERİSİ (SEO). Bu beş sayfanın ham HTML'inde detay
+    // sayfalarına dair HİÇBİR sinyal yoktu — 4.000 detay sayfasının keşfi tamamen sitemap'e
+    // bağlıydı. Sinyal artık sayfanın GÖVDESİNE değil, sayfanın kendi SEO meta bloğuna (<head>
+    // içindeki JSON-LD, detay sayfalarındaki injectMeta ile AYNI mekanizma) yazılır; görünen
+    // tasarım hiç değişmez. Tam gerekçe + veri kaynağı: src/lib/hubLinks.js. Hata durumunda null
+    // döner ve sayfa eskisi gibi servis edilir — SEO iyileştirmesi sayfayı ASLA düşürmemeli.
+    let hubJsonLd = null;
     if (isHubPath(url.pathname)) {
-      hubHtml = await hubLinksHtml(url.pathname, () => loadHubPool(env, url.pathname));
+      hubJsonLd = await hubItemListJsonLd(url.pathname, () => loadHubPool(env, url.pathname));
     }
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
-    if (hubHtml) {
+    if (hubJsonLd) {
+      // injectMeta'daki AYNI kaçış kuralı: '<' escape edilmezse veri script bağlamından çıkabilir.
+      const ld = JSON.stringify(hubJsonLd).replace(/</g, '\\u003c');
       const rewritten = new HTMLRewriter()
-        .on('#ssr-entity-body', { element(el) { el.setInnerContent(hubHtml, { html: true }); } })
+        .on('head', { element(el) { el.append(`<script type="application/ld+json">${ld}</script>`, { html: true }); } })
         .transform(response);
       return new Response(rewritten.body, { status: response.status, statusText: response.statusText, headers });
     }
