@@ -765,7 +765,10 @@ function visualEvidencePayload(ve, nearDup) {
     // 'near-duplicate' ETİKETİ yalnızca GERÇEKTEN yüksek kosinüste verilir (NEAR_DUP_MIN);
     // kapıyı açan daha düşük eşik (VISUAL_IDENTITY_MIN) 'similar' olarak sunulur.
     matchType: ve.maxSimilarity >= NEAR_DUP_MIN ? 'near-duplicate' : 'similar',
-    matchedImageOrdinal: ve.bestImageIndex >= 0 ? ve.bestImageIndex + 1 : null,
+    // VARLIK İÇİ sıra kullanılır (bestImageLocalIndex), GLOBAL satır indeksi (bestImageIndex)
+    // DEĞİL — bkz. imageEmbedIndex.js#aggregateRowScores'taki canlı doğrulama bulgusu.
+    matchedImageOrdinal: (ve.bestImageLocalIndex != null && ve.bestImageLocalIndex >= 0)
+      ? ve.bestImageLocalIndex + 1 : null,
   };
 }
 

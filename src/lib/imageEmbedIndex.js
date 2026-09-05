@@ -181,6 +181,8 @@ function summarizeEntityRows(rows) {
     supportingImageCount: Math.max(0, supportingImageCount),
     bestImageIndex: rows[0].i,
     bestImageId: rows[0].i,
+    // Varlık içi 0 tabanlı sıra (bkz. aggregateRowScores'taki not) — galeri sırasıyla birebir.
+    bestImageLocalIndex: rows[0].local,
     topScores: scores.slice(0, 4),
   };
 }
@@ -193,11 +195,16 @@ export function aggregateRowScores(index, rowScores) {
   const out = new Map();
   for (const e of index.entities) {
     if (!e.c) {
-      out.set(e.s, { score: 0, maxSimilarity: 0, top2Average: 0, top3Average: 0, supportingImageCount: 0, bestImageIndex: -1, bestImageId: -1, topScores: [] });
+      out.set(e.s, { score: 0, maxSimilarity: 0, top2Average: 0, top3Average: 0, supportingImageCount: 0, bestImageIndex: -1, bestImageId: -1, bestImageLocalIndex: -1, topScores: [] });
       continue;
     }
     const rows = [];
-    for (let i = 0; i < e.c; i++) rows.push({ s: rowScores[e.offset + i], i: e.offset + i });
+    // i: GLOBAL satır indeksi (imageCosineScoresFromRow gibi dizin-geneli çağrılar bunu bekler).
+    // local: VARLIK İÇİ sıra (0 tabanlı) — bu, kullanıcıya gösterilen "projenin kaçıncı görseli"
+    // bilgisinin tek doğru kaynağıdır. GERÇEK BULGU (2026-09-05, canlı doğrulama): arayüz
+    // bestImageIndex'i doğrudan sıra sanıp "Projenin 27970. görseliyle eşleşme" yazıyordu —
+    // 27970 dizinin GLOBAL satır numarasıydı. İkisi ayrı alanlarda tutulur.
+    for (let i = 0; i < e.c; i++) rows.push({ s: rowScores[e.offset + i], i: e.offset + i, local: i });
     rows.sort((a, b) => b.s - a.s);
     out.set(e.s, summarizeEntityRows(rows));
   }
