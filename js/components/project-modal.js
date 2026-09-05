@@ -68,11 +68,11 @@ const ProjectModal = (function () {
          algoritmik önerilerden önce gelir. "Kullanılan Malzemeler" AYRI bir bölüm olarak KALDIRILDI:
          malzemeler de bu ızgaraya karışır (bkz. js/components/project-products.js#mount, kullanıcı
          isteği: "Malzemeler diye bir kısım olmasın, malzemeler de ürünler kısmına dahil edilsin"). -->
-    <!-- Kullanılan Ürünler | Kullanılan Markalar TEK satırda, iki sütun (kullanıcı isteği,
-         2026-09-01 madde 5) — js/components/architect-modal.js#am-two-col-row deseniyle AYNI, tek
-         farkı MOBİLDE tek sütuna düşmesi (istek: "Mobil görünümde ayrı satırlar halinde olsunlar").
+    <!-- Kullanılan Ürünler ve Kullanılan Markalar AYRI SATIRLARDA, alt alta (kullanıcı isteği,
+         2026-09-05 madde 3 — 2026-09-01'de yan yana iki sütundu, bkz. injectStyles'taki not).
+         js/components/architect-modal.js#am-two-col-row-stacked ile AYNI desen.
          Üstteki çizgiyi/boşluğu SARMALAYICI taşır (.related-section ondadır), hücreler yalnızca
-         içerik tutar — aksi halde yan yana iki ayrı üst çizgi çıkardı. -->
+         içerik tutar — aksi halde alt alta iki ayrı üst çizgi çıkardı. -->
     <div class="related-section pm-two-col-row" id="pm-products-pair" aria-live="polite">
       <div class="pm-two-col-cell" id="pm-products-section">
         <h2 class="related-title" id="pm-products-title">Kullanılan Ürünler<span id="pm-products-count"></span><button type="button" class="pgf-toggle" id="pm-products-filter-toggle" style="display:none;"></button></h2>
@@ -166,27 +166,22 @@ const ProjectModal = (function () {
     style.id = 'project-modal-two-col-styles';
     // min-width:0 ZORUNLU — grid hücresinin varsayılan min-width:auto'su içindeki yatay kaydırma
     // şeridini (.related-grid-scroll) taşırıp satırı kırar (bkz. architect-modal.js#am-two-col-row).
+    // KULLANICI İSTEĞİ (2026-09-05 madde 3): "Mimar ve Proje popuplarındaki yan yana 2 sütun
+    // şeklinde duran markalar ve ürünler kısımları, mobil görünümdeki gibi ayrı ayrı satır
+    // olsunlar." Bu satır 2026-09-01'de masaüstü/tablette iki sütun, YALNIZCA mobilde (<=767px) alt
+    // alta idi; artık mobildeki davranış TÜM genişliklerde geçerli. grid-template-columns:1fr tek
+    // başına yeterli — .pm-two-col-cell'in min-width:0'ı ve ortadaki dik ayırıcının kapatılması
+    // dışında geri kalan her şey (başlık boşlukları, .related-grid-scroll) aynen korunur.
+    // Ayırıcı ::after tamamen KALDIRILDI (yalnızca display:none ile susturulmadı): tek sütunda iki
+    // bölümün ARASINDA değil, satırın ortasında dikey bir çizgi olarak kalırdı. Alt alta iki bölümü
+    // ayıran şey artık .related-section'ın kendi üst çizgisi/boşluğu değil — sarmalayıcı TEK bir
+    // .related-section olduğundan aradaki 28px'lik gap ayrımı taşıyan tek şeydir.
+    // pm-two-col-row-both sınıfı project-products.js#mount tarafından hâlâ ekleniyor; artık hiçbir
+    // kurala bağlı değil ama zararsız (ve ileride bir ayrım gerekirse kanca yerinde duruyor).
     style.textContent = `
-      .pm-two-col-row{display:grid; grid-template-columns:1fr 1fr; gap:24px; position:relative;}
+      .pm-two-col-row{display:grid; grid-template-columns:1fr; gap:28px; position:relative;}
       .pm-two-col-cell{min-width:0;}
       .pm-two-col-cell .related-title{margin-bottom:16px;}
-      .pm-two-col-row::after{content:''; display:none;}
-      .pm-two-col-row.pm-two-col-row-both::after{
-        display:block; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-        width:1px; height:70%; min-height:96px; max-height:240px; background:var(--line);
-      }
-      @media (max-width:860px){
-        .pm-two-col-row{gap:14px;}
-        .pm-two-col-row.pm-two-col-row-both::after{min-height:76px; max-height:180px;}
-      }
-      /* MOBİL (kullanıcı isteği, 2026-09-01 madde 5: "Mobil görünümde ayrı satırlar halinde
-         olsunlar") — tablet (768px ve üzeri) masaüstüyle AYNI iki sütunda kalır. Tek sütuna
-         düşünce ortadaki dik ayırıcı anlamsızlaşır, kapatılır; iki bölüm arasına yatay bir boşluk
-         bırakılır ki alt alta yapışık görünmesinler. */
-      @media (max-width:767px){
-        .pm-two-col-row{grid-template-columns:1fr; gap:28px;}
-        .pm-two-col-row.pm-two-col-row-both::after{display:none;}
-      }
     `;
     document.head.appendChild(style);
   }

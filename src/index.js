@@ -31,6 +31,7 @@ import { handleContactRoute } from './routes/contact.js';
 import { handleNewsletterRoute } from './routes/newsletter.js';
 import { handleCspReportRoute } from './routes/cspReport.js';
 import { handleNotificationsRoute } from './routes/notifications.js';
+import { handleHotspotTagsRoute } from './routes/hotspotTags.js';
 import { handleMessagesRoute } from './routes/messages.js';
 import { handleAiRoute } from './routes/ai.js';
 import { slugify } from './lib/slugify.js';
@@ -1146,6 +1147,12 @@ async function routeApi(request, env, url, ctx) {
   if (path.startsWith('/api/badges')) return handleBadgesRoute(request, env, url);
   if (path.startsWith('/api/payments/')) return handlePaymentsRoute(request, env, url);
   if (path.startsWith('/api/notifications')) return handleNotificationsRoute(request, env, url);
+  // Marka sahibi ürün etiketleme önerileri (bkz. src/routes/hotspotTags.js). /api/projects/... ALTINA
+  // DEĞİL, kendi kök yoluna konuldu: /api/projects prefix'i aşağıda handleSubmissionRoute'un (üye
+  // gönderi CRUD'u) genel eşleşmesine düşüyor ve oradaki her yeni alt yol için ayrıca çakışma önleme
+  // satırı yazmak gerekiyor (bkz. /api/projects/filters, /api/projects/search). Tamamen oturum
+  // korumalı, herkese açık okuma ucu yok — /api/saved ile AYNI desen.
+  if (path.startsWith('/api/hotspot-tags')) return handleHotspotTagsRoute(request, env, url);
   if (path.startsWith('/api/messages')) return handleMessagesRoute(request, env, url);
   if (path.startsWith('/api/ai/')) return handleAiRoute(request, env, url);
   if (

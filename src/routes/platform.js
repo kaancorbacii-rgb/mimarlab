@@ -35,7 +35,7 @@ export async function handlePlatformRoute(request, env, url) {
     // eşleşmesinde SQLite COLLATE NOCASE ile JS Türkçe küçültmesi farklı davranıyor). Sayfadaki bir
     // sayaca tıklayan kişi o sayıyı listede birebir görmeli — havuzlar zaten KV'de önbellekli ve
     // her içerik mutasyonunda temizlendiğinden bu, ek D1 maliyeti de getirmez.
-    const [countsRow, architectPool, officePool, productPool, showcaseRows] = await Promise.all([
+    const [countsRow, architectPool, officePool, productPool] = await Promise.all([
       env.DB.prepare(
         `SELECT
            (SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL AND hidden_at IS NULL) AS projects,
@@ -47,77 +47,55 @@ export async function handlePlatformRoute(request, env, url) {
       fetchArchitectPool(env),
       fetchOfficePool(env),
       fetchProductPool(env),
-      // Vitrin (bkz. neden-mimarlab.html#demo): gerçek, yayında olan, kapak görseli VE en az bir
-      // künye bağlantısı (mimar ya da firma) bulunan en yeni 3 proje. Sabit bir slug listesi
-      // GÖMÜLMEZ — o kayıt ileride gizlenir/silinirse sayfa kırık bir örnek gösterirdi.
-      env.DB.prepare(
-        `SELECT p.id, p.slug, p.title, p.location, p.project_date, p.images
-         FROM projects p
-         WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
-           AND p.images IS NOT NULL AND p.images NOT IN ('', '[]')
-           AND EXISTS (SELECT 1 FROM project_designers pd WHERE pd.project_id = p.id)
-         ORDER BY COALESCE(p.publish_date, p.created_at) DESC, p.id DESC
-         LIMIT 3`
-      ).all(),
     ]);
 
     // marka.html ve firma.html'in AYNI havuz üzerinde uyguladığı iki predicate (bkz.
     // src/routes/office.js#passes ve office-kind.js).
     const brands = officePool.filter(o => isBrandOffice(o.cats, o.productCount)).length;
-    const offices = officePool.filter(o => !isPureBrandOffice(o.cats, o.productCount)).length;
+    const officeList = officePool.filter(o => !isPureBrandOffice(o.cats, o.productCount));
+    const offices = officeList.length;
 
-    const showcaseIds = showcaseRows.results.map(r => r.id);
-    const [designerRows, linkedProductRows] = showcaseIds.length
-      ? await Promise.all([
-        env.DB.prepare(
-          `SELECT pd.project_id,
-                  a.name AS architect_name, a.slug AS architect_slug,
-                  o.name AS office_name,    o.slug AS office_slug
-           FROM project_designers pd
-           LEFT JOIN architects a ON a.id = pd.architect_id AND a.deleted_at IS NULL AND a.hidden_at IS NULL
-           LEFT JOIN offices    o ON o.id = pd.office_id    AND o.deleted_at IS NULL AND o.hidden_at IS NULL
-           WHERE pd.project_id IN (${showcaseIds.map(() => '?').join(', ')})`
-        ).bind(...showcaseIds).all(),
-        // Projeye bağlı ürünler (bkz. project_products, proje-ekle.html'deki "Projede Kullanılan
-        // Ürünler" kutusu). Bugün canlıda bu tablo henüz boş — sorgu bilerek burada duruyor ki ilk
-        // bağlantı kurulduğunda sayfadaki zincir KOD DEĞİŞMEDEN ürün/marka adımını da göstersin;
-        // boşken sayfa o adımı "henüz bağlantı yok" olarak dürüstçe render eder.
-        env.DB.prepare(
-          `SELECT pp.project_id, pr.slug, pr.title, pr.brand_name_raw, pr.images
-           FROM project_products pp
-           JOIN products pr ON pr.id = pp.product_id AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL
-           WHERE pp.project_id IN (${showcaseIds.map(() => '?').join(', ')})`
-        ).bind(...showcaseIds).all(),
-      ])
-      : [{ results: [] }, { results: [] }];
+    // "Firmanızın dijital künyesi" bölümünün canlı önizlemesi için TEK bir firma slug'ı (kullanıcı
+    // isteği, 2026-09-05 madde 2: "Hepsi dinamik ögeler olsun"). Sayfa bu slug'ı ELLE TAŞIYORDU
+    // (`eaa-emre-arolat-architecture`) — o firma gizlenir/silinir ya da adı değişip slug'ı kayarsa
+    // bölüm sessizce tamamen kaybolurdu (sayfanın kendi drop() dalı). Seçim: logosu olan, en çok
+    // projesi bulunan firma; marka kayıtları (isPureBrandOffice) zaten dışarıda, çünkü bölümün
+    // anlatısı tasarım firmaları için.
+    const officeShowcase = officeList
+      .filter(o => o.logo && o.projectCount >= 3)
+      .sort((a, b) => b.projectCount - a.projectCount)[0] || null;
 
-    const showcase = showcaseRows.results.map(row => {
-      const credits = designerRows.results.filter(d => d.project_id === row.id);
-      // Aynı mimar/firma bir projeye birden fazla project_designers satırıyla bağlanmış olabilir
-      // (ör. hem kurucu hem ayrı künye satırı) — slug'a göre tekilleştirilir.
-      const uniqueBy = (rows, slugKey, nameKey) => {
-        const seen = new Set();
-        const out = [];
-        for (const c of rows) {
-          if (!c[slugKey] || seen.has(c[slugKey])) continue;
-          seen.add(c[slugKey]);
-          out.push({ name: c[nameKey], slug: c[slugKey] });
-        }
-        return out;
-      };
-      return {
-        slug: row.slug,
-        title: row.title,
-        location: row.location || '',
-        year: row.project_date || '',
-        image: firstImage(row.images),
-        architects: uniqueBy(credits, 'architect_slug', 'architect_name'),
-        offices: uniqueBy(credits, 'office_slug', 'office_name'),
-        products: linkedProductRows.results
-          .filter(p => p.project_id === row.id)
-          .map(p => ({ slug: p.slug, title: p.title, brand: p.brand_name_raw || '', image: firstImage(p.images) })),
-      };
-    });
+    // KALDIRILDI (2026-09-05): burada `showcase` vardı — en yeni 3 projeyi künyesi ve bağlı
+    // ürünleriyle döndüren üç ek D1 sorgusu. Onu tüketen tek şey neden-mimarlab.html'in #demo
+    // zinciriydi; o bölüm 2026-09-02 sadeleştirmesinde markup'tan çıkmış, betiği ise 2026-09-05'te
+    // ölü kod olarak temizlendi (bkz. o dosyadaki not). Payload'da tutulması her önbellek
+    // ıskasında karşılıksız üç sorgu demekti. Sayfa artık aynı anlatıyı aşağıdaki
+    // hotspotShowcase ile (proje -> işaretli ürün -> marka) veriyor.
+
+    // ---- İŞARETÇİLİ PROJE ÖRNEKLERİ (kullanıcı isteği, 2026-09-05 madde 2) ----
+    // "Neden MİMARLAB? sayfasına hotspotla proje örnekleri koy. Projeler yenilendi, bu sayfadaki
+    // gerekli bilgileri de yenile. Hepsi dinamik ögeler olsun."
+    //
+    // ÖNCEKİ DURUM (bu isteğin çözdüğü asıl sorun): sayfa işaretçi örneğini SABİT bir slug'dan
+    // (`/api/project/oyakkent-ornek-daire`) çekiyordu ve üretici bölümünün görseli de elle yazılmış
+    // bir R2 URL'siydi. O proje gizlenirse/silinirse ya da işaretçileri kaldırılırsa sayfanın iki
+    // bölümü birden sessizce boşalır. Artık işaretçisi GERÇEKTEN olan projeler buradan, canlı
+    // veriden gelir ve sayfa aralarından seçer.
+    //
+    // İşaretçiler D1'de yalnızca {x,y,slug,title} taşır; sayfadaki önizleme kartı marka ve ürün
+    // görseli de gösterdiğinden bunlar (proje detay ucundaki enrichImageHotspots ile AYNI mantıkla)
+    // TEK bir IN(...) sorgusuyla products'tan taze okunur. Silinmiş/gizlenmiş ürünün işaretçisi
+    // tamamen düşer — tıklanınca 404'e götüren bir daire, hiç olmayandan kötüdür.
+    const hotspotProjectRows = await env.DB.prepare(
+      `SELECT p.slug, p.title, p.location, p.project_date, p.images, p.image_hotspots
+       FROM projects p
+       WHERE p.deleted_at IS NULL AND p.hidden_at IS NULL
+         AND p.image_hotspots IS NOT NULL AND p.image_hotspots NOT IN ('', '{}')
+         AND p.images IS NOT NULL AND p.images NOT IN ('', '[]')
+       ORDER BY p.updated_at DESC, p.id DESC
+       LIMIT 12`
+    ).all();
+    const hotspotShowcase = await buildHotspotShowcase(env, hotspotProjectRows.results);
 
     // Marka → Ürün → Teknik dosya zinciri (bkz. neden-mimarlab.html#urunler): teknik dosyası
     // GERÇEKTEN yüklü, yayındaki en güncel 3 ürün.
@@ -155,10 +133,71 @@ export async function handlePlatformRoute(request, env, url) {
         productsWithFiles: countsRow?.productsWithFiles || 0,
         projectProductLinks: countsRow?.projectProductLinks || 0,
       },
-      showcase,
+      hotspotShowcase,
+      officeShowcaseSlug: officeShowcase ? officeShowcase.slug : null,
       fileShowcase,
     };
   });
+}
+
+// Ham `image_hotspots` satırlarını sayfanın doğrudan çizebileceği hâle getirir: proje başına TEK
+// görsel (işaretçisi EN ÇOK olan kare — sunum için en zengin örnek) + o karenin ürünleri.
+// Ürünler tek bir toplu sorguda okunur (proje başına sorgu AÇILMAZ).
+async function buildHotspotShowcase(env, rows) {
+  const parsed = [];
+  for (const row of rows) {
+    let hotspots = {};
+    try { hotspots = JSON.parse(row.image_hotspots || '{}'); } catch { hotspots = {}; }
+    if (!hotspots || typeof hotspots !== 'object' || Array.isArray(hotspots)) continue;
+    let images = [];
+    try { images = JSON.parse(row.images || '[]'); } catch { images = []; }
+    // Yalnızca projenin GALERİSİNDE hâlâ duran görseller — proje sahibi bir kareyi kaldırdığında
+    // ona ait işaretçiler D1'de kalabiliyor (anahtar URL, indeks değil), o kareyi göstermek 404
+    // veren bir görsel demekti.
+    let best = null;
+    for (const [url, list] of Object.entries(hotspots)) {
+      if (!Array.isArray(list) || !list.length) continue;
+      if (Array.isArray(images) && images.length && !images.includes(url)) continue;
+      if (!best || list.length > best.list.length) best = { url, list };
+    }
+    if (!best) continue;
+    parsed.push({ row, url: best.url, list: best.list });
+  }
+  if (!parsed.length) return [];
+
+  const slugs = [...new Set(parsed.flatMap(p => p.list.map(h => h && h.slug).filter(Boolean)))].slice(0, 300);
+  const bySlug = new Map();
+  if (slugs.length) {
+    const { results } = await env.DB.prepare(
+      `SELECT pr.slug, pr.title, pr.images, COALESCE(o.name, pr.brand_name_raw, '') AS brand
+       FROM products pr
+       LEFT JOIN offices o ON o.id = pr.brand_office_id AND o.deleted_at IS NULL AND o.hidden_at IS NULL
+       WHERE pr.slug IN (${slugs.map(() => '?').join(', ')})
+         AND pr.deleted_at IS NULL AND pr.hidden_at IS NULL`
+    ).bind(...slugs).all();
+    for (const r of results) bySlug.set(r.slug, { slug: r.slug, title: r.title, brand: r.brand, image: firstImage(r.images) });
+  }
+
+  const out = [];
+  for (const p of parsed) {
+    const points = p.list
+      .map(h => (h && bySlug.has(h.slug)) ? { x: h.x, y: h.y, ...bySlug.get(h.slug) } : null)
+      .filter(Boolean);
+    // Ürünlerinin tamamı silinmiş bir kareyi örnek diye göstermek, işaretçisiz bir fotoğraf
+    // göstermek demek olurdu — anlatının tamamı işaretçilerin üzerine kurulu.
+    if (!points.length) continue;
+    out.push({
+      slug: p.row.slug,
+      title: p.row.title,
+      location: p.row.location || '',
+      year: p.row.project_date || '',
+      image: p.url,
+      points,
+      brands: [...new Set(points.map(pt => pt.brand).filter(Boolean))],
+    });
+    if (out.length >= 6) break;
+  }
+  return out;
 }
 
 function firstImage(imagesJson) {

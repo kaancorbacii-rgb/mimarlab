@@ -25,6 +25,11 @@ const ProjectGallery = (function () {
       // URL'sine göre anahtarlı gelir (bkz. src/routes/project.js#enrichImageHotspots), o yüzden
       // yukarıdaki url indirgemesinden BAĞIMSIZ olarak olduğu gibi geçilir.
       hotspots: item.imageHotspots || {},
+      // "Ürün Etiketle" (kullanıcı isteği, 2026-09-05 madde 5) — YALNIZCA proje galerisinde verilir;
+      // ürün galerisi (product-modal.js) initDetailGallery'yi bu alan olmadan çağırdığından orada
+      // buton hiç oluşturulmaz. Yetki burada sorulmaz, sunucu karar verir (bkz.
+      // js/components/hotspot-tagger.js dosya başı).
+      tagging: item.slug ? { projectSlug: item.slug } : null,
       title: item.title,
       placeholderHtml: `<div class="gallery-item gallery-placeholder" style="background:${officeColor(item.title)}">${escapeHtml(initials(item.title))}</div>`,
       ids: mergedIds,

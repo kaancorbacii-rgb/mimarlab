@@ -18,8 +18,9 @@ const ProjectProducts = (function () {
     productsSection: 'pm-products-section', productsGrid: 'pm-products-grid',
     productsTitle: 'pm-products-title', productsFilterToggle: 'pm-products-filter-toggle',
     productsFilterChips: 'pm-products-filter-chips', productsCount: 'pm-products-count',
-    // "Kullanılan Markalar" (kullanıcı isteği, 2026-09-01 madde 5) — "Kullanılan Ürünler" ile AYNI
-    // satırda, iki sütun (bkz. js/components/project-modal.js#pm-two-col-row). Veri ek bir istek
+    // "Kullanılan Markalar" (kullanıcı isteği, 2026-09-01 madde 5) — "Kullanılan Ürünler"in HEMEN
+    // ALTINDA, ayrı bir satır (bkz. js/components/project-modal.js#pm-two-col-row; 2026-09-05'e
+    // kadar yan yana iki sütundu, kullanıcı isteği madde 3 ile alt alta alındı). Veri ek bir istek
     // GEREKTİRMEZ: item.brands proje payload'ıyla birlikte gelir (bkz. src/routes/project.js#
     // fetchProjectProducts), yani ürünlerin markalarının zincirin bir halka devamı olarak çözülmüş hâli.
     brandsSection: 'pm-brands-section', brandsGrid: 'pm-brands-grid', pair: 'pm-products-pair',
@@ -103,8 +104,9 @@ const ProjectProducts = (function () {
     const all = [...(item.products || []), ...(item.materials || [])];
     const hasProducts = renderProductsGroup(all, mergedIds);
     const hasBrands = renderGroup(item.brands || [], mergedIds.brandsSection, mergedIds.brandsGrid, brandCardHtml);
-    // Sarmalayıcı satır: iki bölüm de boşsa tamamen gizlenir (üstteki çizgi/boşluk ondadır),
-    // ikisi de doluysa ortadaki kısa dik ayırıcı çizilir (bkz. project-modal.js#pm-two-col-row-both).
+    // Sarmalayıcı satır: iki bölüm de boşsa tamamen gizlenir (üstteki çizgi/boşluk ondadır).
+    // pm-two-col-row-both artık görsel bir kural taşımıyor (iki sütunlu düzendeki ortadaki dik
+    // ayırıcı içindi, bkz. project-modal.js#injectStyles) — kanca olarak yerinde bırakıldı.
     const pair = document.getElementById(mergedIds.pair);
     if (pair) {
       pair.style.display = (hasProducts || hasBrands) ? '' : 'none';

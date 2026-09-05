@@ -1554,21 +1554,25 @@ let hsDraft = null;    // {x, y, editIndex|null} — kutunun bağlı olduğu iş
 
 function hsCurrentItem(){ return hsIndex >= 0 ? mediaItems[hsIndex] : null; }
 
-// ---------- İŞARETLEME SINIRLARI (kullanıcı isteği, 2026-09-01 madde 5) ----------
-// (a) bir görsele en fazla 3 ürün, (b) aynı ürün yalnızca TEK bir görselde etiketlenebilir.
+// ---------- İŞARETLEME SINIRLARI ----------
+// (a) bir görsele en fazla 4 ürün, (b) aynı ürün AYNI görselde iki kez etiketlenemez — ama FARKLI
+// görsellerde serbestçe etiketlenebilir (kullanıcı isteği, 2026-09-05 madde 1: "Proje popuplarında
+// farklı görsellerde aynı ürün hotspot olarak etiketlenebilsin. Ayrıca bir görselde en çok 4 hotspot
+// etiketi yapılabilsin."). Önceki kural (2026-09-01 madde 5) ürünü proje genelinde TEK görselle
+// sınırlıyor ve görsel başına 3 tavanı koyuyordu; ikisi de bu istekle değişti.
 // Sunucu tarafında da aynı iki kural uygulanır (bkz. src/lib/submissionTypes.js#sanitizeImageHotspots)
 // — oradaki uygulama sessizce kırpar, burada ise kullanıcıya NEDEN engellendiği söylenir.
-const HS_MAX_PER_IMAGE = 3;
+const HS_MAX_PER_IMAGE = 4;
 
-// Projenin TÜM görsellerinde şu an etiketli ürün slug'ları. exceptItem/exceptIndex, düzenlenmekte
-// olan işaretçinin KENDİSİNİ dışarıda bırakır — aksi halde bir işaretçiyi açıp aynı ürünle tekrar
-// kaydetmek "bu ürün zaten etiketli" hatasına takılırdı.
-function hsTaggedSlugs(exceptItem, exceptIndex){
+// YALNIZCA verilen görselde şu an etiketli ürün slug'ları (proje geneli DEĞİL — bkz. yukarıdaki (b)).
+// exceptIndex, düzenlenmekte olan işaretçinin KENDİSİNİ dışarıda bırakır — aksi halde bir işaretçiyi
+// açıp aynı ürünle tekrar kaydetmek "bu ürün zaten etiketli" hatasına takılırdı.
+function hsTaggedSlugs(item, exceptIndex){
   const set = new Set();
-  mediaItems.forEach(it => (it.hotspots || []).forEach((h, i) => {
-    if(it === exceptItem && i === exceptIndex) return;
+  ((item && item.hotspots) || []).forEach((h, i) => {
+    if(i === exceptIndex) return;
     if(h && h.slug) set.add(h.slug);
-  }));
+  });
   return set;
 }
 
@@ -1646,7 +1650,7 @@ function openHotspotForm(xPct, yPct, editIndex){
     <div class="hs-ac">
       <input type="text" id="hs-product-input" placeholder="Ürün adı yaz ve listeden seç" autocomplete="off" value="${escapeAttr(existing ? existing.title : '')}">
     </div>
-    <p class="hs-form-note">Yalnızca sitede yayında olan ürünler bağlanabilir — listeden bir ürün seçmelisin. Bir ürün yalnızca tek bir görselde etiketlenebilir.</p>
+    <p class="hs-form-note">Yalnızca sitede yayında olan ürünler bağlanabilir — listeden bir ürün seçmelisin. Aynı ürünü farklı görsellerde de işaretleyebilirsin; bir görsele en fazla ${HS_MAX_PER_IMAGE} ürün.</p>
     <p class="hs-form-error" id="hs-form-error" hidden></p>
     <div class="hs-form-actions">
       <button type="button" class="hs-save">Kaydet</button>
@@ -1686,10 +1690,10 @@ function openHotspotForm(xPct, yPct, editIndex){
     // slug'sız bir öneri tıklanamaz bir işaretçi üretirdi (bkz. sanitizeImageHotspots — slug'suz
     // kayıtlar sunucuda zaten atılır), o yüzden listeden de düşürülür.
     items = items.filter(it => it.slug);
-    // Başka bir görselde (ya da bu görselde başka bir noktada) ZATEN etiketli ürünler öneri
-    // listesinden de düşürülür (kullanıcı isteği, 2026-09-01 madde 5) — seçilemeyen bir seçeneği
-    // göstermektense hiç göstermemek; kaydetme anındaki kontrol (aşağıda) yine de yerinde durur,
-    // çünkü kullanıcı arama yapmadan da (düzenlemeye dönerek) bir slug taşıyabilir.
+    // BU GÖRSELDE başka bir noktada zaten etiketli ürünler öneri listesinden düşürülür — seçilemeyen
+    // bir seçeneği göstermektense hiç göstermemek; kaydetme anındaki kontrol (aşağıda) yine de
+    // yerinde durur, çünkü kullanıcı arama yapmadan da (düzenlemeye dönerek) bir slug taşıyabilir.
+    // Başka GÖRSELLERDE etiketli ürünler artık elenmez (bkz. HS_MAX_PER_IMAGE üstündeki not).
     const alreadyTagged = hsTaggedSlugs(item, hsDraft.editIndex);
     items = items.filter(it => !alreadyTagged.has(it.slug));
     if(!items.length || !hsForm) return;
@@ -1734,15 +1738,15 @@ function openHotspotForm(xPct, yPct, editIndex){
     const it = hsCurrentItem();
     if(!it) return;
     if(!it.hotspots) it.hotspots = [];
-    // Aynı ürün birden fazla görselde etiketlenemez (kullanıcı isteği, 2026-09-01 madde 5) —
-    // düzenlenen işaretçinin KENDİSİ hariç tüm görsellere bakılır.
+    // Aynı ürün AYNI görselde iki kez etiketlenemez — düzenlenen işaretçinin KENDİSİ hariç
+    // YALNIZCA bu görsele bakılır (başka görseller serbest, bkz. HS_MAX_PER_IMAGE üstündeki not).
     if(hsTaggedSlugs(it, hsDraft.editIndex).has(hsDraft.slug)){
       input.focus();
       input.style.borderColor = '#B84C4C';
-      showError('Bu ürün projenin bir görselinde zaten etiketli. Bir ürün yalnızca tek bir görselde etiketlenebilir.');
+      showError('Bu ürün bu görselde zaten etiketli. Aynı ürünü başka bir görselde işaretleyebilirsin.');
       return;
     }
-    // Yeni bir işaretçi eklenirken görsel başına 3 sınırı (düzenleme sayıyı artırmaz).
+    // Yeni bir işaretçi eklenirken görsel başına 4 sınırı (düzenleme sayıyı artırmaz).
     if(hsDraft.editIndex == null && it.hotspots.length >= HS_MAX_PER_IMAGE){
       showError(`Bir görsele en fazla ${HS_MAX_PER_IMAGE} ürün etiketleyebilirsin.`);
       return;

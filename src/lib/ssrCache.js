@@ -81,7 +81,13 @@ import { purgeGlobalUrls } from './globalPurge.js';
 // "Ürünler" ile AYNI kategori filtresini kullanıyor. v110/v111'deki AYNI tuzak, bu kez /urun/:slug
 // için: sürüm artırılmazsa daha önce ziyaret edilmiş ürün sayfaları s-maxage boyunca bu script'i
 // hiç yüklemeyen eski kabuğu sunar ve çentik o sayfalarda görünmezdi.
-export const SSR_CACHE_VERSION = 'v115';
+// v116 (kullanıcı isteği, 2026-09-05 madde 5): proje.html ve en-iyi-100.html kabuklarına
+// js/components/hotspot-tagger.js script etiketi eklendi — büyütülmüş proje görselindeki
+// "Ürün Etiketle" formu bu dosyada. v110/v111/v113/v115'teki AYNI tuzak, yine /proje/:slug için:
+// sürüm artırılmazsa daha önce ziyaret edilmiş proje sayfaları s-maxage boyunca bu script'i hiç
+// yüklemeyen eski kabuğu sunar; buton görünür ama basıldığında (HotspotTagger tanımsız olduğundan,
+// bkz. gallery.js'teki typeof koruması) işaretleme modu sessizce hiçbir şey yapmazdı.
+export const SSR_CACHE_VERSION = 'v116';
 
 const PREFIX_BY_TYPE = {
   project: '/proje/',

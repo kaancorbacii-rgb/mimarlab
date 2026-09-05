@@ -216,27 +216,12 @@
   .steps p{margin:0; font-size:13.6px; line-height:1.6;}
   .band-dark .steps li{border-top-color:var(--brass-soft);}
 
-  /* ---------- DEMO ---------- */
-  .demo-head{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px;}
-  .demo-grid{display:grid; grid-template-columns:minmax(0, 1.05fr) minmax(0, 1fr); gap:22px; align-items:start;}
-  .demo-grid.no-media{grid-template-columns:1fr;}
-  .demo-grid.no-media .demo-media{display:none;}
-  .demo-media{position:relative; border-radius:16px; overflow:hidden; border:1px solid var(--line); background:var(--paper-alt); aspect-ratio:4 / 3;}
-  .demo-media img{width:100%; height:100%; object-fit:cover; display:block;}
-  /* min-height: zincir HER ZAMAN 5 adımdan oluşur (bkz. renderDemo) — yer önceden ayrılmazsa
-     iskelet satırdan 5 satıra geçiş ölçülebilir bir layout shift (CLS) üretiyordu. */
-  .demo-chain{list-style:none; margin:0; padding:0; display:grid; gap:10px; min-height:430px; align-content:start;}
-  /* Aynı gerekçe: teknik dosyalı ürün vitrini tek satır kart üretir; veri yoksa konteyner tamamen
-     kaldırılır (bkz. renderFileShowcase) — bu yüzden boşken de yer TUTMAZ. */
+  /* .demo-* kuralları (zincir ızgarası/kartları) 2026-09-05'te kaldırıldı — onları kullanan #demo
+     bölümü 2026-09-02 sadeleştirmesinde markup'tan zaten çıkmıştı, artık renderDemo() de yok
+     (bkz. betikteki "ÖLÜ KOD TEMİZLİĞİ" notu). */
+  /* Teknik dosyalı ürün vitrini tek satır kart üretir; veri yoksa konteyner tamamen kaldırılır
+     (bkz. renderFileShowcase) — bu yüzden boşken de yer TUTMAZ (CLS). */
   #file-showcase:empty{display:none;}
-  .demo-chain li{border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--paper-card);}
-  .demo-step{font-size:10.5px; font-weight:700; letter-spacing:0.13em; text-transform:uppercase; color:var(--sage); display:block; margin-bottom:7px;}
-  .demo-value{font-size:15.5px; font-weight:600; line-height:1.4;}
-  .demo-links{display:flex; flex-wrap:wrap; gap:7px; margin-top:4px;}
-  .demo-links a{font-size:13.5px; font-weight:600; padding:6px 12px; border-radius:100px; border:1px solid var(--line); color:var(--ink);}
-  .demo-links a:hover{border-color:var(--ink); background:var(--ink); color:var(--paper);}
-  .demo-empty{font-size:13.3px; color:var(--ink-soft); line-height:1.6;}
-  .demo-skeleton{color:var(--ink-soft); font-size:14px;}
 
   /* ---------- SSS ---------- */
   .faq{border-top:1px solid var(--line);}
@@ -294,7 +279,6 @@
     .nav-right{margin-left:auto;}
     .orbit{display:none;}
     .orbit-list{display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;}
-    .demo-grid{grid-template-columns:1fr;}
   }
   @media (max-width:820px){
     .wrap, .wrap-narrow{padding:0 18px;}
@@ -511,7 +495,10 @@
        proje görselleri üzerinden yürüyor.
        KORUNAN BETİK KANCALARI (bunlar kaldırılırsa sayfa betiği sessizce bozulur):
        #stats-band, [data-stat], #stats-note, #network-live, #file-showcase,
-       #demo / #demo-chain / #demo-media / #demo-next.
+       #nm-tag-img / #nm-tag-dots / #nm-tag-caption / #nm-tag-actions / #nm-tag-link / #nm-tag-next,
+       #nm-mfg-img / #nm-mfg-dots / #nm-mfg-caption / #nm-mfg-list, #nm-firm-body, #nm-brandwall.
+       (Eski #demo / #demo-chain / #demo-media / #demo-next kancalari 2026-09-05'te listeden
+       cikarildi — o bolum ve onu cizen renderDemo() artik yok.)
        ============================================================================================ -->
   <section class="sec hero nm-hero" id="hero">
     <div class="wrap">
@@ -527,8 +514,11 @@
   <!-- ============ GÖRSELDEN ÜRÜNE (kullanıcı isteği, 2026-09-02: en öne alınsın) ============
        MİMARLAB'ın ayırt edici özelliği: proje fotoğrafındaki ürünler işaretlenip gerçek ürün
        kayıtlarına bağlanır (bkz. migrations/0076_project_image_hotspots.sql,
-       js/components/image-hotspots.js). Buradaki gösterim UYDURMA DEĞİL — canlı bir projenin
-       (/api/project/...) gerçek işaretçilerinden çizilir; işaretçi yoksa bölüm kendini kaldırır. -->
+       js/components/image-hotspots.js). Buradaki gösterim UYDURMA DEĞİL — canlı projelerin gerçek
+       işaretçilerinden çizilir; hiç işaretçili proje yoksa bölüm kendini kaldırır.
+       KULLANICI İSTEĞİ (2026-09-05 madde 2): örnek artık TEK ve SABİT bir slug'dan değil,
+       /api/public/platform#hotspotShowcase'ten gelen ÇOKLU örnekten seçilir; ok tuşlarıyla
+       gezinilebilir (bkz. #nm-tag-next). -->
   <section class="sec nm-tag-sec" id="etiket" aria-labelledby="etiket-h">
     <div class="wrap">
       <h2 class="sec-title nm-h2" id="etiket-h">Fotoğraftaki ürünü işaretle,<br>gerçek ürün sayfasına bağla.</h2>
@@ -537,6 +527,10 @@
         <div id="nm-tag-dots"></div>
       </div>
       <p class="nm-note" id="nm-tag-caption"></p>
+      <div class="btn-row" id="nm-tag-actions" hidden>
+        <a class="btn btn-ghost" id="nm-tag-link" href="#" data-ml-event="neden_mimarlab_hotspot_project">Projeyi Aç</a>
+        <button class="btn btn-ghost" type="button" id="nm-tag-next">Başka bir örnek</button>
+      </div>
     </div>
   </section>
 
@@ -616,18 +610,20 @@
         <a class="btn btn-ghost" href="/urun-ekle">Ürün Ekle</a>
       </div>
       <div class="nm-mfg-media">
-        <!-- KULLANICI BİLDİRİMİ (2026-09-03): burada sayfanın EN ÜSTÜNDEKİ işaretçi bölümüyle
-             AYNI görsel kullanılıyordu, yani aynı kare iki kez görünüyordu. Artık farklı bir
-             örnek proje karesi. Kullanıcı "dinamik olmasına gerek yok" dediği için görsel
-             sabittir; bu yüzden koordinata bağlı işaretçi noktaları da KALDIRILDI — başka bir
-             görsele başka bir projenin koordinatlarını basmak yanlış yerde nokta gösterirdi.
+        <!-- KULLANICI BİLDİRİMİ (2026-09-03): burada sayfanın EN ÜSTÜNDEKİ işaretçi bölümüyle AYNI
+             görsel kullanılıyordu, yani aynı kare iki kez görünüyordu. O tur bunu elle yazılmış,
+             SABİT bir R2 URL'siyle çözmüştü (decovita-etiler-showroom-2.webp) — kullanıcı isteği
+             2026-09-05 madde 2 ("Projeler yenilendi ... Hepsi dinamik ögeler olsun") bunu da
+             kaldırdı: görsel artık hotspotShowcase'in İKİNCİ örneğinden gelir (üstteki bölüm
+             birinciyi kullanır, böylece aynı kare iki kez görünmez) ve işaretçi noktaları da o
+             karenin GERÇEK koordinatlarıyla çizilir.
              loading="lazy" BİLEREK YOK: sayfanın üstündeki işaretçi görselinde de aynısı yaşandı —
              lazy iken görsel için hiç istek atılmıyor, bölüm boş kalıyordu (ölçüldü; eager'a
              çevrilince anında yüklendi, 2400x1600). Bölümün ANA görselini bir yükleme
              optimizasyonu uğruna boş bırakma riskine değmez. -->
         <div class="nm-tag-stage" id="nm-mfg-stage">
-          <img id="nm-mfg-img" src="https://mimarlab.com/media/projects/decovita-etiler-showroom-2.webp"
-               alt="Decovita Etiler Showroom" decoding="async">
+          <img id="nm-mfg-img" alt="" decoding="async">
+          <div id="nm-mfg-dots"></div>
         </div>
         <p class="nm-note" id="nm-mfg-caption"></p>
       </div>
@@ -760,9 +756,6 @@
   });
 
   /* ---------- Canlı platform verileri ---------- */
-  var demoData = null;
-  var demoIndex = 0;
-
   function renderCounts(counts){
     Object.keys(counts).forEach(function(key){
       var el = document.querySelector('[data-stat="' + key + '"]');
@@ -804,120 +797,131 @@
     }).join('');
   }
 
-  function chainItem(step, valueHtml){
-    return '<li><span class="demo-step">' + escapeHtml(step) + '</span><div class="demo-value">' + valueHtml + '</div></li>';
-  }
-  function linkChips(items, base){
-    return '<div class="demo-links">' + items.map(function(it){
-      return '<a href="' + base + encodeURIComponent(it.slug) + '">' + escapeHtml(it.name) + '</a>';
-    }).join('') + '</div>';
+  /* ÖLÜ KOD TEMİZLİĞİ (2026-09-05): burada chainItem/linkChips/renderDemo vardı — /api/public/
+     platform#showcase'ten gelen "Proje -> Mimar -> Firma -> Ürün -> Marka" zincirini çizen ~90
+     satır. 2026-09-02'deki sadeleştirmede sayfanın #demo bölümü (ve #demo-chain/#demo-media/
+     #demo-next düğümleri) markup'tan KALDIRILMIŞ ama betik tarafı KALMIŞTI: renderDemo() her
+     yüklemede çalışıp getElementById('demo-chain') null geldiği için hiçbir şey yapmadan dönüyordu.
+     Sayfanın başındaki "KORUNAN BETİK KANCALARI" yorumu bu yüzden artık var olmayan dört id'yi
+     sayıyordu; o liste de güncellendi. Zincirin anlatısı zaten yukarıdaki işaretçi bölümü ve
+     "Her kayıt bir diğerine açılır" diyagramıyla veriliyor. */
+
+  /* ---------- Görselden ürüne: GERÇEK işaretçilerle ----------
+     Veri canlı projelerden gelir; hiçbir koordinat/ürün adı/görsel URL'si elle yazılmaz.
+
+     KULLANICI İSTEĞİ (2026-09-05 madde 2): "Neden MİMARLAB? sayfasına hotspotla proje örnekleri
+     koy. Projeler yenilendi, bu sayfadaki gerekli bilgileri de yenile. Hepsi dinamik ögeler
+     olsun." — bu blok ÖNCEDEN tek bir SABİT slug'a (/api/project/oyakkent-ornek-daire) bağlıydı ve
+     aşağıdaki üretici bölümü de AYNI slug'ı ikinci kez çekip elle yazılmış bir R2 görselinin
+     yanında gösteriyordu. O proje gizlenir/silinir ya da işaretçileri kaldırılırsa iki bölüm
+     birden sessizce kaybolurdu. Artık ikisi de /api/public/platform#hotspotShowcase'ten (bkz.
+     src/routes/platform.js#buildHotspotShowcase) beslenir: işaretçisi olan gerçek projeler, her
+     biri için işaretçisi EN ÇOK olan kare ve o karedeki ürünlerin taze marka/görsel bilgisi.
+
+     renderTagStage: iki bölüm de AYNI çizim fonksiyonunu kullanır (biri #nm-tag-*, diğeri
+     #nm-mfg-*) — daha önce üretici bölümünde noktalar hiç çizilmiyordu (sabit görsele başka bir
+     projenin koordinatlarını basmak yanlış yerde nokta gösterirdi); artık görsel de koordinatlar da
+     aynı kayıttan geldiği için o kısıt ortadan kalktı. */
+  function renderTagStage(ids, p){
+    var img = document.getElementById(ids.img);
+    var host = document.getElementById(ids.dots);
+    var cap = ids.caption ? document.getElementById(ids.caption) : null;
+    if(!img || !host || !p) return false;
+    img.src = (typeof cdnImg === 'function') ? cdnImg(p.image, 1400) : p.image;
+    img.alt = p.title || '';
+    host.innerHTML = '';
+    if(cap){
+      cap.textContent = (p.title || '') + (p.location ? ' · ' + p.location : '')
+        + ' — ' + p.points.length + ' ürün işaretli';
+    }
+    p.points.forEach(function(pt, i){
+      var dot = document.createElement('button');
+      dot.type='button'; dot.className='nm-dot';
+      dot.style.left = pt.x + '%'; dot.style.top = pt.y + '%';
+      dot.setAttribute('aria-label', (pt.title||'Ürün') + ' — ürün sayfasına git');
+      var card = document.createElement('a');
+      card.className='nm-tagcard';
+      card.href = pt.slug ? '/urun/' + encodeURIComponent(pt.slug) : '#';
+      card.style.left = pt.x + '%'; card.style.top = 'calc(' + pt.y + '% + 18px)';
+      var safeImg = pt.image ? (typeof cdnImg==='function' ? cdnImg(pt.image,160) : pt.image) : '';
+      card.innerHTML = (safeImg ? '<img src="'+escapeHtml(safeImg)+'" alt="" loading="lazy" onerror="this.remove()">' : '')
+        + '<span><b>'+escapeHtml(pt.title||'')+'</b><span>'+escapeHtml(pt.brand||'')+'</span></span>';
+      /* Sağ kenara taşacaksa kartı sola çevir — sabit bir eşik yerine gerçek konum ölçülür. */
+      if(pt.x > 62) card.classList.add('flip');
+      function show(){
+        host.querySelectorAll('.nm-tagcard.open').forEach(function(c){ if(c!==card) c.classList.remove('open'); });
+        host.querySelectorAll('.nm-dot.is-open').forEach(function(x){ if(x!==dot) x.classList.remove('is-open'); });
+        card.classList.add('open'); dot.classList.add('is-open');
+      }
+      dot.addEventListener('mouseenter', show);
+      dot.addEventListener('focus', show);
+      dot.addEventListener('click', function(e){ e.preventDefault(); show(); });
+      host.appendChild(dot); host.appendChild(card);
+      if(i===0) show();
+    });
+    return true;
   }
 
-  function renderDemo(){
-    var chainEl = document.getElementById('demo-chain');
-    var mediaEl = document.getElementById('demo-media');
-    if(!chainEl || !demoData || !demoData.length){
-      var section = document.getElementById('demo');
-      if(section) section.remove();
+  var hotspotShowcase = [];
+  var hotspotIndex = 0;
+
+  function renderHotspotSections(){
+    var tagSec = document.getElementById('etiket');
+    var mfgSec = document.getElementById('markalar-icin');
+    /* İşaretçili tek bir proje bile yoksa üst bölüm tamamen kalkar — boş bir kutu bırakmak
+       yanıltıcı olurdu. Üretici bölümü ise metniyle/CTA'sıyla ayakta kalır, yalnızca görseli
+       gizlenir (o bölümün anlatısı işaretçilerden bağımsız da ayakta duruyor). */
+    if(!hotspotShowcase.length){
+      if(tagSec) tagSec.remove();
+      var mfgStage = document.getElementById('nm-mfg-stage');
+      if(mfgStage) mfgStage.remove();
+      var mfgCap = document.getElementById('nm-mfg-caption');
+      if(mfgCap) mfgCap.remove();
+      var mfgList = document.getElementById('nm-mfg-list');
+      if(mfgList) mfgList.remove();
       return;
     }
-    var p = demoData[demoIndex % demoData.length];
 
-    /* Görseli olmayan bir kayıt seçilirse boş bir 4:3 kutu bırakmak yerine sütun tamamen kalkar ve
-       zincir tek sütuna yayılır (bkz. .demo-grid.no-media). */
-    var gridEl = chainEl.parentElement;
-    if(p.image){
-      gridEl.classList.remove('no-media');
-      mediaEl.innerHTML = '<img src="' + escapeAttr(p.image) + '" alt="' + escapeAttr(p.title + ' — MİMARLAB projesi') + '" loading="lazy" decoding="async">';
-    } else {
-      gridEl.classList.add('no-media');
-      mediaEl.innerHTML = '';
+    var primary = hotspotShowcase[hotspotIndex % hotspotShowcase.length];
+    renderTagStage({ img:'nm-tag-img', dots:'nm-tag-dots', caption:'nm-tag-caption' }, primary);
+    var actions = document.getElementById('nm-tag-actions');
+    var link = document.getElementById('nm-tag-link');
+    if(link) link.href = '/proje/' + encodeURIComponent(primary.slug);
+    if(actions){
+      actions.hidden = false;
+      var next = document.getElementById('nm-tag-next');
+      /* Tek örnek varsa "başka bir örnek" butonu anlamsız — gizlenir, "Projeyi Aç" kalır. */
+      if(next) next.style.display = hotspotShowcase.length > 1 ? '' : 'none';
     }
 
-    var html = '';
-    html += chainItem('01 · Proje', '<a href="/proje/' + encodeURIComponent(p.slug) + '" data-ml-event="neden_mimarlab_demo_interaction">' + escapeHtml(p.title) + '</a>'
-      + (p.location || p.year ? '<div class="demo-empty" style="margin-top:6px">' + escapeHtml([p.location, p.year].filter(Boolean).join(' · ')) + '</div>' : ''));
-
-    html += chainItem('02 · Mimar', p.architects.length
-      ? linkChips(p.architects, '/kisi/')
-      : '<div class="demo-empty">Bu projenin künyesinde bireysel mimar değil, tasarım firması yer alıyor.</div>');
-
-    html += chainItem('03 · Firma', p.offices.length
-      ? linkChips(p.offices, '/firma/')
-      : '<div class="demo-empty">Bu proje bireysel mimar künyesiyle yayınlanmış; bağlı bir firma kaydı yok.</div>');
-
-    html += chainItem('04 · Kullanılan ürün', p.products.length
-      ? '<div class="demo-links">' + p.products.map(function(pr){
-          return '<a href="/urun/' + encodeURIComponent(pr.slug) + '">' + escapeHtml(pr.title) + '</a>';
-        }).join('') + '</div>'
-      : '<div class="demo-empty">Bu projeye henüz ürün bağlanmamış. Proje ekleme formundaki “Projede Kullanılan Ürünler” kutusu bu bağı iki yönlü kurar — bağ kurulduğunda burada ürün ve markası görünür.</div>');
-
-    html += chainItem('05 · Marka', p.products.length && p.products[0].brand
-      ? escapeHtml(p.products[0].brand)
-      : '<div class="demo-empty">Ürün bağı kurulduğunda ürünün markası da bu zincire eklenir.</div>');
-
-    chainEl.innerHTML = html;
-
-    var next = document.getElementById('demo-next');
-    if(next && demoData.length > 1){
-      next.hidden = false;
-      next.onclick = function(){
-        demoIndex++;
-        renderDemo();
-        track('neden_mimarlab_demo_interaction', { action: 'next_example' });
-      };
+    /* Üretici bölümü İKİNCİ örneği kullanır ki aynı kare sayfada iki kez görünmesin (bkz.
+       2026-09-03 kullanıcı bildirimi). Tek örnek varsa aynısı gösterilir — bir bölümü boş
+       bırakmaktansa tekrar etmek yeğdir. */
+    if(mfgSec){
+      var secondary = hotspotShowcase[(hotspotIndex + 1) % hotspotShowcase.length];
+      renderTagStage({ img:'nm-mfg-img', dots:'nm-mfg-dots', caption:'nm-mfg-caption' }, secondary);
+      var list = document.getElementById('nm-mfg-list');
+      if(list){
+        /* Sayfada elle yazılmış marka adı YOKTUR: bu liste, ürünü GERÇEKTEN bir proje görselinde
+           işaretlenmiş markalardan üretilir. Hiçbiri yoksa liste kaldırılır, bölümün geri kalanı
+           (başlık, görsel, CTA) durur. */
+        var brands = (secondary.brands || []).slice(0, 4);
+        if(!brands.length) list.remove();
+        else list.innerHTML = brands.map(function(b){
+          return '<li>' + escapeHtml(b) + ' — ürünü bir projede işaretlendi</li>';
+        }).join('');
+      }
     }
   }
 
-
-  /* ---------- Görselden ürüne: GERÇEK işaretçilerle (kullanıcı isteği, 2026-09-02) ----------
-     Veri canlı bir projeden gelir; hiçbir koordinat/ürün adı elle yazılmaz. İşaretçisi olan bir
-     proje yoksa bölüm tamamen kaldırılır — boş bir kutu bırakmak yanıltıcı olurdu. */
   (function(){
-    var sec = document.getElementById('etiket');
-    if(!sec) return;
-    function drop(){ sec.remove(); }
-    fetch('/api/project/oyakkent-ornek-daire', { headers:{ 'Accept':'application/json' } })
-      .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
-      .then(function(d){
-        var item = d.item || d;
-        var hs = item.imageHotspots || {};
-        var imgUrl = Object.keys(hs)[0];
-        var pts = imgUrl ? hs[imgUrl] : null;
-        if(!imgUrl || !pts || !pts.length) return drop();
-        var img = document.getElementById('nm-tag-img');
-        img.src = imgUrl; img.alt = item.title || '';
-        var host = document.getElementById('nm-tag-dots');
-        var cap = document.getElementById('nm-tag-caption');
-        cap.textContent = (item.title || '') + (item.location ? ' · ' + item.location : '')
-          + ' — ' + pts.length + ' ürün işaretli';
-        pts.forEach(function(p, i){
-          var dot = document.createElement('button');
-          dot.type='button'; dot.className='nm-dot';
-          dot.style.left = p.x + '%'; dot.style.top = p.y + '%';
-          dot.setAttribute('aria-label', (p.title||'Ürün') + ' — ürün sayfasına git');
-          var card = document.createElement('a');
-          card.className='nm-tagcard';
-          card.href = p.slug ? '/urun/' + encodeURIComponent(p.slug) : '#';
-          card.style.left = p.x + '%'; card.style.top = 'calc(' + p.y + '% + 18px)';
-          var safeImg = p.image ? (typeof cdnImg==='function' ? cdnImg(p.image,160) : p.image) : '';
-          card.innerHTML = (safeImg ? '<img src="'+escapeHtml(safeImg)+'" alt="" loading="lazy" onerror="this.remove()">' : '')
-            + '<span><b>'+escapeHtml(p.title||'')+'</b><span>'+escapeHtml(p.brand||'')+'</span></span>';
-          /* Sağ kenara taşacaksa kartı sola çevir — sabit bir eşik yerine gerçek konum ölçülür. */
-          if(p.x > 62) card.classList.add('flip');
-          function show(){
-            host.querySelectorAll('.nm-tagcard.open').forEach(function(c){ if(c!==card) c.classList.remove('open'); });
-            host.querySelectorAll('.nm-dot.is-open').forEach(function(x){ if(x!==dot) x.classList.remove('is-open'); });
-            card.classList.add('open'); dot.classList.add('is-open');
-          }
-          dot.addEventListener('mouseenter', show);
-          dot.addEventListener('focus', show);
-          dot.addEventListener('click', function(e){ e.preventDefault(); show(); });
-          host.appendChild(dot); host.appendChild(card);
-          if(i===0) show();
-        });
-      })
-      .catch(drop);
+    var next = document.getElementById('nm-tag-next');
+    if(!next) return;
+    next.addEventListener('click', function(){
+      hotspotIndex++;
+      renderHotspotSections();
+      track('neden_mimarlab_demo_interaction', { action: 'next_hotspot_example' });
+    });
   })();
 
   /* ---------- Marka duvarı: gerçek markalar ---------- */
@@ -938,42 +942,23 @@
   })();
 
 
-  /* ---------- Üretici bölümü ----------
-     Görsel SABİT (kullanıcı isteği: dinamik olmasına gerek yok) ve sayfanın üstündekinden farklı
-     bir proje karesi. Marka listesi ise CANLI kalır: hangi markaların ürünü gerçekten bir projede
-     işaretlenmişse o yazılır — sayfada elle yazılmış marka adı yoktur. Veri gelmezse liste
-     gizlenir, bölümün geri kalanı (başlık, görsel, CTA) durur. */
-  (function(){
-    var list = document.getElementById('nm-mfg-list');
-    var cap  = document.getElementById('nm-mfg-caption');
-    if(cap) cap.textContent = 'Decovita Etiler Showroom · İstanbul (Beşiktaş)';
-    if(!list) return;
-    fetch('/api/project/oyakkent-ornek-daire', { headers:{ 'Accept':'application/json' } })
-      .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
-      .then(function(d){
-        var item = d.item || d, hs = item.imageHotspots || {};
-        var url = Object.keys(hs)[0], pts = url ? hs[url] : [];
-        var brands = [];
-        (pts||[]).forEach(function(p){ if(p.brand && brands.indexOf(p.brand)===-1) brands.push(p.brand); });
-        if(!brands.length){ list.remove(); return; }
-        list.innerHTML = brands.map(function(b){
-          return '<li>' + escapeHtml(b) + ' — ürünü bir projede işaretlendi</li>';
-        }).join('');
-      })
-      .catch(function(){ list.remove(); });
-  })();
-
   /* ---------- Firma profili önizlemesi: CANLI (ekran görüntüsü DEĞİL) ----------
      Kullanıcı hem "firma popup'ından görüntü koy" hem "her şey dinamik olsun" dedi; statik bir PNG
      ikincisini karşılayamazdı (firma adı/logosu/projesi değişince görüntü sessizce eskirdi).
      Bu yüzden GERÇEK popup düzeni canlı veriyle çizilir. TEK istek yeterli: /api/office/:slug
-     hem item'ı hem founders'ı hem relatedProjects'i döndürür (bkz. buildOfficePayload). */
-  (function(){
+     hem item'ı hem founders'ı hem relatedProjects'i döndürür (bkz. buildOfficePayload).
+
+     KULLANICI İSTEĞİ (2026-09-05 madde 2): firmanın slug'ı ARTIK ELLE YAZILMIYOR. Önceden burada
+     sabit 'eaa-emre-arolat-architecture' vardı — o kayıt gizlenir/silinir ya da adı değişip slug'ı
+     kayarsa bölüm aşağıdaki drop() dalıyla sessizce tamamen kaybolurdu. Slug artık
+     /api/public/platform#officeShowcaseSlug'tan gelir (logosu olan, en çok projesi bulunan firma;
+     bkz. src/routes/platform.js). */
+  function renderFirmPreview(slug){
     var sec = document.getElementById('firma-onizleme');
     if(!sec) return;
-    var SLUG = 'eaa-emre-arolat-architecture';
     function drop(){ sec.remove(); }
-    fetch('/api/office/'+SLUG, { headers:{ 'Accept':'application/json' } })
+    if(!slug) return drop();
+    fetch('/api/office/'+encodeURIComponent(slug), { headers:{ 'Accept':'application/json' } })
       .then(function(r){ if(!r.ok) throw new Error('x'); return r.json(); })
       .then(function(d){
         var o = d.item;
@@ -1044,25 +1029,28 @@
           + '</div>';
       })
       .catch(drop);
-  })();
+  }
 
   fetch('/api/public/platform', { headers: { 'Accept': 'application/json' } })
     .then(function(r){ if(!r.ok) throw new Error('platform'); return r.json(); })
     .then(function(data){
       renderCounts(data.counts || {});
       renderFileShowcase(data.fileShowcase);
-      demoData = data.showcase || [];
-      renderDemo();
+      hotspotShowcase = data.hotspotShowcase || [];
+      renderHotspotSections();
+      renderFirmPreview(data.officeShowcaseSlug);
     })
     .catch(function(){
       var note = document.getElementById('stats-note');
       if(note) note.textContent = 'Canlı platform verileri şu an yüklenemedi. Sayıları proje, mimar, firma, ürün ve marka sayfalarından görebilirsiniz.';
       var band = document.getElementById('stats-band');
       if(band) band.remove();
-      var section = document.getElementById('demo');
-      if(section) section.remove();
       var files = document.getElementById('file-showcase');
       if(files) files.remove();
+      /* Veri hiç gelmediyse işaretçi/firma bölümleri de kendilerini kaldırır — hepsi AYNI uca
+         bağlı olduğundan (bkz. yukarısı) ayrı bir hata yolu tutmaya gerek yok. */
+      renderHotspotSections();
+      renderFirmPreview(null);
     });
 
   /* ---------- Sunum modu: ok tuşlarıyla bölüm gezinmesi ---------- */

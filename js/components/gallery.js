@@ -9,6 +9,57 @@
 // initDetailGallery çağrılar arasında (bkz. altındaki gerçek bulgu) en son bağlanan document
 // keydown dinleyicisini tutar — modal sahibi değiştiğinde öncekini kaldırıp yerine yenisini koymak için.
 let _detailGalleryKeydownHandler = null;
+
+// Lightbox alt çubuğunun stilleri. Sayfa CSS'lerine (proje.html / en-iyi-100.html /
+// product-modal.js#injectStyles) dokunmamak için buradan enjekte edilir — .lightbox-counter'ın
+// GÖRÜNÜMÜ (renk/dolgu/yuvarlaklık/şeffaflık) o üç yerde kalmaya devam eder, burada yalnızca
+// KONUMLANDIRMASI çubuğun içine alınır. "Ürün Etiketle" butonu, kullanıcı isteği gereği sayaçla
+// AYNI büyüklük ve şeffaflıkta olmalı — bu yüzden değerler sayacın kuralından birebir kopyalanır
+// (font-size:13px / font-weight:600 / padding:6px 14px / border-radius:100px /
+// background:rgba(27,42,61,0.6) / backdrop-filter:blur(3px)).
+// DİKKAT: bu şablon dizesinde ters tırnak ya da // yorumu KULLANMA (bkz. proje notu
+// [[feedback_no_backtick_in_style_template_literals]] — enjekte edilen CSS sessizce bozulur).
+function injectGalleryBarStyles(){
+  if(document.getElementById('gallery-bottombar-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'gallery-bottombar-styles';
+  style.textContent = `
+    .lightbox-bottombar{
+      position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:2;
+      display:flex; align-items:center; gap:10px; max-width:calc(100% - 24px);
+    }
+    /* Sayacin kendi mutlak konumlandirmasi (sayfa CSS'inde) cubugun icinde notrlenir. */
+    .lightbox-bottombar .lightbox-counter{position:static; transform:none; left:auto; bottom:auto;}
+    .lightbox-tag-btn{
+      flex:0 0 auto; border:none; cursor:pointer; white-space:nowrap;
+      color:#fff; font-size:13px; font-weight:600;
+      font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:rgba(27,42,61,0.6); padding:6px 14px; border-radius:100px; backdrop-filter:blur(3px);
+    }
+    .lightbox-tag-btn:hover{background:rgba(27,42,61,0.85);}
+    .lightbox-tag-btn[disabled]{opacity:0.6; cursor:default;}
+    /* Isaretleme modu acikken buton durumu belli olsun. */
+    .lightbox-tag-btn.armed{background:var(--accent, #E08A3E);}
+    /* Izgara ("Tumunu Gor") modunda tekli gorsel gizli — alt cubuk da onunla birlikte gider,
+       aksi halde izgaranin uzerinde islevsiz bir "Urun Etiketle" butonu asili kalirdi. */
+    .lightbox.grid-mode .lightbox-bottombar{display:none;}
+    /* Isaretleme modunda gorselin uzerinde nisangah imleci + yardim serigi. */
+    .lightbox.tagging-armed img{cursor:crosshair;}
+    .lightbox-tag-hint{
+      position:absolute; top:24px; left:50%; transform:translateX(-50%); z-index:3;
+      color:#fff; font-size:13px; font-weight:600; max-width:min(92vw, 520px); text-align:center;
+      font-family:'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:rgba(27,42,61,0.82); padding:8px 16px; border-radius:100px; backdrop-filter:blur(3px);
+    }
+    @media (max-width:560px){
+      .lightbox-bottombar{gap:8px; bottom:18px;}
+      .lightbox-tag-btn{font-size:12px; padding:6px 12px;}
+      .lightbox-tag-hint{font-size:12px; padding:7px 13px; top:64px;}
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function initDetailGallery(opts){
   const images = (opts && opts.images) || [];
   const title = (opts && opts.title) || '';
@@ -21,6 +72,14 @@ function initDetailGallery(opts){
   const hotspotsByUrl = (opts && opts.hotspots) || {};
   const hasHotspots = typeof ImageHotspots !== 'undefined' && Object.keys(hotspotsByUrl).length > 0;
   const hotspotsFor = (url) => (hasHotspots && hotspotsByUrl[url]) || [];
+  // "Ürün Etiketle" (kullanıcı isteği, 2026-09-05 madde 5) — YALNIZCA proje galerisinde verilir
+  // (bkz. js/components/project-gallery.js). Ürün galerisi (product-modal.js) bu alanı hiç geçmez,
+  // yani orada buton hiç oluşturulmaz ve davranış eskisiyle bire bir aynı kalır.
+  // Biçim: { projectSlug } — yetkinin KENDİSİ burada sorulmaz, butona basıldığında
+  // HotspotTagger sunucudan (GET /api/hotspot-tags/my-products) etiketlenebilir ürünleri ister ve
+  // yetkisiz/ürünsüz kullanıcıya orada açıklayıcı bir mesaj gösterir. Böylece buton "her görselde
+  // gözüksün" isteği karşılanırken yetki kararı TEK yerde (sunucuda) kalır.
+  const tagging = (opts && opts.tagging) || null;
 
   const galleryEl = document.getElementById(ids.gallery || 'detail-gallery');
   const galleryPrevBtn = document.getElementById(ids.galleryPrev || 'gallery-prev');
@@ -54,6 +113,35 @@ function initDetailGallery(opts){
     lightbox.appendChild(lightboxGrid);
   }
 
+  // ---------- ALT ÇUBUK: "1 / 40" sayacı + "Ürün Etiketle" ----------
+  // Kullanıcı isteği (2026-09-05 madde 5): "görsellerinin altındaki örneğin 1/40 yazan yerin yanına
+  // bu sayı butonuyla aynı büyüklük ve şeffaflıkta 'Ürün Etiketle' butonu olsun."
+  // Sayacın kendi konumlandırması (position:absolute; bottom:24px; left:50%) SAYFA CSS'inde tanımlı
+  // ve ÜÇ ayrı yerde tekrarlanıyor (proje.html, en-iyi-100.html, product-modal.js#injectStyles).
+  // "Yanına" koymanın en dayanıklı yolu, sayacı yerinde bırakıp yanına ikinci bir mutlak konumlu
+  // eleman hesaplamak DEĞİL (iki elemanın genişliğine bağlı kırılgan matematik) — ikisini de bir
+  // flex satırın İÇİNE almak. Çubuk buradan (JS'ten) kurulur ve sayaç onun içine TAŞINIR; sayacın
+  // sayfa CSS'indeki mutlak konumlandırması çubuk içinde position:static ile nötrlenir. Böylece üç
+  // sayfanın CSS'ine hiç dokunulmaz.
+  let lightboxBar = lightbox.querySelector('.lightbox-bottombar');
+  if(!lightboxBar){
+    injectGalleryBarStyles();
+    lightboxBar = document.createElement('div');
+    lightboxBar.className = 'lightbox-bottombar';
+    lightbox.appendChild(lightboxBar);
+  }
+  if(lightboxCounter && lightboxCounter.parentElement !== lightboxBar) lightboxBar.appendChild(lightboxCounter);
+  let tagBtn = lightboxBar.querySelector('.lightbox-tag-btn');
+  if(tagging && !tagBtn){
+    tagBtn = document.createElement('button');
+    tagBtn.type = 'button';
+    tagBtn.className = 'lightbox-tag-btn';
+    tagBtn.textContent = 'Ürün Etiketle';
+    lightboxBar.appendChild(tagBtn);
+  }
+  // Galeri başka bir sahibe (ör. ürün modalı) geçtiyse önceki projeden kalan buton kaldırılır.
+  if(!tagging && tagBtn){ tagBtn.remove(); tagBtn = null; }
+
   // Bu fonksiyon proje-detay.html/urun-detay.html'de sayfa başına yalnızca BİR kez çağrılırdı; proje
   // modalı (bkz. project-modal.js#swap) ise AYNI DOM üzerinde projeden projeye tekrar tekrar çağırır.
   // Durum (images/index) bu yüzden galeri elemanının kendi üzerinde KALICI bir nesnede tutulur
@@ -65,6 +153,11 @@ function initDetailGallery(opts){
   const state = galleryEl._pmGalleryState || (galleryEl._pmGalleryState = {});
   state.images = images;
   state.hotspotsByUrl = hotspotsByUrl;
+  // tagging her çağrıda (her projede) DEĞİŞİR ama buton/dinleyicileri DOM'da kalıcıdır — bu yüzden
+  // aktif projenin slug'ı state üzerinden CANLI okunur, dinleyicinin kapanışına gömülmez (bkz.
+  // yukarıdaki _pmGalleryState gerekçesi: ilk çağrıda bağlanan dinleyiciler sonraki projelerde de
+  // doğru çalışmalı — aksi halde N. projede hâlâ 1. projenin slug'ına etiket gönderilirdi).
+  state.tagging = tagging;
   state.galleryIndex = 0;
   state.lightboxIndex = 0;
   // scrollLeft, galleryEl'in İÇERİĞİNE değil KENDİSİNE ait bir özellik — innerHTML'i aşağıda
@@ -131,6 +224,30 @@ function initDetailGallery(opts){
       openIndex: typeof openHotspotIndex === 'number' ? openHotspotIndex : undefined,
     });
   }
+
+  // ---------- "Ürün Etiketle" işaretleme modu (kullanıcı isteği, 2026-09-05 madde 5) ----------
+  // İki adımlı: butona bas -> mod açılır (nişangah imleci + yardım şeridi), sonra görselde ürünün
+  // olduğu noktaya tıkla/dokun -> o noktanın YÜZDE koordinatıyla etiketleme formu açılır.
+  // Neden iki adım: tek adımda (butona basınca ortaya bir form açmak) marka sahibinin ürünün TAM
+  // yerini göstermesi mümkün olmazdı; işaretçinin bütün değeri konumunda.
+  function setArmed(on){
+    lightbox.classList.toggle('tagging-armed', on);
+    const btn = lightbox.querySelector('.lightbox-tag-btn');
+    if(btn){
+      btn.classList.toggle('armed', on);
+      btn.textContent = on ? 'Vazgeç' : 'Ürün Etiketle';
+    }
+    let hint = lightbox.querySelector('.lightbox-tag-hint');
+    if(on){
+      if(!hint){
+        hint = document.createElement('div');
+        hint.className = 'lightbox-tag-hint';
+        lightbox.appendChild(hint);
+      }
+      hint.textContent = 'Ürünün görseldeki yerine dokun.';
+    } else if(hint){ hint.remove(); }
+  }
+  function isArmed(){ return lightbox.classList.contains('tagging-armed'); }
 
   // Şeritteki küçük görsellerin işaretçileri. Burada kart AÇILMAZ (ankor overflow:hidden ile
   // kırpardı, bkz. image-hotspots.js dosya başı) — işaretçiye tıklamak görseli büyütür ve kartı
@@ -234,13 +351,47 @@ function initDetailGallery(opts){
     }, 100);
   });
 
-  if(lightboxClose) lightboxClose.addEventListener('click', ()=> lightbox.classList.remove('open'));
+  if(lightboxClose) lightboxClose.addEventListener('click', ()=>{ setArmed(false); lightbox.classList.remove('open'); });
   if(lightboxPrevBtn) lightboxPrevBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(galleryEl._pmGalleryState.lightboxIndex - 1); });
   if(lightboxNextBtn) lightboxNextBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showLightboxImage(galleryEl._pmGalleryState.lightboxIndex + 1); });
   lightboxGridToggle.addEventListener('click', (e)=>{
     e.stopPropagation();
+    setArmed(false);
     setGridMode(!lightbox.classList.contains('grid-mode'));
   });
+
+  // "Ürün Etiketle" — buton DOM'da kalıcı olduğundan (bkz. yukarısı) dinleyici de yalnızca burada,
+  // bir kez bağlanır; aktif proje state.tagging'den CANLI okunur.
+  const tagBtnEl = lightbox.querySelector('.lightbox-tag-btn');
+  if(tagBtnEl) tagBtnEl.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    setArmed(!isArmed());
+  });
+  // Görselin üzerine tıklama/dokunma — YALNIZCA işaretleme modu açıkken bir anlam taşır. capture
+  // fazında dinlenir: ImageHotspots kendi katmanını lightbox'a ekliyor ve orada da tıklama
+  // dinleyicileri var; işaretleme modundayken o davranışların (kart açma/kapatma) araya girmemesi
+  // için olay burada durdurulur.
+  if(lightboxImg) lightboxImg.addEventListener('click', (e)=>{
+    if(!isArmed()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const st = galleryEl._pmGalleryState;
+    const tag = st && st.tagging;
+    if(!tag || typeof HotspotTagger === 'undefined') { setArmed(false); return; }
+    // Koordinat, görselin BOYANDIĞI dikdörtgene göre yüzdedir — image-hotspots.js'in okuduğu ölçüyle
+    // birebir aynı (lightbox'ta img max-width/max-height ile küçüldüğünden kendi kutusu zaten
+    // görselin kendisidir, yani getBoundingClientRect doğrudan kullanılabilir).
+    const rect = lightboxImg.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    setArmed(false);
+    HotspotTagger.open({
+      hostEl: lightbox,
+      projectSlug: tag.projectSlug,
+      imageUrl: st.images[st.lightboxIndex],
+      x, y,
+    });
+  }, true);
   // Izgaradaki bir kutucuğa tıklamak o indeksten tekli lightbox moduna döner (bkz. kullanıcı isteği).
   // Tek bir delege dinleyici (lightboxGrid kalıcı, innerHTML her çağrıda değişse de element aynı) —
   // showLightboxImage state'i her zaman CANLI okuduğundan yalnızca İLK çağrıda bağlanması yeterli.
@@ -258,7 +409,14 @@ function initDetailGallery(opts){
   // ızgara modunda tamamen ölüydü (X/Escape ile hâlâ kapanabiliyordu, ama tutarsız bir davranış
   // boşluğuydu). lightboxGrid'in kendisine (bir .lightbox-grid-item'a değil) düşen tıklamalar da
   // artık aynı şekilde kapatır.
-  lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox || e.target === lightboxGrid) lightbox.classList.remove('open'); });
+  lightbox.addEventListener('click', (e)=>{
+    if(e.target !== lightbox && e.target !== lightboxGrid) return;
+    // İşaretleme modundayken görselin YANINDAKİ karanlık boşluğa dokunmak lightbox'ı kapatmak yerine
+    // yalnızca modu kapatır — dokunmatikte "ürünün yerine dokun" hedefini ıskalamak çok kolay ve
+    // ıskalamanın bedeli tüm fotoğrafın kapanması olmamalı.
+    if(isArmed()){ setArmed(false); return; }
+    lightbox.classList.remove('open');
+  });
   // gerçek bulgu: e.stopPropagation() TEK BAŞINA burada işe yaramıyordu — proje modalı (bkz.
   // js/components/modal-shell.js#onKeydown) KENDİ Escape dinleyicisini document'e bu koddan ÖNCE
   // (ModalShell.open() her zaman ensureTemplate()'ten, dolayısıyla bu initDetailGallery çağrısından
@@ -282,7 +440,10 @@ function initDetailGallery(opts){
   if(_detailGalleryKeydownHandler) document.removeEventListener('keydown', _detailGalleryKeydownHandler, true);
   _detailGalleryKeydownHandler = (e)=>{
     if(!lightbox.classList.contains('open')) return;
-    if(e.key === 'Escape'){ e.stopPropagation(); lightbox.classList.remove('open'); return; }
+    // İşaretleme modu açıkken Escape ÖNCE o modu kapatır (lightbox'ı değil) — kullanıcı yanlışlıkla
+    // moda girdiyse fotoğrafı kaybetmeden geri dönebilsin.
+    if(e.key === 'Escape' && isArmed()){ e.stopPropagation(); setArmed(false); return; }
+    if(e.key === 'Escape'){ e.stopPropagation(); setArmed(false); lightbox.classList.remove('open'); return; }
     // Izgara modundayken sol/sağ ok tuşları slayt gezinmesini TETİKLEMEMELİ — tekli görsel zaten
     // gizli, gezinme yalnızca kafa karıştırırdı (bkz. dokunmatik/wheel'deki AYNI koruma aşağıda).
     if(lightbox.classList.contains('grid-mode')) return;
@@ -303,6 +464,15 @@ function initDetailGallery(opts){
     // tekli görsel zaten gizli olduğundan yatay swipe algılaması burada anlamsız/istenmeyen.
     if(lightbox.classList.contains('grid-mode')) return;
     if(e.touches.length !== 1) return;
+    // KULLANICI İSTEĞİ 2026-09-05 madde 4 (tablet/mobilde işaretçilerin düzgün çalışması) —
+    // GERÇEK BULGU: bir işaretçi dairesine ya da açık önizleme kartına yapılan dokunuşta parmak
+    // birkaç piksel kayıyor (dokunmatikte kaçınılmaz); eşik 40px'e ulaşan bir kaymada touchend
+    // görseli DEĞİŞTİRİYOR ve dokunulan işaretçinin kartı hiç açılmıyordu — kullanıcı açısından
+    // "işaretçiye basıyorum, fotoğraf atlıyor". Dokunuş bir işaretçi/kart üzerinde BAŞLADIYSA swipe
+    // takibi hiç başlatılmaz; kaydırmak isteyen kullanıcı görselin herhangi bir yerinden (daire
+    // dışından) başlatabilir. Aynı koruma "Ürün Etiketle" formu (.ht-form) için de geçerli: form
+    // içindeki dokunuşlar swipe'a dönüşmemeli.
+    if(e.target.closest && e.target.closest('.ih-dot, .ih-card, .ht-form, .lightbox-tag-hint')) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     touchActive = true;

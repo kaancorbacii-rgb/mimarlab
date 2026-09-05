@@ -126,15 +126,18 @@ const ArchitectModal = (function () {
         .am-two-col-row{gap:14px;}
         .am-two-col-row.am-two-col-row-both::after{min-height:76px; max-height:180px;}
       }
-      /* am-two-col-row-stack-mobile — YALNIZCA bu modifiyeyi taşıyan satırlar (Tercih Ettiği
-         Markalar | Kullandığı Ürünler, kullanıcı isteği 2026-09-01 madde 5) mobilde tek sütuna
-         düşer; Firmalar | Firma Ortakları satırı üç görünümde de iki sütun kalmaya devam eder
-         (2026-08-31'deki AYRI istek). Tablet (768px ve üzeri) masaüstüyle aynı. Tek sütuna
+      /* am-two-col-row-stacked — YALNIZCA bu modifiyeyi taşıyan satır (Tercih Ettiği Markalar |
+         Kullandığı Ürünler) HER genişlikte tek sütuna, yani ayrı satırlara düşer; Firmalar | Firma
+         Ortakları satırı üç görünümde de iki sütun kalmaya devam eder (2026-08-31'deki AYRI istek).
+         ÖNCEDEN bu kural bir @media (max-width:767px) bloğunun içindeydi (modifiye o yüzden
+         "-stack-mobile" adını taşıyordu): masaüstü/tablette iki sütun, yalnızca mobilde alt alta.
+         Kullanıcı isteği (2026-09-05 madde 3: "Mimar ve Proje popuplarındaki yan yana 2 sütun
+         şeklinde duran markalar ve ürünler kısımları, mobil görünümdeki gibi ayrı ayrı satır
+         olsunlar") bunu tersine çevirdi — mobildeki davranış artık TÜM genişliklerde geçerli, bu
+         yüzden kural media query'den çıkarıldı ve modifiye yeniden adlandırıldı. Tek sütuna
          düşünce ortadaki dik ayırıcı anlamsızlaşır, kapatılır. */
-      @media (max-width:767px){
-        .am-two-col-row.am-two-col-row-stack-mobile{grid-template-columns:1fr; gap:28px;}
-        .am-two-col-row.am-two-col-row-stack-mobile.am-two-col-row-both::after{display:none;}
-      }
+      .am-two-col-row.am-two-col-row-stacked{grid-template-columns:1fr; gap:28px;}
+      .am-two-col-row.am-two-col-row-stacked.am-two-col-row-both::after{display:none;}
       .unregistered-badge{
         display:inline-flex; align-items:center; gap:9px; flex:0 0 auto; align-self:center;
         background:var(--paper-card); border:1px solid var(--line-soft);
@@ -280,10 +283,10 @@ const ArchitectModal = (function () {
          ürünlerin kullanıldığı ayrıntısı) — yukarıdaki "Ürünler" bölümünden AYRI: o, mimarın
          TASARLADIĞI ürünler; bunlar mimarın PROJELERİNDE kullanılan ürünler ve o ürünlerin
          arkasındaki markalar (bkz. src/routes/architect.js#usedProducts/preferredBrands). -->
-    <!-- Kullanıcı isteği (2026-09-01 madde 5): bu iki bölüm masaüstü ve tablette TEK satırda iki
-         sütun (Firmalar | Firma Ortakları ile AYNI desen), mobilde alt alta iki ayrı satır — bu
-         yüzden am-office-pair'in aksine am-two-col-row-stack-mobile modifiyesini taşır. -->
-    <div class="related-section am-two-col-row am-two-col-row-stack-mobile" id="am-brands-products-pair" style="display:none;">
+    <!-- Kullanıcı isteği (2026-09-05 madde 3): bu iki bölüm ARTIK her genişlikte alt alta iki ayrı
+         satır — bu yüzden am-office-pair'in (üç görünümde de iki sütun) aksine
+         am-two-col-row-stacked modifiyesini taşır. -->
+    <div class="related-section am-two-col-row am-two-col-row-stacked" id="am-brands-products-pair" style="display:none;">
       <div class="am-two-col-cell" id="am-preferred-brands-section" style="display:none;">
         <h2 class="related-title">Tercih Ettiği Markalar<span id="am-preferred-brands-count"></span></h2>
         <div class="related-grid-scroll" id="am-preferred-brands-grid"></div>

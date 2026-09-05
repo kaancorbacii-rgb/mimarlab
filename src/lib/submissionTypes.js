@@ -404,21 +404,32 @@ export function dateBucketFor(dateStr) {
 // istenen her şeyin yazılabildiği serbest bir JSON deposuna dönüşmez.
 // MAX_HOTSPOTS_PER_IMAGE 30 -> 3 ve ÜRÜN BAŞINA TEK GÖRSEL (kullanıcı isteği, 2026-09-01 madde 5:
 // "Proje ekle/düzenle sayfasında aynı ürün birden fazla görselde etiketlenemesin. Bir görsele en
-// fazla 3 tane ürün etiketleme sınırı olsun."). İstemci (proje-ekle.html#openHotspotForm) aynı iki
-// kuralı kullanıcıya açıklayarak ÖNCEDEN uygular; buradaki uygulama, doğrudan API'ye gönderilen
-// (ya da eski, kural öncesi kaydedilmiş) gövdelerin de kurala uymasını garanti eden son savunmadır.
+// fazla 3 tane ürün etiketleme sınırı olsun.").
+//
+// HER İKİ KURAL DA 2026-09-05'te DEĞİŞTİ (kullanıcı isteği madde 1: "Proje popuplarında farklı
+// görsellerde aynı ürün hotspot olarak etiketlenebilsin. Ayrıca bir görselde en çok 4 hotspot
+// etiketi yapılabilsin."):
+//   (a) slug tekilliği artık TÜM PROJE genelinde değil, GÖRSEL BAZINDA — aynı ürün farklı
+//       görsellerde işaretlenebilir (gerçek hayatta bir koltuk projenin birkaç karesinde birden
+//       görünür), ama AYNI görselde iki kez işaretlenemez (aynı ürüne giden iki daire bilgi
+//       taşımaz, yalnızca yer kaplar).
+//   (b) görsel başına üst sınır 3 -> 4.
+// İstemci (proje-ekle.html#openHotspotForm) aynı iki kuralı kullanıcıya açıklayarak ÖNCEDEN
+// uygular; buradaki uygulama, doğrudan API'ye gönderilen (ya da eski, kural öncesi kaydedilmiş)
+// gövdelerin de kurala uymasını garanti eden son savunmadır.
 // Sınırı aşan işaretçiler sessizce ATILIR (hata döndürülmez) — bu fonksiyonun mevcut sözleşmesi
 // "temizle ve devam et"tir, tek bir bozuk işaretçi tüm proje kaydını reddetmemeli.
-const MAX_HOTSPOTS_PER_IMAGE = 3;
+export const MAX_HOTSPOTS_PER_IMAGE = 4;
 const MAX_HOTSPOT_IMAGES = 60;
 export function sanitizeImageHotspots(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out = {};
-  // Tüm görseller genelinde paylaşılan — bir ürün (slug) yalnızca İLK göründüğü görselde kalır.
-  const seenSlugs = new Set();
   for (const url of Object.keys(raw).slice(0, MAX_HOTSPOT_IMAGES)) {
     const list = Array.isArray(raw[url]) ? raw[url] : [];
     const cleaned = [];
+    // Tekillik kümesi GÖRSEL BAŞINA sıfırlanır (bkz. yukarıdaki (a)) — döngünün dışında tutulursa
+    // eski "ürün yalnızca ilk göründüğü görselde kalır" davranışına geri dönerdi.
+    const seenSlugs = new Set();
     for (const h of list) {
       if (cleaned.length >= MAX_HOTSPOTS_PER_IMAGE) break;
       if (!h || typeof h !== 'object') continue;

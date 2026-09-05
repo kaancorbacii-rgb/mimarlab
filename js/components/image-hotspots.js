@@ -44,6 +44,18 @@ const ImageHotspots = (function () {
         border:2.5px solid #fff; opacity:0.85;
         animation:ih-pulse 2.2s ease-out infinite;
       }
+      /* DOKUNMA HEDEFİ (kullanıcı isteği 2026-09-05 madde 4: tablet/mobilde işaretçiler duzgun
+         calissin). Dairenin GORSEL capi bilerek kucuk (26px, mobilde 22px) — fotografin uzerini
+         kapatmamali. Ama dokunmatikte 22px'lik bir hedef WCAG'in onerdigi ~44px'in cok altinda:
+         parmak ucu isabet etmedi mi hicbir sey olmuyor, kullanici "calismiyor" diyor. Gorunmez bir
+         ::before ile TIKLANABILIR alan daireyi buyutmeden 44x44'e cikarilir. inset negatif ve
+         merkezlenmis oldugundan hedef dairenin merkezine gore simetriktir.
+         pointer-events:auto SART: .ih-layer pointer-events:none tasir, cocuk psodo-eleman ancak
+         acikca acilirsa olay alir. */
+      .ih-layer .ih-dot::before{
+        content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+        width:44px; height:44px; border-radius:50%; pointer-events:auto;
+      }
       .ih-layer .ih-dot:hover, .ih-layer .ih-dot.open{transform:translate(-50%, -50%) scale(1.12);}
       .ih-layer .ih-dot.open::after{animation:none; opacity:0;}
       @keyframes ih-pulse{
@@ -323,10 +335,35 @@ const ImageHotspots = (function () {
 
     const onResize = () => { reposition(); if (openCard) closeCard(); };
     window.addEventListener('resize', onResize);
+    // TABLET/MOBİL SAĞLAMLAŞTIRMASI (kullanıcı isteği, 2026-09-05 madde 4).
+    // Katman, görselin BOYANDIĞI dikdörtgene px olarak oturtulur; o dikdörtgen değişip katman
+    // güncellenmezse işaretçiler görselin YANLIŞ yerinde durur. Masaüstünde bunu tetikleyen tek şey
+    // pencere yeniden boyutlandırmadır; dokunmatikte ÜÇ ayrı tetikleyici daha var ve hiçbiri
+    // güvenilir biçimde `resize` üretmez:
+    //   * orientationchange — iOS Safari'de `resize`, döndürme sonrası yeni düzen OTURMADAN ÖNCE
+    //     tetiklenebilir; o anda okunan offsetWidth hâlâ eski değerdir. Bu yüzden olayın kendisinde
+    //     BİR KEZ, ardından bir sonraki karede (rAF) BİR KEZ daha konumlandırılır.
+    //   * visualViewport resize — adres çubuğunun açılıp kapanması ve ekran klavyesi görünür
+    //     alanı değiştirir ama layout viewport'u (dolayısıyla window.resize'ı) her zaman tetiklemez.
+    //   * visualViewport scroll — parmakla yakınlaştırma (pinch-zoom) sırasında görsel viewport
+    //     kayar; katmanın host'a göre px konumu geçerliliğini korur ama açık bir kart yanlış yerde
+    //     asılı kalır, o yüzden kart kapatılır.
+    const repositionSoon = () => { reposition(); requestAnimationFrame(() => reposition()); };
+    window.addEventListener('orientationchange', repositionSoon);
+    const vv = window.visualViewport || null;
+    if (vv) { vv.addEventListener('resize', onResize); vv.addEventListener('scroll', onResize); }
     const onImgLoad = () => reposition();
     imgEl.addEventListener('load', onImgLoad);
     let ro = null;
-    if (window.ResizeObserver) { ro = new ResizeObserver(() => reposition()); ro.observe(hostEl); }
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(() => reposition());
+      // HEM host HEM görselin kendisi gözlenir. Host (lightbox: position:fixed, inset:0) viewport
+      // ile birlikte değişir, ama katmanın eşleşmesi gereken kutu GÖRSELİNKİDİR: görsel
+      // max-width/max-height ile küçüldüğünden host değişmeden de (ör. srcset ile farklı en-boy
+      // oranlı bir kaynağa geçildiğinde) yeniden boyutlanabilir.
+      ro.observe(hostEl);
+      ro.observe(imgEl);
+    }
 
     layer._ihCleanup = () => {
       layer.removeEventListener('click', onLayerClick);
@@ -334,6 +371,8 @@ const ImageHotspots = (function () {
       layer.removeEventListener('mouseout', onOut);
       hostEl.removeEventListener('click', onHostClick);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', repositionSoon);
+      if (vv) { vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); }
       imgEl.removeEventListener('load', onImgLoad);
       if (ro) ro.disconnect();
       layer._ihApi = null;

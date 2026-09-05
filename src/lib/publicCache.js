@@ -351,7 +351,14 @@ async function withSingleFlight(key, fn) {
 //     YANLIŞ olurdu) — yani v5-v12'nin AYNI tuzağı: fingerprint kıpırdamaz, sürüm artırılmazsa
 //     /api/projects'i daha önce açmış ziyaretçiler eski ETag'le 304 alıp eski (yığılmış) sırada
 //     süresiz takılırdı.
-const API_PAYLOAD_VERSION = 'v13';
+// v14 (kullanıcı isteği, 2026-09-05 madde 2): /api/public/platform yüküne `hotspotShowcase` (görsel
+//     üzeri ürün işaretçisi olan gerçek projeler + o karedeki ürünler) ve `officeShowcaseSlug`
+//     eklendi — /neden-mimarlab sayfasındaki işaretçi/üretici/firma bölümleri artık sabit slug ve
+//     elle yazılmış görsel yerine bunları kullanıyor (bkz. src/routes/platform.js). v5-v13'ün AYNI
+//     tuzağı: bu uç, fingerprint'i projects/products satırlarının updated_at'inden türetmiyor ve
+//     yalnızca yanıt ŞEKLİ değişti — sürüm artırılmazsa sayfayı daha önce açmış ziyaretçiler eski
+//     ETag'le 304 alıp yeni alanları HİÇ görmez, sayfa da o bölümleri "veri yok" sayıp kaldırırdı.
+const API_PAYLOAD_VERSION = 'v14';
 
 export async function cachedPublicJson(request, env, pathname, computeData, listFingerprint) {
   const admin = await isAdminRequest(request, env);

@@ -334,8 +334,10 @@ async function enrichImageHotspots(env, hotspotsByUrl) {
   const slugs = [...new Set(urls.flatMap(u => (hotspotsByUrl[u] || []).map(h => h.slug)).filter(Boolean))];
   if (!slugs.length) return {};
   // D1'in değişken sayısı sınırı (bkz. "Top 100 dynamic redesign" bulgusu — IN(...) parametre
-  // limiti) sanitizeImageHotspots'un üst sınırları sayesinde (60 görsel x 30 işaretçi tekilleştirilmiş)
-  // pratikte aşılamaz; yine de tek sorguda 300 slug ile sınırlanır.
+  // limiti) sanitizeImageHotspots'un üst sınırları sayesinde (60 görsel x 4 işaretçi) pratikte
+  // aşılamaz; yine de tek sorguda 300 slug ile sınırlanır. `slugs` zaten Set ile tekilleştirilir —
+  // 2026-09-05'ten beri aynı ürün birden fazla görselde işaretlenebildiğinden bu tekilleştirme
+  // artık gerçekten iş yapıyor (eskiden sanitize zaten proje genelinde tek bırakıyordu).
   const capped = slugs.slice(0, 300);
   const placeholders = capped.map(() => '?').join(', ');
   const { results } = await env.DB.prepare(

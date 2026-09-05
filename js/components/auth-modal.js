@@ -2110,6 +2110,107 @@ const AuthModal = (function () {
       ov.classList.add('open');
     }
 
+    // ---------- ÜRÜN ETİKETLEME ONAYI (kullanıcı isteği, 2026-09-05 madde 5) ----------
+    // Bir marka sahibi/üye, bir proje görselinde bir ürünü işaretlediğinde ürünün sahibine + tüm
+    // adminlere `hotspot_tag` tipinde, link'i "hotspot-tag:<id>" olan bir bildirim düşer (bkz.
+    // src/routes/hotspotTags.js#createTag). O satıra tıklanınca burası açılır: öneriyi (proje,
+    // görsel, ürün, işaretlenen nokta) gösterir ve Onayla/Reddet sunar. Onaylanana kadar işaretçi
+    // hiçbir yerde görünmez — karar yetkisi sunucuda AYRICA doğrulanır (bkz. o dosyadaki canDecide),
+    // buradaki buton yalnızca bir arayüz kolaylığıdır.
+    // Bağlantı biçimi olarak "msg:<threadId>" deseni taklit edilir (bkz. threadIdFromLink) — bildirim
+    // satırı bir URL'ye gitmek yerine yerinde bir pop-up açtığında bu depoda kullanılan yol budur.
+    function hotspotTagIdFromLink(link) {
+      return link && link.startsWith('hotspot-tag:') ? link.slice('hotspot-tag:'.length) : null;
+    }
+    function openHotspotTagPrompt(tagId) {
+      let ov = document.getElementById('am-hotspot-tag-prompt');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'am-hotspot-tag-prompt';
+        ov.className = 'profile-edit-overlay';
+        document.getElementById('am-panel').appendChild(ov);
+        ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); });
+      }
+      ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:460px;">
+        <p style="font-size:13px; color:var(--ink-soft); margin:0;">Yükleniyor…</p></div>`;
+      ov.classList.add('open');
+      fetch(`/api/hotspot-tags/${encodeURIComponent(tagId)}`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('x')))
+        .then(data => {
+          const it = data.item;
+          const decided = it.status !== 'pending';
+          const statusText = it.status === 'approved' ? 'Bu etiketleme onaylandı.'
+            : it.status === 'rejected' ? 'Bu etiketleme reddedildi.' : '';
+          // İşaretlenen nokta, görselin üzerinde küçük bir turuncu daireyle gösterilir — onay veren
+          // kişi ürünün TAM olarak nereye konacağını görmeden karar veremezdi.
+          const preview = `<div style="position:relative; border-radius:12px; overflow:hidden; background:var(--paper-alt); margin:0 0 14px;">
+              <img src="${escapeAttr(typeof cdnImg === 'function' ? cdnImg(it.imageUrl, 640) : it.imageUrl)}" alt="" style="display:block; width:100%; height:auto;">
+              <span style="position:absolute; left:${it.x}%; top:${it.y}%; transform:translate(-50%,-50%); width:20px; height:20px; border-radius:50%; border:2.5px solid #fff; background:var(--accent, #E08A3E); box-shadow:0 2px 10px rgba(15,19,26,0.45);"></span>
+            </div>`;
+          ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:460px; max-height:82vh; overflow-y:auto;">
+            <h2 style="font-size:16px; font-weight:700; margin:0 0 10px;">Ürün etiketlemesi</h2>
+            ${it.imageUrl ? preview : ''}
+            <p style="font-size:13px; line-height:1.6; margin:0 0 6px;">
+              <b>${escapeHtml(it.product ? it.product.title : '')}</b>${it.product && it.product.brand ? ` · ${escapeHtml(it.product.brand)}` : ''}
+            </p>
+            <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 16px;">
+              ${escapeHtml(it.createdBy || 'Bir üye')}, ${it.project ? `“${escapeHtml(it.project.title)}”` : 'bir'} projesinin bu görselinde bu ürünü işaretledi.
+              ${statusText ? escapeHtml(statusText) : 'Onaylarsan işaretçi projede herkese görünür olur.'}
+            </p>
+            <p class="am-ht-msg" style="display:none; font-size:12.5px; margin:0 0 12px;"></p>
+            ${(!decided && data.canDecide) ? `<div style="display:flex; gap:10px;">
+              <button type="button" class="dash-edit-btn am-ht-approve" style="margin-left:0; background:var(--ink); color:var(--paper-card);">Onayla</button>
+              <button type="button" class="dash-edit-btn am-ht-reject" style="margin-left:0;">Reddet</button>
+            </div>` : `<button type="button" class="dash-edit-btn am-ht-close" style="margin-left:0;">Kapat</button>`}
+          </div>`;
+          const msg = ov.querySelector('.am-ht-msg');
+          const closeBtn = ov.querySelector('.am-ht-close');
+          if (closeBtn) closeBtn.addEventListener('click', () => ov.classList.remove('open'));
+          const decide = async (approve, btn) => {
+            const buttons = ov.querySelectorAll('.dash-edit-btn');
+            buttons.forEach(b => { b.disabled = true; });
+            btn.textContent = approve ? 'Onaylanıyor…' : 'Reddediliyor…';
+            try {
+              const res = await fetch(`/api/hotspot-tags/${encodeURIComponent(tagId)}/decide`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approve }),
+              });
+              const out = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                msg.textContent = out.error || 'İşlem tamamlanamadı.';
+                msg.style.color = '#B84C4C';
+                msg.style.display = '';
+                buttons.forEach(b => { b.disabled = false; });
+                btn.textContent = approve ? 'Onayla' : 'Reddet';
+                return;
+              }
+              msg.textContent = approve
+                ? 'Onaylandı. İşaretçi artık projede görünüyor.'
+                : 'Etiketleme reddedildi.';
+              msg.style.color = 'var(--walnut)';
+              msg.style.display = '';
+              btn.parentElement.remove();
+            } catch {
+              msg.textContent = 'Sunucuya ulaşılamadı, tekrar dene.';
+              msg.style.color = '#B84C4C';
+              msg.style.display = '';
+              buttons.forEach(b => { b.disabled = false; });
+              btn.textContent = approve ? 'Onayla' : 'Reddet';
+            }
+          };
+          const yes = ov.querySelector('.am-ht-approve');
+          const no = ov.querySelector('.am-ht-reject');
+          if (yes) yes.addEventListener('click', () => decide(true, yes));
+          if (no) no.addEventListener('click', () => decide(false, no));
+        })
+        .catch(() => {
+          ov.innerHTML = `<div class="dash-form" style="background:var(--paper-card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:420px;">
+            <p style="font-size:13px; margin:0 0 16px;">Bu etiketleme kaydı bulunamadı — kaldırılmış olabilir.</p>
+            <button type="button" class="dash-edit-btn am-ht-close" style="margin-left:0;">Kapat</button></div>`;
+          ov.querySelector('.am-ht-close').addEventListener('click', () => ov.classList.remove('open'));
+        });
+    }
+
     // Bildirimden gelen /hesabim?dizin=1 bağlantısı — Hesabım açıldığında soruyu doğrudan sor.
     function maybeOpenDirectoryPrompt() {
       try {
@@ -2819,6 +2920,9 @@ const AuthModal = (function () {
           }
           const threadId = threadIdFromLink(item.link);
           if (threadId) { openMessageThread(threadId); return; }
+          // Ürün etiketleme onayı (kullanıcı isteği, 2026-09-05 madde 5) — bkz. openHotspotTagPrompt.
+          const hotspotTagId = hotspotTagIdFromLink(item.link);
+          if (hotspotTagId) { openHotspotTagPrompt(hotspotTagId); return; }
           // Kullanıcı isteği (2026-09-02 madde 4): kayıt sonrası gönderilen dizin daveti
           // bildirimine tıklayınca AYNI soruyu evet/hayır ile soran bir pop-up açılır.
           if (item.type === 'directory_invite' || (item.link || '').indexOf('dizin=1') !== -1) {

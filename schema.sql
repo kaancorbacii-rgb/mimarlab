@@ -903,3 +903,31 @@ CREATE TABLE IF NOT EXISTS analytics_daily (
 );
 CREATE INDEX IF NOT EXISTS idx_analytics_daily_subject
   ON analytics_daily (subject_type, subject_key, day);
+
+-- ===================== project_hotspot_tags (0091) =====================
+-- Marka sahiplerinin PROJE GÖRSELLERİNDE kendi ürünlerini işaretleme önerileri (kullanıcı isteği,
+-- 2026-09-05). Yayındaki işaretçilerin tek kaynağı hâlâ projects.image_hotspots'tur; bu tablo
+-- yalnızca onay bekleyen/karara bağlanmış ÖNERİLERİ tutar ve onaylandığı anda öneri o sütuna (ve
+-- varsa projenin project_submissions taslağına) yazılır. Admin'in yaptığı etiketlemeler hiç
+-- 'pending' olmadan doğrudan 'approved' kaydedilir. Tam gerekçe:
+-- migrations/0091_project_hotspot_tags.sql; okuyucu/yazıcı: src/routes/hotspotTags.js.
+CREATE TABLE IF NOT EXISTS project_hotspot_tags (
+  id TEXT PRIMARY KEY,
+  project_slug TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  x REAL NOT NULL,
+  y REAL NOT NULL,
+  product_slug TEXT NOT NULL,
+  created_by_user_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'pending',
+  decided_by_user_id TEXT REFERENCES users(id),
+  decided_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pht_status_created ON project_hotspot_tags(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pht_product ON project_hotspot_tags(product_slug);
+CREATE INDEX IF NOT EXISTS idx_pht_project ON project_hotspot_tags(project_slug);
+CREATE INDEX IF NOT EXISTS idx_pht_creator ON project_hotspot_tags(created_by_user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pht_pending_unique
+  ON project_hotspot_tags(project_slug, image_url, product_slug)
+  WHERE status = 'pending';
