@@ -401,27 +401,40 @@ const AuthModal = (function () {
     #am-panel .col-btn-danger:hover{background:#B84C4C; color:var(--paper-card);}
     #am-panel .col-new-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px;}
     #am-panel .col-new-row input{flex:1; min-width:180px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13.5px; font-family:inherit;}
-    #am-panel .col-item-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px;}
-    #am-panel .col-item{position:relative; border:1px solid var(--line-soft); border-radius:12px; overflow:hidden; background:var(--paper);}
-    #am-panel .col-item-media{display:block; width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--paper-alt);}
-    /* Üst padding, kartın sol üstündeki sıra oklarına ve sağ üstündeki silme butonuna yer açar —
-       görselli kartlarda bu kontroller görselin üzerine biner, notta binecek bir görsel olmadığından
-       metnin altlarından başlaması gerekir (yerel doğrulamada yakalandı). */
-    #am-panel .col-item-note{padding:42px 14px 14px; font-size:13px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
-    #am-panel .col-item-body{padding:10px 12px;}
-    #am-panel .col-item-title{font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-    #am-panel .col-item-title a{color:inherit; text-decoration:none;}
-    #am-panel .col-item-title a:hover{text-decoration:underline;}
-    #am-panel .col-item-meta{font-size:11px; color:var(--ink-soft); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-    #am-panel .col-item-remove{position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center;}
-    #am-panel .col-item-remove:hover{background:#B84C4C;}
-    /* Sıra değiştirme okları (kullanıcı isteği, 2026-08-31) — kartın SOL üstünde, silme butonuyla
-       aynı görsel dilde. Sürükle-bırak yerine ok butonları: dokunmatikte de, klavyeyle de
-       calisir ve mevcut ızgara/kaydırma davranışını hiç bozmaz. */
-    #am-panel .col-item-move{position:absolute; top:8px; left:8px; display:flex; gap:4px;}
-    #am-panel .col-item-move button{width:26px; height:26px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center;}
-    #am-panel .col-item-move button:hover:not(:disabled){background:var(--walnut);}
-    #am-panel .col-item-move button:disabled{opacity:0.35;}
+    /* ---------- Serbest Tuval / Moodboard (kullanıcı isteği, 2026-09-05 madde 1) ----------
+       Eski .col-item-grid/.col-item/.col-item-move (sıra okları) TAMAMEN kaldırıldı — sabit
+       yükseklikli, position:relative bir "tuval" konteyneri aldı yerini:
+       her öğe yüzde bazlı left/top/width/height ile position:absolute konumlanır (bkz.
+       js/components/image-hotspots.js'teki AYNI "piksel değil yüzde" gerekçesi, duyarlı genişlik
+       değişiminde konumlar bozulmadan ölçeklenir). touch-action:none sürükleme sırasında sayfanın
+       kaymasını engeller (bkz. image-crop.js#injectStyles'daki AYNI kural). */
+    #am-panel .col-canvas-wrap{position:relative;}
+    #am-panel .col-canvas{position:relative; min-height:640px; border:1px dashed var(--line); border-radius:14px; background:var(--paper-alt); overflow:hidden;}
+    #am-panel .canvas-item{position:absolute; border:1px solid var(--line-soft); border-radius:10px; overflow:hidden; background:var(--paper); box-sizing:border-box; touch-action:none; cursor:grab;}
+    #am-panel .canvas-item.dragging{cursor:grabbing; z-index:9999 !important; box-shadow:0 12px 30px rgba(0,0,0,0.22);}
+    #am-panel .canvas-item.readonly{cursor:default;}
+    #am-panel .canvas-item-media{display:block; width:100%; height:100%; object-fit:cover; background:var(--paper-alt); pointer-events:none;}
+    #am-panel .canvas-item-note{width:100%; height:100%; padding:14px; font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; overflow:auto; box-sizing:border-box; background:var(--paper); pointer-events:none;}
+    #am-panel .canvas-item-body{position:absolute; left:0; right:0; bottom:0; padding:6px 8px; background:linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0)); color:#fff; pointer-events:none;}
+    #am-panel .canvas-item-title{font-weight:600; font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    #am-panel .canvas-item-remove{position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(27,42,61,0.72); color:#fff; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+    #am-panel .canvas-item-remove:hover{background:#B84C4C;}
+    #am-panel .canvas-item-open{position:absolute; top:6px; left:6px; width:24px; height:24px; border-radius:50%; background:rgba(27,42,61,0.72); color:#fff; display:flex; align-items:center; justify-content:center; text-decoration:none;}
+    #am-panel .canvas-item-open:hover{background:var(--walnut);}
+    #am-panel .canvas-item-handle{position:absolute; width:14px; height:14px; background:var(--ink); border:2px solid var(--paper-card); border-radius:50%; z-index:5;}
+    #am-panel .canvas-item-handle.nw{top:-7px; left:-7px; cursor:nwse-resize;}
+    #am-panel .canvas-item-handle.ne{top:-7px; right:-7px; cursor:nesw-resize;}
+    #am-panel .canvas-item-handle.sw{bottom:-7px; left:-7px; cursor:nesw-resize;}
+    #am-panel .canvas-item-handle.se{bottom:-7px; right:-7px; cursor:nwse-resize;}
+    /* Renk Paleti / Kartela — tuvalin sağ altına sabitlenmiş, açılıp kapanabilen widget (kullanıcı
+       isteği madde 2). */
+    #am-panel .col-palette-toggle{position:absolute; right:14px; bottom:14px; width:42px; height:42px; border-radius:50%; border:1px solid var(--line); background:var(--paper-card); color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,0.18); cursor:pointer; z-index:20;}
+    #am-panel .col-palette-toggle:hover{border-color:var(--walnut); color:var(--walnut);}
+    #am-panel .col-palette-panel{position:absolute; right:14px; bottom:64px; width:200px; max-height:260px; overflow-y:auto; background:var(--paper-card); border:1px solid var(--line); border-radius:12px; padding:12px; box-shadow:0 12px 30px rgba(0,0,0,0.22); z-index:20;}
+    #am-panel .col-palette-swatches{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px;}
+    #am-panel .col-palette-swatch{display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; border:none; background:none; padding:0;}
+    #am-panel .col-palette-swatch-chip{width:100%; aspect-ratio:1; border-radius:6px; border:1px solid var(--line-soft);}
+    #am-panel .col-palette-swatch-hex{font-size:8.5px; color:var(--ink-soft); font-family:monospace;}
     #am-panel .col-add-panel{border:1px dashed var(--line); border-radius:12px; padding:16px; margin-bottom:18px;}
     #am-panel .col-add-panel textarea{width:100%; box-sizing:border-box; min-height:80px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13px; font-family:inherit; resize:vertical;}
     #am-panel .col-saved-picker{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; max-height:320px; overflow-y:auto; margin-top:12px;}
@@ -1309,6 +1322,10 @@ const AuthModal = (function () {
                "Yeniden Adlandır" buradan KALDIRILDI — artık pano adının sağındaki kalem ikonu. -->
           <div class="col-toolbar">
             <button type="button" class="col-btn" id="am-col-back-btn">← Panolarım</button>
+            <!-- Paylaş ARTIK hem herkese açık bağlantıyı hem ortak çalışma davetlerini barındıran
+                 bir panel açar (kullanıcı isteği, 2026-09-05 madde 3) — ikisi de rozet şartlı,
+                 tıklama anında kontrol edilir (bkz. am-col-share-btn dinleyicisi, export butonuyla
+                 AYNI fetchBadgeAccess deseni). Yalnızca pano SAHİBİNDE görünür (bkz. renderDetail). -->
             <button type="button" class="col-btn" id="am-col-share-btn">Paylaş</button>
             <!-- Dışa Aktar rozetli üyelere özel (kullanıcı isteği). Buton BİLEREK devre dışı
                  (disabled) DEĞİL: devre dışı bir buton hiç click olayı üretmez, dolayısıyla
@@ -1328,15 +1345,51 @@ const AuthModal = (function () {
           </h2>
           <p class="section-hint" id="am-col-detail-count"></p>
 
+          <!-- Paylaş/İşbirliği paneli — kullanıcı isteği madde 3. Herkese açık bağlantı aç/kapat +
+               e-posta ile davet + mevcut işbirlikçi listesi tek panelde. -->
+          <div class="col-add-panel" id="am-col-share-panel" style="display:none;">
+            <strong style="font-size:13px;">Herkese Açık Bağlantı</strong>
+            <p class="section-hint" style="margin:4px 0 8px;">Bağlantıyı bilen herkes panonu salt-okunur görebilir.</p>
+            <button type="button" class="col-btn" id="am-col-public-link-btn">Paylaş</button>
+            <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--line-soft);">
+              <strong style="font-size:13px;">Kişi Davet Et</strong>
+              <p class="section-hint" style="margin:4px 0 8px;">MİMARLAB'a kayıtlı bir üyeyi e-postasıyla davet et.</p>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <input type="email" id="am-col-invite-email" placeholder="ornek@eposta.com" style="flex:1; min-width:160px; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13px; font-family:inherit;">
+                <select id="am-col-invite-role" style="padding:9px 10px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13px; font-family:inherit;">
+                  <option value="viewer">Görüntüleyici</option>
+                  <option value="editor">Editör</option>
+                </select>
+                <button type="button" class="col-btn col-btn-primary" id="am-col-invite-btn">Davet Gönder</button>
+              </div>
+            </div>
+            <div id="am-col-collaborator-list" style="margin-top:14px;"></div>
+          </div>
+
           <div class="col-toolbar">
             <button type="button" class="col-btn" data-col-add="saved">Kaydettiklerimden Ekle</button>
+            <button type="button" class="col-btn" data-col-add="follow">Takip Ettiklerimden Ekle</button>
             <button type="button" class="col-btn" data-col-add="image">Görsel Yükle</button>
             <button type="button" class="col-btn" data-col-add="note">Not Ekle</button>
           </div>
 
           <div class="col-add-panel" id="am-col-add-saved" style="display:none;">
             <strong style="font-size:13px;">Kaydettiklerim</strong>
+            <div class="saved-filter" id="am-col-add-saved-filter">
+              <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+              <button type="button" class="saved-filter-btn" data-filter="project">Projeler</button>
+              <button type="button" class="saved-filter-btn" data-filter="product">Ürünler</button>
+            </div>
             <div class="col-saved-picker" id="am-col-saved-picker"><div class="dash-empty">Yükleniyor…</div></div>
+          </div>
+          <div class="col-add-panel" id="am-col-add-follow" style="display:none;">
+            <strong style="font-size:13px;">Takip Ettiklerimin Son Eklediği İçerikler</strong>
+            <div class="saved-filter" id="am-col-add-follow-filter">
+              <button type="button" class="saved-filter-btn active" data-filter="">Tümü</button>
+              <button type="button" class="saved-filter-btn" data-filter="project">Projeler</button>
+              <button type="button" class="saved-filter-btn" data-filter="product">Ürünler</button>
+            </div>
+            <div class="col-saved-picker" id="am-col-follow-picker"><div class="dash-empty">Yükleniyor…</div></div>
           </div>
           <div class="col-add-panel" id="am-col-add-image" style="display:none;">
             <strong style="font-size:13px;">Bilgisayarından görsel yükle</strong>
@@ -1355,7 +1408,18 @@ const AuthModal = (function () {
           </div>
 
           <div class="col-notice" id="am-col-detail-notice"></div>
-          <div id="am-col-items"><div class="dash-empty">Yükleniyor…</div></div>
+          <div class="col-canvas-wrap">
+            <div id="am-col-items"><div class="dash-empty">Yükleniyor…</div></div>
+            <!-- Renk Paleti / Kartela (kullanıcı isteği madde 2) — panodaki görsellerden çıkarılan
+                 baskın renkler, açılıp kapanabilen dinamik bir widget. -->
+            <button type="button" class="col-palette-toggle" id="am-col-palette-toggle" title="Renk Paleti" aria-label="Renk Paletini Göster">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a9 9 0 1 1 0-18 8 8 0 0 1 8 8c0 1.66-1.34 3-3 3h-1.5a1.5 1.5 0 0 0-1.06 2.56c.4.4.56.85.56 1.44 0 1.1-.9 2-2 2Z"/><circle cx="7.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8" r="1.2" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <div class="col-palette-panel" id="am-col-palette-panel" style="display:none;">
+              <strong style="font-size:12.5px;">Renk Paleti</strong>
+              <div class="col-palette-swatches" id="am-col-palette-swatches"><div class="dash-empty" style="font-size:11.5px;">Panoya görsel ekleyince renkler burada listelenir.</div></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -3608,13 +3672,141 @@ const AuthModal = (function () {
       loadCollections();
     }
 
+    // ---------- Serbest Tuval / Moodboard (kullanıcı isteği, 2026-09-05 madde 1) ----------
+    // .col-item-grid'in yerini position:relative bir tuval + position:absolute öğeler aldı.
+    // Sürükleme/boyutlandırma js/components/image-crop.js#injectStyles'daki Pointer Events +
+    // setPointerCapture + köşe-çapa yeniden boyutlandırma deseninin AYNISI (bkz. proje araştırması) —
+    // tek fark burada aynı zamanda "tıklama mı sürükleme mi" ayrımı da gerekiyor (öğeler linke/
+      // lightbox'a tıklanabilir OLMALI), o kısım auth-modal.js'in KENDİ galeri sürükle-bırak sıralama
+    // koduyla (yukarıdaki uzun-basma + dragJustFinished deseni) AYNI mantıkla çözülür.
+    const DRAG_MOVE_THRESHOLD_PX = 4;
+    let canvasMaxZ = 0;
+
+    function canEdit() {
+      return openCollection && openCollection.item.role !== 'viewer';
+    }
+    function isOwner() {
+      return openCollection && openCollection.item.role === 'owner';
+    }
+
+    // Eski panolarda (ya da yeni eklenen bir öğede) pos_x === -1 ise hiç konumlandırılmamış demektir
+    // (bkz. migrations/0094_board_canvas_and_sharing.sql). Basit bir ızgaraya yerleştirilip HEMEN
+    // sunucuya kaydedilir — böylece bir dahaki açılışta aynı otomatik yerleşim tekrar hesaplanmaz ve
+    // kullanıcı sürüklediği bir öğenin "geri sıçradığını" görmez.
+    function autoArrangeIfNeeded() {
+      if (!openCollection) return;
+      const items = openCollection.items;
+      const unplaced = items.filter(it => it.x < 0 || it.y < 0);
+      if (!unplaced.length) return;
+      const cols = 4;
+      const cellW = 100 / cols;
+      const cellH = 26;
+      const gap = 2;
+      const startIndex = items.length - unplaced.length;
+      unplaced.forEach((it, i) => {
+        const idx = startIndex + i;
+        it.x = (idx % cols) * cellW + gap / 2;
+        it.y = Math.floor(idx / cols) * cellH + gap / 2;
+        it.width = cellW - gap;
+        it.height = cellH - gap;
+        it.zIndex = idx;
+      });
+      if (canEdit()) persistLayout(unplaced);
+    }
+
+    async function persistLayout(items) {
+      if (!openCollection || !items.length) return;
+      try {
+        await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layout: items.map(it => ({ id: it.id, x: it.x, y: it.y, width: it.width, height: it.height, zIndex: it.zIndex })) }),
+        });
+      } catch { /* konum kaydı best-effort — ağ hatasında öğe ekranda olduğu yerde kalır, bir sonraki render'da sunucudaki son bilinen konumdan devam eder */ }
+    }
+
+    // Bir görselden baskın renkleri çıkarır (kullanıcı isteği madde 2). Sunucu/kütüphane YOK — CSP
+    // dış script'leri engellediğinden (bkz. exportBoardPdf'teki AYNI gerekçe) küçük bir <canvas>'a
+    // çizip piksel verisini örnekleyen saf JS histogram/kova (bucket) yöntemi kullanılır. Görseller
+    // AYNI origin'den geldiğinden (image-cdn/R2) canvas "tainted" olmaz.
+    function extractDominantColors(img, k) {
+      try {
+        const c = document.createElement('canvas');
+        const size = 32;
+        c.width = size; c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+        const data = ctx.getImageData(0, 0, size, size).data;
+        const buckets = new Map();
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a < 128) continue;
+          // 32'lik kovalara yuvarla — tam piksel bazında saymak neredeyse hiç tekrar etmeyen binlerce
+          // "ayrı renk" üretirdi, kovalar benzer tonları tek bir baskın renkte birleştirir.
+          const r = Math.round(data[i] / 32) * 32;
+          const g = Math.round(data[i + 1] / 32) * 32;
+          const b = Math.round(data[i + 2] / 32) * 32;
+          const key = `${r},${g},${b}`;
+          buckets.set(key, (buckets.get(key) || 0) + 1);
+        }
+        return [...buckets.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, k)
+          .map(([key]) => {
+            const [r, g, b] = key.split(',').map(Number);
+            return '#' + [r, g, b].map(v => Math.min(255, v).toString(16).padStart(2, '0')).join('');
+          });
+      } catch { return []; }
+    }
+
+    function renderPalette(hexList) {
+      const el = document.getElementById('am-col-palette-swatches');
+      if (!el) return;
+      if (!hexList.length) {
+        el.innerHTML = '<div class="dash-empty" style="font-size:11.5px;">Panoya görsel ekleyince renkler burada listelenir.</div>';
+        return;
+      }
+      el.innerHTML = hexList.map(hex => `
+        <button type="button" class="col-palette-swatch" data-hex="${escapeAttr(hex)}" title="${escapeAttr(hex)}">
+          <span class="col-palette-swatch-chip" style="background:${escapeAttr(hex)};"></span>
+          <span class="col-palette-swatch-hex">${escapeAttr(hex)}</span>
+        </button>`).join('');
+    }
+
+    // Panodaki tüm görsellerden toplanan renkler tek bir kartelada birleştirilir. Görseller lazy
+    // yüklendiğinden (loading="lazy") her <img> için complete/onload ayrımı yapılır.
+    function computePalette() {
+      const container = document.getElementById('am-col-items');
+      if (!container) return;
+      const imgs = Array.from(container.querySelectorAll('.canvas-item-media'));
+      if (!imgs.length) { renderPalette([]); return; }
+      const perImage = new Map();
+      function recompute() {
+        const counts = new Map();
+        for (const list of perImage.values()) {
+          for (const hex of list) counts.set(hex, (counts.get(hex) || 0) + 1);
+        }
+        renderPalette([...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([hex]) => hex));
+      }
+      imgs.forEach(img => {
+        const run = () => { perImage.set(img, extractDominantColors(img, 3)); recompute(); };
+        if (img.complete && img.naturalWidth) run();
+        else img.addEventListener('load', run, { once: true });
+      });
+    }
+
     function renderDetail() {
       if (!openCollection) return;
       document.getElementById('am-col-detail-title-text').textContent = openCollection.item.title;
-      document.getElementById('am-col-detail-count').textContent = `${openCollection.items.length} öğe`;
+      document.getElementById('am-col-detail-count').textContent = `${openCollection.items.length} öğe${openCollection.item.role !== 'owner' ? ` · ${openCollection.item.role === 'editor' ? 'Editör' : 'Görüntüleyici'} olarak erişiyorsun` : ''}`;
       // Paylaşım durumu — sunucu shapeCollection'da shareToken döner (bkz. src/routes/collections.js).
+      const publicLinkBtn = document.getElementById('am-col-public-link-btn');
+      if (publicLinkBtn) publicLinkBtn.textContent = openCollection.item.shareToken ? 'Paylaşımı Durdur' : 'Paylaş';
+      // Paylaş/Panoyu Sil YALNIZCA sahipte; öğe ekleme SAHİP+EDİTÖR'de; görüntüleyicide hiçbiri.
       const shareBtn = document.getElementById('am-col-share-btn');
-      if (shareBtn) shareBtn.textContent = openCollection.item.shareToken ? 'Paylaşımı Durdur' : 'Paylaş';
+      if (shareBtn) shareBtn.style.display = isOwner() ? '' : 'none';
+      const deleteBtn = document.getElementById('am-col-delete-btn');
+      if (deleteBtn) deleteBtn.style.display = isOwner() ? '' : 'none';
+      document.querySelectorAll('#am-col-detail-view [data-col-add]').forEach(btn => { btn.style.display = canEdit() ? '' : 'none'; });
       // NOT: Dışa Aktar'ın rozet kontrolü BİLEREK burada YAPILMAZ. renderDetail(), loadBadges()
       // tamamlanmadan ÖNCE de çalışabiliyor (ikisi bağımsız/paralel yükleniyor, bkz. amBadgeItems
       // yorumu) — burada hesaplanan bir "rozetin yok" durumu, rozet verisi sonradan gelse bile
@@ -3622,70 +3814,105 @@ const AuthModal = (function () {
       const container = document.getElementById('am-col-items');
       if (!openCollection.items.length) {
         container.innerHTML = '<div class="dash-empty">Bu pano henüz boş.<br>Yukarıdaki butonlarla kaydettiğin içerikleri, kendi görsellerini ya da notlarını ekleyebilirsin.</div>';
+        renderPalette([]);
         return;
       }
-      container.innerHTML = `<div class="col-item-grid">${openCollection.items.map((it, i) => {
+      autoArrangeIfNeeded();
+      canvasMaxZ = Math.max(0, ...openCollection.items.map(it => it.zIndex || 0));
+      const readonly = !canEdit();
+      container.innerHTML = `<div class="col-canvas" id="am-col-canvas">${openCollection.items.map((it) => {
         const image = safeUrl(it.image);
         const href = safeUrl(it.href);
-        // 'note' türünde görsel yok, metin kartın kendisi olur; 'image'/'saved' türünde görsel üstte,
-        // başlık altta. Başlık yalnızca href varsa (yani sitedeki bir kayda işaret ediyorsa) linktir.
-        // Tıklayınca görsel büyür (kullanıcı isteği, 2026-09-02: "tıklanan görsel popup şeklinde
-        // büyüsün, aynı proje medyasında olduğu gibi") — bkz. js/components/image-lightbox.js.
-        // data-lightbox-src ORİJİNALİ taşır: kart 400 px'lik türevi gösterir, büyütmede tam
-        // çözünürlük istenir. Başlıktaki <a> ETKİLENMEZ (lightbox yalnızca görselin kendisinde).
         const media = image
-          ? `<img class="col-item-media img-zoomable" src="${escapeAttr(avatarImg(image, 400, image))}" data-lightbox-src="${escapeAttr(image)}" data-lightbox-alt="${escapeAttr(it.title || '')}" alt="" loading="lazy" decoding="async">`
-          : (it.kind === 'note' ? `<div class="col-item-note">${escapeHtml(it.note)}</div>` : '');
-        const titleText = it.title || (it.kind === 'note' ? '' : '—');
-        const titleHtml = titleText
-          ? `<div class="col-item-title">${href ? `<a href="${escapeAttr(href)}">${escapeHtml(titleText)}</a>` : escapeHtml(titleText)}</div>`
-          : '';
-        const metaHtml = it.meta ? `<div class="col-item-meta">${escapeHtml(it.meta)}</div>` : '';
-        const body = (titleHtml || metaHtml) ? `<div class="col-item-body">${titleHtml}${metaHtml}</div>` : '';
-        // Sıra değiştirme okları — ilk öğede "geri", son öğede "ileri" devre dışı.
-        const moveHtml = `
-          <div class="col-item-move">
-            <button type="button" data-move="up" aria-label="Öne al"${i === 0 ? ' disabled' : ''}>‹</button>
-            <button type="button" data-move="down" aria-label="Geriye al"${i === openCollection.items.length - 1 ? ' disabled' : ''}>›</button>
-          </div>`;
+          ? `<img class="canvas-item-media" src="${escapeAttr(avatarImg(image, 400, image))}" data-lightbox-src="${escapeAttr(image)}" data-lightbox-alt="${escapeAttr(it.title || '')}" alt="" loading="lazy" decoding="async">`
+          : (it.kind === 'note' ? `<div class="canvas-item-note">${escapeHtml(it.note)}</div>` : '');
+        const titleText = it.title || '';
+        const body = (image && titleText) ? `<div class="canvas-item-body"><div class="canvas-item-title">${escapeHtml(titleText)}</div></div>` : '';
+        const openLink = (href && image) ? `<a class="canvas-item-open" href="${escapeAttr(href)}" aria-label="Aç" title="${escapeAttr(titleText)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>` : '';
+        const removeBtn = readonly ? '' : `<button type="button" class="canvas-item-remove" aria-label="Kaldır">✕</button>`;
+        const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(c => `<span class="canvas-item-handle ${c}" data-handle="${c}"></span>`).join('');
+        const style = `left:${it.x}%; top:${it.y}%; width:${it.width}%; height:${it.height}%; z-index:${it.zIndex || 0};`;
         return `
-        <div class="col-item" data-item-id="${escapeAttr(it.id)}">
-          ${media}${body}
-          ${moveHtml}
-          <button type="button" class="col-item-remove" aria-label="Kaldır">✕</button>
+        <div class="canvas-item${readonly ? ' readonly' : ''}" data-item-id="${escapeAttr(it.id)}" data-href="${escapeAttr(href || '')}" data-image="${image ? '1' : ''}" style="${style}">
+          ${media}${body}${openLink}${removeBtn}${handles}
         </div>`;
       }).join('')}</div>`;
+      wireCanvasInteractions(container.querySelector('#am-col-canvas'));
+      computePalette();
     }
 
-    // Sıra değiştirme (kullanıcı isteği, 2026-08-31) — yeni sıra ÖNCE yerel state'te uygulanıp
-    // hemen yeniden çizilir (anında geri bildirim), sonra sunucuya TÜM liste olarak yazılır (bkz.
-    // src/routes/collections.js#reorderItems). Yazma başarısız olursa sunucudaki gerçek sıra geri
-    // yüklenir, böylece ekran D1 ile tutarsız kalmaz.
-    async function moveItem(itemId, direction) {
-      if (!openCollection) return;
-      const items = openCollection.items;
-      const from = items.findIndex(it => it.id === itemId);
-      if (from < 0) return;
-      const to = direction === 'up' ? from - 1 : from + 1;
-      if (to < 0 || to >= items.length) return;
-      [items[from], items[to]] = [items[to], items[from]];
-      renderDetail();
-      try {
-        const res = await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: items.map(it => it.id) }),
+    // Sürükle (gövdeden, tutamaçlardan/linklerden/silme butonundan DEĞİL) ve köşe tutamaçlarından
+    // boyutlandır — Pointer Events + setPointerCapture, image-crop.js#injectStyles İLE AYNI köşe-
+    // çapa deseni. Yüzde matematiği canvas'ın KENDİ getBoundingClientRect'ine göre yapılır.
+    function wireCanvasInteractions(canvasEl) {
+      if (!canvasEl || !canEdit()) return;
+      canvasEl.querySelectorAll('.canvas-item').forEach(el => {
+        const itemId = el.dataset.itemId;
+        const item = openCollection.items.find(it => it.id === itemId);
+        if (!item) return;
+
+        function startDrag(e, mode, handle) {
+          if (e.button !== undefined && e.button !== 0) return;
+          const rect = canvasEl.getBoundingClientRect();
+          const start = { x: item.x, y: item.y, width: item.width, height: item.height };
+          const startPointer = { x: e.clientX, y: e.clientY };
+          let moved = false;
+          canvasMaxZ += 1;
+          el.style.zIndex = String(canvasMaxZ);
+          el.setPointerCapture(e.pointerId);
+          el.classList.add('dragging');
+
+          function onMove(ev) {
+            const dxPct = ((ev.clientX - startPointer.x) / rect.width) * 100;
+            const dyPct = ((ev.clientY - startPointer.y) / rect.height) * 100;
+            if (!moved && Math.hypot(ev.clientX - startPointer.x, ev.clientY - startPointer.y) > DRAG_MOVE_THRESHOLD_PX) moved = true;
+            if (mode === 'move') {
+              item.x = start.x + dxPct;
+              item.y = start.y + dyPct;
+            } else {
+              // Köşe çapası — sürüklenen köşenin KARŞI kenarı sabit kalır.
+              if (handle.includes('e')) item.width = Math.max(4, start.width + dxPct);
+              if (handle.includes('s')) item.height = Math.max(4, start.height + dyPct);
+              if (handle.includes('w')) { const nw = Math.max(4, start.width - dxPct); item.x = start.x + (start.width - nw); item.width = nw; }
+              if (handle.includes('n')) { const nh = Math.max(4, start.height - dyPct); item.y = start.y + (start.height - nh); item.height = nh; }
+            }
+            el.style.left = item.x + '%'; el.style.top = item.y + '%';
+            el.style.width = item.width + '%'; el.style.height = item.height + '%';
+          }
+          function onUp(ev) {
+            el.releasePointerCapture(ev.pointerId);
+            el.removeEventListener('pointermove', onMove);
+            el.removeEventListener('pointerup', onUp);
+            el.removeEventListener('pointercancel', onUp);
+            el.classList.remove('dragging');
+            item.zIndex = canvasMaxZ;
+            if (moved) {
+              persistLayout([item]);
+              // Sürüklemenin hemen ardından gelen sentetik 'click'i yut — aksi halde bir görseli
+              // sürükleyip bırakınca lightbox'ı da açardı (bkz. auth-modal.js#dragJustFinished
+              // deseni, galeri yeniden sıralama koduyla AYNI gerçek bulgu).
+              const swallow = (ce) => { ce.stopPropagation(); ce.preventDefault(); el.removeEventListener('click', swallow, true); };
+              el.addEventListener('click', swallow, true);
+            }
+          }
+          el.addEventListener('pointermove', onMove);
+          el.addEventListener('pointerup', onUp);
+          el.addEventListener('pointercancel', onUp);
+        }
+
+        el.addEventListener('pointerdown', (e) => {
+          const handle = e.target.closest('.canvas-item-handle');
+          if (handle) { e.preventDefault(); e.stopPropagation(); startDrag(e, 'resize', handle.dataset.handle); return; }
+          if (e.target.closest('.canvas-item-remove') || e.target.closest('.canvas-item-open')) return;
+          startDrag(e, 'move');
         });
-        if (!res.ok) throw new Error('reorder failed');
-      } catch {
-        notice('am-col-detail-notice', 'Sıra kaydedilemedi, tekrar dene.', true);
-        await reloadDetail();
-      }
+      });
     }
 
     async function openDetail(id) {
       document.getElementById('am-col-list-view').style.display = 'none';
       document.getElementById('am-col-detail-view').style.display = '';
-      ['am-col-add-saved', 'am-col-add-image', 'am-col-add-note'].forEach(panelId => {
+      ['am-col-add-saved', 'am-col-add-follow', 'am-col-add-image', 'am-col-add-note', 'am-col-share-panel'].forEach(panelId => {
         document.getElementById(panelId).style.display = 'none';
       });
       notice('am-col-detail-notice', '');
@@ -3954,7 +4181,34 @@ const AuthModal = (function () {
     // Paylaş / Paylaşımı Durdur (kullanıcı isteği, 2026-09-02). Açıkken bağlantı panoya özel,
     // tahmin edilemez bir token taşır (bkz. src/routes/collections.js#shareCollection) ve
     // /pano/<token> adresinden oturum GEREKMEDEN görüntülenir. Kapatınca bağlantı ölür.
+    // Paylaş — ARTIK önce rozet kontrolü yapıp paneli açar (kullanıcı isteği, 2026-09-05 madde 3:
+    // "Paylaş butonu ... SADECE rozet sahibi kullanıcılar için aktif olmalı"). am-col-export-btn'deki
+    // AYNI fetchBadgeAccess deseni: amHasAnyBadge() anlık "evet" kısayolu, hayır cevabı SUNUCUDAN.
     on('am-col-share-btn', 'click', async () => {
+      if (!openCollection) return;
+      const panel = document.getElementById('am-col-share-panel');
+      if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+      if (!amHasAnyBadge()) {
+        notice('am-col-detail-notice', 'Rozet kontrol ediliyor…');
+        const access = await fetchBadgeAccess();
+        if (access === false) {
+          const el = document.getElementById('am-col-detail-notice');
+          if (el) {
+            el.style.color = '#B84C4C';
+            el.innerHTML = 'Bu özellik rozetli kullanıcılara özeldir, '
+              + '<a href="/rozet-al" style="color:inherit; text-decoration:underline; font-weight:600;">rozet al</a>.';
+          }
+          return;
+        }
+        // access === null: sunucuya ulaşılamadı — rozeti olan birini ağ hatası yüzünden
+        // engellemektense paneli AÇMAYI deneriz (export butonundaki AYNI gerekçe).
+      }
+      notice('am-col-detail-notice', '');
+      panel.style.display = '';
+      loadCollaborators();
+    });
+
+    on('am-col-public-link-btn', 'click', async () => {
       if (!openCollection) return;
       const alreadyShared = !!openCollection.item.shareToken;
       try {
@@ -3968,10 +4222,11 @@ const AuthModal = (function () {
           return;
         }
         const res = await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/share`, { method: 'POST' });
-        if (!res.ok) { notice('am-col-detail-notice', 'Pano paylaşılamadı.', true); return; }
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { notice('am-col-detail-notice', data.error || 'Pano paylaşılamadı.', true); return; }
         openCollection.item.shareToken = data.shareToken;
         renderDetail();
+        document.getElementById('am-col-share-panel').style.display = '';
         const shareUrl = location.origin + '/pano/' + data.shareToken;
         // Panoyu paylaşmanın kendisi bir yazma işlemi DEĞİL, bağlantıyı kullanıcıya vermek — bu
         // yüzden önce panoya özel bir paylaşım denenir (mobilde yerel paylaşım sayfası), yoksa
@@ -3989,6 +4244,69 @@ const AuthModal = (function () {
       } catch { notice('am-col-detail-notice', 'Sunucuya ulaşılamadı, tekrar dene.', true); }
     });
 
+    // ---- İşbirlikçi (ortak çalışma) listesi/davet — kullanıcı isteği madde 3 ----
+    const COLLAB_ROLE_LABELS = { viewer: 'Görüntüleyici', editor: 'Editör' };
+    async function loadCollaborators() {
+      if (!openCollection) return;
+      const el = document.getElementById('am-col-collaborator-list');
+      el.innerHTML = '<div class="dash-empty">Yükleniyor…</div>';
+      try {
+        const res = await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/collaborators`);
+        const data = res.ok ? await res.json() : { items: [] };
+        renderCollaborators(data.items || []);
+      } catch { el.innerHTML = ''; }
+    }
+    function renderCollaborators(items) {
+      const el = document.getElementById('am-col-collaborator-list');
+      if (!items.length) { el.innerHTML = '<p class="section-hint">Henüz kimseyi davet etmedin.</p>'; return; }
+      el.innerHTML = `<strong style="font-size:13px;">İşbirlikçiler</strong>` + items.map(c => `
+        <div class="saved-row" data-user-id="${escapeAttr(c.userId)}">
+          <div style="min-width:0; padding:10px 0;">
+            <div class="saved-row-title">${escapeHtml(c.name || c.email)}</div>
+            <div class="saved-row-meta">${escapeHtml(c.email)}</div>
+          </div>
+          <select class="am-collab-role-select" style="padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); font-size:12px; font-family:inherit;">
+            <option value="viewer"${c.role === 'viewer' ? ' selected' : ''}>Görüntüleyici</option>
+            <option value="editor"${c.role === 'editor' ? ' selected' : ''}>Editör</option>
+          </select>
+          <button class="saved-remove-btn" type="button" aria-label="Kaldır">✕</button>
+        </div>`).join('');
+      el.querySelectorAll('.saved-row').forEach(row => {
+        const userId = row.dataset.userId;
+        row.querySelector('.am-collab-role-select').addEventListener('change', async (e) => {
+          try {
+            await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/collaborators/${encodeURIComponent(userId)}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: e.target.value }),
+            });
+          } catch {}
+        });
+        row.querySelector('.saved-remove-btn').addEventListener('click', async () => {
+          try {
+            await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+            loadCollaborators();
+          } catch {}
+        });
+      });
+    }
+    on('am-col-invite-btn', 'click', async () => {
+      if (!openCollection) return;
+      const emailInput = document.getElementById('am-col-invite-email');
+      const roleSelect = document.getElementById('am-col-invite-role');
+      const email = emailInput.value.trim();
+      if (!email) { emailInput.focus(); return; }
+      try {
+        const res = await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/collaborators`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, role: roleSelect.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { notice('am-col-detail-notice', data.error || 'Davet gönderilemedi.', true); return; }
+        emailInput.value = '';
+        notice('am-col-detail-notice', 'Davet gönderildi.');
+        loadCollaborators();
+      } catch { notice('am-col-detail-notice', 'Sunucuya ulaşılamadı, tekrar dene.', true); }
+    });
+
     on('am-col-delete-btn', 'click', async () => {
       if (!openCollection) return;
       if (!window.confirm('Bu panoyu silmek istediğine emin misin? İçindeki tüm öğeler de silinir.')) return;
@@ -4003,11 +4321,12 @@ const AuthModal = (function () {
       const toggle = e.target.closest('[data-col-add]');
       if (!toggle) return;
       const panelId = `am-col-add-${toggle.dataset.colAdd}`;
-      ['am-col-add-saved', 'am-col-add-image', 'am-col-add-note'].forEach(id => {
+      ['am-col-add-saved', 'am-col-add-follow', 'am-col-add-image', 'am-col-add-note'].forEach(id => {
         const el = document.getElementById(id);
         el.style.display = (id === panelId && el.style.display === 'none') ? '' : 'none';
       });
       if (toggle.dataset.colAdd === 'saved' && document.getElementById('am-col-add-saved').style.display !== 'none') loadSavedPicker();
+      if (toggle.dataset.colAdd === 'follow' && document.getElementById('am-col-add-follow').style.display !== 'none') loadFollowPicker();
     });
 
     async function addItem(payload) {
@@ -4025,6 +4344,10 @@ const AuthModal = (function () {
       } catch { notice('am-col-detail-notice', 'Sunucuya ulaşılamadı, tekrar dene.', true); }
     }
 
+    // "Tümü"/"Projeler"/"Ürünler" hap filtreleri (kullanıcı isteği madde 4) — Kaydettiklerim VE
+    // Takip Ettiklerim seçicilerinde AYNI colMatchesCatalogFilter mantığı (bkz. yukarısı: 'product'
+    // filtresi hem product hem material'ı kapsar).
+    let savedPickerFilter = '';
     async function loadSavedPicker() {
       const picker = document.getElementById('am-col-saved-picker');
       if (savedItemsCache === null) {
@@ -4038,7 +4361,11 @@ const AuthModal = (function () {
         picker.innerHTML = '<div class="dash-empty">Henüz kaydettiğin bir içerik yok.<br><a href="/proje">Projelere göz at</a></div>';
         return;
       }
-      picker.innerHTML = savedItemsCache.map((it, i) => {
+      const filtered = savedItemsCache
+        .map((it, i) => ({ it, i }))
+        .filter(({ it }) => colMatchesCatalogFilter(it.item_type, savedPickerFilter));
+      if (!filtered.length) { picker.innerHTML = '<div class="dash-empty">Bu türde kaydettiğin bir içerik yok.</div>'; return; }
+      picker.innerHTML = filtered.map(({ it, i }) => {
         const image = safeUrl(it.item_image);
         return `
         <button type="button" class="col-saved-option" data-saved-index="${i}">
@@ -4047,6 +4374,13 @@ const AuthModal = (function () {
         </button>`;
       }).join('');
     }
+    on('am-col-add-saved-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      savedPickerFilter = btn.dataset.filter;
+      document.querySelectorAll('#am-col-add-saved-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      loadSavedPicker();
+    });
 
     on('am-col-saved-picker', 'click', (e) => {
       const option = e.target.closest('.col-saved-option');
@@ -4057,6 +4391,57 @@ const AuthModal = (function () {
         kind: 'saved', itemType: it.item_type, itemKey: it.item_key,
         title: it.item_title || '', meta: it.item_meta || '', image: it.item_image || '', href: it.item_href || '',
       });
+    });
+
+    // "Takip Ettiklerimden Ekle" (kullanıcı isteği madde 4, YENİ) — takip ettiğin mimar/firma/
+    // markaların takibe başladıktan SONRA eklediği en güncel proje/ürünler (bkz. /api/follows/feed,
+    // aynı kaynak "Takip Ettiklerim" kutusunun kullandığı). Yalnızca project/product satırları
+    // panoya EKLENEBİLİR içerik sayılır — mimar/firma/marka PROFİLLERİ bu seçicide listelenmez.
+    let followPickerItems = null;
+    let followPickerFilter = '';
+    async function loadFollowPicker() {
+      const picker = document.getElementById('am-col-follow-picker');
+      if (followPickerItems === null) {
+        try {
+          const res = await fetch('/api/follows/feed');
+          const data = res.ok ? await res.json() : { items: [] };
+          followPickerItems = (data.items || []).filter(it => it.type === 'project' || it.type === 'product');
+        } catch { followPickerItems = []; }
+      }
+      if (!followPickerItems.length) {
+        picker.innerHTML = '<div class="dash-empty">Takip ettiklerinin henüz yeni bir paylaşımı yok.</div>';
+        return;
+      }
+      const filtered = followPickerItems
+        .map((it, i) => ({ it, i }))
+        .filter(({ it }) => !followPickerFilter || it.type === followPickerFilter);
+      if (!filtered.length) { picker.innerHTML = '<div class="dash-empty">Bu türde yeni bir paylaşım yok.</div>'; return; }
+      picker.innerHTML = filtered.map(({ it, i }) => {
+        const image = safeUrl(it.image);
+        return `
+        <button type="button" class="col-saved-option" data-follow-index="${i}">
+          ${image ? `<img src="${escapeAttr(avatarImg(image, 240, image))}" alt="" loading="lazy" decoding="async">` : '<img alt="">'}
+          <div class="col-saved-option-title">${escapeHtml(it.title || '—')}</div>
+        </button>`;
+      }).join('');
+    }
+    on('am-col-add-follow-filter', 'click', (e) => {
+      const btn = e.target.closest('.saved-filter-btn');
+      if (!btn) return;
+      followPickerFilter = btn.dataset.filter;
+      document.querySelectorAll('#am-col-add-follow-filter .saved-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+      loadFollowPicker();
+    });
+    on('am-col-follow-picker', 'click', (e) => {
+      const option = e.target.closest('.col-saved-option');
+      if (!option) return;
+      const it = followPickerItems[parseInt(option.dataset.followIndex, 10)];
+      if (!it || !it.href) return;
+      // href her zaman "/proje/:slug" ya da "/urun/:slug" biçimindedir (bkz. src/routes/follows.js#
+      // followFeed) — itemKey son yol parçasıdır.
+      const itemKey = decodeURIComponent(it.href.split('/').filter(Boolean).pop() || '');
+      if (!itemKey) return;
+      addItem({ kind: 'saved', itemType: it.type, itemKey, title: it.title || '', image: it.image || '', href: it.href || '' });
     });
 
     // Görsel yükleme — hesabim.html/proje-ekle.html'deki AYNI /api/uploads ucu (bkz. src/routes/
@@ -4098,20 +4483,31 @@ const AuthModal = (function () {
     });
 
     on('am-col-items', 'click', async (e) => {
-      const moveBtn = e.target.closest('.col-item-move button');
-      if (moveBtn) {
-        const itemEl = moveBtn.closest('.col-item');
-        if (itemEl) moveItem(itemEl.dataset.itemId, moveBtn.dataset.move);
-        return;
-      }
-      const removeBtn = e.target.closest('.col-item-remove');
+      const removeBtn = e.target.closest('.canvas-item-remove');
       if (!removeBtn || !openCollection) return;
-      const itemEl = removeBtn.closest('.col-item');
+      const itemEl = removeBtn.closest('.canvas-item');
       removeBtn.disabled = true;
       try {
         await fetch(`/api/collections/${encodeURIComponent(openCollection.item.id)}/items/${encodeURIComponent(itemEl.dataset.itemId)}`, { method: 'DELETE' });
         await reloadDetail();
       } catch { removeBtn.disabled = false; }
+    });
+
+    // Renk Paleti widget'ını aç/kapat (kullanıcı isteği madde 2).
+    on('am-col-palette-toggle', 'click', () => {
+      const panel = document.getElementById('am-col-palette-panel');
+      panel.style.display = panel.style.display === 'none' ? '' : 'none';
+    });
+    on('am-col-palette-swatches', 'click', async (e) => {
+      const btn = e.target.closest('.col-palette-swatch');
+      if (!btn) return;
+      try {
+        await navigator.clipboard.writeText(btn.dataset.hex);
+        const hexEl = btn.querySelector('.col-palette-swatch-hex');
+        const original = hexEl.textContent;
+        hexEl.textContent = 'Kopyalandı';
+        setTimeout(() => { hexEl.textContent = original; }, 1200);
+      } catch {}
     });
 
     // ---- Kaydettiklerim kutusu (kullanıcı isteği, 2026-08-31) ----
