@@ -4,10 +4,10 @@ import { buildMeta, listEntityUrls, isKnownButHidden } from './lib/seo.js';
 import { handleAuthRoute, handleProfileRoute, handleAccountDeleteRoute } from './routes/auth.js';
 import { handleSubmissionRoute } from './routes/submissions.js';
 import { handlePublicRoute } from './routes/public.js';
-import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute } from './routes/architect.js';
-import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute } from './routes/office.js';
-import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute } from './routes/project.js';
-import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute, handleProductCanEditRoute } from './routes/product.js';
+import { handleArchitectRoute, handleArchitectSearchRoute, handleArchitectListRoute, handleArchitectSchoolsRoute, handleArchitectPrimaryOfficeRoute, fetchArchitectPool } from './routes/architect.js';
+import { handleOfficeRoute, handleOfficeSearchRoute, handleOfficeListRoute, fetchOfficePool } from './routes/office.js';
+import { handleProjectDetailRoute, handleProjectFiltersRoute, handleProjectListRoute, handleProjectCanEditRoute, handlePhotographerSearchRoute, handleProjectSearchRoute, fetchActiveProjectPoolCached } from './routes/project.js';
+import { handleProductDetailRoute, handleProductListRoute, handleProductSearchRoute, handleProductBrandSearchRoute, handleProductCanEditRoute, fetchProductPool } from './routes/product.js';
 import { handleAiSearchRoute } from './routes/ai.js';
 import { handleVisualSearchRoute, handleImageEmbedAppendRoute } from './routes/visualSearch.js';
 import { rebuildIndex } from './lib/visualIndexStore.js';
@@ -36,6 +36,10 @@ import { handleMessagesRoute } from './routes/messages.js';
 import { handleAiRoute } from './routes/ai.js';
 import { slugify } from './lib/slugify.js';
 import { SSR_CACHE_VERSION } from './lib/ssrCache.js';
+// Hub sayfalarının SSR iç link grafiği (SEO denetimi, 2026-09-05) — bkz. o dosyanın başındaki ölçüm.
+import { isHubPath, hubLinksHtml } from './lib/hubLinks.js';
+// office-kind.js — FİRMA/MARKA ayrımının tek kaynağı (bkz. loadHubPool).
+import officeKindJs from '../office-kind.js';
 import { resolveSlugRedirect } from './lib/slugRedirects.js';
 import { getSessionUser } from './lib/auth.js';
 import { getSiteSettings } from './lib/siteSettings.js';
@@ -640,8 +644,23 @@ async function routeAsset(request, env, url, ctx) {
 
   const response = await env.ASSETS.fetch(request);
   if (request.method === 'GET' && response.status === 200 && LIST_PAGE_PATHS.has(url.pathname)) {
+    // HUB SAYFALARINA SSR İÇ LİNK LİSTESİ (SEO denetimi, 2026-09-05). Ölçüm: bu beş sayfanın ham
+    // HTML'inde detay sayfasına giden bağlantı sayısı SIFIRDI — 4.000 detay sayfasının keşfi
+    // tamamen sitemap'e bağlıydı ve hub sayfalarının kendisi indekslenecek içerik taşımıyordu.
+    // Tam gerekçe + veri kaynağı: src/lib/hubLinks.js. Hata durumunda html null döner ve sayfa
+    // eskisi gibi (bağlantısız) servis edilir — SEO iyileştirmesi sayfayı ASLA düşürmemeli.
+    let hubHtml = null;
+    if (isHubPath(url.pathname)) {
+      hubHtml = await hubLinksHtml(url.pathname, () => loadHubPool(env, url.pathname));
+    }
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(LIST_PAGE_CACHE_HEADERS)) headers.set(k, v);
+    if (hubHtml) {
+      const rewritten = new HTMLRewriter()
+        .on('#ssr-entity-body', { element(el) { el.setInnerContent(hubHtml, { html: true }); } })
+        .transform(response);
+      return new Response(rewritten.body, { status: response.status, statusText: response.statusText, headers });
+    }
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   }
   // denetim bulgusu: DISABLED_PAGE_PATHS/detay-slug 404'lerinin (notFoundPageResponse/
@@ -858,6 +877,24 @@ async function cacheMatch(request) {
 }
 async function cachePut(request, response) {
   try { await caches.default.put(request, response); } catch {}
+}
+
+// Hub yoluna karşılık gelen KV ÖNBELLEKLİ havuzu döndürür (ek D1 maliyeti yok — bkz.
+// src/lib/hubLinks.js "VERİ KAYNAĞI"). /marka, /firma ile AYNI havuzu kullanır; marka/firma ayrımı
+// office-kind.js'in tek kaynağıyla yapılır (bkz. src/routes/platform.js'teki AYNI kural — ayrı bir
+// predicate yazmak listede görünen kümeden sapan bir bağlantı listesi üretirdi).
+async function loadHubPool(env, pathname) {
+  if (pathname === '/proje') return fetchActiveProjectPoolCached(env, 'built');
+  if (pathname === '/kisi') return fetchArchitectPool(env);
+  if (pathname === '/urun') return fetchProductPool(env);
+  if (pathname === '/firma' || pathname === '/marka') {
+    const offices = await fetchOfficePool(env);
+    const { isBrandOffice, isPureBrandOffice } = officeKindJs;
+    return pathname === '/marka'
+      ? offices.filter(o => isBrandOffice(o.cats, o.productCount))
+      : offices.filter(o => !isPureBrandOffice(o.cats, o.productCount));
+  }
+  return [];
 }
 
 function injectMeta(response, meta) {
